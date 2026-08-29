@@ -1,4 +1,4 @@
-const { cors, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner, publicPerson } = require("./_lib");
+const { cors, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner, publicPerson, ensureRules } = require("./_lib");
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -22,6 +22,7 @@ module.exports = async function handler(req, res) {
         model: row.model
       },
       people: (row.people || []).map(publicPerson),
+      rules: ensureRules(row),
       counts: {
         waiting: jobs.filter((j) => j.status === "exception").length,
         held: jobs.filter((j) => j.status === "held").length,

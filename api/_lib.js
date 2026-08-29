@@ -301,12 +301,24 @@ function catalog() {
   }));
 }
 
+const SEED_RULE_TEXT = "Payments over $250 wait for the owner.";
+const RULE_TEXT_MAX = 140;
+const RULE_MAX = 8;
+const RULE_FORBID = /auto[-\s]?pay|auto[-\s]?list|auto[-\s]?ship|auto[-\s]?release|un-?\s?kill|skip\s+(the\s+)?(kill|payout|pay\b|named\s+outbound|live\s+list|outbound|\$?250)|live\s+list|mark\s+ebay|ebay\s+live|set\s+ebay|go\s+live\s+on\s+ebay/;
+const RULE_FORBID_MSG = "Hard stops still win. A rule cannot skip payout, Kill, a live list, or named outbound. It cannot auto-pay, auto-list, or un-kill junk.";
+
+function scrubLog(s) {
+  return String(s == null ? "" : s)
+    .replace(/x-pin["'\s:=]+[^,\s]+/ig, "x-pin:[redacted]")
+    .replace(/\bpin["'\s:=]+\d+/ig, "pin:[redacted]");
+}
+
 function log(agent, action, result, workspace) {
   mem.audit.unshift({
     t: new Date().toISOString(),
-    agent,
-    action,
-    result,
+    agent: scrubLog(agent),
+    action: scrubLog(action),
+    result: scrubLog(result),
     workspace: workspace || null,
     undo: result === "OK"
   });
@@ -367,6 +379,76 @@ function isOwner(person) {
   return !!(person && person.role === "owner");
 }
 
+function publicRule(r) {
+  if (!r) return null;
+  return {
+    id: r.id,
+    text: r.text,
+    seed: !!r.seed,
+    attach: "qualify"
+  };
+}
+
+function seedRuleRow(createdAt) {
+  return {
+    id: "rule_seed_250",
+    text: SEED_RULE_TEXT,
+    seed: true,
+    attach: "qualify",
+    createdAt: createdAt || new Date().toISOString()
+  };
+}
+
+function defaultRules() {
+  return [publicRule(seedRuleRow())];
+}
+
+function forbiddenRule(text) {
+  return RULE_FORBID.test(String(text || "").toLowerCase());
+}
+
+function ensureRules(ws) {
+  if (!ws) return [];
+  if (!Array.isArray(ws.rules)) ws.rules = [seedRuleRow(ws.createdAt)];
+  return ws.rules.map(publicRule).filter(Boolean);
+}
+
+function addWorkspaceRule(ws, text, person) {
+  if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
+  if (!Array.isArray(ws.rules)) ensureRules(ws);
+  const clean = String(text || "").trim().replace(/\s+/g, " ");
+  if (clean.length < 4) return { ok: false, error: "Type a small wait-for-owner line." };
+  if (clean.length > RULE_TEXT_MAX) return { ok: false, error: "Keep the rule short." };
+  if (forbiddenRule(clean)) return { ok: false, error: RULE_FORBID_MSG };
+  if ((ws.rules || []).some((r) => r && r.text === clean)) {
+    return { ok: false, error: "That rule is already on this desk." };
+  }
+  if ((ws.rules || []).length >= RULE_MAX) {
+    return { ok: false, error: "This desk has enough rules." };
+  }
+  const rule = {
+    id: "rule_" + Date.now().toString(36),
+    text: clean,
+    seed: false,
+    attach: "qualify",
+    createdAt: new Date().toISOString(),
+    by: (person && person.name) || "owner"
+  };
+  ws.rules.push(rule);
+  return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
+}
+
+function removeWorkspaceRule(ws, id) {
+  if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
+  if (!Array.isArray(ws.rules)) ws.rules = [];
+  const key = String(id || "");
+  if (!key) return { ok: false, error: "Pick a rule to remove." };
+  const before = ws.rules.length;
+  ws.rules = ws.rules.filter((r) => r && r.id !== key);
+  if (ws.rules.length === before) return { ok: false, error: "Rule not found." };
+  return { ok: true, rules: ws.rules.map(publicRule).filter(Boolean) };
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     if (req.body && typeof req.body === "object") return resolve(req.body);
@@ -382,5 +464,7 @@ function readBody(req) {
 module.exports = {
   PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
-  ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, PERSIST_TEST_DROP
+  ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, PERSIST_TEST_DROP,
+  SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
+  addWorkspaceRule, removeWorkspaceRule, forbiddenRule, seedRuleRow, scrubLog
 };

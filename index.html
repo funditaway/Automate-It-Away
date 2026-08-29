@@ -23,7 +23,7 @@
     .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:center}
     h1{font-size:clamp(1.7rem,4.6vw,2.7rem);color:var(--heading);line-height:1.15;margin:0 0 10px}
     .lead{color:var(--muted);font-size:1.05rem;max-width:36rem;margin:0 0 16px}
-    .hero img{width:100%;border-radius:16px;border:1px solid var(--line);display:block}
+    .hero-shot{min-height:180px;display:flex;flex-direction:column;justify-content:flex-end}
     .btn{display:inline-block;margin:6px 8px 0 0;padding:12px 16px;border-radius:10px;font-weight:700}
     .primary{background:var(--orange);color:#fff}
     .outline{border:1px solid var(--teal);color:var(--teal)}
@@ -33,8 +33,11 @@
     .card{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card)}
     .card b{display:block;color:var(--heading);margin-bottom:6px}
     .card p,.card span{color:var(--muted);font-size:14px;margin:0}
+    .card.hero-shot{background:linear-gradient(135deg,#0f7f7f,#0d6b6b)!important;color:#fff;border:0}
+    .card.hero-shot b{color:#fff}
+    .card.hero-shot p,.card.hero-shot span{color:rgba(255,255,255,.9)}
+    .hero-shot .go{display:inline-block;margin-top:10px;background:var(--orange);color:#fff;border-radius:9px;padding:8px 10px;font-weight:700;font-size:14px}
     .people{padding:0 5vw 28px}
-    .people img{width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin-bottom:12px}
     .who{padding:0 5vw 32px}
     footer{padding:22px 5vw;color:var(--muted);font-size:14px}
     footer a{color:var(--teal)}
@@ -61,7 +64,11 @@
       <a class="btn primary" href="onboard.html">Open your shop</a>
       <a class="btn outline" href="how.html">See it on your work</a>
     </div>
-    <img src="img/owner-desk.jpg" alt="Shop owner at a service counter showing yes or no on her phone.">
+    <div class="card hero-shot">
+      <b>Yes or no</b>
+      <p>The desk writes the next step. You press Send or Stop.</p>
+      <span class="go">Send · Stop</span>
+    </div>
   </div>
 </section>
 <section class="why">
@@ -78,7 +85,6 @@
 <section class="people">
   <div class="wrap">
     <h2>Regular life</h2>
-    <img src="img/life.jpg" alt="A family at the kitchen table with a school form, a to-do list, and yes or no on the phone.">
     <div class="grid">
       <div class="card"><b>The house</b><span>Oil change. Lawn guy. Dentist for the kids. One list, one yes or no.</span></div>
       <div class="card"><b>School week</b><span>Permission form lands. Reminder goes out once. Then it stops.</span></div>
@@ -90,7 +96,6 @@
 <section class="people">
   <div class="wrap">
     <h2>Same desk at work</h2>
-    <img src="img/shops.jpg" alt="HVAC tech, dental front desk, and insurance office using the same queue.">
     <div class="grid">
       <div class="card"><b>Service shop</b><span>Missed call. Photo of the job. Estimate ready for yes or no.</span></div>
       <div class="card"><b>Front desk</b><span>Recall due. Confirm the visit. One reminder, then it stops.</span></div>

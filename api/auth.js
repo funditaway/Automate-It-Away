@@ -1,6 +1,6 @@
 const {
   cors, mem, log, save, ready, slugify, hashPin, workspaceOf, readBody,
-  ensurePeople, publicPerson, personOf, isOwner
+  ensurePeople, publicPerson, personOf, isOwner, ensureRules
 } = require("./_lib");
 
 function publicWorkspace(row) {
@@ -10,7 +10,8 @@ function publicWorkspace(row) {
     biz: row.biz,
     city: row.city,
     model: row.model,
-    people: (row.people || []).map(publicPerson)
+    people: (row.people || []).map(publicPerson),
+    rules: ensureRules(row)
   };
 }
 
@@ -26,11 +27,14 @@ module.exports = async function handler(req, res) {
     if (req.headers["x-pin"] && !person) {
       return res.status(401).json({ ok: false, error: "Bad pin" });
     }
-    return res.status(200).json({
+    const first = !Array.isArray(row.rules);
+    const body = {
       ok: true,
       workspace: publicWorkspace(row),
       you: publicPerson(person)
-    });
+    };
+    if (first) await save();
+    return res.status(200).json(body);
   }
 
   if (req.method === "POST") {
@@ -120,6 +124,7 @@ module.exports = async function handler(req, res) {
         people: []
       };
       ensurePeople(row);
+      ensureRules(row);
       row.people[0].name = body.name || "Owner";
       row.people[0].email = body.email || "";
       mem.workspaces.unshift(row);

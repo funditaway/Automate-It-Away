@@ -12,9 +12,14 @@
   ],
   "redirects": [
     { "source": "/dashboard", "destination": "/desk", "permanent": true },
-    { "source": "/dashboard.html", "destination": "/desk.html", "permanent": true }
+    { "source": "/dashboard.html", "destination": "/desk.html", "permanent": true },
+    { "source": "/people", "destination": "/admin", "permanent": true },
+    { "source": "/people.html", "destination": "/admin", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/people", "destination": "/admin.html" },
+    { "source": "/favicon.ico", "destination": "/favicon.svg" },
+    { "source": "/apple-touch-icon.png", "destination": "/favicon.svg" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
     { "source": "/api/health", "destination": "/api/health" },
@@ -23,6 +28,7 @@
     { "source": "/api/upload", "destination": "/api/upload" },
     { "source": "/api/admin", "destination": "/api/admin" },
     { "source": "/api/intake", "destination": "/api/intake" },
-    { "source": "/api/hook", "destination": "/api/hook" }
+    { "source": "/api/hook", "destination": "/api/hook" },
+    { "source": "/api/rules", "destination": "/api/rules" }
   ]
 }

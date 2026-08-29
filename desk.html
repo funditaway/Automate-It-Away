@@ -47,6 +47,10 @@
     .talk div{margin:0 0 6px}
     .talk b{color:var(--heading)}
     .recs li{margin:0 0 4px;font-size:13px;color:var(--muted)}
+    #rules{list-style:none;padding:0;margin:8px 0 0}
+    #rules li{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 6px;font-size:13px;color:var(--muted)}
+    #rules li span{flex:1}
+    #rules .kill{padding:4px 8px;font-size:12px}
     @media(max-width:640px){.kpis{grid-template-columns:1fr}}
   </style>
 </head>
@@ -82,6 +86,16 @@
       <button class="go" type="button" onclick="openCapture()">Drop something in</button>
       <button class="edit" type="button" onclick="load()">Refresh</button>
     </div>
+    <div class="item" id="rules-box">
+      <h3>Owner rules</h3>
+      <p>Wait for the owner. You add the line.</p>
+      <ul id="rules"></ul>
+      <div class="row" id="rule-add" hidden style="margin-top:8px">
+        <input id="rule-text" placeholder="Ask me if …" maxlength="140" style="flex:1">
+        <button class="edit" type="button" onclick="addRule()">Add a rule</button>
+      </div>
+      <p class="meta" id="rule-hint">Hard stops still win. A rule cannot auto-pay, auto-list, or un-kill junk.</p>
+    </div>
     <div id="queue"></div>
     <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
     <div id="recent"></div>
@@ -97,6 +111,7 @@
     let youName = localStorage.getItem("aia_name") || "";
     let JOBS = [];
     let FIELDS = [];
+    let RULES = [];
     function headers() {
       const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || localStorage.getItem("aia_ws") || "demo" };
       const pin = pinEl.value || localStorage.getItem("aia_pin");
@@ -117,6 +132,35 @@
       document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + shop + (role === "employee" ? " · helper" : role === "owner" ? " · owner" : "");
     }
     function unlock() { localStorage.removeItem("aia_pin"); pinEl.value = ""; paintGate(); }
+    function paintRules(rules, canEdit) {
+      const list = document.getElementById("rules");
+      const rows = rules || [];
+      list.innerHTML = rows.map((r) =>
+        "<li><span>" + esc(r.text) + "</span>" +
+        (canEdit ? "<button class=\"kill\" type=\"button\" onclick=\"removeRule('" + esc(r.id) + "')\">Remove</button>" : "") +
+        "</li>"
+      ).join("") || "<li><span class=\"meta\">No owner lines yet.</span></li>";
+      document.getElementById("rule-add").hidden = !canEdit;
+      document.getElementById("rule-hint").textContent = "Hard stops still win. A rule cannot auto-pay, auto-list, or un-kill junk.";
+    }
+    async function addRule() {
+      const text = ((document.getElementById("rule-text") || {}).value || "").trim();
+      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ text }) });
+      if (out.status >= 400) {
+        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not add that line.";
+        return;
+      }
+      document.getElementById("rule-text").value = "";
+      load();
+    }
+    async function removeRule(id) {
+      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ action: "remove", id }) });
+      if (out.status >= 400) {
+        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not remove that line.";
+        return;
+      }
+      load();
+    }
     function showConsignNav(model) {
       const el = document.getElementById("nav-consign");
       if (!el) return;
@@ -155,8 +199,11 @@
         const auth = await api("/api/auth");
         if (auth.data && auth.data.you && auth.data.you.role) { role = auth.data.you.role; youName = auth.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
         if (auth.data && auth.data.workspace && auth.data.workspace.model) { localStorage.setItem("aia_model", auth.data.workspace.model); showConsignNav(auth.data.workspace.model); } else showConsignNav();
+        const rulesOut = await api("/api/rules");
+        RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || jobs.data.rules || [];
+        paintRules(RULES, !!(rulesOut.data && rulesOut.data.canAdd));
         paintGate();
-      } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; showConsignNav(); }
+      } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintRules([], false); showConsignNav(); }
       const waiting = JOBS.filter(j => j.status === "exception");
       const held = JOBS.filter(j => j.status === "held");
       const shipped = JOBS.filter(j => j.status === "shipped");

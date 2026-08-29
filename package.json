@@ -1,6 +1,9 @@
 {
   "name": "automate-it-away",
   "private": true,
+  "scripts": {
+    "test": "node scripts/check-desk-rules.js"
+  },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.0"
