@@ -1,0 +1,14 @@
+{
+  "id": "consign",
+  "name": "Consignment & resale",
+  "family": "Consign It Away",
+  "capture": ["photo", "walk-in", "widget"],
+  "qualify": ["comps band", "sellable condition", "title present"],
+  "do": ["title", "price draft", "channel listing"],
+  "collect": ["payout on sale"],
+  "follow": ["sold notice", "pickup", "review"],
+  "taps": ["price when comps disagree", "payout"],
+  "kill": ["stolen / no title / unsellable"],
+  "pipes": ["ebay", "square", "consign"],
+  "artifacts": ["listing", "payout memo"]
+}

@@ -1,21 +1,10 @@
-const { cors, catalog, PROVIDERS, configured, mem, log } = require("./_lib");
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    if (req.body && typeof req.body === "object") return resolve(req.body);
-    let raw = "";
-    req.on("data", (c) => (raw += c));
-    req.on("end", () => {
-      if (!raw) return resolve({});
-      try { resolve(JSON.parse(raw)); } catch (e) { reject(e); }
-    });
-  });
-}
+const { cors, catalog, PROVIDERS, configured, mem, log, save, workspaceOf, readBody } = require("./_lib");
 
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  const workspace = req.headers["x-workspace"] || req.query.workspace || "demo";
+
+  const workspace = workspaceOf(req);
 
   if (req.method === "GET") {
     return res.status(200).json({
@@ -37,16 +26,18 @@ module.exports = async function handler(req, res) {
       provider,
       label: PROVIDERS[provider].label,
       live: configured(provider),
+      status: provider === "whatnot" ? "down" : configured(provider) ? "live" : "hold",
       hook: body.hook || null,
       createdAt: new Date().toISOString()
     };
     mem.connections.unshift(row);
-    log("Pipe", "Connected " + provider + " · " + workspace, row.live ? "OK" : "Held");
+    save();
+    log("Pipe", "Connected " + provider + " · " + workspace, row.live ? "OK" : "Held", workspace);
     return res.status(201).json({
       ok: true,
       connection: row,
       next: row.live
-        ? "Ready to receive POST /api/jobs ship"
+        ? "Ready for POST /api/jobs action=ship"
         : "Add env keys, then reconnect. Catalog says which keys."
     });
   }
@@ -55,7 +46,8 @@ module.exports = async function handler(req, res) {
     const id = req.query.id;
     const before = mem.connections.length;
     mem.connections = mem.connections.filter((c) => !(c.id === id && c.workspace === workspace));
-    log("Pipe", "Disconnected " + id, "OK");
+    save();
+    log("Pipe", "Disconnected " + id, "OK", workspace);
     return res.status(200).json({ ok: true, removed: before !== mem.connections.length });
   }
 
