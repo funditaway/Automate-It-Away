@@ -32,11 +32,11 @@
 <body>
   <header>
     <a class="brand" href="index.html"><span class="mark">⚡</span>Automate It Away</a>
-    <a href="dashboard.html">Dashboard</a>
+    <a href="desk.html">Desk</a>
   </header>
   <main class="wrap">
     <h1>Capture widget</h1>
-    <p class="sub">Lives on any shop’s site. Photo, form, or “call me back” drops into that workspace’s Inbox.</p>
+    <p class="sub">Photo hits /api/upload first. Job keeps photoUrl. Durable after Blob token.</p>
     <div class="grid">
       <div class="card" id="preview">
         <strong style="color:var(--teal-900)">Send it in. We’ll handle the rest.</strong>
@@ -51,8 +51,33 @@
         <input id="who" placeholder="Taylor">
         <label>Phone or email</label>
         <input id="how" placeholder="417-555-0100">
+        <label>Photo or PDF</label>
+        <input id="photo" type="file" accept="image/*,application/pdf">
         <label>Notes</label>
         <textarea id="note" rows="3" placeholder="Lamp, needs pickup Thursday"></textarea>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--teal-900)">Advanced fields</summary>
+          <label>Pack</label>
+          <select id="pack"><option value="consign">Consign</option><option value="vita">Vita</option><option value="fund">Fund</option><option value="land">Land</option></select>
+          <label>Channel</label>
+          <select id="provider"><option>webhook</option><option>ebay</option><option>square</option><option>consign</option><option>sms</option><option>calendar</option></select>
+          <label>Ask / amount</label>
+          <input id="amount" inputmode="decimal" placeholder="85">
+          <label>Condition</label>
+          <select id="condition"><option value="">Unknown</option><option>sellable</option><option>needs work</option><option>unsellable</option></select>
+          <label>Title present</label>
+          <select id="titlePresent"><option value="">Unknown</option><option>yes</option><option>no</option></select>
+          <label>Comps low</label>
+          <input id="compsLow" inputmode="decimal" placeholder="140">
+          <label>Comps high</label>
+          <input id="compsHigh" inputmode="decimal" placeholder="160">
+          <label>Risk</label>
+          <select id="risk"><option value="none">none</option><option>price</option><option>title</option><option>flood</option><option>suitability</option><option>credit</option><option>same-day</option><option>legal</option></select>
+          <label>Timing</label>
+          <input id="timing" placeholder="Pickup Thursday">
+          <label>Payout to</label>
+          <input id="payoutTo" placeholder="Sarah K.">
+        </details>
         <button type="button" onclick="send()">Send to inbox</button>
         <p class="ok" id="ok">Landed in the workspace Inbox.</p>
       </div>
@@ -74,9 +99,42 @@
       const item = {
         kind: document.getElementById("kind").value,
         from: "Widget · " + (document.getElementById("who").value || "guest"),
-        text: document.getElementById("note").value || document.getElementById("how").value || "New capture"
+        contactName: document.getElementById("who").value,
+        phone: document.getElementById("how").value,
+        text: document.getElementById("note").value || document.getElementById("how").value || "New capture",
+        notes: document.getElementById("note").value,
+        pack: document.getElementById("pack").value,
+        provider: document.getElementById("provider").value,
+        amount: document.getElementById("amount").value,
+        ask: document.getElementById("amount").value,
+        condition: document.getElementById("condition").value,
+        titlePresent: document.getElementById("titlePresent").value,
+        compsLow: document.getElementById("compsLow").value,
+        compsHigh: document.getElementById("compsHigh").value,
+        risk: document.getElementById("risk").value,
+        timing: document.getElementById("timing").value,
+        payoutTo: document.getElementById("payoutTo").value,
+        photoUrl: null
       };
       const ok = document.getElementById("ok");
+      const file = document.getElementById("photo").files[0];
+      if (file) {
+        if (file.size > 3500000) { ok.textContent = "Photo over 3.5MB."; ok.style.display = "block"; return; }
+        const data = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+        const up = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Workspace": localStorage.getItem("aia_ws") || "consign-it-away" },
+          body: JSON.stringify({ name: file.name, type: file.type, data })
+        });
+        const saved = await up.json();
+        if (!up.ok) { ok.textContent = saved.error || "Upload failed"; ok.style.display = "block"; return; }
+        item.photoUrl = saved.photoUrl;
+      }
       try {
         if (window.AIA) await AIA.capture(item);
         else {
@@ -84,7 +142,7 @@
           box.unshift({ id: Date.now(), ...item });
           localStorage.setItem("aia_inbox", JSON.stringify(box));
         }
-        ok.textContent = "Landed in the workspace queue.";
+        ok.textContent = item.photoUrl ? "Photo stored. Job in queue." : "Landed in the workspace queue.";
       } catch (e) {
         ok.textContent = "Saved on this device. API not on this host.";
       }
