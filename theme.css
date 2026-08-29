@@ -60,17 +60,17 @@ input, select, textarea {
 }
 #nav-consign[hidden] { display: none; }
 #nav-consign:not([hidden])::after { content: " · "; }
-body.has-desk-nav { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+body.has-desk-nav { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 #desk-nav {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 15;
+  z-index: 40;
   display: flex;
   background: #0d6b6b;
   color: #fff;
-  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 4px calc(14px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -6px 20px rgba(10, 79, 79, .22);
 }
 #desk-nav a, #desk-nav button {
@@ -85,21 +85,25 @@ body.has-desk-nav { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)
   gap: 3px;
   border: 0;
   background: transparent;
-  color: rgba(255, 255, 255, .84);
-  font: 700 11px/1.1 system-ui, "Segoe UI", sans-serif;
+  color: rgba(255, 255, 255, .92);
+  font: 700 12px/1.1 system-ui, "Segoe UI", sans-serif;
   letter-spacing: .02em;
   text-decoration: none;
   cursor: pointer;
 }
 #desk-nav a.on, #desk-nav button.on { color: var(--orange, #f39c12); }
 #desk-nav svg { width: 22px; height: 22px; display: block; }
-@media (max-width: 720px) {
-  body.has-desk-nav header span { font-size: 0; }
-  body.has-desk-nav header span a { display: none; }
-  body.has-desk-nav header span .theme-btn,
-  body.has-desk-nav header span button { font-size: 12px; }
-  body.has-desk-nav header > a + a { display: none; }
+.desk-tabs {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 10px;
+  padding-top: 8px;
+  font: 700 13px/1.2 system-ui, "Segoe UI", sans-serif;
 }
+.desk-tabs a { color: #fff; }
+.desk-tabs a.on { color: var(--orange, #f39c12); }
 html.dark body { background: var(--bg) !important; color: var(--ink) !important; }
 html.dark .hero { background: var(--bg-soft) !important; }
 html.dark .card, html.dark .kpi, html.dark .item, html.dark .sheet-card {

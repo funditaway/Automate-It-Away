@@ -10,7 +10,8 @@ const rulesHandler = require("../api/rules");
 const jobsHandler = require("../api/jobs");
 const {
   mem, hashPin, ensurePeople, ensureRules,
-  SEED_RULE_TEXT, forbiddenRule, ready, save
+  SEED_RULE_TEXT, forbiddenRule, ready, save,
+  dropPersistTests, isPersistTestJob
 } = lib;
 
 function fail(msg) {
@@ -49,6 +50,24 @@ async function call(handler, method, headers, body, query) {
 
 async function main() {
   await ready();
+
+  const oil = { id: "job_mtenqutb", workspace: "consign-it-away", title: "Oil change " };
+  const dresser = { id: "job_realdesk", workspace: "consign-it-away", title: "Oak dresser" };
+  const tests = [
+    { id: "job_mtemdqeq", workspace: "p1-synth", title: "TEST lot 1" },
+    { id: "job_newids", workspace: "P1 Synth", title: "TEST lot 2" },
+    { id: "job_lot3", workspace: "p1-scratch", title: "TEST lot 3" }
+  ];
+  mem.jobs = tests.concat([oil, dresser]);
+  if (!isPersistTestJob(tests[0]) || !isPersistTestJob(tests[1]) || !isPersistTestJob(tests[2])) {
+    fail("TEST lots should splice by id or title");
+  } else pass("TEST lots marked for splice");
+  if (isPersistTestJob(oil) || isPersistTestJob(dresser)) fail("Oil change / real consign job must stay");
+  else pass("Oil change and real consign job kept");
+  dropPersistTests();
+  const left = (mem.jobs || []).map((j) => j.id).sort();
+  if (left.join(",") !== "job_mtenqutb,job_realdesk") fail("splice left " + left.join(","));
+  else pass("splice drops TEST lots only");
 
   const slug = "rules-shop";
   const ownerPin = "4821";

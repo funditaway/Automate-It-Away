@@ -37,16 +37,15 @@
 
   function paintOn() {
     var on = tabOf();
-    document.querySelectorAll("#desk-nav [data-tab]").forEach(function (el) {
+    document.querySelectorAll("#desk-nav [data-tab], .desk-tabs [data-tab]").forEach(function (el) {
       el.classList.toggle("on", el.getAttribute("data-tab") === on);
     });
   }
 
-  function wireHrefs(root) {
-    var drop = (root || document).querySelector("#desk-nav [data-tab=\"drop\"], #drop-go");
-    if (drop && drop.tagName === "A") drop.setAttribute("href", dropHref());
-    document.querySelectorAll("#drop-go").forEach(function (el) {
-      if (el.tagName === "A") el.setAttribute("href", dropHref());
+  function wireHrefs() {
+    var href = dropHref();
+    document.querySelectorAll("#desk-nav [data-tab=\"drop\"], #drop-go, #head-drop, .desk-tabs [data-tab=\"drop\"]").forEach(function (el) {
+      if (el && el.tagName === "A") el.setAttribute("href", href);
     });
   }
 
@@ -55,14 +54,33 @@
     var css = document.createElement("style");
     css.id = "desk-nav-css";
     css.textContent =
-      "body.has-desk-nav{padding-bottom:calc(68px + env(safe-area-inset-bottom,0px))}" +
-      "#desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;background:#0d6b6b;color:#fff;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}" +
-      "#desk-nav a{flex:1;width:auto;margin:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:rgba(255,255,255,.84);font:700 11px/1.1 system-ui,Segoe UI,sans-serif;letter-spacing:.02em;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}" +
+      "body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}" +
+      ".desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,Segoe UI,sans-serif}" +
+      ".desk-tabs a{color:#fff;text-decoration:none}.desk-tabs a.on{color:#f39c12}" +
+      "#desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}" +
+      "#desk-nav a{flex:1;width:auto;margin:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,Segoe UI,sans-serif;letter-spacing:.02em;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}" +
       "#desk-nav a.on{color:#f39c12}" +
       "#desk-nav svg{width:22px;height:22px;display:block;pointer-events:none}" +
-      ".theme-btn{position:relative;z-index:2;pointer-events:auto}" +
-      "@media(max-width:720px){body.has-desk-nav header span{font-size:0}body.has-desk-nav header span a{display:none}body.has-desk-nav header span .theme-btn,body.has-desk-nav header span button{font-size:12px}body.has-desk-nav header>a+a{display:none}}";
+      ".theme-btn{position:relative;z-index:2;pointer-events:auto}";
     document.head.appendChild(css);
+  }
+
+  function ensureIcons(nav) {
+    TABS.forEach(function (t) {
+      var a = nav.querySelector("[data-tab=\"" + t.id + "\"]");
+      if (!a) return;
+      if (!a.querySelector("svg")) {
+        a.insertAdjacentHTML("afterbegin", svg(t.ico));
+      }
+    });
+  }
+
+  function liftNav() {
+    var nav = document.getElementById("desk-nav");
+    if (!nav || !window.visualViewport) return;
+    var vv = window.visualViewport;
+    var gap = Math.max(0, (window.innerHeight || 0) - vv.height - (vv.offsetTop || 0));
+    nav.style.bottom = gap ? gap + "px" : "0px";
   }
 
   function boot() {
@@ -81,11 +99,17 @@
       }).join("");
       document.body.appendChild(nav);
     } else {
-      wireHrefs(nav);
-      paintOn();
+      ensureIcons(nav);
     }
-    wireHrefs(document);
+    wireHrefs();
+    paintOn();
+    liftNav();
     window.addEventListener("hashchange", paintOn);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", liftNav);
+      window.visualViewport.addEventListener("scroll", liftNav);
+    }
+    window.addEventListener("resize", liftNav);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
