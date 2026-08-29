@@ -1,4 +1,5 @@
 const { cors, mem, log, save, ready, catalog, workspaceOf, readBody } = require("./_lib");
+const { qualifyJob } = require("./engine");
 
 const STEPS = [
   { id: "work", ask: "What do you do by hand every week that should run without you sitting on it?" },
@@ -38,7 +39,7 @@ function verdict(answers) {
   if (need.includes("whatnot")) blocked.push("Whatnot stays off.");
 
   const known =
-    /photo|consign|resale|list|ebay|payout|call|text|book|calendar|form|widget|website|queue|invoice|pickup/.test(blob);
+    /photo|consign|resale|list|ebay|payout|call|text|book|calendar|form|widget|website|queue|invoice|pickup|home|family|school|oil change|grocery|chore|reminder|house list/.test(blob);
 
   need.forEach((id) => {
     if (id === "whatnot") return;
@@ -169,6 +170,7 @@ module.exports = async function handler(req, res) {
       return res.status(409).json({ error: "This one is a request, not a live job.", intake: publicIntake(row) });
     }
     const title = row.answers.work || "Automation from desk chat";
+    const blob = String(title + " " + Object.values(row.answers).join(" ")).toLowerCase();
     const job = {
       id: "job_" + Date.now().toString(36),
       workspace,
@@ -179,8 +181,10 @@ module.exports = async function handler(req, res) {
       createdAt: new Date().toISOString(),
       log: ["Captured from desk chat"],
       notes: Object.values(row.answers).join(" · "),
-      from: "desk-chat"
+      from: "desk-chat",
+      pack: /school|home|family|oil change|grocery|chore|house/.test(blob) ? "home" : undefined
     };
+    qualifyJob(job);
     mem.jobs.unshift(job);
     row.jobId = job.id;
     row.messages.push({ from: "desk", text: "Job is in the queue as \u201c" + title + "\u201d. Open the desk to Send or Stop." });
