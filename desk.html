@@ -44,6 +44,7 @@
     <a href="index.html"><strong>Automate It Away</strong></a>
     <span>
       <a href="admin.html">People</a> ·
+      <a href="consign.html" id="nav-consign" hidden>Consign</a>
       <a href="widget.html">Drop box</a> ·
       <a href="help.html">Help</a> ·
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
@@ -82,6 +83,13 @@
       const data = await r.json().catch(() => ({}));
       return { status: r.status, data };
     }
+    function showConsignNav(model) {
+      const el = document.getElementById("nav-consign");
+      if (!el) return;
+      const blob = String(model || localStorage.getItem("aia_model") || "") + " " + (wsEl.value || "");
+      el.hidden = !/consign|resale/i.test(blob);
+      if (!el.hidden) el.insertAdjacentText("afterend", " · ");
+    }
     let JOBS = [];
     function labelStatus(s) {
       if (s === "exception") return "Needs you";
@@ -99,9 +107,15 @@
         banner.textContent = "You only tap what needs a person.";
         const jobs = await api("/api/jobs");
         JOBS = jobs.data.jobs || [];
+        const auth = await api("/api/auth");
+        if (auth.data && auth.data.workspace && auth.data.workspace.model) {
+          localStorage.setItem("aia_model", auth.data.workspace.model);
+          showConsignNav(auth.data.workspace.model);
+        } else showConsignNav();
       } catch (e) {
         banner.textContent = "Could not reach the desk.";
         JOBS = [];
+        showConsignNav();
       }
       document.getElementById("k-wait").textContent = JOBS.filter(j => j.status === "exception").length;
       document.getElementById("k-held").textContent = JOBS.filter(j => j.status === "held").length;
@@ -161,6 +175,7 @@
     }
     if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
     if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
+    showConsignNav();
     load();
   </script>
 </body>
