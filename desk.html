@@ -23,8 +23,8 @@
     .item h3{font-size:1rem;color:var(--heading)}
     .item p{color:var(--muted);font-size:13px;margin:4px 0 8px}
     .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-    button{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
-    .go{background:#119494;color:#fff}
+    button,a.go{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
+    .go{background:#119494;color:#fff;display:inline-block}
     .kill{background:var(--kill-bg);color:var(--kill-ink)}
     .edit{background:var(--edit);color:var(--edit-ink)}
     .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
@@ -83,9 +83,12 @@
       <button class="edit" type="button" onclick="load()">Open</button>
     </div>
     <div class="row" style="margin-bottom:8px">
-      <button class="go" type="button" onclick="openCapture()">Drop something in</button>
+      <a class="go" id="drop-go" href="/onboard">Drop something in</a>
       <button class="edit" type="button" onclick="load()">Refresh</button>
     </div>
+    <div id="queue"></div>
+    <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
+    <div id="recent"></div>
     <div class="item" id="rules">
       <h3>Owner rules</h3>
       <p>Wait for the owner. You add the line.</p>
@@ -96,13 +99,17 @@
       </div>
       <p class="meta" id="rule-hint">Hard stops still win. A rule cannot auto-pay, auto-list, or un-kill junk.</p>
     </div>
-    <div id="queue"></div>
-    <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
-    <div id="recent"></div>
   </main>
   <div class="sheet" id="sheet" onclick="if(event.target===this) this.classList.remove('on')">
     <div class="sheet-card" id="sheet-card"></div>
   </div>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><span>Queue</span></a>
+    <a href="/onboard" data-tab="drop" id="nav-drop"><span>Drop</span></a>
+    <a href="/desk#rules" data-tab="rules"><span>Rules</span></a>
+    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/help" data-tab="more"><span>More</span></a>
+  </nav>
   <script src="desk-card.js"></script>
   <script src="desk-nav.js"></script>
   <script>
@@ -131,8 +138,15 @@
       document.getElementById("session").hidden = !on;
       const shop = localStorage.getItem("aia_ws") || "demo";
       document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + shop + (role === "employee" ? " · helper" : role === "owner" ? " · owner" : "");
+      wireDrop();
     }
     function unlock() { localStorage.removeItem("aia_pin"); pinEl.value = ""; paintGate(); }
+    function wireDrop() {
+      const href = (localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin")) ? "/widget.html" : "/onboard";
+      document.querySelectorAll("#drop-go, #nav-drop, #desk-nav [data-tab=\"drop\"]").forEach((el) => {
+        if (el && el.tagName === "A") el.setAttribute("href", href);
+      });
+    }
     function paintRules(rules, canEdit) {
       const list = document.getElementById("rule-list");
       const rows = rules || [];

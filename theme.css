@@ -91,7 +91,10 @@ body.has-desk-nav { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)
 #desk-nav a.on, #desk-nav button.on { color: var(--orange, #f39c12); }
 #desk-nav svg { width: 22px; height: 22px; display: block; }
 @media (max-width: 720px) {
-  body.has-desk-nav header span a,
+  body.has-desk-nav header span { font-size: 0; }
+  body.has-desk-nav header span a { display: none; }
+  body.has-desk-nav header span .theme-btn,
+  body.has-desk-nav header span button { font-size: 12px; }
   body.has-desk-nav header > a + a { display: none; }
 }
 html.dark body { background: var(--bg) !important; color: var(--ink) !important; }
