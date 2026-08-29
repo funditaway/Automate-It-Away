@@ -43,7 +43,7 @@
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/widget.html" data-tab="drop">Drop</a>
-      <a href="/desk#rules" data-tab="rules">Rules</a>
+      <a href="/rules" data-tab="rules">Rules</a>
       <a href="/connections" data-tab="pipes">Pipes</a>
       <a href="/help" data-tab="more">More</a>
     </nav>
@@ -70,7 +70,7 @@
         <input id="photo" type="file" accept="image/*,application/pdf">
         <label>Notes</label>
         <textarea id="note" rows="3" placeholder="Lamp, needs pickup Thursday"></textarea>
-        <button type="button" onclick="send()">Send to the shop</button>
+        <button type="button" id="drop-send" onclick="send()">Send to the desk</button>
         <p class="ok" id="ok">In the queue.</p>
       </div>
       <div class="card">
@@ -84,7 +84,7 @@
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
     <a href="/widget.html" data-tab="drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
-    <a href="/desk#rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
+    <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
     <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
     <a href="/help" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
@@ -95,19 +95,40 @@
     const desk = AIADesks.captureDesk();
     if (!desk || !desk.slug) { location.replace("/onboard"); }
     const ws = desk && desk.slug;
+    const ruleId = (typeof URLSearchParams === "function" && new URLSearchParams(location.search).get("rule")) || "";
+    let NOUNS = AIADesks.nounsOf();
     function paintDrop() {
       if (!desk) return;
-      document.getElementById("drop-title").textContent = "Drop for " + (desk.name || desk.slug);
+      const cap = NOUNS.capture || "Capture";
+      const name = desk.name || desk.slug;
+      document.getElementById("drop-title").textContent = cap + " for " + name;
       document.getElementById("drop-sub").textContent = "This desk only.";
+      const send = document.getElementById("drop-send");
+      if (send) send.textContent = "Send to the desk";
       document.getElementById("embed").textContent =
-        '<iframe src="https://automateitaway.com/widget?ws=' + ws + '" title="Shop drop box" style="width:100%;height:420px;border:0;border-radius:14px"></iframe>';
+        '<iframe src="https://automateitaway.com/widget?ws=' + ws + '" title="' + cap + " for " + name + '" style="width:100%;height:420px;border:0;border-radius:14px"></iframe>';
     }
     paintDrop();
     if (desk) {
-      fetch("/api/auth", { headers: { "X-Workspace": ws } }).then((r) => r.json()).then((data) => {
-        if (data && data.workspace) {
-          desk.name = data.workspace.biz || data.workspace.name || desk.name;
-          paintDrop();
+      Promise.all([
+        fetch("/api/auth", { headers: { "X-Workspace": ws } }).then((r) => r.json()).catch(function () { return {}; }),
+        fetch("/api/jobs", { headers: { "X-Workspace": ws } }).then((r) => r.json()).catch(function () { return {}; })
+      ]).then(function (pair) {
+        const auth = pair[0] || {};
+        const jobs = pair[1] || {};
+        if (auth.workspace) {
+          desk.name = auth.workspace.biz || auth.workspace.name || desk.name;
+          if (auth.workspace.nouns) NOUNS = AIADesks.nounsOf(auth.workspace.nouns);
+        }
+        if (jobs.nouns) NOUNS = AIADesks.nounsOf(jobs.nouns);
+        const rules = (jobs.rules || (auth.workspace && auth.workspace.rules) || []);
+        const mine = ruleId && rules.find(function (r) { return r && r.id === ruleId; });
+        if (mine && mine.widget && mine.widget.label) {
+          document.getElementById("drop-sub").textContent = mine.widget.label + " · This desk only.";
+        }
+        paintDrop();
+        if (mine && mine.widget && mine.widget.label) {
+          document.getElementById("drop-sub").textContent = mine.widget.label + " · This desk only.";
         }
       }).catch(function () {});
     }

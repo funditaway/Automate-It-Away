@@ -1,4 +1,4 @@
-const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, MONEY_HOLD } = require("./engine");
 
@@ -71,12 +71,18 @@ module.exports = async function handler(req, res) {
       res.setHeader("Content-Disposition", "attachment; filename=\"" + job.id + ".ics\"");
       return res.status(200).send(body);
     }
-    if (shop) ensureRules(shop);
+    if (shop) {
+      ensureRules(shop);
+      ensureNouns(shop);
+    }
+    const rules = shop ? ensureRules(shop) : defaultRules();
     return res.status(200).json({
       workspace,
       you: person ? { name: person.name, role: person.role } : null,
       fields: ensureFields(shop),
-      rules: shop ? ensureRules(shop) : defaultRules(),
+      rules,
+      nouns: shop ? ensureNouns(shop) : defaultNouns(),
+      widgetsOn: widgetCount(rules),
       jobs: mem.jobs.filter((j) => j.workspace === workspace)
     });
   }

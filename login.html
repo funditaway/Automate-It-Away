@@ -31,8 +31,8 @@
   </header>
   <form class="card" id="form">
     <h1>Open this queue</h1>
-    <p>Shop name + your desk code. Owner and helper land on the same desk.</p>
-    <label>Shop name <span class="tip" title="The name you used when you opened the desk.">?</span></label>
+    <p>Desk name + your desk code. Owner and helper land on the same desk.</p>
+    <label>Desk name <span class="tip" title="The name you used when you opened the desk.">?</span></label>
     <input name="slug" required placeholder="automate-it-away" autocomplete="username">
     <label>Your desk code <span class="tip" title="Owner and helper each have their own code.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
@@ -55,16 +55,16 @@
           body: JSON.stringify({ action: "login", slug, pin })
         });
         const data = await r.json();
-        if (!r.ok) { err.textContent = data.error || "Shop name or code does not match."; err.style.display = "block"; return; }
-        const shop = (data && data.workspace) || {};
+        if (!r.ok) { err.textContent = data.error || "Desk name or code does not match."; err.style.display = "block"; return; }
+        const desk = (data && data.workspace) || {};
         AIADesks.open({
-          slug: shop.slug || slug,
-          name: shop.biz || shop.name || shop.slug || slug,
+          slug: desk.slug || slug,
+          name: desk.biz || desk.name || desk.slug || slug,
           pin: pin,
           role: (data.you && data.you.role) || ""
         });
         if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
-        if (shop.model) localStorage.setItem("aia_model", shop.model);
+        if (desk.model) localStorage.setItem("aia_model", desk.model);
         location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";

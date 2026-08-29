@@ -4,7 +4,7 @@ const { qualifyJob } = require("./engine");
 const STEPS = [
   { id: "work", ask: "What do you do by hand every week that should run without you sitting on it?" },
   { id: "in", ask: "How does the work show up? Photo, form, call, email, walk-in — say which." },
-  { id: "out", ask: "When it works, what should leave the shop? A listing, a text, a payout, a booking, something else?" },
+  { id: "out", ask: "When it works, what should leave the desk? A listing, a text, a payout, a booking, something else?" },
   { id: "tools", ask: "What do you already use? Square, eBay, calendar, texting, your own website, nothing yet." }
 ];
 
@@ -153,7 +153,7 @@ module.exports = async function handler(req, res) {
     if (v.can) {
       row.messages.push({
         from: "desk",
-        text: v.why + (pipeLine ? " Connections: " + pipeLine + "." : "") + " Open your shop and the first job lands in the queue."
+        text: v.why + (pipeLine ? " Connections: " + pipeLine + "." : "") + " Open your desk and the first job lands in the queue."
       });
     } else {
       row.messages.push({

@@ -55,7 +55,11 @@
     .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
     a.edit{display:inline-block}
     #desk-list button{width:auto;margin:4px 6px 0 0}
-    #gate[hidden],#session[hidden],#desk-switch[hidden],#rule-add[hidden],#nav-consign[hidden],#recent-label[hidden]{display:none!important}
+    #noun-fields{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0}
+    #noun-fields label{font-size:11px;font-weight:700;color:var(--heading);display:block;margin:0 0 4px}
+    #noun-fields input{width:100%}
+    #gate[hidden],#session[hidden],#desk-switch[hidden],#rule-add[hidden],#noun-save[hidden],#nav-consign[hidden],#recent-label[hidden]{display:none!important}
+    @media(max-width:640px){#noun-fields{grid-template-columns:1fr 1fr}}
     .talk{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
     .talk div{margin:0 0 6px}
     .talk b{color:var(--heading)}
@@ -77,7 +81,7 @@
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/onboard" data-tab="drop" id="head-drop">Drop</a>
-      <a href="/desk#rules" data-tab="rules">Rules</a>
+      <a href="/rules" data-tab="rules">Rules</a>
       <a href="/connections" data-tab="pipes">Pipes</a>
       <a href="/help" data-tab="more">More</a>
     </nav>
@@ -92,12 +96,12 @@
     <div class="lock" id="session" hidden>
       <span id="who-line"></span>
       <span>
-        <button class="edit" type="button" onclick="unlock()">Change shop</button>
+        <button class="edit" type="button" onclick="unlock()">Change desk</button>
         <a class="edit" href="/onboard">Open another</a>
       </span>
     </div>
     <div class="row" id="gate" style="margin-bottom:8px">
-      <input id="ws" placeholder="Shop name">
+      <input id="ws" placeholder="Desk name">
       <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
       <button class="edit" type="button" onclick="load()">Open</button>
     </div>
@@ -110,6 +114,9 @@
       <a class="go" id="drop-go" href="/onboard">Drop something in</a>
       <button class="edit" type="button" onclick="load()">Refresh</button>
     </div>
+    <p class="meta" id="step-words">Capture · Qualify · Do · Collect · Follow</p>
+    <p class="meta" id="widget-count">0 widgets on</p>
+    <div class="row" id="rule-widgets" style="margin-bottom:8px"></div>
     <div id="queue"></div>
     <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
     <div id="recent"></div>
@@ -117,11 +124,22 @@
       <h3>Owner rules</h3>
       <p>Wait for the owner. This desk only.</p>
       <ul id="rule-list"></ul>
-      <div class="row" id="rule-add" hidden style="margin-top:8px">
-        <input id="rule-text" placeholder="Ask me if …" maxlength="140" style="flex:1">
-        <button class="edit" type="button" onclick="addRule()">Add a rule</button>
+      <p class="meta"><a href="/rules">Open Rules</a> to add a line or turn a widget on.</p>
+    </div>
+    <div class="item" id="nouns">
+      <h3>Step words</h3>
+      <p>This desk only. Five short names.</p>
+      <div id="noun-fields">
+        <div><label for="noun-capture">Capture</label><input id="noun-capture" maxlength="24" placeholder="Capture"></div>
+        <div><label for="noun-qualify">Qualify</label><input id="noun-qualify" maxlength="24" placeholder="Qualify"></div>
+        <div><label for="noun-do">Do</label><input id="noun-do" maxlength="24" placeholder="Do"></div>
+        <div><label for="noun-collect">Collect</label><input id="noun-collect" maxlength="24" placeholder="Collect"></div>
+        <div><label for="noun-follow">Follow</label><input id="noun-follow" maxlength="24" placeholder="Follow"></div>
       </div>
-      <p class="meta" id="rule-hint">Hard stops still win. A rule cannot auto-pay, auto-list, or un-kill junk.</p>
+      <div class="row" id="noun-save" hidden>
+        <button class="edit" type="button" onclick="saveNouns()">Save words</button>
+      </div>
+      <p class="meta" id="noun-hint">Owner desk code required to save.</p>
     </div>
   </main>
   <div class="sheet" id="sheet" onclick="if(event.target===this) this.classList.remove('on')">
@@ -130,7 +148,7 @@
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
     <a href="/onboard" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
-    <a href="/desk#rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
+    <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
     <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
     <a href="/help" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
@@ -145,6 +163,7 @@
     let JOBS = [];
     let FIELDS = [];
     let RULES = [];
+    let NOUNS = AIADesks.nounsOf();
     function workspaceSlug() {
       return AIADesks.slugify(wsEl.value || localStorage.getItem("aia_ws") || "");
     }
@@ -218,33 +237,53 @@
         role: role || localStorage.getItem("aia_role") || ""
       });
     }
-    function paintRules(rules, canEdit) {
+    function paintNouns(nouns, canEdit) {
+      NOUNS = AIADesks.nounsOf(nouns);
+      ["capture", "qualify", "do", "collect", "follow"].forEach((k) => {
+        const el = document.getElementById("noun-" + k);
+        if (el) el.value = NOUNS[k];
+      });
+      const strip = document.getElementById("step-words");
+      if (strip) strip.textContent = [NOUNS.capture, NOUNS.qualify, NOUNS.do, NOUNS.collect, NOUNS.follow].join(" · ");
+      const save = document.getElementById("noun-save");
+      if (save) save.hidden = !canEdit;
+    }
+    function paintWidgets(rules) {
+      const on = (rules || []).filter((r) => r && r.widget && r.widget.on);
+      const count = document.getElementById("widget-count");
+      if (count) count.textContent = on.length === 1 ? "1 widget on" : on.length + " widgets on";
+      const box = document.getElementById("rule-widgets");
+      if (!box) return;
+      const ws = workspaceSlug();
+      const cap = NOUNS.capture || "Capture";
+      box.innerHTML = on.map((r) => {
+        const label = (r.widget && r.widget.label) || cap;
+        const href = ws ? "/widget.html?ws=" + encodeURIComponent(ws) + "&rule=" + encodeURIComponent(r.id) : "/onboard";
+        return "<a class=\"go\" href=\"" + href + "\">" + esc(label) + "</a>";
+      }).join("");
+    }
+    function paintRules(rules) {
       const list = document.getElementById("rule-list");
       const rows = rules || [];
       list.innerHTML = rows.map((r) =>
-        "<li><span>" + esc(r.text) + "</span>" +
-        (canEdit ? "<button class=\"kill\" type=\"button\" onclick=\"removeRule('" + esc(r.id) + "')\">Remove</button>" : "") +
-        "</li>"
+        "<li><span>" + esc(r.text) + ((r.widget && r.widget.on) ? " · widget on" : "") + "</span></li>"
       ).join("") || "<li><span class=\"meta\">No owner lines yet.</span></li>";
-      document.getElementById("rule-add").hidden = !canEdit;
-      document.getElementById("rule-hint").textContent = "Hard stops still win. A rule cannot auto-pay, auto-list, or un-kill junk.";
+      paintWidgets(rows);
     }
-    async function addRule() {
-      const text = ((document.getElementById("rule-text") || {}).value || "").trim();
-      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ text }) });
+    async function saveNouns() {
+      const nouns = {
+        capture: (document.getElementById("noun-capture") || {}).value,
+        qualify: (document.getElementById("noun-qualify") || {}).value,
+        do: (document.getElementById("noun-do") || {}).value,
+        collect: (document.getElementById("noun-collect") || {}).value,
+        follow: (document.getElementById("noun-follow") || {}).value
+      };
+      const out = await api("/api/auth", { method: "POST", body: JSON.stringify({ action: "nouns", nouns }) });
       if (out.status >= 400) {
-        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not add that line.";
+        document.getElementById("noun-hint").textContent = (out.data && out.data.error) || "Could not save those words.";
         return;
       }
-      document.getElementById("rule-text").value = "";
-      load();
-    }
-    async function removeRule(id) {
-      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ action: "remove", id }) });
-      if (out.status >= 400) {
-        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not remove that line.";
-        return;
-      }
+      document.getElementById("noun-hint").textContent = "Saved. This desk only.";
       load();
     }
     function showConsignNav(model) {
@@ -266,7 +305,7 @@
     function card(j, staff) {
       const money = Number(j.amount || j.ask || 0);
       const sendLabel = money ? "Send $" + money : "Send";
-      return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(j.step || "Qualify")}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}<p>${esc(j.why || "")}</p>${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(j.next || "Send or Stop.")}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">${sendLabel}</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
+      return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}<p>${esc(j.why || "")}</p>${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(j.next || "Send or Stop.")}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">${sendLabel}</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
     }
     async function load() {
       if (wsEl.value) {
@@ -281,8 +320,9 @@
         banner.textContent = "Name this desk. Open it.";
         JOBS = [];
         RULES = [];
-        paintRules([], false);
-        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">Empty is honest. Switch desks, don't clone the app.</p>`;
+        paintNouns(AIADesks.defaultNouns(), false);
+        paintRules([]);
+        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">This queue is empty.</p>`;
         showConsignNav();
         return;
       }
@@ -297,18 +337,22 @@
         if (jobs.data.you && jobs.data.you.role) { role = jobs.data.you.role; youName = jobs.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
         const auth = await api("/api/auth");
         if (auth.data && auth.data.you && auth.data.you.role) { role = auth.data.you.role; youName = auth.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
+        if (jobs.data && jobs.data.nouns) NOUNS = AIADesks.nounsOf(jobs.data.nouns);
         if (auth.data && auth.data.workspace) {
           const w = auth.data.workspace;
           if (w.biz || w.name) localStorage.setItem("aia_desk_name", w.biz || w.name);
           if (w.model) localStorage.setItem("aia_model", w.model);
+          if (w.nouns) NOUNS = AIADesks.nounsOf(w.nouns);
           keepDesk(w);
           showConsignNav(w.model);
         } else showConsignNav();
         const rulesOut = await api("/api/rules");
         RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || jobs.data.rules || [];
-        paintRules(RULES, !!(rulesOut.data && rulesOut.data.canAdd));
+        if (rulesOut.data && rulesOut.data.nouns) NOUNS = AIADesks.nounsOf(rulesOut.data.nouns);
+        paintNouns(NOUNS, !!(rulesOut.data && rulesOut.data.canAdd));
+        paintRules(RULES);
         paintGate();
-      } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintRules([], false); showConsignNav(); }
+      } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintNouns(AIADesks.defaultNouns(), false); paintRules([]); showConsignNav(); }
       const waiting = JOBS.filter(j => j.status === "exception");
       const ready = JOBS.filter(j => j.status === "waiting");
       const held = JOBS.filter(j => j.status === "held");
@@ -318,7 +362,7 @@
       document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
       const open = held.concat(waiting, ready);
-      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Empty is honest. Switch desks, don't clone the app.</p>`;
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">This queue is empty.</p>`;
       if (location.hash === "#rules") {
         const box = document.getElementById("rules");
         if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -351,7 +395,7 @@
     }
     function openCapture() {
       const house = /home|family|house|life/i.test(localStorage.getItem("aia_model") || "");
-      document.getElementById("sheet-card").innerHTML = `<h3>Drop something in</h3><label>This is</label><select id="cap-kind"><option value="home" ${house ? "selected" : ""}>Home & family</option><option value="form">School / form</option><option value="consign" ${house ? "" : "selected"}>Shop item</option><option value="note">Neighbor / side job</option></select><label>What is it?</label><input id="cap-title" placeholder="School form, oil change, oak dresser"><label>When (home) or ask (shop)</label><input id="cap-when" placeholder="Friday / $150"><label>Photo or PDF (optional)</label><input id="cap-file" type="file" accept="image/*,application/pdf"><label>Note</label><textarea id="cap-note" rows="2" placeholder="Who it is for, condition, who called"></textarea><div class="row" style="margin-top:12px"><button class="go" type="button" onclick="capture()">Add to queue</button><button class="edit" type="button" onclick="document.getElementById('sheet').classList.remove('on')">Cancel</button></div>`;
+      document.getElementById("sheet-card").innerHTML = `<h3>Drop something in</h3><label>This is</label><select id="cap-kind"><option value="home" ${house ? "selected" : ""}>Home & family</option><option value="form">School / form</option><option value="consign" ${house ? "" : "selected"}>Desk item</option><option value="note">Neighbor / side job</option></select><label>What is it?</label><input id="cap-title" placeholder="School form, oil change, oak dresser"><label>When or ask</label><input id="cap-when" placeholder="Friday / $150"><label>Photo or PDF (optional)</label><input id="cap-file" type="file" accept="image/*,application/pdf"><label>Note</label><textarea id="cap-note" rows="2" placeholder="Who it is for, condition, who called"></textarea><div class="row" style="margin-top:12px"><button class="go" type="button" onclick="capture()">Add to queue</button><button class="edit" type="button" onclick="document.getElementById('sheet').classList.remove('on')">Cancel</button></div>`;
       document.getElementById("sheet").classList.add("on");
     }
     async function capture() {

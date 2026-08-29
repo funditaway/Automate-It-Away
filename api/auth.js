@@ -1,6 +1,6 @@
 const {
   cors, mem, log, save, ready, slugify, hashPin, workspaceOf, readBody,
-  ensurePeople, publicPerson, personOf, isOwner, ensureRules
+  ensurePeople, publicPerson, personOf, isOwner, ensureRules, ensureNouns, setWorkspaceNouns
 } = require("./_lib");
 
 function publicWorkspace(row) {
@@ -11,7 +11,8 @@ function publicWorkspace(row) {
     city: row.city,
     model: row.model,
     people: (row.people || []).map(publicPerson),
-    rules: ensureRules(row)
+    rules: ensureRules(row),
+    nouns: ensureNouns(row)
   };
 }
 
@@ -27,7 +28,7 @@ module.exports = async function handler(req, res) {
     if (req.headers["x-pin"] && !person) {
       return res.status(401).json({ ok: false, error: "Bad pin" });
     }
-    const first = !Array.isArray(row.rules);
+    const first = !Array.isArray(row.rules) || !row.nouns || typeof row.nouns !== "object";
     const body = {
       ok: true,
       workspace: publicWorkspace(row),
@@ -48,7 +49,7 @@ module.exports = async function handler(req, res) {
         slug
       );
       if (!row || !person) {
-        return res.status(401).json({ ok: false, error: "Shop name or desk code does not match" });
+        return res.status(401).json({ ok: false, error: "Desk name or desk code does not match" });
       }
       log("Auth", person.role + " signed in · " + person.name, "OK", slug);
       await save();
@@ -74,7 +75,7 @@ module.exports = async function handler(req, res) {
       }
       const hashed = hashPin(pin);
       if ((row.people || []).some((p) => p.pin === hashed) || row.pin === hashed) {
-        return res.status(409).json({ error: "That desk code is already on this shop." });
+        return res.status(409).json({ error: "That desk code is already on this desk." });
       }
       const seat = {
         id: "p_" + Date.now().toString(36),
@@ -106,6 +107,20 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, workspace: publicWorkspace(row) });
     }
 
+    if (action === "nouns") {
+      const slug = workspaceOf(req);
+      const { workspace: row, person } = personOf(req, slug);
+      if (!row) return res.status(404).json({ ok: false, error: "Open a desk first so the words have a home." });
+      if (!isOwner(person)) {
+        return res.status(403).json({ ok: false, error: "Only the owner can name the steps." });
+      }
+      const set = setWorkspaceNouns(row, body.nouns || body);
+      if (!set.ok) return res.status(400).json(set);
+      log("Desk", "Nouns · " + slug, "OK", slug);
+      await save();
+      return res.status(200).json({ ok: true, nouns: set.nouns, workspace: publicWorkspace(row) });
+    }
+
     const slug = slugify(body.slug || body.biz || body.name || "demo");
     if (!body.pin || String(body.pin).length < 4) {
       return res.status(400).json({ error: "Pick a desk code with at least 4 digits." });
@@ -125,22 +140,24 @@ module.exports = async function handler(req, res) {
       };
       ensurePeople(row);
       ensureRules(row);
+      ensureNouns(row);
+      if (body.nouns) setWorkspaceNouns(row, body.nouns);
       row.people[0].name = body.name || "Owner";
       row.people[0].email = body.email || "";
       mem.workspaces.unshift(row);
-      log("Auth", "Opened shop · " + slug, "OK", slug);
+      log("Auth", "Opened desk · " + slug, "OK", slug);
       await save();
     } else {
       ensurePeople(row);
       const hashed = hashPin(body.pin);
       const match = row.people.find((p) => p.pin === hashed) || (row.pin === hashed ? row.people[0] : null);
-      if (!match) return res.status(401).json({ ok: false, error: "Desk code does not match this shop" });
+      if (!match) return res.status(401).json({ ok: false, error: "Desk code does not match this desk" });
     }
     return res.status(201).json({
       ok: true,
       workspace: publicWorkspace(row),
       you: publicPerson((row.people || []).find((p) => p.role === "owner")),
-      hint: "Shop name + desk code opens this queue on any phone."
+      hint: "Desk name + desk code opens this queue on any phone."
     });
   }
 
