@@ -59,109 +59,79 @@ function blobToken() {
   return process.env.BLOB_READ_WRITE_TOKEN || process.env.AIA_BLOB_TOKEN || "";
 }
 
-async function blobListUrl() {
-  const token = blobToken();
-  if (!token) return null;
-  const r = await fetch("https://blob.vercel-storage.com?prefix=" + encodeURIComponent("aia/"), {
-    headers: { Authorization: "Bearer " + token, "x-api-version": "7" }
-  });
-  blobProbe.status = r.status;
-  if (!r.ok) {
-    const text = await r.text().catch(() => "");
-    blobProbe.read = "list-" + r.status;
-    blobProbe.detail = text.slice(0, 180);
-    return null;
-  }
-  const data = await r.json().catch(() => ({}));
-  const blobs = data.blobs || [];
-  const hit = Array.isArray(blobs)
-    ? blobs.find((b) => String(b.pathname || b.url || "").indexOf("store") !== -1)
-    : null;
-  const url = (hit && (hit.url || hit.downloadUrl)) || null;
-  if (url) blobProbe.url = url;
-  return url;
+function blobStoreId() {
+  return process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID || "";
 }
 
-async function blobGet(url) {
-  const token = blobToken();
-  const headers = { "x-api-version": "7" };
-  if (token) headers.Authorization = "Bearer " + token;
-  const r = await fetch(url, { headers });
-  if (!r.ok) {
-    blobProbe.read = "get-" + r.status;
-    blobProbe.detail = (await r.text().catch(() => "")).slice(0, 180);
-    return null;
-  }
-  try {
-    return shape(await r.json());
-  } catch (e) {
-    blobProbe.read = "bad-json";
-    blobProbe.detail = String(e.message || e).slice(0, 180);
-    return null;
-  }
+function blobOpts() {
+  const opts = { access: "private", addRandomSuffix: false, allowOverwrite: true };
+  if (blobStoreId()) opts.storeId = blobStoreId();
+  if (blobToken()) opts.token = blobToken();
+  return opts;
+}
+
+function blobReady() {
+  return !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
+}
+
+async function streamText(stream) {
+  if (!stream) return "";
+  if (typeof stream.text === "function") return stream.text();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 async function blobRead() {
-  const token = blobToken();
-  blobProbe.token = !!token;
-  if (!token) return null;
+  blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
   try {
-    if (blobProbe.url || mem.blobUrl) {
-      const direct = await blobGet(blobProbe.url || mem.blobUrl);
-      if (direct) {
-        blobProbe.read = "ok";
-        return direct;
-      }
+    const { get } = require("@vercel/blob");
+    const result = await get(BLOB_KEY, blobOpts());
+    const status = result && (result.statusCode || result.status);
+    if (status && status !== 200) {
+      blobProbe.read = "get-" + status;
+      blobProbe.status = status;
+      return null;
     }
-    const listed = await blobListUrl();
-    if (listed) {
-      const data = await blobGet(listed);
-      if (data) {
-        blobProbe.read = "ok";
-        return data;
-      }
+    const raw = result && result.stream
+      ? await streamText(result.stream)
+      : result && typeof result === "object" && result.jobs
+        ? JSON.stringify(result)
+        : "";
+    if (!raw) {
+      blobProbe.read = "empty";
+      return null;
     }
-    const fallback = await blobGet("https://blob.vercel-storage.com/" + BLOB_KEY);
-    if (fallback) {
-      blobProbe.read = "ok";
-      return fallback;
-    }
-    if (!blobProbe.read) blobProbe.read = "empty";
-    return null;
+    const parsed = JSON.parse(raw);
+    blobProbe.read = "ok";
+    blobProbe.url = "set";
+    return shape(parsed);
   } catch (e) {
-    blobProbe.read = "error";
-    blobProbe.detail = String(e.message || e).slice(0, 180);
+    const msg = String((e && e.message) || e);
+    blobProbe.read = /not found|404/i.test(msg) ? "empty" : "error";
+    blobProbe.detail = msg.slice(0, 180);
     return null;
   }
 }
 
 async function blobWrite() {
-  const token = blobToken();
-  blobProbe.token = !!token;
-  if (!token) return false;
-  const r = await fetch("https://blob.vercel-storage.com/" + BLOB_KEY, {
-    method: "PUT",
-    headers: {
-      Authorization: "Bearer " + token,
-      "x-api-version": "7",
-      "x-content-type": "application/json",
-      "x-add-random-suffix": "0",
-      "x-allow-overwrite": "true"
-    },
-    body: Buffer.from(JSON.stringify(payload()), "utf8")
-  });
-  const text = await r.text().catch(() => "");
-  let json = {};
-  try { json = JSON.parse(text); } catch (e) { json = { raw: text }; }
-  blobProbe.status = r.status;
-  blobProbe.write = r.ok ? "ok" : "fail-" + r.status;
-  blobProbe.detail = r.ok ? null : (json.error || json.message || text).toString().slice(0, 180);
-  if (r.ok) {
-    blobProbe.url = json.url || json.downloadUrl || blobProbe.url;
-    mem.blobUrl = blobProbe.url;
+  blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
+  try {
+    const { put } = require("@vercel/blob");
+    const blob = await put(BLOB_KEY, Buffer.from(JSON.stringify(payload()), "utf8"), Object.assign({
+      contentType: "application/json"
+    }, blobOpts()));
+    blobProbe.write = "ok";
+    blobProbe.status = 200;
+    blobProbe.detail = null;
+    blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
+    if (blob && blob.url) mem.blobUrl = blob.url;
     return true;
+  } catch (e) {
+    blobProbe.write = "fail";
+    blobProbe.detail = String((e && e.message) || e).slice(0, 180);
+    return false;
   }
-  return false;
 }
 
 function readDisk() {
@@ -189,7 +159,7 @@ function writeDisk() {
 const mem = globalThis.__aia || (globalThis.__aia = Object.assign({ driver: "file", path: null }, EMPTY));
 
 async function hydrate() {
-  if (blobToken()) {
+  if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
       Object.assign(mem, remote);
@@ -217,7 +187,7 @@ if (!globalThis.__aiaHydrate) {
 
 async function ready() {
   await globalThis.__aiaHydrate;
-  if (blobToken() && mem.driver !== "blob") {
+  if (blobReady() && mem.driver !== "blob") {
     const remote = await blobRead();
     if (remote) {
       Object.assign(mem, remote);
@@ -230,7 +200,7 @@ async function ready() {
 async function save() {
   await ready();
   const disk = writeDisk();
-  if (blobToken()) {
+  if (blobReady()) {
     const ok = await blobWrite();
     if (ok) {
       mem.driver = "blob";
@@ -349,6 +319,6 @@ function readBody(req) {
 
 module.exports = {
   PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
-  slugify, hashPin, workspaceOf, readBody, blobToken, blobProbe, blobWrite, blobRead,
+  slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensurePeople, publicPerson, personOf, isOwner
 };
