@@ -1,8 +1,9 @@
-const { cors, catalog, PROVIDERS, configured, mem, log, save, workspaceOf, readBody } = require("./_lib");
+const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody } = require("./_lib");
 
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
+  await ready();
 
   const workspace = workspaceOf(req);
 
@@ -31,8 +32,8 @@ module.exports = async function handler(req, res) {
       createdAt: new Date().toISOString()
     };
     mem.connections.unshift(row);
-    save();
     log("Pipe", "Connected " + provider + " · " + workspace, row.live ? "OK" : "Held", workspace);
+    await save();
     return res.status(201).json({
       ok: true,
       connection: row,
@@ -46,8 +47,8 @@ module.exports = async function handler(req, res) {
     const id = req.query.id;
     const before = mem.connections.length;
     mem.connections = mem.connections.filter((c) => !(c.id === id && c.workspace === workspace));
-    save();
     log("Pipe", "Disconnected " + id, "OK", workspace);
+    await save();
     return res.status(200).json({ ok: true, removed: before !== mem.connections.length });
   }
 

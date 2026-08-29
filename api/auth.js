@@ -1,8 +1,9 @@
-const { cors, mem, log, save, slugify, hashPin, workspaceOf, readBody } = require("./_lib");
+const { cors, mem, log, save, ready, slugify, hashPin, workspaceOf, readBody } = require("./_lib");
 
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
+  await ready();
 
   if (req.method === "GET") {
     const workspace = workspaceOf(req);
@@ -29,6 +30,7 @@ module.exports = async function handler(req, res) {
         return res.status(401).json({ ok: false, error: "Workspace or pin does not match" });
       }
       log("Auth", "Second phone · " + slug, "OK", slug);
+      await save();
       return res.status(200).json({
         ok: true,
         workspace: { slug: row.slug, name: row.name, biz: row.biz, city: row.city, model: row.model }
@@ -49,8 +51,8 @@ module.exports = async function handler(req, res) {
         createdAt: new Date().toISOString()
       };
       mem.workspaces.unshift(row);
-      save();
       log("Auth", "Opened workspace · " + slug, "OK", slug);
+      await save();
     } else if (body.pin && row.pin !== hashPin(body.pin)) {
       return res.status(401).json({ ok: false, error: "Pin does not match this workspace" });
     }
