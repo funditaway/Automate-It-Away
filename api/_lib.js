@@ -186,12 +186,21 @@ function writeDisk() {
 
 const mem = globalThis.__aia || (globalThis.__aia = Object.assign({ driver: "file", path: null }, EMPTY));
 
+function isPersistTestJob(j) {
+  if (!j || j.id === "job_mtenqutb") return false;
+  const title = String(j.title || "").trim();
+  const ws = slugify(j.workspace || "");
+  if (ws === "consign-it-away" && /oil\s*change/i.test(title)) return false;
+  const ids = PERSIST_TEST_DROP[ws] || PERSIST_TEST_DROP[j.workspace];
+  if (ids && ids.indexOf(j.id) !== -1) return true;
+  if (/^TEST lot\b/i.test(title)) return true;
+  if (/^p1-/.test(ws) && /^TEST\b/i.test(title)) return true;
+  return false;
+}
+
 function dropPersistTests() {
   const before = (mem.jobs || []).length;
-  mem.jobs = (mem.jobs || []).filter((j) => {
-    const ids = PERSIST_TEST_DROP[j.workspace];
-    return !ids || ids.indexOf(j.id) === -1;
-  });
+  mem.jobs = (mem.jobs || []).filter((j) => !isPersistTestJob(j));
   return mem.jobs.length !== before;
 }
 
@@ -468,7 +477,7 @@ function readBody(req) {
 module.exports = {
   PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
-  ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, PERSIST_TEST_DROP,
+  ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, removeWorkspaceRule, forbiddenRule, seedRuleRow, scrubLog
 };
