@@ -37,7 +37,7 @@
     .go{background:#119494;color:#fff;display:inline-block}
     .kill{background:var(--kill-bg);color:var(--kill-ink)}
     .edit{background:var(--edit);color:var(--edit-ink)}
-    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+    .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0}
     .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
     .kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
     .kpi b{font-size:1.3rem;color:var(--teal)}
@@ -63,7 +63,6 @@
     .talk{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
     .talk div{margin:0 0 6px}
     .talk b{color:var(--heading)}
-    .recs li{margin:0 0 4px;font-size:13px;color:var(--muted)}
     #rule-list{list-style:none;padding:0;margin:8px 0 0}
     #rule-list li{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 6px;font-size:13px;color:var(--muted)}
     #rule-list li span{flex:1}
@@ -89,8 +88,7 @@
   <main class="wrap">
     <div class="banner" id="banner">Opening your queue…</div>
     <div class="kpis">
-      <div class="kpi"><span>Needs you <span class="tip" title="The engine stopped. You Send or Stop.">?</span></span><b id="k-wait">—</b></div>
-      <div class="kpi"><span>Over $250 <span class="tip" title="Waiting on the owner.">?</span></span><b id="k-held">—</b></div>
+      <div class="kpi"><span>Waiting on a person.</span><b id="k-wait">—</b></div>
       <div class="kpi"><span>Sent</span><b id="k-ship">—</b></div>
     </div>
     <div class="lock" id="session" hidden>
@@ -293,10 +291,10 @@
       el.hidden = !/consign|resale/i.test(blob);
     }
     function labelStatus(s) {
-      if (s === "exception") return "Needs you";
-      if (s === "held") return "Over $250";
+      if (s === "exception") return "Waiting on a person.";
+      if (s === "held") return "Waiting on the owner";
       if (s === "shipped") return "Sent";
-      if (s === "killed") return "Stopped";
+      if (s === "killed") return "No";
       return s || "";
     }
     function esc(s) {
@@ -304,8 +302,9 @@
     }
     function card(j, staff) {
       const money = Number(j.amount || j.ask || 0);
-      const sendLabel = money ? "Send $" + money : "Send";
-      return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}<p>${esc(j.why || "")}</p>${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(j.next || "Send or Stop.")}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">${sendLabel}</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
+      const why = visitorLine(j.why);
+      const next = visitorLine(j.next) || "Yes or no.";
+      return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">Yes</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">No</button>`}</div></article>`;
     }
     async function load() {
       if (wsEl.value) {
@@ -357,8 +356,7 @@
       const ready = JOBS.filter(j => j.status === "waiting");
       const held = JOBS.filter(j => j.status === "held");
       const shipped = JOBS.filter(j => j.status === "shipped");
-      document.getElementById("k-wait").textContent = waiting.length + ready.length;
-      document.getElementById("k-held").textContent = held.length;
+      document.getElementById("k-wait").textContent = waiting.length + ready.length + held.length;
       document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
       const open = held.concat(waiting, ready);
@@ -374,7 +372,7 @@
     async function ship(id, amount) {
       const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: false, whoTapped: youName || role || "desk" }) });
       if (out.status === 409 || out.status === 403) {
-        document.getElementById("sheet-card").innerHTML = `<h3>Over $250</h3><p style="color:var(--muted);margin:8px 0">${esc((out.data && out.data.error) || "Only the owner can release $" + (amount || 0) + ".")}</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Release</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep waiting</button></div>`;
+        document.getElementById("sheet-card").innerHTML = `<h3>Waiting on the owner</h3><p style="color:var(--muted);margin:8px 0">Waiting on the owner.</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Yes</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">No</button></div>`;
         document.getElementById("sheet").classList.add("on"); load(); return;
       }
       load();
@@ -384,13 +382,13 @@
       document.getElementById("sheet").classList.remove("on"); load();
     }
     async function kill(id, title) {
-      document.getElementById("sheet-card").innerHTML = `<h3>Stop this?</h3><p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p><div class="row"><button class="kill" onclick="confirmKill('${id}')">Yes, stop it</button><button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep it</button></div>`;
+      document.getElementById("sheet-card").innerHTML = `<h3>No?</h3><p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p><div class="row"><button class="kill" onclick="confirmKill('${id}')">Yes</button><button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">No</button></div>`;
       document.getElementById("sheet").classList.add("on");
     }
     async function confirmKill(id) {
       const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "kill", id, confirm: true, whoTapped: youName || "owner" }) });
       document.getElementById("sheet").classList.remove("on");
-      if (out.status === 403) document.getElementById("banner").textContent = "Only the owner can Stop a live job.";
+      if (out.status === 403) document.getElementById("banner").textContent = "Waiting on the owner.";
       load();
     }
     function openCapture() {

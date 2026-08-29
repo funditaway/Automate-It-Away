@@ -100,6 +100,20 @@ if (!desk.includes("widget-count") || !desk.includes("rule-widgets") || !desk.in
 } else pass("desk.html shows widget count and /rules");
 if (!desk.includes("noun-capture") || !desk.includes("action: \"nouns\"")) fail("desk.html missing nouns editor");
 else pass("desk.html can save nouns");
+if (!desk.includes("Waiting on a person.") || !desk.includes("Waiting on the owner") || desk.includes("k-held") || desk.includes("Over $250") || desk.includes(">Release<") || desk.includes("Needs you")) {
+  fail("desk.html still has $250 / Release chrome");
+} else pass("desk chrome has no $250 button");
+if (desk.includes("Grok") || desk.includes("the box") || desk.includes("Phone calendar") || desk.includes("floor-staff") || desk.includes("floor staff")) {
+  fail("desk.html still lectures Grok / the box / floor-staff");
+} else pass("desk.html has no Grok / box / floor-staff");
+
+const cardJs = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
+if (!cardJs.includes(">Save a file<") || !cardJs.includes(">Yes<") || !cardJs.includes(">No<")) {
+  fail("desk-card.js missing Save a file / Yes / No");
+} else pass("desk-card.js uses Save a file / Yes / No");
+if (cardJs.includes(">Grok recs<") || cardJs.includes(">Phone calendar<") || cardJs.includes("That's my queue") || cardJs.includes("How work gets here") || cardJs.includes(">Send<") || cardJs.includes(">Stop<")) {
+  fail("desk-card.js still has Grok / old button labels");
+} else pass("desk-card.js has no Grok recs or old labels");
 
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("Open a desk first.") || jobs.includes("workspaceOf(req)")) {
@@ -131,7 +145,15 @@ const leaks = [
   "does not send mail",
   "Capture → Qualify",
   "Slug <b>automate-it-away",
-  "placeholder=\"automate-it-away\""
+  "placeholder=\"automate-it-away\"",
+  "$250",
+  "Grok",
+  "the box",
+  "floor-staff",
+  "floor staff",
+  "Over $250",
+  "Phone calendar",
+  "key on the box"
 ];
 let leak = "";
 publicPages.forEach((file) => {
@@ -152,6 +174,13 @@ if (!rulesPage.includes("Turn a widget on if this desk needs another drop")) fai
 else pass("rules is doer-short");
 if (!login.includes("placeholder=\"Desk name\"")) fail("login still names a slug");
 else pass("login placeholder is generic");
+const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
+if (!help.includes("Waiting on a person.") || !help.includes("Owner, twice.") || !help.includes("The job.") || !help.includes("Save a file")) {
+  fail("help.html missing doer button labels");
+} else pass("help.html uses doer button labels");
+if (!jobs.includes("amount >= MONEY_HOLD && !body.confirm") || !jobs.includes("status(409)")) {
+  fail("jobs.js must still 409 amount >= 250 without confirm");
+} else pass("jobs.js $250 without confirm still 409");
 
 if (process.exitCode) {
   console.error("check-desk-switch failed");
