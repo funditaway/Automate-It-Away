@@ -177,6 +177,30 @@ async function main() {
     fail("demo ship should stay held, got " + JSON.stringify(demo.body.job));
   } else pass("demo ship stays held");
 
+  const missing = await call(jobsHandler, "POST", {}, { action: "capture", title: "No desk" });
+  if (missing.statusCode !== 400) fail("missing workspace should 400, got " + missing.statusCode);
+  else pass("missing workspace rejected");
+  const blank = await call(jobsHandler, "POST", { "x-workspace": "   " }, { action: "capture", title: "Blank desk" });
+  if (blank.statusCode !== 400) fail("blank workspace should 400, got " + blank.statusCode);
+  else pass("blank workspace rejected");
+  const getNone = await call(jobsHandler, "GET", {});
+  if (getNone.statusCode !== 400) fail("GET missing workspace should 400, got " + getNone.statusCode);
+  else pass("GET missing workspace rejected");
+
+  const capA = await call(jobsHandler, "POST", { "x-workspace": "desk-alpha" }, { action: "capture", title: "Alpha only" });
+  const capB = await call(jobsHandler, "POST", { "x-workspace": "desk-beta" }, { action: "capture", title: "Beta only" });
+  if (capA.statusCode !== 201 || capB.statusCode !== 201) fail("capture A/B should 201");
+  const getA = await call(jobsHandler, "GET", { "x-workspace": "desk-alpha" });
+  const getB = await call(jobsHandler, "GET", { "x-workspace": "desk-beta" });
+  const titlesA = (getA.body.jobs || []).map((j) => j.title);
+  const titlesB = (getB.body.jobs || []).map((j) => j.title);
+  if (titlesA.indexOf("Alpha only") < 0 || titlesA.indexOf("Beta only") >= 0) fail("desk A leaked or missed: " + titlesA.join(","));
+  else if (titlesB.indexOf("Beta only") < 0 || titlesB.indexOf("Alpha only") >= 0) fail("desk B leaked or missed: " + titlesB.join(","));
+  else pass("two desks two queues");
+  if (!(mem.jobs || []).some((j) => j.id === "job_mtenqutb" && j.workspace === "consign-it-away")) {
+    fail("Oil change job_mtenqutb must stay");
+  } else pass("Oil change job still on consign-it-away");
+
   const pinLeak = (mem.audit || []).some((a) => /4821|7390/.test(JSON.stringify(a)));
   if (pinLeak) fail("PIN appeared in audit");
   else pass("no PIN in audit");

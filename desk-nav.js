@@ -18,7 +18,10 @@
   }
 
   function dropHref() {
-    return shopOpen() ? "/widget.html" : "/onboard";
+    if (window.AIADesks && window.AIADesks.widgetHref) return window.AIADesks.widgetHref();
+    var ws = localStorage.getItem("aia_ws");
+    if (shopOpen() && ws) return "/widget.html?ws=" + encodeURIComponent(ws);
+    return "/onboard";
   }
 
   function tabOf() {

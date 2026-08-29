@@ -33,8 +33,8 @@
     <a href="setup.html">How to set this up</a> · <a href="login.html">Already have a shop</a>
   </header>
   <form class="card" id="form">
-    <h1>Open this queue</h1>
-    <p class="sub">Name the desk. Pick a code. That pair is the login on any phone. Then drop something in — or we type it.</p>
+    <h1>Name this desk</h1>
+    <p class="sub">Open it.</p>
     <label>Your name</label>
     <input name="name" required placeholder="Your name" autocomplete="name">
     <div class="row">
@@ -62,11 +62,12 @@
     <input type="email" name="email" required placeholder="you@shop.com">
     <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this shop.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
-    <button class="btn" type="submit">Open this queue</button>
-    <p class="hint">Desk name + your code opens this queue on any phone.</p>
+    <button class="btn" type="submit">Open it</button>
+    <p class="hint">Adds this desk on this phone. The last one stays.</p>
     <p class="err" id="err"></p>
   </form>
   <script src="analytics.js"></script>
+  <script src="desk-switch.js"></script>
   <script>
     document.getElementById("form").onsubmit = async (e) => {
       e.preventDefault();
@@ -74,12 +75,8 @@
       const pin = String(f.get("pin") || "");
       const err = document.getElementById("err");
       if (pin.length < 4) { err.textContent = "Pick a desk code with at least 4 digits."; err.style.display = "block"; return; }
-      const slug = String(f.get("biz") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
-      localStorage.setItem("aia_ws", slug);
-      localStorage.setItem("aia_pin", pin);
-      localStorage.setItem("aia_role", f.get("role") || "owner");
-      localStorage.setItem("aia_name", f.get("name") || "");
-      localStorage.setItem("aia_model", f.get("model") || "");
+      const slug = AIADesks.slugify(f.get("biz"));
+      if (!slug) { err.textContent = "Name this desk."; err.style.display = "block"; return; }
       try {
         const r = await fetch("/api/auth", {
           method: "POST",
@@ -88,6 +85,15 @@
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) { err.textContent = data.error || "Could not open the shop."; err.style.display = "block"; return; }
+        const shop = (data && data.workspace) || {};
+        AIADesks.open({
+          slug: shop.slug || slug,
+          name: shop.biz || shop.name || f.get("biz") || slug,
+          pin: pin,
+          role: (data.you && data.you.role) || f.get("role") || "owner"
+        });
+        localStorage.setItem("aia_name", f.get("name") || "");
+        localStorage.setItem("aia_model", (shop.model || f.get("model") || ""));
         location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
