@@ -16,7 +16,11 @@ const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [],
 const BLOB_KEY = "aia/store.json";
 const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null };
 const PERSIST_TEST_DROP = {
-  "consign-it-away": ["job_mtegpvhk", "job_mtegkkap", "job_mtegezu8"]
+  "consign-it-away": ["job_mtegpvhk", "job_mtegkkap", "job_mtegezu8"],
+  "p1-synth": ["job_mtemdqeq", "job_mtemdpyc", "job_mtemdpc3"],
+  "p1-scratch": ["job_mtekn4yj"],
+  "p1-rail-check": ["job_mtejjcbn", "job_mtejjbs1"],
+  "p1-rules-check": ["job_mtept7yo"]
 };
 
 function storePath() {

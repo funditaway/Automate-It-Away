@@ -12,7 +12,7 @@ body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
 a{color:var(--teal)}
 header{padding:16px 5vw;border-bottom:1px solid var(--line);background:#0d6b6b;color:#fff;display:flex;justify-content:space-between;align-items:center}
 header a{color:#fff}
-.hero{text-align:center;padding:48px 5vw}
+.hero{text-align:center;padding:48px 5vw 24px}
 input,textarea{width:min(640px,90vw);padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
 .panel{width:min(640px,92vw);margin:0 auto 24px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 button.go{padding:10px 16px;border:0;border-radius:10px;background:var(--orange);color:#fff;font-weight:700}
@@ -38,4 +38,5 @@ button.go{padding:10px 16px;border:0;border-radius:10px;background:var(--orange)
 <script>
 function ticket(){const t=document.getElementById("title").value,b=document.getElementById("body").value;if(!t||!b){document.getElementById("ok").textContent="Title and description required.";return;}const all=JSON.parse(localStorage.getItem("aia_tickets")||"[]");all.unshift({title:t,body:b,t:Date.now()});localStorage.setItem("aia_tickets",JSON.stringify(all));document.getElementById("ok").textContent="Ticket saved on this device.";}
 </script>
+<script src="desk-nav.js"></script>
 </body></html>

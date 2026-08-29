@@ -38,11 +38,12 @@ input,textarea{width:100%;padding:8px;border:1px solid #d1dae3;border-radius:8px
 </main>
 <script src="store.js"></script>
 <script>
-const Q=[{id:1,title:"Mid-century lamp · $85",why:"Comps $140–$160. 40% under."},{id:2,title:"Whatnot token 401",why:"eBay and store can ship without it."},{id:3,title:"Payout Sarah K. · $62",why:"Under $250. Confirm first week."}];
-function paint(){document.getElementById("queue").innerHTML=Q.map(q=>`<div class="item"><b>${q.title}</b><p>${q.why}</p><button class="btn go" onclick="ship(${q.id})">Approve</button><button class="btn kill" onclick="kill(${q.id})">Kill</button></div>`).join("")||"Queue clear.";}
+const Q=[];
+function paint(){document.getElementById("queue").innerHTML=Q.map(q=>`<div class="item"><b>${q.title}</b><p>${q.why}</p><button class="btn go" onclick="ship(${q.id})">Approve</button><button class="btn kill" onclick="kill(${q.id})">Kill</button></div>`).join("")||"<p>This queue is empty.</p>";}
 function capture(){Q.unshift({id:Date.now(),title:(document.getElementById("title").value||"Item")+" · $"+(document.getElementById("price").value||"0"),why:document.getElementById("notes").value||"Needs a human."});if(window.AIA)AIA.capture({kind:"Photo",from:"Consign desk",text:Q[0].title});paint();}
 function ship(id){const i=Q.findIndex(x=>x.id===id);if(i<0)return;const r=Q.splice(i,1)[0];if(window.AIA)AIA.log("Listing","Approved · "+r.title,"OK");paint();}
 function kill(id){const i=Q.findIndex(x=>x.id===id);if(i<0)return;const r=Q.splice(i,1)[0];if(window.AIA)AIA.log("Listing","Killed · "+r.title,"Stopped");paint();}
 paint();
 </script>
+<script src="desk-nav.js"></script>
 </body></html>

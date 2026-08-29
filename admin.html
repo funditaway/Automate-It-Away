@@ -13,7 +13,7 @@
     body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
     a{color:inherit;text-decoration:none}
     header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;gap:8px;align-items:center}
-    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 48px}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 24px}
     .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
     .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
     .kpi,.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
@@ -71,6 +71,7 @@
     <div class="card"><h3>Audit</h3><div id="audit" class="muted">Owner only.</div></div>
     <div class="card"><h3>Money</h3><div id="money" class="muted">Owner only.</div></div>
   </main>
+  <script src="desk-nav.js"></script>
   <script>
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");
