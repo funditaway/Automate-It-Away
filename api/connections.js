@@ -1,4 +1,4 @@
-const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody } = require("./_lib");
+const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -16,6 +16,10 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === "POST") {
+    const { person } = personOf(req, workspace);
+    if (person && !isOwner(person)) {
+      return res.status(403).json({ error: "Owner pin required to connect a pipe." });
+    }
     const body = await readBody(req);
     const provider = String(body.provider || "").toLowerCase();
     if (!PROVIDERS[provider]) {
@@ -44,6 +48,10 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === "DELETE") {
+    const { person } = personOf(req, workspace);
+    if (person && !isOwner(person)) {
+      return res.status(403).json({ error: "Owner pin required to drop a pipe." });
+    }
     const id = req.query.id;
     const before = mem.connections.length;
     mem.connections = mem.connections.filter((c) => !(c.id === id && c.workspace === workspace));
