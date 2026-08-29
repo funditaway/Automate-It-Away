@@ -1,8 +1,10 @@
-/* Automate It Away — local engine until live pipes exist */
+/* Automate It Away — cloud first, local fallback */
 (function (w) {
   const K = {
     ws: "aia_workspaces",
     active: "aia_active",
+    slug: "aia_ws",
+    pin: "aia_pin",
     jobs: "aia_jobs",
     inbox: "aia_inbox",
     audit: "aia_audit",
@@ -16,9 +18,13 @@
   }
   function write(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
   function id() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-
+  function slugOf() {
+    return localStorage.getItem(K.slug) || "consign-it-away";
+  }
   const AIA = {
     keys: K,
+    cloud: false,
+    slug: slugOf,
     workspaces() { return read(K.ws, []); },
     active() {
       const all = AIA.workspaces();
@@ -32,56 +38,55 @@
     audit() { return read(K.audit, []); },
     money() { return read(K.money, []); },
     tickets() { return read(K.tickets, []); },
-    capture(item) {
+    headers() {
+      const h = { "Content-Type": "application/json", "X-Workspace": slugOf() };
+      const pin = localStorage.getItem(K.pin);
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    },
+    async api(path, opts) {
+      const r = await fetch(path, Object.assign({ headers: AIA.headers() }, opts || {}));
+      let data = {};
+      try { data = await r.json(); } catch (e) { data = {}; }
+      return { status: r.status, ok: r.ok, data };
+    },
+    async capture(item) {
+      const title = item.text || item.title || "New capture";
+      const local = { id: id(), at: Date.now(), kind: item.kind || "Capture", from: item.from || "inbox", text: title };
       const box = AIA.inbox();
-      box.unshift({ id: id(), at: Date.now(), ...item });
+      box.unshift(local);
       write(K.inbox, box);
-      AIA.log("Capture", "Inbox · " + (item.text || item.kind), "OK");
-      return box[0];
+      AIA.log("Capture", "Inbox · " + title, "OK");
+      try {
+        const { status, data } = await AIA.api("/api/jobs", {
+          method: "POST",
+          body: JSON.stringify({ action: "capture", title, why: item.why, provider: item.provider || "webhook", from: local.from })
+        });
+        if (status === 201 && data.job) { AIA.cloud = true; return data.job; }
+      } catch (e) {}
+      return local;
     },
-    makeJob(inboxId) {
-      const box = AIA.inbox();
-      const i = box.findIndex(x => String(x.id) === String(inboxId));
-      if (i < 0) return null;
-      const row = box.splice(i, 1)[0];
-      write(K.inbox, box);
-      const job = {
-        id: id(),
-        from: row.id,
-        model: row.kind || "Capture",
-        title: row.text || "New job",
-        why: "Captured from " + (row.from || "inbox") + ". Guardrail: human before ship.",
-        agent: "Capture",
-        step: "Qualify",
-        status: "exception",
-        log: ["Captured", "Qualified as exception", "Waiting on owner"]
-      };
-      const jobs = AIA.jobs();
-      jobs.unshift(job);
-      write(K.jobs, jobs);
-      AIA.log("Qualify", job.title, "Waiting");
-      return job;
+    async ship(jobId, note, amount, confirm) {
+      try {
+        const { status, data } = await AIA.api("/api/jobs", {
+          method: "POST",
+          body: JSON.stringify({ action: "ship", id: jobId, amount: amount || 0, confirm: !!confirm, note })
+        });
+        if (status === 409) return { held: true, job: data.job, error: data.error };
+        if (data && data.job) return data;
+      } catch (e) {}
+      return null;
     },
-    ship(jobId, note) {
-      const jobs = AIA.jobs();
-      const i = jobs.findIndex(x => String(x.id) === String(jobId));
-      if (i < 0) return null;
-      const job = jobs.splice(i, 1)[0];
-      write(K.jobs, jobs);
-      AIA.log(job.agent || "Agent", "Shipped · " + job.title + (note ? " · " + note : ""), "OK");
-      const money = AIA.money();
-      money.unshift({ at: Date.now(), who: job.title, what: "Held until live pipe", amt: "—" });
-      write(K.money, money);
-      return job;
-    },
-    kill(jobId) {
-      const jobs = AIA.jobs();
-      const i = jobs.findIndex(x => String(x.id) === String(jobId));
-      if (i < 0) return null;
-      const job = jobs.splice(i, 1)[0];
-      write(K.jobs, jobs);
-      AIA.log(job.agent || "Agent", "Killed · " + job.title, "Stopped");
-      return job;
+    async kill(jobId, confirm) {
+      try {
+        const { status, data } = await AIA.api("/api/jobs", {
+          method: "POST",
+          body: JSON.stringify({ action: "kill", id: jobId, confirm: !!confirm })
+        });
+        if (status === 409) return { needConfirm: true, job: data.job };
+        if (data && data.job) return data;
+      } catch (e) {}
+      return null;
     },
     log(agent, action, result) {
       const rows = AIA.audit();
