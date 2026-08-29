@@ -1,4 +1,4 @@
-const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
 const { qualifyJob, recommend, icsOf, runWorkspace } = require("./engine");
 
@@ -76,12 +76,14 @@ module.exports = async function handler(req, res) {
       ensureNouns(shop);
     }
     const rules = shop ? ensureRules(shop) : defaultRules();
+    if (shop) ensurePeople(shop);
     return res.status(200).json({
       workspace,
       you: person ? { name: person.name, role: person.role } : null,
       fields: ensureFields(shop),
       rules,
       nouns: shop ? ensureNouns(shop) : defaultNouns(),
+      people: shop ? (shop.people || []).map(publicPerson) : [],
       widgetsOn: widgetCount(rules),
       jobs: mem.jobs.filter((j) => j.workspace === workspace)
     });
@@ -261,7 +263,6 @@ module.exports = async function handler(req, res) {
       } else {
         job.dispatch = { demo: true, note: "No live pipe. Stays on the desk." };
       }
-      // Hard stop is code, not rule text. Demo / no write-back cannot become shipped.
       if (!pipeWroteBack(job.dispatch)) {
         job.status = "held";
         job.amount = amount || job.amount;
@@ -291,7 +292,55 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, job });
     }
 
-    return res.status(400).json({ error: "action must be capture, qualify, ship, kill, say, ask, fill, or define-field" });
+    if (action === "assign") {
+      if (!shop) return res.status(404).json({ error: "Open a desk first.", job });
+      const people = shop.people || [];
+      const want = String(body.name || body.assignee || body.to || "").trim();
+      const whoPerson = people.find((p) => p && (
+        p.id === want ||
+        String(p.name || "").toLowerCase() === want.toLowerCase()
+      ));
+      if (!whoPerson) {
+        return res.status(404).json({ error: "Name someone already on People.", job });
+      }
+      job.assignee = whoPerson.name;
+      job.waitingOn = whoPerson.role === "owner" ? "owner" : "helper";
+      job.next = "Waiting on " + whoPerson.name + ".";
+      job.whoTapped = actorName(person, body);
+      addTalk(job, actorName(person, body), "Handed to " + whoPerson.name + ".", "note");
+      job.log = (job.log || []).concat(["Assigned · " + whoPerson.name]);
+      log("Desk", "Assigned · " + job.title + " · " + whoPerson.name, "Waiting", workspace);
+      await save();
+      return res.status(200).json({ ok: true, job });
+    }
+
+    if (action === "carry") {
+      const holdAt = shop ? moneyWaitOf(ensureRules(shop)) : null;
+      const amount = Number(job.amount || job.ask || 0);
+      if (moneyNeedsOwner(amount, holdAt) && shop && !isOwner(person)) {
+        return res.status(403).json({
+          ok: false,
+          error: "Waiting on the owner to mark this done.",
+          job
+        });
+      }
+      const note = String(body.text || body.notes || "Done by hand.").trim();
+      job.status = "shipped";
+      job.carried = true;
+      job.followed = true;
+      job.followNote = note;
+      job.step = "Follow";
+      job.rail = "carried";
+      job.whoTapped = actorName(person, body);
+      job.dispatch = { demo: false, carried: true, note: "No pipe. Done by hand." };
+      addTalk(job, actorName(person, body), note, "follow");
+      job.log = (job.log || []).concat(["Carried · " + note]);
+      log("Desk", "Carried · " + job.title, "OK", workspace);
+      await save();
+      return res.status(200).json({ ok: true, job });
+    }
+
+    return res.status(400).json({ error: "action must be capture, qualify, ship, kill, say, ask, fill, define-field, assign, or carry" });
   }
 
   return res.status(405).json({ error: "Use GET or POST" });
