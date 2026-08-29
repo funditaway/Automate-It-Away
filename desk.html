@@ -122,7 +122,7 @@
     <div id="recent"></div>
     <div class="item" id="rules">
       <h3>Owner rules</h3>
-      <p>Wait for the owner. This desk only.</p>
+      <p>Wait for the owner. Turn a widget on if this desk needs another drop. Count shows on the desk.</p>
       <ul id="rule-list"></ul>
       <p class="meta"><a href="/rules">Open Rules</a> to add a line or turn a widget on.</p>
     </div>
@@ -322,7 +322,7 @@
         RULES = [];
         paintNouns(AIADesks.defaultNouns(), false);
         paintRules([]);
-        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">This queue is empty.</p>`;
+        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">Nothing here yet.</p>`;
         showConsignNav();
         return;
       }
@@ -362,7 +362,7 @@
       document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
       const open = held.concat(waiting, ready);
-      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">This queue is empty.</p>`;
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Nothing here yet.</p>`;
       if (location.hash === "#rules") {
         const box = document.getElementById("rules");
         if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });

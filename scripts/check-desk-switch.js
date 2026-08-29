@@ -93,7 +93,7 @@ if (!desk.includes("Change desk") || !desk.includes("Open another") || !desk.inc
 } else pass("desk.html can switch saved desks");
 if (desk.includes("|| \"demo\"") || desk.includes("|| 'demo'")) fail("desk.html still falls back to demo");
 else pass("desk.html has no demo fallback");
-if (!desk.includes("This queue is empty.") || !desk.includes("This desk only.")) fail("desk copy missing");
+if (!desk.includes("Nothing here yet.") || !desk.includes("Wait for the owner.")) fail("desk copy missing");
 else pass("desk queue/rules copy");
 if (!desk.includes("widget-count") || !desk.includes("rule-widgets") || !desk.includes("/rules")) {
   fail("desk.html missing widget count or /rules link");
@@ -122,6 +122,36 @@ const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("href: \"/rules\"") || !nav.includes("name === \"rules\"")) {
   fail("desk-nav.js must treat rules.html as the Rules tab");
 } else pass("desk-nav.js Rules tab is /rules");
+
+const publicPages = ["index.html", "how.html", "setup.html", "login.html", "onboard.html", "help.html", "widget.html", "desk.html", "rules.html"];
+const leaks = [
+  "eBay stays on hold",
+  "Whatnot stays off",
+  "automateitaway@gmail",
+  "does not send mail",
+  "Capture → Qualify",
+  "Slug <b>automate-it-away",
+  "placeholder=\"automate-it-away\""
+];
+let leak = "";
+publicPages.forEach((file) => {
+  const html = fs.readFileSync(path.join(root, file), "utf8");
+  leaks.forEach((bit) => {
+    if (html.includes(bit)) leak = file + " still shows " + bit;
+  });
+});
+if (leak) fail(leak);
+else pass("public pages have no crew build notes");
+if (!fs.readFileSync(path.join(root, "index.html"), "utf8").includes("Name your desk")) fail("home missing doer copy");
+else pass("home says Name your desk");
+if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the work. You tap yes or no.")) fail("how missing doer copy");
+else pass("how is doer-short");
+if (!fs.readFileSync(path.join(root, "setup.html"), "utf8").includes("Add a rule if you need one")) fail("setup missing doer copy");
+else pass("setup is doer-short");
+if (!rulesPage.includes("Turn a widget on if this desk needs another drop")) fail("rules missing doer copy");
+else pass("rules is doer-short");
+if (!login.includes("placeholder=\"Desk name\"")) fail("login still names a slug");
+else pass("login placeholder is generic");
 
 if (process.exitCode) {
   console.error("check-desk-switch failed");

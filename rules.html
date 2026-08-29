@@ -65,7 +65,7 @@
     </nav>
   </header>
   <main class="wrap">
-    <div class="banner" id="banner">Wait for the owner. This desk only.</div>
+    <div class="banner" id="banner">Wait for the owner. Turn a widget on if this desk needs another drop.</div>
     <div class="lock" id="session" hidden>
       <span id="who-line"></span>
       <a class="edit" href="/desk">Queue</a>
@@ -78,13 +78,13 @@
     <p class="meta" id="widget-count">0 widgets on</p>
     <div class="item" id="rules">
       <h3>Owner rules</h3>
-      <p>Wait for the owner. This desk only.</p>
+      <p>Wait for the owner. Turn a widget on if this desk needs another drop. Count shows on the desk.</p>
       <ul id="rule-list"></ul>
       <div class="row" id="rule-add" hidden style="margin-top:8px">
         <input id="rule-text" placeholder="Ask me if …" maxlength="140" style="flex:1">
         <button class="edit" type="button" onclick="addRule()">Add a rule</button>
       </div>
-      <p class="meta" id="rule-hint">Hard stops still win. A rule cannot auto-pay, auto-list, or un-kill junk. A widget is another Capture drop for this desk. Not a listing.</p>
+      <p class="meta" id="rule-hint">This desk only.</p>
     </div>
     <div class="item" id="nouns">
       <h3>Step words</h3>
@@ -250,7 +250,7 @@
         paintRules(RULES, can);
         paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);
         if (rulesOut.data && rulesOut.data.widgetsOn != null) paintCount(rulesOut.data.widgetsOn);
-        banner.textContent = "Wait for the owner. This desk only.";
+        banner.textContent = "Wait for the owner. Turn a widget on if this desk needs another drop.";
         paintGate();
       } catch (e) {
         banner.textContent = "Could not reach the desk.";
