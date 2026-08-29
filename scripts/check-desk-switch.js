@@ -83,6 +83,8 @@ if (!login.includes("AIADesks.open")) fail("login.html should add the desk");
 else pass("login adds the desk");
 
 const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
+if (!desk.includes("#gate[hidden]") && !desk.includes("gate[hidden]")) fail("desk.html gate hidden can lose to .row flex");
+else pass("desk.html honors hidden on the gate");
 if (!desk.includes("Change shop") || !desk.includes("Open another") || !desk.includes("switchDesk")) {
   fail("desk.html missing switcher");
 } else pass("desk.html can switch saved desks");

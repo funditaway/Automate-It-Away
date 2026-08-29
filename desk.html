@@ -55,6 +55,7 @@
     .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
     a.edit{display:inline-block}
     #desk-list button{width:auto;margin:4px 6px 0 0}
+    #gate[hidden],#session[hidden],#desk-switch[hidden],#rule-add[hidden],#nav-consign[hidden],#recent-label[hidden]{display:none!important}
     .talk{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
     .talk div{margin:0 0 6px}
     .talk b{color:var(--heading)}
@@ -90,7 +91,7 @@
     </div>
     <div class="lock" id="session" hidden>
       <span id="who-line"></span>
-      <span class="row">
+      <span>
         <button class="edit" type="button" onclick="unlock()">Change shop</button>
         <a class="edit" href="/onboard">Open another</a>
       </span>
