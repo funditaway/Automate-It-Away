@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="/favicon.svg">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
@@ -25,7 +24,9 @@
     h1{color:var(--heading,#0a4f4f);font-size:clamp(1.45rem,4.2vw,2rem);line-height:1.15}
     h2{color:var(--heading,#0a4f4f);font-size:1.05rem;margin:0 0 6px}
     .lead{color:var(--muted,#6b7c8f);margin:8px 0 14px;max-width:36rem}
-    .hero{width:100%;border-radius:16px;border:1px solid var(--line,#d1dae3);display:block;margin:0 0 16px}
+    .hero-shot{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;border:0;border-radius:16px;padding:16px;margin:0 0 16px}
+    .hero-shot b{display:block;color:#fff;margin-bottom:6px}
+    .hero-shot span{color:rgba(255,255,255,.9);font-size:14px}
     .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
     .fact{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:12px;padding:12px}
     .fact b{display:block;color:var(--heading,#0a4f4f)}
@@ -61,7 +62,7 @@
   <main class="wrap">
     <h1>Open a desk for the house or the shop.</h1>
     <p class="lead">Give it a name and a code. That pair opens the queue on any phone. Email is not the login.</p>
-    <img class="hero" src="img/life.jpg" alt="Kitchen table with a school form, a to-do list, and yes or no on the phone.">
+    <div class="card hero-shot"><b>Yes or no</b><span>School form, oil change, missed call. The desk writes the next step. You press Send or Stop.</span></div>
     <div class="facts">
       <div class="fact"><b>Owner</b><span>Can cancel a job. Can let payments over $250 go.</span></div>
       <div class="fact"><b>Helper</b><span>Can say yes on small jobs. Cannot cancel. Cannot move big money.</span></div>
