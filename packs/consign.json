@@ -10,5 +10,13 @@
   "taps": ["price when comps disagree", "payout"],
   "kill": ["stolen / no title / unsellable"],
   "pipes": ["ebay", "square", "consign"],
-  "artifacts": ["listing", "payout memo"]
+  "artifacts": ["listing", "payout memo"],
+  "fields": {
+    "capture": ["title", "kind", "from", "contactName", "phone", "email", "notes", "photoUrl", "provider", "pack"],
+    "qualify": ["condition", "titlePresent", "compsLow", "compsHigh", "ask", "risk", "timing", "why"],
+    "do": ["draft", "artifact", "provider"],
+    "collect": ["amount", "payoutTo", "confirm"],
+    "follow": ["followed"],
+    "rail": ["killReason", "whoTapped", "promptVersion"]
+  }
 }
