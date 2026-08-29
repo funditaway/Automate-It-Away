@@ -115,7 +115,7 @@ module.exports = async function handler(req, res) {
       rec.url = rec.remoteUrl;
     } else {
       const filePath = path.join(dir(), id + "." + ext);
-      fs.writeFileSync(filePath, rec.path);
+      fs.writeFileSync(filePath, buf);
       rec.path = filePath;
       rec.url = "/api/upload?id=" + id;
     }
