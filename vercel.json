@@ -16,6 +16,7 @@
     { "source": "/api/auth", "destination": "/api/auth" },
     { "source": "/api/worker", "destination": "/api/worker" },
     { "source": "/api/upload", "destination": "/api/upload" },
-    { "source": "/api/admin", "destination": "/api/admin" }
+    { "source": "/api/admin", "destination": "/api/admin" },
+    { "source": "/api/intake", "destination": "/api/intake" }
   ]
 }
