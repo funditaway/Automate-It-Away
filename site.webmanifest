@@ -1,0 +1,11 @@
+{
+  "name": "Automate It Away",
+  "short_name": "AIA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d6b6b",
+  "theme_color": "#0d6b6b",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
