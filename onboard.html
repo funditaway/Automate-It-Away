@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start your workspace · Automate It Away</title>
+</head>
+<body>
+  <header><a href="index.html">Automate It Away</a></header>
+  <form id="form">
+    <h1>Any user. Any business.</h1>
+    <label>Your name</label><input name="name" required>
+    <label>Business name</label><input name="biz" required>
+    <label>City</label><input name="city" required>
+    <label>Role</label>
+    <select name="role"><option>Owner</option><option>Manager</option><option>Front desk</option></select>
+    <label>Model</label>
+    <select name="model" id="model"></select>
+    <label>Email</label><input type="email" name="email" required>
+    <button type="submit">Open my workspace</button>
+  </form>
+  <script>
+    ["Consignment & resale","Life insurance agency","Country land development","Trades & home services","Something else"].forEach(m => {
+      const o=document.createElement("option"); o.textContent=m; document.getElementById("model").appendChild(o);
+    });
+    document.getElementById("form").onsubmit = (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const all = JSON.parse(localStorage.getItem("aia_workspaces") || "[]");
+      all.push({ name: f.get("name"), biz: f.get("biz"), city: f.get("city"), role: f.get("role"), model: f.get("model"), email: f.get("email"), created: Date.now() });
+      localStorage.setItem("aia_workspaces", JSON.stringify(all));
+      localStorage.setItem("aia_active", String(all.length - 1));
+      location.href = "dashboard.html";
+    };
+  </script>
+</body>
+</html>
