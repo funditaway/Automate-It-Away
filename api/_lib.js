@@ -12,7 +12,7 @@ const PROVIDERS = {
   whatnot: { label: "Whatnot", acts: ["list"], env: ["WHATNOT_TOKEN"] }
 };
 
-const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [] };
+const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [] };
 const BLOB_KEY = "aia/store.json";
 
 function storePath() {
@@ -36,7 +36,8 @@ function shape(parsed) {
     money: Array.isArray(parsed.money) ? parsed.money : [],
     workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : [],
     inbox: Array.isArray(parsed.inbox) ? parsed.inbox : [],
-    files: Array.isArray(parsed.files) ? parsed.files : []
+    files: Array.isArray(parsed.files) ? parsed.files : [],
+    tickets: Array.isArray(parsed.tickets) ? parsed.tickets : []
   };
 }
 
@@ -48,7 +49,8 @@ function payload() {
     money: mem.money,
     workspaces: mem.workspaces,
     inbox: mem.inbox,
-    files: mem.files
+    files: mem.files,
+    tickets: mem.tickets
   };
 }
 
@@ -227,6 +229,41 @@ function workspaceOf(req) {
   return slugify(req.headers["x-workspace"] || req.query.workspace || "demo");
 }
 
+function ensurePeople(ws) {
+  if (!ws) return null;
+  if (!Array.isArray(ws.people) || !ws.people.length) {
+    ws.people = [{
+      id: "p_owner",
+      name: ws.name || "Owner",
+      role: "owner",
+      pin: ws.pin,
+      email: ws.email || "",
+      createdAt: ws.createdAt || new Date().toISOString()
+    }];
+  }
+  return ws;
+}
+
+function publicPerson(p) {
+  if (!p) return null;
+  return { id: p.id, name: p.name, role: p.role, email: p.email || "" };
+}
+
+function personOf(req, workspaceSlug) {
+  const slug = workspaceSlug || workspaceOf(req);
+  const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || null);
+  const raw = req.headers["x-pin"] || "";
+  if (!ws || !raw) return { workspace: ws, person: null };
+  const hashed = hashPin(raw);
+  const person = (ws.people || []).find((p) => p.pin === hashed)
+    || (ws.pin === hashed ? (ws.people || []).find((p) => p.role === "owner") : null);
+  return { workspace: ws, person: person || null };
+}
+
+function isOwner(person) {
+  return !!(person && person.role === "owner");
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     if (req.body && typeof req.body === "object") return resolve(req.body);
@@ -241,5 +278,6 @@ function readBody(req) {
 
 module.exports = {
   PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
-  slugify, hashPin, workspaceOf, readBody, blobToken
+  slugify, hashPin, workspaceOf, readBody, blobToken,
+  ensurePeople, publicPerson, personOf, isOwner
 };
