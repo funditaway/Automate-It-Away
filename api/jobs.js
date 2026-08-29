@@ -1,5 +1,6 @@
-const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
 const { pickFields, mergeFields } = require("./fields");
+const { qualifyJob, MONEY_HOLD } = require("./engine");
 
 function pipesFor(workspace) {
   return mem.connections.filter((c) => c.workspace === workspace);
@@ -15,11 +16,16 @@ async function fireWebhook(hook, payload) {
   return { status: r.status, ok: r.ok };
 }
 
+function actorName(person, body) {
+  return (person && person.name) || body.whoTapped || "desk";
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
   const workspace = workspaceOf(req);
+  const { workspace: shop, person } = personOf(req, workspace);
 
   if (req.method === "GET") {
     if (req.query.audit === "1") {
@@ -42,6 +48,7 @@ module.exports = async function handler(req, res) {
     }
     return res.status(200).json({
       workspace,
+      you: person ? { name: person.name, role: person.role } : null,
       jobs: mem.jobs.filter((j) => j.workspace === workspace)
     });
   }
@@ -56,14 +63,15 @@ module.exports = async function handler(req, res) {
         id: "job_" + Date.now().toString(36),
         workspace,
         title: body.title || fields.notes || "Untitled",
-        why: body.why || "Captured. Guardrail: human before ship.",
+        why: body.why || "Captured.",
         status: "exception",
         step: "Qualify",
         createdAt: new Date().toISOString(),
-        log: ["Captured", "Waiting on owner"],
+        log: ["Captured"],
         ...fields,
         from: fields.from || "widget"
       };
+      qualifyJob(job, shop && shop.model);
       mem.jobs.unshift(job);
       mem.inbox.unshift({
         id: "in_" + Date.now().toString(36),
@@ -81,6 +89,13 @@ module.exports = async function handler(req, res) {
     if (!job) return res.status(404).json({ error: "Job not found" });
 
     if (action === "kill") {
+      if (shop && !isOwner(person)) {
+        return res.status(403).json({
+          ok: false,
+          error: "Only the owner can Stop a live job.",
+          job
+        });
+      }
       if (!body.confirm) {
         return res.status(409).json({
           ok: false,
@@ -91,7 +106,7 @@ module.exports = async function handler(req, res) {
       mergeFields(job, body);
       job.status = "killed";
       job.killReason = body.killReason || job.killReason || "Owner kill";
-      job.whoTapped = body.whoTapped || "owner";
+      job.whoTapped = actorName(person, body);
       job.log = (job.log || []).concat(["Killed · " + job.killReason]);
       log("Agent", "Killed · " + job.title, "Stopped", workspace);
       await save();
@@ -100,10 +115,8 @@ module.exports = async function handler(req, res) {
 
     if (action === "qualify") {
       mergeFields(job, body);
-      job.step = "Do the work";
-      job.why = body.why || job.why;
-      if (job.risk && job.risk !== "none") job.status = "exception";
-      job.log = (job.log || []).concat(["Qualified · risk " + (job.risk || "none")]);
+      qualifyJob(job, shop && shop.model);
+      if (body.why) job.why = body.why;
       log("Qualify", job.title, "Waiting", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
@@ -112,7 +125,7 @@ module.exports = async function handler(req, res) {
     if (action === "ship") {
       mergeFields(job, body);
       const amount = Number(body.amount || job.amount || job.ask || 0);
-      if (amount > 250 && !body.confirm) {
+      if (amount > MONEY_HOLD && !body.confirm) {
         job.status = "held";
         job.amount = amount;
         log("Rail", "Held · " + job.title + " · $" + amount, "Waiting", workspace);
@@ -120,6 +133,16 @@ module.exports = async function handler(req, res) {
         return res.status(409).json({
           ok: false,
           error: "Guardrail: money over $250 needs the owner on the desk.",
+          job
+        });
+      }
+      if (amount > MONEY_HOLD && shop && !isOwner(person)) {
+        job.status = "held";
+        job.amount = amount;
+        await save();
+        return res.status(403).json({
+          ok: false,
+          error: "Only the owner can release money over $250.",
           job
         });
       }
@@ -136,9 +159,10 @@ module.exports = async function handler(req, res) {
       }
       job.status = "shipped";
       job.amount = amount || job.amount;
-      job.whoTapped = body.whoTapped || job.whoTapped || "owner";
-      job.rail = amount > 250 ? "owner-confirmed" : "under-250";
-      job.log = (job.log || []).concat([amount > 250 ? "Owner confirmed $" + amount : "Shipped"]);
+      job.whoTapped = actorName(person, body);
+      job.rail = amount > MONEY_HOLD ? "owner-confirmed" : "under-250";
+      job.step = "Collect";
+      job.log = (job.log || []).concat([amount > MONEY_HOLD ? "Owner confirmed $" + amount : "Shipped"]);
       mem.money.unshift({
         at: new Date().toISOString(),
         workspace,
