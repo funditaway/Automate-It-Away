@@ -1,3 +1,7 @@
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+
 const PROVIDERS = {
   square: { label: "Square", acts: ["payout", "checkout"], env: ["SQUARE_ACCESS_TOKEN"] },
   ebay: { label: "eBay", acts: ["list", "unlist", "sync"], env: ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"] },
@@ -8,17 +12,83 @@ const PROVIDERS = {
   whatnot: { label: "Whatnot", acts: ["list"], env: ["WHATNOT_TOKEN"] }
 };
 
+const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [] };
+
+function storePath() {
+  if (process.env.AIA_STORE_PATH) return process.env.AIA_STORE_PATH;
+  const durable = path.join(__dirname, "data", "aia.json");
+  const tmp = path.join("/tmp", "aia-store.json");
+  try {
+    fs.mkdirSync(path.dirname(durable), { recursive: true });
+    fs.accessSync(path.dirname(durable), fs.constants.W_OK);
+    return durable;
+  } catch (e) {
+    return tmp;
+  }
+}
+
+function shape(parsed) {
+  return {
+    connections: Array.isArray(parsed.connections) ? parsed.connections : [],
+    jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
+    audit: Array.isArray(parsed.audit) ? parsed.audit : [],
+    money: Array.isArray(parsed.money) ? parsed.money : [],
+    workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : [],
+    inbox: Array.isArray(parsed.inbox) ? parsed.inbox : []
+  };
+}
+
+function readDisk() {
+  const file = storePath();
+  try {
+    return shape(JSON.parse(fs.readFileSync(file, "utf8")));
+  } catch (e) {
+    return shape(EMPTY);
+  }
+}
+
+function save() {
+  const file = storePath();
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({
+      connections: mem.connections,
+      jobs: mem.jobs,
+      audit: mem.audit,
+      money: mem.money,
+      workspaces: mem.workspaces,
+      inbox: mem.inbox
+    }, null, 2));
+    mem.driver = file.indexOf("/tmp") === 0 ? "tmp-file" : "file";
+    mem.path = file;
+    return true;
+  } catch (e) {
+    mem.driver = "memory-fallback";
+    mem.path = null;
+    return false;
+  }
+}
+
+const mem = globalThis.__aia || (globalThis.__aia = Object.assign({ driver: "file", path: null }, EMPTY));
+if (!globalThis.__aiaLoaded) {
+  const disk = readDisk();
+  Object.assign(mem, disk);
+  globalThis.__aiaLoaded = true;
+  save();
+}
+
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Workspace");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Workspace, X-Pin");
 }
 
 function configured(provider) {
+  if (provider === "whatnot") return false;
   const spec = PROVIDERS[provider];
   if (!spec) return false;
   if (!spec.env.length) return true;
-  return spec.env.some((k) => !!process.env[k]);
+  return spec.env.every((k) => !!process.env[k]);
 }
 
 function catalog() {
@@ -27,15 +97,58 @@ function catalog() {
     label: spec.label,
     acts: spec.acts,
     live: configured(id),
-    note: configured(id) ? "env present" : "connect when keys are set"
+    status: id === "whatnot" ? "down" : configured(id) ? "live" : "hold",
+    note: id === "whatnot"
+      ? "Not a launch pipe"
+      : configured(id) ? "env present" : "connect when keys are set"
   }));
 }
 
-const mem = globalThis.__aia || (globalThis.__aia = { connections: [], jobs: [], audit: [] });
-
-function log(agent, action, result) {
-  mem.audit.unshift({ t: new Date().toISOString(), agent, action, result });
+function log(agent, action, result, workspace) {
+  mem.audit.unshift({
+    t: new Date().toISOString(),
+    agent,
+    action,
+    result,
+    workspace: workspace || null,
+    undo: result === "OK"
+  });
   mem.audit = mem.audit.slice(0, 200);
+  save();
 }
 
-module.exports = { PROVIDERS, cors, configured, catalog, mem, log };
+function slugify(s) {
+  return String(s || "demo")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || "demo";
+}
+
+function hashPin(pin) {
+  return crypto
+    .createHash("sha256")
+    .update(String(pin) + ":" + (process.env.AIA_PIN_SALT || "aia-pilot"))
+    .digest("hex");
+}
+
+function workspaceOf(req) {
+  return slugify(req.headers["x-workspace"] || req.query.workspace || "demo");
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    if (req.body && typeof req.body === "object") return resolve(req.body);
+    let raw = "";
+    req.on("data", (c) => (raw += c));
+    req.on("end", () => {
+      if (!raw) return resolve({});
+      try { resolve(JSON.parse(raw)); } catch (e) { reject(e); }
+    });
+  });
+}
+
+module.exports = {
+  PROVIDERS, cors, configured, catalog, mem, log, save, storePath,
+  slugify, hashPin, workspaceOf, readBody
+};
