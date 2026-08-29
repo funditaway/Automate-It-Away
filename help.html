@@ -1,27 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0d6b6b">
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Help · Automate It Away</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
   <style>
-    body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
-    a{color:var(--teal)}
-    header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332}
+    a{color:#0f7f7f}
+    header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}
     header a{color:#fff}
     .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:10px 0}
+    h1,h2{color:#0a4f4f}
+    .card{background:#fff;border:1px solid #d1dae3;border-radius:14px;padding:16px;margin:10px 0}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
     dt{font-weight:700;margin-top:8px}
-    dd{color:var(--muted);margin:0 0 8px}
+    dd{color:#3d4f5f;margin:0 0 8px}
   </style>
 </head>
 <body>
   <header>
     <a href="index.html">Automate It Away</a>
-    <span><a href="desk.html">Desk</a> · <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span>
+    <a href="desk.html">Desk</a>
   </header>
   <main class="wrap">
     <h1>How to run the desk</h1>
@@ -41,6 +46,10 @@
         <dd>No — cancel it. Only the owner. Press twice so it is not an accident.</dd>
         <dt>Over $250</dt>
         <dd>Floor can get the job ready. Only the owner can let that payment go.</dd>
+        <dt>Open</dt>
+        <dd>The card. Notes, Grok recs, extra fields, ask for more.</dd>
+        <dt>Phone calendar</dt>
+        <dd>Drops a file on your phone. Google Calendar write stays off until the key is on the box.</dd>
       </dl>
     </div>
     <div class="card">

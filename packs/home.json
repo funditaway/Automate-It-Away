@@ -10,7 +10,7 @@
   "taps": ["money over $250", "same-day that bumps the week", "child named on a public post"],
   "kill": ["already done", "not ours", "duplicate"],
   "pipes": ["calendar", "sms", "webhook"],
-  "artifacts": ["reminder", "form note"],
+  "artifacts": ["reminder", "form note", "calendar"],
   "fields": {
     "capture": ["title", "kind", "from", "contactName", "phone", "notes", "photoUrl", "pack", "timing"],
     "qualify": ["timing", "risk", "why", "amount"],

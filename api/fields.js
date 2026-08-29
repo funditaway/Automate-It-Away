@@ -43,7 +43,57 @@ function mergeFields(job, body) {
   });
   if (body.title) job.title = body.title;
   if (body.why) job.why = body.why;
+  if (body.custom && typeof body.custom === "object") {
+    job.custom = Object.assign({}, job.custom || {}, body.custom);
+  }
   return job;
 }
 
-module.exports = { pickFields, mergeFields, PACKS, KINDS, RISKS };
+function slugField(label) {
+  return String(label || "field")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 32) || "field";
+}
+
+function defaultFields(model) {
+  const blob = String(model || "").toLowerCase();
+  if (/home|family|house|life/.test(blob)) {
+    return [
+      { key: "who", label: "Who it is for", type: "text" },
+      { key: "when", label: "When", type: "text" },
+      { key: "where", label: "Where", type: "text" }
+    ];
+  }
+  return [
+    { key: "condition", label: "Condition", type: "text" },
+    { key: "ask", label: "Ask", type: "number" }
+  ];
+}
+
+function ensureFields(shop) {
+  if (!shop) return [];
+  if (!Array.isArray(shop.fields) || !shop.fields.length) {
+    shop.fields = defaultFields(shop.model);
+  }
+  return shop.fields;
+}
+
+function addTalk(job, from, text, kind) {
+  if (!job || !text) return job;
+  if (!Array.isArray(job.thread)) job.thread = [];
+  job.thread.push({
+    at: new Date().toISOString(),
+    from: from || "desk",
+    text: String(text).slice(0, 500),
+    kind: kind || "note"
+  });
+  job.thread = job.thread.slice(-40);
+  return job;
+}
+
+module.exports = {
+  pickFields, mergeFields, PACKS, KINDS, RISKS,
+  slugField, defaultFields, ensureFields, addTalk
+};
