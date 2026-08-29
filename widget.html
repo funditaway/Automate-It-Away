@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capture widget · Automate It Away</title>
+<style>body{font-family:system-ui;margin:0;background:#f4f7fa}header{background:#0d6b6b;color:#fff;padding:12px 4vw}a{color:inherit}.wrap{width:min(640px,92vw);margin:0 auto;padding:18px 0}label{display:block;margin:10px 0 4px;font-weight:700;color:#0a4f4f}input,select,textarea{width:100%;padding:10px;border:1px solid #d1dae3;border-radius:8px}button{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:#f39c12;color:#fff;font-weight:700}</style>
+</head>
+<body>
+<header><a href="index.html">Automate It Away</a></header>
+<main class="wrap">
+<h1>Capture widget</h1>
+<label>What is it?</label>
+<select id="kind"><option>Photo / item</option><option>Call me back</option><option>Quote request</option></select>
+<label>Your name</label><input id="who">
+<label>Notes</label><textarea id="note" rows="3"></textarea>
+<button type="button" onclick="send()">Send to inbox</button>
+<p id="ok" style="display:none;color:#1b7a3d">Landed in Inbox.</p>
+</main>
+<script src="store.js"></script>
+<script>
+function send(){
+  const item={kind:document.getElementById("kind").value,from:"Widget · "+(document.getElementById("who").value||"guest"),text:document.getElementById("note").value||"New capture"};
+  if(window.AIA)AIA.capture(item);else{const b=JSON.parse(localStorage.getItem("aia_inbox")||"[]");b.unshift({id:Date.now(),...item});localStorage.setItem("aia_inbox",JSON.stringify(b));}
+  document.getElementById("ok").style.display="block";
+}
+</script>
+</body></html>

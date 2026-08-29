@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consign It Away · Automate It Away</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332}
+header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}
+a{color:inherit;text-decoration:none}
+.wrap{width:min(900px,94vw);margin:0 auto;padding:16px 0}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.step,.card,.item{background:#fff;border:1px solid #d1dae3;border-radius:12px;padding:12px;margin:8px 0}
+@media(max-width:700px){.steps{grid-template-columns:1fr}}
+label{display:block;margin:8px 0 4px;font-weight:700;color:#0a4f4f}
+input,textarea{width:100%;padding:8px;border:1px solid #d1dae3;border-radius:8px}
+.btn{border:0;border-radius:8px;padding:8px 12px;font-weight:700;margin-right:6px}
+.go{background:#119494;color:#fff}.or{background:#f39c12;color:#fff}.kill{background:#fdecea;color:#c0392b}
+</style>
+</head>
+<body>
+<header><a href="index.html">Consign × AIA</a><a href="https://consignitaway.com">Store</a></header>
+<main class="wrap">
+<h1>Photo in. You tap price. It lists. Seller gets paid.</h1>
+<div class="steps">
+<div class="step"><b>1 Capture</b><br>Photo / drop-off</div>
+<div class="step"><b>2 Qualify</b><br>Comps + channel</div>
+<div class="step"><b>3 Do</b><br>List</div>
+<div class="step"><b>4 Paid</b><br>Square payout</div>
+<div class="step"><b>5 Follow</b><br>Pickup + undo</div>
+</div>
+<div class="card">
+<label>Item</label><input id="title" placeholder="Mid-century lamp">
+<label>Ask price</label><input id="price" type="number" placeholder="85">
+<label>Notes</label><textarea id="notes" rows="2" placeholder="Comps $140–$160"></textarea>
+<p><button class="btn or" type="button" onclick="capture()">Send to engine</button></p>
+</div>
+<div class="card"><h2>Exception queue</h2><div id="queue"></div></div>
+</main>
+<script src="store.js"></script>
+<script>
+const Q=[{id:1,title:"Mid-century lamp · $85",why:"Comps $140–$160. 40% under."},{id:2,title:"Whatnot token 401",why:"eBay and store can ship without it."},{id:3,title:"Payout Sarah K. · $62",why:"Under $250. Confirm first week."}];
+function paint(){document.getElementById("queue").innerHTML=Q.map(q=>`<div class="item"><b>${q.title}</b><p>${q.why}</p><button class="btn go" onclick="ship(${q.id})">Approve</button><button class="btn kill" onclick="kill(${q.id})">Kill</button></div>`).join("")||"Queue clear.";}
+function capture(){Q.unshift({id:Date.now(),title:(document.getElementById("title").value||"Item")+" · $"+(document.getElementById("price").value||"0"),why:document.getElementById("notes").value||"Needs a human."});if(window.AIA)AIA.capture({kind:"Photo",from:"Consign desk",text:Q[0].title});paint();}
+function ship(id){const i=Q.findIndex(x=>x.id===id);if(i<0)return;const r=Q.splice(i,1)[0];if(window.AIA)AIA.log("Listing","Approved · "+r.title,"OK");paint();}
+function kill(id){const i=Q.findIndex(x=>x.id===id);if(i<0)return;const r=Q.splice(i,1)[0];if(window.AIA)AIA.log("Listing","Killed · "+r.title,"Stopped");paint();}
+paint();
+</script>
+</body></html>
