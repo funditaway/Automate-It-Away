@@ -4,21 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Drop box · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
   <style>
-    :root { --teal-900:#0a4f4f;--teal-800:#0d6b6b;--orange-500:#f39c12;--gray-900:#1a2332;--gray-500:#6b7c8f;--gray-300:#d1dae3;--gray-100:#f4f7fa; }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--gray-100);color:var(--gray-900)}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
     a{color:inherit;text-decoration:none}
-    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
     .wrap{width:min(880px,94vw);margin:0 auto;padding:18px 0 40px}
-    h1{color:var(--teal-900);font-size:1.4rem}
-    .sub{color:var(--gray-500);margin:4px 0 16px}
+    h1{color:var(--heading);font-size:1.4rem}
+    .sub{color:var(--muted);margin:4px 0 16px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .card{background:#fff;border:1px solid var(--gray-300);border-radius:14px;padding:16px}
-    label{display:block;font-size:12px;font-weight:700;color:var(--teal-900);margin:10px 0 4px}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
-    input,select,textarea{width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:9px;font:inherit}
-    button{border:0;border-radius:10px;padding:10px 12px;background:var(--orange-500);color:#fff;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--card);color:var(--ink)}
+    button{border:0;border-radius:10px;padding:10px 12px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
     pre{background:#1a2332;color:#e6f7f7;padding:12px;border-radius:10px;font-size:11px;overflow:auto;white-space:pre-wrap}
     .ok{margin-top:10px;color:#1b7a3d;font-size:14px;display:none}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
@@ -27,14 +29,14 @@
 <body>
   <header>
     <a href="index.html"><strong>Automate It Away</strong></a>
-    <a href="desk.html">Desk</a>
+    <span><a href="desk.html">Desk</a> · <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span>
   </header>
   <main class="wrap">
     <h1>Drop box</h1>
     <p class="sub">Customer photo and note land in your queue. They never see money or Stop.</p>
     <div class="grid">
       <div class="card">
-        <strong style="color:var(--teal-900)">Send it in. We’ll handle the rest.</strong>
+        <strong style="color:var(--heading)">Send it in. We’ll handle the rest.</strong>
         <label>What is it?</label>
         <select id="kind">
           <option>Photo / item</option>
@@ -54,7 +56,7 @@
         <p class="ok" id="ok">In the queue.</p>
       </div>
       <div class="card">
-        <strong style="color:var(--teal-900)">Put this on your site</strong>
+        <strong style="color:var(--heading)">Put this on your site</strong>
         <p class="sub">Copy onto any page. Items still land in this shop.</p>
         <pre id="embed"></pre>
         <button type="button" onclick="copyEmbed()">Copy</button>
