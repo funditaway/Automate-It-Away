@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin · Automate It Away</title>
+  <style>
+    :root { --teal:#0d6b6b; --orange:#f39c12; --ink:#1a2332; --muted:#6b7c8f; --line:#d1dae3; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:#f4f7fa;color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;gap:8px}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 48px}
+    .banner{background:#fff4e0;color:#7a4b00;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+    .kpi,.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
+    .kpi b{font-size:1.3rem;color:var(--teal)}
+    input,select{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    button{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
+    .go{background:var(--orange);color:#fff}
+    .edit{background:#e6f7f7;color:#0a4f4f}
+    .kill{background:#fdecea;color:#c0392b}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    td,th{text-align:left;padding:8px 4px;border-bottom:1px solid var(--line)}
+    .muted{color:var(--muted);font-size:13px}
+    @media(max-width:700px){.kpis{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html"><strong>Automate It Away</strong></a>
+    <span><a href="desk.html">Desk</a> · <a href="login.html">Sign in</a></span>
+  </header>
+  <main class="wrap">
+    <div class="banner" id="banner">Owner pin opens people, money, audit. Employee pin sees queue counts only.</div>
+    <div class="row" style="margin-bottom:8px">
+      <input id="ws" placeholder="workspace slug" style="max-width:220px">
+      <input id="pin" placeholder="your pin" inputmode="numeric" style="max-width:120px">
+      <button class="edit" type="button" onclick="load()">Open admin</button>
+    </div>
+    <p class="muted" id="you"></p>
+    <div class="kpis">
+      <div class="kpi"><span>Waiting</span><b id="c-wait">—</b></div>
+      <div class="kpi"><span>Held</span><b id="c-held">—</b></div>
+      <div class="kpi"><span>Shipped</span><b id="c-ship">—</b></div>
+      <div class="kpi"><span>Killed</span><b id="c-kill">—</b></div>
+    </div>
+    <div class="card" id="invite-box">
+      <h3>People</h3>
+      <div id="people"></div>
+      <div class="row" style="margin-top:10px">
+        <input id="n" placeholder="Name" style="max-width:160px">
+        <input id="e" placeholder="Email" style="max-width:180px">
+        <input id="p" placeholder="New pin" inputmode="numeric" style="max-width:110px">
+        <select id="r" style="max-width:130px"><option value="employee">Employee</option><option value="owner">Owner</option></select>
+        <button class="go" type="button" onclick="invite()">Add to desk</button>
+      </div>
+      <p class="muted" id="inv"></p>
+    </div>
+    <div class="card"><h3>Tickets</h3><div id="tickets"></div></div>
+    <div class="card"><h3>Audit</h3><div id="audit" class="muted">Owner only.</div></div>
+    <div class="card"><h3>Money</h3><div id="money" class="muted">Owner only.</div></div>
+  </main>
+  <script>
+    const wsEl = document.getElementById("ws");
+    const pinEl = document.getElementById("pin");
+    function headers() {
+      const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || localStorage.getItem("aia_ws") || "demo" };
+      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    }
+    async function api(path, opts) {
+      const r = await fetch(path, Object.assign({ headers: headers() }, opts || {}));
+      const data = await r.json().catch(() => ({}));
+      return { status: r.status, data };
+    }
+    async function load() {
+      if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
+      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
+      const out = await api("/api/admin");
+      const d = out.data || {};
+      const banner = document.getElementById("banner");
+      if (out.status === 401) { banner.textContent = "Pin required."; return; }
+      if (out.status === 404) { banner.textContent = "No workspace with that slug. Start one first."; return; }
+      if (!out.data.ok) { banner.textContent = d.error || "Could not open admin."; return; }
+      const you = d.you || {};
+      document.getElementById("you").textContent = (you.name || "") + " · " + (you.role || "");
+      banner.textContent = you.role === "owner"
+        ? "Owner desk. Kill and $250 stay with you."
+        : "Employee desk. Capture and qualify. Owner handles Kill and money over $250.";
+      const c = d.counts || {};
+      document.getElementById("c-wait").textContent = c.waiting ?? "—";
+      document.getElementById("c-held").textContent = c.held ?? "—";
+      document.getElementById("c-ship").textContent = c.shipped ?? "—";
+      document.getElementById("c-kill").textContent = c.killed ?? "—";
+      document.getElementById("people").innerHTML = (d.people || []).map(p =>
+        `<div class="row" style="justify-content:space-between;padding:6px 0;border-bottom:1px solid #d1dae3">
+          <span><b>${p.name}</b> · ${p.role}${p.email ? " · " + p.email : ""}</span>
+          ${you.role === "owner" && p.role !== "owner" ? `<button class="kill" onclick="remove('${p.id}')">Remove</button>` : ""}
+        </div>`
+      ).join("") || "<p class='muted'>No seats yet.</p>";
+      document.getElementById("invite-box").style.display = you.role === "owner" ? "block" : "none";
+      document.getElementById("tickets").innerHTML = (d.tickets || []).map(t =>
+        `<p><b>${t.title}</b> · ${t.from} · ${t.status}<br><span class="muted">${t.body || ""}</span></p>`
+      ).join("") || "<p class='muted'>None.</p>";
+      document.getElementById("audit").innerHTML = d.audit
+        ? `<table><tbody>${d.audit.map(a => `<tr><td>${a.t || ""}</td><td>${a.agent}</td><td>${a.action}</td><td>${a.result}</td></tr>`).join("")}</tbody></table>`
+        : "Owner only.";
+      document.getElementById("money").innerHTML = d.money
+        ? `<table><tbody>${d.money.map(m => `<tr><td>${m.at || ""}</td><td>${m.who}</td><td>${m.what}</td><td>${m.amt}</td></tr>`).join("")}</tbody></table>`
+        : "Owner only.";
+    }
+    async function invite() {
+      const out = await api("/api/auth", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "invite",
+          name: document.getElementById("n").value,
+          email: document.getElementById("e").value,
+          pin: document.getElementById("p").value,
+          role: document.getElementById("r").value
+        })
+      });
+      document.getElementById("inv").textContent = out.data.error || ("Added " + (out.data.person && out.data.person.name));
+      load();
+    }
+    async function remove(id) {
+      await api("/api/auth", { method: "POST", body: JSON.stringify({ action: "remove", id }) });
+      load();
+    }
+    if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
+    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
+    if (wsEl.value && pinEl.value) load();
+  </script>
+</body>
+</html>
