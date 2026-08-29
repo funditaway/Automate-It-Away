@@ -54,6 +54,9 @@ input, select, textarea {
   padding: 4px 10px;
   font: 600 12px system-ui, sans-serif;
   cursor: pointer;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 #nav-consign[hidden] { display: none; }
 #nav-consign:not([hidden])::after { content: " · "; }
