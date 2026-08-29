@@ -44,7 +44,7 @@ module.exports = async function handler(req, res) {
         slug
       );
       if (!row || !person) {
-        return res.status(401).json({ ok: false, error: "Workspace or pin does not match" });
+        return res.status(401).json({ ok: false, error: "Shop name or desk code does not match" });
       }
       log("Auth", person.role + " signed in · " + person.name, "OK", slug);
       await save();
@@ -60,17 +60,17 @@ module.exports = async function handler(req, res) {
       const { workspace: row, person } = personOf(req, slug);
       if (!row) return res.status(404).json({ error: "No workspace" });
       if (!isOwner(person)) {
-        return res.status(403).json({ error: "Owner pin required to add people." });
+        return res.status(403).json({ error: "Owner desk code required to add people." });
       }
       const name = String(body.name || "").trim();
       const pin = String(body.pin || "");
       const role = body.role === "owner" ? "owner" : "employee";
       if (!name || pin.length < 4) {
-        return res.status(400).json({ error: "Name and a 4+ digit pin required." });
+        return res.status(400).json({ error: "Name and a 4+ digit desk code required." });
       }
       const hashed = hashPin(pin);
       if ((row.people || []).some((p) => p.pin === hashed) || row.pin === hashed) {
-        return res.status(409).json({ error: "That pin is already on this desk." });
+        return res.status(409).json({ error: "That desk code is already on this shop." });
       }
       const seat = {
         id: "p_" + Date.now().toString(36),
@@ -89,7 +89,7 @@ module.exports = async function handler(req, res) {
     if (action === "remove") {
       const slug = workspaceOf(req);
       const { workspace: row, person } = personOf(req, slug);
-      if (!isOwner(person)) return res.status(403).json({ error: "Owner pin required." });
+      if (!isOwner(person)) return res.status(403).json({ error: "Owner desk code required." });
       const id = body.id;
       const target = (row.people || []).find((p) => p.id === id);
       if (!target) return res.status(404).json({ error: "Person not found" });
@@ -103,6 +103,9 @@ module.exports = async function handler(req, res) {
     }
 
     const slug = slugify(body.slug || body.biz || body.name || "demo");
+    if (!body.pin || String(body.pin).length < 4) {
+      return res.status(400).json({ error: "Pick a desk code with at least 4 digits." });
+    }
     let row = mem.workspaces.find((w) => w.slug === slug);
     if (!row) {
       row = {
@@ -112,7 +115,7 @@ module.exports = async function handler(req, res) {
         city: body.city || "",
         model: body.model || "Consignment & resale",
         email: body.email || "",
-        pin: hashPin(body.pin || "4170"),
+        pin: hashPin(body.pin),
         createdAt: new Date().toISOString(),
         people: []
       };
@@ -120,21 +123,19 @@ module.exports = async function handler(req, res) {
       row.people[0].name = body.name || "Owner";
       row.people[0].email = body.email || "";
       mem.workspaces.unshift(row);
-      log("Auth", "Opened workspace · " + slug, "OK", slug);
+      log("Auth", "Opened shop · " + slug, "OK", slug);
       await save();
     } else {
       ensurePeople(row);
-      if (body.pin) {
-        const hashed = hashPin(body.pin);
-        const match = row.people.find((p) => p.pin === hashed) || (row.pin === hashed ? row.people[0] : null);
-        if (!match) return res.status(401).json({ ok: false, error: "Pin does not match this workspace" });
-      }
+      const hashed = hashPin(body.pin);
+      const match = row.people.find((p) => p.pin === hashed) || (row.pin === hashed ? row.people[0] : null);
+      if (!match) return res.status(401).json({ ok: false, error: "Desk code does not match this shop" });
     }
     return res.status(201).json({
       ok: true,
       workspace: publicWorkspace(row),
       you: publicPerson((row.people || []).find((p) => p.role === "owner")),
-      hint: "Owner pin opens admin. Employee pin opens the queue only."
+      hint: "Shop name + desk code opens this queue on any phone."
     });
   }
 
