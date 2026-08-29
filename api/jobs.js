@@ -1,6 +1,10 @@
 const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
-const { qualifyJob, recommend, icsOf, runWorkspace } = require("./engine");
+const { qualifyJob, recommend, icsOf, runWorkspace, MONEY_HOLD } = require("./engine");
+
+function pipeWroteBack(dispatch) {
+  return !!(dispatch && !dispatch.demo && (dispatch.ok === true || dispatch.inbound === true));
+}
 
 function pipesFor(workspace) {
   return mem.connections.filter((c) => c.workspace === workspace);
@@ -191,6 +195,29 @@ module.exports = async function handler(req, res) {
     if (action === "ship") {
       mergeFields(job, body);
       const amount = Number(body.amount || job.amount || job.ask || 0);
+      if (amount >= MONEY_HOLD && !body.confirm) {
+        job.status = "held";
+        job.amount = amount;
+        job.rail = "held";
+        log("Rail", "Held · " + job.title + " · $" + amount, "Waiting", workspace);
+        await save();
+        return res.status(409).json({
+          ok: false,
+          error: "Guardrail: money over $250 needs the owner on the desk.",
+          job
+        });
+      }
+      if (amount >= MONEY_HOLD && shop && !isOwner(person)) {
+        job.status = "held";
+        job.amount = amount;
+        job.rail = "held";
+        await save();
+        return res.status(403).json({
+          ok: false,
+          error: "Only the owner can release money over $250.",
+          job
+        });
+      }
       const provider = body.provider || job.provider || (job.pack === "home" ? "calendar" : null);
       if (job.pack === "home" || provider === "calendar") {
         job.ics = icsOf(job);
@@ -210,23 +237,33 @@ module.exports = async function handler(req, res) {
       } else if (pipe && pipe.live) {
         job.dispatch = { queued: true, provider: pipe.provider, acts: PROVIDERS[pipe.provider].acts };
       } else {
-        job.dispatch = { demo: true, note: "No live pipe. Marked shipped on the API only." };
+        job.dispatch = { demo: true, note: "No live pipe. Stays on the desk." };
+      }
+      if (!pipeWroteBack(job.dispatch)) {
+        job.status = "held";
+        job.amount = amount || job.amount;
+        job.whoTapped = actorName(person, body);
+        job.rail = "held";
+        job.log = (job.log || []).concat(["Held · no live pipe write-back"]);
+        log(pipe ? pipe.label : "Agent", "Held · " + job.title, job.dispatch && job.dispatch.demo ? "Demo" : "Waiting", workspace);
+        await save();
+        return res.status(200).json({ ok: true, job });
       }
       job.status = "shipped";
       job.amount = amount || job.amount;
       job.whoTapped = actorName(person, body);
-      job.rail = "sent";
+      job.rail = amount >= MONEY_HOLD ? "owner-confirmed" : "under-250";
       job.step = "Collect";
-      job.log = (job.log || []).concat(["Shipped"]);
+      job.log = (job.log || []).concat([amount >= MONEY_HOLD ? "Owner confirmed $" + amount : "Shipped"]);
       mem.money.unshift({
         at: new Date().toISOString(),
         workspace,
         who: job.payoutTo || job.title,
-        what: job.dispatch && job.dispatch.demo ? "Demo ship — not billed" : "Ship",
+        what: "Ship",
         amt: amount ? "$" + amount : "—",
         held: false
       });
-      log(pipe ? pipe.label : "Agent", "Shipped · " + job.title, job.dispatch && job.dispatch.demo ? "Demo" : "OK", workspace);
+      log(pipe ? pipe.label : "Agent", "Shipped · " + job.title, "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }
