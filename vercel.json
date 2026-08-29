@@ -10,6 +10,8 @@
     { "path": "/api/worker?all=1", "schedule": "0 14 * * *" }
   ],
   "rewrites": [
+    { "source": "/favicon.ico", "destination": "/favicon.svg" },
+    { "source": "/apple-touch-icon.png", "destination": "/favicon.svg" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
     { "source": "/api/health", "destination": "/api/health" },
