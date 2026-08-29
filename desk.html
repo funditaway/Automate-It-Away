@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desk · Automate It Away</title>
+  <style>
+    :root { --teal:#0d6b6b; --orange:#f39c12; --gray:#3d4f5f; --line:#d1dae3; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:#f4f7fa;color:#1a2332}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 48px}
+    .banner{background:#fff4e0;color:#7a4b00;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+    .item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .item h3{font-size:1rem}
+    .item p{color:var(--gray);font-size:13px;margin:4px 0 8px}
+    .row{display:flex;gap:6px;flex-wrap:wrap}
+    button{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
+    .go{background:#119494;color:#fff}
+    .kill{background:#fdecea;color:#c0392b}
+    .edit{background:#e6f7f7;color:#0a4f4f}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+    .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
+    .kpi span{display:block;font-size:11px;color:#6b7c8f;text-transform:uppercase}
+    .kpi b{font-size:1.3rem;color:var(--teal)}
+    .sheet{position:fixed;inset:0;background:rgba(10,79,79,.45);display:none;align-items:flex-end;justify-content:center}
+    .sheet.on{display:flex}
+    .sheet-card{background:#fff;width:min(480px,100%);border-radius:16px 16px 0 0;padding:16px}
+    @media(max-width:640px){.kpis{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html"><strong>Automate It Away</strong></a>
+    <span><a href="connections.html">Pipes</a> · <a href="status.html">Status</a> · <a href="widget.html">Widget</a></span>
+  </header>
+  <main class="wrap">
+    <div class="banner" id="banner">Checking API…</div>
+    <div class="kpis">
+      <div class="kpi"><span>Waiting</span><b id="k-wait">—</b></div>
+      <div class="kpi"><span>Held</span><b id="k-held">—</b></div>
+      <div class="kpi"><span>Shipped</span><b id="k-ship">—</b></div>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <input id="ws" value="consign-it-away" style="padding:8px;border:1px solid var(--line);border-radius:8px">
+      <button class="edit" type="button" onclick="load()">Refresh</button>
+      <button class="go" type="button" onclick="capture()">Capture test</button>
+    </div>
+    <div id="queue"></div>
+  </main>
+  <div class="sheet" id="sheet" onclick="if(event.target===this) this.classList.remove('on')">
+    <div class="sheet-card" id="sheet-card"></div>
+  </div>
+  <script src="store.js"></script>
+  <script>
+    const wsEl = document.getElementById("ws");
+    function ws() {
+      const v = wsEl.value || "consign-it-away";
+      localStorage.setItem("aia_ws", v);
+      return v;
+    }
+    async function api(path, opts) {
+      const r = await fetch(path, Object.assign({
+        headers: { "Content-Type": "application/json", "X-Workspace": ws() }
+      }, opts || {}));
+      const data = await r.json().catch(() => ({}));
+      return { status: r.status, data };
+    }
+    let JOBS = [];
+    async function load() {
+      const banner = document.getElementById("banner");
+      try {
+        const health = await api("/api/health");
+        const d = health.data.store || {};
+        banner.textContent = "API up · store " + (d.driver || "?") + (d.note ? " · " + d.note : "") + ". Kill and $250+ need a second tap.";
+        const jobs = await api("/api/jobs");
+        JOBS = jobs.data.jobs || [];
+      } catch (e) {
+        banner.textContent = "API not on this host. Open the Vercel desk.";
+        JOBS = [];
+      }
+      const wait = JOBS.filter(j => j.status === "exception").length;
+      const held = JOBS.filter(j => j.status === "held").length;
+      const ship = JOBS.filter(j => j.status === "shipped").length;
+      document.getElementById("k-wait").textContent = wait;
+      document.getElementById("k-held").textContent = held;
+      document.getElementById("k-ship").textContent = ship;
+      document.getElementById("queue").innerHTML = JOBS.filter(j => j.status === "exception" || j.status === "held").map(j => `
+        <article class="item">
+          <div style="font-size:11px;color:#6b7c8f">${j.status} · ${j.step || ""} · ${j.provider || "capture"}</div>
+          <h3>${j.title}</h3>
+          <p>${j.why || ""}</p>
+          <div class="row">
+            <button class="go" onclick="ship('${j.id}', ${Number(j.amount||0)})">Ship ${j.amount?("$"+j.amount):""}</button>
+            <button class="kill" onclick="kill('${j.id}', '${String(j.title).replace(/'/g,"")}')">Kill</button>
+          </div>
+        </article>`).join("") || `<p style="color:#6b7c8f">Queue clear.</p>`;
+    }
+    async function capture() {
+      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "capture", title: "Desk test item", provider: "webhook" }) });
+      load();
+    }
+    async function ship(id, amount) {
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: false }) });
+      if (out.status === 409) {
+        document.getElementById("sheet-card").innerHTML = `
+          <h3>Over $250</h3>
+          <p style="color:#3d4f5f;margin:8px 0">Owner confirm to ship $${amount || 0}.</p>
+          <div class="row">
+            <button class="go" onclick="confirmShip('${id}', ${amount})">Release</button>
+            <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep held</button>
+          </div>`;
+        document.getElementById("sheet").classList.add("on");
+        load();
+        return;
+      }
+      load();
+    }
+    async function confirmShip(id, amount) {
+      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: true }) });
+      document.getElementById("sheet").classList.remove("on");
+      load();
+    }
+    async function kill(id, title) {
+      document.getElementById("sheet-card").innerHTML = `
+        <h3>Kill this job?</h3>
+        <p style="color:#3d4f5f;margin:8px 0">${title}. Nothing goes to a channel.</p>
+        <div class="row">
+          <button class="kill" onclick="confirmKill('${id}')">Yes, kill it</button>
+          <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep waiting</button>
+        </div>`;
+      document.getElementById("sheet").classList.add("on");
+    }
+    async function confirmKill(id) {
+      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "kill", id, confirm: true }) });
+      document.getElementById("sheet").classList.remove("on");
+      load();
+    }
+    if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
+    load();
+  </script>
+</body>
+</html>
