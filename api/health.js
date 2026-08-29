@@ -23,6 +23,13 @@ module.exports = function handler(req, res) {
           ? "File store on this box"
           : "Memory only"
     },
+    files: {
+      driver: process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "tmp-file",
+      count: (mem.files || []).length,
+      note: process.env.BLOB_READ_WRITE_TOKEN
+        ? "Vercel Blob live"
+        : "No BLOB_READ_WRITE_TOKEN — files sit in /tmp"
+    },
     pipes: catalog(),
     domain: "automateitaway.com",
     repo: "funditaway/Automate-It-Away"
