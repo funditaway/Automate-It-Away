@@ -2,14 +2,10 @@
 <html lang="en">
 <head>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
-
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open your shop · Automate It Away</title>
+  <title>Open your desk · Automate It Away</title>
   <style>
     :root { --teal-900:#0a4f4f;--teal-800:#0d6b6b;--orange-500:#f39c12;--gray-900:#1a2332;--gray-500:#6b7c8f;--gray-300:#d1dae3;--teal-50:#f2fbfb; }
     *{box-sizing:border-box;margin:0;padding:0}
@@ -35,8 +31,8 @@
     <a href="setup.html">How to set this up</a> · <a href="login.html">Already have a shop</a>
   </header>
   <form class="card" id="form">
-    <h1>Open this desk</h1>
-    <p class="sub">House list or shop queue. The desk writes the work. You say yes or no.</p>
+    <h1>Open this queue</h1>
+    <p class="sub">Name the desk. Pick a code. That pair is the login on any phone. Then drop something in — or we type it.</p>
     <label>Your name</label>
     <input name="name" required placeholder="Alex Rivera" autocomplete="name">
     <div class="row">
@@ -52,7 +48,7 @@
     <label>You are</label>
     <select name="role" required>
       <option value="owner">Owner</option>
-      <option value="employee">Staff</option>
+      <option value="employee">Helper</option>
     </select>
     <label>What this desk is for</label>
     <select name="model" required>
@@ -62,9 +58,9 @@
     </select>
     <label>Email <span class="tip" title="For you. Login is shop name + desk code, not email.">?</span></label>
     <input type="email" name="email" required placeholder="you@shop.com">
-    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this shop. Staff get their own later.">?</span></label>
+    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this shop.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
-    <button class="btn" type="submit">Open this desk</button>
+    <button class="btn" type="submit">Open this queue</button>
     <p class="hint">Desk name + your code opens this queue on any phone.</p>
     <p class="err" id="err"></p>
   </form>
@@ -85,19 +81,11 @@
         const r = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Workspace": slug, "X-Pin": pin },
-          body: JSON.stringify({
-            action: "open",
-            name: f.get("name"),
-            biz: f.get("biz"),
-            city: f.get("city"),
-            model: f.get("model"),
-            email: f.get("email"),
-            pin
-          })
+          body: JSON.stringify({ action: "open", name: f.get("name"), biz: f.get("biz"), city: f.get("city"), model: f.get("model"), email: f.get("email"), pin })
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) { err.textContent = data.error || "Could not open the shop."; err.style.display = "block"; return; }
-        location.href = (f.get("role") === "employee") ? "desk.html" : "admin.html";
+        location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
         err.style.display = "block";

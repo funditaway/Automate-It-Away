@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open this shop · Automate It Away</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
+  <title>Open this queue · Automate It Away</title>
   <style>
+    :root { --teal:#0d6b6b; --orange:#f39c12; --ink:#1a2332; --muted:#6b7c8f; --line:#d1dae3; }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:linear-gradient(160deg,#f2fbfb,#fff 50%);color:var(--ink);min-height:100vh}
     a{color:var(--teal);text-decoration:none}
-    header{padding:14px 5vw;display:flex;justify-content:space-between;align-items:center}
-    .card{width:min(440px,94vw);margin:24px auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
-    h1{color:var(--heading);font-size:1.4rem;margin-bottom:6px}
+    header{padding:14px 5vw;display:flex;justify-content:space-between}
+    .card{width:min(440px,94vw);margin:24px auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px}
+    h1{color:#0a4f4f;font-size:1.4rem;margin-bottom:6px}
     p{color:var(--muted);margin-bottom:16px}
-    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:12px 0 6px}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
-    input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink)}
+    label{display:block;font-size:12px;font-weight:700;color:#0a4f4f;margin:12px 0 6px}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
+    input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit}
     button{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
     .err{display:none;margin-top:10px;color:#c0392b;font-size:14px}
   </style>
@@ -25,16 +25,16 @@
 <body>
   <header>
     <a href="index.html"><strong>Automate It Away</strong></a>
-    <span><a href="onboard.html">New shop</a> · <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span>
+    <a href="onboard.html">New desk</a>
   </header>
   <form class="card" id="form">
-    <h1>Open this shop</h1>
-    <p>Owner code opens people and money. Staff code opens the queue.</p>
-    <label>Shop name <span class="tip" title="The name you used when you opened the shop. Letters and dashes.">?</span></label>
-    <input name="slug" required placeholder="rivera-resale" autocomplete="username">
-    <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
+    <h1>Open this queue</h1>
+    <p>Shop name + your desk code. Owner and helper land on the same desk.</p>
+    <label>Shop name <span class="tip" title="The name you used when you opened the desk.">?</span></label>
+    <input name="slug" required placeholder="oddo-house" autocomplete="username">
+    <label>Your desk code <span class="tip" title="Owner and helper each have their own code.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
-    <button type="submit">Open</button>
+    <button type="submit">That's my queue</button>
     <p class="err" id="err"></p>
   </form>
   <script>
@@ -56,8 +56,7 @@
         localStorage.setItem("aia_pin", pin);
         if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
         if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
-        if (data.workspace && data.workspace.model) localStorage.setItem("aia_model", data.workspace.model);
-        location.href = (data.you && data.you.role === "owner") ? "admin.html" : "desk.html";
+        location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
         err.style.display = "block";
