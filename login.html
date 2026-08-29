@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open this desk · Automate It Away</title>
+  <title>Open this shop · Automate It Away</title>
   <style>
     :root { --teal:#0d6b6b; --orange:#f39c12; --ink:#1a2332; --muted:#6b7c8f; --line:#d1dae3; }
     *{box-sizing:border-box;margin:0;padding:0}
@@ -14,6 +14,7 @@
     h1{color:#0a4f4f;font-size:1.4rem;margin-bottom:6px}
     p{color:var(--muted);margin-bottom:16px}
     label{display:block;font-size:12px;font-weight:700;color:#0a4f4f;margin:12px 0 6px}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
     input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit}
     button{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
     .err{display:none;margin-top:10px;color:#c0392b;font-size:14px}
@@ -22,15 +23,15 @@
 <body>
   <header>
     <a href="index.html"><strong>Automate It Away</strong></a>
-    <a href="onboard.html">New workspace</a>
+    <a href="onboard.html">New shop</a>
   </header>
   <form class="card" id="form">
-    <h1>Sign in</h1>
-    <p>Owner pin opens admin. Employee pin opens the queue.</p>
-    <label>Workspace slug</label>
-    <input name="slug" required placeholder="rivera-roofing" autocomplete="username">
-    <label>Your pin</label>
-    <input name="pin" required inputmode="numeric" minlength="4" placeholder="4170" autocomplete="current-password">
+    <h1>Open this shop</h1>
+    <p>Owner code opens people and money. Staff code opens the queue.</p>
+    <label>Shop name <span class="tip" title="The name you used when you opened the shop. Letters and dashes.">?</span></label>
+    <input name="slug" required placeholder="rivera-resale" autocomplete="username">
+    <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
+    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
     <button type="submit">Open</button>
     <p class="err" id="err"></p>
   </form>
@@ -48,14 +49,14 @@
           body: JSON.stringify({ action: "login", slug, pin })
         });
         const data = await r.json();
-        if (!r.ok) { err.textContent = data.error || "Could not open."; err.style.display = "block"; return; }
+        if (!r.ok) { err.textContent = data.error || "Shop name or code does not match."; err.style.display = "block"; return; }
         localStorage.setItem("aia_ws", data.workspace.slug);
         localStorage.setItem("aia_pin", pin);
         if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
         if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
         location.href = (data.you && data.you.role === "owner") ? "admin.html" : "desk.html";
       } catch (ex) {
-        err.textContent = "API not on this host.";
+        err.textContent = "Could not reach the desk.";
         err.style.display = "block";
       }
     };
