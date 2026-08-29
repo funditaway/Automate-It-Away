@@ -2,7 +2,7 @@
   "name": "automate-it-away",
   "private": true,
   "scripts": {
-    "test": "node scripts/check-desk-rules.js"
+    "test": "node scripts/check-desk-rules.js && node scripts/check-desk-nav.js"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
