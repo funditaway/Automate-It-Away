@@ -24,16 +24,18 @@
     .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
     .kpi span{display:block;font-size:11px;color:#6b7c8f;text-transform:uppercase}
     .kpi b{font-size:1.3rem;color:var(--teal)}
+    input{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit}
     .sheet{position:fixed;inset:0;background:rgba(10,79,79,.45);display:none;align-items:flex-end;justify-content:center}
     .sheet.on{display:flex}
     .sheet-card{background:#fff;width:min(480px,100%);border-radius:16px 16px 0 0;padding:16px}
+    img.thumb{max-width:120px;border-radius:8px;display:block;margin:6px 0}
     @media(max-width:640px){.kpis{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <header>
     <a href="index.html"><strong>Automate It Away</strong></a>
-    <span><a href="connections.html">Pipes</a> · <a href="status.html">Status</a> · <a href="widget.html">Widget</a></span>
+    <span><a href="login.html">Second phone</a> · <a href="connections.html">Pipes</a> · <a href="status.html">Status</a> · <a href="widget.html">Widget</a></span>
   </header>
   <main class="wrap">
     <div class="banner" id="banner">Checking API…</div>
@@ -43,9 +45,11 @@
       <div class="kpi"><span>Shipped</span><b id="k-ship">—</b></div>
     </div>
     <div class="row" style="margin-bottom:8px">
-      <input id="ws" value="consign-it-away" style="padding:8px;border:1px solid var(--line);border-radius:8px">
+      <input id="ws" value="consign-it-away" placeholder="workspace slug">
+      <input id="pin" placeholder="pin" inputmode="numeric" style="width:88px">
       <button class="edit" type="button" onclick="load()">Refresh</button>
       <button class="go" type="button" onclick="capture()">Capture test</button>
+      <button class="edit" type="button" onclick="tick()">Run worker</button>
     </div>
     <div id="queue"></div>
   </main>
@@ -55,15 +59,21 @@
   <script src="store.js"></script>
   <script>
     const wsEl = document.getElementById("ws");
+    const pinEl = document.getElementById("pin");
     function ws() {
       const v = wsEl.value || "consign-it-away";
       localStorage.setItem("aia_ws", v);
+      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
       return v;
     }
+    function headers() {
+      const h = { "Content-Type": "application/json", "X-Workspace": ws() };
+      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    }
     async function api(path, opts) {
-      const r = await fetch(path, Object.assign({
-        headers: { "Content-Type": "application/json", "X-Workspace": ws() }
-      }, opts || {}));
+      const r = await fetch(path, Object.assign({ headers: headers() }, opts || {}));
       const data = await r.json().catch(() => ({}));
       return { status: r.status, data };
     }
@@ -91,14 +101,24 @@
           <div style="font-size:11px;color:#6b7c8f">${j.status} · ${j.step || ""} · ${j.provider || "capture"}</div>
           <h3>${j.title}</h3>
           <p>${j.why || ""}</p>
+          ${j.photoUrl ? `<img class="thumb" src="${j.photoUrl}" alt="">` : ""}
           <div class="row">
+            <button class="edit" onclick="qualify('${j.id}')">Qualify</button>
             <button class="go" onclick="ship('${j.id}', ${Number(j.amount||0)})">Ship ${j.amount?("$"+j.amount):""}</button>
             <button class="kill" onclick="kill('${j.id}', '${String(j.title).replace(/'/g,"")}')">Kill</button>
           </div>
-        </article>`).join("") || `<p style="color:#6b7c8f">Queue clear.</p>`;
+        </article>`).join("") || `<p style="color:#6b7c8f">Queue clear. Capture from the widget or tap Capture test.</p>`;
     }
     async function capture() {
       await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "capture", title: "Desk test item", provider: "webhook" }) });
+      load();
+    }
+    async function qualify(id) {
+      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "qualify", id }) });
+      load();
+    }
+    async function tick() {
+      await api("/api/worker", { method: "POST", body: "{}" });
       load();
     }
     async function ship(id, amount) {
@@ -138,6 +158,7 @@
       load();
     }
     if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
+    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
     load();
   </script>
 </body>
