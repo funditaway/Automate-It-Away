@@ -122,16 +122,29 @@ async function blobRead() {
   }
 }
 
+async function blobPut(body) {
+  const { put } = require("@vercel/blob");
+  return put(BLOB_KEY, body, Object.assign({
+    contentType: "application/json"
+  }, blobOpts()));
+}
+
 async function blobWrite() {
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
+  const body = JSON.stringify(payload());
   try {
-    const { put } = require("@vercel/blob");
-    const blob = await put(BLOB_KEY, Buffer.from(JSON.stringify(payload()), "utf8"), Object.assign({
-      contentType: "application/json"
-    }, blobOpts()));
+    let blob;
+    try {
+      blob = await blobPut(body);
+    } catch (first) {
+      const { del } = require("@vercel/blob");
+      await del(BLOB_KEY, blobOpts()).catch(() => null);
+      blob = await blobPut(body);
+      blobProbe.detail = "rewrote";
+    }
     blobProbe.write = "ok";
     blobProbe.status = 200;
-    blobProbe.detail = null;
+    if (!blobProbe.detail) blobProbe.detail = null;
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
     return true;
