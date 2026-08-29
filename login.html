@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open this desk · Automate It Away</title>
+  <style>
+    :root { --teal:#0d6b6b; --orange:#f39c12; --ink:#1a2332; --muted:#6b7c8f; --line:#d1dae3; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:linear-gradient(160deg,#f2fbfb,#fff 50%);color:var(--ink);min-height:100vh}
+    a{color:var(--teal);text-decoration:none}
+    header{padding:14px 5vw;display:flex;justify-content:space-between}
+    .card{width:min(440px,94vw);margin:24px auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px}
+    h1{color:#0a4f4f;font-size:1.4rem;margin-bottom:6px}
+    p{color:var(--muted);margin-bottom:16px}
+    label{display:block;font-size:12px;font-weight:700;color:#0a4f4f;margin:12px 0 6px}
+    input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit}
+    button{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+    .err{display:none;margin-top:10px;color:#c0392b;font-size:14px}
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html"><strong>Automate It Away</strong></a>
+    <a href="onboard.html">New workspace</a>
+  </header>
+  <form class="card" id="form">
+    <h1>Second phone</h1>
+    <p>Same shop slug + pin. Queue is one workspace, not one browser.</p>
+    <label>Workspace slug</label>
+    <input name="slug" required placeholder="rivera-roofing" autocomplete="username">
+    <label>Desk pin</label>
+    <input name="pin" required inputmode="numeric" minlength="4" placeholder="4170" autocomplete="current-password">
+    <button type="submit">Open the desk</button>
+    <p class="err" id="err"></p>
+  </form>
+  <script>
+    document.getElementById("form").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const slug = String(f.get("slug") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const pin = f.get("pin");
+      const err = document.getElementById("err");
+      try {
+        const r = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Workspace": slug },
+          body: JSON.stringify({ action: "login", slug, pin })
+        });
+        const data = await r.json();
+        if (!r.ok) { err.textContent = data.error || "Could not open."; err.style.display = "block"; return; }
+        localStorage.setItem("aia_ws", data.workspace.slug);
+        localStorage.setItem("aia_pin", pin);
+        location.href = "desk.html";
+      } catch (ex) {
+        err.textContent = "API not on this host.";
+        err.style.display = "block";
+      }
+    };
+  </script>
+</body>
+</html>

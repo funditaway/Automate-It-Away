@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Go live · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332}header{background:#0d6b6b;color:#fff;padding:14px 5vw}a{color:#0f7f7f}.wrap{width:min(800px,92vw);margin:0 auto;padding:22px 0}.item{background:#fff;border:1px solid #d1dae3;border-radius:12px;padding:12px;margin:8px 0}</style>
+<style>body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332}header{background:#0d6b6b;color:#fff;padding:14px 5vw}a{color:#0f7f7f}.wrap{width:min(800px,92vw);margin:0 auto;padding:22px 0}.item{background:#fff;border:1px solid #d1dae3;border-radius:12px;padding:12px;margin:8px 0;display:block}</style>
 </head>
 <body>
 <header>Automate It Away · Pre-launch</header>
@@ -16,14 +16,15 @@
 const ITEMS = [
 ["Product surface","Pages in this repo."],
 ["First vertical","Consign — not all 16."],
-["Cloud jobs","Worker + DB. localStorage is the pilot."],
-["Second phone login","Workspace survives a new device."],
-["One live pipe","Square or eBay writes."],
+["Cloud jobs","Blob store when BLOB_READ_WRITE_TOKEN is set. /tmp is not a shared queue."],
+["Second phone login","login.html — slug + pin. Survives a new device only after Blob."],
+["One live pipe","Square or eBay writes back. Webhook is demo-live."],
 ["Grok 4.6","Qualify + draft only."],
 ["Grok Bot","Leave off. No public API."]
 ];
 const key="aia_golive";
-document.getElementById("list").innerHTML = ITEMS.map((r,i)=>`<label class="item"><input type="checkbox" onchange="flip(${i})"> <b>${r[0]}</b> — ${r[1]}</label>`).join("");
+const saved=JSON.parse(localStorage.getItem(key)||"[]");
+document.getElementById("list").innerHTML = ITEMS.map((r,i)=>`<label class="item"><input type="checkbox" ${saved[i]?"checked":""} onchange="flip(${i})"> <b>${r[0]}</b> — ${r[1]}</label>`).join("");
 function flip(i){const on=JSON.parse(localStorage.getItem(key)||"[]");on[i]=!on[i];localStorage.setItem(key,JSON.stringify(on));}
 </script>
 </body></html>
