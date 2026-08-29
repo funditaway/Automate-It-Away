@@ -1,6 +1,6 @@
 const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
-const { qualifyJob, recommend, icsOf, runWorkspace, MONEY_HOLD } = require("./engine");
+const { qualifyJob, recommend, icsOf, runWorkspace } = require("./engine");
 
 function pipesFor(workspace) {
   return mem.connections.filter((c) => c.workspace === workspace);
@@ -80,7 +80,7 @@ module.exports = async function handler(req, res) {
         ...fields,
         from: fields.from || "widget"
       };
-      qualifyJob(job, shop && shop.model);
+      qualifyJob(job, shop);
       if (fields.notes) addTalk(job, job.from || "capture", fields.notes, "note");
       addTalk(job, "desk", job.why || "In the queue.", "rec");
       mem.jobs.unshift(job);
@@ -92,7 +92,7 @@ module.exports = async function handler(req, res) {
         at: Date.now()
       });
       log("Capture", job.title, "Waiting", workspace);
-      runWorkspace(mem.jobs.filter((j) => j.workspace === workspace), Date.now(), shop && shop.model);
+      runWorkspace(mem.jobs.filter((j) => j.workspace === workspace), Date.now(), shop);
       await save();
       return res.status(201).json({ ok: true, job });
     }
@@ -127,7 +127,7 @@ module.exports = async function handler(req, res) {
 
     if (action === "qualify") {
       mergeFields(job, body);
-      qualifyJob(job, shop && shop.model);
+      qualifyJob(job, shop);
       if (body.why) job.why = body.why;
       log("Qualify", job.title, "Waiting", workspace);
       await save();
@@ -161,7 +161,7 @@ module.exports = async function handler(req, res) {
       if (!job.custom) job.custom = {};
       if (body.key) job.custom[slugField(body.key)] = body.value == null ? "" : String(body.value).slice(0, 200);
       addTalk(job, actorName(person, body), "Updated " + (body.key || "fields"), "note");
-      qualifyJob(job, shop && shop.model);
+      qualifyJob(job, shop);
       log("Desk", "Fill · " + job.title, "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job, fields: ensureFields(shop) });
@@ -191,27 +191,6 @@ module.exports = async function handler(req, res) {
     if (action === "ship") {
       mergeFields(job, body);
       const amount = Number(body.amount || job.amount || job.ask || 0);
-      if (amount > MONEY_HOLD && !body.confirm) {
-        job.status = "held";
-        job.amount = amount;
-        log("Rail", "Held · " + job.title + " · $" + amount, "Waiting", workspace);
-        await save();
-        return res.status(409).json({
-          ok: false,
-          error: "Guardrail: money over $250 needs the owner on the desk.",
-          job
-        });
-      }
-      if (amount > MONEY_HOLD && shop && !isOwner(person)) {
-        job.status = "held";
-        job.amount = amount;
-        await save();
-        return res.status(403).json({
-          ok: false,
-          error: "Only the owner can release money over $250.",
-          job
-        });
-      }
       const provider = body.provider || job.provider || (job.pack === "home" ? "calendar" : null);
       if (job.pack === "home" || provider === "calendar") {
         job.ics = icsOf(job);
@@ -236,9 +215,9 @@ module.exports = async function handler(req, res) {
       job.status = "shipped";
       job.amount = amount || job.amount;
       job.whoTapped = actorName(person, body);
-      job.rail = amount > MONEY_HOLD ? "owner-confirmed" : "under-250";
+      job.rail = "sent";
       job.step = "Collect";
-      job.log = (job.log || []).concat([amount > MONEY_HOLD ? "Owner confirmed $" + amount : "Shipped"]);
+      job.log = (job.log || []).concat(["Shipped"]);
       mem.money.unshift({
         at: new Date().toISOString(),
         workspace,
