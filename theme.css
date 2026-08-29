@@ -54,9 +54,52 @@ input, select, textarea {
   padding: 4px 10px;
   font: 600 12px system-ui, sans-serif;
   cursor: pointer;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 #nav-consign[hidden] { display: none; }
 #nav-consign:not([hidden])::after { content: " · "; }
+body.has-desk-nav { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+#desk-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: flex;
+  background: #0d6b6b;
+  color: #fff;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -6px 20px rgba(10, 79, 79, .22);
+}
+#desk-nav a, #desk-nav button {
+  flex: 1;
+  width: auto;
+  margin: 0;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, .84);
+  font: 700 11px/1.1 system-ui, "Segoe UI", sans-serif;
+  letter-spacing: .02em;
+  text-decoration: none;
+  cursor: pointer;
+}
+#desk-nav a.on, #desk-nav button.on { color: var(--orange, #f39c12); }
+#desk-nav svg { width: 22px; height: 22px; display: block; }
+@media (max-width: 720px) {
+  body.has-desk-nav header span { font-size: 0; }
+  body.has-desk-nav header span a { display: none; }
+  body.has-desk-nav header span .theme-btn,
+  body.has-desk-nav header span button { font-size: 12px; }
+  body.has-desk-nav header > a + a { display: none; }
+}
 html.dark body { background: var(--bg) !important; color: var(--ink) !important; }
 html.dark .hero { background: var(--bg-soft) !important; }
 html.dark .card, html.dark .kpi, html.dark .item, html.dark .sheet-card {

@@ -17,14 +17,14 @@
     body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
     a{color:inherit;text-decoration:none}
     header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
-    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 48px}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 24px}
     .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
     .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
     .item h3{font-size:1rem;color:var(--heading)}
     .item p{color:var(--muted);font-size:13px;margin:4px 0 8px}
     .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-    button{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
-    .go{background:#119494;color:#fff}
+    button,a.go{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
+    .go{background:#119494;color:#fff;display:inline-block}
     .kill{background:var(--kill-bg);color:var(--kill-ink)}
     .edit{background:var(--edit);color:var(--edit-ink)}
     .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
@@ -47,10 +47,10 @@
     .talk div{margin:0 0 6px}
     .talk b{color:var(--heading)}
     .recs li{margin:0 0 4px;font-size:13px;color:var(--muted)}
-    #rules{list-style:none;padding:0;margin:8px 0 0}
-    #rules li{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 6px;font-size:13px;color:var(--muted)}
-    #rules li span{flex:1}
-    #rules .kill{padding:4px 8px;font-size:12px}
+    #rule-list{list-style:none;padding:0;margin:8px 0 0}
+    #rule-list li{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 6px;font-size:13px;color:var(--muted)}
+    #rule-list li span{flex:1}
+    #rule-list .kill{padding:4px 8px;font-size:12px}
     @media(max-width:640px){.kpis{grid-template-columns:1fr}}
   </style>
 </head>
@@ -83,27 +83,35 @@
       <button class="edit" type="button" onclick="load()">Open</button>
     </div>
     <div class="row" style="margin-bottom:8px">
-      <button class="go" type="button" onclick="openCapture()">Drop something in</button>
+      <a class="go" id="drop-go" href="/onboard">Drop something in</a>
       <button class="edit" type="button" onclick="load()">Refresh</button>
     </div>
-    <div class="item" id="rules-box">
+    <div id="queue"></div>
+    <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
+    <div id="recent"></div>
+    <div class="item" id="rules">
       <h3>Owner rules</h3>
       <p>Wait for the owner. You add the line.</p>
-      <ul id="rules"></ul>
+      <ul id="rule-list"></ul>
       <div class="row" id="rule-add" hidden style="margin-top:8px">
         <input id="rule-text" placeholder="Ask me if …" maxlength="140" style="flex:1">
         <button class="edit" type="button" onclick="addRule()">Add a rule</button>
       </div>
       <p class="meta" id="rule-hint">Hard stops still win. A rule cannot auto-pay, auto-list, or un-kill junk.</p>
     </div>
-    <div id="queue"></div>
-    <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
-    <div id="recent"></div>
   </main>
   <div class="sheet" id="sheet" onclick="if(event.target===this) this.classList.remove('on')">
     <div class="sheet-card" id="sheet-card"></div>
   </div>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><span>Queue</span></a>
+    <a href="/onboard" data-tab="drop" id="nav-drop"><span>Drop</span></a>
+    <a href="/desk#rules" data-tab="rules"><span>Rules</span></a>
+    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/help" data-tab="more"><span>More</span></a>
+  </nav>
   <script src="desk-card.js"></script>
+  <script src="desk-nav.js"></script>
   <script>
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");
@@ -130,10 +138,17 @@
       document.getElementById("session").hidden = !on;
       const shop = localStorage.getItem("aia_ws") || "demo";
       document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + shop + (role === "employee" ? " · helper" : role === "owner" ? " · owner" : "");
+      wireDrop();
     }
     function unlock() { localStorage.removeItem("aia_pin"); pinEl.value = ""; paintGate(); }
+    function wireDrop() {
+      const href = (localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin")) ? "/widget.html" : "/onboard";
+      document.querySelectorAll("#drop-go, #nav-drop, #desk-nav [data-tab=\"drop\"]").forEach((el) => {
+        if (el && el.tagName === "A") el.setAttribute("href", href);
+      });
+    }
     function paintRules(rules, canEdit) {
-      const list = document.getElementById("rules");
+      const list = document.getElementById("rule-list");
       const rows = rules || [];
       list.innerHTML = rows.map((r) =>
         "<li><span>" + esc(r.text) + "</span>" +
@@ -205,13 +220,19 @@
         paintGate();
       } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintRules([], false); showConsignNav(); }
       const waiting = JOBS.filter(j => j.status === "exception");
+      const ready = JOBS.filter(j => j.status === "waiting");
       const held = JOBS.filter(j => j.status === "held");
       const shipped = JOBS.filter(j => j.status === "shipped");
-      document.getElementById("k-wait").textContent = waiting.length;
+      document.getElementById("k-wait").textContent = waiting.length + ready.length;
       document.getElementById("k-held").textContent = held.length;
       document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
-      document.getElementById("queue").innerHTML = held.concat(waiting).map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Nothing needs you.</p>`;
+      const open = held.concat(waiting, ready);
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">This queue is empty.</p>`;
+      if (location.hash === "#rules") {
+        const box = document.getElementById("rules");
+        if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       const recent = shipped.slice(0, 3);
       document.getElementById("recent-label").hidden = !recent.length;
       document.getElementById("recent").innerHTML = recent.map(j => `<article class="item sent"><div class="meta">Sent${j.followed ? " · follow queued" : ""}</div><h3>${esc(j.title)}</h3><p>${esc(j.followNote || j.draft || "")}</p></article>`).join("");

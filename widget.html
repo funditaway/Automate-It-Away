@@ -15,7 +15,7 @@
     body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--gray-100);color:var(--gray-900)}
     a{color:inherit;text-decoration:none}
     header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}
-    .wrap{width:min(880px,94vw);margin:0 auto;padding:18px 0 40px}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:18px 0 24px}
     h1{color:var(--teal-900);font-size:1.4rem}
     .sub{color:var(--gray-500);margin:4px 0 16px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -49,9 +49,9 @@
           <option>Book a job</option>
         </select>
         <label>Your name</label>
-        <input id="who" placeholder="Taylor">
+        <input id="who" placeholder="Name">
         <label>Phone or email</label>
-        <input id="how" placeholder="417-555-0100">
+        <input id="how" placeholder="Phone or email">
         <label>Photo or PDF <span class="tip" title="Goes with the job. Keep it under 3.5MB.">?</span></label>
         <input id="photo" type="file" accept="image/*,application/pdf">
         <label>Notes</label>
@@ -67,7 +67,15 @@
       </div>
     </div>
   </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><span>Queue</span></a>
+    <a href="/widget.html" data-tab="drop"><span>Drop</span></a>
+    <a href="/desk#rules" data-tab="rules"><span>Rules</span></a>
+    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/help" data-tab="more"><span>More</span></a>
+  </nav>
   <script src="analytics.js"></script>
+  <script src="desk-nav.js"></script>
   <script>
     const ws = localStorage.getItem("aia_ws") || new URLSearchParams(location.search).get("ws") || "demo";
     if (new URLSearchParams(location.search).get("ws")) localStorage.setItem("aia_ws", ws);
