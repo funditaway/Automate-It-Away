@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tell the desk · Automate It Away</title>
+  <style>
+    :root { --teal:#0d6b6b; --orange:#f39c12; --ink:#1a2332; --muted:#6b7c8f; --line:#d1dae3; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:#f4f7fa;color:var(--ink);min-height:100vh;display:flex;flex-direction:column}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}
+    .wrap{width:min(640px,94vw);margin:0 auto;flex:1;display:flex;flex-direction:column;padding:12px 0 16px}
+    .intro{font-size:14px;color:var(--muted);margin-bottom:10px}
+    .log{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:12px;min-height:50vh}
+    .b{max-width:85%;padding:10px 12px;border-radius:14px;font-size:15px;line-height:1.4}
+    .desk{background:#fff;border:1px solid var(--line);align-self:flex-start}
+    .you{background:#0d6b6b;color:#fff;align-self:flex-end}
+    .composer{display:flex;gap:8px}
+    input{flex:1;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit}
+    button{border:0;border-radius:12px;padding:12px 14px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer}
+    .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .edit{background:#e6f7f7;color:#0a4f4f}
+    .muted{color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html"><strong>Automate It Away</strong></a>
+    <span><a href="onboard.html">Open shop</a> · <a href="desk.html">Desk</a></span>
+  </header>
+  <main class="wrap">
+    <p class="intro">The desk asks until it can set the job — or tells you we cannot, and you send a request.</p>
+    <div class="log" id="log"></div>
+    <div class="acts" id="acts"></div>
+    <form class="composer" id="form">
+      <input id="text" required placeholder="What should we automate?" autocomplete="off">
+      <button type="submit">Send</button>
+    </form>
+    <p class="muted" id="hint"></p>
+  </main>
+  <script>
+    const ws = localStorage.getItem("aia_ws") || "demo";
+    let id = sessionStorage.getItem("aia_chat") || "";
+    const logEl = document.getElementById("log");
+    function paint(intake) {
+      logEl.innerHTML = (intake.messages || []).map(m =>
+        `<div class="b ${m.from === "you" ? "you" : "desk"}">${m.text}</div>`
+      ).join("");
+      logEl.scrollTop = logEl.scrollHeight;
+      const acts = document.getElementById("acts");
+      const v = intake.verdict;
+      acts.innerHTML = "";
+      if (v && v.can) {
+        acts.innerHTML = `<button type="button" onclick="setup()">Put this in my queue</button>
+          <a class="edit" style="padding:12px;border-radius:12px" href="onboard.html">Open my shop first</a>`;
+      } else if (v && !v.can) {
+        acts.innerHTML = `<button type="button" onclick="request()">Send automation request</button>`;
+      }
+    }
+    async function api(body) {
+      const r = await fetch("/api/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Workspace": ws },
+        body: JSON.stringify(body)
+      });
+      return r.json();
+    }
+    async function start() {
+      const data = await api({ action: "start" });
+      id = data.intake.id;
+      sessionStorage.setItem("aia_chat", id);
+      paint(data.intake);
+    }
+    document.getElementById("form").onsubmit = async (e) => {
+      e.preventDefault();
+      const text = document.getElementById("text").value.trim();
+      if (!text || !id) return;
+      document.getElementById("text").value = "";
+      const data = await api({ action: "say", id, text });
+      if (data.intake) paint(data.intake);
+    };
+    async function setup() {
+      const data = await api({ action: "setup", id });
+      if (data.intake) paint(data.intake);
+      if (data.job) document.getElementById("hint").innerHTML = 'In the queue. <a href="desk.html">Open the desk</a>';
+    }
+    async function request() {
+      const data = await api({ action: "request", id });
+      if (data.intake) paint(data.intake);
+      if (data.ticket) document.getElementById("hint").textContent = "Request " + data.ticket.id + " sent to Automate It Away.";
+    }
+    start();
+  </script>
+</body>
+</html>
