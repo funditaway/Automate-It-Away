@@ -1,50 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Connections API · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0;background:#07090c;color:#f4f7fa}a{color:#fff}header{padding:14px 5vw;border-bottom:1px solid #243040;display:flex;justify-content:space-between}.wrap{width:min(880px,92vw);margin:0 auto;padding:20px 0}pre{background:#10151c;border:1px solid #243040;padding:12px;border-radius:8px;overflow:auto;font-size:12px}input,select{background:#10151c;border:1px solid #243040;color:#fff;padding:10px;border-radius:8px}button{background:#fff;color:#000;border:0;border-radius:8px;padding:10px 14px;font-weight:700}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connections · Automate It Away</title>
+  <style>
+    body{font-family:system-ui;margin:0;background:#07090c;color:#f4f7fa}
+    a{color:#fff;text-decoration:none}
+    header{padding:14px 5vw;border-bottom:1px solid #243040;display:flex;justify-content:space-between}
+    .wrap{width:min(920px,92vw);margin:0 auto;padding:20px 0 48px}
+    h1{font-weight:600;margin:0 0 8px}
+    .mute{color:#8b9aab}
+    pre,code{background:#10151c;border:1px solid #243040;border-radius:8px}
+    pre{padding:12px;overflow:auto;font-size:12px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+    input,select{background:#10151c;border:1px solid #243040;color:#fff;padding:10px;border-radius:8px}
+    button{background:#fff;color:#000;border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
+    button.quiet{background:#10151c;color:#fff;border:1px solid #243040}
+    button.kill{background:#c0392b;color:#fff}
+    .pipes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0}
+    .pipe{background:#10151c;border:1px solid #243040;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;gap:8px;font-size:14px}
+    .up{color:#3dd68c}.hold{color:#f39c12}.down{color:#ff6b4a}
+    @media(max-width:640px){.pipes{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-<header><a href="index.html">AUTOMATE IT AWAY</a><a href="status.html">Status</a></header>
-<main class="wrap">
-<h1>Connections API</h1>
-<pre>GET  /api/health
-GET  /api/connections
-POST /api/connections   {"provider":"square|ebay|calendar|consign|webhook|sms|whatnot","hook":"https://…"}
-DELETE /api/connections?id=
-GET  /api/jobs
-POST /api/jobs          {"action":"capture|ship|kill","title","id","provider","amount"}
-GET  /api/jobs?audit=1
-Header: X-Workspace</pre>
-<p>
-<input id="ws" value="consign-it-away">
-<select id="prov"><option>webhook</option><option>square</option><option>ebay</option><option>calendar</option><option>consign</option><option>sms</option><option>whatnot</option></select>
-<input id="hook" placeholder="webhook URL">
-</p>
-<p>
-<button type="button" onclick="hit('GET','/api/health')">Health</button>
-<button type="button" onclick="hit('GET','/api/connections')">List</button>
-<button type="button" onclick="connect()">Connect</button>
-<button type="button" onclick="capture()">Capture + ship $62</button>
-</p>
-<pre id="out">Ready.</pre>
-</main>
-<script>
-async function hit(method, path, body) {
-  const r = await fetch(location.origin + path, {
-    method,
-    headers: {"Content-Type":"application/json","X-Workspace":document.getElementById("ws").value||"demo"},
-    body: body ? JSON.stringify(body) : undefined
-  });
-  const data = await r.json();
-  document.getElementById("out").textContent = JSON.stringify(data, null, 2);
-  return data;
-}
-function connect(){hit("POST","/api/connections",{provider:document.getElementById("prov").value,hook:document.getElementById("hook").value||undefined});}
-async function capture(){
-  const job = await hit("POST","/api/jobs",{action:"capture",title:"API test item",provider:document.getElementById("prov").value});
-  if(job&&job.job) hit("POST","/api/jobs",{action:"ship",id:job.job.id,amount:62});
-}
-</script>
-</body></html>
+  <header>
+    <a href="index.html">AUTOMATE IT AWAY</a>
+    <span><a href="status.html">Status</a> · <a href="dashboard.html">Desk</a></span>
+  </header>
+  <main class="wrap">
+    <h1>Connections</h1>
+    <p class="mute">Same API for every pipe. Catalog is honest: live, hold, or down. Whatnot stays down. Connecting Square here without a token does not make it live.</p>
+    <div class="pipes" id="pipes">Loading catalog…</div>
+    <div class="row">
+      <input id="ws" placeholder="workspace" value="consign-it-away">
+      <input id="pin" placeholder="pin (optional)" inputmode="numeric">
+      <select id="prov">
+        <option>webhook</option><option>square</option><option>ebay</option>
+        <option>calendar</option><option>consign</option><option>sms</option><option>whatnot</option>
+      </select>
+      <input id="hook" placeholder="webhook URL" style="min-width:200px">
+    </div>
+    <div class="row">
+      <button type="button" onclick="hit('GET','/api/health')">Health</button>
+      <button type="button" onclick="listPipes()">List pipes</button>
+      <button type="button" onclick="connect()">Connect</button>
+      <button type="button" onclick="captureShip(62)">Ship $62</button>
+      <button type="button" onclick="captureShip(420)">Hold $420</button>
+      <button class="kill" type="button" onclick="captureKill()">Kill test</button>
+      <button class="quiet" type="button" onclick="hit('POST','/api/worker',{})">Worker</button>
+    </div>
+    <pre id="out">Ready. Health first.</pre>
+  </main>
+  <script>
+    const headers = () => {
+      const h = { "Content-Type": "application/json", "X-Workspace": document.getElementById("ws").value || "demo" };
+      const pin = document.getElementById("pin").value;
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    };
+    async function hit(method, path, body) {
+      const r = await fetch(path, { method, headers: headers(), body: body ? JSON.stringify(body) : undefined });
+      const data = await r.json();
+      document.getElementById("out").textContent = r.status + "\n" + JSON.stringify(data, null, 2);
+      return { status: r.status, data };
+    }
+    function paint(catalog) {
+      const el = document.getElementById("pipes");
+      el.innerHTML = (catalog || []).map(p => {
+        const cls = p.status === "live" ? "up" : p.status === "down" ? "down" : "hold";
+        return `<div class="pipe"><span>${p.label}</span><span class="${cls}">${p.status} · ${p.note}</span></div>`;
+      }).join("") || "No catalog.";
+    }
+    async function listPipes() {
+      const { data } = await hit("GET", "/api/connections");
+      paint(data.catalog);
+    }
+    function connect() {
+      hit("POST", "/api/connections", {
+        provider: document.getElementById("prov").value,
+        hook: document.getElementById("hook").value || undefined
+      }).then(listPipes);
+    }
+    async function captureShip(amount) {
+      const { data } = await hit("POST", "/api/jobs", {
+        action: "capture",
+        title: "Console test · $" + amount,
+        provider: document.getElementById("prov").value
+      });
+      if (!data.job) return;
+      await hit("POST", "/api/jobs", { action: "ship", id: data.job.id, amount, confirm: false });
+    }
+    async function captureKill() {
+      const { data } = await hit("POST", "/api/jobs", { action: "capture", title: "Console kill test" });
+      if (!data.job) return;
+      const first = await hit("POST", "/api/jobs", { action: "kill", id: data.job.id });
+      if (first.status === 409) await hit("POST", "/api/jobs", { action: "kill", id: data.job.id, confirm: true });
+    }
+    hit("GET", "/api/health").then(({ data }) => paint(data.pipes));
+  </script>
+</body>
+</html>

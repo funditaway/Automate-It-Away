@@ -1,17 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Status · Automate It Away</title></head>
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Status · Automate It Away</title>
+  <style>
+    body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#07090c;color:#f4f7fa}
+    a{color:#fff;text-decoration:none}
+    header{padding:14px 5vw;border-bottom:1px solid #243040}
+    .wrap{width:min(640px,92vw);margin:0 auto;padding:28px 0}
+    .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #243040;gap:12px}
+    .up{color:#3dd68c}.down{color:#ff6b4a}.hold{color:#f39c12}
+    pre{background:#10151c;border:1px solid #243040;border-radius:8px;padding:12px;font-size:12px;overflow:auto}
+  </style>
+</head>
 <body>
-<header><a href="index.html">AUTOMATE IT AWAY</a> · Status</header>
-<main>
-<h1>System status</h1>
-<p>Dashboard UI — operational</p>
-<p>Local engine — operational</p>
-<p>Accounts / cloud jobs — not live</p>
-<p>Square / eBay — not connected</p>
-<p>Whatnot — token path not wired</p>
-<p>Grok 4.6 — API key not set</p>
-<p>Grok Bot — no public API</p>
-</main>
+  <header><a href="index.html">AUTOMATE IT AWAY</a> · Status</header>
+  <main class="wrap">
+    <h1>automateitaway.com</h1>
+    <div class="row"><span>Marketing site</span><span class="up">Prototype up</span></div>
+    <div class="row"><span>Dashboard UI</span><span class="up">Prototype up</span></div>
+    <div class="row"><span>API / health</span><span id="api" class="hold">Checking…</span></div>
+    <div class="row"><span>World user accounts</span><span class="hold">Pin workspace — not email login</span></div>
+    <div class="row"><span>Hosted jobs store</span><span id="store" class="hold">Unknown</span></div>
+    <div class="row"><span>Domain DNS</span><span class="hold">Name claimed, not pointed</span></div>
+    <div class="row"><span>Square / eBay / Calendar</span><span id="pipes" class="hold">Not connected</span></div>
+    <div class="row"><span>Included Grok drafts</span><span class="hold">API key not set</span></div>
+    <div class="row"><span>ChatGPT / Claude required</span><span class="up">No — never required</span></div>
+    <div class="row"><span>Whatnot</span><span class="down">Not a launch pipe</span></div>
+    <div class="row"><span>Grok Bot public API</span><span class="down">Does not exist — not a gate</span></div>
+    <p style="color:#8b9aab;margin-top:18px">Green is honest. Orange is P1. Red we skip for launch.</p>
+    <pre id="raw">waiting on /api/health</pre>
+  </main>
+  <script>
+    fetch("/api/health").then(r => r.json()).then(data => {
+      document.getElementById("raw").textContent = JSON.stringify(data, null, 2);
+      const api = document.getElementById("api");
+      api.textContent = data.ok ? "Up on this host" : "Down";
+      api.className = data.ok ? "up" : "down";
+      const store = document.getElementById("store");
+      const d = data.store || {};
+      store.textContent = (d.driver || "?") + (d.note ? " — " + d.note : "");
+      store.className = d.driver === "file" ? "up" : "hold";
+      const live = (data.pipes || []).filter(p => p.live && p.id !== "webhook");
+      const pipes = document.getElementById("pipes");
+      if (live.length) { pipes.textContent = live.map(p => p.id).join(", "); pipes.className = "up"; }
+      else { pipes.textContent = "No paid pipes live"; pipes.className = "hold"; }
+    }).catch(() => {
+      document.getElementById("api").textContent = "Not on this host";
+      document.getElementById("api").className = "hold";
+      document.getElementById("raw").textContent = "Static host — API lives on the Vercel project automate-it-away.";
+    });
+  </script>
 </body>
 </html>
