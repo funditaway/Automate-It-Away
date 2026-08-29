@@ -1,5 +1,9 @@
 const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
 
+function inboundOf(workspace) {
+  return "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace);
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -10,6 +14,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "GET") {
     return res.status(200).json({
       workspace,
+      inbound: inboundOf(workspace),
       catalog: catalog(),
       connections: mem.connections.filter((c) => c.workspace === workspace)
     });
@@ -33,6 +38,7 @@ module.exports = async function handler(req, res) {
       live: configured(provider),
       status: provider === "whatnot" ? "down" : configured(provider) ? "live" : "hold",
       hook: body.hook || null,
+      inbound: inboundOf(workspace),
       createdAt: new Date().toISOString()
     };
     mem.connections.unshift(row);
@@ -41,8 +47,9 @@ module.exports = async function handler(req, res) {
     return res.status(201).json({
       ok: true,
       connection: row,
+      inbound: row.inbound,
       next: row.live
-        ? "Ready for POST /api/jobs action=ship"
+        ? "Ship posts to your hook. Your hook writes back to inbound."
         : "Add env keys, then reconnect. Catalog says which keys."
     });
   }

@@ -7,7 +7,8 @@
     }
   },
   "crons": [
-    { "path": "/api/worker?all=1", "schedule": "0 14 * * *" }
+    { "path": "/api/worker?all=1", "schedule": "0 14 * * *" },
+    { "path": "/api/worker?all=1", "schedule": "0 22 * * *" }
   ],
   "redirects": [
     { "source": "/dashboard", "destination": "/desk", "permanent": true },
@@ -21,6 +22,7 @@
     { "source": "/api/worker", "destination": "/api/worker" },
     { "source": "/api/upload", "destination": "/api/upload" },
     { "source": "/api/admin", "destination": "/api/admin" },
-    { "source": "/api/intake", "destination": "/api/intake" }
+    { "source": "/api/intake", "destination": "/api/intake" },
+    { "source": "/api/hook", "destination": "/api/hook" }
   ]
 }
