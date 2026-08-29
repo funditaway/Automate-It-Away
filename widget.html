@@ -68,6 +68,7 @@
       </div>
     </div>
   </main>
+  <script src="analytics.js"></script>
   <script>
     const ws = localStorage.getItem("aia_ws") || new URLSearchParams(location.search).get("ws") || "demo";
     if (new URLSearchParams(location.search).get("ws")) localStorage.setItem("aia_ws", ws);

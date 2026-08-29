@@ -2,6 +2,7 @@
   "name": "automate-it-away",
   "private": true,
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.0"
   }
 }
