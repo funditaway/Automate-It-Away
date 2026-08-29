@@ -65,3 +65,14 @@ html.dark .card, html.dark .kpi, html.dark .item, html.dark .sheet-card {
 html.dark .outline { color: var(--teal); border-color: var(--teal); }
 html.dark footer a { color: var(--teal); }
 html.dark h1, html.dark h2, html.dark h3 { color: var(--heading); }
+html.light body { background: var(--bg) !important; color: var(--ink) !important; }
+html.light .panel, html.light pre, html.light .pipe, html.light .step, html.light .out {
+  background: var(--card) !important;
+  color: var(--ink) !important;
+}
+html.light input, html.light textarea, html.light select {
+  background: var(--card) !important;
+  color: var(--ink) !important;
+}
+html.light a { color: var(--teal); }
+html.light header a { color: #fff; }

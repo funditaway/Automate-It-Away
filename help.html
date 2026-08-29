@@ -4,30 +4,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Help · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
   <style>
-    body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332}
-    a{color:#0f7f7f}
-    header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}
+    body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
+    a{color:var(--teal)}
+    header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
     header a{color:#fff}
     .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0}
-    h1,h2{color:#0a4f4f}
-    .card{background:#fff;border:1px solid #d1dae3;border-radius:14px;padding:16px;margin:10px 0}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:10px 0}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
     dt{font-weight:700;margin-top:8px}
-    dd{color:#3d4f5f;margin:0 0 8px}
+    dd{color:var(--muted);margin:0 0 8px}
   </style>
 </head>
 <body>
   <header>
     <a href="index.html">Automate It Away</a>
-    <a href="desk.html">Desk</a>
+    <span><a href="desk.html">Desk</a> · <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span>
   </header>
   <main class="wrap">
     <h1>How to run the desk</h1>
     <p>You only tap what needs a person.</p>
     <div class="card">
       <h2>Pages that exist</h2>
-      <p><a href="onboard.html">Open your shop</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="admin.html">People</a> · <a href="widget.html">Drop box</a> · <a href="support.html">Support</a></p>
+      <p><a href="onboard.html">Open your shop</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="admin.html">People</a> · <a href="widget.html">Drop box</a> · <a href="chat.html">Tell the desk</a> · <a href="support.html">Support</a></p>
     </div>
     <div class="card">
       <h2>Words on the buttons</h2>

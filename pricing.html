@@ -3,16 +3,26 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pricing · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
+<style>
+body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
+header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
+header a{color:#fff;text-decoration:none}
+main{width:min(720px,92vw);margin:0 auto;padding:24px 0}
+a{color:var(--teal)}
+</style>
 </head>
 <body>
-  <header><a href="index.html">Automate It Away</a></header>
+  <header><a href="index.html">Automate It Away</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
   <main>
     <h1>Pay when work ships.</h1>
     <p>No seats. Outcome pricing — the job ran or it didn’t.</p>
     <p><b>Pilot</b> $0 — demo desk, no live pipes.</p>
     <p><b>Desk</b> per shipped job — one live pipe + exception queue.</p>
     <p><b>Engine</b> per outcome — every model you turn on.</p>
-    <p><a href="onboard.html">Start a workspace</a> · <a href="launch.html">Go-live checklist</a></p>
+    <p><a href="onboard.html">Open your shop</a> · <a href="launch.html">Go-live checklist</a></p>
   </main>
 </body>
 </html>
