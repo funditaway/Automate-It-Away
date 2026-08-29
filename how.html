@@ -1,40 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>How it works · Automate It Away</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="theme.css">
+<script src="theme.js"></script>
 <style>
-body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
-header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
-a{color:inherit}
-.wrap{width:min(800px,94vw);margin:0 auto;padding:20px 0}
-.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.step{background:var(--bg-soft);padding:10px;border-radius:10px;border:1px solid var(--line)}
-@media(max-width:700px){.steps{grid-template-columns:1fr}}
-input{width:70%;padding:10px}
-button.go{padding:10px 14px;background:#f39c12;border:0;color:#fff;font-weight:700;border-radius:8px}
-.out{margin-top:12px;background:var(--banner);color:var(--banner-ink);padding:12px;border-radius:10px}
+body{font-family:system-ui,sans-serif;margin:0;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+header a{color:#fff;text-decoration:none}
+nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.wrap{width:min(760px,94vw);margin:0 auto;padding:24px 0 56px}
+h1{font-size:clamp(1.6rem,4vw,2.2rem);color:var(--heading);margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 22px;font-size:1.05rem}
+.steps{display:grid;gap:8px;margin:0 0 28px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.step b{color:var(--heading)}
+.step span{display:block;color:var(--muted);font-size:14px;margin-top:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 16px}
+label{display:block;font-weight:700;color:var(--heading);margin-bottom:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input{flex:1;min-width:180px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink)}
+button.go{border:0;border-radius:10px;padding:11px 14px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer}
+.out{margin-top:12px}
+.out ol{margin:8px 0 0;padding-left:18px}
+.out li{margin:4px 0}
+.words{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:560px){.words{grid-template-columns:1fr}}
+.words div{background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;padding:12px}
+.words dt{font-weight:700;color:var(--heading)}
+.words dd{margin:4px 0 0;color:var(--muted);font-size:14px}
+.actions{margin-top:20px}
+.btn{display:inline-block;margin:6px 8px 0 0;padding:12px 16px;border-radius:10px;font-weight:700;text-decoration:none}
+.primary{background:var(--orange);color:#fff}
+.outline{border:1px solid var(--teal);color:var(--teal)}
 </style>
 </head>
 <body>
-<header><a href="index.html">Automate It Away</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
+<header>
+  <a href="index.html"><strong>Automate It Away</strong></a>
+  <nav>
+    <a href="how.html">How</a>
+    <a href="desk.html">Desk</a>
+    <a href="login.html">Sign in</a>
+    <a href="onboard.html">Open your shop</a>
+    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+  </nav>
+</header>
 <main class="wrap">
-<h1>One engine. Every business.</h1>
-<div class="steps">
-<div class="step"><b>1 Capture</b></div><div class="step"><b>2 Qualify</b></div>
-<div class="step"><b>3 Do the work</b></div><div class="step"><b>4 Get paid</b></div>
-<div class="step"><b>5 Follow</b></div>
-</div>
-<p>Type any business</p>
-<input id="q" placeholder="consignment, HVAC, church…">
-<button class="go" type="button" onclick="run()">Show the engine</button>
-<div class="out" id="out"></div>
+  <h1>How the desk runs</h1>
+  <p class="lead">Work lands. The engine moves it. You only tap what needs a person.</p>
+
+  <div class="steps">
+    <div class="step"><b>1. Capture</b><span>Photo, form, call, or note. It hits your queue.</span></div>
+    <div class="step"><b>2. Qualify</b><span>Rules check the job. Odd ones wait on you.</span></div>
+    <div class="step"><b>3. Do the work</b><span>Draft the listing, text, booking, or payout. Nothing leaves until Send.</span></div>
+    <div class="step"><b>4. Get paid</b><span>Under $250 can go. Over $250 waits on the owner.</span></div>
+    <div class="step"><b>5. Follow</b><span>One nudge. Then it stops. No nag loop.</span></div>
+  </div>
+
+  <div class="card">
+    <label>Type what your shop does</label>
+    <div class="row">
+      <input id="q" placeholder="resale shop, plumber, salon…" autocomplete="off">
+      <button class="go" type="button" onclick="run()">Show the five steps</button>
+    </div>
+    <div class="out" id="out"></div>
+  </div>
+
+  <div class="card">
+    <b>Words on the buttons</b>
+    <div class="words" style="margin-top:10px">
+      <div><dt>Needs you</dt><dd>The engine stopped. You Send or Stop.</dd></div>
+      <div><dt>Send</dt><dd>Lets the job go. Staff can send under $250.</dd></div>
+      <div><dt>Stop</dt><dd>Owner only. Second tap. Nothing goes out.</dd></div>
+      <div><dt>Over $250</dt><dd>Staff can prepare it. Only the owner releases money.</dd></div>
+    </div>
+  </div>
+
+  <p class="lead">If this desk cannot run the job, it says so. You can send a request. We will not pretend it is live.</p>
+  <div class="actions">
+    <a class="btn primary" href="onboard.html">Open your shop</a>
+    <a class="btn outline" href="chat.html">Tell the desk what to automate</a>
+  </div>
 </main>
 <script>
-const M={consign:["Photo","Comps vs ask","List channels","Payout when sold","Pickup text"],insurance:["Lead","Needs analysis","Quote you approve","Premium","Year-2 review"],hvac:["Missed call","Territory + slot","Book calendar","Deposit","Invoice"],anything:["Whatever arrives","Your rules","Draft the work","Collect","Nudge then stop"]};
-function run(){const s=(document.getElementById("q").value||"anything").toLowerCase();const k=Object.keys(M).find(x=>s.includes(x))||"anything";const n=["Capture","Qualify","Do","Paid","Follow"];document.getElementById("out").innerHTML="<b>"+s+"</b><br>"+n.map((x,i)=>x+": "+M[k][i]).join("<br>");}
+const MAP = [
+  { keys: /consign|resale|thrift|ebay/, steps: ["Photo of the item", "Comps vs your ask", "List where you sell", "Payout when it sells", "Pickup text"] },
+  { keys: /insur|vita|life|policy/, steps: ["Lead in", "Fact-find", "Quote you approve", "Premium", "Year-two review"] },
+  { keys: /hvac|plumb|trade|salon|book|appoint/, steps: ["Missed call or form", "Fit the slot", "Book it", "Deposit", "Invoice"] },
+  { keys: /./, steps: ["Whatever arrives", "Your rules", "Draft the work", "Collect", "One follow, then stop"] }
+];
+const NAMES = ["Capture", "Qualify", "Do", "Get paid", "Follow"];
+function run() {
+  const s = (document.getElementById("q").value || "your shop").trim();
+  const row = MAP.find(m => m.keys.test(s.toLowerCase())) || MAP[MAP.length - 1];
+  document.getElementById("out").innerHTML =
+    "<p>For <b>" + s + "</b></p><ol>" +
+    NAMES.map((n, i) => "<li><b>" + n + ".</b> " + row.steps[i] + "</li>").join("") +
+    "</ol>";
+}
 </script>
-</body></html>
+</body>
+</html>
