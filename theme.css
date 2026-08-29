@@ -55,6 +55,8 @@ input, select, textarea {
   font: 600 12px system-ui, sans-serif;
   cursor: pointer;
 }
+#nav-consign[hidden] { display: none; }
+#nav-consign:not([hidden])::after { content: " · "; }
 html.dark body { background: var(--bg) !important; color: var(--ink) !important; }
 html.dark .hero { background: var(--bg-soft) !important; }
 html.dark .card, html.dark .kpi, html.dark .item, html.dark .sheet-card {
