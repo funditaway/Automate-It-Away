@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Automate It Away</title>
-  <meta name="description" content="Shop work and regular life. The desk writes the next step. You say yes or no.">
+  <meta name="description" content="Your shop runs. You tap the exceptions.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <script>
@@ -17,116 +18,45 @@
     body{font-family:system-ui,Segoe UI,sans-serif;margin:0;color:var(--ink);background:var(--bg)}
     a{color:inherit;text-decoration:none}
     header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:14px 5vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
-    nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
-    .wrap{width:min(980px,92vw);margin:0 auto}
-    .hero{padding:36px 5vw 28px;background:var(--bg-soft)}
-    .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:center}
-    h1{font-size:clamp(1.7rem,4.6vw,2.7rem);color:var(--heading);line-height:1.15;margin:0 0 10px}
-    .lead{color:var(--muted);font-size:1.05rem;max-width:36rem;margin:0 0 16px}
-    .hero-shot{min-height:180px;display:flex;flex-direction:column;justify-content:flex-end}
-    .btn{display:inline-block;margin:6px 8px 0 0;padding:12px 16px;border-radius:10px;font-weight:700}
-    .primary{background:var(--orange);color:#fff}
-    .outline{border:1px solid var(--teal);color:var(--teal)}
-    h2{color:var(--heading);font-size:1.25rem;margin:0 0 10px}
-    .why{padding:28px 5vw}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
-    .card{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card)}
-    .card b{display:block;color:var(--heading);margin-bottom:6px}
-    .card p,.card span{color:var(--muted);font-size:14px;margin:0}
-    .card.hero-shot{background:linear-gradient(135deg,#0f7f7f,#0d6b6b)!important;color:#fff;border:0}
-    .card.hero-shot b{color:#fff}
-    .card.hero-shot p,.card.hero-shot span{color:rgba(255,255,255,.9)}
-    .hero-shot .go{display:inline-block;margin-top:10px;background:var(--orange);color:#fff;border-radius:9px;padding:8px 10px;font-weight:700;font-size:14px}
-    .people{padding:0 5vw 28px}
-    .who{padding:0 5vw 32px}
-    footer{padding:22px 5vw;color:var(--muted);font-size:14px}
+    nav{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+    .wrap{width:min(720px,92vw);margin:0 auto;padding:28px 0 40px}
+    h1{font-size:clamp(1.8rem,5vw,2.6rem);color:var(--heading);line-height:1.15;margin:0 0 10px}
+    .lead{color:var(--muted);font-size:1.15rem;margin:0 0 18px}
+    .shot{width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin:0 0 18px}
+    .btn{display:inline-block;padding:14px 18px;border-radius:10px;font-weight:700;background:var(--orange);color:#fff}
+    .quiet{margin-left:10px;color:var(--teal);font-weight:700}
+    footer{padding:18px 5vw 28px;color:var(--muted);font-size:14px}
     footer a{color:var(--teal)}
-    @media(max-width:800px){.hero-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
 <header>
   <strong>Automate It Away</strong>
   <nav>
-    <a href="how.html">How</a>
-    <a href="setup.html">Setup</a>
-    <a href="desk.html">Desk</a>
-    <a href="login.html">Sign in</a>
-    <a href="/onboard">Open your shop</a>
+    <a href="/how">How</a>
+    <a href="/setup">Setup</a>
+    <a href="/desk">Desk</a>
+    <a href="/login">Sign in</a>
+    <a href="/onboard.html">Open your shop</a>
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
   </nav>
 </header>
-<section class="hero">
-  <div class="hero-grid wrap" style="width:min(980px,100%)">
-    <div>
-      <h1>Stop doing the same weekly work by hand.</h1>
-      <p class="lead">A call at the shop. A school form on the table. The oil change you keep forgetting. The desk writes the next step. You press yes or no.</p>
-      <a class="btn primary" href="/onboard">Open your shop</a>
-      <a class="btn outline" href="how.html">See it on your work</a>
-    </div>
-    <div class="card hero-shot">
-      <b>Yes or no</b>
-      <p>The desk writes the next step. You press Send or Stop.</p>
-      <span class="go">Send · Stop</span>
-    </div>
-  </div>
-</section>
-<section class="why">
-  <div class="wrap">
-    <h2>Why people use it</h2>
-    <div class="grid">
-      <div class="card"><b>You already do this work</b><p>Estimates, reminders, packets, invoices. The desk takes the typing. You keep the decision.</p></div>
-      <div class="card"><b>Nothing leaves until you say yes</b><p>Send means go. Stop means no. Payments over $250 wait for the owner.</p></div>
-      <div class="card"><b>Someone else can help</b><p>They work the queue. They cannot cancel a job or move big money.</p></div>
-      <div class="card"><b>Any phone</b><p>Login is the name of this desk + a code. Email is not the login.</p></div>
-    </div>
-  </div>
-</section>
-<section class="people">
-  <div class="wrap">
-    <h2>Regular life</h2>
-    <div class="grid">
-      <div class="card"><b>The house</b><span>Oil change. Lawn guy. Dentist for the kids. One list, one yes or no.</span></div>
-      <div class="card"><b>School week</b><span>Permission form lands. Reminder goes out once. Then it stops.</span></div>
-      <div class="card"><b>Side work</b><span>A neighbor texts for a Saturday job. Estimate is drafted. You send it.</span></div>
-      <div class="card"><b>Bills and follow-ups</b><span>If it spends more than $250, only the owner of that desk lets the money move.</span></div>
-    </div>
-  </div>
-</section>
-<section class="people">
-  <div class="wrap">
-    <h2>Same desk at work</h2>
-    <div class="grid">
-      <div class="card"><b>Service shop</b><span>Missed call. Photo of the job. Estimate ready for yes or no.</span></div>
-      <div class="card"><b>Front desk</b><span>Recall due. Confirm the visit. One reminder, then it stops.</span></div>
-      <div class="card"><b>Office</b><span>A lead or a file hits the queue. The packet is drafted. You send it.</span></div>
-      <div class="card"><b>Whatever you run</b><span>Land, rentals, storm work, lending. Same five steps. Different nouns.</span></div>
-    </div>
-  </div>
-</section>
-<section class="who">
-  <div class="wrap">
-    <h2>What happens this week</h2>
-    <div class="grid">
-      <div class="card"><b>1. It lands</b><p>Call, photo, form, or note. Once. Nobody retypes it.</p></div>
-      <div class="card"><b>2. It gets sorted</b><p>Fit, timing, and risk. If it can hurt money or a customer, it waits.</p></div>
-      <div class="card"><b>3. The desk writes it</b><p>Estimate, notice, quote, or reminder. Still sitting here.</p></div>
-      <div class="card"><b>4. You say yes or no</b><p>Then money, if money is due. Then one follow. Done.</p></div>
-    </div>
-    <p style="margin:18px 0 0">
-      <a class="btn primary" href="/onboard">Open your shop</a>
-      <a class="btn outline" href="setup.html">Set the shop up</a>
-    </p>
-  </div>
-</section>
+<main class="wrap">
+  <h1>Automate It Away</h1>
+  <p class="lead">Your shop runs. You tap the exceptions.</p>
+  <img class="shot" src="/img/home-counter.png" alt="Shop counter with a phone showing yes or no. No people.">
+  <p>
+    <a class="btn" href="/onboard.html">Open your shop</a>
+    <a class="quiet" href="/how">See how</a>
+  </p>
+</main>
 <footer>
   © 2026 Automate It Away ·
-  <a href="how.html">How</a> ·
-  <a href="setup.html">Setup</a> ·
-  <a href="help.html">Help</a> ·
-  <a href="pricing.html">Pricing</a> ·
-  <a href="legal.html">Legal</a> ·
-  <a href="status.html">Status</a>
+  <a href="/how">How</a> ·
+  <a href="/setup">Setup</a> ·
+  <a href="/help">Help</a> ·
+  <a href="/legal">Legal</a> ·
+  <a href="/status">Status</a>
 </footer>
 <script src="theme.js"></script>
 <script src="analytics.js"></script>
