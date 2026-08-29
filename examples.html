@@ -3,10 +3,20 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Examples · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0;background:#f4f7fa}header{background:#0d6b6b;color:#fff;padding:12px 4vw}a{color:inherit}.wrap{width:min(800px,94vw);margin:0 auto;padding:18px 0}.card{background:#fff;border:1px solid #d1dae3;border-radius:12px;padding:14px;margin:8px 0}</style>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
+<style>
+body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
+header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
+header a{color:#fff;text-decoration:none}
+.wrap{width:min(800px,94vw);margin:0 auto;padding:18px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:8px 0}
+a{color:var(--teal)}
+</style>
 </head>
 <body>
-<header><a href="index.html">Automate It Away</a></header>
+<header><a href="index.html">Automate It Away</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
 <main class="wrap">
 <h1>Random businesses. Same engine.</h1>
 <div class="card"><b>Consign</b><p>Photo → comps → list → payout. You tap bad prices.</p></div>

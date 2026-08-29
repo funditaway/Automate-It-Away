@@ -3,10 +3,24 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>How it works · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0}header{background:#0d6b6b;color:#fff;padding:12px 4vw}a{color:inherit}.wrap{width:min(800px,94vw);margin:0 auto;padding:20px 0}.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.step{background:#f2fbfb;padding:10px;border-radius:10px}@media(max-width:700px){.steps{grid-template-columns:1fr}}input{width:70%;padding:10px}button{padding:10px 14px;background:#f39c12;border:0;color:#fff;font-weight:700;border-radius:8px}.out{margin-top:12px;background:#fff4e0;padding:12px;border-radius:10px}</style>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
+<style>
+body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
+header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
+a{color:inherit}
+.wrap{width:min(800px,94vw);margin:0 auto;padding:20px 0}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.step{background:var(--bg-soft);padding:10px;border-radius:10px;border:1px solid var(--line)}
+@media(max-width:700px){.steps{grid-template-columns:1fr}}
+input{width:70%;padding:10px}
+button.go{padding:10px 14px;background:#f39c12;border:0;color:#fff;font-weight:700;border-radius:8px}
+.out{margin-top:12px;background:var(--banner);color:var(--banner-ink);padding:12px;border-radius:10px}
+</style>
 </head>
 <body>
-<header><a href="index.html">Automate It Away</a></header>
+<header><a href="index.html">Automate It Away</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
 <main class="wrap">
 <h1>One engine. Every business.</h1>
 <div class="steps">
@@ -16,7 +30,7 @@
 </div>
 <p>Type any business</p>
 <input id="q" placeholder="consignment, HVAC, church…">
-<button type="button" onclick="run()">Show the engine</button>
+<button class="go" type="button" onclick="run()">Show the engine</button>
 <div class="out" id="out"></div>
 </main>
 <script>

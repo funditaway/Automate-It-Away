@@ -3,16 +3,27 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Create · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0;background:#f4f7fa}header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}a{color:inherit}.wrap{width:min(640px,92vw);margin:0 auto;padding:18px 0}label{display:block;margin:10px 0 4px;font-weight:700;color:#0a4f4f}input,textarea,select{width:100%;padding:10px;border:1px solid #d1dae3;border-radius:8px}button{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:#f39c12;color:#fff;font-weight:700}</style>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
+<style>
+body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
+header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
+header a{color:#fff;text-decoration:none}
+.wrap{width:min(640px,92vw);margin:0 auto;padding:18px 0}
+label{display:block;margin:10px 0 4px;font-weight:700;color:var(--heading)}
+input,textarea,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+button.go{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:#f39c12;color:#fff;font-weight:700}
+</style>
 </head>
 <body>
-<header><a href="index.html">Create</a><a href="dashboard.html">Desk</a></header>
+<header><a href="index.html">Create</a><span><a href="desk.html">Desk</a> · <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span></header>
 <main class="wrap">
 <h1>Make a job</h1>
 <form id="form">
 <label>Title</label><input name="title" required placeholder="List the oak dresser">
 <label>Why it needs a human</label><textarea name="why" rows="3"></textarea>
-<button type="submit">Create</button>
+<button class="go" type="submit">Create</button>
 </form>
 <p id="ok"></p>
 </main>
@@ -24,7 +35,7 @@ document.getElementById("form").onsubmit=e=>{
  const job={id:Date.now(),model:"Consignment",title:f.get("title"),why:f.get("why")||"You created this.",agent:"Owner",step:"Do the work",log:["Created by user"]};
  const jobs=JSON.parse(localStorage.getItem("aia_jobs")||"[]");jobs.unshift(job);localStorage.setItem("aia_jobs",JSON.stringify(jobs));
  if(window.AIA)AIA.log("Owner","Created job · "+job.title,"Waiting");
- document.getElementById("ok").innerHTML='In the queue. <a href="dashboard.html">Open the desk</a>';
+ document.getElementById("ok").innerHTML='In the queue. <a href="desk.html">Open the desk</a>';
 };
 </script>
 </body></html>

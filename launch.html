@@ -3,10 +3,19 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Go live · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332}header{background:#0d6b6b;color:#fff;padding:14px 5vw}a{color:#0f7f7f}.wrap{width:min(800px,92vw);margin:0 auto;padding:22px 0}.item{background:#fff;border:1px solid #d1dae3;border-radius:12px;padding:12px;margin:8px 0;display:block}</style>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
+<style>
+body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
+header{background:#0d6b6b;color:#fff;padding:14px 5vw;display:flex;justify-content:space-between;align-items:center}
+header a{color:#fff;text-decoration:none}
+.wrap{width:min(800px,92vw);margin:0 auto;padding:22px 0}
+.item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0;display:block}
+</style>
 </head>
 <body>
-<header>Automate It Away · Pre-launch</header>
+<header><a href="index.html">Automate It Away</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
 <main class="wrap">
 <h1>Before go-live</h1>
 <p>Do not flip production until Consign ships a real list or payout and a human owns kill + $250.</p>
@@ -17,7 +26,7 @@ const ITEMS = [
 ["Product surface","Pages in this repo."],
 ["First vertical","Consign — not all 16."],
 ["Cloud jobs","Blob store when BLOB_READ_WRITE_TOKEN is set. /tmp is not a shared queue."],
-["Second phone login","login.html — slug + pin. Survives a new device only after Blob."],
+["Second phone login","login.html — shop name + desk code. Survives a new device only after Blob."],
 ["One live pipe","Square or eBay writes back. Webhook is demo-live."],
 ["Grok 4.6","Qualify + draft only."],
 ["Grok Bot","Leave off. No public API."]

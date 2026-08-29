@@ -3,10 +3,22 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Support · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0;background:#07090c;color:#f4f7fa}a{color:#fff}header{padding:16px 5vw;border-bottom:1px solid #243040}.hero{text-align:center;padding:48px 5vw}input,textarea{width:min(640px,90vw);padding:12px;border-radius:999px;border:1px solid #243040;background:#10151c;color:#fff}.panel{width:min(640px,92vw);margin:0 auto 24px;background:#10151c;border:1px solid #243040;border-radius:14px;padding:16px}button{padding:10px 16px;border:0;border-radius:10px;background:#fff;color:#000;font-weight:700}</style>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
+<style>
+body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
+a{color:var(--teal)}
+header{padding:16px 5vw;border-bottom:1px solid var(--line);background:#0d6b6b;color:#fff;display:flex;justify-content:space-between;align-items:center}
+header a{color:#fff}
+.hero{text-align:center;padding:48px 5vw}
+input,textarea{width:min(640px,90vw);padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.panel{width:min(640px,92vw);margin:0 auto 24px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+button.go{padding:10px 16px;border:0;border-radius:10px;background:var(--orange);color:#fff;font-weight:700}
+</style>
 </head>
 <body>
-<header><a href="index.html">AUTOMATE IT AWAY</a></header>
+<header><a href="index.html">AUTOMATE IT AWAY</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
 <section class="hero"><p>HELP CENTER</p><h1>Support</h1>
 <p><input id="q" placeholder="Search support articles"></p>
 </section>
@@ -19,7 +31,7 @@
 <h2>Ticket</h2>
 <p><input id="title" placeholder="Title"></p>
 <p><textarea id="body" rows="4" placeholder="What happened"></textarea></p>
-<p><button type="button" onclick="ticket()">Submit</button></p>
+<p><button class="go" type="button" onclick="ticket()">Submit</button></p>
 <p id="ok"></p>
 </div>
 <script>
