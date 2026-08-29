@@ -1,6 +1,6 @@
-const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
-const { qualifyJob, recommend, icsOf, runWorkspace, MONEY_HOLD } = require("./engine");
+const { qualifyJob, recommend, icsOf, runWorkspace } = require("./engine");
 
 function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
@@ -216,27 +216,27 @@ module.exports = async function handler(req, res) {
     if (action === "ship") {
       mergeFields(job, body);
       const amount = Number(body.amount || job.amount || job.ask || 0);
-      // Hard stop is code, not workspace rule text. Deleting or rewriting the $250 rule still holds.
-      if (amount >= MONEY_HOLD && !body.confirm) {
+      const holdAt = shop ? moneyWaitOf(ensureRules(shop)) : null;
+      if (moneyNeedsOwner(amount, holdAt) && !body.confirm) {
         job.status = "held";
         job.amount = amount;
         job.rail = "held";
-        log("Rail", "Held · " + job.title + " · $" + amount, "Waiting", workspace);
+        log("Rail", "Held · " + job.title + " · owner rule", "Waiting", workspace);
         await save();
         return res.status(409).json({
           ok: false,
-          error: "Guardrail: money over $250 needs the owner on the desk.",
+          error: "Waiting on the owner.",
           job
         });
       }
-      if (amount >= MONEY_HOLD && shop && !isOwner(person)) {
+      if (moneyNeedsOwner(amount, holdAt) && shop && !isOwner(person)) {
         job.status = "held";
         job.amount = amount;
         job.rail = "held";
         await save();
         return res.status(403).json({
           ok: false,
-          error: "Only the owner can release money over $250.",
+          error: "Waiting on the owner.",
           job
         });
       }
@@ -275,9 +275,9 @@ module.exports = async function handler(req, res) {
       job.status = "shipped";
       job.amount = amount || job.amount;
       job.whoTapped = actorName(person, body);
-      job.rail = amount >= MONEY_HOLD ? "owner-confirmed" : "under-250";
+      job.rail = moneyNeedsOwner(amount, holdAt) ? "owner-confirmed" : "sent";
       job.step = "Collect";
-      job.log = (job.log || []).concat([amount >= MONEY_HOLD ? "Owner confirmed $" + amount : "Shipped"]);
+      job.log = (job.log || []).concat([moneyNeedsOwner(amount, holdAt) ? "Owner confirmed" : "Shipped"]);
       mem.money.unshift({
         at: new Date().toISOString(),
         workspace,

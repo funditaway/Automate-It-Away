@@ -11,7 +11,7 @@ const jobsHandler = require("../api/jobs");
 const authHandler = require("../api/auth");
 const {
   mem, hashPin, ensurePeople, ensureRules, ensureNouns, defaultNouns,
-  SEED_RULE_TEXT, forbiddenRule, ready, save,
+  moneyWaitOf, moneyNeedsOwner, forbiddenRule, ready, save,
   dropPersistTests, isPersistTestJob
 } = lib;
 
@@ -94,16 +94,22 @@ async function main() {
   mem.workspaces.unshift(shop);
 
   const first = ensureRules(shop);
-  if (!first.some((r) => r.text === SEED_RULE_TEXT)) fail("seed missing on first ensure");
-  else pass("seed on first ensure");
+  if (first.length !== 0) fail("fresh desk should start with empty rules, got " + first.length);
+  else pass("fresh desk has no seeded rules");
 
   const owner = { "x-workspace": slug, "x-pin": ownerPin };
   const staff = { "x-workspace": slug, "x-pin": staffPin };
 
   let get1 = await call(rulesHandler, "GET", owner);
-  if (get1.statusCode !== 200 || !get1.body.rules.some((r) => r.text === SEED_RULE_TEXT)) {
-    fail("GET rules missing seed");
-  } else pass("GET shows seed");
+  if (get1.statusCode !== 200 || (get1.body.rules || []).length !== 0) {
+    fail("GET rules should be empty on a new desk");
+  } else pass("GET shows empty rules");
+
+  if (moneyWaitOf([]) != null) fail("empty rules should not money-wait");
+  else if (moneyWaitOf([{ text: "Ask me if the title is missing." }]) != null) fail("non-money rule should not money-wait");
+  else if (moneyWaitOf([{ text: "Payments over $250 wait for the owner." }]) !== 250) fail("should parse $250 from owner rule");
+  else if (!moneyNeedsOwner(250, 250) || moneyNeedsOwner(20, 250) || moneyNeedsOwner(250, null)) fail("moneyNeedsOwner threshold");
+  else pass("money wait is parsed from owner rules only");
 
   const extra = "Ask me if the title is missing.";
   const add = await call(rulesHandler, "POST", owner, { text: extra });
@@ -152,26 +158,26 @@ async function main() {
     log: []
   });
 
-  const seedId = (shop.rules || []).find((r) => r.seed || r.text === SEED_RULE_TEXT);
-  const dropSeed = await call(rulesHandler, "POST", owner, { action: "remove", id: seedId && seedId.id });
-  if (dropSeed.statusCode !== 200 || dropSeed.body.rules.some((r) => r.text === SEED_RULE_TEXT)) {
-    fail("owner should be able to delete the seed line");
-  } else pass("owner can delete seed");
-  const afterDelete = await call(rulesHandler, "GET", owner);
-  if (afterDelete.body.rules.some((r) => r.text === SEED_RULE_TEXT)) fail("GET re-seeded after delete");
-  else if (!afterDelete.body.rules.some((r) => r.text === extra)) fail("extra gone after seed delete");
-  else pass("seed delete does not re-seed or drop extra");
-
   const extraId = (shop.rules || []).find((r) => r.text === extra);
   await call(rulesHandler, "POST", owner, { action: "remove", id: extraId && extraId.id });
   ensureRules(shop);
   if (shop.rules.length !== 0) fail("ensureRules re-seeded empty list");
   else pass("empty list stays empty");
 
+  const noRule = await call(jobsHandler, "POST", owner, { action: "ship", id: "job_hold250", amount: 250, confirm: false });
+  if (noRule.statusCode === 409) {
+    fail("empty-list amount 250 must not 409 without a money-wait rule, got " + noRule.statusCode + " " + JSON.stringify(noRule.body));
+  } else pass("no money-wait rule → amount does not 409");
+
+  const moneyLine = "Payments over $250 wait for the owner.";
+  const addMoney = await call(rulesHandler, "POST", owner, { text: moneyLine });
+  if (addMoney.statusCode !== 201) fail("could not add money-wait rule");
   const hold = await call(jobsHandler, "POST", owner, { action: "ship", id: "job_hold250", amount: 250, confirm: false });
   if (hold.statusCode !== 409 || !hold.body.job || hold.body.job.status !== "held") {
-    fail("empty-list $250 ship should 409 held, got " + hold.statusCode + " " + JSON.stringify(hold.body));
-  } else pass("empty-list $250 ship still 409 held");
+    fail("money-wait rule should 409, got " + hold.statusCode + " " + JSON.stringify(hold.body));
+  } else pass("owner money-wait rule still 409s");
+  const moneyId = (shop.rules || []).find((r) => r.text === moneyLine);
+  await call(rulesHandler, "POST", owner, { action: "remove", id: moneyId && moneyId.id });
 
   const demo = await call(jobsHandler, "POST", owner, { action: "ship", id: "job_demo", amount: 20, confirm: true });
   if (!demo.body.job || demo.body.job.status === "shipped" || !(demo.body.job.dispatch && demo.body.job.dispatch.demo)) {
