@@ -9,7 +9,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>How it works · Automate It Away</title>
-  <meta name="description" content="Tap a step. See what it means in your shop. You only tap Needs you, Send, or Stop.">
+  <meta name="description" content="Tap a step. Pick the shop you actually run. Grok drafts. You Send. A connection posts only if it is live.">
   <link rel="stylesheet" href="theme.css">
   <style>
     :root {
@@ -21,55 +21,39 @@
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:var(--font);background:var(--bg,#fff);color:var(--ink,var(--gray-900))}
     a{color:inherit;text-decoration:none}
-    header{
-      background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;
-      padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px;
-    }
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
     header a{color:#fff}
     .brand{font-weight:700;display:flex;align-items:center;gap:8px}
     .mark{width:28px;height:28px;border-radius:7px;background:var(--orange-500);display:grid;place-items:center;transform:rotate(-5deg)}
     .nav{font-size:13px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-    .wrap{width:min(840px,94vw);margin:0 auto;padding:20px 0 48px}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:20px 0 48px}
     h1{color:var(--heading,var(--teal-900));font-size:clamp(1.4rem,4.2vw,1.9rem);line-height:1.2}
-    .lead{color:var(--muted,var(--gray-700));margin:6px 0 14px}
+    .lead{color:var(--muted,var(--gray-700));margin:6px 0 14px;max-width:40rem}
     .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-    .step{
-      background:var(--bg-soft,var(--teal-50));border:1px solid var(--line,transparent);
-      border-radius:12px;padding:11px;text-align:left;cursor:pointer;font:inherit;color:inherit;width:100%;
-    }
+    .step{background:var(--bg-soft,var(--teal-50));border:1px solid var(--line,transparent);border-radius:12px;padding:11px;text-align:left;cursor:pointer;font:inherit;color:inherit;width:100%}
     .step:hover,.step:focus{border-color:var(--teal-600);outline:none}
     .step.on{border-color:var(--orange-500);background:var(--banner,#fff4e0)}
     .step i{display:block;color:var(--orange-500);font-style:normal;font-weight:800;font-size:12px}
     .step b{display:block;color:var(--heading,var(--teal-900));margin:3px 0 2px}
     .step span{font-size:12px;color:var(--muted,var(--gray-500))}
-    .panel{
-      display:none;background:var(--card,#fff);border:1px solid var(--line,var(--gray-300));
-      border-radius:14px;padding:14px;margin:10px 0 16px;
-    }
+    .panel{display:none;background:var(--card,#fff);border:1px solid var(--line,var(--gray-300));border-radius:14px;padding:14px;margin:10px 0 16px}
     .panel.on{display:block}
     .panel h2{color:var(--heading,var(--teal-900));font-size:1.05rem;margin:0 0 6px}
     .panel .what{font-size:15px;margin-bottom:8px}
     .tap{background:var(--banner,#fff4e0);color:var(--banner-ink,#7a4b00);border-radius:8px;padding:8px 10px;font-size:14px;margin-bottom:10px}
-    .niche{display:grid;grid-template-columns:132px 1fr;gap:8px;padding:7px 0;border-top:1px solid var(--line,var(--gray-100));font-size:14px}
+    .niche{display:grid;grid-template-columns:150px 1fr;gap:8px;padding:7px 0;border-top:1px solid var(--line,var(--gray-100));font-size:14px}
     .niche:first-of-type{border-top:0}
     .niche b{color:var(--teal)}
     .box{margin:0 0 16px}
     label{display:block;font-size:12px;font-weight:700;color:var(--heading,var(--teal-900));margin-bottom:6px}
     .row{display:flex;gap:8px;flex-wrap:wrap}
-    input{
-      flex:1;min-width:160px;padding:11px;border:1px solid var(--line,var(--gray-300));
-      border-radius:10px;font:inherit;background:var(--card,#fff);color:var(--ink,var(--gray-900))
-    }
-    button,.btn{
-      border:0;border-radius:10px;padding:11px 14px;background:var(--orange-500);color:#fff;
-      font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center
-    }
+    input{flex:1;min-width:160px;padding:11px;border:1px solid var(--line,var(--gray-300));border-radius:10px;font:inherit;background:var(--card,#fff);color:var(--ink,var(--gray-900))}
+    button,.btn{border:0;border-radius:10px;padding:11px 14px;background:var(--orange-500);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center}
     .quiet{background:var(--card,#fff);color:var(--teal-800);border:1px solid var(--line,var(--gray-300))}
-    .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
-    .chip{
-      border:1px solid var(--line,var(--gray-300));background:var(--card,#fff);color:var(--ink,var(--gray-900));
-      border-radius:999px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit
-    }
+    .groups{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+    .group small{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,var(--gray-500));margin-bottom:4px}
+    .chips{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{border:1px solid var(--line,var(--gray-300));background:var(--card,#fff);color:var(--ink,var(--gray-900));border-radius:999px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
     .chip.on{background:var(--teal-600);color:#fff;border-color:var(--teal-600)}
     .parts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 0 16px}
     .part{border:1px solid var(--line,var(--gray-300));background:var(--card,#fff);border-radius:12px;padding:12px}
@@ -82,10 +66,7 @@
     .word span{font-size:12px;color:var(--muted,var(--gray-500))}
     .cta{display:flex;gap:8px;flex-wrap:wrap}
     .note{font-size:13px;color:var(--muted,var(--gray-500));margin:12px 0 0}
-    @media(max-width:800px){
-      .steps,.words,.parts{grid-template-columns:1fr 1fr}
-      .niche{grid-template-columns:1fr}
-    }
+    @media(max-width:800px){.steps,.words,.parts{grid-template-columns:1fr 1fr}.niche{grid-template-columns:1fr}}
     @media(max-width:480px){.steps,.words,.parts{grid-template-columns:1fr}}
   </style>
 </head>
@@ -101,33 +82,21 @@
   </header>
   <main class="wrap">
     <h1>How the desk runs</h1>
-    <p class="lead">Tap a step. Type a shop if you want that shop’s nouns. You only Send or Stop.</p>
+    <p class="lead">Pick the operation you already run. Tap a step. That is the definition — not a new product.</p>
     <div class="box">
-      <label for="q">Your shop</label>
+      <label for="q">The shop you run</label>
       <div class="row">
-        <input id="q" placeholder="consignment, hail roofs, Sunday pledges…">
+        <input id="q" placeholder="estate intake, term cases, lot takedown, storm draw…">
         <button type="button" onclick="applyShop()">Use this shop</button>
       </div>
-      <div class="chips" id="chips"></div>
+      <div class="groups" id="groups"></div>
     </div>
     <div class="steps" id="steps"></div>
     <div class="panel" id="panel"></div>
     <div class="parts">
-      <div class="part">
-        <small>The desk</small>
-        <b>Automate It Away</b>
-        <span>The queue and the five steps. Work waits here until someone taps Send or Stop.</span>
-      </div>
-      <div class="part">
-        <small>The draft</small>
-        <b>Grok writes. You send.</b>
-        <span>It drafts the listing, text, or packet. It does not ship money. No Grok login required.</span>
-      </div>
-      <div class="part">
-        <small>A connection</small>
-        <b>Pipes out</b>
-        <span>Square, eBay, calendar, SMS — only when keys are in. A dead token is not live. Whatnot stays off.</span>
-      </div>
+      <div class="part"><small>The desk</small><b>Automate It Away</b><span>The queue and the five steps. Work waits here until someone taps Send or Stop.</span></div>
+      <div class="part"><small>The draft</small><b>Grok writes. You send.</b><span>It drafts the listing, packet, notice, or quote. It does not ship money or bind coverage. No Grok login required.</span></div>
+      <div class="part"><small>A connection</small><b>Pipes out</b><span>Square, eBay, calendar, SMS — only when keys are in. A dead token is not live. Whatnot stays off.</span></div>
     </div>
     <div class="words">
       <div class="word"><b>Needs you</b><span>Engine stopped.</span></div>
@@ -143,42 +112,63 @@
   </main>
   <script src="theme.js"></script>
   <script>
+    const GROUPS = [
+      { id: "sell", label: "Sell" },
+      { id: "protect", label: "Protect" },
+      { id: "develop", label: "Develop" },
+      { id: "fund", label: "Fund" },
+      { id: "build", label: "Build & restore" },
+      { id: "hold", label: "Hold & operate" }
+    ];
     const NICHES = [
-      { id: "consign", label: "Consignment", keys: ["consign", "resale", "ebay", "lamp"] },
-      { id: "vita", label: "Life insurance", keys: ["insurance", "vita", "life"] },
-      { id: "land", label: "Country land", keys: ["land", "lot", "parcel"] },
-      { id: "trades", label: "Trades", keys: ["hvac", "roof", "hail", "plumber", "electrician", "lawn"] },
-      { id: "food", label: "Bakery / florist", keys: ["bakery", "florist", "cake", "wedding", "restaurant"] },
-      { id: "church", label: "Church", keys: ["church", "nonprofit", "pledge"] },
-      { id: "clinic", label: "Clinic", keys: ["clinic", "vet", "dentist", "groomer", "dog", "boarding"] },
-      { id: "any", label: "Anything weekly", keys: [] }
+      { id: "estate", group: "sell", label: "Estate & consignment", keys: ["consign", "estate", "resale", "ebay", "auction", "thrift"] },
+      { id: "assets", group: "sell", label: "Titled assets", keys: ["title", "equipment", "tractor", "trailer", "boat", "heavy"] },
+      { id: "auto", group: "sell", label: "Wholesale auto", keys: ["auto", "dealer", "car", "wholesale", "gavel"] },
+      { id: "vita", group: "protect", label: "Life & protection", keys: ["insurance", "vita", "life", "term", "protect", "policy"] },
+      { id: "legal", group: "protect", label: "Legal & fiduciary", keys: ["lawyer", "legal", "fiduciary", "trust", "estate plan", "retain"] },
+      { id: "land", group: "develop", label: "Rural land", keys: ["land", "lot", "parcel", "acre", "rural", "developer"] },
+      { id: "btr", group: "develop", label: "Build-to-rent / lots", keys: ["btr", "build to rent", "subdivision", "plat"] },
+      { id: "fund", group: "fund", label: "Private lending", keys: ["fund", "lend", "hard money", "draw", "note", "loan"] },
+      { id: "storm", group: "build", label: "Storm restoration", keys: ["storm", "hail", "roof", "restore", "insurance job", "xact"] },
+      { id: "gc", group: "build", label: "GC & licensed trades", keys: ["hvac", "gc", "general", "plumber", "electrician", "trade", "permit"] },
+      { id: "practice", group: "hold", label: "Practice ops", keys: ["clinic", "dental", "vet", "practice", "recall", "chair"] },
+      { id: "pm", group: "hold", label: "Property management", keys: ["property", "rental", "tenant", "lease", "pm", "turn"] },
+      { id: "storage", group: "hold", label: "Self-storage", keys: ["storage", "unit", "lien", "late unit"] }
     ];
     const OPS = [
-      { n: 1, id: "capture", name: "Capture", short: "It lands", what: "Work hits the queue. Nobody retypes it.", tap: "",
-        mean: { consign: "Photo of the item or a walk-in note", vita: "Lead from Facebook, a referral, or the form", land: "Parcel number, address, or buyer inquiry", trades: "Missed call, hail address, leak photo", food: "Order form or wedding inquiry", church: "Gift, pledge card, volunteer form", clinic: "Recall, new-patient form, front-desk note", any: "Whatever showed up this week" } },
-      { n: 2, id: "qualify", name: "Qualify", short: "Fit or wait", what: "Rules check fit, price, risk, timing. Odd jobs wait on you.", tap: "Comps disagree, flood/title flag, same-day bumps a booked job, bad-fit lead.",
-        mean: { consign: "Comps vs the ask. Title present? Sellable?", vita: "Needs, budget, kids, mortgage — is this a fit?", land: "Flood, zoning, access, title", trades: "Territory? Same-day full? Emergency?", food: "Date open? Headcount? Allergen flag?", church: "First-time vs pledged", clinic: "Open chair? Vaccines current?", any: "Does it fit the rules you already use?" } },
-      { n: 3, id: "do", name: "Do the work", short: "Draft only", what: "Listing, text, booking, or packet is drafted. Nothing leaves until Send.", tap: "A letter or illustration that can bite. Anything the desk flags.",
-        mean: { consign: "Listing draft for the channels you use", vita: "Quote draft — you approve before it sends", land: "Builder packet draft", trades: "Calendar slot + estimate from the photos", food: "Bake-list ticket or flower packet", church: "Same-day thank-you draft", clinic: "Confirm text for the open chair", any: "The repeatable job, drafted — not sent" } },
-      { n: 4, id: "paid", name: "Get paid", short: "Collect", what: "Deposit, premium, payout, or invoice when the work is due.", tap: "Staff Send under $250. Over $250 waits on the owner.",
-        mean: { consign: "Payout when it sells and clears", vita: "Premium when the policy is placed", land: "Reservation or takedown if you take one", trades: "Job deposit or card", food: "Deposit now, balance at pickup", church: "Pledge recorded. Receipt on file", clinic: "Copay or invoice after the visit", any: "Collect when your shop already collects" } },
-      { n: 5, id: "follow", name: "Follow", short: "One nudge", what: "One reminder. Then it stops. No nag loop.", tap: "A follow that would feel like a guilt letter or a second invoice.",
-        mean: { consign: "Sold notice, pickup text, review", vita: "Year-2 review. Referral ask", land: "Update the builder", trades: "Job-day reminder + invoice. Done", food: "Week-of confirm. Reorder next year", church: "One quiet reminder. No guilt", clinic: "After-visit follow. Next recall", any: "One nudge. Then the desk shuts up" } }
+      { n: 1, id: "capture", name: "Capture", short: "It lands",
+        what: "Intake hits the queue once. Photo, lead, parcel, application, missed call — nobody retypes it into three systems.", tap: "",
+        mean: { estate: "Item photo, seller intake, or estate inventory line", assets: "VIN / serial, title photo, hours or miles", auto: "Stock photo, VIN, run-and-drive notes", vita: "Referral, Facebook lead, or fact-find start", legal: "Consult notes or conflict-check intake", land: "Parcel ID, GIS pin, or buyer inquiry", btr: "Lot reservation or builder request", fund: "Deal file: address, borrower, rehab budget", storm: "Hail address, carrier claim number, roof photos", gc: "Missed call, job photo, or permit address", practice: "Recall due, new-patient packet, front-desk note", pm: "App, work order, or notice-to-vacate", storage: "Late-unit list or gate-access exception" } },
+      { n: 2, id: "qualify", name: "Qualify", short: "Fit or wait",
+        what: "Rules screen fit, price band, risk, and timing. Work that can hurt money, title, or a customer waits on you.",
+        tap: "Comps off, missing title, flood/zone flag, credit or suitability, same-day that bumps a booked crew, lien or claim issue.",
+        mean: { estate: "Sold comps vs ask. Title in hand? Sellable as-is?", assets: "Lien? Title brand? Reserve vs wholesale comps", auto: "Title status, recon, book vs bid", vita: "Needs, budget, health class — is this a case?", legal: "Conflict, jurisdiction, retainer fit", land: "Flood, access, zoning, survey, title chain", btr: "Setbacks, utilities, HOA or city hold", fund: "LTV, rehab risk, exit, borrower file complete?", storm: "In territory? Supplement likely? Crew capacity", gc: "License, load, emergency vs schedule", practice: "Open chair, insurance, medical hold", pm: "Screen vs criteria. Deposit on file?", storage: "Days late, notice clock, lien window" } },
+      { n: 3, id: "do", name: "Do the work", short: "Draft only",
+        what: "The desk drafts the artifact. Listing, packet, notice, quote, draw request. Nothing leaves the building until Send.",
+        tap: "Illustration, engagement letter, lien notice, insurance supplement, or anything a regulator or customer can hold you to.",
+        mean: { estate: "Channel listing + payout terms", assets: "Auction/listing packet with title flags", auto: "Wholesale sheet or lane description", vita: "Quote draft — you approve before it sends", legal: "Engagement letter draft. Not sent.", land: "Builder packet: constraints + next step", btr: "Lot packet and reservation draft", fund: "Term sheet or draw packet draft", storm: "Estimate from photos + supplement notes", gc: "Calendar slot + written estimate", practice: "Confirm text and chart prompt", pm: "Lease draft or work-order to vendor", storage: "Statutory notice draft" } },
+      { n: 4, id: "paid", name: "Get paid", short: "Collect",
+        what: "Money moves when the work is due. Deposit, premium, draw, payout, invoice. Over $250 waits on the owner.",
+        tap: "Staff Send under $250. Owner releases anything over. Stop is owner only.",
+        mean: { estate: "Seller payout after it clears", assets: "Settlement after title and funds clear", auto: "Buyer funds before keys / transport", vita: "Premium when the case is placed", legal: "Retainer before work starts", land: "Reservation or takedown if you take one", btr: "Lot hold fee or construction draw", fund: "Origination or funded draw", storm: "Deposit or first insurance draw", gc: "Job deposit or progress invoice", practice: "Copay / balance after the visit", pm: "Rent, deposit, or vendor bill-back", storage: "Catch-up or auction proceeds" } },
+      { n: 5, id: "follow", name: "Follow", short: "One nudge",
+        what: "One reminder on a clock. Then it stops. Audit stays. Undo if the draft drifted.",
+        tap: "A second invoice, a guilt letter, or a follow that should have been a phone call from the owner.",
+        mean: { estate: "Sold notice, pickup window, review", assets: "Title mailed / pickup scheduled", auto: "Transport booked. Deal file closed.", vita: "Delivery + year-2 review on a clock", legal: "Court or signing date reminders", land: "Builder updated. Next buyer logged.", btr: "Construction milestone to the buyer", fund: "Inspection window and next draw date", storm: "Build day + supplement status", gc: "Job-day reminder. Final invoice. Done.", practice: "After-visit and next recall", pm: "Move-in checklist or renewal window", storage: "One notice. Then the lien clock." } }
     ];
-    let shop = "any";
+    let shop = "estate";
     let openId = "capture";
     function matchShop(raw) {
       const s = (raw || "").toLowerCase();
-      if (!s.trim()) return "any";
+      if (!s.trim()) return shop;
       for (const n of NICHES) {
-        if (n.id !== "any" && (s.includes(n.id) || n.keys.some(k => s.includes(k)))) return n.id;
+        if (s.includes(n.id) || n.keys.some(k => s.includes(k))) return n.id;
       }
-      return "any";
+      return shop;
     }
     function applyShop() {
       shop = matchShop(document.getElementById("q").value);
-      const n = NICHES.find(x => x.id === shop);
-      if (!document.getElementById("q").value.trim()) document.getElementById("q").value = n.label;
+      document.getElementById("q").value = NICHES.find(x => x.id === shop).label;
       paint();
     }
     function pickChip(id) {
@@ -191,9 +181,12 @@
       paint();
     }
     function paint() {
-      document.getElementById("chips").innerHTML = NICHES.map(n =>
-        "<button type=\"button\" class=\"chip" + (shop === n.id ? " on" : "") + "\" onclick=\"pickChip('" + n.id + "')\">" + n.label + "</button>"
-      ).join("");
+      document.getElementById("groups").innerHTML = GROUPS.map(g => {
+        const chips = NICHES.filter(n => n.group === g.id).map(n =>
+          "<button type=\"button\" class=\"chip" + (shop === n.id ? " on" : "") + "\" onclick=\"pickChip('" + n.id + "')\">" + n.label + "</button>"
+        ).join("");
+        return "<div class=\"group\"><small>" + g.label + "</small><div class=\"chips\">" + chips + "</div></div>";
+      }).join("");
       document.getElementById("steps").innerHTML = OPS.map(op =>
         "<button type=\"button\" class=\"step" + (openId === op.id ? " on" : "") + "\" onclick=\"openOp('" + op.id + "')\">" +
         "<i>" + op.n + "</i><b>" + op.name + "</b><span>" + (op.mean[shop] || op.short) + "</span></button>"
@@ -201,19 +194,20 @@
       const panel = document.getElementById("panel");
       const op = OPS.find(o => o.id === openId);
       if (!op) { panel.className = "panel"; panel.innerHTML = ""; return; }
-      const nicheName = NICHES.find(n => n.id === shop).label;
+      const niche = NICHES.find(n => n.id === shop);
       panel.className = "panel on";
       panel.innerHTML =
-        "<h2>" + op.n + ". " + op.name + " · " + nicheName + "</h2>" +
+        "<h2>" + op.n + ". " + op.name + " · " + niche.label + "</h2>" +
         "<p class=\"what\">" + op.what + "</p>" +
         "<p class=\"what\"><b>Here:</b> " + op.mean[shop] + "</p>" +
         (op.tap ? "<p class=\"tap\"><b>You tap:</b> " + op.tap + "</p>" : "") +
-        "<p class=\"what\" style=\"color:var(--muted,#6b7c8f);font-size:13px;margin:0 0 4px\">Other shops</p>" +
+        "<p class=\"what\" style=\"color:var(--muted,#6b7c8f);font-size:13px;margin:0 0 4px\">Other operations</p>" +
         NICHES.filter(n => n.id !== shop).map(n =>
           "<div class=\"niche\"><b>" + n.label + "</b><span>" + op.mean[n.id] + "</span></div>"
         ).join("");
     }
     document.getElementById("q").addEventListener("keydown", e => { if (e.key === "Enter") applyShop(); });
+    document.getElementById("q").value = "Estate & consignment";
     paint();
   </script>
 </body>
