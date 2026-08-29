@@ -66,7 +66,6 @@ function blobStoreId() {
 function blobOpts() {
   const opts = { access: "private", addRandomSuffix: false, allowOverwrite: true };
   if (blobStoreId()) opts.storeId = blobStoreId();
-  if (blobToken()) opts.token = blobToken();
   return opts;
 }
 
@@ -86,7 +85,12 @@ async function blobRead() {
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
   try {
     const { get } = require("@vercel/blob");
-    const result = await get(BLOB_KEY, blobOpts());
+    const result = await get(BLOB_KEY, { access: "private", storeId: blobStoreId() || undefined });
+    if (result === null) {
+      blobProbe.read = "empty";
+      blobProbe.status = 404;
+      return null;
+    }
     const status = result && (result.statusCode || result.status);
     if (status && status !== 200) {
       blobProbe.read = "get-" + status;
@@ -95,8 +99,8 @@ async function blobRead() {
     }
     const raw = result && result.stream
       ? await streamText(result.stream)
-      : result && typeof result === "object" && result.jobs
-        ? JSON.stringify(result)
+      : result && result.blob && result.blob.body
+        ? await streamText(result.blob.body)
         : "";
     if (!raw) {
       blobProbe.read = "empty";
