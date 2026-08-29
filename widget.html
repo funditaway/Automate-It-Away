@@ -49,8 +49,8 @@
     </nav>
   </header>
   <main class="wrap">
-    <h1>Drop box</h1>
-    <p class="sub">Customer photo and note land in your queue. They never see money or Stop.</p>
+    <h1 id="drop-title">Drop for this desk</h1>
+    <p class="sub" id="drop-sub">This desk only.</p>
     <div class="grid">
       <div class="card">
         <strong style="color:var(--teal-900)">Send it in. We’ll handle the rest.</strong>
@@ -75,7 +75,7 @@
       </div>
       <div class="card">
         <strong style="color:var(--teal-900)">Put this on your site</strong>
-        <p class="sub">Copy onto any page. Items still land in this shop.</p>
+        <p class="sub">Copy onto any page. This desk only.</p>
         <pre id="embed"></pre>
         <button type="button" onclick="copyEmbed()">Copy</button>
       </div>
@@ -89,15 +89,32 @@
     <a href="/help" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="analytics.js"></script>
+  <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script>
-    const ws = localStorage.getItem("aia_ws") || new URLSearchParams(location.search).get("ws") || "demo";
-    if (new URLSearchParams(location.search).get("ws")) localStorage.setItem("aia_ws", ws);
-    document.getElementById("embed").textContent =
-      '<iframe src="https://automateitaway.com/widget?ws=' + ws + '" title="Shop drop box" style="width:100%;height:420px;border:0;border-radius:14px"></iframe>';
+    const desk = AIADesks.captureDesk();
+    if (!desk || !desk.slug) { location.replace("/onboard"); }
+    const ws = desk && desk.slug;
+    function paintDrop() {
+      if (!desk) return;
+      document.getElementById("drop-title").textContent = "Drop for " + (desk.name || desk.slug);
+      document.getElementById("drop-sub").textContent = "This desk only.";
+      document.getElementById("embed").textContent =
+        '<iframe src="https://automateitaway.com/widget?ws=' + ws + '" title="Shop drop box" style="width:100%;height:420px;border:0;border-radius:14px"></iframe>';
+    }
+    paintDrop();
+    if (desk) {
+      fetch("/api/auth", { headers: { "X-Workspace": ws } }).then((r) => r.json()).then((data) => {
+        if (data && data.workspace) {
+          desk.name = data.workspace.biz || data.workspace.name || desk.name;
+          paintDrop();
+        }
+      }).catch(function () {});
+    }
     async function send() {
       const ok = document.getElementById("ok");
       ok.style.display = "block";
+      if (!ws) { location.replace("/onboard"); return; }
       const kind = document.getElementById("kind").value;
       const item = {
         action: "capture",
@@ -132,7 +149,7 @@
         headers: { "Content-Type": "application/json", "X-Workspace": ws },
         body: JSON.stringify(item)
       });
-      ok.textContent = r.ok ? "In the shop queue." : "Could not send.";
+      ok.textContent = r.ok ? "In this desk’s queue." : "Could not send.";
     }
     function copyEmbed() {
       navigator.clipboard.writeText(document.getElementById("embed").textContent);

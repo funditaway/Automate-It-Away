@@ -40,11 +40,12 @@
     <p class="err" id="err"></p>
   </form>
   <script src="analytics.js"></script>
+  <script src="desk-switch.js"></script>
   <script>
     document.getElementById("form").onsubmit = async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
-      const slug = String(f.get("slug") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const slug = AIADesks.slugify(f.get("slug"));
       const pin = f.get("pin");
       const err = document.getElementById("err");
       try {
@@ -55,10 +56,15 @@
         });
         const data = await r.json();
         if (!r.ok) { err.textContent = data.error || "Shop name or code does not match."; err.style.display = "block"; return; }
-        localStorage.setItem("aia_ws", data.workspace.slug);
-        localStorage.setItem("aia_pin", pin);
-        if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
+        const shop = (data && data.workspace) || {};
+        AIADesks.open({
+          slug: shop.slug || slug,
+          name: shop.biz || shop.name || shop.slug || slug,
+          pin: pin,
+          role: (data.you && data.you.role) || ""
+        });
         if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
+        if (shop.model) localStorage.setItem("aia_model", shop.model);
         location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";

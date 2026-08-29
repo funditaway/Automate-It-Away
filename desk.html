@@ -53,6 +53,8 @@
     .meta{font-size:11px;opacity:.7}
     .sent{opacity:.75}
     .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
+    a.edit{display:inline-block}
+    #desk-list button{width:auto;margin:4px 6px 0 0}
     .talk{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
     .talk div{margin:0 0 6px}
     .talk b{color:var(--heading)}
@@ -88,12 +90,20 @@
     </div>
     <div class="lock" id="session" hidden>
       <span id="who-line"></span>
-      <button class="edit" type="button" onclick="unlock()">Change shop</button>
+      <span class="row">
+        <button class="edit" type="button" onclick="unlock()">Change shop</button>
+        <a class="edit" href="/onboard">Open another</a>
+      </span>
     </div>
     <div class="row" id="gate" style="margin-bottom:8px">
       <input id="ws" placeholder="Shop name">
       <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
       <button class="edit" type="button" onclick="load()">Open</button>
+    </div>
+    <div class="item" id="desk-switch" hidden>
+      <p class="meta">Desks on this phone</p>
+      <div id="desk-list"></div>
+      <p class="meta" style="margin-top:8px"><a href="/onboard">Open another</a></p>
     </div>
     <div class="row" style="margin-bottom:8px">
       <a class="go" id="drop-go" href="/onboard">Drop something in</a>
@@ -104,7 +114,7 @@
     <div id="recent"></div>
     <div class="item" id="rules">
       <h3>Owner rules</h3>
-      <p>Wait for the owner. You add the line.</p>
+      <p>Wait for the owner. This desk only.</p>
       <ul id="rule-list"></ul>
       <div class="row" id="rule-add" hidden style="margin-top:8px">
         <input id="rule-text" placeholder="Ask me if …" maxlength="140" style="flex:1">
@@ -123,6 +133,7 @@
     <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
     <a href="/help" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
+  <script src="desk-switch.js"></script>
   <script src="desk-card.js"></script>
   <script src="desk-nav.js"></script>
   <script>
@@ -133,8 +144,13 @@
     let JOBS = [];
     let FIELDS = [];
     let RULES = [];
+    function workspaceSlug() {
+      return AIADesks.slugify(wsEl.value || localStorage.getItem("aia_ws") || "");
+    }
     function headers() {
-      const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || localStorage.getItem("aia_ws") || "demo" };
+      const h = { "Content-Type": "application/json" };
+      const ws = workspaceSlug();
+      if (ws) h["X-Workspace"] = ws;
       const pin = pinEl.value || localStorage.getItem("aia_pin");
       if (pin) h["X-Pin"] = pin;
       return h;
@@ -144,20 +160,61 @@
       const data = await r.json().catch(() => ({}));
       return { status: r.status, data };
     }
-    function locked() { return !!(localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin")); }
+    function locked() { return AIADesks.shopOpen(); }
+    function deskLabel() {
+      const cur = AIADesks.current();
+      return (cur && cur.name) || localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_ws") || "";
+    }
+    function paintSwitch() {
+      const box = document.getElementById("desk-list");
+      if (!box) return;
+      const cur = localStorage.getItem("aia_ws");
+      const rows = AIADesks.list();
+      box.innerHTML = rows.map((d) =>
+        "<button class=\"edit\" type=\"button\" onclick=\"switchDesk('" + esc(d.slug) + "')\">" +
+        esc(d.name || d.slug) + (d.slug === cur ? " · this desk" : "") + "</button>"
+      ).join("") || "<p class=\"meta\">No other desks on this phone.</p>";
+    }
     function paintGate() {
       const on = locked();
       document.getElementById("gate").hidden = on;
       document.getElementById("session").hidden = !on;
-      const shop = localStorage.getItem("aia_ws") || "demo";
+      const shop = deskLabel();
       document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + shop + (role === "employee" ? " · helper" : role === "owner" ? " · owner" : "");
+      document.getElementById("desk-switch").hidden = on;
+      if (!on) paintSwitch();
       wireDrop();
     }
-    function unlock() { localStorage.removeItem("aia_pin"); pinEl.value = ""; paintGate(); }
+    function unlock() {
+      AIADesks.unlock();
+      pinEl.value = "";
+      document.getElementById("desk-switch").hidden = false;
+      paintSwitch();
+      paintGate();
+    }
+    function switchDesk(slug) {
+      if (!AIADesks.switchTo(slug)) return;
+      wsEl.value = localStorage.getItem("aia_ws") || "";
+      pinEl.value = localStorage.getItem("aia_pin") || "";
+      role = localStorage.getItem("aia_role") || role;
+      document.getElementById("desk-switch").hidden = true;
+      load();
+    }
     function wireDrop() {
-      const href = (localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin")) ? "/widget.html" : "/onboard";
+      const href = AIADesks.widgetHref();
       document.querySelectorAll("#drop-go, #nav-drop, #head-drop, #desk-nav [data-tab=\"drop\"], .desk-tabs [data-tab=\"drop\"]").forEach((el) => {
         if (el && el.tagName === "A") el.setAttribute("href", href);
+      });
+    }
+    function keepDesk(shop) {
+      const slug = (shop && shop.slug) || workspaceSlug();
+      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      if (!slug || !pin) return;
+      AIADesks.add({
+        slug: slug,
+        name: (shop && (shop.biz || shop.name)) || localStorage.getItem("aia_desk_name") || slug,
+        pin: pin,
+        role: role || localStorage.getItem("aia_role") || ""
       });
     }
     function paintRules(rules, canEdit) {
@@ -211,10 +268,23 @@
       return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(j.step || "Qualify")}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}<p>${esc(j.why || "")}</p>${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(j.next || "Send or Stop.")}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">${sendLabel}</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
     }
     async function load() {
-      if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
+      if (wsEl.value) {
+        const slug = AIADesks.slugify(wsEl.value);
+        if (slug) { localStorage.setItem("aia_ws", slug); wsEl.value = slug; }
+      }
       if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
+      keepDesk();
       paintGate();
       const banner = document.getElementById("banner");
+      if (!workspaceSlug()) {
+        banner.textContent = "Name this desk. Open it.";
+        JOBS = [];
+        RULES = [];
+        paintRules([], false);
+        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">Empty is honest. Switch desks, don't clone the app.</p>`;
+        showConsignNav();
+        return;
+      }
       try {
         await api("/api/worker");
         const health = await api("/api/health");
@@ -226,7 +296,13 @@
         if (jobs.data.you && jobs.data.you.role) { role = jobs.data.you.role; youName = jobs.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
         const auth = await api("/api/auth");
         if (auth.data && auth.data.you && auth.data.you.role) { role = auth.data.you.role; youName = auth.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
-        if (auth.data && auth.data.workspace && auth.data.workspace.model) { localStorage.setItem("aia_model", auth.data.workspace.model); showConsignNav(auth.data.workspace.model); } else showConsignNav();
+        if (auth.data && auth.data.workspace) {
+          const w = auth.data.workspace;
+          if (w.biz || w.name) localStorage.setItem("aia_desk_name", w.biz || w.name);
+          if (w.model) localStorage.setItem("aia_model", w.model);
+          keepDesk(w);
+          showConsignNav(w.model);
+        } else showConsignNav();
         const rulesOut = await api("/api/rules");
         RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || jobs.data.rules || [];
         paintRules(RULES, !!(rulesOut.data && rulesOut.data.canAdd));
@@ -241,7 +317,7 @@
       document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
       const open = held.concat(waiting, ready);
-      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">This queue is empty.</p>`;
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Empty is honest. Switch desks, don't clone the app.</p>`;
       if (location.hash === "#rules") {
         const box = document.getElementById("rules");
         if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });

@@ -1,6 +1,16 @@
-const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody, personOf, isOwner, ensureRules, defaultRules } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, MONEY_HOLD } = require("./engine");
+
+function namedWorkspace(req) {
+  const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
+  if (raw == null || !String(raw).trim()) return "";
+  return String(raw)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40);
+}
 
 function pipeWroteBack(dispatch) {
   return !!(dispatch && !dispatch.demo && (dispatch.ok === true || dispatch.inbound === true));
@@ -28,7 +38,10 @@ module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
-  const workspace = workspaceOf(req);
+  const workspace = namedWorkspace(req);
+  if (!workspace) {
+    return res.status(400).json({ error: "Open a desk first." });
+  }
   const { workspace: shop, person } = personOf(req, workspace);
 
   if (req.method === "GET") {
