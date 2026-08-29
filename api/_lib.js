@@ -392,13 +392,71 @@ function isOwner(person) {
   return !!(person && person.role === "owner");
 }
 
+const NOUN_KEYS = ["capture", "qualify", "do", "collect", "follow"];
+const NOUN_MAX = 24;
+const DEFAULT_NOUNS = {
+  capture: "Capture",
+  qualify: "Qualify",
+  do: "Do",
+  collect: "Collect",
+  follow: "Follow"
+};
+
+function defaultNouns() {
+  return {
+    capture: DEFAULT_NOUNS.capture,
+    qualify: DEFAULT_NOUNS.qualify,
+    do: DEFAULT_NOUNS.do,
+    collect: DEFAULT_NOUNS.collect,
+    follow: DEFAULT_NOUNS.follow
+  };
+}
+
+function cleanNoun(val, fallback) {
+  const t = String(val == null ? "" : val).trim().replace(/\s+/g, " ").slice(0, NOUN_MAX);
+  return t || fallback;
+}
+
+function publicNouns(src) {
+  const n = src && typeof src === "object" ? src : {};
+  return {
+    capture: cleanNoun(n.capture, DEFAULT_NOUNS.capture),
+    qualify: cleanNoun(n.qualify, DEFAULT_NOUNS.qualify),
+    do: cleanNoun(n.do, DEFAULT_NOUNS.do),
+    collect: cleanNoun(n.collect, DEFAULT_NOUNS.collect),
+    follow: cleanNoun(n.follow, DEFAULT_NOUNS.follow)
+  };
+}
+
+function ensureNouns(ws) {
+  if (!ws) return defaultNouns();
+  if (!ws.nouns || typeof ws.nouns !== "object") ws.nouns = defaultNouns();
+  return publicNouns(ws.nouns);
+}
+
+function setWorkspaceNouns(ws, incoming) {
+  if (!ws) return { ok: false, error: "Open a desk first so the words have a home." };
+  const src = incoming && typeof incoming === "object" ? incoming : {};
+  ws.nouns = publicNouns(src);
+  return { ok: true, nouns: publicNouns(ws.nouns) };
+}
+
+function publicRuleWidget(w) {
+  if (!w || typeof w !== "object") return { on: false, label: "" };
+  return {
+    on: !!w.on,
+    label: String(w.label || "").trim().replace(/\s+/g, " ").slice(0, NOUN_MAX)
+  };
+}
+
 function publicRule(r) {
   if (!r) return null;
   return {
     id: r.id,
     text: r.text,
     seed: !!r.seed,
-    attach: "qualify"
+    attach: "qualify",
+    widget: publicRuleWidget(r.widget)
   };
 }
 
@@ -408,8 +466,30 @@ function seedRuleRow(createdAt) {
     text: SEED_RULE_TEXT,
     seed: true,
     attach: "qualify",
+    widget: { on: false, label: "" },
     createdAt: createdAt || new Date().toISOString()
   };
+}
+
+function widgetsOn(rules) {
+  return (rules || []).filter((r) => r && r.widget && r.widget.on);
+}
+
+function widgetCount(rules) {
+  return widgetsOn(rules).length;
+}
+
+function setRuleWidget(ws, id, on, label) {
+  if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
+  if (!Array.isArray(ws.rules)) ensureRules(ws);
+  const key = String(id || "");
+  const rule = (ws.rules || []).find((r) => r && r.id === key);
+  if (!rule) return { ok: false, error: "Rule not found." };
+  const next = publicRuleWidget(rule.widget);
+  if (on != null) next.on = !!on;
+  if (label != null) next.label = String(label).trim().replace(/\s+/g, " ").slice(0, NOUN_MAX);
+  rule.widget = next;
+  return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
 }
 
 function defaultRules() {
@@ -444,6 +524,7 @@ function addWorkspaceRule(ws, text, person) {
     text: clean,
     seed: false,
     attach: "qualify",
+    widget: { on: false, label: "" },
     createdAt: new Date().toISOString(),
     by: (person && person.name) || "owner"
   };
@@ -479,5 +560,7 @@ module.exports = {
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
-  addWorkspaceRule, removeWorkspaceRule, forbiddenRule, seedRuleRow, scrubLog
+  addWorkspaceRule, removeWorkspaceRule, forbiddenRule, seedRuleRow, scrubLog,
+  NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
+  publicRuleWidget, setRuleWidget, widgetsOn, widgetCount
 };

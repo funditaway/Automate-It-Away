@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Rules · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="theme-color" content="#0d6b6b">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="desk-nav.css">
+  <script src="theme.js"></script>
+  <script src="analytics.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,sans-serif}
+    .desk-tabs a{color:#fff}
+    body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+    #desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}
+    #desk-nav a{flex:1;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,sans-serif;text-decoration:none}
+    #desk-nav a.on{color:#f39c12}
+    #desk-nav svg{width:22px;height:22px;display:block;pointer-events:none}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 24px}
+    .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+    .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .item h3{font-size:1rem;color:var(--heading)}
+    .item p{color:var(--muted);font-size:13px;margin:4px 0 8px}
+    .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    button,a.go{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
+    .go{background:#119494;color:#fff;display:inline-block}
+    .kill{background:var(--kill-bg);color:var(--kill-ink)}
+    .edit{background:var(--edit);color:var(--edit-ink)}
+    .meta{font-size:11px;opacity:.7}
+    .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
+    a.edit{display:inline-block}
+    input,textarea{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
+    #noun-fields{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0}
+    #noun-fields label{font-size:11px;font-weight:700;color:var(--heading);display:block;margin:0 0 4px}
+    #noun-fields input{width:100%}
+    #rule-list{list-style:none;padding:0;margin:8px 0 0}
+    #rule-list li{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13px;color:var(--muted)}
+    #rule-list li span{flex:1;min-width:160px}
+    #rule-list .kill,#rule-list .edit{padding:4px 8px;font-size:12px}
+    #gate[hidden],#session[hidden],#rule-add[hidden],#noun-save[hidden]{display:none!important}
+    @media(max-width:640px){#noun-fields{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body class="has-desk-nav">
+  <header>
+    <a href="index.html"><strong>Automate It Away</strong></a>
+    <span><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span>
+    <nav class="desk-tabs" aria-label="Desk tabs">
+      <a href="/desk" data-tab="queue">Queue</a>
+      <a href="/onboard" data-tab="drop" id="head-drop">Drop</a>
+      <a href="/rules" data-tab="rules">Rules</a>
+      <a href="/connections" data-tab="pipes">Pipes</a>
+      <a href="/help" data-tab="more">More</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <div class="banner" id="banner">Wait for the owner. Turn a widget on if this desk needs another drop.</div>
+    <div class="lock" id="session" hidden>
+      <span id="who-line"></span>
+      <a class="edit" href="/desk">Queue</a>
+    </div>
+    <div class="row" id="gate" style="margin-bottom:8px">
+      <input id="ws" placeholder="Desk name">
+      <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
+      <button class="edit" type="button" onclick="load()">Open</button>
+    </div>
+    <p class="meta" id="widget-count">0 widgets on</p>
+    <div class="item" id="rules">
+      <h3>Owner rules</h3>
+      <p>Wait for the owner. Turn a widget on if this desk needs another drop. Count shows on the desk.</p>
+      <ul id="rule-list"></ul>
+      <div class="row" id="rule-add" hidden style="margin-top:8px">
+        <input id="rule-text" placeholder="Ask me if …" maxlength="140" style="flex:1">
+        <button class="edit" type="button" onclick="addRule()">Add a rule</button>
+      </div>
+      <p class="meta" id="rule-hint">This desk only.</p>
+    </div>
+    <div class="item" id="nouns">
+      <h3>Step words</h3>
+      <p>This desk only. Five short names. The drop box and queue use them.</p>
+      <div id="noun-fields">
+        <div><label for="noun-capture">Capture</label><input id="noun-capture" maxlength="24" placeholder="Capture"></div>
+        <div><label for="noun-qualify">Qualify</label><input id="noun-qualify" maxlength="24" placeholder="Qualify"></div>
+        <div><label for="noun-do">Do</label><input id="noun-do" maxlength="24" placeholder="Do"></div>
+        <div><label for="noun-collect">Collect</label><input id="noun-collect" maxlength="24" placeholder="Collect"></div>
+        <div><label for="noun-follow">Follow</label><input id="noun-follow" maxlength="24" placeholder="Follow"></div>
+      </div>
+      <div class="row" id="noun-save" hidden>
+        <button class="edit" type="button" onclick="saveNouns()">Save words</button>
+      </div>
+      <p class="meta" id="noun-hint">Owner desk code required to save.</p>
+    </div>
+  </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
+    <a href="/onboard" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
+    <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
+    <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
+    <a href="/help" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+  </nav>
+  <script src="desk-switch.js"></script>
+  <script src="desk-nav.js"></script>
+  <script>
+    const wsEl = document.getElementById("ws");
+    const pinEl = document.getElementById("pin");
+    let role = localStorage.getItem("aia_role") || "";
+    let youName = localStorage.getItem("aia_name") || "";
+    let RULES = [];
+    let NOUNS = AIADesks.nounsOf();
+    function workspaceSlug() {
+      return AIADesks.slugify(wsEl.value || localStorage.getItem("aia_ws") || "");
+    }
+    function headers() {
+      const h = { "Content-Type": "application/json" };
+      const ws = workspaceSlug();
+      if (ws) h["X-Workspace"] = ws;
+      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    }
+    async function api(path, opts) {
+      const r = await fetch(path, Object.assign({ headers: headers() }, opts || {}));
+      const data = await r.json().catch(() => ({}));
+      return { status: r.status, data };
+    }
+    function esc(s) {
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+    }
+    function paintGate() {
+      const on = AIADesks.shopOpen();
+      document.getElementById("gate").hidden = on;
+      document.getElementById("session").hidden = !on;
+      const name = (AIADesks.current() && AIADesks.current().name) || localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_ws") || "";
+      document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + name + (role === "employee" ? " · helper" : role === "owner" ? " · owner" : "");
+    }
+    function paintNouns(nouns, canEdit) {
+      NOUNS = AIADesks.nounsOf(nouns);
+      ["capture", "qualify", "do", "collect", "follow"].forEach((k) => {
+        const el = document.getElementById("noun-" + k);
+        if (el) el.value = NOUNS[k];
+      });
+      document.getElementById("noun-save").hidden = !canEdit;
+    }
+    function paintCount(n) {
+      const c = Number(n) || 0;
+      document.getElementById("widget-count").textContent = c === 1 ? "1 widget on" : c + " widgets on";
+    }
+    function paintRules(rules, canEdit) {
+      const list = document.getElementById("rule-list");
+      const rows = rules || [];
+      list.innerHTML = rows.map((r) => {
+        const on = !!(r.widget && r.widget.on);
+        const label = (r.widget && r.widget.label) || "";
+        return "<li><span>" + esc(r.text) + (on ? " · widget on" : "") + (label ? " · " + esc(label) : "") + "</span>" +
+          (canEdit
+            ? "<span class=\"row\">" +
+              "<button class=\"edit\" type=\"button\" onclick=\"toggleWidget('" + esc(r.id) + "', " + (on ? "false" : "true") + ")\">" + (on ? "Widget off" : "Widget on") + "</button>" +
+              "<button class=\"kill\" type=\"button\" onclick=\"removeRule('" + esc(r.id) + "')\">Remove</button>" +
+              "</span>"
+            : "") +
+          "</li>";
+      }).join("") || "<li><span class=\"meta\">No owner lines yet.</span></li>";
+      document.getElementById("rule-add").hidden = !canEdit;
+      paintCount((rows.filter((r) => r.widget && r.widget.on)).length);
+    }
+    async function addRule() {
+      const text = ((document.getElementById("rule-text") || {}).value || "").trim();
+      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ text }) });
+      if (out.status >= 400) {
+        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not add that line.";
+        return;
+      }
+      document.getElementById("rule-text").value = "";
+      load();
+    }
+    async function removeRule(id) {
+      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ action: "remove", id }) });
+      if (out.status >= 400) {
+        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not remove that line.";
+        return;
+      }
+      load();
+    }
+    async function toggleWidget(id, on) {
+      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ action: "widget", id, on: !!on }) });
+      if (out.status >= 400) {
+        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not change that widget.";
+        return;
+      }
+      load();
+    }
+    async function saveNouns() {
+      const nouns = {
+        capture: (document.getElementById("noun-capture") || {}).value,
+        qualify: (document.getElementById("noun-qualify") || {}).value,
+        do: (document.getElementById("noun-do") || {}).value,
+        collect: (document.getElementById("noun-collect") || {}).value,
+        follow: (document.getElementById("noun-follow") || {}).value
+      };
+      const out = await api("/api/auth", { method: "POST", body: JSON.stringify({ action: "nouns", nouns }) });
+      if (out.status >= 400) {
+        document.getElementById("noun-hint").textContent = (out.data && out.data.error) || "Could not save those words.";
+        return;
+      }
+      document.getElementById("noun-hint").textContent = "Saved. This desk only.";
+      load();
+    }
+    async function load() {
+      if (wsEl.value) {
+        const slug = AIADesks.slugify(wsEl.value);
+        if (slug) { localStorage.setItem("aia_ws", slug); wsEl.value = slug; }
+      }
+      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
+      paintGate();
+      const banner = document.getElementById("banner");
+      if (!workspaceSlug()) {
+        banner.textContent = "Name this desk. Open it.";
+        RULES = [];
+        paintRules([], false);
+        paintNouns(AIADesks.defaultNouns(), false);
+        return;
+      }
+      try {
+        const auth = await api("/api/auth");
+        if (auth.data && auth.data.you && auth.data.you.role) {
+          role = auth.data.you.role;
+          youName = auth.data.you.name || youName;
+          localStorage.setItem("aia_role", role);
+          if (youName) localStorage.setItem("aia_name", youName);
+        }
+        if (auth.data && auth.data.workspace) {
+          const w = auth.data.workspace;
+          if (w.biz || w.name) localStorage.setItem("aia_desk_name", w.biz || w.name);
+          NOUNS = AIADesks.nounsOf(w.nouns);
+        }
+        const rulesOut = await api("/api/rules");
+        RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || [];
+        const can = !!(rulesOut.data && rulesOut.data.canAdd);
+        paintRules(RULES, can);
+        paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);
+        if (rulesOut.data && rulesOut.data.widgetsOn != null) paintCount(rulesOut.data.widgetsOn);
+        banner.textContent = "Wait for the owner. Turn a widget on if this desk needs another drop.";
+        paintGate();
+      } catch (e) {
+        banner.textContent = "Could not reach the desk.";
+        paintRules([], false);
+        paintNouns(AIADesks.defaultNouns(), false);
+      }
+    }
+    if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
+    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
+    paintGate(); load();
+  </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 const {
   cors, log, save, ready, workspaceOf, readBody,
-  personOf, isOwner, ensureRules, addWorkspaceRule, removeWorkspaceRule, defaultRules
+  personOf, isOwner, ensureRules, addWorkspaceRule, removeWorkspaceRule, defaultRules,
+  ensureNouns, defaultNouns, setRuleWidget, widgetCount
 } = require("./_lib");
 
 module.exports = async function handler(req, res) {
@@ -13,22 +14,28 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "GET") {
     if (!row) {
+      const rules = defaultRules();
       return res.status(200).json({
         ok: true,
         workspace,
         you: person ? { name: person.name, role: person.role } : null,
-        rules: defaultRules(),
+        rules,
+        nouns: defaultNouns(),
+        widgetsOn: widgetCount(rules),
         canAdd: false
       });
     }
-    const first = !Array.isArray(row.rules);
+    const first = !Array.isArray(row.rules) || !row.nouns || typeof row.nouns !== "object";
     const rules = ensureRules(row);
+    const nouns = ensureNouns(row);
     if (first) await save();
     return res.status(200).json({
       ok: true,
       workspace,
       you: person ? { name: person.name, role: person.role } : null,
       rules,
+      nouns,
+      widgetsOn: widgetCount(rules),
       canAdd: isOwner(person)
     });
   }
@@ -45,7 +52,27 @@ module.exports = async function handler(req, res) {
       if (!removed.ok) return res.status(404).json(removed);
       log("Desk", "Removed rule", "OK", workspace);
       await save();
-      return res.status(200).json({ ok: true, rules: removed.rules, workspace });
+      return res.status(200).json({
+        ok: true,
+        rules: removed.rules,
+        nouns: ensureNouns(row),
+        widgetsOn: widgetCount(removed.rules),
+        workspace
+      });
+    }
+    if (action === "widget") {
+      const toggled = setRuleWidget(row, body.id, body.on, body.label);
+      if (!toggled.ok) return res.status(404).json(toggled);
+      log("Desk", (toggled.rule.widget.on ? "Widget on · " : "Widget off · ") + toggled.rule.id, "OK", workspace);
+      await save();
+      return res.status(200).json({
+        ok: true,
+        rule: toggled.rule,
+        rules: toggled.rules,
+        nouns: ensureNouns(row),
+        widgetsOn: widgetCount(toggled.rules),
+        workspace
+      });
     }
     const added = addWorkspaceRule(row, body.text || body.rule, person);
     if (!added.ok) return res.status(400).json(added);
@@ -55,6 +82,8 @@ module.exports = async function handler(req, res) {
       ok: true,
       rule: added.rule,
       rules: added.rules,
+      nouns: ensureNouns(row),
+      widgetsOn: widgetCount(added.rules),
       workspace
     });
   }

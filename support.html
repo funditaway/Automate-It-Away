@@ -26,7 +26,7 @@ button.go{padding:10px 16px;border:0;border-radius:10px;background:var(--orange)
   <nav class="desk-tabs" aria-label="Desk tabs">
     <a href="/desk" data-tab="queue">Queue</a>
     <a href="/onboard" data-tab="drop">Drop</a>
-    <a href="/desk#rules" data-tab="rules">Rules</a>
+    <a href="/rules" data-tab="rules">Rules</a>
     <a href="/connections" data-tab="pipes">Pipes</a>
     <a href="/help" data-tab="more">More</a>
   </nav>
@@ -35,9 +35,8 @@ button.go{padding:10px 16px;border:0;border-radius:10px;background:var(--orange)
 <p><input id="q" placeholder="Search support articles"></p>
 </section>
 <div class="panel">
-<p><b>You only tap exceptions.</b> Approve ships. Kill stops. Owner owns money over $250.</p>
-<p><b>Pipes.</b> Re-auth a dead token. Other channels stay live.</p>
-<p><b>Grok Bot</b> is not included. No public API.</p>
+<p><b>You only tap exceptions.</b> Send means yes. Stop means no. Money over $250 waits for the owner.</p>
+<p><b>Pipes</b> are optional. The queue still takes work.</p>
 </div>
 <div class="panel">
 <h2>Ticket</h2>
@@ -52,7 +51,7 @@ function ticket(){const t=document.getElementById("title").value,b=document.getE
 <nav id="desk-nav" aria-label="Desk">
   <a href="/desk" data-tab="queue"><span>Queue</span></a>
   <a href="/onboard" data-tab="drop"><span>Drop</span></a>
-  <a href="/desk#rules" data-tab="rules"><span>Rules</span></a>
+  <a href="/rules" data-tab="rules"><span>Rules</span></a>
   <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
   <a href="/help" data-tab="more"><span>More</span></a>
 </nav>

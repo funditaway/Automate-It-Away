@@ -30,7 +30,7 @@
 <body>
   <header>
     <a href="index.html"><strong>Automate It Away</strong></a>
-    <a href="setup.html">How to set this up</a> · <a href="login.html">Already have a shop</a>
+    <a href="setup.html">How to set this up</a> · <a href="login.html">Already have a desk</a>
   </header>
   <form class="card" id="form">
     <h1>Name this desk</h1>
@@ -39,8 +39,8 @@
     <input name="name" required placeholder="Your name" autocomplete="name">
     <div class="row">
       <div>
-        <label>Desk name <span class="tip" title="House name or shop name. Letters and dashes. This is the login.">?</span></label>
-        <input name="biz" required placeholder="House or shop name">
+        <label>Desk name <span class="tip" title="House name or desk name. Letters and dashes. This is the login.">?</span></label>
+        <input name="biz" required placeholder="House or desk name">
       </div>
       <div>
         <label>City</label>
@@ -58,10 +58,18 @@
       <option>Consignment & resale</option>
       <option>Something else</option>
     </select>
-    <label>Email <span class="tip" title="For you. Login is shop name + desk code, not email.">?</span></label>
-    <input type="email" name="email" required placeholder="you@shop.com">
-    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this shop.">?</span></label>
+    <label>Email <span class="tip" title="For you. Login is desk name + desk code, not email.">?</span></label>
+    <input type="email" name="email" required placeholder="you@desk.com">
+    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this desk.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
+    <label>Your words <span class="tip" title="Short words. This desk only. You can change them later.">?</span></label>
+    <div class="row" style="grid-template-columns:repeat(5,1fr)">
+      <input name="noun_capture" maxlength="24" placeholder="Capture">
+      <input name="noun_qualify" maxlength="24" placeholder="Qualify">
+      <input name="noun_do" maxlength="24" placeholder="Do">
+      <input name="noun_collect" maxlength="24" placeholder="Collect">
+      <input name="noun_follow" maxlength="24" placeholder="Follow">
+    </div>
     <button class="btn" type="submit">Open it</button>
     <p class="hint">Adds this desk on this phone. The last one stays.</p>
     <p class="err" id="err"></p>
@@ -78,22 +86,29 @@
       const slug = AIADesks.slugify(f.get("biz"));
       if (!slug) { err.textContent = "Name this desk."; err.style.display = "block"; return; }
       try {
+        const nouns = {
+          capture: f.get("noun_capture"),
+          qualify: f.get("noun_qualify"),
+          do: f.get("noun_do"),
+          collect: f.get("noun_collect"),
+          follow: f.get("noun_follow")
+        };
         const r = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Workspace": slug, "X-Pin": pin },
-          body: JSON.stringify({ action: "open", name: f.get("name"), biz: f.get("biz"), city: f.get("city"), model: f.get("model"), email: f.get("email"), pin })
+          body: JSON.stringify({ action: "open", name: f.get("name"), biz: f.get("biz"), city: f.get("city"), model: f.get("model"), email: f.get("email"), pin, nouns })
         });
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) { err.textContent = data.error || "Could not open the shop."; err.style.display = "block"; return; }
-        const shop = (data && data.workspace) || {};
+        if (!r.ok) { err.textContent = data.error || "Could not open the desk."; err.style.display = "block"; return; }
+        const desk = (data && data.workspace) || {};
         AIADesks.open({
-          slug: shop.slug || slug,
-          name: shop.biz || shop.name || f.get("biz") || slug,
+          slug: desk.slug || slug,
+          name: desk.biz || desk.name || f.get("biz") || slug,
           pin: pin,
           role: (data.you && data.you.role) || f.get("role") || "owner"
         });
         localStorage.setItem("aia_name", f.get("name") || "");
-        localStorage.setItem("aia_model", (shop.model || f.get("model") || ""));
+        localStorage.setItem("aia_model", (desk.model || f.get("model") || ""));
         location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";

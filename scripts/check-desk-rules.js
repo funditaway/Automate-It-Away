@@ -8,8 +8,9 @@ process.env.AIA_STORE_PATH = store;
 const lib = require("../api/_lib");
 const rulesHandler = require("../api/rules");
 const jobsHandler = require("../api/jobs");
+const authHandler = require("../api/auth");
 const {
-  mem, hashPin, ensurePeople, ensureRules,
+  mem, hashPin, ensurePeople, ensureRules, ensureNouns, defaultNouns,
   SEED_RULE_TEXT, forbiddenRule, ready, save,
   dropPersistTests, isPersistTestJob
 } = lib;
@@ -200,6 +201,92 @@ async function main() {
   if (!(mem.jobs || []).some((j) => j.id === "job_mtenqutb" && j.workspace === "consign-it-away")) {
     fail("Oil change job_mtenqutb must stay");
   } else pass("Oil change job still on consign-it-away");
+
+  const firstNouns = ensureNouns(shop);
+  if (firstNouns.capture !== "Capture" || firstNouns.do !== "Do") fail("default nouns should be Capture/Qualify/Do/Collect/Follow");
+  else pass("default nouns are generic");
+
+  const nounsSave = await call(authHandler, "POST", owner, {
+    action: "nouns",
+    nouns: { capture: "Drop", qualify: "Fit", do: "Draft", collect: "Pay", follow: "Nudge" }
+  });
+  if (nounsSave.statusCode !== 200 || !nounsSave.body.nouns || nounsSave.body.nouns.capture !== "Drop") {
+    fail("owner nouns save failed " + nounsSave.statusCode + " " + JSON.stringify(nounsSave.body));
+  } else pass("owner can save nouns");
+
+  const staffNouns = await call(authHandler, "POST", staff, {
+    action: "nouns",
+    nouns: { capture: "Steal" }
+  });
+  if (staffNouns.statusCode !== 403) fail("employee nouns should 403, got " + staffNouns.statusCode);
+  else pass("employee cannot save nouns");
+
+  const authGet = await call(authHandler, "GET", owner);
+  if (!authGet.body.workspace || authGet.body.workspace.nouns.capture !== "Drop") fail("GET /api/auth lost nouns");
+  else pass("GET auth returns desk nouns");
+
+  const jobsNouns = await call(jobsHandler, "GET", owner);
+  if (!jobsNouns.body.nouns || jobsNouns.body.nouns.capture !== "Drop") fail("GET /api/jobs missing nouns");
+  else pass("GET jobs returns desk nouns");
+
+  const deskB = {
+    slug: "nouns-b",
+    name: "Other",
+    biz: "nouns-b",
+    pin: hashPin(ownerPin),
+    createdAt: new Date().toISOString(),
+    people: []
+  };
+  ensurePeople(deskB);
+  mem.workspaces.unshift(deskB);
+  const bOwner = { "x-workspace": "nouns-b", "x-pin": ownerPin };
+  ensureNouns(deskB);
+  const bSave = await call(authHandler, "POST", bOwner, {
+    action: "nouns",
+    nouns: { capture: "Intake", qualify: "Screen", do: "Write", collect: "Bill", follow: "Ping" }
+  });
+  if (bSave.statusCode !== 200 || bSave.body.nouns.capture !== "Intake") fail("desk B nouns save failed");
+  const aAgain = await call(authHandler, "GET", owner);
+  const bAgain = await call(authHandler, "GET", bOwner);
+  if (aAgain.body.workspace.nouns.capture !== "Drop") fail("desk A nouns leaked or reset");
+  else if (bAgain.body.workspace.nouns.capture !== "Intake") fail("desk B nouns missing");
+  else if (aAgain.body.workspace.nouns.capture === bAgain.body.workspace.nouns.capture) fail("two desks share nouns");
+  else pass("two desks keep separate nouns");
+
+  const widgetLine = "Ask me if the photo is blurry.";
+  const addWidget = await call(rulesHandler, "POST", owner, { text: widgetLine });
+  if (addWidget.statusCode !== 201 || !addWidget.body.rule) fail("could not add widget rule");
+  const widgetId = addWidget.body.rule.id;
+  if (addWidget.body.rule.widget && addWidget.body.rule.widget.on) fail("new rule widget should start off");
+  else pass("new rule widget defaults off");
+
+  const widgetOn = await call(rulesHandler, "POST", owner, { action: "widget", id: widgetId, on: true, label: "Front drop" });
+  if (widgetOn.statusCode !== 200 || !widgetOn.body.rule || !widgetOn.body.rule.widget.on || widgetOn.body.widgetsOn < 1) {
+    fail("owner widget on failed " + widgetOn.statusCode + " " + JSON.stringify(widgetOn.body));
+  } else pass("owner can turn a rule widget on");
+
+  const staffWidget = await call(rulesHandler, "POST", staff, { action: "widget", id: widgetId, on: false });
+  if (staffWidget.statusCode !== 403) fail("employee widget should 403, got " + staffWidget.statusCode);
+  else pass("employee cannot toggle widget");
+
+  const rulesGet = await call(rulesHandler, "GET", owner);
+  if (!rulesGet.body.rules.some((r) => r.id === widgetId && r.widget && r.widget.on && r.widget.label === "Front drop")) {
+    fail("GET rules lost widget");
+  } else if (rulesGet.body.widgetsOn < 1) fail("GET rules missing widgetsOn");
+  else pass("GET rules returns widget + count");
+
+  const disk2 = JSON.parse(fs.readFileSync(store, "utf8"));
+  const stored = (disk2.workspaces || []).find((w) => w.slug === slug);
+  const storedRule = ((stored && stored.rules) || []).find((r) => r.id === widgetId);
+  if (!storedRule || !storedRule.widget || !storedRule.widget.on) fail("widget not on workspace blob row");
+  else pass("widget persisted on workspace rule row");
+
+  const bWidget = await call(rulesHandler, "GET", bOwner);
+  if ((bWidget.body.widgetsOn || 0) !== 0) fail("desk B inherited desk A widgets");
+  else pass("two desks keep separate widgets");
+
+  if (/consign|vita|fund|land/i.test(JSON.stringify(defaultNouns()))) fail("defaults leaked a vertical name");
+  else pass("defaults are not a vertical");
 
   const pinLeak = (mem.audit || []).some((a) => /4821|7390/.test(JSON.stringify(a)));
   if (pinLeak) fail("PIN appeared in audit");

@@ -141,6 +141,37 @@
     return "/widget.html?ws=" + encodeURIComponent(use);
   }
 
+  function defaultNouns() {
+    return { capture: "Capture", qualify: "Qualify", do: "Do", collect: "Collect", follow: "Follow" };
+  }
+
+  function nounsOf(src) {
+    var d = defaultNouns();
+    var n = src && typeof src === "object" ? src : {};
+    function one(k) {
+      var t = String(n[k] == null ? "" : n[k]).trim().replace(/\s+/g, " ").slice(0, 24);
+      return t || d[k];
+    }
+    return {
+      capture: one("capture"),
+      qualify: one("qualify"),
+      do: one("do"),
+      collect: one("collect"),
+      follow: one("follow")
+    };
+  }
+
+  function stepNoun(step, nouns) {
+    var n = nounsOf(nouns);
+    var s = String(step || "").toLowerCase();
+    if (/captur|drop|intake/.test(s)) return n.capture;
+    if (/qualif|fit/.test(s)) return n.qualify;
+    if (/collect|paid|pay/.test(s)) return n.collect;
+    if (/follow/.test(s)) return n.follow;
+    if (/do|draft|work/.test(s)) return n.do;
+    return n.qualify;
+  }
+
   remember();
 
   root.AIADesks = {
@@ -155,6 +186,9 @@
     captureDesk: captureDesk,
     widgetHref: widgetHref,
     shopOpen: shopOpen,
-    slugify: slugify
+    slugify: slugify,
+    defaultNouns: defaultNouns,
+    nounsOf: nounsOf,
+    stepNoun: stepNoun
   };
 })(typeof window !== "undefined" ? window : globalThis);

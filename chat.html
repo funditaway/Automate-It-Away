@@ -35,7 +35,7 @@
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/onboard" data-tab="drop">Drop</a>
-      <a href="/desk#rules" data-tab="rules">Rules</a>
+      <a href="/rules" data-tab="rules">Rules</a>
       <a href="/connections" data-tab="pipes">Pipes</a>
       <a href="/help" data-tab="more">More</a>
     </nav>
@@ -64,7 +64,7 @@
       acts.innerHTML = "";
       if (v && v.can) {
         acts.innerHTML = `<button type="button" onclick="setup()">Put this in my queue</button>
-          <a class="edit" style="padding:12px;border-radius:12px" href="onboard.html">Open my shop first</a>`;
+          <a class="edit" style="padding:12px;border-radius:12px" href="onboard.html">Open my desk first</a>`;
       } else if (v && !v.can) {
         acts.innerHTML = `<button type="button" onclick="request()">Send automation request</button>`;
       }
@@ -106,7 +106,7 @@
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
     <a href="/onboard" data-tab="drop"><span>Drop</span></a>
-    <a href="/desk#rules" data-tab="rules"><span>Rules</span></a>
+    <a href="/rules" data-tab="rules"><span>Rules</span></a>
     <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
     <a href="/help" data-tab="more"><span>More</span></a>
   </nav>

@@ -2,7 +2,7 @@
   var TABS = [
     { id: "queue", label: "Queue", href: "/desk", ico: "M4 6h16M4 12h16M4 18h10" },
     { id: "drop", label: "Drop", href: "/widget.html", ico: "M12 5v14M5 12h14" },
-    { id: "rules", label: "Rules", href: "/desk#rules", ico: "M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" },
+    { id: "rules", label: "Rules", href: "/rules", ico: "M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" },
     { id: "pipes", label: "Pipes", href: "/connections", ico: "M7 8h10M7 16h10M5 12h2m10 0h2" },
     { id: "more", label: "More", href: "/help", ico: "M6 12h.01M12 12h.01M18 12h.01" }
   ];
@@ -26,6 +26,7 @@
 
   function tabOf() {
     var name = file();
+    if (name === "rules") return "rules";
     if ((name === "desk" || name === "desk.html") && location.hash === "#rules") return "rules";
     if (name === "desk") return "queue";
     if (name === "widget") return "drop";
@@ -49,6 +50,9 @@
     var href = dropHref();
     document.querySelectorAll("#desk-nav [data-tab=\"drop\"], #drop-go, #head-drop, .desk-tabs [data-tab=\"drop\"]").forEach(function (el) {
       if (el && el.tagName === "A") el.setAttribute("href", href);
+    });
+    document.querySelectorAll("#desk-nav [data-tab=\"rules\"], .desk-tabs [data-tab=\"rules\"]").forEach(function (el) {
+      if (el && el.tagName === "A") el.setAttribute("href", "/rules");
     });
   }
 
