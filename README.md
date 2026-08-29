@@ -6,7 +6,7 @@ Capture → Qualify → Do the work → Get paid → Follow + audit.
 
 Repo: https://github.com/funditaway/Automate-It-Away
 Vercel project: automate-it-away (team James Oddo's projects)
-Domain: automateitaway.com (claimed, DNS not pointed)
+Domain: automateitaway.com (pointed)
 
 ## Live contracts
 
@@ -22,6 +22,8 @@ Domain: automateitaway.com (claimed, DNS not pointed)
 - Whatnot stays down
 
 Widget `POST`s capture to `/api/jobs`. Status page reads health.
-Store is file or `/tmp` on lambda — not a shared phone queue yet.
+
+Store: file or `/tmp` until `BLOB_READ_WRITE_TOKEN` is set. Then jobs and workspaces live in Vercel Blob and a second phone can open the same queue.
 
 First vertical pack: `packs/consign.json`.
+World login: `/login.html` (slug + pin). New shop: `/onboard.html`.

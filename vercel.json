@@ -6,6 +6,9 @@
       "includeFiles": "api/data/**"
     }
   },
+  "crons": [
+    { "path": "/api/worker?all=1", "schedule": "0 14 * * *" }
+  ],
   "rewrites": [
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
