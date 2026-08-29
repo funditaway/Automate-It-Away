@@ -1,4 +1,5 @@
 const { cors, mem, log, save, PROVIDERS, workspaceOf, readBody } = require("./_lib");
+const { pickFields, mergeFields } = require("./fields");
 
 function pipesFor(workspace) {
   return mem.connections.filter((c) => c.workspace === workspace);
@@ -49,18 +50,18 @@ module.exports = async function handler(req, res) {
     const action = body.action || "capture";
 
     if (action === "capture") {
+      const fields = pickFields(body);
       const job = {
         id: "job_" + Date.now().toString(36),
         workspace,
-        title: body.title || "Untitled",
+        title: body.title || fields.notes || "Untitled",
         why: body.why || "Captured. Guardrail: human before ship.",
         status: "exception",
         step: "Qualify",
-        provider: body.provider || null,
-        amount: Number(body.amount || 0) || null,
-        from: body.from || "widget",
         createdAt: new Date().toISOString(),
-        log: ["Captured", "Waiting on owner"]
+        log: ["Captured", "Waiting on owner"],
+        ...fields,
+        from: fields.from || "widget"
       };
       mem.jobs.unshift(job);
       mem.inbox.unshift({
@@ -86,24 +87,30 @@ module.exports = async function handler(req, res) {
           job
         });
       }
+      mergeFields(job, body);
       job.status = "killed";
-      job.log = (job.log || []).concat(["Killed by owner"]);
+      job.killReason = body.killReason || job.killReason || "Owner kill";
+      job.whoTapped = body.whoTapped || "owner";
+      job.log = (job.log || []).concat(["Killed · " + job.killReason]);
       save();
       log("Agent", "Killed · " + job.title, "Stopped", workspace);
       return res.status(200).json({ ok: true, job });
     }
 
     if (action === "qualify") {
+      mergeFields(job, body);
       job.step = "Do the work";
       job.why = body.why || job.why;
-      job.log = (job.log || []).concat(["Qualified"]);
+      if (job.risk && job.risk !== "none") job.status = "exception";
+      job.log = (job.log || []).concat(["Qualified · risk " + (job.risk || "none")]);
       save();
       log("Qualify", job.title, "Waiting", workspace);
       return res.status(200).json({ ok: true, job });
     }
 
     if (action === "ship") {
-      const amount = Number(body.amount || job.amount || 0);
+      mergeFields(job, body);
+      const amount = Number(body.amount || job.amount || job.ask || 0);
       if (amount > 250 && !body.confirm) {
         job.status = "held";
         job.amount = amount;
@@ -128,12 +135,13 @@ module.exports = async function handler(req, res) {
       }
       job.status = "shipped";
       job.amount = amount || job.amount;
+      job.whoTapped = body.whoTapped || job.whoTapped || "owner";
       job.rail = amount > 250 ? "owner-confirmed" : "under-250";
       job.log = (job.log || []).concat([amount > 250 ? "Owner confirmed $" + amount : "Shipped"]);
       mem.money.unshift({
         at: new Date().toISOString(),
         workspace,
-        who: job.title,
+        who: job.payoutTo || job.title,
         what: job.dispatch && job.dispatch.demo ? "Demo ship — not billed" : "Ship",
         amt: amount ? "$" + amount : "—",
         held: false
