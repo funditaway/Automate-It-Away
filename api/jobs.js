@@ -1,4 +1,4 @@
-const { cors, mem, log, save, PROVIDERS, workspaceOf, readBody } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody } = require("./_lib");
 const { pickFields, mergeFields } = require("./fields");
 
 function pipesFor(workspace) {
@@ -18,6 +18,7 @@ async function fireWebhook(hook, payload) {
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
+  await ready();
   const workspace = workspaceOf(req);
 
   if (req.method === "GET") {
@@ -71,8 +72,8 @@ module.exports = async function handler(req, res) {
         from: job.from,
         at: Date.now()
       });
-      save();
       log("Capture", job.title, "Waiting", workspace);
+      await save();
       return res.status(201).json({ ok: true, job });
     }
 
@@ -92,8 +93,8 @@ module.exports = async function handler(req, res) {
       job.killReason = body.killReason || job.killReason || "Owner kill";
       job.whoTapped = body.whoTapped || "owner";
       job.log = (job.log || []).concat(["Killed · " + job.killReason]);
-      save();
       log("Agent", "Killed · " + job.title, "Stopped", workspace);
+      await save();
       return res.status(200).json({ ok: true, job });
     }
 
@@ -103,8 +104,8 @@ module.exports = async function handler(req, res) {
       job.why = body.why || job.why;
       if (job.risk && job.risk !== "none") job.status = "exception";
       job.log = (job.log || []).concat(["Qualified · risk " + (job.risk || "none")]);
-      save();
       log("Qualify", job.title, "Waiting", workspace);
+      await save();
       return res.status(200).json({ ok: true, job });
     }
 
@@ -114,8 +115,8 @@ module.exports = async function handler(req, res) {
       if (amount > 250 && !body.confirm) {
         job.status = "held";
         job.amount = amount;
-        save();
         log("Rail", "Held · " + job.title + " · $" + amount, "Waiting", workspace);
+        await save();
         return res.status(409).json({
           ok: false,
           error: "Guardrail: money over $250 needs the owner on the desk.",
@@ -146,8 +147,8 @@ module.exports = async function handler(req, res) {
         amt: amount ? "$" + amount : "—",
         held: false
       });
-      save();
       log(pipe ? pipe.label : "Agent", "Shipped · " + job.title, job.dispatch && job.dispatch.demo ? "Demo" : "OK", workspace);
+      await save();
       return res.status(200).json({ ok: true, job });
     }
 
