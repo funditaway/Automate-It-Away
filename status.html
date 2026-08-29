@@ -3,18 +3,22 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Status · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
   <style>
-    body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#07090c;color:#f4f7fa}
-    a{color:#fff;text-decoration:none}
-    header{padding:14px 5vw;border-bottom:1px solid #243040}
+    body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:var(--bg);color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{padding:14px 5vw;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:#0d6b6b;color:#fff}
+    header a{color:#fff}
     .wrap{width:min(640px,92vw);margin:0 auto;padding:28px 0}
-    .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #243040;gap:12px}
+    .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);gap:12px}
     .up{color:#3dd68c}.down{color:#ff6b4a}.hold{color:#f39c12}
-    pre{background:#10151c;border:1px solid #243040;border-radius:8px;padding:12px;font-size:12px;overflow:auto}
+    pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px;overflow:auto;color:var(--ink)}
   </style>
 </head>
 <body>
-  <header><a href="index.html">AUTOMATE IT AWAY</a> · Status</header>
+  <header><a href="index.html">AUTOMATE IT AWAY</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
   <main class="wrap">
     <h1>automateitaway.com</h1>
     <div class="row"><span>Marketing site</span><span class="up">Prototype up</span></div>
@@ -28,7 +32,7 @@
     <div class="row"><span>ChatGPT / Claude required</span><span class="up">No — never required</span></div>
     <div class="row"><span>Whatnot</span><span class="down">Not a launch pipe</span></div>
     <div class="row"><span>Grok Bot public API</span><span class="down">Does not exist — not a gate</span></div>
-    <p style="color:#8b9aab;margin-top:18px">Green is honest. Orange is P1. Red we skip for launch.</p>
+    <p style="color:var(--muted);margin-top:18px">Green is honest. Orange is P1. Red we skip for launch.</p>
     <pre id="raw">waiting on /api/health</pre>
   </main>
   <script>
