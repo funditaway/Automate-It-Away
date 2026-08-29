@@ -15,6 +15,9 @@ const PROVIDERS = {
 const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [] };
 const BLOB_KEY = "aia/store.json";
 const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null };
+const PERSIST_TEST_DROP = {
+  "consign-it-away": ["job_mtegpvhk", "job_mtegkkap", "job_mtegezu8"]
+};
 
 function storePath() {
   if (process.env.AIA_STORE_PATH) return process.env.AIA_STORE_PATH;
@@ -179,6 +182,28 @@ function writeDisk() {
 
 const mem = globalThis.__aia || (globalThis.__aia = Object.assign({ driver: "file", path: null }, EMPTY));
 
+function dropPersistTests() {
+  const before = (mem.jobs || []).length;
+  mem.jobs = (mem.jobs || []).filter((j) => {
+    const ids = PERSIST_TEST_DROP[j.workspace];
+    return !ids || ids.indexOf(j.id) === -1;
+  });
+  return mem.jobs.length !== before;
+}
+
+async function persistScrub() {
+  if (!dropPersistTests()) return false;
+  writeDisk();
+  if (blobReady()) {
+    const ok = await blobWrite();
+    if (ok) {
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+    }
+  }
+  return true;
+}
+
 async function hydrate() {
   if (blobReady()) {
     const remote = await blobRead();
@@ -186,9 +211,11 @@ async function hydrate() {
       Object.assign(mem, remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
+      await persistScrub();
       return;
     }
     Object.assign(mem, readDisk());
+    dropPersistTests();
     writeDisk();
     const ok = await blobWrite();
     if (ok) {
@@ -198,6 +225,7 @@ async function hydrate() {
     }
   }
   Object.assign(mem, readDisk());
+  dropPersistTests();
   mem.driver = writeDisk();
   mem.path = storePath();
 }
@@ -216,10 +244,12 @@ async function ready() {
       mem.path = "blob:" + BLOB_KEY;
     }
   }
+  await persistScrub();
 }
 
 async function save() {
   await ready();
+  dropPersistTests();
   const disk = writeDisk();
   if (blobReady()) {
     const ok = await blobWrite();
@@ -341,5 +371,5 @@ function readBody(req) {
 module.exports = {
   PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
-  ensurePeople, publicPerson, personOf, isOwner
+  ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, PERSIST_TEST_DROP
 };

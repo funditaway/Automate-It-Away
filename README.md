@@ -17,7 +17,8 @@ Domain: automateitaway.com (pointed)
 - `GET /api/jobs?audit=1` `?money=1` `?inbox=1`
 - `GET|POST|DELETE /api/connections`
 - `GET|POST /api/worker`
-- Ship amount > $250 without `confirm: true` → 409 held
+- Ship amount >= $250 without `confirm: true` → 409 held
+- Demo ship (no live pipe write-back) stays held — never shipped, never billed
 - Kill without `confirm: true` → 409
 - Whatnot stays down
 
