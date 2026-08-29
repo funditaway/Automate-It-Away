@@ -34,9 +34,27 @@ async function captureFromUs() {
   await capture();
 }
 function jobBy(id) { return JOBS.find(j => j.id === id); }
-function openJob(id) {
+var PEOPLE = typeof PEOPLE === "undefined" ? [] : PEOPLE;
+async function loadPeople() {
+  if (PEOPLE && PEOPLE.length) return PEOPLE;
+  try {
+    const auth = await api("/api/auth");
+    PEOPLE = (auth.data && auth.data.workspace && auth.data.workspace.people) || [];
+  } catch (e) {
+    PEOPLE = [];
+  }
+  return PEOPLE;
+}
+function smsHref(text) {
+  return "sms:?&body=" + encodeURIComponent(text || "");
+}
+function mailHref(title, text) {
+  return "mailto:?subject=" + encodeURIComponent(title || "Desk draft") + "&body=" + encodeURIComponent(text || "");
+}
+async function openJob(id) {
   const j = jobBy(id);
   if (!j) return;
+  await loadPeople();
   const staff = role === "employee";
   const money = Number(j.amount || j.ask || 0);
   const thread = (j.thread || []).map(t => "<div><b>" + esc(t.from) + "</b> · " + esc(t.kind || "note") + "<br>" + esc(t.text) + "</div>").join("") || "<div>No notes yet.</div>";
@@ -44,22 +62,36 @@ function openJob(id) {
     const val = (j.custom && j.custom[f.key]) || j[f.key] || "";
     return "<label>" + esc(f.label) + "</label><input data-field=\"" + esc(f.key) + "\" value=\"" + esc(val) + "\" placeholder=\"" + esc(f.label) + "\">";
   }).join("");
+  const draft = j.draft || j.title || "";
+  const peopleOpts = (PEOPLE || []).map(p =>
+    "<option value=\"" + esc(p.name) + "\"" + (j.assignee === p.name ? " selected" : "") + ">" + esc(p.name) + (p.role === "owner" ? " · owner" : "") + "</option>"
+  ).join("");
   document.getElementById("sheet-card").innerHTML =
     "<h3>" + esc(j.title) + "</h3>" +
-    "<p class=\"meta\">" + labelStatus(j.status) + "</p>" +
+    "<p class=\"meta\">" + labelStatus(j.status) + (j.assignee ? " · " + esc(j.assignee) : "") + (j.carried ? " · done by hand" : "") + "</p>" +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
     (j.draft ? "<div class=\"draft\">" + esc(j.draft) + "</div>" : "") +
     "<div class=\"talk\">" + thread + "</div>" + custom +
-    "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / dad already signed\"></textarea>" +
+    "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
     "<div class=\"row\" style=\"margin-top:10px\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + j.id + "')\">Save info</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + j.id + "')\">Ask for more</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + j.id + "')\">Add note</button>" +
     "</div>" +
     (staff ? "" : "<div class=\"row\" style=\"margin-top:8px\"><input id=\"new-field\" placeholder=\"New field name\" style=\"flex:1\"><button class=\"edit\" type=\"button\" onclick=\"addField()\">Add field</button></div>") +
+    (peopleOpts
+      ? "<label>Hand to</label><div class=\"row\"><select id=\"hand-to\" style=\"flex:1\">" + peopleOpts + "</select><button class=\"edit\" type=\"button\" onclick=\"handTo('" + j.id + "')\">Hand to</button></div>"
+      : "<p class=\"meta\"><a href=\"/admin\">Add people</a> to hand work off.</p>") +
     "<div class=\"row\" style=\"margin-top:12px\">" +
-      "<button class=\"edit\" type=\"button\" onclick=\"phoneCal('" + j.id + "')\">Save a file</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>" +
+      "<a class=\"edit\" href=\"" + smsHref(draft) + "\">Text it</a>" +
+      "<a class=\"edit\" href=\"" + mailHref(j.title, draft) + "\">Email it</a>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"phoneCal('" + j.id + "')\">Phone file</button>" +
+      "<a class=\"edit\" href=\"/chat\">Tell the desk</a>" +
+    "</div>" +
+    "<div class=\"row\" style=\"margin-top:12px\">" +
+      "<button class=\"edit\" type=\"button\" onclick=\"carryJob('" + j.id + "')\">Done by hand</button>" +
       "<button class=\"go\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" +
       (staff ? "" : "<button class=\"kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + esc(j.title).replace(/'/g, "") + "')\">No</button>") +
       "<button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button>" +
@@ -92,6 +124,38 @@ async function askMore(id) {
   await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ask", id, text, whoTapped: youName || "desk" }) });
   await load();
   openJob(id);
+}
+async function handTo(id) {
+  const name = (document.getElementById("hand-to") || {}).value || "";
+  if (!name) return;
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "assign", id, name, whoTapped: youName || "desk" }) });
+  if (out.status >= 400) {
+    document.getElementById("banner").textContent = (out.data && out.data.error) || "Could not hand that off.";
+    return;
+  }
+  await load();
+  openJob(id);
+}
+async function copyDraft(id) {
+  const j = jobBy(id);
+  const text = (j && (j.draft || j.title || "")) || "";
+  try {
+    await navigator.clipboard.writeText(text);
+    document.getElementById("banner").textContent = "Draft copied. Paste it where it goes.";
+  } catch (e) {
+    window.prompt("Copy this", text);
+  }
+}
+async function carryJob(id) {
+  const note = ((document.getElementById("job-note") || {}).value || "Done by hand.").trim();
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "carry", id, text: note, whoTapped: youName || role || "desk" }) });
+  document.getElementById("sheet").classList.remove("on");
+  if (out.status === 403) {
+    document.getElementById("banner").textContent = (out.data && out.data.error) || "Waiting on the owner.";
+  } else {
+    document.getElementById("banner").textContent = "Marked done by hand.";
+  }
+  load();
 }
 async function phoneCal(id) {
   const r = await fetch("/api/jobs?ics=" + encodeURIComponent(id), { headers: headers() });
@@ -141,6 +205,14 @@ async function addField() {
       const first = row.querySelector("button");
       if (first && first.nextSibling) row.insertBefore(btn, first.nextSibling);
       else row.appendChild(btn);
+    }
+    if (row && !document.getElementById("tell-desk-btn")) {
+      const a = document.createElement("a");
+      a.id = "tell-desk-btn";
+      a.className = "edit";
+      a.href = "/chat";
+      a.textContent = "Tell the desk";
+      row.appendChild(a);
     }
   });
 })();
