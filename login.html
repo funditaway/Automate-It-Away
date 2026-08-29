@@ -25,13 +25,13 @@
     <a href="onboard.html">New workspace</a>
   </header>
   <form class="card" id="form">
-    <h1>Second phone</h1>
-    <p>Same shop slug + pin. Queue is one workspace, not one browser.</p>
+    <h1>Sign in</h1>
+    <p>Owner pin opens admin. Employee pin opens the queue.</p>
     <label>Workspace slug</label>
     <input name="slug" required placeholder="rivera-roofing" autocomplete="username">
-    <label>Desk pin</label>
+    <label>Your pin</label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="4170" autocomplete="current-password">
-    <button type="submit">Open the desk</button>
+    <button type="submit">Open</button>
     <p class="err" id="err"></p>
   </form>
   <script>
@@ -51,7 +51,9 @@
         if (!r.ok) { err.textContent = data.error || "Could not open."; err.style.display = "block"; return; }
         localStorage.setItem("aia_ws", data.workspace.slug);
         localStorage.setItem("aia_pin", pin);
-        location.href = "desk.html";
+        if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
+        if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
+        location.href = (data.you && data.you.role === "owner") ? "admin.html" : "desk.html";
       } catch (ex) {
         err.textContent = "API not on this host.";
         err.style.display = "block";
