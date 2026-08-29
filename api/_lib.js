@@ -214,6 +214,13 @@ async function hydrate() {
       await persistScrub();
       return;
     }
+    if (blobProbe.read === "error") {
+      Object.assign(mem, readDisk());
+      dropPersistTests();
+      mem.driver = writeDisk();
+      mem.path = storePath();
+      return;
+    }
     Object.assign(mem, readDisk());
     dropPersistTests();
     writeDisk();
@@ -252,6 +259,10 @@ async function save() {
   dropPersistTests();
   const disk = writeDisk();
   if (blobReady()) {
+    if (blobProbe.read === "error" && mem.driver !== "blob") {
+      mem.driver = disk;
+      return disk !== "memory-fallback";
+    }
     const ok = await blobWrite();
     if (ok) {
       mem.driver = "blob";
