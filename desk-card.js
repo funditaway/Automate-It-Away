@@ -1,3 +1,27 @@
+function openUsType() {
+  document.getElementById("sheet-card").innerHTML =
+    "<h3>We type it onto this queue</h3>" +
+    "<p class=\"meta\">You tell us. We write the card. You still tap Send or Stop.</p>" +
+    "<label>What should we put on the queue?</label>" +
+    "<input id=\"cap-title\" placeholder=\"Permission slip Friday, oil change, oak dresser\">" +
+    "<label>When or ask</label>" +
+    "<input id=\"cap-when\" placeholder=\"Friday / $40\">" +
+    "<label>Note for us</label>" +
+    "<textarea id=\"cap-note\" rows=\"2\" placeholder=\"From the school packet / neighbor asked\"></textarea>" +
+    "<input type=\"hidden\" id=\"cap-kind\" value=\"note\">" +
+    "<div class=\"row\" style=\"margin-top:12px\">" +
+      "<button class=\"go\" type=\"button\" onclick=\"captureFromUs()\">Put it on the queue</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Cancel</button>" +
+    "</div>";
+  document.getElementById("sheet").classList.add("on");
+}
+async function captureFromUs() {
+  const titleEl = document.getElementById("cap-title");
+  if (titleEl && !titleEl.value) titleEl.value = "Desk note";
+  const kind = document.getElementById("cap-kind");
+  if (kind) kind.value = "note";
+  await capture();
+}
 function jobBy(id) { return JOBS.find(j => j.id === id); }
 function openJob(id) {
   const j = jobBy(id);
@@ -90,3 +114,36 @@ async function addField() {
     if (j) openJob(j.id);
   }
 }
+
+(function bootDeskHome() {
+  function ready(fn) {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
+    else fn();
+  }
+  ready(function () {
+    const row = document.querySelector("main .row");
+    if (row && !document.getElementById("us-type-btn")) {
+      const btn = document.createElement("button");
+      btn.id = "us-type-btn";
+      btn.className = "edit";
+      btn.type = "button";
+      btn.textContent = "We type it in";
+      btn.onclick = function () { if (typeof openUsType === "function") openUsType(); };
+      const first = row.querySelector("button");
+      if (first && first.nextSibling) row.insertBefore(btn, first.nextSibling);
+      else row.appendChild(btn);
+    }
+    if (!document.getElementById("how-in")) {
+      const q = document.getElementById("queue");
+      if (q) {
+        const box = document.createElement("div");
+        box.id = "how-in";
+        box.className = "item";
+        box.innerHTML = "<div class=\"meta\">How work gets here</div><p><b>You drop it</b> — photo, form, missed call. Two taps.</p><p><b>We type it</b> — tell us. We write the card. You still say yes or no.</p><p><b>A pipe</b> — optional. The queue works without one.</p><p class=\"meta\"><a href=\"connections.html\">Add a pipe</a> · <a href=\"chat.html\">Tell us</a></p>";
+        q.parentNode.insertBefore(box, q);
+      }
+    }
+    const openBtn = document.querySelector("#gate button");
+    if (openBtn && openBtn.textContent.trim() === "Open") openBtn.textContent = "That's my queue";
+  });
+})();
