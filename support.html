@@ -4,6 +4,9 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Support · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="desk-nav.css">
   <script src="theme.js"></script>
@@ -28,7 +31,7 @@ button.go{padding:10px 16px;border:0;border-radius:10px;background:var(--orange)
     <a href="/onboard" data-tab="drop">Drop</a>
     <a href="/rules" data-tab="rules">Rules</a>
     <a href="/connections" data-tab="pipes">Pipes</a>
-    <a href="/help" data-tab="more">More</a>
+    <a href="/more" data-tab="more">More</a>
   </nav>
 </header>
 <section class="hero"><p>HELP CENTER</p><h1>Support</h1>
@@ -53,7 +56,7 @@ function ticket(){const t=document.getElementById("title").value,b=document.getE
   <a href="/onboard" data-tab="drop"><span>Drop</span></a>
   <a href="/rules" data-tab="rules"><span>Rules</span></a>
   <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
-  <a href="/help" data-tab="more"><span>More</span></a>
+  <a href="/more" data-tab="more"><span>More</span></a>
 </nav>
 <script src="desk-nav.js"></script>
 </body></html>

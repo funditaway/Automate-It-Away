@@ -61,11 +61,11 @@
       <a href="/onboard" data-tab="drop" id="head-drop">Drop</a>
       <a href="/rules" data-tab="rules">Rules</a>
       <a href="/connections" data-tab="pipes">Pipes</a>
-      <a href="/help" data-tab="more">More</a>
+      <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
   <main class="wrap">
-    <div class="banner" id="banner">Wait for the owner. Turn a widget on if this desk needs another drop.</div>
+    <div class="banner" id="banner">Add a rule. Turn a widget on. Advanced lives here.</div>
     <div class="lock" id="session" hidden>
       <span id="who-line"></span>
       <a class="edit" href="/desk">Queue</a>
@@ -78,7 +78,7 @@
     <p class="meta" id="widget-count">0 widgets on</p>
     <div class="item" id="rules">
       <h3>Owner rules</h3>
-      <p>Wait for the owner. Turn a widget on if this desk needs another drop. Count shows on the desk.</p>
+      <p>Add a rule. Turn a widget on. Advanced lives here.</p>
       <ul id="rule-list"></ul>
       <div class="row" id="rule-add" hidden style="margin-top:8px">
         <input id="rule-text" placeholder="Ask me if …" maxlength="140" style="flex:1">
@@ -107,7 +107,7 @@
     <a href="/onboard" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
     <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
     <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
-    <a href="/help" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
@@ -170,7 +170,7 @@
               "</span>"
             : "") +
           "</li>";
-      }).join("") || "<li><span class=\"meta\">No owner lines yet.</span></li>";
+      }).join("") || "<li><span class=\"meta\">No rules yet. Add one if you need it.</span></li>";
       document.getElementById("rule-add").hidden = !canEdit;
       paintCount((rows.filter((r) => r.widget && r.widget.on)).length);
     }
@@ -250,7 +250,7 @@
         paintRules(RULES, can);
         paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);
         if (rulesOut.data && rulesOut.data.widgetsOn != null) paintCount(rulesOut.data.widgetsOn);
-        banner.textContent = "Wait for the owner. Turn a widget on if this desk needs another drop.";
+        banner.textContent = "Add a rule. Turn a widget on. Advanced lives here.";
         paintGate();
       } catch (e) {
         banner.textContent = "Could not reach the desk.";

@@ -1,4 +1,4 @@
-const { catalog, mem, ensureRules } = require("./_lib");
+const { catalog, mem, ensureRules, moneyWaitOf, moneyNeedsOwner } = require("./_lib");
 
 const MONEY_HOLD = 250;
 const PACKS = ["home", "consign", "vita", "fund", "land"];
@@ -178,9 +178,10 @@ function qualifyJob(job, shopOrModel) {
   }
 
   const amount = moneyOf(job);
-  if (amount != null && amount > MONEY_HOLD) {
-    why = (why ? why + " " : "") + "Over $250 waits on the owner.";
-    next = "Owner releases, or keep waiting.";
+  const holdAt = shop ? moneyWaitOf(ensureRules(shop)) : null;
+  if (moneyNeedsOwner(amount, holdAt)) {
+    why = (why ? why + " " : "") + "Waiting on the owner.";
+    next = "Waiting on the owner.";
   }
 
   const provider = job.provider || null;
@@ -198,7 +199,7 @@ function qualifyJob(job, shopOrModel) {
   job.why = why;
   job.next = next;
   job.qualifiedAt = new Date().toISOString();
-  const rail = risk === "legal" || risk === "title" || (amount != null && amount > MONEY_HOLD);
+  const rail = risk === "legal" || risk === "title" || moneyNeedsOwner(amount, holdAt);
   job.status = rail || missing.length ? "exception" : "waiting";
   job.log = (job.log || []).concat(["Qualified · " + pack + " · " + risk + (missing.length ? " · missing " + missing.join(",") : "")]);
   recommend(job, missing, shop);
@@ -217,8 +218,8 @@ function recommend(job, missing, shop) {
   }
   if (job.risk === "legal") recs.push({ kind: "hold", text: "Do not name a child or school on a public post." });
   if (job.risk === "same-day") recs.push({ kind: "hold", text: "Confirm this does not bump something already on the week." });
-  const amount = moneyOf(job);
-  if (amount != null && amount > MONEY_HOLD) recs.push({ kind: "hold", text: "Owner must release $" + amount + "." });
+  const holdAt = shop ? moneyWaitOf(ensureRules(shop)) : null;
+  if (moneyNeedsOwner(moneyOf(job), holdAt)) recs.push({ kind: "hold", text: "Waiting on the owner." });
   const row = shop && typeof shop === "object" ? shop : shopOf(job);
   if (row) {
     ensureRules(row);

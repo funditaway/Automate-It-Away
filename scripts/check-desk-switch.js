@@ -93,13 +93,13 @@ if (!desk.includes("Change desk") || !desk.includes("Open another") || !desk.inc
 } else pass("desk.html can switch saved desks");
 if (desk.includes("|| \"demo\"") || desk.includes("|| 'demo'")) fail("desk.html still falls back to demo");
 else pass("desk.html has no demo fallback");
-if (!desk.includes("Nothing here yet.") || !desk.includes("Wait for the owner.")) fail("desk copy missing");
+if (!desk.includes("Nothing here yet.") || !desk.includes("This desk") || !desk.includes("no rules yet")) fail("desk copy missing");
 else pass("desk queue/rules copy");
 if (!desk.includes("widget-count") || !desk.includes("rule-widgets") || !desk.includes("/rules")) {
   fail("desk.html missing widget count or /rules link");
 } else pass("desk.html shows widget count and /rules");
-if (!desk.includes("noun-capture") || !desk.includes("action: \"nouns\"")) fail("desk.html missing nouns editor");
-else pass("desk.html can save nouns");
+if (desk.includes("noun-capture") || desk.includes("action: \"nouns\"")) fail("desk.html still has the nouns editor on the queue");
+else pass("nouns editor lives on Rules, not Queue");
 if (!desk.includes("Waiting on a person.") || !desk.includes("Waiting on the owner") || desk.includes("k-held") || desk.includes("Over $250") || desk.includes(">Release<") || desk.includes("Needs you")) {
   fail("desk.html still has $250 / Release chrome");
 } else pass("desk chrome has no $250 button");
@@ -136,8 +136,16 @@ const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("href: \"/rules\"") || !nav.includes("name === \"rules\"")) {
   fail("desk-nav.js must treat rules.html as the Rules tab");
 } else pass("desk-nav.js Rules tab is /rules");
+if (!nav.includes("href: \"/more\"") || !nav.includes("name === \"more\"")) {
+  fail("desk-nav.js must treat more.html as the More tab");
+} else pass("desk-nav.js More tab is /more");
 
-const publicPages = ["index.html", "how.html", "setup.html", "login.html", "onboard.html", "help.html", "widget.html", "desk.html", "rules.html"];
+const morePage = fs.readFileSync(path.join(root, "more.html"), "utf8");
+if (!morePage.includes("id=\"desk-nav\"") || !morePage.includes("href=\"/more\"") || !morePage.includes("This desk.")) {
+  fail("more.html must be its own desk page");
+} else pass("more.html is the More page");
+
+const publicPages = ["index.html", "how.html", "setup.html", "login.html", "onboard.html", "help.html", "widget.html", "desk.html", "rules.html", "more.html"];
 const leaks = [
   "eBay stays on hold",
   "Whatnot stays off",
@@ -170,7 +178,7 @@ if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the wor
 else pass("how is doer-short");
 if (!fs.readFileSync(path.join(root, "setup.html"), "utf8").includes("Add a rule if you need one")) fail("setup missing doer copy");
 else pass("setup is doer-short");
-if (!rulesPage.includes("Turn a widget on if this desk needs another drop")) fail("rules missing doer copy");
+if (!rulesPage.includes("Add a rule. Turn a widget on. Advanced lives here.")) fail("rules missing doer copy");
 else pass("rules is doer-short");
 if (!login.includes("placeholder=\"Desk name\"")) fail("login still names a slug");
 else pass("login placeholder is generic");
@@ -178,9 +186,22 @@ const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
 if (!help.includes("Waiting on a person.") || !help.includes("Owner, twice.") || !help.includes("The job.") || !help.includes("Save a file")) {
   fail("help.html missing doer button labels");
 } else pass("help.html uses doer button labels");
-if (!jobs.includes("amount >= MONEY_HOLD && !body.confirm") || !jobs.includes("status(409)")) {
-  fail("jobs.js must still 409 amount >= 250 without confirm");
-} else pass("jobs.js $250 without confirm still 409");
+if (jobs.includes("amount >= MONEY_HOLD && !body.confirm")) {
+  fail("jobs.js still hard-codes amount >= 250 → 409");
+} else if (!jobs.includes("moneyWaitOf") || !jobs.includes("moneyNeedsOwner") || !jobs.includes("status(409)")) {
+  fail("jobs.js must 409 only when an owner money-wait rule matches");
+} else pass("jobs.js 409s only on an owner money-wait rule");
+
+const themed = ["index.html", "how.html", "setup.html", "onboard.html", "login.html", "desk.html", "widget.html", "rules.html", "connections.html", "help.html", "more.html", "admin.html", "chat.html", "support.html", "legal.html", "pricing.html", "status.html"];
+let themeMiss = "";
+themed.forEach((file) => {
+  const html = fs.readFileSync(path.join(root, file), "utf8");
+  if (!html.includes("theme.js") || !html.includes("theme.css") || !html.includes("data-theme-btn")) {
+    themeMiss = file + " missing theme.js / theme.css / toggle";
+  }
+});
+if (themeMiss) fail(themeMiss);
+else pass("public pages carry aia_theme");
 
 if (process.exitCode) {
   console.error("check-desk-switch failed");

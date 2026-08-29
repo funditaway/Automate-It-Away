@@ -139,6 +139,7 @@ module.exports = async function handler(req, res) {
         people: []
       };
       ensurePeople(row);
+      row.rules = [];
       ensureRules(row);
       ensureNouns(row);
       if (body.nouns) setWorkspaceNouns(row, body.nouns);

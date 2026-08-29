@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>More · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
-
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Help · Automate It Away</title>
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
   </script>
@@ -17,23 +15,22 @@
   <link rel="stylesheet" href="desk-nav.css">
   <script src="theme.js"></script>
   <style>
-    body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
-    a{color:var(--teal)}
-    header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
+    body{font-family:system-ui,sans-serif;margin:0;background:var(--bg);color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
     header a{color:#fff}
-    body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
     .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,sans-serif}
     .desk-tabs a{color:#fff}
+    body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
     #desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}
     #desk-nav a{flex:1;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,sans-serif;text-decoration:none}
     #desk-nav a.on{color:#f39c12}
     #desk-nav svg{width:22px;height:22px;display:block}
     .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 24px}
-    h1,h2{color:var(--heading)}
+    h1{color:var(--heading);font-size:1.4rem;margin:0 0 8px}
+    p{color:var(--muted);margin:0 0 12px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:10px 0}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
-    dt{font-weight:700;margin-top:8px}
-    dd{color:var(--muted);margin:0 0 8px}
+    .card a{color:var(--teal);font-weight:700}
   </style>
 </head>
 <body class="has-desk-nav">
@@ -49,34 +46,13 @@
     </nav>
   </header>
   <main class="wrap">
-    <h1>How to run the desk</h1>
-    <p>Drop the work. You tap yes or no.</p>
+    <h1>This desk.</h1>
+    <p>Help lives here.</p>
     <div class="card">
-      <h2>On the phone</h2>
-      <p>Queue · Drop · Rules · Pipes · More.</p>
-    </div>
-    <div class="card">
-      <h2>Words on the buttons</h2>
-      <dl>
-        <dt>Waiting on a person.</dt>
-        <dd>This job needs a tap.</dd>
-        <dt>Yes</dt>
-        <dd>Go.</dd>
-        <dt>No</dt>
-        <dd>Owner, twice.</dd>
-        <dt>Open</dt>
-        <dd>The job.</dd>
-        <dt>Save a file</dt>
-        <dd>Puts a calendar file on your phone.</dd>
-      </dl>
-    </div>
-    <div class="card">
-      <h2>Owner rules</h2>
-      <p>Wait for the owner. Turn a widget on if this desk needs another drop. Count shows on the desk.</p>
-    </div>
-    <div class="card">
-      <h2>Login</h2>
-      <p>Desk name + desk code. Email is not the login.</p>
+      <p><a href="/help">Help</a> — words on the buttons.</p>
+      <p><a href="/admin">People</a> — who can open this desk.</p>
+      <p><a href="/support">Support</a> — if something broke.</p>
+      <p><a href="/chat">Tell us</a> — a note to the desk.</p>
     </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">

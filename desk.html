@@ -82,11 +82,11 @@
       <a href="/onboard" data-tab="drop" id="head-drop">Drop</a>
       <a href="/rules" data-tab="rules">Rules</a>
       <a href="/connections" data-tab="pipes">Pipes</a>
-      <a href="/help" data-tab="more">More</a>
+      <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
   <main class="wrap">
-    <div class="banner" id="banner">Opening your queue…</div>
+    <div class="banner" id="banner">This desk’s work.</div>
     <div class="kpis">
       <div class="kpi"><span>Waiting on a person.</span><b id="k-wait">—</b></div>
       <div class="kpi"><span>Sent</span><b id="k-ship">—</b></div>
@@ -118,27 +118,7 @@
     <div id="queue"></div>
     <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
     <div id="recent"></div>
-    <div class="item" id="rules">
-      <h3>Owner rules</h3>
-      <p>Wait for the owner. Turn a widget on if this desk needs another drop. Count shows on the desk.</p>
-      <ul id="rule-list"></ul>
-      <p class="meta"><a href="/rules">Open Rules</a> to add a line or turn a widget on.</p>
-    </div>
-    <div class="item" id="nouns">
-      <h3>Step words</h3>
-      <p>This desk only. Five short names.</p>
-      <div id="noun-fields">
-        <div><label for="noun-capture">Capture</label><input id="noun-capture" maxlength="24" placeholder="Capture"></div>
-        <div><label for="noun-qualify">Qualify</label><input id="noun-qualify" maxlength="24" placeholder="Qualify"></div>
-        <div><label for="noun-do">Do</label><input id="noun-do" maxlength="24" placeholder="Do"></div>
-        <div><label for="noun-collect">Collect</label><input id="noun-collect" maxlength="24" placeholder="Collect"></div>
-        <div><label for="noun-follow">Follow</label><input id="noun-follow" maxlength="24" placeholder="Follow"></div>
-      </div>
-      <div class="row" id="noun-save" hidden>
-        <button class="edit" type="button" onclick="saveNouns()">Save words</button>
-      </div>
-      <p class="meta" id="noun-hint">Owner desk code required to save.</p>
-    </div>
+    <p class="meta" id="rules-line"><a href="/rules">Rules</a> — no rules yet. Add one if you need it.</p>
   </main>
   <div class="sheet" id="sheet" onclick="if(event.target===this) this.classList.remove('on')">
     <div class="sheet-card" id="sheet-card"></div>
@@ -148,7 +128,7 @@
     <a href="/onboard" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
     <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
     <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
-    <a href="/help" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
   <script src="desk-card.js"></script>
@@ -235,16 +215,10 @@
         role: role || localStorage.getItem("aia_role") || ""
       });
     }
-    function paintNouns(nouns, canEdit) {
+    function paintNouns(nouns) {
       NOUNS = AIADesks.nounsOf(nouns);
-      ["capture", "qualify", "do", "collect", "follow"].forEach((k) => {
-        const el = document.getElementById("noun-" + k);
-        if (el) el.value = NOUNS[k];
-      });
       const strip = document.getElementById("step-words");
       if (strip) strip.textContent = [NOUNS.capture, NOUNS.qualify, NOUNS.do, NOUNS.collect, NOUNS.follow].join(" · ");
-      const save = document.getElementById("noun-save");
-      if (save) save.hidden = !canEdit;
     }
     function paintWidgets(rules) {
       const on = (rules || []).filter((r) => r && r.widget && r.widget.on);
@@ -261,28 +235,14 @@
       }).join("");
     }
     function paintRules(rules) {
-      const list = document.getElementById("rule-list");
       const rows = rules || [];
-      list.innerHTML = rows.map((r) =>
-        "<li><span>" + esc(r.text) + ((r.widget && r.widget.on) ? " · widget on" : "") + "</span></li>"
-      ).join("") || "<li><span class=\"meta\">No owner lines yet.</span></li>";
-      paintWidgets(rows);
-    }
-    async function saveNouns() {
-      const nouns = {
-        capture: (document.getElementById("noun-capture") || {}).value,
-        qualify: (document.getElementById("noun-qualify") || {}).value,
-        do: (document.getElementById("noun-do") || {}).value,
-        collect: (document.getElementById("noun-collect") || {}).value,
-        follow: (document.getElementById("noun-follow") || {}).value
-      };
-      const out = await api("/api/auth", { method: "POST", body: JSON.stringify({ action: "nouns", nouns }) });
-      if (out.status >= 400) {
-        document.getElementById("noun-hint").textContent = (out.data && out.data.error) || "Could not save those words.";
-        return;
+      const line = document.getElementById("rules-line");
+      if (line) {
+        line.innerHTML = rows.length
+          ? "<a href=\"/rules\">Rules</a> — " + rows.length + (rows.length === 1 ? " rule on this desk." : " rules on this desk.")
+          : "<a href=\"/rules\">Rules</a> — no rules yet. Add one if you need it.";
       }
-      document.getElementById("noun-hint").textContent = "Saved. This desk only.";
-      load();
+      paintWidgets(rows);
     }
     function showConsignNav(model) {
       const el = document.getElementById("nav-consign");
@@ -319,7 +279,7 @@
         banner.textContent = "Name this desk. Open it.";
         JOBS = [];
         RULES = [];
-        paintNouns(AIADesks.defaultNouns(), false);
+        paintNouns(AIADesks.defaultNouns());
         paintRules([]);
         document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">Nothing here yet.</p>`;
         showConsignNav();
@@ -329,7 +289,7 @@
         await api("/api/worker");
         const health = await api("/api/health");
         const store = (health.data && health.data.store) || {};
-        banner.textContent = store.driver === "blob" ? "Queue is shared. You only tap what needs a person." : "You only tap what needs a person.";
+        banner.textContent = "This desk’s work.";
         const jobs = await api("/api/jobs");
         JOBS = jobs.data.jobs || [];
         FIELDS = jobs.data.fields || FIELDS;
@@ -348,10 +308,10 @@
         const rulesOut = await api("/api/rules");
         RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || jobs.data.rules || [];
         if (rulesOut.data && rulesOut.data.nouns) NOUNS = AIADesks.nounsOf(rulesOut.data.nouns);
-        paintNouns(NOUNS, !!(rulesOut.data && rulesOut.data.canAdd));
+        paintNouns(NOUNS);
         paintRules(RULES);
         paintGate();
-      } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintNouns(AIADesks.defaultNouns(), false); paintRules([]); showConsignNav(); }
+      } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintNouns(AIADesks.defaultNouns()); paintRules([]); showConsignNav(); }
       const waiting = JOBS.filter(j => j.status === "exception");
       const ready = JOBS.filter(j => j.status === "waiting");
       const held = JOBS.filter(j => j.status === "held");
@@ -361,10 +321,7 @@
       const staff = role === "employee";
       const open = held.concat(waiting, ready);
       document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Nothing here yet.</p>`;
-      if (location.hash === "#rules") {
-        const box = document.getElementById("rules");
-        if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      if (location.hash === "#rules") location.replace("/rules");
       const recent = shipped.slice(0, 3);
       document.getElementById("recent-label").hidden = !recent.length;
       document.getElementById("recent").innerHTML = recent.map(j => `<article class="item sent"><div class="meta">Sent${j.followed ? " · follow queued" : ""}</div><h3>${esc(j.title)}</h3><p>${esc(j.followNote || j.draft || "")}</p></article>`).join("");
