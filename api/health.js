@@ -4,7 +4,7 @@ module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
-  if (blobToken() && mem.driver !== "blob") await save();
+  if ((blobToken() || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID) && mem.driver !== "blob") await save();
   const driver = mem.driver || "file";
   res.status(200).json({
     ok: true,
@@ -28,6 +28,7 @@ module.exports = async function handler(req, res) {
             : "Memory only",
       blob: {
         token: !!blobToken(),
+        storeId: !!(process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID),
         write: blobProbe.write,
         read: blobProbe.read,
         status: blobProbe.status,
