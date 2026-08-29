@@ -72,10 +72,15 @@ function defaultFields(model) {
   ];
 }
 
+function sameKeys(a, b) {
+  return (a || []).map((f) => f.key).join(",") === (b || []).map((f) => f.key).join(",");
+}
+
 function ensureFields(shop) {
   if (!shop) return [];
-  if (!Array.isArray(shop.fields) || !shop.fields.length) {
-    shop.fields = defaultFields(shop.model);
+  if (!Array.isArray(shop.fields)) shop.fields = [];
+  if (shop.fields.length && sameKeys(shop.fields, defaultFields(shop.model))) {
+    shop.fields = [];
   }
   return shop.fields;
 }
