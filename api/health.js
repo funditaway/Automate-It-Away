@@ -34,6 +34,16 @@ module.exports = async function handler(req, res) {
         : "No BLOB_READ_WRITE_TOKEN — files sit in /tmp"
     },
     pipes: catalog(),
+    automation: {
+      capture: true,
+      qualify: "on capture + worker",
+      do: "draft only — Send and Stop stay on the desk",
+      collect: catalog().some((p) => p.live && p.id === "webhook") ? "webhook live — other paid pipes on hold" : "demo ship",
+      follow: "worker + cron",
+      inbound: "/api/hook",
+      persist: (mem.driver === "blob") ? "shared blob" : "Lambda /tmp until BLOB_READ_WRITE_TOKEN",
+      ownerStops: ["kill", "money over $250"]
+    },
     domain: "automateitaway.com",
     dns: "pointed",
     repo: "funditaway/Automate-It-Away"
