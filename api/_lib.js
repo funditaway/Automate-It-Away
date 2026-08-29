@@ -56,7 +56,10 @@ function payload() {
 }
 
 function blobToken() {
-  return process.env.BLOB_READ_WRITE_TOKEN || process.env.AIA_BLOB_TOKEN || "";
+  return process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
+    || process.env.BLOB_READ_WRITE_TOKEN
+    || process.env.AIA_BLOB_TOKEN
+    || "";
 }
 
 function blobStoreId() {
@@ -66,6 +69,7 @@ function blobStoreId() {
 function blobOpts() {
   const opts = { access: "private", addRandomSuffix: false, allowOverwrite: true };
   if (blobStoreId()) opts.storeId = blobStoreId();
+  if (blobToken()) opts.token = blobToken();
   return opts;
 }
 
@@ -85,7 +89,7 @@ async function blobRead() {
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
   try {
     const { get } = require("@vercel/blob");
-    const result = await get(BLOB_KEY, { access: "private", storeId: blobStoreId() || undefined });
+    const result = await get(BLOB_KEY, blobOpts());
     if (result === null) {
       blobProbe.read = "empty";
       blobProbe.status = 404;
