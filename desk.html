@@ -4,31 +4,37 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Desk · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#0d6b6b">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
   <style>
-    :root { --teal:#0d6b6b; --orange:#f39c12; --gray:#3d4f5f; --line:#d1dae3; }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Segoe UI",system-ui,sans-serif;background:#f4f7fa;color:#1a2332}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
     a{color:inherit;text-decoration:none}
     header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
     .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 48px}
-    .banner{background:#fff4e0;color:#7a4b00;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
-    .item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
-    .item h3{font-size:1rem}
-    .item p{color:var(--gray);font-size:13px;margin:4px 0 8px}
-    .row{display:flex;gap:6px;flex-wrap:wrap}
+    .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+    .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .item h3{font-size:1rem;color:var(--heading)}
+    .item p{color:var(--muted);font-size:13px;margin:4px 0 8px}
+    .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
     button{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
     .go{background:#119494;color:#fff}
-    .kill{background:#fdecea;color:#c0392b}
-    .edit{background:#e6f7f7;color:#0a4f4f}
+    .kill{background:var(--kill-bg);color:var(--kill-ink)}
+    .edit{background:var(--edit);color:var(--edit-ink)}
     .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
-    .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
-    .kpi span{display:block;font-size:11px;color:#6b7c8f;text-transform:uppercase}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+    .kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
     .kpi b{font-size:1.3rem;color:var(--teal)}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
-    input{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
+    input{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
     .sheet{position:fixed;inset:0;background:rgba(10,79,79,.45);display:none;align-items:flex-end;justify-content:center}
     .sheet.on{display:flex}
-    .sheet-card{background:#fff;width:min(480px,100%);border-radius:16px 16px 0 0;padding:16px}
+    .sheet-card{background:var(--card);color:var(--ink);width:min(480px,100%);border-radius:16px 16px 0 0;padding:16px}
     img.thumb{max-width:120px;border-radius:8px;display:block;margin:6px 0}
     @media(max-width:640px){.kpis{grid-template-columns:1fr}}
   </style>
@@ -36,7 +42,12 @@
 <body>
   <header>
     <a href="index.html"><strong>Automate It Away</strong></a>
-    <span><a href="admin.html">People</a> · <a href="widget.html">Drop box</a> · <a href="help.html">Help</a></span>
+    <span>
+      <a href="admin.html">People</a> ·
+      <a href="widget.html">Drop box</a> ·
+      <a href="help.html">Help</a> ·
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </span>
   </header>
   <main class="wrap">
     <div class="banner" id="banner">Opening your queue…</div>
@@ -98,7 +109,7 @@
       const staff = role === "employee";
       document.getElementById("queue").innerHTML = JOBS.filter(j => j.status === "exception" || j.status === "held").map(j => `
         <article class="item">
-          <div style="font-size:11px;color:#6b7c8f">${labelStatus(j.status)}</div>
+          <div style="font-size:11px;color:inherit;opacity:.7">${labelStatus(j.status)}</div>
           <h3>${j.title}</h3>
           ${j.photoUrl ? `<img class="thumb" src="${j.photoUrl}" alt="">` : ""}
           <p>${j.why || ""}</p>
@@ -106,7 +117,7 @@
             <button class="go" onclick="ship('${j.id}', ${Number(j.amount||0)})">Send ${j.amount?("$"+j.amount):""}</button>
             ${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${String(j.title).replace(/'/g,"")}')">Stop</button>`}
           </div>
-        </article>`).join("") || `<p style="color:#6b7c8f">Nothing needs you.</p>`;
+        </article>`).join("") || `<p style="color:var(--muted)">Nothing needs you.</p>`;
     }
     async function capture() {
       await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "capture", title: "Test item from the desk" }) });
@@ -117,7 +128,7 @@
       if (out.status === 409) {
         document.getElementById("sheet-card").innerHTML = `
           <h3>Over $250</h3>
-          <p style="color:#3d4f5f;margin:8px 0">Only the owner can release $${amount || 0}.</p>
+          <p style="color:var(--muted);margin:8px 0">Only the owner can release $${amount || 0}.</p>
           <div class="row">
             ${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Release</button>`}
             <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep waiting</button>
@@ -136,7 +147,7 @@
     async function kill(id, title) {
       document.getElementById("sheet-card").innerHTML = `
         <h3>Stop this?</h3>
-        <p style="color:#3d4f5f;margin:8px 0">${title}. Nothing goes out.</p>
+        <p style="color:var(--muted);margin:8px 0">${title}. Nothing goes out.</p>
         <div class="row">
           <button class="kill" onclick="confirmKill('${id}')">Yes, stop it</button>
           <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep it</button>
