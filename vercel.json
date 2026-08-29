@@ -18,8 +18,6 @@
   ],
   "rewrites": [
     { "source": "/people", "destination": "/admin.html" },
-    { "source": "/favicon.ico", "destination": "/favicon.svg" },
-    { "source": "/apple-touch-icon.png", "destination": "/favicon.svg" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
     { "source": "/api/health", "destination": "/api/health" },
