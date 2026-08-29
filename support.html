@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support · Automate It Away</title>
+<style>body{font-family:system-ui;margin:0;background:#07090c;color:#f4f7fa}a{color:#fff}header{padding:16px 5vw;border-bottom:1px solid #243040}.hero{text-align:center;padding:48px 5vw}input,textarea{width:min(640px,90vw);padding:12px;border-radius:999px;border:1px solid #243040;background:#10151c;color:#fff}.panel{width:min(640px,92vw);margin:0 auto 24px;background:#10151c;border:1px solid #243040;border-radius:14px;padding:16px}button{padding:10px 16px;border:0;border-radius:10px;background:#fff;color:#000;font-weight:700}</style>
+</head>
+<body>
+<header><a href="index.html">AUTOMATE IT AWAY</a></header>
+<section class="hero"><p>HELP CENTER</p><h1>Support</h1>
+<p><input id="q" placeholder="Search support articles"></p>
+</section>
+<div class="panel">
+<p><b>You only tap exceptions.</b> Approve ships. Kill stops. Owner owns money over $250.</p>
+<p><b>Pipes.</b> Re-auth a dead token. Other channels stay live.</p>
+<p><b>Grok Bot</b> is not included. No public API.</p>
+</div>
+<div class="panel">
+<h2>Ticket</h2>
+<p><input id="title" placeholder="Title"></p>
+<p><textarea id="body" rows="4" placeholder="What happened"></textarea></p>
+<p><button type="button" onclick="ticket()">Submit</button></p>
+<p id="ok"></p>
+</div>
+<script>
+function ticket(){const t=document.getElementById("title").value,b=document.getElementById("body").value;if(!t||!b){document.getElementById("ok").textContent="Title and description required.";return;}const all=JSON.parse(localStorage.getItem("aia_tickets")||"[]");all.unshift({title:t,body:b,t:Date.now()});localStorage.setItem("aia_tickets",JSON.stringify(all));document.getElementById("ok").textContent="Ticket saved on this device.";}
+</script>
+</body></html>

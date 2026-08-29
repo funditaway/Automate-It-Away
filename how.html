@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How it works · Automate It Away</title>
+<style>body{font-family:system-ui;margin:0}header{background:#0d6b6b;color:#fff;padding:12px 4vw}a{color:inherit}.wrap{width:min(800px,94vw);margin:0 auto;padding:20px 0}.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.step{background:#f2fbfb;padding:10px;border-radius:10px}@media(max-width:700px){.steps{grid-template-columns:1fr}}input{width:70%;padding:10px}button{padding:10px 14px;background:#f39c12;border:0;color:#fff;font-weight:700;border-radius:8px}.out{margin-top:12px;background:#fff4e0;padding:12px;border-radius:10px}</style>
+</head>
+<body>
+<header><a href="index.html">Automate It Away</a></header>
+<main class="wrap">
+<h1>One engine. Every business.</h1>
+<div class="steps">
+<div class="step"><b>1 Capture</b></div><div class="step"><b>2 Qualify</b></div>
+<div class="step"><b>3 Do the work</b></div><div class="step"><b>4 Get paid</b></div>
+<div class="step"><b>5 Follow</b></div>
+</div>
+<p>Type any business</p>
+<input id="q" placeholder="consignment, HVAC, church…">
+<button type="button" onclick="run()">Show the engine</button>
+<div class="out" id="out"></div>
+</main>
+<script>
+const M={consign:["Photo","Comps vs ask","List channels","Payout when sold","Pickup text"],insurance:["Lead","Needs analysis","Quote you approve","Premium","Year-2 review"],hvac:["Missed call","Territory + slot","Book calendar","Deposit","Invoice"],anything:["Whatever arrives","Your rules","Draft the work","Collect","Nudge then stop"]};
+function run(){const s=(document.getElementById("q").value||"anything").toLowerCase();const k=Object.keys(M).find(x=>s.includes(x))||"anything";const n=["Capture","Qualify","Do","Paid","Follow"];document.getElementById("out").innerHTML="<b>"+s+"</b><br>"+n.map((x,i)=>x+": "+M[k][i]).join("<br>");}
+</script>
+</body></html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desk · Automate It Away</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332;padding-bottom:72px}
+header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
+a{color:inherit;text-decoration:none}
+.wrap{width:min(900px,94vw);margin:0 auto;padding:14px 0}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi div,.item,.card{background:#fff;border:1px solid #d1dae3;border-radius:12px;padding:12px;margin:8px 0}
+.btn{border:0;border-radius:8px;padding:8px 10px;font-weight:700;margin-right:6px}
+.go{background:#119494;color:#fff}.kill{background:#fdecea;color:#c0392b}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #d1dae3;display:grid;grid-template-columns:repeat(4,1fr)}
+.tabs a{text-align:center;padding:12px 4px;font-size:12px;font-weight:700;color:#6b7c8f}
+</style>
+</head>
+<body>
+<header><a href="index.html">Automate It Away</a><span id="who">Desk</span></header>
+<main class="wrap">
+<h1>You only tap the exceptions.</h1>
+<div class="kpi">
+<div><small>Waiting</small><b id="wait">0</b></div>
+<div><small>Hit rate</small><b>pilot</b></div>
+</div>
+<div class="card"><a href="create.html">+ Create</a> · <a href="consign.html">Consign</a> · <a href="widget.html">Widget</a></div>
+<div id="queue"></div>
+</main>
+<nav class="tabs">
+<a href="dashboard.html">Home</a>
+<a href="consign.html">Queue</a>
+<a href="create.html">Create</a>
+<a href="support.html">Support</a>
+</nav>
+<script src="store.js"></script>
+<script>
+let QUEUE=JSON.parse(localStorage.getItem("aia_jobs")||"[]");
+if(!QUEUE.length)QUEUE=[{id:1,title:"Mid-century lamp · $85",why:"Comps $140–$160. Price flagged."},{id:2,title:"Whatnot 401",why:"Hold that channel. eBay can ship."}];
+function paint(){
+ document.getElementById("wait").textContent=QUEUE.length;
+ document.getElementById("queue").innerHTML=QUEUE.map(q=>`<article class="item"><b>${q.title}</b><p>${q.why||""}</p><button class="btn go" onclick="act(${q.id},'ok')">Approve</button><button class="btn kill" onclick="act(${q.id},'no')">Kill</button></article>`).join("")||"<p>Queue clear.</p>";
+}
+function act(id,kind){
+ const i=QUEUE.findIndex(x=>x.id===id);if(i<0)return;
+ const row=QUEUE.splice(i,1)[0];
+ localStorage.setItem("aia_jobs",JSON.stringify(QUEUE));
+ if(window.AIA)AIA.log("Desk",(kind==="ok"?"Approved ":"Killed ")+row.title,kind==="ok"?"OK":"Stopped");
+ paint();
+}
+try{const a=JSON.parse(localStorage.getItem("aia_workspaces")||"[]");const i=+localStorage.getItem("aia_active")||0;if(a[i])document.getElementById("who").textContent=a[i].biz;}catch(e){}
+paint();
+</script>
+</body></html>
