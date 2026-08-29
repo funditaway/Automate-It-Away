@@ -12,7 +12,8 @@ const PROVIDERS = {
   whatnot: { label: "Whatnot", acts: ["list"], env: ["WHATNOT_TOKEN"] }
 };
 
-const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [] };
+const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [] };
+const BLOB_KEY = "aia/store.json";
 
 function storePath() {
   if (process.env.AIA_STORE_PATH) return process.env.AIA_STORE_PATH;
@@ -34,8 +35,68 @@ function shape(parsed) {
     audit: Array.isArray(parsed.audit) ? parsed.audit : [],
     money: Array.isArray(parsed.money) ? parsed.money : [],
     workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : [],
-    inbox: Array.isArray(parsed.inbox) ? parsed.inbox : []
+    inbox: Array.isArray(parsed.inbox) ? parsed.inbox : [],
+    files: Array.isArray(parsed.files) ? parsed.files : []
   };
+}
+
+function payload() {
+  return {
+    connections: mem.connections,
+    jobs: mem.jobs,
+    audit: mem.audit,
+    money: mem.money,
+    workspaces: mem.workspaces,
+    inbox: mem.inbox,
+    files: mem.files
+  };
+}
+
+function blobToken() {
+  return process.env.BLOB_READ_WRITE_TOKEN || process.env.AIA_BLOB_TOKEN || "";
+}
+
+async function blobListUrl() {
+  const token = blobToken();
+  if (!token) return null;
+  const r = await fetch("https://blob.vercel-storage.com?prefix=" + encodeURIComponent(BLOB_KEY), {
+    headers: { Authorization: "Bearer " + token, "x-api-version": "7" }
+  });
+  if (!r.ok) return null;
+  const data = await r.json().catch(() => ({}));
+  const blobs = data.blobs || data || [];
+  const hit = Array.isArray(blobs) ? blobs.find((b) => (b.pathname || b.url || "").indexOf("aia/store") !== -1) : null;
+  return hit && (hit.url || hit.downloadUrl) || null;
+}
+
+async function blobRead() {
+  const token = blobToken();
+  if (!token) return null;
+  try {
+    const url = await blobListUrl();
+    if (!url) return null;
+    const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+    if (!r.ok) return null;
+    return shape(await r.json());
+  } catch (e) {
+    return null;
+  }
+}
+
+async function blobWrite() {
+  const token = blobToken();
+  if (!token) return false;
+  const r = await fetch("https://blob.vercel-storage.com/" + BLOB_KEY, {
+    method: "PUT",
+    headers: {
+      Authorization: "Bearer " + token,
+      "x-api-version": "7",
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0"
+    },
+    body: JSON.stringify(payload())
+  });
+  return r.ok;
 }
 
 function readDisk() {
@@ -47,34 +108,65 @@ function readDisk() {
   }
 }
 
-function save() {
+function writeDisk() {
   const file = storePath();
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify({
-      connections: mem.connections,
-      jobs: mem.jobs,
-      audit: mem.audit,
-      money: mem.money,
-      workspaces: mem.workspaces,
-      inbox: mem.inbox
-    }, null, 2));
-    mem.driver = file.indexOf("/tmp") === 0 ? "tmp-file" : "file";
+    fs.writeFileSync(file, JSON.stringify(payload(), null, 2));
     mem.path = file;
-    return true;
+    return file.indexOf("/tmp") === 0 ? "tmp-file" : "file";
   } catch (e) {
-    mem.driver = "memory-fallback";
     mem.path = null;
-    return false;
+    return "memory-fallback";
   }
 }
 
 const mem = globalThis.__aia || (globalThis.__aia = Object.assign({ driver: "file", path: null }, EMPTY));
-if (!globalThis.__aiaLoaded) {
-  const disk = readDisk();
-  Object.assign(mem, disk);
-  globalThis.__aiaLoaded = true;
-  save();
+
+async function hydrate() {
+  if (blobToken()) {
+    const remote = await blobRead();
+    if (remote) {
+      Object.assign(mem, remote);
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+      return;
+    }
+  }
+  Object.assign(mem, readDisk());
+  mem.driver = writeDisk();
+  mem.path = storePath();
+}
+
+if (!globalThis.__aiaHydrate) {
+  globalThis.__aiaHydrate = hydrate();
+}
+
+async function ready() {
+  await globalThis.__aiaHydrate;
+  if (blobToken() && mem.driver !== "blob") {
+    const remote = await blobRead();
+    if (remote) {
+      Object.assign(mem, remote);
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+    }
+  }
+}
+
+async function save() {
+  await ready();
+  const disk = writeDisk();
+  if (blobToken()) {
+    const ok = await blobWrite();
+    if (ok) {
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+      return true;
+    }
+  }
+  mem.driver = disk;
+  return disk !== "memory-fallback";
 }
 
 function cors(res) {
@@ -114,7 +206,6 @@ function log(agent, action, result, workspace) {
     undo: result === "OK"
   });
   mem.audit = mem.audit.slice(0, 200);
-  save();
 }
 
 function slugify(s) {
@@ -149,6 +240,6 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, mem, log, save, storePath,
-  slugify, hashPin, workspaceOf, readBody
+  PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
+  slugify, hashPin, workspaceOf, readBody, blobToken
 };
