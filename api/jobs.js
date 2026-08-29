@@ -1,6 +1,6 @@
 const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
-const { pickFields, mergeFields } = require("./fields");
-const { qualifyJob, MONEY_HOLD } = require("./engine");
+const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
+const { qualifyJob, recommend, icsOf, MONEY_HOLD } = require("./engine");
 
 function pipesFor(workspace) {
   return mem.connections.filter((c) => c.workspace === workspace);
@@ -46,9 +46,18 @@ module.exports = async function handler(req, res) {
         inbox: mem.inbox.filter((i) => i.workspace === workspace)
       });
     }
+    if (req.query.ics) {
+      const job = mem.jobs.find((j) => j.id === req.query.ics && j.workspace === workspace);
+      if (!job) return res.status(404).json({ error: "Job not found" });
+      const body = icsOf(job);
+      res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=\"" + job.id + ".ics\"");
+      return res.status(200).send(body);
+    }
     return res.status(200).json({
       workspace,
       you: person ? { name: person.name, role: person.role } : null,
+      fields: ensureFields(shop),
       jobs: mem.jobs.filter((j) => j.workspace === workspace)
     });
   }
@@ -72,6 +81,8 @@ module.exports = async function handler(req, res) {
         from: fields.from || "widget"
       };
       qualifyJob(job, shop && shop.model);
+      if (fields.notes) addTalk(job, job.from || "capture", fields.notes, "note");
+      addTalk(job, "desk", job.why || "In the queue.", "rec");
       mem.jobs.unshift(job);
       mem.inbox.unshift({
         id: "in_" + Date.now().toString(36),
@@ -107,8 +118,8 @@ module.exports = async function handler(req, res) {
       job.status = "killed";
       job.killReason = body.killReason || job.killReason || "Owner kill";
       job.whoTapped = actorName(person, body);
-      job.log = (job.log || []).concat(["Killed · " + job.killReason]);
-      log("Agent", "Killed · " + job.title, "Stopped", workspace);
+      job.log = (job.log || []).concat(["Killed \u00b7 " + job.killReason]);
+      log("Agent", "Killed \u00b7 " + job.title, "Stopped", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }
@@ -122,13 +133,67 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, job });
     }
 
+    if (action === "say") {
+      const text = String(body.text || body.notes || "").trim();
+      if (!text) return res.status(400).json({ error: "Type the note." });
+      addTalk(job, actorName(person, body), text, body.kind || "note");
+      job.log = (job.log || []).concat(["Note"]);
+      log("Desk", "Note \u00b7 " + job.title, "OK", workspace);
+      await save();
+      return res.status(200).json({ ok: true, job });
+    }
+
+    if (action === "ask") {
+      const text = String(body.text || "").trim() || "Need a bit more before this can go.";
+      addTalk(job, actorName(person, body), text, "ask");
+      job.waitingOn = "info";
+      job.why = text;
+      job.next = "Waiting on an answer. Then Send or Stop.";
+      recommend(job);
+      log("Desk", "Asked \u00b7 " + job.title, "Waiting", workspace);
+      await save();
+      return res.status(200).json({ ok: true, job });
+    }
+
+    if (action === "fill") {
+      mergeFields(job, body);
+      if (!job.custom) job.custom = {};
+      if (body.key) job.custom[slugField(body.key)] = body.value == null ? "" : String(body.value).slice(0, 200);
+      addTalk(job, actorName(person, body), "Updated " + (body.key || "fields"), "note");
+      qualifyJob(job, shop && shop.model);
+      log("Desk", "Fill \u00b7 " + job.title, "OK", workspace);
+      await save();
+      return res.status(200).json({ ok: true, job, fields: ensureFields(shop) });
+    }
+
+    if (action === "define-field") {
+      if (shop && !isOwner(person)) {
+        return res.status(403).json({ error: "Only the owner can add a field." });
+      }
+      if (!shop) return res.status(404).json({ error: "Open a desk first so fields have a home." });
+      const label = String(body.label || "").trim();
+      if (!label) return res.status(400).json({ error: "Name the field." });
+      const fields = ensureFields(shop);
+      const key = slugField(body.key || label);
+      if (fields.some((f) => f.key === key)) {
+        return res.status(409).json({ error: "That field is already on this desk.", fields });
+      }
+      if (fields.length >= 12) return res.status(409).json({ error: "Twelve fields is enough on one desk." });
+      const type = body.type === "number" || body.type === "yesno" ? body.type : "text";
+      fields.push({ key, label, type });
+      shop.fields = fields;
+      log("Desk", "Field \u00b7 " + label, "OK", workspace);
+      await save();
+      return res.status(201).json({ ok: true, fields, workspace: shop.slug });
+    }
+
     if (action === "ship") {
       mergeFields(job, body);
       const amount = Number(body.amount || job.amount || job.ask || 0);
       if (amount > MONEY_HOLD && !body.confirm) {
         job.status = "held";
         job.amount = amount;
-        log("Rail", "Held · " + job.title + " · $" + amount, "Waiting", workspace);
+        log("Rail", "Held \u00b7 " + job.title + " \u00b7 $" + amount, "Waiting", workspace);
         await save();
         return res.status(409).json({
           ok: false,
@@ -146,9 +211,19 @@ module.exports = async function handler(req, res) {
           job
         });
       }
-      const provider = body.provider || job.provider;
+      const provider = body.provider || job.provider || (job.pack === "home" ? "calendar" : null);
+      if (job.pack === "home" || provider === "calendar") {
+        job.ics = icsOf(job);
+        job.artifact = "calendar";
+      }
       const pipe = pipesFor(workspace).find((c) => !provider || c.provider === provider);
-      if (pipe && pipe.provider === "whatnot") {
+      if (provider === "calendar") {
+        job.dispatch = {
+          demo: true,
+          provider: "calendar",
+          note: "Calendar file ready on the card. Google write stays off until GOOGLE_CLIENT_ID is on the box."
+        };
+      } else if (pipe && pipe.provider === "whatnot") {
         job.dispatch = { demo: true, note: "Whatnot is not a launch pipe." };
       } else if (pipe && pipe.provider === "webhook") {
         job.dispatch = await fireWebhook(pipe.hook, { job, action: "ship" });
@@ -167,16 +242,16 @@ module.exports = async function handler(req, res) {
         at: new Date().toISOString(),
         workspace,
         who: job.payoutTo || job.title,
-        what: job.dispatch && job.dispatch.demo ? "Demo ship — not billed" : "Ship",
-        amt: amount ? "$" + amount : "—",
+        what: job.dispatch && job.dispatch.demo ? "Demo ship \u2014 not billed" : "Ship",
+        amt: amount ? "$" + amount : "\u2014",
         held: false
       });
-      log(pipe ? pipe.label : "Agent", "Shipped · " + job.title, job.dispatch && job.dispatch.demo ? "Demo" : "OK", workspace);
+      log(pipe ? pipe.label : "Agent", "Shipped \u00b7 " + job.title, job.dispatch && job.dispatch.demo ? "Demo" : "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }
 
-    return res.status(400).json({ error: "action must be capture, qualify, ship, or kill" });
+    return res.status(400).json({ error: "action must be capture, qualify, ship, kill, say, ask, fill, or define-field" });
   }
 
   return res.status(405).json({ error: "Use GET or POST" });
