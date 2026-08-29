@@ -31,11 +31,17 @@
     .kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
     .kpi b{font-size:1.3rem;color:var(--teal)}
     .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
-    input{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
-    .sheet{position:fixed;inset:0;background:rgba(10,79,79,.45);display:none;align-items:flex-end;justify-content:center}
+    input,textarea,select{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
+    .sheet{position:fixed;inset:0;background:rgba(10,79,79,.45);display:none;align-items:flex-end;justify-content:center;z-index:20}
     .sheet.on{display:flex}
     .sheet-card{background:var(--card);color:var(--ink);width:min(480px,100%);border-radius:16px 16px 0 0;padding:16px}
+    .sheet-card label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
+    .sheet-card input,.sheet-card textarea{width:100%}
     img.thumb{max-width:120px;border-radius:8px;display:block;margin:6px 0}
+    .draft{background:var(--edit);border-radius:8px;padding:8px;font-size:13px;margin:6px 0}
+    .meta{font-size:11px;opacity:.7}
+    .sent{opacity:.75}
+    .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
     @media(max-width:640px){.kpis{grid-template-columns:1fr}}
   </style>
 </head>
@@ -46,6 +52,7 @@
       <a href="admin.html">People</a> ·
       <a href="consign.html" id="nav-consign" hidden>Consign</a>
       <a href="widget.html">Drop box</a> ·
+      <a href="chat.html">Tell the desk</a> ·
       <a href="help.html">Help</a> ·
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </span>
@@ -57,13 +64,22 @@
       <div class="kpi"><span>Over $250 <span class="tip" title="Waiting on the owner.">?</span></span><b id="k-held">—</b></div>
       <div class="kpi"><span>Sent</span><b id="k-ship">—</b></div>
     </div>
-    <div class="row" style="margin-bottom:8px">
+    <div class="lock" id="session" hidden>
+      <span id="who-line"></span>
+      <button class="edit" type="button" onclick="unlock()">Change shop</button>
+    </div>
+    <div class="row" id="gate" style="margin-bottom:8px">
       <input id="ws" placeholder="Shop name">
       <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
+      <button class="edit" type="button" onclick="load()">Open</button>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <button class="go" type="button" onclick="openCapture()">Drop something in</button>
       <button class="edit" type="button" onclick="load()">Refresh</button>
-      <button class="go" type="button" onclick="capture()">Add a test item</button>
     </div>
     <div id="queue"></div>
+    <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
+    <div id="recent"></div>
   </main>
   <div class="sheet" id="sheet" onclick="if(event.target===this) this.classList.remove('on')">
     <div class="sheet-card" id="sheet-card"></div>
@@ -71,7 +87,10 @@
   <script>
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");
-    const role = localStorage.getItem("aia_role") || "";
+    let role = localStorage.getItem("aia_role") || "";
+    let youName = localStorage.getItem("aia_name") || "";
+    let JOBS = [];
+
     function headers() {
       const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || localStorage.getItem("aia_ws") || "demo" };
       const pin = pinEl.value || localStorage.getItem("aia_pin");
@@ -83,14 +102,27 @@
       const data = await r.json().catch(() => ({}));
       return { status: r.status, data };
     }
+    function locked() {
+      return !!(localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin"));
+    }
+    function paintGate() {
+      const on = locked();
+      document.getElementById("gate").hidden = on;
+      document.getElementById("session").hidden = !on;
+      const shop = localStorage.getItem("aia_ws") || "demo";
+      document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + shop + (role === "employee" ? " · helper" : role === "owner" ? " · owner" : "");
+    }
+    function unlock() {
+      localStorage.removeItem("aia_pin");
+      pinEl.value = "";
+      paintGate();
+    }
     function showConsignNav(model) {
       const el = document.getElementById("nav-consign");
       if (!el) return;
       const blob = String(model || localStorage.getItem("aia_model") || "") + " " + (wsEl.value || "");
       el.hidden = !/consign|resale/i.test(blob);
-      if (!el.hidden) el.insertAdjacentText("afterend", " · ");
     }
-    let JOBS = [];
     function labelStatus(s) {
       if (s === "exception") return "Needs you";
       if (s === "held") return "Over $250";
@@ -98,51 +130,155 @@
       if (s === "killed") return "Stopped";
       return s || "";
     }
+    function esc(s) {
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&","<":"<",">":">","\"":""","'":"&#39;" }[c]));
+    }
+    function card(j, staff) {
+      const money = Number(j.amount || j.ask || 0);
+      const sendLabel = money ? "Send $" + money : "Send";
+      return `
+        <article class="item">
+          <div class="meta">${labelStatus(j.status)} · ${esc(j.step || "Qualify")}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div>
+          <h3>${esc(j.title)}</h3>
+          ${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}
+          <p>${esc(j.why || "")}</p>
+          ${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}
+          <p class="meta">${esc(j.next || "Send or Stop.")}</p>
+          <div class="row">
+            <button class="go" onclick="ship('${j.id}', ${money})">${sendLabel}</button>
+            ${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}
+          </div>
+        </article>`;
+    }
     async function load() {
       if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
       if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
+      paintGate();
       const banner = document.getElementById("banner");
       try {
-        await api("/api/health");
-        banner.textContent = "You only tap what needs a person.";
+        await api("/api/worker");
+        const health = await api("/api/health");
+        const store = (health.data && health.data.store) || {};
+        banner.textContent = store.driver === "blob"
+          ? "Queue is shared. You only tap what needs a person."
+          : "You only tap what needs a person.";
         const jobs = await api("/api/jobs");
         JOBS = jobs.data.jobs || [];
+        if (jobs.data.you && jobs.data.you.role) {
+          role = jobs.data.you.role;
+          youName = jobs.data.you.name || youName;
+          localStorage.setItem("aia_role", role);
+          if (youName) localStorage.setItem("aia_name", youName);
+        }
         const auth = await api("/api/auth");
+        if (auth.data && auth.data.you && auth.data.you.role) {
+          role = auth.data.you.role;
+          youName = auth.data.you.name || youName;
+          localStorage.setItem("aia_role", role);
+          if (youName) localStorage.setItem("aia_name", youName);
+        }
         if (auth.data && auth.data.workspace && auth.data.workspace.model) {
           localStorage.setItem("aia_model", auth.data.workspace.model);
           showConsignNav(auth.data.workspace.model);
         } else showConsignNav();
+        paintGate();
       } catch (e) {
         banner.textContent = "Could not reach the desk.";
         JOBS = [];
         showConsignNav();
       }
-      document.getElementById("k-wait").textContent = JOBS.filter(j => j.status === "exception").length;
-      document.getElementById("k-held").textContent = JOBS.filter(j => j.status === "held").length;
-      document.getElementById("k-ship").textContent = JOBS.filter(j => j.status === "shipped").length;
+      const waiting = JOBS.filter(j => j.status === "exception");
+      const held = JOBS.filter(j => j.status === "held");
+      const shipped = JOBS.filter(j => j.status === "shipped");
+      document.getElementById("k-wait").textContent = waiting.length;
+      document.getElementById("k-held").textContent = held.length;
+      document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
-      document.getElementById("queue").innerHTML = JOBS.filter(j => j.status === "exception" || j.status === "held").map(j => `
-        <article class="item">
-          <div style="font-size:11px;color:inherit;opacity:.7">${labelStatus(j.status)}</div>
-          <h3>${j.title}</h3>
-          ${j.photoUrl ? `<img class="thumb" src="${j.photoUrl}" alt="">` : ""}
-          <p>${j.why || ""}</p>
-          <div class="row">
-            <button class="go" onclick="ship('${j.id}', ${Number(j.amount||0)})">Send ${j.amount?("$"+j.amount):""}</button>
-            ${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${String(j.title).replace(/'/g,"")}')">Stop</button>`}
-          </div>
-        </article>`).join("") || `<p style="color:var(--muted)">Nothing needs you.</p>`;
+      const open = held.concat(waiting);
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Nothing needs you.</p>`;
+      const recent = shipped.slice(0, 3);
+      document.getElementById("recent-label").hidden = !recent.length;
+      document.getElementById("recent").innerHTML = recent.map(j => `
+        <article class="item sent">
+          <div class="meta">Sent${j.followed ? " · follow queued" : ""}</div>
+          <h3>${esc(j.title)}</h3>
+          <p>${esc(j.followNote || j.draft || "")}</p>
+        </article>`).join("");
+    }
+    function openCapture() {
+      const house = /home|family|house|life/i.test(localStorage.getItem("aia_model") || "");
+      document.getElementById("sheet-card").innerHTML = `
+        <h3>Drop something in</h3>
+        <label>This is</label>
+        <select id="cap-kind">
+          <option value="home" ${house ? "selected" : ""}>Home & family</option>
+          <option value="form">School / form</option>
+          <option value="consign" ${house ? "" : "selected"}>Shop item</option>
+          <option value="note">Neighbor / side job</option>
+        </select>
+        <label>What is it?</label>
+        <input id="cap-title" placeholder="School form, oil change, oak dresser">
+        <label>When (home) or ask (shop)</label>
+        <input id="cap-when" placeholder="Friday / $150">
+        <label>Photo or PDF (optional)</label>
+        <input id="cap-file" type="file" accept="image/*,application/pdf">
+        <label>Note</label>
+        <textarea id="cap-note" rows="2" placeholder="Who it is for, condition, who called"></textarea>
+        <div class="row" style="margin-top:12px">
+          <button class="go" type="button" onclick="capture()">Add to queue</button>
+          <button class="edit" type="button" onclick="document.getElementById('sheet').classList.remove('on')">Cancel</button>
+        </div>`;
+      document.getElementById("sheet").classList.add("on");
     }
     async function capture() {
-      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "capture", title: "Test item from the desk" }) });
+      const title = (document.getElementById("cap-title") || {}).value || "";
+      const notes = (document.getElementById("cap-note") || {}).value || "";
+      const when = (document.getElementById("cap-when") || {}).value || "";
+      const kindPick = (document.getElementById("cap-kind") || {}).value || "";
+      const amount = Number(String(when).replace(/[^0-9.]/g, ""));
+      const fileEl = document.getElementById("cap-file");
+      const pack = kindPick === "consign" ? "consign"
+        : kindPick === "home" || kindPick === "form" || kindPick === "note" ? "home"
+        : /vita|insurance/i.test(title + notes) ? "vita" : "home";
+      const item = {
+        action: "capture",
+        title: title || notes || "Desk drop",
+        notes,
+        timing: /[a-z]/i.test(when) ? when : undefined,
+        amount: Number.isFinite(amount) && amount > 0 ? amount : undefined,
+        from: "desk",
+        kind: kindPick === "form" ? "form" : kindPick === "consign" ? "walk-in" : "note",
+        pack
+      };
+      if (fileEl && fileEl.files && fileEl.files[0]) {
+        const file = fileEl.files[0];
+        if (file.size > 3500000) {
+          document.getElementById("banner").textContent = "Photo over 3.5MB.";
+          return;
+        }
+        const data = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+        const up = await api("/api/upload", { method: "POST", body: JSON.stringify({ name: file.name, type: file.type, data }) });
+        if (up.status >= 400) {
+          document.getElementById("banner").textContent = (up.data && up.data.error) || "Photo did not save.";
+          return;
+        }
+        item.photoUrl = up.data.photoUrl;
+      }
+      await api("/api/jobs", { method: "POST", body: JSON.stringify(item) });
+      document.getElementById("sheet").classList.remove("on");
       load();
     }
     async function ship(id, amount) {
-      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: false }) });
-      if (out.status === 409) {
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: false, whoTapped: youName || role || "desk" }) });
+      if (out.status === 409 || out.status === 403) {
         document.getElementById("sheet-card").innerHTML = `
           <h3>Over $250</h3>
-          <p style="color:var(--muted);margin:8px 0">Only the owner can release $${amount || 0}.</p>
+          <p style="color:var(--muted);margin:8px 0">${esc((out.data && out.data.error) || "Only the owner can release $" + (amount || 0) + ".")}</p>
           <div class="row">
             ${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Release</button>`}
             <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep waiting</button>
@@ -154,14 +290,14 @@
       load();
     }
     async function confirmShip(id, amount) {
-      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: true }) });
+      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: true, whoTapped: youName || "owner" }) });
       document.getElementById("sheet").classList.remove("on");
       load();
     }
     async function kill(id, title) {
       document.getElementById("sheet-card").innerHTML = `
         <h3>Stop this?</h3>
-        <p style="color:var(--muted);margin:8px 0">${title}. Nothing goes out.</p>
+        <p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p>
         <div class="row">
           <button class="kill" onclick="confirmKill('${id}')">Yes, stop it</button>
           <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep it</button>
@@ -169,14 +305,17 @@
       document.getElementById("sheet").classList.add("on");
     }
     async function confirmKill(id) {
-      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "kill", id, confirm: true }) });
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "kill", id, confirm: true, whoTapped: youName || "owner" }) });
       document.getElementById("sheet").classList.remove("on");
+      if (out.status === 403) document.getElementById("banner").textContent = "Only the owner can Stop a live job.";
       load();
     }
     if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
     if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
     showConsignNav();
+    paintGate();
     load();
+    setInterval(load, 20000);
   </script>
 </body>
 </html>
