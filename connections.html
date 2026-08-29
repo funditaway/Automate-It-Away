@@ -3,102 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connections · Automate It Away</title>
+  <title>Pipes · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#0d6b6b">
+  <link rel="stylesheet" href="theme.css">
   <style>
-    body{font-family:system-ui;margin:0;background:#07090c;color:#f4f7fa}
-    a{color:#fff;text-decoration:none}
-    header{padding:14px 5vw;border-bottom:1px solid #243040;display:flex;justify-content:space-between}
-    .wrap{width:min(920px,92vw);margin:0 auto;padding:20px 0 48px}
-    h1{font-weight:600;margin:0 0 8px}
-    .mute{color:#8b9aab}
-    pre,code{background:#10151c;border:1px solid #243040;border-radius:8px}
-    pre{padding:12px;overflow:auto;font-size:12px}
-    .row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
-    input,select{background:#10151c;border:1px solid #243040;color:#fff;padding:10px;border-radius:8px}
-    button{background:#fff;color:#000;border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
-    button.quiet{background:#10151c;color:#fff;border:1px solid #243040}
-    button.kill{background:#c0392b;color:#fff}
-    .pipes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0}
-    .pipe{background:#10151c;border:1px solid #243040;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;gap:8px;font-size:14px}
-    .up{color:#3dd68c}.hold{color:#f39c12}.down{color:#ff6b4a}
-    @media(max-width:640px){.pipes{grid-template-columns:1fr}}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .wrap{width:min(720px,94vw);margin:0 auto;padding:16px 0 48px}
+    h1{color:var(--heading);font-size:1.4rem;margin:0 0 8px}
+    p{color:var(--muted);margin:0 0 12px}
+    .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    input,select{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
+    button,.btn{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--edit);color:var(--edit-ink)}
+    .go{background:#119494;color:#fff}
+    .pipe{display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .meta{font-size:12px;color:var(--muted)}
+    .up{color:#119494}.hold{color:#c27b0e}.down{color:#b33}
   </style>
 </head>
 <body>
   <header>
-    <a href="index.html">AUTOMATE IT AWAY</a>
-    <span><a href="status.html">Status</a> · <a href="dashboard.html">Desk</a></span>
+    <a href="index.html"><strong>Automate It Away</strong></a>
+    <span><a href="desk.html">Desk</a> · <a href="help.html">Help</a></span>
   </header>
   <main class="wrap">
-    <h1>Connections</h1>
-    <p class="mute">Same API for every pipe. Catalog is honest: live, hold, or down. Whatnot stays down. Connecting Square here without a token does not make it live.</p>
-    <div class="pipes" id="pipes">Loading catalog…</div>
-    <div class="row">
-      <input id="ws" placeholder="workspace" value="consign-it-away">
-      <input id="pin" placeholder="pin (optional)" inputmode="numeric">
-      <select id="prov">
-        <option>webhook</option><option>square</option><option>ebay</option>
-        <option>calendar</option><option>consign</option><option>sms</option><option>whatnot</option>
-      </select>
-      <input id="hook" placeholder="webhook URL" style="min-width:200px">
+    <h1>Pipes are optional</h1>
+    <p>The queue works with a note. Add a pipe only if you want calendar, a text, or a webhook. Whatnot stays off.</p>
+    <div class="item">
+      <div class="row">
+        <input id="ws" placeholder="Shop name">
+        <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
+        <button class="go" type="button" onclick="listPipes()">Show pipes</button>
+      </div>
     </div>
-    <div class="row">
-      <button type="button" onclick="hit('GET','/api/health')">Health</button>
-      <button type="button" onclick="listPipes()">List pipes</button>
-      <button type="button" onclick="connect()">Connect</button>
-      <button type="button" onclick="captureShip(62)">Ship $62</button>
-      <button type="button" onclick="captureShip(420)">Hold $420</button>
-      <button class="kill" type="button" onclick="captureKill()">Kill test</button>
-      <button class="quiet" type="button" onclick="hit('POST','/api/worker',{})">Worker</button>
+    <div id="pipes"></div>
+    <div class="item">
+      <p class="meta">Add one</p>
+      <div class="row">
+        <select id="prov">
+          <option value="webhook">Webhook</option>
+          <option value="calendar">Phone / Google calendar</option>
+          <option value="sms">SMS</option>
+          <option value="consign">Consign store</option>
+          <option value="square">Square</option>
+          <option value="ebay">eBay</option>
+        </select>
+        <input id="hook" placeholder="Webhook URL if you picked that">
+        <button class="go" type="button" onclick="connect()">Connect</button>
+      </div>
+      <p class="meta" style="margin-top:8px">No keys on the box means the pipe stays on hold. The queue still takes work.</p>
     </div>
-    <pre id="out">Ready. Health first.</pre>
+    <p class="meta"><a href="desk.html">Back to the queue</a></p>
   </main>
   <script>
-    const headers = () => {
-      const h = { "Content-Type": "application/json", "X-Workspace": document.getElementById("ws").value || "demo" };
-      const pin = document.getElementById("pin").value;
-      if (pin) h["X-Pin"] = pin;
+    const wsEl = document.getElementById("ws");
+    const pinEl = document.getElementById("pin");
+    if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
+    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
+    function headers() {
+      const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || "demo" };
+      if (pinEl.value) h["X-Pin"] = pinEl.value;
       return h;
-    };
-    async function hit(method, path, body) {
-      const r = await fetch(path, { method, headers: headers(), body: body ? JSON.stringify(body) : undefined });
-      const data = await r.json();
-      document.getElementById("out").textContent = r.status + "\n" + JSON.stringify(data, null, 2);
-      return { status: r.status, data };
-    }
-    function paint(catalog) {
-      const el = document.getElementById("pipes");
-      el.innerHTML = (catalog || []).map(p => {
-        const cls = p.status === "live" ? "up" : p.status === "down" ? "down" : "hold";
-        return `<div class="pipe"><span>${p.label}</span><span class="${cls}">${p.status} · ${p.note}</span></div>`;
-      }).join("") || "No catalog.";
     }
     async function listPipes() {
-      const { data } = await hit("GET", "/api/connections");
-      paint(data.catalog);
+      if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
+      const r = await fetch("/api/connections", { headers: headers() });
+      const data = await r.json();
+      const catalog = data.catalog || [];
+      const mine = data.connections || [];
+      document.getElementById("pipes").innerHTML = catalog.map(p => {
+        const on = mine.find(c => c.provider === p.id);
+        const st = on ? on.status : p.status;
+        const cls = st === "live" ? "up" : st === "down" ? "down" : "hold";
+        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><div class=\"meta " + cls + "\">" + (on ? "On this desk · " : "Not added · ") + st + "</div></div></div>";
+      }).join("");
     }
-    function connect() {
-      hit("POST", "/api/connections", {
-        provider: document.getElementById("prov").value,
-        hook: document.getElementById("hook").value || undefined
-      }).then(listPipes);
+    async function connect() {
+      const provider = document.getElementById("prov").value;
+      const hook = document.getElementById("hook").value || undefined;
+      await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ provider, hook }) });
+      listPipes();
     }
-    async function captureShip(amount) {
-      const { data } = await hit("POST", "/api/jobs", {
-        action: "capture",
-        title: "Console test · $" + amount,
-        provider: document.getElementById("prov").value
-      });
-      if (!data.job) return;
-      await hit("POST", "/api/jobs", { action: "ship", id: data.job.id, amount, confirm: false });
-    }
-    async function captureKill() {
-      const { data } = await hit("POST", "/api/jobs", { action: "capture", title: "Console kill test" });
-      if (!data.job) return;
-      const first = await hit("POST", "/api/jobs", { action: "kill", id: data.job.id });
-      if (first.status === 409) await hit("POST", "/api/jobs", { action: "kill", id: data.job.id, confirm: true });
-    }
-    hit("GET", "/api/health").then(({ data }) => paint(data.pipes));
+    listPipes();
   </script>
 </body>
 </html>
