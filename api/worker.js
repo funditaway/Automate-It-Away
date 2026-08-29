@@ -1,4 +1,5 @@
 const { cors, mem, log, save, ready, workspaceOf } = require("./_lib");
+const { runWorkspace } = require("./engine");
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -7,32 +8,23 @@ module.exports = async function handler(req, res) {
 
   const workspace = workspaceOf(req);
   const now = Date.now();
-  let touched = 0;
   const scope = req.query.all === "1" ? mem.jobs : mem.jobs.filter((j) => j.workspace === workspace);
+  const result = runWorkspace(scope, now);
 
-  scope.forEach((job) => {
-    if (job.status === "exception" && job.step === "Qualify") {
-      job.step = "Do the work";
-      job.log = (job.log || []).concat(["Worker qualified"]);
-      touched += 1;
-    }
-    if (job.status === "shipped" && !job.followed) {
-      const age = now - Date.parse(job.createdAt || 0);
-      if (age > 60 * 1000) {
-        job.followed = true;
-        job.log = (job.log || []).concat(["Follow nudge"]);
-        log("Follow", "Nudge · " + job.title, "OK", job.workspace);
-        touched += 1;
-      }
-    }
-  });
-  if (touched) await save();
+  if (result.followed) {
+    scope.filter((j) => j.followed && j.followNote).slice(0, result.followed).forEach((job) => {
+      log("Follow", "Nudge · " + job.title, "OK", job.workspace);
+    });
+  }
+  if (result.touched) await save();
 
   return res.status(200).json({
     ok: true,
     workspace,
-    touched,
-    waiting: mem.jobs.filter((j) => j.workspace === workspace && j.status === "exception").length,
-    note: "Worker runs when called or on the daily cron. Tab can close."
+    touched: result.touched,
+    qualified: result.qualified,
+    followed: result.followed,
+    waiting: mem.jobs.filter((j) => j.workspace === workspace && (j.status === "exception" || j.status === "held")).length,
+    note: "Worker qualifies and nudges. It never Send or Stop. Tab can close."
   });
 };

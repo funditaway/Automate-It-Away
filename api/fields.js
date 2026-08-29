@@ -1,5 +1,5 @@
-const PACKS = ["consign", "vita", "fund", "land"];
-const KINDS = ["photo", "walk-in", "widget", "call", "form", "email"];
+const PACKS = ["home", "consign", "vita", "fund", "land"];
+const KINDS = ["photo", "walk-in", "widget", "call", "form", "email", "note", "text"];
 const RISKS = ["none", "price", "title", "flood", "suitability", "credit", "same-day", "legal"];
 
 function blank(v) {
@@ -10,7 +10,7 @@ function blank(v) {
 function pickFields(body) {
   const amount = body.amount === undefined || body.amount === "" ? null : Number(body.amount);
   return {
-    pack: PACKS.includes(body.pack) ? body.pack : (body.pack || "consign"),
+    pack: PACKS.includes(body.pack) ? body.pack : (body.pack || null),
     kind: blank(body.kind),
     from: blank(body.from),
     contactName: blank(body.contactName || body.name || body.who),

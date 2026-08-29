@@ -1,0 +1,27 @@
+{
+  "id": "home",
+  "name": "Home & family",
+  "family": "Automate It Away",
+  "capture": ["note", "photo", "form", "text"],
+  "qualify": ["this week", "who it is for", "who pays", "same-day"],
+  "do": ["reminder text", "filled form note", "calendar hold"],
+  "collect": ["pay the bill if due"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["money over $250", "same-day that bumps the week", "child named on a public post"],
+  "kill": ["already done", "not ours", "duplicate"],
+  "pipes": ["calendar", "sms", "webhook"],
+  "artifacts": ["reminder", "form note"],
+  "fields": {
+    "capture": ["title", "kind", "from", "contactName", "phone", "notes", "photoUrl", "pack", "timing"],
+    "qualify": ["timing", "risk", "why", "amount"],
+    "do": ["draft", "artifact"],
+    "collect": ["amount", "confirm"],
+    "follow": ["followed"],
+    "rail": ["killReason", "whoTapped"]
+  },
+  "rails": [
+    "Ask me if money out is $250 or more.",
+    "Ask me if a child or school is named on a public post.",
+    "Ask me if this is same-day and it bumps something already on the week."
+  ]
+}
