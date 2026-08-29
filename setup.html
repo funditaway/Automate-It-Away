@@ -9,7 +9,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Setup · Automate It Away</title>
-  <meta name="description" content="Shop name plus a desk code. The desk writes the work. You say yes or no.">
+  <meta name="description" content="Open a desk for the house or the shop. Name plus a code. Then say yes or no.">
   <link rel="stylesheet" href="theme.css">
   <style>
     :root { --font:"Segoe UI",system-ui,-apple-system,sans-serif; }
@@ -25,9 +25,8 @@
     h1{color:var(--heading,#0a4f4f);font-size:clamp(1.45rem,4.2vw,2rem);line-height:1.15}
     h2{color:var(--heading,#0a4f4f);font-size:1.05rem;margin:0 0 6px}
     .lead{color:var(--muted,#6b7c8f);margin:8px 0 14px;max-width:36rem}
-    .hero-row{display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:center;margin:0 0 16px}
-    .hero{width:100%;border-radius:16px;border:1px solid var(--line,#d1dae3);display:block}
-    .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0}
+    .hero{width:100%;border-radius:16px;border:1px solid var(--line,#d1dae3);display:block;margin:0 0 16px}
+    .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
     .fact{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:12px;padding:12px}
     .fact b{display:block;color:var(--heading,#0a4f4f)}
     .fact span{font-size:13px;color:var(--muted,#6b7c8f)}
@@ -37,12 +36,6 @@
     .n.o{background:var(--orange,#f39c12)}
     .step p{font-size:14px;color:var(--muted,#6b7c8f);margin-top:4px}
     .step a{color:var(--teal,#0d6b6b);font-weight:700}
-    .trio-img{width:100%;border-radius:16px;border:1px solid var(--line,#d1dae3);margin:8px 0 10px;display:block}
-    .parts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 0 18px}
-    .part{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:12px;padding:12px}
-    .part small{color:var(--orange,#f39c12);font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
-    .part b{display:block;margin:4px 0 6px;color:var(--heading,#0a4f4f)}
-    .part span{font-size:13px;color:var(--muted,#6b7c8f)}
     .words{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
     .card{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:12px;padding:12px}
     .card b{display:block;color:var(--heading,#0a4f4f);margin-bottom:4px}
@@ -51,7 +44,7 @@
     .btn{border:0;border-radius:10px;padding:12px 16px;background:var(--orange,#f39c12);color:#fff;font-weight:700;display:inline-flex}
     .quiet{background:var(--card,#fff);color:var(--teal,#0d6b6b);border:1px solid var(--line,#d1dae3)}
     .note{font-size:13px;color:var(--muted,#6b7c8f);margin-top:12px}
-    @media(max-width:700px){.hero-row,.facts,.parts,.words,.step{grid-template-columns:1fr}}
+    @media(max-width:700px){.facts,.words,.step{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -60,43 +53,34 @@
     <div class="nav">
       <a href="how.html">How</a>
       <a href="setup.html">Setup</a>
-      <a href="onboard.html">Open shop</a>
+      <a href="onboard.html">Open desk</a>
       <a href="desk.html">Desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <main class="wrap">
-    <h1>Shop name + desk code.</h1>
-    <p class="lead">That pair opens this queue on any phone. Email is not the login.</p>
-    <div class="hero-row">
-      <img class="hero" src="img/shop-code.jpg" alt="Shop name tag and a phone with the Automate It Away mark.">
-      <div class="facts">
-        <div class="fact"><b>Owner</b><span>Can cancel a job. Can let payments over $250 go.</span></div>
-        <div class="fact"><b>Staff</b><span>Can say yes on small jobs. Cannot cancel. Cannot move big money.</span></div>
-      </div>
+    <h1>Open a desk for the house or the shop.</h1>
+    <p class="lead">Give it a name and a code. That pair opens the queue on any phone. Email is not the login.</p>
+    <img class="hero" src="img/life.jpg" alt="Kitchen table with a school form, a to-do list, and yes or no on the phone.">
+    <div class="facts">
+      <div class="fact"><b>Owner</b><span>Can cancel a job. Can let payments over $250 go.</span></div>
+      <div class="fact"><b>Helper</b><span>Can say yes on small jobs. Cannot cancel. Cannot move big money.</span></div>
     </div>
     <p class="sec">Do this in order</p>
-    <article class="step"><div class="n">1</div><div><h2>Open the shop</h2><p>Name, shop, city, owner or staff, what you run, email, desk code.</p><p><a href="onboard.html">Open your shop →</a></p></div></article>
-    <article class="step"><div class="n">2</div><div><h2>Sign in the same way on the next phone</h2><p>Shop name + that person’s desk code. Do not share the owner code.</p><p><a href="login.html">Sign in →</a></p></div></article>
-    <article class="step"><div class="n">3</div><div><h2>Drop the first job in</h2><p>Item photo, term lead, parcel, storm address, or draw file.</p><p><a href="desk.html">Queue →</a> · <a href="chat.html">Tell the desk →</a> · <a href="widget.html">Drop box →</a></p></div></article>
-    <article class="step"><div class="n o">4</div><div><h2>Say yes or no</h2><p>The desk already wrote it. Send posts it. Stop cancels it. Payments over $250 wait for the owner. A connection only posts after yes, and only if that pipe is live.</p></div></article>
-    <p class="sec">Who does what</p>
-    <img class="trio-img" src="img/desk-draft-pipe.jpg" alt="Queue, draft packet, and card terminal.">
-    <div class="parts">
-      <div class="part"><small>1</small><b>The desk</b><span>Holds the queue.</span></div>
-      <div class="part"><small>2</small><b>The draft</b><span>Grok writes. You send.</span></div>
-      <div class="part"><small>3</small><b>The pipe</b><span>Live keys only. Whatnot off.</span></div>
-    </div>
-    <p class="sec">Shops this desk already maps</p>
+    <article class="step"><div class="n">1</div><div><h2>Name the desk</h2><p>Your name, desk name (the house, the shop, or both), city, owner or helper, what this week looks like, email, desk code.</p><p><a href="onboard.html">Open the desk →</a></p></div></article>
+    <article class="step"><div class="n">2</div><div><h2>Sign in the same way on the next phone</h2><p>Desk name + that person’s code. Do not share the owner code.</p><p><a href="login.html">Sign in →</a></p></div></article>
+    <article class="step"><div class="n">3</div><div><h2>Drop the first thing in</h2><p>School form. Oil change. Missed call. Job photo. Type it, drop a photo, or tell the desk.</p><p><a href="desk.html">Queue →</a> · <a href="chat.html">Tell the desk →</a></p></div></article>
+    <article class="step"><div class="n o">4</div><div><h2>Say yes or no</h2><p>The desk already wrote the reminder, estimate, or text. Send means go. Stop means cancel. Payments over $250 wait for the owner.</p></div></article>
+    <p class="sec">This week might be</p>
     <div class="words">
-      <div class="card"><b>Sell</b><span>Estate &amp; consignment. Titled assets. Wholesale auto.</span></div>
-      <div class="card"><b>Protect</b><span>Life cases. Legal and fiduciary.</span></div>
-      <div class="card"><b>Develop &amp; fund</b><span>Rural land. Lots. Private lending.</span></div>
-      <div class="card"><b>Build &amp; hold</b><span>Storm. GC. Practices. Property. Storage.</span></div>
+      <div class="card"><b>Regular life</b><span>House list. School forms. Side jobs for a neighbor.</span></div>
+      <div class="card"><b>Service day</b><span>Missed calls. Estimates. One follow-up.</span></div>
+      <div class="card"><b>Office day</b><span>Leads, files, packets you approve before they go.</span></div>
+      <div class="card"><b>Bigger work</b><span>Land, storm, lending, protection. Same buttons.</span></div>
     </div>
     <div class="cta">
-      <a class="btn" href="onboard.html">Open your shop</a>
-      <a class="btn quiet" href="how.html">See it on your work</a>
+      <a class="btn" href="onboard.html">Open the desk</a>
+      <a class="btn quiet" href="how.html">See it on your week</a>
     </div>
     <p class="note">Photos last after storage is on. Until then they can vanish on restart.</p>
   </main>
