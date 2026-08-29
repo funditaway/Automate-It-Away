@@ -4,33 +4,110 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Start your workspace · Automate It Away</title>
+  <style>
+    :root {
+      --teal-900:#0a4f4f;--teal-800:#0d6b6b;--teal-700:#0f7f7f;--teal-600:#119494;
+      --teal-50:#f2fbfb;--orange-500:#f39c12;--gray-900:#1a2332;--gray-700:#3d4f5f;
+      --gray-500:#6b7c8f;--gray-300:#d1dae3;--gray-100:#f4f7fa;
+      --font:"Segoe UI",system-ui,-apple-system,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--font);background:linear-gradient(160deg,var(--teal-50),#fff 45%,#fff8f0);color:var(--gray-900);min-height:100vh}
+    a{color:var(--teal-700);text-decoration:none}
+    header{padding:14px 5vw;display:flex;justify-content:space-between;align-items:center}
+    .brand{font-weight:700;color:var(--teal-900);display:flex;gap:8px;align-items:center}
+    .mark{width:30px;height:30px;border-radius:7px;background:var(--orange-500);display:grid;place-items:center;transform:rotate(-5deg)}
+    .card{width:min(520px,94vw);margin:12px auto 40px;background:#fff;border:1px solid var(--gray-300);border-radius:18px;padding:22px;box-shadow:0 12px 40px rgba(10,79,79,.12)}
+    h1{font-size:1.45rem;color:var(--teal-900);margin-bottom:6px}
+    p.sub{color:var(--gray-500);margin-bottom:18px;font-size:.95rem}
+    label{display:block;font-size:12px;font-weight:700;color:var(--teal-900);margin:12px 0 6px}
+    input,select{width:100%;padding:11px 12px;border:1px solid var(--gray-300);border-radius:10px;font:inherit}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btn{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange-500);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+    .hint{margin-top:12px;font-size:12px;color:var(--gray-500);text-align:center}
+    @media(max-width:560px){.row{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-  <header><a href="index.html">Automate It Away</a></header>
-  <form id="form">
-    <h1>Any user. Any business.</h1>
-    <label>Your name</label><input name="name" required>
-    <label>Business name</label><input name="biz" required>
-    <label>City</label><input name="city" required>
+  <header>
+    <a class="brand" href="index.html"><span class="mark">⚡</span>Automate It Away</a>
+    <a href="dashboard.html">Skip to demo</a>
+  </header>
+  <form class="card" id="form">
+    <h1>Your workspace on automateitaway.com</h1>
+    <p class="sub">One account. No ChatGPT login. Queue, guardrails, and audit under your shop’s name.</p>
+    <label>Your name</label>
+    <input name="name" required placeholder="Alex Rivera" autocomplete="name">
+    <div class="row">
+      <div>
+        <label>Business name</label>
+        <input name="biz" required placeholder="Rivera Roofing">
+      </div>
+      <div>
+        <label>City</label>
+        <input name="city" required placeholder="Anywhere">
+      </div>
+    </div>
     <label>Role</label>
-    <select name="role"><option>Owner</option><option>Manager</option><option>Front desk</option></select>
-    <label>Model</label>
-    <select name="model" id="model"></select>
-    <label>Email</label><input type="email" name="email" required>
-    <button type="submit">Open my workspace</button>
+    <select name="role" required>
+      <option>Owner</option>
+      <option>Manager</option>
+      <option>Front desk</option>
+      <option>Producer</option>
+      <option>Ops</option>
+    </select>
+    <label>Business model</label>
+    <select name="model" required id="model"></select>
+    <label>Email</label>
+    <input type="email" name="email" required placeholder="you@business.com">
+    <label>Desk pin (second phone uses this)</label>
+    <input name="pin" inputmode="numeric" minlength="4" placeholder="4170" autocomplete="off">
+    <button class="btn" type="submit">Open my workspace</button>
+    <p class="hint">Slug + pin open the same queue on another phone once the API is on this host. Default pin 4170 if you leave it blank.</p>
   </form>
   <script>
-    ["Consignment & resale","Life insurance agency","Country land development","Trades & home services","Something else"].forEach(m => {
-      const o=document.createElement("option"); o.textContent=m; document.getElementById("model").appendChild(o);
-    });
+    const MODELS = [
+      "Consignment & resale","Life insurance agency","Country land development",
+      "Trades & home services","E-commerce & multi-channel","Professional services",
+      "Real estate & property","Lending & private credit","Clinics & wellness",
+      "Hospitality & restaurants","Courses & coaching","Nonprofits & churches",
+      "Auto consignment & dealers","Staffing & recruiting","Agencies & studios",
+      "Subscriptions & memberships","Something else"
+    ];
+    const sel = document.getElementById("model");
+    MODELS.forEach(m => { const o=document.createElement("option"); o.textContent=m; sel.appendChild(o); });
     document.getElementById("form").onsubmit = (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
+      const ws = {
+        name: f.get("name"),
+        biz: f.get("biz"),
+        city: f.get("city"),
+        role: f.get("role"),
+        model: f.get("model"),
+        email: f.get("email"),
+        created: Date.now()
+      };
       const all = JSON.parse(localStorage.getItem("aia_workspaces") || "[]");
-      all.push({ name: f.get("name"), biz: f.get("biz"), city: f.get("city"), role: f.get("role"), model: f.get("model"), email: f.get("email"), created: Date.now() });
+      all.push(ws);
       localStorage.setItem("aia_workspaces", JSON.stringify(all));
       localStorage.setItem("aia_active", String(all.length - 1));
-      location.href = "dashboard.html";
+      const slug = String(ws.biz || "demo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+      localStorage.setItem("aia_ws", slug);
+      localStorage.setItem("aia_pin", f.get("pin") || "4170");
+      fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Workspace": slug },
+        body: JSON.stringify({
+          action: "open",
+          name: ws.name,
+          biz: ws.biz,
+          city: ws.city,
+          model: ws.model,
+          email: ws.email,
+          pin: f.get("pin") || "4170"
+        })
+      }).finally(function () { location.href = "dashboard.html"; });
     };
   </script>
 </body>

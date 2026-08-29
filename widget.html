@@ -1,27 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Capture widget · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0;background:#f4f7fa}header{background:#0d6b6b;color:#fff;padding:12px 4vw}a{color:inherit}.wrap{width:min(640px,92vw);margin:0 auto;padding:18px 0}label{display:block;margin:10px 0 4px;font-weight:700;color:#0a4f4f}input,select,textarea{width:100%;padding:10px;border:1px solid #d1dae3;border-radius:8px}button{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:#f39c12;color:#fff;font-weight:700}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Capture widget · Automate It Away</title>
+  <style>
+    :root {
+      --teal-900:#0a4f4f;--teal-800:#0d6b6b;--teal-600:#119494;--orange-500:#f39c12;
+      --gray-900:#1a2332;--gray-500:#6b7c8f;--gray-300:#d1dae3;--gray-100:#f4f7fa;
+      --font:"Segoe UI",system-ui,-apple-system,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900)}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}
+    .brand{font-weight:700;display:flex;gap:8px;align-items:center}
+    .mark{width:28px;height:28px;border-radius:7px;background:var(--orange-500);display:grid;place-items:center}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:18px 0 40px}
+    h1{color:var(--teal-900);font-size:1.4rem}
+    .sub{color:var(--gray-500);margin:4px 0 16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .card{background:#fff;border:1px solid var(--gray-300);border-radius:14px;padding:16px}
+    label{display:block;font-size:12px;font-weight:700;color:var(--teal-900);margin:10px 0 4px}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:9px;font:inherit}
+    button,.btn{border:0;border-radius:10px;padding:10px 12px;background:var(--orange-500);color:#fff;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
+    pre{background:#1a2332;color:#e6f7f7;padding:12px;border-radius:10px;font-size:11px;overflow:auto;white-space:pre-wrap}
+    .ok{margin-top:10px;color:#1b7a3d;font-size:14px;display:none}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-<header><a href="index.html">Automate It Away</a></header>
-<main class="wrap">
-<h1>Capture widget</h1>
-<label>What is it?</label>
-<select id="kind"><option>Photo / item</option><option>Call me back</option><option>Quote request</option></select>
-<label>Your name</label><input id="who">
-<label>Notes</label><textarea id="note" rows="3"></textarea>
-<button type="button" onclick="send()">Send to inbox</button>
-<p id="ok" style="display:none;color:#1b7a3d">Landed in Inbox.</p>
-</main>
-<script src="store.js"></script>
-<script>
-function send(){
-  const item={kind:document.getElementById("kind").value,from:"Widget · "+(document.getElementById("who").value||"guest"),text:document.getElementById("note").value||"New capture"};
-  if(window.AIA)AIA.capture(item);else{const b=JSON.parse(localStorage.getItem("aia_inbox")||"[]");b.unshift({id:Date.now(),...item});localStorage.setItem("aia_inbox",JSON.stringify(b));}
-  document.getElementById("ok").style.display="block";
-}
-</script>
-</body></html>
+  <header>
+    <a class="brand" href="index.html"><span class="mark">⚡</span>Automate It Away</a>
+    <a href="dashboard.html">Dashboard</a>
+  </header>
+  <main class="wrap">
+    <h1>Capture widget</h1>
+    <p class="sub">Lives on any shop’s site. Photo, form, or “call me back” drops into that workspace’s Inbox.</p>
+    <div class="grid">
+      <div class="card" id="preview">
+        <strong style="color:var(--teal-900)">Send it in. We’ll handle the rest.</strong>
+        <label>What is it?</label>
+        <select id="kind">
+          <option>Photo / item</option>
+          <option>Call me back</option>
+          <option>Quote request</option>
+          <option>Book a job</option>
+        </select>
+        <label>Your name</label>
+        <input id="who" placeholder="Taylor">
+        <label>Phone or email</label>
+        <input id="how" placeholder="417-555-0100">
+        <label>Notes</label>
+        <textarea id="note" rows="3" placeholder="Lamp, needs pickup Thursday"></textarea>
+        <button type="button" onclick="send()">Send to inbox</button>
+        <p class="ok" id="ok">Landed in the workspace Inbox.</p>
+      </div>
+      <div class="card">
+        <strong style="color:var(--teal-900)">Embed on any site</strong>
+        <p class="sub">One iframe. Points at this widget. Inbox is per workspace.</p>
+        <pre id="embed"></pre>
+        <button class="btn" type="button" onclick="copyEmbed()">Copy embed</button>
+      </div>
+    </div>
+  </main>
+  <script src="store.js"></script>
+  <script>
+    document.getElementById("embed").textContent =
+      '<iframe src="' + location.href + '" title="Automate It Away capture" style="width:100%;height:420px;border:0;border-radius:14px"></iframe>';
+    const params = new URLSearchParams(location.search);
+    if (params.get("ws")) localStorage.setItem("aia_ws", params.get("ws"));
+    async function send() {
+      const item = {
+        kind: document.getElementById("kind").value,
+        from: "Widget · " + (document.getElementById("who").value || "guest"),
+        text: document.getElementById("note").value || document.getElementById("how").value || "New capture"
+      };
+      const ok = document.getElementById("ok");
+      try {
+        if (window.AIA) await AIA.capture(item);
+        else {
+          const box = JSON.parse(localStorage.getItem("aia_inbox") || "[]");
+          box.unshift({ id: Date.now(), ...item });
+          localStorage.setItem("aia_inbox", JSON.stringify(box));
+        }
+        ok.textContent = "Landed in the workspace queue.";
+      } catch (e) {
+        ok.textContent = "Saved on this device. API not on this host.";
+      }
+      ok.style.display = "block";
+    }
+    function copyEmbed() {
+      navigator.clipboard.writeText(document.getElementById("embed").textContent);
+      document.getElementById("ok").textContent = "Embed copied.";
+      document.getElementById("ok").style.display = "block";
+    }
+  </script>
+</body>
+</html>
