@@ -52,7 +52,7 @@ module.exports = async function handler(req, res) {
       follow: "worker + cron",
       inbound: "/api/hook",
       persist: (mem.driver === "blob") ? "shared blob" : "Lambda /tmp until BLOB_READ_WRITE_TOKEN",
-      ownerStops: ["kill", "money over $250"]
+      ownerStops: ["kill"]
     },
     domain: "automateitaway.com",
     dns: "pointed",

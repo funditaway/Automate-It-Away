@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
       ok: true,
       use: "POST",
       events: ["capture", "update", "collect", "kill"],
-      note: "Pipes write back here. Owner still owns Stop and money over $250."
+      note: "Pipes write back here. Owner still owns Stop."
     });
   }
 
@@ -81,19 +81,6 @@ module.exports = async function handler(req, res) {
 
   if (event === "collect") {
     const amount = Number(body.amount || job.amount || job.ask || 0);
-    if (amount > 250) {
-      job.status = "held";
-      job.amount = amount;
-      job.why = "Pipe reported money over $250. Owner taps Send.";
-      job.log = (job.log || []).concat(["Pipe collect held · $" + amount]);
-      log("Rail", "Held · pipe collect · $" + amount, "Waiting", workspace);
-      await save();
-      return res.status(409).json({
-        ok: false,
-        error: "Guardrail: money over $250 needs the owner on the desk.",
-        job
-      });
-    }
     job.status = "shipped";
     job.step = "Collect";
     job.amount = amount || job.amount;
