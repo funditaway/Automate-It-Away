@@ -4,7 +4,7 @@
     { id: "drop", label: "Drop", href: "/widget.html", ico: "M12 5v14M5 12h14" },
     { id: "rules", label: "Rules", href: "/rules", ico: "M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" },
     { id: "pipes", label: "Pipes", href: "/connections", ico: "M7 8h10M7 16h10M5 12h2m10 0h2" },
-    { id: "more", label: "More", href: "/help", ico: "M6 12h.01M12 12h.01M18 12h.01" }
+    { id: "more", label: "More", href: "/more", ico: "M6 12h.01M12 12h.01M18 12h.01" }
   ];
 
   function file() {
@@ -31,6 +31,7 @@
     if (name === "desk") return "queue";
     if (name === "widget") return "drop";
     if (name === "connections") return "pipes";
+    if (name === "more") return "more";
     if (/^(help|admin|setup|support|chat|consign)$/.test(name)) return "more";
     return "";
   }
@@ -53,6 +54,9 @@
     });
     document.querySelectorAll("#desk-nav [data-tab=\"rules\"], .desk-tabs [data-tab=\"rules\"]").forEach(function (el) {
       if (el && el.tagName === "A") el.setAttribute("href", "/rules");
+    });
+    document.querySelectorAll("#desk-nav [data-tab=\"more\"], .desk-tabs [data-tab=\"more\"]").forEach(function (el) {
+      if (el && el.tagName === "A") el.setAttribute("href", "/more");
     });
   }
 

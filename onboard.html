@@ -8,29 +8,33 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Open your desk · Automate It Away</title>
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
   <style>
-    :root { --teal-900:#0a4f4f;--teal-800:#0d6b6b;--orange-500:#f39c12;--gray-900:#1a2332;--gray-500:#6b7c8f;--gray-300:#d1dae3;--teal-50:#f2fbfb; }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Segoe UI",system-ui,sans-serif;background:linear-gradient(160deg,var(--teal-50),#fff 45%,#fff8f0);color:var(--gray-900);min-height:100vh}
-    a{color:var(--teal-800);text-decoration:none}
-    header{padding:14px 5vw;display:flex;justify-content:space-between;align-items:center}
-    .card{width:min(520px,94vw);margin:12px auto 40px;background:#fff;border:1px solid var(--gray-300);border-radius:18px;padding:22px;box-shadow:0 12px 40px rgba(10,79,79,.12)}
-    h1{font-size:1.45rem;color:var(--teal-900);margin-bottom:6px}
-    p.sub{color:var(--gray-500);margin-bottom:18px;font-size:.95rem}
-    label{display:block;font-size:12px;font-weight:700;color:var(--teal-900);margin:12px 0 6px}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
-    input,select{width:100%;padding:11px 12px;border:1px solid var(--gray-300);border-radius:10px;font:inherit}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+    a{color:var(--teal);text-decoration:none}
+    header{padding:14px 5vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .card{width:min(520px,94vw);margin:12px auto 40px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
+    h1{font-size:1.45rem;color:var(--heading);margin-bottom:6px}
+    p.sub{color:var(--muted);margin-bottom:18px;font-size:.95rem}
+    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:12px 0 6px}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
+    input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .btn{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange-500);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
-    .hint{margin-top:12px;font-size:13px;color:var(--gray-500);text-align:center}
-    .err{display:none;margin-top:10px;color:#c0392b;font-size:14px}
+    .btn{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+    .hint{margin-top:12px;font-size:13px;color:var(--muted);text-align:center}
+    .err{display:none;margin-top:10px;color:var(--kill-ink);font-size:14px}
     @media(max-width:560px){.row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <header>
     <a href="index.html"><strong>Automate It Away</strong></a>
-    <a href="setup.html">How to set this up</a> · <a href="login.html">Already have a desk</a>
+    <span><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button> · <a href="setup.html">How to set this up</a> · <a href="login.html">Already have a desk</a></span>
   </header>
   <form class="card" id="form">
     <h1>Name this desk</h1>

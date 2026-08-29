@@ -8,7 +8,7 @@ function fail(msg) {
 function pass(msg) { console.log("ok  " + msg); }
 
 const root = path.join(__dirname, "..");
-const pages = ["desk.html", "widget.html", "connections.html", "help.html", "rules.html"];
+const pages = ["desk.html", "widget.html", "connections.html", "help.html", "rules.html", "more.html"];
 const need = ["Queue", "Drop", "Rules", "Pipes", "More", "has-desk-nav", "id=\"desk-nav\""];
 
 pages.forEach((file) => {
@@ -33,6 +33,8 @@ pages.concat(["desk-nav.js"]).forEach((file) => {
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("href: \"/rules\"")) fail("desk-nav.js Rules href is not /rules");
 else pass("Rules tab href is /rules");
+if (!nav.includes("href: \"/more\"") || !nav.includes("name === \"more\"")) fail("desk-nav.js More href is not /more");
+else pass("More tab href is /more");
 if (/display:\s*none/.test(desk) && /header span a/.test(desk)) {
   fail("desk.html still hides header links on phone");
 }

@@ -317,7 +317,7 @@ function catalog() {
 const SEED_RULE_TEXT = "Payments over $250 wait for the owner.";
 const RULE_TEXT_MAX = 140;
 const RULE_MAX = 8;
-const RULE_FORBID = /auto[-\s]?pay|auto[-\s]?list|auto[-\s]?ship|auto[-\s]?release|un-?\s?kill|skip\s+(the\s+)?(kill|payout|pay\b|named\s+outbound|live\s+list|outbound|\$?250)|live\s+list|mark\s+ebay|ebay\s+live|set\s+ebay|go\s+live\s+on\s+ebay/;
+const RULE_FORBID = /auto[-\s]?pay|auto[-\s]?list|auto[-\s]?ship|auto[-\s]?release|un-?\s?kill|skip\s+(the\s+)?(kill|payout|pay\b|named\s+outbound|live\s+list|outbound)|live\s+list|mark\s+ebay|ebay\s+live|set\s+ebay|go\s+live\s+on\s+ebay/;
 const RULE_FORBID_MSG = "Hard stops still win. A rule cannot skip payout, Kill, a live list, or named outbound. It cannot auto-pay, auto-list, or un-kill junk.";
 
 function scrubLog(s) {
@@ -460,15 +460,32 @@ function publicRule(r) {
   };
 }
 
-function seedRuleRow(createdAt) {
-  return {
-    id: "rule_seed_250",
-    text: SEED_RULE_TEXT,
-    seed: true,
-    attach: "qualify",
-    widget: { on: false, label: "" },
-    createdAt: createdAt || new Date().toISOString()
-  };
+function moneyWaitOf(rules) {
+  let hold = null;
+  (rules || []).forEach((r) => {
+    const t = String((r && r.text) || "").toLowerCase();
+    if (!t) return;
+    const dollar = t.match(/\$\s*(\d+(?:\.\d+)?)/);
+    const moneyWord = /\b(money|pay(?:ment|out)?s?|amount|invoice|\$)\b/.test(t);
+    const ownerWait = /wait(?:s|ing)?\s+(?:for|on)\s+(?:the\s+)?owner/.test(t)
+      || /owner\s+(?:must|confirms?|releases?|taps?)/.test(t)
+      || (/\bowner\b/.test(t) && /\bwait/.test(t));
+    if (dollar && (ownerWait || moneyWord || /over|above|more than|at least/.test(t))) {
+      const n = Number(dollar[1]);
+      if (Number.isFinite(n) && (hold == null || n < hold)) hold = n;
+    } else if (ownerWait && moneyWord) {
+      if (hold == null) hold = 0;
+    }
+  });
+  return hold;
+}
+
+function moneyNeedsOwner(amount, hold) {
+  if (hold == null) return false;
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return false;
+  if (hold === 0) return n > 0;
+  return n >= hold;
 }
 
 function widgetsOn(rules) {
@@ -493,7 +510,7 @@ function setRuleWidget(ws, id, on, label) {
 }
 
 function defaultRules() {
-  return [publicRule(seedRuleRow())];
+  return [];
 }
 
 function forbiddenRule(text) {
@@ -502,7 +519,7 @@ function forbiddenRule(text) {
 
 function ensureRules(ws) {
   if (!ws) return [];
-  if (!Array.isArray(ws.rules)) ws.rules = [seedRuleRow(ws.createdAt)];
+  if (!Array.isArray(ws.rules)) ws.rules = [];
   return ws.rules.map(publicRule).filter(Boolean);
 }
 
@@ -560,7 +577,7 @@ module.exports = {
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
-  addWorkspaceRule, removeWorkspaceRule, forbiddenRule, seedRuleRow, scrubLog,
+  addWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
   publicRuleWidget, setRuleWidget, widgetsOn, widgetCount
 };
