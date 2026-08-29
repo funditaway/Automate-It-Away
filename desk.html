@@ -24,6 +24,7 @@
     .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
     .kpi span{display:block;font-size:11px;color:#6b7c8f;text-transform:uppercase}
     .kpi b{font-size:1.3rem;color:var(--teal)}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
     input{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit}
     .sheet{position:fixed;inset:0;background:rgba(10,79,79,.45);display:none;align-items:flex-end;justify-content:center}
     .sheet.on{display:flex}
@@ -35,39 +36,32 @@
 <body>
   <header>
     <a href="index.html"><strong>Automate It Away</strong></a>
-    <span><a href="login.html">Second phone</a> · <a href="connections.html">Pipes</a> · <a href="status.html">Status</a> · <a href="widget.html">Widget</a></span>
+    <span><a href="admin.html">People</a> · <a href="widget.html">Drop box</a> · <a href="help.html">Help</a></span>
   </header>
   <main class="wrap">
-    <div class="banner" id="banner">Checking API…</div>
+    <div class="banner" id="banner">Opening your queue…</div>
     <div class="kpis">
-      <div class="kpi"><span>Waiting</span><b id="k-wait">—</b></div>
-      <div class="kpi"><span>Held</span><b id="k-held">—</b></div>
-      <div class="kpi"><span>Shipped</span><b id="k-ship">—</b></div>
+      <div class="kpi"><span>Needs you <span class="tip" title="The engine stopped. You Send or Stop.">?</span></span><b id="k-wait">—</b></div>
+      <div class="kpi"><span>Over $250 <span class="tip" title="Waiting on the owner.">?</span></span><b id="k-held">—</b></div>
+      <div class="kpi"><span>Sent</span><b id="k-ship">—</b></div>
     </div>
     <div class="row" style="margin-bottom:8px">
-      <input id="ws" value="consign-it-away" placeholder="workspace slug">
-      <input id="pin" placeholder="pin" inputmode="numeric" style="width:88px">
+      <input id="ws" placeholder="Shop name">
+      <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
       <button class="edit" type="button" onclick="load()">Refresh</button>
-      <button class="go" type="button" onclick="capture()">Capture test</button>
-      <button class="edit" type="button" onclick="tick()">Run worker</button>
+      <button class="go" type="button" onclick="capture()">Add a test item</button>
     </div>
     <div id="queue"></div>
   </main>
   <div class="sheet" id="sheet" onclick="if(event.target===this) this.classList.remove('on')">
     <div class="sheet-card" id="sheet-card"></div>
   </div>
-  <script src="store.js"></script>
   <script>
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");
-    function ws() {
-      const v = wsEl.value || "consign-it-away";
-      localStorage.setItem("aia_ws", v);
-      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
-      return v;
-    }
+    const role = localStorage.getItem("aia_role") || "";
     function headers() {
-      const h = { "Content-Type": "application/json", "X-Workspace": ws() };
+      const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || localStorage.getItem("aia_ws") || "demo" };
       const pin = pinEl.value || localStorage.getItem("aia_pin");
       if (pin) h["X-Pin"] = pin;
       return h;
@@ -78,47 +72,44 @@
       return { status: r.status, data };
     }
     let JOBS = [];
+    function labelStatus(s) {
+      if (s === "exception") return "Needs you";
+      if (s === "held") return "Over $250";
+      if (s === "shipped") return "Sent";
+      if (s === "killed") return "Stopped";
+      return s || "";
+    }
     async function load() {
+      if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
+      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
       const banner = document.getElementById("banner");
       try {
-        const health = await api("/api/health");
-        const d = health.data.store || {};
-        banner.textContent = "API up · store " + (d.driver || "?") + (d.note ? " · " + d.note : "") + ". Kill and $250+ need a second tap.";
+        await api("/api/health");
+        banner.textContent = "You only tap what needs a person.";
         const jobs = await api("/api/jobs");
         JOBS = jobs.data.jobs || [];
       } catch (e) {
-        banner.textContent = "API not on this host. Open the Vercel desk.";
+        banner.textContent = "Could not reach the desk.";
         JOBS = [];
       }
-      const wait = JOBS.filter(j => j.status === "exception").length;
-      const held = JOBS.filter(j => j.status === "held").length;
-      const ship = JOBS.filter(j => j.status === "shipped").length;
-      document.getElementById("k-wait").textContent = wait;
-      document.getElementById("k-held").textContent = held;
-      document.getElementById("k-ship").textContent = ship;
+      document.getElementById("k-wait").textContent = JOBS.filter(j => j.status === "exception").length;
+      document.getElementById("k-held").textContent = JOBS.filter(j => j.status === "held").length;
+      document.getElementById("k-ship").textContent = JOBS.filter(j => j.status === "shipped").length;
+      const staff = role === "employee";
       document.getElementById("queue").innerHTML = JOBS.filter(j => j.status === "exception" || j.status === "held").map(j => `
         <article class="item">
-          <div style="font-size:11px;color:#6b7c8f">${j.status} · ${j.step || ""} · ${j.provider || "capture"}</div>
+          <div style="font-size:11px;color:#6b7c8f">${labelStatus(j.status)}</div>
           <h3>${j.title}</h3>
-          <p>${j.why || ""}</p>
           ${j.photoUrl ? `<img class="thumb" src="${j.photoUrl}" alt="">` : ""}
+          <p>${j.why || ""}</p>
           <div class="row">
-            <button class="edit" onclick="qualify('${j.id}')">Qualify</button>
-            <button class="go" onclick="ship('${j.id}', ${Number(j.amount||0)})">Ship ${j.amount?("$"+j.amount):""}</button>
-            <button class="kill" onclick="kill('${j.id}', '${String(j.title).replace(/'/g,"")}')">Kill</button>
+            <button class="go" onclick="ship('${j.id}', ${Number(j.amount||0)})">Send ${j.amount?("$"+j.amount):""}</button>
+            ${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${String(j.title).replace(/'/g,"")}')">Stop</button>`}
           </div>
-        </article>`).join("") || `<p style="color:#6b7c8f">Queue clear. Capture from the widget or tap Capture test.</p>`;
+        </article>`).join("") || `<p style="color:#6b7c8f">Nothing needs you.</p>`;
     }
     async function capture() {
-      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "capture", title: "Desk test item", provider: "webhook" }) });
-      load();
-    }
-    async function qualify(id) {
-      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "qualify", id }) });
-      load();
-    }
-    async function tick() {
-      await api("/api/worker", { method: "POST", body: "{}" });
+      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "capture", title: "Test item from the desk" }) });
       load();
     }
     async function ship(id, amount) {
@@ -126,10 +117,10 @@
       if (out.status === 409) {
         document.getElementById("sheet-card").innerHTML = `
           <h3>Over $250</h3>
-          <p style="color:#3d4f5f;margin:8px 0">Owner confirm to ship $${amount || 0}.</p>
+          <p style="color:#3d4f5f;margin:8px 0">Only the owner can release $${amount || 0}.</p>
           <div class="row">
-            <button class="go" onclick="confirmShip('${id}', ${amount})">Release</button>
-            <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep held</button>
+            ${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Release</button>`}
+            <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep waiting</button>
           </div>`;
         document.getElementById("sheet").classList.add("on");
         load();
@@ -144,11 +135,11 @@
     }
     async function kill(id, title) {
       document.getElementById("sheet-card").innerHTML = `
-        <h3>Kill this job?</h3>
-        <p style="color:#3d4f5f;margin:8px 0">${title}. Nothing goes to a channel.</p>
+        <h3>Stop this?</h3>
+        <p style="color:#3d4f5f;margin:8px 0">${title}. Nothing goes out.</p>
         <div class="row">
-          <button class="kill" onclick="confirmKill('${id}')">Yes, kill it</button>
-          <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep waiting</button>
+          <button class="kill" onclick="confirmKill('${id}')">Yes, stop it</button>
+          <button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep it</button>
         </div>`;
       document.getElementById("sheet").classList.add("on");
     }
