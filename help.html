@@ -1,16 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Help · Automate It Away</title>
-<style>body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332}a{color:#0f7f7f}header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}.wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0}h1,h2{color:#0a4f4f}.card{background:#fff;border:1px solid #d1dae3;border-radius:14px;padding:16px;margin:10px 0}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Help · Automate It Away</title>
+  <style>
+    body{font-family:system-ui;margin:0;background:#f4f7fa;color:#1a2332}
+    a{color:#0f7f7f}
+    header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between}
+    header a{color:#fff}
+    .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0}
+    h1,h2{color:#0a4f4f}
+    .card{background:#fff;border:1px solid #d1dae3;border-radius:14px;padding:16px;margin:10px 0}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
+    dt{font-weight:700;margin-top:8px}
+    dd{color:#3d4f5f;margin:0 0 8px}
+  </style>
 </head>
 <body>
-<header><a href="index.html" style="color:#fff">Automate It Away</a><a href="dashboard.html" style="color:#fff">Desk</a></header>
-<main class="wrap">
-<h1>How to run the desk</h1>
-<p>You only tap exceptions.</p>
-<div class="card"><h2>Pages</h2><p>Home, Queue, Money, Audit, Models, Inbox, Schedule, Team, Week, Create, Consign, Support.</p></div>
-<div class="card"><h2>Buttons</h2><p>Approve ships. Open reads the log. Kill stops it. Undo reverses a shipped row. Owner owns kill and money over $250.</p></div>
-</main>
-</body></html>
+  <header>
+    <a href="index.html">Automate It Away</a>
+    <a href="desk.html">Desk</a>
+  </header>
+  <main class="wrap">
+    <h1>How to run the desk</h1>
+    <p>You only tap what needs a person.</p>
+    <div class="card">
+      <h2>Pages that exist</h2>
+      <p><a href="onboard.html">Open your shop</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="admin.html">People</a> · <a href="widget.html">Drop box</a> · <a href="support.html">Support</a></p>
+    </div>
+    <div class="card">
+      <h2>Words on the buttons</h2>
+      <dl>
+        <dt>Needs you <span class="tip" title="The engine stopped. You Send or Stop.">?</span></dt>
+        <dd>Waiting in the queue.</dd>
+        <dt>Send <span class="tip" title="List, text, or pay — whatever this job is.">?</span></dt>
+        <dd>Lets the job go. Under $250 staff can send. Over $250 waits on the owner.</dd>
+        <dt>Stop <span class="tip" title="Cancels the job. Nothing goes out. Owner only. Second tap.">?</span></dt>
+        <dd>Owner only. Second tap required.</dd>
+        <dt>Over $250</dt>
+        <dd>Staff can prepare it. Only the owner releases money.</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <h2>Login</h2>
+      <p>Shop name + desk code. Email is not the login. Staff get their own code from the owner.</p>
+    </div>
+  </main>
+</body>
+</html>
