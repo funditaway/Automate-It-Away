@@ -23,6 +23,7 @@
     { "source": "/api/upload", "destination": "/api/upload" },
     { "source": "/api/admin", "destination": "/api/admin" },
     { "source": "/api/intake", "destination": "/api/intake" },
-    { "source": "/api/hook", "destination": "/api/hook" }
+    { "source": "/api/hook", "destination": "/api/hook" },
+    { "source": "/api/rules", "destination": "/api/rules" }
   ]
 }

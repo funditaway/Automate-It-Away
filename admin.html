@@ -50,6 +50,11 @@
       <div class="kpi"><span>Shipped</span><b id="c-ship">—</b></div>
       <div class="kpi"><span>Killed</span><b id="c-kill">—</b></div>
     </div>
+    <div class="card" id="rules-card">
+      <h3>Owner rules</h3>
+      <p class="muted">Wait for the owner. You add the line on the desk.</p>
+      <div id="rules"></div>
+    </div>
     <div class="card" id="invite-box">
       <h3>People</h3>
       <div id="people"></div>
@@ -106,6 +111,9 @@
         </div>`
       ).join("") || "<p class='muted'>No seats yet.</p>";
       document.getElementById("invite-box").style.display = you.role === "owner" ? "block" : "none";
+      document.getElementById("rules").innerHTML = (d.rules || []).map(r =>
+        "<p>" + r.text + "</p>"
+      ).join("") || "<p class='muted'>No owner lines yet.</p>";
       document.getElementById("tickets").innerHTML = (d.tickets || []).map(t =>
         `<p><b>${t.title}</b> · ${t.from} · ${t.status}<br><span class="muted">${t.body || ""}</span></p>`
       ).join("") || "<p class='muted'>None.</p>";

@@ -1,4 +1,4 @@
-const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody, personOf, isOwner, ensureRules, defaultRules } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, MONEY_HOLD } = require("./engine");
 
@@ -58,10 +58,12 @@ module.exports = async function handler(req, res) {
       res.setHeader("Content-Disposition", "attachment; filename=\"" + job.id + ".ics\"");
       return res.status(200).send(body);
     }
+    if (shop) ensureRules(shop);
     return res.status(200).json({
       workspace,
       you: person ? { name: person.name, role: person.role } : null,
       fields: ensureFields(shop),
+      rules: shop ? ensureRules(shop) : defaultRules(),
       jobs: mem.jobs.filter((j) => j.workspace === workspace)
     });
   }
@@ -195,6 +197,7 @@ module.exports = async function handler(req, res) {
     if (action === "ship") {
       mergeFields(job, body);
       const amount = Number(body.amount || job.amount || job.ask || 0);
+      // Hard stop is code, not workspace rule text. Deleting or rewriting the $250 rule still holds.
       if (amount >= MONEY_HOLD && !body.confirm) {
         job.status = "held";
         job.amount = amount;
@@ -239,6 +242,7 @@ module.exports = async function handler(req, res) {
       } else {
         job.dispatch = { demo: true, note: "No live pipe. Stays on the desk." };
       }
+      // Hard stop is code, not rule text. Demo / no write-back cannot become shipped.
       if (!pipeWroteBack(job.dispatch)) {
         job.status = "held";
         job.amount = amount || job.amount;

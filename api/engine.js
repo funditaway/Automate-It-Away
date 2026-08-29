@@ -1,4 +1,4 @@
-const { catalog, mem } = require("./_lib");
+const { catalog, mem, ensureRules } = require("./_lib");
 
 const MONEY_HOLD = 250;
 const PACKS = ["home", "consign", "vita", "fund", "land"];
@@ -201,11 +201,11 @@ function qualifyJob(job, shopOrModel) {
   const rail = risk === "legal" || risk === "title" || (amount != null && amount > MONEY_HOLD);
   job.status = rail || missing.length ? "exception" : "waiting";
   job.log = (job.log || []).concat(["Qualified · " + pack + " · " + risk + (missing.length ? " · missing " + missing.join(",") : "")]);
-  recommend(job, missing);
+  recommend(job, missing, shop);
   return job;
 }
 
-function recommend(job, missing) {
+function recommend(job, missing, shop) {
   const recs = [];
   if (missing && missing.length) recs.push({ kind: "ask", text: "Need " + missing.join(" and ") + " before Send." });
   if (job.draft) recs.push({ kind: "draft", text: job.draft });
@@ -219,8 +219,15 @@ function recommend(job, missing) {
   if (job.risk === "same-day") recs.push({ kind: "hold", text: "Confirm this does not bump something already on the week." });
   const amount = moneyOf(job);
   if (amount != null && amount > MONEY_HOLD) recs.push({ kind: "hold", text: "Owner must release $" + amount + "." });
+  const row = shop && typeof shop === "object" ? shop : shopOf(job);
+  if (row) {
+    ensureRules(row);
+    (row.rules || []).forEach((r) => {
+      if (r && r.text) recs.push({ kind: "rule", text: r.text });
+    });
+  }
   if (!recs.length) recs.push({ kind: "next", text: "Draft is ready. Tap Send or Stop." });
-  job.recs = recs.slice(0, 5);
+  job.recs = recs.slice(0, 8);
   job.promptVersion = job.promptVersion || "desk-rules-2";
   return job;
 }
