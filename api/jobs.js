@@ -1,6 +1,6 @@
 const { cors, mem, log, save, ready, PROVIDERS, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk } = require("./fields");
-const { qualifyJob, recommend, icsOf, MONEY_HOLD } = require("./engine");
+const { qualifyJob, recommend, icsOf, runWorkspace, MONEY_HOLD } = require("./engine");
 
 function pipesFor(workspace) {
   return mem.connections.filter((c) => c.workspace === workspace);
@@ -92,6 +92,7 @@ module.exports = async function handler(req, res) {
         at: Date.now()
       });
       log("Capture", job.title, "Waiting", workspace);
+      runWorkspace(mem.jobs.filter((j) => j.workspace === workspace), Date.now(), shop && shop.model);
       await save();
       return res.status(201).json({ ok: true, job });
     }
@@ -118,8 +119,8 @@ module.exports = async function handler(req, res) {
       job.status = "killed";
       job.killReason = body.killReason || job.killReason || "Owner kill";
       job.whoTapped = actorName(person, body);
-      job.log = (job.log || []).concat(["Killed \u00b7 " + job.killReason]);
-      log("Agent", "Killed \u00b7 " + job.title, "Stopped", workspace);
+      job.log = (job.log || []).concat(["Killed · " + job.killReason]);
+      log("Agent", "Killed · " + job.title, "Stopped", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }
@@ -138,7 +139,7 @@ module.exports = async function handler(req, res) {
       if (!text) return res.status(400).json({ error: "Type the note." });
       addTalk(job, actorName(person, body), text, body.kind || "note");
       job.log = (job.log || []).concat(["Note"]);
-      log("Desk", "Note \u00b7 " + job.title, "OK", workspace);
+      log("Desk", "Note · " + job.title, "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }
@@ -150,7 +151,7 @@ module.exports = async function handler(req, res) {
       job.why = text;
       job.next = "Waiting on an answer. Then Send or Stop.";
       recommend(job);
-      log("Desk", "Asked \u00b7 " + job.title, "Waiting", workspace);
+      log("Desk", "Asked · " + job.title, "Waiting", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }
@@ -161,7 +162,7 @@ module.exports = async function handler(req, res) {
       if (body.key) job.custom[slugField(body.key)] = body.value == null ? "" : String(body.value).slice(0, 200);
       addTalk(job, actorName(person, body), "Updated " + (body.key || "fields"), "note");
       qualifyJob(job, shop && shop.model);
-      log("Desk", "Fill \u00b7 " + job.title, "OK", workspace);
+      log("Desk", "Fill · " + job.title, "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job, fields: ensureFields(shop) });
     }
@@ -182,7 +183,7 @@ module.exports = async function handler(req, res) {
       const type = body.type === "number" || body.type === "yesno" ? body.type : "text";
       fields.push({ key, label, type });
       shop.fields = fields;
-      log("Desk", "Field \u00b7 " + label, "OK", workspace);
+      log("Desk", "Field · " + label, "OK", workspace);
       await save();
       return res.status(201).json({ ok: true, fields, workspace: shop.slug });
     }
@@ -193,7 +194,7 @@ module.exports = async function handler(req, res) {
       if (amount > MONEY_HOLD && !body.confirm) {
         job.status = "held";
         job.amount = amount;
-        log("Rail", "Held \u00b7 " + job.title + " \u00b7 $" + amount, "Waiting", workspace);
+        log("Rail", "Held · " + job.title + " · $" + amount, "Waiting", workspace);
         await save();
         return res.status(409).json({
           ok: false,
@@ -242,11 +243,11 @@ module.exports = async function handler(req, res) {
         at: new Date().toISOString(),
         workspace,
         who: job.payoutTo || job.title,
-        what: job.dispatch && job.dispatch.demo ? "Demo ship \u2014 not billed" : "Ship",
-        amt: amount ? "$" + amount : "\u2014",
+        what: job.dispatch && job.dispatch.demo ? "Demo ship — not billed" : "Ship",
+        amt: amount ? "$" + amount : "—",
         held: false
       });
-      log(pipe ? pipe.label : "Agent", "Shipped \u00b7 " + job.title, job.dispatch && job.dispatch.demo ? "Demo" : "OK", workspace);
+      log(pipe ? pipe.label : "Agent", "Shipped · " + job.title, job.dispatch && job.dispatch.demo ? "Demo" : "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }

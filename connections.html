@@ -56,6 +56,7 @@
         <button class="go" type="button" onclick="connect()">Connect</button>
       </div>
       <p class="meta" style="margin-top:8px">No keys on the box means the pipe stays on hold. The queue still takes work.</p>
+      <p class="meta" id="inbound"></p>
     </div>
     <p class="meta"><a href="desk.html">Back to the queue</a></p>
   </main>
@@ -75,6 +76,8 @@
       const data = await r.json();
       const catalog = data.catalog || [];
       const mine = data.connections || [];
+      const inbound = data.inbound || ("https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(wsEl.value || "demo"));
+      document.getElementById("inbound").textContent = "Write back URL: " + inbound;
       document.getElementById("pipes").innerHTML = catalog.map(p => {
         const on = mine.find(c => c.provider === p.id);
         const st = on ? on.status : p.status;
