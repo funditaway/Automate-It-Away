@@ -22,7 +22,7 @@
     <div class="row"><span>API / health</span><span id="api" class="hold">Checking…</span></div>
     <div class="row"><span>World user accounts</span><span class="hold">Pin workspace — not email login</span></div>
     <div class="row"><span>Hosted jobs store</span><span id="store" class="hold">Unknown</span></div>
-    <div class="row"><span>Domain DNS</span><span class="hold">Name claimed, not pointed</span></div>
+    <div class="row"><span>Domain DNS</span><span id="dns" class="up">Pointed — this host answered</span></div>
     <div class="row"><span>Square / eBay / Calendar</span><span id="pipes" class="hold">Not connected</span></div>
     <div class="row"><span>Included Grok drafts</span><span class="hold">API key not set</span></div>
     <div class="row"><span>ChatGPT / Claude required</span><span class="up">No — never required</span></div>
@@ -40,7 +40,7 @@
       const store = document.getElementById("store");
       const d = data.store || {};
       store.textContent = (d.driver || "?") + (d.note ? " — " + d.note : "");
-      store.className = d.driver === "file" ? "up" : "hold";
+      store.className = d.driver === "blob" || d.driver === "file" ? "up" : "hold";
       const live = (data.pipes || []).filter(p => p.live && p.id !== "webhook");
       const pipes = document.getElementById("pipes");
       if (live.length) { pipes.textContent = live.map(p => p.id).join(", "); pipes.className = "up"; }
@@ -48,6 +48,8 @@
     }).catch(() => {
       document.getElementById("api").textContent = "Not on this host";
       document.getElementById("api").className = "hold";
+      document.getElementById("dns").textContent = "Name claimed — this page is static";
+      document.getElementById("dns").className = "hold";
       document.getElementById("raw").textContent = "Static host — API lives on the Vercel project automate-it-away.";
     });
   </script>

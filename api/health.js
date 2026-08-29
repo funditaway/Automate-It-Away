@@ -1,8 +1,9 @@
-const { cors, catalog, mem, storePath } = require("./_lib");
+const { cors, catalog, mem, ready, storePath, blobToken } = require("./_lib");
 
-module.exports = function handler(req, res) {
+module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
+  await ready();
   const driver = mem.driver || "file";
   res.status(200).json({
     ok: true,
@@ -16,22 +17,25 @@ module.exports = function handler(req, res) {
       connections: mem.connections.length,
       audit: mem.audit.length,
       workspaces: mem.workspaces.length,
-      live: driver !== "memory-fallback",
-      note: driver === "tmp-file"
-        ? "Lambda /tmp — not shared across phones yet"
-        : driver === "file"
-          ? "File store on this box"
-          : "Memory only"
+      live: driver === "blob" || driver === "file",
+      note: driver === "blob"
+        ? "Shared blob — second phone can see the same queue"
+        : driver === "tmp-file"
+          ? "Lambda /tmp — add BLOB_READ_WRITE_TOKEN to share across phones"
+          : driver === "file"
+            ? "File store on this box"
+            : "Memory only"
     },
     files: {
-      driver: process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "tmp-file",
+      driver: blobToken() ? "blob" : "tmp-file",
       count: (mem.files || []).length,
-      note: process.env.BLOB_READ_WRITE_TOKEN
+      note: blobToken()
         ? "Vercel Blob live"
         : "No BLOB_READ_WRITE_TOKEN — files sit in /tmp"
     },
     pipes: catalog(),
     domain: "automateitaway.com",
+    dns: "pointed",
     repo: "funditaway/Automate-It-Away"
   });
 };
