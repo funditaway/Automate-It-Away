@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="theme.css">
   <script src="theme.js"></script>
   <style>
-    :root { --teal:#0d6b6b; --orange:#f39c12; --ink:#1a2332; --muted:#6b7c8f; --line:#d1dae3; }
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
     a{color:var(--teal);text-decoration:none}
@@ -57,6 +56,7 @@
         localStorage.setItem("aia_pin", pin);
         if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
         if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
+        if (data.workspace && data.workspace.model) localStorage.setItem("aia_model", data.workspace.model);
         location.href = (data.you && data.you.role === "owner") ? "admin.html" : "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
