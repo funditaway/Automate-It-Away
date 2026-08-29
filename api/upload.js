@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { cors, mem, log, save, workspaceOf, readBody } = require("./_lib");
+const { cors, mem, log, save, ready, workspaceOf, readBody, blobToken } = require("./_lib");
 
 const ALLOW = {
   "image/jpeg": "jpg",
@@ -28,12 +28,11 @@ function decodeData(data) {
 }
 
 function driverOf() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return "blob";
-  return "tmp-file";
+  return blobToken() ? "blob" : "tmp-file";
 }
 
 async function putBlob(name, buf, mime) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const token = blobToken();
   const r = await fetch("https://blob.vercel-storage.com/" + name, {
     method: "PUT",
     headers: {
@@ -54,6 +53,7 @@ async function putBlob(name, buf, mime) {
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
+  await ready();
   if (!Array.isArray(mem.files)) mem.files = [];
   const workspace = workspaceOf(req);
 
@@ -124,7 +124,7 @@ module.exports = async function handler(req, res) {
   }
 
   mem.files.unshift(rec);
-  save();
   log("Capture", "File · " + rec.name, rec.driver, workspace);
+  await save();
   return res.status(201).json({ ok: true, file: rec, photoUrl: rec.url, driver: rec.driver });
 };
