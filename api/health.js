@@ -4,8 +4,9 @@ module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
-  if ((blobToken() || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID) && mem.driver !== "blob" && blobProbe.read !== "error") await save();
+  if ((blobToken() || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID) && mem.driver !== "blob") await save();
   const driver = mem.driver || "file";
+  const grokOn = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY);
   res.status(200).json({
     ok: true,
     product: "Automate It Away",
@@ -52,7 +53,14 @@ module.exports = async function handler(req, res) {
       follow: "worker + cron",
       inbound: "/api/hook",
       persist: (mem.driver === "blob") ? "shared blob" : "Lambda /tmp until BLOB_READ_WRITE_TOKEN",
-      ownerStops: ["kill"]
+      ownerStops: ["kill"],
+      grok: {
+        on: grokOn,
+        model: process.env.AIA_GROK_MODEL || "grok-4-fast-non-reasoning",
+        note: grokOn
+          ? "Drafts on the card. Never Send."
+          : "Set XAI_API_KEY to draft with Grok. Engine recs still run."
+      }
     },
     domain: "automateitaway.com",
     dns: "pointed",
