@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  --bg: #f4f7fa;
+  --bg: #eef4f6;
   --bg-soft: #f2fbfb;
   --ink: #1a2332;
   --heading: #0a4f4f;
@@ -8,6 +8,7 @@
   --line: #d1dae3;
   --muted: #6b7c8f;
   --teal: #0d6b6b;
+  --teal-deep: #0a4f4f;
   --orange: #f39c12;
   --banner: #fff4e0;
   --banner-ink: #7a4b00;
@@ -15,6 +16,10 @@
   --edit-ink: #0a4f4f;
   --kill-bg: #fdecea;
   --kill-ink: #c0392b;
+  --shadow: 0 16px 40px rgba(10, 79, 79, .12);
+  --radius: 16px;
+  --focus: 0 0 0 3px rgba(17, 148, 148, .28);
+  --header: linear-gradient(135deg, #0f7f7f, #0d6b6b);
 }
 html.dark {
   color-scheme: dark;
@@ -26,6 +31,7 @@ html.dark {
   --line: #2a3542;
   --muted: #8b9aab;
   --teal: #3aa8a8;
+  --teal-deep: #9fdede;
   --orange: #f39c12;
   --banner: #3a2a12;
   --banner-ink: #f0d9a8;
@@ -33,8 +39,17 @@ html.dark {
   --edit-ink: #c8eeee;
   --kill-bg: #3a1c18;
   --kill-ink: #ff8f80;
+  --shadow: 0 16px 40px rgba(0, 0, 0, .35);
+  --focus: 0 0 0 3px rgba(58, 168, 168, .35);
+  --header: linear-gradient(135deg, #0c4f4f, #0a3d3d);
 }
-body { background: var(--bg); color: var(--ink); }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
 h1, h2, h3 { color: var(--heading); }
 .card, .kpi, .item, .sheet-card { background: var(--card); border-color: var(--line); }
 .muted { color: var(--muted); }
@@ -43,15 +58,33 @@ input, select, textarea {
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit;
+}
+input, select, textarea, button, a.go, a.edit, .btn {
+  min-height: 44px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 .edit { background: var(--edit); color: var(--edit-ink); }
 .kill { background: var(--kill-bg); color: var(--kill-ink); }
+.go, .btn {
+  background: var(--orange);
+  color: #fff;
+  border: 0;
+  font-weight: 700;
+}
 .theme-btn {
   border: 1px solid rgba(255,255,255,.35);
   background: rgba(255,255,255,.12);
   color: #fff;
   border-radius: 999px;
   padding: 4px 10px;
+  min-height: 32px;
   font: 600 12px system-ui, sans-serif;
   cursor: pointer;
   position: relative;
@@ -73,6 +106,7 @@ body.has-desk-nav { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)
   padding: 8px 4px calc(14px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -6px 20px rgba(10, 79, 79, .22);
 }
+html.dark #desk-nav { background: #0a3d3d; }
 #desk-nav a, #desk-nav button {
   flex: 1;
   width: auto;
@@ -104,9 +138,102 @@ body.has-desk-nav { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)
 }
 .desk-tabs a { color: #fff; }
 .desk-tabs a.on { color: var(--orange, #f39c12); }
+.site-header {
+  background: var(--header);
+  color: #fff;
+  padding: 12px 5vw;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.site-header a { color: #fff; text-decoration: none; font-weight: 700; }
+.site-header .nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+.page-bg {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 420px at 10% -10%, rgba(17, 148, 148, .16), transparent 55%),
+    radial-gradient(900px 360px at 100% 0%, rgba(243, 156, 18, .12), transparent 50%),
+    var(--bg);
+}
+.gate-card {
+  width: min(520px, 94vw);
+  margin: 18px auto 40px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+.gate-card h1 { font-size: 1.4rem; margin: 0 0 6px; }
+.gate-card .sub, .gate-card p.sub { color: var(--muted); margin: 0 0 16px; font-size: .95rem; line-height: 1.4; }
+.gate-card label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--heading);
+  margin: 12px 0 6px;
+}
+.gate-card input, .gate-card select, .gate-card textarea {
+  width: 100%;
+  padding: 11px 12px;
+}
+.gate-card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gate-card .btn, .gate-card button[type="submit"] {
+  width: 100%;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--orange);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.gate-card .hint { margin-top: 12px; font-size: 13px; color: var(--muted); text-align: center; }
+.gate-card .err { display: none; margin-top: 10px; color: var(--kill-ink); font-size: 14px; }
+.gate-card .ok { display: none; margin-top: 12px; color: #1b7a3d; }
+html.dark .gate-card .ok { color: #8ee0ad; }
+.tip {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--edit);
+  color: var(--edit-ink);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  cursor: help;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.custom-box {
+  margin-top: 8px;
+  padding: 10px 12px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+}
+.picks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 14px; }
+.pick {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 72px;
+  color: var(--ink);
+}
+.pick b { display: block; color: var(--heading); }
+.pick span { font-size: 12px; color: var(--muted); }
+.pick.on { border-color: var(--teal); background: var(--edit); }
 html.dark body { background: var(--bg) !important; color: var(--ink) !important; }
 html.dark .hero { background: var(--bg-soft) !important; }
-html.dark .card, html.dark .kpi, html.dark .item, html.dark .sheet-card {
+html.dark .card, html.dark .kpi, html.dark .item, html.dark .sheet-card, html.dark .gate-card {
   background: var(--card) !important;
   border-color: var(--line) !important;
   color: var(--ink);
@@ -124,4 +251,7 @@ html.light input, html.light textarea, html.light select {
   color: var(--ink) !important;
 }
 html.light a { color: var(--teal); }
-html.light header a { color: #fff; }
+html.light header a, html.light .site-header a { color: #fff; }
+@media (max-width: 560px) {
+  .gate-card .row, .picks { grid-template-columns: 1fr; }
+}
