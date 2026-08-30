@@ -94,6 +94,21 @@
     nav.style.bottom = gap ? gap + "px" : "0px";
   }
 
+  function loadTaps() {
+    var page = file();
+    if (page !== "desk" && page !== "desk.html") return;
+    if (!document.querySelector('script[src="speech.js"]')) {
+      var s = document.createElement("script");
+      s.src = "speech.js";
+      document.head.appendChild(s);
+    }
+    if (!document.querySelector('script[src="desk-taps.js"]')) {
+      var t = document.createElement("script");
+      t.src = "desk-taps.js";
+      document.body.appendChild(t);
+    }
+  }
+
   function boot() {
     ensureCss();
     document.body.classList.add("has-desk-nav");
@@ -115,6 +130,7 @@
     wireHrefs();
     paintOn();
     liftNav();
+    loadTaps();
     window.addEventListener("hashchange", paintOn);
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", liftNav);
