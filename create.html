@@ -1,42 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Create · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0d6b6b">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Create · Automate It Away</title>
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
+  </script>
   <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
-  <script src="analytics.js"></script>
-<style>
-body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
-header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
-header a{color:#fff;text-decoration:none}
-.wrap{width:min(640px,92vw);margin:0 auto;padding:18px 0}
-label{display:block;margin:10px 0 4px;font-weight:700;color:var(--heading)}
-input,textarea,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
-button.go{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:#f39c12;color:#fff;font-weight:700}
-</style>
+  <style>
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:18px 0 40px}
+    .card{border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+    .card label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
+    .card input,.card select,.card textarea{width:100%;padding:10px 12px}
+    .go{margin-top:14px;width:100%;border-radius:12px}
+    .ok,.err{display:none}
+  </style>
 </head>
-<body>
-<header><a href="index.html">Create</a><span><a href="desk.html">Desk</a> · <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span></header>
-<main class="wrap">
-<h1>Make a job</h1>
-<form id="form">
-<label>Title</label><input name="title" required placeholder="List the oak dresser">
-<label>Why it needs a human</label><textarea name="why" rows="3"></textarea>
-<button class="go" type="submit">Create</button>
-</form>
-<p id="ok"></p>
-</main>
-<script src="store.js"></script>
-<script>
-document.getElementById("form").onsubmit=e=>{
- e.preventDefault();
- const f=new FormData(e.target);
- const job={id:Date.now(),model:"Consignment",title:f.get("title"),why:f.get("why")||"You created this.",agent:"Owner",step:"Do the work",log:["Created by user"]};
- const jobs=JSON.parse(localStorage.getItem("aia_jobs")||"[]");jobs.unshift(job);localStorage.setItem("aia_jobs",JSON.stringify(jobs));
- if(window.AIA)AIA.log("Owner","Created job · "+job.title,"Waiting");
- document.getElementById("ok").innerHTML='In the queue. <a href="desk.html">Open the desk</a>';
-};
-</script>
-</body></html>
+<body class="page-bg">
+  <header class="site-header">
+    <a href="index.html">Create</a>
+    <div class="nav">
+      <a href="desk.html">Desk</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
+  </header>
+  <main class="wrap">
+    <h1>Make something. It lands on this desk.</h1>
+    <p class="sub muted">Job, capture, custom model, person, rule, or another shop. Same five steps. You still tap Yes or No.</p>
+    <div class="picks" id="picks"></div>
+    <form class="card" id="form"></form>
+    <p class="ok" id="ok"></p>
+    <p class="err" id="err"></p>
+  </main>
+  <script src="theme.js"></script>
+  <script>
+    const TYPES = [
+      { id: "job", name: "Job", hint: "A piece of work in the queue" },
+      { id: "inbox", name: "Capture", hint: "Photo, call, form — not shipped" },
+      { id: "model", name: "Custom model", hint: "A kind of work this desk runs" },
+      { id: "teammate", name: "Teammate", hint: "Who can tap on this shop" },
+      { id: "rule", name: "Guardrail", hint: "Ask me if…" },
+      { id: "workspace", name: "Workspace", hint: "Open another shop" }
+    ];
+    let kind = "job";
+    const picks = document.getElementById("picks");
+    const form = document.getElementById("form");
+    const ok = document.getElementById("ok");
+    const err = document.getElementById("err");
+    function headers() {
+      const h = { "Content-Type": "application/json" };
+      const ws = localStorage.getItem("aia_ws");
+      const pin = localStorage.getItem("aia_pin");
+      if (ws) h["X-Workspace"] = ws;
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    }
+    function fields() {
+      if (kind === "job") return `
+        <label>Title</label><input name="title" required placeholder="List the oak dresser">
+        <label>Pack</label>
+        <select name="pack"><option value="home">Home</option><option value="consign">Consign</option><option value="vita">Vita</option><option value="fund">Fund</option><option value="land">Land</option><option value="">Custom / this desk</option></select>
+        <label>Ask / amount</label><input name="amount" inputmode="decimal" placeholder="85">
+        <label>Custom fields</label><input name="customLine" placeholder="Patient: Rex, due date: Friday">
+        <label>Notes</label><textarea name="notes" rows="3" placeholder="From the counter"></textarea>`;
+      if (kind === "inbox") return `
+        <label>Kind</label>
+        <select name="kind"><option>photo</option><option>call</option><option>form</option><option>walk-in</option><option>widget</option><option>note</option></select>
+        <label>From</label><input name="from" placeholder="Counter · Thursday">
+        <label>Name</label><input name="contactName" placeholder="Taylor">
+        <label>Phone</label><input name="phone" placeholder="417-555-0100">
+        <label>Notes</label><textarea name="notes" rows="3" required placeholder="Box of vinyl, no price"></textarea>`;
+      if (kind === "model") return `
+        <label>Model name</label><input name="name" required placeholder="Mobile vet">
+        <label>What the desk does</label><input name="does" placeholder="Recall → book → invoice">
+        <label>Fields on a card</label><input name="fields" placeholder="Patient, due date, ask">`;
+      if (kind === "teammate") return `
+        <label>Name</label><input name="name" required placeholder="Sam">
+        <label>Role</label>
+        <select name="role"><option value="employee">Staff</option><option value="owner">Owner</option></select>
+        <label>Their desk code</label><input name="pin" required inputmode="numeric" minlength="4" placeholder="4+ digits">`;
+      if (kind === "rule") return `
+        <label>Ask me if…</label><input name="text" required placeholder="A job is outside city limits">`;
+      return `
+        <label>Your name</label><input name="name" required>
+        <label>Desk name</label><input name="biz" required placeholder="Rivera Resale">
+        <label>City</label><input name="city" required>
+        <label>What this desk is for</label><input name="model" placeholder="Trades">
+        <label>Desk code</label><input name="pin" required inputmode="numeric" minlength="4">`;
+    }
+    function renderPicks() {
+      picks.innerHTML = TYPES.map(t =>
+        "<button type=\"button\" class=\"pick " + (t.id === kind ? "on" : "") + "\" data-kind=\"" + t.id + "\"><b>" + t.name + "</b><span>" + t.hint + "</span></button>"
+      ).join("");
+      form.innerHTML = fields() + "<button class=\"go\" type=\"submit\">Create</button>";
+      ok.style.display = "none";
+      err.style.display = "none";
+    }
+    picks.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-kind]");
+      if (!btn) return;
+      kind = btn.getAttribute("data-kind");
+      renderPicks();
+    });
+    function fail(msg) {
+      err.style.display = "block";
+      err.textContent = msg;
+      ok.style.display = "none";
+    }
+    function done(msg) {
+      ok.style.display = "block";
+      ok.innerHTML = msg + ' <a href="desk.html">Open the desk →</a>';
+      err.style.display = "none";
+      form.reset();
+    }
+    function parseCustom(line) {
+      const custom = {};
+      String(line || "").split(/[,;]+/).forEach((part) => {
+        const m = part.split(":");
+        if (m.length < 2) return;
+        const key = m[0].trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const val = m.slice(1).join(":").trim();
+        if (key && val) custom[key] = val;
+      });
+      return custom;
+    }
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      try {
+        if (kind === "job" || kind === "inbox") {
+          const title = kind === "job" ? (f.get("title") || f.get("notes")) : (f.get("notes") || "Capture");
+          const body = {
+            action: "capture",
+            title,
+            pack: f.get("pack") || undefined,
+            amount: f.get("amount") || undefined,
+            notes: f.get("notes") || "",
+            kind: f.get("kind") || "note",
+            from: f.get("from") || "create",
+            contactName: f.get("contactName") || "",
+            phone: f.get("phone") || "",
+            custom: parseCustom(f.get("customLine"))
+          };
+          const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(body) });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) return fail(data.error || "Could not put that on the queue.");
+          return done("On the queue. You still tap Yes or No.");
+        }
+        if (kind === "model") {
+          const r = await fetch("/api/auth", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({ action: "create", kind: "model", name: f.get("name"), does: f.get("does"), fields: f.get("fields") })
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) return fail(data.error || "Could not save that model.");
+          if (f.get("name")) localStorage.setItem("aia_model", f.get("name"));
+          return done("Custom model is on this desk.");
+        }
+        if (kind === "teammate") {
+          const r = await fetch("/api/auth", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({ action: "invite", name: f.get("name"), role: f.get("role") || "employee", pin: f.get("pin") })
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) return fail(data.error || "Could not add that person.");
+          return done("They can open this shop with their own code.");
+        }
+        if (kind === "rule") {
+          const r = await fetch("/api/rules", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({ action: "add", text: f.get("text") })
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) return fail(data.error || "Could not add that rule.");
+          return done("Guardrail is on.");
+        }
+        const pin = String(f.get("pin") || "");
+        if (pin.length < 4) return fail("Pick a desk code with at least 4 digits.");
+        const slug = String(f.get("biz") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+        const r = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Workspace": slug, "X-Pin": pin },
+          body: JSON.stringify({
+            action: "open",
+            name: f.get("name"),
+            biz: f.get("biz"),
+            city: f.get("city"),
+            model: f.get("model") || "Something else",
+            customName: f.get("model") || "",
+            pin
+          })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) return fail(data.error || "Could not open that shop.");
+        localStorage.setItem("aia_ws", slug);
+        localStorage.setItem("aia_pin", pin);
+        localStorage.setItem("aia_role", "owner");
+        localStorage.setItem("aia_name", f.get("name") || "");
+        localStorage.setItem("aia_desk_name", String(f.get("biz") || slug));
+        return done("Workspace is open.");
+      } catch (ex) {
+        fail("Could not reach the desk.");
+      }
+    });
+    renderPicks();
+  </script>
+</body>
+</html>
