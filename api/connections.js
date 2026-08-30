@@ -1,4 +1,4 @@
-const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
+const { cors, catalog, soonCatalog, PROVIDERS, SOON, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
 
 function inboundOf(workspace) {
   return "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace);
@@ -16,6 +16,12 @@ module.exports = async function handler(req, res) {
       workspace,
       inbound: inboundOf(workspace),
       catalog: catalog(),
+      soon: soonCatalog(),
+      helpers: {
+        owner: "Connect, drop, Stop, money rules.",
+        helper: "Work the queue. Yes when the rule allows. Cannot connect a pipe or tap No."
+      },
+      note: "Webhook is the cross-internet pipe today. Coming soon is a wall, not a live switch.",
       connections: mem.connections.filter((c) => c.workspace === workspace)
     });
   }
@@ -27,8 +33,19 @@ module.exports = async function handler(req, res) {
     }
     const body = await readBody(req);
     const provider = String(body.provider || "").toLowerCase();
+    if (SOON[provider]) {
+      return res.status(409).json({
+        error: "Coming soon. Grok liked the name. It is not a live pipe.",
+        status: "soon",
+        catalog: catalog(),
+        soon: soonCatalog()
+      });
+    }
     if (!PROVIDERS[provider]) {
-      return res.status(400).json({ error: "Unknown provider", catalog: catalog() });
+      return res.status(400).json({ error: "Unknown provider", catalog: catalog(), soon: soonCatalog() });
+    }
+    if (provider === "whatnot") {
+      return res.status(409).json({ error: "Whatnot stays down. Not a launch pipe.", status: "down" });
     }
     const row = {
       id: "pipe_" + Date.now().toString(36),
