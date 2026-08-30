@@ -1,6 +1,20 @@
 const { cors, mem, log, save, ready, workspaceOf } = require("./_lib");
 const { runWorkspace } = require("./engine");
 
+function shopOf(slug) {
+  return (mem.workspaces || []).find((w) => w && w.slug === slug) || null;
+}
+
+function groupByDesk(jobs) {
+  const groups = {};
+  (jobs || []).forEach((job) => {
+    const key = job && job.workspace ? job.workspace : "";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(job);
+  });
+  return groups;
+}
+
 async function pingHooks(jobs) {
   const sent = [];
   for (const job of jobs) {
@@ -30,24 +44,32 @@ module.exports = async function handler(req, res) {
   const workspace = workspaceOf(req);
   const now = Date.now();
   const scope = req.query.all === "1" ? mem.jobs : mem.jobs.filter((j) => j.workspace === workspace);
-  const result = runWorkspace(scope, now);
+  const groups = groupByDesk(scope);
+  let qualified = 0;
+  let followed = 0;
+  Object.keys(groups).forEach((slug) => {
+    const result = runWorkspace(groups[slug], now, shopOf(slug));
+    qualified += result.qualified;
+    followed += result.followed;
+  });
 
-  if (result.followed) {
-    scope.filter((j) => j.followed && j.followNote).slice(0, result.followed).forEach((job) => {
+  if (followed) {
+    scope.filter((j) => j.followed && j.followNote).slice(0, followed).forEach((job) => {
       log("Follow", "Nudge · " + job.title, "OK", job.workspace);
     });
   }
   const pinged = await pingHooks(scope);
-  if (result.touched || pinged.length) await save();
+  if (qualified || followed || pinged.length) await save();
 
   return res.status(200).json({
     ok: true,
     workspace,
-    touched: result.touched,
-    qualified: result.qualified,
-    followed: result.followed,
+    touched: qualified + followed,
+    qualified,
+    followed,
     pinged: pinged.length,
+    desks: Object.keys(groups).length,
     waiting: mem.jobs.filter((j) => j.workspace === workspace && (j.status === "exception" || j.status === "held")).length,
-    note: "Worker qualifies and nudges. It never Send or Stop. Tab can close."
+    note: "Worker qualifies and nudges per desk. It never Send or Stop. Tab can close."
   });
 };
