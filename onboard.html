@@ -25,7 +25,13 @@
   </header>
   <form class="gate-card" id="form">
     <h1>Open this queue</h1>
-    <p class="sub">Name the desk. Pick a code. If this is not house or resale, name the work and the fields. First card optional.</p>
+    <p class="sub">Name the desk. Pick a code. Talk it through or type. If this is not house or resale, name the work and the fields. First card optional.</p>
+    <div class="talk-bar" id="talkBar" hidden>
+      <p class="talk-status" id="talkStatus">The desk can talk this through. Hear a step, then Talk.</p>
+      <button type="button" id="hearBtn">Hear this</button>
+      <button type="button" id="talkBtn">Talk</button>
+      <button type="button" id="quietBtn">Quiet</button>
+    </div>
     <label>Your name</label>
     <input name="name" required placeholder="Alex Rivera" autocomplete="name">
     <div class="row">
@@ -45,8 +51,8 @@
     </select>
     <label>What this desk is for</label>
     <select name="model" id="model" required>
-      <option>Home & family</option>
-      <option>Consignment & resale</option>
+      <option>Home &amp; family</option>
+      <option>Consignment &amp; resale</option>
       <option>Something else</option>
     </select>
     <div id="custom" class="custom-box" hidden>
@@ -68,19 +74,171 @@
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
+  <script src="speech.js"></script>
   <script>
+    const form = document.getElementById("form");
     const modelEl = document.getElementById("model");
     const customEl = document.getElementById("custom");
+    const talkBar = document.getElementById("talkBar");
+    const talkStatus = document.getElementById("talkStatus");
+    const hearBtn = document.getElementById("hearBtn");
+    const talkBtn = document.getElementById("talkBtn");
+    const quietBtn = document.getElementById("quietBtn");
+    const err = document.getElementById("err");
+
     function showCustom() {
       customEl.hidden = modelEl.value !== "Something else";
     }
     modelEl.addEventListener("change", showCustom);
     showCustom();
-    document.getElementById("form").onsubmit = async (e) => {
+
+    function field(name) {
+      return form.elements[name];
+    }
+
+    function setStatus(text) {
+      talkStatus.textContent = text;
+    }
+
+    function mark(name) {
+      Array.prototype.forEach.call(form.querySelectorAll(".on-talk"), function (el) {
+        el.classList.remove("on-talk");
+      });
+      const el = field(name);
+      if (el) {
+        el.classList.add("on-talk");
+        try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+      }
+    }
+
+    const STEPS = [
+      { name: "name", ask: "What should we call you?" },
+      { name: "biz", ask: "What is the desk name? House name or shop name." },
+      { name: "city", ask: "What city?" },
+      { name: "role", ask: "Are you the owner or staff?" },
+      { name: "model", ask: "Is this home and family, consignment, or something else?" },
+      { name: "customName", ask: "Name the work this desk runs.", when: function () { return field("model").value === "Something else"; } },
+      { name: "does", ask: "What does the desk do, in a short line.", when: function () { return field("model").value === "Something else"; } },
+      { name: "fields", ask: "What fields belong on a card? Say them as a list.", when: function () { return field("model").value === "Something else"; } },
+      { name: "firstWork", ask: "Optional. First thing on the queue. Or say skip." },
+      { name: "email", ask: "What email should we keep for you? Login is still the desk name and code." },
+      { name: "pin", ask: "Say a desk code. At least four digits. I will not read it back." }
+    ];
+
+    let step = 0;
+
+    function current() {
+      while (step < STEPS.length && STEPS[step].when && !STEPS[step].when()) step += 1;
+      return STEPS[step] || null;
+    }
+
+    function applyHeard(name, raw) {
+      const text = String(raw || "").trim();
+      if (!text) return false;
+      if (name === "firstWork" && AIASpeech.skipped(text)) {
+        field(name).value = "";
+        return true;
+      }
+      if (name === "role") {
+        field(name).value = /staff|helper|employee/i.test(text) ? "employee" : "owner";
+        return true;
+      }
+      if (name === "model") {
+        if (/home|family|house|life/i.test(text)) field(name).value = "Home & family";
+        else if (/consign|resale|shop|ebay/i.test(text)) field(name).value = "Consignment & resale";
+        else {
+          field(name).value = "Something else";
+          if (!field("customName").value) field("customName").value = text.slice(0, 48);
+        }
+        showCustom();
+        return true;
+      }
+      if (name === "email") {
+        field(name).value = AIASpeech.email(text);
+        return true;
+      }
+      if (name === "pin") {
+        const pin = AIASpeech.digits(text);
+        if (pin.length < 4) return false;
+        field(name).value = pin;
+        return true;
+      }
+      field(name).value = text.slice(0, 160);
+      return true;
+    }
+
+    function askLine() {
+      const s = current();
+      if (!s) return "That is the form. Open this desk when you are ready.";
+      return s.ask;
+    }
+
+    function goAsk() {
+      const s = current();
+      mark(s ? s.name : "");
+      const line = askLine();
+      setStatus(line);
+      return line;
+    }
+
+    if (AIASpeech.canSpeak() || AIASpeech.canListen()) {
+      talkBar.hidden = false;
+      goAsk();
+    }
+
+    hearBtn.onclick = function () {
+      const line = goAsk();
+      AIASpeech.speak(line);
+    };
+
+    talkBtn.onclick = function () {
+      const s = current();
+      if (!s) {
+        setStatus("That is the form. Open this desk when you are ready.");
+        return;
+      }
+      mark(s.name);
+      talkBtn.classList.add("on");
+      setStatus("Listening… " + s.ask);
+      AIASpeech.listen(function (heard) {
+        talkBtn.classList.remove("on");
+        const ok = applyHeard(s.name, heard);
+        if (!ok) {
+          setStatus(s.name === "pin"
+            ? "Need at least four digits. Tap Talk and say the code again."
+            : "Did not catch that. Tap Talk and say it again.");
+          return;
+        }
+        if (s.name === "pin") setStatus("Code is set. Not read back. Open this desk when you are ready.");
+        else setStatus("Heard. " + (s.name === "firstWork" && !field("firstWork").value ? "Skipped." : field(s.name).value));
+        step += 1;
+        const next = current();
+        if (!next) {
+          mark("");
+          AIASpeech.speak("That is the form. Open this desk when you are ready.");
+          return;
+        }
+        mark(next.name);
+        const line = next.ask;
+        setStatus(line);
+        AIASpeech.speak(line);
+      }, function (msg) {
+        talkBtn.classList.remove("on");
+        setStatus(msg);
+      });
+    };
+
+    quietBtn.onclick = function () {
+      AIASpeech.stopTalk();
+      talkBtn.classList.remove("on");
+      setStatus("Quiet. Type any field, or tap Hear this.");
+    };
+
+    form.onsubmit = async (e) => {
       e.preventDefault();
+      AIASpeech.stopTalk();
       const f = new FormData(e.target);
       const pin = String(f.get("pin") || "");
-      const err = document.getElementById("err");
       if (pin.length < 4) { err.textContent = "Pick a desk code with at least 4 digits."; err.style.display = "block"; return; }
       const modelPick = String(f.get("model") || "");
       const customName = String(f.get("customName") || "").trim();
