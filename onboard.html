@@ -4,47 +4,34 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open your desk · Automate It Away</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Open your shop · Automate It Away</title>
   <script>
-  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
   <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
-    a{color:var(--teal);text-decoration:none}
-    header{padding:14px 5vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-    .card{width:min(520px,94vw);margin:12px auto 40px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
-    h1{font-size:1.45rem;color:var(--heading);margin-bottom:6px}
-    p.sub{color:var(--muted);margin-bottom:18px;font-size:.95rem}
-    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:12px 0 6px}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
-    input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink)}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .btn{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
-    .hint{margin-top:12px;font-size:13px;color:var(--muted);text-align:center}
-    .err{display:none;margin-top:10px;color:var(--kill-ink);font-size:14px}
-    @media(max-width:560px){.row{grid-template-columns:1fr}}
-  </style>
 </head>
-<body>
-  <header>
-    <a href="index.html"><strong>Automate It Away</strong></a>
-    <span><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button> · <a href="setup.html">How to set this up</a> · <a href="login.html">Already have a desk</a></span>
+<body class="page-bg">
+  <header class="site-header">
+    <a href="index.html">Automate It Away</a>
+    <div class="nav">
+      <a href="setup.html">Setup</a>
+      <a href="login.html">Have a shop</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
   </header>
-  <form class="card" id="form">
-    <h1>Name this desk</h1>
-    <p class="sub">Open it.</p>
+  <form class="gate-card" id="form">
+    <h1>Open this queue</h1>
+    <p class="sub">Name the desk. Pick a code. If this is not house or resale, name the work and the fields. First card optional.</p>
     <label>Your name</label>
-    <input name="name" required placeholder="Your name" autocomplete="name">
+    <input name="name" required placeholder="Alex Rivera" autocomplete="name">
     <div class="row">
       <div>
-        <label>Desk name <span class="tip" title="House name or desk name. Letters and dashes. This is the login.">?</span></label>
-        <input name="biz" required placeholder="House or desk name">
+        <label>Desk name <span class="tip" title="House name or shop name. Letters and dashes. This is the login.">?</span></label>
+        <input name="biz" required placeholder="Oddo house or Rivera Resale">
       </div>
       <div>
         <label>City</label>
@@ -54,65 +41,82 @@
     <label>You are</label>
     <select name="role" required>
       <option value="owner">Owner</option>
-      <option value="employee">Helper</option>
+      <option value="employee">Staff</option>
     </select>
     <label>What this desk is for</label>
-    <select name="model" required>
+    <select name="model" id="model" required>
       <option>Home & family</option>
       <option>Consignment & resale</option>
       <option>Something else</option>
     </select>
-    <label>Email <span class="tip" title="For you. Login is desk name + desk code, not email.">?</span></label>
-    <input type="email" name="email" required placeholder="you@desk.com">
-    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this desk.">?</span></label>
-    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
-    <label>Your words <span class="tip" title="Short words. This desk only. You can change them later.">?</span></label>
-    <div class="row" style="grid-template-columns:repeat(5,1fr)">
-      <input name="noun_capture" maxlength="24" placeholder="Capture">
-      <input name="noun_qualify" maxlength="24" placeholder="Qualify">
-      <input name="noun_do" maxlength="24" placeholder="Do">
-      <input name="noun_collect" maxlength="24" placeholder="Collect">
-      <input name="noun_follow" maxlength="24" placeholder="Follow">
+    <div id="custom" class="custom-box" hidden>
+      <label>Name this work <span class="tip" title="Mobile vet, lawn route, church office — your words.">?</span></label>
+      <input name="customName" placeholder="Mobile vet">
+      <label>What the desk does</label>
+      <input name="does" placeholder="Recall → book → invoice">
+      <label>Fields on a card <span class="tip" title="Comma list. Shows on every job. You can add more later.">?</span></label>
+      <input name="fields" placeholder="Patient, due date, ask">
     </div>
-    <button class="btn" type="submit">Open it</button>
-    <p class="hint">Adds this desk on this phone. The last one stays.</p>
+    <label>First thing on the queue <span class="tip" title="Optional. Lands as a card. You still tap Yes or No.">?</span></label>
+    <input name="firstWork" placeholder="Permission slip Friday, or list the oak dresser">
+    <label>Email <span class="tip" title="For you. Login is shop name + desk code, not email.">?</span></label>
+    <input type="email" name="email" required placeholder="you@shop.com">
+    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this shop. Staff get their own later.">?</span></label>
+    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
+    <button class="btn" type="submit">Open this desk</button>
+    <p class="hint">Desk name + your code opens this queue on any phone.</p>
     <p class="err" id="err"></p>
   </form>
-  <script src="analytics.js"></script>
-  <script src="desk-switch.js"></script>
+  <script src="theme.js"></script>
   <script>
+    const modelEl = document.getElementById("model");
+    const customEl = document.getElementById("custom");
+    function showCustom() {
+      customEl.hidden = modelEl.value !== "Something else";
+    }
+    modelEl.addEventListener("change", showCustom);
+    showCustom();
     document.getElementById("form").onsubmit = async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
       const pin = String(f.get("pin") || "");
       const err = document.getElementById("err");
       if (pin.length < 4) { err.textContent = "Pick a desk code with at least 4 digits."; err.style.display = "block"; return; }
-      const slug = AIADesks.slugify(f.get("biz"));
-      if (!slug) { err.textContent = "Name this desk."; err.style.display = "block"; return; }
+      const modelPick = String(f.get("model") || "");
+      const customName = String(f.get("customName") || "").trim();
+      if (modelPick === "Something else" && !customName) {
+        err.textContent = "Name the work this desk runs.";
+        err.style.display = "block";
+        return;
+      }
+      const slug = String(f.get("biz") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+      const model = customName || modelPick;
+      localStorage.setItem("aia_ws", slug);
+      localStorage.setItem("aia_pin", pin);
+      localStorage.setItem("aia_role", f.get("role") || "owner");
+      localStorage.setItem("aia_name", f.get("name") || "");
+      localStorage.setItem("aia_model", model);
+      localStorage.setItem("aia_desk_name", String(f.get("biz") || slug));
       try {
-        const nouns = {
-          capture: f.get("noun_capture"),
-          qualify: f.get("noun_qualify"),
-          do: f.get("noun_do"),
-          collect: f.get("noun_collect"),
-          follow: f.get("noun_follow")
-        };
         const r = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Workspace": slug, "X-Pin": pin },
-          body: JSON.stringify({ action: "open", name: f.get("name"), biz: f.get("biz"), city: f.get("city"), model: f.get("model"), email: f.get("email"), pin, nouns })
+          body: JSON.stringify({
+            action: "open",
+            name: f.get("name"),
+            biz: f.get("biz"),
+            city: f.get("city"),
+            model: modelPick,
+            customName,
+            does: f.get("does"),
+            fields: f.get("fields"),
+            firstWork: f.get("firstWork"),
+            email: f.get("email"),
+            pin
+          })
         });
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) { err.textContent = data.error || "Could not open the desk."; err.style.display = "block"; return; }
-        const desk = (data && data.workspace) || {};
-        AIADesks.open({
-          slug: desk.slug || slug,
-          name: desk.biz || desk.name || f.get("biz") || slug,
-          pin: pin,
-          role: (data.you && data.you.role) || f.get("role") || "owner"
-        });
-        localStorage.setItem("aia_name", f.get("name") || "");
-        localStorage.setItem("aia_model", (desk.model || f.get("model") || ""));
+        if (!r.ok) { err.textContent = data.error || "Could not open the shop."; err.style.display = "block"; return; }
         location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";

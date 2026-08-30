@@ -4,52 +4,40 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open this queue · Automate It Away</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Open this shop · Automate It Away</title>
   <script>
-  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
   <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
-    a{color:var(--teal);text-decoration:none}
-    header{padding:14px 5vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
-    .card{width:min(440px,94vw);margin:24px auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
-    h1{color:var(--heading);font-size:1.4rem;margin-bottom:6px}
-    p{color:var(--muted);margin-bottom:16px}
-    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:12px 0 6px}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
-    input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink)}
-    button.go, form button{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
-    .err{display:none;margin-top:10px;color:var(--kill-ink);font-size:14px}
-  </style>
 </head>
-<body>
-  <header>
-    <a href="index.html"><strong>Automate It Away</strong></a>
-    <span><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button> · <a href="onboard.html">New desk</a></span>
+<body class="page-bg">
+  <header class="site-header">
+    <a href="index.html">Automate It Away</a>
+    <div class="nav">
+      <a href="onboard.html">New shop</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
   </header>
-  <form class="card" id="form">
+  <form class="gate-card" id="form">
     <h1>Open this queue</h1>
-    <p>Desk name + your desk code. Owner and helper land on the same desk.</p>
-    <label>Desk name <span class="tip" title="The name you used when you opened the desk.">?</span></label>
-    <input name="slug" required placeholder="Desk name" autocomplete="username">
-    <label>Your desk code <span class="tip" title="Owner and helper each have their own code.">?</span></label>
+    <p class="sub">Shop name + your desk code. Owner and helper land on the same desk.</p>
+    <label>Shop name <span class="tip" title="The name you used when you opened the shop. Letters and dashes.">?</span></label>
+    <input name="slug" required placeholder="rivera-resale" autocomplete="username">
+    <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
-    <button type="submit">That's my queue</button>
+    <button class="btn" type="submit">Open</button>
     <p class="err" id="err"></p>
   </form>
-  <script src="analytics.js"></script>
-  <script src="desk-switch.js"></script>
+  <script src="theme.js"></script>
   <script>
     document.getElementById("form").onsubmit = async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
-      const slug = AIADesks.slugify(f.get("slug"));
+      const slug = String(f.get("slug") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const pin = f.get("pin");
       const err = document.getElementById("err");
       try {
@@ -59,16 +47,12 @@
           body: JSON.stringify({ action: "login", slug, pin })
         });
         const data = await r.json();
-        if (!r.ok) { err.textContent = data.error || "Desk name or code does not match."; err.style.display = "block"; return; }
-        const desk = (data && data.workspace) || {};
-        AIADesks.open({
-          slug: desk.slug || slug,
-          name: desk.biz || desk.name || desk.slug || slug,
-          pin: pin,
-          role: (data.you && data.you.role) || ""
-        });
+        if (!r.ok) { err.textContent = data.error || "Shop name or code does not match."; err.style.display = "block"; return; }
+        localStorage.setItem("aia_ws", data.workspace.slug);
+        localStorage.setItem("aia_pin", pin);
+        if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
         if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
-        if (desk.model) localStorage.setItem("aia_model", desk.model);
+        if (data.workspace && data.workspace.biz) localStorage.setItem("aia_desk_name", data.workspace.biz);
         location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
