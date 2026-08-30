@@ -24,7 +24,13 @@
   </header>
   <form class="gate-card" id="form">
     <h1>Open this queue</h1>
-    <p class="sub">Shop name + your desk code. Owner and helper land on the same desk.</p>
+    <p class="sub">Shop name + your desk code. Owner and helper land on the same desk. Talk the name if you want.</p>
+    <div class="talk-bar" id="talkBar" hidden>
+      <p class="talk-status" id="talkStatus">Say the shop name. Code stays typed — not read back.</p>
+      <button type="button" id="hearBtn">Hear this</button>
+      <button type="button" id="talkBtn">Talk</button>
+      <button type="button" id="quietBtn">Quiet</button>
+    </div>
     <label>Shop name <span class="tip" title="The name you used when you opened the shop. Letters and dashes.">?</span></label>
     <input name="slug" required placeholder="rivera-resale" autocomplete="username">
     <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
@@ -33,8 +39,38 @@
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
+  <script src="speech.js"></script>
   <script>
-    document.getElementById("form").onsubmit = async (e) => {
+    const form = document.getElementById("form");
+    const talkBar = document.getElementById("talkBar");
+    const talkStatus = document.getElementById("talkStatus");
+    const talkBtn = document.getElementById("talkBtn");
+    if (window.AIASpeech && (AIASpeech.canSpeak() || AIASpeech.canListen())) {
+      talkBar.hidden = false;
+    }
+    document.getElementById("hearBtn").onclick = function () {
+      AIASpeech.speak("Say the shop name. Then type your desk code.");
+    };
+    talkBtn.onclick = function () {
+      talkBtn.classList.add("on");
+      talkStatus.textContent = "Listening for the shop name…";
+      form.elements.slug.classList.add("on-talk");
+      AIASpeech.listen(function (heard) {
+        talkBtn.classList.remove("on");
+        form.elements.slug.value = heard.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        talkStatus.textContent = "Heard " + form.elements.slug.value + ". Type your code.";
+        form.elements.pin.focus();
+      }, function (msg) {
+        talkBtn.classList.remove("on");
+        talkStatus.textContent = msg;
+      });
+    };
+    document.getElementById("quietBtn").onclick = function () {
+      AIASpeech.stopTalk();
+      talkBtn.classList.remove("on");
+      talkStatus.textContent = "Quiet. Type the shop name and code.";
+    };
+    form.onsubmit = async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
       const slug = String(f.get("slug") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
