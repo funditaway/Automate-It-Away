@@ -9,23 +9,18 @@
 
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Status · Automate It Away</title>
-  <script>
-  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
-  </script>
-  <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
   <style>
-    body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:var(--bg);color:var(--ink)}
-    a{color:var(--teal);text-decoration:none}
-    header{padding:14px 5vw;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#07090c;color:#f4f7fa}
+    a{color:#fff;text-decoration:none}
+    header{padding:14px 5vw;border-bottom:1px solid #243040}
     .wrap{width:min(640px,92vw);margin:0 auto;padding:28px 0}
-    .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);gap:12px}
+    .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #243040;gap:12px}
     .up{color:#3dd68c}.down{color:#ff6b4a}.hold{color:#f39c12}
-    pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px;overflow:auto;color:var(--ink)}
+    pre{background:#10151c;border:1px solid #243040;border-radius:8px;padding:12px;font-size:12px;overflow:auto}
   </style>
 </head>
 <body>
-  <header><a href="index.html">AUTOMATE IT AWAY</a> · Status <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
+  <header><a href="index.html">AUTOMATE IT AWAY</a> · Status</header>
   <main class="wrap">
     <h1>automateitaway.com</h1>
     <div class="row"><span>Marketing site</span><span class="up">Prototype up</span></div>
@@ -35,10 +30,14 @@
     <div class="row"><span>Hosted jobs store</span><span id="store" class="hold">Unknown</span></div>
     <div class="row"><span>Photo / file store</span><span id="files" class="hold">Unknown</span></div>
     <div class="row"><span>Domain DNS</span><span class="up">Pointed — this host answered</span></div>
+    <div class="row"><span>Talk on desk</span><span class="up">Work · Note · Invite · Rule — drafts only</span></div>
+    <div class="row"><span>Helper seats</span><span class="up">Own desk code — owner Stop</span></div>
+    <div class="row"><span>Drop from anywhere</span><span class="up">/drop?ws= · embed · hook — no money</span></div>
     <div class="row"><span>Inbound pipe</span><span class="up">POST /api/hook</span></div>
     <div class="row"><span>Square / eBay / Calendar</span><span id="pipes" class="hold">Not connected</span></div>
     <div class="row"><span>Included Grok drafts</span><span class="hold">API key not set</span></div>
     <div class="row"><span>ChatGPT / Claude required</span><span class="up">No — never required</span></div>
+    <div class="row"><span>Coming soon wall</span><span class="hold">Shown on /connections — not live</span></div>
     <div class="row"><span>Whatnot</span><span class="down">Not a launch pipe</span></div>
     <div class="row"><span>Grok Bot public API</span><span class="down">Does not exist — not a gate</span></div>
     <p style="color:#8b9aab;margin-top:18px">Green is honest. Orange is P1. Red we skip for launch.</p>
