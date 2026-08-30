@@ -251,6 +251,27 @@ html.dark .gate-card .ok { color: #8ee0ad; }
   color: #fff;
   border-color: var(--orange);
 }
+.talk-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 100%;
+}
+.talk-opts button {
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.talk-bar select {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: var(--card);
+  color: var(--heading);
+  font: 700 13px system-ui, sans-serif;
+}
 .gate-card input.on-talk,
 .gate-card select.on-talk {
   box-shadow: var(--focus);
