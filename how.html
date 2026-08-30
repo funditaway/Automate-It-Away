@@ -1,50 +1,244 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>How · Automate It Away</title>
-  <meta name="description" content="Drop the work. You tap yes or no.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>How it works · Automate It Away</title>
+  <meta name="description" content="Watch the five steps. Capture, qualify, draft, get paid, follow. You still tap yes or no.">
   <script>
-  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
   <link rel="stylesheet" href="theme.css">
   <style>
-    body{font-family:system-ui,Segoe UI,sans-serif;margin:0;color:var(--ink);background:var(--bg)}
-    a{color:inherit;text-decoration:none}
-    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:14px 5vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
-    nav{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
-    header a{color:#fff}
-    .wrap{width:min(720px,92vw);margin:0 auto;padding:28px 0 40px}
-    h1{font-size:clamp(1.6rem,4.6vw,2.2rem);color:var(--heading);line-height:1.15;margin:0 0 10px}
-    .lead{color:var(--muted);font-size:1.1rem;margin:0 0 18px;max-width:36rem}
-    .shot{width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin:0 0 18px}
-    .btn{display:inline-block;padding:14px 18px;border-radius:10px;font-weight:700;background:var(--orange);color:#fff}
-    .note{margin-top:16px;font-size:14px;color:var(--muted)}
+    .wrap{width:min(840px,94vw);margin:0 auto;padding:20px 0 48px}
+    .lead{color:var(--muted);margin:8px 0 14px;max-width:36rem}
+    .stage{margin:0 0 14px}
+    .stage video,.hero{
+      width:100%;border-radius:16px;border:1px solid var(--line);
+      background:#0a3d3d;display:block;aspect-ratio:16/9;object-fit:cover;
+    }
+    .reels{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:0 0 16px}
+    .reel{
+      border:1px solid var(--line);background:var(--card);border-radius:12px;
+      padding:0;overflow:hidden;cursor:pointer;text-align:left;color:inherit;font:inherit;
+      min-height:44px;
+    }
+    .reel img{width:100%;height:64px;object-fit:cover;display:block;background:#163333}
+    .reel b{display:block;padding:6px 8px 8px;font-size:12px;color:var(--heading)}
+    .reel.on{border-color:var(--orange);box-shadow:var(--focus)}
+    .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 18px}
+    .fact{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .fact b{display:block;color:var(--heading)}
+    .fact span{font-size:13px;color:var(--muted)}
+    .parts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 0 22px}
+    .part{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .part small{color:var(--orange);font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+    .part b{display:block;margin:4px 0 6px;color:var(--heading)}
+    .part span{font-size:13px;color:var(--muted)}
+    .sec{margin:0 0 8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .step{background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;padding:11px;text-align:left;cursor:pointer;font:inherit;color:inherit;width:100%}
+    .step.on{border-color:var(--orange);background:var(--banner)}
+    .step i{display:block;color:var(--orange);font-style:normal;font-weight:800;font-size:12px}
+    .step b{display:block;color:var(--heading);margin:3px 0 2px}
+    .step span{font-size:12px;color:var(--muted)}
+    .panel{display:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0 14px}
+    .panel.on{display:block}
+    .panel video{width:100%;border-radius:12px;margin:8px 0;aspect-ratio:16/9;background:#0a3d3d}
+    .tap{background:var(--banner);color:var(--banner-ink);border-radius:8px;padding:8px 10px;font-size:14px;margin-top:8px}
+    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 6px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+    input{flex:1;min-width:160px;padding:11px}
+    .quiet{background:var(--card);color:var(--teal);border:1px solid var(--line)}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+    .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:inherit}
+    .chip.on{background:#119494;color:#fff;border-color:#119494}
+    details{margin:10px 0 0;font-size:14px;color:var(--muted)}
+    details summary{cursor:pointer}
+    .niche{display:grid;grid-template-columns:150px 1fr;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+    .niche b{color:var(--teal)}
+    .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+    .note{font-size:13px;color:var(--muted);margin-top:12px}
+    @media(max-width:800px){.facts,.parts,.steps,.reels{grid-template-columns:1fr 1fr}.niche{grid-template-columns:1fr}}
+    @media(max-width:480px){.facts,.parts,.steps{grid-template-columns:1fr}.reels{grid-template-columns:1fr 1fr 1fr}}
   </style>
 </head>
-<body>
-<header>
-  <a href="/"><strong>Automate It Away</strong></a>
-  <nav>
-    <a href="/setup">Setup</a>
-    <a href="/onboard.html">Open your desk</a>
-    <a href="/desk">Desk</a>
-    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
-  </nav>
-</header>
-<main class="wrap">
-  <h1>How it works</h1>
-  <p class="lead">Drop the work. You tap yes or no.</p>
-  <img class="shot" src="/img/how-lots.png" alt="Lots on a counter with blank tags. No people.">
-  <p><a class="btn" href="/onboard.html">Open your desk</a></p>
-</main>
-<script src="theme.js"></script>
-<script src="analytics.js"></script>
+<body class="page-bg">
+  <header class="site-header">
+    <a href="index.html">Automate It Away</a>
+    <div class="nav">
+      <a href="how.html">How</a>
+      <a href="setup.html">Setup</a>
+      <a href="onboard.html">Open shop</a>
+      <a href="desk.html">Desk</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
+  </header>
+  <main class="wrap">
+    <h1>Same desk at home and at work.</h1>
+    <p class="lead">School form. Oil change. Missed call at the shop. Watch the five steps. Send means yes. Stop means no.</p>
+    <div class="talk-bar" id="talkBar" hidden>
+      <p class="talk-status" id="talkStatus">Play the film, or Hear this reads the line.</p>
+      <button type="button" id="playBtn">Play film</button>
+      <button type="button" id="hearBtn">Hear this</button>
+      <button type="button" id="quietBtn">Quiet</button>
+    </div>
+    <div class="stage">
+      <video id="film" class="hero" poster="img/how-hero.jpg" controls playsinline preload="metadata">
+        <source src="video/how-all.mp4" type="video/mp4">
+      </video>
+    </div>
+    <div class="reels" id="reels"></div>
+    <div class="facts">
+      <div class="fact"><b>Needs you</b><span>This job is waiting on a person.</span></div>
+      <div class="fact"><b>Send = yes</b><span>Post it, text it, or pay it.</span></div>
+      <div class="fact"><b>Stop = no</b><span>Cancel it. Owner presses twice.</span></div>
+      <div class="fact"><b>Over $250</b><span>Someone can prep it. Only the owner lets that money move.</span></div>
+    </div>
+    <p class="sec">Who does what</p>
+    <div class="parts">
+      <div class="part"><small>1</small><b>The desk</b><span>Automate It Away holds the queue and the five steps.</span></div>
+      <div class="part"><small>2</small><b>The draft</b><span>Grok writes the listing, packet, or notice. It does not send money or bind coverage.</span></div>
+      <div class="part"><small>3</small><b>The pipe</b><span>Webhook is the cross-internet pipe now. Square, eBay, calendar, SMS wait on keys. Coming soon stays on the wall. Whatnot stays off.</span></div>
+    </div>
+    <p class="sec">See it on your week</p>
+    <label for="q">Home, shop, or both</label>
+    <div class="row">
+      <input id="q" placeholder="home, school form, HVAC, insurance, land…">
+      <button type="button" onclick="applyShop()">Show this</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="steps" id="steps"></div>
+    <div class="panel" id="panel"></div>
+    <div class="cta">
+      <a class="btn" href="setup.html">Set the shop up</a>
+      <a class="btn quiet" href="onboard.html">Open your shop</a>
+      <a class="btn quiet" href="create.html">Custom creation</a>
+    </div>
+    <p class="note">Films are stills plus a spoken line. If a clip is missing, the picture still shows the step. If the desk cannot run a job, it says so.</p>
+  </main>
+  <script src="theme.js"></script>
+  <script src="speech.js"></script>
+  <script>
+    const FILMS = [
+      { id: "all", name: "Whole film", src: "video/how-all.mp4", poster: "img/how-hero.jpg", line: "Same desk at home and at work. The desk writes the next step. Send means yes. Stop means no." },
+      { id: "capture", name: "1 Capture", src: "video/how-capture.mp4", poster: "img/how-capture.jpg", line: "Capture. The work hits the queue once." },
+      { id: "qualify", name: "2 Qualify", src: "video/how-qualify.mp4", poster: "img/how-qualify.jpg", line: "Qualify. Rules screen fit, price, risk, timing." },
+      { id: "do", name: "3 Do", src: "video/how-do.mp4", poster: "img/how-do.jpg", line: "Do the work. Draft only. Nothing leaves until Send." },
+      { id: "paid", name: "4 Paid", src: "video/how-paid.mp4", poster: "img/how-paid.jpg", line: "Get paid. Over two hundred fifty waits on the owner." },
+      { id: "follow", name: "5 Follow", src: "video/how-follow.mp4", poster: "img/how-follow.jpg", line: "Follow. One reminder. Then it stops." }
+    ];
+    const NICHES = [
+      { id: "life", label: "Home & family", keys: ["home", "family", "household", "school", "kid", "life"] },
+      { id: "estate", label: "Estate & consignment", keys: ["consign", "estate", "resale", "ebay", "auction"] },
+      { id: "assets", label: "Titled assets", keys: ["title", "equipment", "tractor", "trailer", "boat"] },
+      { id: "auto", label: "Wholesale auto", keys: ["auto", "dealer", "car", "wholesale"] },
+      { id: "vita", label: "Life & protection", keys: ["insurance", "vita", "life", "term", "policy"] },
+      { id: "legal", label: "Legal & fiduciary", keys: ["lawyer", "legal", "fiduciary", "trust", "retain"] },
+      { id: "land", label: "Rural land", keys: ["land", "lot", "parcel", "acre", "rural"] },
+      { id: "btr", label: "Build-to-rent / lots", keys: ["btr", "subdivision", "plat"] },
+      { id: "fund", label: "Private lending", keys: ["fund", "lend", "hard money", "draw", "note", "loan"] },
+      { id: "storm", label: "Storm restoration", keys: ["storm", "hail", "roof", "restore"] },
+      { id: "gc", label: "GC & trades", keys: ["hvac", "gc", "plumber", "electrician", "permit", "trade"] },
+      { id: "practice", label: "Practice ops", keys: ["clinic", "dental", "vet", "practice", "recall"] },
+      { id: "pm", label: "Property management", keys: ["property", "rental", "tenant", "lease"] },
+      { id: "storage", label: "Self-storage", keys: ["storage", "unit", "lien"] }
+    ];
+    const OPS = [
+      { n:1, id:"capture", name:"Capture", what:"Intake hits the queue once.", tap:"",
+        mean:{ estate:"Item photo or estate line", assets:"VIN, title photo, hours", auto:"Stock photo and VIN", vita:"Referral or fact-find start", legal:"Consult / conflict intake", land:"Parcel ID or buyer inquiry", btr:"Lot reservation", fund:"Deal file: address, budget", storm:"Claim address and roof photos", gc:"Missed call or job photo", practice:"Recall or new-patient packet", pm:"App or work order", storage:"Late-unit list", life:"School form, to-do, or a text from the lawn guy" } },
+      { n:2, id:"qualify", name:"Qualify", what:"Rules screen fit, price, risk, timing.", tap:"Missing title, flood flag, bad-fit case, crew already booked, lien clock.",
+        mean:{ estate:"Comps vs ask. Title in hand?", assets:"Lien? Brand? Reserve vs comps", auto:"Title, recon, book vs bid", vita:"Needs and budget — is this a case?", legal:"Conflict and retainer fit", land:"Flood, access, zoning, title", btr:"Setbacks, utilities, city hold", fund:"LTV, rehab, exit, file complete?", storm:"Territory, supplement, capacity", gc:"License and emergency vs schedule", practice:"Open chair, coverage, hold", pm:"Screen vs criteria", storage:"Days late and notice window", life:"Is this this week? Who pays? Does it wait?" } },
+      { n:3, id:"do", name:"Do the work", what:"Draft only. Nothing leaves until Send.", tap:"Illustration, engagement letter, lien notice, supplement.",
+        mean:{ estate:"Listing + payout terms", assets:"Packet with title flags", auto:"Wholesale sheet", vita:"Quote you approve first", legal:"Engagement letter draft", land:"Builder packet", btr:"Lot packet", fund:"Term sheet or draw packet", storm:"Estimate from photos", gc:"Slot + written estimate", practice:"Confirm text", pm:"Lease or vendor work order", storage:"Statutory notice draft", life:"Reminder text or the form filled in" } },
+      { n:4, id:"paid", name:"Get paid", what:"Collect when due. Over $250 waits on the owner.", tap:"Staff under $250. Owner above that.",
+        mean:{ estate:"Seller payout after it clears", assets:"Settlement after title clears", auto:"Funds before keys", vita:"Premium when placed", legal:"Retainer first", land:"Reservation or takedown", btr:"Hold fee or draw", fund:"Origination or funded draw", storm:"Deposit or first draw", gc:"Job deposit", practice:"Copay after the visit", pm:"Rent or bill-back", storage:"Catch-up or auction proceeds", life:"Pay the bill if it is due. Over $250 waits." } },
+      { n:5, id:"follow", name:"Follow", what:"One reminder. Then it stops.", tap:"A second invoice or a guilt letter.",
+        mean:{ estate:"Pickup window", assets:"Title mailed", auto:"Transport booked", vita:"Delivery + year-2 review", legal:"Signing date", land:"Builder updated", btr:"Milestone to the buyer", fund:"Next inspection / draw", storm:"Build day", gc:"Final invoice. Done.", practice:"Next recall", pm:"Move-in or renewal", storage:"One notice, then the lien clock", life:"One nudge. Then it stops nagging you." } }
+    ];
+    let shop = "life", openId = "", filmId = "all";
+    const filmEl = document.getElementById("film");
+    const talkStatus = document.getElementById("talkStatus");
+    function currentFilm() { return FILMS.find(function (f) { return f.id === filmId; }) || FILMS[0]; }
+    function showFilm(id, autoplay) {
+      filmId = id;
+      const f = currentFilm();
+      filmEl.poster = f.poster;
+      const src = filmEl.querySelector("source");
+      if (src) src.src = f.src;
+      filmEl.load();
+      if (autoplay) { const p = filmEl.play(); if (p && p.catch) p.catch(function () {}); }
+      talkStatus.textContent = f.line;
+      paintReels();
+    }
+    function paintReels() {
+      document.getElementById("reels").innerHTML = FILMS.map(function (f) {
+        return "<button type=\"button\" class=\"reel" + (filmId===f.id?" on":"") + "\" data-film=\"" + f.id + "\"><img src=\"" + f.poster + "\" alt=\"\"><b>" + f.name + "</b></button>";
+      }).join("");
+    }
+    document.getElementById("reels").addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-film]");
+      if (!btn) return;
+      showFilm(btn.getAttribute("data-film"), true);
+    });
+    function matchShop(raw) {
+      const s = (raw || "").toLowerCase();
+      if (!s.trim()) return shop;
+      for (const n of NICHES) if (s.includes(n.id) || n.keys.some(k => s.includes(k))) return n.id;
+      return shop;
+    }
+    function applyShop() {
+      shop = matchShop(document.getElementById("q").value);
+      document.getElementById("q").value = NICHES.find(x => x.id === shop).label;
+      if (!openId) openId = "capture";
+      paint();
+    }
+    function pickChip(id) { shop = id; document.getElementById("q").value = NICHES.find(x => x.id === id).label; if (!openId) openId = "capture"; paint(); }
+    function openOp(id) { openId = openId === id ? "" : id; if (openId) showFilm(openId, false); paint(); }
+    function paint() {
+      document.getElementById("chips").innerHTML = NICHES.map(n =>
+        "<button type=\"button\" class=\"chip" + (shop===n.id?" on":"") + "\" onclick=\"pickChip('"+n.id+"')\">"+n.label+"</button>"
+      ).join("");
+      document.getElementById("steps").innerHTML = OPS.map(op =>
+        "<button type=\"button\" class=\"step"+(openId===op.id?" on":"")+"\" onclick=\"openOp('"+op.id+"')\"><i>"+op.n+"</i><b>"+op.name+"</b><span>"+op.mean[shop]+"</span></button>"
+      ).join("");
+      const panel = document.getElementById("panel");
+      const op = OPS.find(o => o.id === openId);
+      if (!op) { panel.className = "panel"; panel.innerHTML = ""; return; }
+      const niche = NICHES.find(n => n.id === shop);
+      const clip = FILMS.find(f => f.id === op.id);
+      panel.className = "panel on";
+      panel.innerHTML =
+        "<h2>"+op.name+" · "+niche.label+"</h2>"+
+        (clip ? "<video controls playsinline poster=\""+clip.poster+"\" preload=\"metadata\"><source src=\""+clip.src+"\" type=\"video/mp4\"></video>" : "")+
+        "<p>"+op.what+"</p>"+
+        "<p><b>Here:</b> "+op.mean[shop]+"</p>"+
+        (op.tap ? "<p class=\"tap\"><b>Needs a person when:</b> "+op.tap+"</p>" : "")+
+        "<details><summary>Other shops</summary>"+
+        NICHES.filter(n => n.id!==shop).map(n => "<div class=\"niche\"><b>"+n.label+"</b><span>"+op.mean[n.id]+"</span></div>").join("")+
+        "</details>";
+    }
+    if (window.AIASpeech && (AIASpeech.canSpeak() || AIASpeech.canListen())) document.getElementById("talkBar").hidden = false;
+    document.getElementById("playBtn").onclick = function () { showFilm(filmId || "all", true); };
+    document.getElementById("hearBtn").onclick = function () {
+      const line = currentFilm().line;
+      talkStatus.textContent = line;
+      if (window.AIASpeech) AIASpeech.speak(line);
+    };
+    document.getElementById("quietBtn").onclick = function () {
+      filmEl.pause();
+      if (window.AIASpeech) AIASpeech.stopTalk();
+      talkStatus.textContent = "Quiet.";
+    };
+    document.getElementById("q").addEventListener("keydown", e => { if (e.key === "Enter") applyShop(); });
+    document.getElementById("q").value = "Home & family";
+    paintReels();
+    paint();
+  </script>
 </body>
 </html>
