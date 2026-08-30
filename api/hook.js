@@ -1,5 +1,6 @@
 const { cors, mem, log, save, ready, slugify, readBody } = require("./_lib");
 const { qualifyJob } = require("./engine");
+const { makeCapturedJob, addTalk } = require("./fields");
 
 function eventOf(body) {
   const raw = String(body.event || body.action || body.status || "update").toLowerCase();
@@ -37,25 +38,18 @@ module.exports = async function handler(req, res) {
   }
 
   if (event === "capture" || !job) {
-    job = {
-      id: "job_" + Date.now().toString(36),
-      workspace,
-      title: String(title).slice(0, 160),
-      why: "In from a pipe.",
-      status: "exception",
-      step: "Qualify",
-      createdAt: new Date().toISOString(),
-      log: ["Pipe capture"],
+    const shop = (mem.workspaces || []).find((w) => w && w.slug === workspace) || null;
+    job = makeCapturedJob(workspace, shop, Object.assign({}, body, {
+      title: title,
+      why: body.why || "In from a pipe.",
       from: body.from || body.provider || "webhook",
-      provider: body.provider || "webhook",
-      externalId: body.externalId || null,
       notes: body.notes || body.text || "",
-      amount: body.amount || body.ask || null,
-      contactName: body.contactName || body.who || "",
-      phone: body.phone || "",
-      email: body.email || ""
-    };
-    qualifyJob(job);
+      lane: body.lane || "ext"
+    }));
+    job.log = ["Pipe capture"];
+    job.provider = body.provider || job.provider || "webhook";
+    qualifyJob(job, shop);
+    if (job.notes) addTalk(job, job.from || "pipe", job.notes, "note");
     mem.jobs.unshift(job);
     mem.inbox.unshift({
       id: "in_" + Date.now().toString(36),

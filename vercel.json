@@ -22,6 +22,8 @@
     { "source": "/more", "destination": "/more.html" },
     { "source": "/create", "destination": "/create.html" },
     { "source": "/onboard", "destination": "/onboard.html" },
+    { "source": "/widget", "destination": "/widget.html" },
+    { "source": "/drop", "destination": "/widget.html" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
     { "source": "/api/health", "destination": "/api/health" },
