@@ -9,6 +9,23 @@ function visitorLine(s) {
     .replace(/\s+/g, " ")
     .trim();
 }
+function recLine(r) {
+  if (!r) return "";
+  if (typeof r === "string") return visitorLine(r);
+  return visitorLine(r.text || r.note || "");
+}
+function grokRecsBox(j) {
+  const recs = (j && j.recs ? j.recs : [])
+    .map(recLine)
+    .filter(Boolean)
+    .filter(function (t, i, a) { return a.indexOf(t) === i; })
+    .slice(0, 5);
+  const fallback = recs.length ? recs : ["Open this card. Yes or no."];
+  return "<div class=\"recs\" id=\"grok-recs\">" +
+    "<div class=\"recs-title\">Grok recommends</div>" +
+    "<ul>" + fallback.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" +
+    "</div>";
+}
 function openUsType() {
   document.getElementById("sheet-card").innerHTML =
     "<h3>We type it onto this queue</h3>" +
@@ -20,7 +37,7 @@ function openUsType() {
     "<label>Note for us</label>" +
     "<textarea id=\"cap-note\" rows=\"2\" placeholder=\"From the school packet / neighbor asked\"></textarea>" +
     "<input type=\"hidden\" id=\"cap-kind\" value=\"note\">" +
-    "<div class=\"row\" style=\"margin-top:12px\">" +
+    "<div class=\"row actions\" style=\"margin-top:12px\">" +
       "<button class=\"go\" type=\"button\" onclick=\"captureFromUs()\">Put it on the queue</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Cancel</button>" +
     "</div>";
@@ -69,32 +86,34 @@ async function openJob(id) {
   document.getElementById("sheet-card").innerHTML =
     "<h3>" + esc(j.title) + "</h3>" +
     "<p class=\"meta\">" + labelStatus(j.status) + (j.assignee ? " · " + esc(j.assignee) : "") + (j.carried ? " · done by hand" : "") + "</p>" +
+    grokRecsBox(j) +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
     (j.draft ? "<div class=\"draft\">" + esc(j.draft) + "</div>" : "") +
     "<div class=\"talk\">" + thread + "</div>" + custom +
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
-    "<div class=\"row\" style=\"margin-top:10px\">" +
+    "<p class=\"meta\">Desk</p>" +
+    "<div class=\"row actions\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + j.id + "')\">Save info</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + j.id + "')\">Ask for more</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + j.id + "')\">Add note</button>" +
+      (staff ? "" : "<button class=\"edit\" type=\"button\" onclick=\"addFieldPrompt('" + j.id + "')\">Add field</button>") +
     "</div>" +
-    (staff ? "" : "<div class=\"row\" style=\"margin-top:8px\"><input id=\"new-field\" placeholder=\"New field name\" style=\"flex:1\"><button class=\"edit\" type=\"button\" onclick=\"addField()\">Add field</button></div>") +
     (peopleOpts
-      ? "<label>Hand to</label><div class=\"row\"><select id=\"hand-to\" style=\"flex:1\">" + peopleOpts + "</select><button class=\"edit\" type=\"button\" onclick=\"handTo('" + j.id + "')\">Hand to</button></div>"
+      ? "<label>Hand to</label><div class=\"row actions\"><select id=\"hand-to\">" + peopleOpts + "</select><button class=\"edit\" type=\"button\" onclick=\"handTo('" + j.id + "')\">Hand to</button></div>"
       : "<p class=\"meta\"><a href=\"/admin\">Add people</a> to hand work off.</p>") +
-    "<div class=\"row\" style=\"margin-top:12px\">" +
+    "<p class=\"meta\">Send it yourself</p>" +
+    "<div class=\"row actions\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>" +
       "<a class=\"edit\" href=\"" + smsHref(draft) + "\">Text it</a>" +
       "<a class=\"edit\" href=\"" + mailHref(j.title, draft) + "\">Email it</a>" +
       "<button class=\"edit\" type=\"button\" onclick=\"phoneCal('" + j.id + "')\">Phone file</button>" +
-      "<a class=\"edit\" href=\"/chat\">Tell the desk</a>" +
     "</div>" +
-    "<div class=\"row\" style=\"margin-top:12px\">" +
+    "<div class=\"sheet-decide\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"carryJob('" + j.id + "')\">Done by hand</button>" +
-      "<button class=\"go\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" +
-      (staff ? "" : "<button class=\"kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + esc(j.title).replace(/'/g, "") + "')\">No</button>") +
       "<button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button>" +
+      "<button class=\"go\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" +
+      (staff ? "<span></span>" : "<button class=\"kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + esc(j.title).replace(/'/g, "") + "')\">No</button>") +
     "</div>";
   document.getElementById("sheet").classList.add("on");
 }
@@ -171,48 +190,22 @@ async function phoneCal(id) {
   a.click();
   URL.revokeObjectURL(url);
 }
-async function addField() {
-  const label = (document.getElementById("new-field") || {}).value || "";
+function addFieldPrompt(id) {
+  const label = window.prompt("New field name");
   if (!label) return;
-  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "define-field", label, whoTapped: youName || "owner" }) });
+  addField(label, id);
+}
+async function addField(label, id) {
+  const name = label || (document.getElementById("new-field") || {}).value || "";
+  if (!name) return;
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "define-field", label: name, whoTapped: youName || "owner" }) });
   if (out.status >= 400) {
     document.getElementById("banner").textContent = (out.data && out.data.error) || "Could not add field.";
     return;
   }
   FIELDS = out.data.fields || FIELDS;
-  const open = document.querySelector("#sheet-card h3");
   await load();
-  if (open) {
-    const j = JOBS.find(x => x.title === open.textContent);
-    if (j) openJob(j.id);
-  }
+  if (id) openJob(id);
 }
 
-(function bootDeskHome() {
-  function ready(fn) {
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
-    else fn();
-  }
-  ready(function () {
-    const row = document.querySelector("main .row");
-    if (row && !document.getElementById("us-type-btn")) {
-      const btn = document.createElement("button");
-      btn.id = "us-type-btn";
-      btn.className = "edit";
-      btn.type = "button";
-      btn.textContent = "We type it in";
-      btn.onclick = function () { if (typeof openUsType === "function") openUsType(); };
-      const first = row.querySelector("button");
-      if (first && first.nextSibling) row.insertBefore(btn, first.nextSibling);
-      else row.appendChild(btn);
-    }
-    if (row && !document.getElementById("tell-desk-btn")) {
-      const a = document.createElement("a");
-      a.id = "tell-desk-btn";
-      a.className = "edit";
-      a.href = "/chat";
-      a.textContent = "Tell the desk";
-      row.appendChild(a);
-    }
-  });
-})();
+// Buttons live in #desk-actions on desk.html. Do not inject into #gate.
