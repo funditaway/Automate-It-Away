@@ -19,24 +19,22 @@
     body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
     a{color:inherit;text-decoration:none}
     header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,sans-serif}
-    .desk-tabs a{color:#fff}
-    body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-    #desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}
-    #desk-nav a{flex:1;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,sans-serif;text-decoration:none}
-    #desk-nav a.on{color:#f39c12}
-    #desk-nav svg{width:22px;height:22px;display:block}
     .wrap{width:min(720px,94vw);margin:0 auto;padding:16px 0 24px}
     h1{color:var(--heading);font-size:1.4rem;margin:0 0 8px}
+    h2{color:var(--heading);font-size:1rem;margin:18px 0 8px}
     p{color:var(--muted);margin:0 0 12px}
     .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
-    .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-    input,select{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
-    button,.btn{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--edit);color:var(--edit-ink)}
-    .go{background:#119494;color:#fff}
-    .pipe{display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    input,select{padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink);min-height:44px}
+    .pipe{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
     .meta{font-size:12px;color:var(--muted)}
-    .up{color:#119494}.hold{color:#c27b0e}.down{color:#b33}
+    .up{color:#119494}.hold{color:#c27b0e}.down{color:#b33}.soon{color:#6b7c8f}
+    .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;margin-left:6px}
+    .tag-now{background:#e6f7f7;color:#0a4f4f}
+    .tag-beta{background:#fff4e0;color:#7a4b00}
+    .tag-soon{background:#eef1f4;color:#4a5a6a}
+    .tag-down{background:#fdecea;color:#c0392b}
+    .url{font-size:12px;word-break:break-all;background:var(--edit);color:var(--edit-ink);border-radius:8px;padding:8px;margin:8px 0}
   </style>
 </head>
 <body class="has-desk-nav">
@@ -53,20 +51,28 @@
   </header>
   <main class="wrap">
     <h1>This desk’s pipes.</h1>
-    <p>The queue works with a note. Add a pipe only if you want calendar, a text, or a webhook.</p>
+    <p>The queue works with a note. Webhook talks across the internet now. Named pipes wait on keys. Coming soon is a wall, not a switch.</p>
     <div class="item">
       <div class="row">
         <input id="ws" placeholder="Desk name">
         <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
         <button class="go" type="button" onclick="listPipes()">Show pipes</button>
       </div>
+      <p class="meta" style="margin-top:8px">Owner connects or drops a pipe. Helpers work the queue only.</p>
     </div>
+    <h2>Cross the internet now</h2>
+    <div class="item">
+      <b>Inbound hook</b><span class="tag tag-now">Live</span>
+      <div class="meta">Anything on the internet can write a card here.</div>
+      <div class="url" id="inbound">Open your desk to see the write-back URL.</div>
+    </div>
+    <h2>On this desk</h2>
     <div id="pipes"></div>
     <div class="item">
-      <p class="meta">Add one</p>
+      <p class="meta">Add one that already has a name</p>
       <div class="row">
         <select id="prov">
-          <option value="webhook">Webhook</option>
+          <option value="webhook">Webhook — any site</option>
           <option value="calendar">Phone / Google calendar</option>
           <option value="sms">SMS</option>
           <option value="consign">Consign store</option>
@@ -76,9 +82,12 @@
         <input id="hook" placeholder="Webhook URL if you picked that">
         <button class="go" type="button" onclick="connect()">Connect</button>
       </div>
-      <p class="meta" style="margin-top:8px">The queue still takes work if a pipe is not live.</p>
-      <p class="meta" id="inbound"></p>
+      <p class="meta" style="margin-top:8px">No keys on the box means hold. Grok liking the name does not turn it green.</p>
+      <p class="meta" id="flash"></p>
     </div>
+    <h2>Coming soon · beta wall</h2>
+    <p class="meta">Shown because Grok liked the fit. Not connectable. Owner still taps Yes on every job.</p>
+    <div id="soon"></div>
     <p class="meta"><a href="desk.html">Back to the queue</a></p>
   </main>
   <nav id="desk-nav" aria-label="Desk">
@@ -100,6 +109,18 @@
       if (pinEl.value) h["X-Pin"] = pinEl.value;
       return h;
     }
+    function tagFor(st) {
+      if (st === "live") return ["tag-now", "Live"];
+      if (st === "hold") return ["tag-beta", "Hold · beta"];
+      if (st === "soon") return ["tag-soon", "Coming soon"];
+      return ["tag-down", "Down"];
+    }
+    function clsFor(st) {
+      if (st === "live") return "up";
+      if (st === "hold") return "hold";
+      if (st === "soon") return "soon";
+      return "down";
+    }
     async function listPipes() {
       if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
       const r = await fetch("/api/connections", { headers: headers() });
@@ -107,18 +128,32 @@
       const catalog = data.catalog || [];
       const mine = data.connections || [];
       const inbound = data.inbound || ("https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(wsEl.value || "demo"));
-      document.getElementById("inbound").textContent = "Write back URL: " + inbound;
+      document.getElementById("inbound").textContent = inbound;
       document.getElementById("pipes").innerHTML = catalog.map(p => {
         const on = mine.find(c => c.provider === p.id);
         const st = on ? on.status : p.status;
-        const cls = st === "live" ? "up" : st === "down" ? "down" : "hold";
-        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><div class=\"meta " + cls + "\">" + (on ? "On this desk · " : "Not added · ") + st + "</div></div></div>";
+        const tag = tagFor(st);
+        const drop = on ? "<button type=\"button\" onclick=\"dropPipe('" + on.id + "')\">Drop</button>" : "";
+        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (on ? "On this desk · " : "Not added · ") + st + (p.note ? " · " + p.note : "") + "</div></div>" + drop + "</div>";
+      }).join("");
+      const soonBox = document.getElementById("soon");
+      if (soonBox) soonBox.innerHTML = (data.soon || []).map(p => {
+        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + (p.note || "Shown, not live.") + "</div></div></div>";
       }).join("");
     }
     async function connect() {
+      const flash = document.getElementById("flash");
+      if (flash) flash.textContent = "";
       const provider = document.getElementById("prov").value;
       const hook = document.getElementById("hook").value || undefined;
-      await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ provider, hook }) });
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ provider, hook }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok && flash) flash.textContent = data.error || ("Could not connect · " + r.status);
+      else if (flash) flash.textContent = data.next || "Saved.";
+      listPipes();
+    }
+    async function dropPipe(id) {
+      await fetch("/api/connections?id=" + encodeURIComponent(id), { method: "DELETE", headers: headers() });
       listPipes();
     }
     listPipes();
