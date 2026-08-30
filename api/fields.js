@@ -32,7 +32,8 @@ function pickFields(body) {
     payoutTo: blank(body.payoutTo),
     killReason: blank(body.killReason),
     whoTapped: blank(body.whoTapped),
-    promptVersion: blank(body.promptVersion)
+    promptVersion: blank(body.promptVersion),
+    custom: body.custom && typeof body.custom === "object" ? body.custom : null
   };
 }
 
