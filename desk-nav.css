@@ -69,3 +69,58 @@ header {
   z-index: 2;
   pointer-events: auto;
 }
+
+/* Tap targets and locations for the phone desk */
+button, a.go, a.edit, .btn {
+  min-height: 44px;
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+#gate, #desk-actions, .row.actions, .row.decide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+#desk-actions a.go, #desk-actions .go { grid-column: 1 / -1; }
+#gate input { min-height: 44px; width: 100%; }
+.sheet { z-index: 60; }
+.sheet-card { max-height: 90vh; overflow: auto; }
+.sheet-decide {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--card, #fff);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 16px -16px -16px;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line, #d1dae3);
+}
+.sheet-decide .go, .sheet-decide .kill { min-height: 48px; font-size: 16px; }
+.recs {
+  background: var(--edit, #e6f7f7);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 8px 0 12px;
+}
+.recs-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--heading, #0a4f4f);
+  margin: 0 0 6px;
+}
+.recs ul { margin: 0; padding-left: 18px; }
+.recs li { margin: 0 0 4px; font-size: 14px; }
+#desk-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#desk-list button { width: 100%; margin: 0; }

@@ -1,4 +1,31 @@
-const { cors, catalog, soonCatalog, PROVIDERS, SOON, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
+const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
+
+const SOON = {
+  stripe: { label: "Stripe", acts: ["checkout", "payout"], note: "Card and payout later. Grok liked the fit. No keys, no live money." },
+  paypal: { label: "PayPal", acts: ["checkout", "payout"], note: "Same money rules as Square. Coming soon." },
+  shopify: { label: "Shopify", acts: ["list", "sync"], note: "Shop inventory in. Queue still owns Yes." },
+  gmail: { label: "Gmail inbound", acts: ["capture"], note: "Mail becomes a card. Not a send pipe." },
+  drive: { label: "Google Drive", acts: ["file"], note: "Packets land in a folder. Coming soon." },
+  marketplace: { label: "Facebook / Instagram shop", acts: ["list"], note: "Beta name only. Owner tap still required to post." },
+  poshmark: { label: "Poshmark", acts: ["list"], note: "Resale lane after Consign pipe is honest." },
+  mercari: { label: "Mercari", acts: ["list"], note: "Same. Shown, not live." },
+  quickbooks: { label: "QuickBooks", acts: ["invoice"], note: "Books after Collect. Not a payout." },
+  slack: { label: "Slack", acts: ["notify"], note: "Desk ping. Helpers see Needs you." },
+  voice: { label: "Missed-call voice", acts: ["capture"], note: "A call becomes a card. We type it until this ships." }
+};
+
+function soonCatalog() {
+  return Object.entries(SOON).map(([id, spec]) => ({
+    id,
+    label: spec.label,
+    acts: spec.acts,
+    live: false,
+    connectable: false,
+    lane: "soon",
+    status: "soon",
+    note: spec.note
+  }));
+}
 
 function inboundOf(workspace) {
   return "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace);
