@@ -45,36 +45,42 @@
     <a href="index.html"><strong>Automate It Away</strong></a>
     <span><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span>
     <nav class="desk-tabs" aria-label="Desk tabs">
-      <a href="/desk" data-tab="queue">Queue</a>
-      <a href="/widget.html" data-tab="drop">Drop</a>
-      <a href="/rules" data-tab="rules">Rules</a>
-      <a href="/connections" data-tab="pipes">Pipes</a>
-      <a href="/more" data-tab="more" class="on">More</a>
+      <a href="desk.html" data-tab="queue">Queue</a>
+      <a href="widget.html" data-tab="drop">Drop</a>
+      <a href="rules.html" data-tab="rules">Rules</a>
+      <a href="connections.html" data-tab="pipes">Pipes</a>
+      <a href="more.html" data-tab="more" class="on">More</a>
     </nav>
   </header>
   <main class="wrap">
-    <p class="intro">Say the work. It lands on the queue with a draft. You still tap Yes or No. Chat does not send money.</p>
+    <p class="intro">Say the work. Talk or type. It lands on the queue with a draft. You still tap Yes or No. Chat does not send money.</p>
     <div class="row" id="gate">
       <input id="ws" placeholder="Desk name">
       <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
       <button class="edit" type="button" onclick="openDesk()">Open</button>
+    </div>
+    <div class="talk-bar" id="talkBar" hidden>
+      <p class="talk-status" id="talkStatus">Talk puts the work on the queue. Hear this reads the last desk line.</p>
+      <button type="button" id="hearBtn">Hear this</button>
+      <button type="button" id="talkBtn">Talk</button>
+      <button type="button" id="quietBtn">Quiet</button>
     </div>
     <div class="log" id="log"></div>
     <form class="composer" id="form">
       <input id="text" required placeholder="Oil change Friday · list the lamp · give this to Sam" autocomplete="off">
       <button type="submit">Tell</button>
     </form>
-    <p class="muted" id="hint"><a href="/desk">Queue</a> · assign by name · draft · Yes/No stay on the card</p>
+    <p class="muted" id="hint"><a href="desk.html">Queue</a> · assign by name · draft · Yes/No stay on the card</p>
   </main>
   <nav id="desk-nav" aria-label="Desk">
-    <a href="/desk" data-tab="queue"><span>Queue</span></a>
-    <a href="/widget.html" data-tab="drop"><span>Drop</span></a>
-    <a href="/rules" data-tab="rules"><span>Rules</span></a>
-    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
-    <a href="/more" data-tab="more" class="on"><span>More</span></a>
+    <a href="desk.html" data-tab="queue"><span>Queue</span></a>
+    <a href="widget.html" data-tab="drop"><span>Drop</span></a>
+    <a href="rules.html" data-tab="rules"><span>Rules</span></a>
+    <a href="connections.html" data-tab="pipes"><span>Pipes</span></a>
+    <a href="more.html" data-tab="more" class="on"><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
-  <script src="desk-nav.js"></script>
+  <script src="speech.js"></script>
   <script>
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");
@@ -90,11 +96,11 @@
     }
     function paint(intake) {
       logEl.innerHTML = (intake.messages || []).map(m =>
-        "<div class=\"b " + (m.from === "you" ? "you" : "desk") + "\">" + String(m.text || "").replace(/[&<>]/g, c => ({ "&":"&","<":"<",">":">" }[c])) + "</div>"
+        "<div class=\"b " + (m.from === "you" ? "you" : "desk") + "\">" + String(m.text || "").replace(/[&<>]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c])) + "</div>"
       ).join("");
       logEl.scrollTop = logEl.scrollHeight;
       if (intake.jobId) {
-        document.getElementById("hint").innerHTML = "On the queue. <a href=\"/desk\">Open the card</a>";
+        document.getElementById("hint").innerHTML = "On the queue. <a href=\"desk.html\">Open the card</a>";
       }
     }
     async function api(body) {
@@ -117,12 +123,11 @@
         paint(data.intake);
       }
     }
-    document.getElementById("form").onsubmit = async (e) => {
-      e.preventDefault();
-      const text = document.getElementById("text").value.trim();
-      if (!text) return;
+    async function tell(text) {
+      const line = String(text || "").trim();
+      if (!line) return;
       document.getElementById("text").value = "";
-      const data = await api({ action: "do", id, text });
+      const data = await api({ action: "do", id, text: line });
       if (data.error && !data.intake) {
         logEl.innerHTML += "<div class=\"b desk\">" + (data.error || "Could not put that on the queue.") + "</div>";
         return;
@@ -131,7 +136,40 @@
         id = data.intake.id;
         sessionStorage.setItem("aia_chat", id);
         paint(data.intake);
+        const last = (data.intake.messages || []).filter(function (m) { return m.from === "desk"; }).pop();
+        if (last && window.AIASpeech) AIASpeech.speak(last.text);
       }
+    }
+    document.getElementById("form").onsubmit = async (e) => {
+      e.preventDefault();
+      await tell(document.getElementById("text").value);
+    };
+    const talkBar = document.getElementById("talkBar");
+    const talkStatus = document.getElementById("talkStatus");
+    const talkBtn = document.getElementById("talkBtn");
+    if (window.AIASpeech && (AIASpeech.canSpeak() || AIASpeech.canListen())) talkBar.hidden = false;
+    document.getElementById("hearBtn").onclick = function () {
+      const last = logEl.querySelector(".b.desk:last-of-type");
+      const line = last ? last.textContent : "Say the work. It lands on the queue.";
+      talkStatus.textContent = line;
+      AIASpeech.speak(line);
+    };
+    talkBtn.onclick = function () {
+      talkBtn.classList.add("on");
+      talkStatus.textContent = "Listening…";
+      AIASpeech.listen(function (heard) {
+        talkBtn.classList.remove("on");
+        talkStatus.textContent = "Heard. Putting it on the queue.";
+        tell(heard);
+      }, function (msg) {
+        talkBtn.classList.remove("on");
+        talkStatus.textContent = msg;
+      });
+    };
+    document.getElementById("quietBtn").onclick = function () {
+      AIASpeech.stopTalk();
+      talkBtn.classList.remove("on");
+      talkStatus.textContent = "Quiet. Type, or tap Talk.";
     };
     start();
   </script>
