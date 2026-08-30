@@ -83,14 +83,72 @@ button, a.go, a.edit, .btn {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-#gate, #desk-actions, .row.actions, .row.decide {
+/* Desk width is the container. Queries follow the wrap, not the viewport. */
+.wrap {
+  container-type: inline-size;
+  container-name: desk;
+}
+
+#desk-actions, .row.actions, .row.decide {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   width: 100%;
 }
 #desk-actions a.go, #desk-actions .go { grid-column: 1 / -1; }
-#gate input { min-height: 44px; width: 100%; }
+
+/* Name takes leftover space. Code stays 110px. Open sits on the end. */
+#gate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  gap: 8px;
+  width: 100%;
+  align-items: stretch;
+}
+#gate input,
+#gate button { min-height: 44px; width: 100%; }
+
+/* Queue cards: Open full width, Yes / No a matched pair. */
+#queue > .item > .row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+}
+#queue > .item > .row > .edit:first-child { grid-column: 1 / -1; }
+
+/* Narrow wrap: stack gate so Open is a full-width tap. */
+@container desk (max-width: 519px) {
+  #gate {
+    grid-template-columns: minmax(0, 1fr) 110px;
+  }
+  #gate button { grid-column: 1 / -1; }
+}
+
+/*
+  Wide wrap: two cards in one row.
+  Cards stretch. Button pad is pushed to the bottom with margin-top: auto.
+  Subgrid is skipped here — photo / recs / draft change the child count,
+  and subgrid only aligns siblings that share the same tracks.
+*/
+@container desk (min-width: 560px) {
+  #queue {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+  #queue > .item {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+  #queue > .item > .row {
+    margin-top: auto;
+  }
+}
+
 .sheet { z-index: 60; }
 .sheet-card { max-height: 90vh; overflow: auto; }
 .sheet-decide {
