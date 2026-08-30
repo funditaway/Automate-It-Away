@@ -18,13 +18,59 @@
     }
   }
 
+  var voiceName = "";
+  var voiceRate = 1.02;
+
+  try {
+    voiceName = (root.localStorage && localStorage.getItem("aia_voice")) || "";
+    var savedRate = root.localStorage && localStorage.getItem("aia_voice_rate");
+    if (savedRate) voiceRate = Number(savedRate) || 1.02;
+  } catch (e) {}
+
+  function voices() {
+    if (!canSpeak()) return [];
+    var all = root.speechSynthesis.getVoices() || [];
+    var en = all.filter(function (v) { return /^en/i.test(v.lang || ""); });
+    return en.length ? en : all;
+  }
+
+  function pickVoice() {
+    var list = voices();
+    if (!list.length) return null;
+    if (voiceName) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].name === voiceName) return list[i];
+      }
+    }
+    return list[0];
+  }
+
+  function setVoice(name) {
+    voiceName = String(name || "");
+    try { if (root.localStorage) localStorage.setItem("aia_voice", voiceName); } catch (e) {}
+  }
+
+  function setRate(n) {
+    var x = Number(n);
+    if (!Number.isFinite(x)) x = 1.02;
+    if (x < 0.7) x = 0.7;
+    if (x > 1.4) x = 1.4;
+    voiceRate = x;
+    try { if (root.localStorage) localStorage.setItem("aia_voice_rate", String(voiceRate)); } catch (e) {}
+  }
+
+  function rate() { return voiceRate; }
+  function voice() { return voiceName; }
+
   function speak(text) {
     if (!canSpeak() || !text) return Promise.resolve();
     root.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(String(text));
     u.lang = "en-US";
-    u.rate = 1.02;
+    u.rate = voiceRate;
     u.pitch = 1;
+    var v = pickVoice();
+    if (v) u.voice = v;
     return new Promise(function (resolve) {
       u.onend = function () { resolve(); };
       u.onerror = function () { resolve(); };
@@ -90,6 +136,11 @@
     speak: speak,
     listen: listen,
     stopTalk: stopTalk,
+    voices: voices,
+    setVoice: setVoice,
+    setRate: setRate,
+    rate: rate,
+    voice: voice,
     digits: digits,
     email: email,
     skipped: skipped
