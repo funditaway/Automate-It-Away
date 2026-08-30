@@ -49,6 +49,11 @@ module.exports = async function handler(req, res) {
     job.log = ["Pipe capture"];
     job.provider = body.provider || job.provider || "webhook";
     qualifyJob(job, shop);
+    try {
+      const { grokRecommend } = require("./grok");
+      const grok = await grokRecommend(job, shop);
+      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+    } catch (e) {}
     if (job.notes) addTalk(job, job.from || "pipe", job.notes, "note");
     mem.jobs.unshift(job);
     mem.inbox.unshift({
@@ -58,7 +63,7 @@ module.exports = async function handler(req, res) {
       from: job.from,
       at: Date.now()
     });
-    log("Pipe", "In · " + job.title, "Waiting", workspace);
+    log("Pipe", "In \u00b7 " + job.title, "Waiting", workspace);
     await save();
     return res.status(201).json({ ok: true, event: "capture", job });
   }
@@ -68,7 +73,7 @@ module.exports = async function handler(req, res) {
     job.killReason = body.reason || body.killReason || "Pipe said stop";
     job.whoTapped = body.who || body.provider || "webhook";
     job.log = (job.log || []).concat(["Pipe stop"]);
-    log("Pipe", "Stop · " + job.title, "Stopped", workspace);
+    log("Pipe", "Stop \u00b7 " + job.title, "Stopped", workspace);
     await save();
     return res.status(200).json({ ok: true, event: "kill", job });
   }
@@ -79,7 +84,7 @@ module.exports = async function handler(req, res) {
     job.step = "Collect";
     job.amount = amount || job.amount;
     job.dispatch = { provider: body.provider || "webhook", inbound: true, demo: false };
-    job.log = (job.log || []).concat(["Pipe wrote back · collect"]);
+    job.log = (job.log || []).concat(["Pipe wrote back \u00b7 collect"]);
     mem.money.unshift({
       at: new Date().toISOString(),
       workspace,
@@ -88,7 +93,7 @@ module.exports = async function handler(req, res) {
       amt: amount ? "$" + amount : "—",
       held: false
     });
-    log("Pipe", "Collect · " + job.title, "OK", workspace);
+    log("Pipe", "Collect \u00b7 " + job.title, "OK", workspace);
     await save();
     return res.status(200).json({ ok: true, event: "collect", job });
   }
@@ -96,7 +101,7 @@ module.exports = async function handler(req, res) {
   job.notes = body.notes || job.notes;
   if (body.status) job.pipeStatus = String(body.status).slice(0, 80);
   job.log = (job.log || []).concat(["Pipe update"]);
-  log("Pipe", "Update · " + job.title, "OK", workspace);
+  log("Pipe", "Update \u00b7 " + job.title, "OK", workspace);
   await save();
   return res.status(200).json({ ok: true, event: "update", job });
 };

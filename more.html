@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>More · Automate It Away</title>
+  <title>More \u00b7 Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -43,10 +43,12 @@
   <main class="wrap">
     <h1>This desk.</h1>
     <p>Help lives here.</p>
+    <p id="grok-line">Grok drafts on the card. You tap Yes or No.</p>
     <div class="card">
       <a href="/widget.html">Drop<span>Work, ops, hand off, or a site embed. Same queue.</span></a>
       <a href="/create">Create<span>Job, custom model, person, or rule.</span></a>
       <a href="/chat">Tell the desk<span>Talk or type. It lands on the queue.</span></a>
+      <a href="/desk">Grok recommends<span>Open a card. Ask Grok. Draft only.</span></a>
       <a href="/help">Help<span>Words on the buttons.</span></a>
       <a href="/admin">People<span>Who can open this desk.</span></a>
       <a href="/support">Support<span>If something broke.</span></a>
@@ -60,5 +62,15 @@
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-nav.js"></script>
+  <script>
+    fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {
+      const g = h && h.automation && h.automation.grok;
+      const el = document.getElementById("grok-line");
+      if (!el || !g) return;
+      el.textContent = g.on
+        ? "Grok is on. Drafts land on the card. Never Send."
+        : "Grok key is off. Engine recs still run. Set XAI_API_KEY on the box.";
+    }).catch(function () {});
+  </script>
 </body>
 </html>
