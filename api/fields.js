@@ -7,15 +7,30 @@ function blank(v) {
   return v;
 }
 
+function splitContact(body) {
+  const how = String(body.how || "").trim();
+  let phone = body.phone;
+  let email = body.email;
+  if (how && /@/.test(how)) email = email || how;
+  else if (how) phone = phone || how;
+  return { phone: blank(phone), email: blank(email) };
+}
+
 function pickFields(body) {
   const amount = body.amount === undefined || body.amount === "" ? null : Number(body.amount);
+  const contact = splitContact(body);
+  const sourceUrl = blank(body.sourceUrl || body.extUrl || body.url);
+  const nextCustom = body.custom && typeof body.custom === "object" ? Object.assign({}, body.custom) : {};
+  if (sourceUrl) nextCustom.sourceUrl = String(sourceUrl).slice(0, 300);
+  if (body.lane) nextCustom.lane = String(body.lane).slice(0, 24);
+  const custom = Object.keys(nextCustom).length ? nextCustom : null;
   return {
     pack: PACKS.includes(body.pack) ? body.pack : (body.pack || null),
     kind: blank(body.kind),
     from: blank(body.from),
     contactName: blank(body.contactName || body.name || body.who),
-    phone: blank(body.phone || body.how),
-    email: blank(body.email),
+    phone: contact.phone,
+    email: contact.email,
     notes: blank(body.notes || body.text),
     photoUrl: blank(body.photoUrl),
     provider: blank(body.provider),
@@ -33,7 +48,9 @@ function pickFields(body) {
     killReason: blank(body.killReason),
     whoTapped: blank(body.whoTapped),
     promptVersion: blank(body.promptVersion),
-    custom: body.custom && typeof body.custom === "object" ? body.custom : null
+    assignee: blank(body.assignee || body.handTo || body.to),
+    sourceUrl,
+    custom
   };
 }
 
@@ -198,6 +215,48 @@ function customFromText(shop, text) {
   return custom;
 }
 
+function assignIfKnown(job, shop, body) {
+  const want = String((body && (body.assignee || body.handTo || body.to)) || job.assignee || "").trim();
+  const people = shop && Array.isArray(shop.people) ? shop.people : [];
+  if (!want) {
+    delete job.assignee;
+    return job;
+  }
+  const whoPerson = people.find((p) => p && (
+    p.id === want ||
+    String(p.name || "").toLowerCase() === want.toLowerCase()
+  ));
+  if (!whoPerson) {
+    delete job.assignee;
+    return job;
+  }
+  job.assignee = whoPerson.name;
+  job.waitingOn = whoPerson.role === "owner" ? "owner" : "helper";
+  job.next = "Waiting on " + whoPerson.name + ".";
+  return job;
+}
+
+function makeCapturedJob(workspace, shop, body) {
+  const src = body && typeof body === "object" ? body : {};
+  const fields = pickFields(src);
+  const job = {
+    id: "job_" + Date.now().toString(36),
+    workspace,
+    title: String(src.title || fields.notes || "Untitled").slice(0, 160),
+    why: src.why || "Captured.",
+    status: "exception",
+    step: "Qualify",
+    createdAt: new Date().toISOString(),
+    log: ["Captured"],
+    ...fields,
+    from: fields.from || src.from || "widget",
+    externalId: src.externalId ? String(src.externalId).slice(0, 80) : null
+  };
+  if (fields.custom) job.custom = fields.custom;
+  assignIfKnown(job, shop, src);
+  return job;
+}
+
 function addTalk(job, from, text, kind) {
   if (!job || !text) return job;
   if (!Array.isArray(job.thread)) job.thread = [];
@@ -214,6 +273,7 @@ function addTalk(job, from, text, kind) {
 module.exports = {
   pickFields, mergeFields, PACKS, KINDS, RISKS,
   slugField, defaultFields, ensureFields, addTalk,
+  assignIfKnown, makeCapturedJob,
   publicField, parseFieldList, addShopField, applyFieldList,
   ensureCreations, publicCreation, addCreation, customFromText
 };
