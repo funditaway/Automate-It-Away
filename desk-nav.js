@@ -1,7 +1,7 @@
 (function () {
   var TABS = [
     { id: "queue", label: "Queue", href: "/desk", ico: "M4 6h16M4 12h16M4 18h10" },
-    { id: "drop", label: "Drop", href: "/widget.html", ico: "M12 5v14M5 12h14" },
+    { id: "drop", label: "Drop", href: "/drop", ico: "M12 5v14M5 12h14" },
     { id: "rules", label: "Rules", href: "/rules", ico: "M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" },
     { id: "pipes", label: "Pipes", href: "/connections", ico: "M7 8h10M7 16h10M5 12h2m10 0h2" },
     { id: "more", label: "More", href: "/more", ico: "M6 12h.01M12 12h.01M18 12h.01" }
@@ -20,7 +20,7 @@
   function dropHref() {
     if (window.AIADesks && window.AIADesks.widgetHref) return window.AIADesks.widgetHref();
     var ws = localStorage.getItem("aia_ws");
-    if (shopOpen() && ws) return "/widget.html?ws=" + encodeURIComponent(ws);
+    if (ws) return "/drop?ws=" + encodeURIComponent(ws);
     return "/onboard";
   }
 
@@ -29,10 +29,10 @@
     if (name === "rules") return "rules";
     if ((name === "desk" || name === "desk.html") && location.hash === "#rules") return "rules";
     if (name === "desk") return "queue";
-    if (name === "widget") return "drop";
+    if (name === "widget" || name === "drop") return "drop";
     if (name === "connections") return "pipes";
     if (name === "more") return "more";
-    if (/^(help|admin|setup|support|chat|consign)$/.test(name)) return "more";
+    if (/^(help|admin|setup|support|chat|consign|create)$/.test(name)) return "more";
     return "";
   }
 
@@ -94,35 +94,8 @@
     nav.style.bottom = gap ? gap + "px" : "0px";
   }
 
-  function loadTaps() {
-    var page = file();
-    if (page !== "desk" && page !== "desk.html") return;
-    if (!document.querySelector('script[src="speech.js"]')) {
-      var s = document.createElement("script");
-      s.src = "speech.js";
-      document.head.appendChild(s);
-    }
-    if (!document.querySelector('script[src="desk-taps.js"]')) {
-      var t = document.createElement("script");
-      t.src = "desk-taps.js";
-      document.body.appendChild(t);
-    }
-    if (!document.querySelector('script[src="desk-queue.js"]')) {
-      var q = document.createElement("script");
-      q.src = "desk-queue.js";
-      document.body.appendChild(q);
-    }
-  }
-
-  function hideTalkUntilOpen() {
-    var bar = document.getElementById("talkBar");
-    if (!bar) return;
-    var session = document.getElementById("session");
-    if (session) bar.hidden = session.hidden;
-    else bar.hidden = true;
-  }
-
   function boot() {
+    if (window !== window.parent) return;
     ensureCss();
     document.body.classList.add("has-desk-nav");
     var nav = document.getElementById("desk-nav");
@@ -143,9 +116,6 @@
     wireHrefs();
     paintOn();
     liftNav();
-    loadTaps();
-    hideTalkUntilOpen();
-    setInterval(hideTalkUntilOpen, 400);
     window.addEventListener("hashchange", paintOn);
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", liftNav);
