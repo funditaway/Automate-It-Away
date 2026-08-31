@@ -4,7 +4,8 @@ const {
 const { adminPinOk } = require("./_desk");
 const {
   ensureAccount, publicAccount, accountSnapshot, inviteSeat, requestSeat,
-  setSeatStatus, approvalsOf, peopleAcross, accountForDesk, requestMonthly, publicPlan
+  setSeatStatus, approvalsOf, peopleAcross, accountForDesk, requestMonthly, publicPlan,
+  switchPlan, publicPlans, proHome
 } = require("./_account");
 const { setDeskPerms, setSeatCan, publicDesk } = require("./_desk");
 
@@ -27,7 +28,8 @@ module.exports = async function handler(req, res) {
         platform: true,
         you: { name: "Admin", role: "admin", kind: "owner", live: true },
         account: publicAccount(),
-        plan: publicPlan({ plan: "free", billing: { plan: "free", status: "free", cadence: "monthly", amount: 0, charged: false, note: "Free for now. Monthly later. We tell you before we charge." } }),
+        plan: publicPlan({ plan: "pro" }),
+        plans: publicPlans(),
         people: peopleAcross(),
         approvals: approvalsOf(""),
         desks: (mem.workspaces || []).map((w) => publicDesk(w, (w.people || []).find((p) => p && p.role === "owner"))),
@@ -55,6 +57,7 @@ module.exports = async function handler(req, res) {
       you: snap.you,
       account: snap.account,
       plan: snap.plan,
+      plans: publicPlans(),
       shop: snap.shop,
       counts,
       people: snap.people,
@@ -128,6 +131,20 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, person: saved.person });
   }
 
+  if (action === "plan" || action === "subscribe") {
+    const acc = accountForDesk(row);
+    const made = switchPlan(acc, body.plan || body.id || body.name, person);
+    if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
+    await save();
+    return res.status(200).json(Object.assign(proHome(acc, person), {
+      hint: made.plan.name + " is active. Still free. Features follow this plan."
+    }));
+  }
+
+  if (action === "pro" || action === "home" || action === "login") {
+    return res.status(200).json(Object.assign({ savedLogin: true }, proHome(accountForDesk(row), person)));
+  }
+
   if (action === "monthly" || action === "billing") {
     const acc = accountForDesk(row);
     const made = requestMonthly(acc, person);
@@ -156,6 +173,6 @@ module.exports = async function handler(req, res) {
   return res.status(400).json({
     ok: false,
     error: "Unknown admin action.",
-    actions: ["invite", "request", "approve", "deny", "perms", "seat", "remove", "monthly", "billing"]
+    actions: ["invite", "request", "approve", "deny", "perms", "seat", "remove", "plan", "login", "monthly", "billing"]
   });
 };
