@@ -109,6 +109,14 @@
     }
   }
 
+  function hideTalkUntilOpen() {
+    var bar = document.getElementById("talkBar");
+    if (!bar) return;
+    var session = document.getElementById("session");
+    if (session) bar.hidden = session.hidden;
+    else bar.hidden = true;
+  }
+
   function boot() {
     ensureCss();
     document.body.classList.add("has-desk-nav");
@@ -131,6 +139,8 @@
     paintOn();
     liftNav();
     loadTaps();
+    hideTalkUntilOpen();
+    setInterval(hideTalkUntilOpen, 400);
     window.addEventListener("hashchange", paintOn);
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", liftNav);
