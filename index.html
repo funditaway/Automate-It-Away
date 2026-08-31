@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Automate It Away</title>
-  <meta name="description" content="Name your desk. Drop the work. The desk writes the next step, drafts the words, and keeps the follow-up. You still send it.">
+  <meta name="description" content="Name your desk. Drop the work. The desk writes the next step and drafts the words. You text it, email it, hand it off, or stop it. Nothing leaves on its own.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -26,6 +26,8 @@
     h1{font-size:clamp(1.7rem,4.6vw,2.7rem);color:var(--heading);line-height:1.15;margin:0 0 10px}
     .lead{color:var(--muted);font-size:1.05rem;max-width:38rem;margin:0 0 16px}
     .hero img,.people img{width:100%;border-radius:16px;border:1px solid var(--line);display:block}
+    .actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+    .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 11px;font-size:13px;font-weight:700;color:var(--heading)}
     .btn{display:inline-block;margin:6px 8px 0 0;padding:12px 16px;border-radius:10px;font-weight:700}
     .primary{background:var(--orange);color:#fff}
     .outline{border:1px solid var(--teal);color:var(--teal)}
@@ -60,11 +62,18 @@
   <div class="hero-grid wrap" style="width:min(980px,100%)">
     <div>
       <h1>Name your desk. Give the work a home.</h1>
-      <p class="lead">A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step, drafts the words, hands it to the right person, and reminds you once. You still send it. Nothing leaves on its own.</p>
+      <p class="lead">A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step and drafts the words. You copy it, text it, email it, or hand it to someone. Nothing leaves on its own.</p>
+      <div class="actions" aria-label="What you do with a card">
+        <span class="chip">Copy draft</span>
+        <span class="chip">Text it</span>
+        <span class="chip">Email it</span>
+        <span class="chip">Hand to</span>
+        <span class="chip">Stop</span>
+      </div>
       <a class="btn primary" href="onboard.html">Open your desk</a>
       <a class="btn outline" href="how.html">See how it runs</a>
     </div>
-    <img src="img/home-hero.jpg" alt="Shop owner at the counter reading a work card with Text, Email, and Hand to on the phone.">
+    <img src="img/home-hero.svg" alt="Work card on a phone with Text it, Email it, Hand to, Copy draft, and Stop.">
   </div>
 </section>
 
@@ -83,7 +92,7 @@
 <section class="people">
   <div class="wrap">
     <h2>At the house</h2>
-    <img src="img/home-life.jpg" alt="Kitchen table with a permission slip, a to-do list, and a drafted reminder on the phone.">
+    <img src="img/home-life.svg" alt="Kitchen table with a permission slip, a to-do list, and a drafted reminder ready to copy or text.">
     <div class="grid">
       <div class="card"><b>The week</b><span>Oil change. Lawn guy. Dentist for the kids. Each one is a card with the next step written on it.</span></div>
       <div class="card"><b>School paper</b><span>The form lands. The reminder is drafted. You send it once. Then it stops nagging.</span></div>
@@ -96,7 +105,7 @@
 <section class="people">
   <div class="wrap">
     <h2>Same desk at work</h2>
-    <img src="img/home-work.jpg" alt="Service van, front desk, and office each running a queue of cards and drafted messages.">
+    <img src="img/home-work.svg" alt="Service shop, front desk, and office each running a queue of cards and drafted messages.">
     <div class="grid">
       <div class="card"><b>Service shop</b><span>Missed call and a photo become a job card. The estimate is drafted. You send it when it is right.</span></div>
       <div class="card"><b>Front desk</b><span>Recall is due. The confirm text is already written. One reminder, then it stops.</span></div>

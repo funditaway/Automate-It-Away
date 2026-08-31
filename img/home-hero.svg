@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-label="Work card on a phone with Text, Email, and Hand to">
+  <rect width="960" height="640" fill="#e7f3f3"/>
+  <rect x="40" y="40" width="880" height="560" rx="28" fill="#0d6b6b"/>
+  <rect x="68" y="68" width="824" height="504" rx="20" fill="#f7fbfb"/>
+  <rect x="96" y="96" width="360" height="448" rx="16" fill="#fff" stroke="#d1dae3"/>
+  <text x="118" y="138" font-family="Segoe UI, system-ui, sans-serif" font-size="18" fill="#0a4f4f" font-weight="700">Today's queue</text>
+  <rect x="118" y="162" width="316" height="86" rx="12" fill="#eef7f7"/>
+  <text x="136" y="194" font-family="Segoe UI, system-ui, sans-serif" font-size="16" fill="#0a4f4f" font-weight="700">AC not cooling — Maple St</text>
+  <text x="136" y="220" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#6b7c8f">Draft ready · missed call + photo</text>
+  <rect x="118" y="262" width="316" height="70" rx="12" fill="#fff" stroke="#d1dae3"/>
+  <text x="136" y="292" font-family="Segoe UI, system-ui, sans-serif" font-size="15" fill="#0a4f4f" font-weight="700">Oil change — Thursday</text>
+  <text x="136" y="314" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#6b7c8f">Reminder written</text>
+  <rect x="118" y="346" width="316" height="70" rx="12" fill="#fff" stroke="#d1dae3"/>
+  <text x="136" y="376" font-family="Segoe UI, system-ui, sans-serif" font-size="15" fill="#0a4f4f" font-weight="700">Permission slip</text>
+  <text x="136" y="398" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#6b7c8f">One text, then it stops</text>
+  <rect x="500" y="96" width="360" height="448" rx="28" fill="#163333"/>
+  <rect x="524" y="120" width="312" height="400" rx="20" fill="#0b3f3f"/>
+  <text x="548" y="158" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#9fd4d4">Automate It Away</text>
+  <text x="548" y="196" font-family="Segoe UI, system-ui, sans-serif" font-size="20" fill="#fff" font-weight="700">AC not cooling</text>
+  <text x="548" y="224" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#c9e8e8">Hi Sam — we can be there Thursday 2–4. Estimate $189 if it is the capacitor.</text>
+  <rect x="548" y="280" width="88" height="36" rx="10" fill="#f39c12"/>
+  <text x="564" y="303" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#fff" font-weight="700">Text it</text>
+  <rect x="644" y="280" width="88" height="36" rx="10" fill="#119494"/>
+  <text x="658" y="303" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#fff" font-weight="700">Email it</text>
+  <rect x="740" y="280" width="72" height="36" rx="10" fill="#fff"/>
+  <text x="750" y="303" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#0d6b6b" font-weight="700">Hand to</text>
+  <rect x="548" y="328" width="112" height="32" rx="10" fill="none" stroke="#f39c12"/>
+  <text x="564" y="349" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#f39c12" font-weight="700">Copy draft</text>
+  <rect x="672" y="328" width="72" height="32" rx="10" fill="none" stroke="#e8b4b4"/>
+  <text x="690" y="349" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#e8b4b4" font-weight="700">Stop</text>
+  <text x="548" y="400" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#9fd4d4">Nothing leaves on its own.</text>
+</svg>
