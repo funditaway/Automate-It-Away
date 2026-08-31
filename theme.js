@@ -14,27 +14,6 @@
     if (t === "light") return "Light";
     return "Auto";
   }
-  function ensureIcon(rel, href, extra) {
-    if (!document.head) return;
-    if (document.querySelector('link[rel="' + rel + '"][href="' + href + '"]')) return;
-    const el = document.createElement("link");
-    el.rel = rel;
-    el.href = href;
-    if (extra) Object.keys(extra).forEach(function (k) { el.setAttribute(k, extra[k]); });
-    document.head.appendChild(el);
-  }
-  function installMark() {
-    ensureIcon("icon", "/favicon.svg", { type: "image/svg+xml" });
-    ensureIcon("icon", "/favicon.ico", { sizes: "any" });
-    ensureIcon("apple-touch-icon", "/apple-touch-icon.png");
-    ensureIcon("manifest", "/site.webmanifest");
-    if (!document.querySelector("meta[name='theme-color']") && document.head) {
-      const meta = document.createElement("meta");
-      meta.name = "theme-color";
-      meta.content = "#0d6b6b";
-      document.head.appendChild(meta);
-    }
-  }
   function apply() {
     const dark = isDark();
     document.documentElement.classList.toggle("dark", dark);
@@ -52,10 +31,31 @@
     localStorage.setItem("aia_theme", next);
     apply();
   }
-  installMark();
   apply();
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
   }
+  function mark() {
+    if (document.querySelector(".brand-mark")) return;
+    var host = document.querySelector(".site-header > a, header > a, header .logo, header .brand, header > strong");
+    if (!host) return;
+    var img = document.createElement("img");
+    img.className = "brand-mark";
+    img.src = "img/aia-pyramid-tile.svg";
+    img.width = 28;
+    img.height = 28;
+    img.alt = "";
+    if (host.tagName === "STRONG") {
+      var a = document.createElement("a");
+      a.href = "index.html";
+      a.appendChild(img);
+      a.appendChild(host.cloneNode(true));
+      host.replaceWith(a);
+      return;
+    }
+    host.insertBefore(img, host.firstChild);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mark);
+  else mark();
   window.AIATheme = { apply: apply, cycle: cycle, label: label };
 })();
