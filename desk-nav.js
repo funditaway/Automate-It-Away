@@ -107,6 +107,11 @@
       t.src = "desk-taps.js";
       document.body.appendChild(t);
     }
+    if (!document.querySelector('script[src="desk-queue.js"]')) {
+      var q = document.createElement("script");
+      q.src = "desk-queue.js";
+      document.body.appendChild(q);
+    }
   }
 
   function hideTalkUntilOpen() {
