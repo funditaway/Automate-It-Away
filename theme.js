@@ -24,6 +24,9 @@
       b.textContent = label();
       b.title = "Theme: " + label() + ". Tap to change.";
     });
+    document.querySelectorAll("img.brand-mark").forEach(function (img) {
+      img.src = dark ? "img/aia-pyramid-tile.svg" : "img/aia-pyramid-tile-light.svg";
+    });
   }
   function cycle() {
     const cur = localStorage.getItem("aia_theme") || "system";
@@ -41,7 +44,7 @@
     if (!host) return;
     var img = document.createElement("img");
     img.className = "brand-mark";
-    img.src = "img/aia-pyramid-tile.svg";
+    img.src = isDark() ? "img/aia-pyramid-tile.svg" : "img/aia-pyramid-tile-light.svg";
     img.width = 28;
     img.height = 28;
     img.alt = "";
