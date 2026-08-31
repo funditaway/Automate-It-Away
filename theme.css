@@ -14,7 +14,7 @@
   --heading: var(--aia-teal-deep);
   --card: var(--aia-paper);
   --line: color-mix(in srgb, var(--aia-ink) 16%, var(--aia-day));
-  --muted: color-mix(in srgb, var(--aia-ink) 58%, var(--aia-day));
+  --muted: color-mix(in srgb, var(--aia-ink) 68%, var(--aia-day));
   --teal: var(--aia-teal);
   --teal-deep: var(--aia-teal-deep);
   --orange: var(--aia-orange);
@@ -27,7 +27,8 @@
   --shadow: 0 16px 40px color-mix(in srgb, var(--aia-teal-deep) 12%, transparent);
   --radius: 16px;
   --focus: 0 0 0 3px color-mix(in srgb, var(--aia-teal) 28%, transparent);
-  --header: linear-gradient(135deg, color-mix(in srgb, var(--aia-teal) 82%, white), var(--aia-teal));
+  --header: var(--aia-teal);
+  --header-accent: color-mix(in srgb, var(--aia-orange) 40%, white);
 }
 html.dark {
   color-scheme: dark;
@@ -49,7 +50,8 @@ html.dark {
   --kill-ink: color-mix(in srgb, var(--aia-alert) 42%, white);
   --shadow: 0 16px 40px color-mix(in srgb, black 35%, transparent);
   --focus: 0 0 0 3px color-mix(in srgb, var(--aia-teal) 35%, transparent);
-  --header: linear-gradient(135deg, color-mix(in srgb, var(--aia-teal-deep) 88%, black), var(--aia-teal-deep));
+  --header: var(--aia-teal-deep);
+  --header-accent: color-mix(in srgb, var(--aia-orange) 40%, white);
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -133,7 +135,7 @@ html.dark #desk-nav { background: color-mix(in srgb, var(--aia-teal-deep) 88%, b
   text-decoration: none;
   cursor: pointer;
 }
-#desk-nav a.on, #desk-nav button.on { color: var(--orange, #f39c12); }
+#desk-nav a.on, #desk-nav button.on { color: var(--header-accent); }
 #desk-nav svg { width: 22px; height: 22px; display: block; }
 .desk-tabs {
   width: 100%;
@@ -145,8 +147,9 @@ html.dark #desk-nav { background: color-mix(in srgb, var(--aia-teal-deep) 88%, b
   font: 700 13px/1.2 system-ui, "Segoe UI", sans-serif;
 }
 .desk-tabs a { color: #fff; }
-.desk-tabs a.on { color: var(--orange, #f39c12); }
+.desk-tabs a.on { color: var(--header-accent); }
 
+header,
 .site-header {
   background: var(--header);
   color: #fff;
@@ -158,8 +161,9 @@ html.dark #desk-nav { background: color-mix(in srgb, var(--aia-teal-deep) 88%, b
   gap: 10px;
   flex-wrap: wrap;
 }
+header a,
 .site-header a { color: #fff; text-decoration: none; font-weight: 700; }
-.site-header .nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+.site-header .nav, header .nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
 .brand-mark {
   width: 28px;
   height: 28px;
