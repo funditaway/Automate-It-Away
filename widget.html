@@ -33,6 +33,14 @@
     .ok{margin-top:10px;color:#1b7a3d;font-size:14px;display:none}
     .err{margin-top:10px;color:var(--kill-ink);font-size:14px;display:none}
     .talk-bar{margin:0 0 14px}
+    .desk-pick{margin:0 0 14px}
+    .desk-chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+    .desk-chips button{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer}
+    .desk-chips button.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}
+    .desk-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .desk-actions a,.desk-actions button{min-height:44px;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center}
+    .desk-actions a{background:var(--edit);color:var(--edit-ink);border:1px solid var(--line)}
+    body.embed header, body.embed #desk-nav, body.embed .desk-tabs, body.embed #embed-card, body.embed #desk-pick{display:none}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -49,27 +57,45 @@
     </nav>
   </header>
   <main class="wrap">
-    <h1 id="drop-title">Drop for this desk</h1>
-    <p class="sub" id="drop-sub">This desk only. Capture lands in the queue. Nobody sends money from here.</p>
+    <h1 id="drop-title">Drop anything</h1>
+    <p class="sub" id="drop-sub">Pick the desk first. Then a note, photo, form, missed call, or neighbor text. Lands on that queue. Rules on that desk apply. Nobody sends money from here.</p>
+    <div class="card desk-pick" id="desk-pick">
+      <strong style="color:var(--heading)">Which desk gets this</strong>
+      <p class="sub" id="desk-pick-sub">Desks saved on this phone. Pick one, add a desk you already opened, or create a new one.</p>
+      <div class="desk-chips" id="desk-chips"></div>
+      <div id="desk-add" hidden>
+        <label>Desk name</label>
+        <input id="add-ws" placeholder="Oddo house" autocomplete="username">
+        <label>Desk code</label>
+        <input id="add-pin" placeholder="Your code" inputmode="numeric" minlength="4" autocomplete="current-password">
+        <button type="button" class="go" id="add-open" style="margin-top:10px">Save and open this desk</button>
+      </div>
+      <div class="desk-actions">
+        <button type="button" class="ghost" id="add-toggle" style="width:auto;margin:0">Add a saved desk</button>
+        <a href="/onboard">Create a new desk</a>
+        <a href="/login">Have a code</a>
+      </div>
+      <p class="err" id="desk-err"></p>
+    </div>
     <div class="talk-bar" id="talkBar" hidden>
-      <p class="talk-status" id="talkStatus">Talk fills the drop. Hear this reads it back. Nobody sends money from here.</p>
+      <p class="talk-status" id="talkStatus">Talk the work in your words. Nobody sends money from here.</p>
       <button type="button" id="hearBtn">Hear this</button>
       <button type="button" id="talkBtn">Talk</button>
       <button type="button" id="quietBtn">Quiet</button>
     </div>
     <div class="grid">
       <div class="card">
-        <strong style="color:var(--heading)">Send it in. We’ll handle the rest.</strong>
+        <strong style="color:var(--heading)">Say what it is. It becomes a card.</strong>
         <label>What is it?</label>
         <select id="kind">
-          <option value="note">School form / house note</option>
-          <option value="photo">Photo / item</option>
-          <option value="call">Call me back</option>
-          <option value="note">Quote request</option>
+          <option value="note">Anything / a note</option>
+          <option value="form">Form / paper</option>
+          <option value="photo">Photo</option>
+          <option value="call">Missed call</option>
           <option value="walk-in">Book a job</option>
         </select>
         <label>Title</label>
-        <input id="title" placeholder="Permission slip Friday">
+        <input id="title" placeholder="Permission slip Friday · list the lamp">
         <label>Your name</label>
         <input id="who" placeholder="Name">
         <label>Phone or email</label>
@@ -77,12 +103,12 @@
         <label>Photo or PDF</label>
         <input id="photo" type="file" accept="image/*,application/pdf">
         <label>Notes</label>
-        <textarea id="note" rows="3" placeholder="Lamp, needs pickup Thursday"></textarea>
-        <button type="button" class="go" id="drop-send">Send to the desk</button>
-        <p class="ok" id="ok">In the queue.</p>
+        <textarea id="note" rows="3" placeholder="Whatever this desk should run next"></textarea>
+        <button type="button" class="go" id="drop-send">Drop on the queue</button>
+        <p class="ok" id="ok">On the queue. Rules on this desk apply. You still tap Yes or Stop.</p>
         <p class="err" id="err"></p>
       </div>
-      <div class="card">
+      <div class="card" id="embed-card">
         <strong style="color:var(--heading)">Drop from anywhere</strong>
         <p class="sub">Public drop is work only. Nobody sends money from here.</p>
         <label>Share this link</label>
@@ -104,17 +130,21 @@
   <script src="analytics.js"></script>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
+  <script src="drop-pick.js"></script>
   <script src="speech.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
+    const embed = window !== window.parent || params.get("embed") === "1";
+    if (embed) document.body.classList.add("embed");
     const desk = (window.AIADesks && AIADesks.captureDesk) ? AIADesks.captureDesk() : null;
-    const ws = (desk && desk.slug) || params.get("ws") || localStorage.getItem("aia_ws") || "";
+    let ws = (desk && desk.slug) || params.get("ws") || localStorage.getItem("aia_ws") || "";
+    if (params.get("ws") && window.AIADesks) {
+      ws = AIADesks.slugify(params.get("ws"));
+      localStorage.setItem("aia_ws", ws);
+    }
     window.ws = ws;
     window.desk = desk;
-    if (params.get("ws")) localStorage.setItem("aia_ws", ws);
     const pin = localStorage.getItem("aia_pin") || "";
-    if (!ws) location.replace("/onboard");
-    let NOUNS = (window.AIADesks && AIADesks.nounsOf) ? AIADesks.nounsOf() : { capture: "Capture" };
     function headers() {
       const h = { "Content-Type": "application/json" };
       if (ws) h["X-Workspace"] = ws;
@@ -122,13 +152,13 @@
       return h;
     }
     function paintDrop() {
-      const cap = NOUNS.capture || "Capture";
-      const name = (desk && (desk.name || desk.slug)) || ws || "this desk";
-      document.getElementById("drop-title").textContent = cap + " for " + name;
-      document.getElementById("embed").textContent =
-        '<iframe src="https://automateitaway.com/widget?ws=' + encodeURIComponent(ws) + '&embed=1" title="' + cap + " for " + name + '" style="width:100%;height:420px;border:0;border-radius:14px"></iframe>';
+      const name = (desk && (desk.name || desk.slug)) || ws || "a desk";
+      document.getElementById("drop-title").textContent = ws ? ("Drop anything · " + name) : "Drop anything";
       const link = document.getElementById("drop-link");
-      if (link) link.textContent = "https://automateitaway.com/drop?ws=" + encodeURIComponent(ws);
+      if (link) link.textContent = ws ? ("https://automateitaway.com/drop?ws=" + encodeURIComponent(ws)) : "Open a desk first. Then this link appears.";
+      document.getElementById("embed").textContent = ws
+        ? '<iframe src="https://automateitaway.com/widget?ws=' + encodeURIComponent(ws) + '&embed=1" title="Drop for ' + name + '" style="width:100%;height:420px;border:0;border-radius:14px"></iframe>'
+        : "Open a desk first. Then the embed code appears.";
     }
     paintDrop();
     async function send() {
@@ -137,7 +167,13 @@
       const btn = document.getElementById("drop-send");
       ok.style.display = "none";
       err.style.display = "none";
-      if (!ws) { location.replace("/onboard"); return; }
+      if (!ws) {
+        err.style.display = "block";
+        err.textContent = embed ? "This drop is missing a desk." : "Pick a desk above, add a saved one, or create a new desk.";
+        const pick = document.getElementById("desk-pick");
+        if (pick && !embed) pick.scrollIntoView({ block: "start" });
+        return;
+      }
       const note = document.getElementById("note").value;
       const title = document.getElementById("title").value || note;
       if (!String(title || "").trim()) {
@@ -176,8 +212,8 @@
         const out = await r.json().catch(function () { return {}; });
         if (r.ok) {
           ok.style.display = "block";
-          ok.innerHTML = "In this desk’s queue. <a href=\"/desk\">Open the queue →</a>";
-          if (window.AIASpeech) AIASpeech.speak("In the queue.");
+          ok.innerHTML = "On the queue. Rules on this desk apply. <a href=\"/desk\">Open the queue →</a>";
+          if (window.AIASpeech) AIASpeech.speak("On the queue.");
           document.getElementById("title").value = "";
           document.getElementById("note").value = "";
         } else {
