@@ -30,6 +30,7 @@
     { "source": "/drop", "destination": "/widget.html" },
     { "source": "/chat", "destination": "/chat.html" },
     { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/account", "destination": "/account.html" },
     { "source": "/desks", "destination": "/desks.html" },
     { "source": "/history", "destination": "/history.html" },
     { "source": "/api/desks", "destination": "/api/desks" },
