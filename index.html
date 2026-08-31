@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Automate It Away</title>
-  <meta name="description" content="Shop work and regular life. The desk writes the next step. You say yes or no.">
+  <meta name="description" content="Name your desk. Drop the work. The desk writes the next step, drafts the words, and keeps the follow-up. You still send it.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <script>
@@ -23,8 +24,8 @@
     .hero{padding:36px 5vw 28px;background:var(--bg-soft)}
     .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:center}
     h1{font-size:clamp(1.7rem,4.6vw,2.7rem);color:var(--heading);line-height:1.15;margin:0 0 10px}
-    .lead{color:var(--muted);font-size:1.05rem;max-width:36rem;margin:0 0 16px}
-    .hero img{width:100%;border-radius:16px;border:1px solid var(--line);display:block}
+    .lead{color:var(--muted);font-size:1.05rem;max-width:38rem;margin:0 0 16px}
+    .hero img,.people img{width:100%;border-radius:16px;border:1px solid var(--line);display:block}
     .btn{display:inline-block;margin:6px 8px 0 0;padding:12px 16px;border-radius:10px;font-weight:700}
     .primary{background:var(--orange);color:#fff}
     .outline{border:1px solid var(--teal);color:var(--teal)}
@@ -35,7 +36,7 @@
     .card b{display:block;color:var(--heading);margin-bottom:6px}
     .card p,.card span{color:var(--muted);font-size:14px;margin:0}
     .people{padding:0 5vw 28px}
-    .people img{width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin-bottom:12px}
+    .people img{margin-bottom:12px}
     .who{padding:0 5vw 32px}
     footer{padding:22px 5vw;color:var(--muted);font-size:14px}
     footer a{color:var(--teal)}
@@ -50,7 +51,7 @@
     <a href="setup.html">Setup</a>
     <a href="desk.html">Desk</a>
     <a href="login.html">Sign in</a>
-    <a href="onboard.html">Open your shop</a>
+    <a href="onboard.html">Open your desk</a>
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
   </nav>
 </header>
@@ -58,36 +59,36 @@
 <section class="hero">
   <div class="hero-grid wrap" style="width:min(980px,100%)">
     <div>
-      <h1>Stop doing the same weekly work by hand.</h1>
-      <p class="lead">Name your desk. A call at the shop. A school form on the table. The oil change you keep forgetting. The desk writes the next step. You press yes or no.</p>
+      <h1>Name your desk. Give the work a home.</h1>
+      <p class="lead">A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step, drafts the words, hands it to the right person, and reminds you once. You still send it. Nothing leaves on its own.</p>
       <a class="btn primary" href="onboard.html">Open your desk</a>
-      <a class="btn outline" href="desk.html">Open a queue</a>
+      <a class="btn outline" href="how.html">See how it runs</a>
     </div>
-    <img src="img/owner-desk.jpg" alt="Shop owner at a service counter showing yes or no on her phone.">
+    <img src="img/home-hero.jpg" alt="Shop owner at the counter reading a work card with Text, Email, and Hand to on the phone.">
   </div>
 </section>
 
 <section class="why">
   <div class="wrap">
-    <h2>Why people use it</h2>
+    <h2>What the desk actually does</h2>
     <div class="grid">
-      <div class="card"><b>You already do this work</b><p>Estimates, reminders, packets, invoices. The desk takes the typing. You keep the decision.</p></div>
-      <div class="card"><b>Nothing leaves until you say yes</b><p>Yes means go. Stop means no. Big money waits only if you write that rule.</p></div>
-      <div class="card"><b>Someone else can help</b><p>They work the queue. They cannot cancel a job or move big money.</p></div>
-      <div class="card"><b>Any phone</b><p>Login is the name of this desk + a code. Email is not the login.</p></div>
+      <div class="card"><b>Catch the work</b><p>Note, photo, form, missed call, or a line someone typed. One card. Nobody retypes it later.</p></div>
+      <div class="card"><b>Write the next step</b><p>Fit, timing, who should see it, what is missing. The queue says what happens next.</p></div>
+      <div class="card"><b>Draft the words</b><p>The text, the estimate, the reminder, the handoff note. It sits on the card until a person sends it.</p></div>
+      <div class="card"><b>Keep the follow-up</b><p>One nudge. Then it stops. Money waits only if you wrote that rule.</p></div>
     </div>
   </div>
 </section>
 
 <section class="people">
   <div class="wrap">
-    <h2>Regular life</h2>
-    <img src="img/life.jpg" alt="A family at the kitchen table with a school form, a to-do list, and yes or no on the phone.">
+    <h2>At the house</h2>
+    <img src="img/home-life.jpg" alt="Kitchen table with a permission slip, a to-do list, and a drafted reminder on the phone.">
     <div class="grid">
-      <div class="card"><b>The house</b><span>Oil change. Lawn guy. Dentist for the kids. One list, one yes or no.</span></div>
-      <div class="card"><b>School week</b><span>Permission form lands. Reminder goes out once. Then it stops.</span></div>
-      <div class="card"><b>Side work</b><span>A neighbor texts for a Saturday job. Estimate is drafted. You send it.</span></div>
-      <div class="card"><b>Bills and follow-ups</b><span>If you write a money-wait rule, only the owner of that desk lets the money move.</span></div>
+      <div class="card"><b>The week</b><span>Oil change. Lawn guy. Dentist for the kids. Each one is a card with the next step written on it.</span></div>
+      <div class="card"><b>School paper</b><span>The form lands. The reminder is drafted. You send it once. Then it stops nagging.</span></div>
+      <div class="card"><b>A neighbor text</b><span>Saturday job comes in. The estimate is written on the card. You copy it or text it.</span></div>
+      <div class="card"><b>Bills</b><span>If you add a money-wait rule, only the owner of that desk lets the money move.</span></div>
     </div>
   </div>
 </section>
@@ -95,12 +96,12 @@
 <section class="people">
   <div class="wrap">
     <h2>Same desk at work</h2>
-    <img src="img/shops.jpg" alt="HVAC tech, dental front desk, and insurance office using the same queue.">
+    <img src="img/home-work.jpg" alt="Service van, front desk, and office each running a queue of cards and drafted messages.">
     <div class="grid">
-      <div class="card"><b>Service shop</b><span>Missed call. Photo of the job. Estimate ready for yes or no.</span></div>
-      <div class="card"><b>Front desk</b><span>Recall due. Confirm the visit. One reminder, then it stops.</span></div>
-      <div class="card"><b>Office</b><span>A lead or a file hits the queue. The packet is drafted. You send it.</span></div>
-      <div class="card"><b>Whatever you run</b><span>Land, rentals, storm work, lending. Same five steps. Different nouns.</span></div>
+      <div class="card"><b>Service shop</b><span>Missed call and a photo become a job card. The estimate is drafted. You send it when it is right.</span></div>
+      <div class="card"><b>Front desk</b><span>Recall is due. The confirm text is already written. One reminder, then it stops.</span></div>
+      <div class="card"><b>Office</b><span>A lead or a file hits the queue. The packet is drafted. You hand it off or send it.</span></div>
+      <div class="card"><b>Whatever you run</b><span>House, shop, office, land, insurance. Same five steps. Your words on the cards.</span></div>
     </div>
   </div>
 </section>
@@ -109,14 +110,14 @@
   <div class="wrap">
     <h2>What happens this week</h2>
     <div class="grid">
-      <div class="card"><b>1. It lands</b><p>Call, photo, form, or note. Once. Nobody retypes it.</p></div>
-      <div class="card"><b>2. It gets sorted</b><p>Fit, timing, and risk. If it can hurt money or a customer, it waits.</p></div>
-      <div class="card"><b>3. The desk writes it</b><p>Estimate, notice, quote, or reminder. Still sitting here.</p></div>
-      <div class="card"><b>4. You say yes or no</b><p>Then money, if money is due. Then one follow. Done.</p></div>
+      <div class="card"><b>1. Open a desk</b><p>Your name, desk name, city, a code. House, resale, insurance, or something else in your words.</p></div>
+      <div class="card"><b>2. Drop work</b><p>Talk it, type it, or use Drop. Anything this desk should run becomes a card.</p></div>
+      <div class="card"><b>3. Add a rule if you need one</b><p>Fresh desks start empty. A new rule applies to the next card.</p></div>
+      <div class="card"><b>4. Send what you approve</b><p>The draft stays on the card. Copy it, text it, email it, or hand it to someone. Helpers cannot Stop.</p></div>
     </div>
     <p style="margin:18px 0 0">
-      <a class="btn primary" href="onboard.html">Open your shop</a>
-      <a class="btn outline" href="setup.html">Set the shop up</a>
+      <a class="btn primary" href="onboard.html">Open your desk</a>
+      <a class="btn outline" href="setup.html">First-day setup</a>
     </p>
   </div>
 </section>

@@ -107,38 +107,35 @@
     return !!(store && store.getItem("aia_ws") && store.getItem("aia_pin"));
   }
 
-  function queryWs() {
-    var search = (root.location && root.location.search) || "";
-    var raw = "";
-    if (typeof root.URLSearchParams === "function") {
-      try { raw = new root.URLSearchParams(search).get("ws") || ""; } catch (e) { raw = ""; }
-    } else {
-      var m = String(search).match(/[?&]ws=([^&]+)/);
-      raw = m ? m[1] : "";
-    }
-    return slugify(raw);
-  }
-
   function widgetHref(slug) {
-    var use = slugify(slug || "");
-    if (use) return "/drop?ws=" + encodeURIComponent(use);
-    return "/drop";
+    var use = slugify(slug || (store && store.getItem("aia_ws")) || "");
+    if (!use) return "/drop";
+    return "/drop?ws=" + encodeURIComponent(use);
   }
 
   function captureDesk() {
-    var qslug = queryWs();
-    if (qslug) {
-      var saved = find(qslug);
-      if (saved) {
-        return { slug: saved.slug, name: saved.name, pin: saved.pin, role: saved.role, captureOnly: true };
-      }
-      return { slug: qslug, name: qslug, pin: "", role: "", embed: true };
+    var q = "";
+    try {
+      var search = String((typeof location !== "undefined" && location.search) || "");
+      var m = search.match(/[?&]ws=([^&]*)/);
+      q = m ? decodeURIComponent(String(m[1] || "").replace(/\+/g, " ")) : "";
+    } catch (e) {
+      q = "";
     }
-    if (shopOpen()) {
-      var cur = current();
-      if (cur && cur.slug) return cur;
+    q = slugify(q);
+    if (q) {
+      var saved = find(q);
+      if (saved) return saved;
+      return { slug: q, name: q, pin: "", role: "", embed: true };
     }
-    return null;
+    var cur = slugify((store && store.getItem("aia_ws")) || "");
+    if (!cur) return null;
+    return find(cur) || {
+      slug: cur,
+      name: (store && store.getItem("aia_desk_name")) || cur,
+      pin: (store && store.getItem("aia_pin")) || "",
+      role: (store && store.getItem("aia_role")) || ""
+    };
   }
 
   function defaultNouns() {
@@ -185,7 +182,6 @@
     switchTo: switchTo,
     widgetHref: widgetHref,
     captureDesk: captureDesk,
-    queryWs: queryWs,
     shopOpen: shopOpen,
     slugify: slugify,
     defaultNouns: defaultNouns,
