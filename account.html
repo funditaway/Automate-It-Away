@@ -7,9 +7,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Pro account · Automate It Away</title>
-  <script>
-  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
-  </script>
+  <script>(function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();</script>
   <link rel="stylesheet" href="theme.css">
   <style>
     .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 80px}
@@ -28,93 +26,55 @@
 <body class="page-bg">
   <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
-    <div class="nav">
-      <a href="admin.html">People</a>
-      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
-    </div>
+    <div class="nav"><a href="admin.html">People</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></div>
   </header>
   <main class="wrap">
-    <h1>Pro AIA account</h1>
-    <p class="muted">Saved login. Active AIA plan on this account. Switch Desk, Pro, or Crew — all free for now.</p>
-    <div class="banner" id="plan">AIA plan · Pro · free</div>
+    <h1>Your AIA account</h1>
+    <p class="muted">Own a desk or sit on one. Both show here. Free on Desk, Pro, and Crew.</p>
+    <div class="banner" id="plan">AIA plan · free</div>
     <form class="card" id="gate">
       <h2>Saved login</h2>
-      <p class="meta">Account or desk name + owner code. Email is not the login.</p>
+      <p class="meta">Desk name + your code. Owner or member. Email is not the login.</p>
       <label>Account or desk name</label>
-      <input id="slug" required placeholder="Oddo house">
-      <label>Owner code</label>
+      <input id="slug" required>
+      <label>Your code</label>
       <input id="pin" required inputmode="numeric" minlength="4">
       <p><button class="go" type="submit">Open the account</button></p>
       <p class="err" id="err"></p>
     </form>
     <div id="home" hidden>
-      <div class="card">
-        <h2>AIA subscription</h2>
-        <p class="meta">Active plan changes the features. All three free. No card.</p>
-        <div class="row" id="plans"></div>
-      </div>
-      <div class="card" id="desks"></div>
-      <div class="card" id="teams"></div>
+      <div class="card"><h2>AIA subscription</h2><div class="row" id="plans"></div></div>
+      <div class="card" id="owned"></div>
+      <div class="card" id="member"></div>
     </div>
   </main>
   <script src="theme.js"></script>
   <script>
-    const slugEl = document.getElementById("slug");
-    const pinEl = document.getElementById("pin");
-    const err = document.getElementById("err");
-    slugEl.value = localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_ws") || "";
-    pinEl.value = localStorage.getItem("aia_pin") || "";
+    const slugEl=document.getElementById("slug"); const pinEl=document.getElementById("pin"); const err=document.getElementById("err");
+    slugEl.value=localStorage.getItem("aia_desk_name")||localStorage.getItem("aia_ws")||"";
+    pinEl.value=localStorage.getItem("aia_pin")||"";
     function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&","<":"<",">":">","\"":"""})[c];});}
     function paint(d){
-      document.getElementById("gate").hidden = true;
-      document.getElementById("home").hidden = false;
-      const plan = d.plan || {};
-      document.getElementById("plan").textContent = "AIA plan · " + (plan.name || plan.plan || "Pro") + " · active · free · not charged";
-      const catalog = d.plans || plan.catalog || [];
-      document.getElementById("plans").innerHTML = catalog.map(function(p){
-        const on = p.id === (plan.plan || d.active);
-        return "<button type=\"button\" class=\""+(on?"go":"edit")+"\" data-plan=\""+esc(p.id)+"\">"+esc(p.name)+(on?" · active":"")+"</button>";
-      }).join("");
-      Array.prototype.forEach.call(document.querySelectorAll("#plans [data-plan]"), function(btn){
-        btn.onclick = function(){ change(btn.getAttribute("data-plan")); };
-      });
-      const desks = d.desks || [];
-      document.getElementById("desks").innerHTML = "<h2>Desks</h2>" + (desks.length ? desks.map(function(w){
-        const c = w.counts || {};
-        return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">waiting "+(c.waiting||0)+" · people "+(w.people||0)+"</div></div>";
-      }).join("") : "<p class=\"meta\">No desks yet.</p>");
-      const locked = d.locked || {};
-      const teams = d.teams || [];
-      document.getElementById("teams").innerHTML = "<h2>Team queues</h2>" + (locked.teamQueues ? "<p class=\"meta\">On Pro and Crew.</p>" : (teams.length ? teams.map(function(t){
-        return "<div class=\"item\"><strong>"+esc(t.name)+"</strong> · "+t.queue+" in queue</div>";
-      }).join("") : "<p class=\"meta\">Hand a card to a person.</p>"));
+      document.getElementById("gate").hidden=true; document.getElementById("home").hidden=false;
+      const plan=d.plan||{}; document.getElementById("plan").textContent="AIA plan · "+(plan.name||plan.plan||"Desk")+" · active · free";
+      const catalog=d.plans||plan.catalog||[];
+      document.getElementById("plans").innerHTML=catalog.map(function(p){const on=p.id===(plan.plan||d.active); return "<button type=\"button\" class=\""+(on?"go":"edit")+"\" data-plan=\""+esc(p.id)+"\">"+esc(p.name)+(on?" · active":"")+"</button>";}).join("");
+      Array.prototype.forEach.call(document.querySelectorAll("#plans [data-plan]"),function(btn){btn.onclick=function(){act("plan",{plan:btn.getAttribute("data-plan")});};});
+      const owned=d.desksOwned||(d.mine&&d.mine.owned)||[];
+      document.getElementById("owned").innerHTML="<h2>Desks you own</h2>"+(owned.length?owned.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">Owner</div></div>";}).join(""):"<p class=\"meta\">Open a desk as owner.</p>");
+      const sitting=d.desksMember||(d.mine&&d.mine.member)||[];
+      document.getElementById("member").innerHTML="<h2>Desks you sit on</h2>"+(sitting.length?sitting.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">"+esc(w.kind)+(w.requestedKind?" · asked "+esc(w.requestedKind):"")+"</div><button type=\"button\" class=\"edit\" data-ask=\""+esc(w.slug)+"\" data-kind=\"staff\">Ask for staff</button></div>";}).join(""):"<p class=\"meta\">Join a desk as a member. Your account stays yours.</p>");
+      Array.prototype.forEach.call(document.querySelectorAll("[data-ask]"),function(btn){btn.onclick=function(){act("ask",{kind:btn.getAttribute("data-kind")},btn.getAttribute("data-ask"));};});
     }
-    async function call(action, extra){
-      const slug = String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-      const r = await fetch("/api/admin", {
-        method:"POST",
-        headers:{"Content-Type":"application/json","X-Workspace":slug,"X-Pin":pinEl.value},
-        body: JSON.stringify(Object.assign({action:action,slug:slug,pin:pinEl.value}, extra||{}))
-      });
-      const d = await r.json().catch(function(){return {};});
-      if(!r.ok) throw new Error(d.error || "Could not open the account.");
-      return d;
+    async function act(action, extra, desk){
+      const slug=String((desk||slugEl.value)||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      const r=await fetch("/api/admin",{method:"POST",headers:{"Content-Type":"application/json","X-Workspace":slug,"X-Pin":pinEl.value},body:JSON.stringify(Object.assign({action:action,slug:slug,pin:pinEl.value},extra||{}))});
+      const d=await r.json().catch(function(){return {};});
+      if(!r.ok){err.style.display="block";err.textContent=d.error||"Could not save.";return;}
+      if(action==="ask"){err.style.display="block";err.textContent=d.hint||"On the owner queue.";return;}
+      paint(d);
     }
-    async function change(id){
-      try { paint(await call("plan", {plan:id})); }
-      catch(ex){ err.style.display="block"; err.textContent=ex.message; }
-    }
-    document.getElementById("gate").onsubmit = async function(e){
-      e.preventDefault();
-      err.style.display="none";
-      try {
-        const d = await call("login");
-        localStorage.setItem("aia_ws", String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""));
-        localStorage.setItem("aia_pin", pinEl.value);
-        localStorage.setItem("aia_acct", localStorage.getItem("aia_ws"));
-        paint(d);
-      } catch(ex){ err.style.display="block"; err.textContent=ex.message; }
-    };
+    document.getElementById("gate").onsubmit=async function(e){e.preventDefault();err.style.display="none";await act("login");};
   </script>
 </body>
 </html>
