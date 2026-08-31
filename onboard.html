@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Name this desk · Automate It Away</title>
+  <title>Open your account · Automate It Away</title>
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
@@ -16,273 +16,119 @@
 </head>
 <body class="page-bg">
   <header class="site-header">
-    <a href="index.html">Automate It Away</a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
       <a href="setup.html">Setup</a>
-      <a href="login.html">Sign in</a>
+      <a href="login.html">Have a desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <form class="gate-card" id="form">
-    <h1>Name this desk</h1>
-    <p class="sub">Name it, then drop. Login is desk name + desk code. Email is not the login. Talk it through or type.</p>
-    <div class="talk-bar" id="talkBar" hidden>
-      <p class="talk-status" id="talkStatus">The desk can talk this through. Hear a step, then Talk.</p>
-      <button type="button" id="hearBtn">Hear this</button>
-      <button type="button" id="talkBtn">Talk</button>
-      <button type="button" id="quietBtn">Quiet</button>
-    </div>
+    <h1>Open your account</h1>
+    <p class="sub">Owner opens a free account and a desk. Member asks to join a desk and waits on the owner for a permission. Monthly later — we tell you before we charge.</p>
     <label>Your name</label>
     <input name="name" required placeholder="Alex Rivera" autocomplete="name">
     <div class="row">
       <div>
-        <label>Desk name <span class="tip" title="House name or the name of this desk. Letters and dashes. This is the login.">?</span></label>
-        <input name="biz" required placeholder="Desk name">
+        <label>Desk name</label>
+        <input name="biz" required placeholder="Oddo house">
       </div>
       <div>
         <label>City</label>
-        <input name="city" required placeholder="Springfield">
+        <input name="city" placeholder="Springfield">
       </div>
     </div>
     <label>You are</label>
-    <select name="role" required>
-      <option value="owner">Owner</option>
-      <option value="employee">Staff</option>
+    <select name="role" id="role" required>
+      <option value="owner">Owner — full admin account</option>
+      <option value="member">Member — join a desk</option>
     </select>
+    <div id="member-box" class="custom-box" hidden>
+      <label>Permission you are asking for</label>
+      <select name="kind" id="kind">
+        <option value="member">Member</option>
+        <option value="family">Family</option>
+        <option value="friend">Friend</option>
+        <option value="helper">Helper</option>
+        <option value="staff">Staff</option>
+      </select>
+      <p class="hint">Owner approves and can change this. Members never Stop or send money.</p>
+    </div>
     <label>What this desk is for</label>
-    <select name="model" id="model" required>
+    <select name="model" id="model">
       <option>Home &amp; family</option>
       <option>Consignment &amp; resale</option>
+      <option>Insurance</option>
       <option>Something else</option>
     </select>
-    <div id="custom" class="custom-box" hidden>
-      <label>Name this work <span class="tip" title="Mobile vet, lawn route, church office — your words.">?</span></label>
-      <input name="customName" placeholder="Mobile vet">
-      <label>What the desk does</label>
-      <input name="does" placeholder="Recall → book → invoice">
-      <label>Fields on a card <span class="tip" title="Comma list. Shows on every job. You can add more later.">?</span></label>
-      <input name="fields" placeholder="Patient, due date, ask">
-    </div>
-    <label>First thing on the queue <span class="tip" title="Optional. Lands as a card. You still tap Yes or No.">?</span></label>
-    <input name="firstWork" placeholder="Permission slip Friday, or list the oak dresser">
-    <label>Email <span class="tip" title="For you. Login is desk name + desk code, not email.">?</span></label>
-    <input type="email" name="email" required placeholder="you@email.com">
-    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this desk. Staff get their own later.">?</span></label>
-    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Desk code" autocomplete="new-password">
-    <button class="btn" type="submit">Open it</button>
-    <p class="hint">Desk name + desk code opens this queue on any phone. Email is not the login.</p>
+    <label>Email <span class="meta">optional</span></label>
+    <input type="email" name="email" placeholder="you@shop.com">
+    <label>Desk code</label>
+    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
+    <button class="btn" type="submit" id="go">Open the account</button>
+    <p class="hint" id="hint">Owner: full admin, free now. Member: join an existing desk. Desk name + your code is the login.</p>
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
   <script src="desk-switch.js"></script>
-  <script src="speech.js"></script>
   <script>
     const form = document.getElementById("form");
-    const modelEl = document.getElementById("model");
-    const customEl = document.getElementById("custom");
-    const talkBar = document.getElementById("talkBar");
-    const talkStatus = document.getElementById("talkStatus");
-    const hearBtn = document.getElementById("hearBtn");
-    const talkBtn = document.getElementById("talkBtn");
-    const quietBtn = document.getElementById("quietBtn");
+    const roleEl = document.getElementById("role");
+    const memberBox = document.getElementById("member-box");
+    const goBtn = document.getElementById("go");
+    const hintEl = document.getElementById("hint");
     const err = document.getElementById("err");
-
-    function showCustom() {
-      customEl.hidden = modelEl.value !== "Something else";
+    function showRole() {
+      const member = roleEl.value === "member";
+      memberBox.hidden = !member;
+      goBtn.textContent = member ? "Ask to join" : "Open the account";
+      hintEl.textContent = member
+        ? "Desk name is the shop you are joining. Pick your own code. Owner approves and sets the permission."
+        : "Owner: full admin, free now. Desk name + this code opens the queue on any phone.";
     }
-    modelEl.addEventListener("change", showCustom);
-    showCustom();
-
-    function field(name) {
-      return form.elements[name];
-    }
-
-    function setStatus(text) {
-      talkStatus.textContent = text;
-    }
-
-    function mark(name) {
-      Array.prototype.forEach.call(form.querySelectorAll(".on-talk"), function (el) {
-        el.classList.remove("on-talk");
-      });
-      const el = field(name);
-      if (el) {
-        el.classList.add("on-talk");
-        try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
-      }
-    }
-
-    const STEPS = [
-      { name: "name", ask: "What should we call you?" },
-      { name: "biz", ask: "What is the desk name?" },
-      { name: "city", ask: "What city?" },
-      { name: "role", ask: "Are you the owner or staff?" },
-      { name: "model", ask: "Is this home and family, consignment, or something else?" },
-      { name: "customName", ask: "Name the work this desk runs.", when: function () { return field("model").value === "Something else"; } },
-      { name: "does", ask: "What does the desk do, in a short line.", when: function () { return field("model").value === "Something else"; } },
-      { name: "fields", ask: "What fields belong on a card? Say them as a list.", when: function () { return field("model").value === "Something else"; } },
-      { name: "firstWork", ask: "Optional. First thing on the queue. Or say skip." },
-      { name: "email", ask: "What email should we keep for you? Login is still the desk name and code." },
-      { name: "pin", ask: "Say a desk code. At least four digits. I will not read it back." }
-    ];
-
-    let step = 0;
-
-    function current() {
-      while (step < STEPS.length && STEPS[step].when && !STEPS[step].when()) step += 1;
-      return STEPS[step] || null;
-    }
-
-    function applyHeard(name, raw) {
-      const text = String(raw || "").trim();
-      if (!text) return false;
-      if (name === "firstWork" && AIASpeech.skipped(text)) {
-        field(name).value = "";
-        return true;
-      }
-      if (name === "role") {
-        field(name).value = /staff|helper|employee/i.test(text) ? "employee" : "owner";
-        return true;
-      }
-      if (name === "model") {
-        if (/home|family|house|life/i.test(text)) field(name).value = "Home & family";
-        else if (/consign|resale|shop|ebay/i.test(text)) field(name).value = "Consignment & resale";
-        else {
-          field(name).value = "Something else";
-          if (!field("customName").value) field("customName").value = text.slice(0, 48);
-        }
-        showCustom();
-        return true;
-      }
-      if (name === "email") {
-        field(name).value = AIASpeech.email(text);
-        return true;
-      }
-      if (name === "pin") {
-        const pin = AIASpeech.digits(text);
-        if (pin.length < 4) return false;
-        field(name).value = pin;
-        return true;
-      }
-      field(name).value = text.slice(0, 160);
-      return true;
-    }
-
-    function askLine() {
-      const s = current();
-      if (!s) return "That is the form. Open this desk when you are ready.";
-      return s.ask;
-    }
-
-    function goAsk() {
-      const s = current();
-      mark(s ? s.name : "");
-      const line = askLine();
-      setStatus(line);
-      return line;
-    }
-
-    if (AIASpeech.canSpeak() || AIASpeech.canListen()) {
-      talkBar.hidden = false;
-      goAsk();
-    }
-
-    hearBtn.onclick = function () {
-      const line = goAsk();
-      AIASpeech.speak(line);
-    };
-
-    talkBtn.onclick = function () {
-      const s = current();
-      if (!s) {
-        setStatus("That is the form. Open this desk when you are ready.");
-        return;
-      }
-      mark(s.name);
-      talkBtn.classList.add("on");
-      setStatus("Listening… " + s.ask);
-      AIASpeech.listen(function (heard) {
-        talkBtn.classList.remove("on");
-        const ok = applyHeard(s.name, heard);
-        if (!ok) {
-          setStatus(s.name === "pin"
-            ? "Need at least four digits. Tap Talk and say the code again."
-            : "Did not catch that. Tap Talk and say it again.");
-          return;
-        }
-        if (s.name === "pin") setStatus("Code is set. Not read back. Open this desk when you are ready.");
-        else setStatus("Heard. " + (s.name === "firstWork" && !field("firstWork").value ? "Skipped." : field(s.name).value));
-        step += 1;
-        const next = current();
-        if (!next) {
-          mark("");
-          AIASpeech.speak("That is the form. Open this desk when you are ready.");
-          return;
-        }
-        mark(next.name);
-        const line = next.ask;
-        setStatus(line);
-        AIASpeech.speak(line);
-      }, function (msg) {
-        talkBtn.classList.remove("on");
-        setStatus(msg);
-      });
-    };
-
-    quietBtn.onclick = function () {
-      AIASpeech.stopTalk();
-      talkBtn.classList.remove("on");
-      setStatus("Quiet. Type any field, or tap Hear this.");
-    };
-
+    roleEl.addEventListener("change", showRole);
+    showRole();
     form.onsubmit = async (e) => {
       e.preventDefault();
-      AIASpeech.stopTalk();
       const f = new FormData(e.target);
       const pin = String(f.get("pin") || "");
       if (pin.length < 4) { err.textContent = "Pick a desk code with at least 4 digits."; err.style.display = "block"; return; }
-      const modelPick = String(f.get("model") || "");
-      const customName = String(f.get("customName") || "").trim();
-      if (modelPick === "Something else" && !customName) {
-        err.textContent = "Name the work this desk runs.";
-        err.style.display = "block";
-        return;
-      }
+      const isMember = String(f.get("role") || "") === "member";
       const slug = String(f.get("biz") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
-      const model = customName || modelPick;
       localStorage.setItem("aia_ws", slug);
       localStorage.setItem("aia_pin", pin);
-      localStorage.setItem("aia_role", f.get("role") || "owner");
+      localStorage.setItem("aia_role", isMember ? "member" : "owner");
       localStorage.setItem("aia_name", f.get("name") || "");
-      localStorage.setItem("aia_model", model);
       localStorage.setItem("aia_desk_name", String(f.get("biz") || slug));
-      AIADesks.open({
-        slug: slug,
-        name: String(f.get("biz") || slug),
-        pin: pin,
-        role: f.get("role") || "owner"
-      });
+      if (window.AIADesks) {
+        AIADesks.open({ slug: slug, name: String(f.get("biz") || slug), pin: pin, role: isMember ? "member" : "owner" });
+      }
       try {
         const r = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Workspace": slug, "X-Pin": pin },
           body: JSON.stringify({
-            action: "open",
+            action: isMember ? "join" : "account",
             name: f.get("name"),
             biz: f.get("biz"),
+            workspace: slug,
+            slug: slug,
             city: f.get("city"),
-            model: modelPick,
-            customName,
-            does: f.get("does"),
-            fields: f.get("fields"),
-            firstWork: f.get("firstWork"),
+            model: f.get("model"),
             email: f.get("email"),
+            kind: isMember ? (f.get("kind") || "member") : "owner",
+            role: isMember ? "member" : "owner",
             pin
           })
         });
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) { err.textContent = data.error || "Could not open the desk."; err.style.display = "block"; return; }
-        location.href = "/drop";
+        if (!r.ok) { err.textContent = data.error || "Could not open the shop."; err.style.display = "block"; return; }
+        if (data.pending) {
+          err.style.display = "block";
+          err.textContent = data.hint || "On the book. Owner approves your member seat on People, then you sign in.";
+          return;
+        }
+        location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
         err.style.display = "block";
