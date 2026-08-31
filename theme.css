@@ -153,17 +153,27 @@ header,
 .site-header {
   background: var(--header);
   color: #fff;
-  padding: 12px 5vw;
-  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  padding: 10px 4.5vw;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px 12px;
   flex-wrap: wrap;
 }
 header a,
 .site-header a { color: #fff; text-decoration: none; font-weight: 700; }
-.site-header .nav, header .nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+.site-header .nav,
+header .nav,
+header nav:not(.desk-tabs),
+.site-header nav:not(.desk-tabs) {
+  display: flex;
+  gap: 8px 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  font: 600 13px/1.2 "Segoe UI", system-ui, -apple-system, sans-serif;
+  letter-spacing: 0;
+}
 .brand-mark {
   width: 28px;
   height: 28px;
@@ -175,11 +185,91 @@ header a,
 }
 header > a,
 .site-header > a,
-.logo {
+header .brand,
+.site-header .brand,
+header .logo,
+.site-header .logo {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
+  min-width: 0;
+  color: #fff;
+  text-decoration: none;
+  font: 700 16px/1.15 "Segoe UI", system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.015em;
+  text-transform: none;
 }
+header .brand-name,
+.site-header .brand-name,
+header > a strong,
+.site-header > a strong,
+header .brand strong,
+header .logo strong {
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: inherit;
+  text-transform: none;
+  font-style: normal;
+  color: #fff;
+}
+header .brand-page,
+.site-header .brand-page {
+  font: 600 13px/1.2 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--header-accent);
+  white-space: nowrap;
+}
+@media (max-width: 380px) {
+  header > a,
+  .site-header > a,
+  header .brand,
+  .site-header .brand,
+  header .logo {
+    font-size: 15px;
+  }
+}
+.who-chip {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 1px;
+  min-height: 44px;
+  max-width: min(46vw, 180px);
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+}
+.who-chip strong {
+  display: block;
+  font: 700 13px/1.15 "Segoe UI", system-ui, sans-serif;
+  color: #fff;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.who-chip span {
+  display: block;
+  font: 600 11px/1.2 "Segoe UI", system-ui, sans-serif;
+  color: var(--header-accent);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.who-chip.out span { color: rgba(255, 255, 255, .82); }
+.who-chip:focus-visible { box-shadow: var(--focus); }
 .page-bg {
   min-height: 100vh;
   background:
