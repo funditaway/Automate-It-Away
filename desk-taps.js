@@ -87,6 +87,7 @@
     const bar = document.createElement("div");
     bar.className = "talk-bar";
     bar.id = "talkBar";
+    bar.hidden = !(localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin"));
     bar.innerHTML =
       "<p class=\"talk-status\" id=\"talkStatus\">Work hits this desk. Grok drafts. You text, email, hand off, Yes, or Stop.</p>" +
       "<div class=\"talk-opts\" id=\"talkOpts\">" +
@@ -105,7 +106,7 @@
     banner.insertAdjacentElement("afterend", bar);
     const taps = document.createElement("p");
     taps.className = "meta";
-    taps.textContent = "Taps on a card: Copy \u00b7 Text \u00b7 Email \u00b7 Phone file \u00b7 Hand to \u00b7 Done by hand \u00b7 Yes \u00b7 Stop";
+    taps.textContent = "Taps on a card: Copy · Text · Email · Phone file · Hand to · Done by hand · Yes · Stop";
     const steps = document.getElementById("step-words");
     if (steps) steps.insertAdjacentElement("afterend", taps);
   }
@@ -136,7 +137,7 @@
         return;
       }
       talkBtn.classList.add("on");
-      if (status) status.textContent = "Listening for " + TALK_MODE + "\u2026";
+      if (status) status.textContent = "Listening for " + TALK_MODE + "…";
       AIASpeech.listen(function (heard) {
         talkBtn.classList.remove("on");
         talkHeard(heard);
@@ -182,7 +183,7 @@
     const mail = typeof mailHref === "function" ? mailHref(j.title, draft) : "mailto:?subject=" + encodeURIComponent(j.title || "") + "&body=" + encodeURIComponent(draft);
     return "<article class=\"item\"><div class=\"meta\">" +
       (typeof labelStatus === "function" ? labelStatus(j.status) : j.status) +
-      (j.assignee ? " \u00b7 " + esc(j.assignee) : "") +
+      (j.assignee ? " · " + esc(j.assignee) : "") +
       "</div><h3>" + esc(j.title) + "</h3>" +
       (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
       (why ? "<p>" + esc(why) + "</p>" : "") +
