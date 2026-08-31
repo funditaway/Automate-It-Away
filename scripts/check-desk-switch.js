@@ -70,7 +70,8 @@ if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.
 if (widget.includes("location.replace(\"/onboard\")")) {
   fail("widget.html still bounces to /onboard before they can pick");
 } else pass("widget.html stays on /drop");
-if (!widget.includes("AIADesks.captureDesk") || !widget.includes("AIADesks.list") || !widget.includes("switchTo")) {
+const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
+if (!widget.includes("AIADesks.captureDesk") || !pickJs.includes("AIADesks.list") || !pickJs.includes("switchTo")) {
   fail("widget.html must list and switch saved desks");
 } else pass("widget.html lists saved desks");
 if (!widget.includes("This drop is for") || !widget.includes("Your desks — tap one.") || !widget.includes("Create a new desk — name it, then drop.") || !widget.includes("Add another desk — same phone, separate queue.")) {
