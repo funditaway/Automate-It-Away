@@ -1,6 +1,7 @@
 const PACKS = ["home", "consign", "vita", "fund", "land"];
-const KINDS = ["photo", "walk-in", "widget", "call", "form", "email", "note", "text"];
+const KINDS = ["photo", "walk-in", "widget", "call", "form", "email", "note", "text", "request"];
 const RISKS = ["none", "price", "title", "flood", "suitability", "credit", "same-day", "legal"];
+const DROP_WHO = ["family", "friend", "helper", "staff", "owner"];
 function blank(v) { if (v === undefined || v === null || v === "") return null; return v; }
 function splitContact(body) {
   const how = String(body.how || "").trim();
@@ -15,8 +16,13 @@ function pickFields(body) {
   const nextCustom = body.custom && typeof body.custom === "object" ? Object.assign({}, body.custom) : {};
   if (sourceUrl) nextCustom.sourceUrl = String(sourceUrl).slice(0, 300);
   if (body.lane) nextCustom.lane = String(body.lane).slice(0, 24);
+  const whoKind = DROP_WHO.includes(String(body.droppedByKind || body.whoKind || "").toLowerCase())
+    ? String(body.droppedByKind || body.whoKind).toLowerCase()
+    : null;
+  if (whoKind) nextCustom.droppedByKind = whoKind;
+  if (body.mode) nextCustom.mode = String(body.mode).slice(0, 24);
   const custom = Object.keys(nextCustom).length ? nextCustom : null;
-  return { pack: PACKS.includes(body.pack) ? body.pack : (body.pack || null), kind: blank(body.kind), from: blank(body.from), contactName: blank(body.contactName || body.name || body.who), phone: contact.phone, email: contact.email, notes: blank(body.notes || body.text), photoUrl: blank(body.photoUrl), provider: blank(body.provider), amount: Number.isFinite(amount) ? amount : null, condition: blank(body.condition), titlePresent: blank(body.titlePresent), compsLow: body.compsLow === undefined || body.compsLow === "" ? null : Number(body.compsLow), compsHigh: body.compsHigh === undefined || body.compsHigh === "" ? null : Number(body.compsHigh), ask: body.ask === undefined || body.ask === "" ? null : Number(body.ask), risk: RISKS.includes(body.risk) ? body.risk : (blank(body.risk) || "none"), timing: blank(body.timing), artifact: blank(body.artifact), draft: blank(body.draft), payoutTo: blank(body.payoutTo), killReason: blank(body.killReason), whoTapped: blank(body.whoTapped), promptVersion: blank(body.promptVersion), assignee: blank(body.assignee || body.handTo || body.to), sourceUrl, custom };
+  return { pack: PACKS.includes(body.pack) ? body.pack : (body.pack || null), kind: blank(body.kind), from: blank(body.from), contactName: blank(body.contactName || body.name || body.who), phone: contact.phone, email: contact.email, notes: blank(body.notes || body.text), photoUrl: blank(body.photoUrl), provider: blank(body.provider), amount: Number.isFinite(amount) ? amount : null, condition: blank(body.condition), titlePresent: blank(body.titlePresent), compsLow: body.compsLow === undefined || body.compsLow === "" ? null : Number(body.compsLow), compsHigh: body.compsHigh === undefined || body.compsHigh === "" ? null : Number(body.compsHigh), ask: body.ask === undefined || body.ask === "" ? null : Number(body.ask), risk: RISKS.includes(body.risk) ? body.risk : (blank(body.risk) || "none"), timing: blank(body.timing), artifact: blank(body.artifact), draft: blank(body.draft), payoutTo: blank(body.payoutTo), killReason: blank(body.killReason), whoTapped: blank(body.whoTapped), promptVersion: blank(body.promptVersion), assignee: blank(body.assignee || body.handTo || body.to), droppedByKind: whoKind, sourceUrl, custom };
 }
 function mergeFields(job, body) {
   const next = pickFields(body);
@@ -110,6 +116,46 @@ function customFromText(shop, text) {
   });
   return custom;
 }
+function firstWorkLine(text) {
+  return String(text || "").split(/\n/).map((s) => s.trim()).find(Boolean) || "";
+}
+function implementFromText(shop, text) {
+  const blob = String(text || "").trim();
+  const out = { custom: customFromText(shop, blob) };
+  if (!blob) return out;
+  const email = blob.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  if (email) out.email = email[0];
+  const phone = blob.match(/(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}/);
+  if (phone) out.phone = phone[0];
+  const dollars = blob.match(/\$\s*(\d+(?:\.\d{1,2})?)/) || blob.match(/\b(\d+(?:\.\d{1,2})?)\s*(?:dollars|usd)\b/i);
+  if (dollars) {
+    const n = Number(dollars[1]);
+    if (Number.isFinite(n)) out.amount = n;
+  }
+  const when = blob.match(/\b(?:by |due |on |at )?((?:mon|tue|wed|thu|fri|sat|sun)[a-z]*(?:\s+\d{1,2}(?:\/\d{1,2})?)?(?:\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{1,2}(?::\d{2})?\s*(?:am|pm))/i);
+  if (when) out.timing = String(when[1] || when[0]).trim().slice(0, 80);
+  const named = blob.match(/\b(?:from|name|i am|i'm|this is)[ \t]*[:\-]?[ \t]*([A-Za-z][A-Za-z'.-]+(?:[ \t]+[A-Za-z][A-Za-z'.-]+)?)/i);
+  if (named) out.contactName = named[1].trim().slice(0, 80);
+  const title = firstWorkLine(blob).replace(/^[-*•]\s*/, "").slice(0, 160);
+  if (title) out.title = title;
+  return out;
+}
+function applyImplement(job, shop, body) {
+  if (!job) return job;
+  const blob = String((body && (body.implement || body.data || body.tell || body.notes)) || job.tell || job.notes || "").trim();
+  const mapped = implementFromText(shop, blob);
+  if (!job.title || job.title === "Untitled") {
+    if (mapped.title) job.title = mapped.title;
+  }
+  if (!job.contactName && mapped.contactName) job.contactName = mapped.contactName;
+  if (!job.phone && mapped.phone) job.phone = mapped.phone;
+  if (!job.email && mapped.email) job.email = mapped.email;
+  if ((job.amount == null || job.amount === "") && mapped.amount != null) job.amount = mapped.amount;
+  if (!job.timing && mapped.timing) job.timing = mapped.timing;
+  job.custom = Object.assign({}, job.custom || {}, mapped.custom || {}, { implemented: true });
+  job.implementedAt = new Date().toISOString();
+  return job;
+}
 function assignIfKnown(job, shop, body) {
   const want = String((body && (body.assignee || body.handTo || body.to)) || job.assignee || "").trim();
   const people = shop && Array.isArray(shop.people) ? shop.people : [];
@@ -127,6 +173,14 @@ function makeCapturedJob(workspace, shop, body) {
   const job = { id: "job_" + Date.now().toString(36), workspace, title: String(src.title || fields.notes || "Untitled").slice(0, 160), why: src.why || "Captured.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured"], ...fields, from: fields.from || src.from || "widget", externalId: src.externalId ? String(src.externalId).slice(0, 80) : null };
   if (fields.custom) job.custom = fields.custom;
   assignIfKnown(job, shop, src);
+  const tell = String(src.tell || src.tellAia || src.implement || "").trim().slice(0, 800);
+  if (tell) {
+    job.tell = tell.slice(0, 400);
+    addTalk(job, src.whoTapped || src.contactName || "drop", tell, "tell");
+  }
+  const mode = String(src.mode || (src.custom && src.custom.mode) || src.lane || "").toLowerCase();
+  if (src.implement || src.data || mode === "agent" || mode === "ops") applyImplement(job, shop, src);
+  if (job.droppedByKind) addTalk(job, job.contactName || "drop", "Dropped by " + job.droppedByKind + ".", "note");
   return job;
 }
 function addTalk(job, from, text, kind) {
@@ -136,4 +190,4 @@ function addTalk(job, from, text, kind) {
   job.thread = job.thread.slice(-40);
   return job;
 }
-module.exports = { pickFields, mergeFields, PACKS, KINDS, RISKS, slugField, defaultFields, ensureFields, addTalk, assignIfKnown, makeCapturedJob, publicField, parseFieldList, addShopField, applyFieldList, ensureCreations, publicCreation, addCreation, customFromText };
+module.exports = { pickFields, mergeFields, PACKS, KINDS, RISKS, DROP_WHO, slugField, defaultFields, ensureFields, addTalk, assignIfKnown, makeCapturedJob, publicField, parseFieldList, addShopField, applyFieldList, ensureCreations, publicCreation, addCreation, customFromText, implementFromText, applyImplement, firstWorkLine };
