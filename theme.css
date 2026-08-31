@@ -1,47 +1,55 @@
 :root {
   color-scheme: light;
-  --bg: #eef4f6;
-  --bg-soft: #f2fbfb;
-  --ink: #1a2332;
-  --heading: #0a4f4f;
-  --card: #ffffff;
-  --line: #d1dae3;
-  --muted: #6b7c8f;
-  --teal: #0d6b6b;
-  --teal-deep: #0a4f4f;
-  --orange: #f39c12;
-  --banner: #fff4e0;
-  --banner-ink: #7a4b00;
-  --edit: #e6f7f7;
-  --edit-ink: #0a4f4f;
-  --kill-bg: #fdecea;
-  --kill-ink: #c0392b;
-  --shadow: 0 16px 40px rgba(10, 79, 79, .12);
+  --aia-teal: #0d6b6b;
+  --aia-teal-deep: #0a4f4f;
+  --aia-orange: #f39c12;
+  --aia-night: #0c1116;
+  --aia-day: #eef4f6;
+  --aia-ink: #1a2332;
+  --aia-paper: #ffffff;
+  --aia-alert: #c0392b;
+  --bg: var(--aia-day);
+  --bg-soft: color-mix(in srgb, var(--aia-day) 88%, var(--aia-teal));
+  --ink: var(--aia-ink);
+  --heading: var(--aia-teal-deep);
+  --card: var(--aia-paper);
+  --line: color-mix(in srgb, var(--aia-ink) 16%, var(--aia-day));
+  --muted: color-mix(in srgb, var(--aia-ink) 58%, var(--aia-day));
+  --teal: var(--aia-teal);
+  --teal-deep: var(--aia-teal-deep);
+  --orange: var(--aia-orange);
+  --banner: color-mix(in srgb, var(--aia-orange) 16%, var(--aia-paper));
+  --banner-ink: color-mix(in srgb, var(--aia-orange) 48%, var(--aia-ink));
+  --edit: color-mix(in srgb, var(--aia-teal) 10%, var(--aia-paper));
+  --edit-ink: var(--aia-teal-deep);
+  --kill-bg: color-mix(in srgb, var(--aia-alert) 8%, var(--aia-paper));
+  --kill-ink: var(--aia-alert);
+  --shadow: 0 16px 40px color-mix(in srgb, var(--aia-teal-deep) 12%, transparent);
   --radius: 16px;
-  --focus: 0 0 0 3px rgba(17, 148, 148, .28);
-  --header: linear-gradient(135deg, #0f7f7f, #0d6b6b);
+  --focus: 0 0 0 3px color-mix(in srgb, var(--aia-teal) 28%, transparent);
+  --header: linear-gradient(135deg, color-mix(in srgb, var(--aia-teal) 82%, white), var(--aia-teal));
 }
 html.dark {
   color-scheme: dark;
-  --bg: #0c1116;
-  --bg-soft: #10161c;
-  --ink: #e8eef4;
-  --heading: #d4f0f0;
-  --card: #151b22;
-  --line: #2a3542;
-  --muted: #8b9aab;
-  --teal: #3aa8a8;
-  --teal-deep: #9fdede;
-  --orange: #f39c12;
-  --banner: #3a2a12;
-  --banner-ink: #f0d9a8;
-  --edit: #163333;
-  --edit-ink: #c8eeee;
-  --kill-bg: #3a1c18;
-  --kill-ink: #ff8f80;
-  --shadow: 0 16px 40px rgba(0, 0, 0, .35);
-  --focus: 0 0 0 3px rgba(58, 168, 168, .35);
-  --header: linear-gradient(135deg, #0c4f4f, #0a3d3d);
+  --bg: var(--aia-night);
+  --bg-soft: color-mix(in srgb, var(--aia-night) 88%, white);
+  --ink: color-mix(in srgb, var(--aia-day) 90%, white);
+  --heading: color-mix(in srgb, var(--aia-teal) 32%, white);
+  --card: color-mix(in srgb, var(--aia-night) 82%, white);
+  --line: color-mix(in srgb, white 16%, var(--aia-night));
+  --muted: color-mix(in srgb, var(--aia-day) 52%, var(--aia-night));
+  --teal: color-mix(in srgb, var(--aia-teal) 58%, white);
+  --teal-deep: color-mix(in srgb, var(--aia-teal) 38%, white);
+  --orange: var(--aia-orange);
+  --banner: color-mix(in srgb, var(--aia-orange) 22%, var(--aia-night));
+  --banner-ink: color-mix(in srgb, var(--aia-orange) 42%, white);
+  --edit: color-mix(in srgb, var(--aia-teal) 22%, var(--aia-night));
+  --edit-ink: color-mix(in srgb, var(--aia-teal) 38%, white);
+  --kill-bg: color-mix(in srgb, var(--aia-alert) 22%, var(--aia-night));
+  --kill-ink: color-mix(in srgb, var(--aia-alert) 42%, white);
+  --shadow: 0 16px 40px color-mix(in srgb, black 35%, transparent);
+  --focus: 0 0 0 3px color-mix(in srgb, var(--aia-teal) 35%, transparent);
+  --header: linear-gradient(135deg, color-mix(in srgb, var(--aia-teal-deep) 88%, black), var(--aia-teal-deep));
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -101,12 +109,12 @@ body.has-desk-nav { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)
   bottom: 0;
   z-index: 40;
   display: flex;
-  background: #0d6b6b;
+  background: var(--aia-teal);
   color: #fff;
   padding: 8px 4px calc(14px + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -6px 20px rgba(10, 79, 79, .22);
+  box-shadow: 0 -6px 20px color-mix(in srgb, var(--aia-teal-deep) 22%, transparent);
 }
-html.dark #desk-nav { background: #0a3d3d; }
+html.dark #desk-nav { background: color-mix(in srgb, var(--aia-teal-deep) 88%, black); }
 #desk-nav a, #desk-nav button {
   flex: 1;
   width: auto;
@@ -158,6 +166,8 @@ html.dark #desk-nav { background: #0a3d3d; }
   border-radius: 7px;
   display: block;
   flex: 0 0 28px;
+  isolation: isolate;
+  mix-blend-mode: normal;
 }
 header > a,
 .site-header > a,
@@ -169,8 +179,8 @@ header > a,
 .page-bg {
   min-height: 100vh;
   background:
-    radial-gradient(1200px 420px at 10% -10%, rgba(17, 148, 148, .16), transparent 55%),
-    radial-gradient(900px 360px at 100% 0%, rgba(243, 156, 18, .12), transparent 50%),
+    radial-gradient(1200px 420px at 10% -10%, color-mix(in srgb, var(--aia-teal) 16%, transparent), transparent 55%),
+    radial-gradient(900px 360px at 100% 0%, color-mix(in srgb, var(--aia-orange) 12%, transparent), transparent 50%),
     var(--bg);
 }
 .gate-card {
