@@ -1,4 +1,4 @@
-const { cors, mem, log, save, ready, workspaceOf } = require("./ _lib");
+const { cors, mem, log, save, ready, workspaceOf } = require("./_lib");
 const { runWorkspace } = require("./_engine");
 
 function shopOf(slug) {

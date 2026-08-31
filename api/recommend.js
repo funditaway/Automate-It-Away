@@ -1,4 +1,4 @@
-const { cors, mem, log, save, ready, workspaceOf, readBody, personOf } = require("./ _lib");
+const { cors, mem, log, save, ready, workspaceOf, readBody, personOf } = require("./_lib");
 const { qualifyJob, recommend } = require("./_engine");
 const { addTalk } = require("./_fields");
 const { grokRecommend } = require("./_grok");
