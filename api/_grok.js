@@ -52,6 +52,23 @@ function applyGrok(job, parsed) {
   if (draft) job.draft = draft;
   const next = clip(parsed.next, 160);
   if (next) job.next = next;
+  const fields = parsed.fields && typeof parsed.fields === "object" ? parsed.fields : null;
+  if (fields) {
+    if (!job.title || job.title === "Untitled") {
+      if (fields.title) job.title = clip(fields.title, 160);
+    }
+    ["contactName", "phone", "email", "timing", "condition", "notes"].forEach(function (k) {
+      if (!job[k] && fields[k]) job[k] = clip(fields[k], k === "notes" ? 400 : 80);
+    });
+    if ((job.amount == null || job.amount === "") && fields.amount != null) {
+      const n = Number(fields.amount);
+      if (Number.isFinite(n) && n >= 0) job.amount = n;
+    }
+    if (fields.custom && typeof fields.custom === "object") {
+      job.custom = Object.assign({}, job.custom || {}, fields.custom);
+    }
+    job.custom = Object.assign({}, job.custom || {}, { grokFields: true });
+  }
   const incoming = Array.isArray(parsed.recs) ? parsed.recs : [];
   const extra = incoming.map((r) => {
     if (!r) return null;
@@ -82,7 +99,7 @@ async function grokRecommend(job, shop) {
     messages: [
       {
         role: "system",
-        content: "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}]}. Three recs max. Short local English. Never send money, never email a customer, never Stop a job. Human taps Yes or No."
+        content: "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Never invent money. Short local English. Never send money, never email a customer, never Stop a job. Human taps Yes or No."
       },
       {
         role: "user",
