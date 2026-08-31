@@ -45,32 +45,31 @@
     s.textContent =
       "header:not(.top), .site-header{background:var(--header)!important;color:#fff!important;" +
       "padding:10px 4.5vw!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important}" +
+      "header, .site-header, header.top{" +
+      "font:700 15px/1.2 \"Segoe UI\",system-ui,-apple-system,sans-serif!important;letter-spacing:0!important}" +
+      "header a, .site-header a, header button, .site-header button, header span, header strong," +
+      "header nav, header .nav, header .desk-tabs, header .desk-tabs a, header .theme-btn, .theme-btn," +
+      "header .brand, .site-header .brand, header.top .brand, header > a.brand, header .brand-name," +
+      "header .brand-page, header .who-chip, header .who-chip strong, header .who-chip span, header.top .who{" +
+      "font:700 15px/1.2 \"Segoe UI\",system-ui,-apple-system,sans-serif!important;" +
+      "letter-spacing:0!important;text-transform:none!important;font-style:normal!important}" +
       "header .brand, .site-header .brand, header.top .brand, header > a.brand, .site-header > a.brand{" +
       "display:inline-flex!important;align-items:center!important;gap:8px!important;" +
-      "min-height:44px;color:#fff!important;text-decoration:none!important;" +
-      "font:700 16px/1.15 \"Segoe UI\",system-ui,-apple-system,sans-serif!important;" +
-      "letter-spacing:-0.015em!important;text-transform:none!important}" +
-      "header .brand-name, .site-header .brand-name, header .brand strong, header.top .brand-name{" +
-      "font:inherit!important;font-weight:700!important;letter-spacing:inherit!important;" +
-      "text-transform:none!important;font-style:normal!important;color:#fff!important}" +
-      "header .brand-page, .site-header .brand-page{" +
-      "font:600 13px/1.2 \"Segoe UI\",system-ui,sans-serif!important;letter-spacing:0!important;" +
-      "text-transform:none!important;color:var(--header-accent)!important;white-space:nowrap}" +
+      "min-height:44px;color:#fff!important;text-decoration:none!important}" +
+      "header .brand-name, .site-header .brand-name, header .brand strong, header.top .brand-name{color:#fff!important}" +
+      "header .brand-page, .site-header .brand-page{color:var(--header-accent)!important;white-space:nowrap}" +
       "header .brand-mark, .site-header .brand-mark{width:28px;height:28px;flex:0 0 28px;border-radius:7px}" +
       ".who-chip{display:inline-flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:1px;" +
       "min-height:44px;max-width:min(46vw,180px);margin-left:auto;padding:4px 10px;border-radius:10px;" +
       "background:rgba(255,255,255,.14);color:#fff;text-decoration:none}" +
-      ".who-chip strong{display:block;font:700 13px/1.15 \"Segoe UI\",system-ui,sans-serif;color:#fff;" +
-      "letter-spacing:0;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}" +
-      ".who-chip span{display:block;font:600 11px/1.2 \"Segoe UI\",system-ui,sans-serif;color:var(--header-accent);" +
-      "letter-spacing:0;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}" +
-      ".who-chip.out span{color:rgba(255,255,255,.82)}" +
-      "@media (max-width:380px){header .brand, .site-header .brand, header.top .brand, header > a.brand{font-size:15px!important}}";
+      ".who-chip strong,.who-chip span{display:block;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}" +
+      ".who-chip span{color:var(--header-accent)}" +
+      ".who-chip.out span{color:rgba(255,255,255,.82)}";
     document.head.appendChild(s);
   }
   function esc(s) {
     return String(s || "").replace(/[&<>"]/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
+      return ({ "&": "&", "<": "<", ">": ">", '"': """ })[c];
     });
   }
   function roleLabel(r) {
