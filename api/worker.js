@@ -1,5 +1,6 @@
 const { cors, mem, log, save, ready, workspaceOf } = require("./_lib");
 const { runWorkspace } = require("./_engine");
+const { addTalk } = require("./_fields");
 
 function shopOf(slug) {
   return (mem.workspaces || []).find((w) => w && w.slug === slug) || null;
@@ -59,7 +60,15 @@ module.exports = async function handler(req, res) {
     });
   }
   const pinged = await pingHooks(scope);
-  if (qualified || followed || pinged.length) await save();
+  let nudged = 0;
+  scope.forEach((job) => {
+    if (!job || job.status !== "out" || job.nudgeOut) return;
+    addTalk(job, "worker", "Still off the desk. Confirm done, or tap Needs a hand.", "note");
+    job.nudgeOut = true;
+    job.next = "Off the desk. Waiting on write-back, or tap Done off desk / Needs a hand.";
+    nudged += 1;
+  });
+  if (qualified || followed || pinged.length || nudged) await save();
 
   return res.status(200).json({
     ok: true,
@@ -68,8 +77,9 @@ module.exports = async function handler(req, res) {
     qualified,
     followed,
     pinged: pinged.length,
+    nudged,
     desks: Object.keys(groups).length,
-    waiting: mem.jobs.filter((j) => j.workspace === workspace && (j.status === "exception" || j.status === "held")).length,
-    note: "Worker qualifies and nudges per desk. It never Send or Stop. Tab can close."
+    waiting: mem.jobs.filter((j) => j.workspace === workspace && (j.status === "exception" || j.status === "held" || j.status === "out")).length,
+    note: "Worker qualifies and nudges. Write-back done or hand closes the loop. It never Send or Stop."
   });
 };

@@ -4,10 +4,30 @@ const { makeCapturedJob, addTalk } = require("./_fields");
 
 function eventOf(body) {
   const raw = String(body.event || body.action || body.status || "update").toLowerCase();
-  if (/sold|paid|booked|done|complete|shipped/.test(raw)) return "collect";
+  if (/need[s]?\s*a?\s*hand|manual|by[\s-]?hand|retry|reopen/.test(raw)) return "hand";
+  if (/sold|paid/.test(raw)) return "collect";
+  if (/booked|done|complete|shipped|confirmed/.test(raw)) return "done";
   if (/fail|error|cancel|kill|stop/.test(raw)) return "kill";
   if (/capture|new|create|intake/.test(raw)) return "capture";
   return "update";
+}
+
+function finishDone(job, body, how) {
+  const note = String(body.notes || body.text || body.reason || "Pipe confirmed done.").trim();
+  job.status = "shipped";
+  job.doneHow = how;
+  job.doneAt = new Date().toISOString();
+  job.doneBy = body.who || body.provider || "webhook";
+  job.awaiting = null;
+  job.offDesk = false;
+  job.followed = true;
+  job.followNote = note;
+  job.step = "Follow";
+  job.rail = "done";
+  job.whoTapped = job.doneBy;
+  job.dispatch = { provider: body.provider || "webhook", inbound: true, demo: false, done: true, how: how };
+  addTalk(job, job.doneBy, note, "follow");
+  return note;
 }
 
 module.exports = async function handler(req, res) {
@@ -19,8 +39,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       use: "POST",
-      events: ["capture", "update", "collect", "kill"],
-      note: "Pipes write back here. Owner still owns Stop."
+      events: ["capture", "update", "do", "done", "hand", "collect", "kill"],
+      note: "Write back done when the work finished off the desk. Write back hand when a person still has to finish it. Owner still owns Stop."
     });
   }
 
@@ -70,6 +90,8 @@ module.exports = async function handler(req, res) {
 
   if (event === "kill") {
     job.status = "killed";
+    job.awaiting = null;
+    job.offDesk = false;
     job.killReason = body.reason || body.killReason || "Pipe said stop";
     job.whoTapped = body.who || body.provider || "webhook";
     job.log = (job.log || []).concat(["Pipe stop"]);
@@ -78,12 +100,37 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, event: "kill", job });
   }
 
+  if (event === "hand") {
+    const note = String(body.notes || body.text || body.reason || "Pipe could not finish. Needs a hand.").trim();
+    job.status = "exception";
+    job.awaiting = null;
+    job.offDesk = false;
+    job.waitingOn = "owner";
+    job.why = note;
+    job.next = "Do this by hand. Then tap Done off desk.";
+    job.rail = "hand";
+    job.step = "Do";
+    job.whoTapped = body.who || body.provider || "webhook";
+    addTalk(job, job.whoTapped, note, "ask");
+    job.log = (job.log || []).concat(["Pipe · needs a hand"]);
+    log("Pipe", "Hand · " + job.title, "Waiting", workspace);
+    await save();
+    return res.status(200).json({ ok: true, event: "hand", job });
+  }
+
+  if (event === "done") {
+    finishDone(job, body, body.how || "pipe");
+    job.log = (job.log || []).concat(["Pipe wrote back · done"]);
+    log("Pipe", "Done · " + job.title, "OK", workspace);
+    await save();
+    return res.status(200).json({ ok: true, event: "done", job });
+  }
+
   if (event === "collect") {
     const amount = Number(body.amount || job.amount || job.ask || 0);
-    job.status = "shipped";
+    finishDone(job, body, "pipe");
     job.step = "Collect";
     job.amount = amount || job.amount;
-    job.dispatch = { provider: body.provider || "webhook", inbound: true, demo: false };
     job.log = (job.log || []).concat(["Pipe wrote back · collect"]);
     mem.money.unshift({
       at: new Date().toISOString(),
@@ -100,7 +147,14 @@ module.exports = async function handler(req, res) {
 
   job.notes = body.notes || job.notes;
   if (body.status) job.pipeStatus = String(body.status).slice(0, 80);
+  if (String(body.event || "").toLowerCase() === "do") {
+    job.status = "out";
+    job.offDesk = true;
+    job.awaiting = "writeback";
+    job.next = "Off the desk. Waiting on write-back.";
+  }
   job.log = (job.log || []).concat(["Pipe update"]);
+  addTalk(job, body.who || body.provider || "webhook", body.notes || body.text || "Pipe update.", "note");
   log("Pipe", "Update · " + job.title, "OK", workspace);
   await save();
   return res.status(200).json({ ok: true, event: "update", job });
