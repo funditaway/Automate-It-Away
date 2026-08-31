@@ -1,9 +1,26 @@
-/* Phone desk tabs. In the page so Pipes/More stay visible if JS never runs. */
+/* Phone desk tabs. Header tabs stay in the markup as a no-JS fallback.
+   With JS (or the HTML bottom bar) the phone uses only the bottom nav. */
 body.has-desk-nav {
   padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
+body.has-desk-nav header {
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
 header {
   flex-wrap: wrap;
+}
+@media (max-width: 859px) {
+  body.has-desk-nav .desk-tabs {
+    display: none !important;
+  }
+}
+@media (min-width: 860px) {
+  body.has-desk-nav {
+    padding-bottom: 24px;
+  }
+  body.has-desk-nav #desk-nav {
+    display: none !important;
+  }
 }
 .desk-tabs {
   width: 100%;
@@ -182,3 +199,33 @@ button, a.go, a.edit, .btn {
 .recs li { margin: 0 0 4px; font-size: 14px; }
 #desk-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #desk-list button { width: 100%; margin: 0; }
+
+#queue-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#queue-filters button {
+  min-height: 40px;
+  flex: 0 1 auto;
+}
+.lock {
+  flex-wrap: wrap;
+}
+.lock > span:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tap-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+.tap-opts a, .tap-opts button { width: 100%; margin: 0; }
+@media (max-width: 420px) {
+  .tap-opts { grid-template-columns: 1fr 1fr; }
+  .sheet-decide { grid-template-columns: 1fr 1fr; }
+  .sheet-decide .go { grid-column: 1 / -1; }
+}

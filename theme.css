@@ -148,6 +148,7 @@ html.dark #desk-nav { background: #0a3d3d; }
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 .site-header a { color: #fff; text-decoration: none; font-weight: 700; }
 .site-header .nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
@@ -316,4 +317,15 @@ html.light header a, html.light .site-header a { color: #fff; }
 
 @media (max-width: 560px) {
   .gate-card .row, .picks { grid-template-columns: 1fr; }
+  .site-header .nav, header nav {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 859px) {
+  body.has-desk-nav .desk-tabs { display: none !important; }
+}
+@media (min-width: 860px) {
+  body.has-desk-nav { padding-bottom: 24px; }
+  body.has-desk-nav #desk-nav { display: none !important; }
 }
