@@ -24,14 +24,14 @@
   </header>
   <form class="gate-card" id="form">
     <h1>Open this queue</h1>
-    <p class="sub">Shop name + your desk code. Owner and helper land on the same desk. Talk the name if you want.</p>
+    <p class="sub">Desk name + your desk code. Owner and helper land on the same desk. Talk the name if you want.</p>
     <div class="talk-bar" id="talkBar" hidden>
-      <p class="talk-status" id="talkStatus">Say the shop name. Code stays typed — not read back.</p>
+      <p class="talk-status" id="talkStatus">Say the desk name. Code stays typed — not read back.</p>
       <button type="button" id="hearBtn">Hear this</button>
       <button type="button" id="talkBtn">Talk</button>
       <button type="button" id="quietBtn">Quiet</button>
     </div>
-    <label>Shop name <span class="tip" title="The name you used when you opened the shop. Letters and dashes.">?</span></label>
+    <label>Desk name <span class="tip" title="The name you used when you opened the desk. Letters and dashes.">?</span></label>
     <input name="slug" required placeholder="rivera-resale" autocomplete="username">
     <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
@@ -49,11 +49,11 @@
       talkBar.hidden = false;
     }
     document.getElementById("hearBtn").onclick = function () {
-      AIASpeech.speak("Say the shop name. Then type your desk code.");
+      AIASpeech.speak("Say the desk name. Then type your desk code.");
     };
     talkBtn.onclick = function () {
       talkBtn.classList.add("on");
-      talkStatus.textContent = "Listening for the shop name…";
+      talkStatus.textContent = "Listening for the desk name…";
       form.elements.slug.classList.add("on-talk");
       AIASpeech.listen(function (heard) {
         talkBtn.classList.remove("on");
@@ -68,7 +68,7 @@
     document.getElementById("quietBtn").onclick = function () {
       AIASpeech.stopTalk();
       talkBtn.classList.remove("on");
-      talkStatus.textContent = "Quiet. Type the shop name and code.";
+      talkStatus.textContent = "Quiet. Type the desk name and code.";
     };
     form.onsubmit = async (e) => {
       e.preventDefault();
@@ -83,7 +83,7 @@
           body: JSON.stringify({ action: "login", slug, pin })
         });
         const data = await r.json();
-        if (!r.ok) { err.textContent = data.error || "Shop name or code does not match."; err.style.display = "block"; return; }
+        if (!r.ok) { err.textContent = data.error || "Desk name or code does not match."; err.style.display = "block"; return; }
         localStorage.setItem("aia_ws", data.workspace.slug);
         localStorage.setItem("aia_pin", pin);
         if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
