@@ -30,16 +30,29 @@
   <header>
     <a href="index.html">Automate It Away</a>
     <span>
-      <a href="desk.html">Desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+      <a href="desk.html">Desk</a>
     </span>
   </header>
   <main class="wrap">
     <h1>How to run the desk</h1>
-    <p>The desk writes the work. A person says yes or no before it goes out.</p>
+    <p>Name a desk. Drop anything. The queue writes the next step. A person sends the draft — or Stops it — before it goes out.</p>
+    <div class="card">
+      <h2>First day</h2>
+      <dl>
+        <dt>Open</dt>
+        <dd>Desk name + desk code. House, resale, insurance, or something else in your words.</dd>
+        <dt>Drop</dt>
+        <dd>A note, photo, form, missed call, neighbor text. It becomes a card on the queue.</dd>
+        <dt>Rule</dt>
+        <dd>Fresh desks start empty. Add a wait only if you want one. New drops honor the current list.</dd>
+        <dt>Send</dt>
+        <dd>Copy, text, email, or hand the draft off. Stop is the owner cancel. AIA does not send the text or the money.</dd>
+      </dl>
+    </div>
     <div class="card">
       <h2>Pages that exist</h2>
-      <p><a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Name this desk</a> · <a href="create.html">Create</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="rules.html">Rules</a> · <a href="admin.html">People</a> · <a href="connections.html">Pipes</a> · <a href="/drop">Drop</a> · <a href="support.html">Support</a></p>
+      <p><a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="rules.html">Rules</a> · <a href="admin.html">People</a> · <a href="connections.html">Pipes</a> · <a href="widget.html">Drop</a> · <a href="support.html">Support</a></p>
     </div>
     <div class="card">
       <h2>Owner vs helper</h2>
@@ -47,11 +60,11 @@
         <dt>Owner</dt>
         <dd>Connects or drops a pipe. Writes rules, including advanced wait/stop lines. Taps Stop. Lets money move when a rule says wait.</dd>
         <dt>Helper</dt>
-        <dd>Works the queue. Needs you, Open, Yes when the rule allows, hand the card, phone file. Cannot connect a pipe. Cannot Stop.</dd>
+        <dd>Works the queue. Needs you, Open, Send when the rule allows, hand the card, phone file. Cannot connect a pipe. Cannot Stop.</dd>
         <dt>We type it in</dt>
-        <dd>A helper can still take a note. AIA writes the card. A person still taps Yes or Stop.</dd>
-        <dt>Custom creation</dt>
-        <dd>Owner names the work on open, or later on Create. Fields stay on the card. Chat: “this desk is for …” or “add field …”.</dd>
+        <dd>A helper can still take a note. AIA writes the card. A person still taps Send or Stop.</dd>
+        <dt>Kind of work</dt>
+        <dd>Owner names the work on open, or later on Create. Fields stay on the card. Drop still takes free text if you skip fields.</dd>
       </dl>
     </div>
     <div class="card">
@@ -60,28 +73,36 @@
         <dt>Now</dt>
         <dd>Webhook in and out. Anything on the internet can write a card to /api/hook. That is the unlimited pipe today.</dd>
         <dt>Hold · beta</dt>
-        <dd>Calendar, SMS, Square, and named pipes wait until they are actually connected. A name on the wall is not a live pipe.</dd>
+        <dd>Calendar, SMS, Square, eBay, Consign store — names exist. Stay hold until keys are set. A draft liking the name does not turn them green.</dd>
         <dt>Coming soon</dt>
-        <dd>More named pipes stay on the wall. Not a Connect button.</dd>
+        <dd>Stripe, PayPal, Shopify, Gmail, Drive, shop apps, QuickBooks, Slack, missed-call voice. On the wall. Not a Connect button.</dd>
+        <dt>Down</dt>
+        <dd>Some marketplaces are not a launch pipe.</dd>
       </dl>
     </div>
     <div class="card">
       <h2>Words on the buttons</h2>
       <dl>
-        <dt>Waiting on a person.</dt>
-        <dd>This job is waiting on a person.</dd>
+        <dt>Needs you</dt>
+        <dd>Waiting on a person.</dd>
         <dt>Yes</dt>
         <dd>Go — post it, text it, or mark it sent. Helpers can do this unless a rule waits on the owner.</dd>
         <dt>Stop</dt>
-        <dd>No — cancel it. Owner, twice.</dd>
+        <dd>Owner, twice. No — cancel it. Only the owner.</dd>
         <dt>Money wait</dt>
-        <dd>Only if the owner wrote that rule. A helper can get the job ready. Owner lets the money move.</dd>
-        <dt>The job.</dt>
-        <dd>The card. Notes, extra fields, ask for more.</dd>
+        <dd>Only if the owner wrote that rule. Floor can get the job ready. Owner lets the money move.</dd>
+        <dt>Open</dt>
+        <dd>The job. Notes, extra fields, ask for more.</dd>
         <dt>Save a file</dt>
-        <dd>Drops a file on your phone.</dd>
-        <dt>We type it in</dt>
-        <dd>You tell us. We write the card on your queue. You still tap Yes or Stop.</dd>
+        <dd>A photo or PDF on the card. Does not send money.</dd>
+        <dt>Calendar file</dt>
+        <dd>Drops a file on your phone. Google Calendar write stays off until the key is set.</dd>
+        <dt>Talk or type it</dt>
+        <dd>You tell us. We write the card on your queue. You still send the draft, or Stop.</dd>
+        <dt>Drop anything</dt>
+        <dd>Does not have to match a pack. Your words. Rules on this desk still run.</dd>
+        <dt>Queue filters</dt>
+        <dd>All, handed to me, Talk, Drop, Pipes. Empty filter means switch to All or drop something new.</dd>
         <dt>Pipes</dt>
         <dd>Optional. Calendar, text, webhook. The queue works with just a note.</dd>
       </dl>
