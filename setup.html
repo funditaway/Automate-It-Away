@@ -7,25 +7,29 @@
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Setup · Automate It Away</title>
-  <meta name="description" content="Open a desk. Drop anything. Add a rule if something should wait. Then send what you approve.">
+  <meta name="description" content="Name your desk. Give the work a home. Drop a school form, a missed call, or a neighbor text. The desk drafts the words. You copy it, text it, email it, or hand it off. Nothing leaves on its own.">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
+  </script>
   <link rel="stylesheet" href="theme.css">
   <style>
     :root { --font:"Segoe UI",system-ui,-apple-system,sans-serif; }
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:var(--font);background:var(--bg,#fff);color:var(--ink,#1a2332)}
     a{color:inherit;text-decoration:none}
-    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px}
     header a{color:#fff}
     .brand{font-weight:700;display:flex;align-items:center;gap:8px}
-    .mark{width:28px;height:28px;border-radius:7px;background:var(--orange,#f39c12);display:grid;place-items:center;transform:rotate(-5deg)}
-    .nav{font-size:13px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .nav{font-size:13px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
     .wrap{width:min(840px,94vw);margin:0 auto;padding:20px 0 48px}
     h1{color:var(--heading,#0a4f4f);font-size:clamp(1.45rem,4.2vw,2rem);line-height:1.15}
     h2{color:var(--heading,#0a4f4f);font-size:1.05rem;margin:0 0 6px}
-    .lead{color:var(--muted,#6b7c8f);margin:8px 0 14px;max-width:36rem}
+    .lead{color:var(--muted,#6b7c8f);margin:8px 0 14px;max-width:38rem}
     .hero{width:100%;border-radius:16px;border:1px solid var(--line,#d1dae3);display:block;margin:0 0 16px}
+    .actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+    .chip{border:1px solid var(--line,#d1dae3);background:var(--card,#fff);border-radius:999px;padding:7px 11px;font-size:13px;font-weight:700;color:var(--heading,#0a4f4f)}
     .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
     .fact{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:12px;padding:12px}
     .fact b{display:block;color:var(--heading,#0a4f4f)}
@@ -41,7 +45,7 @@
     .card b{display:block;color:var(--heading,#0a4f4f);margin-bottom:4px}
     .card span{font-size:13px;color:var(--muted,#6b7c8f)}
     .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .btn{border:0;border-radius:10px;padding:12px 16px;background:var(--orange,#f39c12);color:#fff;font-weight:700;display:inline-flex}
+    .btn{border:0;border-radius:10px;padding:12px 16px;background:var(--orange,#f39c12);color:#0c1116;font-weight:700;display:inline-flex}
     .quiet{background:var(--card,#fff);color:var(--teal,#0d6b6b);border:1px solid var(--line,#d1dae3)}
     .note{font-size:13px;color:var(--muted,#6b7c8f);margin-top:12px}
     @media(max-width:700px){.facts,.words,.step{grid-template-columns:1fr}}
@@ -49,7 +53,7 @@
 </head>
 <body>
   <header>
-    <a class="brand" href="index.html"><span class="mark">⚡</span>Automate It Away</a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
       <a href="how.html">How</a>
       <a href="setup.html">Setup</a>
@@ -59,36 +63,43 @@
     </div>
   </header>
   <main class="wrap">
-    <h1>First day: open a desk, then drop work.</h1>
-    <p class="lead">Give it a name and a code. Add a rule if you need one. That pair opens the queue on any phone. Email is not the login. After that, drop anything this desk should run.</p>
+    <h1>Name your desk. Give the work a home.</h1>
+    <p class="lead">A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step and drafts the words. You copy it, text it, email it, or hand it to someone. Nothing leaves on its own. Add a rule if you need one.</p>
+    <div class="actions" aria-label="What you do with a card">
+      <span class="chip">Copy draft</span>
+      <span class="chip">Text it</span>
+      <span class="chip">Email it</span>
+      <span class="chip">Hand to</span>
+      <span class="chip">Stop</span>
+    </div>
     <img class="hero" src="img/home-life.svg" alt="Kitchen table with a school form, a to-do list, and a drafted reminder ready to copy or text.">
 
     <div class="facts">
       <div class="fact"><b>Owner</b><span>Writes rules. Taps Stop. Lets money move only if a rule waits.</span></div>
-      <div class="fact"><b>Helper</b><span>Works the queue. Can tap Yes when a rule allows. Cannot Stop.</span></div>
+      <div class="fact"><b>Helper</b><span>Works the queue. Can send a draft when a rule allows. Cannot Stop.</span></div>
     </div>
 
-    <p class="sec">Do this in order</p>
+    <p class="sec">First day</p>
     <article class="step">
       <div class="n">1</div>
       <div>
-        <h2>Name the desk</h2>
-        <p>Your name, desk name, city, owner or helper. House, resale, insurance, or something else. If something else, name the work in your words. Talk walks the form. Type if the mic is off.</p>
-        <p><a href="onboard.html">Open the desk →</a> · <a href="create.html">Name another kind of work later →</a></p>
+        <h2>Open the account</h2>
+        <p>Owner account + first desk, or join as a member and wait on the owner for a permission. Free for now. Monthly later — we tell you before we charge. Desk name + desk code is the login. Email is not.</p>
+        <p><a href="onboard.html">Open the account →</a> · <a href="create.html">Name another kind of work later →</a></p>
       </div>
     </article>
     <article class="step">
       <div class="n">2</div>
       <div>
-        <h2>Sign in the same way on the next phone</h2>
-        <p>Desk name + that person’s code. Do not share the owner code.</p>
+        <h2>Same pair on the next phone</h2>
+        <p>Desk name + that person’s code. Do not share the owner code. Same queue. Owner still owns Stop.</p>
         <p><a href="login.html">Sign in →</a></p>
       </div>
     </article>
     <article class="step">
       <div class="n">3</div>
       <div>
-        <h2>Drop anything</h2>
+        <h2>Drop the work</h2>
         <p>Same queue. Your words. A school form, a photo, a missed call, a neighbor text, a custom job.</p>
         <p><b>Drop</b> — type it or talk it. Lands as a card.</p>
         <p><b>Talk on the desk</b> — say the work. The draft stays on the card until you send it.</p>
@@ -101,22 +112,23 @@
       <div class="n o">4</div>
       <div>
         <h2>Send what you approve</h2>
-        <p>The desk wrote the reminder, estimate, or text. Copy it, text it, email it, or hand it to someone. Stop cancels it. Money waits only if you wrote that rule. New drops pick up the current rules.</p>
+        <p>The desk wrote the reminder, estimate, or text. Copy the draft, text it, email it, or hand it to someone. Stop cancels it. Money waits only if you wrote that rule. New drops pick up the current rules.</p>
       </div>
     </article>
 
     <p class="sec">This week might be</p>
     <div class="words">
-      <div class="card"><b>Regular life</b><span>House list. School forms. Side jobs for a neighbor.</span></div>
-      <div class="card"><b>Service day</b><span>Missed calls. Estimates. One follow-up.</span></div>
-      <div class="card"><b>Office day</b><span>Leads, files, packets you approve before they go.</span></div>
-      <div class="card"><b>Bigger work</b><span>Land, storm, lending, protection. Same buttons.</span></div>
-      <div class="card"><b>Your own work</b><span>Name it on open. Drop more anytime. Rules apply as cards land.</span></div>
+      <div class="card"><b>The week</b><span>Oil change. Lawn guy. Dentist for the kids. Each one is a card with the next step written on it.</span></div>
+      <div class="card"><b>School paper</b><span>The form lands. The reminder is drafted. You send it once. Then it stops nagging.</span></div>
+      <div class="card"><b>A neighbor text</b><span>Saturday job comes in. The estimate is written on the card. You copy it or text it.</span></div>
+      <div class="card"><b>Service shop</b><span>Missed call and a photo become a job card. You send the draft when it is right.</span></div>
+      <div class="card"><b>Office</b><span>A lead or a file hits the queue. The packet is drafted. You hand it off or send it.</span></div>
+      <div class="card"><b>Your own work</b><span>Name it on open. Drop more anytime. Same buttons. Nothing leaves on its own.</span></div>
     </div>
 
     <div class="cta">
-      <a class="btn" href="onboard.html">Open the desk</a>
-      <a class="btn quiet" href="how.html">See it on your week</a>
+      <a class="btn" href="onboard.html">Open your desk</a>
+      <a class="btn quiet" href="how.html">See how it runs</a>
     </div>
     <p class="note">Photos last after storage is on. Until then they can vanish on restart.</p>
   </main>
