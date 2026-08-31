@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0c1116"/>
+  <g transform="translate(120,95) scale(1.55)">
+    <polygon fill="#0d6b6b" points="128,40 36,192 128,216"/>
+    <polygon fill="#1c7c7c" points="128,40 220,192 128,216"/>
+    <polygon fill="#f39c12" points="128,40 96.72,91.68 128,99.84"/>
+    <polygon fill="#f39c12" points="128,40 159.28,91.68 128,99.84"/>
+    <g fill="none" stroke="#0a4f4f" stroke-width="8" stroke-linejoin="round" stroke-linecap="butt">
+      <path d="M36 192 L128 40 L220 192 L128 216 Z"/>
+      <path d="M128 40 L128 216"/>
+      <path d="M96.72 91.68 L128 99.84 L159.28 91.68"/>
+      <path d="M74.64 128.16 L128 142.08 L181.36 128.16"/>
+    </g>
+  </g>
+  <text x="560" y="280" font-family="Segoe UI, system-ui, sans-serif" font-size="52" font-weight="700" fill="#e8eef4">Automate It Away</text>
+  <text x="560" y="340" font-family="Segoe UI, system-ui, sans-serif" font-size="26" fill="#9fdede">Name your desk. Drop the work. You send it.</text>
+</svg>
