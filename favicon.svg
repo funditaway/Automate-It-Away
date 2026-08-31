@@ -2,8 +2,8 @@
   <rect width="256" height="256" rx="56" fill="#f39c12"/>
   <polygon fill="#0a4f4f" points="128,40 36,192 128,216"/>
   <polygon fill="#1c7c7c" points="128,40 220,192 128,216"/>
-  <polygon fill="#111111" points="128,40 96.72,91.68 128,99.84"/>
-  <polygon fill="#f5b041" points="128,40 159.28,91.68 128,99.84"/>
+  <polygon fill="#d35400" points="128,40 96.72,91.68 128,99.84"/>
+  <polygon fill="#f7ca18" points="128,40 159.28,91.68 128,99.84"/>
   <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linejoin="round" stroke-linecap="butt">
     <path d="M36 192 L128 40 L220 192 L128 216 Z"/>
     <path d="M128 40 L128 216"/>
