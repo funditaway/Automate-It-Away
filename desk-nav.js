@@ -11,12 +11,7 @@
     p = p.split("/").pop() || "index";
     return p.replace(/\.html$/, "") || "index";
   }
-  function dropHref() {
-    if (window.AIADesks && window.AIADesks.widgetHref) return window.AIADesks.widgetHref();
-    var ws = localStorage.getItem("aia_ws");
-    if (ws) return "/drop?ws=" + encodeURIComponent(ws);
-    return "/drop";
-  }
+  function dropHref() { return "/drop"; }
   function tabOf() {
     var name = file();
     if (name === "rules") return "rules";
@@ -24,14 +19,53 @@
     if (name === "widget" || name === "drop") return "drop";
     if (name === "connections") return "pipes";
     if (name === "more") return "more";
+    if (/^(help|admin|setup|support|chat|consign|create)$/.test(name)) return "more";
     return "";
   }
   function svg(d) {
-    return "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"" + d + "\" fill=\"none stroke=currentColor stroke-width=2 stroke-linecap=round\"/></svg>";
+    return "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"" + d + "\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>";
+  }
+  function paintOn() {
+    var on = tabOf();
+    document.querySelectorAll("#desk-nav [data-tab], .desk-tabs [data-tab]").forEach(function (el) {
+      el.classList.toggle("on", el.getAttribute("data-tab") === on);
+    });
+  }
+  function wireHrefs() {
+    document.querySelectorAll("#desk-nav [data-tab=\"drop\"], .desk-tabs [data-tab=\"drop\"]").forEach(function (el) {
+      if (el && el.tagName === "A") el.setAttribute("href", dropHref());
+    });
+    document.querySelectorAll("#desk-nav [data-tab=\"rules\"], .desk-tabs [data-tab=\"rules\"]").forEach(function (el) {
+      if (el && el.tagName === "A") el.setAttribute("href", "/rules");
+    });
+    document.querySelectorAll("#desk-nav [data-tab=\"more\"], .desk-tabs [data-tab=\"more\"]").forEach(function (el) {
+      if (el && el.tagName === "A") el.setAttribute("href", "/more");
+    });
+  }
+  function ensureCss() {
+    if (document.getElementById("desk-nav-css")) return;
+    var css = document.createElement("style");
+    css.id = "desk-nav-css";
+    css.textContent = "body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}#desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px))}#desk-nav a{flex:1;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,sans-serif;text-decoration:none}#desk-nav a.on{color:#f39c12}#desk-nav svg{width:22px;height:22px}";
+    document.head.appendChild(css);
   }
   function boot() {
     if (window !== window.parent) return;
+    ensureCss();
     document.body.classList.add("has-desk-nav");
+    var nav = document.getElementById("desk-nav");
+    if (!nav) {
+      nav = document.createElement("nav");
+      nav.id = "desk-nav";
+      nav.setAttribute("aria-label", "Desk");
+      var on = tabOf();
+      nav.innerHTML = TABS.map(function (t) {
+        return "<a href=\"" + t.href + "\" data-tab=\"" + t.id + "\" class=\"" + (on === t.id ? "on" : "") + "\">" + svg(t.ico) + "<span>" + t.label + "</span></a>";
+      }).join("");
+      document.body.appendChild(nav);
+    }
+    wireHrefs();
+    paintOn();
     if (tabOf() === "queue" && !document.querySelector("script[data-aia-handoff]")) {
       var s = document.createElement("script");
       s.src = "/desk-handoff.js";
