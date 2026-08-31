@@ -17,6 +17,10 @@
     { "source": "/people.html", "destination": "/admin", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/favicon.ico", "destination": "/favicon.svg" },
+    { "source": "/apple-touch-icon.png", "destination": "/favicon.svg" },
+    { "source": "/icon-192.png", "destination": "/favicon.svg" },
+    { "source": "/icon-512.png", "destination": "/favicon.svg" },
     { "source": "/people", "destination": "/admin.html" },
     { "source": "/rules", "destination": "/rules.html" },
     { "source": "/more", "destination": "/more.html" },
