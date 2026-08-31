@@ -67,11 +67,16 @@ const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
 if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.test(widget)) {
   fail("widget.html still falls back to demo or aia_ws||");
 } else pass("widget.html has no demo fallback");
-if (!widget.includes("AIADesks.captureDesk") || !widget.includes("location.replace(\"/onboard\")")) {
-  fail("widget.html must send missing desks to /onboard");
-} else pass("widget.html goes to /onboard when no desk");
-if (!widget.includes("This desk only.")) fail("widget copy missing");
-else pass("widget copy is desk-scoped");
+if (widget.includes("location.replace(\"/onboard\")")) {
+  fail("widget.html still bounces to /onboard before they can pick");
+} else pass("widget.html stays on /drop");
+const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
+if (!widget.includes("AIADesks.captureDesk") || !pickJs.includes("AIADesks.list") || !pickJs.includes("switchTo")) {
+  fail("widget.html must list and switch saved desks");
+} else pass("widget.html lists saved desks");
+if (!widget.includes("This drop is for") || !widget.includes("Your desks — tap one.") || !widget.includes("Create a new desk — name it, then drop.") || !widget.includes("Add another desk — same phone, separate queue.")) {
+  fail("widget.html missing doer picker copy");
+} else pass("widget copy is desk picker");
 if (!widget.includes("nouns") && !widget.includes("NOUNS.capture") && !widget.includes("nouns.capture")) {
   fail("widget.html must speak owner nouns");
 } else pass("widget.html uses owner nouns");
@@ -93,7 +98,7 @@ if (!desk.includes("Change desk") || !desk.includes("Open another") || !desk.inc
 } else pass("desk.html can switch saved desks");
 if (desk.includes("|| \"demo\"") || desk.includes("|| 'demo'")) fail("desk.html still falls back to demo");
 else pass("desk.html has no demo fallback");
-if (!desk.includes("Nothing here yet.") || !desk.includes("This desk") || !desk.includes("no rules yet")) fail("desk copy missing");
+if (!desk.includes("Drop anything") || !desk.includes("Add a rule") || !desk.includes("This desk") || !desk.includes("no rules yet")) fail("desk copy missing");
 else pass("desk queue/rules copy");
 if (!desk.includes("widget-count") || !desk.includes("rule-widgets") || !desk.includes("/rules")) {
   fail("desk.html missing widget count or /rules link");

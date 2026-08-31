@@ -22,7 +22,7 @@ function grokRecsBox(j) {
     .slice(0, 5);
   const fallback = recs.length ? recs : ["Open this card. Yes or no."];
   return "<div class=\"recs\" id=\"grok-recs\">" +
-    "<div class=\"recs-title\">Grok recommends</div>" +
+    "<div class=\"recs-title\">Next step</div>" +
     "<ul>" + fallback.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" +
     "</div>";
 }
@@ -107,7 +107,7 @@ async function openJob(id) {
       "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>" +
       "<a class=\"edit\" href=\"" + smsHref(draft) + "\">Text it</a>" +
       "<a class=\"edit\" href=\"" + mailHref(j.title, draft) + "\">Email it</a>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"phoneCal('" + j.id + "')\">Phone file</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"phoneCal('" + j.id + "')\">Save a file</button>" +
     "</div>" +
     "<div class=\"sheet-decide\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"carryJob('" + j.id + "')\">Done by hand</button>" +
