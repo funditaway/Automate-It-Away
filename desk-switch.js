@@ -1,39 +1,24 @@
 (function (root) {
   var KEY = "aia_desks";
   var store = root.localStorage;
-
   function slugify(s) {
-    return String(s || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 40);
+    return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
   }
-
   function list() {
     try {
       var raw = JSON.parse((store && store.getItem(KEY)) || "[]");
       if (!Array.isArray(raw)) return [];
       return raw.filter(function (d) { return d && d.slug; });
-    } catch (e) {
-      return [];
-    }
+    } catch (e) { return []; }
   }
-
-  function write(rows) {
-    if (store) store.setItem(KEY, JSON.stringify(rows));
-  }
-
+  function write(rows) { if (store) store.setItem(KEY, JSON.stringify(rows)); }
   function find(slug) {
     slug = slugify(slug);
     if (!slug) return null;
     var rows = list();
-    for (var i = 0; i < rows.length; i++) {
-      if (rows[i].slug === slug) return rows[i];
-    }
+    for (var i = 0; i < rows.length; i++) if (rows[i].slug === slug) return rows[i];
     return null;
   }
-
   function add(desk) {
     var slug = slugify(desk && (desk.slug || desk.biz));
     if (!slug) return null;
@@ -45,31 +30,19 @@
     rows = rows.map(function (d) {
       if (d.slug !== slug) return d;
       found = true;
-      return {
-        slug: slug,
-        name: name || d.name,
-        pin: pin || d.pin,
-        role: role || d.role
-      };
+      return { slug: slug, name: name || d.name, pin: pin || d.pin, role: role || d.role };
     });
     if (!found) rows.push({ slug: slug, name: name, pin: pin, role: role });
     write(rows);
     return find(slug);
   }
-
   function remember() {
     if (!store) return null;
     var slug = store.getItem("aia_ws");
     var pin = store.getItem("aia_pin");
     if (!slug || !pin) return null;
-    return add({
-      slug: slug,
-      name: store.getItem("aia_desk_name") || slug,
-      pin: pin,
-      role: store.getItem("aia_role") || ""
-    });
+    return add({ slug: slug, name: store.getItem("aia_desk_name") || slug, pin: pin, role: store.getItem("aia_role") || "" });
   }
-
   function open(desk) {
     var row = add(desk);
     if (!row || !store) return null;
@@ -79,49 +52,56 @@
     if (row.name) store.setItem("aia_desk_name", row.name);
     return row;
   }
-
   function current() {
     if (!store) return null;
     var slug = store.getItem("aia_ws");
     if (!slug) return null;
-    return find(slug) || {
-      slug: slug,
-      name: store.getItem("aia_desk_name") || slug,
-      pin: store.getItem("aia_pin") || "",
-      role: store.getItem("aia_role") || ""
-    };
+    return find(slug) || { slug: slug, name: store.getItem("aia_desk_name") || slug, pin: store.getItem("aia_pin") || "", role: store.getItem("aia_role") || "" };
   }
-
-  function unlock() {
-    if (!store) return;
-    store.removeItem("aia_pin");
+  function unlock() { if (store) store.removeItem("aia_pin"); }
+  function forget(slug) {
+    slug = slugify(slug);
+    if (!slug) return list();
+    var rows = list().filter(function (d) { return d.slug !== slug; });
+    write(rows);
+    if (store && store.getItem("aia_ws") === slug) {
+      store.removeItem("aia_ws"); store.removeItem("aia_pin"); store.removeItem("aia_desk_name"); store.removeItem("aia_role");
+    }
+    return rows;
   }
-
-  function switchTo(slug) {
-    var desk = find(slug);
-    if (!desk) return null;
-    return open(desk);
+  function patch(slug, fields) {
+    slug = slugify(slug);
+    if (!slug) return null;
+    var src = fields && typeof fields === "object" ? fields : {};
+    var rows = list().map(function (d) {
+      if (d.slug !== slug) return d;
+      return { slug: slug, name: src.name != null ? String(src.name) : d.name, pin: src.pin != null ? String(src.pin) : d.pin, role: src.role != null ? String(src.role) : d.role };
+    });
+    write(rows);
+    if (store && store.getItem("aia_ws") === slug) {
+      var row = rows.filter(function (d) { return d.slug === slug; })[0];
+      if (row) {
+        if (row.pin) store.setItem("aia_pin", row.pin);
+        if (row.name) store.setItem("aia_desk_name", row.name);
+        if (row.role) store.setItem("aia_role", row.role);
+      }
+    }
+    return find(slug);
   }
-
-  function shopOpen() {
-    return !!(store && store.getItem("aia_ws") && store.getItem("aia_pin"));
-  }
-
+  function switchTo(slug) { var desk = find(slug); if (!desk) return null; return open(desk); }
+  function shopOpen() { return !!(store && store.getItem("aia_ws") && store.getItem("aia_pin")); }
   function widgetHref(slug) {
     var use = slugify(slug || (store && store.getItem("aia_ws")) || "");
     if (!use) return "/drop";
     return "/drop?ws=" + encodeURIComponent(use);
   }
-
   function captureDesk() {
     var q = "";
     try {
       var search = String((typeof location !== "undefined" && location.search) || "");
       var m = search.match(/[?&]ws=([^&]*)/);
       q = m ? decodeURIComponent(String(m[1] || "").replace(/\+/g, " ")) : "";
-    } catch (e) {
-      q = "";
-    }
+    } catch (e) { q = ""; }
     q = slugify(q);
     if (q) {
       var saved = find(q);
@@ -130,34 +110,15 @@
     }
     var cur = slugify((store && store.getItem("aia_ws")) || "");
     if (!cur) return null;
-    return find(cur) || {
-      slug: cur,
-      name: (store && store.getItem("aia_desk_name")) || cur,
-      pin: (store && store.getItem("aia_pin")) || "",
-      role: (store && store.getItem("aia_role")) || ""
-    };
+    return find(cur) || { slug: cur, name: (store && store.getItem("aia_desk_name")) || cur, pin: (store && store.getItem("aia_pin")) || "", role: (store && store.getItem("aia_role")) || "" };
   }
-
-  function defaultNouns() {
-    return { capture: "Capture", qualify: "Qualify", do: "Do", collect: "Collect", follow: "Follow" };
-  }
-
+  function defaultNouns() { return { capture: "Capture", qualify: "Qualify", do: "Do", collect: "Collect", follow: "Follow" }; }
   function nounsOf(src) {
     var d = defaultNouns();
     var n = src && typeof src === "object" ? src : {};
-    function one(k) {
-      var t = String(n[k] == null ? "" : n[k]).trim().replace(/\s+/g, " ").slice(0, 24);
-      return t || d[k];
-    }
-    return {
-      capture: one("capture"),
-      qualify: one("qualify"),
-      do: one("do"),
-      collect: one("collect"),
-      follow: one("follow")
-    };
+    function one(k) { var t = String(n[k] == null ? "" : n[k]).trim().replace(/\s+/g, " ").slice(0, 24); return t || d[k]; }
+    return { capture: one("capture"), qualify: one("qualify"), do: one("do"), collect: one("collect"), follow: one("follow") };
   }
-
   function stepNoun(step, nouns) {
     var n = nounsOf(nouns);
     var s = String(step || "").toLowerCase();
@@ -168,24 +129,6 @@
     if (/do|draft|work/.test(s)) return n.do;
     return n.qualify;
   }
-
   remember();
-
-  root.AIADesks = {
-    list: list,
-    add: add,
-    find: find,
-    open: open,
-    current: current,
-    remember: remember,
-    unlock: unlock,
-    switchTo: switchTo,
-    widgetHref: widgetHref,
-    captureDesk: captureDesk,
-    shopOpen: shopOpen,
-    slugify: slugify,
-    defaultNouns: defaultNouns,
-    nounsOf: nounsOf,
-    stepNoun: stepNoun
-  };
+  root.AIADesks = { list: list, add: add, find: find, open: open, current: current, remember: remember, unlock: unlock, forget: forget, patch: patch, switchTo: switchTo, widgetHref: widgetHref, captureDesk: captureDesk, shopOpen: shopOpen, slugify: slugify, defaultNouns: defaultNouns, nounsOf: nounsOf, stepNoun: stepNoun };
 })(typeof window !== "undefined" ? window : globalThis);
