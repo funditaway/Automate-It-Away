@@ -79,7 +79,7 @@
     </span>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
-      <a href="/onboard" data-tab="drop" id="head-drop">Drop</a>
+      <a href="/drop" data-tab="drop" id="head-drop">Drop</a>
       <a href="/rules" data-tab="rules">Rules</a>
       <a href="/connections" data-tab="pipes">Pipes</a>
       <a href="/more" data-tab="more">More</a>
@@ -109,7 +109,7 @@
       <p class="meta" style="margin-top:8px"><a href="/onboard">Open another</a></p>
     </div>
     <div class="row" style="margin-bottom:8px">
-      <a class="go" id="drop-go" href="/onboard">Drop something in</a>
+      <a class="go" id="drop-go" href="/drop">Drop anything</a>
       <button class="edit" type="button" onclick="load()">Refresh</button>
     </div>
     <p class="meta" id="step-words">Capture · Qualify · Do · Collect · Follow</p>
@@ -125,7 +125,7 @@
   </div>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
-    <a href="/onboard" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
+    <a href="/drop" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
     <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
     <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
@@ -230,7 +230,7 @@
       const cap = NOUNS.capture || "Capture";
       box.innerHTML = on.map((r) => {
         const label = (r.widget && r.widget.label) || cap;
-        const href = ws ? "/widget.html?ws=" + encodeURIComponent(ws) + "&rule=" + encodeURIComponent(r.id) : "/onboard";
+        const href = ws ? "/drop?ws=" + encodeURIComponent(ws) + "&rule=" + encodeURIComponent(r.id) : "/drop";
         return "<a class=\"go\" href=\"" + href + "\">" + esc(label) + "</a>";
       }).join("");
     }
@@ -281,7 +281,7 @@
         RULES = [];
         paintNouns(AIADesks.defaultNouns());
         paintRules([]);
-        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">Nothing here yet.</p>`;
+        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">Nothing here yet. Drop anything / <a href="/rules">Add a rule</a>.</p>`;
         showConsignNav();
         return;
       }
@@ -320,7 +320,7 @@
       document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
       const open = held.concat(waiting, ready);
-      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Nothing here yet.</p>`;
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Nothing here yet. Drop anything / <a href="/rules">Add a rule</a>.</p>`;
       if (location.hash === "#rules") location.replace("/rules");
       const recent = shipped.slice(0, 3);
       document.getElementById("recent-label").hidden = !recent.length;

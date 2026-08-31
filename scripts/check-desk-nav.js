@@ -35,6 +35,8 @@ if (!nav.includes("href: \"/rules\"")) fail("desk-nav.js Rules href is not /rule
 else pass("Rules tab href is /rules");
 if (!nav.includes("href: \"/more\"") || !nav.includes("name === \"more\"")) fail("desk-nav.js More href is not /more");
 else pass("More tab href is /more");
+if (!nav.includes("href: \"/drop\"") || !nav.includes("return \"/drop\"")) fail("desk-nav.js Drop href is not /drop");
+else pass("Drop tab href is /drop");
 if (/display:\s*none/.test(desk) && /header span a/.test(desk)) {
   fail("desk.html still hides header links on phone");
 }

@@ -28,7 +28,7 @@
     .card a:active{background:var(--edit)}
   </style>
 </head>
-<body class="has-desk-nav page-bg">
+<body class="has-desk-nav">
   <header>
     <a href="index.html">Automate It Away</a>
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
@@ -43,13 +43,12 @@
   <main class="wrap">
     <h1>This desk.</h1>
     <p>Talk to it. Invite a helper. Drop work from anywhere. Same queue. Nothing leaves until you tap.</p>
-    <p class="meta" id="grok-line">Grok drafts on the card. You tap Yes or No.</p>
     <div class="card">
       <a href="/desk">Talk on the desk<span>Hear this / Talk / Quiet. Work lands on this queue.</span></a>
       <a href="/admin">Invite a helper<span>Family, friend, helper, or staff. Their own desk code.</span></a>
       <a href="/drop">Drop from anywhere<span>Talk or type. Link, site embed, or webhook. Work only. No money.</span></a>
       <a href="/chat">Tell the desk<span>Longer talk thread if you want it.</span></a>
-      <a href="/widget.html">Drop form<span>Work, ops, hand off, or a site embed.</span></a>
+      <a href="/drop">Drop form<span>Work, ops, hand off, or a site embed.</span></a>
       <a href="/create">Create<span>Simple send, or advanced for unique / custom work.</span></a>
       <a href="/help">Help<span>Words on the buttons.</span></a>
       <a href="/support">Support<span>If something broke.</span></a>
@@ -63,15 +62,5 @@
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-nav.js"></script>
-  <script>
-    fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {
-      const g = h && h.automation && h.automation.grok;
-      const el = document.getElementById("grok-line");
-      if (!el || !g) return;
-      el.textContent = g.on
-        ? "Grok is on. Drafts land on the card. Never Send."
-        : "Grok key is off. Engine recs still run. Set XAI_API_KEY on the box.";
-    }).catch(function () {});
-  </script>
 </body>
 </html>

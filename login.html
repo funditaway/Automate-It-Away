@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Open this shop · Automate It Away</title>
+  <title>Open this desk · Automate It Away</title>
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
@@ -18,7 +18,7 @@
   <header class="site-header">
     <a href="index.html">Automate It Away</a>
     <div class="nav">
-      <a href="onboard.html">New shop</a>
+      <a href="onboard.html">New desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
@@ -32,13 +32,14 @@
       <button type="button" id="quietBtn">Quiet</button>
     </div>
     <label>Desk name <span class="tip" title="The name you used when you opened the desk. Letters and dashes.">?</span></label>
-    <input name="slug" required placeholder="rivera-resale" autocomplete="username">
+    <input name="slug" required placeholder="Desk name" autocomplete="username">
     <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
     <button class="btn" type="submit">Open</button>
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
+  <script src="desk-switch.js"></script>
   <script src="speech.js"></script>
   <script>
     const form = document.getElementById("form");
@@ -89,7 +90,13 @@
         if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
         if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
         if (data.workspace && data.workspace.biz) localStorage.setItem("aia_desk_name", data.workspace.biz);
-        location.href = "desk.html";
+        AIADesks.open({
+          slug: data.workspace.slug,
+          name: (data.workspace && (data.workspace.biz || data.workspace.name)) || slug,
+          pin: pin,
+          role: (data.you && data.you.role) || ""
+        });
+        location.href = "/desk";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
         err.style.display = "block";

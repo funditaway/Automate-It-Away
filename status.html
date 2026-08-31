@@ -9,6 +9,10 @@
 
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Status · Automate It Away</title>
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
   <style>
     body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#07090c;color:#f4f7fa}
     a{color:#fff;text-decoration:none}
@@ -20,7 +24,7 @@
   </style>
 </head>
 <body>
-  <header><a href="index.html">AUTOMATE IT AWAY</a> · Status</header>
+  <header><a href="index.html">AUTOMATE IT AWAY</a> · Status <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
   <main class="wrap">
     <h1>automateitaway.com</h1>
     <div class="row"><span>Marketing site</span><span class="up">Prototype up</span></div>
@@ -69,5 +73,6 @@
       document.getElementById("raw").textContent = "Static host — API lives on the Vercel project automate-it-away.";
     });
   </script>
+  <script src="theme.js"></script>
 </body>
 </html>
