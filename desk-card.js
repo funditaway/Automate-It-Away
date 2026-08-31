@@ -85,7 +85,10 @@ async function openJob(id) {
   ).join("");
   document.getElementById("sheet-card").innerHTML =
     "<h3>" + esc(j.title) + "</h3>" +
-    "<p class=\"meta\">" + labelStatus(j.status) + (j.assignee ? " · " + esc(j.assignee) : "") + (j.carried ? " · done by hand" : "") + "</p>" +
+    "<p class=\"meta\">" + labelStatus(j.status) + (j.assignee ? " · " + esc(j.assignee) : "") + (j.carried ? " · done by hand" : "") + (j.kind ? " · " + esc(j.kind) : "") + "</p>" +
+    (j.outcome || (j.custom && j.custom.outcome)
+      ? "<p class=\"meta\">They want: " + esc(j.outcome || j.custom.outcome) + (j.next ? " · " + esc(j.next) : "") + "</p>"
+      : "") +
     grokRecsBox(j) +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
