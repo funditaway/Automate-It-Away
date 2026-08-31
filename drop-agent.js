@@ -38,7 +38,6 @@
     { id: "wait", label: "Owner decides", next: "Owner picks Yes or Stop." },
     { id: "note", label: "Just keep the note", next: "Leave it on the queue. No send." }
   ];
-
   function typeOf(id) {
     var i;
     for (i = 0; i < TYPES.length; i++) if (TYPES[i].id === id) return TYPES[i];
@@ -49,16 +48,13 @@
     for (i = 0; i < OUTCOMES.length; i++) if (OUTCOMES[i].id === id) return OUTCOMES[i];
     return null;
   }
-
   function val(id) {
     var el = document.getElementById(id);
     return el ? String(el.value || "").trim() : "";
   }
-
   function firstLine(text) {
     return String(text || "").split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean)[0] || "";
   }
-
   function implementFromText(text, fields) {
     var blob = String(text || "").trim();
     var out = { custom: {} };
@@ -87,7 +83,6 @@
     });
     return out;
   }
-
   function paintWho(current) {
     var box = document.getElementById("who-chips");
     if (!box) return current || "helper";
@@ -97,7 +92,6 @@
     }).join("");
     return on;
   }
-
   function paintPreview(mapped) {
     var box = document.getElementById("agent-preview");
     if (!box) return;
@@ -108,18 +102,11 @@
     if (mapped.email) bits.push("Email · " + mapped.email);
     if (mapped.amount != null) bits.push("Amount note · $" + mapped.amount);
     if (mapped.timing) bits.push("When · " + mapped.timing);
-    Object.keys(mapped.custom || {}).forEach(function (k) {
-      bits.push(k + " · " + mapped.custom[k]);
-    });
-    if (!bits.length) {
-      box.hidden = true;
-      box.textContent = "";
-      return;
-    }
+    Object.keys(mapped.custom || {}).forEach(function (k) { bits.push(k + " · " + mapped.custom[k]); });
+    if (!bits.length) { box.hidden = true; box.textContent = ""; return; }
     box.hidden = false;
     box.textContent = "Lands as: " + bits.join(" · ") + ". Still a draft. Nobody sends money from here.";
   }
-
   function paintKinds(sel, current) {
     if (!sel) return current || "request";
     var on = current || sel.value || "request";
@@ -130,7 +117,6 @@
     sel.value = on;
     return on;
   }
-
   function paintKindFields(box, kindId, preset) {
     if (!box) return;
     var t = typeOf(kindId);
@@ -139,11 +125,9 @@
       var spec = FIELDSPEC[key] || { label: key, ph: "" };
       var mode = spec.mode ? (" inputmode=\"" + spec.mode + "\"") : "";
       var val = have[key] ? String(have[key]).replace(/"/g, "&quot;") : "";
-      return "<label>" + spec.label + "</label>" +
-        "<input data-kind-field=\"" + key + "\" placeholder=\"" + spec.ph + "\"" + mode + " value=\"" + val + "\">";
+      return "<label>" + spec.label + "</label><input data-kind-field=\"" + key + "\" placeholder=\"" + spec.ph + "\"" + mode + " value=\"" + val + "\">";
     }).join("");
   }
-
   function collectKindFields() {
     var out = {};
     var nodes = document.querySelectorAll("[data-kind-field]");
@@ -156,7 +140,6 @@
     }
     return out;
   }
-
   function paintOutcomes(box, current) {
     if (!box) return current || "wait";
     var on = current || "wait";
@@ -166,38 +149,103 @@
     }).join("");
     return on;
   }
-
   function applyKindToForm(kindId, extras) {
     extras = extras || {};
     if (extras.timing && document.getElementById("timing")) document.getElementById("timing").value = extras.timing;
     if (extras.amount && document.getElementById("amount")) document.getElementById("amount").value = extras.amount;
     if (extras.condition && document.getElementById("condition")) document.getElementById("condition").value = extras.condition;
-    if (extras.phone && document.getElementById("phone") && !document.getElementById("phone").value) {
-      document.getElementById("phone").value = extras.phone;
-    }
-    if (extras.need && document.getElementById("note") && !document.getElementById("note").value) {
-      document.getElementById("note").value = extras.need;
-    }
-    if (extras.whoFor && document.getElementById("who") && !document.getElementById("who").value) {
-      document.getElementById("who").value = extras.whoFor;
+    if (extras.phone && document.getElementById("phone") && !document.getElementById("phone").value) document.getElementById("phone").value = extras.phone;
+    if (extras.need && document.getElementById("note") && !document.getElementById("note").value) document.getElementById("note").value = extras.need;
+    if (extras.whoFor && document.getElementById("who") && !document.getElementById("who").value) document.getElementById("who").value = extras.whoFor;
+  }
+  function injectDropUI() {
+    var kind = document.getElementById("kind");
+    if (!kind || document.getElementById("kind-fields")) return;
+    var fields = document.createElement("div");
+    fields.id = "kind-fields";
+    kind.parentNode.insertBefore(fields, kind.nextSibling);
+    var lab = document.createElement("label");
+    lab.textContent = "Preferred outcome";
+    fields.parentNode.insertBefore(lab, fields.nextSibling);
+    var chips = document.createElement("div");
+    chips.id = "outcome-chips";
+    chips.className = "outcomes who-chips";
+    lab.parentNode.insertBefore(chips, lab.nextSibling);
+    var hint = document.createElement("p");
+    hint.id = "outcome-hint";
+    hint.className = "sub";
+    hint.textContent = "What the desk should do next. Still a draft. Nobody sends money from here.";
+    chips.parentNode.insertBefore(hint, chips.nextSibling);
+    if (!document.getElementById("drop-outcome-css")) {
+      var css = document.createElement("style");
+      css.id = "drop-outcome-css";
+      css.textContent = ".outcomes{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}.outcomes button{flex:1;min-width:96px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer}.outcomes button.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}";
+      document.head.appendChild(css);
     }
   }
-
+  function bootDropKinds() {
+    injectDropUI();
+    var kindSel = document.getElementById("kind");
+    if (!kindSel) return "wait";
+    var startKind = paintKinds(kindSel, kindSel.value || "request");
+    var startType = typeOf(startKind);
+    paintKindFields(document.getElementById("kind-fields"), startKind);
+    var outcome = paintOutcomes(document.getElementById("outcome-chips"), startType.outcome || "wait");
+    var hint = document.getElementById("outcome-hint");
+    var row = outcomeOf(outcome);
+    if (hint && row) hint.textContent = row.next;
+    window.__aiaOutcome = outcome;
+    kindSel.addEventListener("change", function () {
+      var t = typeOf(kindSel.value);
+      paintKindFields(document.getElementById("kind-fields"), t.id);
+      window.__aiaOutcome = paintOutcomes(document.getElementById("outcome-chips"), t.outcome);
+      if (hint) hint.textContent = (outcomeOf(window.__aiaOutcome) || {}).next || "";
+    });
+    var outBox = document.getElementById("outcome-chips");
+    if (outBox) outBox.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-outcome]");
+      if (!btn) return;
+      window.__aiaOutcome = paintOutcomes(outBox, btn.getAttribute("data-outcome"));
+      if (hint) hint.textContent = (outcomeOf(window.__aiaOutcome) || {}).next || "";
+    });
+    if (!window.__aiaFetchWrap) {
+      window.__aiaFetchWrap = true;
+      var real = window.fetch;
+      window.fetch = function (url, opts) {
+        try {
+          if (String(url).indexOf("/api/jobs") >= 0 && opts && opts.body) {
+            var body = JSON.parse(opts.body);
+            if (body && body.action === "capture") {
+              var extras = collectKindFields();
+              var picked = window.__aiaOutcome || "wait";
+              body.outcome = picked;
+              body.wanted = picked;
+              if (extras.timing) body.timing = extras.timing;
+              if (extras.amount) {
+                var n = Number(extras.amount);
+                if (isFinite(n) && n > 0) body.amount = n;
+              }
+              if (extras.condition) body.condition = extras.condition;
+              if (extras.phone && !body.phone) body.phone = extras.phone;
+              if (extras.need && !body.notes) body.notes = extras.need;
+              if (extras.whoFor && !body.contactName) body.contactName = extras.whoFor;
+              body.custom = Object.assign({}, body.custom || {}, extras, { outcome: picked });
+              opts = Object.assign({}, opts, { body: JSON.stringify(body) });
+            }
+          }
+        } catch (e) {}
+        return real.call(this, url, opts);
+      };
+    }
+    return window.__aiaOutcome;
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootDropKinds);
+  else bootDropKinds();
   window.AIADropAgent = {
-    WHO: WHO,
-    TYPES: TYPES,
-    OUTCOMES: OUTCOMES,
-    implementFromText: implementFromText,
-    paintWho: paintWho,
-    paintPreview: paintPreview,
-    paintKinds: paintKinds,
-    paintKindFields: paintKindFields,
-    collectKindFields: collectKindFields,
-    paintOutcomes: paintOutcomes,
-    typeOf: typeOf,
-    outcomeOf: outcomeOf,
-    applyKindToForm: applyKindToForm,
-    firstLine: firstLine,
-    val: val
+    WHO: WHO, TYPES: TYPES, OUTCOMES: OUTCOMES,
+    implementFromText: implementFromText, paintWho: paintWho, paintPreview: paintPreview,
+    paintKinds: paintKinds, paintKindFields: paintKindFields, collectKindFields: collectKindFields,
+    paintOutcomes: paintOutcomes, typeOf: typeOf, outcomeOf: outcomeOf, applyKindToForm: applyKindToForm,
+    bootDropKinds: bootDropKinds, firstLine: firstLine, val: val
   };
 })();
