@@ -28,15 +28,11 @@
     .sub{color:var(--muted);margin:4px 0 16px}
     .modes,.who-chips,.lanes,.desk-chips,.desk-actions{display:flex;flex-wrap:wrap;gap:8px}
     .modes{margin:0 0 14px}
-    .modes button,.who-chips button,.lanes button,.desk-chips button{
-      flex:1;min-width:72px;min-height:44px;border:1px solid var(--line);border-radius:10px;
-      background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer
-    }
+    .modes button,.who-chips button,.lanes button,.desk-chips button{flex:1;min-width:72px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer}
     .modes button.on{background:var(--orange);color:#0c1116;border-color:var(--orange)}
     .who-chips button.on,.lanes button.on,.desk-chips button.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}
     .who-chips{margin:6px 0 10px}
     .who-chips button{text-transform:capitalize}
-    #agent-preview{margin-top:10px;font-size:13px;color:var(--heading);background:var(--edit);border-radius:10px;padding:10px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
     label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
@@ -69,9 +65,10 @@
   </header>
   <main class="wrap">
     <h1 id="drop-title">Drop something off</h1>
-    <p class="sub" id="drop-sub">This desk only. Quick request from family, a friend, a helper, or staff. Or paste data and let the desk write the card. Lands on this queue. Rules apply. Nobody sends money from here.</p>
+    <p class="sub" id="drop-sub">Quick drop, custom drop, or paste data. Photos, documents, or a short video can ride on the card. Lands on this queue. You still tap Yes or No. Nobody sends money from here.</p>
     <div class="modes" id="modes">
-      <button type="button" class="on" data-mode="quick">Quick request</button>
+      <button type="button" class="on" data-mode="quick">Quick drop</button>
+      <button type="button" data-mode="custom">Custom drop</button>
       <button type="button" data-mode="agent">Put data on</button>
     </div>
     <div class="card desk-pick" id="desk-pick">
@@ -107,11 +104,31 @@
           <label>What is it?</label>
           <select id="kind">
             <option value="request">A request</option>
-            <option value="note">Anything / a note</option>
-            <option value="form">Form / paper</option>
-            <option value="photo">Photo</option>
+            <option value="note">A note</option>
             <option value="call">Missed call</option>
-            <option value="walk-in">Book a job</option>
+            <option value="message">A message to send</option>
+            <option value="pickup">Pickup / drop-off</option>
+            <option value="ride">A ride</option>
+            <option value="reminder">A reminder</option>
+            <option value="book">Book a time</option>
+            <option value="chore">Chore / errand</option>
+            <option value="form">Form / paper</option>
+            <option value="photo">A photo</option>
+            <option value="files">Files / papers</option>
+            <option value="list">List / sell</option>
+            <option value="quote">Need a quote</option>
+            <option value="follow">Follow up</option>
+            <option value="walk-in">Walk-in job</option>
+            <option value="repair">Repair / fix</option>
+            <option value="delivery">Delivery</option>
+            <option value="return">A return</option>
+            <option value="invoice">Invoice / bill</option>
+            <option value="estimate">An estimate</option>
+            <option value="package">A package</option>
+            <option value="keys">Keys / lock</option>
+            <option value="school">School / kids</option>
+            <option value="grocery">Groceries / store</option>
+            <option value="custom">Custom drop</option>
           </select>
           <label>Title</label>
           <input id="title" placeholder="Need a ride Friday · list the lamp">
@@ -119,6 +136,9 @@
           <input id="who" placeholder="Name">
           <label>Phone</label>
           <input id="phone" placeholder="417-555-0100" inputmode="tel">
+          <label>Photos, documents, or video</label>
+          <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm">
+          <p class="sub" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
           <label>What do you need?</label>
           <textarea id="note" rows="3" placeholder="Say the request in plain words"></textarea>
         </div>
@@ -143,11 +163,11 @@
     </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">
-    <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
-    <a href="/drop" data-tab="drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
-    <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
-    <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
-    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+    <a href="/desk" data-tab="queue"><span>Queue</span></a>
+    <a href="/drop" data-tab="drop"><span>Drop</span></a>
+    <a href="/rules" data-tab="rules"><span>Rules</span></a>
+    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
@@ -173,17 +193,20 @@
       return h;
     }
     function showMode(next) {
-      mode = embed ? "quick" : (next === "agent" ? "agent" : "quick");
+      mode = embed ? "quick" : (next === "agent" ? "agent" : next === "custom" ? "custom" : "quick");
       document.querySelectorAll("#modes button").forEach(function (b) {
         b.classList.toggle("on", b.getAttribute("data-mode") === mode);
       });
-      const modes = document.getElementById("modes");
-      if (modes) modes.hidden = !!embed;
+      const modesEl = document.getElementById("modes");
+      if (modesEl) modesEl.hidden = !!embed;
       const agent = mode === "agent";
       document.getElementById("pane-work").hidden = agent;
       document.getElementById("pane-agent").hidden = !agent;
-      document.getElementById("lane-title").textContent = agent ? "Paste the data. The desk writes the card." : "Ask for something. It becomes a card.";
+      const customPane = document.getElementById("pane-custom");
+      if (customPane) customPane.hidden = mode !== "custom";
+      document.getElementById("lane-title").textContent = agent ? "Paste the data. The desk writes the card." : mode === "custom" ? "Name your own drop. It becomes a card." : "Quick drop. Tap a kind. It becomes a card.";
       document.getElementById("drop-send").textContent = agent ? "Put this on the desk" : "Drop it";
+      if (mode === "custom" && window.AIADropAgent && AIADropAgent.applyQuick) AIADropAgent.applyQuick("custom");
     }
     function paintEmbed() {
       const name = (desk && (desk.name || desk.slug)) || ws || "a desk";
@@ -226,40 +249,26 @@
       const ok = document.getElementById("ok");
       const err = document.getElementById("err");
       const btn = document.getElementById("drop-send");
-      ok.style.display = "none";
-      err.style.display = "none";
-      if (!ws) {
-        err.style.display = "block";
-        err.textContent = embed ? "This drop is missing a desk." : "Pick a desk above, add a saved one, or create a new desk.";
-        return;
-      }
+      ok.style.display = "none"; err.style.display = "none";
+      if (!ws) { err.style.display = "block"; err.textContent = embed ? "This drop is missing a desk." : "Pick a desk above, add a saved one, or create a new desk."; return; }
       const agentOn = mode === "agent";
       const implement = ((document.getElementById("implement") && document.getElementById("implement").value) || "").trim();
       const mapped = (window.AIADropAgent && agentOn) ? AIADropAgent.implementFromText(implement, FIELDS) : {};
       const note = agentOn ? implement : document.getElementById("note").value;
-      const title = document.getElementById("title").value || mapped.title || note;
+      const title = document.getElementById("title").value || mapped.title || note || ((document.getElementById("custom-name") && document.getElementById("custom-name").value) || "");
       const tell = agentOn ? (((document.getElementById("agent-tell") && document.getElementById("agent-tell").value) || implement)) : "";
-      if (!String(title || tell || implement).trim()) {
-        err.style.display = "block";
-        err.textContent = agentOn ? "Paste the data to put on the desk." : "Say what you need.";
-        return;
-      }
+      if (!String(title || tell || implement).trim()) { err.style.display = "block"; err.textContent = agentOn ? "Paste the data to put on the desk." : "Say what you need."; return; }
       const item = {
         action: "capture",
         kind: agentOn ? "note" : document.getElementById("kind").value,
-        title: title,
-        from: "widget",
+        title: title, from: "widget",
         contactName: document.getElementById("who").value || mapped.contactName,
         phone: document.getElementById("phone").value || mapped.phone,
-        email: mapped.email,
-        notes: note,
-        tell: tell,
+        email: mapped.email, notes: note, tell: tell,
         implement: agentOn ? implement : undefined,
-        mode: agentOn ? "agent" : "quick",
-        droppedByKind: whoKind,
-        whoKind: whoKind,
-        lane: agentOn ? "ops" : "work",
-        custom: Object.assign({}, mapped.custom || {}, { mode: agentOn ? "agent" : "quick", droppedByKind: whoKind })
+        mode: agentOn ? "agent" : (mode === "custom" ? "custom" : "quick"),
+        droppedByKind: whoKind, whoKind: whoKind, lane: agentOn ? "ops" : "work",
+        custom: Object.assign({}, mapped.custom || {}, { mode: agentOn ? "agent" : (mode === "custom" ? "custom" : "quick"), droppedByKind: whoKind })
       };
       if (agentOn && mapped.amount != null) item.amount = mapped.amount;
       if (agentOn && mapped.timing) item.timing = mapped.timing;
@@ -271,21 +280,14 @@
           ok.style.display = "block";
           ok.innerHTML = "On the queue. Rules on this desk apply." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>");
           if (window.AIASpeech) AIASpeech.speak("On the queue.");
-          document.getElementById("title").value = "";
-          document.getElementById("note").value = "";
+          document.getElementById("title").value = ""; document.getElementById("note").value = "";
           if (document.getElementById("implement")) document.getElementById("implement").value = "";
           if (document.getElementById("agent-tell")) document.getElementById("agent-tell").value = "";
+          if (document.getElementById("photo")) document.getElementById("photo").value = "";
           if (window.AIADropAgent) AIADropAgent.paintPreview({});
-        } else {
-          err.style.display = "block";
-          err.textContent = out.error || "Could not send.";
-        }
-      } catch (ex) {
-        err.style.display = "block";
-        err.textContent = "Could not reach the desk.";
-      } finally {
-        if (btn) btn.disabled = false;
-      }
+        } else { err.style.display = "block"; err.textContent = out.error || "Could not send."; }
+      } catch (ex) { err.style.display = "block"; err.textContent = "Could not reach the desk."; }
+      finally { if (btn) btn.disabled = false; }
     }
     document.getElementById("drop-send").addEventListener("click", function () { send(); });
     function copyDropShare() {
