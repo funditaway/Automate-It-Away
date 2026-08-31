@@ -1,36 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terms & privacy · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0d6b6b">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms & privacy · Automate It Away</title>
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
   <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
-  <script src="analytics.js"></script>
-<style>
-body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
-header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
-header a{color:#fff;text-decoration:none}
-main{width:min(720px,92vw);margin:0 auto;padding:24px 0}
-</style>
+  <style>
+    body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#fff;color:#1a2332;line-height:1.55}
+    a{color:#0f7f7f}
+    header{background:var(--header);color:#fff;padding:14px 5vw}
+    .wrap{width:min(720px,92vw);margin:0 auto;padding:24px 0 48px}
+    h1,h2{color:#0a4f4f}
+    p,li{color:#3d4f5f}
+  </style>
 </head>
 <body>
-<header><a href="index.html">Automate It Away</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
-<main>
-<h1>Before this goes live</h1>
-<p>A human still approves money over the guardrail.</p>
-<h2>Terms (draft)</h2>
-<ul>
-<li>You own your customer data.</li>
-<li>The desk may draft. It may not ship money, legal letters, or policy illustrations unless you approve.</li>
-<li>Marketplace and processor rules still apply.</li>
-</ul>
-<h2>Privacy (draft)</h2>
-<ul>
-<li>Jobs live in the desk store on this host.</li>
-<li>Support tickets attach to the workspace you name.</li>
-</ul>
-<p>Counsel rewrites this before money moves.</p>
-</main>
+  <header>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+  </header>
+  <main class="wrap">
+    <h1>Before automateitaway.com takes money</h1>
+    <p>Pilot workspaces still live in this browser. The live desk will live on automateitaway.com under your workspace. We are not a bank, a carrier, or a law firm. A human still approves money over $250 and anything that can hurt a customer.</p>
+    <h2>Terms (draft)</h2>
+    <ul>
+      <li>You own your customer data. We process jobs in your workspace.</li>
+      <li>You do not need a ChatGPT, Claude, or Grok account. We draft on our key unless you turn on your own key.</li>
+      <li>The agent may draft. It may not ship money, legal letters, or policy illustrations unless you approve.</li>
+      <li>Square, eBay, Calendar, and carriers stay your accounts. A dead token is your connection.</li>
+      <li>Owner accounts are free for now. A monthly charge may start later. We tell you before we charge. No card is taken when you open an account.</li>
+      <li>We bill shipped jobs only after a live pipe writes back. Pilot and held (409) jobs are not billed.</li>
+    </ul>
+    <h2>Privacy (draft)</h2>
+    <ul>
+      <li>Pilot data stays in localStorage on this device.</li>
+      <li>When live: jobs, audit, and payouts sit on the workspace server for automateitaway.com. No selling lists.</li>
+      <li>Model vendors used for drafts see prompt text we send. They do not get your Square payouts.</li>
+      <li>Delete a workspace and its queue goes with it — once the live delete path exists.</li>
+    </ul>
+    <p>Counsel rewrites this before money moves. Do not treat this page as the final contract.</p>
+  </main>
+  <script src="theme.js"></script>
 </body>
 </html>
