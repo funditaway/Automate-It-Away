@@ -107,30 +107,38 @@
     return !!(store && store.getItem("aia_ws") && store.getItem("aia_pin"));
   }
 
+  function queryWs() {
+    var search = (root.location && root.location.search) || "";
+    var raw = "";
+    if (typeof root.URLSearchParams === "function") {
+      try { raw = new root.URLSearchParams(search).get("ws") || ""; } catch (e) { raw = ""; }
+    } else {
+      var m = String(search).match(/[?&]ws=([^&]+)/);
+      raw = m ? m[1] : "";
+    }
+    return slugify(raw);
+  }
+
   function widgetHref(slug) {
-    var use = slugify(slug || (store && store.getItem("aia_ws")) || "");
-    if (!use) return "/drop";
-    return "/drop?ws=" + encodeURIComponent(use);
+    var use = slugify(slug || "");
+    if (use) return "/drop?ws=" + encodeURIComponent(use);
+    return "/drop";
   }
 
   function captureDesk() {
-    var q = "";
-    try {
-      q = (typeof URLSearchParams === "function" && new URLSearchParams(location.search).get("ws")) || "";
-    } catch (e) {
-      q = "";
+    var qslug = queryWs();
+    if (qslug) {
+      var saved = find(qslug);
+      if (saved) {
+        return { slug: saved.slug, name: saved.name, pin: saved.pin, role: saved.role, captureOnly: true };
+      }
+      return { slug: qslug, name: qslug, pin: "", role: "", embed: true };
     }
-    var slug = slugify(q || (store && store.getItem("aia_ws")) || "");
-    if (!slug) return null;
-    if (q && store) store.setItem("aia_ws", slug);
-    var row = find(slug);
-    if (row) return row;
-    return {
-      slug: slug,
-      name: (store && store.getItem("aia_desk_name")) || slug,
-      pin: (store && store.getItem("aia_pin")) || "",
-      role: (store && store.getItem("aia_role")) || ""
-    };
+    if (shopOpen()) {
+      var cur = current();
+      if (cur && cur.slug) return cur;
+    }
+    return null;
   }
 
   function defaultNouns() {
@@ -177,6 +185,7 @@
     switchTo: switchTo,
     widgetHref: widgetHref,
     captureDesk: captureDesk,
+    queryWs: queryWs,
     shopOpen: shopOpen,
     slugify: slugify,
     defaultNouns: defaultNouns,

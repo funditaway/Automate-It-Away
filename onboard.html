@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Open your shop · Automate It Away</title>
+  <title>Name this desk · Automate It Away</title>
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
@@ -19,13 +19,13 @@
     <a href="index.html">Automate It Away</a>
     <div class="nav">
       <a href="setup.html">Setup</a>
-      <a href="login.html">Have a shop</a>
+      <a href="login.html">Sign in</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <form class="gate-card" id="form">
-    <h1>Open this queue</h1>
-    <p class="sub">Name the desk. Pick a code. Talk it through or type. If this is not house or resale, name the work and the fields. First card optional.</p>
+    <h1>Name this desk</h1>
+    <p class="sub">Name it, then drop. Login is desk name + desk code. Email is not the login. Talk it through or type.</p>
     <div class="talk-bar" id="talkBar" hidden>
       <p class="talk-status" id="talkStatus">The desk can talk this through. Hear a step, then Talk.</p>
       <button type="button" id="hearBtn">Hear this</button>
@@ -36,8 +36,8 @@
     <input name="name" required placeholder="Alex Rivera" autocomplete="name">
     <div class="row">
       <div>
-        <label>Desk name <span class="tip" title="House name or shop name. Letters and dashes. This is the login.">?</span></label>
-        <input name="biz" required placeholder="Oddo house or Rivera Resale">
+        <label>Desk name <span class="tip" title="House name or the name of this desk. Letters and dashes. This is the login.">?</span></label>
+        <input name="biz" required placeholder="Desk name">
       </div>
       <div>
         <label>City</label>
@@ -65,15 +65,16 @@
     </div>
     <label>First thing on the queue <span class="tip" title="Optional. Lands as a card. You still tap Yes or No.">?</span></label>
     <input name="firstWork" placeholder="Permission slip Friday, or list the oak dresser">
-    <label>Email <span class="tip" title="For you. Login is shop name + desk code, not email.">?</span></label>
-    <input type="email" name="email" required placeholder="you@shop.com">
-    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this shop. Staff get their own later.">?</span></label>
-    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
-    <button class="btn" type="submit">Open this desk</button>
-    <p class="hint">Desk name + your code opens this queue on any phone.</p>
+    <label>Email <span class="tip" title="For you. Login is desk name + desk code, not email.">?</span></label>
+    <input type="email" name="email" required placeholder="you@email.com">
+    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this desk. Staff get their own later.">?</span></label>
+    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Desk code" autocomplete="new-password">
+    <button class="btn" type="submit">Open it</button>
+    <p class="hint">Desk name + desk code opens this queue on any phone. Email is not the login.</p>
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
+  <script src="desk-switch.js"></script>
   <script src="speech.js"></script>
   <script>
     const form = document.getElementById("form");
@@ -113,7 +114,7 @@
 
     const STEPS = [
       { name: "name", ask: "What should we call you?" },
-      { name: "biz", ask: "What is the desk name? House name or shop name." },
+      { name: "biz", ask: "What is the desk name?" },
       { name: "city", ask: "What city?" },
       { name: "role", ask: "Are you the owner or staff?" },
       { name: "model", ask: "Is this home and family, consignment, or something else?" },
@@ -255,6 +256,12 @@
       localStorage.setItem("aia_name", f.get("name") || "");
       localStorage.setItem("aia_model", model);
       localStorage.setItem("aia_desk_name", String(f.get("biz") || slug));
+      AIADesks.open({
+        slug: slug,
+        name: String(f.get("biz") || slug),
+        pin: pin,
+        role: f.get("role") || "owner"
+      });
       try {
         const r = await fetch("/api/auth", {
           method: "POST",
@@ -274,8 +281,8 @@
           })
         });
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) { err.textContent = data.error || "Could not open the shop."; err.style.display = "block"; return; }
-        location.href = "desk.html";
+        if (!r.ok) { err.textContent = data.error || "Could not open the desk."; err.style.display = "block"; return; }
+        location.href = "/drop";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
         err.style.display = "block";

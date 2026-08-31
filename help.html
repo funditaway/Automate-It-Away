@@ -29,14 +29,17 @@
 <body class="has-desk-nav">
   <header>
     <a href="index.html">Automate It Away</a>
-    <a href="desk.html">Desk</a>
+    <span>
+      <a href="desk.html">Desk</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </span>
   </header>
   <main class="wrap">
     <h1>How to run the desk</h1>
     <p>The desk writes the work. A person says yes or no before it goes out.</p>
     <div class="card">
       <h2>Pages that exist</h2>
-      <p><a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your shop</a> · <a href="create.html">Create</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="rules.html">Rules</a> · <a href="admin.html">People</a> · <a href="connections.html">Pipes</a> · <a href="widget.html">Drop box</a> · <a href="support.html">Support</a></p>
+      <p><a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Name this desk</a> · <a href="create.html">Create</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="rules.html">Rules</a> · <a href="admin.html">People</a> · <a href="connections.html">Pipes</a> · <a href="/drop">Drop</a> · <a href="support.html">Support</a></p>
     </div>
     <div class="card">
       <h2>Owner vs helper</h2>
@@ -57,28 +60,26 @@
         <dt>Now</dt>
         <dd>Webhook in and out. Anything on the internet can write a card to /api/hook. That is the unlimited pipe today.</dd>
         <dt>Hold · beta</dt>
-        <dd>Calendar, SMS, Square, eBay, Consign store — names exist. Stay hold until keys sit on the box. Grok liking the name does not turn them green.</dd>
+        <dd>Calendar, SMS, Square, and named pipes wait until they are actually connected. A name on the wall is not a live pipe.</dd>
         <dt>Coming soon</dt>
-        <dd>Stripe, PayPal, Shopify, Gmail, Drive, shop apps, QuickBooks, Slack, missed-call voice. On the wall. Not a Connect button.</dd>
-        <dt>Down</dt>
-        <dd>Whatnot stays off. Not a launch pipe.</dd>
+        <dd>More named pipes stay on the wall. Not a Connect button.</dd>
       </dl>
     </div>
     <div class="card">
       <h2>Words on the buttons</h2>
       <dl>
-        <dt>Needs you</dt>
+        <dt>Waiting on a person.</dt>
         <dd>This job is waiting on a person.</dd>
         <dt>Yes</dt>
         <dd>Go — post it, text it, or mark it sent. Helpers can do this unless a rule waits on the owner.</dd>
         <dt>Stop</dt>
-        <dd>No — cancel it. Only the owner. Press twice so it is not an accident.</dd>
+        <dd>No — cancel it. Owner, twice.</dd>
         <dt>Money wait</dt>
-        <dd>Only if the owner wrote that rule. Floor can get the job ready. Owner lets the money move.</dd>
-        <dt>Open</dt>
-        <dd>The card. Notes, Grok recs, extra fields, ask for more.</dd>
-        <dt>Phone calendar</dt>
-        <dd>Drops a file on your phone. Google Calendar write stays off until the key is on the box.</dd>
+        <dd>Only if the owner wrote that rule. A helper can get the job ready. Owner lets the money move.</dd>
+        <dt>The job.</dt>
+        <dd>The card. Notes, extra fields, ask for more.</dd>
+        <dt>Save a file</dt>
+        <dd>Drops a file on your phone.</dd>
         <dt>We type it in</dt>
         <dd>You tell us. We write the card on your queue. You still tap Yes or Stop.</dd>
         <dt>Pipes</dt>
@@ -90,6 +91,13 @@
       <p>Desk name + desk code. Email is not the login. Staff get their own code from the owner.</p>
     </div>
   </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><span>Queue</span></a>
+    <a href="/drop" data-tab="drop"><span>Drop</span></a>
+    <a href="/rules" data-tab="rules"><span>Rules</span></a>
+    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/more" data-tab="more"><span>More</span></a>
+  </nav>
   <script src="theme.js"></script>
   <script src="desk-nav.js"></script>
 </body>

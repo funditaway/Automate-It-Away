@@ -81,7 +81,7 @@
   </header>
   <main class="wrap">
     <h1>Same desk at home and at work.</h1>
-    <p class="lead">School form. Oil change. Missed call at the shop. Watch the five steps. Send means yes. Stop means no.</p>
+    <p class="lead">Drop the work. You tap yes or no. School form. Oil change. Missed call. Send means yes. Stop means no.</p>
     <div class="talk-bar" id="talkBar" hidden>
       <p class="talk-status" id="talkStatus">Play the film, or Hear this reads the line.</p>
       <button type="button" id="playBtn">Play film</button>
@@ -98,13 +98,13 @@
       <div class="fact"><b>Needs you</b><span>This job is waiting on a person.</span></div>
       <div class="fact"><b>Send = yes</b><span>Post it, text it, or pay it.</span></div>
       <div class="fact"><b>Stop = no</b><span>Cancel it. Owner presses twice.</span></div>
-      <div class="fact"><b>Over $250</b><span>Someone can prep it. Only the owner lets that money move.</span></div>
+      <div class="fact"><b>Money wait</b><span>Someone can prep it. Only the owner lets that money move if you wrote that rule.</span></div>
     </div>
     <p class="sec">Who does what</p>
     <div class="parts">
       <div class="part"><small>1</small><b>The desk</b><span>Automate It Away holds the queue and the five steps.</span></div>
-      <div class="part"><small>2</small><b>The draft</b><span>Grok writes the listing, packet, or notice. It does not send money or bind coverage.</span></div>
-      <div class="part"><small>3</small><b>The pipe</b><span>Webhook is the cross-internet pipe now. Square, eBay, calendar, SMS wait on keys. Coming soon stays on the wall. Whatnot stays off.</span></div>
+      <div class="part"><small>2</small><b>The draft</b><span>The desk writes the listing, packet, or notice. It does not send money or bind coverage.</span></div>
+      <div class="part"><small>3</small><b>The pipe</b><span>Webhook is the cross-internet pipe now. Named pipes wait on keys. Coming soon stays on the wall.</span></div>
     </div>
     <p class="sec">See it on your week</p>
     <label for="q">Home, shop, or both</label>
@@ -130,7 +130,7 @@
       { id: "capture", name: "1 Capture", src: "video/how-capture.mp4", poster: "img/how-capture.jpg", line: "Capture. The work hits the queue once." },
       { id: "qualify", name: "2 Qualify", src: "video/how-qualify.mp4", poster: "img/how-qualify.jpg", line: "Qualify. Rules screen fit, price, risk, timing." },
       { id: "do", name: "3 Do", src: "video/how-do.mp4", poster: "img/how-do.jpg", line: "Do the work. Draft only. Nothing leaves until Send." },
-      { id: "paid", name: "4 Paid", src: "video/how-paid.mp4", poster: "img/how-paid.jpg", line: "Get paid. Over two hundred fifty waits on the owner." },
+      { id: "paid", name: "4 Paid", src: "video/how-paid.mp4", poster: "img/how-paid.jpg", line: "Get paid. Money waits on the owner only if you wrote that rule." },
       { id: "follow", name: "5 Follow", src: "video/how-follow.mp4", poster: "img/how-follow.jpg", line: "Follow. One reminder. Then it stops." }
     ];
     const NICHES = [
@@ -156,8 +156,8 @@
         mean:{ estate:"Comps vs ask. Title in hand?", assets:"Lien? Brand? Reserve vs comps", auto:"Title, recon, book vs bid", vita:"Needs and budget — is this a case?", legal:"Conflict and retainer fit", land:"Flood, access, zoning, title", btr:"Setbacks, utilities, city hold", fund:"LTV, rehab, exit, file complete?", storm:"Territory, supplement, capacity", gc:"License and emergency vs schedule", practice:"Open chair, coverage, hold", pm:"Screen vs criteria", storage:"Days late and notice window", life:"Is this this week? Who pays? Does it wait?" } },
       { n:3, id:"do", name:"Do the work", what:"Draft only. Nothing leaves until Send.", tap:"Illustration, engagement letter, lien notice, supplement.",
         mean:{ estate:"Listing + payout terms", assets:"Packet with title flags", auto:"Wholesale sheet", vita:"Quote you approve first", legal:"Engagement letter draft", land:"Builder packet", btr:"Lot packet", fund:"Term sheet or draw packet", storm:"Estimate from photos", gc:"Slot + written estimate", practice:"Confirm text", pm:"Lease or vendor work order", storage:"Statutory notice draft", life:"Reminder text or the form filled in" } },
-      { n:4, id:"paid", name:"Get paid", what:"Collect when due. Over $250 waits on the owner.", tap:"Staff under $250. Owner above that.",
-        mean:{ estate:"Seller payout after it clears", assets:"Settlement after title clears", auto:"Funds before keys", vita:"Premium when placed", legal:"Retainer first", land:"Reservation or takedown", btr:"Hold fee or draw", fund:"Origination or funded draw", storm:"Deposit or first draw", gc:"Job deposit", practice:"Copay after the visit", pm:"Rent or bill-back", storage:"Catch-up or auction proceeds", life:"Pay the bill if it is due. Over $250 waits." } },
+      { n:4, id:"paid", name:"Get paid", what:"Collect when due. Money waits on the owner only if you wrote that rule.", tap:"Helper can prep it. Owner lets money move when a rule says wait.",
+        mean:{ estate:"Seller payout after it clears", assets:"Settlement after title clears", auto:"Funds before keys", vita:"Premium when placed", legal:"Retainer first", land:"Reservation or takedown", btr:"Hold fee or draw", fund:"Origination or funded draw", storm:"Deposit or first draw", gc:"Job deposit", practice:"Copay after the visit", pm:"Rent or bill-back", storage:"Catch-up or auction proceeds", life:"Pay the bill if it is due. Money wait only if you wrote that rule." } },
       { n:5, id:"follow", name:"Follow", what:"One reminder. Then it stops.", tap:"A second invoice or a guilt letter.",
         mean:{ estate:"Pickup window", assets:"Title mailed", auto:"Transport booked", vita:"Delivery + year-2 review", legal:"Signing date", land:"Builder updated", btr:"Milestone to the buyer", fund:"Next inspection / draw", storm:"Build day", gc:"Final invoice. Done.", practice:"Next recall", pm:"Move-in or renewal", storage:"One notice, then the lien clock", life:"One nudge. Then it stops nagging you." } }
     ];

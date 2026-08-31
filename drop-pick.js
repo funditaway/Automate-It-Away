@@ -10,40 +10,47 @@
   }
   function goDrop(slug) {
     var use = slugify(slug);
-    location.href = use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
+    location.href = use ? "/drop" : "/drop";
   }
   function paint() {
     var box = document.getElementById("desk-pick");
     var chips = document.getElementById("desk-chips");
     var sub = document.getElementById("desk-pick-sub");
+    var create = document.getElementById("desk-new");
+    var add = document.getElementById("desk-add-link");
     if (!box || !chips) return;
-    if (window !== window.parent || /embed=1/.test(location.search)) {
+    if (window !== window.parent || /embed=1/.test(location.search) || (window.AIADesks && AIADesks.queryWs && AIADesks.queryWs())) {
       box.hidden = true;
       return;
     }
     box.hidden = false;
     var rows = (window.AIADesks && AIADesks.list) ? AIADesks.list() : [];
-    var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || {};
-    var ws = cur.slug || localStorage.getItem("aia_ws") || "";
+    var cur = (window.desk && window.desk.slug) || (window.AIADesks && AIADesks.current && AIADesks.current() && AIADesks.current().slug) || "";
     if (!rows.length) {
       chips.innerHTML = "";
-      if (sub) sub.textContent = "No desks on this phone yet. Add one you already opened, or create a new desk.";
+      if (sub) sub.textContent = "Create a new desk — name it, then drop.";
+      if (create) create.hidden = false;
+      if (add) add.hidden = true;
       return;
     }
-    if (sub) sub.textContent = "Desks saved on this phone. Tap one to drop there. Add another, or create a new desk.";
+    if (sub) sub.textContent = "Your desks — tap one.";
+    if (create) create.hidden = true;
+    if (add) add.hidden = false;
     chips.innerHTML = rows.map(function (d) {
-      var on = d.slug === ws ? " on" : "";
-      var who = d.role === "owner" ? " · owner" : d.role === "employee" ? " · helper" : "";
+      var on = d.slug === cur ? " on" : "";
       return "<button type=\"button\" class=\"" + on.trim() + "\" data-desk=\"" + esc(d.slug) + "\">" +
-        esc(d.name || d.slug) + who + (d.slug === ws ? " · this desk" : "") + "</button>";
+        esc(d.name || d.slug) + (d.slug === cur ? " · this desk" : "") + "</button>";
     }).join("");
   }
   function pick(slug) {
     var row = window.AIADesks ? AIADesks.find(slug) : null;
     if (!row) return;
     if (row.pin) {
-      AIADesks.switchTo(row.slug);
-      goDrop(row.slug);
+      row = AIADesks.switchTo(row.slug) || row;
+      window.desk = row;
+      window.ws = row.slug;
+      paint();
+      if (typeof paintDrop === "function") paintDrop();
       return;
     }
     var add = document.getElementById("desk-add");
@@ -87,7 +94,11 @@
         localStorage.setItem("aia_pin", code);
         localStorage.setItem("aia_desk_name", label);
       }
-      goDrop(ws);
+      window.desk = { slug: ws, name: label, pin: code };
+      window.ws = ws;
+      paint();
+      if (typeof paintDrop === "function") paintDrop();
+      return;
     } catch (e) {
       if (err) { err.style.display = "block"; err.textContent = "Could not reach the desk."; }
     }

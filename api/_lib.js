@@ -509,6 +509,13 @@ function setRuleWidget(ws, id, on, label) {
   return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
 }
 
+const RULE_WHEN = ["capture", "qualify", "do", "collect", "follow"];
+const RULE_THEN = ["note", "wait", "stop"];
+
+function ruleStarters() {
+  return [];
+}
+
 function defaultRules() {
   return [];
 }
@@ -523,10 +530,15 @@ function ensureRules(ws) {
   return ws.rules.map(publicRule).filter(Boolean);
 }
 
-function addWorkspaceRule(ws, text, person) {
+function ruleTextOf(src) {
+  if (src && typeof src === "object") return String(src.text || "");
+  return String(src == null ? "" : src);
+}
+
+function addWorkspaceRule(ws, src, person) {
   if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
   if (!Array.isArray(ws.rules)) ensureRules(ws);
-  const clean = String(text || "").trim().replace(/\s+/g, " ");
+  const clean = ruleTextOf(src).trim().replace(/\s+/g, " ");
   if (clean.length < 4) return { ok: false, error: "Type a small wait-for-owner line." };
   if (clean.length > RULE_TEXT_MAX) return { ok: false, error: "Keep the rule short." };
   if (forbiddenRule(clean)) return { ok: false, error: RULE_FORBID_MSG };
@@ -536,17 +548,68 @@ function addWorkspaceRule(ws, text, person) {
   if ((ws.rules || []).length >= RULE_MAX) {
     return { ok: false, error: "This desk has enough rules." };
   }
+  const body = src && typeof src === "object" ? src : {};
   const rule = {
     id: "rule_" + Date.now().toString(36),
     text: clean,
     seed: false,
     attach: "qualify",
+    when: RULE_WHEN.indexOf(body.when) >= 0 ? body.when : "qualify",
+    then: RULE_THEN.indexOf(body.then) >= 0 ? body.then : "note",
+    ifMoney: body.ifMoney != null && Number.isFinite(Number(body.ifMoney)) ? Number(body.ifMoney) : null,
     widget: { on: false, label: "" },
     createdAt: new Date().toISOString(),
     by: (person && person.name) || "owner"
   };
   ws.rules.push(rule);
   return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
+}
+
+function updateWorkspaceRule(ws, id, body) {
+  if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
+  if (!Array.isArray(ws.rules)) ensureRules(ws);
+  const key = String(id || "");
+  const rule = (ws.rules || []).find((r) => r && r.id === key);
+  if (!rule) return { ok: false, error: "Rule not found." };
+  const src = body && typeof body === "object" ? body : {};
+  if (src.text != null) {
+    const clean = String(src.text || "").trim().replace(/\s+/g, " ");
+    if (clean.length < 4) return { ok: false, error: "Type a small wait-for-owner line." };
+    if (clean.length > RULE_TEXT_MAX) return { ok: false, error: "Keep the rule short." };
+    if (forbiddenRule(clean)) return { ok: false, error: RULE_FORBID_MSG };
+    rule.text = clean;
+  }
+  if (src.when && RULE_WHEN.indexOf(src.when) >= 0) rule.when = src.when;
+  if (src.then && RULE_THEN.indexOf(src.then) >= 0) rule.then = src.then;
+  if (src.ifMoney != null) {
+    const n = Number(src.ifMoney);
+    rule.ifMoney = Number.isFinite(n) ? n : null;
+  }
+  return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
+}
+
+function matchingRules(rules, job, step) {
+  const want = String(step || "").toLowerCase();
+  return (rules || []).filter(function (r) {
+    if (!r) return false;
+    const when = String(r.when || r.attach || "").toLowerCase();
+    return !want || !when || when === want;
+  });
+}
+
+function ruleWantsOwner(rules, job, step) {
+  return matchingRules(rules, job, step).some(function (r) { return r.then === "wait"; });
+}
+
+function ruleWantsStop(rules, job, step) {
+  return matchingRules(rules, job, step).some(function (r) { return r.then === "stop"; });
+}
+
+function ruleWhy(rules, job, step) {
+  const hit = matchingRules(rules, job, step).find(function (r) {
+    return r.then === "wait" || r.then === "stop";
+  });
+  return hit ? hit.text : "";
 }
 
 function removeWorkspaceRule(ws, id) {
@@ -577,7 +640,9 @@ module.exports = {
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
-  addWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
+  addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
+  matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy,
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
-  publicRuleWidget, setRuleWidget, widgetsOn, widgetCount
+  publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
+  ruleStarters, RULE_WHEN, RULE_THEN
 };
