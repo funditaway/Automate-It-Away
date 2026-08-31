@@ -72,9 +72,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 .edit { background: var(--edit); color: var(--edit-ink); }
 .kill { background: var(--kill-bg); color: var(--kill-ink); }
-.go, .btn {
+.go, .btn, .primary, a.primary {
   background: var(--orange);
-  color: #fff;
+  color: #0c1116;
   border: 0;
   font-weight: 700;
 }
@@ -203,7 +203,7 @@ header > a,
   border-radius: 12px;
   padding: 12px;
   background: var(--orange);
-  color: #fff;
+  color: #0c1116;
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
@@ -263,7 +263,7 @@ html.dark .gate-card .ok { color: #8ee0ad; }
 }
 .talk-bar button.on {
   background: var(--orange);
-  color: #fff;
+  color: #0c1116;
   border-color: var(--orange);
 }
 .talk-opts {
