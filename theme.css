@@ -152,6 +152,20 @@ html.dark #desk-nav { background: #0a3d3d; }
 }
 .site-header a { color: #fff; text-decoration: none; font-weight: 700; }
 .site-header .nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: block;
+  flex: 0 0 28px;
+}
+header > a,
+.site-header > a,
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 .page-bg {
   min-height: 100vh;
   background:
