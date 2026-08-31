@@ -16,15 +16,15 @@
 </head>
 <body class="page-bg">
   <header class="site-header">
-    <a href="index.html">Automate It Away</a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
       <a href="onboard.html">New desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <form class="gate-card" id="form">
-    <h1>Open this queue</h1>
-    <p class="sub">Desk name + your desk code. Owner and helper land on the same desk. Talk the name if you want.</p>
+    <h1>Open this desk</h1>
+    <p class="sub">Desk name + your desk code. Same queue on any phone. Email is not the login.</p>
     <div class="talk-bar" id="talkBar" hidden>
       <p class="talk-status" id="talkStatus">Say the desk name. Code stays typed — not read back.</p>
       <button type="button" id="hearBtn">Hear this</button>
@@ -90,13 +90,16 @@
         if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
         if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
         if (data.workspace && data.workspace.biz) localStorage.setItem("aia_desk_name", data.workspace.biz);
-        AIADesks.open({
-          slug: data.workspace.slug,
-          name: (data.workspace && (data.workspace.biz || data.workspace.name)) || slug,
-          pin: pin,
-          role: (data.you && data.you.role) || ""
-        });
-        location.href = "/desk";
+        if (window.AIADesks) {
+          AIADesks.open({
+            slug: data.workspace.slug,
+            name: (data.workspace && (data.workspace.biz || data.workspace.name)) || data.workspace.slug,
+            pin: pin,
+            role: (data.you && data.you.role) || "owner",
+            who: (data.you && data.you.name) || ""
+          });
+        }
+        location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
         err.style.display = "block";
