@@ -21,7 +21,7 @@
     if (window.AIADesks && window.AIADesks.widgetHref) return window.AIADesks.widgetHref();
     var ws = localStorage.getItem("aia_ws");
     if (ws) return "/drop?ws=" + encodeURIComponent(ws);
-    return "/onboard";
+    return "/drop";
   }
 
   function tabOf() {

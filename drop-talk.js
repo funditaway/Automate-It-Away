@@ -12,8 +12,8 @@
   function dropLine() {
     var name = (window.ws || (window.desk && (desk.name || desk.slug)) || "this desk");
     var work = workText();
-    if (work) return work + ". Ready to send to " + name + ".";
-    return "Say the work for " + name + ". Talk fills this drop. Nobody sends money from here.";
+    if (work) return work + ". Ready to drop on " + name + ".";
+    return "Say any work for " + name + ". Talk fills this drop. Nobody sends money from here.";
   }
   function fill(heard) {
     var text = String(heard || "").trim();
@@ -30,8 +30,8 @@
     if (title) title.value = cut;
     if (note) note.value = text;
     if (tell) tell.value = text;
-    status("Heard. Sending to the desk.");
-    if (window.AIASpeech) AIASpeech.speak("Sending to the desk.");
+    status("Heard. Dropping it on the queue.");
+    if (window.AIASpeech) AIASpeech.speak("Dropping it on the queue.");
     if (typeof send === "function") send();
   }
   function boot() {

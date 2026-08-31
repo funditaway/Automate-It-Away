@@ -109,7 +109,7 @@
 
   function widgetHref(slug) {
     var use = slugify(slug || (store && store.getItem("aia_ws")) || "");
-    if (!use) return "/onboard";
+    if (!use) return "/drop";
     return "/drop?ws=" + encodeURIComponent(use);
   }
 
