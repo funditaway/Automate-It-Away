@@ -1,7 +1,7 @@
-const { cors, mem, log, save, ready, workspaceOf, readBody, personOf } = require("./_lib");
-const { qualifyJob, recommend } = require("./engine");
-const { addTalk } = require("./fields");
-const { grokRecommend } = require("./grok");
+const { cors, mem, log, save, ready, workspaceOf, readBody, personOf } = require("./ _lib");
+const { qualifyJob, recommend } = require("./_engine");
+const { addTalk } = require("./_fields");
+const { grokRecommend } = require("./_grok");
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
   if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
   else recommend(job, [], shop);
   job.whoTapped = (person && person.name) || body.whoTapped || "desk";
-  log("Desk", "Grok recs \u00b7 " + job.title, grok && grok.ok ? "OK" : "Hold", workspace);
+  log("Desk", "Grok recs · " + job.title, grok && grok.ok ? "OK" : "Hold", workspace);
   await save();
   return res.status(200).json({
     ok: true,

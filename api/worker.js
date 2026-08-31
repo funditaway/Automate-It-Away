@@ -1,5 +1,5 @@
-const { cors, mem, log, save, ready, workspaceOf } = require("./_lib");
-const { runWorkspace } = require("./engine");
+const { cors, mem, log, save, ready, workspaceOf } = require("./ _lib");
+const { runWorkspace } = require("./_engine");
 
 function shopOf(slug) {
   return (mem.workspaces || []).find((w) => w && w.slug === slug) || null;
