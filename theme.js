@@ -14,6 +14,14 @@
     if (t === "light") return "Light";
     return "Auto";
   }
+  function markSrc() {
+    return isDark() ? "/img/aia-pyramid-tile.svg" : "/img/aia-pyramid-tile-light.svg";
+  }
+  function paintMarks() {
+    document.querySelectorAll("img.brand-mark").forEach(function (img) {
+      if (img.getAttribute("src") !== markSrc()) img.src = markSrc();
+    });
+  }
   function apply() {
     const dark = isDark();
     document.documentElement.classList.toggle("dark", dark);
@@ -24,9 +32,7 @@
       b.textContent = label();
       b.title = "Theme: " + label() + ". Tap to change.";
     });
-    document.querySelectorAll("img.brand-mark").forEach(function (img) {
-      img.src = dark ? "img/aia-pyramid-tile.svg" : "img/aia-pyramid-tile-light.svg";
-    });
+    paintMarks();
   }
   function cycle() {
     const cur = localStorage.getItem("aia_theme") || "system";
@@ -69,7 +75,7 @@
   }
   function esc(s) {
     return String(s || "").replace(/[&<>"]/g, function (c) {
-      return ({ "&": "&", "<": "<", ">": ">", '"': """ })[c];
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
     });
   }
   function roleLabel(r) {
@@ -131,24 +137,27 @@
   function mark() {
     lockHeader();
     paintWho();
-    if (document.querySelector(".brand-mark")) return;
-    var host = document.querySelector(".site-header > a, header > a, header .logo, header .brand, header > strong");
-    if (!host) return;
-    var img = document.createElement("img");
-    img.className = "brand-mark";
-    img.src = isDark() ? "img/aia-pyramid-tile.svg" : "img/aia-pyramid-tile-light.svg";
-    img.width = 28;
-    img.height = 28;
-    img.alt = "";
-    if (host.tagName === "STRONG") {
-      var a = document.createElement("a");
-      a.href = "index.html";
-      a.appendChild(img);
-      a.appendChild(host.cloneNode(true));
-      host.replaceWith(a);
-      return;
+    if (!document.querySelector(".brand-mark")) {
+      var host = document.querySelector(".site-header > a, header > a, header .logo, header .brand, header > strong");
+      if (host) {
+        var img = document.createElement("img");
+        img.className = "brand-mark";
+        img.src = markSrc();
+        img.width = 28;
+        img.height = 28;
+        img.alt = "";
+        if (host.tagName === "STRONG") {
+          var a = document.createElement("a");
+          a.href = "index.html";
+          a.appendChild(img);
+          a.appendChild(host.cloneNode(true));
+          host.replaceWith(a);
+        } else {
+          host.insertBefore(img, host.firstChild);
+        }
+      }
     }
-    host.insertBefore(img, host.firstChild);
+    apply();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mark);
   else mark();
