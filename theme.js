@@ -65,17 +65,21 @@
       "header .brand-name, .site-header .brand-name, header .brand strong, header.top .brand-name{color:#fff!important}" +
       "header .brand-page, .site-header .brand-page{color:var(--header-accent)!important;white-space:nowrap}" +
       "header .brand-mark, .site-header .brand-mark{width:28px;height:28px;flex:0 0 28px;border-radius:7px}" +
-      ".who-chip{display:inline-flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:1px;" +
-      "min-height:44px;max-width:min(46vw,180px);margin-left:auto;padding:4px 10px;border-radius:10px;" +
+      ".who-chip{display:inline-flex!important;flex-direction:row!important;justify-content:flex-end;align-items:center!important;gap:8px!important;" +
+      "min-height:44px;max-width:min(52vw,220px);margin-left:auto;padding:4px 8px 4px 4px;border-radius:999px;" +
       "background:rgba(255,255,255,.14);color:#fff;text-decoration:none}" +
-      ".who-chip strong,.who-chip span{display:block;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}" +
-      ".who-chip span{color:var(--header-accent)}" +
-      ".who-chip.out span{color:rgba(255,255,255,.82)}";
+      ".who-pic{width:36px;height:36px;border-radius:50%;flex:0 0 36px;display:inline-flex;align-items:center;justify-content:center;" +
+      "background:rgba(255,255,255,.2);color:#fff;object-fit:cover;overflow:hidden}" +
+      ".who-copy{min-width:0;text-align:right}" +
+      ".who-chip strong,.who-chip span,.who-copy strong,.who-copy span{display:block;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}" +
+      ".who-chip span,.who-copy span{color:var(--header-accent)}" +
+      ".who-chip.out span{color:rgba(255,255,255,.82)}" +
+      ".who-chip.out .who-pic{font-size:12px}";
     document.head.appendChild(s);
   }
   function esc(s) {
     return String(s || "").replace(/[&<>"]/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
+      return ({ "&": "&", "<": "<", ">": ">", '"': """ })[c];
     });
   }
   function roleLabel(r) {
@@ -93,6 +97,20 @@
     var p = (location.pathname || "").replace(/\/+$/, "");
     p = p.split("/").pop() || "index";
     return p.replace(/\.html$/, "") || "index";
+  }
+  function initials(name) {
+    var p = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!p.length) return "AIA";
+    if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+    return (p[0].charAt(0) + p[p.length - 1].charAt(0)).toUpperCase();
+  }
+  function photoSrc() {
+    return localStorage.getItem("aia_photo") || "";
+  }
+  function picHtml(name) {
+    var src = photoSrc();
+    if (src) return "<img class=\"who-pic\" alt=\"\" src=\"" + esc(src) + "\">";
+    return "<span class=\"who-pic\">" + esc(initials(name)) + "</span>";
   }
   function paintWho() {
     var header = document.querySelector("header, .site-header");
@@ -116,22 +134,22 @@
     var page = pageName();
     if (ws && pin) {
       chip.classList.remove("out");
-      chip.href = page === "desks" ? "/more" : "/desks";
-      var title = person || desk || "This desk";
-      var meta = [role || "Signed in", person && desk && desk !== person ? desk : ""].filter(Boolean).join(" · ");
-      chip.innerHTML = "<strong>" + esc(title) + "</strong><span>" + esc(meta || "Signed in") + "</span>";
-      chip.title = title + (meta ? " · " + meta : "");
+      chip.href = page === "account" ? "/more" : "/account";
+      var title = person || desk || "You";
+      var meta = role || "Signed in";
+      chip.innerHTML = picHtml(title) + "<span class=\"who-copy\"><strong>" + esc(title) + "</strong><span>" + esc(meta) + "</span></span>";
+      chip.title = title + " · Your account";
       return;
     }
     chip.classList.add("out");
+    chip.innerHTML = "<span class=\"who-pic\">?</span><span class=\"who-copy\"><strong>Sign in</strong><span>Desk name + code</span></span>";
     if (/^(login|onboard)$/.test(page)) {
       chip.href = page === "login" ? "/onboard" : "/login";
-      chip.innerHTML = "<strong>Not signed in</strong><span>Desk name + code</span>";
+      chip.querySelector("strong").textContent = "Not signed in";
       chip.title = "Open a desk with the name and code. Email is not login.";
       return;
     }
     chip.href = "/login";
-    chip.innerHTML = "<strong>Sign in</strong><span>Desk name + code</span>";
     chip.title = "Open this desk";
   }
   function mark() {
@@ -161,5 +179,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mark);
   else mark();
-  window.AIATheme = { apply: apply, cycle: cycle, label: label, paintWho: paintWho };
+  window.AIATheme = { apply: apply, cycle: cycle, label: label, paintWho: paintWho, initials: initials };
 })();
