@@ -47,6 +47,7 @@
     <div class="card">
       <a href="/desk">Queue<span>Cards waiting. Talk, Yes, or Stop.</span></a>
       <a href="/desks">Your desks<span>See every desk on this phone. Rename, close, export, or delete.</span></a>
+      <a href="/history">History<span>Need you, in progress, waiting on, ext, done. One desk or all of them.</span></a>
       <a href="/admin">Invite a helper<span>Family, friend, helper, or staff. Their own desk code.</span></a>
       <a href="/drop">Drop something off<span>Family, friend, helper, or staff request. Or paste data onto the card. No money.</span></a>
       <a href="/rules">Rules<span>Wait, stop, or note. New drops honor the list.</span></a>
@@ -69,9 +70,7 @@
       const g = h && h.automation && h.automation.grok;
       const el = document.getElementById("grok-line");
       if (!el || !g) return;
-      el.textContent = g.on
-        ? "Grok is on. Drafts land on the card. Never Send."
-        : "Grok key is off. Engine recs still run.";
+      el.textContent = g.on ? "Grok is on. Drafts land on the card. Never Send." : "Grok key is off. Engine recs still run.";
     }).catch(function () {});
   </script>
 </body>
