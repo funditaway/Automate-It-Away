@@ -27,6 +27,7 @@
     { "source": "/chat", "destination": "/chat.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/desks", "destination": "/desks.html" },
+    { "source": "/history", "destination": "/history.html" },
     { "source": "/api/desks", "destination": "/api/desks" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
