@@ -1,4 +1,7 @@
-const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
+const {
+  cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner,
+  AI_PROVIDERS, isAiProvider, aiCatalog, wrapSecret, last4Of, publicAi
+} = require("./_lib");
 
 const SOON = {
   stripe: { label: "Stripe", acts: ["checkout", "payout"], note: "Card and payout later. Grok liked the fit. No keys, no live money." },
@@ -39,17 +42,28 @@ module.exports = async function handler(req, res) {
   const workspace = workspaceOf(req);
 
   if (req.method === "GET") {
+    const mine = mem.connections.filter((c) => c.workspace === workspace);
     return res.status(200).json({
       workspace,
       inbound: inboundOf(workspace),
       catalog: catalog(),
+      ai: aiCatalog().map((p) => {
+        const on = mine.find((c) => c.lane === "draft" && c.provider === p.id);
+        return on ? Object.assign({}, p, publicAi(on), { note: p.note }) : p;
+      }),
+      drafts: mine.filter((c) => c.lane === "draft").map(publicAi),
       soon: soonCatalog(),
       helpers: {
-        owner: "Connect, drop, Stop, money rules.",
+        owner: "Connect, drop, Stop, money rules. Draft accounts are owner-only.",
         helper: "Work the queue. Yes when the rule allows. Cannot connect a pipe or tap No."
       },
-      note: "Webhook is the cross-internet pipe today. Coming soon is a wall, not a live switch.",
-      connections: mem.connections.filter((c) => c.workspace === workspace)
+      note: "Webhook is the cross-internet pipe today. Draft accounts draft only. Coming soon is a wall, not a live switch.",
+      connections: mine.filter((c) => c.lane !== "draft").map((c) => {
+        const copy = Object.assign({}, c);
+        delete copy.keyPacked;
+        delete copy.key;
+        return copy;
+      })
     });
   }
 
@@ -59,7 +73,57 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ error: "Owner pin required to connect a pipe." });
     }
     const body = await readBody(req);
+    const action = String(body.action || "").toLowerCase();
     const provider = String(body.provider || "").toLowerCase();
+
+    if (isAiProvider(provider) || action === "ai" || action === "ai-start") {
+      const spec = AI_PROVIDERS[provider];
+      if (!spec) {
+        return res.status(400).json({ error: "Pick Grok, ChatGPT, or Claude.", ai: aiCatalog() });
+      }
+      if (action === "ai-start") {
+        return res.status(200).json({
+          ok: true,
+          provider,
+          login: spec.login,
+          next: "Log in at " + spec.vendor + ". Make an API key. Paste it here. Chat login alone cannot draft."
+        });
+      }
+      const key = String(body.key || body.token || "").trim();
+      if (!key || key.length < 12) {
+        return res.status(400).json({
+          error: "Log in first, then paste the API key from that account.",
+          login: spec.login,
+          provider
+        });
+      }
+      mem.connections = mem.connections.filter((c) => !(c.workspace === workspace && c.lane === "draft" && c.provider === provider));
+      const row = {
+        id: "ai_" + Date.now().toString(36),
+        workspace,
+        provider,
+        label: spec.label,
+        vendor: spec.vendor,
+        lane: "draft",
+        acts: ["draft"],
+        model: spec.model,
+        login: spec.login,
+        keyPacked: wrapSecret(key),
+        last4: last4Of(key),
+        live: true,
+        status: "live",
+        createdAt: new Date().toISOString()
+      };
+      mem.connections.unshift(row);
+      log("Draft", "Connected " + spec.label + " · " + workspace, "OK", workspace);
+      await save();
+      return res.status(201).json({
+        ok: true,
+        connection: publicAi(row),
+        next: spec.label + " drafts on this desk. You still tap Send and Stop."
+      });
+    }
+
     if (SOON[provider]) {
       return res.status(409).json({
         error: "Coming soon. Grok liked the name. It is not a live pipe.",

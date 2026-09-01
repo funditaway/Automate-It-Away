@@ -57,17 +57,23 @@ module.exports = async function handler(req, res) {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
         model: process.env.AIA_GROK_MODEL || "grok-4-fast-non-reasoning",
         note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
-          ? "Drafts on the card. Never Send."
-          : "Set XAI_API_KEY to draft with Grok. Engine recs still run."
+          ? "Included drafts on the card. Never Send."
+          : "Set XAI_API_KEY for included Grok drafts. A desk can also connect Grok, ChatGPT, or Claude on /connections."
+      },
+      drafts: {
+        included: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
+        deskAccounts: (mem.connections || []).filter((c) => c && c.lane === "draft" && c.keyPacked).length,
+        note: "Owner connects a draft account on /connections. Chat login alone is not enough — paste the API key after login. Drafts only."
       }
     },
     accounts: {
-      login: "desk name + desk code — not email",
-      create: "full owner account on open",
-      plan: "free",
-      monthly: "later",
+      login: "saved account or desk name + desk code — not email",
+      create: "Pro AIA account on open",
+      plan: "pro",
+      status: "free",
+      monthly: "later per extra member or staff login",
       charged: false,
-      note: "Free for now. Monthly later. We tell you before we charge."
+      note: "Pro account. Free for now. Extra member and staff logins monthly later. We tell you before we charge."
     },
     domain: "automateitaway.com",
     dns: "pointed",
