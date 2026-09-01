@@ -3,13 +3,13 @@
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
   function isDark() {
-    const t = localStorage.getItem("aia_theme") || "system";
+    var t = localStorage.getItem("aia_theme") || "system";
     if (t === "dark") return true;
     if (t === "light") return false;
     return systemDark();
   }
   function label() {
-    const t = localStorage.getItem("aia_theme") || "system";
+    var t = localStorage.getItem("aia_theme") || "system";
     if (t === "dark") return "Dark";
     if (t === "light") return "Light";
     return "Auto";
@@ -18,15 +18,16 @@
     return isDark() ? "/img/aia-pyramid-tile.svg" : "/img/aia-pyramid-tile-light.svg";
   }
   function paintMarks() {
+    var src = markSrc();
     document.querySelectorAll("img.brand-mark").forEach(function (img) {
-      if (img.getAttribute("src") !== markSrc()) img.src = markSrc();
+      if (img.getAttribute("src") !== src) img.src = src;
     });
   }
   function apply() {
-    const dark = isDark();
+    var dark = isDark();
     document.documentElement.classList.toggle("dark", dark);
     document.documentElement.classList.toggle("light", !dark);
-    const meta = document.querySelector("meta[name='theme-color']");
+    var meta = document.querySelector("meta[name='theme-color']");
     if (meta) meta.setAttribute("content", dark ? "#0c1116" : "#0d6b6b");
     document.querySelectorAll("[data-theme-btn]").forEach(function (b) {
       b.textContent = label();
@@ -35,8 +36,8 @@
     paintMarks();
   }
   function cycle() {
-    const cur = localStorage.getItem("aia_theme") || "system";
-    const next = cur === "system" ? "dark" : cur === "dark" ? "light" : "system";
+    var cur = localStorage.getItem("aia_theme") || "system";
+    var next = cur === "system" ? "dark" : cur === "dark" ? "light" : "system";
     localStorage.setItem("aia_theme", next);
     apply();
   }
@@ -78,8 +79,12 @@
     document.head.appendChild(s);
   }
   function esc(s) {
-    return String(s || "").replace(/[&<>"]/g, function (c) {
-      return ({ "&": "&", "<": "<", ">": ">", '"': """ })[c];
+    return String(s || "").replace(/[&<>\"']/g, function (c) {
+      if (c === "&") return "&";
+      if (c === "<") return "<";
+      if (c === ">") return ">";
+      if (c === '"') return """;
+      return "&#39;";
     });
   }
   function roleLabel(r) {
@@ -109,8 +114,8 @@
   }
   function picHtml(name) {
     var src = photoSrc();
-    if (src) return "<img class=\"who-pic\" alt=\"\" src=\"" + esc(src) + "\">";
-    return "<span class=\"who-pic\">" + esc(initials(name)) + "</span>";
+    if (src) return '<img class="who-pic" alt="" src="' + esc(src) + '">';
+    return '<span class="who-pic">' + esc(initials(name)) + "</span>";
   }
   function paintWho() {
     var header = document.querySelector("header, .site-header");
@@ -137,15 +142,16 @@
       chip.href = page === "account" ? "/more" : "/account";
       var title = person || desk || "You";
       var meta = role || "Signed in";
-      chip.innerHTML = picHtml(title) + "<span class=\"who-copy\"><strong>" + esc(title) + "</strong><span>" + esc(meta) + "</span></span>";
-      chip.title = title + " · Your account";
+      chip.innerHTML = picHtml(title) + '<span class="who-copy"><strong>' + esc(title) + "</strong><span>" + esc(meta) + "</span></span>";
+      chip.title = title + " \u00b7 Your account";
       return;
     }
     chip.classList.add("out");
-    chip.innerHTML = "<span class=\"who-pic\">?</span><span class=\"who-copy\"><strong>Sign in</strong><span>Desk name + code</span></span>";
+    chip.innerHTML = '<span class="who-pic">?</span><span class="who-copy"><strong>Sign in</strong><span>Desk name + code</span></span>';
     if (/^(login|onboard)$/.test(page)) {
       chip.href = page === "login" ? "/onboard" : "/login";
-      chip.querySelector("strong").textContent = "Not signed in";
+      var strong = chip.querySelector("strong");
+      if (strong) strong.textContent = "Not signed in";
       chip.title = "Open a desk with the name and code. Email is not login.";
       return;
     }
@@ -166,7 +172,7 @@
         img.alt = "";
         if (host.tagName === "STRONG") {
           var a = document.createElement("a");
-          a.href = "index.html";
+          a.href = "/";
           a.appendChild(img);
           a.appendChild(host.cloneNode(true));
           host.replaceWith(a);
