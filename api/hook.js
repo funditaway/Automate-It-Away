@@ -1,4 +1,4 @@
-const { cors, mem, log, save, ready, slugify, readBody } = require("./_lib");
+const { cors, mem, log, save, ready, slugify, readBody, deskClosed, deskClosedMessage } = require("./_lib");
 const { qualifyJob } = require("./_engine");
 const { makeCapturedJob, addTalk } = require("./_fields");
 
@@ -59,6 +59,9 @@ module.exports = async function handler(req, res) {
 
   if (event === "capture" || !job) {
     const shop = (mem.workspaces || []).find((w) => w && w.slug === workspace) || null;
+    if (deskClosed(shop)) {
+      return res.status(409).json({ ok: false, error: deskClosedMessage(shop), closed: true });
+    }
     job = makeCapturedJob(workspace, shop, Object.assign({}, body, {
       title: title,
       why: body.why || "In from a pipe.",
@@ -71,7 +74,7 @@ module.exports = async function handler(req, res) {
     qualifyJob(job, shop);
     try {
       const { grokRecommend } = require("./_grok");
-      const grok = await grokRecommend(job, shop);
+      const grok = await grokRecommend(job, shop, workspace);
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
     } catch (e) {}
     if (job.notes) addTalk(job, job.from || "pipe", job.notes, "note");
