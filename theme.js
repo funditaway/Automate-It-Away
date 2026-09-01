@@ -20,31 +20,66 @@
   function paintMarks() {
     var src = markSrc();
     document.querySelectorAll("img.brand-mark").forEach(function (img) {
-      if (img.getAttribute("src") !== src) img.src = src;
+      img.setAttribute("src", src);
     });
   }
   function apply() {
     var dark = isDark();
     document.documentElement.classList.toggle("dark", dark);
     document.documentElement.classList.toggle("light", !dark);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
     var meta = document.querySelector("meta[name='theme-color']");
     if (meta) meta.setAttribute("content", dark ? "#0c1116" : "#0d6b6b");
-    document.querySelectorAll("[data-theme-btn]").forEach(function (b) {
+    document.querySelectorAll("[data-theme-btn], .theme-btn").forEach(function (b) {
       b.textContent = label();
+      b.setAttribute("aria-label", "Theme " + label());
       b.title = "Theme: " + label() + ". Tap to change.";
     });
     paintMarks();
   }
-  function cycle() {
+  var lastTap = 0;
+  function cycle(ev) {
+    var now = Date.now();
+    if (now - lastTap < 280) return;
+    lastTap = now;
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
     var cur = localStorage.getItem("aia_theme") || "system";
     var next = cur === "system" ? "dark" : cur === "dark" ? "light" : "system";
     localStorage.setItem("aia_theme", next);
     apply();
   }
+  function ensureBtn() {
+    var header = document.querySelector("header, .site-header");
+    if (!header) return;
+    if (document.body && document.body.classList.contains("embed")) return;
+    var btn = header.querySelector("[data-theme-btn], .theme-btn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "theme-btn";
+      btn.setAttribute("data-theme-btn", "");
+      header.appendChild(btn);
+    }
+    btn.type = "button";
+    btn.setAttribute("data-theme-btn", "");
+    btn.classList.add("theme-btn");
+    if (!btn.getAttribute("data-aia-bound")) {
+      btn.setAttribute("data-aia-bound", "1");
+      btn.addEventListener("click", cycle);
+    }
+  }
   apply();
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
   }
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest("[data-theme-btn], button.theme-btn")) cycle(ev);
+  });
   function lockHeader() {
     if (document.getElementById("aia-header-lock")) return;
     var s = document.createElement("style");
@@ -52,38 +87,17 @@
     s.textContent =
       "header:not(.top), .site-header{background:var(--header)!important;color:#fff!important;" +
       "padding:10px 4.5vw!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important}" +
-      "header, .site-header, header.top{" +
-      "font:700 15px/1.2 \"Segoe UI\",system-ui,-apple-system,sans-serif!important;letter-spacing:0!important}" +
-      "header a, .site-header a, header button, .site-header button, header span, header strong," +
-      "header nav, header .nav, header .desk-tabs, header .desk-tabs a, header .theme-btn, .theme-btn," +
-      "header .brand, .site-header .brand, header.top .brand, header > a.brand, header .brand-name," +
-      "header .brand-page, header .who-chip, header .who-chip strong, header .who-chip span, header.top .who{" +
-      "font:700 15px/1.2 \"Segoe UI\",system-ui,-apple-system,sans-serif!important;" +
-      "letter-spacing:0!important;text-transform:none!important;font-style:normal!important}" +
-      "header .brand, .site-header .brand, header.top .brand, header > a.brand, .site-header > a.brand{" +
-      "display:inline-flex!important;align-items:center!important;gap:8px!important;" +
-      "min-height:44px;color:#fff!important;text-decoration:none!important}" +
-      "header .brand-name, .site-header .brand-name, header .brand strong, header.top .brand-name{color:#fff!important}" +
-      "header .brand-page, .site-header .brand-page{color:var(--header-accent)!important;white-space:nowrap}" +
-      "header .brand-mark, .site-header .brand-mark{width:28px;height:28px;flex:0 0 28px;border-radius:7px}" +
-      ".who-chip{display:inline-flex!important;flex-direction:row!important;justify-content:flex-end;align-items:center!important;gap:8px!important;" +
-      "min-height:44px;max-width:min(52vw,220px);margin-left:auto;padding:4px 8px 4px 4px;border-radius:999px;" +
-      "background:rgba(255,255,255,.14);color:#fff;text-decoration:none}" +
-      ".who-pic{width:36px;height:36px;border-radius:50%;flex:0 0 36px;display:inline-flex;align-items:center;justify-content:center;" +
-      "background:rgba(255,255,255,.2);color:#fff;object-fit:cover;overflow:hidden}" +
-      ".who-copy{min-width:0;text-align:right}" +
-      ".who-chip strong,.who-chip span,.who-copy strong,.who-copy span{display:block;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}" +
-      ".who-chip span,.who-copy span{color:var(--header-accent)}" +
-      ".who-chip.out span{color:rgba(255,255,255,.82)}" +
-      ".who-chip.out .who-pic{font-size:12px}";
+      "header .theme-btn, .theme-btn{position:relative;z-index:8;pointer-events:auto!important;" +
+      "flex:0 0 auto;min-height:36px;min-width:52px;cursor:pointer}" +
+      "header .brand-mark, .site-header .brand-mark{width:28px;height:28px;flex:0 0 28px;border-radius:7px}";
     document.head.appendChild(s);
   }
   function esc(s) {
     return String(s || "").replace(/[&<>\"']/g, function (c) {
-      if (c === "&") return "&";
-      if (c === "<") return "<";
-      if (c === ">") return ">";
-      if (c === '"') return """;
+      if (c === "&") return "&amp;";
+      if (c === "<") return "&lt;";
+      if (c === ">") return "&gt;";
+      if (c === '"') return "&quot;";
       return "&#39;";
     });
   }
@@ -161,6 +175,7 @@
   function mark() {
     lockHeader();
     paintWho();
+    ensureBtn();
     if (!document.querySelector(".brand-mark")) {
       var host = document.querySelector(".site-header > a, header > a, header .logo, header .brand, header > strong");
       if (host) {
