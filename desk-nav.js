@@ -72,6 +72,12 @@
       s.setAttribute("data-aia-handoff", "1");
       document.body.appendChild(s);
     }
+    if (tabOf() === "queue" && !document.querySelector("script[data-aia-needs]")) {
+      var n = document.createElement("script");
+      n.src = "/desk-needs.js";
+      n.setAttribute("data-aia-needs", "1");
+      document.body.appendChild(n);
+    }
     if (tabOf() === "drop" && !document.querySelector("script[data-aia-drop-talk]")) {
       var t = document.createElement("script");
       t.src = "/drop-talk.js";
