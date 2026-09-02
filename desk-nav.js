@@ -78,6 +78,12 @@
       t.setAttribute("data-aia-drop-talk", "1");
       document.body.appendChild(t);
     }
+    if (tabOf() === "drop" && !document.querySelector("script[data-aia-drop-talk-desk]")) {
+      var d = document.createElement("script");
+      d.src = "/drop-talk-desk.js";
+      d.setAttribute("data-aia-drop-talk-desk", "1");
+      document.body.appendChild(d);
+    }
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
