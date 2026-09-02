@@ -2,6 +2,7 @@ const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ens
 const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob } = require("./_fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, markFlow } = require("./_engine");
 const { grokRecommend } = require("./_grok");
+const { needsOf, isPriorityJob } = require("./_history");
 
 function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
@@ -74,6 +75,12 @@ module.exports = async function handler(req, res) {
     }
     if (shop) { ensureRules(shop); ensureNouns(shop); ensurePeople(shop); }
     const rules = shop ? ensureRules(shop) : defaultRules();
+    const staff = person && person.role === "employee";
+    const rows = mem.jobs.filter((j) => j.workspace === workspace).map((j) => {
+      const needs = needsOf(j, { staff });
+      return Object.assign({}, j, { needs: needs.actions, needLine: needs.line, missing: needs.missing, decide: needs.decide, priority: isPriorityJob(j) });
+    });
+    const cap = rows.filter((j) => j.priority);
     return res.status(200).json({
       workspace,
       you: person ? { name: person.name, role: person.role } : null,
@@ -82,7 +89,8 @@ module.exports = async function handler(req, res) {
       nouns: shop ? ensureNouns(shop) : defaultNouns(),
       people: shop ? (shop.people || []).map(publicPerson) : [],
       widgetsOn: widgetCount(rules),
-      jobs: mem.jobs.filter((j) => j.workspace === workspace)
+      cap,
+      jobs: rows
     });
   }
 
@@ -296,7 +304,31 @@ module.exports = async function handler(req, res) {
       await save();
       return res.status(200).json({ ok: true, job });
     }
-    return res.status(400).json({ error: "action must be capture, qualify, recommend, ship, kill, say, ask, fill, define-field, assign, carry, done, or hand" });
+    if (action === "priority" || action === "cap" || action === "uncap") {
+      const off = action === "uncap" || body.on === false || body.on === 0 || body.off === true;
+      if (!off) {
+        const onDesk = mem.jobs.filter((j) => j && j.workspace === workspace && isPriorityJob(j)).length;
+        if (!isPriorityJob(job) && onDesk >= 8) return res.status(409).json({ ok: false, error: "Eight cap cards on this desk. Take one off the pyramid first.", job });
+        job.priority = true;
+        job.cap = true;
+        job.priorityAt = new Date().toISOString();
+        job.priorityBy = actorName(person, body);
+        addTalk(job, actorName(person, body), "On the cap. Orange. Do this first.", "note");
+        job.log = (job.log || []).concat(["Cap"]);
+        log("Desk", "Cap · " + job.title, "OK", workspace);
+      } else {
+        job.priority = false;
+        job.cap = false;
+        job.priorityAt = null;
+        addTalk(job, actorName(person, body), "Off the cap.", "note");
+        job.log = (job.log || []).concat(["Off cap"]);
+        log("Desk", "Off cap · " + job.title, "OK", workspace);
+      }
+      job.whoTapped = actorName(person, body);
+      await save();
+      return res.status(200).json({ ok: true, job, needs: needsOf(job, { staff: person && person.role === "employee" }) });
+    }
+    return res.status(400).json({ error: "action must be capture, qualify, recommend, ship, kill, say, ask, fill, define-field, assign, carry, done, hand, or priority" });
   }
   return res.status(405).json({ error: "Use GET or POST" });
 };
