@@ -7,6 +7,37 @@ const {
 } = require("./_desk");
 const { historyOf, isPriorityJob, capCard, needsOf } = require("./_history");
 
+function deskClosed(ws) {
+  return !!(ws && (ws.closed === true || ws.accepts === false));
+}
+function deskListed(ws) {
+  if (!ws || deskClosed(ws)) return false;
+  if (ws.listed === true) return true;
+  return String(ws.visibility || "").toLowerCase() === "public";
+}
+function listedCard(row) {
+  if (!row || !deskListed(row)) return null;
+  return {
+    slug: row.slug,
+    name: row.biz || row.name || row.slug,
+    city: row.city || "",
+    does: row.does || "",
+    listed: true,
+    drop: "/drop?ws=" + encodeURIComponent(row.slug)
+  };
+}
+function searchListedDesks(query) {
+  const q = String(query || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 80);
+  const rows = (mem.workspaces || []).map(listedCard).filter(Boolean);
+  if (!q) return rows.slice(0, 20);
+  return rows.filter((d) => [d.name, d.slug, d.city, d.does].join(" ").toLowerCase().indexOf(q) >= 0).slice(0, 20);
+}
+function setDeskListed(ws, on) {
+  if (!ws) return { ok: false, error: "No desk." };
+  ws.listed = !!on;
+  ws.visibility = ws.listed ? "public" : "private";
+  return { ok: true, listed: deskListed(ws) };
+}
 function confirmName(row, text) {
   const raw = String(text || "").trim().toLowerCase();
   if (!raw) return false;
@@ -15,7 +46,6 @@ function confirmName(row, text) {
   const name = String(row.name || "").trim().toLowerCase();
   return raw === slug || raw === biz || raw === name || raw === "delete " + slug;
 }
-
 function gate(req, slug) {
   const pin = (req.headers && req.headers["x-pin"]) || "";
   const { workspace: row, person } = personOf(
@@ -24,7 +54,6 @@ function gate(req, slug) {
   );
   return { row, person };
 }
-
 function deny(res, msg) {
   return res.status(403).json({ ok: false, error: msg || "Not allowed on this desk." });
 }
@@ -35,6 +64,16 @@ module.exports = async function handler(req, res) {
   await ready();
 
   if (req.method === "GET") {
+    const q = req.query || {};
+    if (q.q != null || q.search != null || q.listed === "1" || q.public === "1") {
+      const term = q.q != null ? q.q : q.search;
+      return res.status(200).json({
+        ok: true,
+        listed: true,
+        q: String(term || "").slice(0, 80),
+        desks: searchListedDesks(term)
+      });
+    }
     const slug = workspaceOf(req);
     const { row, person } = gate(req, slug);
     if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
@@ -52,6 +91,15 @@ module.exports = async function handler(req, res) {
 
   const body = await readBody(req);
   const action = String(body.action || "list").toLowerCase();
+
+  if (action === "search" || action === "find") {
+    return res.status(200).json({
+      ok: true,
+      listed: true,
+      q: String(body.q || body.query || body.name || "").slice(0, 80),
+      desks: searchListedDesks(body.q || body.query || body.name)
+    });
+  }
 
   if (action === "list") {
     const incoming = Array.isArray(body.desks) ? body.desks : [];
@@ -143,6 +191,20 @@ module.exports = async function handler(req, res) {
   if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
   if (!person) return res.status(401).json({ ok: false, error: "Desk code does not match." });
 
+  if (action === "listed" || action === "visibility") {
+    if (!isOwner(person)) return deny(res, "Only the owner can list this desk in public search.");
+    const on = body.listed != null ? !!body.listed : String(body.visibility || "").toLowerCase() === "public";
+    setDeskListed(row, on);
+    logDesk(on ? "listed" : "unlisted", row, person);
+    await save();
+    return res.status(200).json({
+      ok: true,
+      listed: deskListed(row),
+      visibility: deskListed(row) ? "public" : "private",
+      desk: publicDesk(row, person)
+    });
+  }
+
   if (action === "explore" || action === "audit" || action === "gone" || action === "deleted") {
     if (action === "gone" || action === "deleted") {
       let events = deskEventsOf(slug, 25).filter((e) => e && e.action === "delete");
@@ -159,11 +221,15 @@ module.exports = async function handler(req, res) {
 
   if (action === "update" || action === "edit") {
     if (!canDesk(person, row, "update")) return deny(res, "This seat cannot edit the shop.");
+    if (body.listed != null || body.visibility != null) {
+      if (!isOwner(person)) return deny(res, "Only the owner can list this desk in public search.");
+      setDeskListed(row, body.listed != null ? !!body.listed : String(body.visibility).toLowerCase() === "public");
+    }
     const saved = applyDeskEdit(row, body);
     if (!saved.ok) return res.status(400).json(saved);
-    logDesk("edit", row, person, { biz: row.biz, does: row.does });
+    logDesk("edit", row, person, { biz: row.biz, does: row.does, listed: deskListed(row) });
     await save();
-    return res.status(200).json({ ok: true, desk: publicDesk(row, person) });
+    return res.status(200).json({ ok: true, desk: publicDesk(row, person), listed: deskListed(row) });
   }
 
   if (action === "close" || action === "open" || action === "reopen") {
@@ -218,5 +284,5 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
   }
 
-  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
+  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
 };
