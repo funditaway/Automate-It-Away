@@ -24,7 +24,7 @@
   </header>
   <form class="gate-card" id="form">
     <h1>Open this desk</h1>
-    <p class="sub">Desk name + your desk code. Owner or member. Same queue. Members work at the permission the owner set. Email is not the login.</p>
+    <p class="sub">One AIA account. Desk name + your code signs you in. A session stays on this phone so the code is not sent on every tap. Email is not the login. <a href="account.html">Your account</a></p>
     <div class="talk-bar" id="talkBar" hidden>
       <p class="talk-status" id="talkStatus">Say the desk name. Code stays typed — not read back.</p>
       <button type="button" id="hearBtn">Hear this</button>
@@ -35,6 +35,11 @@
     <input name="slug" required placeholder="Desk name" autocomplete="username">
     <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
+    <div id="mfa-box" hidden>
+      <label>Authenticator code</label>
+      <input name="code" inputmode="numeric" maxlength="8" placeholder="Six digits" autocomplete="one-time-code">
+      <p class="hint">This account has the app factor on. Email is not a factor.</p>
+    </div>
     <button class="btn" type="submit">Open</button>
     <p class="err" id="err"></p>
   </form>
@@ -81,20 +86,24 @@
         const r = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Workspace": slug },
-          body: JSON.stringify({ action: "login", slug, pin })
+          body: JSON.stringify({ action: "login", slug, pin, code: f.get("code") || "" })
         });
         const data = await r.json();
+        if (data.mfaRequired) {
+          document.getElementById("mfa-box").hidden = false;
+          form.elements.code.focus();
+          err.textContent = data.error || "Enter the six-digit app code.";
+          err.style.display = "block";
+          return;
+        }
         if (!r.ok) { err.textContent = data.error || "Desk name or code does not match."; err.style.display = "block"; return; }
-        localStorage.setItem("aia_ws", data.workspace.slug);
-        localStorage.setItem("aia_pin", pin);
-        if (data.you && data.you.role) localStorage.setItem("aia_role", data.you.role);
-        if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
-        if (data.workspace && data.workspace.biz) localStorage.setItem("aia_desk_name", data.workspace.biz);
-        if (window.AIADesks) {
+        if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data, pin);
+        if (window.AIADesks && AIADesks.open) {
           AIADesks.open({
             slug: data.workspace.slug,
             name: (data.workspace && (data.workspace.biz || data.workspace.name)) || data.workspace.slug,
             pin: pin,
+            token: data.session && data.session.token,
             role: (data.you && data.you.role) || "owner",
             who: (data.you && data.you.name) || ""
           });

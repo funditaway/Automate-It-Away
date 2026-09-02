@@ -67,13 +67,15 @@ module.exports = async function handler(req, res) {
       }
     },
     accounts: {
-      login: "saved account or desk name + desk code — not email",
+      login: "desk name + desk code — not email",
+      session: "hashed token, 14 days, slides on use, cookie + X-Session, max 8 phones",
+      mfa: "optional authenticator app. No email codes. No SMS codes.",
       create: "Pro AIA account on open",
       plan: "pro",
       status: "free",
       monthly: "later per extra member or staff login",
       charged: false,
-      note: "Pro account. Free for now. Extra member and staff logins monthly later. We tell you before we charge."
+      note: "One account per person. Session persists on the blob store. Authenticator is opt-in on /account."
     },
     domain: "automateitaway.com",
     dns: "pointed",
