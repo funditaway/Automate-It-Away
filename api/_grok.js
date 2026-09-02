@@ -1,4 +1,30 @@
-const { aiOf, unwrapSecret, AI_PROVIDERS } = require("./_lib");
+const { mem } = require("./_lib");
+const crypto = require("crypto");
+
+const AI_PROVIDERS = {
+  grok: { vendor: "xAI", model: "grok-4-fast-non-reasoning" },
+  openai: { vendor: "OpenAI", model: "gpt-4o-mini" },
+  anthropic: { vendor: "Anthropic", model: "claude-sonnet-4-20250514" }
+};
+function connectSecret() {
+  const s = process.env.AIA_CONNECT_SECRET || process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN || process.env.XAI_API_KEY || "aia-draft-pilot";
+  return crypto.createHash("sha256").update(String(s)).digest();
+}
+function unwrapSecret(packed) {
+  try {
+    const buf = Buffer.from(String(packed || ""), "base64");
+    if (buf.length < 29) return "";
+    const d = crypto.createDecipheriv("aes-256-gcm", connectSecret(), buf.subarray(0, 12));
+    d.setAuthTag(buf.subarray(12, 28));
+    return Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString("utf8");
+  } catch (e) {
+    return "";
+  }
+}
+function aiOf(workspace) {
+  const ws = String(workspace || "");
+  return (mem.connections || []).filter((c) => c && c.workspace === ws && c.lane === "draft" && c.keyPacked);
+}
 
 function grokKey() {
   return process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY || "";
