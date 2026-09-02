@@ -27,17 +27,30 @@ function publicAi(row) {
 }
 
 const SOON = {
-  stripe: { label: "Stripe", acts: ["checkout", "payout"], note: "Card and payout later. Grok liked the fit. No keys, no live money." },
-  paypal: { label: "PayPal", acts: ["checkout", "payout"], note: "Same money rules as Square. Coming soon." },
-  shopify: { label: "Shopify", acts: ["list", "sync"], note: "Shop inventory in. Queue still owns Yes." },
-  gmail: { label: "Gmail inbound", acts: ["capture"], note: "Mail becomes a card. Not a send pipe." },
-  drive: { label: "Google Drive", acts: ["file"], note: "Packets land in a folder. Coming soon." },
-  marketplace: { label: "Facebook / Instagram shop", acts: ["list"], note: "Beta name only. Owner tap still required to post." },
-  poshmark: { label: "Poshmark", acts: ["list"], note: "Resale lane after Consign pipe is honest." },
-  mercari: { label: "Mercari", acts: ["list"], note: "Same. Shown, not live." },
-  quickbooks: { label: "QuickBooks", acts: ["invoice"], note: "Books after Collect. Not a payout." },
-  slack: { label: "Slack", acts: ["notify"], note: "Desk ping. Helpers see Needs you." },
-  voice: { label: "Missed-call voice", acts: ["capture"], note: "A call becomes a card. We type it until this ships." }
+  x: { label: "X", acts: ["list", "notify"], login: "https://developer.x.com/en/portal/dashboard", note: "Log in at developer.x.com. Inbound mention can become a card later. No auto-post. Owner taps Yes." },
+  gmail: { label: "Gmail inbound", acts: ["capture"], login: "https://console.cloud.google.com/apis/credentials", note: "Log in at Google Cloud. Mail in becomes a card. Not a send pipe." },
+  outlook: { label: "Outlook / Microsoft 365 mail", acts: ["capture"], login: "https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade", note: "Log in at Azure app registrations. Inbox in. Desk does not send the mail." },
+  microsoft: { label: "Microsoft 365", acts: ["capture", "book"], login: "https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade", note: "Graph later: mail + calendar. Needs an Azure app. Hold until those keys sit on the box." },
+  apple: { label: "Apple Calendar / iCloud", acts: ["book"], login: "https://appleid.apple.com/", note: "No public iCloud mail pipe. Phone calendar file still works. Apple login does not give AIA a send key." },
+  facebook: { label: "Facebook Page", acts: ["capture", "list"], login: "https://developers.facebook.com/apps/", note: "Log in at Meta for Developers. Comments can become cards. No auto-post." },
+  instagram: { label: "Instagram", acts: ["capture", "list"], login: "https://developers.facebook.com/apps/", note: "Same Meta app as Facebook. Inbox later. Owner still taps Yes to publish." },
+  snapchat: { label: "Snapchat", acts: ["notify"], login: "https://kit.snapchat.com/", note: "Log in at Snap Kit. Shown for capture later. Not a live story post." },
+  gohighlevel: { label: "GoHighLevel", acts: ["capture", "sync"], login: "https://marketplace.gohighlevel.com/", note: "Log in at GHL marketplace. Lead in as a card. AIA does not send the GHL campaign." },
+  salesforce: { label: "Salesforce", acts: ["capture", "sync"], login: "https://login.salesforce.com/", note: "Log in at Salesforce. Contact in. No write-back to the book until that pipe is honest." },
+  hubspot: { label: "HubSpot", acts: ["capture", "sync"], login: "https://app.hubspot.com/signup-hubspot/crm", note: "CRM cousin to GHL. Lead in. Desk does not blast the list." },
+  linkedin: { label: "LinkedIn", acts: ["list", "notify"], login: "https://www.linkedin.com/developers/apps", note: "Log in at LinkedIn Developers. No auto-post." },
+  whatsapp: { label: "WhatsApp Business", acts: ["capture"], login: "https://developers.facebook.com/docs/whatsapp/cloud-api/get-started", note: "Inbound chat as a card. AIA does not text the customer by itself." },
+  tiktok: { label: "TikTok", acts: ["list"], login: "https://developers.tiktok.com/", note: "Shown for later. Not a live publish pipe." },
+  stripe: { label: "Stripe", acts: ["checkout", "payout"], login: "https://dashboard.stripe.com/apikeys", note: "Card and payout later. No keys, no live money." },
+  paypal: { label: "PayPal", acts: ["checkout", "payout"], login: "https://developer.paypal.com/dashboard/", note: "Same money rules as Square. Coming soon." },
+  shopify: { label: "Shopify", acts: ["list", "sync"], login: "https://admin.shopify.com/", note: "Shop inventory in. Queue still owns Yes." },
+  drive: { label: "Google Drive", acts: ["file"], login: "https://console.cloud.google.com/apis/credentials", note: "Packets land in a folder. Coming soon." },
+  marketplace: { label: "Facebook / Instagram shop", acts: ["list"], login: "https://developers.facebook.com/apps/", note: "Shop name only. Owner tap still required to post." },
+  poshmark: { label: "Poshmark", acts: ["list"], login: "https://poshmark.com/", note: "Resale lane after Consign pipe is honest." },
+  mercari: { label: "Mercari", acts: ["list"], login: "https://www.mercari.com/", note: "Same. Shown, not live." },
+  quickbooks: { label: "QuickBooks", acts: ["invoice"], login: "https://developer.intuit.com/app/developer/dashboard", note: "Books after Collect. Not a payout." },
+  slack: { label: "Slack", acts: ["notify"], login: "https://api.slack.com/apps", note: "Desk ping. Helpers see Needs you." },
+  voice: { label: "Missed-call voice", acts: ["capture"], login: "", note: "A call becomes a card. We type it until this ships." }
 };
 
 function soonCatalog() {
@@ -45,6 +58,7 @@ function soonCatalog() {
     id,
     label: spec.label,
     acts: spec.acts,
+    login: spec.login || "",
     live: false,
     connectable: false,
     lane: "soon",
@@ -80,7 +94,7 @@ module.exports = async function handler(req, res) {
         owner: "Connect, drop, Stop, money rules. Draft accounts are owner-only.",
         helper: "Work the queue. Yes when the rule allows. Cannot connect a pipe or tap No."
       },
-      note: "Webhook is the cross-internet pipe today. Draft accounts draft only. Coming soon is a wall, not a live switch.",
+      note: "Webhook is the cross-internet pipe today. Draft accounts draft only. Coming soon opens the vendor console. It is not a live send pipe.",
       connections: mine.filter((c) => c.lane !== "draft").map((c) => {
         const copy = Object.assign({}, c);
         delete copy.keyPacked;
@@ -147,10 +161,26 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    if (SOON[provider]) {
+    if (SOON[provider] || action === "pipe-start") {
+      const spec = SOON[provider];
+      if (!spec) {
+        return res.status(400).json({ error: "Pick a named pipe.", soon: soonCatalog() });
+      }
+      if (action === "pipe-start") {
+        return res.status(200).json({
+          ok: true,
+          provider,
+          login: spec.login || "",
+          status: "soon",
+          next: spec.login
+            ? "Log in at " + spec.label + ". That console does not turn this pipe live. Inbound can use the webhook today."
+            : spec.note
+        });
+      }
       return res.status(409).json({
-        error: "Coming soon. Grok liked the name. It is not a live pipe.",
+        error: "Coming soon. Log in to see the vendor console. It is not a live pipe.",
         status: "soon",
+        login: spec.login || "",
         catalog: catalog(),
         soon: soonCatalog()
       });
