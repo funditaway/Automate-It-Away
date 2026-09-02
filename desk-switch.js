@@ -49,6 +49,7 @@
         slug: slug,
         name: name || d.name,
         pin: pin || d.pin,
+        token: (desk && desk.token) || d.token || "",
         role: role || d.role,
         who: String((desk && (desk.who || desk.person)) || d.who || "")
       };
@@ -58,6 +59,7 @@
         slug: slug,
         name: name,
         pin: pin,
+        token: (desk && desk.token) || "",
         role: role,
         who: String((desk && (desk.who || desk.person)) || "")
       });
@@ -70,11 +72,13 @@
     if (!store) return null;
     var slug = store.getItem("aia_ws");
     var pin = store.getItem("aia_pin");
-    if (!slug || !pin) return null;
+    var token = store.getItem("aia_session");
+    if (!slug || (!pin && !token)) return null;
     return add({
       slug: slug,
       name: store.getItem("aia_desk_name") || slug,
       pin: pin,
+      token: token,
       role: store.getItem("aia_role") || "",
       who: store.getItem("aia_name") || ""
     });
@@ -85,6 +89,8 @@
     if (!row || !store) return null;
     store.setItem("aia_ws", row.slug);
     if (row.pin) store.setItem("aia_pin", row.pin);
+    if (row.token) store.setItem("aia_session", row.token);
+    if (desk && desk.token) store.setItem("aia_session", desk.token);
     if (row.role) store.setItem("aia_role", row.role);
     if (row.name) store.setItem("aia_desk_name", row.name);
     if (row.who) store.setItem("aia_name", row.who);
@@ -100,6 +106,7 @@
       slug: slug,
       name: store.getItem("aia_desk_name") || slug,
       pin: store.getItem("aia_pin") || "",
+      token: store.getItem("aia_session") || "",
       role: store.getItem("aia_role") || "",
       who: store.getItem("aia_name") || ""
     };
@@ -108,6 +115,7 @@
   function unlock() {
     if (!store) return;
     store.removeItem("aia_pin");
+    store.removeItem("aia_session");
   }
 
   function forget(slug) {
@@ -118,6 +126,7 @@
     if (store && store.getItem("aia_ws") === slug) {
       store.removeItem("aia_ws");
       store.removeItem("aia_pin");
+      store.removeItem("aia_session");
       store.removeItem("aia_desk_name");
       store.removeItem("aia_role");
       store.removeItem("aia_name");
@@ -159,7 +168,120 @@
   }
 
   function shopOpen() {
-    return !!(store && store.getItem("aia_ws") && store.getItem("aia_pin"));
+    return !!(store && store.getItem("aia_ws") && (store.getItem("aia_session") || store.getItem("aia_pin")));
+  }
+
+  var VIEW_KEY = "aia_queue_view";
+
+  function hasAuth(d) {
+    return !!(d && d.slug && (d.pin || d.token));
+  }
+
+  function viewState() {
+    try {
+      var raw = JSON.parse((store && store.getItem(VIEW_KEY)) || "null");
+      if (raw && (raw.mode === "all" || raw.mode === "many" || raw.mode === "one")) {
+        raw.slugs = Array.isArray(raw.slugs) ? raw.slugs.map(slugify).filter(Boolean) : [];
+        return raw;
+      }
+    } catch (e) {}
+    var cur = slugify((store && store.getItem("aia_ws")) || "");
+    return { mode: "one", slugs: cur ? [cur] : [] };
+  }
+
+  function setView(next) {
+    if (!store) return next;
+    store.setItem(VIEW_KEY, JSON.stringify(next || { mode: "one", slugs: [] }));
+    return next;
+  }
+
+  function viewDesks() {
+    var st = viewState();
+    var rows = list().filter(hasAuth);
+    if (st.mode === "all") return rows;
+    var wanted = {};
+    (st.slugs || []).forEach(function (s) { wanted[s] = true; });
+    var out = rows.filter(function (d) { return wanted[d.slug]; });
+    if (!out.length) {
+      var cur = current();
+      if (cur && hasAuth(cur)) return [cur];
+    }
+    return out;
+  }
+
+  function viewAll() {
+    return setView({ mode: "all", slugs: list().filter(hasAuth).map(function (d) { return d.slug; }) });
+  }
+
+  function viewOne(slug) {
+    slug = slugify(slug || (store && store.getItem("aia_ws")) || "");
+    return setView({ mode: "one", slugs: slug ? [slug] : [] });
+  }
+
+  function toggleView(slug) {
+    slug = slugify(slug);
+    if (!slug) return viewState();
+    var st = viewState();
+    var rows = list().filter(hasAuth);
+    if (st.mode === "all") {
+      var keep = rows.map(function (d) { return d.slug; }).filter(function (s) { return s !== slug; });
+      if (!keep.length) return st;
+      return setView({ mode: keep.length === 1 ? "one" : "many", slugs: keep });
+    }
+    var slugs = (st.slugs || []).slice();
+    var i = slugs.indexOf(slug);
+    if (i >= 0) {
+      if (slugs.length === 1) return st;
+      slugs.splice(i, 1);
+    } else slugs.push(slug);
+    var mode = slugs.length === rows.length && rows.length > 1 ? "all" : (slugs.length > 1 ? "many" : "one");
+    return setView({ mode: mode, slugs: slugs });
+  }
+
+  function viewingAll() {
+    return viewState().mode === "all";
+  }
+
+  function viewLabel() {
+    var rows = viewDesks();
+    if (viewingAll() && rows.length > 1) return "All desks · " + rows.length;
+    if (!rows.length) return "No desk";
+    if (rows.length === 1) return rows[0].name || rows[0].slug;
+    return rows.map(function (d) { return d.name || d.slug; }).join(" + ");
+  }
+
+  function authHeaders(extra) {
+    var h = Object.assign({ "Content-Type": "application/json" }, extra || {});
+    var ws = store && store.getItem("aia_ws");
+    var tok = store && store.getItem("aia_session");
+    var pin = store && store.getItem("aia_pin");
+    if (ws) h["X-Workspace"] = ws;
+    if (tok) h["X-Session"] = tok;
+    else if (pin) h["X-Pin"] = pin;
+    return h;
+  }
+
+  function keepSession(data, pin) {
+    if (!data) return;
+    var ws = data.workspace || {};
+    var slug = ws.slug || (data.account && data.account.slug) || "";
+    var you = data.you || {};
+    var token = data.session && data.session.token;
+    if (slug) store.setItem("aia_ws", slug);
+    if (token) store.setItem("aia_session", token);
+    if (you.role) store.setItem("aia_role", you.role);
+    if (you.name) store.setItem("aia_name", you.name);
+    if (you.photoUrl) store.setItem("aia_photo", you.photoUrl);
+    if (ws.biz || ws.name) store.setItem("aia_desk_name", ws.biz || ws.name);
+    if (data.account && data.account.id) store.setItem("aia_acct", data.account.id);
+    open({
+      slug: slug,
+      name: ws.biz || ws.name || slug,
+      pin: pin || "",
+      token: token || "",
+      role: you.role || "owner",
+      who: you.name || ""
+    });
   }
 
   function widgetHref(slug) {
@@ -240,6 +362,17 @@
     widgetHref: widgetHref,
     captureDesk: captureDesk,
     shopOpen: shopOpen,
+    hasAuth: hasAuth,
+    viewState: viewState,
+    setView: setView,
+    viewDesks: viewDesks,
+    viewAll: viewAll,
+    viewOne: viewOne,
+    toggleView: toggleView,
+    viewingAll: viewingAll,
+    viewLabel: viewLabel,
+    authHeaders: authHeaders,
+    keepSession: keepSession,
     slugify: slugify,
     defaultNouns: defaultNouns,
     nounsOf: nounsOf,
