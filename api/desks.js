@@ -5,7 +5,7 @@ const {
   publicDesk, applyDeskEdit, setDeskClosed, setDeskCode, exportDesk, wipeDesk,
   adminPinOk, canDesk, setDeskPerms, setSeatCan, logDesk, exploreDesk, deskEventsOf
 } = require("./_desk");
-const { historyOf } = require("./_history");
+const { historyOf, isPriorityJob, capCard, needsOf } = require("./_history");
 
 function confirmName(row, text) {
   const raw = String(text || "").trim().toLowerCase();
@@ -103,6 +103,37 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, format: "aia.desk.v1", desks, counts, items: shown.slice(0, 80) });
   }
 
+  if (action === "priority" || action === "cap") {
+    const incoming = Array.isArray(body.desks) ? body.desks : [];
+    const one = slugify(body.slug || body.workspace || "");
+    const asked = incoming.length ? incoming : (one ? [{ slug: one, pin: body.pin || (req.headers && req.headers["x-pin"]) }] : []);
+    const desks = [];
+    const items = [];
+    asked.slice(0, 32).forEach((item) => {
+      const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
+      const pin = item && item.pin != null ? String(item.pin) : "";
+      if (!slug || pin.length < 4) return;
+      const { workspace: row, person } = personOf(
+        { headers: { "x-workspace": slug, "x-pin": pin } },
+        slug
+      );
+      if (!row || !person) {
+        desks.push({ slug, ok: false, error: "Desk name or code does not match." });
+        return;
+      }
+      desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
+      (mem.jobs || []).filter((j) => j && j.workspace === slug && isPriorityJob(j)).forEach((j) => {
+        const card = capCard(j, row);
+        if (card) {
+          card.needsFull = needsOf(j, { staff: person.role === "employee" });
+          items.push(card);
+        }
+      });
+    });
+    items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
+    return res.status(200).json({ ok: true, format: "aia.desk.v1", cap: true, desks, count: items.length, items: items.slice(0, 12) });
+  }
+
   const slug = slugify(body.slug || body.workspace || workspaceOf(req));
   const pin = String((req.headers && req.headers["x-pin"]) || body.pin || "");
   const { workspace: row, person } = personOf(
@@ -187,5 +218,5 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
   }
 
-  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "history", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
+  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
 };
