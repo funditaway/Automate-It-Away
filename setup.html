@@ -9,7 +9,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Setup · Automate It Away</title>
-  <meta name="description" content="Name your desk. Give the work a home. Drop a school form, a missed call, or a neighbor text. The desk drafts the words. You copy it, text it, email it, or hand it off. Nothing leaves on its own.">
+  <meta name="description" content="Open one AIA account. Name the desk. Drop a school form, a missed call, or a neighbor text. The desk drafts the words. You copy it, text it, email it, or hand it off. Nothing leaves on its own.">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
@@ -37,7 +37,7 @@
     .shots figcaption b{display:block;color:var(--heading,#0a4f4f);font-size:14px}
     .actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
     .chip{border:1px solid var(--line,#d1dae3);background:var(--card,#fff);border-radius:999px;padding:7px 11px;font-size:13px;font-weight:700;color:var(--heading,#0a4f4f)}
-    .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
+    .facts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 0 16px}
     .fact{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:12px;padding:12px}
     .fact b{display:block;color:var(--heading,#0a4f4f)}
     .fact span{font-size:13px;color:var(--muted,#6b7c8f)}
@@ -64,14 +64,19 @@
     <div class="nav">
       <a href="how.html">How</a>
       <a href="setup.html">Setup</a>
-      <a href="onboard.html">Open desk</a>
+      <a href="onboard.html">Open account</a>
       <a href="desk.html">Desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <main class="wrap">
     <h1>Name your desk. Give the work a home.</h1>
-    <p class="lead">A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step and drafts the words. You copy it, text it, email it, or hand it to someone. Nothing leaves on its own. Add a rule if you need one.</p>
+    <p class="lead">One AIA account. A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step and drafts the words. You copy it, text it, email it, or hand it to someone. Nothing leaves on its own. Add a rule if you need one.</p>
+    <div class="talk-bar" id="talkBar" hidden>
+      <p class="talk-status" id="talkStatus">Hear this reads the first day. Quiet stops it.</p>
+      <button type="button" id="hearBtn">Hear this</button>
+      <button type="button" id="quietBtn">Quiet</button>
+    </div>
     <div class="actions" aria-label="What you do with a card">
       <span class="chip">Copy draft</span>
       <span class="chip">Text it</span>
@@ -79,7 +84,7 @@
       <span class="chip">Hand to</span>
       <span class="chip">Stop</span>
     </div>
-    <img class="hero" src="img/setup-life.jpg" alt="Kitchen table with a school permission slip, a grocery list, and a phone queue showing Copy draft, Text it, Email it, Hand to, and Stop." onerror="this.onerror=null;this.src='img/home-life.svg'">
+    <img class="hero" src="img/setup-life.jpg" alt="Kitchen table with a school permission slip, a grocery list, and a phone queue showing Copy draft, Text it, Email it, Hand to, and Stop." onerror="this.onerror=null;this.src='img/home-life.png';this.onerror=function(){this.onerror=null;this.src='img/home-life.svg'}">
     <div class="shots">
       <figure>
         <img src="img/setup-shop.jpg" alt="Shop owner at a workbench checking a missed-call estimate on the desk queue." onerror="this.onerror=null;this.src='img/home-work.svg'">
@@ -92,8 +97,9 @@
     </div>
 
     <div class="facts">
-      <div class="fact"><b>Owner</b><span>Writes rules. Taps Stop. Lets money move only if a rule waits.</span></div>
-      <div class="fact"><b>Helper</b><span>Works the queue. Can send a draft when a rule allows. Cannot Stop.</span></div>
+      <div class="fact"><b>Owner</b><span>Full admin on this login. Writes rules. Taps Stop. Approves who sits on the desk.</span></div>
+      <div class="fact"><b>Member</b><span>Same account, one desk. Family, friend, helper, or staff at the permission the owner set.</span></div>
+      <div class="fact"><b>The tap</b><span>Members work the queue. They do not Stop or send money.</span></div>
     </div>
 
     <p class="sec">First day</p>
@@ -101,15 +107,15 @@
       <div class="n">1</div>
       <div>
         <h2>Open the account</h2>
-        <p>Owner account + first desk, or join as a member and wait on the owner for a permission. Free for now. Monthly later — we tell you before we charge. Desk name + desk code is the login. Email is not.</p>
-        <p><a href="onboard.html">Open the account →</a> · <a href="create.html">Name another kind of work later →</a></p>
+        <p>Owner opens one secure AIA account and the first desk. Member asks to join that desk and waits on the owner for a permission. Free for now. Monthly later — we tell you before we charge. Desk name + desk code is the login. Email is not.</p>
+        <p><a href="onboard.html">Open the account →</a> · <a href="login.html">Already have one →</a></p>
       </div>
     </article>
     <article class="step">
       <div class="n">2</div>
       <div>
         <h2>Same pair on the next phone</h2>
-        <p>Desk name + that person’s code. Do not share the owner code. Same queue. Owner still owns Stop.</p>
+        <p>Desk name + that person’s code. Do not share the owner code. Same queue. Owner still owns Stop and money.</p>
         <p><a href="login.html">Sign in →</a></p>
       </div>
     </article>
@@ -144,11 +150,49 @@
     </div>
 
     <div class="cta">
-      <a class="btn" href="onboard.html">Open your desk</a>
+      <a class="btn" href="onboard.html">Open the account</a>
       <a class="btn quiet" href="how.html">See how it runs</a>
     </div>
     <p class="note">Photos last after storage is on. Until then they can vanish on restart.</p>
   </main>
   <script src="theme.js"></script>
+  <script src="speech.js"></script>
+  <script>
+    (function () {
+      var bar = document.getElementById("talkBar");
+      var status = document.getElementById("talkStatus");
+      var hearBtn = document.getElementById("hearBtn");
+      var quietBtn = document.getElementById("quietBtn");
+      if (!bar || !window.AIASpeech) return;
+      if (!AIASpeech.canSpeak()) return;
+      bar.hidden = false;
+      var lines = [
+        "Name your desk. Give the work a home.",
+        "Open one account. Owner runs the desk. Member asks to join and waits on the owner.",
+        "Desk name and desk code is the login. Email is not.",
+        "Drop a school form, a missed call, or a neighbor text. It lands on one queue.",
+        "The desk drafts the words. You copy it, text it, email it, or hand it off.",
+        "Nothing leaves on its own. Stop is the owner cancel. Add a rule if you need one."
+      ];
+      var i = 0;
+      function sayNext() {
+        if (i >= lines.length) {
+          status.textContent = "That is the first day. Open the account when you are ready.";
+          return;
+        }
+        status.textContent = lines[i];
+        AIASpeech.speak(lines[i], { onend: function () { i += 1; sayNext(); } });
+      }
+      hearBtn.addEventListener("click", function () {
+        i = 0;
+        AIASpeech.stop();
+        sayNext();
+      });
+      quietBtn.addEventListener("click", function () {
+        AIASpeech.stop();
+        status.textContent = "Quiet. Hear this starts the first day again.";
+      });
+    })();
+  </script>
 </body>
 </html>
