@@ -10,111 +10,136 @@
   }
   function goDrop(slug) {
     var use = slugify(slug);
-    location.href = use ? "/drop" : "/drop";
+    location.href = use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
+  }
+  function paintSearch(rows, q) {
+    var box = document.getElementById("public-desk-hits");
+    if (!box) return;
+    if (!rows || !rows.length) {
+      box.innerHTML = q ? "<p class=\"sub\">No public desk matches that. Private desks do not show here.</p>" : "";
+      return;
+    }
+    box.innerHTML = rows.map(function (d) {
+      var bits = [esc(d.name || d.slug)];
+      if (d.city) bits.push(esc(d.city));
+      if (d.does) bits.push(esc(d.does));
+      return "<button type=\"button\" data-public-desk=\"" + esc(d.slug) + "\">" + bits.join(" · ") + "</button>";
+    }).join("");
+  }
+  async function searchPublic(q) {
+    try {
+      var r = await fetch("/api/desks?q=" + encodeURIComponent(q || ""));
+      var data = await r.json().catch(function () { return {}; });
+      paintSearch((data && data.desks) || [], q);
+    } catch (e) { paintSearch([], q); }
+  }
+  function injectSearch() {
+    var box = document.getElementById("desk-pick");
+    if (!box || document.getElementById("public-desk-q")) return;
+    if (window !== window.parent || /embed=1/.test(location.search)) return;
+    var wrap = document.createElement("div");
+    wrap.id = "public-desk-search";
+    wrap.innerHTML = "<label>Find a public desk</label><input id=\"public-desk-q\" placeholder=\"Shop name or city\"><p class=\"sub\">Public desks only. Private desks stay off this list.</p><div class=\"desk-chips\" id=\"public-desk-hits\"></div>";
+    var chips = document.getElementById("desk-chips");
+    if (chips && chips.parentNode) chips.parentNode.insertBefore(wrap, chips.nextSibling);
+    else box.appendChild(wrap);
+    var input = document.getElementById("public-desk-q");
+    var hits = document.getElementById("public-desk-hits");
+    var timer = null;
+    if (input) input.addEventListener("input", function () {
+      var q = String(input.value || "").trim();
+      clearTimeout(timer);
+      timer = setTimeout(function () { searchPublic(q); }, 220);
+    });
+    if (hits) hits.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-public-desk]");
+      if (btn) goDrop(btn.getAttribute("data-public-desk"));
+    });
   }
   function paint() {
     var box = document.getElementById("desk-pick");
     var chips = document.getElementById("desk-chips");
     var sub = document.getElementById("desk-pick-sub");
-    var create = document.getElementById("desk-new");
-    var add = document.getElementById("desk-add-link");
     if (!box || !chips) return;
-    if (window !== window.parent || /embed=1/.test(location.search) || (window.AIADesks && AIADesks.queryWs && AIADesks.queryWs())) {
-      box.hidden = true;
-      return;
-    }
+    if (window !== window.parent || /embed=1/.test(location.search)) { box.hidden = true; return; }
     box.hidden = false;
     var rows = (window.AIADesks && AIADesks.list) ? AIADesks.list() : [];
-    var cur = (window.desk && window.desk.slug) || (window.AIADesks && AIADesks.current && AIADesks.current() && AIADesks.current().slug) || "";
+    var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || {};
+    var ws = cur.slug || localStorage.getItem("aia_ws") || "";
     if (!rows.length) {
       chips.innerHTML = "";
-      if (sub) sub.textContent = "Create a new desk — name it, then drop.";
-      if (create) create.hidden = false;
-      if (add) add.hidden = true;
+      if (sub) sub.textContent = "Pick a desk first. None on this phone yet. Add one you already opened, or create a new desk.";
       return;
     }
-    if (sub) sub.textContent = "Your desks — tap one.";
-    if (create) create.hidden = true;
-    if (add) add.hidden = false;
+    if (sub) sub.textContent = "Pick a desk first. Then talk. Tap one on this phone, add another, or create a new desk.";
     chips.innerHTML = rows.map(function (d) {
-      var on = d.slug === cur ? " on" : "";
+      var on = d.slug === ws ? " on" : "";
+      var who = d.role === "owner" ? " · owner" : d.role === "employee" ? " · helper" : "";
       return "<button type=\"button\" class=\"" + on.trim() + "\" data-desk=\"" + esc(d.slug) + "\">" +
-        esc(d.name || d.slug) + (d.slug === cur ? " · this desk" : "") + "</button>";
+        esc(d.name || d.slug) + who + (d.slug === ws ? " · this desk" : "") + "</button>";
     }).join("");
   }
   function pick(slug) {
     var row = window.AIADesks ? AIADesks.find(slug) : null;
     if (!row) return;
-    if (row.pin) {
-      row = AIADesks.switchTo(row.slug) || row;
-      window.desk = row;
-      window.ws = row.slug;
-      paint();
-      if (typeof paintDrop === "function") paintDrop();
-      return;
-    }
-    var add = document.getElementById("desk-add");
-    if (add) add.hidden = false;
-    var name = document.getElementById("add-ws");
-    var err = document.getElementById("desk-err");
+    if (row.pin) { AIADesks.switchTo(row.slug); goDrop(row.slug); return; }
+    var add = document.getElementById("desk-add"); if (add) add.hidden = false;
+    var name = document.getElementById("add-ws"); var err = document.getElementById("desk-err");
     if (name) name.value = row.name || row.slug;
     if (document.getElementById("add-pin")) document.getElementById("add-pin").focus();
-    if (err) {
-      err.style.display = "block";
-      err.textContent = "Type the desk code for " + (row.name || row.slug) + ".";
-    }
+    if (err) { err.style.display = "block"; err.textContent = "Type the desk code for " + (row.name || row.slug) + "."; }
   }
   async function addSaved() {
     var err = document.getElementById("desk-err");
     var name = String((document.getElementById("add-ws") || {}).value || "").trim();
     var code = String((document.getElementById("add-pin") || {}).value || "").trim();
     if (err) err.style.display = "none";
-    if (!name || code.length < 4) {
-      if (err) { err.style.display = "block"; err.textContent = "Desk name and a 4+ digit code."; }
-      return;
-    }
+    if (!name || code.length < 4) { if (err) { err.style.display = "block"; err.textContent = "Desk name and a 4+ digit code."; } return; }
     var slug = slugify(name);
     try {
-      var r = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Workspace": slug },
-        body: JSON.stringify({ action: "login", slug: slug, pin: code })
-      });
+      var r = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json", "X-Workspace": slug }, body: JSON.stringify({ action: "login", slug: slug, pin: code }) });
       var data = await r.json().catch(function () { return {}; });
-      if (!r.ok) {
-        if (err) { err.style.display = "block"; err.textContent = data.error || "Desk name or code does not match."; }
-        return;
-      }
+      if (!r.ok) { if (err) { err.style.display = "block"; err.textContent = data.error || "Desk name or code does not match."; } return; }
       var ws = (data.workspace && data.workspace.slug) || slug;
       var label = (data.workspace && (data.workspace.biz || data.workspace.name)) || name;
-      if (window.AIADesks) {
-        AIADesks.open({ slug: ws, name: label, pin: code, role: (data.you && data.you.role) || "owner" });
-      } else {
-        localStorage.setItem("aia_ws", ws);
-        localStorage.setItem("aia_pin", code);
-        localStorage.setItem("aia_desk_name", label);
-      }
-      window.desk = { slug: ws, name: label, pin: code };
-      window.ws = ws;
-      paint();
-      if (typeof paintDrop === "function") paintDrop();
-      return;
-    } catch (e) {
-      if (err) { err.style.display = "block"; err.textContent = "Could not reach the desk."; }
-    }
+      if (window.AIADesks) AIADesks.open({ slug: ws, name: label, pin: code, role: (data.you && data.you.role) || "owner" });
+      else { localStorage.setItem("aia_ws", ws); localStorage.setItem("aia_pin", code); localStorage.setItem("aia_desk_name", label); }
+      goDrop(ws);
+    } catch (e) { if (err) { err.style.display = "block"; err.textContent = "Could not reach the desk."; } }
+  }
+  function paintOwnerListToggle() {
+    var box = document.getElementById("desk-pick");
+    if (!box || document.getElementById("list-public-btn")) return;
+    var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || null;
+    if (!cur || !cur.slug) return;
+    if (cur.role && cur.role !== "owner") return;
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.id = "list-public-btn"; btn.className = "ghost"; btn.style.width = "auto";
+    btn.textContent = "List this desk in public search";
+    var actions = box.querySelector(".desk-actions");
+    if (actions) actions.appendChild(btn); else box.appendChild(btn);
+    btn.onclick = async function () {
+      var err = document.getElementById("desk-err");
+      try {
+        var headers = { "Content-Type": "application/json" };
+        if (window.AIADesks && AIADesks.authHeaders) headers = AIADesks.authHeaders();
+        var r = await fetch("/api/desks", { method: "POST", headers: headers, body: JSON.stringify({ action: "listed", listed: true, slug: cur.slug }) });
+        var data = await r.json().catch(function () { return {}; });
+        if (!r.ok) { if (err) { err.style.display = "block"; err.textContent = data.error || "Owner only."; } return; }
+        btn.textContent = "Listed in public search";
+      } catch (e) { if (err) { err.style.display = "block"; err.textContent = "Could not list this desk."; } }
+    };
   }
   function boot() {
     var chips = document.getElementById("desk-chips");
     var toggle = document.getElementById("add-toggle");
     var openBtn = document.getElementById("add-open");
-    paint();
+    injectSearch(); paint(); paintOwnerListToggle();
     if (chips) chips.addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-desk]");
-      if (btn) pick(btn.getAttribute("data-desk"));
+      var btn = e.target.closest("[data-desk]"); if (btn) pick(btn.getAttribute("data-desk"));
     });
     if (toggle) toggle.onclick = function () {
-      var add = document.getElementById("desk-add");
-      if (!add) return;
+      var add = document.getElementById("desk-add"); if (!add) return;
       add.hidden = !add.hidden;
       if (!add.hidden && document.getElementById("add-ws")) document.getElementById("add-ws").focus();
     };
