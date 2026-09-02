@@ -52,9 +52,28 @@
     .card b{display:block;color:var(--heading,#0a4f4f);margin-bottom:4px}
     .card span{font-size:13px;color:var(--muted,#6b7c8f)}
     .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .btn{border:0;border-radius:10px;padding:12px 16px;background:var(--orange,#f39c12);color:#0c1116;font-weight:700;display:inline-flex}
+    .btn{border:0;border-radius:10px;padding:12px 16px;background:var(--orange,#f39c12);color:#0c1116;font-weight:700;display:inline-flex;align-items:center;min-height:44px}
     .quiet{background:var(--card,#fff);color:var(--teal,#0d6b6b);border:1px solid var(--line,#d1dae3)}
     .note{font-size:13px;color:var(--muted,#6b7c8f);margin-top:12px}
+    .phone{display:none;background:var(--edit,#eef7f7);border:1px solid var(--line,#d1dae3);border-radius:14px;padding:14px;margin:0 0 16px}
+    .phone b{display:block;color:var(--heading,#0a4f4f);margin-bottom:4px}
+    .phone p{font-size:14px;color:var(--muted,#6b7c8f);margin:0 0 10px}
+    .phone .cta{margin:0}
+    .practice{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:16px;padding:14px;margin:0 0 16px}
+    .practice .meta{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--teal,#0d6b6b);margin:0 0 6px}
+    .practice h2{margin:0 0 4px}
+    .practice .who{font-size:13px;color:var(--muted,#6b7c8f);margin:0 0 10px}
+    .draft{background:var(--bg-soft,#f4f7f8);border:1px dashed var(--line,#d1dae3);border-radius:12px;padding:12px;font-size:14px;color:var(--ink,#1a2332);line-height:1.4;margin:0 0 12px}
+    .taps{display:flex;flex-wrap:wrap;gap:8px}
+    .taps button,.taps a{
+      border:1px solid var(--line,#d1dae3);background:var(--card,#fff);color:var(--heading,#0a4f4f);
+      border-radius:12px;padding:10px 14px;min-height:44px;font:700 14px system-ui,sans-serif;
+      display:inline-flex;align-items:center;cursor:pointer
+    }
+    .taps .go{background:var(--orange,#f39c12);border-color:var(--orange,#f39c12);color:#0c1116}
+    .taps .stop{border-color:#e8b4b4;color:#8a3030}
+    .practice .result{font-size:13px;color:var(--muted,#6b7c8f);margin:10px 0 0;min-height:1.2em}
+    .practice.stopped{opacity:.72}
     @media(max-width:700px){.facts,.words,.step,.shots{grid-template-columns:1fr}}
   </style>
 </head>
@@ -84,14 +103,40 @@
       <span class="chip">Hand to</span>
       <span class="chip">Stop</span>
     </div>
-    <img class="hero" src="img/setup-life.jpg" alt="Kitchen table with a school permission slip, a grocery list, and a phone queue showing Copy draft, Text it, Email it, Hand to, and Stop." onerror="this.onerror=null;this.src='img/home-life.png';this.onerror=function(){this.onerror=null;this.src='img/home-life.svg'}">
+
+    <div class="phone" id="phoneDesk" hidden>
+      <b>This phone already has a desk</b>
+      <p id="phoneCopy">Open the queue on that desk, or keep reading the first day.</p>
+      <div class="cta">
+        <a class="btn" id="phoneOpen" href="desk.html">Open the queue</a>
+        <a class="btn quiet" href="drop.html">Drop work</a>
+      </div>
+    </div>
+
+    <img class="hero" src="img/home-life.svg" alt="Kitchen table with a school permission slip, a to-do list, and a phone showing Copy and Text it.">
+
+    <section class="practice" id="practice" aria-label="Practice card">
+      <p class="meta">Practice card · stays on this phone</p>
+      <h2>Permission slip Friday</h2>
+      <p class="who">School paper · draft ready · you still send it</p>
+      <p class="draft" id="draftText">Need the field-trip slip signed tonight. Thursday bus leaves at 8. I will send this once, then it stops.</p>
+      <div class="taps" id="practiceTaps">
+        <button type="button" class="go" id="copyBtn">Copy draft</button>
+        <a class="go" id="textBtn" href="#">Text it</a>
+        <a id="emailBtn" href="#">Email it</a>
+        <button type="button" id="handBtn">Hand to</button>
+        <button type="button" class="stop" id="stopBtn">Stop</button>
+      </div>
+      <p class="result" id="practiceResult">Tap a button. The desk does not send this for you.</p>
+    </section>
+
     <div class="shots">
       <figure>
-        <img src="img/setup-shop.jpg" alt="Shop owner at a workbench checking a missed-call estimate on the desk queue." onerror="this.onerror=null;this.src='img/home-work.svg'">
+        <img src="img/home-hero.svg" alt="Desk queue with a missed-call job and a phone showing Text it, Email it, Hand to, Copy draft, and Stop.">
         <figcaption><b>Service shop</b>Missed call becomes a card. You send the draft when it is right.</figcaption>
       </figure>
       <figure>
-        <img src="img/setup-office.jpg" alt="Office desk with a client packet and a phone showing Copy draft, Email it, Hand to, and Stop." onerror="this.onerror=null;this.src='img/home-work.svg'">
+        <img src="img/home-work.svg" alt="Shop, front desk, and office each running a queue of cards.">
         <figcaption><b>Office</b>A file hits the queue. The packet is drafted. You hand it off or send it.</figcaption>
       </figure>
     </div>
@@ -128,7 +173,7 @@
         <p><b>Talk on the desk</b> — say the work. The draft stays on the card until you send it.</p>
         <p><b>Create</b> — another kind of work, a person, or a rule. Same desk.</p>
         <p><b>A pipe</b> — optional. Skip it if you just want the list.</p>
-        <p><a href="widget.html">Drop →</a> · <a href="desk.html">Queue →</a> · <a href="rules.html">Rules →</a></p>
+        <p><a href="drop.html">Drop →</a> · <a href="desk.html">Queue →</a> · <a href="rules.html">Rules →</a></p>
       </div>
     </article>
     <article class="step">
@@ -153,12 +198,66 @@
       <a class="btn" href="onboard.html">Open the account</a>
       <a class="btn quiet" href="how.html">See how it runs</a>
     </div>
-    <p class="note">Photos last after storage is on. Until then they can vanish on restart.</p>
+    <p class="note">The practice card is a sample. A real card only leaves when you copy it, text it, email it, or hand it off.</p>
   </main>
   <script src="theme.js"></script>
   <script src="speech.js"></script>
+  <script src="desk-switch.js"></script>
   <script>
     (function () {
+      var DRAFT = "Need the field-trip slip signed tonight. Thursday bus leaves at 8. I will send this once, then it stops.";
+      var result = document.getElementById("practiceResult");
+      var box = document.getElementById("practice");
+      var taps = document.getElementById("practiceTaps");
+      function say(msg) { if (result) result.textContent = msg; }
+
+      var copyBtn = document.getElementById("copyBtn");
+      if (copyBtn) copyBtn.addEventListener("click", function () {
+        function done() { say("Copied. Paste it wherever you send it. The desk did not send this."); }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(DRAFT).then(done).catch(function () {
+            say("Copy this: " + DRAFT);
+          });
+        } else {
+          say("Copy this: " + DRAFT);
+        }
+      });
+
+      var textBtn = document.getElementById("textBtn");
+      if (textBtn) textBtn.href = "sms:?&body=" + encodeURIComponent(DRAFT);
+      var emailBtn = document.getElementById("emailBtn");
+      if (emailBtn) emailBtn.href = "mailto:?subject=" + encodeURIComponent("Permission slip Friday") + "&body=" + encodeURIComponent(DRAFT);
+
+      var handBtn = document.getElementById("handBtn");
+      if (handBtn) handBtn.addEventListener("click", function () {
+        say("On a real desk you pick a person. This practice card stays on this phone.");
+      });
+
+      var stopBtn = document.getElementById("stopBtn");
+      if (stopBtn) stopBtn.addEventListener("click", function () {
+        if (box) box.classList.add("stopped");
+        if (taps) taps.hidden = true;
+        say("Stopped. On a real desk only the owner taps this.");
+      });
+
+      var phone = document.getElementById("phoneDesk");
+      var phoneCopy = document.getElementById("phoneCopy");
+      var phoneOpen = document.getElementById("phoneOpen");
+      if (phone && window.AIADesks) {
+        var rows = AIADesks.list ? AIADesks.list() : [];
+        if (rows && rows.length) {
+          var names = rows.map(function (d) { return d.name || d.slug; }).filter(Boolean);
+          phoneCopy.textContent = names.length === 1
+            ? names[0] + " is saved on this phone. Open the queue, or keep reading."
+            : names.join(", ") + " are saved on this phone.";
+          phone.hidden = false;
+          phone.style.display = "block";
+          if (phoneOpen && rows[0] && rows[0].slug) {
+            phoneOpen.href = "desk.html?ws=" + encodeURIComponent(rows[0].slug);
+          }
+        }
+      }
+
       var bar = document.getElementById("talkBar");
       var status = document.getElementById("talkStatus");
       var hearBtn = document.getElementById("hearBtn");
@@ -170,6 +269,7 @@
         "Name your desk. Give the work a home.",
         "Open one account. Owner runs the desk. Member asks to join and waits on the owner.",
         "Desk name and desk code is the login. Email is not.",
+        "There is a practice card on this page. Copy the draft, text it, email it, hand it, or stop it. Nothing leaves on its own.",
         "Drop a school form, a missed call, or a neighbor text. It lands on one queue.",
         "The desk drafts the words. You copy it, text it, email it, or hand it off.",
         "Nothing leaves on its own. Stop is the owner cancel. Add a rule if you need one."
