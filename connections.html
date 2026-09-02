@@ -62,7 +62,7 @@
   </header>
   <main class="wrap">
     <h1>This desk’s pipes.</h1>
-    <p>You do not need a pipe to start. Drop a note first. Webhook talks across the internet now. Named pipes wait on keys. Draft accounts log in, then paste a key. They draft only.</p>
+    <p>You do not need a pipe to start. Drop a note first. Webhook talks across the internet now. Named pipes wait on keys. Draft accounts log in, then paste a key. Coming soon opens the vendor console. None of them send, post, or pay by themselves.</p>
     <div class="item">
       <div class="row">
         <input id="ws" placeholder="Desk name">
@@ -109,7 +109,7 @@
       <p class="meta" id="flash"></p>
     </div>
     <h2>Coming soon · beta wall</h2>
-    <p class="meta">Shown because Grok liked the fit. Not connectable. Owner still taps Yes on every job.</p>
+    <p class="meta">Log in opens that vendor’s console. It does not turn the pipe live. Owner still taps Yes on every job. Mail, social, CRM, and money stay hold.</p>
     <div id="soon"></div>
     <p class="meta"><a href="desk.html">Back to the queue</a></p>
   </main>
@@ -173,7 +173,8 @@
       }).join("");
       const soonBox = document.getElementById("soon");
       if (soonBox) soonBox.innerHTML = (data.soon || []).map(p => {
-        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + (p.note || "Shown, not live.") + "</div></div></div>";
+        const go = p.login ? "<button class=\"go\" type=\"button\" onclick=\"startSoon('" + p.id + "')\">Log in</button>" : "";
+        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + (p.note || "Shown, not live.") + "</div></div><div class=\"row\">" + go + "</div></div>";
       }).join("");
     }
     async function connect() {
@@ -190,6 +191,13 @@
     async function dropPipe(id) {
       await fetch("/api/connections?id=" + encodeURIComponent(id), { method: "DELETE", headers: headers() });
       listPipes();
+    }
+    async function startSoon(provider) {
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-start", provider }) });
+      const data = await r.json().catch(() => ({}));
+      const flash = document.getElementById("flash");
+      if (flash) flash.textContent = data.next || data.error || "Coming soon. Not a live pipe.";
+      if (data.login) window.open(data.login, "_blank", "noopener");
     }
     async function startAi(provider) {
       aiPick = provider;
