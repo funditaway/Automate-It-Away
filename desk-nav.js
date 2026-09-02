@@ -72,6 +72,12 @@
       s.setAttribute("data-aia-handoff", "1");
       document.body.appendChild(s);
     }
+    if (tabOf() === "drop" && !document.querySelector("script[data-aia-drop-talk]")) {
+      var t = document.createElement("script");
+      t.src = "/drop-talk.js";
+      t.setAttribute("data-aia-drop-talk", "1");
+      document.body.appendChild(t);
+    }
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
