@@ -38,7 +38,7 @@
       how: "Lot note. Cap flood and title.",
       next: "Write the lot note. Cap flood and title.",
       rails: ["Cap flood cards.", "Cap title cards."],
-      keys: { who: ["contactName", "who"], what: ["lot", "title", "need"], when: ["timing", "when"], where: ["flood", "where"], how: ["title"] }
+      keys: { who: ["contactName", "who"], what: ["lot", "title", "need"], when: ["timing", "when"], where: ["where"], how: ["title"] }
     }
   };
   function first(j, keys) {
@@ -79,7 +79,7 @@
   }
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;" })[c];
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
     });
   }
   function badgeHtml(j) {
