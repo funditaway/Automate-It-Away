@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Automate It Away</title>
   <meta name="description" content="Name your desk. Drop the work. The desk writes the next step and drafts the words. You text it, email it, hand it off, or stop it. Nothing leaves on its own.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -34,7 +34,8 @@
     @media(max-width:640px){nav{width:100%}}
     .wrap{width:min(980px,92vw);margin:0 auto}
     .hero{padding:36px 5vw 28px;background:var(--bg-soft)}
-    .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:center}
+    .hero-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:22px;align-items:center}
+    @media(max-width:720px){.hero-grid{grid-template-columns:minmax(0,1fr)}}
     h1{font-size:clamp(1.7rem,4.6vw,2.7rem);color:var(--heading);line-height:1.15;margin:0 0 10px}
     .lead{color:var(--muted);font-size:1.05rem;max-width:38rem;margin:0 0 16px}
     .hero img,.people img{width:100%;border-radius:16px;border:1px solid var(--line);display:block}
@@ -55,6 +56,10 @@
     footer{padding:22px 5vw;color:var(--muted);font-size:14px}
     footer a{color:var(--teal)}
     @media(max-width:800px){.hero-grid{grid-template-columns:1fr}}
+    @media(max-width:420px){
+      .actions{gap:6px}
+      .btn{width:100%;margin:6px 0 0;text-align:center}
+    }
   </style>
 </head>
 <body>
@@ -143,15 +148,16 @@
   </div>
 </section>
 
-<footer>
-  © 2026 Automate It Away ·
-  <a href="how.html">How</a> ·
-  <a href="setup.html">Setup</a> ·
-  <a href="help.html">Help</a> ·
-  <a href="rules.html">Rules</a> ·
-  <a href="pricing.html">Pricing</a> ·
-  <a href="legal.html">Legal</a> ·
-  <a href="status.html">Status</a>
+<footer class="site-foot">
+  <p>© 2026 Automate It Away</p>
+  <nav>
+    <a href="how.html">How</a>
+    <a href="setup.html">Setup</a>
+    <a href="help.html">Help</a>
+    <a href="pricing.html">Pricing</a>
+    <a href="legal.html">Legal</a>
+    <a href="status.html">Status</a>
+  </nav>
 </footer>
 <script src="theme.js"></script>
 </body>
