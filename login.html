@@ -13,6 +13,11 @@
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
   <link rel="stylesheet" href="theme.css">
+  <style>
+    .door-row{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+    .door-row button{min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:700 13px inherit;padding:8px 12px;cursor:pointer}
+    .door-row button.on{background:#0d6b6b;color:#fff;border-color:#0d6b6b}
+  </style>
 </head>
 <body class="page-bg">
   <header class="site-header">
@@ -24,23 +29,36 @@
   </header>
   <form class="gate-card" id="form">
     <h1>Open this desk</h1>
-    <p class="sub">One AIA account. Desk name + your code signs you in. A session stays on this phone so the code is not sent on every tap. Email is not the login. <a href="account.html">Your account</a></p>
+    <p class="sub">One AIA account. Two doors: desk name + code, or email + password. A session stays on this phone. Owner taps still need the owner seat. <a href="account.html">Your account</a></p>
+    <div class="door-row" role="tablist">
+      <button type="button" class="on" id="door-desk">Desk name + code</button>
+      <button type="button" id="door-email">Email + password</button>
+    </div>
     <div class="talk-bar" id="talkBar" hidden>
-      <p class="talk-status" id="talkStatus">Say the desk name. Code stays typed — not read back.</p>
+      <p class="talk-status" id="talkStatus">Say the desk name. Code and password stay typed — not read back.</p>
       <button type="button" id="hearBtn">Hear this</button>
       <button type="button" id="talkBtn">Talk</button>
       <button type="button" id="quietBtn">Quiet</button>
     </div>
-    <label>Desk name <span class="tip" title="The name you used when you opened the desk. Letters and dashes.">?</span></label>
-    <input name="slug" required placeholder="Desk name" autocomplete="username">
-    <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
-    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
+    <div id="desk-door">
+      <label>Desk name <span class="tip" title="The name you used when you opened the desk. Letters and dashes.">?</span></label>
+      <input name="slug" placeholder="Desk name" autocomplete="username">
+      <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
+      <input name="pin" inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
+    </div>
+    <div id="email-door" hidden>
+      <label>Email</label>
+      <input type="email" name="email" placeholder="you@shop.com" autocomplete="username">
+      <label>Password</label>
+      <input type="password" name="password" minlength="8" placeholder="At least 8 characters" autocomplete="current-password">
+    </div>
     <div id="mfa-box" hidden>
       <label>Authenticator code</label>
       <input name="code" inputmode="numeric" maxlength="8" placeholder="Six digits" autocomplete="one-time-code">
-      <p class="hint">This account has the app factor on. Email is not a factor.</p>
+      <p class="hint">This account has the app factor on. We do not text or email a code.</p>
     </div>
     <button class="btn" type="submit">Open</button>
+    <p class="hint">No password yet? Open with the desk code, then set email and password on Your account.</p>
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
@@ -51,13 +69,42 @@
     const talkBar = document.getElementById("talkBar");
     const talkStatus = document.getElementById("talkStatus");
     const talkBtn = document.getElementById("talkBtn");
+    const deskDoor = document.getElementById("desk-door");
+    const emailDoor = document.getElementById("email-door");
+    const doorDesk = document.getElementById("door-desk");
+    const doorEmail = document.getElementById("door-email");
+    let door = "desk";
+    function showDoor(next) {
+      door = next;
+      deskDoor.hidden = next !== "desk";
+      emailDoor.hidden = next !== "email";
+      doorDesk.classList.toggle("on", next === "desk");
+      doorEmail.classList.toggle("on", next === "email");
+      form.elements.slug.required = next === "desk";
+      form.elements.pin.required = next === "desk";
+      form.elements.email.required = next === "email";
+      form.elements.password.required = next === "email";
+    }
+    doorDesk.onclick = function () { showDoor("desk"); try { localStorage.setItem("aia_login_door", "desk"); } catch (e) {} };
+    doorEmail.onclick = function () { showDoor("email"); try { localStorage.setItem("aia_login_door", "email"); } catch (e) {} };
+    try {
+      const savedMail = localStorage.getItem("aia_email") || "";
+      if (savedMail) form.elements.email.value = savedMail;
+      showDoor(localStorage.getItem("aia_login_door") === "email" || (savedMail && !localStorage.getItem("aia_ws")) ? "email" : "desk");
+    } catch (e) {
+      showDoor("desk");
+    }
     if (window.AIASpeech && (AIASpeech.canSpeak() || AIASpeech.canListen())) {
       talkBar.hidden = false;
     }
     document.getElementById("hearBtn").onclick = function () {
-      AIASpeech.speak("Say the desk name. Then type your desk code.");
+      AIASpeech.speak(door === "email" ? "Type your email and password." : "Say the desk name. Then type your desk code.");
     };
     talkBtn.onclick = function () {
+      if (door === "email") {
+        talkStatus.textContent = "Type the email and password. Talk does not hear a password.";
+        return;
+      }
       talkBtn.classList.add("on");
       talkStatus.textContent = "Listening for the desk name…";
       form.elements.slug.classList.add("on-talk");
@@ -74,19 +121,26 @@
     document.getElementById("quietBtn").onclick = function () {
       AIASpeech.stopTalk();
       talkBtn.classList.remove("on");
-      talkStatus.textContent = "Quiet. Type the desk name and code.";
+      talkStatus.textContent = "Quiet. Type the login.";
     };
     form.onsubmit = async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
       const slug = String(f.get("slug") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const pin = f.get("pin");
+      const email = String(f.get("email") || "").trim();
+      const password = String(f.get("password") || "");
       const err = document.getElementById("err");
+      const payload = door === "email"
+        ? { action: "login", email: email, password: password, code: f.get("code") || "" }
+        : { action: "login", slug: slug, pin: pin, code: f.get("code") || "" };
       try {
+        const headers = { "Content-Type": "application/json" };
+        if (slug) headers["X-Workspace"] = slug;
         const r = await fetch("/api/auth", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Workspace": slug },
-          body: JSON.stringify({ action: "login", slug, pin, code: f.get("code") || "" })
+          headers: headers,
+          body: JSON.stringify(payload)
         });
         const data = await r.json();
         if (data.mfaRequired) {
@@ -96,19 +150,20 @@
           err.style.display = "block";
           return;
         }
-        if (!r.ok) { err.textContent = data.error || "Desk name or code does not match."; err.style.display = "block"; return; }
+        if (!r.ok) { err.textContent = data.error || "Login does not match."; err.style.display = "block"; return; }
         if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data, pin);
-        if (window.AIADesks && AIADesks.open) {
+        if (email) localStorage.setItem("aia_email", email);
+        if (window.AIADesks && AIADesks.open && data.workspace) {
           AIADesks.open({
             slug: data.workspace.slug,
             name: (data.workspace && (data.workspace.biz || data.workspace.name)) || data.workspace.slug,
-            pin: pin,
+            pin: pin || "",
             token: data.session && data.session.token,
             role: (data.you && data.you.role) || "owner",
             who: (data.you && data.you.name) || ""
           });
         }
-        location.href = "desk.html";
+        location.href = data.workspace ? "desk.html" : "account.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
         err.style.display = "block";

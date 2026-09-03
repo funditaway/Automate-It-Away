@@ -1,7 +1,7 @@
 const { cors, ready, save, readBody, workspaceOf, personOf, isOwner } = require("./_lib");
 const {
-  ensureAccount, accountForDesk, loginAccount, proHome, createOwnerAccount, publicPlan,
-  switchPlan, publicPlans
+  ensureAccount, accountForDesk, homeAccount, loginAccount, proHome, createOwnerAccount, publicPlan,
+  switchPlan, publicPlans, looksLikeEmail
 } = require("./_account");
 
 module.exports = async function handler(req, res) {
@@ -12,21 +12,22 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "GET") {
     const slug = workspaceOf(req);
-    const pin = (req.headers && req.headers["x-pin"]) || "";
-    const via = loginAccount(slug, pin);
-    if (via.ok) {
-      const owner = (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || { name: via.account.ownerName, role: "owner", kind: "owner" };
-      return res.status(200).json(proHome(via.account, owner));
-    }
     const found = personOf(req, slug);
     if (found.pending) {
       return res.status(403).json({ ok: false, pending: true, error: "That seat is waiting on the owner." });
     }
-    if (!found.workspace || !found.person) {
-      return res.status(401).json({ ok: false, error: "Account name or desk code does not match." });
+    if (found.person) {
+      const acc = homeAccount(found.person, found.workspace);
+      if (acc) return res.status(200).json(proHome(acc, found.person));
     }
-    if (!isOwner(found.person)) {
-      return res.status(403).json({ ok: false, error: "Owner code opens the Pro account. Members stay on their desk." });
+    const pin = (req.headers && req.headers["x-pin"]) || "";
+    const via = loginAccount(slug, pin);
+    if (via.ok) {
+      const owner = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || { name: via.account.ownerName, role: "owner", kind: "owner" };
+      return res.status(200).json(proHome(via.account, owner));
+    }
+    if (!found.workspace || !found.person) {
+      return res.status(401).json({ ok: false, error: "Account name, desk code, or email does not match." });
     }
     return res.status(200).json(proHome(accountForDesk(found.workspace), found.person));
   }
@@ -41,7 +42,11 @@ module.exports = async function handler(req, res) {
   if (action === "login" || action === "open" || action === "save") {
     const name = body.account || body.slug || body.biz || body.name || workspaceOf(req);
     const pin = body.pin || (req.headers && req.headers["x-pin"]) || "";
-    const via = loginAccount(name, pin);
+    const extra = {
+      email: body.email || (looksLikeEmail(name) ? name : ""),
+      password: body.password || body.pass || ""
+    };
+    const via = loginAccount(name, pin, extra);
     if (!via.ok) return res.status(via.status || 401).json({ ok: false, pending: !!via.pending, error: via.error });
     const who = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || {
       name: via.account.ownerName, role: "owner", kind: "owner"
