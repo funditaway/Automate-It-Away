@@ -85,10 +85,14 @@ function setSeatCan(row, id, incoming) {
   if (src.kind != null) {
     const want = String(src.kind).toLowerCase();
     if (want === "owner") return { ok: false, status: 400, error: "No seat can be permitted to owner." };
+    if (want === "override") return { ok: false, status: 400, error: "Override stays on the owner seat." };
     const flipped = applyKind(seat, want, { sticky: src.sticky != null ? !!src.sticky : seat.canSticky });
     if (!flipped.ok) return flipped;
   }
   const pack = tapsFrom(src);
+  if (pack.taps && pack.taps.override) {
+    return { ok: false, status: 403, error: "Override stays on the owner seat." };
+  }
   if (pack.hit) {
     const cur = seat.can && typeof seat.can === "object" ? seat.can : roles.resolveCan(seat.kind, seat.crew, seat.status);
     seat.can = roles.stripHard(Object.assign(roles.blankCan(), cur, pack.taps), seat);
@@ -128,7 +132,8 @@ function gateOverride(actor, hold, opts) {
   if (actor.kind === "agent" || actor.role === "agent") {
     return { ok: false, status: 403, error: "Agents never send, stop, or touch money." };
   }
-  if (!ownerish(actor)) {
+  const allowed = ownerish(actor) && (typeof roles.canOverride !== "function" || roles.canOverride(actor));
+  if (!allowed) {
     return { ok: false, status: 403, error: "Only the owner can pass a HOLD." };
   }
   if (!confirm) {
