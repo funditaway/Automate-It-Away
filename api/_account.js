@@ -25,21 +25,118 @@ function publicPlan(acc) {
 }
 function switchPlan(acc, id, actor) { return plans.switchPlan(acc, id, actor); }
 function publicPlans() { return plans.publicPlans(); }
-function proHome(acc, person) { return plans.proHome(acc, person); }
-function loginAccount(name, pin) { return plans.loginAccount(name, pin); }
 function desksForPerson(hint) { return plans.desksForPerson(hint); }
 function requestPermission(row, person, want) { return plans.requestPermission(row, person, want); }
 function setPermission(row, id, want, actor) { return plans.setPermission(row, id, want, actor); }
+
+function emailOf(row) {
+  return String((row && (row.email || row.mail)) || "").trim().toLowerCase();
+}
+function looksLikeEmail(value) {
+  const e = String(value || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 120;
+}
+function hashPassword(password) {
+  return lib.hashPin("pw|" + String(password || ""));
+}
+function passwordOk(password) {
+  const raw = String(password || "");
+  if (raw.length < 8) return { ok: false, error: "Password needs at least 8 characters." };
+  if (raw.length > 72) return { ok: false, error: "Password is too long." };
+  return { ok: true };
+}
+function findAccountByEmail(email) {
+  ensureAccount();
+  const e = emailOf({ email: email });
+  if (!e) return null;
+  return (lib.mem.accounts || []).find((a) => a && emailOf(a) === e) || null;
+}
+function emailTaken(email, exceptId) {
+  const hit = findAccountByEmail(email);
+  return !!(hit && hit.id !== exceptId);
+}
+function setAccountPassword(acc, password) {
+  const check = passwordOk(password);
+  if (!check.ok) return check;
+  acc.password = hashPassword(password);
+  acc.passwordAt = new Date().toISOString();
+  return { ok: true };
+}
+function applyAccountDetails(acc, body) {
+  if (!acc || !body) return acc;
+  if (body.ownerName || body.name) acc.ownerName = String(body.ownerName || body.name).trim().slice(0, 80);
+  if (body.phone != null) acc.phone = String(body.phone).trim().slice(0, 32);
+  if (body.city != null) acc.city = String(body.city).trim().slice(0, 60);
+  if (body.email != null && String(body.email).trim()) {
+    const e = emailOf(body);
+    if (!looksLikeEmail(e)) return { ok: false, error: "That email does not look right." };
+    if (emailTaken(e, acc.id)) return { ok: false, error: "That email is already on another AIA account." };
+    acc.email = e;
+  }
+  return acc;
+}
+function loginWithEmail(email, password) {
+  ensureAccount();
+  const e = emailOf({ email: email });
+  const lockId = "email:" + e;
+  if (!looksLikeEmail(e) || !password) {
+    return { ok: false, status: 400, error: "Email and password are required for this door." };
+  }
+  if (typeof lib.isLocked === "function" && lib.isLocked(lockId)) {
+    return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
+  }
+  const acc = findAccountByEmail(e);
+  if (!acc || !acc.password) {
+    if (typeof lib.noteFail === "function") lib.noteFail(lockId);
+    return { ok: false, status: 401, error: "Email or password does not match." };
+  }
+  if (acc.password !== hashPassword(password)) {
+    if (typeof lib.noteFail === "function") lib.noteFail(lockId);
+    return { ok: false, status: 401, error: "Email or password does not match." };
+  }
+  if (typeof lib.noteOk === "function") lib.noteOk(lockId);
+  const desks = (typeof plans.desksOfAccount === "function" ? plans.desksOfAccount(acc) : []) || [];
+  const desk = desks[0] || (lib.mem.workspaces || []).find((w) => w && w.accountId === acc.id) || null;
+  let person = null;
+  if (desk) {
+    person = (desk.people || []).find((p) => p && (p.accountId === acc.id || emailOf(p) === e || p.role === "owner")) || null;
+  }
+  if (!person) {
+    person = { id: acc.id + "_owner", name: acc.ownerName || acc.name || "Owner", role: "owner", kind: "owner", status: "approved", accountId: acc.id, email: acc.email };
+  }
+  return { ok: true, account: acc, desk: desk, person: person, emailLogin: true };
+}
+function loginAccount(name, pin, extra) {
+  extra = extra || {};
+  const rawEmail = extra.email || (looksLikeEmail(name) ? name : "");
+  const password = extra.password || extra.pass || "";
+  if (looksLikeEmail(rawEmail) && password) return loginWithEmail(rawEmail, password);
+  return plans.loginAccount(name, pin);
+}
+function proHome(acc, person) {
+  const home = plans.proHome(acc, person) || { ok: true };
+  if (home.account && acc) {
+    home.account.email = acc.email || "";
+    home.account.phone = acc.phone || "";
+    home.account.city = acc.city || "";
+    home.account.createdAt = acc.createdAt || "";
+    home.account.hasEmail = !!emailOf(acc);
+    home.account.hasPassword = !!acc.password;
+    home.account.mfaOn = !!acc.mfaOn;
+    home.account.ownerName = acc.ownerName || home.account.ownerName || "";
+  }
+  return home;
+}
 
 function findAccount(hint) {
   ensureAccount();
   const h = hint || {};
   const slug = lib.slugify(h.account || h.home || h.slug || h.biz || "");
-  const email = String(h.email || "").trim().toLowerCase();
+  const email = emailOf(h);
   return (lib.mem.accounts || []).find((a) => a && (
     (h.id && a.id === h.id) || (h.accountId && a.id === h.accountId) ||
     (slug && (a.slug === slug || lib.slugify(a.name) === slug)) ||
-    (email && String(a.email || "").trim().toLowerCase() === email)
+    (email && emailOf(a) === email)
   )) || null;
 }
 function connectDesk(acc, row, as) {
@@ -61,17 +158,22 @@ function createOwnerAccount(body, row) {
     || (lib.mem.accounts || []).find((a) => a && ((row && a.id === row.accountId) || (a.desks || []).indexOf(slug) >= 0));
   if (existing) {
     if (row) connectDesk(existing, row, "owner");
+    if (body && body.password && !existing.password) setAccountPassword(existing, body.password);
+    if (body && body.email && looksLikeEmail(body.email) && !existing.email) existing.email = emailOf(body);
     return existing;
   }
   const acc = {
     id: "acct_" + Date.now().toString(36),
     name: String((body && (body.biz || body.account || body.name)) || (row && (row.biz || row.name)) || "Shop").trim().slice(0, 80),
     ownerName: String((body && body.name) || (row && row.name) || "Owner").trim().slice(0, 80),
-    email: (body && body.email) || (row && row.email) || "",
+    email: (body && looksLikeEmail(body.email) ? emailOf(body) : "") || (row && row.email) || "",
+    phone: body && body.phone ? String(body.phone).trim().slice(0, 32) : "",
+    city: (body && body.city) || (row && row.city) || "",
     plan: "pro", billing: defaultBilling(), slug: slug,
     pin: body && body.pin ? lib.hashPin(body.pin) : (row && row.pin) || "",
     desks: row && row.slug ? [row.slug] : [], memberDesks: [], createdAt: new Date().toISOString()
   };
+  if (body && body.password) setAccountPassword(acc, body.password);
   lib.mem.accounts.unshift(acc);
   if (row) connectDesk(acc, row, "owner");
   return acc;
@@ -82,6 +184,18 @@ function accountForDesk(row) {
   let acc = (lib.mem.accounts || []).find((a) => a && (a.id === row.accountId || (a.desks || []).indexOf(row.slug) >= 0));
   if (!acc) acc = createOwnerAccount({ name: row.name, biz: row.biz, email: row.email }, row);
   return acc;
+}
+function homeAccount(person, row) {
+  ensureAccount();
+  if (person && person.accountId) {
+    const mine = (lib.mem.accounts || []).find((a) => a && a.id === person.accountId);
+    if (mine) return mine;
+  }
+  if (person && emailOf(person)) {
+    const byMail = findAccountByEmail(person.email);
+    if (byMail) return byMail;
+  }
+  return row ? accountForDesk(row) : null;
 }
 function requestMonthly(acc, actor) {
   if (!acc) return { ok: false, status: 404, error: "No account." };
@@ -156,8 +270,10 @@ function accountSnapshot(row, person) {
   return { account: publicAccount(row), plan: shop ? publicPlan(shop) : publicPlan(null), shop: shop ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : null, you: lib.publicPerson(person), people: row ? (row.people || []).map(lib.publicPerson) : [], approvals: row ? approvalsOf(row.slug) : [], kinds: KINDS, agents: roles.catalog().agents, levels: roles.catalog().levels, hardOwner: roles.HARD_OWNER };
 }
 module.exports = {
-  ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk,
+  ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
-  normalizeKind, switchPlan, publicPlans, proHome, loginAccount, desksForPerson, requestPermission, setPermission,
-  findAccount, connectDesk, planOf: plans.planOf, PLANS: plans.PLANS
+  normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
+  findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordOk,
+  setAccountPassword, applyAccountDetails, emailTaken,
+  planOf: plans.planOf, PLANS: plans.PLANS
 };
