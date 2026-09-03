@@ -59,7 +59,7 @@ function passwordMatches(stored, password) {
       return false;
     }
   }
-  return saved === lib.hashPin("pw|" + raw);
+  return false;
 }
 function passwordOk(password) {
   const raw = String(password || "");
