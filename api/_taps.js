@@ -91,8 +91,9 @@ function fallbackTaps(job, shop) {
     out.push({ label: "Preview before it leaves", action: "preview" });
   }
 
+  if (!(job && (job.priority || job.cap))) out.push({ label: "Cap · do this first", action: "priority" });
   out.push({ label: "Stop on " + desk, action: "kill", confirm: true, owner: true });
-  return out.map((t) => publicTap(t, shop)).filter(Boolean).slice(0, 5);
+  return out.map((t) => publicTap(t, shop)).filter(Boolean).slice(0, 6);
 }
 
 function applyTaps(job, incoming, shop) {
@@ -104,7 +105,7 @@ function applyTaps(job, incoming, shop) {
     have[t.label + t.action] = true;
     return true;
   });
-  const next = taps.length ? taps.slice(0, 5) : fallbackTaps(job, shop);
+  const next = taps.length ? taps.slice(0, 6) : fallbackTaps(job, shop);
   job.taps = next;
   if (!job.next || /yes or no/i.test(job.next)) {
     job.next = "AIA wrote the taps for " + deskName(shop) + ". You press one.";

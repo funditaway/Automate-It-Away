@@ -34,4 +34,12 @@ const hit = taps.tapOf({ taps: written }, { tapId: "Text the school" }) || taps.
 if (!hit || hit.action !== "carry") fail("tap lookup missed bot button");
 else pass("pressing the bot button finds carry");
 
+const fs = require("fs");
+const path = require("path");
+const desk = fs.readFileSync(path.join(__dirname, "..", "desk.html"), "utf8");
+["data-filter=\"cap\"", "cap-band", "Cap · orange", "cap-card", "Do this first"].forEach((bit) => {
+  if (!desk.includes(bit)) fail("desk.html missing " + bit);
+});
+if (!process.exitCode) pass("desk.html paints orange cap first");
+
 if (process.exitCode) process.exit(process.exitCode);
