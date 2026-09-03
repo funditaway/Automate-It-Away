@@ -290,7 +290,7 @@ async function save() {
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Workspace, X-Pin");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Workspace, X-Pin, X-Session");
 }
 
 function configured(provider) {
@@ -374,13 +374,25 @@ function ensurePeople(ws) {
 
 function publicPerson(p) {
   if (!p) return null;
-  return { id: p.id, name: p.name, role: p.role, email: p.email || "" };
+  return {
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    kind: p.kind || (p.role === "owner" ? "owner" : "helper"),
+    crew: p.crew || "",
+    email: p.email || "",
+    phone: p.phone || "",
+    accountId: p.accountId || "",
+    status: p.status || "approved",
+    approvedAt: p.approvedAt || null,
+    createdAt: p.createdAt || null
+  };
 }
 
 function personOf(req, workspaceSlug) {
   const slug = workspaceSlug || workspaceOf(req);
   const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || null);
-  const raw = req.headers["x-pin"] || "";
+  const raw = req.headers["x-pin"] || req.headers["x-session"] || "";
   if (!ws || !raw) return { workspace: ws, person: null };
   const hashed = hashPin(raw);
   const person = (ws.people || []).find((p) => p.pin === hashed)
