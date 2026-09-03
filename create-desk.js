@@ -39,6 +39,12 @@
         if (packChip === "free" && p.priced) return false;
         if (packChip === "official" && !p.official) return false;
         if (packChip === "listed" && p.official) return false;
+        if (packChip === "market" && !p.priced) return false;
+        if (["home","consign","insurance","fund","land"].indexOf(packChip) >= 0) {
+          const blob = [p.id, p.name, p.family].join(" ").toLowerCase();
+          if (packChip === "insurance") return blob.indexOf("insurance") >= 0 || blob.indexOf("vita") >= 0 || blob.indexOf("quote") >= 0;
+          return blob.indexOf(packChip) >= 0;
+        }
         return true;
       });
       if (!rows.length) return `<p class="hint">No pack matches. Try home, consign, insurance, fund, or land.</p>`;
@@ -51,14 +57,20 @@
       }).join("");
     }
     function packFields() {
-      return `<label>Search packs</label><input id="pack-q" name="q" value="${esc(packQ)}" placeholder="home, consign, payout, flood"><div class="chips">
+      return `<label>Search packs</label><input id="pack-q" name="q" value="${esc(packQ)}" placeholder="find flood · home · oil change"><div class="chips">
         <button type="button" data-chip="all" class="${packChip === "all" ? "on" : ""}">All</button>
         <button type="button" data-chip="official" class="${packChip === "official" ? "on" : ""}">Official</button>
         <button type="button" data-chip="free" class="${packChip === "free" ? "on" : ""}">Free</button>
         <button type="button" data-chip="listed" class="${packChip === "listed" ? "on" : ""}">Listed</button>
+        <button type="button" data-chip="market" class="${packChip === "market" ? "on" : ""}">Ask</button>
+        <button type="button" data-chip="home" class="${packChip === "home" ? "on" : ""}">Home</button>
+        <button type="button" data-chip="consign" class="${packChip === "consign" ? "on" : ""}">Consign</button>
+        <button type="button" data-chip="insurance" class="${packChip === "insurance" ? "on" : ""}">Insurance</button>
+        <button type="button" data-chip="fund" class="${packChip === "fund" ? "on" : ""}">Fund</button>
+        <button type="button" data-chip="land" class="${packChip === "land" ? "on" : ""}">Land</button>
       </div>
       <div id="pack-list">${packRows()}</div>
-      <p class="hint">Packs copy rules onto this desk. They do not send money. Priced packs stay a tag — no card.</p>
+      <p class="hint">Packs copy rules onto this desk. They do not send money. Priced packs stay a tag — no card. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
       <label class="adv">List your own pack</label>
       <input class="adv" name="listName" placeholder="Saturday oil-change lane">
       <label class="adv">What it does</label>
@@ -136,6 +148,20 @@
         await usePack(preview.getAttribute("data-preview"), true);
         return;
       }
+      const unlist = e.target.closest("[data-unlist]");
+      if (unlist) {
+        e.preventDefault();
+        await unlistPack(unlist.getAttribute("data-unlist"));
+        return;
+      }
+      const copy = e.target.closest("[data-copy-link]");
+      if (copy) {
+        e.preventDefault();
+        const url = location.origin + "/market?kind=pack&q=" + encodeURIComponent(packQ || "");
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(function(){});
+        done("Pack link copied. Open /market to search.");
+        return;
+      }
       const buy = e.target.closest("[data-buy]");
       if (buy) {
         e.preventDefault();
@@ -156,7 +182,8 @@
     }
     async function loadPacks() {
       try {
-        const r = await fetch("/api/packs?q=" + encodeURIComponent(packQ || ""), { headers: headers() });
+        const q = String(packQ || "").replace(/^find\\s+/i, "").trim();
+        const r = await fetch("/api/desks?packs=1&q=" + encodeURIComponent(q), { headers: headers() });
         const data = await r.json().catch(() => ({}));
         PACKS = data.packs || [];
         const box = document.getElementById("pack-list");
@@ -165,15 +192,22 @@
           const mineRows = PACKS.filter((p) => !p.official);
           if (mineRows.length) {
             mine.style.display = "block";
-            mine.innerHTML = "<p class=\"hint\">Listed from desks</p>" + mineRows.map((p) => "<p><b>" + esc(p.name) + "</b> · " + (p.priced ? ("ask $" + p.ask) : "free") + "</p>").join("");
+            mine.innerHTML = "<p class=\"hint\">Listed from desks</p>" + mineRows.map((p) => "<p><b>" + esc(p.name) + "</b> · " + (p.priced ? ("ask $" + p.ask) : "free") + ' <button type="button" class="ghost" data-unlist="' + esc(p.id) + '">Unlist</button></p>').join("");
           } else mine.style.display = "none";
         }
       } catch (e) {
         PACKS = [];
       }
     }
+    async function unlistPack(id) {
+      const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: "unlist-pack", id }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) return fail(data.error || "Could not unlist that pack.");
+      await loadPacks();
+      done(data.note || "Pack is private again.");
+    }
     async function usePack(id, preview) {
-      const r = await fetch("/api/packs", { method: "POST", headers: headers(), body: JSON.stringify({ action: preview ? "preview" : "use", id }) });
+      const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: preview ? "preview-pack" : "use-pack", id }) });
       const data = await r.json().catch(() => ({}));
       if (r.status === 409) return fail(data.error || "Priced pack. Tag only.");
       if (!r.ok) return fail(data.error || "Could not put that pack on this desk.");
@@ -188,7 +222,7 @@
         if (kind === "pack") {
           const name = String(f.get("listName") || "").trim();
           if (!name) return fail("Name the pack to list, or tap Use on a free pack.");
-          const r = await fetch("/api/packs", { method: "POST", headers: headers(), body: JSON.stringify({ action: "list", name, does: f.get("listDoes") || "", ask: f.get("listAsk") || 0 }) });
+          const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: "list-pack", name, does: f.get("listDoes") || "", ask: f.get("listAsk") || 0 }) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not list that pack.");
           await loadPacks();
@@ -222,7 +256,7 @@
           const share = f.get("share") || "private";
           let extra = share === "listed" ? " Listed in pack search." : share === "market" ? " Market ask is on the listing. No card taken." : " This desk only.";
           if (share === "listed" || share === "market") {
-            const listed = await fetch("/api/packs", { method: "POST", headers: headers(), body: JSON.stringify({ action: "list", name: f.get("name"), does: f.get("does") || "", ask: share === "market" ? (f.get("price") || 0) : 0 }) });
+            const listed = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: "list-pack", name: f.get("name"), does: f.get("does") || "", ask: share === "market" ? (f.get("price") || 0) : 0 }) });
             const pack = await listed.json().catch(() => ({}));
             if (!listed.ok) extra = " Saved on this desk. " + (pack.error || "Could not list it for search.");
             else extra = " " + (pack.note || extra);
