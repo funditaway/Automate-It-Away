@@ -5,7 +5,6 @@ const path = require("path");
 const file = path.join(__dirname, "..", "data", "demo-world.json");
 const raw = fs.readFileSync(file, "utf8");
 const data = JSON.parse(raw);
-const text = raw.toLowerCase();
 let fails = 0;
 function ok(cond, msg) {
   if (!cond) {
@@ -17,7 +16,7 @@ function ok(cond, msg) {
 }
 
 const HOW = ["life","estate","assets","auto","vita","legal","land","btr","fund","storm","gc","practice","pm","storage"];
-const EXTRA = ["church","repair","delivery","school","files"];
+const EXTRA = ["church","repair","delivery","school","files","bakery","salon","lawn","florist","vet","clean","boutique","movers","daycare","photo","tax","gym","realty","pest","tow","ink","brewery"];
 const ids = (data.desks || []).map((d) => d.id);
 
 ok(data.seedLiveBlob === false, "seedLiveBlob is false");
