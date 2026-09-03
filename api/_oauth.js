@@ -1,3 +1,9 @@
+const IDENTITY_SCOPES = ["openid", "email", "profile"];
+const NEVER_SCOPES = [
+  "gmail", "drive", "calendar", "mail.send", "payments", "paypal",
+  "stripe", "policy", "bind", "premium", "commission", "illustration"
+];
+
 const PROVIDERS = [
   { id: "google", label: "Google", group: "live", status: "hold" },
   { id: "github", label: "GitHub", group: "live", status: "hold" },
@@ -26,8 +32,40 @@ function publicProviders() {
     status: p.status,
     live: p.status === "live",
     ask: p.status === "ask",
-    hold: p.status === "hold"
+    hold: p.status === "hold",
+    scopes: IDENTITY_SCOPES.slice(),
+    purpose: "identity"
   }));
+}
+
+function complianceOf() {
+  return {
+    purpose: "identity",
+    specialApiAccess: "hold",
+    scopes: IDENTITY_SCOPES.slice(),
+    neverScopes: NEVER_SCOPES.slice(),
+    never: ["send", "stop", "pay", "draft", "bind", "premium", "commission"],
+    privacy: "/legal",
+    terms: "/legal",
+    homepage: "https://automateitaway.com",
+    pipes: "/connections",
+    delete: "Leave this phone. Owner can delete a desk. Last owner cannot leave.",
+    sellingLists: false,
+    oneAccount: true,
+    handleIsNotLogin: true,
+    loginIsNotAPipe: true,
+    insuranceFace: "Insurance / Quote It Away",
+    note: "Account login asks a partner only who you are. Special API Access and paid pipes stay on Connections. Owner connects. AIA never uses a partner token to Send, Stop, pay, draft, bind, or place premium."
+  };
+}
+
+function identitiesOf(account) {
+  return Array.isArray(account && account.identities) ? account.identities : [];
+}
+
+function doorsOf(account) {
+  const acc = account || {};
+  return Number(!!acc.password) + Number(!!acc.pin) + identitiesOf(acc).length;
 }
 
 function startOAuth(body) {
@@ -39,6 +77,7 @@ function startOAuth(body) {
       ok: false,
       status: 409,
       ask: true,
+      compliance: complianceOf(),
       error: "Ask. AIA can add that site as a login door. Identity only — never Send, Stop, pay, or draft."
     };
   }
@@ -49,6 +88,7 @@ function startOAuth(body) {
       ok: false,
       status: 409,
       ask: true,
+      compliance: complianceOf(),
       error: "Ask. That vendor has not admitted AIA as a website login yet."
     };
   }
@@ -56,8 +96,33 @@ function startOAuth(body) {
     ok: false,
     status: 409,
     hold: true,
-    error: "Hold. That door is on the wall until the app id is on the box."
+    compliance: complianceOf(),
+    error: "Hold. That door is on the wall until the app id is on the box. Identity scopes only."
   };
 }
 
-module.exports = { PROVIDERS, publicProviders, startOAuth };
+function unlinkProvider(account, providerId) {
+  if (!account) return { ok: false, status: 401, error: "Sign in first." };
+  const id = String(providerId || "").toLowerCase().trim();
+  const list = identitiesOf(account);
+  if (!list.some((row) => row && row.provider === id)) {
+    return { ok: false, status: 404, error: "That login is not on this account." };
+  }
+  if (doorsOf(account) < 2) {
+    return { ok: false, status: 409, error: "Keep one door. Set a password or keep another login before you unlink this one." };
+  }
+  account.identities = list.filter((row) => row && row.provider !== id);
+  return { ok: true, identities: account.identities, doors: doorsOf(account) };
+}
+
+module.exports = {
+  PROVIDERS,
+  IDENTITY_SCOPES,
+  NEVER_SCOPES,
+  publicProviders,
+  complianceOf,
+  identitiesOf,
+  doorsOf,
+  startOAuth,
+  unlinkProvider
+};
