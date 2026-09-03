@@ -13,7 +13,7 @@ var STATE = {
 
 function esc(s) {
   return String(s || "").replace(/[&<>"]/g, function (c) {
-    return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
+    return ({ "&": "&", "<": "<", ">": ">", '"': """ })[c];
   });
 }
 
@@ -34,6 +34,75 @@ async function api(path, opts) {
 
 function kindOf(p) {
   return (p && p.kind) || (p && p.role === "owner" ? "owner" : "helper");
+}
+function namesOf(p) {
+  var out = [];
+  if (p && p.name) out.push(p.name);
+  (p && p.seats || []).forEach(function (s) { if (s && s.name && out.indexOf(s.name) < 0) out.push(s.name); });
+  return out;
+}
+function jobsOfPerson(p) {
+  var names = namesOf(p).map(function (n) { return String(n).toLowerCase(); });
+  return (STATE.jobs || []).filter(function (j) {
+    if (!j || j.status === "shipped" || j.status === "killed") return false;
+    var who = String((j.handedTo && j.handedTo.name) || j.assignee || "").toLowerCase();
+    return who && names.indexOf(who) >= 0;
+  });
+}
+function holdingOf(p) {
+  return jobsOfPerson(p).filter(function (j) { return j.status !== "out" && !j.offDesk; }).length;
+}
+function extOf(p) {
+  return jobsOfPerson(p).filter(function (j) { return j.status === "out" || j.offDesk; }).length;
+}
+function queryBox() { return document.getElementById("q"); }
+function queryText() { return ((queryBox() && queryBox().value) || "").trim(); }
+function persistView() {
+  try {
+    var p = new URLSearchParams(location.search || "");
+    var q = queryText();
+    if (q) p.set("q", q); else p.delete("q");
+    if (STATE.filter && STATE.filter !== "all") p.set("f", STATE.filter); else p.delete("f");
+    var next = location.pathname + (p.toString() ? "?" + p.toString() : "");
+    history.replaceState(null, "", next);
+  } catch (e) {}
+}
+function applyViewFromQuery() {
+  var params = new URLSearchParams(location.search || "");
+  var q = params.get("q");
+  var f = params.get("f") || params.get("filter");
+  if (q && queryBox()) queryBox().value = q;
+  if (f) STATE.filter = String(f).toLowerCase();
+}
+function logicLine() {
+  var bits = [];
+  var f = STATE.filter;
+  if (f === "waiting") bits.push("waiting on Approve");
+  else if (f === "several") bits.push("on several desks");
+  else if (f === "family") bits.push("family or friends");
+  else if (f === "helper") bits.push("helpers");
+  else if (f === "staff") bits.push("staff or owners");
+  else if (f === "agent") bits.push("agents");
+  else if (f === "ext") bits.push("off the desk");
+  else if (f === "hold") bits.push("holding a card");
+  var q = queryText();
+  if (q) bits.push('search "' + q + '"');
+  if (!bits.length) return "Everyone on desks this phone can open. Type a name and tap a chip — they AND together.";
+  return "Showing people who match " + bits.join(" AND ") + ".";
+}
+function paintLogic() {
+  var el = document.getElementById("people-logic");
+  if (!el) {
+    var q = queryBox();
+    if (q && q.parentNode) {
+      el = document.createElement("div");
+      el.id = "people-logic";
+      el.className = "meta";
+      el.style.margin = "0 0 12px";
+      q.parentNode.insertBefore(el, q.nextSibling);
+    }
+  }
+  if (el) el.textContent = logicLine();
 }
 
 function fmtTime(t) {
@@ -135,7 +204,8 @@ function groupPeople(list) {
 function paintFilters() {
   var waiting = STATE.people.filter(function (p) { return p.status === "pending"; }).length;
   var several = STATE.people.filter(function (p) { return (p.desks || []).length >= 2; }).length;
-  var chips = [["all", "All"], ["waiting", "Waiting" + (waiting ? " · " + waiting : "")], ["several", "Several desks" + (several ? " · " + several : "")], ["family", "Family"], ["helper", "Helpers"], ["staff", "Staff"], ["agent", "Agents"]];
+  var extN = STATE.people.filter(function (p) { return extOf(p); }).length;
+  var chips = [["all", "All"], ["waiting", "Waiting" + (waiting ? " · " + waiting : "")], ["several", "Several desks" + (several ? " · " + several : "")], ["family", "Family"], ["helper", "Helpers"], ["staff", "Staff"], ["agent", "Agents"], ["ext", "Off desk" + (extN ? " · " + extN : "")]];
   document.getElementById("filters").innerHTML = chips.map(function (c) {
     return "<button type=\"button\" data-f=\"" + c[0] + "\" class=\"" + (STATE.filter === c[0] ? "on" : "") + "\">" + c[1] + "</button>";
   }).join("");
@@ -153,9 +223,13 @@ function shown() {
     if (f === "helper" && k !== "helper" && k !== "member") return false;
     if (f === "staff" && k !== "staff" && k !== "owner") return false;
     if (f === "agent" && k !== "agent") return false;
+    if (f === "ext" && !extOf(p)) return false;
+    if (f === "hold" && !holdingOf(p)) return false;
     if (!q) return true;
-    var deskText = (p.desks || []).map(function (d) { return d.desk || d.slug || ""; }).join(" ");
-    return [p.name, deskText, p.phone, p.email].join(" ").toLowerCase().indexOf(q) >= 0;
+    var deskText = (p.desks || []).map(function (d) { return (d.desk || "") + " " + (d.slug || ""); }).join(" ");
+    var seats = (p.seats || []).map(function (s) { return [s.crew, s.kind, s.status, s.desk, s.deskSlug].join(" "); }).join(" ");
+    var extra = (holdingOf(p) ? "holding" : "") + " " + (extOf(p) ? "off desk ext" : "");
+    return [p.name, deskText, p.phone, p.email, p.accountId, k, p.status, seats, extra].join(" ").toLowerCase().indexOf(q) >= 0;
   });
 }
 
@@ -170,6 +244,8 @@ function card(p) {
 }
 
 function paintList() {
+  persistView();
+  paintLogic();
   var rows = shown();
   var box = document.getElementById("list");
   if (!STATE.people.length) {
@@ -178,7 +254,7 @@ function paintList() {
     return;
   }
   if (!rows.length) {
-    box.innerHTML = "<div class=\"person empty\"><p>No match on this filter.</p></div>";
+    box.innerHTML = "<div class=\"person empty\"><p>No match for this search and filter.</p><p class=\"meta\">" + logicLine() + " Clear the box or tap All.</p></div>";
     return;
   }
   box.innerHTML = rows.map(card).join("");
@@ -189,9 +265,9 @@ function paintCounts() {
   document.getElementById("c-on").textContent = people.filter(function (p) { return p.status !== "pending" && p.status !== "denied"; }).length;
   document.getElementById("c-wait").textContent = people.filter(function (p) { return p.status === "pending"; }).length;
   document.getElementById("c-agent").textContent = people.filter(function (p) { return kindOf(p) === "agent"; }).length;
-  document.getElementById("c-hold").textContent = "—";
+  document.getElementById("c-hold").textContent = people.reduce(function (n, p) { return n + holdingOf(p); }, 0);
   var extEl = document.getElementById("c-ext");
-  if (extEl) extEl.textContent = "—";
+  if (extEl) extEl.textContent = people.reduce(function (n, p) { return n + extOf(p); }, 0);
 }
 
 function paintLevels(d) {
@@ -270,6 +346,7 @@ async function openSheet(person) {
 }
 
 function openFromQuery() {
+  applyViewFromQuery();
   if (STATE.didQueryOpen) return;
   var who = new URLSearchParams(location.search || "").get("who");
   if (!who) return;
@@ -308,6 +385,7 @@ async function fetchDesk(desk) {
 async function load() {
   var banner = document.getElementById("banner");
   if (window.AIADesks && AIADesks.remember) AIADesks.remember();
+  applyViewFromQuery();
 
   var rows = savedDesks();
   if (!localStorage.getItem("aia_people_scope_init")) {
@@ -370,6 +448,11 @@ async function load() {
   banner.textContent = STATE.owner ? "Owner desk. Approve seats. Hand to uses these names. You still send the draft." : "You can see who sits here. Owner adds people and taps Approve.";
   paintYou();
   paintLevels(d);
+  var jobsOut = await api("/api/jobs");
+  STATE.jobs = (jobsOut.data && (jobsOut.data.jobs || jobsOut.data.items || jobsOut.data)) || [];
+  if (!Array.isArray(STATE.jobs)) STATE.jobs = [];
+  var slug = localStorage.getItem("aia_ws") || "";
+  STATE.jobs.forEach(function (j) { if (j) j._desk = slug; });
   paintCounts();
   paintFilters();
   paintList();
@@ -414,7 +497,18 @@ document.getElementById("filters").addEventListener("click", function (e) {
   paintList();
 });
 
-document.getElementById("q").addEventListener("input", paintList);
+document.getElementById("q").addEventListener("input", function () {
+  paintList();
+});
+var clearBtn = document.getElementById("clear-view");
+if (clearBtn) clearBtn.addEventListener("click", function () {
+  STATE.filter = "all";
+  if (queryBox()) queryBox().value = "";
+  var heard = document.getElementById("heard");
+  if (heard) heard.textContent = "";
+  paintFilters();
+  paintList();
+});
 document.getElementById("add-btn").addEventListener("click", invite);
 document.getElementById("sit-btn").addEventListener("click", sit);
 
@@ -451,8 +545,36 @@ document.getElementById("list").addEventListener("click", function (e) {
   openSheet(personByKey(cardEl.getAttribute("data-open")));
 });
 
+function applyTalk(text) {
+  var t = String(text || "").trim();
+  if (!t) return;
+  document.getElementById("heard").textContent = t;
+  var low = t.toLowerCase();
+  if (/wait/.test(low)) STATE.filter = "waiting";
+  else if (/several|multiple desk/.test(low)) STATE.filter = "several";
+  else if (/family|friend/.test(low)) STATE.filter = "family";
+  else if (/helper|member/.test(low)) STATE.filter = "helper";
+  else if (/\bstaff\b|\bowner\b/.test(low)) STATE.filter = "staff";
+  else if (/agent/.test(low)) STATE.filter = "agent";
+  else if (/off desk|\bext\b/.test(low)) STATE.filter = "ext";
+  else if (/holding|hold a card/.test(low)) STATE.filter = "hold";
+  else if (/everyone|all people|clear/.test(low)) {
+    STATE.filter = "all";
+    if (queryBox()) queryBox().value = "";
+  }
+  var m = low.match(/\b(?:find|search|show|named|who is|who's)\s+(.+)/);
+  var leftover = m ? m[1] : (/wait|several|family|friend|helper|member|staff|owner|agent|off desk|\bext\b|holding|everyone|all people|clear/.test(low) ? "" : t);
+  leftover = String(leftover || "").replace(/\b(family|friends?|helper|member|staff|owner|agent|waiting|pending|several desks|several|off desk|off the desk|holding|all people|everyone|clear)\b/g, " ").replace(/\s+/g, " ").replace(/\.$/, "").trim();
+  if (leftover && queryBox()) queryBox().value = leftover;
+  ["family", "friend", "helper", "member", "staff", "agent"].forEach(function (s) {
+    if (low.indexOf(s) >= 0 && document.getElementById("k")) document.getElementById("k").value = s;
+  });
+  paintFilters();
+  paintList();
+}
+
 document.getElementById("hear").addEventListener("click", function () {
-  if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak("Name the person and the seat. Helper, family, staff, or an agent.");
+  if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak(logicLine());
 });
 
 document.getElementById("quiet").addEventListener("click", function () {
@@ -465,7 +587,7 @@ document.getElementById("talk").addEventListener("click", function () {
     return;
   }
   AIASpeech.listen(function (text) {
-    document.getElementById("heard").textContent = String(text || "").trim();
+    applyTalk(text);
   });
 });
 
