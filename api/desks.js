@@ -5,7 +5,7 @@ const {
   publicDesk, applyDeskEdit, setDeskClosed, setDeskCode, exportDesk, wipeDesk,
   adminPinOk, canDesk, setDeskPerms, setSeatCan, logDesk, exploreDesk, deskEventsOf
 } = require("./_desk");
-const { historyOf, isPriorityJob, capCard, needsOf } = require("./_history");
+const { historyOf, filterHistory, facetsOf, isPriorityJob, capCard, needsOf } = require("./_history");
 
 function deskClosed(ws) {
   return !!(ws && (ws.closed === true || ws.accepts === false));
@@ -125,7 +125,7 @@ module.exports = async function handler(req, res) {
     const incoming = Array.isArray(body.desks) ? body.desks : [];
     const one = slugify(body.slug || body.workspace || "");
     const asked = incoming.length ? incoming : (one ? [{ slug: one, pin: body.pin || (req.headers && req.headers["x-pin"]) }] : []);
-    const want = String(body.lane || body.filter || "all").toLowerCase();
+    const advanced = body.advanced === true || body.advanced === "1" || body.audit === true || body.audit === "1";
     const items = [];
     const desks = [];
     asked.slice(0, 32).forEach((item) => {
@@ -142,13 +142,17 @@ module.exports = async function handler(req, res) {
       }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
       const jobs = (mem.jobs || []).filter((j) => j && j.workspace === slug);
-      historyOf(row, jobs, deskEventsOf(slug, 20)).items.forEach((it) => items.push(it));
+      const audit = advanced ? (mem.audit || []).filter((a) => a && (!a.workspace || a.workspace === slug)).slice(0, 40) : [];
+      historyOf(row, jobs, deskEventsOf(slug, advanced ? 40 : 20), { audit }).items.forEach((it) => items.push(it));
     });
     items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
-    const shown = want && want !== "all" ? items.filter((it) => it.lane === want) : items;
-    const counts = { need: 0, doing: 0, wait: 0, ext: 0, done: 0, stopped: 0, all: items.length };
-    items.forEach((it) => { if (counts[it.lane] != null) counts[it.lane] += 1; });
-    return res.status(200).json({ ok: true, format: "aia.desk.v1", desks, counts, items: shown.slice(0, 80) });
+    const shown = filterHistory(items, body);
+    const counts = { need: 0, doing: 0, wait: 0, ext: 0, done: 0, stopped: 0, past: 0, now: 0, next: 0, all: items.length };
+    items.forEach((it) => {
+      if (counts[it.lane] != null) counts[it.lane] += 1;
+      if (it.when && counts[it.when] != null) counts[it.when] += 1;
+    });
+    return res.status(200).json({ ok: true, format: "aia.desk.v1", advanced: !!advanced, desks, counts, facets: facetsOf(items), items: shown.slice(0, advanced ? 120 : 80) });
   }
 
   if (action === "priority" || action === "cap") {
