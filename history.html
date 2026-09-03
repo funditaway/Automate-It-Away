@@ -1,38 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>History · Automate It Away</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="theme.css">
-  <link rel="stylesheet" href="desk-nav.css">
-  <script src="theme.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>History · Automate It Away</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="desk-nav.css">
+<script src="theme.js"></script>
+<style>
+body{margin:0}a{color:inherit;text-decoration:none}
+header{background:var(--header);color:#fff;padding:12px 4vw}header a{color:#fff}
+.wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 24px}
+h1{font-size:1.4rem;margin:0 0 8px}p{color:var(--muted);margin:0 0 12px}
+.banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.chips button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 12px;font:700 13px inherit;min-height:40px}
+.chips button.on{background:var(--orange);color:#0c1116;border-color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
+.card h2{font-size:1rem;margin:0 0 4px}.meta{font-size:13px;color:var(--muted)}
+.lane{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;margin-right:6px}
+.need{color:var(--kill-ink)}.doing{color:var(--teal)}.wait{color:#b45309}.ext{color:#6b21a8}.done{color:var(--teal)}
+select,input[type=search]{min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;background:var(--card);color:var(--ink);width:100%;margin-bottom:10px}
+.adv{margin:0 0 12px}.adv[hidden]{display:none!important}
+.acts a,.acts button{min-height:44px;padding:8px 12px;border-radius:10px;border:0;background:var(--edit);color:var(--edit-ink);font:700 13px inherit;margin:0 8px 8px 0;display:inline-flex;align-items:center;text-decoration:none}
+</style>
 </head>
 <body class="has-desk-nav">
-  <header>
-    <a class="brand" href="index.html"><span class="brand-name">Automate It Away</span></a>
-    <nav class="desk-tabs" aria-label="Desk tabs">
-      <a href="/desk" data-tab="queue">Queue</a>
-      <a href="/drop" data-tab="drop">Drop</a>
-      <a href="/rules" data-tab="rules">Rules</a>
-      <a href="/connections" data-tab="pipes">Pipes</a>
-      <a href="/more" data-tab="more">More</a>
-    </nav>
-  </header>
-  <main class="wrap" style="width:min(760px,94vw);margin:0 auto;padding:18px 0 24px">
-    <h1>History</h1>
-    <p>Past, now, and next. Advanced finds who, files, Grok, and audit. Nothing sends from here.</p>
-    <p>Open <a href="/history">/history</a> after a hard refresh. Filters: Need you, In progress, Waiting on, Ext, Done, Money, Missing, Handed, This week.</p>
-  </main>
-  <nav id="desk-nav" aria-label="Desk">
-    <a href="/desk" data-tab="queue"><span>Queue</span></a>
-    <a href="/drop" data-tab="drop"><span>Drop</span></a>
-    <a href="/rules" data-tab="rules"><span>Rules</span></a>
-    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
-    <a href="/more" data-tab="more"><span>More</span></a>
-  </nav>
-  <script src="desk-switch.js"></script>
-  <script src="desk-nav.js"></script>
+<header>
+<a href="index.html">Automate It Away</a>
+<nav class="desk-tabs" aria-label="Desk tabs">
+<a href="/desk" data-tab="queue">Queue</a>
+<a href="/drop" data-tab="drop">Drop</a>
+<a href="/rules" data-tab="rules">Rules</a>
+<a href="/connections" data-tab="pipes">Pipes</a>
+<a href="/more" data-tab="more">More</a>
+</nav>
+</header>
+<main class="wrap">
+<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+<div><h1>History</h1><p>Past, now, and next. Email or text the draft from here. Grok recs stay on the card when they exist.</p></div>
+<button type="button" class="chips" id="adv-btn" style="min-height:44px">Advanced</button>
+</div>
+<div class="banner" id="banner">Open a desk on this phone first.</div>
+<label class="meta" for="desk-pick">Desk</label>
+<select id="desk-pick"></select>
+<input id="q" type="search" placeholder="Find a card, person, or draft">
+<div class="chips" id="whens">
+<button type="button" class="on" data-when="all">All time</button>
+<button type="button" data-when="past">Past</button>
+<button type="button" data-when="now">Now</button>
+<button type="button" data-when="next">Next</button>
+</div>
+<div class="chips" id="lanes">
+<button type="button" class="on" data-lane="all">All</button>
+<button type="button" data-lane="need">Need you</button>
+<button type="button" data-lane="doing">In progress</button>
+<button type="button" data-lane="wait">Waiting on</button>
+<button type="button" data-lane="ext">Ext</button>
+<button type="button" data-lane="done">Done</button>
+<button type="button" data-lane="stopped">Stopped</button>
+</div>
+<div class="adv" id="adv-box" hidden>
+<p class="meta">Who did what. How it finished. Where the files are. Nothing sends from here.</p>
+<select id="who"><option value="">Anyone</option></select>
+<select id="work"><option value="">Any kind</option></select>
+<select id="pipe"><option value="">Any pipe</option></select>
+<select id="since"><option value="">Any day</option><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option></select>
+<div class="chips" id="flags">
+<button type="button" data-flag="money">Money</button>
+<button type="button" data-flag="grok">Grok</button>
+<button type="button" data-flag="files">Files</button>
+<button type="button" data-flag="cap">Cap</button>
+<button type="button" data-flag="missing">Missing</button>
+<button type="button" data-flag="handed">Handed</button>
+<button type="button" data-flag="audit">Audit</button>
+</div>
+</div>
+<div id="counts" class="meta"></div>
+<div class="acts"><button type="button" id="copy-view">Copy this view</button><button type="button" id="clear-view">Clear filters</button></div>
+<div id="list"></div>
+</main>
+<nav id="desk-nav" aria-label="Desk">
+<a href="/desk" data-tab="queue"><span>Queue</span></a>
+<a href="/drop" data-tab="drop"><span>Drop</span></a>
+<a href="/rules" data-tab="rules"><span>Rules</span></a>
+<a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+<a href="/more" data-tab="more"><span>More</span></a>
+</nav>
+<script src="speech.js"></script>
+<script src="desk-switch.js"></script>
+<script src="desk-nav.js"></script>
+<script>
+var lane="all",when="all",slug="",q="",who="",work="",pipe="",since="",advanced=false,last=[];
+var flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0};
+function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&","<":"<",">":">","\"":""","'":"&#39;"})[c];});}
+function phone(){return (window.AIADesks&&AIADesks.list())||[];}
+function paint(){
+ document.getElementById("adv-box").hidden=!advanced;
+ document.getElementById("adv-btn").textContent=advanced?"Simple":"Advanced";
+ document.querySelectorAll("#flags [data-flag]").forEach(function(b){b.classList.toggle("on",!!flags[b.getAttribute("data-flag")]);});
+ document.querySelectorAll("#lanes button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-lane")===lane);});
+ document.querySelectorAll("#whens button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-when")===when);});
+}
+function fillPick(){
+ var rows=phone(),cur=(window.AIADesks&&AIADesks.current&&AIADesks.current())||{},el=document.getElementById("desk-pick");
+ el.innerHTML="<option value=\"\">All desks on this phone</option>"+rows.map(function(d){return "<option value=\""+esc(d.slug)+"\">"+esc(d.name||d.slug)+"</option>";}).join("");
+ if(cur.slug)el.value=cur.slug;slug=el.value||"";
+}
+async function load(){
+ var rows=phone(),asked=slug?rows.filter(function(d){return d.slug===slug;}):rows;
+ var banner=document.getElementById("banner"),list=document.getElementById("list");
+ if(!asked.length){banner.textContent="Add a desk on this phone first.";list.innerHTML="";return;}
+ var body={action:"history",lane:lane,when:when,q:q,who:who,kind:work,pipe:pipe,since:since,advanced:advanced,desks:asked.map(function(d){return {slug:d.slug,pin:d.pin};})};
+ Object.keys(flags).forEach(function(k){if(flags[k])body[k]=true;});
+ try{
+  var r=await fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  var data=await r.json().catch(function(){return {};});
+  var c=data.counts||{};
+  document.getElementById("counts").textContent="Need you "+(c.need||0)+" · in progress "+(c.doing||0)+" · waiting "+(c.wait||0)+" · ext "+(c.ext||0)+" · done "+(c.done||0);
+  banner.textContent=slug?"This desk — who did what, how it finished, where the files are.":"Every desk this phone can open.";
+  var f=data.facets||{};
+  function sel(id,rows,blank){var el=document.getElementById(id),cur=el.value;el.innerHTML="<option value=\"\">"+blank+"</option>"+(rows||[]).map(function(n){return "<option>"+esc(n)+"</option>";}).join("");if(cur)el.value=cur;}
+  sel("who",f.who,"Anyone");sel("work",f.work,"Any kind");sel("pipe",f.pipes,"Any pipe");
+  var items=data.items||[];last=items;
+  if(!items.length){list.innerHTML="<div class=\"card\"><p>Nothing in this lane yet.</p></div>";return;}
+  list.innerHTML=items.map(function(it){
+    var when=(it.t||"").replace("T"," ").slice(0,16);
+    var extra=it.waitingOn?" · waiting on "+esc(it.waitingOn):"";
+    return "<article class=\"card\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(when)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.past||it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p><div class=\"acts\"><a href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\">Open on desk</a><button type=\"button\" data-id=\""+esc(it.id)+"\">Copy story</button></div></article>";
+  }).join("");
+ }catch(e){banner.textContent="Could not reach history.";}
+}
+document.getElementById("lanes").onclick=function(e){var b=e.target.closest("[data-lane]");if(!b)return;lane=b.getAttribute("data-lane");paint();load();};
+document.getElementById("whens").onclick=function(e){var b=e.target.closest("[data-when]");if(!b)return;when=b.getAttribute("data-when");paint();load();};
+document.getElementById("flags").onclick=function(e){var b=e.target.closest("[data-flag]");if(!b)return;flags[b.getAttribute("data-flag")]=!flags[b.getAttribute("data-flag")];paint();load();};
+document.getElementById("adv-btn").onclick=function(){advanced=!advanced;paint();load();};
+document.getElementById("desk-pick").onchange=function(){slug=this.value||"";load();};
+document.getElementById("who").onchange=function(){who=this.value||"";load();};
+document.getElementById("work").onchange=function(){work=this.value||"";load();};
+document.getElementById("pipe").onchange=function(){pipe=this.value||"";load();};
+document.getElementById("since").onchange=function(){since=this.value||"";load();};
+var timer;document.getElementById("q").oninput=function(){var v=this.value||"";clearTimeout(timer);timer=setTimeout(function(){q=v;load();},220);};
+document.getElementById("copy-view").onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(last.map(function(it){return it.title+" · "+(it.desk||"");}).join("\n")||"Nothing in this view.");};
+document.getElementById("clear-view").onclick=function(){lane="all";when="all";q=who=work=pipe=since="";flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0};document.getElementById("q").value="";paint();load();};
+document.getElementById("list").onclick=function(e){var b=e.target.closest("[data-id]");if(!b)return;var it=last.filter(function(x){return x.id===b.getAttribute("data-id");})[0];if(it&&navigator.clipboard)navigator.clipboard.writeText((it.title||"")+"\n"+(it.past||"")+"\n"+(it.result||""));};
+fillPick();paint();load();
+</script>
 </body>
 </html>
