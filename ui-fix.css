@@ -161,26 +161,47 @@ button[data-jump] .v {
 /* Phone desk: last card must sit above the tab bar. */
 @media (max-width: 859px) {
   body.has-desk-nav {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
   }
   body.has-desk-nav main,
   body.has-desk-nav .wrap {
-    padding-bottom: 16px;
+    padding-bottom: 28px;
   }
 }
 
-/* Disabled Open looked blank on desktop. */
-#gate button:disabled,
+/* Open must stay readable, even empty / disabled. */
+#gate button,
+#gate .go,
+#gate .edit,
+#open-desk,
 button.go:disabled,
+#gate button:disabled,
 #open-desk:disabled {
   opacity: 1;
-  background: var(--edit) !important;
-  color: var(--edit-ink) !important;
+  background: #0d6b6b !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+
+@media (max-width: 859px) {
+  .kpis { grid-template-columns: 1fr 1fr !important; }
+}
+
+header .nav a[href*="login"],
+header .nav a[href*="onboard"],
+header nav:not(.desk-tabs) a[href*="login"],
+header nav:not(.desk-tabs) a[href*="onboard"] {
+  display: none !important;
+}
+body.has-desk-nav header .nav:not(.desk-tabs) {
+  display: none !important;
 }
 
 /* History used #who-chip for a filter and hid Sign in. */
-header #who-chip,
-.hdr-tools #who-chip {
+header a#who-chip,
+.hdr-tools a#who-chip,
+header a.who-chip,
+.hdr-tools a.who-chip {
   display: inline-flex !important;
 }
 
