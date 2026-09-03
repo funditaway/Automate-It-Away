@@ -20,6 +20,16 @@ function pass(msg) { console.log("ok  " + msg); }
 function blob(job) {
   return JSON.stringify(job || {}).toLowerCase();
 }
+function cardText(job) {
+  return JSON.stringify({
+    packName: job && job.packName,
+    packFamily: job && job.packFamily,
+    why: job && job.why,
+    draft: job && job.draft,
+    next: job && job.next,
+    recs: (job && Array.isArray(job.recs)) ? job.recs.map((r) => r && r.text) : []
+  }).toLowerCase();
+}
 
 if (MONEY_HOLD !== null) fail("MONEY_HOLD must stay null, got " + MONEY_HOLD);
 else pass("MONEY_HOLD is null");
@@ -40,9 +50,17 @@ if (quoteFace.id !== "vita" || quoteFace.name !== "Insurance" || quoteFace.famil
 if (packFace("quote").id !== "vita" || packFace("insurance").name !== "Insurance") fail("quote/insurance aliases");
 else pass("quote and insurance alias to vita id");
 
+const extFace = packFace("year2");
+if (extFace.id !== "year2" || extFace.name !== "Insurance" || extFace.family !== "Quote It Away") {
+  fail("year2 ext face should be Insurance / Quote It Away, got " + JSON.stringify(extFace));
+} else pass("year2 ext face is Insurance / Quote It Away");
+
 const quoteJob = { title: "Need a life quote in Missouri", notes: "missed call, illustration later" };
 if (detectPack(quoteJob) !== "vita") fail("detectPack quote should be vita, got " + detectPack(quoteJob));
 else pass("detectPack insurance words → vita");
+
+if (detectPack({ pack: "year2" }) !== "year2") fail("detectPack raw year2 should stay year2, got " + detectPack({ pack: "year2" }));
+else pass("detectPack keeps ext raw pack ids");
 
 const listJob = { title: "Oak dresser", notes: "consign on ebay, comps $200" };
 if (detectPack(listJob) !== "consign") fail("detectPack consign got " + detectPack(listJob));
@@ -68,8 +86,15 @@ if (q.pack !== "vita") fail("qualify pack " + q.pack);
 else if (q.packName !== "Insurance" || q.packFamily !== "Quote It Away") fail("qualify face " + q.packName + " / " + q.packFamily);
 else if (q.waitingOn === "owner" && /waiting on the owner/i.test(q.next || "") && !q.risk) fail("$250 without a rule waited");
 else if (!q.draft || !q.next || !q.recs || !q.recs.length) fail("qualify missing draft/next/recs");
-else if (/vita/.test(blob(q))) fail("Vita leaked onto the card: " + blob(q).slice(0, 200));
+else if (/vita/.test(cardText(q))) fail("Vita leaked onto the card: " + cardText(q).slice(0, 200));
 else pass("qualify Insurance card, no $250 floor, no Vita word");
+
+const y2 = qualifyJob({ title: "Year-2 review", pack: "year2" }, null, []);
+if (y2.pack !== "year2") fail("qualify ext pack " + y2.pack);
+else if (y2.packName !== "Insurance" || y2.packFamily !== "Quote It Away") fail("qualify ext face " + y2.packName + " / " + y2.packFamily);
+else if (!y2.draft || /home desk/i.test(y2.draft)) fail("qualify ext brain fallback " + y2.draft);
+else if (/vita/.test(cardText(y2))) fail("Vita leaked onto ext card: " + cardText(y2).slice(0, 200));
+else pass("qualify ext brain and card stay stamped Insurance");
 
 const small = qualifyJob({ title: "Pay the oil change", notes: "home reminder", amount: 20 }, null);
 if (small.waitingOn === "owner") fail("$20 without a rule waited");

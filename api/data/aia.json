@@ -1,0 +1,15 @@
+{
+  "account": null,
+  "accounts": [],
+  "sessions": [],
+  "approvals": [],
+  "locks": [],
+  "connections": [],
+  "jobs": [],
+  "audit": [],
+  "money": [],
+  "workspaces": [],
+  "inbox": [],
+  "files": [],
+  "tickets": []
+}
