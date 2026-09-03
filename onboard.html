@@ -13,6 +13,14 @@
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
   <link rel="stylesheet" href="theme.css">
+  <style>
+    .oauth-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+    .oauth-btn{min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:700 13px inherit;padding:8px 12px;cursor:pointer}
+    .oauth-tag{font-size:10px;letter-spacing:.04em;text-transform:uppercase;margin-left:6px}
+    .oauth-tag.now{color:#0d6b6b}.oauth-tag.hold{color:#c27b0e}.oauth-tag.ask{color:#6b7c8f}
+    .oauth-lead,.oauth-more{margin:8px 0;font-size:13px}
+    .oauth-ext label{display:block;font-size:13px;margin:8px 0 4px}
+  </style>
 </head>
 <body class="page-bg">
   <header class="site-header">
@@ -25,7 +33,8 @@
   </header>
   <form class="gate-card" id="form">
     <h1>Open your account</h1>
-    <p class="sub">Owner opens a free account and a desk. Member asks to join a desk and waits on the owner for a permission. Monthly later — we tell you before we charge.</p>
+    <p class="sub">Three doors. Same AIA Account. Owner opens a free account and a desk. Member asks to join. Continue-with is identity only — never Send, Stop, pay, or draft. Monthly later — we tell you before we charge.</p>
+    <div id="oauth-wall"></div>
     <label>Your name</label>
     <input name="name" required placeholder="Alex Rivera" autocomplete="name">
     <div class="row">
@@ -66,11 +75,12 @@
     <label>Desk code</label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
     <button class="btn" type="submit" id="go">Open the account</button>
-    <p class="hint" id="hint">Owner: full admin, free now. Member: join an existing desk. Desk name + your code is the login.</p>
+    <p class="hint" id="hint">Owner: full admin, free now. Member: join an existing desk. Desk name + your code is the login. World doors stay Hold until the app id is on the box.</p>
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
   <script src="desk-switch.js"></script>
+  <script src="login-doors.js"></script>
   <script>
     const form = document.getElementById("form");
     const roleEl = document.getElementById("role");
