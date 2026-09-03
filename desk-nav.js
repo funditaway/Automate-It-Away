@@ -144,6 +144,15 @@
     document.body.appendChild(el);
   }
 
+  function loadQueue(name, attr) {
+    if (tabOf() !== "queue") return;
+    if (document.querySelector("script[" + attr + "]")) return;
+    var el = document.createElement("script");
+    el.src = "/" + name;
+    el.setAttribute(attr, "1");
+    document.body.appendChild(el);
+  }
+
   function boot() {
     if (window !== window.parent) return;
     ensureCss();
@@ -182,6 +191,10 @@
       v.setAttribute("data-aia-desk-view", "1");
       document.body.appendChild(v);
     }
+    loadQueue("pack-card.js", "data-aia-pack-card");
+    loadQueue("desk-needs.js", "data-aia-desk-needs");
+    loadQueue("desk-inbox.js", "data-aia-desk-inbox");
+    loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");
