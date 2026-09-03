@@ -62,7 +62,7 @@
   </header>
   <main class="wrap">
     <h1>This desk’s pipes.</h1>
-    <p>You do not need a pipe to start. Drop a note first. Webhook talks across the internet now. Named pipes wait on keys. Draft accounts log in, then paste a key. Coming soon opens the vendor console. None of them send, post, or pay by themselves.</p>
+    <p>You do not need a pipe to start. Search any site. Log in opens that vendor. If we do not have a name yet, the inbound hook still takes the card. None of them send, post, or pay by themselves.</p>
     <div class="item">
       <div class="row">
         <input id="ws" placeholder="Desk name">
@@ -70,6 +70,19 @@
         <button class="go" type="button" onclick="listPipes()">Show pipes</button>
       </div>
       <p class="meta" style="margin-top:8px">Owner connects or drops a pipe. Helpers work the queue only.</p>
+    </div>
+    <div class="item">
+      <div class="row">
+        <input id="q" placeholder="Search Gmail, X, Shopify, any site…" style="flex:1;min-width:180px">
+        <button class="go" type="button" onclick="searchPipes()">Search</button>
+      </div>
+      <div class="row" id="chips" style="margin-top:8px"></div>
+      <p class="meta" style="margin-top:8px">Name a site we do not list</p>
+      <div class="row">
+        <input id="ask" placeholder="Any site on the internet">
+        <button type="button" onclick="askSite()">Log in + hook</button>
+      </div>
+      <p class="meta" id="search-flash" style="margin-top:8px"></p>
     </div>
     <h2>Cross the internet now</h2>
     <div class="item">
@@ -109,7 +122,7 @@
       <p class="meta" id="flash"></p>
     </div>
     <h2>Coming soon · beta wall</h2>
-    <p class="meta">Log in opens that vendor’s console. It does not turn the pipe live. Owner still taps Yes on every job. Mail, social, CRM, and money stay hold.</p>
+    <p class="meta">Search the wall. Log in opens that vendor. It does not turn the pipe live. Owner still taps Yes. Mail, social, CRM, and money stay hold.</p>
     <div id="soon"></div>
     <p class="meta"><a href="desk.html">Back to the queue</a></p>
   </main>
@@ -128,6 +141,16 @@
     if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
     if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
     let aiPick = "";
+    let lastData = null;
+    let groupOn = "";
+    const GROUPS = ["mail", "calendar", "social", "shop", "pay", "crm", "files", "talk", "books", "search"];
+    function qVal() { return ((document.getElementById("q") || {}).value || "").trim().toLowerCase(); }
+    function matchPipe(p) {
+      const q = qVal();
+      if (groupOn && p.group && p.group !== groupOn) return false;
+      if (!q) return true;
+      return [p.id, p.provider, p.label, p.note, p.group, (p.acts || []).join(" ")].join(" ").toLowerCase().indexOf(q) >= 0;
+    }
     function headers() {
       const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || "demo" };
       if (pinEl.value) h["X-Pin"] = pinEl.value;
@@ -149,13 +172,31 @@
       if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
       const r = await fetch("/api/connections", { headers: headers() });
       const data = await r.json();
+      lastData = data;
+      paintPipes(data);
+    }
+    function paintChips() {
+      const box = document.getElementById("chips");
+      if (!box) return;
+      const all = ["all"].concat(GROUPS);
+      box.innerHTML = all.map(g => {
+        const on = (g === "all" && !groupOn) || g === groupOn ? " go" : "";
+        return "<button class=\"" + on.trim() + "\" type=\"button\" onclick=\"setGroup('" + g + "')\">" + g + "</button>";
+      }).join("");
+    }
+    function setGroup(g) {
+      groupOn = g === "all" ? "" : g;
+      paintChips();
+      if (lastData) paintPipes(lastData);
+    }
+    function paintPipes(data) {
       const catalog = data.catalog || [];
       const mine = data.connections || [];
       const inbound = data.inbound || ("https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(wsEl.value || "demo"));
       document.getElementById("inbound").textContent = inbound;
       const aiBox = document.getElementById("ai");
       if (aiBox) {
-        aiBox.innerHTML = (data.ai || []).map(p => {
+        aiBox.innerHTML = (data.ai || []).filter(matchPipe).map(p => {
           const st = p.status || "hold";
           const tag = tagFor(st);
           const drop = p.live && p.id ? "<button type=\"button\" onclick=\"dropPipe('" + p.id + "')\">Drop</button>" : "";
@@ -164,7 +205,7 @@
           return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (p.live ? "Drafts on this desk" + last : "Not connected") + " · " + (p.note || "Drafts only") + "</div></div><div class=\"row\">" + go + drop + "</div></div>";
         }).join("");
       }
-      document.getElementById("pipes").innerHTML = catalog.map(p => {
+      document.getElementById("pipes").innerHTML = catalog.filter(matchPipe).map(p => {
         const on = mine.find(c => c.provider === p.id);
         const st = on ? on.status : p.status;
         const tag = tagFor(st);
@@ -172,7 +213,7 @@
         return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (on ? "On this desk · " : "Not added · ") + st + (p.note ? " · " + p.note : "") + "</div></div>" + drop + "</div>";
       }).join("");
       const soonBox = document.getElementById("soon");
-      if (soonBox) soonBox.innerHTML = (data.soon || []).map(p => {
+      if (soonBox) soonBox.innerHTML = (data.soon || []).filter(matchPipe).map(p => {
         const go = p.login ? "<button class=\"go\" type=\"button\" onclick=\"startSoon('" + p.id + "')\">Log in</button>" : "";
         return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + (p.note || "Shown, not live.") + "</div></div><div class=\"row\">" + go + "</div></div>";
       }).join("");
@@ -192,6 +233,28 @@
       await fetch("/api/connections?id=" + encodeURIComponent(id), { method: "DELETE", headers: headers() });
       listPipes();
     }
+    async function searchPipes() {
+      const flash = document.getElementById("search-flash");
+      const q = (document.getElementById("q") || {}).value || "";
+      if (lastData) paintPipes(lastData);
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-search", q }) });
+      const data = await r.json().catch(() => ({}));
+      if (flash) flash.textContent = data.next || "";
+      if (data.missed && data.login) window.open(data.login, "_blank", "noopener");
+    }
+    async function askSite() {
+      const flash = document.getElementById("search-flash");
+      const name = (document.getElementById("ask") || {}).value || "";
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-ask", name }) });
+      const data = await r.json().catch(() => ({}));
+      if (flash) flash.textContent = data.next || data.error || "";
+      if (data.inbound) document.getElementById("inbound").textContent = data.inbound;
+      if (data.login) window.open(data.login, "_blank", "noopener");
+    }
+    document.getElementById("q") && document.getElementById("q").addEventListener("input", function () {
+      if (lastData) paintPipes(lastData);
+    });
+    paintChips();
     async function startSoon(provider) {
       const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-start", provider }) });
       const data = await r.json().catch(() => ({}));
