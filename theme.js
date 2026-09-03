@@ -123,21 +123,26 @@
       "flex:0 0 auto;min-height:44px;min-width:52px;cursor:pointer}" +
       "header .brand-mark, .site-header .brand-mark{width:28px;height:28px;flex:0 0 28px;border-radius:7px}" +
       ".hdr-tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex:0 0 auto}" +
-      ".who-chip{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px;" +
+      ".who-chip,.who-chip.signed-out{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px;" +
       "min-height:44px;width:auto;margin-left:0;max-width:min(52vw,200px);padding:4px 12px 4px 4px;border-radius:999px;" +
-      "border:1px solid rgba(255,255,255,.4);background:#083838;color:#fff;text-decoration:none;overflow:hidden}" +
+      "border:1px solid rgba(255,255,255,.4)!important;background:#083838!important;color:#fff!important;text-decoration:none;overflow:hidden}" +
+      ".who-chip.signed-out{padding:4px 14px;max-width:none}" +
+      ".who-chip.signed-out .who-pic{display:none}" +
       ".who-pic{width:32px;height:32px;border-radius:50%;flex:0 0 32px;display:inline-flex;align-items:center;" +
       "justify-content:center;background:rgba(255,255,255,.18);color:#fff;object-fit:cover;overflow:hidden}" +
-      ".who-copy{min-width:3.2rem;flex:1 1 auto;text-align:right}" +
-      ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+      ".who-copy{min-width:0;flex:1 1 auto;text-align:right}" +
+      ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#fff!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+      ".brand-short{display:none}" +
       "@media (max-width:640px){" +
-      "header .brand, .site-header .brand, header > a.brand, header > a:first-child{order:1;flex:1 1 140px;min-width:0}" +
-      "header .brand-name,.site-header .brand-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+      "header .brand, .site-header .brand, header > a.brand, header > a:first-child{order:1;flex:1 1 auto;min-width:0}" +
+      "header .brand-name,.site-header .brand-name{display:none!important}" +
+      "header .brand-short,.site-header .brand-short{display:inline!important}" +
       ".hdr-tools{order:2;margin-left:auto}" +
-      ".who-chip{max-width:min(46vw,160px)!important}" +
+      ".who-chip{max-width:none!important}" +
       ".theme-btn{order:0}" +
       ".who-copy > span{display:none!important}" +
       "header nav:not(.desk-tabs), header .nav, .site-header .nav{width:100%!important;flex-wrap:wrap!important;order:5}" +
+      "header nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html']{display:none}" +
       ".hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr 1fr!important}" +
       "table{display:block;overflow-x:auto}" +
       "}" +
@@ -150,10 +155,10 @@
   }
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      if (c === "&") return "&amp;";
-      if (c === "<") return "&lt;";
-      if (c === ">") return "&gt;";
-      if (c === '"') return "&quot;";
+      if (c === "&") return "&";
+      if (c === "<") return "<";
+      if (c === ">") return ">";
+      if (c === '"') return """;
       return "&#39;";
     });
   }
@@ -207,7 +212,7 @@
     var desk = localStorage.getItem("aia_desk_name") || ws;
     var page = pageName();
     if (ws && pin) {
-      chip.classList.remove("out");
+      chip.classList.remove("out", "signed-out");
       chip.href = page === "account" ? "/more" : "/account";
       var title = person || desk || "You";
       var meta = role || "Signed in";
@@ -215,8 +220,9 @@
       chip.title = title + " · Your account";
       return;
     }
-    chip.classList.add("out");
-    chip.innerHTML = '<span class="who-pic">?</span><span class="who-copy"><strong>Sign in</strong><span>Desk name + code</span></span>';
+    chip.classList.remove("out");
+    chip.classList.add("signed-out");
+    chip.innerHTML = '<span class="who-copy"><strong>Sign in</strong><span>Desk name + code</span></span>';
     if (/^(login|onboard)$/.test(page)) {
       chip.href = page === "login" ? "/onboard" : "/login";
       var strong = chip.querySelector("strong");
@@ -290,24 +296,31 @@
     paintWho();
     paintFooter();
     liftChrome(document.querySelector("header, .site-header"));
-    if (!document.querySelector(".brand-mark")) {
-      var host = document.querySelector(".site-header > a, header > a, header .logo, header .brand, header > strong");
-      if (host) {
+    var brandHost = document.querySelector(".site-header > a, header > a.brand, header > a, header .logo, header .brand");
+    if (brandHost && brandHost.tagName === "A") {
+      brandHost.classList.add("brand");
+      if (!brandHost.querySelector(".brand-mark")) {
         var img = document.createElement("img");
         img.className = "brand-mark";
         img.src = markSrc();
         img.width = 28;
         img.height = 28;
         img.alt = "";
-        if (host.tagName === "STRONG") {
-          var a = document.createElement("a");
-          a.href = "/";
-          a.appendChild(img);
-          a.appendChild(host.cloneNode(true));
-          host.replaceWith(a);
-        } else {
-          host.insertBefore(img, host.firstChild);
+        brandHost.insertBefore(img, brandHost.firstChild);
+      }
+      if (!brandHost.querySelector(".brand-name")) {
+        var strong = brandHost.querySelector("strong");
+        if (strong) {
+          strong.classList.add("brand-name");
         }
+      }
+      if (!brandHost.querySelector(".brand-short")) {
+        var short = document.createElement("span");
+        short.className = "brand-short";
+        short.textContent = "AIA";
+        var nameEl = brandHost.querySelector(".brand-name");
+        if (nameEl && nameEl.parentNode === brandHost) nameEl.insertAdjacentElement("afterend", short);
+        else brandHost.appendChild(short);
       }
     }
     apply();
