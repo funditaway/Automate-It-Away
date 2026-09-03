@@ -65,8 +65,18 @@ function setAccountPassword(acc, password) {
 function applyAccountDetails(acc, body) {
   if (!acc || !body) return acc;
   if (body.ownerName || body.name) acc.ownerName = String(body.ownerName || body.name).trim().slice(0, 80);
+  if (body.accountName || body.biz) acc.name = String(body.accountName || body.biz).trim().slice(0, 80);
   if (body.phone != null) acc.phone = String(body.phone).trim().slice(0, 32);
   if (body.city != null) acc.city = String(body.city).trim().slice(0, 60);
+  if (body.state != null) acc.state = String(body.state).trim().slice(0, 40);
+  if (body.timezone != null) acc.timezone = String(body.timezone).trim().slice(0, 60);
+  if (body.hours != null) acc.hours = String(body.hours).trim().slice(0, 80);
+  if (body.note != null || body.about != null) acc.note = String(body.note || body.about || "").trim().slice(0, 240);
+  if (body.preferredDesk != null) acc.preferredDesk = String(body.preferredDesk).trim().slice(0, 80);
+  const reach = String(body.reach || body.reachBy || "").toLowerCase();
+  if (reach === "call" || reach === "text" || reach === "email") acc.reach = reach;
+  if (body.photoUrl && String(body.photoUrl).length <= 180000) acc.photoUrl = String(body.photoUrl);
+  if (body.photoUrl === "") acc.photoUrl = "";
   if (body.email != null && String(body.email).trim()) {
     const e = emailOf(body);
     if (!looksLikeEmail(e)) return { ok: false, error: "That email does not look right." };
@@ -119,6 +129,13 @@ function proHome(acc, person) {
     home.account.email = acc.email || "";
     home.account.phone = acc.phone || "";
     home.account.city = acc.city || "";
+    home.account.state = acc.state || "";
+    home.account.timezone = acc.timezone || "";
+    home.account.hours = acc.hours || "";
+    home.account.note = acc.note || "";
+    home.account.reach = acc.reach || "";
+    home.account.preferredDesk = acc.preferredDesk || "";
+    home.account.photoUrl = acc.photoUrl || "";
     home.account.createdAt = acc.createdAt || "";
     home.account.hasEmail = !!emailOf(acc);
     home.account.hasPassword = !!acc.password;
