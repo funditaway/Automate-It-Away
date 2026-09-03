@@ -2,7 +2,7 @@
       { id: "job", name: "Job", hint: "A piece of work in the queue" },
       { id: "capture", name: "Capture", hint: "Photo, call, form — not shipped" },
       { id: "pack", name: "Pack", hint: "Search a listed pack. Use it on this desk" },
-      { id: "model", name: "Automation", hint: "A kind of work this desk runs" },
+      { id: "model", name: "Automation", hint: "Your pack. Keep, list, or price it." },
       { id: "teammate", name: "Teammate", hint: "Who can tap on this shop" },
       { id: "rule", name: "Guardrail", hint: "Ask me if…" },
       { id: "workspace", name: "Workspace", hint: "Open another shop" }
@@ -45,7 +45,7 @@
       return rows.map((p) => {
         const tag = p.priced ? ("Ask $" + p.ask + " · tag only") : (p.official ? "Free official" : "Free listed");
         const btn = p.priced
-          ? `<button type="button" class="ghost" data-buy="${esc(p.id)}">Ask is a tag</button>`
+          ? `<button type="button" data-preview="${esc(p.id)}">Preview on this desk</button><button type="button" class="ghost" data-buy="${esc(p.id)}">Ask is a tag</button>`
           : `<button type="button" data-use="${esc(p.id)}">Use on this desk</button>`;
         return `<div class="pack-row"><b>${esc(p.name)}</b><span class="hint">${esc(p.family)} · ${esc(tag)}</span><p class="hint">${esc(p.does || "")}</p>${btn}</div>`;
       }).join("");
@@ -70,7 +70,7 @@
       if (kind === "job") return `<label>What is the work?</label><input name="title" required placeholder="Oil change Friday · list the lamp"><label>Notes</label><textarea name="notes" rows="3" placeholder="Anything this desk should run"></textarea>${packSelect()}${kindSelect()}${outcomeSelect()}<label class="adv">Ask / amount</label><input class="adv" name="amount" inputmode="decimal" placeholder="85"><label class="adv">When</label><input class="adv" name="timing" placeholder="Friday 3pm"><label class="adv">Hand to</label><input class="adv" name="assignee" placeholder="Name already on People"><label class="adv">Custom fields</label><input class="adv" name="customLine" placeholder="Patient: Rex, due date: Friday"><label class="adv">Tell AIA</label><textarea class="adv" name="tell" rows="2" placeholder="What Worker and Doer should know before they draft"></textarea>`;
       if (kind === "capture") return `<label>What came in?</label><textarea name="notes" rows="3" required placeholder="Photo of the porch lamp, pickup Thursday"></textarea>${kindSelect()}${outcomeSelect()}<label class="adv">From</label><input class="adv" name="from" placeholder="Counter · Thursday"><label class="adv">I am</label><select class="adv" name="whoKind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label class="adv">Name</label><input class="adv" name="contactName" placeholder="Taylor"><label class="adv">Phone</label><input class="adv" name="phone" placeholder="417-555-0100"><label class="adv">When</label><input class="adv" name="timing" placeholder="Thursday 3pm"><label class="adv">Tell AIA</label><textarea class="adv" name="tell" rows="2" placeholder="Not shipped. Qualify first."></textarea>`;
       if (kind === "pack") return packFields();
-      if (kind === "model") return `<label>Name this work</label><input name="name" required placeholder="Lawn route"><label>What the desk does</label><input name="does" placeholder="Call in → schedule → invoice"><label class="adv">How unique is it?</label><select class="adv" name="complexity"><option value="simple">Simple — same five steps</option><option value="custom">Custom — this desk only</option><option value="unique">Unique — own fields</option><option value="complex">Complex — fields + a first card</option></select><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Patient, due date, ask"><label class="adv">First card on the queue</label><input class="adv" name="firstWork" placeholder="Recall Rex Friday">`;
+      if (kind === "model") return `<label>Name this automation</label><input name="name" required placeholder="Lawn route"><label>What the desk does</label><input name="does" placeholder="Call in → schedule → invoice"><label>Share</label><select name="share"><option value="private">This desk only</option><option value="listed">Public — show in pack search</option><option value="market">Market — set an ask</option></select><label>Ask if this is a market pack</label><input name="price" inputmode="decimal" placeholder="0 means free. No card taken today."><p class="hint">Listed packs are free in search. A market ask is a tag. AIA does not take a card for packs yet.</p><label class="adv">How unique is it?</label><select class="adv" name="complexity"><option value="simple">Simple — same five steps</option><option value="custom">Custom — this desk only</option><option value="unique">Unique — own fields</option><option value="complex">Complex — fields + a first card</option></select><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Patient, due date, ask"><label class="adv">First card on the queue</label><input class="adv" name="firstWork" placeholder="Recall Rex Friday">`;
       if (kind === "teammate") return `<label>Name</label><input name="name" required placeholder="Sam"><label>Who they are</label><select name="kind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label>Their desk code</label><input name="pin" required inputmode="numeric" minlength="4" placeholder="4+ digits"><label class="adv">Phone</label><input class="adv" name="phone" inputmode="tel" placeholder="417-555-0100"><label class="adv">Email</label><input class="adv" name="email" inputmode="email" placeholder="sam@shop.com">`;
       if (kind === "rule") return `<label>Ask me if…</label><input name="text" required placeholder="Ask me if money out is over $100"><label class="adv">When</label><select class="adv" name="when"><option value="qualify">Qualify</option><option value="capture">Capture</option><option value="do">Do</option><option value="collect">Collect</option><option value="follow">Follow</option></select><label class="adv">Then</label><select class="adv" name="then"><option value="wait">Wait for owner</option><option value="stop">Stop</option><option value="note">Note only</option></select><label class="adv">If money is at least</label><input class="adv" name="ifMoney" inputmode="decimal" placeholder="Leave blank unless this is a money wait"><label class="adv">If the card contains</label><input class="adv" name="contains" placeholder="contract"><label class="adv">If field</label><input class="adv" name="ifField" placeholder="city"><label class="adv">equals or has</label><input class="adv" name="ifValue" placeholder="outside city">`;
       return `<label>Your name</label><input name="name" required><label>Desk name</label><input name="biz" required placeholder="Rivera Resale"><label>Desk code</label><input name="pin" required inputmode="numeric" minlength="4"><label class="adv">City</label><input class="adv" name="city" placeholder="Springfield"><label class="adv">What this desk is for</label><input class="adv" name="model" placeholder="Trades"><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Job, when, ask"><label class="adv">First card</label><input class="adv" name="firstWork" placeholder="First thing on the queue">`;
@@ -106,7 +106,7 @@
       document.getElementById("mode-advanced").classList.toggle("on", advanced);
     }
     function esc(s) {
-      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+      return String(s || "").replace(/[&<>\"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","'":"&#39;" }[c]));
     }
     picks.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-kind]"); if (!btn) return;
@@ -130,10 +130,16 @@
         await usePack(use.getAttribute("data-use"));
         return;
       }
+      const preview = e.target.closest("[data-preview]");
+      if (preview) {
+        e.preventDefault();
+        await usePack(preview.getAttribute("data-preview"), true);
+        return;
+      }
       const buy = e.target.closest("[data-buy]");
       if (buy) {
         e.preventDefault();
-        fail("Ask is a tag. No card. No checkout.");
+        fail("Ask is a tag. No card. No checkout. Preview it instead.");
       }
     });
     function fail(msg) { err.style.display = "block"; err.textContent = msg; ok.style.display = "none"; }
@@ -166,8 +172,8 @@
         PACKS = [];
       }
     }
-    async function usePack(id) {
-      const r = await fetch("/api/packs", { method: "POST", headers: headers(), body: JSON.stringify({ action: "use", id }) });
+    async function usePack(id, preview) {
+      const r = await fetch("/api/packs", { method: "POST", headers: headers(), body: JSON.stringify({ action: preview ? "preview" : "use", id }) });
       const data = await r.json().catch(() => ({}));
       if (r.status === 409) return fail(data.error || "Priced pack. Tag only.");
       if (!r.ok) return fail(data.error || "Could not put that pack on this desk.");
@@ -209,11 +215,19 @@
           return done(kind === "capture" ? "Captured. Not shipped. Qualify first. You still tap Yes or No." : "Job is on the queue. Same five steps. You still tap Yes or No.");
         }
         if (kind === "model") {
-          const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "create", kind: "model", complexity: f.get("complexity") || (advanced ? "custom" : "simple"), name: f.get("name"), does: f.get("does"), fields: f.get("fields"), firstWork: f.get("firstWork") }) });
+          const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "create", kind: "model", complexity: f.get("complexity") || (advanced ? "custom" : "simple"), name: f.get("name"), does: f.get("does"), fields: f.get("fields"), firstWork: f.get("firstWork"), share: f.get("share") || "private", price: f.get("price") || 0 }) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not save that creation.");
           if (f.get("name")) localStorage.setItem("aia_model", f.get("name"));
-          return done(data.job ? "Automation saved. First card is on the queue. You still tap Yes or No." : "This automation is on the desk.");
+          const share = f.get("share") || "private";
+          let extra = share === "listed" ? " Listed in pack search." : share === "market" ? " Market ask is on the listing. No card taken." : " This desk only.";
+          if (share === "listed" || share === "market") {
+            const listed = await fetch("/api/packs", { method: "POST", headers: headers(), body: JSON.stringify({ action: "list", name: f.get("name"), does: f.get("does") || "", ask: share === "market" ? (f.get("price") || 0) : 0 }) });
+            const pack = await listed.json().catch(() => ({}));
+            if (!listed.ok) extra = " Saved on this desk. " + (pack.error || "Could not list it for search.");
+            else extra = " " + (pack.note || extra);
+          }
+          return done((data.job ? "Automation saved. First card is on the queue." : "This automation is on the desk.") + extra + " You still tap Yes or No.");
         }
         if (kind === "teammate") {
           const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "invite", name: f.get("name"), role: "employee", kind: f.get("kind") || "helper", pin: f.get("pin"), phone: f.get("phone") || "", email: f.get("email") || "" }) });
