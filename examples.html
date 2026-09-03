@@ -1,29 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Examples · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0d6b6b">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Examples · Automate It Away</title>
+  <meta name="description" content="DEMO cards for every kind of desk. Same five steps. You send the draft.">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
+  </script>
   <link rel="stylesheet" href="theme.css">
-  <script src="theme.js"></script>
-  <script src="analytics.js"></script>
-<style>
-body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
-header{background:#0d6b6b;color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center}
-header a{color:#fff;text-decoration:none}
-.wrap{width:min(800px,94vw);margin:0 auto;padding:18px 0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:8px 0}
-a{color:var(--teal)}
-</style>
+  <style>
+    .wrap{width:min(900px,94vw);margin:0 auto;padding:20px 0 56px}
+    .lead{color:var(--muted);margin:8px 0 14px;max-width:38rem}
+    .bar,.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+    .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:inherit;min-height:44px}
+    .chip.on{background:#119494;color:#fff;border-color:#119494}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+    .card .top{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+    .card h3{margin:6px 0;color:var(--heading);font-size:1.02rem}
+    .who,.notes,.draft,.next{font-size:13px;margin:6px 0}
+    .draft{background:var(--bg-soft);border-radius:8px;padding:8px}
+    .tap{font-size:12px;color:var(--orange);font-weight:700}
+    .sec{margin:18px 0 8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .how{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .how b{display:block;color:var(--heading)}
+    .note{font-size:13px;color:var(--muted);margin-top:14px}
+    .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+    @media(max-width:420px){.grid{grid-template-columns:1fr}}
+  </style>
 </head>
-<body>
-<header><a href="index.html">Automate It Away</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
-<main class="wrap">
-<h1>Random businesses. Same engine.</h1>
-<div class="card"><b>Consign</b><p>Photo → comps → list → payout. You tap bad prices.</p></div>
-<div class="card"><b>Vita / insurance</b><p>Lead → fact-find → quote → review. You tap before an illustration sends.</p></div>
-<div class="card"><b>HVAC</b><p>Missed call → book → invoice. You tap same-day that bumps a job.</p></div>
-<div class="card"><b>Church</b><p>Gift → thank → pledge nudge. No guilt letters.</p></div>
-<p><a href="how.html">Type your own →</a></p>
-</main>
-</body></html>
+<body class="page-bg">
+  <header class="site-header">
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <div class="nav">
+      <a href="how.html">How</a>
+      <a href="setup.html">Setup</a>
+      <a href="examples.html">Examples</a>
+      <a href="desk.html">Desk</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
+  </header>
+  <main class="wrap">
+    <h1>Every kind of work. Same desk.</h1>
+    <p class="lead">DEMO cards only. Fake names, 555 numbers, @example.com. Home, consign, insurance, land, fund, trades, bakery, salon, HVAC, farm stand, HOA, funeral, notary. Read the draft. Copy, text, email, or hand it off. Stop cancels it. The desk does not send money or bind coverage.</p>
+    <div class="bar">
+      <button class="btn" type="button" id="shuffle">Shuffle six</button>
+      <button class="btn quiet" type="button" id="all">Whole deck</button>
+      <a class="btn quiet" href="setup.html">First-day setup</a>
+      <a class="btn quiet" href="widget.html">Drop work</a>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="grid" id="grid"></div>
+    <p class="sec">How to use the account</p>
+    <div class="how"><b>1. Open a desk</b><span>Desk name + desk code. Email is not required to start.</span></div>
+    <div class="how"><b>2. Email + password is a second door</b><span>Same account. Min 8 characters. No email or SMS reset.</span></div>
+    <div class="how"><b>3. Stay signed in</b><span>Hashed session, 14 days, slides on use, cookie + X-Session, max 8 phones.</span></div>
+    <div class="how"><b>4. One account per person</b><span>Own desks and sit on others from that login. Invite a helper. They get their own code. Owner owns Stop.</span></div>
+    <div class="how"><b>5. Authenticator stays HOLD</b><span>No live MFA. No email codes. No SMS codes.</span></div>
+    <div class="how"><b>6. Plan stays free</b><span>Switching a plan does not charge.</span></div>
+    <div class="how"><b>7. Send it yourself</b><span>Copy draft, Text it, Email it, Hand to, Stop. AIA does not send.</span></div>
+    <div class="cta">
+      <a class="btn" href="onboard.html">Open your desk</a>
+      <a class="btn quiet" href="setup.html">First-day setup</a>
+      <a class="btn quiet" href="login.html">Sign in</a>
+    </div>
+    <p class="note">These cards are labeled DEMO. They are not live clients. Insurance cards say Insurance / Quote It Away. Bind and premium stay off the desk.</p>
+  </main>
+  <script src="theme.js"></script>
+  <script src="setup-demo.js"></script>
+  <script>
+    const grid = document.getElementById("grid");
+    const chips = document.getElementById("chips");
+    let filter = "all";
+    function rows() {
+      return AIADemo.cards().filter(function (row) { return filter === "all" || row.id === filter; });
+    }
+    function paintChips() {
+      const list = [{ id: "all", label: "All" }].concat(AIADemo.desks.map(function (d) {
+        return { id: d.id, label: d.display || d.label };
+      }));
+      chips.innerHTML = list.map(function (n) {
+        return "<button type=\"button\" class=\"chip" + (filter === n.id ? " on" : "") + "\" data-id=\"" + n.id + "\">" + n.label + "</button>";
+      }).join("");
+    }
+    function paint(list) {
+      grid.innerHTML = list.map(function (row) {
+        const c = row.card;
+        return "<article class=\"card\"><div class=\"top\"><span>" + row.display + "</span><span>" + c.step + "</span></div><h3>" + c.title + "</h3><p class=\"who\">" + c.who + " · " + c.phone + "</p><p class=\"notes\">" + c.notes + "</p><p class=\"draft\"><b>Draft:</b> " + c.draft + "</p><p class=\"tap\">Copy · Text · Email · Hand to · Stop</p></article>";
+      }).join("");
+    }
+    chips.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-id]");
+      if (!btn) return;
+      filter = btn.getAttribute("data-id");
+      paintChips();
+      paint(rows());
+    });
+    document.getElementById("shuffle").onclick = function () {
+      paint(rows().slice().sort(function () { return Math.random() - 0.5; }).slice(0, 6));
+    };
+    document.getElementById("all").onclick = function () { paint(rows()); };
+    AIADemo.ready(function () { paintChips(); paint(rows().slice(0, 6)); });
+  </script>
+</body>
+</html>
