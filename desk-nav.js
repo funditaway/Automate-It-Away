@@ -182,6 +182,12 @@
       v.setAttribute("data-aia-desk-view", "1");
       document.body.appendChild(v);
     }
+    if (tabOf() === "queue" && !document.querySelector("script[data-aia-desk-inbox]")) {
+      var i = document.createElement("script");
+      i.src = "/desk-inbox.js";
+      i.setAttribute("data-aia-desk-inbox", "1");
+      document.body.appendChild(i);
+    }
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");
