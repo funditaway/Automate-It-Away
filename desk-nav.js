@@ -6,6 +6,7 @@
     { id: "pipes", label: "Pipes", href: "/connections", ico: "M7 8h10M7 16h10M5 12h2m10 0h2" },
     { id: "more", label: "More", href: "/more", ico: "M6 12h.01M12 12h.01M18 12h.01" }
   ];
+  // Rules is not a bottom tab. Page still lives at href: "/rules".
 
   function file() {
     var p = (location.pathname || "").replace(/\/+$/, "");
@@ -79,7 +80,7 @@
     css.id = "desk-nav-css";
     css.textContent =
       "body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}" +
-      ".desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 15px/1.2 Segoe UI,system-ui,sans-serif}" +
+      ".desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px 18px;padding-top:8px;font:700 15px/1.2 Segoe UI,system-ui,sans-serif}" +
       ".desk-tabs a{color:#fff;text-decoration:none}.desk-tabs a.on{color:#f39c12}" +
       "#desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}" +
       "#desk-nav a{flex:1;width:auto;margin:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,Segoe UI,sans-serif;letter-spacing:.02em;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}" +

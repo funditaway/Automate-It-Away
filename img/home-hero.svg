@@ -17,7 +17,8 @@
   <rect x="524" y="120" width="312" height="400" rx="20" fill="#0b3f3f"/>
   <text x="548" y="158" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#9fd4d4">Automate It Away</text>
   <text x="548" y="196" font-family="Segoe UI, system-ui, sans-serif" font-size="20" fill="#fff" font-weight="700">AC not cooling</text>
-  <text x="548" y="224" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#c9e8e8">Hi Sam — we can be there Thursday 2–4. Estimate $189 if it is the capacitor.</text>
+  <text x="548" y="224" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#c9e8e8">Hi Sam — Thursday 2–4.</text>
+  <text x="548" y="246" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#c9e8e8">Estimate $189 if it is the capacitor.</text>
   <rect x="548" y="280" width="88" height="36" rx="10" fill="#f39c12"/>
   <text x="564" y="303" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#fff" font-weight="700">Text it</text>
   <rect x="644" y="280" width="88" height="36" rx="10" fill="#119494"/>
