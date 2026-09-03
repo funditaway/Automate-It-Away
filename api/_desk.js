@@ -76,6 +76,10 @@ function canDesk(person, ws, action) {
   return false;
 }
 
+function ownerCount(ws) {
+  return ((ws && ws.people) || []).filter((p) => p && p.role === "owner").length;
+}
+
 function deskAbility(person, ws) {
   return {
     edit: canDesk(person, ws, "update"),
@@ -84,7 +88,9 @@ function deskAbility(person, ws) {
     explore: canDesk(person, ws, "explore"),
     code: lib.isOwner(person),
     delete: lib.isOwner(person),
-    perms: lib.isOwner(person)
+    perms: lib.isOwner(person),
+    leave: !!(person && (!lib.isOwner(person) || ownerCount(ws) > 1)),
+    attach: lib.isOwner(person)
   };
 }
 
@@ -266,6 +272,57 @@ function setSeatCan(row, id, incoming) {
   return { ok: true, person: lib.publicPerson(seat) };
 }
 
+function confirmDeskName(row, text) {
+  const raw = String(text || "").trim().toLowerCase();
+  if (!raw || !row) return false;
+  return raw === String(row.slug || "").toLowerCase()
+    || raw === String(row.biz || "").trim().toLowerCase()
+    || raw === String(row.name || "").trim().toLowerCase()
+    || raw === "delete " + String(row.slug || "").toLowerCase();
+}
+
+function heldCollectAsk(slug, floor) {
+  const s = lib.slugify(slug || "");
+  const n = Number(floor) || 250;
+  return (mem().jobs || []).filter((j) => {
+    if (!j || j.workspace !== s) return false;
+    if (String(j.status || "") !== "held") return false;
+    const step = String(j.step || j.lane || "").toLowerCase();
+    if (step && step !== "collect") return false;
+    return Number(j.amount || j.ask || 0) >= n;
+  });
+}
+
+function stripSlugFromAccounts(s) {
+  (mem().accounts || []).forEach((acc) => {
+    if (!acc) return;
+    acc.desks = (acc.desks || []).filter((slug) => slug !== s);
+    acc.memberDesks = (acc.memberDesks || []).filter((slug) => slug !== s);
+  });
+}
+
+function leaveSeat(row, person, account) {
+  if (!row || !person) return { ok: false, status: 400, error: "No seat." };
+  if (lib.isOwner(person) && ownerCount(row) <= 1) {
+    return { ok: false, status: 409, error: "Close or delete the desk. Do not abandon it." };
+  }
+  row.people = (row.people || []).filter((p) => p && p.id !== person.id);
+  const slug = row.slug;
+  function peel(acc) {
+    if (!acc) return;
+    acc.desks = (acc.desks || []).filter((s) => s !== slug);
+    acc.memberDesks = (acc.memberDesks || []).filter((s) => s !== slug);
+  }
+  if (account) peel(account);
+  else {
+    (mem().accounts || []).forEach((acc) => {
+      if (acc && person.accountId && acc.id === person.accountId) peel(acc);
+    });
+  }
+  const ev = logDesk("leave", row, person);
+  return { ok: true, status: 200, left: slug, event: ev };
+}
+
 function wipeDesk(slug, person) {
   const s = lib.slugify(slug || "");
   if (!s) return { ok: false, error: "No desk." };
@@ -281,7 +338,10 @@ function wipeDesk(slug, person) {
     people: (row.people || []).map((p) => (p && p.name) || "").filter(Boolean),
     rules: (row.rules || []).length,
     model: row.model || "",
-    closed: deskClosed(row)
+    closed: deskClosed(row),
+    charged: false,
+    bound: false,
+    sent: false
   };
   const ev = logDesk("delete", row, person, tombstone);
   mem().workspaces = (mem().workspaces || []).filter((w) => w && w.slug !== s);
@@ -293,7 +353,13 @@ function wipeDesk(slug, person) {
   if (Array.isArray(mem().intakes)) {
     mem().intakes = mem().intakes.filter((i) => i && i.workspace !== s);
   }
-  return { ok: true, slug: s, name: row.biz || row.name || s, event: ev };
+  stripSlugFromAccounts(s);
+  if (typeof lib.revokeSession === "function") {
+    (mem().sessions || []).slice().forEach((sess) => {
+      if (sess && sess.workspace === s && sess.token) lib.revokeSession(sess.token);
+    });
+  }
+  return { ok: true, slug: s, name: row.biz || row.name || s, event: ev, charged: false };
 }
 
 function adminPinOk(req) {
@@ -330,6 +396,11 @@ module.exports = {
   deskEventsOf,
   exploreDesk,
   setSeatCan,
+  confirmDeskName,
+  heldCollectAsk,
+  leaveSeat,
   wipeDesk,
-  adminPinOk
+  adminPinOk,
+  ownerCount,
+  stripSlugFromAccounts
 };

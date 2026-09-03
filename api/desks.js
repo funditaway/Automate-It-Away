@@ -1,9 +1,11 @@
+const lib = require("./_lib");
 const {
   cors, mem, save, ready, readBody, slugify, workspaceOf, personOf, isOwner
-} = require("./_lib");
+} = lib;
 const {
   publicDesk, applyDeskEdit, setDeskClosed, setDeskCode, exportDesk, wipeDesk,
-  adminPinOk, canDesk, setDeskPerms, setSeatCan, logDesk, exploreDesk, deskEventsOf
+  adminPinOk, canDesk, setDeskPerms, setSeatCan, logDesk, exploreDesk, deskEventsOf,
+  leaveSeat, confirmDeskName, heldCollectAsk
 } = require("./_desk");
 const { historyOf, filterHistory, facetsOf, isPriorityJob, capCard, needsOf } = require("./_history");
 const packHandler = require("./_packs");
@@ -33,9 +35,7 @@ function setDeskListed(ws, on) {
   return { ok: true, listed: deskListed(ws) };
 }
 function confirmName(row, text) {
-  const raw = String(text || "").trim().toLowerCase();
-  if (!raw) return false;
-  return raw === String(row.slug || "").toLowerCase() || raw === String(row.biz || "").trim().toLowerCase() || raw === String(row.name || "").trim().toLowerCase() || raw === "delete " + String(row.slug || "").toLowerCase();
+  return confirmDeskName(row, text);
 }
 function authReq(req, slug, pin) {
   const headers = Object.assign({}, (req && req.headers) || {});
@@ -49,6 +49,9 @@ function gate(req, slug) {
   return { row, person, pending };
 }
 function deny(res, msg) { return res.status(403).json({ ok: false, error: msg || "Not allowed on this desk." }); }
+function sessionOk(req) {
+  return !!(typeof lib.sessionTokenOf === "function" && lib.sessionTokenOf(req));
+}
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -93,7 +96,7 @@ module.exports = async function handler(req, res) {
     incoming.slice(0, 32).forEach((item) => {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
       const pin = item && item.pin != null ? String(item.pin) : "";
-      if (!slug || (!pin && !lib.sessionTokenOf(req)) || (pin && pin.length < 4)) return;
+      if (!slug || (!pin && !sessionOk(req)) || (pin && pin.length < 4)) return;
       const { workspace: row, person } = personOf(authReq(req, slug, pin), slug);
       if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
@@ -111,7 +114,7 @@ module.exports = async function handler(req, res) {
     asked.slice(0, 32).forEach((item) => {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
       const pin = item && item.pin != null ? String(item.pin) : "";
-      if (!slug || (!pin && !lib.sessionTokenOf(req)) || (pin && pin.length < 4)) return;
+      if (!slug || (!pin && !sessionOk(req)) || (pin && pin.length < 4)) return;
       const { workspace: row, person } = personOf(authReq(req, slug, pin), slug);
       if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
@@ -135,7 +138,7 @@ module.exports = async function handler(req, res) {
     asked.slice(0, 32).forEach((item) => {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
       const pin = item && item.pin != null ? String(item.pin) : "";
-      if (!slug || (!pin && !lib.sessionTokenOf(req)) || (pin && pin.length < 4)) return;
+      if (!slug || (!pin && !sessionOk(req)) || (pin && pin.length < 4)) return;
       const { workspace: row, person } = personOf(authReq(req, slug, pin), slug);
       if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
@@ -225,14 +228,39 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, person: saved.person, desk: publicDesk(row, person) });
   }
+  if (action === "leave" || action === "detach") {
+    const acc = (mem.accounts || []).find((a) => a && (
+      (person.accountId && a.id === person.accountId) ||
+      (a.desks || []).indexOf(row.slug) >= 0 ||
+      (a.memberDesks || []).indexOf(row.slug) >= 0
+    )) || null;
+    const left = leaveSeat(row, person, acc);
+    if (!left.ok) return res.status(left.status || 400).json({ ok: false, error: left.error });
+    await save();
+    return res.status(200).json({
+      ok: true,
+      left: left.left,
+      hint: "You are off this desk. Cards stay for the owner.",
+      event: left.event
+    });
+  }
   if (action === "delete") {
     if (!isOwner(person)) return deny(res, "Only the owner can delete this desk.");
     if (!confirmName(row, body.confirm || body.say)) {
       return res.status(409).json({ ok: false, error: "Type the shop name to delete this desk. Cards on it go with it. The deletion log stays.", need: row.biz || row.slug });
     }
+    const asks = heldCollectAsk(row.slug, 250);
+    if (asks.length) {
+      return res.status(409).json({
+        ok: false,
+        ask: true,
+        error: "This desk has a held collect card of $250 or more. Ask before you wipe it. Kill stays on the card.",
+        held: asks.length
+      });
+    }
     const wiped = wipeDesk(row.slug, person);
     await save();
-    return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
+    return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event, charged: false });
   }
-  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "packs", "list-pack", "unlist-pack", "use-pack", "preview-pack", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
+  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "packs", "list-pack", "unlist-pack", "use-pack", "preview-pack", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "leave", "detach", "delete"] });
 };
