@@ -6,11 +6,16 @@
   <title>Talk to the desk · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="canonical" href="/drop#talk">
-  <meta http-equiv="refresh" content="0;url=/drop#talk">
+  <link rel="canonical" href="/drop?mode=talk#talk">
   <script>
-  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
-  location.replace("/drop" + (location.search || "") + "#talk");
+  (function () {
+    var t = localStorage.getItem("aia_theme") || "system";
+    var d = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.classList.toggle("dark", d);
+    var q = location.search || "";
+    if (!/[?&]mode=/.test(q)) q = q ? (q + "&mode=talk") : "?mode=talk";
+    location.replace("/drop" + q + "#talk");
+  })();
   </script>
   <link rel="stylesheet" href="theme.css">
   <script src="theme.js"></script>
@@ -18,8 +23,7 @@
 <body>
   <header>
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
-    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
   </header>
-  <p><a href="/drop#talk">Talk to the desk lives on Drop.</a></p>
+  <p><a href="/drop?mode=talk#talk">Talk to the desk lives on Drop.</a></p>
 </body>
 </html>

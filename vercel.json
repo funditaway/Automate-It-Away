@@ -25,7 +25,7 @@
     { "source": "/onboard", "destination": "/onboard.html" },
     { "source": "/widget", "destination": "/widget.html" },
     { "source": "/drop", "destination": "/widget.html" },
-    { "source": "/chat", "destination": "/widget.html" },
+    { "source": "/chat", "destination": "/chat.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/account", "destination": "/account.html" },
     { "source": "/desks", "destination": "/desks.html" },

@@ -2,7 +2,7 @@
   "id": "vita",
   "name": "Insurance desk",
   "family": "Quote It Away",
-  "capture": ["note", "call", "form"],
+  "capture": ["note", "call", "form", "quote"],
   "qualify": ["this week", "who it is for", "illustration"],
   "do": ["packet draft"],
   "collect": ["bind stays off the desk"],
@@ -11,8 +11,25 @@
   "kill": ["not a fit", "already covered"],
   "pipes": ["calendar", "webhook"],
   "artifacts": ["packet"],
+  "fields": {
+    "capture": ["title", "kind", "from", "contactName", "phone", "notes", "pack", "timing", "product"],
+    "qualify": ["timing", "risk", "why", "amount"],
+    "do": ["draft", "artifact"],
+    "collect": ["amount", "confirm"],
+    "follow": ["followed"],
+    "rail": ["killReason", "whoTapped"]
+  },
+  "rails": [
+    "Bind stays off the desk. Drop cannot bind coverage.",
+    "Illustration send is an owner tap. Draft the packet only.",
+    "Do not invent premium, face amount, health answers, or you are approved.",
+    "Replacement or suitability waits on the owner.",
+    "Public drop never sees People, Stop, money, or medical detail.",
+    "Grok drafts the next question or packet line. A person copies, texts, emails, or hands it."
+  ],
   "rules": [
     { "text": "Cap this-week cards.", "when": "qualify", "then": "wait", "contains": "this week" },
-    { "text": "Stop if this is an illustration.", "when": "do", "then": "stop", "contains": "illustration" }
+    { "text": "Stop if this is an illustration.", "when": "do", "then": "stop", "contains": "illustration" },
+    { "text": "Wait on bind.", "when": "do", "then": "wait", "contains": "bind" }
   ]
 }
