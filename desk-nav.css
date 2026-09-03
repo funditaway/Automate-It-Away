@@ -1,7 +1,7 @@
 /* Phone desk tabs. Header tabs stay in the markup as a no-JS fallback.
    With JS (or the HTML bottom bar) the phone uses only the bottom nav. */
 body.has-desk-nav {
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 body.has-desk-nav header {
   padding-top: calc(12px + env(safe-area-inset-top, 0px));
@@ -124,6 +124,12 @@ button, a.go, a.edit, .btn {
 }
 #gate input,
 #gate button { min-height: 44px; width: 100%; }
+#gate button.go,
+#gate button.open-desk {
+  background: var(--orange, #f39c12);
+  color: #0c1116;
+  font-weight: 800;
+}
 
 /* Queue cards: Open full width, Yes / No a matched pair. */
 #queue > .item > .row {
@@ -166,7 +172,7 @@ button, a.go, a.edit, .btn {
   }
 }
 
-.sheet { z-index: 60; }
+.sheet { z-index: 80; }
 .sheet-card { max-height: 90vh; overflow: auto; }
 .sheet-decide {
   position: sticky;
@@ -222,6 +228,7 @@ button, a.go, a.edit, .btn {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
   width: 100%;
+  min-width: 0;
 }
 .tap-opts a, .tap-opts button { width: 100%; margin: 0; }
 @media (max-width: 420px) {

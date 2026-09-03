@@ -51,11 +51,11 @@
   function paint() {
     if (!box) return;
     box.innerHTML =
-      "<p class=\"oauth-lead\">Or continue with. Identity only \u2014 never Send, Stop, pay, or draft.</p>" +
-      "<div class=\"oauth-row\" data-group=\"live\">" + btns("live") + "</div>" +
+      "<p class=\"oauth-lead\">Live door is desk name + code, or email + password. Continue-with stays Hold until the app id is on the box. Identity only \u2014 never Send, Stop, pay, or draft.</p>" +
+      "<details class=\"oauth-more\"><summary>Continue with \u2014 Hold</summary><div class=\"oauth-row\" data-group=\"live\">" + btns("live") + "</div></details>" +
       "<details class=\"oauth-more\"><summary>More doors</summary><div class=\"oauth-row\">" + btns("more") + "</div></details>" +
       "<details class=\"oauth-more\"><summary>Ask \u00b7 Grok, ChatGPT, Claude</summary><div class=\"oauth-row\">" + btns("ask") + "</div><p class=\"hint\">Those vendors have not admitted AIA as a website login yet. Tap files Ask.</p></details>" +
-      "<details class=\"oauth-more\" open><summary>Ext</summary><div class=\"oauth-row\">" + btns("ext") + "</div>" +
+      "<details class=\"oauth-more\"><summary>Ext</summary><div class=\"oauth-row\">" + btns("ext") + "</div>" +
       "<div class=\"oauth-ext\"><label>Another site</label><div class=\"oauth-row\"><input id=\"oauth-site\" placeholder=\"any site on the internet\"><button type=\"button\" class=\"oauth-btn\" data-id=\"other\">Ask AIA</button></div></div></details>" +
       "<p class=\"err\" id=\"oauth-flash\" style=\"display:none\"></p>";
     flash = box.querySelector("#oauth-flash");
