@@ -1,0 +1,1 @@
+Poke 2026-09-03. Ask Vercel to build main so /api/jobs is not 500. Fields restore already on 52d473f. Do not rewrite _fields.
