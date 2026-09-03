@@ -58,9 +58,15 @@ function setDeskPerms(ws, incoming) {
 }
 
 function personCan(person, key) {
-  if (!person || lib.isOwner(person)) return !!lib.isOwner(person);
+  if (!person) return false;
+  if (lib.isOwner(person)) return true;
+  try {
+    const roles = require("./_roles");
+    if (typeof roles.canDo === "function") return roles.canDo(person, key);
+  } catch (e) { /* fall through */ }
   const can = person.can && typeof person.can === "object" ? person.can : {};
   if (key === "explore") return can.explore !== false;
+  if (key === "override") return false;
   return !!can[key];
 }
 
@@ -84,7 +90,10 @@ function deskAbility(person, ws) {
     explore: canDesk(person, ws, "explore"),
     code: lib.isOwner(person),
     delete: lib.isOwner(person),
-    perms: lib.isOwner(person)
+    perms: lib.isOwner(person),
+    override: lib.isOwner(person),
+    money: lib.isOwner(person),
+    stop: lib.isOwner(person)
   };
 }
 
@@ -216,7 +225,7 @@ function logDesk(action, row, person, extra) {
   };
   ensureDeskEvents().unshift(ev);
   mem().deskEvents = mem().deskEvents.slice(0, 200);
-  lib.log("Desk", ev.action + " · " + (ev.slug || ""), "OK", ev.slug || null);
+  lib.log("Desk", ev.action + " \u00b7 " + (ev.slug || ""), "OK", ev.slug || null);
   return ev;
 }
 
@@ -254,15 +263,21 @@ function setSeatCan(row, id, incoming) {
   if (!row) return { ok: false, error: "No desk." };
   const seat = (row.people || []).find((p) => p && p.id === id);
   if (!seat) return { ok: false, error: "Person not found." };
-  if (seat.role === "owner") return { ok: false, error: "Owner already has every desk tap." };
+  if (seat.role === "owner" || seat.kind === "owner") return { ok: false, error: "Owner already has every desk tap." };
+  const roles = require("./_roles");
   const src = incoming && typeof incoming === "object" ? incoming : {};
   const cur = seat.can && typeof seat.can === "object" ? seat.can : {};
-  seat.can = {
-    edit: src.edit != null ? !!src.edit : !!cur.edit,
-    export: src.export != null ? !!src.export : !!cur.export,
-    explore: src.explore != null ? !!src.explore : cur.explore !== false,
-    close: src.close != null ? !!src.close : !!cur.close
-  };
+  const next = Object.assign({}, cur);
+  roles.CAN_KEYS.forEach((k) => {
+    if (src[k] != null) next[k] = !!src[k];
+  });
+  seat.can = roles.stripHard(next, seat);
+  if (src.kind) {
+    const kind = String(src.kind).toLowerCase();
+    if (kind === "owner") return { ok: false, error: "Owner seats are not granted by tap." };
+    seat.kind = kind;
+    seat.can = roles.stripHard(Object.assign(roles.resolveCan(kind, seat.crew, seat.status), seat.can), seat);
+  }
   return { ok: true, person: lib.publicPerson(seat) };
 }
 
