@@ -208,13 +208,13 @@ function seatCanOf(person) {
 
 function canDo(person, key) {
   if (!key) return false;
-  if (isOwnerPerson(person) && key !== "override") return true;
+  if (isOwnerPerson(person)) return true;
   const can = seatCanOf(person);
   return !!can[key];
 }
 
 function canOverride(person) {
-  return isOwnerPerson(person) && canDo(person, "override") !== false;
+  return isOwnerPerson(person);
 }
 
 function publicRole(person) {

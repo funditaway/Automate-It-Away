@@ -32,6 +32,20 @@ else pass("no canned platform hold amount");
 if (moneyHold(null, []) != null) fail("empty rules must not invent a money wait");
 else pass("empty rules do not money-wait");
 
+const fs = require("fs");
+const path = require("path");
+const jobs = fs.readFileSync(path.join(__dirname, "..", "api", "jobs.js"), "utf8");
+["action === \"preview\"", "action === \"override\"", "ownerCanOverride", "previewDispatch"].forEach((bit) => {
+  if (!jobs.includes(bit)) fail("jobs.js missing " + bit);
+});
+if (!process.exitCode) pass("jobs.js has preview + owner override");
+
+const desk = fs.readFileSync(path.join(__dirname, "..", "desk.html"), "utf8");
+["Override and send", "Override and stop", "action: \"preview\"", "action: \"override\""].forEach((bit) => {
+  if (!desk.includes(bit)) fail("desk.html missing " + bit);
+});
+if (!process.exitCode) pass("desk.html previews before owner override");
+
 if (process.exitCode) {
   console.error("check-override failed");
   process.exit(1);
