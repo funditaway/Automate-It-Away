@@ -17,9 +17,9 @@ Domain: automateitaway.com (pointed)
 - `GET /api/jobs?audit=1` `?money=1` `?inbox=1`
 - `GET|POST|DELETE /api/connections`
 - `GET|POST /api/worker`
-- `GET|POST /api/rules` — per-desk owner rules (seed + add/remove + optional Capture widget). Hard stops stay in `api/jobs.js`.
+- `GET|POST /api/rules` — per-desk owner rules (add/remove + optional Capture widget). Hard stops stay in `api/jobs.js`.
 - `GET|POST /api/auth` — workspace includes `nouns` `{ capture, qualify, do, collect, follow }`. Owner `action: "nouns"` saves them.
-- Ship amount >= $250 without `confirm: true` → 409 held (code, not rule text)
+- Ship waits only when that desk has an owner money-wait rule. Empty desks do not invent $250.
 - Demo ship (no live pipe write-back) stays held — never shipped, never billed
 - Kill without `confirm: true` → 409
 - Whatnot stays down

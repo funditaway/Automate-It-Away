@@ -117,8 +117,8 @@
       const you = d.you || {};
       document.getElementById("you").textContent = (you.name || "") + " · " + (you.role || "");
       banner.textContent = you.role === "owner"
-        ? "Owner desk. Kill and $250 stay with you."
-        : "Employee desk. Capture and qualify. Owner handles Kill and money over $250.";
+        ? "Owner desk. Kill and money waits you write stay with you."
+        : "Employee desk. Capture and qualify. Owner handles Kill and money waits.";
       const c = d.counts || {};
       document.getElementById("c-wait").textContent = c.waiting ?? "—";
       document.getElementById("c-held").textContent = c.held ?? "—";
