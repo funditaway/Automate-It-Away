@@ -8,25 +8,10 @@
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="desk-nav.css">
   <script src="theme.js"></script>
-  <style>
-    body{margin:0}a{color:inherit;text-decoration:none}
-    header{background:var(--header);color:#fff;padding:12px 4vw}header a{color:#fff}
-    .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 24px}
-    h1{font-size:1.4rem;margin:0 0 8px}p{color:var(--muted);margin:0 0 12px}
-    .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
-    .chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
-    .chips button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 12px;font:700 13px inherit;min-height:40px}
-    .chips button.on{background:var(--orange);color:#0c1116;border-color:transparent}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
-    .card h2{font-size:1rem;margin:0 0 4px}.meta{font-size:13px;color:var(--muted)}
-    .lane{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;margin-right:6px}
-    .need{color:var(--kill-ink)}.doing{color:var(--teal)}.wait{color:#b45309}.ext{color:#6b21a8}.done{color:var(--teal)}
-    select{min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;background:var(--card);color:var(--ink);width:100%;margin-bottom:10px}
-  </style>
 </head>
 <body class="has-desk-nav">
   <header>
-    <a href="index.html">Automate It Away</a>
+    <a class="brand" href="index.html"><span class="brand-name">Automate It Away</span></a>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop">Drop</a>
@@ -35,22 +20,10 @@
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
-  <main class="wrap">
+  <main class="wrap" style="width:min(760px,94vw);margin:0 auto;padding:18px 0 24px">
     <h1>History</h1>
-    <p>One desk or every desk on this phone. Need you, in progress, waiting on, ext, done.</p>
-    <div class="banner" id="banner">Open a desk on this phone first.</div>
-    <label class="meta" for="desk-pick">Desk</label>
-    <select id="desk-pick"></select>
-    <div class="chips" id="lanes">
-      <button type="button" class="on" data-lane="all">All</button>
-      <button type="button" data-lane="need">Need you</button>
-      <button type="button" data-lane="doing">In progress</button>
-      <button type="button" data-lane="wait">Waiting on</button>
-      <button type="button" data-lane="ext">Ext</button>
-      <button type="button" data-lane="done">Done</button>
-    </div>
-    <div id="counts" class="meta"></div>
-    <div id="list"></div>
+    <p>Past, now, and next. Advanced finds who, files, Grok, and audit. Nothing sends from here.</p>
+    <p>Open <a href="/history">/history</a> after a hard refresh. Filters: Need you, In progress, Waiting on, Ext, Done, Money, Missing, Handed, This week.</p>
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
@@ -61,38 +34,5 @@
   </nav>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
-  <script>
-    var lane="all",slug="";
-    function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&","<":"<",">":">","\"":""","'":"&#39;"})[c];});}
-    function phone(){return (window.AIADesks&&AIADesks.list())||[];}
-    function fillPick(){
-      var rows=phone();var cur=(window.AIADesks&&AIADesks.current&&AIADesks.current())||{};
-      var el=document.getElementById("desk-pick");
-      el.innerHTML="<option value=\"\">All desks on this phone</option>"+rows.map(function(d){return "<option value=\""+esc(d.slug)+"\">"+esc(d.name||d.slug)+"</option>";}).join("");
-      if(cur.slug)el.value=cur.slug;slug=el.value||"";
-    }
-    async function load(){
-      var rows=phone();var asked=slug?rows.filter(function(d){return d.slug===slug;}):rows;
-      var banner=document.getElementById("banner");var list=document.getElementById("list");
-      if(!asked.length){banner.textContent="Add a desk on this phone first.";list.innerHTML="";return;}
-      try{
-        var r=await fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"history",lane:lane,desks:asked.map(function(d){return {slug:d.slug,pin:d.pin};})})});
-        var data=await r.json().catch(function(){return {};});
-        var c=data.counts||{};
-        document.getElementById("counts").textContent="Need you "+(c.need||0)+" · in progress "+(c.doing||0)+" · waiting "+(c.wait||0)+" · ext "+(c.ext||0)+" · done "+(c.done||0);
-        banner.textContent=slug?"This desk.":"Every desk this phone can open.";
-        var items=data.items||[];
-        if(!items.length){list.innerHTML="<div class=\"card\"><p>Nothing in this lane yet.</p></div>";return;}
-        list.innerHTML=items.map(function(it){
-          var when=(it.t||"").replace("T"," ").slice(0,16);
-          var extra=it.waitingOn?" · waiting on "+esc(it.waitingOn):"";
-          return "<a class=\"card\" href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(when)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p></a>";
-        }).join("");
-      }catch(e){banner.textContent="Could not reach history.";}
-    }
-    document.getElementById("lanes").onclick=function(e){var btn=e.target.closest("[data-lane]");if(!btn)return;lane=btn.getAttribute("data-lane");document.querySelectorAll("#lanes button").forEach(function(b){b.classList.toggle("on",b===btn);});load();};
-    document.getElementById("desk-pick").onchange=function(){slug=this.value||"";load();};
-    fillPick();load();
-  </script>
 </body>
 </html>
