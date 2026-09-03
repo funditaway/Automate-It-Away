@@ -11,6 +11,13 @@
   "kill": ["not a fit", "already covered"],
   "pipes": ["calendar", "webhook"],
   "artifacts": ["packet"],
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "need", "label": "What they need" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "state", "label": "State" },
+    "how": "Draft a packet. Bind stays off. Illustration send is an owner tap."
+  },
   "fields": {
     "capture": ["title", "kind", "from", "contactName", "phone", "notes", "pack", "timing", "product"],
     "qualify": ["timing", "risk", "why", "amount"],
