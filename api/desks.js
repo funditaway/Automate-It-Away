@@ -71,6 +71,11 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "list").toLowerCase();
 
+  if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "use-pack", "install-pack", "preview-pack"].indexOf(action) >= 0) {
+    req.body = body;
+    return packHandler(req, res);
+  }
+
   if (action === "search" || action === "find") {
     return res.status(200).json({ ok: true, listed: true, q: String(body.q || body.query || body.name || "").slice(0, 80), desks: searchListedDesks(body.q || body.query || body.name) });
   }
@@ -221,5 +226,5 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
   }
-  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
+  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "packs", "list-pack", "use-pack", "preview-pack", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
 };
