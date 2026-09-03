@@ -62,19 +62,23 @@
   </header>
   <main class="wrap">
     <h1>This desk’s pipes.</h1>
-    <p>You do not need a pipe to start. Search any site. Log in opens that vendor. If we do not have a name yet, the inbound hook still takes the card. None of them send, post, or pay by themselves.</p>
+    <p>You do not need a pipe to start. Search any site. Talk it if your hands are full. Log in opens that vendor. If we do not have a name yet, the inbound hook still takes the card. None of them send, post, or pay by themselves.</p>
     <div class="item">
       <div class="row">
         <input id="ws" placeholder="Desk name">
         <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
         <button class="go" type="button" onclick="listPipes()">Show pipes</button>
       </div>
+      <div class="row" id="saved" style="margin-top:8px"></div>
       <p class="meta" style="margin-top:8px">Owner connects or drops a pipe. Helpers work the queue only.</p>
     </div>
     <div class="item">
       <div class="row">
         <input id="q" placeholder="Search Gmail, X, Shopify, any site…" style="flex:1;min-width:180px">
         <button class="go" type="button" onclick="searchPipes()">Search</button>
+        <button type="button" onclick="hearPipes()">Hear this</button>
+        <button type="button" onclick="talkSearch()">Talk</button>
+        <button type="button" onclick="quietPipes()">Quiet</button>
       </div>
       <div class="row" id="chips" style="margin-top:8px"></div>
       <p class="meta" style="margin-top:8px">Name a site we do not list</p>
@@ -87,8 +91,13 @@
     <h2>Cross the internet now</h2>
     <div class="item">
       <b>Inbound hook</b><span class="tag tag-now">Live</span>
-      <div class="meta">Anything on the internet can write a card here.</div>
+      <div class="meta">Anything on the internet can write a card here. Zapier and Make can post here today.</div>
       <div class="url" id="inbound">Open your desk to see the write-back URL.</div>
+      <div class="row">
+        <button class="go" type="button" onclick="copyHook()">Copy hook</button>
+        <a class="edit" href="/drop">Drop a card</a>
+      </div>
+      <p class="meta" id="copy-flash" style="margin-top:8px"></p>
     </div>
     <h2>Draft accounts</h2>
     <p class="meta">Log in to Grok, ChatGPT, or Claude. Make an API key on that account. Paste it. The desk drafts with that account. It still cannot Send, Stop, or move money. You do not need one — included Grok drafts work when our key is on.</p>
@@ -122,7 +131,7 @@
       <p class="meta" id="flash"></p>
     </div>
     <h2>Coming soon · beta wall</h2>
-    <p class="meta">Search the wall. Log in opens that vendor. It does not turn the pipe live. Owner still taps Yes. Mail, social, CRM, and money stay hold.</p>
+    <p class="meta" id="soon-count">Search the wall. Log in opens that vendor. It does not turn the pipe live. Owner still taps Yes.</p>
     <div id="soon"></div>
     <p class="meta"><a href="desk.html">Back to the queue</a></p>
   </main>
@@ -134,6 +143,8 @@
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="analytics.js"></script>
+  <script src="speech.js"></script>
+  <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script>
     const wsEl = document.getElementById("ws");
@@ -144,6 +155,7 @@
     let lastData = null;
     let groupOn = "";
     const GROUPS = ["mail", "calendar", "social", "shop", "pay", "crm", "files", "talk", "books", "search"];
+    const GROUP_LABEL = { all: "All", mail: "Mail", calendar: "Calendar", social: "Social", shop: "Shop", pay: "Money", crm: "CRM", files: "Files", talk: "Talk", books: "Books", search: "Search" };
     function qVal() { return ((document.getElementById("q") || {}).value || "").trim().toLowerCase(); }
     function matchPipe(p) {
       const q = qVal();
@@ -181,7 +193,7 @@
       const all = ["all"].concat(GROUPS);
       box.innerHTML = all.map(g => {
         const on = (g === "all" && !groupOn) || g === groupOn ? " go" : "";
-        return "<button class=\"" + on.trim() + "\" type=\"button\" onclick=\"setGroup('" + g + "')\">" + g + "</button>";
+        return "<button class=\"" + on.trim() + "\" type=\"button\" onclick=\"setGroup('" + g + "')\">" + (GROUP_LABEL[g] || g) + "</button>";
       }).join("");
     }
     function setGroup(g) {
@@ -213,10 +225,80 @@
         return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (on ? "On this desk · " : "Not added · ") + st + (p.note ? " · " + p.note : "") + "</div></div>" + drop + "</div>";
       }).join("");
       const soonBox = document.getElementById("soon");
-      if (soonBox) soonBox.innerHTML = (data.soon || []).filter(matchPipe).map(p => {
-        const go = p.login ? "<button class=\"go\" type=\"button\" onclick=\"startSoon('" + p.id + "')\">Log in</button>" : "";
-        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + (p.note || "Shown, not live.") + "</div></div><div class=\"row\">" + go + "</div></div>";
+      const soonRows = (data.soon || []).filter(matchPipe);
+      if (soonBox) {
+        soonBox.innerHTML = soonRows.map(p => {
+          const go = p.login ? "<button class=\"go\" type=\"button\" onclick=\"startSoon('" + p.id + "')\">Log in</button>" : "";
+          const grp = p.group ? (GROUP_LABEL[p.group] || p.group) + " · " : "";
+          return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + grp + (p.note || "Shown, not live.") + "</div></div><div class=\"row\">" + go + "</div></div>";
+        }).join("");
+        if (!soonRows.length) {
+          soonBox.innerHTML = "<div class=\"item\"><b>Nothing matches.</b><div class=\"meta\">Name any site above, or <a href=\"/drop\">drop a card</a>. The inbound hook still takes work today.</div></div>";
+        }
+      }
+      const count = document.getElementById("soon-count");
+      if (count) count.textContent = soonRows.length + " on the wall" + (qVal() || groupOn ? " for this search" : "") + ". Log in opens the vendor. Not a live send pipe.";
+    }
+    function paintSaved() {
+      const box = document.getElementById("saved");
+      if (!box) return;
+      let rows = [];
+      try {
+        if (window.AIADeskSwitch && AIADeskSwitch.list) rows = AIADeskSwitch.list() || [];
+        else rows = JSON.parse(localStorage.getItem("aia_desks") || "[]");
+      } catch (e) { rows = []; }
+      if (!rows.length) { box.innerHTML = ""; return; }
+      box.innerHTML = rows.map(d => {
+        const slug = d.slug || d.biz || "";
+        const name = d.name || d.biz || slug;
+        const on = (wsEl.value || "") === slug ? " go" : "";
+        return "<button class=\"" + on.trim() + "\" type=\"button\" onclick=\"pickDesk('" + slug.replace(/'/g, "") + "')\">" + name + "</button>";
       }).join("");
+    }
+    function pickDesk(slug) {
+      wsEl.value = slug;
+      try {
+        const rows = (window.AIADeskSwitch && AIADeskSwitch.list && AIADeskSwitch.list()) || JSON.parse(localStorage.getItem("aia_desks") || "[]");
+        const hit = rows.find(d => (d.slug || d.biz) === slug);
+        if (hit && hit.pin) pinEl.value = hit.pin;
+        if (window.AIADeskSwitch && AIADeskSwitch.open) AIADeskSwitch.open(hit || { slug: slug });
+      } catch (e) {}
+      localStorage.setItem("aia_ws", slug);
+      paintSaved();
+      listPipes();
+    }
+    async function copyHook() {
+      const text = (document.getElementById("inbound") || {}).textContent || "";
+      const flash = document.getElementById("copy-flash");
+      try {
+        if (navigator.clipboard) await navigator.clipboard.writeText(text);
+        if (flash) flash.textContent = "Copied. Paste it into Zapier, Make, or that site’s webhook.";
+      } catch (e) {
+        if (flash) flash.textContent = text;
+      }
+    }
+    function hearPipes() {
+      if (!window.AIASpeech) return;
+      const n = ((lastData && lastData.soon) || []).filter(matchPipe).length;
+      AIASpeech.speak("Search any site. " + n + " on the wall. Log in opens the vendor. The inbound hook takes a card today. Nothing sends money.");
+    }
+    function talkSearch() {
+      if (!window.AIASpeech || !AIASpeech.canListen()) {
+        const flash = document.getElementById("search-flash");
+        if (flash) flash.textContent = "This phone will not take speech here. Type the site.";
+        return;
+      }
+      AIASpeech.listen(function (text) {
+        const q = document.getElementById("q");
+        if (q) q.value = text;
+        searchPipes();
+      }, function (err) {
+        const flash = document.getElementById("search-flash");
+        if (flash) flash.textContent = err || "Did not catch that.";
+      });
+    }
+    function quietPipes() {
+      if (window.AIASpeech) AIASpeech.stopTalk();
     }
     async function connect() {
       const flash = document.getElementById("flash");
@@ -255,6 +337,12 @@
       if (lastData) paintPipes(lastData);
     });
     paintChips();
+    paintSaved();
+    try {
+      const u = new URLSearchParams(location.search);
+      if (u.get("q") && document.getElementById("q")) document.getElementById("q").value = u.get("q");
+      if (u.get("group")) { groupOn = u.get("group"); paintChips(); }
+    } catch (e) {}
     async function startSoon(provider) {
       const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-start", provider }) });
       const data = await r.json().catch(() => ({}));
