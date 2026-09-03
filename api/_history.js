@@ -7,6 +7,7 @@ function laneOf(job) {
   if (st === "shipped") return "done";
   if (st === "killed") return "stopped";
   if (st === "out" || job.offDesk || job.awaiting) return "ext";
+  if (job.expired || job.late) return "need";
   if (st === "held" || st === "exception" || job.rail === "hand" || wait === "owner") return "need";
   if (wait && wait !== "owner") return "wait";
   return "doing";
@@ -61,8 +62,8 @@ function emailOf(job) {
 
 function whenOf(job) {
   return String(
-    job.followWhen || job.when || job.due || job.timing || job.followAt ||
-    jobVal(job, "when") || jobVal(job, "timing") || ""
+    job.dueAt || job.due || job.followWhen || job.when || job.timing || job.followAt ||
+    jobVal(job, "when") || jobVal(job, "timing") || jobVal(job, "due") || ""
   ).trim();
 }
 
@@ -145,7 +146,9 @@ function needsOf(job, opts) {
   if (phone && (outcome === "call" || kind === "call" || kind === "follow")) {
     add("call", "Call", { href: "tel:" + phone.replace(/[^\d+]/g, "") });
   }
-  if (when || outcome === "book" || /school|reminder|pickup|ride|delivery|book/.test(kind)) add("ics", "Phone file");
+  if (when || job.dueAt || outcome === "book" || /school|reminder|pickup|ride|delivery|book/.test(kind)) add("ics", "Phone file");
+  if (!done && !job.dueAt && !job.due) add("due", "Set due");
+  if (!done && (job.dueAt || job.due)) add("snooze", "Snooze");
   if (!job.draft && !done) add("grok", "Ask Grok");
   if (!job.assignee && !outDesk && !done) add("hand", "Hand to");
   if (job.assignee && !outDesk && !done) add("handback", "Needs a hand");
@@ -161,6 +164,12 @@ function wantSend(outcome, kind) {
 
 function needLine(job, missing, decide, outDesk, priority) {
   if (outDesk) return "Off the desk. Confirm done, or tap Needs a hand.";
+  if (job && (job.expired || job.late)) {
+    try {
+      const line = require("./_clock").clockLine(job);
+      if (line) return line;
+    } catch (e) {}
+  }
   if (missing && missing.length) {
     const map = { phone: "a number", email: "an email", when: "a time", what: "what this is", photo: "a photo", amount: "an amount" };
     return "Need " + (map[missing[0]] || missing[0]) + " before this can go.";
