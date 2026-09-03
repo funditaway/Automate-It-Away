@@ -24,6 +24,7 @@ h1{font-size:1.4rem;margin:0 0 8px}p{color:var(--muted);margin:0 0 12px}
 select,input[type=search]{min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;background:var(--card);color:var(--ink);width:100%;margin-bottom:10px}
 .adv{margin:0 0 12px}.adv[hidden]{display:none!important}
 .acts a,.acts button{min-height:44px;padding:8px 12px;border-radius:10px;border:0;background:var(--edit);color:var(--edit-ink);font:700 13px inherit;margin:0 8px 8px 0;display:inline-flex;align-items:center;text-decoration:none}
+.tag{display:inline-block;font-size:11px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin:0 6px 6px 0}
 </style>
 </head>
 <body class="has-desk-nav">
@@ -32,20 +33,25 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <nav class="desk-tabs" aria-label="Desk tabs">
 <a href="/desk" data-tab="queue">Queue</a>
 <a href="/drop" data-tab="drop">Drop</a>
-<a href="/rules" data-tab="rules">Rules</a>
+<a href="/history" data-tab="history">History</a>
 <a href="/connections" data-tab="pipes">Pipes</a>
 <a href="/more" data-tab="more">More</a>
 </nav>
 </header>
 <main class="wrap">
 <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-<div><h1>History</h1><p>Past, now, and next. Email or text the draft from here. Grok recs stay on the card when they exist.</p></div>
-<button type="button" class="chips" id="adv-btn" style="min-height:44px">Advanced</button>
+<div><h1>History</h1><p>Who did what. How it finished. Where the files are. Nothing sends from here.</p></div>
+<button type="button" id="adv-btn" style="min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);font:700 13px inherit;padding:8px 14px">Advanced</button>
 </div>
 <div class="banner" id="banner">Open a desk on this phone first.</div>
 <label class="meta" for="desk-pick">Desk</label>
 <select id="desk-pick"></select>
-<input id="q" type="search" placeholder="Find a card, person, or draft">
+<input id="q" type="search" placeholder="Find a card, person, or draft" autocomplete="off">
+<div class="chips" id="talk-bar">
+<button type="button" id="hear">Hear this</button>
+<button type="button" id="talk">Talk</button>
+<button type="button" id="quiet">Quiet</button>
+</div>
 <div class="chips" id="whens">
 <button type="button" class="on" data-when="all">All time</button>
 <button type="button" data-when="past">Past</button>
@@ -62,7 +68,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" data-lane="stopped">Stopped</button>
 </div>
 <div class="adv" id="adv-box" hidden>
-<p class="meta">Who did what. How it finished. Where the files are. Nothing sends from here.</p>
+<p class="meta">Filter by who, kind, pipe, day, money, Grok, files, cap, missing, handed, late, audit. You still send from the desk.</p>
 <select id="who"><option value="">Anyone</option></select>
 <select id="work"><option value="">Any kind</option></select>
 <select id="pipe"><option value="">Any pipe</option></select>
@@ -74,17 +80,23 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" data-flag="cap">Cap</button>
 <button type="button" data-flag="missing">Missing</button>
 <button type="button" data-flag="handed">Handed</button>
+<button type="button" data-flag="late">Late</button>
 <button type="button" data-flag="audit">Audit</button>
 </div>
 </div>
 <div id="counts" class="meta"></div>
-<div class="acts"><button type="button" id="copy-view">Copy this view</button><button type="button" id="clear-view">Clear filters</button></div>
+<div class="acts">
+<button type="button" id="copy-view">Copy this view</button>
+<a id="text-view" href="#">Text this view</a>
+<a id="mail-view" href="#">Email this view</a>
+<button type="button" id="clear-view">Clear filters</button>
+</div>
 <div id="list"></div>
 </main>
 <nav id="desk-nav" aria-label="Desk">
 <a href="/desk" data-tab="queue"><span>Queue</span></a>
 <a href="/drop" data-tab="drop"><span>Drop</span></a>
-<a href="/rules" data-tab="rules"><span>Rules</span></a>
+<a href="/history" data-tab="history"><span>History</span></a>
 <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
 <a href="/more" data-tab="more"><span>More</span></a>
 </nav>
@@ -93,9 +105,12 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <script src="desk-nav.js"></script>
 <script>
 var lane="all",when="all",slug="",q="",who="",work="",pipe="",since="",advanced=false,last=[];
-var flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0};
+var flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};
 function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&","<":"<",">":">","\"":""","'":"&#39;"})[c];});}
 function phone(){return (window.AIADesks&&AIADesks.list())||[];}
+function story(){return last.map(function(it){return (it.title||"Card")+" · "+(it.label||"")+" · "+(it.desk||"")+(it.who?" · "+it.who:"");}).join("\n")||"Nothing in this view.";}
+function saveView(){try{localStorage.setItem("aia_history_view",JSON.stringify({lane:lane,when:when,q:q,who:who,work:work,pipe:pipe,since:since,advanced:advanced,flags:flags}));}catch(e){}}
+function loadView(){try{var v=JSON.parse(localStorage.getItem("aia_history_view")||"{}");if(!v||typeof v!=="object")return;lane=v.lane||"all";when=v.when||"all";q=v.q||"";who=v.who||"";work=v.work||"";pipe=v.pipe||"";since=v.since||"";advanced=!!v.advanced;if(v.flags)flags=Object.assign(flags,v.flags);document.getElementById("q").value=q;}catch(e){}}
 function paint(){
  document.getElementById("adv-box").hidden=!advanced;
  document.getElementById("adv-btn").textContent=advanced?"Simple":"Advanced";
@@ -108,7 +123,35 @@ function fillPick(){
  el.innerHTML="<option value=\"\">All desks on this phone</option>"+rows.map(function(d){return "<option value=\""+esc(d.slug)+"\">"+esc(d.name||d.slug)+"</option>";}).join("");
  if(cur.slug)el.value=cur.slug;slug=el.value||"";
 }
+function applyTalk(text){
+ var t=String(text||"").toLowerCase();
+ if(/need you|needs you/.test(t))lane="need";
+ if(/in progress|doing/.test(t))lane="doing";
+ if(/waiting/.test(t))lane="wait";
+ if(/\bext\b|off desk/.test(t))lane="ext";
+ if(/\bdone\b/.test(t))lane="done";
+ if(/stopped|killed/.test(t))lane="stopped";
+ if(/\bpast\b/.test(t))when="past";
+ if(/\bnow\b/.test(t))when="now";
+ if(/\bnext\b/.test(t))when="next";
+ if(/today/.test(t))since="today";
+ if(/this week/.test(t))since="week";
+ if(/this month/.test(t))since="month";
+ if(/money/.test(t))flags.money=1;
+ if(/grok/.test(t))flags.grok=1;
+ if(/file/.test(t))flags.files=1;
+ if(/\bcap\b/.test(t))flags.cap=1;
+ if(/missing/.test(t))flags.missing=1;
+ if(/handed/.test(t))flags.handed=1;
+ if(/late|expired/.test(t))flags.late=1;
+ if(/audit/.test(t))flags.audit=1;
+ if(/advanced/.test(t))advanced=true;
+ if(/simple|clear/.test(t)){lane="all";when="all";q=who=work=pipe=since="";flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};advanced=false;}
+ var m=t.match(/find (.+)/);if(m)q=m[1].replace(/\.$/,"");
+ document.getElementById("q").value=q;document.getElementById("since").value=since;
+}
 async function load(){
+ saveView();
  var rows=phone(),asked=slug?rows.filter(function(d){return d.slug===slug;}):rows;
  var banner=document.getElementById("banner"),list=document.getElementById("list");
  if(!asked.length){banner.textContent="Add a desk on this phone first.";list.innerHTML="";return;}
@@ -118,17 +161,28 @@ async function load(){
   var r=await fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   var data=await r.json().catch(function(){return {};});
   var c=data.counts||{};
-  document.getElementById("counts").textContent="Need you "+(c.need||0)+" · in progress "+(c.doing||0)+" · waiting "+(c.wait||0)+" · ext "+(c.ext||0)+" · done "+(c.done||0);
+  document.getElementById("counts").textContent="Need you "+(c.need||0)+" · in progress "+(c.doing||0)+" · waiting "+(c.wait||0)+" · ext "+(c.ext||0)+" · done "+(c.done||0)+(c.stopped?" · stopped "+c.stopped:"");
   banner.textContent=slug?"This desk — who did what, how it finished, where the files are.":"Every desk this phone can open.";
   var f=data.facets||{};
   function sel(id,rows,blank){var el=document.getElementById(id),cur=el.value;el.innerHTML="<option value=\"\">"+blank+"</option>"+(rows||[]).map(function(n){return "<option>"+esc(n)+"</option>";}).join("");if(cur)el.value=cur;}
   sel("who",f.who,"Anyone");sel("work",f.work,"Any kind");sel("pipe",f.pipes,"Any pipe");
   var items=data.items||[];last=items;
-  if(!items.length){list.innerHTML="<div class=\"card\"><p>Nothing in this lane yet.</p></div>";return;}
+  var text=encodeURIComponent(story().slice(0,900));
+  document.getElementById("text-view").href="sms:?&body="+text;
+  document.getElementById("mail-view").href="mailto:?subject="+encodeURIComponent("Desk history")+"&body="+text;
+  if(!items.length){list.innerHTML="<div class=\"card\"><p>Nothing in this view. Drop work or clear filters.</p></div>";return;}
   list.innerHTML=items.map(function(it){
     var when=(it.t||"").replace("T"," ").slice(0,16);
     var extra=it.waitingOn?" · waiting on "+esc(it.waitingOn):"";
-    return "<article class=\"card\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(when)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.past||it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p><div class=\"acts\"><a href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\">Open on desk</a><button type=\"button\" data-id=\""+esc(it.id)+"\">Copy story</button></div></article>";
+    var tags="";
+    if(it.money)tags+="<span class=\"tag\">Money</span>";
+    if(it.grok)tags+="<span class=\"tag\">Grok</span>";
+    if(it.files&&it.files.length)tags+="<span class=\"tag\">Files</span>";
+    if(it.priority)tags+="<span class=\"tag\">Cap</span>";
+    if(it.missing&&it.missing.length)tags+="<span class=\"tag\">Missing "+esc(it.missing[0])+"</span>";
+    if(it.handed)tags+="<span class=\"tag\">Handed</span>";
+    if(it.late||it.expired)tags+="<span class=\"tag\">Late</span>";
+    return "<article class=\"card\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(when)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.how||it.past||it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p>"+tags+"<div class=\"acts\"><a href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\">Open on desk</a><button type=\"button\" data-id=\""+esc(it.id)+"\">Copy story</button></div></article>";
   }).join("");
  }catch(e){banner.textContent="Could not reach history.";}
 }
@@ -142,10 +196,13 @@ document.getElementById("work").onchange=function(){work=this.value||"";load();}
 document.getElementById("pipe").onchange=function(){pipe=this.value||"";load();};
 document.getElementById("since").onchange=function(){since=this.value||"";load();};
 var timer;document.getElementById("q").oninput=function(){var v=this.value||"";clearTimeout(timer);timer=setTimeout(function(){q=v;load();},220);};
-document.getElementById("copy-view").onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(last.map(function(it){return it.title+" · "+(it.desk||"");}).join("\n")||"Nothing in this view.");};
-document.getElementById("clear-view").onclick=function(){lane="all";when="all";q=who=work=pipe=since="";flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0};document.getElementById("q").value="";paint();load();};
-document.getElementById("list").onclick=function(e){var b=e.target.closest("[data-id]");if(!b)return;var it=last.filter(function(x){return x.id===b.getAttribute("data-id");})[0];if(it&&navigator.clipboard)navigator.clipboard.writeText((it.title||"")+"\n"+(it.past||"")+"\n"+(it.result||""));};
-fillPick();paint();load();
+document.getElementById("copy-view").onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(story());};
+document.getElementById("clear-view").onclick=function(){lane="all";when="all";q=who=work=pipe=since="";flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};document.getElementById("q").value="";document.getElementById("since").value="";paint();load();};
+document.getElementById("list").onclick=function(e){var b=e.target.closest("[data-id]");if(!b)return;var it=last.filter(function(x){return x.id===b.getAttribute("data-id");})[0];if(it&&navigator.clipboard)navigator.clipboard.writeText((it.title||"")+"\n"+(it.how||it.past||"")+"\n"+(it.result||""));};
+document.getElementById("hear").onclick=function(){if(window.AIASpeech&&AIASpeech.speak)AIASpeech.speak(document.getElementById("counts").textContent+" "+story().split("\n").slice(0,6).join(". "));};
+document.getElementById("quiet").onclick=function(){if(window.AIASpeech&&AIASpeech.stopTalk)AIASpeech.stopTalk();};
+document.getElementById("talk").onclick=function(){if(!window.AIASpeech||!AIASpeech.listen)return;AIASpeech.listen(function(text){applyTalk(text);paint();load();});};
+loadView();fillPick();paint();load();
 </script>
 </body>
 </html>
