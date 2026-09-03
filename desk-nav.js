@@ -155,6 +155,12 @@
       v.setAttribute("data-aia-desk-view", "1");
       document.body.appendChild(v);
     }
+    if (tabOf() === "queue" && !document.querySelector("script[data-aia-desk-clock]")) {
+      var c = document.createElement("script");
+      c.src = "/desk-clock.js";
+      c.setAttribute("data-aia-desk-clock", "1");
+      document.body.appendChild(c);
+    }
     if (tabOf() === "drop" && !document.querySelector("script[data-aia-drop-talk]")) {
       var t = document.createElement("script");
       t.src = "/drop-talk.js";
