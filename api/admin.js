@@ -1,5 +1,5 @@
 const {
-  cors, mem, ready, save, workspaceOf, personOf, isOwner, ensureRules, jobCounts, readBody
+  cors, mem, ready, save, workspaceOf, personOf, isOwner, ensureRules, jobCounts, readBody, slugify, publicPerson
 } = require("./_lib");
 const { adminPinOk } = require("./_desk");
 const {
@@ -9,6 +9,7 @@ const {
 } = require("./_account");
 const { setDeskPerms, setSeatCan, publicDesk } = require("./_desk");
 const plans = require("./_plans");
+const { historyOf, filterHistory } = require("./_history");
 
 function ticketsOf(slug) {
   return (mem.tickets || []).filter((t) => t && (!slug || t.workspace === slug)).slice(0, 40);
@@ -16,6 +17,156 @@ function ticketsOf(slug) {
 function askFn() { return requestPermission || plans.requestPermission; }
 function permitFn() { return setPermission || plans.setPermission; }
 function mineFn() { return desksForPerson || plans.desksForPerson; }
+function lower(v) { return String(v || "").trim().toLowerCase(); }
+function deskName(row) { return (row && (row.biz || row.name || row.slug)) || ""; }
+function personHint(src) {
+  const hint = typeof src === "string" ? { name: src } : (src && typeof src === "object" ? src : {});
+  return {
+    id: String(hint.id || hint.personId || "").trim(),
+    name: String(hint.name || hint.who || hint.person || "").trim(),
+    email: lower(hint.email),
+    accountId: String(hint.accountId || hint.account || "").trim()
+  };
+}
+function seatMatchesPerson(seat, hint) {
+  if (!seat || seat.status === "pending") return false;
+  if (hint.id && seat.id === hint.id) return true;
+  if (hint.accountId && String(seat.accountId || "") === hint.accountId) return true;
+  if (hint.email && lower(seat.email) === hint.email) return true;
+  if (hint.name && hint.email && lower(seat.name) === lower(hint.name) && lower(seat.email) === hint.email) return true;
+  if (!hint.id && !hint.accountId && !hint.email && hint.name) return lower(seat.name) === lower(hint.name);
+  return false;
+}
+function allowedSlugs(currentSlug, extras) {
+  const out = [];
+  const seen = {};
+  function add(slug) {
+    const use = slugify(slug || "");
+    if (!use || seen[use]) return;
+    seen[use] = true;
+    out.push(use);
+  }
+  add(currentSlug);
+  const list = Array.isArray(extras) ? extras : [];
+  list.slice(0, 32).forEach((item) => {
+    const slug = slugify(item && (item.slug || item.workspace || item.biz || item.name) || "");
+    if (!slug || seen[slug]) return;
+    const headers = { "x-workspace": slug };
+    if (item && item.pin != null) headers["x-pin"] = String(item.pin);
+    if (item && item.token != null) headers["x-session"] = String(item.token);
+    const found = personOf({ headers }, slug);
+    if (!found.workspace || !found.person || (found.person && found.person.status === "pending")) return;
+    add(slug);
+  });
+  return out;
+}
+function touchTime(job) {
+  return String((job && (job.doneAt || job.updatedAt || job.createdAt || job.t)) || "");
+}
+function historyCard(job, row) {
+  if (!job) return null;
+  return {
+    id: job.id,
+    title: job.title || "Card",
+    slug: job.workspace || (row && row.slug) || "",
+    desk: deskName(row) || job.workspace || "",
+    status: job.status || "",
+    step: job.step || "",
+    waitingOn: job.waitingOn || "",
+    assignee: job.assignee || "",
+    from: job.from || "",
+    whoTapped: job.whoTapped || "",
+    doneBy: job.doneBy || "",
+    contactName: job.contactName || "",
+    t: touchTime(job),
+    offDesk: !!(job.status === "out" || job.offDesk),
+    done: job.status === "shipped" || job.status === "killed"
+  };
+}
+function jobTouchesPerson(job, match) {
+  if (!job) return false;
+  const custom = job.custom && typeof job.custom === "object" ? job.custom : {};
+  if (custom.personId && match.ids[custom.personId]) return true;
+  if (job.handedTo && job.handedTo.id && match.ids[job.handedTo.id]) return true;
+  const values = [
+    job.assignee,
+    job.handedTo && job.handedTo.name,
+    job.from,
+    job.whoTapped,
+    job.doneBy,
+    job.sentByAgent,
+    job.contactName
+  ].map(lower).filter(Boolean);
+  return values.some((val) => match.names[val] || match.emails[val] || match.ids[val] || match.accountIds[val]);
+}
+function personBook(hint, opts) {
+  const want = personHint(hint);
+  const viewer = opts && opts.viewer ? opts.viewer : null;
+  const currentSlug = slugify((opts && opts.currentSlug) || "");
+  const slugs = allowedSlugs(currentSlug, opts && opts.slugs);
+  const rows = slugs.map((slug) => (mem.workspaces || []).find((w) => w && w.slug === slug)).filter(Boolean);
+  const seats = [];
+  rows.forEach((row) => {
+    (row.people || []).forEach((seat) => {
+      if (seatMatchesPerson(seat, want)) seats.push(Object.assign({ slug: row.slug, desk: deskName(row) }, seat));
+    });
+  });
+  if (!seats.length) return { ok: false, status: 404, error: "Person not found.", slugs };
+  const match = { ids: {}, names: {}, emails: {}, accountIds: {} };
+  seats.forEach((seat) => {
+    if (seat.id) match.ids[seat.id] = true;
+    if (seat.name) match.names[lower(seat.name)] = true;
+    if (seat.email) match.emails[lower(seat.email)] = true;
+    if (seat.accountId) match.accountIds[String(seat.accountId)] = true;
+  });
+  const first = seats[0];
+  const historyItems = [];
+  const cards = [];
+  rows.forEach((row) => {
+    const jobs = (mem.jobs || []).filter((job) => job && job.workspace === row.slug);
+    const openJobs = jobs.filter((job) => jobTouchesPerson(job, match));
+    openJobs.forEach((job) => {
+      const card = historyCard(job, row);
+      if (card) cards.push(card);
+    });
+    historyItems.push.apply(historyItems, filterHistory(historyOf(row, jobs, [], {}).items, { who: first.name }).filter((item) => (
+      item && (
+        match.names[lower(item.who)] ||
+        (item.hands || []).some((name) => match.names[lower(name)])
+      )
+    )));
+  });
+  cards.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
+  historyItems.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
+  const seatCards = seats.map((seat) => {
+    const jobs = cards.filter((card) => card.slug === seat.slug);
+    const last = jobs[0] || null;
+    return {
+      desk: seat.desk,
+      slug: seat.slug,
+      kind: seat.kind || (seat.role === "owner" ? "owner" : "helper"),
+      theyOwn: seat.role === "owner" || seat.kind === "owner",
+      side: seat.slug === currentSlug ? (seats.length > 1 ? "yours" : "both") : "theirs",
+      holding: jobs.filter((card) => !card.done && !card.offDesk).length,
+      ext: jobs.filter((card) => !card.done && card.offDesk).length,
+      done: jobs.filter((card) => card.done).length,
+      lastCardTitle: last ? last.title : "",
+      lastSeen: (last && last.t) || seat.approvedAt || seat.createdAt || null
+    };
+  }).sort((a, b) => String(b.lastSeen || "").localeCompare(String(a.lastSeen || "")));
+  return {
+    ok: true,
+    person: publicPerson(first),
+    viewer: publicPerson(viewer),
+    slugs,
+    allowedSlugs: slugs,
+    currentSlug,
+    seats: seatCards,
+    cards: cards.filter((card) => !card.done).slice(0, 24),
+    history: historyItems.slice(0, 40),
+    lastCard: cards[0] || historyItems[0] || null
+  };
+}
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -35,6 +186,10 @@ module.exports = async function handler(req, res) {
     if (!row) return res.status(404).json({ ok: false, error: "No workspace with that slug. Start one first." });
     if (found.pending) return res.status(403).json({ ok: false, pending: true, error: "That seat is waiting on the owner." });
     if (!person) return res.status(401).json({ ok: false, error: "Pin required." });
+    if (req.query && (req.query.who != null || req.query.person != null)) {
+      const book = personBook({ name: req.query.who || req.query.person }, { slugs: [row.slug], viewer: person, currentSlug: row.slug });
+      return res.status(book.ok ? 200 : (book.status || 404)).json(book);
+    }
     const owner = isOwner(person);
     const snap = accountSnapshot(row, person);
     return res.status(200).json({ ok: true, you: snap.you, account: snap.account, plan: snap.plan, plans: publicPlans(), shop: snap.shop, counts: jobCounts(row.slug), people: snap.people, approvals: owner ? snap.approvals : [], perms: snap.perms, agents: snap.agents, kinds: snap.kinds, levels: snap.levels, hardOwner: snap.hardOwner, rules: ensureRules(row), tickets: ticketsOf(row.slug), audit: owner ? (mem.audit || []).filter((a) => !a.workspace || a.workspace === row.slug).slice(0, 40) : null, money: owner ? (mem.money || []).filter((m) => !m.workspace || m.workspace === row.slug).slice(0, 40) : null });
@@ -55,6 +210,10 @@ module.exports = async function handler(req, res) {
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     await save();
     return res.status(202).json({ ok: true, pending: true, person: made.person });
+  }
+  if (action === "person" || action === "book") {
+    const book = personBook(body, { slugs: body.desks || [], viewer: person, currentSlug: row.slug });
+    return res.status(book.ok ? 200 : (book.status || 404)).json(book);
   }
 
   if (action === "ask" || action === "permission") {
@@ -130,5 +289,5 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, account: publicAccount() });
   }
-  return res.status(400).json({ ok: false, error: "Unknown admin action.", actions: ["invite", "request", "ask", "permit", "mine", "approve", "deny", "plan", "login"] });
+  return res.status(400).json({ ok: false, error: "Unknown admin action.", actions: ["invite", "request", "ask", "permit", "mine", "person", "approve", "deny", "plan", "login"] });
 };
