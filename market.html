@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Packs · Automate It Away</title>
+  <title>Marketplace · Automate It Away</title>
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
@@ -18,79 +18,94 @@
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
     a{color:inherit;text-decoration:none}
-    header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 15px/1.2 system-ui,sans-serif}
-    .desk-tabs a{color:#fff}
-    .wrap{width:min(720px,94vw);margin:0 auto;padding:18px 0 40px}
+    .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 40px}
     h1{color:var(--heading);font-size:1.35rem}
-    .sub{color:var(--muted);margin:4px 0 14px}
-    .picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:8px;margin-bottom:12px}
-    .pick{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;text-align:left;min-height:64px}
-    .pick.on{border-color:var(--teal);background:var(--edit)}
-    .pick b{display:block;color:var(--heading);font-size:14px}
-    .pick span{font-size:12px;color:var(--muted)}
-    .modes{display:flex;gap:8px;margin:0 0 12px}
-    .modes button{flex:1;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:700 14px system-ui,sans-serif;cursor:pointer}
-    .modes button.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
-    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
-    input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--card);color:var(--ink)}
-    .go{margin-top:14px;width:100%;border:0;border-radius:10px;padding:12px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer;min-height:48px}
-    .go[disabled]{opacity:.6}
-    .ok{margin-top:12px;color:#1b7a3d;display:none}
-    .err{margin-top:12px;color:var(--kill-ink);display:none}
-    .adv{display:none}
-    body.show-adv .adv{display:block}
-    .hint{font-size:12px;color:var(--muted);margin-top:8px}
-    .pack-row{border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0;text-align:left;background:var(--card)}
-    .pack-row b{display:block;color:var(--heading)}
-    .pack-row button{margin-top:8px;min-height:44px;border:0;border-radius:10px;background:var(--orange);color:#fff;font-weight:700;padding:8px 12px;cursor:pointer}
-    .pack-row .ghost{background:transparent;color:var(--heading);border:1px solid var(--line);margin-left:6px}
-    .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+    .sub{color:var(--muted);margin:4px 0 14px;line-height:1.4}
+    .how-shop{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 16px}
+    .how-shop p{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:13px;color:var(--muted)}
+    .how-shop b{display:block;color:var(--heading);margin-bottom:4px}
+    .desk-banner{background:var(--edit);color:var(--edit-ink);border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:13px}
+    .search-row{display:flex;gap:8px;margin:0 0 10px}
+    .search-row input{flex:1;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font:inherit;background:var(--card);color:var(--ink)}
+    .search-row button{min-height:48px;min-width:48px;border:0;border-radius:12px;background:var(--orange);color:#fff;font-weight:700;padding:0 14px;cursor:pointer}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
     .chips button{min-height:36px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);padding:6px 10px;font:700 12px system-ui;cursor:pointer}
     .chips button.on{border-color:var(--teal);background:var(--edit);color:var(--edit-ink)}
+    .feat h2,.results h2,.listing h2{color:var(--heading);font-size:1rem;margin:0 0 8px}
+    .pack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
+    .pack-card,.listing{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow);text-align:left}
+    .pack-card b,.listing h2{display:block;color:var(--heading);font-size:16px}
+    .tag{display:inline-block;margin-top:4px;font-size:12px;color:var(--muted)}
+    .pack-card p,.listing p{margin-top:8px;font-size:13px;color:var(--muted);line-height:1.35}
+    .pack-card button,.listing button,.ghost{
+      margin-top:10px;min-height:44px;border:0;border-radius:10px;background:var(--orange);color:#fff;font-weight:700;padding:8px 12px;cursor:pointer
+    }
+    .ghost{background:transparent;color:var(--heading);border:1px solid var(--line);margin-left:6px}
+    .fields{margin-top:10px;font-size:13px;color:var(--ink)}
+    .fields span{display:inline-block;margin:0 6px 6px 0;border:1px solid var(--line);border-radius:999px;padding:4px 8px;background:var(--card)}
+    .ok{margin-top:12px;color:#1b7a3d;display:none}
+    .err{margin-top:12px;color:var(--kill-ink);display:none}
+    .sell{margin-top:18px;padding:14px;border:1px dashed var(--line);border-radius:14px}
+    .sell a{color:var(--teal);font-weight:700}
+    .back{display:inline-block;margin:0 0 10px;color:var(--teal);font-weight:700}
+    @media(max-width:520px){.how-shop{grid-template-columns:1fr}.ghost{margin-left:0;display:inline-block}}
   </style>
 </head>
 <body class="page-bg has-desk-nav">
   <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
-    <span class="brand-page">Packs</span>
+    <span class="brand-page">Marketplace</span>
     <div class="nav">
-      <a href="create.html">Create</a>
+      <a href="/create">Create</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop">Drop</a>
       <a href="/history" data-tab="history">History</a>
-      <a href="/connections" data-tab="pipes">Pipes</a>
+      <a href="/people" data-tab="people">People</a>
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
   <main class="wrap">
-    <h1>Search a pack. Put it on this desk.</h1>
-    <p class="sub">Official packs are free. A priced listing is a tag. No card. Packs copy rules. They do not send money. You still tap Yes or No.</p>
-    <div class="picks" id="picks"></div>
-    <div class="modes">
-      <button type="button" class="on" data-mode="simple" id="mode-simple">Simple</button>
-      <button type="button" data-mode="advanced" id="mode-advanced">Advanced</button>
+    <div id="desk-banner" class="desk-banner" hidden></div>
+    <div id="shop">
+      <h1>Find a pack. Put it on this desk.</h1>
+      <p class="sub">Official packs are free. A priced listing is a tag. No card. Packs copy fields and rules. They do not send money. You still tap Yes or No.</p>
+      <div class="how-shop" aria-label="How shopping works">
+        <p><b>1. Search</b>A niche, a word, or a family chip.</p>
+        <p><b>2. Open</b>See fields, kinds, and what it waits on.</p>
+        <p><b>3. Use</b>Free packs land on this desk. Ask stays a tag.</p>
+      </div>
+      <div class="search-row">
+        <input id="pack-q" type="search" placeholder="find flood · lawn · oil change" autocomplete="off">
+        <button type="button" id="pack-go">Search</button>
+      </div>
+      <div class="chips" id="chips"></div>
+      <section class="feat" id="featured"></section>
+      <section class="results">
+        <h2 id="results-title">Packs</h2>
+        <div class="pack-grid" id="pack-list"></div>
+      </section>
     </div>
-    <form class="card" id="form"></form>
+    <article class="listing" id="listing" hidden></article>
     <p class="ok" id="ok"></p>
     <p class="err" id="err"></p>
-    <div id="mine" class="card" style="margin-top:12px;display:none"></div>
+    <div class="sell">
+      <p>Make a pack for any niche. Keep it on your desk, list it free, or set an ask.</p>
+      <p><a href="/create?kind=model">Sell on AIA — open Create →</a></p>
+    </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
     <a href="/drop" data-tab="drop"><span>Drop</span></a>
     <a href="/history" data-tab="history"><span>History</span></a>
-    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/people" data-tab="people"><span>People</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="theme.js"></script>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
-  <script>history.replaceState(null, "", "/market?kind=pack");</script>
-  <script src="create-desk.js"></script>
+  <script src="market-shop.js"></script>
 </body>
 </html>
