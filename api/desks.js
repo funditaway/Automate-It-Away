@@ -6,6 +6,7 @@ const {
   adminPinOk, canDesk, setDeskPerms, setSeatCan, logDesk, exploreDesk, deskEventsOf
 } = require("./_desk");
 const { historyOf, filterHistory, facetsOf, isPriorityJob, capCard, needsOf } = require("./_history");
+const packHandler = require("./_packs");
 
 function deskClosed(ws) {
   return !!(ws && (ws.closed === true || ws.accepts === false));
@@ -17,14 +18,7 @@ function deskListed(ws) {
 }
 function listedCard(row) {
   if (!row || !deskListed(row)) return null;
-  return {
-    slug: row.slug,
-    name: row.biz || row.name || row.slug,
-    city: row.city || "",
-    does: row.does || "",
-    listed: true,
-    drop: "/drop?ws=" + encodeURIComponent(row.slug)
-  };
+  return { slug: row.slug, name: row.biz || row.name || row.slug, city: row.city || "", does: row.does || "", listed: true, drop: "/drop?ws=" + encodeURIComponent(row.slug) };
 }
 function searchListedDesks(query) {
   const q = String(query || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 80);
@@ -41,38 +35,26 @@ function setDeskListed(ws, on) {
 function confirmName(row, text) {
   const raw = String(text || "").trim().toLowerCase();
   if (!raw) return false;
-  const slug = String(row.slug || "").toLowerCase();
-  const biz = String(row.biz || "").trim().toLowerCase();
-  const name = String(row.name || "").trim().toLowerCase();
-  return raw === slug || raw === biz || raw === name || raw === "delete " + slug;
+  return raw === String(row.slug || "").toLowerCase() || raw === String(row.biz || "").trim().toLowerCase() || raw === String(row.name || "").trim().toLowerCase() || raw === "delete " + String(row.slug || "").toLowerCase();
 }
 function gate(req, slug) {
   const pin = (req.headers && req.headers["x-pin"]) || "";
-  const { workspace: row, person } = personOf(
-    { headers: { "x-workspace": slug, "x-pin": pin } },
-    slug
-  );
+  const { workspace: row, person } = personOf({ headers: { "x-workspace": slug, "x-pin": pin } }, slug);
   return { row, person };
 }
-function deny(res, msg) {
-  return res.status(403).json({ ok: false, error: msg || "Not allowed on this desk." });
-}
+function deny(res, msg) { return res.status(403).json({ ok: false, error: msg || "Not allowed on this desk." }); }
 
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
+  if (req.query && String(req.query.packs) === "1") return packHandler(req, res);
 
   if (req.method === "GET") {
     const q = req.query || {};
     if (q.q != null || q.search != null || q.listed === "1" || q.public === "1") {
       const term = q.q != null ? q.q : q.search;
-      return res.status(200).json({
-        ok: true,
-        listed: true,
-        q: String(term || "").slice(0, 80),
-        desks: searchListedDesks(term)
-      });
+      return res.status(200).json({ ok: true, listed: true, q: String(term || "").slice(0, 80), desks: searchListedDesks(term) });
     }
     const slug = workspaceOf(req);
     const { row, person } = gate(req, slug);
@@ -85,20 +67,12 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, desk: publicDesk(row, person) });
   }
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Use GET or POST." });
-  }
-
+  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Use GET or POST." });
   const body = await readBody(req);
   const action = String(body.action || "list").toLowerCase();
 
   if (action === "search" || action === "find") {
-    return res.status(200).json({
-      ok: true,
-      listed: true,
-      q: String(body.q || body.query || body.name || "").slice(0, 80),
-      desks: searchListedDesks(body.q || body.query || body.name)
-    });
+    return res.status(200).json({ ok: true, listed: true, q: String(body.q || body.query || body.name || "").slice(0, 80), desks: searchListedDesks(body.q || body.query || body.name) });
   }
 
   if (action === "list") {
@@ -108,14 +82,8 @@ module.exports = async function handler(req, res) {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
       const pin = item && item.pin != null ? String(item.pin) : "";
       if (!slug || pin.length < 4) return;
-      const { workspace: row, person } = personOf(
-        { headers: { "x-workspace": slug, "x-pin": pin } },
-        slug
-      );
-      if (!row || !person) {
-        desks.push({ slug, ok: false, error: "Desk name or code does not match." });
-        return;
-      }
+      const { workspace: row, person } = personOf({ headers: { "x-workspace": slug, "x-pin": pin } }, slug);
+      if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
     });
     return res.status(200).json({ ok: true, desks });
@@ -132,14 +100,8 @@ module.exports = async function handler(req, res) {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
       const pin = item && item.pin != null ? String(item.pin) : "";
       if (!slug || pin.length < 4) return;
-      const { workspace: row, person } = personOf(
-        { headers: { "x-workspace": slug, "x-pin": pin } },
-        slug
-      );
-      if (!row || !person) {
-        desks.push({ slug, ok: false, error: "Desk name or code does not match." });
-        return;
-      }
+      const { workspace: row, person } = personOf({ headers: { "x-workspace": slug, "x-pin": pin } }, slug);
+      if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
       const jobs = (mem.jobs || []).filter((j) => j && j.workspace === slug);
       const audit = advanced ? (mem.audit || []).filter((a) => a && (!a.workspace || a.workspace === slug)).slice(0, 40) : [];
@@ -148,10 +110,7 @@ module.exports = async function handler(req, res) {
     items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
     const shown = filterHistory(items, body);
     const counts = { need: 0, doing: 0, wait: 0, ext: 0, done: 0, stopped: 0, past: 0, now: 0, next: 0, all: items.length };
-    items.forEach((it) => {
-      if (counts[it.lane] != null) counts[it.lane] += 1;
-      if (it.when && counts[it.when] != null) counts[it.when] += 1;
-    });
+    items.forEach((it) => { if (counts[it.lane] != null) counts[it.lane] += 1; if (it.when && counts[it.when] != null) counts[it.when] += 1; });
     return res.status(200).json({ ok: true, format: "aia.desk.v1", advanced: !!advanced, desks, counts, facets: facetsOf(items), items: shown.slice(0, advanced ? 120 : 80) });
   }
 
@@ -165,21 +124,12 @@ module.exports = async function handler(req, res) {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
       const pin = item && item.pin != null ? String(item.pin) : "";
       if (!slug || pin.length < 4) return;
-      const { workspace: row, person } = personOf(
-        { headers: { "x-workspace": slug, "x-pin": pin } },
-        slug
-      );
-      if (!row || !person) {
-        desks.push({ slug, ok: false, error: "Desk name or code does not match." });
-        return;
-      }
+      const { workspace: row, person } = personOf({ headers: { "x-workspace": slug, "x-pin": pin } }, slug);
+      if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
       (mem.jobs || []).filter((j) => j && j.workspace === slug && isPriorityJob(j)).forEach((j) => {
         const card = capCard(j, row);
-        if (card) {
-          card.needsFull = needsOf(j, { staff: person.role === "employee" });
-          items.push(card);
-        }
+        if (card) { card.needsFull = needsOf(j, { staff: person.role === "employee" }); items.push(card); }
       });
     });
     items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
@@ -188,10 +138,7 @@ module.exports = async function handler(req, res) {
 
   const slug = slugify(body.slug || body.workspace || workspaceOf(req));
   const pin = String((req.headers && req.headers["x-pin"]) || body.pin || "");
-  const { workspace: row, person } = personOf(
-    { headers: { "x-workspace": slug, "x-pin": pin } },
-    slug
-  );
+  const { workspace: row, person } = personOf({ headers: { "x-workspace": slug, "x-pin": pin } }, slug);
   if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
   if (!person) return res.status(401).json({ ok: false, error: "Desk code does not match." });
 
@@ -201,14 +148,8 @@ module.exports = async function handler(req, res) {
     setDeskListed(row, on);
     logDesk(on ? "listed" : "unlisted", row, person);
     await save();
-    return res.status(200).json({
-      ok: true,
-      listed: deskListed(row),
-      visibility: deskListed(row) ? "public" : "private",
-      desk: publicDesk(row, person)
-    });
+    return res.status(200).json({ ok: true, listed: deskListed(row), visibility: deskListed(row) ? "public" : "private", desk: publicDesk(row, person) });
   }
-
   if (action === "explore" || action === "audit" || action === "gone" || action === "deleted") {
     if (action === "gone" || action === "deleted") {
       let events = deskEventsOf(slug, 25).filter((e) => e && e.action === "delete");
@@ -222,7 +163,6 @@ module.exports = async function handler(req, res) {
     if (!canDesk(person, row, "explore")) return deny(res, "No explore on this seat.");
     return res.status(200).json({ ok: true, explore: exploreDesk(row, person) });
   }
-
   if (action === "update" || action === "edit") {
     if (!canDesk(person, row, "update")) return deny(res, "This seat cannot edit the shop.");
     if (body.listed != null || body.visibility != null) {
@@ -235,7 +175,6 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, desk: publicDesk(row, person), listed: deskListed(row) });
   }
-
   if (action === "close" || action === "open" || action === "reopen") {
     if (!canDesk(person, row, action === "close" ? "close" : "open")) return deny(res, "This seat cannot close the desk.");
     setDeskClosed(row, action === "close");
@@ -243,7 +182,6 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, desk: publicDesk(row, person) });
   }
-
   if (action === "code") {
     if (!isOwner(person)) return deny(res, "Only the owner can change the owner desk code.");
     const saved = setDeskCode(row, body.nextPin || body.newPin || body.code);
@@ -252,14 +190,12 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, desk: publicDesk(row, person) });
   }
-
   if (action === "export") {
     if (!canDesk(person, row, "export") && !canDesk(person, row, "explore")) return deny(res, "This seat cannot export the desk.");
     logDesk("export", row, person);
     await save();
     return res.status(200).json({ ok: true, pack: exportDesk(row) });
   }
-
   if (action === "perms") {
     if (!isOwner(person)) return deny(res, "Only the owner sets helper permissions.");
     const saved = setDeskPerms(row, body.perms || body);
@@ -268,7 +204,6 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, desk: publicDesk(row, person), perms: saved.perms });
   }
-
   if (action === "seat") {
     if (!isOwner(person)) return deny(res, "Only the owner edits a helper seat.");
     const saved = setSeatCan(row, body.id || body.personId, body);
@@ -277,7 +212,6 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, person: saved.person, desk: publicDesk(row, person) });
   }
-
   if (action === "delete") {
     if (!isOwner(person)) return deny(res, "Only the owner can delete this desk.");
     if (!confirmName(row, body.confirm || body.say)) {
@@ -287,6 +221,5 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
   }
-
   return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
 };
