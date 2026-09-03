@@ -9,81 +9,74 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Setup · Automate It Away</title>
-  <meta name="description" content="Open one AIA account. Name the desk. Drop a school form, a missed call, or a neighbor text. The desk drafts the words. You copy it, text it, email it, or hand it off. Nothing leaves on its own.">
+  <meta name="description" content="Open one AIA account. Name the desk. Drop a school form, a missed call, or a neighbor text. Talk lives on Drop. The desk drafts the words. You copy it, text it, email it, or hand it off. Nothing leaves on its own.">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
   <link rel="stylesheet" href="theme.css">
   <style>
-    :root { --font:"Segoe UI",system-ui,-apple-system,sans-serif; }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:var(--font);background:var(--bg,#fff);color:var(--ink,#1a2332)}
-    a{color:inherit;text-decoration:none}
-    header{background:var(--header);color:#fff;padding:10px 4.5vw;padding-top:calc(10px + env(safe-area-inset-top,0px));display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-    header, header a, header button, header .nav, header .brand, header .brand-name, header strong, header .theme-btn{
-      font:700 15px/1.2 "Segoe UI",system-ui,sans-serif;letter-spacing:0;text-transform:none;font-style:normal;color:#fff
-    }
-    .brand{display:flex;align-items:center;gap:8px}
-    .nav{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
-    .wrap{width:min(840px,94vw);margin:0 auto;padding:20px 0 48px}
-    h1{color:var(--heading,#0a4f4f);font-size:clamp(1.45rem,4.2vw,2rem);line-height:1.15}
-    h2{color:var(--heading,#0a4f4f);font-size:1.05rem;margin:0 0 6px}
-    .lead{color:var(--muted,#6b7c8f);margin:8px 0 14px;max-width:38rem}
-    .hero{width:100%;border-radius:16px;border:1px solid var(--line,#d1dae3);display:block;margin:0 0 12px;aspect-ratio:3/2;object-fit:cover;background:#163333}
+    .wrap{width:min(840px,94vw);margin:0 auto;padding:20px 0 36px}
+    h1{font-size:clamp(1.45rem,4.2vw,2rem);line-height:1.15}
+    h2{font-size:1.05rem;margin:0 0 6px}
+    .lead{color:var(--muted);margin:8px 0 14px;max-width:38rem}
+    .hero{width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin:0 0 12px;aspect-ratio:3/2;object-fit:cover;background:#163333}
     .shots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
-    .shots figure{margin:0;background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:14px;overflow:hidden}
+    .shots figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
     .shots img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block;background:#163333}
-    .shots figcaption{padding:8px 10px 10px;font-size:13px;color:var(--muted,#6b7c8f)}
-    .shots figcaption b{display:block;color:var(--heading,#0a4f4f);font-size:14px}
+    .shots figcaption{padding:8px 10px 10px;font-size:13px;color:var(--muted)}
+    .shots figcaption b{display:block;color:var(--heading);font-size:14px}
     .actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
-    .chip{border:1px solid var(--line,#d1dae3);background:var(--card,#fff);border-radius:999px;padding:7px 11px;font-size:13px;font-weight:700;color:var(--heading,#0a4f4f)}
-    .facts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 0 16px}
-    .fact{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:12px;padding:12px}
-    .fact b{display:block;color:var(--heading,#0a4f4f)}
-    .fact span{font-size:13px;color:var(--muted,#6b7c8f)}
-    .sec{margin:0 0 8px;color:var(--muted,#6b7c8f);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-    .step{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:14px;padding:14px;margin:0 0 10px;display:grid;grid-template-columns:36px 1fr;gap:12px}
+    .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 11px;font-size:13px;font-weight:700;color:var(--heading)}
+    .facts,.map,.words{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
+    .facts{grid-template-columns:1fr 1fr 1fr 1fr}
+    .fact,.card,.map a{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .fact b,.card b,.map a b{display:block;color:var(--heading);margin-bottom:4px}
+    .fact span,.card span,.map a span{font-size:13px;color:var(--muted);font-weight:600}
+    .map a{text-decoration:none;color:inherit;min-height:44px}
+    .sec{margin:0 0 8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 10px;display:grid;grid-template-columns:36px 1fr;gap:12px}
     .n{width:36px;height:36px;border-radius:50%;background:#119494;color:#fff;display:grid;place-items:center;font-weight:800}
-    .n.o{background:var(--orange,#f39c12)}
-    .step p{font-size:14px;color:var(--muted,#6b7c8f);margin-top:4px}
-    .step a{color:var(--teal,#0d6b6b);font-weight:700}
-    .words{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
-    .card{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:12px;padding:12px}
-    .card b{display:block;color:var(--heading,#0a4f4f);margin-bottom:4px}
-    .card span{font-size:13px;color:var(--muted,#6b7c8f)}
+    .n.o{background:var(--orange)}
+    .step p{font-size:14px;color:var(--muted);margin-top:4px}
+    .step a{color:var(--teal);font-weight:700}
     .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .btn{border:0;border-radius:10px;padding:12px 16px;background:var(--orange,#f39c12);color:#0c1116;font-weight:700;display:inline-flex;align-items:center;min-height:44px}
-    .quiet{background:var(--card,#fff);color:var(--teal,#0d6b6b);border:1px solid var(--line,#d1dae3)}
-    .note{font-size:13px;color:var(--muted,#6b7c8f);margin-top:12px}
-    .phone{display:none;background:var(--edit,#eef7f7);border:1px solid var(--line,#d1dae3);border-radius:14px;padding:14px;margin:0 0 16px}
-    .phone b{display:block;color:var(--heading,#0a4f4f);margin-bottom:4px}
-    .phone p{font-size:14px;color:var(--muted,#6b7c8f);margin:0 0 10px}
+    .btn{border:0;border-radius:10px;padding:12px 16px;background:var(--orange);color:#0c1116;font-weight:700;display:inline-flex;align-items:center;justify-content:center;min-height:44px}
+    .quiet{background:var(--card);color:var(--teal);border:1px solid var(--line)}
+    .note{font-size:13px;color:var(--muted);margin-top:12px}
+    .phone{display:none;background:var(--edit);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 16px}
+    .phone b{display:block;color:var(--heading);margin-bottom:4px}
+    .phone p{font-size:14px;color:var(--muted);margin:0 0 10px}
     .phone .cta{margin:0}
-    .practice{background:var(--card,#fff);border:1px solid var(--line,#d1dae3);border-radius:16px;padding:14px;margin:0 0 16px}
-    .practice .meta{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--teal,#0d6b6b);margin:0 0 6px}
+    .practice{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:0 0 16px}
+    .practice .meta{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin:0 0 6px}
     .practice h2{margin:0 0 4px}
-    .practice .who{font-size:13px;color:var(--muted,#6b7c8f);margin:0 0 10px}
-    .draft{background:var(--bg-soft,#f4f7f8);border:1px dashed var(--line,#d1dae3);border-radius:12px;padding:12px;font-size:14px;color:var(--ink,#1a2332);line-height:1.4;margin:0 0 12px}
+    .practice .who{font-size:13px;color:var(--muted);margin:0 0 10px}
+    .draft{background:var(--bg-soft);border:1px dashed var(--line);border-radius:12px;padding:12px;font-size:14px;color:var(--ink);line-height:1.4;margin:0 0 12px}
     .taps{display:flex;flex-wrap:wrap;gap:8px}
     .taps button,.taps a{
-      border:1px solid var(--line,#d1dae3);background:var(--card,#fff);color:var(--heading,#0a4f4f);
+      border:1px solid var(--line);background:var(--card);color:var(--heading);
       border-radius:12px;padding:10px 14px;min-height:44px;font:700 14px system-ui,sans-serif;
       display:inline-flex;align-items:center;cursor:pointer
     }
-    .taps .go{background:var(--orange,#f39c12);border-color:var(--orange,#f39c12);color:#0c1116}
+    .taps .go{background:var(--orange);border-color:var(--orange);color:#0c1116}
     .taps .stop{border-color:#e8b4b4;color:#8a3030}
-    .practice .result{font-size:13px;color:var(--muted,#6b7c8f);margin:10px 0 0;min-height:1.2em}
+    .practice .result{font-size:13px;color:var(--muted);margin:10px 0 0;min-height:1.2em}
     .practice.stopped{opacity:.72}
-    @media(max-width:700px){.facts,.words,.step,.shots{grid-template-columns:1fr}}
+    @media(max-width:800px){.facts{grid-template-columns:1fr 1fr}}
+    @media(max-width:700px){.facts,.words,.step,.shots,.map{grid-template-columns:1fr}}
+    @media(max-width:420px){
+      .cta .btn{width:100%}
+      .taps button,.taps a{flex:1 1 calc(50% - 8px);justify-content:center}
+    }
   </style>
 </head>
-<body>
-  <header>
+<body class="page-bg">
+  <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
       <a href="how.html">How</a>
       <a href="setup.html">Setup</a>
-      <a href="onboard.html">Open account</a>
+      <a href="onboard.html">Open desk</a>
       <a href="desk.html">Desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
@@ -109,7 +102,7 @@
       <p id="phoneCopy">Open the queue on that desk, or keep reading the first day.</p>
       <div class="cta">
         <a class="btn" id="phoneOpen" href="desk.html">Open the queue</a>
-        <a class="btn quiet" href="drop.html">Drop work</a>
+        <a class="btn quiet" href="drop.html#talk">Talk on Drop</a>
       </div>
     </div>
 
@@ -145,6 +138,7 @@
       <div class="fact"><b>Owner</b><span>Full admin on this login. Writes rules. Taps Stop. Approves who sits on the desk.</span></div>
       <div class="fact"><b>Member</b><span>Same account, one desk. Family, friend, helper, or staff at the permission the owner set.</span></div>
       <div class="fact"><b>The tap</b><span>Members work the queue. They do not Stop or send money.</span></div>
+      <div class="fact"><b>AI agent</b><span>Approved seat. Drafts on the card. Cannot Stop. Cannot move money. Not a public Bot API.</span></div>
     </div>
 
     <p class="sec">First day</p>
@@ -153,15 +147,15 @@
       <div>
         <h2>Open the account</h2>
         <p>Owner opens one secure AIA account and the first desk. Member asks to join that desk and waits on the owner for a permission. Free for now. Monthly later — we tell you before we charge. Desk name + desk code is the login. Email is not.</p>
-        <p><a href="onboard.html">Open the account →</a> · <a href="login.html">Already have one →</a></p>
+        <p><a href="onboard.html">Open the account →</a> · <a href="login.html">Already have one →</a> · <a href="pricing.html">Pricing →</a></p>
       </div>
     </article>
     <article class="step">
       <div class="n">2</div>
       <div>
         <h2>Same pair on the next phone</h2>
-        <p>Desk name + that person’s code. Do not share the owner code. Same queue. Owner still owns Stop and money.</p>
-        <p><a href="login.html">Sign in →</a></p>
+        <p>Desk name + that person’s code. Do not share the owner code. Same queue. Owner still owns Stop and money. One account can own desks and sit on others.</p>
+        <p><a href="login.html">Sign in →</a> · <a href="account.html">Your account →</a></p>
       </div>
     </article>
     <article class="step">
@@ -169,20 +163,31 @@
       <div>
         <h2>Drop the work</h2>
         <p>Same queue. Your words. A school form, a photo, a missed call, a neighbor text, a custom job.</p>
-        <p><b>Drop</b> — type it or talk it. Lands as a card.</p>
-        <p><b>Talk on the desk</b> — say the work. The draft stays on the card until you send it.</p>
-        <p><b>Create</b> — another kind of work, a person, or a rule. Same desk.</p>
-        <p><b>A pipe</b> — optional. Skip it if you just want the list.</p>
-        <p><a href="drop.html">Drop →</a> · <a href="desk.html">Queue →</a> · <a href="rules.html">Rules →</a></p>
+        <p><b>Talk on Drop</b> — say it or type it. The desk asks what’s missing. You say drop it. Lands as a card.</p>
+        <p><b>Create</b> — another kind of work, a person, a rule, or another desk.</p>
+        <p><b>A pipe</b> — optional. Webhook is the live cross-internet pipe. Named vendors wait on keys. Skip it if you just want the list.</p>
+        <p><a href="drop.html#talk">Talk on Drop →</a> · <a href="desk.html">Queue →</a> · <a href="rules.html">Rules →</a></p>
       </div>
     </article>
     <article class="step">
       <div class="n o">4</div>
       <div>
         <h2>Send what you approve</h2>
-        <p>The desk wrote the reminder, estimate, or text. Copy the draft, text it, email it, or hand it to someone. Stop cancels it. Money waits only if you wrote that rule. New drops pick up the current rules.</p>
+        <p>The desk wrote the reminder, estimate, or text. Copy the draft, text it, email it, or hand it to someone. Buttons follow what the card needs — not a fixed Yes/No row. Stop cancels it. Money waits only if you wrote that rule. New drops pick up the current rules.</p>
       </div>
     </article>
+
+    <p class="sec">On this desk</p>
+    <div class="map">
+      <a href="desk.html"><b>Queue</b><span>Cards waiting. Copy, text, email, hand to, or Stop when the card is ready.</span></a>
+      <a href="drop.html#talk"><b>Drop · Talk</b><span>Say the work. The desk asks what’s missing. Nobody sends money from here.</span></a>
+      <a href="history.html"><b>History</b><span>Need you, doing, waiting on, ext, done. One desk or every desk on this phone.</span></a>
+      <a href="rules.html"><b>Rules</b><span>Wait, stop, or note. Fresh desks start empty. Add a rule if you need one.</span></a>
+      <a href="connections.html"><b>Pipes</b><span>Search a site. Webhook is live. Draft accounts draft only. Log in does not send.</span></a>
+      <a href="admin.html"><b>People</b><span>Invite family, friend, helper, staff, or an AI agent. Owner approves the seat.</span></a>
+      <a href="account.html"><b>Account</b><span>Photo, name, desks, plan. One login. Email is not the login.</span></a>
+      <a href="create.html"><b>Create</b><span>Job, capture, custom work, teammate, guardrail, or another desk.</span></a>
+    </div>
 
     <p class="sec">This week might be</p>
     <div class="words">
@@ -200,6 +205,17 @@
     </div>
     <p class="note">The practice card is a sample. A real card only leaves when you copy it, text it, email it, or hand it off.</p>
   </main>
+  <footer class="site-foot">
+    <p>© 2026 Automate It Away</p>
+    <nav>
+      <a href="how.html">How</a>
+      <a href="setup.html">Setup</a>
+      <a href="help.html">Help</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="legal.html">Legal</a>
+      <a href="status.html">Status</a>
+    </nav>
+  </footer>
   <script src="theme.js"></script>
   <script src="speech.js"></script>
   <script src="desk-switch.js"></script>
@@ -270,7 +286,7 @@
         "Open one account. Owner runs the desk. Member asks to join and waits on the owner.",
         "Desk name and desk code is the login. Email is not.",
         "There is a practice card on this page. Copy the draft, text it, email it, hand it, or stop it. Nothing leaves on its own.",
-        "Drop a school form, a missed call, or a neighbor text. It lands on one queue.",
+        "Talk lives on Drop. Say the work. The desk asks what is missing. Then you drop it.",
         "The desk drafts the words. You copy it, text it, email it, or hand it off.",
         "Nothing leaves on its own. Stop is the owner cancel. Add a rule if you need one."
       ];
