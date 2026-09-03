@@ -57,7 +57,7 @@
     var custom = j.custom || {};
     var raw = j.pack || custom.pack || (custom.packs && custom.packs[0]) || "";
     var s = String(raw || "").toLowerCase();
-    if (s === "insurance" || s === "quote") s = "vita";
+    if (s === "insurance" || s === "quote" || s === "year2" || s === "missed-call") s = "vita";
     if (s === "family") s = "home";
     if (s === "resale" || s === "consignment") s = "consign";
     return FACES[s] ? s : "";
@@ -79,7 +79,7 @@
   }
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
+      return ({ "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;" })[c];
     });
   }
   function badgeHtml(j) {
