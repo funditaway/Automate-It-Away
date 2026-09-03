@@ -9,7 +9,7 @@ function pass(msg) { console.log("ok  " + msg); }
 
 const root = path.join(__dirname, "..");
 const pages = ["desk.html", "widget.html", "connections.html", "help.html", "rules.html", "more.html"];
-const need = ["Queue", "Drop", "Rules", "Pipes", "More", "has-desk-nav", "id=\"desk-nav\""];
+const need = ["Queue", "Drop", "More", "has-desk-nav", "id=\"desk-nav\""];
 
 pages.forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");
@@ -25,14 +25,21 @@ pages.forEach((file) => {
 
 const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
 if (!desk.includes("desk-tabs")) fail("desk.html missing header tabs");
-else pass("desk header shows Queue · Drop · Rules · Pipes · More");
+else pass("desk header shows Queue · Drop · History · People · More");
+if (!desk.includes("data-tab=\"history\"") || !desk.includes("data-tab=\"people\"")) {
+  fail("desk.html missing History / People tabs");
+} else pass("desk tabs are Queue Drop History People More");
+const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
+if (!widget.includes("data-tab=\"history\"") || !widget.includes("data-tab=\"people\"")) {
+  fail("widget.html missing History / People tabs");
+} else pass("drop tabs are Queue Drop History People More");
 pages.concat(["desk-nav.js"]).forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");
   if (html.includes("/desk#rules") && file !== "desk-nav.js") fail(file + " still links Rules to /desk#rules");
 });
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
-if (!nav.includes("href: \"/rules\"")) fail("desk-nav.js Rules href is not /rules");
-else pass("Rules tab href is /rules");
+if (!nav.includes("href: \"/history\"") || !nav.includes("href: \"/people\"")) fail("desk-nav.js missing History / People hrefs");
+else pass("History and People hrefs are set");
 if (!nav.includes("href: \"/more\"") || !nav.includes("name === \"more\"")) fail("desk-nav.js More href is not /more");
 else pass("More tab href is /more");
 if (!nav.includes("href: \"/drop\"") || !nav.includes("return \"/drop\"")) fail("desk-nav.js Drop href is not /drop");

@@ -1,7 +1,7 @@
 (function () {
   function esc(s) {
     return String(s || "").replace(/[&<>"]/g, function (c) {
-      return ({ "&": "&", "<": "<", ">": ">", '"': """ })[c];
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
     });
   }
   window.handoffLine = window.handoffLine || function (j) {
