@@ -15,30 +15,35 @@
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
     .meta,.muted{font-size:13px;color:var(--muted)}
     .row{display:flex;gap:8px;flex-wrap:wrap}
-    button,.go,.edit{border:0;border-radius:9px;padding:10px 12px;font-weight:700;min-height:44px;font-family:inherit}
+    button,.go,.edit{border:0;border-radius:9px;padding:10px 12px;font-weight:700;min-height:44px;font-family:inherit;cursor:pointer}
     .go{background:#f39c12;color:#fff}
     .edit{background:var(--card);border:1px solid var(--line)}
     input{min-height:44px;border-radius:10px;border:1px solid var(--line);padding:8px 10px;width:100%;box-sizing:border-box;font:inherit}
     label{display:block;font-size:13px;margin:8px 0 4px}
     .item{border-top:1px solid var(--line);padding:8px 0}
     .err{color:#b42318;display:none}
+    .ok{color:#0d6b6b;font-size:13px}
     .you-row{display:flex;gap:14px;align-items:center}
     .you-pic{width:72px;height:72px;border-radius:50%;border:0;padding:0;overflow:hidden;background:var(--edit);color:var(--edit-ink);font:700 22px/72px "Segoe UI",system-ui,sans-serif;text-align:center;cursor:pointer;flex:0 0 72px}
     .you-pic img{width:72px;height:72px;object-fit:cover;display:block}
     .links{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
     .links a{color:var(--teal);font-weight:700}
+    .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+    .facts p{margin:0;font-size:13px}
+    .facts b{display:block;font-size:12px;color:var(--muted);font-weight:600}
+    @media (max-width:420px){.facts{grid-template-columns:1fr}}
   </style>
 </head>
 <body class="page-bg">
   <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
-    <div class="nav"><a href="more.html">More</a><a href="admin.html">People</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></div>
+    <div class="nav"><a href="more.html">More</a><a href="login.html">Sign in</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></div>
   </header>
   <main class="wrap">
     <h1>Your account</h1>
-    <p class="muted">Photo and name sit in the top right on every page. Desk name + desk code is still the login. Email is not.</p>
+    <p class="muted">One AIA account. Desk name + code, or email + password. We do not email a reset code. Owner taps stay on the owner seat.</p>
     <div class="banner" id="plan">AIA plan · free</div>
-    <div class="card" id="you-card">
+    <div class="card">
       <h2>You</h2>
       <div class="you-row">
         <button type="button" class="you-pic" id="pic-btn" aria-label="Change photo">AIA</button>
@@ -46,115 +51,180 @@
         <div style="flex:1;min-width:0">
           <label for="you-name">Your name</label>
           <input id="you-name" maxlength="80" placeholder="What this phone should call you">
-          <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
         </div>
       </div>
-      <p class="meta" id="you-hint" style="margin-top:10px">Tap the circle to add a photo from this phone.</p>
-      <div class="links">
-        <a href="/more">More</a>
-        <a href="/desks">Your desks</a>
-        <a href="/admin">People</a>
-        <a href="#" id="leave-phone">Leave this phone</a>
-      </div>
+      <label for="you-email">Email</label>
+      <input id="you-email" type="email" placeholder="you@shop.com">
+      <label for="you-phone">Phone</label>
+      <input id="you-phone" maxlength="32" placeholder="417-555-0100">
+      <label for="you-city">City</label>
+      <input id="you-city" maxlength="60" placeholder="Springfield">
+      <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
+      <p class="meta" id="you-hint">Tap the circle for a photo.</p>
+      <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/admin">People</a><a href="#" id="leave-phone">Leave this phone</a></div>
     </div>
     <form class="card" id="gate">
-      <h2>Saved login</h2>
-      <p class="meta">Desk name + your code. Owner or member. Email is not the login.</p>
-      <label>Account or desk name</label>
-      <input id="slug" required>
-      <label>Your code</label>
-      <input id="pin" required inputmode="numeric" minlength="4">
+      <h2>Open the account</h2>
+      <p class="meta">Either door. Same book.</p>
+      <div class="row">
+        <button type="button" class="go" id="use-desk">Desk name + code</button>
+        <button type="button" class="edit" id="use-email">Email + password</button>
+      </div>
+      <div id="gate-desk">
+        <label>Account or desk name</label>
+        <input id="slug">
+        <label>Your code</label>
+        <input id="pin" inputmode="numeric" minlength="4">
+      </div>
+      <div id="gate-email" hidden>
+        <label>Email</label>
+        <input id="gate-mail" type="email">
+        <label>Password</label>
+        <input id="gate-pass" type="password" minlength="8">
+      </div>
       <p><button class="go" type="submit">Open the account</button></p>
       <p class="err" id="err"></p>
     </form>
     <div id="home" hidden>
+      <div class="card" id="facts"></div>
+      <div class="card">
+        <h2>Email + password</h2>
+        <p class="meta">Hashed. Desk code still works. No email reset.</p>
+        <label>Email for this login</label>
+        <input id="pw-email" type="email">
+        <label>Current password or desk code</label>
+        <input id="pw-now" type="password">
+        <label>New password</label>
+        <input id="pw-next" type="password" minlength="8">
+        <p><button class="go" type="button" id="save-pass">Save password</button></p>
+        <p class="meta" id="pw-hint"></p>
+      </div>
       <div class="card"><h2>AIA subscription</h2><div class="row" id="plans"></div></div>
       <div class="card" id="owned"></div>
       <div class="card" id="member"></div>
     </div>
   </main>
   <script src="theme.js"></script>
+  <script src="desk-switch.js"></script>
   <script>
-    const slugEl=document.getElementById("slug"); const pinEl=document.getElementById("pin"); const err=document.getElementById("err");
-    const youName=document.getElementById("you-name"); const picBtn=document.getElementById("pic-btn"); const picFile=document.getElementById("pic-file"); const youHint=document.getElementById("you-hint");
+    const slugEl=document.getElementById("slug");
+    const pinEl=document.getElementById("pin");
+    const err=document.getElementById("err");
+    const youName=document.getElementById("you-name");
+    const youEmail=document.getElementById("you-email");
+    const youPhone=document.getElementById("you-phone");
+    const youCity=document.getElementById("you-city");
+    const picBtn=document.getElementById("pic-btn");
+    const picFile=document.getElementById("pic-file");
+    const youHint=document.getElementById("you-hint");
+    let door="desk";
     slugEl.value=localStorage.getItem("aia_desk_name")||localStorage.getItem("aia_ws")||"";
-    pinEl.value=localStorage.getItem("aia_pin")||"";
     youName.value=localStorage.getItem("aia_name")||"";
+    youEmail.value=localStorage.getItem("aia_email")||"";
+    document.getElementById("gate-mail").value=localStorage.getItem("aia_email")||"";
+    document.getElementById("use-desk").onclick=function(){door="desk";document.getElementById("gate-desk").hidden=false;document.getElementById("gate-email").hidden=true;this.className="go";document.getElementById("use-email").className="edit";};
+    document.getElementById("use-email").onclick=function(){door="email";document.getElementById("gate-desk").hidden=true;document.getElementById("gate-email").hidden=false;this.className="go";document.getElementById("use-desk").className="edit";};
     function paintPic(){
       const src=localStorage.getItem("aia_photo")||"";
-      const name=youName.value||localStorage.getItem("aia_name")||"You";
+      const name=youName.value||"You";
       const letters=window.AIATheme&&AIATheme.initials?AIATheme.initials(name):name.slice(0,2).toUpperCase();
       if(src) picBtn.innerHTML="<img alt=\"\" src=\""+src.replace(/\"/g,"")+"\">";
       else picBtn.textContent=letters||"AIA";
     }
     paintPic();
-    function shrinkPhoto(file){
-      return new Promise(function(resolve,reject){
-        const img=new Image(); const url=URL.createObjectURL(file);
-        img.onload=function(){
-          const scale=256/Math.max(img.width,img.height,1);
-          const canvas=document.createElement("canvas");
-          canvas.width=Math.max(1,Math.round(img.width*Math.min(1,scale)));
-          canvas.height=Math.max(1,Math.round(img.height*Math.min(1,scale)));
-          canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-          URL.revokeObjectURL(url); resolve(canvas.toDataURL("image/jpeg",0.72));
-        };
-        img.onerror=function(){URL.revokeObjectURL(url);reject(new Error("That photo would not open."));};
-        img.src=url;
-      });
-    }
     picBtn.onclick=function(){picFile.click();};
     picFile.onchange=async function(){
       const file=picFile.files&&picFile.files[0]; if(!file) return;
-      try{
-        const data=await shrinkPhoto(file);
-        localStorage.setItem("aia_photo",data); paintPic(); if(window.AIATheme) AIATheme.paintWho();
-        youHint.textContent="Photo is on this phone. Save profile to keep the name with it.";
-      }catch(ex){ youHint.textContent=ex.message||"Could not use that photo."; }
+      const img=new Image(); const url=URL.createObjectURL(file);
+      img.onload=function(){
+        const scale=256/Math.max(img.width,img.height,1);
+        const canvas=document.createElement("canvas");
+        canvas.width=Math.max(1,Math.round(img.width*Math.min(1,scale)));
+        canvas.height=Math.max(1,Math.round(img.height*Math.min(1,scale)));
+        canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+        URL.revokeObjectURL(url);
+        localStorage.setItem("aia_photo",canvas.toDataURL("image/jpeg",0.72));
+        paintPic();
+      };
+      img.src=url;
     };
-    document.getElementById("save-you").onclick=async function(){
-      const name=String(youName.value||"").trim().slice(0,80);
-      if(name) localStorage.setItem("aia_name",name);
-      paintPic(); if(window.AIATheme) AIATheme.paintWho();
-      youHint.textContent="Saved on this phone.";
-      const slug=localStorage.getItem("aia_ws")||""; const pin=localStorage.getItem("aia_pin")||"";
-      if(!slug||!pin) return;
-      try{
-        await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json","X-Workspace":slug,"X-Pin":pin},body:JSON.stringify({action:"profile",name:name,photoUrl:localStorage.getItem("aia_photo")||""})});
-      }catch(e){}
-    };
-    document.getElementById("leave-phone").onclick=function(e){
-      e.preventDefault();
-      ["aia_ws","aia_pin","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name"].forEach(function(k){localStorage.removeItem(k);});
-      if(window.AIATheme) AIATheme.paintWho();
-      location.href="/login";
-    };
-    function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&","<":"<",">":">","\"":"""})[c];});}
+    function hdr(slug,pin){
+      const h={"Content-Type":"application/json"};
+      if(slug) h["X-Workspace"]=slug;
+      const tok=localStorage.getItem("aia_session")||"";
+      if(tok) h["X-Session"]=tok; else if(pin) h["X-Pin"]=pin;
+      return h;
+    }
+    function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c];});}
     function paint(d){
-      document.getElementById("gate").hidden=true; document.getElementById("home").hidden=false;
-      const plan=d.plan||{}; document.getElementById("plan").textContent="AIA plan · "+(plan.name||plan.plan||"Desk")+" · active · free";
+      document.getElementById("gate").hidden=true;
+      document.getElementById("home").hidden=false;
+      const acc=d.account||{}; const plan=d.plan||{};
+      document.getElementById("plan").textContent="AIA plan · "+(plan.name||plan.plan||"Pro")+" · free";
+      document.getElementById("facts").innerHTML="<h2>Account book</h2><div class=\"facts\">"+
+        "<p><b>Account</b>"+esc(acc.name||"—")+"</p>"+
+        "<p><b>Email</b>"+esc(acc.email||"Not set")+"</p>"+
+        "<p><b>Phone</b>"+esc(acc.phone||"Not set")+"</p>"+
+        "<p><b>City</b>"+esc(acc.city||"—")+"</p>"+
+        "<p><b>Password door</b>"+(acc.hasPassword?"On":"Off")+"</p>"+
+        "<p><b>Opened</b>"+esc((acc.createdAt||"").slice(0,10)||"—")+"</p></div>";
+      if(acc.email){youEmail.value=acc.email;document.getElementById("pw-email").value=acc.email;localStorage.setItem("aia_email",acc.email);}
+      if(acc.phone) youPhone.value=acc.phone;
+      if(acc.city) youCity.value=acc.city;
       const catalog=d.plans||plan.catalog||[];
-      document.getElementById("plans").innerHTML=catalog.map(function(p){const on=p.id===(plan.plan||d.active); return "<button type=\"button\" class=\""+(on?"go":"edit")+"\" data-plan=\""+esc(p.id)+"\">"+esc(p.name)+(on?" · active":"")+"</button>";}).join("");
+      document.getElementById("plans").innerHTML=catalog.map(function(p){const on=p.id===(plan.plan||d.active);return "<button type=\"button\" class=\""+(on?"go":"edit")+"\" data-plan=\""+esc(p.id)+"\">"+esc(p.name)+(on?" · active":"")+"</button>";}).join("");
       Array.prototype.forEach.call(document.querySelectorAll("#plans [data-plan]"),function(btn){btn.onclick=function(){act("plan",{plan:btn.getAttribute("data-plan")});};});
       const owned=d.desksOwned||(d.mine&&d.mine.owned)||[];
       document.getElementById("owned").innerHTML="<h2>Desks you own</h2>"+(owned.length?owned.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">Owner</div></div>";}).join(""):"<p class=\"meta\">Open a desk as owner.</p>");
       const sitting=d.desksMember||(d.mine&&d.mine.member)||[];
-      document.getElementById("member").innerHTML="<h2>Desks you sit on</h2>"+(sitting.length?sitting.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">"+esc(w.kind)+(w.requestedKind?" · asked "+esc(w.requestedKind):"")+"</div><button type=\"button\" class=\"edit\" data-ask=\""+esc(w.slug)+"\" data-kind=\"staff\">Ask for staff</button></div>";}).join(""):"<p class=\"meta\">Join a desk as a member. Your account stays yours.</p>");
-      Array.prototype.forEach.call(document.querySelectorAll("[data-ask]"),function(btn){btn.onclick=function(){act("ask",{kind:btn.getAttribute("data-kind")},btn.getAttribute("data-ask"));};});
-      if(d.you&&d.you.name){localStorage.setItem("aia_name",d.you.name);youName.value=d.you.name;}
-      if(d.you&&d.you.photoUrl) localStorage.setItem("aia_photo",d.you.photoUrl);
-      paintPic(); if(window.AIATheme) AIATheme.paintWho();
+      document.getElementById("member").innerHTML="<h2>Desks you sit on</h2>"+(sitting.length?sitting.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">"+esc(w.kind)+"</div></div>";}).join(""):"<p class=\"meta\">Join a desk as a member.</p>");
     }
-    async function act(action, extra, desk){
-      const slug=String((desk||slugEl.value)||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-      const r=await fetch("/api/admin",{method:"POST",headers:{"Content-Type":"application/json","X-Workspace":slug,"X-Pin":pinEl.value},body:JSON.stringify(Object.assign({action:action,slug:slug,pin:pinEl.value},extra||{}))});
+    document.getElementById("save-you").onclick=async function(){
+      if(youName.value) localStorage.setItem("aia_name",youName.value);
+      if(youEmail.value) localStorage.setItem("aia_email",youEmail.value);
+      paintPic();
+      const slug=localStorage.getItem("aia_ws")||"";
+      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
       const d=await r.json().catch(function(){return {};});
-      if(!r.ok){err.style.display="block";err.textContent=d.error||"Could not save.";return;}
-      if(action==="ask"){err.style.display="block";err.textContent=d.hint||"On the owner queue.";return;}
-      localStorage.setItem("aia_ws",slug); localStorage.setItem("aia_pin",pinEl.value);
+      youHint.textContent=r.ok?"Saved on the account.":(d.error||"Saved on this phone.");
+    };
+    document.getElementById("save-pass").onclick=async function(){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value;
+      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
+      const d=await r.json().catch(function(){return {};});
+      document.getElementById("pw-hint").textContent=r.ok?(d.hint||"Password saved."):(d.error||"Could not save.");
+      document.getElementById("pw-hint").className=r.ok?"ok":"meta";
+    };
+    document.getElementById("leave-phone").onclick=function(e){
+      e.preventDefault();
+      ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email"].forEach(function(k){localStorage.removeItem(k);});
+      location.href="/login";
+    };
+    async function act(action, extra){
+      const slug=String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pinEl.value),body:JSON.stringify(Object.assign({action:action,slug:slug,pin:pinEl.value},extra||{}))});
+      const d=await r.json().catch(function(){return {};});
+      if(!r.ok){err.style.display="block";err.textContent=d.error||"Could not open.";return;}
+      if(d.session&&d.session.token) localStorage.setItem("aia_session",d.session.token);
+      if(slug) localStorage.setItem("aia_ws",slug);
+      if(pinEl.value) localStorage.setItem("aia_pin",pinEl.value);
+      if(window.AIADesks&&AIADesks.keepSession) AIADesks.keepSession(d,pinEl.value);
       paint(d);
     }
-    document.getElementById("gate").onsubmit=async function(e){e.preventDefault();err.style.display="none";await act("login");};
+    document.getElementById("gate").onsubmit=async function(e){
+      e.preventDefault(); err.style.display="none";
+      if(door==="email"){
+        await act("login",{email:document.getElementById("gate-mail").value,password:document.getElementById("gate-pass").value});
+      } else {
+        await act("login");
+      }
+    };
+    if(localStorage.getItem("aia_session")){
+      fetch("/api/account",{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"",localStorage.getItem("aia_pin")||"")})
+        .then(function(r){return r.json();})
+        .then(function(d){if(d&&(d.ok||d.account)) paint(d);})
+        .catch(function(){});
+    }
   </script>
 </body>
 </html>
