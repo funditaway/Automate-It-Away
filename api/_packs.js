@@ -66,9 +66,7 @@ function listPack(row, body, person) {
   if (findPack(id)) return { ok: false, status: 409, error: "That pack name is already listed." };
   const pack = { id, name, family: String(body.family || (row && (row.biz || row.name)) || "Desk pack").slice(0, 48), does: String(body.does || "").trim().slice(0, 180), ask: ask > 0 ? ask : 0, official: false, workspace: row && row.slug, listedBy: (person && person.name) || "owner", rules: Array.isArray(body.rules) ? body.rules.slice(0, 8) : [], createdAt: new Date().toISOString() };
   listedOf().unshift(pack);
-  if (row) {
-    ensureCreations(row).unshift({ id, name, does: pack.does, share: ask > 0 ? "market" : "listed", price: pack.ask, rules: pack.rules, createdAt: pack.createdAt });
-  }
+  if (row) ensureCreations(row).unshift({ id, name, does: pack.does, share: ask > 0 ? "market" : "listed", price: pack.ask, rules: pack.rules, createdAt: pack.createdAt });
   return { ok: true, pack: publicPack(pack), note: pack.ask ? "Ask is a tag. No card charged." : "Listed. Free to use." };
 }
 function safeThen(then) {
@@ -90,6 +88,23 @@ function usePack(row, body, person) {
   row.model = pack.name || row.model;
   row.packId = pack.id;
   return { ok: true, preview: !!preview, charged: false, pack: publicPack(pack), added: added.length, rules: ensureRules(row), note: preview ? "Preview is on this desk. Ask was not charged. Packs do not send money." : "Pack rules are on this desk. Packs do not send money. You still tap Yes or No." };
+}
+function unlistPack(row, body) {
+  const id = String(body.id || body.pack || "").toLowerCase();
+  if (!id) return { ok: false, status: 400, error: "Name the pack to unlist." };
+  if (["home","consign","vita","fund","land"].indexOf(id) >= 0) return { ok: false, status: 403, error: "Official packs stay listed." };
+  if (!Array.isArray(mem.listedPacks)) mem.listedPacks = [];
+  const before = mem.listedPacks.length;
+  mem.listedPacks = mem.listedPacks.filter((p) => {
+    if (!p || String(p.id).toLowerCase() !== id) return true;
+    if (p.workspace && row && p.workspace !== row.slug) return true;
+    return false;
+  });
+  if (row) (row.creations || []).forEach((c) => { if (c && String(c.id).toLowerCase() === id) c.share = "private"; });
+  if (mem.listedPacks.length === before && !(row && (row.creations || []).some((c) => c && String(c.id).toLowerCase() === id))) {
+    return { ok: false, status: 404, error: "No listed pack with that name on this desk." };
+  }
+  return { ok: true, charged: false, note: "Pack is private again. Search will not show it." };
 }
 
 async function handler(req, res) {
@@ -113,6 +128,12 @@ async function handler(req, res) {
   if (!row) return res.status(404).json({ ok: false, error: "Open a desk first." });
   if (!person) return res.status(401).json({ ok: false, error: "Desk code required." });
   if (!isOwner(person)) return res.status(403).json({ ok: false, error: "Only the owner can list or use a pack." });
+  if (action === "unlist" || action === "unlist-pack") {
+    const out = unlistPack(row, body);
+    if (!out.ok) return res.status(out.status || 400).json(out);
+    await save();
+    return res.status(200).json(out);
+  }
   if (action === "list" || action === "list-pack" || action === "publish-pack") {
     const out = listPack(row, body, person);
     if (!out.ok) return res.status(out.status || 400).json(out);
@@ -128,12 +149,13 @@ async function handler(req, res) {
   if (action === "buy" || action === "checkout" || action === "install-paid") {
     return res.status(409).json({ ok: false, preview: true, charged: false, error: "Priced packs stay a tag. No card. Preview it instead." });
   }
-  return res.status(400).json({ ok: false, error: "action must be packs, list-pack, use-pack, or preview-pack" });
+  return res.status(400).json({ ok: false, error: "action must be packs, list-pack, unlist-pack, use-pack, or preview-pack" });
 }
 
 module.exports = handler;
 module.exports.searchPacks = searchPacks;
 module.exports.listPack = listPack;
+module.exports.unlistPack = unlistPack;
 module.exports.usePack = usePack;
 module.exports.findPack = findPack;
 module.exports.publicPack = publicPack;
