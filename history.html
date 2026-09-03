@@ -30,12 +30,12 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 .sheet h2{margin:0 0 8px;font-size:1.1rem}
 .kv{display:grid;grid-template-columns:90px 1fr;gap:6px 10px;font-size:13px;margin:10px 0}
 .kv b{color:var(--muted);font-weight:700}
-#who-chip[hidden]{display:none!important}
+#who-filter[hidden]{display:none!important}
 </style>
 </head>
 <body class="has-desk-nav">
 <header>
-<a href="index.html">Automate It Away</a>
+<a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
 <nav class="desk-tabs" aria-label="Desk tabs">
 <a href="/desk" data-tab="queue">Queue</a>
 <a href="/drop" data-tab="drop">Drop</a>
@@ -102,7 +102,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 </div>
 </div>
 <div class="logic" id="logic">Showing every card this phone can open.</div>
-<div class="chips" id="who-chip" hidden>
+<div class="chips" id="who-filter" hidden>
 <button type="button" id="who-label">Person</button>
 <a id="who-people" href="/people">Open on People</a>
 <button type="button" id="who-clear">Clear person</button>
@@ -184,7 +184,7 @@ function paint(){
  document.querySelectorAll("#flags [data-flag]").forEach(function(b){b.classList.toggle("on",!!flags[b.getAttribute("data-flag")]);});
  document.querySelectorAll("#lanes button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-lane")===lane);});
  document.querySelectorAll("#whens button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-when")===when);});
- document.getElementById("who-chip").hidden=!who;
+ document.getElementById("who-filter").hidden=!who;
  document.getElementById("who-label").textContent=who?("Person · "+who):"Person";
  document.getElementById("who-people").href="/people?who="+encodeURIComponent(who||"");
  document.getElementById("logic").textContent=logicLine();

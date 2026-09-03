@@ -37,7 +37,7 @@
 <body class="page-bg">
   <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
-    <div class="nav"><a href="more.html">More</a><a href="login.html">Sign in</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></div>
+    <div class="nav"><a href="more.html">More</a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></div>
   </header>
   <main class="wrap">
     <h1>Your account</h1>
@@ -61,7 +61,7 @@
       <input id="you-city" maxlength="60" placeholder="Springfield">
       <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
       <p class="meta" id="you-hint">Tap the circle for a photo.</p>
-      <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/admin">People</a><a href="#" id="leave-phone">Leave this phone</a></div>
+      <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="#" id="leave-phone">Leave this phone</a></div>
     </div>
     <form class="card" id="gate">
       <h2>Open the account</h2>
@@ -184,19 +184,22 @@
       if(youEmail.value) localStorage.setItem("aia_email",youEmail.value);
       paintPic();
       const slug=localStorage.getItem("aia_ws")||"";
-      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
       const d=await r.json().catch(function(){return {};});
       youHint.textContent=r.ok?"Saved on the account.":(d.error||"Saved on this phone.");
     };
     document.getElementById("save-pass").onclick=async function(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value;
-      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
       const d=await r.json().catch(function(){return {};});
       document.getElementById("pw-hint").textContent=r.ok?(d.hint||"Password saved."):(d.error||"Could not save.");
       document.getElementById("pw-hint").className=r.ok?"ok":"meta";
     };
-    document.getElementById("leave-phone").onclick=function(e){
+    document.getElementById("leave-phone").onclick=async function(e){
       e.preventDefault();
+      try{
+        await fetch("/api/account",{method:"POST",headers:hdr(localStorage.getItem("aia_ws")||"",localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"logout"})});
+      }catch(e){}
       ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email"].forEach(function(k){localStorage.removeItem(k);});
       location.href="/login";
     };

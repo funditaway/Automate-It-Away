@@ -219,6 +219,7 @@
     if (document.body && document.body.classList.contains("embed")) return;
     if (header.classList.contains("top") && header.querySelector(".who")) return;
     var chip = document.getElementById("who-chip");
+    if (chip && chip.tagName !== "A") chip = null;
     if (!chip) {
       chip = document.createElement("a");
       chip.id = "who-chip";
@@ -251,7 +252,21 @@
     }
     chip.innerHTML = '<span class="who-copy"><strong>Sign in</strong></span>';
     chip.href = "/login";
-    chip.title = "Open this desk";
+    chip.title = "Desk name + code · Open this desk";
+  }
+  function hideDupSignIn() {
+    var header = document.querySelector("header, .site-header");
+    if (!header) return;
+    header.querySelectorAll("a").forEach(function (a) {
+      if (a.id === "who-chip") return;
+      if (a.closest(".desk-tabs")) return;
+      var href = String(a.getAttribute("href") || "").toLowerCase();
+      var text = String(a.textContent || "").trim().toLowerCase();
+      if (href.indexOf("login") >= 0 || href.indexOf("onboard") >= 0 || text === "sign in") {
+        a.style.display = "none";
+        a.setAttribute("aria-hidden", "true");
+      }
+    });
   }
   var SITE_LINKS = [
     { id: "how", href: "/how", label: "How" },
@@ -321,6 +336,7 @@
     ensureBtn();
     paintSiteNav();
     paintWho();
+    hideDupSignIn();
     paintFooter();
     liftChrome(document.querySelector("header, .site-header"));
     var brandHost = document.querySelector(".site-header > a, header > a.brand, header > a, header .logo, header .brand");
@@ -339,6 +355,17 @@
         var strong = brandHost.querySelector("strong");
         if (strong) {
           strong.classList.add("brand-name");
+        } else {
+          var textNodes = Array.prototype.filter.call(brandHost.childNodes, function (n) {
+            return n && n.nodeType === 3 && String(n.nodeValue || "").trim();
+          });
+          if (textNodes.length) {
+            var nameWrap = document.createElement("span");
+            nameWrap.className = "brand-name";
+            nameWrap.textContent = textNodes.map(function (n) { return n.nodeValue; }).join(" ").replace(/\s+/g, " ").trim();
+            brandHost.insertBefore(nameWrap, textNodes[0]);
+            textNodes.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+          }
         }
       }
       if (!brandHost.querySelector(".brand-short")) {

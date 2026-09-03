@@ -88,6 +88,10 @@ body.has-desk-nav header .nav.site-nav {
 }
 
 @media (max-width: 640px) {
+  header a:not(#who-chip)[href*="login"],
+  .site-header a:not(#who-chip)[href*="login"] {
+    display: none !important;
+  }
   header .brand-name,
   .site-header .brand-name,
   header > a strong,
@@ -107,6 +111,12 @@ body.has-desk-nav header .nav.site-nav {
   header nav.site-nav a[href="onboard.html"],
   header .nav.site-nav a[href="onboard.html"] {
     display: none !important;
+  }
+  .theme-btn {
+    min-width: 46px !important;
+    min-height: 40px !important;
+    padding: 6px 9px !important;
+    font-size: 12px !important;
   }
 }
 
@@ -149,6 +159,15 @@ button[data-jump] .v {
   color: var(--ink);
   white-space: normal;
 }
+
+#gate button.go {
+  background: #119494 !important;
+  color: #fff !important;
+}
+
+.kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
 @media (max-width: 720px) {
   .verify-cells { grid-template-columns: 1fr; }
 }
@@ -166,6 +185,12 @@ button[data-jump] .v {
   body.has-desk-nav main,
   body.has-desk-nav .wrap {
     padding-bottom: 16px;
+  }
+  .sheet {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+  .sheet-card {
+    margin-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
 }
 

@@ -92,7 +92,7 @@
     after.parentNode.insertBefore(box, after.nextSibling);
     if (!document.getElementById("drop-preview-css")) {
       var css = document.createElement("style"); css.id = "drop-preview-css";
-      css.textContent = "#drop-preview-wrap{display:grid;gap:12px;margin:0 0 14px}#drop-thread{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin:8px 0}#drop-thread .line{border-radius:12px;padding:8px 10px;font:600 14px/1.35 system-ui,sans-serif}#drop-thread .you{background:var(--edit);align-self:flex-end}#drop-thread .desk{background:var(--card);border:1px solid var(--line);align-self:flex-start}.verify-cells{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.verify-cells button{text-align:left;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px;font:700 12px system-ui,sans-serif;color:var(--ink);min-height:52px}.verify-cells button span{display:block;font:600 11px/1.2 system-ui,sans-serif;color:var(--muted)}#talkType{width:100%;min-height:44px;font-size:16px;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}#talkTypeBtn,#card-ready{min-height:48px}#drop-log p{margin:6px 0;font:600 13px system-ui,sans-serif}@media(max-width:720px){.verify-cells{grid-template-columns:1fr}}";
+      css.textContent = "#drop-preview-wrap{display:grid;gap:12px;margin:0 0 14px}#drop-thread{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin:8px 0}#drop-thread .line{border-radius:12px;padding:8px 10px;font:600 14px/1.35 system-ui,sans-serif}#drop-thread .you{background:var(--edit);align-self:flex-end}#drop-thread .desk{background:var(--card);border:1px solid var(--line);align-self:flex-start}.verify-cells{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.verify-cells button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px;font:700 12px system-ui,sans-serif;color:var(--ink);min-height:52px}.verify-cells button .k{display:block;font:600 11px/1.2 system-ui,sans-serif;color:var(--muted)}.verify-cells button .v{display:block}#talkType{width:100%;min-height:44px;font-size:16px;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}#talkTypeBtn,#card-ready{min-height:48px}#drop-log p{margin:6px 0;font:600 13px system-ui,sans-serif}@media(max-width:720px){.verify-cells{grid-template-columns:1fr}}";
       document.head.appendChild(css);
     }
     var bar = document.getElementById("talkBar");
@@ -130,7 +130,7 @@
     ];
     if (card.hold) cells.push(["HOLD", card.hold, "hold"]);
     box.innerHTML = cells.map(function (c) {
-      return "<button type=\"button\" data-jump=\"" + c[2] + "\"><span>" + c[0] + "</span>" + esc(c[1]) + "</button>";
+      return "<button type=\"button\" data-jump=\"" + c[2] + "\"><span class=\"k\">" + c[0] + "</span><span class=\"v\">" + esc(c[1]) + "</span></button>";
     }).join("");
   }
   function paintPreview(card) {
