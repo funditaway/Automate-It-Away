@@ -94,7 +94,7 @@
     var css = document.createElement("style");
     css.id = "desk-nav-css";
     css.textContent =
-      "body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}" +
+      "body.has-desk-nav{padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))}" +
       "header, .site-header{display:flex;flex-wrap:wrap;align-items:center}" +
       ".desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px 18px;padding-top:8px;font:700 15px/1.2 Segoe UI,system-ui,sans-serif}" +
       ".desk-tabs a{color:#fff;text-decoration:none}.desk-tabs a.on{color:#f39c12}" +
