@@ -15,9 +15,10 @@
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
     .meta,.muted{font-size:13px;color:var(--muted)}
     .row{display:flex;gap:8px;flex-wrap:wrap}
-    button,.go,.edit{border:0;border-radius:9px;padding:10px 12px;font-weight:700;min-height:44px;font-family:inherit;cursor:pointer}
+    button,.go,.edit,.kill{border:0;border-radius:9px;padding:10px 12px;font-weight:700;min-height:44px;font-family:inherit;cursor:pointer}
     .go{background:#f39c12;color:#fff}
     .edit{background:var(--card);border:1px solid var(--line)}
+    .kill{background:#f4d4d0;color:#7a1f16}
     input{min-height:44px;border-radius:10px;border:1px solid var(--line);padding:8px 10px;width:100%;box-sizing:border-box;font:inherit}
     label{display:block;font-size:13px;margin:8px 0 4px}
     .item{border-top:1px solid var(--line);padding:8px 0}
@@ -31,6 +32,8 @@
     .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
     .facts p{margin:0;font-size:13px}
     .facts b{display:block;font-size:12px;color:var(--muted);font-weight:600}
+    .edit-box{display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+    .edit-box.on{display:block}
     @media (max-width:420px){.facts{grid-template-columns:1fr}}
   </style>
 </head>
@@ -61,7 +64,7 @@
       <input id="you-city" maxlength="60" placeholder="Springfield">
       <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
       <p class="meta" id="you-hint">Tap the circle for a photo.</p>
-      <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/admin">People</a><a href="#" id="leave-phone">Leave this phone</a></div>
+      <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="#" id="leave-phone">Leave this phone</a></div>
     </div>
     <form class="card" id="gate">
       <h2>Open the account</h2>
@@ -102,6 +105,25 @@
       <div class="card"><h2>AIA subscription</h2><div class="row" id="plans"></div></div>
       <div class="card" id="owned"></div>
       <div class="card" id="member"></div>
+      <div class="card">
+        <h2>Attach a desk</h2>
+        <p class="meta">Owner only. Name a shop this account already owns.</p>
+        <label>Shop name</label><input id="attach-name">
+        <p><button class="go" type="button" id="attach-go">Attach desk</button></p>
+        <p class="meta" id="attach-hint"></p>
+      </div>
+      <div class="card" id="phones"></div>
+      <div class="card">
+        <h2>Export the book</h2>
+        <p class="meta">No pin. No password hash. Cards stay drafts.</p>
+        <p><button class="edit" type="button" id="export-book">Export book</button></p>
+      </div>
+      <div class="card">
+        <h2>Authenticator</h2>
+        <p class="meta">HOLD. No live MFA. No email or SMS codes.</p>
+        <p><button class="edit" type="button" id="mfa-on">Turn on authenticator</button></p>
+        <p class="meta" id="mfa-hint"></p>
+      </div>
     </div>
   </main>
   <script src="theme.js"></script>
@@ -155,7 +177,20 @@
       if(tok) h["X-Session"]=tok; else if(pin) h["X-Pin"]=pin;
       return h;
     }
-    function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c];});}
+    function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&","<":"<",">":">","\"":"""})[c];});}
+    function liveSlug(){return localStorage.getItem("aia_ws")||slugEl.value||"";}
+    function livePin(){return pinEl.value||localStorage.getItem("aia_pin")||"";}
+    function deskCard(w, owner){
+      const slug=esc(w.slug||w.name||"");
+      const name=esc(w.name||w.biz||w.slug||"Desk");
+      const closed=w.closed?"Closed":"Open";
+      const kind=esc(w.kind||(owner?"Owner":(w.role||"member")));
+      const taps=owner
+        ? "<button class='go' data-desk-act='open'>Open queue</button><button class='edit' data-desk-act='edit'>Edit</button><button class='edit' data-desk-act='close'>"+(w.closed?"Reopen":"Close")+"</button><button class='edit' data-desk-act='leave-phone'>Leave this phone</button><button class='edit' data-desk-act='leave'>Leave desk</button>"
+        : "<button class='go' data-desk-act='open'>Open queue</button><button class='edit' data-desk-act='leave-phone'>Leave this phone</button><button class='edit' data-desk-act='leave'>Leave desk</button>";
+      const box=owner?"<div class='edit-box'><label>Shop name</label><input data-f='biz' value='"+name+"'><label>Does</label><input data-f='does' value='"+esc(w.does||"")+"'><label>Type shop name to delete</label><input data-f='confirm' placeholder='Type the shop name'><div class='row'><button class='go' data-desk-act='save'>Save</button><button class='kill' data-desk-act='delete'>Delete desk</button></div><p class='meta' data-msg></p></div>":"<p class='meta'>You are off this desk if you Leave desk. Cards stay for the owner.</p>";
+      return "<div class='item' data-desk='"+slug+"'><strong>"+name+"</strong><div class='meta'>"+kind+" · "+closed+"</div><div class='row'>"+taps+"</div>"+box+"</div>";
+    }
     function paint(d){
       document.getElementById("gate").hidden=true;
       document.getElementById("home").hidden=false;
@@ -175,30 +210,95 @@
       document.getElementById("plans").innerHTML=catalog.map(function(p){const on=p.id===(plan.plan||d.active);return "<button type=\"button\" class=\""+(on?"go":"edit")+"\" data-plan=\""+esc(p.id)+"\">"+esc(p.name)+(on?" · active":"")+"</button>";}).join("");
       Array.prototype.forEach.call(document.querySelectorAll("#plans [data-plan]"),function(btn){btn.onclick=function(){act("plan",{plan:btn.getAttribute("data-plan")});};});
       const owned=d.desksOwned||(d.mine&&d.mine.owned)||[];
-      document.getElementById("owned").innerHTML="<h2>Desks you own</h2>"+(owned.length?owned.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">Owner</div></div>";}).join(""):"<p class=\"meta\">Open a desk as owner.</p>");
+      document.getElementById("owned").innerHTML="<h2>Desks you own</h2><p class='meta'>Leave this phone forgets the device. Leave desk drops your seat. Delete types the shop name. Cards go. The log stays.</p>"+(owned.length?owned.map(function(w){return deskCard(w,true);}).join(""):"<p class=\"meta\">Open a desk as owner.</p>");
       const sitting=d.desksMember||(d.mine&&d.mine.member)||[];
-      document.getElementById("member").innerHTML="<h2>Desks you sit on</h2>"+(sitting.length?sitting.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">"+esc(w.kind)+"</div></div>";}).join(""):"<p class=\"meta\">Join a desk as a member.</p>");
+      document.getElementById("member").innerHTML="<h2>Desks you sit on</h2>"+(sitting.length?sitting.map(function(w){return deskCard(w,false);}).join(""):"<p class=\"meta\">Join a desk as a member.</p>");
+      loadPhones();
+    }
+    async function postAccount(action, extra){
+      const slug=liveSlug();
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,livePin()),body:JSON.stringify(Object.assign({action:action,slug:slug,pin:livePin()},extra||{}))});
+      const d=await r.json().catch(function(){return {};});
+      return {ok:r.ok,status:r.status,data:d};
     }
     document.getElementById("save-you").onclick=async function(){
       if(youName.value) localStorage.setItem("aia_name",youName.value);
       if(youEmail.value) localStorage.setItem("aia_email",youEmail.value);
       paintPic();
-      const slug=localStorage.getItem("aia_ws")||"";
-      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
-      const d=await r.json().catch(function(){return {};});
-      youHint.textContent=r.ok?"Saved on the account.":(d.error||"Saved on this phone.");
+      const r=await postAccount("details",{name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""});
+      youHint.textContent=r.ok?"Saved on the account.":(r.data.error||"Could not save.");
+      youHint.className=r.ok?"ok":"meta";
     };
     document.getElementById("save-pass").onclick=async function(){
-      const slug=localStorage.getItem("aia_ws")||slugEl.value;
-      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
-      const d=await r.json().catch(function(){return {};});
-      document.getElementById("pw-hint").textContent=r.ok?(d.hint||"Password saved."):(d.error||"Could not save.");
+      const r=await postAccount("password",{email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value});
+      document.getElementById("pw-hint").textContent=r.ok?(r.data.hint||"Password saved."):(r.data.error||"Could not save.");
       document.getElementById("pw-hint").className=r.ok?"ok":"meta";
     };
-    document.getElementById("leave-phone").onclick=function(e){
-      e.preventDefault();
+    function clearPhone(){
       ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email"].forEach(function(k){localStorage.removeItem(k);});
+    }
+    document.getElementById("leave-phone").onclick=async function(e){
+      e.preventDefault();
+      await postAccount("logout",{});
+      clearPhone();
       location.href="/login";
+    };
+    document.getElementById("attach-go").onclick=async function(){
+      const r=await postAccount("attach",{desk:document.getElementById("attach-name").value});
+      document.getElementById("attach-hint").textContent=r.ok?"Attached.":(r.data.error||"Could not attach.");
+      if(r.ok) paint(r.data);
+    };
+    document.getElementById("export-book").onclick=async function(){
+      const r=await postAccount("export",{});
+      if(!r.ok) return;
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(new Blob([JSON.stringify(r.data.pack||{},null,2)],{type:"application/json"}));
+      a.download="aia-account.json";
+      a.click();
+    };
+    document.getElementById("mfa-on").onclick=async function(){
+      const r=await postAccount("mfa",{on:true});
+      document.getElementById("mfa-hint").textContent=r.data.error||r.data.hint||"HOLD.";
+    };
+    async function loadPhones(){
+      const box=document.getElementById("phones");
+      const r=await postAccount("sessions",{});
+      const rows=(r.data&&r.data.sessions)||[];
+      box.innerHTML="<h2>Phones on this account</h2>"+(rows.length?rows.map(function(s){return "<div class='item'><strong>"+esc(s.label||s.device||"Phone")+"</strong><div class='meta'>"+(s.current?"This phone":"Signed in")+"</div></div>";}).join(""):"<p class='meta'>This phone only.</p>")+"<p><button class='edit' type='button' id='logout-all'>Leave every phone</button></p>";
+      const all=document.getElementById("logout-all");
+      if(all) all.onclick=async function(){await postAccount("logout-all",{});clearPhone();location.href="/login";};
+    }
+    document.getElementById("home").onclick=async function(e){
+      const btn=e.target.closest("[data-desk-act]"); if(!btn) return;
+      const item=btn.closest("[data-desk]"); if(!item) return;
+      const slug=item.getAttribute("data-desk");
+      const actName=btn.getAttribute("data-desk-act");
+      const box=item.querySelector(".edit-box");
+      const msg=item.querySelector("[data-msg]");
+      function val(k){const el=item.querySelector("[data-f='"+k+"']");return el?el.value:"";}
+      if(actName==="open"){if(window.AIADesks)AIADesks.switchTo(slug);location.href="/desk";return;}
+      if(actName==="edit"){if(box)box.classList.toggle("on");return;}
+      if(actName==="leave-phone"){await postAccount("logout",{});clearPhone();location.href="/login";return;}
+      if(actName==="leave"){
+        const r=await postAccount("leave",{desk:slug});
+        if(!r.ok){alert(r.data.error||"Close or delete the desk. Do not abandon it.");return;}
+        paint(r.data);return;
+      }
+      if(actName==="close"){
+        const r=await postAccount(btn.textContent.indexOf("Reopen")>=0?"desk-open":"desk-close",{desk:slug});
+        if(r.ok) paint(r.data); else alert(r.data.error||"Could not close.");return;
+      }
+      if(actName==="save"){
+        const r=await postAccount("desk-update",{desk:slug,biz:val("biz"),does:val("does")});
+        if(msg) msg.textContent=r.ok?"Saved.":(r.data.error||"Could not save.");
+        if(r.ok) paint(r.data);return;
+      }
+      if(actName==="delete"){
+        const r=await postAccount("delete-desk",{desk:slug,confirm:val("confirm")});
+        if(!r.ok){if(msg) msg.textContent=r.data.error||"Type the shop name.";return;}
+        if(window.AIADesks)AIADesks.forget(slug);
+        paint(r.data);
+      }
     };
     async function act(action, extra){
       const slug=String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
