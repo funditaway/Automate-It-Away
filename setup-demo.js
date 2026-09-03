@@ -37,7 +37,36 @@
     { id: "clean", label: "Cleaning", extra: 1, mean: "Cancel and refill draft." },
     { id: "boutique", label: "Boutique", extra: 1, mean: "Restock and caption draft." },
     { id: "ink", label: "Tattoo", extra: 1, mean: "Consult deposit note draft." },
-    { id: "brewery", label: "Brewery", extra: 1, mean: "Patio packet and tap list draft." }
+    { id: "brewery", label: "Brewery", extra: 1, mean: "Patio packet and tap list draft." },
+    { id: "catering", label: "Catering", extra: 1, mean: "Headcount and menu draft." },
+    { id: "groom", label: "Pet grooming", extra: 1, mean: "Appointment reminder draft." },
+    { id: "books", label: "Bookkeeping", extra: 1, mean: "Missing receipt note draft." },
+    { id: "funeral", label: "Funeral home", extra: 1, mean: "Service detail follow-up draft." },
+    { id: "notary", label: "Notary", extra: 1, mean: "Document ready note draft." },
+    { id: "farm", label: "Farm desk", extra: 1, mean: "Load and pickup note draft." },
+    { id: "venue", label: "Venue", extra: 1, mean: "Date hold and deposit reminder draft." },
+    { id: "appliance", label: "Appliance repair", extra: 1, mean: "Model and symptom intake draft." },
+    { id: "junk", label: "Junk removal", extra: 1, mean: "Photo to quote draft." },
+    { id: "hoa", label: "HOA", extra: 1, mean: "Violation notice draft." },
+    { id: "pool", label: "Pool service", extra: 1, mean: "Route update and supply note draft." },
+    { id: "detail", label: "Auto detail", extra: 1, mean: "Booking confirm draft." },
+    { id: "music", label: "Music lessons", extra: 1, mean: "Lesson reminder draft." },
+    { id: "hvac", label: "HVAC", extra: 1, mean: "No-cool intake to dispatch draft." },
+    { id: "build", label: "Build project", extra: 1, mean: "Material hold and schedule draft." },
+    { id: "world", label: "World users", extra: 1, mean: "Public listing check draft." },
+    { id: "pipes", label: "Pipes", extra: 1, mean: "Webhook and vendor hold note draft." },
+    { id: "agent", label: "AI agent", extra: 1, mean: "Approve seat then off-desk draft." },
+    { id: "people", label: "People", extra: 1, mean: "Invite and role note draft." },
+    { id: "rules", label: "Rules", extra: 1, mean: "Hold/stop rule note draft." },
+    { id: "drop", label: "Drop", extra: 1, mean: "Talk capture and follow-up draft." },
+    { id: "pack", label: "Pack", extra: 1, mean: "Pack export draft note." },
+    { id: "family", label: "Family", extra: 1, mean: "Family task reminder draft." },
+    { id: "print", label: "Print shop", extra: 1, mean: "Proof approval reminder draft." },
+    { id: "lock", label: "Locksmith", extra: 1, mean: "ETA and scope draft." },
+    { id: "tree", label: "Tree service", extra: 1, mean: "Photo to estimate draft." },
+    { id: "snow", label: "Snow route", extra: 1, mean: "Storm route update draft." },
+    { id: "senior", label: "Senior care", extra: 1, mean: "Visit reminder draft." },
+    { id: "foodtruck", label: "Food truck", extra: 1, mean: "Event prep checklist draft." }
   ];
   function phone(i) {
     return "417-555-01" + String(i).padStart(2, "0");
@@ -73,7 +102,7 @@
           phone: "417-555-0104",
           email: "jordan.lee@example.com",
           notes: "Not a fit this year. Stop.",
-          draft: "Stop. Already covered. No premium. No bind.",
+          draft: "Stop. Already covered. No premium. No bind. Desk does not send.",
           next: "Done."
         });
       }
@@ -102,6 +131,8 @@
     if (!json || !json.desks || !json.desks.length) return;
     var by = {};
     json.desks.forEach(function (d) { by[d.id] = d; });
+    var known = {};
+    desks.forEach(function (d) { known[d.id] = true; });
     desks = desks.map(function (d) {
       var hit = by[d.id];
       if (!hit || !hit.cards) return d;
@@ -120,11 +151,37 @@
             phone: c.phone || "417-555-0100",
             email: c.email || "demo@example.com",
             notes: c.notes || d.mean,
-            draft: c.draft || "Draft only.",
+            draft: c.draft || "Draft only. Desk does not send.",
             next: c.next || "Owner taps Stop."
           };
         })
       };
+    });
+    json.desks.forEach(function (d) {
+      if (known[d.id]) return;
+      var appended = decorate([{
+        id: d.id,
+        label: d.label || d.displayPack || d.id,
+        display: d.displayPack || d.label || d.id,
+        family: d.family || "Automate It Away",
+        mean: d.does || "Demo desk.",
+        extra: 1
+      }])[0];
+      if (d.cards && d.cards.length) {
+        appended.cards = d.cards.map(function (c) {
+          return {
+            title: c.title,
+            step: c.step || "capture",
+            who: c.contactName || "Sam Reed",
+            phone: c.phone || "417-555-0100",
+            email: c.email || "demo@example.com",
+            notes: c.notes || appended.mean,
+            draft: c.draft || "Draft only. Desk does not send.",
+            next: c.next || "Owner taps Stop."
+          };
+        });
+      }
+      desks.push(appended);
     });
     listeners.forEach(function (fn) { fn(desks); });
   }
