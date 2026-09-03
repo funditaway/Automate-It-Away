@@ -26,11 +26,11 @@ const grokCan = roles.seatCanOf(grok);
 if (!grokCan.include || !grokCan.draft) fail("Grok should be includable to draft");
 else pass("Grok include + draft on");
 
-if (PLATFORM_HOLD !== 250) fail("platform hold should be 250, got " + PLATFORM_HOLD);
-else pass("platform hold is 250");
+if (PLATFORM_HOLD != null) fail("platform hold must not default a dollar amount, got " + PLATFORM_HOLD);
+else pass("no canned platform hold amount");
 
-if (moneyHold(null, []) !== 250) fail("empty rules should floor at 250");
-else pass("empty rules floor at platform hold");
+if (moneyHold(null, []) != null) fail("empty rules must not invent a money wait");
+else pass("empty rules do not money-wait");
 
 if (process.exitCode) {
   console.error("check-override failed");
