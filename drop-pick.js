@@ -1,7 +1,7 @@
 (function () {
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
+      return ({ "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;" })[c];
     });
   }
   function slugify(s) {
@@ -12,15 +12,28 @@
     var use = slugify(slug);
     location.href = use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
   }
+  function hoistPick() {
+    var box = document.getElementById("desk-pick");
+    var title = document.getElementById("drop-title");
+    if (!box || !title || !title.parentNode) return;
+    var sub = document.getElementById("drop-sub");
+    var after = sub || title;
+    if (after.nextSibling !== box) after.parentNode.insertBefore(box, after.nextSibling);
+  }
   function paintSearch(rows, q) {
     var box = document.getElementById("public-desk-hits");
     if (!box) return;
     if (!rows || !rows.length) {
-      box.innerHTML = q ? "<p class=\"sub\">No public desk matches that. Private desks do not show here.</p>" : "";
+      box.innerHTML = q
+        ? "<p class=\"sub\">No world desk matches that. Private desks do not show here.</p>"
+        : "<p class=\"sub\">No listed world desks yet. Owner can list one. Private desks stay off this list.</p>";
       return;
     }
     box.innerHTML = rows.map(function (d) {
-      var bits = [esc(d.name || d.slug)];
+      var who = d.account || d.accountName || d.owner || d.user || "";
+      var bits = [];
+      if (who && who !== (d.name || d.slug)) bits.push(esc(who));
+      bits.push(esc(d.name || d.slug));
       if (d.city) bits.push(esc(d.city));
       if (d.does) bits.push(esc(d.does));
       return "<button type=\"button\" data-public-desk=\"" + esc(d.slug) + "\">" + bits.join(" · ") + "</button>";
@@ -28,21 +41,24 @@
   }
   async function searchPublic(q) {
     try {
-      var r = await fetch("/api/desks?q=" + encodeURIComponent(q || ""));
+      var url = q
+        ? ("/api/desks?listed=1&q=" + encodeURIComponent(q))
+        : "/api/desks?listed=1";
+      var r = await fetch(url);
       var data = await r.json().catch(function () { return {}; });
-      paintSearch((data && data.desks) || [], q);
+      var rows = (data && (data.desks || data.world || data.accounts)) || [];
+      paintSearch(rows, q);
     } catch (e) { paintSearch([], q); }
   }
   function injectSearch() {
     var box = document.getElementById("desk-pick");
     if (!box || document.getElementById("public-desk-q")) return;
     if (window !== window.parent || /embed=1/.test(location.search)) return;
+    hoistPick();
     var wrap = document.createElement("div");
     wrap.id = "public-desk-search";
-    wrap.innerHTML = "<label>Find a public desk</label><input id=\"public-desk-q\" placeholder=\"Shop name or city\"><p class=\"sub\">Public desks only. Private desks stay off this list.</p><div class=\"desk-chips\" id=\"public-desk-hits\"></div>";
-    var chips = document.getElementById("desk-chips");
-    if (chips && chips.parentNode) chips.parentNode.insertBefore(wrap, chips.nextSibling);
-    else box.appendChild(wrap);
+    wrap.innerHTML = "<label>World users · accounts · desks</label><input id=\"public-desk-q\" placeholder=\"Name, account, city, or what they do\"><p class=\"sub\">Listed world desks first. Private desks stay off this list.</p><div class=\"desk-chips\" id=\"public-desk-hits\"></div>";
+    box.insertBefore(wrap, box.firstChild);
     var input = document.getElementById("public-desk-q");
     var hits = document.getElementById("public-desk-hits");
     var timer = null;
@@ -55,6 +71,7 @@
       var btn = e.target.closest("[data-public-desk]");
       if (btn) goDrop(btn.getAttribute("data-public-desk"));
     });
+    searchPublic("");
   }
   function paint() {
     var box = document.getElementById("desk-pick");
@@ -68,10 +85,10 @@
     var ws = cur.slug || localStorage.getItem("aia_ws") || "";
     if (!rows.length) {
       chips.innerHTML = "";
-      if (sub) sub.textContent = "Pick a desk first. None on this phone yet. Add one you already opened, or create a new desk.";
+      if (sub) sub.textContent = "This phone has no saved desk yet. Pick a world desk above, add one you already opened, or create a new desk.";
       return;
     }
-    if (sub) sub.textContent = "Pick a desk first. Then talk. Tap one on this phone, add another, or create a new desk.";
+    if (sub) sub.textContent = "Desks on this phone. World desks stay at the top.";
     chips.innerHTML = rows.map(function (d) {
       var on = d.slug === ws ? " on" : "";
       var who = d.role === "owner" ? " · owner" : d.role === "employee" ? " · helper" : "";
@@ -115,7 +132,7 @@
     if (cur.role && cur.role !== "owner") return;
     var btn = document.createElement("button");
     btn.type = "button"; btn.id = "list-public-btn"; btn.className = "ghost"; btn.style.width = "auto";
-    btn.textContent = "List this desk in public search";
+    btn.textContent = "List this desk in world search";
     var actions = box.querySelector(".desk-actions");
     if (actions) actions.appendChild(btn); else box.appendChild(btn);
     btn.onclick = async function () {
@@ -126,7 +143,8 @@
         var r = await fetch("/api/desks", { method: "POST", headers: headers, body: JSON.stringify({ action: "listed", listed: true, slug: cur.slug }) });
         var data = await r.json().catch(function () { return {}; });
         if (!r.ok) { if (err) { err.style.display = "block"; err.textContent = data.error || "Owner only."; } return; }
-        btn.textContent = "Listed in public search";
+        btn.textContent = "Listed in world search";
+        searchPublic((document.getElementById("public-desk-q") || {}).value || "");
       } catch (e) { if (err) { err.style.display = "block"; err.textContent = "Could not list this desk."; } }
     };
   }
@@ -145,7 +163,7 @@
     };
     if (openBtn) openBtn.onclick = addSaved;
   }
-  window.AIADropDesks = { paint: paint, pick: pick, addSaved: addSaved };
+  window.AIADropDesks = { paint: paint, pick: pick, addSaved: addSaved, searchPublic: searchPublic };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
