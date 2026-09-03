@@ -123,6 +123,15 @@
     <h2>Shared history</h2>
     <div id="sheet-history"></div>
     <p class="meta" id="sheet-last"></p>
+    <div class="acts" id="sheet-owner">
+      <button class="go" type="button" id="sheet-approve">Accept</button>
+      <button class="kill" type="button" id="sheet-deny">Deny</button>
+    </div>
+    <div class="talk" id="sheet-talk">
+      <input id="sheet-say" placeholder="Say it on this desk — human, agent, or pipe" autocomplete="off">
+      <button class="edit" type="button" id="sheet-say-btn">Say</button>
+    </div>
+    <p class="meta">Talk stays on the desk. AIA does not send.</p>
     <div class="acts">
       <button class="edit" type="button" id="sheet-copy-btn">Copy</button>
       <a class="edit" id="sheet-text" href="#">Text it</a>
@@ -186,5 +195,7 @@
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="people.js"></script>
+  <script src="people-desk.js"></script>
+  <script src="people-world.js"></script>
 </body>
 </html>
