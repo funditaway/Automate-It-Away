@@ -1,3 +1,4 @@
+const { dropCannedSeeds } = require("./_drop-seed");
 const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob } = require("./_fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, markFlow } = require("./_engine");
@@ -59,6 +60,7 @@ module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
+  if (dropCannedSeeds(mem)) await save();
   const workspace = namedWorkspace(req);
   if (!workspace) return res.status(400).json({ error: "Open a desk first." });
   const { workspace: shop, person } = personOf(req, workspace);
