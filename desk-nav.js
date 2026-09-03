@@ -153,6 +153,15 @@
     document.body.appendChild(el);
   }
 
+  function loadPeople(name, attr) {
+    if (tabOf() !== "people") return;
+    if (document.querySelector("script[" + attr + "]")) return;
+    var el = document.createElement("script");
+    el.src = "/" + name;
+    el.setAttribute(attr, "1");
+    document.body.appendChild(el);
+  }
+
   function boot() {
     if (window !== window.parent) return;
     ensureCss();
@@ -195,6 +204,8 @@
     loadQueue("desk-needs.js", "data-aia-desk-needs");
     loadQueue("desk-inbox.js", "data-aia-desk-inbox");
     loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
+    loadPeople("people-desk.js", "data-aia-people-desk");
+    loadPeople("people-world.js", "data-aia-people-world");
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");

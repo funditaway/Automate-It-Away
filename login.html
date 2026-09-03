@@ -17,6 +17,13 @@
     .door-row{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
     .door-row button{min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:700 13px inherit;padding:8px 12px;cursor:pointer}
     .door-row button.on{background:#0d6b6b;color:#fff;border-color:#0d6b6b}
+    .oauth-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+    .oauth-btn{min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:700 13px inherit;padding:8px 12px;cursor:pointer}
+    .oauth-tag{font-size:10px;letter-spacing:.04em;text-transform:uppercase;margin-left:6px}
+    .oauth-tag.now{color:#0d6b6b}.oauth-tag.hold{color:#c27b0e}.oauth-tag.ask{color:#6b7c8f}
+    .oauth-lead,.oauth-more summary{font-size:13px;color:var(--muted)}
+    .oauth-more{margin:8px 0}
+    .oauth-ext input{min-height:44px;border-radius:10px;border:1px solid var(--line);padding:8px 10px;flex:1;min-width:140px;font:inherit;background:var(--card);color:inherit}
   </style>
 </head>
 <body class="page-bg">
@@ -29,7 +36,7 @@
   </header>
   <form class="gate-card" id="form">
     <h1>Open this desk</h1>
-    <p class="sub">One AIA account. Two doors: desk name + code, or email + password. A session stays on this phone. Owner taps still need the owner seat. <a href="account.html">Your account</a></p>
+    <p class="sub">One AIA account. Three doors: desk name + code, email + password, or continue with. Continue-with is identity only — never Send, Stop, pay, or draft. <a href="account.html">Your account</a></p>
     <div class="door-row" role="tablist">
       <button type="button" class="on" id="door-desk">Desk name + code</button>
       <button type="button" id="door-email">Email + password</button>
@@ -58,12 +65,14 @@
       <p class="hint">This account has the app factor on. We do not text or email a code.</p>
     </div>
     <button class="btn" type="submit">Open</button>
-    <p class="hint">No password yet? Open with the desk code, then set email and password on Your account.</p>
+    <div id="oauth-wall"></div>
+    <p class="hint">No password yet? Open with the desk code, then set email and password on Your account. World doors stay Hold until the app id is on the box.</p>
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
   <script src="desk-switch.js"></script>
   <script src="speech.js"></script>
+  <script src="login-doors.js"></script>
   <script>
     const form = document.getElementById("form");
     const talkBar = document.getElementById("talkBar");

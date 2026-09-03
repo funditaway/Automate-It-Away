@@ -15,6 +15,8 @@
     { "source": "/dashboard.html", "destination": "/desk.html", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/setup", "destination": "/setup.html" },
+    { "source": "/how", "destination": "/how.html" },
     { "source": "/examples", "destination": "/examples.html" },
     { "source": "/people", "destination": "/people.html" },
     { "source": "/rules", "destination": "/rules.html" },

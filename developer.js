@@ -61,6 +61,15 @@
       pipes: val("pipes"),
       ext: val("ext"),
       handTo: val("hand-to"),
+      queue: {
+        badge: val("q-badge"),
+        empty: val("q-empty"),
+        group: val("q-group") || "none",
+        sort: val("q-sort") || "cap-first",
+        chips: val("q-chips"),
+        taps: val("q-taps") || "copy,text,email,hand,cap",
+        never: ["send", "stop", "pay", "bind"]
+      },
       status: "draft"
     }, extra || {});
   }
@@ -81,6 +90,7 @@
       ["pack", "Pack"],
       ["bots", "Bots"],
       ["drop", "Drop form"],
+      ["queue", "Queue"],
       ["pipes", "Pipes"],
       ["ext", "Ext"],
       ["test", "Test"],
@@ -120,6 +130,17 @@
       "<label>Drop hint</label><input id=\"drop-hint\" placeholder=\"Name who, when, and the car.\">" +
       "<label>Drop kinds</label><input id=\"drop-kinds\" placeholder=\"request, photo, reminder\">" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-drop\">Save drop form</button></p></div>"
+    );
+    if (tab === "queue") return (
+      "<div class=\"card\"><h2>How the queue looks</h2><p class=\"hint\">This is a block on the pack. Not a new pack type. Packs never Send, Stop, or pay.</p>" +
+      "<label>Badge</label><input id=\"q-badge\" placeholder=\"Insurance\">" +
+      "<label>Empty line</label><input id=\"q-empty\" placeholder=\"Drop a name, a state, and what they need.\">" +
+      "<label>Kind chips</label><input id=\"q-chips\" placeholder=\"lead, quote, call, review\">" +
+      "<label>Group</label><select id=\"q-group\"><option value=\"none\">None</option><option value=\"kind\">Kind</option><option value=\"when\">When</option></select>" +
+      "<label>Sort</label><select id=\"q-sort\"><option value=\"cap-first\">Cap first</option><option value=\"new\">Newest</option></select>" +
+      "<label>Taps on the card</label><input id=\"q-taps\" placeholder=\"copy,text,email,hand,cap\">" +
+      "<p class=\"hint\">Never: Send · Stop · pay · bind. Owner still taps Stop on the desk.</p>" +
+      "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-queue\">Save queue on draft</button></p></div>"
     );
     if (tab === "pipes") return (
       "<div class=\"card\"><h2>Named pipes</h2><p class=\"hint\">Wish list only. Live send stays HOLD. Webhook is the only live pipe on the desk.</p>" +
@@ -179,7 +200,7 @@
       paintLab();
     });
     function save() { return saveDraft(); }
-    ["save-pack", "save-bots", "save-drop", "save-pipes", "save-ext"].forEach(function (id) {
+    ["save-pack", "save-bots", "save-drop", "save-queue", "save-pipes", "save-ext"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.onclick = save;
     });

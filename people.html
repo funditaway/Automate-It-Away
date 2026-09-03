@@ -28,7 +28,7 @@
   </header>
   <main class="wrap">
     <h1>People</h1>
-    <p>Everyone on desks this phone can open. Search and a chip AND together. Tap a name. AIA does not send.</p>
+    <p>Everyone on desks this phone can open. Search a world name with @handle. Invite them to this desk. They Accept on their People tab. AIA does not send.</p>
     <div class="banner" id="banner">Open the desk on this phone to see who sits here.</div>
     <div id="desk-chips" class="chips" aria-label="Desks on this phone"></div>
     <div class="kpis">
@@ -47,8 +47,10 @@
       <button type="button" id="clear-view">Clear</button>
     </div>
     <p class="meta" id="heard"></p>
-    <input type="search" id="q" placeholder="Find a name, desk, seat, phone, or email" autocomplete="off">
-    <p class="meta" id="people-logic">Type a name and tap a chip — they AND together.</p>
+    <input type="search" id="q" placeholder="Find a name on this desk, or @handle in the world" autocomplete="off">
+    <p class="meta" id="people-logic">Type a name and tap a chip — they AND together. World search needs an @handle.</p>
+    <div id="asks"></div>
+    <div id="world"></div>
     <div id="list"></div>
     <div class="add" id="add-box" hidden>
       <h2 style="margin-top:0">Add someone</h2>
@@ -83,6 +85,25 @@
         <button class="go" type="button" id="add-btn">Add to desk</button>
       </div>
       <p class="meta" id="inv"></p>
+    </div>
+    <div class="add" id="world-invite-box">
+      <h2 style="margin-top:0">Invite from the world</h2>
+      <p>Owner or staff sends the ask. They Accept on their People tab. AIA does not send.</p>
+      <div class="grid">
+        <input id="world-who" placeholder="@handle or account name" autocomplete="off">
+        <select id="world-kind">
+          <option value="helper">Helper</option>
+          <option value="family">Family</option>
+          <option value="friend">Friend</option>
+          <option value="member">Member</option>
+          <option value="staff">Staff</option>
+        </select>
+      </div>
+      <div class="acts">
+        <button class="go" type="button" id="world-btn">Invite to this desk</button>
+        <button class="edit" type="button" id="world-find-btn">Find</button>
+      </div>
+      <p class="meta" id="world-note">Staff can invite family, a friend, or a helper. Owner invites member or staff.</p>
     </div>
     <div class="add" id="sit-box">
       <h2 style="margin-top:0">Sit on another desk</h2>
@@ -186,5 +207,7 @@
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="people.js"></script>
+  <script src="people-desk.js"></script>
+  <script src="people-world.js"></script>
 </body>
 </html>
