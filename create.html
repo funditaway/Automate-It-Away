@@ -7,7 +7,7 @@
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="content" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Create · Automate It Away</title>
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
@@ -19,12 +19,12 @@
     body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
     a{color:inherit;text-decoration:none}
     header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,sans-serif}
+    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 15px/1.2 system-ui,sans-serif}
     .desk-tabs a{color:#fff}
     .wrap{width:min(720px,94vw);margin:0 auto;padding:18px 0 40px}
     h1{color:var(--heading);font-size:1.35rem}
     .sub{color:var(--muted);margin:4px 0 14px}
-    .picks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+    .picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:8px;margin-bottom:12px}
     .pick{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;text-align:left;min-height:64px}
     .pick.on{border-color:var(--teal);background:var(--edit)}
     .pick b{display:block;color:var(--heading);font-size:14px}
@@ -36,17 +36,26 @@
     label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
     input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--card);color:var(--ink)}
     .go{margin-top:14px;width:100%;border:0;border-radius:10px;padding:12px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer;min-height:48px}
+    .go[disabled]{opacity:.6}
     .ok{margin-top:12px;color:#1b7a3d;display:none}
     .err{margin-top:12px;color:var(--kill-ink);display:none}
     .adv{display:none}
     body.show-adv .adv{display:block}
     .hint{font-size:12px;color:var(--muted);margin-top:8px}
-    @media(max-width:700px){.picks{grid-template-columns:1fr 1fr}}
+    .pack-row{border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0;text-align:left;background:var(--card)}
+    .pack-row b{display:block;color:var(--heading)}
+    .pack-row button{margin-top:8px;min-height:44px;border:0;border-radius:10px;background:var(--orange);color:#fff;font-weight:700;padding:8px 12px;cursor:pointer}
+    .pack-row .ghost{background:transparent;color:var(--heading);border:1px solid var(--line);margin-left:6px}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+    .chips button{min-height:36px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);padding:6px 10px;font:700 12px system-ui;cursor:pointer}
+    .chips button.on{border-color:var(--teal);background:var(--edit);color:var(--edit-ink)}
+    @media(max-width:420px){.picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body class="page-bg has-desk-nav">
   <header class="site-header">
-    <a href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt="">Create</a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <span class="brand-page">Create</span>
     <div class="nav">
       <a href="desk.html">Desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
@@ -54,14 +63,14 @@
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop">Drop</a>
-      <a href="/rules" data-tab="rules">Rules</a>
+      <a href="/history" data-tab="history">History</a>
       <a href="/connections" data-tab="pipes">Pipes</a>
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
   <main class="wrap">
     <h1>Make something. It lands on this desk.</h1>
-    <p class="sub">Job, capture, custom model, teammate, guardrail, or another shop. Same five steps. You still tap Yes or No on anything that needs a yes or no from an AI agent or a human to get things done.</p>
+    <p class="sub">Job, capture, your own automation, a listed pack, teammate, guardrail, or another shop. Same five steps. You still tap Yes or No. Packs do not send money.</p>
     <div class="picks" id="picks"></div>
     <div class="modes">
       <button type="button" class="on" data-mode="simple" id="mode-simple">Simple</button>
@@ -70,11 +79,12 @@
     <form class="card" id="form"></form>
     <p class="ok" id="ok"></p>
     <p class="err" id="err"></p>
+    <div id="mine" class="card" style="margin-top:12px;display:none"></div>
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
     <a href="/drop" data-tab="drop"><span>Drop</span></a>
-    <a href="/rules" data-tab="rules"><span>Rules</span></a>
+    <a href="/history" data-tab="history"><span>History</span></a>
     <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
