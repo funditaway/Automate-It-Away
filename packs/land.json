@@ -1,0 +1,8 @@
+{
+  "id": "land",
+  "name": "Land",
+  "rules": [
+    { "text": "Cap flood cards.", "when": "qualify", "then": "cap", "contains": "flood" },
+    { "text": "Cap title cards.", "when": "qualify", "then": "cap", "contains": "title" }
+  ]
+}

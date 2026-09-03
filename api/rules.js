@@ -22,6 +22,7 @@ function draftFromTalk(text, row) {
 
   let then = "note";
   if (/\b(kill|stop|never send|do not send|don't send|block|no one (may|can) send)\b/.test(t)) then = "stop";
+  if (/\b(cap|on the (?:cap|pyramid)|do this first|priority|first thing)\b/.test(t)) then = "cap";
   else if (/\b(ask me|wait|confirm|approve|hold|not without me|i (have to|must) tap|owner)\b/.test(t)) then = "wait";
 
   let when = "do";
@@ -55,6 +56,9 @@ function draftFromTalk(text, row) {
   if (then === "stop") {
     questions.push("Stop still needs your second tap. Keep it as a stop on " + deskName(row) + "?");
   }
+  if (then === "cap") {
+    questions.push("Cap still needs your rule or tap. Keep it as cap on " + deskName(row) + "?");
+  }
 
   const draft = {
     text: line,
@@ -65,7 +69,7 @@ function draftFromTalk(text, row) {
     contains
   };
 
-  const bits = [when, then === "wait" ? "wait on you" : then === "stop" ? "stop" : "note"];
+  const bits = [when, then === "wait" ? "wait on you" : then === "stop" ? "stop" : then === "cap" ? "cap" : "note"];
   if (ifMoney != null) bits.push("$" + ifMoney + "+");
   if (contains) bits.push("has a word match");
 

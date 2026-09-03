@@ -11,7 +11,7 @@ const jobsHandler = require("../api/jobs");
 const authHandler = require("../api/auth");
 const {
   mem, hashPin, ensurePeople, ensureRules, ensureNouns, defaultNouns,
-  moneyWaitOf, moneyNeedsOwner, forbiddenRule, ready, save,
+  moneyWaitOf, moneyNeedsOwner, forbiddenRule, ruleWantsCap, applyCapFromRules, CAP_MAX, ready, save,
   dropPersistTests, isPersistTestJob
 } = lib;
 
@@ -115,6 +115,15 @@ async function main() {
   const add = await call(rulesHandler, "POST", owner, { text: extra });
   if (add.statusCode !== 201 || !add.body.rules.some((r) => r.text === extra)) fail("owner add extra");
   else pass("owner add extra");
+
+  const capByTalk = await call(rulesHandler, "POST", owner, { text: "Cap repair cards.", when: "qualify" });
+  if (capByTalk.statusCode !== 201 || !capByTalk.body.rule || capByTalk.body.rule.then !== "cap" || capByTalk.body.rule.ifKind !== "repair") {
+    fail("cap text should default then=cap and ifKind=repair, got " + JSON.stringify(capByTalk.body));
+  } else pass("cap text infers then=cap + ifKind");
+  if (!ruleWantsCap(shop.rules || [], { kind: "repair" }, "qualify")) fail("ruleWantsCap should match repair kind");
+  else pass("ruleWantsCap honors ifKind");
+  const capRuleId = capByTalk.body.rule.id;
+  await call(rulesHandler, "POST", owner, { action: "remove", id: capRuleId });
 
   const get2 = await call(rulesHandler, "GET", owner);
   if (!get2.body.rules.some((r) => r.text === extra)) fail("second GET lost extra");
@@ -293,6 +302,33 @@ async function main() {
 
   if (/consign|vita|fund|land/i.test(JSON.stringify(defaultNouns()))) fail("defaults leaked a vertical name");
   else pass("defaults are not a vertical");
+
+  const capRule = await call(rulesHandler, "POST", owner, { text: "On the cap this week.", when: "qualify", source: "pack_home" });
+  if (capRule.statusCode !== 201 || !capRule.body.rule || capRule.body.rule.then !== "cap" || capRule.body.rule.source !== "pack_home") {
+    fail("source/then should persist on cap rule");
+  } else pass("cap rule source persists");
+  const stopRule = await call(rulesHandler, "POST", owner, { text: "Stop if this is a contract.", when: "qualify", then: "stop", contains: "contract" });
+  if (stopRule.statusCode !== 201) fail("could not add stop rule");
+  const capJob = { id: "job_cap_auto", workspace: slug, title: "Repair card this week", kind: "repair", notes: "this week", status: "waiting", step: "Qualify", log: [] };
+  const heldJob = { id: "job_cap_hold", workspace: slug, title: "Repair overflow", kind: "repair", notes: "this week", status: "waiting", step: "Qualify", log: [] };
+  const stoppedJob = { id: "job_cap_stop", workspace: slug, title: "Contract repair this week", kind: "repair", notes: "contract this week", status: "waiting", step: "Qualify", log: [] };
+  mem.jobs = (mem.jobs || []).filter((j) => j.workspace !== slug || !/^job_cap_seed_/.test(j.id));
+  for (let i = 0; i < CAP_MAX - 1; i += 1) {
+    mem.jobs.unshift({ id: "job_cap_seed_" + i, workspace: slug, title: "Seed " + i, status: "waiting", priority: true, cap: true });
+  }
+  applyCapFromRules(capJob, shop);
+  if (!capJob.priority || !capJob.cap || !capJob.priorityRule || !/On the cap this week\./.test(capJob.priorityRule || "") || capJob.priorityBy !== "pack_home") {
+    fail("applyCapFromRules should cap and stamp source/rule");
+  } else pass("applyCapFromRules caps qualifying cards");
+  mem.jobs.unshift(capJob);
+  applyCapFromRules(heldJob, shop);
+  if (heldJob.priority || heldJob.cap || !heldJob.capHeld) fail("ninth cap should hold, not flag");
+  else pass("cap limit holds at eight");
+  applyCapFromRules(stoppedJob, shop);
+  if (stoppedJob.priority || stoppedJob.cap) fail("stop should beat cap");
+  else pass("stop beats cap");
+  await call(rulesHandler, "POST", owner, { action: "remove", id: capRule.body.rule.id });
+  await call(rulesHandler, "POST", owner, { action: "remove", id: stopRule.body.rule.id });
 
   const pinLeak = (mem.audit || []).some((a) => /4821|7390/.test(JSON.stringify(a)));
   if (pinLeak) fail("PIN appeared in audit");
