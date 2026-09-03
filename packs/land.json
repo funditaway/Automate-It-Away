@@ -1,0 +1,18 @@
+{
+  "id": "land",
+  "name": "Land lot",
+  "family": "Tony Oddo land",
+  "capture": ["note", "photo", "call"],
+  "qualify": ["flood", "title", "access"],
+  "do": ["lot note"],
+  "collect": ["earnest wait"],
+  "follow": ["one nudge"],
+  "taps": ["flood", "title"],
+  "kill": ["no access", "not ours"],
+  "pipes": ["calendar", "webhook"],
+  "artifacts": ["lot note"],
+  "rules": [
+    { "text": "Cap flood cards.", "when": "qualify", "then": "wait", "contains": "flood" },
+    { "text": "Cap title cards.", "when": "qualify", "then": "wait", "contains": "title" }
+  ]
+}

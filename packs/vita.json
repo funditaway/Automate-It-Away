@@ -1,0 +1,18 @@
+{
+  "id": "vita",
+  "name": "Insurance desk",
+  "family": "Quote It Away",
+  "capture": ["note", "call", "form"],
+  "qualify": ["this week", "who it is for", "illustration"],
+  "do": ["packet draft"],
+  "collect": ["bind stays off the desk"],
+  "follow": ["one nudge"],
+  "taps": ["illustration send", "bind"],
+  "kill": ["not a fit", "already covered"],
+  "pipes": ["calendar", "webhook"],
+  "artifacts": ["packet"],
+  "rules": [
+    { "text": "Cap this-week cards.", "when": "qualify", "then": "wait", "contains": "this week" },
+    { "text": "Stop if this is an illustration.", "when": "do", "then": "stop", "contains": "illustration" }
+  ]
+}

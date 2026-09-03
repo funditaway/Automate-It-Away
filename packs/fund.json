@@ -1,0 +1,17 @@
+{
+  "id": "fund",
+  "name": "Fund raise",
+  "family": "Fund It Away",
+  "capture": ["note", "form"],
+  "qualify": ["goal", "credit"],
+  "do": ["campaign draft"],
+  "collect": ["credit wait"],
+  "follow": ["one nudge"],
+  "taps": ["credit decision"],
+  "kill": ["not a fit"],
+  "pipes": ["webhook"],
+  "artifacts": ["campaign page"],
+  "rules": [
+    { "text": "Wait on me before a credit decision.", "when": "collect", "then": "wait", "contains": "credit" }
+  ]
+}
