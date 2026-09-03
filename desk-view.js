@@ -142,46 +142,29 @@
   function decorateCard(j, html) {
     var here = workspace();
     var slug = j.slug || j.workspace || here;
-    var name = j.desk || (window.AIADesks && AIADesks.find(slug) && AIADesks.find(slug).name) || slug;
+    var found = window.AIADesks && AIADesks.find(slug);
+    var name = j.desk || (found && found.name) || slug;
     var tag = "<span class=\"desk-tag\">" + esc(name) + "</span>";
     var use = (slug && slug !== here)
       ? "<div class=\"desk-use\"><button class=\"go\" type=\"button\" onclick=\"AIADeskView.useDesk('" + esc(slug) + "','" + esc(j.id) + "')\">Use " + esc(name) + "</button></div>"
       : "";
-    if (!html) {
-      return "<article class=\"item\"><div class=\"meta\">" + tag + "</div><h3>" + esc(j.title) + "</h3>" + use + "</article>";
-    }
-    return html.replace("<article", "<article").replace(">", ">" + tag) + use;
+    if (!html) return "<article class=\"item\"><div class=\"meta\">" + tag + "</div><h3>" + esc(j.title) + "</h3>" + use + "</article>";
+    return html.replace(">", ">" + tag) + use;
   }
   function paintMerged(jobs) {
     jobs = jobs || [];
     window.JOBS = jobs;
     var box = document.getElementById("queue");
-    if (!box || typeof card !== "function") {
-      paintBar();
-      return;
-    }
+    if (!box || typeof card !== "function") { paintBar(); return; }
     var staff = (window.role || localStorage.getItem("aia_role")) === "employee";
-    var open = jobs.filter(function (j) {
-      return j.status !== "shipped" && j.status !== "killed";
-    });
-    if (!open.length) {
-      paintBar();
-      return;
-    }
-    box.innerHTML = open.map(function (j) {
-      var html = card(j, staff);
-      return decorateCard(j, html);
-    }).join("");
+    var open = jobs.filter(function (j) { return j.status !== "shipped" && j.status !== "killed"; });
+    if (!open.length) { paintBar(); return; }
+    box.innerHTML = open.map(function (j) { return decorateCard(j, card(j, staff)); }).join("");
     paintBar();
   }
   async function enhance() {
-    if (!window.AIADesks || !AIADesks.shopOpen || !AIADesks.shopOpen()) {
-      paintBar();
-      return;
-    }
-    var here = workspace();
-    var jobs = await fetchViews(here);
-    paintMerged(jobs);
+    if (!window.AIADesks || !AIADesks.shopOpen || !AIADesks.shopOpen()) { paintBar(); return; }
+    paintMerged(await fetchViews(workspace()));
   }
   function tapDesk(slug) {
     if (!window.AIADesks) return;
@@ -214,10 +197,7 @@
       return;
     }
     var use = e.target.closest("[data-use]");
-    if (use) {
-      useDesk(use.getAttribute("data-use"));
-      return;
-    }
+    if (use) { useDesk(use.getAttribute("data-use")); return; }
     var desk = e.target.closest("[data-desk]");
     if (desk) tapDesk(desk.getAttribute("data-desk"));
   }

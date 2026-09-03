@@ -11,7 +11,12 @@
     p = p.split("/").pop() || "index";
     return p.replace(/\.html$/, "") || "index";
   }
-  function dropHref() { return "/drop"; }
+  function dropHref() {
+    if (window.AIADesks && window.AIADesks.widgetHref) return window.AIADesks.widgetHref();
+    var ws = localStorage.getItem("aia_ws");
+    if (ws) return "/drop?ws=" + encodeURIComponent(ws);
+    return "/drop";
+  }
   function tabOf() {
     var name = file();
     if (name === "rules") return "rules";
@@ -49,13 +54,6 @@
     css.textContent = "body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}#desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px))}#desk-nav a{flex:1;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,sans-serif;text-decoration:none}#desk-nav a.on{color:#f39c12}#desk-nav svg{width:22px;height:22px}";
     document.head.appendChild(css);
   }
-  function addScript(src, mark) {
-    if (document.querySelector("script[" + mark + "]")) return;
-    var s = document.createElement("script");
-    s.src = src;
-    s.setAttribute(mark.split("[")[0] ? mark.replace(/[\[\]]/g, "").split("=")[0] : mark, "1");
-    document.body.appendChild(s);
-  }
   function boot() {
     if (window !== window.parent) return;
     ensureCss();
@@ -76,12 +74,12 @@
     if (tabOf() === "queue" && !document.querySelector("script[data-aia-handoff]")) {
       var s = document.createElement("script"); s.src = "/desk-handoff.js"; s.setAttribute("data-aia-handoff", "1"); document.body.appendChild(s);
     }
+    if (tabOf() === "queue" && !document.querySelector("script[data-aia-desk-view]")) {
+      var v = document.createElement("script"); v.src = "/desk-view.js"; v.setAttribute("data-aia-desk-view", "1"); document.body.appendChild(v);
+    }
     if (tabOf() === "drop") {
       if (!document.querySelector("script[data-aia-drop-talk]")) {
         var t = document.createElement("script"); t.src = "/drop-talk.js"; t.setAttribute("data-aia-drop-talk", "1"); document.body.appendChild(t);
-      }
-      if (!document.querySelector("script[data-aia-drop-talk-desk]")) {
-        var d = document.createElement("script"); d.src = "/drop-talk-desk.js"; d.setAttribute("data-aia-drop-talk-desk", "1"); document.body.appendChild(d);
       }
       if (!document.querySelector("script[data-aia-drop-now]")) {
         var n = document.createElement("script"); n.src = "/drop-now.js"; n.setAttribute("data-aia-drop-now", "1"); document.body.appendChild(n);
