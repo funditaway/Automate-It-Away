@@ -16,12 +16,19 @@ const WANTED13 = ["lawn", "repair", "shop-bay", "estate-day", "cleanout", "renta
 const INSURANCE_RE = /\b(quote|insur|illustration|life policy|term life|annuity|sit-?down|fact-?find|carrier packet|underwrit|suitability|replacement|beneficiary|year-?2|medicare|acord|bind|premium|policy app)\b/;
 
 function loadWorld() {
-  const file = readJson("../packs/world-engines.json") || { packs: [] };
-  const quote = readJson("../packs/quote-engines.json") || { packs: [] };
-  const wanted = readJson("../packs/wanted.json") || { packs: [] };
+  const files = [
+    "../packs/wanted.json",
+    "../packs/world-engines.json",
+    "../packs/world-home.json",
+    "../packs/world-consign.json",
+    "../packs/world-fund-land.json",
+    "../packs/quote-engines.json"
+  ].map(readJson);
   const byId = {};
-  [].concat(wanted.packs || [], file.packs || [], quote.packs || []).forEach(function (p) {
-    if (p && p.id && !byId[p.id]) byId[p.id] = p;
+  files.forEach(function (file) {
+    (file && file.packs ? file.packs : []).forEach(function (p) {
+      if (p && p.id && !byId[p.id]) byId[p.id] = p;
+    });
   });
   return byId;
 }
@@ -40,10 +47,27 @@ function insuranceWords(text) {
   return INSURANCE_RE.test(String(text || "").toLowerCase());
 }
 
+const GENERIC_DETECT = {
+  school: 1, chore: 1, grocery: 1, pickup: 1, reminder: 1, pet: 1, meal: 1,
+  list: 1, comps: 1, payout: 1, intake: 1, credit: 1, invoice: 1, lot: 1,
+  flood: 1, lead: 1, plat: 1, hoa: 1, perc: 1, moving: 1, cleaning: 1,
+  painting: 1, snow: 1, pool: 1, access: 1, campaign: 1, referred: 1,
+  "how much": 1, "after school": 1, "flood plain": 1, "oil change": 1,
+  claim: 1, application: 1
+};
+
+function phraseOk(phrase) {
+  const p = String(phrase || "").toLowerCase().trim();
+  if (!p || GENERIC_DETECT[p]) return false;
+  if (/\s/.test(p)) return p.length >= 8;
+  return p.length >= 10;
+}
+
 function detectWorld(job, model) {
   const text = blobOf(job) + " " + String(model || "");
-  const explicit = String((job && job.pack) || (job && job.custom && job.custom.pack) || "").toLowerCase();
-  if (WORLD[explicit]) {
+  const explicit = String((job && job.pack) || (job && job.custom && job.custom.pack) || "").toLowerCase().replace(/^pack_/, "");
+  if (explicit === "vita" || explicit === "insurance") return "quote";
+  if (WORLD[explicit] && OFFICIAL.indexOf(explicit) < 0) {
     if (insuranceWords(text) && explicit === "missed-call") return "quote";
     return explicit;
   }
@@ -52,16 +76,21 @@ function detectWorld(job, model) {
     return "quote";
   }
   if (/\b(missed call|no voicemail|call back)\b/.test(text)) return "missed-call";
-  const ids = Object.keys(WORLD);
-  for (let i = 0; i < ids.length; i++) {
-    const spec = WORLD[ids[i]];
-    const hints = [].concat(spec.detect || [], spec.kinds || [], [spec.id, spec.name]);
-    for (let h = 0; h < hints.length; h++) {
-      const needle = String(hints[h] || "").toLowerCase();
-      if (needle && text.indexOf(needle) >= 0) return spec.id;
-    }
-  }
-  return "";
+  let hit = "";
+  let hitLen = 0;
+  Object.keys(WORLD).forEach(function (id) {
+    if (OFFICIAL.indexOf(id) >= 0 || id === "quote" || id === "year2") return;
+    const spec = WORLD[id] || {};
+    (spec.detect || []).forEach(function (raw) {
+      if (!phraseOk(raw)) return;
+      const p = String(raw).toLowerCase();
+      if (text.indexOf(p) >= 0 && p.length > hitLen) {
+        hit = id;
+        hitLen = p.length;
+      }
+    });
+  });
+  return hit;
 }
 
 function faceOf(id) {
