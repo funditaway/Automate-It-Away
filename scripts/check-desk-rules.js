@@ -9,6 +9,7 @@ const lib = require("../api/_lib");
 const rulesHandler = require("../api/rules");
 const jobsHandler = require("../api/jobs");
 const authHandler = require("../api/auth");
+const { PLATFORM_HOLD } = require("../api/_hold");
 const {
   mem, hashPin, ensurePeople, ensureRules, ensureNouns, defaultNouns,
   moneyWaitOf, moneyNeedsOwner, forbiddenRule, ready, save,
@@ -157,6 +158,59 @@ async function main() {
     step: "Qualify",
     log: []
   });
+  mem.jobs.unshift({
+    id: "job_preview_live",
+    workspace: slug,
+    title: "Live preview",
+    amount: 20,
+    provider: "webhook",
+    status: "exception",
+    step: "Qualify",
+    log: []
+  });
+  mem.jobs.unshift({
+    id: "job_preview_whatnot",
+    workspace: slug,
+    title: "Whatnot preview",
+    amount: 20,
+    provider: "whatnot",
+    status: "exception",
+    step: "Qualify",
+    log: []
+  });
+  mem.jobs.unshift({
+    id: "job_override_kill",
+    workspace: slug,
+    title: "Override kill",
+    amount: 20,
+    status: "held",
+    step: "Do",
+    log: []
+  });
+  mem.jobs.unshift({
+    id: "job_platform_hold",
+    workspace: "preview-desk",
+    title: "Platform hold",
+    amount: PLATFORM_HOLD,
+    status: "exception",
+    step: "Qualify",
+    log: []
+  });
+  mem.connections.unshift({
+    id: "conn_preview_live",
+    workspace: slug,
+    provider: "webhook",
+    label: "Webhook",
+    live: true,
+    hook: "https://example.invalid/hook"
+  });
+  mem.connections.unshift({
+    id: "conn_preview_whatnot",
+    workspace: slug,
+    provider: "whatnot",
+    label: "Whatnot",
+    live: true
+  });
 
   const extraId = (shop.rules || []).find((r) => r.text === extra);
   await call(rulesHandler, "POST", owner, { action: "remove", id: extraId && extraId.id });
@@ -165,9 +219,9 @@ async function main() {
   else pass("empty list stays empty");
 
   const noRule = await call(jobsHandler, "POST", owner, { action: "ship", id: "job_hold250", amount: 250, confirm: false });
-  if (noRule.statusCode === 409) {
-    fail("empty-list amount 250 must not 409 without a money-wait rule, got " + noRule.statusCode + " " + JSON.stringify(noRule.body));
-  } else pass("no money-wait rule → amount does not 409");
+  if (noRule.statusCode !== 409 || !noRule.body.preview || !(noRule.body.dispatch && noRule.body.dispatch.holdAt === PLATFORM_HOLD)) {
+    fail("empty-list amount 250 should preview at platform hold, got " + noRule.statusCode + " " + JSON.stringify(noRule.body));
+  } else pass("no money-wait rule still previews at platform hold");
 
   const moneyLine = "Payments over $250 wait for the owner.";
   const addMoney = await call(rulesHandler, "POST", owner, { text: moneyLine });
@@ -178,6 +232,43 @@ async function main() {
   } else pass("owner money-wait rule still 409s");
   const moneyId = (shop.rules || []).find((r) => r.text === moneyLine);
   await call(rulesHandler, "POST", owner, { action: "remove", id: moneyId && moneyId.id });
+
+  const livePreview = await call(jobsHandler, "POST", owner, { action: "preview", id: "job_preview_live", amount: 20, provider: "webhook" });
+  if (livePreview.statusCode !== 200 || !livePreview.body.preview || !(livePreview.body.dispatch && livePreview.body.dispatch.live) || livePreview.body.dispatch.demo) {
+    fail("preview should show live dispatch, got " + livePreview.statusCode + " " + JSON.stringify(livePreview.body));
+  } else pass("preview shows live dispatch");
+
+  const whatnotPreview = await call(jobsHandler, "POST", owner, { action: "preview", id: "job_preview_whatnot", amount: 20, provider: "whatnot" });
+  if (whatnotPreview.statusCode !== 200 || !(whatnotPreview.body.dispatch && whatnotPreview.body.dispatch.demo) || whatnotPreview.body.dispatch.live) {
+    fail("whatnot preview should stay demo-only, got " + whatnotPreview.statusCode + " " + JSON.stringify(whatnotPreview.body));
+  } else pass("whatnot preview stays demo-only");
+
+  const liveHold = await call(jobsHandler, "POST", staff, { action: "ship", id: "job_preview_live", amount: 20, provider: "webhook", confirm: false });
+  if (liveHold.statusCode !== 409 || !liveHold.body.preview || !liveHold.body.job || liveHold.body.job.status !== "held" || !(liveHold.body.dispatch && liveHold.body.dispatch.live)) {
+    fail("live ship should preview-hold first, got " + liveHold.statusCode + " " + JSON.stringify(liveHold.body));
+  } else pass("live ship previews before leaving the desk");
+
+  const liveBlock = await call(jobsHandler, "POST", staff, { action: "ship", id: "job_preview_live", amount: 20, provider: "webhook", confirm: true });
+  if (liveBlock.statusCode !== 403) fail("employee confirm should 403 on live send, got " + liveBlock.statusCode);
+  else pass("employee cannot confirm live send");
+
+  const overridePreview = await call(jobsHandler, "POST", owner, { action: "override", id: "job_override_kill", pass: "kill", confirm: false });
+  if (overridePreview.statusCode !== 409 || !overridePreview.body.preview) fail("override should require second tap, got " + overridePreview.statusCode + " " + JSON.stringify(overridePreview.body));
+  else pass("override requires second tap");
+
+  const overrideKill = await call(jobsHandler, "POST", owner, { action: "override", id: "job_override_kill", pass: "kill", confirm: true });
+  if (overrideKill.statusCode !== 200 || !overrideKill.body.overridden || !overrideKill.body.job || overrideKill.body.job.status !== "killed") {
+    fail("owner override kill failed, got " + overrideKill.statusCode + " " + JSON.stringify(overrideKill.body));
+  } else pass("owner override can kill after preview");
+
+  const killPreview = await call(jobsHandler, "POST", owner, { action: "kill", id: "job_demo", confirm: false });
+  if (killPreview.statusCode !== 409 || !killPreview.body.preview) fail("kill should preview on first tap, got " + killPreview.statusCode + " " + JSON.stringify(killPreview.body));
+  else pass("kill first tap is preview");
+
+  const platformHold = await call(jobsHandler, "POST", { "x-workspace": "preview-desk" }, { action: "ship", id: "job_platform_hold", amount: PLATFORM_HOLD, confirm: false });
+  if (platformHold.statusCode !== 409 || !platformHold.body.preview || !(platformHold.body.dispatch && platformHold.body.dispatch.holdAt === PLATFORM_HOLD)) {
+    fail("desk without shop should still use platform hold, got " + platformHold.statusCode + " " + JSON.stringify(platformHold.body));
+  } else pass("desk without shop still uses platform hold");
 
   const demo = await call(jobsHandler, "POST", owner, { action: "ship", id: "job_demo", amount: 20, confirm: true });
   if (!demo.body.job || demo.body.job.status === "shipped" || !(demo.body.job.dispatch && demo.body.job.dispatch.demo)) {
