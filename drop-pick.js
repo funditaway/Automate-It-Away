@@ -1,7 +1,7 @@
 (function () {
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;" })[c];
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
     });
   }
   function slugify(s) {
@@ -12,53 +12,55 @@
     var use = slugify(slug);
     location.href = use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
   }
-  function hoistPick() {
-    var box = document.getElementById("desk-pick");
-    var title = document.getElementById("drop-title");
-    if (!box || !title || !title.parentNode) return;
-    var sub = document.getElementById("drop-sub");
-    var after = sub || title;
-    if (after.nextSibling !== box) after.parentNode.insertBefore(box, after.nextSibling);
-  }
-  function paintSearch(rows, q) {
+  function paintSearch(rows, accounts, q) {
     var box = document.getElementById("public-desk-hits");
     if (!box) return;
-    if (!rows || !rows.length) {
-      box.innerHTML = q
-        ? "<p class=\"sub\">No world desk matches that. Private desks do not show here.</p>"
-        : "<p class=\"sub\">No listed world desks yet. Owner can list one. Private desks stay off this list.</p>";
+    var desks = Array.isArray(rows) ? rows : [];
+    var acc = Array.isArray(accounts) ? accounts : [];
+    if (!desks.length && !acc.length) {
+      box.innerHTML = q ? "<p class=\"sub\">No public world desk or account matches that. Private desks stay off this list.</p>" : "<p class=\"sub\">No listed world desks yet. An owner can list theirs. Private desks stay off this list.</p>";
       return;
     }
-    box.innerHTML = rows.map(function (d) {
-      var who = d.account || d.accountName || d.owner || d.user || "";
-      var bits = [];
-      if (who && who !== (d.name || d.slug)) bits.push(esc(who));
-      bits.push(esc(d.name || d.slug));
+    var accHtml = acc.length ? acc.map(function (a) {
+      var label = esc(a.account || a.name || a.slug);
+      var extra = a.name && a.account && a.name !== a.account ? " · " + esc(a.name) : "";
+      return "<button type=\"button\" data-public-desk=\"" + esc(a.slug) + "\" data-world=\"account\">" + label + extra + " · account</button>";
+    }).join("") : "";
+    var deskHtml = desks.map(function (d) {
+      var bits = [esc(d.name || d.slug)];
+      if (d.account && d.account !== d.name) bits.push(esc(d.account));
       if (d.city) bits.push(esc(d.city));
       if (d.does) bits.push(esc(d.does));
-      return "<button type=\"button\" data-public-desk=\"" + esc(d.slug) + "\">" + bits.join(" · ") + "</button>";
+      return "<button type=\"button\" data-public-desk=\"" + esc(d.slug) + "\" data-world=\"desk\">" + bits.join(" · ") + "</button>";
     }).join("");
+    box.innerHTML = (accHtml ? "<p class=\"sub\">World accounts</p>" + accHtml : "") + (deskHtml ? "<p class=\"sub\">World desks</p>" + deskHtml : "");
   }
   async function searchPublic(q) {
     try {
-      var url = q
-        ? ("/api/desks?listed=1&q=" + encodeURIComponent(q))
-        : "/api/desks?listed=1";
-      var r = await fetch(url);
+      var r = await fetch("/api/desks?listed=1&q=" + encodeURIComponent(q || ""));
       var data = await r.json().catch(function () { return {}; });
-      var rows = (data && (data.desks || data.world || data.accounts)) || [];
-      paintSearch(rows, q);
-    } catch (e) { paintSearch([], q); }
+      paintSearch((data && data.desks) || [], (data && data.accounts) || [], q);
+    } catch (e) { paintSearch([], [], q); }
   }
   function injectSearch() {
-    var box = document.getElementById("desk-pick");
-    if (!box || document.getElementById("public-desk-q")) return;
+    if (document.getElementById("public-desk-q")) return;
     if (window !== window.parent || /embed=1/.test(location.search)) return;
-    hoistPick();
     var wrap = document.createElement("div");
     wrap.id = "public-desk-search";
-    wrap.innerHTML = "<label>World users · accounts · desks</label><input id=\"public-desk-q\" placeholder=\"Name, account, city, or what they do\"><p class=\"sub\">Listed world desks first. Private desks stay off this list.</p><div class=\"desk-chips\" id=\"public-desk-hits\"></div>";
-    box.insertBefore(wrap, box.firstChild);
+    wrap.className = "card desk-pick";
+    wrap.innerHTML = "<strong style=\"color:var(--heading)\">World users · accounts · desks</strong><label>Find a public desk</label><input id=\"public-desk-q\" placeholder=\"Desk, account, or city\" autocomplete=\"off\"><p class=\"sub\">Listed world desks and accounts first. Private desks stay off this list.</p><div class=\"desk-chips\" id=\"public-desk-hits\"></div>";
+    var main = document.querySelector("main.wrap");
+    var title = document.getElementById("drop-title");
+    var sub = document.getElementById("drop-sub");
+    var banner = document.getElementById("drop-on");
+    var after = banner || sub || title;
+    if (main && after && after.parentNode === main) {
+      after.parentNode.insertBefore(wrap, after.nextSibling);
+    } else {
+      var box = document.getElementById("desk-pick");
+      if (box) box.insertBefore(wrap, box.firstChild);
+      else return;
+    }
     var input = document.getElementById("public-desk-q");
     var hits = document.getElementById("public-desk-hits");
     var timer = null;
@@ -88,7 +90,7 @@
       if (sub) sub.textContent = "This phone has no saved desk yet. Pick a world desk above, add one you already opened, or create a new desk.";
       return;
     }
-    if (sub) sub.textContent = "Desks on this phone. World desks stay at the top.";
+    if (sub) sub.textContent = "Desks saved on this phone. World desks stay at the top.";
     chips.innerHTML = rows.map(function (d) {
       var on = d.slug === ws ? " on" : "";
       var who = d.role === "owner" ? " · owner" : d.role === "employee" ? " · helper" : "";
@@ -132,7 +134,7 @@
     if (cur.role && cur.role !== "owner") return;
     var btn = document.createElement("button");
     btn.type = "button"; btn.id = "list-public-btn"; btn.className = "ghost"; btn.style.width = "auto";
-    btn.textContent = "List this desk in world search";
+    btn.textContent = "List this desk in public search";
     var actions = box.querySelector(".desk-actions");
     if (actions) actions.appendChild(btn); else box.appendChild(btn);
     btn.onclick = async function () {
@@ -143,7 +145,7 @@
         var r = await fetch("/api/desks", { method: "POST", headers: headers, body: JSON.stringify({ action: "listed", listed: true, slug: cur.slug }) });
         var data = await r.json().catch(function () { return {}; });
         if (!r.ok) { if (err) { err.style.display = "block"; err.textContent = data.error || "Owner only."; } return; }
-        btn.textContent = "Listed in world search";
+        btn.textContent = "Listed in public search";
         searchPublic((document.getElementById("public-desk-q") || {}).value || "");
       } catch (e) { if (err) { err.style.display = "block"; err.textContent = "Could not list this desk."; } }
     };
