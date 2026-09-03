@@ -18,5 +18,9 @@
     "collect": ["amount", "payoutTo", "confirm"],
     "follow": ["followed"],
     "rail": ["killReason", "whoTapped", "promptVersion"]
-  }
+  },
+  "rules": [
+    { "text": "Cap title-missing items.", "when": "qualify", "then": "cap", "contains": "title" },
+    { "text": "Wait on me before a payout leaves.", "when": "collect", "then": "wait" }
+  ]
 }
