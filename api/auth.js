@@ -4,7 +4,10 @@ const {
 } = require("./_lib");
 const { ensureFields, applyFieldList, ensureCreations, publicCreation, addCreation } = require("./_fields");
 const { qualifyJob } = require("./_engine");
-const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccount, publicPlan } = require("./_account");
+const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccount, publicPlan,
+  loginWithEmail, looksLikeEmail, emailTaken, emailOf, applyAccountDetails, setAccountPassword, passwordOk, homeAccount, accountForDesk, hashPassword
+} = require("./_account");
+const libx = require("./_lib");
 
 function publicWorkspace(row) {
   return {
@@ -143,7 +146,62 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, person: made.person, workspace: publicWorkspace(row) });
     }
 
+    if (action === "password" || action === "set-password") {
+      const slug = workspaceOf(req) || slugify(body.workspace || body.slug || body.biz || "");
+      const found = personOf(req, slug);
+      if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
+      const acc = homeAccount(found.person, found.workspace);
+      if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
+      if (acc.password) {
+        const current = String(body.current || body.old || "");
+        const viaEmail = current && acc.password === hashPassword(current);
+        const viaPin = current && acc.pin && acc.pin === hashPin(current);
+        if (!viaEmail && !viaPin) return res.status(401).json({ ok: false, error: "Current password or desk code does not match." });
+      }
+      const set = setAccountPassword(acc, body.password || body.next);
+      if (!set.ok) return res.status(400).json({ ok: false, error: set.error });
+      if (body.email && looksLikeEmail(body.email)) {
+        const applied = applyAccountDetails(acc, { email: body.email });
+        if (applied && applied.ok === false) return res.status(409).json({ ok: false, error: applied.error });
+      }
+      await save();
+      return res.status(200).json({ ok: true, hasPassword: true, email: acc.email || "", hint: "Email and password can now open this account." });
+    }
+
+    if (action === "details" || action === "account-details" || action === "profile") {
+      const slug = workspaceOf(req) || slugify(body.workspace || body.slug || "");
+      const found = personOf(req, slug);
+      if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
+      if (body.name) found.person.name = String(body.name).trim().slice(0, 80);
+      const acc = homeAccount(found.person, found.workspace);
+      if (acc) {
+        const applied = applyAccountDetails(acc, body);
+        if (applied && applied.ok === false) return res.status(400).json({ ok: false, error: applied.error });
+      }
+      await save();
+      return res.status(200).json({ ok: true, you: publicPerson(found.person), account: acc ? { id: acc.id, name: acc.name, email: acc.email || "", phone: acc.phone || "", city: acc.city || "", state: acc.state || "", reach: acc.reach || "", hours: acc.hours || "", hasPassword: !!acc.password } : null });
+    }
+
     if (action === "login") {
+      const email = String(body.email || "").trim();
+      const password = String(body.password || body.pass || "");
+      if (looksLikeEmail(email) && password) {
+        const via = loginWithEmail(email, password);
+        if (!via.ok) return res.status(via.status || 401).json({ ok: false, error: via.error });
+        let session = null;
+        if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req);
+        if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
+        await save();
+        return res.status(200).json({
+          ok: true, savedLogin: true, emailLogin: true, session,
+          account: via.account ? { id: via.account.id, name: via.account.name, ownerName: via.account.ownerName, email: via.account.email || "", hasPassword: true, plan: via.account.plan || "pro" } : null,
+          plan: via.account ? publicPlan(via.account) : null,
+          workspace: via.desk ? publicWorkspace(via.desk) : null,
+          you: publicPerson(via.person),
+          hint: "Signed in with email and password."
+        });
+      }
+
       const slug = slugify(body.workspace || body.slug || body.biz);
       const { workspace: row, person } = personOf(
         { headers: { "x-workspace": slug, "x-pin": body.pin || "" } },
@@ -160,11 +218,17 @@ module.exports = async function handler(req, res) {
         return res.status(401).json({ ok: false, error: "Shop name or desk code does not match" });
       }
       log("Auth", person.role + " signed in · " + person.name, "OK", slug);
+      let session = null;
+      if (typeof libx.issueSession === "function") session = libx.issueSession(person, row, accountForDesk(row), req);
+      if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
       await save();
       return res.status(200).json({
         ok: true,
+        savedLogin: true,
+        session,
         workspace: publicWorkspace(row),
-        you: publicPerson(person)
+        you: publicPerson(person),
+        hint: "Desk name + code opened this phone."
       });
     }
 
