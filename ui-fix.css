@@ -53,7 +53,6 @@ body.has-desk-nav .site-foot {
   color: var(--muted);
 }
 
-/* Desk header: brand + chip on row 1, tabs on row 2. Stops tools sitting on the tab row. */
 body.has-desk-nav header,
 body.has-desk-nav .site-header {
   display: grid !important;
@@ -88,10 +87,6 @@ body.has-desk-nav header .nav.site-nav {
 }
 
 @media (max-width: 640px) {
-  header a:not(#who-chip)[href*="login"],
-  .site-header a:not(#who-chip)[href*="login"] {
-    display: none !important;
-  }
   header .brand-name,
   .site-header .brand-name,
   header > a strong,
@@ -112,18 +107,6 @@ body.has-desk-nav header .nav.site-nav {
   header .nav.site-nav a[href="onboard.html"] {
     display: none !important;
   }
-  .theme-btn {
-    min-width: 46px !important;
-    min-height: 40px !important;
-    padding: 6px 9px !important;
-    font-size: 12px !important;
-  }
-  #queue-filters,
-  #desk-chips,
-  .pipe-mini {
-    flex-wrap: wrap !important;
-    overflow: visible !important;
-  }
 }
 
 @media (max-width: 859px) {
@@ -134,7 +117,6 @@ body.has-desk-nav header .nav.site-nav {
   body.has-desk-nav #desk-nav { display: none !important; }
 }
 
-/* Two-line field buttons must stack. Global button flex centers them into one blob. */
 .verify-cells {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -165,51 +147,23 @@ button[data-jump] .v {
   color: var(--ink);
   white-space: normal;
 }
-
-#gate button.go {
-  background: #119494 !important;
-  color: #fff !important;
-}
-
-.kpis {
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-}
 @media (max-width: 720px) {
   .verify-cells { grid-template-columns: 1fr; }
 }
 
-/* Empty KPI dash was a hairline. Keep a readable figure. */
-.kpi b {
-  min-width: 1ch;
-}
+.kpi b { min-width: 1ch; }
 
-/* Phone desk: last card must sit above the tab bar. */
 @media (max-width: 859px) {
   body.has-desk-nav {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px));
   }
   body.has-desk-nav main,
   body.has-desk-nav .wrap {
-    padding-bottom: 16px;
-  }
-  .sheet {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-  }
-  .sheet-card {
-    margin-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 56px !important;
   }
 }
 
-/* Disabled Open looked blank on desktop. */
-#gate button:disabled,
-button.go:disabled,
-#open-desk:disabled {
-  opacity: 1;
-  background: var(--edit) !important;
-  color: var(--edit-ink) !important;
-}
-
-/* History used #who-chip for a filter and hid Sign in. */
 header #who-chip,
 .hdr-tools #who-chip {
   display: inline-flex !important;
@@ -228,3 +182,79 @@ header #who-chip,
     display: inline !important;
   }
 }
+
+.kpi b,
+.kpi strong {
+  display: block !important;
+  min-height: 1.6em !important;
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0 !important;
+  color: var(--teal-deep, #0a4f4f) !important;
+  font-variant-numeric: tabular-nums;
+  overflow: visible !important;
+  height: auto !important;
+  width: auto !important;
+  background: none !important;
+  border: 0 !important;
+  text-indent: 0 !important;
+}
+.kpi b:empty::after,
+.kpi strong:empty::after {
+  content: "0";
+}
+
+#gate button,
+#gate button.edit,
+#gate button.go,
+#open-desk,
+button.open-desk {
+  background: var(--orange, #f39c12) !important;
+  color: #0c1116 !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+  border: 0 !important;
+}
+#gate button:disabled,
+#open-desk:disabled {
+  background: var(--orange, #f39c12) !important;
+  color: #0c1116 !important;
+  opacity: .72 !important;
+}
+
+#queue > .queue-empty { display: block; width: 100%; }
+#queue > .queue-empty .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+@media (min-width: 560px) {
+  #queue > .queue-empty,
+  #queue > p,
+  #queue > .row { grid-column: 1 / -1; }
+}
+
+.sheet { z-index: 80 !important; }
+.sheet-card {
+  max-height: min(90vh, calc(100dvh - 88px - env(safe-area-inset-bottom, 0px)));
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.card a:hover,
+.menu.card > a:hover { background: var(--edit); }
+.item, .kpi, .card, .sheet-card { min-width: 0; }
+#desk-nav { z-index: 50 !important; }
+
+html, body { overflow-x: hidden; overflow-y: auto; }
+@media (max-width: 859px) {
+  body.has-desk-nav .site-foot { margin-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+  header .theme-btn, .theme-btn { min-width: 52px !important; flex: 0 0 auto !important; }
+  #queue-filters, .pack-chips, .chips {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+}
+#queue-filters button, .pack-chips button, .chips button { flex: 0 0 auto; }
