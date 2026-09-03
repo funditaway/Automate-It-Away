@@ -117,3 +117,83 @@ body.has-desk-nav header .nav.site-nav {
   body.has-desk-nav { padding-bottom: 24px; }
   body.has-desk-nav #desk-nav { display: none !important; }
 }
+
+/* Two-line field buttons must stack. Global button flex centers them into one blob. */
+.verify-cells {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.verify-cells button,
+button[data-jump] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  text-align: left !important;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px !important;
+}
+.verify-cells button .k,
+button[data-jump] .k {
+  display: block;
+  font: 600 11px/1.2 system-ui, sans-serif;
+  color: var(--muted);
+}
+.verify-cells button .v,
+button[data-jump] .v {
+  display: block;
+  font: 700 14px/1.25 system-ui, sans-serif;
+  color: var(--ink);
+  white-space: normal;
+}
+@media (max-width: 720px) {
+  .verify-cells { grid-template-columns: 1fr; }
+}
+
+/* Empty KPI dash was a hairline. Keep a readable figure. */
+.kpi b {
+  min-width: 1ch;
+}
+
+/* Phone desk: last card must sit above the tab bar. */
+@media (max-width: 859px) {
+  body.has-desk-nav {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.has-desk-nav main,
+  body.has-desk-nav .wrap {
+    padding-bottom: 16px;
+  }
+}
+
+/* Disabled Open looked blank on desktop. */
+#gate button:disabled,
+button.go:disabled,
+#open-desk:disabled {
+  opacity: 1;
+  background: var(--edit) !important;
+  color: var(--edit-ink) !important;
+}
+
+/* History used #who-chip for a filter and hid Sign in. */
+header #who-chip,
+.hdr-tools #who-chip {
+  display: inline-flex !important;
+}
+
+.brand-short { display: none; }
+@media (max-width: 640px) {
+  header .brand-name,
+  .site-header .brand-name,
+  header > a strong,
+  header .brand strong {
+    display: none !important;
+  }
+  header .brand-short,
+  .site-header .brand-short {
+    display: inline !important;
+  }
+}
