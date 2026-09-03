@@ -35,6 +35,7 @@
     { "source": "/account", "destination": "/account.html" },
     { "source": "/desks", "destination": "/desks.html" },
     { "source": "/history", "destination": "/history.html" },
+    { "source": "/api/packs", "destination": "/api/desks?packs=1" },
     { "source": "/api/desks", "destination": "/api/desks" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
@@ -45,7 +46,6 @@
     { "source": "/api/admin", "destination": "/api/admin" },
     { "source": "/api/intake", "destination": "/api/intake" },
     { "source": "/api/hook", "destination": "/api/hook" },
-    { "source": "/api/rules", "destination": "/api/rules" },
-    { "source": "/api/packs", "destination": "/api/packs" }
+    { "source": "/api/rules", "destination": "/api/rules" }
   ]
 }
