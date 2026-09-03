@@ -1,4 +1,4 @@
-/* Phone + desktop visibility fixes. Loaded after theme.css. */
+/* Phone + desktop visibility. Loaded after theme.css (and injected by theme.js). */
 a.btn.outline,
 .btn.outline,
 a.outline {
@@ -6,31 +6,24 @@ a.outline {
   color: var(--teal) !important;
   border: 1px solid var(--teal) !important;
 }
-body.has-desk-nav header {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto;
+.hdr-tools {
+  display: flex;
   align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 0 auto;
 }
-body.has-desk-nav header > .brand,
-body.has-desk-nav header > a.brand {
-  grid-column: 1;
-  grid-row: 1;
+.who-chip.signed-out {
+  padding: 8px 16px !important;
+  max-width: none !important;
 }
-body.has-desk-nav header .hdr-tools,
-body.has-desk-nav header .theme-btn,
-body.has-desk-nav header .who-chip {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
-}
-body.has-desk-nav header .desk-tabs {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  width: 100%;
+.who-chip.signed-out .who-copy > span,
+.who-chip.signed-out .who-pic {
+  display: none !important;
 }
 .kpi b {
   display: block;
-  min-height: 1.3em;
+  min-height: 1.35em;
   font-size: 1.3rem;
   line-height: 1.2;
   color: var(--teal);
@@ -49,4 +42,69 @@ body.has-desk-nav header .desk-tabs {
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
+}
+
+/* Desk header: brand + chip on row 1, tabs on row 2. Stops tools sitting on the tab row. */
+body.has-desk-nav header,
+body.has-desk-nav .site-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 12px;
+}
+body.has-desk-nav header > .brand,
+body.has-desk-nav header > a.brand,
+body.has-desk-nav header > a:first-child,
+body.has-desk-nav .site-header > .brand {
+  grid-column: 1;
+  grid-row: 1;
+}
+body.has-desk-nav header .hdr-tools,
+body.has-desk-nav header .theme-btn,
+body.has-desk-nav header .who-chip,
+body.has-desk-nav .site-header .hdr-tools {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+}
+body.has-desk-nav header .desk-tabs,
+body.has-desk-nav .site-header .desk-tabs {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+body.has-desk-nav header nav.site-nav,
+body.has-desk-nav header .nav.site-nav {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  header .brand-name,
+  .site-header .brand-name,
+  header > a strong,
+  header .brand strong {
+    display: none !important;
+  }
+  header .brand-short,
+  .site-header .brand-short {
+    display: inline !important;
+  }
+  header nav.site-nav a[href="/login"],
+  header .nav.site-nav a[href="/login"],
+  header nav.site-nav a[href="login.html"],
+  header .nav.site-nav a[href="login.html"],
+  header nav.site-nav a[href="/onboard"],
+  header .nav.site-nav a[href="/onboard"],
+  header nav.site-nav a[href="onboard.html"],
+  header .nav.site-nav a[href="onboard.html"] {
+    display: none !important;
+  }
+}
+
+@media (max-width: 859px) {
+  body.has-desk-nav .desk-tabs { display: none !important; }
+}
+@media (min-width: 860px) {
+  body.has-desk-nav { padding-bottom: 24px; }
+  body.has-desk-nav #desk-nav { display: none !important; }
 }
