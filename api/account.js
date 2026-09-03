@@ -2,8 +2,9 @@ const lib = require("./_lib");
 const { cors, mem, ready, save, readBody, workspaceOf, personOf, isOwner } = lib;
 const {
   ensureAccount, accountForDesk, homeAccount, loginAccount, proHome, createOwnerAccount, publicPlan,
-  switchPlan, looksLikeEmail, passwordMatches, setAccountPassword, applyAccountDetails
+  switchPlan, looksLikeEmail, passwordMatches, setAccountPassword, applyAccountDetails, stampIfAdminDesk
 } = require("./_account");
+const aiaAdmin = require("./_aia-admin");
 
 function refreshSession(req, res) {
   if (req && req.__aiaSessionToken && typeof lib.sessionCookie === "function") {
@@ -37,7 +38,10 @@ function safeAccount(acc) {
     desks: Array.isArray(acc.desks) ? acc.desks.slice() : [],
     memberDesks: Array.isArray(acc.memberDesks) ? acc.memberDesks.slice() : [],
     hasPassword: !!acc.password,
-    mfaOn: !!acc.mfaOn
+    mfaOn: !!acc.mfaOn,
+    handle: acc.handle || "",
+    at: acc.handle ? "@" + acc.handle : "",
+    aiaReviewer: !!acc.aiaReviewer
   };
 }
 
@@ -147,6 +151,7 @@ module.exports = async function handler(req, res) {
     };
     const session = typeof lib.issueSession === "function" ? lib.issueSession(who, via.desk, via.account, req) : null;
     if (session && typeof lib.sessionCookie === "function") res.setHeader("Set-Cookie", lib.sessionCookie(session.token));
+    if (via.account) stampIfAdminDesk(via.account, via.desk);
     await save();
     const home = proHome(via.account, who);
     return res.status(200).json(Object.assign({ savedLogin: true, session }, home));
@@ -284,9 +289,49 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, hold: true, mfaOn: false, hint: "Authenticator stays on HOLD." });
   }
 
+  if (action === "handle" || action === "at") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    if (!isOwner(found.person)) {
+      return res.status(403).json({ ok: false, error: "Owner desk code required to set the handle." });
+    }
+    const allow = aiaAdmin.isReviewerDesk(found.workspace) || aiaAdmin.isPlatformAccount(account);
+    const set = aiaAdmin.setAccountHandle(account, body.handle || body.at || body.name, { allowReserved: allow });
+    if (!set.ok) return res.status(set.status || 409).json({ ok: false, error: set.error });
+    if (set.handle === "aia") {
+      found.workspace.aiaReviewer = true;
+      found.workspace.reviewer = true;
+    }
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json(Object.assign(proHome(account, found.person), { handle: set.handle, at: "@" + set.handle, reviewer: !!set.aiaReviewer, hint: "World users receive @" + (set.handle === "aia" ? "AIA" : set.handle) + "." }));
+  }
+
+  if (action === "reviewer" || action === "aia-reviewer") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !isOwner(found.person) || !account) {
+      return res.status(403).json({ ok: false, error: "Owner desk code required." });
+    }
+    const allow = aiaAdmin.isReviewerDesk(found.workspace) || aiaAdmin.isPlatformAccount(account);
+    if (!allow) return res.status(403).json({ ok: false, error: "AIA reviewer is for the AIA desk." });
+    if (body.off === true || body.off === "true") {
+      account.aiaReviewer = false;
+      found.workspace.aiaReviewer = false;
+    } else {
+      aiaAdmin.stampAdminAccount(account);
+      found.workspace.aiaReviewer = true;
+      found.workspace.reviewer = true;
+    }
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json({ ok: true, reviewer: !!account.aiaReviewer, handle: account.handle || "", at: account.handle ? "@" + account.handle : "", charged: false, hint: account.aiaReviewer ? "AIA review queue is on this desk." : "Reviewer off." });
+  }
+
   return res.status(400).json({
     ok: false,
     error: "Unknown account action.",
-    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "logout", "logout-all", "sessions", "export", "mfa"]
+    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "handle", "reviewer", "logout", "logout-all", "sessions", "export", "mfa"]
   });
 };
