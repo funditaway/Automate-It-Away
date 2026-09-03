@@ -6,7 +6,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Terms & privacy · Automate It Away</title>
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
@@ -16,36 +16,68 @@
     body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#fff;color:#1a2332;line-height:1.55}
     a{color:#0f7f7f}
     header{background:var(--header);color:#fff;padding:14px 5vw}
-    .wrap{width:min(720px,92vw);margin:0 auto;padding:24px 0 48px}
+    .wrap{width:min(720px,92vw);margin:0 auto;padding:24px 0 80px}
     h1,h2{color:#0a4f4f}
     p,li{color:#3d4f5f}
   </style>
 </head>
 <body>
-  <header>
+  <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
-    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    <div class="nav">
+      <a href="account.html">Account</a>
+      <a href="login.html">Sign in</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
   </header>
   <main class="wrap">
-    <h1>Before automateitaway.com takes money</h1>
-    <p>Pilot workspaces still live in this browser. The live desk will live on automateitaway.com under your workspace. We are not a bank, a carrier, or a law firm. A human still approves money when a desk rule says wait, and anything that can hurt a customer.</p>
+    <h1>Terms &amp; privacy</h1>
+    <p>Automate It Away is a desk for real work. Homepage: <a href="https://automateitaway.com">automateitaway.com</a>. We are not a bank, a carrier, a lender, or a law firm. A human still approves money when a desk rule says wait, and anything that can hurt a customer. Counsel rewrites this before money moves. Do not treat this page as the final contract.</p>
+
+    <h2>The world AIA Account</h2>
+    <p>One person, one AIA Account. That book is what a world user signs up for. Desk name + desk code, email + password, or continue-with on a connection partner. After a world signup you still name the first desk and pick a desk code. A world handle is how people find you on People. It is not an email and not a login.</p>
+    <ul>
+      <li>Owner taps stay on the owner seat: Stop, money, delete a desk, desk code, pipes.</li>
+      <li>Members, family, friends, and helpers never Stop or send money.</li>
+      <li>Insurance desks say Insurance / Quote It Away. They never say Vita on the account, the widget, or a pack face.</li>
+      <li>Each It Away shop keeps its own revenue, legal entity, and licenses. They do not share customer money or regulatory hats.</li>
+    </ul>
+
+    <h2>Special API Access with connection partners</h2>
+    <p>Continue-with is identity only. A connection partner may attach to the AIA Account so you can open the same book. That login is not a pipe, not a draft key, and not Special API Access to Gmail, Drive, Calendar write, payments, policy systems, bind, premium, or commission.</p>
+    <ul>
+      <li>Scopes we ask a partner for: sign-in identity only — openid, email, and profile / name. Never Gmail. Never Drive. Never Calendar write. Never contacts. Never payments.</li>
+      <li>What we store from that login: provider name, subject id, and if they give it, a name and an email. Apple Hide My Email and GitHub noreply addresses are not used to merge accounts.</li>
+      <li>How we use it: open or link one AIA Account. Session on this phone. That is the limited use.</li>
+      <li>What we never do with a partner token: Send, Stop, pay, draft, bind, place premium, pull commission, sell a list, score credit, or train a public model on your shop book.</li>
+      <li>Paid pipes and draft keys stay on <a href="connections.html">Connections</a>. Owner connects those. A world login does not mint them.</li>
+      <li>Unlink a door on <a href="account.html">Your account</a> if another door remains (desk code, password, or another linked login).</li>
+      <li>Export the book. Leave this phone. Logout every phone. Close-account stays HOLD until the live delete path exists.</li>
+    </ul>
+    <p>Partners we list on the wall: Google, GitHub, Apple, Microsoft, X, Amazon, Facebook, LinkedIn, Discord, Vercel, Yahoo, and Ask for Grok / ChatGPT / Claude / another site. A door stays Hold until the app id is on this box. Ask means that vendor has not admitted AIA as a website login yet.</p>
+
     <h2>Terms (draft)</h2>
     <ul>
       <li>You own your customer data. We process jobs in your workspace.</li>
-      <li>You do not need a ChatGPT, Claude, or Grok account. We draft on our key unless you turn on your own key.</li>
+      <li>You do not need a ChatGPT, Claude, or Grok account. We draft on our key unless you turn on your own key. Outside keys draft only. They never Send, Stop, or pay.</li>
       <li>The agent may draft. It may not ship money, legal letters, or policy illustrations unless you approve.</li>
       <li>Square, eBay, Calendar, and carriers stay your accounts. A dead token is your connection.</li>
       <li>Owner accounts are free for now. A monthly charge may start later. We tell you before we charge. No card is taken when you open an account.</li>
       <li>We bill shipped jobs only after a live pipe writes back. Pilot and held (409) jobs are not billed.</li>
+      <li>Owners may list a custom pack in search or set an ask. AIA does not take a card for packs yet.</li>
+      <li>Do not use AIA if you are under 13. Family seats for minors do not get a billed wallet and do not get a world login.</li>
     </ul>
+
     <h2>Privacy (draft)</h2>
     <ul>
-      <li>Pilot data stays in localStorage on this device.</li>
-      <li>When live: jobs, audit, and payouts sit on the workspace server for automateitaway.com. No selling lists.</li>
-      <li>Model vendors used for drafts see prompt text we send. They do not get your Square payouts.</li>
-      <li>Delete a workspace and its queue goes with it — once the live delete path exists.</li>
+      <li>When live: the account book, jobs, audit, and sessions sit on the workspace server for automateitaway.com.</li>
+      <li>No selling lists. No ads from partner identity data. No credit decision from this book.</li>
+      <li>Model vendors used for drafts see prompt text we send. They do not get partner login tokens or Square payouts.</li>
+      <li>Sessions last 14 days, slide on use, max 8 phones. You can leave one phone or every phone.</li>
+      <li>Authenticator MFA stays HOLD. We do not email or text a reset code.</li>
+      <li>Delete a workspace and its queue goes with it — once the live delete path exists. Until then: export, unlink, leave this phone.</li>
     </ul>
-    <p>Counsel rewrites this before money moves. Do not treat this page as the final contract.</p>
+    <p>Questions: use <a href="support.html">Support</a>. This page is the privacy policy and terms URL for partner consent screens: <a href="https://automateitaway.com/legal">https://automateitaway.com/legal</a>.</p>
   </main>
   <script src="theme.js"></script>
 </body>
