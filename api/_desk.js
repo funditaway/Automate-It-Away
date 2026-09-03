@@ -1,4 +1,5 @@
 const lib = require("./_lib");
+const perms = require("./_permissions");
 
 const DESK_FORMAT = "aia.desk.v1";
 const DEFAULT_DESK_PERMS = {
@@ -59,7 +60,7 @@ function setDeskPerms(ws, incoming) {
 
 function personCan(person, key) {
   if (!person || lib.isOwner(person)) return !!lib.isOwner(person);
-  const can = person.can && typeof person.can === "object" ? person.can : {};
+  const can = perms.resolvedCan(person);
   if (key === "explore") return can.explore !== false;
   return !!can[key];
 }
@@ -104,9 +105,9 @@ function publicDesk(row, person) {
     does: row.does || "",
     closed: deskClosed(row),
     createdAt: row.createdAt || null,
-    people: (owner || explore) ? (row.people || []).map(lib.publicPerson) : (row.people || []).length,
+    people: (owner || explore) ? (row.people || []).map(perms.publicPerson) : (row.people || []).length,
     peopleCount: (row.people || []).length,
-    you: lib.publicPerson(person),
+    you: perms.publicPerson(person),
     role: person ? person.role : null,
     waiting: counts.waiting,
     held: counts.held,
@@ -182,7 +183,7 @@ function exportDesk(row) {
     perms: deskPerms(row),
     nouns: lib.ensureNouns(row),
     rules: lib.ensureRules(row),
-    people: (row.people || []).map(lib.publicPerson),
+    people: (row.people || []).map(perms.publicPerson),
     counts: jobCounts(slug),
     jobs: jobs.map((j) => ({
       id: j.id,
@@ -237,7 +238,7 @@ function exploreDesk(row, person) {
     perms: deskPerms(row),
     nouns: lib.ensureNouns(row),
     rules: lib.ensureRules(row),
-    people: (row.people || []).map(lib.publicPerson),
+    people: (row.people || []).map(perms.publicPerson),
     events: deskEventsOf(slug, 25),
     audit: (mem().audit || []).filter((a) => a && (!a.workspace || a.workspace === slug)).slice(0, 25),
     recent: jobs.slice(0, 8).map((j) => ({
@@ -251,19 +252,7 @@ function exploreDesk(row, person) {
 }
 
 function setSeatCan(row, id, incoming) {
-  if (!row) return { ok: false, error: "No desk." };
-  const seat = (row.people || []).find((p) => p && p.id === id);
-  if (!seat) return { ok: false, error: "Person not found." };
-  if (seat.role === "owner") return { ok: false, error: "Owner already has every desk tap." };
-  const src = incoming && typeof incoming === "object" ? incoming : {};
-  const cur = seat.can && typeof seat.can === "object" ? seat.can : {};
-  seat.can = {
-    edit: src.edit != null ? !!src.edit : !!cur.edit,
-    export: src.export != null ? !!src.export : !!cur.export,
-    explore: src.explore != null ? !!src.explore : cur.explore !== false,
-    close: src.close != null ? !!src.close : !!cur.close
-  };
-  return { ok: true, person: lib.publicPerson(seat) };
+  return perms.setSeatCan(row, id, incoming);
 }
 
 function wipeDesk(slug, person) {
