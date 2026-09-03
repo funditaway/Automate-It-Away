@@ -56,9 +56,44 @@ module.exports = async function handler(req, res) {
       grok: {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
         model: process.env.AIA_GROK_MODEL || "grok-4-fast-non-reasoning",
+        endpoint: "https://api.x.ai/v1/chat/completions",
+        draftsOnCards: (mem.jobs || []).filter((j) => j && j.grokAt).length,
+        measured: (function () {
+          const rows = (mem.jobs || []).filter((j) => j && j.grokUsage);
+          const prompt = rows.reduce((n, j) => n + (Number(j.grokUsage.prompt) || 0), 0);
+          const completion = rows.reduce((n, j) => n + (Number(j.grokUsage.completion) || 0), 0);
+          const calls = rows.reduce((n, j) => n + (Number(j.grokUsage.calls) || 0), 0);
+          const dollars = prompt * 0.2 / 1e6 + completion * 0.5 / 1e6;
+          return {
+            jobs: rows.length,
+            calls,
+            prompt,
+            completion,
+            dollars: Math.round(dollars * 10000) / 10000,
+            note: "List-price estimate on the fast model. Real invoice is on console.x.ai."
+          };
+        })(),
+        heavyChat: "SuperGrok Heavy is the chat plan. It does not fund this key.",
         note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
           ? "Included drafts on the card. Never Send."
-          : "Set XAI_API_KEY for included Grok drafts. A desk can also connect Grok, ChatGPT, or Claude on /connections."
+          : "Set XAI_API_KEY on Vercel from console.x.ai. Chat login is not a draft pipe.",
+        spend: {
+          list: "$0.20 / 1M in · $0.50 / 1M out on grok-4-fast-non-reasoning",
+          perDraft: "~900 in + 250 out · about $0.0003",
+          pilotMonth: "1 desk, 20–40 cards/week · under $1",
+          busyMonth: "10 desks × 30 drafts/day · about $3",
+          prepaid: "Buy $10–25 credits on console.x.ai. Heavy $300 does not add API credit.",
+          avoid: "Do not set AIA_GROK_MODEL to grok-4, grok-4.6, or multi-agent for card drafts."
+        },
+        rate: {
+          source: "https://docs.x.ai/docs/rate-limits",
+          startTier: "T0 until $50 prepaid API spend",
+          tiers: "T0 $0 · T1 $50 · T2 $250 · T3 $1k · T4 $5k",
+          languageT0: "Published flagship language models: 37 RPS / 10M TPM at T0",
+          multiAgentT0: "Multi-agent is tighter: 9 RPS / 2.5M TPM at T0 — not for every card",
+          over: "429 Too Many Requests. Desk keeps the card. Human taps still work.",
+          console: "https://console.x.ai/team/default/rate-limits"
+        }
       },
       drafts: {
         included: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
