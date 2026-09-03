@@ -35,6 +35,14 @@ AIA.switchTo("desk-a");
 if (store.aia_ws !== "desk-a" || store.aia_pin !== "1111") fail("switch A did not restore A");
 else pass("switch sets aia_ws + aia_pin");
 
+AIA.patch("desk-a", { name: "Desk A+", role: "owner" });
+if (!AIA.find("desk-a") || AIA.find("desk-a").token !== "" || store.aia_session) fail("patch without a token should not invent one");
+AIA.patch("desk-b", { token: "tok-b" });
+AIA.switchTo("desk-b");
+AIA.patch("desk-b", { name: "Desk Bee" });
+if (!AIA.find("desk-b") || AIA.find("desk-b").token !== "tok-b" || store.aia_session !== "tok-b") fail("patch should keep the saved token");
+else pass("patch keeps the desk token");
+
 const before = AIA.list().length;
 AIA.unlock();
 if (AIA.list().length !== before) fail("unlock wiped saved desks");

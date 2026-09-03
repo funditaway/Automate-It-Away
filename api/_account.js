@@ -1,6 +1,9 @@
+const crypto = require("crypto");
 const lib = require("./_lib");
 const roles = require("./_roles");
 const plans = require("./_plans");
+
+const PASSWORD_ITERATIONS = 120000;
 
 const KINDS = ["owner", "family", "friend", "helper", "staff", "member", "agent"];
 
@@ -37,7 +40,26 @@ function looksLikeEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 120;
 }
 function hashPassword(password) {
-  return lib.hashPin("pw|" + String(password || ""));
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(String(password || ""), salt, PASSWORD_ITERATIONS, 32, "sha256").toString("hex");
+  return ["pbkdf2", "sha256", PASSWORD_ITERATIONS, salt, hash].join("$");
+}
+function passwordMatches(stored, password) {
+  const saved = String(stored || "");
+  const raw = String(password || "");
+  const parts = saved.split("$");
+  if (parts[0] === "pbkdf2" && parts[1] === "sha256" && parts.length === 5) {
+    const rounds = Number(parts[2]) || PASSWORD_ITERATIONS;
+    const salt = parts[3] || "";
+    const expected = parts[4] || "";
+    const actual = crypto.pbkdf2Sync(raw, salt, rounds, Math.max(1, expected.length / 2), "sha256").toString("hex");
+    try {
+      return crypto.timingSafeEqual(Buffer.from(actual, "hex"), Buffer.from(expected, "hex"));
+    } catch (e) {
+      return false;
+    }
+  }
+  return false;
 }
 function passwordOk(password) {
   const raw = String(password || "");
@@ -97,11 +119,13 @@ function loginWithEmail(email, password) {
   }
   const acc = findAccountByEmail(e);
   if (!acc || !acc.password) {
-    if (typeof lib.noteFail === "function") lib.noteFail(lockId);
+    const fail = typeof lib.noteFail === "function" ? lib.noteFail(lockId) : null;
+    if (fail && fail.locked) return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
     return { ok: false, status: 401, error: "Email or password does not match." };
   }
-  if (acc.password !== hashPassword(password)) {
-    if (typeof lib.noteFail === "function") lib.noteFail(lockId);
+  if (!passwordMatches(acc.password, password)) {
+    const fail = typeof lib.noteFail === "function" ? lib.noteFail(lockId) : null;
+    if (fail && fail.locked) return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
     return { ok: false, status: 401, error: "Email or password does not match." };
   }
   if (typeof lib.noteOk === "function") lib.noteOk(lockId);
@@ -180,7 +204,7 @@ function createOwnerAccount(body, row) {
     return existing;
   }
   const acc = {
-    id: "acct_" + Date.now().toString(36),
+    id: "acct_" + Date.now().toString(36) + require("crypto").randomBytes(4).toString("hex"),
     name: String((body && (body.biz || body.account || body.name)) || (row && (row.biz || row.name)) || "Shop").trim().slice(0, 80),
     ownerName: String((body && body.name) || (row && row.name) || "Owner").trim().slice(0, 80),
     email: (body && looksLikeEmail(body.email) ? emailOf(body) : "") || (row && row.email) || "",
@@ -238,6 +262,22 @@ function approvalsOf(slug) {
   const s = lib.slugify(slug || "");
   return (lib.mem.approvals || []).filter((a) => a && (!s || a.slug === s)).slice(0, 80);
 }
+function noteApproval(row, seat, status, actor) {
+  ensureAccount();
+  if (!row || !seat || !seat.id) return null;
+  let hit = (lib.mem.approvals || []).find((a) => a && a.slug === row.slug && a.personId === seat.id) || null;
+  if (!hit) {
+    hit = { id: "approval_" + Date.now().toString(36), slug: row.slug, personId: seat.id, requestedAt: new Date().toISOString() };
+    lib.mem.approvals.unshift(hit);
+  }
+  hit.name = seat.name || "";
+  hit.kind = seat.kind || seat.role || "member";
+  hit.status = String(status || seat.status || "pending").toLowerCase();
+  hit.by = (actor && actor.name) || hit.by || "request";
+  hit.updatedAt = new Date().toISOString();
+  if (hit.status === "approved" || hit.status === "denied") hit.decidedAt = hit.updatedAt;
+  return hit;
+}
 function normalizeKind(kind, role) {
   const raw = String(kind || "").toLowerCase();
   if (raw === "employee") return "helper";
@@ -267,6 +307,7 @@ function inviteSeat(row, body, actor) {
   };
   row.people = row.people || [];
   row.people.push(seat);
+  noteApproval(row, seat, status, actor);
   if (home && kind !== "agent") connectDesk(home, row, "member");
   return { ok: true, status: status === "approved" ? 201 : 202, person: lib.publicPerson(seat), pending: status === "pending" };
 }
@@ -280,6 +321,7 @@ function setSeatStatus(row, id, next, actor) {
   if (!seat) return { ok: false, status: 404, error: "Person not found." };
   seat.status = String(next || "pending").toLowerCase();
   seat.approvedAt = seat.status === "approved" ? new Date().toISOString() : null;
+  noteApproval(row, seat, seat.status, actor);
   return { ok: true, status: 200, person: lib.publicPerson(seat) };
 }
 function accountSnapshot(row, person) {
@@ -290,7 +332,7 @@ module.exports = {
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
-  findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordOk,
+  findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
   setAccountPassword, applyAccountDetails, emailTaken,
   planOf: plans.planOf, PLANS: plans.PLANS
 };

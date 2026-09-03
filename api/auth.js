@@ -5,7 +5,7 @@ const {
 const { ensureFields, applyFieldList, ensureCreations, publicCreation, addCreation } = require("./_fields");
 const { qualifyJob } = require("./_engine");
 const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccount, publicPlan,
-  loginWithEmail, looksLikeEmail, emailTaken, emailOf, applyAccountDetails, setAccountPassword, passwordOk, homeAccount, accountForDesk, hashPassword
+  loginWithEmail, looksLikeEmail, emailTaken, emailOf, applyAccountDetails, setAccountPassword, passwordOk, homeAccount, accountForDesk, passwordMatches
 } = require("./_account");
 const libx = require("./_lib");
 
@@ -154,7 +154,7 @@ module.exports = async function handler(req, res) {
       if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
       if (acc.password) {
         const current = String(body.current || body.old || "");
-        const viaEmail = current && acc.password === hashPassword(current);
+        const viaEmail = current && passwordMatches(acc.password, current);
         const viaPin = current && acc.pin && acc.pin === hashPin(current);
         if (!viaEmail && !viaPin) return res.status(401).json({ ok: false, error: "Current password or desk code does not match." });
       }
