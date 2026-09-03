@@ -53,7 +53,6 @@ body.has-desk-nav .site-foot {
   color: var(--muted);
 }
 
-/* Desk header: brand + chip on row 1, tabs on row 2. Stops tools sitting on the tab row. */
 body.has-desk-nav header,
 body.has-desk-nav .site-header {
   display: grid !important;
@@ -98,27 +97,35 @@ body.has-desk-nav header .nav.site-nav {
   .site-header .brand-short {
     display: inline !important;
   }
-  header nav.site-nav a[href="/login"],
-  header .nav.site-nav a[href="/login"],
-  header nav.site-nav a[href="login.html"],
-  header .nav.site-nav a[href="login.html"],
-  header nav.site-nav a[href="/onboard"],
-  header .nav.site-nav a[href="/onboard"],
-  header nav.site-nav a[href="onboard.html"],
-  header .nav.site-nav a[href="onboard.html"] {
-    display: none !important;
-  }
 }
 
 @media (max-width: 859px) {
   body.has-desk-nav .desk-tabs { display: none !important; }
+  html { scroll-padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+  body.has-desk-nav {
+    padding-bottom: calc(152px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.has-desk-nav main,
+  body.has-desk-nav .wrap,
+  body.has-desk-nav main.wrap {
+    padding-bottom: 48px !important;
+  }
+  body.kb-open #desk-nav {
+    display: none !important;
+  }
+  body.kb-open.has-desk-nav {
+    padding-bottom: 24px !important;
+  }
+  header a.brand {
+    min-width: 0;
+    overflow: hidden;
+  }
 }
 @media (min-width: 860px) {
   body.has-desk-nav { padding-bottom: 24px; }
   body.has-desk-nav #desk-nav { display: none !important; }
 }
 
-/* Two-line field buttons must stack. Global button flex centers them into one blob. */
 .verify-cells {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -153,43 +160,6 @@ button[data-jump] .v {
   .verify-cells { grid-template-columns: 1fr; }
 }
 
-/* Empty KPI dash was a hairline. Keep a readable figure. */
-.kpi b {
-  min-width: 1ch;
-}
-
-/* Phone desk: last card must sit above the tab bar. */
-@media (max-width: 859px) {
-  body.has-desk-nav {
-    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-  body.has-desk-nav main,
-  body.has-desk-nav .wrap {
-    padding-bottom: 16px;
-  }
-}
-
-/* History used #who-chip for a filter and hid Sign in. */
-header #who-chip,
-.hdr-tools #who-chip {
-  display: inline-flex !important;
-}
-
-.brand-short { display: none; }
-@media (max-width: 640px) {
-  header .brand-name,
-  .site-header .brand-name,
-  header > a strong,
-  header .brand strong {
-    display: none !important;
-  }
-  header .brand-short,
-  .site-header .brand-short {
-    display: inline !important;
-  }
-}
-
-/* Round 2 — numbers, Open, empty queue, sheets, More taps */
 .kpi b,
 .kpi strong {
   display: block !important;
@@ -201,11 +171,6 @@ header #who-chip,
   color: var(--teal-deep, #0a4f4f) !important;
   font-variant-numeric: tabular-nums;
   overflow: visible !important;
-  height: auto !important;
-  width: auto !important;
-  background: none !important;
-  border: 0 !important;
-  text-indent: 0 !important;
 }
 .kpi b:empty::after,
 .kpi strong:empty::after {
@@ -223,146 +188,19 @@ button.open-desk {
   opacity: 1 !important;
   border: 0 !important;
 }
-#gate button:disabled,
-#open-desk:disabled {
-  background: var(--orange, #f39c12) !important;
-  color: #0c1116 !important;
-  opacity: .72 !important;
-}
 
-#queue > .queue-empty {
-  display: block;
-  width: 100%;
-}
-#queue > .queue-empty .row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-@media (min-width: 560px) {
-  #queue > .queue-empty,
-  #queue > p,
-  #queue > .row {
-    grid-column: 1 / -1;
-  }
-}
-
-.sheet {
-  z-index: 80 !important;
-}
+.sheet { z-index: 80 !important; }
+.sheet.on,
+.sheet[open],
+.sheet.busy { z-index: 90 !important; }
 .sheet-card {
   max-height: min(90vh, calc(100dvh - 88px - env(safe-area-inset-bottom, 0px)));
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
-
-.card a:hover,
-.menu.card > a:hover {
-  background: var(--edit);
-}
-
-.item, .kpi, .card, .sheet-card {
-  min-width: 0;
-}
-
-#desk-nav {
-  z-index: 50 !important;
-}
-
-/* Round 3 — phone tab bar covering last cards and pack chips. */
-@media (max-width: 859px) {
-  html { scroll-padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
-  body.has-desk-nav {
-    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-  body.has-desk-nav main.wrap,
-  body.has-desk-nav .wrap {
-    padding-bottom: 28px !important;
-  }
-  body.has-desk-nav main.wrap > :last-child,
-  body.has-desk-nav .wrap > :last-child {
-    margin-bottom: 12px;
-  }
-  body.kb-open #desk-nav {
-    display: none !important;
-  }
-  body.kb-open.has-desk-nav {
-    padding-bottom: 24px !important;
-  }
-}
-
-#queue-filters button,
-#pack-filters button,
-.pack-pills button,
-.pack-row button,
-[data-pack-filter] {
-  min-height: 36px !important;
-  height: auto !important;
-  padding: 6px 12px !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  border-radius: 999px !important;
-  display: inline-flex !important;
-  width: auto !important;
-}
-
-#step-words,
-#widget-count,
-#recent-label {
-  display: block;
-  position: relative;
-  z-index: 1;
-}
-
-#rule-widgets,
-#queue,
-#recent {
-  position: relative;
-  z-index: 1;
-}
-#rule-widgets .row,
-#queue .row {
-  flex-wrap: wrap;
-}
-#rule-widgets a,
-#rule-widgets button {
-  min-height: 44px;
-}
-
-.hdr-tools,
-header .who-chip {
-  max-width: 70vw;
-}
-.who-chip.signed-out {
-  white-space: nowrap;
-}
-@media (max-width: 380px) {
-  .theme-btn {
-    padding: 6px 10px !important;
-    min-width: 44px;
-  }
-}
-
-.talk-row,
-.hear-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-@media (max-width: 720px) {
-  .menu.card {
-    display: block !important;
-  }
-  .menu.card > a {
-    min-height: 56px;
-    padding: 12px 14px;
-  }
-}
-
-.sheet.on,
-.sheet[open],
-.sheet.busy {
-  z-index: 90 !important;
+#desk-nav { z-index: 50 !important; }
+.brand-short { display: none; }
+@media (max-width: 640px) {
+  header .brand-short,
+  .site-header .brand-short { display: inline !important; }
 }
