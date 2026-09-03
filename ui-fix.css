@@ -27,6 +27,15 @@ a.outline {
   font-size: 1.3rem;
   line-height: 1.2;
   color: var(--teal);
+  font-variant-numeric: tabular-nums;
+}
+body.has-desk-nav .site-foot {
+  padding-bottom: 20px;
+}
+@media (max-width: 859px) {
+  body.has-desk-nav .site-foot nav {
+    row-gap: 6px;
+  }
 }
 .menu.card > a {
   display: block;
