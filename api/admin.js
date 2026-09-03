@@ -4,9 +4,11 @@ const {
 const { adminPinOk } = require("./_desk");
 const {
   ensureAccount, publicAccount, accountSnapshot, inviteSeat, requestSeat,
-  setSeatStatus, approvalsOf, peopleAcross, accountForDesk, requestMonthly, publicPlan,
+  setSeatStatus, approvalsOf, peopleAcross, accountForDesk, homeAccount, requestMonthly, publicPlan,
   switchPlan, publicPlans, proHome, requestPermission, setPermission, desksForPerson
 } = require("./_account");
+const aiaAdmin = require("./_aia-admin");
+const worldPeople = require("./_world-people");
 const { setDeskPerms, setSeatCan, publicDesk } = require("./_desk");
 const plans = require("./_plans");
 const { historyOf, filterHistory } = require("./_history");
@@ -224,6 +226,11 @@ module.exports = async function handler(req, res) {
       const parsed = Object.fromEntries(new URLSearchParams(raw.indexOf("?") >= 0 ? raw.slice(raw.indexOf("?") + 1) : ""));
       q = Object.assign({}, parsed, q);
     } catch (e) {}
+    if (q.world || q.find || q.handle || q.at) {
+      const acc = homeAccount(person, row);
+      const foundWorld = worldPeople.searchWorldAccounts(q.q || q.handle || q.at || q.name || q.world || "", { desk: row, account: acc });
+      return res.status(foundWorld.ok ? 200 : (foundWorld.status || 400)).json(Object.assign({ world: true }, foundWorld));
+    }
     if (q.who || q.person || q.name) {
       const book = personBook({
         name: q.who || q.person || q.name,
@@ -274,6 +281,43 @@ module.exports = async function handler(req, res) {
   if (action === "person" || action === "book") {
     const book = personBook(body, { slugs: body.desks || [], viewer: person, currentSlug: row.slug });
     return res.status(book.ok ? 200 : (book.status || 404)).json(book);
+  }
+  if (action === "find" || action === "world" || action === "world-who" || action === "world-search" || action === "find-account") {
+    const hit = worldPeople.searchWorldAccounts(body.q || body.handle || body.name || body.who || body.at, { row: row, person: person, desk: row });
+    return res.status(hit.ok ? 200 : (hit.status || 400)).json(hit);
+  }
+  if (action === "invite-world" || action === "world-invite") {
+    const made = worldPeople.inviteWorld(row, body, person);
+    if (!made.ok) return res.status(made.status || 400).json(made);
+    await save();
+    return res.status(made.status || 202).json(made);
+  }
+  if (action === "invites" || action === "asks") {
+    return res.status(200).json(worldPeople.invitesOf(row, person));
+  }
+  if (action === "accept-invite") {
+    const acc = homeAccount(person, row);
+    const made = worldPeople.acceptInvite(acc, body.slug || body.desk || body.workspace);
+    if (!made.ok) return res.status(made.status || 400).json(made);
+    await save();
+    return res.status(200).json(made);
+  }
+  if (action === "decline-invite") {
+    const acc = homeAccount(person, row);
+    const made = worldPeople.declineInvite(acc, body.slug || body.desk || body.workspace);
+    if (!made.ok) return res.status(made.status || 400).json(made);
+    await save();
+    return res.status(200).json(made);
+  }
+  if (action === "handle" || action === "at") {
+    const acc = homeAccount(person, row);
+    if (!acc) return res.status(401).json({ ok: false, error: "Sign in first." });
+    const ownBook = !!(person && person.accountId && person.accountId === acc.id);
+    if (!isOwner(person) && !ownBook) return res.status(403).json({ ok: false, error: "Owner sets the world handle on Account." });
+    const set = aiaAdmin.setAccountHandle(acc, body.handle || body.at || body.name, { allowReserved: aiaAdmin.isPlatformAccount(acc) });
+    if (!set.ok) return res.status(set.status || 409).json({ ok: false, error: set.error });
+    await save();
+    return res.status(200).json({ ok: true, handle: set.handle, at: "@" + (set.handle === "aia" ? "AIA" : set.handle), hint: "A handle lets people find you on People." });
   }
 
   if (action === "ask" || action === "permission") {
@@ -350,5 +394,5 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, account: publicAccount() });
   }
-  return res.status(400).json({ ok: false, error: "Unknown admin action.", actions: ["invite", "request", "ask", "say", "permit", "mine", "person", "approve", "deny", "plan", "login"] });
+  return res.status(400).json({ ok: false, error: "Unknown admin action.", actions: ["invite", "request", "ask", "say", "permit", "mine", "person", "world-who", "invite-world", "invites", "accept-invite", "decline-invite", "handle", "approve", "deny", "plan", "login"] });
 };
