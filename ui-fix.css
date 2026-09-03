@@ -161,7 +161,7 @@ button[data-jump] .v {
 /* Phone desk: last card must sit above the tab bar. */
 @media (max-width: 859px) {
   body.has-desk-nav {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;
   }
   body.has-desk-nav main,
   body.has-desk-nav .wrap {
@@ -268,4 +268,101 @@ button.open-desk {
 
 #desk-nav {
   z-index: 50 !important;
+}
+
+/* Round 3 — phone tab bar covering last cards and pack chips. */
+@media (max-width: 859px) {
+  html { scroll-padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+  body.has-desk-nav {
+    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.has-desk-nav main.wrap,
+  body.has-desk-nav .wrap {
+    padding-bottom: 28px !important;
+  }
+  body.has-desk-nav main.wrap > :last-child,
+  body.has-desk-nav .wrap > :last-child {
+    margin-bottom: 12px;
+  }
+  body.kb-open #desk-nav {
+    display: none !important;
+  }
+  body.kb-open.has-desk-nav {
+    padding-bottom: 24px !important;
+  }
+}
+
+#queue-filters button,
+#pack-filters button,
+.pack-pills button,
+.pack-row button,
+[data-pack-filter] {
+  min-height: 36px !important;
+  height: auto !important;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  width: auto !important;
+}
+
+#step-words,
+#widget-count,
+#recent-label {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+#rule-widgets,
+#queue,
+#recent {
+  position: relative;
+  z-index: 1;
+}
+#rule-widgets .row,
+#queue .row {
+  flex-wrap: wrap;
+}
+#rule-widgets a,
+#rule-widgets button {
+  min-height: 44px;
+}
+
+.hdr-tools,
+header .who-chip {
+  max-width: 70vw;
+}
+.who-chip.signed-out {
+  white-space: nowrap;
+}
+@media (max-width: 380px) {
+  .theme-btn {
+    padding: 6px 10px !important;
+    min-width: 44px;
+  }
+}
+
+.talk-row,
+.hear-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .menu.card {
+    display: block !important;
+  }
+  .menu.card > a {
+    min-height: 56px;
+    padding: 12px 14px;
+  }
+}
+
+.sheet.on,
+.sheet[open],
+.sheet.busy {
+  z-index: 90 !important;
 }
