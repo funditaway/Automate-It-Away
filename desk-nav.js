@@ -119,15 +119,6 @@
         ico + "<span>" + t.label + "</span></a>";
     }).join("");
   }
-  function ensureIcons(nav) {
-    TABS.forEach(function (t) {
-      var a = nav.querySelector("[data-tab=\"" + t.id + "\"]");
-      if (!a) return;
-      if (!a.querySelector("svg")) {
-        a.insertAdjacentHTML("afterbegin", svg(t.ico));
-      }
-    });
-  }
 
   function liftNav() {
     var nav = document.getElementById("desk-nav");
@@ -142,6 +133,15 @@
       return;
     }
     nav.style.bottom = gap ? gap + "px" : "0px";
+  }
+
+  function loadDrop(name, attr) {
+    if (tabOf() !== "drop") return;
+    if (document.querySelector("script[" + attr + "]")) return;
+    var el = document.createElement("script");
+    el.src = "/" + name;
+    el.setAttribute(attr, "1");
+    document.body.appendChild(el);
   }
 
   function boot() {
@@ -182,19 +182,10 @@
       v.setAttribute("data-aia-desk-view", "1");
       document.body.appendChild(v);
     }
-    /* desk-clock.js is not on the box. Do not 404 the queue. */
-    if (tabOf() === "drop" && !document.querySelector("script[data-aia-drop-talk]")) {
-      var t = document.createElement("script");
-      t.src = "/drop-talk.js";
-      t.setAttribute("data-aia-drop-talk", "1");
-      document.body.appendChild(t);
-    }
-    if (tabOf() === "drop" && !document.querySelector("script[data-aia-drop-now]")) {
-      var n = document.createElement("script");
-      n.src = "/drop-now.js";
-      n.setAttribute("data-aia-drop-now", "1");
-      document.body.appendChild(n);
-    }
+    loadDrop("drop-talk.js", "data-aia-drop-talk");
+    loadDrop("drop-now.js", "data-aia-drop-now");
+    loadDrop("drop-more.js", "data-aia-drop-more");
+    loadDrop("drop-preview.js", "data-aia-drop-preview");
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
