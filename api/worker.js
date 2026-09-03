@@ -41,10 +41,12 @@ module.exports = async function handler(req, res) {
   const groups = groupByDesk(scope);
   let qualified = 0;
   let followed = 0;
+  let clocked = 0;
   Object.keys(groups).forEach((slug) => {
-    const result = runWorkspace(groups[slug], now, shopOf(slug));
-    qualified += result.qualified;
-    followed += result.followed;
+    const result = runWorkspace(groups[slug], now, shopOf(slug)) || {};
+    qualified += result.qualified || 0;
+    followed += result.followed || 0;
+    clocked += result.clocked || 0;
   });
   if (followed) {
     scope.filter((j) => j.followed && j.followNote).slice(0, followed).forEach((job) => {
@@ -72,10 +74,10 @@ module.exports = async function handler(req, res) {
     job.next = "Off the desk. Waiting on write-back, or tap Done off desk / Needs a hand.";
     nudged += 1;
   });
-  if (qualified || followed || pinged.length || nudged || drafted) await save();
+  if (qualified || followed || pinged.length || nudged || drafted || clocked) await save();
   return res.status(200).json({
-    ok: true, workspace, touched: qualified + followed + drafted, qualified, followed,
-    pinged: pinged.length, drafted, nudged,
-    note: "Worker qualifies, nudges, and drafts handed-to-agent cards. Never Send or Stop."
+    ok: true, workspace, touched: qualified + followed + drafted + clocked, qualified, followed,
+    pinged: pinged.length, drafted, nudged, clocked,
+    note: "Worker qualifies, nudges, drafts, and ticks due/expire. Never Send or Stop."
   });
 };
