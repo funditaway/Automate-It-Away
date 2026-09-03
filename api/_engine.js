@@ -1,5 +1,6 @@
 const hand = require("./_handoff");
 const { ensureRules, moneyWaitOf, moneyNeedsOwner } = require("./_lib");
+const taps = require("./_taps");
 
 const MONEY_HOLD = null;
 const PACKS = ["home", "consign", "vita", "fund", "land"];
@@ -17,9 +18,9 @@ function qualifyJob(job, shop) {
   const holdAt = shop ? moneyWaitOf(rules) : MONEY_HOLD;
   if (moneyNeedsOwner(moneyOf(job), holdAt)) {
     job.waitingOn = "owner";
-    job.next = "Waiting on the owner.";
+    job.next = "Waiting on the owner of " + taps.deskName(shop) + ".";
   }
-  if (!job.next) job.next = "On the queue. You tap Yes or No.";
+  taps.applyTaps(job, job.taps, shop);
   job.crew = hand.crewOf(job, shop);
   return job;
 }
