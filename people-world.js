@@ -1,7 +1,7 @@
 (function () {
   function esc(s) {
     return String(s || "").replace(/[&<>"]/g, function (c) {
-      return ({ "&": "&", "<": "<", ">": ">", '"': """ })[c];
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c];
     });
   }
   function headers() {
