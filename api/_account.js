@@ -1,6 +1,9 @@
+const crypto = require("crypto");
 const lib = require("./_lib");
 const roles = require("./_roles");
 const plans = require("./_plans");
+
+const PASSWORD_ITERATIONS = 120000;
 
 const KINDS = ["owner", "family", "friend", "helper", "staff", "member", "agent"];
 
@@ -37,7 +40,26 @@ function looksLikeEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 120;
 }
 function hashPassword(password) {
-  return lib.hashPin("pw|" + String(password || ""));
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(String(password || ""), salt, PASSWORD_ITERATIONS, 32, "sha256").toString("hex");
+  return ["pbkdf2", "sha256", PASSWORD_ITERATIONS, salt, hash].join("$");
+}
+function passwordMatches(stored, password) {
+  const saved = String(stored || "");
+  const raw = String(password || "");
+  const parts = saved.split("$");
+  if (parts[0] === "pbkdf2" && parts[1] === "sha256" && parts.length === 5) {
+    const rounds = Number(parts[2]) || PASSWORD_ITERATIONS;
+    const salt = parts[3] || "";
+    const expected = parts[4] || "";
+    const actual = crypto.pbkdf2Sync(raw, salt, rounds, Math.max(1, expected.length / 2), "sha256").toString("hex");
+    try {
+      return crypto.timingSafeEqual(Buffer.from(actual, "hex"), Buffer.from(expected, "hex"));
+    } catch (e) {
+      return false;
+    }
+  }
+  return saved === lib.hashPin("pw|" + raw);
 }
 function passwordOk(password) {
   const raw = String(password || "");
@@ -101,7 +123,7 @@ function loginWithEmail(email, password) {
     if (fail && fail.locked) return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
     return { ok: false, status: 401, error: "Email or password does not match." };
   }
-  if (acc.password !== hashPassword(password)) {
+  if (!passwordMatches(acc.password, password)) {
     const fail = typeof lib.noteFail === "function" ? lib.noteFail(lockId) : null;
     if (fail && fail.locked) return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
     return { ok: false, status: 401, error: "Email or password does not match." };
@@ -310,7 +332,7 @@ module.exports = {
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
-  findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordOk,
+  findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
   setAccountPassword, applyAccountDetails, emailTaken,
   planOf: plans.planOf, PLANS: plans.PLANS
 };

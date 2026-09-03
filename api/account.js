@@ -2,7 +2,7 @@ const lib = require("./_lib");
 const { cors, mem, ready, save, readBody, workspaceOf, personOf, isOwner } = lib;
 const {
   ensureAccount, accountForDesk, homeAccount, loginAccount, proHome, createOwnerAccount, publicPlan,
-  switchPlan, looksLikeEmail, hashPassword, setAccountPassword, applyAccountDetails
+  switchPlan, looksLikeEmail, passwordMatches, setAccountPassword, applyAccountDetails
 } = require("./_account");
 
 function refreshSession(req, res) {
@@ -197,7 +197,7 @@ module.exports = async function handler(req, res) {
     if (action === "password") {
       if (acc.password) {
         const current = String(body.current || body.old || "");
-        const viaPw = current && acc.password === hashPassword(current);
+        const viaPw = current && passwordMatches(acc.password, current);
         const viaPin = current && acc.pin && acc.pin === lib.hashPin(current);
         if (!viaPw && !viaPin) {
           return res.status(401).json({ ok: false, error: "Current password or desk code does not match." });
