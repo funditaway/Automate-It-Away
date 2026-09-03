@@ -85,7 +85,9 @@ function deskAbility(person, ws) {
     explore: canDesk(person, ws, "explore"),
     code: lib.isOwner(person),
     delete: lib.isOwner(person),
-    perms: lib.isOwner(person)
+    perms: lib.isOwner(person),
+    override: !!(lib.isOwner(person) && require("./_roles").canOverride(person)),
+    include: !!(person && require("./_roles").canInclude(person))
   };
 }
 

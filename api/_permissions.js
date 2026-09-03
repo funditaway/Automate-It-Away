@@ -82,6 +82,9 @@ function setSeatCan(row, id, incoming) {
     return { ok: false, error: "Owner already has every desk tap." };
   }
   const src = incoming && typeof incoming === "object" ? incoming : {};
+  if (src.override === true || !!(src.can && src.can.override === true)) {
+    return { ok: false, status: 403, error: "Override is owner-only. A seat cannot be given override." };
+  }
   if (src.kind != null) {
     const want = String(src.kind).toLowerCase();
     if (want === "owner") return { ok: false, status: 400, error: "No seat can be permitted to owner." };
@@ -90,6 +93,7 @@ function setSeatCan(row, id, incoming) {
   }
   const pack = tapsFrom(src);
   if (pack.hit) {
+    pack.taps.override = false;
     const cur = seat.can && typeof seat.can === "object" ? seat.can : roles.resolveCan(seat.kind, seat.crew, seat.status);
     seat.can = roles.stripHard(Object.assign(roles.blankCan(), cur, pack.taps), seat);
     seat.canSticky = src.sticky === false ? false : true;
@@ -125,10 +129,7 @@ function gateOverride(actor, hold, opts) {
     return { ok: true, override: false, charged: false, live: false, rail: "sent" };
   }
   if (!actor) return { ok: false, status: 401, error: "Sign in to pass a HOLD." };
-  if (actor.kind === "agent" || actor.role === "agent") {
-    return { ok: false, status: 403, error: "Agents never send, stop, or touch money." };
-  }
-  if (!ownerish(actor)) {
+  if (!ownerish(actor) || !roles.canOverride(actor)) {
     return { ok: false, status: 403, error: "Only the owner can pass a HOLD." };
   }
   if (!confirm) {

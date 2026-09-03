@@ -5,6 +5,8 @@ const { qualifyJob, recommend, icsOf, runWorkspace, markFlow } = require("./_eng
 const { grokRecommend } = require("./_grok");
 const { needsOf, isPriorityJob } = require("./_history");
 const clock = require("./_clock");
+const roles = require("./_roles");
+const perms = require("./_permissions");
 
 function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
@@ -54,6 +56,21 @@ function markHand(job, person, body) {
   job.rail = "hand";
   job.step = "Do";
   return note;
+}
+function ownerCanOverride(person) {
+  return !!(isOwner(person) && roles.canOverride(person));
+}
+function previewDispatch(job, pipe, amount) {
+  const provider = (pipe && pipe.provider) || job.provider || null;
+  const live = !!(pipe && pipe.live && provider !== "whatnot");
+  return {
+    preview: true,
+    live,
+    demo: !live,
+    provider,
+    amount: Number(amount || 0),
+    note: live ? "Live pipe would run on ship." : "Preview only. Nothing was sent."
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -118,8 +135,8 @@ module.exports = async function handler(req, res) {
     const job = mem.jobs.find((j) => j.id === body.id && j.workspace === workspace);
     if (!job) return res.status(404).json({ error: "Job not found" });
     if (action === "kill") {
-      if (shop && !isOwner(person)) return res.status(403).json({ ok: false, error: "Only the owner can Stop a live job.", job });
-      if (!body.confirm) return res.status(409).json({ ok: false, error: "Kill needs a second tap from the owner.", job });
+      if (shop && !ownerCanOverride(person)) return res.status(403).json({ ok: false, error: "Only the owner can Stop a live job.", job });
+      if (!body.confirm) return res.status(409).json({ ok: false, preview: true, error: "Kill needs a second tap from the owner.", job });
       mergeFields(job, body);
       job.status = "killed";
       markFlow(job, "kill");
@@ -129,6 +146,35 @@ module.exports = async function handler(req, res) {
       log("Agent", "Killed · " + job.title, "Stopped", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
+    }
+    if (action === "preview") {
+      mergeFields(job, body);
+      const amount = Number(body.amount || job.amount || job.ask || 0);
+      const provider = body.provider || job.provider || (job.pack === "home" ? "calendar" : null);
+      const pipe = pipesFor(workspace).find((c) => !provider || c.provider === provider);
+      job.preview = previewDispatch(job, pipe, amount);
+      await save();
+      return res.status(200).json({ ok: true, preview: true, job, dispatch: job.preview });
+    }
+    if (action === "override") {
+      const gated = perms.gateOverride(person, true, {
+        confirm: body.confirm,
+        reason: body.reason || body.why || body.note || body.killReason
+      });
+      if (!gated.ok) return res.status(gated.status || 403).json(Object.assign({ ok: false }, gated, { job }));
+      if (String(body.pass || "").toLowerCase() === "kill") {
+        mergeFields(job, body);
+        job.status = "killed";
+        markFlow(job, "kill");
+        job.killReason = gated.reason || body.killReason || "Owner override kill";
+        job.whoTapped = actorName(person, body);
+        job.log = (job.log || []).concat(["Killed · " + job.killReason]);
+        log("Agent", "Killed · " + job.title, "Stopped", workspace);
+        await save();
+        return res.status(200).json({ ok: true, overridden: true, job });
+      }
+      body.confirm = true;
+      job.rail = "owner-override";
     }
     if (action === "qualify") {
       mergeFields(job, body);
@@ -211,28 +257,31 @@ module.exports = async function handler(req, res) {
       await save();
       return res.status(201).json({ ok: true, fields, workspace: shop.slug });
     }
-    if (action === "ship") {
+    if (action === "ship" || action === "override") {
       mergeFields(job, body);
       const amount = Number(body.amount || job.amount || job.ask || 0);
+      const provider = body.provider || job.provider || (job.pack === "home" ? "calendar" : null);
+      const pipe = pipesFor(workspace).find((c) => !provider || c.provider === provider);
       const rules = shop ? ensureRules(shop) : [];
       const holdAt = shop ? moneyWaitOf(rules) : null;
       const stopHit = ruleWantsStop(rules, job, "do") || ruleWantsStop(rules, job, "collect");
       const waitHit = moneyNeedsOwner(amount, holdAt) || ruleWantsOwner(rules, job, "do") || ruleWantsOwner(rules, job, "collect");
+      const liveWouldLeave = !!(pipe && pipe.live && pipe.provider !== "whatnot");
       const waitLine = ruleWhy(rules, job, "do") || ruleWhy(rules, job, "collect") || "Waiting on the owner.";
-      if ((stopHit || waitHit) && !body.confirm) {
+      if ((stopHit || waitHit || liveWouldLeave) && !body.confirm) {
         job.status = "held"; job.amount = amount; job.rail = "held"; job.why = waitLine;
+        job.preview = previewDispatch(job, pipe, amount);
         log("Rail", "Held · " + job.title + " · owner rule", "Waiting", workspace);
         await save();
-        return res.status(409).json({ ok: false, error: waitLine, job });
+        return res.status(409).json({ ok: false, preview: true, error: waitLine, job, dispatch: job.preview });
       }
-      if ((stopHit || waitHit) && shop && !isOwner(person)) {
+      if ((stopHit || waitHit || liveWouldLeave) && shop && !ownerCanOverride(person)) {
         job.status = "held"; job.amount = amount; job.rail = "held"; job.why = waitLine;
+        job.preview = previewDispatch(job, pipe, amount);
         await save();
         return res.status(403).json({ ok: false, error: waitLine, job });
       }
-      const provider = body.provider || job.provider || (job.pack === "home" ? "calendar" : null);
       if (job.pack === "home" || provider === "calendar") { job.ics = icsOf(job); job.artifact = "calendar"; }
-      const pipe = pipesFor(workspace).find((c) => !provider || c.provider === provider);
       if (provider === "calendar") {
         job.dispatch = { demo: true, provider: "calendar", note: "Calendar file ready on the card. Google write stays off until GOOGLE_CLIENT_ID is on the box." };
       } else if (pipe && pipe.provider === "whatnot") {
@@ -262,7 +311,7 @@ module.exports = async function handler(req, res) {
       job.status = "shipped";
       job.amount = amount || job.amount;
       job.whoTapped = actorName(person, body);
-      job.rail = moneyNeedsOwner(amount, holdAt) ? "owner-confirmed" : "sent";
+      job.rail = action === "override" ? "owner-override" : (moneyNeedsOwner(amount, holdAt) ? "owner-confirmed" : "sent");
       job.step = "Collect";
       markFlow(job, "collect");
       job.log = (job.log || []).concat([moneyNeedsOwner(amount, holdAt) ? "Owner confirmed" : "Shipped"]);
@@ -348,7 +397,7 @@ module.exports = async function handler(req, res) {
       await save();
       return res.status(200).json({ ok: true, job, needs: needsOf(job, { staff: person && person.role === "employee" }) });
     }
-    return res.status(400).json({ error: "action must be capture, qualify, recommend, ship, kill, say, ask, fill, define-field, assign, carry, done, hand, priority, schedule, or snooze" });
+    return res.status(400).json({ error: "action must be capture, qualify, recommend, preview, ship, override, kill, say, ask, fill, define-field, assign, carry, done, hand, priority, schedule, or snooze" });
   }
   return res.status(405).json({ error: "Use GET or POST" });
 };

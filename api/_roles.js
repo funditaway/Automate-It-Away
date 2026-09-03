@@ -1,10 +1,10 @@
 const CAN_KEYS = [
   "queue", "capture", "qualify", "draft", "hand", "send",
   "invite", "approve", "edit", "explore", "export", "close",
-  "rules", "pipes", "stop", "money", "delete", "code"
+  "rules", "pipes", "stop", "money", "delete", "code", "override", "include"
 ];
 
-const HARD_OWNER = ["approve", "stop", "money", "delete", "code", "pipes"];
+const HARD_OWNER = ["approve", "stop", "money", "delete", "code", "pipes", "override"];
 
 function blankCan() {
   const out = {};
@@ -81,11 +81,12 @@ const KIND_CAN = {
     queue: true, capture: true, qualify: true, hand: true, send: true,
     invite: true, explore: true
   }),
-  agent: withCan({ queue: true, explore: true, draft: true }),
+  agent: withCan({ queue: true, explore: true, draft: true, include: true }),
   owner: withCan({
     queue: true, capture: true, qualify: true, draft: true, hand: true, send: true,
     invite: true, approve: true, edit: true, explore: true, export: true, close: true,
-    rules: true, pipes: true, stop: true, money: true, delete: true, code: true
+    rules: true, pipes: true, stop: true, money: true, delete: true, code: true,
+    override: true, include: true
   })
 };
 
@@ -95,56 +96,56 @@ const AGENTS = {
     title: "Sequence the desk",
     does: "Writes the next job card. Does not draft listings or code.",
     artifact: "job card",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: ["send", "stop", "money", "pipes", "delete", "approve", "override"]
   },
   Mapper: {
     crew: "Mapper",
     title: "Map the shop",
     does: "Turns one shop into Capture → Qualify → Do → Collect → Follow.",
     artifact: "shop map",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: ["send", "stop", "money", "pipes", "delete", "approve", "override"]
   },
   Packer: {
     crew: "Packer",
     title: "Write the pack",
     does: "Drafts pack fields, nouns, and adapters. Does not fork the desk.",
     artifact: "pack notes",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: ["send", "stop", "money", "pipes", "delete", "approve", "override"]
   },
   Doer: {
     crew: "Doer",
     title: "Draft the work",
     does: "Drafts the listing, packet, proposal, recall text, or widget copy.",
     artifact: "draft on the card",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: ["send", "stop", "money", "pipes", "delete", "approve", "override"]
   },
   Rail: {
     crew: "Rail",
     title: "Hold the line",
     does: "Writes SHIP / HOLD / KILL on the card. Does not tap Stop. Does not pass its own HOLD.",
     artifact: "rail note",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: ["send", "stop", "money", "pipes", "delete", "approve", "override"]
   },
   Builder: {
     crew: "Builder",
     title: "Fix the desk",
     does: "Notes API and page fixes. Does not deploy. Does not flip a pipe live.",
     artifact: "build note",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: ["send", "stop", "money", "pipes", "delete", "approve", "override"]
   },
   Worker: {
     crew: "Worker",
     title: "Keep the loop",
     does: "Qualifies new drops and writes follow nudges when a card sits.",
     artifact: "qualify / follow note",
-    can: withCan({ queue: true, capture: false, qualify: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, capture: false, qualify: true, explore: true, draft: true, include: true }),
+    never: ["send", "stop", "money", "pipes", "delete", "approve", "override"]
   }
 };
 
@@ -186,8 +187,23 @@ function stripHard(can, person) {
     out.pipes = false;
     out.edit = false;
     out.close = false;
+    out.override = false;
+    out.include = true;
   }
   return out;
+}
+
+function canOverride(person) {
+  if (!person) return false;
+  if (person.kind === "agent" || person.role === "agent") return false;
+  return person.role === "owner" || person.kind === "owner";
+}
+
+function canInclude(person) {
+  if (!person) return false;
+  if (person.kind === "agent" || person.role === "agent") return true;
+  if (person.role === "owner" || person.kind === "owner") return true;
+  return !!(person.can && person.can.include);
 }
 
 function publicRole(person) {
@@ -227,6 +243,8 @@ module.exports = {
   agentOf,
   resolveCan,
   stripHard,
+  canOverride,
+  canInclude,
   publicRole,
   catalog
 };
