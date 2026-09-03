@@ -144,6 +144,7 @@
         slug: slug,
         name: src.name != null ? String(src.name) : d.name,
         pin: src.pin != null ? String(src.pin) : d.pin,
+        token: src.token != null ? String(src.token) : (d.token || ""),
         role: src.role != null ? String(src.role) : d.role,
         who: src.who != null ? String(src.who) : (src.person != null ? String(src.person) : d.who || "")
       };
@@ -153,6 +154,7 @@
       var row = rows.filter(function (d) { return d.slug === slug; })[0];
       if (row) {
         if (row.pin) store.setItem("aia_pin", row.pin);
+        if (row.token) store.setItem("aia_session", row.token);
         if (row.name) store.setItem("aia_desk_name", row.name);
         if (row.role) store.setItem("aia_role", row.role);
         if (row.who) store.setItem("aia_name", row.who);

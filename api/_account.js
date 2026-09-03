@@ -97,11 +97,13 @@ function loginWithEmail(email, password) {
   }
   const acc = findAccountByEmail(e);
   if (!acc || !acc.password) {
-    if (typeof lib.noteFail === "function") lib.noteFail(lockId);
+    const fail = typeof lib.noteFail === "function" ? lib.noteFail(lockId) : null;
+    if (fail && fail.locked) return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
     return { ok: false, status: 401, error: "Email or password does not match." };
   }
   if (acc.password !== hashPassword(password)) {
-    if (typeof lib.noteFail === "function") lib.noteFail(lockId);
+    const fail = typeof lib.noteFail === "function" ? lib.noteFail(lockId) : null;
+    if (fail && fail.locked) return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
     return { ok: false, status: 401, error: "Email or password does not match." };
   }
   if (typeof lib.noteOk === "function") lib.noteOk(lockId);
@@ -180,7 +182,7 @@ function createOwnerAccount(body, row) {
     return existing;
   }
   const acc = {
-    id: "acct_" + Date.now().toString(36),
+    id: "acct_" + Date.now().toString(36) + require("crypto").randomBytes(4).toString("hex"),
     name: String((body && (body.biz || body.account || body.name)) || (row && (row.biz || row.name)) || "Shop").trim().slice(0, 80),
     ownerName: String((body && body.name) || (row && row.name) || "Owner").trim().slice(0, 80),
     email: (body && looksLikeEmail(body.email) ? emailOf(body) : "") || (row && row.email) || "",
@@ -238,6 +240,22 @@ function approvalsOf(slug) {
   const s = lib.slugify(slug || "");
   return (lib.mem.approvals || []).filter((a) => a && (!s || a.slug === s)).slice(0, 80);
 }
+function noteApproval(row, seat, status, actor) {
+  ensureAccount();
+  if (!row || !seat || !seat.id) return null;
+  let hit = (lib.mem.approvals || []).find((a) => a && a.slug === row.slug && a.personId === seat.id) || null;
+  if (!hit) {
+    hit = { id: "approval_" + Date.now().toString(36), slug: row.slug, personId: seat.id, requestedAt: new Date().toISOString() };
+    lib.mem.approvals.unshift(hit);
+  }
+  hit.name = seat.name || "";
+  hit.kind = seat.kind || seat.role || "member";
+  hit.status = String(status || seat.status || "pending").toLowerCase();
+  hit.by = (actor && actor.name) || hit.by || "request";
+  hit.updatedAt = new Date().toISOString();
+  if (hit.status === "approved" || hit.status === "denied") hit.decidedAt = hit.updatedAt;
+  return hit;
+}
 function normalizeKind(kind, role) {
   const raw = String(kind || "").toLowerCase();
   if (raw === "employee") return "helper";
@@ -267,6 +285,7 @@ function inviteSeat(row, body, actor) {
   };
   row.people = row.people || [];
   row.people.push(seat);
+  noteApproval(row, seat, status, actor);
   if (home && kind !== "agent") connectDesk(home, row, "member");
   return { ok: true, status: status === "approved" ? 201 : 202, person: lib.publicPerson(seat), pending: status === "pending" };
 }
@@ -280,6 +299,7 @@ function setSeatStatus(row, id, next, actor) {
   if (!seat) return { ok: false, status: 404, error: "Person not found." };
   seat.status = String(next || "pending").toLowerCase();
   seat.approvedAt = seat.status === "approved" ? new Date().toISOString() : null;
+  noteApproval(row, seat, seat.status, actor);
   return { ok: true, status: 200, person: lib.publicPerson(seat) };
 }
 function accountSnapshot(row, person) {

@@ -12,7 +12,14 @@ const PROVIDERS = {
   whatnot: { label: "Whatnot", acts: ["list"], env: ["WHATNOT_TOKEN"] }
 };
 
-const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [] };
+const EMPTY = {
+  account: null, accounts: [], sessions: [], approvals: [], locks: [],
+  connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: []
+};
+const SESSION_DAYS = 14;
+const SESSION_MAX = 8;
+const LOCK_FAILS = 8;
+const LOCK_MINUTES = 15;
 const BLOB_KEY = "aia/store.json";
 const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null };
 const PERSIST_TEST_DROP = {
@@ -37,7 +44,13 @@ function storePath() {
 }
 
 function shape(parsed) {
+  parsed = parsed && typeof parsed === "object" ? parsed : {};
   return {
+    account: parsed.account && typeof parsed.account === "object" ? parsed.account : null,
+    accounts: Array.isArray(parsed.accounts) ? parsed.accounts : [],
+    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+    approvals: Array.isArray(parsed.approvals) ? parsed.approvals : [],
+    locks: Array.isArray(parsed.locks) ? parsed.locks : [],
     connections: Array.isArray(parsed.connections) ? parsed.connections : [],
     jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
     audit: Array.isArray(parsed.audit) ? parsed.audit : [],
@@ -51,6 +64,11 @@ function shape(parsed) {
 
 function payload() {
   return {
+    account: mem.account,
+    accounts: mem.accounts,
+    sessions: mem.sessions,
+    approvals: mem.approvals,
+    locks: mem.locks,
     connections: mem.connections,
     jobs: mem.jobs,
     audit: mem.audit,
@@ -290,7 +308,7 @@ async function save() {
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Workspace, X-Pin");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Workspace, X-Pin, X-Session");
 }
 
 function configured(provider) {
@@ -323,6 +341,8 @@ const RULE_FORBID_MSG = "Hard stops still win. A rule cannot skip payout, Kill, 
 function scrubLog(s) {
   return String(s == null ? "" : s)
     .replace(/x-pin["'\s:=]+[^,\s]+/ig, "x-pin:[redacted]")
+    .replace(/x-session["'\s:=]+[^,\s]+/ig, "x-session:[redacted]")
+    .replace(/aia_session=[^;\s]+/ig, "aia_session=[redacted]")
     .replace(/\bpin["'\s:=]+\d+/ig, "pin:[redacted]");
 }
 
@@ -354,7 +374,255 @@ function hashPin(pin) {
 }
 
 function workspaceOf(req) {
-  return slugify(req.headers["x-workspace"] || req.query.workspace || "demo");
+  req = req || {};
+  const headers = req.headers || {};
+  const query = req.query || {};
+  return slugify(headers["x-workspace"] || query.workspace || "demo");
+}
+
+function ensureAuthState() {
+  if (!Array.isArray(mem.accounts)) mem.accounts = [];
+  if (!Array.isArray(mem.sessions)) mem.sessions = [];
+  if (!Array.isArray(mem.approvals)) mem.approvals = [];
+  if (!Array.isArray(mem.locks)) mem.locks = [];
+  return mem;
+}
+
+function hashSession(token) {
+  return hashPin("session|" + String(token || ""));
+}
+
+function parseCookies(req) {
+  const raw = String((req && req.headers && req.headers.cookie) || "");
+  const out = {};
+  raw.split(";").forEach((part) => {
+    const i = part.indexOf("=");
+    if (i < 0) return;
+    const key = part.slice(0, i).trim();
+    if (!key) return;
+    const val = part.slice(i + 1).trim();
+    try { out[key] = decodeURIComponent(val); } catch (e) { out[key] = val; }
+  });
+  return out;
+}
+
+function sessionTokenOf(req) {
+  const headers = (req && req.headers) || {};
+  return String(headers["x-session"] || parseCookies(req).aia_session || "").trim();
+}
+
+function sessionMaxAge() {
+  return SESSION_DAYS * 24 * 60 * 60;
+}
+
+function sessionExpiresAt(now) {
+  return new Date(now + sessionMaxAge() * 1000).toISOString();
+}
+
+function sessionPublic(row, token) {
+  if (!row) return null;
+  const out = {
+    id: row.id,
+    workspace: row.workspace || "",
+    personId: row.personId || "",
+    accountId: row.accountId || "",
+    role: row.role || "",
+    name: row.name || "",
+    createdAt: row.createdAt || "",
+    seenAt: row.seenAt || row.createdAt || "",
+    expiresAt: row.expiresAt || "",
+    current: !!row.current
+  };
+  if (token) out.token = token;
+  if (row.ua) out.ua = row.ua;
+  return out;
+}
+
+function pruneSessions() {
+  ensureAuthState();
+  const now = Date.now();
+  mem.sessions = (mem.sessions || []).filter((row) => {
+    if (!row || !row.tokenHash) return false;
+    if (!row.expiresAt) return true;
+    const t = Date.parse(row.expiresAt);
+    return !Number.isFinite(t) || t > now;
+  });
+  return mem.sessions;
+}
+
+function sessionMatches(row, hint) {
+  const h = hint || {};
+  if (!row) return false;
+  if (h.id && row.id !== h.id) return false;
+  if (h.accountId && row.accountId !== h.accountId) return false;
+  if (h.personId && row.personId !== h.personId) return false;
+  if (h.workspace && row.workspace !== slugify(h.workspace)) return false;
+  return !!(h.id || h.accountId || h.personId || h.workspace) ? true : true;
+}
+
+function touchSession(row, req) {
+  if (!row) return row;
+  const now = Date.now();
+  row.seenAt = new Date(now).toISOString();
+  row.expiresAt = sessionExpiresAt(now);
+  const headers = (req && req.headers) || {};
+  const ua = String(headers["user-agent"] || "").trim().slice(0, 160);
+  if (ua) row.ua = ua;
+  const ip = String(headers["x-forwarded-for"] || headers["x-real-ip"] || "").split(",")[0].trim().slice(0, 80);
+  if (ip) row.ip = ip;
+  return row;
+}
+
+function findSession(token, options) {
+  const raw = String(token || "").trim();
+  if (!raw) return null;
+  pruneSessions();
+  const row = (mem.sessions || []).find((item) => item && item.tokenHash === hashSession(raw)) || null;
+  if (!row) return null;
+  const opts = options || {};
+  if (opts.slide !== false) touchSession(row, opts.req);
+  return row;
+}
+
+function listSessions(hint) {
+  const h = hint || {};
+  const currentHash = h.currentToken ? hashSession(h.currentToken) : "";
+  return pruneSessions()
+    .filter((row) => sessionMatches(row, h))
+    .sort((a, b) => String(b.seenAt || b.createdAt || "").localeCompare(String(a.seenAt || a.createdAt || "")))
+    .slice(0, 32)
+    .map((row) => sessionPublic(Object.assign({}, row, { current: !!(currentHash && row.tokenHash === currentHash) })));
+}
+
+function revokeSession(tokenOrId, hint) {
+  ensureAuthState();
+  pruneSessions();
+  const raw = String(tokenOrId || "").trim();
+  const tokenHash = raw && !/^sess_/i.test(raw) ? hashSession(raw) : "";
+  const id = /^sess_/i.test(raw) ? raw : "";
+  let removed = 0;
+  mem.sessions = (mem.sessions || []).filter((row) => {
+    if (!row) return false;
+    const hit = (tokenHash && row.tokenHash === tokenHash) || (id && row.id === id) || (!tokenHash && !id && sessionMatches(row, hint));
+    const allowed = hit && (!hint || sessionMatches(row, hint));
+    if (allowed) {
+      removed += 1;
+      return false;
+    }
+    return true;
+  });
+  return removed;
+}
+
+function issueSession(person, workspace, account, req) {
+  ensureAuthState();
+  pruneSessions();
+  const now = Date.now();
+  const token = crypto.randomBytes(24).toString("hex");
+  const row = {
+    id: "sess_" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    tokenHash: hashSession(token),
+    workspace: slugify((workspace && workspace.slug) || (account && account.slug) || (req && workspaceOf(req)) || ""),
+    accountId: (account && account.id) || (person && person.accountId) || (workspace && workspace.accountId) || "",
+    personId: (person && person.id) || "",
+    name: (person && person.name) || "",
+    role: (person && person.role) || "",
+    email: (person && person.email) || (account && account.email) || "",
+    createdAt: new Date(now).toISOString(),
+    seenAt: new Date(now).toISOString(),
+    expiresAt: sessionExpiresAt(now)
+  };
+  touchSession(row, req);
+  const group = (mem.sessions || [])
+    .filter((item) => item && ((row.accountId && item.accountId === row.accountId) || (!row.accountId && item.workspace === row.workspace && item.personId === row.personId)))
+    .sort((a, b) => String(b.seenAt || b.createdAt || "").localeCompare(String(a.seenAt || a.createdAt || "")));
+  const keep = new Set(group.slice(0, SESSION_MAX - 1).map((item) => item.id));
+  mem.sessions = (mem.sessions || []).filter((item) => !item || !group.length || keep.has(item.id) || !(((row.accountId && item.accountId === row.accountId) || (!row.accountId && item.workspace === row.workspace && item.personId === row.personId))));
+  mem.sessions.unshift(row);
+  return sessionPublic(row, token);
+}
+
+function sessionCookie(token) {
+  return "aia_session=" + encodeURIComponent(String(token || "")) + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + sessionMaxAge();
+}
+
+function clearSessionCookie() {
+  return "aia_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+}
+
+function sessionFromReq(req, options) {
+  const token = sessionTokenOf(req);
+  if (!token) return null;
+  const row = findSession(token, Object.assign({ req }, options || {}));
+  if (!row) return null;
+  if (req) {
+    req.__aiaSessionToken = token;
+    req.__aiaSession = sessionPublic(row);
+  }
+  return { token, session: row };
+}
+
+function pruneLocks() {
+  ensureAuthState();
+  const now = Date.now();
+  mem.locks = (mem.locks || []).filter((row) => {
+    if (!row || !row.id) return false;
+    const until = row.until ? Date.parse(row.until) : NaN;
+    if (Number.isFinite(until) && until <= now) {
+      row.until = null;
+      row.count = 0;
+    }
+    return !!row.id;
+  });
+  return mem.locks;
+}
+
+function lockRow(id, create) {
+  ensureAuthState();
+  pruneLocks();
+  const key = String(id || "").trim();
+  if (!key) return null;
+  let row = (mem.locks || []).find((item) => item && item.id === key) || null;
+  if (!row && create) {
+    row = { id: key, count: 0, until: null, lastFailAt: null, lastOkAt: null };
+    mem.locks.unshift(row);
+  }
+  return row;
+}
+
+function isLocked(id) {
+  const row = lockRow(id, false);
+  if (!row || !row.until) return false;
+  const until = Date.parse(row.until);
+  if (!Number.isFinite(until) || until <= Date.now()) {
+    row.until = null;
+    row.count = 0;
+    return false;
+  }
+  return true;
+}
+
+function noteFail(id) {
+  const row = lockRow(id, true);
+  if (!row) return { ok: false };
+  const now = Date.now();
+  if (!isLocked(id) && row.until) {
+    row.until = null;
+    row.count = 0;
+  }
+  row.count = Number(row.count || 0) + 1;
+  row.lastFailAt = new Date(now).toISOString();
+  if (row.count >= LOCK_FAILS) row.until = new Date(now + LOCK_MINUTES * 60 * 1000).toISOString();
+  return { ok: true, locked: isLocked(id), count: row.count, until: row.until };
+}
+
+function noteOk(id) {
+  const row = lockRow(id, false);
+  if (!row) return { ok: true, cleared: false };
+  row.count = 0;
+  row.until = null;
+  row.lastOkAt = new Date().toISOString();
+  return { ok: true, cleared: true };
 }
 
 function ensurePeople(ws) {
@@ -378,13 +646,34 @@ function publicPerson(p) {
 }
 
 function personOf(req, workspaceSlug) {
-  const slug = workspaceSlug || workspaceOf(req);
-  const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || null);
-  const raw = req.headers["x-pin"] || "";
-  if (!ws || !raw) return { workspace: ws, person: null };
+  req = req || {};
+  const headers = req.headers || {};
+  const query = req.query || {};
+  const fromSession = sessionFromReq(req, { slide: true });
+  const asked = String(headers["x-workspace"] || query.workspace || workspaceSlug || "").trim();
+  const slug = slugify(asked || (fromSession && fromSession.session && fromSession.session.workspace) || "demo");
+  const fallbackSlug = fromSession && fromSession.session ? fromSession.session.workspace : "";
+  const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || mem.workspaces.find((w) => w && w.slug === fallbackSlug) || null);
+  if (!ws) return { workspace: null, person: null };
+  if (fromSession && fromSession.session) {
+    const session = fromSession.session;
+    const person = (ws.people || []).find((p) => p && (
+      (session.personId && p.id === session.personId)
+      || (session.accountId && p.accountId && p.accountId === session.accountId)
+      || (session.email && p.email && String(p.email).trim().toLowerCase() === String(session.email).trim().toLowerCase())
+      || (session.role === "owner" && p.role === "owner")
+    )) || null;
+    if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
+    if (person && person.status === "denied") return { workspace: ws, person: null, denied: true, session: sessionPublic(session) };
+    if (person) return { workspace: ws, person, session: sessionPublic(session) };
+  }
+  const raw = String(headers["x-pin"] || "");
+  if (!raw) return { workspace: ws, person: null };
   const hashed = hashPin(raw);
-  const person = (ws.people || []).find((p) => p.pin === hashed)
-    || (ws.pin === hashed ? (ws.people || []).find((p) => p.role === "owner") : null);
+  const person = (ws.people || []).find((p) => p && p.pin === hashed)
+    || (ws.pin === hashed ? (ws.people || []).find((p) => p && p.role === "owner") : null);
+  if (person && person.status === "pending") return { workspace: ws, person: null, pending: true };
+  if (person && person.status === "denied") return { workspace: ws, person: null, denied: true };
   return { workspace: ws, person: person || null };
 }
 
@@ -638,6 +927,8 @@ function readBody(req) {
 module.exports = {
   PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
+  ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
+  isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,

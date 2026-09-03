@@ -102,9 +102,9 @@ module.exports = async function handler(req, res) {
       }
     },
     accounts: {
-      login: "desk name + desk code — not email",
+      login: "desk name + desk code, or email + password",
       session: "hashed token, 14 days, slides on use, cookie + X-Session, max 8 phones",
-      mfa: "optional authenticator app. No email codes. No SMS codes.",
+      mfa: "HOLD — authenticator is not live. No email codes. No SMS codes.",
       create: "Pro AIA account on open",
       plan: "pro",
       status: "free",
