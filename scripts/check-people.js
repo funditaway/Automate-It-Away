@@ -35,6 +35,18 @@ if (peopleJs.indexOf("/history?who=") < 0) fail("people history who link");
 else pass("people history who link");
 if (peopleJs.indexOf("openFromQuery") < 0) fail("people ?who= open");
 else pass("people ?who= open");
+if (peopleJs.indexOf("function persistView") < 0 || peopleJs.indexOf("params.set(\"q\"") < 0 || peopleJs.indexOf("params.set(\"f\"") < 0) fail("people persist q/f");
+else pass("people persist q/f");
+if (peopleJs.indexOf("function applyViewFromQuery") < 0) fail("people apply q/f from query");
+else pass("people apply q/f from query");
+if (peopleJs.indexOf("function logicLine") < 0 || peopleJs.indexOf("function paintLogic") < 0 || peopleJs.indexOf("AND search") < 0) fail("people logic line");
+else pass("people logic line");
+if (peopleJs.indexOf("function applyTalk") < 0 || peopleJs.indexOf("find") < 0 || peopleJs.indexOf("STATE.filter = t.filter") < 0) fail("people talk find filter");
+else pass("people talk find filter");
+if (peopleJs.indexOf("clear-view") < 0 || peopleJs.indexOf("STATE.filter = \"all\"") < 0) fail("people clear view");
+else pass("people clear view");
+if (peopleJs.indexOf("f === \"ext\"") < 0 || peopleJs.indexOf("f === \"hold\"") < 0) fail("people ext/hold filters");
+else pass("people ext/hold filters");
 
 if (historyHtml.indexOf("params.get(\"who\")") < 0) fail("history reads ?who=");
 else pass("history reads ?who=");
