@@ -27,7 +27,7 @@ const OFFICIAL = [
   },
   {
     id: "vita",
-    name: "Insurance desk",
+    name: "Insurance",
     family: "Quote It Away",
     does: "Need in. Draft a packet. Stop on an illustration send.",
     free: true,
@@ -193,32 +193,38 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    if (action === "use") {
+    if (action === "use" || action === "preview") {
       if (!row) return res.status(404).json({ ok: false, error: "Open a desk first." });
       if (!isOwner(person)) return res.status(403).json({ ok: false, error: "Only the owner can put a pack on this desk." });
       const pack = findPack(body.id || body.pack);
       if (!pack) return res.status(404).json({ ok: false, error: "No pack with that name." });
-      if (Number(pack.ask || 0) > 0) {
+      const preview = action === "preview" || body.preview === true || body.preview === "1";
+      if (Number(pack.ask || 0) > 0 && !preview) {
         return res.status(409).json({
           ok: false,
           preview: true,
           pack: publicPack(pack),
-          error: "That pack has an ask. Tag only. No card. Use a free official pack, or list your own."
+          charged: false,
+          error: "That pack has an ask. Tag only. No card. Preview it, or list your own."
         });
       }
       const used = useOnDesk(row, pack, person);
-      log("Desk", "Used pack · " + pack.name, "OK", workspace);
+      log("Desk", (preview ? "Preview pack · " : "Used pack · ") + pack.name, "OK", workspace);
       await save();
       return res.status(200).json({
         ok: true,
         pack: publicPack(pack),
+        preview: !!preview,
+        charged: false,
         added: used.added.length,
         rules: used.rules,
-        note: "Pack rules are on this desk. Packs do not send money. You still tap Yes or No."
+        note: preview
+          ? "Preview is on this desk. Ask was not charged. Packs do not send money."
+          : "Pack rules are on this desk. Packs do not send money. You still tap Yes or No."
       });
     }
 
-    return res.status(400).json({ error: "action must be use, list, or buy" });
+    return res.status(400).json({ error: "action must be use, list, preview, or buy" });
   }
 
   return res.status(405).json({ error: "Use GET or POST" });
