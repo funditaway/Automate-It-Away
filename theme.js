@@ -68,18 +68,20 @@
     var header = document.querySelector("header, .site-header");
     if (!header) return;
     if (document.body && document.body.classList.contains("embed")) return;
+    var tools = header.querySelector(".hdr-tools");
     var btn = header.querySelector("[data-theme-btn], .theme-btn");
     if (!btn) {
       btn = document.createElement("button");
       btn.type = "button";
       btn.className = "theme-btn";
       btn.setAttribute("data-theme-btn", "");
-      header.appendChild(btn);
+      (tools || header).appendChild(btn);
     }
     btn.type = "button";
     btn.setAttribute("data-theme-btn", "");
     btn.classList.add("theme-btn");
-    if (btn.parentNode !== header) header.appendChild(btn);
+    if (tools && btn.parentNode !== tools) tools.appendChild(btn);
+    else if (!tools && btn.parentNode !== header) header.appendChild(btn);
     if (!btn.getAttribute("data-aia-bound")) {
       btn.setAttribute("data-aia-bound", "1");
       btn.addEventListener("click", cycle);
@@ -122,28 +124,47 @@
       "header .theme-btn, .theme-btn{position:relative;z-index:8;pointer-events:auto!important;" +
       "flex:0 0 auto;min-height:44px;min-width:52px;cursor:pointer}" +
       "header .brand-mark, .site-header .brand-mark{width:28px;height:28px;flex:0 0 28px;border-radius:7px}" +
-      ".hdr-tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex:0 0 auto}" +
-      ".who-chip,.who-chip.signed-out{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px;" +
-      "min-height:44px;width:auto;margin-left:0;max-width:min(52vw,200px);padding:4px 12px 4px 4px;border-radius:999px;" +
+      ".hdr-tools{display:flex!important;align-items:center;gap:8px;margin-left:auto;flex:0 0 auto;order:4}" +
+      "header > .brand, .site-header > .brand, header > a.brand, header > a:first-child{order:1;min-width:0}" +
+      "header nav.site-nav, header .nav.site-nav, header .nav:not(.desk-tabs), .site-header .nav{order:2;flex:1 1 auto;min-width:0}" +
+      ".who-chip{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px;" +
+      "min-height:44px;width:auto;margin-left:0;max-width:min(46vw,168px);padding:4px 12px 4px 4px;border-radius:999px;" +
       "border:1px solid rgba(255,255,255,.4)!important;background:#083838!important;color:#fff!important;text-decoration:none;overflow:hidden}" +
-      ".who-chip.signed-out{padding:4px 14px;max-width:none}" +
+      ".who-chip.signed-out{padding:8px 16px!important;max-width:none!important;gap:0}" +
       ".who-chip.signed-out .who-pic{display:none}" +
+      ".who-chip.signed-out .who-copy{text-align:center}" +
+      ".who-chip.signed-out .who-copy strong{display:inline!important}" +
+      ".who-chip.signed-out .who-copy > span{display:none!important}" +
       ".who-pic{width:32px;height:32px;border-radius:50%;flex:0 0 32px;display:inline-flex;align-items:center;" +
       "justify-content:center;background:rgba(255,255,255,.18);color:#fff;object-fit:cover;overflow:hidden}" +
       ".who-copy{min-width:0;flex:1 1 auto;text-align:right}" +
       ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#fff!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
       ".brand-short{display:none}" +
+      "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}" +
+      ".kpi b{display:block;min-height:1.35em;font-size:1.3rem;line-height:1.2;color:var(--teal)}" +
+      "body.has-desk-nav header, body.has-desk-nav .site-header{" +
+      "display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important}" +
+      "body.has-desk-nav header > .brand, body.has-desk-nav header > a.brand," +
+      "body.has-desk-nav header > a:first-child, body.has-desk-nav .site-header > .brand{" +
+      "grid-column:1;grid-row:1}" +
+      "body.has-desk-nav header .hdr-tools, body.has-desk-nav .site-header .hdr-tools{" +
+      "grid-column:2;grid-row:1;margin-left:0;justify-self:end;order:0}" +
+      "body.has-desk-nav header .desk-tabs, body.has-desk-nav .site-header .desk-tabs{" +
+      "grid-column:1/-1;grid-row:2;width:100%}" +
+      "body.has-desk-nav header nav.site-nav, body.has-desk-nav header .nav.site-nav{display:none!important}" +
       "@media (max-width:640px){" +
       "header .brand, .site-header .brand, header > a.brand, header > a:first-child{order:1;flex:1 1 auto;min-width:0}" +
-      "header .brand-name,.site-header .brand-name{display:none!important}" +
+      "header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}" +
       "header .brand-short,.site-header .brand-short{display:inline!important}" +
       ".hdr-tools{order:2;margin-left:auto}" +
       ".who-chip{max-width:none!important}" +
-      ".theme-btn{order:2}" +
       ".who-copy > span{display:none!important}" +
-      "header nav:not(.desk-tabs), header .nav, .site-header .nav{width:100%!important;flex-wrap:wrap!important;order:5}" +
-      "header nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html']{display:none}" +
-      ".hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr 1fr!important}" +
+      "header nav:not(.desk-tabs), header .nav, header .nav.site-nav, .site-header .nav{width:100%!important;flex-wrap:wrap!important;order:5;flex:1 1 100%!important}" +
+      "header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login']," +
+      "header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html']," +
+      "header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard']," +
+      "header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}" +
+      ".hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}" +
       "table{display:block;overflow-x:auto}" +
       "}" +
       "@media (max-width:420px){" +
@@ -222,23 +243,20 @@
     }
     chip.classList.remove("out");
     chip.classList.add("signed-out");
-    chip.innerHTML = '<span class="who-copy"><strong>Sign in</strong><span>Desk name + code</span></span>';
     if (/^(login|onboard)$/.test(page)) {
+      chip.innerHTML = '<span class="who-copy"><strong>New desk</strong></span>';
       chip.href = page === "login" ? "/onboard" : "/login";
-      var strong = chip.querySelector("strong");
-      if (strong) strong.textContent = "Not signed in";
-      chip.title = "Open a desk with the name and code. Email is not login.";
+      chip.title = page === "login" ? "Open a new desk" : "Open a desk you already have";
       return;
     }
+    chip.innerHTML = '<span class="who-copy"><strong>Sign in</strong></span>';
     chip.href = "/login";
     chip.title = "Open this desk";
   }
   var SITE_LINKS = [
     { id: "how", href: "/how", label: "How" },
     { id: "setup", href: "/setup", label: "Setup" },
-    { id: "desk", href: "/desk", label: "Desk" },
-    { id: "login", href: "/login", label: "Sign in" },
-    { id: "onboard", href: "/onboard", label: "Open your desk" }
+    { id: "desk", href: "/desk", label: "Desk" }
   ];
   var FOOT_LINKS = [
     { href: "/how", label: "How" },
@@ -288,9 +306,18 @@
     }).join("<span aria-hidden=\"true\">·</span>");
     foot.innerHTML = "<p>© 2026 Automate It Away</p><nav>" + links + "</nav>";
   }
+  function ensureFixCss() {
+    if (document.getElementById("aia-ui-fix-link")) return;
+    var l = document.createElement("link");
+    l.id = "aia-ui-fix-link";
+    l.rel = "stylesheet";
+    l.href = "/ui-fix.css";
+    document.head.appendChild(l);
+  }
   function mark() {
     ensurePhoneMeta();
     lockHeader();
+    ensureFixCss();
     ensureBtn();
     paintSiteNav();
     paintWho();
