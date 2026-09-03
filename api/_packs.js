@@ -1,1 +1,1 @@
-see-file
+module.exports = require("./packs");
