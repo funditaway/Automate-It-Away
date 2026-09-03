@@ -1,0 +1,19 @@
+{
+  "type": "wanted",
+  "note": "World aisle. Use/Drop returns 409 Make this pack. year2 face is Insurance / Quote It Away.",
+  "packs": [
+    {"id": "lawn", "name": "Lawn", "aisle": "Home", "does": "Mow, edge, seasonal yard.", "kinds": ["mow", "yard"], "contains": "lawn"},
+    {"id": "repair", "name": "Repair", "aisle": "Home", "does": "Fix what broke.", "kinds": ["repair", "fix"], "contains": "repair"},
+    {"id": "shop-bay", "name": "Shop bay", "aisle": "Home", "does": "Car in a bay.", "kinds": ["bay", "car"], "contains": "bay"},
+    {"id": "estate-day", "name": "Estate day", "aisle": "Home", "does": "One day through a house.", "kinds": ["estate"], "contains": "estate"},
+    {"id": "cleanout", "name": "Cleanout", "aisle": "Home", "does": "Clear a room or garage.", "kinds": ["cleanout"], "contains": "cleanout"},
+    {"id": "rental", "name": "Rental", "aisle": "Fund", "does": "Place or turn a rental.", "kinds": ["rental", "lease"], "contains": "rental"},
+    {"id": "rent-due", "name": "Rent due", "aisle": "Fund", "does": "Rent is due. Owner tap before money.", "kinds": ["rent"], "contains": "rent due"},
+    {"id": "title-run", "name": "Title run", "aisle": "Land", "does": "Title search. Owner tap.", "kinds": ["title"], "contains": "title"},
+    {"id": "survey", "name": "Survey", "aisle": "Land", "does": "Survey and pins.", "kinds": ["survey"], "contains": "survey"},
+    {"id": "year2", "name": "Year-2 review", "aisle": "Insurance", "family": "Quote It Away", "does": "Year-2 review. Draft the chase. Do not invent premium.", "kinds": ["review"], "contains": "year 2", "face": "Insurance"},
+    {"id": "wholesale", "name": "Wholesale", "aisle": "Consign", "does": "Lot buy. Comps and title.", "kinds": ["wholesale"], "contains": "wholesale"},
+    {"id": "missed-call", "name": "Missed call", "aisle": "Insurance", "family": "Quote It Away", "does": "Missed call. Draft the call-back. Desk does not dial.", "kinds": ["call"], "contains": "missed call", "face": "Insurance"},
+    {"id": "delivery", "name": "Delivery", "aisle": "Home", "does": "Drop-off or pickup.", "kinds": ["delivery", "pickup"], "contains": "delivery"}
+  ]
+}
