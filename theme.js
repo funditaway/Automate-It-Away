@@ -139,7 +139,7 @@
       "header .brand-short,.site-header .brand-short{display:inline!important}" +
       ".hdr-tools{order:2;margin-left:auto}" +
       ".who-chip{max-width:none!important}" +
-      ".theme-btn{order:0}" +
+      ".theme-btn{order:2}" +
       ".who-copy > span{display:none!important}" +
       "header nav:not(.desk-tabs), header .nav, .site-header .nav{width:100%!important;flex-wrap:wrap!important;order:5}" +
       "header nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html']{display:none}" +
@@ -155,11 +155,7 @@
   }
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      if (c === "&") return "&";
-      if (c === "<") return "<";
-      if (c === ">") return ">";
-      if (c === '"') return """;
-      return "&#39;";
+      return ({ "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;" })[c];
     });
   }
   function roleLabel(r) {
