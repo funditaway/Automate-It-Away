@@ -51,7 +51,8 @@ module.exports = async function handler(req, res) {
     const who = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || {
       name: via.account.ownerName, role: "owner", kind: "owner"
     };
-    const session = require("./_lib").issueSession(who, via.desk, via.account);
+    const lib = require("./_lib");
+    const session = typeof lib.issueSession === "function" ? lib.issueSession(who, via.desk, via.account) : null;
     await save();
     const home = proHome(via.account, who);
     return res.status(200).json(Object.assign({ savedLogin: true, session }, home));
@@ -92,6 +93,40 @@ module.exports = async function handler(req, res) {
     }));
   }
 
+  if (action === "password" || action === "details" || action === "profile") {
+    const slug = workspaceOf(req);
+    const found = personOf(req, slug);
+    if (!found.workspace || !found.person) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    const acc = homeAccount(found.person, found.workspace);
+    if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
+    const extra = require("./_account");
+    if (action === "password") {
+      if (acc.password) {
+        const current = String(body.current || body.old || "");
+        const viaPw = current && acc.password === extra.hashPassword(current);
+        const viaPin = current && acc.pin && acc.pin === require("./_lib").hashPin(current);
+        if (!viaPw && !viaPin) {
+          return res.status(401).json({ ok: false, error: "Current password or desk code does not match." });
+        }
+      }
+      const set = extra.setAccountPassword(acc, body.password || body.next);
+      if (!set.ok) return res.status(400).json({ ok: false, error: set.error });
+      if (body.email && extra.looksLikeEmail(body.email)) {
+        const applied = extra.applyAccountDetails(acc, { email: body.email });
+        if (applied && applied.ok === false) return res.status(409).json({ ok: false, error: applied.error });
+      }
+      await save();
+      return res.status(200).json({ ok: true, hasPassword: true, email: acc.email || "", hint: "Email and password can now open this account." });
+    }
+    if (body.name) found.person.name = String(body.name).trim().slice(0, 80);
+    const applied = extra.applyAccountDetails(acc, body);
+    if (applied && applied.ok === false) return res.status(400).json({ ok: false, error: applied.error });
+    await save();
+    return res.status(200).json(Object.assign(proHome(acc, found.person), { hint: "Account details saved." }));
+  }
+
   if (action === "mint") {
     const slug = workspaceOf(req);
     const found = personOf(req, slug);
@@ -106,6 +141,6 @@ module.exports = async function handler(req, res) {
   return res.status(400).json({
     ok: false,
     error: "Unknown account action.",
-    actions: ["login", "open", "save", "attach", "plan", "mint"]
+    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details"]
   });
 };
