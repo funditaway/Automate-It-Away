@@ -1,9 +1,22 @@
-var STATE = { people: [], you: {}, owner: false, jobs: [], filter: "all", shop: "", all: false, desk: "" };
+var STATE = {
+  people: [],
+  rawPeople: [],
+  you: {},
+  owner: false,
+  jobs: [],
+  filter: "all",
+  shop: "",
+  all: false,
+  desk: "",
+  didQueryOpen: false
+};
+
 function esc(s) {
   return String(s || "").replace(/[&<>"]/g, function (c) {
-    return ({ "&": "&", "<": "<", ">": ">", '"': """ })[c];
+    return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
   });
 }
+
 function headers() {
   var h = { "Content-Type": "application/json", "X-Workspace": localStorage.getItem("aia_ws") || "" };
   var pin = localStorage.getItem("aia_pin");
@@ -12,29 +25,24 @@ function headers() {
   if (ses) h["X-Session"] = ses;
   return h;
 }
+
 async function api(path, opts) {
   var r = await fetch(path, Object.assign({ headers: headers() }, opts || {}));
   var data = await r.json().catch(function () { return {}; });
   return { status: r.status, data: data };
 }
+
 function kindOf(p) {
   return (p && p.kind) || (p && p.role === "owner" ? "owner" : "helper");
 }
-function jobsOf(name, desk) {
-  var n = String(name || "").toLowerCase();
-  return (STATE.jobs || []).filter(function (j) {
-    if (!j || j.status === "shipped" || j.status === "killed") return false;
-    if (desk && j._desk && j._desk !== desk) return false;
-    var who = ((j.handedTo && j.handedTo.name) || j.assignee || "").toLowerCase();
-    return who && who === n;
-  });
+
+function fmtTime(t) {
+  if (!t) return "";
+  var d = new Date(t);
+  if (!d || isNaN(d.getTime())) return String(t);
+  return d.toLocaleString();
 }
-function holding(name, desk) {
-  return jobsOf(name, desk).filter(function (j) { return j.status !== "out" && !j.offDesk; }).length;
-}
-function extOf(name, desk) {
-  return jobsOf(name, desk).filter(function (j) { return j.status === "out" || j.offDesk; }).length;
-}
+
 function savedDesks() {
   if (window.AIADesks && AIADesks.list) {
     return AIADesks.list().filter(function (d) { return d && d.slug && (d.pin || d.token); });
@@ -42,6 +50,26 @@ function savedDesks() {
   var cur = localStorage.getItem("aia_ws");
   return cur ? [{ slug: cur, name: localStorage.getItem("aia_desk_name") || cur, pin: localStorage.getItem("aia_pin") || "", token: localStorage.getItem("aia_session") || "" }] : [];
 }
+
+function inviteLine(p, pending) {
+  var shop = STATE.shop || localStorage.getItem("aia_desk_name") || "this desk";
+  var who = (p && p.name) || "They";
+  if (pending) return who + " is on the book for " + shop + ". Waiting on Approve. They do not open the queue yet.";
+  var typed = (document.getElementById("p") && document.getElementById("p").value || "").trim();
+  var code = typed || "their desk code";
+  return who + " can open " + shop + " with their own desk code " + code + ". Same queue. They tap work. They do not send money. https://automateitaway.com/login";
+}
+
+function smsHref(phone, text) {
+  if (!phone) return "#";
+  return "sms:" + encodeURIComponent(phone) + "?body=" + encodeURIComponent(text);
+}
+
+function mailHref(email, text) {
+  if (!email) return "#";
+  return "mailto:" + encodeURIComponent(email) + "?subject=" + encodeURIComponent("Desk invite") + "&body=" + encodeURIComponent(text);
+}
+
 function paintDesks() {
   var box = document.getElementById("desk-chips");
   if (!box) return;
@@ -54,21 +82,7 @@ function paintDesks() {
   });
   box.innerHTML = html;
 }
-function inviteLine(p, pending) {
-  var shop = STATE.shop || localStorage.getItem("aia_desk_name") || "this desk";
-  var who = (p && p.name) || "They";
-  if (pending) return who + " is on the book for " + shop + ". Waiting on Approve. They do not open the queue yet.";
-  var code = (p && p.pin) || (document.getElementById("p") && document.getElementById("p").value) || "their desk code";
-  return who + " can open " + shop + " with their own desk code " + code + ". Same queue. They tap work. They do not send money. https://automateitaway.com/login";
-}
-function smsHref(phone, text) {
-  if (!phone) return "";
-  return "sms:" + encodeURIComponent(phone) + "?body=" + encodeURIComponent(text);
-}
-function mailHref(email, text) {
-  if (!email) return "";
-  return "mailto:" + encodeURIComponent(email) + "?subject=" + encodeURIComponent("Desk invite") + "&body=" + encodeURIComponent(text);
-}
+
 function paintYou() {
   var el = document.getElementById("you-card");
   var you = STATE.you || {};
@@ -76,13 +90,57 @@ function paintYou() {
   el.hidden = false;
   el.innerHTML = "<h3>You · " + esc(you.name || "Desk") + "</h3><p class=\"meta\">" + esc(you.kind || you.role || "") + (STATE.shop ? " · " + esc(STATE.shop) : "") + ". Owner owns Stop, money, pipes, and delete.</p>";
 }
+
+function groupPeople(list) {
+  var by = {};
+  var out = [];
+  (list || []).forEach(function (src) {
+    if (!src) return;
+    var p = Object.assign({}, src);
+    delete p.pin;
+    delete p.code;
+    var key = "name:" + String(p.name || "").trim().toLowerCase();
+    if (p.email) key = "email:" + String(p.email).trim().toLowerCase();
+    if (p.accountId) key = "account:" + String(p.accountId).trim();
+    if (!by[key]) {
+      by[key] = {
+        key: key,
+        id: p.id || "",
+        name: p.name || "Unnamed",
+        email: p.email || "",
+        phone: p.phone || "",
+        accountId: p.accountId || "",
+        status: p.status || "approved",
+        kind: kindOf(p),
+        desks: [],
+        seats: []
+      };
+      out.push(by[key]);
+    }
+    var row = by[key];
+    if (!row.id && p.id) row.id = p.id;
+    if (!row.email && p.email) row.email = p.email;
+    if (!row.phone && p.phone) row.phone = p.phone;
+    if (!row.accountId && p.accountId) row.accountId = p.accountId;
+    if (!row.name && p.name) row.name = p.name;
+    row.seats.push(p);
+    if (!row.desks.some(function (d) { return d.slug === p.deskSlug; })) {
+      row.desks.push({ slug: p.deskSlug || "", desk: p.desk || p.deskSlug || "Desk", status: p.status || "approved", kind: kindOf(p), id: p.id || "" });
+    }
+    if (p.status === "pending") row.status = "pending";
+  });
+  return out;
+}
+
 function paintFilters() {
   var waiting = STATE.people.filter(function (p) { return p.status === "pending"; }).length;
-  var chips = [["all", "All"], ["waiting", "Waiting" + (waiting ? " · " + waiting : "")], ["family", "Family"], ["helper", "Helpers"], ["staff", "Staff"], ["agent", "Agents"], ["ext", "Off desk"]];
+  var several = STATE.people.filter(function (p) { return (p.desks || []).length >= 2; }).length;
+  var chips = [["all", "All"], ["waiting", "Waiting" + (waiting ? " · " + waiting : "")], ["several", "Several desks" + (several ? " · " + several : "")], ["family", "Family"], ["helper", "Helpers"], ["staff", "Staff"], ["agent", "Agents"]];
   document.getElementById("filters").innerHTML = chips.map(function (c) {
     return "<button type=\"button\" data-f=\"" + c[0] + "\" class=\"" + (STATE.filter === c[0] ? "on" : "") + "\">" + c[1] + "</button>";
   }).join("");
 }
+
 function shown() {
   var q = (document.getElementById("q").value || "").toLowerCase().trim();
   var f = STATE.filter;
@@ -90,82 +148,143 @@ function shown() {
     if (!p) return false;
     var k = kindOf(p);
     if (f === "waiting" && p.status !== "pending") return false;
+    if (f === "several" && (p.desks || []).length < 2) return false;
     if (f === "family" && k !== "family" && k !== "friend") return false;
     if (f === "helper" && k !== "helper" && k !== "member") return false;
     if (f === "staff" && k !== "staff" && k !== "owner") return false;
     if (f === "agent" && k !== "agent") return false;
-    if (f === "ext" && !extOf(p.name, p.deskSlug)) return false;
     if (!q) return true;
-    return [p.name, p.phone, p.email, p.crew, k, p.status, p.desk].join(" ").toLowerCase().indexOf(q) >= 0;
+    var deskText = (p.desks || []).map(function (d) { return d.desk || d.slug || ""; }).join(" ");
+    return [p.name, deskText, p.phone, p.email].join(" ").toLowerCase().indexOf(q) >= 0;
   });
 }
+
 function card(p) {
-  var k = kindOf(p);
-  var hold = holding(p.name, p.deskSlug);
-  var extN = extOf(p.name, p.deskSlug);
-  var pending = p.status === "pending";
-  var denied = p.status === "denied";
-  var cls = "person" + (pending ? " waiting" : "") + (denied ? " denied" : "") + (k === "agent" ? " agent" : "");
-  var line = inviteLine(p, pending);
-  var acts = "";
-  if ((STATE.owner || p.ownerHere) && p.role !== "owner") {
-    if (pending) {
-      acts += "<button class=\"go\" type=\"button\" data-act=\"approve\" data-id=\"" + esc(p.id) + "\">Approve</button>";
-      acts += "<button class=\"kill\" type=\"button\" data-act=\"deny\" data-id=\"" + esc(p.id) + "\">Deny</button>";
-    } else if (k !== "agent") {
-      acts += "<button class=\"edit\" type=\"button\" data-act=\"permit\" data-kind=\"family\" data-id=\"" + esc(p.id) + "\">Family</button>";
-      acts += "<button class=\"edit\" type=\"button\" data-act=\"permit\" data-kind=\"helper\" data-id=\"" + esc(p.id) + "\">Helper</button>";
-      acts += "<button class=\"edit\" type=\"button\" data-act=\"permit\" data-kind=\"staff\" data-id=\"" + esc(p.id) + "\">Staff</button>";
-    }
-    if (!denied && !pending) acts += "<button class=\"edit\" type=\"button\" data-act=\"hold\" data-id=\"" + esc(p.id) + "\">Hold</button>";
-    acts += "<button class=\"kill\" type=\"button\" data-act=\"remove\" data-id=\"" + esc(p.id) + "\">Remove</button>";
-  }
-  acts += "<button class=\"edit\" type=\"button\" data-act=\"copy\" data-id=\"" + esc(p.id) + "\">Copy invite</button>";
-  if (p.phone) acts += "<a href=\"" + esc(smsHref(p.phone, line)) + "\">Text it</a>";
-  if (p.email) acts += "<a href=\"" + esc(mailHref(p.email, line)) + "\">Email it</a>";
-  if (!pending && !denied) acts += "<a href=\"/desk\" data-act=\"hand\" data-id=\"" + esc(p.id) + "\">Hand work</a>";
-  if (extN) acts += "<a href=\"/history\" data-act=\"ext\" data-id=\"" + esc(p.id) + "\">Off desk · " + extN + "</a>";
-  var cur = localStorage.getItem("aia_ws") || "";
-  if (p.deskSlug && p.deskSlug !== cur) acts += "<button class=\"edit\" type=\"button\" data-act=\"use\" data-id=\"" + esc(p.id) + "\">Use this desk</button>";
-  if (!STATE.owner && p.id === (STATE.you && STATE.you.id) && !pending) acts += "<button class=\"edit\" type=\"button\" data-act=\"ask\" data-id=\"" + esc(p.id) + "\">Ask staff</button>";
-  return "<article class=\"" + cls + "\" data-id=\"" + esc(p.id) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(p.label || k) + "</span>" + (p.crew ? "<span class=\"chip\">" + esc(p.crew) + "</span>" : "") + "<span class=\"chip\">" + esc(p.status || "approved") + "</span>" + (p.desk ? "<span class=\"chip\">" + esc(p.desk) + "</span>" : "") + (hold ? "<span class=\"chip\">Holding " + hold + "</span>" : "") + (extN ? "<span class=\"chip\">Ext " + extN + "</span>" : "") + "</div><p class=\"meta\">" + esc(p.does || "") + (p.phone ? " · " + esc(p.phone) : "") + (p.email ? " · " + esc(p.email) : "") + "</p><div class=\"acts\">" + acts + "</div></article>";
+  var seatCount = (p.desks || []).length;
+  var chips = (p.desks || []).slice(0, 3).map(function (d) {
+    return "<span class=\"chip\">" + esc(d.desk || d.slug || "Desk") + "</span>";
+  }).join("");
+  if (seatCount > 3) chips += "<span class=\"chip\">+" + (seatCount - 3) + " more</span>";
+  var sub = (p.phone ? esc(p.phone) : "") + (p.phone && p.email ? " · " : "") + (p.email ? esc(p.email) : "") + (seatCount >= 2 ? " · Several desks" : "");
+  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindOf(p)) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p><div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
 }
+
 function paintList() {
   var rows = shown();
   var box = document.getElementById("list");
   if (!STATE.people.length) {
-    box.innerHTML = "<div class=\"person empty\"><p>Nobody else on this desk yet.</p><p class=\"meta\">Add family, a helper, or an approved agent. Their name lands on Hand to.</p></div>";
+    if (STATE.all) box.innerHTML = "<div class=\"person empty\"><p>Nobody on your saved desks yet.</p><p class=\"meta\">Open one desk and tap Add someone.</p></div>";
+    else box.innerHTML = "<div class=\"person empty\"><p>Nobody else on this desk yet.</p><p class=\"meta\">Add family, a helper, or an approved agent.</p></div>";
     return;
   }
   if (!rows.length) {
     box.innerHTML = "<div class=\"person empty\"><p>No match on this filter.</p></div>";
     return;
   }
-  if (!STATE.all) { box.innerHTML = rows.map(card).join(""); return; }
-  var groups = {}, order = [];
-  rows.forEach(function (p) {
-    var key = p.deskSlug || p.desk || "desk";
-    if (!groups[key]) { groups[key] = []; order.push({ key: key, name: p.desk || key }); }
-    groups[key].push(p);
-  });
-  box.innerHTML = order.map(function (g) { return "<h2>" + esc(g.name) + "</h2>" + groups[g.key].map(card).join(""); }).join("");
+  box.innerHTML = rows.map(card).join("");
 }
+
 function paintCounts() {
   var people = STATE.people;
   document.getElementById("c-on").textContent = people.filter(function (p) { return p.status !== "pending" && p.status !== "denied"; }).length;
   document.getElementById("c-wait").textContent = people.filter(function (p) { return p.status === "pending"; }).length;
   document.getElementById("c-agent").textContent = people.filter(function (p) { return kindOf(p) === "agent"; }).length;
-  var hold = 0, ext = 0;
-  people.forEach(function (p) { hold += holding(p.name, p.deskSlug); ext += extOf(p.name, p.deskSlug); });
-  document.getElementById("c-hold").textContent = hold;
+  document.getElementById("c-hold").textContent = "—";
   var extEl = document.getElementById("c-ext");
-  if (extEl) extEl.textContent = ext;
+  if (extEl) extEl.textContent = "—";
 }
+
 function paintLevels(d) {
   var el = document.getElementById("levels");
   var list = d.levels || [];
   el.innerHTML = list.map(function (lv) { return "<p><b>" + esc(lv.label) + "</b> — " + esc(lv.does) + "</p>"; }).join("") || "<p class=\"meta\">Seats load with the desk.</p>";
 }
+
+function personByKey(key) {
+  return STATE.people.find(function (p) { return p.key === key; }) || null;
+}
+
+function seatHtml(seat) {
+  var bits = [];
+  if (seat.holding) bits.push("Holding " + seat.holding);
+  if (seat.ext) bits.push("Ext " + seat.ext);
+  if (seat.done) bits.push("Done " + seat.done);
+  return "<div class=\"sheet-row\"><b>" + esc(seat.desk || seat.slug || "Desk") + "</b><div class=\"meta\">" + esc(seat.kind || "helper") + (bits.length ? " · " + esc(bits.join(" · ")) : "") + (seat.lastSeen ? " · " + esc(fmtTime(seat.lastSeen)) : "") + "</div></div>";
+}
+
+function cardHtml(cardItem) {
+  if (!cardItem) return "";
+  var meta = [cardItem.desk || cardItem.slug || "", cardItem.status || "", cardItem.t ? fmtTime(cardItem.t) : ""].filter(Boolean).join(" · ");
+  return "<div class=\"sheet-row\"><b>" + esc(cardItem.title || cardItem.what || "Card") + "</b><div class=\"meta\">" + esc(meta) + "</div></div>";
+}
+
+function historyHtml(item) {
+  if (!item) return "";
+  var title = item.what || item.title || item.card || "Activity";
+  var meta = [item.who || "", item.desk || "", item.t ? fmtTime(item.t) : ""].filter(Boolean).join(" · ");
+  return "<div class=\"sheet-row\"><b>" + esc(title) + "</b><div class=\"meta\">" + esc(meta) + "</div></div>";
+}
+
+async function openSheet(person) {
+  if (!person) return;
+  var desks = savedDesks().map(function (d) { return { slug: d.slug, pin: d.pin || "", token: d.token || "" }; });
+  var body = {
+    action: "person",
+    id: person.id || "",
+    name: person.name || "",
+    email: person.email || "",
+    accountId: person.accountId || "",
+    desks: desks
+  };
+  var out = await api("/api/admin", { method: "POST", body: JSON.stringify(body) });
+  if (out.status >= 400 || !out.data || !out.data.ok) return;
+  var data = out.data;
+  var sheet = document.getElementById("sheet");
+  document.getElementById("sheet-name").textContent = (data.person && data.person.name) || person.name || "Person";
+  var seatCount = (data.seats || []).length;
+  document.getElementById("sheet-meta").textContent = seatCount + " seat" + (seatCount === 1 ? "" : "s") + " · AIA does not send";
+  document.getElementById("sheet-copy").textContent = inviteLine(data.person || person, false);
+  document.getElementById("sheet-seats").innerHTML = (data.seats || []).map(seatHtml).join("") || "<p class=\"meta\">No seats found.</p>";
+
+  var yours = (data.cards || []).filter(function (c) { return c && (c.side === "yours" || c.side === "both" || c.slug === data.currentSlug); });
+  var theirs = (data.cards || []).filter(function (c) { return c && !(c.side === "yours" || c.side === "both" || c.slug === data.currentSlug); });
+  document.getElementById("sheet-yours").innerHTML = yours.length ? yours.map(cardHtml).join("") : "<p class=\"meta\">No open cards on your desks.</p>";
+  document.getElementById("sheet-theirs").innerHTML = theirs.length ? theirs.map(cardHtml).join("") : "<p class=\"meta\">No open cards on their other desks.</p>";
+
+  document.getElementById("sheet-history").innerHTML = (data.history || []).length ? (data.history || []).slice(0, 20).map(historyHtml).join("") : "<p class=\"meta\">No shared history yet.</p>";
+  document.getElementById("sheet-last").textContent = data.lastCard ? ("Last card: " + (data.lastCard.title || data.lastCard.what || "Card") + (data.lastCard.t ? (" · " + fmtTime(data.lastCard.t)) : "")) : "Last card: none yet.";
+
+  var line = inviteLine(data.person || person, false);
+  document.getElementById("sheet-copy-btn").onclick = async function () {
+    try { await navigator.clipboard.writeText(line); } catch (e) {}
+  };
+  document.getElementById("sheet-text").href = smsHref((data.person && data.person.phone) || person.phone || "", line);
+  document.getElementById("sheet-mail").href = mailHref((data.person && data.person.email) || person.email || "", line);
+  document.getElementById("sheet-hear").onclick = function () {
+    if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak(line);
+  };
+  document.getElementById("sheet-history-link").href = "/history?who=" + encodeURIComponent((data.person && data.person.name) || person.name || "");
+  document.getElementById("sheet-close").onclick = function () { sheet.hidden = true; };
+
+  sheet.hidden = false;
+}
+
+function openFromQuery() {
+  if (STATE.didQueryOpen) return;
+  var who = new URLSearchParams(location.search || "").get("who");
+  if (!who) return;
+  var want = String(who).trim().toLowerCase();
+  var found = STATE.people.find(function (p) {
+    if (!p) return false;
+    return String(p.name || "").trim().toLowerCase() === want;
+  }) || STATE.people.find(function (p) {
+    return p && String(p.name || "").toLowerCase().indexOf(want) >= 0;
+  });
+  if (!found) return;
+  STATE.didQueryOpen = true;
+  openSheet(found);
+}
+
 async function fetchDesk(desk) {
   var h = { "Content-Type": "application/json", "X-Workspace": desk.slug || desk };
   if (desk.pin) h["X-Pin"] = desk.pin;
@@ -178,31 +297,44 @@ async function fetchDesk(desk) {
   var you = (admin && admin.you) || {};
   var ownerHere = you.role === "owner" || you.kind === "owner";
   var people = ((admin && admin.people) || []).map(function (p) {
-    return Object.assign({}, p, { desk: desk.name || desk.slug, deskSlug: desk.slug, ownerHere: ownerHere });
+    var row = Object.assign({}, p, { desk: desk.name || desk.slug, deskSlug: desk.slug, ownerHere: ownerHere });
+    delete row.pin;
+    delete row.code;
+    return row;
   });
   return { ok: !!(admin && admin.ok), admin: admin || {}, people: people, jobs: list };
 }
+
 async function load() {
   var banner = document.getElementById("banner");
   if (window.AIADesks && AIADesks.remember) AIADesks.remember();
+
+  var rows = savedDesks();
+  if (!localStorage.getItem("aia_people_scope_init")) {
+    STATE.all = rows.length >= 2;
+    localStorage.setItem("aia_people_scope_init", "1");
+  }
+
   paintDesks();
   if (!localStorage.getItem("aia_ws") || !(localStorage.getItem("aia_session") || localStorage.getItem("aia_pin"))) {
     banner.textContent = "Open the desk on this phone first. People follows the working desk.";
     return;
   }
+
   if (STATE.all) {
-    var rows = savedDesks(), people = [], jobs = [], last = null;
+    var peopleAll = [], jobsAll = [], last = null;
     for (var i = 0; i < rows.length; i++) {
       var pack = await fetchDesk(rows[i]);
       if (!pack.ok) continue;
       last = pack.admin;
-      people = people.concat(pack.people);
-      jobs = jobs.concat(pack.jobs);
+      peopleAll = peopleAll.concat(pack.people);
+      jobsAll = jobsAll.concat(pack.jobs);
     }
     STATE.you = (last && last.you) || {};
     STATE.owner = false;
-    STATE.people = people;
-    STATE.jobs = jobs;
+    STATE.rawPeople = peopleAll;
+    STATE.people = groupPeople(peopleAll);
+    STATE.jobs = jobsAll;
     STATE.shop = "All desks";
     document.getElementById("add-box").hidden = true;
     banner.textContent = "Every desk saved on this phone. Switch to one desk to add or approve.";
@@ -211,34 +343,39 @@ async function load() {
     paintCounts();
     paintFilters();
     paintList();
+    openFromQuery();
     return;
   }
+
   var out = await api("/api/admin");
   var d = out.data || {};
   if (out.status === 401) { banner.textContent = "Desk code required."; return; }
   if (out.status === 403 && d.pending) { banner.textContent = "That seat is waiting on the owner."; return; }
   if (out.status === 404) { banner.textContent = "No desk with that name. Open one first."; return; }
   if (!d.ok) { banner.textContent = d.error || "Could not open People."; return; }
+
   STATE.you = d.you || {};
   STATE.owner = (STATE.you.role === "owner" || STATE.you.kind === "owner");
   var shop = (d.shop && (d.shop.name || d.shop.desk)) || localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_ws") || "";
   STATE.shop = shop;
-  STATE.people = (d.people || []).map(function (p) {
-    return Object.assign({}, p, { desk: shop, deskSlug: localStorage.getItem("aia_ws") || "" });
+  STATE.rawPeople = (d.people || []).map(function (p) {
+    var row = Object.assign({}, p, { desk: shop, deskSlug: localStorage.getItem("aia_ws") || "" });
+    delete row.pin;
+    delete row.code;
+    return row;
   });
+  STATE.people = groupPeople(STATE.rawPeople);
+
   document.getElementById("add-box").hidden = !STATE.owner;
   banner.textContent = STATE.owner ? "Owner desk. Approve seats. Hand to uses these names. You still send the draft." : "You can see who sits here. Owner adds people and taps Approve.";
   paintYou();
   paintLevels(d);
-  var jobsOut = await api("/api/jobs");
-  STATE.jobs = (jobsOut.data && (jobsOut.data.jobs || jobsOut.data.items || jobsOut.data)) || [];
-  if (!Array.isArray(STATE.jobs)) STATE.jobs = [];
-  var slug = localStorage.getItem("aia_ws") || "";
-  STATE.jobs.forEach(function (j) { if (j) j._desk = slug; });
   paintCounts();
   paintFilters();
   paintList();
+  openFromQuery();
 }
+
 async function sit() {
   var note = document.getElementById("sit-note");
   var ws = (document.getElementById("sit-ws").value || "").trim();
@@ -252,6 +389,7 @@ async function sit() {
   if (r.status >= 400) { note.textContent = data.error || "Could not ask that desk."; return; }
   note.textContent = "Asked. Waiting on that owner. They Approve on their People tab. AIA does not text them.";
 }
+
 async function invite() {
   var name = document.getElementById("n").value.trim();
   var kind = document.getElementById("k").value;
@@ -261,74 +399,13 @@ async function invite() {
   if (!name && !crew) { note.textContent = "Name the person or pick a crew seat."; return; }
   var out = await api("/api/admin", { method: "POST", body: JSON.stringify({ action: "invite", name: name || crew, email: document.getElementById("e").value, phone: document.getElementById("ph").value, pin: pin, account: document.getElementById("acct").value, kind: kind, crew: crew, approve: document.getElementById("now").checked, role: "employee" }) });
   if (out.status >= 400) { note.textContent = (out.data && out.data.error) || "Could not add that person."; return; }
-  var line = inviteLine({ name: name || crew, pin: pin }, out.data.pending);
+  var line = inviteLine({ name: name || crew }, out.data.pending);
   note.textContent = out.data.pending ? line : ("On the desk. Copy and send this yourself: " + line);
   try { if (!out.data.pending) await navigator.clipboard.writeText(line); } catch (e) {}
   document.getElementById("n").value = "";
   load();
 }
-function personOf(id) { return STATE.people.find(function (x) { return x.id === id; }) || null; }
-function useDeskOf(p) {
-  if (!p || !p.deskSlug) return false;
-  var row = savedDesks().filter(function (d) { return d.slug === p.deskSlug; })[0];
-  if (row && window.AIADesks && AIADesks.open) { AIADesks.open(row); STATE.all = false; return true; }
-  if (row) {
-    localStorage.setItem("aia_ws", row.slug);
-    if (row.pin) localStorage.setItem("aia_pin", row.pin);
-    if (row.token) localStorage.setItem("aia_session", row.token);
-    if (row.name) localStorage.setItem("aia_desk_name", row.name);
-    STATE.all = false;
-    return true;
-  }
-  return false;
-}
-function headersForPerson(p) {
-  var h = headers();
-  if (!p || !p.deskSlug) return h;
-  var row = savedDesks().filter(function (d) { return d.slug === p.deskSlug; })[0];
-  if (!row) return h;
-  h["X-Workspace"] = row.slug;
-  if (row.pin) h["X-Pin"] = row.pin;
-  if (row.token) h["X-Session"] = row.token;
-  return h;
-}
-async function act(kind, id, extra) {
-  var banner = document.getElementById("banner");
-  var person = personOf(id);
-  var body = { action: kind, id: id };
-  if (extra) Object.assign(body, extra);
-  if (kind === "hold") body.action = "deny";
-  if (kind === "use") { useDeskOf(person); load(); return; }
-  if (kind === "hand" || kind === "ext") { useDeskOf(person); return; }
-  if (kind === "ask") {
-    var outAsk = await api("/api/admin", { method: "POST", body: JSON.stringify({ action: "ask", kind: "staff" }) });
-    banner.textContent = outAsk.status >= 400 ? ((outAsk.data && outAsk.data.error) || "Could not ask.") : "Asked for staff. Owner Approves on this list.";
-    load();
-    return;
-  }
-  if (kind === "copy") {
-    var line = inviteLine(person, person && person.status === "pending");
-    try { await navigator.clipboard.writeText(line); banner.textContent = "Invite copied. You send it."; }
-    catch (e) { banner.textContent = line; }
-    return;
-  }
-  var r = await fetch("/api/admin", { method: "POST", headers: headersForPerson(person), body: JSON.stringify(body) });
-  var data = await r.json().catch(function () { return {}; });
-  if (r.status >= 400) banner.textContent = data.error || "Could not update that seat.";
-  load();
-}
-function parseTalk(text) {
-  var t = String(text || "").trim();
-  if (!t) return;
-  document.getElementById("heard").textContent = t;
-  var low = t.toLowerCase();
-  ["family", "friend", "helper", "member", "staff", "agent"].forEach(function (s) { if (low.indexOf(s) >= 0) document.getElementById("k").value = s; });
-  ["Worker", "Doer", "Rail", "Mapper", "Packer", "Builder", "Foreman"].forEach(function (c) {
-    if (low.indexOf(c.toLowerCase()) >= 0) { document.getElementById("crew").value = c; document.getElementById("k").value = "agent"; }
-  });
-  var name = t.replace(/add\s+/i, "").replace(/\s+as\s+.*/i, "").replace(/\s+to\s+(the\s+)?desk.*/i, "").trim();
-  if (name) document.getElementById("n").value = name.split(/[,.]/)[0].trim();
-}
+
 document.getElementById("filters").addEventListener("click", function (e) {
   var btn = e.target.closest("[data-f]");
   if (!btn) return;
@@ -336,44 +413,61 @@ document.getElementById("filters").addEventListener("click", function (e) {
   paintFilters();
   paintList();
 });
+
 document.getElementById("q").addEventListener("input", paintList);
 document.getElementById("add-btn").addEventListener("click", invite);
 document.getElementById("sit-btn").addEventListener("click", sit);
+
 document.getElementById("desk-chips").addEventListener("click", function (e) {
   var btn = e.target.closest("[data-desk]");
   if (!btn) return;
   var slug = btn.getAttribute("data-desk");
-  if (slug === "__all__") { STATE.all = true; load(); return; }
+  if (slug === "__all__") {
+    STATE.all = true;
+    load();
+    return;
+  }
   STATE.all = false;
   var row = savedDesks().filter(function (d) { return d.slug === slug; })[0];
   if (row && window.AIADesks && AIADesks.open) AIADesks.open(row);
   else if (row) {
     localStorage.setItem("aia_ws", row.slug);
     if (row.pin) localStorage.setItem("aia_pin", row.pin);
+    if (row.token) localStorage.setItem("aia_session", row.token);
     if (row.name) localStorage.setItem("aia_desk_name", row.name);
   }
   load();
 });
+
 document.getElementById("list").addEventListener("click", function (e) {
   var btn = e.target.closest("[data-act]");
-  if (!btn) return;
-  var a = btn.getAttribute("data-act");
-  var id = btn.getAttribute("data-id");
-  if (a === "permit") act("permit", id, { kind: btn.getAttribute("data-kind") });
-  else act(a, id);
+  if (btn && btn.getAttribute("data-act") === "open") {
+    openSheet(personByKey(btn.getAttribute("data-key")));
+    return;
+  }
+  var cardEl = e.target.closest("article[data-open]");
+  if (!cardEl) return;
+  if (e.target.closest("a") || e.target.closest("button")) return;
+  openSheet(personByKey(cardEl.getAttribute("data-open")));
 });
+
 document.getElementById("hear").addEventListener("click", function () {
   if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak("Name the person and the seat. Helper, family, staff, or an agent.");
 });
+
 document.getElementById("quiet").addEventListener("click", function () {
   if (window.AIASpeech && AIASpeech.stopTalk) AIASpeech.stopTalk();
 });
+
 document.getElementById("talk").addEventListener("click", function () {
   if (!window.AIASpeech || !AIASpeech.listen) {
     document.getElementById("heard").textContent = "Talk needs Safari or Chrome on this phone.";
     return;
   }
-  AIASpeech.listen(function (text) { parseTalk(text); });
+  AIASpeech.listen(function (text) {
+    document.getElementById("heard").textContent = String(text || "").trim();
+  });
 });
+
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", load);
 else load();
