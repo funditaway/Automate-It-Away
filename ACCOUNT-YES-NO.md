@@ -16,8 +16,23 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Account page lists phones, export, leave every phone.
 - `scripts/check-account.js` — nine passing contract tests.
 
+## YES (wallets / Ext / X Money — ledger only, 2026-09-03)
+
+- Each adult seat can hold its own wallet. Bills hit THAT wallet.
+- Ext (off-desk) work can bill that same seat.
+- X Money is a named pay rail. Handle on the seat. Status hold.
+- Owner override of a HOLD needs a second tap and a reason.
+- People cards show Can / Never / Money / Ext / X handle.
+- `scripts/check-wallets.js` isolation tests.
+
 ## NO (do not pretend these shipped)
 
+- Live card charge. `charged` stays false.
+- Live X Money pull. No X_MONEY_TOKEN path.
+- Insurance premium, COLI, or producer trust through X Money.
+- Owner wallet as fallback when a seat wallet is empty.
+- A billed wallet on a child family seat.
+- Agents sending or holding money.
 - Charge Desk / Pro / Crew.
 - Email or SMS reset codes.
 - Authenticator on. API returns 409 HOLD.
@@ -30,6 +45,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 
 ## Ask me if
 
+- Override would pass a HOLD.
 - Money out is $250 or more.
 - This is a Kill on a live job.
 - A customer is named in an outbound message.
