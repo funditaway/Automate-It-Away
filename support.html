@@ -1,62 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Support · Automate It Away</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <script>
-  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
-  </script>
-  <link rel="stylesheet" href="theme.css">
-  <link rel="stylesheet" href="desk-nav.css">
-  <script src="theme.js"></script>
-  <script src="analytics.js"></script>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>
+(function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+</script>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="desk-nav.css">
+<script src="theme.js"></script>
+<script src="analytics.js"></script>
 <style>
-body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
+body{margin:0}
 a{color:var(--teal)}
-header{padding:16px 5vw;border-bottom:1px solid var(--line);background:#0d6b6b;color:#fff;display:flex;justify-content:space-between;align-items:center}
+header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
 header a{color:#fff}
-.hero{text-align:center;padding:48px 5vw 24px}
-input,textarea{width:min(640px,90vw);padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
-.panel{width:min(640px,92vw);margin:0 auto 24px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-button.go{padding:10px 16px;border:0;border-radius:10px;background:var(--orange);color:#fff;font-weight:700}
+.wrap{width:min(640px,94vw);margin:0 auto;padding:18px 0 28px}
+h1{font-size:1.5rem;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 16px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 16px}
+label{display:block;font-weight:700;margin:10px 0 4px}
+input,textarea,select{width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+.kinds{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
+.kinds button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 12px;min-height:44px;font:inherit}
+.kinds button.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+.talk-bar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.talk-bar button,.go{padding:10px 16px;border:0;border-radius:10px;background:var(--orange);color:#fff;font-weight:700;min-height:44px}
+.talk-bar button.quiet{background:transparent;color:var(--ink);border:1px solid var(--line)}
+#thread{min-height:48px;color:var(--muted);white-space:pre-wrap}
+#ok{margin:10px 0 0;font-weight:700}
+.fine{color:var(--muted);font-size:13px;margin:8px 0 0}
 </style>
 </head>
 <body class="has-desk-nav">
 <header>
-  <a href="index.html">AUTOMATE IT AWAY</a>
+  <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
   <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
   <nav class="desk-tabs" aria-label="Desk tabs">
     <a href="/desk" data-tab="queue">Queue</a>
-      <a href="/drop" data-tab="drop">Drop</a>
-    <a href="/rules" data-tab="rules">Rules</a>
-    <a href="/connections" data-tab="pipes">Pipes</a>
+    <a href="/drop" data-tab="drop">Drop</a>
+    <a href="/history" data-tab="history">History</a>
+    <a href="/people" data-tab="people">People</a>
     <a href="/more" data-tab="more">More</a>
   </nav>
 </header>
-<section class="hero"><p>HELP CENTER</p><h1>Support</h1>
-<p><input id="q" placeholder="Search support articles"></p>
-</section>
-<div class="panel">
-<p><b>You only tap exceptions.</b> Yes or no.</p>
-<p><b>Pipes</b> are optional. The queue still takes work.</p>
-</div>
-<div class="panel">
-<h2>Ticket</h2>
-<p><input id="title" placeholder="Title"></p>
-<p><textarea id="body" rows="4" placeholder="What happened"></textarea></p>
-<p><button class="go" type="button" onclick="ticket()">Submit</button></p>
-<p id="ok"></p>
-</div>
-<script>
-function ticket(){const t=document.getElementById("title").value,b=document.getElementById("body").value;if(!t||!b){document.getElementById("ok").textContent="Title and description required.";return;}const all=JSON.parse(localStorage.getItem("aia_tickets")||"[]");all.unshift({title:t,body:b,t:Date.now()});localStorage.setItem("aia_tickets",JSON.stringify(all));document.getElementById("ok").textContent="Ticket saved on this device.";}
-</script>
+<main class="wrap">
+  <p class="fine">AIA HELP</p>
+  <h1>Something broke?</h1>
+  <p class="lead">Talk to AIA. We write a card on the AIA Admin Desk. A person looks. Nothing sends itself.</p>
+  <div class="panel" id="talk-panel">
+    <div class="talk-bar">
+      <button type="button" id="hear">Hear this</button>
+      <button type="button" id="talk">Talk</button>
+      <button type="button" class="quiet" id="quiet">Quiet</button>
+    </div>
+    <div id="thread">What broke? Which page? Name of your desk (not the code). How do we reach you?</div>
+  </div>
+  <div class="panel">
+    <h2>Or type it</h2>
+    <div class="kinds" id="kinds">
+      <button type="button" data-kind="broke" class="on">Broke</button>
+      <button type="button" data-kind="login">Login</button>
+      <button type="button" data-kind="desk">Desk</button>
+      <button type="button" data-kind="account">Account</button>
+      <button type="button" data-kind="pack">Pack</button>
+      <button type="button" data-kind="pipe">Pipe</button>
+      <button type="button" data-kind="idea">Idea</button>
+    </div>
+    <label for="title">Title</label>
+    <input id="title" placeholder="Short name for the problem">
+    <label for="notes">What broke</label>
+    <textarea id="notes" rows="4" placeholder="What happened. Which page. What you already tried."></textarea>
+    <label for="page">Which page</label>
+    <input id="page" placeholder="/desk, /drop, /login …">
+    <label for="deskName">Your desk name</label>
+    <input id="deskName" placeholder="Name only — never the code">
+    <label for="who">Your name</label>
+    <input id="who" placeholder="How we should say hello">
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="Optional">
+    <label for="phone">Phone</label>
+    <input id="phone" inputmode="tel" placeholder="Optional">
+    <p><button class="go" type="button" id="drop-send">Drop it on the AIA desk</button></p>
+    <p id="ok"></p>
+    <p class="fine">AIA does not text or email you unless a person on the AIA desk taps Text it or Email it. Do not type a desk code or PIN here.</p>
+  </div>
+</main>
 <nav id="desk-nav" aria-label="Desk">
   <a href="/desk" data-tab="queue"><span>Queue</span></a>
   <a href="/drop" data-tab="drop"><span>Drop</span></a>
-  <a href="/rules" data-tab="rules"><span>Rules</span></a>
-  <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+  <a href="/history" data-tab="history"><span>History</span></a>
+  <a href="/people" data-tab="people"><span>People</span></a>
   <a href="/more" data-tab="more"><span>More</span></a>
 </nav>
+<script src="speech.js"></script>
+<script src="support-talk.js"></script>
 <script src="desk-nav.js"></script>
-</body></html>
+</body>
+</html>

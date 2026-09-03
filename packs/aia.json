@@ -1,0 +1,61 @@
+{
+  "id": "aia",
+  "name": "AIA Help",
+  "family": "Automate It Away",
+  "type": "work",
+  "aisle": "AIA",
+  "capture": ["talk", "drop", "support form", "hook"],
+  "qualify": ["kind of problem", "which desk", "reach-back"],
+  "do": ["card on the AIA Admin Desk", "draft reply"],
+  "collect": ["answer left the desk"],
+  "follow": ["one nudge on the card"],
+  "taps": ["copy", "text", "email", "hand", "cap"],
+  "kill": ["abuse", "not AIA", "duplicate"],
+  "pipes": ["webhook"],
+  "artifacts": ["ticket card", "draft reply"],
+  "face": {
+    "who": { "key": "contactName", "label": "Your name" },
+    "what": { "key": "notes", "label": "What broke" },
+    "when": { "key": "timing", "label": "When it started" },
+    "where": { "key": "deskName", "label": "Your desk (name, not code)" },
+    "how": "Talk or type. AIA AI drafts a card on the AIA Admin Desk. A person taps. Nothing sends itself."
+  },
+  "kinds": ["broke", "login", "desk", "account", "pack", "pipe", "idea"],
+  "fields": {
+    "capture": ["title", "kind", "from", "contactName", "phone", "email", "notes", "photoUrl", "pack", "timing"],
+    "qualify": ["timing", "risk", "why", "deskName", "handle"],
+    "do": ["draft", "artifact"],
+    "collect": ["confirm"],
+    "follow": ["followed"],
+    "rail": ["killReason", "whoTapped"]
+  },
+  "rails": [
+    "World talk drafts a card on desk aia. AIA AI never Send, Stop, or pay.",
+    "Public drop search does not list the AIA Admin Desk unless the owner lists it.",
+    "Doors are /support and /drop?ws=aia&pack=aia#talk. No public Bot API.",
+    "Reach-back is Copy / Text / Email / Hand. AIA does not auto-send.",
+    "Do not drop platform tickets onto a shop desk.",
+    "World user never types a desk code or PIN into this pack.",
+    "Never Vita."
+  ],
+  "rules": [
+    { "text": "Cap login cards.", "when": "qualify", "then": "cap", "contains": "login" },
+    { "text": "Cap capture-down cards.", "when": "qualify", "then": "cap", "contains": "capture" },
+    { "text": "Cap placeholder cards.", "when": "qualify", "then": "cap", "contains": "placeholder" },
+    { "text": "Cap cannot-drop cards.", "when": "qualify", "then": "cap", "contains": "can't drop" },
+    { "text": "Wait on billing talk.", "when": "qualify", "then": "wait", "contains": "billing" },
+    { "text": "Cap abuse cards. Owner Stop.", "when": "qualify", "then": "cap", "contains": "abuse" }
+  ],
+  "queue": {
+    "badge": "AIA",
+    "family": "Automate It Away",
+    "empty": "World problems land here. Talk on Drop or Support. AIA AI drafts the card. You tap.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["broke", "login", "desk", "account", "pack", "pipe", "idea"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Tell AIA what broke. Name your desk if you have one. Leave a way back.",
+  "how": "World user talks on Support or Drop. AIA AI writes a card on the AIA Admin Desk. Owner taps Copy, Text, Email, Hand, Cap, or Stop."
+}
