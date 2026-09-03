@@ -117,3 +117,22 @@ body.has-desk-nav header .nav.site-nav {
   body.has-desk-nav { padding-bottom: 24px; }
   body.has-desk-nav #desk-nav { display: none !important; }
 }
+
+/* One Sign in. Chip owns it. */
+header .nav a[href*="login"],
+.site-header .nav a[href*="login"],
+header .nav a[href*="more.html"] {
+  display: none;
+}
+body.has-desk-nav { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+#gate button.go, #gate button.edit {
+  font-weight: 700;
+}
+#gate button.edit {
+  background: var(--teal);
+  color: #fff;
+  border: 0;
+}
+@media (max-width: 640px) {
+  .kpis { grid-template-columns: 1fr 1fr !important; }
+}
