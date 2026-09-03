@@ -88,6 +88,10 @@ body.has-desk-nav header .nav.site-nav {
 }
 
 @media (max-width: 640px) {
+  header a:not(#who-chip)[href*="login"],
+  .site-header a:not(#who-chip)[href*="login"] {
+    display: none !important;
+  }
   header .brand-name,
   .site-header .brand-name,
   header > a strong,
@@ -107,6 +111,18 @@ body.has-desk-nav header .nav.site-nav {
   header nav.site-nav a[href="onboard.html"],
   header .nav.site-nav a[href="onboard.html"] {
     display: none !important;
+  }
+  .theme-btn {
+    min-width: 46px !important;
+    min-height: 40px !important;
+    padding: 6px 9px !important;
+    font-size: 12px !important;
+  }
+  #queue-filters,
+  #desk-chips,
+  .pipe-mini {
+    flex-wrap: wrap !important;
+    overflow: visible !important;
   }
 }
 
@@ -149,6 +165,15 @@ button[data-jump] .v {
   color: var(--ink);
   white-space: normal;
 }
+
+#gate button.go {
+  background: #119494 !important;
+  color: #fff !important;
+}
+
+.kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
 @media (max-width: 720px) {
   .verify-cells { grid-template-columns: 1fr; }
 }
@@ -167,6 +192,21 @@ button[data-jump] .v {
   body.has-desk-nav .wrap {
     padding-bottom: 16px;
   }
+  .sheet {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+  .sheet-card {
+    margin-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Disabled Open looked blank on desktop. */
+#gate button:disabled,
+button.go:disabled,
+#open-desk:disabled {
+  opacity: 1;
+  background: var(--edit) !important;
+  color: var(--edit-ink) !important;
 }
 
 /* History used #who-chip for a filter and hid Sign in. */
@@ -187,85 +227,4 @@ header #who-chip,
   .site-header .brand-short {
     display: inline !important;
   }
-}
-
-/* Round 2 — numbers, Open, empty queue, sheets, More taps */
-.kpi b,
-.kpi strong {
-  display: block !important;
-  min-height: 1.6em !important;
-  font-size: 1.75rem !important;
-  font-weight: 800 !important;
-  line-height: 1.15 !important;
-  letter-spacing: 0 !important;
-  color: var(--teal-deep, #0a4f4f) !important;
-  font-variant-numeric: tabular-nums;
-  overflow: visible !important;
-  height: auto !important;
-  width: auto !important;
-  background: none !important;
-  border: 0 !important;
-  text-indent: 0 !important;
-}
-.kpi b:empty::after,
-.kpi strong:empty::after {
-  content: "0";
-}
-
-#gate button,
-#gate button.edit,
-#gate button.go,
-#open-desk,
-button.open-desk {
-  background: var(--orange, #f39c12) !important;
-  color: #0c1116 !important;
-  font-weight: 800 !important;
-  opacity: 1 !important;
-  border: 0 !important;
-}
-#gate button:disabled,
-#open-desk:disabled {
-  background: var(--orange, #f39c12) !important;
-  color: #0c1116 !important;
-  opacity: .72 !important;
-}
-
-#queue > .queue-empty {
-  display: block;
-  width: 100%;
-}
-#queue > .queue-empty .row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-@media (min-width: 560px) {
-  #queue > .queue-empty,
-  #queue > p,
-  #queue > .row {
-    grid-column: 1 / -1;
-  }
-}
-
-.sheet {
-  z-index: 80 !important;
-}
-.sheet-card {
-  max-height: min(90vh, calc(100dvh - 88px - env(safe-area-inset-bottom, 0px)));
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.card a:hover,
-.menu.card > a:hover {
-  background: var(--edit);
-}
-
-.item, .kpi, .card, .sheet-card {
-  min-width: 0;
-}
-
-#desk-nav {
-  z-index: 50 !important;
 }

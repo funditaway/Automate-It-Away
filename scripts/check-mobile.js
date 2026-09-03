@@ -13,6 +13,8 @@ const root = path.join(__dirname, "..");
 const css = fs.readFileSync(path.join(root, "theme.css"), "utf8");
 const js = fs.readFileSync(path.join(root, "theme.js"), "utf8");
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
+const account = fs.readFileSync(path.join(root, "account.html"), "utf8");
+const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 
 if (/\.who-chip span\s*,/.test(css) || /\.who-chip span\s*\{/.test(css)) {
   fail("theme.css must not style every .who-chip span — that paints a blank white pill");
@@ -33,6 +35,11 @@ if (!js.includes("liftChrome") || !js.includes("ensurePhoneMeta")) {
   fail("theme.js missing liftChrome / ensurePhoneMeta");
 } else {
   pass("theme.js lifts chip onto the header row");
+}
+if (!js.includes("hideDupSignIn") || !js.includes("paintWho();\n    hideDupSignIn();")) {
+  fail("theme.js must call hideDupSignIn() after paintWho()");
+} else {
+  pass("theme.js hides duplicate Sign in links");
 }
 if (js.indexOf("Sign in") < 0 || js.indexOf('"/account"') < 0 || js.indexOf("New desk") < 0) {
   fail("signed-in / signed-out copy drifted");
@@ -74,6 +81,26 @@ if (js.indexOf("chip.tagName !== \"A\"") < 0) {
   fail("theme.js must not steal a non-link #who-chip");
 } else {
   pass("account chip ignores foreign #who-chip");
+}
+if (account.includes('href="login.html">Sign in</a>')) {
+  fail("account.html must not keep static Sign in link");
+} else {
+  pass("account.html removes static Sign in link");
+}
+if (!account.includes('id="save-you"') || !account.includes('fetch("/api/account"')) {
+  fail("account.html save profile must POST /api/account");
+} else {
+  pass("account profile save targets /api/account");
+}
+if (account.includes('href="/admin">People</a>')) {
+  fail("account.html People link must not be /admin");
+} else {
+  pass("account.html People link is not /admin");
+}
+if (history.includes('id="who-chip"')) {
+  fail("history.html must not keep id=\"who-chip\"");
+} else {
+  pass("history.html uses who-filter instead of who-chip");
 }
 
 if (process.exitCode) {
