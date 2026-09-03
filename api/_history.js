@@ -21,18 +21,31 @@ function laneLabel(lane) {
     ext: "Ext",
     done: "Done",
     stopped: "Stopped",
-    desk: "Desk"
+    desk: "Desk",
+    audit: "Audit"
   })[String(lane || "")] || "In progress";
+}
+
+function whenBucket(job, lane) {
+  if (lane === "done" || lane === "stopped") return "past";
+  if (job && (job.dueAt || job.followWhen || job.when || job.followAt || job.timing)) return "next";
+  return "now";
 }
 
 function historyItem(job, desk) {
   if (!job) return null;
   const lane = laneOf(job);
+  const miss = missingOf(job);
+  const amount = Number(job.amount != null ? job.amount : job.ask);
+  const files = [].concat(job.photoUrl ? [{ kind: "photo", url: job.photoUrl }] : [], Array.isArray(job.files) ? job.files : []);
+  const hands = [job.from, job.assignee, job.whoTapped, job.doneBy].filter(Boolean);
+  const grok = !!(job.recs && job.recs.length) || !!(job.agentDraft && job.agentDraft.text) || /grok/i.test(String(job.draftSource || job.promptVersion || ""));
   return {
     kind: "job",
     id: job.id,
     t: job.doneAt || job.updatedAt || job.createdAt || job.t || null,
     lane,
+    when: whenBucket(job, lane),
     label: laneLabel(lane),
     slug: job.workspace || (desk && desk.slug),
     desk: (desk && (desk.biz || desk.name || desk.slug)) || job.workspace,
@@ -41,6 +54,24 @@ function historyItem(job, desk) {
     step: job.step || "",
     waitingOn: job.waitingOn || "",
     who: job.whoTapped || job.doneBy || job.from || "",
+    hands,
+    work: job.kind || job.pack || "",
+    pack: job.pack || "",
+    pipe: job.provider || job.pipe || "",
+    money: Number.isFinite(amount) && amount > 0,
+    amount: Number.isFinite(amount) ? amount : null,
+    files,
+    grok,
+    missing: miss,
+    handed: !!job.assignee,
+    priority: !!(job.priority || job.cap),
+    late: !!job.late,
+    expired: !!job.expired,
+    outcome: outcomeOf(job),
+    result: job.result || job.next || "",
+    how: job.why || job.next || "",
+    past: job.step || job.status || "",
+    draft: job.draft || "",
     href: "/desk"
   };
 }
@@ -189,6 +220,7 @@ function capCard(job, desk) {
     id: job.id,
     t: job.priorityAt || job.updatedAt || job.createdAt || null,
     lane: laneOf(job),
+    when: whenBucket(job, laneOf(job)),
     label: "Cap",
     slug: job.workspace || (desk && desk.slug),
     desk: (desk && (desk.biz || desk.name || desk.slug)) || job.workspace,
@@ -203,7 +235,7 @@ function capCard(job, desk) {
   };
 }
 
-function historyOf(row, jobs, extras) {
+function historyOf(row, jobs, extras, opts) {
   const items = (jobs || []).map((j) => historyItem(j, row)).filter(Boolean);
   (extras || []).forEach((ev) => {
     if (!ev) return;
@@ -212,6 +244,7 @@ function historyOf(row, jobs, extras) {
       id: "ev_" + (ev.t || "") + "_" + (ev.action || ""),
       t: ev.t,
       lane: ev.action === "delete" ? "stopped" : "desk",
+      when: "past",
       label: ev.action === "delete" ? "Stopped" : "Desk",
       slug: ev.slug || (row && row.slug),
       desk: ev.name || (row && (row.biz || row.slug)),
@@ -220,7 +253,26 @@ function historyOf(row, jobs, extras) {
       step: "",
       waitingOn: "",
       who: ev.by || "",
+      hands: ev.by ? [ev.by] : [],
       href: "/desks"
+    });
+  });
+  ((opts && opts.audit) || []).forEach((a) => {
+    if (!a) return;
+    items.push({
+      kind: "audit",
+      id: "au_" + (a.t || "") + "_" + (a.action || a.id || ""),
+      t: a.t,
+      lane: /kill|stop|delete/i.test(String(a.action || "")) ? "stopped" : "desk",
+      when: "past",
+      label: "Audit",
+      slug: a.workspace || (row && row.slug),
+      desk: (row && (row.biz || row.slug)) || a.workspace,
+      title: String(a.action || a.note || "audit").slice(0, 80),
+      status: a.action || "",
+      who: a.agent || a.who || "",
+      hands: a.agent ? [a.agent] : [],
+      href: "/desk"
     });
   });
   items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
@@ -229,6 +281,15 @@ function historyOf(row, jobs, extras) {
     if (counts[it.lane] != null) counts[it.lane] += 1;
   });
   return { format: DESK_FORMAT, items, counts };
+}
+
+function sinceCut(key) {
+  const now = Date.now();
+  const day = 86400000;
+  if (key === "today") return now - day;
+  if (key === "week") return now - 7 * day;
+  if (key === "month") return now - 31 * day;
+  return 0;
 }
 
 function filterHistory(items, query) {
@@ -246,12 +307,15 @@ function filterHistory(items, query) {
   const audit = q.audit === true || q.audit === "1";
   const missing = q.missing === true || q.missing === "1";
   const handed = q.handed === true || q.handed === "1";
+  const late = q.late === true || q.late === "1";
+  const cut = sinceCut(String(q.since || "").toLowerCase());
   return (items || []).filter((it) => {
     if (!it) return false;
     if (lane && lane !== "all" && it.lane !== lane) return false;
     if (when && when !== "all" && it.when !== when) return false;
+    if (cut && Date.parse(it.t || "") < cut) return false;
     if (text) {
-      const hay = [it.title, it.desk, it.result, it.how, it.who, it.work, it.pipe, ((it.hands) || []).join(" ")].join(" ").toLowerCase();
+      const hay = [it.title, it.desk, it.result, it.how, it.who, it.work, it.pipe, it.draft, ((it.hands) || []).join(" ")].join(" ").toLowerCase();
       if (hay.indexOf(text) < 0) return false;
     }
     if (who) {
@@ -267,6 +331,7 @@ function filterHistory(items, query) {
     if (audit && it.kind !== "audit" && it.kind !== "desk") return false;
     if (missing && !(it.missing && it.missing.length)) return false;
     if (handed && !it.handed) return false;
+    if (late && !it.late && !it.expired) return false;
     return true;
   });
 }
