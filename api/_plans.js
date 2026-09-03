@@ -1,8 +1,9 @@
 const lib = require("./_lib");
 const PLANS = {
-  desk: { id: "desk", name: "Desk", tag: "One desk", features: { desksMax: 1, extraSeats: 0, teamQueues: false, timeline: false, scheduled: false, pipes: false, agents: false, staffLogins: false, savedLogin: true, automation: "Queue and drop" }, includes: ["One desk", "Your own account", "Desks you own and sit on", "Ask or change permission", "Queue and drop"], hides: ["Account-wide team queues", "Live pipes"] },
-  pro: { id: "pro", name: "Pro", tag: "Every desk", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, automation: "Full" }, includes: ["Every desk", "Your own account", "Member desks", "Ask or change permission", "Team queues", "Pipes"], hides: [] },
-  crew: { id: "crew", name: "Crew", tag: "Shops and staff", features: { desksMax: 40, extraSeats: 40, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, automation: "Full + staff" }, includes: ["Many desks", "Your own account", "Member desks", "Ask or change permission", "Staff logins", "Pipes"], hides: [] }
+  desk: { id: "desk", name: "Desk", tag: "One desk", features: { desksMax: 1, extraSeats: 0, teamQueues: false, timeline: false, scheduled: false, pipes: false, agents: false, staffLogins: false, savedLogin: true, packs: false, marketplace: false, automation: "Queue and drop" }, includes: ["One desk", "Your own account", "Desks you own and sit on", "Ask or change permission", "Queue and drop"], hides: ["Account-wide team queues", "Live pipes"] },
+  pro: { id: "pro", name: "Pro", tag: "Every desk", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, automation: "Full" }, includes: ["Every desk", "Your own account", "Member desks", "Ask or change permission", "Team queues", "Pipes"], hides: [] },
+  crew: { id: "crew", name: "Crew", tag: "Shops and staff", features: { desksMax: 40, extraSeats: 40, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, automation: "Full + staff" }, includes: ["Many desks", "Your own account", "Member desks", "Ask or change permission", "Staff logins", "Pipes"], hides: [] },
+  dev: { id: "dev", name: "Dev", tag: "Pack creator", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, creator: true, automation: "Packs + desks" }, includes: ["Every desk", "List packs on the marketplace", "Preview priced packs", "Drop using a pack", "Ask is a tag — no card"], hides: ["Live pack checkout"] }
 };
 function planOf(id) { return PLANS[String(id || "pro").toLowerCase()] || PLANS.pro; }
 function publicPlans() {
@@ -14,13 +15,14 @@ function desksOfAccount(acc) {
 }
 function decoratePlan(acc) {
   const spec = planOf((acc && acc.plan) || "pro");
-  return { id: spec.id, plan: spec.id, name: spec.name, tag: spec.tag, product: "aia", status: "free", cadence: "monthly", amount: 0, charged: false, automation: spec.features.automation, savedLogin: true, features: spec.features, includes: spec.includes, hides: spec.hides, catalog: publicPlans(), note: spec.name + " is active. Free for now. Switch anytime. We tell you before we charge." };
+  return { id: spec.id, plan: spec.id, name: spec.name, tag: spec.tag, product: "aia", status: "free", cadence: "monthly", amount: 0, charged: false, automation: spec.features.automation, savedLogin: true, creator: !!(acc && acc.creator) || spec.id === "dev", features: spec.features, includes: spec.includes, hides: spec.hides, catalog: publicPlans(), note: spec.name + " is active. Free for now. Switch anytime. We tell you before we charge." };
 }
 function switchPlan(acc, id, actor) {
   if (!acc) return { ok: false, status: 404, error: "No account." };
   const spec = PLANS[String(id || "").toLowerCase()];
-  if (!spec) return { ok: false, status: 400, error: "Pick Desk, Pro, or Crew." };
+  if (!spec) return { ok: false, status: 400, error: "Pick Desk, Pro, Crew, or Dev." };
   acc.plan = spec.id; acc.features = spec.features;
+  if (spec.id === "dev") acc.creator = true;
   acc.billing = Object.assign({}, acc.billing || {}, { plan: spec.id, status: "free", amount: 0, charged: false });
   return { ok: true, plan: decoratePlan(acc), by: (actor && actor.name) || "owner" };
 }
@@ -76,7 +78,7 @@ function proHome(acc, person) {
   const hint = { id: person && person.id, name: person && person.name, email: person && person.email, pin: person && person.pin, accountId: person && person.accountId };
   const mine = desksForPerson(hint);
   const desks = desksOfAccount(acc).map((w) => ({ slug: w.slug, name: w.biz || w.name || w.slug, people: (w.people || []).length }));
-  return { ok: true, product: "aia", savedLogin: true, account: acc ? { id: acc.id, name: acc.name, slug: acc.slug, desks: acc.desks || [], plan: plan.plan } : null, plan, plans: publicPlans(), active: plan.plan, you: typeof lib.publicPerson === "function" ? lib.publicPerson(person) : person, mine, desksOwned: mine.owned, desksMember: mine.member, desks, teams: feat.teamQueues ? [] : [], timeline: [], scheduled: [], pipes: [], locked: { teamQueues: !feat.teamQueues, timeline: !feat.timeline, pipes: !feat.pipes } };
+  return { ok: true, product: "aia", savedLogin: true, account: acc ? { id: acc.id, name: acc.name, slug: acc.slug, desks: acc.desks || [], plan: plan.plan, creator: !!(acc.creator || plan.plan === "dev") } : null, plan, plans: publicPlans(), active: plan.plan, you: typeof lib.publicPerson === "function" ? lib.publicPerson(person) : person, mine, desksOwned: mine.owned, desksMember: mine.member, desks, teams: feat.teamQueues ? [] : [], timeline: [], scheduled: [], pipes: [], locked: { teamQueues: !feat.teamQueues, timeline: !feat.timeline, pipes: !feat.pipes } };
 }
 function seatBill() { return { people: 0, extra: 0, extraPrice: 0, charged: false }; }
 function teamQueues() { return []; }
