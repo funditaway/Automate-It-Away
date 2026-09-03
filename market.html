@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Packs · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="desk-nav.css">
+  <script src="theme.js"></script>
+  <style>
+    body{margin:0}
+    a{color:inherit;text-decoration:none}
+    header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,sans-serif}
+    .desk-tabs a{color:#fff}
+    .wrap{width:min(860px,94vw);margin:0 auto;padding:18px 0 24px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;box-shadow:var(--shadow)}
+    input{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+    .meta{font-size:12px;color:var(--muted)}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  </style>
+</head>
+<body class="has-desk-nav">
+  <header>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    <nav class="desk-tabs" aria-label="Desk tabs">
+      <a href="/desk" data-tab="queue">Queue</a>
+      <a href="/drop" data-tab="drop">Drop</a>
+      <a href="/rules" data-tab="rules">Rules</a>
+      <a href="/connections" data-tab="pipes">Pipes</a>
+      <a href="/more" data-tab="more">More</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>Packs</h1>
+    <p class="meta">Search listed automations from desks. Use a pack on your desk in preview. Priced packs stay preview/409.</p>
+    <div class="card">
+      <label class="meta" for="q">Search</label>
+      <input id="q" placeholder="home, consign, title, school" autocomplete="off">
+      <p class="meta" id="hint">Type to search listed desks.</p>
+    </div>
+    <div class="card">
+      <b>Pack rule syntax</b>
+      <p class="meta">when=capture|qualify|do|collect|follow · then=note|wait|stop|cap · matchers ifKind/ifModel/ifOutcome/ifField+ifValue/ifMoney/contains/exceptContains</p>
+      <p class="meta">Example JSON {"text":"Cap repair cards.","when":"qualify","then":"cap","ifKind":"repair"}</p>
+      <p class="meta">Cap repair cards. Wait on me before a payout leaves. Stop if this is a contract. AIA AI only recommends Cap; a rule or tap flips it.</p>
+    </div>
+    <div id="list"></div>
+  </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
+    <a href="/drop" data-tab="drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
+    <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
+    <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
+    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+  </nav>
+  <script src="desk-nav.js"></script>
+  <script>
+    function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];});}
+    async function search(q){
+      const r=await fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"search",q:q||""})});
+      const d=await r.json().catch(function(){return{};});
+      return {ok:r.ok,data:d};
+    }
+    async function paint(){
+      const q=(document.getElementById("q")||{}).value||"";
+      const out=await search(q);
+      const box=document.getElementById("list");
+      if(!out.ok){box.innerHTML="<div class=\"card\">Could not load packs right now.</div>";return;}
+      const rows=(out.data&&out.data.desks)||[];
+      if(!rows.length){box.innerHTML="<div class=\"card\">No listed packs yet.</div>";return;}
+      box.innerHTML=rows.map(function(r){
+        return "<div class=\"card\"><b>"+esc(r.name||r.slug)+"</b><p class=\"meta\">"+esc(r.city||"")+(r.does?" · "+esc(r.does):"")+"</p><p class=\"meta\">Preview only. Paid install returns 409 outside preview.</p></div>";
+      }).join("");
+    }
+    document.getElementById("q").addEventListener("input",function(){paint();});
+    paint();
+  </script>
+</body>
+</html>

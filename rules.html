@@ -77,7 +77,7 @@
     <p class="meta" id="widget-count">0 widgets on</p>
     <div class="item" id="rules">
       <h3>Owner rules</h3>
-      <p>Plain line = note on the card. Advanced can wait or stop. Owner taps. Worker never Send.</p>
+      <p>Plain line = note on the card. Advanced can wait, stop, or cap. Owner taps. Worker never Send.</p>
       <ul id="rule-list"></ul>
       <div id="rule-add" hidden style="margin-top:10px">
         <label class="field" for="rule-text">Ask me if</label>
@@ -104,6 +104,7 @@
               <option value="note">Note on the card</option>
               <option value="wait">Wait on the owner</option>
               <option value="stop">Stop — owner taps No</option>
+              <option value="cap">Cap — do this first</option>
             </select>
           </div>
           <div>
@@ -210,6 +211,7 @@
     function thenWord(t) {
       if (t === "wait") return "wait on owner";
       if (t === "stop") return "stop";
+      if (t === "cap") return "cap";
       return "note";
     }
     function ruleBits(r) {
@@ -309,7 +311,7 @@
       document.getElementById("rule-value").value = r.ifValue || "";
       document.getElementById("adv-cancel").hidden = false;
       document.querySelector("#rule-add .go").textContent = "Save rule";
-      toggleAdv(!!r.advanced || r.then === "wait" || r.then === "stop" || r.ifMoney != null || r.contains || r.ifField);
+      toggleAdv(!!r.advanced || r.then === "wait" || r.then === "stop" || r.then === "cap" || r.ifMoney != null || r.contains || r.ifField);
       document.getElementById("rule-text").focus();
     }
     async function saveRule() {

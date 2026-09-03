@@ -1,0 +1,8 @@
+{
+  "id": "vita",
+  "name": "Insurance (non-Vita)",
+  "rules": [
+    { "text": "Cap this week insurance cards.", "when": "qualify", "then": "cap", "ifModel": "insurance", "exceptContains": "vita", "contains": "this week" },
+    { "text": "Stop illustration sends.", "when": "do", "then": "stop", "ifModel": "insurance", "exceptContains": "vita", "contains": "illustration" }
+  ]
+}

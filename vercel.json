@@ -24,6 +24,7 @@
     { "source": "/people", "destination": "/admin.html" },
     { "source": "/rules", "destination": "/rules.html" },
     { "source": "/more", "destination": "/more.html" },
+    { "source": "/market", "destination": "/market.html" },
     { "source": "/create", "destination": "/create.html" },
     { "source": "/onboard", "destination": "/onboard.html" },
     { "source": "/widget", "destination": "/widget.html" },

@@ -1,0 +1,7 @@
+{
+  "id": "fund",
+  "name": "Fund",
+  "rules": [
+    { "text": "Wait on me for credit cards.", "when": "collect", "then": "wait", "contains": "credit" }
+  ]
+}

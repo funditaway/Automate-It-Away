@@ -1,5 +1,5 @@
 const hand = require("./_handoff");
-const { ensureRules, moneyWaitOf, moneyNeedsOwner } = require("./_lib");
+const { ensureRules, moneyWaitOf, moneyNeedsOwner, applyCapFromRules } = require("./_lib");
 
 const MONEY_HOLD = null;
 const PACKS = ["home", "consign", "vita", "fund", "land"];
@@ -18,6 +18,10 @@ function qualifyJob(job, shop) {
   if (moneyNeedsOwner(moneyOf(job), holdAt)) {
     job.waitingOn = "owner";
     job.next = "Waiting on the owner.";
+  }
+  if (shop) applyCapFromRules(job, shop);
+  if (job.priority) {
+    job.next = (job.priorityRule || "On the cap.") + " Do this first.";
   }
   if (!job.next) job.next = "On the queue. You tap Yes or No.";
   job.crew = hand.crewOf(job, shop);

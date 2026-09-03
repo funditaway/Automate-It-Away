@@ -317,8 +317,11 @@ function catalog() {
 const SEED_RULE_TEXT = "Payments over $250 wait for the owner.";
 const RULE_TEXT_MAX = 140;
 const RULE_MAX = 8;
+const CAP_MAX = 8;
 const RULE_FORBID = /auto[-\s]?pay|auto[-\s]?list|auto[-\s]?ship|auto[-\s]?release|un-?\s?kill|skip\s+(the\s+)?(kill|payout|pay\b|named\s+outbound|live\s+list|outbound)|live\s+list|mark\s+ebay|ebay\s+live|set\s+ebay|go\s+live\s+on\s+ebay/;
 const RULE_FORBID_MSG = "Hard stops still win. A rule cannot skip payout, Kill, a live list, or named outbound. It cannot auto-pay, auto-list, or un-kill junk.";
+const CAP_WORDS_RE = /\b(cap|on the (?:cap|pyramid)|do this first|priority|first thing)\b/i;
+const CAP_KIND_RE = /\b(?:cap|priority)\s+([a-z][a-z0-9-]{1,24})\s+cards?\b/i;
 
 function scrubLog(s) {
   return String(s == null ? "" : s)
@@ -451,13 +454,38 @@ function publicRuleWidget(w) {
 
 function publicRule(r) {
   if (!r) return null;
-  return {
+  const out = {
     id: r.id,
     text: r.text,
     seed: !!r.seed,
     attach: "qualify",
-    widget: publicRuleWidget(r.widget)
+    widget: publicRuleWidget(r.widget),
+    when: r.when || "qualify",
+    then: r.then || "note"
   };
+  if (r.ifMoney != null && Number.isFinite(Number(r.ifMoney))) out.ifMoney = Number(r.ifMoney);
+  if (r.contains) out.contains = String(r.contains);
+  if (r.ifKind) out.ifKind = String(r.ifKind);
+  if (r.ifModel) out.ifModel = String(r.ifModel);
+  if (r.ifOutcome) out.ifOutcome = String(r.ifOutcome);
+  if (r.ifField) out.ifField = String(r.ifField);
+  if (r.ifValue) out.ifValue = String(r.ifValue);
+  if (r.exceptContains) out.exceptContains = String(r.exceptContains);
+  if (r.source) out.source = String(r.source);
+  out.advanced = !!(
+    r.advanced
+    || out.when !== "qualify"
+    || out.then !== "note"
+    || out.ifMoney != null
+    || out.contains
+    || out.ifKind
+    || out.ifModel
+    || out.ifOutcome
+    || out.ifField
+    || out.ifValue
+    || out.exceptContains
+  );
+  return out;
 }
 
 function moneyWaitOf(rules) {
@@ -510,7 +538,7 @@ function setRuleWidget(ws, id, on, label) {
 }
 
 const RULE_WHEN = ["capture", "qualify", "do", "collect", "follow"];
-const RULE_THEN = ["note", "wait", "stop"];
+const RULE_THEN = ["note", "wait", "stop", "cap"];
 
 function ruleStarters() {
   return [];
@@ -535,6 +563,29 @@ function ruleTextOf(src) {
   return String(src == null ? "" : src);
 }
 
+function cleanRuleToken(val, max) {
+  const t = String(val == null ? "" : val).trim().toLowerCase().replace(/\s+/g, " ");
+  if (!t) return "";
+  return t.replace(/[^a-z0-9_ -]+/g, "").trim().slice(0, max || 80);
+}
+
+function cleanContains(val) {
+  return String(val == null ? "" : val).trim().replace(/\s+/g, " ").slice(0, 80);
+}
+
+function capThenOf(body, text, fallback) {
+  if (body && body.then != null && RULE_THEN.indexOf(body.then) >= 0) return body.then;
+  if (CAP_WORDS_RE.test(String(text || ""))) return "cap";
+  return fallback || "note";
+}
+
+function capKindOf(body, text) {
+  const byBody = cleanRuleToken(body && body.ifKind, 25);
+  if (byBody) return byBody;
+  const hit = String(text || "").match(CAP_KIND_RE);
+  return hit ? cleanRuleToken(hit[1], 25) : "";
+}
+
 function addWorkspaceRule(ws, src, person) {
   if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
   if (!Array.isArray(ws.rules)) ensureRules(ws);
@@ -555,8 +606,16 @@ function addWorkspaceRule(ws, src, person) {
     seed: false,
     attach: "qualify",
     when: RULE_WHEN.indexOf(body.when) >= 0 ? body.when : "qualify",
-    then: RULE_THEN.indexOf(body.then) >= 0 ? body.then : "note",
+    then: capThenOf(body, clean, "note"),
     ifMoney: body.ifMoney != null && Number.isFinite(Number(body.ifMoney)) ? Number(body.ifMoney) : null,
+    contains: cleanContains(body.contains) || null,
+    ifKind: capKindOf(body, clean) || null,
+    ifModel: cleanRuleToken(body.ifModel, 40) || null,
+    ifOutcome: cleanRuleToken(body.ifOutcome, 40) || null,
+    ifField: cleanRuleToken(body.ifField, 32) || null,
+    ifValue: cleanContains(body.ifValue) || null,
+    exceptContains: cleanContains(body.exceptContains) || null,
+    source: cleanRuleToken(body.source, 40) || null,
     widget: { on: false, label: "" },
     createdAt: new Date().toISOString(),
     by: (person && person.name) || "owner"
@@ -578,6 +637,7 @@ function updateWorkspaceRule(ws, id, body) {
     if (clean.length > RULE_TEXT_MAX) return { ok: false, error: "Keep the rule short." };
     if (forbiddenRule(clean)) return { ok: false, error: RULE_FORBID_MSG };
     rule.text = clean;
+    if (src.then == null) rule.then = capThenOf(src, clean, rule.then || "note");
   }
   if (src.when && RULE_WHEN.indexOf(src.when) >= 0) rule.when = src.when;
   if (src.then && RULE_THEN.indexOf(src.then) >= 0) rule.then = src.then;
@@ -585,15 +645,49 @@ function updateWorkspaceRule(ws, id, body) {
     const n = Number(src.ifMoney);
     rule.ifMoney = Number.isFinite(n) ? n : null;
   }
+  if (src.contains != null) rule.contains = cleanContains(src.contains) || null;
+  if (src.ifKind != null || src.text != null) rule.ifKind = capKindOf(src, rule.text) || null;
+  if (src.ifModel != null) rule.ifModel = cleanRuleToken(src.ifModel, 40) || null;
+  if (src.ifOutcome != null) rule.ifOutcome = cleanRuleToken(src.ifOutcome, 40) || null;
+  if (src.ifField != null) rule.ifField = cleanRuleToken(src.ifField, 32) || null;
+  if (src.ifValue != null) rule.ifValue = cleanContains(src.ifValue) || null;
+  if (src.exceptContains != null) rule.exceptContains = cleanContains(src.exceptContains) || null;
+  if (src.source != null) rule.source = cleanRuleToken(src.source, 40) || null;
   return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
 }
 
 function matchingRules(rules, job, step) {
   const want = String(step || "").toLowerCase();
+  const kind = String((job && job.kind) || "").toLowerCase();
+  const model = String((job && job.model) || "").toLowerCase();
+  const outcome = String((job && (job.outcome || job.wanted)) || "").toLowerCase();
+  const blob = [job && job.title, job && job.notes, job && job.kind, job && job.pack].map((v) => String(v || "").toLowerCase()).join(" ");
+  const amount = Number(job && (job.amount != null ? job.amount : job.ask));
   return (rules || []).filter(function (r) {
     if (!r) return false;
     const when = String(r.when || r.attach || "").toLowerCase();
-    return !want || !when || when === want;
+    if (want && when && when !== want) return false;
+    if (r.ifKind && kind !== String(r.ifKind).toLowerCase()) return false;
+    if (r.ifModel && model !== String(r.ifModel).toLowerCase()) return false;
+    if (r.ifOutcome && outcome !== String(r.ifOutcome).toLowerCase()) return false;
+    if (r.contains && blob.indexOf(String(r.contains).toLowerCase()) < 0) return false;
+    if (r.exceptContains && blob.indexOf(String(r.exceptContains).toLowerCase()) >= 0) return false;
+    if (r.ifMoney != null) {
+      const min = Number(r.ifMoney);
+      if (!Number.isFinite(min) || !Number.isFinite(amount) || amount < min) return false;
+    }
+    if (r.ifField) {
+      const row = job && job.custom && typeof job.custom === "object" ? job.custom : {};
+      const key = String(r.ifField).toLowerCase();
+      const got = row[key];
+      const expect = String(r.ifValue || "").toLowerCase();
+      if (expect) {
+        if (String(got == null ? "" : got).toLowerCase().indexOf(expect) < 0) return false;
+      } else if (got == null || got === "") {
+        return false;
+      }
+    }
+    return true;
   });
 }
 
@@ -603,6 +697,40 @@ function ruleWantsOwner(rules, job, step) {
 
 function ruleWantsStop(rules, job, step) {
   return matchingRules(rules, job, step).some(function (r) { return r.then === "stop"; });
+}
+
+function ruleWantsCap(rules, job, step) {
+  return matchingRules(rules, job, step).some(function (r) { return r.then === "cap"; });
+}
+
+function applyCapFromRules(job, shop) {
+  if (!job || !shop) return job;
+  if (job.status === "shipped" || job.status === "killed") return job;
+  const rules = ensureRules(shop);
+  if (ruleWantsStop(rules, job, "qualify") || ruleWantsStop(rules, job, "do")) return job;
+  const hit = ["capture", "qualify", "do"].map(function (step) {
+    return matchingRules(rules, job, step).find(function (r) { return r.then === "cap"; });
+  }).find(Boolean);
+  if (!hit) return job;
+  const live = (mem.jobs || []).filter(function (j) {
+    return j && j.workspace === shop.slug && j.id !== job.id
+      && (j.priority === true || j.cap === true)
+      && j.status !== "shipped" && j.status !== "killed";
+  }).length;
+  if (!job.priority && !job.cap && live >= CAP_MAX) {
+    job.capHeld = true;
+    return job;
+  }
+  const line = "Cap · " + hit.text;
+  job.priority = true;
+  job.cap = true;
+  job.capHeld = false;
+  job.priorityAt = new Date().toISOString();
+  job.priorityBy = hit.source || "rule";
+  job.priorityRule = hit.text;
+  if (!Array.isArray(job.log)) job.log = [];
+  if (job.log.indexOf(line) < 0) job.log.push(line);
+  return job;
 }
 
 function ruleWhy(rules, job, step) {
@@ -641,8 +769,8 @@ module.exports = {
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
-  matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy,
+  matchingRules, ruleWantsOwner, ruleWantsStop, ruleWantsCap, applyCapFromRules, ruleWhy,
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
   publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
-  ruleStarters, RULE_WHEN, RULE_THEN
+  ruleStarters, RULE_WHEN, RULE_THEN, CAP_MAX
 };
