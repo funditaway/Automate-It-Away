@@ -51,6 +51,16 @@
     localStorage.setItem("aia_theme", next);
     apply();
   }
+  function liftChrome(header) {
+    if (!header) return;
+    var btn = header.querySelector("[data-theme-btn], .theme-btn");
+    if (btn && btn.parentNode !== header) header.appendChild(btn);
+    var chip = document.getElementById("who-chip");
+    if (chip && chip.parentNode !== header) {
+      if (btn && btn.parentNode === header) header.insertBefore(chip, btn);
+      else header.appendChild(chip);
+    }
+  }
   function ensureBtn() {
     var header = document.querySelector("header, .site-header");
     if (!header) return;
@@ -66,10 +76,26 @@
     btn.type = "button";
     btn.setAttribute("data-theme-btn", "");
     btn.classList.add("theme-btn");
+    if (btn.parentNode !== header) header.appendChild(btn);
     if (!btn.getAttribute("data-aia-bound")) {
       btn.setAttribute("data-aia-bound", "1");
       btn.addEventListener("click", cycle);
     }
+  }
+  function ensurePhoneMeta() {
+    function put(name, content) {
+      var el = document.querySelector('meta[name="' + name + '"]');
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("name", name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    }
+    put("apple-mobile-web-app-capable", "yes");
+    put("mobile-web-app-capable", "yes");
+    put("apple-mobile-web-app-status-bar-style", "black-translucent");
+    put("apple-mobile-web-app-title", "AIA");
   }
   apply();
   if (window.matchMedia) {
@@ -91,19 +117,21 @@
       "padding:10px 4.5vw!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important;" +
       "display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px 12px!important}" +
       "header .theme-btn, .theme-btn{position:relative;z-index:8;pointer-events:auto!important;" +
-      "flex:0 0 auto;min-height:36px;min-width:52px;cursor:pointer}" +
+      "flex:0 0 auto;min-height:44px;min-width:52px;cursor:pointer}" +
       "header .brand-mark, .site-header .brand-mark{width:28px;height:28px;flex:0 0 28px;border-radius:7px}" +
       ".who-chip{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px;" +
-      "min-height:44px;margin-left:auto;max-width:min(52vw,220px);padding:4px 8px 4px 4px;border-radius:999px;" +
-      "background:rgba(255,255,255,.14);color:#fff;text-decoration:none}" +
-      ".who-pic{width:36px;height:36px;border-radius:50%;flex:0 0 36px;display:inline-flex;align-items:center;" +
-      "justify-content:center;background:rgba(255,255,255,.2);object-fit:cover;overflow:hidden}" +
+      "min-height:44px;width:auto;margin-left:auto;max-width:min(46vw,168px);padding:4px 10px 4px 4px;border-radius:999px;" +
+      "border:1px solid rgba(255,255,255,.28);background:color-mix(in srgb,var(--aia-teal-deep) 55%,black);color:#fff;text-decoration:none}" +
+      ".who-pic{width:32px;height:32px;border-radius:50%;flex:0 0 32px;display:inline-flex;align-items:center;" +
+      "justify-content:center;background:rgba(255,255,255,.18);color:#fff;object-fit:cover;overflow:hidden}" +
       ".who-copy{min-width:0;text-align:right}" +
+      ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
       "@media (max-width:640px){" +
-      "header .brand, .site-header .brand, header > a.brand, header > a:first-child{flex:1 1 140px;min-width:0}" +
+      "header .brand, .site-header .brand, header > a.brand, header > a:first-child{order:1;flex:1 1 140px;min-width:0}" +
       "header .brand-name,.site-header .brand-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-      ".who-chip{max-width:min(46vw,168px)!important}" +
-      ".who-copy span{display:none!important}" +
+      ".who-chip{order:2;max-width:min(42vw,148px)!important}" +
+      ".theme-btn{order:3}" +
+      ".who-copy > span{display:none!important}" +
       "header nav:not(.desk-tabs), header .nav, .site-header .nav{width:100%!important;flex-wrap:wrap!important;order:5}" +
       ".hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr 1fr!important}" +
       "table{display:block;overflow-x:auto}" +
@@ -111,16 +139,16 @@
       "@media (max-width:420px){" +
       ".hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}" +
       ".reels,.kpis{grid-template-columns:1fr 1fr!important}" +
-      ".who-pic{width:32px;height:32px;flex-basis:32px}" +
+      ".who-pic{width:28px;height:28px;flex-basis:28px}" +
       "}";
     document.head.appendChild(s);
   }
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      if (c === "&") return "&";
-      if (c === "<") return "<";
-      if (c === ">") return ">";
-      if (c === '"') return """;
+      if (c === "&") return "&amp;";
+      if (c === "<") return "&lt;";
+      if (c === ">") return "&gt;";
+      if (c === '"') return "&quot;";
       return "&#39;";
     });
   }
@@ -164,10 +192,9 @@
       chip = document.createElement("a");
       chip.id = "who-chip";
       chip.className = "who-chip";
-      var btn = header.querySelector("[data-theme-btn], .theme-btn");
-      if (btn && btn.parentNode) btn.parentNode.insertBefore(chip, btn);
-      else header.appendChild(chip);
+      header.appendChild(chip);
     }
+    liftChrome(header);
     var ws = localStorage.getItem("aia_ws") || "";
     var pin = localStorage.getItem("aia_pin") || localStorage.getItem("aia_session") || "";
     var person = localStorage.getItem("aia_name") || "";
@@ -180,7 +207,7 @@
       var title = person || desk || "You";
       var meta = role || "Signed in";
       chip.innerHTML = picHtml(title) + '<span class="who-copy"><strong>' + esc(title) + "</strong><span>" + esc(meta) + "</span></span>";
-      chip.title = title + " \u00b7 Your account";
+      chip.title = title + " · Your account";
       return;
     }
     chip.classList.add("out");
@@ -195,10 +222,69 @@
     chip.href = "/login";
     chip.title = "Open this desk";
   }
+  var SITE_LINKS = [
+    { id: "how", href: "/how", label: "How" },
+    { id: "setup", href: "/setup", label: "Setup" },
+    { id: "desk", href: "/desk", label: "Desk" },
+    { id: "login", href: "/login", label: "Sign in" },
+    { id: "onboard", href: "/onboard", label: "Open your desk" }
+  ];
+  var FOOT_LINKS = [
+    { href: "/how", label: "How" },
+    { href: "/setup", label: "Setup" },
+    { href: "/help", label: "Help" },
+    { href: "/pricing", label: "Pricing" },
+    { href: "/legal", label: "Legal" },
+    { href: "/status", label: "Status" }
+  ];
+  function isDeskFamily() {
+    if (document.body && document.body.classList.contains("has-desk-nav")) return true;
+    if (document.querySelector(".desk-tabs, #desk-nav")) return true;
+    return /^(desk|widget|drop|rules|connections|more|desks|history|admin|create|help|account)$/.test(pageName());
+  }
+  function isEmbed() {
+    return !!(document.body && document.body.classList.contains("embed"));
+  }
+  function paintSiteNav() {
+    if (isEmbed() || isDeskFamily()) return;
+    if (/^(consign|dashboard|chat)$/.test(pageName())) return;
+    var header = document.querySelector("header, .site-header");
+    if (!header) return;
+    var nav = header.querySelector("nav:not(.desk-tabs), .nav");
+    if (!nav) {
+      nav = document.createElement("nav");
+      nav.className = "site-nav";
+      header.appendChild(nav);
+    }
+    nav.classList.add("site-nav");
+    var page = pageName();
+    nav.innerHTML = SITE_LINKS.map(function (l) {
+      return "<a href=\"" + l.href + "\"" + (l.id === page ? " class=\"on\"" : "") + ">" + l.label + "</a>";
+    }).join("");
+  }
+  function paintFooter() {
+    if (isEmbed()) return;
+    if (/^(chat)$/.test(pageName())) return;
+    var foot = document.querySelector("footer");
+    if (!foot) {
+      foot = document.createElement("footer");
+      foot.className = "site-foot";
+      document.body.appendChild(foot);
+    }
+    foot.classList.add("site-foot");
+    var links = FOOT_LINKS.map(function (l) {
+      return "<a href=\"" + l.href + "\">" + l.label + "</a>";
+    }).join("<span aria-hidden=\"true\">·</span>");
+    foot.innerHTML = "<p>© 2026 Automate It Away</p><nav>" + links + "</nav>";
+  }
   function mark() {
+    ensurePhoneMeta();
     lockHeader();
-    paintWho();
     ensureBtn();
+    paintSiteNav();
+    paintWho();
+    paintFooter();
+    liftChrome(document.querySelector("header, .site-header"));
     if (!document.querySelector(".brand-mark")) {
       var host = document.querySelector(".site-header > a, header > a, header .logo, header .brand, header > strong");
       if (host) {
@@ -223,5 +309,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mark);
   else mark();
-  window.AIATheme = { apply: apply, cycle: cycle, label: label, paintWho: paintWho, initials: initials };
+  window.AIATheme = { apply: apply, cycle: cycle, label: label, paintWho: paintWho, initials: initials, paintFooter: paintFooter };
 })();
