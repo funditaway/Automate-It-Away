@@ -45,6 +45,7 @@ function requestPermission(row, person, want) {
   if (person.role === "owner") return { ok: false, status: 400, error: "Owner already has every tap." };
   const kind = String(want || "member").toLowerCase();
   if (kind === "owner") return { ok: false, status: 400, error: "Owner seats are not a request." };
+  if (kind === "override") return { ok: false, status: 400, error: "Override is not a plan seat." };
   person.requestedKind = kind; person.requestStatus = "pending";
   const job = { id: "job_" + Date.now().toString(36), workspace: row.slug, title: (person.name || "Member") + " asks for " + kind, notes: (person.name || "A member") + " wants " + kind + " on " + (row.biz || row.slug) + ".", status: "exception", step: "Qualify", waitingOn: "owner", from: "member", custom: { outcome: "permission", personId: person.id, wantKind: kind }, createdAt: new Date().toISOString(), log: ["Permission request"] };
   lib.mem.jobs = lib.mem.jobs || []; lib.mem.jobs.unshift(job);
@@ -56,7 +57,10 @@ function setPermission(row, id, want, actor) {
   if (!seat) return { ok: false, status: 404, error: "Person not found." };
   if (seat.role === "owner") return { ok: false, status: 409, error: "Owner seat stays owner." };
   const kind = String(want || seat.requestedKind || "member").toLowerCase();
+  if (kind === "owner") return { ok: false, status: 400, error: "No seat can be permitted to owner." };
+  if (kind === "override") return { ok: false, status: 400, error: "Plans cannot grant override." };
   seat.kind = kind; seat.status = "approved"; seat.requestedKind = "";
+  if (seat.can && typeof seat.can === "object") seat.can.override = false;
   return { ok: true, person: typeof lib.publicPerson === "function" ? lib.publicPerson(seat) : seat };
 }
 function loginAccount(name, pin) {
