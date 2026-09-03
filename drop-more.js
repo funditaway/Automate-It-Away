@@ -5,6 +5,7 @@
     { id: "list", label: "List this", kind: "list", outcome: "list", title: "List this" },
     { id: "quote", label: "Need a quote", kind: "quote", outcome: "quote", title: "Need a quote" },
     { id: "call", label: "Missed call", kind: "call", outcome: "call", title: "Missed call" },
+    { id: "follow", label: "Follow up", kind: "follow", outcome: "call", title: "Follow up" },
     { id: "reminder", label: "Remind me", kind: "reminder", outcome: "book", title: "Reminder" },
     { id: "chore", label: "A chore", kind: "chore", outcome: "hand", title: "Chore" },
     { id: "files", label: "Drop files", kind: "files", outcome: "note", title: "Files for the desk" },
@@ -38,7 +39,8 @@
     if (window.AIADropAgent && AIADropAgent.paintKindFields) AIADropAgent.paintKindFields(document.getElementById("kind-fields"), q.kind);
     if (window.AIADropAgent && AIADropAgent.paintOutcomes) window.__aiaOutcome = AIADropAgent.paintOutcomes(document.getElementById("outcome-chips"), q.outcome);
     var title = document.getElementById("title"); if (title && q.title && !title.value) title.value = q.title;
-    var pane = document.getElementById("pane-custom"); if (pane) pane.hidden = q.kind !== "custom";
+    var pane = document.getElementById("pane-custom");
+    if (pane && !document.getElementById("modes")) pane.hidden = q.kind !== "custom";
     document.querySelectorAll("#quick-chips button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-quick") === id); });
   }
   function injectCustom() {
