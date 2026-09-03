@@ -24,6 +24,7 @@
     h2{font-size:.95rem;margin:18px 0 6px;color:var(--heading)}
     p{color:var(--muted);margin:0 0 12px}
     .card{border:1px solid var(--line);border-radius:14px;padding:4px 4px;margin:10px 0;box-shadow:var(--shadow)}
+    @media(min-width:640px){.card{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}}
     .card a{display:block;color:var(--heading);font-weight:700;padding:14px 12px;border-radius:12px}
     .card a span{display:block;font-weight:600;color:var(--muted);font-size:13px;margin-top:2px}
     .card a:active{background:var(--edit)}
@@ -55,10 +56,11 @@
     <div class="card">
       <a href="/desk">Queue<span>Cards waiting. Talk, Yes, or Stop.</span></a>
       <a href="/drop#talk">Drop · Talk to the desk<span>Say it or type it. The desk asks what’s missing, then you drop it. Nobody sends money.</span></a>
-      <a href="/history">History<span>Past, now, next. Advanced finds who worked it, files, Grok, and audit. Nothing sends from here.</span></a>
+      <a href="/history">History<span>Need you, in progress, waiting on, ext, done. One desk or all of them.</span></a>
       <a href="/connections">Pipes and draft accounts<span>Search any site. Log in opens the vendor. Webhook is live. Drafts never Send.</span></a>
-      <a href="/rules">Rules<span>Wait, stop, or note. New drops honor the list.</span></a>
-      <a href="/create">Create<span>Make something. Job, capture, custom model, teammate, guardrail, or another shop.</span></a>
+      <a href="/rules">Rules<span>Wait, stop, note, or cap. New drops honor the list.</span></a>
+      <a href="/create">Create<span>Make a job, an automation, or another shop. List a pack or set an ask.</span></a>
+      <a href="/market">Packs<span>Search listed automations. Use one on this desk. Pack rules can Cap. Priced packs are a tag — no card yet.</span></a>
     </div>
     <h2>If you need a hand</h2>
     <div class="card">
@@ -83,7 +85,7 @@
       if (!el || !g) return;
       el.textContent = g.on
         ? "Grok is on. Drafts land on the card. Never Send."
-        : "Grok key is off. Engine recs still run.";
+        : "Grok key is off. Set XAI_API_KEY from console.x.ai — Heavy chat is not the key.";
     }).catch(function () {});
   </script>
 </body>

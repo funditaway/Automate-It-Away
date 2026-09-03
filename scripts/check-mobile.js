@@ -51,6 +51,11 @@ if (!css.includes(".site-foot") || !css.includes(".site-nav")) {
 } else {
   pass("theme.css styles shared chrome");
 }
+if (!css.includes("auto-fit") || !css.includes("minmax(min(100%")) {
+  fail("theme.css missing auto-fit minmax grids");
+} else {
+  pass("shared grids use auto-fit minmax");
+}
 
 if (process.exitCode) {
   console.error("check-mobile failed");
