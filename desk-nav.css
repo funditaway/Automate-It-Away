@@ -87,7 +87,6 @@ header {
   pointer-events: auto;
 }
 
-/* Tap targets and locations for the phone desk */
 button, a.go, a.edit, .btn {
   min-height: 44px;
   padding: 12px 14px;
@@ -212,9 +211,7 @@ button, a.go, a.edit, .btn {
   min-height: 40px;
   flex: 0 1 auto;
 }
-.lock {
-  flex-wrap: wrap;
-}
+.lock { flex-wrap: wrap; }
 .lock > span:last-child {
   display: flex;
   flex-wrap: wrap;
@@ -232,4 +229,13 @@ button, a.go, a.edit, .btn {
   .tap-opts { grid-template-columns: 1fr 1fr; }
   .sheet-decide { grid-template-columns: 1fr 1fr; }
   .sheet-decide .go { grid-column: 1 / -1; }
+}
+
+.verify-cells button,
+button[data-jump] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
 }
