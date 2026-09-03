@@ -21,6 +21,7 @@
     header a{color:#fff}
     .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 24px}
     h1{font-size:1.4rem;margin:0 0 8px}
+    h2{font-size:.95rem;margin:18px 0 6px;color:var(--heading)}
     p{color:var(--muted);margin:0 0 12px}
     .card{border:1px solid var(--line);border-radius:14px;padding:4px 4px;margin:10px 0;box-shadow:var(--shadow)}
     .card a{display:block;color:var(--heading);font-weight:700;padding:14px 12px;border-radius:12px}
@@ -44,18 +45,27 @@
     <h1>This desk.</h1>
     <p>Talk to the desk on Drop. Invite a helper. Add a rule if something should wait. Same queue. Nothing leaves until you tap.</p>
     <p class="meta" id="grok-line">Drafts land on the card. You send them. Or you Stop.</p>
+    <h2>You</h2>
     <div class="card">
       <a href="/account">Your account<span>Photo, name, desks, plan. The top-right chip opens this page.</span></a>
-      <a href="/desk">Queue<span>Cards waiting. Talk, Yes, or Stop.</span></a>
       <a href="/desks">Your desks<span>See every desk on this phone. Rename, close, export, or delete.</span></a>
-      <a href="/history">History<span>Need you, in progress, waiting on, ext, done. One desk or all of them.</span></a>
       <a href="/admin">People<span>One account. Own a desk and sit on others. Owner sets the permission.</span></a>
+    </div>
+    <h2>The work</h2>
+    <div class="card">
+      <a href="/desk">Queue<span>Cards waiting. Talk, Yes, or Stop.</span></a>
       <a href="/drop#talk">Drop · Talk to the desk<span>Say it or type it. The desk asks what’s missing, then you drop it. Nobody sends money.</span></a>
+      <a href="/history">History<span>Past, now, next. Advanced finds who worked it, files, Grok, and audit. Nothing sends from here.</span></a>
       <a href="/connections">Pipes and draft accounts<span>Search any site. Log in opens the vendor. Webhook is live. Drafts never Send.</span></a>
       <a href="/rules">Rules<span>Wait, stop, or note. New drops honor the list.</span></a>
       <a href="/create">Create<span>Make something. Job, capture, custom model, teammate, guardrail, or another shop.</span></a>
+    </div>
+    <h2>If you need a hand</h2>
+    <div class="card">
       <a href="/help">Help<span>Words on the buttons.</span></a>
       <a href="/support">Support<span>If something broke.</span></a>
+      <a href="/legal">Legal<span>What AIA does not do.</span></a>
+      <a href="/status">Status<span>What is live on this desk.</span></a>
     </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">
