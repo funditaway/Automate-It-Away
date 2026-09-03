@@ -186,6 +186,7 @@
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");
     loadDrop("drop-preview.js", "data-aia-drop-preview");
+    loadDrop("drop-chat.js", "data-aia-drop-chat");
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
