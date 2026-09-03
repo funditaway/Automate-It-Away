@@ -89,6 +89,7 @@ async function openJob(id) {
     (j.outcome || (j.custom && j.custom.outcome)
       ? "<p class=\"meta\">They want: " + esc(j.outcome || j.custom.outcome) + (j.next ? " · " + esc(j.next) : "") + "</p>"
       : "") +
+    clockSheet(j) +
     grokRecsBox(j) +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
@@ -120,6 +121,61 @@ async function openJob(id) {
     "</div>";
   document.getElementById("sheet").classList.add("on");
 }
+function localClockInput(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = function (n) { return String(n).padStart(2, "0"); };
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+function clockSheet(j) {
+  const c = (j && j.clock) || {};
+  const dueVal = localClockInput(c.dueAt || j.dueAt || "");
+  const expVal = localClockInput(c.expireAt || j.expireAt || "");
+  const status = c.expired || j.expired
+    ? "Expired. Nothing sent. Open it or Stop it."
+    : (c.late || j.late
+      ? "Late · was due " + (c.dueLabel || "earlier") + "."
+      : (c.dueLabel ? "Due " + c.dueLabel + "." : "No due time yet."));
+  return "<div class=\"clock-sheet\">" +
+    "<p class=\"meta\">" + status + (c.ageLabel ? " · " + c.ageLabel : "") + "</p>" +
+    "<label>Due</label><input id=\"job-due\" type=\"datetime-local\" value=\"" + dueVal + "\">" +
+    "<label>Expires</label><input id=\"job-expire\" type=\"datetime-local\" value=\"" + expVal + "\">" +
+    "<p class=\"meta\">Due is when the work should happen. Expire is when the card goes stale. Expire does not Stop or send.</p>" +
+    "<div class=\"row\" style=\"margin-top:8px\">" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {due:'today 5pm'})\">Today 5</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {due:'tonight'})\">Tonight</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {due:'tomorrow 9am'})\">Tomorrow</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {due:'friday 9am'})\">Friday</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"snoozeJob('" + j.id + "', 'in 2 hours')\">Snooze 2h</button>" +
+    "</div>" +
+    "<div class=\"row\" style=\"margin-top:6px\">" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {expire:'end of day'})\">Expire tonight</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {expire:'tomorrow'})\">Expire tomorrow</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {clearExpire:true, expire:'clear'})\">No expire</button>" +
+    "</div></div>";
+}
+async function scheduleJob(id, payload) {
+  const banner = document.getElementById("banner");
+  const dueEl = document.getElementById("job-due");
+  const expEl = document.getElementById("job-expire");
+  const body = Object.assign({ action: "schedule", id: id, whoTapped: youName || "desk" }, payload || {});
+  if (!payload && dueEl && dueEl.value) body.dueAt = dueEl.value;
+  if (!payload && expEl && expEl.value) body.expireAt = expEl.value;
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify(body) });
+  if (banner) banner.textContent = out.status >= 400
+    ? ((out.data && out.data.error) || "Could not set that time.")
+    : ((out.data && out.data.clock && out.data.clock.dueLabel) ? ("Due " + out.data.clock.dueLabel + ".") : "Times saved on the card.");
+  await load();
+  openJob(id);
+}
+async function snoozeJob(id, until) {
+  const banner = document.getElementById("banner");
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "snooze", id: id, until: until || "in 2 hours", whoTapped: youName || "desk" }) });
+  if (banner) banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not snooze.") : ("Snoozed" + (out.data && out.data.job && out.data.job.due ? " to " + out.data.job.due : "") + ".");
+  if (typeof load === "function") await load();
+  if (typeof openJob === "function") openJob(id);
+}
 function collectCustom() {
   const custom = {};
   document.querySelectorAll("[data-field]").forEach(el => { custom[el.getAttribute("data-field")] = el.value; });
@@ -129,7 +185,12 @@ async function saveJob(id) {
   const custom = collectCustom();
   const note = (document.getElementById("job-note") || {}).value || "";
   const timing = custom.when || undefined;
-  await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "fill", id, custom, timing, whoTapped: youName || role || "desk" }) });
+  const dueAt = ((document.getElementById("job-due") || {}).value) || undefined;
+  const expireAt = ((document.getElementById("job-expire") || {}).value) || undefined;
+  await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "fill", id, custom, timing, dueAt, expireAt, whoTapped: youName || role || "desk" }) });
+  if (dueAt || expireAt) {
+    await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "schedule", id, dueAt, expireAt, whoTapped: youName || "desk" }) });
+  }
   if (note) await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "say", id, text: note, whoTapped: youName || "desk" }) });
   await load();
   openJob(id);
