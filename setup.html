@@ -20,21 +20,22 @@
     h2{font-size:1.05rem;margin:0 0 6px}
     .lead{color:var(--muted);margin:8px 0 14px;max-width:38rem}
     .hero{width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin:0 0 12px;aspect-ratio:3/2;object-fit:cover;background:#163333}
-    .shots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
+    .shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:8px;margin:0 0 16px}
     .shots figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
     .shots img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block;background:#163333}
     .shots figcaption{padding:8px 10px 10px;font-size:13px;color:var(--muted)}
     .shots figcaption b{display:block;color:var(--heading);font-size:14px}
     .actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
     .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 11px;font-size:13px;font-weight:700;color:var(--heading)}
-    .facts,.map,.words{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
-    .facts{grid-template-columns:1fr 1fr 1fr 1fr}
+    .facts,.map,.words{display:grid;gap:8px;margin:0 0 16px}
+    .facts{grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))}
+    .map,.words{grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}
     .fact,.card,.map a{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
     .fact b,.card b,.map a b{display:block;color:var(--heading);margin-bottom:4px}
     .fact span,.card span,.map a span{font-size:13px;color:var(--muted);font-weight:600}
     .map a{text-decoration:none;color:inherit;min-height:44px}
     .sec{margin:0 0 8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-    .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 10px;display:grid;grid-template-columns:36px 1fr;gap:12px}
+    .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 10px;display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px}
     .n{width:36px;height:36px;border-radius:50%;background:#119494;color:#fff;display:grid;place-items:center;font-weight:800}
     .n.o{background:var(--orange)}
     .step p{font-size:14px;color:var(--muted);margin-top:4px}
@@ -53,21 +54,18 @@
     .practice .who{font-size:13px;color:var(--muted);margin:0 0 10px}
     .draft{background:var(--bg-soft);border:1px dashed var(--line);border-radius:12px;padding:12px;font-size:14px;color:var(--ink);line-height:1.4;margin:0 0 12px}
     .taps{display:flex;flex-wrap:wrap;gap:8px}
-    .taps button,.taps a{
-      border:1px solid var(--line);background:var(--card);color:var(--heading);
-      border-radius:12px;padding:10px 14px;min-height:44px;font:700 14px system-ui,sans-serif;
-      display:inline-flex;align-items:center;cursor:pointer
-    }
+    .taps button,.taps a{border:1px solid var(--line);background:var(--card);color:var(--heading);border-radius:12px;padding:10px 14px;min-height:44px;font:700 14px system-ui,sans-serif;display:inline-flex;align-items:center;cursor:pointer}
     .taps .go{background:var(--orange);border-color:var(--orange);color:#0c1116}
     .taps .stop{border-color:#e8b4b4;color:#8a3030}
     .practice .result{font-size:13px;color:var(--muted);margin:10px 0 0;min-height:1.2em}
     .practice.stopped{opacity:.72}
-    @media(max-width:800px){.facts{grid-template-columns:1fr 1fr}}
-    @media(max-width:700px){.facts,.words,.step,.shots,.map{grid-template-columns:1fr}}
-    @media(max-width:420px){
-      .cta .btn{width:100%}
-      .taps button,.taps a{flex:1 1 calc(50% - 8px);justify-content:center}
-    }
+    .niche-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+    .niche-chips button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 12px;font:700 13px system-ui,sans-serif;color:inherit;min-height:44px;cursor:pointer}
+    .niche-chips button.on{background:#119494;color:#fff;border-color:#119494}
+    .how-acc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .how-acc b{display:block;color:var(--heading)}
+    @media(max-width:700px){.shots,.map,.words{grid-template-columns:minmax(0,1fr)}}
+    @media(max-width:420px){.cta .btn{width:100%}.taps button,.taps a{flex:1 1 calc(50% - 8px);justify-content:center}}
   </style>
 </head>
 <body class="page-bg">
@@ -75,6 +73,7 @@
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
       <a href="how.html">How</a>
+      <a href="examples.html">Examples</a>
       <a href="setup.html">Setup</a>
       <a href="onboard.html">Open desk</a>
       <a href="desk.html">Desk</a>
@@ -84,30 +83,9 @@
   <main class="wrap">
     <h1>Name your desk. Give the work a home.</h1>
     <p class="lead">One AIA account. A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step and drafts the words. You copy it, text it, email it, or hand it to someone. Nothing leaves on its own. Add a rule if you need one.</p>
-    <div class="talk-bar" id="talkBar" hidden>
-      <p class="talk-status" id="talkStatus">Hear this reads the first day. Quiet stops it.</p>
-      <button type="button" id="hearBtn">Hear this</button>
-      <button type="button" id="quietBtn">Quiet</button>
-    </div>
     <div class="actions" aria-label="What you do with a card">
-      <span class="chip">Copy draft</span>
-      <span class="chip">Text it</span>
-      <span class="chip">Email it</span>
-      <span class="chip">Hand to</span>
-      <span class="chip">Stop</span>
+      <span class="chip">Copy draft</span><span class="chip">Text it</span><span class="chip">Email it</span><span class="chip">Hand to</span><span class="chip">Stop</span>
     </div>
-
-    <div class="phone" id="phoneDesk" hidden>
-      <b>This phone already has a desk</b>
-      <p id="phoneCopy">Open the queue on that desk, or keep reading the first day.</p>
-      <div class="cta">
-        <a class="btn" id="phoneOpen" href="desk.html">Open the queue</a>
-        <a class="btn quiet" href="drop.html#talk">Talk on Drop</a>
-      </div>
-    </div>
-
-    <img class="hero" src="img/home-life.svg" alt="Kitchen table with a school permission slip, a to-do list, and a phone showing Copy and Text it.">
-
     <section class="practice" id="practice" aria-label="Practice card">
       <p class="meta">Practice card · stays on this phone</p>
       <h2>Permission slip Friday</h2>
@@ -122,103 +100,54 @@
       </div>
       <p class="result" id="practiceResult">Tap a button. The desk does not send this for you.</p>
     </section>
-
-    <div class="shots">
-      <figure>
-        <img src="img/home-hero.svg" alt="Desk queue with a missed-call job and a phone showing Text it, Email it, Hand to, Copy draft, and Stop.">
-        <figcaption><b>Service shop</b>Missed call becomes a card. You send the draft when it is right.</figcaption>
-      </figure>
-      <figure>
-        <img src="img/home-work.svg" alt="Shop, front desk, and office each running a queue of cards.">
-        <figcaption><b>Office</b>A file hits the queue. The packet is drafted. You hand it off or send it.</figcaption>
-      </figure>
-    </div>
-
-    <div class="facts">
-      <div class="fact"><b>Owner</b><span>Full admin on this login. Writes rules. Taps Stop. Approves who sits on the desk.</span></div>
-      <div class="fact"><b>Member</b><span>Same account, one desk. Family, friend, helper, or staff at the permission the owner set.</span></div>
-      <div class="fact"><b>The tap</b><span>Members work the queue. They do not Stop or send money.</span></div>
-      <div class="fact"><b>AI agent</b><span>Approved seat. Drafts on the card. Cannot Stop. Cannot move money. Not a public Bot API.</span></div>
-    </div>
-
     <p class="sec">First day</p>
-    <article class="step">
-      <div class="n">1</div>
-      <div>
-        <h2>Open the account</h2>
-        <p>Owner opens one secure AIA account and the first desk. Member asks to join that desk and waits on the owner for a permission. Free for now. Monthly later — we tell you before we charge. Desk name + desk code is the login. Email is not.</p>
-        <p><a href="onboard.html">Open the account →</a> · <a href="login.html">Already have one →</a> · <a href="pricing.html">Pricing →</a></p>
-      </div>
-    </article>
-    <article class="step">
-      <div class="n">2</div>
-      <div>
-        <h2>Same pair on the next phone</h2>
-        <p>Desk name + that person’s code. Do not share the owner code. Same queue. Owner still owns Stop and money. One account can own desks and sit on others.</p>
-        <p><a href="login.html">Sign in →</a> · <a href="account.html">Your account →</a></p>
-      </div>
-    </article>
-    <article class="step">
-      <div class="n">3</div>
-      <div>
-        <h2>Drop the work</h2>
-        <p>Same queue. Your words. A school form, a photo, a missed call, a neighbor text, a custom job.</p>
-        <p><b>Talk on Drop</b> — say it or type it. The desk asks what’s missing. You say drop it. Lands as a card.</p>
-        <p><b>Create</b> — another kind of work, a person, a rule, or another desk.</p>
-        <p><b>A pipe</b> — optional. Webhook is the live cross-internet pipe. Named vendors wait on keys. Skip it if you just want the list.</p>
-        <p><a href="drop.html#talk">Talk on Drop →</a> · <a href="desk.html">Queue →</a> · <a href="rules.html">Rules →</a></p>
-      </div>
-    </article>
-    <article class="step">
-      <div class="n o">4</div>
-      <div>
-        <h2>Send what you approve</h2>
-        <p>The desk wrote the reminder, estimate, or text. Copy the draft, text it, email it, or hand it to someone. Buttons follow what the card needs — not a fixed Yes/No row. Stop cancels it. Money waits only if you wrote that rule. New drops pick up the current rules.</p>
-      </div>
-    </article>
-
+    <article class="step"><div class="n">1</div><div><h2>Open the account</h2><p>Owner opens one secure AIA account and the first desk. Two doors on the same account: desk name + desk code, or email + password. Session stays 14 days. Authenticator MFA stays HOLD. Plan stays free.</p><p><a href="onboard.html">Open the account →</a> · <a href="login.html">Already have one →</a></p></div></article>
+    <article class="step"><div class="n">2</div><div><h2>Same pair on the next phone</h2><p>Desk name + that person’s code. Same queue. Owner still owns Stop. One account can own desks and sit on others.</p></div></article>
+    <article class="step"><div class="n">3</div><div><h2>Drop the work</h2><p>Talk on Drop. Say it or type it. Lands as a card. A pipe is optional. Webhook is live. Named vendors wait on keys.</p></div></article>
+    <article class="step"><div class="n o">4</div><div><h2>Send what you approve</h2><p>Copy the draft, text it, email it, or hand it off. Stop cancels it. Nothing leaves on its own.</p></div></article>
     <p class="sec">On this desk</p>
     <div class="map">
-      <a href="desk.html"><b>Queue</b><span>Cards waiting. Copy, text, email, hand to, or Stop when the card is ready.</span></a>
-      <a href="drop.html#talk"><b>Drop · Talk</b><span>Say the work. The desk asks what’s missing. Nobody sends money from here.</span></a>
-      <a href="history.html"><b>History</b><span>Need you, doing, waiting on, ext, done. One desk or every desk on this phone.</span></a>
-      <a href="rules.html"><b>Rules</b><span>Wait, stop, or note. Fresh desks start empty. Add a rule if you need one.</span></a>
-      <a href="connections.html"><b>Pipes</b><span>Search a site. Webhook is live. Draft accounts draft only. Log in does not send.</span></a>
-      <a href="admin.html"><b>People</b><span>Invite family, friend, helper, staff, or an AI agent. Owner approves the seat.</span></a>
-      <a href="account.html"><b>Account</b><span>Photo, name, desks, plan. One login. Email is not the login.</span></a>
-      <a href="create.html"><b>Create</b><span>Job, capture, custom work, teammate, guardrail, or another desk.</span></a>
+      <a href="desk.html"><b>Queue</b><span>Cards waiting. Copy, text, email, hand to, or Stop.</span></a>
+      <a href="drop.html#talk"><b>Drop · Talk</b><span>Say the work. Nobody sends money from here.</span></a>
+      <a href="people.html"><b>People</b><span>Invite family, friend, helper, staff. Owner owns Stop.</span></a>
+      <a href="connections.html"><b>Pipes</b><span>Copy the inbound hook. Draft accounts draft only. Log in does not send.</span></a>
+      <a href="people.html"><b>AI agent</b><span>Owner Approve. Drafts then Off desk. Cannot Stop or pay.</span></a>
+      <a href="drop.html"><b>World users</b><span>List a desk for public drop search. Private never appears.</span></a>
+      <a href="account.html"><b>Account</b><span>Desk code or email + password. One account per person.</span></a>
+      <a href="rules.html"><b>Rules</b><span>Wait, stop, or note. Fresh desks start empty.</span></a>
     </div>
-
-    <p class="sec">This week might be</p>
+    <p class="sec">How to use the account</p>
+    <div class="how-acc"><b>1. Open a desk</b><span>Desk name + desk code. Email is not required to start.</span></div>
+    <div class="how-acc"><b>2. Second door</b><span>Set email + password on Your account. Same person. Min 8 characters. No email or SMS reset.</span></div>
+    <div class="how-acc"><b>3. Stay signed in</b><span>Hashed session, 14 days, cookie + X-Session, max 8 phones.</span></div>
+    <div class="how-acc"><b>4. MFA and plan</b><span>Authenticator stays HOLD. Plan stays free.</span></div>
+    <div class="how-acc"><b>5. Send it yourself</b><span>Copy draft, Text it, Email it, Hand to, Stop. AIA does not send.</span></div>
+    <div class="how-acc"><b>6. People and agents</b><span>Invite from People. Approve an AI agent. Agent drafts, then Off desk.</span></div>
+    <div class="how-acc"><b>7. Connections and world</b><span>Copy the inbound hook. List a desk only if it should be public.</span></div>
+    <p class="sec">Projects being built</p>
     <div class="words">
-      <div class="card"><b>The week</b><span>Oil change. Lawn guy. Dentist for the kids. Each one is a card with the next step written on it.</span></div>
-      <div class="card"><b>School paper</b><span>The form lands. The reminder is drafted. You send it once. Then it stops nagging.</span></div>
-      <div class="card"><b>A neighbor text</b><span>Saturday job comes in. The estimate is written on the card. You copy it or text it.</span></div>
-      <div class="card"><b>Service shop</b><span>Missed call and a photo become a job card. You send the draft when it is right.</span></div>
-      <div class="card"><b>Office</b><span>A lead or a file hits the queue. The packet is drafted. You hand it off or send it.</span></div>
-      <div class="card"><b>Your own work</b><span>Name it on open. Drop more anytime. Same buttons. Nothing leaves on its own.</span></div>
+      <div class="card"><b>Automate It Away</b><span>The desk is the runtime. Jobs, audit, rules, Stop. Bots stay crew.</span></div>
+      <div class="card"><b>Consign It Away</b><span>Estate, titled assets, wholesale auto. Payout waits on you.</span></div>
+      <div class="card"><b>Quote It Away</b><span>Insurance desk. Fact-find + packet. No premium. No bind.</span></div>
+      <div class="card"><b>Fund It Away</b><span>Deal file to term sheet. Credit waits. Separate book.</span></div>
+      <div class="card"><b>Tony Oddo land</b><span>Parcel and lots. Flood and title stay a person call.</span></div>
     </div>
-
+    <p class="sec">Every kind of desk</p>
+    <p class="lead">Tap a niche. The practice card above becomes that demo. Whole deck lives on Examples. Insurance is Insurance / Quote It Away.</p>
+    <div class="niche-chips" id="nicheChips"></div>
+    <div class="words" id="nicheWords"></div>
     <div class="cta">
       <a class="btn" href="onboard.html">Open the account</a>
+      <a class="btn quiet" href="examples.html">See every niche</a>
       <a class="btn quiet" href="how.html">See how it runs</a>
     </div>
-    <p class="note">The practice card is a sample. A real card only leaves when you copy it, text it, email it, or hand it off.</p>
+    <p class="note">Practice cards are DEMO. Fake names, 555 numbers. A real card only leaves when you copy it, text it, email it, or hand it off.</p>
   </main>
-  <footer class="site-foot">
-    <p>© 2026 Automate It Away</p>
-    <nav>
-      <a href="how.html">How</a>
-      <a href="setup.html">Setup</a>
-      <a href="help.html">Help</a>
-      <a href="pricing.html">Pricing</a>
-      <a href="legal.html">Legal</a>
-      <a href="status.html">Status</a>
-    </nav>
-  </footer>
+  <footer class="site-foot"><p>© 2026 Automate It Away</p><nav><a href="how.html">How</a><a href="examples.html">Examples</a><a href="setup.html">Setup</a><a href="help.html">Help</a><a href="legal.html">Legal</a></nav></footer>
   <script src="theme.js"></script>
   <script src="speech.js"></script>
   <script src="desk-switch.js"></script>
+  <script src="setup-demo.js"></script>
   <script>
     (function () {
       var DRAFT = "Need the field-trip slip signed tonight. Thursday bus leaves at 8. I will send this once, then it stops.";
@@ -226,88 +155,73 @@
       var box = document.getElementById("practice");
       var taps = document.getElementById("practiceTaps");
       function say(msg) { if (result) result.textContent = msg; }
-
       var copyBtn = document.getElementById("copyBtn");
       if (copyBtn) copyBtn.addEventListener("click", function () {
         function done() { say("Copied. Paste it wherever you send it. The desk did not send this."); }
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(DRAFT).then(done).catch(function () {
-            say("Copy this: " + DRAFT);
-          });
-        } else {
-          say("Copy this: " + DRAFT);
-        }
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(DRAFT).then(done).catch(function () { say("Copy this: " + DRAFT); });
+        else say("Copy this: " + DRAFT);
       });
-
       var textBtn = document.getElementById("textBtn");
       if (textBtn) textBtn.href = "sms:?&body=" + encodeURIComponent(DRAFT);
       var emailBtn = document.getElementById("emailBtn");
       if (emailBtn) emailBtn.href = "mailto:?subject=" + encodeURIComponent("Permission slip Friday") + "&body=" + encodeURIComponent(DRAFT);
-
       var handBtn = document.getElementById("handBtn");
-      if (handBtn) handBtn.addEventListener("click", function () {
-        say("On a real desk you pick a person. This practice card stays on this phone.");
-      });
-
+      if (handBtn) handBtn.addEventListener("click", function () { say("On a real desk you pick a person. This practice card stays on this phone."); });
       var stopBtn = document.getElementById("stopBtn");
       if (stopBtn) stopBtn.addEventListener("click", function () {
         if (box) box.classList.add("stopped");
         if (taps) taps.hidden = true;
         say("Stopped. On a real desk only the owner taps this.");
       });
-
-      var phone = document.getElementById("phoneDesk");
-      var phoneCopy = document.getElementById("phoneCopy");
-      var phoneOpen = document.getElementById("phoneOpen");
-      if (phone && window.AIADesks) {
-        var rows = AIADesks.list ? AIADesks.list() : [];
-        if (rows && rows.length) {
-          var names = rows.map(function (d) { return d.name || d.slug; }).filter(Boolean);
-          phoneCopy.textContent = names.length === 1
-            ? names[0] + " is saved on this phone. Open the queue, or keep reading."
-            : names.join(", ") + " are saved on this phone.";
-          phone.hidden = false;
-          phone.style.display = "block";
-          if (phoneOpen && rows[0] && rows[0].slug) {
-            phoneOpen.href = "desk.html?ws=" + encodeURIComponent(rows[0].slug);
-          }
-        }
-      }
-
-      var bar = document.getElementById("talkBar");
-      var status = document.getElementById("talkStatus");
-      var hearBtn = document.getElementById("hearBtn");
-      var quietBtn = document.getElementById("quietBtn");
-      if (!bar || !window.AIASpeech) return;
-      if (!AIASpeech.canSpeak()) return;
-      bar.hidden = false;
-      var lines = [
-        "Name your desk. Give the work a home.",
-        "Open one account. Owner runs the desk. Member asks to join and waits on the owner.",
-        "Desk name and desk code is the login. Email is not.",
-        "There is a practice card on this page. Copy the draft, text it, email it, hand it, or stop it. Nothing leaves on its own.",
-        "Talk lives on Drop. Say the work. The desk asks what is missing. Then you drop it.",
-        "The desk drafts the words. You copy it, text it, email it, or hand it off.",
-        "Nothing leaves on its own. Stop is the owner cancel. Add a rule if you need one."
+      var NICHES = [
+        {g:"Home",b:"School form",s:"Permission slip due Friday. You send the draft."},
+        {g:"Consign",b:"Walk-in box",s:"Photo to listing draft. Payout waits on you."},
+        {g:"Insurance",b:"Term lead",s:"Fact-find + packet draft. No premium. No bind."},
+        {g:"Land",b:"Parcel inquiry",s:"Flood and title waits. Lot note draft."},
+        {g:"Fund",b:"Deal file",s:"Credit wait. Term sheet draft. Desk does not fund."},
+        {g:"Trades",b:"Missed call",s:"Same-day that bumps a job needs a person."},
+        {g:"Project",b:"Open the shop desk",s:"The desk is the runtime. Bots stay crew."},
+        {g:"World",b:"List this desk",s:"Public drop search. Private desks never appear."},
+        {g:"Pipes",b:"Copy hook",s:"Webhook is live. Named vendors hold. Drafts only."},
+        {g:"Agent",b:"Approve the seat",s:"Drafts then Off desk. Cannot Stop or pay."},
+        {g:"People",b:"Invite Jordan",s:"Helper gets a code. Same queue. Owner owns Stop."},
+        {g:"HVAC",b:"No cool on Oak",s:"Dispatch draft. Same-day bump needs a person."},
+        {g:"Bakery",b:"Cake ticket",s:"Order ticket draft. Invoices wait on you."},
+        {g:"Care",b:"Visit note",s:"Family only. Do not list this desk."}
       ];
-      var i = 0;
-      function sayNext() {
-        if (i >= lines.length) {
-          status.textContent = "That is the first day. Open the account when you are ready.";
-          return;
-        }
-        status.textContent = lines[i];
-        AIASpeech.speak(lines[i], { onend: function () { i += 1; sayNext(); } });
+      var chips = document.getElementById("nicheChips");
+      var words = document.getElementById("nicheWords");
+      var filter = "All";
+      function paintNiches() {
+        if (!chips || !words) return;
+        var list = ["All"].concat(NICHES.map(function (n) { return n.g; }));
+        chips.innerHTML = list.map(function (g) {
+          return "<button type=\"button\" class=\"" + (filter===g?"on":"") + "\" data-g=\"" + g + "\">" + g + "</button>";
+        }).join("");
+        var rows = filter==="All" ? NICHES : NICHES.filter(function (n) { return n.g===filter; });
+        words.innerHTML = rows.map(function (n) {
+          return "<div class=\"card\"><b>" + n.g + "</b><span>" + n.b + " — " + n.s + "</span></div>";
+        }).join("");
       }
-      hearBtn.addEventListener("click", function () {
-        i = 0;
-        AIASpeech.stop();
-        sayNext();
+      if (chips) chips.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-g]");
+        if (!btn) return;
+        filter = btn.getAttribute("data-g");
+        paintNiches();
+        var hit = NICHES.filter(function (n) { return n.g===filter; })[0];
+        if (hit && document.querySelector("#practice h2")) {
+          document.querySelector("#practice h2").textContent = "DEMO · " + hit.b;
+          var who = document.querySelector("#practice .who");
+          if (who) who.textContent = hit.g + " · draft ready · you still send it";
+          var draft = document.getElementById("draftText");
+          var line = hit.s + " Copy, text, email, or hand it off. Stop cancels it.";
+          if (draft) draft.textContent = line;
+          DRAFT = line;
+          if (textBtn) textBtn.href = "sms:?&body=" + encodeURIComponent(line);
+          if (emailBtn) emailBtn.href = "mailto:?subject=" + encodeURIComponent("DEMO · " + hit.b) + "&body=" + encodeURIComponent(line);
+        }
       });
-      quietBtn.addEventListener("click", function () {
-        AIASpeech.stop();
-        status.textContent = "Quiet. Hear this starts the first day again.";
-      });
+      paintNiches();
     })();
   </script>
 </body>
