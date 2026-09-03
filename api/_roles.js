@@ -1,10 +1,12 @@
 const CAN_KEYS = [
   "queue", "capture", "qualify", "draft", "hand", "send",
   "invite", "approve", "edit", "explore", "export", "close",
-  "rules", "pipes", "stop", "money", "delete", "code"
+  "rules", "pipes", "stop", "money", "delete", "code", "override", "include"
 ];
 
-const HARD_OWNER = ["approve", "stop", "money", "delete", "code", "pipes"];
+const HARD_OWNER = ["approve", "stop", "money", "delete", "code", "pipes", "override"];
+const NEVER_AGENT = ["send", "stop", "money", "approve", "delete", "code", "pipes", "edit", "close", "override"];
+const PLATFORM_HOLD = 250;
 
 function blankCan() {
   const out = {};
@@ -57,13 +59,13 @@ const LEVELS = {
     id: "agent",
     label: "AI agent",
     who: "Approved crew seat",
-    does: "Draft onto the card after owner Approve. Never Send. Never Stop. Never money."
+    does: "Draft onto the card whenever included. Never Send. Never Stop. Never money. Never override a HOLD."
   },
   owner: {
     id: "owner",
     label: "Owner",
     who: "Owner / admin",
-    does: "Every tap. Approve seats. Stop. Money confirm. Desk code. Delete."
+    does: "Every tap. Approve seats. Stop. Money confirm. Override a HOLD after preview. Desk code. Delete."
   }
 };
 
@@ -81,13 +83,16 @@ const KIND_CAN = {
     queue: true, capture: true, qualify: true, hand: true, send: true,
     invite: true, explore: true
   }),
-  agent: withCan({ queue: true, explore: true, draft: true }),
+  agent: withCan({ queue: true, explore: true, draft: true, include: true }),
   owner: withCan({
     queue: true, capture: true, qualify: true, draft: true, hand: true, send: true,
     invite: true, approve: true, edit: true, explore: true, export: true, close: true,
-    rules: true, pipes: true, stop: true, money: true, delete: true, code: true
+    rules: true, pipes: true, stop: true, money: true, delete: true, code: true,
+    override: true, include: true
   })
 };
+
+const AGENT_NEVER = ["send", "stop", "money", "pipes", "delete", "approve", "override"];
 
 const AGENTS = {
   Foreman: {
@@ -95,56 +100,56 @@ const AGENTS = {
     title: "Sequence the desk",
     does: "Writes the next job card. Does not draft listings or code.",
     artifact: "job card",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: AGENT_NEVER.slice()
   },
   Mapper: {
     crew: "Mapper",
     title: "Map the shop",
     does: "Turns one shop into Capture → Qualify → Do → Collect → Follow.",
     artifact: "shop map",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: AGENT_NEVER.slice()
   },
   Packer: {
     crew: "Packer",
     title: "Write the pack",
     does: "Drafts pack fields, nouns, and adapters. Does not fork the desk.",
     artifact: "pack notes",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: AGENT_NEVER.slice()
   },
   Doer: {
     crew: "Doer",
     title: "Draft the work",
     does: "Drafts the listing, packet, proposal, recall text, or widget copy.",
     artifact: "draft on the card",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: AGENT_NEVER.slice()
   },
   Rail: {
     crew: "Rail",
     title: "Hold the line",
     does: "Writes SHIP / HOLD / KILL on the card. Does not tap Stop. Does not pass its own HOLD.",
     artifact: "rail note",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: AGENT_NEVER.slice()
   },
   Builder: {
     crew: "Builder",
     title: "Fix the desk",
     does: "Notes API and page fixes. Does not deploy. Does not flip a pipe live.",
     artifact: "build note",
-    can: withCan({ queue: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, explore: true, draft: true, include: true }),
+    never: AGENT_NEVER.slice()
   },
   Worker: {
     crew: "Worker",
     title: "Keep the loop",
     does: "Qualifies new drops and writes follow nudges when a card sits.",
     artifact: "qualify / follow note",
-    can: withCan({ queue: true, capture: false, qualify: true, explore: true, draft: true }),
-    never: ["send", "stop", "money", "pipes", "delete", "approve"]
+    can: withCan({ queue: true, capture: false, qualify: true, explore: true, draft: true, include: true }),
+    never: AGENT_NEVER.slice()
   }
 };
 
@@ -160,6 +165,14 @@ function agentOf(crew) {
   return key ? AGENTS[key] : null;
 }
 
+function isOwnerPerson(person) {
+  return !!(person && (person.role === "owner" || person.kind === "owner"));
+}
+
+function isAgentPerson(person) {
+  return !!(person && (person.kind === "agent" || person.role === "agent"));
+}
+
 function resolveCan(kind, crew, status) {
   if (String(status || "") === "pending" || String(status || "") === "denied") return blankCan();
   const k = String(kind || "helper").toLowerCase();
@@ -172,22 +185,36 @@ function resolveCan(kind, crew, status) {
 
 function stripHard(can, person) {
   const out = Object.assign(blankCan(), can || {});
-  const owner = person && (person.role === "owner" || person.kind === "owner");
-  if (!owner) {
+  if (!isOwnerPerson(person)) {
     HARD_OWNER.forEach((k) => { out[k] = false; });
   }
-  if (person && (person.kind === "agent" || person.role === "agent")) {
-    out.send = false;
-    out.stop = false;
-    out.money = false;
-    out.approve = false;
-    out.delete = false;
-    out.code = false;
-    out.pipes = false;
-    out.edit = false;
-    out.close = false;
+  if (isAgentPerson(person)) {
+    NEVER_AGENT.forEach((k) => { out[k] = false; });
+    out.draft = true;
+    out.include = true;
+    out.queue = out.queue || true;
+    out.explore = out.explore || true;
   }
   return out;
+}
+
+function seatCanOf(person) {
+  if (!person) return blankCan();
+  const kind = person.kind || (person.role === "owner" ? "owner" : "helper");
+  const base = resolveCan(kind, person.crew || person.name, person.status || "approved");
+  const extra = person.can && typeof person.can === "object" ? person.can : {};
+  return stripHard(Object.assign(base, extra), person);
+}
+
+function canDo(person, key) {
+  if (!key) return false;
+  if (isOwnerPerson(person) && key !== "override") return true;
+  const can = seatCanOf(person);
+  return !!can[key];
+}
+
+function canOverride(person) {
+  return isOwnerPerson(person) && canDo(person, "override") !== false;
 }
 
 function publicRole(person) {
@@ -203,7 +230,8 @@ function publicRole(person) {
     artifact: agent ? agent.artifact : "",
     crew: agent ? agent.crew : "",
     title: agent ? agent.title : level.label,
-    never: agent ? agent.never : (kind === "owner" ? [] : HARD_OWNER)
+    never: agent ? agent.never : (kind === "owner" ? [] : HARD_OWNER),
+    can: seatCanOf(person)
   };
 }
 
@@ -212,21 +240,31 @@ function catalog() {
     levels: Object.keys(LEVELS).map((id) => Object.assign({ can: KIND_CAN[id] || blankCan() }, LEVELS[id])),
     agents: Object.keys(AGENTS).map((crew) => AGENTS[crew]),
     hardOwner: HARD_OWNER,
-    keys: CAN_KEYS
+    neverAgent: NEVER_AGENT,
+    keys: CAN_KEYS,
+    platformHold: PLATFORM_HOLD
   };
 }
 
 module.exports = {
   CAN_KEYS,
   HARD_OWNER,
+  NEVER_AGENT,
+  PLATFORM_HOLD,
   LEVELS,
   KIND_CAN,
   AGENTS,
   blankCan,
+  withCan,
   levelOf,
   agentOf,
+  isOwnerPerson,
+  isAgentPerson,
   resolveCan,
   stripHard,
+  seatCanOf,
+  canDo,
+  canOverride,
   publicRole,
   catalog
 };
