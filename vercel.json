@@ -25,6 +25,8 @@
     { "source": "/rules", "destination": "/rules.html" },
     { "source": "/more", "destination": "/more.html" },
     { "source": "/create", "destination": "/create.html" },
+    { "source": "/market", "destination": "/market.html" },
+    { "source": "/packs", "destination": "/market.html" },
     { "source": "/onboard", "destination": "/onboard.html" },
     { "source": "/widget", "destination": "/widget.html" },
     { "source": "/drop", "destination": "/widget.html" },
