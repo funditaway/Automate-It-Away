@@ -27,8 +27,8 @@
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
   </header>
   <main class="wrap">
-    <h1>People on this desk</h1>
-    <p>These names show up on Hand to. Owner approves the seat. Copy, text, or email the invite — AIA does not send it. All desks shows every shop saved on this phone.</p>
+    <h1>People</h1>
+    <p>Everyone on desks this phone can open. Tap a name. Copy, text, or email the note — AIA does not send it.</p>
     <div class="banner" id="banner">Open the desk on this phone to see who sits here.</div>
     <div id="desk-chips" class="chips" aria-label="Desks on this phone"></div>
     <div class="kpis">
@@ -40,7 +40,7 @@
     </div>
     <div class="you" id="you-card" hidden></div>
     <div class="chips" id="filters" role="tablist" aria-label="Filter people"></div>
-    <input type="search" id="q" placeholder="Find a name" autocomplete="off">
+    <input type="search" id="q" placeholder="Find a name, desk, phone, or email" autocomplete="off">
     <div id="list"></div>
     <div class="add" id="add-box" hidden>
       <h2 style="margin-top:0">Add someone</h2>
@@ -109,6 +109,27 @@
     <p class="meta">Pipes, rules, tickets, and the money log live under More. People is who can take a card.</p>
     <p class="meta"><a href="/admin">Full account book</a> · <a href="/connections">Pipes</a> · <a href="/account">Your account</a></p>
   </main>
+  <aside class="sheet" id="sheet" hidden>
+    <div class="meta" id="sheet-meta"></div>
+    <h2 id="sheet-name">Person</h2>
+    <p class="meta" id="sheet-copy">Tap a desk below to switch. AIA does not send.</p>
+    <div class="levels" id="sheet-seats"></div>
+    <h2>Cards on their desks</h2>
+    <div id="sheet-theirs"></div>
+    <h2>Cards on yours</h2>
+    <div id="sheet-yours"></div>
+    <h2>Shared history</h2>
+    <div id="sheet-history"></div>
+    <p class="meta" id="sheet-last"></p>
+    <div class="acts">
+      <button class="edit" type="button" id="sheet-copy-btn">Copy</button>
+      <a class="edit" id="sheet-text" href="#">Text it</a>
+      <a class="edit" id="sheet-mail" href="#">Email it</a>
+      <button class="edit" type="button" id="sheet-hear">Hear this</button>
+      <a class="go" id="sheet-history-link" href="/history">Full history</a>
+      <button class="kill" type="button" id="sheet-close">Close</button>
+    </div>
+  </aside>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
     <a href="/drop" data-tab="drop"><span>Drop</span></a>
@@ -155,6 +176,9 @@
     .talk button{min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 12px;font:700 13px inherit}
     .empty{padding:18px 12px;text-align:center}
     details summary{cursor:pointer;font-weight:700;color:var(--heading);min-height:44px;display:flex;align-items:center}
+    .sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--card);border-top:1px solid var(--line);padding:16px 4vw 88px;max-height:72vh;overflow:auto}
+    .sheet[hidden]{display:none!important}
+    .sheet-row{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
   </style>
   <script src="speech.js"></script>
   <script src="desk-switch.js"></script>
