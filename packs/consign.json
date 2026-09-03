@@ -22,5 +22,15 @@
   "rules": [
     { "text": "Cap title-missing items.", "when": "qualify", "then": "cap", "contains": "title" },
     { "text": "Wait on me before a payout leaves.", "when": "collect", "then": "wait" }
-  ]
+  ],
+  "queue": {
+    "badge": "Consign",
+    "family": "Consign It Away",
+    "empty": "Drop a photo of the item. Draft the title. Payout waits on you.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["list", "title", "payout"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  }
 }

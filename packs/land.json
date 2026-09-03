@@ -14,5 +14,15 @@
   "rules": [
     { "text": "Cap flood cards.", "when": "qualify", "then": "wait", "contains": "flood" },
     { "text": "Cap title cards.", "when": "qualify", "then": "wait", "contains": "title" }
-  ]
+  ],
+  "queue": {
+    "badge": "Land",
+    "family": "Tony Oddo land",
+    "empty": "Drop the lot note. Cap flood. Cap title.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["lot", "flood", "survey", "title"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  }
 }

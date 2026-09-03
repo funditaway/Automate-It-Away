@@ -26,5 +26,15 @@
   "rules": [
     { "text": "Cap same-day cards.", "when": "qualify", "then": "cap", "contains": "same-day" },
     { "text": "Ask me if a kid or school is named.", "when": "qualify", "then": "wait", "contains": "school" }
-  ]
+  ],
+  "queue": {
+    "badge": "Home",
+    "family": "Automate It Away",
+    "empty": "Drop a chore, school form, or same-day pickup. Cap same-day.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["chore", "school", "pickup", "repair"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  }
 }

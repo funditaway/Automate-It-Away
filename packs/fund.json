@@ -13,5 +13,15 @@
   "artifacts": ["campaign page"],
   "rules": [
     { "text": "Wait on me before a credit decision.", "when": "collect", "then": "wait", "contains": "credit" }
-  ]
+  ],
+  "queue": {
+    "badge": "Fund",
+    "family": "Fund It Away",
+    "empty": "Drop the campaign note. Credit waits on you.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["raise", "credit"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  }
 }

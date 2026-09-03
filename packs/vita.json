@@ -38,5 +38,15 @@
     { "text": "Cap this-week cards.", "when": "qualify", "then": "wait", "contains": "this week" },
     { "text": "Stop if this is an illustration.", "when": "do", "then": "stop", "contains": "illustration" },
     { "text": "Wait on bind.", "when": "do", "then": "wait", "contains": "bind" }
-  ]
+  ],
+  "queue": {
+    "badge": "Insurance",
+    "family": "Quote It Away",
+    "empty": "Drop a name, a state, and what they need. Bind stays off.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["lead", "quote", "call", "review"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay", "bind"]
+  }
 }
