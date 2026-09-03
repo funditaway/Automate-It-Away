@@ -1,0 +1,52 @@
+/* Phone + desktop visibility fixes. Loaded after theme.css. */
+a.btn.outline,
+.btn.outline,
+a.outline {
+  background: transparent !important;
+  color: var(--teal) !important;
+  border: 1px solid var(--teal) !important;
+}
+body.has-desk-nav header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+body.has-desk-nav header > .brand,
+body.has-desk-nav header > a.brand {
+  grid-column: 1;
+  grid-row: 1;
+}
+body.has-desk-nav header .hdr-tools,
+body.has-desk-nav header .theme-btn,
+body.has-desk-nav header .who-chip {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+}
+body.has-desk-nav header .desk-tabs {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+.kpi b {
+  display: block;
+  min-height: 1.3em;
+  font-size: 1.3rem;
+  line-height: 1.2;
+  color: var(--teal);
+}
+.menu.card > a {
+  display: block;
+  padding: 12px 16px;
+  color: var(--heading);
+  text-decoration: none;
+  font-weight: 700;
+  border-bottom: 1px solid var(--line);
+}
+.menu.card > a span {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
