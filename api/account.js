@@ -4,6 +4,7 @@ const {
   ensureAccount, accountForDesk, homeAccount, loginAccount, proHome, createOwnerAccount, publicPlan,
   switchPlan, looksLikeEmail, passwordMatches, setAccountPassword, applyAccountDetails
 } = require("./_account");
+const { leaveSeat, wipeDesk, confirmDeskName, heldCollectAsk, applyDeskEdit, setDeskClosed, publicDesk } = require("./_desk");
 
 function refreshSession(req, res) {
   if (req && req.__aiaSessionToken && typeof lib.sessionCookie === "function") {
@@ -95,6 +96,11 @@ function authAccount(req) {
   return { found, account: homeAccount(found.person, found.workspace) };
 }
 
+function findDesk(slug) {
+  const want = lib.slugify(slug || "");
+  return (mem.workspaces || []).find((w) => w && w.slug === want) || null;
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -158,10 +164,9 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ ok: false, error: "Owner desk code required to attach a desk." });
     }
     const acc = account || accountForDesk(found.workspace);
-    const other = String(body.desk || body.slug || "").trim();
+    const other = String(body.desk || body.attach || body.name || "").trim();
     if (!other) return res.status(400).json({ ok: false, error: "Name the desk to attach." });
-    const want = lib.slugify(other);
-    const row = (mem.workspaces || []).find((w) => w && w.slug === want);
+    const row = findDesk(other);
     if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
     acc.desks = acc.desks || [];
     if (acc.desks.indexOf(row.slug) < 0) acc.desks.push(row.slug);
@@ -246,7 +251,7 @@ module.exports = async function handler(req, res) {
     const removed = token && typeof lib.revokeSession === "function" ? lib.revokeSession(token) : 0;
     if (typeof lib.clearSessionCookie === "function") res.setHeader("Set-Cookie", lib.clearSessionCookie());
     await save();
-    return res.status(200).json({ ok: true, loggedOut: true, removed });
+    return res.status(200).json({ ok: true, loggedOut: true, removed, hint: "This phone forgets the desk. The desk stays." });
   }
 
   if (action === "logout-all") {
@@ -284,9 +289,109 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, hold: true, mfaOn: false, hint: "Authenticator stays on HOLD." });
   }
 
+  if (action === "desk-update" || action === "desk-edit") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    const row = findDesk(body.desk || body.slug || found.workspace.slug);
+    if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    if (!isOwner(found.person) && found.workspace.slug !== row.slug) {
+      return res.status(403).json({ ok: false, error: "Only the owner can edit that shop." });
+    }
+    const saved = applyDeskEdit(row, body);
+    if (!saved.ok) return res.status(400).json(saved);
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json(Object.assign({ ok: true, desk: publicDesk(row, found.person), hint: "Shop saved." }, proHome(account, found.person)));
+  }
+
+  if (action === "desk-close" || action === "desk-open" || action === "desk-reopen") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    const row = findDesk(body.desk || body.slug || found.workspace.slug);
+    if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    if (!isOwner(found.person)) return res.status(403).json({ ok: false, error: "Only the owner can close this desk." });
+    setDeskClosed(row, action === "desk-close");
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json(Object.assign({
+      ok: true,
+      desk: publicDesk(row, found.person),
+      hint: action === "desk-close" ? "No new drops. Drafts already on the queue stay." : "Desk is open."
+    }, proHome(account, found.person)));
+  }
+
+  if (action === "leave" || action === "detach") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    const want = lib.slugify(body.desk || body.slug || found.workspace.slug);
+    const row = findDesk(want);
+    if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    const seat = (row.people || []).find((p) => p && (
+      p.id === found.person.id ||
+      (found.person.accountId && p.accountId === found.person.accountId) ||
+      (account.id && p.accountId === account.id)
+    )) || (want === found.workspace.slug ? found.person : null);
+    if (!seat) return res.status(403).json({ ok: false, error: "You do not sit on that desk." });
+    const left = leaveSeat(row, seat, account);
+    if (!left.ok) return res.status(left.status || 400).json({ ok: false, error: left.error });
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json(Object.assign({
+      ok: true,
+      left: want,
+      hint: "You are off this desk. Cards stay for the owner."
+    }, proHome(account, found.person)));
+  }
+
+  if (action === "delete" || action === "delete-desk" || action === "wipe") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    const want = lib.slugify(body.desk || body.slug || found.workspace.slug);
+    const row = findDesk(want);
+    if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    const seat = (row.people || []).find((p) => p && p.id === found.person.id) || found.person;
+    if (!isOwner(seat) && !isOwner(found.person)) {
+      return res.status(403).json({ ok: false, error: "Only the owner can delete this desk." });
+    }
+    if (!confirmDeskName(row, body.confirm || body.say)) {
+      return res.status(409).json({
+        ok: false,
+        error: "Type the shop name. Cards go. The log stays.",
+        need: row.biz || row.slug
+      });
+    }
+    const asks = heldCollectAsk(row.slug, 250);
+    if (asks.length) {
+      return res.status(409).json({
+        ok: false,
+        ask: true,
+        error: "This desk has a held collect card of $250 or more. Ask before you wipe it.",
+        held: asks.length
+      });
+    }
+    const wiped = wipeDesk(row.slug, seat);
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json(Object.assign({
+      ok: true,
+      deleted: wiped.slug,
+      name: wiped.name,
+      charged: false,
+      hint: "Desk deleted. Cards gone. The log stays."
+    }, proHome(account, found.person)));
+  }
+
   return res.status(400).json({
     ok: false,
     error: "Unknown account action.",
-    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "logout", "logout-all", "sessions", "export", "mfa"]
+    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "logout", "logout-all", "sessions", "export", "mfa", "leave", "detach", "desk-update", "desk-close", "desk-open", "delete", "delete-desk"]
   });
 };
