@@ -22,4 +22,13 @@
   s.defer = true;
   s.src = "/_vercel/insights/script.js";
   document.head.appendChild(s);
+
+  function blankMoneyExample() {
+    var money = document.getElementById("rule-money");
+    if (money && money.getAttribute("placeholder") === "250") {
+      money.setAttribute("placeholder", "leave blank");
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", blankMoneyExample);
+  else blankMoneyExample();
 })();
