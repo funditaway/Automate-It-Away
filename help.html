@@ -28,7 +28,7 @@
 </head>
 <body class="has-desk-nav">
   <header>
-    <a href="index.html">Automate It Away</a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <span>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
       <a href="desk.html">Desk</a>
@@ -43,39 +43,49 @@
         <dt>Open</dt>
         <dd>Desk name + desk code. House, resale, insurance, or something else in your words.</dd>
         <dt>Drop</dt>
-        <dd>A note, photo, form, missed call, neighbor text. It becomes a card on the queue.</dd>
+        <dd>Talk to the desk, type, or attach a file. The desk asks what’s missing. You say drop it. It becomes a card on the queue.</dd>
         <dt>Rule</dt>
         <dd>Fresh desks start empty. Add a wait only if you want one. New drops honor the current list.</dd>
+        <dt>History</dt>
+        <dd>Past, now, and next on one page. Advanced finds who worked it, files, Grok recs, and audit. Copy or email the story. Nothing sends from History.</dd>
         <dt>Send</dt>
         <dd>Copy, text, email, or hand the draft off. Stop is the owner cancel. AIA does not send the text or the money.</dd>
+        <dt>AI agent</dt>
+        <dd>Approved crew seat. Drafts on the card. Off desk tap on decision, ideas, editing, working, and ext. Cannot Stop. Cannot move money. Not a public Bot API.</dd>
       </dl>
     </div>
     <div class="card">
       <h2>Pages that exist</h2>
-      <p><a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="rules.html">Rules</a> · <a href="admin.html">People</a> · <a href="connections.html">Pipes</a> · <a href="widget.html">Drop</a> · <a href="support.html">Support</a></p>
+      <p><a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="market.html">Packs</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="history.html">History</a> · <a href="rules.html">Rules</a> · <a href="admin.html">People</a> · <a href="connections.html">Pipes</a> · <a href="/drop#talk">Drop · Talk</a> · <a href="support.html">Support</a></p>
     </div>
     <div class="card">
       <h2>Owner vs helper</h2>
       <dl>
         <dt>Owner</dt>
-        <dd>Connects or drops a pipe. Writes rules, including advanced wait/stop lines. Taps Stop. Lets money move when a rule says wait.</dd>
+        <dd>Connects or drops a pipe. Writes rules. Taps Stop. On Desks: explore, rename, close, change the owner code, export, delete, and grant helper edit. Delete writes a log that stays after the shop is gone.</dd>
         <dt>Helper</dt>
-        <dd>Works the queue. Needs you, Open, Send when the rule allows, hand the card, phone file. Cannot connect a pipe. Cannot Stop.</dd>
+        <dd>Works the queue. Needs you, Open, Send when the rule allows, hand the card, phone file. Cannot connect a pipe. Cannot Stop. Cannot delete a desk or change the owner code. May edit shop details only if the owner turns that on.</dd>
         <dt>We type it in</dt>
         <dd>A helper can still take a note. AIA writes the card. A person still taps Send or Stop.</dd>
         <dt>Kind of work</dt>
         <dd>Owner names the work on open, or later on Create. Fields stay on the card. Drop still takes free text if you skip fields.</dd>
+        <dt>Packs</dt>
+        <dd>Create an automation. Keep it on this desk, list it in pack search, or set a market ask. Other owners search on Create or /market and add it to their desk. A priced pack is a tag. AIA does not take a card for packs yet. Preview is free. Packs do not send money, bind coverage, or pay out.</dd>
       </dl>
     </div>
     <div class="card">
       <h2>Pipes across the internet</h2>
       <dl>
         <dt>Now</dt>
-        <dd>Webhook in and out. Anything on the internet can write a card to /api/hook. That is the unlimited pipe today.</dd>
+        <dd>Webhook in and out. Anything on the internet can write a card to /api/hook. Copy the hook on Pipes. Zapier and Make can post there today.</dd>
+        <dt>Search</dt>
+        <dd>Type any site on Pipes. Talk it if your hands are full. Matches filter the wall.</dd>
+        <dt>Log in</dt>
+        <dd>Opens that vendor’s console. It does not send mail, post, or pay. Draft accounts still paste a key and draft only.</dd>
         <dt>Hold · beta</dt>
         <dd>Calendar, SMS, Square, eBay, Consign store — names exist. Stay hold until keys are set. A draft liking the name does not turn them green.</dd>
         <dt>Coming soon</dt>
-        <dd>Stripe, PayPal, Shopify, Gmail, Drive, shop apps, QuickBooks, Slack, missed-call voice. On the wall. Not a Connect button.</dd>
+        <dd>Mail, social, shop, money, CRM, files, talk. On the wall with Log in. Name any other site — the hook still takes the card.</dd>
         <dt>Down</dt>
         <dd>Some marketplaces are not a launch pipe.</dd>
       </dl>
@@ -99,12 +109,16 @@
         <dd>Drops a file on your phone. Google Calendar write stays off until the key is set.</dd>
         <dt>Talk or type it</dt>
         <dd>You tell us. We write the card on your queue. You still send the draft, or Stop.</dd>
-        <dt>Drop anything</dt>
-        <dd>Does not have to match a pack. Your words. Rules on this desk still run.</dd>
+        <dt>Drop something off</dt>
+        <dd>Family, friend, helper, or staff asks for something. Or paste a list and the desk writes the card. Rules still run. Nobody sends money from here.</dd>
         <dt>Queue filters</dt>
         <dd>All, handed to me, Talk, Drop, Pipes. Empty filter means switch to All or drop something new.</dd>
         <dt>Pipes</dt>
-        <dd>Optional. Calendar, text, webhook. The queue works with just a note.</dd>
+        <dd>Optional. Search a site, copy the hook, or drop a note. The queue works with just a note.</dd>
+        <dt>Copy hook</dt>
+        <dd>Puts the inbound URL on the clipboard. Paste it into Zapier, Make, or that site’s webhook. Does not send money.</dd>
+        <dt>Log in</dt>
+        <dd>Vendor console or draft-account key page. Chat login alone cannot draft. Owner still taps Send and Stop.</dd>
       </dl>
     </div>
     <div class="card">
