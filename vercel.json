@@ -15,6 +15,7 @@
     { "source": "/dashboard.html", "destination": "/desk.html", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/examples", "destination": "/examples.html" },
     { "source": "/people", "destination": "/people.html" },
     { "source": "/rules", "destination": "/rules.html" },
     { "source": "/more", "destination": "/more.html" },
@@ -29,7 +30,6 @@
     { "source": "/account", "destination": "/account.html" },
     { "source": "/desks", "destination": "/desks.html" },
     { "source": "/history", "destination": "/history.html" },
-    { "source": "/api/packs", "destination": "/api/desks?packs=1" },
     { "source": "/api/desks", "destination": "/api/desks" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
