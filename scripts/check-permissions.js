@@ -80,6 +80,20 @@ else if (!card.money || card.money.charged !== false || card.ext !== 2 || card.a
   fail("publicPerson money/ext/handle " + JSON.stringify(card));
 } else pass("12 publicPerson shows can, never, money, Ext, X handle");
 
+const ovrSeat = perms.setSeatCan({ people: [{ id: "p_help3", name: "Lee", role: "employee", kind: "helper", status: "approved" }] }, "p_help3", { override: true, send: true });
+if (ovrSeat.ok) fail("helper cannot be granted override");
+else pass("13 helper cannot be granted override");
+
+const agentCan2 = roles.stripHard(roles.resolveCan("agent", "Doer", "approved"), agent);
+if (agentCan2.override || (roles.canOverride && roles.canOverride(agent))) fail("agent must never override");
+else pass("14 agent never has override");
+
+const plans = require("../api/_plans");
+const planDesk = { people: [{ id: "p_plan", name: "Pat", role: "employee", kind: "helper", status: "approved" }] };
+const planGrant = plans.setPermission(planDesk, "p_plan", "override", owner);
+if (planGrant.ok) fail("plans cannot grant override");
+else pass("15 plans cannot grant override");
+
 if (process.exitCode) {
   console.error("check-permissions failed");
   process.exit(1);
