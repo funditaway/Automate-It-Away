@@ -106,6 +106,19 @@
     document.head.appendChild(css);
   }
 
+  function paintTabs(root, withIcons) {
+    if (!root) return;
+    var on = tabOf();
+    var hrefDrop = dropHref();
+    root.innerHTML = TABS.map(function (t) {
+      var href = t.id === "drop" ? hrefDrop : t.href;
+      var extra = "";
+      if (t.id === "drop") extra = root.id === "desk-nav" ? " id=\"nav-drop\"" : " id=\"head-drop\"";
+      var ico = withIcons ? svg(t.ico) : "";
+      return "<a href=\"" + href + "\" data-tab=\"" + t.id + "\"" + extra + " class=\"" + (on === t.id ? "on" : "") + "\">" +
+        ico + "<span>" + t.label + "</span></a>";
+    }).join("");
+  }
   function ensureIcons(nav) {
     TABS.forEach(function (t) {
       var a = nav.querySelector("[data-tab=\"" + t.id + "\"]");
@@ -135,23 +148,19 @@
     if (window !== window.parent) return;
     ensureCss();
     document.body.classList.add("has-desk-nav");
+    migrateRulesTab();
+    migratePipesTab();
     var nav = document.getElementById("desk-nav");
     if (!nav) {
       nav = document.createElement("nav");
       nav.id = "desk-nav";
       nav.setAttribute("aria-label", "Desk");
-      var on = tabOf();
-      nav.innerHTML = TABS.map(function (t) {
-        var href = t.id === "drop" ? dropHref() : t.href;
-        return "<a href=\"" + href + "\" data-tab=\"" + t.id + "\" class=\"" + (on === t.id ? "on" : "") + "\">" +
-          svg(t.ico) + "<span>" + t.label + "</span></a>";
-      }).join("");
       document.body.appendChild(nav);
-    } else {
-      ensureIcons(nav);
     }
-    migrateRulesTab();
-    migratePipesTab();
+    paintTabs(nav, true);
+    document.querySelectorAll("nav.desk-tabs, .desk-tabs").forEach(function (el) {
+      paintTabs(el, false);
+    });
     wireHrefs();
     paintOn();
     liftNav();
