@@ -15,16 +15,21 @@ header{background:var(--header);color:#fff;padding:12px 4vw}header a{color:#fff}
 h1{font-size:1.4rem;margin:0 0 8px}p{color:var(--muted);margin:0 0 12px}
 .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
-.chips button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 12px;font:700 13px inherit;min-height:40px}
+.chips button,.chips a{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 12px;font:700 13px inherit;min-height:40px}
 .chips button.on{background:var(--orange);color:#0c1116;border-color:transparent}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
 .card h2{font-size:1rem;margin:0 0 4px}.meta{font-size:13px;color:var(--muted)}
 .lane{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;margin-right:6px}
 .need{color:var(--kill-ink)}.doing{color:var(--teal)}.wait{color:#b45309}.ext{color:#6b21a8}.done{color:var(--teal)}
 select,input[type=search]{min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;background:var(--card);color:var(--ink);width:100%;margin-bottom:10px}
-.adv{margin:0 0 12px}.adv[hidden]{display:none!important}
+.adv{margin:0 0 12px}.adv[hidden],.sheet[hidden]{display:none!important}
 .acts a,.acts button{min-height:44px;padding:8px 12px;border-radius:10px;border:0;background:var(--edit);color:var(--edit-ink);font:700 13px inherit;margin:0 8px 8px 0;display:inline-flex;align-items:center;text-decoration:none}
 .tag{display:inline-block;font-size:11px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin:0 6px 6px 0}
+.logic{border-left:3px solid var(--teal);padding:8px 10px;margin:0 0 12px;font-size:13px}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--card);border-top:1px solid var(--line);padding:16px 4vw 88px;max-height:72vh;overflow:auto}
+.sheet h2{margin:0 0 8px;font-size:1.1rem}
+.kv{display:grid;grid-template-columns:90px 1fr;gap:6px 10px;font-size:13px;margin:10px 0}
+.kv b{color:var(--muted);font-weight:700}
 </style>
 </head>
 <body class="has-desk-nav">
@@ -52,6 +57,17 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" id="talk">Talk</button>
 <button type="button" id="quiet">Quiet</button>
 </div>
+<p class="meta">Try a view</p>
+<div class="chips" id="examples">
+<button type="button" data-ex="need-week">Need you this week</button>
+<button type="button" data-ex="missing">Missing a fact</button>
+<button type="button" data-ex="money-hand">Money handed off</button>
+<button type="button" data-ex="late-cap">Late on the cap</button>
+<button type="button" data-ex="ext">Off the desk</button>
+<button type="button" data-ex="grok">Grok drafts</button>
+<button type="button" data-ex="audit-month">Audit this month</button>
+<button type="button" data-ex="stopped">Stopped</button>
+</div>
 <div class="chips" id="whens">
 <button type="button" class="on" data-when="all">All time</button>
 <button type="button" data-when="past">Past</button>
@@ -68,7 +84,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" data-lane="stopped">Stopped</button>
 </div>
 <div class="adv" id="adv-box" hidden>
-<p class="meta">Filter by who, kind, pipe, day, money, Grok, files, cap, missing, handed, late, audit. You still send from the desk.</p>
+<p class="meta">Every tap is AND. A card has to match the lane, the time bucket, the search, who, kind, pipe, the day window, and every flag you left on.</p>
 <select id="who"><option value="">Anyone</option></select>
 <select id="work"><option value="">Any kind</option></select>
 <select id="pipe"><option value="">Any pipe</option></select>
@@ -84,6 +100,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" data-flag="audit">Audit</button>
 </div>
 </div>
+<div class="logic" id="logic">Showing every card this phone can open.</div>
 <div id="counts" class="meta"></div>
 <div class="acts">
 <button type="button" id="copy-view">Copy this view</button>
@@ -93,6 +110,18 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 </div>
 <div id="list"></div>
 </main>
+<aside class="sheet" id="sheet" hidden>
+<div class="meta" id="sheet-lane"></div>
+<h2 id="sheet-title">Card</h2>
+<p class="meta" id="sheet-how"></p>
+<div class="kv" id="sheet-kv"></div>
+<p class="meta" id="sheet-why"></p>
+<div class="acts">
+<button type="button" id="sheet-copy">Copy data</button>
+<a id="sheet-open" href="/desk">Open on desk</a>
+<button type="button" id="sheet-close">Close</button>
+</div>
+</aside>
 <nav id="desk-nav" aria-label="Desk">
 <a href="/desk" data-tab="queue"><span>Queue</span></a>
 <a href="/drop" data-tab="drop"><span>Drop</span></a>
@@ -104,19 +133,52 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <script src="desk-switch.js"></script>
 <script src="desk-nav.js"></script>
 <script>
-var lane="all",when="all",slug="",q="",who="",work="",pipe="",since="",advanced=false,last=[];
+var lane="all",when="all",slug="",q="",who="",work="",pipe="",since="",advanced=false,last=[],openItem=null;
 var flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};
+var EXAMPLES={
+ "need-week":{lane:"need",when:"all",since:"week",q:"",advanced:true},
+ "missing":{lane:"all",flags:{missing:1},advanced:true},
+ "money-hand":{lane:"all",flags:{money:1,handed:1},advanced:true},
+ "late-cap":{lane:"need",flags:{late:1,cap:1},advanced:true},
+ "ext":{lane:"ext"},
+ "grok":{flags:{grok:1},advanced:true},
+ "audit-month":{since:"month",flags:{audit:1},advanced:true},
+ "stopped":{lane:"stopped",when:"past"}
+};
 function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&","<":"<",">":">","\"":""","'":"&#39;"})[c];});}
 function phone(){return (window.AIADesks&&AIADesks.list())||[];}
 function story(){return last.map(function(it){return (it.title||"Card")+" · "+(it.label||"")+" · "+(it.desk||"")+(it.who?" · "+it.who:"");}).join("\n")||"Nothing in this view.";}
 function saveView(){try{localStorage.setItem("aia_history_view",JSON.stringify({lane:lane,when:when,q:q,who:who,work:work,pipe:pipe,since:since,advanced:advanced,flags:flags}));}catch(e){}}
 function loadView(){try{var v=JSON.parse(localStorage.getItem("aia_history_view")||"{}");if(!v||typeof v!=="object")return;lane=v.lane||"all";when=v.when||"all";q=v.q||"";who=v.who||"";work=v.work||"";pipe=v.pipe||"";since=v.since||"";advanced=!!v.advanced;if(v.flags)flags=Object.assign(flags,v.flags);document.getElementById("q").value=q;}catch(e){}}
+function logicLine(){
+ var bits=[];
+ if(lane!=="all")bits.push(lane==="need"?"Need you":lane==="doing"?"in progress":lane==="wait"?"waiting on someone":lane==="ext"?"off the desk":lane);
+ if(when!=="all")bits.push(when==="past"?"already finished":when==="now"?"on the desk now":when==="next"?"due or follow later":"");
+ if(since==="today")bits.push("touched today");
+ if(since==="week")bits.push("touched this week");
+ if(since==="month")bits.push("touched this month");
+ if(q)bits.push('search "'+q+'"');
+ if(who)bits.push("who includes "+who);
+ if(work)bits.push("kind "+work);
+ if(pipe)bits.push("pipe "+pipe);
+ if(flags.money)bits.push("has an amount");
+ if(flags.grok)bits.push("has a Grok draft");
+ if(flags.files)bits.push("has a file or photo");
+ if(flags.cap)bits.push("on the cap");
+ if(flags.missing)bits.push("missing a fact");
+ if(flags.handed)bits.push("handed to someone");
+ if(flags.late)bits.push("late or expired");
+ if(flags.audit)bits.push("desk or audit rows only");
+ if(!bits.length)return "No extra filters. Every card this phone can open, newest first. Filters AND together — a card must pass every line you turn on.";
+ return "This view is "+bits.join(" AND ")+". A card must match all of those. Open Explore on a card to see the fields.";
+}
 function paint(){
  document.getElementById("adv-box").hidden=!advanced;
  document.getElementById("adv-btn").textContent=advanced?"Simple":"Advanced";
  document.querySelectorAll("#flags [data-flag]").forEach(function(b){b.classList.toggle("on",!!flags[b.getAttribute("data-flag")]);});
  document.querySelectorAll("#lanes button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-lane")===lane);});
  document.querySelectorAll("#whens button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-when")===when);});
+ document.getElementById("logic").textContent=logicLine();
 }
 function fillPick(){
  var rows=phone(),cur=(window.AIADesks&&AIADesks.current&&AIADesks.current())||{},el=document.getElementById("desk-pick");
@@ -146,12 +208,61 @@ function applyTalk(text){
  if(/late|expired/.test(t))flags.late=1;
  if(/audit/.test(t))flags.audit=1;
  if(/advanced/.test(t))advanced=true;
- if(/simple|clear/.test(t)){lane="all";when="all";q=who=work=pipe=since="";flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};advanced=false;}
+ if(/simple|clear/.test(t))reset();
  var m=t.match(/find (.+)/);if(m)q=m[1].replace(/\.$/,"");
  document.getElementById("q").value=q;document.getElementById("since").value=since;
 }
+function reset(){
+ lane="all";when="all";q=who=work=pipe=since="";flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};advanced=false;
+ document.getElementById("q").value="";document.getElementById("since").value="";
+}
+function applyEx(id){
+ var ex=EXAMPLES[id];if(!ex)return;
+ reset();
+ if(ex.lane)lane=ex.lane;
+ if(ex.when)when=ex.when;
+ if(ex.since)since=ex.since;
+ if(ex.q)q=ex.q;
+ if(ex.advanced)advanced=true;
+ if(ex.flags)Object.keys(ex.flags).forEach(function(k){flags[k]=ex.flags[k];});
+ document.getElementById("q").value=q;document.getElementById("since").value=since;
+}
+function whyCard(it){
+ var pass=[];
+ if(lane!=="all")pass.push("lane is "+(it.label||it.lane));
+ if(when!=="all")pass.push("bucket is "+(it.when||when));
+ if(it.money&&flags.money)pass.push("amount "+(it.amount!=null?it.amount:"set"));
+ if(it.grok&&flags.grok)pass.push("Grok draft on the card");
+ if(it.files&&it.files.length&&flags.files)pass.push((it.files.length)+" file(s)");
+ if(it.priority&&flags.cap)pass.push("on the cap");
+ if(it.missing&&it.missing.length&&flags.missing)pass.push("missing "+it.missing.join(", "));
+ if(it.handed&&flags.handed)pass.push("handed to "+(it.hands&&it.hands[0]||"someone"));
+ if((it.late||it.expired)&&flags.late)pass.push(it.expired?"expired":"late");
+ if((it.kind==="audit"||it.kind==="desk")&&flags.audit)pass.push("audit/desk row");
+ if(q)pass.push("matched “"+q+"”");
+ return pass.length?"Kept because: "+pass.join("; ")+".":"Kept because no extra flags were on.";
+}
+function explore(it){
+ openItem=it;
+ document.getElementById("sheet-title").textContent=it.title||"Card";
+ document.getElementById("sheet-lane").textContent=(it.label||it.lane||"")+" · "+(it.when||"")+" · "+(it.desk||"");
+ document.getElementById("sheet-how").textContent=it.how||it.result||it.past||"";
+ var rows=[
+  ["Kind",it.kind||"job"],["Work",it.work||it.pack||"—"],["Who",it.who||"—"],
+  ["Hands",(it.hands||[]).join(", ")||"—"],["Pipe",it.pipe||"—"],
+  ["Amount",it.money?(it.amount!=null?String(it.amount):"yes"):"none"],
+  ["Files",it.files&&it.files.length?String(it.files.length):"none"],
+  ["Missing",it.missing&&it.missing.length?it.missing.join(", "):"none"],
+  ["Waiting",it.waitingOn||"—"],["Step",it.step||it.status||"—"],
+  ["When",(it.t||"").replace("T"," ").slice(0,16)||"—"]
+ ];
+ document.getElementById("sheet-kv").innerHTML=rows.map(function(r){return "<b>"+esc(r[0])+"</b><span>"+esc(r[1])+"</span>";}).join("");
+ document.getElementById("sheet-why").textContent=whyCard(it);
+ document.getElementById("sheet-open").onclick=function(){if(window.AIADesks&&it.slug)AIADesks.switchTo(it.slug);};
+ document.getElementById("sheet").hidden=false;
+}
 async function load(){
- saveView();
+ saveView();paint();
  var rows=phone(),asked=slug?rows.filter(function(d){return d.slug===slug;}):rows;
  var banner=document.getElementById("banner"),list=document.getElementById("list");
  if(!asked.length){banner.textContent="Add a desk on this phone first.";list.innerHTML="";return;}
@@ -167,12 +278,12 @@ async function load(){
   function sel(id,rows,blank){var el=document.getElementById(id),cur=el.value;el.innerHTML="<option value=\"\">"+blank+"</option>"+(rows||[]).map(function(n){return "<option>"+esc(n)+"</option>";}).join("");if(cur)el.value=cur;}
   sel("who",f.who,"Anyone");sel("work",f.work,"Any kind");sel("pipe",f.pipes,"Any pipe");
   var items=data.items||[];last=items;
-  var text=encodeURIComponent(story().slice(0,900));
+  var text=encodeURIComponent((logicLine()+"\n"+story()).slice(0,900));
   document.getElementById("text-view").href="sms:?&body="+text;
   document.getElementById("mail-view").href="mailto:?subject="+encodeURIComponent("Desk history")+"&body="+text;
-  if(!items.length){list.innerHTML="<div class=\"card\"><p>Nothing in this view. Drop work or clear filters.</p></div>";return;}
+  if(!items.length){list.innerHTML="<div class=\"card\"><p>Nothing matches this AND. Clear a flag or try another example.</p></div>";return;}
   list.innerHTML=items.map(function(it){
-    var when=(it.t||"").replace("T"," ").slice(0,16);
+    var stamp=(it.t||"").replace("T"," ").slice(0,16);
     var extra=it.waitingOn?" · waiting on "+esc(it.waitingOn):"";
     var tags="";
     if(it.money)tags+="<span class=\"tag\">Money</span>";
@@ -182,27 +293,35 @@ async function load(){
     if(it.missing&&it.missing.length)tags+="<span class=\"tag\">Missing "+esc(it.missing[0])+"</span>";
     if(it.handed)tags+="<span class=\"tag\">Handed</span>";
     if(it.late||it.expired)tags+="<span class=\"tag\">Late</span>";
-    return "<article class=\"card\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(when)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.how||it.past||it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p>"+tags+"<div class=\"acts\"><a href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\">Open on desk</a><button type=\"button\" data-id=\""+esc(it.id)+"\">Copy story</button></div></article>";
+    if(it.kind==="audit"||it.kind==="desk")tags+="<span class=\"tag\">Audit</span>";
+    return "<article class=\"card\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(stamp)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.how||it.past||it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p>"+tags+"<div class=\"acts\"><button type=\"button\" data-explore=\""+esc(it.id)+"\">Explore</button><a href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\">Open on desk</a><button type=\"button\" data-id=\""+esc(it.id)+"\">Copy story</button></div></article>";
   }).join("");
  }catch(e){banner.textContent="Could not reach history.";}
 }
-document.getElementById("lanes").onclick=function(e){var b=e.target.closest("[data-lane]");if(!b)return;lane=b.getAttribute("data-lane");paint();load();};
-document.getElementById("whens").onclick=function(e){var b=e.target.closest("[data-when]");if(!b)return;when=b.getAttribute("data-when");paint();load();};
-document.getElementById("flags").onclick=function(e){var b=e.target.closest("[data-flag]");if(!b)return;flags[b.getAttribute("data-flag")]=!flags[b.getAttribute("data-flag")];paint();load();};
-document.getElementById("adv-btn").onclick=function(){advanced=!advanced;paint();load();};
+document.getElementById("lanes").onclick=function(e){var b=e.target.closest("[data-lane]");if(!b)return;lane=b.getAttribute("data-lane");load();};
+document.getElementById("whens").onclick=function(e){var b=e.target.closest("[data-when]");if(!b)return;when=b.getAttribute("data-when");load();};
+document.getElementById("flags").onclick=function(e){var b=e.target.closest("[data-flag]");if(!b)return;flags[b.getAttribute("data-flag")]=!flags[b.getAttribute("data-flag")];load();};
+document.getElementById("examples").onclick=function(e){var b=e.target.closest("[data-ex]");if(!b)return;applyEx(b.getAttribute("data-ex"));load();};
+document.getElementById("adv-btn").onclick=function(){advanced=!advanced;load();};
 document.getElementById("desk-pick").onchange=function(){slug=this.value||"";load();};
 document.getElementById("who").onchange=function(){who=this.value||"";load();};
 document.getElementById("work").onchange=function(){work=this.value||"";load();};
 document.getElementById("pipe").onchange=function(){pipe=this.value||"";load();};
 document.getElementById("since").onchange=function(){since=this.value||"";load();};
 var timer;document.getElementById("q").oninput=function(){var v=this.value||"";clearTimeout(timer);timer=setTimeout(function(){q=v;load();},220);};
-document.getElementById("copy-view").onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(story());};
-document.getElementById("clear-view").onclick=function(){lane="all";when="all";q=who=work=pipe=since="";flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};document.getElementById("q").value="";document.getElementById("since").value="";paint();load();};
-document.getElementById("list").onclick=function(e){var b=e.target.closest("[data-id]");if(!b)return;var it=last.filter(function(x){return x.id===b.getAttribute("data-id");})[0];if(it&&navigator.clipboard)navigator.clipboard.writeText((it.title||"")+"\n"+(it.how||it.past||"")+"\n"+(it.result||""));};
-document.getElementById("hear").onclick=function(){if(window.AIASpeech&&AIASpeech.speak)AIASpeech.speak(document.getElementById("counts").textContent+" "+story().split("\n").slice(0,6).join(". "));};
+document.getElementById("copy-view").onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(logicLine()+"\n"+story());};
+document.getElementById("clear-view").onclick=function(){reset();load();};
+document.getElementById("list").onclick=function(e){
+ var ex=e.target.closest("[data-explore]");
+ if(ex){var it=last.filter(function(x){return x.id===ex.getAttribute("data-explore");})[0];if(it)explore(it);return;}
+ var b=e.target.closest("[data-id]");if(!b)return;var row=last.filter(function(x){return x.id===b.getAttribute("data-id");})[0];if(row&&navigator.clipboard)navigator.clipboard.writeText((row.title||"")+"\n"+(row.how||row.past||"")+"\n"+whyCard(row));
+};
+document.getElementById("sheet-close").onclick=function(){document.getElementById("sheet").hidden=true;};
+document.getElementById("sheet-copy").onclick=function(){if(openItem&&navigator.clipboard)navigator.clipboard.writeText(JSON.stringify(openItem,null,2));};
+document.getElementById("hear").onclick=function(){if(window.AIASpeech&&AIASpeech.speak)AIASpeech.speak(logicLine()+" "+story().split("\n").slice(0,5).join(". "));};
 document.getElementById("quiet").onclick=function(){if(window.AIASpeech&&AIASpeech.stopTalk)AIASpeech.stopTalk();};
-document.getElementById("talk").onclick=function(){if(!window.AIASpeech||!AIASpeech.listen)return;AIASpeech.listen(function(text){applyTalk(text);paint();load();});};
-loadView();fillPick();paint();load();
+document.getElementById("talk").onclick=function(){if(!window.AIASpeech||!AIASpeech.listen)return;AIASpeech.listen(function(text){applyTalk(text);load();});};
+loadView();fillPick();load();
 </script>
 </body>
 </html>
