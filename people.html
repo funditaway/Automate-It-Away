@@ -28,7 +28,7 @@
   </header>
   <main class="wrap">
     <h1>People</h1>
-    <p>Everyone on desks this phone can open. Tap a name. Copy, text, or email the note — AIA does not send it.</p>
+    <p>Everyone on desks this phone can open. Search and a chip AND together. Tap a name. AIA does not send.</p>
     <div class="banner" id="banner">Open the desk on this phone to see who sits here.</div>
     <div id="desk-chips" class="chips" aria-label="Desks on this phone"></div>
     <div class="kpis">
@@ -40,17 +40,19 @@
     </div>
     <div class="you" id="you-card" hidden></div>
     <div class="chips" id="filters" role="tablist" aria-label="Filter people"></div>
-    <input type="search" id="q" placeholder="Find a name, desk, phone, or email" autocomplete="off">
+    <div class="talk" id="find-talk">
+      <button type="button" id="hear">Hear this</button>
+      <button type="button" id="talk">Talk</button>
+      <button type="button" id="quiet">Quiet</button>
+      <button type="button" id="clear-view">Clear</button>
+    </div>
+    <p class="meta" id="heard"></p>
+    <input type="search" id="q" placeholder="Find a name, desk, seat, phone, or email" autocomplete="off">
+    <p class="meta" id="people-logic">Type a name and tap a chip — they AND together.</p>
     <div id="list"></div>
     <div class="add" id="add-box" hidden>
       <h2 style="margin-top:0">Add someone</h2>
       <p>One AIA account. Name them. Pick a seat. Give a code if they do not have an account yet.</p>
-      <div class="talk">
-        <button type="button" id="hear">Hear this</button>
-        <button type="button" id="talk">Talk</button>
-        <button type="button" id="quiet">Quiet</button>
-      </div>
-      <p class="meta" id="heard"></p>
       <div class="grid">
         <input id="n" placeholder="Name" autocomplete="name">
         <select id="k">
