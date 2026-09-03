@@ -14,6 +14,17 @@
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="desk-nav.css">
   <script src="theme.js"></script>
+  <style>
+    main.wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 28px}
+    .menu.card{padding:4px 0;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+    .menu.card>a{display:block;padding:12px 16px;color:var(--heading);text-decoration:none;font-weight:700;border-bottom:1px solid var(--line)}
+    .menu.card>a:last-child{border-bottom:0}
+    .menu.card>a span{display:block;margin-top:3px;font-size:13px;font-weight:500;color:var(--muted);line-height:1.35}
+    body.has-desk-nav header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 12px}
+    body.has-desk-nav header>.brand{grid-column:1;grid-row:1}
+    body.has-desk-nav header .theme-btn{grid-column:2;grid-row:1;justify-self:end}
+    body.has-desk-nav header .desk-tabs{grid-column:1/-1;grid-row:2}
+  </style>
 </head>
 <body class="has-desk-nav">
   <header>
