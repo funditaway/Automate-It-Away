@@ -95,7 +95,8 @@
     css.id = "desk-nav-css";
     css.textContent =
       "body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}" +
-      ".desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 15px/1.2 Segoe UI,system-ui,sans-serif}" +
+      "header, .site-header{display:flex;flex-wrap:wrap;align-items:center}" +
+      ".desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px 18px;padding-top:8px;font:700 15px/1.2 Segoe UI,system-ui,sans-serif}" +
       ".desk-tabs a{color:#fff;text-decoration:none}.desk-tabs a.on{color:#f39c12}" +
       "#desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}" +
       "#desk-nav a{flex:1;width:auto;margin:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,Segoe UI,sans-serif;letter-spacing:.02em;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}" +
@@ -172,12 +173,7 @@
       v.setAttribute("data-aia-desk-view", "1");
       document.body.appendChild(v);
     }
-    if (tabOf() === "queue" && !document.querySelector("script[data-aia-desk-clock]")) {
-      var c = document.createElement("script");
-      c.src = "/desk-clock.js";
-      c.setAttribute("data-aia-desk-clock", "1");
-      document.body.appendChild(c);
-    }
+    /* desk-clock.js is not on the box. Do not 404 the queue. */
     if (tabOf() === "drop" && !document.querySelector("script[data-aia-drop-talk]")) {
       var t = document.createElement("script");
       t.src = "/drop-talk.js";
