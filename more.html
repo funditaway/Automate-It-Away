@@ -15,15 +15,19 @@
   <link rel="stylesheet" href="desk-nav.css">
   <script src="theme.js"></script>
   <style>
-    main.wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 28px}
-    .menu.card{padding:4px 0;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:var(--card)}
-    .menu.card>a{display:block;padding:12px 16px;color:var(--heading);text-decoration:none;font-weight:700;border-bottom:1px solid var(--line)}
-    .menu.card>a:last-child{border-bottom:0}
-    .menu.card>a span{display:block;margin-top:3px;font-size:13px;font-weight:500;color:var(--muted);line-height:1.35}
-    body.has-desk-nav header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 12px}
-    body.has-desk-nav header>.brand{grid-column:1;grid-row:1}
-    body.has-desk-nav header .theme-btn{grid-column:2;grid-row:1;justify-self:end}
-    body.has-desk-nav header .desk-tabs{grid-column:1/-1;grid-row:2}
+    body{margin:0}
+    a{color:inherit;text-decoration:none}
+    header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
+    header a{color:#fff}
+    .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 24px}
+    h1{font-size:1.4rem;margin:0 0 8px}
+    h2{font-size:.95rem;margin:18px 0 6px;color:var(--heading)}
+    p{color:var(--muted);margin:0 0 12px}
+    .card{border:1px solid var(--line);border-radius:14px;padding:4px 4px;margin:10px 0;box-shadow:var(--shadow)}
+    @media(min-width:640px){.card{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}}
+    .card a{display:block;color:var(--heading);font-weight:700;padding:14px 12px;border-radius:12px}
+    .card a span{display:block;font-weight:600;color:var(--muted);font-size:13px;margin-top:2px}
+    .card a:active{background:var(--edit)}
   </style>
 </head>
 <body class="has-desk-nav">
@@ -43,24 +47,25 @@
     <p>Talk to the desk on Drop. Invite a helper. Add a rule if something should wait. Same queue. Nothing leaves until you tap.</p>
     <p class="meta" id="grok-line">Drafts land on the card. You send them. Or you Stop.</p>
     <h2>You</h2>
-    <div class="card menu">
+    <div class="card">
       <a href="/account">Your account<span>Photo, name, desks, plan. The top-right chip opens this page.</span></a>
-      <a href="/desks">Your desks<span>See every desk on this phone. Rename, close, export, or delete.</span></a>
+      <a href="/desks">Your desks<span>Desks this account can open. See the seat. Leave anytime. Ask for family, friend, helper, member, or staff. World users receive @accountname.</span></a>
       <a href="/people">People<span>On the tab bar. Everyone on desks this phone can open. Tap a name for their desks, what they hold, and history with yours.</span></a>
       <a href="/admin">Account book<span>Tickets, audit, money log, helper shop taps. Owner book.</span></a>
     </div>
     <h2>The work</h2>
-    <div class="card menu">
+    <div class="card">
       <a href="/desk">Queue<span>Cards waiting. Talk, Yes, or Stop.</span></a>
-      <a href="/drop#talk">Drop · Talk to the desk<span>Pick a desk. Say the whole list. Orange only when you mark it first. History keeps the trail.</span></a>
+      <a href="/drop#talk">Drop · Talk to the desk<span>Pick a desk. Say the work. Use a listed pack — AIA or a creator. Orange only when you mark it first.</span></a>
       <a href="/history">History<span>Start to finish. Filter by person. Orange cards first. Need you, in progress, waiting, ext, done.</span></a>
       <a href="/connections">Pipes and draft accounts<span>Not on the tab bar — lives here. Search any site. Webhook is live. Drafts never Send.</span></a>
       <a href="/rules">Rules<span>Owner page. Wait, stop, note, or cap. Not on the tab bar — lives here.</span></a>
-      <a href="/create">Create<span>Make a job, an automation, or another shop. List a pack or set an ask.</span></a>
-      <a href="/market">Packs<span>Search listed automations. Use one on this desk. Pack rules can Cap. Priced packs are a tag — no card yet.</span></a>
+      <a href="/dev">Developer account<span>Separate creator desk. Same login. Pack bots draft only. Not a second book.</span></a>
+      <a href="/create">Creator studio<span>Make a pack this desk can run. Keep it private, list it free, or set an ask. Shop is on Market.</span></a>
+      <a href="/market">Shop packs<span>Work packs, free AIA colors, wanted ideas, and creator asks. View + demo. Use as many work packs as you want. Ask is a tag — no card.</span></a>
     </div>
     <h2>If you need a hand</h2>
-    <div class="card menu">
+    <div class="card">
       <a href="/help">Help<span>Words on the buttons.</span></a>
       <a href="/support">Support<span>If something broke.</span></a>
       <a href="/legal">Legal<span>What AIA does not do.</span></a>
@@ -68,12 +73,22 @@
     </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">
-    <a href="/desk" data-tab="queue"><span>Queue</span></a>
-    <a href="/drop" data-tab="drop"><span>Drop</span></a>
-    <a href="/history" data-tab="history"><span>History</span></a>
-    <a href="/people" data-tab="people"><span>People</span></a>
-    <a href="/more" data-tab="more"><span>More</span></a>
+    <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
+    <a href="/drop" data-tab="drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
+    <a href="/history" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>History</span></a>
+    <a href="/people" data-tab="people"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>People</span></a>
+    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-nav.js"></script>
+  <script>
+    fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {
+      const g = h && h.automation && h.automation.grok;
+      const el = document.getElementById("grok-line");
+      if (!el || !g) return;
+      el.textContent = g.on
+        ? "Grok is on. Drafts land on the card. Never Send."
+        : "Grok key is off. Set XAI_API_KEY from console.x.ai — Heavy chat is not the key.";
+    }).catch(function () {});
+  </script>
 </body>
 </html>
