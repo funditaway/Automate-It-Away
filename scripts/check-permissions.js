@@ -62,6 +62,20 @@ const agentCan = roles.stripHard(roles.resolveCan("agent", "Doer", "approved"), 
 if (agentCan.send || agentCan.stop || agentCan.money) fail("agent can must never send/stop/money");
 else pass("11 agent never send, stop, or money");
 
+const ownerCan = roles.resolveCan("owner", "", "approved");
+if (!ownerCan.override || !ownerCan.include) fail("owner catalog should include override+include");
+else pass("12 owner catalog has override+include");
+
+if (!roles.canOverride(owner) || roles.canOverride(helper) || roles.canOverride(agent)) fail("canOverride owner-only");
+else pass("13 canOverride is owner-only");
+
+const noOverrideSeat = perms.setSeatCan({ people: [{ id: "p_no", role: "employee", kind: "helper", status: "approved" }] }, "p_no", { override: true });
+if (noOverrideSeat.ok || noOverrideSeat.status !== 403) fail("setSeatCan must reject override");
+else pass("14 setSeatCan rejects override");
+
+if (!roles.canInclude(agent) || roles.canOverride(agent)) fail("agent include yes override no");
+else pass("15 agent include yes, override no");
+
 const card = perms.publicPerson({
   id: "p_sam",
   name: "Sam",
@@ -78,7 +92,7 @@ const card = perms.publicPerson({
 if (!card.can || card.can.money || !card.never || card.never.indexOf("money") < 0) fail("publicPerson can/never");
 else if (!card.money || card.money.charged !== false || card.ext !== 2 || card.at !== "@sam" || card.xHandle !== "samx") {
   fail("publicPerson money/ext/handle " + JSON.stringify(card));
-} else pass("12 publicPerson shows can, never, money, Ext, X handle");
+} else pass("16 publicPerson shows can, never, money, Ext, X handle");
 
 if (process.exitCode) {
   console.error("check-permissions failed");
