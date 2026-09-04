@@ -1,7 +1,8 @@
 const hand = require("./_handoff");
 const {
   ensureRules, moneyWaitOf, moneyNeedsOwner,
-  ruleWantsOwner, ruleWantsStop, ruleWhy
+  ruleWantsOwner, ruleWantsStop, ruleWhy,
+  whenMatches, ifMatches, jobTagsOf
 } = require("./_lib");
 const clock = require("./_clock");
 
@@ -31,7 +32,7 @@ function blobOf(job) {
   return [
     job && job.title, job && job.notes, job && job.kind, job && job.pack,
     job && job.why, job && job.draft, job && job.risk, job && job.timing,
-    job && job.tell, custom.outcome, custom.pack, custom.need
+    job && job.tell, jobTagsOf(job).join(" "), custom.outcome, custom.pack, custom.need
   ].filter(Boolean).join(" ").toLowerCase();
 }
 
@@ -154,26 +155,16 @@ function rulesOf(job, shop) {
 
 function ruleMatches(rule, job, step) {
   if (!rule || !job) return false;
-  const when = String(rule.when || rule.step || "qualify").toLowerCase();
-  if (when && when !== "any" && step && when !== String(step).toLowerCase()) return false;
-  if (rule.ifKind && String(job.kind || "").toLowerCase() !== String(rule.ifKind).toLowerCase()) return false;
+  if (!whenMatches(rule.when || rule.step || rule.attach || "qualify", step, job)) return false;
+  if (!ifMatches(rule, job)) return false;
   if (rule.ifPack || rule.ifModel) {
     const want = String(rule.ifPack || rule.ifModel).toLowerCase();
     const have = String(job.pack || "").toLowerCase();
     if (have !== want && packFace(have).id !== want && packFace(have).key !== want) return false;
   }
-  if (rule.contains && blobOf(job).indexOf(String(rule.contains).toLowerCase()) < 0) return false;
-  if (rule.ifField && rule.ifValue) {
-    const got = String((job[rule.ifField] != null ? job[rule.ifField] : (job.custom && job.custom[rule.ifField])) || "").toLowerCase();
-    if (got !== String(rule.ifValue).toLowerCase()) return false;
-  }
   if (rule.ifLate && !job.late) return false;
   if (rule.ifExpired && !job.expired) return false;
   if (rule.ifDue && !(job.dueAt || job.due || job.timing)) return false;
-  if (rule.ifMoney != null) {
-    const n = moneyOf(job);
-    if (n == null || n < Number(rule.ifMoney)) return false;
-  }
   return true;
 }
 
@@ -189,9 +180,13 @@ function capCount(jobs, workspace) {
 function applyCap(job, shop, jobs) {
   if (!job) return job;
   const hits = matchingRules(job, shop, "qualify").concat(matchingRules(job, shop, "follow"))
-    .filter((r) => String(r.then || "").toLowerCase() === "cap");
+    .concat(matchingRules(job, shop, "status"))
+    .filter((r) => {
+      const t = String(r.then || "").toLowerCase();
+      return t === "cap" || t === "escalate";
+    });
   if (!hits.length) return job;
-  if (job.cap || job.priority) return job;
+  if (job.cap && job.priority) return job;
   const ws = job.workspace || (shop && shop.slug) || "";
   const used = capCount(jobs || [], ws);
   if (used >= CAP_MAX) {
@@ -206,24 +201,65 @@ function applyCap(job, shop, jobs) {
   return job;
 }
 
+function addTag(job, tag) {
+  const next = String(tag || "").trim();
+  if (!next) return;
+  const have = jobTagsOf(job);
+  if (have.some(function (t) { return String(t).toLowerCase() === next.toLowerCase(); })) return;
+  job.tags = have.concat([next]);
+  job.custom = Object.assign({}, job.custom || {}, { tags: job.tags });
+}
+
+function applyThen(job, rule, step) {
+  const then = String(rule.then || "").toLowerCase();
+  const why = rule.text || ruleWhy([rule], job, step) || "Desk rule.";
+  if (then === "stop") {
+    job.waitingOn = "owner";
+    job.rail = job.rail || "held";
+    job.why = why;
+    job.next = why + " Stop stays an owner tap.";
+  } else if (then === "wait") {
+    job.waitingOn = job.waitingOn || "owner";
+    job.why = job.why || why;
+    job.next = why;
+  } else if (then === "draft") {
+    if (!job.draft) job.draft = why + " Desk AI draft. Human send HOLD.";
+    else if (!/HOLD/i.test(job.draft)) job.draft = String(job.draft) + " Human send HOLD.";
+    job.waitingOn = job.waitingOn || "person";
+    job.next = why + " Draft on the card. Human send HOLD.";
+    job.log = (job.log || []).concat(["When/If/Then · draft HOLD"]);
+  } else if (then === "notify") {
+    const line = why + " Desk AI draft. Nothing sent.";
+    job.notify = (job.notify || []).concat([{ who: "owner", text: line, hold: true }]);
+    if (!job.draft) job.draft = line;
+    job.waitingOn = job.waitingOn || "owner";
+    job.next = job.next || line;
+    job.log = (job.log || []).concat(["When/If/Then · notify HOLD"]);
+  } else if (then === "queue") {
+    job.alert = why;
+    job.status = job.status && job.status !== "exception" ? job.status : "waiting";
+    job.next = job.next || why;
+    job.log = (job.log || []).concat(["When/If/Then · Queue alert"]);
+  } else if (then === "tag") {
+    addTag(job, rule.tag || rule.thenTag || rule.contains);
+    job.log = (job.log || []).concat(["When/If/Then · tag " + (rule.tag || rule.thenTag || "")]);
+  } else if (then === "escalate" || then === "cap") {
+    job.priority = true;
+    job.priorityAt = job.priorityAt || new Date().toISOString();
+    job.priorityBy = job.priorityBy || "rule";
+    job.next = job.next || why;
+    job.log = (job.log || []).concat(["When/If/Then · escalate"]);
+  } else if (then === "note") {
+    job.log = (job.log || []).concat([why]);
+  }
+  if (rule.tag && then !== "tag") addTag(job, rule.tag);
+}
+
 function applyRules(job, shop, step) {
   if (!job) return job;
   const hits = matchingRules(job, shop, step || "qualify");
   hits.forEach((rule) => {
-    const then = String(rule.then || "").toLowerCase();
-    const why = rule.text || ruleWhy([rule], job, step) || "Desk rule.";
-    if (then === "stop") {
-      job.waitingOn = "owner";
-      job.rail = job.rail || "held";
-      job.why = why;
-      job.next = why + " Stop stays an owner tap.";
-    } else if (then === "wait") {
-      job.waitingOn = job.waitingOn || "owner";
-      job.why = job.why || why;
-      job.next = why;
-    } else if (then === "note") {
-      job.log = (job.log || []).concat([why]);
-    }
+    applyThen(job, rule, step);
   });
   if (ruleWantsStop && shop && (ruleWantsStop(ensureRules(shop), job, step || "qualify"))) {
     job.waitingOn = "owner";
@@ -312,6 +348,9 @@ function qualifyJob(job, shop, jobs) {
   }
   applyRules(job, shop, "qualify");
   applyRules(job, shop, "capture");
+  applyRules(job, shop, "drop");
+  applyRules(job, shop, "pipe");
+  applyRules(job, shop, "inbound");
   applyCap(job, shop, jobs);
   if (!job.next) {
     const line = clock.clockLine(job);
@@ -331,6 +370,7 @@ function followJob(job, shop) {
   if (!job || job.status === "killed" || job.status === "shipped") return job;
   clock.tickClock(job);
   applyRules(job, shop, "follow");
+  applyRules(job, shop, "status");
   if (job.expired) {
     job.waitingOn = job.waitingOn || "owner";
     job.next = job.next || "This card expired. Open it or Stop it. Nothing sent.";

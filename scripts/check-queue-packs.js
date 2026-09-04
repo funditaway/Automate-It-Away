@@ -94,7 +94,7 @@ if (/White House|Action Plan|executive order/i.test(JSON.stringify(adoption))) f
 else pass("aia-adoption is desk language, not a reprint");
 
 const helpPage = fs.readFileSync(path.join(root, "help.html"), "utf8");
-["Try first", "Workers decide", "Open packs", "Secure from the start"].forEach(function (bit) {
+["Try first", "Workers decide", "Open packs", "Secure from the start", "When · If · Then", "Workflow / Sequence"].forEach(function (bit) {
   if (!helpPage.includes(bit)) fail("help.html missing " + bit);
   else pass("help " + bit);
 });

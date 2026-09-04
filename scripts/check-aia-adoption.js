@@ -122,7 +122,7 @@ if (!/"\/creators"/.test(vercel) || !vercel.includes("/developer")) fail("vercel
 else pass("/creators → Creators Studio");
 
 const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
-["Try first", "Workers decide", "Open packs", "Secure from the start"].forEach(function (bit) {
+["Try first", "Workers decide", "Open packs", "Secure from the start", "When · If · Then"].forEach(function (bit) {
   if (!help.includes(bit)) fail("help.html missing " + bit);
   else pass("help " + bit);
 });

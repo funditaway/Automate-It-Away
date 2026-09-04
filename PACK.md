@@ -69,11 +69,30 @@ Official files live in `packs/{id}.json`. Using a pack copies `rules` onto the d
 }
 ```
 
-Rule keys:
+Rule keys (When → If → Then):
 
-- `when` — stage: `qualify` | `do` | `collect` | `follow`
-- `then` — `wait` (hold for owner) | `stop` | `note` (`cap` becomes `wait`)
-- `contains` — only fire if that word is on the card. Empty means the whole stage.
+- `when` — **Trigger**: `drop` | `pipe` | `inbound` | `status`. Playbook steps still work: `qualify` | `capture` | `do` | `collect` | `follow`
+- `then` — **Action**: `draft` (desk AI, HOLD) | `queue` (Queue card / alert) | `notify` (draft HOLD) | `tag` | `escalate` | `wait` | `stop` | `note`
+- **If** — `contains`, `ifTag`, `ifStatus`, `ifUnassigned`, `ifOlder` (hours), `ifMoney`, `ifField` + `ifValue`
+- `tag` — word to put on the card when Then is tag (or alongside draft)
+
+A **rule** is one When → If → Then on this desk.
+
+**Workflows / Sequences** are packs that string rules (optional `delay` / `branch`). Still thin JSON. No dashboard fork.
+
+```json
+{
+  "workflows": [
+    {
+      "id": "lead-click",
+      "name": "Lead clicked",
+      "rules": [
+        { "text": "Click + Lead → tag Interested. Draft HOLD.", "when": "drop", "ifTag": "Lead", "contains": "click", "then": "draft", "tag": "Interested" }
+      ]
+    }
+  ]
+}
+```
 
 `taps` are owner-only. `rails` are the face hints. `face` is who / what / when / where / how.
 

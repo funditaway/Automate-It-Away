@@ -34,6 +34,10 @@ const studio = fs.readFileSync(path.join(root, "developer.js"), "utf8");
 });
 if (studio.includes("$250")) fail("studio invented $250");
 else pass("studio no $250");
+["When", "If", "Then", "workflows", "Lead click", "Customs Form", "older than 24h", "Pack workflow"].forEach(function (bit) {
+  if (!studio.includes(bit)) fail("developer.js missing " + bit);
+  else pass("studio " + bit);
+});
 
 const create = fs.readFileSync(path.join(root, "create-desk.js"), "utf8");
 if (!create.includes('id: "ai"') || !create.includes("save-ai")) fail("create-desk.js missing Desk AI type");
