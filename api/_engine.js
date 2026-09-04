@@ -128,9 +128,9 @@ function brainOf(packId, kind) {
 }
 
 function rulesOf(job, shop) {
-  const owner = shop ? (ensureRules(shop) || []) : [];
-  const pack = packRulesOf(job && job.pack);
-  return owner.concat(pack);
+  if (!shop) return [];
+  if (!Array.isArray(shop.rules)) shop.rules = [];
+  return shop.rules.filter(Boolean);
 }
 
 function ruleMatches(rule, job, step) {

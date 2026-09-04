@@ -82,7 +82,7 @@ const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
 if (!widget.includes("AIADesks.captureDesk") || !pickJs.includes("AIADesks.list") || !pickJs.includes("switchTo")) {
   fail("widget.html must list and switch saved desks");
 } else pass("widget.html lists saved desks");
-if (!widget.includes("This drop is for") || !widget.includes("Your desks — tap one.") || !widget.includes("Create a new desk — name it, then drop.") || !widget.includes("Add another desk — same phone, separate queue.")) {
+if (!widget.includes("Which desk gets this") || !widget.includes("Desks saved on this phone") || !widget.includes("Create a new desk") || !widget.includes("Add a saved desk")) {
   fail("widget.html missing doer picker copy");
 } else pass("widget copy is desk picker");
 if (!widget.includes("nouns") && !widget.includes("NOUNS.capture") && !widget.includes("nouns.capture")) {
@@ -90,7 +90,7 @@ if (!widget.includes("nouns") && !widget.includes("NOUNS.capture") && !widget.in
 } else pass("widget.html uses owner nouns");
 
 const onboard = fs.readFileSync(path.join(root, "onboard.html"), "utf8");
-if (!onboard.includes("Name this desk") || !onboard.includes("Open it") || !onboard.includes("AIADesks.open")) {
+if (!onboard.includes("Desk name") || !onboard.includes("AIADesks.open")) {
   fail("onboard.html should name the desk and add it");
 } else pass("onboard adds the desk");
 
@@ -142,8 +142,41 @@ if (!rulesPage.includes("id=\"desk-nav\"") || !rulesPage.includes("href=\"/rules
 if (!rulesPage.includes("action: \"widget\"") || !rulesPage.includes("widget-count")) {
   fail("rules.html must toggle widgets and show the count");
 } else pass("rules.html toggles rule widgets");
-if (!rulesPage.includes("action: \"nouns\"")) fail("rules.html should save nouns");
-else pass("rules.html saves nouns");
+if (rulesPage.includes("placeholder=\"250\"") || rulesPage.includes("Starters") || rulesPage.includes("id=\"starters\"")) {
+  fail("rules.html still shows example / $250 starter chrome");
+} else pass("rules.html has no example-rule chrome");
+if (!rulesPage.includes("Starts empty") && !rulesPage.includes("No rules yet")) fail("rules.html missing empty-desk copy");
+else pass("rules.html says the desk starts empty");
+
+const libSrc = fs.readFileSync(path.join(root, "api/_lib.js"), "utf8");
+if (libSrc.includes("SEED_RULE_TEXT") || libSrc.includes("Payments over $250 wait for the owner.")) {
+  fail("api/_lib.js still exports a $250 seed rule");
+} else pass("API has no $250 seed rule");
+
+const preview = fs.readFileSync(path.join(root, "drop-preview.js"), "utf8");
+if (preview.includes("HOLD · $250+") || preview.includes(">= 250")) {
+  fail("drop-preview.js still invents a $250 hold");
+} else pass("Drop does not invent a $250 hold");
+
+const dropPage = fs.readFileSync(path.join(root, "drop.html"), "utf8");
+["Drop anything", "a task, an errand, a list, an idea, a project", "value=\"task\"", "value=\"idea\"", "value=\"project\"", "value=\"build\""].forEach(function (bit) {
+  if (!dropPage.includes(bit)) fail("drop.html missing drop-anything chrome: " + bit);
+});
+["Drop something off", "List / sell", "list the lamp"].forEach(function (bit) {
+  if (dropPage.includes(bit)) fail("drop.html still has consign chrome: " + bit);
+});
+if (!process.exitCode) pass("drop.html reads as drop anything");
+["Drop anything", "a task, an errand, a list, an idea, a project"].forEach(function (bit) {
+  if (!widget.includes(bit)) fail("widget.html missing drop-anything chrome: " + bit);
+});
+["Drop something off", "List / sell", "list the lamp"].forEach(function (bit) {
+  if (widget.includes(bit)) fail("widget.html still has consign chrome: " + bit);
+});
+if (!process.exitCode) pass("widget.html reads as drop anything");
+const agentSrc = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
+const moreSrc = fs.readFileSync(path.join(root, "drop-more.js"), "utf8");
+if (agentSrc.includes("List / sell") || moreSrc.includes("List this")) fail("Drop kinds still say List / sell");
+else pass("Drop kinds are not consign-only");
 
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("href: \"/rules\"") || !nav.includes("name === \"rules\"")) {
@@ -157,6 +190,10 @@ const morePage = fs.readFileSync(path.join(root, "more.html"), "utf8");
 if (!morePage.includes("id=\"desk-nav\"") || !morePage.includes("href=\"/more\"") || !morePage.includes("This desk.")) {
   fail("more.html must be its own desk page");
 } else pass("more.html is the More page");
+["65 DEMO", "seedLiveBlob", "Never Vita", "dogfood", "api_fields.js", "AIA needs AIA", "Whatnot stays down"].forEach(function (bit) {
+  if (morePage.includes(bit)) fail("more.html still shows crew note: " + bit);
+});
+if (!process.exitCode) pass("more.html has no public crew / demo notes");
 
 const publicPages = ["index.html", "how.html", "setup.html", "login.html", "onboard.html", "help.html", "widget.html", "desk.html", "rules.html", "more.html"];
 const leaks = [
@@ -205,7 +242,7 @@ if (jobs.includes("amount >= MONEY_HOLD && !body.confirm")) {
   fail("jobs.js must 409 only when an owner money-wait rule matches");
 } else pass("jobs.js 409s only on an owner money-wait rule");
 
-const themed = ["index.html", "how.html", "setup.html", "onboard.html", "login.html", "desk.html", "widget.html", "rules.html", "connections.html", "help.html", "more.html", "admin.html", "chat.html", "support.html", "legal.html", "pricing.html", "status.html"];
+const themed = ["index.html", "how.html", "setup.html", "onboard.html", "login.html", "desk.html", "drop.html", "widget.html", "rules.html", "pipes.html", "connections.html", "help.html", "more.html", "admin.html", "chat.html", "support.html", "legal.html", "pricing.html", "status.html"];
 let themeMiss = "";
 themed.forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");

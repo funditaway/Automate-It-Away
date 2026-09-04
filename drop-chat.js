@@ -30,13 +30,18 @@
     var t = String(text || "").replace(/\s+/g, " ").trim();
     var title = (t.split(/[.!?]/)[0] || t).slice(0, 80) || "Desk note";
     var kind = /\b(quote|how much|estimate)\b/i.test(t) ? "quote"
-      : /\b(list|sell|consign)\b/i.test(t) ? "list"
+      : /\b(task|to-?do)\b/i.test(t) ? "task"
+      : /\b(idea|what if)\b/i.test(t) ? "idea"
+      : /\b(project)\b/i.test(t) ? "project"
+      : /\b(build|make this|make a)\b/i.test(t) ? "build"
+      : /\b(sell|ebay|consign|listing)\b/i.test(t) ? "list"
+      : /\b(list)\b/i.test(t) ? "list"
       : /\b(call|missed)\b/i.test(t) ? "call"
       : /\b(repair|fix)\b/i.test(t) ? "repair"
       : /\b(ride|pick ?up)\b/i.test(t) ? "pickup"
-      : "request";
+      : "task";
     var next = kind === "quote" ? "Draft the quote. Owner taps Yes before anything leaves."
-      : kind === "list" ? "Draft the listing. You still send it."
+      : kind === "list" ? "On the queue as a list. You still tap Yes."
       : kind === "call" ? "Draft the call-back. Desk does not dial."
       : "On the queue. Copy, text, email, or hand it. Stop stays an owner tap.";
     return {

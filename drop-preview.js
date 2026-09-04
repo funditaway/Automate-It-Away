@@ -60,7 +60,6 @@
     var t = String(text || "");
     if (/\b(bind|coverage|illustration|application|policy)\b/i.test(t)) return "HOLD · bind / illustration / app";
     if (/\b(wire|payout|send money|pay them|move money)\b/i.test(t)) return "HOLD · move money";
-    if (Number(amount) >= 250) return "HOLD · $250+";
     return "";
   }
   function missing(card) {
@@ -69,7 +68,7 @@
     return null;
   }
   function actionLabel(id) {
-    var map = { text: "Text them", email: "Email them", call: "Call them back", book: "Put it on the calendar", hand: "Hand it to someone", list: "Draft a listing", quote: "Draft a quote", wait: "Owner decides", note: "Just keep the note" };
+    var map = { text: "Text them", email: "Email them", call: "Call them back", book: "Put it on the calendar", hand: "Hand it to someone", list: "Draft a list", quote: "Draft a quote", wait: "Owner decides", note: "Just keep the note" };
     return map[id] || id || "Need this";
   }
   function inject() {

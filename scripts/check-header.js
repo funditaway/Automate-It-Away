@@ -10,7 +10,7 @@ function pass(msg) {
 }
 
 const root = path.join(__dirname, "..");
-const files = fs.readdirSync(root).filter((f) => f.endsWith(".html") && f !== "drop.html");
+const files = fs.readdirSync(root).filter((f) => f.endsWith(".html"));
 
 files.forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");

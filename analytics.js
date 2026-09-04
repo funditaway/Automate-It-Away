@@ -25,7 +25,7 @@
 
   function blankMoneyExample() {
     var money = document.getElementById("rule-money");
-    if (money && money.getAttribute("placeholder") === "250") {
+    if (money && (money.getAttribute("placeholder") === "250" || money.getAttribute("placeholder") === "$250")) {
       money.setAttribute("placeholder", "leave blank");
     }
   }

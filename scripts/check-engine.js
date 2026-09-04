@@ -68,12 +68,18 @@ if (q.pack !== "vita") fail("qualify pack " + q.pack);
 else if (q.packName !== "Insurance" || q.packFamily !== "Quote It Away") fail("qualify face " + q.packName + " / " + q.packFamily);
 else if (q.waitingOn === "owner" && /waiting on the owner/i.test(q.next || "") && !q.risk) fail("$250 without a rule waited");
 else if (!q.draft || !q.next || !q.recs || !q.recs.length) fail("qualify missing draft/next/recs");
-else if (/vita/.test(blob(q))) fail("Vita leaked onto the card: " + blob(q).slice(0, 200));
-else pass("qualify Insurance card, no $250 floor, no Vita word");
+else if (/vita/.test([q.draft, q.next, q.packName, q.packFamily].concat((q.recs || []).map(function (r) { return r.text || r; })).join(" ").toLowerCase())) {
+  fail("Vita leaked onto the card: " + blob(q).slice(0, 200));
+} else pass("qualify Insurance card, no $250 floor, no Vita word");
 
 const small = qualifyJob({ title: "Pay the oil change", notes: "home reminder", amount: 20 }, null);
 if (small.waitingOn === "owner") fail("$20 without a rule waited");
 else pass("$20 without a money rule does not wait");
+
+const emptyDesk = qualifyJob({ title: "School pickup", notes: "family school form" }, { slug: "empty-desk", rules: [] });
+if (emptyDesk.waitingOn === "owner" && /kid or school/i.test(emptyDesk.next || emptyDesk.why || "")) {
+  fail("empty desk inherited a pack example rule");
+} else pass("empty desk does not inherit pack example rules");
 
 const shop = {
   slug: "engine-shop",
