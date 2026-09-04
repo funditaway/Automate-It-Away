@@ -250,6 +250,10 @@
       "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download this pack as .aia</button></p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
+      "<div class=\"strip\"><div><b>1. Audit</b><span>Map the leaks. Capture · Qualify.</span></div>" +
+      "<div><b>2. Stack Connect</b><span>Hook the apps. Pipes.</span></div>" +
+      "<div><b>3. Agent Deploy</b><span>Desk AI drafts. Do.</span></div>" +
+      "<div><b>4. Guardrails</b><span>Person taps. Collect · Follow + audit.</span></div></div>" +
       "<p class=\"cta\"><a class=\"go ghost\" href=\"/market?pack=aia-adoption\">Try it on this desk</a></p>" +
       "<div id=\"mine-list\"></div></div>" +
       "<div class=\"card\"><h2>Official AIA packs</h2>" +

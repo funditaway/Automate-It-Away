@@ -130,6 +130,16 @@
         "<div><b>3. Use</b><span>Copy it onto your desk.</span></div>" +
         "<div><b>4. Drop</b><span>Stamp one card and work it.</span></div>" +
       "</div>" +
+      "<div class=\"card\"><b>How AIA lands · Try it on this desk</b>" +
+        "<p class=\"hint\">ai.aia is the brand. The desk runs on automateitaway.com. Same five steps: Capture → Qualify → Do → Collect → Follow + audit.</p>" +
+        "<div class=\"strip\">" +
+          "<div><b>1. Audit</b><span>Map the leaks. Capture · Qualify.</span></div>" +
+          "<div><b>2. Stack Connect</b><span>Hook the apps. Pipes.</span></div>" +
+          "<div><b>3. Agent Deploy</b><span>Desk AI drafts. Do.</span></div>" +
+          "<div><b>4. Guardrails</b><span>Person taps. Collect HOLD.</span></div>" +
+        "</div>" +
+        "<div class=\"cta\"><a class=\"use\" href=\"/market?pack=aia-adoption\">Try it on this desk</a><a class=\"use ghost\" href=\"/dev\">Creators Studio</a></div>" +
+      "</div>" +
       "<form class=\"card\" id=\"find\">" +
         "<label>Search packs</label>" +
         "<input name=\"q\" value=\"" + esc(QUERY) + "\" placeholder=\"lawn · flood · oil change · insurance\" autocomplete=\"off\">" +

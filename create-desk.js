@@ -77,7 +77,7 @@
         <button type="button" data-chip="aia" class="${packChip === "aia" ? "on" : ""}">AIA</button>
       </div>
       <div id="pack-list">${packRows()}</div>
-      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. Download and install use .aia files. ai.aia is the AIA Internet brand. The desk stays here. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
+      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. How AIA lands: Audit · Stack Connect · Agent Deploy · Guardrails. Download and install use .aia files. ai.aia is the AIA Internet brand. The desk stays here. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
       <label>Install a .aia pack</label>
       <input id="aia-file" type="file" accept=".aia,application/json">
       <p class="cta"><button type="button" class="use" id="install-aia">Install .aia on this desk</button></p>

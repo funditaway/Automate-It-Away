@@ -47,6 +47,10 @@ if (/seed money|demo seed|Labeled DEMO/i.test(raw)) fail("no demo seed money");
 else pass("no demo seed");
 if (/White House|Action Plan|executive order/i.test(raw)) fail("must not reprint policy");
 else pass("desk language, not a reprint");
+["Audit", "Stack Connect", "Agent Deploy", "Guardrails"].forEach(function (bit) {
+  if (!raw.includes(bit)) fail("aia-adoption missing phase " + bit);
+  else pass("adoption phase " + bit);
+});
 
 const pipes = (pack.pipes || []).map(function (p) { return String(p).toLowerCase(); });
 if (pipes.indexOf("ebay") >= 0 || pipes.indexOf("mail") >= 0 || pipes.indexOf("gmail") >= 0) fail("no live eBay/mail pipes");
@@ -126,6 +130,21 @@ const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
   if (!help.includes(bit)) fail("help.html missing " + bit);
   else pass("help " + bit);
 });
+["Audit", "Stack Connect", "Agent Deploy", "Guardrails"].forEach(function (bit) {
+  if (!help.includes(bit)) fail("help.html missing phase " + bit);
+  else pass("help phase " + bit);
+});
+const studioHtml = fs.readFileSync(path.join(root, "developer.html"), "utf8");
+["Audit", "Stack Connect", "Agent Deploy", "Guardrails", "How AIA lands"].forEach(function (bit) {
+  if (!studioHtml.includes(bit)) fail("Studio landing missing " + bit);
+  else pass("Studio landing " + bit);
+});
+if (!dev.includes("Audit") || !dev.includes("Stack Connect") || !dev.includes("Agent Deploy") || !dev.includes("Guardrails")) {
+  fail("Studio home missing adoption phases");
+} else pass("Studio home has adoption phases");
+const shop = fs.readFileSync(path.join(root, "market-shop.js"), "utf8");
+if (!shop.includes("How AIA lands") || !shop.includes("Stack Connect") || !shop.includes("Guardrails")) fail("market missing How AIA lands");
+else pass("market How AIA lands");
 if (/White House|Action Plan/i.test(help)) fail("help must not reprint policy");
 else pass("help is desk language");
 
