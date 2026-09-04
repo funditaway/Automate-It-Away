@@ -1,3 +1,5 @@
+/* Browser wallet bind only. EIP-1193 address + chainId. No keys. No tx.
+   Collect stays HOLD until a human Yes. Kill / $250 owner gates stay in jobs. */
 const lib = require("./_lib");
 
 const HELP =

@@ -48,6 +48,13 @@ if (/privateKey|mnemonic|secret key/i.test(helper)) fail("helper must not mentio
 else pass("helper has no private keys");
 if (/eth_sendTransaction|eth_sendRawTransaction|require\([\"'].*dw-check/.test(helper + ui)) fail("must not mint, send, or import dw-check");
 else pass("no mint / send / dw-check");
+if (/ethers|privy|walletconnect|@walletconnect|web3modal/i.test(helper + ui + html)) fail("must stay greenfield EIP-1193 — no WC/Privy/ethers");
+else pass("no WC / Privy / ethers");
+if (/aia_money|AIA\.money|fundWallet|chargeWallet/.test(helper + ui + html)) fail("must not wire demo aia_money or ledger charge");
+else pass("no aia_money chrome");
+const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
+if (/ethers|privy|walletconnect|wagmi|viem/i.test(pkg)) fail("package.json must not add a web3 stack");
+else pass("package.json stays thin");
 if (!/custodial: false/.test(helper) || !/charged: false/.test(helper)) fail("helper must stay non-custodial and uncharged");
 else pass("non-custodial uncharged");
 
