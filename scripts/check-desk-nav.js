@@ -8,7 +8,7 @@ function fail(msg) {
 function pass(msg) { console.log("ok  " + msg); }
 
 const root = path.join(__dirname, "..");
-const pages = ["desk.html", "widget.html", "connections.html", "help.html", "rules.html", "more.html"];
+const pages = ["desk.html", "drop.html", "widget.html", "pipes.html", "connections.html", "help.html", "rules.html", "more.html"];
 const need = ["Queue", "Drop", "Rules", "Pipes", "More", "has-desk-nav", "id=\"desk-nav\""];
 
 pages.forEach((file) => {
@@ -34,10 +34,17 @@ if (!desk.includes("data-tab=\"rules\"") || !desk.includes("data-tab=\"pipes\"")
 } else pass("desk tabs are Queue Drop Rules Pipes More");
 if (!desk.includes("href=\"/pipes\"")) fail("desk.html Pipes tab is not /pipes");
 else pass("desk Pipes tab href is /pipes");
-const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
-if (!widget.includes("data-tab=\"rules\"") || !widget.includes("data-tab=\"pipes\"")) {
-  fail("widget.html missing Rules / Pipes tabs");
+const drop = fs.readFileSync(path.join(root, "drop.html"), "utf8");
+if (!drop.includes("data-tab=\"rules\"") || !drop.includes("data-tab=\"pipes\"")) {
+  fail("drop.html missing Rules / Pipes tabs");
 } else pass("drop tabs are Queue Drop Rules Pipes More");
+if (drop.includes("http-equiv=\"refresh\"") || drop.includes("location.replace(\"/widget") || drop.length < 4000) {
+  fail("drop.html must be the real Drop page, not a stub");
+} else pass("drop.html is the real Drop page");
+const pipes = fs.readFileSync(path.join(root, "pipes.html"), "utf8");
+if (!pipes.includes("This desk") || pipes.includes("http-equiv=\"refresh\"") || pipes.length < 4000) {
+  fail("pipes.html must be the real Pipes page, not a stub");
+} else pass("pipes.html is the real Pipes page");
 pages.concat(["desk-nav.js"]).forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");
   if (html.includes("/desk#rules") && file !== "desk-nav.js") fail(file + " still links Rules to /desk#rules");
@@ -58,15 +65,16 @@ if (/display:\s*none/.test(desk) && /header span a/.test(desk)) {
 }
 
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
-if (!/"source": "\/pipes"/.test(vercel) || !/\/connections\.html/.test(vercel)) {
-  fail("vercel.json must rewrite /pipes to connections.html");
+if (!/"source": "\/pipes"/.test(vercel) || !/\/pipes\.html/.test(vercel)) {
+  fail("vercel.json must rewrite /pipes to pipes.html");
 } else pass("/pipes rewrites to the Pipes page");
-if (!/"source": "\/drop"/.test(vercel) || !/"source": "\/drop.html"/.test(vercel)) {
-  fail("vercel.json must serve Drop at /drop and /drop.html");
-} else pass("/drop and /drop.html serve the Drop page");
-if (fs.existsSync(path.join(root, "drop.html"))) {
-  fail("drop.html stub steals /drop from the real Drop page");
-} else pass("no drop.html stub in front of /drop");
+if (!/"source": "\/drop"/.test(vercel) || !/\/drop\.html/.test(vercel)) {
+  fail("vercel.json must rewrite /drop to drop.html");
+} else pass("/drop rewrites to the Drop page");
+if (!fs.existsSync(path.join(root, "drop.html"))) fail("drop.html missing — Vercel cleanUrls 404s /drop");
+else pass("drop.html exists for /drop");
+if (!fs.existsSync(path.join(root, "pipes.html"))) fail("pipes.html missing — Vercel cleanUrls 404s /pipes");
+else pass("pipes.html exists for /pipes");
 
 const theme = fs.readFileSync(path.join(root, "theme.css"), "utf8");
 if (theme.includes("header span a { display: none; }")) {

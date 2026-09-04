@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Pipes · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="theme-color" content="#0d6b6b">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="desk-nav.css">
+  <script src="theme.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 15px/1.2 system-ui,sans-serif}
+    .desk-tabs a{color:#fff}
+    body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+    #desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}
+    #desk-nav a{flex:1;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,sans-serif;text-decoration:none}
+    #desk-nav a.on{color:#f39c12}
+    #desk-nav svg{width:22px;height:22px;display:block}
+    .wrap{width:min(720px,94vw);margin:0 auto;padding:16px 0 24px}
+    h1{color:var(--heading);font-size:1.4rem;margin:0 0 8px}
+    p{color:var(--muted);margin:0 0 12px}
+    .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    input,select{padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink);min-height:44px}
+    button,.btn,a.edit,a.go{border:0;border-radius:10px;padding:12px 14px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--edit);color:var(--edit-ink);min-height:44px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;touch-action:manipulation}
+    .go{background:#119494;color:#fff}
+    .pipe{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .meta{font-size:12px;color:var(--muted)}
+    .up{color:#119494}.hold{color:#c27b0e}.down{color:#b33}.soon{color:#6b7c8f}
+    h2{color:var(--heading);font-size:1rem;margin:18px 0 8px}
+    .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;margin-left:6px}
+    .tag-now{background:#e6f7f7;color:#0a4f4f}
+    .tag-beta{background:#fff4e0;color:#7a4b00}
+    .tag-soon{background:#eef1f4;color:#4a5a6a}
+    .tag-down{background:#fdecea;color:#c0392b}
+    .url{font-size:12px;word-break:break-all;background:var(--edit);color:var(--edit-ink);border-radius:8px;padding:8px;margin:8px 0}
+    html.dark .tag-now{background:#163333;color:#c8eeee}
+    html.dark .tag-beta{background:#3a2a12;color:#f0d9a8}
+  </style>
+</head>
+<body class="has-desk-nav">
+  <header>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    <nav class="desk-tabs" aria-label="Desk tabs">
+      <a href="/desk" data-tab="queue">Queue</a>
+      <a href="/drop" data-tab="drop">Drop</a>
+      <a href="/rules" data-tab="rules">Rules</a>
+      <a href="/pipes" data-tab="pipes">Pipes</a>
+      <a href="/more" data-tab="more">More</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>This desk’s pipes.</h1>
+    <p>You do not need a pipe to start. Search any site. Talk it if your hands are full. Log in opens that vendor. If we do not have a name yet, the inbound hook still takes the card. None of them send, post, or pay by themselves.</p>
+    <div class="item">
+      <div class="row">
+        <input id="ws" placeholder="Desk name">
+        <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
+        <button class="go" type="button" onclick="listPipes()">Show pipes</button>
+      </div>
+      <div class="row" id="saved" style="margin-top:8px"></div>
+      <p class="meta" style="margin-top:8px">Owner connects or drops a pipe. Helpers work the queue only.</p>
+    </div>
+    <div class="item">
+      <div class="row">
+        <input id="q" placeholder="Search Gmail, X, Shopify, any site…" style="flex:1;min-width:180px">
+        <button class="go" type="button" onclick="searchPipes()">Search</button>
+        <button type="button" onclick="hearPipes()">Hear this</button>
+        <button type="button" onclick="talkSearch()">Talk</button>
+        <button type="button" onclick="quietPipes()">Quiet</button>
+      </div>
+      <div class="row" id="chips" style="margin-top:8px"></div>
+      <p class="meta" style="margin-top:8px">Name a site we do not list</p>
+      <div class="row">
+        <input id="ask" placeholder="Any site on the internet">
+        <button type="button" onclick="askSite()">Log in + hook</button>
+      </div>
+      <p class="meta" id="search-flash" style="margin-top:8px"></p>
+    </div>
+    <h2>Cross the internet now</h2>
+    <div class="item">
+      <b>Inbound hook</b><span class="tag tag-now">Live</span>
+      <div class="meta">Anything on the internet can write a card here. Zapier and Make can post here today.</div>
+      <div class="url" id="inbound">Open your desk to see the write-back URL.</div>
+      <div class="row">
+        <button class="go" type="button" onclick="copyHook()">Copy hook</button>
+        <a class="edit" href="/drop">Drop a card</a>
+      </div>
+      <p class="meta" id="copy-flash" style="margin-top:8px"></p>
+    </div>
+    <h2>Draft accounts</h2>
+    <p class="meta">Log in to Grok, ChatGPT, or Claude. Make an API key on that account. Paste it. The desk drafts with that account. It still cannot Send, Stop, or move money. You do not need one — included Grok drafts work when our key is on.</p>
+    <div id="ai"></div>
+    <div class="item" id="ai-box" hidden>
+      <b id="ai-title">Paste the key</b>
+      <p class="meta" id="ai-note"></p>
+      <div class="row">
+        <input id="ai-key" placeholder="API key from that login" autocomplete="off">
+        <button class="go" type="button" onclick="saveAi()">Connect drafts</button>
+      </div>
+      <p class="meta" id="ai-flash"></p>
+    </div>
+    <h2>On this desk</h2>
+    <div id="pipes"></div>
+    <div class="item">
+      <p class="meta">Add one that already has a name</p>
+      <div class="row">
+        <select id="prov">
+          <option value="webhook">Webhook — any site</option>
+          <option value="calendar">Phone / Google calendar</option>
+          <option value="sms">SMS</option>
+          <option value="consign">Consign store</option>
+          <option value="square">Square</option>
+          <option value="ebay">eBay</option>
+        </select>
+        <input id="hook" placeholder="Webhook URL if you picked that">
+        <button class="go" type="button" onclick="connect()">Connect</button>
+      </div>
+      <p class="meta" style="margin-top:8px">No keys on the box means hold. Grok liking the name does not turn it green.</p>
+      <p class="meta" id="flash"></p>
+    </div>
+    <h2>Coming soon · beta wall</h2>
+    <p class="meta" id="soon-count">Search the wall. Log in opens that vendor. It does not turn the pipe live. Owner still taps Yes.</p>
+    <div id="soon"></div>
+    <p class="meta"><a href="desk.html">Back to the queue</a></p>
+  </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
+    <a href="/drop" data-tab="drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
+    <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
+    <a href="/pipes" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
+    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+  </nav>
+  <script src="analytics.js"></script>
+  <script src="speech.js"></script>
+  <script src="desk-switch.js"></script>
+  <script src="desk-nav.js"></script>
+  <script>
+    const wsEl = document.getElementById("ws");
+    const pinEl = document.getElementById("pin");
+    if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
+    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
+    let aiPick = "";
+    let lastData = null;
+    let groupOn = "";
+    const GROUPS = ["mail", "calendar", "social", "shop", "pay", "crm", "files", "talk", "books", "search"];
+    const GROUP_LABEL = { all: "All", mail: "Mail", calendar: "Calendar", social: "Social", shop: "Shop", pay: "Money", crm: "CRM", files: "Files", talk: "Talk", books: "Books", search: "Search" };
+    function qVal() { return ((document.getElementById("q") || {}).value || "").trim().toLowerCase(); }
+    function matchPipe(p) {
+      const q = qVal();
+      if (groupOn && p.group && p.group !== groupOn) return false;
+      if (!q) return true;
+      return [p.id, p.provider, p.label, p.note, p.group, (p.acts || []).join(" ")].join(" ").toLowerCase().indexOf(q) >= 0;
+    }
+    function headers() {
+      const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || "demo" };
+      if (pinEl.value) h["X-Pin"] = pinEl.value;
+      return h;
+    }
+    function tagFor(st) {
+      if (st === "live") return ["tag-now", "Live"];
+      if (st === "hold") return ["tag-beta", "Hold · beta"];
+      if (st === "soon") return ["tag-soon", "Coming soon"];
+      return ["tag-down", "Down"];
+    }
+    function clsFor(st) {
+      if (st === "live") return "up";
+      if (st === "hold") return "hold";
+      if (st === "soon") return "soon";
+      return "down";
+    }
+    async function listPipes() {
+      if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
+      const r = await fetch("/api/connections", { headers: headers() });
+      const data = await r.json();
+      lastData = data;
+      paintPipes(data);
+    }
+    function paintChips() {
+      const box = document.getElementById("chips");
+      if (!box) return;
+      const all = ["all"].concat(GROUPS);
+      box.innerHTML = all.map(g => {
+        const on = (g === "all" && !groupOn) || g === groupOn ? " go" : "";
+        return "<button class=\"" + on.trim() + "\" type=\"button\" onclick=\"setGroup('" + g + "')\">" + (GROUP_LABEL[g] || g) + "</button>";
+      }).join("");
+    }
+    function setGroup(g) {
+      groupOn = g === "all" ? "" : g;
+      paintChips();
+      if (lastData) paintPipes(lastData);
+    }
+    function paintPipes(data) {
+      const catalog = data.catalog || [];
+      const mine = data.connections || [];
+      const inbound = data.inbound || ("https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(wsEl.value || "demo"));
+      document.getElementById("inbound").textContent = inbound;
+      const aiBox = document.getElementById("ai");
+      if (aiBox) {
+        aiBox.innerHTML = (data.ai || []).filter(matchPipe).map(p => {
+          const st = p.status || "hold";
+          const tag = tagFor(st);
+          const drop = p.live && p.id ? "<button type=\"button\" onclick=\"dropPipe('" + p.id + "')\">Drop</button>" : "";
+          const go = "<button class=\"go\" type=\"button\" onclick=\"startAi('" + (p.provider || p.id) + "')\">Log in</button>";
+          const last = p.last4 ? " · key …" + p.last4 : "";
+          return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (p.live ? "Drafts on this desk" + last : "Not connected") + " · " + (p.note || "Drafts only") + "</div></div><div class=\"row\">" + go + drop + "</div></div>";
+        }).join("");
+      }
+      document.getElementById("pipes").innerHTML = catalog.filter(matchPipe).map(p => {
+        const on = mine.find(c => c.provider === p.id);
+        const st = on ? on.status : p.status;
+        const tag = tagFor(st);
+        const drop = on ? "<button type=\"button\" onclick=\"dropPipe('" + on.id + "')\">Drop</button>" : "";
+        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (on ? "On this desk · " : "Not added · ") + st + (p.note ? " · " + p.note : "") + "</div></div>" + drop + "</div>";
+      }).join("");
+      const soonBox = document.getElementById("soon");
+      const soonRows = (data.soon || []).filter(matchPipe);
+      if (soonBox) {
+        soonBox.innerHTML = soonRows.map(p => {
+          const go = p.login ? "<button class=\"go\" type=\"button\" onclick=\"startSoon('" + p.id + "')\">Log in</button>" : "";
+          const grp = p.group ? (GROUP_LABEL[p.group] || p.group) + " · " : "";
+          return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + grp + (p.note || "Shown, not live.") + "</div></div><div class=\"row\">" + go + "</div></div>";
+        }).join("");
+        if (!soonRows.length) {
+          soonBox.innerHTML = "<div class=\"item\"><b>Nothing matches.</b><div class=\"meta\">Name any site above, or <a href=\"/drop\">drop a card</a>. The inbound hook still takes work today.</div></div>";
+        }
+      }
+      const count = document.getElementById("soon-count");
+      if (count) count.textContent = soonRows.length + " on the wall" + (qVal() || groupOn ? " for this search" : "") + ". Log in opens the vendor. Not a live send pipe.";
+    }
+    function paintSaved() {
+      const box = document.getElementById("saved");
+      if (!box) return;
+      let rows = [];
+      try {
+        if (window.AIADeskSwitch && AIADeskSwitch.list) rows = AIADeskSwitch.list() || [];
+        else rows = JSON.parse(localStorage.getItem("aia_desks") || "[]");
+      } catch (e) { rows = []; }
+      if (!rows.length) { box.innerHTML = ""; return; }
+      box.innerHTML = rows.map(d => {
+        const slug = d.slug || d.biz || "";
+        const name = d.name || d.biz || slug;
+        const on = (wsEl.value || "") === slug ? " go" : "";
+        return "<button class=\"" + on.trim() + "\" type=\"button\" onclick=\"pickDesk('" + slug.replace(/'/g, "") + "')\">" + name + "</button>";
+      }).join("");
+    }
+    function pickDesk(slug) {
+      wsEl.value = slug;
+      try {
+        const rows = (window.AIADeskSwitch && AIADeskSwitch.list && AIADeskSwitch.list()) || JSON.parse(localStorage.getItem("aia_desks") || "[]");
+        const hit = rows.find(d => (d.slug || d.biz) === slug);
+        if (hit && hit.pin) pinEl.value = hit.pin;
+        if (window.AIADeskSwitch && AIADeskSwitch.open) AIADeskSwitch.open(hit || { slug: slug });
+      } catch (e) {}
+      localStorage.setItem("aia_ws", slug);
+      paintSaved();
+      listPipes();
+    }
+    async function copyHook() {
+      const text = (document.getElementById("inbound") || {}).textContent || "";
+      const flash = document.getElementById("copy-flash");
+      try {
+        if (navigator.clipboard) await navigator.clipboard.writeText(text);
+        if (flash) flash.textContent = "Copied. Paste it into Zapier, Make, or that site’s webhook.";
+      } catch (e) {
+        if (flash) flash.textContent = text;
+      }
+    }
+    function hearPipes() {
+      if (!window.AIASpeech) return;
+      const n = ((lastData && lastData.soon) || []).filter(matchPipe).length;
+      AIASpeech.speak("Search any site. " + n + " on the wall. Log in opens the vendor. The inbound hook takes a card today. Nothing sends money.");
+    }
+    function talkSearch() {
+      if (!window.AIASpeech || !AIASpeech.canListen()) {
+        const flash = document.getElementById("search-flash");
+        if (flash) flash.textContent = "This phone will not take speech here. Type the site.";
+        return;
+      }
+      AIASpeech.listen(function (text) {
+        const q = document.getElementById("q");
+        if (q) q.value = text;
+        searchPipes();
+      }, function (err) {
+        const flash = document.getElementById("search-flash");
+        if (flash) flash.textContent = err || "Did not catch that.";
+      });
+    }
+    function quietPipes() {
+      if (window.AIASpeech) AIASpeech.stopTalk();
+    }
+    async function connect() {
+      const flash = document.getElementById("flash");
+      if (flash) flash.textContent = "";
+      const provider = document.getElementById("prov").value;
+      const hook = document.getElementById("hook").value || undefined;
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ provider, hook }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok && flash) flash.textContent = data.error || ("Could not connect · " + r.status);
+      else if (flash) flash.textContent = data.next || "Saved.";
+      listPipes();
+    }
+    async function dropPipe(id) {
+      await fetch("/api/connections?id=" + encodeURIComponent(id), { method: "DELETE", headers: headers() });
+      listPipes();
+    }
+    async function searchPipes() {
+      const flash = document.getElementById("search-flash");
+      const q = (document.getElementById("q") || {}).value || "";
+      if (lastData) paintPipes(lastData);
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-search", q }) });
+      const data = await r.json().catch(() => ({}));
+      if (flash) flash.textContent = data.next || "";
+      if (data.missed && data.login) window.open(data.login, "_blank", "noopener");
+    }
+    async function askSite() {
+      const flash = document.getElementById("search-flash");
+      const name = (document.getElementById("ask") || {}).value || "";
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-ask", name }) });
+      const data = await r.json().catch(() => ({}));
+      if (flash) flash.textContent = data.next || data.error || "";
+      if (data.inbound) document.getElementById("inbound").textContent = data.inbound;
+      if (data.login) window.open(data.login, "_blank", "noopener");
+    }
+    document.getElementById("q") && document.getElementById("q").addEventListener("input", function () {
+      if (lastData) paintPipes(lastData);
+    });
+    paintChips();
+    paintSaved();
+    try {
+      const u = new URLSearchParams(location.search);
+      if (u.get("q") && document.getElementById("q")) document.getElementById("q").value = u.get("q");
+      if (u.get("group")) { groupOn = u.get("group"); paintChips(); }
+    } catch (e) {}
+    async function startSoon(provider) {
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-start", provider }) });
+      const data = await r.json().catch(() => ({}));
+      const flash = document.getElementById("flash");
+      if (flash) flash.textContent = data.next || data.error || "Coming soon. Not a live pipe.";
+      if (data.login) window.open(data.login, "_blank", "noopener");
+    }
+    async function startAi(provider) {
+      aiPick = provider;
+      const box = document.getElementById("ai-box");
+      const title = document.getElementById("ai-title");
+      const note = document.getElementById("ai-note");
+      const flash = document.getElementById("ai-flash");
+      if (box) box.hidden = false;
+      if (flash) flash.textContent = "";
+      if (document.getElementById("ai-key")) document.getElementById("ai-key").value = "";
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "ai-start", provider }) });
+      const data = await r.json().catch(() => ({}));
+      if (title) title.textContent = "Log in to " + (provider === "openai" ? "ChatGPT" : provider === "anthropic" ? "Claude" : "Grok");
+      if (note) note.textContent = data.next || "Log in, make an API key, paste it here.";
+      if (data.login) window.open(data.login, "_blank", "noopener");
+    }
+    async function saveAi() {
+      const flash = document.getElementById("ai-flash");
+      const key = (document.getElementById("ai-key") || {}).value || "";
+      const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "ai", provider: aiPick, key }) });
+      const data = await r.json().catch(() => ({}));
+      if (flash) flash.textContent = r.ok ? (data.next || "Connected.") : (data.error || "Could not connect.");
+      if (r.ok) {
+        const box = document.getElementById("ai-box");
+        if (box) box.hidden = true;
+        listPipes();
+      }
+    }
+    listPipes();
+  </script>
+</body>
+</html>

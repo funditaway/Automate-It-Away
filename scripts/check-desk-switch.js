@@ -170,6 +170,10 @@ const morePage = fs.readFileSync(path.join(root, "more.html"), "utf8");
 if (!morePage.includes("id=\"desk-nav\"") || !morePage.includes("href=\"/more\"") || !morePage.includes("This desk.")) {
   fail("more.html must be its own desk page");
 } else pass("more.html is the More page");
+["65 DEMO", "seedLiveBlob", "Never Vita", "dogfood", "api_fields.js", "AIA needs AIA", "Whatnot stays down"].forEach(function (bit) {
+  if (morePage.includes(bit)) fail("more.html still shows crew note: " + bit);
+});
+if (!process.exitCode) pass("more.html has no public crew / demo notes");
 
 const publicPages = ["index.html", "how.html", "setup.html", "login.html", "onboard.html", "help.html", "widget.html", "desk.html", "rules.html", "more.html"];
 const leaks = [
@@ -218,7 +222,7 @@ if (jobs.includes("amount >= MONEY_HOLD && !body.confirm")) {
   fail("jobs.js must 409 only when an owner money-wait rule matches");
 } else pass("jobs.js 409s only on an owner money-wait rule");
 
-const themed = ["index.html", "how.html", "setup.html", "onboard.html", "login.html", "desk.html", "widget.html", "rules.html", "connections.html", "help.html", "more.html", "admin.html", "chat.html", "support.html", "legal.html", "pricing.html", "status.html"];
+const themed = ["index.html", "how.html", "setup.html", "onboard.html", "login.html", "desk.html", "drop.html", "widget.html", "rules.html", "pipes.html", "connections.html", "help.html", "more.html", "admin.html", "chat.html", "support.html", "legal.html", "pricing.html", "status.html"];
 let themeMiss = "";
 themed.forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");
