@@ -8,13 +8,12 @@ delete global.__aia;
 delete global.__aiaHydrate;
 delete require.cache[require.resolve("../api/_lib")];
 delete require.cache[require.resolve("../api/health")];
-delete require.cache[require.resolve("../api/status")];
 delete require.cache[require.resolve("../api/rules")];
 delete require.cache[require.resolve("../api/connections")];
 
 const lib = require("../api/_lib");
 const health = require("../api/health");
-const status = require("../api/status");
+const status = health.status;
 const rules = require("../api/rules");
 const connections = require("../api/connections");
 
@@ -74,6 +73,9 @@ async function main() {
   if (lib.workspaceOf({ headers: {}, query: {} }) !== "") fail("workspaceOf should not default to demo");
   else pass("workspaceOf is unset without a desk");
 
+  if (typeof status !== "function") fail("health.status should be the desk status handler");
+  else pass("status lives on health.js");
+
   const st = mockRes();
   await status({ method: "GET", headers: {}, query: {} }, st);
   if (st.statusCode !== 200 || !st.body || st.body.ok !== true) fail("status should 200, got " + st.statusCode);
@@ -110,6 +112,15 @@ async function main() {
   if (stillHold.body.status !== "hold" || stillHold.body.workspace) fail("unset workspace should not inherit another desk's writeback");
   else pass("unset workspace stays hold");
   lib.mem.jobs = (lib.mem.jobs || []).filter((j) => j && j.id !== "job_status_writeback");
+
+  const viaRewrite = mockRes();
+  await health({ method: "GET", url: "/api/health?view=status", headers: {}, query: { view: "status" } }, viaRewrite);
+  if (viaRewrite.body.status !== "hold" || viaRewrite.body.accounts) fail("health?view=status should return the status payload");
+  else pass("health rewrite view=status answers as status");
+  const viaUrl = mockRes();
+  await health({ method: "GET", url: "/api/status", headers: {}, query: {} }, viaUrl);
+  if (viaUrl.body.status !== "hold" || viaUrl.body.product) fail("/api/status on health should return the status payload");
+  else pass("health handler answers /api/status");
 
   const rulesRes = mockRes();
   await rules({ method: "GET", headers: {}, query: {} }, rulesRes);

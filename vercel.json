@@ -51,7 +51,7 @@
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
     { "source": "/api/health", "destination": "/api/health" },
-    { "source": "/api/status", "destination": "/api/status" },
+    { "source": "/api/status", "destination": "/api/health?view=status" },
     { "source": "/api/auth", "destination": "/api/auth" },
     { "source": "/api/worker", "destination": "/api/worker" },
     { "source": "/api/upload", "destination": "/api/upload" },

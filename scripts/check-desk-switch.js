@@ -161,10 +161,18 @@ if (libSrc.includes("|| \"demo\"") || libSrc.includes("|| 'demo'") || libSrc.inc
   fail("api/_lib.js still defaults workspace to demo");
 } else pass("API has no demo workspace default");
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
-if (!vercel.includes("\"/api/status\"")) fail("vercel.json missing /api/status rewrite");
-else pass("vercel.json rewrites /api/status");
-if (!fs.existsSync(path.join(root, "api/status.js"))) fail("api/status.js is missing");
-else pass("api/status.js exists");
+if (!vercel.includes("\"/api/status\"") || !vercel.includes("/api/health?view=status")) {
+  fail("vercel.json should rewrite /api/status onto /api/health?view=status");
+} else pass("vercel.json rewrites /api/status onto health");
+if (fs.existsSync(path.join(root, "api/status.js"))) fail("api/status.js is a 13th Hobby function — fold it into health.js");
+else pass("no extra api/status.js function");
+const healthSrc = fs.readFileSync(path.join(root, "api/health.js"), "utf8");
+if (!healthSrc.includes("function wantsStatus") || !healthSrc.includes("function deskStatus") || !healthSrc.includes("handler.status")) {
+  fail("api/health.js should serve honest /api/status");
+} else pass("health.js serves honest status");
+const apiFns = fs.readdirSync(path.join(root, "api")).filter((f) => /^[a-z].*\.js$/.test(f) && f.indexOf("_") !== 0);
+if (apiFns.length > 12) fail("Hobby cap is 12 serverless functions, got " + apiFns.length + ": " + apiFns.join(", "));
+else pass("api functions within Hobby 12: " + apiFns.length);
 
 const preview = fs.readFileSync(path.join(root, "drop-preview.js"), "utf8");
 if (preview.includes("HOLD · $250+") || preview.includes(">= 250")) {
