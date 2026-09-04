@@ -332,7 +332,6 @@ function catalog() {
   }));
 }
 
-const SEED_RULE_TEXT = "Payments over $250 wait for the owner.";
 const RULE_TEXT_MAX = 140;
 const RULE_MAX = 8;
 const RULE_FORBID = /auto[-\s]?pay|auto[-\s]?list|auto[-\s]?ship|auto[-\s]?release|un-?\s?kill|skip\s+(the\s+)?(kill|payout|pay\b|named\s+outbound|live\s+list|outbound)|live\s+list|mark\s+ebay|ebay\s+live|set\s+ebay|go\s+live\s+on\s+ebay/;
@@ -930,7 +929,7 @@ module.exports = {
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
-  SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
+  RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
   matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy,
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,

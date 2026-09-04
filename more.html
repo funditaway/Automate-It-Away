@@ -37,8 +37,8 @@
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop">Drop</a>
-      <a href="/history" data-tab="history">History</a>
-      <a href="/people" data-tab="people">People</a>
+      <a href="/rules" data-tab="rules">Rules</a>
+      <a href="/pipes" data-tab="pipes">Pipes</a>
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
@@ -50,7 +50,7 @@
     <div class="card">
       <a href="/account">Your account<span>Photo, name, handle, desks, plan. Three doors. Continue-with is identity only.</span></a>
       <a href="/desks">Your desks<span>Desks this account can open. See the seat. Leave anytime. Ask for family, friend, helper, member, or staff. World users receive @accountname.</span></a>
-      <a href="/people">People<span>On the tab bar. Search @handle on People. Invite them to this desk. They Accept. AIA does not send.</span></a>
+      <a href="/people">People<span>Search @handle. Invite them to this desk. They Accept. Lives here, not on the tab bar. AIA does not send.</span></a>
       <a href="/admin">Account book<span>Tickets, audit, money log, helper shop taps. Owner book.</span></a>
     </div>
     <h2>The work</h2>
@@ -58,23 +58,23 @@
       <a href="/desk">Queue<span>Cards waiting. Needs you Accept for a human, an agent, or a connection. Talk, Yes, or Stop. AIA does not send.</span></a>
       <a href="/drop#talk">Drop · Talk to the desk<span>Pick a desk. Say the work. Use a listed pack — AIA or a creator. Orange only when you mark it first.</span></a>
       <a href="/history">History<span>Start to finish. Filter by person. Orange cards first. Need you, in progress, waiting, ext, done.</span></a>
-      <a href="/connections">Pipes and draft accounts<span>Not on the tab bar — lives here. Search any site. Webhook is live. Drafts never Send.</span></a>
-      <a href="/rules">Rules<span>Owner page. Wait, stop, note, or cap. Not on the tab bar — lives here.</span></a>
+      <a href="/pipes">Pipes and draft accounts<span>On the tab bar. Search any site. Webhook is live. Drafts never Send.</span></a>
+      <a href="/rules">Rules<span>On the tab bar. Wait, stop, note, or cap. Fresh desks start empty.</span></a>
       <a href="/dev">Developer account<span>Separate creator desk. Same login. Pack bots draft only. Not a second book.</span></a>
       <a href="/create">Creator studio<span>Make a pack this desk can run. Keep it private, list it free, or set an ask. Shop is on Market.</span></a>
       <a href="/market">Shop packs<span>Work packs, free AIA colors, wanted ideas, and creator asks. View + demo. Use as many work packs as you want. Ask is a tag — no card.</span></a>
     </div>
     <h2>AIA needs AIA</h2>
-    <p>Platform desk only. Same five steps. You tap. Nothing leaves on its own. Do not drop these on a shop desk. World problems go to /support.</p>
+    <p>Platform desk only. Same five steps. You tap. Nothing leaves on its own. Do not drop these on a work desk. World problems go to /support.</p>
     <div class="card">
       <a href="/support"><b>0. Talk to AIA</b><span>World problem. Card on the AIA Admin Desk. Pack aia. Desk stays off public search.</span></a>
       <a href="/drop"><b>1. Restore capture</b><span>From your machine: ship/api_fields.js over api/_fields.js. Live capture is 500 until that file is a real module.</span></a>
       <a href="/login"><b>2. Hard-refresh login</b><span>Three doors + Ext wall are on GitHub. CDN may lag. Continue-with is identity only.</span></a>
       <a href="/examples"><b>3. Hard-refresh examples</b><span>65 DEMO desks. seedLiveBlob stays false. Insurance / Quote It Away. Never Vita.</span></a>
-      <a href="/status"><b>4. Desk draft key</b><span>Paste XAI_API_KEY on Vercel from console.x.ai. SuperGrok Heavy is not that key.</span></a>
+      <a href="/status"><b>4. Desk draft key</b><span>Paste the draft key on Vercel from console.x.ai. Chat login is not that key.</span></a>
       <a href="/login"><b>5. Light a world door</b><span>AIA_GOOGLE_OAUTH_ID + SECRET, or GitHub / Apple / Microsoft. Missing env stays Hold.</span></a>
       <a href="/account"><b>6. Laptop push the helper</b><span>api/_oauth.js plus auth.js oauth-start / finish / ask-other. Write tools stub those files.</span></a>
-      <a href="/onboard"><b>7. Same wall on onboard + account</b><span>login-doors.js already paints #oauth-wall. Pages still need the box on GitHub.</span></a>
+      <a href="/onboard"><b>7. Same wall on onboard + account</b><span>login-doors.js already paints #oauth-wall. Pages still need that wall on GitHub.</span></a>
       <a href="/desks"><b>8. List desk aia?</b><span>Keep private. World door is /support, not public drop search.</span></a>
       <a href="/connections"><b>9. Paid pipes stay hold</b><span>Webhook is live. Square, Calendar, and the rest wait on keys. Whatnot stays down.</span></a>
       <a href="/desk"><b>10. First vertical</b><span>7-day dogfood on Consign unless you name Insurance. Learning = real jobs + audit rows.</span></a>
@@ -90,8 +90,8 @@
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
     <a href="/drop" data-tab="drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
-    <a href="/history" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>History</span></a>
-    <a href="/people" data-tab="people"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>People</span></a>
+    <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
+    <a href="/pipes" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-nav.js"></script>
@@ -101,8 +101,8 @@
       const el = document.getElementById("grok-line");
       if (!el || !g) return;
       el.textContent = g.on
-        ? "Grok is on. Drafts land on the card. Never Send."
-        : "Grok key is off. Set XAI_API_KEY from console.x.ai — Heavy chat is not the key.";
+        ? "Drafts are on. They land on the card. Never Send."
+        : "Draft key is off. Set XAI_API_KEY from console.x.ai — chat login is not the key.";
     }).catch(function () {});
   </script>
 </body>

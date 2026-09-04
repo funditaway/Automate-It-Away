@@ -82,7 +82,7 @@ const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
 if (!widget.includes("AIADesks.captureDesk") || !pickJs.includes("AIADesks.list") || !pickJs.includes("switchTo")) {
   fail("widget.html must list and switch saved desks");
 } else pass("widget.html lists saved desks");
-if (!widget.includes("This drop is for") || !widget.includes("Your desks — tap one.") || !widget.includes("Create a new desk — name it, then drop.") || !widget.includes("Add another desk — same phone, separate queue.")) {
+if (!widget.includes("Which desk gets this") || !widget.includes("Desks saved on this phone") || !widget.includes("Create a new desk") || !widget.includes("Add a saved desk")) {
   fail("widget.html missing doer picker copy");
 } else pass("widget copy is desk picker");
 if (!widget.includes("nouns") && !widget.includes("NOUNS.capture") && !widget.includes("nouns.capture")) {
@@ -90,7 +90,7 @@ if (!widget.includes("nouns") && !widget.includes("NOUNS.capture") && !widget.in
 } else pass("widget.html uses owner nouns");
 
 const onboard = fs.readFileSync(path.join(root, "onboard.html"), "utf8");
-if (!onboard.includes("Name this desk") || !onboard.includes("Open it") || !onboard.includes("AIADesks.open")) {
+if (!onboard.includes("Desk name") || !onboard.includes("AIADesks.open")) {
   fail("onboard.html should name the desk and add it");
 } else pass("onboard adds the desk");
 
@@ -142,8 +142,21 @@ if (!rulesPage.includes("id=\"desk-nav\"") || !rulesPage.includes("href=\"/rules
 if (!rulesPage.includes("action: \"widget\"") || !rulesPage.includes("widget-count")) {
   fail("rules.html must toggle widgets and show the count");
 } else pass("rules.html toggles rule widgets");
-if (!rulesPage.includes("action: \"nouns\"")) fail("rules.html should save nouns");
-else pass("rules.html saves nouns");
+if (rulesPage.includes("placeholder=\"250\"") || rulesPage.includes("Starters") || rulesPage.includes("id=\"starters\"")) {
+  fail("rules.html still shows example / $250 starter chrome");
+} else pass("rules.html has no example-rule chrome");
+if (!rulesPage.includes("Starts empty") && !rulesPage.includes("No rules yet")) fail("rules.html missing empty-desk copy");
+else pass("rules.html says the desk starts empty");
+
+const libSrc = fs.readFileSync(path.join(root, "api/_lib.js"), "utf8");
+if (libSrc.includes("SEED_RULE_TEXT") || libSrc.includes("Payments over $250 wait for the owner.")) {
+  fail("api/_lib.js still exports a $250 seed rule");
+} else pass("API has no $250 seed rule");
+
+const preview = fs.readFileSync(path.join(root, "drop-preview.js"), "utf8");
+if (preview.includes("HOLD · $250+") || preview.includes(">= 250")) {
+  fail("drop-preview.js still invents a $250 hold");
+} else pass("Drop does not invent a $250 hold");
 
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("href: \"/rules\"") || !nav.includes("name === \"rules\"")) {

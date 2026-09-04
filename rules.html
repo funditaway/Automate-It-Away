@@ -45,21 +45,19 @@
     #rule-list li span{flex:1;min-width:160px}
     #rule-list .kill,#rule-list .edit{padding:4px 8px;font-size:12px}
     #adv-box{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-    #starters{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-    #starters button{min-height:40px}
     #gate[hidden],#session[hidden],#rule-add[hidden],#noun-save[hidden],#adv-box[hidden]{display:none!important}
     @media(max-width:640px){#noun-fields,#adv-box{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body class="has-desk-nav">
   <header>
-    <a href="index.html"><strong>Automate It Away</strong></a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <span><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop" id="head-drop">Drop</a>
       <a href="/rules" data-tab="rules">Rules</a>
-      <a href="/connections" data-tab="pipes">Pipes</a>
+      <a href="/pipes" data-tab="pipes">Pipes</a>
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
@@ -108,7 +106,7 @@
           </div>
           <div>
             <label class="field" for="rule-money">If money is at least $</label>
-            <input id="rule-money" inputmode="decimal" placeholder="250">
+            <input id="rule-money" inputmode="decimal" placeholder="leave blank">
           </div>
           <div>
             <label class="field" for="rule-contains">If the card contains</label>
@@ -123,9 +121,7 @@
             <input id="rule-value" maxlength="80" placeholder="vita">
           </div>
         </div>
-        <p class="meta" style="margin-top:8px">Starters</p>
-        <div id="starters"></div>
-        <p class="meta" id="rule-hint">This desk only. Owner desk code to change them. Stop still needs the owner’s second tap.</p>
+        <p class="meta" id="rule-hint">This desk only. Starts empty. Owner desk code to change them. Stop still needs the owner’s second tap.</p>
       </div>
     </div>
     <div class="item" id="nouns">
@@ -149,7 +145,7 @@
     <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
     <a href="/drop" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
     <a href="/rules" data-tab="rules"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Rules</span></a>
-    <a href="/connections" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
+    <a href="/pipes" data-tab="pipes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 16h10M5 12h2m10 0h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Pipes</span></a>
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
@@ -160,7 +156,6 @@
     let role = localStorage.getItem("aia_role") || "";
     let youName = localStorage.getItem("aia_name") || "";
     let RULES = [];
-    let STARTERS = [];
     let EDIT_ID = "";
     let ADV_ON = false;
     let NOUNS = AIADesks.nounsOf();
@@ -222,12 +217,6 @@
       if (r.ifField) bits.push(r.ifField + (r.ifValue ? "=" + r.ifValue : ""));
       return bits;
     }
-    function paintStarters() {
-      const box = document.getElementById("starters");
-      box.innerHTML = (STARTERS || []).map(function (s, i) {
-        return "<button class=\"edit\" type=\"button\" onclick=\"useStarter(" + i + ")\">" + esc(s.text) + "</button>";
-      }).join("");
-    }
     function paintRules(rules, canEdit) {
       const list = document.getElementById("rule-list");
       const rows = rules || [];
@@ -250,7 +239,6 @@
       }).join("") || "<li><span class=\"meta\">No rules yet. Add one if you need it.</span></li>";
       document.getElementById("rule-add").hidden = !canEdit;
       paintCount((rows.filter((r) => r.widget && r.widget.on)).length);
-      paintStarters();
     }
     function toggleAdv(force) {
       ADV_ON = force == null ? !ADV_ON : !!force;
@@ -283,18 +271,6 @@
         body.ifValue = document.getElementById("rule-value").value;
       }
       return body;
-    }
-    function useStarter(i) {
-      const s = STARTERS[i];
-      if (!s) return;
-      document.getElementById("rule-text").value = s.text || "";
-      document.getElementById("rule-when").value = s.when || "do";
-      document.getElementById("rule-then").value = s.then || "wait";
-      document.getElementById("rule-money").value = s.ifMoney != null ? s.ifMoney : "";
-      document.getElementById("rule-contains").value = s.contains || "";
-      document.getElementById("rule-field").value = s.ifField || "";
-      document.getElementById("rule-value").value = s.ifValue || "";
-      toggleAdv(true);
     }
     function editRule(id) {
       const r = RULES.find((row) => row && row.id === id);
@@ -370,7 +346,6 @@
       if (!workspaceSlug()) {
         banner.textContent = "Name this desk. Open it.";
         RULES = [];
-        STARTERS = [];
         paintRules([], false);
         paintNouns(AIADesks.defaultNouns(), false);
         return;
@@ -390,7 +365,6 @@
         }
         const rulesOut = await api("/api/rules");
         RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || [];
-        STARTERS = (rulesOut.data && rulesOut.data.starters) || STARTERS;
         const can = !!(rulesOut.data && rulesOut.data.canAdd);
         paintRules(RULES, can);
         paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);

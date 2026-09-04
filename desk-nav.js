@@ -2,8 +2,8 @@
   var TABS = [
     { id: "queue", label: "Queue", href: "/desk", ico: "M4 6h16M4 12h16M4 18h10" },
     { id: "drop", label: "Drop", href: "/drop", ico: "M12 5v14M5 12h14" },
-    { id: "history", label: "History", href: "/history", ico: "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" },
-    { id: "people", label: "People", href: "/people", ico: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
+    { id: "rules", label: "Rules", href: "/rules", ico: "M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" },
+    { id: "pipes", label: "Pipes", href: "/pipes", ico: "M7 8h10M7 16h10M5 12h2m10 0h2" },
     { id: "more", label: "More", href: "/more", ico: "M6 12h.01M12 12h.01M18 12h.01" }
   ];
 
@@ -26,15 +26,12 @@
 
   function tabOf() {
     var name = file();
-    if (name === "history") return "history";
-    if (name === "people") return "people";
-    if (name === "rules") return "more";
-    if ((name === "desk" || name === "desk.html") && location.hash === "#rules") return "more";
+    if (name === "rules") return "rules";
     if (name === "desk") return "queue";
     if (name === "widget" || name === "drop") return "drop";
-    if (name === "connections") return "more";
-    if (name === "more") return "more";
-    if (/^(help|admin|setup|support|chat|consign|create|desks|account|market)$/.test(name)) return "more";
+    if (name === "connections" || name === "pipes") return "pipes";
+    if (name === "more" || name === "history" || name === "people") return "more";
+    if (/^(help|admin|setup|support|chat|consign|create|desks|account|market|developer)$/.test(name)) return "more";
     return "";
   }
 
@@ -49,27 +46,27 @@
     });
   }
 
-  function migrateRulesTab() {
-    document.querySelectorAll("#desk-nav [data-tab=\"rules\"], .desk-tabs [data-tab=\"rules\"]").forEach(function (el) {
-      el.setAttribute("data-tab", "history");
-      if (el.tagName === "A") el.setAttribute("href", "/history");
+  function migrateHistoryTab() {
+    document.querySelectorAll("#desk-nav [data-tab=\"history\"], .desk-tabs [data-tab=\"history\"]").forEach(function (el) {
+      el.setAttribute("data-tab", "rules");
+      if (el.tagName === "A") el.setAttribute("href", "/rules");
       var span = el.querySelector("span");
-      if (span) span.textContent = "History";
-      else if (el.childNodes.length === 1) el.textContent = "History";
+      if (span) span.textContent = "Rules";
+      else if (el.childNodes.length === 1) el.textContent = "Rules";
       var path = el.querySelector("path");
-      if (path) path.setAttribute("d", "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0");
+      if (path) path.setAttribute("d", "M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01");
     });
   }
 
-  function migratePipesTab() {
-    document.querySelectorAll("#desk-nav [data-tab=\"pipes\"], .desk-tabs [data-tab=\"pipes\"]").forEach(function (el) {
-      el.setAttribute("data-tab", "people");
-      if (el.tagName === "A") el.setAttribute("href", "/people");
+  function migratePeopleTab() {
+    document.querySelectorAll("#desk-nav [data-tab=\"people\"], .desk-tabs [data-tab=\"people\"]").forEach(function (el) {
+      el.setAttribute("data-tab", "pipes");
+      if (el.tagName === "A") el.setAttribute("href", "/pipes");
       var span = el.querySelector("span");
-      if (span) span.textContent = "People";
-      else if (el.childNodes.length === 1) el.textContent = "People";
+      if (span) span.textContent = "Pipes";
+      else if (el.childNodes.length === 1) el.textContent = "Pipes";
       var path = el.querySelector("path");
-      if (path) path.setAttribute("d", "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75");
+      if (path) path.setAttribute("d", "M7 8h10M7 16h10M5 12h2m10 0h2");
     });
   }
 
@@ -78,14 +75,14 @@
     document.querySelectorAll("#desk-nav [data-tab=\"drop\"], #drop-go, #head-drop, .desk-tabs [data-tab=\"drop\"]").forEach(function (el) {
       if (el && el.tagName === "A") el.setAttribute("href", href);
     });
-    document.querySelectorAll("#desk-nav [data-tab=\"history\"], .desk-tabs [data-tab=\"history\"]").forEach(function (el) {
-      if (el && el.tagName === "A") el.setAttribute("href", "/history");
+    document.querySelectorAll("#desk-nav [data-tab=\"rules\"], .desk-tabs [data-tab=\"rules\"]").forEach(function (el) {
+      if (el && el.tagName === "A") el.setAttribute("href", "/rules");
+    });
+    document.querySelectorAll("#desk-nav [data-tab=\"pipes\"], .desk-tabs [data-tab=\"pipes\"]").forEach(function (el) {
+      if (el && el.tagName === "A") el.setAttribute("href", "/pipes");
     });
     document.querySelectorAll("#desk-nav [data-tab=\"more\"], .desk-tabs [data-tab=\"more\"]").forEach(function (el) {
       if (el && el.tagName === "A") el.setAttribute("href", "/more");
-    });
-    document.querySelectorAll("#desk-nav [data-tab=\"people\"], .desk-tabs [data-tab=\"people\"]").forEach(function (el) {
-      if (el && el.tagName === "A") el.setAttribute("href", "/people");
     });
   }
 
@@ -154,7 +151,7 @@
   }
 
   function loadPeople(name, attr) {
-    if (tabOf() !== "people") return;
+    if (file() !== "people") return;
     if (document.querySelector("script[" + attr + "]")) return;
     var el = document.createElement("script");
     el.src = "/" + name;
@@ -166,8 +163,8 @@
     if (window !== window.parent) return;
     ensureCss();
     document.body.classList.add("has-desk-nav");
-    migrateRulesTab();
-    migratePipesTab();
+    migrateHistoryTab();
+    migratePeopleTab();
     var nav = document.getElementById("desk-nav");
     if (!nav) {
       nav = document.createElement("nav");

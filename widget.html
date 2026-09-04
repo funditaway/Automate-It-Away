@@ -53,13 +53,13 @@
 </head>
 <body class="has-desk-nav">
   <header>
-    <a href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><strong>Automate It Away</strong></a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop">Drop</a>
       <a href="/rules" data-tab="rules">Rules</a>
-      <a href="/connections" data-tab="pipes">Pipes</a>
+      <a href="/pipes" data-tab="pipes">Pipes</a>
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
@@ -166,7 +166,7 @@
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
     <a href="/drop" data-tab="drop"><span>Drop</span></a>
     <a href="/rules" data-tab="rules"><span>Rules</span></a>
-    <a href="/connections" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/pipes" data-tab="pipes"><span>Pipes</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
@@ -222,6 +222,11 @@
         const shop = data.workspace || {};
         if ((shop.biz || shop.name) && desk) desk.name = shop.biz || shop.name;
         FIELDS = shop.fields || [];
+        const nouns = (window.AIADesks && AIADesks.nounsOf) ? AIADesks.nounsOf(shop.nouns) : null;
+        if (nouns && nouns.capture) {
+          const sub = document.getElementById("drop-sub");
+          if (sub && ws) sub.textContent = nouns.capture + " lands here. You still tap Yes or No. Nobody sends money from here.";
+        }
       } catch (e) {}
       paintEmbed();
     }

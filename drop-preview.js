@@ -60,7 +60,6 @@
     var t = String(text || "");
     if (/\b(bind|coverage|illustration|application|policy)\b/i.test(t)) return "HOLD · bind / illustration / app";
     if (/\b(wire|payout|send money|pay them|move money)\b/i.test(t)) return "HOLD · move money";
-    if (Number(amount) >= 250) return "HOLD · $250+";
     return "";
   }
   function missing(card) {
