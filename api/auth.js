@@ -87,7 +87,10 @@ module.exports = async function handler(req, res) {
     const action = body.action || "open";
 
     if (action === "account" || action === "register") {
-      const slug = slugify(body.slug || body.biz || body.name || "demo");
+      const slug = slugify(body.slug || body.biz || body.name || "");
+      if (!slug) {
+        return res.status(400).json({ ok: false, error: "Name your desk." });
+      }
       if (!body.pin || String(body.pin).length < 4) {
         return res.status(400).json({ ok: false, error: "Pick a desk code with at least 4 digits." });
       }
@@ -301,7 +304,8 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, workspace: publicWorkspace(row) });
     }
 
-    const slug = slugify(body.slug || body.biz || body.name || "demo");
+    const slug = slugify(body.slug || body.biz || body.name || "");
+    if (!slug) return res.status(400).json({ error: "Name your desk." });
     if (!body.pin || String(body.pin).length < 4) {
       return res.status(400).json({ error: "Pick a desk code with at least 4 digits." });
     }

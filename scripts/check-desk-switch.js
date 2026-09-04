@@ -106,6 +106,11 @@ if (!desk.includes("Change desk") || !desk.includes("Open another") || !desk.inc
 } else pass("desk.html can switch saved desks");
 if (desk.includes("|| \"demo\"") || desk.includes("|| 'demo'")) fail("desk.html still falls back to demo");
 else pass("desk.html has no demo fallback");
+["pipes.html", "connections.html", "admin.html"].forEach((file) => {
+  const src = fs.readFileSync(path.join(root, file), "utf8");
+  if (src.includes("|| \"demo\"") || src.includes("|| 'demo'")) fail(file + " still falls back to demo");
+  else pass(file + " has no demo fallback");
+});
 if (!desk.includes("Drop anything") || !desk.includes("Add a rule") || !desk.includes("This desk") || !desk.includes("no rules yet")) fail("desk copy missing");
 else pass("desk queue/rules copy");
 if (!desk.includes("widget-count") || !desk.includes("rule-widgets") || !desk.includes("/rules")) {
@@ -152,6 +157,14 @@ const libSrc = fs.readFileSync(path.join(root, "api/_lib.js"), "utf8");
 if (libSrc.includes("SEED_RULE_TEXT") || libSrc.includes("Payments over $250 wait for the owner.")) {
   fail("api/_lib.js still exports a $250 seed rule");
 } else pass("API has no $250 seed rule");
+if (libSrc.includes("|| \"demo\"") || libSrc.includes("|| 'demo'") || libSrc.includes("s || \"demo\"")) {
+  fail("api/_lib.js still defaults workspace to demo");
+} else pass("API has no demo workspace default");
+const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+if (!vercel.includes("\"/api/status\"")) fail("vercel.json missing /api/status rewrite");
+else pass("vercel.json rewrites /api/status");
+if (!fs.existsSync(path.join(root, "api/status.js"))) fail("api/status.js is missing");
+else pass("api/status.js exists");
 
 const preview = fs.readFileSync(path.join(root, "drop-preview.js"), "utf8");
 if (preview.includes("HOLD · $250+") || preview.includes(">= 250")) {

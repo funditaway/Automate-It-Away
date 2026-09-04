@@ -45,7 +45,8 @@ module.exports = async function handler(req, res) {
   }
 
   const body = await readBody(req);
-  const workspace = slugify(req.headers["x-workspace"] || req.query.workspace || body.workspace || "demo");
+  const workspace = slugify(req.headers["x-workspace"] || req.query.workspace || body.workspace || "");
+  if (!workspace) return res.status(400).json({ ok: false, error: "Name the desk." });
   const event = eventOf(body);
   const title = body.title || body.item || body.name || body.notes || "Pipe update";
 

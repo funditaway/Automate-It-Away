@@ -95,7 +95,9 @@
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");
     function headers() {
-      const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || localStorage.getItem("aia_ws") || "demo" };
+      const h = { "Content-Type": "application/json" };
+      const ws = (wsEl.value || localStorage.getItem("aia_ws") || "").trim();
+      if (ws) h["X-Workspace"] = ws;
       const pin = pinEl.value || localStorage.getItem("aia_pin");
       if (pin) h["X-Pin"] = pin;
       return h;

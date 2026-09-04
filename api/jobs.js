@@ -1,5 +1,5 @@
 const { dropCannedSeeds } = require("./_drop-seed");
-const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob } = require("./_fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, markFlow } = require("./_engine");
 const { grokRecommend, normalizeCites } = require("./_grok");
@@ -10,9 +10,6 @@ function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
   if (raw == null || !String(raw).trim()) return "";
   return String(raw).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
-}
-function pipeWroteBack(dispatch) {
-  return !!(dispatch && !dispatch.demo && (dispatch.ok === true || dispatch.inbound === true));
 }
 function pipesFor(workspace) {
   return mem.connections.filter((c) => c.workspace === workspace);

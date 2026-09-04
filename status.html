@@ -45,11 +45,14 @@
     <div class="row"><span>Whatnot</span><span class="down">Not a launch pipe</span></div>
     <div class="row"><span>Grok Bot public API</span><span class="down">Does not exist — not a gate</span></div>
     <p style="color:#8b9aab;margin-top:18px">Green is honest. Orange is P1. Red we skip for launch.</p>
-    <pre id="raw">waiting on /api/health</pre>
+    <pre id="raw">waiting on /api/status</pre>
   </main>
   <script>
-    fetch("/api/health").then(r => r.json()).then(data => {
-      document.getElementById("raw").textContent = JSON.stringify(data, null, 2);
+    Promise.all([
+      fetch("/api/health").then(r => r.json()),
+      fetch("/api/status").then(r => r.ok ? r.json() : { ok: false, statusCode: r.status })
+    ]).then(([data, status]) => {
+      document.getElementById("raw").textContent = JSON.stringify({ health: data, status: status }, null, 2);
       const api = document.getElementById("api");
       api.textContent = data.ok ? "Up on this host" : "Down";
       api.className = data.ok ? "up" : "down";
@@ -65,8 +68,9 @@
       }
       const live = (data.pipes || []).filter(p => p.live && p.id !== "webhook");
       const pipes = document.getElementById("pipes");
-      if (live.length) { pipes.textContent = live.map(p => p.id).join(", "); pipes.className = "up"; }
-      else { pipes.textContent = "No paid pipes live"; pipes.className = "hold"; }
+      const deskHold = status && status.status === "hold";
+      if (live.length && !deskHold) { pipes.textContent = live.map(p => p.id).join(", "); pipes.className = "up"; }
+      else { pipes.textContent = (status && status.note) || "No paid pipes live"; pipes.className = "hold"; }
     }).catch(() => {
       document.getElementById("api").textContent = "Not on this host";
       document.getElementById("api").className = "hold";

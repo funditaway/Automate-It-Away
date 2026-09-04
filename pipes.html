@@ -164,7 +164,9 @@
       return [p.id, p.provider, p.label, p.note, p.group, (p.acts || []).join(" ")].join(" ").toLowerCase().indexOf(q) >= 0;
     }
     function headers() {
-      const h = { "Content-Type": "application/json", "X-Workspace": wsEl.value || "demo" };
+      const h = { "Content-Type": "application/json" };
+      const ws = (wsEl.value || localStorage.getItem("aia_ws") || "").trim();
+      if (ws) h["X-Workspace"] = ws;
       if (pinEl.value) h["X-Pin"] = pinEl.value;
       return h;
     }
@@ -204,7 +206,9 @@
     function paintPipes(data) {
       const catalog = data.catalog || [];
       const mine = data.connections || [];
-      const inbound = data.inbound || ("https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(wsEl.value || "demo"));
+      const inbound = data.inbound || (wsEl.value
+        ? "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(wsEl.value)
+        : "");
       document.getElementById("inbound").textContent = inbound;
       const aiBox = document.getElementById("ai");
       if (aiBox) {

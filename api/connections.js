@@ -133,7 +133,10 @@ function searchPipes(q) {
 }
 
 function inboundOf(workspace) {
-  return "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace);
+  const slug = String(workspace || "");
+  return slug
+    ? "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(slug)
+    : "https://automateitaway.com/api/hook";
 }
 
 module.exports = async function handler(req, res) {
