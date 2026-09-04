@@ -68,7 +68,7 @@
     return null;
   }
   function actionLabel(id) {
-    var map = { text: "Text them", email: "Email them", call: "Call them back", book: "Put it on the calendar", hand: "Hand it to someone", list: "Draft a listing", quote: "Draft a quote", wait: "Owner decides", note: "Just keep the note" };
+    var map = { text: "Text them", email: "Email them", call: "Call them back", book: "Put it on the calendar", hand: "Hand it to someone", list: "Draft a list", quote: "Draft a quote", wait: "Owner decides", note: "Just keep the note" };
     return map[id] || id || "Need this";
   }
   function inject() {

@@ -158,6 +158,26 @@ if (preview.includes("HOLD · $250+") || preview.includes(">= 250")) {
   fail("drop-preview.js still invents a $250 hold");
 } else pass("Drop does not invent a $250 hold");
 
+const dropPage = fs.readFileSync(path.join(root, "drop.html"), "utf8");
+["Drop anything", "a task, an errand, a list, an idea, a project", "value=\"task\"", "value=\"idea\"", "value=\"project\"", "value=\"build\""].forEach(function (bit) {
+  if (!dropPage.includes(bit)) fail("drop.html missing drop-anything chrome: " + bit);
+});
+["Drop something off", "List / sell", "list the lamp"].forEach(function (bit) {
+  if (dropPage.includes(bit)) fail("drop.html still has consign chrome: " + bit);
+});
+if (!process.exitCode) pass("drop.html reads as drop anything");
+["Drop anything", "a task, an errand, a list, an idea, a project"].forEach(function (bit) {
+  if (!widget.includes(bit)) fail("widget.html missing drop-anything chrome: " + bit);
+});
+["Drop something off", "List / sell", "list the lamp"].forEach(function (bit) {
+  if (widget.includes(bit)) fail("widget.html still has consign chrome: " + bit);
+});
+if (!process.exitCode) pass("widget.html reads as drop anything");
+const agentSrc = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
+const moreSrc = fs.readFileSync(path.join(root, "drop-more.js"), "utf8");
+if (agentSrc.includes("List / sell") || moreSrc.includes("List this")) fail("Drop kinds still say List / sell");
+else pass("Drop kinds are not consign-only");
+
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("href: \"/rules\"") || !nav.includes("name === \"rules\"")) {
   fail("desk-nav.js must treat rules.html as the Rules tab");

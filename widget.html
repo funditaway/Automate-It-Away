@@ -64,8 +64,8 @@
     </nav>
   </header>
   <main class="wrap">
-    <h1 id="drop-title">Drop something off</h1>
-    <p class="sub" id="drop-sub">Quick drop, custom drop, or paste data. Photos, documents, or a short video can ride on the card. Lands on this queue. You still tap Yes or No. Nobody sends money from here.</p>
+    <h1 id="drop-title">Drop anything</h1>
+    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or No. Nobody sends money from here.</p>
     <div class="modes" id="modes">
       <button type="button" class="on" data-mode="quick">Quick drop</button>
       <button type="button" data-mode="custom">Custom drop</button>
@@ -97,12 +97,18 @@
     </div>
     <div class="grid">
       <div class="card">
-        <strong id="lane-title" style="color:var(--heading)">Ask for something. It becomes a card.</strong>
+        <strong id="lane-title" style="color:var(--heading)">Drop anything. It becomes a card.</strong>
         <div id="pane-work">
           <label>I am</label>
           <div class="who-chips" id="who-chips"></div>
           <label>What is it?</label>
           <select id="kind">
+            <option value="task">A task</option>
+            <option value="chore">An errand</option>
+            <option value="list">A list</option>
+            <option value="idea">An idea</option>
+            <option value="project">A project</option>
+            <option value="build">A build</option>
             <option value="request">A request</option>
             <option value="note">A note</option>
             <option value="call">Missed call</option>
@@ -111,11 +117,9 @@
             <option value="ride">A ride</option>
             <option value="reminder">A reminder</option>
             <option value="book">Book a time</option>
-            <option value="chore">Chore / errand</option>
             <option value="form">Form / paper</option>
             <option value="photo">A photo</option>
             <option value="files">Files / papers</option>
-            <option value="list">List / sell</option>
             <option value="quote">Need a quote</option>
             <option value="follow">Follow up</option>
             <option value="walk-in">Walk-in job</option>
@@ -131,7 +135,7 @@
             <option value="custom">Custom drop</option>
           </select>
           <label>Title</label>
-          <input id="title" placeholder="Need a ride Friday · list the lamp">
+          <input id="title" placeholder="Need a ride Friday · grocery list · porch idea">
           <label>Your name</label>
           <input id="who" placeholder="Name">
           <label>Phone</label>
@@ -140,7 +144,7 @@
           <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm">
           <p class="sub" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
           <label>What do you need?</label>
-          <textarea id="note" rows="3" placeholder="Say the request in plain words"></textarea>
+          <textarea id="note" rows="3" placeholder="A task, an errand, a list, an idea, a project — in your words"></textarea>
         </div>
         <div id="pane-agent" hidden>
           <label>Paste the data</label>
@@ -155,7 +159,7 @@
       </div>
       <div class="card" id="embed-card">
         <strong style="color:var(--heading)">Drop from anywhere</strong>
-        <p class="sub">Share the link with family, a friend, a helper, or staff. They request something. Public drop never sees money, Stop, or People.</p>
+        <p class="sub">Share the link with family, a friend, a helper, or staff. They drop a task, an errand, a list, an idea, or a project. Public drop never sees money, Stop, or People.</p>
         <label>Share this link</label>
         <pre id="drop-link"></pre>
         <button type="button" class="ghost" onclick="copyDropShare()">Copy drop link</button>
@@ -204,13 +208,13 @@
       document.getElementById("pane-agent").hidden = !agent;
       const customPane = document.getElementById("pane-custom");
       if (customPane) customPane.hidden = mode !== "custom";
-      document.getElementById("lane-title").textContent = agent ? "Paste the data. The desk writes the card." : mode === "custom" ? "Name your own drop. It becomes a card." : "Quick drop. Tap a kind. It becomes a card.";
+      document.getElementById("lane-title").textContent = agent ? "Paste the data. The desk writes the card." : mode === "custom" ? "Name your own drop. It becomes a card." : "Drop anything. Tap a kind. It becomes a card.";
       document.getElementById("drop-send").textContent = agent ? "Put this on the desk" : "Drop it";
       if (mode === "custom" && window.AIADropAgent && AIADropAgent.applyQuick) AIADropAgent.applyQuick("custom");
     }
     function paintEmbed() {
       const name = (desk && (desk.name || desk.slug)) || ws || "a desk";
-      document.getElementById("drop-title").textContent = ws ? ("Drop something off · " + name) : "Drop something off";
+      document.getElementById("drop-title").textContent = ws ? ("Drop anything · " + name) : "Drop anything";
       const el = document.getElementById("drop-link");
       if (el) el.textContent = ws ? ("https://automateitaway.com/drop?ws=" + encodeURIComponent(ws)) : "Open a desk first. Then this link appears.";
     }

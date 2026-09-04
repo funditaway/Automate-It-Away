@@ -1,8 +1,13 @@
 (function () {
   var KINDS = [
+    { re: /\b(task|to-?do)\b/i, kind: "task", outcome: "wait" },
+    { re: /\b(idea|what if)\b/i, kind: "idea", outcome: "note" },
+    { re: /\b(project)\b/i, kind: "project", outcome: "wait" },
+    { re: /\b(build|make this|make a)\b/i, kind: "build", outcome: "wait" },
     { re: /\b(ride|pick me up|give me a lift)\b/i, kind: "ride", outcome: "book" },
     { re: /\b(pick ?up|drop[- ]?off)\b/i, kind: "pickup", outcome: "book" },
-    { re: /\b(list|sell|ebay|consign)\b/i, kind: "list", outcome: "list" },
+    { re: /\b(sell|ebay|consign|listing)\b/i, kind: "list", outcome: "list" },
+    { re: /\b(list)\b/i, kind: "list", outcome: "note" },
     { re: /\b(quote|how much|estimate)\b/i, kind: "quote", outcome: "quote" },
     { re: /\b(missed call|call (them|him|her|me) back|they called)\b/i, kind: "call", outcome: "call" },
     { re: /\b(remind|reminder|don't forget)\b/i, kind: "reminder", outcome: "book" },

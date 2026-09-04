@@ -41,6 +41,9 @@ if (!drop.includes("data-tab=\"rules\"") || !drop.includes("data-tab=\"pipes\"")
 if (drop.includes("http-equiv=\"refresh\"") || drop.includes("location.replace(\"/widget") || drop.length < 4000) {
   fail("drop.html must be the real Drop page, not a stub");
 } else pass("drop.html is the real Drop page");
+if (!drop.includes("Drop anything") || drop.includes("Drop something off") || drop.includes("List / sell")) {
+  fail("drop.html must read as drop anything, not consign-only");
+} else pass("drop.html copy is drop anything");
 const pipes = fs.readFileSync(path.join(root, "pipes.html"), "utf8");
 if (!pipes.includes("This desk") || pipes.includes("http-equiv=\"refresh\"") || pipes.length < 4000) {
   fail("pipes.html must be the real Pipes page, not a stub");

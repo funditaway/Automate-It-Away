@@ -349,8 +349,7 @@
       load();
     }
     function openCapture() {
-      const house = /home|family|house|life/i.test(localStorage.getItem("aia_model") || "");
-      document.getElementById("sheet-card").innerHTML = `<h3>Drop something in</h3><label>This is</label><select id="cap-kind"><option value="home" ${house ? "selected" : ""}>Home & family</option><option value="form">School / form</option><option value="consign" ${house ? "" : "selected"}>Desk item</option><option value="note">Neighbor / side job</option></select><label>What is it?</label><input id="cap-title" placeholder="School form, oil change, oak dresser"><label>When or ask</label><input id="cap-when" placeholder="Friday / $150"><label>Photo or PDF (optional)</label><input id="cap-file" type="file" accept="image/*,application/pdf"><label>Note</label><textarea id="cap-note" rows="2" placeholder="Who it is for, condition, who called"></textarea><div class="row" style="margin-top:12px"><button class="go" type="button" onclick="capture()">Add to queue</button><button class="edit" type="button" onclick="document.getElementById('sheet').classList.remove('on')">Cancel</button></div>`;
+      document.getElementById("sheet-card").innerHTML = `<h3>Drop anything</h3><label>This is</label><select id="cap-kind"><option value="task" selected>A task</option><option value="chore">An errand</option><option value="list">A list</option><option value="idea">An idea</option><option value="project">A project / build</option><option value="home">Home & family</option><option value="form">School / form</option><option value="note">A note</option></select><label>What is it?</label><input id="cap-title" placeholder="Grocery list, porch idea, Friday ride"><label>When</label><input id="cap-when" placeholder="Friday"><label>Photo or PDF (optional)</label><input id="cap-file" type="file" accept="image/*,application/pdf"><label>Note</label><textarea id="cap-note" rows="2" placeholder="Who it is for, what to do"></textarea><div class="row" style="margin-top:12px"><button class="go" type="button" onclick="capture()">Add to queue</button><button class="edit" type="button" onclick="document.getElementById('sheet').classList.remove('on')">Cancel</button></div>`;
       document.getElementById("sheet").classList.add("on");
     }
     async function capture() {
@@ -360,8 +359,8 @@
       const kindPick = (document.getElementById("cap-kind") || {}).value || "";
       const amount = Number(String(when).replace(/[^0-9.]/g, ""));
       const fileEl = document.getElementById("cap-file");
-      const pack = kindPick === "consign" ? "consign" : (kindPick === "home" || kindPick === "form" || kindPick === "note") ? "home" : /vita|insurance/i.test(title + notes) ? "vita" : "home";
-      const item = { action: "capture", title: title || notes || "Desk drop", notes, timing: /[a-z]/i.test(when) ? when : undefined, amount: Number.isFinite(amount) && amount > 0 ? amount : undefined, from: "desk", kind: kindPick === "form" ? "form" : kindPick === "consign" ? "walk-in" : "note", pack };
+      const pack = kindPick === "home" || kindPick === "form" ? "home" : undefined;
+      const item = { action: "capture", title: title || notes || "Desk drop", notes, timing: /[a-z]/i.test(when) ? when : undefined, amount: Number.isFinite(amount) && amount > 0 ? amount : undefined, from: "desk", kind: kindPick || "task", pack };
       if (fileEl && fileEl.files && fileEl.files[0]) {
         const file = fileEl.files[0];
         if (file.size > 3500000) { document.getElementById("banner").textContent = "Photo over 3.5MB."; return; }
