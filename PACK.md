@@ -77,6 +77,27 @@ Rule keys:
 
 `taps` are owner-only. `rails` are the face hints. `face` is who / what / when / where / how.
 
+## Named desk AIs
+
+Pack JSON may declare one or more desk AIs. Installing the pack attaches them to that desk. They draft under the desk’s rules. They never Yes, Stop, money, or mail.
+
+```json
+{
+  "ais": [
+    {
+      "name": "James’s AI",
+      "role": "Doer",
+      "does": "Drafts desk work for this project",
+      "prompt": "Do not send. Do not invent a price.",
+      "steps": ["qualify", "do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ]
+}
+```
+
+`ais` (or `bots` as an alias) are bound to the desk. `steps` are the stages they may draft. Collect is never allowed. Owner Use / private-install is the Approve tap. List on Market with an ask, or keep private for this account’s desks. Collect stays HOLD.
+
 ## Pack logic
 
 1. World user drops onto a desk.

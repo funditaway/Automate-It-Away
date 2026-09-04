@@ -53,13 +53,36 @@
       return { label: label.slice(0, 40), type: type };
     }).filter(Boolean);
   }
-  function bots() {
+  function aisFromForm() {
     var out = [];
-    var n1 = val("bot1-name") || formState["bot1-name"];
-    if (n1) out.push({ name: n1, crew: val("bot1-crew") || formState["bot1-crew"] || "Doer", prompt: val("bot1-prompt") || formState["bot1-prompt"] || "", does: val("bot1-does") || formState["bot1-does"] || "", draftOnly: true, never: ["send", "stop", "money"] });
-    var n2 = val("bot2-name") || formState["bot2-name"];
-    if (n2) out.push({ name: n2, crew: val("bot2-crew") || formState["bot2-crew"] || "Worker", prompt: val("bot2-prompt") || formState["bot2-prompt"] || "", does: val("bot2-does") || formState["bot2-does"] || "", draftOnly: true, never: ["send", "stop", "money"] });
+    var n1 = val("ai1-name") || formState["ai1-name"] || val("bot1-name") || formState["bot1-name"];
+    if (n1) out.push({
+      name: n1,
+      role: val("ai1-role") || formState["ai1-role"] || val("bot1-crew") || formState["bot1-crew"] || "Doer",
+      does: val("ai1-does") || formState["ai1-does"] || val("bot1-does") || formState["bot1-does"] || "",
+      prompt: val("ai1-prompt") || formState["ai1-prompt"] || val("bot1-prompt") || formState["bot1-prompt"] || "",
+      steps: val("ai1-steps") || formState["ai1-steps"] || "qualify, do, follow",
+      deny: ["send", "stop", "money", "mail", "yes", "kill"],
+      draftOnly: true,
+      bound: "desk"
+    });
+    var n2 = val("ai2-name") || formState["ai2-name"] || val("bot2-name") || formState["bot2-name"];
+    if (n2) out.push({
+      name: n2,
+      role: val("ai2-role") || formState["ai2-role"] || val("bot2-crew") || formState["bot2-crew"] || "Worker",
+      does: val("ai2-does") || formState["ai2-does"] || val("bot2-does") || formState["bot2-does"] || "",
+      prompt: val("ai2-prompt") || formState["ai2-prompt"] || val("bot2-prompt") || formState["bot2-prompt"] || "",
+      steps: val("ai2-steps") || formState["ai2-steps"] || "qualify, follow",
+      deny: ["send", "stop", "money", "mail", "yes", "kill"],
+      draftOnly: true,
+      bound: "desk"
+    });
     return out.slice(0, 3);
+  }
+  function bots() {
+    return aisFromForm().map(function (a) {
+      return { name: a.name, crew: a.role, prompt: a.prompt, does: a.does, draftOnly: true, never: a.deny };
+    });
   }
   function packBody(extra) {
     return Object.assign({
@@ -72,6 +95,7 @@
       rules: (val("rule") || formState.rule) ? [{ text: val("rule") || formState.rule }] : [],
       ask: Number(val("ask") || formState.ask || 0) || 0,
       bots: bots(),
+      ais: aisFromForm(),
       dropHint: val("drop-hint") || formState["drop-hint"] || "",
       dropForm: { hint: val("drop-hint") || formState["drop-hint"] || "", kinds: val("drop-kinds") || formState["drop-kinds"] || "", public: false },
       pipes: val("pipes") || formState.pipes || "",
@@ -108,7 +132,7 @@
       ["home", "Home"],
       ["grok", "Grok"],
       ["pack", "Pack"],
-      ["bots", "Bots"],
+      ["ais", "Desk AIs"],
       ["drop", "Drop form"],
       ["queue", "Queue"],
       ["pipes", "Pipes"],
@@ -123,7 +147,7 @@
   function pane() {
     if (tab === "grok") return (
       "<div class=\"card\"><h2>Ask Grok</h2>" +
-      "<p class=\"hint\">Included drafter — Grok’s AIA Studio seat on this same account. Not a second SKU. Helps build bots and packs. Can list an ask; Collect stays HOLD. Never Send, Stop, or pay. Never auto-mail. You tap Yes to put the draft on Pack and Bots, or Stop to discard it.</p>" +
+      "<p class=\"hint\">Included drafter — Grok’s AIA Studio seat on this same account. Not a second SKU. Helps build named desk AIs and packs. Can list an ask; Collect stays HOLD. Never Send, Stop, or pay. Never auto-mail. You tap Yes to put the draft on Pack and Desk AIs, or Stop to discard it.</p>" +
       "<p class=\"aia-line\" id=\"aia-line\">Checking drafts…</p>" +
       "<label>What should this pack do?</label>" +
       "<textarea id=\"grok-brief\" rows=\"4\" placeholder=\"Saturday oil-change lane. Photo in. Draft the title. Wait on payout.\"></textarea>" +
@@ -146,18 +170,21 @@
       "<p class=\"hint\">A number here is a listed ask. World desks can still install the pack. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-pack\">Save draft</button></p></div>"
     );
-    if (tab === "bots") return (
-      "<div class=\"card\"><h2>Pack bots</h2><p class=\"hint\">Draft only. Never Send, Stop, or pay. Owner Approves the seat on Use. Grok can draft these; you still tap Yes.</p>" +
-      "<label>Bot 1 name</label><input id=\"bot1-name\" placeholder=\"Lane Doer\">" +
-      "<label>Crew</label><select id=\"bot1-crew\"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select>" +
-      "<label>What it drafts</label><input id=\"bot1-does\" placeholder=\"Draft the next step\">" +
-      "<label>Draft line</label><textarea id=\"bot1-prompt\" rows=\"2\" placeholder=\"Do not send it. Do not invent a price.\"></textarea>" +
-      "<label>Bot 2 name</label><input id=\"bot2-name\" placeholder=\"Lane Worker\">" +
-      "<label>Crew</label><select id=\"bot2-crew\"><option>Worker</option><option>Doer</option><option>Rail</option><option>Foreman</option></select>" +
-      "<label>What it drafts</label><input id=\"bot2-does\" placeholder=\"Qualify and write the follow note\">" +
-      "<label>Draft line</label><textarea id=\"bot2-prompt\" rows=\"2\"></textarea>" +
-      "<p class=\"hint\">Never: Send · Stop · pay · public Bot API</p>" +
-      "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-bots\">Save bots on draft</button></p></div>"
+    if (tab === "ais" || tab === "bots") return (
+      "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Bound to this desk — not a free-roaming bot. Drafts desk work under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
+      "<label>AI 1 name</label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
+      "<label>Role</label><select id=\"ai1-role\"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select>" +
+      "<label>What it drafts</label><input id=\"ai1-does\" placeholder=\"Draft the next step on this desk\">" +
+      "<label>Steps it may draft</label><input id=\"ai1-steps\" placeholder=\"qualify, do, follow\">" +
+      "<label>Draft line</label><textarea id=\"ai1-prompt\" rows=\"2\" placeholder=\"Do not send it. Do not invent a price. Wait on Yes.\"></textarea>" +
+      "<label>AI 2 name</label><input id=\"ai2-name\" placeholder=\"Lane Worker\">" +
+      "<label>Role</label><select id=\"ai2-role\"><option>Worker</option><option>Doer</option><option>Rail</option><option>Foreman</option></select>" +
+      "<label>What it drafts</label><input id=\"ai2-does\" placeholder=\"Qualify and write the follow note\">" +
+      "<label>Steps it may draft</label><input id=\"ai2-steps\" placeholder=\"qualify, follow\">" +
+      "<label>Draft line</label><textarea id=\"ai2-prompt\" rows=\"2\"></textarea>" +
+      "<p class=\"hint\">Never: Send · Stop · pay · mail · Yes itself. Collect stays HOLD.</p>" +
+      "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-ais\">Save AIs on draft</button>" +
+      "<button class=\"go ghost\" type=\"button\" id=\"attach-ai\">Attach AI 1 to this desk now</button></p></div>"
     );
     if (tab === "drop") return (
       "<div class=\"card\"><h2>Drop form inside the pack</h2>" +
@@ -189,19 +216,20 @@
       "<a class=\"go ghost\" href=\"/people\">People</a></p></div>"
     );
     if (tab === "test") return (
-      "<div class=\"card\"><h2>Test on this desk</h2><p class=\"hint\">Copies fields, rules, pending bots, and ext onto this queue. Not on Market. Fresh desks stay empty until you test or a world user installs.</p>" +
+      "<div class=\"card\"><h2>Test on this desk</h2><p class=\"hint\">Copies fields, rules, named desk AIs, and ext onto this queue. Not on Market. Fresh desks stay empty until you test or a world user installs.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"test-pack\">Test this pack</button>" +
       "<a class=\"go ghost\" href=\"/drop\">Open Drop</a><a class=\"go ghost\" href=\"/desk\">Open Queue</a></p></div>"
     );
     if (tab === "submit") return (
       "<div class=\"card\"><h2>Submit to AIA</h2>" +
-      "<p class=\"hint\">Publish lists it on /market and puts the thin JSON onto this desk. World desks Buy / install onto their queue. An ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
-      "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"submit-pack\">Publish · land on this desk</button>" +
+      "<p class=\"hint\">Publish lists it on /market and puts the thin JSON onto this desk. Keep private attaches the pack and named AIs to this desk only — project, company, or family. An ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
+      "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"submit-pack\">Publish · land on Market</button>" +
+      "<button class=\"go ghost\" type=\"button\" id=\"private-pack\">Keep private on this desk</button>" +
       "<a class=\"go ghost\" href=\"/market\">Marketplace</a></p></div>"
     );
     return (
       "<div class=\"card\"><h2>Grok · AIA Studio</h2>" +
-      "<p class=\"hint\">First-class creator on this same AIA account. Not a separate product. Drafts bots and packs. Can list an ask on Market. Collect stays HOLD. Packs always land on this desk — Queue, Drop, Create. No silent charge.</p>" +
+      "<p class=\"hint\">First-class creator on this same AIA account. Not a separate product. Drafts named desk AIs and packs. Can list an ask on Market or keep private on this desk. Collect stays HOLD. Packs always land on this desk — Queue, Drop, Create. No silent charge.</p>" +
       "<p class=\"aia-line\" id=\"aia-line\">Checking drafts…</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
       "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
@@ -230,7 +258,7 @@
     snap();
     view.innerHTML =
       "<div class=\"card banner\"><div><b>" + (creator ? "Creators Studio on · still free" : "Studio flag is off") + "</b>" +
-      "<p class=\"hint\">Draft → test on this desk → submit to AIA → Market. Packs never Send. Collect stays HOLD.</p></div>" +
+      "<p class=\"hint\">Draft → test on this desk → keep private or submit to AIA → Market. Named AIs bind to the desk. Packs never Send. Collect stays HOLD.</p></div>" +
       "<div class=\"cta\"><button class=\"go\" type=\"button\" id=\"on-dev\">I make packs</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"off-dev\">Regular account</button></div></div>" +
       "<div class=\"pills\" id=\"tabs\">" + tabs() + "</div>" + pane();
@@ -257,7 +285,7 @@
       paintLab();
     });
     function save() { return saveDraft(); }
-    ["save-pack", "save-bots", "save-drop", "save-queue", "save-pipes", "save-ext"].forEach(function (id) {
+    ["save-pack", "save-ais", "save-bots", "save-drop", "save-queue", "save-pipes", "save-ext"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.onclick = save;
     });
@@ -265,6 +293,10 @@
     if (testBtn) testBtn.onclick = testPack;
     var subBtn = document.getElementById("submit-pack");
     if (subBtn) subBtn.onclick = submitPack;
+    var privBtn = document.getElementById("private-pack");
+    if (privBtn) privBtn.onclick = privatePack;
+    var attachBtn = document.getElementById("attach-ai");
+    if (attachBtn) attachBtn.onclick = attachAiNow;
     var on = document.getElementById("on-dev");
     if (on) on.onclick = function () { switchPlan("dev"); };
     var off = document.getElementById("off-dev");
@@ -315,6 +347,7 @@
       pack.does && ("Does: " + pack.does),
       pack.niche && ("Niche: " + pack.niche),
       pack.rule && ("Rule: " + pack.rule),
+      (pack.ais && pack.ais[0] && pack.ais[0].name) && ("Desk AI: " + pack.ais[0].name),
       (pack.bots && pack.bots[0] && pack.bots[0].name) && ("Bot: " + pack.bots[0].name),
       "Collect stays HOLD. Never Send."
     ].filter(Boolean);
@@ -344,16 +377,26 @@
       formState["q-empty"] = pack.queue.empty || "";
       formState["q-chips"] = Array.isArray(pack.queue.chips) ? pack.queue.chips.join(", ") : (pack.queue.chips || "");
     }
-    var rows = pack.bots || [];
+    var rows = pack.ais || pack.bots || [];
     if (rows[0]) {
+      formState["ai1-name"] = rows[0].name || "";
+      formState["ai1-role"] = rows[0].role || rows[0].crew || "Doer";
+      formState["ai1-does"] = rows[0].does || "";
+      formState["ai1-prompt"] = rows[0].prompt || "";
+      formState["ai1-steps"] = Array.isArray(rows[0].steps) ? rows[0].steps.join(", ") : (rows[0].steps || rows[0].allow || "qualify, do, follow");
       formState["bot1-name"] = rows[0].name || "";
-      formState["bot1-crew"] = rows[0].crew || "Doer";
+      formState["bot1-crew"] = rows[0].role || rows[0].crew || "Doer";
       formState["bot1-does"] = rows[0].does || "";
       formState["bot1-prompt"] = rows[0].prompt || "";
     }
     if (rows[1]) {
+      formState["ai2-name"] = rows[1].name || "";
+      formState["ai2-role"] = rows[1].role || rows[1].crew || "Worker";
+      formState["ai2-does"] = rows[1].does || "";
+      formState["ai2-prompt"] = rows[1].prompt || "";
+      formState["ai2-steps"] = Array.isArray(rows[1].steps) ? rows[1].steps.join(", ") : (rows[1].steps || "qualify, follow");
       formState["bot2-name"] = rows[1].name || "";
-      formState["bot2-crew"] = rows[1].crew || "Worker";
+      formState["bot2-crew"] = rows[1].role || rows[1].crew || "Worker";
       formState["bot2-does"] = rows[1].does || "";
       formState["bot2-prompt"] = rows[1].prompt || "";
     }
@@ -397,7 +440,7 @@
     grokDraft = null;
     tab = "pack";
     paintLab();
-    show("Draft is on Pack and Bots. Save when it looks right. AIA does not send.", true);
+    show("Draft is on Pack and Desk AIs. Save when it looks right. AIA does not send.", true);
   }
 
   function stopGrok() {
@@ -427,11 +470,40 @@
     snap();
     if (!(val("name") || formState.name)) return show("Name the pack first.", false);
     var out = await post("submit-pack");
-    if (!out.ok && (out.status === 400 || out.status === 404)) out = await post("list-pack", { submit: true, status: "submitted" });
+    if (!out.ok && (out.status === 400 || out.status === 404)) out = await post("list-pack", { submit: true, status: "submitted", visibility: "listed" });
     if (!out.ok) return show((out.data && out.data.error) || "Could not submit.", false);
-    show((out.data && out.data.note) || "Submitted to AIA. Not on Market until approved.", true);
+    show((out.data && out.data.note) || "Listed on Market. Pack JSON and desk AIs land on this desk. Collect stays HOLD.", true);
     tab = "home";
     paintLab();
+  }
+  async function privatePack() {
+    snap();
+    if (!(val("name") || formState.name)) return show("Name the pack first.", false);
+    var out = await post("private-pack", { visibility: "private", status: "private" });
+    if (!out.ok) return show((out.data && out.data.error) || "Could not keep it private.", false);
+    show((out.data && out.data.note) || "Private on this desk. Named AIs attached. Not on Market.", true);
+    tab = "home";
+    paintLab();
+  }
+  async function attachAiNow() {
+    snap();
+    var name = val("ai1-name") || formState["ai1-name"];
+    if (!name) return show("Name the desk AI first.", false);
+    var r = await fetch("/api/desks", {
+      method: "POST",
+      headers: hdr(),
+      body: JSON.stringify({
+        action: "save-ai",
+        name: name,
+        role: val("ai1-role") || formState["ai1-role"] || "Doer",
+        does: val("ai1-does") || formState["ai1-does"] || "",
+        prompt: val("ai1-prompt") || formState["ai1-prompt"] || "",
+        steps: val("ai1-steps") || formState["ai1-steps"] || "qualify, do, follow"
+      })
+    });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok) return show(d.error || "Could not attach that AI.", false);
+    show((d.note || (name + " is on this desk.")) + " Guardrails: Yes / Stop / Kill stay human.", true);
   }
   async function switchPlan(plan) {
     var r = await fetch("/api/account", { method: "POST", headers: hdr(), body: JSON.stringify({ action: "plan", plan: plan }) });
@@ -475,13 +547,14 @@
       var r = await fetch("/api/desks?packs=1&mine=1", { headers: hdr() });
       var d = await r.json().catch(function () { return {}; });
       var rows = (d.packs || []).filter(function (p) { return p && !p.official && !p.wanted && p.type !== "cosmetic"; });
-      if (!rows.length) { box.innerHTML = "<p class=\"hint\">No Studio packs yet. Ask Grok, or save a draft on Pack.</p>"; return; }
+      if (!rows.length) { box.innerHTML = "<p class=\"hint\">No Studio packs yet. Ask Grok, name a desk AI, or save a draft on Pack.</p>"; return; }
       box.innerHTML = rows.map(function (p) {
-        var botsN = p.bots || (p.botRows && p.botRows.length) || 0;
+        var botsN = p.ais || p.bots || (p.aiRows && p.aiRows.length) || (p.botRows && p.botRows.length) || 0;
         return "<div class=\"pack-row\"><b>" + esc(p.name || p.id) + "</b><span class=\"hint\">" +
           esc(p.status || p.review || "draft") + (p.priced ? (" · ask $" + p.ask + " · Collect HOLD") : " · free") +
+          (p.visibility === "private" || p.private ? " · private" : "") +
           (p.authoredBy === "grok" || p.creatorId === "grok" ? " · Grok" : "") +
-          (botsN ? (" · " + botsN + " bot") : "") +
+          (botsN ? (" · " + botsN + " desk AI") : "") +
           (p.ext ? " · ext" : "") + "</span></div>";
       }).join("");
     } catch (e) {

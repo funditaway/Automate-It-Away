@@ -80,7 +80,11 @@ function jobBrief(job, shop) {
     missingWhy: clip(job && job.why, 200),
     desk: shop && (shop.biz || shop.name || shop.slug),
     model: shop && shop.model,
-    rules: ((shop && shop.rules) || []).slice(0, 8).map((r) => clip(r && r.text, 120)).filter(Boolean)
+    rules: ((shop && shop.rules) || []).slice(0, 8).map((r) => clip(r && r.text, 120)).filter(Boolean),
+    ais: ((shop && shop.ais) || []).slice(0, 3).map(function (a) {
+      if (!a) return null;
+      return { name: clip(a.name, 40), role: clip(a.role || a.crew, 16), does: clip(a.does, 120), steps: a.steps || a.allow || [] };
+    }).filter(Boolean)
   };
 }
 
@@ -154,7 +158,7 @@ function normalizeCites(rows) {
   }).filter(Boolean).slice(0, 6);
 }
 
-const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"citations\":[{\"title\":\"\",\"url\":\"https://...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Citations only for real http(s) URLs you used — never invent links or money. Short local English. Never send money, never email a customer, never Stop a job. Human taps Yes or No.";
+const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"citations\":[{\"title\":\"\",\"url\":\"https://...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Citations only for real http(s) URLs you used — never invent links or money. Short local English. If the desk has a named AI, draft as that AI on this desk only. Never send money, never email a customer, never Stop a job, never Yes yourself. Human taps Yes or No.";
 
 async function callOpenAI(drafter, job, shop) {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -250,13 +254,14 @@ async function grokRecommend(job, shop, workspace) {
   }
 }
 
-const STUDIO_SYSTEM = "You draft thin JSON packs for Automate It Away Creators Studio. Return JSON only: {\"name\":\"\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"ask\":0,\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Draft only. Human taps Yes to save or install. Short local English. Worker-first: AI drafts, the owner decides. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect.";
+const STUDIO_SYSTEM = "You draft thin JSON packs and named desk AIs for Automate It Away Creators Studio. Return JSON only: {\"name\":\"\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"ask\":0,\"ais\":[{\"name\":\"\",\"role\":\"Doer\",\"does\":\"\",\"prompt\":\"\",\"steps\":\"qualify,do,follow\"}],\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Desk AIs are bound to one desk. They draft only. Human taps Yes / Stop / Kill. Collect stays HOLD. Draft only. Human taps Yes to save or install. Short local English. Worker-first: AI drafts, the owner decides. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect.";
 
-async function studioDraft(brief, workspace) {
+async function studioDraft(brief, workspace, opts) {
   const drafter = pickDrafter(workspace);
   if (!drafter) return { ok: false, skipped: true, reason: "no-key" };
   const text = String(brief || "").trim().slice(0, 800);
   if (!text) return { ok: false, skipped: true, reason: "no-brief" };
+  const kind = String((opts && opts.kind) || "pack").toLowerCase();
   try {
     const payload = {
       model: drafter.model || grokModel(),
@@ -264,7 +269,7 @@ async function studioDraft(brief, workspace) {
       max_tokens: 500,
       messages: [
         { role: "system", content: STUDIO_SYSTEM },
-        { role: "user", content: JSON.stringify({ brief: text, never: ["send", "stop", "pay", "bind"], collect: "hold" }) }
+        { role: "user", content: JSON.stringify({ brief: text, kind: kind, never: ["send", "stop", "pay", "bind", "mail"], collect: "hold", aisBound: "desk" }) }
       ]
     };
     const url = drafter.provider === "openai"
@@ -308,6 +313,8 @@ async function studioDraft(brief, workspace) {
     }
     parsed.never = ["send", "stop", "pay"];
     parsed.collect = "hold";
+    if (Array.isArray(parsed.bots) && !parsed.ais) parsed.ais = parsed.bots;
+    if (Array.isArray(parsed.ais) && !parsed.bots) parsed.bots = parsed.ais;
     return { ok: true, pack: parsed, provider: drafter.provider, model: drafter.model, source: drafter.source || "included" };
   } catch (e) {
     return { ok: false, skipped: false, reason: "net", error: clip(e && e.message, 80) };

@@ -1,6 +1,7 @@
 const { cors, mem, log, save, ready, workspaceOf } = require("./_lib");
 const { runWorkspace } = require("./_engine");
-const { personNamed, isApprovedAgent, agentDraft } = require("./_handoff");
+const { personNamed, isApprovedAgent, agentDraft, applyDeskAiDraft } = require("./_handoff");
+const ais = require("./_ais");
 const { addTalk } = require("./_fields");
 
 function shopOf(slug) {
@@ -57,14 +58,24 @@ module.exports = async function handler(req, res) {
   let drafted = 0;
   scope.forEach((job) => {
     if (!job || job.status === "killed" || job.status === "shipped" || job.status === "held") return;
-    if (job.agentDrafted) return;
     const shop = shopOf(job.workspace);
-    const who = personNamed(shop, job.assignee);
-    if (!isApprovedAgent(who)) return;
-    agentDraft(job, who);
-    addTalk(job, (job.agentDraft && job.agentDraft.crew) || who.name, (job.agentDraft && job.agentDraft.text) || job.draft, "rec");
+    const step = ais.stepOf(job);
+    if (step === "collect") return;
+    let who = personNamed(shop, job.assignee);
+    if (who && !isApprovedAgent(who)) return;
+    if (!isApprovedAgent(who)) {
+      const picked = ais.pickDeskAi(shop, step);
+      who = picked ? (ais.findAiSeat(shop, picked) || { name: picked.name, crew: picked.role, deskAi: true, status: "approved", kind: "agent", role: "agent", prompt: picked.prompt, does: picked.does, never: picked.never, steps: picked.steps }) : null;
+    }
+    if (!isApprovedAgent(who) && !(who && who.deskAi && who.status === "approved")) return;
+    if (who && who.steps && !ais.aiMayDraft(who, step)) return;
+    if (job.agentDrafted && job.deskAi) return;
+    if (job.agentDrafted && !who.deskAi) return;
+    if (who.deskAi) applyDeskAiDraft(job, shop, step);
+    else agentDraft(job, who);
+    addTalk(job, (job.agentDraft && (job.agentDraft.name || job.agentDraft.crew)) || who.name, (job.agentDraft && job.agentDraft.text) || job.draft, "rec");
     drafted += 1;
-    log(who.crew || "Agent", "Draft · " + job.title, "OK", job.workspace);
+    log(who.deskAi ? (who.name || "Desk AI") : (who.crew || "Agent"), "Draft · " + job.title, "OK", job.workspace);
   });
   let nudged = 0;
   scope.forEach((job) => {
@@ -78,6 +89,6 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({
     ok: true, workspace, touched: qualified + followed + drafted + clocked, qualified, followed,
     pinged: pinged.length, drafted, nudged, clocked,
-    note: "Worker qualifies, nudges, drafts, and ticks due/expire. Never Send or Stop."
+    note: "Worker qualifies, nudges, drafts for named desk AIs, and ticks due/expire. Never Send or Stop."
   });
 };

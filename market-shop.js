@@ -65,6 +65,7 @@
       "<b>" + esc(p.name) + "</b>" +
       "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + "</p>" +
       "<p class=\"hint\" style=\"margin:0\">" + esc(p.does || p.dropHint || "") + "</p>" +
+      ((p.aiRows && p.aiRows.length) ? "<p class=\"tag\">Desk AI · " + esc(p.aiRows.map(function (a) { return a.name; }).join(", ")) + "</p>" : "") +
       "<div class=\"pills\">" + featurePills(p) + "</div>" +
       "<p class=\"tag\">" + (p.official ? "Official AIA" : esc(p.creator || p.family || "Listed creator")) +
         (p.rules ? " · " + p.rules + " rule" + (p.rules === 1 ? "" : "s") : "") +
@@ -140,7 +141,7 @@
       "<div id=\"rows\">" + shopMarkup(LAST) + "</div>" +
       "<div class=\"card\">" +
         "<b>Sell a pack on AIA</b>" +
-        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack, add bots, write a rule, then list it here. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
+        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack, add a desk AI, write a rule, then list it here or keep it private. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a><a class=\"use ghost\" href=\"/account\">Creator / Dev flag</a></div>" +
       "</div>" +
       "<p class=\"hint\">Priced packs still install. Collect stays HOLD until Yes and a live money pipe. Packs never bind coverage or move payouts. <a href=\"/legal\">Legal</a>.</p>";
@@ -191,6 +192,11 @@
       "<h2>What’s included</h2>" +
       "<div class=\"card\"><ul class=\"inc\">" + (included || "<li>Name, what it does, fields, five-step words, and listed rules.</li><li>Does not copy pipes, people, or payouts.</li>") + "</ul>" +
         (p.dropHint ? "<p class=\"hint\">Drop hint: " + esc(p.dropHint) + "</p>" : "") +
+        ((p.aiRows || []).length
+          ? "<p class=\"hint\">Desk AIs that land on the desk</p>" + (p.aiRows || []).map(function (a) {
+            return "<p class=\"hint\"><b>" + esc(a.name) + "</b> · " + esc(a.role || "Doer") + " · drafts " + esc((a.steps || []).join(", ") || "qualify, do, follow") + ". Never Yes / Stop / money / mail.</p>";
+          }).join("")
+          : "<p class=\"hint\">No named desk AI in this listing. Your desk AIs still apply.</p>") +
         ((p.ruleRows || p.ruleLines || []).length
           ? "<p class=\"hint\">Rules that land on the desk</p>" + (p.ruleRows || p.ruleLines).map(function (r) { return "<p class=\"hint\">" + esc(ruleLine(r)) + "</p>"; }).join("")
           : "<p class=\"hint\">No extra rules in the listing. Your desk rules still apply.</p>") +

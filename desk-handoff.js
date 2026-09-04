@@ -9,7 +9,9 @@
     if (j.agentDraft && j.agentDraft.crew) return j.agentDraft.crew + " · " + (j.agentDraft.artifact || "draft") + " on the card";
     var who = (j.handedTo && j.handedTo.name) || j.assignee || "";
     var kind = (j.handedTo && j.handedTo.kind) || "";
-    if (who && (kind === "agent" || j.waitingOn === "agent")) return "Handed to " + who + " · agent · drafts only";
+    if (who && (kind === "agent" || j.waitingOn === "agent" || (j.deskAi && j.deskAi.name))) {
+      return (j.deskAi && j.deskAi.name ? j.deskAi.name : who) + " · desk AI · drafts only · Yes stays human";
+    }
     if (who) return "Handed to " + who + (kind ? " · " + kind : "");
     if (j.waitingOn === "owner") return "Waiting on the owner";
     if (j.status === "out") return "Off the desk. Confirm done or Needs a hand.";
@@ -34,7 +36,7 @@
   function people() { return (typeof PEOPLE !== "undefined" && PEOPLE) || []; }
   function opts(j) {
     return people().filter(function (p) { return p && p.status !== "pending" && p.status !== "denied"; }).map(function (p) {
-      var tag = (p.kind === "agent" || p.role === "agent") ? "agent" : (p.kind || p.role || "");
+      var tag = p.deskAi ? "desk AI" : ((p.kind === "agent" || p.role === "agent") ? "agent" : (p.kind || p.role || ""));
       var sel = j && j.assignee === p.name ? " selected" : "";
       return "<option value=\"" + esc(p.name) + "\"" + sel + ">" + esc(p.name) + (tag ? " · " + esc(tag) : "") + "</option>";
     }).join("");

@@ -8,6 +8,7 @@ const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccoun
   loginWithEmail, looksLikeEmail, emailTaken, emailOf, applyAccountDetails, setAccountPassword, passwordOk, homeAccount, accountForDesk, passwordMatches
 } = require("./_account");
 const libx = require("./_lib");
+const ais = require("./_ais");
 
 function publicWorkspace(row) {
   return {
@@ -21,7 +22,9 @@ function publicWorkspace(row) {
     nouns: ensureNouns(row),
     rules: ensureRules(row),
     fields: ensureFields(row),
-    creations: ensureCreations(row).map(publicCreation).filter(Boolean)
+    creations: ensureCreations(row).map(publicCreation).filter(Boolean),
+    ais: ais.railsOf(row).ais,
+    aiRails: ais.railsOf(row).rails
   };
 }
 

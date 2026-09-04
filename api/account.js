@@ -106,7 +106,7 @@ module.exports = async function handler(req, res) {
   ensureAccount();
 
   if (req.method === "GET") {
-    if (require("./._account-doors").handleGet(req, res)) return;
+    if (require("./_account-doors").handleGet(req, res)) return;
     const slug = workspaceOf(req);
     const found = personOf(req, slug);
     if (found.pending) {
@@ -138,7 +138,7 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "login").toLowerCase();
 
-  if (require("./._account-doors").handlePost(req, res, body, { authAccount, save })) return;
+  if (require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
 
   if (action === "login" || action === "open" || action === "save") {
     const name = body.account || body.slug || body.biz || body.name || workspaceOf(req);

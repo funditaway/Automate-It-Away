@@ -1,5 +1,6 @@
 const lib = require("./_lib");
 const perms = require("./_permissions");
+const ais = require("./_ais");
 
 const DESK_FORMAT = "aia.desk.v1";
 const DEFAULT_DESK_PERMS = {
@@ -94,6 +95,7 @@ function publicDesk(row, person) {
   const owner = lib.isOwner(person);
   const counts = jobCounts(row.slug);
   const explore = canDesk(person, row, "explore");
+  const rails = ais.railsOf(row);
   return {
     format: DESK_FORMAT,
     slug: row.slug,
@@ -116,7 +118,11 @@ function publicDesk(row, person) {
     out: counts.out,
     drop: "/drop?ws=" + encodeURIComponent(row.slug),
     perms: deskPerms(row),
-    can: deskAbility(person, row)
+    can: deskAbility(person, row),
+    ais: rails.ais,
+    aiCount: rails.count,
+    aiRails: rails.rails,
+    never: rails.never
   };
 }
 

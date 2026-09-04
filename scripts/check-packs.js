@@ -53,6 +53,8 @@ else pass("market has no demo chrome");
 const packsApi2 = packsApi;
 if (!packsApi2.includes("buy-pack")) fail("_packs.js missing buy-pack");
 else pass("packs buy-pack");
+if (!packsApi2.includes("save-ai") || !packsApi2.includes("private-pack")) fail("_packs.js missing save-ai / private-pack");
+else pass("packs save-ai / private-pack");
 if (!packsApi2.includes("grokStudio") || !packsApi2.includes("Grok · AIA Studio")) fail("missing Grok AIA Studio identity");
 else pass("Grok AIA Studio identity");
 if (!packsApi2.includes("authoredBy")) fail("packs missing authoredBy");
@@ -69,6 +71,8 @@ else pass("Grok Studio is not a SKU");
 const studio = fs.readFileSync(path.join(root, "developer.html"), "utf8");
 if (!studio.includes("Creators Studio")) fail("developer.html must be Creators Studio");
 else pass("developer.html is Creators Studio");
+if (!studio.includes("desk AI") && !fs.readFileSync(path.join(root, "developer.js"), "utf8").includes("Desk AIs")) fail("Creators Studio must name desk AIs");
+else pass("Studio names desk AIs");
 if (studio.includes("AIA Studio Pro")) fail("must not brand AIA Studio Pro");
 else pass("not AIA Studio Pro");
 

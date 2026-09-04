@@ -28,6 +28,8 @@ else pass("ask is a tag filter");
 
 if (!nav.includes("desk-queue-packs.js")) fail("desk-nav.js must load desk-queue-packs.js");
 else pass("nav loads queue packs");
+if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");
+else pass("nav loads desk ais");
 if (!nav.includes("desk-needs.js")) fail("desk-nav.js must load desk-needs.js");
 else pass("nav loads needs");
 if (!nav.includes("desk-inbox.js")) fail("desk-nav.js must load desk-inbox.js");

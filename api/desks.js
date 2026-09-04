@@ -78,7 +78,7 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "list").toLowerCase();
 
-  if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "buy-pack", "preview-pack", "studio-draft", "grok-pack"].indexOf(action) >= 0) {
+  if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "buy-pack", "preview-pack", "studio-draft", "grok-pack", "private-pack", "save-ai", "attach-ai", "remove-ai"].indexOf(action) >= 0) {
     req.body = body;
     return packHandler(req, res);
   }

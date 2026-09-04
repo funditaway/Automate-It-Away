@@ -1,6 +1,7 @@
     const TYPES = [
       { id: "job", name: "Job", hint: "A piece of work in the queue" },
       { id: "capture", name: "Capture", hint: "Photo, call, form — not shipped" },
+      { id: "ai", name: "Desk AI", hint: "Name an AI bound to this desk" },
       { id: "pack", name: "Pack", hint: "Search a listed pack. Use it on this desk" },
       { id: "model", name: "Automation", hint: "Your pack. Keep, list, or price it." },
       { id: "teammate", name: "Teammate", hint: "Who can tap on this shop" },
@@ -83,6 +84,7 @@
     function fields() {
       if (kind === "job") return `<label>What is the work?</label><input name="title" required placeholder="Grocery list · porch idea · Friday ride"><label>Notes</label><textarea name="notes" rows="3" placeholder="Anything this desk should run"></textarea>${packSelect()}${kindSelect()}${outcomeSelect()}<label class="adv">Ask / amount</label><input class="adv" name="amount" inputmode="decimal" placeholder="85"><label class="adv">When</label><input class="adv" name="timing" placeholder="Friday 3pm"><label class="adv">Hand to</label><input class="adv" name="assignee" placeholder="Name already on People"><label class="adv">Custom fields</label><input class="adv" name="customLine" placeholder="Patient: Rex, due date: Friday"><label class="adv">Tell AIA</label><textarea class="adv" name="tell" rows="2" placeholder="What Worker and Doer should know before they draft"></textarea>`;
       if (kind === "capture") return `<label>What came in?</label><textarea name="notes" rows="3" required placeholder="Photo of the porch lamp, pickup Thursday"></textarea>${kindSelect()}${outcomeSelect()}<label class="adv">From</label><input class="adv" name="from" placeholder="Counter · Thursday"><label class="adv">I am</label><select class="adv" name="whoKind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label class="adv">Name</label><input class="adv" name="contactName" placeholder="Taylor"><label class="adv">Phone</label><input class="adv" name="phone" placeholder="417-555-0100"><label class="adv">When</label><input class="adv" name="timing" placeholder="Thursday 3pm"><label class="adv">Tell AIA</label><textarea class="adv" name="tell" rows="2" placeholder="Not shipped. Qualify first."></textarea>`;
+      if (kind === "ai") return `<label>Name this desk AI</label><input name="name" required placeholder="James’s AI"><label>Role</label><select name="role"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select><label>What it drafts</label><input name="does" placeholder="Drafts desk work for this project"><label>Steps it may draft</label><input name="steps" placeholder="qualify, do, follow"><label>Draft line</label><textarea name="prompt" rows="2" placeholder="Do not send. Do not invent money. Wait on Yes."></textarea><p class="hint">Bound to this desk. Never Yes, Stop, money, or mail. Collect stays HOLD. Pack it in Studio to list or keep private.</p>`;
       if (kind === "pack") return packFields();
       if (kind === "model") return `<label>Name this automation</label><input name="name" required placeholder="Lawn route"><label>What the desk does</label><input name="does" placeholder="Call in → schedule → invoice"><label>Share</label><select name="share"><option value="private">This desk only</option><option value="listed">Public — show in pack search</option><option value="market">Market — set an ask</option></select><label>Ask if this is a market pack</label><input name="price" inputmode="decimal" placeholder="0 means free. No card taken today."><p class="hint">Listed packs are free in search. A market ask is a tag. AIA does not take a card for packs yet.</p><label class="adv">How unique is it?</label><select class="adv" name="complexity"><option value="simple">Simple — same five steps</option><option value="custom">Custom — this desk only</option><option value="unique">Unique — own fields</option><option value="complex">Complex — fields + a first card</option></select><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Patient, due date, ask"><label class="adv">First card on the queue</label><input class="adv" name="firstWork" placeholder="Recall Rex Friday">`;
       if (kind === "teammate") return `<label>Name</label><input name="name" required placeholder="Sam"><label>Who they are</label><select name="kind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label>Their desk code</label><input name="pin" required inputmode="numeric" minlength="4" placeholder="4+ digits"><label class="adv">Phone</label><input class="adv" name="phone" inputmode="tel" placeholder="417-555-0100"><label class="adv">Email</label><input class="adv" name="email" inputmode="email" placeholder="sam@shop.com">`;
@@ -92,6 +94,7 @@
     function goLabel() {
       if (kind === "job") return "Put the job on the queue";
       if (kind === "capture") return "Capture it — not shipped";
+      if (kind === "ai") return "Bind this AI to the desk";
       if (kind === "pack") return "List this pack";
       if (kind === "model") return "Save this automation";
       if (kind === "teammate") return "Add this teammate";
@@ -222,6 +225,14 @@
       const go = form.querySelector(".go");
       if (go) go.disabled = true;
       try {
+        if (kind === "ai") {
+          const name = String(f.get("name") || "").trim();
+          if (!name) return fail("Name the desk AI first.");
+          const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: "save-ai", name: name, role: f.get("role") || "Doer", does: f.get("does") || "", prompt: f.get("prompt") || "", steps: f.get("steps") || "qualify, do, follow" }) });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) return fail(data.error || "Could not bind that AI.");
+          return done((data.note || (name + " is bound to this desk.")) + " Guardrails: Yes / Stop / Kill stay human. Pack it in Studio to list or keep private.");
+        }
         if (kind === "pack") {
           const name = String(f.get("listName") || "").trim();
           if (!name) return fail("Name the pack to list, or tap Use on a free pack.");
@@ -427,6 +438,7 @@
       const params = new URLSearchParams(location.search);
       const want = params.get("kind") || (location.hash || "").replace("#", "");
       if (want === "pack" || want === "packs" || want === "market") kind = "pack";
+      if (want === "ai" || want === "desk-ai") kind = "ai";
       if (want === "automation" || want === "model") kind = "model";
       renderPicks();
       setMode(false);
