@@ -9,8 +9,10 @@ const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccoun
 } = require("./_account");
 const libx = require("./_lib");
 const ais = require("./_ais");
+const net = require("./_aia-net");
 
 function publicWorkspace(row) {
+  const rails = ais.railsOf(row);
   return {
     slug: row.slug,
     name: row.name,
@@ -23,8 +25,11 @@ function publicWorkspace(row) {
     rules: ensureRules(row),
     fields: ensureFields(row),
     creations: ensureCreations(row).map(publicCreation).filter(Boolean),
-    ais: ais.railsOf(row).ais,
-    aiRails: ais.railsOf(row).rails
+    ais: rails.ais,
+    aiRails: rails.rails,
+    aia: rails.aia,
+    internet: net.INTERNET,
+    net: rails.net
   };
 }
 

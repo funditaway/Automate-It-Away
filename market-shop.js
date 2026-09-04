@@ -65,7 +65,8 @@
       "<b>" + esc(p.name) + "</b>" +
       "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + "</p>" +
       "<p class=\"hint\" style=\"margin:0\">" + esc(p.does || p.dropHint || "") + "</p>" +
-      ((p.aiRows && p.aiRows.length) ? "<p class=\"tag\">Desk AI · " + esc(p.aiRows.map(function (a) { return a.name; }).join(", ")) + "</p>" : "") +
+      ((p.aiRows && p.aiRows.length) ? "<p class=\"tag\">Desk AI · " + esc(p.aiRows.map(function (a) { return a.aia ? (a.name + " · " + a.aia) : a.name; }).join(", ")) + "</p>" : "") +
+      (p.aia ? "<p class=\"tag\">AIA Internet · " + esc(p.aia) + "</p>" : "") +
       "<div class=\"pills\">" + featurePills(p) + "</div>" +
       "<p class=\"tag\">" + (p.official ? "Official AIA" : esc(p.creator || p.family || "Listed creator")) +
         (p.rules ? " · " + p.rules + " rule" + (p.rules === 1 ? "" : "s") : "") +
@@ -74,6 +75,7 @@
       "<div class=\"cta\">" +
         useBtn +
         "<a class=\"use ghost\" href=\"/market?pack=" + encodeURIComponent(p.id) + "\">View listing</a>" +
+        "<a class=\"use ghost\" href=\"/api/desks?packs=1&download=" + encodeURIComponent(p.aia || p.file || p.id) + "\">Download " + esc(p.file || (p.aia || p.id + ".aia")) + "</a>" +
         "<a class=\"use ghost\" href=\"/drop?pack=" + encodeURIComponent(p.id) + "\">Drop this pack</a>" +
         (creatorId ? "<a class=\"use ghost\" href=\"/market?creator=" + encodeURIComponent(creatorId) + "\">Creator</a>" : "") +
       "</div></article>";
@@ -119,7 +121,8 @@
     LAST = packs || [];
     view.innerHTML =
       "<h1>Find a pack. Put it on this desk.</h1>" +
-      "<p class=\"sub\">Try first. Official packs are free. Open packs: listed creator JSON installs onto your empty-starting desk. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money. Queue cards count — not a model demo.</p>" +
+      "<p class=\"sub\">Try first. Official packs are free. Open packs: listed creator JSON installs onto your empty-starting desk, addressed on AIA Internet as .aia names. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money. Queue cards count — not a model demo.</p>" +
+      "<p class=\"aia-line off\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       deskBanner() +
       "<div class=\"strip\">" +
         "<div><b>1. Find</b><span>Search a niche or tap an aisle.</span></div>" +
@@ -141,7 +144,7 @@
       "<div id=\"rows\">" + shopMarkup(LAST) + "</div>" +
       "<div class=\"card\">" +
         "<b>Sell a pack on AIA</b>" +
-        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack, add a desk AI, write a rule, then list it here or keep it private. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
+        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack with a .aia identity, add a desk AI, write a rule, then list it here or keep it private. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a><a class=\"use ghost\" href=\"/account\">Creator / Dev flag</a></div>" +
       "</div>" +
       "<p class=\"hint\">Priced packs still install. Collect stays HOLD until Yes and a live money pipe. Packs never bind coverage or move payouts. <a href=\"/legal\">Legal</a>.</p>";
@@ -176,11 +179,12 @@
       : "<a class=\"use\" href=\"/onboard\">Open a desk to use it</a>";
     view.innerHTML =
       "<a class=\"back\" href=\"/market\">← Shop all packs</a>" +
-      "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + (p.official ? " · Official" : " · Creator listing") + "</p>" +
+      "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + (p.official ? " · Official" : " · Creator listing") + (p.aia ? " · " + esc(p.aia) : "") + "</p>" +
       "<h1>" + esc(p.name) + "</h1>" +
       "<p class=\"sub\">" + esc(p.does || "") + "</p>" +
       "<div class=\"cta\">" +
         ownerBtns +
+        "<a class=\"use ghost\" href=\"/api/desks?packs=1&download=" + encodeURIComponent(p.aia || p.file || p.id) + "\">Download " + esc(p.file || p.aia || (p.id + ".aia")) + "</a>" +
         "<a class=\"use ghost\" href=\"/drop?pack=" + encodeURIComponent(p.id) + "\">Drop this pack</a>" +
         "<button class=\"use ghost\" type=\"button\" data-copy-link=\"" + esc(p.id) + "\">Copy listing link</button>" +
       "</div>" +
@@ -194,7 +198,7 @@
         (p.dropHint ? "<p class=\"hint\">Drop hint: " + esc(p.dropHint) + "</p>" : "") +
         ((p.aiRows || []).length
           ? "<p class=\"hint\">Desk AIs that land on the desk</p>" + (p.aiRows || []).map(function (a) {
-            return "<p class=\"hint\"><b>" + esc(a.name) + "</b> · " + esc(a.role || "Doer") + " · drafts " + esc((a.steps || []).join(", ") || "qualify, do, follow") + ". Never Yes / Stop / money / mail.</p>";
+            return "<p class=\"hint\"><b>" + esc(a.name) + "</b>" + (a.aia ? (" · " + esc(a.aia)) : "") + " · " + esc(a.role || "Doer") + " · drafts " + esc((a.steps || []).join(", ") || "qualify, do, follow") + ". Never Yes / Stop / money / mail.</p>";
           }).join("")
           : "<p class=\"hint\">No named desk AI in this listing. Your desk AIs still apply.</p>") +
         ((p.ruleRows || p.ruleLines || []).length

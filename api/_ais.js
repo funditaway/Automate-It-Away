@@ -1,3 +1,5 @@
+const net = require("./_aia-net");
+
 const NEVER = ["send", "stop", "money", "mail", "yes", "kill"];
 const STEPS_OK = ["capture", "qualify", "do", "follow"];
 const STEPS_DEFAULT = ["qualify", "do", "follow"];
@@ -54,10 +56,15 @@ function normalizeAi(raw, workspace) {
   let steps = parseSteps(raw.steps || raw.allow);
   steps = steps.filter(function (s) { return deny.indexOf(s) < 0; });
   if (!steps.length) steps = ["qualify"];
+  const aia = net.of(raw.aia || raw.aiaName || raw.host || raw.file || name, slugAi(name));
   return {
     id: clip(raw.id, 40) || slugAi(name),
     workspace: workspace || raw.workspace || "",
     name: name,
+    aia: aia.name,
+    aiaLabel: aia.label,
+    file: aia.file,
+    internet: net.INTERNET,
     role: crewOf(raw.role || raw.crew || "Doer"),
     does: clip(raw.does, 160),
     prompt: clip(raw.prompt, 400),
@@ -67,7 +74,9 @@ function normalizeAi(raw, workspace) {
     never: NEVER.slice(),
     draftOnly: true,
     bound: "desk",
-    kind: "desk-ai"
+    kind: "desk-ai",
+    chain: false,
+    owned: false
   };
 }
 
@@ -88,9 +97,14 @@ function normalizeAis(rows, workspace) {
 
 function publicAi(ai) {
   if (!ai) return null;
+  const aia = net.of(ai.aia || ai.aiaName || ai.file || ai.name, ai.id || "desk-ai");
   return {
     id: ai.id,
     name: ai.name,
+    aia: aia.name,
+    aiaLabel: aia.label,
+    file: aia.file,
+    internet: net.INTERNET,
     role: ai.role || "Doer",
     does: ai.does || "",
     steps: ai.steps || [],
@@ -99,7 +113,9 @@ function publicAi(ai) {
     never: NEVER.slice(),
     draftOnly: true,
     bound: "desk",
-    rails: RAILS
+    rails: RAILS,
+    chain: false,
+    owned: false
   };
 }
 
@@ -162,6 +178,7 @@ function attachAisToDesk(shop, rows) {
         status: "approved",
         deskAi: true,
         aiId: row.id,
+        aia: row.aia,
         allow: row.allow,
         steps: row.steps,
         deny: row.deny,
@@ -220,11 +237,15 @@ function actorIsDeskAi(person) {
 
 function railsOf(shop) {
   const ais = deskAisOf(shop);
+  const deskNet = net.of(shop && (shop.aia || shop.aiaName || shop.slug), shop && shop.slug);
   return {
     ais: ais.map(publicAi).filter(Boolean),
     count: ais.length,
     rails: RAILS,
-    never: NEVER.slice()
+    never: NEVER.slice(),
+    aia: deskNet.name,
+    internet: net.INTERNET,
+    net: net.publicNet(deskNet)
   };
 }
 

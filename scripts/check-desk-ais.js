@@ -14,13 +14,13 @@ let failed = 0;
 function fail(m) { failed += 1; console.error("FAIL " + m); }
 function pass(m) { console.log("ok   " + m); }
 
-["developer.js", "developer.html", "api/_ais.js", "api/_packs.js", "desk-ais.js", "create-desk.js", "market-shop.js"].forEach(function (name) {
+["developer.js", "developer.html", "api/_ais.js", "api/_packs.js", "api/_aia-net.js", "desk-ais.js", "create-desk.js", "market-shop.js"].forEach(function (name) {
   if (!fs.existsSync(path.join(root, name))) fail("missing " + name);
   else pass("file " + name);
 });
 
 const packsApi = fs.readFileSync(path.join(root, "api/_packs.js"), "utf8");
-["save-ai", "private-pack", "attachAisToDesk", "normalizeAis"].forEach(function (bit) {
+["save-ai", "private-pack", "attachAisToDesk", "normalizeAis", "download-pack", ".aia"].forEach(function (bit) {
   if (!packsApi.includes(bit)) fail("_packs.js missing " + bit);
   else pass("packs " + bit);
 });
@@ -28,7 +28,7 @@ if (!packsApi.includes("charged: false") || !packsApi.includes("hold: true")) fa
 else pass("Collect HOLD");
 
 const studio = fs.readFileSync(path.join(root, "developer.js"), "utf8");
-["Desk AIs", "James", "private-pack", "save-ai", "ai1-name"].forEach(function (bit) {
+["Desk AIs", "James", "private-pack", "save-ai", "ai1-name", "james.aia", "springfield-shop.aia", "AIA Internet"].forEach(function (bit) {
   if (!studio.includes(bit)) fail("developer.js missing " + bit);
   else pass("studio " + bit);
 });
@@ -56,9 +56,10 @@ if (!jobsSrc.includes("actorBlocked") || !jobsSrc.includes("Desk AIs never")) fa
 else pass("jobs block AI Yes/Stop");
 
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
-if (!packMd.includes("Named desk AIs") || !packMd.includes("\"ais\"")) fail("PACK.md missing ais syntax");
+if (!packMd.includes("Named desk AIs") || !packMd.includes("\"ais\"") || !packMd.includes("AIA Internet") || !packMd.includes(".aia")) fail("PACK.md missing ais syntax");
 else pass("PACK.md documents ais");
 
+const net = require("../api/_aia-net");
 const lib = require("../api/_lib");
 const ais = require("../api/_ais");
 const packHandler = require("../api/_packs");
@@ -215,6 +216,69 @@ async function main() {
 
   if (/\$250|White House|eBay|Whatnot/.test(JSON.stringify(priv.body))) fail("hard-line leak");
   else pass("no demo $250 / White House / live eBay");
+
+  const james = net.parseName("james.aia");
+  const shopName = net.parseName("springfield-shop.aia");
+  if (!james.ok || james.name !== "james.aia") fail("james.aia");
+  else pass("james.aia");
+  if (!shopName.ok || shopName.file !== "springfield-shop.aia") fail("springfield-shop.aia");
+  else pass("springfield-shop.aia");
+  if (net.parseName("springfield-shop.com").ok) fail("must reject .com");
+  else pass("rejects other TLDs");
+  if (net.statusOf().chain || net.statusOf().owned || net.statusOf().live) fail("must not fake on-chain");
+  else pass("no fake chain ownership");
+  if (!/\.aia names on this desk/.test(net.statusOf().note)) fail("honest orange note");
+  else pass("honest orange .aia note");
+
+  const namedAi = ais.normalizeAi({ name: "James’s AI", aia: "james.aia" }, slug);
+  if (!namedAi || namedAi.aia !== "james.aia" || namedAi.file !== "james.aia") fail("AI aia identity");
+  else pass("AI addressed as james.aia");
+
+  const badTld = await call(packHandler, "POST", owner, {
+    action: "private-pack",
+    name: "Wrong net",
+    aia: "springfield-shop.com",
+    does: "Must not save."
+  });
+  if (badTld.statusCode < 400) fail("pack .com must 400, got " + badTld.statusCode);
+  else pass("pack rejects other TLDs");
+
+  const packed = await call(packHandler, "POST", owner, {
+    action: "private-pack",
+    name: "Springfield shop",
+    aia: "springfield-shop.aia",
+    does: "Draft the lane. Wait on payout.",
+    ais: [{ name: "James’s AI", aia: "james.aia", role: "Doer", steps: ["qualify", "do"] }]
+  });
+  if (packed.statusCode !== 200 || !packed.body.ok || !(packed.body.pack && packed.body.pack.aia === "springfield-shop.aia")) {
+    fail("pack aia " + JSON.stringify(packed.body && packed.body.pack));
+  } else pass("pack addressed as springfield-shop.aia");
+  if (packed.body.pack && (packed.body.pack.chain || packed.body.pack.owned)) fail("pack must not claim chain");
+  else pass("pack chain false");
+
+  const dl = await call(packHandler, "GET", owner, {}, { download: "springfield-shop.aia" });
+  if (dl.statusCode !== 200 || !dl.body) fail("download " + dl.statusCode);
+  else {
+    const file = typeof dl.body === "string" ? dl.body : JSON.stringify(dl.body);
+    const disp = dl.headers && (dl.headers["Content-Disposition"] || dl.headers["content-disposition"] || "");
+    if (!/springfield-shop\.aia/.test(disp) && !/springfield-shop\.aia/.test(file)) fail("download filename " + disp + " " + file.slice(0, 180));
+    else pass("pack download is springfield-shop.aia");
+    if (/\"chain\":\s*true|\"owned\":\s*true/.test(file)) fail("download claimed chain");
+    else pass("download is not a chain claim");
+  }
+
+  const dlPost = await call(packHandler, "POST", owner, { action: "download-pack", aia: "springfield-shop.aia" });
+  if (dlPost.statusCode !== 200) fail("download-pack " + dlPost.statusCode);
+  else pass("POST download-pack");
+
+  const homeDl = await call(packHandler, "GET", {}, {}, { download: "home.aia" });
+  if (homeDl.statusCode !== 200) fail("official home.aia download " + homeDl.statusCode);
+  else pass("official home.aia download");
+
+  const health = require("../api/health");
+  const healthRes = await call(health, "GET", {}, {}, {});
+  if (!healthRes.body || !healthRes.body.internet || healthRes.body.internet.chain) fail("health internet");
+  else pass("health exposes AIA Internet HOLD");
 
   await save();
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}

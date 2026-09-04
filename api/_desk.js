@@ -1,6 +1,7 @@
 const lib = require("./_lib");
 const perms = require("./_permissions");
 const ais = require("./_ais");
+const net = require("./_aia-net");
 
 const DESK_FORMAT = "aia.desk.v1";
 const DEFAULT_DESK_PERMS = {
@@ -122,7 +123,10 @@ function publicDesk(row, person) {
     ais: rails.ais,
     aiCount: rails.count,
     aiRails: rails.rails,
-    never: rails.never
+    never: rails.never,
+    aia: rails.aia,
+    internet: net.INTERNET,
+    net: rails.net
   };
 }
 
@@ -142,6 +146,12 @@ function applyDeskEdit(row, body) {
   if (src.city != null) row.city = String(src.city).trim().slice(0, 80);
   if (src.model != null) row.model = String(src.model).trim().slice(0, 80);
   if (src.does != null) row.does = String(src.does).trim().slice(0, 160);
+  if (src.aia != null || src.aiaName != null || src.host != null) {
+    const named = net.parseName(src.aia || src.aiaName || src.host, row.slug);
+    if (!named.ok) return { ok: false, error: named.error };
+    row.aia = named.name;
+    row.aiaLabel = named.label;
+  }
   return { ok: true, desk: row };
 }
 

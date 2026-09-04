@@ -35,21 +35,26 @@
     if (!box) return;
     var rows = (data && (data.ais || (data.desk && data.desk.ais))) || [];
     var rails = (data && (data.aiRails || data.rails || (data.desk && data.desk.aiRails))) || "Yes / Stop / Kill stay human. Desk AIs never Yes themselves. Collect stays HOLD. No silent money or mail.";
+    var inet = (data && (data.net || data.internet || (data.desk && data.desk.net))) || null;
+    var netNote = (inet && inet.note) || ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.";
+    var aiaName = (data && (data.aia || (data.desk && data.desk.aia))) || "";
     if (!rows.length) {
       box.hidden = false;
-      box.innerHTML = "<div class=\"meta\">Desk AI</div><p>No named AI on this desk yet. Create one in Studio or Create. Guardrails still apply: Yes / Stop / Kill stay human. No silent money or mail.</p>" +
+      box.innerHTML = "<div class=\"meta\">Desk AI · AIA Internet</div><p>No named AI on this desk yet. Create one in Studio or Create. Guardrails still apply: Yes / Stop / Kill stay human. No silent money or mail.</p>" +
+        "<p class=\"meta\">" + esc(netNote) + (aiaName ? (" This desk is " + esc(aiaName) + ".") : "") + "</p>" +
         "<p class=\"meta\"><a href=\"/studio\">Creators Studio</a> · <a href=\"/create?kind=ai\">Name an AI</a> · <a href=\"/rules\">Rules</a></p>";
       return;
     }
     box.hidden = false;
-    box.innerHTML = "<div class=\"meta\">Desk AI · bound here</div>" +
+    box.innerHTML = "<div class=\"meta\">Desk AI · bound here" + (aiaName ? " · " + esc(aiaName) : "") + "</div>" +
       rows.map(function (a) {
-        return "<p><b>" + esc(a.name) + "</b> · " + esc(a.role || "Doer") +
+        return "<p><b>" + esc(a.name) + "</b>" + (a.aia ? " · " + esc(a.aia) : "") + " · " + esc(a.role || "Doer") +
           (a.does ? " — " + esc(a.does) : "") +
           "<br><span class=\"meta\">Drafts " + esc((a.steps || a.allow || []).join(", ") || "qualify, do, follow") +
           ". Never " + esc((a.never || ["send", "stop", "money", "mail"]).join(" · ")) + ".</span></p>";
       }).join("") +
-      "<p class=\"meta\">" + esc(rails) + "</p>";
+      "<p class=\"meta\">" + esc(rails) + "</p>" +
+      "<p class=\"meta\">" + esc(netNote) + "</p>";
   }
   async function load() {
     if (!shopOpen()) {

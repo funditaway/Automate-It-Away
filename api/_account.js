@@ -165,6 +165,11 @@ function proHome(acc, person) {
     home.account.hasPassword = !!acc.password;
     home.account.mfaOn = !!acc.mfaOn;
     home.account.ownerName = acc.ownerName || home.account.ownerName || "";
+    home.account.handle = acc.handle || "";
+    home.account.aia = acc.aia || (acc.handle ? acc.handle + ".aia" : "");
+    home.account.internet = "AIA Internet";
+    home.account.chain = false;
+    home.account.owned = false;
   }
   return home;
 }

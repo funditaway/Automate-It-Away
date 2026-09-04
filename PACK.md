@@ -98,6 +98,20 @@ Pack JSON may declare one or more desk AIs. Installing the pack attaches them to
 
 `ais` (or `bots` as an alias) are bound to the desk. `steps` are the stages they may draft. Collect is never allowed. Owner Use / private-install is the Approve tap. List on Market with an ask, or keep private for this account’s desks. Collect stays HOLD.
 
+## AIA Internet · .aia TLD
+
+Desk, pack, and named AI identity uses the Web3 TLD `.aia` (examples: `james.aia`, `springfield-shop.aia`). Validate `label.aia`. Names live on this desk now. Wallet / registry connect later as a Pipe HOLD. Do not invent on-chain ownership.
+
+Pack download is a `name.aia` file aligned with that TLD identity — JSON, not a chain claim.
+
+```json
+{
+  "name": "Family lane",
+  "aia": "springfield-shop.aia",
+  "ais": [{ "name": "James’s AI", "aia": "james.aia" }]
+}
+```
+
 ## Pack logic
 
 1. World user drops onto a desk.

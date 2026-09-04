@@ -40,7 +40,11 @@ function safeAccount(acc) {
     hasPassword: !!acc.password,
     mfaOn: !!acc.mfaOn,
     handle: acc.handle || "",
-    at: acc.handle ? "@" + acc.handle : "",
+    at: acc.handle ? acc.handle + ".aia" : "",
+    aia: acc.aia || (acc.handle ? acc.handle + ".aia" : ""),
+    internet: "AIA Internet",
+    chain: false,
+    owned: false,
     aiaReviewer: !!acc.aiaReviewer
   };
 }
@@ -303,7 +307,7 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ ok: false, error: "Owner desk code required to set the handle." });
     }
     const allow = aiaAdmin.isReviewerDesk(found.workspace) || aiaAdmin.isPlatformAccount(account);
-    const set = aiaAdmin.setAccountHandle(account, body.handle || body.at || body.name, { allowReserved: allow });
+    const set = aiaAdmin.setAccountHandle(account, body.aia || body.aiaName || body.handle || body.at || body.name, { allowReserved: allow });
     if (!set.ok) return res.status(set.status || 409).json({ ok: false, error: set.error });
     if (set.handle === "aia") {
       found.workspace.aiaReviewer = true;
@@ -311,7 +315,7 @@ module.exports = async function handler(req, res) {
     }
     refreshSession(req, res);
     await save();
-    return res.status(200).json(Object.assign(proHome(account, found.person), { handle: set.handle, at: "@" + set.handle, reviewer: !!set.aiaReviewer, hint: "World users receive @" + (set.handle === "aia" ? "AIA" : set.handle) + "." }));
+    return res.status(200).json(Object.assign(proHome(account, found.person), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Wallet / registry connect later as a Pipe HOLD." }));
   }
 
   if (action === "reviewer" || action === "aia-reviewer") {

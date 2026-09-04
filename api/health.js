@@ -62,6 +62,7 @@ async function deskStatus(req, res) {
     pipes,
     connections: mine.map((c) => honestConnection(c, answered)).filter(Boolean),
     inbound: workspace ? "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace) : "",
+    internet: require("./_aia-net").statusOf(),
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound, never dispatch.demo",
@@ -184,6 +185,7 @@ async function health(req, res) {
     },
     domain: "automateitaway.com",
     dns: "pointed",
+    internet: require("./_aia-net").statusOf(),
     repo: "funditaway/Automate-It-Away"
   });
 }

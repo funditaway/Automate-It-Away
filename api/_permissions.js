@@ -58,6 +58,7 @@ function publicPerson(p) {
     },
     ext: Number(p.ext) || 0,
     deskAi: !!p.deskAi,
+    aia: p.aia || "",
     steps: p.steps || p.allow || [],
     allow: p.allow || p.steps || [],
     deny: p.deny || never

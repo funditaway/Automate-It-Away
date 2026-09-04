@@ -1,6 +1,7 @@
 const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog } = require("./_lib");
 const { grokOn, studioDraft } = require("./_grok");
 const ais = require("./_ais");
+const net = require("./_aia-net");
 
 const OFFICIAL = [
   { id: "home", name: "Home & family", type: "work", family: "Automate It Away", aisle: "Home", official: true, price: 0, use: "ok", does: "Reminders, chores, school, same-day.", features: ["reminder", "calendar", "same-day cap"], kinds: ["chore", "school", "pickup", "repair"] },
@@ -140,7 +141,19 @@ function publicPack(p) {
     collectHold: hold,
     pipeMissing: !!(priced && !hold.pipe),
     charged: false,
-    href: p.href || (p.type === "wanted" ? "/create?kind=pack&idea=" + p.id : "/market?pack=" + p.id)
+    href: p.href || (p.type === "wanted" ? "/create?kind=pack&idea=" + p.id : "/market?pack=" + p.id),
+    aia: (function () {
+      const named = net.of(p.aia || p.aiaName || p.file || p.id || p.name, p.id || p.name);
+      return named.name;
+    })(),
+    file: (function () {
+      const named = net.of(p.aia || p.aiaName || p.file || p.id || p.name, p.id || p.name);
+      return named.file;
+    })(),
+    internet: net.INTERNET,
+    chain: false,
+    owned: false,
+    registry: net.publicNet(net.of(p.aia || p.id || p.name, p.id)).registry
   };
 }
 
@@ -149,7 +162,12 @@ function findPack(id, opts) {
   if (want === "vita" || want === "insurance" || want === "quoteitaway") {
     return allPacks(opts).find(function (p) { return p.id === "quote"; });
   }
-  return allPacks(opts).find(function (p) { return p.id === want || String(p.name || "").toLowerCase() === want; }) || null;
+  return allPacks(opts).find(function (p) {
+    if (!p) return false;
+    if (p.id === want || String(p.name || "").toLowerCase() === want) return true;
+    const named = net.of(p.aia || p.aiaName || p.file || p.id || p.name, p.id);
+    return named.name === want || named.label === want.replace(/\.aia$/, "") || named.file === want;
+  }) || null;
 }
 
 function searchPacks(q, opts) {
@@ -157,7 +175,7 @@ function searchPacks(q, opts) {
   const rows = allPacks(opts).map(publicPack).filter(Boolean);
   if (!term) return rows;
   return rows.filter(function (p) {
-    return [p.id, p.name, p.family, p.aisle, p.does, p.face, p.creator].join(" ").toLowerCase().indexOf(term) >= 0;
+    return [p.id, p.name, p.family, p.aisle, p.does, p.face, p.creator, p.aia, p.file].join(" ").toLowerCase().indexOf(term) >= 0;
   });
 }
 
@@ -260,6 +278,8 @@ function normalizeCreatorPack(body, workspace, person) {
       steps: a.steps,
       allow: a.allow,
       deny: a.deny,
+      aia: a.aia,
+      file: a.file,
       draftOnly: true,
       never: a.never
     };
@@ -271,6 +291,8 @@ function normalizeCreatorPack(body, workspace, person) {
   const rules = safeRules([].concat(body.rules || [], body.rule ? [{ text: String(body.rule) }] : [])).slice(0, 8);
   const queue = body.queue && typeof body.queue === "object" ? body.queue : {};
   const never = ["send", "stop", "pay", "bind"];
+  const named = net.parseName(body.aia || body.aiaName || body.file || name, slugPack(name));
+  if (!named.ok) return { ok: false, error: named.error };
   return {
     ok: true,
     pack: {
@@ -279,6 +301,12 @@ function normalizeCreatorPack(body, workspace, person) {
       creator: (person && person.name) || workspace || "Listed creator",
       creatorId: workspace,
       name: name,
+      aia: named.name,
+      aiaLabel: named.label,
+      file: named.file,
+      internet: net.INTERNET,
+      chain: false,
+      owned: false,
       niche: clip(body.niche || body.family, 40),
       family: clip(body.family || body.niche || workspace, 40),
       aisle: clip(body.aisle || body.niche || "Creator", 24),
@@ -338,6 +366,45 @@ function installPackOnDesk(shop, pack) {
   return added;
 }
 
+function packFileOf(listing) {
+  const named = net.of(listing && (listing.aia || listing.file || listing.id || listing.name), listing && listing.id);
+  const hold = net.statusOf();
+  return {
+    format: "aia.pack.v1",
+    internet: net.INTERNET,
+    tld: ".aia",
+    aia: named.name,
+    file: named.file,
+    id: listing && listing.id,
+    name: listing && listing.name,
+    does: listing && listing.does,
+    family: listing && listing.family,
+    aisle: listing && listing.aisle,
+    kinds: listing && listing.kinds,
+    rules: listing && (listing.ruleRows || listing.rules) || [],
+    ais: listing && listing.aiRows || [],
+    queue: listing && listing.queue,
+    ask: listing && listing.ask,
+    priced: listing && listing.priced,
+    collect: "hold",
+    charged: false,
+    chain: false,
+    owned: false,
+    live: false,
+    registry: hold.registry,
+    note: hold.note,
+    never: ["send", "stop", "pay", "bind"]
+  };
+}
+
+function sendPackFile(res, listing) {
+  const named = net.of(listing && (listing.aia || listing.file || listing.id || listing.name), listing && listing.id);
+  const file = String(named.file || "pack.aia").replace(/"/g, "");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Content-Disposition", "attachment; filename=\"" + file + "\"");
+  return res.status(200).send(JSON.stringify(packFileOf(listing), null, 2));
+}
+
 async function packHandler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -358,6 +425,12 @@ async function packHandler(req, res) {
         packs: packs
       });
     }
+    if (q.download || q.file || q.dl === "1") {
+      const listing = listingOf(q.download || q.file || q.id || q.pack, { mine: !!(mine || workspace), workspace: workspace })
+        || listingOf(q.download || q.file || q.id || q.pack, { mine: false });
+      if (!listing) return res.status(404).json({ ok: false, error: "No pack by that .aia name." });
+      return sendPackFile(res, listing);
+    }
     if (q.id || q.pack) {
       const listing = listingOf(q.id || q.pack, { mine: mine, workspace: workspace });
       if (!listing) return res.status(404).json({ ok: false, error: "No pack by that name." });
@@ -368,7 +441,7 @@ async function packHandler(req, res) {
       const { workspace: shop } = personOf(req, workspace);
       if (!shop) return res.status(404).json({ ok: false, error: "Open a desk first." });
       const rails = ais.railsOf(shop);
-      return res.status(200).json({ ok: true, desk: shop.slug, ais: rails.ais, count: rails.count, rails: rails.rails, never: rails.never });
+      return res.status(200).json({ ok: true, desk: shop.slug, ais: rails.ais, count: rails.count, rails: rails.rails, never: rails.never, aia: rails.aia, internet: rails.net });
     }
     const rows = searchPacks(q.q || q.search || "", { mine: mine, workspace: workspace });
     return res.status(200).json({
@@ -381,7 +454,8 @@ async function packHandler(req, res) {
       creator: rows.filter(function (p) { return !p.official && !p.wanted && p.type !== "cosmetic"; }),
       grok: { on: grokOn(), note: grokOn() ? "Grok drafts in Creators Studio. Never Send." : "Set XAI_API_KEY for Studio drafts." },
       studio: grokStudio(),
-      never: ["send", "stop", "pay"]
+      never: ["send", "stop", "pay"],
+      internet: net.statusOf()
     });
   }
 
@@ -516,10 +590,15 @@ async function packHandler(req, res) {
     return res.status(200).json({ ok: true, pack: publicPack(row), note: "Pack is private again. Off Market. Still on this desk if you already installed it." });
   }
 
-  const pack = findPack(body.id || body.pack || body.name, { mine: true, workspace: workspace });
+  const pack = findPack(body.id || body.pack || body.name || body.aia || body.file, { mine: true, workspace: workspace });
   if (action === "preview-pack") {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
     return res.status(200).json({ ok: true, pack: listingOf(pack.id, { mine: true, workspace: workspace }), never: ["send", "stop", "pay"], collectHold: collectHoldOf(pack) });
+  }
+  if (action === "download-pack") {
+    const row = pack || findPack(body.id || body.pack || body.name || body.aia || body.file, { mine: true, workspace: workspace });
+    if (!row) return res.status(404).json({ ok: false, error: "No pack by that .aia name." });
+    return sendPackFile(res, listingOf(row.id, { mine: true, workspace: workspace }) || publicPack(row));
   }
   if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });

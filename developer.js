@@ -58,6 +58,7 @@
     var n1 = val("ai1-name") || formState["ai1-name"] || val("bot1-name") || formState["bot1-name"];
     if (n1) out.push({
       name: n1,
+      aia: val("ai1-aia") || formState["ai1-aia"] || "",
       role: val("ai1-role") || formState["ai1-role"] || val("bot1-crew") || formState["bot1-crew"] || "Doer",
       does: val("ai1-does") || formState["ai1-does"] || val("bot1-does") || formState["bot1-does"] || "",
       prompt: val("ai1-prompt") || formState["ai1-prompt"] || val("bot1-prompt") || formState["bot1-prompt"] || "",
@@ -69,6 +70,7 @@
     var n2 = val("ai2-name") || formState["ai2-name"] || val("bot2-name") || formState["bot2-name"];
     if (n2) out.push({
       name: n2,
+      aia: val("ai2-aia") || formState["ai2-aia"] || "",
       role: val("ai2-role") || formState["ai2-role"] || val("bot2-crew") || formState["bot2-crew"] || "Worker",
       does: val("ai2-does") || formState["ai2-does"] || val("bot2-does") || formState["bot2-does"] || "",
       prompt: val("ai2-prompt") || formState["ai2-prompt"] || val("bot2-prompt") || formState["bot2-prompt"] || "",
@@ -87,6 +89,7 @@
   function packBody(extra) {
     return Object.assign({
       name: val("name") || formState.name || "",
+      aia: val("pack-aia") || formState["pack-aia"] || "",
       niche: val("niche") || formState.niche || "",
       family: val("niche") || formState.niche || "",
       does: val("does") || formState.does || "",
@@ -161,6 +164,8 @@
     if (tab === "pack") return (
       "<div class=\"card\"><h2>The pack</h2>" +
       "<label>Pack name</label><input id=\"name\" placeholder=\"Saturday oil-change lane\">" +
+      "<label>AIA Internet name</label><input id=\"pack-aia\" placeholder=\"springfield-shop.aia\">" +
+      "<p class=\"hint\">AIA Internet uses the .aia TLD. Names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<label>Niche</label><input id=\"niche\" placeholder=\"shop, school, lawn, resale\">" +
       "<label>What it does</label><input id=\"does\" placeholder=\"Photo in. Draft the title. Wait on payout.\">" +
       "<label>Fields (label:type)</label><input id=\"fields\" placeholder=\"who:text, lots:number, titled:yesno\">" +
@@ -171,13 +176,15 @@
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-pack\">Save draft</button></p></div>"
     );
     if (tab === "ais" || tab === "bots") return (
-      "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Bound to this desk — not a free-roaming bot. Drafts desk work under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
+      "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Bound to this desk — not a free-roaming bot. Addressed on AIA Internet as a .aia name. Drafts desk work under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
       "<label>AI 1 name</label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
+      "<label>AIA Internet name</label><input id=\"ai1-aia\" placeholder=\"james.aia\">" +
       "<label>Role</label><select id=\"ai1-role\"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select>" +
       "<label>What it drafts</label><input id=\"ai1-does\" placeholder=\"Draft the next step on this desk\">" +
       "<label>Steps it may draft</label><input id=\"ai1-steps\" placeholder=\"qualify, do, follow\">" +
       "<label>Draft line</label><textarea id=\"ai1-prompt\" rows=\"2\" placeholder=\"Do not send it. Do not invent a price. Wait on Yes.\"></textarea>" +
       "<label>AI 2 name</label><input id=\"ai2-name\" placeholder=\"Lane Worker\">" +
+      "<label>AIA Internet name</label><input id=\"ai2-aia\" placeholder=\"lane-worker.aia\">" +
       "<label>Role</label><select id=\"ai2-role\"><option>Worker</option><option>Doer</option><option>Rail</option><option>Foreman</option></select>" +
       "<label>What it drafts</label><input id=\"ai2-does\" placeholder=\"Qualify and write the follow note\">" +
       "<label>Steps it may draft</label><input id=\"ai2-steps\" placeholder=\"qualify, follow\">" +
@@ -229,8 +236,9 @@
     );
     return (
       "<div class=\"card\"><h2>Grok · AIA Studio</h2>" +
-      "<p class=\"hint\">First-class creator on this same AIA account. Not a separate product. Drafts named desk AIs and packs. Can list an ask on Market or keep private on this desk. Collect stays HOLD. Packs always land on this desk — Queue, Drop, Create. No silent charge.</p>" +
+      "<p class=\"hint\">First-class creator on this same AIA account. Not a separate product. Drafts named desk AIs and packs addressed on AIA Internet as .aia names (james.aia, springfield-shop.aia). Can list an ask on Market or keep private on this desk. Collect stays HOLD. Packs always land on this desk — Queue, Drop, Create. No silent charge. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"aia-line\" id=\"aia-line\">Checking drafts…</p>" +
+      "<p class=\"aia-line off\" id=\"aia-net-line\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
       "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
@@ -323,6 +331,12 @@
       el.textContent = grokOn
         ? "Grok drafts are on via api.x.ai. Every call is audited. Never Send. You still tap Yes or Stop."
         : "Drafts are off — no XAI_API_KEY on this box. Orange copy only. You can still write the pack by hand.";
+      var netEl = document.getElementById("aia-net-line");
+      var inet = h && h.internet;
+      if (netEl && inet) {
+        netEl.classList.toggle("off", !inet.chain);
+        netEl.textContent = inet.note || ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.";
+      }
     } catch (e) {
       grokOn = false;
       el.classList.add("off");
@@ -344,6 +358,7 @@
     var pack = data.pack || data;
     var lines = [
       pack.name && ("Name: " + pack.name),
+      pack.aia && ("AIA Internet: " + pack.aia),
       pack.does && ("Does: " + pack.does),
       pack.niche && ("Niche: " + pack.niche),
       pack.rule && ("Rule: " + pack.rule),
@@ -359,6 +374,7 @@
   function applyPackDraft(pack) {
     if (!pack) return;
     formState.name = pack.name || "";
+    formState["pack-aia"] = pack.aia || "";
     formState.niche = pack.niche || pack.family || "";
     formState.does = pack.does || "";
     formState.fields = typeof pack.fields === "string"
@@ -380,6 +396,7 @@
     var rows = pack.ais || pack.bots || [];
     if (rows[0]) {
       formState["ai1-name"] = rows[0].name || "";
+      formState["ai1-aia"] = rows[0].aia || "";
       formState["ai1-role"] = rows[0].role || rows[0].crew || "Doer";
       formState["ai1-does"] = rows[0].does || "";
       formState["ai1-prompt"] = rows[0].prompt || "";
@@ -391,6 +408,7 @@
     }
     if (rows[1]) {
       formState["ai2-name"] = rows[1].name || "";
+      formState["ai2-aia"] = rows[1].aia || "";
       formState["ai2-role"] = rows[1].role || rows[1].crew || "Worker";
       formState["ai2-does"] = rows[1].does || "";
       formState["ai2-prompt"] = rows[1].prompt || "";
@@ -498,7 +516,8 @@
         role: val("ai1-role") || formState["ai1-role"] || "Doer",
         does: val("ai1-does") || formState["ai1-does"] || "",
         prompt: val("ai1-prompt") || formState["ai1-prompt"] || "",
-        steps: val("ai1-steps") || formState["ai1-steps"] || "qualify, do, follow"
+        steps: val("ai1-steps") || formState["ai1-steps"] || "qualify, do, follow",
+        aia: val("ai1-aia") || formState["ai1-aia"] || ""
       })
     });
     var d = await r.json().catch(function () { return {}; });
@@ -552,6 +571,7 @@
         var botsN = p.ais || p.bots || (p.aiRows && p.aiRows.length) || (p.botRows && p.botRows.length) || 0;
         return "<div class=\"pack-row\"><b>" + esc(p.name || p.id) + "</b><span class=\"hint\">" +
           esc(p.status || p.review || "draft") + (p.priced ? (" · ask $" + p.ask + " · Collect HOLD") : " · free") +
+          (p.aia ? (" · " + p.aia) : "") +
           (p.visibility === "private" || p.private ? " · private" : "") +
           (p.authoredBy === "grok" || p.creatorId === "grok" ? " · Grok" : "") +
           (botsN ? (" · " + botsN + " desk AI") : "") +

@@ -254,7 +254,7 @@ async function grokRecommend(job, shop, workspace) {
   }
 }
 
-const STUDIO_SYSTEM = "You draft thin JSON packs and named desk AIs for Automate It Away Creators Studio. Return JSON only: {\"name\":\"\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"ask\":0,\"ais\":[{\"name\":\"\",\"role\":\"Doer\",\"does\":\"\",\"prompt\":\"\",\"steps\":\"qualify,do,follow\"}],\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Desk AIs are bound to one desk. They draft only. Human taps Yes / Stop / Kill. Collect stays HOLD. Draft only. Human taps Yes to save or install. Short local English. Worker-first: AI drafts, the owner decides. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect.";
+const STUDIO_SYSTEM = "You draft thin JSON packs and named desk AIs for Automate It Away Creators Studio. Return JSON only: {\"name\":\"\",\"aia\":\"springfield-shop.aia\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"ask\":0,\"ais\":[{\"name\":\"\",\"aia\":\"james.aia\",\"role\":\"Doer\",\"does\":\"\",\"prompt\":\"\",\"steps\":\"qualify,do,follow\"}],\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia). Never invent on-chain ownership. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Desk AIs are bound to one desk. They draft only. Human taps Yes / Stop / Kill. Collect stays HOLD. Draft only. Human taps Yes to save or install. Short local English. Worker-first: AI drafts, the owner decides. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect.";
 
 async function studioDraft(brief, workspace, opts) {
   const drafter = pickDrafter(workspace);
@@ -269,7 +269,7 @@ async function studioDraft(brief, workspace, opts) {
       max_tokens: 500,
       messages: [
         { role: "system", content: STUDIO_SYSTEM },
-        { role: "user", content: JSON.stringify({ brief: text, kind: kind, never: ["send", "stop", "pay", "bind", "mail"], collect: "hold", aisBound: "desk" }) }
+        { role: "user", content: JSON.stringify({ brief: text, kind: kind, never: ["send", "stop", "pay", "bind", "mail"], collect: "hold", aisBound: "desk", tld: ".aia", internet: "AIA Internet", chain: false }) }
       ]
     };
     const url = drafter.provider === "openai"
