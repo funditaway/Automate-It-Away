@@ -45,7 +45,15 @@
       who: "Who it is for", what: "What the work is", when: "When", where: "This desk",
       how: "Drop real work. AIA drafts. You tap Yes or Stop.",
       next: "AIA drafts. A person taps Yes or Stop. Collect stays HOLD.",
-      rails: ["Audit · Stack Connect · Agent Deploy · Guardrails.", "Worker-first: a person taps Yes or Stop.", "Open pack. Thin JSON on this desk.", "Collect stays HOLD. No silent send."],
+      rails: ["Worker-first: a person taps Yes or Stop.", "Open pack. Thin JSON on this desk.", "Collect stays HOLD. No silent send."],
+      keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
+    },
+    "aia-implement": {
+      id: "aia-implement", name: "Four steps on this desk",
+      who: "Who does the work now", what: "Which leak or step", when: "When it piles up", where: "This desk",
+      how: "Walk 1→2→3→4. AIA drafts. You tap Yes, Stop, or Kill.",
+      next: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
+      rails: ["Four steps on this desk.", "Webhook only. eBay and mail stay off.", "Collect stays HOLD. No silent send. No fake on-chain."],
       keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
     }
   };

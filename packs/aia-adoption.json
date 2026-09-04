@@ -9,7 +9,7 @@
   "live": false,
   "price": 0,
   "priceLabel": "On this desk",
-  "blurb": "Worker-first. Open packs. Secure-by-design. Try first on this desk — cards wait. Queue cards count. Audit · Stack Connect · Agent Deploy · Guardrails.",
+  "blurb": "Worker-first. Open packs. Secure-by-design. Try first on this desk — cards wait. Queue cards count.",
   "face": {
     "who": { "key": "contactName", "label": "Who it is for" },
     "what": { "key": "notes", "label": "What the work is" },
@@ -19,10 +19,7 @@
   },
   "help": [
     "Try first on this desk. Cards wait. You tap. Queue cards count.",
-    "Audit: map the leaks — work you type twice, the bottleneck, the easy high-volume cards. Capture · Qualify.",
-    "Stack Connect: hook the apps. Webhook writes the card. Other pipes stay orange until keys.",
-    "Agent Deploy: a desk AI drafts on this desk — sort, summarize, field the chat. Do.",
-    "Guardrails: Rail hands the edge case to a person. Collect stays HOLD until Yes and a money pipe. Follow + audit.",
+    "Four steps: find the leaks, hook the pipes, name a desk AI, you still tap.",
     "Worker-first: Workers decide Yes or Stop. The desk does not auto-send.",
     "Open packs: install the pack. Cards still wait for a tap.",
     "Secure-by-design: Collect stays HOLD. Audit the trail. Empty desks stay empty.",
@@ -48,10 +45,6 @@
   },
   "rails": [
     "Queue cards count",
-    "Audit. Map the leaks. Capture · Qualify.",
-    "Stack Connect. Hook the apps. Pipes.",
-    "Agent Deploy. Desk AI drafts. Do.",
-    "Guardrails. Person taps. Collect · Follow + audit.",
     "Worker-first. Workers decide Yes or Stop. The desk does not auto-send.",
     "Open packs. Install the pack. Cards still wait for a tap.",
     "Secure-by-design. Collect stays HOLD. Audit the trail. Empty desks stay empty.",
@@ -71,10 +64,10 @@
   },
   "dropHint": "Say the work in your words. Springfield desk or anywhere. AIA drafts. You tap.",
   "how": {
-    "capture": "Audit + Stack Connect. Drop a real task, errand, list, or idea. Map the leaks. Hook the apps — webhook writes the card. Other pipes stay orange until keys.",
-    "qualify": "Audit still. Fresh desks have no seed rules. Queue cards count. Add a wait only if you want one.",
-    "do": "Agent Deploy. A desk AI drafts on this desk: sort the pile, write the summary, field the chat. A person still taps Yes or Stop.",
-    "collect": "Guardrails. Collect stays HOLD until Yes and a money pipe. Rail hands the edge case to a person. Packs never send money.",
-    "follow": "Guardrails + audit. One nudge. History keeps the tap. Nothing sends itself."
+    "capture": "Drop a real task, errand, list, or idea.",
+    "qualify": "Fresh desks have no seed rules. Queue cards count. Add a wait only if you want one.",
+    "do": "AIA drafts on the card. A person still taps Yes or Stop.",
+    "collect": "Collect stays HOLD. Packs never send money.",
+    "follow": "One nudge. History keeps the tap. Nothing sends itself."
   }
 }

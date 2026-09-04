@@ -42,7 +42,7 @@ else pass("pack-card maps year2 and missed-call");
 if (!card.includes('name: "Insurance"')) fail("pack-card missing Insurance face");
 else pass("pack-card Insurance face");
 
-["home", "consign", "fund", "land", "vita", "aia-adoption"].forEach(function (id) {
+["home", "consign", "fund", "land", "vita", "aia-adoption", "aia-implement"].forEach(function (id) {
   const file = JSON.parse(fs.readFileSync(path.join(root, "packs", id + ".json"), "utf8"));
   if (!file.queue) fail(id + " missing queue{}");
   else pass(id + " has queue{}");
@@ -98,10 +98,8 @@ const helpPage = fs.readFileSync(path.join(root, "help.html"), "utf8");
   if (!helpPage.includes(bit)) fail("help.html missing " + bit);
   else pass("help " + bit);
 });
-["Audit", "Stack Connect", "Agent Deploy", "Guardrails"].forEach(function (bit) {
-  if (!JSON.stringify(adoption).includes(bit)) fail("aia-adoption missing phase " + bit);
-  else pass("aia-adoption phase " + bit);
-});
+if (!/Four steps|find the leaks/i.test(JSON.stringify(adoption))) fail("aia-adoption should point at the four steps");
+else pass("aia-adoption points at the four steps");
 if (/White House|Action Plan/i.test(helpPage)) fail("help.html must not reprint policy");
 else pass("help is desk language");
 if (helpPage.includes("Grok")) fail("help.html must not leak Grok");

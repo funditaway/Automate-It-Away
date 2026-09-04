@@ -45,6 +45,7 @@
   <main class="wrap">
     <h1>This desk.</h1>
     <p>Talk to the desk on Drop. Invite a helper. Add a rule if something should wait. Same queue. Nothing leaves until you tap. Packs travel on AIA Internet as .aia files. ai.aia is the brand. The desk is automateitaway.com.</p>
+    <div data-aia-playbook></div>
     <p class="meta" id="grok-line">Drafts land on the card. You send them. Or you Stop.</p>
     <h2>You</h2>
     <div class="card">
@@ -61,12 +62,12 @@
       <a href="/history">History<span>On the tab bar. What this desk did. Filter by desk. Links only when a draft used the web. Empty stays empty.</span></a>
       <a href="/pipes">Pipes and draft accounts<span>Lives here, not on the tab bar. Search any site. Webhook is live. Orange until a real pipe. Drafts never Send.</span></a>
       <a href="/rules">Rules<span>Lives here, not on the tab bar. Wait, stop, note, or cap. Fresh desks start empty.</span></a>
-      <a href="/dev">Creators Studio<span>Same login. AIA Internet brand is ai.aia. How AIA lands: Audit, Stack Connect, Agent Deploy, Guardrails. Download, share, or install as .aia files. Test on this desk. Collect stays HOLD.</span></a>
-      <a href="/market">Packs<span>Start with Try it on this desk. Audit → Stack Connect → Agent Deploy → Guardrails. AIA Internet listings on ai.aia. Download or install a .aia file. The desk stays on automateitaway.com. Collect stays HOLD until Yes and a money pipe. No silent charge.</span></a>
+      <a href="/dev">Creators Studio<span>Same login. AIA Internet brand is ai.aia. Four steps: find the leaks, hook the pipes, name a desk AI, you still tap. Download, share, or install as .aia files. Test on this desk. Collect stays HOLD.</span></a>
+      <a href="/market">Packs<span>Start with Try it on this desk. Four steps on this desk. AIA Internet listings on ai.aia. Download or install a .aia file. The desk stays on automateitaway.com. Collect stays HOLD until Yes and a money pipe. No silent charge.</span></a>
     </div>
     <h2>If you need a hand</h2>
     <div class="card">
-      <a href="/help">Help<span>Words on the buttons. ai.aia is the AIA Internet brand. Packs travel as .aia files.</span></a>
+      <a href="/help#playbook">Help<span>Four steps on this desk. ai.aia is the AIA Internet brand. Packs travel as .aia files.</span></a>
       <a href="/support">Talk to AIA<span>World problem. Card on the AIA Admin Desk.</span></a>
       <a href="/legal">Legal<span>What AIA does not do.</span></a>
       <a href="/status">Status<span>What is live on this desk.</span></a>
@@ -79,6 +80,7 @@
     <a href="/history" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>History</span></a>
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
+  <script src="desk-playbook.js"></script>
   <script src="desk-nav.js"></script>
   <script>
     fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {

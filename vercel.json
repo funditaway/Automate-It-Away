@@ -21,6 +21,7 @@
   "rewrites": [
     { "source": "/setup", "destination": "/setup.html" },
     { "source": "/how", "destination": "/how.html" },
+    { "source": "/help", "destination": "/help.html" },
     { "source": "/examples", "destination": "/examples.html" },
     { "source": "/people", "destination": "/people.html" },
     { "source": "/desk", "destination": "/desk.html" },

@@ -47,10 +47,8 @@ if (/seed money|demo seed|Labeled DEMO/i.test(raw)) fail("no demo seed money");
 else pass("no demo seed");
 if (/White House|Action Plan|executive order/i.test(raw)) fail("must not reprint policy");
 else pass("desk language, not a reprint");
-["Audit", "Stack Connect", "Agent Deploy", "Guardrails"].forEach(function (bit) {
-  if (!raw.includes(bit)) fail("aia-adoption missing phase " + bit);
-  else pass("adoption phase " + bit);
-});
+if (!/Four steps|find the leaks/i.test(raw)) fail("aia-adoption should point at the four steps");
+else pass("adoption points at the four steps");
 
 const pipes = (pack.pipes || []).map(function (p) { return String(p).toLowerCase(); });
 if (pipes.indexOf("ebay") >= 0 || pipes.indexOf("mail") >= 0 || pipes.indexOf("gmail") >= 0) fail("no live eBay/mail pipes");
@@ -130,21 +128,28 @@ const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
   if (!help.includes(bit)) fail("help.html missing " + bit);
   else pass("help " + bit);
 });
-["Audit", "Stack Connect", "Agent Deploy", "Guardrails"].forEach(function (bit) {
-  if (!help.includes(bit)) fail("help.html missing phase " + bit);
-  else pass("help phase " + bit);
+["Find the leaks", "Hook the pipes", "Name a desk AI", "You still tap"].forEach(function (bit) {
+  if (!help.includes(bit) && !help.includes("desk-playbook.js")) fail("help.html missing " + bit);
+  else pass("help path " + bit);
 });
+if (!help.includes("ai.aia") || !help.includes("automateitaway.com")) fail("help.html missing ai.aia / desk host");
+else pass("help names ai.aia");
+if (help.includes("www.aia.aia")) fail("help branded www.aia.aia");
+else pass("help does not use www.aia.aia");
+if (help.includes("Approved crew seat")) fail("help must not list Approved crew seat");
+else pass("help has no crew-seat note");
 const studioHtml = fs.readFileSync(path.join(root, "developer.html"), "utf8");
-["Audit", "Stack Connect", "Agent Deploy", "Guardrails", "How AIA lands"].forEach(function (bit) {
-  if (!studioHtml.includes(bit)) fail("Studio landing missing " + bit);
-  else pass("Studio landing " + bit);
-});
-if (!dev.includes("Audit") || !dev.includes("Stack Connect") || !dev.includes("Agent Deploy") || !dev.includes("Guardrails")) {
-  fail("Studio home missing adoption phases");
-} else pass("Studio home has adoption phases");
+if (!studioHtml.includes("ai.aia") || !studioHtml.includes("automateitaway.com") || !studioHtml.includes(".aia")) fail("Studio landing missing ai.aia + desk host + .aia");
+else pass("Studio landing names ai.aia");
+if (!studioHtml.includes("desk-playbook.js") || !studioHtml.includes("data-aia-playbook")) fail("Studio landing missing four-steps playbook");
+else pass("Studio landing mounts playbook");
+if (studioHtml.includes("www.aia.aia")) fail("Studio branded www.aia.aia");
+else pass("Studio does not use www.aia.aia");
+if (!dev.includes("Four steps on this desk") || !dev.includes("aia-implement")) fail("Studio home missing four steps / aia-implement");
+else pass("Studio home has four steps");
 const shop = fs.readFileSync(path.join(root, "market-shop.js"), "utf8");
-if (!shop.includes("How AIA lands") || !shop.includes("Stack Connect") || !shop.includes("Guardrails")) fail("market missing How AIA lands");
-else pass("market How AIA lands");
+if (!shop.includes("ai.aia") || !shop.includes("Find the leaks") || !shop.includes("aia-implement")) fail("market missing ai.aia / four steps");
+else pass("market names ai.aia and four steps");
 if (/White House|Action Plan/i.test(help)) fail("help must not reprint policy");
 else pass("help is desk language");
 

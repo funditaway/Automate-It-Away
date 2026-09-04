@@ -1,8 +1,8 @@
 const TLD = "aia";
 const INTERNET = "AIA Internet";
-const HOLD_NOTE = ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.";
-const KEY_NOTE = "Registry key is on this box. Names still HOLD until a wallet pipe answers. No on-chain claim.";
-const RESERVED = ["www", "localhost", "invalid"];
+const HOLD_NOTE = ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD. AIA AI home is ai.aia. DNS stays orange until it answers.";
+const KEY_NOTE = "Registry key is on this box. Names still HOLD until a wallet pipe answers. No on-chain claim. AIA AI home is ai.aia.";
+const RESERVED = ["www", "localhost", "invalid", "ai"];
 
 function registryKey() {
   return process.env.AIA_DOT_AIA_KEY || process.env.AIA_REGISTRY_KEY || process.env.AIA_WEB3_KEY || "";
