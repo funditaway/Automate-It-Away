@@ -39,6 +39,14 @@
       next: "Write the lot note. Cap flood and title.",
       rails: ["Cap flood cards.", "Cap title cards."],
       keys: { who: ["contactName", "who"], what: ["lot", "title", "need"], when: ["timing", "when"], where: ["where"], how: ["title"] }
+    },
+    "aia-adoption": {
+      id: "aia-adoption", name: "Try it on this desk",
+      who: "Who it is for", what: "What the work is", when: "When", where: "This desk",
+      how: "Drop real work. AIA drafts. You tap Yes or Stop.",
+      next: "AIA drafts. A person taps Yes or Stop. Collect stays HOLD.",
+      rails: ["Worker-first: a person taps Yes or Stop.", "Open pack. Thin JSON on this desk.", "Collect stays HOLD. No silent send."],
+      keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
     }
   };
   function first(j, keys) {

@@ -26,7 +26,7 @@
       return h;
     }
     function packSelect() {
-      return `<label class="adv">Pack</label><select class="adv" name="pack"><option value="">This desk / let the engine pick</option><option value="home">Home</option><option value="consign">Consign</option><option value="vita">Insurance</option><option value="fund">Fund</option><option value="land">Land</option></select>`;
+      return `<label class="adv">Pack</label><select class="adv" name="pack"><option value="">This desk / let the engine pick</option><option value="home">Home</option><option value="consign">Consign</option><option value="vita">Insurance</option><option value="fund">Fund</option><option value="land">Land</option><option value="aia-adoption">AIA · Try it on this desk</option></select>`;
     }
     function kindSelect() {
       return `<label class="adv">What is it?</label><select class="adv" name="dropKind"><option value="task">A task</option><option value="chore">An errand</option><option value="list">A list</option><option value="idea">An idea</option><option value="project">A project</option><option value="build">A build</option><option value="request">A request</option><option value="note">A note</option><option value="call">Missed call</option><option value="message">A message to send</option><option value="pickup">Pickup / drop-off</option><option value="ride">A ride</option><option value="reminder">A reminder</option><option value="book">Book a time</option><option value="form">Form / paper</option><option value="photo">A photo</option><option value="quote">Need a quote</option><option value="follow">Follow up</option><option value="walk-in">Walk-in job</option></select>`;
@@ -40,14 +40,15 @@
         if (packChip === "official" && !p.official) return false;
         if (packChip === "listed" && p.official) return false;
         if (packChip === "market" && !p.priced) return false;
-        if (["home","consign","insurance","fund","land"].indexOf(packChip) >= 0) {
-          const blob = [p.id, p.name, p.family].join(" ").toLowerCase();
+        if (["home","consign","insurance","fund","land","aia"].indexOf(packChip) >= 0) {
+          const blob = [p.id, p.name, p.family, p.aisle].join(" ").toLowerCase();
           if (packChip === "insurance") return blob.indexOf("insurance") >= 0 || blob.indexOf("vita") >= 0 || blob.indexOf("quote") >= 0;
+          if (packChip === "aia") return blob.indexOf("aia") >= 0 || p.id === "aia-adoption";
           return blob.indexOf(packChip) >= 0;
         }
         return true;
       });
-      if (!rows.length) return `<p class="hint">No pack matches. Try home, consign, insurance, fund, or land.</p>`;
+      if (!rows.length) return `<p class="hint">No pack matches. Try home, consign, insurance, fund, land, or AIA.</p>`;
       return rows.map((p) => {
         const tag = p.priced ? ("Ask $" + p.ask + " · Collect HOLD") : (p.official ? "Free official" : "Free listed");
         const btn = p.wanted
@@ -68,6 +69,7 @@
         <button type="button" data-chip="insurance" class="${packChip === "insurance" ? "on" : ""}">Insurance</button>
         <button type="button" data-chip="fund" class="${packChip === "fund" ? "on" : ""}">Fund</button>
         <button type="button" data-chip="land" class="${packChip === "land" ? "on" : ""}">Land</button>
+        <button type="button" data-chip="aia" class="${packChip === "aia" ? "on" : ""}">AIA</button>
       </div>
       <div id="pack-list">${packRows()}</div>
       <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>

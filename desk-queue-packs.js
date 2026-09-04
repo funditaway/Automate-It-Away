@@ -3,7 +3,7 @@
   var KEY = "aia_queue_pack";
   var FILTER = "all";
   var CATALOG = [];
-  var OFFICIAL = ["home", "consign", "quote", "vita", "insurance", "fund", "land"];
+  var OFFICIAL = ["home", "consign", "quote", "vita", "insurance", "fund", "land", "aia", "aia-adoption"];
   var WANTED = ["lawn", "repair", "shop-bay", "estate-day", "cleanout", "rental", "rent-due", "title-run", "survey", "year2", "wholesale", "missed-call", "delivery"];
   var COLOR = ["color-teal", "color-harvest", "color-night", "color-slate"];
   var TYPES = ["all", "work", "wanted", "creator", "aia", "color", "ask"];
@@ -24,6 +24,7 @@
     if (s === "quote" || s === "insurance" || s === "vita" || s === "year2" || s === "missed-call") return "insurance";
     if (s === "family") return "home";
     if (s === "resale" || s === "consignment") return "consign";
+    if (s === "aia-adoption" || s === "adoption") return "aia-adoption";
     return s;
   }
   function badgeName(id, j) {
@@ -33,6 +34,8 @@
     if (c === "consign") return "Consign";
     if (c === "fund") return "Fund";
     if (c === "land") return "Land";
+    if (c === "aia-adoption") return "Try it on this desk";
+    if (c === "aia") return "AIA";
     var custom = (j && j.custom) || {};
     var hit = CATALOG.filter(function (p) { return p && (p.id === id || canon(p.id) === c); })[0];
     var name = (custom.packName || custom.face && custom.face.name || (hit && (hit.face || hit.name)) || id || "").trim();
@@ -84,6 +87,7 @@
     if (FILTER === "consign") return "Drop a photo of the item. Draft the title. Payout waits on you.";
     if (FILTER === "fund") return "Drop the campaign note. Credit waits on you.";
     if (FILTER === "land") return "Drop the lot note. Cap flood. Cap title.";
+    if (FILTER === "aia-adoption") return "Try first. Drop a task, an errand, or an idea. AIA drafts. You tap Yes or Stop.";
     if (WANTED.indexOf(FILTER) >= 0) return "Make this pack on Create, then drop it. Use still says Make this pack.";
     if (FILTER === "all") return "Nothing on this queue yet. Drop anything. Find a pack. Add a rule if you need one.";
     return "Drop work for this pack. You still tap Yes or Stop.";
