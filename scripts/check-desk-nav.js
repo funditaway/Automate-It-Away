@@ -105,6 +105,8 @@ if (create.includes("$250") || create.includes("placeholder=\"250\"")) fail("cre
 else pass("Create has no $250 default");
 if (!createJs.includes("save-ai") || !createJs.includes('id: "ai"')) fail("create-desk.js must name a desk AI");
 else pass("Create can name a desk AI");
+if (!createJs.includes("deskOpen") || !createJs.includes("Open or unlock this desk first")) fail("Create must gate Desk AI Bind behind an open desk");
+else pass("Create gates Desk AI Bind");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {
