@@ -49,6 +49,20 @@
     .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
     .chips button{min-height:36px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);padding:6px 10px;font:700 12px system-ui;cursor:pointer}
     .chips button.on{border-color:var(--teal);background:var(--edit);color:var(--edit-ink)}
+    .aia-line{background:var(--edit);color:var(--edit-ink);border:1px solid var(--teal);border-radius:12px;padding:10px 12px;font-size:13px;margin:0 0 14px}
+    .aia-line.off{background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading);border-color:var(--orange)}
+    .start{margin-bottom:14px}
+    .start h2{font-size:1rem;color:var(--heading);margin:0 0 6px}
+    .row-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .row-btns button,.row-btns a{flex:1;min-height:48px;border:0;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center}
+    .ghost{background:transparent;color:var(--heading);border:1px solid var(--line)}
+    .yes{background:var(--teal);color:#fff}
+    .stop{background:transparent;color:var(--heading);border:1px solid var(--line)}
+    .draft{display:none;margin-top:12px;border-left:3px solid var(--teal);padding:8px 10px;font-size:14px;white-space:pre-wrap}
+    .draft.on{display:block}
+    .cites{display:none;margin-top:8px}
+    .cites.on{display:block}
+    .cites a{display:block;color:var(--teal);font-weight:700;font-size:13px;margin:4px 0}
     @media(max-width:420px){.picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
@@ -63,14 +77,42 @@
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop">Drop</a>
-      <a href="/rules" data-tab="rules">Rules</a>
-      <a href="/pipes" data-tab="pipes">Pipes</a>
+      <a href="/create" data-tab="create">Create</a>
+      <a href="/history" data-tab="history">History</a>
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
   <main class="wrap">
-    <h1>Make something. It lands on this desk.</h1>
-    <p class="sub">Job, capture, your own automation, a listed pack, teammate, guardrail, or another shop. Same five steps. You still tap Yes or No. Packs do not send money.</p>
+    <h1>Start the work. It lands on this desk.</h1>
+    <p class="sub">Describe a task, an errand, a list, an idea, a project, or a build. Same queue as Drop. You still tap Yes or Stop. Packs do not send money.</p>
+    <p class="aia-line" id="aia-line">Checking whether drafts are on this box…</p>
+    <section class="card start" id="start">
+      <h2>What should the desk do?</h2>
+      <p class="hint">One AIA account. Drop anything. Connections and skills stay on this desk.</p>
+      <label for="start-kind">What is it?</label>
+      <select id="start-kind">
+        <option value="task">A task</option>
+        <option value="chore">An errand</option>
+        <option value="list">A list</option>
+        <option value="idea">An idea</option>
+        <option value="project">A project</option>
+        <option value="build">A build</option>
+      </select>
+      <label for="start-what">How / what</label>
+      <textarea id="start-what" rows="4" placeholder="Grocery list for Friday · porch lamp idea · Saturday build"></textarea>
+      <div class="row-btns">
+        <button type="button" class="ghost" id="start-draft">Ask the desk</button>
+        <button type="button" class="go" id="start-queue" style="margin-top:0">Put it on the queue</button>
+      </div>
+      <div class="draft" id="start-draft-box"></div>
+      <div class="cites" id="start-cites"></div>
+      <div class="row-btns" id="start-decide" hidden>
+        <button type="button" class="yes" id="start-yes">Yes — on the queue</button>
+        <button type="button" class="stop" id="start-stop">Stop</button>
+      </div>
+      <p class="hint">Ask the desk drafts when a key is on. Offline stays orange and honest. Yes makes a Drop/Queue card. Stop discards the draft. AIA does not send.</p>
+    </section>
+    <p class="hint" style="margin:0 0 8px">Or make something else on this desk</p>
     <div class="picks" id="picks"></div>
     <div class="modes">
       <button type="button" class="on" data-mode="simple" id="mode-simple">Simple</button>
@@ -84,8 +126,8 @@
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
     <a href="/drop" data-tab="drop"><span>Drop</span></a>
-    <a href="/rules" data-tab="rules"><span>Rules</span></a>
-    <a href="/pipes" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/create" data-tab="create"><span>Create</span></a>
+    <a href="/history" data-tab="history"><span>History</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="theme.js"></script>

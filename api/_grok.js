@@ -137,10 +137,24 @@ function applyGrok(job, parsed, drafter) {
   job.promptVersion = (drafter && drafter.provider ? drafter.provider : "grok") + "-" + ((drafter && drafter.model) || grokModel());
   job.grokAt = new Date().toISOString();
   job.draftFrom = drafter && drafter.provider;
+  const cites = normalizeCites([].concat(parsed.citations || [], job.citations || []));
+  if (cites.length) job.citations = cites;
   return job;
 }
 
-const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Never invent money. Short local English. Never send money, never email a customer, never Stop a job. Human taps Yes or No.";
+function normalizeCites(rows) {
+  const have = {};
+  return (rows || []).map(function (c) {
+    if (!c) return null;
+    const url = String(typeof c === "string" ? c : (c.url || c.href || "")).trim();
+    if (!/^https?:\/\//i.test(url) || have[url]) return null;
+    have[url] = true;
+    const title = String((c && (c.title || c.text)) || url).trim().slice(0, 80);
+    return { url: url.slice(0, 300), title: title || url };
+  }).filter(Boolean).slice(0, 6);
+}
+
+const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"citations\":[{\"title\":\"\",\"url\":\"https://...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Citations only for real http(s) URLs you used — never invent links or money. Short local English. Never send money, never email a customer, never Stop a job. Human taps Yes or No.";
 
 async function callOpenAI(drafter, job, shop) {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -185,24 +199,33 @@ async function callAnthropic(drafter, job, shop) {
   return { ok: true, text: block && block.text };
 }
 
-async function callGrok(drafter, job, shop) {
+async function callGrok(drafter, job, shop, opts) {
+  const payload = {
+    model: drafter.model || grokModel(),
+    temperature: 0.2,
+    max_tokens: 360,
+    messages: [
+      { role: "system", content: SYSTEM },
+      { role: "user", content: JSON.stringify(jobBrief(job, shop)) }
+    ]
+  };
+  if (!opts || opts.search !== false) payload.search_parameters = { mode: "auto" };
   const r = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + drafter.key },
-    body: JSON.stringify({
-      model: drafter.model || grokModel(),
-      temperature: 0.2,
-      max_tokens: 360,
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: JSON.stringify(jobBrief(job, shop)) }
-      ]
-    }),
+    body: JSON.stringify(payload),
     signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) return { ok: false, reason: "http-" + r.status, error: clip(data.error && data.error.message, 120) };
-  return { ok: true, text: data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content };
+  if (!r.ok) {
+    const err = clip(data.error && data.error.message, 120);
+    if ((!opts || opts.search !== false) && (r.status === 400 || r.status === 422 || /search/i.test(err || ""))) {
+      return callGrok(drafter, job, shop, { search: false });
+    }
+    return { ok: false, reason: "http-" + r.status, error: err };
+  }
+  const cites = normalizeCites([].concat(data.citations || [], data.choices && data.choices[0] && data.choices[0].citations || []));
+  return { ok: true, text: data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content, citations: cites };
 }
 
 async function grokRecommend(job, shop, workspace) {
@@ -216,13 +239,15 @@ async function grokRecommend(job, shop, workspace) {
     else if (drafter.provider === "anthropic") out = await callAnthropic(drafter, job, shop);
     else out = await callGrok(drafter, job, shop);
     if (!out || !out.ok) return { ok: false, skipped: false, reason: (out && out.reason) || "http", error: out && out.error, provider: drafter.provider };
-    const parsed = parseGrok(out.text);
-    if (!parsed) return { ok: false, skipped: false, reason: "bad-json", provider: drafter.provider };
+    const parsed = parseGrok(out.text) || {};
+    if (out.citations && out.citations.length) parsed.citations = [].concat(parsed.citations || [], out.citations);
+    if (!parsed.draft && !parsed.next && !parsed.recs && !out.text) return { ok: false, skipped: false, reason: "bad-json", provider: drafter.provider };
+    if (!parsed.draft && out.text && !parseGrok(out.text)) parsed.draft = clip(out.text, 400);
     applyGrok(job, parsed, drafter);
-    return { ok: true, model: drafter.model, provider: drafter.provider, source: drafter.source, recs: job.recs };
+    return { ok: true, model: drafter.model, provider: drafter.provider, source: drafter.source, recs: job.recs, citations: job.citations || [] };
   } catch (e) {
     return { ok: false, skipped: false, reason: "net", error: clip(e && e.message, 80), provider: drafter.provider };
   }
 }
 
-module.exports = { grokOn, grokModel, grokRecommend, applyGrok, jobBrief, pickDrafter };
+module.exports = { grokOn, grokModel, grokRecommend, applyGrok, jobBrief, pickDrafter, normalizeCites };

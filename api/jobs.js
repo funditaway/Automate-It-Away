@@ -2,7 +2,7 @@ const { dropCannedSeeds } = require("./_drop-seed");
 const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob } = require("./_fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, markFlow } = require("./_engine");
-const { grokRecommend } = require("./_grok");
+const { grokRecommend, normalizeCites } = require("./_grok");
 const { needsOf, isPriorityJob } = require("./_history");
 const clock = require("./_clock");
 
@@ -101,11 +101,42 @@ module.exports = async function handler(req, res) {
   if (req.method === "POST") {
     const body = await readBody(req);
     const action = body.action || "capture";
-    if (action === "capture") {
+    if (action === "suggest") {
       const job = makeCapturedJob(workspace, shop, body);
       qualifyJob(job, shop);
       const grok = await grokRecommend(job, shop, workspace);
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+      const cites = normalizeCites([].concat(body.citations || [], job.citations || []));
+      if (cites.length) job.citations = cites;
+      return res.status(200).json({
+        ok: true,
+        saved: false,
+        grok: grok && grok.ok ? "on" : (grok && grok.reason) || "off",
+        draft: job.draft || "",
+        next: job.next || "",
+        recs: job.recs || [],
+        citations: job.citations || [],
+        job: { title: job.title, kind: job.kind, notes: job.notes || "" },
+        note: grok && grok.ok
+          ? "Draft only. Yes puts it on the queue. Stop discards it. AIA does not send."
+          : (grok && grok.reason === "no-key"
+            ? "Drafts are off until XAI_API_KEY is on. You can still put the work on the queue."
+            : "No draft this time. You can still put the work on the queue.")
+      });
+    }
+    if (action === "capture") {
+      const job = makeCapturedJob(workspace, shop, body);
+      qualifyJob(job, shop);
+      const incomingCites = normalizeCites(body.citations || []);
+      if (incomingCites.length) job.citations = incomingCites;
+      if (Array.isArray(body.recs) && body.recs.length && !job.recs) job.recs = body.recs.slice(0, 8);
+      let grok = null;
+      if (!job.draft) {
+        grok = await grokRecommend(job, shop, workspace);
+        if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+      } else {
+        addTalk(job, "grok", job.draft, "rec");
+      }
       if (job.notes) addTalk(job, job.from || "capture", job.notes, "note");
       addTalk(job, "desk", job.why || "In the queue.", "rec");
       mem.jobs.unshift(job);
@@ -113,7 +144,7 @@ module.exports = async function handler(req, res) {
       log("Capture", job.title, "Waiting", workspace);
       runWorkspace(mem.jobs.filter((j) => j.workspace === workspace), Date.now(), shop);
       await save();
-      return res.status(201).json({ ok: true, job, notify: job.notify || [], crew: job.crew || null });
+      return res.status(201).json({ ok: true, job, notify: job.notify || [], crew: job.crew || null, grok: grok && grok.ok ? "on" : (grok && grok.reason) || (job.draft ? "on" : "off") });
     }
     const job = mem.jobs.find((j) => j.id === body.id && j.workspace === workspace);
     if (!job) return res.status(404).json({ error: "Job not found" });

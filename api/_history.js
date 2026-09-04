@@ -39,7 +39,17 @@ function historyItem(job, desk) {
   const amount = Number(job.amount != null ? job.amount : job.ask);
   const files = [].concat(job.photoUrl ? [{ kind: "photo", url: job.photoUrl }] : [], Array.isArray(job.files) ? job.files : []);
   const hands = [job.from, job.assignee, job.whoTapped, job.doneBy].filter(Boolean);
-  const grok = !!(job.recs && job.recs.length) || !!(job.agentDraft && job.agentDraft.text) || /grok/i.test(String(job.draftSource || job.promptVersion || ""));
+  const grok = !!(job.recs && job.recs.length) || !!(job.agentDraft && job.agentDraft.text) || !!job.grokAt || /grok/i.test(String(job.draftSource || job.promptVersion || job.draftFrom || ""));
+  const citations = Array.isArray(job.citations) ? job.citations.filter(function (c) {
+    const url = String(typeof c === "string" ? c : (c && (c.url || c.href)) || "");
+    return /^https?:\/\//i.test(url);
+  }).map(function (c) {
+    if (typeof c === "string") return { url: c, title: c };
+    return { url: String(c.url || c.href), title: String(c.title || c.url || c.href).slice(0, 80) };
+  }).slice(0, 6) : [];
+  const aiaStatus = grok
+    ? (citations.length ? "Grok + web" : "Grok drafted")
+    : (job.draft ? "Draft on card" : "No draft");
   return {
     kind: "job",
     id: job.id,
@@ -62,6 +72,9 @@ function historyItem(job, desk) {
     amount: Number.isFinite(amount) ? amount : null,
     files,
     grok,
+    aia: grok ? "grok" : (job.draft ? "draft" : ""),
+    aiaStatus,
+    citations,
     missing: miss,
     handed: !!job.assignee,
     priority: !!(job.priority || job.cap),
@@ -315,7 +328,8 @@ function filterHistory(items, query) {
     if (when && when !== "all" && it.when !== when) return false;
     if (cut && Date.parse(it.t || "") < cut) return false;
     if (text) {
-      const hay = [it.title, it.desk, it.result, it.how, it.who, it.work, it.pipe, it.draft, ((it.hands) || []).join(" ")].join(" ").toLowerCase();
+      const cite = ((it.citations || []).map(function (c) { return (c && (c.url || c.title)) || ""; }).join(" "));
+      const hay = [it.title, it.desk, it.result, it.how, it.who, it.work, it.pipe, it.draft, it.aiaStatus, cite, ((it.hands) || []).join(" ")].join(" ").toLowerCase();
       if (hay.indexOf(text) < 0) return false;
     }
     if (who) {

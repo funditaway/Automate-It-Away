@@ -136,7 +136,7 @@ if (!jobs.includes("ensureNouns") || !jobs.includes("nouns:")) fail("jobs.js sho
 else pass("jobs.js returns nouns");
 
 const rulesPage = fs.readFileSync(path.join(root, "rules.html"), "utf8");
-if (!rulesPage.includes("id=\"desk-nav\"") || !rulesPage.includes("href=\"/rules\"") || !rulesPage.includes("/api/rules")) {
+if (!rulesPage.includes("id=\"desk-nav\"") || !rulesPage.includes("/api/rules") || !rulesPage.includes("Add a rule")) {
   fail("rules.html must be its own desk page");
 } else pass("rules.html is the Rules page");
 if (!rulesPage.includes("action: \"widget\"") || !rulesPage.includes("widget-count")) {
@@ -179,12 +179,18 @@ if (agentSrc.includes("List / sell") || moreSrc.includes("List this")) fail("Dro
 else pass("Drop kinds are not consign-only");
 
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
-if (!nav.includes("href: \"/rules\"") || !nav.includes("name === \"rules\"")) {
-  fail("desk-nav.js must treat rules.html as the Rules tab");
-} else pass("desk-nav.js Rules tab is /rules");
+if (!nav.includes("href: \"/create\"") || !nav.includes("name === \"create\"")) {
+  fail("desk-nav.js must treat create.html as the Create tab");
+} else pass("desk-nav.js Create tab is /create");
+if (!nav.includes("href: \"/history\"") || !nav.includes("name === \"history\"")) {
+  fail("desk-nav.js must treat history.html as the History tab");
+} else pass("desk-nav.js History tab is /history");
 if (!nav.includes("href: \"/more\"") || !nav.includes("name === \"more\"")) {
   fail("desk-nav.js must treat more.html as the More tab");
 } else pass("desk-nav.js More tab is /more");
+if (nav.includes("href: \"/rules\"") || nav.includes("href: \"/pipes\"") || nav.includes("href: \"/people\"")) {
+  fail("desk-nav.js still puts Rules / Pipes / People on the bar");
+} else pass("Rules, Pipes, and People stay off the tab bar");
 
 const morePage = fs.readFileSync(path.join(root, "more.html"), "utf8");
 if (!morePage.includes("id=\"desk-nav\"") || !morePage.includes("href=\"/more\"") || !morePage.includes("This desk.")) {
@@ -242,7 +248,7 @@ if (jobs.includes("amount >= MONEY_HOLD && !body.confirm")) {
   fail("jobs.js must 409 only when an owner money-wait rule matches");
 } else pass("jobs.js 409s only on an owner money-wait rule");
 
-const themed = ["index.html", "how.html", "setup.html", "onboard.html", "login.html", "desk.html", "drop.html", "widget.html", "rules.html", "pipes.html", "connections.html", "help.html", "more.html", "admin.html", "chat.html", "support.html", "legal.html", "pricing.html", "status.html"];
+const themed = ["index.html", "how.html", "setup.html", "onboard.html", "login.html", "desk.html", "drop.html", "widget.html", "create.html", "history.html", "rules.html", "pipes.html", "connections.html", "help.html", "more.html", "admin.html", "chat.html", "support.html", "legal.html", "pricing.html", "status.html"];
 let themeMiss = "";
 themed.forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");
