@@ -4,7 +4,8 @@
     consign: { id: "consign", name: "Consign", kinds: ["list", "photo", "walk-in"], hint: "Resale desk. Photo and list. Draft only. Payout waits on you." },
     vita: { id: "vita", name: "Insurance", kinds: ["quote", "call", "follow", "book", "illustration", "app", "review", "service", "claim", "uw", "final", "term", "iul", "sitdown"], hint: "Insurance desk. Quote, missed call, sit-down, illustration. Bind stays off. You still send." },
     fund: { id: "fund", name: "Fund", kinds: ["request", "follow", "form"], hint: "Fund desk. Campaign note. Credit decision waits on you." },
-    land: { id: "land", name: "Land", kinds: ["quote", "follow", "request"], hint: "Land desk. Lot interest. Cap flood and title." }
+    land: { id: "land", name: "Land", kinds: ["quote", "follow", "request"], hint: "Land desk. Lot interest. Cap flood and title." },
+    "aia-adoption": { id: "aia-adoption", name: "Try it on this desk", kinds: ["task", "errand", "idea", "project"], hint: "Try first. Drop real work. AIA drafts. You tap Yes or Stop. Collect stays HOLD." }
   };
   function packMeta(id) {
     var key = String(id || "").toLowerCase();
