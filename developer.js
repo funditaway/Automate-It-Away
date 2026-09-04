@@ -151,6 +151,7 @@
       ["grok", "Grok"],
       ["pack", "Pack"],
       ["ais", "Desk AIs"],
+      ["mail", "Mail"],
       ["drop", "Drop form"],
       ["queue", "Queue"],
       ["pipes", "Pipes"],
@@ -211,6 +212,11 @@
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-ais\">Save AIs on draft</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"attach-ai\">Attach AI 1 to this desk now</button></p></div>"
     );
+    if (tab === "mail") return (
+      "<div class=\"card\" id=\"aia-mail\"></div>" +
+      "<div class=\"card\"><h2>Automations from inbound</h2>" +
+      "<p class=\"hint\">Create .aia email for automations. Mail (or a simulated webhook) to that address Drops a card on the bound desk — same path as /api/hook. Automations can trigger from inbound. Outbound Send stays HOLD. No live SMTP / MX. DNS for ai.aia / *.aia does not resolve yet.</p></div>"
+    );
     if (tab === "drop") return (
       "<div class=\"card\"><h2>Drop form inside the pack</h2>" +
       "<label>Drop hint</label><input id=\"drop-hint\" placeholder=\"Name who, when, and the car.\">" +
@@ -261,6 +267,7 @@
       "<p class=\"aia-line off\" id=\"aia-net-line\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
       "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
+      "<div class=\"card\" id=\"aia-mail\"></div>" +
       "<div class=\"card\"><h2>AIA Internet · .aia pack</h2>" +
       "<p class=\"hint\">Download or share a pack as a .aia file — JSON inside, named desk AIs and guardrails included. Install a .aia onto this project, company, or family desk. Private until you list it. Collect stays HOLD.</p>" +
       "<label>Install a .aia file</label><input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
@@ -321,11 +328,13 @@
       loadMine();
       loadOfficial();
       paintAia();
+      if (window.AIAMail && AIAMail.load) AIAMail.load();
     }
     if (tab === "grok") {
       paintAia();
       showGrokDraft(grokDraft);
     }
+    if (tab === "mail" && window.AIAMail && AIAMail.load) AIAMail.load();
   }
 
   function bindLab() {

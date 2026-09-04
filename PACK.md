@@ -125,6 +125,18 @@ Pack JSON may declare one or more desk AIs. Installing the pack attaches them to
 
 Validate `label.aia`. Names live on this desk now. Wallet / registry connect later as a Pipe HOLD. Do not invent on-chain ownership. Collect stays HOLD.
 
+## `.aia` email identities
+
+World users create `{ai-or-desk-name}@{accountname}.aia` to operate Automations and named desk AIs.
+
+Examples: `james-ai@funditaway.aia`, `queue@springfield-shop.aia`.
+
+Validate `local@account.aia`. The account label must match this AIA Internet account / `.aia` name (or the bound desk’s `.aia` name). Create and manage on Account, Studio, and Desks. Bind each identity to a desk or a named desk AI.
+
+Inbound mail (or a simulated webhook) to that address Drops / Captures on that desk — same path as `/api/hook`. Automations can trigger from inbound.
+
+Outbound Send stays HOLD. No silent mail. Rail / Yes. Status orange until a real MX pipe. Do not claim live SMTP / MX. DNS for `ai.aia` / `*.aia` does not resolve yet. Identities work on the desk now; internet mail when the MX pipe is connected.
+
 ```json
 {
   "format": "aia.pack.v1",

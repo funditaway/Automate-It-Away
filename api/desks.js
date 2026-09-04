@@ -1,6 +1,7 @@
+const lib = require("./_lib");
 const {
   cors, mem, save, ready, readBody, slugify, workspaceOf, personOf, isOwner
-} = require("./_lib");
+} = lib;
 const {
   publicDesk, applyDeskEdit, setDeskClosed, setDeskCode, exportDesk, wipeDesk,
   adminPinOk, canDesk, setDeskPerms, setSeatCan, logDesk, exploreDesk, deskEventsOf
@@ -101,6 +102,34 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, desks });
   }
 
+  if (action === "mine") {
+    const slug = slugify(body.slug || body.workspace || workspaceOf(req));
+    const pin = String((req.headers && req.headers["x-pin"]) || body.pin || "");
+    const { workspace: row, person, pending } = personOf(authReq(req, slug, pin), slug);
+    if (pending) return res.status(403).json({ ok: false, pending: true, error: "That seat is waiting on the owner." });
+    if (!row || !person) return res.status(401).json({ ok: false, error: "Desk code does not match." });
+    const { homeAccount, desksForPerson } = require("./_account");
+    const acc = homeAccount(person, row);
+    const mine = desksForPerson({ id: person.id, name: person.name, email: person.email, pin: person.pin, accountId: person.accountId || (acc && acc.id) });
+    const mail = require("./_aia-mail");
+    const aia = (acc && (acc.aia || (acc.handle ? acc.handle + ".aia" : ""))) || (row.aia || "");
+    return res.status(200).json({
+      ok: true,
+      you: person,
+      account: acc ? { id: acc.id, name: acc.name, handle: acc.handle || "", aia: aia, internet: "AIA Internet" } : null,
+      handle: acc && acc.handle || "",
+      at: aia,
+      aia: aia,
+      owned: mine.owned,
+      member: mine.member,
+      desks: (mine.owned || []).concat(mine.member || []),
+      kinds: ["family", "friend", "helper", "member", "staff"],
+      mail: acc ? mail.listForAccount(acc) : mail.listForDesk(row.slug),
+      mx: mail.statusOf(),
+      note: mail.HOLD_NOTE
+    });
+  }
+
   if (action === "history" || action === "timeline") {
     const incoming = Array.isArray(body.desks) ? body.desks : [];
     const one = slugify(body.slug || body.workspace || "");
@@ -154,6 +183,60 @@ module.exports = async function handler(req, res) {
   if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
   if (pending) return res.status(403).json({ ok: false, pending: true, error: "That seat is waiting on the owner." });
   if (!person) return res.status(401).json({ ok: false, error: "Desk code does not match." });
+
+  if (action === "mail" || action === "aia-mail" || action === "mail-identity" || action === "mail-list") {
+    const mail = require("./_aia-mail");
+    if (mail.wantsSend(body)) return res.status(409).json(mail.sendHold());
+    const { homeAccount } = require("./_account");
+    const acc = homeAccount(person, row);
+    return res.status(200).json({
+      ok: true,
+      mail: acc ? mail.listForAccount(acc) : mail.listForDesk(row.slug),
+      deskMail: mail.listForDesk(row.slug),
+      mx: mail.statusOf(),
+      note: mail.HOLD_NOTE,
+      desk: publicDesk(row, person)
+    });
+  }
+  if (action === "mail-add" || action === "add-mail" || action === "save-mail" || action === "create-mail") {
+    if (!isOwner(person)) return deny(res, "Only the owner can create a .aia email.");
+    const mail = require("./_aia-mail");
+    if (mail.wantsSend(body)) return res.status(409).json(mail.sendHold());
+    const { homeAccount } = require("./_account");
+    const acc = homeAccount(person, row);
+    const made = mail.createIdentity(acc, row, body);
+    if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error, mx: mail.statusOf() });
+    logDesk("aia-mail", row, person, { address: made.identity && made.identity.address });
+    await save();
+    return res.status(200).json({
+      ok: true,
+      identity: made.identity,
+      mail: made.mail,
+      mx: mail.statusOf(),
+      desk: publicDesk(row, person),
+      hint: (made.identity && made.identity.address) + " is bound to this desk. Identities work on the desk now. Internet mail when the MX pipe is connected."
+    });
+  }
+  if (action === "mail-remove" || action === "remove-mail") {
+    if (!isOwner(person)) return deny(res, "Only the owner can remove a .aia email.");
+    const mail = require("./_aia-mail");
+    const { homeAccount } = require("./_account");
+    const acc = homeAccount(person, row);
+    const gone = mail.removeIdentity(acc, body.id || body.address || body.email || body.mail);
+    if (!gone.ok) return res.status(gone.status || 400).json({ ok: false, error: gone.error });
+    logDesk("aia-mail-remove", row, person, { address: gone.removed });
+    await save();
+    return res.status(200).json({
+      ok: true,
+      removed: gone.removed,
+      mail: gone.mail,
+      mx: mail.statusOf(),
+      desk: publicDesk(row, person)
+    });
+  }
+  if (action === "mail-send" || action === "send-mail") {
+    return res.status(409).json(require("./_aia-mail").sendHold());
+  }
 
   if (action === "listed" || action === "visibility") {
     if (!isOwner(person)) return deny(res, "Only the owner can list this desk in public search.");
@@ -266,5 +349,5 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
   }
-  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "packs", "list-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "preview-pack", "studio-draft", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete"] });
+  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "mine", "packs", "list-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "preview-pack", "studio-draft", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete", "mail", "mail-add", "mail-remove"] });
 };

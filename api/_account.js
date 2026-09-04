@@ -171,6 +171,16 @@ function proHome(acc, person) {
     home.account.chain = false;
     home.account.owned = false;
   }
+  try {
+    const mail = require("./_aia-mail");
+    home.mail = mail.listForAccount(acc);
+    home.mx = mail.statusOf();
+    home.mailNote = mail.HOLD_NOTE;
+    if (home.account) {
+      home.account.mail = home.mail;
+      home.account.mx = mail.statusOf();
+    }
+  } catch (e) {}
   return home;
 }
 

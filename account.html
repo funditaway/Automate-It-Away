@@ -18,7 +18,7 @@
     button,.go,.edit{border:0;border-radius:9px;padding:10px 12px;font-weight:700;min-height:44px;font-family:inherit;cursor:pointer}
     .go{background:#f39c12;color:#fff}
     .edit{background:var(--card);border:1px solid var(--line)}
-    input{min-height:44px;border-radius:10px;border:1px solid var(--line);padding:8px 10px;width:100%;box-sizing:border-box;font:inherit}
+    input,select{min-height:44px;border-radius:10px;border:1px solid var(--line);padding:8px 10px;width:100%;box-sizing:border-box;font:inherit;background:var(--card);color:var(--ink)}
     label{display:block;font-size:13px;margin:8px 0 4px}
     .item{border-top:1px solid var(--line);padding:8px 0}
     .err{color:#b42318;display:none}
@@ -41,7 +41,7 @@
   </header>
   <main class="wrap">
     <h1>Your account</h1>
-    <p class="muted">One AIA account. Desk name + code, or email + password. We do not email a reset code. Owner taps stay on the owner seat.</p>
+    <p class="muted">One AIA account. Desk name + code, or email + password. We do not email a reset code. Create .aia email for automations — james-ai@funditaway.aia. Owner taps stay on the owner seat.</p>
     <div class="banner" id="plan">AIA plan · free</div>
     <div class="card">
       <h2>You</h2>
@@ -64,8 +64,9 @@
       <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Wallet / registry connect later as a Pipe HOLD. Not your email.</p>
       <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
       <p class="meta" id="you-hint">Tap the circle for a photo.</p>
-      <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="#" id="leave-phone">Leave this phone</a></div>
+      <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="/studio">Studio</a><a href="#" id="leave-phone">Leave this phone</a></div>
     </div>
+    <div class="card" id="aia-mail"></div>
     <form class="card" id="gate">
       <h2>Open the account</h2>
       <p class="meta">Either door. Same book.</p>
@@ -109,6 +110,7 @@
   </main>
   <script src="theme.js"></script>
   <script src="desk-switch.js"></script>
+  <script src="aia-mail.js"></script>
   <script>
     const slugEl=document.getElementById("slug");
     const pinEl=document.getElementById("pin");
@@ -223,6 +225,7 @@
       if(pinEl.value) localStorage.setItem("aia_pin",pinEl.value);
       if(window.AIADesks&&AIADesks.keepSession) AIADesks.keepSession(d,pinEl.value);
       paint(d);
+      if(window.AIAMail&&AIAMail.load) AIAMail.load();
     }
     document.getElementById("gate").onsubmit=async function(e){
       e.preventDefault(); err.style.display="none";
@@ -235,7 +238,7 @@
     if(localStorage.getItem("aia_session")){
       fetch("/api/account",{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"",localStorage.getItem("aia_pin")||"")})
         .then(function(r){return r.json();})
-        .then(function(d){if(d&&(d.ok||d.account)) paint(d);})
+        .then(function(d){if(d&&(d.ok||d.account)){paint(d);if(window.AIAMail&&AIAMail.load) AIAMail.load();}})
         .catch(function(){});
     }
   </script>

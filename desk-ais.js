@@ -34,6 +34,7 @@
     var box = host();
     if (!box) return;
     var rows = (data && (data.ais || (data.desk && data.desk.ais))) || [];
+    var mail = (data && (data.mail || (data.desk && data.desk.mail))) || [];
     var rails = (data && (data.aiRails || data.rails || (data.desk && data.desk.aiRails))) || "Yes / Stop / Kill stay human. Desk AIs never Yes themselves. Collect stays HOLD. No silent money or mail.";
     var inet = (data && (data.net || data.internet || (data.desk && data.desk.net))) || null;
     var netNote = (inet && inet.note) || ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.";
@@ -42,7 +43,7 @@
       box.hidden = false;
       box.innerHTML = "<div class=\"meta\">Desk AI · AIA Internet</div><p>No named AI on this desk yet. Create one in Studio or Create. Guardrails still apply: Yes / Stop / Kill stay human. No silent money or mail.</p>" +
         "<p class=\"meta\">" + esc(netNote) + (aiaName ? (" This desk is " + esc(aiaName) + ".") : "") + "</p>" +
-        "<p class=\"meta\"><a href=\"/studio\">Creators Studio</a> · <a href=\"/create?kind=ai\">Name an AI</a> · <a href=\"/rules\">Rules</a></p>";
+        "<p class=\"meta\"><a href=\"/studio\">Creators Studio</a> · <a href=\"/create?kind=ai\">Name an AI</a> · <a href=\"/account\">Create .aia email</a> · <a href=\"/rules\">Rules</a></p>";
       return;
     }
     box.hidden = false;
@@ -53,6 +54,7 @@
           "<br><span class=\"meta\">Drafts " + esc((a.steps || a.allow || []).join(", ") || "qualify, do, follow") +
           ". Never " + esc((a.never || ["send", "stop", "money", "mail"]).join(" · ")) + ".</span></p>";
       }).join("") +
+      (mail.length ? "<p class=\"meta\">.aia email · " + mail.map(function (m) { return esc(m.address); }).join(" · ") + " · Send HOLD</p>" : "<p class=\"meta\">Create a .aia email for automations on Account, Studio, or Desks. Send stays HOLD.</p>") +
       "<p class=\"meta\">" + esc(rails) + "</p>" +
       "<p class=\"meta\">" + esc(netNote) + "</p>";
   }

@@ -1,6 +1,8 @@
-const { cors, mem, log, save, ready, slugify, readBody, deskClosed, deskClosedMessage } = require("./_lib");
+const { cors, mem, log, save, ready, slugify, readBody } = require("./_lib");
+const { deskClosed, deskClosedMessage } = require("./_desk");
 const { qualifyJob, applyRules } = require("./_engine");
 const { makeCapturedJob, addTalk } = require("./_fields");
+const mail = require("./_aia-mail");
 
 function eventOf(body) {
   const raw = String(body.event || body.action || body.status || "update").toLowerCase();
@@ -45,15 +47,31 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       use: "POST",
-      events: ["capture", "update", "do", "done", "hand", "collect", "kill"],
-      note: "Write back done when the work finished off the desk. Write back hand when a person still has to finish it. Owner still owns Stop."
+      events: ["capture", "update", "do", "done", "hand", "collect", "kill", "mail"],
+      inbound: "POST to /api/hook with to: local@account.aia — Drop / Capture on that desk. Automations can trigger from inbound.",
+      send: "hold",
+      mx: mail.statusOf(),
+      note: "Write back done when the work finished off the desk. Write back hand when a person still has to finish it. Owner still owns Stop. .aia identities work on the desk now. Internet mail when the MX pipe is connected."
     });
   }
 
   const body = await readBody(req);
-  const workspace = slugify(req.headers["x-workspace"] || req.query.workspace || body.workspace || "");
-  if (!workspace) return res.status(400).json({ ok: false, error: "Name the desk." });
-  const event = eventOf(body);
+  if (mail.wantsSend(body)) {
+    return res.status(409).json(mail.sendHold());
+  }
+  const toAddr = body.to || body.recipient || body.address || req.query.to || "";
+  const identity = toAddr ? mail.findByAddress(toAddr) : null;
+  if (toAddr && /\.aia$/i.test(String(toAddr).trim()) && !identity) {
+    const parsed = mail.parseAddress(toAddr);
+    return res.status(404).json({
+      ok: false,
+      error: parsed.ok ? ("No .aia email identity for " + parsed.address + ".") : parsed.error,
+      mx: mail.statusOf()
+    });
+  }
+  const workspace = slugify(req.headers["x-workspace"] || req.query.workspace || body.workspace || (identity && identity.workspace) || "");
+  if (!workspace) return res.status(400).json({ ok: false, error: "Name the desk or send to a .aia email." });
+  const event = identity ? "capture" : eventOf(body);
   const title = body.title || body.item || body.name || body.notes || "Pipe update";
 
   let job = null;
@@ -69,15 +87,24 @@ module.exports = async function handler(req, res) {
     if (deskClosed(shop)) {
       return res.status(409).json({ ok: false, error: deskClosedMessage(shop), closed: true });
     }
-    job = makeCapturedJob(workspace, shop, Object.assign({}, body, {
-      title: title,
-      why: body.why || "In from a pipe.",
-      from: body.from || body.provider || "webhook",
-      notes: body.notes || body.text || "",
-      lane: body.lane || "ext"
+    const inbound = identity ? mail.inboundPayload(body, identity) : {};
+    job = makeCapturedJob(workspace, shop, Object.assign({}, body, inbound, {
+      title: inbound.title || title,
+      why: inbound.why || body.why || "In from a pipe.",
+      from: inbound.from || body.from || body.provider || "webhook",
+      notes: inbound.notes || body.notes || body.text || "",
+      lane: inbound.lane || body.lane || (identity ? "in" : "ext"),
+      kind: inbound.kind || body.kind
     }));
-    job.log = ["Pipe capture"];
-    job.provider = body.provider || job.provider || "webhook";
+    job.log = [identity ? ("Mail · " + identity.address) : "Pipe capture"];
+    job.provider = (identity && "aia-mail") || body.provider || job.provider || "webhook";
+    if (identity) {
+      job.aiaMail = identity.address;
+      job.to = identity.address;
+      job.kind = job.kind || "email";
+      job.custom = Object.assign({}, job.custom || {}, inbound.custom || {});
+      if (identity.aiName) job.assignee = identity.aiName;
+    }
     qualifyJob(job, shop);
     try {
       const { grokRecommend } = require("./_grok");

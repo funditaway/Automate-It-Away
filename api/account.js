@@ -45,7 +45,9 @@ function safeAccount(acc) {
     internet: "AIA Internet",
     chain: false,
     owned: false,
-    aiaReviewer: !!acc.aiaReviewer
+    aiaReviewer: !!acc.aiaReviewer,
+    mail: require("./_aia-mail").listForAccount(acc),
+    mx: require("./_aia-mail").statusOf()
   };
 }
 
@@ -318,6 +320,74 @@ module.exports = async function handler(req, res) {
     return res.status(200).json(Object.assign(proHome(account, found.person), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Wallet / registry connect later as a Pipe HOLD." }));
   }
 
+  if (action === "mail" || action === "aia-mail" || action === "mail-identity" || action === "create-mail" || action === "mail-create" || action === "mail-list") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    const mail = require("./_aia-mail");
+    if (mail.wantsSend(body) || action === "mail-send") {
+      return res.status(409).json(mail.sendHold());
+    }
+    refreshSession(req, res);
+    return res.status(200).json(Object.assign(proHome(account, found.person), {
+      mail: mail.listForAccount(account),
+      mx: mail.statusOf(),
+      note: mail.HOLD_NOTE
+    }));
+  }
+
+  if (action === "mail-add" || action === "add-mail" || action === "save-mail") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    if (!isOwner(found.person)) {
+      return res.status(403).json({ ok: false, error: "Owner desk code required to create a .aia email." });
+    }
+    const mail = require("./_aia-mail");
+    if (mail.wantsSend(body)) return res.status(409).json(mail.sendHold());
+    const wantSlug = lib.slugify(body.desk || body.workspace || body.slug || (found.workspace && found.workspace.slug) || "");
+    const desk = (mem.workspaces || []).find((w) => w && w.slug === wantSlug) || found.workspace;
+    const made = mail.createIdentity(account, desk, body);
+    if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error, mx: mail.statusOf() });
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json(Object.assign(proHome(account, found.person), {
+      ok: true,
+      identity: made.identity,
+      mail: made.mail,
+      mx: mail.statusOf(),
+      hint: (made.identity && made.identity.address) + " is on this account. Identities work on the desk now. Internet mail when the MX pipe is connected."
+    }));
+  }
+
+  if (action === "mail-remove" || action === "remove-mail") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    if (!isOwner(found.person)) {
+      return res.status(403).json({ ok: false, error: "Owner desk code required to remove a .aia email." });
+    }
+    const mail = require("./_aia-mail");
+    const gone = mail.removeIdentity(account, body.id || body.address || body.email || body.mail);
+    if (!gone.ok) return res.status(gone.status || 400).json({ ok: false, error: gone.error });
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json(Object.assign(proHome(account, found.person), {
+      ok: true,
+      removed: gone.removed,
+      mail: gone.mail,
+      mx: mail.statusOf(),
+      hint: (gone.removed || "That identity") + " is off this account."
+    }));
+  }
+
+  if (action === "mail-send" || action === "send-mail") {
+    return res.status(409).json(require("./_aia-mail").sendHold());
+  }
+
   if (action === "reviewer" || action === "aia-reviewer") {
     const { found, account } = authAccount(req);
     if (!found.workspace || !isOwner(found.person) || !account) {
@@ -341,6 +411,6 @@ module.exports = async function handler(req, res) {
   return res.status(400).json({
     ok: false,
     error: "Unknown account action.",
-    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "handle", "reviewer", "logout", "logout-all", "sessions", "export", "mfa", "providers", "oauth-start", "ask-other", "link-provider", "unlink-provider"]
+    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "handle", "reviewer", "logout", "logout-all", "sessions", "export", "mfa", "providers", "oauth-start", "ask-other", "link-provider", "unlink-provider", "mail", "mail-add", "mail-remove"]
   });
 };
