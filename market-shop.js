@@ -226,23 +226,35 @@
   }
   async function loadShop(q) {
     QUERY = String(q || "").replace(/^find\s+/i, "").trim();
-    const r = await fetch("/api/desks?packs=1&q=" + encodeURIComponent(QUERY));
-    const data = await r.json().catch(function () { return {}; });
-    shopPage((data && data.packs) || []);
+    try {
+      const r = await fetch("/api/desks?packs=1&q=" + encodeURIComponent(QUERY));
+      const data = await r.json().catch(function () { return {}; });
+      shopPage((data && data.packs) || []);
+    } catch (e) {
+      shopPage([]);
+    }
   }
   async function loadListing(id) {
-    const r = await fetch("/api/desks?packs=1&id=" + encodeURIComponent(id));
-    const data = await r.json().catch(function () { return {}; });
-    const pack = data.pack || (data.packs && data.packs[0]);
-    if (!r.ok || !pack) return fail(data.error || "No pack with that name.") || loadShop("");
-    listingPage(pack);
+    try {
+      const r = await fetch("/api/desks?packs=1&id=" + encodeURIComponent(id));
+      const data = await r.json().catch(function () { return {}; });
+      const pack = data.pack || (data.packs && data.packs[0]);
+      if (!r.ok || !pack) return fail(data.error || "No pack with that name.") || loadShop("");
+      listingPage(pack);
+    } catch (e) {
+      loadShop("");
+    }
   }
   async function loadCreator(id) {
-    const r = await fetch("/api/desks?packs=1&creator=" + encodeURIComponent(id));
-    const data = await r.json().catch(function () { return {}; });
-    if (!r.ok) return fail(data.error || "No creator with that name.") || loadShop("");
-    if (!data.creator && data.packs) data.creator = { name: id, official: false, does: "" };
-    creatorPage(data);
+    try {
+      const r = await fetch("/api/desks?packs=1&creator=" + encodeURIComponent(id));
+      const data = await r.json().catch(function () { return {}; });
+      if (!r.ok) return fail(data.error || "No creator with that name.") || loadShop("");
+      if (!data.creator && data.packs) data.creator = { name: id, official: false, does: "" };
+      creatorPage(data);
+    } catch (e) {
+      loadShop("");
+    }
   }
   async function usePack(id, preview) {
     if (!hasDesk()) return fail("Open a desk first. Shopping stays public. Use needs the desk code.");
