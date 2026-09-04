@@ -83,8 +83,8 @@
       if (FILTER === "listed") return !p.official && !p.priced;
       if (FILTER === "market") return !!p.priced;
       if (FILTER === "free") return !p.priced;
-      if (FILTER === "home" || FILTER === "consign" || FILTER === "fund" || FILTER === "land") {
-        return [p.id, p.family, p.niche, p.name, p.creatorId].join(" ").toLowerCase().indexOf(FILTER) >= 0;
+      if (FILTER === "home" || FILTER === "consign" || FILTER === "fund" || FILTER === "land" || FILTER === "aia") {
+        return [p.id, p.family, p.niche, p.name, p.creatorId, p.aisle].join(" ").toLowerCase().indexOf(FILTER) >= 0;
       }
       if (FILTER === "insurance") {
         const blob = [p.id, p.family, p.niche, p.name, p.creatorId].join(" ").toLowerCase();
@@ -131,7 +131,7 @@
         "<input name=\"q\" value=\"" + esc(QUERY) + "\" placeholder=\"lawn · flood · oil change · insurance\" autocomplete=\"off\">" +
         "<div class=\"pills\" id=\"pills\">" +
           pill("", "All") + pill("official", "AIA") + pill("free", "Free") + pill("listed", "Listed") + pill("market", "Ask") +
-          pill("home", "Home") + pill("consign", "Consign") + pill("insurance", "Insurance") + pill("fund", "Fund") + pill("land", "Land") +
+          pill("home", "Home") + pill("consign", "Consign") + pill("insurance", "Insurance") + pill("fund", "Fund") + pill("land", "Land") + pill("aia", "Try it") +
         "</div>" +
         "<button class=\"go\" type=\"submit\" style=\"width:100%;margin-top:10px\">Find packs</button>" +
       "</form>" +

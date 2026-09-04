@@ -4,37 +4,58 @@
   "family": "Automate It Away",
   "type": "work",
   "aisle": "AIA",
+  "kind": "adoption",
+  "status": "preview",
+  "live": false,
+  "price": 0,
+  "priceLabel": "On this desk",
+  "blurb": "Worker-first. Open packs. Secure-by-design. Try first on this desk — cards wait. Queue cards count.",
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "notes", "label": "What the work is" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "deskName", "label": "This desk" },
+    "how": "Drop real work. AIA drafts. A person taps Yes or Stop. Collect stays HOLD."
+  },
+  "help": [
+    "Try first on this desk. Cards wait. You tap. Queue cards count.",
+    "Worker-first: Workers decide Yes or Stop. The desk does not auto-send.",
+    "Open packs: install the pack. Cards still wait for a tap.",
+    "Secure-by-design: Collect stays HOLD. Audit the trail. Empty desks stay empty.",
+    "This pack is not a money seed. Webhook only. eBay and mail stay off."
+  ],
   "capture": ["talk", "drop", "note"],
-  "qualify": ["what the work is", "who it is for"],
+  "qualify": ["Queue cards count", "what the work is", "who it is for"],
   "do": ["draft on the card"],
   "collect": ["HOLD until a person taps Yes"],
-  "follow": ["the card stays until it is done"],
-  "taps": ["copy", "text", "email", "hand", "cap"],
-  "kill": ["not ours", "duplicate"],
+  "follow": ["one nudge on the card"],
+  "taps": ["copy", "text", "email", "hand", "cap", "yes", "stop"],
+  "kill": ["not ours", "duplicate", "not a fit"],
   "pipes": ["webhook"],
-  "artifacts": ["draft on the card"],
+  "artifacts": ["draft on the card", "audit on History"],
   "kinds": ["task", "errand", "idea", "project"],
   "fields": {
-    "capture": ["title", "kind", "notes", "timing"],
+    "capture": ["title", "kind", "from", "contactName", "notes", "pack", "timing"],
     "qualify": ["timing", "why"],
-    "do": ["draft"],
+    "do": ["draft", "artifact"],
     "collect": ["confirm"],
     "follow": ["followed"],
     "rail": ["killReason", "whoTapped"]
   },
   "rails": [
-    "Try first. Drop real work. Do not invent a card.",
-    "Queue cards count. Model demos do not.",
-    "Worker-first: AIA drafts. A person taps Yes or Stop.",
-    "Open packs: thin JSON customizes this desk. No dashboard fork.",
-    "Secure-by-design: no silent Collect. No auto mail. No send."
+    "Queue cards count",
+    "Worker-first. Workers decide Yes or Stop. The desk does not auto-send.",
+    "Open packs. Install the pack. Cards still wait for a tap.",
+    "Secure-by-design. Collect stays HOLD. Audit the trail. Empty desks stay empty.",
+    "Try first on this desk. Cards wait. You tap.",
+    "This pack is not a money seed. Webhook only. eBay and mail stay off."
   ],
   "rules": [],
   "queue": {
     "badge": "AIA",
     "family": "Automate It Away",
-    "empty": "Try first. Drop a task, an errand, or an idea. Fresh desks start empty until you add a pack or a rule.",
-    "group": "none",
+    "empty": "Try first. Drop a task, an errand, or an idea. Queue cards count. Fresh desks start empty until you add a pack or a rule.",
+    "group": "kind",
     "sort": "cap-first",
     "chips": ["task", "errand", "idea", "project"],
     "taps": ["copy", "text", "email", "hand", "cap"],
@@ -43,9 +64,9 @@
   "dropHint": "Say the work in your words. Springfield desk or anywhere. AIA drafts. You tap.",
   "how": {
     "capture": "Drop a real task, errand, list, or idea.",
-    "qualify": "Fresh desks have no seed rules. Add a wait only if you want one.",
+    "qualify": "Fresh desks have no seed rules. Queue cards count. Add a wait only if you want one.",
     "do": "AIA drafts on the card. A person still taps Yes or Stop.",
     "collect": "Collect stays HOLD. Packs never send money.",
-    "follow": "History stays empty until something actually happened."
+    "follow": "One nudge. History keeps the tap. Nothing sends itself."
   }
 }

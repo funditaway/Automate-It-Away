@@ -16,7 +16,8 @@ const FACES = {
   quote: { id: "vita", key: "quote", name: "Insurance", family: "Quote It Away" },
   insurance: { id: "vita", key: "quote", name: "Insurance", family: "Quote It Away" },
   fund: { id: "fund", key: "fund", name: "Fund", family: "Fund It Away" },
-  land: { id: "land", key: "land", name: "Land", family: "Land It Away" }
+  land: { id: "land", key: "land", name: "Land", family: "Land It Away" },
+  "aia-adoption": { id: "aia-adoption", key: "aia-adoption", name: "Try it on this desk", family: "Automate It Away" }
 };
 
 function moneyOf(job) {
@@ -85,6 +86,7 @@ function packRulesOf(packId) {
 
 function brainOf(packId, kind) {
   const face = packFace(packId);
+  const pack = String(packId || "").toLowerCase();
   const k = String(kind || "request").toLowerCase();
   if (face.id === "vita") {
     return {
@@ -117,6 +119,14 @@ function brainOf(packId, kind) {
       artifact: "lot note",
       draft: "Draft the lot note. Flood and title wait on the owner.",
       next: "Qualify flood, title, and access. Earnest stays off Drop."
+    };
+  }
+  if (pack === "aia-adoption" || face.id === "aia-adoption") {
+    return {
+      risk: "none",
+      artifact: "draft on the card",
+      draft: "Worker-first. Open packs. Secure-by-design. Draft the next step. A person taps Yes or Stop. Collect stays HOLD.",
+      next: "Try first. Queue cards count. Workers decide. Nothing sends itself."
     };
   }
   return {
@@ -218,6 +228,7 @@ function applyRules(job, shop, step) {
 
 function engineRecs(job, shop) {
   const face = packFace(job && job.pack);
+  const pack = String((job && job.pack) || "").toLowerCase();
   const recs = [];
   function add(kind, text) {
     if (!text || recs.some((r) => r.text === text)) return;
@@ -239,6 +250,10 @@ function engineRecs(job, shop) {
   } else if (face.id === "land") {
     add("ask", "Flood, title, and access on this lot?");
     add("hold", "Earnest stays off Drop.");
+  } else if (pack === "aia-adoption" || face.id === "aia-adoption") {
+    add("ask", "What is the work, and who is it for?");
+    add("draft", "AIA drafts. A person taps Yes or Stop.");
+    add("hold", "Collect stays HOLD. No silent send.");
   } else {
     add("next", "Copy, text, email, or hand this card.");
     add("ask", "Who is it for, and when?");

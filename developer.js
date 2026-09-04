@@ -208,7 +208,10 @@
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
       "<p class=\"cta\"><a class=\"go ghost\" href=\"/market?pack=aia-adoption\">Try it on this desk</a></p>" +
-      "<div id=\"mine-list\"></div></div>"
+      "<div id=\"mine-list\"></div></div>" +
+      "<div class=\"card\"><h2>Official AIA packs</h2>" +
+      "<p class=\"hint\">Use copies the pack onto this desk. Workers decide Yes or Stop. Collect stays HOLD.</p>" +
+      "<div id=\"official-list\"></div></div>"
     );
   }
 
@@ -235,6 +238,7 @@
     bindLab();
     if (tab === "home") {
       loadMine();
+      loadOfficial();
       paintAia();
     }
     if (tab === "grok") {
@@ -436,6 +440,33 @@
     creator = plan === "dev";
     show(d.hint || (creator ? "Creators Studio is on. Still free." : "Regular account. Still free."), true);
     paintLab();
+  }
+  async function loadOfficial() {
+    var box = document.getElementById("official-list");
+    if (!box) return;
+    try {
+      var r = await fetch("/api/desks?packs=1", { headers: hdr() });
+      var d = await r.json().catch(function () { return {}; });
+      var rows = (d.official || (d.packs || []).filter(function (p) { return p && p.official && p.type === "work"; })) || [];
+      if (!rows.length) { box.innerHTML = "<p class=\"hint\">No official packs in the catalog yet.</p>"; return; }
+      box.innerHTML = rows.map(function (p) {
+        return "<div class=\"pack-row\"><b>" + esc(p.name || p.id) + "</b><span class=\"hint\">" +
+          esc(p.family || "Automate It Away") + " · free</span><p class=\"hint\">" + esc(p.does || "") + "</p>" +
+          "<p class=\"cta\"><button class=\"go\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button>" +
+          "<a class=\"go ghost\" href=\"/market?pack=" + encodeURIComponent(p.id) + "\">View listing</a></p></div>";
+      }).join("");
+      box.querySelectorAll("[data-use]").forEach(function (btn) {
+        btn.onclick = function () { useOfficial(btn.getAttribute("data-use")); };
+      });
+    } catch (e) {
+      box.innerHTML = "<p class=\"hint\">Could not load official packs.</p>";
+    }
+  }
+  async function useOfficial(id) {
+    var r = await fetch("/api/desks", { method: "POST", headers: hdr(), body: JSON.stringify({ action: "use-pack", id: id }) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok) return show(d.error || "Could not put that pack on this desk.", false);
+    show((d.note || "Pack is on this desk.") + " Open Drop or Queue. Packs never Send.", true);
   }
   async function loadMine() {
     var box = document.getElementById("mine-list");

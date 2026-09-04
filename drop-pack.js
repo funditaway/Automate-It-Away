@@ -26,9 +26,10 @@
       if (CHIP === "official" && !p.official) return false;
       if (CHIP === "listed" && p.official) return false;
       if (CHIP === "market" && !p.priced) return false;
-      if (["home", "consign", "insurance", "fund", "land"].indexOf(CHIP) >= 0) {
-        var blob = [p.id, p.name, p.family, p.niche].join(" ").toLowerCase();
+      if (["home", "consign", "insurance", "fund", "land", "aia"].indexOf(CHIP) >= 0) {
+        var blob = [p.id, p.name, p.family, p.niche, p.aisle].join(" ").toLowerCase();
         if (CHIP === "insurance") return /insurance|vita|quote/.test(blob);
+        if (CHIP === "aia") return /aia/.test(blob) || p.id === "aia-adoption";
         return blob.indexOf(CHIP) >= 0;
       }
       return true;
@@ -86,9 +87,10 @@
   function paintChips() {
     var box = document.getElementById("drop-pack-chips");
     if (!box) return;
-    var chips = ["all", "official", "listed", "free", "home", "consign", "insurance", "fund", "land"];
+    var chips = ["all", "official", "listed", "free", "home", "consign", "insurance", "fund", "land", "aia"];
     box.innerHTML = chips.map(function (c) {
-      return '<button type="button" class="' + (CHIP === c ? "on" : "") + '" data-pack-chip="' + c + '">' + (c === "all" ? "All" : c.charAt(0).toUpperCase() + c.slice(1)) + "</button>";
+      var label = c === "all" ? "All" : c === "aia" ? "AIA" : c.charAt(0).toUpperCase() + c.slice(1);
+      return '<button type="button" class="' + (CHIP === c ? "on" : "") + '" data-pack-chip="' + c + '">' + label + "</button>";
     }).join("");
     box.onclick = function (e) {
       var btn = e.target.closest("[data-pack-chip]");
