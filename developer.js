@@ -267,6 +267,7 @@
       "<p class=\"aia-line off\" id=\"aia-net-line\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
       "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
+      "<div class=\"card\" id=\"aia-mail\"></div>" +
       "<div class=\"card\"><h2>AIA Internet · .aia pack</h2>" +
       "<p class=\"hint\">Download or share a pack as a .aia file — JSON inside, named desk AIs and guardrails included. Install a .aia onto this project, company, or family desk. Private until you list it. Collect stays HOLD.</p>" +
       "<label>Install a .aia file</label><input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
@@ -327,6 +328,7 @@
       loadMine();
       loadOfficial();
       paintAia();
+      if (window.AIAMail && AIAMail.load) AIAMail.load();
     }
     if (tab === "grok") {
       paintAia();
