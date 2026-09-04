@@ -41,13 +41,20 @@ async function deskStatus(req, res) {
   await ready();
 
   const workspace = workspaceOf(req);
-  const { workspace: row } = personOf(req, workspace);
+  const { workspace: row, person } = personOf(req, workspace);
   const pipes = catalog();
   const answered = answeredProviders(workspace);
   const wrote = pipesAnswered(workspace);
   const mine = workspace
     ? (mem.connections || []).filter((c) => c && c.workspace === workspace && c.lane !== "draft")
     : [];
+  const connect = require("./_connect-wallet");
+  let wallet = connect.emptyPublic();
+  if (person) {
+    let acc = null;
+    try { acc = require("./_account").homeAccount(person, row); } catch (e) { acc = null; }
+    wallet = connect.publicOf(acc, connect.currentSession(req));
+  }
 
   return res.status(200).json({
     ok: true,
@@ -64,6 +71,7 @@ async function deskStatus(req, res) {
     inbound: workspace ? "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace) : "",
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
+    wallet,
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound, never dispatch.demo",
@@ -189,6 +197,7 @@ async function health(req, res) {
     dns: "pointed",
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
+    wallet: require("./_connect-wallet").healthBlock(),
     repo: "funditaway/Automate-It-Away"
   });
 }

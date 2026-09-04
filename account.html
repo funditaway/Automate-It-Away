@@ -61,11 +61,12 @@
       <input id="you-city" maxlength="60" placeholder="Springfield">
       <label for="you-handle">AIA Internet name</label>
       <input id="you-handle" maxlength="63" placeholder="james.aia" autocomplete="username">
-      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Wallet / registry connect later as a Pipe HOLD. Not your email.</p>
+      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Connect a browser wallet below for identity. Mint / Bridge stay HOLD. Not your email.</p>
       <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
       <p class="meta" id="you-hint">Tap the circle for a photo.</p>
       <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="/studio">Studio</a><a href="#" id="leave-phone">Leave this phone</a></div>
     </div>
+    <div class="card" id="aia-wallet"></div>
     <div class="card" id="aia-mail"></div>
     <form class="card" id="gate">
       <h2>Open the account</h2>
@@ -110,6 +111,7 @@
   </main>
   <script src="theme.js"></script>
   <script src="desk-switch.js"></script>
+  <script src="aia-wallet.js"></script>
   <script src="aia-mail.js"></script>
   <script>
     const slugEl=document.getElementById("slug");
@@ -173,6 +175,7 @@
         "<p><b>Phone</b>"+esc(acc.phone||"Not set")+"</p>"+
         "<p><b>City</b>"+esc(acc.city||"—")+"</p>"+
         "<p><b>AIA Internet</b>"+esc(acc.aia||(acc.handle?acc.handle+".aia":"Not set"))+"</p>"+
+        "<p><b>Wallet</b>"+esc((d.wallet&&d.wallet.connected&&(d.wallet.short||d.wallet.address))||(acc.wallet&&acc.wallet.short)||"Not connected")+"</p>"+
         "<p><b>Password door</b>"+(acc.hasPassword?"On":"Off")+"</p>"+
         "<p><b>Opened</b>"+esc((acc.createdAt||"").slice(0,10)||"—")+"</p></div>";
       if(acc.email){youEmail.value=acc.email;document.getElementById("pw-email").value=acc.email;localStorage.setItem("aia_email",acc.email);}
@@ -212,7 +215,7 @@
     };
     document.getElementById("leave-phone").onclick=function(e){
       e.preventDefault();
-      ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email"].forEach(function(k){localStorage.removeItem(k);});
+      ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email","aia_wallet_address","aia_wallet_chain"].forEach(function(k){localStorage.removeItem(k);});
       location.href="/login";
     };
     async function act(action, extra){
@@ -225,6 +228,7 @@
       if(pinEl.value) localStorage.setItem("aia_pin",pinEl.value);
       if(window.AIADesks&&AIADesks.keepSession) AIADesks.keepSession(d,pinEl.value);
       paint(d);
+      if(window.AIAWallet&&AIAWallet.load) AIAWallet.load(d);
       if(window.AIAMail&&AIAMail.load) AIAMail.load();
     }
     document.getElementById("gate").onsubmit=async function(e){
@@ -238,7 +242,7 @@
     if(localStorage.getItem("aia_session")){
       fetch("/api/account",{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"",localStorage.getItem("aia_pin")||"")})
         .then(function(r){return r.json();})
-        .then(function(d){if(d&&(d.ok||d.account)){paint(d);if(window.AIAMail&&AIAMail.load) AIAMail.load();}})
+        .then(function(d){if(d&&(d.ok||d.account)){paint(d);if(window.AIAWallet&&AIAWallet.load) AIAWallet.load(d);if(window.AIAMail&&AIAMail.load) AIAMail.load();}})
         .catch(function(){});
     }
   </script>

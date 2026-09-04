@@ -17,6 +17,16 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `.aia` email identities `{local}@{account}.aia` for Automations. Create/manage on Account, Studio, Desks. Inbound → Drop/Capture. Outbound Send HOLD. No live SMTP/MX.
 - `scripts/check-account.js` — nine passing contract tests.
 
+## YES (AIA Wallet Connect — EIP-1193, 2026-09-04)
+
+- Browser wallet on Account. `window.ethereum` / MetaMask-first. No WalletConnect infra.
+- Persist `walletAddress` + `walletChainId` on the open desk session and the account blob.
+- Short address (`0x1234…abcd`) + chain label + Disconnect. Disconnect clears local session storage.
+- `/api/status` and Account UI show connected only when an address is actually stored. No fake connected.
+- Identity / TLD ownership only. Mint, Bridge, Decentraweb register stay external. Collect stays HOLD.
+- No custodial keys on the server. No demo seed balance. No silent Collect.
+- `scripts/check-connect-wallet.js`.
+
 ## YES (wallets / Ext / X Money — ledger only, 2026-09-03)
 
 - Each adult seat can hold its own wallet. Bills hit THAT wallet.
@@ -44,6 +54,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Moving money from the account page.
 - A second dashboard.
 - Live SMTP / MX for `.aia`. DNS for ai.aia / *.aia does not resolve yet.
+- Embedded wallets, key generation, or gas sponsorship.
+- Decentraweb mint / Bridge from the desk.
+- Collect charges through Square / Stripe / a wallet pipe.
 
 ## Ask me if
 
