@@ -42,7 +42,7 @@ else pass("pack-card maps year2 and missed-call");
 if (!card.includes('name: "Insurance"')) fail("pack-card missing Insurance face");
 else pass("pack-card Insurance face");
 
-["home", "consign", "fund", "land", "vita", "aia-adoption"].forEach(function (id) {
+["home", "consign", "fund", "land", "vita", "aia-adoption", "aia-implement"].forEach(function (id) {
   const file = JSON.parse(fs.readFileSync(path.join(root, "packs", id + ".json"), "utf8"));
   if (!file.queue) fail(id + " missing queue{}");
   else pass(id + " has queue{}");

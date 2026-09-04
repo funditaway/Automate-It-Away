@@ -45,6 +45,7 @@
   <main class="wrap">
     <h1>This desk.</h1>
     <p>Talk to the desk on Drop. Invite a helper. Add a rule if something should wait. Same queue. Nothing leaves until you tap.</p>
+    <div data-aia-playbook></div>
     <p class="meta" id="grok-line">Drafts land on the card. You send them. Or you Stop.</p>
     <h2>You</h2>
     <div class="card">
@@ -66,7 +67,7 @@
     </div>
     <h2>If you need a hand</h2>
     <div class="card">
-      <a href="/help">Help<span>Words on the buttons.</span></a>
+      <a href="/help#playbook">Help<span>Four steps on this desk. Words on the buttons.</span></a>
       <a href="/support">Talk to AIA<span>World problem. Card on the AIA Admin Desk.</span></a>
       <a href="/legal">Legal<span>What AIA does not do.</span></a>
       <a href="/status">Status<span>What is live on this desk.</span></a>
@@ -79,6 +80,7 @@
     <a href="/history" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>History</span></a>
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
+  <script src="desk-playbook.js"></script>
   <script src="desk-nav.js"></script>
   <script>
     fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {

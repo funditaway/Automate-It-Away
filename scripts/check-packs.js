@@ -68,7 +68,7 @@ else pass("packs install-aia");
 if (!shop.includes("AIA Internet") || !shop.includes(".aia") || !shop.includes("install-aia")) fail("market missing AIA Internet / .aia install");
 else pass("market AIA Internet .aia");
 
-["vita.json", "fund.json", "land.json", "aia-adoption.json"].forEach((name) => {
+["vita.json", "fund.json", "land.json", "aia-adoption.json", "aia-implement.json"].forEach((name) => {
   const p = path.join(root, "packs", name);
   if (!fs.existsSync(p)) fail("missing " + name);
   else pass("pack file " + name);

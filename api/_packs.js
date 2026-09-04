@@ -10,7 +10,8 @@ const OFFICIAL = [
   { id: "fund", name: "Fund raise", type: "work", family: "Fund It Away", aisle: "Fund", official: true, price: 0, use: "ok", does: "Campaign draft. Credit waits on the owner.", features: ["campaign draft", "credit wait"], kinds: ["raise", "credit"] },
   { id: "land", name: "Land lot", type: "work", family: "Land", aisle: "Land", official: true, price: 0, use: "ok", does: "Lot note. Flood and title wait.", features: ["lot note", "flood wait", "title wait"], kinds: ["lot", "flood", "survey", "title"] },
   { id: "aia", name: "AIA Help", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "World problem in. Card on the AIA Admin Desk. You tap.", features: ["talk drop", "ticket card", "draft reply"], kinds: ["broke", "login", "desk", "account", "pack", "pipe", "idea"], face: "AIA Help" },
-  { id: "aia-adoption", name: "Try it on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Try first. Drop real work. Workers tap Yes or Stop. Open packs customize this desk. Drafts stay on the card.", features: ["try-first", "worker-first", "open packs", "secure-by-design"], kinds: ["task", "errand", "idea", "project"] }
+  { id: "aia-adoption", name: "Try it on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Try first. Drop real work. Workers tap Yes or Stop. Open packs customize this desk. Drafts stay on the card.", features: ["try-first", "worker-first", "open packs", "secure-by-design"], kinds: ["task", "errand", "idea", "project"] },
+  { id: "aia-implement", name: "Four steps on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.", features: ["four-steps", "audit", "pipes", "desk AI", "guardrails"], kinds: ["leak", "pipe", "agent", "guard"] }
 ];
 
 const COLORS = [
@@ -27,7 +28,8 @@ const PACK_FILES = {
   fund: function () { return require("../packs/fund.json"); },
   land: function () { return require("../packs/land.json"); },
   aia: function () { return require("../packs/aia.json"); },
-  "aia-adoption": function () { return require("../packs/aia-adoption.json"); }
+  "aia-adoption": function () { return require("../packs/aia-adoption.json"); },
+  "aia-implement": function () { return require("../packs/aia-implement.json"); }
 };
 
 function wantedRows() {
