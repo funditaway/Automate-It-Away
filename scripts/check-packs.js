@@ -75,6 +75,11 @@ else pass("not AIA Studio Pro");
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 if (!vercel.includes("\"/studio\"") || !vercel.includes("/developer.html")) fail("vercel /studio must rewrite to developer.html");
 else pass("/studio → developer.html");
+if (!/"\/dev"/.test(vercel) || !vercel.includes("\"/developer\"")) fail("vercel /dev must send people to Creators Studio");
+else pass("/dev → Creators Studio");
+const stub = fs.readFileSync(path.join(root, "dev.html"), "utf8");
+if (!stub.includes("Creators Studio") || stub.includes(">Developer ·")) fail("dev.html stub must title Creators Studio");
+else pass("dev.html is Creators Studio stub");
 
 if (process.exitCode) {
   console.error("check-packs failed");

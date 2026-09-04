@@ -12,7 +12,11 @@
   ],
   "redirects": [
     { "source": "/dashboard", "destination": "/desk", "permanent": true },
-    { "source": "/dashboard.html", "destination": "/desk.html", "permanent": true }
+    { "source": "/dashboard.html", "destination": "/desk.html", "permanent": true },
+    { "source": "/dev", "destination": "/developer", "permanent": false },
+    { "source": "/studio", "destination": "/developer", "permanent": false },
+    { "source": "/lab", "destination": "/developer", "permanent": false },
+    { "source": "/creators", "destination": "/developer", "permanent": false }
   ],
   "rewrites": [
     { "source": "/setup", "destination": "/setup.html" },
