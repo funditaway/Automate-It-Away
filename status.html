@@ -76,10 +76,11 @@
       const w = (status && status.wallet) || {};
       if (walletEl) {
         if (w.connected && (w.short || w.address)) {
-          walletEl.textContent = (w.short || w.address) + (w.chain ? " · " + w.chain : "") + " — identity only, Collect HOLD";
+          walletEl.textContent = (w.short || w.address) + (w.chain ? " · " + w.chain : "") + " — identity only. Collect stays HOLD.";
           walletEl.className = "up";
         } else {
-          walletEl.textContent = (w.note || "Not connected on this open desk") + " — Collect stays HOLD";
+          var note = w.note || "No browser wallet on this open desk. Connect on Account.";
+          walletEl.textContent = /Collect stays HOLD/i.test(note) ? note : (note + " Collect stays HOLD.");
           walletEl.className = "hold";
         }
       }
