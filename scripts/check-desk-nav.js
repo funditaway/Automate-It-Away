@@ -105,6 +105,16 @@ if (create.includes("$250") || create.includes("placeholder=\"250\"")) fail("cre
 else pass("Create has no $250 default");
 if (!createJs.includes("save-ai") || !createJs.includes('id: "ai"')) fail("create-desk.js must name a desk AI");
 else pass("Create can name a desk AI");
+if (!createJs.includes("deskOpen") || !createJs.includes("Open or unlock this desk first")) fail("Create must gate Desk AI Bind behind an open desk");
+else pass("Create gates Desk AI Bind");
+["developer.html", "market.html", "create.html", "more.html", "help.html"].forEach(function (file) {
+  const html = fs.readFileSync(path.join(root, file), "utf8");
+  if (!html.includes("ai.aia")) fail(file + " missing ai.aia brand");
+  else pass(file + " names ai.aia");
+  if (html.includes("www.aia.aia")) fail(file + " branded www.aia.aia");
+  else pass(file + " does not use www.aia.aia");
+  if (file !== "more.html" && !html.includes(".aia")) fail(file + " missing .aia files");
+});
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {
