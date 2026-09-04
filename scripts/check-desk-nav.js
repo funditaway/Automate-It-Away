@@ -87,9 +87,9 @@ if (/display:\s*none/.test(desk) && /header span a/.test(desk)) {
 
 const create = fs.readFileSync(path.join(root, "create.html"), "utf8");
 const createJs = fs.readFileSync(path.join(root, "create-desk.js"), "utf8");
-if (!create.includes("id=\"aia-line\"") || !create.includes("id=\"start-what\"") || !create.includes("id=\"start-yes\"") || !create.includes("id=\"start-stop\"")) {
-  fail("create.html missing AIA start / Yes / Stop");
-} else pass("Create has AIA start + Yes/Stop");
+if (!create.includes("id=\"start-decide\"") || !create.includes("#start-decide[hidden]")) {
+  fail("create.html must hide Yes/Stop until a draft exists");
+} else pass("Create hides Yes/Stop until Ask the desk");
 if (!create.includes("task") || !create.includes("idea") || !create.includes("project") || !create.includes("build")) {
   fail("create.html must start real AIA work kinds");
 } else pass("Create kinds are task/errand/list/idea/project/build");
