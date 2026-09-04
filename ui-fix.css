@@ -204,3 +204,44 @@ button.open-desk {
   header .brand-short,
   .site-header .brand-short { display: inline !important; }
 }
+
+header,
+.site-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  overflow: visible;
+}
+header > .brand,
+.site-header > .brand,
+header > a.brand,
+header > a:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+header .hdr-tools,
+.site-header .hdr-tools {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  margin-left: 0;
+}
+header nav.site-nav,
+header .nav.site-nav,
+header nav:not(.desk-tabs),
+.site-header .nav {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+.theme-btn {
+  white-space: nowrap;
+  min-width: auto !important;
+  flex: 0 0 auto;
+}
+.brand-mark {
+  background: transparent;
+  box-shadow: none;
+}
