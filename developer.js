@@ -206,7 +206,8 @@
       "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
       "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
-      "<p class=\"hint\">Try first. Drop real work. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
+      "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
+      "<p class=\"cta\"><a class=\"go ghost\" href=\"/market?pack=aia-adoption\">Try it on this desk</a></p>" +
       "<div id=\"mine-list\"></div></div>"
     );
   }

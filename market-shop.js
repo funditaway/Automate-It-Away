@@ -118,7 +118,7 @@
     LAST = packs || [];
     view.innerHTML =
       "<h1>Find a pack. Put it on this desk.</h1>" +
-      "<p class=\"sub\">This is the shop — not Create. Official packs are free. Listed creator packs install onto your empty-starting desk. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money.</p>" +
+      "<p class=\"sub\">Try first. Official packs are free. Open packs: listed creator JSON installs onto your empty-starting desk. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money. Queue cards count — not a model demo.</p>" +
       deskBanner() +
       "<div class=\"strip\">" +
         "<div><b>1. Find</b><span>Search a niche or tap an aisle.</span></div>" +

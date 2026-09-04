@@ -84,6 +84,25 @@ if (/\$250/.test(JSON.stringify(adoption))) fail("aia-adoption must not mention 
 else pass("aia-adoption has no $250");
 if (!/try first/i.test(JSON.stringify(adoption))) fail("aia-adoption missing try-first copy");
 else pass("aia-adoption try-first");
+["Worker-first", "Open packs", "Secure-by-design", "Queue cards count"].forEach(function (bit) {
+  if (!JSON.stringify(adoption).includes(bit)) fail("aia-adoption missing " + bit);
+  else pass("aia-adoption " + bit);
+});
+if (/White House|Action Plan|executive order/i.test(JSON.stringify(adoption))) fail("aia-adoption must not reprint policy");
+else pass("aia-adoption is desk language, not a reprint");
+
+const helpPage = fs.readFileSync(path.join(root, "help.html"), "utf8");
+["Try first", "Workers decide", "Open packs", "Secure from the start"].forEach(function (bit) {
+  if (!helpPage.includes(bit)) fail("help.html missing " + bit);
+  else pass("help " + bit);
+});
+if (/White House|Action Plan/i.test(helpPage)) fail("help.html must not reprint policy");
+else pass("help is desk language");
+if (helpPage.includes("Grok")) fail("help.html must not leak Grok");
+else pass("help has no Grok leak");
+
+if (!dev.includes("Queue cards are the measure")) fail("Studio missing queue-as-measure copy");
+else pass("Studio measures Queue cards");
 
 if (process.exitCode) {
   console.error("check-queue-packs failed");
