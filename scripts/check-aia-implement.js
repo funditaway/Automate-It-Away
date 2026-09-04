@@ -84,6 +84,10 @@ if (!playbook.includes("/desk")) fail("playbook missing Qualify/Queue");
 else pass("playbook Qualify on Queue");
 if (playbook.includes("$250")) fail("playbook invented $250");
 else pass("playbook no $250");
+if (!playbook.includes("ai.aia") || !/orange until DNS|DNS stays orange/i.test(playbook)) fail("playbook must name ai.aia as orange HOLD");
+else pass("playbook ai.aia is orange HOLD");
+if (/ai\.aia is live|DNS is live|www\.ai\.aia is live/i.test(playbook)) fail("must not claim ai.aia is live");
+else pass("playbook does not claim ai.aia live");
 
 const pages = {
   "help.html": read("help.html"),
@@ -110,7 +114,11 @@ else pass("Studio links aia-implement");
   });
   if (/White House|Action Plan/i.test(pages[name])) fail(name + " reprinted policy");
   else pass(name + " is desk language");
+  if (!pages[name].includes("ai.aia")) fail(name + " missing ai.aia door");
+  else pass(name + " names ai.aia");
 });
+if (!pages["developer.html"].includes("ai.aia")) fail("Studio missing ai.aia door");
+else pass("Studio names ai.aia");
 
 const catalog = read("api/_packs.js");
 if (!catalog.includes("aia-implement")) fail("_packs.js catalog missing aia-implement");

@@ -249,7 +249,7 @@
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download this pack as .aia</button></p></div>" +
       "<div class=\"card\"><h2>Four steps on this desk</h2>" +
-      "<p class=\"hint\">" + (window.AIAPlaybook ? AIAPlaybook.LEAD : "Walk 1→2→3→4. Find the leaks. Hook the pipes. Name a desk AI. You still tap.") + " Collect stays HOLD.</p>" +
+      "<p class=\"hint\">" + (window.AIAPlaybook ? AIAPlaybook.LEAD : "Walk 1→2→3→4. Find the leaks. Hook the pipes. Name a desk AI. You still tap. AIA AI home is ai.aia — orange until DNS answers.") + " Collect stays HOLD.</p>" +
       "<p class=\"cta\"><a class=\"go ghost\" href=\"/drop\">1 Drop</a>" +
       "<a class=\"go ghost\" href=\"/pipes\">2 Pipes</a>" +
       "<a class=\"go ghost\" href=\"/create?kind=ai\">3 Create · AI</a>" +
