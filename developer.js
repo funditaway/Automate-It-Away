@@ -248,9 +248,16 @@
       "<label>Install a .aia file</label><input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download this pack as .aia</button></p></div>" +
+      "<div class=\"card\"><h2>Four steps on this desk</h2>" +
+      "<p class=\"hint\">" + (window.AIAPlaybook ? AIAPlaybook.LEAD : "Walk 1→2→3→4. Find the leaks. Hook the pipes. Name a desk AI. You still tap.") + " Collect stays HOLD.</p>" +
+      "<p class=\"cta\"><a class=\"go ghost\" href=\"/drop\">1 Drop</a>" +
+      "<a class=\"go ghost\" href=\"/pipes\">2 Pipes</a>" +
+      "<a class=\"go ghost\" href=\"/create?kind=ai\">3 Create · AI</a>" +
+      "<a class=\"go ghost\" href=\"/rules\">4 Rules</a></p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
-      "<p class=\"cta\"><a class=\"go ghost\" href=\"/market?pack=aia-adoption\">Try it on this desk</a></p>" +
+      "<p class=\"cta\"><a class=\"go ghost\" href=\"/market?pack=aia-adoption\">Try it on this desk</a>" +
+      "<a class=\"go ghost\" href=\"/market?pack=aia-implement\">Four steps pack</a></p>" +
       "<div id=\"mine-list\"></div></div>" +
       "<div class=\"card\"><h2>Official AIA packs</h2>" +
       "<p class=\"hint\">Use copies the pack onto this desk. Workers decide Yes or Stop. Collect stays HOLD.</p>" +

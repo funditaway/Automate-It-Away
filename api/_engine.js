@@ -17,7 +17,8 @@ const FACES = {
   insurance: { id: "vita", key: "quote", name: "Insurance", family: "Quote It Away" },
   fund: { id: "fund", key: "fund", name: "Fund", family: "Fund It Away" },
   land: { id: "land", key: "land", name: "Land", family: "Land It Away" },
-  "aia-adoption": { id: "aia-adoption", key: "aia-adoption", name: "Try it on this desk", family: "Automate It Away" }
+  "aia-adoption": { id: "aia-adoption", key: "aia-adoption", name: "Try it on this desk", family: "Automate It Away" },
+  "aia-implement": { id: "aia-implement", key: "aia-implement", name: "Four steps on this desk", family: "Automate It Away" }
 };
 
 function moneyOf(job) {
@@ -127,6 +128,14 @@ function brainOf(packId, kind) {
       artifact: "draft on the card",
       draft: "Worker-first. Open packs. Secure-by-design. Draft the next step. A person taps Yes or Stop. Collect stays HOLD.",
       next: "Try first. Queue cards count. Workers decide. Nothing sends itself."
+    };
+  }
+  if (pack === "aia-implement" || face.id === "aia-implement") {
+    return {
+      risk: "none",
+      artifact: "draft on the card",
+      draft: "Four steps. Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
+      next: "Walk 1→2→3→4. Queue cards count. Yes, Stop, or Kill stay human."
     };
   }
   return {
@@ -254,6 +263,10 @@ function engineRecs(job, shop) {
     add("ask", "What is the work, and who is it for?");
     add("draft", "AIA drafts. A person taps Yes or Stop.");
     add("hold", "Collect stays HOLD. No silent send.");
+  } else if (pack === "aia-implement" || face.id === "aia-implement") {
+    add("ask", "Which step — leak, pipe, desk AI, or guard?");
+    add("draft", "AIA drafts. A person taps Yes, Stop, or Kill.");
+    add("hold", "Collect stays HOLD. No silent send. No fake on-chain.");
   } else {
     add("next", "Copy, text, email, or hand this card.");
     add("ask", "Who is it for, and when?");

@@ -1,0 +1,73 @@
+{
+  "id": "aia-implement",
+  "name": "Four steps on this desk",
+  "family": "Automate It Away",
+  "type": "work",
+  "aisle": "AIA",
+  "kind": "playbook",
+  "status": "preview",
+  "live": false,
+  "price": 0,
+  "priceLabel": "On this desk",
+  "blurb": "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
+  "face": {
+    "who": { "key": "contactName", "label": "Who does the work now" },
+    "what": { "key": "notes", "label": "Which leak or step" },
+    "when": { "key": "timing", "label": "When it piles up" },
+    "where": { "key": "deskName", "label": "This desk" },
+    "how": "Walk 1→2→3→4. Drop the leak. Hook a pipe. Name a desk AI. A person taps Yes, Stop, or Kill. Collect stays HOLD."
+  },
+  "help": [
+    "Four steps on this desk. Walk them in order. Queue cards count.",
+    "1 Find the leaks — Capture and Qualify. Map busywork onto Queue cards.",
+    "2 Hook the pipes — Webhook only. eBay and mail stay off.",
+    "3 Name a desk AI — Create or Studio. Categorize, draft, summarize. Never silent send.",
+    "4 You still tap — Rules plus Yes, Stop, or Kill. Collect stays HOLD.",
+    "This pack is not a money seed. No fake on-chain. Wallet stays a Pipe HOLD."
+  ],
+  "capture": ["talk", "drop", "note"],
+  "qualify": ["Queue cards count", "which leak", "which step"],
+  "do": ["draft on the card"],
+  "collect": ["HOLD until a person taps Yes"],
+  "follow": ["one nudge on the card"],
+  "taps": ["copy", "text", "email", "hand", "cap", "yes", "stop", "kill"],
+  "kill": ["not a leak", "duplicate", "not a fit"],
+  "pipes": ["webhook"],
+  "artifacts": ["draft on the card", "audit on History"],
+  "kinds": ["leak", "pipe", "agent", "guard"],
+  "fields": {
+    "capture": ["title", "kind", "from", "contactName", "notes", "pack", "timing"],
+    "qualify": ["timing", "why"],
+    "do": ["draft", "artifact"],
+    "collect": ["confirm"],
+    "follow": ["followed"],
+    "rail": ["killReason", "whoTapped"]
+  },
+  "rails": [
+    "Four steps. Walk 1 then 2 then 3 then 4.",
+    "Find the leaks on Drop and Qualify. Queue cards count.",
+    "Hook the pipes. Webhook only. eBay and mail stay off.",
+    "Name a desk AI on Create or Studio. Never silent send.",
+    "You still tap. Yes, Stop, or Kill. Collect stays HOLD.",
+    "No fake on-chain. Wallet / registry stay a Pipe HOLD."
+  ],
+  "rules": [],
+  "queue": {
+    "badge": "AIA",
+    "family": "Automate It Away",
+    "empty": "Four steps. Drop a leak, a pipe note, a desk AI idea, or a guard. Queue cards count. Collect stays HOLD.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["leak", "pipe", "agent", "guard"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Name the leak or the step. Springfield desk or anywhere. AIA drafts. You tap.",
+  "how": {
+    "capture": "Drop the busywork — a leak, a pipe, a desk AI, or a guard.",
+    "qualify": "Fresh desks have no seed rules. Queue cards count.",
+    "do": "AIA drafts on the card. A person still taps Yes, Stop, or Kill.",
+    "collect": "Collect stays HOLD. Packs never send money.",
+    "follow": "One nudge. History keeps the tap. Nothing sends itself."
+  }
+}
