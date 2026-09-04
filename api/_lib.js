@@ -14,7 +14,7 @@ const PROVIDERS = {
 
 const EMPTY = {
   account: null, accounts: [], sessions: [], approvals: [], locks: [],
-  connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: []
+  connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [], packs: []
 };
 const SESSION_DAYS = 14;
 const SESSION_MAX = 8;
@@ -58,7 +58,8 @@ function shape(parsed) {
     workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : [],
     inbox: Array.isArray(parsed.inbox) ? parsed.inbox : [],
     files: Array.isArray(parsed.files) ? parsed.files : [],
-    tickets: Array.isArray(parsed.tickets) ? parsed.tickets : []
+    tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
+    packs: Array.isArray(parsed.packs) ? parsed.packs : []
   };
 }
 
@@ -76,7 +77,8 @@ function payload() {
     workspaces: mem.workspaces,
     inbox: mem.inbox,
     files: mem.files,
-    tickets: mem.tickets
+    tickets: mem.tickets,
+    packs: mem.packs
   };
 }
 

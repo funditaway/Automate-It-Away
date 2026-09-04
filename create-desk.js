@@ -49,9 +49,9 @@
       });
       if (!rows.length) return `<p class="hint">No pack matches. Try home, consign, insurance, fund, or land.</p>`;
       return rows.map((p) => {
-        const tag = p.priced ? ("Ask $" + p.ask + " · tag only") : (p.official ? "Free official" : "Free listed");
-        const btn = p.priced
-          ? `<button type="button" data-preview="${esc(p.id)}">Preview on this desk</button><button type="button" class="ghost" data-buy="${esc(p.id)}">Ask is a tag</button>`
+        const tag = p.priced ? ("Ask $" + p.ask + " · Collect HOLD") : (p.official ? "Free official" : "Free listed");
+        const btn = p.wanted
+          ? `<a class="use" href="/create?kind=pack&idea=${encodeURIComponent(p.id)}">Make this pack</a>`
           : `<button type="button" data-use="${esc(p.id)}">Use on this desk</button>`;
         return `<div class="pack-row"><b>${esc(p.name)}</b><span class="hint">${esc(p.family)} · ${esc(tag)}</span><p class="hint">${esc(p.does || "")}</p>${btn}</div>`;
       }).join("");
@@ -70,7 +70,7 @@
         <button type="button" data-chip="land" class="${packChip === "land" ? "on" : ""}">Land</button>
       </div>
       <div id="pack-list">${packRows()}</div>
-      <p class="hint">Packs copy rules onto this desk. They do not send money. Priced packs stay a tag — no card. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
+      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
       <label class="adv">List your own pack</label>
       <input class="adv" name="listName" placeholder="Saturday oil-change lane">
       <label class="adv">What it does</label>
@@ -165,7 +165,7 @@
       const buy = e.target.closest("[data-buy]");
       if (buy) {
         e.preventDefault();
-        fail("Ask is a tag. No card. No checkout. Preview it instead.");
+        await usePack(buy.getAttribute("data-buy"));
       }
     });
     function fail(msg) { err.style.display = "block"; err.textContent = msg; ok.style.display = "none"; }
@@ -209,9 +209,10 @@
     async function usePack(id, preview) {
       const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: preview ? "preview-pack" : "use-pack", id }) });
       const data = await r.json().catch(() => ({}));
-      if (r.status === 409) return fail(data.error || "Priced pack. Tag only.");
+      if (r.status === 409) return fail(data.error || "Make this pack first.");
       if (!r.ok) return fail(data.error || "Could not put that pack on this desk.");
-      done((data.note || "Pack is on this desk.") + " Rules added: " + (data.added || 0) + ".");
+      const hold = data.collectHold && data.collectHold.note ? " " + data.collectHold.note : "";
+      done((data.note || "Pack is on this desk.") + " Rules added: " + (data.added || 0) + "." + hold);
     }
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -226,7 +227,7 @@
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not list that pack.");
           await loadPacks();
-          return done(data.note || "Pack is listed. Ask is a tag. No card.");
+          return done(data.note || "Pack is listed. Collect stays HOLD. No silent charge.");
         }
         if (kind === "job" || kind === "capture") {
           const title = kind === "job" ? (f.get("title") || f.get("notes")) : (f.get("notes") || "");
@@ -286,6 +287,140 @@
       } catch (ex) { fail("Could not reach the desk."); }
       finally { if (go) go.disabled = false; }
     });
+    let startDraft = null;
+    let grokOn = false;
+    function startBody() {
+      const what = String((document.getElementById("start-what") || {}).value || "").trim();
+      const dropKind = String((document.getElementById("start-kind") || {}).value || "task");
+      return {
+        title: what.slice(0, 160),
+        notes: what,
+        kind: dropKind,
+        dropKind: dropKind,
+        from: "create",
+        outcome: "wait",
+        wanted: "wait",
+        whoTapped: localStorage.getItem("aia_name") || "desk"
+      };
+    }
+    function paintCites(el, rows) {
+      if (!el) return;
+      const links = (rows || []).map(function (c) {
+        if (!c) return "";
+        const url = String(typeof c === "string" ? c : (c.url || "")).trim();
+        if (!/^https?:\/\//i.test(url)) return "";
+        const title = String((c && c.title) || url).slice(0, 80);
+        return "<a href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener\">" + esc(title) + "</a>";
+      }).filter(Boolean);
+      el.classList.toggle("on", !!links.length);
+      el.innerHTML = links.join("");
+    }
+    async function paintAia() {
+      const el = document.getElementById("aia-line");
+      if (!el) return;
+      try {
+        const r = await fetch("/api/health");
+        const h = await r.json().catch(function () { return {}; });
+        const g = h && h.automation && h.automation.grok;
+        grokOn = !!(g && g.on);
+        el.classList.toggle("off", !grokOn);
+        el.textContent = grokOn
+          ? "Grok drafts are on. They land on the card. You still tap Yes or Stop. AIA does not send."
+          : "Drafts are off — no XAI_API_KEY on this box. Orange copy only. You can still put work on the queue.";
+      } catch (e) {
+        grokOn = false;
+        el.classList.add("off");
+        el.textContent = "Could not reach this box. Drafts stay off. You can still put work on the queue.";
+      }
+    }
+    function showStartDraft(data) {
+      const box = document.getElementById("start-draft-box");
+      const decide = document.getElementById("start-decide");
+      const cites = document.getElementById("start-cites");
+      if (!box || !decide) return;
+      startDraft = data || null;
+      const text = data && (data.draft || data.next);
+      if (text) {
+        box.classList.add("on");
+        box.textContent = text + (data.next && data.draft && data.next !== data.draft ? "\n\nNext: " + data.next : "");
+        decide.hidden = false;
+      } else {
+        box.classList.add("on");
+        box.textContent = (data && data.note) || (grokOn
+          ? "No draft this time. You can still put the work on the queue."
+          : "Drafts are off. No invented copy. Put the work on the queue, or Stop.");
+        decide.hidden = false;
+      }
+      paintCites(cites, data && data.citations);
+    }
+    function clearStartDraft() {
+      startDraft = null;
+      const box = document.getElementById("start-draft-box");
+      const decide = document.getElementById("start-decide");
+      const cites = document.getElementById("start-cites");
+      if (box) { box.classList.remove("on"); box.textContent = ""; }
+      if (decide) decide.hidden = true;
+      paintCites(cites, []);
+    }
+    async function suggestStart() {
+      const body = startBody();
+      if (!body.title) return fail("Say what the desk should do.");
+      const go = document.getElementById("start-draft");
+      if (go) go.disabled = true;
+      try {
+        const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(Object.assign({ action: "suggest" }, body)) });
+        const data = await r.json().catch(function () { return {}; });
+        if (r.status === 400 && /Open a desk first/i.test(data.error || "")) return fail("Open a desk on this phone first.");
+        if (!r.ok) return fail(data.error || "Could not ask the desk.");
+        showStartDraft(data);
+        if (data.grok === "no-key" || data.grok === "off") {
+          const line = document.getElementById("aia-line");
+          if (line) { line.classList.add("off"); line.textContent = data.note || "Drafts are off — no XAI_API_KEY on this box. Orange copy only."; }
+        }
+      } catch (e) {
+        fail("Could not reach the desk.");
+      } finally {
+        if (go) go.disabled = false;
+      }
+    }
+    async function queueStart(useDraft) {
+      const body = startBody();
+      if (!body.title) return fail("Say what the desk should do.");
+      if (useDraft && startDraft) {
+        if (startDraft.draft) body.draft = startDraft.draft;
+        if (startDraft.next) body.why = startDraft.next;
+        if (startDraft.citations && startDraft.citations.length) body.citations = startDraft.citations;
+        if (startDraft.recs) body.recs = startDraft.recs;
+      }
+      const go = document.getElementById("start-queue");
+      const yes = document.getElementById("start-yes");
+      if (go) go.disabled = true;
+      if (yes) yes.disabled = true;
+      try {
+        const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(Object.assign({ action: "capture" }, body)) });
+        const data = await r.json().catch(function () { return {}; });
+        if (r.status === 400 && /Open a desk first/i.test(data.error || "")) return fail("Open a desk on this phone first.");
+        if (!r.ok) return fail(data.error || "Could not put that on the queue.");
+        clearStartDraft();
+        document.getElementById("start-what").value = "";
+        return done("On the queue. Same Drop card. You still tap Yes or Stop.");
+      } catch (e) {
+        fail("Could not reach the desk.");
+      } finally {
+        if (go) go.disabled = false;
+        if (yes) yes.disabled = false;
+      }
+    }
+    function wireStart() {
+      const draft = document.getElementById("start-draft");
+      const queue = document.getElementById("start-queue");
+      const yes = document.getElementById("start-yes");
+      const stop = document.getElementById("start-stop");
+      if (draft) draft.addEventListener("click", function () { suggestStart(); });
+      if (queue) queue.addEventListener("click", function () { queueStart(false); });
+      if (yes) yes.addEventListener("click", function () { queueStart(true); });
+      if (stop) stop.addEventListener("click", function () { clearStartDraft(); });
+    }
     (function boot() {
       const params = new URLSearchParams(location.search);
       const want = params.get("kind") || (location.hash || "").replace("#", "");
@@ -294,4 +429,6 @@
       renderPicks();
       setMode(false);
       if (kind === "pack") loadPacks();
+      wireStart();
+      paintAia();
     })();
