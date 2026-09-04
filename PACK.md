@@ -100,7 +100,7 @@ Pack JSON may declare one or more desk AIs. Installing the pack attaches them to
 
 ## AIA Internet · `.aia` packs
 
-**AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.
+**AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks. Public brand: **ai.aia**. Live desk host: **automateitaway.com**. Do not invent www.aia.aia.
 
 **`.aia`** is the pack + desk-AI artifact format (and the TLD for identity: `james.aia`, `springfield-shop.aia`). Download, share, or install a pack as a `name.aia` file. JSON inside is fine. MIME/extension is `.aia`. Named desk AIs and guardrails travel with the file. Marketplace listings and private desk installs use `.aia`.
 

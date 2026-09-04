@@ -165,7 +165,7 @@
       "<div class=\"card\"><h2>The pack</h2>" +
       "<label>Pack name</label><input id=\"name\" placeholder=\"Saturday oil-change lane\">" +
       "<label>AIA Internet name</label><input id=\"pack-aia\" placeholder=\"springfield-shop.aia\">" +
-      "<p class=\"hint\">AIA Internet uses the .aia TLD. A pack file is also .aia — download, share, or install it on this desk. Names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
+      "<p class=\"hint\">ai.aia is the AIA Internet brand. A pack file is .aia — download, share, or install it on this desk. The desk stays on automateitaway.com. Names on this desk now. Wallet / registry connect later as a Pipe HOLD. No on-chain claim.</p>" +
       "<label>Niche</label><input id=\"niche\" placeholder=\"shop, school, lawn, resale\">" +
       "<label>What it does</label><input id=\"does\" placeholder=\"Photo in. Draft the title. Wait on payout.\">" +
       "<label>Fields (label:type)</label><input id=\"fields\" placeholder=\"who:text, lots:number, titled:yesno\">" +
@@ -176,7 +176,7 @@
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-pack\">Save draft</button></p></div>"
     );
     if (tab === "ais" || tab === "bots") return (
-      "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Bound to this desk — not a free-roaming bot. Addressed on AIA Internet as a .aia name. Drafts desk work under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
+      "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Bound to this desk — not a free-roaming bot. Addressed on AIA Internet as a .aia name. ai.aia is the brand. The desk runs on automateitaway.com. Drafts under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
       "<label>AI 1 name</label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
       "<label>AIA Internet name</label><input id=\"ai1-aia\" placeholder=\"james.aia\">" +
       "<label>Role</label><select id=\"ai1-role\"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select>" +
@@ -240,11 +240,11 @@
       "<div class=\"card\"><h2>Grok · AIA Studio</h2>" +
       "<p class=\"hint\">First-class creator on this same AIA account. Not a separate product. Drafts named desk AIs and packs on AIA Internet. Share as a .aia file (james.aia, springfield-shop.aia). Can list an ask on Market or keep private on this desk. Collect stays HOLD. Packs always land on this desk — Queue, Drop, Create. No silent charge. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"aia-line\" id=\"aia-line\">Checking drafts…</p>" +
-      "<p class=\"aia-line off\" id=\"aia-net-line\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
+      "<p class=\"aia-line off\" id=\"aia-net-line\">ai.aia is the AIA Internet brand. .aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
       "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
-      "<div class=\"card\"><h2>AIA Internet · .aia pack</h2>" +
-      "<p class=\"hint\">Download or share a pack as a .aia file — JSON inside, named desk AIs and guardrails included. Install a .aia onto this project, company, or family desk. Private until you list it. Collect stays HOLD.</p>" +
+      "<div class=\"card\"><h2>AIA Internet · ai.aia · .aia pack</h2>" +
+      "<p class=\"hint\">ai.aia is the brand. The desk runs on automateitaway.com. Download or share a pack as a .aia file — JSON inside, named desk AIs and guardrails included. Install a .aia onto this project, company, or family desk. Private until you list it. Collect stays HOLD. No on-chain claim.</p>" +
       "<label>Install a .aia file</label><input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download this pack as .aia</button></p></div>" +
@@ -267,7 +267,7 @@
 
   function paintGate() {
     view.innerHTML =
-      "<form class=\"card\" id=\"gate\"><h2>Open this desk</h2><p class=\"hint\">Same account. Not a second book.</p>" +
+      "<form class=\"card\" id=\"gate\"><h2>Open this desk</h2><p class=\"hint\">Same account. Not a second book. ai.aia is the AIA Internet brand. Packs you build travel as .aia files on this desk.</p>" +
       "<label>Desk name</label><input id=\"slug\" placeholder=\"Rivera Resale\">" +
       "<label>Owner code</label><input id=\"pin\" inputmode=\"numeric\" minlength=\"4\" placeholder=\"4+ digits\">" +
       "<p class=\"cta\"><button class=\"go\" type=\"submit\">Open Studio</button></p></form>";
@@ -280,7 +280,7 @@
     snap();
     view.innerHTML =
       "<div class=\"card banner\"><div><b>" + (creator ? "Creators Studio on · still free" : "Studio flag is off") + "</b>" +
-      "<p class=\"hint\">Draft → test on this desk → keep private or submit to AIA → Market. Named AIs bind to the desk. Packs never Send. Collect stays HOLD.</p></div>" +
+      "<p class=\"hint\">Draft → test on this desk → keep private or submit to AIA → Market. Named AIs bind to the desk. Packs travel as .aia files. Packs never Send. Collect stays HOLD.</p></div>" +
       "<div class=\"cta\"><button class=\"go\" type=\"button\" id=\"on-dev\">I make packs</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"off-dev\">Regular account</button></div></div>" +
       "<div class=\"pills\" id=\"tabs\">" + tabs() + "</div>" + pane();
@@ -353,7 +353,7 @@
       var inet = h && h.internet;
       if (netEl && inet) {
         netEl.classList.toggle("off", !inet.chain);
-        netEl.textContent = inet.note || ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.";
+        netEl.textContent = inet.note || "ai.aia is the AIA Internet brand. .aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.";
       }
     } catch (e) {
       grokOn = false;

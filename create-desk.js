@@ -2,7 +2,7 @@
       { id: "job", name: "Job", hint: "A piece of work in the queue" },
       { id: "capture", name: "Capture", hint: "Photo, call, form — not shipped" },
       { id: "ai", name: "Desk AI", hint: "Name an AI bound to this desk" },
-      { id: "pack", name: "Pack", hint: "Search, Use, or install a .aia pack on AIA Internet" },
+      { id: "pack", name: "Pack", hint: "Install a .aia pack. AIA Internet brand is ai.aia" },
       { id: "model", name: "Automation", hint: "Your pack. Keep, list, or price it." },
       { id: "teammate", name: "Teammate", hint: "Who can tap on this shop" },
       { id: "rule", name: "Guardrail", hint: "Ask me if…" },
@@ -77,7 +77,7 @@
         <button type="button" data-chip="aia" class="${packChip === "aia" ? "on" : ""}">AIA</button>
       </div>
       <div id="pack-list">${packRows()}</div>
-      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. Download and install use .aia files on AIA Internet. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
+      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. Four steps: find the leaks, hook the pipes, name a desk AI, you still tap. Download and install use .aia files. ai.aia is the AIA Internet brand. The desk stays here. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
       <label>Install a .aia pack</label>
       <input id="aia-file" type="file" accept=".aia,application/json">
       <p class="cta"><button type="button" class="use" id="install-aia">Install .aia on this desk</button></p>
@@ -95,9 +95,9 @@
         if (!deskOpen()) {
           return `<p class="aia-line off">Open or unlock this desk first. A desk AI binds to this desk — not a stranger form. Name it here after the desk is open, or in Creators Studio.</p>
       <p class="cta"><a class="use" href="/desk">Open this desk</a><a class="use ghost" href="/onboard">Unlock this desk</a><a class="use ghost" href="/studio">Name a desk AI in Studio</a></p>
-      <p class="hint">Yes / Stop / Kill stay human. Collect stays HOLD. No silent money or mail.</p>`;
+      <p class="hint">ai.aia is the AIA Internet brand. Packs travel as .aia files. Yes / Stop / Kill stay human. Collect stays HOLD. No silent money or mail.</p>`;
         }
-        return `<label>Name this desk AI</label><input name="name" required placeholder="James’s AI"><label>AIA Internet name</label><input name="aia" placeholder="james.aia"><label>Role</label><select name="role"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select><label>What it drafts</label><input name="does" placeholder="Drafts desk work for this project"><label>Steps it may draft</label><input name="steps" placeholder="qualify, do, follow"><label>Draft line</label><textarea name="prompt" rows="2" placeholder="Do not send. Do not invent money. Wait on Yes."></textarea><p class="hint">Bound to this desk on AIA Internet as a .aia name. Never Yes, Stop, money, or mail. Collect stays HOLD. Pack it in Studio to list or keep private. Wallet / registry connect later as a Pipe HOLD.</p>`;
+        return `<label>Name this desk AI</label><input name="name" required placeholder="James’s AI"><label>AIA Internet name</label><input name="aia" placeholder="james.aia"><label>Role</label><select name="role"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select><label>What it drafts</label><input name="does" placeholder="Drafts desk work for this project"><label>Steps it may draft</label><input name="steps" placeholder="qualify, do, follow"><label>Draft line</label><textarea name="prompt" rows="2" placeholder="Do not send. Do not invent money. Wait on Yes."></textarea><p class="hint">Bound to this desk. AIA Internet brand is ai.aia. The desk runs on automateitaway.com. Addressed as a .aia name. Never Yes, Stop, money, or mail. Collect stays HOLD. Pack it in Studio to list or keep private. Wallet / registry connect later as a Pipe HOLD.</p>`;
       }
       if (kind === "pack") return packFields();
       if (kind === "model") return `<label>Name this automation</label><input name="name" required placeholder="Lawn route"><label>What the desk does</label><input name="does" placeholder="Call in → schedule → invoice"><label>Share</label><select name="share"><option value="private">This desk only</option><option value="listed">Public — show in pack search</option><option value="market">Market — set an ask</option></select><label>Ask if this is a market pack</label><input name="price" inputmode="decimal" placeholder="0 means free. No card taken today."><p class="hint">Listed packs are free in search. A market ask is a tag. AIA does not take a card for packs yet.</p><label class="adv">How unique is it?</label><select class="adv" name="complexity"><option value="simple">Simple — same five steps</option><option value="custom">Custom — this desk only</option><option value="unique">Unique — own fields</option><option value="complex">Complex — fields + a first card</option></select><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Patient, due date, ask"><label class="adv">First card on the queue</label><input class="adv" name="firstWork" placeholder="Recall Rex Friday">`;

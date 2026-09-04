@@ -7,8 +7,8 @@ function main() {
   if (admin.normalizeHandle("@AIA") !== "aia") fail("normalize @AIA");
   else pass("normalize @AIA -> aia");
 
-  if (!admin.isReservedHandle("AIA") || !admin.isReservedHandle("@automateitaway")) fail("reserved handles");
-  else pass("aia and automateitaway are reserved");
+  if (!admin.isReservedHandle("AIA") || !admin.isReservedHandle("@automateitaway") || !admin.isReservedHandle("ai")) fail("reserved handles");
+  else pass("aia, ai, and automateitaway are reserved");
 
   if (admin.isReservedHandle("oddo-books")) fail("shop handle should not be reserved");
   else pass("shop handles stay free");

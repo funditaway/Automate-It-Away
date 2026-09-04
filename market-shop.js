@@ -55,9 +55,9 @@
     const creatorId = p.creatorId || p.family || p.id || "";
     const useBtn = p.wanted
       ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
-      : p.priced
-        ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install on this desk</button>"
-        : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button>";
+        : p.priced
+        ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install .aia</button>"
+        : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Install .aia on this desk</button>";
     const holdNote = p.pipeMissing
       ? "<p class=\"aia-line off\">Ask is listed. No money pipe. Collect stays HOLD. Orange until Square or a live webhook is connected.</p>"
       : (p.priced ? "<p class=\"hint\">Ask listed. Collect stays HOLD until Yes.</p>" : "");
@@ -111,18 +111,18 @@
   }
   function deskBanner() {
     if (!hasDesk()) {
-      return "<div class=\"card banner\"><div><b>Open a desk to put a pack on it.</b><p class=\"hint\" style=\"margin:0\">Shopping does not need a login. Use and Preview do.</p></div>" +
+      return "<div class=\"card banner\"><div><b>Open a desk to put a pack on it.</b><p class=\"hint\" style=\"margin:0\">Browse does not need a login. Install and Preview do.</p></div>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/onboard\">Open a desk</a><a class=\"use ghost\" href=\"/create\">Create instead</a></div></div>";
     }
-    return "<div class=\"card banner\"><div><b>Shopping for " + esc(deskName() || "this desk") + "</b><p class=\"hint\" style=\"margin:0\">Use installs the pack JSON onto this desk. Fresh desks start empty. Collect stays HOLD. Packs never Send, Stop, or pay.</p></div>" +
+    return "<div class=\"card banner\"><div><b>Packs for " + esc(deskName() || "this desk") + "</b><p class=\"hint\" style=\"margin:0\">Install puts the .aia onto this desk. Fresh desks start empty. Collect stays HOLD. Packs never Send, Stop, or pay.</p></div>" +
       "<div class=\"cta\"><a class=\"use ghost\" href=\"/desk\">Open the queue</a><a class=\"use ghost\" href=\"/drop\">Drop work</a></div></div>";
   }
   function shopPage(packs) {
     LAST = packs || [];
     view.innerHTML =
-      "<h1>Find a pack. Put it on this desk.</h1>" +
-      "<p class=\"sub\">Try first. Official packs are free. Open packs on AIA Internet: listed creator JSON installs onto your empty-starting desk. Download or share as a .aia file. Install a .aia onto this desk. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money. Queue cards count — not a model demo.</p>" +
-      "<p class=\"aia-line off\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
+      "<h1>Find a pack. Install the .aia on this desk.</h1>" +
+      "<p class=\"sub\">ai.aia is the AIA Internet brand. The desk runs on automateitaway.com. Official packs are free. Download or share as a .aia file. Install a .aia onto this desk. A listed ask still installs. Collect stays HOLD until Yes and a money pipe. Packs never send money.</p>" +
+      "<p class=\"aia-line off\">ai.aia is the brand. .aia names on this desk now. Wallet / registry connect later as a Pipe HOLD. No on-chain claim.</p>" +
       deskBanner() +
       "<div class=\"strip\">" +
         "<div><b>1. Find</b><span>Search a niche or tap an aisle.</span></div>" +
@@ -130,8 +130,12 @@
         "<div><b>3. Use</b><span>Copy it onto your desk.</span></div>" +
         "<div><b>4. Drop</b><span>Stamp one card and work it.</span></div>" +
       "</div>" +
+      "<div class=\"card\"><b>Four steps on this desk · Try it</b>" +
+        "<p class=\"hint\">ai.aia is the brand. The desk runs on automateitaway.com. 1 Find the leaks. 2 Hook the pipes. 3 Name a desk AI. 4 You still tap. Collect stays HOLD.</p>" +
+        "<div class=\"cta\"><a class=\"use\" href=\"/market?pack=aia-adoption\">Try it on this desk</a><a class=\"use ghost\" href=\"/market?pack=aia-implement\">Four steps pack</a><a class=\"use ghost\" href=\"/dev\">Creators Studio</a></div>" +
+      "</div>" +
       "<form class=\"card\" id=\"find\">" +
-        "<label>Search the shop</label>" +
+        "<label>Search packs</label>" +
         "<input name=\"q\" value=\"" + esc(QUERY) + "\" placeholder=\"lawn · flood · oil change · insurance\" autocomplete=\"off\">" +
         "<div class=\"pills\" id=\"pills\">" +
           pill("", "All") + pill("official", "AIA") + pill("free", "Free") + pill("listed", "Listed") + pill("market", "Ask") +
@@ -143,13 +147,13 @@
       "<h2>" + (FILTER ? "That aisle" : "All listed packs") + "</h2>" +
       "<div id=\"rows\">" + shopMarkup(LAST) + "</div>" +
       "<div class=\"card\">" +
-        "<b>Sell a pack on AIA</b>" +
-        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack on AIA Internet, add a desk AI, write a rule, then list it here or keep it private. Download and install use .aia files. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
+        "<b>List a pack on AIA Internet</b>" +
+        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack, add a desk AI, write a rule, then list it here or keep it private. Download and install use .aia files. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a><a class=\"use ghost\" href=\"/account\">Creator / Dev flag</a></div>" +
       "</div>" +
       "<div class=\"card\">" +
         "<b>Install a .aia pack</b>" +
-        "<p class=\"hint\">AIA Internet pack file. JSON inside. Named desk AIs and guardrails land on this desk. Private until you list it. Collect stays HOLD.</p>" +
+        "<p class=\"hint\">AIA Internet pack file on ai.aia. JSON inside. Named desk AIs and guardrails land on this desk. Private until you list it. Collect stays HOLD.</p>" +
         "<label>Choose a .aia file</label>" +
         "<input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
         "<div class=\"cta\"><button class=\"use\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button></div>" +
@@ -181,11 +185,11 @@
       ? (p.wanted
         ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
         : p.priced
-          ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>"
-          : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>")
+          ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install .aia</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>"
+          : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Install .aia on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>")
       : "<a class=\"use\" href=\"/onboard\">Open a desk to use it</a>";
     view.innerHTML =
-      "<a class=\"back\" href=\"/market\">← Shop all packs</a>" +
+      "<a class=\"back\" href=\"/market\">← All packs</a>" +
       "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + (p.official ? " · Official" : " · Creator listing") + (p.aia ? " · " + esc(p.aia) : "") + "</p>" +
       "<h1>" + esc(p.name) + "</h1>" +
       "<p class=\"sub\">" + esc(p.does || "") + "</p>" +
@@ -241,11 +245,11 @@
     const packs = data.packs || [];
     const others = data.otherPacks || [];
     view.innerHTML =
-      "<a class=\"back\" href=\"/market\">← Shop all packs</a>" +
+      "<a class=\"back\" href=\"/market\">← All packs</a>" +
       "<p class=\"tag\">" + (c.id === "grok" || c.sku === false ? "Grok · AIA Studio · same account, not a SKU" : (c.official ? "Official AIA family" : "Listed creator")) + "</p>" +
       "<h1>" + esc(c.name || "Creator") + "</h1>" +
       "<p class=\"sub\">" + esc(c.does || "Packs this creator listed for other desks to use.") + "</p>" +
-      "<h2>Packs on the shop</h2>" +
+      "<h2>Packs on AIA Internet</h2>" +
       (packs.length ? "<div class=\"grid\">" + packs.map(shopCard).join("") + "</div>" : "<p class=\"hint\">No listed pack from this creator yet.</p>") +
       (others.length ? "<h2>Other official packs</h2><div class=\"grid\">" + others.map(shopCard).join("") + "</div>" : "") +
       "<div class=\"card\"><b>Make a pack for your niche</b><p class=\"hint\">Any trade, shop, or house desk can list thin JSON. Billing for an ask stays HOLD until Yes.</p>" +
@@ -284,7 +288,7 @@
     }
   }
   async function usePack(id, preview, buy) {
-    if (!hasDesk()) return fail("Open a desk first. Shopping stays public. Use needs the desk code.");
+    if (!hasDesk()) return fail("Open a desk first. Browse stays public. Install needs the desk code.");
     const r = await fetch("/api/desks", {
       method: "POST",
       headers: headers(),
@@ -298,7 +302,7 @@
     done((data.note || (data.already ? "Already on this desk." : (preview ? "Preview added. This desk only." : "Pack is on this desk."))) + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : "") + hold);
   }
   async function installAiaFile() {
-    if (!hasDesk()) return fail("Open a desk first. Shopping stays public. Install needs the desk code.");
+    if (!hasDesk()) return fail("Open a desk first. Browse stays public. Install needs the desk code.");
     const input = document.getElementById("aia-file");
     const file = input && input.files && input.files[0];
     if (!file) return fail("Pick a .aia pack file first.");

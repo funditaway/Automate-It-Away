@@ -98,6 +98,8 @@ const helpPage = fs.readFileSync(path.join(root, "help.html"), "utf8");
   if (!helpPage.includes(bit)) fail("help.html missing " + bit);
   else pass("help " + bit);
 });
+if (!/Four steps|find the leaks/i.test(JSON.stringify(adoption))) fail("aia-adoption should point at the four steps");
+else pass("aia-adoption points at the four steps");
 if (/White House|Action Plan/i.test(helpPage)) fail("help.html must not reprint policy");
 else pass("help is desk language");
 if (helpPage.includes("Grok")) fail("help.html must not leak Grok");

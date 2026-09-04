@@ -44,6 +44,10 @@ if (!create.includes("if (!deskOpen()) return fail")) fail("create save-ai must 
 else pass("create will not Bind without an open desk");
 if (!studio.includes("Named desk AIs") || !studio.includes("save-ai") || !studio.includes("install-aia")) fail("Studio naming / .aia install must stay");
 else pass("Studio naming and .aia install stay");
+if (!studio.includes("ai.aia") || create.indexOf("ai.aia") < 0) fail("Studio and Create must name ai.aia");
+else pass("Studio and Create name ai.aia");
+if (studio.includes("www.aia.aia") || create.includes("www.aia.aia")) fail("must not brand www.aia.aia");
+else pass("no www.aia.aia");
 
 const market = fs.readFileSync(path.join(root, "market-shop.js"), "utf8");
 if (!market.includes("aiRows") || !market.includes("Desk AI")) fail("market missing desk AI listing");
