@@ -332,6 +332,28 @@ function catalog() {
   }));
 }
 
+function pipeWroteBack(dispatch) {
+  return !!(dispatch && !dispatch.demo && (dispatch.ok === true || dispatch.inbound === true));
+}
+
+function pipesAnswered(workspace) {
+  const ws = String(workspace || "");
+  if (!ws) return false;
+  return (mem.jobs || []).some((j) => j && j.workspace === ws && pipeWroteBack(j.dispatch));
+}
+
+function answeredProviders(workspace) {
+  const ws = String(workspace || "");
+  const ids = [];
+  if (!ws) return ids;
+  (mem.jobs || []).forEach((j) => {
+    if (!j || j.workspace !== ws || !pipeWroteBack(j.dispatch)) return;
+    const provider = (j.dispatch && j.dispatch.provider) || j.provider;
+    if (provider && ids.indexOf(provider) < 0) ids.push(provider);
+  });
+  return ids;
+}
+
 const RULE_TEXT_MAX = 140;
 const RULE_MAX = 8;
 const RULE_FORBID = /auto[-\s]?pay|auto[-\s]?list|auto[-\s]?ship|auto[-\s]?release|un-?\s?kill|skip\s+(the\s+)?(kill|payout|pay\b|named\s+outbound|live\s+list|outbound)|live\s+list|mark\s+ebay|ebay\s+live|set\s+ebay|go\s+live\s+on\s+ebay/;
@@ -358,11 +380,11 @@ function log(agent, action, result, workspace) {
 }
 
 function slugify(s) {
-  return String(s || "demo")
+  return String(s || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 40) || "demo";
+    .slice(0, 40);
 }
 
 function hashPin(pin) {
@@ -376,7 +398,7 @@ function workspaceOf(req) {
   req = req || {};
   const headers = req.headers || {};
   const query = req.query || {};
-  return slugify(headers["x-workspace"] || query.workspace || "demo");
+  return slugify(headers["x-workspace"] || query.workspace || "");
 }
 
 function ensureAuthState() {
@@ -650,7 +672,7 @@ function personOf(req, workspaceSlug) {
   const query = req.query || {};
   const fromSession = sessionFromReq(req, { slide: true });
   const asked = String(headers["x-workspace"] || query.workspace || workspaceSlug || "").trim();
-  const slug = slugify(asked || (fromSession && fromSession.session && fromSession.session.workspace) || "demo");
+  const slug = slugify(asked || (fromSession && fromSession.session && fromSession.session.workspace) || "");
   const fallbackSlug = fromSession && fromSession.session ? fromSession.session.workspace : "";
   const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || mem.workspaces.find((w) => w && w.slug === fallbackSlug) || null);
   if (!ws) return { workspace: null, person: null };
@@ -924,7 +946,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
+  PROVIDERS, cors, configured, catalog, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,

@@ -8,9 +8,15 @@ delete global.__aia;
 delete global.__aiaHydrate;
 delete require.cache[require.resolve("../api/_lib")];
 delete require.cache[require.resolve("../api/health")];
+delete require.cache[require.resolve("../api/status")];
+delete require.cache[require.resolve("../api/rules")];
+delete require.cache[require.resolve("../api/connections")];
 
 const lib = require("../api/_lib");
 const health = require("../api/health");
+const status = require("../api/status");
+const rules = require("../api/rules");
+const connections = require("../api/connections");
 
 function fail(msg) {
   console.error("FAIL " + msg);
@@ -62,6 +68,64 @@ async function main() {
   if (res.body.accounts.login !== "desk name + desk code, or email + password") fail("health login copy should mention both doors");
   else if (!/^HOLD/.test(res.body.accounts.mfa)) fail("health mfa copy should say HOLD");
   else pass("health copy matches account doors");
+
+  if (lib.slugify("") !== "" || lib.slugify(null) !== "") fail("slugify should not invent demo");
+  else pass("slugify leaves an empty name empty");
+  if (lib.workspaceOf({ headers: {}, query: {} }) !== "") fail("workspaceOf should not default to demo");
+  else pass("workspaceOf is unset without a desk");
+
+  const st = mockRes();
+  await status({ method: "GET", headers: {}, query: {} }, st);
+  if (st.statusCode !== 200 || !st.body || st.body.ok !== true) fail("status should 200, got " + st.statusCode);
+  else pass("status endpoint answers");
+  if (st.body.workspace === "demo" || st.body.label === "demo") fail("empty status should not label workspace demo");
+  else pass("empty status workspace is not demo");
+  if (st.body.status !== "hold" || st.body.answered !== false) fail("empty desk should stay hold until a pipe answers");
+  else pass("status stays hold with no writeback");
+
+  const healthPipes = (res.body.pipes || []).map((p) => p.id + ":" + p.status + ":" + p.live).join(",");
+  const statusPipes = (st.body.pipes || []).map((p) => p.id + ":" + p.status + ":" + p.live).join(",");
+  if (!healthPipes || healthPipes !== statusPipes) fail("status pipes should match health catalog");
+  else pass("status pipes match health");
+  const webhook = (st.body.pipes || []).find((p) => p.id === "webhook");
+  const whatnot = (st.body.pipes || []).find((p) => p.id === "whatnot");
+  const held = (st.body.pipes || []).filter((p) => ["square", "ebay", "calendar", "consign", "sms"].indexOf(p.id) >= 0);
+  if (!webhook || webhook.status !== "live" || !webhook.live) fail("webhook should stay live in the catalog");
+  else if (!whatnot || whatnot.status !== "down" || whatnot.live) fail("whatnot should stay down");
+  else if (held.some((p) => p.status !== "hold" || p.live)) fail("paid pipes should stay hold without keys");
+  else pass("catalog honesty matches health");
+
+  lib.mem.jobs.push({
+    id: "job_status_writeback",
+    workspace: "probe-desk",
+    dispatch: { provider: "webhook", inbound: true, demo: false }
+  });
+  const live = mockRes();
+  await status({ method: "GET", headers: { "x-workspace": "probe-desk" }, query: {} }, live);
+  if (live.body.status !== "live" || live.body.workspace !== "probe-desk" || live.body.answered !== true) {
+    fail("writeback should mark that desk live, got " + JSON.stringify(live.body));
+  } else pass("status goes live only after a real pipe answers");
+  const stillHold = mockRes();
+  await status({ method: "GET", headers: {}, query: {} }, stillHold);
+  if (stillHold.body.status !== "hold" || stillHold.body.workspace) fail("unset workspace should not inherit another desk's writeback");
+  else pass("unset workspace stays hold");
+  lib.mem.jobs = (lib.mem.jobs || []).filter((j) => j && j.id !== "job_status_writeback");
+
+  const rulesRes = mockRes();
+  await rules({ method: "GET", headers: {}, query: {} }, rulesRes);
+  if (rulesRes.statusCode !== 200 || !Array.isArray(rulesRes.body.rules) || rulesRes.body.rules.length) {
+    fail("empty desk rules should be [], got " + JSON.stringify(rulesRes.body));
+  } else if (!Array.isArray(rulesRes.body.starters) || rulesRes.body.starters.length) {
+    fail("empty desk starters should be []");
+  } else if (rulesRes.body.workspace === "demo") {
+    fail("rules should not label an empty desk demo");
+  } else pass("rules stay empty and unlabeled on a new desk");
+
+  const conn = mockRes();
+  await connections({ method: "GET", headers: {}, query: {} }, conn);
+  if (conn.statusCode !== 200) fail("connections should answer without a desk");
+  else if (conn.body.workspace === "demo") fail("connections should not label an empty desk demo");
+  else pass("connections workspace is unset without a desk");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");
