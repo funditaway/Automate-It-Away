@@ -227,9 +227,9 @@
         if ((shop.biz || shop.name) && desk) desk.name = shop.biz || shop.name;
         FIELDS = shop.fields || [];
         const nouns = (window.AIADesks && AIADesks.nounsOf) ? AIADesks.nounsOf(shop.nouns) : null;
-        if (nouns && nouns.capture) {
+        if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
           const sub = document.getElementById("drop-sub");
-          if (sub && ws) sub.textContent = nouns.capture + " lands here. You still tap Yes or No. Nobody sends money from here.";
+          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or No. Nobody sends money from here.";
         }
       } catch (e) {}
       paintEmbed();
