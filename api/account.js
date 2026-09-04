@@ -2,7 +2,7 @@ const lib = require("./_lib");
 const { cors, mem, ready, save, readBody, workspaceOf, personOf, isOwner } = lib;
 const {
   ensureAccount, accountForDesk, homeAccount, loginAccount, proHome, createOwnerAccount, publicPlan,
-  switchPlan, looksLikeEmail, passwordMatches, setAccountPassword, applyAccountDetails, stampIfAdminDesk
+  switchPlan, looksLikeEmail, passwordMatches, setAccountPassword, applyAccountDetails
 } = require("./_account");
 const aiaAdmin = require("./_aia-admin");
 
@@ -154,7 +154,9 @@ module.exports = async function handler(req, res) {
     };
     const session = typeof lib.issueSession === "function" ? lib.issueSession(who, via.desk, via.account, req) : null;
     if (session && typeof lib.sessionCookie === "function") res.setHeader("Set-Cookie", lib.sessionCookie(session.token));
-    if (via.account) stampIfAdminDesk(via.account, via.desk);
+    if (via.account && (aiaAdmin.isReviewerDesk(via.desk) || aiaAdmin.isPlatformAccount(via.account))) {
+      aiaAdmin.stampAdminAccount(via.account);
+    }
     await save();
     const home = proHome(via.account, who);
     return res.status(200).json(Object.assign({ savedLogin: true, session }, home));
