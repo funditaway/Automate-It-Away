@@ -101,7 +101,7 @@
   function applyFields(pack) {
     if (!pack) return;
     var hint = document.getElementById("drop-pack-hint");
-    if (hint) hint.textContent = (pack.dropHint || pack.does || "Pack on this drop.") + (pack.priced ? " Ask is a tag. No card." : " Free.") + " Nobody sends money from here.";
+      if (hint) hint.textContent = (pack.dropHint || pack.does || "Pack on this drop.") + (pack.priced ? " Ask is listed. Collect stays HOLD." : " Free.") + " Nobody sends money from here.";
     var note = document.getElementById("note");
     if (note && !note.value && pack.dropHint) note.placeholder = pack.dropHint;
     var kind = document.getElementById("kind");

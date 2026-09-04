@@ -3,7 +3,7 @@
   "trailingSlash": false,
   "functions": {
     "api/*.js": {
-      "includeFiles": "api/data/**"
+      "includeFiles": "{api/data/**,packs/**}"
     }
   },
   "crons": [
@@ -26,7 +26,8 @@
     { "source": "/pipes", "destination": "/pipes.html" },
     { "source": "/create", "destination": "/create.html" },
     { "source": "/creator", "destination": "/create.html" },
-    { "source": "/studio", "destination": "/create.html" },
+    { "source": "/studio", "destination": "/developer.html" },
+    { "source": "/creators", "destination": "/developer.html" },
     { "source": "/market", "destination": "/market.html" },
     { "source": "/shop", "destination": "/market.html" },
     { "source": "/packs", "destination": "/market.html" },

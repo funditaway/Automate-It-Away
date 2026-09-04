@@ -10,7 +10,8 @@ function pass(msg) { console.log("ok  " + msg); }
 const root = path.join(__dirname, "..");
 const pages = [
   "desk.html", "drop.html", "widget.html", "create.html", "history.html",
-  "pipes.html", "connections.html", "help.html", "rules.html", "more.html"
+  "pipes.html", "connections.html", "help.html", "rules.html", "more.html",
+  "developer.html", "market.html"
 ];
 const need = ["Queue", "Drop", "Create", "History", "More", "has-desk-nav", "id=\"desk-nav\""];
 
@@ -64,6 +65,8 @@ if (!more.includes("href=\"/rules\"") || !more.includes("href=\"/pipes\"")) fail
 else pass("More keeps Rules and Pipes");
 if (!more.includes("Lives here, not on the tab bar")) fail("more.html must say Rules/Pipes live under More");
 else pass("Rules and Pipes copy is off the tab bar");
+if (!more.includes("Creators Studio")) fail("more.html must link Creators Studio");
+else pass("More links Creators Studio");
 pages.concat(["desk-nav.js"]).forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");
   if (html.includes("/desk#rules") && file !== "desk-nav.js") fail(file + " still links Rules to /desk#rules");

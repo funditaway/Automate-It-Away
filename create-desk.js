@@ -49,9 +49,9 @@
       });
       if (!rows.length) return `<p class="hint">No pack matches. Try home, consign, insurance, fund, or land.</p>`;
       return rows.map((p) => {
-        const tag = p.priced ? ("Ask $" + p.ask + " · tag only") : (p.official ? "Free official" : "Free listed");
-        const btn = p.priced
-          ? `<button type="button" data-preview="${esc(p.id)}">Preview on this desk</button><button type="button" class="ghost" data-buy="${esc(p.id)}">Ask is a tag</button>`
+        const tag = p.priced ? ("Ask $" + p.ask + " · Collect HOLD") : (p.official ? "Free official" : "Free listed");
+        const btn = p.wanted
+          ? `<a class="use" href="/create?kind=pack&idea=${encodeURIComponent(p.id)}">Make this pack</a>`
           : `<button type="button" data-use="${esc(p.id)}">Use on this desk</button>`;
         return `<div class="pack-row"><b>${esc(p.name)}</b><span class="hint">${esc(p.family)} · ${esc(tag)}</span><p class="hint">${esc(p.does || "")}</p>${btn}</div>`;
       }).join("");
@@ -70,7 +70,7 @@
         <button type="button" data-chip="land" class="${packChip === "land" ? "on" : ""}">Land</button>
       </div>
       <div id="pack-list">${packRows()}</div>
-      <p class="hint">Packs copy rules onto this desk. They do not send money. Priced packs stay a tag — no card. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
+      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
       <label class="adv">List your own pack</label>
       <input class="adv" name="listName" placeholder="Saturday oil-change lane">
       <label class="adv">What it does</label>
@@ -165,7 +165,7 @@
       const buy = e.target.closest("[data-buy]");
       if (buy) {
         e.preventDefault();
-        fail("Ask is a tag. No card. No checkout. Preview it instead.");
+        await usePack(buy.getAttribute("data-buy"));
       }
     });
     function fail(msg) { err.style.display = "block"; err.textContent = msg; ok.style.display = "none"; }
@@ -209,9 +209,10 @@
     async function usePack(id, preview) {
       const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: preview ? "preview-pack" : "use-pack", id }) });
       const data = await r.json().catch(() => ({}));
-      if (r.status === 409) return fail(data.error || "Priced pack. Tag only.");
+      if (r.status === 409) return fail(data.error || "Make this pack first.");
       if (!r.ok) return fail(data.error || "Could not put that pack on this desk.");
-      done((data.note || "Pack is on this desk.") + " Rules added: " + (data.added || 0) + ".");
+      const hold = data.collectHold && data.collectHold.note ? " " + data.collectHold.note : "";
+      done((data.note || "Pack is on this desk.") + " Rules added: " + (data.added || 0) + "." + hold);
     }
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -226,7 +227,7 @@
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not list that pack.");
           await loadPacks();
-          return done(data.note || "Pack is listed. Ask is a tag. No card.");
+          return done(data.note || "Pack is listed. Collect stays HOLD. No silent charge.");
         }
         if (kind === "job" || kind === "capture") {
           const title = kind === "job" ? (f.get("title") || f.get("notes")) : (f.get("notes") || "");

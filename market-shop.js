@@ -34,7 +34,7 @@
     if (err) err.style.display = "none";
   }
   function priceOf(p) {
-    if (p.priced && Number(p.ask) > 0) return "Ask $" + p.ask + " · tag only";
+    if (p.priced && Number(p.ask) > 0) return "Ask $" + p.ask + " · Collect HOLD";
     if (p.official) return "AIA · free";
     return "Free listed";
   }
@@ -53,15 +53,20 @@
   }
   function shopCard(p) {
     const creatorId = p.creatorId || p.family || p.id || "";
+    const useBtn = p.wanted
+      ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
+      : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button>";
     return "<article class=\"card shop\">" +
       "<b>" + esc(p.name) + "</b>" +
       "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + "</p>" +
       "<p class=\"hint\" style=\"margin:0\">" + esc(p.does || p.dropHint || "") + "</p>" +
       "<div class=\"pills\">" + featurePills(p) + "</div>" +
       "<p class=\"tag\">" + (p.official ? "Official AIA" : esc(p.creator || p.family || "Listed creator")) +
-        (p.rules ? " · " + p.rules + " rule" + (p.rules === 1 ? "" : "s") : "") + "</p>" +
+        (p.rules ? " · " + p.rules + " rule" + (p.rules === 1 ? "" : "s") : "") +
+        (p.priced ? " · Collect HOLD" : "") + "</p>" +
       "<div class=\"cta\">" +
-        "<a class=\"use\" href=\"/market?pack=" + encodeURIComponent(p.id) + "\">View listing</a>" +
+        useBtn +
+        "<a class=\"use ghost\" href=\"/market?pack=" + encodeURIComponent(p.id) + "\">View listing</a>" +
         "<a class=\"use ghost\" href=\"/drop?pack=" + encodeURIComponent(p.id) + "\">Drop this pack</a>" +
         (creatorId ? "<a class=\"use ghost\" href=\"/market?creator=" + encodeURIComponent(creatorId) + "\">Creator</a>" : "") +
       "</div></article>";
@@ -85,8 +90,8 @@
   function shopMarkup(packs) {
     const list = filtered(packs);
     if (!list.length) {
-      return "<div class=\"card\"><p class=\"hint\">No pack matches that aisle. Official AIA packs stay free. Make a niche pack on Create and list it here.</p>" +
-        "<div class=\"cta\"><a class=\"use\" href=\"/create?kind=automation\">Create a pack</a><a class=\"use ghost\" href=\"/examples\">See examples</a></div></div>";
+      return "<div class=\"card\"><p class=\"hint\">No pack matches that aisle. Official AIA packs stay free. Make a niche pack in Creators Studio and list it here.</p>" +
+        "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Creators Studio</a><a class=\"use ghost\" href=\"/create\">Create instead</a></div></div>";
     }
     return "<div class=\"grid\">" + list.map(shopCard).join("") + "</div>";
   }
@@ -100,14 +105,14 @@
       return "<div class=\"card banner\"><div><b>Open a desk to put a pack on it.</b><p class=\"hint\" style=\"margin:0\">Shopping does not need a login. Use and Preview do.</p></div>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/onboard\">Open a desk</a><a class=\"use ghost\" href=\"/create\">Create instead</a></div></div>";
     }
-    return "<div class=\"card banner\"><div><b>Shopping for " + esc(deskName() || "this desk") + "</b><p class=\"hint\" style=\"margin:0\">Use copies fields and rules onto this desk. Drop stamps one card. Packs never Send, Stop, or pay.</p></div>" +
+    return "<div class=\"card banner\"><div><b>Shopping for " + esc(deskName() || "this desk") + "</b><p class=\"hint\" style=\"margin:0\">Use installs the pack JSON onto this desk. Fresh desks start empty. Collect stays HOLD. Packs never Send, Stop, or pay.</p></div>" +
       "<div class=\"cta\"><a class=\"use ghost\" href=\"/desk\">Open the queue</a><a class=\"use ghost\" href=\"/drop\">Drop work</a></div></div>";
   }
   function shopPage(packs) {
     LAST = packs || [];
     view.innerHTML =
-      "<h1>Find a pack. See what’s in it.</h1>" +
-      "<p class=\"sub\">This is the shop — not Create. Official packs are free. A listed pack is free to use. A market ask is a tag. No card. Packs copy rules. They do not send money. You still tap Yes or No.</p>" +
+      "<h1>Find a pack. Put it on this desk.</h1>" +
+      "<p class=\"sub\">This is the shop — not Create. Official packs are free. Listed creator packs install onto your empty-starting desk. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money.</p>" +
       deskBanner() +
       "<div class=\"strip\">" +
         "<div><b>1. Find</b><span>Search a niche or tap an aisle.</span></div>" +
@@ -129,10 +134,10 @@
       "<div id=\"rows\">" + shopMarkup(LAST) + "</div>" +
       "<div class=\"card\">" +
         "<b>Sell a pack on AIA</b>" +
-        "<p class=\"hint\">Create lives on its own page. Name the automation, add text / number / yes-no fields, write a rule, then list it here or set an ask tag.</p>" +
-        "<div class=\"cta\"><a class=\"use\" href=\"/create?kind=automation\">Open Create</a><a class=\"use ghost\" href=\"/account\">Creator / Dev flag</a></div>" +
+        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack, add bots, write a rule, then list it here. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
+        "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a><a class=\"use ghost\" href=\"/account\">Creator / Dev flag</a></div>" +
       "</div>" +
-      "<p class=\"hint\">Priced packs stay a tag — billing is HOLD. Packs never bind coverage or move payouts. <a href=\"/legal\">Legal</a> · <a href=\"/examples\">Examples</a>.</p>";
+      "<p class=\"hint\">Priced packs still install. Collect stays HOLD until Yes and a live money pipe. Packs never bind coverage or move payouts. <a href=\"/legal\">Legal</a>.</p>";
   }
   function pill(id, label) {
     return "<button type=\"button\" data-filter=\"" + id + "\" class=\"" + (FILTER === id ? "on" : "") + "\">" + label + "</button>";
@@ -146,39 +151,18 @@
     if (r.ifMoney != null) bits.push("$" + r.ifMoney + "+");
     return (r.text || "") + " · " + bits.join(" · ");
   }
-  function demoCard(d, i) {
-    const tel = String(d.phone || "").replace(/[^\d+]/g, "");
-    const sms = tel ? ("sms:" + tel + "?body=" + encodeURIComponent(d.draft || "")) : "";
-    const mail = d.email ? ("mailto:" + encodeURIComponent(d.email) + "?subject=" + encodeURIComponent(d.title || "Draft") + "&body=" + encodeURIComponent(d.draft || "")) : "";
-    return "<article class=\"card demo\">" +
-      "<div class=\"top\"><span>DEMO</span><span>" + esc(d.step || "") + " · " + esc(d.kind || "") + "</span></div>" +
-      "<b>" + esc(d.title || "") + "</b>" +
-      "<p class=\"hint\">" + esc(d.who || "") + (d.phone ? " · " + esc(d.phone) : "") + "</p>" +
-      "<p class=\"hint\">" + esc(d.notes || "") + "</p>" +
-      "<p class=\"draft\"><b>Draft:</b> " + esc(d.draft || "") + "</p>" +
-      "<p class=\"hint\">" + esc(d.next || "") + "</p>" +
-      "<div class=\"cta\">" +
-        "<button class=\"use ghost\" type=\"button\" data-copy=\"" + i + "\">Copy draft</button>" +
-        (sms ? "<a class=\"use ghost\" href=\"" + sms + "\">Text it</a>" : "") +
-        (mail ? "<a class=\"use ghost\" href=\"" + mail + "\">Email it</a>" : "") +
-      "</div>" +
-      "<p class=\"taps\">Copy · Text · Email · Hand to · Stop</p>" +
-      "<p class=\"hint\">AIA does not send this. Stop stays with the owner on a real desk.</p>" +
-    "</article>";
-  }
   function listingPage(p) {
     const how = p.how || {};
     const included = (p.included || []).map(function (line) { return "<li>" + esc(line) + "</li>"; }).join("");
     const features = (p.features || []).map(function (f) { return "<span class=\"feat\">" + esc(f) + "</span>"; }).join("");
     const fields = (p.fields || []).map(fieldChip).join("") || "<span class=\"feat\">title · text</span><span class=\"feat\">notes · text</span>";
     const kinds = (p.kinds || []).map(function (k) { return "<span class=\"feat\">" + esc(k) + "</span>"; }).join("");
-    const demos = (p.demo || []).map(demoCard).join("");
     const creator = p.creatorProfile || { name: p.creator || p.family || "A desk", family: p.family || "", does: "", href: "/market?creator=" + encodeURIComponent(p.creatorId || p.family || p.id || "") };
     const others = (p.otherPacks || []).map(shopCard).join("");
     const related = (p.relatedOfficial || []).map(shopCard).join("");
     const ownerBtns = hasDesk()
-      ? ((p.priced)
-        ? "<button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview on this desk</button>"
+      ? (p.wanted
+        ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
         : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>")
       : "<a class=\"use\" href=\"/onboard\">Open a desk to use it</a>";
     view.innerHTML =
@@ -208,12 +192,12 @@
         "<div><b>1. Capture</b>" + esc(how.capture || "Drop the facts this pack named.") + "</div>" +
         "<div><b>2. Qualify</b>" + esc(how.qualify || "Rules Cap or Wait on the words that matter.") + "</div>" +
         "<div><b>3. Do the work</b>" + esc(how.do || "AIA drafts. A person still taps Yes or No.") + "</div>" +
-        "<div><b>4. Collect</b>" + esc(how.collect || "Money stays off this desk unless you write a wait.") + "</div>" +
+        "<div><b>4. Collect</b>" + esc(how.collect || "Collect stays HOLD until Yes and a live money pipe.") + "</div>" +
         "<div><b>5. Follow</b>" + esc(how.follow || "The card stays on History until it is done.") + "</div>" +
       "</div>" +
-      "<h2>Example / demo</h2>" +
-      "<p class=\"hint\">Labeled DEMO. Copy, text, or email the draft yourself. AIA does not send it.</p>" +
-      (demos || "<p class=\"hint\">No demo on this listing yet. Drop a real card after you Use the pack.</p>") +
+      "<h2>On a real desk</h2>" +
+      "<p class=\"hint\">No demo chrome. Drop a real card after you Use the pack. Fresh desks start empty until a pack or a rule lands.</p>" +
+      (p.collectHold && p.collectHold.note ? "<p class=\"hint\">" + esc(p.collectHold.note) + "</p>" : "<p class=\"hint\">Collect stays HOLD. Packs never send money.</p>") +
       "<h2>Creator</h2>" +
       "<div class=\"card profile\">" +
         "<b>" + esc(creator.name || "") + "</b>" +
@@ -223,7 +207,7 @@
       "</div>" +
       (others ? "<h2>Other packs from this creator</h2><div class=\"grid\">" + others + "</div>" : "") +
       (related ? "<h2>Also from AIA</h2><div class=\"grid\">" + related + "</div>" : "") +
-      "<p class=\"hint\">Packs never Send, Stop, or pay. A priced pack is a tag — no card. <a href=\"/legal\">Legal</a> · <a href=\"/create\">Make your own</a>.</p>";
+      "<p class=\"hint\">Packs never Send, Stop, or pay. A priced pack still installs. Collect stays HOLD. <a href=\"/legal\">Legal</a> · <a href=\"/dev\">Creators Studio</a>.</p>";
   }
   function creatorPage(data) {
     const c = data.creator || {};
@@ -237,8 +221,8 @@
       "<h2>Packs on the shop</h2>" +
       (packs.length ? "<div class=\"grid\">" + packs.map(shopCard).join("") + "</div>" : "<p class=\"hint\">No listed pack from this creator yet.</p>") +
       (others.length ? "<h2>Other official packs</h2><div class=\"grid\">" + others.map(shopCard).join("") + "</div>" : "") +
-      "<div class=\"card\"><b>Make a pack for your niche</b><p class=\"hint\">Any trade, shop, or house desk can list fields + a rule. Billing for an ask stays HOLD.</p>" +
-        "<div class=\"cta\"><a class=\"use\" href=\"/create?kind=automation\">Open Create</a></div></div>";
+      "<div class=\"card\"><b>Make a pack for your niche</b><p class=\"hint\">Any trade, shop, or house desk can list thin JSON. Billing for an ask stays HOLD until Yes.</p>" +
+        "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a></div></div>";
   }
   async function loadShop(q) {
     QUERY = String(q || "").replace(/^find\s+/i, "").trim();
@@ -268,10 +252,11 @@
       body: JSON.stringify({ action: preview ? "preview-pack" : "use-pack", id: id })
     });
     const data = await r.json().catch(function () { return {}; });
-    if (r.status === 409) return fail(data.error || "Priced pack. Ask is a tag. Preview it, or wait until billing ships.");
+    if (r.status === 409) return fail(data.error || "Make this pack first.") || (data.href && (location.href = data.href));
     if (!r.ok) return fail(data.error || "Could not put that pack on this desk.");
     const n = data.rulesAdded || data.added || 0;
-    done((data.already ? "Already on this desk." : (preview ? "Preview added. This desk only." : "Pack is on this desk.")) + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : ""));
+    const hold = data.collectHold && data.collectHold.note ? " " + data.collectHold.note : "";
+    done((data.note || (data.already ? "Already on this desk." : (preview ? "Preview added. This desk only." : "Pack is on this desk."))) + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : "") + hold);
   }
   document.getElementById("main").addEventListener("submit", function (e) {
     const form = e.target.closest("#find");

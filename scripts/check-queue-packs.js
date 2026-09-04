@@ -40,7 +40,7 @@ else pass("pack-card maps year2 and missed-call");
 if (!card.includes('name: "Insurance"')) fail("pack-card missing Insurance face");
 else pass("pack-card Insurance face");
 
-["home", "consign", "fund", "land", "vita"].forEach(function (id) {
+["home", "consign", "fund", "land", "vita", "aia-adoption"].forEach(function (id) {
   const file = JSON.parse(fs.readFileSync(path.join(root, "packs", id + ".json"), "utf8"));
   if (!file.queue) fail(id + " missing queue{}");
   else pass(id + " has queue{}");
@@ -70,6 +70,20 @@ if (!dev.includes("Queue") || !dev.includes("q-badge")) fail("developer.js missi
 else pass("developer Queue tab");
 if (!dev.includes("pack.queue") && !dev.includes("queue:")) fail("developer.js must save pack.queue");
 else pass("developer saves pack.queue");
+if (!dev.includes("Ask Grok") || !dev.includes("studio-draft")) fail("Creators Studio missing Grok drafter");
+else pass("Studio Ask Grok");
+if (!dev.includes("grok-yes") || !dev.includes("grok-stop")) fail("Studio Grok must wait on Yes/Stop");
+else pass("Studio Grok Yes/Stop");
+if (!dev.includes("Creators Studio")) fail("developer.js missing Creators Studio copy");
+else pass("developer.js Creators Studio copy");
+
+const adoption = JSON.parse(fs.readFileSync(path.join(root, "packs", "aia-adoption.json"), "utf8"));
+if (!Array.isArray(adoption.rules) || adoption.rules.length) fail("aia-adoption must have empty rules");
+else pass("aia-adoption empty rules");
+if (/\$250/.test(JSON.stringify(adoption))) fail("aia-adoption must not mention $250");
+else pass("aia-adoption has no $250");
+if (!/try first/i.test(JSON.stringify(adoption))) fail("aia-adoption missing try-first copy");
+else pass("aia-adoption try-first");
 
 if (process.exitCode) {
   console.error("check-queue-packs failed");

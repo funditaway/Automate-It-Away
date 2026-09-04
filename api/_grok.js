@@ -250,4 +250,68 @@ async function grokRecommend(job, shop, workspace) {
   }
 }
 
-module.exports = { grokOn, grokModel, grokRecommend, applyGrok, jobBrief, pickDrafter, normalizeCites };
+const STUDIO_SYSTEM = "You draft thin JSON packs for Automate It Away Creators Studio. Return JSON only: {\"name\":\"\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"ask\":0,\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Draft only. Human taps Yes to save or install. Short local English. Worker-first: AI drafts, the owner decides. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect.";
+
+async function studioDraft(brief, workspace) {
+  const drafter = pickDrafter(workspace);
+  if (!drafter) return { ok: false, skipped: true, reason: "no-key" };
+  const text = String(brief || "").trim().slice(0, 800);
+  if (!text) return { ok: false, skipped: true, reason: "no-brief" };
+  try {
+    const payload = {
+      model: drafter.model || grokModel(),
+      temperature: 0.2,
+      max_tokens: 500,
+      messages: [
+        { role: "system", content: STUDIO_SYSTEM },
+        { role: "user", content: JSON.stringify({ brief: text, never: ["send", "stop", "pay", "bind"], collect: "hold" }) }
+      ]
+    };
+    const url = drafter.provider === "openai"
+      ? "https://api.openai.com/v1/chat/completions"
+      : drafter.provider === "anthropic"
+        ? "https://api.anthropic.com/v1/messages"
+        : "https://api.x.ai/v1/chat/completions";
+    const headers = { "Content-Type": "application/json" };
+    let body = payload;
+    if (drafter.provider === "anthropic") {
+      headers["x-api-key"] = drafter.key;
+      headers["anthropic-version"] = "2023-06-01";
+      body = { model: drafter.model, max_tokens: 500, temperature: 0.2, system: STUDIO_SYSTEM, messages: [{ role: "user", content: payload.messages[1].content }] };
+    } else {
+      headers.Authorization = "Bearer " + drafter.key;
+    }
+    const r = await fetch(url, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(body),
+      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(14000) : undefined
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, skipped: false, reason: "http-" + r.status, error: clip(data.error && data.error.message, 120), provider: drafter.provider };
+    let raw = "";
+    if (drafter.provider === "anthropic") {
+      const block = (data.content || []).find((b) => b && b.type === "text");
+      raw = block && block.text;
+    } else {
+      raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    }
+    const parsed = parseGrok(raw);
+    if (!parsed) return { ok: false, skipped: false, reason: "bad-json", provider: drafter.provider, text: clip(raw, 400) };
+    if (parsed.ask != null) {
+      const n = Number(parsed.ask);
+      parsed.ask = Number.isFinite(n) && n >= 0 ? n : 0;
+    }
+    if (/\$250|over \$250/i.test(JSON.stringify(parsed))) {
+      parsed.ask = 0;
+      if (parsed.rule) parsed.rule = String(parsed.rule).replace(/\$250/g, "");
+    }
+    parsed.never = ["send", "stop", "pay"];
+    parsed.collect = "hold";
+    return { ok: true, pack: parsed, provider: drafter.provider, model: drafter.model, source: drafter.source || "included" };
+  } catch (e) {
+    return { ok: false, skipped: false, reason: "net", error: clip(e && e.message, 80) };
+  }
+}
+
+module.exports = { grokOn, grokModel, grokRecommend, applyGrok, jobBrief, pickDrafter, normalizeCites, studioDraft };

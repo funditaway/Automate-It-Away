@@ -1,0 +1,50 @@
+{
+  "id": "aia-adoption",
+  "name": "Try it on this desk",
+  "family": "Automate It Away",
+  "type": "work",
+  "aisle": "AIA",
+  "capture": ["talk", "drop", "note"],
+  "qualify": ["what the work is", "who it is for"],
+  "do": ["draft on the card"],
+  "collect": ["HOLD until a person taps Yes"],
+  "follow": ["the card stays until it is done"],
+  "taps": ["copy", "text", "email", "hand", "cap"],
+  "kill": ["not ours", "duplicate"],
+  "pipes": ["webhook"],
+  "artifacts": ["draft on the card"],
+  "kinds": ["task", "errand", "idea", "project"],
+  "fields": {
+    "capture": ["title", "kind", "notes", "timing"],
+    "qualify": ["timing", "why"],
+    "do": ["draft"],
+    "collect": ["confirm"],
+    "follow": ["followed"],
+    "rail": ["killReason", "whoTapped"]
+  },
+  "rails": [
+    "Try first. Drop real work. Do not invent a card.",
+    "Worker-first: AIA drafts. A person taps Yes or Stop.",
+    "Open packs: thin JSON customizes this desk. No dashboard fork.",
+    "Secure-by-design: no silent Collect. No auto mail. No send."
+  ],
+  "rules": [],
+  "queue": {
+    "badge": "AIA",
+    "family": "Automate It Away",
+    "empty": "Try first. Drop a task, an errand, or an idea. Fresh desks start empty until you add a pack or a rule.",
+    "group": "none",
+    "sort": "cap-first",
+    "chips": ["task", "errand", "idea", "project"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Say the work in your words. Springfield desk or anywhere. AIA drafts. You tap.",
+  "how": {
+    "capture": "Drop a real task, errand, list, or idea.",
+    "qualify": "Fresh desks have no seed rules. Add a wait only if you want one.",
+    "do": "AIA drafts on the card. A person still taps Yes or Stop.",
+    "collect": "Collect stays HOLD. Packs never send money.",
+    "follow": "History stays empty until something actually happened."
+  }
+}
