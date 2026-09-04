@@ -165,7 +165,7 @@
       "<div class=\"card\"><h2>The pack</h2>" +
       "<label>Pack name</label><input id=\"name\" placeholder=\"Saturday oil-change lane\">" +
       "<label>AIA Internet name</label><input id=\"pack-aia\" placeholder=\"springfield-shop.aia\">" +
-      "<p class=\"hint\">AIA Internet uses the .aia TLD. Names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
+      "<p class=\"hint\">AIA Internet uses the .aia TLD. A pack file is also .aia — download, share, or install it on this desk. Names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<label>Niche</label><input id=\"niche\" placeholder=\"shop, school, lawn, resale\">" +
       "<label>What it does</label><input id=\"does\" placeholder=\"Photo in. Draft the title. Wait on payout.\">" +
       "<label>Fields (label:type)</label><input id=\"fields\" placeholder=\"who:text, lots:number, titled:yesno\">" +
@@ -225,6 +225,7 @@
     if (tab === "test") return (
       "<div class=\"card\"><h2>Test on this desk</h2><p class=\"hint\">Copies fields, rules, named desk AIs, and ext onto this queue. Not on Market. Fresh desks stay empty until you test or a world user installs.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"test-pack\">Test this pack</button>" +
+      "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download .aia</button>" +
       "<a class=\"go ghost\" href=\"/drop\">Open Drop</a><a class=\"go ghost\" href=\"/desk\">Open Queue</a></p></div>"
     );
     if (tab === "submit") return (
@@ -232,15 +233,21 @@
       "<p class=\"hint\">Publish lists it on /market and puts the thin JSON onto this desk. Keep private attaches the pack and named AIs to this desk only — project, company, or family. An ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"submit-pack\">Publish · land on Market</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"private-pack\">Keep private on this desk</button>" +
+      "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download .aia</button>" +
       "<a class=\"go ghost\" href=\"/market\">Marketplace</a></p></div>"
     );
     return (
       "<div class=\"card\"><h2>Grok · AIA Studio</h2>" +
-      "<p class=\"hint\">First-class creator on this same AIA account. Not a separate product. Drafts named desk AIs and packs addressed on AIA Internet as .aia names (james.aia, springfield-shop.aia). Can list an ask on Market or keep private on this desk. Collect stays HOLD. Packs always land on this desk — Queue, Drop, Create. No silent charge. Wallet / registry connect later as a Pipe HOLD.</p>" +
+      "<p class=\"hint\">First-class creator on this same AIA account. Not a separate product. Drafts named desk AIs and packs on AIA Internet. Share as a .aia file (james.aia, springfield-shop.aia). Can list an ask on Market or keep private on this desk. Collect stays HOLD. Packs always land on this desk — Queue, Drop, Create. No silent charge. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"aia-line\" id=\"aia-line\">Checking drafts…</p>" +
       "<p class=\"aia-line off\" id=\"aia-net-line\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
       "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
+      "<div class=\"card\"><h2>AIA Internet · .aia pack</h2>" +
+      "<p class=\"hint\">Download or share a pack as a .aia file — JSON inside, named desk AIs and guardrails included. Install a .aia onto this project, company, or family desk. Private until you list it. Collect stays HOLD.</p>" +
+      "<label>Install a .aia file</label><input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
+      "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button>" +
+      "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download this pack as .aia</button></p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
       "<p class=\"cta\"><a class=\"go ghost\" href=\"/market?pack=aia-adoption\">Try it on this desk</a></p>" +
@@ -305,6 +312,10 @@
     if (privBtn) privBtn.onclick = privatePack;
     var attachBtn = document.getElementById("attach-ai");
     if (attachBtn) attachBtn.onclick = attachAiNow;
+    var dlBtn = document.getElementById("download-aia");
+    if (dlBtn) dlBtn.onclick = downloadAia;
+    var instBtn = document.getElementById("install-aia");
+    if (instBtn) instBtn.onclick = installAia;
     var on = document.getElementById("on-dev");
     if (on) on.onclick = function () { switchPlan("dev"); };
     var off = document.getElementById("off-dev");
@@ -503,6 +514,51 @@
     tab = "home";
     paintLab();
   }
+  function saveAiaBlob(name, text) {
+    var file = String(name || "pack.aia").replace(/[^\w.-]+/g, "-");
+    if (!/\.aia$/i.test(file)) file += ".aia";
+    var blob = new Blob([text], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = file;
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+  }
+  async function downloadAia() {
+    snap();
+    var extra = packBody();
+    extra.action = "download-pack";
+    extra.aia = extra.aia || extra.name;
+    var r = await fetch("/api/desks", { method: "POST", headers: hdr(), body: JSON.stringify(extra) });
+    var raw = await r.text();
+    var d = {};
+    try { d = JSON.parse(raw); } catch (e) { d = {}; }
+    if (!r.ok) return show((d && d.error) || "Could not download that .aia pack.", false);
+    var file = (d && d.file) || extra.aia || extra.name || "pack";
+    if (d && d.error && !d.format) return show(d.error, false);
+    saveAiaBlob(file, r.ok && d && d.format ? JSON.stringify(d, null, 2) : (raw || JSON.stringify(extra, null, 2)));
+    show("Downloaded " + (/\.aia$/i.test(String(file)) ? file : (file + ".aia")) + ". JSON inside. Not an on-chain claim.", true);
+  }
+  async function installAia() {
+    var input = document.getElementById("aia-file");
+    var file = input && input.files && input.files[0];
+    if (!file) return show("Pick a .aia pack file first.", false);
+    if (file.name && !/\.aia$/i.test(file.name)) return show("Use a .aia pack file.", false);
+    var text = "";
+    try { text = await file.text(); } catch (e) { return show("Could not read that .aia file.", false); }
+    var parsed;
+    try { parsed = JSON.parse(text); } catch (e) { return show("That .aia file is not JSON.", false); }
+    var r = await fetch("/api/desks", {
+      method: "POST",
+      headers: hdr(),
+      body: JSON.stringify({ action: "install-aia", filename: file.name, pack: parsed })
+    });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok) return show(d.error || "Could not install that .aia pack.", false);
+    show((d.note || "Installed .aia onto this desk.") + " Guardrails: Yes / Stop / Kill stay human.", true);
+    tab = "home";
+    paintLab();
+  }
   async function attachAiNow() {
     snap();
     var name = val("ai1-name") || formState["ai1-name"];
@@ -575,7 +631,8 @@
           (p.visibility === "private" || p.private ? " · private" : "") +
           (p.authoredBy === "grok" || p.creatorId === "grok" ? " · Grok" : "") +
           (botsN ? (" · " + botsN + " desk AI") : "") +
-          (p.ext ? " · ext" : "") + "</span></div>";
+          (p.ext ? " · ext" : "") + "</span>" +
+          "<p class=\"cta\"><a class=\"go ghost\" href=\"/api/desks?packs=1&download=" + encodeURIComponent(p.aia || p.file || p.id) + "\">Download " + esc(p.file || p.aia || (p.id + ".aia")) + "</a></p></div>";
       }).join("");
     } catch (e) {
       box.innerHTML = "<p class=\"hint\">Could not load packs.</p>";

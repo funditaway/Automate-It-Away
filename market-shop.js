@@ -121,7 +121,7 @@
     LAST = packs || [];
     view.innerHTML =
       "<h1>Find a pack. Put it on this desk.</h1>" +
-      "<p class=\"sub\">Try first. Official packs are free. Open packs: listed creator JSON installs onto your empty-starting desk, addressed on AIA Internet as .aia names. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money. Queue cards count — not a model demo.</p>" +
+      "<p class=\"sub\">Try first. Official packs are free. Open packs on AIA Internet: listed creator JSON installs onto your empty-starting desk. Download or share as a .aia file. Install a .aia onto this desk. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money. Queue cards count — not a model demo.</p>" +
       "<p class=\"aia-line off\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       deskBanner() +
       "<div class=\"strip\">" +
@@ -144,8 +144,15 @@
       "<div id=\"rows\">" + shopMarkup(LAST) + "</div>" +
       "<div class=\"card\">" +
         "<b>Sell a pack on AIA</b>" +
-        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack with a .aia identity, add a desk AI, write a rule, then list it here or keep it private. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
+        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack on AIA Internet, add a desk AI, write a rule, then list it here or keep it private. Download and install use .aia files. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a><a class=\"use ghost\" href=\"/account\">Creator / Dev flag</a></div>" +
+      "</div>" +
+      "<div class=\"card\">" +
+        "<b>Install a .aia pack</b>" +
+        "<p class=\"hint\">AIA Internet pack file. JSON inside. Named desk AIs and guardrails land on this desk. Private until you list it. Collect stays HOLD.</p>" +
+        "<label>Choose a .aia file</label>" +
+        "<input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
+        "<div class=\"cta\"><button class=\"use\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button></div>" +
       "</div>" +
       "<p class=\"hint\">Priced packs still install. Collect stays HOLD until Yes and a live money pipe. Packs never bind coverage or move payouts. <a href=\"/legal\">Legal</a>.</p>";
   }
@@ -290,6 +297,24 @@
     const hold = data.collectHold && data.collectHold.note ? " " + data.collectHold.note : "";
     done((data.note || (data.already ? "Already on this desk." : (preview ? "Preview added. This desk only." : "Pack is on this desk."))) + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : "") + hold);
   }
+  async function installAiaFile() {
+    if (!hasDesk()) return fail("Open a desk first. Shopping stays public. Install needs the desk code.");
+    const input = document.getElementById("aia-file");
+    const file = input && input.files && input.files[0];
+    if (!file) return fail("Pick a .aia pack file first.");
+    if (file.name && !/\.aia$/i.test(file.name)) return fail("Use a .aia pack file.");
+    let parsed;
+    try { parsed = JSON.parse(await file.text()); } catch (e) { return fail("That .aia file is not JSON."); }
+    const r = await fetch("/api/desks", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ action: "install-aia", filename: file.name, pack: parsed })
+    });
+    const data = await r.json().catch(function () { return {}; });
+    if (!r.ok) return fail(data.error || "Could not install that .aia pack.");
+    const n = data.added || 0;
+    done((data.note || "Installed .aia onto this desk.") + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : ""));
+  }
   document.getElementById("main").addEventListener("submit", function (e) {
     const form = e.target.closest("#find");
     if (!form) return;
@@ -330,6 +355,12 @@
       const url = location.origin + "/market?pack=" + encodeURIComponent(copyLink.getAttribute("data-copy-link") || "");
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(function () {});
       done("Listing link copied.");
+      return;
+    }
+    const inst = e.target.closest("#install-aia");
+    if (inst) {
+      e.preventDefault();
+      installAiaFile();
       return;
     }
     const copyDraft = e.target.closest("[data-copy]");

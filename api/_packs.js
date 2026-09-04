@@ -366,11 +366,47 @@ function installPackOnDesk(shop, pack) {
   return added;
 }
 
+function aiaFilenameOk(name) {
+  const n = String(name || "").trim();
+  if (!n) return true;
+  return /\.aia$/i.test(n);
+}
+
+function readAiaPack(raw) {
+  let src = raw;
+  if (typeof src === "string") {
+    try { src = JSON.parse(src); } catch (e) {
+      return { ok: false, error: "That .aia file is not JSON." };
+    }
+  }
+  if (src && typeof src === "object" && (src.pack || src.listing || src.json) && typeof (src.pack || src.listing || src.json) === "object") {
+    src = src.pack || src.listing || src.json;
+  }
+  if (!src || typeof src !== "object" || Array.isArray(src)) {
+    return { ok: false, error: "Install a .aia pack file." };
+  }
+  const name = src.name || src.title || src.aia || src.id;
+  if (!name) return { ok: false, error: "That .aia pack needs a name." };
+  return {
+    ok: true,
+    pack: Object.assign({}, src, {
+      chain: false,
+      owned: false,
+      live: false,
+      charged: false,
+      collect: "hold",
+      registry: net.statusOf().registry,
+      internet: net.INTERNET
+    })
+  };
+}
+
 function packFileOf(listing) {
   const named = net.of(listing && (listing.aia || listing.file || listing.id || listing.name), listing && listing.id);
   const hold = net.statusOf();
   return {
     format: "aia.pack.v1",
+    artifact: ".aia",
     internet: net.INTERNET,
     tld: ".aia",
     aia: named.name,
@@ -402,6 +438,7 @@ function sendPackFile(res, listing) {
   const file = String(named.file || "pack.aia").replace(/"/g, "");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Content-Disposition", "attachment; filename=\"" + file + "\"");
+  res.setHeader("X-AIA-Format", "aia.pack.v1");
   return res.status(200).send(JSON.stringify(packFileOf(listing), null, 2));
 }
 
@@ -595,10 +632,61 @@ async function packHandler(req, res) {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
     return res.status(200).json({ ok: true, pack: listingOf(pack.id, { mine: true, workspace: workspace }), never: ["send", "stop", "pay"], collectHold: collectHoldOf(pack) });
   }
-  if (action === "download-pack") {
-    const row = pack || findPack(body.id || body.pack || body.name || body.aia || body.file, { mine: true, workspace: workspace });
+  if (action === "download-pack" || action === "export-pack") {
+    let row = pack || findPack(body.id || body.pack || body.name || body.aia || body.file, { mine: true, workspace: workspace });
+    if (!row && (body.name || body.aia || body.does)) {
+      const made = normalizeCreatorPack(body, workspace || "desk", null);
+      if (made.ok) row = made.pack;
+    }
     if (!row) return res.status(404).json({ ok: false, error: "No pack by that .aia name." });
-    return sendPackFile(res, listingOf(row.id, { mine: true, workspace: workspace }) || publicPack(row));
+    return sendPackFile(res, listingOf(row.id, { mine: true, workspace: workspace }) || publicPack(row) || row);
+  }
+  if (action === "install-aia" || action === "import-pack" || action === "install-file") {
+    if (!workspace) return res.status(400).json({ error: "Open a desk first." });
+    const { workspace: shop, person } = personOf(req, workspace);
+    if (!shop) return res.status(404).json({ error: "Open a desk first." });
+    if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can install a .aia pack." });
+    const fname = body.filename || body.fileName || body.file || "";
+    if (typeof fname === "string" && fname && !aiaFilenameOk(fname)) {
+      return res.status(400).json({ ok: false, error: "Use a .aia pack file." });
+    }
+    const parsed = readAiaPack(body.pack && typeof body.pack === "object" ? body.pack : body);
+    if (!parsed.ok) return res.status(400).json({ ok: false, error: parsed.error });
+    const made = normalizeCreatorPack(parsed.pack, workspace, person);
+    if (!made.ok) return res.status(400).json({ ok: false, error: made.error });
+    const row = made.pack;
+    row.status = "private";
+    row.visibility = "private";
+    row.chain = false;
+    row.owned = false;
+    row.live = false;
+    row.charged = false;
+    const rows = ensurePacks();
+    const idx = rows.findIndex(function (p) { return p && p.id === row.id && p.workspace === workspace; });
+    if (idx >= 0) rows[idx] = Object.assign({}, rows[idx], row);
+    else rows.unshift(row);
+    mem.packs = rows.slice(0, 80);
+    const added = installPackOnDesk(shop, row);
+    await save();
+    log("Desk", "Install .aia · " + row.name, "OK", workspace);
+    const hold = collectHoldOf(row);
+    const rails = ais.railsOf(shop);
+    return res.status(200).json({
+      ok: true,
+      pack: publicPack(row),
+      added: added,
+      desk: shop.slug,
+      ais: rails.ais,
+      file: row.file,
+      aia: row.aia,
+      charged: false,
+      chain: false,
+      owned: false,
+      collectHold: hold,
+      never: ["send", "stop", "pay"],
+      rails: rails.rails,
+      note: "Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim."
+    });
   }
   if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
@@ -646,4 +734,6 @@ module.exports.searchPacks = searchPacks;
 module.exports.listingOf = listingOf;
 module.exports.grokStudio = grokStudio;
 module.exports.collectHoldOf = collectHoldOf;
+module.exports.readAiaPack = readAiaPack;
+module.exports.packFileOf = packFileOf;
 module.exports.ais = ais;

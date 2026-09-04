@@ -63,7 +63,9 @@ if (!packsApi2.includes("sku: false")) fail("Grok Studio must not be a SKU");
 else pass("Grok Studio is not a SKU");
 if (!packsApi2.includes("download-pack") || !packsApi2.includes("filename=")) fail("_packs.js missing .aia download");
 else pass("packs download .aia file");
-if (!shop.includes("AIA Internet") || !shop.includes(".aia")) fail("market missing AIA Internet / .aia");
+if (!packsApi2.includes("install-aia") || !packsApi2.includes("readAiaPack")) fail("_packs.js missing install-aia");
+else pass("packs install-aia");
+if (!shop.includes("AIA Internet") || !shop.includes(".aia") || !shop.includes("install-aia")) fail("market missing AIA Internet / .aia install");
 else pass("market AIA Internet .aia");
 
 ["vita.json", "fund.json", "land.json", "aia-adoption.json"].forEach((name) => {

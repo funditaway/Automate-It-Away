@@ -20,7 +20,7 @@ function pass(m) { console.log("ok   " + m); }
 });
 
 const packsApi = fs.readFileSync(path.join(root, "api/_packs.js"), "utf8");
-["save-ai", "private-pack", "attachAisToDesk", "normalizeAis", "download-pack", ".aia"].forEach(function (bit) {
+["save-ai", "private-pack", "attachAisToDesk", "normalizeAis", "download-pack", "install-aia", ".aia"].forEach(function (bit) {
   if (!packsApi.includes(bit)) fail("_packs.js missing " + bit);
   else pass("packs " + bit);
 });
@@ -28,7 +28,7 @@ if (!packsApi.includes("charged: false") || !packsApi.includes("hold: true")) fa
 else pass("Collect HOLD");
 
 const studio = fs.readFileSync(path.join(root, "developer.js"), "utf8");
-["Desk AIs", "James", "private-pack", "save-ai", "ai1-name", "james.aia", "springfield-shop.aia", "AIA Internet"].forEach(function (bit) {
+["Desk AIs", "James", "private-pack", "save-ai", "ai1-name", "james.aia", "springfield-shop.aia", "AIA Internet", "install-aia"].forEach(function (bit) {
   if (!studio.includes(bit)) fail("developer.js missing " + bit);
   else pass("studio " + bit);
 });
@@ -42,6 +42,8 @@ else pass("create names a desk AI");
 const market = fs.readFileSync(path.join(root, "market-shop.js"), "utf8");
 if (!market.includes("aiRows") || !market.includes("Desk AI")) fail("market missing desk AI listing");
 else pass("market shows desk AIs");
+if (!market.includes("install-aia") || !market.includes("aia-file")) fail("market missing install .aia");
+else pass("market installs .aia");
 
 const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
 if (!desk.includes("id=\"desk-ais\"")) fail("desk.html missing desk-ais strip");
@@ -274,6 +276,36 @@ async function main() {
   const homeDl = await call(packHandler, "GET", {}, {}, { download: "home.aia" });
   if (homeDl.statusCode !== 200) fail("official home.aia download " + homeDl.statusCode);
   else pass("official home.aia download");
+
+  const file = typeof dl.body === "string" ? JSON.parse(dl.body) : dl.body;
+  const other = {
+    slug: "family-desk",
+    name: "Family",
+    biz: "family-desk",
+    pin: hashPin("4821"),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: []
+  };
+  ensurePeople(other);
+  mem.workspaces.unshift(other);
+  const family = { "x-workspace": "family-desk", "x-pin": "4821" };
+  const fake = JSON.parse(JSON.stringify(file));
+  fake.chain = true;
+  fake.owned = true;
+  fake.live = true;
+  const inst = await call(packHandler, "POST", family, { action: "install-aia", filename: "springfield-shop.aia", pack: fake });
+  if (inst.statusCode !== 200 || !inst.body.ok) fail("install-aia " + inst.statusCode + " " + JSON.stringify(inst.body));
+  else pass("install-aia onto family desk");
+  if (inst.body.chain || inst.body.owned || (inst.body.pack && (inst.body.pack.chain || inst.body.pack.owned))) fail("install must not honor chain");
+  else pass("install strips chain claim");
+  if (!(inst.body.ais || []).some(function (a) { return /James/.test(a.name || "") || a.aia === "james.aia"; }) && !(other.ais || []).some(function (a) { return /James/.test(a.name || ""); })) {
+    fail("install-aia did not attach named AI");
+  } else pass("install-aia attaches named desk AI");
+
+  const badFile = await call(packHandler, "POST", family, { action: "install-aia", filename: "lane.json", pack: { name: "Nope", aia: "nope.aia" } });
+  if (badFile.statusCode < 400) fail("non-.aia filename must 400");
+  else pass("rejects non-.aia filename");
 
   const health = require("../api/health");
   const healthRes = await call(health, "GET", {}, {}, {});

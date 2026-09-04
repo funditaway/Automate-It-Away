@@ -2,7 +2,7 @@
       { id: "job", name: "Job", hint: "A piece of work in the queue" },
       { id: "capture", name: "Capture", hint: "Photo, call, form — not shipped" },
       { id: "ai", name: "Desk AI", hint: "Name an AI bound to this desk" },
-      { id: "pack", name: "Pack", hint: "Search a listed pack. Use it on this desk" },
+      { id: "pack", name: "Pack", hint: "Search, Use, or install a .aia pack on AIA Internet" },
       { id: "model", name: "Automation", hint: "Your pack. Keep, list, or price it." },
       { id: "teammate", name: "Teammate", hint: "Who can tap on this shop" },
       { id: "rule", name: "Guardrail", hint: "Ask me if…" },
@@ -73,7 +73,10 @@
         <button type="button" data-chip="aia" class="${packChip === "aia" ? "on" : ""}">AIA</button>
       </div>
       <div id="pack-list">${packRows()}</div>
-      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
+      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. Download and install use .aia files on AIA Internet. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
+      <label>Install a .aia pack</label>
+      <input id="aia-file" type="file" accept=".aia,application/json">
+      <p class="cta"><button type="button" class="use" id="install-aia">Install .aia on this desk</button></p>
       <label class="adv">List your own pack</label>
       <input class="adv" name="listName" placeholder="Saturday oil-change lane">
       <label class="adv">What it does</label>
@@ -171,6 +174,12 @@
       if (buy) {
         e.preventDefault();
         await usePack(buy.getAttribute("data-buy"));
+        return;
+      }
+      const inst = e.target.closest("#install-aia");
+      if (inst) {
+        e.preventDefault();
+        await installAiaFile();
       }
     });
     function fail(msg) { err.style.display = "block"; err.textContent = msg; ok.style.display = "none"; }
@@ -218,6 +227,18 @@
       if (!r.ok) return fail(data.error || "Could not put that pack on this desk.");
       const hold = data.collectHold && data.collectHold.note ? " " + data.collectHold.note : "";
       done((data.note || "Pack is on this desk.") + " Rules added: " + (data.added || 0) + "." + hold);
+    }
+    async function installAiaFile() {
+      const input = document.getElementById("aia-file");
+      const file = input && input.files && input.files[0];
+      if (!file) return fail("Pick a .aia pack file first.");
+      if (file.name && !/\.aia$/i.test(file.name)) return fail("Use a .aia pack file.");
+      let parsed;
+      try { parsed = JSON.parse(await file.text()); } catch (e) { return fail("That .aia file is not JSON."); }
+      const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: "install-aia", filename: file.name, pack: parsed }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) return fail(data.error || "Could not install that .aia pack.");
+      done((data.note || "Installed .aia onto this desk.") + " Rules added: " + (data.added || 0) + ".");
     }
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
