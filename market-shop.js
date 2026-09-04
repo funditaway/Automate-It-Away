@@ -65,6 +65,8 @@
       "<b>" + esc(p.name) + "</b>" +
       "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + "</p>" +
       "<p class=\"hint\" style=\"margin:0\">" + esc(p.does || p.dropHint || "") + "</p>" +
+      ((p.aiRows && p.aiRows.length) ? "<p class=\"tag\">Desk AI · " + esc(p.aiRows.map(function (a) { return a.aia ? (a.name + " · " + a.aia) : a.name; }).join(", ")) + "</p>" : "") +
+      (p.aia ? "<p class=\"tag\">AIA Internet · " + esc(p.aia) + "</p>" : "") +
       "<div class=\"pills\">" + featurePills(p) + "</div>" +
       "<p class=\"tag\">" + (p.official ? "Official AIA" : esc(p.creator || p.family || "Listed creator")) +
         (p.rules ? " · " + p.rules + " rule" + (p.rules === 1 ? "" : "s") : "") +
@@ -73,6 +75,7 @@
       "<div class=\"cta\">" +
         useBtn +
         "<a class=\"use ghost\" href=\"/market?pack=" + encodeURIComponent(p.id) + "\">View listing</a>" +
+        "<a class=\"use ghost\" href=\"/api/desks?packs=1&download=" + encodeURIComponent(p.aia || p.file || p.id) + "\">Download " + esc(p.file || (p.aia || p.id + ".aia")) + "</a>" +
         "<a class=\"use ghost\" href=\"/drop?pack=" + encodeURIComponent(p.id) + "\">Drop this pack</a>" +
         (creatorId ? "<a class=\"use ghost\" href=\"/market?creator=" + encodeURIComponent(creatorId) + "\">Creator</a>" : "") +
       "</div></article>";
@@ -118,7 +121,8 @@
     LAST = packs || [];
     view.innerHTML =
       "<h1>Find a pack. Put it on this desk.</h1>" +
-      "<p class=\"sub\">Try first. Official packs are free. Open packs: listed creator JSON installs onto your empty-starting desk. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money. Queue cards count — not a model demo.</p>" +
+      "<p class=\"sub\">Try first. Official packs are free. Open packs on AIA Internet: listed creator JSON installs onto your empty-starting desk. Download or share as a .aia file. Install a .aia onto this desk. A market ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live. Packs never send money. Queue cards count — not a model demo.</p>" +
+      "<p class=\"aia-line off\">.aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       deskBanner() +
       "<div class=\"strip\">" +
         "<div><b>1. Find</b><span>Search a niche or tap an aisle.</span></div>" +
@@ -140,8 +144,15 @@
       "<div id=\"rows\">" + shopMarkup(LAST) + "</div>" +
       "<div class=\"card\">" +
         "<b>Sell a pack on AIA</b>" +
-        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack, add bots, write a rule, then list it here. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
+        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack on AIA Internet, add a desk AI, write a rule, then list it here or keep it private. Download and install use .aia files. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a><a class=\"use ghost\" href=\"/account\">Creator / Dev flag</a></div>" +
+      "</div>" +
+      "<div class=\"card\">" +
+        "<b>Install a .aia pack</b>" +
+        "<p class=\"hint\">AIA Internet pack file. JSON inside. Named desk AIs and guardrails land on this desk. Private until you list it. Collect stays HOLD.</p>" +
+        "<label>Choose a .aia file</label>" +
+        "<input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
+        "<div class=\"cta\"><button class=\"use\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button></div>" +
       "</div>" +
       "<p class=\"hint\">Priced packs still install. Collect stays HOLD until Yes and a live money pipe. Packs never bind coverage or move payouts. <a href=\"/legal\">Legal</a>.</p>";
   }
@@ -175,11 +186,12 @@
       : "<a class=\"use\" href=\"/onboard\">Open a desk to use it</a>";
     view.innerHTML =
       "<a class=\"back\" href=\"/market\">← Shop all packs</a>" +
-      "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + (p.official ? " · Official" : " · Creator listing") + "</p>" +
+      "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + (p.official ? " · Official" : " · Creator listing") + (p.aia ? " · " + esc(p.aia) : "") + "</p>" +
       "<h1>" + esc(p.name) + "</h1>" +
       "<p class=\"sub\">" + esc(p.does || "") + "</p>" +
       "<div class=\"cta\">" +
         ownerBtns +
+        "<a class=\"use ghost\" href=\"/api/desks?packs=1&download=" + encodeURIComponent(p.aia || p.file || p.id) + "\">Download " + esc(p.file || p.aia || (p.id + ".aia")) + "</a>" +
         "<a class=\"use ghost\" href=\"/drop?pack=" + encodeURIComponent(p.id) + "\">Drop this pack</a>" +
         "<button class=\"use ghost\" type=\"button\" data-copy-link=\"" + esc(p.id) + "\">Copy listing link</button>" +
       "</div>" +
@@ -191,6 +203,11 @@
       "<h2>What’s included</h2>" +
       "<div class=\"card\"><ul class=\"inc\">" + (included || "<li>Name, what it does, fields, five-step words, and listed rules.</li><li>Does not copy pipes, people, or payouts.</li>") + "</ul>" +
         (p.dropHint ? "<p class=\"hint\">Drop hint: " + esc(p.dropHint) + "</p>" : "") +
+        ((p.aiRows || []).length
+          ? "<p class=\"hint\">Desk AIs that land on the desk</p>" + (p.aiRows || []).map(function (a) {
+            return "<p class=\"hint\"><b>" + esc(a.name) + "</b>" + (a.aia ? (" · " + esc(a.aia)) : "") + " · " + esc(a.role || "Doer") + " · drafts " + esc((a.steps || []).join(", ") || "qualify, do, follow") + ". Never Yes / Stop / money / mail.</p>";
+          }).join("")
+          : "<p class=\"hint\">No named desk AI in this listing. Your desk AIs still apply.</p>") +
         ((p.ruleRows || p.ruleLines || []).length
           ? "<p class=\"hint\">Rules that land on the desk</p>" + (p.ruleRows || p.ruleLines).map(function (r) { return "<p class=\"hint\">" + esc(ruleLine(r)) + "</p>"; }).join("")
           : "<p class=\"hint\">No extra rules in the listing. Your desk rules still apply.</p>") +
@@ -280,6 +297,24 @@
     const hold = data.collectHold && data.collectHold.note ? " " + data.collectHold.note : "";
     done((data.note || (data.already ? "Already on this desk." : (preview ? "Preview added. This desk only." : "Pack is on this desk."))) + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : "") + hold);
   }
+  async function installAiaFile() {
+    if (!hasDesk()) return fail("Open a desk first. Shopping stays public. Install needs the desk code.");
+    const input = document.getElementById("aia-file");
+    const file = input && input.files && input.files[0];
+    if (!file) return fail("Pick a .aia pack file first.");
+    if (file.name && !/\.aia$/i.test(file.name)) return fail("Use a .aia pack file.");
+    let parsed;
+    try { parsed = JSON.parse(await file.text()); } catch (e) { return fail("That .aia file is not JSON."); }
+    const r = await fetch("/api/desks", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ action: "install-aia", filename: file.name, pack: parsed })
+    });
+    const data = await r.json().catch(function () { return {}; });
+    if (!r.ok) return fail(data.error || "Could not install that .aia pack.");
+    const n = data.added || 0;
+    done((data.note || "Installed .aia onto this desk.") + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : ""));
+  }
   document.getElementById("main").addEventListener("submit", function (e) {
     const form = e.target.closest("#find");
     if (!form) return;
@@ -320,6 +355,12 @@
       const url = location.origin + "/market?pack=" + encodeURIComponent(copyLink.getAttribute("data-copy-link") || "");
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(function () {});
       done("Listing link copied.");
+      return;
+    }
+    const inst = e.target.closest("#install-aia");
+    if (inst) {
+      e.preventDefault();
+      installAiaFile();
       return;
     }
     const copyDraft = e.target.closest("[data-copy]");

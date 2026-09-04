@@ -5,6 +5,8 @@ const { qualifyJob, recommend, icsOf, runWorkspace, markFlow } = require("./_eng
 const { grokRecommend, normalizeCites } = require("./_grok");
 const { needsOf, isPriorityJob } = require("./_history");
 const clock = require("./_clock");
+const ais = require("./_ais");
+const { applyHandoff, applyDeskAiDraft } = require("./_handoff");
 
 function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
@@ -20,7 +22,10 @@ async function fireWebhook(hook, payload) {
   return { status: r.status, ok: r.ok };
 }
 function actorName(person, body) {
-  return (person && person.name) || body.whoTapped || "desk";
+  return (person && person.name) || (body && body.whoTapped) || "desk";
+}
+function actorBlocked(person) {
+  return ais.actorIsDeskAi(person);
 }
 function markDone(job, person, body, how) {
   const note = String((body && (body.text || body.notes)) || "Done off the desk.").trim();
@@ -82,13 +87,17 @@ module.exports = async function handler(req, res) {
       return Object.assign({}, j, { needs: needs.actions, needLine: needs.line, missing: needs.missing, decide: needs.decide, priority: isPriorityJob(j), clock: tick, late: tick.late, expired: tick.expired });
     });
     const cap = rows.filter((j) => j.priority);
+    const rails = shop ? ais.railsOf(shop) : { ais: [], count: 0, rails: ais.RAILS, never: ais.NEVER.slice() };
     return res.status(200).json({
       workspace,
-      you: person ? { name: person.name, role: person.role } : null,
+      you: person ? { name: person.name, role: person.role, kind: person.kind || person.role, deskAi: !!person.deskAi } : null,
       fields: ensureFields(shop),
       rules,
       nouns: shop ? ensureNouns(shop) : defaultNouns(),
       people: shop ? (shop.people || []).map(publicPerson) : [],
+      ais: rails.ais,
+      aiRails: rails.rails,
+      never: rails.never,
       widgetsOn: widgetCount(rules),
       cap,
       jobs: rows
@@ -134,6 +143,7 @@ module.exports = async function handler(req, res) {
       } else {
         addTalk(job, "grok", job.draft, "rec");
       }
+      applyDeskAiDraft(job, shop, "qualify");
       if (job.notes) addTalk(job, job.from || "capture", job.notes, "note");
       addTalk(job, "desk", job.why || "In the queue.", "rec");
       mem.jobs.unshift(job);
@@ -146,6 +156,7 @@ module.exports = async function handler(req, res) {
     const job = mem.jobs.find((j) => j.id === body.id && j.workspace === workspace);
     if (!job) return res.status(404).json({ error: "Job not found" });
     if (action === "kill") {
+      if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never Stop. A person taps Kill.", never: ais.NEVER.slice(), job });
       if (shop && !isOwner(person)) return res.status(403).json({ ok: false, error: "Only the owner can Stop a live job.", job });
       if (!body.confirm) return res.status(409).json({ ok: false, error: "Kill needs a second tap from the owner.", job });
       mergeFields(job, body);
@@ -164,6 +175,7 @@ module.exports = async function handler(req, res) {
       if (body.why) job.why = body.why;
       const grok = await grokRecommend(job, shop, workspace);
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+      applyDeskAiDraft(job, shop, "qualify");
       log("Qualify", job.title, "Waiting", workspace);
       await save();
       return res.status(200).json({ ok: true, job, grok: grok && grok.ok ? "on" : (grok && grok.reason) || "off" });
@@ -240,6 +252,7 @@ module.exports = async function handler(req, res) {
       return res.status(201).json({ ok: true, fields, workspace: shop.slug });
     }
     if (action === "ship") {
+      if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never Yes themselves. No silent money or mail. A person taps Yes.", never: ais.NEVER.slice(), job });
       mergeFields(job, body);
       const amount = Number(body.amount || job.amount || job.ask || 0);
       const rules = shop ? ensureRules(shop) : [];
@@ -301,13 +314,12 @@ module.exports = async function handler(req, res) {
     }
     if (action === "assign") {
       if (!shop) return res.status(404).json({ error: "Open a desk first.", job });
+      if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never hand work. A person taps.", never: ais.NEVER.slice(), job });
       const people = shop.people || [];
       const want = String(body.name || body.assignee || body.to || "").trim();
       const whoPerson = people.find((p) => p && (p.id === want || String(p.name || "").toLowerCase() === want.toLowerCase()));
       if (!whoPerson) return res.status(404).json({ error: "Name someone already on People.", job });
-      job.assignee = whoPerson.name;
-      job.waitingOn = whoPerson.role === "owner" ? "owner" : "helper";
-      job.next = "Waiting on " + whoPerson.name + ".";
+      applyHandoff(job, whoPerson, shop);
       job.whoTapped = actorName(person, body);
       addTalk(job, actorName(person, body), "Handed to " + whoPerson.name + ".", "note");
       markFlow(job, "handoff");
@@ -317,6 +329,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, job });
     }
     if (action === "carry") {
+      if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never Yes. A person taps Done.", never: ais.NEVER.slice(), job });
       const rules = shop ? ensureRules(shop) : [];
       const holdAt = shop ? moneyWaitOf(rules) : null;
       const amount = Number(job.amount || job.ask || 0);
@@ -335,6 +348,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, job });
     }
     if (action === "done") {
+      if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never Yes. A person taps Done.", never: ais.NEVER.slice(), job });
       const note = markDone(job, person, body, body.how || "off-desk");
       markFlow(job, "follow");
       addTalk(job, actorName(person, body), note, "follow");

@@ -77,6 +77,48 @@ Rule keys:
 
 `taps` are owner-only. `rails` are the face hints. `face` is who / what / when / where / how.
 
+## Named desk AIs
+
+Pack JSON may declare one or more desk AIs. Installing the pack attaches them to that desk. They draft under the desk’s rules. They never Yes, Stop, money, or mail.
+
+```json
+{
+  "ais": [
+    {
+      "name": "James’s AI",
+      "role": "Doer",
+      "does": "Drafts desk work for this project",
+      "prompt": "Do not send. Do not invent a price.",
+      "steps": ["qualify", "do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ]
+}
+```
+
+`ais` (or `bots` as an alias) are bound to the desk. `steps` are the stages they may draft. Collect is never allowed. Owner Use / private-install is the Approve tap. List on Market with an ask, or keep private for this account’s desks. Collect stays HOLD.
+
+## AIA Internet · `.aia` packs
+
+**AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.
+
+**`.aia`** is the pack + desk-AI artifact format (and the TLD for identity: `james.aia`, `springfield-shop.aia`). Download, share, or install a pack as a `name.aia` file. JSON inside is fine. MIME/extension is `.aia`. Named desk AIs and guardrails travel with the file. Marketplace listings and private desk installs use `.aia`.
+
+Validate `label.aia`. Names live on this desk now. Wallet / registry connect later as a Pipe HOLD. Do not invent on-chain ownership. Collect stays HOLD.
+
+```json
+{
+  "format": "aia.pack.v1",
+  "name": "Family lane",
+  "aia": "springfield-shop.aia",
+  "file": "springfield-shop.aia",
+  "ais": [{ "name": "James’s AI", "aia": "james.aia" }],
+  "chain": false,
+  "owned": false,
+  "collect": "hold"
+}
+```
+
 ## Pack logic
 
 1. World user drops onto a desk.

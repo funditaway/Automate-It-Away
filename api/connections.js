@@ -92,7 +92,8 @@ const SOON = {
   google: { label: "Google search / Cloud", group: "search", acts: ["capture"], login: "https://console.cloud.google.com/", note: "Search the catalog here. Google login is Cloud credentials, not a web-search pipe." },
   maps: { label: "Google Maps", group: "search", acts: ["capture"], login: "https://console.cloud.google.com/google/maps-apis", note: "Place later." },
   zapier: { label: "Zapier", group: "search", acts: ["post"], login: "https://zapier.com/app/login", note: "Send Zaps to the inbound hook today." },
-  make: { label: "Make", group: "search", acts: ["post"], login: "https://www.make.com/", note: "Same. Hook is live." }
+  make: { label: "Make", group: "search", acts: ["post"], login: "https://www.make.com/", note: "Same. Hook is live." },
+  dotaia: { label: "AIA Internet · .aia", group: "identity", acts: ["name"], login: "", note: ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD. No on-chain claim." }
 };
 
 function soonCatalog() {

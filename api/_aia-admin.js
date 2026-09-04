@@ -3,7 +3,7 @@ const REVIEWER_DESKS = ["aia", "automateitaway", "funditaway"];
 const PLATFORM_ACCOUNT_ID = "aia";
 
 function normalizeHandle(value) {
-  return String(value || "").trim().replace(/^@+/, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "").slice(0, 40);
+  return String(value || "").trim().replace(/^@+/, "").replace(/\.aia$/i, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "").slice(0, 40);
 }
 
 function handleTakenError() {
@@ -41,6 +41,7 @@ function isAiaReviewer(acc, row, person) {
 function stampAdminAccount(acc) {
   if (!acc || typeof acc !== "object") return acc;
   acc.handle = "aia";
+  acc.aia = "aia.aia";
   acc.xHandle = "AIA";
   acc.aiaReviewer = true;
   if (!acc.heldBy) acc.heldBy = "admin";
@@ -51,16 +52,23 @@ function stampAdminAccount(acc) {
 
 function setAccountHandle(acc, value, opts) {
   opts = opts || {};
-  const handle = normalizeHandle(value);
-  if (!handle) return { ok: false, status: 400, error: "Handle needs letters." };
+  const net = require("./_aia-net");
+  const parsed = net.parseName(value, "");
+  const raw = String(value || "").trim().replace(/^@+/, "");
+  if (raw && /\./.test(raw) && !parsed.ok) {
+    return { ok: false, status: 400, error: parsed.error };
+  }
+  const handle = parsed.ok ? parsed.label : normalizeHandle(value);
+  if (!handle) return { ok: false, status: 400, error: "Use a .aia name like james.aia." };
   if (handle.length < 2) return { ok: false, status: 400, error: "Handle needs at least two letters." };
   if (isReservedHandle(handle) && !isPlatformAccount(acc) && opts.allowReserved !== true) {
     return handleTakenError();
   }
   acc.handle = handle;
+  acc.aia = handle + ".aia";
   acc.xHandle = handle === "aia" ? "AIA" : handle;
   if (handle === "aia") acc.aiaReviewer = true;
-  return { ok: true, handle: acc.handle, xHandle: acc.xHandle, aiaReviewer: !!acc.aiaReviewer };
+  return { ok: true, handle: acc.handle, aia: acc.aia, xHandle: acc.xHandle, aiaReviewer: !!acc.aiaReviewer };
 }
 
 function publicAdmin(acc) {
@@ -68,6 +76,7 @@ function publicAdmin(acc) {
   const handle = normalizeHandle(acc.handle || acc.xHandle || (isPlatformAccount(acc) ? "aia" : ""));
   return {
     handle: handle || "",
+    aia: handle ? handle + ".aia" : "",
     xHandle: acc.xHandle || (handle ? "@" + (handle === "aia" ? "AIA" : handle) : ""),
     aiaReviewer: !!(acc.aiaReviewer || isPlatformAccount(acc)),
     reserved: isReservedHandle(handle)

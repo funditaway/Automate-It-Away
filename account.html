@@ -59,9 +59,9 @@
       <input id="you-phone" maxlength="32" placeholder="417-555-0100">
       <label for="you-city">City</label>
       <input id="you-city" maxlength="60" placeholder="Springfield">
-      <label for="you-handle">World handle</label>
-      <input id="you-handle" maxlength="40" placeholder="@jane" autocomplete="username">
-      <p class="meta">A handle lets people find you on People. Not your email.</p>
+      <label for="you-handle">AIA Internet name</label>
+      <input id="you-handle" maxlength="63" placeholder="james.aia" autocomplete="username">
+      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Wallet / registry connect later as a Pipe HOLD. Not your email.</p>
       <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
       <p class="meta" id="you-hint">Tap the circle for a photo.</p>
       <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="#" id="leave-phone">Leave this phone</a></div>
@@ -170,13 +170,13 @@
         "<p><b>Email</b>"+esc(acc.email||"Not set")+"</p>"+
         "<p><b>Phone</b>"+esc(acc.phone||"Not set")+"</p>"+
         "<p><b>City</b>"+esc(acc.city||"—")+"</p>"+
-        "<p><b>Handle</b>"+esc(acc.handle?("@"+String(acc.handle).replace(/^@+/,"")):"Not set")+"</p>"+
+        "<p><b>AIA Internet</b>"+esc(acc.aia||(acc.handle?acc.handle+".aia":"Not set"))+"</p>"+
         "<p><b>Password door</b>"+(acc.hasPassword?"On":"Off")+"</p>"+
         "<p><b>Opened</b>"+esc((acc.createdAt||"").slice(0,10)||"—")+"</p></div>";
       if(acc.email){youEmail.value=acc.email;document.getElementById("pw-email").value=acc.email;localStorage.setItem("aia_email",acc.email);}
       if(acc.phone) youPhone.value=acc.phone;
       if(acc.city) youCity.value=acc.city;
-      if(youHandle) youHandle.value=acc.handle?("@"+String(acc.handle).replace(/^@+/,"")):"";
+      if(youHandle) youHandle.value=acc.aia||(acc.handle?acc.handle+".aia":"");
       const catalog=d.plans||plan.catalog||[];
       document.getElementById("plans").innerHTML=catalog.map(function(p){const on=p.id===(plan.plan||d.active);return "<button type=\"button\" class=\""+(on?"go":"edit")+"\" data-plan=\""+esc(p.id)+"\">"+esc(p.name)+(on?" · active":"")+"</button>";}).join("");
       Array.prototype.forEach.call(document.querySelectorAll("#plans [data-plan]"),function(btn){btn.onclick=function(){act("plan",{plan:btn.getAttribute("data-plan")});};});

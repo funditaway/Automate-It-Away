@@ -18,7 +18,7 @@ function deskListed(ws) {
 }
 function listedCard(row) {
   if (!row || !deskListed(row)) return null;
-  return { slug: row.slug, name: row.biz || row.name || row.slug, city: row.city || "", does: row.does || "", listed: true, drop: "/drop?ws=" + encodeURIComponent(row.slug) };
+  return { slug: row.slug, name: row.biz || row.name || row.slug, city: row.city || "", does: row.does || "", listed: true, aia: require("./_aia-net").of(row.aia || row.slug, row.slug).name, drop: "/drop?ws=" + encodeURIComponent(row.slug) };
 }
 function searchListedDesks(query) {
   const q = String(query || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 80);
@@ -78,7 +78,7 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "list").toLowerCase();
 
-  if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "buy-pack", "preview-pack", "studio-draft", "grok-pack"].indexOf(action) >= 0) {
+  if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "buy-pack", "preview-pack", "studio-draft", "grok-pack", "private-pack", "save-ai", "attach-ai", "remove-ai", "download-pack", "export-pack", "install-aia", "import-pack", "install-file"].indexOf(action) >= 0) {
     req.body = body;
     return packHandler(req, res);
   }
@@ -162,6 +162,38 @@ module.exports = async function handler(req, res) {
     logDesk(on ? "listed" : "unlisted", row, person);
     await save();
     return res.status(200).json({ ok: true, listed: deskListed(row), visibility: deskListed(row) ? "public" : "private", desk: publicDesk(row, person) });
+  }
+  if (action === "handle" || action === "aia" || action === "aia-name") {
+    if (!isOwner(person)) return deny(res, "Only the owner can set the .aia name.");
+    const net = require("./_aia-net");
+    const named = net.parseName(body.aia || body.aiaName || body.handle || body.at || body.host, row.slug);
+    if (!named.ok) return res.status(400).json({ ok: false, error: named.error });
+    const saved = applyDeskEdit(row, { aia: named.name });
+    if (!saved.ok) return res.status(400).json(saved);
+    const { accountForDesk } = require("./_account");
+    const aiaAdmin = require("./_aia-admin");
+    const acc = accountForDesk(row);
+    let handle = named.label;
+    if (acc) {
+      const set = aiaAdmin.setAccountHandle(acc, named.name, { allowReserved: aiaAdmin.isPlatformAccount(acc) || aiaAdmin.isReviewerDesk(row) });
+      if (!set.ok) return res.status(set.status || 409).json({ ok: false, error: set.error });
+      handle = set.handle;
+    }
+    logDesk("aia", row, person, { aia: named.name });
+    await save();
+    return res.status(200).json({
+      ok: true,
+      aia: named.name,
+      file: named.file,
+      handle: handle,
+      at: named.name,
+      internet: net.INTERNET,
+      chain: false,
+      owned: false,
+      net: net.publicNet(named),
+      desk: publicDesk(row, person),
+      note: net.statusOf().note
+    });
   }
   if (action === "explore" || action === "audit" || action === "gone" || action === "deleted") {
     if (action === "gone" || action === "deleted") {

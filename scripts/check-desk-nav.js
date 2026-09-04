@@ -72,6 +72,8 @@ pages.concat(["desk-nav.js"]).forEach((file) => {
   if (html.includes("/desk#rules") && file !== "desk-nav.js") fail(file + " still links Rules to /desk#rules");
 });
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
+if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");
+else pass("nav loads desk-ais");
 if (!nav.includes("href: \"/create\"") || !nav.includes("href: \"/history\"")) fail("desk-nav.js missing Create / History hrefs");
 else pass("Create and History hrefs are set");
 if (!nav.includes("name === \"create\"") || !nav.includes("name === \"history\"")) fail("desk-nav.js must highlight /create and /history");
@@ -101,6 +103,8 @@ if (!createJs.includes("action: \"suggest\"") || !createJs.includes("/api/health
 } else pass("Create asks the desk and stays honest offline");
 if (create.includes("$250") || create.includes("placeholder=\"250\"")) fail("create.html invented a $250 default");
 else pass("Create has no $250 default");
+if (!createJs.includes("save-ai") || !createJs.includes('id: "ai"')) fail("create-desk.js must name a desk AI");
+else pass("Create can name a desk AI");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {

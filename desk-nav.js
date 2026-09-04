@@ -31,7 +31,7 @@
     if (name === "desk") return "queue";
     if (name === "widget" || name === "drop") return "drop";
     if (name === "more" || name === "rules" || name === "pipes" || name === "connections" || name === "people") return "more";
-    if (/^(help|admin|setup|support|chat|consign|desks|account|market|developer)$/.test(name)) return "more";
+    if (/^(help|admin|setup|support|chat|consign|desks|account|market|developer|rules)$/.test(name)) return "more";
     return "";
   }
 
@@ -197,12 +197,21 @@
       v.setAttribute("data-aia-desk-view", "1");
       document.body.appendChild(v);
     }
+    loadQueue("desk-ais.js", "data-aia-desk-ais");
     loadQueue("pack-card.js", "data-aia-pack-card");
     loadQueue("desk-needs.js", "data-aia-desk-needs");
     loadQueue("desk-inbox.js", "data-aia-desk-inbox");
     loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
     loadPeople("people-desk.js", "data-aia-people-desk");
     loadPeople("people-world.js", "data-aia-people-world");
+    if (file() === "rules" || file() === "create" || file() === "more") {
+      if (!document.querySelector("script[data-aia-desk-ais]")) {
+        var a = document.createElement("script");
+        a.src = "/desk-ais.js";
+        a.setAttribute("data-aia-desk-ais", "1");
+        document.body.appendChild(a);
+      }
+    }
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");

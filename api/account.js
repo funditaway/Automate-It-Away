@@ -2,7 +2,7 @@ const lib = require("./_lib");
 const { cors, mem, ready, save, readBody, workspaceOf, personOf, isOwner } = lib;
 const {
   ensureAccount, accountForDesk, homeAccount, loginAccount, proHome, createOwnerAccount, publicPlan,
-  switchPlan, looksLikeEmail, passwordMatches, setAccountPassword, applyAccountDetails, stampIfAdminDesk
+  switchPlan, looksLikeEmail, passwordMatches, setAccountPassword, applyAccountDetails
 } = require("./_account");
 const aiaAdmin = require("./_aia-admin");
 
@@ -40,7 +40,11 @@ function safeAccount(acc) {
     hasPassword: !!acc.password,
     mfaOn: !!acc.mfaOn,
     handle: acc.handle || "",
-    at: acc.handle ? "@" + acc.handle : "",
+    at: acc.handle ? acc.handle + ".aia" : "",
+    aia: acc.aia || (acc.handle ? acc.handle + ".aia" : ""),
+    internet: "AIA Internet",
+    chain: false,
+    owned: false,
     aiaReviewer: !!acc.aiaReviewer
   };
 }
@@ -106,7 +110,7 @@ module.exports = async function handler(req, res) {
   ensureAccount();
 
   if (req.method === "GET") {
-    if (require("./._account-doors").handleGet(req, res)) return;
+    if (require("./_account-doors").handleGet(req, res)) return;
     const slug = workspaceOf(req);
     const found = personOf(req, slug);
     if (found.pending) {
@@ -138,7 +142,7 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "login").toLowerCase();
 
-  if (require("./._account-doors").handlePost(req, res, body, { authAccount, save })) return;
+  if (require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
 
   if (action === "login" || action === "open" || action === "save") {
     const name = body.account || body.slug || body.biz || body.name || workspaceOf(req);
@@ -154,7 +158,9 @@ module.exports = async function handler(req, res) {
     };
     const session = typeof lib.issueSession === "function" ? lib.issueSession(who, via.desk, via.account, req) : null;
     if (session && typeof lib.sessionCookie === "function") res.setHeader("Set-Cookie", lib.sessionCookie(session.token));
-    if (via.account) stampIfAdminDesk(via.account, via.desk);
+    if (via.account && (aiaAdmin.isReviewerDesk(via.desk) || aiaAdmin.isPlatformAccount(via.account))) {
+      aiaAdmin.stampAdminAccount(via.account);
+    }
     await save();
     const home = proHome(via.account, who);
     return res.status(200).json(Object.assign({ savedLogin: true, session }, home));
@@ -301,7 +307,7 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ ok: false, error: "Owner desk code required to set the handle." });
     }
     const allow = aiaAdmin.isReviewerDesk(found.workspace) || aiaAdmin.isPlatformAccount(account);
-    const set = aiaAdmin.setAccountHandle(account, body.handle || body.at || body.name, { allowReserved: allow });
+    const set = aiaAdmin.setAccountHandle(account, body.aia || body.aiaName || body.handle || body.at || body.name, { allowReserved: allow });
     if (!set.ok) return res.status(set.status || 409).json({ ok: false, error: set.error });
     if (set.handle === "aia") {
       found.workspace.aiaReviewer = true;
@@ -309,7 +315,7 @@ module.exports = async function handler(req, res) {
     }
     refreshSession(req, res);
     await save();
-    return res.status(200).json(Object.assign(proHome(account, found.person), { handle: set.handle, at: "@" + set.handle, reviewer: !!set.aiaReviewer, hint: "World users receive @" + (set.handle === "aia" ? "AIA" : set.handle) + "." }));
+    return res.status(200).json(Object.assign(proHome(account, found.person), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Wallet / registry connect later as a Pipe HOLD." }));
   }
 
   if (action === "reviewer" || action === "aia-reviewer") {

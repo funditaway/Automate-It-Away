@@ -13,19 +13,19 @@ function sessionHdr(slug, pin) {
   return h;
 }
 function atOf(value) {
-  var bare = String(value || "").replace(/^@+/, "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 24);
-  return bare ? "@" + bare : "";
+  var bare = String(value || "").replace(/^@+/, "").replace(/\.aia$/i, "").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "").slice(0, 63);
+  return bare ? bare + ".aia" : "";
 }
 var ASK = ["family", "friend", "helper", "member", "staff"];
 var BOOK = { owned: [], member: [], desks: [], handle: "", you: null, kinds: ASK };
 function paintYou(book) {
-  var handle = atOf((book && (book.at || book.handle)) || (book && book.you && (book.you.at || book.you.handle)) || "");
+  var handle = atOf((book && (book.aia || book.at || book.handle)) || (book && book.you && (book.you.aia || book.you.at || book.you.handle)) || "");
   var title = document.getElementById("you-title");
   var line = document.getElementById("you-line");
   var input = document.getElementById("you-handle");
   if (title) title.textContent = (book && book.account && book.account.name) || (book && book.you && book.you.name) || "Your account";
-  if (line) line.textContent = handle ? ("World users receive " + handle) : "World users receive @accountname";
-  if (input && handle) input.value = handle.replace(/^@+/, "");
+  if (line) line.textContent = handle ? ("AIA Internet name is " + handle) : "AIA Internet uses the .aia TLD — james.aia";
+  if (input && handle) input.value = handle;
 }
 function cardHtml(d, lane) {
   var kind = d.kind || d.role || "member";
@@ -76,8 +76,8 @@ async function hydrate() {
       if (phoneOnly.length) html += "<h2>Saved on this phone</h2>" + phoneOnly.map(function (d) { return cardHtml(d, "phone"); }).join("");
       if (!html) html = "<div class=\"card empty\"><p>No desks on this account yet. Add one below or create a new desk.</p></div>";
       box.innerHTML = html;
-      banner((atOf(data.at || data.handle) ? ("World users receive " + atOf(data.at || data.handle) + ". ") : "") +
-        "Leave drops your seat. Last owner keeps the seat or deletes the desk. AIA does not send.");
+      banner((atOf(data.at || data.handle || data.aia) ? ("AIA Internet name is " + atOf(data.at || data.handle || data.aia) + ". ") : "") +
+        "Leave drops your seat. Last owner keeps the seat or deletes the desk. AIA does not send. Wallet / registry connect later as a Pipe HOLD.");
       return;
     }
   } catch (e) {}
@@ -159,7 +159,7 @@ if (saveHandle) saveHandle.onclick = async function () {
   var slug = localStorage.getItem("aia_ws") || "";
   var out = await fetch("/api/desks", { method: "POST", headers: sessionHdr(slug, localStorage.getItem("aia_pin") || ""), body: JSON.stringify({ action: "handle", handle: want, slug: slug }) });
   var data = await out.json().catch(function () { return {}; });
-  if (msg) msg.textContent = out.ok ? ("World users receive " + (data.at || atOf(want))) : (data.error || "Could not save.");
-  if (out.ok) paintYou({ at: data.at || atOf(want), handle: data.handle, account: BOOK.account, you: BOOK.you });
+  if (msg) msg.textContent = out.ok ? ("AIA Internet name is " + (data.aia || data.at || atOf(want))) : (data.error || "Could not save.");
+  if (out.ok) paintYou({ at: data.aia || data.at || atOf(want), handle: data.handle, aia: data.aia, account: BOOK.account, you: BOOK.you });
 };
 hydrate();
