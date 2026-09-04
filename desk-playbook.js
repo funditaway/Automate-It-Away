@@ -1,7 +1,7 @@
 /* Four steps on this desk. Audit → Pipes → named AI → Rules. Collect stays HOLD. */
 (function () {
   var TITLE = "Four steps on this desk";
-  var LEAD = "Walk them in order. Short, local, on this queue. AIA drafts. You tap. Collect stays HOLD. AIA AI home is ai.aia — orange until DNS answers. Live desk is automateitaway.com.";
+  var LEAD = "Walk them in order. Short, local, on this queue. AIA drafts. You tap. Collect stays HOLD. AIA AI home is ai.aia (www.ai.aia) — orange until DNS answers. Live desk is automateitaway.com.";
   var PHASES = [
     {
       n: 1,
@@ -77,6 +77,7 @@
       ".aia-playbook .pb-go{display:inline-flex;align-items:center;min-height:36px;font:700 13px system-ui,sans-serif;color:var(--teal)}" +
       ".aia-playbook .pb-also{margin-left:10px;font:700 13px system-ui,sans-serif;color:var(--orange)}" +
       ".aia-playbook .pb-hold{margin:10px 0 0;padding:8px 10px;border-radius:10px;background:color-mix(in srgb, var(--orange) 18%, var(--card));border:1px solid var(--orange);color:var(--heading);font-size:13px}" +
+      ".aia-playbook .pb-hold a{color:var(--orange);font-weight:800}" +
       ".aia-playbook.compact .pb-steps{grid-template-columns:repeat(4,minmax(0,1fr))}" +
       ".aia-playbook.compact .pb-what,.aia-playbook.compact .pb-also{display:none}" +
       ".aia-playbook.compact .pb-step{padding:10px}" +
@@ -106,7 +107,7 @@
     return "<section class=\"aia-playbook" + (compact ? " compact" : "") + "\" id=\"playbook\" aria-label=\"" + TITLE + "\">" +
       head +
       "<div class=\"pb-steps\">" + PHASES.map(function (p) { return stepHtml(p, compact); }).join("") + "</div>" +
-      (compact ? "" : "<p class=\"pb-hold\">AIA AI door is ai.aia. Names on this desk now. DNS stays orange until it answers. Live desk is automateitaway.com.</p>") +
+      (compact ? "" : "<p class=\"pb-hold\">AIA AI door is <a href=\"http://www.ai.aia\">ai.aia</a>. Names on this desk now. DNS stays orange until it answers. Live desk is automateitaway.com.</p>") +
       "</section>";
   }
 

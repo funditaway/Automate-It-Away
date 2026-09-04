@@ -86,6 +86,8 @@ if (playbook.includes("$250")) fail("playbook invented $250");
 else pass("playbook no $250");
 if (!playbook.includes("ai.aia") || !/orange until DNS|DNS stays orange/i.test(playbook)) fail("playbook must name ai.aia as orange HOLD");
 else pass("playbook ai.aia is orange HOLD");
+if (!playbook.includes("www.ai.aia")) fail("playbook missing www.ai.aia door");
+else pass("playbook names www.ai.aia");
 if (/ai\.aia is live|DNS is live|www\.ai\.aia is live/i.test(playbook)) fail("must not claim ai.aia is live");
 else pass("playbook does not claim ai.aia live");
 
