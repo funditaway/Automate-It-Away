@@ -147,7 +147,7 @@ function loginAccount(name, pin, extra) {
   if (looksLikeEmail(rawEmail) && password) return loginWithEmail(rawEmail, password);
   return plans.loginAccount(name, pin);
 }
-function proHome(acc, person) {
+function proHome(acc, person, session) {
   const home = plans.proHome(acc, person) || { ok: true };
   if (home.account && acc) {
     home.account.email = acc.email || "";
@@ -170,6 +170,13 @@ function proHome(acc, person) {
     home.account.internet = "AIA Internet";
     home.account.chain = false;
     home.account.owned = false;
+    try {
+      const connect = require("./_connect-wallet");
+      home.account.walletAddress = acc.walletAddress || "";
+      home.account.walletChainId = acc.walletChainId || 0;
+      home.account.wallet = connect.publicOf(acc, session || null);
+      home.wallet = home.account.wallet;
+    } catch (e) {}
   }
   try {
     const mail = require("./_aia-mail");

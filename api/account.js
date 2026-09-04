@@ -45,6 +45,9 @@ function safeAccount(acc) {
     internet: "AIA Internet",
     chain: false,
     owned: false,
+    walletAddress: acc.walletAddress || "",
+    walletChainId: acc.walletChainId || 0,
+    wallet: require("./_connect-wallet").publicOf(acc, null),
     aiaReviewer: !!acc.aiaReviewer,
     mail: require("./_aia-mail").listForAccount(acc),
     mx: require("./_aia-mail").statusOf()
@@ -105,6 +108,10 @@ function authAccount(req) {
   return { found, account: homeAccount(found.person, found.workspace) };
 }
 
+function accountHome(acc, person, req) {
+  return proHome(acc, person, require("./_connect-wallet").currentSession(req));
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -122,19 +129,19 @@ module.exports = async function handler(req, res) {
       const acc = homeAccount(found.person, found.workspace);
       if (acc) {
         refreshSession(req, res);
-        return res.status(200).json(proHome(acc, found.person));
+        return res.status(200).json(accountHome(acc, found.person, req));
       }
     }
     const pin = (req.headers && req.headers["x-pin"]) || "";
     const via = loginAccount(slug, pin);
     if (via.ok) {
       const owner = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || { name: via.account.ownerName, role: "owner", kind: "owner" };
-      return res.status(200).json(proHome(via.account, owner));
+      return res.status(200).json(accountHome(via.account, owner, req));
     }
     if (!found.workspace || !found.person) {
       return res.status(401).json({ ok: false, error: "Account name, desk code, or email does not match." });
     }
-    return res.status(200).json(proHome(accountForDesk(found.workspace), found.person));
+    return res.status(200).json(accountHome(accountForDesk(found.workspace), found.person, req));
   }
 
   if (req.method !== "POST") {
@@ -164,7 +171,7 @@ module.exports = async function handler(req, res) {
       aiaAdmin.stampAdminAccount(via.account);
     }
     await save();
-    const home = proHome(via.account, who);
+    const home = accountHome(via.account, who, req);
     return res.status(200).json(Object.assign({ savedLogin: true, session }, home));
   }
 
@@ -184,7 +191,7 @@ module.exports = async function handler(req, res) {
     row.accountId = acc.id;
     refreshSession(req, res);
     await save();
-    return res.status(200).json(proHome(acc, found.person));
+    return res.status(200).json(accountHome(acc, found.person, req));
   }
 
   if (action === "plan" || action === "subscribe") {
@@ -197,7 +204,7 @@ module.exports = async function handler(req, res) {
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     refreshSession(req, res);
     await save();
-    const home = proHome(acc, found.person);
+    const home = accountHome(acc, found.person, req);
     return res.status(200).json(Object.assign(home, {
       hint: made.plan.name + " is active. Still free. Features follow this plan."
     }));
@@ -234,7 +241,7 @@ module.exports = async function handler(req, res) {
     if (applied && applied.ok === false) return res.status(400).json({ ok: false, error: applied.error });
     refreshSession(req, res);
     await save();
-    return res.status(200).json(Object.assign(proHome(acc, found.person), { hint: "Account details saved." }));
+    return res.status(200).json(Object.assign(accountHome(acc, found.person, req), { hint: "Account details saved." }));
   }
 
   if (action === "mint") {
@@ -317,7 +324,7 @@ module.exports = async function handler(req, res) {
     }
     refreshSession(req, res);
     await save();
-    return res.status(200).json(Object.assign(proHome(account, found.person), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Wallet / registry connect later as a Pipe HOLD." }));
+    return res.status(200).json(Object.assign(accountHome(account, found.person, req), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Connect a browser wallet on Account for identity. Mint / Bridge stay HOLD." }));
   }
 
   if (action === "mail" || action === "aia-mail" || action === "mail-identity" || action === "create-mail" || action === "mail-create" || action === "mail-list") {
@@ -330,7 +337,7 @@ module.exports = async function handler(req, res) {
       return res.status(409).json(mail.sendHold());
     }
     refreshSession(req, res);
-    return res.status(200).json(Object.assign(proHome(account, found.person), {
+    return res.status(200).json(Object.assign(accountHome(account, found.person, req), {
       mail: mail.listForAccount(account),
       mx: mail.statusOf(),
       note: mail.HOLD_NOTE
@@ -353,7 +360,7 @@ module.exports = async function handler(req, res) {
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error, mx: mail.statusOf() });
     refreshSession(req, res);
     await save();
-    return res.status(200).json(Object.assign(proHome(account, found.person), {
+    return res.status(200).json(Object.assign(accountHome(account, found.person, req), {
       ok: true,
       identity: made.identity,
       mail: made.mail,
@@ -375,7 +382,7 @@ module.exports = async function handler(req, res) {
     if (!gone.ok) return res.status(gone.status || 400).json({ ok: false, error: gone.error });
     refreshSession(req, res);
     await save();
-    return res.status(200).json(Object.assign(proHome(account, found.person), {
+    return res.status(200).json(Object.assign(accountHome(account, found.person, req), {
       ok: true,
       removed: gone.removed,
       mail: gone.mail,
@@ -386,6 +393,32 @@ module.exports = async function handler(req, res) {
 
   if (action === "mail-send" || action === "send-mail") {
     return res.status(409).json(require("./_aia-mail").sendHold());
+  }
+
+  if (action === "wallet" || action === "connect-wallet" || action === "disconnect-wallet") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    const connect = require("./_connect-wallet");
+    const sessionRow = connect.currentSession(req);
+    const off = action === "disconnect-wallet" || body.off === true || body.off === "true" || body.disconnect === true;
+    const made = off
+      ? connect.clearConnect(account, sessionRow, found.person)
+      : connect.applyConnect(account, sessionRow, found.person, body);
+    if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error, wallet: connect.publicOf(account, sessionRow) });
+    if (typeof lib.log === "function") {
+      lib.log("Pipe", off ? "wallet revoked" : "wallet bound", "OK", found.workspace && found.workspace.slug);
+    }
+    refreshSession(req, res);
+    await save();
+    return res.status(200).json(Object.assign(accountHome(account, found.person, req), {
+      ok: true,
+      wallet: made.wallet,
+      hint: off
+        ? "Disconnected. Address cleared on this desk session. Collect stays HOLD."
+        : "Browser wallet saved on this desk session. Identity only. Collect stays HOLD. Mint / Bridge stay external."
+    }));
   }
 
   if (action === "reviewer" || action === "aia-reviewer") {
@@ -411,6 +444,6 @@ module.exports = async function handler(req, res) {
   return res.status(400).json({
     ok: false,
     error: "Unknown account action.",
-    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "handle", "reviewer", "logout", "logout-all", "sessions", "export", "mfa", "providers", "oauth-start", "ask-other", "link-provider", "unlink-provider", "mail", "mail-add", "mail-remove"]
+    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "handle", "reviewer", "logout", "logout-all", "sessions", "export", "mfa", "providers", "oauth-start", "ask-other", "link-provider", "unlink-provider", "mail", "mail-add", "mail-remove", "wallet", "connect-wallet", "disconnect-wallet"]
   });
 };

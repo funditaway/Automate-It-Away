@@ -1,6 +1,6 @@
 const TLD = "aia";
 const INTERNET = "AIA Internet";
-const HOLD_NOTE = ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD. AIA AI home is ai.aia. DNS stays orange until it answers.";
+const HOLD_NOTE = ".aia names on this desk now. Connect a browser wallet on Account for identity. Mint / Bridge / registry stay HOLD. AIA AI home is ai.aia. DNS stays orange until it answers.";
 const KEY_NOTE = "Registry key is on this box. Names still HOLD until a wallet pipe answers. No on-chain claim. AIA AI home is ai.aia.";
 const RESERVED = ["www", "localhost", "invalid", "ai"];
 

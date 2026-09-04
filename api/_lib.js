@@ -456,7 +456,9 @@ function sessionPublic(row, token) {
     createdAt: row.createdAt || "",
     seenAt: row.seenAt || row.createdAt || "",
     expiresAt: row.expiresAt || "",
-    current: !!row.current
+    current: !!row.current,
+    walletAddress: row.walletAddress || "",
+    walletChainId: row.walletChainId || 0
   };
   if (token) out.token = token;
   if (row.ua) out.ua = row.ua;
