@@ -407,6 +407,9 @@ module.exports = async function handler(req, res) {
       ? connect.clearConnect(account, sessionRow, found.person)
       : connect.applyConnect(account, sessionRow, found.person, body);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error, wallet: connect.publicOf(account, sessionRow) });
+    if (typeof lib.log === "function") {
+      lib.log("Pipe", off ? "wallet revoked" : "wallet bound", "OK", found.workspace && found.workspace.slug);
+    }
     refreshSession(req, res);
     await save();
     return res.status(200).json(Object.assign(accountHome(account, found.person, req), {

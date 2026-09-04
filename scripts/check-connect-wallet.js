@@ -40,10 +40,14 @@ if (!/Mint and Bridge stay external/.test(ui)) fail("UI missing mint/Bridge hone
 else pass("mint/Bridge stay external");
 if (/privateKey|mnemonic|seed phrase|demo ETH|fake ETH|0\.00 ETH/i.test(ui)) fail("UI must not show keys or demo ETH");
 else pass("no keys or demo ETH in UI");
+if (/eth_sendTransaction|eth_sendRawTransaction|wallet_sendCalls|personal_sign/.test(ui)) fail("UI must not broadcast a tx");
+else pass("UI does not broadcast a tx");
 
 const helper = fs.readFileSync(path.join(root, "api/_connect-wallet.js"), "utf8");
 if (/privateKey|mnemonic|secret key/i.test(helper)) fail("helper must not mention private keys");
 else pass("helper has no private keys");
+if (/eth_sendTransaction|eth_sendRawTransaction|require\([\"'].*dw-check/.test(helper + ui)) fail("must not mint, send, or import dw-check");
+else pass("no mint / send / dw-check");
 if (!/custodial: false/.test(helper) || !/charged: false/.test(helper)) fail("helper must stay non-custodial and uncharged");
 else pass("non-custodial uncharged");
 
@@ -127,6 +131,9 @@ async function main() {
   } else pass("connect persists truncated address + mainnet");
   if (w.custodial || w.charged || w.mint || w.live || w.collect !== "hold") fail("connect must stay honest HOLD");
   else pass("connect stays non-custodial HOLD");
+  const bound = (mem.audit || []).find(function (a) { return a && a.agent === "Pipe" && a.action === "wallet bound"; });
+  if (!bound || bound.result !== "OK") fail("connect must audit Pipe · wallet bound");
+  else pass("audit wallet bound");
   if (/private|seed|ETH balance|demo/i.test(JSON.stringify(w))) fail("wallet payload leaked demo money or keys");
   else pass("wallet payload is address only");
 
@@ -167,6 +174,9 @@ async function main() {
   if (gone.statusCode !== 200 || !gone.body.wallet || gone.body.wallet.connected) {
     fail("disconnect " + gone.statusCode + " " + JSON.stringify(gone.body));
   } else pass("disconnect clears wallet");
+  const revoked = (mem.audit || []).find(function (a) { return a && a.agent === "Pipe" && a.action === "wallet revoked"; });
+  if (!revoked || revoked.result !== "OK") fail("disconnect must audit Pipe · wallet revoked");
+  else pass("audit wallet revoked");
   if (acc.walletAddress) fail("disconnect left address on account");
   else pass("disconnect clears account blob");
 

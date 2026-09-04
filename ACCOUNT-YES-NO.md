@@ -24,6 +24,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Short address (`0x1234…abcd`) + chain label + Disconnect. Disconnect clears local session storage.
 - `/api/status` and Account UI show connected only when an address is actually stored. No fake connected.
 - Identity / TLD ownership only. Mint, Bridge, Decentraweb register stay external. Collect stays HOLD.
+- Bind/revoke writes `Pipe · wallet bound` / `Pipe · wallet revoked` on the existing audit log. No tx broadcast.
 - No custodial keys on the server. No demo seed balance. No silent Collect.
 - `scripts/check-connect-wallet.js`.
 
