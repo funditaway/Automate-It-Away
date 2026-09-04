@@ -35,7 +35,8 @@ function desksForPerson(hint) {
     const hit = (w.people || []).find((p) => p && ((aid && (p.accountId === aid || p.id === aid)) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && p.pin === pin)));
     if (!hit) return;
     const ownerHit = hit.role === "owner" || hit.kind === "owner";
-    const card = { slug: w.slug, name: w.biz || w.name || w.slug, role: ownerHit ? "owner" : (hit.kind || "member"), kind: ownerHit ? "owner" : (hit.kind || "member"), status: hit.status || "approved", requestedKind: hit.requestedKind || "", personId: hit.id, yours: ownerHit ? "own" : "member" };
+    const aia = require("./_aia-net").of(w.aia || w.slug, w.slug).name;
+    const card = { slug: w.slug, name: w.biz || w.name || w.slug, aia: aia, role: ownerHit ? "owner" : (hit.kind || "member"), kind: ownerHit ? "owner" : (hit.kind || "member"), status: hit.status || "approved", requestedKind: hit.requestedKind || "", personId: hit.id, yours: ownerHit ? "own" : "member" };
     if (ownerHit) owned.push(card); else member.push(card);
   });
   return { owned, member };

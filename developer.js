@@ -151,6 +151,7 @@
       ["grok", "Grok"],
       ["pack", "Pack"],
       ["ais", "Desk AIs"],
+      ["mail", "Mail"],
       ["drop", "Drop form"],
       ["queue", "Queue"],
       ["pipes", "Pipes"],
@@ -210,6 +211,11 @@
       "<p class=\"hint\">Never: Send · Stop · pay · mail · Yes itself. Collect stays HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-ais\">Save AIs on draft</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"attach-ai\">Attach AI 1 to this desk now</button></p></div>"
+    );
+    if (tab === "mail") return (
+      "<div class=\"card\" id=\"aia-mail\"></div>" +
+      "<div class=\"card\"><h2>Automations from inbound</h2>" +
+      "<p class=\"hint\">Create .aia email for automations. Mail (or a simulated webhook) to that address Drops a card on the bound desk — same path as /api/hook. Automations can trigger from inbound. Outbound Send stays HOLD. No live SMTP / MX. DNS for ai.aia / *.aia does not resolve yet.</p></div>"
     );
     if (tab === "drop") return (
       "<div class=\"card\"><h2>Drop form inside the pack</h2>" +
@@ -326,6 +332,7 @@
       paintAia();
       showGrokDraft(grokDraft);
     }
+    if (tab === "mail" && window.AIAMail && AIAMail.load) AIAMail.load();
   }
 
   function bindLab() {

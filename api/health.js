@@ -63,6 +63,7 @@ async function deskStatus(req, res) {
     connections: mine.map((c) => honestConnection(c, answered)).filter(Boolean),
     inbound: workspace ? "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace) : "",
     internet: require("./_aia-net").statusOf(),
+    mail: require("./_aia-mail").statusOf(),
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound, never dispatch.demo",
@@ -122,6 +123,7 @@ async function health(req, res) {
       collect: catalog().some((p) => p.live && p.id === "webhook") ? "webhook live — other paid pipes on hold" : "demo ship",
       follow: "worker + cron",
       inbound: "/api/hook",
+      mail: require("./_aia-mail").statusOf(),
       persist: (mem.driver === "blob") ? "shared blob" : "Lambda /tmp until BLOB_READ_WRITE_TOKEN",
       ownerStops: ["kill"],
       grok: {
@@ -186,6 +188,7 @@ async function health(req, res) {
     domain: "automateitaway.com",
     dns: "pointed",
     internet: require("./_aia-net").statusOf(),
+    mail: require("./_aia-mail").statusOf(),
     repo: "funditaway/Automate-It-Away"
   });
 }

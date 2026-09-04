@@ -126,7 +126,9 @@ function publicDesk(row, person) {
     never: rails.never,
     aia: rails.aia,
     internet: net.INTERNET,
-    net: rails.net
+    net: rails.net,
+    mail: require("./_aia-mail").listForDesk(row.slug),
+    mx: require("./_aia-mail").statusOf()
   };
 }
 

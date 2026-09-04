@@ -14,6 +14,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Export copy has no pin and no password hash.
 - Plan switch stays `charged: false`.
 - Account page lists phones, export, leave every phone.
+- `.aia` email identities `{local}@{account}.aia` for Automations. Create/manage on Account, Studio, Desks. Inbound → Drop/Capture. Outbound Send HOLD. No live SMTP/MX.
 - `scripts/check-account.js` — nine passing contract tests.
 
 ## YES (wallets / Ext / X Money — ledger only, 2026-09-03)
@@ -42,6 +43,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Killing a live job from the account page.
 - Moving money from the account page.
 - A second dashboard.
+- Live SMTP / MX for `.aia`. DNS for ai.aia / *.aia does not resolve yet.
 
 ## Ask me if
 
