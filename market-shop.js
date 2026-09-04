@@ -55,7 +55,12 @@
     const creatorId = p.creatorId || p.family || p.id || "";
     const useBtn = p.wanted
       ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
-      : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button>";
+      : p.priced
+        ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install on this desk</button>"
+        : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button>";
+    const holdNote = p.pipeMissing
+      ? "<p class=\"aia-line off\">Ask is listed. No money pipe. Collect stays HOLD. Orange until Square or a live webhook is connected.</p>"
+      : (p.priced ? "<p class=\"hint\">Ask listed. Collect stays HOLD until Yes.</p>" : "");
     return "<article class=\"card shop\">" +
       "<b>" + esc(p.name) + "</b>" +
       "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + "</p>" +
@@ -64,6 +69,7 @@
       "<p class=\"tag\">" + (p.official ? "Official AIA" : esc(p.creator || p.family || "Listed creator")) +
         (p.rules ? " · " + p.rules + " rule" + (p.rules === 1 ? "" : "s") : "") +
         (p.priced ? " · Collect HOLD" : "") + "</p>" +
+      holdNote +
       "<div class=\"cta\">" +
         useBtn +
         "<a class=\"use ghost\" href=\"/market?pack=" + encodeURIComponent(p.id) + "\">View listing</a>" +
@@ -163,7 +169,9 @@
     const ownerBtns = hasDesk()
       ? (p.wanted
         ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
-        : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>")
+        : p.priced
+          ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>"
+          : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Use on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>")
       : "<a class=\"use\" href=\"/onboard\">Open a desk to use it</a>";
     view.innerHTML =
       "<a class=\"back\" href=\"/market\">← Shop all packs</a>" +
@@ -196,8 +204,10 @@
         "<div><b>5. Follow</b>" + esc(how.follow || "The card stays on History until it is done.") + "</div>" +
       "</div>" +
       "<h2>On a real desk</h2>" +
-      "<p class=\"hint\">No demo chrome. Drop a real card after you Use the pack. Fresh desks start empty until a pack or a rule lands.</p>" +
-      (p.collectHold && p.collectHold.note ? "<p class=\"hint\">" + esc(p.collectHold.note) + "</p>" : "<p class=\"hint\">Collect stays HOLD. Packs never send money.</p>") +
+      "<p class=\"hint\">No demo chrome. Buy / install puts the thin JSON onto this desk. Fresh desks start empty until a pack or a rule lands.</p>" +
+      (p.pipeMissing || (p.collectHold && !p.collectHold.pipe)
+        ? "<p class=\"aia-line off\">" + esc((p.collectHold && p.collectHold.note) || "Ask is listed. No money pipe. Collect stays HOLD. Orange until Square or a live webhook is connected.") + "</p>"
+        : (p.collectHold && p.collectHold.note ? "<p class=\"hint\">" + esc(p.collectHold.note) + "</p>" : "<p class=\"hint\">Collect stays HOLD. Packs never send money.</p>")) +
       "<h2>Creator</h2>" +
       "<div class=\"card profile\">" +
         "<b>" + esc(creator.name || "") + "</b>" +
@@ -215,7 +225,7 @@
     const others = data.otherPacks || [];
     view.innerHTML =
       "<a class=\"back\" href=\"/market\">← Shop all packs</a>" +
-      "<p class=\"tag\">" + (c.official ? "Official AIA family" : "Listed creator") + "</p>" +
+      "<p class=\"tag\">" + (c.id === "grok" || c.sku === false ? "Grok · AIA Studio · same account, not a SKU" : (c.official ? "Official AIA family" : "Listed creator")) + "</p>" +
       "<h1>" + esc(c.name || "Creator") + "</h1>" +
       "<p class=\"sub\">" + esc(c.does || "Packs this creator listed for other desks to use.") + "</p>" +
       "<h2>Packs on the shop</h2>" +
@@ -256,12 +266,12 @@
       loadShop("");
     }
   }
-  async function usePack(id, preview) {
+  async function usePack(id, preview, buy) {
     if (!hasDesk()) return fail("Open a desk first. Shopping stays public. Use needs the desk code.");
     const r = await fetch("/api/desks", {
       method: "POST",
       headers: headers(),
-      body: JSON.stringify({ action: preview ? "preview-pack" : "use-pack", id: id })
+      body: JSON.stringify({ action: preview ? "preview-pack" : (buy ? "buy-pack" : "install-pack"), id: id })
     });
     const data = await r.json().catch(function () { return {}; });
     if (r.status === 409) return fail(data.error || "Make this pack first.") || (data.href && (location.href = data.href));
@@ -290,6 +300,12 @@
       });
       const next = "/market?q=" + encodeURIComponent(QUERY) + (FILTER ? "&filter=" + encodeURIComponent(FILTER) : "");
       history.replaceState({}, "", next);
+      return;
+    }
+    const buy = e.target.closest("[data-buy]");
+    if (buy) {
+      e.preventDefault();
+      usePack(buy.getAttribute("data-buy"), false, true);
       return;
     }
     const use = e.target.closest("[data-use], [data-preview]");

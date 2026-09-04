@@ -73,12 +73,33 @@ function allPacks(opts) {
   return OFFICIAL.concat(wantedRows(), COLORS, extra);
 }
 
+function grokStudio() {
+  return {
+    id: "grok",
+    name: "Grok · AIA Studio",
+    sku: false,
+    product: "aia",
+    role: "creator",
+    does: "First-class creator on Creators Studio. Same AIA account — not a second SKU. Drafts bots and packs. Can list an ask. Collect stays HOLD. Packs land on this desk.",
+    href: "/dev",
+    market: "/market?creator=grok"
+  };
+}
+
+function isGrokPack(p) {
+  if (!p) return false;
+  const who = [p.creatorId, p.authoredBy, p.source, p.creator].join(" ").toLowerCase();
+  return /\bgrok\b/.test(who);
+}
+
 function publicPack(p) {
   if (!p) return null;
   const ask = Number(p.ask != null ? p.ask : p.price) || 0;
   const priced = !!(p.priced || ask > 0);
   const bots = Array.isArray(p.bots) ? p.bots : [];
   const rules = Array.isArray(p.rules) ? p.rules : [];
+  const hold = collectHoldOf(p);
+  const grok = isGrokPack(p);
   return {
     id: p.id,
     name: p.name,
@@ -95,8 +116,9 @@ function publicPack(p) {
     face: p.face || p.name,
     features: p.features || [],
     kinds: Array.isArray(p.kinds) ? p.kinds : String(p.kinds || "").split(/[,;]+/).map(function (s) { return s.trim(); }).filter(Boolean),
-    creator: p.creator || (p.official ? "AIA" : p.workspace || "Listed creator"),
-    creatorId: p.creatorId || p.workspace || (p.official ? "aia" : p.id),
+    creator: grok ? "Grok · AIA Studio" : (p.creator || (p.official ? "AIA" : p.workspace || "Listed creator")),
+    creatorId: grok ? "grok" : (p.creatorId || p.workspace || (p.official ? "aia" : p.id)),
+    authoredBy: grok ? "grok" : (p.authoredBy || "owner"),
     status: p.status || (p.official ? "listed" : "draft"),
     bots: bots.length,
     botRows: bots.slice(0, 3),
@@ -105,6 +127,9 @@ function publicPack(p) {
     dropHint: p.dropHint || "",
     queue: p.queue || null,
     collect: priced ? "hold" : "none",
+    collectHold: hold,
+    pipeMissing: !!(priced && !hold.pipe),
+    charged: false,
     href: p.href || (p.type === "wanted" ? "/create?kind=pack&idea=" + p.id : "/market?pack=" + p.id)
   };
 }
@@ -259,6 +284,8 @@ function normalizeCreatorPack(body, workspace, person) {
       collect: "hold",
       official: false,
       type: "work",
+      authoredBy: String(body.authoredBy || body.creatorId || "").toLowerCase() === "grok" ? "grok" : "owner",
+      creatorId: String(body.authoredBy || body.creatorId || "").toLowerCase() === "grok" ? "grok" : workspace,
       status: String(body.status || "draft").toLowerCase(),
       updatedAt: new Date().toISOString()
     }
@@ -294,11 +321,12 @@ async function packHandler(req, res) {
     if (q.creator) {
       const who = String(q.creator).slice(0, 40);
       const packs = searchPacks("", { mine: false }).filter(function (p) {
+        if (who.toLowerCase() === "grok") return isGrokPack(p);
         return String(p.creatorId || p.family || "").toLowerCase() === who.toLowerCase() || (who === "aia" && p.official);
       });
       return res.status(200).json({
         ok: true,
-        creator: { name: who === "grok" ? "Grok · AIA" : who, official: who === "aia" || who === "grok", does: who === "grok" ? "Included drafter on Creators Studio. Same AIA account. Packs still wait on Yes." : "" },
+        creator: who.toLowerCase() === "grok" ? grokStudio() : { name: who, official: who === "aia", does: "" },
         packs: packs
       });
     }
@@ -317,6 +345,7 @@ async function packHandler(req, res) {
       color: rows.filter(function (p) { return p.type === "cosmetic"; }),
       creator: rows.filter(function (p) { return !p.official && !p.wanted && p.type !== "cosmetic"; }),
       grok: { on: grokOn(), note: grokOn() ? "Grok drafts in Creators Studio. Never Send." : "Set XAI_API_KEY for Studio drafts." },
+      studio: grokStudio(),
       never: ["send", "stop", "pay"]
     });
   }
@@ -379,18 +408,20 @@ async function packHandler(req, res) {
     if (idx >= 0) rows[idx] = Object.assign({}, rows[idx], row);
     else rows.unshift(row);
     mem.packs = rows.slice(0, 80);
+    const listed = row.status === "listed" || row.status === "published" || row.status === "submitted" || action === "publish-pack" || action === "submit-pack" || action === "test-pack" || body.preview === false;
     let added = 0;
-    if (action === "test-pack" || body.preview === false) added = installPackOnDesk(shop, row);
+    if (listed) added = installPackOnDesk(shop, row);
     await save();
-    log("Desk", (action === "test-pack" ? "Test pack · " : "List pack · ") + row.name, "OK", workspace);
+    log("Desk", (action === "test-pack" ? "Test pack · " : (listed ? "Publish pack · " : "List pack · ")) + row.name, "OK", workspace);
+    const hold = collectHoldOf(row);
     const note = action === "test-pack"
       ? "Pack is on this desk. Open Drop or Queue. Packs never Send."
-      : (row.status === "listed" || row.status === "published"
+      : (row.status === "listed" || row.status === "published" || row.status === "submitted"
         ? (row.priced
-          ? "Listed with ask $" + row.ask + ". World desks can install it. Collect stays HOLD until Yes and a money pipe."
-          : "Listed free. World desks can install it onto their queue. Packs never Send.")
+          ? "Listed with ask $" + row.ask + ". Pack JSON is on this desk. World desks can Buy / install. Collect stays HOLD until Yes and a money pipe."
+          : "Listed free. Pack JSON is on this desk. World desks can install it onto their queue. Packs never Send.")
         : "Draft saved. Off Market until you list it. Packs never Send.");
-    return res.status(200).json({ ok: true, pack: publicPack(row), added: added, collectHold: collectHoldOf(row), note: note, never: ["send", "stop", "pay"] });
+    return res.status(200).json({ ok: true, pack: publicPack(row), added: added, desk: shop.slug, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note });
   }
 
   if (action === "unlist-pack") {
@@ -410,7 +441,7 @@ async function packHandler(req, res) {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
     return res.status(200).json({ ok: true, pack: listingOf(pack.id, { mine: true, workspace: workspace }), never: ["send", "stop", "pay"], collectHold: collectHoldOf(pack) });
   }
-  if (action === "use-pack" || action === "install-pack") {
+  if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
     if (pack.type === "wanted" || pack.use === "make") {
       return res.status(409).json({ ok: false, error: "Make this pack", href: "/create?kind=pack&idea=" + pack.id, pack: publicPack(pack) });
@@ -435,11 +466,12 @@ async function packHandler(req, res) {
       already: already,
       added: added,
       rulesAdded: added,
+      charged: false,
       collectHold: hold,
       never: ["send", "stop", "pay"],
       note: already
         ? "Already on this desk. " + hold.note
-        : "Pack is on this desk. Rules and queue face landed. " + hold.note
+        : "Pack JSON is on this desk. " + hold.note
     });
   }
   return res.status(400).json({ error: "Unknown pack action." });
@@ -450,4 +482,5 @@ module.exports.allPacks = allPacks;
 module.exports.findPack = findPack;
 module.exports.searchPacks = searchPacks;
 module.exports.listingOf = listingOf;
-module.exports.OFFICIAL = OFFICIAL;
+module.exports.grokStudio = grokStudio;
+module.exports.collectHoldOf = collectHoldOf;

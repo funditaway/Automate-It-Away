@@ -86,6 +86,8 @@
         taps: val("q-taps") || formState["q-taps"] || "copy,text,email,hand,cap",
         never: ["send", "stop", "pay", "bind"]
       },
+      authoredBy: formState.authoredBy || "",
+      creatorId: formState.authoredBy === "grok" ? "grok" : undefined,
       status: "draft"
     }, extra || {});
   }
@@ -121,7 +123,7 @@
   function pane() {
     if (tab === "grok") return (
       "<div class=\"card\"><h2>Ask Grok</h2>" +
-      "<p class=\"hint\">Included drafter on this same AIA account — not a second SKU. Helps build bots and packs. Never Send, Stop, or pay. Never auto-mail. You tap Yes to put the draft on Pack and Bots, or Stop to discard it.</p>" +
+      "<p class=\"hint\">Included drafter — Grok’s AIA Studio seat on this same account. Not a second SKU. Helps build bots and packs. Can list an ask; Collect stays HOLD. Never Send, Stop, or pay. Never auto-mail. You tap Yes to put the draft on Pack and Bots, or Stop to discard it.</p>" +
       "<p class=\"aia-line\" id=\"aia-line\">Checking drafts…</p>" +
       "<label>What should this pack do?</label>" +
       "<textarea id=\"grok-brief\" rows=\"4\" placeholder=\"Saturday oil-change lane. Photo in. Draft the title. Wait on payout.\"></textarea>" +
@@ -192,14 +194,19 @@
       "<a class=\"go ghost\" href=\"/drop\">Open Drop</a><a class=\"go ghost\" href=\"/desk\">Open Queue</a></p></div>"
     );
     if (tab === "submit") return (
-      "<div class=\"card\"><h2>Submit to AIA</h2><p class=\"hint\">You cannot ship your own pack. AIA approves. Then it appears on /market. World desks install the JSON onto their queue. Collect stays HOLD.</p>" +
-      "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"submit-pack\">Submit for review</button>" +
+      "<div class=\"card\"><h2>Submit to AIA</h2>" +
+      "<p class=\"hint\">Publish lists it on /market and puts the thin JSON onto this desk. World desks Buy / install onto their queue. An ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
+      "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"submit-pack\">Publish · land on this desk</button>" +
       "<a class=\"go ghost\" href=\"/market\">Marketplace</a></p></div>"
     );
     return (
+      "<div class=\"card\"><h2>Grok · AIA Studio</h2>" +
+      "<p class=\"hint\">First-class creator on this same AIA account. Not a separate product. Drafts bots and packs. Can list an ask on Market. Collect stays HOLD. Packs always land on this desk — Queue, Drop, Create. No silent charge.</p>" +
+      "<p class=\"aia-line\" id=\"aia-line\">Checking drafts…</p>" +
+      "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
+      "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
-      "<p class=\"hint\">Grok is the included drafter on this same AIA account. Not a second SKU. Ask Grok, then Yes to put the draft on Pack and Bots.</p>" +
       "<div id=\"mine-list\"></div></div>"
     );
   }
@@ -225,7 +232,10 @@
       "<div class=\"pills\" id=\"tabs\">" + tabs() + "</div>" + pane();
     restore();
     bindLab();
-    if (tab === "home") loadMine();
+    if (tab === "home") {
+      loadMine();
+      paintAia();
+    }
     if (tab === "grok") {
       paintAia();
       showGrokDraft(grokDraft);
@@ -260,6 +270,8 @@
     if (yes) yes.onclick = yesGrok;
     var stop = document.getElementById("grok-stop");
     if (stop) stop.onclick = stopGrok;
+    var grokSeat = view.querySelector(".card [data-tab=\"grok\"]");
+    if (grokSeat) grokSeat.onclick = function () { snap(); tab = "grok"; paintLab(); };
   }
 
   async function paintAia() {
@@ -376,6 +388,7 @@
   function yesGrok() {
     if (!grokDraft || !grokDraft.pack) return show("Ask Grok first.", false);
     applyPackDraft(grokDraft.pack);
+    formState.authoredBy = "grok";
     grokDraft = null;
     tab = "pack";
     paintLab();
@@ -435,6 +448,7 @@
         var botsN = p.bots || (p.botRows && p.botRows.length) || 0;
         return "<div class=\"pack-row\"><b>" + esc(p.name || p.id) + "</b><span class=\"hint\">" +
           esc(p.status || p.review || "draft") + (p.priced ? (" · ask $" + p.ask + " · Collect HOLD") : " · free") +
+          (p.authoredBy === "grok" || p.creatorId === "grok" ? " · Grok" : "") +
           (botsN ? (" · " + botsN + " bot") : "") +
           (p.ext ? " · ext" : "") + "</span></div>";
       }).join("");

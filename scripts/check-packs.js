@@ -43,8 +43,22 @@ if (!shop.includes("Collect HOLD") && !shop.includes("Collect stays HOLD")) fail
 else pass("market Collect HOLD");
 if (!shop.includes("data-use")) fail("market must Use on this desk");
 else pass("market Use on this desk");
+if (!shop.includes("Buy · install") && !shop.includes("data-buy")) fail("market missing Buy / install");
+else pass("market Buy / install");
+if (!shop.includes("aia-line off") && !shop.includes("pipeMissing")) fail("market must orange when money pipe is missing");
+else pass("market orange if pipe missing");
 if (shop.includes("Labeled DEMO")) fail("market still shows demo chrome");
 else pass("market has no demo chrome");
+
+const packsApi2 = packsApi;
+if (!packsApi2.includes("buy-pack")) fail("_packs.js missing buy-pack");
+else pass("packs buy-pack");
+if (!packsApi2.includes("grokStudio") || !packsApi2.includes("Grok · AIA Studio")) fail("missing Grok AIA Studio identity");
+else pass("Grok AIA Studio identity");
+if (!packsApi2.includes("authoredBy")) fail("packs missing authoredBy");
+else pass("packs authoredBy");
+if (!packsApi2.includes("sku: false")) fail("Grok Studio must not be a SKU");
+else pass("Grok Studio is not a SKU");
 
 ["vita.json", "fund.json", "land.json", "aia-adoption.json"].forEach((name) => {
   const p = path.join(root, "packs", name);

@@ -74,8 +74,8 @@ if (!dev.includes("Ask Grok") || !dev.includes("studio-draft")) fail("Creators S
 else pass("Studio Ask Grok");
 if (!dev.includes("grok-yes") || !dev.includes("grok-stop")) fail("Studio Grok must wait on Yes/Stop");
 else pass("Studio Grok Yes/Stop");
-if (!dev.includes("Creators Studio")) fail("developer.js missing Creators Studio copy");
-else pass("developer.js Creators Studio copy");
+if (!dev.includes("Grok · AIA Studio")) fail("developer.js missing Grok AIA Studio identity");
+else pass("Studio Grok identity");
 
 const adoption = JSON.parse(fs.readFileSync(path.join(root, "packs", "aia-adoption.json"), "utf8"));
 if (!Array.isArray(adoption.rules) || adoption.rules.length) fail("aia-adoption must have empty rules");
