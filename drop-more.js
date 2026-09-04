@@ -1,13 +1,17 @@
 (function () {
   var QUICKS = [
+    { id: "task", label: "A task", kind: "task", outcome: "wait", title: "" },
+    { id: "chore", label: "An errand", kind: "chore", outcome: "hand", title: "" },
+    { id: "list", label: "A list", kind: "list", outcome: "note", title: "" },
+    { id: "idea", label: "An idea", kind: "idea", outcome: "note", title: "" },
+    { id: "project", label: "A project", kind: "project", outcome: "wait", title: "" },
+    { id: "build", label: "A build", kind: "build", outcome: "wait", title: "" },
     { id: "ride", label: "Need a ride", kind: "ride", outcome: "book", title: "Need a ride" },
     { id: "pickup", label: "Pickup", kind: "pickup", outcome: "book", title: "Pickup" },
-    { id: "list", label: "List this", kind: "list", outcome: "list", title: "List this" },
     { id: "quote", label: "Need a quote", kind: "quote", outcome: "quote", title: "Need a quote" },
     { id: "call", label: "Missed call", kind: "call", outcome: "call", title: "Missed call" },
     { id: "follow", label: "Follow up", kind: "follow", outcome: "call", title: "Follow up" },
     { id: "reminder", label: "Remind me", kind: "reminder", outcome: "book", title: "Reminder" },
-    { id: "chore", label: "A chore", kind: "chore", outcome: "hand", title: "Chore" },
     { id: "files", label: "Drop files", kind: "files", outcome: "note", title: "Files for the desk" },
     { id: "school", label: "Kids / school", kind: "school", outcome: "book", title: "School" },
     { id: "custom", label: "Custom", kind: "custom", outcome: "wait", title: "" }

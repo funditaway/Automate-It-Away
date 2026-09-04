@@ -1,16 +1,312 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Drop · Automate It Away</title>
-  <link rel="canonical" href="/widget">
-  <meta http-equiv="refresh" content="0;url=/widget">
   <script>
-    location.replace("/widget" + (location.search || "") + (location.hash || ""));
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
   </script>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="desk-nav.css">
+  <script src="theme.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+    body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,sans-serif}
+    .desk-tabs a{color:#fff}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:18px 0 24px}
+    h1{color:var(--heading);font-size:1.4rem}
+    .sub{color:var(--muted);margin:4px 0 16px}
+    .modes,.who-chips,.lanes,.desk-chips,.desk-actions{display:flex;flex-wrap:wrap;gap:8px}
+    .modes{margin:0 0 14px}
+    .modes button,.who-chips button,.lanes button,.desk-chips button{flex:1;min-width:72px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer}
+    .modes button.on{background:var(--orange);color:#0c1116;border-color:var(--orange)}
+    .who-chips button.on,.lanes button.on,.desk-chips button.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}
+    .who-chips{margin:6px 0 10px}
+    .who-chips button{text-transform:capitalize}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--card);color:var(--ink)}
+    button.go,#drop-send{border:0;border-radius:10px;padding:12px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
+    button.ghost{border:1px solid var(--line);background:var(--edit);color:var(--edit-ink);border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
+    pre{background:#1a2332;color:#e6f7f7;padding:12px;border-radius:10px;font-size:11px;overflow:auto;white-space:pre-wrap}
+    .ok{margin-top:10px;color:#1b7a3d;font-size:14px;display:none}
+    .err{margin-top:10px;color:var(--kill-ink);font-size:14px;display:none}
+    body.embed header,body.embed #desk-nav,body.embed .desk-tabs,body.embed #embed-card,body.embed #desk-pick{display:none}
+    .talk-bar,.desk-pick{margin:0 0 14px}
+    .desk-actions{margin-top:10px}
+    .desk-actions a,.desk-actions button{min-height:44px;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center}
+    .desk-actions a{background:var(--edit);color:var(--edit-ink);border:1px solid var(--line)}
+    body.embed{background:transparent}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  </style>
 </head>
-<body>
-  <p><a href="/widget">Drop something off</a></p>
+<body class="has-desk-nav">
+  <header>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    <nav class="desk-tabs" aria-label="Desk tabs">
+      <a href="/desk" data-tab="queue">Queue</a>
+      <a href="/drop" data-tab="drop">Drop</a>
+      <a href="/rules" data-tab="rules">Rules</a>
+      <a href="/pipes" data-tab="pipes">Pipes</a>
+      <a href="/more" data-tab="more">More</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1 id="drop-title">Drop anything</h1>
+    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or No. Nobody sends money from here.</p>
+    <div class="modes" id="modes">
+      <button type="button" class="on" data-mode="quick">Quick drop</button>
+      <button type="button" data-mode="custom">Custom drop</button>
+      <button type="button" data-mode="agent">Put data on</button>
+    </div>
+    <div class="card desk-pick" id="desk-pick">
+      <strong style="color:var(--heading)">Which desk gets this</strong>
+      <p class="sub" id="desk-pick-sub">Desks saved on this phone. Pick one, add a desk you already opened, or create a new one.</p>
+      <div class="desk-chips" id="desk-chips"></div>
+      <div id="desk-add" hidden>
+        <label>Desk name</label>
+        <input id="add-ws" placeholder="Oddo house" autocomplete="username">
+        <label>Desk code</label>
+        <input id="add-pin" placeholder="Your code" inputmode="numeric" minlength="4" autocomplete="current-password">
+        <button type="button" class="go" id="add-open" style="margin-top:10px">Save and open this desk</button>
+      </div>
+      <div class="desk-actions">
+        <button type="button" class="ghost" id="add-toggle" style="width:auto;margin:0">Add a saved desk</button>
+        <a href="/onboard">Create a new desk</a>
+        <a href="/login">Have a code</a>
+      </div>
+      <p class="err" id="desk-err"></p>
+    </div>
+    <div class="talk-bar" id="talkBar" hidden>
+      <p class="talk-status" id="talkStatus">Talk the work in your words. Hear this reads it back. Nobody sends money from here.</p>
+      <button type="button" id="hearBtn">Hear this</button>
+      <button type="button" id="talkBtn">Talk</button>
+      <button type="button" id="quietBtn">Quiet</button>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <strong id="lane-title" style="color:var(--heading)">Drop anything. It becomes a card.</strong>
+        <div id="pane-work">
+          <label>I am</label>
+          <div class="who-chips" id="who-chips"></div>
+          <label>What is it?</label>
+          <select id="kind">
+            <option value="task">A task</option>
+            <option value="chore">An errand</option>
+            <option value="list">A list</option>
+            <option value="idea">An idea</option>
+            <option value="project">A project</option>
+            <option value="build">A build</option>
+            <option value="request">A request</option>
+            <option value="note">A note</option>
+            <option value="call">Missed call</option>
+            <option value="message">A message to send</option>
+            <option value="pickup">Pickup / drop-off</option>
+            <option value="ride">A ride</option>
+            <option value="reminder">A reminder</option>
+            <option value="book">Book a time</option>
+            <option value="form">Form / paper</option>
+            <option value="photo">A photo</option>
+            <option value="files">Files / papers</option>
+            <option value="quote">Need a quote</option>
+            <option value="follow">Follow up</option>
+            <option value="walk-in">Walk-in job</option>
+            <option value="repair">Repair / fix</option>
+            <option value="delivery">Delivery</option>
+            <option value="return">A return</option>
+            <option value="invoice">Invoice / bill</option>
+            <option value="estimate">An estimate</option>
+            <option value="package">A package</option>
+            <option value="keys">Keys / lock</option>
+            <option value="school">School / kids</option>
+            <option value="grocery">Groceries / store</option>
+            <option value="custom">Custom drop</option>
+          </select>
+          <label>Title</label>
+          <input id="title" placeholder="Need a ride Friday · grocery list · porch idea">
+          <label>Your name</label>
+          <input id="who" placeholder="Name">
+          <label>Phone</label>
+          <input id="phone" placeholder="417-555-0100" inputmode="tel">
+          <label>Photos, documents, or video</label>
+          <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm">
+          <p class="sub" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
+          <label>What do you need?</label>
+          <textarea id="note" rows="3" placeholder="A task, an errand, a list, an idea, a project — in your words"></textarea>
+        </div>
+        <div id="pane-agent" hidden>
+          <label>Paste the data</label>
+          <textarea id="implement" rows="6" placeholder="Name: Sam&#10;Phone: 417-555-0100&#10;Need a pickup Friday 3pm&#10;Ask: $85"></textarea>
+          <label>What should the desk do with it?</label>
+          <textarea id="agent-tell" rows="2" placeholder="Put this on the card. Draft the next step. Do not send."></textarea>
+          <p class="sub" id="agent-preview" hidden></p>
+        </div>
+        <button type="button" class="go" id="drop-send">Drop it</button>
+        <p class="ok" id="ok">On the queue. Rules on this desk apply. You still tap Yes or Stop.</p>
+        <p class="err" id="err"></p>
+      </div>
+      <div class="card" id="embed-card">
+        <strong style="color:var(--heading)">Drop from anywhere</strong>
+        <p class="sub">Share the link with family, a friend, a helper, or staff. They drop a task, an errand, a list, an idea, or a project. Public drop never sees money, Stop, or People.</p>
+        <label>Share this link</label>
+        <pre id="drop-link"></pre>
+        <button type="button" class="ghost" onclick="copyDropShare()">Copy drop link</button>
+      </div>
+    </div>
+  </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><span>Queue</span></a>
+    <a href="/drop" data-tab="drop"><span>Drop</span></a>
+    <a href="/rules" data-tab="rules"><span>Rules</span></a>
+    <a href="/pipes" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/more" data-tab="more"><span>More</span></a>
+  </nav>
+  <script src="desk-switch.js"></script>
+  <script src="desk-nav.js"></script>
+  <script src="drop-pick.js"></script>
+  <script src="drop-agent.js"></script>
+  <script src="speech.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const embed = window !== window.parent || params.get("embed") === "1";
+    if (embed) document.body.classList.add("embed");
+    let desk = (window.AIADesks && AIADesks.captureDesk) ? AIADesks.captureDesk() : null;
+    let ws = (desk && desk.slug) || "";
+    let pin = localStorage.getItem("aia_pin") || "";
+    let deskOpen = !!(ws && pin);
+    if (deskOpen) document.body.classList.add("desk-open");
+    let mode = params.get("mode") || "quick";
+    let whoKind = params.get("who") || "helper";
+    let FIELDS = [];
+    function headers() {
+      const h = { "Content-Type": "application/json" };
+      if (ws) h["X-Workspace"] = ws;
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    }
+    function showMode(next) {
+      mode = embed ? "quick" : (next === "agent" ? "agent" : next === "custom" ? "custom" : "quick");
+      document.querySelectorAll("#modes button").forEach(function (b) {
+        b.classList.toggle("on", b.getAttribute("data-mode") === mode);
+      });
+      const modesEl = document.getElementById("modes");
+      if (modesEl) modesEl.hidden = !!embed;
+      const agent = mode === "agent";
+      document.getElementById("pane-work").hidden = agent;
+      document.getElementById("pane-agent").hidden = !agent;
+      const customPane = document.getElementById("pane-custom");
+      if (customPane) customPane.hidden = mode !== "custom";
+      document.getElementById("lane-title").textContent = agent ? "Paste the data. The desk writes the card." : mode === "custom" ? "Name your own drop. It becomes a card." : "Drop anything. Tap a kind. It becomes a card.";
+      document.getElementById("drop-send").textContent = agent ? "Put this on the desk" : "Drop it";
+      if (mode === "custom" && window.AIADropAgent && AIADropAgent.applyQuick) AIADropAgent.applyQuick("custom");
+    }
+    function paintEmbed() {
+      const name = (desk && (desk.name || desk.slug)) || ws || "a desk";
+      document.getElementById("drop-title").textContent = ws ? ("Drop anything · " + name) : "Drop anything";
+      const el = document.getElementById("drop-link");
+      if (el) el.textContent = ws ? ("https://automateitaway.com/drop?ws=" + encodeURIComponent(ws)) : "Open a desk first. Then this link appears.";
+    }
+    async function bootDesk() {
+      if (!ws) return;
+      try {
+        const r = await fetch("/api/auth", { headers: headers() });
+        const data = await r.json().catch(function () { return {}; });
+        const shop = data.workspace || {};
+        if ((shop.biz || shop.name) && desk) desk.name = shop.biz || shop.name;
+        FIELDS = shop.fields || [];
+        const nouns = (window.AIADesks && AIADesks.nounsOf) ? AIADesks.nounsOf(shop.nouns) : null;
+        if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
+          const sub = document.getElementById("drop-sub");
+          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or No. Nobody sends money from here.";
+        }
+      } catch (e) {}
+      paintEmbed();
+    }
+    whoKind = (window.AIADropAgent && AIADropAgent.paintWho(whoKind)) || whoKind;
+    const whoBox = document.getElementById("who-chips");
+    if (whoBox) whoBox.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-who]");
+      if (!btn) return;
+      whoKind = btn.getAttribute("data-who");
+      AIADropAgent.paintWho(whoKind);
+    });
+    document.getElementById("modes").hidden = !!embed;
+    showMode(mode);
+    document.getElementById("modes").addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-mode]");
+      if (btn) showMode(btn.getAttribute("data-mode"));
+    });
+    const implementEl = document.getElementById("implement");
+    if (implementEl) implementEl.addEventListener("input", function () {
+      if (window.AIADropAgent) AIADropAgent.paintPreview(AIADropAgent.implementFromText(implementEl.value, FIELDS));
+    });
+    paintEmbed();
+    bootDesk();
+    async function send() {
+      const ok = document.getElementById("ok");
+      const err = document.getElementById("err");
+      const btn = document.getElementById("drop-send");
+      ok.style.display = "none"; err.style.display = "none";
+      if (!ws) { err.style.display = "block"; err.textContent = embed ? "This drop is missing a desk." : "Pick a desk above, add a saved one, or create a new desk."; return; }
+      const agentOn = mode === "agent";
+      const implement = ((document.getElementById("implement") && document.getElementById("implement").value) || "").trim();
+      const mapped = (window.AIADropAgent && agentOn) ? AIADropAgent.implementFromText(implement, FIELDS) : {};
+      const note = agentOn ? implement : document.getElementById("note").value;
+      const title = document.getElementById("title").value || mapped.title || note || ((document.getElementById("custom-name") && document.getElementById("custom-name").value) || "");
+      const tell = agentOn ? (((document.getElementById("agent-tell") && document.getElementById("agent-tell").value) || implement)) : "";
+      if (!String(title || tell || implement).trim()) { err.style.display = "block"; err.textContent = agentOn ? "Paste the data to put on the desk." : "Say what you need."; return; }
+      const item = {
+        action: "capture",
+        kind: agentOn ? "note" : document.getElementById("kind").value,
+        title: title, from: "widget",
+        contactName: document.getElementById("who").value || mapped.contactName,
+        phone: document.getElementById("phone").value || mapped.phone,
+        email: mapped.email, notes: note, tell: tell,
+        implement: agentOn ? implement : undefined,
+        mode: agentOn ? "agent" : (mode === "custom" ? "custom" : "quick"),
+        droppedByKind: whoKind, whoKind: whoKind, lane: agentOn ? "ops" : "work",
+        custom: Object.assign({}, mapped.custom || {}, { mode: agentOn ? "agent" : (mode === "custom" ? "custom" : "quick"), droppedByKind: whoKind })
+      };
+      if (agentOn && mapped.amount != null) item.amount = mapped.amount;
+      if (agentOn && mapped.timing) item.timing = mapped.timing;
+      if (btn) btn.disabled = true;
+      try {
+        const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(item) });
+        const out = await r.json().catch(function () { return {}; });
+        if (r.ok) {
+          ok.style.display = "block";
+          ok.innerHTML = "On the queue. Rules on this desk apply." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>");
+          if (window.AIASpeech) AIASpeech.speak("On the queue.");
+          document.getElementById("title").value = ""; document.getElementById("note").value = "";
+          if (document.getElementById("implement")) document.getElementById("implement").value = "";
+          if (document.getElementById("agent-tell")) document.getElementById("agent-tell").value = "";
+          if (document.getElementById("photo")) document.getElementById("photo").value = "";
+          if (window.AIADropAgent) AIADropAgent.paintPreview({});
+        } else { err.style.display = "block"; err.textContent = out.error || "Could not send."; }
+      } catch (ex) { err.style.display = "block"; err.textContent = "Could not reach the desk."; }
+      finally { if (btn) btn.disabled = false; }
+    }
+    document.getElementById("drop-send").addEventListener("click", function () { send(); });
+    function copyDropShare() {
+      const el = document.getElementById("drop-link");
+      navigator.clipboard.writeText(el ? el.textContent : "");
+      const ok = document.getElementById("ok");
+      ok.textContent = "Drop link copied. Anyone with it can send work to this desk.";
+      ok.style.display = "block";
+    }
+    window.copyDropShare = copyDropShare;
+  </script>
 </body>
 </html>

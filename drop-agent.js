@@ -1,6 +1,12 @@
 (function () {
   var WHO = ["family", "friend", "helper", "staff"];
   var TYPES = [
+    { id: "task", label: "A task", fields: ["need", "timing"], outcome: "wait" },
+    { id: "chore", label: "An errand", fields: ["need", "timing", "where"], outcome: "hand" },
+    { id: "list", label: "A list", fields: ["need"], outcome: "note" },
+    { id: "idea", label: "An idea", fields: ["need"], outcome: "note" },
+    { id: "project", label: "A project", fields: ["need", "timing"], outcome: "wait" },
+    { id: "build", label: "A build", fields: ["need", "timing"], outcome: "wait" },
     { id: "request", label: "A request", fields: ["need", "timing"], outcome: "wait" },
     { id: "note", label: "A note", fields: ["need"], outcome: "note" },
     { id: "call", label: "Missed call", fields: ["phone", "timing"], outcome: "call" },
@@ -9,16 +15,14 @@
     { id: "ride", label: "A ride", fields: ["fromWhere", "where", "timing"], outcome: "book" },
     { id: "reminder", label: "A reminder", fields: ["timing", "need"], outcome: "book" },
     { id: "book", label: "Book a time", fields: ["timing", "where", "whoFor"], outcome: "book" },
-    { id: "chore", label: "Chore / errand", fields: ["need", "timing", "where"], outcome: "hand" },
     { id: "form", label: "Form / paper", fields: ["timing", "need"], outcome: "wait" },
     { id: "photo", label: "A photo", fields: ["need"], outcome: "note" },
-    { id: "list", label: "List / sell", fields: ["condition", "amount", "need"], outcome: "list" },
     { id: "quote", label: "Need a quote", fields: ["need", "amount"], outcome: "quote" },
     { id: "follow", label: "Follow up", fields: ["whoFor", "timing", "need"], outcome: "call" },
     { id: "walk-in", label: "Walk-in job", fields: ["need", "timing", "amount"], outcome: "wait" }
   ];
   var FIELDSPEC = {
-    need: { label: "What is needed", ph: "Oil change · pickup at school" },
+    need: { label: "What is needed", ph: "Grocery run · porch idea · Friday ride" },
     whoFor: { label: "Who it is for", ph: "Sam" },
     where: { label: "Where", ph: "School · shop · house" },
     fromWhere: { label: "From", ph: "Practice" },
@@ -41,7 +45,7 @@
     { id: "call", label: "Call them back", next: "Call them back. Then mark it done." },
     { id: "book", label: "Put it on the calendar", next: "Save the phone calendar file. Google write stays off until the key is set." },
     { id: "hand", label: "Hand it to someone", next: "Hand this to a name on People." },
-    { id: "list", label: "Draft a listing", next: "Draft the listing. Owner taps Yes." },
+    { id: "list", label: "Draft a list", next: "Keep the list on the card. Owner taps Yes." },
     { id: "quote", label: "Draft a quote", next: "Draft only. Do not send a quote from here." },
     { id: "wait", label: "Owner decides", next: "Owner picks Yes or Stop." },
     { id: "note", label: "Just keep the note", next: "Leave it on the queue. No send." }
@@ -91,7 +95,7 @@
   }
   function paintKinds(sel, current) {
     if (!sel) return current || "request";
-    var on = current || sel.value || "request";
+    var on = current || sel.value || "task";
     if (!typeOf(on) || typeOf(on).id !== on) on = "request";
     sel.innerHTML = TYPES.map(function (t) { return "<option value=\"" + t.id + "\"" + (t.id === on ? " selected" : "") + ">" + t.label + "</option>"; }).join("");
     sel.value = on; return on;

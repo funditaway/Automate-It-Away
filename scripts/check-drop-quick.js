@@ -13,7 +13,7 @@ const agent = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
 const fields = fs.readFileSync(path.join(root, "api/_fields.js"), "utf8");
 
 [
-  "Quick request",
+  "Quick drop",
   "Put data on",
   "who-chips",
   "pane-agent",
