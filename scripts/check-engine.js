@@ -126,6 +126,58 @@ else pass("runWorkspace qualifies and follows");
 applyCap({ title: "no hit" }, { rules: [] }, []);
 pass("applyCap no-ops without a cap rule");
 
+const { applyRules } = engine;
+const leadShop = {
+  slug: "lead-shop",
+  rules: [{ text: "Click + Lead → tag Interested. Draft HOLD.", when: "drop", ifTag: "Lead", contains: "click", then: "draft", tag: "Interested" }]
+};
+const lead = qualifyJob({ title: "They clicked the link", notes: "click from the lane", tags: ["Lead"], from: "drop", workspace: "lead-shop" }, leadShop);
+if ((lead.tags || []).indexOf("Interested") < 0) fail("lead click should tag Interested, got " + JSON.stringify(lead.tags));
+else if (!/HOLD/i.test(lead.draft || lead.next || "")) fail("lead click must stay HOLD");
+else pass("lead click tags Interested, draft HOLD");
+
+const doneShop = {
+  slug: "done-shop",
+  rules: [{ text: "Task Done → notify owner. Desk AI draft.", when: "status", ifStatus: "done", then: "notify" }]
+};
+const doneJob = { title: "Porch lamp", status: "shipped", step: "Follow", doneAt: new Date().toISOString(), workspace: "done-shop" };
+applyRules(doneJob, doneShop, "status");
+if (!(doneJob.notify && doneJob.notify.length) || !doneJob.draft) fail("task done should notify owner with a draft");
+else if (doneJob.notify.some(function (n) { return !n.hold; })) fail("notify must stay HOLD");
+else pass("task done notifies owner, draft HOLD");
+
+const shipShop = {
+  slug: "ship-shop",
+  rules: [{ text: "New order + international → Customs Form alert on Queue.", when: "drop", contains: "international", then: "queue" }]
+};
+const customs = qualifyJob({ title: "New order", notes: "international crate", from: "drop", workspace: "ship-shop" }, shipShop);
+if (!/customs/i.test(customs.alert || customs.next || "")) fail("international order should alert Customs Form on Queue");
+else pass("international order queues Customs Form alert");
+
+const lateShop = {
+  slug: "late-shop",
+  rules: [{ text: "Unassigned + older than 24h → escalate priority.", when: "status", ifUnassigned: true, ifOlder: 24, then: "escalate" }]
+};
+const late = {
+  title: "Open ticket",
+  status: "waiting",
+  createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+  workspace: "late-shop"
+};
+applyRules(late, lateShop, "status");
+if (!late.priority) fail("unassigned 24h should escalate priority");
+else pass("unassigned 24h escalates");
+
+const freshLate = {
+  title: "New ticket",
+  status: "waiting",
+  createdAt: new Date().toISOString(),
+  workspace: "late-shop"
+};
+applyRules(freshLate, lateShop, "status");
+if (freshLate.priority) fail("fresh unassigned ticket should not escalate yet");
+else pass("fresh ticket does not escalate");
+
 try {
   if (fs.existsSync(store)) fs.unlinkSync(store);
 } catch (e) {}

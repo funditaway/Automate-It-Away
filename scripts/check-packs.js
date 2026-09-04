@@ -79,6 +79,9 @@ if (!studio.includes("Creators Studio")) fail("developer.html must be Creators S
 else pass("developer.html is Creators Studio");
 if (!studio.includes("desk AI") && !fs.readFileSync(path.join(root, "developer.js"), "utf8").includes("Desk AIs")) fail("Creators Studio must name desk AIs");
 else pass("Studio names desk AIs");
+const studioJs = fs.readFileSync(path.join(root, "developer.js"), "utf8");
+if (!studioJs.includes("workflows") || !studioJs.includes("When → If → Then")) fail("Studio must author pack workflows");
+else pass("Studio pack workflows");
 if (studio.includes("AIA Studio Pro")) fail("must not brand AIA Studio Pro");
 else pass("not AIA Studio Pro");
 

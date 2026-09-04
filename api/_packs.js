@@ -1,4 +1,4 @@
-const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog } = require("./_lib");
+const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow } = require("./_lib");
 const { grokOn, studioDraft } = require("./_grok");
 const ais = require("./_ais");
 const net = require("./_aia-net");
@@ -137,6 +137,8 @@ function publicPack(p) {
     aiRows: deskAis.slice(0, 3).map(ais.publicAi),
     rules: rules.length,
     ruleRows: rules.slice(0, 8),
+    workflows: Array.isArray(p.workflows) ? p.workflows.length : (Array.isArray(p.sequences) ? p.sequences.length : 0),
+    workflowRows: safeWorkflows([].concat(p.workflows || [], p.sequences || [])).slice(0, 4),
     dropHint: p.dropHint || "",
     queue: p.queue || null,
     collect: priced ? "hold" : "none",
@@ -220,6 +222,13 @@ function safeRules(rows) {
   });
 }
 
+function safeWorkflows(rows) {
+  return (rows || []).map(publicWorkflow).filter(Boolean).filter(function (wf) {
+    const blob = JSON.stringify(wf || {});
+    return !/\$250|over \$250|placeholder=\"250\"/i.test(blob);
+  }).slice(0, 8);
+}
+
 function listingOf(id, opts) {
   const row = findPack(id, opts);
   if (!row) return null;
@@ -236,6 +245,9 @@ function listingOf(id, opts) {
   if (typeof out.how !== "object") out.how = { do: String(out.how) };
   out.rules = safeRules((file && file.rules) || row.rules || []);
   out.ruleRows = out.rules;
+  out.workflows = safeWorkflows([].concat((file && (file.workflows || file.sequences)) || [], row.workflows || [], row.sequences || []));
+  out.workflowRows = out.workflows;
+  out.sequences = out.workflows;
   out.rails = (file && file.rails) || [];
   out.queue = (file && file.queue) || row.queue || null;
   out.never = ["send", "stop", "pay"];
@@ -290,7 +302,8 @@ function normalizeCreatorPack(body, workspace, person) {
   const vis = visRaw === "listed" || visRaw === "published" || visRaw === "submitted" || visRaw === "market"
     ? (visRaw === "market" ? "listed" : visRaw)
     : (visRaw === "private" ? "private" : "");
-  const rules = safeRules([].concat(body.rules || [], body.rule ? [{ text: String(body.rule) }] : [])).slice(0, 8);
+  const rules = safeRules([].concat(body.rules || [], body.rule ? [{ text: String(body.rule) }] : [], flattenWorkflows(body))).slice(0, 8);
+  const workflows = safeWorkflows([].concat(body.workflows || [], body.sequences || []));
   const queue = body.queue && typeof body.queue === "object" ? body.queue : {};
   const never = ["send", "stop", "pay", "bind"];
   const named = net.parseName(body.aia || body.aiaName || body.file || name, slugPack(name));
@@ -316,6 +329,8 @@ function normalizeCreatorPack(body, workspace, person) {
       fields: body.fields || [],
       kinds: body.kinds,
       rules: rules,
+      workflows: workflows,
+      sequences: workflows,
       ask: ask,
       priced: ask > 0,
       price: ask,
@@ -357,7 +372,7 @@ function installPackOnDesk(shop, pack) {
   const packAis = ais.normalizeAis([].concat((file && (file.ais || file.bots)) || [], pack.ais || [], pack.bots || []), shop.slug);
   if (packAis.length) ais.attachAisToDesk(shop, packAis);
   else if (Array.isArray(pack.bots) && pack.bots.length) shop.packBots = pack.bots.slice(0, 3);
-  const incoming = safeRules((file && file.rules) || pack.rules || []);
+  const incoming = safeRules([].concat((file && file.rules) || pack.rules || [], flattenWorkflows(file || pack)));
   const have = ensureRules(shop).map(function (r) { return String(r.text || ""); });
   let added = 0;
   incoming.forEach(function (r) {

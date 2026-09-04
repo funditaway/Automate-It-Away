@@ -2,7 +2,7 @@ const { dropCannedSeeds } = require("./_drop-seed");
 const {
   cors, mem, log, save, ready, workspaceOf, readBody,
   personOf, isOwner, ensureRules, addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, defaultRules,
-  ensureNouns, defaultNouns, setRuleWidget, widgetCount, ruleStarters, RULE_WHEN, RULE_THEN
+  ensureNouns, defaultNouns, setRuleWidget, widgetCount, ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF
 } = require("./_lib");
 
 function deskName(row) {
@@ -23,12 +23,20 @@ function draftFromTalk(text, row) {
 
   let then = "note";
   if (/\b(kill|stop|never send|do not send|don't send|block|no one (may|can) send)\b/.test(t)) then = "stop";
+  else if (/\b(escalat|priority|cap it)\b/.test(t)) then = "escalate";
+  else if (/\b(notify|ping owner|tell the owner)\b/.test(t)) then = "notify";
+  else if (/\b(queue|alert on the queue|customs)\b/.test(t)) then = "queue";
+  else if (/\b(draft|desk ai)\b/.test(t)) then = "draft";
+  else if (/\b(tag|interested)\b/.test(t)) then = "tag";
   else if (/\b(ask me|wait|confirm|approve|hold|not without me|i (have to|must) tap|owner)\b/.test(t)) then = "wait";
 
   let when = "do";
   if (/\b(follow|nudge|after (it )?ships?)\b/.test(t)) when = "follow";
   else if (/\b(collect|payout|paid|invoice|money out)\b/.test(t)) when = "collect";
-  else if (/\b(captur|drop|arriv|come in|walk-?in)\b/.test(t)) when = "capture";
+  else if (/\bstatus|done|shipped\b/.test(t)) when = "status";
+  else if (/\binbound|@[\w.-]+\.aia\b/.test(t)) when = "inbound";
+  else if (/\bpipe|webhook|hook\b/.test(t)) when = "pipe";
+  else if (/\b(captur|drop|arriv|come in|walk-?in)\b/.test(t)) when = "drop";
   else if (/\b(qualif|fit|missing)\b/.test(t)) when = "qualify";
 
   const dollar = t.match(/\$\s*(\d+(?:\.\d+)?)/) || t.match(/(\d+)\s*(?:dollars?|bucks)/);
@@ -109,6 +117,8 @@ module.exports = async function handler(req, res) {
         starters: ruleStarters(),
         when: RULE_WHEN,
         then: RULE_THEN,
+        if: RULE_IF,
+        workflows: "Packs string rules. Optional delay / branch. Thin JSON.",
         canAdd: false
       });
     }
@@ -126,6 +136,8 @@ module.exports = async function handler(req, res) {
       starters: ruleStarters(),
       when: RULE_WHEN,
       then: RULE_THEN,
+      if: RULE_IF,
+      workflows: "Packs string rules. Optional delay / branch. Thin JSON.",
       canAdd: isOwner(person),
       draft: row.ruleDraft || null,
       desk: deskName(row)

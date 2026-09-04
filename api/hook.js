@@ -1,5 +1,5 @@
 const { cors, mem, log, save, ready, slugify, readBody, deskClosed, deskClosedMessage } = require("./_lib");
-const { qualifyJob } = require("./_engine");
+const { qualifyJob, applyRules } = require("./_engine");
 const { makeCapturedJob, addTalk } = require("./_fields");
 
 function eventOf(body) {
@@ -28,6 +28,12 @@ function finishDone(job, body, how) {
   job.dispatch = { provider: body.provider || "webhook", inbound: true, demo: false, done: true, how: how };
   addTalk(job, job.doneBy, note, "follow");
   return note;
+}
+
+function applyStatusRules(job, workspace) {
+  const shop = (mem.workspaces || []).find((w) => w && w.slug === workspace) || null;
+  if (shop) applyRules(job, shop, "status");
+  return job;
 }
 
 module.exports = async function handler(req, res) {
@@ -124,6 +130,7 @@ module.exports = async function handler(req, res) {
 
   if (event === "done") {
     finishDone(job, body, body.how || "pipe");
+    applyStatusRules(job, workspace);
     job.log = (job.log || []).concat(["Pipe wrote back · done"]);
     log("Pipe", "Done · " + job.title, "OK", workspace);
     await save();

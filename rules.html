@@ -44,9 +44,20 @@
     #rule-list li{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13px;color:var(--muted)}
     #rule-list li span{flex:1;min-width:160px}
     #rule-list .kill,#rule-list .edit{padding:4px 8px;font-size:12px}
-    #adv-box{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+    #wit-box,#adv-box{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+    .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}
+    .strip div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+    .strip b{display:block;color:var(--heading);font-size:12px}
+    .strip span{font-size:12px;color:var(--muted)}
+    .vs{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px}
+    .vs b{color:var(--heading)}
+    .vs p{color:var(--muted);font-size:13px;margin:4px 0 0}
+    .scenarios{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+    .scenarios article{background:var(--bg-soft,rgba(13,107,107,.08));border-radius:10px;padding:10px}
+    .scenarios b{display:block;color:var(--heading);font-size:13px}
+    .scenarios span{font-size:12px;color:var(--muted)}
     #gate[hidden],#session[hidden],#rule-add[hidden],#noun-save[hidden],#adv-box[hidden]{display:none!important}
-    @media(max-width:640px){#noun-fields,#adv-box{grid-template-columns:1fr 1fr}}
+    @media(max-width:640px){#noun-fields,#wit-box,#adv-box,.scenarios{grid-template-columns:1fr 1fr}.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body class="has-desk-nav">
@@ -62,7 +73,17 @@
     </nav>
   </header>
   <main class="wrap">
-    <div class="banner" id="banner">Add a rule. Turn a widget on. Advanced lives here.</div>
+    <div class="banner" id="banner">Add a rule. When / If / Then. Turn a widget on. Advanced lives here.</div>
+    <div class="strip" aria-label="When If Then">
+      <div><b>When</b><span>Trigger — Drop, pipe, inbound name@account.aia, status change.</span></div>
+      <div><b>If</b><span>Condition — Qualify check, tag, word, unassigned, older than.</span></div>
+      <div><b>Then</b><span>Action — desk AI drafts, Queue card, notify. Human Yes/Stop for outbound or money.</span></div>
+      <div><b>Human</b><span>Yes or Stop. Collect stays HOLD. Nothing sends itself.</span></div>
+    </div>
+    <div class="vs">
+      <b>Rules vs pack workflows</b>
+      <p><b>Rule</b> = one When → If → Then on this desk. <b>Workflow / Sequence</b> = a pack that strings rules (optional delay / branch). Still thin JSON. No dashboard fork. Creators Studio writes the pack.</p>
+    </div>
     <div class="lock" id="session" hidden>
       <span id="who-line"></span>
       <a class="edit" href="/desk">Queue</a>
@@ -76,20 +97,19 @@
       <div class="item" id="desk-ais" hidden></div>
       <div class="item" id="rules">
       <h3>Owner rules</h3>
-      <p>Plain line = note on the card. Advanced can wait or stop. Owner taps. Worker never Send.</p>
+      <p>One When → If → Then on this desk. Desk AI drafts. Queue card or notify. Human Yes/Stop for outbound or money. Worker never Send. Collect stays HOLD.</p>
       <ul id="rule-list"></ul>
       <div id="rule-add" hidden style="margin-top:10px">
         <label class="field" for="rule-text">Ask me if</label>
         <input id="rule-text" placeholder="Ask me if money out waits on the owner." maxlength="180" style="width:100%">
-        <div class="row" style="margin-top:8px">
-          <button class="edit" type="button" id="adv-toggle" onclick="toggleAdv()">Advanced</button>
-          <button class="go" type="button" onclick="saveRule()">Add a rule</button>
-          <button class="edit" type="button" id="adv-cancel" hidden onclick="clearForm()">Cancel edit</button>
-        </div>
-        <div id="adv-box" hidden>
+        <div id="wit-box">
           <div>
-            <label class="field" for="rule-when">When</label>
+            <label class="field" for="rule-when">When · Trigger</label>
             <select id="rule-when">
+              <option value="drop">Drop</option>
+              <option value="pipe">Pipe event</option>
+              <option value="inbound">Inbound name@account.aia</option>
+              <option value="status">Status change</option>
               <option value="qualify">Qualify</option>
               <option value="capture">Capture</option>
               <option value="do">Do</option>
@@ -98,20 +118,49 @@
             </select>
           </div>
           <div>
-            <label class="field" for="rule-then">Then</label>
+            <label class="field" for="rule-then">Then · Action</label>
             <select id="rule-then">
+              <option value="draft">Desk AI drafts</option>
+              <option value="queue">Queue card / alert</option>
+              <option value="notify">Notify — draft HOLD</option>
+              <option value="tag">Tag the card</option>
+              <option value="escalate">Escalate priority</option>
               <option value="note">Note on the card</option>
               <option value="wait">Wait on the owner</option>
               <option value="stop">Stop — owner taps No</option>
             </select>
           </div>
           <div>
+            <label class="field" for="rule-contains">If · card contains</label>
+            <input id="rule-contains" maxlength="80" placeholder="click, international, Lead">
+          </div>
+          <div>
+            <label class="field" for="rule-iftag">If · tagged</label>
+            <input id="rule-iftag" maxlength="40" placeholder="Lead">
+          </div>
+          <div>
+            <label class="field" for="rule-tag">Then tag</label>
+            <input id="rule-tag" maxlength="40" placeholder="Interested">
+          </div>
+          <div>
+            <label class="field" for="rule-older">If · older than hours</label>
+            <input id="rule-older" inputmode="numeric" placeholder="24">
+          </div>
+        </div>
+        <label class="field" style="margin-top:8px"><input id="rule-unassigned" type="checkbox"> If unassigned</label>
+        <div class="row" style="margin-top:8px">
+          <button class="edit" type="button" id="adv-toggle" onclick="toggleAdv()">Advanced</button>
+          <button class="go" type="button" onclick="saveRule()">Add a rule</button>
+          <button class="edit" type="button" id="adv-cancel" hidden onclick="clearForm()">Cancel edit</button>
+        </div>
+        <div id="adv-box" hidden>
+          <div>
             <label class="field" for="rule-money">If money is at least $</label>
             <input id="rule-money" inputmode="decimal" placeholder="leave blank">
           </div>
           <div>
-            <label class="field" for="rule-contains">If the card contains</label>
-            <input id="rule-contains" maxlength="80" placeholder="contract, public, 401">
+            <label class="field" for="rule-ifstatus">If status</label>
+            <input id="rule-ifstatus" maxlength="32" placeholder="done">
           </div>
           <div>
             <label class="field" for="rule-field">If field</label>
@@ -119,10 +168,20 @@
           </div>
           <div>
             <label class="field" for="rule-value">equals / contains</label>
-            <input id="rule-value" maxlength="80" placeholder="vita">
+            <input id="rule-value" maxlength="80" placeholder="international">
           </div>
         </div>
-        <p class="meta" id="rule-hint">This desk only. Starts empty. Owner desk code to change them. Stop still needs the owner’s second tap.</p>
+        <p class="meta" id="rule-hint">This desk only. Starts empty. Owner desk code to change them. Stop still needs the owner’s second tap. Outbound and money stay HOLD.</p>
+      </div>
+      <div id="scenarios">
+        <h3 style="margin-top:12px">Example When → If → Then</h3>
+        <p>Copy the line. Do not install a seed. No live eBay or mail. Collect stays HOLD.</p>
+        <div class="scenarios">
+          <article><b>Lead click</b><span>When Drop · If tagged Lead and contains click · Then tag Interested. Desk AI drafts. Human send HOLD.</span></article>
+          <article><b>Task done</b><span>When status Done · Then notify owner. Desk AI draft. Nothing sends itself.</span></article>
+          <article><b>International order</b><span>When Drop · If new order + international · Then Customs Form alert on Queue.</span></article>
+          <article><b>Support late</b><span>When status · If unassigned + older than 24h · Then escalate priority.</span></article>
+        </div>
       </div>
     </div>
     <div class="item" id="nouns">
@@ -206,15 +265,24 @@
     function thenWord(t) {
       if (t === "wait") return "wait on owner";
       if (t === "stop") return "stop";
+      if (t === "draft") return "desk AI draft HOLD";
+      if (t === "queue") return "Queue card";
+      if (t === "notify") return "notify HOLD";
+      if (t === "tag") return "tag";
+      if (t === "escalate") return "escalate";
       return "note";
     }
     function ruleBits(r) {
       const bits = [];
-      if (r.advanced) bits.push("advanced");
-      if (r.when) bits.push(r.when);
-      if (r.then) bits.push(thenWord(r.then));
+      if (r.when) bits.push("When " + r.when);
+      if (r.then) bits.push("Then " + thenWord(r.then));
+      if (r.ifTag) bits.push("If tagged " + r.ifTag);
+      if (r.ifStatus) bits.push("If status " + r.ifStatus);
+      if (r.ifUnassigned) bits.push("If unassigned");
+      if (r.ifOlder != null) bits.push("If older " + r.ifOlder + "h");
       if (r.ifMoney != null) bits.push("$" + r.ifMoney + "+");
-      if (r.contains) bits.push("has \"" + r.contains + "\"");
+      if (r.contains) bits.push("If \"" + r.contains + "\"");
+      if (r.tag) bits.push("tag " + r.tag);
       if (r.ifField) bits.push(r.ifField + (r.ifValue ? "=" + r.ifValue : ""));
       return bits;
     }
@@ -249,27 +317,40 @@
     function clearForm() {
       EDIT_ID = "";
       document.getElementById("rule-text").value = "";
-      document.getElementById("rule-when").value = "qualify";
-      document.getElementById("rule-then").value = "note";
+      document.getElementById("rule-when").value = "drop";
+      document.getElementById("rule-then").value = "draft";
       document.getElementById("rule-money").value = "";
       document.getElementById("rule-contains").value = "";
       document.getElementById("rule-field").value = "";
       document.getElementById("rule-value").value = "";
+      document.getElementById("rule-iftag").value = "";
+      document.getElementById("rule-tag").value = "";
+      document.getElementById("rule-older").value = "";
+      document.getElementById("rule-ifstatus").value = "";
+      document.getElementById("rule-unassigned").checked = false;
       document.getElementById("adv-cancel").hidden = true;
       document.querySelector("#rule-add .go").textContent = "Add a rule";
       toggleAdv(false);
     }
     function payload() {
-      const body = { text: ((document.getElementById("rule-text") || {}).value || "").trim() };
+      const body = {
+        text: ((document.getElementById("rule-text") || {}).value || "").trim(),
+        when: document.getElementById("rule-when").value,
+        then: document.getElementById("rule-then").value,
+        contains: document.getElementById("rule-contains").value,
+        ifTag: document.getElementById("rule-iftag").value,
+        tag: document.getElementById("rule-tag").value,
+        ifUnassigned: !!(document.getElementById("rule-unassigned") || {}).checked
+      };
+      const older = document.getElementById("rule-older").value;
+      if (older) body.ifOlder = older;
       if (ADV_ON || EDIT_ID) {
         body.advanced = true;
-        body.when = document.getElementById("rule-when").value;
-        body.then = document.getElementById("rule-then").value;
         const money = document.getElementById("rule-money").value;
         if (money) body.ifMoney = money;
-        body.contains = document.getElementById("rule-contains").value;
         body.ifField = document.getElementById("rule-field").value;
         body.ifValue = document.getElementById("rule-value").value;
+        body.ifStatus = document.getElementById("rule-ifstatus").value;
       }
       return body;
     }
@@ -278,15 +359,20 @@
       if (!r) return;
       EDIT_ID = id;
       document.getElementById("rule-text").value = r.text || "";
-      document.getElementById("rule-when").value = r.when || "qualify";
-      document.getElementById("rule-then").value = r.then || "note";
+      document.getElementById("rule-when").value = r.when || "drop";
+      document.getElementById("rule-then").value = r.then || "draft";
       document.getElementById("rule-money").value = r.ifMoney != null ? r.ifMoney : "";
       document.getElementById("rule-contains").value = r.contains || "";
       document.getElementById("rule-field").value = r.ifField || "";
       document.getElementById("rule-value").value = r.ifValue || "";
+      document.getElementById("rule-iftag").value = r.ifTag || "";
+      document.getElementById("rule-tag").value = r.tag || "";
+      document.getElementById("rule-older").value = r.ifOlder != null ? r.ifOlder : "";
+      document.getElementById("rule-ifstatus").value = r.ifStatus || "";
+      document.getElementById("rule-unassigned").checked = !!r.ifUnassigned;
       document.getElementById("adv-cancel").hidden = false;
       document.querySelector("#rule-add .go").textContent = "Save rule";
-      toggleAdv(!!r.advanced || r.then === "wait" || r.then === "stop" || r.ifMoney != null || r.contains || r.ifField);
+      toggleAdv(!!r.advanced || r.ifMoney != null || r.ifField || r.ifStatus);
       document.getElementById("rule-text").focus();
     }
     async function saveRule() {
@@ -370,7 +456,7 @@
         paintRules(RULES, can);
         paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);
         if (rulesOut.data && rulesOut.data.widgetsOn != null) paintCount(rulesOut.data.widgetsOn);
-        banner.textContent = "Add a rule. Advanced is When / Then / money / words. This page is not Legal.";
+        banner.textContent = "Add a rule. When / If / Then. A pack workflow strings rules. This page is not Legal.";
         paintGate();
       } catch (e) {
         banner.textContent = "Could not reach the desk.";

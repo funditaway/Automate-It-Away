@@ -1,7 +1,7 @@
 const { dropCannedSeeds } = require("./_drop-seed");
 const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob } = require("./_fields");
-const { qualifyJob, recommend, icsOf, runWorkspace, markFlow } = require("./_engine");
+const { qualifyJob, recommend, icsOf, runWorkspace, markFlow, applyRules } = require("./_engine");
 const { grokRecommend, normalizeCites } = require("./_grok");
 const { needsOf, isPriorityJob } = require("./_history");
 const clock = require("./_clock");
@@ -27,7 +27,7 @@ function actorName(person, body) {
 function actorBlocked(person) {
   return ais.actorIsDeskAi(person);
 }
-function markDone(job, person, body, how) {
+function markDone(job, person, body, how, shop) {
   const note = String((body && (body.text || body.notes)) || "Done off the desk.").trim();
   job.status = "shipped";
   job.doneHow = how || (body && body.how) || "off-desk";
@@ -41,6 +41,7 @@ function markDone(job, person, body, how) {
   job.rail = job.doneHow === "hand" ? "carried" : "done";
   job.whoTapped = actorName(person, body || {});
   job.dispatch = job.dispatch || { demo: false, done: true, how: job.doneHow };
+  if (shop) applyRules(job, shop, "status");
   return note;
 }
 function markHand(job, person, body) {
@@ -337,7 +338,7 @@ module.exports = async function handler(req, res) {
       if (waitHit && shop && !isOwner(person)) return res.status(403).json({ ok: false, error: ruleWhy(rules, job, "do") || ruleWhy(rules, job, "follow") || "Waiting on the owner to mark this done.", job });
       const note = String(body.text || body.notes || "Done by hand.").trim();
       job.carried = true;
-      markDone(job, person, body, "hand");
+      markDone(job, person, body, "hand", shop);
       job.followNote = note;
       job.dispatch = { demo: false, carried: true, how: "hand", note: "Done by hand on this desk." };
       markFlow(job, "follow");
@@ -349,7 +350,7 @@ module.exports = async function handler(req, res) {
     }
     if (action === "done") {
       if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never Yes. A person taps Done.", never: ais.NEVER.slice(), job });
-      const note = markDone(job, person, body, body.how || "off-desk");
+      const note = markDone(job, person, body, body.how || "off-desk", shop);
       markFlow(job, "follow");
       addTalk(job, actorName(person, body), note, "follow");
       job.log = (job.log || []).concat(["Done · " + (job.doneHow || "off-desk")]);

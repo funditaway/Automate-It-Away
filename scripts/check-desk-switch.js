@@ -255,14 +255,27 @@ if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the wor
 else pass("how is doer-short");
 if (!fs.readFileSync(path.join(root, "setup.html"), "utf8").includes("Add a rule if you need one")) fail("setup missing doer copy");
 else pass("setup is doer-short");
-if (!rulesPage.includes("Add a rule. Turn a widget on. Advanced lives here.")) fail("rules missing doer copy");
+if (!rulesPage.includes("Add a rule. When / If / Then. Turn a widget on. Advanced lives here.")) fail("rules missing doer copy");
 else pass("rules is doer-short");
+["When · Trigger", "Then · Action", "Rules vs pack workflows", "Example When → If → Then", "name@account.aia", "Human send HOLD"].forEach(function (bit) {
+  if (!rulesPage.includes(bit)) fail("rules.html missing " + bit);
+  else pass("rules " + bit);
+});
+if (rulesPage.includes("id=\"starters\"") || rulesPage.includes("Starters")) fail("rules.html must not install starter rules");
+else pass("rules has no starter chrome");
 if (!login.includes("placeholder=\"Desk name\"")) fail("login still names a slug");
 else pass("login placeholder is generic");
 const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
 if (!help.includes("Waiting on a person.") || !help.includes("Owner, twice.") || !help.includes("The job.") || !help.includes("Save a file")) {
   fail("help.html missing doer button labels");
 } else pass("help.html uses doer button labels");
+["When · Trigger", "Workflow / Sequence", "Lead click", "Customs Form", "older than 24h"].forEach(function (bit) {
+  if (!help.includes(bit)) fail("help.html missing " + bit);
+  else pass("help " + bit);
+});
+const vercelHelp = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+if (!vercelHelp.includes("\"/help\"") || !vercelHelp.includes("/help.html")) fail("vercel /help must rewrite to help.html");
+else pass("/help → help.html");
 if (jobs.includes("amount >= MONEY_HOLD && !body.confirm")) {
   fail("jobs.js still hard-codes amount >= 250 → 409");
 } else if (!jobs.includes("moneyWaitOf") || !jobs.includes("moneyNeedsOwner") || !jobs.includes("status(409)")) {

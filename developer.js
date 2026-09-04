@@ -43,6 +43,20 @@
       if (el) el.value = formState[id];
     });
   }
+  function parseWorkflows(raw) {
+    var t = String(raw || "").trim();
+    if (!t) return [];
+    try {
+      var parsed = JSON.parse(t);
+      return Array.isArray(parsed) ? parsed : (parsed && (parsed.workflows || parsed.sequences || parsed.rules) ? [].concat(parsed.workflows || parsed.sequences || [parsed]) : []);
+    } catch (e) {
+      return t.split(/\n+/).map(function (line) {
+        line = String(line || "").trim();
+        if (!line) return null;
+        return { name: line.slice(0, 80), rules: [{ text: line.slice(0, 140) }] };
+      }).filter(Boolean);
+    }
+  }
   function parseFields(line) {
     return String(line || "").split(/[,;\n]+/).map(function (part) {
       var bits = part.split(":");
@@ -96,6 +110,7 @@
       fields: parseFields(val("fields") || formState.fields || ""),
       kinds: val("kinds") || formState.kinds || "",
       rules: (val("rule") || formState.rule) ? [{ text: val("rule") || formState.rule }] : [],
+      workflows: parseWorkflows(val("workflows") || formState.workflows || ""),
       ask: Number(val("ask") || formState.ask || 0) || 0,
       bots: bots(),
       ais: aisFromForm(),
@@ -170,7 +185,10 @@
       "<label>What it does</label><input id=\"does\" placeholder=\"Photo in. Draft the title. Wait on payout.\">" +
       "<label>Fields (label:type)</label><input id=\"fields\" placeholder=\"who:text, lots:number, titled:yesno\">" +
       "<label>Kinds</label><input id=\"kinds\" placeholder=\"list, photo, walk-in\">" +
-      "<label>Rule line</label><input id=\"rule\" placeholder=\"Cap title-missing items.\">" +
+      "<label>Rule line</label><input id=\"rule\" placeholder=\"When Drop · If tagged Lead · Then tag Interested. Draft HOLD.\">" +
+      "<label>Workflows / Sequences (thin JSON)</label>" +
+      "<textarea id=\"workflows\" rows=\"4\" placeholder='[{\"name\":\"Lead click\",\"rules\":[{\"when\":\"drop\",\"ifTag\":\"Lead\",\"contains\":\"click\",\"then\":\"draft\",\"tag\":\"Interested\",\"text\":\"Click + Lead → tag Interested. Draft HOLD.\"}]}]'></textarea>" +
+      "<p class=\"hint\">A <b>rule</b> is one When → If → Then on this desk. A <b>workflow / sequence</b> strings rules (optional delay / branch). Still thin JSON. No dashboard fork. Collect stays HOLD. Never Send.</p>" +
       "<label>Ask (Collect stays HOLD)</label><input id=\"ask\" inputmode=\"decimal\" placeholder=\"Leave blank to list free\">" +
       "<p class=\"hint\">A number here is a listed ask. World desks can still install the pack. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-pack\">Save draft</button></p></div>"
@@ -256,6 +274,19 @@
       "<a class=\"go ghost\" href=\"/rules\">4 Rules</a></p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
+      "<div class=\"strip\" aria-label=\"When If Then\">" +
+        "<div><b>When</b><span>Trigger — Drop, pipe, inbound name@account.aia, status.</span></div>" +
+        "<div><b>If</b><span>Condition — Qualify check, tag, word, unassigned, older than.</span></div>" +
+        "<div><b>Then</b><span>Action — desk AI drafts, Queue card, notify. Human Yes/Stop.</span></div>" +
+        "<div><b>Pack workflow</b><span>Strings rules. Optional delay / branch. Thin JSON. Collect HOLD.</span></div>" +
+      "</div>" +
+      "<div class=\"card\" style=\"margin:8px 0 0;padding:0;border:0;box-shadow:none\">" +
+        "<p class=\"hint\"><b>Example When → If → Then</b> — copy, do not seed. No live eBay or mail.</p>" +
+        "<p class=\"hint\">Lead click: Drop + tagged Lead + click → tag Interested. Draft. Human send HOLD.</p>" +
+        "<p class=\"hint\">Task done: status Done → notify owner. Desk AI draft.</p>" +
+        "<p class=\"hint\">International order: Drop + international → Customs Form alert on Queue.</p>" +
+        "<p class=\"hint\">Support late: unassigned + older than 24h → escalate priority.</p>" +
+      "</div>" +
       "<p class=\"cta\"><a class=\"go ghost\" href=\"/market?pack=aia-adoption\">Try it on this desk</a>" +
       "<a class=\"go ghost\" href=\"/market?pack=aia-implement\">Four steps pack</a></p>" +
       "<div id=\"mine-list\"></div></div>" +
@@ -404,6 +435,9 @@
       }).filter(Boolean).join(", ") : "");
     formState.kinds = Array.isArray(pack.kinds) ? pack.kinds.join(", ") : (pack.kinds || "");
     formState.rule = pack.rule || (pack.rules && pack.rules[0] && (pack.rules[0].text || pack.rules[0])) || "";
+    formState.workflows = Array.isArray(pack.workflows) || Array.isArray(pack.sequences)
+      ? JSON.stringify(pack.workflows || pack.sequences, null, 2)
+      : (pack.workflows || "");
     formState.ask = pack.ask != null ? String(pack.ask) : "";
     formState["drop-hint"] = pack.dropHint || "";
     if (pack.queue) {
