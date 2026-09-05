@@ -76,6 +76,11 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Onboard this desk (`/help#onboard-desk`): four beats — Pipes (copy `www.automateitaway.com/api/hook`; Zapier/Make can post today; Search a site / Log in = vendor console, draft only; Calendar, SMS, Square, eBay HOLD until keys + Yes) · Account / desk identity (desk name + desk code; `james.aia`-style name on Account; no live Business Details / brand-kit page) · People (link `#people-desk`; Owner vs Helper; no Team email seats) · Packs (Studio `/dev` write or install `.aia`; Marketplace browse; fresh desks empty until drop or install; Collect HOLD; no silent charge; no mapping shared OpenAI keys into packs).
 - `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
 - `scripts/check-world-people.js` covers Add people + Onboard this desk honesty (no invented Integrations Connect Tool, Connected Accounts OAuth, Team email seats, or Import Pack workspace keys).
+- Selling packs — risk honesty (`/help#sell-packs` + Studio one-liner): thin JSON; drafts on buyer desk; Yes/Stop/Kill human; Collect HOLD; buyer keys; never hardcode yours; no 100% safe / never banned; creator stands behind pack; Help is not legal advice; bad packs → Talk to AIA / Admin desk; Marketplace can unlist; AS IS note in creator’s own pack docs, not an AIA attach flow.
+- When a pack is worth it (`/help#pack-worth`): process already works; multi-step qualify → draft with fallbacks. Not worth: broken offer/process; abandoned when APIs change; trivial webhook → note you can Drop yourself. No $47–$197 / $50/hr / 300 hours / 10–15 minutes tables on that card.
+- Wallet Connect one-liner (Account + Help Login): browser wallet for `.aia` / registry when Bridge unlocks — not compute credits or a creator payout ledger. Collect and payouts HOLD.
+- Creator takeaways (`/help#creator-takeaways`): pack quality (JSON, buyer keys, fallbacks); People `@handle` Owner/Helper; Collect HOLD; no merchant-of-record money desk / email Team seats / social OAuth.
+- `scripts/check-pack-sell.js` covers risk / worth-it / wallet / takeaways honesty.
 
 ## NO (do not pretend these shipped)
 
@@ -110,6 +115,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Email invite mail, User Groups, shared model keys, Connected Accounts for auto-post, or an AIA Studios social scheduler.
 - Settings → Integrations LLM/CRM “Connect Tool.” AIA Studios Connected Accounts OAuth (TikTok / Instagram / Threads / X / YouTube). Team email invites with Admin / Creator / Viewer roles. Import Pack that writes workspace API keys or user groups.
 - A live Business Details / brand-kit settings page. Calendar, SMS, Square, or eBay as live pipes without keys + human Yes. Mapping shared OpenAI keys into packs.
+- Merchant-of-record chargeback holds, payout freezes, a sandbox throttle ladder, or Lemon Squeezy / Paddle as AIA money pipes. A 100% safe / never-banned pack promise. An AIA attach flow for AS IS / EULA.
+- Wallet Connect as compute credits or a creator payout ledger.
+- $47–$197 / $50/hr / 300 hours / 10–15 minutes tables on “When a pack is worth it.”
 
 ## Ask me if
 

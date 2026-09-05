@@ -123,6 +123,14 @@ AIA has no public payout baseline and no published creator rate card. Creators e
 
 Agency or client consulting retainers are off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com. Do not invent AI Creator income bands, affiliate percents, or influencer payout tables.
 
+## Selling packs — risk honesty
+
+Not legal advice. A pack is thin JSON. It drafts on the buyer’s desk. Yes / Stop / Kill stay human. Collect stays HOLD. Buyers bring their own keys and pipes — never hardcode the creator’s. Do not promise 100% safe or never banned. The creator stands behind the pack; get counsel for EULA / privacy. Bad packs (key leaks): Talk to AIA / Admin desk; Marketplace can unlist. Do not invent merchant-of-record chargeback holds, payout freezes, a sandbox throttle ladder, or Lemon Squeezy / Paddle as AIA money pipes. A short AS IS note lives in the creator’s own pack docs — not an AIA attach flow.
+
+## When a pack is worth it
+
+Worth it: the process already works by hand; multi-step qualify → draft with fallbacks. Not worth it: a broken offer or process; abandoned when APIs change; a trivial webhook → note you can Drop yourself. No $47–$197, $50/hr, 300 hours, or 10–15 minutes tables on this card.
+
 ## World users · launch an automation business
 
 Help (`/help#world`) and Studio (`#world`) fold this into one short path. Days are a guide, not a promise.

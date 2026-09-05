@@ -82,6 +82,7 @@
         <dt>Paid ads (off-platform)</dt>
         <dd>If you buy Meta, Google, TikTok, or YouTube ads off-platform to market a pack, take-home depends on ROAS, CAC, and the funnel — lead magnet → tripwire → pack → upsell — not raw sales volume. Example thinking only. AIA does not run ads and does not guarantee ROAS.</dd>
       </dl>
+      <p>Selling packs: thin JSON, buyer keys, Collect HOLD. Not 100% safe. Help is not legal advice. <a href="#sell-packs">#sell-packs</a>. When a pack is worth it: <a href="#pack-worth">#pack-worth</a>.</p>
       <p><a href="/onboard">Open a desk</a> · <a href="/dev">Creators Studio</a> · <a href="/dev#earnings">Creators / earnings</a></p>
     </div>
     <div class="card" id="people-desk">
@@ -107,6 +108,40 @@
         <li><strong>Packs.</strong> Write in Creators Studio (<code>/dev</code>) or install a <code>.aia</code>. Browse Marketplace. A fresh desk is empty until you drop or install. Collect money stays HOLD — no silent charge, and we do not map shared OpenAI keys into packs.</li>
       </ol>
       <p>Not on this desk: Settings → Integrations LLM/CRM “Connect Tool.” AIA Studios Connected Accounts OAuth (TikTok / Instagram / Threads / X / YouTube). Team email invites with Admin / Creator / Viewer roles. Import Pack that writes workspace API keys or User Groups.</p>
+    </div>
+    <div class="card" id="sell-packs">
+      <h2>Selling packs — risk honesty</h2>
+      <p>Not legal advice. A pack is thin JSON. It drafts on the buyer’s desk. Yes / Stop / Kill stay human. Collect stays HOLD.</p>
+      <dl>
+        <dt>Buyer’s keys</dt>
+        <dd>Buyers bring their own keys and pipes. Never hardcode yours into the pack.</dd>
+        <dt>No 100% safe</dt>
+        <dd>Do not promise a pack is 100% safe or never banned.</dd>
+        <dt>You stand behind it</dt>
+        <dd>The creator stands behind the pack. Get your own counsel for EULA and privacy. Help is not legal advice.</dd>
+        <dt>Bad packs</dt>
+        <dd>Key leaks or a pack that hurts a desk: <a href="/support">Talk to AIA</a>. We write a card on the Admin desk. Marketplace can unlist. AIA does not run chargeback holds, payout freezes, or a sandbox throttle ladder.</dd>
+        <dt>AS IS</dt>
+        <dd>Put a short AS IS note in your own pack docs if you want one. AIA does not attach legal terms to the install.</dd>
+      </dl>
+    </div>
+    <div class="card" id="pack-worth">
+      <h2>When a pack is worth it</h2>
+      <p>Under Packs. No price tables. No hour tables.</p>
+      <dl>
+        <dt>Worth it</dt>
+        <dd>The process already works by hand. Multi-step qualify → draft with fallbacks (Rules + Rail). A world desk can install the thin JSON and run it on their keys.</dd>
+        <dt>Not worth it</dt>
+        <dd>The offer or process is still broken. Abandoned when APIs change. A trivial webhook → note you can Drop yourself.</dd>
+      </dl>
+    </div>
+    <div class="card" id="creator-takeaways">
+      <h2>Creator takeaways</h2>
+      <ul>
+        <li>Pack quality: thin JSON, buyer keys, fallbacks. Collect HOLD.</li>
+        <li>People: world <code>@handle</code>. Owner vs Helper. No email Team seats.</li>
+        <li>Collect HOLD. No merchant-of-record money desk. No social OAuth auto-post.</li>
+      </ul>
     </div>
     <div class="card" id="faq">
       <h2>FAQ</h2>
@@ -147,7 +182,7 @@
     </div>
     <div class="card">
       <h2>Pages that exist</h2>
-      <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Packs</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Pipes</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop#talk">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
+      <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#creator-takeaways">Creator takeaways</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Packs</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Pipes</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop#talk">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
     </div>
     <div class="card">
       <h2>Owner vs helper</h2>
@@ -163,7 +198,7 @@
         <dt>Creators Studio</dt>
         <dd>Same login on /dev. Write a thin JSON pack on AIA Internet. Download, share, or install it as a .aia file. Test it on this desk. AIA lists it. World desks install it onto an empty starting queue. You earn by pricing a pack — AIA has no public payout baseline. Agency consulting is off-platform. Collect stays HOLD until a person taps Yes. Wallet / registry connect later as a Pipe HOLD.</dd>
         <dt>Packs</dt>
-        <dd>Browse on /market. Open packs on AIA Internet: thin JSON a world desk can install, named like springfield-shop.aia. Download or share as a .aia file. Install a .aia onto this desk. Use a pack on this desk. A listed ask still installs — Collect stays HOLD. No silent charge. No public payout table. Fresh desks start empty until you add or install a pack. Packs do not send money, bind coverage, or pay out.</dd>
+        <dd>Browse on /market. Open packs on AIA Internet: thin JSON a world desk can install, named like springfield-shop.aia. Download or share as a .aia file. Install a .aia onto this desk. Use a pack on this desk. A listed ask still installs — Collect stays HOLD. No silent charge. No public payout table. Fresh desks start empty until you add or install a pack. Packs do not send money, bind coverage, or pay out. When a pack is worth it: <a href="#pack-worth">#pack-worth</a>.</dd>
       </dl>
     </div>
     <div class="card">
@@ -259,7 +294,7 @@
     </div>
     <div class="card">
       <h2>Login</h2>
-      <p>Desk name + desk code, or email + password on Account. Not social SSO. Set an AIA Internet name like james.aia on Account so people can find you. Email is not a world name. .aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>
+      <p>Desk name + desk code, or email + password on Account. Not social SSO. Set an AIA Internet name like james.aia on Account so people can find you. Email is not a world name. .aia names on this desk now. Wallet Connect is a browser wallet for .aia / registry when Bridge unlocks — not compute credits or a creator payout ledger. Collect and payouts HOLD.</p>
     </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">

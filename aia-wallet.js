@@ -2,7 +2,7 @@
 (function () {
   var ADDR_KEY = "aia_wallet_address";
   var CHAIN_KEY = "aia_wallet_chain";
-  var HELP = "Wallet is for AIA Internet identity / TLD ownership. Mint and Bridge stay external until ready. Collect stays HOLD.";
+  var HELP = "Wallet Connect is a browser wallet for .aia / registry when Bridge unlocks — not compute credits or a creator payout ledger. Mint and Bridge stay external until ready. Collect stays HOLD. Payouts HOLD.";
   var MISSING = "No browser wallet on this phone. Install MetaMask or another EIP-1193 wallet, then tap Connect.";
 
   function host() { return document.getElementById("aia-wallet"); }
