@@ -45,6 +45,7 @@
     <div class="row"><span>Whatnot</span><span class="down">Not a launch pipe</span></div>
     <div class="row"><span>Grok Bot public API</span><span class="down">Does not exist — not a gate</span></div>
     <div class="row"><span>Browser wallet</span><span id="wallet" class="hold">Checking…</span></div>
+    <div class="row"><span>AIA Internet · .aia TLD</span><span id="aia-tld-row" class="hold">Checking…</span></div>
     <p style="color:#8b9aab;margin-top:18px">Green is honest. Orange is P1. Red we skip for launch.</p>
     <pre id="raw">waiting on /api/status</pre>
   </main>
@@ -82,6 +83,23 @@
           var note = w.note || "No browser wallet on this open desk. Connect on Account.";
           walletEl.textContent = /Collect stays HOLD/i.test(note) ? note : (note + " Collect stays HOLD.");
           walletEl.className = "hold";
+        }
+      }
+      const tldEl = document.getElementById("aia-tld-row");
+      const tld = (status && status.aiaTld) || {};
+      if (tldEl) {
+        if (tld.ownedByConnected || tld.owned) {
+          tldEl.textContent = "Owned — wallet matches registry owner. Collect stays HOLD.";
+          tldEl.className = "up";
+        } else if (tld.bridgeLocked) {
+          tldEl.textContent = (tld.note || "Bridge locked on Decentraweb — watching.") + " Collect stays HOLD.";
+          tldEl.className = "hold";
+        } else if (tld.available) {
+          tldEl.textContent = "Available to register — Connect wallet then Register. Collect stays HOLD.";
+          tldEl.className = "up";
+        } else {
+          tldEl.textContent = (tld.note || "Watching Decentraweb for .aia.") + ( /Collect stays HOLD/i.test(tld.note || "") ? "" : " Collect stays HOLD.");
+          tldEl.className = "hold";
         }
       }
     }).catch(() => {
