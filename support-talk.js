@@ -128,22 +128,21 @@
       return;
     }
     thread("Listening …");
-    AIASpeech.listen({
-      ontext: function (t) {
-        var said = String(t || "").trim();
-        if (!said) return;
-        if (/\bdrop it\b|file it|send it/i.test(said)) {
-          applyTalk(said.replace(/\b(drop it|file it|send it)\b/ig, "").trim());
-          dropCard();
-          return;
-        }
-        applyTalk(said);
-        asked += 1;
-        if (asked === 1) thread("Which page, and the name of your desk — not the code?");
-        else if (asked === 2) thread("How do we reach you? Then say drop it.");
-        else thread("Say drop it to put this on the AIA desk.");
-      },
-      onend: function () {}
+    AIASpeech.listen(function (t) {
+      var said = String(t || "").trim();
+      if (!said) return;
+      if (/\bdrop it\b|file it|send it/i.test(said)) {
+        applyTalk(said.replace(/\b(drop it|file it|send it)\b/ig, "").trim());
+        dropCard();
+        return;
+      }
+      applyTalk(said);
+      asked += 1;
+      if (asked === 1) thread("Which page, and the name of your desk — not the code?");
+      else if (asked === 2) thread("How do we reach you? Then say drop it.");
+      else thread("Say drop it to put this on the AIA desk.");
+    }, function (msg) {
+      setOk(msg || "Did not catch that. Tap Talk and say it again.");
     });
   }
 

@@ -86,6 +86,11 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Ideas → queue (`/help#ideas-queue`): Drop → Qualify → card → Yes / Stop. History past / now / next. No effort or token estimate UI.
 - FAQ: work with / for AIA = build packs + Talk to AIA; agency / DFY off-platform; no careers portal / certified partner program. AIA License = no separate license SKU — desk account + pack install; Collect and payouts HOLD; no Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
 - `scripts/check-build-pack.js` covers build-pack / orchestration / FAQ honesty.
+- How the queue runs (`/help#queue-runs`): Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill → Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD.
+- FAQ plan tiers: no public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Collect and payouts HOLD. No merchant-of-record.
+- FAQ Create / Drop a goal → draft card → Yes. No autonomous ETA engine. No SaaS codegen.
+- Support Talk (`support-talk.js`) calls `AIASpeech.listen(fn, fn)` like Drop / Login. World door still posts to desk `aia` with no pin.
+- `scripts/check-queue-help.js` covers queue-run Help + Support Talk listen contract.
 
 ## NO (do not pretend these shipped)
 
@@ -126,6 +131,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - A node canvas, Router Node, or sub-agent mesh. `BUYER_ENVIRONMENT_BINDINGS` or other invented schema products.
 - A careers portal or certified partner program. A separate AIA License SKU, Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
 - An effort or token estimate UI on History or the queue. Yes as a collect charge.
+- Public Free / Pro / Team / Enterprise SKUs or credit pricing. Codegen, deploy, or GitHub auto-patch from this desk. An autonomous ETA engine or SaaS codegen.
 
 ## Ask me if
 

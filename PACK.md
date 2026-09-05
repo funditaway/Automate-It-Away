@@ -141,6 +141,10 @@ Ideas → queue = Drop → Qualify → card → Yes / Stop. History is past / no
 
 FAQ: work with / for AIA = build packs + Talk to AIA; agency / DFY off-platform; no careers portal / certified partner program. AIA License = no separate license SKU — desk account + pack install; Collect and payouts HOLD; no Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
 
+How the queue runs: Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill → Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD.
+
+Plan tiers FAQ: no public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Create / Drop a goal → draft card → Yes. No autonomous ETA engine. No SaaS codegen.
+
 ## World users · launch an automation business
 
 Help (`/help#world`) and Studio (`#world`) fold this into one short path. Days are a guide, not a promise.
