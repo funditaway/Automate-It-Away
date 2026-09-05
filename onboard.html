@@ -113,14 +113,6 @@
       if (pin.length < 4) { err.textContent = "Pick a desk code with at least 4 digits."; err.style.display = "block"; return; }
       const isMember = String(f.get("role") || "") === "member";
       const slug = String(f.get("biz") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
-      localStorage.setItem("aia_ws", slug);
-      localStorage.setItem("aia_pin", pin);
-      localStorage.setItem("aia_role", isMember ? "member" : "owner");
-      localStorage.setItem("aia_name", f.get("name") || "");
-      localStorage.setItem("aia_desk_name", String(f.get("biz") || slug));
-      if (window.AIADesks) {
-        AIADesks.open({ slug: slug, name: String(f.get("biz") || slug), pin: pin, role: isMember ? "member" : "owner" });
-      }
       try {
         const r = await fetch("/api/auth", {
           method: "POST",
@@ -145,6 +137,22 @@
           err.style.display = "block";
           err.textContent = data.hint || "On the book. Owner approves your member seat on People, then you sign in.";
           return;
+        }
+        if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data, pin);
+        localStorage.setItem("aia_ws", slug);
+        localStorage.setItem("aia_pin", pin);
+        localStorage.setItem("aia_role", (data.you && data.you.role) || (isMember ? "member" : "owner"));
+        localStorage.setItem("aia_name", (data.you && data.you.name) || f.get("name") || "");
+        localStorage.setItem("aia_desk_name", (data.workspace && (data.workspace.biz || data.workspace.name)) || String(f.get("biz") || slug));
+        if (window.AIADesks && AIADesks.open) {
+          AIADesks.open({
+            slug: (data.workspace && data.workspace.slug) || slug,
+            name: (data.workspace && (data.workspace.biz || data.workspace.name)) || String(f.get("biz") || slug),
+            pin: pin,
+            token: data.session && data.session.token,
+            role: (data.you && data.you.role) || (isMember ? "member" : "owner"),
+            who: (data.you && data.you.name) || f.get("name") || ""
+          });
         }
         location.href = "desk.html";
       } catch (ex) {
