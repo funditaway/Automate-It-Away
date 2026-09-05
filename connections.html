@@ -248,7 +248,7 @@
       if (!box) return;
       let rows = [];
       try {
-        if (window.AIADeskSwitch && AIADeskSwitch.list) rows = AIADeskSwitch.list() || [];
+        if (window.AIADesks && AIADesks.list) rows = AIADesks.list() || [];
         else rows = JSON.parse(localStorage.getItem("aia_desks") || "[]");
       } catch (e) { rows = []; }
       if (!rows.length) { box.innerHTML = ""; return; }
@@ -262,10 +262,10 @@
     function pickDesk(slug) {
       wsEl.value = slug;
       try {
-        const rows = (window.AIADeskSwitch && AIADeskSwitch.list && AIADeskSwitch.list()) || JSON.parse(localStorage.getItem("aia_desks") || "[]");
+        const rows = (window.AIADesks && AIADesks.list && AIADesks.list()) || JSON.parse(localStorage.getItem("aia_desks") || "[]");
         const hit = rows.find(d => (d.slug || d.biz) === slug);
         if (hit && hit.pin) pinEl.value = hit.pin;
-        if (window.AIADeskSwitch && AIADeskSwitch.open) AIADeskSwitch.open(hit || { slug: slug });
+        if (window.AIADesks && AIADesks.open) AIADesks.open(hit || { slug: slug });
       } catch (e) {}
       localStorage.setItem("aia_ws", slug);
       paintSaved();

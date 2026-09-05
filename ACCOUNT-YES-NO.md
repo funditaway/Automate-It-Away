@@ -101,6 +101,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-onboard-session.js` covers onboard session order.
 - History and Rules `esc()` encode `& < > "` for `innerHTML` (titles / rule text). A card like `2 < 3` must not break the list.
 - `scripts/check-history-esc.js` covers History / Rules escape honesty.
+- Pipes / Connections saved-desk picker calls `AIADesks.open` (not a missing `AIADeskSwitch`) so `aia_pin` follows the tapped desk.
+- `scripts/check-pipes-switch.js` covers that switch.
 
 ## NO (do not pretend these shipped)
 
