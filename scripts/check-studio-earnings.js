@@ -87,7 +87,12 @@ const launchBits = [
   "operational infrastructure",
   "Tripwire / Core",
   "Industry bundles",
-  "does not host"
+  "does not host",
+  "Pack Creator",
+  "repurposing drafts",
+  "not live OAuth",
+  "Not social SSO",
+  "clear titles + niche keywords"
 ];
 Object.keys(worldSurfaces).forEach(function (name) {
   const src = worldSurfaces[name];
@@ -124,6 +129,12 @@ if (/always works/i.test(help + studioHtml) && !/not .always works/i.test(help +
 if (/review-rate|4\.9 star|close rate/i.test(help + studioHtml + studioJs) && !/No invented close rates|Do not invent review-rate|No review-rate/i.test(help + studioHtml + studioJs)) {
   fail("invented review or close-rate stats");
 } else pass("no invented review/close stats");
+if (/Login Kit|hands-off niche|auto-schedule/i.test(help + studioHtml + studioJs)) {
+  fail("must not ship Automated Short-Form / Media Creator as live Studio");
+} else pass("no live short-form auto-publisher");
+if (/social SSO/i.test(help + studioHtml) && !/Not social SSO/i.test(help + studioHtml)) {
+  fail("account door must not be social SSO");
+} else pass("account door is not social SSO");
 
 const fake = [
   /\$1\.5k/i,

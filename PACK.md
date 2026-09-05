@@ -155,6 +155,8 @@ First 3 clients: Audit (playbook step 1) → 60s proof → risk-free trial. No i
 
 **Expansion:** recurring update pass — Collect HOLD; do not invent a subscription engine. Industry bundles = repackage `.aia`. `$0.05/exec` micro-SaaS is off-platform or a future pipe — AIA does not host per-run billing.
 
+**Workflow & Agent Pack Creator (on-desk):** package named desk AIs, webhooks, and CRM pipes when connected into a `.aia`. Solve a specific problem (lead qualify, review responder, social *repurposing drafts*). Not auto-publish unless a live pipe exists. You set prices. Collect HOLD. Social auto-post is a future / off-platform pipe — not live OAuth. Account door: desk name + code, or email + password — not social SSO. Marketplace GTM: clear titles + niche keywords. No top-ranking guarantee.
+
 ## AIA Internet · `.aia` packs
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.

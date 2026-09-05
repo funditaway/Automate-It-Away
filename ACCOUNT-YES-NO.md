@@ -66,6 +66,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Four models labeled on-desk vs off-platform: Agency / DFY / co-pilot off-platform; Marketplace on-desk Studio. First 3 clients: audit → 60s proof → risk-free trial. No invented close rates. 10–15% cuts are examples only, not AIA terms.
 - Pack quality maps to Capture → Qualify → Do → Collect HOLD → Follow. Fallbacks = Rules + Rail. Slack / Sheets / Notion pipes HOLD until Yes / keys. No “always works.” No invented review-rate stats.
 - Funnel tiers (Tripwire / Core / High-ticket DFY) and price bands stay illustrative — you set prices. Recurring update pass stays Collect HOLD; no invented subscription engine. $0.05/exec is off-platform or a future pipe — AIA does not host per-run billing.
+- On-desk Pack Creator: named desk AIs + webhooks + CRM pipes when connected, packed as `.aia`. Social *repurposing drafts* only — not auto-publish unless a live pipe exists. Social auto-post is a future / off-platform pipe — not live OAuth.
+- Account door: desk name + code, or email + password on /account. Not social SSO. Marketplace GTM is clear titles + niche keywords — no top-ranking guarantee.
 - `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
 
 ## NO (do not pretend these shipped)
@@ -95,6 +97,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Live usage / micro-SaaS / per-exec billing hosted by AIA.
 - A platform subscription engine for pack updates.
 - Live Slack / Sheets / Notion send without keys + Yes.
+- Live social auto-post / auto-schedule / Login Kit / hands-off niche accounts. Social OAuth publish is not live.
+- Social SSO as the account door. Live doors are desk name + code, or email + password.
 
 ## Ask me if
 
