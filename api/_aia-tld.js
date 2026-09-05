@@ -13,7 +13,7 @@ const FETCH_MS = 3500;
 const FEE = "~0.041–0.045 ETH/yr + gas, or DWEB";
 const LOCKED_NOTE = "Bridge locked on Decentraweb — watching. When unlocked, Connect wallet then Register.";
 const READY_NOTE = "Ready to mint when Bridge clears.";
-const AVAILABLE_NOTE = "Bridge is clear. Connect wallet on this Account, then Register .aia. James signs in MetaMask. AIA holds no keys.";
+const AVAILABLE_NOTE = "Bridge is clear. Connect wallet, then Register .aia on this desk. James signs commit, waits ~60s, then signs register. AIA holds no keys.";
 const OWNED_NOTE = "This connected wallet matches the on-chain .aia owner.";
 const WATCH_NOTE = "Watching Decentraweb for .aia. Collect stays HOLD. AIA does not mint from this server.";
 const DUMMY_OWNER = "0x1111111111111111111111111111111111111111";
@@ -144,7 +144,8 @@ function publicOf(probe, wallet) {
       domainValidation: row.domainValidation,
       approveRegistration: null
     },
-    followUp: "On-desk commit→wait→register is a follow-up. This desk opens Decentraweb Register; James signs in MetaMask."
+    register: require("./_aia-register").publicFlow(w),
+    followUp: "On-desk Register uses the connected wallet. Browser calls approve-registration with that owner, then James signs commit and register. Server never signs."
   };
 }
 
@@ -157,11 +158,12 @@ function healthBlock() {
     tld: TLD,
     probe: "lockDomain + domain-validation",
     approveRegistration: false,
+    register: "client commit→wait→register when unlocked",
     custodial: false,
     charged: false,
     collect: "hold",
     mint: false,
-    note: "Account shows honest .aia reclaim status. AIA does not mint from this server. Collect stays HOLD."
+    note: "Account shows honest .aia reclaim status. Server does not call approve-registration or sign. Collect stays HOLD."
   };
 }
 
