@@ -85,8 +85,10 @@ if (!packsApi.includes("charged: false") || !packsApi.includes("hold: true")) fa
 else pass("Collect HOLD, charged false");
 if (!/function collectHoldOf/.test(packsApi)) fail("collectHoldOf must stay");
 else pass("collectHoldOf stays");
-if (/demo seed|Labeled DEMO/i.test(studioHtml + studioJs)) fail("studio demo seed");
-else pass("studio no demo seed");
+if (/Labeled DEMO/i.test(studioHtml + studioJs)) fail("studio demo chrome");
+else pass("studio no demo chrome");
+if (/demo seed/i.test(studioHtml + studioJs) && !/no demo seed/i.test(studioHtml + studioJs)) fail("studio invented a demo seed");
+else pass("studio no invented demo seed");
 
 if (!vercel.includes("\"/studio\"") || !vercel.includes("/developer.html")) fail("vercel /studio must rewrite to developer.html");
 else pass("/studio → developer.html");
