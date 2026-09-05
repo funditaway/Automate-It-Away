@@ -56,6 +56,15 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - No affiliate portal or referral percent on automateitaway.com.
 - `scripts/check-studio-earnings.js` — Studio + Marketplace copy stay honest; Collect HOLD unchanged.
 
+## YES (World users launch help — 2026-09-05)
+
+- Help (`/help#world`) and Studio (`/studio`, `/dev`, `/developer` `#world`) show a 4-step launch path for World users who create their own AI / packs: Core setup → First pack suite → Package & monetize → GTM.
+- Days are a guide, not a promise. Spine stays the AIA playbook: Audit → Pipes → named desk AI → Rules (When → If → Then) + Yes / Stop / Kill.
+- On-desk path kept: open a desk → create / name a desk AI → pack `.aia` → Marketplace or private. Simulate inbound / www hook. Fresh rules stay empty. No demo seed. No silent Collect.
+- Off-platform: OpenAI / Anthropic, Make / Zapier, CRMs wait on keys + Yes. Agency / DFY / co-pilot are off-platform labels. Price bands ($47–$197 packs, retainers, $997 DFY) are illustrative / off-platform — not an AIA rate card.
+- Paid ads stay principles only (ROAS / CAC / funnel). Example thinking only. AIA does not run ads or guarantee ROAS. No $29/$97/$297 tables. No monthly P&L. No affiliate percent. No platform-search rank promise.
+- `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
+
 ## NO (do not pretend these shipped)
 
 - Live card charge. `charged` stays false.

@@ -123,6 +123,23 @@ AIA has no public payout baseline and no published creator rate card. Creators e
 
 Agency or client consulting retainers are off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com. Do not invent AI Creator income bands, affiliate percents, or influencer payout tables.
 
+## World users · launch an automation business
+
+Help (`/help#world`) and Studio (`#world`) fold this into one short path. Days are a guide, not a promise.
+
+Spine = AIA playbook: Audit → Pipes → named desk AI → Rules (When → If → Then) + Yes / Stop / Kill. Collect stays HOLD until Yes + a live money pipe.
+
+On-desk: open a desk, create / name a desk AI, pack `.aia`, Marketplace or private, Simulate inbound / www hook. Fresh rules stay empty. No demo seed ($250 never).
+
+Off-platform: OpenAI / Anthropic keys, Make / Zapier, CRMs — connect as pipes when the owner provides keys + Yes. Do not invent live connectors or live MX. Agency / DFY / co-pilot are off-platform labels.
+
+1. **Core setup** — offer type packs / agency / DFY; niche 1–2; stack = AIA desk + pipes. On-desk path: open desk → name a desk AI → pack `.aia` → Marketplace or private. Price bands ($47–$197 packs, retainers, $997 DFY) are illustrative / off-platform — not an AIA rate card.
+2. **First pack suite** — ideas, not seeded demo rules: Lead capture + follow-up; Content multiplier; Document / email processing. Map Trigger → Condition → Action.
+3. **Package & monetize** — lead magnet → mid pack → high-ticket VIP / setup. You set prices. Collect HOLD. No affiliate percent.
+4. **GTM** — 60s clips; publish on Marketplace / Studio; local SMB / risk-free trial. Do not promise platform-search rank.
+
+Paid ads (off-platform, optional): ROAS / CAC / funnel (lead magnet → tripwire → pack → upsell). Example thinking only. AIA does not run ads or guarantee ROAS. No $29/$97/$297 tables. No monthly P&L.
+
 ## AIA Internet · `.aia` packs
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.

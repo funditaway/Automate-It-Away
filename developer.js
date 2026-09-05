@@ -280,8 +280,16 @@
       "<a class=\"go ghost\" href=\"/pipes\">2 Pipes</a>" +
       "<a class=\"go ghost\" href=\"/create?kind=ai\">3 Create · AI</a>" +
       "<a class=\"go ghost\" href=\"/rules\">4 Rules</a></p></div>" +
+      "<div class=\"card\" id=\"world-lab\"><h2>World users · launch an automation business</h2>" +
+      "<p class=\"hint\">Days are a guide, not a promise. Spine: Audit → Pipes → named desk AI → Rules (When → If → Then). Yes / Stop / Kill. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live.</p>" +
+      "<p class=\"hint\"><b>1. Core setup.</b> Packs / agency / DFY. Niche 1–2. This desk + pipes. Open a desk → create / name a desk AI → pack .aia → Marketplace or private. Price bands ($47–$197 packs, retainers, $997 DFY) are illustrative / off-platform — not an AIA rate card. Agency / DFY / co-pilot stay off-platform labels.</p>" +
+      "<p class=\"hint\"><b>2. First pack suite.</b> Ideas, not seeded demo rules: Lead capture + follow-up; Content multiplier; Document / email processing. Trigger → Condition → Action.</p>" +
+      "<p class=\"hint\"><b>3. Package &amp; monetize.</b> Lead magnet → mid pack → high-ticket VIP / setup. You set prices. No affiliate percent. No silent charge. No demo seed.</p>" +
+      "<p class=\"hint\"><b>4. GTM.</b> 60s clips. Publish on Marketplace / Studio. Local SMB or a risk-free trial. AIA does not rank listings on platform search.</p>" +
+      "<p class=\"hint\">On-desk: Simulate inbound / www hook. Fresh rules stay empty. Off-platform pipes wait on your keys + Yes. AIA does not invent live connectors or live MX.</p></div>" +
       "<div class=\"card\"><h2>Creators / earnings</h2>" +
       "<p class=\"hint\">AIA has no public payout baseline and no published creator rate card. You earn by pricing a pack — a listed ask. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. No silent charge. No demo seed. Private project, company, or family desks stay off Market.</p>" +
+      "<p class=\"hint\"><b>Paid ads (off-platform).</b> If World users buy Meta, Google, TikTok, or YouTube ads off-platform to market packs, earnings depend on ROAS, CAC, and the funnel — lead magnet → tripwire → pack → upsell — not raw sales volume. Example thinking only. AIA does not run ads and does not guarantee ROAS.</p>" +
       "<p class=\"hint\">Agency consulting is off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com.</p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +

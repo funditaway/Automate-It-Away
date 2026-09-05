@@ -64,11 +64,60 @@ else pass("help agency off-platform");
 if (!/no public payout table/i.test(more) || !/no public payout baseline/i.test(more)) fail("more.html missing payout honesty");
 else pass("more payout honesty");
 
+const worldSurfaces = {
+  "help.html": help,
+  "developer.html": studioHtml,
+  "developer.js": studioJs
+};
+const launchBits = [
+  "Days are a guide, not a promise",
+  "Core setup",
+  "First pack suite",
+  "Package",
+  "GTM",
+  "Yes / Stop / Kill",
+  "illustrative / off-platform",
+  "not an AIA rate card",
+  "Simulate inbound",
+  "www hook",
+  "Lead capture",
+  "Content multiplier",
+  "seeded demo rules"
+];
+Object.keys(worldSurfaces).forEach(function (name) {
+  const src = worldSurfaces[name];
+  if (!/id="world/.test(src) && name !== "developer.js") fail(name + " missing #world");
+  else if (name !== "developer.js") pass(name + " #world");
+  if (!/World users/i.test(src)) fail(name + " missing World users");
+  else pass(name + " World users");
+  launchBits.forEach(function (bit) {
+    if (!src.includes(bit)) fail(name + " missing launch bit: " + bit);
+    else pass(name + " " + bit);
+  });
+});
+if (!/id="world"/.test(help) || !/id="world"/.test(studioHtml)) fail("stranger path must expose static #world");
+else pass("stranger path static #world");
+if (!/Agency \/ DFY \/ co-pilot/i.test(help + studioHtml) && !/agency, DFY, and co-pilot/i.test(help + studioHtml)) {
+  fail("World users must label agency / DFY / co-pilot off-platform");
+} else pass("agency / DFY / co-pilot off-platform labels");
+if (!/does not rank listings on platform search/i.test(help) || !/does not rank listings on platform search/i.test(studioHtml)) {
+  fail("must not invent platform-search rank");
+} else pass("no platform-search rank promise");
+if (!/example thinking only/i.test(help) || !/AIA does not run ads/i.test(help)) fail("help missing ads principles");
+else pass("help ads principles");
+if (!/example thinking only/i.test(studioHtml) || !/AIA does not run ads/i.test(studioHtml)) fail("studio missing ads principles");
+else pass("studio ads principles");
+
 const fake = [
   /\$1\.5k/i,
   /\$10k/i,
+  /\$29(?!\d)/,
+  /\$97(?!\d)/,
+  /\$297(?!\d)/,
   /15\s*[–-]\s*30\s*%/,
   /affiliate\s+\d/i,
+  /affiliate\s*%/i,
+  /monthly P&amp;L|monthly P&L/i,
   /influencer\s+(income|range|payout|earn)/i,
   /AI Creator/i
 ];
@@ -78,6 +127,10 @@ Object.keys(surfaces).forEach(function (name) {
     if (re.test(src)) fail(name + " invented " + re);
   });
   if (/\$250/.test(src)) fail(name + " invented $250");
+  const bands = /\$47|\$197|\$997/.test(src);
+  if (bands && (!/illustrative \/ off-platform/i.test(src) || !/not an AIA rate card/i.test(src))) {
+    fail(name + " price bands must stay illustrative / off-platform");
+  }
   pass(name + " has no fake income bands");
 });
 
@@ -99,6 +152,10 @@ if (!/Creators \/ earnings/i.test(packMd) || !/no public payout baseline/i.test(
 else pass("PACK.md earnings canon");
 if (!/Creators \/ earnings honesty/i.test(yesNo) || !/no public payout baseline/i.test(yesNo)) fail("ACCOUNT-YES-NO.md missing earnings YES");
 else pass("ACCOUNT-YES-NO earnings YES");
+if (!/World users launch help/i.test(yesNo) || !/guide, not a promise/i.test(yesNo)) fail("ACCOUNT-YES-NO.md missing World users launch YES");
+else pass("ACCOUNT-YES-NO World users launch YES");
+if (!/World users · launch/i.test(packMd) || !/illustrative \/ off-platform/i.test(packMd)) fail("PACK.md missing World users launch");
+else pass("PACK.md World users launch");
 
 if (failed) {
   console.error(failed + " failed");
