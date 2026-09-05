@@ -105,6 +105,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-pipes-switch.js` covers that switch.
 - People (`/people`) `esc()` must parse and encode `& < > "` so `people.js` loads. A broken quote map is a syntax error — More → People stays empty.
 - `scripts/check-people-esc.js` covers that parse + encode.
+- Public Drop (`/drop`, `/widget`) uploads `#photo` via `/api/upload` before capture so a photo or file rides on the card. Success must not clear the picker if upload never ran.
+- `scripts/check-drop-photo.js` covers that attach.
 
 ## NO (do not pretend these shipped)
 
