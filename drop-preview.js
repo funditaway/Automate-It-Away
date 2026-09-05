@@ -270,6 +270,16 @@
       if (card.desk && card.title) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      var err = document.getElementById("err");
+      var ok = document.getElementById("ok");
+      if (ok) ok.style.display = "none";
+      if (err) {
+        err.style.display = "block";
+        err.textContent = card.desk
+          ? "Say what you need."
+          : (document.body.classList.contains("embed") ? "This drop is missing a desk." : "Pick a desk above, add a saved one, or create a new desk.");
+        if (err.scrollIntoView) err.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
       if (!thread.length) addLine("desk", "Got it. Checking the card.", "note");
       hear(val("talkType") || val("title") || val("note") || "need a card", { text: val("talkType") || val("title") || val("note"), sendNow: false });
     }, true);
