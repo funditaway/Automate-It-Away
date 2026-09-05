@@ -49,6 +49,13 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - People cards show Can / Never / Money / Ext / X handle.
 - `scripts/check-wallets.js` isolation tests.
 
+## YES (Creators / earnings honesty — 2026-09-05)
+
+- Studio (`/studio`, `/dev`, `/developer`) states: no public payout baseline; you earn by pricing packs; Collect stays HOLD until human Yes + a real Collect money pipe; private project / company / family desks stay off Market.
+- Agency or client consulting retainers are off-platform — the creator’s client rates, not an AIA published schedule.
+- No affiliate portal or referral percent on automateitaway.com.
+- `scripts/check-studio-earnings.js` — Studio + Marketplace copy stay honest; Collect HOLD unchanged.
+
 ## NO (do not pretend these shipped)
 
 - Live card charge. `charged` stays false.
@@ -70,6 +77,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Embedded wallets, key generation, or gas sponsorship.
 - Server-signed Decentraweb mint / Bridge. On-desk Register is client-only when Bridge is clear; James signs every tx.
 - Collect charges through Square / Stripe / a wallet pipe.
+- A public creator payout baseline, affiliate percent, or published agency rate card.
+- Invented AI Creator income bands, affiliate percents, or influencer payout tables.
+- A demo seed ($250) as a payout floor.
 
 ## Ask me if
 
