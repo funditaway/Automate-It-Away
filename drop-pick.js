@@ -86,8 +86,10 @@
     var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || {};
     var q = "";
     try { q = String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { q = ""; }
-    var ws = cur.slug || q || localStorage.getItem("aia_ws") || window.ws || "";
-    var onName = (cur && (cur.name || cur.slug)) || (window.AIADropOn && AIADropOn.name && AIADropOn.name()) || ws;
+    if (window.AIADesks && AIADesks.slugify) q = AIADesks.slugify(q);
+    var saved = (q && window.AIADesks && AIADesks.find) ? AIADesks.find(q) : null;
+    var ws = q || cur.slug || localStorage.getItem("aia_ws") || window.ws || "";
+    var onName = (saved && saved.name) || (q && q) || (cur && (cur.name || cur.slug)) || (window.AIADropOn && AIADropOn.name && AIADropOn.name()) || ws;
     if (window.AIADropOn && AIADropOn.paint) AIADropOn.paint();
     if (!rows.length) {
       chips.innerHTML = "";

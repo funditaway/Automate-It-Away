@@ -133,11 +133,31 @@
     if (extras.need && document.getElementById("note") && !document.getElementById("note").value) document.getElementById("note").value = extras.need;
     if (extras.whoFor && document.getElementById("who") && !document.getElementById("who").value) document.getElementById("who").value = extras.whoFor;
   }
-  function deskIsOpen() {
-    if (window.AIADesks && AIADesks.shopOpen) return !!AIADesks.shopOpen();
-    return document.body.classList.contains("desk-open") || !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
+  function slugOf(s) {
+    if (window.AIADesks && AIADesks.slugify) return AIADesks.slugify(s);
+    return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
   }
-  function isEmbed() { return document.body.classList.contains("embed"); }
+  function destSlug() {
+    var q = "";
+    try { q = slugOf(new URLSearchParams(location.search).get("ws") || ""); } catch (e) { q = ""; }
+    if (q) return q;
+    return slugOf(window.ws || (typeof localStorage !== "undefined" && localStorage.getItem("aia_ws")) || "");
+  }
+  function deskIsOpen() {
+    if (isEmbed()) return false;
+    var dest = destSlug();
+    if (!dest) return false;
+    var cur = "";
+    try { cur = slugOf(localStorage.getItem("aia_ws") || ""); } catch (e) { cur = ""; }
+    if (cur && dest !== cur) return false;
+    if (window.AIADesks && AIADesks.shopOpen) return !!AIADesks.shopOpen();
+    try {
+      return !!(cur && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
+    } catch (e) {
+      return false;
+    }
+  }
+  function isEmbed() { return document.body.classList.contains("embed") || window !== window.parent; }
   function paintActions(box, on) {
     if (!box) return on || {};
     var picked = on && typeof on === "object" ? on : {};
@@ -176,7 +196,7 @@
       css.textContent = ".outcomes,.drop-actions{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}.outcomes button,.drop-actions button,.adv-toggle{flex:1;min-width:96px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer}.outcomes button.on,.drop-actions button.on,.adv-toggle.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}#pane-auto{margin-top:8px}";
       document.head.appendChild(css);
     }
-    if (isEmbed() || document.getElementById("drop-actions")) return;
+    if (isEmbed() || !deskIsOpen() || document.getElementById("drop-actions")) return;
     var after = document.getElementById("outcome-hint") || document.getElementById("outcome-chips") || kind;
     var tog = document.createElement("button"); tog.type = "button"; tog.id = "adv-toggle"; tog.className = "adv-toggle"; tog.textContent = "Advanced";
     after.parentNode.insertBefore(tog, after.nextSibling);
@@ -213,8 +233,11 @@
     }
     if (deskIsOpen()) {
       try {
-        var ws = localStorage.getItem("aia_ws") || ""; var pin = localStorage.getItem("aia_pin") || "";
-        var headers = { "Content-Type": "application/json" }; if (ws) headers["X-Workspace"] = ws; if (pin) headers["X-Pin"] = pin;
+        var headers = (window.AIADesks && AIADesks.authHeaders) ? AIADesks.authHeaders() : { "Content-Type": "application/json" };
+        if (!headers["X-Workspace"]) {
+          var ws = localStorage.getItem("aia_ws") || ""; var pin = localStorage.getItem("aia_pin") || "";
+          if (ws) headers["X-Workspace"] = ws; if (pin) headers["X-Pin"] = pin;
+        }
         fetch("/api/auth", { headers: headers }).then(function (r) { return r.json(); }).then(function (data) {
           var people = (data && data.workspace && data.workspace.people) || (data && data.people) || [];
           var hand = document.getElementById("drop-hand"); if (!hand || !people.length) return;
@@ -288,5 +311,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootDropKinds);
   else bootDropKinds();
-  window.AIADropAgent = { WHO: WHO, TYPES: TYPES, OUTCOMES: OUTCOMES, ACTIONS: ACTIONS, implementFromText: implementFromText, paintWho: paintWho, paintPreview: paintPreview, paintKinds: paintKinds, paintKindFields: paintKindFields, collectKindFields: collectKindFields, paintOutcomes: paintOutcomes, typeOf: typeOf, outcomeOf: outcomeOf, applyKindToForm: applyKindToForm, bootDropKinds: bootDropKinds, firstLine: firstLine, val: val };
+  window.AIADropAgent = { WHO: WHO, TYPES: TYPES, OUTCOMES: OUTCOMES, ACTIONS: ACTIONS, implementFromText: implementFromText, paintWho: paintWho, paintPreview: paintPreview, paintKinds: paintKinds, paintKindFields: paintKindFields, collectKindFields: collectKindFields, paintOutcomes: paintOutcomes, typeOf: typeOf, outcomeOf: outcomeOf, applyKindToForm: applyKindToForm, bootDropKinds: bootDropKinds, firstLine: firstLine, val: val, destSlug: destSlug, deskIsOpen: deskIsOpen };
 })();
