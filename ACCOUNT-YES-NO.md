@@ -81,6 +81,11 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Wallet Connect one-liner (Account + Help Login): browser wallet for `.aia` / registry when Bridge unlocks — not compute credits or a creator payout ledger. Collect and payouts HOLD.
 - Creator takeaways (`/help#creator-takeaways`): pack quality (JSON, buyer keys, fallbacks); People `@handle` Owner/Helper; Collect HOLD; no merchant-of-record money desk / email Team seats / social OAuth.
 - `scripts/check-pack-sell.js` covers risk / worth-it / wallet / takeaways honesty.
+- Build a pack / desk AI (`/help#build-pack` + Studio one-liner): When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk AI drafts card) → Yes/Stop/Kill. Fallbacks Needs you / Talk to AIA. Thin `.aia` from `/dev`; buyer pipes/keys. Sample JSON illustrative only — desk words, not a bindings product. Yes is not a collect charge. Collect HOLD.
+- Desk orchestration (`/help#desk-orch`) = When · If · Then. Sequential / conditional / human-in-the-loop map to desk words. Not a Router Node, sub-agent mesh, or node canvas.
+- Ideas → queue (`/help#ideas-queue`): Drop → Qualify → card → Yes / Stop. History past / now / next. No effort or token estimate UI.
+- FAQ: work with / for AIA = build packs + Talk to AIA; agency / DFY off-platform; no careers portal / certified partner program. AIA License = no separate license SKU — desk account + pack install; Collect and payouts HOLD; no Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
+- `scripts/check-build-pack.js` covers build-pack / orchestration / FAQ honesty.
 
 ## NO (do not pretend these shipped)
 
@@ -118,6 +123,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Merchant-of-record chargeback holds, payout freezes, a sandbox throttle ladder, or Lemon Squeezy / Paddle as AIA money pipes. A 100% safe / never-banned pack promise. An AIA attach flow for AS IS / EULA.
 - Wallet Connect as compute credits or a creator payout ledger.
 - $47–$197 / $50/hr / 300 hours / 10–15 minutes tables on “When a pack is worth it.”
+- A node canvas, Router Node, or sub-agent mesh. `BUYER_ENVIRONMENT_BINDINGS` or other invented schema products.
+- A careers portal or certified partner program. A separate AIA License SKU, Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
+- An effort or token estimate UI on History or the queue. Yes as a collect charge.
 
 ## Ask me if
 

@@ -131,6 +131,16 @@ Not legal advice. A pack is thin JSON. It drafts on the buyer’s desk. Yes / St
 
 Worth it: the process already works by hand; multi-step qualify → draft with fallbacks. Not worth it: a broken offer or process; abandoned when APIs change; a trivial webhook → note you can Drop yourself. No $47–$197, $50/hr, 300 hours, or 10–15 minutes tables on this card.
 
+## Build a pack / desk AI
+
+When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk AI drafts the card) → Yes / Stop / Kill. Fallbacks: Needs you / Talk to AIA. Thin `.aia` from `/dev`. Buyer pipes and keys. Sample JSON is illustrative only — desk words (`when` / `if` / `then`), not a bindings product. Yes is not a collect charge. Collect stays HOLD.
+
+Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node, sub-agent mesh, or node canvas.
+
+Ideas → queue = Drop → Qualify → card → Yes / Stop. History is past / now / next. No effort or token estimate UI.
+
+FAQ: work with / for AIA = build packs + Talk to AIA; agency / DFY off-platform; no careers portal / certified partner program. AIA License = no separate license SKU — desk account + pack install; Collect and payouts HOLD; no Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
+
 ## World users · launch an automation business
 
 Help (`/help#world`) and Studio (`#world`) fold this into one short path. Days are a guide, not a promise.
