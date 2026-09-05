@@ -191,7 +191,7 @@
       "<textarea id=\"workflows\" rows=\"4\" placeholder='[{\"name\":\"Lead click\",\"rules\":[{\"when\":\"drop\",\"ifTag\":\"Lead\",\"contains\":\"click\",\"then\":\"draft\",\"tag\":\"Interested\",\"text\":\"Click + Lead → tag Interested. Draft HOLD.\"}]}]'></textarea>" +
       "<p class=\"hint\">A <b>rule</b> is one When → If → Then on this desk. A <b>workflow / sequence</b> strings rules (optional delay / branch). Still thin JSON. No dashboard fork. Collect stays HOLD. Never Send.</p>" +
       "<label>Ask (Collect stays HOLD)</label><input id=\"ask\" inputmode=\"decimal\" placeholder=\"Leave blank to list free\">" +
-      "<p class=\"hint\">A number here is a listed ask. World desks can still install the pack. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
+      "<p class=\"hint\">A number here is a listed ask. World desks can still install the pack. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. AIA has no public payout baseline — you earn by the ask you set.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-pack\">Save draft</button></p></div>"
     );
     if (tab === "ais" || tab === "bots") return (
@@ -254,7 +254,8 @@
     );
     if (tab === "submit") return (
       "<div class=\"card\"><h2>Submit to AIA</h2>" +
-      "<p class=\"hint\">Publish lists it on /market and puts the thin JSON onto this desk. Keep private attaches the pack and named AIs to this desk only — project, company, or family. An ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
+      "<p class=\"hint\">Publish lists it on /market and puts the thin JSON onto this desk. Keep private attaches the pack and named AIs to this desk only — project, company, or family. An ask is listed. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. AIA has no public payout baseline.</p>" +
+      "<p class=\"hint\">Agency consulting is off-platform — your client rates, not an AIA published schedule.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"submit-pack\">Publish · land on Market</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"private-pack\">Keep private on this desk</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download .aia</button>" +
@@ -279,6 +280,9 @@
       "<a class=\"go ghost\" href=\"/pipes\">2 Pipes</a>" +
       "<a class=\"go ghost\" href=\"/create?kind=ai\">3 Create · AI</a>" +
       "<a class=\"go ghost\" href=\"/rules\">4 Rules</a></p></div>" +
+      "<div class=\"card\"><h2>Creators / earnings</h2>" +
+      "<p class=\"hint\">AIA has no public payout baseline and no published creator rate card. You earn by pricing a pack — a listed ask. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. No silent charge. No demo seed. Private project, company, or family desks stay off Market.</p>" +
+      "<p class=\"hint\">Agency consulting is off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com.</p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
       "<div class=\"strip\" aria-label=\"When If Then\">" +
@@ -318,7 +322,7 @@
     snap();
     view.innerHTML =
       "<div class=\"card banner\"><div><b>" + (creator ? "Creators Studio on · still free" : "Studio flag is off") + "</b>" +
-      "<p class=\"hint\">Draft → test on this desk → keep private or submit to AIA → Market. Named AIs bind to the desk. Packs never Send. Collect stays HOLD.</p></div>" +
+      "<p class=\"hint\">Draft → test on this desk → keep private or submit to AIA → Market. Named AIs bind to the desk. Packs never Send. Collect stays HOLD. No public payout baseline.</p></div>" +
       "<div class=\"cta\"><button class=\"go\" type=\"button\" id=\"on-dev\">I make packs</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"off-dev\">Regular account</button></div></div>" +
       "<div class=\"pills\" id=\"tabs\">" + tabs() + "</div>" + pane();

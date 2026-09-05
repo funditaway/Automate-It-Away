@@ -84,6 +84,12 @@ if (!studioJs.includes("workflows") || !studioJs.includes("When → If → Then"
 else pass("Studio pack workflows");
 if (studio.includes("AIA Studio Pro")) fail("must not brand AIA Studio Pro");
 else pass("not AIA Studio Pro");
+if (!studio.includes("Creators / earnings") || !studio.includes("no public payout baseline")) fail("developer.html missing honest earnings");
+else pass("Studio honest earnings");
+if (!studio.includes("off-platform")) fail("developer.html missing agency off-platform");
+else pass("Studio agency off-platform");
+if (/\$1\.5k|\$10k|15\s*[–-]\s*30\s*%|AI Creator/i.test(studio + studioJs + shop)) fail("invented creator income bands");
+else pass("no invented creator income bands");
 
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 if (!vercel.includes("\"/studio\"") || !vercel.includes("/developer.html")) fail("vercel /studio must rewrite to developer.html");
