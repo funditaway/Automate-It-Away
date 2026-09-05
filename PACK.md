@@ -133,7 +133,7 @@ Examples: `james-ai@funditaway.aia`, `queue@springfield-shop.aia`.
 
 Validate `local@account.aia`. The account label must match this AIA Internet account / `.aia` name (or the bound desk’s `.aia` name). Create and manage on Account, Studio, and Desks. Bind each identity to a desk or a named desk AI.
 
-Inbound mail (or a simulated webhook) to that address Drops / Captures on that desk — same path as `/api/hook`. Automations can trigger from inbound.
+Inbound mail (or a simulated webhook) to that address Drops / Captures on that desk — same path as `/api/hook`. Automations can trigger from inbound. The mailbox is not the assignee; a named desk AI drafts when one exists.
 
 Outbound Send stays HOLD. No silent mail. Rail / Yes. Status orange until a real MX pipe. Do not claim live SMTP / MX. DNS for `ai.aia` / `*.aia` does not resolve yet. Identities work on the desk now; internet mail when the MX pipe is connected.
 

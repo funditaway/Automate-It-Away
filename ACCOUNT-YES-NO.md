@@ -14,7 +14,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Export copy has no pin and no password hash.
 - Plan switch stays `charged: false`.
 - Account page lists phones, export, leave every phone.
-- `.aia` email identities `{local}@{account}.aia` for Automations. Create/manage on Account, Studio, Desks. Inbound → Drop/Capture. Outbound Send HOLD. No live SMTP/MX.
+- `.aia` email identities `{local}@{account}.aia` for Automations. Create/manage on Account, Studio, Desks. Inbound `/api/hook` → Drop/Capture on the bound desk. Mailbox is not the assignee. AI-bound identities assign the named desk AI and draft. Outbound Send HOLD. No live SMTP/MX.
 - `scripts/check-account.js` — nine passing contract tests.
 
 ## YES (AIA Internet / `.aia` TLD status — 2026-09-05)

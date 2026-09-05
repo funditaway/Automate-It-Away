@@ -32,6 +32,12 @@ function pass(m) { console.log("ok   " + m); }
   else pass(name + " loads aia-mail.js");
 });
 
+const pipesSrc = fs.readFileSync(path.join(root, "pipes.html"), "utf8");
+if (!/"event": "mail"/.test(pipesSrc) || !/queue@account\.aia/.test(pipesSrc)) fail("pipes.html missing inbound identity recipe");
+else pass("pipes.html inbound identity recipe");
+if (/live MX|MX live|smtp live/i.test(pipesSrc)) fail("pipes.html must not claim live MX");
+else pass("pipes.html no fake live MX");
+
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (!/james-ai@funditaway\.aia/.test(packMd) || !/queue@springfield-shop\.aia/.test(packMd)) fail("PACK.md missing examples");
 else pass("PACK.md examples");
@@ -45,7 +51,7 @@ holdFiles.forEach(function (name) {
   else pass(name + " no $250");
 });
 
-["../api/_lib", "../api/_account", "../api/_aia-mail", "../api/account", "../api/auth", "../api/desks", "../api/hook", "../api/health", "../api/_packs"].forEach(function (mod) {
+["../api/_lib", "../api/_account", "../api/_aia-mail", "../api/_fields", "../api/account", "../api/auth", "../api/desks", "../api/hook", "../api/health", "../api/_packs"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
@@ -57,6 +63,7 @@ const desks = require("../api/desks");
 const hook = require("../api/hook");
 const health = require("../api/health");
 const packHandler = require("../api/_packs");
+const { pickFields } = require("../api/_fields");
 const { mem, hashPin, ensurePeople, ready, save } = lib;
 
 function mockRes() {
@@ -199,10 +206,49 @@ async function main() {
   else pass("inbound lands on bound desk");
   if (job.aiaMail !== "james-ai@funditaway.aia") fail("job missing aiaMail");
   else pass("job stamped with identity");
+  if (job.to !== "james-ai@funditaway.aia") fail("job missing to for inbound rules");
+  else pass("job.to preserved for inbound");
+  if (job.assignee === "james-ai@funditaway.aia") fail("AI-bound inbound must not use mailbox as assignee");
+  else if (job.assignee !== "James’s AI") fail("AI-bound inbound assignee should be aiName, got " + job.assignee);
+  else pass("AI-bound inbound assigns named AI");
+  if (!job.draft && !job.deskAi && !job.agentDraft) fail("AI-bound inbound should draft when a named AI exists");
+  else pass("AI-bound inbound drafts named desk AI");
   if (!job.custom || !job.custom.automation || job.custom.automation.trigger !== "mail") fail("automation trigger missing");
   else pass("automations trigger from inbound");
   if (job.status === "shipped" || job.rail === "sent") fail("inbound must not send");
   else pass("inbound does not send");
+
+  const picked = pickFields({
+    event: "mail",
+    to: "queue@springfield-shop.aia",
+    from: "neighbor@example.com",
+    subject: "Need a quote",
+    text: "Porch"
+  });
+  if (picked.assignee === "queue@springfield-shop.aia") fail("pickFields must not treat mail to as assignee");
+  else pass("pickFields leaves mail recipient off assignee");
+  if (picked.to !== "queue@springfield-shop.aia") fail("pickFields must keep job.to");
+  else pass("pickFields keeps job.to");
+
+  const deskIn = await call(hook, "POST", {}, {
+    event: "mail",
+    to: "queue@springfield-shop.aia",
+    from: "neighbor@example.com",
+    subject: "Porch quote",
+    text: "Can you look at the porch?"
+  });
+  if (deskIn.statusCode !== 201 || !deskIn.body || !deskIn.body.job) {
+    fail("desk-bound inbound " + deskIn.statusCode + " " + JSON.stringify(deskIn.body));
+  } else pass("desk-bound inbound captures");
+  const deskJob = deskIn.body.job;
+  if (deskJob.workspace !== slug) fail("desk-bound inbound landed on wrong desk");
+  else pass("desk-bound inbound lands on bound desk");
+  if (deskJob.aiaMail !== "queue@springfield-shop.aia" || deskJob.to !== "queue@springfield-shop.aia") {
+    fail("desk-bound job missing to/aiaMail");
+  } else pass("desk-bound job keeps mailbox on to/aiaMail");
+  if (String(deskJob.assignee || "").toLowerCase() === "queue@springfield-shop.aia" || /@/.test(String(deskJob.assignee || ""))) {
+    fail("desk-bound inbound must not assign the mailbox, got " + deskJob.assignee);
+  } else pass("desk-bound inbound assignee is not the mailbox");
 
   const missing = await call(hook, "POST", {}, { to: "nobody@funditaway.aia", subject: "x" });
   if (missing.statusCode !== 404) fail("unknown identity must 404, got " + missing.statusCode);
