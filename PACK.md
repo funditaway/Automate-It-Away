@@ -157,6 +157,13 @@ First 3 clients: Audit (playbook step 1) → 60s proof → risk-free trial. No i
 
 **Workflow & Agent Pack Creator (on-desk):** package named desk AIs, webhooks, and CRM pipes when connected into a `.aia`. Solve a specific problem (lead qualify, review responder, social *repurposing drafts*). Not auto-publish unless a live pipe exists. You set prices. Collect HOLD. Social auto-post is a future / off-platform pipe — not live OAuth. Account door: desk name + code, or email + password — not social SSO. Marketplace GTM: clear titles + niche keywords. No top-ranking guarantee.
 
+**Build automation packs** (map to this desk):
+
+1. Niche problem — real estate / e-com / agency ideas, not seeded demo rules. Measurable time or leads.
+2. Core logic stack = desk engine. Trigger (webhook / Drop / pipe / inbound `.aia`) → Qualify + named desk AI prompts (JSON / structured) → Fallbacks (Rules + Rail Yes/Stop/Kill / alert — no silent crash) → Destination pipes when connected. Collect HOLD.
+3. Plug-and-play — clear credential vars, dashboards via pipes, 2-min quickstart in pack docs.
+4. Tiers — Free / core / DFY. Illustrative $ only; you set the price; Collect HOLD. DFY mostly off-platform service.
+
 ## AIA Internet · `.aia` packs
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.

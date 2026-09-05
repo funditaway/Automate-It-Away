@@ -68,6 +68,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Funnel tiers (Tripwire / Core / High-ticket DFY) and price bands stay illustrative — you set prices. Recurring update pass stays Collect HOLD; no invented subscription engine. $0.05/exec is off-platform or a future pipe — AIA does not host per-run billing.
 - On-desk Pack Creator: named desk AIs + webhooks + CRM pipes when connected, packed as `.aia`. Social *repurposing drafts* only — not auto-publish unless a live pipe exists. Social auto-post is a future / off-platform pipe — not live OAuth.
 - Account door: desk name + code, or email + password on /account. Not social SSO. Marketplace GTM is clear titles + niche keywords — no top-ranking guarantee.
+- Build automation packs blueprint maps to this desk: niche problem → core logic stack (Trigger / Qualify + desk AI / Rules + Rail / destination pipes) → plug-and-play → Free / core / DFY tiers. Illustrative $ only. No silent crash.
 - `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
 
 ## NO (do not pretend these shipped)

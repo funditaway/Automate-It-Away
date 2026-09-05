@@ -92,7 +92,14 @@ const launchBits = [
   "repurposing drafts",
   "not live OAuth",
   "Not social SSO",
-  "clear titles + niche keywords"
+  "clear titles + niche keywords",
+  "Build automation packs",
+  "Core logic stack",
+  "inbound .aia",
+  "no silent crash",
+  "Plug-and-play",
+  "credential vars",
+  "Free / core / DFY"
 ];
 Object.keys(worldSurfaces).forEach(function (name) {
   const src = worldSurfaces[name];
@@ -184,6 +191,8 @@ if (!/World users launch help/i.test(yesNo) || !/guide, not a promise/i.test(yes
 else pass("ACCOUNT-YES-NO World users launch YES");
 if (!/World users · launch/i.test(packMd) || !/illustrative \/ off-platform/i.test(packMd)) fail("PACK.md missing World users launch");
 else pass("PACK.md World users launch");
+if (!/Build automation packs/i.test(packMd) || !/Core logic stack/i.test(packMd)) fail("PACK.md missing pack blueprint");
+else pass("PACK.md pack blueprint");
 
 if (failed) {
   console.error(failed + " failed");
