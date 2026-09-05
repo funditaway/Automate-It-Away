@@ -140,6 +140,21 @@ Off-platform: OpenAI / Anthropic keys, Make / Zapier, CRMs — connect as pipes 
 
 Paid ads (off-platform, optional): ROAS / CAC / funnel (lead magnet → tripwire → pack → upsell). Example thinking only. AIA does not run ads or guarantee ROAS. No $29/$97/$297 tables. No monthly P&L.
 
+**Four models** (label on-desk vs off-platform):
+
+1. Automation Agency — off-platform client work on the AIA desk. Illustrative fees only — not AIA rates.
+2. DFY — off-platform service wrapping a repeatable pack install.
+3. Marketplace — on-desk Studio. You set the `.aia` ask. No public payout baseline.
+4. Co-pilot — off-platform revenue-share. 10–15% cuts are examples only, not AIA terms.
+
+First 3 clients: Audit (playbook step 1) → 60s proof → risk-free trial. No invented close rates.
+
+**Pack quality:** ship operational infrastructure (Capture → Qualify → Do → Collect HOLD → Follow), not dead templates. Fallbacks = Rules + Rail. Visual outcomes on Follow / Collect. Slack / Sheets / Notion via pipes when connected (HOLD until Yes / keys). Structured prompts on named desk AIs. Recommend a 2-min quickstart. No review-rate stats.
+
+**Funnel tiers:** Tripwire / Core / High-ticket DFY. You set prices. Illustrative only. High-ticket implementation is mostly off-platform wrapping packs.
+
+**Expansion:** recurring update pass — Collect HOLD; do not invent a subscription engine. Industry bundles = repackage `.aia`. `$0.05/exec` micro-SaaS is off-platform or a future pipe — AIA does not host per-run billing.
+
 ## AIA Internet · `.aia` packs
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.

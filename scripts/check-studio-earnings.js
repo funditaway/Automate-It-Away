@@ -82,7 +82,12 @@ const launchBits = [
   "www hook",
   "Lead capture",
   "Content multiplier",
-  "seeded demo rules"
+  "seeded demo rules",
+  "Four models",
+  "operational infrastructure",
+  "Tripwire / Core",
+  "Industry bundles",
+  "does not host"
 ];
 Object.keys(worldSurfaces).forEach(function (name) {
   const src = worldSurfaces[name];
@@ -107,6 +112,18 @@ if (!/example thinking only/i.test(help) || !/AIA does not run ads/i.test(help))
 else pass("help ads principles");
 if (!/example thinking only/i.test(studioHtml) || !/AIA does not run ads/i.test(studioHtml)) fail("studio missing ads principles");
 else pass("studio ads principles");
+if (!/examples only, not AIA terms/i.test(help) || !/examples only, not AIA terms/i.test(studioHtml)) {
+  fail("10–15% cuts must stay examples only, not AIA terms");
+} else pass("co-pilot cuts are examples only");
+if (/\$0\.05/.test(help + studioHtml + studioJs) && !/does not host/i.test(help + studioHtml + studioJs)) {
+  fail("$0.05/exec must say AIA does not host");
+} else pass("$0.05/exec is not hosted");
+if (/always works/i.test(help + studioHtml) && !/not .always works/i.test(help + studioHtml) && !/not “always works/i.test(help + studioHtml)) {
+  fail("must not claim always works");
+} else pass("no always-works claim");
+if (/review-rate|4\.9 star|close rate/i.test(help + studioHtml + studioJs) && !/No invented close rates|Do not invent review-rate|No review-rate/i.test(help + studioHtml + studioJs)) {
+  fail("invented review or close-rate stats");
+} else pass("no invented review/close stats");
 
 const fake = [
   /\$1\.5k/i,

@@ -63,6 +63,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - On-desk path kept: open a desk → create / name a desk AI → pack `.aia` → Marketplace or private. Simulate inbound / www hook. Fresh rules stay empty. No demo seed. No silent Collect.
 - Off-platform: OpenAI / Anthropic, Make / Zapier, CRMs wait on keys + Yes. Agency / DFY / co-pilot are off-platform labels. Price bands ($47–$197 packs, retainers, $997 DFY) are illustrative / off-platform — not an AIA rate card.
 - Paid ads stay principles only (ROAS / CAC / funnel). Example thinking only. AIA does not run ads or guarantee ROAS. No $29/$97/$297 tables. No monthly P&L. No affiliate percent. No platform-search rank promise.
+- Four models labeled on-desk vs off-platform: Agency / DFY / co-pilot off-platform; Marketplace on-desk Studio. First 3 clients: audit → 60s proof → risk-free trial. No invented close rates. 10–15% cuts are examples only, not AIA terms.
+- Pack quality maps to Capture → Qualify → Do → Collect HOLD → Follow. Fallbacks = Rules + Rail. Slack / Sheets / Notion pipes HOLD until Yes / keys. No “always works.” No invented review-rate stats.
+- Funnel tiers (Tripwire / Core / High-ticket DFY) and price bands stay illustrative — you set prices. Recurring update pass stays Collect HOLD; no invented subscription engine. $0.05/exec is off-platform or a future pipe — AIA does not host per-run billing.
 - `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
 
 ## NO (do not pretend these shipped)
@@ -89,6 +92,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - A public creator payout baseline, affiliate percent, or published agency rate card.
 - Invented AI Creator income bands, affiliate percents, or influencer payout tables.
 - A demo seed ($250) as a payout floor.
+- Live usage / micro-SaaS / per-exec billing hosted by AIA.
+- A platform subscription engine for pack updates.
+- Live Slack / Sheets / Notion send without keys + Yes.
 
 ## Ask me if
 
