@@ -48,5 +48,18 @@ must(more, "@handle", "more.html People copy");
 
 const help = read("help.html");
 must(help, "@handle", "help.html People copy");
+must(help, 'id="people-desk"', "help.html add-people card");
+must(help, "Add people to this desk", "help.html add-people title");
+must(help, "AIA does not send invite mail", "help.html no invite mail");
+must(help, "own seat", "help.html own seat");
+must(help, "Cannot Stop", "help.html helper cannot Stop");
+
+const studio = read("developer.html");
+must(studio, "Add people.", "studio add-people one-liner");
+must(studio, "AIA does not send invite mail", "studio no invite mail");
+
+["aiastudios.app", "User Groups", "Connected Accounts", "Team & Permissions", "Workspace Settings"].forEach(function (bit) {
+  if (help.includes(bit) || studio.includes(bit)) throw new Error("invented people chrome: " + bit);
+});
 
 console.log("check-world-people: ok");
