@@ -17,6 +17,17 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `.aia` email identities `{local}@{account}.aia` for Automations. Create/manage on Account, Studio, Desks. Inbound → Drop/Capture. Outbound Send HOLD. No live SMTP/MX.
 - `scripts/check-account.js` — nine passing contract tests.
 
+## YES (AIA Internet / `.aia` TLD status — 2026-09-05)
+
+- Account card next to Wallet. Status from a cached Decentraweb probe: Bridge locked | Available to register | Owned.
+- Probe `GET /bridge/lockDomain/aia` and `POST /domain-validation` only. Never `approve-registration` from this server (that can reserve a name).
+- `/api/status` exposes `aiaTld: { available, bridgeLocked, ownedByConnected }`. Owned only when the connected wallet matches a real registry owner. Never invent owned.
+- Locked copy: “Bridge locked on Decentraweb — watching. When unlocked, Connect wallet then Register.”
+- Wallet connected + still locked: short address + “Ready to mint when Bridge clears.”
+- Unlocked: **Open Decentraweb Register** + checklist. James signs in MetaMask. Full on-desk commit→wait→register is a follow-up.
+- No private keys. No silent Collect. No demo balance. Mint stays off this server.
+- `scripts/check-aia-tld.js`.
+
 ## YES (AIA Wallet Connect — EIP-1193, 2026-09-04)
 
 - Browser wallet on Account. `window.ethereum` / MetaMask-first. No WalletConnect infra.

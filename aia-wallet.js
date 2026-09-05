@@ -100,6 +100,7 @@
     var off = document.getElementById("aia-wallet-off");
     if (on) on.onclick = connect;
     if (off) off.onclick = disconnect;
+    if (window.AIATld && AIATld.fromWallet) AIATld.fromWallet(wallet);
   }
   async function persist(address, chainId) {
     remember(address, chainId);
@@ -215,5 +216,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
-  window.AIAWallet = { boot: boot, load: load, paint: paint, connect: connect, disconnect: disconnect };
+  window.AIAWallet = { boot: boot, load: load, paint: paint, connect: connect, disconnect: disconnect, local: localWallet };
 })();

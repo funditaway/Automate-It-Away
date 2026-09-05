@@ -5,6 +5,7 @@ const path = require("path");
 
 const store = path.join(os.tmpdir(), "aia-mail-check-" + Date.now() + ".json");
 process.env.AIA_STORE_PATH = store;
+process.env.AIA_TLD_PROBE = "0";
 
 delete global.__aia;
 delete global.__aiaHydrate;

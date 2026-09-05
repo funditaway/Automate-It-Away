@@ -49,12 +49,15 @@ async function deskStatus(req, res) {
     ? (mem.connections || []).filter((c) => c && c.workspace === workspace && c.lane !== "draft")
     : [];
   const connect = require("./_connect-wallet");
+  const tld = require("./_aia-tld");
   let wallet = connect.emptyPublic();
   if (person) {
     let acc = null;
     try { acc = require("./_account").homeAccount(person, row); } catch (e) { acc = null; }
     wallet = connect.publicOf(acc, connect.currentSession(req));
   }
+  let aiaTld = tld.peek(wallet);
+  try { aiaTld = await tld.forWallet(wallet); } catch (e) { aiaTld = tld.emptyPublic(wallet); }
 
   return res.status(200).json({
     ok: true,
@@ -72,6 +75,7 @@ async function deskStatus(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet,
+    aiaTld,
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound, never dispatch.demo",
@@ -198,6 +202,7 @@ async function health(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet: require("./_connect-wallet").healthBlock(),
+    aiaTld: require("./_aia-tld").healthBlock(),
     repo: "funditaway/Automate-It-Away"
   });
 }

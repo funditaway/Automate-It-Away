@@ -112,6 +112,22 @@ function accountHome(acc, person, req) {
   return proHome(acc, person, require("./_connect-wallet").currentSession(req));
 }
 
+async function accountHomeJson(acc, person, req, opts) {
+  const home = accountHome(acc, person, req);
+  const tld = require("./_aia-tld");
+  try {
+    if (opts && opts.peek) {
+      home.aiaTld = tld.peek(home.wallet);
+      tld.ensure().catch(function () {});
+    } else {
+      home.aiaTld = await tld.forWallet(home.wallet);
+    }
+  } catch (e) {
+    home.aiaTld = tld.emptyPublic(home.wallet);
+  }
+  return home;
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -129,19 +145,19 @@ module.exports = async function handler(req, res) {
       const acc = homeAccount(found.person, found.workspace);
       if (acc) {
         refreshSession(req, res);
-        return res.status(200).json(accountHome(acc, found.person, req));
+        return res.status(200).json(await accountHomeJson(acc, found.person, req));
       }
     }
     const pin = (req.headers && req.headers["x-pin"]) || "";
     const via = loginAccount(slug, pin);
     if (via.ok) {
       const owner = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || { name: via.account.ownerName, role: "owner", kind: "owner" };
-      return res.status(200).json(accountHome(via.account, owner, req));
+      return res.status(200).json(await accountHomeJson(via.account, owner, req));
     }
     if (!found.workspace || !found.person) {
       return res.status(401).json({ ok: false, error: "Account name, desk code, or email does not match." });
     }
-    return res.status(200).json(accountHome(accountForDesk(found.workspace), found.person, req));
+    return res.status(200).json(await accountHomeJson(accountForDesk(found.workspace), found.person, req));
   }
 
   if (req.method !== "POST") {
@@ -171,7 +187,7 @@ module.exports = async function handler(req, res) {
       aiaAdmin.stampAdminAccount(via.account);
     }
     await save();
-    const home = accountHome(via.account, who, req);
+    const home = await accountHomeJson(via.account, who, req, { peek: true });
     return res.status(200).json(Object.assign({ savedLogin: true, session }, home));
   }
 
