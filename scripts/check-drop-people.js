@@ -38,6 +38,22 @@ const hand = agent.slice(handAt, handAt + 900);
 if (hand.indexOf("drop-hand") < 0) fail("People fetch must fill #drop-hand");
 if (hand.indexOf("AIADesks.authHeaders") < 0) fail("People fetch must use AIADesks.authHeaders() on the open desk");
 
+const now = read("drop-now.js");
+const nowDeskAt = now.indexOf("function desk()");
+const nowDesk = now.slice(nowDeskAt, now.indexOf("function recent", nowDeskAt));
+if (nowDesk.indexOf("cur.name || q") >= 0) fail("drop-now.js must not name a leftover desk on a ?ws= link");
+if (nowDesk.indexOf("AIADesks.find") < 0) fail("drop-now.js must name a link desk from the saved row or the slug");
+
+const chat = read("drop-chat.js");
+const chatDeskAt = chat.indexOf("function desk()");
+const chatDesk = chat.slice(chatDeskAt, chat.indexOf("function headers", chatDeskAt));
+if (chatDesk.indexOf("cur.name || q") >= 0) fail("drop-chat.js must not greet with a leftover desk on a ?ws= link");
+if (chatDesk.indexOf("AIADesks.find") < 0) fail("drop-chat.js must name the link desk");
+
+const pick = read("drop-pick.js");
+if (/var ws = cur\.slug \|\| q/.test(pick)) fail("drop-pick.js must not prefer a leftover desk over ?ws=");
+if (pick.indexOf("q || cur.slug") < 0) fail("drop-pick.js must highlight the link desk first");
+
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
   if (src.indexOf("AIADesks.shopOpen") < 0) fail(file + " deskOpen must still follow shopOpen()");
