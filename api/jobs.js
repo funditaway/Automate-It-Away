@@ -132,6 +132,7 @@ module.exports = async function handler(req, res) {
       });
     }
     if (action === "capture") {
+      if (!shop) return res.status(404).json({ ok: false, error: "No desk with that name. Open one first." });
       const job = makeCapturedJob(workspace, shop, body);
       qualifyJob(job, shop);
       const incomingCites = normalizeCites(body.citations || []);
