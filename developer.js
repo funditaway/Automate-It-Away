@@ -297,7 +297,8 @@
       "<div class=\"card\"><h2>Creators / earnings</h2>" +
       "<p class=\"hint\">AIA has no public payout baseline and no published creator rate card. You earn by pricing a pack — a listed ask. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. No silent charge. No demo seed. Private project, company, or family desks stay off Market.</p>" +
       "<p class=\"hint\"><b>Paid ads (off-platform).</b> If World users buy Meta, Google, TikTok, or YouTube ads off-platform to market packs, earnings depend on ROAS, CAC, and the funnel — lead magnet → tripwire → pack → upsell — not raw sales volume. Example thinking only. AIA does not run ads and does not guarantee ROAS.</p>" +
-      "<p class=\"hint\">Agency consulting is off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com.</p></div>" +
+      "<p class=\"hint\">Agency consulting is off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com.</p>" +
+      "<p class=\"hint\"><b>FAQ.</b> Can I buy stock in Automate It Away? No. AIA is a privately held web app — not listed. Not investment advice.</p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
       "<div class=\"strip\" aria-label=\"When If Then\">" +

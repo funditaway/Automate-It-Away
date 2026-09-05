@@ -152,6 +152,15 @@ if (/Login Kit|hands-off niche|auto-schedule/i.test(help + studioHtml + studioJs
 if (/social SSO/i.test(help + studioHtml) && !/Not social SSO/i.test(help + studioHtml)) {
   fail("account door must not be social SSO");
 } else pass("account door is not social SSO");
+if (!/id="faq"/.test(help) || !/privately held/i.test(help) || !/not listed on NYSE/i.test(help)) {
+  fail("help missing honest stock FAQ");
+} else pass("help stock FAQ");
+if (!/privately held/i.test(studioHtml) || !/Not investment advice/i.test(studioHtml + help)) {
+  fail("studio/help missing privately held / not advice");
+} else pass("stock FAQ not advice");
+if (/IPO|secondary market|venture capital|% founder/i.test(help + studioHtml + studioJs)) {
+  fail("invented ownership or IPO");
+} else pass("no invented IPO/ownership");
 
 const fake = [
   /\$1\.5k/i,

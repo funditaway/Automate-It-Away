@@ -71,6 +71,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Build automation packs blueprint maps to this desk: niche problem → core logic stack (Trigger / Qualify + desk AI / Rules + Rail / destination pipes) → plug-and-play → Free / core / DFY tiers. Illustrative $ only. No silent crash.
 - Learn packs: rebuild from memory on an empty desk; Trigger → Condition → Action in plain words; revisit Rules over days; one pack end-to-end. 20-hour competence is a guide, not a guarantee.
 - Limits on create / sell (real only): 6 named AIs per desk (Studio draft 3), 8 Rules, 12 fields, 12 `.aia` emails per account. No published Marketplace listing cap. No published `.aia` file-size cap. Desk uploads 8 MB. External storefronts off-platform. Buyers bring their own keys.
+- Stock FAQ: AIA / automateitaway.com is privately held, not listed. Retail cannot buy shares on brokers. Not investment advice. Do not invent founder/VC splits, secondary markets, or IPO plans.
 - `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
 
 ## NO (do not pretend these shipped)
@@ -102,6 +103,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Live Slack / Sheets / Notion send without keys + Yes.
 - Live social auto-post / auto-schedule / Login Kit / hands-off niche accounts. Social OAuth publish is not live.
 - Social SSO as the account door. Live doors are desk name + code, or email + password.
+- Public AIA stock, an IPO plan, founder/VC ownership tables, or a secondary-market sale on this desk.
 
 ## Ask me if
 
