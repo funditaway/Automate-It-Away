@@ -113,6 +113,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-drop-desk.js` covers ghost slug vs empty-desk Drop.
 - Saved Drop chips open a token-only email-session desk without asking for a leftover pin. `pick()` uses `AIADesks.hasAuth` / token. `deskOpen` / `deskIsOpen` follow `shopOpen()` (session or pin).
 - `scripts/check-drop-session.js` covers that chip path.
+- Queue Ask Grok on `/desk` posts `recommend` through `helpWithAi` on `desk-needs.js` (already loaded on the queue). Drafts onto the card. Yes / Stop / Kill stay human. Collect HOLD. Not Studio pack Ask Grok. No Grok OAuth / SpaceX login.
+- `scripts/check-desk-grok.js` covers that tap.
 
 ## NO (do not pretend these shipped)
 
@@ -125,7 +127,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Charge Desk / Pro / Crew.
 - Email or SMS reset codes.
 - Authenticator on. API returns 409 HOLD.
-- Public Grok Bot API as a login gate.
+- Public Grok Bot API as a login gate. Grok OAuth / SpaceX login as a desk door.
 - Whatnot.
 - Treating a demo ship as a live payout.
 - Killing a live job from the account page.
