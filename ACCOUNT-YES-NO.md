@@ -111,6 +111,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-drop-gate.js` covers that gate.
 - Public Drop capture 4xx when the named desk is not a real workspace (`No desk with that name`). A real empty desk still takes the card.
 - `scripts/check-drop-desk.js` covers ghost slug vs empty-desk Drop.
+- Saved Drop chips open a token-only email-session desk without asking for a leftover pin. `pick()` uses `AIADesks.hasAuth` / token. `deskOpen` / `deskIsOpen` follow `shopOpen()` (session or pin).
+- `scripts/check-drop-session.js` covers that chip path.
 
 ## NO (do not pretend these shipped)
 
