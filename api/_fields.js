@@ -198,6 +198,19 @@ function makeCapturedJob(workspace, shop, body) {
     job.custom = Object.assign({}, job.custom || {}, { outcome: src.outcome || src.wanted });
   }
   if (src.timing || src.due) job.timing = String(src.timing || src.due).slice(0, 80);
+  if (Array.isArray(src.files) && src.files.length) {
+    job.files = src.files.slice(0, 8).map(function (f) {
+      if (!f || !f.url) return null;
+      return {
+        id: String(f.id || "").slice(0, 40),
+        name: String(f.name || "").slice(0, 80),
+        type: String(f.type || "").slice(0, 80),
+        kind: String(f.kind || "").slice(0, 16),
+        bytes: Number(f.bytes) || 0,
+        url: String(f.url).slice(0, 400)
+      };
+    }).filter(Boolean);
+  }
   return job;
 }
 function addTalk(job, from, text, kind) {

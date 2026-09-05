@@ -254,6 +254,44 @@
     });
     paintEmbed();
     bootDesk();
+    async function attachFiles(item, err) {
+      const photo = document.getElementById("photo");
+      const picked = photo && photo.files ? [].slice.call(photo.files, 0, 8) : [];
+      if (!picked.length) return true;
+      for (let i = 0; i < picked.length; i++) {
+        if (picked[i].size > 8000000) {
+          err.style.display = "block";
+          err.textContent = "Each file must stay under 8MB.";
+          return false;
+        }
+      }
+      function readFile(file) {
+        return new Promise(function (resolve, reject) {
+          const r = new FileReader();
+          r.onload = function () { resolve(r.result); };
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+      }
+      const packed = [];
+      for (let j = 0; j < picked.length; j++) {
+        packed.push({ name: picked[j].name, type: picked[j].type, data: await readFile(picked[j]) });
+      }
+      const up = await fetch("/api/upload", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(packed.length === 1 ? packed[0] : { files: packed })
+      });
+      const data = await up.json().catch(function () { return {}; });
+      if (!up.ok) {
+        err.style.display = "block";
+        err.textContent = data.error || "Photo did not save.";
+        return false;
+      }
+      if (data.photoUrl) item.photoUrl = data.photoUrl;
+      if (Array.isArray(data.files) && data.files.length) item.files = data.files;
+      return true;
+    }
     async function send() {
       const ok = document.getElementById("ok");
       const err = document.getElementById("err");
@@ -283,6 +321,7 @@
       if (agentOn && mapped.timing) item.timing = mapped.timing;
       if (btn) btn.disabled = true;
       try {
+        if (!(await attachFiles(item, err))) return;
         const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(item) });
         const out = await r.json().catch(function () { return {}; });
         if (r.ok) {
