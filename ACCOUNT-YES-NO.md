@@ -70,6 +70,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Account door: desk name + code, or email + password on /account. Not social SSO. Marketplace GTM is clear titles + niche keywords — no top-ranking guarantee.
 - Build automation packs blueprint maps to this desk: niche problem → core logic stack (Trigger / Qualify + desk AI / Rules + Rail / destination pipes) → plug-and-play → Free / core / DFY tiers. Illustrative $ only. No silent crash.
 - Learn packs: rebuild from memory on an empty desk; Trigger → Condition → Action in plain words; revisit Rules over days; one pack end-to-end. 20-hour competence is a guide, not a guarantee.
+- Limits on create / sell (real only): 6 named AIs per desk (Studio draft 3), 8 Rules, 12 fields, 12 `.aia` emails per account. No published Marketplace listing cap. No published `.aia` file-size cap. Desk uploads 8 MB. External storefronts off-platform. Buyers bring their own keys.
 - `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
 
 ## NO (do not pretend these shipped)

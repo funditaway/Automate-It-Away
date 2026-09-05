@@ -166,6 +166,19 @@ First 3 clients: Audit (playbook step 1) → 60s proof → risk-free trial. No i
 
 **Learn packs** (short, on this desk): rebuild a pack from memory on an empty desk; say Trigger → Condition → Action in plain words. Revisit packs / Rules over days. Practice Qualify prompts, fallback Rules, and pipe connect with Simulate inbound. Deconstruct a niche → read just enough Help → open the desk → one pack end-to-end. 20-hour competence is a guide, not a guarantee.
 
+**Limits on create / sell** (real numbers only):
+
+- Named desk AIs: 6 on a desk (`shop.ais` cap). Studio draft form saves 3.
+- Rules: 8 on a desk (`RULE_MAX`). Pack JSON also slices rules to 8, workflows to 4.
+- Card fields: 12 on a desk.
+- 12 .aia emails per account.
+- No published Marketplace listing cap. Do not invent a free-tier listing quota.
+- No published `.aia` pack file-size cap. Desk card uploads cap at 8 MB (`api/upload.js`).
+- External storefronts (Lemon Squeezy / Paddle / Shopify) are off-platform.
+- Third-party API quotas: buyers bring their own keys. AIA does not host per-run billing.
+- When APIs change, version the pack. An update pass is illustrative — not a live subscription engine.
+- Catalog quality: 3–5 strong packs beat 50 thin ones.
+
 ## AIA Internet · `.aia` packs
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.

@@ -103,7 +103,13 @@ const launchBits = [
   "Learn packs",
   "empty desk",
   "Trigger → Condition → Action",
-  "20-hour competence is a guide"
+  "20-hour competence is a guide",
+  "Limits on create / sell",
+  "No published Marketplace listing cap",
+  "12 .aia emails",
+  "6 named AIs",
+  "Buyers bring their own",
+  "3–5 strong packs"
 ];
 Object.keys(worldSurfaces).forEach(function (name) {
   const src = worldSurfaces[name];
@@ -199,6 +205,8 @@ if (!/Build automation packs/i.test(packMd) || !/Core logic stack/i.test(packMd)
 else pass("PACK.md pack blueprint");
 if (!/Learn packs/i.test(packMd) || !/20-hour competence is a guide/i.test(packMd)) fail("PACK.md missing learn packs");
 else pass("PACK.md learn packs");
+if (!/No published Marketplace listing cap/i.test(packMd) || !/12 \.aia emails/i.test(packMd)) fail("PACK.md missing real pack limits");
+else pass("PACK.md real pack limits");
 
 if (failed) {
   console.error(failed + " failed");
