@@ -71,4 +71,12 @@ const now = read("drop-now.js");
 if (now.indexOf("This drop goes to") < 0) fail("drop-now.js banner must name the destination desk");
 if (now.indexOf("You still tap Yes or Stop") < 0) fail("drop-now.js banner must keep Yes or Stop");
 
+const preview = read("drop-preview.js");
+const gateAt = preview.indexOf("function gateSend");
+const gate = preview.slice(gateAt, preview.indexOf("function wrapFetch", gateAt));
+if (gate.indexOf("Say what you need") < 0) fail("gateSend must show Say what you need when title is missing");
+if (!/if\s*\(\s*card\.desk\s*&&\s*card\.title\s*\)\s*return/.test(gate)) {
+  fail("gateSend must still let Drop it run when desk and title are set");
+}
+
 console.log("check-drop-ux: ok");

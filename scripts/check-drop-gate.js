@@ -19,6 +19,9 @@ if (!/if\s*\(\s*card\.desk\s*&&\s*card\.title\s*\)\s*return/.test(fn)) {
 if (/if\s*\(\s*!miss\s*&&\s*card\.desk/.test(fn)) {
   throw new Error("gateSend must not block Drop it on preview missing() fields");
 }
+if (fn.indexOf("Say what you need") < 0 || fn.indexOf("Pick a desk above") < 0) {
+  throw new Error("gateSend must show the same form error send() uses when it blocks");
+}
 
 const sendAt = drop.indexOf("async function send()");
 const send = drop.slice(sendAt, drop.indexOf("function copyDropShare", sendAt));
