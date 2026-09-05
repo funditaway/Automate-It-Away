@@ -37,6 +37,10 @@ if (!/window\.ethereum/.test(ui) || !/eth_requestAccounts/.test(ui)) fail("UI mu
 else pass("EIP-1193 eth_requestAccounts");
 if (!/Collect stays HOLD/.test(ui)) fail("UI must keep Collect HOLD");
 else pass("Collect HOLD in UI");
+if (!/not compute credits/.test(ui) || !/creator payout ledger/.test(ui)) fail("UI must deny compute credits / payout ledger");
+else pass("wallet is not compute credits");
+if (!/not compute credits/.test(html) || !/creator payout ledger/.test(html)) fail("account.html must deny compute credits / payout ledger");
+else pass("account wallet one-liner");
 if (!/Mint and Bridge stay external/.test(ui)) fail("UI missing mint/Bridge honesty");
 else pass("mint/Bridge stay external");
 if (/privateKey|mnemonic|seed phrase|demo ETH|fake ETH|0\.00 ETH/i.test(ui)) fail("UI must not show keys or demo ETH");
