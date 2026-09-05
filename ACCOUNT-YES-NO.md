@@ -103,6 +103,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-history-esc.js` covers History / Rules escape honesty.
 - Pipes / Connections saved-desk picker calls `AIADesks.open` (not a missing `AIADeskSwitch`) so `aia_pin` follows the tapped desk.
 - `scripts/check-pipes-switch.js` covers that switch.
+- People (`/people`) `esc()` must parse and encode `& < > "` so `people.js` loads. A broken quote map is a syntax error — More → People stays empty.
+- `scripts/check-people-esc.js` covers that parse + encode.
 
 ## NO (do not pretend these shipped)
 
