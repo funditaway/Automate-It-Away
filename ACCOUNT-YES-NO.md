@@ -115,6 +115,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-drop-session.js` covers that chip path.
 - Queue Ask Grok on `/desk` posts `recommend` through `helpWithAi` on `desk-needs.js` (already loaded on the queue). Drafts onto the card. Yes / Stop / Kill stay human. Collect HOLD. Not Studio pack Ask Grok. No Grok OAuth / SpaceX login.
 - `scripts/check-desk-grok.js` covers that tap.
+- When → If → Then `draft` on Qualify writes the named desk AI onto the card (prompt / does). Generic pack brain does not win. No named AI still Then-drafts HOLD. Incoming Drop draft stays. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
+- `scripts/check-orch-then.js` covers that Then.
 
 ## NO (do not pretend these shipped)
 
