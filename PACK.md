@@ -142,12 +142,12 @@ Paid ads (off-platform, optional): ROAS / CAC / funnel (lead magnet → tripwire
 
 **Four models** (label on-desk vs off-platform):
 
-1. Automation Agency — off-platform client work on the AIA desk. Illustrative fees only — not AIA rates.
-2. DFY — off-platform service wrapping a repeatable pack install.
-3. Marketplace — on-desk Studio. You set the `.aia` ask. No public payout baseline.
+1. Automation Agency (AAA) — off-platform client work on the AIA desk. Sell outcomes. AIA is the desk engine (Capture → Qualify → Do → Collect HOLD → Follow). Fees are example / off-platform — not AIA rates. Do not publish $1.5k–$5k / $300–$1k as AIA rates.
+2. DFY — off-platform service wrapping a repeatable install (example: lead qualify in 48h). Flat fees illustrative only.
+3. Marketplace — on-desk Studio. You set the price. Lead magnet → core pack → VIP / club is your ladder. No public payout baseline. Do not treat $47–$147 as platform prices.
 4. Co-pilot — off-platform revenue-share. 10–15% cuts are examples only, not AIA terms.
 
-First 3 clients: Audit (playbook step 1) → 60s proof → risk-free trial. No invented close rates.
+First 3 clients: Audit (playbook step 1 · Find the leaks) → 60s proof → risk-free trial. No invented close rates.
 
 **Pack quality:** ship operational infrastructure (Capture → Qualify → Do → Collect HOLD → Follow), not dead templates. Fallbacks = Rules + Rail. Visual outcomes on Follow / Collect. Slack / Sheets / Notion via pipes when connected (HOLD until Yes / keys). Structured prompts on named desk AIs. Recommend a 2-min quickstart. No review-rate stats.
 
