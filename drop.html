@@ -186,7 +186,7 @@
     let ws = (desk && desk.slug) || "";
     if (ws) window.ws = ws;
     let pin = localStorage.getItem("aia_pin") || "";
-    let deskOpen = !!(ws && pin);
+    let deskOpen = (window.AIADesks && AIADesks.shopOpen) ? !!AIADesks.shopOpen() : !!(ws && (pin || localStorage.getItem("aia_session")));
     if (deskOpen) document.body.classList.add("desk-open");
     let mode = params.get("mode") || "quick";
     let whoKind = params.get("who") || "helper";

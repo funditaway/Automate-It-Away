@@ -101,7 +101,11 @@
   function pick(slug) {
     var row = window.AIADesks ? AIADesks.find(slug) : null;
     if (!row) return;
-    if (row.pin) { AIADesks.switchTo(row.slug); goDrop(row.slug); return; }
+    if ((window.AIADesks && AIADesks.hasAuth && AIADesks.hasAuth(row)) || row.pin || row.token) {
+      if (window.AIADesks && AIADesks.switchTo) AIADesks.switchTo(row.slug);
+      goDrop(row.slug);
+      return;
+    }
     var add = document.getElementById("desk-add"); if (add) add.hidden = false;
     var name = document.getElementById("add-ws"); var err = document.getElementById("desk-err");
     if (name) name.value = row.name || row.slug;

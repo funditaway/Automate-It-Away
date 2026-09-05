@@ -133,7 +133,10 @@
     if (extras.need && document.getElementById("note") && !document.getElementById("note").value) document.getElementById("note").value = extras.need;
     if (extras.whoFor && document.getElementById("who") && !document.getElementById("who").value) document.getElementById("who").value = extras.whoFor;
   }
-  function deskIsOpen() { return document.body.classList.contains("desk-open") || !!(localStorage.getItem("aia_pin") && (localStorage.getItem("aia_ws") || localStorage.getItem("aia_desk"))); }
+  function deskIsOpen() {
+    if (window.AIADesks && AIADesks.shopOpen) return !!AIADesks.shopOpen();
+    return document.body.classList.contains("desk-open") || !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
+  }
   function isEmbed() { return document.body.classList.contains("embed"); }
   function paintActions(box, on) {
     if (!box) return on || {};
