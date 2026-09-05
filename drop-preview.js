@@ -267,8 +267,7 @@
     btn.setAttribute("data-preview-gate", "1");
     btn.addEventListener("click", function (e) {
       var card = readCard();
-      var miss = missing(card);
-      if (!miss && card.desk && card.title) return;
+      if (card.desk && card.title) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       if (!thread.length) addLine("desk", "Got it. Checking the card.", "note");
