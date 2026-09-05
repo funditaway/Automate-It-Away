@@ -33,8 +33,8 @@
       var title = document.getElementById("drop-title");
       if (title && title.parentNode) title.parentNode.insertBefore(el, title.nextSibling);
     }
-    if (!on.slug) { el.textContent = "No desk yet. Pick one, say which desk, or find a public desk."; return; }
-    el.innerHTML = "Dropping on <b>" + esc(on.name || on.slug) + "</b>. <a href=\"/drop\">Change desk</a>";
+    if (!on.slug) { el.textContent = "No desk yet. Pick one, add a saved desk, or find a public desk."; return; }
+    el.innerHTML = "This drop goes to <b>" + esc(on.name || on.slug) + "</b>. Lands on that queue. You still tap Yes or Stop. <a href=\"/drop\">Change desk</a>";
   }
   function camera() {
     var photo = document.getElementById("photo"); if (!photo) return;
@@ -122,6 +122,7 @@
     var on = desk();
     if (on.slug && /(?:^|[?&])ws=/.test(location.search)) rememberPublic(on);
   }
+  window.AIADropNow = { banner: banner };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
