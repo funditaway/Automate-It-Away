@@ -10,11 +10,32 @@ delete global.__aia;
 delete global.__aiaHydrate;
 
 const ais = require("../api/_ais");
+const lib = require("../api/_lib");
 const { qualifyJob } = require("../api/_engine");
+const jobsHandler = require("../api/jobs");
+const { mem, hashPin, ensurePeople, ready } = lib;
 
 let failed = 0;
 function fail(m) { failed += 1; console.error("FAIL " + m); }
 function pass(m) { console.log("ok   " + m); }
+
+function mockRes() {
+  return {
+    headers: {},
+    statusCode: 200,
+    body: null,
+    setHeader(k, v) { this.headers[k] = v; },
+    status(c) { this.statusCode = c; return this; },
+    json(b) { this.body = b; return this; },
+    send(b) { this.body = b; return this; },
+    end() { return this; }
+  };
+}
+async function call(handler, method, headers, body) {
+  const res = mockRes();
+  await handler({ method: method, headers: headers || {}, body: body || {}, query: {} }, res);
+  return res;
+}
 
 const shop = {
   slug: "orch-desk",
@@ -90,10 +111,60 @@ if (!/Owner already wrote this/i.test(keep.draft || "")) fail("incoming Drop dra
 else if (!/HOLD/i.test(keep.draft || "")) fail("incoming draft must get HOLD");
 else pass("incoming draft kept + HOLD");
 
-try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
-
-if (failed) {
-  console.error(failed + " failed");
-  process.exit(1);
+async function capturePath() {
+  await ready();
+  const slug = "drop-orch";
+  const pin = "4821";
+  const desk = {
+    slug: slug,
+    name: "Drop orch",
+    biz: slug,
+    pin: hashPin(pin),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: [{
+      text: "Click → James drafts HOLD.",
+      when: "drop",
+      contains: "click",
+      then: "draft"
+    }]
+  };
+  ensurePeople(desk);
+  ais.attachAisToDesk(desk, [{
+    name: "James’s AI",
+    role: "Doer",
+    does: "Draft the lead packet",
+    prompt: "Ask who it is for and when. Do not send.",
+    steps: ["qualify", "do"]
+  }]);
+  mem.workspaces.unshift(desk);
+  const cap = await call(jobsHandler, "POST", { "x-workspace": slug, "x-pin": pin }, {
+    action: "capture",
+    title: "They clicked",
+    notes: "click from the lane",
+    from: "drop"
+  });
+  const card = cap.body && cap.body.job;
+  if (cap.statusCode !== 201 || !card) fail("Drop capture " + cap.statusCode + " " + JSON.stringify(cap.body));
+  else pass("Drop capture 201");
+  if (!card.deskAi || !/James/.test(card.deskAi.name || "")) fail("Drop Then draft missing named AI");
+  else pass("Drop Then names the desk AI");
+  if (!/Ask who it is for and when/i.test(card.draft || "")) fail("Drop Then draft is not the named AI: " + JSON.stringify(card.draft));
+  else pass("Drop Then card is the named AI");
+  if (/On the Home desk/i.test(card.draft || "")) fail("Drop Then still showed pack brain");
+  else pass("Drop Then did not keep pack brain");
+  if (card.status === "shipped" || card.charged) fail("Drop Then must not ship");
+  else pass("Drop Then stays on the queue");
 }
-console.log("check-orch-then ok");
+
+capturePath().then(function () {
+  try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
+  if (failed) {
+    console.error(failed + " failed");
+    process.exit(1);
+  }
+  console.log("check-orch-then ok");
+}).catch(function (e) {
+  console.error(e);
+  process.exit(1);
+});
