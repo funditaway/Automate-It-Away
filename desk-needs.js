@@ -119,8 +119,8 @@
       band.hidden = false;
       box.innerHTML = items.map(function (j) {
         const other = (j.slug || j.workspace) && (j.slug || j.workspace) !== here;
-        return "<article class=\"item cap-card\"><div class=\"meta\"><span class=\"cap-mark\">Cap</span> " + String(j.desk || j.slug || "") + "</div><h3>" + String(j.title || "") + "</h3><p class=\"meta\">" + String(j.next || "On the cap.") + "</p>" +
-          (other ? "<div class=\"row\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "") + "','" + j.id + "')\">Open on " + String(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button></div>") +
+        return "<article class=\"item cap-card\"><div class=\"meta\"><span class=\"cap-mark\">Cap</span> " + esc(j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3><p class=\"meta\">" + esc(j.next || "On the cap.") + "</p>" +
+          (other ? "<div class=\"row\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
           "</article>";
       }).join("");
     } catch (e) { band.hidden = true; }
@@ -135,7 +135,7 @@
     const cap = !!need.priority;
     const why = (typeof visitorLine === "function" ? visitorLine(j.why) : (j.why || ""));
     const status = typeof labelStatus === "function" ? labelStatus(j.status) : (j.status || "");
-    return "<article class=\"item" + (cap ? " cap-card" : "") + "\"><div class=\"meta\">" + (cap ? "<span class=\"cap-mark\">Cap</span> " : "") + status + (j.assignee ? " · " + j.assignee : "") + "</div><h3>" + String(j.title || "") + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + j.photoUrl + "\" alt=\"\">" : "") + (why ? "<p>" + why + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + j.draft + "</div>" : "") + "<p class=\"next-line\">" + (need.line || "") + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
+    return "<article class=\"item" + (cap ? " cap-card" : "") + "\"><div class=\"meta\">" + (cap ? "<span class=\"cap-mark\">Cap</span> " : "") + esc(status) + (j.assignee ? " · " + esc(j.assignee) : "") + "</div><h3>" + esc(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + esc(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + esc(j.draft) + "</div>" : "") + "<p class=\"next-line\">" + esc(need.line || "") + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
   };
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }
