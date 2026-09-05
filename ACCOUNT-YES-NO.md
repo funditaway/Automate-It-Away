@@ -91,6 +91,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - FAQ Create / Drop a goal → draft card → Yes. No autonomous ETA engine. No SaaS codegen.
 - Support Talk (`support-talk.js`) calls `AIASpeech.listen(fn, fn)` like Drop / Login. World door still posts to desk `aia` with no pin.
 - `scripts/check-queue-help.js` covers queue-run Help + Support Talk listen contract.
+- Desk cards (`/help#desk-cards` + Studio one-liner): When → If → Then drafts a queue card (fields / notes), not a chat blob. Yes is not auto-send mail, push git, or a Collect charge. Thin `.aia`; test via Drop or www hook. Real cap: 12 card fields. Sample JSON illustrative — desk words only. Not `render_desk_card`, interactive_review, code_diff / confidence / token badge field types.
+- Public Drop (`/drop?ws=`) must honor the URL desk in `drop-preview.js` `deskSlug()` so strangers are not asked “Which desk?” after the link already named one.
+- `scripts/check-desk-cards.js` covers desk-cards Help + public Drop `?ws=` honesty.
 
 ## NO (do not pretend these shipped)
 
@@ -132,6 +135,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - A careers portal or certified partner program. A separate AIA License SKU, Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
 - An effort or token estimate UI on History or the queue. Yes as a collect charge.
 - Public Free / Pro / Team / Enterprise SKUs or credit pricing. Codegen, deploy, or GitHub auto-patch from this desk. An autonomous ETA engine or SaaS codegen.
+- `render_desk_card`, interactive_review layout, or code_diff / confidence / token badge field types as product. Yes as auto-send mail, push git, or a Collect charge.
 
 ## Ask me if
 

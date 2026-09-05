@@ -143,6 +143,10 @@ FAQ: work with / for AIA = build packs + Talk to AIA; agency / DFY off-platform;
 
 How the queue runs: Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill → Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD.
 
+## Desk cards
+
+When → If → Then: a named desk AI drafts a queue card (fields / notes), not a raw chat blob. Yes / Stop / Kill stay human. Yes is not auto-send mail, push git, or a Collect charge. Collect HOLD. Thin `.aia` from Studio; test via Drop or the www hook. A desk holds up to 12 card fields — real cap. Sample JSON is illustrative only — desk words. Do not invent `render_desk_card`, interactive_review layout, or code_diff / confidence / token badge field types.
+
 Plan tiers FAQ: no public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Create / Drop a goal → draft card → Yes. No autonomous ETA engine. No SaaS codegen.
 
 ## World users · launch an automation business

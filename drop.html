@@ -184,6 +184,7 @@
     if (embed) document.body.classList.add("embed");
     let desk = (window.AIADesks && AIADesks.captureDesk) ? AIADesks.captureDesk() : null;
     let ws = (desk && desk.slug) || "";
+    if (ws) window.ws = ws;
     let pin = localStorage.getItem("aia_pin") || "";
     let deskOpen = !!(ws && pin);
     if (deskOpen) document.body.classList.add("desk-open");

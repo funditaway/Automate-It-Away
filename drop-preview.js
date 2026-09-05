@@ -19,11 +19,14 @@
   }
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
   function embedOn() { return document.body.classList.contains("embed") || window !== window.parent; }
+  function queryWs() {
+    try { return String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { return ""; }
+  }
   function deskName() {
     var d = window.desk || {};
-    return d.name || d.slug || window.ws || localStorage.getItem("aia_ws") || "";
+    return d.name || d.slug || queryWs() || window.ws || localStorage.getItem("aia_ws") || "";
   }
-  function deskSlug() { return window.ws || localStorage.getItem("aia_ws") || ""; }
+  function deskSlug() { return queryWs() || window.ws || localStorage.getItem("aia_ws") || ""; }
   function readCard() {
     var kindEl = document.getElementById("kind");
     var files = (window.AIADropWell && AIADropWell.filesFromInput) ? AIADropWell.filesFromInput() : [];
