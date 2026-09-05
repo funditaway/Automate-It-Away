@@ -73,7 +73,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Limits on create / sell (real only): 6 named AIs per desk (Studio draft 3), 8 Rules, 12 fields, 12 `.aia` emails per account. No published Marketplace listing cap. No published `.aia` file-size cap. Desk uploads 8 MB. External storefronts off-platform. Buyers bring their own keys.
 - Stock FAQ: AIA / automateitaway.com is privately held, not listed. Retail cannot buy shares on brokers. Not investment advice. Do not invent founder/VC splits, secondary markets, or IPO plans.
 - Add people: search a world @handle on People under More; they Accept there. Email is not a world name. AIA does not send invite mail. Owner vs Helper as on Help. Do not share the owner desk code. Each person their own seat.
+- Onboard this desk (`/help#onboard-desk`): four beats — Pipes (copy `www.automateitaway.com/api/hook`; Zapier/Make can post today; Search a site / Log in = vendor console, draft only; Calendar, SMS, Square, eBay HOLD until keys + Yes) · Account / desk identity (desk name + desk code; `james.aia`-style name on Account; no live Business Details / brand-kit page) · People (link `#people-desk`; Owner vs Helper; no Team email seats) · Packs (Studio `/dev` write or install `.aia`; Marketplace browse; fresh desks empty until drop or install; Collect HOLD; no silent charge; no mapping shared OpenAI keys into packs).
 - `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
+- `scripts/check-world-people.js` covers Add people + Onboard this desk honesty (no invented Integrations Connect Tool, Connected Accounts OAuth, Team email seats, or Import Pack workspace keys).
 
 ## NO (do not pretend these shipped)
 
@@ -106,6 +108,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Social SSO as the account door. Live doors are desk name + code, or email + password.
 - Public AIA stock, an IPO plan, founder/VC ownership tables, or a secondary-market sale on this desk.
 - Email invite mail, User Groups, shared model keys, Connected Accounts for auto-post, or an AIA Studios social scheduler.
+- Settings → Integrations LLM/CRM “Connect Tool.” AIA Studios Connected Accounts OAuth (TikTok / Instagram / Threads / X / YouTube). Team email invites with Admin / Creator / Viewer roles. Import Pack that writes workspace API keys or user groups.
+- A live Business Details / brand-kit settings page. Calendar, SMS, Square, or eBay as live pipes without keys + human Yes. Mapping shared OpenAI keys into packs.
 
 ## Ask me if
 

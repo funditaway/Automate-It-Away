@@ -53,13 +53,66 @@ must(help, "Add people to this desk", "help.html add-people title");
 must(help, "AIA does not send invite mail", "help.html no invite mail");
 must(help, "own seat", "help.html own seat");
 must(help, "Cannot Stop", "help.html helper cannot Stop");
+must(help, 'id="onboard-desk"', "help.html onboard-desk card");
+must(help, "Onboard this desk", "help.html onboard title");
+must(help, "www.automateitaway.com/api/hook", "help.html inbound hook");
+must(help, "Zapier or Make", "help.html Zapier/Make today");
+must(help, "Search a site / Log in", "help.html vendor console");
+must(help, "draft only", "help.html login is draft");
+must(help, "Calendar, SMS, Square, and eBay stay HOLD", "help.html hold pipes");
+must(help, "desk name plus a desk code", "help.html desk identity");
+must(help, "james.aia", "help.html james.aia-style name");
+must(help, "no live Business Details or brand-kit", "help.html no brand-kit page");
+must(help, 'href="#people-desk"', "help.html people-desk link");
+must(help, "Owner vs Helper", "help.html owner vs helper");
+must(help, "does not send Team email seats", "help.html no team seats");
+must(help, "Creators Studio", "help.html packs studio");
+must(help, "/dev", "help.html /dev");
+must(help, "no silent charge", "help.html no silent charge");
+must(help, "do not map shared OpenAI keys into packs", "help.html no shared keys");
+must(help, "Not on this desk", "help.html onboard denial");
+must(help, "Connect Tool", "help.html denies Connect Tool");
+must(help, "Connected Accounts", "help.html denies Connected Accounts");
+must(help, "Admin / Creator / Viewer", "help.html denies team roles");
+must(help, "Import Pack", "help.html denies Import Pack keys");
 
 const studio = read("developer.html");
 must(studio, "Add people.", "studio add-people one-liner");
 must(studio, "AIA does not send invite mail", "studio no invite mail");
+must(studio, "Onboard this desk.", "studio onboard one-liner");
+must(studio, "/help#onboard-desk", "studio onboard link");
 
-["aiastudios.app", "User Groups", "Connected Accounts", "Team & Permissions", "Workspace Settings"].forEach(function (bit) {
-  if (help.includes(bit) || studio.includes(bit)) throw new Error("invented people chrome: " + bit);
+const studioJs = read("developer.js");
+must(studioJs, "Onboard this desk.", "studio js onboard one-liner");
+must(studioJs, "/help#onboard-desk", "studio js onboard link");
+
+must(more, "/help#onboard-desk", "more.html onboard link");
+
+["aiastudios.app", "Team & Permissions", "Workspace Settings"].forEach(function (bit) {
+  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit)) {
+    throw new Error("invented people chrome: " + bit);
+  }
+});
+
+function onlyInDenial(hay, bit, label) {
+  var idx = 0;
+  var found = false;
+  while ((idx = hay.indexOf(bit, idx)) !== -1) {
+    found = true;
+    var before = hay.slice(Math.max(0, idx - 400), idx);
+    if (!/Not on this desk/i.test(before)) throw new Error("invented chrome outside denial (" + label + "): " + bit);
+    idx += bit.length;
+  }
+  if (!found) throw new Error("missing denial of " + bit);
+}
+
+onlyInDenial(help, "Connected Accounts", "help.html");
+onlyInDenial(help, "Connect Tool", "help.html");
+onlyInDenial(help, "Import Pack", "help.html");
+onlyInDenial(help, "User Groups", "help.html");
+
+["Connected Accounts", "Connect Tool", "Import Pack", "User Groups"].forEach(function (bit) {
+  if (studio.includes(bit) || studioJs.includes(bit)) throw new Error("invented people chrome on studio: " + bit);
 });
 
 console.log("check-world-people: ok");
