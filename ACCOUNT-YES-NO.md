@@ -97,6 +97,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `.aia` inbound (`/help#aia-inbound` + Studio one-liner): users create `name@account.aia`; When for packs and rules. Live: `www.automateitaway.com/api/hook` can write a card; unknown `.aia` → 400. MX/DNS for `*.aia` HOLD (`ai.aia` orange until DNS). No live Gmail forward wizard, email vault, or voice/SMS receptionist.
 - History person filter is a non-link `#who-chip`; `theme.js` must not steal it (`chip.tagName !== "A"`). Header Sign-in still paints as `a.who-chip`.
 - `scripts/check-aia-inbound.js` covers inbound Help + History `#who-chip` honesty.
+- Onboard (`/onboard`) writes `aia_ws` / `aia_pin` / `AIADesks.open` only after `/api/auth` succeeds and is not `pending`. Failed open or Ask-to-join pending must not paint a signed-in header.
+- `scripts/check-onboard-session.js` covers onboard session order.
 
 ## NO (do not pretend these shipped)
 
@@ -117,6 +119,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - A second dashboard.
 - Live SMTP / MX for `.aia`. DNS for ai.aia / *.aia does not resolve yet.
 - A live Gmail forward wizard, an email vault, or a voice / SMS receptionist.
+- A signed-in header after a failed or pending `/onboard` open.
 - Embedded wallets, key generation, or gas sponsorship.
 - Server-signed Decentraweb mint / Bridge. On-desk Register is client-only when Bridge is clear; James signs every tx.
 - Collect charges through Square / Stripe / a wallet pipe.
