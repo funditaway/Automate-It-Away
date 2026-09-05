@@ -123,6 +123,62 @@ AIA has no public payout baseline and no published creator rate card. Creators e
 
 Agency or client consulting retainers are off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com. Do not invent AI Creator income bands, affiliate percents, or influencer payout tables.
 
+## World users · launch an automation business
+
+Help (`/help#world`) and Studio (`#world`) fold this into one short path. Days are a guide, not a promise.
+
+Spine = AIA playbook: Audit → Pipes → named desk AI → Rules (When → If → Then) + Yes / Stop / Kill. Collect stays HOLD until Yes + a live money pipe.
+
+On-desk: open a desk, create / name a desk AI, pack `.aia`, Marketplace or private, Simulate inbound / www hook. Fresh rules stay empty. No demo seed ($250 never).
+
+Off-platform: OpenAI / Anthropic keys, Make / Zapier, CRMs — connect as pipes when the owner provides keys + Yes. Do not invent live connectors or live MX. Agency / DFY / co-pilot are off-platform labels.
+
+1. **Core setup** — offer type packs / agency / DFY; niche 1–2; stack = AIA desk + pipes. On-desk path: open desk → name a desk AI → pack `.aia` → Marketplace or private. Price bands ($47–$197 packs, retainers, $997 DFY) are illustrative / off-platform — not an AIA rate card.
+2. **First pack suite** — ideas, not seeded demo rules: Lead capture + follow-up; Content multiplier; Document / email processing. Map Trigger → Condition → Action.
+3. **Package & monetize** — lead magnet → mid pack → high-ticket VIP / setup. You set prices. Collect HOLD. No affiliate percent.
+4. **GTM** — 60s clips; publish on Marketplace / Studio; local SMB / risk-free trial. Do not promise platform-search rank.
+
+Paid ads (off-platform, optional): ROAS / CAC / funnel (lead magnet → tripwire → pack → upsell). Example thinking only. AIA does not run ads or guarantee ROAS. No $29/$97/$297 tables. No monthly P&L.
+
+**Four models** (label on-desk vs off-platform):
+
+1. Automation Agency (AAA) — off-platform client work on the AIA desk. Sell outcomes. AIA is the desk engine (Capture → Qualify → Do → Collect HOLD → Follow). Fees are example / off-platform — not AIA rates. Do not publish $1.5k–$5k / $300–$1k as AIA rates.
+2. DFY — off-platform service wrapping a repeatable install (example: lead qualify in 48h). Flat fees illustrative only.
+3. Marketplace — on-desk Studio. You set the price. Lead magnet → core pack → VIP / club is your ladder. No public payout baseline. Do not treat $47–$147 as platform prices.
+4. Co-pilot — off-platform revenue-share. 10–15% cuts are examples only, not AIA terms.
+
+First 3 clients: Audit (playbook step 1 · Find the leaks) → 60s proof → risk-free trial. No invented close rates.
+
+**Pack quality:** ship operational infrastructure (Capture → Qualify → Do → Collect HOLD → Follow), not dead templates. Fallbacks = Rules + Rail. Visual outcomes on Follow / Collect. Slack / Sheets / Notion via pipes when connected (HOLD until Yes / keys). Structured prompts on named desk AIs. Recommend a 2-min quickstart. No review-rate stats.
+
+**Funnel tiers:** Tripwire / Core / High-ticket DFY. You set prices. Illustrative only. High-ticket implementation is mostly off-platform wrapping packs.
+
+**Expansion:** recurring update pass — Collect HOLD; do not invent a subscription engine. Industry bundles = repackage `.aia`. `$0.05/exec` micro-SaaS is off-platform or a future pipe — AIA does not host per-run billing.
+
+**Workflow & Agent Pack Creator (on-desk):** package named desk AIs, webhooks, and CRM pipes when connected into a `.aia`. Solve a specific problem (lead qualify, review responder, social *repurposing drafts*). Not auto-publish unless a live pipe exists. You set prices. Collect HOLD. Social auto-post is a future / off-platform pipe — not live OAuth. Account door: desk name + code, or email + password — not social SSO. Marketplace GTM: clear titles + niche keywords. No top-ranking guarantee.
+
+**Build automation packs** (map to this desk):
+
+1. Niche problem — real estate / e-com / agency ideas, not seeded demo rules. Measurable time or leads.
+2. Core logic stack = desk engine. Trigger (webhook / Drop / pipe / inbound `.aia`) → Qualify + named desk AI prompts (JSON / structured) → Fallbacks (Rules + Rail Yes/Stop/Kill / alert — no silent crash) → Destination pipes when connected. Collect HOLD.
+3. Plug-and-play — clear credential vars, dashboards via pipes, 2-min quickstart in pack docs.
+4. Tiers — Free / core / DFY. Illustrative $ only; you set the price; Collect HOLD. DFY mostly off-platform service.
+
+**Learn packs** (short, on this desk): rebuild a pack from memory on an empty desk; say Trigger → Condition → Action in plain words. Revisit packs / Rules over days. Practice Qualify prompts, fallback Rules, and pipe connect with Simulate inbound. Deconstruct a niche → read just enough Help → open the desk → one pack end-to-end. 20-hour competence is a guide, not a guarantee.
+
+**Limits on create / sell** (real numbers only):
+
+- Named desk AIs: 6 on a desk (`shop.ais` cap). Studio draft form saves 3.
+- Rules: 8 on a desk (`RULE_MAX`). Pack JSON also slices rules to 8, workflows to 4.
+- Card fields: 12 on a desk.
+- 12 .aia emails per account.
+- No published Marketplace listing cap. Do not invent a free-tier listing quota.
+- No published `.aia` pack file-size cap. Desk card uploads cap at 8 MB (`api/upload.js`).
+- External storefronts (Lemon Squeezy / Paddle / Shopify) are off-platform.
+- Third-party API quotas: buyers bring their own keys. AIA does not host per-run billing.
+- When APIs change, version the pack. An update pass is illustrative — not a live subscription engine.
+- Catalog quality: 3–5 strong packs beat 50 thin ones.
+
 ## AIA Internet · `.aia` packs
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.
