@@ -56,6 +56,14 @@
     localStorage.setItem("aia_theme", next);
     apply();
   }
+  function accountChip() {
+    var chip = document.getElementById("who-chip");
+    if (chip && chip.tagName !== "A") {
+      chip = document.querySelector("header a.who-chip, .hdr-tools a.who-chip");
+    }
+    if (chip && chip.tagName !== "A") chip = null;
+    return chip;
+  }
   function liftChrome(header) {
     if (!header) return;
     var tools = header.querySelector(".hdr-tools");
@@ -65,7 +73,7 @@
       header.appendChild(tools);
     }
     var btn = header.querySelector("[data-theme-btn], .theme-btn");
-    var chip = document.getElementById("who-chip");
+    var chip = accountChip();
     if (chip && chip.parentNode !== tools) tools.appendChild(chip);
     if (btn && btn.parentNode !== tools) tools.appendChild(btn);
   }
@@ -228,10 +236,10 @@
     if (!header) return;
     if (document.body && document.body.classList.contains("embed")) return;
     if (header.classList.contains("top") && header.querySelector(".who")) return;
-    var chip = document.getElementById("who-chip");
+    var chip = accountChip();
     if (!chip) {
       chip = document.createElement("a");
-      chip.id = "who-chip";
+      if (!document.getElementById("who-chip")) chip.id = "who-chip";
       chip.className = "who-chip";
       header.appendChild(chip);
     }

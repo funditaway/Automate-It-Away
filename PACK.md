@@ -223,6 +223,8 @@ Validate `local@account.aia`. The account label must match this AIA Internet acc
 
 Inbound mail (or a simulated webhook) to that address Drops / Captures on that desk — same path as `/api/hook`. Automations can trigger from inbound. The mailbox is not the assignee; a named desk AI drafts when one exists.
 
+Live today: `www.automateitaway.com/api/hook` can write a card. An unknown `.aia` address returns 400. MX and DNS for `*.aia` still HOLD (`ai.aia` orange until DNS). No live Gmail forward wizard, email vault, or voice / SMS receptionist.
+
 Outbound Send stays HOLD. No silent mail. Rail / Yes. Status orange until a real MX pipe. Do not claim live SMTP / MX. DNS for `ai.aia` / `*.aia` does not resolve yet. Identities work on the desk now; internet mail when the MX pipe is connected.
 
 ```json

@@ -94,6 +94,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Desk cards (`/help#desk-cards` + Studio one-liner): When → If → Then drafts a queue card (fields / notes), not a chat blob. Yes is not auto-send mail, push git, or a Collect charge. Thin `.aia`; test via Drop or www hook. Real cap: 12 card fields. Sample JSON illustrative — desk words only. Not `render_desk_card`, interactive_review, code_diff / confidence / token badge field types.
 - Public Drop (`/drop?ws=`) must honor the URL desk in `drop-preview.js` `deskSlug()` so strangers are not asked “Which desk?” after the link already named one.
 - `scripts/check-desk-cards.js` covers desk-cards Help + public Drop `?ws=` honesty.
+- `.aia` inbound (`/help#aia-inbound` + Studio one-liner): users create `name@account.aia`; When for packs and rules. Live: `www.automateitaway.com/api/hook` can write a card; unknown `.aia` → 400. MX/DNS for `*.aia` HOLD (`ai.aia` orange until DNS). No live Gmail forward wizard, email vault, or voice/SMS receptionist.
+- History person filter is a non-link `#who-chip`; `theme.js` must not steal it (`chip.tagName !== "A"`). Header Sign-in still paints as `a.who-chip`.
+- `scripts/check-aia-inbound.js` covers inbound Help + History `#who-chip` honesty.
 
 ## NO (do not pretend these shipped)
 
@@ -113,6 +116,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Moving money from the account page.
 - A second dashboard.
 - Live SMTP / MX for `.aia`. DNS for ai.aia / *.aia does not resolve yet.
+- A live Gmail forward wizard, an email vault, or a voice / SMS receptionist.
 - Embedded wallets, key generation, or gas sponsorship.
 - Server-signed Decentraweb mint / Bridge. On-desk Register is client-only when Bridge is clear; James signs every tx.
 - Collect charges through Square / Stripe / a wallet pipe.
