@@ -82,7 +82,7 @@
         <dt>Paid ads (off-platform)</dt>
         <dd>If you buy Meta, Google, TikTok, or YouTube ads off-platform to market a pack, take-home depends on ROAS, CAC, and the funnel — lead magnet → tripwire → pack → upsell — not raw sales volume. Example thinking only. AIA does not run ads and does not guarantee ROAS.</dd>
       </dl>
-      <p>Selling packs: thin JSON, buyer keys, Collect HOLD. Not 100% safe. Help is not legal advice. <a href="#sell-packs">#sell-packs</a>. When a pack is worth it: <a href="#pack-worth">#pack-worth</a>.</p>
+      <p>Selling packs: thin JSON, buyer keys, Collect HOLD. Not 100% safe. Help is not legal advice. <a href="#sell-packs">#sell-packs</a>. When a pack is worth it: <a href="#pack-worth">#pack-worth</a>. Build a pack / desk AI: <a href="#build-pack">#build-pack</a>.</p>
       <p><a href="/onboard">Open a desk</a> · <a href="/dev">Creators Studio</a> · <a href="/dev#earnings">Creators / earnings</a></p>
     </div>
     <div class="card" id="people-desk">
@@ -143,11 +143,32 @@
         <li>Collect HOLD. No merchant-of-record money desk. No social OAuth auto-post.</li>
       </ul>
     </div>
+    <div class="card" id="build-pack">
+      <h2>Build a pack / desk AI</h2>
+      <p>Not legal advice. Springfield checklist. No price tables. No token tables. No hour tables.</p>
+      <ol>
+        <li><strong>When.</strong> Pipe, inbound <code>name@account.aia</code>, status, or an optional wait.</li>
+        <li><strong>If.</strong> Qualify / tag / word on the card.</li>
+        <li><strong>Then.</strong> A named desk AI drafts the card.</li>
+        <li><strong>You still tap.</strong> Yes / Stop / Kill stay human. Yes is not a collect charge. Collect stays HOLD.</li>
+      </ol>
+      <p>Fallbacks: Needs you, or <a href="/support">Talk to AIA</a>.</p>
+      <p>Write a thin <code>.aia</code> in Creators Studio (<code>/dev</code>). Buyers bring their own pipes and keys.</p>
+      <p>Sample JSON is illustrative only — desk words, not a bindings product: <code>{ "when": "pipe", "if": "tag Lead", "then": "draft" }</code></p>
+    </div>
+    <div class="card" id="ideas-queue">
+      <h2>Ideas → queue</h2>
+      <p>Drop → Qualify → card → Yes / Stop. History is past / now / next. No effort or token estimate on this desk.</p>
+    </div>
     <div class="card" id="faq">
       <h2>FAQ</h2>
       <dl>
         <dt>Can I buy stock in Automate It Away?</dt>
         <dd>No. automateitaway.com / AIA is a privately held web app. It is not listed on NYSE or Nasdaq. Retail investors cannot buy shares on Robinhood, Fidelity, or other brokers. This is not investment advice. If you want public automation or AI exposure, use a normal broker — examples only, not a recommendation. AIA does not sell stock on this desk.</dd>
+        <dt>How do I work with or for AIA?</dt>
+        <dd>Build packs on this desk. <a href="/support">Talk to AIA</a> when you need a person. Agency / DFY stay off-platform. AIA does not run a careers portal or a certified partner program.</dd>
+        <dt>Is there an AIA License?</dt>
+        <dd>No separate license SKU. You have a desk account and you install a pack. Collect and payouts HOLD. No Free / Pro / Agency license tiers. No merchant-of-record. No auto EULA.</dd>
       </dl>
     </div>
     <div class="card">
@@ -182,7 +203,7 @@
     </div>
     <div class="card">
       <h2>Pages that exist</h2>
-      <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#creator-takeaways">Creator takeaways</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Packs</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Pipes</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop#talk">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
+      <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#creator-takeaways">Creator takeaways</a> · <a href="#build-pack">Build a pack / desk AI</a> · <a href="#desk-orch">Desk orchestration</a> · <a href="#ideas-queue">Ideas → queue</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Packs</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Pipes</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop#talk">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
     </div>
     <div class="card">
       <h2>Owner vs helper</h2>
@@ -214,8 +235,9 @@
         <dd>Every draft call is audited. Orange until a live pipe. No silent money. No seed rules. No fake floor on money. Collect stays HOLD.</dd>
       </dl>
     </div>
-    <div class="card">
+    <div class="card" id="desk-orch">
       <h2>When · If · Then</h2>
+      <p>Desk orchestration is When · If · Then. Sequential is one rule after another. Conditional is If. Human in the loop is Yes / Stop / Kill. Map those words to this desk. Not a Router Node. Not a sub-agent mesh. Not a node canvas.</p>
       <p>Desk language. One line on this desk, or a pack that strings them.</p>
       <dl>
         <dt>When · Trigger</dt>
