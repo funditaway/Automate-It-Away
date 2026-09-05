@@ -210,7 +210,7 @@ function addTag(job, tag) {
   job.custom = Object.assign({}, job.custom || {}, { tags: job.tags });
 }
 
-function applyThen(job, rule, step) {
+function applyThen(job, rule, step, shop) {
   const then = String(rule.then || "").toLowerCase();
   const why = rule.text || ruleWhy([rule], job, step) || "Desk rule.";
   if (then === "stop") {
@@ -223,10 +223,22 @@ function applyThen(job, rule, step) {
     job.why = job.why || why;
     job.next = why;
   } else if (then === "draft") {
+    const keep = job._incomingDraft;
+    if (shop && typeof hand.applyDeskAiDraft === "function") {
+      if (!keep) {
+        job.draft = "";
+        job.agentDrafted = false;
+        job.deskAi = null;
+      }
+      hand.applyDeskAiDraft(job, shop, step || "qualify");
+    }
     if (!job.draft) job.draft = why + " Desk AI draft. Human send HOLD.";
-    else if (!/HOLD/i.test(job.draft)) job.draft = String(job.draft) + " Human send HOLD.";
+    else if (!/HOLD/i.test(String(job.draft))) job.draft = String(job.draft) + " Human send HOLD.";
     job.waitingOn = job.waitingOn || "person";
-    job.next = why + " Draft on the card. Human send HOLD.";
+    const who = job.deskAi && job.deskAi.name;
+    job.next = who
+      ? (who + " drafted on the card. Human send HOLD.")
+      : (why + " Draft on the card. Human send HOLD.");
     job.log = (job.log || []).concat(["When/If/Then · draft HOLD"]);
   } else if (then === "notify") {
     const line = why + " Desk AI draft. Nothing sent.";
@@ -259,7 +271,7 @@ function applyRules(job, shop, step) {
   if (!job) return job;
   const hits = matchingRules(job, shop, step || "qualify");
   hits.forEach((rule) => {
-    applyThen(job, rule, step);
+    applyThen(job, rule, step, shop);
   });
   if (ruleWantsStop && shop && (ruleWantsStop(ensureRules(shop), job, step || "qualify"))) {
     job.waitingOn = "owner";
@@ -339,7 +351,8 @@ function qualifyJob(job, shop, jobs) {
   const brain = brainOf(job.pack, job.kind);
   if (!job.risk || job.risk === "none") job.risk = brain.risk || "none";
   if (!job.artifact) job.artifact = brain.artifact;
-  if (!job.draft) job.draft = brain.draft;
+  if (job.draft) job._incomingDraft = job.draft;
+  else job.draft = brain.draft;
   const rules = shop ? ensureRules(shop) : [];
   const holdAt = shop ? moneyWaitOf(rules) : MONEY_HOLD;
   if (moneyNeedsOwner(moneyOf(job), holdAt)) {
@@ -363,6 +376,7 @@ function qualifyJob(job, shop, jobs) {
   job.crew = hand.crewOf(job, shop);
   job.qualifiedAt = job.qualifiedAt || new Date().toISOString();
   job.engine = "aia.desk.v1";
+  delete job._incomingDraft;
   return job;
 }
 
