@@ -194,6 +194,11 @@ async function main() {
   if (getNone.statusCode !== 400) fail("GET missing workspace should 400, got " + getNone.statusCode);
   else pass("GET missing workspace rejected");
 
+  ["desk-alpha", "desk-beta"].forEach(function (slugName) {
+    const row = { slug: slugName, name: slugName, biz: slugName, people: [] };
+    ensurePeople(row);
+    mem.workspaces.unshift(row);
+  });
   const capA = await call(jobsHandler, "POST", { "x-workspace": "desk-alpha" }, { action: "capture", title: "Alpha only" });
   const capB = await call(jobsHandler, "POST", { "x-workspace": "desk-beta" }, { action: "capture", title: "Beta only" });
   if (capA.statusCode !== 201 || capB.statusCode !== 201) fail("capture A/B should 201");

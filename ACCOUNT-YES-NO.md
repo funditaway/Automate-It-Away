@@ -109,6 +109,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-drop-photo.js` covers that attach.
 - Drop preview `gateSend` must not `stopImmediatePropagation` when desk + title are set. Featured quick drops (Need a ride, Drop files) still post. Preview may ask; Drop it still drops.
 - `scripts/check-drop-gate.js` covers that gate.
+- Public Drop capture 4xx when the named desk is not a real workspace (`No desk with that name`). A real empty desk still takes the card.
+- `scripts/check-drop-desk.js` covers ghost slug vs empty-desk Drop.
 
 ## NO (do not pretend these shipped)
 
