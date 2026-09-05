@@ -162,7 +162,7 @@ var EXAMPLES={
  "audit-month":{since:"month",flags:{audit:1},advanced:true},
  "stopped":{lane:"stopped",when:"past"}
 };
-function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&","<":"<",">":">","\"":"\"","'":"&#39;"})[c];});}
+function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];});}
 function phone(){return (window.AIADesks&&AIADesks.list())||[];}
 function story(){return last.map(function(it){return (it.title||"Card")+" · "+(it.label||"")+" · "+(it.desk||"")+(it.who?" · "+it.who:"");}).join("\n")||"Nothing in this view.";}
 function saveView(){try{localStorage.setItem("aia_history_view",JSON.stringify({lane:lane,when:when,q:q,who:who,work:work,pipe:pipe,since:since,advanced:advanced,flags:flags}));}catch(e){}}

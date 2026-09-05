@@ -99,6 +99,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-aia-inbound.js` covers inbound Help + History `#who-chip` honesty.
 - Onboard (`/onboard`) writes `aia_ws` / `aia_pin` / `AIADesks.open` only after `/api/auth` succeeds and is not `pending`. Failed open or Ask-to-join pending must not paint a signed-in header.
 - `scripts/check-onboard-session.js` covers onboard session order.
+- History and Rules `esc()` encode `& < > "` for `innerHTML` (titles / rule text). A card like `2 < 3` must not break the list.
+- `scripts/check-history-esc.js` covers History / Rules escape honesty.
 
 ## NO (do not pretend these shipped)
 
