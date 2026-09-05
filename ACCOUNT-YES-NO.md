@@ -24,9 +24,10 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `/api/status` exposes `aiaTld: { available, bridgeLocked, ownedByConnected }`. Owned only when the connected wallet matches a real registry owner. Never invent owned.
 - Locked copy: “Bridge locked on Decentraweb — watching. When unlocked, Connect wallet then Register.”
 - Wallet connected + still locked: short address + “Ready to mint when Bridge clears.”
-- Unlocked: **Open Decentraweb Register** + checklist. James signs in MetaMask. Full on-desk commit→wait→register is a follow-up.
-- No private keys. No silent Collect. No demo balance. Mint stays off this server.
-- `scripts/check-aia-tld.js`.
+- Unlocked + wallet: **Register `.aia`** on this desk — browser `approve-registration` with owner=connected address, then James signs commit, waits ~60s, signs register. Fee (~0.041–0.045 ETH + 10% buffer, or DWEB) shown before send.
+- Unlocked + no wallet: Connect first. Locked: unchanged watching copy. If approve-registration still returns Bridge lock, UI stays locked.
+- Server never calls `approve-registration` (that can reserve a name). Server may return calldata/quotes only. No keys. No silent Collect. No demo balance.
+- `scripts/check-aia-tld.js` and `scripts/check-aia-register.js`.
 
 ## YES (AIA Wallet Connect — EIP-1193, 2026-09-04)
 
@@ -34,7 +35,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Persist `walletAddress` + `walletChainId` on the open desk session and the account blob.
 - Short address (`0x1234…abcd`) + chain label + Disconnect. Disconnect clears local session storage.
 - `/api/status` and Account UI show connected only when an address is actually stored. No fake connected.
-- Identity / TLD ownership only. Mint, Bridge, Decentraweb register stay external. Collect stays HOLD.
+- Identity / TLD ownership only on the Wallet card. Register .aia lives on the TLD card when Bridge is clear. Collect stays HOLD.
 - Bind/revoke writes `Pipe · wallet bound` / `Pipe · wallet revoked` on the existing audit log. No tx broadcast.
 - No custodial keys on the server. No demo seed balance. No silent Collect.
 - `scripts/check-connect-wallet.js`.
@@ -67,7 +68,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - A second dashboard.
 - Live SMTP / MX for `.aia`. DNS for ai.aia / *.aia does not resolve yet.
 - Embedded wallets, key generation, or gas sponsorship.
-- Decentraweb mint / Bridge from the desk.
+- Server-signed Decentraweb mint / Bridge. On-desk Register is client-only when Bridge is clear; James signs every tx.
 - Collect charges through Square / Stripe / a wallet pipe.
 
 ## Ask me if
