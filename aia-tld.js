@@ -41,7 +41,8 @@
     var el = host();
     if (!el) return;
     var tld = (state && (state.aiaTld || state.tld)) || state || {};
-    var wallet = (tld.wallet && tld.wallet.connected) ? tld.wallet : localWallet();
+    var local = localWallet();
+    var wallet = (tld.wallet && tld.wallet.connected && tld.wallet.short) ? tld.wallet : local;
     var status = tld.status || (tld.ownedByConnected ? "owned" : tld.bridgeLocked ? "bridge-locked" : tld.available ? "available" : "watching");
     var label = tld.label || (status === "owned" ? "Owned" : status === "available" ? "Available to register" : status === "bridge-locked" ? "Bridge locked" : "Watching");
     var note = tld.note || (status === "bridge-locked" ? (wallet.connected ? READY : LOCKED) : HOLD);
