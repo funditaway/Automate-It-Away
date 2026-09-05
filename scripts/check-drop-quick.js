@@ -11,6 +11,9 @@ const root = path.join(__dirname, "..");
 const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
 const agent = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
 const fields = fs.readFileSync(path.join(root, "api/_fields.js"), "utf8");
+const preview = fs.readFileSync(path.join(root, "drop-preview.js"), "utf8");
+if (!/get\(["']ws["']\)/.test(preview)) fail("drop-preview.js deskSlug must read ?ws=");
+else pass("drop-preview honors /drop?ws=");
 
 [
   "Quick drop",
