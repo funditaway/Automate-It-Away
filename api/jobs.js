@@ -1,5 +1,5 @@
 const { dropCannedSeeds } = require("./_drop-seed");
-const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack, hookUrl } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob } = require("./_fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, markFlow, applyRules } = require("./_engine");
 const { grokRecommend, normalizeCites } = require("./_grok");
@@ -280,7 +280,7 @@ module.exports = async function handler(req, res) {
       } else if (pipe && pipe.provider === "whatnot") {
         job.dispatch = { demo: true, note: "Whatnot is not a launch pipe." };
       } else if (pipe && pipe.provider === "webhook") {
-        job.dispatch = await fireWebhook(pipe.hook, { event: "do", action: "ship", job: { id: job.id, title: job.title, draft: job.draft, amount: job.amount }, writeback: "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace) });
+        job.dispatch = await fireWebhook(pipe.hook, { event: "do", action: "ship", job: { id: job.id, title: job.title, draft: job.draft, amount: job.amount }, writeback: hookUrl(workspace) });
       } else if (pipe && pipe.live) {
         job.dispatch = { queued: true, provider: pipe.provider, acts: PROVIDERS[pipe.provider].acts };
       } else {

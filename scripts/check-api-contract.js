@@ -114,6 +114,9 @@ async function main() {
   if (live.body.status !== "live" || live.body.workspace !== "probe-desk" || live.body.answered !== true) {
     fail("writeback should mark that desk live, got " + JSON.stringify(live.body));
   } else pass("status goes live only after a real pipe answers");
+  if (live.body.inbound !== "https://www.automateitaway.com/api/hook?workspace=probe-desk") {
+    fail("status inbound must be www host, got " + live.body.inbound);
+  } else pass("status inbound uses www host");
   const stillHold = mockRes();
   await status({ method: "GET", headers: {}, query: {} }, stillHold);
   if (stillHold.body.status !== "hold" || stillHold.body.workspace) fail("unset workspace should not inherit another desk's writeback");
@@ -144,6 +147,9 @@ async function main() {
   if (conn.statusCode !== 200) fail("connections should answer without a desk");
   else if (conn.body.workspace === "demo") fail("connections should not label an empty desk demo");
   else pass("connections workspace is unset without a desk");
+  if (conn.body.inbound !== "https://www.automateitaway.com/api/hook") {
+    fail("connections inbound must be www host, got " + conn.body.inbound);
+  } else pass("connections inbound uses www host");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");

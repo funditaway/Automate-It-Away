@@ -1,4 +1,4 @@
-const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
+const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner, hookUrl } = require("./_lib");
 const crypto = require("crypto");
 
 const AI_PROVIDERS = {
@@ -134,10 +134,7 @@ function searchPipes(q) {
 }
 
 function inboundOf(workspace) {
-  const slug = String(workspace || "");
-  return slug
-    ? "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(slug)
-    : "https://automateitaway.com/api/hook";
+  return hookUrl(workspace);
 }
 
 module.exports = async function handler(req, res) {

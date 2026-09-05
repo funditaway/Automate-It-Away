@@ -1,6 +1,6 @@
 const {
   cors, catalog, mem, ready, save, storePath, blobToken, blobProbe,
-  workspaceOf, personOf, pipesAnswered, answeredProviders
+  workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl
 } = require("./_lib");
 
 function wantsStatus(req) {
@@ -71,7 +71,7 @@ async function deskStatus(req, res) {
       : "Orange until a real pipe answers. Catalog matches /api/health.",
     pipes,
     connections: mine.map((c) => honestConnection(c, answered)).filter(Boolean),
-    inbound: workspace ? "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(workspace) : "",
+    inbound: workspace ? hookUrl(workspace) : "",
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet,

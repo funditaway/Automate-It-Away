@@ -336,6 +336,15 @@ function catalog() {
   }));
 }
 
+const PUBLIC_HOST = "https://www.automateitaway.com";
+
+function hookUrl(workspace) {
+  const slug = String(workspace || "").trim();
+  return slug
+    ? PUBLIC_HOST + "/api/hook?workspace=" + encodeURIComponent(slug)
+    : PUBLIC_HOST + "/api/hook";
+}
+
 function pipeWroteBack(dispatch) {
   return !!(dispatch && !dispatch.demo && (dispatch.ok === true || dispatch.inbound === true));
 }
@@ -1133,7 +1142,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,

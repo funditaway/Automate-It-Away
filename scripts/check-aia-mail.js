@@ -37,6 +37,16 @@ if (!/"event": "mail"/.test(pipesSrc) || !/queue@account\.aia/.test(pipesSrc)) f
 else pass("pipes.html inbound identity recipe");
 if (/live MX|MX live|smtp live/i.test(pipesSrc)) fail("pipes.html must not claim live MX");
 else pass("pipes.html no fake live MX");
+if (/https:\/\/automateitaway\.com\/api\/hook/.test(pipesSrc)) fail("pipes.html must not advertise apex hook");
+else pass("pipes.html does not advertise apex hook");
+if (!/https:\/\/www\.automateitaway\.com\/api\/hook/.test(pipesSrc)) fail("pipes.html Copy hook fallback must use www");
+else pass("pipes.html Copy hook fallback uses www");
+
+const connHtml = fs.readFileSync(path.join(root, "connections.html"), "utf8");
+if (/https:\/\/automateitaway\.com\/api\/hook/.test(connHtml)) fail("connections.html must not advertise apex hook");
+else pass("connections.html does not advertise apex hook");
+if (!/https:\/\/www\.automateitaway\.com\/api\/hook/.test(connHtml)) fail("connections.html Copy hook fallback must use www");
+else pass("connections.html Copy hook fallback uses www");
 
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (!/james-ai@funditaway\.aia/.test(packMd) || !/queue@springfield-shop\.aia/.test(packMd)) fail("PACK.md missing examples");
@@ -51,7 +61,7 @@ holdFiles.forEach(function (name) {
   else pass(name + " no $250");
 });
 
-["../api/_lib", "../api/_account", "../api/_aia-mail", "../api/_fields", "../api/account", "../api/auth", "../api/desks", "../api/hook", "../api/health", "../api/_packs"].forEach(function (mod) {
+["../api/_lib", "../api/_account", "../api/_aia-mail", "../api/_fields", "../api/account", "../api/auth", "../api/desks", "../api/hook", "../api/health", "../api/connections", "../api/_packs"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
@@ -62,9 +72,10 @@ const auth = require("../api/auth");
 const desks = require("../api/desks");
 const hook = require("../api/hook");
 const health = require("../api/health");
+const connections = require("../api/connections");
 const packHandler = require("../api/_packs");
 const { pickFields } = require("../api/_fields");
-const { mem, hashPin, ensurePeople, ready, save } = lib;
+const { mem, hashPin, ensurePeople, ready, save, hookUrl, PUBLIC_HOST } = lib;
 
 function mockRes() {
   return {
@@ -251,8 +262,27 @@ async function main() {
   } else pass("desk-bound inbound assignee is not the mailbox");
 
   const missing = await call(hook, "POST", {}, { to: "nobody@funditaway.aia", subject: "x" });
-  if (missing.statusCode !== 404) fail("unknown identity must 404, got " + missing.statusCode);
-  else pass("unknown identity 404");
+  if (missing.statusCode !== 400 || missing.body.ok !== false) {
+    fail("unknown identity must 400, got " + missing.statusCode + " " + JSON.stringify(missing.body));
+  } else if (!/No \.aia email identity for nobody@funditaway\.aia/.test(missing.body.error || "")) {
+    fail("unknown identity error should name the address, got " + JSON.stringify(missing.body));
+  } else pass("unknown identity 400");
+
+  const noDesk = await call(hook, "POST", {}, { workspace: "no-such-desk", title: "ghost card" });
+  if (noDesk.statusCode !== 400 || noDesk.body.ok !== false) {
+    fail("missing desk must 400, got " + noDesk.statusCode + " " + JSON.stringify(noDesk.body));
+  } else if (!/No desk with that name/.test(noDesk.body.error || "")) {
+    fail("missing desk error should be clear, got " + JSON.stringify(noDesk.body));
+  } else pass("missing desk 400");
+
+  if (PUBLIC_HOST !== "https://www.automateitaway.com" || hookUrl(slug) !== "https://www.automateitaway.com/api/hook?workspace=" + encodeURIComponent(slug)) {
+    fail("canonical hook host must be www, got " + hookUrl(slug));
+  } else pass("canonical hook host is www");
+
+  const conn = await call(connections, "GET", owner, {}, {});
+  if (!conn.body || conn.body.inbound !== hookUrl(slug)) {
+    fail("connections inbound must be www hook, got " + (conn.body && conn.body.inbound));
+  } else pass("connections inbound is www hook");
 
   const h = await call(health, "GET", {}, {}, {});
   if (!h.body || !h.body.mail || h.body.mail.mx || h.body.mail.live || h.body.mail.smtp) fail("health must not claim MX");

@@ -64,7 +64,7 @@ module.exports = async function handler(req, res) {
   const identity = toAddr ? mail.findByAddress(toAddr) : null;
   if (toAddr && /\.aia$/i.test(String(toAddr).trim()) && !identity) {
     const parsed = mail.parseAddress(toAddr);
-    return res.status(404).json({
+    return res.status(400).json({
       ok: false,
       error: parsed.ok ? ("No .aia email identity for " + parsed.address + ".") : parsed.error,
       mx: mail.statusOf()
@@ -72,6 +72,14 @@ module.exports = async function handler(req, res) {
   }
   const workspace = slugify(req.headers["x-workspace"] || req.query.workspace || body.workspace || (identity && identity.workspace) || "");
   if (!workspace) return res.status(400).json({ ok: false, error: "Name the desk or send to a .aia email." });
+  const shop = (mem.workspaces || []).find((w) => w && w.slug === workspace) || null;
+  if (!shop) {
+    return res.status(400).json({
+      ok: false,
+      error: "No desk with that name.",
+      mx: mail.statusOf()
+    });
+  }
   const event = identity ? "capture" : eventOf(body);
   const title = body.title || body.item || body.name || body.notes || "Pipe update";
 
@@ -84,7 +92,6 @@ module.exports = async function handler(req, res) {
   }
 
   if (event === "capture" || !job) {
-    const shop = (mem.workspaces || []).find((w) => w && w.slug === workspace) || null;
     if (deskClosed(shop)) {
       return res.status(409).json({ ok: false, error: deskClosedMessage(shop), closed: true });
     }
