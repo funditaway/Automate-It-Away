@@ -107,6 +107,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-people-esc.js` covers that parse + encode.
 - Public Drop (`/drop`, `/widget`) uploads `#photo` via `/api/upload` before capture so a photo or file rides on the card. Success must not clear the picker if upload never ran.
 - `scripts/check-drop-photo.js` covers that attach.
+- Drop preview `gateSend` must not `stopImmediatePropagation` when desk + title are set. Featured quick drops (Need a ride, Drop files) still post. Preview may ask; Drop it still drops.
+- `scripts/check-drop-gate.js` covers that gate.
 
 ## NO (do not pretend these shipped)
 
