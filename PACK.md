@@ -164,6 +164,8 @@ First 3 clients: Audit (playbook step 1) → 60s proof → risk-free trial. No i
 3. Plug-and-play — clear credential vars, dashboards via pipes, 2-min quickstart in pack docs.
 4. Tiers — Free / core / DFY. Illustrative $ only; you set the price; Collect HOLD. DFY mostly off-platform service.
 
+**Learn packs** (short, on this desk): rebuild a pack from memory on an empty desk; say Trigger → Condition → Action in plain words. Revisit packs / Rules over days. Practice Qualify prompts, fallback Rules, and pipe connect with Simulate inbound. Deconstruct a niche → read just enough Help → open the desk → one pack end-to-end. 20-hour competence is a guide, not a guarantee.
+
 ## AIA Internet · `.aia` packs
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.

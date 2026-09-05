@@ -99,7 +99,11 @@ const launchBits = [
   "no silent crash",
   "Plug-and-play",
   "credential vars",
-  "Free / core / DFY"
+  "Free / core / DFY",
+  "Learn packs",
+  "empty desk",
+  "Trigger → Condition → Action",
+  "20-hour competence is a guide"
 ];
 Object.keys(worldSurfaces).forEach(function (name) {
   const src = worldSurfaces[name];
@@ -193,6 +197,8 @@ if (!/World users · launch/i.test(packMd) || !/illustrative \/ off-platform/i.t
 else pass("PACK.md World users launch");
 if (!/Build automation packs/i.test(packMd) || !/Core logic stack/i.test(packMd)) fail("PACK.md missing pack blueprint");
 else pass("PACK.md pack blueprint");
+if (!/Learn packs/i.test(packMd) || !/20-hour competence is a guide/i.test(packMd)) fail("PACK.md missing learn packs");
+else pass("PACK.md learn packs");
 
 if (failed) {
   console.error(failed + " failed");
