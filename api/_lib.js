@@ -903,7 +903,7 @@ function isPipeJob(job) {
 
 function isInboundAia(job) {
   if (!job) return false;
-  const blob = [job.from, job.inbound, job.to, job.aia, job.source].join(" ");
+  const blob = [job.from, job.inbound, job.to, job.aiaMail, job.aia, job.source].join(" ");
   return /@[\w.-]+\.aia\b/i.test(blob) || /\binbound\b/i.test(blob);
 }
 

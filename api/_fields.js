@@ -22,7 +22,12 @@ function pickFields(body) {
   if (whoKind) nextCustom.droppedByKind = whoKind;
   if (body.mode) nextCustom.mode = String(body.mode).slice(0, 24);
   const custom = Object.keys(nextCustom).length ? nextCustom : null;
-  return { pack: PACKS.includes(body.pack) ? body.pack : (body.pack || null), kind: blank(body.kind), from: blank(body.from), contactName: blank(body.contactName || body.name || body.who), phone: contact.phone, email: contact.email, notes: blank(body.notes || body.text), photoUrl: blank(body.photoUrl), provider: blank(body.provider), amount: Number.isFinite(amount) ? amount : null, condition: blank(body.condition), titlePresent: blank(body.titlePresent), compsLow: body.compsLow === undefined || body.compsLow === "" ? null : Number(body.compsLow), compsHigh: body.compsHigh === undefined || body.compsHigh === "" ? null : Number(body.compsHigh), ask: body.ask === undefined || body.ask === "" ? null : Number(body.ask), risk: RISKS.includes(body.risk) ? body.risk : (blank(body.risk) || "none"), timing: blank(body.timing), artifact: blank(body.artifact), draft: blank(body.draft), payoutTo: blank(body.payoutTo), killReason: blank(body.killReason), whoTapped: blank(body.whoTapped), promptVersion: blank(body.promptVersion), assignee: blank(body.assignee || body.handTo || body.to), droppedByKind: whoKind, sourceUrl, custom };
+  const fields = { pack: PACKS.includes(body.pack) ? body.pack : (body.pack || null), kind: blank(body.kind), from: blank(body.from), contactName: blank(body.contactName || body.name || body.who), phone: contact.phone, email: contact.email, notes: blank(body.notes || body.text), photoUrl: blank(body.photoUrl), provider: blank(body.provider), amount: Number.isFinite(amount) ? amount : null, condition: blank(body.condition), titlePresent: blank(body.titlePresent), compsLow: body.compsLow === undefined || body.compsLow === "" ? null : Number(body.compsLow), compsHigh: body.compsHigh === undefined || body.compsHigh === "" ? null : Number(body.compsHigh), ask: body.ask === undefined || body.ask === "" ? null : Number(body.ask), risk: RISKS.includes(body.risk) ? body.risk : (blank(body.risk) || "none"), timing: blank(body.timing), artifact: blank(body.artifact), draft: blank(body.draft), payoutTo: blank(body.payoutTo), killReason: blank(body.killReason), whoTapped: blank(body.whoTapped), promptVersion: blank(body.promptVersion), assignee: blank(body.assignee || body.handTo || body.ai), droppedByKind: whoKind, sourceUrl, custom };
+  const to = blank(body.to);
+  const aiaMail = blank(body.aiaMail);
+  if (to) fields.to = to;
+  if (aiaMail) fields.aiaMail = aiaMail;
+  return fields;
 }
 function mergeFields(job, body) {
   const next = pickFields(body);
@@ -157,7 +162,7 @@ function applyImplement(job, shop, body) {
   return job;
 }
 function assignIfKnown(job, shop, body) {
-  const want = String((body && (body.assignee || body.handTo || body.to)) || job.assignee || "").trim();
+  const want = String((body && (body.assignee || body.handTo || body.ai)) || job.assignee || "").trim();
   const people = shop && Array.isArray(shop.people) ? shop.people : [];
   if (!want) { delete job.assignee; return job; }
   const whoPerson = people.find((p) => p && (p.id === want || String(p.name || "").toLowerCase() === want.toLowerCase()));

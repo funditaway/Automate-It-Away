@@ -2,6 +2,7 @@ const { cors, mem, log, save, ready, slugify, readBody } = require("./_lib");
 const { deskClosed, deskClosedMessage } = require("./_desk");
 const { qualifyJob, applyRules } = require("./_engine");
 const { makeCapturedJob, addTalk } = require("./_fields");
+const { applyDeskAiDraft } = require("./_handoff");
 const mail = require("./_aia-mail");
 
 function eventOf(body) {
@@ -103,7 +104,9 @@ module.exports = async function handler(req, res) {
       job.to = identity.address;
       job.kind = job.kind || "email";
       job.custom = Object.assign({}, job.custom || {}, inbound.custom || {});
-      if (identity.aiName) job.assignee = identity.aiName;
+      const box = String(identity.address || "").toLowerCase();
+      if (job.assignee && String(job.assignee).toLowerCase() === box) delete job.assignee;
+      if (identity.bind === "ai" && identity.aiName) job.assignee = identity.aiName;
     }
     qualifyJob(job, shop);
     try {
@@ -111,6 +114,7 @@ module.exports = async function handler(req, res) {
       const grok = await grokRecommend(job, shop, workspace);
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
     } catch (e) {}
+    applyDeskAiDraft(job, shop, "qualify");
     if (job.notes) addTalk(job, job.from || "pipe", job.notes, "note");
     mem.jobs.unshift(job);
     mem.inbox.unshift({

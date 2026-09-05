@@ -44,6 +44,7 @@
     .tag-soon{background:#eef1f4;color:#4a5a6a}
     .tag-down{background:#fdecea;color:#c0392b}
     .url{font-size:12px;word-break:break-all;background:var(--edit);color:var(--edit-ink);border-radius:8px;padding:8px;margin:8px 0}
+    pre.url{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
     html.dark .tag-now{background:#163333;color:#c8eeee}
     html.dark .tag-beta{background:#3a2a12;color:#f0d9a8}
   </style>
@@ -93,6 +94,14 @@
       <b>Inbound hook</b><span class="tag tag-now">Live</span>
       <div class="meta">Anything on the internet can write a card here. Zapier and Make can post here today.</div>
       <div class="url" id="inbound">Open your desk to see the write-back URL.</div>
+      <p class="meta">.aia identities work on this desk now. POST that hook with a created local@account.aia and it Drops a Queue card. Internet mail when the MX pipe connects. Send stays HOLD.</p>
+      <pre class="url" id="inbound-recipe">{
+  "event": "mail",
+  "to": "queue@account.aia",
+  "from": "neighbor@example.com",
+  "subject": "Need a quote",
+  "text": "Can you look at the porch?"
+}</pre>
       <div class="row">
         <button class="go" type="button" onclick="copyHook()">Copy hook</button>
         <a class="edit" href="/drop">Drop a card</a>
