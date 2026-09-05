@@ -70,7 +70,7 @@
       else if (a.id === "yes") bits.push("<button class=\"go\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>");
       else if (a.id === "stop") bits.push("<button class=\"kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>");
       else if (a.id === "copy") bits.push("<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>");
-      else if (a.id === "grok") bits.push("<button class=\"edit\" type=\"button\" onclick=\"(typeof askGrok==='function'?askGrok:helpWithAi)('" + j.id + "')\">Ask Grok</button>");
+      else if (a.id === "grok") bits.push("<button class=\"edit\" type=\"button\" onclick=\"(typeof helpWithAi==='function'&&helpWithAi('" + j.id + "'))\">Ask Grok</button>");
       else if (a.id === "cap") bits.push("<button class=\"go cap-tap\" type=\"button\" onclick=\"pinCap('" + j.id + "', true)\">Cap</button>");
       else if (a.id === "uncap") bits.push("<button class=\"edit\" type=\"button\" onclick=\"pinCap('" + j.id + "', false)\">Off the cap</button>");
       else if (a.id === "fill" || a.id === "ask" || a.id === "hand") bits.push("<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">" + a.label + "</button>");
@@ -78,6 +78,14 @@
       else if (a.id === "done") bits.push("<button class=\"go\" type=\"button\" onclick=\"(typeof carryJob==='function'&&carryJob('" + j.id + "'))\">Done</button>");
     });
     return "<div class=\"row actions tap-opts\">" + bits.join("") + "</div>";
+  }
+  async function helpWithAi(id) {
+    const banner = document.getElementById("banner");
+    if (typeof api !== "function") return;
+    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "recommend", id: id, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
+    if (banner) banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not draft help.") : "Grok drafted on the card. Nothing sent.";
+    if (typeof load === "function") await load();
+    if (typeof openJob === "function") openJob(id);
   }
   async function pinCap(id, on) {
     const banner = document.getElementById("banner");
@@ -127,6 +135,7 @@
   }
   window.cardNeeds = cardNeeds;
   window.cardActionHtml = cardActionHtml;
+  window.helpWithAi = helpWithAi;
   window.pinCap = pinCap;
   window.openCapDesk = openCapDesk;
   window.loadCap = loadCap;
