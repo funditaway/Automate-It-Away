@@ -3,6 +3,7 @@ const path = require("path");
 
 const store = path.join(os.tmpdir(), "aia-api-contract-" + Date.now() + ".json");
 process.env.AIA_STORE_PATH = store;
+process.env.AIA_TLD_PROBE = "0";
 
 delete global.__aia;
 delete global.__aiaHydrate;
@@ -84,6 +85,12 @@ async function main() {
   else pass("empty status workspace is not demo");
   if (st.body.status !== "hold" || st.body.answered !== false) fail("empty desk should stay hold until a pipe answers");
   else pass("status stays hold with no writeback");
+  if (!st.body.aiaTld || st.body.aiaTld.owned || st.body.aiaTld.ownedByConnected || st.body.aiaTld.mint || st.body.aiaTld.charged || st.body.aiaTld.collect !== "hold") {
+    fail("status aiaTld must stay honest HOLD and not invent owned " + JSON.stringify(st.body.aiaTld));
+  } else pass("status aiaTld is honest HOLD");
+  if (res.body.aiaTld && (res.body.aiaTld.mint || res.body.aiaTld.charged || res.body.aiaTld.collect !== "hold")) {
+    fail("health aiaTld block invented mint or Collect");
+  } else pass("health aiaTld block is honest");
 
   const healthPipes = (res.body.pipes || []).map((p) => p.id + ":" + p.status + ":" + p.live).join(",");
   const statusPipes = (st.body.pipes || []).map((p) => p.id + ":" + p.status + ":" + p.live).join(",");

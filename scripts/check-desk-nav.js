@@ -11,7 +11,7 @@ const root = path.join(__dirname, "..");
 const pages = [
   "desk.html", "drop.html", "widget.html", "create.html", "history.html",
   "pipes.html", "connections.html", "help.html", "rules.html", "more.html",
-  "developer.html", "market.html"
+  "developer.html", "market.html", "account.html"
 ];
 const need = ["Queue", "Drop", "Create", "History", "More", "has-desk-nav", "id=\"desk-nav\""];
 
