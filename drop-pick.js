@@ -84,13 +84,25 @@
     box.hidden = false;
     var rows = (window.AIADesks && AIADesks.list) ? AIADesks.list() : [];
     var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || {};
-    var ws = cur.slug || localStorage.getItem("aia_ws") || "";
+    var q = "";
+    try { q = String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { q = ""; }
+    var ws = cur.slug || q || localStorage.getItem("aia_ws") || window.ws || "";
+    var onName = (cur && (cur.name || cur.slug)) || (window.AIADropOn && AIADropOn.name && AIADropOn.name()) || ws;
+    if (window.AIADropOn && AIADropOn.paint) AIADropOn.paint();
     if (!rows.length) {
       chips.innerHTML = "";
-      if (sub) sub.textContent = "This phone has no saved desk yet. Pick a world desk above, add one you already opened, or create a new desk.";
+      if (sub) {
+        sub.textContent = ws
+          ? ("This drop goes to " + (onName || ws) + " from the link. Add a saved desk or create a new one if you need another.")
+          : "This phone has no saved desk yet. Pick a world desk above, add one you already opened, or create a new desk.";
+      }
       return;
     }
-    if (sub) sub.textContent = "Desks saved on this phone. World desks stay at the top.";
+    if (sub) {
+      sub.textContent = ws
+        ? "Desks saved on this phone. This drop goes to the highlighted desk."
+        : "Desks saved on this phone. Pick one. World desks stay at the top.";
+    }
     chips.innerHTML = rows.map(function (d) {
       var on = d.slug === ws ? " on" : "";
       var who = d.role === "owner" ? " · owner" : d.role === "employee" ? " · helper" : "";
