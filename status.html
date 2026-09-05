@@ -30,7 +30,7 @@
     <div class="row"><span>Marketing site</span><span class="up">Prototype up</span></div>
     <div class="row"><span>Dashboard UI</span><span class="up">Prototype up</span></div>
     <div class="row"><span>API / health</span><span id="api" class="hold">Checking…</span></div>
-    <div class="row"><span>World user accounts</span><span class="hold">Pin workspace — not email login</span></div>
+    <div class="row"><span>World user accounts</span><span id="accounts" class="hold">Checking…</span></div>
     <div class="row"><span>Hosted jobs store</span><span id="store" class="hold">Unknown</span></div>
     <div class="row"><span>Photo / file store</span><span id="files" class="hold">Unknown</span></div>
     <div class="row"><span>Domain DNS</span><span class="up">Pointed — this host answered</span></div>
@@ -58,6 +58,13 @@
       const api = document.getElementById("api");
       api.textContent = data.ok ? "Up on this host" : "Down";
       api.className = data.ok ? "up" : "down";
+      const accountsEl = document.getElementById("accounts");
+      if (accountsEl) {
+        const login = (data.accounts && data.accounts.login) || "";
+        const emailDoor = /email/i.test(login) && /password/i.test(login);
+        accountsEl.textContent = login || "Unknown";
+        accountsEl.className = emailDoor ? "up" : "hold";
+      }
       const store = document.getElementById("store");
       const d = data.store || {};
       store.textContent = (d.driver || "?") + (d.note ? " — " + d.note : "");

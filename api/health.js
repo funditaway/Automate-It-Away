@@ -195,7 +195,7 @@ async function health(req, res) {
       status: "free",
       monthly: "later per extra member or staff login",
       charged: false,
-      note: "One account per person. Session persists on the blob store. Authenticator is opt-in on /account."
+      note: "One account per person. Session persists on the blob store. Authenticator stays HOLD — not live on /account."
     },
     domain: "automateitaway.com",
     dns: "pointed",

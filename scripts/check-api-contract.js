@@ -67,7 +67,15 @@ async function main() {
 
   if (res.body.accounts.login !== "desk name + desk code, or email + password") fail("health login copy should mention both doors");
   else if (!/^HOLD/.test(res.body.accounts.mfa)) fail("health mfa copy should say HOLD");
+  else if (/opt-in/i.test(res.body.accounts.note || "")) fail("health accounts.note must not claim authenticator opt-in");
+  else if (!/HOLD/.test(res.body.accounts.note || "")) fail("health accounts.note must stay HOLD with mfa");
   else pass("health copy matches account doors");
+
+  const statusHtml = require("fs").readFileSync(path.join(__dirname, "..", "status.html"), "utf8");
+  if (/Pin workspace/.test(statusHtml)) fail("status.html must not hardcode pin-only accounts");
+  else if (!/id="accounts"/.test(statusHtml) || !/accounts\.login/.test(statusHtml)) fail("status.html must paint World user accounts from health.accounts.login");
+  else if (/authenticator is opt-in/i.test(statusHtml)) fail("status.html must not claim authenticator opt-in");
+  else pass("status.html paints accounts from health");
 
   if (lib.slugify("") !== "" || lib.slugify(null) !== "") fail("slugify should not invent demo");
   else pass("slugify leaves an empty name empty");
