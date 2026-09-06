@@ -33,7 +33,21 @@ async function api(path, opts) {
 }
 
 function kindOf(p) {
+  if (p && (p.deskAi || p.kind === "agent" || p.role === "agent")) return "agent";
   return (p && p.kind) || (p && p.role === "owner" ? "owner" : "helper");
+}
+function isDeskAi(p) {
+  return !!(p && p.deskAi);
+}
+function isBot(p) {
+  return !!(p && (p.deskAi || kindOf(p) === "agent"));
+}
+function clipFace(s, n) {
+  var t = String(s || "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  var max = n || 80;
+  if (t.length <= max) return t;
+  return t.slice(0, max).replace(/\s+\S*$/, "").replace(/[.,;:]+$/, "") + "…";
 }
 function namesOf(p) {
   var out = [];
@@ -229,7 +243,7 @@ function shown() {
     var deskText = (p.desks || []).map(function (d) { return (d.desk || "") + " " + (d.slug || ""); }).join(" ");
     var seats = (p.seats || []).map(function (s) { return [s.crew, s.kind, s.status, s.desk, s.deskSlug].join(" "); }).join(" ");
     var extra = (holdingOf(p) ? "holding" : "") + " " + (extOf(p) ? "off desk ext" : "");
-    return [p.name, deskText, p.phone, p.email, p.accountId, k, p.status, seats, extra].join(" ").toLowerCase().indexOf(q) >= 0;
+    return [p.name, deskText, p.phone, p.email, p.accountId, k, p.status, seats, extra, p.does || "", p.prompt || "", p.deskAi ? "desk ai bot" : ""].join(" ").toLowerCase().indexOf(q) >= 0;
   });
 }
 
@@ -240,7 +254,17 @@ function card(p) {
   }).join("");
   if (seatCount > 3) chips += "<span class=\"chip\">+" + (seatCount - 3) + " more</span>";
   var sub = (p.phone ? esc(p.phone) : "") + (p.phone && p.email ? " · " : "") + (p.email ? esc(p.email) : "") + (seatCount >= 2 ? " · Several desks" : "");
-  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindOf(p)) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p><div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
+  var bot = isBot(p);
+  var does = clipFace(p.does || "", 120);
+  var prompt = clipFace(p.prompt || p.promptSummary || "", 80);
+  if (isDeskAi(p)) chips += "<span class=\"chip\">desk AI</span>";
+  if (bot && does) chips += "<span class=\"chip\">" + esc(does) + "</span>";
+  var extra = bot
+    ? (does ? "<p class=\"meta\">Does · " + esc(does) + "</p>" : "") +
+      (prompt ? "<p class=\"meta\">Prompt · " + esc(prompt) + "</p>" : "") +
+      "<p class=\"meta\">On queue cards: " + esc(p.name || "Desk AI") + " · Then draft. Needs you names this AI.</p>"
+    : "";
+  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindOf(p)) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
 }
 
 function paintList() {
@@ -555,7 +579,7 @@ function applyTalk(text) {
   else if (/family|friend/.test(low)) STATE.filter = "family";
   else if (/helper|member/.test(low)) STATE.filter = "helper";
   else if (/\bstaff\b|\bowner\b/.test(low)) STATE.filter = "staff";
-  else if (/agent/.test(low)) STATE.filter = "agent";
+  else if (/agent|desk ai|\bbots?\b/.test(low)) STATE.filter = "agent";
   else if (/off desk|\bext\b/.test(low)) STATE.filter = "ext";
   else if (/holding|hold a card/.test(low)) STATE.filter = "hold";
   else if (/everyone|all people|clear/.test(low)) {
@@ -564,7 +588,7 @@ function applyTalk(text) {
   }
   var m = low.match(/\b(?:find|search|show|named|who is|who's)\s+(.+)/);
   var leftover = m ? m[1] : (/wait|several|family|friend|helper|member|staff|owner|agent|off desk|\bext\b|holding|everyone|all people|clear/.test(low) ? "" : t);
-  leftover = String(leftover || "").replace(/\b(family|friends?|helper|member|staff|owner|agent|waiting|pending|several desks|several|off desk|off the desk|holding|all people|everyone|clear)\b/g, " ").replace(/\s+/g, " ").replace(/\.$/, "").trim();
+  leftover = String(leftover || "").replace(/\b(family|friends?|helper|member|staff|owner|agent|desk ai|bots?|waiting|pending|several desks|several|off desk|off the desk|holding|all people|everyone|clear)\b/g, " ").replace(/\s+/g, " ").replace(/\.$/, "").trim();
   if (leftover && queryBox()) queryBox().value = leftover;
   ["family", "friend", "helper", "member", "staff", "agent"].forEach(function (s) {
     if (low.indexOf(s) >= 0 && document.getElementById("k")) document.getElementById("k").value = s;

@@ -58,6 +58,10 @@ else pass("market installs .aia");
 const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
 if (!desk.includes("id=\"desk-ais\"")) fail("desk.html missing desk-ais strip");
 else pass("desk shows AI rails");
+const deskAisSrc = fs.readFileSync(path.join(root, "desk-ais.js"), "utf8");
+if (!deskAisSrc.includes("ai-card") || !deskAisSrc.includes("On queue cards") || !deskAisSrc.includes("prompt")) {
+  fail("desk-ais.js must paint named AI cards with does / prompt / queue face");
+} else pass("desk-ais paints bot cards");
 
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");

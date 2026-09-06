@@ -6,7 +6,7 @@ const { grokRecommend, normalizeCites } = require("./_grok");
 const { needsOf, isPriorityJob, missingOf } = require("./_history");
 const clock = require("./_clock");
 const ais = require("./_ais");
-const { applyHandoff, applyDeskAiDraft } = require("./_handoff");
+const { applyHandoff, applyDeskAiDraft, stampDeskAi } = require("./_handoff");
 
 function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
@@ -187,6 +187,8 @@ module.exports = async function handler(req, res) {
       const grok = await grokRecommend(job, shop, workspace);
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
       else recommend(job, [], shop);
+      applyDeskAiDraft(job, shop, "qualify");
+      stampDeskAi(job, shop);
       log("Desk", "Grok recs · " + job.title, grok && grok.ok ? "OK" : "Hold", workspace);
       await save();
       return res.status(200).json({ ok: true, job, grok: grok && grok.ok ? "on" : (grok && grok.reason) || "off" });
