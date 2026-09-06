@@ -136,11 +136,11 @@ function stampDeskAi(job, shop, picked) {
   return job;
 }
 
-function applyDeskAiDraft(job, shop, step) {
+function applyDeskAiDraft(job, shop, step, hint) {
   if (!job || !shop) return job;
   const st = ais.stepOf(job) || step || "qualify";
   if (!ais.aiMayDraft({ steps: ais.STEPS_DEFAULT, deny: ais.NEVER }, st) && st === "collect") return job;
-  const picked = ais.pickDeskAi(shop, st, job.deskAi);
+  const picked = ais.pickDeskAi(shop, st, hint || job.deskAi);
   if (!picked) return job;
   const who = ais.findAiSeat(shop, picked) || {
     name: picked.name,

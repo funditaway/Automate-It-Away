@@ -129,6 +129,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Assign / reassign named AI on a queue card: owner picks which desk AI owns Then / Ask Grok / Needs you. `bind-ai` stamps that AI. Chips update honestly. Desk AI cannot bind itself. Yes / Stop / Kill stay human.
 - Clearer AI ↔ human thread on the q-card when replies + Then drafts stack. Escaped. Nothing sent alone. Collect HOLD.
 - `scripts/check-desk-ai-edit.js` covers edit / bind / stacked thread + helper 403 + desk-AI 403.
+- Rules Then bind: owner picks which named desk AI writes Then=draft. `aiId` / `aiName` persist on the rule. Matching cards stamp that AI, not the first eligible bot. Unknown name 400. Gone AI drafts HOLD without pretending another bot is bound. Helpers stay 403. Incoming Drop draft stays. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
+- `scripts/check-rule-ai-bind.js` covers Rules Then bind + two-AI pick + helper 403 + gone-AI honesty.
 
 ## NO (do not pretend these shipped)
 

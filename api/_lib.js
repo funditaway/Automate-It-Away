@@ -809,6 +809,8 @@ function publicRule(r) {
     ifUnassigned: !!r.ifUnassigned,
     ifOlder: r.ifOlder != null && Number.isFinite(Number(r.ifOlder)) ? Number(r.ifOlder) : null,
     tag: clipRule(r.tag || r.thenTag, 40),
+    aiId: clipRule(r.aiId || (r.ai && r.ai.id) || "", 40),
+    aiName: clipRule(r.aiName || (r.ai && r.ai.name) || "", 40),
     widget: publicRuleWidget(r.widget)
   };
 }
@@ -983,6 +985,8 @@ function applyRuleBody(rule, src) {
     rule.ifOlder = n;
   }
   if (src.tag != null || src.thenTag != null) rule.tag = clipRule(src.tag || src.thenTag, 40);
+  if (src.aiId != null) rule.aiId = clipRule(src.aiId, 40);
+  if (src.aiName != null) rule.aiName = clipRule(src.aiName, 40);
   return rule;
 }
 
@@ -1027,6 +1031,8 @@ function addWorkspaceRule(ws, src, person) {
     when: "qualify",
     then: "note",
     ifMoney: null,
+    aiId: "",
+    aiName: "",
     widget: { on: false, label: "" },
     createdAt: new Date().toISOString(),
     by: (person && person.name) || "owner"

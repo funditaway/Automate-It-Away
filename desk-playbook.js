@@ -43,7 +43,7 @@
       tag: "Guardrails",
       name: "You still tap",
       surface: "Rules · Yes / Stop / Kill",
-      what: "Edge cases go to a person. Yes, Stop, or Kill. Collect stays HOLD.",
+      what: "Bind the named desk AI on Then. Edge cases go to a person. Yes, Stop, or Kill. Collect stays HOLD.",
       href: "/rules",
       go: "Open Rules"
     }

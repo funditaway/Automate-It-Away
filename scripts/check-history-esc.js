@@ -33,5 +33,8 @@ mustEscape(history, "history.html");
 mustEscape(rules, "rules.html");
 if (!history.includes("esc(it.title)")) throw new Error("history must esc titles into innerHTML");
 if (!rules.includes("esc(r.text)")) throw new Error("rules must esc rule text into innerHTML");
+if (!rules.includes("esc(a.name") && !rules.includes("esc(a.name ||")) {
+  throw new Error("rules must esc named desk AI options");
+}
 
 console.log("check-history-esc: ok");
