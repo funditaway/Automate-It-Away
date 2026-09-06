@@ -31,31 +31,46 @@ const more = read("more.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const histSrc = read("api/_history.js");
 
-["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function talkHtml", "function threadHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
+["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function talkLabel", "function talkHtml", "function threadHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
   if (history.indexOf(bit) < 0) fail("history.html missing " + bit);
 });
 if (!/HOLD|Nothing sent alone/.test(history)) fail("History must stay HOLD / nothing sent");
 if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge|silent send/i.test(history + needs + card)) {
   fail("History thread invented Grok OAuth / wallet / Collect charge");
 }
-if (history.indexOf("esc(row.text)") < 0 || history.indexOf("esc(text)") < 0) {
+if (history.indexOf("esc(row.text)") < 0 || history.indexOf("esc(text)") < 0 || history.indexOf("esc(talkLabel(row,it))") < 0) {
   fail("History Then draft / thread must stay escaped");
+}
+if (/who\|\|row\.from\|\|"Desk AI"/.test(history.replace(/\s+/g, ""))) {
+  fail("History talkHtml must not fall back to Desk AI when the Then AI is gone");
 }
 
 if (needs.indexOf("const talks = talkHtml(j)") < 0 || needs.indexOf("q-thread") < 0) {
   fail("Cap cards must paint talkHtml / q-thread");
 }
-["function threadSheetHtml", "function talkTurnsOf", "Then draft", "q-thread", "Nothing sent alone"].forEach(function (bit) {
+if (needs.indexOf("function talkLabel") < 0 || /who \|\| row\.from \|\| "Desk AI"/.test(needs)) {
+  fail("Cap talkHtml must not fall back to Desk AI when the Then AI is gone");
+}
+["function threadSheetHtml", "function talkTurnsOf", "function talkLabelOf", "Then draft", "q-thread", "Nothing sent alone"].forEach(function (bit) {
   if (card.indexOf(bit) < 0) fail("desk-card.js missing " + bit);
 });
+if (/who \|\| row\.from \|\| "Desk AI"/.test(card)) {
+  fail("Open talkHtml must not fall back to Desk AI when the Then AI is gone");
+}
 if (people.indexOf("Then draft") < 0 || people.indexOf("item.thread") < 0) {
   fail("People shared history must show Then draft / thread");
+}
+if (people.indexOf("function talkLabelOf") < 0 || /who \|\| row\.from \|\| "Desk AI"/.test(people)) {
+  fail("People talkHtml must not fall back to Desk AI when the Then AI is gone");
 }
 if (help.indexOf("History, Explore, Cap, and Open") < 0) fail("help#desk-cards must name History / Explore / Cap / Open thread");
 if (help.indexOf("not on this desk") < 0) fail("help#desk-cards must name gone HOLD on History");
 if (help.indexOf("History shows the Then draft") < 0) fail("help#ideas-queue must name History Then draft");
 if (more.indexOf("AI ↔ human thread") < 0) fail("more.html History must name the thread");
 if (more.indexOf("not on this desk") < 0) fail("more.html History must name gone HOLD");
+if (history.indexOf("gone HOLD when that named AI is not on this desk") < 0) {
+  fail("History intro / health must name gone HOLD");
+}
 if (yesNo.indexOf("check-history-thread.js") < 0) fail("ACCOUNT-YES-NO must record History thread");
 if (yesNo.indexOf("not on this desk") < 0) fail("ACCOUNT-YES-NO must record History gone HOLD");
 
@@ -202,6 +217,9 @@ if (gonePaint.indexOf("Don&#39;t use &lt;b&gt;html&lt;/b&gt;") < 0 && gonePaint.
 if (gonePaint.indexOf("Need <phone>?") >= 0) fail("raw < in the gone ask must not become markup");
 if (gonePaint.indexOf("Need &lt;phone&gt;?") < 0) fail("gone ask must stay text");
 if (gonePaint.indexOf("Nothing sent alone") < 0) fail("gone History thread must stay nothing sent alone");
+if (gonePaint.indexOf("Desk AI") >= 0) fail("gone History talk must not fall back to Desk AI");
+if (gonePaint.indexOf("Then draft") >= 0) fail("gone History talk must not look like a live Then draft");
+if (gonePaint.indexOf(" · asks") >= 0) fail("gone History ask must use gone HOLD, not a live asks label");
 if (/\bDraft\b/.test(gonePaint.replace(/Then draft/g, "")) && gonePaint.indexOf("Shop Bot") < 0) {
   fail("gone History must not look like a live Then draft");
 }
@@ -238,6 +256,45 @@ if (goneOnlyPaint.indexOf("Then draft") >= 0) fail("gone-only paint must not loo
 const foundGone = hist.filterHistory([goneItem], { q: "Shop Bot" });
 if (!foundGone.length) fail("History search must find a gone Then AI name");
 
+const goneAnonJob = {
+  id: "j-gone-anon",
+  status: "waiting",
+  title: "Bare gone talk",
+  draft: "Hold the <draft>.",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot <gone>" },
+  thread: [
+    { kind: "ask", text: "Need <phone>?" },
+    { kind: "rec", text: "A later <rec>." }
+  ]
+};
+const goneAnonItem = hist.historyItem(goneAnonJob, { slug: "shop", biz: "Shop" });
+if (!goneAnonItem || !goneAnonItem.thenAiGone) fail("anonymous gone historyItem must keep thenAiGone");
+if (goneAnonItem.thread.some(function (t) { return t.from; })) {
+  fail("anonymous gone talk must keep empty from");
+}
+const goneAnonPaint = ctx.threadHtml(goneAnonItem);
+if (!goneAnonPaint) fail("anonymous gone History must still paint the thread");
+if (goneAnonPaint.indexOf("Desk AI") >= 0) fail("anonymous gone talk must not fall back to Desk AI");
+if (goneAnonPaint.indexOf("Then draft") >= 0) fail("anonymous gone talk must not look like a live Then draft");
+if (goneAnonPaint.indexOf("not on this desk") < 0) fail("anonymous gone talk must say not on this desk");
+if (goneAnonPaint.indexOf("Shop Bot <gone>") >= 0) fail("raw < in anonymous gone talk must not become markup");
+if (goneAnonPaint.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("anonymous gone talk name must stay text");
+if (goneAnonPaint.indexOf("Need <phone>?") >= 0) fail("raw < in anonymous gone ask must not become markup");
+if (goneAnonPaint.indexOf("Need &lt;phone&gt;?") < 0) fail("anonymous gone ask must stay text");
+if (typeof ctx.talkLabel !== "function") fail("History must expose talkLabel");
+if (ctx.talkLabel({ kind: "ask" }, goneAnonItem).indexOf("not on this desk") < 0) {
+  fail("gone ask with no from must use gone HOLD");
+}
+if (ctx.talkLabel({ kind: "rec" }, goneAnonItem).indexOf("Desk AI") >= 0) {
+  fail("gone rec with no from must not say Desk AI");
+}
+if (ctx.talkLabel({ kind: "ask", from: "James’s AI" }, item).indexOf("James") < 0) {
+  fail("live ask must still name the desk AI");
+}
+if (ctx.talkLabel({ kind: "ask" }, { draft: "hi" }).indexOf("Desk AI") < 0) {
+  fail("live anonymous ask may still say Desk AI");
+}
+
 const capCtx = {
   window: {},
   document: {
@@ -263,6 +320,14 @@ if (qGone.indexOf("not on this desk") < 0) fail("Cap must paint gone HOLD");
 if (qGone.indexOf("Shop Bot <gone>") >= 0) fail("raw < in Cap gone AI name must not become markup");
 if (qGone.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("Cap gone AI name must stay text");
 if (qGone.indexOf("Nothing sent alone") < 0 && qGone.indexOf("HOLD") < 0) fail("Cap gone card must stay HOLD");
+if (qGone.indexOf("Desk AI") >= 0) fail("Cap gone talk must not fall back to Desk AI");
+if (qGone.indexOf("Then draft") >= 0) fail("Cap gone talk must not look like a live Then draft");
+const qGoneAnon = capCtx.card(goneAnonJob, false);
+if (qGoneAnon.indexOf("Desk AI") >= 0) fail("Cap anonymous gone talk must not fall back to Desk AI");
+if (qGoneAnon.indexOf("Then draft") >= 0) fail("Cap anonymous gone talk must not look like a live Then draft");
+if (qGoneAnon.indexOf("not on this desk") < 0) fail("Cap anonymous gone talk must say not on this desk");
+if (qGoneAnon.indexOf("Shop Bot <gone>") >= 0) fail("raw < in Cap anonymous gone talk must not become markup");
+if (qGoneAnon.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("Cap anonymous gone talk name must stay text");
 
 const cardCtx = {
   JOBS: [],
@@ -286,5 +351,22 @@ if (openPaint.indexOf("q-thread") < 0 && openPaint.indexOf("Then draft") < 0) fa
 if (openPaint.indexOf("Need <phone>?") >= 0) fail("open-job ask must stay escaped");
 if (openPaint.indexOf("Need &lt;phone&gt;?") < 0) fail("open-job ask must stay text");
 if (openPaint.indexOf("Nothing sent alone") < 0) fail("open-job thread must stay nothing sent");
+if (typeof cardCtx.talkLabelOf !== "function") fail("open-job must expose talkLabelOf");
+const openGone = cardCtx.threadSheetHtml(goneJob);
+if (openGone.indexOf("Desk AI") >= 0) fail("open-job gone talk must not fall back to Desk AI");
+if (openGone.indexOf("Then draft") >= 0) fail("open-job gone talk must not look like a live Then draft");
+if (openGone.indexOf("not on this desk") < 0) fail("open-job gone talk must say not on this desk");
+const openGoneAnon = cardCtx.threadSheetHtml(goneAnonJob);
+if (openGoneAnon.indexOf("Desk AI") >= 0) fail("open-job anonymous gone talk must not fall back to Desk AI");
+if (openGoneAnon.indexOf("Then draft") >= 0) fail("open-job anonymous gone talk must not look like a live Then draft");
+if (openGoneAnon.indexOf("not on this desk") < 0) fail("open-job anonymous gone talk must say not on this desk");
+if (openGoneAnon.indexOf("Shop Bot <gone>") >= 0) fail("raw < in open-job gone talk must not become markup");
+if (openGoneAnon.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("open-job gone talk name must stay text");
+if (cardCtx.talkLabelOf({ kind: "ask" }, "", "Shop Bot <gone>").indexOf("not on this desk") < 0) {
+  fail("open-job gone ask with no from must use gone HOLD");
+}
+if (cardCtx.talkLabelOf({ kind: "rec" }, "", "Shop Bot") === "Desk AI · Then draft") {
+  fail("open-job gone rec with no from must not say Desk AI");
+}
 
 console.log("check-history-thread: ok");

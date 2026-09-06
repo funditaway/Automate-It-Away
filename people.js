@@ -340,6 +340,14 @@ function thenGoneOf(item) {
   return String((g && (g.name || g.id)) || "").trim();
 }
 
+function talkLabelOf(row, who, gone) {
+  if (row.kind === "reply") return (row.from || "You") + " · you";
+  if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
+  if (gone) return gone + " · not on this desk";
+  var name = row.from || "Desk AI";
+  return row.kind === "ask" ? (name + " · asks") : (name + " · Then draft");
+}
+
 function talkRowsOf(item) {
   var rows = [];
   var seen = {};
@@ -390,11 +398,7 @@ function trailThreadHtml(item) {
     ? "<div class=\"p-talk\">" + rows.map(function (row) {
       var ai = row.kind === "ask" || row.kind === "rec";
       var you = row.kind === "reply";
-      var turnLabel = you
-        ? ((row.from || "You") + " · you")
-        : (row.kind === "ask"
-          ? ((who || row.from || "Desk AI") + " · asks")
-          : ((who || row.from || "Desk AI") + " · Then draft"));
+      var turnLabel = talkLabelOf(row, who, gone);
       return "<div class=\"p-turn " + (ai ? "p-turn-ai" : (you ? "p-turn-you" : "p-turn-ai")) + "\">" +
         "<div class=\"p-turn-who\">" + esc(turnLabel) + "</div>" +
         "<div class=\"p-turn-text\">" + esc(row.text) + "</div></div>";

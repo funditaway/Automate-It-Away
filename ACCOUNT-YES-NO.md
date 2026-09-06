@@ -133,9 +133,9 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-rule-ai-bind.js` covers Rules Then bind + two-AI pick + helper 403 + gone-AI honesty.
 - Then-bind HOLD after Qualify: Drop capture, hook, Ask Grok / qualify, and the worker must not first-eligible overwrite a named Then bind. Gone AI keeps `thenAiGone` and stays HOLD — no James-on-Shop-Bot-card. Notify Then stamps the bound AI, or names the missing bot. Queue / Open paint `Shop Bot · not on this desk` escaped. Owner bind-ai clears the hold. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
 - `scripts/check-then-bind-hold.js` covers capture / hook / worker / notify / gone-AI paint honesty.
-- History paints the same AI ↔ human thread / Then draft / replies the q-card already shows. Escaped. Explore sheet too. Cap and Open-job catch up. Search finds thread text. When `thenAiGone` is on the item, History / Explore / Cap paint `Shop Bot · not on this desk` instead of a live Then draft. Nothing sent alone. Collect HOLD.
-- `scripts/check-history-thread.js` covers History / Cap / open-job thread honesty, including gone HOLD paint.
-- People shared-trail open cards (yours / theirs) paint the same Then draft, named desk AI or gone HOLD, ask / reply turns, and “On the card. Nothing sent alone.” Escaped. `historyCard` carries draft / deskAi / thenAiGone / thread. Nothing sent alone. Collect HOLD.
+- History paints the same AI ↔ human thread / Then draft / replies the q-card already shows. Escaped. Explore sheet too. Cap and Open-job catch up. Search finds thread text. When `thenAiGone` is on the item, History / Explore / Cap paint `Shop Bot · not on this desk` instead of a live Then draft — including ask / rec `talkHtml` labels, not only the Then block. A gone rec/ask with no `from` does not fall back to Desk AI. Nothing sent alone. Collect HOLD.
+- `scripts/check-history-thread.js` covers History / Cap / open-job thread honesty, including gone HOLD paint and gone talk labels.
+- People shared-trail open cards (yours / theirs) paint the same Then draft, named desk AI or gone HOLD, ask / reply turns, and “On the card. Nothing sent alone.” Escaped. `historyCard` carries draft / deskAi / thenAiGone / thread. Gone ask / rec labels match Then (`Shop Bot · not on this desk`), never Desk AI. Nothing sent alone. Collect HOLD.
 - `scripts/check-people-open-cards.js` covers People open-card API + paint honesty.
 
 ## NO (do not pretend these shipped)

@@ -216,19 +216,22 @@
       return true;
     });
   }
+  function talkLabel(row, who, gone) {
+    if (row.kind === "reply") return (row.from || "You") + " · you";
+    if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
+    if (gone) return gone + " · not on this desk";
+    const name = row.from || "Desk AI";
+    return row.kind === "ask" ? (name + " · asks") : (name + " · Then draft");
+  }
   function talkHtml(j) {
     const rows = talkTurns(j);
     if (!rows.length) return "";
     const who = thenWho(j);
+    const gone = thenGone(j);
     return "<div class=\"q-talk\">" + rows.map(function (row) {
       const ai = row.kind === "ask" || row.kind === "rec";
-      const label = row.kind === "reply"
-        ? ((row.from || "You") + " · you")
-        : (row.kind === "ask"
-          ? ((who || row.from || "Desk AI") + " · asks")
-          : ((who || row.from || "Desk AI") + " · Then draft"));
       return "<div class=\"q-turn " + (ai ? "q-turn-ai" : "q-turn-you") + "\">" +
-        "<div class=\"q-turn-who\">" + esc(label) + "</div>" +
+        "<div class=\"q-turn-who\">" + esc(talkLabel(row, who, gone)) + "</div>" +
         "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
     }).join("") + "</div>";
   }

@@ -68,7 +68,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 </header>
 <main class="wrap">
 <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-<div><h1>History</h1><p>What this desk did. Jobs, Then draft, and the AI ↔ human thread. Links only when Grok or the web was used. Nothing sends from here.</p></div>
+<div><h1>History</h1><p>What this desk did. Jobs, Then draft, gone HOLD when that named AI is not on this desk, and the AI ↔ human thread. Links only when Grok or the web was used. Nothing sends from here.</p></div>
 <button type="button" id="adv-btn" style="min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);font:700 13px inherit;padding:8px 14px">Advanced</button>
 </div>
 <p class="aia-line" id="aia-line">Checking whether drafts are on this box…</p>
@@ -183,6 +183,7 @@ function thenLabel(it){var who=thenWho(it),gone=thenGone(it);return who?(who+" �
 function thenTagHtml(it){var who=thenWho(it),gone=thenGone(it);if(who)return "<span class=\"tag aia\">"+esc(who+" · Then draft")+"</span>";if(gone)return "<span class=\"tag gone\">"+esc(gone+" · not on this desk")+"</span>";return "";}
 function deskAiLine(it){var who=thenWho(it),gone=thenGone(it);return who||(gone?(gone+" · not on this desk"):"—");}
 function talkRows(it){return ((it&&it.thread)||[]).filter(function(t){return t&&t.text&&(t.kind==="ask"||t.kind==="reply"||t.kind==="rec");});}
+function talkLabel(row,it){var who=thenWho(it),gone=thenGone(it);if(row.kind==="reply")return (row.from||"You")+" · you";if(who)return row.kind==="ask"?(who+" · asks"):(who+" · Then draft");if(gone)return gone+" · not on this desk";var name=row.from||"Desk AI";return row.kind==="ask"?(name+" · asks"):(name+" · Then draft");}
 function thenHtml(it){
  var text=(it&&it.draft)||"";
  var who=thenWho(it);
@@ -199,11 +200,9 @@ function thenHtml(it){
 function talkHtml(it){
  var rows=talkRows(it);
  if(!rows.length)return "";
- var who=thenWho(it);
  return "<div class=\"h-talk\">"+rows.map(function(row){
   var ai=row.kind==="ask"||row.kind==="rec";
-  var label=row.kind==="reply"?((row.from||"You")+" · you"):(row.kind==="ask"?((who||row.from||"Desk AI")+" · asks"):((who||row.from||"Desk AI")+" · Then draft"));
-  return "<div class=\"h-turn "+(ai?"h-turn-ai":"h-turn-you")+"\"><div class=\"h-turn-who\">"+esc(label)+"</div><div class=\"h-turn-text\">"+esc(row.text)+"</div></div>";
+  return "<div class=\"h-turn "+(ai?"h-turn-ai":"h-turn-you")+"\"><div class=\"h-turn-who\">"+esc(talkLabel(row,it))+"</div><div class=\"h-turn-text\">"+esc(row.text)+"</div></div>";
  }).join("")+"</div>";
 }
 function threadHtml(it){
@@ -420,7 +419,7 @@ function paintAia(){
   var on=!!(g&&g.on);
   el.classList.toggle("off",!on);
   el.textContent=on
-   ?"Grok drafts are on. History shows the trail — Then draft, the AI ↔ human thread, and links only when the web was used. Nothing invented."
+   ?"Grok drafts are on. History shows the trail — Then draft, gone HOLD when that named AI is not on this desk, the AI ↔ human thread, and links only when the web was used. Nothing invented."
    :"Drafts are off — no XAI_API_KEY on this box. History still shows real cards only. Empty stays empty.";
  }).catch(function(){
   var el=document.getElementById("aia-line");
