@@ -46,6 +46,17 @@ if (!/function stampDeskAi/.test(handSrc)) fail("_handoff.js must stamp does / p
 if (!/stampDeskAi/.test(jobsSrc) || !/applyDeskAiDraft/.test(jobsSrc)) fail("recommend must stamp the named desk AI");
 if (!/promptSummary/.test(aisSrc) || !/prompt: prompt/.test(aisSrc)) fail("publicAi must expose prompt");
 if (peopleJs.indexOf("On queue cards") < 0 || peopleJs.indexOf("desk AI") < 0) fail("People agent cards must show desk AI face");
+if (!/deskAi: !!p\.deskAi/.test(peopleJs) || peopleJs.indexOf("if (p.does && !row.does)") < 0) {
+  fail("groupPeople must keep deskAi / does / prompt on agent cards");
+}
+const adminSrc = fs.readFileSync(path.join(root, "api/admin.js"), "utf8");
+if (!/jobCounts/.test(adminSrc) || /jobCounts, readBody/.test(adminSrc)) {
+  fail("admin.js must import jobCounts from _desk, not missing _lib export");
+}
+const libSrc = fs.readFileSync(path.join(root, "api/_lib.js"), "utf8");
+if (!/deskAi: !!p\.deskAi/.test(libSrc) || !/does: p\.does/.test(libSrc)) {
+  fail("_lib.publicPerson must expose deskAi / does / prompt for People cards");
+}
 if (peopleHtml.indexOf("named desk AIs") < 0) fail("people.html must name desk AIs");
 if (help.indexOf("does / prompt chip") < 0 && help.indexOf("does / prompt") < 0) fail("help#desk-cards must name the does / prompt chip");
 if (yesNo.indexOf("check-desk-ai-cards.js") < 0) fail("ACCOUNT-YES-NO must record named AI cards");
@@ -89,6 +100,16 @@ if (thenCard.indexOf("Needs you") < 0) fail("decide card must still show Needs y
 if (thenCard.indexOf(">Yes<") < 0 || thenCard.indexOf(">Stop<") < 0 || thenCard.indexOf(">Kill<") < 0) {
   fail("Yes / Stop / Kill must stay");
 }
+const apiNeeds = ctx.card({
+  id: "j-api-needs",
+  status: "waiting",
+  title: "They clicked",
+  draft: "Ask who it is for.",
+  decide: true,
+  deskAi: { name: "James’s AI", does: "Draft the lead packet" },
+  needs: [{ id: "yes", label: "Yes" }, { id: "stop", label: "Stop" }, { id: "cap", label: "Cap" }]
+}, false);
+if (apiNeeds.indexOf(">Kill<") < 0) fail("API needs rows must still show Kill for the owner");
 if (thenCard.indexOf("q-prompt") < 0) fail("named AI decide card must keep prompt reply");
 if (/On the Home desk/i.test(thenCard)) fail("Then card showed pack boilerplate");
 

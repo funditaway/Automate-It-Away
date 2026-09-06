@@ -25,6 +25,7 @@ const ready = hist.needsOf({
 if (!ready.decide) fail("list card with draft+photo should be decide-ready");
 if (!ready.actions.some((a) => a.id === "yes")) fail("ready card needs Yes");
 if (!ready.actions.some((a) => a.id === "stop")) fail("ready card needs Stop for owner");
+if (!ready.actions.some((a) => a.id === "kill")) fail("ready card needs Kill for owner");
 if (!ready.actions.some((a) => a.id === "cap")) fail("open card can go on the cap");
 else pass("ready card gets Yes / Stop / Cap, not a blank row");
 

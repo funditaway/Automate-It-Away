@@ -15,7 +15,12 @@
     const missing = [];
     if (!j) return { line: "", actions: actions, missing: missing, decide: false, priority: false };
     if (Array.isArray(j.needs) && j.needs.length && typeof j.needs[0] === "object") {
-      return { line: j.needLine || j.next || "", actions: j.needs, missing: j.missing || [], decide: !!j.decide, priority: !!(j.priority || j.cap) };
+      const actions = j.needs.slice();
+      const decide = !!j.decide;
+      if (decide && !staff && !actions.some(function (a) { return a && a.id === "kill"; })) {
+        actions.push({ id: "kill", label: "Kill" });
+      }
+      return { line: j.needLine || j.next || "", actions: actions, missing: j.missing || [], decide: decide, priority: !!(j.priority || j.cap) };
     }
     const st = String(j.status || "");
     const done = st === "shipped" || st === "killed";
@@ -430,13 +435,13 @@
         ".q-reply-tap{min-height:44px;min-width:88px}" +
         ".q-prompt-hold{font-size:12px;color:var(--muted);margin:8px 0 0}" +
         "#queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}" +
-        ".q-hitl{grid-template-columns:1fr 1fr 1fr}" +
-        ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px}" +
+        ".q-hitl{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}" +
+        ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px;width:100%}" +
         ".cap-card{border-left:4px solid var(--orange,#f39c12)}" +
         ".cap-mark{display:inline-flex;background:var(--orange,#f39c12);color:#0c1116;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px}" +
         ".cap-band h2{font-size:13px;margin:8px 0 6px}" +
         ".cap-tap{background:var(--orange,#f39c12);color:#0c1116}" +
-        "@media(max-width:420px){#queue .q-card,#cap-list .q-card{padding:14px 12px}.q-files .thumb{max-width:100%}.q-hitl{grid-template-columns:1fr 1fr}}";
+        "@media(max-width:420px){#queue .q-card,#cap-list .q-card{padding:14px 12px}.q-files .thumb{max-width:100%}.q-hitl{grid-template-columns:1fr 1fr 1fr}}";
       document.head.appendChild(css);
     }
     const filters = document.getElementById("queue-filters");

@@ -195,6 +195,10 @@ function groupPeople(list) {
         accountId: p.accountId || "",
         status: p.status || "approved",
         kind: kindOf(p),
+        deskAi: !!p.deskAi,
+        does: p.does || "",
+        prompt: p.prompt || "",
+        aia: p.aia || "",
         desks: [],
         seats: []
       };
@@ -206,6 +210,10 @@ function groupPeople(list) {
     if (!row.phone && p.phone) row.phone = p.phone;
     if (!row.accountId && p.accountId) row.accountId = p.accountId;
     if (!row.name && p.name) row.name = p.name;
+    if (p.deskAi) row.deskAi = true;
+    if (p.does && !row.does) row.does = p.does;
+    if (p.prompt && !row.prompt) row.prompt = p.prompt;
+    if (p.aia && !row.aia) row.aia = p.aia;
     row.seats.push(p);
     if (!row.desks.some(function (d) { return d.slug === p.deskSlug; })) {
       row.desks.push({ slug: p.deskSlug || "", desk: p.desk || p.deskSlug || "Desk", status: p.status || "approved", kind: kindOf(p), id: p.id || "" });
