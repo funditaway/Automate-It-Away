@@ -687,7 +687,8 @@ function publicPerson(p) {
     deskAi: !!p.deskAi,
     does: p.does || "",
     prompt: String(p.prompt || "").trim().slice(0, 160),
-    aia: p.aia || ""
+    aia: p.aia || "",
+    aiId: p.aiId || ""
   };
 }
 

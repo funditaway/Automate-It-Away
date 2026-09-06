@@ -77,6 +77,15 @@
     if (typeof api.primary === "function") return api.primary();
     return (api.rows && api.rows[0]) || null;
   }
+  function deskAis() {
+    const api = window.AIADeskAis;
+    const rows = (api && Array.isArray(api.rows) ? api.rows : []) || [];
+    return rows.filter(function (a) { return a && (a.name || a.id); });
+  }
+  function isOwnerSeat() {
+    if (window.AIADeskAis && window.AIADeskAis.owner === true) return true;
+    try { return localStorage.getItem("aia_role") === "owner"; } catch (e) { return false; }
+  }
   function thenWho(j) {
     const ai = boundAi(j);
     return ai && ai.name ? String(ai.name) : "";
@@ -174,6 +183,69 @@
     if (j && Array.isArray(j.replies) && j.replies.length) return j.replies[j.replies.length - 1];
     return lastOfKind(j, "reply");
   }
+  function talkTurns(j) {
+    const rows = [];
+    const seen = {};
+    function add(kind, from, text, at) {
+      const t = String(text || "").replace(/\s+/g, " ").trim();
+      if (!t) return;
+      const key = String(kind || "") + "|" + t;
+      if (seen[key]) return;
+      seen[key] = true;
+      rows.push({ kind: kind, from: from || "", text: t, at: at || "" });
+    }
+    (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
+      if (!t || !t.text) return;
+      const k = String(t.kind || "note");
+      if (k !== "ask" && k !== "reply" && k !== "rec") return;
+      add(k, t.from, t.text, t.at);
+    });
+    (j && Array.isArray(j.replies) ? j.replies : []).forEach(function (r) {
+      if (!r) return;
+      add("reply", r.from || "You", r.text, r.at);
+    });
+    const draft = String((j && (j.draft || (j.agentDraft && j.agentDraft.text))) || "").replace(/\s+/g, " ").trim();
+    return rows.filter(function (row) {
+      if (row.kind !== "rec") return true;
+      if (draft && row.text === draft) return false;
+      return true;
+    });
+  }
+  function talkHtml(j) {
+    const rows = talkTurns(j);
+    if (!rows.length) return "";
+    const who = thenWho(j);
+    return "<div class=\"q-talk\">" + rows.map(function (row) {
+      const ai = row.kind === "ask" || row.kind === "rec";
+      const label = row.kind === "reply"
+        ? ((row.from || "You") + " · you")
+        : (row.kind === "ask"
+          ? ((who || row.from || "Desk AI") + " · asks")
+          : ((who || row.from || "Desk AI") + " · Then draft"));
+      return "<div class=\"q-turn " + (ai ? "q-turn-ai" : "q-turn-you") + "\">" +
+        "<div class=\"q-turn-who\">" + esc(label) + "</div>" +
+        "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
+    }).join("") + "</div>";
+  }
+  function bindAiHtml(j) {
+    const ais = deskAis();
+    if (!ais.length || !isOwnerSeat()) return "";
+    const id = cardId(j);
+    if (!id) return "";
+    const curId = (j && j.deskAi && (j.deskAi.id || j.deskAi.name)) || thenWho(j) || "";
+    const opts = ais.map(function (a) {
+      const value = a.id || a.name || "";
+      const sel = curId && (value === curId || a.name === curId || (j.deskAi && j.deskAi.id && a.id === j.deskAi.id)) ? " selected" : "";
+      return "<option value=\"" + esc(value) + "\"" + sel + ">" + esc(a.name || "Desk AI") + "</option>";
+    }).join("");
+    return "<div class=\"q-bind\">" +
+      "<label class=\"q-bind-lab\" for=\"q-ai-" + id + "\">Desk AI on this card</label>" +
+      "<select id=\"q-ai-" + id + "\" class=\"q-ai-pick\" onchange=\"bindAiOnCard('" + id + "', this.value)\">" +
+      opts +
+      "</select>" +
+      "<p class=\"q-bind-hold\">Picks who owns Then / Needs you on this card. Yes / Stop / Kill stay human. Nothing sent alone.</p>" +
+      "</div>";
+  }
   function promptHtml(j, need) {
     if (!isPromptReply(j, need)) return "";
     const id = cardId(j);
@@ -183,8 +255,9 @@
       ? "Ask the human"
       : (who ? (who + " asks") : "Needs you");
     const q = promptQuestion(j, need);
+    const stacked = talkTurns(j).some(function (row) { return row.kind === "reply"; });
     const reply = lastReply(j);
-    const replyLine = reply
+    const replyLine = (!stacked && reply)
       ? "<p class=\"q-reply-was\">" + esc((reply.from || "You") + " · " + (reply.text || "")) + "</p>"
       : "";
     return "<div class=\"q-prompt\">" +
@@ -316,6 +389,23 @@
     if (banner) banner.textContent = line;
     if (typeof openJob === "function") openJob(id);
   }
+  async function bindAiOnCard(id, ai) {
+    const banner = document.getElementById("banner");
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    const who = String(ai || "").trim();
+    if (!safe || !who) {
+      if (banner) banner.textContent = "Pick a desk AI already on this desk.";
+      return;
+    }
+    if (typeof api !== "function") return;
+    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "bind-ai", id: safe, ai: who, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
+    const name = (out.data && out.data.job && out.data.job.deskAi && out.data.job.deskAi.name) || who;
+    const line = out.status >= 400
+      ? ((out.data && out.data.error) || "Could not set that desk AI.")
+      : (name + " owns Then / Needs you on this card. Nothing sent.");
+    if (typeof load === "function") await load();
+    if (banner) banner.textContent = line;
+  }
   async function pinCap(id, on) {
     const banner = document.getElementById("banner");
     if (typeof api !== "function") return;
@@ -368,6 +458,7 @@
   window.cardNeeds = cardNeeds;
   window.cardActionHtml = cardActionHtml;
   window.replyOnCard = replyOnCard;
+  window.bindAiOnCard = bindAiOnCard;
   window.helpWithAi = helpWithAi;
   window.pinCap = pinCap;
   window.openCapDesk = openCapDesk;
@@ -378,7 +469,15 @@
     const why = (typeof visitorLine === "function" ? visitorLine(j.why) : (j.why || ""));
     const status = typeof labelStatus === "function" ? labelStatus(j.status) : (j.status || "");
     const line = honestNext(j, need);
-    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thenDraftHtml(j) + promptHtml(j, need) + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
+    const draft = thenDraftHtml(j);
+    const talks = talkHtml(j);
+    const prompt = promptHtml(j, need);
+    const bind = bindAiHtml(j);
+    const stacked = !!(talks && (draft || prompt));
+    const thread = stacked
+      ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>"
+      : (draft + talks + prompt);
+    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thread + bind + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
   };
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }
@@ -434,6 +533,18 @@
         ".q-prompt-go{margin-top:8px}" +
         ".q-reply-tap{min-height:44px;min-width:88px}" +
         ".q-prompt-hold{font-size:12px;color:var(--muted);margin:8px 0 0}" +
+        ".q-thread{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}" +
+        ".q-thread .q-then,.q-thread .q-prompt{margin:8px 0}" +
+        ".q-talk{display:flex;flex-direction:column;gap:8px;margin:8px 0}" +
+        ".q-turn{border-radius:10px;padding:8px 10px}" +
+        ".q-turn-ai{background:var(--edit)}" +
+        ".q-turn-you{background:var(--bg);border:1px solid var(--line)}" +
+        ".q-turn-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 4px}" +
+        ".q-turn-text{font-size:14px;line-height:1.4;white-space:pre-wrap}" +
+        ".q-bind{margin:8px 0}" +
+        ".q-bind-lab{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 4px}" +
+        ".q-ai-pick{width:100%;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}" +
+        ".q-bind-hold{font-size:12px;color:var(--muted);margin:6px 0 0}" +
         "#queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}" +
         ".q-hitl{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}" +
         ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px;width:100%}" +

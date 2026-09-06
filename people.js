@@ -199,6 +199,7 @@ function groupPeople(list) {
         does: p.does || "",
         prompt: p.prompt || "",
         aia: p.aia || "",
+        aiId: p.aiId || "",
         desks: [],
         seats: []
       };
@@ -214,6 +215,7 @@ function groupPeople(list) {
     if (p.does && !row.does) row.does = p.does;
     if (p.prompt && !row.prompt) row.prompt = p.prompt;
     if (p.aia && !row.aia) row.aia = p.aia;
+    if (p.aiId && !row.aiId) row.aiId = p.aiId;
     row.seats.push(p);
     if (!row.desks.some(function (d) { return d.slug === p.deskSlug; })) {
       row.desks.push({ slug: p.deskSlug || "", desk: p.desk || p.deskSlug || "Desk", status: p.status || "approved", kind: kindOf(p), id: p.id || "" });
@@ -272,7 +274,16 @@ function card(p) {
       (prompt ? "<p class=\"meta\">Prompt · " + esc(prompt) + "</p>" : "") +
       "<p class=\"meta\">On queue cards: " + esc(p.name || "Desk AI") + " · Then draft. Needs you names this AI.</p>"
     : "";
-  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindOf(p)) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
+  var edit = (STATE.owner && isDeskAi(p) && !STATE.all)
+    ? "<form class=\"ai-edit\" data-ai=\"" + esc(p.aiId || p.id || p.name || "") + "\" data-key=\"" + esc(p.key) + "\">" +
+      "<label>Name</label><input name=\"name\" maxlength=\"40\" value=\"" + esc(p.name || "") + "\">" +
+      "<label>Does</label><input name=\"does\" maxlength=\"160\" value=\"" + esc(p.does || "") + "\">" +
+      "<label>Prompt</label><textarea name=\"prompt\" maxlength=\"400\" rows=\"3\">" + esc(p.prompt || "") + "</textarea>" +
+      "<button class=\"go\" type=\"submit\" data-act=\"save-ai\">Save on this desk</button>" +
+      "<p class=\"meta\">Updates name / does / prompt. Queue chips follow. Yes / Stop / Kill stay human.</p>" +
+      "</form>"
+    : "";
+  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindOf(p)) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
 }
 
 function paintList() {
@@ -565,15 +576,43 @@ document.getElementById("desk-chips").addEventListener("click", function (e) {
   load();
 });
 
+async function savePeopleAi(form) {
+  if (!form) return;
+  var banner = document.getElementById("banner");
+  var nameEl = form.querySelector("[name=\"name\"]");
+  var doesEl = form.querySelector("[name=\"does\"]");
+  var promptEl = form.querySelector("[name=\"prompt\"]");
+  var name = nameEl ? String(nameEl.value || "").trim() : "";
+  if (!name) {
+    if (banner) banner.textContent = "Name the desk AI first.";
+    return;
+  }
+  var out = await api("/api/desks", { method: "POST", body: JSON.stringify({ action: "save-ai", id: form.getAttribute("data-ai") || "", name: name, does: doesEl ? doesEl.value : "", prompt: promptEl ? promptEl.value : "" }) });
+  if (out.status >= 400) {
+    if (banner) banner.textContent = (out.data && out.data.error) || "Could not save that desk AI.";
+    return;
+  }
+  if (banner) banner.textContent = ((out.data && out.data.note) || (name + " is bound to this desk.")) + " Nothing sent.";
+  load();
+}
+
+document.getElementById("list").addEventListener("submit", function (e) {
+  var form = e.target && e.target.closest ? e.target.closest("form.ai-edit") : null;
+  if (!form) return;
+  e.preventDefault();
+  savePeopleAi(form);
+});
+
 document.getElementById("list").addEventListener("click", function (e) {
   var btn = e.target.closest("[data-act]");
+  if (btn && btn.getAttribute("data-act") === "save-ai") return;
   if (btn && btn.getAttribute("data-act") === "open") {
     openSheet(personByKey(btn.getAttribute("data-key")));
     return;
   }
   var cardEl = e.target.closest("article[data-open]");
   if (!cardEl) return;
-  if (e.target.closest("a") || e.target.closest("button")) return;
+  if (e.target.closest("a") || e.target.closest("button") || e.target.closest("form") || e.target.closest("input") || e.target.closest("textarea")) return;
   openSheet(personByKey(cardEl.getAttribute("data-open")));
 });
 

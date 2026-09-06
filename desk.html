@@ -59,6 +59,17 @@
     .q-prompt-go{margin-top:8px}
     .q-reply-tap{min-height:44px}
     .q-prompt-hold{font-size:12px;color:var(--muted);margin:8px 0 0}
+    .q-thread{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}
+    .q-talk{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+    .q-turn{border-radius:10px;padding:8px 10px}
+    .q-turn-ai{background:var(--edit)}
+    .q-turn-you{background:var(--bg);border:1px solid var(--line)}
+    .q-turn-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 4px}
+    .q-turn-text{font-size:14px;line-height:1.4;white-space:pre-wrap}
+    .q-bind{margin:8px 0}
+    .q-bind-lab{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 4px}
+    .q-ai-pick{width:100%;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}
+    .q-bind-hold{font-size:12px;color:var(--muted);margin:6px 0 0}
     .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
     button,a.go{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
     .go{background:#119494;color:#fff;display:inline-block}
@@ -330,6 +341,11 @@
         JOBS = jobs.data.jobs || [];
         FIELDS = jobs.data.fields || FIELDS;
         if (jobs.data.you && jobs.data.you.role) { role = jobs.data.you.role; youName = jobs.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
+        if (window.AIADeskAis) {
+          if (Array.isArray(jobs.data.ais) && jobs.data.ais.length) window.AIADeskAis.rows = jobs.data.ais.slice();
+          const you = jobs.data.you || {};
+          if (you.role === "owner" || you.kind === "owner" || role === "owner") window.AIADeskAis.owner = true;
+        }
         const auth = await api("/api/auth");
         if (auth.data && auth.data.you && auth.data.you.role) { role = auth.data.you.role; youName = auth.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
         if (jobs.data && jobs.data.nouns) NOUNS = AIADesks.nounsOf(jobs.data.nouns);

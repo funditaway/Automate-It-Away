@@ -125,6 +125,10 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-orch-then.js` covers Then-after-Yes spawn.
 - Named desk AIs on queue cards: `desk-needs.js` `card()` shows which desk AI drafted / owns the Then (name + short does / prompt chip). Ask Grok / Then draft / Needs you name that AI when one is set. `/desk` `#desk-ais` paints each bot as a card (name, does, prompt summary, queue-card face). People Agents cards show the same. Ask Grok `recommend` stamps the named AI. Yes / Stop / Kill stay human. Collect HOLD. Prompt reply + Then-after-Yes stay.
 - `scripts/check-desk-ai-cards.js` covers the named-AI face + bot cards + recommend stamp.
+- Edit desk AI on bot cards: owner updates name / does / prompt from the Desk AI strip or People Agents via existing `save-ai`. Queue chips follow. Helpers do not edit.
+- Assign / reassign named AI on a queue card: owner picks which desk AI owns Then / Ask Grok / Needs you. `bind-ai` stamps that AI. Chips update honestly. Desk AI cannot bind itself. Yes / Stop / Kill stay human.
+- Clearer AI ↔ human thread on the q-card when replies + Then drafts stack. Escaped. Nothing sent alone. Collect HOLD.
+- `scripts/check-desk-ai-edit.js` covers edit / bind / stacked thread + helper 403 + desk-AI 403.
 
 ## NO (do not pretend these shipped)
 

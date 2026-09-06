@@ -1,6 +1,7 @@
 /* Named desk AIs + Rail guardrails. Thin strip — not a dashboard fork. */
 (function () {
   var ROWS = [];
+  var OWNER = false;
   function shopOpen() {
     return !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
   }
@@ -48,13 +49,32 @@
       ".desk-ais-box .q-ai{background:var(--teal,#119494);color:#fff}" +
       ".desk-ais-box .q-ai-does,.desk-ais-box .q-ai-prompt{background:var(--edit);color:var(--heading);font-weight:700}" +
       ".desk-ais-box .q-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}" +
-      ".desk-ais-box .q-chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800}";
+      ".desk-ais-box .q-chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800}" +
+      ".desk-ais-box .ai-edit{margin:8px 0 0;padding:10px 0 0;border-top:1px solid var(--line)}" +
+      ".desk-ais-box .ai-edit label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:8px 0 4px}" +
+      ".desk-ais-box .ai-edit input,.desk-ais-box .ai-edit textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}" +
+      ".desk-ais-box .ai-edit textarea{min-height:64px}" +
+      ".desk-ais-box .ai-edit .go{margin-top:10px;min-height:44px}";
     document.head.appendChild(css);
   }
   function faceOf(a) {
     var name = (a && a.name) || "Desk AI";
     var does = clipFace((a && a.does) || "", 72);
     return name + " · Then draft" + (does ? " · " + does : "");
+  }
+  function editOf(a) {
+    if (!OWNER) return "";
+    var id = a && (a.id || a.name) || "";
+    return "<form class=\"ai-edit\" data-ai=\"" + esc(id) + "\">" +
+      "<label for=\"ai-name-" + esc(id) + "\">Name</label>" +
+      "<input id=\"ai-name-" + esc(id) + "\" name=\"name\" maxlength=\"40\" value=\"" + esc(a.name || "") + "\">" +
+      "<label for=\"ai-does-" + esc(id) + "\">Does</label>" +
+      "<input id=\"ai-does-" + esc(id) + "\" name=\"does\" maxlength=\"160\" value=\"" + esc(a.does || "") + "\">" +
+      "<label for=\"ai-prompt-" + esc(id) + "\">Prompt</label>" +
+      "<textarea id=\"ai-prompt-" + esc(id) + "\" name=\"prompt\" maxlength=\"400\" rows=\"3\">" + esc(a.prompt || "") + "</textarea>" +
+      "<button class=\"go\" type=\"submit\">Save on this desk</button>" +
+      "<p class=\"meta\">Updates name / does / prompt. Queue chips follow. Yes / Stop / Kill stay human. Nothing sent alone.</p>" +
+      "</form>";
   }
   function cardOf(a) {
     var does = clipFace((a && a.does) || "", 160);
@@ -72,15 +92,25 @@
       "<p class=\"meta\">Drafts " + esc((a.steps || a.allow || []).join(", ") || "qualify, do, follow") +
         ". Never " + esc((a.never || ["send", "stop", "money", "mail"]).join(" · ")) +
         ". Yes / Stop / Kill stay human.</p>" +
+      editOf(a) +
       "</article>";
+  }
+  function youOf(data) {
+    var you = (data && (data.you || (data.desk && data.desk.you))) || {};
+    var role = (data && (data.role || (data.desk && data.desk.role))) || you.role || you.kind || "";
+    return role === "owner" || you.kind === "owner";
   }
   function paint(data) {
     var box = host();
     if (!box) return;
     injectCss();
+    OWNER = youOf(data);
     var rows = (data && (data.ais || (data.desk && data.desk.ais))) || [];
     ROWS = Array.isArray(rows) ? rows.slice() : [];
-    if (window.AIADeskAis) window.AIADeskAis.rows = ROWS;
+    if (window.AIADeskAis) {
+      window.AIADeskAis.rows = ROWS;
+      window.AIADeskAis.owner = OWNER;
+    }
     var mail = (data && (data.mail || (data.desk && data.desk.mail))) || [];
     var rails = (data && (data.aiRails || data.rails || (data.desk && data.desk.aiRails))) || "Yes / Stop / Kill stay human. Desk AIs never Yes themselves. Collect stays HOLD. No silent money or mail.";
     var inet = (data && (data.net || data.internet || (data.desk && data.desk.net))) || null;
@@ -100,11 +130,16 @@
       (mail.length ? "<p class=\"meta\">.aia email · " + mail.map(function (m) { return esc(m.address); }).join(" · ") + " · Send HOLD</p>" : "<p class=\"meta\">Create a .aia email for automations on Account, Studio, or Desks. Send stays HOLD.</p>") +
       "<p class=\"meta\">" + esc(rails) + "</p>" +
       "<p class=\"meta\">" + esc(netNote) + "</p>";
+    bindEdits();
   }
   async function refresh() {
     if (!shopOpen()) {
       ROWS = [];
-      if (window.AIADeskAis) window.AIADeskAis.rows = ROWS;
+      OWNER = false;
+      if (window.AIADeskAis) {
+        window.AIADeskAis.rows = ROWS;
+        window.AIADeskAis.owner = OWNER;
+      }
       var box = document.getElementById("desk-ais");
       if (box) {
         box.hidden = false;
@@ -115,7 +150,7 @@
     try {
       var r = await fetch("/api/desks", { headers: headers() });
       var d = await r.json().catch(function () { return {}; });
-      paint(d.desk || d);
+      paint(d.desk ? Object.assign({}, d.desk, { you: d.desk.you || d.you, role: d.desk.role || d.role }) : d);
     } catch (e) {
       paint({ ais: [] });
     }
@@ -136,8 +171,62 @@
   function primary() {
     return ROWS[0] || null;
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", load);
-  else load();
+  async function saveAi(id, fields) {
+    var banner = document.getElementById("banner");
+    var name = fields && fields.name ? String(fields.name).trim() : "";
+    if (!name) {
+      if (banner) banner.textContent = "Name the desk AI first.";
+      return { ok: false, error: "Name the desk AI first." };
+    }
+    try {
+      var r = await fetch("/api/desks", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({
+          action: "save-ai",
+          id: id || "",
+          name: name,
+          does: (fields && fields.does) || "",
+          prompt: (fields && fields.prompt) || ""
+        })
+      });
+      var d = await r.json().catch(function () { return {}; });
+      if (r.status >= 400) {
+        if (banner) banner.textContent = d.error || "Could not save that desk AI.";
+        return { ok: false, error: d.error || "Could not save that desk AI." };
+      }
+      await refresh();
+      if (typeof window.load === "function" && !window.load._aiaDeskAisSaving) {
+        try { await window.load(); } catch (e) {}
+      }
+      if (banner) banner.textContent = (d.note || (name + " is bound to this desk.")) + " Nothing sent.";
+      return { ok: true, ai: d.ai, ais: d.ais };
+    } catch (e) {
+      if (banner) banner.textContent = "Could not save that desk AI.";
+      return { ok: false, error: "Could not save that desk AI." };
+    }
+  }
+  function bindEdits() {
+    var box = document.getElementById("desk-ais");
+    if (!box || box._aiaEdit || typeof box.addEventListener !== "function") return;
+    box.addEventListener("submit", function (e) {
+      var form = e.target && e.target.closest ? e.target.closest("form.ai-edit") : null;
+      if (!form) return;
+      e.preventDefault();
+      var id = form.getAttribute("data-ai") || "";
+      var nameEl = form.querySelector("[name=\"name\"]");
+      var doesEl = form.querySelector("[name=\"does\"]");
+      var promptEl = form.querySelector("[name=\"prompt\"]");
+      saveAi(id, {
+        name: nameEl ? nameEl.value : "",
+        does: doesEl ? doesEl.value : "",
+        prompt: promptEl ? promptEl.value : ""
+      });
+    });
+    box._aiaEdit = true;
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { bindEdits(); load(); });
+  else { bindEdits(); load(); }
   wrapLoad();
-  window.AIADeskAis = { load: load, paint: paint, rows: ROWS, primary: primary };
+  window.AIADeskAis = { load: load, paint: paint, rows: ROWS, primary: primary, saveAi: saveAi, owner: OWNER };
 })();
