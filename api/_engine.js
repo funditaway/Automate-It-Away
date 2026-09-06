@@ -1,4 +1,5 @@
 const hand = require("./_handoff");
+const ais = require("./_ais");
 const {
   ensureRules, moneyWaitOf, moneyNeedsOwner,
   ruleWantsOwner, ruleWantsStop, ruleWhy,
@@ -224,13 +225,17 @@ function applyThen(job, rule, step, shop) {
     job.next = why;
   } else if (then === "draft") {
     const keep = job._incomingDraft;
+    const hint = (rule.aiId || rule.aiName) ? { id: rule.aiId || "", name: rule.aiName || "" } : null;
+    const bound = hint && shop ? ais.findDeskAi(shop, hint) : null;
     if (shop && typeof hand.applyDeskAiDraft === "function") {
       if (!keep) {
         job.draft = "";
         job.agentDrafted = false;
-        job.deskAi = null;
+        if (hint) job.deskAi = null;
       }
-      hand.applyDeskAiDraft(job, shop, step || "qualify");
+      if (!hint || bound) {
+        hand.applyDeskAiDraft(job, shop, step || "qualify", bound || hint || job.deskAi);
+      }
     }
     if (!job.draft) job.draft = why + " Desk AI draft. Human send HOLD.";
     else if (!/HOLD/i.test(String(job.draft))) job.draft = String(job.draft) + " Human send HOLD.";
@@ -238,7 +243,9 @@ function applyThen(job, rule, step, shop) {
     const who = job.deskAi && job.deskAi.name;
     job.next = who
       ? (who + " drafted on the card. Human send HOLD.")
-      : (why + " Draft on the card. Human send HOLD.");
+      : (hint && !bound
+        ? (why + " That named desk AI is not on this desk. Draft HOLD.")
+        : (why + " Draft on the card. Human send HOLD."));
     job.log = (job.log || []).concat(["When/If/Then · draft HOLD"]);
   } else if (then === "notify") {
     const line = why + " Desk AI draft. Nothing sent.";
