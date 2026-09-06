@@ -62,6 +62,53 @@ function thenGoneOf(j) {
   const name = g && (g.name || g.id) || "";
   return String(name || "").trim();
 }
+function namedNeedsWhoOf(j) {
+  const who = thenWhoOf(j);
+  if (who) return who;
+  const gone = thenGoneOf(j);
+  return gone ? (gone + " · not on this desk") : "";
+}
+function sheetNeedOf(j) {
+  if (typeof cardNeeds === "function") return cardNeeds(j, false);
+  return { decide: false, missing: [], priority: !!(j && (j.priority || j.cap)) };
+}
+function sheetChipsHtml(j) {
+  if (typeof chipsHtml === "function") return chipsHtml(j, sheetNeedOf(j), "");
+  const who = thenWhoOf(j);
+  const gone = thenGoneOf(j);
+  const bits = [];
+  if (who) bits.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+  if (gone && !who) bits.push("<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>");
+  const wait = String((j && j.waitingOn) || "").toLowerCase();
+  const st = String((j && j.status) || "");
+  const needYou = wait === "owner" || wait === "person" || wait === "info" || wait === "helper" || st === "held" || st === "exception" || st === "waiting";
+  if (needYou) {
+    const named = namedNeedsWhoOf(j);
+    bits.push("<span class=\"q-chip q-need\">" + esc(who ? (who + " · Needs you") : (named || "Needs you")) + "</span>");
+  }
+  return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
+}
+function sheetPromptHtml(j) {
+  if (typeof promptHtml === "function") return promptHtml(j, sheetNeedOf(j));
+  const who = thenWhoOf(j);
+  const named = namedNeedsWhoOf(j);
+  const wait = String((j && j.waitingOn) || "").toLowerCase();
+  const st = String((j && j.status) || "");
+  if (st === "shipped" || st === "killed" || st === "out" || (j && j.offDesk)) return "";
+  const asked = talkTurnsOf(j).some(function (row) { return row.kind === "ask"; });
+  if (!(wait === "info" || wait === "helper" || wait === "person" || wait === "owner" || asked || who || thenGoneOf(j))) return "";
+  const askHuman = wait === "info";
+  const label = askHuman ? "Ask the human" : (who ? (who + " asks") : (named || "Needs you"));
+  let q = "Reply on this card. Nothing sent alone.";
+  if (askHuman && j && (j.why || j.next)) q = String(j.why || j.next);
+  else if (who) q = who + " asked on this card. Type a reply. Nothing sent alone.";
+  else if (named) q = named + ". Type a reply. Nothing sent alone.";
+  return "<div class=\"q-prompt\">" +
+    "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
+    "<p class=\"q-prompt-q\">" + esc(q) + "</p>" +
+    "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
+    "</div>";
+}
 function talkLabelOf(row, who, gone) {
   if (row.kind === "reply") return (row.from || "You") + " · you";
   if (row.kind === "ask" || row.kind === "rec") {
@@ -130,8 +177,10 @@ function threadSheetHtml(j) {
         "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
     }).join("") + "</div>"
     : "<div>No notes yet.</div>";
-  const stacked = !!(draftHtml && rows.length);
-  return (stacked ? "<div class=\"q-thread\">" : "<div class=\"talk\">") + draftHtml + talks +
+  const prompt = sheetPromptHtml(j);
+  const chips = sheetChipsHtml(j);
+  const stacked = !!(draftHtml && (rows.length || prompt));
+  return chips + (stacked ? "<div class=\"q-thread\">" : "<div class=\"talk\">") + draftHtml + talks + prompt +
     "<p class=\"q-prompt-hold\">On the card. Nothing sent alone.</p>" +
     (stacked ? "</div>" : "</div>");
 }
