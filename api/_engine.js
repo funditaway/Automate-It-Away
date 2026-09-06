@@ -267,6 +267,56 @@ function applyThen(job, rule, step, shop) {
   if (rule.tag && then !== "tag") addTag(job, rule.tag);
 }
 
+function thenHits(job, shop, step) {
+  return matchingRules(job, shop, step || "do");
+}
+
+function thenAfterYes(job, shop) {
+  if (!job || !shop) return null;
+  const hits = thenHits(job, shop, "do");
+  if (!hits.length) return null;
+  const spawn = hits.some(function (r) {
+    const t = String((r && r.then) || "").toLowerCase();
+    return t === "draft" || t === "queue";
+  });
+  if (!spawn) {
+    applyRules(job, shop, "do");
+    return null;
+  }
+  const next = {
+    id: "job_" + Date.now().toString(36) + "n",
+    workspace: job.workspace,
+    title: job.title || "Next Then",
+    notes: job.notes || "",
+    why: "After Yes. Next Then. A person still taps.",
+    status: "waiting",
+    step: "Do",
+    from: "then",
+    parentId: job.id,
+    pack: job.pack,
+    kind: job.kind,
+    tags: (job.tags || []).slice(),
+    custom: Object.assign({}, job.custom || {}),
+    createdAt: new Date().toISOString(),
+    log: ["Then after Yes · from " + job.id],
+    charged: false,
+    waitingOn: "person"
+  };
+  if (job.deskAi) next.deskAi = job.deskAi;
+  applyRules(next, shop, "do");
+  if (next.status === "shipped" || next.status === "killed") next.status = "waiting";
+  next.charged = false;
+  if (next.waitingOn !== "owner") next.waitingOn = next.waitingOn || "person";
+  if (!/HOLD/i.test(String(next.next || "")) && !/nothing sent/i.test(String(next.next || ""))) {
+    next.next = String(next.next || "Next Then.").replace(/\.\s*$/, "") + ". HOLD. Nothing sent alone.";
+  } else if (!/nothing sent/i.test(String(next.next || ""))) {
+    next.next = String(next.next).replace(/\.\s*$/, "") + ". Nothing sent alone.";
+  }
+  job.nextJobId = next.id;
+  job.log = (job.log || []).concat(["Then after Yes · " + next.id]);
+  return next;
+}
+
 function applyRules(job, shop, step) {
   if (!job) return job;
   const hits = matchingRules(job, shop, step || "qualify");
@@ -469,6 +519,8 @@ module.exports = Object.assign({}, hand, {
   markFlow,
   applyRules,
   applyCap,
+  thenAfterYes,
+  thenHits,
   crewOf: hand.crewOf,
   MONEY_HOLD,
   PACKS,

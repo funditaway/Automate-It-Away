@@ -23,7 +23,7 @@ const dropAgent = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "desk-needs.js")], { encoding: "utf8" });
 if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
 
-["function thenWho", "function filesOf", "function isNeedsYou", "function isAskHuman", "function honestNext", "function thenDraftHtml", "q-card", "q-then", "q-hitl", "Then draft"].forEach(function (bit) {
+["function thenWho", "function filesOf", "function isNeedsYou", "function isAskHuman", "function isPromptReply", "function promptHtml", "function honestNext", "function thenDraftHtml", "q-card", "q-then", "q-hitl", "Then draft", "q-prompt", "Nothing sent alone"].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
 if (!/HOLD\. Nothing sent alone/.test(needs)) fail("next-line must say HOLD. Nothing sent alone.");
@@ -99,6 +99,10 @@ const askCard = ctx.card({
 if (askCard.indexOf("Ask the human") < 0) fail("missing-info card must show Ask the human");
 if (askCard.indexOf("Needs you") < 0) fail("missing-info card must show Needs you");
 if (askCard.indexOf("Ask Grok") < 0) fail("a waiting card with no draft must show Ask Grok");
+if (askCard.indexOf("q-prompt") < 0) fail("missing-info card must show the prompt reply");
+if (askCard.indexOf("q-reply-box") < 0) fail("missing-info card must have a reply field");
+if (askCard.indexOf(">Reply<") < 0) fail("missing-info card must have a Reply tap");
+if (askCard.indexOf("Nothing sent alone") < 0) fail("prompt must say nothing sent alone");
 if (/>Yes</.test(askCard)) fail("missing-info card must not show Yes");
 
 const fileCard = ctx.card({
@@ -127,6 +131,7 @@ const xss = ctx.card({
 if (/<h3>Need 2 < 3/.test(xss)) fail("raw < in a title must not become markup");
 if (xss.indexOf("Need 2 &lt; 3 &amp; &quot;go&quot;") < 0) fail("title must stay text");
 if (xss.indexOf("Buy &lt;5 gallons") < 0) fail("why must stay text");
+if (/<p class="q-prompt-q">Buy <5/.test(xss)) fail("prompt question must stay text");
 if (xss.indexOf("Don&#39;t use &lt;b&gt;html&lt;/b&gt;") < 0) fail("draft must stay text");
 if (xss.indexOf("Sam &lt;helper&gt;") < 0) fail("assignee must stay text");
 if (xss.indexOf("AI &lt;bot&gt;") < 0) fail("Then name must stay text");

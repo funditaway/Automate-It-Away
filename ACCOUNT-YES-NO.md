@@ -119,6 +119,10 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-orch-then.js` covers that Then.
 - Queue cards on `/desk` (`desk-needs.js` `card()`) surface title / why / draft / assignee (esc’d), the named Then draft, Needs you / ask-the-human, Ask Grok, Yes / Stop / Kill, HOLD / nothing sent alone, photos/files, and Cap rows in the same visual system. Not pack boilerplate. Not a Drop rewrite. Collect HOLD. AI still cannot Yes / Kill.
 - `scripts/check-desk-queue-cards.js` covers that face.
+- Prompt reply on the q-card: when Needs you / Ask the human / a desk AI asks, the owner (and a seated helper) types a reply on the card. Reply lands on thread / history and can unblock the next Then. Reply does not Yes, ship, or send money. Desk AI cannot reply as Yes. Nothing sent alone.
+- Then-after-Yes: after a person taps Yes, When=do Then can continue on a new card or the next Then. HITL stays. Collect HOLD. No silent send.
+- `scripts/check-desk-prompt-reply.js` covers the prompt face + reply API + helper seat + desk-AI 403.
+- `scripts/check-orch-then.js` covers Then-after-Yes spawn.
 
 ## NO (do not pretend these shipped)
 
