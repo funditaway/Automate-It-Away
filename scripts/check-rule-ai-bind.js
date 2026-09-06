@@ -69,7 +69,7 @@ else pass("publicRule keeps aiId / aiName");
 if (!/bindRuleAi/.test(rulesSrc) || !/No desk AI by that name/.test(rulesSrc)) {
   fail("rules.js must resolve a named desk AI on save");
 } else pass("rules.js binds named AI");
-if (!/rule\.aiId/.test(engineSrc) || !/That named desk AI is not on this desk/.test(engineSrc)) {
+if (!/rule\.aiId/.test(engineSrc) || !/thenAiGone/.test(engineSrc) || !/is not on this desk/.test(engineSrc)) {
   fail("_engine Then draft must honor rule AI and gone-AI honesty");
 } else pass("engine Then uses rule AI");
 if (help.indexOf("owner picks which on Rules") < 0 && help.indexOf("Owner picks which bot writes matching cards") < 0) {
@@ -221,10 +221,16 @@ async function main() {
     from: "drop",
     workspace: "gone-ai"
   }, goneShop);
-  if (gone.deskAi && /James/.test(gone.deskAi.name || "") && /Ask who it is for and when/i.test(gone.draft || "")) {
-    fail("gone bound AI must not pretend James wrote Then: " + JSON.stringify({ deskAi: gone.deskAi, draft: gone.draft, next: gone.next }));
+  if (gone.deskAi && /James/.test(gone.deskAi.name || "")) {
+    fail("gone bound AI must not stamp James: " + JSON.stringify(gone.deskAi));
+  } else if (!gone.thenAiGone || gone.thenAiGone.name !== "Shop Bot") {
+    fail("gone bound AI must mark thenAiGone Shop Bot, got " + JSON.stringify(gone.thenAiGone));
+  } else if (/Ask who it is for and when/i.test(gone.draft || "")) {
+    fail("gone bound AI must not use James prompt: " + JSON.stringify(gone.draft));
   } else if (!/HOLD/i.test(gone.draft || "") && !/HOLD/i.test(gone.next || "")) {
     fail("gone bound AI must still HOLD");
+  } else if (!/Shop Bot is not on this desk/i.test(gone.next || "")) {
+    fail("gone next must name Shop Bot, got " + JSON.stringify(gone.next));
   } else pass("gone bound AI stays HOLD without a fake name");
 
   const anyShop = {
