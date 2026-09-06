@@ -119,7 +119,7 @@
     }
     const asked = lastOfKind(j, "ask");
     if (asked && asked.text) return asked.text;
-    if (j.why && !/HOLD/i.test(String(j.why))) return j.why;
+    if (j.why && !/HOLD/i.test(String(j.why)) && !/^Captured\.?$/i.test(String(j.why).trim())) return j.why;
     if (j.deskAi) return "The desk AI asked on this card. Type a reply. Nothing sent alone.";
     return "Reply on this card. Nothing sent alone.";
   }
