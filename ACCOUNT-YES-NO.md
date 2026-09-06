@@ -117,6 +117,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-desk-grok.js` covers that tap.
 - When → If → Then `draft` on Qualify writes the named desk AI onto the card (prompt / does). Generic pack brain does not win. No named AI still Then-drafts HOLD. Incoming Drop draft stays. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
 - `scripts/check-orch-then.js` covers that Then.
+- Queue cards on `/desk` (`desk-needs.js` `card()`) surface title / why / draft / assignee (esc’d), the named Then draft, Needs you / ask-the-human, Ask Grok, Yes / Stop / Kill, HOLD / nothing sent alone, photos/files, and Cap rows in the same visual system. Not pack boilerplate. Not a Drop rewrite. Collect HOLD. AI still cannot Yes / Kill.
+- `scripts/check-desk-queue-cards.js` covers that face.
 
 ## NO (do not pretend these shipped)
 
