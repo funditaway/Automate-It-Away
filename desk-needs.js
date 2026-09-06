@@ -107,11 +107,34 @@
     return prompt;
   }
   function namedAskWho(j) {
-    return thenWho(j) || ((primaryAi() && primaryAi().name) || "");
+    const who = thenWho(j);
+    if (who) return who;
+    if (thenGone(j)) return "";
+    return (primaryAi() && primaryAi().name) || "";
   }
   function askGrokLabel(j) {
-    const who = namedAskWho(j);
-    return who ? ("Ask Grok · " + who) : "Ask Grok";
+    const who = thenWho(j);
+    const gone = thenGone(j);
+    if (who) return "Ask Grok · " + who;
+    if (gone) return "Ask Grok · " + gone + " · not on this desk";
+    const primary = namedAskWho(j);
+    return primary ? ("Ask Grok · " + primary) : "Ask Grok";
+  }
+  function jobOf(id) {
+    try {
+      if (typeof jobBy === "function") {
+        const found = jobBy(id);
+        if (found) return found;
+      }
+    } catch (e) {}
+    try {
+      if (typeof JOBS !== "undefined" && Array.isArray(JOBS)) {
+        for (let i = 0; i < JOBS.length; i++) {
+          if (JOBS[i] && JOBS[i].id === id) return JOBS[i];
+        }
+      }
+    } catch (e) {}
+    return null;
   }
   function filesOf(j) {
     const out = [];
@@ -240,18 +263,26 @@
     if (!ais.length || !isOwnerSeat()) return "";
     const id = cardId(j);
     if (!id) return "";
-    const curId = (j && j.deskAi && (j.deskAi.id || j.deskAi.name)) || thenWho(j) || "";
+    const who = thenWho(j);
+    const gone = thenGone(j);
+    const hold = !!(gone && !who);
+    const curId = (j && j.deskAi && (j.deskAi.id || j.deskAi.name)) || who || "";
+    const holdOpt = hold
+      ? "<option value=\"\" selected>" + esc(gone + " · not on this desk") + "</option>"
+      : "";
     const opts = ais.map(function (a) {
       const value = a.id || a.name || "";
-      const sel = curId && (value === curId || a.name === curId || (j.deskAi && j.deskAi.id && a.id === j.deskAi.id)) ? " selected" : "";
+      const sel = !hold && curId && (value === curId || a.name === curId || (j.deskAi && j.deskAi.id && a.id === j.deskAi.id)) ? " selected" : "";
       return "<option value=\"" + esc(value) + "\"" + sel + ">" + esc(a.name || "Desk AI") + "</option>";
     }).join("");
     return "<div class=\"q-bind\">" +
       "<label class=\"q-bind-lab\" for=\"q-ai-" + id + "\">Desk AI on this card</label>" +
       "<select id=\"q-ai-" + id + "\" class=\"q-ai-pick\" onchange=\"bindAiOnCard('" + id + "', this.value)\">" +
-      opts +
+      holdOpt + opts +
       "</select>" +
-      "<p class=\"q-bind-hold\">Picks who owns Then / Needs you on this card. Yes / Stop / Kill stay human. Nothing sent alone.</p>" +
+      "<p class=\"q-bind-hold\">" + (hold
+        ? "Gone bind HOLDs. Pick a desk AI already on this desk to clear. Yes / Stop / Kill stay human. Nothing sent alone."
+        : "Picks who owns Then / Needs you on this card. Yes / Stop / Kill stay human. Nothing sent alone.") + "</p>" +
       "</div>";
   }
   function promptHtml(j, need) {
@@ -393,10 +424,14 @@
     const banner = document.getElementById("banner");
     if (typeof api !== "function") return;
     const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "recommend", id: id, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
-    const who = (out.data && out.data.job && out.data.job.deskAi && out.data.job.deskAi.name) || namedAskWho({ id: id });
+    const job = (out.data && out.data.job) || jobOf(id) || { id: id };
+    const gone = thenGone(job);
+    const who = namedAskWho(job);
     const line = out.status >= 400
       ? ((out.data && out.data.error) || "Could not draft help.")
-      : ((who ? (who + " drafted on the card.") : "Grok drafted on the card.") + " Nothing sent.");
+      : (gone && !who
+        ? (gone + " · not on this desk. HOLD ask. Nothing sent.")
+        : ((who ? (who + " drafted on the card.") : "Grok drafted on the card.") + " Nothing sent."));
     if (typeof load === "function") await load();
     if (banner) banner.textContent = line;
     if (typeof openJob === "function") openJob(id);
