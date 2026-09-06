@@ -341,7 +341,17 @@ function historyHtml(item) {
   if (!item) return "";
   var title = item.what || item.title || item.card || "Activity";
   var meta = [item.who || "", item.desk || "", item.t ? fmtTime(item.t) : ""].filter(Boolean).join(" · ");
-  return "<div class=\"sheet-row\"><b>" + esc(title) + "</b><div class=\"meta\">" + esc(meta) + "</div></div>";
+  var who = (item.deskAi && item.deskAi.name) || item.thenWho || "";
+  var draft = item.draft
+    ? "<div class=\"meta\">" + esc((who ? (who + " · Then draft") : "Draft") + " · " + String(item.draft).slice(0, 140)) + "</div>"
+    : "";
+  var last = (item.thread || []).filter(function (t) {
+    return t && t.text && (t.kind === "ask" || t.kind === "reply");
+  }).slice(-2);
+  var talks = last.map(function (t) {
+    return "<div class=\"meta\">" + esc((t.from || (t.kind === "reply" ? "You" : "Desk AI")) + " · " + t.text) + "</div>";
+  }).join("");
+  return "<div class=\"sheet-row\"><b>" + esc(title) + "</b><div class=\"meta\">" + esc(meta) + "</div>" + draft + talks + "</div>";
 }
 
 async function openSheet(person) {

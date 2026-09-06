@@ -131,6 +131,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-desk-ai-edit.js` covers edit / bind / stacked thread + helper 403 + desk-AI 403.
 - Rules Then bind: owner picks which named desk AI writes Then=draft. `aiId` / `aiName` persist on the rule. Matching cards stamp that AI, not the first eligible bot. Unknown name 400. Gone AI drafts HOLD without pretending another bot is bound. Helpers stay 403. Incoming Drop draft stays. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
 - `scripts/check-rule-ai-bind.js` covers Rules Then bind + two-AI pick + helper 403 + gone-AI honesty.
+- History paints the same AI ↔ human thread / Then draft / replies the q-card already shows. Escaped. Explore sheet too. Cap and Open-job catch up. Search finds thread text. Nothing sent alone. Collect HOLD.
+- `scripts/check-history-thread.js` covers History / Cap / open-job thread honesty.
 
 ## NO (do not pretend these shipped)
 
