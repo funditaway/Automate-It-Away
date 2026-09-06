@@ -32,13 +32,84 @@ function whenBucket(job, lane) {
   return "now";
 }
 
+function clipFace(s, n) {
+  const t = String(s || "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  const max = n || 72;
+  if (t.length <= max) return t;
+  return t.slice(0, max).replace(/\s+\S*$/, "").replace(/[.,;:]+$/, "") + "…";
+}
+
+function deskAiOf(job) {
+  if (job && job.deskAi && job.deskAi.name) {
+    return {
+      id: String(job.deskAi.id || "").slice(0, 40),
+      name: String(job.deskAi.name || "").slice(0, 40),
+      does: clipFace(job.deskAi.does || "", 72),
+      prompt: clipFace(job.deskAi.prompt || "", 72)
+    };
+  }
+  if (job && job.agentDraft && job.agentDraft.deskAi && (job.agentDraft.name || job.agentDraft.crew)) {
+    return {
+      id: "",
+      name: String(job.agentDraft.name || job.agentDraft.crew || "").slice(0, 40),
+      does: clipFace(job.agentDraft.does || "", 72),
+      prompt: clipFace(job.agentDraft.prompt || "", 72)
+    };
+  }
+  return null;
+}
+
+function talkTurns(job) {
+  const rows = [];
+  const seen = {};
+  function add(kind, from, text, at) {
+    const t = String(text || "").replace(/\s+/g, " ").trim();
+    if (!t) return;
+    const key = String(kind || "") + "|" + t;
+    if (seen[key]) return;
+    seen[key] = true;
+    rows.push({
+      kind: String(kind || "note").slice(0, 16),
+      from: String(from || "").slice(0, 40),
+      text: t.slice(0, 500),
+      at: at || ""
+    });
+  }
+  (job && Array.isArray(job.thread) ? job.thread : []).forEach(function (t) {
+    if (!t || !t.text) return;
+    const k = String(t.kind || "note");
+    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    add(k, t.from, t.text, t.at);
+  });
+  (job && Array.isArray(job.replies) ? job.replies : []).forEach(function (r) {
+    if (!r) return;
+    add("reply", r.from || "You", r.text, r.at);
+  });
+  const draft = String((job && (job.draft || (job.agentDraft && job.agentDraft.text))) || "").replace(/\s+/g, " ").trim();
+  return rows.filter(function (row) {
+    if (row.kind !== "rec") return true;
+    if (draft && row.text === draft) return false;
+    return true;
+  }).slice(-16);
+}
+
+function draftOf(job) {
+  return String((job && (job.draft || (job.agentDraft && job.agentDraft.text))) || "").slice(0, 800);
+}
+
 function historyItem(job, desk) {
   if (!job) return null;
   const lane = laneOf(job);
   const miss = missingOf(job);
   const amount = Number(job.amount != null ? job.amount : job.ask);
   const files = [].concat(job.photoUrl ? [{ kind: "photo", url: job.photoUrl }] : [], Array.isArray(job.files) ? job.files : []);
-  const hands = [job.from, job.assignee, job.whoTapped, job.doneBy].filter(Boolean);
+  const ai = deskAiOf(job);
+  const thread = talkTurns(job);
+  const talkers = thread.map(function (t) { return t.from; }).filter(Boolean);
+  const hands = [job.from, job.assignee, job.whoTapped, job.doneBy].concat(talkers).filter(function (n, i, a) {
+    return n && a.indexOf(n) === i;
+  });
   const grok = !!(job.recs && job.recs.length) || !!(job.agentDraft && job.agentDraft.text) || !!job.grokAt || /grok/i.test(String(job.draftSource || job.promptVersion || job.draftFrom || ""));
   const citations = Array.isArray(job.citations) ? job.citations.filter(function (c) {
     const url = String(typeof c === "string" ? c : (c && (c.url || c.href)) || "");
@@ -47,9 +118,10 @@ function historyItem(job, desk) {
     if (typeof c === "string") return { url: c, title: c };
     return { url: String(c.url || c.href), title: String(c.title || c.url || c.href).slice(0, 80) };
   }).slice(0, 6) : [];
+  const draft = draftOf(job);
   const aiaStatus = grok
     ? (citations.length ? "Grok + web" : "Grok drafted")
-    : (job.draft ? "Draft on card" : "No draft");
+    : (draft ? "Draft on card" : "No draft");
   return {
     kind: "job",
     id: job.id,
@@ -84,7 +156,14 @@ function historyItem(job, desk) {
     result: job.result || job.next || "",
     how: job.why || job.next || "",
     past: job.step || job.status || "",
-    draft: job.draft || "",
+    draft: draft,
+    deskAi: ai,
+    thenWho: (ai && ai.name) || "",
+    thread: thread,
+    replies: (Array.isArray(job.replies) ? job.replies : []).slice(-12).map(function (r) {
+      if (!r) return null;
+      return { from: String(r.from || "You").slice(0, 40), text: String(r.text || "").slice(0, 500), at: r.at || "" };
+    }).filter(function (r) { return r && r.text; }),
     href: "/desk"
   };
 }
@@ -231,6 +310,7 @@ function needLine(job, missing, decide, outDesk, priority) {
 function capCard(job, desk) {
   if (!job) return null;
   const needs = needsOf(job);
+  const ai = deskAiOf(job);
   return {
     kind: "cap",
     id: job.id,
@@ -247,6 +327,14 @@ function capCard(job, desk) {
     next: needs.line,
     needs: needs.actions.map((a) => a.id),
     priority: true,
+    draft: draftOf(job),
+    deskAi: ai,
+    thenWho: (ai && ai.name) || "",
+    thread: talkTurns(job),
+    replies: (Array.isArray(job.replies) ? job.replies : []).slice(-12).map(function (r) {
+      if (!r) return null;
+      return { from: String(r.from || "You").slice(0, 40), text: String(r.text || "").slice(0, 500), at: r.at || "" };
+    }).filter(function (r) { return r && r.text; }),
     href: "/desk"
   };
 }
@@ -332,7 +420,10 @@ function filterHistory(items, query) {
     if (cut && Date.parse(it.t || "") < cut) return false;
     if (text) {
       const cite = ((it.citations || []).map(function (c) { return (c && (c.url || c.title)) || ""; }).join(" "));
-      const hay = [it.title, it.desk, it.result, it.how, it.who, it.work, it.pipe, it.draft, it.aiaStatus, cite, ((it.hands) || []).join(" ")].join(" ").toLowerCase();
+      const talk = ((it.thread || []).map(function (t) { return t && ((t.from || "") + " " + (t.text || "")); }).join(" "));
+      const replies = ((it.replies || []).map(function (r) { return r && ((r.from || "") + " " + (r.text || "")); }).join(" "));
+      const ai = it.deskAi ? [it.deskAi.name, it.deskAi.does, it.deskAi.prompt].join(" ") : (it.thenWho || "");
+      const hay = [it.title, it.desk, it.result, it.how, it.who, it.work, it.pipe, it.draft, it.aiaStatus, cite, talk, replies, ai, ((it.hands) || []).join(" ")].join(" ").toLowerCase();
       if (hay.indexOf(text) < 0) return false;
     }
     if (who) {
@@ -375,6 +466,9 @@ module.exports = {
   historyItem,
   historyOf,
   filterHistory,
+  talkTurns,
+  deskAiOf,
+  draftOf,
   facetsOf,
   jobVal,
   phoneOf,

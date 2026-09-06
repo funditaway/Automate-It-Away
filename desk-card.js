@@ -50,6 +50,78 @@ async function captureFromUs() {
   if (kind) kind.value = "note";
   await capture();
 }
+function thenWhoOf(j) {
+  if (j && j.deskAi && j.deskAi.name) return String(j.deskAi.name);
+  if (j && j.agentDraft && j.agentDraft.deskAi && (j.agentDraft.name || j.agentDraft.crew)) {
+    return String(j.agentDraft.name || j.agentDraft.crew);
+  }
+  return "";
+}
+function talkTurnsOf(j) {
+  const rows = [];
+  const seen = {};
+  function add(kind, from, text) {
+    const t = String(text || "").replace(/\s+/g, " ").trim();
+    if (!t) return;
+    const key = String(kind || "") + "|" + t;
+    if (seen[key]) return;
+    seen[key] = true;
+    rows.push({ kind: kind, from: from || "", text: t });
+  }
+  (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
+    if (!t || !t.text) return;
+    const k = String(t.kind || "note");
+    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    add(k, t.from, t.text);
+  });
+  (j && Array.isArray(j.replies) ? j.replies : []).forEach(function (r) {
+    if (!r) return;
+    add("reply", r.from || "You", r.text);
+  });
+  const draft = String((j && (j.draft || (j.agentDraft && j.agentDraft.text))) || "").replace(/\s+/g, " ").trim();
+  return rows.filter(function (row) {
+    if (row.kind !== "rec") return true;
+    if (draft && row.text === draft) return false;
+    return true;
+  });
+}
+function threadSheetHtml(j) {
+  const draftText = (j && (j.draft || (j.agentDraft && j.agentDraft.text))) || "";
+  const who = thenWhoOf(j);
+  const draftHtml = draftText
+    ? "<div class=\"draft q-then\"><div class=\"q-then-who\">" + esc(who ? (who + " · Then draft") : "Draft") + "</div>" +
+      (who ? "<div class=\"q-then-face\"><span class=\"q-chip q-ai\">" + esc(who) + "</span></div>" : "") +
+      "<div class=\"q-then-text\">" + esc(draftText) + "</div></div>"
+    : "";
+  const rows = talkTurnsOf(j);
+  (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
+    if (!t || !t.text) return;
+    const k = String(t.kind || "note");
+    if (k === "ask" || k === "reply" || k === "rec") return;
+    if (rows.some(function (row) { return row.text === String(t.text).replace(/\s+/g, " ").trim(); })) return;
+    rows.push({ kind: k, from: t.from || "desk", text: String(t.text) });
+  });
+  const talks = rows.length
+    ? "<div class=\"q-talk\">" + rows.map(function (row) {
+      const ai = row.kind === "ask" || row.kind === "rec";
+      const you = row.kind === "reply";
+      const label = you
+        ? ((row.from || "You") + " · you")
+        : (row.kind === "ask"
+          ? ((who || row.from || "Desk AI") + " · asks")
+          : (row.kind === "rec"
+            ? ((who || row.from || "Desk AI") + " · Then draft")
+            : ((row.from || "desk") + " · " + (row.kind || "note"))));
+      return "<div class=\"q-turn " + (ai ? "q-turn-ai" : (you ? "q-turn-you" : "q-turn-ai")) + "\">" +
+        "<div class=\"q-turn-who\">" + esc(label) + "</div>" +
+        "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
+    }).join("") + "</div>"
+    : "<div>No notes yet.</div>";
+  const stacked = !!(draftHtml && rows.length);
+  return (stacked ? "<div class=\"q-thread\">" : "<div class=\"talk\">") + draftHtml + talks +
+    "<p class=\"q-prompt-hold\">On the card. Nothing sent alone.</p>" +
+    (stacked ? "</div>" : "</div>");
+}
 function jobBy(id) { return JOBS.find(j => j.id === id); }
 var PEOPLE = typeof PEOPLE === "undefined" ? [] : PEOPLE;
 async function loadPeople() {
@@ -74,7 +146,6 @@ async function openJob(id) {
   await loadPeople();
   const staff = role === "employee";
   const money = Number(j.amount || j.ask || 0);
-  const thread = (j.thread || []).map(t => "<div><b>" + esc(t.from) + "</b> · " + esc(t.kind || "note") + "<br>" + esc(t.text) + "</div>").join("") || "<div>No notes yet.</div>";
   const custom = (FIELDS || []).map(f => {
     const val = (j.custom && j.custom[f.key]) || j[f.key] || "";
     return "<label>" + esc(f.label) + "</label><input data-field=\"" + esc(f.key) + "\" value=\"" + esc(val) + "\" placeholder=\"" + esc(f.label) + "\">";
@@ -93,8 +164,7 @@ async function openJob(id) {
     grokRecsBox(j) +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
-    (j.draft ? "<div class=\"draft\">" + esc(j.draft) + "</div>" : "") +
-    "<div class=\"talk\">" + thread + "</div>" + custom +
+    threadSheetHtml(j) + custom +
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
     "<p class=\"meta\">Desk</p>" +
     "<div class=\"row actions\">" +

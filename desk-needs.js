@@ -447,8 +447,12 @@
       box.innerHTML = items.map(function (j) {
         const other = (j.slug || j.workspace) && (j.slug || j.workspace) !== here;
         const line = honestNext(j, { line: j.next || "On the cap.", decide: false, priority: true });
+        const draft = thenDraftHtml(j);
+        const talks = talkHtml(j);
+        const stacked = !!(talks && draft);
+        const thread = stacked ? "<div class=\"q-thread\">" + draft + talks + "</div>" : (draft + talks);
         return "<article class=\"item q-card cap-card\"><div class=\"q-head\">" + chipsHtml(j, { priority: true, decide: false, missing: [] }, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
-          filesHtml(j) + thenDraftHtml(j) +
+          filesHtml(j) + thread +
           "<p class=\"next-line\">" + esc(line) + "</p>" +
           (other ? "<div class=\"row actions tap-opts\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
           "</article>";
