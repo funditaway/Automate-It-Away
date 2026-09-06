@@ -532,6 +532,7 @@
         ".q-then-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}" +
         ".q-then-face{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}" +
         ".q-ai{background:var(--teal,#119494);color:#fff}" +
+        ".q-ai-gone{background:var(--banner);color:var(--banner-ink)}" +
         ".q-ai-does,.q-ai-prompt{background:var(--edit);color:var(--heading);font-weight:700;text-transform:none;letter-spacing:0;max-width:100%}" +
         ".q-then-text{font-size:14px;line-height:1.4;white-space:pre-wrap}" +
         ".q-files{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}" +

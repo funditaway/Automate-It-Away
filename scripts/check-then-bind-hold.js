@@ -80,7 +80,7 @@ else pass("worker honors thenAiGone");
 if (jobsSrc.indexOf("applyDeskAiDraft") < 0 || hookSrc.indexOf("applyDeskAiDraft") < 0) {
   fail("capture / hook must still Then-draft through applyDeskAiDraft");
 } else pass("capture / hook still Then-draft");
-if (needs.indexOf("function thenGone") < 0 || needs.indexOf("not on this desk") < 0) {
+if (needs.indexOf("function thenGone") < 0 || needs.indexOf("not on this desk") < 0 || needs.indexOf("q-ai-gone") < 0) {
   fail("queue card must paint gone Then AI");
 } else pass("queue card paints gone Then AI");
 if (cardSrc.indexOf("function thenGoneOf") < 0 || cardSrc.indexOf("not on this desk") < 0) {
