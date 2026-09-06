@@ -137,8 +137,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-history-thread.js` covers History / Cap / open-job thread honesty, including gone HOLD paint and gone talk labels.
 - People shared-trail open cards (yours / theirs) paint the same Then draft, named desk AI or gone HOLD, ask / reply turns, and “On the card. Nothing sent alone.” Escaped. `historyCard` carries draft / deskAi / thenAiGone / thread. Gone ask / rec labels match Then (`Shop Bot · not on this desk`), never Desk AI. Nothing sent alone. Collect HOLD.
 - `scripts/check-people-open-cards.js` covers People open-card API + paint honesty.
-- Queue Ask Grok / `namedAskWho` holds a gone Then bind. `thenAiGone` (or a gone Then AI) does not first-eligible to `primaryAi()`. Paint is `Ask Grok · Shop Bot · not on this desk` / HOLD ask, escaped. The recommend banner does not say a live primary drafted. Unbound cards still name the live primary. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
-- `scripts/check-ask-grok-gone.js` covers gone Ask Grok / namedAskWho honesty + esc.
+- Queue Ask Grok / `namedAskWho` holds a gone Then bind. `thenAiGone` (or a gone Then AI) does not first-eligible to `primaryAi()`. Paint is `Ask Grok · Shop Bot · not on this desk` / HOLD ask, escaped. The recommend banner does not say a live primary drafted. Owner `bindAiHtml` holds the gone bind as the selected option and does not first-select the live primary. Unbound cards still name the live primary. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
+- `scripts/check-ask-grok-gone.js` covers gone Ask Grok / namedAskWho / bindAiHtml honesty + esc.
 
 ## NO (do not pretend these shipped)
 

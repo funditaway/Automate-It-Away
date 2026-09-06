@@ -29,7 +29,7 @@ const more = read("more.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
-["function namedAskWho", "function askGrokLabel", "function thenGone", "not on this desk", "HOLD ask"].forEach(function (bit) {
+["function namedAskWho", "function askGrokLabel", "function thenGone", "function bindAiHtml", "not on this desk", "HOLD ask", "Gone bind HOLDs"].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
   else pass("desk-needs.js " + bit);
 });
@@ -53,9 +53,15 @@ else pass("help.html does not lecture Grok");
 if (help.indexOf("HOLD ask") < 0 || help.indexOf("does not name another live desk AI") < 0) {
   fail("help#desk-cards must name gone Ask HOLD");
 } else pass("help names gone Ask HOLD");
+if (help.indexOf("does not first-select another live desk AI") < 0) {
+  fail("help#desk-cards must name gone bind picker HOLD");
+} else pass("help names gone bind picker HOLD");
 if (more.indexOf("HOLD ask") < 0 || more.indexOf("not on this desk") < 0) {
   fail("more.html Queue must name gone Ask HOLD");
 } else pass("more.html names gone Ask HOLD");
+if (more.indexOf("owner picker holds the same gone bind") < 0) {
+  fail("more.html Queue must name gone bind picker HOLD");
+} else pass("more.html names gone bind picker HOLD");
 if (yesNo.indexOf("check-ask-grok-gone.js") < 0) fail("ACCOUNT-YES-NO must record Ask Grok gone HOLD");
 else pass("ACCOUNT-YES-NO records Ask Grok gone HOLD");
 if (pkg.indexOf("check-ask-grok-gone.js") < 0) fail("package.json must run check-ask-grok-gone");
@@ -141,6 +147,69 @@ const unbound = ctx.card({
 }, false);
 if (unbound.indexOf("Ask Grok · James") < 0) fail("unbound Ask Grok must still name the live primary");
 else pass("unbound Ask Grok still names primary");
+
+function selectedLabel(html) {
+  const m = String(html || "").match(/<option[^>]*\sselected[^>]*>([^<]*)<\/option>/i)
+    || String(html || "").match(/<option[^>]*>([^<]*)<\/option>/i);
+  return m ? m[1] : "";
+}
+function ownerCtx() {
+  const run = paintCtx();
+  run.AIADeskAis.owner = true;
+  run.AIADeskAis.rows = [
+    { id: "james-s-ai", name: "James’s AI", does: "Draft the lead packet", prompt: "Ask who it is for and when. Do not send." },
+    { id: "lane-bot", name: "Lane Bot", does: "Watch the lane" }
+  ];
+  return run;
+}
+const ownerGone = ownerCtx().card({
+  id: "j-gone-bind",
+  status: "waiting",
+  title: "Oak dresser",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot" }
+}, false);
+if (ownerGone.indexOf("q-ai-pick") < 0) fail("owner gone card must still show the desk AI picker");
+else pass("owner gone card shows picker");
+if (ownerGone.indexOf("Ask Grok · Shop Bot · not on this desk") < 0) fail("owner gone Ask Grok must still hold Shop Bot");
+else pass("owner gone Ask Grok holds Shop Bot");
+if (/<option[^>]*selected[^>]*>[^<]*James/.test(ownerGone) || /<option[^>]*James[^<]*selected/.test(ownerGone)) {
+  fail("gone bind picker must not first-select James");
+} else pass("gone bind picker does not first-select James");
+const goneSel = selectedLabel(ownerGone);
+if (goneSel.indexOf("not on this desk") < 0 || goneSel.indexOf("Shop Bot") < 0) {
+  fail("gone bind picker must select Shop Bot · not on this desk, got " + goneSel);
+} else pass("gone bind picker selects gone HOLD");
+if (ownerGone.indexOf("James") < 0) fail("gone picker must still list the live primary as a choice");
+else pass("gone picker still lists James as a choice");
+if (ownerGone.indexOf("Gone bind HOLDs") < 0) fail("gone picker must say Gone bind HOLDs");
+else pass("gone picker says Gone bind HOLDs");
+if (ownerGone.indexOf(">Yes<") < 0 || ownerGone.indexOf(">Kill<") < 0) fail("owner gone card must keep Yes / Kill");
+else pass("owner gone card keeps Yes / Kill");
+
+const ownerXss = ownerCtx().card({
+  id: "j-gone-bind-xss",
+  status: "waiting",
+  title: "Need 2 < 3",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot <gone>" }
+}, false);
+if (ownerXss.indexOf("Shop Bot <gone>") >= 0) fail("raw < in gone bind option must not become markup");
+else if (ownerXss.indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) fail("gone bind option must stay text");
+else pass("gone bind option stays text");
+
+const ownerLive = ownerCtx().card({
+  id: "j-live-bind",
+  status: "waiting",
+  title: "Oak dresser",
+  deskAi: { id: "lane-bot", name: "Lane Bot", does: "Watch the lane" }
+}, false);
+if (ownerLive.indexOf("q-ai-pick") < 0) fail("live owner card must still show the picker");
+else pass("live owner card shows picker");
+if (selectedLabel(ownerLive).indexOf("Lane Bot") < 0) fail("live bind picker must still select Lane Bot, got " + selectedLabel(ownerLive));
+else pass("live bind picker still selects Lane Bot");
+if (ownerLive.indexOf("not on this desk") >= 0) fail("live bind picker must not paint a gone HOLD option");
+else pass("live bind picker has no gone HOLD option");
+if (ownerLive.indexOf("Gone bind HOLDs") >= 0) fail("live bind must not say Gone bind HOLDs");
+else pass("live bind keep-copy stays");
 
 async function banners() {
   const banner = { textContent: "" };
