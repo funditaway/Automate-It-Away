@@ -62,6 +62,16 @@ function thenGoneOf(j) {
   const name = g && (g.name || g.id) || "";
   return String(name || "").trim();
 }
+function talkLabelOf(row, who, gone) {
+  if (row.kind === "reply") return (row.from || "You") + " · you";
+  if (row.kind === "ask" || row.kind === "rec") {
+    if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
+    if (gone) return gone + " · not on this desk";
+    const name = row.from || "Desk AI";
+    return row.kind === "ask" ? (name + " · asks") : (name + " · Then draft");
+  }
+  return (row.from || "desk") + " · " + (row.kind || "note");
+}
 function talkTurnsOf(j) {
   const rows = [];
   const seen = {};
@@ -114,13 +124,7 @@ function threadSheetHtml(j) {
     ? "<div class=\"q-talk\">" + rows.map(function (row) {
       const ai = row.kind === "ask" || row.kind === "rec";
       const you = row.kind === "reply";
-      const label = you
-        ? ((row.from || "You") + " · you")
-        : (row.kind === "ask"
-          ? ((who || row.from || "Desk AI") + " · asks")
-          : (row.kind === "rec"
-            ? ((who || row.from || "Desk AI") + " · Then draft")
-            : ((row.from || "desk") + " · " + (row.kind || "note"))));
+      const label = talkLabelOf(row, who, gone);
       return "<div class=\"q-turn " + (ai ? "q-turn-ai" : (you ? "q-turn-you" : "q-turn-ai")) + "\">" +
         "<div class=\"q-turn-who\">" + esc(label) + "</div>" +
         "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
