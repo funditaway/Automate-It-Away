@@ -180,7 +180,10 @@ function needsOf(job, opts) {
     else add("ask", "Ask for more");
   } else if (decide) {
     add("yes", "Yes");
-    if (!staff) add("stop", "Stop");
+    if (!staff) {
+      add("stop", "Stop");
+      add("kill", "Kill");
+    }
   }
   if (draft && !missing.length) add("copy", "Copy draft");
   if (phone) add("text", "Text", { href: "sms:" + phone.replace(/[^\d+]/g, "") + (draft ? "?&body=" + encodeURIComponent(draft) : "") });

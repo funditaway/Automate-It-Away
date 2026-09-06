@@ -1,7 +1,7 @@
 const {
-  cors, mem, ready, save, workspaceOf, personOf, isOwner, ensureRules, jobCounts, readBody, slugify, publicPerson
+  cors, mem, ready, save, workspaceOf, personOf, isOwner, ensureRules, readBody, slugify, publicPerson
 } = require("./_lib");
-const { adminPinOk } = require("./_desk");
+const { adminPinOk, jobCounts } = require("./_desk");
 const {
   ensureAccount, publicAccount, accountSnapshot, inviteSeat, requestSeat,
   setSeatStatus, approvalsOf, peopleAcross, accountForDesk, homeAccount, requestMonthly, publicPlan,

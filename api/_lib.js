@@ -678,7 +678,17 @@ function ensurePeople(ws) {
 
 function publicPerson(p) {
   if (!p) return null;
-  return { id: p.id, name: p.name, role: p.role, email: p.email || "" };
+  return {
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    email: p.email || "",
+    kind: p.kind || "",
+    deskAi: !!p.deskAi,
+    does: p.does || "",
+    prompt: String(p.prompt || "").trim().slice(0, 160),
+    aia: p.aia || ""
+  };
 }
 
 function personOf(req, workspaceSlug) {

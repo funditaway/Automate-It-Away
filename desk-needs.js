@@ -15,7 +15,12 @@
     const missing = [];
     if (!j) return { line: "", actions: actions, missing: missing, decide: false, priority: false };
     if (Array.isArray(j.needs) && j.needs.length && typeof j.needs[0] === "object") {
-      return { line: j.needLine || j.next || "", actions: j.needs, missing: j.missing || [], decide: !!j.decide, priority: !!(j.priority || j.cap) };
+      const actions = j.needs.slice();
+      const decide = !!j.decide;
+      if (decide && !staff && !actions.some(function (a) { return a && a.id === "kill"; })) {
+        actions.push({ id: "kill", label: "Kill" });
+      }
+      return { line: j.needLine || j.next || "", actions: actions, missing: j.missing || [], decide: decide, priority: !!(j.priority || j.cap) };
     }
     const st = String(j.status || "");
     const done = st === "shipped" || st === "killed";
@@ -42,18 +47,57 @@
     if (phone || j.draft) add("text", "Text");
     if (val(j, "email") || j.draft) add("email", "Email");
     if (phone && (outcome === "call" || kind === "call")) add("call", "Call", { href: "tel:" + phone.replace(/[^\d+]/g, "") });
-    if (!j.draft && !done) add("grok", "Ask Grok");
+    if (!j.draft && !done) add("grok", askGrokLabel(j));
     if (!done) add(priority ? "uncap" : "cap", priority ? "Off the cap" : "Cap");
     const line = outDesk ? "Off the desk. Confirm done, or tap Needs a hand." : (missing.length ? "Need " + missing[0] + " before this can go." : (j.needLine || j.next || (decide ? "Ready. Yes / Stop / Kill stay human." : (priority ? "On the cap. Do this first." : "Do the next thing this card needs."))));
     return { line: line, actions: actions, missing: missing, decide: decide, priority: priority, outDesk: outDesk };
   }
-  function thenWho(j) {
-    if (!j) return "";
-    if (j.deskAi && j.deskAi.name) return String(j.deskAi.name);
-    if (j.agentDraft && j.agentDraft.deskAi && (j.agentDraft.name || j.agentDraft.crew)) {
-      return String(j.agentDraft.name || j.agentDraft.crew);
+  function clipFace(s, n) {
+    const t = String(s || "").replace(/\s+/g, " ").trim();
+    if (!t) return "";
+    const max = n || 72;
+    if (t.length <= max) return t;
+    return t.slice(0, max).replace(/\s+\S*$/, "").replace(/[.,;:]+$/, "") + "…";
+  }
+  function boundAi(j) {
+    if (j && j.deskAi && j.deskAi.name) return j.deskAi;
+    if (j && j.agentDraft && j.agentDraft.deskAi && (j.agentDraft.name || j.agentDraft.crew)) {
+      return {
+        name: j.agentDraft.name || j.agentDraft.crew,
+        role: j.agentDraft.crew || j.agentDraft.role,
+        does: j.agentDraft.does,
+        prompt: j.agentDraft.prompt
+      };
     }
-    return "";
+    return null;
+  }
+  function primaryAi() {
+    const api = window.AIADeskAis;
+    if (!api) return null;
+    if (typeof api.primary === "function") return api.primary();
+    return (api.rows && api.rows[0]) || null;
+  }
+  function thenWho(j) {
+    const ai = boundAi(j);
+    return ai && ai.name ? String(ai.name) : "";
+  }
+  function thenDoes(j) {
+    const ai = boundAi(j);
+    return clipFace((ai && (ai.does || ai.prompt)) || "", 72);
+  }
+  function thenPrompt(j) {
+    const ai = boundAi(j);
+    const prompt = clipFace((ai && ai.prompt) || "", 72);
+    const does = clipFace((ai && ai.does) || "", 72);
+    if (!prompt || prompt === does) return "";
+    return prompt;
+  }
+  function namedAskWho(j) {
+    return thenWho(j) || ((primaryAi() && primaryAi().name) || "");
+  }
+  function askGrokLabel(j) {
+    const who = namedAskWho(j);
+    return who ? ("Ask Grok · " + who) : "Ask Grok";
   }
   function filesOf(j) {
     const out = [];
@@ -120,7 +164,10 @@
     const asked = lastOfKind(j, "ask");
     if (asked && asked.text) return asked.text;
     if (j.why && !/HOLD/i.test(String(j.why)) && !/^Captured\.?$/i.test(String(j.why).trim())) return j.why;
-    if (j.deskAi) return "The desk AI asked on this card. Type a reply. Nothing sent alone.";
+    if (j.deskAi) {
+      const who = thenWho(j);
+      return (who ? (who + " asked on this card.") : "The desk AI asked on this card.") + " Type a reply. Nothing sent alone.";
+    }
     return "Reply on this card. Nothing sent alone.";
   }
   function lastReply(j) {
@@ -175,13 +222,24 @@
     const text = (j && (j.draft || (j.agentDraft && j.agentDraft.text))) || "";
     if (!text) return "";
     const who = thenWho(j);
+    const does = thenDoes(j);
+    const prompt = thenPrompt(j);
     const label = who ? (who + " · Then draft") : "Draft";
-    return "<div class=\"draft q-then\"><div class=\"q-then-who\">" + esc(label) + "</div><div class=\"q-then-text\">" + esc(text) + "</div></div>";
+    const chips = [];
+    if (who) chips.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+    if (does) chips.push("<span class=\"q-chip q-ai-does\">" + esc(does) + "</span>");
+    if (prompt) chips.push("<span class=\"q-chip q-ai-prompt\">" + esc(prompt) + "</span>");
+    return "<div class=\"draft q-then\">" +
+      "<div class=\"q-then-who\">" + esc(label) + "</div>" +
+      (chips.length ? "<div class=\"q-then-face\">" + chips.join(" ") + "</div>" : "") +
+      "<div class=\"q-then-text\">" + esc(text) + "</div></div>";
   }
   function chipsHtml(j, need, status) {
     const bits = [];
     if (need && need.priority) bits.push("<span class=\"cap-mark\">Cap</span>");
-    if (isNeedsYou(j, need)) bits.push("<span class=\"q-chip q-need\">Needs you</span>");
+    const who = thenWho(j);
+    if (who) bits.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+    if (isNeedsYou(j, need)) bits.push("<span class=\"q-chip q-need\">" + (who ? esc(who + " · Needs you") : "Needs you") + "</span>");
     if (isAskHuman(j, need)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
     if (need && need.decide) bits.push("<span class=\"q-chip q-hitl-mark\">Yes / Stop / Kill</span>");
     if (status) bits.push("<span class=\"q-chip q-stat\">" + esc(status) + "</span>");
@@ -205,7 +263,7 @@
     if (a.id === "stop") return "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>";
     if (a.id === "kill") return "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Kill</button>";
     if (a.id === "copy") return "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>";
-    if (a.id === "grok") return "<button class=\"edit\" type=\"button\" onclick=\"(typeof helpWithAi==='function'&&helpWithAi('" + j.id + "'))\">Ask Grok</button>";
+    if (a.id === "grok") return "<button class=\"edit\" type=\"button\" onclick=\"(typeof helpWithAi==='function'&&helpWithAi('" + j.id + "'))\">" + esc(a.label || "Ask Grok") + "</button>";
     if (a.id === "cap") return "<button class=\"go cap-tap\" type=\"button\" onclick=\"pinCap('" + j.id + "', true)\">Cap</button>";
     if (a.id === "uncap") return "<button class=\"edit\" type=\"button\" onclick=\"pinCap('" + j.id + "', false)\">Off the cap</button>";
     if (a.id === "fill" || a.id === "ask" || a.id === "hand") return "<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">" + a.label + "</button>";
@@ -250,7 +308,10 @@
     const banner = document.getElementById("banner");
     if (typeof api !== "function") return;
     const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "recommend", id: id, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
-    const line = out.status >= 400 ? ((out.data && out.data.error) || "Could not draft help.") : "Grok drafted on the card. Nothing sent.";
+    const who = (out.data && out.data.job && out.data.job.deskAi && out.data.job.deskAi.name) || namedAskWho({ id: id });
+    const line = out.status >= 400
+      ? ((out.data && out.data.error) || "Could not draft help.")
+      : ((who ? (who + " drafted on the card.") : "Grok drafted on the card.") + " Nothing sent.");
     if (typeof load === "function") await load();
     if (banner) banner.textContent = line;
     if (typeof openJob === "function") openJob(id);
@@ -357,6 +418,9 @@
         ".q-why{color:var(--muted);font-size:14px;margin:4px 0 8px}" +
         ".q-then{background:var(--edit);border-radius:10px;padding:10px 12px;margin:8px 0}" +
         ".q-then-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}" +
+        ".q-then-face{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}" +
+        ".q-ai{background:var(--teal,#119494);color:#fff}" +
+        ".q-ai-does,.q-ai-prompt{background:var(--edit);color:var(--heading);font-weight:700;text-transform:none;letter-spacing:0;max-width:100%}" +
         ".q-then-text{font-size:14px;line-height:1.4;white-space:pre-wrap}" +
         ".q-files{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}" +
         ".q-files .thumb{max-width:min(160px,42vw);border-radius:10px}" +
@@ -371,13 +435,13 @@
         ".q-reply-tap{min-height:44px;min-width:88px}" +
         ".q-prompt-hold{font-size:12px;color:var(--muted);margin:8px 0 0}" +
         "#queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}" +
-        ".q-hitl{grid-template-columns:1fr 1fr 1fr}" +
-        ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px}" +
+        ".q-hitl{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}" +
+        ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px;width:100%}" +
         ".cap-card{border-left:4px solid var(--orange,#f39c12)}" +
         ".cap-mark{display:inline-flex;background:var(--orange,#f39c12);color:#0c1116;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px}" +
         ".cap-band h2{font-size:13px;margin:8px 0 6px}" +
         ".cap-tap{background:var(--orange,#f39c12);color:#0c1116}" +
-        "@media(max-width:420px){#queue .q-card,#cap-list .q-card{padding:14px 12px}.q-files .thumb{max-width:100%}.q-hitl{grid-template-columns:1fr 1fr}}";
+        "@media(max-width:420px){#queue .q-card,#cap-list .q-card{padding:14px 12px}.q-files .thumb{max-width:100%}.q-hitl{grid-template-columns:1fr 1fr 1fr}}";
       document.head.appendChild(css);
     }
     const filters = document.getElementById("queue-filters");

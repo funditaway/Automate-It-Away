@@ -123,6 +123,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Then-after-Yes: after a person taps Yes, When=do Then can continue on a new card or the next Then. HITL stays. Collect HOLD. No silent send.
 - `scripts/check-desk-prompt-reply.js` covers the prompt face + reply API + helper seat + desk-AI 403.
 - `scripts/check-orch-then.js` covers Then-after-Yes spawn.
+- Named desk AIs on queue cards: `desk-needs.js` `card()` shows which desk AI drafted / owns the Then (name + short does / prompt chip). Ask Grok / Then draft / Needs you name that AI when one is set. `/desk` `#desk-ais` paints each bot as a card (name, does, prompt summary, queue-card face). People Agents cards show the same. Ask Grok `recommend` stamps the named AI. Yes / Stop / Kill stay human. Collect HOLD. Prompt reply + Then-after-Yes stay.
+- `scripts/check-desk-ai-cards.js` covers the named-AI face + bot cards + recommend stamp.
 
 ## NO (do not pretend these shipped)
 

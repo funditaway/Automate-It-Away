@@ -96,14 +96,42 @@ function agentDraft(job, who) {
     Worker: "Qualify " + title + ". " + (notes || "Need the missing fact before Yes.") + " Worker nudges. Never Send."
   };
   const text = namedLine || bits[spec.crew] || (spec.crew + " draft for " + title + ". A person taps Send.");
-  job.agentDraft = { crew: spec.crew, name: who.name, title: spec.title, artifact: spec.artifact, does: spec.does, never: spec.never || ais.NEVER.slice(), text: text, at: new Date().toISOString(), deskAi: !!who.deskAi };
+  job.agentDraft = { crew: spec.crew, name: who.name, title: spec.title, artifact: spec.artifact, does: spec.does, prompt: String(who.prompt || "").trim().slice(0, 160), never: spec.never || ais.NEVER.slice(), text: text, at: new Date().toISOString(), deskAi: !!who.deskAi };
   if (!job.draft) job.draft = text;
   job.artifact = spec.artifact;
   job.agentDrafted = true;
   job.waitingOn = "person";
-  job.deskAi = { name: who.name, role: who.crew || spec.crew, never: spec.never || ais.NEVER.slice() };
+  job.deskAi = {
+    name: who.name,
+    role: who.crew || spec.crew,
+    does: who.does || spec.does || "",
+    prompt: String(who.prompt || "").trim().slice(0, 160),
+    never: spec.never || ais.NEVER.slice()
+  };
   job.next = (who.deskAi ? who.name : spec.crew) + " wrote a " + spec.artifact + ". A person taps Yes or Stop.";
   job.crew = { id: String(spec.crew).toLowerCase(), label: who.name || spec.crew, kind: "agent", does: spec.does, artifact: spec.artifact, deskAi: !!who.deskAi };
+  return job;
+}
+
+function stampDeskAi(job, shop, picked) {
+  if (!job) return job;
+  const ai = picked || (shop ? ais.pickDeskAi(shop, ais.stepOf(job) || "qualify") : null);
+  if (!ai) return job;
+  const does = String(ai.does || (job.deskAi && job.deskAi.does) || "").trim().slice(0, 160);
+  const prompt = String(ai.prompt || (job.deskAi && job.deskAi.prompt) || "").trim().slice(0, 160);
+  job.deskAi = Object.assign({}, job.deskAi || {}, {
+    name: ai.name || (job.deskAi && job.deskAi.name) || "",
+    role: ai.role || (job.deskAi && job.deskAi.role) || "Doer",
+    does: does,
+    prompt: prompt,
+    never: ai.never || (job.deskAi && job.deskAi.never) || ais.NEVER.slice()
+  });
+  if (job.agentDraft) {
+    job.agentDraft.name = job.agentDraft.name || ai.name;
+    job.agentDraft.does = job.agentDraft.does || does;
+    job.agentDraft.prompt = job.agentDraft.prompt || prompt;
+    job.agentDraft.deskAi = true;
+  }
   return job;
 }
 
@@ -126,7 +154,8 @@ function applyDeskAiDraft(job, shop, step) {
     steps: picked.steps
   };
   if (!ais.aiMayDraft(picked, st) && !ais.aiMayDraft(who, st)) return job;
+  stampDeskAi(job, shop, picked);
   if (job.agentDrafted && job.deskAi) return job;
   return agentDraft(job, who);
 }
-module.exports = { personNamed, isApprovedAgent, agentSpec, crewOf, applyHandoff, agentDraft, applyDeskAiDraft };
+module.exports = { personNamed, isApprovedAgent, agentSpec, crewOf, applyHandoff, agentDraft, applyDeskAiDraft, stampDeskAi };

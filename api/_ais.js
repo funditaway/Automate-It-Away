@@ -95,9 +95,14 @@ function normalizeAis(rows, workspace) {
   return out;
 }
 
+function promptSummary(ai, n) {
+  return clip((ai && (ai.promptSummary || ai.prompt)) || "", n || 80);
+}
+
 function publicAi(ai) {
   if (!ai) return null;
   const aia = net.of(ai.aia || ai.aiaName || ai.file || ai.name, ai.id || "desk-ai");
+  const prompt = clip(ai.prompt, 400);
   return {
     id: ai.id,
     name: ai.name,
@@ -107,6 +112,9 @@ function publicAi(ai) {
     internet: net.INTERNET,
     role: ai.role || "Doer",
     does: ai.does || "",
+    prompt: prompt,
+    promptSummary: clip(prompt, 80),
+    face: clip(ai.name, 40) + " · Then draft",
     steps: ai.steps || [],
     allow: ai.allow || ai.steps || [],
     deny: ai.deny || NEVER.slice(),
@@ -267,6 +275,7 @@ module.exports = {
   normalizeAis,
   publicAi,
   deskAisOf,
+  promptSummary,
   aiMayDraft,
   pickDeskAi,
   findAiSeat,
