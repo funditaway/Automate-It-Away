@@ -60,6 +60,17 @@ function deskAiOf(job) {
   return null;
 }
 
+function thenAiGoneOf(job) {
+  const g = job && job.thenAiGone;
+  if (!g) return null;
+  const name = String(g.name || g.id || "").trim();
+  if (!name) return null;
+  return {
+    id: String(g.id || "").slice(0, 40),
+    name: name.slice(0, 40)
+  };
+}
+
 function talkTurns(job) {
   const rows = [];
   const seen = {};
@@ -159,6 +170,7 @@ function historyItem(job, desk) {
     draft: draft,
     deskAi: ai,
     thenWho: (ai && ai.name) || "",
+    thenAiGone: thenAiGoneOf(job),
     thread: thread,
     replies: (Array.isArray(job.replies) ? job.replies : []).slice(-12).map(function (r) {
       if (!r) return null;
@@ -330,6 +342,7 @@ function capCard(job, desk) {
     draft: draftOf(job),
     deskAi: ai,
     thenWho: (ai && ai.name) || "",
+    thenAiGone: thenAiGoneOf(job),
     thread: talkTurns(job),
     replies: (Array.isArray(job.replies) ? job.replies : []).slice(-12).map(function (r) {
       if (!r) return null;
@@ -423,7 +436,8 @@ function filterHistory(items, query) {
       const talk = ((it.thread || []).map(function (t) { return t && ((t.from || "") + " " + (t.text || "")); }).join(" "));
       const replies = ((it.replies || []).map(function (r) { return r && ((r.from || "") + " " + (r.text || "")); }).join(" "));
       const ai = it.deskAi ? [it.deskAi.name, it.deskAi.does, it.deskAi.prompt].join(" ") : (it.thenWho || "");
-      const hay = [it.title, it.desk, it.result, it.how, it.who, it.work, it.pipe, it.draft, it.aiaStatus, cite, talk, replies, ai, ((it.hands) || []).join(" ")].join(" ").toLowerCase();
+      const gone = it.thenAiGone ? [it.thenAiGone.name, it.thenAiGone.id].join(" ") : "";
+      const hay = [it.title, it.desk, it.result, it.how, it.who, it.work, it.pipe, it.draft, it.aiaStatus, cite, talk, replies, ai, gone, ((it.hands) || []).join(" ")].join(" ").toLowerCase();
       if (hay.indexOf(text) < 0) return false;
     }
     if (who) {
@@ -468,6 +482,7 @@ module.exports = {
   filterHistory,
   talkTurns,
   deskAiOf,
+  thenAiGoneOf,
   draftOf,
   facetsOf,
   jobVal,
