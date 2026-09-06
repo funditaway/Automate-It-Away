@@ -95,6 +95,15 @@
     const name = g && (g.name || g.id) || "";
     return String(name || "").trim();
   }
+  function goneHoldLabel(gone) {
+    const name = String(gone || "").trim();
+    return name ? (name + " · not on this desk") : "";
+  }
+  function namedNeedsWho(j) {
+    const who = thenWho(j);
+    if (who) return who;
+    return goneHoldLabel(thenGone(j));
+  }
   function thenDoes(j) {
     const ai = boundAi(j);
     return clipFace((ai && (ai.does || ai.prompt)) || "", 72);
@@ -114,9 +123,9 @@
   }
   function askGrokLabel(j) {
     const who = thenWho(j);
-    const gone = thenGone(j);
+    const hold = goneHoldLabel(thenGone(j));
     if (who) return "Ask Grok · " + who;
-    if (gone) return "Ask Grok · " + gone + " · not on this desk";
+    if (hold) return "Ask Grok · " + hold;
     const primary = namedAskWho(j);
     return primary ? ("Ask Grok · " + primary) : "Ask Grok";
   }
@@ -188,7 +197,7 @@
     if (isAskHuman(j, need)) return true;
     const wait = String(j.waitingOn || "").toLowerCase();
     if (wait === "info" || wait === "helper") return true;
-    if (j.deskAi && (wait === "person" || wait === "owner" || wait === "helper" || !wait)) return true;
+    if ((j.deskAi || thenGone(j)) && (wait === "person" || wait === "owner" || wait === "helper" || !wait)) return true;
     if (lastOfKind(j, "ask")) return true;
     return false;
   }
@@ -201,9 +210,12 @@
     const asked = lastOfKind(j, "ask");
     if (asked && asked.text) return asked.text;
     if (j.why && !/HOLD/i.test(String(j.why)) && !/^Captured\.?$/i.test(String(j.why).trim())) return j.why;
-    if (j.deskAi) {
+    if (j.deskAi || thenGone(j)) {
       const who = thenWho(j);
-      return (who ? (who + " asked on this card.") : "The desk AI asked on this card.") + " Type a reply. Nothing sent alone.";
+      const hold = goneHoldLabel(thenGone(j));
+      if (who) return who + " asked on this card. Type a reply. Nothing sent alone.";
+      if (hold) return hold + ". Type a reply. Nothing sent alone.";
+      return "The desk AI asked on this card. Type a reply. Nothing sent alone.";
     }
     return "Reply on this card. Nothing sent alone.";
   }
@@ -242,7 +254,8 @@
   function talkLabel(row, who, gone) {
     if (row.kind === "reply") return (row.from || "You") + " · you";
     if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
-    if (gone) return gone + " · not on this desk";
+    const hold = goneHoldLabel(gone);
+    if (hold) return hold;
     const name = row.from || "Desk AI";
     return row.kind === "ask" ? (name + " · asks") : (name + " · Then draft");
   }
@@ -268,7 +281,7 @@
     const hold = !!(gone && !who);
     const curId = (j && j.deskAi && (j.deskAi.id || j.deskAi.name)) || who || "";
     const holdOpt = hold
-      ? "<option value=\"\" selected>" + esc(gone + " · not on this desk") + "</option>"
+      ? "<option value=\"\" selected>" + esc(goneHoldLabel(gone)) + "</option>"
       : "";
     const opts = ais.map(function (a) {
       const value = a.id || a.name || "";
@@ -290,9 +303,10 @@
     const id = cardId(j);
     if (!id) return "";
     const who = thenWho(j);
+    const named = namedNeedsWho(j);
     const label = isAskHuman(j, need)
       ? "Ask the human"
-      : (who ? (who + " asks") : "Needs you");
+      : (who ? (who + " asks") : (named || "Needs you"));
     const q = promptQuestion(j, need);
     const stacked = talkTurns(j).some(function (row) { return row.kind === "reply"; });
     const reply = lastReply(j);
@@ -337,10 +351,11 @@
     const does = thenDoes(j);
     const prompt = thenPrompt(j);
     const gone = thenGone(j);
-    const label = who ? (who + " · Then draft") : (gone ? (gone + " · not on this desk") : "Draft");
+    const hold = goneHoldLabel(gone);
+    const label = who ? (who + " · Then draft") : (hold || "Draft");
     const chips = [];
     if (who) chips.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
-    if (gone && !who) chips.push("<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>");
+    if (hold && !who) chips.push("<span class=\"q-chip q-ai-gone\">" + esc(hold) + "</span>");
     if (does) chips.push("<span class=\"q-chip q-ai-does\">" + esc(does) + "</span>");
     if (prompt) chips.push("<span class=\"q-chip q-ai-prompt\">" + esc(prompt) + "</span>");
     return "<div class=\"draft q-then\">" +
@@ -354,8 +369,12 @@
     const who = thenWho(j);
     const gone = thenGone(j);
     if (who) bits.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
-    if (gone && !who) bits.push("<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>");
-    if (isNeedsYou(j, need)) bits.push("<span class=\"q-chip q-need\">" + (who ? esc(who + " · Needs you") : "Needs you") + "</span>");
+    if (gone && !who) bits.push("<span class=\"q-chip q-ai-gone\">" + esc(goneHoldLabel(gone)) + "</span>");
+    if (isNeedsYou(j, need)) {
+      const named = namedNeedsWho(j);
+      const needWho = who ? (who + " · Needs you") : (named || "Needs you");
+      bits.push("<span class=\"q-chip q-need\">" + esc(needWho) + "</span>");
+    }
     if (isAskHuman(j, need)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
     if (need && need.decide) bits.push("<span class=\"q-chip q-hitl-mark\">Yes / Stop / Kill</span>");
     if (status) bits.push("<span class=\"q-chip q-stat\">" + esc(status) + "</span>");
@@ -430,7 +449,7 @@
     const line = out.status >= 400
       ? ((out.data && out.data.error) || "Could not draft help.")
       : (gone && !who
-        ? (gone + " · not on this desk. HOLD ask. Nothing sent.")
+        ? (goneHoldLabel(gone) + ". HOLD ask. Nothing sent.")
         : ((who ? (who + " drafted on the card.") : "Grok drafted on the card.") + " Nothing sent."));
     if (typeof load === "function") await load();
     if (banner) banner.textContent = line;
