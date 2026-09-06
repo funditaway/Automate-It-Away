@@ -30,7 +30,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 .acts a,.acts button{min-height:44px;padding:8px 12px;border-radius:10px;border:0;background:var(--edit);color:var(--edit-ink);font:700 13px inherit;margin:0 8px 8px 0;display:inline-flex;align-items:center;text-decoration:none}
 .tag{display:inline-block;font-size:11px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin:0 6px 6px 0}
 .tag.aia{border-color:var(--teal);color:var(--teal)}
-.tag.off{border-color:var(--orange);color:#b45309}
+.tag.off,.tag.gone{border-color:var(--orange);color:#b45309}
 .cites{margin:6px 0 0}.cites a{display:block;color:var(--teal);font-weight:700;font-size:13px;margin:3px 0}
 .h-thread{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}
 .h-then{background:var(--edit);border-radius:10px;padding:10px 12px;margin:8px 0}
@@ -178,17 +178,23 @@ var EXAMPLES={
 function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];});}
 function phone(){return (window.AIADesks&&AIADesks.list())||[];}
 function thenWho(it){return (it&&it.deskAi&&it.deskAi.name)||(it&&it.thenWho)||"";}
+function thenGone(it){var g=it&&it.thenAiGone;return String((g&&(g.name||g.id))||"").trim();}
+function thenLabel(it){var who=thenWho(it),gone=thenGone(it);return who?(who+" · Then draft"):(gone?(gone+" · not on this desk"):"Draft");}
+function thenTagHtml(it){var who=thenWho(it),gone=thenGone(it);if(who)return "<span class=\"tag aia\">"+esc(who+" · Then draft")+"</span>";if(gone)return "<span class=\"tag gone\">"+esc(gone+" · not on this desk")+"</span>";return "";}
+function deskAiLine(it){var who=thenWho(it),gone=thenGone(it);return who||(gone?(gone+" · not on this desk"):"—");}
 function talkRows(it){return ((it&&it.thread)||[]).filter(function(t){return t&&t.text&&(t.kind==="ask"||t.kind==="reply"||t.kind==="rec");});}
 function thenHtml(it){
  var text=(it&&it.draft)||"";
- if(!text)return "";
  var who=thenWho(it);
+ var gone=thenGone(it);
+ if(!text&&!(gone&&!who))return "";
  var ai=it&&it.deskAi;
  var chips="";
  if(who)chips+="<span class=\"tag aia\">"+esc(who)+"</span>";
+ else if(gone)chips+="<span class=\"tag gone\">"+esc(gone+" · not on this desk")+"</span>";
  if(ai&&ai.does)chips+="<span class=\"tag\">"+esc(ai.does)+"</span>";
  if(ai&&ai.prompt&&ai.prompt!==ai.does)chips+="<span class=\"tag\">"+esc(ai.prompt)+"</span>";
- return "<div class=\"h-then\"><div class=\"h-then-who\">"+esc(who?(who+" · Then draft"):"Draft")+"</div>"+(chips?"<div class=\"h-then-face\">"+chips+"</div>":"")+"<div class=\"h-then-text\">"+esc(text)+"</div></div>";
+ return "<div class=\"h-then\"><div class=\"h-then-who\">"+esc(thenLabel(it))+"</div>"+(chips?"<div class=\"h-then-face\">"+chips+"</div>":"")+(text?"<div class=\"h-then-text\">"+esc(text)+"</div>":"")+"</div>";
 }
 function talkHtml(it){
  var rows=talkRows(it);
@@ -209,7 +215,8 @@ function threadHtml(it){
 function story(){
  return last.map(function(it){
   var who=thenWho(it);
-  var draft=it.draft?((who?(who+" · Then draft"):"Draft")+" · "+it.draft):"";
+  var gone=thenGone(it);
+  var draft=it.draft?(thenLabel(it)+" · "+it.draft):(gone&&!who?thenLabel(it):"");
   var talks=talkRows(it).map(function(t){return (t.from||t.kind||"")+" · "+(t.text||"");}).join(" / ");
   return (it.title||"Card")+" · "+(it.label||"")+" · "+(it.desk||"")+(it.who?" · "+it.who:"")+(draft?"\n"+draft:"")+(talks?"\n"+talks:"");
  }).join("\n")||"Nothing in this view.";
@@ -325,7 +332,7 @@ function explore(it){
   ["Missing",it.missing&&it.missing.length?it.missing.join(", "):"none"],
   ["Waiting",it.waitingOn||"—"],["Step",it.step||it.status||"—"],
   ["When",(it.t||"").replace("T"," ").slice(0,16)||"—"],
-  ["Desk AI",thenWho(it)||"—"],
+  ["Desk AI",deskAiLine(it)],
   ["Then draft",it.draft||"—"],
   ["Thread",talkRows(it).length?String(talkRows(it).length)+" turn"+(talkRows(it).length===1?"":"s"):"none"],
   ["Links",(it.citations||[]).map(function(c){return (c&&(c.url||c.title))||"";}).filter(Boolean).join(" ")||"none"]
@@ -369,7 +376,7 @@ async function load(){
     if(it.handed)tags+="<span class=\"tag\">Handed</span>";
     if(it.late||it.expired)tags+="<span class=\"tag\">Late</span>";
     if(it.kind==="audit"||it.kind==="desk")tags+="<span class=\"tag\">Audit</span>";
-    if(thenWho(it))tags+="<span class=\"tag aia\">"+esc(thenWho(it)+" · Then draft")+"</span>";
+    tags+=thenTagHtml(it);
     if(talkRows(it).some(function(t){return t.kind==="reply";}))tags+="<span class=\"tag\">Reply</span>";
     var cites=(it.citations||[]).map(function(c){
       var url=String((c&&(c.url||c.href))||"");

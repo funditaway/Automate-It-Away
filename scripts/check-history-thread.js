@@ -31,7 +31,7 @@ const more = read("more.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const histSrc = read("api/_history.js");
 
-["function thenHtml", "function talkHtml", "function threadHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
+["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function talkHtml", "function threadHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
   if (history.indexOf(bit) < 0) fail("history.html missing " + bit);
 });
 if (!/HOLD|Nothing sent alone/.test(history)) fail("History must stay HOLD / nothing sent");
@@ -51,10 +51,13 @@ if (needs.indexOf("const talks = talkHtml(j)") < 0 || needs.indexOf("q-thread") 
 if (people.indexOf("Then draft") < 0 || people.indexOf("item.thread") < 0) {
   fail("People shared history must show Then draft / thread");
 }
-if (help.indexOf("History, Cap, and Open") < 0) fail("help#desk-cards must name History / Cap / Open thread");
+if (help.indexOf("History, Explore, Cap, and Open") < 0) fail("help#desk-cards must name History / Explore / Cap / Open thread");
+if (help.indexOf("not on this desk") < 0) fail("help#desk-cards must name gone HOLD on History");
 if (help.indexOf("History shows the Then draft") < 0) fail("help#ideas-queue must name History Then draft");
 if (more.indexOf("AI ↔ human thread") < 0) fail("more.html History must name the thread");
+if (more.indexOf("not on this desk") < 0) fail("more.html History must name gone HOLD");
 if (yesNo.indexOf("check-history-thread.js") < 0) fail("ACCOUNT-YES-NO must record History thread");
+if (yesNo.indexOf("not on this desk") < 0) fail("ACCOUNT-YES-NO must record History gone HOLD");
 
 ["function talkTurns", "function deskAiOf", "thread: thread", "thenWho"].forEach(function (bit) {
   if (histSrc.indexOf(bit) < 0) fail("api/_history.js missing " + bit);
@@ -166,6 +169,75 @@ if (stacked.indexOf("James’s AI · Then draft") < 0 && stacked.indexOf("James"
   fail("History must name the Then draft");
 }
 
+const goneJob = {
+  id: "j-gone",
+  status: "waiting",
+  title: "Need 2 < 3",
+  draft: "Don't use <b>html</b>",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot <gone>" },
+  thread: [
+    { kind: "ask", from: "Shop Bot <gone>", text: "Need <phone>?" },
+    { kind: "reply", from: "Pat", text: "Use <script> no" }
+  ],
+  replies: [{ from: "Pat", text: "Use <script> no" }],
+  next: "Shop Bot <gone> is not on this desk. Draft HOLD.",
+  why: "Shop Bot is not on this desk. Nothing sent alone."
+};
+const goneItem = hist.historyItem(goneJob, { slug: "shop", biz: "Shop" });
+if (!goneItem || !goneItem.thenAiGone || goneItem.thenAiGone.name !== "Shop Bot <gone>") {
+  fail("historyItem must keep thenAiGone as data");
+}
+if (goneItem.deskAi) fail("gone historyItem must not invent a live desk AI");
+if (goneItem.thenWho) fail("gone historyItem must not invent thenWho");
+
+const gonePaint = ctx.threadHtml(goneItem);
+if (gonePaint.indexOf("James") >= 0) fail("gone History must not name James");
+if (gonePaint.indexOf("not on this desk") < 0) fail("gone History thenHtml must say not on this desk");
+if (gonePaint.indexOf("Shop Bot <gone>") >= 0) fail("raw < in gone AI name must not become markup");
+if (gonePaint.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("gone AI name must stay text");
+if (gonePaint.indexOf("Don't use <b>html</b>") >= 0) fail("raw gone draft markup must not land");
+if (gonePaint.indexOf("Don&#39;t use &lt;b&gt;html&lt;/b&gt;") < 0 && gonePaint.indexOf("&lt;b&gt;html&lt;/b&gt;") < 0) {
+  fail("gone Then draft must stay text");
+}
+if (gonePaint.indexOf("Need <phone>?") >= 0) fail("raw < in the gone ask must not become markup");
+if (gonePaint.indexOf("Need &lt;phone&gt;?") < 0) fail("gone ask must stay text");
+if (gonePaint.indexOf("Nothing sent alone") < 0) fail("gone History thread must stay nothing sent alone");
+if (/\bDraft\b/.test(gonePaint.replace(/Then draft/g, "")) && gonePaint.indexOf("Shop Bot") < 0) {
+  fail("gone History must not look like a live Then draft");
+}
+
+if (typeof ctx.thenTagHtml !== "function" || typeof ctx.deskAiLine !== "function" || typeof ctx.thenLabel !== "function") {
+  fail("History must expose thenTagHtml / deskAiLine / thenLabel");
+}
+const goneTag = ctx.thenTagHtml(goneItem);
+if (goneTag.indexOf("not on this desk") < 0) fail("History list tag must say not on this desk");
+if (goneTag.indexOf("Then draft") >= 0) fail("gone History list tag must not look live");
+if (goneTag.indexOf("Shop Bot <gone>") >= 0) fail("raw < in gone list tag must not become markup");
+if (goneTag.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("gone list tag name must stay text");
+if (ctx.deskAiLine(goneItem).indexOf("not on this desk") < 0) fail("Explore Desk AI must say not on this desk");
+if (ctx.deskAiLine(goneItem).indexOf("Shop Bot") < 0) fail("Explore Desk AI must name the gone bot");
+if (ctx.thenLabel(item).indexOf("Then draft") < 0) fail("live Then label must stay Then draft");
+if (ctx.thenLabel(goneItem).indexOf("not on this desk") < 0) fail("gone Then label must say not on this desk");
+
+ctx.last = [goneItem];
+const goneStory = ctx.story();
+if (goneStory.indexOf("not on this desk") < 0) fail("History story must name gone HOLD");
+if (goneStory.indexOf("Then draft") >= 0) fail("gone History story must not look like a live Then draft");
+ctx.last = [];
+
+const goneOnly = hist.historyItem({
+  id: "j-gone-empty",
+  status: "waiting",
+  title: "Bare gone",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot" }
+}, { slug: "shop", biz: "Shop" });
+const goneOnlyPaint = ctx.thenHtml(goneOnly);
+if (!goneOnlyPaint || goneOnlyPaint.indexOf("not on this desk") < 0) fail("gone HOLD must paint even without a draft blob");
+if (goneOnlyPaint.indexOf("Then draft") >= 0) fail("gone-only paint must not look live");
+
+const foundGone = hist.filterHistory([goneItem], { q: "Shop Bot" });
+if (!foundGone.length) fail("History search must find a gone Then AI name");
+
 const capCtx = {
   window: {},
   document: {
@@ -185,6 +257,12 @@ const qPaint = capCtx.card(job, false);
 if (qPaint.indexOf("q-thread") < 0) fail("queue card must still wrap Then + thread");
 if (qPaint.indexOf("Sam at the shop") < 0) fail("queue card must still show the human reply");
 if (needs.indexOf("filesHtml(j) + thread") < 0) fail("Cap loadCap must insert the thread, not only Then draft");
+const qGone = capCtx.card(goneJob, false);
+if (qGone.indexOf("James") >= 0) fail("Cap gone card must not name James");
+if (qGone.indexOf("not on this desk") < 0) fail("Cap must paint gone HOLD");
+if (qGone.indexOf("Shop Bot <gone>") >= 0) fail("raw < in Cap gone AI name must not become markup");
+if (qGone.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("Cap gone AI name must stay text");
+if (qGone.indexOf("Nothing sent alone") < 0 && qGone.indexOf("HOLD") < 0) fail("Cap gone card must stay HOLD");
 
 const cardCtx = {
   JOBS: [],
