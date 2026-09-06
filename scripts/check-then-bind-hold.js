@@ -86,6 +86,10 @@ if (needs.indexOf("function thenGone") < 0 || needs.indexOf("not on this desk") 
 if (cardSrc.indexOf("function thenGoneOf") < 0 || cardSrc.indexOf("not on this desk") < 0) {
   fail("Open-job must paint gone Then AI");
 } else pass("Open-job paints gone Then AI");
+const historySrc = read("history.html");
+if (historySrc.indexOf("function thenGone") < 0 || historySrc.indexOf("not on this desk") < 0 || historySrc.indexOf("thenTagHtml") < 0) {
+  fail("History must paint gone Then AI");
+} else pass("History paints gone Then AI");
 if (help.indexOf("does not pretend another desk AI wrote Then") < 0) {
   fail("help#desk-cards must name gone-AI honesty");
 } else pass("help names gone-AI honesty");
