@@ -107,11 +107,34 @@
     return prompt;
   }
   function namedAskWho(j) {
-    return thenWho(j) || ((primaryAi() && primaryAi().name) || "");
+    const who = thenWho(j);
+    if (who) return who;
+    if (thenGone(j)) return "";
+    return (primaryAi() && primaryAi().name) || "";
   }
   function askGrokLabel(j) {
-    const who = namedAskWho(j);
-    return who ? ("Ask Grok · " + who) : "Ask Grok";
+    const who = thenWho(j);
+    const gone = thenGone(j);
+    if (who) return "Ask Grok · " + who;
+    if (gone) return "Ask Grok · " + gone + " · not on this desk";
+    const primary = namedAskWho(j);
+    return primary ? ("Ask Grok · " + primary) : "Ask Grok";
+  }
+  function jobOf(id) {
+    try {
+      if (typeof jobBy === "function") {
+        const found = jobBy(id);
+        if (found) return found;
+      }
+    } catch (e) {}
+    try {
+      if (typeof JOBS !== "undefined" && Array.isArray(JOBS)) {
+        for (let i = 0; i < JOBS.length; i++) {
+          if (JOBS[i] && JOBS[i].id === id) return JOBS[i];
+        }
+      }
+    } catch (e) {}
+    return null;
   }
   function filesOf(j) {
     const out = [];
@@ -393,10 +416,14 @@
     const banner = document.getElementById("banner");
     if (typeof api !== "function") return;
     const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "recommend", id: id, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
-    const who = (out.data && out.data.job && out.data.job.deskAi && out.data.job.deskAi.name) || namedAskWho({ id: id });
+    const job = (out.data && out.data.job) || jobOf(id) || { id: id };
+    const gone = thenGone(job);
+    const who = namedAskWho(job);
     const line = out.status >= 400
       ? ((out.data && out.data.error) || "Could not draft help.")
-      : ((who ? (who + " drafted on the card.") : "Grok drafted on the card.") + " Nothing sent.");
+      : (gone && !who
+        ? (gone + " · not on this desk. HOLD ask. Nothing sent.")
+        : ((who ? (who + " drafted on the card.") : "Grok drafted on the card.") + " Nothing sent."));
     if (typeof load === "function") await load();
     if (banner) banner.textContent = line;
     if (typeof openJob === "function") openJob(id);
