@@ -28,7 +28,7 @@
   </header>
   <main class="wrap">
     <h1>People</h1>
-    <p>Everyone on desks this phone can open. Search a world name with @handle. Invite them to this desk. They Accept on their People tab. Agents include named desk AIs — name, does, prompt, and how they show on queue cards. AIA does not send.</p>
+    <p>Everyone on desks this phone can open. Search a world name with @handle. Invite them to this desk. They Accept on their People tab. Agents include named desk AIs — name, does, prompt, and how they show on queue cards. Open cards on the shared trail show the Then draft, named desk AI or gone HOLD, and the AI ↔ human thread when those are on the card. AIA does not send.</p>
     <div class="banner" id="banner">Open the desk on this phone to see who sits here.</div>
     <div id="desk-chips" class="chips" aria-label="Desks on this phone"></div>
     <div class="kpis">
@@ -207,6 +207,18 @@
     .sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--card);border-top:1px solid var(--line);padding:16px 4vw 88px;max-height:72vh;overflow:auto}
     .sheet[hidden]{display:none!important}
     .sheet-row{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+    .p-thread{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0 0}
+    .p-then{background:var(--edit);border-radius:10px;padding:10px 12px;margin:0 0 8px}
+    .p-then-who,.p-turn-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+    .p-then-face{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+    .p-then-text,.p-turn-text{font-size:14px;line-height:1.4;white-space:pre-wrap;color:var(--ink)}
+    .p-talk{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+    .p-turn{border-radius:10px;padding:8px 10px}
+    .p-turn-ai{background:var(--edit)}
+    .p-turn-you{background:var(--bg);border:1px solid var(--line)}
+    .chip.p-ai{border-color:var(--teal);color:var(--teal)}
+    .chip.p-ai-gone{border-color:var(--orange);color:#b45309}
+    .p-hold{font-size:12px;color:var(--muted);margin:8px 0 0}
   </style>
   <script src="speech.js"></script>
   <script src="desk-switch.js"></script>

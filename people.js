@@ -331,27 +331,90 @@ function seatHtml(seat) {
   return "<div class=\"sheet-row\"><b>" + esc(seat.desk || seat.slug || "Desk") + "</b><div class=\"meta\">" + esc(seat.kind || "helper") + (bits.length ? " · " + esc(bits.join(" · ")) : "") + (seat.lastSeen ? " · " + esc(fmtTime(seat.lastSeen)) : "") + "</div></div>";
 }
 
+function thenWhoOf(item) {
+  return (item && item.deskAi && item.deskAi.name) || (item && item.thenWho) || "";
+}
+
+function thenGoneOf(item) {
+  var g = item && item.thenAiGone;
+  return String((g && (g.name || g.id)) || "").trim();
+}
+
+function talkRowsOf(item) {
+  var rows = [];
+  var seen = {};
+  function add(kind, from, text) {
+    var t = String(text || "").replace(/\s+/g, " ").trim();
+    if (!t) return;
+    var key = String(kind || "") + "|" + t;
+    if (seen[key]) return;
+    seen[key] = true;
+    rows.push({ kind: kind, from: from || "", text: t });
+  }
+  ((item && item.thread) || []).forEach(function (t) {
+    if (!t || !t.text) return;
+    var k = String(t.kind || "note");
+    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    add(k, t.from, t.text);
+  });
+  ((item && item.replies) || []).forEach(function (r) {
+    if (!r) return;
+    add("reply", r.from || "You", r.text);
+  });
+  var draft = String((item && item.draft) || "").replace(/\s+/g, " ").trim();
+  return rows.filter(function (row) {
+    if (row.kind !== "rec") return true;
+    if (draft && row.text === draft) return false;
+    return true;
+  });
+}
+
+function trailThreadHtml(item) {
+  var draftText = (item && item.draft) || "";
+  var who = thenWhoOf(item);
+  var gone = thenGoneOf(item);
+  var label = who ? (who + " · Then draft") : (gone ? (gone + " · not on this desk") : "Draft");
+  var face = who
+    ? "<span class=\"chip p-ai\">" + esc(who) + "</span>"
+    : (gone ? "<span class=\"chip p-ai-gone\">" + esc(gone + " · not on this desk") + "</span>" : "");
+  var draftHtml = draftText
+    ? "<div class=\"p-then\"><div class=\"p-then-who\">" + esc(label) + "</div>" +
+      (face ? "<div class=\"p-then-face\">" + face + "</div>" : "") +
+      "<div class=\"p-then-text\">" + esc(draftText) + "</div></div>"
+    : (gone && !who
+      ? "<div class=\"p-then\"><div class=\"p-then-who\">" + esc(gone + " · not on this desk") + "</div>" +
+        (face ? "<div class=\"p-then-face\">" + face + "</div>" : "") + "</div>"
+      : "");
+  var rows = talkRowsOf(item);
+  var talks = rows.length
+    ? "<div class=\"p-talk\">" + rows.map(function (row) {
+      var ai = row.kind === "ask" || row.kind === "rec";
+      var you = row.kind === "reply";
+      var turnLabel = you
+        ? ((row.from || "You") + " · you")
+        : (row.kind === "ask"
+          ? ((who || row.from || "Desk AI") + " · asks")
+          : ((who || row.from || "Desk AI") + " · Then draft"));
+      return "<div class=\"p-turn " + (ai ? "p-turn-ai" : (you ? "p-turn-you" : "p-turn-ai")) + "\">" +
+        "<div class=\"p-turn-who\">" + esc(turnLabel) + "</div>" +
+        "<div class=\"p-turn-text\">" + esc(row.text) + "</div></div>";
+    }).join("") + "</div>"
+    : "";
+  if (!draftHtml && !talks) return "";
+  return "<div class=\"p-thread\">" + draftHtml + talks + "<p class=\"p-hold\">On the card. Nothing sent alone.</p></div>";
+}
+
 function cardHtml(cardItem) {
   if (!cardItem) return "";
   var meta = [cardItem.desk || cardItem.slug || "", cardItem.status || "", cardItem.t ? fmtTime(cardItem.t) : ""].filter(Boolean).join(" · ");
-  return "<div class=\"sheet-row\"><b>" + esc(cardItem.title || cardItem.what || "Card") + "</b><div class=\"meta\">" + esc(meta) + "</div></div>";
+  return "<div class=\"sheet-row\"><b>" + esc(cardItem.title || cardItem.what || "Card") + "</b><div class=\"meta\">" + esc(meta) + "</div>" + trailThreadHtml(cardItem) + "</div>";
 }
 
 function historyHtml(item) {
   if (!item) return "";
   var title = item.what || item.title || item.card || "Activity";
   var meta = [item.who || "", item.desk || "", item.t ? fmtTime(item.t) : ""].filter(Boolean).join(" · ");
-  var who = (item.deskAi && item.deskAi.name) || item.thenWho || "";
-  var draft = item.draft
-    ? "<div class=\"meta\">" + esc((who ? (who + " · Then draft") : "Draft") + " · " + String(item.draft).slice(0, 140)) + "</div>"
-    : "";
-  var last = (item.thread || []).filter(function (t) {
-    return t && t.text && (t.kind === "ask" || t.kind === "reply");
-  }).slice(-2);
-  var talks = last.map(function (t) {
-    return "<div class=\"meta\">" + esc((t.from || (t.kind === "reply" ? "You" : "Desk AI")) + " · " + t.text) + "</div>";
-  }).join("");
-  return "<div class=\"sheet-row\"><b>" + esc(title) + "</b><div class=\"meta\">" + esc(meta) + "</div>" + draft + talks + "</div>";
+  return "<div class=\"sheet-row\"><b>" + esc(title) + "</b><div class=\"meta\">" + esc(meta) + "</div>" + trailThreadHtml(item) + "</div>";
 }
 
 async function openSheet(person) {

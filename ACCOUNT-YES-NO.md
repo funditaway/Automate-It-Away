@@ -135,6 +135,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-then-bind-hold.js` covers capture / hook / worker / notify / gone-AI paint honesty.
 - History paints the same AI ↔ human thread / Then draft / replies the q-card already shows. Escaped. Explore sheet too. Cap and Open-job catch up. Search finds thread text. Nothing sent alone. Collect HOLD.
 - `scripts/check-history-thread.js` covers History / Cap / open-job thread honesty.
+- People shared-trail open cards (yours / theirs) paint the same Then draft, named desk AI or gone HOLD, ask / reply turns, and “On the card. Nothing sent alone.” Escaped. `historyCard` carries draft / deskAi / thenAiGone / thread. Nothing sent alone. Collect HOLD.
+- `scripts/check-people-open-cards.js` covers People open-card API + paint honesty.
 
 ## NO (do not pretend these shipped)
 
