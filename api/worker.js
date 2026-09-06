@@ -61,6 +61,7 @@ module.exports = async function handler(req, res) {
     const shop = shopOf(job.workspace);
     const step = ais.stepOf(job);
     if (step === "collect") return;
+    if (job.thenAiGone && !ais.findDeskAi(shop, job.deskAi)) return;
     let who = personNamed(shop, job.assignee);
     if (who && !isApprovedAgent(who)) return;
     if (!isApprovedAgent(who)) {

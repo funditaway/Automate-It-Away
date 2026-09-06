@@ -188,11 +188,19 @@ function findDeskAi(shop, hint) {
   return null;
 }
 
+function aiHintPresent(hint) {
+  if (hint == null || hint === false) return false;
+  if (typeof hint === "string") return !!clip(hint, 40);
+  if (typeof hint !== "object") return false;
+  return !!(clip(hint.id || hint.aiId || hint.ai || "", 40) || clip(hint.name || hint.aiName || "", 40));
+}
+
 function pickDeskAi(shop, step, hint) {
   const ais = allDeskAis(shop);
   const bound = findDeskAi(shop, hint);
   if (bound && aiMayDraft(bound, step)) return bound;
   if (bound) return bound;
+  if (aiHintPresent(hint)) return null;
   return ais.find(function (a) { return aiMayDraft(a, step); }) || null;
 }
 
@@ -338,6 +346,7 @@ module.exports = {
   promptSummary,
   aiMayDraft,
   pickDeskAi,
+  aiHintPresent,
   findDeskAi,
   liveDeskAi,
   findAiSeat,

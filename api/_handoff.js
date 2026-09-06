@@ -115,6 +115,7 @@ function agentDraft(job, who) {
 
 function stampDeskAi(job, shop, picked) {
   if (!job) return job;
+  if (!picked && job.thenAiGone && !ais.findDeskAi(shop, job.deskAi)) return job;
   const ai = picked || (shop ? ais.pickDeskAi(shop, ais.stepOf(job) || "qualify", job.deskAi) : null);
   if (!ai) return job;
   const does = String(ai.does || (job.deskAi && job.deskAi.does) || "").trim().slice(0, 160);
@@ -127,6 +128,7 @@ function stampDeskAi(job, shop, picked) {
     prompt: prompt,
     never: ai.never || (job.deskAi && job.deskAi.never) || ais.NEVER.slice()
   });
+  if (job.thenAiGone) delete job.thenAiGone;
   if (job.agentDraft) {
     job.agentDraft.name = job.agentDraft.name || ai.name;
     job.agentDraft.does = job.agentDraft.does || does;
@@ -138,9 +140,11 @@ function stampDeskAi(job, shop, picked) {
 
 function applyDeskAiDraft(job, shop, step, hint) {
   if (!job || !shop) return job;
+  const want = hint || job.deskAi;
+  if (job.thenAiGone && !ais.findDeskAi(shop, want)) return job;
   const st = ais.stepOf(job) || step || "qualify";
   if (!ais.aiMayDraft({ steps: ais.STEPS_DEFAULT, deny: ais.NEVER }, st) && st === "collect") return job;
-  const picked = ais.pickDeskAi(shop, st, hint || job.deskAi);
+  const picked = ais.pickDeskAi(shop, st, want);
   if (!picked) return job;
   const who = ais.findAiSeat(shop, picked) || {
     name: picked.name,

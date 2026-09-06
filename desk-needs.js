@@ -90,6 +90,11 @@
     const ai = boundAi(j);
     return ai && ai.name ? String(ai.name) : "";
   }
+  function thenGone(j) {
+    const g = j && j.thenAiGone;
+    const name = g && (g.name || g.id) || "";
+    return String(name || "").trim();
+  }
   function thenDoes(j) {
     const ai = boundAi(j);
     return clipFace((ai && (ai.does || ai.prompt)) || "", 72);
@@ -297,9 +302,11 @@
     const who = thenWho(j);
     const does = thenDoes(j);
     const prompt = thenPrompt(j);
-    const label = who ? (who + " · Then draft") : "Draft";
+    const gone = thenGone(j);
+    const label = who ? (who + " · Then draft") : (gone ? (gone + " · not on this desk") : "Draft");
     const chips = [];
     if (who) chips.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+    if (gone && !who) chips.push("<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>");
     if (does) chips.push("<span class=\"q-chip q-ai-does\">" + esc(does) + "</span>");
     if (prompt) chips.push("<span class=\"q-chip q-ai-prompt\">" + esc(prompt) + "</span>");
     return "<div class=\"draft q-then\">" +
@@ -311,7 +318,9 @@
     const bits = [];
     if (need && need.priority) bits.push("<span class=\"cap-mark\">Cap</span>");
     const who = thenWho(j);
+    const gone = thenGone(j);
     if (who) bits.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+    if (gone && !who) bits.push("<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>");
     if (isNeedsYou(j, need)) bits.push("<span class=\"q-chip q-need\">" + (who ? esc(who + " · Needs you") : "Needs you") + "</span>");
     if (isAskHuman(j, need)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
     if (need && need.decide) bits.push("<span class=\"q-chip q-hitl-mark\">Yes / Stop / Kill</span>");
@@ -523,6 +532,7 @@
         ".q-then-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}" +
         ".q-then-face{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}" +
         ".q-ai{background:var(--teal,#119494);color:#fff}" +
+        ".q-ai-gone{background:var(--banner);color:var(--banner-ink)}" +
         ".q-ai-does,.q-ai-prompt{background:var(--edit);color:var(--heading);font-weight:700;text-transform:none;letter-spacing:0;max-width:100%}" +
         ".q-then-text{font-size:14px;line-height:1.4;white-space:pre-wrap}" +
         ".q-files{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}" +

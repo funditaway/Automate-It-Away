@@ -211,6 +211,15 @@ function addTag(job, tag) {
   job.custom = Object.assign({}, job.custom || {}, { tags: job.tags });
 }
 
+function markThenAiGone(job, hint) {
+  if (!job || !hint) return job;
+  job.thenAiGone = {
+    id: String(hint.id || hint.aiId || "").slice(0, 40),
+    name: String(hint.name || hint.aiName || "").slice(0, 40)
+  };
+  return job;
+}
+
 function applyThen(job, rule, step, shop) {
   const then = String(rule.then || "").toLowerCase();
   const why = rule.text || ruleWhy([rule], job, step) || "Desk rule.";
@@ -227,6 +236,8 @@ function applyThen(job, rule, step, shop) {
     const keep = job._incomingDraft;
     const hint = (rule.aiId || rule.aiName) ? { id: rule.aiId || "", name: rule.aiName || "" } : null;
     const bound = hint && shop ? ais.findDeskAi(shop, hint) : null;
+    if (hint && !bound) markThenAiGone(job, hint);
+    else if (bound && job.thenAiGone) delete job.thenAiGone;
     if (shop && typeof hand.applyDeskAiDraft === "function") {
       if (!keep) {
         job.draft = "";
@@ -241,14 +252,28 @@ function applyThen(job, rule, step, shop) {
     else if (!/HOLD/i.test(String(job.draft))) job.draft = String(job.draft) + " Human send HOLD.";
     job.waitingOn = job.waitingOn || "person";
     const who = job.deskAi && job.deskAi.name;
+    const goneName = hint && hint.name;
     job.next = who
       ? (who + " drafted on the card. Human send HOLD.")
       : (hint && !bound
-        ? (why + " That named desk AI is not on this desk. Draft HOLD.")
+        ? ((goneName || "That named desk AI") + " is not on this desk. Draft HOLD.")
         : (why + " Draft on the card. Human send HOLD."));
     job.log = (job.log || []).concat(["When/If/Then · draft HOLD"]);
   } else if (then === "notify") {
-    const line = why + " Desk AI draft. Nothing sent.";
+    const hint = (rule.aiId || rule.aiName) ? { id: rule.aiId || "", name: rule.aiName || "" } : null;
+    const bound = hint && shop ? ais.findDeskAi(shop, hint) : null;
+    if (bound && typeof hand.stampDeskAi === "function") {
+      if (job.thenAiGone) delete job.thenAiGone;
+      hand.stampDeskAi(job, shop, bound);
+    } else if (hint && !bound) {
+      markThenAiGone(job, hint);
+    }
+    const who = job.deskAi && job.deskAi.name;
+    const line = who
+      ? (who + " drafted. Nothing sent.")
+      : (hint && !bound
+        ? ((hint.name || "That named desk AI") + " is not on this desk. Nothing sent.")
+        : (why + " Desk AI draft. Nothing sent."));
     job.notify = (job.notify || []).concat([{ who: "owner", text: line, hold: true }]);
     if (!job.draft) job.draft = line;
     job.waitingOn = job.waitingOn || "owner";

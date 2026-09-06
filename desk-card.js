@@ -57,6 +57,11 @@ function thenWhoOf(j) {
   }
   return "";
 }
+function thenGoneOf(j) {
+  const g = j && j.thenAiGone;
+  const name = g && (g.name || g.id) || "";
+  return String(name || "").trim();
+}
 function talkTurnsOf(j) {
   const rows = [];
   const seen = {};
@@ -88,9 +93,13 @@ function talkTurnsOf(j) {
 function threadSheetHtml(j) {
   const draftText = (j && (j.draft || (j.agentDraft && j.agentDraft.text))) || "";
   const who = thenWhoOf(j);
+  const gone = thenGoneOf(j);
+  const face = who
+    ? "<span class=\"q-chip q-ai\">" + esc(who) + "</span>"
+    : (gone ? "<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>" : "");
   const draftHtml = draftText
-    ? "<div class=\"draft q-then\"><div class=\"q-then-who\">" + esc(who ? (who + " · Then draft") : "Draft") + "</div>" +
-      (who ? "<div class=\"q-then-face\"><span class=\"q-chip q-ai\">" + esc(who) + "</span></div>" : "") +
+    ? "<div class=\"draft q-then\"><div class=\"q-then-who\">" + esc(who ? (who + " · Then draft") : (gone ? (gone + " · not on this desk") : "Draft")) + "</div>" +
+      (face ? "<div class=\"q-then-face\">" + face + "</div>" : "") +
       "<div class=\"q-then-text\">" + esc(draftText) + "</div></div>"
     : "";
   const rows = talkTurnsOf(j);
