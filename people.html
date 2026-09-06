@@ -28,7 +28,7 @@
   </header>
   <main class="wrap">
     <h1>People</h1>
-    <p>Everyone on desks this phone can open. Search a world name with @handle. Invite them to this desk. They Accept on their People tab. Agents include named desk AIs — name, does, prompt, and how they show on queue cards. Open cards on the shared trail show the Then draft, named desk AI or gone HOLD, and the AI ↔ human thread when those are on the card. AIA does not send.</p>
+    <p>Everyone on desks this phone can open. Search a world name with @handle. Invite them to this desk. They Accept on their People tab. Agents include named desk AIs — name, does, prompt, and how they show on queue cards. Open cards on the shared trail show the Then draft, named desk AI or gone HOLD, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. AIA does not send.</p>
     <div class="banner" id="banner">Open the desk on this phone to see who sits here.</div>
     <div id="desk-chips" class="chips" aria-label="Desks on this phone"></div>
     <div class="kpis">
@@ -219,6 +219,14 @@
     .chip.p-ai{border-color:var(--teal);color:var(--teal)}
     .chip.p-ai-gone{border-color:var(--orange);color:#b45309}
     .p-hold{font-size:12px;color:var(--muted);margin:8px 0 0}
+    .q-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+    .q-chip{display:inline-block;font-size:11px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+    .q-chip.q-ai{border-color:var(--teal);color:var(--teal)}
+    .q-chip.q-ai-gone,.q-chip.q-need{border-color:var(--orange);color:#b45309}
+    .q-prompt{background:var(--edit);border-radius:10px;padding:10px 12px;margin:8px 0}
+    .q-prompt-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+    .q-prompt-q{font-size:14px;line-height:1.4;margin:0 0 6px;white-space:pre-wrap;color:var(--ink)}
+    .q-prompt-hold{font-size:12px;color:var(--muted);margin:0}
   </style>
   <script src="speech.js"></script>
   <script src="desk-switch.js"></script>

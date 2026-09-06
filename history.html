@@ -44,6 +44,14 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 .h-turn-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 4px}
 .h-turn-text{font-size:14px;line-height:1.4;white-space:pre-wrap}
 .h-hold{font-size:12px;color:var(--muted);margin:8px 0 0}
+.q-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+.q-chip{display:inline-block;font-size:11px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+.q-chip.q-ai{border-color:var(--teal);color:var(--teal)}
+.q-chip.q-ai-gone,.q-chip.q-need{border-color:var(--orange);color:#b45309}
+.q-prompt{background:var(--edit);border-radius:10px;padding:10px 12px;margin:8px 0}
+.q-prompt-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+.q-prompt-q{font-size:14px;line-height:1.4;margin:0 0 6px;white-space:pre-wrap}
+.q-prompt-hold{font-size:12px;color:var(--muted);margin:0}
 .aia-line{background:var(--edit);color:var(--edit-ink);border:1px solid var(--teal);border-radius:12px;padding:10px 12px;font-size:13px;margin:0 0 12px}
 .aia-line.off{background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading);border-color:var(--orange)}
 .logic{border-left:3px solid var(--teal);padding:8px 10px;margin:0 0 12px;font-size:13px}
@@ -68,7 +76,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 </header>
 <main class="wrap">
 <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-<div><h1>History</h1><p>What this desk did. Jobs, Then draft, gone HOLD when that named AI is not on this desk, and the AI ↔ human thread. Links only when Grok or the web was used. Nothing sends from here.</p></div>
+<div><h1>History</h1><p>What this desk did. Jobs, Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread. Links only when Grok or the web was used. Nothing sends from here.</p></div>
 <button type="button" id="adv-btn" style="min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);font:700 13px inherit;padding:8px 14px">Advanced</button>
 </div>
 <p class="aia-line" id="aia-line">Checking whether drafts are on this box…</p>
@@ -179,20 +187,30 @@ function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":
 function phone(){return (window.AIADesks&&AIADesks.list())||[];}
 function thenWho(it){return (it&&it.deskAi&&it.deskAi.name)||(it&&it.thenWho)||"";}
 function thenGone(it){var g=it&&it.thenAiGone;return String((g&&(g.name||g.id))||"").trim();}
-function thenLabel(it){var who=thenWho(it),gone=thenGone(it);return who?(who+" · Then draft"):(gone?(gone+" · not on this desk"):"Draft");}
-function thenTagHtml(it){var who=thenWho(it),gone=thenGone(it);if(who)return "<span class=\"tag aia\">"+esc(who+" · Then draft")+"</span>";if(gone)return "<span class=\"tag gone\">"+esc(gone+" · not on this desk")+"</span>";return "";}
-function deskAiLine(it){var who=thenWho(it),gone=thenGone(it);return who||(gone?(gone+" · not on this desk"):"—");}
+function goneHoldLabel(gone){var name=String(gone||"").trim();return name?(name+" · not on this desk"):"";}
+function namedNeedsWho(it){var who=thenWho(it);if(who)return who;return goneHoldLabel(thenGone(it));}
+function whyOf(it){return String((it&&(it.why||it.how||it.next))||"");}
+function lastAsk(it){var rows=((it&&it.thread)||[]).filter(function(t){return t&&t.text&&String(t.kind||"")==="ask";});return rows.length?rows[rows.length-1]:null;}
+function isAskHuman(it){if(!it)return false;if(String(it.waitingOn||"").toLowerCase()==="info")return true;if(it.missing&&it.missing.length)return true;return /Need .+ before/i.test(whyOf(it));}
+function isNeedsYou(it){if(!it)return false;var st=String(it.status||"");if(st==="shipped"||st==="killed")return false;var wait=String(it.waitingOn||"").toLowerCase();return wait==="owner"||wait==="person"||wait==="info"||wait==="helper"||st==="exception"||st==="held";}
+function isPromptReply(it){if(!it)return false;var st=String(it.status||"");if(st==="shipped"||st==="killed"||st==="out"||it.offDesk)return false;if(isAskHuman(it))return true;var wait=String(it.waitingOn||"").toLowerCase();if(wait==="info"||wait==="helper")return true;if((it.deskAi||thenGone(it))&&(wait==="person"||wait==="owner"||wait==="helper"||!wait))return true;return !!lastAsk(it);}
+function promptQuestion(it){if(!it)return "The desk asked. Reply on this card.";if(isAskHuman(it)){var miss=whyOf(it);if(miss)return miss;}var asked=lastAsk(it);if(asked&&asked.text)return asked.text;var why=whyOf(it);if(why&&!/HOLD/i.test(why)&&!/^Captured\.?$/i.test(why.trim()))return why;if(it.deskAi||thenGone(it)){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(who)return who+" asked on this card. Type a reply. Nothing sent alone.";if(hold)return hold+". Type a reply. Nothing sent alone.";return "The desk AI asked on this card. Type a reply. Nothing sent alone.";}return "Reply on this card. Nothing sent alone.";}
+function promptHtml(it){if(!isPromptReply(it))return "";var who=thenWho(it),named=namedNeedsWho(it);var label=isAskHuman(it)?"Ask the human":(who?(who+" asks"):(named||"Needs you"));return "<div class=\"q-prompt\"><div class=\"q-prompt-who\">"+esc(label)+"</div><p class=\"q-prompt-q\">"+esc(promptQuestion(it))+"</p><p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p></div>";}
+function chipsHtml(it){var bits=[],who=thenWho(it),gone=thenGone(it);if(who)bits.push("<span class=\"q-chip q-ai\">"+esc(who)+"</span>");if(gone&&!who)bits.push("<span class=\"q-chip q-ai-gone\">"+esc(goneHoldLabel(gone))+"</span>");if(isNeedsYou(it)){var named=namedNeedsWho(it);bits.push("<span class=\"q-chip q-need\">"+esc(who?(who+" · Needs you"):(named||"Needs you"))+"</span>");}if(isAskHuman(it))bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");return bits.length?"<div class=\"q-chips\">"+bits.join(" ")+"</div>":"";}
+function thenLabel(it){var who=thenWho(it);return who?(who+" · Then draft"):(goneHoldLabel(thenGone(it))||"Draft");}
+function thenTagHtml(it){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(who)return "<span class=\"tag aia\">"+esc(who+" · Then draft")+"</span>";if(hold)return "<span class=\"tag gone\">"+esc(hold)+"</span>";return "";}
+function deskAiLine(it){return thenWho(it)||goneHoldLabel(thenGone(it))||"—";}
 function talkRows(it){return ((it&&it.thread)||[]).filter(function(t){return t&&t.text&&(t.kind==="ask"||t.kind==="reply"||t.kind==="rec");});}
-function talkLabel(row,it){var who=thenWho(it),gone=thenGone(it);if(row.kind==="reply")return (row.from||"You")+" · you";if(who)return row.kind==="ask"?(who+" · asks"):(who+" · Then draft");if(gone)return gone+" · not on this desk";var name=row.from||"Desk AI";return row.kind==="ask"?(name+" · asks"):(name+" · Then draft");}
+function talkLabel(row,it){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(row.kind==="reply")return (row.from||"You")+" · you";if(who)return row.kind==="ask"?(who+" · asks"):(who+" · Then draft");if(hold)return hold;var name=row.from||"Desk AI";return row.kind==="ask"?(name+" · asks"):(name+" · Then draft");}
 function thenHtml(it){
  var text=(it&&it.draft)||"";
  var who=thenWho(it);
- var gone=thenGone(it);
- if(!text&&!(gone&&!who))return "";
+ var hold=goneHoldLabel(thenGone(it));
+ if(!text&&!(hold&&!who))return "";
  var ai=it&&it.deskAi;
  var chips="";
  if(who)chips+="<span class=\"tag aia\">"+esc(who)+"</span>";
- else if(gone)chips+="<span class=\"tag gone\">"+esc(gone+" · not on this desk")+"</span>";
+ else if(hold)chips+="<span class=\"tag gone\">"+esc(hold)+"</span>";
  if(ai&&ai.does)chips+="<span class=\"tag\">"+esc(ai.does)+"</span>";
  if(ai&&ai.prompt&&ai.prompt!==ai.does)chips+="<span class=\"tag\">"+esc(ai.prompt)+"</span>";
  return "<div class=\"h-then\"><div class=\"h-then-who\">"+esc(thenLabel(it))+"</div>"+(chips?"<div class=\"h-then-face\">"+chips+"</div>":"")+(text?"<div class=\"h-then-text\">"+esc(text)+"</div>":"")+"</div>";
@@ -208,8 +226,10 @@ function talkHtml(it){
 function threadHtml(it){
  var draft=thenHtml(it);
  var talks=talkHtml(it);
- if(!draft&&!talks)return "";
- return "<div class=\"h-thread\">"+draft+talks+"<p class=\"h-hold\">On the card. Nothing sent alone.</p></div>";
+ var prompt=promptHtml(it);
+ var chips=chipsHtml(it);
+ if(!draft&&!talks&&!prompt)return chips;
+ return chips+"<div class=\"h-thread\">"+draft+talks+prompt+"<p class=\"h-hold\">On the card. Nothing sent alone.</p></div>";
 }
 function story(){
  return last.map(function(it){
@@ -217,7 +237,8 @@ function story(){
   var gone=thenGone(it);
   var draft=it.draft?(thenLabel(it)+" · "+it.draft):(gone&&!who?thenLabel(it):"");
   var talks=talkRows(it).map(function(t){return (t.from||t.kind||"")+" · "+(t.text||"");}).join(" / ");
-  return (it.title||"Card")+" · "+(it.label||"")+" · "+(it.desk||"")+(it.who?" · "+it.who:"")+(draft?"\n"+draft:"")+(talks?"\n"+talks:"");
+  var need=isPromptReply(it)||isNeedsYou(it)?(namedNeedsWho(it)||(isAskHuman(it)?"Ask the human":"Needs you")):"";
+  return (it.title||"Card")+" · "+(it.label||"")+" · "+(it.desk||"")+(it.who?" · "+it.who:"")+(draft?"\n"+draft:"")+(talks?"\n"+talks:"")+(need?"\n"+need:"");
  }).join("\n")||"Nothing in this view.";
 }
 function saveView(){try{localStorage.setItem("aia_history_view",JSON.stringify({lane:lane,when:when,q:q,who:who,work:work,pipe:pipe,since:since,advanced:advanced,flags:flags}));}catch(e){}}
@@ -333,6 +354,8 @@ function explore(it){
   ["When",(it.t||"").replace("T"," ").slice(0,16)||"—"],
   ["Desk AI",deskAiLine(it)],
   ["Then draft",it.draft||"—"],
+  ["Needs you",isNeedsYou(it)?(namedNeedsWho(it)||"Needs you"):"—"],
+  ["Prompt",isPromptReply(it)?(isAskHuman(it)?"Ask the human":(thenWho(it)?(thenWho(it)+" asks"):(namedNeedsWho(it)||"Needs you"))):"—"],
   ["Thread",talkRows(it).length?String(talkRows(it).length)+" turn"+(talkRows(it).length===1?"":"s"):"none"],
   ["Links",(it.citations||[]).map(function(c){return (c&&(c.url||c.title))||"";}).filter(Boolean).join(" ")||"none"]
  ];
@@ -419,7 +442,7 @@ function paintAia(){
   var on=!!(g&&g.on);
   el.classList.toggle("off",!on);
   el.textContent=on
-   ?"Grok drafts are on. History shows the trail — Then draft, gone HOLD when that named AI is not on this desk, the AI ↔ human thread, and links only when the web was used. Nothing invented."
+   ?"Grok drafts are on. History shows the trail — Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, the AI ↔ human thread, and links only when the web was used. Nothing invented."
    :"Drafts are off — no XAI_API_KEY on this box. History still shows real cards only. Empty stays empty.";
  }).catch(function(){
   var el=document.getElementById("aia-line");
