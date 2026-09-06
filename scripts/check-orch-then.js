@@ -11,7 +11,7 @@ delete global.__aiaHydrate;
 
 const ais = require("../api/_ais");
 const lib = require("../api/_lib");
-const { qualifyJob } = require("../api/_engine");
+const { qualifyJob, thenAfterYes } = require("../api/_engine");
 const jobsHandler = require("../api/jobs");
 const { mem, hashPin, ensurePeople, ready } = lib;
 
@@ -157,7 +157,82 @@ async function capturePath() {
   else pass("Drop Then stays on the queue");
 }
 
-capturePath().then(function () {
+async function thenAfterYesPath() {
+  const slug = "do-then";
+  const pin = "4821";
+  const desk = {
+    slug: slug,
+    name: "Do Then",
+    biz: slug,
+    pin: hashPin(pin),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: [
+      { text: "Click → James drafts HOLD.", when: "drop", contains: "click", then: "draft" },
+      { text: "After Yes → James drafts the packet HOLD.", when: "do", then: "draft" }
+    ]
+  };
+  ensurePeople(desk);
+  ais.attachAisToDesk(desk, [{
+    name: "James’s AI",
+    role: "Doer",
+    does: "Draft the lead packet",
+    prompt: "Ask who it is for and when. Do not send.",
+    steps: ["qualify", "do"]
+  }]);
+  mem.workspaces.unshift(desk);
+
+  const isolated = qualifyJob({
+    title: "They clicked",
+    notes: "click from the lane",
+    from: "drop",
+    workspace: slug
+  }, desk);
+  const spawned = thenAfterYes(isolated, desk);
+  if (!spawned) fail("thenAfterYes must spawn a next card when When=do Then=draft");
+  else pass("thenAfterYes spawned");
+  if (!spawned || spawned.status !== "waiting") fail("next Then must stay waiting, got " + (spawned && spawned.status));
+  else pass("next Then stays waiting");
+  if (spawned && (spawned.status === "shipped" || spawned.charged)) fail("next Then must not ship or charge");
+  else pass("next Then did not ship");
+  if (spawned && spawned.parentId !== isolated.id) fail("next Then must point at the Yes card");
+  else pass("next Then links to Yes");
+  if (!/HOLD/i.test((spawned && (spawned.draft || spawned.next)) || "")) fail("next Then must stay HOLD");
+  else pass("next Then stays HOLD");
+
+  const cap = await call(jobsHandler, "POST", { "x-workspace": slug, "x-pin": pin }, {
+    action: "capture",
+    title: "They clicked",
+    notes: "click from the lane",
+    from: "drop"
+  });
+  const card = cap.body && cap.body.job;
+  if (cap.statusCode !== 201 || !card) fail("Then-after-Yes capture " + cap.statusCode);
+  else pass("Then-after-Yes capture 201");
+  const ship = await call(jobsHandler, "POST", { "x-workspace": slug, "x-pin": pin }, {
+    action: "ship",
+    id: card.id,
+    confirm: true,
+    whoTapped: "owner"
+  });
+  if (ship.statusCode >= 400) fail("owner Yes should work, got " + ship.statusCode + " " + JSON.stringify(ship.body));
+  else pass("owner Yes 200");
+  const next = ship.body && ship.body.nextJob;
+  if (!next) fail("Yes must return nextJob for When=do Then");
+  else pass("Yes returned nextJob");
+  if (next && (next.status === "shipped" || next.charged === true)) fail("nextJob must not ship or charge");
+  else pass("nextJob did not ship");
+  if (next && next.status !== "waiting" && next.status !== "held" && next.status !== "exception") {
+    fail("nextJob must stay on the queue, got " + next.status);
+  } else pass("nextJob stays on the queue");
+  if (next && !/HOLD|nothing sent/i.test([next.draft, next.next].join(" "))) fail("nextJob must stay HOLD");
+  else pass("nextJob stays HOLD");
+  const found = mem.jobs.find(function (j) { return j && next && j.id === next.id; });
+  if (!found) fail("nextJob must land in the desk jobs");
+  else pass("nextJob is on the desk");
+}
+
+capturePath().then(thenAfterYesPath).then(function () {
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
   if (failed) {
     console.error(failed + " failed");

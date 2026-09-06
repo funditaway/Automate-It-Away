@@ -91,6 +91,67 @@
     if (/Need .+ before/i.test(String(j.why || ""))) return true;
     return false;
   }
+  function cardId(j) {
+    return String((j && j.id) || "").replace(/[^a-zA-Z0-9_-]/g, "");
+  }
+  function lastOfKind(j, kind) {
+    const rows = (j && Array.isArray(j.thread) ? j.thread : []).filter(function (t) {
+      return t && t.text && String(t.kind || "") === kind;
+    });
+    return rows.length ? rows[rows.length - 1] : null;
+  }
+  function isPromptReply(j, need) {
+    if (!j) return false;
+    const st = String(j.status || "");
+    if (st === "shipped" || st === "killed" || st === "out" || j.offDesk) return false;
+    if (isAskHuman(j, need)) return true;
+    const wait = String(j.waitingOn || "").toLowerCase();
+    if (wait === "info" || wait === "helper") return true;
+    if (j.deskAi && (wait === "person" || wait === "owner" || wait === "helper" || !wait)) return true;
+    if (lastOfKind(j, "ask")) return true;
+    return false;
+  }
+  function promptQuestion(j, need) {
+    if (!j) return "The desk asked. Reply on this card.";
+    if (isAskHuman(j, need)) {
+      const miss = (need && need.line) || j.why || j.next || "";
+      if (miss) return miss;
+    }
+    const asked = lastOfKind(j, "ask");
+    if (asked && asked.text) return asked.text;
+    if (j.why && !/HOLD/i.test(String(j.why))) return j.why;
+    if (j.deskAi) return "The desk AI asked on this card. Type a reply. Nothing sent alone.";
+    return "Reply on this card. Nothing sent alone.";
+  }
+  function lastReply(j) {
+    if (j && Array.isArray(j.replies) && j.replies.length) return j.replies[j.replies.length - 1];
+    return lastOfKind(j, "reply");
+  }
+  function promptHtml(j, need) {
+    if (!isPromptReply(j, need)) return "";
+    const id = cardId(j);
+    if (!id) return "";
+    const who = thenWho(j);
+    const label = isAskHuman(j, need)
+      ? "Ask the human"
+      : (who ? (who + " asks") : "Needs you");
+    const q = promptQuestion(j, need);
+    const reply = lastReply(j);
+    const replyLine = reply
+      ? "<p class=\"q-reply-was\">" + esc((reply.from || "You") + " · " + (reply.text || "")) + "</p>"
+      : "";
+    return "<div class=\"q-prompt\">" +
+      "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
+      "<p class=\"q-prompt-q\">" + esc(q) + "</p>" +
+      replyLine +
+      "<label class=\"q-prompt-lab\" for=\"q-reply-" + id + "\">Reply on this card</label>" +
+      "<textarea id=\"q-reply-" + id + "\" class=\"q-reply-box\" rows=\"2\" placeholder=\"Type the answer here\"></textarea>" +
+      "<div class=\"row actions tap-opts q-prompt-go\">" +
+        "<button class=\"go q-reply-tap\" type=\"button\" onclick=\"replyOnCard('" + id + "')\">Reply</button>" +
+      "</div>" +
+      "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
+      "</div>";
+  }
   function honestNext(j, need) {
     let line = String((need && need.line) || (j && j.next) || "").trim();
     if (!line) line = (need && need.decide) ? "Ready. Yes / Stop / Kill stay human." : "Do the next thing this card needs.";
@@ -168,6 +229,23 @@
     return (hitl.length ? "<div class=\"row actions tap-opts q-hitl\">" + hitl.join("") + "</div>" : "") +
       "<div class=\"row actions tap-opts\">" + rest.join("") + "</div>";
   }
+  async function replyOnCard(id) {
+    const banner = document.getElementById("banner");
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    const box = document.getElementById("q-reply-" + safe) || document.getElementById("job-note");
+    const text = box && box.value ? String(box.value).trim() : "";
+    if (!text) {
+      if (banner) banner.textContent = "Type a reply on the card.";
+      return;
+    }
+    if (typeof api !== "function") return;
+    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "reply", id: safe, text: text, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
+    const line = out.status >= 400
+      ? ((out.data && out.data.error) || "Could not save that reply.")
+      : "Reply is on the card. Nothing sent.";
+    if (typeof load === "function") await load();
+    if (banner) banner.textContent = line;
+  }
   async function helpWithAi(id) {
     const banner = document.getElementById("banner");
     if (typeof api !== "function") return;
@@ -228,6 +306,7 @@
   }
   window.cardNeeds = cardNeeds;
   window.cardActionHtml = cardActionHtml;
+  window.replyOnCard = replyOnCard;
   window.helpWithAi = helpWithAi;
   window.pinCap = pinCap;
   window.openCapDesk = openCapDesk;
@@ -238,7 +317,7 @@
     const why = (typeof visitorLine === "function" ? visitorLine(j.why) : (j.why || ""));
     const status = typeof labelStatus === "function" ? labelStatus(j.status) : (j.status || "");
     const line = honestNext(j, need);
-    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thenDraftHtml(j) + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
+    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thenDraftHtml(j) + promptHtml(j, need) + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
   };
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }
@@ -282,6 +361,15 @@
         ".q-files{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}" +
         ".q-files .thumb{max-width:min(160px,42vw);border-radius:10px}" +
         ".q-file{min-height:44px;padding:8px 12px;border-radius:10px;font-weight:700}" +
+        ".q-prompt{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}" +
+        ".q-prompt-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}" +
+        ".q-prompt-q{font-size:15px;line-height:1.4;color:var(--heading);margin:0 0 8px}" +
+        ".q-reply-was{font-size:13px;color:var(--muted);margin:0 0 8px;white-space:pre-wrap}" +
+        ".q-prompt-lab{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 4px}" +
+        ".q-reply-box{width:100%;min-height:64px;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--bg);color:var(--ink)}" +
+        ".q-prompt-go{margin-top:8px}" +
+        ".q-reply-tap{min-height:44px;min-width:88px}" +
+        ".q-prompt-hold{font-size:12px;color:var(--muted);margin:8px 0 0}" +
         "#queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}" +
         ".q-hitl{grid-template-columns:1fr 1fr 1fr}" +
         ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px}" +
