@@ -31,7 +31,7 @@ const more = read("more.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const histSrc = read("api/_history.js");
 
-["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function talkLabel", "function talkHtml", "function threadHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
+["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function talkLabel", "function talkHtml", "function threadHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
   if (history.indexOf(bit) < 0) fail("history.html missing " + bit);
 });
 if (!/HOLD|Nothing sent alone/.test(history)) fail("History must stay HOLD / nothing sent");
@@ -76,6 +76,10 @@ if (more.indexOf("AI ↔ human thread") < 0) fail("more.html History must name t
 if (more.indexOf("not on this desk") < 0) fail("more.html History must name gone HOLD");
 if (history.indexOf("gone HOLD when that named AI is not on this desk") < 0) {
   fail("History intro / health must name gone HOLD");
+}
+if (history.indexOf("Needs you / prompt ask-who") < 0) fail("History intro must name Needs you / prompt ask-who");
+if (history.indexOf("promptHtml(it)") < 0 || history.indexOf("chipsHtml(it)") < 0) {
+  fail("History threadHtml must insert promptHtml / chipsHtml");
 }
 if (yesNo.indexOf("check-history-thread.js") < 0) fail("ACCOUNT-YES-NO must record History thread");
 if (yesNo.indexOf("not on this desk") < 0) fail("ACCOUNT-YES-NO must record History gone HOLD");

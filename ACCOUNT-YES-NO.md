@@ -143,6 +143,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-prompt-gone.js` covers gone Needs you / promptHtml honesty + esc.
 - Cap `loadCap` / `capCardHtml` and Open-job `threadSheetHtml` paint the same Needs you / prompt ask-who gone HOLD as Queue. Shared `promptHtml` / `chipsHtml` / `namedNeedsWho` (Open fallback `namedNeedsWhoOf`). Escaped. Cap chips stay honest via `cardNeeds`. Live named Needs you / prompt still name that AI. Unbound still say Needs you. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
 - `scripts/check-cap-prompt-gone.js` covers Cap / Open-job gone Needs you / promptHtml honesty + esc.
+- History / Explore and People open cards paint the same Needs you / prompt ask-who gone HOLD as Queue. Shared `promptHtml` / `namedNeedsWho` / `goneHoldLabel` / `chipsHtml`. Gone Then paints `Shop Bot · not on this desk` on the Needs you chip and prompt ask-who, not anonymous Needs you / The desk AI asked. Read-only on History / People — no reply send. Escaped. Live named Needs you / prompt still name that AI. Unbound still say Needs you. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
+- `scripts/check-history-prompt-gone.js` covers History / Explore / People open-card gone Needs you / promptHtml honesty + esc.
 
 ## NO (do not pretend these shipped)
 
