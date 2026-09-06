@@ -141,6 +141,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-ask-grok-gone.js` covers gone Ask Grok / namedAskWho / bindAiHtml honesty + esc.
 - Queue `promptHtml` / Needs you ask-who holds a gone Then bind. `thenAiGone` paints `Shop Bot · not on this desk` on the Needs you chip and prompt ask-who, not anonymous Needs you / The desk AI asked. Shared `goneHoldLabel` / `namedNeedsWho` match `namedAskWho` + talkHtml gone paint. Escaped. Live named Needs you / prompt still name that AI. Unbound cards still say Needs you. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
 - `scripts/check-prompt-gone.js` covers gone Needs you / promptHtml honesty + esc.
+- Cap `loadCap` / `capCardHtml` and Open-job `threadSheetHtml` paint the same Needs you / prompt ask-who gone HOLD as Queue. Shared `promptHtml` / `chipsHtml` / `namedNeedsWho` (Open fallback `namedNeedsWhoOf`). Escaped. Cap chips stay honest via `cardNeeds`. Live named Needs you / prompt still name that AI. Unbound still say Needs you. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
+- `scripts/check-cap-prompt-gone.js` covers Cap / Open-job gone Needs you / promptHtml honesty + esc.
 
 ## NO (do not pretend these shipped)
 

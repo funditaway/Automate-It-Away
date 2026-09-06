@@ -495,6 +495,22 @@
     }
     window.location.href = "/desks";
   }
+  function capCardHtml(j, here) {
+    const other = (j.slug || j.workspace) && (j.slug || j.workspace) !== here;
+    const need = cardNeeds(j, false);
+    need.priority = true;
+    const line = honestNext(j, { line: (need && need.line) || j.next || "On the cap.", decide: need.decide, priority: true });
+    const draft = thenDraftHtml(j);
+    const talks = talkHtml(j);
+    const prompt = promptHtml(j, need);
+    const stacked = !!(talks && (draft || prompt));
+    const thread = stacked ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>" : (draft + talks + prompt);
+    return "<article class=\"item q-card cap-card\"><div class=\"q-head\">" + chipsHtml(j, need, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
+      filesHtml(j) + thread +
+      "<p class=\"next-line\">" + esc(line) + "</p>" +
+      (other ? "<div class=\"row actions tap-opts\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
+      "</article>";
+  }
   async function loadCap() {
     const band = document.getElementById("cap-band");
     const box = document.getElementById("cap-list");
@@ -511,17 +527,7 @@
       if (!items.length) { band.hidden = true; box.innerHTML = ""; return; }
       band.hidden = false;
       box.innerHTML = items.map(function (j) {
-        const other = (j.slug || j.workspace) && (j.slug || j.workspace) !== here;
-        const line = honestNext(j, { line: j.next || "On the cap.", decide: false, priority: true });
-        const draft = thenDraftHtml(j);
-        const talks = talkHtml(j);
-        const stacked = !!(talks && draft);
-        const thread = stacked ? "<div class=\"q-thread\">" + draft + talks + "</div>" : (draft + talks);
-        return "<article class=\"item q-card cap-card\"><div class=\"q-head\">" + chipsHtml(j, { priority: true, decide: false, missing: [] }, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
-          filesHtml(j) + thread +
-          "<p class=\"next-line\">" + esc(line) + "</p>" +
-          (other ? "<div class=\"row actions tap-opts\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
-          "</article>";
+        return capCardHtml(j, here);
       }).join("");
     } catch (e) { band.hidden = true; }
   }
@@ -532,6 +538,9 @@
   window.helpWithAi = helpWithAi;
   window.pinCap = pinCap;
   window.openCapDesk = openCapDesk;
+  window.promptHtml = promptHtml;
+  window.chipsHtml = chipsHtml;
+  window.capCardHtml = capCardHtml;
   window.loadCap = loadCap;
   window.card = function (j, staff) {
     const need = cardNeeds(j, staff);
