@@ -72,11 +72,17 @@ const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
 });
 if (!process.exitCode) pass("desk.html has Cap band + need taps");
 
-const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
+const needs = fs.readFileSync(path.join(root, "desk-needs.js"), "utf8");
 ["function cardNeeds", "function pinCap", "action: \"priority\"", "cardActionHtml"].forEach((bit) => {
+  if (!needs.includes(bit)) fail("desk-needs.js missing " + bit);
+});
+if (!process.exitCode) pass("desk-needs.js paints need taps + Cap");
+
+const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
+["function openJob", ">Yes<", ">No<"].forEach((bit) => {
   if (!card.includes(bit)) fail("desk-card.js missing " + bit);
 });
-if (!process.exitCode) pass("desk-card.js paints need taps + Cap");
+if (!process.exitCode) pass("desk-card.js still paints the sheet");
 
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("action === \"priority\"") || !jobs.includes("needsOf")) fail("jobs.js missing priority / needs");

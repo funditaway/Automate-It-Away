@@ -29,7 +29,7 @@
     const when = String(j.timing || j.when || val(j, "when") || "").trim();
     if ((outcome === "call" || kind === "call" || outcome === "text" || kind === "message") && !phone) missing.push("phone");
     if ((outcome === "book" || /school|reminder|pickup|ride|delivery/.test(kind)) && !when) missing.push("when");
-    if ((kind === "list" || outcome === "list") && !j.photoUrl) missing.push("photo");
+    if ((kind === "list" || outcome === "list") && !j.photoUrl && !(j.files && j.files.length)) missing.push("photo");
     function add(id, label, extra) {
       if (actions.some(function (a) { return a.id === id; })) return;
       actions.push(Object.assign({ id: id, label: label }, extra || {}));
@@ -37,15 +37,94 @@
     if (!done) add("open", "Open");
     if (outDesk) { add("done", "Done off desk"); add("handback", "Needs a hand"); }
     else if (missing.length) { add("fill", "Add " + missing[0]); add("ask", "Ask for more"); }
-    else if (decide) { add("yes", "Yes"); if (!staff) add("stop", "Stop"); }
+    else if (decide) { add("yes", "Yes"); if (!staff) { add("stop", "Stop"); add("kill", "Kill"); } }
     if (j.draft && !missing.length) add("copy", "Copy draft");
     if (phone || j.draft) add("text", "Text");
     if (val(j, "email") || j.draft) add("email", "Email");
     if (phone && (outcome === "call" || kind === "call")) add("call", "Call", { href: "tel:" + phone.replace(/[^\d+]/g, "") });
     if (!j.draft && !done) add("grok", "Ask Grok");
     if (!done) add(priority ? "uncap" : "cap", priority ? "Off the cap" : "Cap");
-    const line = outDesk ? "Off the desk. Confirm done, or tap Needs a hand." : (missing.length ? "Need " + missing[0] + " before this can go." : (j.needLine || j.next || (decide ? "Ready. Yes or Stop." : (priority ? "On the cap. Do this first." : "Do the next thing this card needs."))));
+    const line = outDesk ? "Off the desk. Confirm done, or tap Needs a hand." : (missing.length ? "Need " + missing[0] + " before this can go." : (j.needLine || j.next || (decide ? "Ready. Yes / Stop / Kill stay human." : (priority ? "On the cap. Do this first." : "Do the next thing this card needs."))));
     return { line: line, actions: actions, missing: missing, decide: decide, priority: priority, outDesk: outDesk };
+  }
+  function thenWho(j) {
+    if (!j) return "";
+    if (j.deskAi && j.deskAi.name) return String(j.deskAi.name);
+    if (j.agentDraft && j.agentDraft.deskAi && (j.agentDraft.name || j.agentDraft.crew)) {
+      return String(j.agentDraft.name || j.agentDraft.crew);
+    }
+    return "";
+  }
+  function filesOf(j) {
+    const out = [];
+    const seen = {};
+    function add(f) {
+      if (!f) return;
+      const url = typeof f === "string" ? f : (f.url || "");
+      if (!url || seen[url]) return;
+      seen[url] = true;
+      const kind = (typeof f === "object" && (f.kind || f.type)) || "";
+      out.push({
+        url: url,
+        name: (typeof f === "object" && f.name) || (url === (j && j.photoUrl) ? "Photo" : "File"),
+        kind: kind || (url === (j && j.photoUrl) ? "photo" : "file")
+      });
+    }
+    if (j && j.photoUrl) add({ url: j.photoUrl, name: "Photo", kind: "photo" });
+    (j && Array.isArray(j.files) ? j.files : []).forEach(add);
+    return out;
+  }
+  function isNeedsYou(j, need) {
+    if (!j) return false;
+    const st = String(j.status || "");
+    if (st === "shipped" || st === "killed") return false;
+    const wait = String(j.waitingOn || "").toLowerCase();
+    if (wait === "owner" || wait === "person" || wait === "info" || wait === "helper") return true;
+    if (st === "exception" || st === "held") return true;
+    if (need && need.decide) return true;
+    return false;
+  }
+  function isAskHuman(j, need) {
+    if (!j) return false;
+    if (String(j.waitingOn || "").toLowerCase() === "info") return true;
+    if (need && need.missing && need.missing.length) return true;
+    if (/Need .+ before/i.test(String(j.why || ""))) return true;
+    return false;
+  }
+  function honestNext(j, need) {
+    let line = String((need && need.line) || (j && j.next) || "").trim();
+    if (!line) line = (need && need.decide) ? "Ready. Yes / Stop / Kill stay human." : "Do the next thing this card needs.";
+    if (!/HOLD/i.test(line) && !/nothing sent/i.test(line)) {
+      line = line.replace(/\.\s*$/, "") + ". HOLD. Nothing sent alone.";
+    } else if (!/nothing sent/i.test(line)) {
+      line = line.replace(/\.\s*$/, "") + ". Nothing sent alone.";
+    }
+    return line;
+  }
+  function filesHtml(j) {
+    const files = filesOf(j);
+    if (!files.length) return "";
+    return "<div class=\"q-files\">" + files.map(function (f) {
+      const image = /image\//i.test(f.kind) || f.kind === "photo" || /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(f.url);
+      if (image) return "<img class=\"thumb\" src=\"" + esc(f.url) + "\" alt=\"\">";
+      return "<a class=\"q-file edit\" href=\"" + esc(f.url) + "\">" + esc(f.name || "File") + "</a>";
+    }).join("") + "</div>";
+  }
+  function thenDraftHtml(j) {
+    const text = (j && (j.draft || (j.agentDraft && j.agentDraft.text))) || "";
+    if (!text) return "";
+    const who = thenWho(j);
+    const label = who ? (who + " · Then draft") : "Draft";
+    return "<div class=\"draft q-then\"><div class=\"q-then-who\">" + esc(label) + "</div><div class=\"q-then-text\">" + esc(text) + "</div></div>";
+  }
+  function chipsHtml(j, need, status) {
+    const bits = [];
+    if (need && need.priority) bits.push("<span class=\"cap-mark\">Cap</span>");
+    if (isNeedsYou(j, need)) bits.push("<span class=\"q-chip q-need\">Needs you</span>");
+    if (isAskHuman(j, need)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
+    if (need && need.decide) bits.push("<span class=\"q-chip q-hitl-mark\">Yes / Stop / Kill</span>");
+    if (status) bits.push("<span class=\"q-chip q-stat\">" + esc(status) + "</span>");
+    return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
   }
   function smsOf(j) {
     const draft = (j && (j.draft || j.title)) || "";
@@ -57,27 +136,37 @@
     if (typeof mailHref === "function") return mailHref(j.title, draft);
     return "mailto:?subject=" + encodeURIComponent((j && j.title) || "Desk draft") + "&body=" + encodeURIComponent(draft);
   }
+  function paintAction(j, a, money) {
+    if (a.id === "text") return "<a class=\"edit\" href=\"" + smsOf(j) + "\">" + a.label + "</a>";
+    if (a.id === "email") return "<a class=\"edit\" href=\"" + mailOf(j) + "\">" + a.label + "</a>";
+    if (a.id === "call") return "<a class=\"edit\" href=\"" + (a.href || "#") + "\">" + a.label + "</a>";
+    if (a.id === "yes") return "<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>";
+    if (a.id === "stop") return "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>";
+    if (a.id === "kill") return "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Kill</button>";
+    if (a.id === "copy") return "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>";
+    if (a.id === "grok") return "<button class=\"edit\" type=\"button\" onclick=\"(typeof helpWithAi==='function'&&helpWithAi('" + j.id + "'))\">Ask Grok</button>";
+    if (a.id === "cap") return "<button class=\"go cap-tap\" type=\"button\" onclick=\"pinCap('" + j.id + "', true)\">Cap</button>";
+    if (a.id === "uncap") return "<button class=\"edit\" type=\"button\" onclick=\"pinCap('" + j.id + "', false)\">Off the cap</button>";
+    if (a.id === "fill" || a.id === "ask" || a.id === "hand") return "<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">" + a.label + "</button>";
+    if (a.id === "handback") return "<button class=\"edit\" type=\"button\" onclick=\"(typeof needHand==='function'&&needHand('" + j.id + "'))\">Needs a hand</button>";
+    if (a.id === "done") return "<button class=\"go\" type=\"button\" onclick=\"(typeof carryJob==='function'&&carryJob('" + j.id + "'))\">Done</button>";
+    return "";
+  }
   function cardActionHtml(j, staff, where) {
     const need = cardNeeds(j, staff);
     const money = Number(j.amount || j.ask || 0);
-    const bits = [];
-    if (where === "queue") bits.push("<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button>");
-    need.actions.slice(0, where === "queue" ? 6 : 10).forEach(function (a) {
+    const hitl = [];
+    const rest = [];
+    if (where === "queue") rest.push("<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button>");
+    need.actions.slice(0, where === "queue" ? 8 : 10).forEach(function (a) {
       if (where === "queue" && a.id === "open") return;
-      if (a.id === "text") bits.push("<a class=\"edit\" href=\"" + smsOf(j) + "\">" + a.label + "</a>");
-      else if (a.id === "email") bits.push("<a class=\"edit\" href=\"" + mailOf(j) + "\">" + a.label + "</a>");
-      else if (a.id === "call") bits.push("<a class=\"edit\" href=\"" + (a.href || "#") + "\">" + a.label + "</a>");
-      else if (a.id === "yes") bits.push("<button class=\"go\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>");
-      else if (a.id === "stop") bits.push("<button class=\"kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>");
-      else if (a.id === "copy") bits.push("<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>");
-      else if (a.id === "grok") bits.push("<button class=\"edit\" type=\"button\" onclick=\"(typeof helpWithAi==='function'&&helpWithAi('" + j.id + "'))\">Ask Grok</button>");
-      else if (a.id === "cap") bits.push("<button class=\"go cap-tap\" type=\"button\" onclick=\"pinCap('" + j.id + "', true)\">Cap</button>");
-      else if (a.id === "uncap") bits.push("<button class=\"edit\" type=\"button\" onclick=\"pinCap('" + j.id + "', false)\">Off the cap</button>");
-      else if (a.id === "fill" || a.id === "ask" || a.id === "hand") bits.push("<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">" + a.label + "</button>");
-      else if (a.id === "handback") bits.push("<button class=\"edit\" type=\"button\" onclick=\"(typeof needHand==='function'&&needHand('" + j.id + "'))\">Needs a hand</button>");
-      else if (a.id === "done") bits.push("<button class=\"go\" type=\"button\" onclick=\"(typeof carryJob==='function'&&carryJob('" + j.id + "'))\">Done</button>");
+      const bit = paintAction(j, a, money);
+      if (!bit) return;
+      if (a.id === "yes" || a.id === "stop" || a.id === "kill") hitl.push(bit);
+      else rest.push(bit);
     });
-    return "<div class=\"row actions tap-opts\">" + bits.join("") + "</div>";
+    return (hitl.length ? "<div class=\"row actions tap-opts q-hitl\">" + hitl.join("") + "</div>" : "") +
+      "<div class=\"row actions tap-opts\">" + rest.join("") + "</div>";
   }
   async function helpWithAi(id) {
     const banner = document.getElementById("banner");
@@ -128,8 +217,11 @@
       band.hidden = false;
       box.innerHTML = items.map(function (j) {
         const other = (j.slug || j.workspace) && (j.slug || j.workspace) !== here;
-        return "<article class=\"item cap-card\"><div class=\"meta\"><span class=\"cap-mark\">Cap</span> " + esc(j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3><p class=\"meta\">" + esc(j.next || "On the cap.") + "</p>" +
-          (other ? "<div class=\"row\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
+        const line = honestNext(j, { line: j.next || "On the cap.", decide: false, priority: true });
+        return "<article class=\"item q-card cap-card\"><div class=\"q-head\">" + chipsHtml(j, { priority: true, decide: false, missing: [] }, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
+          filesHtml(j) + thenDraftHtml(j) +
+          "<p class=\"next-line\">" + esc(line) + "</p>" +
+          (other ? "<div class=\"row actions tap-opts\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
           "</article>";
       }).join("");
     } catch (e) { band.hidden = true; }
@@ -145,7 +237,8 @@
     const cap = !!need.priority;
     const why = (typeof visitorLine === "function" ? visitorLine(j.why) : (j.why || ""));
     const status = typeof labelStatus === "function" ? labelStatus(j.status) : (j.status || "");
-    return "<article class=\"item" + (cap ? " cap-card" : "") + "\"><div class=\"meta\">" + (cap ? "<span class=\"cap-mark\">Cap</span> " : "") + esc(status) + (j.assignee ? " · " + esc(j.assignee) : "") + "</div><h3>" + esc(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + esc(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + esc(j.draft) + "</div>" : "") + "<p class=\"next-line\">" + esc(need.line || "") + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
+    const line = honestNext(j, need);
+    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thenDraftHtml(j) + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
   };
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }
@@ -159,20 +252,55 @@
     window.load._aiaCap = true;
   }
   function injectCap() {
-    if (document.getElementById("cap-band")) return;
-    const queue = document.getElementById("queue");
-    if (!queue) return;
-    const band = document.createElement("div");
-    band.id = "cap-band";
-    band.className = "cap-band";
-    band.hidden = true;
-    band.innerHTML = "<h2>Cap · orange · every desk on this account</h2><div id=\"cap-list\"></div>";
-    queue.parentNode.insertBefore(band, queue);
+    if (!document.getElementById("cap-band")) {
+      const queue = document.getElementById("queue");
+      if (!queue) return;
+      const band = document.createElement("div");
+      band.id = "cap-band";
+      band.className = "cap-band";
+      band.hidden = true;
+      band.innerHTML = "<h2>Cap · orange · every desk on this account</h2><div id=\"cap-list\"></div>";
+      queue.parentNode.insertBefore(band, queue);
+    }
     if (!document.getElementById("aia-cap-css")) {
       const css = document.createElement("style");
       css.id = "aia-cap-css";
-      css.textContent = ".cap-card{border-left:4px solid var(--orange,#f39c12)}.cap-mark{display:inline-flex;background:var(--orange,#f39c12);color:#0c1116;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px}.cap-band h2{font-size:13px;margin:8px 0 6px}.cap-tap{background:var(--orange,#f39c12);color:#0c1116}";
+      css.textContent = "#queue .q-card,#cap-list .q-card{border-radius:14px;padding:14px;margin:10px 0;box-shadow:var(--shadow)}" +
+        "#queue .q-card h3,#cap-list .q-card h3{font-size:1.12rem;line-height:1.3;margin:8px 0 6px}" +
+        ".q-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}" +
+        ".q-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}" +
+        ".q-chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.03em}" +
+        ".q-need{background:var(--banner);color:var(--banner-ink)}" +
+        ".q-ask{background:var(--edit);color:var(--edit-ink)}" +
+        ".q-hitl-mark{background:var(--edit);color:var(--heading)}" +
+        ".q-stat{background:var(--edit);color:var(--muted);font-weight:700}" +
+        ".q-assignee{font-size:12px}" +
+        ".q-why{color:var(--muted);font-size:14px;margin:4px 0 8px}" +
+        ".q-then{background:var(--edit);border-radius:10px;padding:10px 12px;margin:8px 0}" +
+        ".q-then-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}" +
+        ".q-then-text{font-size:14px;line-height:1.4;white-space:pre-wrap}" +
+        ".q-files{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}" +
+        ".q-files .thumb{max-width:min(160px,42vw);border-radius:10px}" +
+        ".q-file{min-height:44px;padding:8px 12px;border-radius:10px;font-weight:700}" +
+        "#queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}" +
+        ".q-hitl{grid-template-columns:1fr 1fr 1fr}" +
+        ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px}" +
+        ".cap-card{border-left:4px solid var(--orange,#f39c12)}" +
+        ".cap-mark{display:inline-flex;background:var(--orange,#f39c12);color:#0c1116;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px}" +
+        ".cap-band h2{font-size:13px;margin:8px 0 6px}" +
+        ".cap-tap{background:var(--orange,#f39c12);color:#0c1116}" +
+        "@media(max-width:420px){#queue .q-card,#cap-list .q-card{padding:14px 12px}.q-files .thumb{max-width:100%}.q-hitl{grid-template-columns:1fr 1fr}}";
       document.head.appendChild(css);
+    }
+    const filters = document.getElementById("queue-filters");
+    if (filters && !filters.__aiaCap) {
+      filters.addEventListener("click", function (e) {
+        const btn = e.target.closest("[data-filter=\"cap\"]");
+        if (!btn) return;
+        const band = document.getElementById("cap-band");
+        if (band && !band.hidden) band.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      filters.__aiaCap = true;
     }
   }
   wrapLoad();
