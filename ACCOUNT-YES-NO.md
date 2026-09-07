@@ -145,6 +145,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-cap-prompt-gone.js` covers Cap / Open-job gone Needs you / promptHtml honesty + esc.
 - History / Explore and People open cards paint the same Needs you / prompt ask-who gone HOLD as Queue. Shared `promptHtml` / `namedNeedsWho` / `goneHoldLabel` / `chipsHtml`. Gone Then paints `Shop Bot · not on this desk` on the Needs you chip and prompt ask-who, not anonymous Needs you / The desk AI asked. Read-only on History / People — no reply send. Escaped. Live named Needs you / prompt still name that AI. Unbound still say Needs you. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
 - `scripts/check-history-prompt-gone.js` covers History / Explore / People open-card gone Needs you / promptHtml honesty + esc.
+- History / Explore show a world-user account roadmap (past / now / next) on the existing History surface. Now: one account → one desk, Drop → Qualify → Do → Collect HOLD → Follow, named desk AIs, Yes / Stop / Kill, people share, install `.aia` with Yes. Give pack = download / share `.aia` (`download-pack`). Update pack = install this `.aia` again (`install-aia`). Recurring update pass HOLD. Silent desk-to-desk give HOLD. `.aia` identity HOLD until mint. Browser wallet mentioned only as identity / prep — no custody. Explore sheet + People shared trail + Account point at the same roadmap. Escaped. No invented charge pipes. No AIA coin, custodial Wallet.AIA, on-chain pack buy/sell, cloud hosting, credits, ads, OAuth, or robots as live.
+- `scripts/check-history-roadmap.js` covers History / Explore / People / Account roadmap honesty + esc.
 
 ## NO (do not pretend these shipped)
 
@@ -189,6 +191,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - An effort or token estimate UI on History or the queue. Yes as a collect charge.
 - Public Free / Pro / Team / Enterprise SKUs or credit pricing. Codegen, deploy, or GitHub auto-patch from this desk. An autonomous ETA engine or SaaS codegen.
 - `render_desk_card`, interactive_review layout, or code_diff / confidence / token badge field types as product. Yes as auto-send mail, push git, or a Collect charge.
+- Give pack as a silent push to another desk.
+- A live recurring pack-update subscription engine.
 
 ## Ask me if
 
