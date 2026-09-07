@@ -103,6 +103,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - FAQ install / give / update a `.aia` with Yes on History. Give is the file. Update is install again. Recurring update HOLD. Installed packs auto-shape — no pack pick on every Drop. Collect HOLD. No silent charge.
 - FAQ Connect existing wallet: MetaMask / WalletConnect. Your wallet. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + real pipe. Help First day People dd names Needs you / prompt ask-who.
 - `scripts/check-help-faq.js` covers Help FAQ + People dd + Studio / More FAQ honesty.
+- How (`/how`) Paid / Collect: Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. Not “Collect when due.” Not “money waits only if you wrote that rule.” Helper can prep the draft. Yes is not a collect charge. Shop-week means name when money would be due on the card — they do not collect. No fake pricing, credits, or AIA coin.
+- `scripts/check-how-paid.js` covers how.html Paid / Collect HOLD honesty.
 - Support Talk (`support-talk.js`) calls `AIASpeech.listen(fn, fn)` like Drop / Login. World door still posts to desk `aia` with no pin.
 - `scripts/check-queue-help.js` covers queue-run Help + Support Talk listen contract.
 - Desk cards (`/help#desk-cards` + Studio one-liner): When → If → Then drafts a queue card (fields / notes), not a chat blob. Yes is not auto-send mail, push git, or a Collect charge. Thin `.aia`; test via Drop or www hook. Real cap: 12 card fields. Sample JSON illustrative — desk words only. Not `render_desk_card`, interactive_review, code_diff / confidence / token badge field types.
