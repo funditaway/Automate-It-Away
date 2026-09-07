@@ -107,9 +107,9 @@
       <div class="card">
         <strong id="lane-title" style="color:var(--heading)">Drop anything. It becomes a card.</strong>
         <div id="pane-work">
-          <label>I am</label>
+          <label>I am <button type="button" class="aia-tip" data-aia-tip="drop-who" aria-label="More about I am">?</button></label>
           <div class="who-chips" id="who-chips"></div>
-          <label for="kind">What is it?</label>
+          <label for="kind">What is it? <button type="button" class="aia-tip" data-aia-tip="drop-kind" aria-label="More about What is it">?</button></label>
           <select id="kind">
             <option value="task">A task</option>
             <option value="chore">An errand</option>
@@ -147,9 +147,9 @@
           <p class="sub" id="title-hint">Short name for the card. Required to drop.</p>
           <label for="who">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
           <input id="who" placeholder="Name">
-          <label for="phone">Phone</label>
+          <label for="phone">Phone <button type="button" class="aia-tip" data-aia-tip="drop-phone" aria-label="More about Phone">?</button></label>
           <input id="phone" placeholder="417-555-0100" inputmode="tel">
-          <label for="photo">Photos, documents, or video</label>
+          <label for="photo">Photos, documents, or video <button type="button" class="aia-tip" data-aia-tip="drop-photo" aria-label="More about Photos, documents, or video">?</button></label>
           <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm" aria-describedby="file-list">
           <p class="sub file-list" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
           <label for="note">What do you need? <button type="button" class="aia-tip" data-aia-tip="drop-need" aria-label="More about What do you need">?</button></label>

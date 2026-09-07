@@ -121,6 +121,26 @@
       body: "A task, an errand, a list, an idea, or a project in your words. It becomes a card. Yes / Stop stay human.",
       ask: "What do I type in What do you need?"
     },
+    "drop-who": {
+      title: "I am",
+      body: "Family, friend, helper, or staff. Stamps who dropped the card. Public drop never sees money, Stop, or People. You still tap Yes or Stop.",
+      ask: "What does I am mean on Drop?"
+    },
+    "drop-kind": {
+      title: "What is it?",
+      body: "Tap a kind. The card uses that shape. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.",
+      ask: "What kind do I pick on Drop?"
+    },
+    "drop-phone": {
+      title: "Phone",
+      body: "Optional number on the card so a person can call or text later. Desk does not dial or send from here. You still tap Yes before anything leaves. Collect stays HOLD.",
+      ask: "Why does Drop ask for a phone?"
+    },
+    "drop-photo": {
+      title: "Photos, documents, or video",
+      body: "Optional. Up to 8 files. Each under 8MB. They ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.",
+      ask: "Do files on Drop leave the desk?"
+    },
     "support-title": {
       title: "Title",
       body: "Short name for the problem. Ask AIA answers first. Need a person? Drop a card on the AIA Admin desk.",
