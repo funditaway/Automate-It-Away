@@ -149,6 +149,8 @@ How the queue runs: Pipes → Rules When · If · Then → pack / desk AI drafts
 
 how.html Paid / Collect: Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. Not “Collect when due.” Shop-week examples name when money would be due — they do not collect. Yes is not a collect charge. No fake pricing, credits, or AIA coin.
 
+index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
+
 ## Desk cards
 
 When → If → Then: a named desk AI drafts a queue card (fields / notes), not a raw chat blob. Yes / Stop / Kill stay human. Yes is not auto-send mail, push git, or a Collect charge. Collect HOLD. Thin `.aia` from Studio; test via Drop or the www hook. A desk holds up to 12 card fields — real cap. Sample JSON is illustrative only — desk words. Do not invent `render_desk_card`, interactive_review layout, or code_diff / confidence / token badge field types.

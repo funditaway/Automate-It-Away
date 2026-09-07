@@ -105,6 +105,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-help-faq.js` covers Help FAQ + People dd + Studio / More FAQ honesty.
 - How (`/how`) Paid / Collect: Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. Not “Collect when due.” Not “money waits only if you wrote that rule.” Helper can prep the draft. Yes is not a collect charge. Shop-week means name when money would be due on the card — they do not collect. No fake pricing, credits, or AIA coin.
 - `scripts/check-how-paid.js` covers how.html Paid / Collect HOLD honesty.
+- index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.” Helper can prep the draft. Yes is not a collect charge. No fake pricing, credits, or AIA coin. `drop-pack.js` stays unloaded.
+- `scripts/check-collect-hold.js` covers those leftover Collect-as-live surfaces.
 - Support Talk (`support-talk.js`) calls `AIASpeech.listen(fn, fn)` like Drop / Login. World door still posts to desk `aia` with no pin.
 - `scripts/check-queue-help.js` covers queue-run Help + Support Talk listen contract.
 - Desk cards (`/help#desk-cards` + Studio one-liner): When → If → Then drafts a queue card (fields / notes), not a chat blob. Yes is not auto-send mail, push git, or a Collect charge. Thin `.aia`; test via Drop or www hook. Real cap: 12 card fields. Sample JSON illustrative — desk words only. Not `render_desk_card`, interactive_review, code_diff / confidence / token badge field types.
