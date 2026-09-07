@@ -247,7 +247,7 @@ Outbound Send stays HOLD. No silent mail. Rail / Yes. Status orange until a real
 ## Pack logic
 
 1. World user drops onto a desk.
-2. Drop stamps `pack` + `custom.face` (who / what / when / where / how).
+2. Qualify stamps `pack` + `custom.face` (who / what / when / where / how) from the pack already installed on that desk. Drop does not ask you to pick a pack each time.
 3. Capture makes a card in `exception` / Qualify.
 4. Qualify fills `next` from the pack. Grok drafts in that pack's language.
 5. Queue paints the pack face.

@@ -25,6 +25,7 @@
     if (shop && Array.isArray(shop.packs)) shop.packs.forEach(function (p) { add(p && (p.id || p)); });
     if (shop && Array.isArray(shop.packIds)) shop.packIds.forEach(add);
     if (shop && shop.packId) add(shop.packId);
+    if (shop && shop.pack) add(shop.pack);
     if (!listed.length && shop && shop.model) {
       var m = String(shop.model).toLowerCase();
       Object.keys(PACK_META).forEach(function (id) {

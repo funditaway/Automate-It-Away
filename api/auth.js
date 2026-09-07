@@ -27,6 +27,8 @@ function publicWorkspace(row) {
     creations: ensureCreations(row).map(publicCreation).filter(Boolean),
     ais: rails.ais,
     aiRails: rails.rails,
+    pack: row.pack || "",
+    packName: row.packName || "",
     aia: rails.aia,
     internet: net.INTERNET,
     net: rails.net

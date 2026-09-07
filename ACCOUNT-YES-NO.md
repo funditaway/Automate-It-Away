@@ -157,6 +157,8 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-history-prompt-gone.js` covers History / Explore / People open-card gone Needs you / promptHtml honesty + esc.
 - History / Explore show a world-user account roadmap (past / now / next) on the existing History surface. Now: one account → one desk, Drop → Qualify → Do → Collect HOLD → Follow, named desk AIs, Yes / Stop / Kill, people share, install `.aia` with Yes. Give pack = download / share `.aia` (`download-pack`). Update pack = install this `.aia` again (`install-aia`). Recurring update pass HOLD. Silent desk-to-desk give HOLD. `.aia` identity HOLD until mint. Browser wallet mentioned only as identity / prep — no custody. Explore sheet + People shared trail + Account point at the same roadmap. Escaped. No invented charge pipes. No AIA coin, custodial Wallet.AIA, on-chain pack buy/sell, cloud hosting, credits, ads, OAuth, or robots as live.
 - `scripts/check-history-roadmap.js` covers History / Explore / People / Account roadmap honesty + esc.
+- Installed packs auto-shape queue cards. Drop / hook / desk chat do not ask you to pick a pack each time. Qualify stamps `pack` + `custom.face` (who / what / when / where / how) from the desk pack. Pack rules already on the desk still fire. Creator `.aia` packs keep their face — they do not fall through to Home. Yes / Stop / Kill stay human. Collect HOLD. No silent send. No pack marketplace picker on every Drop.
+- `scripts/check-pack-queue-shape.js` covers installed-pack capture face, creator-pack honesty, Drop skip-pick, and queue paint.
 
 ## NO (do not pretend these shipped)
 
