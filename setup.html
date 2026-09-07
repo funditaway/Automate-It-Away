@@ -73,18 +73,21 @@
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
       <a href="how.html">How</a>
-      <a href="examples.html">Examples</a>
-      <a href="setup.html">Setup</a>
-      <a href="onboard.html">Open desk</a>
+      <a href="setup.html" class="on">Setup</a>
+      <a href="help.html">Help</a>
       <a href="desk.html">Desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <main class="wrap">
     <h1>Name your desk. Give the work a home.</h1>
-    <p class="lead">One AIA account. A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step and drafts the words. You copy it, text it, email it, or hand it to someone. Nothing leaves on its own. Add a rule if you need one.</p>
+    <p class="lead">One AIA account. A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step and drafts the words. You copy it, text it, email it, or hand it to someone. Nothing leaves on its own. Add a rule if you need one. Talk, Give pack, and Update pack stay on this same account.</p>
     <div class="actions" aria-label="What you do with a card">
       <span class="chip">Copy draft</span><span class="chip">Text it</span><span class="chip">Email it</span><span class="chip">Hand to</span><span class="chip">Stop</span>
+    </div>
+    <div class="cta" style="margin:0 0 16px">
+      <a class="btn" href="onboard.html">Open desk</a>
+      <a class="btn quiet" href="drop.html#talk">Talk</a>
     </div>
     <section class="practice" id="practice" aria-label="Practice card">
       <p class="meta">Practice card · stays on this phone</p>
@@ -101,29 +104,31 @@
       <p class="result" id="practiceResult">Tap a button. The desk does not send this for you.</p>
     </section>
     <p class="sec">First day</p>
-    <article class="step"><div class="n">1</div><div><h2>Open the account</h2><p>Owner opens one secure AIA account and the first desk. Two doors on the same account: desk name + desk code, or email + password. Session stays 14 days. Authenticator MFA stays HOLD. Plan stays free.</p><p><a href="onboard.html">Open the account →</a> · <a href="login.html">Already have one →</a></p></div></article>
+    <article class="step"><div class="n">1</div><div><h2>Open the account</h2><p>Owner opens one AIA account and the first desk. Two doors: desk name + desk code, or email + password. This phone remembers you. Authenticator stays HOLD. Plan stays free.</p><p><a href="onboard.html">Open desk →</a> · <a href="login.html">Already have one →</a></p></div></article>
     <article class="step"><div class="n">2</div><div><h2>Same pair on the next phone</h2><p>Desk name + that person’s code. Same queue. Owner still owns Stop. One account can own desks and sit on others.</p></div></article>
-    <article class="step"><div class="n">3</div><div><h2>Drop the work</h2><p>Talk on Drop. Say it or type it. Lands as a card. A pipe is optional. Webhook is live. Named vendors wait on keys.</p></div></article>
-    <article class="step"><div class="n o">4</div><div><h2>Send what you approve</h2><p>Copy the draft, text it, email it, or hand it off. Stop cancels it. Nothing leaves on its own.</p></div></article>
+    <article class="step"><div class="n">3</div><div><h2>Talk or Drop the work</h2><p>Talk on Drop. Say it or type it. Lands as a card. A pipe is optional. Webhook is live. Named vendors wait on keys + Yes.</p></div></article>
+    <article class="step"><div class="n o">4</div><div><h2>Yes, then send it yourself</h2><p>Tap Yes. Copy the draft, text it, email it, or hand it off. Stop cancels it. Nothing leaves on its own.</p></div></article>
     <p class="sec">On this desk</p>
     <div class="map">
-      <a href="desk.html"><b>Queue</b><span>Cards waiting. Copy, text, email, hand to, or Stop.</span></a>
-      <a href="/drop#talk"><b>Drop · Talk</b><span>Say the work. Nobody sends money from here.</span></a>
+      <a href="desk.html"><b>Desk</b><span>Queue cards. Copy, text, email, hand to, Yes, or Stop.</span></a>
+      <a href="drop.html#talk"><b>Talk</b><span>Say the work. It becomes a card. Nobody sends money from here.</span></a>
+      <a href="history.html"><b>Give pack</b><span>Download / share the .aia file. They install with Yes. Nothing silent.</span></a>
+      <a href="history.html"><b>Update pack</b><span>Install this .aia again with Yes. Recurring update HOLD. Collect stays HOLD.</span></a>
       <a href="people.html"><b>People</b><span>Invite family, friend, helper, staff. Owner owns Stop.</span></a>
       <a href="connections.html"><b>Pipes</b><span>Copy the inbound hook. Draft accounts draft only. Log in does not send.</span></a>
-      <a href="people.html"><b>AI agent</b><span>Owner Approve. Drafts then Off desk. Cannot Stop or pay.</span></a>
-      <a href="/drop"><b>World users</b><span>List a desk for public drop search. Private never appears.</span></a>
-      <a href="account.html"><b>Account</b><span>Desk code or email + password. One account per person.</span></a>
+      <a href="/dev"><b>Creators Studio</b><span>Write or install a pack. Desk AI drafts. You tap. Collect stays HOLD.</span></a>
+      <a href="account.html"><b>Account</b><span>One account. More desks. Connect existing wallet — Your MetaMask or WalletConnect. Not Wallet.AIA.</span></a>
       <a href="rules.html"><b>Rules</b><span>Wait, stop, or note. Fresh desks start empty.</span></a>
+      <a href="help.html"><b>Help</b><span>World users, packs, Talk, and Connect. Days are a guide. Collect stays HOLD.</span></a>
     </div>
     <p class="sec">How to use the account</p>
     <div class="how-acc"><b>1. Open a desk</b><span>Desk name + desk code. Email is not required to start.</span></div>
     <div class="how-acc"><b>2. Second door</b><span>Set email + password on Your account. Same person. Min 8 characters. No email or SMS reset.</span></div>
-    <div class="how-acc"><b>3. Stay signed in</b><span>Hashed session, 14 days, cookie + X-Session, max 8 phones.</span></div>
-    <div class="how-acc"><b>4. MFA and plan</b><span>Authenticator stays HOLD. Plan stays free.</span></div>
-    <div class="how-acc"><b>5. Send it yourself</b><span>Copy draft, Text it, Email it, Hand to, Stop. AIA does not send.</span></div>
-    <div class="how-acc"><b>6. People and agents</b><span>Invite from People. Approve an AI agent. Agent drafts, then Off desk.</span></div>
-    <div class="how-acc"><b>7. Connections and world</b><span>Copy the inbound hook. List a desk only if it should be public.</span></div>
+    <div class="how-acc"><b>3. Stay on this phone</b><span>This phone remembers you. Up to 8 phones on the same account.</span></div>
+    <div class="how-acc"><b>4. Talk, Give pack, Update pack</b><span>Talk lands a card. Give is the file. Update is install again with Yes. Recurring update HOLD.</span></div>
+    <div class="how-acc"><b>5. Yes, then send it yourself</b><span>Copy draft, Text it, Email it, Hand to, Stop. AIA does not send.</span></div>
+    <div class="how-acc"><b>6. People and desk AIs</b><span>Invite from People. Name a desk AI. It drafts, then waits. You tap. Cannot Stop or pay.</span></div>
+    <div class="how-acc"><b>7. Pipes, Studio, wallet</b><span>Copy the inbound hook. Creators Studio writes packs. Connect existing wallet when you want. AIA does not hold keys. Not Wallet.AIA.</span></div>
     <p class="sec">Projects being built</p>
     <div class="words">
       <div class="card"><b>Automate It Away</b><span>The desk is the runtime. Jobs, audit, rules, Stop. Bots stay crew.</span></div>
@@ -137,13 +142,16 @@
     <div class="niche-chips" id="nicheChips"></div>
     <div class="words" id="nicheWords"></div>
     <div class="cta">
-      <a class="btn" href="onboard.html">Open the account</a>
-      <a class="btn quiet" href="examples.html">See every niche</a>
-      <a class="btn quiet" href="how.html">See how it runs</a>
+      <a class="btn" href="onboard.html">Open desk</a>
+      <a class="btn quiet" href="drop.html#talk">Talk</a>
+      <a class="btn quiet" href="history.html">Give pack</a>
+      <a class="btn quiet" href="history.html">Update pack</a>
+      <a class="btn quiet" href="desk.html">Desk</a>
+      <a class="btn quiet" href="help.html">Help</a>
     </div>
     <p class="note">Practice cards are DEMO. Fake names, 555 numbers. A real card only leaves when you copy it, text it, email it, or hand it off.</p>
   </main>
-  <footer class="site-foot"><p>© 2026 Automate It Away</p><nav><a href="how.html">How</a><a href="examples.html">Examples</a><a href="setup.html">Setup</a><a href="help.html">Help</a><a href="legal.html">Legal</a></nav></footer>
+  <footer class="site-foot"><p>© 2026 Automate It Away</p><nav><a href="how.html">How</a><a href="setup.html">Setup</a><a href="help.html">Help</a><a href="desk.html">Desk</a><a href="examples.html">Examples</a><a href="legal.html">Legal</a></nav></footer>
   <script src="theme.js"></script>
   <script src="speech.js"></script>
   <script src="desk-switch.js"></script>

@@ -155,6 +155,8 @@ index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Co
 
 Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.”
 
+World-home (`index.html`, `how.html`, `setup.html`): How · Setup · Help · Desk in the header. Open desk, Talk, Give pack, Update pack, Desk, Help as page CTAs. Give pack = the file. Update pack = install again with Yes. One AIA account. Connect existing wallet, not Wallet.AIA. No grandma brand. No mint / Decentraweb / DNS lesson on those pages. Collect HOLD. No silent send.
+
 ## Desk cards
 
 When → If → Then: a named desk AI drafts a queue card (fields / notes), not a raw chat blob. Yes / Stop / Kill stay human. Yes is not auto-send mail, push git, or a Collect charge. Collect HOLD. Thin `.aia` from Studio; test via Drop or the www hook. A desk holds up to 12 card fields — real cap. Sample JSON is illustrative only — desk words. Do not invent `render_desk_card`, interactive_review layout, or code_diff / confidence / token badge field types.
