@@ -151,7 +151,33 @@
     thread(PROMPT);
   }
 
+  function paintAsk() {
+    var q = {};
+    try { q = new URLSearchParams(location.search || ""); } catch (e) { q = new URLSearchParams(); }
+    var field = q.get("field") || "";
+    var ask = q.get("ask") || "";
+    var from = q.get("from") || "";
+    var tips = (window.AIATip && AIATip.tips) || {};
+    var tip = tips[field];
+    var line = "";
+    if (tip) {
+      line = tip.title + " — " + tip.body + " Need more? Type it or Talk. Help, tickets, and messages move as cards between your desk and the AIA Admin desk. A person looks.";
+    } else if (ask) {
+      line = ask + " Type more or Talk. We write a card on the AIA Admin desk. A person looks.";
+    }
+    if (!line) return;
+    thread(line);
+    var title = $("title");
+    var notes = $("notes");
+    var page = $("page");
+    if (title && !title.value) title.value = (tip && tip.ask) || ask;
+    if (notes && !notes.value) notes.value = (from ? ("From " + from + ". ") : "") + ((tip && tip.ask) || ask);
+    if (page && from && !page.value) page.value = "/" + from.replace(/\.html$/, "");
+    paintKind(guessKind((tip && tip.ask) || ask || field));
+  }
+
   function bind() {
+    paintAsk();
     document.querySelectorAll("#kinds button").forEach(function (btn) {
       btn.addEventListener("click", function () { paintKind(btn.getAttribute("data-kind")); });
     });

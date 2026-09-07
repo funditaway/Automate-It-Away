@@ -91,6 +91,10 @@ must(themeJs, 'id: "help", href: "/help", label: "Help"', "theme.js shared nav H
 must(themeJs, 'id: "how", href: "/how", label: "How"', "theme.js shared nav How");
 must(themeJs, 'id: "setup", href: "/setup", label: "Setup"', "theme.js shared nav Setup");
 must(themeJs, 'id: "desk", href: "/desk", label: "Desk"', "theme.js shared nav Desk");
+["index.html", "how.html", "setup.html"].forEach(function (name) {
+  must(read(name), "aia-tip.js", name + " loads field tips");
+  must(read(name), "data-aia-tip", name + " has a field tip");
+});
 
 must(yesNo, "check-world-home.js", "ACCOUNT-YES-NO records world-home honesty");
 must(yesNo, "index.html`, `how.html`, `setup.html", "ACCOUNT-YES-NO names world-home pages");

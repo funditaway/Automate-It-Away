@@ -60,6 +60,7 @@
     .who{padding:0 5vw 32px}
     footer{padding:22px 5vw;color:var(--muted);font-size:14px}
     footer a{color:var(--teal)}
+    .field-line{font-size:13px;font-weight:700;color:var(--heading);margin:0 0 8px}
     @media(max-width:800px){.hero-grid{grid-template-columns:1fr}}
     @media(max-width:420px){
       .actions{gap:6px}
@@ -84,6 +85,7 @@
     <div>
       <h1>Name your desk. Give the work a home.</h1>
       <p class="lead">A school form. A missed call. A photo of the job. A text from the neighbor. It lands on one queue. The desk writes the next step and drafts the words. You copy it, text it, email it, or hand it to someone. Nothing leaves on its own.</p>
+      <p class="field-line">What you do with a card <button type="button" class="aia-tip" data-aia-tip="card-taps" aria-label="More about What you do with a card">?</button></p>
       <div class="actions" aria-label="What you do with a card">
         <span class="chip">Copy draft</span>
         <span class="chip">Text it</span>
@@ -106,7 +108,7 @@
       <div class="card"><b>Catch the work</b><p>Note, photo, form, missed call, or a line someone typed. One card. Nobody retypes it later.</p></div>
       <div class="card"><b>Write the next step</b><p>Fit, timing, who should see it, what is missing. The queue says what happens next.</p></div>
       <div class="card"><b>Draft the words</b><p>The text, the estimate, the reminder, the handoff note. It sits on the card until a person sends it.</p></div>
-      <div class="card"><b>Keep the follow-up</b><p>One nudge. Then it stops. Collect stays HOLD until Yes + a real money pipe.</p></div>
+      <div class="card"><b>Keep the follow-up</b> <button type="button" class="aia-tip" data-aia-tip="collect-hold" aria-label="More about Collect HOLD">?</button><p>One nudge. Then it stops. Collect stays HOLD until Yes + a real money pipe.</p></div>
     </div>
   </div>
 </section>
@@ -119,7 +121,7 @@
       <div class="card"><b>The week</b><span>Oil change. Lawn guy. Dentist for the kids. Each one is a card with the next step written on it.</span></div>
       <div class="card"><b>School paper</b><span>The form lands. The reminder is drafted. You send it once. Then it stops nagging.</span></div>
       <div class="card"><b>A neighbor text</b><span>Saturday job comes in. The estimate is written on the card. You copy it or text it.</span></div>
-      <div class="card"><b>Bills</b><span>Bill due on the card. Collect HOLD until Yes + a real money pipe.</span></div>
+      <div class="card"><b>Bills</b> <button type="button" class="aia-tip" data-aia-tip="collect-hold" aria-label="More about Collect HOLD">?</button><span>Bill due on the card. Collect HOLD until Yes + a real money pipe.</span></div>
     </div>
   </div>
 </section>
@@ -143,11 +145,11 @@
     <p class="lead">One AIA account. House, shop, company, or an automation business. Same login. Desk AIs draft. You tap Yes. Packs move as a file. Pipes wait on keys. Connect your own wallet when you want — AIA does not hold keys.</p>
     <div class="grid">
       <div class="card"><b>Desk AI / bots</b><p>Name a desk AI. It drafts the next step. Yes / Stop / Kill stay human. A bot cannot send or pay.</p></div>
-      <div class="card"><b>Give pack · Update pack</b><p>Give is the file. They install with Yes. Update is install again. Recurring update HOLD. Nothing silent.</p></div>
+      <div class="card"><b>Give pack · Update pack <button type="button" class="aia-tip" data-aia-tip="give-pack" aria-label="More about Give pack">?</button></b><p>Give is the file. They install with Yes. Update is install again. Recurring update HOLD. Nothing silent.</p></div>
       <div class="card"><b>More desks</b><p>House, shop, company, or a private project. One account owns desks and can sit on others.</p></div>
       <div class="card"><b>Creators Studio</b><p>Write or install a pack on this account. Marketplace or keep it private. Collect stays HOLD until Yes + a real money pipe.</p></div>
       <div class="card"><b>Pipes</b><p>Webhook is live. Search a site. Log in opens the vendor. Named vendors wait on keys + Yes. AIA does not send.</p></div>
-      <div class="card"><b>Connect existing wallet</b><p>Your MetaMask or WalletConnect. Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + a real pipe.</p></div>
+      <div class="card"><b>Connect existing wallet <button type="button" class="aia-tip" data-aia-tip="connect-wallet" aria-label="More about Connect existing wallet">?</button></b><p>Your MetaMask or WalletConnect. Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + a real pipe.</p></div>
     </div>
   </div>
 </section>
@@ -184,5 +186,6 @@
   </nav>
 </footer>
 <script src="theme.js"></script>
+<script src="aia-tip.js"></script>
 </body>
 </html>

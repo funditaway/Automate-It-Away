@@ -157,6 +157,8 @@ Leftover public surfaces after that pass: how.html film reel, setup.html / examp
 
 World-home (`index.html`, `how.html`, `setup.html`): How · Setup · Help · Desk in the header. Open desk, Talk, Give pack, Update pack, Desk, Help as page CTAs. Give pack = the file. Update pack = install again with Yes. One AIA account. Connect existing wallet, not Wallet.AIA. No grandma brand. No mint / Decentraweb / DNS lesson on those pages. Collect HOLD. No silent send.
 
+Field tips + Ask AIA: `aia-tip.js` on How, Setup, Home, and onboard forms. Extra info on the field. Ask AIA opens Help chat (`/support`) with that answer. Help / tickets / messages move as cards between a world-user desk and AIA Admin. Not a ticket portal. Not a new chat product.
+
 ## Desk cards
 
 When → If → Then: a named desk AI drafts a queue card (fields / notes), not a raw chat blob. Yes / Stop / Kill stay human. Yes is not auto-send mail, push git, or a Collect charge. Collect HOLD. Thin `.aia` from Studio; test via Drop or the www hook. A desk holds up to 12 card fields — real cap. Sample JSON is illustrative only — desk words. Do not invent `render_desk_card`, interactive_review layout, or code_diff / confidence / token badge field types.

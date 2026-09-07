@@ -48,15 +48,15 @@
       <button type="button" id="quietBtn">Quiet</button>
     </div>
     <div id="desk-door">
-      <label>Desk name <span class="tip" title="The name you used when you opened the desk. Letters and dashes.">?</span></label>
+      <label>Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
       <input name="slug" placeholder="Desk name" autocomplete="username">
-      <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
+      <label>Your desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
       <input name="pin" inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
     </div>
     <div id="email-door" hidden>
-      <label>Email</label>
+      <label>Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
       <input type="email" name="email" placeholder="you@shop.com" autocomplete="username">
-      <label>Password</label>
+      <label>Password <button type="button" class="aia-tip" data-aia-tip="password" aria-label="More about Password">?</button></label>
       <input type="password" name="password" minlength="8" placeholder="At least 8 characters" autocomplete="current-password">
     </div>
     <div id="mfa-box" hidden>
@@ -70,6 +70,7 @@
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-switch.js"></script>
   <script src="speech.js"></script>
   <script src="doors.js"></script>
