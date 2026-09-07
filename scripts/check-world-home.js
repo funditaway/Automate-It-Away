@@ -21,6 +21,9 @@ function headerOf(html, name) {
 const index = read("index.html");
 const how = read("how.html");
 const setup = read("setup.html");
+const help = read("help.html");
+const examples = read("examples.html");
+const playbook = read("desk-playbook.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
 const pkg = read("package.json");
@@ -96,10 +99,34 @@ must(themeJs, 'id: "desk", href: "/desk", label: "Desk"', "theme.js shared nav D
   must(read(name), "data-aia-tip", name + " has a field tip");
 });
 
+const helpPlay = help.slice(help.indexOf('id="playbook-card"'), help.indexOf('id="world"'));
+if (!helpPlay) throw new Error("help.html playbook card missing");
+must(helpPlay, "One AIA account", "help playbook one account");
+must(helpPlay, "not a mint lesson", "help playbook does not teach mint");
+mustNot(helpPlay, "implementation path", "help playbook implementation-path jargon");
+mustNot(helpPlay, "orange until DNS", "help playbook DNS mint how-to");
+mustNot(helpPlay, "www.ai.aia", "help playbook www.ai.aia mint door");
+mustNot(helpPlay, "Hashed session", "help playbook hashed-session jargon");
+mustNot(help, "Hashed session", "help hashed-session jargon");
+mustNot(help, "X-Session", "help X-Session jargon");
+
+mustNot(examples, "Hashed session", "examples hashed-session jargon");
+mustNot(examples, "X-Session", "examples X-Session jargon");
+must(examples, "This phone remembers you", "examples stay-on-phone");
+must(examples, "Up to 8 phones", "examples eight phones");
+
+must(playbook, "compact || embed", "playbook hides DNS hold on world embed");
+must(playbook, "not a mint lesson", "playbook world embed does not teach mint");
+must(playbook, "orange until DNS", "playbook Studio still names ai.aia orange HOLD");
+must(playbook, "www.ai.aia", "playbook Studio still names www.ai.aia");
+
 must(yesNo, "check-world-home.js", "ACCOUNT-YES-NO records world-home honesty");
 must(yesNo, "index.html`, `how.html`, `setup.html", "ACCOUNT-YES-NO names world-home pages");
+must(yesNo, "help.html` `#playbook-card", "ACCOUNT-YES-NO names world Help playbook");
+must(yesNo, "`examples.html` Stay on this phone", "ACCOUNT-YES-NO names examples session honesty");
 must(packMd, "Open desk", "PACK.md names Open desk CTA");
 must(packMd, "Give pack", "PACK.md names Give pack");
+must(packMd, "not a mint lesson", "PACK.md names world Help playbook");
 must(pkg, "check-world-home.js", "package.json runs check-world-home");
 
 console.log("check-world-home: ok");
