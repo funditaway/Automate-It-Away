@@ -77,6 +77,29 @@ must(studioJs, "No separate license SKU", "studio js no license SKU");
 must(studioJs, "App / webhook", "studio js app/webhook example");
 must(studioJs, "Yes before outbound", "studio js Yes before outbound");
 must(more, "/help#build-pack", "more.html build-pack link");
+must(more, "/dev#first-pack", "more.html first-pack link");
+must(more, "First .aia pack", "more.html first-pack title");
+
+must(studio, 'id="first-pack"', "studio first-pack card");
+must(studio, "First .aia pack", "studio first-pack title");
+must(studio, "Webhook is the live pipe", "studio first-pack webhook");
+must(studio, "Buyer binds their own keys on Pipes", "studio first-pack buyer keys");
+must(studio, "Not a bindings product", "studio first-pack no bindings product");
+must(studio, "Yes / Stop / Kill before anything leaves", "studio first-pack Yes before outbound");
+must(studio, "Download .aia", "studio first-pack Download .aia");
+must(studio, "Install .aia", "studio first-pack Install .aia");
+must(studio, "Not a CLI", "studio first-pack not a CLI");
+must(studio, "Not a signed DID", "studio first-pack not signed DID");
+must(studio, "Not a stake publish", "studio first-pack not stake publish");
+must(studio, "No AAM mainnet", "studio first-pack no AAM");
+must(studio, "No paymasters", "studio first-pack no paymasters");
+must(studio, "No AIA token", "studio first-pack no AIA token");
+must(studio, "No DAO slash", "studio first-pack no DAO slash");
+must(studio, "No DePIN", "studio first-pack no DePIN");
+must(studio, "No Grandma brand", "studio first-pack no Grandma");
+must(studioJs, "First .aia pack.", "studio js first-pack one-liner");
+must(studioJs, "#first-pack", "studio js first-pack link");
+must(help, "/dev#first-pack", "help.html first-pack link");
 
 must(examples, "App / webhook", "examples App/webhook pack");
 must(examples, "Buyer binds their own keys", "examples buyer keys");
@@ -88,18 +111,26 @@ must(examples, "help.html#build-pack", "examples links build-pack");
 must(packMd, "Build a pack / desk AI", "PACK.md build-pack");
 must(packMd, "Desk orchestration", "PACK.md orchestration");
 must(packMd, "Thin App / webhook pack example", "PACK.md app/webhook example");
+must(packMd, "/dev#first-pack", "PACK.md first-pack docs");
 must(yesNo, "Build a pack / desk AI", "ACCOUNT-YES-NO build-pack");
 must(yesNo, "Desk orchestration", "ACCOUNT-YES-NO orchestration");
 must(yesNo, "Thin App / webhook pack example", "ACCOUNT-YES-NO app/webhook example");
+must(yesNo, "/dev#first-pack", "ACCOUNT-YES-NO first-pack docs");
 
 const build = help.slice(help.indexOf('id="build-pack"'), help.indexOf('id="ideas-queue"'));
 if (/\$47|\$197|\$50|300 hours|10\s*[–-]\s*15\s*minutes/i.test(build)) {
   throw new Error("build-pack invented $ / token / hour table");
 }
 
-["BUYER_ENVIRONMENT_BINDINGS", "aiastudios.app", "Login Kit"].forEach(function (bit) {
+["BUYER_ENVIRONMENT_BINDINGS", "aiastudios.app", "Login Kit", "aia-studio", "streaming USDC", "IPFS"].forEach(function (bit) {
   if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit) || examples.includes(bit)) {
     throw new Error("invented fiction on public Help/Studio/Examples: " + bit);
+  }
+});
+
+["cryptographically signed", "streaming USDC", "aia-studio CLI", "DID manifest"].forEach(function (bit) {
+  if (studio.includes(bit) || studioJs.includes(bit)) {
+    throw new Error("fake first-pack docs on Studio: " + bit);
   }
 });
 

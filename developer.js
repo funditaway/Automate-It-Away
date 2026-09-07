@@ -271,6 +271,7 @@
       "<div class=\"card\" id=\"aia-mail\"></div>" +
       "<div class=\"card\"><h2>AIA Internet · .aia pack</h2>" +
       "<p class=\"hint\">Download or share a pack as a .aia file — JSON inside, named desk AIs and guardrails included. Install a .aia onto this project, company, or family desk. Private until you list it. Collect stays HOLD.</p>" +
+      "<p class=\"hint\"><b>First .aia pack.</b> When → If → Then. Buyer binds their own keys on Pipes. Yes / Stop / Kill before outbound. Webhook is the live pipe. Not a bindings product. Docs: <a href=\"#first-pack\">#first-pack</a>.</p>" +
       "<label>Install a .aia file</label><input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download this pack as .aia</button></p></div>" +

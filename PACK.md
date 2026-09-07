@@ -135,6 +135,8 @@ Worth it: the process already works by hand; multi-step qualify → draft with f
 
 When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk AI drafts the card) → Yes / Stop / Kill. Fallbacks: Needs you / Talk to AIA. Thin `.aia` from `/dev`. Buyer pipes and keys. Sample JSON is illustrative only — desk words (`when` / `if` / `then`), not a bindings product. Thin App / webhook pack example (copy, do not seed): When = www hook / pipe, If = tag Lead, Then = draft. Buyer binds their own keys on Pipes. Yes / Stop / Kill before outbound. Not a listed SKU. Not a bindings product. Webhook is the live pipe. Yes is not a collect charge. Collect stays HOLD.
 
+First `.aia` pack docs live on Studio `/dev#first-pack` and match real Studio: open a desk → name a desk AI → When → If → Then (webhook is the live pipe) → buyer binds their own keys on Pipes → test via Drop or www hook → Yes / Stop / Kill before outbound → Download `.aia` (Give) or Install `.aia` with Yes (Update). Not a CLI. Not a signed DID. Not a stake publish. No AAM mainnet, paymasters, AIA token, DAO slash, DePIN, or Grandma brand.
+
 Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node, sub-agent mesh, or node canvas.
 
 Ideas → queue = Drop → Qualify → card → Yes / Stop. History is past / now / next — the card trail and this account’s roadmap. No effort or token estimate UI.
