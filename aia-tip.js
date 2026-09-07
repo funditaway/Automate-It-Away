@@ -164,8 +164,18 @@
       "</div>";
     pop.querySelector("h3").textContent = tip.title;
     pop.querySelector("p").textContent = tip.body;
-    pop.querySelector(".ask").href = askHref(id);
-    pop.querySelector(".got").addEventListener("click", close);
+    var ask = pop.querySelector(".ask");
+    ask.href = askHref(id);
+    ask.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      location.href = askHref(id);
+    });
+    pop.querySelector(".got").addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      close();
+    });
     document.body.appendChild(pop);
     lastBtn = btn;
     btn.setAttribute("aria-expanded", "true");
