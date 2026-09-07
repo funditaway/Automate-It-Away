@@ -149,6 +149,8 @@ How the queue runs: Pipes → Rules When · If · Then → pack / desk AI drafts
 
 how.html Paid / Collect: Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. Not “Collect when due.” Shop-week examples name when money would be due — they do not collect. Yes is not a collect charge. No fake pricing, credits, or AIA coin.
 
+how.html facts / Do film, help.html Owner vs helper / Talk / Log in, desk Talk, and Queue handoff: Yes / Stop / Kill is the rail. Not “Send or Stop.” Not “Nothing leaves until Send.” Send-it-yourself (copy, text, email) stays. AIA does not send.
+
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
 Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.”

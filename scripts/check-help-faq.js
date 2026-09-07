@@ -80,6 +80,14 @@ must(more, "Install / give / update a .aia with Yes", "more.html FAQ give-update
 must(more, "Connect existing wallet", "more.html FAQ Connect");
 must(more, "not Wallet.AIA", "more.html FAQ not Wallet.AIA");
 
+must(help, "A person still taps Yes or Stop.", "Help We type it in Yes or Stop");
+must(help, "you still tap Yes or Stop. You send the draft yourself.", "Help Talk tap Yes or Stop");
+must(help, "Owner still taps Yes and Stop.", "Help Log in Yes and Stop");
+must(help, "Yes when the rule allows", "Help Helper Yes not Send");
+["taps Send or Stop", "taps Send and Stop", "Send when the rule allows", "you still send the draft, or Stop"].forEach(function (bit) {
+  if (help.includes(bit)) throw new Error("Help painted Send as the HITL rail: " + bit);
+});
+
 must(yesNo, "check-help-faq.js", "ACCOUNT-YES-NO records Help FAQ honesty");
 must(pkg, "check-help-faq.js", "package.json runs check-help-faq");
 

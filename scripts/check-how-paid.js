@@ -40,6 +40,13 @@ mustNot(how, "Pay the bill if it is due", "life live pay");
 mustNot(how, "AIA coin", "AIA coin");
 mustNot(how, "compute credits", "compute credits");
 
+mustNot(how, "Send or Stop", "Send as the HITL rail");
+mustNot(how, "until Send", "Send as outbound gate");
+mustNot(how, "You send the draft. Stop", "Send as the Yes tap");
+must(how, "Yes / Stop / Kill", "How names Yes / Stop / Kill");
+must(how, "Nothing leaves until Yes", "Do until Yes");
+must(how, "You tap Yes. You send the draft yourself.", "film Yes then send yourself");
+
 if (/\$\d/.test(how) && !/illustrative/.test(how)) {
   throw new Error("how.html invented a price");
 }

@@ -45,7 +45,7 @@ function verdict(answers) {
   });
   if (!known && !blocked.length) return { can: false, title: "Needs a look", why: "That job is not one of the five steps we already run (capture, qualify, do, collect, follow).", need, ready, held, next: "request" };
   if (blocked.length) return { can: false, title: "Not on this desk yet", why: blocked.join(" "), need, ready, held, next: "request" };
-  return { can: true, title: "We can run this", why: "Capture lands in your queue. You tap Send or Stop.", need, ready, held, next: "setup" };
+  return { can: true, title: "We can run this", why: "Capture lands in your queue. You tap Yes or Stop.", need, ready, held, next: "setup" };
 }
 
 function publicIntake(row) {
@@ -204,7 +204,7 @@ module.exports = async function handler(req, res) {
     qualifyJob(job, shop);
     mem.jobs.unshift(job);
     row.jobId = job.id;
-    row.messages.push({ from: "desk", text: "Job is in the queue as \u201c" + title + "\u201d. Open the desk to Send or Stop." });
+    row.messages.push({ from: "desk", text: "Job is in the queue as \u201c" + title + "\u201d. Open the desk to Yes or Stop." });
     log("Intake", "Setup \u00b7 " + title, "Waiting", workspace);
     await save();
     return res.status(201).json({ ok: true, intake: publicIntake(row), job });
