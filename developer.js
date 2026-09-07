@@ -317,6 +317,7 @@
       "<div class=\"card\" style=\"margin:8px 0 0;padding:0;border:0;box-shadow:none\">" +
         "<p class=\"hint\"><b>Example When → If → Then</b> — copy, do not seed. No live eBay or mail.</p>" +
         "<p class=\"hint\">Lead click: Drop + tagged Lead + click → tag Interested. Draft. Human send HOLD.</p>" +
+        "<p class=\"hint\">App / webhook: pipe + tagged Lead → draft. Buyer keys on Pipes. Yes before outbound.</p>" +
         "<p class=\"hint\">Task done: status Done → notify owner. Desk AI draft.</p>" +
         "<p class=\"hint\">International order: Drop + international → Customs Form alert on Queue.</p>" +
         "<p class=\"hint\">Support late: unassigned + older than 24h → escalate priority.</p>" +

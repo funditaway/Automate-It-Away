@@ -14,6 +14,7 @@ const help = read("help.html");
 const studio = read("developer.html");
 const studioJs = read("developer.js");
 const more = read("more.html");
+const examples = read("examples.html");
 const packMd = read("PACK.md");
 const yesNo = read("ACCOUNT-YES-NO.md");
 
@@ -33,6 +34,11 @@ must(help, "not a bindings product", "help.html no bindings product");
 must(help, '"when": "pipe"', "help.html sample when");
 must(help, "Yes is not a collect charge", "help.html Yes ≠ collect");
 must(help, "Collect stays HOLD", "help.html Collect HOLD");
+must(help, "Thin App / webhook pack", "help.html app/webhook pack example");
+must(help, '"pipes": ["webhook"]', "help.html webhook pipes");
+must(help, "Yes before outbound", "help.html Yes before outbound");
+must(help, "Buyer binds their own keys on Pipes", "help.html buyer keys on Pipes");
+must(help, "Not a listed SKU", "help.html not listed SKU");
 
 must(help, 'id="desk-orch"', "help.html desk-orch card");
 must(help, "Desk orchestration is When · If · Then", "help.html orchestration");
@@ -63,15 +69,28 @@ must(studio, "/help#build-pack", "studio build-pack link");
 must(studio, "Yes is not a collect charge", "studio Yes ≠ collect");
 must(studio, "No separate license SKU", "studio no license SKU");
 must(studio, "careers portal", "studio no careers portal");
+must(studio, "App / webhook", "studio app/webhook example");
+must(studio, "Yes before outbound", "studio Yes before outbound");
 must(studioJs, "Build a pack / desk AI.", "studio js build-pack one-liner");
 must(studioJs, "/help#build-pack", "studio js build-pack link");
 must(studioJs, "No separate license SKU", "studio js no license SKU");
+must(studioJs, "App / webhook", "studio js app/webhook example");
+must(studioJs, "Yes before outbound", "studio js Yes before outbound");
 must(more, "/help#build-pack", "more.html build-pack link");
+
+must(examples, "App / webhook", "examples App/webhook pack");
+must(examples, "Buyer binds their own keys", "examples buyer keys");
+must(examples, "Yes / Stop / Kill before anything leaves", "examples Yes before outbound");
+must(examples, "Not a listed SKU", "examples not listed SKU");
+must(examples, "Not a bindings product", "examples no bindings product");
+must(examples, "help.html#build-pack", "examples links build-pack");
 
 must(packMd, "Build a pack / desk AI", "PACK.md build-pack");
 must(packMd, "Desk orchestration", "PACK.md orchestration");
+must(packMd, "Thin App / webhook pack example", "PACK.md app/webhook example");
 must(yesNo, "Build a pack / desk AI", "ACCOUNT-YES-NO build-pack");
 must(yesNo, "Desk orchestration", "ACCOUNT-YES-NO orchestration");
+must(yesNo, "Thin App / webhook pack example", "ACCOUNT-YES-NO app/webhook example");
 
 const build = help.slice(help.indexOf('id="build-pack"'), help.indexOf('id="ideas-queue"'));
 if (/\$47|\$197|\$50|300 hours|10\s*[–-]\s*15\s*minutes/i.test(build)) {
@@ -79,8 +98,8 @@ if (/\$47|\$197|\$50|300 hours|10\s*[–-]\s*15\s*minutes/i.test(build)) {
 }
 
 ["BUYER_ENVIRONMENT_BINDINGS", "aiastudios.app", "Login Kit"].forEach(function (bit) {
-  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit)) {
-    throw new Error("invented fiction on public Help/Studio: " + bit);
+  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit) || examples.includes(bit)) {
+    throw new Error("invented fiction on public Help/Studio/Examples: " + bit);
   }
 });
 

@@ -133,7 +133,7 @@ Worth it: the process already works by hand; multi-step qualify → draft with f
 
 ## Build a pack / desk AI
 
-When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk AI drafts the card) → Yes / Stop / Kill. Fallbacks: Needs you / Talk to AIA. Thin `.aia` from `/dev`. Buyer pipes and keys. Sample JSON is illustrative only — desk words (`when` / `if` / `then`), not a bindings product. Yes is not a collect charge. Collect stays HOLD.
+When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk AI drafts the card) → Yes / Stop / Kill. Fallbacks: Needs you / Talk to AIA. Thin `.aia` from `/dev`. Buyer pipes and keys. Sample JSON is illustrative only — desk words (`when` / `if` / `then`), not a bindings product. Thin App / webhook pack example (copy, do not seed): When = www hook / pipe, If = tag Lead, Then = draft. Buyer binds their own keys on Pipes. Yes / Stop / Kill before outbound. Not a listed SKU. Not a bindings product. Webhook is the live pipe. Yes is not a collect charge. Collect stays HOLD.
 
 Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node, sub-agent mesh, or node canvas.
 
@@ -161,7 +161,7 @@ World Help playbook (`help.html` `#playbook-card`): four steps on one AIA accoun
 
 World Help leftover (`help.html` lead, First day Desk AI, Yes button words): Yes is the rail, not Send-or-Stop. First day Desk AI does not teach orange-until-DNS mint. You send the draft yourself — Yes does not “post it.” `#aia-inbound` MX/DNS HOLD stays.
 
-Field tips + Ask AIA: `aia-tip.js` on How, Setup, Home, onboard, login, Drop, widget, Account, Examples, Help, and Support. Extra info on the field. Ask AIA opens Help chat (`/support`) with field id + plain tip text + page. Help chat stays draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human. Give pack / Update pack named CTAs on world doors, Help, and Account. A pack puts When → If → Then on this desk queue; buyer binds their own keys; Yes / Stop / Kill before outbound; webhook is the live pipe. consign.html Drop it / Yes. Not a ticket portal. Not a new chat product. No ETH escrow, micro-wei, streaming ETH, or L2 state channels.
+Field tips + Ask AIA: `aia-tip.js` on How, Setup, Home, onboard, login, Drop, widget, Account, Examples, Help, and Support. Extra info on the field. Ask AIA opens Help chat (`/support`) with field id + plain tip text + page. Help chat stays draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human. Give pack / Update pack named CTAs on world doors, Help, and Account. A pack puts When → If → Then on this desk queue; buyer binds their own keys; Yes / Stop / Kill before outbound; webhook is the live pipe. Thin App / webhook pack example on Help `#build-pack`, Examples, and Studio — copy, do not seed; not a listed SKU; not a bindings product. consign.html Drop it / Yes. Not a ticket portal. Not a new chat product. No ETH escrow, micro-wei, streaming ETH, or L2 state channels.
 
 ## Desk cards
 

@@ -24,6 +24,7 @@
     .card{border:1px solid var(--line);border-radius:14px;padding:16px;margin:10px 0}
     dt{font-weight:700;margin-top:8px;color:var(--heading)}
     dd{color:var(--muted);margin:0 0 8px}
+    .pack-ex{display:block;white-space:pre-wrap;word-break:break-word;font-size:12px;margin-top:4px}
   </style>
 </head>
 <body class="has-desk-nav">
@@ -156,6 +157,8 @@
       <p>Fallbacks: Needs you, or <a href="/support">Talk to AIA</a>.</p>
       <p>Write a thin <code>.aia</code> in Creators Studio (<code>/dev</code>). Buyers bring their own pipes and keys.</p>
       <p>Sample JSON is illustrative only — desk words, not a bindings product: <code>{ "when": "pipe", "if": "tag Lead", "then": "draft" }</code></p>
+      <p>Thin App / webhook pack — copy, do not seed. Not a listed SKU. Not a bindings product. Buyer binds their own keys on Pipes. Yes / Stop / Kill before anything leaves. Webhook is the live pipe. Collect stays HOLD.</p>
+      <p><code class="pack-ex">{ "name": "Lead from the site", "pipes": ["webhook"], "rules": [{ "text": "Hook + Lead → draft. Yes before outbound.", "when": "pipe", "ifTag": "Lead", "then": "draft" }] }</code></p>
     </div>
     <div class="card" id="ideas-queue">
       <h2>Ideas → queue</h2>
