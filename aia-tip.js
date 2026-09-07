@@ -151,6 +151,21 @@
       body: "Tell the desk the next draft. It stays on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
       ask: "What do I tell the desk on Put data on?"
     },
+    "drop-kind-need": {
+      title: "What is needed",
+      body: "Extra note for this kind. Lands on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      ask: "What do I put in What is needed on Drop?"
+    },
+    "drop-kind-when": {
+      title: "When",
+      body: "Optional time on the card. Friday 3pm. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      ask: "What does When mean on Drop?"
+    },
+    "drop-outcome": {
+      title: "Preferred outcome",
+      body: "What the desk should do next. Still a draft. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      ask: "What does Preferred outcome mean on Drop?"
+    },
     "support-title": {
       title: "Title",
       body: "Short name for the problem. Ask AIA answers first. Need a person? Drop a card on the AIA Admin desk.",

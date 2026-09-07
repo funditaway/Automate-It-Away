@@ -22,11 +22,11 @@
     { id: "walk-in", label: "Walk-in job", fields: ["need", "timing", "amount"], outcome: "wait" }
   ];
   var FIELDSPEC = {
-    need: { label: "What is needed", ph: "Grocery run · porch idea · Friday ride" },
+    need: { label: "What is needed", ph: "Grocery run · porch idea · Friday ride", tip: "drop-kind-need" },
     whoFor: { label: "Who it is for", ph: "Sam" },
     where: { label: "Where", ph: "School · shop · house" },
     fromWhere: { label: "From", ph: "Practice" },
-    timing: { label: "When", ph: "Friday 3pm" },
+    timing: { label: "When", ph: "Friday 3pm", tip: "drop-kind-when" },
     amount: { label: "Amount note", ph: "85", mode: "decimal" },
     condition: { label: "Condition", ph: "Good / needs clean" },
     phone: { label: "Callback number", ph: "417-555-0100", mode: "tel" }
@@ -100,6 +100,10 @@
     sel.innerHTML = TYPES.map(function (t) { return "<option value=\"" + t.id + "\"" + (t.id === on ? " selected" : "") + ">" + t.label + "</option>"; }).join("");
     sel.value = on; return on;
   }
+  function tipMark(id, title) {
+    if (!id) return "";
+    return " <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"" + id + "\" aria-label=\"More about " + title + "\">?</button>";
+  }
   function paintKindFields(box, kindId, preset) {
     if (!box) return;
     var t = typeOf(kindId); var have = preset || {};
@@ -107,7 +111,7 @@
       var spec = FIELDSPEC[key] || { label: key, ph: "" };
       var mode = spec.mode ? (" inputmode=\"" + spec.mode + "\"") : "";
       var val = have[key] ? String(have[key]).replace(/"/g, "&quot;") : "";
-      return "<label>" + spec.label + "</label><input data-kind-field=\"" + key + "\" placeholder=\"" + spec.ph + "\"" + mode + " value=\"" + val + "\">";
+      return "<label>" + spec.label + tipMark(spec.tip, spec.label) + "</label><input data-kind-field=\"" + key + "\" placeholder=\"" + spec.ph + "\"" + mode + " value=\"" + val + "\">";
     }).join("");
   }
   function collectKindFields() {
@@ -197,7 +201,8 @@
     if (!document.getElementById("kind-fields")) {
       var fields = document.createElement("div"); fields.id = "kind-fields";
       kind.parentNode.insertBefore(fields, kind.nextSibling);
-      var lab = document.createElement("label"); lab.textContent = "Preferred outcome";
+      var lab = document.createElement("label");
+      lab.innerHTML = "Preferred outcome" + tipMark("drop-outcome", "Preferred outcome");
       fields.parentNode.insertBefore(lab, fields.nextSibling);
       var chips = document.createElement("div"); chips.id = "outcome-chips"; chips.className = "outcomes who-chips";
       lab.parentNode.insertBefore(chips, lab.nextSibling);
