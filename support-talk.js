@@ -31,6 +31,8 @@
     return "broke";
   }
 
+  var askCtx = { field: "", tip: "", page: "" };
+
   function payload() {
     var title = (($("title") || {}).value || "").trim();
     var notes = (($("notes") || {}).value || "").trim();
@@ -43,11 +45,13 @@
     return {
       title: title,
       notes: notes,
-      page: page,
+      page: page || askCtx.page,
       deskName: deskName,
       who: who,
       email: email,
       phone: phone,
+      field: askCtx.field,
+      tip: askCtx.tip,
       kind: currentKind()
     };
   }
@@ -89,7 +93,9 @@
       custom: {
         outcome: "ticket",
         page: p.page,
-        deskName: p.deskName
+        deskName: p.deskName,
+        field: p.field,
+        tip: p.tip
       }
     };
     var res;
@@ -157,13 +163,22 @@
     var field = q.get("field") || "";
     var ask = q.get("ask") || "";
     var from = q.get("from") || "";
+    var tipText = q.get("tip") || "";
     var tips = (window.AIATip && AIATip.tips) || {};
     var tip = tips[field];
+    if (!tipText && tip) tipText = tip.body || "";
+    askCtx = {
+      field: field,
+      tip: tipText,
+      page: from ? ("/" + from.replace(/\.html$/, "")) : ""
+    };
     var line = "";
-    if (tip) {
-      line = tip.title + " — " + tip.body + " Need more? Type it or Talk. Help, tickets, and messages move as cards between your desk and the AIA Admin desk. A person looks.";
+    if (tip || tipText) {
+      line = ((tip && tip.title) ? tip.title + " — " : "") +
+        (tipText || (tip && tip.body) || "") +
+        " Need more? Type it or Talk. This chat stays draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human.";
     } else if (ask) {
-      line = ask + " Type more or Talk. We write a card on the AIA Admin desk. A person looks.";
+      line = ask + " Type more or Talk. This chat stays draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human.";
     }
     if (!line) return;
     thread(line);
@@ -171,8 +186,13 @@
     var notes = $("notes");
     var page = $("page");
     if (title && !title.value) title.value = (tip && tip.ask) || ask;
-    if (notes && !notes.value) notes.value = (from ? ("From " + from + ". ") : "") + ((tip && tip.ask) || ask);
-    if (page && from && !page.value) page.value = "/" + from.replace(/\.html$/, "");
+    if (notes && !notes.value) {
+      notes.value = (from ? ("From " + from + ". ") : "") +
+        (field ? ("Field " + field + ". ") : "") +
+        (tipText ? (tipText + " ") : "") +
+        ((tip && tip.ask) || ask);
+    }
+    if (page && from && !page.value) page.value = askCtx.page;
     paintKind(guessKind((tip && tip.ask) || ask || field));
   }
 

@@ -118,11 +118,23 @@
     return p.replace(/\.html$/, "") || "index";
   }
 
+  function context(id) {
+    var tip = TIPS[id] || {};
+    return {
+      field: id || "",
+      title: tip.title || "",
+      tip: tip.body || "",
+      ask: tip.ask || "I need more on this desk.",
+      page: pageFrom()
+    };
+  }
+
   function askHref(id) {
-    var tip = TIPS[id] || { ask: "I need more on this desk." };
-    return "support.html?ask=" + encodeURIComponent(tip.ask || "") +
-      "&field=" + encodeURIComponent(id || "") +
-      "&from=" + encodeURIComponent(pageFrom());
+    var ctx = context(id);
+    return "support.html?ask=" + encodeURIComponent(ctx.ask || "") +
+      "&field=" + encodeURIComponent(ctx.field || "") +
+      "&tip=" + encodeURIComponent(ctx.tip || "") +
+      "&from=" + encodeURIComponent(ctx.page || "");
   }
 
   var pop = null;
@@ -209,5 +221,5 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
   else bind();
 
-  window.AIATip = { tips: TIPS, askHref: askHref, close: close };
+  window.AIATip = { tips: TIPS, context: context, askHref: askHref, close: close };
 })();
