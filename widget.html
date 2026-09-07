@@ -84,9 +84,9 @@
       <p class="desk-on off" id="desk-on" role="status">No desk yet. Pick a saved desk, add one you already opened, or create a new desk.</p>
       <div class="desk-chips" id="desk-chips"></div>
       <div id="desk-add" hidden>
-        <label for="add-ws">Desk name</label>
+        <label for="add-ws">Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
         <input id="add-ws" placeholder="Oddo house" autocomplete="username">
-        <label for="add-pin">Desk code</label>
+        <label for="add-pin">Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
         <input id="add-pin" placeholder="Your code" inputmode="numeric" minlength="4" autocomplete="current-password">
         <button type="button" class="go" id="add-open" style="margin-top:10px">Save and open this desk</button>
       </div>
@@ -142,17 +142,17 @@
             <option value="grocery">Groceries / store</option>
             <option value="custom">Custom drop</option>
           </select>
-          <label for="title">Title</label>
+          <label for="title">Title <button type="button" class="aia-tip" data-aia-tip="drop-title" aria-label="More about Title">?</button></label>
           <input id="title" placeholder="Need a ride Friday · grocery list · porch idea">
           <p class="sub" id="title-hint">Short name for the card. Required to drop.</p>
-          <label for="who">Your name</label>
+          <label for="who">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
           <input id="who" placeholder="Name">
           <label for="phone">Phone</label>
           <input id="phone" placeholder="417-555-0100" inputmode="tel">
           <label for="photo">Photos, documents, or video</label>
           <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm" aria-describedby="file-list">
           <p class="sub file-list" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
-          <label for="note">What do you need?</label>
+          <label for="note">What do you need? <button type="button" class="aia-tip" data-aia-tip="drop-need" aria-label="More about What do you need">?</button></label>
           <textarea id="note" rows="3" placeholder="A task, an errand, a list, an idea, a project — in your words"></textarea>
         </div>
         <div id="pane-agent" hidden>
@@ -190,6 +190,7 @@
   <script src="desk-nav.js"></script>
   <script src="drop-pick.js"></script>
   <script src="drop-agent.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="speech.js"></script>
   <script>
     const params = new URLSearchParams(location.search);

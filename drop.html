@@ -142,17 +142,17 @@
             <option value="grocery">Groceries / store</option>
             <option value="custom">Custom drop</option>
           </select>
-          <label for="title">Title</label>
+          <label for="title">Title <button type="button" class="aia-tip" data-aia-tip="drop-title" aria-label="More about Title">?</button></label>
           <input id="title" placeholder="Need a ride Friday · grocery list · porch idea">
           <p class="sub" id="title-hint">Short name for the card. Required to drop.</p>
-          <label for="who">Your name</label>
+          <label for="who">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
           <input id="who" placeholder="Name">
           <label for="phone">Phone</label>
           <input id="phone" placeholder="417-555-0100" inputmode="tel">
           <label for="photo">Photos, documents, or video</label>
           <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm" aria-describedby="file-list">
           <p class="sub file-list" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
-          <label for="note">What do you need?</label>
+          <label for="note">What do you need? <button type="button" class="aia-tip" data-aia-tip="drop-need" aria-label="More about What do you need">?</button></label>
           <textarea id="note" rows="3" placeholder="A task, an errand, a list, an idea, a project — in your words"></textarea>
         </div>
         <div id="pane-agent" hidden>

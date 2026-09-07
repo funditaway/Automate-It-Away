@@ -60,7 +60,15 @@
     <div class="card" id="account-road">
       <h2>Past / now / next</h2>
       <p class="meta">This account on History. One desk. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. .aia identity HOLD until mint.</p>
-      <div class="links"><a href="/history#account-road">Account roadmap on History</a><a href="/dev">Give / update · Studio</a><a href="/market">Install pack</a></div>
+      <div class="links">
+        <a href="/history#account-road">Give pack</a>
+        <button type="button" class="aia-tip" data-aia-tip="give-pack" aria-label="More about Give pack">?</button>
+        <a href="/history#account-road">Update pack</a>
+        <button type="button" class="aia-tip" data-aia-tip="update-pack" aria-label="More about Update pack">?</button>
+        <a href="/history#account-road">Account roadmap on History</a>
+        <a href="/dev">Studio</a>
+        <a href="/market">Install pack</a>
+      </div>
     </div>
     <div class="card">
       <h2>You</h2>
@@ -68,15 +76,15 @@
         <button type="button" class="you-pic" id="pic-btn" aria-label="Change photo">AIA</button>
         <input id="pic-file" type="file" accept="image/*" hidden>
         <div style="flex:1;min-width:0">
-          <label for="you-name">Your name</label>
+          <label for="you-name">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
           <input id="you-name" maxlength="80" placeholder="What this phone should call you">
         </div>
       </div>
-      <label for="you-email">Email</label>
+      <label for="you-email">Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
       <input id="you-email" type="email" placeholder="you@shop.com">
       <label for="you-phone">Phone</label>
       <input id="you-phone" maxlength="32" placeholder="417-555-0100">
-      <label for="you-city">City</label>
+      <label for="you-city">City <button type="button" class="aia-tip" data-aia-tip="city" aria-label="More about City">?</button></label>
       <input id="you-city" maxlength="60" placeholder="Springfield">
       <label for="you-handle">AIA Internet name</label>
       <input id="you-handle" maxlength="63" placeholder="james.aia" autocomplete="username">
@@ -96,15 +104,15 @@
         <button type="button" class="edit" id="use-email">Email + password</button>
       </div>
       <div id="gate-desk">
-        <label>Account or desk name</label>
+        <label>Account or desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
         <input id="slug">
-        <label>Your code</label>
+        <label>Your code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
         <input id="pin" inputmode="numeric" minlength="4">
       </div>
       <div id="gate-email" hidden>
-        <label>Email</label>
+        <label>Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
         <input id="gate-mail" type="email">
-        <label>Password</label>
+        <label>Password <button type="button" class="aia-tip" data-aia-tip="password" aria-label="More about Password">?</button></label>
         <input id="gate-pass" type="password" minlength="8">
       </div>
       <p><button class="go" type="submit">Open the account</button></p>
@@ -137,6 +145,7 @@
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="aia-wallet.js"></script>

@@ -110,8 +110,13 @@ mustNot(helpPlay, "Hashed session", "help playbook hashed-session jargon");
 mustNot(help, "Hashed session", "help hashed-session jargon");
 mustNot(help, "X-Session", "help X-Session jargon");
 must(help, "A person taps Yes — or Stops it — before it goes out.", "help lead Yes rail");
+must(help, ">Give pack<", "help Give pack CTA");
+must(help, ">Update pack<", "help Update pack CTA");
 mustNot(help, "sends the draft — or Stops", "help lead Send as rail");
 mustNot(help, "post it, text it", "help Yes as outbound post");
+mustNot(help, "streaming ETH", "help streaming ETH");
+mustNot(help, "state channel", "help L2 state channel");
+mustNot(help, "DID login", "help DID login");
 
 const helpFirst = help.slice(help.indexOf("<h2>First day</h2>"), help.indexOf("<h2>Pages that exist</h2>"));
 if (!helpFirst) throw new Error("help.html First day card missing");

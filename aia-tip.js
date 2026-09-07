@@ -63,12 +63,12 @@
     },
     "give-pack": {
       title: "Give pack",
-      body: "Give is the file. They install with Yes. Nothing silent. Recurring update HOLD. Collect stays HOLD.",
+      body: "Give is the file. They install with Yes. A pack puts When → If → Then on this desk queue. Buyer binds their own keys. Yes / Stop / Kill before anything leaves. Webhook is the live pipe. Recurring update HOLD. Collect stays HOLD.",
       ask: "How do I give a pack?"
     },
     "update-pack": {
       title: "Update pack",
-      body: "Update is install this .aia again with Yes. Recurring update HOLD. No silent refresh. Collect stays HOLD.",
+      body: "Update is install this .aia again with Yes. Same When → If → Then on this queue. Recurring update HOLD. No silent refresh. Collect stays HOLD.",
       ask: "How do I update a pack?"
     },
     "yes-stop-kill": {
@@ -110,6 +110,31 @@
       title: "Practice card",
       body: "Stays on this phone. DEMO names. A real card only leaves when you copy it, text it, email it, or hand it off.",
       ask: "Is the practice card a real job?"
+    },
+    "drop-title": {
+      title: "Title",
+      body: "Short name for the card. Required to drop. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.",
+      ask: "What title do I put on a Drop?"
+    },
+    "drop-need": {
+      title: "What do you need?",
+      body: "A task, an errand, a list, an idea, or a project in your words. It becomes a card. Yes / Stop stay human.",
+      ask: "What do I type in What do you need?"
+    },
+    "support-title": {
+      title: "Title",
+      body: "Short name for the problem. Ask AIA answers first. Need a person? Drop a card on the AIA Admin desk.",
+      ask: "What title do I put on Help?"
+    },
+    "support-broke": {
+      title: "What broke",
+      body: "What happened, which page, what you already tried. This chat stays draft / help. A person taps Yes or Stop if a card is dropped.",
+      ask: "What do I write in What broke?"
+    },
+    "support-page": {
+      title: "Which page",
+      body: "The path you were on — /desk, /drop, /login. Helps the desk find it. Optional.",
+      ask: "Which page do I name on Help?"
     }
   };
 
