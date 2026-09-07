@@ -37,26 +37,238 @@ function blobOf(job) {
   ].filter(Boolean).join(" ").toLowerCase();
 }
 
-function packFace(id) {
+const FACE_SPEC = {
+  vita: {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What they need" },
+    when: { key: "timing", label: "When" },
+    where: { key: "state", label: "State" },
+    how: "Draft a packet. Bind stays off. Illustration send is an owner tap.",
+    next: "Draft the packet. Illustration send is an owner tap.",
+    rails: ["Bind stays off the desk.", "Illustration send is an owner tap."],
+    keys: { who: ["whoFor", "contactName", "who"], what: ["need", "product", "title", "kind"], when: ["timing", "when"], where: ["state", "where"] }
+  },
+  home: {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What is needed" },
+    when: { key: "timing", label: "When" },
+    where: { key: "where", label: "Where" },
+    how: "Text, calendar file, or hand it.",
+    next: "Cap same-day. Ask if a kid is named.",
+    rails: ["Cap same-day cards."],
+    keys: { who: ["whoFor", "contactName", "who"], what: ["need", "title", "kind"], when: ["timing", "when"], where: ["where"] }
+  },
+  consign: {
+    who: { key: "contactName", label: "Seller" },
+    what: { key: "title", label: "Item" },
+    when: { key: "timing", label: "List when" },
+    where: { key: "where", label: "Photo / channel" },
+    how: "Draft a listing. Payout waits.",
+    next: "Draft the title. Payout waits on you.",
+    rails: ["Wait on me before a payout leaves."],
+    keys: { who: ["contactName", "who"], what: ["title", "need", "condition"], when: ["timing", "when"], where: ["where"] }
+  },
+  fund: {
+    who: { key: "contactName", label: "Campaign owner" },
+    what: { key: "title", label: "Campaign" },
+    when: { key: "timing", label: "Raise window" },
+    where: { key: "where", label: "Page" },
+    how: "Draft the page. Credit waits.",
+    next: "Draft the page. Credit decision waits on you.",
+    rails: ["Wait on me before a credit decision."],
+    keys: { who: ["contactName", "who"], what: ["campaign", "title", "need"], when: ["timing", "when"], where: ["where"] }
+  },
+  land: {
+    who: { key: "contactName", label: "Buyer" },
+    what: { key: "title", label: "Lot" },
+    when: { key: "timing", label: "Interest when" },
+    where: { key: "where", label: "Flood / access" },
+    how: "Lot note. Cap flood and title.",
+    next: "Write the lot note. Cap flood and title.",
+    rails: ["Cap flood cards.", "Cap title cards."],
+    keys: { who: ["contactName", "who"], what: ["lot", "title", "need"], when: ["timing", "when"], where: ["where"] }
+  },
+  "aia-adoption": {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What the work is" },
+    when: { key: "timing", label: "When" },
+    where: { key: "deskName", label: "This desk" },
+    how: "Drop real work. AIA drafts. You tap Yes or Stop.",
+    next: "AIA drafts. A person taps Yes or Stop. Collect stays HOLD.",
+    rails: ["Worker-first: a person taps Yes or Stop.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
+  },
+  "aia-implement": {
+    who: { key: "contactName", label: "Who does the work now" },
+    what: { key: "need", label: "Which leak or step" },
+    when: { key: "timing", label: "When it piles up" },
+    where: { key: "deskName", label: "This desk" },
+    how: "Walk 1→2→3→4. AIA drafts. You tap Yes, Stop, or Kill.",
+    next: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
+    rails: ["Four steps on this desk.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
+  }
+};
+
+function clipFace(s, n) {
+  return String(s || "").trim().slice(0, n || 200);
+}
+
+function installedPackId(shop) {
+  if (!shop) return "";
+  const raw = String(shop.pack || shop.packId || "").toLowerCase();
+  if (raw) return raw;
+  if (Array.isArray(shop.packs) && shop.packs[0]) {
+    const p = shop.packs[0];
+    return String((p && (p.id || p.packId || p)) || "").toLowerCase();
+  }
+  return "";
+}
+
+function packFace(id, shop) {
   const key = String(id || "").toLowerCase();
-  return FACES[key] || FACES.home;
+  if (FACES[key]) return FACES[key];
+  const installed = installedPackId(shop);
+  const use = key || installed;
+  if (shop && use && (use === installed || use === String(shop.pack || "").toLowerCase())) {
+    const q = shop.packQueue || {};
+    return {
+      id: use,
+      key: use,
+      name: clipFace(shop.packName || q.badge || use, 48) || "Pack",
+      family: clipFace(q.family || "", 48)
+    };
+  }
+  return FACES.home;
 }
 
 function detectPack(job, shop) {
   const custom = (job && job.custom && typeof job.custom === "object") ? job.custom : {};
-  const raw = String(
-    (job && job.pack) || custom.pack || (shop && (shop.pack || shop.model)) ||
-    (shop && Array.isArray(shop.packs) && shop.packs[0]) || ""
-  ).toLowerCase();
-  if (FACES[raw]) return packFace(raw).id;
+  const explicit = String((job && job.pack) || custom.pack || "").trim().toLowerCase();
+  if (explicit) {
+    if (FACES[explicit]) return packFace(explicit).id;
+    return explicit.slice(0, 40);
+  }
+  const installed = installedPackId(shop);
+  if (installed) {
+    if (FACES[installed]) return packFace(installed).id;
+    return installed.slice(0, 40);
+  }
   const text = blobOf(job) + " " + String((shop && (shop.does || shop.biz || shop.model)) || "").toLowerCase();
   if (/\b(quote|insur|illustration|life policy|annuity|missed call|sit-down)\b/.test(text)) return "vita";
   if (/\b(consign|resale|ebay|listing|payout|comps)\b/.test(text)) return "consign";
   if (/\b(fund|campaign|raise|credit)\b/.test(text)) return "fund";
   if (/\b(lot|acre|survey|flood|earnest|title run)\b/.test(text)) return "land";
   if (/\b(home|family|school|chore|grocery|ride|pickup|reminder)\b/.test(text)) return "home";
-  if (shop && shop.pack) return packFace(shop.pack).id;
   return "home";
+}
+
+function slotLabel(slot, fallback) {
+  if (slot && typeof slot === "object" && slot.label) return clipFace(slot.label, 40);
+  if (typeof slot === "string" && slot.trim()) return clipFace(slot, 40);
+  return fallback;
+}
+
+function slotKey(slot) {
+  if (slot && typeof slot === "object" && slot.key) return String(slot.key);
+  return "";
+}
+
+function specKeys(slot, extra) {
+  const out = [];
+  const k = slotKey(slot);
+  if (k) out.push(k);
+  (extra || []).forEach(function (key) {
+    if (key && out.indexOf(key) < 0) out.push(key);
+  });
+  return out;
+}
+
+function firstFaceValue(job, keys) {
+  const custom = (job && job.custom && typeof job.custom === "object") ? job.custom : {};
+  const face = custom.face && typeof custom.face === "object" ? custom.face : {};
+  const list = keys || [];
+  for (let i = 0; i < list.length; i++) {
+    const k = list[i];
+    const v = face[k] || custom[k] || (job && job[k]);
+    if (v != null && String(v).trim()) return clipFace(v, 200);
+  }
+  return "";
+}
+
+function howOfSpec(spec) {
+  if (!spec) return "";
+  if (typeof spec.how === "string") return clipFace(spec.how, 200);
+  if (spec.how && spec.how.label) return clipFace(spec.how.label, 200);
+  return "";
+}
+
+function packSpecOf(packId, shop) {
+  const id = String(packId || installedPackId(shop) || "").toLowerCase();
+  const builtId = FACES[id] ? packFace(id).id : id;
+  const built = FACE_SPEC[builtId] || FACE_SPEC[id] || null;
+  const file = loadPackFile(id) || (builtId !== id ? loadPackFile(builtId) : null);
+  const installed = installedPackId(shop);
+  const fromShop = shop && shop.packFace && typeof shop.packFace === "object" && (!installed || installed === id || (FACES[installed] && packFace(installed).id === id))
+    ? shop.packFace
+    : null;
+  const raw = fromShop || (file && file.face && typeof file.face === "object" ? file.face : null) || built;
+  if (!raw && !id) return null;
+  const q = (shop && shop.packQueue) || (file && file.queue) || {};
+  const name = clipFace((shop && shop.packName) || q.badge || (file && file.name) || (FACES[id] && FACES[id].name) || id, 48);
+  const spec = {
+    id: builtId || id,
+    name: name || "Pack",
+    family: clipFace(q.family || (file && file.family) || (FACES[id] && FACES[id].family) || "", 48),
+    who: (raw && raw.who) || (built && built.who),
+    what: (raw && raw.what) || (built && built.what),
+    when: (raw && raw.when) || (built && built.when),
+    where: (raw && raw.where) || (built && built.where),
+    how: howOfSpec(raw) || howOfSpec(built),
+    next: clipFace((raw && raw.next) || (built && built.next) || q.empty || "", 200),
+    rails: (raw && Array.isArray(raw.rails) ? raw.rails : null) || (built && built.rails) || [],
+    keys: (built && built.keys) || {}
+  };
+  if (!spec.how) spec.how = name ? (name + ". Draft the next step. A person taps Yes or Stop.") : "";
+  if (!spec.next) spec.next = "On the queue. You tap Yes or Stop. Collect stays HOLD.";
+  return spec;
+}
+
+function stampPackShape(job, shop) {
+  if (!job) return job;
+  const spec = packSpecOf(job.pack, shop);
+  const faceMeta = packFace(job.pack, shop);
+  const name = (spec && spec.name) || (faceMeta && faceMeta.name) || job.packName || "";
+  const whoKeys = specKeys(spec && spec.who, (spec && spec.keys && spec.keys.who) || ["whoFor", "contactName", "who"]);
+  const whatKeys = specKeys(spec && spec.what, (spec && spec.keys && spec.keys.what) || ["need", "title", "kind"]);
+  const whenKeys = specKeys(spec && spec.when, (spec && spec.keys && spec.keys.when) || ["timing", "when"]);
+  const whereKeys = specKeys(spec && spec.where, (spec && spec.keys && spec.keys.where) || ["state", "where"]);
+  const who = firstFaceValue(job, whoKeys);
+  const what = firstFaceValue(job, whatKeys) || clipFace((job && (job.title || job.kind)) || "", 200);
+  const when = firstFaceValue(job, whenKeys) || clipFace((job && job.timing) || "", 80);
+  const where = firstFaceValue(job, whereKeys);
+  const how = (spec && spec.how) || "";
+  job.packName = name || job.packName;
+  if (spec && spec.family) job.packFamily = spec.family;
+  job.custom = Object.assign({}, job.custom || {}, {
+    pack: job.pack || "",
+    packName: job.packName || "",
+    face: {
+      who: who,
+      what: what,
+      when: when,
+      where: where,
+      how: how,
+      name: job.packName || "",
+      labels: {
+        who: slotLabel(spec && spec.who, "Who it is for"),
+        what: slotLabel(spec && spec.what, "What they need"),
+        when: slotLabel(spec && spec.when, "When"),
+        where: slotLabel(spec && spec.where, "Where")
+      }
+    }
+  });
+  return job;
 }
 
 function detectKind(job) {
@@ -87,8 +299,8 @@ function packRulesOf(packId) {
   return (file && Array.isArray(file.rules)) ? file.rules : [];
 }
 
-function brainOf(packId, kind) {
-  const face = packFace(packId);
+function brainOf(packId, kind, shop) {
+  const face = packFace(packId, shop);
   const pack = String(packId || "").toLowerCase();
   const k = String(kind || "request").toLowerCase();
   if (face.id === "vita") {
@@ -138,6 +350,16 @@ function brainOf(packId, kind) {
       artifact: "draft on the card",
       draft: "Four steps. Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
       next: "Walk 1→2→3→4. Queue cards count. Yes, Stop, or Kill stay human."
+    };
+  }
+  const spec = packSpecOf(pack, shop);
+  const installed = installedPackId(shop);
+  if (spec && installed && !FACES[pack] && pack !== "home") {
+    return {
+      risk: "none",
+      artifact: "draft on the card",
+      draft: (spec.how || (spec.name + ". Draft the next step.")) + (/\bHOLD\b/i.test(spec.how || "") ? "" : " A person taps Yes or Stop. Collect stays HOLD."),
+      next: spec.next || "On the queue. You tap Yes or Stop. Collect stays HOLD."
     };
   }
   return {
@@ -366,7 +588,7 @@ function applyRules(job, shop, step) {
 }
 
 function engineRecs(job, shop) {
-  const face = packFace(job && job.pack);
+  const face = packFace(job && job.pack, shop);
   const pack = String((job && job.pack) || "").toLowerCase();
   const recs = [];
   function add(kind, text) {
@@ -397,6 +619,12 @@ function engineRecs(job, shop) {
     add("ask", "Which step — leak, pipe, desk AI, or guard?");
     add("draft", "AIA drafts. A person taps Yes, Stop, or Kill.");
     add("hold", "Collect stays HOLD. No silent send. No fake on-chain.");
+  } else if (shop && installedPackId(shop) && !FACES[pack] && pack !== "home") {
+    const spec = packSpecOf(pack, shop);
+    const askBits = [slotLabel(spec && spec.who, ""), slotLabel(spec && spec.what, ""), slotLabel(spec && spec.when, "")].filter(Boolean);
+    add("ask", askBits.length ? (askBits.join(", ") + "?") : "What is the work, and who is it for?");
+    add("draft", (spec && spec.how) || "AIA drafts. A person taps Yes or Stop.");
+    add("hold", "Collect stays HOLD. No silent send.");
   } else {
     add("next", "Copy, text, email, or hand this card.");
     add("ask", "Who is it for, and when?");
@@ -422,15 +650,15 @@ function qualifyJob(job, shop, jobs) {
   if (!job) return job;
   job.pack = detectPack(job, shop);
   job.kind = detectKind(job);
-  const face = packFace(job.pack);
+  const face = packFace(job.pack, shop);
   job.packName = face.name;
   job.packFamily = face.family;
-  job.custom = Object.assign({}, job.custom || {}, { pack: job.pack, packName: face.name });
+  stampPackShape(job, shop);
   if (!job.status || job.status === "exception") job.status = "waiting";
   if (!job.step) job.step = "Qualify";
   clock.applyClock(job, job);
   clock.tickClock(job);
-  const brain = brainOf(job.pack, job.kind);
+  const brain = brainOf(job.pack, job.kind, shop);
   if (!job.risk || job.risk === "none") job.risk = brain.risk || "none";
   if (!job.artifact) job.artifact = brain.artifact;
   if (job.draft) job._incomingDraft = job.draft;
@@ -545,6 +773,9 @@ module.exports = Object.assign({}, hand, {
   detectPack,
   detectKind,
   packFace,
+  packSpecOf,
+  stampPackShape,
+  installedPackId,
   recommend,
   icsOf,
   whenOf,

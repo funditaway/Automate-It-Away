@@ -169,6 +169,20 @@
     if (!bits.length) return "Advanced stays off until you tap a quick action. Nobody sends money from here.";
     return bits.join(" ") + " Nobody sends money from here.";
   }
+  function applyInstalledPack(pack) {
+    window.__aiaDeskPack = pack && pack.id ? pack : null;
+    var sel = document.getElementById("drop-pack");
+    if (!sel) return;
+    var lab = sel.previousElementSibling;
+    var on = !!(pack && pack.id);
+    sel.hidden = on;
+    if (lab && lab.tagName === "LABEL") lab.hidden = on;
+    if (on) {
+      sel.value = "";
+      var hint = document.getElementById("action-hint");
+      if (hint) hint.textContent = (pack.name || "This pack") + " is on this desk. Drop anything — the queue card already uses that pack. You don't pick a pack each time. Nobody sends money from here.";
+    }
+  }
   function collectAutomation() {
     var picked = window.__aiaActions || {}; var auto = {};
     ACTIONS.forEach(function (a) { if (picked[a.id]) auto[a.id] = true; });
@@ -250,6 +264,7 @@
         }).catch(function () {});
       } catch (e) {}
     }
+    if (window.__aiaDeskPack && applyInstalledPack) applyInstalledPack(window.__aiaDeskPack);
     kindSel.addEventListener("change", function () {
       var t = typeOf(kindSel.value);
       paintKindFields(document.getElementById("kind-fields"), t.id);
@@ -311,5 +326,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootDropKinds);
   else bootDropKinds();
-  window.AIADropAgent = { WHO: WHO, TYPES: TYPES, OUTCOMES: OUTCOMES, ACTIONS: ACTIONS, implementFromText: implementFromText, paintWho: paintWho, paintPreview: paintPreview, paintKinds: paintKinds, paintKindFields: paintKindFields, collectKindFields: collectKindFields, paintOutcomes: paintOutcomes, typeOf: typeOf, outcomeOf: outcomeOf, applyKindToForm: applyKindToForm, bootDropKinds: bootDropKinds, firstLine: firstLine, val: val, destSlug: destSlug, deskIsOpen: deskIsOpen };
+  window.AIADropAgent = { WHO: WHO, TYPES: TYPES, OUTCOMES: OUTCOMES, ACTIONS: ACTIONS, implementFromText: implementFromText, paintWho: paintWho, paintPreview: paintPreview, paintKinds: paintKinds, paintKindFields: paintKindFields, collectKindFields: collectKindFields, paintOutcomes: paintOutcomes, typeOf: typeOf, outcomeOf: outcomeOf, applyKindToForm: applyKindToForm, bootDropKinds: bootDropKinds, firstLine: firstLine, val: val, destSlug: destSlug, deskIsOpen: deskIsOpen, applyInstalledPack: applyInstalledPack };
 })();

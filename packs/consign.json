@@ -11,6 +11,13 @@
   "kill": ["stolen / no title / unsellable"],
   "pipes": ["ebay", "square", "consign"],
   "artifacts": ["listing", "payout memo"],
+  "face": {
+    "who": { "key": "contactName", "label": "Seller" },
+    "what": { "key": "title", "label": "Item" },
+    "when": { "key": "timing", "label": "List when" },
+    "where": { "key": "where", "label": "Photo / channel" },
+    "how": "Draft a listing. Payout waits."
+  },
   "fields": {
     "capture": ["title", "kind", "from", "contactName", "phone", "email", "notes", "photoUrl", "provider", "pack"],
     "qualify": ["condition", "titlePresent", "compsLow", "compsHigh", "ask", "risk", "timing", "why"],

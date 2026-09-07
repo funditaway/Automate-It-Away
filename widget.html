@@ -303,9 +303,15 @@
         const shop = data.workspace || {};
         if ((shop.biz || shop.name) && desk) desk.name = shop.biz || shop.name;
         FIELDS = shop.fields || [];
+        window.__aiaDeskPack = shop.pack ? { id: shop.pack, name: shop.packName || shop.pack } : null;
+        if (window.AIADropAgent && AIADropAgent.applyInstalledPack) AIADropAgent.applyInstalledPack(window.__aiaDeskPack);
         const nouns = (window.AIADesks && AIADesks.nounsOf) ? AIADesks.nounsOf(shop.nouns) : null;
-        if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
-          const sub = document.getElementById("drop-sub");
+        const sub = document.getElementById("drop-sub");
+        if (sub && ws && shop.pack) {
+          const packName = shop.packName || "This pack";
+          const cap = (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) ? (nouns.capture + " lands here. ") : "";
+          sub.textContent = cap + packName + " is on this desk. Drop anything — the queue card already uses that pack. You don't pick a pack each time. You still tap Yes or No. Nobody sends money from here.";
+        } else if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
           if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or No. Nobody sends money from here.";
         }
       } catch (e) {}
