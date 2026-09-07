@@ -63,8 +63,8 @@ const FACE_SPEC = {
     what: { key: "title", label: "Item" },
     when: { key: "timing", label: "List when" },
     where: { key: "where", label: "Photo / channel" },
-    how: "Draft a listing. Payout waits.",
-    next: "Draft the title. Payout waits on you.",
+    how: "Draft a listing. Collect HOLD until Yes + a real money pipe.",
+    next: "Draft the title. Collect HOLD until Yes + a real money pipe.",
     rails: ["Wait on me before a payout leaves."],
     keys: { who: ["contactName", "who"], what: ["title", "need", "condition"], when: ["timing", "when"], where: ["where"] }
   },
@@ -317,7 +317,7 @@ function brainOf(packId, kind, shop) {
       risk: k === "list" ? "title" : "none",
       artifact: "listing",
       draft: "Draft the listing. Price and channel stay on the card. You still send it.",
-      next: "Qualify condition and title. Draft the listing. Payout waits on the owner."
+      next: "Qualify condition and title. Draft the listing. Collect HOLD until Yes + a real money pipe."
     };
   }
   if (face.id === "fund") {
@@ -604,7 +604,7 @@ function engineRecs(job, shop) {
   } else if (face.id === "consign") {
     add("ask", "Condition and title on the piece?");
     add("draft", "Draft the listing. You still post it.");
-    add("hold", "Payout waits on the owner.");
+    add("hold", "Collect stays HOLD until Yes + a real money pipe.");
   } else if (face.id === "fund") {
     add("ask", "What is the raise for, and the goal?");
     add("hold", "Credit decision waits on the owner.");

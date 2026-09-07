@@ -19,8 +19,8 @@
     consign: {
       id: "consign", name: "Consign",
       who: "Seller", what: "Item", when: "List when", where: "Photo / channel",
-      how: "Draft a listing. Payout waits.",
-      next: "Draft the title. Payout waits on you.",
+      how: "Draft a listing. Collect HOLD until Yes + a real money pipe.",
+      next: "Draft the title. Collect HOLD until Yes + a real money pipe.",
       rails: ["Cap title-missing items.", "Wait on me before a payout leaves."],
       keys: { who: ["contactName", "who"], what: ["title", "need", "condition"], when: ["timing", "when"], where: ["where"], how: ["condition", "ask", "amount"] }
     },

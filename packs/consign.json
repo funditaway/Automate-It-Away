@@ -16,7 +16,7 @@
     "what": { "key": "title", "label": "Item" },
     "when": { "key": "timing", "label": "List when" },
     "where": { "key": "where", "label": "Photo / channel" },
-    "how": "Draft a listing. Payout waits."
+    "how": "Draft a listing. Collect HOLD until Yes + a real money pipe."
   },
   "fields": {
     "capture": ["title", "kind", "from", "contactName", "phone", "email", "notes", "photoUrl", "provider", "pack"],
@@ -33,7 +33,7 @@
   "queue": {
     "badge": "Consign",
     "family": "Consign It Away",
-    "empty": "Drop a photo of the item. Draft the title. Payout waits on you.",
+    "empty": "Drop a photo of the item. Draft the title. Collect HOLD until Yes + a real money pipe.",
     "group": "kind",
     "sort": "cap-first",
     "chips": ["list", "title", "payout"],

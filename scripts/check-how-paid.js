@@ -30,6 +30,8 @@ must(paid, "Helper can prep the draft", "Paid helper preps draft");
 must(paid, "real money pipe", "Paid real money pipe");
 must(paid, "name:\"Collect HOLD\"", "Paid step name Collect HOLD");
 must(paid, "Bill due on the card. Collect HOLD until Yes + a real money pipe.", "Paid life mean HOLD");
+must(how, 'name: "4 Collect HOLD"', "film reel Collect HOLD");
+mustNot(how, 'name: "4 Paid"', "film reel live Paid");
 
 mustNot(how, "Collect when due", "live Collect when due");
 mustNot(how, "Money waits only if you wrote that rule", "rule-gated live money");

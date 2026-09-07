@@ -106,6 +106,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - How (`/how`) Paid / Collect: Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. Not “Collect when due.” Not “money waits only if you wrote that rule.” Helper can prep the draft. Yes is not a collect charge. Shop-week means name when money would be due on the card — they do not collect. No fake pricing, credits, or AIA coin.
 - `scripts/check-how-paid.js` covers how.html Paid / Collect HOLD honesty.
 - index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.” Helper can prep the draft. Yes is not a collect charge. No fake pricing, credits, or AIA coin. `drop-pack.js` stays unloaded.
+- Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.” `drop-pack.js` stays unloaded.
 - `scripts/check-collect-hold.js` covers those leftover Collect-as-live surfaces.
 - Support Talk (`support-talk.js`) calls `AIASpeech.listen(fn, fn)` like Drop / Login. World door still posts to desk `aia` with no pin.
 - `scripts/check-queue-help.js` covers queue-run Help + Support Talk listen contract.
