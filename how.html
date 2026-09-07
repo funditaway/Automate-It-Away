@@ -105,7 +105,7 @@
       <div class="fact"><b>Needs you</b><span>Work is on a card. A person still taps.</span></div>
       <div class="fact"><b>Send it yourself</b><span>Copy, text, email, or a phone file. AIA does not send.</span></div>
       <div class="fact"><b>Hand off</b><span>Give it to a name on this desk. Second phone, same queue.</span></div>
-      <div class="fact"><b>Send or Stop</b><span>Send means the draft left your way. Stop is the owner cancel.</span></div>
+      <div class="fact"><b>Yes / Stop / Kill</b><span>Yes is the human tap. Stop is the owner cancel. Kill ends it. You send the draft yourself. AIA does not send.</span></div>
       <div class="fact"><b>Try first</b><span>Drop real work. Queue cards count. Not a model demo.</span></div>
       <div class="fact"><b>Open packs</b><span>Thin JSON on this desk. World desks install. Collect stays HOLD.</span></div>
     </div>
@@ -119,7 +119,7 @@
 
     <p class="sec">How work gets here</p>
     <div class="parts">
-      <div class="part"><small>Talk</small><b>On the desk</b><span>Say it or type it. It becomes a card. Then text, email, hand off, or Stop.</span></div>
+      <div class="part"><small>Talk</small><b>On the desk</b><span>Say it or type it. It becomes a card. Then Yes, send it yourself, hand off, or Stop.</span></div>
       <div class="part"><small>Helper</small><b>Second phone</b><span>Invite family, a friend, or staff. They get their own desk code. Same queue. Owner owns Stop.</span></div>
       <div class="part"><small>Drop</small><b>From anywhere</b><span>A note, photo, form, or call. Copy the drop link. Work lands here. Rules on this desk apply. Money does not.</span></div>
     </div>
@@ -146,10 +146,10 @@
   <script src="speech.js"></script>
   <script>
     const FILMS = [
-      { id: "all", name: "Whole film", src: "video/how-all.mp4", poster: "img/how-hero.jpg", line: "Name a desk. Drop anything. The desk writes the next step. You send the draft. Stop cancels it." },
+      { id: "all", name: "Whole film", src: "video/how-all.mp4", poster: "img/how-hero.jpg", line: "Name a desk. Drop anything. The desk writes the next step. You tap Yes. You send the draft yourself. Stop cancels it." },
       { id: "capture", name: "1 Capture", src: "video/how-capture.mp4", poster: "img/how-capture.jpg", line: "Capture. The work hits the queue once." },
       { id: "qualify", name: "2 Qualify", src: "video/how-qualify.mp4", poster: "img/how-qualify.jpg", line: "Qualify. Rules screen fit, price, risk, timing." },
-      { id: "do", name: "3 Do", src: "video/how-do.mp4", poster: "img/how-do.jpg", line: "Do the work. Draft only. Nothing leaves until Send." },
+      { id: "do", name: "3 Do", src: "video/how-do.mp4", poster: "img/how-do.jpg", line: "Do the work. Draft only. Nothing leaves until Yes. You send it yourself." },
       { id: "paid", name: "4 Collect HOLD", src: "video/how-paid.mp4", poster: "img/how-paid.jpg", line: "Collect stays HOLD until a person taps Yes and a real money pipe is live." },
       { id: "follow", name: "5 Follow", src: "video/how-follow.mp4", poster: "img/how-follow.jpg", line: "Follow. One reminder. Then it stops." }
     ];
@@ -174,7 +174,7 @@
         mean:{ estate:"Item photo or estate line", assets:"VIN, title photo, hours", auto:"Stock photo and VIN", vita:"Referral or fact-find start", legal:"Consult / conflict intake", land:"Parcel ID or buyer inquiry", btr:"Lot reservation", fund:"Deal file: address, budget", storm:"Claim address and roof photos", gc:"Missed call or job photo", practice:"Recall or new-patient packet", pm:"App or work order", storage:"Late-unit list", life:"School form, to-do, or a text from the lawn guy" } },
       { n:2, id:"qualify", name:"Qualify", what:"Rules screen fit, price, risk, timing.", tap:"Missing title, flood flag, bad-fit case, crew already booked, lien clock.",
         mean:{ estate:"Comps vs ask. Title in hand?", assets:"Lien? Brand? Reserve vs comps", auto:"Title, recon, book vs bid", vita:"Needs and budget — is this a case?", legal:"Conflict and retainer fit", land:"Flood, access, zoning, title", btr:"Setbacks, utilities, city hold", fund:"LTV, rehab, exit, file complete?", storm:"Territory, supplement, capacity", gc:"License and emergency vs schedule", practice:"Open chair, coverage, hold", pm:"Screen vs criteria", storage:"Days late and notice window", life:"Is this this week? Who pays? Does it wait?" } },
-      { n:3, id:"do", name:"Do the work", what:"Draft only. Nothing leaves until Send.", tap:"Illustration, engagement letter, lien notice, supplement.",
+      { n:3, id:"do", name:"Do the work", what:"Draft only. Nothing leaves until Yes. You send it yourself.", tap:"Illustration, engagement letter, lien notice, supplement.",
         mean:{ estate:"Listing + payout terms", assets:"Packet with title flags", auto:"Wholesale sheet", vita:"Quote you approve first", legal:"Engagement letter draft", land:"Builder packet", btr:"Lot packet", fund:"Term sheet or draw packet", storm:"Estimate from photos", gc:"Slot + written estimate", practice:"Confirm text", pm:"Lease or vendor work order", storage:"Statutory notice draft", life:"Reminder text or the form filled in" } },
       { n:4, id:"paid", name:"Collect HOLD", what:"Collect stays HOLD until a person taps Yes and a real Collect money pipe is live.", tap:"Helper can prep the draft. Owner taps Yes. Collect still HOLD until a real money pipe is live. Yes is not a collect charge.",
         mean:{ estate:"Seller payout after it clears — Collect HOLD until Yes + a real money pipe", assets:"Settlement after title clears — Collect HOLD until Yes + a real money pipe", auto:"Funds before keys — Collect HOLD until Yes + a real money pipe", vita:"Premium when placed — Collect HOLD until Yes + a real money pipe", legal:"Retainer first — Collect HOLD until Yes + a real money pipe", land:"Reservation or takedown — Collect HOLD until Yes + a real money pipe", btr:"Hold fee or draw — Collect HOLD until Yes + a real money pipe", fund:"Origination or funded draw — Collect HOLD until Yes + a real money pipe", storm:"Deposit or first draw — Collect HOLD until Yes + a real money pipe", gc:"Job deposit — Collect HOLD until Yes + a real money pipe", practice:"Copay after the visit — Collect HOLD until Yes + a real money pipe", pm:"Rent or bill-back — Collect HOLD until Yes + a real money pipe", storage:"Catch-up or auction proceeds — Collect HOLD until Yes + a real money pipe", life:"Bill due on the card. Collect HOLD until Yes + a real money pipe." } },

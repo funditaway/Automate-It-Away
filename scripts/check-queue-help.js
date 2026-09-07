@@ -49,6 +49,17 @@ if (/AIASpeech\.listen\(\s*\{/.test(talk)) throw new Error("support-talk must no
 must(talk, "AIASpeech.listen(function", "support-talk listen result fn");
 must(talk, "Did not catch that", "support-talk listen error fn");
 
+const intake = read("api/intake.js");
+must(intake, "You tap Yes or Stop.", "Talk intake Yes or Stop");
+must(intake, "Open the desk to Yes or Stop.", "Talk setup Yes or Stop");
+["You tap Send or Stop", "to Send or Stop"].forEach(function (bit) {
+  if (intake.includes(bit)) throw new Error("Talk intake painted Send as the HITL rail: " + bit);
+});
+
+const handoffUi = read("desk-handoff.js");
+must(handoffUi, "A person taps Yes.", "Queue handoff taps Yes");
+if (handoffUi.includes("A person taps Send.")) throw new Error("Queue handoff painted Send as the HITL rail");
+
 must(yesNo, "How the queue runs", "ACCOUNT-YES-NO queue-runs");
 
 const queue = help.slice(help.indexOf('id="queue-runs"'), help.indexOf("Something broke?"));

@@ -95,7 +95,7 @@ function agentDraft(job, who) {
     Builder: "Build note for " + title + ". What the desk still needs. Builder does not deploy and does not flip a pipe live.",
     Worker: "Qualify " + title + ". " + (notes || "Need the missing fact before Yes.") + " Worker nudges. Never Send."
   };
-  const text = namedLine || bits[spec.crew] || (spec.crew + " draft for " + title + ". A person taps Send.");
+  const text = namedLine || bits[spec.crew] || (spec.crew + " draft for " + title + ". A person taps Yes.");
   job.agentDraft = { crew: spec.crew, name: who.name, title: spec.title, artifact: spec.artifact, does: spec.does, prompt: String(who.prompt || "").trim().slice(0, 160), never: spec.never || ais.NEVER.slice(), text: text, at: new Date().toISOString(), deskAi: !!who.deskAi };
   if (!job.draft) job.draft = text;
   job.artifact = spec.artifact;
