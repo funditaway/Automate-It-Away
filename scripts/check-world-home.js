@@ -25,6 +25,7 @@ const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
 const pkg = read("package.json");
 const nav = read("desk-nav.js");
+const themeJs = read("theme.js");
 
 const pages = [
   ["index.html", index],
@@ -86,6 +87,10 @@ must(setup, "Collect HOLD until Yes + a real money pipe.", "setup Consign HOLD")
 must(setup, "Your MetaMask or WalletConnect", "setup wallet honesty");
 
 mustNot(nav, "drop-pack.js", "desk-nav loads drop-pack.js");
+must(themeJs, 'id: "help", href: "/help", label: "Help"', "theme.js shared nav Help");
+must(themeJs, 'id: "how", href: "/how", label: "How"', "theme.js shared nav How");
+must(themeJs, 'id: "setup", href: "/setup", label: "Setup"', "theme.js shared nav Setup");
+must(themeJs, 'id: "desk", href: "/desk", label: "Desk"', "theme.js shared nav Desk");
 
 must(yesNo, "check-world-home.js", "ACCOUNT-YES-NO records world-home honesty");
 must(yesNo, "index.html`, `how.html`, `setup.html", "ACCOUNT-YES-NO names world-home pages");

@@ -291,6 +291,7 @@
   var SITE_LINKS = [
     { id: "how", href: "/how", label: "How" },
     { id: "setup", href: "/setup", label: "Setup" },
+    { id: "help", href: "/help", label: "Help" },
     { id: "desk", href: "/desk", label: "Desk" }
   ];
   var FOOT_LINKS = [
