@@ -137,7 +137,11 @@ When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk 
 
 Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node, sub-agent mesh, or node canvas.
 
-Ideas → queue = Drop → Qualify → card → Yes / Stop. History is past / now / next. No effort or token estimate UI.
+Ideas → queue = Drop → Qualify → card → Yes / Stop. History is past / now / next — the card trail and this account’s roadmap. No effort or token estimate UI.
+
+Give pack = download / share the `.aia` file (`download-pack`). They install with Yes. No silent push to another desk.
+
+Update pack = install this `.aia` again (`install-aia`) with owner Yes. Recurring update pass / subscription HOLD. No silent refresh. Collect HOLD.
 
 FAQ: work with / for AIA = build packs + Talk to AIA; agency / DFY off-platform; no careers portal / certified partner program. AIA License = no separate license SKU — desk account + pack install; Collect and payouts HOLD; no Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
 

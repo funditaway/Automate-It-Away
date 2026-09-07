@@ -519,6 +519,10 @@ function historyHtml(item) {
   return "<div class=\"sheet-row\"><b>" + esc(title) + "</b><div class=\"meta\">" + esc(meta) + "</div>" + trailThreadHtml(item) + "</div>";
 }
 
+function accountRoadMini() {
+  return "<div class=\"road-mini\"><b>This account</b><div class=\"meta\">Past / now / next on History. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. .aia identity HOLD until mint.</div><div class=\"acts\"><a class=\"go\" href=\"/history#account-road\">Account roadmap on History</a></div></div>";
+}
+
 async function openSheet(person) {
   if (!person) return;
   var desks = savedDesks().map(function (d) { return { slug: d.slug, pin: d.pin || "", token: d.token || "" }; });
@@ -557,7 +561,9 @@ async function openSheet(person) {
   document.getElementById("sheet-hear").onclick = function () {
     if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak(line);
   };
-  document.getElementById("sheet-history-link").href = "/history?who=" + encodeURIComponent((data.person && data.person.name) || person.name || "");
+  var road = document.getElementById("sheet-road");
+  if (road) road.innerHTML = accountRoadMini();
+  document.getElementById("sheet-history-link").href = "/history?who=" + encodeURIComponent((data.person && data.person.name) || person.name || "") + "#account-road";
   document.getElementById("sheet-close").onclick = function () { sheet.hidden = true; };
 
   sheet.hidden = false;
