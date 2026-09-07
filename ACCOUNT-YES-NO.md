@@ -98,7 +98,11 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-build-pack.js` covers build-pack / orchestration / FAQ honesty.
 - How the queue runs (`/help#queue-runs`): Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill → Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD.
 - FAQ plan tiers: no public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Collect and payouts HOLD. No merchant-of-record.
-- FAQ Create / Drop a goal → draft card → Yes. No autonomous ETA engine. No SaaS codegen.
+- FAQ Create / Drop a goal → draft card → Yes. Needs you / prompt ask-who when the desk asks. No autonomous ETA engine. No SaaS codegen.
+- FAQ Needs you: named desk AI / gone HOLD (`Shop Bot · not on this desk`) / prompt ask-who. Reply on the Queue card does not Yes or send. Queue / Cap / Open / History / Explore / People paint the same.
+- FAQ install / give / update a `.aia` with Yes on History. Give is the file. Update is install again. Recurring update HOLD. Installed packs auto-shape — no pack pick on every Drop. Collect HOLD. No silent charge.
+- FAQ Connect existing wallet: MetaMask / WalletConnect. Your wallet. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + real pipe. Help First day People dd names Needs you / prompt ask-who.
+- `scripts/check-help-faq.js` covers Help FAQ + People dd + Studio / More FAQ honesty.
 - Support Talk (`support-talk.js`) calls `AIASpeech.listen(fn, fn)` like Drop / Login. World door still posts to desk `aia` with no pin.
 - `scripts/check-queue-help.js` covers queue-run Help + Support Talk listen contract.
 - Desk cards (`/help#desk-cards` + Studio one-liner): When → If → Then drafts a queue card (fields / notes), not a chat blob. Yes is not auto-send mail, push git, or a Collect charge. Thin `.aia`; test via Drop or www hook. Real cap: 12 card fields. Sample JSON illustrative — desk words only. Not `render_desk_card`, interactive_review, code_diff / confidence / token badge field types.
