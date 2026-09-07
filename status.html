@@ -87,7 +87,7 @@
           walletEl.textContent = (w.short || w.address) + (w.chain ? " · " + w.chain : "") + " — identity only. Collect stays HOLD.";
           walletEl.className = "up";
         } else {
-          var note = w.note || "No browser wallet on this open desk. Connect on Account.";
+          var note = w.note || "No wallet connected on this open desk. Connect MetaMask or WalletConnect on Account or Desk.";
           walletEl.textContent = /Collect stays HOLD/i.test(note) ? note : (note + " Collect stays HOLD.");
           walletEl.className = "hold";
         }
