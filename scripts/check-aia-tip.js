@@ -63,6 +63,8 @@ must(supportTalk, "paintAsk", "Help chat reads Ask AIA");
 must(supportTalk, 'q.get("field")', "Help chat field");
 must(supportTalk, 'q.get("ask")', "Help chat ask");
 must(supportTalk, "AIATip", "Help chat uses shared tips");
+must(supportTalk, "HOME = line", "Ask AIA becomes Quiet home");
+must(supportTalk, "thread(HOME)", "Quiet restores Ask AIA or stock prompt");
 must(support, "aia-tip.js", "support loads shared tips");
 must(support, "move as cards between your desk and the AIA Admin desk", "support card bridge");
 must(support, "Not a ticket portal", "support not Zendesk");

@@ -157,7 +157,7 @@ Leftover public surfaces after that pass: how.html film reel, setup.html / examp
 
 World-home (`index.html`, `how.html`, `setup.html`): How · Setup · Help · Desk in the header. Open desk, Talk, Give pack, Update pack, Desk, Help as page CTAs. Give pack = the file. Update pack = install again with Yes. One AIA account. Connect existing wallet, not Wallet.AIA. No grandma brand. No mint / Decentraweb / DNS lesson on those pages. Collect HOLD. No silent send.
 
-Field tips + Ask AIA: `aia-tip.js` on How, Setup, Home, and onboard forms. Extra info on the field. Ask AIA opens Help chat (`/support`) with that answer. Help / tickets / messages move as cards between a world-user desk and AIA Admin. Not a ticket portal. Not a new chat product.
+Field tips + Ask AIA: `aia-tip.js` on How, Setup, Home, and onboard forms. Extra info on the field. Ask AIA opens Help chat (`/support`) with that answer. Quiet on Help chat stops speech and keeps that answer — it does not wipe back to the stock prompt. Help / tickets / messages move as cards between a world-user desk and AIA Admin. Not a ticket portal. Not a new chat product.
 
 ## Desk cards
 
