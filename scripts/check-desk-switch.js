@@ -266,6 +266,15 @@ else pass("rules has no starter chrome");
 if (!login.includes("placeholder=\"Desk name\"")) fail("login still names a slug");
 else pass("login placeholder is generic");
 const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
+if (help.includes("Capture → Qualify")) fail("help.html still shows Capture → Qualify");
+else if (!help.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail("help.html missing desk-true Drop spine");
+else pass("help.html Drop spine matches the desk");
+["developer.html", "developer.js"].forEach((file) => {
+  const src = fs.readFileSync(path.join(root, file), "utf8");
+  if (src.includes("Capture → Qualify")) fail(file + " still shows Capture → Qualify");
+  else if (!src.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail(file + " missing desk-true Drop spine");
+  else pass(file + " Drop spine matches the desk");
+});
 if (!help.includes("Waiting on a person.") || !help.includes("Owner, twice.") || !help.includes("The job.") || !help.includes("Save a file")) {
   fail("help.html missing doer button labels");
 } else pass("help.html uses doer button labels");
