@@ -40,6 +40,16 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - No custodial keys on the server. No demo seed balance. No silent Collect.
 - `scripts/check-connect-wallet.js`.
 
+## YES (Connect existing wallet — not Wallet.AIA — 2026-09-07)
+
+- Evolve Account + Desk. Same bind. Not a greenfield Wallet.AIA product.
+- Connect MetaMask / Connect WalletConnect — user’s own injected wallet (EIP-1193 / EIP-6963). No AIA-hosted keys.
+- Copy: “Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks.”
+- Missing provider → honest EMPTY (install / open in that wallet’s browser). No fake QR, no custodial create, no deposit, no pre-fill.
+- No WalletConnect relay, Privy, ethers, or hosted seed. No crypto Collect. No silent send. No AIA token / gas currency.
+- Card title is Connect existing wallet. Not Wallet.AIA.
+- `scripts/check-connect-wallet.js`.
+
 ## YES (wallets / Ext / X Money — ledger only, 2026-09-03)
 
 - Each adult seat can hold its own wallet. Bills hit THAT wallet.
@@ -78,7 +88,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-world-people.js` covers Add people + Onboard this desk honesty (no invented Integrations Connect Tool, Connected Accounts OAuth, Team email seats, or Import Pack workspace keys).
 - Selling packs — risk honesty (`/help#sell-packs` + Studio one-liner): thin JSON; drafts on buyer desk; Yes/Stop/Kill human; Collect HOLD; buyer keys; never hardcode yours; no 100% safe / never banned; creator stands behind pack; Help is not legal advice; bad packs → Talk to AIA / Admin desk; Marketplace can unlist; AS IS note in creator’s own pack docs, not an AIA attach flow.
 - When a pack is worth it (`/help#pack-worth`): process already works; multi-step qualify → draft with fallbacks. Not worth: broken offer/process; abandoned when APIs change; trivial webhook → note you can Drop yourself. No $47–$197 / $50/hr / 300 hours / 10–15 minutes tables on that card.
-- Wallet Connect one-liner (Account + Help Login): browser wallet for `.aia` / registry when Bridge unlocks — not compute credits or a creator payout ledger. Collect and payouts HOLD.
+- Wallet Connect one-liner (Account + Help Login): your MetaMask or WalletConnect. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. `.aia` Register when Bridge unlocks. Not Wallet.AIA. Not compute credits or a creator payout ledger.
 - Creator takeaways (`/help#creator-takeaways`): pack quality (JSON, buyer keys, fallbacks); People `@handle` Owner/Helper; Collect HOLD; no merchant-of-record money desk / email Team seats / social OAuth.
 - `scripts/check-pack-sell.js` covers risk / worth-it / wallet / takeaways honesty.
 - Build a pack / desk AI (`/help#build-pack` + Studio one-liner): When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk AI drafts card) → Yes/Stop/Kill. Fallbacks Needs you / Talk to AIA. Thin `.aia` from `/dev`; buyer pipes/keys. Sample JSON illustrative only — desk words, not a bindings product. Yes is not a collect charge. Collect HOLD.
@@ -169,6 +179,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - A live Gmail forward wizard, an email vault, or a voice / SMS receptionist.
 - A signed-in header after a failed or pending `/onboard` open.
 - Embedded wallets, key generation, or gas sponsorship.
+- Wallet.AIA — a custodial AIA-hosted wallet, deposit / pre-fill, crypto Collect, silent send, or an AIA token / gas currency.
 - Server-signed Decentraweb mint / Bridge. On-desk Register is client-only when Bridge is clear; James signs every tx.
 - Collect charges through Square / Stripe / a wallet pipe.
 - A public creator payout baseline, affiliate percent, or published agency rate card.
@@ -185,6 +196,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - A live Business Details / brand-kit settings page. Calendar, SMS, Square, or eBay as live pipes without keys + human Yes. Mapping shared OpenAI keys into packs.
 - Merchant-of-record chargeback holds, payout freezes, a sandbox throttle ladder, or Lemon Squeezy / Paddle as AIA money pipes. A 100% safe / never-banned pack promise. An AIA attach flow for AS IS / EULA.
 - Wallet Connect as compute credits or a creator payout ledger.
+- A WalletConnect cloud relay or QR that pretends AIA hosts the keys.
 - $47–$197 / $50/hr / 300 hours / 10–15 minutes tables on “When a pack is worth it.”
 - A node canvas, Router Node, or sub-agent mesh. `BUYER_ENVIRONMENT_BINDINGS` or other invented schema products.
 - A careers portal or certified partner program. A separate AIA License SKU, Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.

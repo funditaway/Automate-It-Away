@@ -90,6 +90,9 @@
     img.thumb{max-width:min(160px,42vw);border-radius:10px;display:block;margin:6px 0}
     .draft{background:var(--edit);border-radius:10px;padding:10px 12px;font-size:14px;margin:8px 0;line-height:1.4}
     .meta{font-size:11px;opacity:.7}
+    .ok{color:#0d6b6b;font-size:13px}
+    #aia-wallet h2{font-size:1.12rem;color:var(--heading);margin:0 0 6px}
+    #aia-wallet .row{margin:8px 0}
     .sent{opacity:.75}
     .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
     a.edit{display:inline-block}
@@ -154,6 +157,7 @@
     <p class="meta" id="step-words">Capture · Qualify · Do · Collect · Follow</p>
     <div data-aia-playbook="compact"></div>
     <div class="item" id="desk-ais" hidden></div>
+    <div class="item" id="aia-wallet"></div>
     <p class="meta" id="widget-count">0 widgets on</p>
     <div class="row" id="rule-widgets" style="margin-bottom:8px"></div>
     <p class="meta" id="queue-taps">Taps match what the card needs. Yes / Stop / Kill stay human.</p>
@@ -178,6 +182,7 @@
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
+  <script src="aia-wallet.js"></script>
   <script src="desk-card.js"></script>
   <script src="desk-playbook.js"></script>
   <script src="desk-nav.js"></script>

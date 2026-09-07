@@ -78,7 +78,7 @@
       <input id="you-city" maxlength="60" placeholder="Springfield">
       <label for="you-handle">AIA Internet name</label>
       <input id="you-handle" maxlength="63" placeholder="james.aia" autocomplete="username">
-      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Wallet Connect is a browser wallet for .aia / registry when Bridge unlocks — not compute credits or a creator payout ledger. Mint / Bridge stay HOLD. Collect and payouts HOLD. Not your email.</p>
+      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks. Not Wallet.AIA. not compute credits or a creator payout ledger. Not your email.</p>
       <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
       <p class="meta" id="you-hint">Tap the circle for a photo.</p>
       <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="/studio">Studio</a><a href="#" id="leave-phone">Leave this phone</a></div>
@@ -203,7 +203,7 @@
         "<p><b>Phone</b>"+esc(acc.phone||"Not set")+"</p>"+
         "<p><b>City</b>"+esc(acc.city||"—")+"</p>"+
         "<p><b>AIA Internet</b>"+esc(acc.aia||(acc.handle?acc.handle+".aia":"Not set"))+"</p>"+
-        "<p><b>Wallet</b>"+esc((d.wallet&&d.wallet.connected&&(d.wallet.short||d.wallet.address))||(acc.wallet&&acc.wallet.short)||"Not connected")+"</p>"+
+        "<p><b>Your wallet</b>"+esc((d.wallet&&d.wallet.connected&&(d.wallet.short||d.wallet.address))||(acc.wallet&&acc.wallet.short)||"Not connected")+"</p>"+
         "<p><b>.aia TLD</b>"+esc((d.aiaTld&&d.aiaTld.label)||"Watching")+"</p>"+
         "<p><b>Password door</b>"+(acc.hasPassword?"On":"Off")+"</p>"+
         "<p><b>Opened</b>"+esc((acc.createdAt||"").slice(0,10)||"—")+"</p></div>";

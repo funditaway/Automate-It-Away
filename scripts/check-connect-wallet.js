@@ -15,46 +15,63 @@ let failed = 0;
 function fail(m) { failed += 1; console.error("FAIL " + m); }
 function pass(m) { console.log("ok   " + m); }
 
-["aia-wallet.js", "api/_connect-wallet.js", "account.html"].forEach(function (name) {
+["aia-wallet.js", "api/_connect-wallet.js", "account.html", "desk.html"].forEach(function (name) {
   if (!fs.existsSync(path.join(root, name))) fail("missing " + name);
   else pass("file " + name);
 });
 
 const html = fs.readFileSync(path.join(root, "account.html"), "utf8");
+const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
 if (!/id="aia-wallet"/.test(html)) fail("account.html missing Wallet card host");
 else pass("account Wallet card host");
 if (!/aia-wallet\.js/.test(html)) fail("account.html must load aia-wallet.js");
 else pass("account loads aia-wallet.js");
 if (!/aia_wallet_address/.test(html)) fail("leave-phone must clear wallet localStorage");
 else pass("leave-phone clears wallet keys");
+if (!/id="aia-wallet"/.test(desk)) fail("desk.html missing Wallet card host — desk was EMPTY");
+else pass("desk Wallet card host");
+if (!/aia-wallet\.js/.test(desk)) fail("desk.html must load aia-wallet.js");
+else pass("desk loads aia-wallet.js");
 
 const ui = fs.readFileSync(path.join(root, "aia-wallet.js"), "utf8");
-if (!/Connect Wallet/.test(ui)) fail("UI missing Connect Wallet");
-else pass("Connect Wallet button");
+if (!/Connect existing wallet/.test(ui)) fail("UI missing Connect existing wallet title");
+else pass("Connect existing wallet title");
+if (!/Connect MetaMask/.test(ui) || !/Connect WalletConnect/.test(ui)) fail("UI missing MetaMask / WalletConnect");
+else pass("Connect MetaMask / WalletConnect");
+if (/Wallet\.AIA/.test(ui) && !/Not Wallet\.AIA/.test(ui)) fail("UI must not ship custodial Wallet.AIA");
+else pass("not custodial Wallet.AIA");
 if (!/Disconnect/.test(ui)) fail("UI missing Disconnect");
 else pass("Disconnect");
-if (!/window\.ethereum/.test(ui) || !/eth_requestAccounts/.test(ui)) fail("UI must use EIP-1193 window.ethereum");
-else pass("EIP-1193 eth_requestAccounts");
-if (!/Collect stays HOLD/.test(ui)) fail("UI must keep Collect HOLD");
-else pass("Collect HOLD in UI");
+if (!/eth_requestAccounts/.test(ui) || !/eip6963:requestProvider/.test(ui)) fail("UI must use EIP-1193 / EIP-6963");
+else pass("EIP-1193 / EIP-6963");
+if (!/Your wallet\. AIA does not hold keys/.test(ui)) fail("UI missing honesty copy");
+else pass("honesty copy");
+if (!/Collect and pack pay stay HOLD until Yes \+ real pipe/.test(ui)) fail("UI must keep Collect and pack pay HOLD");
+else pass("Collect and pack pay HOLD");
+if (!/\.aia Register when Bridge unlocks/.test(ui)) fail("UI missing Register-when-Bridge copy");
+else pass("Register when Bridge unlocks");
 if (!/not compute credits/.test(ui) || !/creator payout ledger/.test(ui)) fail("UI must deny compute credits / payout ledger");
 else pass("wallet is not compute credits");
+if (!/Your wallet\. AIA does not hold keys/.test(html)) fail("account.html missing honesty copy");
+else pass("account honesty copy");
 if (!/not compute credits/.test(html) || !/creator payout ledger/.test(html)) fail("account.html must deny compute credits / payout ledger");
 else pass("account wallet one-liner");
-if (!/Mint and Bridge stay external/.test(ui)) fail("UI missing mint/Bridge honesty");
-else pass("mint/Bridge stay external");
-if (/privateKey|mnemonic|seed phrase|demo ETH|fake ETH|0\.00 ETH/i.test(ui)) fail("UI must not show keys or demo ETH");
-else pass("no keys or demo ETH in UI");
+if (/privateKey|mnemonic|seed phrase|demo ETH|fake ETH|0\.00 ETH|deposit ETH|pre-fill|prefill/i.test(ui)) fail("UI must not show keys, deposit, or demo ETH");
+else pass("no keys, deposit, or demo ETH in UI");
 if (/eth_sendTransaction|eth_sendRawTransaction|wallet_sendCalls|personal_sign/.test(ui)) fail("UI must not broadcast a tx");
 else pass("UI does not broadcast a tx");
+if (!/No AIA token or gas currency/.test(ui)) fail("UI must deny AIA token / gas currency");
+else pass("no AIA token / gas currency");
 
 const helper = fs.readFileSync(path.join(root, "api/_connect-wallet.js"), "utf8");
 if (/privateKey|mnemonic|secret key/i.test(helper)) fail("helper must not mention private keys");
 else pass("helper has no private keys");
 if (/eth_sendTransaction|eth_sendRawTransaction|require\([\"'].*dw-check/.test(helper + ui)) fail("must not mint, send, or import dw-check");
 else pass("no mint / send / dw-check");
-if (/ethers|privy|walletconnect|@walletconnect|web3modal/i.test(helper + ui + html)) fail("must stay greenfield EIP-1193 — no WC/Privy/ethers");
-else pass("no WC / Privy / ethers");
+if (/@walletconnect|web3modal|WalletConnectProvider|relay\.walletconnect/i.test(helper + ui + html + desk)) fail("must not add WalletConnect infra");
+else pass("no WalletConnect infra");
+if (/require\([\"']ethers|from [\"']ethers|privy|wagmi|viem/i.test(helper + ui + html + desk)) fail("must stay EIP-1193 — no Privy/ethers");
+else pass("no Privy / ethers");
 if (/aia_money|AIA\.money|fundWallet|chargeWallet/.test(helper + ui + html)) fail("must not wire demo aia_money or ledger charge");
 else pass("no aia_money chrome");
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
@@ -62,6 +79,8 @@ if (/ethers|privy|walletconnect|wagmi|viem/i.test(pkg)) fail("package.json must 
 else pass("package.json stays thin");
 if (!/custodial: false/.test(helper) || !/charged: false/.test(helper)) fail("helper must stay non-custodial and uncharged");
 else pass("non-custodial uncharged");
+if (!/hosted: false/.test(helper) || !/token: false/.test(helper) || !/deposit: false/.test(helper)) fail("helper must deny hosted / token / deposit");
+else pass("not hosted, no token, no deposit");
 
 ["../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/account", "../api/auth", "../api/health"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
@@ -178,7 +197,7 @@ async function main() {
   } else pass("status without desk is not connected");
 
   const hh = await call(health, "GET", {}, {}, {});
-  if (!hh.body || !hh.body.wallet || hh.body.wallet.custodial || hh.body.wallet.charged || hh.body.wallet.collect !== "hold") {
+  if (!hh.body || !hh.body.wallet || hh.body.wallet.custodial || hh.body.wallet.charged || hh.body.wallet.collect !== "hold" || hh.body.wallet.hosted || hh.body.wallet.token || hh.body.wallet.deposit) {
     fail("health wallet block must stay honest " + JSON.stringify(hh.body && hh.body.wallet));
   } else pass("health wallet block is honest");
 
