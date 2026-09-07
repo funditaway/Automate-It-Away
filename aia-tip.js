@@ -141,6 +141,16 @@
       body: "Optional. Up to 8 files. Each under 8MB. They ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.",
       ask: "Do files on Drop leave the desk?"
     },
+    "drop-paste": {
+      title: "Paste the data",
+      body: "Paste a name, phone, when, or amount. The desk writes a card from it. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      ask: "What do I paste on Put data on?"
+    },
+    "drop-tell": {
+      title: "What should the desk do with it?",
+      body: "Tell the desk the next draft. It stays on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      ask: "What do I tell the desk on Put data on?"
+    },
     "support-title": {
       title: "Title",
       body: "Short name for the problem. Ask AIA answers first. Need a person? Drop a card on the AIA Admin desk.",
