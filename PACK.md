@@ -159,6 +159,8 @@ World-home (`index.html`, `how.html`, `setup.html`): How · Setup · Help · Des
 
 World Help playbook (`help.html` `#playbook-card`): four steps on one AIA account. `ai.aia` is the door, not a mint lesson. Studio / More keep the DNS HOLD line. `examples.html` Stay on this phone — no hashed-session / X-Session.
 
+World Help leftover (`help.html` lead, First day Desk AI, Yes button words): Yes is the rail, not Send-or-Stop. First day Desk AI does not teach orange-until-DNS mint. You send the draft yourself — Yes does not “post it.” `#aia-inbound` MX/DNS HOLD stays.
+
 Field tips + Ask AIA: `aia-tip.js` on How, Setup, Home, and onboard forms. Extra info on the field. Ask AIA opens Help chat (`/support`) with that answer. Help / tickets / messages move as cards between a world-user desk and AIA Admin. Not a ticket portal. Not a new chat product.
 
 ## Desk cards

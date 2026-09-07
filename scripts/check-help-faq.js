@@ -84,7 +84,10 @@ must(help, "A person still taps Yes or Stop.", "Help We type it in Yes or Stop")
 must(help, "you still tap Yes or Stop. You send the draft yourself.", "Help Talk tap Yes or Stop");
 must(help, "Owner still taps Yes and Stop.", "Help Log in Yes and Stop");
 must(help, "Yes when the rule allows", "Help Helper Yes not Send");
-["taps Send or Stop", "taps Send and Stop", "Send when the rule allows", "you still send the draft, or Stop"].forEach(function (bit) {
+must(help, "A person taps Yes — or Stops it — before it goes out.", "Help lead Yes rail");
+must(help, "You send the draft yourself.", "Help lead send-it-yourself");
+must(help, "Yes is the human tap. You send the draft yourself.", "Help Yes button is the tap");
+["taps Send or Stop", "taps Send and Stop", "Send when the rule allows", "you still send the draft, or Stop", "sends the draft — or Stops", "post it, text it"].forEach(function (bit) {
   if (help.includes(bit)) throw new Error("Help painted Send as the HITL rail: " + bit);
 });
 

@@ -109,6 +109,15 @@ mustNot(helpPlay, "www.ai.aia", "help playbook www.ai.aia mint door");
 mustNot(helpPlay, "Hashed session", "help playbook hashed-session jargon");
 mustNot(help, "Hashed session", "help hashed-session jargon");
 mustNot(help, "X-Session", "help X-Session jargon");
+must(help, "A person taps Yes — or Stops it — before it goes out.", "help lead Yes rail");
+mustNot(help, "sends the draft — or Stops", "help lead Send as rail");
+mustNot(help, "post it, text it", "help Yes as outbound post");
+
+const helpFirst = help.slice(help.indexOf("<h2>First day</h2>"), help.indexOf("<h2>Pages that exist</h2>"));
+if (!helpFirst) throw new Error("help.html First day card missing");
+must(helpFirst, "not a mint lesson", "help First day Desk AI does not teach mint");
+mustNot(helpFirst, "orange until DNS", "help First day DNS mint how-to");
+mustNot(helpFirst, "www.ai.aia", "help First day www.ai.aia mint door");
 
 mustNot(examples, "Hashed session", "examples hashed-session jargon");
 mustNot(examples, "X-Session", "examples X-Session jargon");
@@ -124,6 +133,7 @@ must(yesNo, "check-world-home.js", "ACCOUNT-YES-NO records world-home honesty");
 must(yesNo, "index.html`, `how.html`, `setup.html", "ACCOUNT-YES-NO names world-home pages");
 must(yesNo, "help.html` `#playbook-card", "ACCOUNT-YES-NO names world Help playbook");
 must(yesNo, "`examples.html` Stay on this phone", "ACCOUNT-YES-NO names examples session honesty");
+must(yesNo, "help.html` lead", "ACCOUNT-YES-NO names world Help lead Yes rail");
 must(packMd, "Open desk", "PACK.md names Open desk CTA");
 must(packMd, "Give pack", "PACK.md names Give pack");
 must(packMd, "not a mint lesson", "PACK.md names world Help playbook");
