@@ -60,7 +60,7 @@ function firstJobFrom(row, body, workspace) {
     workspace,
     title: text.slice(0, 80),
     notes: text,
-    why: "From opening the desk. Human before send.",
+    why: "From opening the desk. Human before Yes.",
     status: "exception",
     step: "Qualify",
     createdAt: new Date().toISOString(),

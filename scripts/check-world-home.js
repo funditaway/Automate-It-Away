@@ -78,8 +78,11 @@ must(index, "Collect stays HOLD until Yes + a real money pipe.", "index follow-u
 must(index, "Bill due on the card. Collect HOLD until Yes + a real money pipe.", "index Bills Collect HOLD");
 must(index, "Name your desk", "index doer copy");
 
-must(how, "Drop the work. You tap yes or no.", "how doer copy");
+must(how, "Drop the work. You tap Yes or Stop.", "how doer copy");
+mustNot(how, "You tap yes or no.", "how Yes or No as rail");
 must(how, "Yes / Stop / Kill", "how Yes / Stop / Kill");
+must(yesNo, "How lead / Talk / public Drop leftover", "ACCOUNT-YES-NO names How Yes-or-No leftover");
+must(packMd, "How lead / Talk / public Drop leftover", "PACK.md names How Yes-or-No leftover");
 must(how, "ai.aia", "how names ai.aia door");
 must(how, "not a mint lesson", "how does not teach mint");
 mustNot(how, "Send or Stop", "how Send as rail");

@@ -51,16 +51,24 @@ must(talk, "Did not catch that", "support-talk listen error fn");
 
 const intake = read("api/intake.js");
 must(intake, "You tap Yes or Stop.", "Talk intake Yes or Stop");
+must(intake, "You still tap Yes or Stop.", "Talk start Yes or Stop");
+must(intake, "Human before Yes.", "Talk card Human before Yes");
 must(intake, "Open the desk to Yes or Stop.", "Talk setup Yes or Stop");
-["You tap Send or Stop", "to Send or Stop"].forEach(function (bit) {
-  if (intake.includes(bit)) throw new Error("Talk intake painted Send as the HITL rail: " + bit);
+must(intake, "Talk to AIA and we will look at it.", "Talk hold points at Talk to AIA");
+["You tap Send or Stop", "to Send or Stop", "You tap Yes or No.", "You still tap Yes or No.", "Human before send.", "press No.", "Send a request and we will look at it."].forEach(function (bit) {
+  if (intake.includes(bit)) throw new Error("Talk intake painted a leftover rail: " + bit);
 });
 
 const handoffUi = read("desk-handoff.js");
 must(handoffUi, "A person taps Yes.", "Queue handoff taps Yes");
 if (handoffUi.includes("A person taps Send.")) throw new Error("Queue handoff painted Send as the HITL rail");
 
+const auth = read("api/auth.js");
+must(auth, "Human before Yes.", "onboard first card Human before Yes");
+if (auth.includes("Human before send.")) throw new Error("onboard first card still said Human before send");
+
 must(yesNo, "How the queue runs", "ACCOUNT-YES-NO queue-runs");
+must(yesNo, "How lead / Talk / public Drop leftover", "ACCOUNT-YES-NO names How Yes-or-No leftover");
 
 const queue = help.slice(help.indexOf('id="queue-runs"'), help.indexOf("Something broke?"));
 if (/\$47|\$197|\$50|Router Node|MoR chargeback|Connected Accounts/i.test(queue)) {

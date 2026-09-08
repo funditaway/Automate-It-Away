@@ -72,7 +72,7 @@
   </header>
   <main class="wrap">
     <h1 id="drop-title">Drop anything</h1>
-    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or No. Nobody sends money from here.</p>
+    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.</p>
     <div class="modes" id="modes">
       <button type="button" class="on" data-mode="quick" aria-pressed="true">Quick drop</button>
       <button type="button" data-mode="custom" aria-pressed="false">Custom drop</button>
@@ -312,9 +312,9 @@
         if (sub && ws && shop.pack) {
           const packName = shop.packName || "This pack";
           const cap = (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) ? (nouns.capture + " lands here. ") : "";
-          sub.textContent = cap + packName + " is on this desk. Drop anything — the queue card already uses that pack. You don't pick a pack each time. You still tap Yes or No. Nobody sends money from here.";
+          sub.textContent = cap + packName + " is on this desk. Drop anything — the queue card already uses that pack. You don't pick a pack each time. You still tap Yes or Stop. Nobody sends money from here.";
         } else if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
-          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or No. Nobody sends money from here.";
+          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or Stop. Nobody sends money from here.";
         }
       } catch (e) {}
       paintEmbed();
