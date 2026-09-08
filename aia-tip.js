@@ -166,6 +166,31 @@
       body: "What the desk should do next. Still a draft. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
       ask: "What does Preferred outcome mean on Drop?"
     },
+    "drop-kind-where": {
+      title: "Where",
+      body: "Optional place on the card. School, shop, or house. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      ask: "What does Where mean on Drop?"
+    },
+    "drop-kind-who-for": {
+      title: "Who it is for",
+      body: "Optional name on the card. Who this drop is for. Lands on this queue. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      ask: "What does Who it is for mean on Drop?"
+    },
+    "drop-kind-from": {
+      title: "From",
+      body: "Optional start place on the card. Practice, school, or house. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      ask: "What does From mean on Drop?"
+    },
+    "drop-kind-amount": {
+      title: "Amount note",
+      body: "Optional number on the card. A note, not a charge. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends money from here.",
+      ask: "What does Amount note mean on Drop?"
+    },
+    "drop-kind-callback": {
+      title: "Callback number",
+      body: "Optional number on the card so a person can call or text later. Desk does not dial or send from here. You still tap Yes before anything leaves. Collect stays HOLD.",
+      ask: "Why does this kind ask for a callback number?"
+    },
     "support-title": {
       title: "Title",
       body: "Short name for the problem. Ask AIA answers first. Need a person? Drop a card on the AIA Admin desk.",

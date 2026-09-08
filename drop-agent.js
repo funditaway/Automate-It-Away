@@ -23,13 +23,13 @@
   ];
   var FIELDSPEC = {
     need: { label: "What is needed", ph: "Grocery run · porch idea · Friday ride", tip: "drop-kind-need" },
-    whoFor: { label: "Who it is for", ph: "Sam" },
-    where: { label: "Where", ph: "School · shop · house" },
-    fromWhere: { label: "From", ph: "Practice" },
+    whoFor: { label: "Who it is for", ph: "Sam", tip: "drop-kind-who-for" },
+    where: { label: "Where", ph: "School · shop · house", tip: "drop-kind-where" },
+    fromWhere: { label: "From", ph: "Practice", tip: "drop-kind-from" },
     timing: { label: "When", ph: "Friday 3pm", tip: "drop-kind-when" },
-    amount: { label: "Amount note", ph: "85", mode: "decimal" },
+    amount: { label: "Amount note", ph: "85", mode: "decimal", tip: "drop-kind-amount" },
     condition: { label: "Condition", ph: "Good / needs clean" },
-    phone: { label: "Callback number", ph: "417-555-0100", mode: "tel" }
+    phone: { label: "Callback number", ph: "417-555-0100", mode: "tel", tip: "drop-kind-callback" }
   };
   var ACTIONS = [
     { id: "draft", label: "Draft it", hint: "Qualify and draft. Do not send." },
