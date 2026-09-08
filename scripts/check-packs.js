@@ -49,6 +49,10 @@ if (!shop.includes("aia-line off") && !shop.includes("pipeMissing")) fail("marke
 else pass("market orange if pipe missing");
 if (shop.includes("Labeled DEMO")) fail("market still shows demo chrome");
 else pass("market has no demo chrome");
+if (!shop.includes("A person still taps Yes or Stop.")) fail("market missing Yes or Stop");
+else pass("market Do-the-work is Yes or Stop");
+if (shop.includes("Yes or No") || shop.includes("yes or no")) fail("market still paints Yes or No as the rail");
+else pass("market does not paint Yes or No");
 
 const packsApi2 = packsApi;
 if (!packsApi2.includes("buy-pack")) fail("_packs.js missing buy-pack");

@@ -83,6 +83,8 @@ mustNot(how, "You tap yes or no.", "how Yes or No as rail");
 must(how, "Yes / Stop / Kill", "how Yes / Stop / Kill");
 must(yesNo, "How lead / Talk / public Drop leftover", "ACCOUNT-YES-NO names How Yes-or-No leftover");
 must(packMd, "How lead / Talk / public Drop leftover", "PACK.md names How Yes-or-No leftover");
+must(yesNo, "Create / market / engine / grok leftover", "ACCOUNT-YES-NO names Create Yes-or-No leftover");
+must(packMd, "Create / market / engine / grok leftover", "PACK.md names Create Yes-or-No leftover");
 must(how, "ai.aia", "how names ai.aia door");
 must(how, "not a mint lesson", "how does not teach mint");
 mustNot(how, "Send or Stop", "how Send as rail");

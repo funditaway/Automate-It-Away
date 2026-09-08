@@ -677,7 +677,7 @@ function qualifyJob(job, shop, jobs) {
   applyCap(job, shop, jobs);
   if (!job.next) {
     const line = clock.clockLine(job);
-    job.next = line || brain.next || "On the queue. You tap Yes or No.";
+    job.next = line || brain.next || "On the queue. You tap Yes or Stop.";
   }
   if (job.risk === "suitability" || job.risk === "legal" || job.risk === "title" || job.risk === "credit") {
     job.waitingOn = job.waitingOn || "owner";
