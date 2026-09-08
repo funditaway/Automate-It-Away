@@ -3,6 +3,7 @@
   var KIND = "broke";
   var asked = 0;
   var PROMPT = "What broke? Which page? Name of your desk (not the code). How do we reach you?";
+  var HOME = PROMPT;
 
   function $(id) { return document.getElementById(id); }
   function setOk(t) { var el = $("ok"); if (el) el.textContent = t || ""; }
@@ -154,7 +155,7 @@
 
   function quiet() {
     if (window.AIASpeech && AIASpeech.stopTalk) AIASpeech.stopTalk();
-    thread(PROMPT);
+    thread(HOME);
   }
 
   function paintAsk() {
@@ -181,6 +182,7 @@
       line = ask + " Type more or Talk. This chat stays draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human.";
     }
     if (!line) return;
+    HOME = line;
     thread(line);
     var title = $("title");
     var notes = $("notes");

@@ -179,6 +179,9 @@ must(supportTalk, "This chat stays draft / help", "Help chat stays draft first")
 must(supportTalk, "Need a person? Drop a card on the AIA Admin desk", "Help chat human card");
 must(supportTalk, "Yes / Stop stay human", "Help chat Yes / Stop human");
 must(supportTalk, "AIATip", "Help chat uses shared tips");
+must(supportTalk, "HOME = line", "Ask AIA becomes Quiet home");
+must(supportTalk, "thread(HOME)", "Quiet restores Ask AIA or stock prompt");
+mustNot(supportTalk, "thread(PROMPT)", "Quiet does not wipe Ask AIA to the stock prompt");
 must(support, "aia-tip.js", "support loads shared tips");
 must(support, "Ask AIA answers here first", "support Ask AIA draft first");
 must(support, "Drop a card on the AIA Admin desk", "support Admin card");
@@ -191,7 +194,9 @@ mustNot(supportTalk, "escrow", "Help chat ETH escrow");
 mustNot(support, "escrow", "support ETH escrow");
 
 must(yesNo, "check-aia-tip.js", "ACCOUNT-YES-NO records tip honesty");
+must(yesNo, "Help chat Quiet leftover", "ACCOUNT-YES-NO names Quiet leftover");
 must(packMd, "Ask AIA", "PACK.md names Ask AIA");
+must(packMd, "Quiet on Help chat stops speech and keeps that answer", "PACK.md Quiet keeps Ask AIA");
 must(pkg, "check-aia-tip.js", "package.json runs check-aia-tip");
 
 console.log("check-aia-tip: ok");
