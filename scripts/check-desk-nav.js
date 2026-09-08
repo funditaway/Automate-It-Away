@@ -107,6 +107,12 @@ if (!createJs.includes("save-ai") || !createJs.includes('id: "ai"')) fail("creat
 else pass("Create can name a desk AI");
 if (!createJs.includes("deskOpen") || !createJs.includes("Open or unlock this desk first")) fail("Create must gate Desk AI Bind behind an open desk");
 else pass("Create gates Desk AI Bind");
+if (!create.includes("You tap Yes or Stop.")) fail("create.html must keep Yes or Stop");
+else pass("Create lead is Yes or Stop");
+if (createJs.includes("Yes or No") || createJs.includes("yes or no")) fail("create-desk.js still paints Yes or No as the rail");
+else pass("Create form does not paint Yes or No");
+if (!createJs.includes("You still tap Yes or Stop")) fail("create-desk.js must keep Yes or Stop");
+else pass("Create form keeps Yes or Stop");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {

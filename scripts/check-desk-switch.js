@@ -251,7 +251,7 @@ if (leak) fail(leak);
 else pass("public pages have no crew build notes");
 if (!fs.readFileSync(path.join(root, "index.html"), "utf8").includes("Name your desk")) fail("home missing doer copy");
 else pass("home says Name your desk");
-if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the work. You tap yes or no.")) fail("how missing doer copy");
+if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the work. You tap Yes or Stop.")) fail("how missing doer copy");
 else pass("how is doer-short");
 if (!fs.readFileSync(path.join(root, "setup.html"), "utf8").includes("Add a rule if you need one")) fail("setup missing doer copy");
 else pass("setup is doer-short");
