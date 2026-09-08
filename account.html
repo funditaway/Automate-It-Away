@@ -94,6 +94,7 @@
       <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="/studio">Studio</a><a href="#" id="leave-phone">Leave this phone</a></div>
     </div>
     <div class="card" id="aia-wallet"></div>
+    <p class="meta">Ledger only. <code>charged:false</code>. No money move from this page.</p>
     <div class="card" id="aia-tld"></div>
     <div class="card" id="aia-mail"></div>
     <form class="card" id="gate">
@@ -131,6 +132,23 @@
         <input id="pw-next" type="password" minlength="8">
         <p><button class="go" type="button" id="save-pass">Save password</button></p>
         <p class="meta" id="pw-hint"></p>
+      </div>
+      <div class="card">
+        <h2>Phones on this account</h2>
+        <p class="meta">See sessions on this account, export the account book, or leave every phone.</p>
+        <div class="row">
+          <button class="edit" type="button" id="refresh-sessions">Refresh sessions</button>
+          <button class="edit" type="button" id="export-book">Export account book</button>
+          <button class="edit" type="button" id="logout-all">Leave every phone</button>
+        </div>
+        <div id="sessions-list"></div>
+        <p class="meta" id="sessions-hint"></p>
+      </div>
+      <div class="card">
+        <h2>Authenticator</h2>
+        <p class="meta">HOLD. Authenticator is not live on this account yet.</p>
+        <p><button class="edit" type="button" id="mfa-on">Turn on authenticator</button></p>
+        <p class="meta" id="mfa-hint"></p>
       </div>
       <div class="card"><h2>AIA subscription</h2><div class="row" id="plans"></div></div>
       <div class="card" id="owned"></div>
@@ -203,6 +221,42 @@
       return h;
     }
     function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c];});}
+    function clearPhoneKeys(){
+      ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email","aia_wallet_address","aia_wallet_chain"].forEach(function(k){localStorage.removeItem(k);});
+    }
+    function when(s){
+      const raw=String(s||"");
+      if(!raw) return "—";
+      return raw.replace("T"," ").slice(0,16);
+    }
+    function paintSessions(rows){
+      const list=document.getElementById("sessions-list");
+      if(!list) return;
+      const sessions=Array.isArray(rows)?rows:[];
+      if(!sessions.length){
+        list.innerHTML="<p class=\"meta\">No active phones.</p>";
+        return;
+      }
+      list.innerHTML=sessions.map(function(row){
+        const mine=row&&row.current?" · this phone":"";
+        const role=row&&row.role?(" · "+esc(row.role)):"";
+        return "<div class=\"item\"><strong>"+esc((row&&row.name)||"Phone")+"</strong><div class=\"meta\">"+esc((row&&row.workspace)||"desk")+role+mine+"</div><div class=\"meta\">Seen "+when(row&&row.seenAt)+" · Expires "+when(row&&row.expiresAt)+"</div></div>";
+      }).join("");
+    }
+    async function loadSessions(hintText){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"sessions"})});
+      const d=await r.json().catch(function(){return {};});
+      const hint=document.getElementById("sessions-hint");
+      if(!r.ok){
+        paintSessions([]);
+        if(hint) hint.textContent=d.error||"Could not load sessions.";
+        return;
+      }
+      paintSessions(d.sessions||[]);
+      if(hint) hint.textContent=hintText||"Sessions refreshed.";
+    }
     function paint(d){
       document.getElementById("gate").hidden=true;
       document.getElementById("home").hidden=false;
@@ -229,6 +283,7 @@
       document.getElementById("owned").innerHTML="<h2>Desks you own</h2>"+(owned.length?owned.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">Owner</div></div>";}).join(""):"<p class=\"meta\">Open a desk as owner.</p>");
       const sitting=d.desksMember||(d.mine&&d.mine.member)||[];
       document.getElementById("member").innerHTML="<h2>Desks you sit on</h2>"+(sitting.length?sitting.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">"+esc(w.kind)+"</div></div>";}).join(""):"<p class=\"meta\">Join a desk as a member.</p>");
+      loadSessions("");
     }
     document.getElementById("save-you").onclick=async function(){
       if(youName.value) localStorage.setItem("aia_name",youName.value);
@@ -236,7 +291,7 @@
       paintPic();
       const slug=localStorage.getItem("aia_ws")||"";
       const pin=localStorage.getItem("aia_pin")||"";
-      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
       const d=await r.json().catch(function(){return {};});
       let handleHint="";
       if(youHandle&&youHandle.value){
@@ -248,15 +303,56 @@
     };
     document.getElementById("save-pass").onclick=async function(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value;
-      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
       const d=await r.json().catch(function(){return {};});
       document.getElementById("pw-hint").textContent=r.ok?(d.hint||"Password saved."):(d.error||"Could not save.");
       document.getElementById("pw-hint").className=r.ok?"ok":"meta";
     };
-    document.getElementById("leave-phone").onclick=function(e){
+    document.getElementById("leave-phone").onclick=async function(e){
       e.preventDefault();
-      ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email","aia_wallet_address","aia_wallet_chain"].forEach(function(k){localStorage.removeItem(k);});
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      try{
+        await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"logout"})});
+      }catch(_){}
+      clearPhoneKeys();
       location.href="/login";
+    };
+    document.getElementById("refresh-sessions").onclick=function(){loadSessions("Sessions refreshed.");};
+    document.getElementById("export-book").onclick=async function(){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      const hint=document.getElementById("sessions-hint");
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"export"})});
+      const d=await r.json().catch(function(){return {};});
+      if(!r.ok||!d.pack){
+        if(hint) hint.textContent=d.error||"Could not export account book.";
+        return;
+      }
+      const blob=new Blob([JSON.stringify(d.pack,null,2)],{type:"application/json"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download="aia-account-book.json";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);
+      if(hint) hint.textContent="Account book exported.";
+    };
+    document.getElementById("logout-all").onclick=async function(){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"logout-all"})}).catch(function(){});
+      clearPhoneKeys();
+      location.href="/login";
+    };
+    document.getElementById("mfa-on").onclick=async function(){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"mfa",on:true})});
+      const d=await r.json().catch(function(){return {};});
+      const hint=document.getElementById("mfa-hint");
+      hint.textContent=(d.error||d.hint||"HOLD. Authenticator is not live on this account.");
+      hint.className=(r.status===409||d.hold)?"meta":"ok";
     };
     async function act(action, extra){
       const slug=String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
