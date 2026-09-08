@@ -69,6 +69,7 @@ if (auth.includes("Human before send.")) throw new Error("onboard first card sti
 
 must(yesNo, "How the queue runs", "ACCOUNT-YES-NO queue-runs");
 must(yesNo, "How lead / Talk / public Drop leftover", "ACCOUNT-YES-NO names How Yes-or-No leftover");
+must(yesNo, "Desk home / card / queue / handoff leftover", "ACCOUNT-YES-NO names desk Yes-or-No leftover");
 
 const queue = help.slice(help.indexOf('id="queue-runs"'), help.indexOf("Something broke?"));
 if (/\$47|\$197|\$50|Router Node|MoR chargeback|Connected Accounts/i.test(queue)) {

@@ -157,6 +157,8 @@ How lead / Talk / public Drop leftover: Yes or Stop, not Yes or No. Talk cards H
 
 Create / market / engine / grok leftover: Yes or Stop, not Yes or No. Create form hints / success, Marketplace Do-the-work default, engine queue next, and Grok SYSTEM Human taps Yes or Stop. Collect HOLD. No silent send.
 
+Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue how-in, card rec fallback, We-type-it sheet, desk.html next fallback, unused desk-queue decide fallback, and Rail/Doer handoff Owner/You tap Yes or Stop. Thin card busy while Reply / Yes / Stop pending. Collect HOLD. No silent send.
+
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
 Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.”

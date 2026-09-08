@@ -132,6 +132,31 @@ if (!cardJs.includes(">Save a file<") || !cardJs.includes(">Yes<") || !cardJs.in
 if (cardJs.includes(">Grok recs<") || cardJs.includes(">Phone calendar<") || cardJs.includes("That's my queue") || cardJs.includes("How work gets here") || cardJs.includes(">Send<") || cardJs.includes(">Stop<")) {
   fail("desk-card.js still has Grok / old button labels");
 } else pass("desk-card.js has no Grok recs or old labels");
+if (cardJs.includes("Yes or no") || cardJs.includes("yes or no")) fail("desk-card.js still paints Yes or No as the rail");
+else pass("desk-card rec / type-it does not paint Yes or No");
+if (!cardJs.includes("Open this card. Yes or Stop.") || !cardJs.includes("You still tap Yes or Stop.")) {
+  fail("desk-card.js must keep Yes or Stop");
+} else pass("desk-card rec / type-it keep Yes or Stop");
+
+const homeJs = fs.readFileSync(path.join(root, "desk-home.js"), "utf8");
+if (homeJs.includes("yes or no") || homeJs.includes("Yes or No") || homeJs.includes("Yes or no")) {
+  fail("desk-home.js still paints Yes or No as the rail");
+} else pass("desk-home how-in does not paint Yes or No");
+if (!homeJs.includes("You still say Yes or Stop.")) fail("desk-home.js must keep Yes or Stop");
+else pass("desk-home how-in says Yes or Stop");
+
+if (desk.includes("Yes or no") || desk.includes("Yes or No") || desk.includes("yes or no")) {
+  fail("desk.html still paints Yes or No as the rail");
+} else pass("desk.html fallback does not paint Yes or No");
+if (!desk.includes("Yes or Stop.")) fail("desk.html fallback next must keep Yes or Stop");
+else pass("desk.html fallback next is Yes or Stop");
+
+if (!fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8").includes("Desk home / card / queue / handoff leftover")) {
+  fail("ACCOUNT-YES-NO must record desk home / card / queue / handoff leftover");
+} else pass("ACCOUNT-YES-NO records desk Yes-rail leftover");
+if (!fs.readFileSync(path.join(root, "PACK.md"), "utf8").includes("Desk home / card / queue / handoff leftover")) {
+  fail("PACK.md must record desk home / card / queue / handoff leftover");
+} else pass("PACK.md records desk Yes-rail leftover");
 
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("Open a desk first.") || jobs.includes("workspaceOf(req)")) {

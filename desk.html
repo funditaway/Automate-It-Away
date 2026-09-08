@@ -61,6 +61,9 @@
     .q-prompt-go{margin-top:8px}
     .q-reply-tap{min-height:44px}
     .q-prompt-hold{font-size:12px;color:var(--muted);margin:8px 0 0}
+    .q-busy{font-size:12px;color:var(--muted);margin:6px 0}
+    .q-pending{opacity:.86}
+    .q-pending .q-yes,.q-pending .q-stop,.q-pending .q-kill,.q-pending .q-reply-tap{opacity:.55;pointer-events:none}
     .q-thread{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}
     .q-talk{display:flex;flex-direction:column;gap:8px;margin:8px 0}
     .q-turn{border-radius:10px;padding:8px 10px}
@@ -317,7 +320,7 @@
     function card(j, staff) {
       const money = Number(j.amount || j.ask || 0);
       const why = visitorLine(j.why);
-      const next = visitorLine(j.next) || "Yes or no.";
+      const next = visitorLine(j.next) || "Yes or Stop.";
       return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">Yes</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">No</button>`}</div></article>`;
     }
     async function load() {

@@ -43,7 +43,7 @@ function crewOf(job, shop) {
   const holdAt = shop ? moneyWaitOf(rules) : null;
   if (job.risk === "legal" || job.risk === "title" || job.risk === "credit" || job.risk === "suitability"
     || ruleWantsStop(rules, job, "do") || ruleWantsStop(rules, job, "qualify")) {
-    return { id: "rail", label: "Rail", does: "Hold. Owner taps Yes or No." };
+    return { id: "rail", label: "Rail", does: "Hold. Owner taps Yes or Stop." };
   }
   if (moneyNeedsOwner(moneyOf(job), holdAt) || ruleWantsOwner(rules, job, "do") || ruleWantsOwner(rules, job, "qualify")) {
     return { id: "owner", label: "Owner", does: "Desk rule wait. Owner taps." };
@@ -59,7 +59,7 @@ function crewOf(job, shop) {
   if (job.agentDraft && job.agentDraft.crew) {
     return { id: String(job.agentDraft.crew).toLowerCase(), label: job.agentDraft.name || job.agentDraft.crew, kind: "agent", does: job.agentDraft.does, artifact: job.agentDraft.artifact, deskAi: !!job.agentDraft.deskAi };
   }
-  if (job.draft) return { id: "doer", label: "Doer", does: "Draft only. You tap Yes or No." };
+  if (job.draft) return { id: "doer", label: "Doer", does: "Draft only. You tap Yes or Stop." };
   return { id: "worker", label: "Worker", does: "Qualify and nudge. Never Send." };
 }
 function applyHandoff(job, who, shop) {
