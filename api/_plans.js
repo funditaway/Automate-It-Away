@@ -65,10 +65,22 @@ function ownerOf(desk) {
 }
 
 function accountForSlug(slug, desk) {
-  return (lib.mem.accounts || []).find((a) => a && (
-    (slug && (a.slug === slug || lib.slugify(a.name) === slug || (a.desks || []).indexOf(slug) >= 0))
-    || (desk && desk.accountId && a.id === desk.accountId)
-  )) || null;
+  const accounts = lib.mem.accounts || [];
+  if (desk && desk.accountId) {
+    const byId = accounts.find((a) => a && a.id === desk.accountId);
+    if (byId) return byId;
+  }
+  if (slug) {
+    const byDesk = accounts.find((a) => a && (a.desks || []).indexOf(slug) >= 0);
+    if (byDesk) return byDesk;
+    const bySlug = accounts.find((a) => a && a.slug === slug);
+    if (bySlug) return bySlug;
+    if (!desk) {
+      const byName = accounts.find((a) => a && lib.slugify(a.name) === slug);
+      if (byName) return byName;
+    }
+  }
+  return null;
 }
 
 function pinMatches(stored, hashed) {

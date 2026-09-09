@@ -310,7 +310,10 @@ async function ready() {
 }
 
 async function save() {
-  await ready();
+  // Wait for first hydrate only. Do not call ready() — that re-reads the blob
+  // and would replace in-request mutations (onboard, sessions, Studio Open login)
+  // with the pre-mutation snapshot before write.
+  await globalThis.__aiaHydrate;
   dropPersistTests();
   const disk = writeDisk();
   if (blobReady()) {
