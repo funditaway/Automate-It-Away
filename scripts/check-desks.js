@@ -145,6 +145,43 @@ async function main() {
     fail("leftover session + matching pin must GET /api/desks");
   } else pass("leftover session + pin GET opens the desk");
 
+  const bookJs = fs.readFileSync(path.join(__dirname, "..", "desks-book.js"), "utf8");
+  if (/if \(tok\) h\["X-Session"\] = tok; else if \(pin\)/.test(bookJs)) {
+    fail("desks-book hdr must still send the open-desk pin when a session token is present");
+  } else pass("desks-book hdr keeps X-Pin with X-Session");
+  if (bookJs.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desks-book hdr must send X-Pin");
+  else pass("desks-book hdr sends X-Pin");
+  const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
+  const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
+  if (yesNo.indexOf("Desks book leftover") < 0) fail("ACCOUNT-YES-NO must name Desks book leftover");
+  else pass("ACCOUNT-YES-NO names Desks book leftover");
+  if (packMd.indexOf("Desks book leftover") < 0) fail("PACK.md must name Desks book leftover");
+  else pass("PACK.md names Desks book leftover");
+
+  const leftoverMine = await call(auth, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover
+  }, { action: "mine" }, { via: "desks" });
+  if (leftoverMine.statusCode !== 401) {
+    fail("leftover session without pin must still 401 desks mine");
+  } else pass("leftover session without pin stays 401 on desks mine");
+  const leftoverMinePin = await call(auth, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover,
+    "x-pin": strangerPin
+  }, { action: "mine" }, { via: "desks" });
+  if (leftoverMinePin.statusCode !== 200 || !leftoverMinePin.body || !leftoverMinePin.body.ok || !(leftoverMinePin.body.owned || leftoverMinePin.body.desks)) {
+    fail("leftover session + matching pin must still mine desks " + leftoverMinePin.statusCode + " " + JSON.stringify(leftoverMinePin.body));
+  } else pass("leftover session + pin mines the desks book");
+  const wrongMine = await call(auth, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover,
+    "x-pin": "0000"
+  }, { action: "mine" }, { via: "desks" });
+  if (wrongMine.statusCode !== 401) {
+    fail("wrong pin should still 401 desks mine");
+  } else pass("wrong pin stays 401 on desks mine");
+
   const saveAi = await call(auth, "POST", {
     "x-workspace": "rivera-resale",
     "x-pin": strangerPin,
