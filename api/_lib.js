@@ -107,8 +107,9 @@ function blobAuthKind() {
 }
 
 function blobAuthAttempts() {
-  const attempts = [{}];
+  const attempts = [];
   if (blobStoreId()) attempts.push({ storeId: blobStoreId() });
+  attempts.push({});
   if (blobToken()) attempts.push({ token: blobToken() });
   return attempts;
 }
@@ -129,7 +130,7 @@ async function blobTryAuth(run) {
       last = e;
       const msg = (e && e.message) || e;
       if (blobMissing(msg)) throw e;
-      if (!blobIs403(msg)) throw e;
+      if (!blobNeedsRetry(msg)) throw e;
     }
   }
   throw last;
@@ -264,6 +265,11 @@ function blobAccessOfUrl(url) {
 
 function blobIs403(msg) {
   return /403|forbidden/i.test(String(msg || ""));
+}
+
+function blobNeedsRetry(msg) {
+  const text = String(msg || "");
+  return blobIs403(text) || /no blob credentials|invalid token|unable to extract store|oidcToken was passed/i.test(text);
 }
 
 function blobMissing(msg) {
@@ -416,8 +422,8 @@ async function blobRead() {
       markBlobEmpty(blobProbe.access || "private");
       return null;
     }
-    if (blobIs403(msg)) {
-      saw403 = true;
+    if (blobIs403(msg) || blobNeedsRetry(msg)) {
+      saw403 = blobIs403(msg) || saw403;
       try {
         const rest = await blobRestRead();
         if (rest) return rest;
@@ -426,6 +432,13 @@ async function blobRead() {
         lastErr = String((re && re.message) || re).slice(0, 180);
       }
     } else {
+      try {
+        const rest = await blobRestRead();
+        if (rest) return rest;
+        if (blobProbe.read === "empty") return null;
+      } catch (re) {
+        lastErr = String((re && re.message) || re).slice(0, 180);
+      }
       blobProbe.read = "error";
       blobProbe.detail = lastErr;
       blobProbe.status = e && e.status || blobProbe.status;
@@ -545,7 +558,7 @@ async function blobWrite() {
     } catch (first) {
       const msg = String((first && first.message) || first);
       try {
-        if (!blobToken() || !(blobWantsPublic(msg) || blobIs403(msg))) throw first;
+        if (!blobToken() || !(blobWantsPublic(msg) || blobNeedsRetry(msg))) throw first;
         blob = await blobPut(blobSeal(body), "public");
         used = "public";
         blobProbe.detail = "sealed-public";

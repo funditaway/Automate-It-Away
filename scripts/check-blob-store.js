@@ -13,6 +13,7 @@ const fake = {
   tokens: [],
   rests: [],
   sdkFail: false,
+  sdkCreds: false,
   forcePublic: false
 };
 
@@ -21,8 +22,11 @@ function noteAuth(opts) {
 }
 
 function sdkDenied() {
-  if (!fake.sdkFail) return false;
-  throw new Error("Vercel Blob: Failed to fetch blob: 403 Forbidden");
+  if (fake.sdkFail) throw new Error("Vercel Blob: Failed to fetch blob: 403 Forbidden");
+  if (fake.sdkCreds) {
+    throw new Error("Vercel Blob: No blob credentials found. Pass a `token` option, set `BLOB_READ_WRITE_TOKEN`, or use `oidcToken` (or `VERCEL_OIDC_TOKEN`) with `storeId` or `BLOB_STORE_ID`.");
+  }
+  return false;
 }
 
 const origLoad = Module._load;
@@ -181,6 +185,9 @@ async function main() {
   if (src.indexOf("blobPut(body, otherAccess)") >= 0) {
     fail("_lib must not put plaintext store JSON as public");
   } else pass("_lib does not put plaintext store JSON as public");
+  if (src.indexOf("blobNeedsRetry") < 0 || src.indexOf("no blob credentials") < 0) {
+    fail("_lib must retry token/REST when SDK says no blob credentials, not only on 403");
+  } else pass("_lib retries token/REST on missing SDK credentials");
   if (src.indexOf("blobRestPut") < 0 || src.indexOf("blob.vercel-storage.com") < 0) {
     fail("_lib must REST put/get aia/store.json the same way upload.js does when the SDK 403s");
   } else pass("_lib REST-falls back like upload.js when SDK 403s");
@@ -378,6 +385,45 @@ async function main() {
   }, { action: "mine" }, { via: "desks" });
   if (wrongR.statusCode !== 401) fail("wrong pin must still 401 on REST replica, got " + wrongR.statusCode);
   else pass("wrong pin stays 401 on REST replica");
+
+  fake.files = Object.create(null);
+  fake.puts = [];
+  fake.tokens = [];
+  fake.rests = [];
+  fake.sdkFail = false;
+  fake.sdkCreds = true;
+  fake.forcePublic = false;
+  const storeC = path.join(os.tmpdir(), "aia-blob-c-" + Date.now() + ".json");
+  const creds = boot(storeC);
+  const onboardC = await call(creds.auth, "POST", { "x-workspace": "probe-desk", "x-pin": pin }, {
+    action: "account",
+    name: "Pat",
+    biz: "probe-desk",
+    slug: "probe-desk",
+    pin
+  });
+  if (onboardC.statusCode !== 201 || creds.lib.mem.driver !== "blob" || creds.lib.blobProbe.read !== "ok") {
+    fail("SDK no-credentials must REST-stick onboard, got " + onboardC.statusCode + " driver " + creds.lib.mem.driver + " " + JSON.stringify(creds.lib.blobProbe));
+  } else pass("SDK no-credentials REST-sticks onboard as driver blob read ok");
+  const storeD = path.join(os.tmpdir(), "aia-blob-d-" + Date.now() + ".json");
+  const credsReplica = boot(storeD);
+  await credsReplica.lib.ready();
+  const mineC = await call(credsReplica.auth, "POST", {
+    "x-workspace": "probe-desk",
+    "x-session": leftover,
+    "x-pin": pin
+  }, { action: "mine" }, { via: "desks" });
+  const ownedC = (mineC.body && mineC.body.owned) || [];
+  if (mineC.statusCode !== 200 || !ownedC.some((d) => d && d.slug === "probe-desk")) {
+    fail("no-credentials replica leftover+pin mine must paint owned desks, got " + mineC.statusCode + " " + JSON.stringify(mineC.body));
+  } else pass("no-credentials replica leftover+pin mine paints owned desks");
+  const wrongC = await call(credsReplica.auth, "POST", {
+    "x-workspace": "probe-desk",
+    "x-session": leftover,
+    "x-pin": "0000"
+  }, { action: "mine" }, { via: "desks" });
+  if (wrongC.statusCode !== 401) fail("wrong pin must still 401 after no-credentials REST, got " + wrongC.statusCode);
+  else pass("wrong pin stays 401 after no-credentials REST");
 
   if (process.exitCode) {
     console.error("check-blob-store failed");

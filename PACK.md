@@ -181,7 +181,7 @@ Desks book leftover: after Account / mail / Desk AIs send the saved pin with lef
 
 Desks book leftover after blob: pin-with-session mine 200 in curl did not paint `/desks` owned desks. Blob `get` used `access: "private"` and 403’d on a Public store, so hydrate never left Lambda `/tmp`. Get retries public on 403; `ready()` re-reads uncached. Wrong or empty pin still 401. Collect HOLD. No silent send. No new Lambda.
 
-Desks book leftover after blob 403 still: preview `b69995a` stayed `tmp-file` / get 403 with `auth=oidc` because SDK head/get still 403’d and hydrate never put. REST PUT/GET on `blob.vercel-storage.com` (same as upload) with a sealed store JSON. Wrong pin still 401. Collect HOLD.
+Desks book leftover after blob 403 still: onboard 201 still left `/api/health` `tmp-file` / `workspaces:0`. SDK `{}` threw `No blob credentials found` (not 403) so health never retried token or REST. Retry credentials-missing; sealed REST like upload. Wrong pin 401. Collect HOLD.
 
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
