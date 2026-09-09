@@ -183,6 +183,9 @@ async function main() {
   if (accountHtml.indexOf('pinEl.value=localStorage.getItem("aia_pin")') < 0) {
     fail("Account Open gate must prefill the saved owner code");
   } else pass("Account Open gate prefills aia_pin");
+  if (accountHtml.indexOf("#gate[hidden]") < 0 || accountHtml.indexOf("display:none!important") < 0) {
+    fail("Account Open gate must honor hidden after leftover session opens the book");
+  } else pass("Account Open gate honors hidden");
   const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
   const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
   if (yesNo.indexOf("Account leftover") < 0) fail("ACCOUNT-YES-NO must name Account leftover");
