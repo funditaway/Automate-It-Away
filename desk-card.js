@@ -89,7 +89,7 @@ function sheetChipsHtml(j) {
   return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
 }
 function sheetPromptHtml(j) {
-  if (typeof promptHtml === "function") return promptHtml(j, sheetNeedOf(j));
+  if (typeof promptHtml === "function") return promptHtml(j, sheetNeedOf(j), "sheet");
   const who = thenWhoOf(j);
   const named = namedNeedsWhoOf(j);
   const wait = String((j && j.waitingOn) || "").toLowerCase();
@@ -233,7 +233,7 @@ async function openJob(id) {
       "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + j.id + "')\">Save info</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + j.id + "')\">Ask for more</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + j.id + "')\">Add note</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "'))\">Reply on card</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "','sheet'))\">Reply on card</button>" +
       (staff ? "" : "<button class=\"edit\" type=\"button\" onclick=\"addFieldPrompt('" + j.id + "')\">Add field</button>") +
     "</div>" +
     (peopleOpts

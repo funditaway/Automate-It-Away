@@ -48,7 +48,7 @@ if (/who\|\|row\.from\|\|"Desk AI"/.test(history.replace(/\s+/g, ""))) {
 if (needs.indexOf("const talks = talkHtml(j)") < 0 || needs.indexOf("q-thread") < 0) {
   fail("Cap cards must paint talkHtml / q-thread");
 }
-if (needs.indexOf("function capCardHtml") < 0 || needs.indexOf("promptHtml(j, need)") < 0) {
+if (needs.indexOf("function capCardHtml") < 0 || needs.indexOf("promptHtml(j, need") < 0) {
   fail("Cap cards must paint promptHtml via capCardHtml");
 }
 if (card.indexOf("function sheetPromptHtml") < 0 || card.indexOf("sheetPromptHtml(j)") < 0) {

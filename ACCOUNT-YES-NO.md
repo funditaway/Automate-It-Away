@@ -167,8 +167,10 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - `scripts/check-desk-queue-cards.js` covers that face.
 - Prompt reply on the q-card: when Needs you / Ask the human / a desk AI asks, the owner (and a seated helper) types a reply on the card. Reply lands on thread / history and can unblock the next Then. Reply does not Yes, ship, or send money. Desk AI cannot reply as Yes. Nothing sent alone.
 - Then-after-Yes: after a person taps Yes, When=do Then can continue on a new card or the next Then. HITL stays. Collect HOLD. No silent send.
+- Cap leftover after prompt reply: Queue / Cap / Open each own a reply field so they do not share `q-reply-{id}`. Cap on this desk can Reply. Other-desk Cap stays read-only like History / People — Open on that desk. Reply on a card already waiting for Yes does not fire When=do Then. Collect HOLD. Nothing sent alone.
 - `scripts/check-desk-prompt-reply.js` covers the prompt face + reply API + helper seat + desk-AI 403.
 - `scripts/check-orch-then.js` covers Then-after-Yes spawn.
+- `scripts/check-cap-prompt-reply.js` covers Cap this-desk send, other-desk Cap read-only, and unique Queue / Cap / Open reply ids.
 - Named desk AIs on queue cards: `desk-needs.js` `card()` shows which desk AI drafted / owns the Then (name + short does / prompt chip). Ask Grok / Then draft / Needs you name that AI when one is set. `/desk` `#desk-ais` paints each bot as a card (name, does, prompt summary, queue-card face). People Agents cards show the same. Ask Grok `recommend` stamps the named AI. Yes / Stop / Kill stay human. Collect HOLD. Prompt reply + Then-after-Yes stay.
 - `scripts/check-desk-ai-cards.js` covers the named-AI face + bot cards + recommend stamp.
 - Edit desk AI on bot cards: owner updates name / does / prompt from the Desk AI strip or People Agents via existing `save-ai`. Queue chips follow. Helpers do not edit.
