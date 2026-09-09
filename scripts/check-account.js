@@ -174,6 +174,22 @@ async function main() {
     fail("wrong onboard Owner code should still 401");
   } else pass("wrong onboard Owner code stays 401");
 
+  const accountHtml = fs.readFileSync(path.join(__dirname, "..", "account.html"), "utf8");
+  if (/if\(tok\) h\["X-Session"\]=tok; else if\(pin\)/.test(accountHtml)) {
+    fail("Account hdr must still send the open-desk pin when a session token is present");
+  } else pass("Account hdr keeps X-Pin with X-Session");
+  if (accountHtml.indexOf('if(pin) h["X-Pin"]=pin') < 0) fail("Account hdr must send X-Pin");
+  else pass("Account hdr sends X-Pin");
+  if (accountHtml.indexOf('pinEl.value=localStorage.getItem("aia_pin")') < 0) {
+    fail("Account Open gate must prefill the saved owner code");
+  } else pass("Account Open gate prefills aia_pin");
+  const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
+  const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
+  if (yesNo.indexOf("Account leftover") < 0) fail("ACCOUNT-YES-NO must name Account leftover");
+  else pass("ACCOUNT-YES-NO names Account leftover");
+  if (packMd.indexOf("Account leftover") < 0) fail("PACK.md must name Account leftover");
+  else pass("PACK.md names Account leftover");
+
   const vercel = fs.readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8");
   if (!/"\/api\/account"/.test(vercel) || !vercel.includes("/api/auth?via=account")) {
     fail("vercel.json must run /api/account on the /api/auth function");

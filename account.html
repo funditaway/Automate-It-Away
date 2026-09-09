@@ -166,6 +166,7 @@
     const youHint=document.getElementById("you-hint");
     let door="desk";
     slugEl.value=localStorage.getItem("aia_desk_name")||localStorage.getItem("aia_ws")||"";
+    pinEl.value=localStorage.getItem("aia_pin")||"";
     youName.value=localStorage.getItem("aia_name")||"";
     youEmail.value=localStorage.getItem("aia_email")||"";
     document.getElementById("gate-mail").value=localStorage.getItem("aia_email")||"";
@@ -199,7 +200,8 @@
       const h={"Content-Type":"application/json"};
       if(slug) h["X-Workspace"]=slug;
       const tok=localStorage.getItem("aia_session")||"";
-      if(tok) h["X-Session"]=tok; else if(pin) h["X-Pin"]=pin;
+      if(tok) h["X-Session"]=tok;
+      if(pin) h["X-Pin"]=pin;
       return h;
     }
     function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c];});}
