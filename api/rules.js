@@ -1,9 +1,33 @@
 const { dropCannedSeeds } = require("./_drop-seed");
+const ais = require("./_ais");
 const {
   cors, mem, log, save, ready, workspaceOf, readBody,
   personOf, isOwner, ensureRules, addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, defaultRules,
   ensureNouns, defaultNouns, setRuleWidget, widgetCount, ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF
 } = require("./_lib");
+
+function aisPublic(row) {
+  return (ais.railsOf(row).ais || []).filter(Boolean);
+}
+
+function bindRuleAi(row, body) {
+  if (!body || typeof body !== "object") return { ok: true };
+  const raw = body.ai != null ? body.ai
+    : (body.aiId != null ? body.aiId
+      : (body.aiName != null ? body.aiName
+        : (body.deskAi != null ? body.deskAi : undefined)));
+  if (raw === undefined) return { ok: true };
+  if (raw === "" || raw === null) {
+    body.aiId = "";
+    body.aiName = "";
+    return { ok: true };
+  }
+  const found = ais.findDeskAi(row, raw);
+  if (!found) return { ok: false, error: "No desk AI by that name." };
+  body.aiId = found.id;
+  body.aiName = found.name;
+  return { ok: true };
+}
 
 function deskName(row) {
   return (row && (row.biz || row.name || row.slug)) || "this desk";
@@ -118,6 +142,7 @@ module.exports = async function handler(req, res) {
         when: RULE_WHEN,
         then: RULE_THEN,
         if: RULE_IF,
+        ais: [],
         workflows: "Packs string rules. Optional delay / branch. Thin JSON.",
         canAdd: false
       });
@@ -137,6 +162,7 @@ module.exports = async function handler(req, res) {
       when: RULE_WHEN,
       then: RULE_THEN,
       if: RULE_IF,
+      ais: aisPublic(row),
       workflows: "Packs string rules. Optional delay / branch. Thin JSON.",
       canAdd: isOwner(person),
       draft: row.ruleDraft || null,
@@ -159,6 +185,8 @@ module.exports = async function handler(req, res) {
         if (!src || !src.text) {
           return res.status(400).json({ ok: false, error: "Say the rule first. Then confirm." });
         }
+        const boundTalk = bindRuleAi(row, src);
+        if (!boundTalk.ok) return res.status(400).json(boundTalk);
         const added = addWorkspaceRule(row, src, person);
         if (!added.ok) return res.status(400).json(added);
         row.ruleDraft = null;
@@ -228,6 +256,8 @@ module.exports = async function handler(req, res) {
       });
     }
     if (action === "update") {
+      const bound = bindRuleAi(row, body);
+      if (!bound.ok) return res.status(400).json(bound);
       const updated = updateWorkspaceRule(row, body.id, body);
       if (!updated.ok) return res.status(updated.error === "Rule not found." ? 404 : 400).json(updated);
       log("Desk", "Rule edit · " + updated.rule.text, "OK", workspace);
@@ -241,6 +271,8 @@ module.exports = async function handler(req, res) {
         workspace
       });
     }
+    const boundAdd = bindRuleAi(row, body);
+    if (!boundAdd.ok) return res.status(400).json(boundAdd);
     const added = addWorkspaceRule(row, body, person);
     if (!added.ok) return res.status(400).json(added);
     log("Desk", "Rule · " + added.rule.text, "OK", workspace);

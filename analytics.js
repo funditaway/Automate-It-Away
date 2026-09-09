@@ -12,7 +12,7 @@
   }
   icon("icon", "/favicon.svg", { type: "image/svg+xml" });
   icon("icon", "/favicon.ico", { sizes: "any" });
-  icon("apple-touch-icon", "/apple-touch-icon.png");
+  icon("apple-touch-icon", "/apple-touch-icon.png", { sizes: "180x180" });
   icon("manifest", "/site.webmanifest");
 
   window.va = window.va || function () {

@@ -48,10 +48,10 @@
     line.className = "meta";
     line.textContent = window.handoffLine(j);
     article.appendChild(line);
-    if (j.agentDraft) {
+    if (j.agentDraft && !article.querySelector(".q-then")) {
       var wrap = document.createElement("div");
       wrap.innerHTML = "<div class=\"draft\"><b>" + esc(j.agentDraft.crew) + " · " + esc(j.agentDraft.artifact) + "</b><br>" +
-        esc(j.agentDraft.text) + "<br><span class=\"meta\">Never " + esc((j.agentDraft.never || []).join(", ")) + ". A person taps Send.</span></div>";
+        esc(j.agentDraft.text) + "<br><span class=\"meta\">Never " + esc((j.agentDraft.never || []).join(", ")) + ". A person taps Yes.</span></div>";
       article.appendChild(wrap.firstChild);
     }
     var list = opts(j);

@@ -6,7 +6,8 @@
   <title>Desk · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
@@ -29,9 +30,51 @@
     #desk-nav svg{width:22px;height:22px;display:block;pointer-events:none}
     .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 24px}
     .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
-    .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
-    .item h3{font-size:1rem;color:var(--heading)}
-    .item p{color:var(--muted);font-size:13px;margin:4px 0 8px}
+    .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+    .item h3{font-size:1.12rem;line-height:1.3;color:var(--heading);margin:6px 0}
+    .item p{color:var(--muted);font-size:14px;margin:4px 0 8px}
+    #queue .item,#cap-list .item{box-shadow:var(--shadow)}
+    #queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}
+    #queue .tap-opts button,#queue .tap-opts a,#cap-list .tap-opts button{min-height:44px}
+    .q-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+    .q-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .q-chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.03em;background:var(--edit);color:var(--edit-ink)}
+    .q-need{background:var(--banner);color:var(--banner-ink)}
+    .q-ask{background:var(--edit);color:var(--heading)}
+    .q-hitl-mark{background:var(--edit);color:var(--heading)}
+    .q-stat{color:var(--muted);font-weight:700}
+    .q-then-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+    .q-then-face{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+    .q-ai{background:var(--teal,#119494);color:#fff}
+    .q-ai-gone{background:var(--banner);color:var(--banner-ink)}
+    .q-ai-does,.q-ai-prompt{background:var(--edit);color:var(--heading);font-weight:700}
+    .q-files{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+    .q-file{min-height:44px}
+    .q-hitl{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px;width:100%}
+    .q-prompt{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+    .q-prompt-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+    .q-prompt-q{font-size:15px;line-height:1.4;color:var(--heading);margin:0 0 8px}
+    .q-reply-was{font-size:13px;color:var(--muted);margin:0 0 8px;white-space:pre-wrap}
+    .q-prompt-lab{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 4px}
+    .q-reply-box{width:100%;min-height:64px;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--bg);color:var(--ink)}
+    .q-prompt-go{margin-top:8px}
+    .q-reply-tap{min-height:44px}
+    .q-prompt-hold{font-size:12px;color:var(--muted);margin:8px 0 0}
+    .q-busy{font-size:12px;color:var(--muted);margin:6px 0}
+    .q-pending{opacity:.86}
+    .q-pending .q-yes,.q-pending .q-stop,.q-pending .q-kill,.q-pending .q-reply-tap{opacity:.55;pointer-events:none}
+    .q-thread{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}
+    .q-talk{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+    .q-turn{border-radius:10px;padding:8px 10px}
+    .q-turn-ai{background:var(--edit)}
+    .q-turn-you{background:var(--bg);border:1px solid var(--line)}
+    .q-turn-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 4px}
+    .q-turn-text{font-size:14px;line-height:1.4;white-space:pre-wrap}
+    .q-bind{margin:8px 0}
+    .q-bind-lab{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 4px}
+    .q-ai-pick{width:100%;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}
+    .q-bind-hold{font-size:12px;color:var(--muted);margin:6px 0 0}
     .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
     button,a.go{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
     .go{background:#119494;color:#fff;display:inline-block}
@@ -48,9 +91,12 @@
     .sheet-card{background:var(--card);color:var(--ink);width:min(480px,100%);border-radius:16px 16px 0 0;padding:16px}
     .sheet-card label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
     .sheet-card input,.sheet-card textarea{width:100%}
-    img.thumb{max-width:120px;border-radius:8px;display:block;margin:6px 0}
-    .draft{background:var(--edit);border-radius:8px;padding:8px;font-size:13px;margin:6px 0}
+    img.thumb{max-width:min(160px,42vw);border-radius:10px;display:block;margin:6px 0}
+    .draft{background:var(--edit);border-radius:10px;padding:10px 12px;font-size:14px;margin:8px 0;line-height:1.4}
     .meta{font-size:11px;opacity:.7}
+    .ok{color:#0d6b6b;font-size:13px}
+    #aia-wallet h2{font-size:1.12rem;color:var(--heading);margin:0 0 6px}
+    #aia-wallet .row{margin:8px 0}
     .sent{opacity:.75}
     .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
     a.edit{display:inline-block}
@@ -115,9 +161,16 @@
     <p class="meta" id="step-words">Capture · Qualify · Do · Collect · Follow</p>
     <div data-aia-playbook="compact"></div>
     <div class="item" id="desk-ais" hidden></div>
+    <div class="item" id="aia-wallet"></div>
     <p class="meta" id="widget-count">0 widgets on</p>
     <div class="row" id="rule-widgets" style="margin-bottom:8px"></div>
-    <div id="queue"></div>
+    <p class="meta" id="queue-taps">Taps match what the card needs. Yes / Stop / Kill stay human.</p>
+    <div id="queue-filters"><button class="edit" type="button" data-filter="cap">Cap · orange</button></div>
+    <div id="cap-band" class="cap-band" hidden>
+      <h2>Cap · orange · every desk on this account</h2>
+      <div id="cap-list"></div>
+    </div>
+    <div id="queue" data-card-needs="cardNeeds"></div>
     <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
     <div id="recent"></div>
     <p class="meta" id="rules-line"><a href="/rules">Rules</a> — no rules yet. Add one if you need it.</p>
@@ -133,6 +186,7 @@
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
+  <script src="aia-wallet.js"></script>
   <script src="desk-card.js"></script>
   <script src="desk-playbook.js"></script>
   <script src="desk-nav.js"></script>
@@ -266,7 +320,7 @@
     function card(j, staff) {
       const money = Number(j.amount || j.ask || 0);
       const why = visitorLine(j.why);
-      const next = visitorLine(j.next) || "Yes or no.";
+      const next = visitorLine(j.next) || "Yes or Stop.";
       return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">Yes</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">No</button>`}</div></article>`;
     }
     async function load() {
@@ -297,6 +351,11 @@
         JOBS = jobs.data.jobs || [];
         FIELDS = jobs.data.fields || FIELDS;
         if (jobs.data.you && jobs.data.you.role) { role = jobs.data.you.role; youName = jobs.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
+        if (window.AIADeskAis) {
+          if (Array.isArray(jobs.data.ais) && jobs.data.ais.length) window.AIADeskAis.rows = jobs.data.ais.slice();
+          const you = jobs.data.you || {};
+          if (you.role === "owner" || you.kind === "owner" || role === "owner") window.AIADeskAis.owner = true;
+        }
         const auth = await api("/api/auth");
         if (auth.data && auth.data.you && auth.data.you.role) { role = auth.data.you.role; youName = auth.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
         if (jobs.data && jobs.data.nouns) NOUNS = AIADesks.nounsOf(jobs.data.nouns);
@@ -335,7 +394,10 @@
         document.getElementById("sheet-card").innerHTML = `<h3>Waiting on the owner</h3><p style="color:var(--muted);margin:8px 0">Waiting on the owner.</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Yes</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">No</button></div>`;
         document.getElementById("sheet").classList.add("on"); load(); return;
       }
-      load();
+      await load();
+      if (out.data && out.data.nextJob) {
+        document.getElementById("banner").textContent = "Yes. Next Then is on a new card. HOLD. Nothing sent alone.";
+      }
     }
     async function confirmShip(id, amount) {
       await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: true, whoTapped: youName || "owner" }) });
