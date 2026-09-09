@@ -28,6 +28,8 @@ else pass("ask is a tag filter");
 
 if (!nav.includes("desk-queue-packs.js")) fail("desk-nav.js must load desk-queue-packs.js");
 else pass("nav loads queue packs");
+if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");
+else pass("nav loads desk ais");
 if (!nav.includes("desk-needs.js")) fail("desk-nav.js must load desk-needs.js");
 else pass("nav loads needs");
 if (!nav.includes("desk-inbox.js")) fail("desk-nav.js must load desk-inbox.js");
@@ -40,7 +42,7 @@ else pass("pack-card maps year2 and missed-call");
 if (!card.includes('name: "Insurance"')) fail("pack-card missing Insurance face");
 else pass("pack-card Insurance face");
 
-["home", "consign", "fund", "land", "vita", "aia-adoption"].forEach(function (id) {
+["home", "consign", "fund", "land", "vita", "aia-adoption", "aia-implement"].forEach(function (id) {
   const file = JSON.parse(fs.readFileSync(path.join(root, "packs", id + ".json"), "utf8"));
   if (!file.queue) fail(id + " missing queue{}");
   else pass(id + " has queue{}");
@@ -92,10 +94,12 @@ if (/White House|Action Plan|executive order/i.test(JSON.stringify(adoption))) f
 else pass("aia-adoption is desk language, not a reprint");
 
 const helpPage = fs.readFileSync(path.join(root, "help.html"), "utf8");
-["Try first", "Workers decide", "Open packs", "Secure from the start"].forEach(function (bit) {
+["Try first", "Workers decide", "Open packs", "Secure from the start", "When · If · Then", "Workflow / Sequence"].forEach(function (bit) {
   if (!helpPage.includes(bit)) fail("help.html missing " + bit);
   else pass("help " + bit);
 });
+if (!/Four steps|find the leaks/i.test(JSON.stringify(adoption))) fail("aia-adoption should point at the four steps");
+else pass("aia-adoption points at the four steps");
 if (/White House|Action Plan/i.test(helpPage)) fail("help.html must not reprint policy");
 else pass("help is desk language");
 if (helpPage.includes("Grok")) fail("help.html must not leak Grok");

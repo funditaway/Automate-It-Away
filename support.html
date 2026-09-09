@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Support · Automate It Away</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+<link rel="manifest" href="/site.webmanifest">
 <script>
 (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
 </script>
@@ -49,7 +52,7 @@ input,textarea,select{width:100%;box-sizing:border-box;padding:12px;border-radiu
 <main class="wrap">
   <p class="fine">AIA HELP</p>
   <h1>Something broke?</h1>
-  <p class="lead">Talk to AIA. We write a card on the AIA Admin Desk. A person looks. Nothing sends itself.</p>
+  <p class="lead">Talk to AIA. Ask AIA answers here first — draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human. Nothing sends itself. Not a ticket portal.</p>
   <div class="panel" id="talk-panel">
     <div class="talk-bar">
       <button type="button" id="hear">Hear this</button>
@@ -69,17 +72,17 @@ input,textarea,select{width:100%;box-sizing:border-box;padding:12px;border-radiu
       <button type="button" data-kind="pipe">Pipe</button>
       <button type="button" data-kind="idea">Idea</button>
     </div>
-    <label for="title">Title</label>
+    <label for="title">Title <button type="button" class="aia-tip" data-aia-tip="support-title" aria-label="More about Title">?</button></label>
     <input id="title" placeholder="Short name for the problem">
-    <label for="notes">What broke</label>
+    <label for="notes">What broke <button type="button" class="aia-tip" data-aia-tip="support-broke" aria-label="More about What broke">?</button></label>
     <textarea id="notes" rows="4" placeholder="What happened. Which page. What you already tried."></textarea>
-    <label for="page">Which page</label>
+    <label for="page">Which page <button type="button" class="aia-tip" data-aia-tip="support-page" aria-label="More about Which page">?</button></label>
     <input id="page" placeholder="/desk, /drop, /login …">
-    <label for="deskName">Your desk name</label>
+    <label for="deskName">Your desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
     <input id="deskName" placeholder="Name only — never the code">
-    <label for="who">Your name</label>
+    <label for="who">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
     <input id="who" placeholder="How we should say hello">
-    <label for="email">Email</label>
+    <label for="email">Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
     <input id="email" type="email" placeholder="Optional">
     <label for="phone">Phone</label>
     <input id="phone" inputmode="tel" placeholder="Optional">
@@ -96,6 +99,7 @@ input,textarea,select{width:100%;box-sizing:border-box;padding:12px;border-radiu
   <a href="/more" data-tab="more"><span>More</span></a>
 </nav>
 <script src="speech.js"></script>
+<script src="aia-tip.js"></script>
 <script src="support-talk.js"></script>
 <script src="desk-nav.js"></script>
 </body>

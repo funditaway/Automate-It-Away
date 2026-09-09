@@ -106,6 +106,11 @@ if (!desk.includes("Change desk") || !desk.includes("Open another") || !desk.inc
 } else pass("desk.html can switch saved desks");
 if (desk.includes("|| \"demo\"") || desk.includes("|| 'demo'")) fail("desk.html still falls back to demo");
 else pass("desk.html has no demo fallback");
+["pipes.html", "connections.html", "admin.html"].forEach((file) => {
+  const src = fs.readFileSync(path.join(root, file), "utf8");
+  if (src.includes("|| \"demo\"") || src.includes("|| 'demo'")) fail(file + " still falls back to demo");
+  else pass(file + " has no demo fallback");
+});
 if (!desk.includes("Drop anything") || !desk.includes("Add a rule") || !desk.includes("This desk") || !desk.includes("no rules yet")) fail("desk copy missing");
 else pass("desk queue/rules copy");
 if (!desk.includes("widget-count") || !desk.includes("rule-widgets") || !desk.includes("/rules")) {
@@ -127,6 +132,31 @@ if (!cardJs.includes(">Save a file<") || !cardJs.includes(">Yes<") || !cardJs.in
 if (cardJs.includes(">Grok recs<") || cardJs.includes(">Phone calendar<") || cardJs.includes("That's my queue") || cardJs.includes("How work gets here") || cardJs.includes(">Send<") || cardJs.includes(">Stop<")) {
   fail("desk-card.js still has Grok / old button labels");
 } else pass("desk-card.js has no Grok recs or old labels");
+if (cardJs.includes("Yes or no") || cardJs.includes("yes or no")) fail("desk-card.js still paints Yes or No as the rail");
+else pass("desk-card rec / type-it does not paint Yes or No");
+if (!cardJs.includes("Open this card. Yes or Stop.") || !cardJs.includes("You still tap Yes or Stop.")) {
+  fail("desk-card.js must keep Yes or Stop");
+} else pass("desk-card rec / type-it keep Yes or Stop");
+
+const homeJs = fs.readFileSync(path.join(root, "desk-home.js"), "utf8");
+if (homeJs.includes("yes or no") || homeJs.includes("Yes or No") || homeJs.includes("Yes or no")) {
+  fail("desk-home.js still paints Yes or No as the rail");
+} else pass("desk-home how-in does not paint Yes or No");
+if (!homeJs.includes("You still say Yes or Stop.")) fail("desk-home.js must keep Yes or Stop");
+else pass("desk-home how-in says Yes or Stop");
+
+if (desk.includes("Yes or no") || desk.includes("Yes or No") || desk.includes("yes or no")) {
+  fail("desk.html still paints Yes or No as the rail");
+} else pass("desk.html fallback does not paint Yes or No");
+if (!desk.includes("Yes or Stop.")) fail("desk.html fallback next must keep Yes or Stop");
+else pass("desk.html fallback next is Yes or Stop");
+
+if (!fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8").includes("Desk home / card / queue / handoff leftover")) {
+  fail("ACCOUNT-YES-NO must record desk home / card / queue / handoff leftover");
+} else pass("ACCOUNT-YES-NO records desk Yes-rail leftover");
+if (!fs.readFileSync(path.join(root, "PACK.md"), "utf8").includes("Desk home / card / queue / handoff leftover")) {
+  fail("PACK.md must record desk home / card / queue / handoff leftover");
+} else pass("PACK.md records desk Yes-rail leftover");
 
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("Open a desk first.") || jobs.includes("workspaceOf(req)")) {
@@ -152,6 +182,32 @@ const libSrc = fs.readFileSync(path.join(root, "api/_lib.js"), "utf8");
 if (libSrc.includes("SEED_RULE_TEXT") || libSrc.includes("Payments over $250 wait for the owner.")) {
   fail("api/_lib.js still exports a $250 seed rule");
 } else pass("API has no $250 seed rule");
+if (libSrc.includes("|| \"demo\"") || libSrc.includes("|| 'demo'") || libSrc.includes("s || \"demo\"")) {
+  fail("api/_lib.js still defaults workspace to demo");
+} else pass("API has no demo workspace default");
+const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+if (!vercel.includes("\"/api/status\"") || !vercel.includes("/api/health?view=status")) {
+  fail("vercel.json should rewrite /api/status onto /api/health?view=status");
+} else pass("vercel.json rewrites /api/status onto health");
+if (!vercel.includes("/api/auth?via=account") || !/"\/api\/account"/.test(vercel)) {
+  fail("vercel.json should rewrite /api/account onto /api/auth?via=account");
+} else pass("vercel.json rewrites /api/account onto auth");
+if (!vercel.includes("/api/auth?via=desks") || !/"\/api\/desks"/.test(vercel)) {
+  fail("vercel.json should rewrite /api/desks onto /api/auth?via=desks");
+} else pass("vercel.json rewrites /api/desks onto auth");
+if (fs.existsSync(path.join(root, "api/status.js"))) fail("api/status.js is a 13th Hobby function — fold it into health.js");
+else pass("no extra api/status.js function");
+if (fs.existsSync(path.join(root, "api/account.js"))) fail("api/account.js is its own Lambda — fold it into auth.js like status into health");
+else pass("no extra api/account.js function");
+if (fs.existsSync(path.join(root, "api/desks.js"))) fail("api/desks.js is its own Lambda — fold it into auth.js like account");
+else pass("no extra api/desks.js function");
+const healthSrc = fs.readFileSync(path.join(root, "api/health.js"), "utf8");
+if (!healthSrc.includes("function wantsStatus") || !healthSrc.includes("function deskStatus") || !healthSrc.includes("handler.status")) {
+  fail("api/health.js should serve honest /api/status");
+} else pass("health.js serves honest status");
+const apiFns = fs.readdirSync(path.join(root, "api")).filter((f) => /^[a-z].*\.js$/.test(f) && f.indexOf("_") !== 0);
+if (apiFns.length > 12) fail("Hobby cap is 12 serverless functions, got " + apiFns.length + ": " + apiFns.join(", "));
+else pass("api functions within Hobby 12: " + apiFns.length);
 
 const preview = fs.readFileSync(path.join(root, "drop-preview.js"), "utf8");
 if (preview.includes("HOLD · $250+") || preview.includes(">= 250")) {
@@ -230,18 +286,40 @@ if (leak) fail(leak);
 else pass("public pages have no crew build notes");
 if (!fs.readFileSync(path.join(root, "index.html"), "utf8").includes("Name your desk")) fail("home missing doer copy");
 else pass("home says Name your desk");
-if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the work. You tap yes or no.")) fail("how missing doer copy");
+if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the work. You tap Yes or Stop.")) fail("how missing doer copy");
 else pass("how is doer-short");
 if (!fs.readFileSync(path.join(root, "setup.html"), "utf8").includes("Add a rule if you need one")) fail("setup missing doer copy");
 else pass("setup is doer-short");
-if (!rulesPage.includes("Add a rule. Turn a widget on. Advanced lives here.")) fail("rules missing doer copy");
+if (!rulesPage.includes("Add a rule. When / If / Then. Turn a widget on. Advanced lives here.")) fail("rules missing doer copy");
 else pass("rules is doer-short");
+["When · Trigger", "Then · Action", "Rules vs pack workflows", "Example When → If → Then", "name@account.aia", "Human send HOLD"].forEach(function (bit) {
+  if (!rulesPage.includes(bit)) fail("rules.html missing " + bit);
+  else pass("rules " + bit);
+});
+if (rulesPage.includes("id=\"starters\"") || rulesPage.includes("Starters")) fail("rules.html must not install starter rules");
+else pass("rules has no starter chrome");
 if (!login.includes("placeholder=\"Desk name\"")) fail("login still names a slug");
 else pass("login placeholder is generic");
 const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
+if (help.includes("Capture → Qualify")) fail("help.html still shows Capture → Qualify");
+else if (!help.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail("help.html missing desk-true Drop spine");
+else pass("help.html Drop spine matches the desk");
+["developer.html", "developer.js"].forEach((file) => {
+  const src = fs.readFileSync(path.join(root, file), "utf8");
+  if (src.includes("Capture → Qualify")) fail(file + " still shows Capture → Qualify");
+  else if (!src.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail(file + " missing desk-true Drop spine");
+  else pass(file + " Drop spine matches the desk");
+});
 if (!help.includes("Waiting on a person.") || !help.includes("Owner, twice.") || !help.includes("The job.") || !help.includes("Save a file")) {
   fail("help.html missing doer button labels");
 } else pass("help.html uses doer button labels");
+["When · Trigger", "Workflow / Sequence", "Lead click", "Customs Form", "older than 24h"].forEach(function (bit) {
+  if (!help.includes(bit)) fail("help.html missing " + bit);
+  else pass("help " + bit);
+});
+const vercelHelp = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+if (!vercelHelp.includes("\"/help\"") || !vercelHelp.includes("/help.html")) fail("vercel /help must rewrite to help.html");
+else pass("/help → help.html");
 if (jobs.includes("amount >= MONEY_HOLD && !body.confirm")) {
   fail("jobs.js still hard-codes amount >= 250 → 409");
 } else if (!jobs.includes("moneyWaitOf") || !jobs.includes("moneyNeedsOwner") || !jobs.includes("status(409)")) {

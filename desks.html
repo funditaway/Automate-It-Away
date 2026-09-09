@@ -6,7 +6,8 @@
   <title>Desks · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
@@ -31,7 +32,7 @@
     .go{background:var(--orange);color:#0c1116}
     .edit{background:var(--edit);color:var(--edit-ink)}
     .kill{background:var(--kill-bg);color:var(--kill-ink)}
-    input{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink);min-height:44px;width:100%}
+    input,select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink);min-height:44px;width:100%;box-sizing:border-box}
     label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
     .edit-box{display:none;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
     .edit-box.on{display:block}
@@ -56,20 +57,21 @@
   </header>
   <main class="wrap">
     <h1>Your desks</h1>
-    <p>Desks this account can open. See the seat and what you can tap. Leave anytime. Ask family, friend, helper, member, or staff. World users receive @accountname — never your email.</p>
+    <p>Desks this account can open. See the seat and what you can tap. Leave anytime. Ask family, friend, helper, member, or staff. AIA Internet names use the .aia TLD — james.aia, springfield-shop.aia. Create .aia email for automations — queue@springfield-shop.aia. Never your login email.</p>
     <div class="banner" id="banner">Sign in to see every desk on this account. Forget phone never deletes the desk.</div>
     <div class="card" id="you-card">
       <h2 id="you-title">Your account</h2>
-      <p class="meta" id="you-line">World users receive @accountname</p>
-      <label for="you-handle">Handle the world sees</label>
-      <input id="you-handle" maxlength="24" placeholder="accountname">
+      <p class="meta" id="you-line">AIA Internet name is james.aia</p>
+      <label for="you-handle">AIA Internet name</label>
+      <input id="you-handle" maxlength="63" placeholder="james.aia">
       <div class="row">
-        <button class="go" type="button" id="save-handle">Save handle</button>
+        <button class="go" type="button" id="save-handle">Save .aia name</button>
         <a class="edit" href="/account" style="display:inline-flex;align-items:center">Account</a>
         <a class="edit" href="/people" style="display:inline-flex;align-items:center">People</a>
       </div>
       <p class="meta" id="handle-msg"></p>
     </div>
+    <div class="card" id="aia-mail"></div>
     <div id="list"></div>
     <div class="card">
       <h2>Add a desk already open</h2>
@@ -106,5 +108,6 @@
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="desks-book.js"></script>
+  <script src="aia-mail.js"></script>
 </body>
 </html>

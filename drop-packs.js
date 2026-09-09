@@ -1,11 +1,12 @@
 (function () {
   var PACK_META = {
     home: { id: "home", name: "Home", kinds: ["chore", "school", "form", "reminder", "request", "pickup", "ride"], hint: "Home desk. School, chore, reminder. Cap same-day. Ask if a kid is named." },
-    consign: { id: "consign", name: "Consign", kinds: ["list", "photo", "walk-in"], hint: "Resale desk. Photo and list. Draft only. Payout waits on you." },
+    consign: { id: "consign", name: "Consign", kinds: ["list", "photo", "walk-in"], hint: "Resale desk. Photo and list. Draft only. Collect HOLD until Yes + a real money pipe." },
     vita: { id: "vita", name: "Insurance", kinds: ["quote", "call", "follow", "book", "illustration", "app", "review", "service", "claim", "uw", "final", "term", "iul", "sitdown"], hint: "Insurance desk. Quote, missed call, sit-down, illustration. Bind stays off. You still send." },
     fund: { id: "fund", name: "Fund", kinds: ["request", "follow", "form"], hint: "Fund desk. Campaign note. Credit decision waits on you." },
     land: { id: "land", name: "Land", kinds: ["quote", "follow", "request"], hint: "Land desk. Lot interest. Cap flood and title." },
-    "aia-adoption": { id: "aia-adoption", name: "Try it on this desk", kinds: ["task", "errand", "idea", "project"], hint: "Try first. Drop real work. AIA drafts. You tap Yes or Stop. Collect stays HOLD." }
+    "aia-adoption": { id: "aia-adoption", name: "Try it on this desk", kinds: ["task", "errand", "idea", "project"], hint: "Try first. Drop real work. AIA drafts. You tap Yes or Stop. Collect stays HOLD." },
+    "aia-implement": { id: "aia-implement", name: "Four steps on this desk", kinds: ["leak", "pipe", "agent", "guard"], hint: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD." }
   };
   function packMeta(id) {
     var key = String(id || "").toLowerCase();
@@ -24,6 +25,7 @@
     if (shop && Array.isArray(shop.packs)) shop.packs.forEach(function (p) { add(p && (p.id || p)); });
     if (shop && Array.isArray(shop.packIds)) shop.packIds.forEach(add);
     if (shop && shop.packId) add(shop.packId);
+    if (shop && shop.pack) add(shop.pack);
     if (!listed.length && shop && shop.model) {
       var m = String(shop.model).toLowerCase();
       Object.keys(PACK_META).forEach(function (id) {

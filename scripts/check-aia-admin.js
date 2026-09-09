@@ -7,8 +7,8 @@ function main() {
   if (admin.normalizeHandle("@AIA") !== "aia") fail("normalize @AIA");
   else pass("normalize @AIA -> aia");
 
-  if (!admin.isReservedHandle("AIA") || !admin.isReservedHandle("@automateitaway")) fail("reserved handles");
-  else pass("aia and automateitaway are reserved");
+  if (!admin.isReservedHandle("AIA") || !admin.isReservedHandle("@automateitaway") || !admin.isReservedHandle("ai")) fail("reserved handles");
+  else pass("aia, ai, and automateitaway are reserved");
 
   if (admin.isReservedHandle("oddo-books")) fail("shop handle should not be reserved");
   else pass("shop handles stay free");
@@ -35,6 +35,13 @@ function main() {
 
   if (admin.isAiaReviewer(shop, { slug: "oddo-books" }, { name: "Lee" })) fail("normal shop should not review packs");
   else pass("normal shop is not a pack reviewer");
+
+  const named = admin.setAccountHandle({ id: "acct_james" }, "james.aia");
+  if (!named.ok || named.handle !== "james" || named.aia !== "james.aia") fail("james.aia handle");
+  else pass("account handle james.aia");
+  const com = admin.setAccountHandle({ id: "acct_com" }, "springfield-shop.com");
+  if (!com || com.ok) fail("account must reject .com TLD");
+  else pass("account rejects other TLDs");
 
   if (process.exitCode) {
     console.error("check-aia-admin failed");

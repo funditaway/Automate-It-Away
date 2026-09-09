@@ -49,18 +49,30 @@ if (!shop.includes("aia-line off") && !shop.includes("pipeMissing")) fail("marke
 else pass("market orange if pipe missing");
 if (shop.includes("Labeled DEMO")) fail("market still shows demo chrome");
 else pass("market has no demo chrome");
+if (!shop.includes("A person still taps Yes or Stop.")) fail("market missing Yes or Stop");
+else pass("market Do-the-work is Yes or Stop");
+if (shop.includes("Yes or No") || shop.includes("yes or no")) fail("market still paints Yes or No as the rail");
+else pass("market does not paint Yes or No");
 
 const packsApi2 = packsApi;
 if (!packsApi2.includes("buy-pack")) fail("_packs.js missing buy-pack");
 else pass("packs buy-pack");
+if (!packsApi2.includes("save-ai") || !packsApi2.includes("private-pack")) fail("_packs.js missing save-ai / private-pack");
+else pass("packs save-ai / private-pack");
 if (!packsApi2.includes("grokStudio") || !packsApi2.includes("Grok · AIA Studio")) fail("missing Grok AIA Studio identity");
 else pass("Grok AIA Studio identity");
 if (!packsApi2.includes("authoredBy")) fail("packs missing authoredBy");
 else pass("packs authoredBy");
 if (!packsApi2.includes("sku: false")) fail("Grok Studio must not be a SKU");
 else pass("Grok Studio is not a SKU");
+if (!packsApi2.includes("download-pack") || !packsApi2.includes("filename=")) fail("_packs.js missing .aia download");
+else pass("packs download .aia file");
+if (!packsApi2.includes("install-aia") || !packsApi2.includes("readAiaPack")) fail("_packs.js missing install-aia");
+else pass("packs install-aia");
+if (!shop.includes("AIA Internet") || !shop.includes(".aia") || !shop.includes("install-aia")) fail("market missing AIA Internet / .aia install");
+else pass("market AIA Internet .aia");
 
-["vita.json", "fund.json", "land.json", "aia-adoption.json"].forEach((name) => {
+["vita.json", "fund.json", "land.json", "aia-adoption.json", "aia-implement.json"].forEach((name) => {
   const p = path.join(root, "packs", name);
   if (!fs.existsSync(p)) fail("missing " + name);
   else pass("pack file " + name);
@@ -69,8 +81,29 @@ else pass("Grok Studio is not a SKU");
 const studio = fs.readFileSync(path.join(root, "developer.html"), "utf8");
 if (!studio.includes("Creators Studio")) fail("developer.html must be Creators Studio");
 else pass("developer.html is Creators Studio");
+if (!studio.includes("desk AI") && !fs.readFileSync(path.join(root, "developer.js"), "utf8").includes("Desk AIs")) fail("Creators Studio must name desk AIs");
+else pass("Studio names desk AIs");
+const studioJs = fs.readFileSync(path.join(root, "developer.js"), "utf8");
+if (!studioJs.includes("workflows") || !studioJs.includes("When → If → Then")) fail("Studio must author pack workflows");
+else pass("Studio pack workflows");
 if (studio.includes("AIA Studio Pro")) fail("must not brand AIA Studio Pro");
 else pass("not AIA Studio Pro");
+if (!studio.includes("ai.aia") || !studio.includes(".aia") || !studio.includes("automateitaway.com")) fail("Studio landing must name ai.aia + .aia + desk host");
+else pass("Studio landing names ai.aia");
+if (studio.includes("www.aia.aia")) fail("Studio must not brand www.aia.aia");
+else pass("Studio does not use www.aia.aia");
+if (!market.includes("ai.aia") || !market.includes("automateitaway.com")) fail("market.html must name ai.aia and the live desk host");
+else pass("market.html names ai.aia");
+if (market.includes("www.aia.aia")) fail("market.html must not brand www.aia.aia");
+else pass("market.html does not use www.aia.aia");
+if (!shop.includes("ai.aia") || !shop.includes("Install .aia") || !shop.includes("Download")) fail("market chrome missing ai.aia / Install .aia");
+else pass("market chrome has ai.aia and Install .aia");
+if (!studio.includes("Creators / earnings") || !studio.includes("no public payout baseline")) fail("developer.html missing honest earnings");
+else pass("Studio honest earnings");
+if (!studio.includes("off-platform")) fail("developer.html missing agency off-platform");
+else pass("Studio agency off-platform");
+if (/\$1\.5k|\$10k|15\s*[–-]\s*30\s*%|AI Creator/i.test(studio + studioJs + shop)) fail("invented creator income bands");
+else pass("no invented creator income bands");
 
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 if (!vercel.includes("\"/studio\"") || !vercel.includes("/developer.html")) fail("vercel /studio must rewrite to developer.html");
