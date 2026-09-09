@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Your account · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <script>(function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();</script>
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="desk-nav.css">
@@ -55,25 +57,38 @@
     <h1>Your account</h1>
     <p class="muted">One AIA account. Desk name + code, or email + password. We do not email a reset code. Create .aia email for automations — james-ai@funditaway.aia. Owner taps stay on the owner seat.</p>
     <div class="banner" id="plan">AIA plan · free</div>
+    <div class="card" id="account-road">
+      <h2>Past / now / next</h2>
+      <p class="meta">This account on History. One desk. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. .aia identity HOLD until mint.</p>
+      <div class="links">
+        <a href="/history#account-road">Give pack</a>
+        <button type="button" class="aia-tip" data-aia-tip="give-pack" aria-label="More about Give pack">?</button>
+        <a href="/history#account-road">Update pack</a>
+        <button type="button" class="aia-tip" data-aia-tip="update-pack" aria-label="More about Update pack">?</button>
+        <a href="/history#account-road">Account roadmap on History</a>
+        <a href="/dev">Studio</a>
+        <a href="/market">Install pack</a>
+      </div>
+    </div>
     <div class="card">
       <h2>You</h2>
       <div class="you-row">
         <button type="button" class="you-pic" id="pic-btn" aria-label="Change photo">AIA</button>
         <input id="pic-file" type="file" accept="image/*" hidden>
         <div style="flex:1;min-width:0">
-          <label for="you-name">Your name</label>
+          <label for="you-name">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
           <input id="you-name" maxlength="80" placeholder="What this phone should call you">
         </div>
       </div>
-      <label for="you-email">Email</label>
+      <label for="you-email">Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
       <input id="you-email" type="email" placeholder="you@shop.com">
       <label for="you-phone">Phone</label>
       <input id="you-phone" maxlength="32" placeholder="417-555-0100">
-      <label for="you-city">City</label>
+      <label for="you-city">City <button type="button" class="aia-tip" data-aia-tip="city" aria-label="More about City">?</button></label>
       <input id="you-city" maxlength="60" placeholder="Springfield">
       <label for="you-handle">AIA Internet name</label>
       <input id="you-handle" maxlength="63" placeholder="james.aia" autocomplete="username">
-      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Wallet Connect is a browser wallet for .aia / registry when Bridge unlocks — not compute credits or a creator payout ledger. Mint / Bridge stay HOLD. Collect and payouts HOLD. Not your email.</p>
+      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks. Not Wallet.AIA. not compute credits or a creator payout ledger. Not your email.</p>
       <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
       <p class="meta" id="you-hint">Tap the circle for a photo.</p>
       <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="/studio">Studio</a><a href="#" id="leave-phone">Leave this phone</a></div>
@@ -89,15 +104,15 @@
         <button type="button" class="edit" id="use-email">Email + password</button>
       </div>
       <div id="gate-desk">
-        <label>Account or desk name</label>
+        <label>Account or desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
         <input id="slug">
-        <label>Your code</label>
+        <label>Your code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
         <input id="pin" inputmode="numeric" minlength="4">
       </div>
       <div id="gate-email" hidden>
-        <label>Email</label>
+        <label>Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
         <input id="gate-mail" type="email">
-        <label>Password</label>
+        <label>Password <button type="button" class="aia-tip" data-aia-tip="password" aria-label="More about Password">?</button></label>
         <input id="gate-pass" type="password" minlength="8">
       </div>
       <p><button class="go" type="submit">Open the account</button></p>
@@ -130,6 +145,7 @@
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="aia-wallet.js"></script>
@@ -150,6 +166,7 @@
     const youHint=document.getElementById("you-hint");
     let door="desk";
     slugEl.value=localStorage.getItem("aia_desk_name")||localStorage.getItem("aia_ws")||"";
+    pinEl.value=localStorage.getItem("aia_pin")||"";
     youName.value=localStorage.getItem("aia_name")||"";
     youEmail.value=localStorage.getItem("aia_email")||"";
     document.getElementById("gate-mail").value=localStorage.getItem("aia_email")||"";
@@ -183,7 +200,8 @@
       const h={"Content-Type":"application/json"};
       if(slug) h["X-Workspace"]=slug;
       const tok=localStorage.getItem("aia_session")||"";
-      if(tok) h["X-Session"]=tok; else if(pin) h["X-Pin"]=pin;
+      if(tok) h["X-Session"]=tok;
+      if(pin) h["X-Pin"]=pin;
       return h;
     }
     function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c];});}
@@ -198,7 +216,7 @@
         "<p><b>Phone</b>"+esc(acc.phone||"Not set")+"</p>"+
         "<p><b>City</b>"+esc(acc.city||"—")+"</p>"+
         "<p><b>AIA Internet</b>"+esc(acc.aia||(acc.handle?acc.handle+".aia":"Not set"))+"</p>"+
-        "<p><b>Wallet</b>"+esc((d.wallet&&d.wallet.connected&&(d.wallet.short||d.wallet.address))||(acc.wallet&&acc.wallet.short)||"Not connected")+"</p>"+
+        "<p><b>Your wallet</b>"+esc((d.wallet&&d.wallet.connected&&(d.wallet.short||d.wallet.address))||(acc.wallet&&acc.wallet.short)||"Not connected")+"</p>"+
         "<p><b>.aia TLD</b>"+esc((d.aiaTld&&d.aiaTld.label)||"Watching")+"</p>"+
         "<p><b>Password door</b>"+(acc.hasPassword?"On":"Off")+"</p>"+
         "<p><b>Opened</b>"+esc((acc.createdAt||"").slice(0,10)||"—")+"</p></div>";

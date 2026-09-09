@@ -243,20 +243,20 @@ async function hydrate() {
   if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
-      Object.assign(mem, remote);
+      applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
       await persistScrub();
       return;
     }
     if (blobProbe.read === "error") {
-      Object.assign(mem, readDisk());
+      applyStore(readDisk());
       dropPersistTests();
       mem.driver = writeDisk();
       mem.path = storePath();
       return;
     }
-    Object.assign(mem, readDisk());
+    applyStore(readDisk());
     dropPersistTests();
     writeDisk();
     const ok = await blobWrite();
@@ -266,7 +266,7 @@ async function hydrate() {
       return;
     }
   }
-  Object.assign(mem, readDisk());
+  applyStore(readDisk());
   dropPersistTests();
   mem.driver = writeDisk();
   mem.path = storePath();
@@ -276,12 +276,32 @@ if (!globalThis.__aiaHydrate) {
   globalThis.__aiaHydrate = hydrate();
 }
 
+function applyStore(parsed) {
+  const next = shape(parsed);
+  mem.account = next.account;
+  mem.accounts = next.accounts;
+  mem.sessions = next.sessions;
+  mem.approvals = next.approvals;
+  mem.locks = next.locks;
+  mem.connections = next.connections;
+  mem.jobs = next.jobs;
+  mem.audit = next.audit;
+  mem.money = next.money;
+  mem.workspaces = next.workspaces;
+  mem.inbox = next.inbox;
+  mem.files = next.files;
+  mem.tickets = next.tickets;
+  mem.packs = next.packs;
+  mem.mail = next.mail;
+  return mem;
+}
+
 async function ready() {
   await globalThis.__aiaHydrate;
-  if (blobReady() && mem.driver !== "blob") {
+  if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
-      Object.assign(mem, remote);
+      applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
     }
@@ -672,6 +692,9 @@ function ensurePeople(ws) {
       email: ws.email || "",
       createdAt: ws.createdAt || new Date().toISOString()
     }];
+  } else if (ws.pin) {
+    const owner = ws.people.find((p) => p && p.role === "owner");
+    if (owner && !owner.pin) owner.pin = ws.pin;
   }
   return ws;
 }
@@ -1159,7 +1182,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,

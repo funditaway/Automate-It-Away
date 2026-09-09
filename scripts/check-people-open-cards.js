@@ -60,13 +60,16 @@ const peopleHtml = read("people.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
-["function thenWhoOf", "function thenGoneOf", "function talkRowsOf", "function trailThreadHtml", "function cardHtml", "Then draft", "not on this desk", "On the card. Nothing sent alone", "item.thread", "p-thread", "p-then", "p-turn-ai", "p-turn-you"].forEach(function (bit) {
+["function thenWhoOf", "function thenGoneOf", "function talkLabelOf", "function talkRowsOf", "function trailThreadHtml", "function cardHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "Then draft", "not on this desk", "On the card. Nothing sent alone", "item.thread", "p-thread", "p-then", "p-turn-ai", "p-turn-you"].forEach(function (bit) {
   if (people.indexOf(bit) < 0) fail("people.js missing " + bit);
   else pass("people.js " + bit);
 });
-if (people.indexOf("esc(draftText)") < 0 || people.indexOf("esc(row.text)") < 0) {
+if (people.indexOf("esc(draftText)") < 0 || people.indexOf("esc(row.text)") < 0 || people.indexOf("esc(turnLabel)") < 0) {
   fail("People open cards must escape Then draft / thread");
 } else pass("People open cards escape Then draft / thread");
+if (/who \|\| row\.from \|\| "Desk AI"/.test(people)) {
+  fail("People talkHtml must not fall back to Desk AI when the Then AI is gone");
+} else pass("People talkHtml does not fall back to Desk AI");
 if (people.indexOf("yours.map(cardHtml)") < 0 || people.indexOf("theirs.map(cardHtml)") < 0) {
   fail("yours / theirs open cards must use cardHtml");
 } else pass("yours / theirs use cardHtml");
@@ -87,6 +90,12 @@ if (peopleHtml.indexOf("p-thread") < 0 || peopleHtml.indexOf("p-hold") < 0) {
 if (peopleHtml.indexOf("Open cards on the shared trail") < 0) {
   fail("people.html must say open cards show Then draft / thread");
 } else pass("people.html names open-card honesty");
+if (people.indexOf("promptHtml(item)") < 0 || people.indexOf("chipsHtml(item)") < 0) {
+  fail("People trailThreadHtml must insert promptHtml / chipsHtml");
+} else pass("People trailThreadHtml inserts promptHtml / chipsHtml");
+if (peopleHtml.indexOf("Needs you / prompt ask-who") < 0) {
+  fail("people.html must name Needs you / prompt ask-who");
+} else pass("people.html names Needs you / prompt ask-who");
 if (help.indexOf("People open cards on the shared trail") < 0) {
   fail("help#desk-cards must name People open cards");
 } else pass("help names People open cards");
@@ -211,6 +220,40 @@ else if (gonePaint.indexOf("Use &lt;script&gt; no") < 0) fail("reply text must s
 else pass("gone reply stays text");
 if (gonePaint.indexOf("On the card. Nothing sent alone.") < 0) fail("gone open card must stay nothing sent alone");
 else pass("gone open card stays nothing sent alone");
+if (gonePaint.indexOf("Desk AI") >= 0) fail("gone open-card talk must not fall back to Desk AI");
+else pass("gone open-card talk does not say Desk AI");
+if (gonePaint.indexOf("Then draft") >= 0) fail("gone open-card talk must not look like a live Then draft");
+else pass("gone open-card talk does not look live");
+
+const goneAnon = hist.historyItem({
+  id: "j-gone-anon",
+  status: "waiting",
+  title: "Bare gone talk",
+  workspace: "shop",
+  draft: "Hold the <draft>.",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot <gone>" },
+  thread: [
+    { kind: "ask", text: "Need <phone>?" },
+    { kind: "rec", text: "A later <rec>." }
+  ]
+}, { slug: "shop", biz: "Shop" });
+const goneAnonPaint = ctx.cardHtml(Object.assign({ desk: "Shop", side: "yours" }, goneAnon));
+if (goneAnonPaint.indexOf("Desk AI") >= 0) fail("anonymous gone open-card talk must not fall back to Desk AI");
+else pass("anonymous gone open-card talk does not say Desk AI");
+if (goneAnonPaint.indexOf("Then draft") >= 0) fail("anonymous gone open-card talk must not look like a live Then draft");
+else pass("anonymous gone open-card talk does not look live");
+if (goneAnonPaint.indexOf("not on this desk") < 0) fail("anonymous gone open-card talk must say not on this desk");
+else pass("anonymous gone open-card talk says not on this desk");
+if (goneAnonPaint.indexOf("Shop Bot <gone>") >= 0) fail("raw < in anonymous gone talk must not become markup");
+else if (goneAnonPaint.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("anonymous gone talk name must stay text");
+else pass("anonymous gone talk name stays text");
+if (typeof ctx.talkLabelOf !== "function") fail("People must expose talkLabelOf");
+else if (ctx.talkLabelOf({ kind: "ask" }, "", "Shop Bot <gone>").indexOf("not on this desk") < 0) {
+  fail("gone ask with no from must use gone HOLD");
+} else pass("gone ask with no from uses gone HOLD");
+if (ctx.talkLabelOf({ kind: "rec" }, "", "Shop Bot") === "Desk AI · Then draft") {
+  fail("gone rec with no from must not say Desk AI");
+} else pass("gone rec with no from does not say Desk AI");
 
 const emptyPaint = ctx.cardHtml({ title: "Bare card", desk: "Shop", status: "waiting" });
 if (emptyPaint.indexOf("p-thread") >= 0 || emptyPaint.indexOf("Nothing sent alone") >= 0) {

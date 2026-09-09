@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Examples · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="description" content="DEMO cards for every kind of desk. Same five steps. You send the draft.">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
@@ -41,7 +41,7 @@
     <div class="nav">
       <a href="how.html">How</a>
       <a href="setup.html">Setup</a>
-      <a href="examples.html">Examples</a>
+      <a href="help.html">Help</a>
       <a href="desk.html">Desk</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
@@ -52,7 +52,7 @@
     <p class="sec">Projects being built</p>
     <div class="grid" id="projects">
       <article class="card"><div class="top"><span>Runtime</span><span>P1</span></div><h3>Automate It Away</h3><p class="notes">The desk is the runtime. Jobs, audit, rules, Stop. Bots stay crew.</p></article>
-      <article class="card"><div class="top"><span>Consign It Away</span><span>First vertical</span></div><h3>Estate · assets · auto</h3><p class="notes">Photo to listing draft. Payout waits on the owner.</p></article>
+      <article class="card"><div class="top"><span>Consign It Away</span><span>First vertical</span></div><h3>Estate · assets · auto</h3><p class="notes">Photo to listing draft. Collect HOLD until Yes + a real money pipe.</p></article>
       <article class="card"><div class="top"><span>Quote It Away</span><span>Insurance</span></div><h3>Fact-find + packet</h3><p class="notes">No premium. No bind. Illustration stays off the desk.</p></article>
       <article class="card"><div class="top"><span>Fund It Away</span><span>Credit wait</span></div><h3>Deal file · term sheet</h3><p class="notes">Separate book. Desk does not fund.</p></article>
       <article class="card"><div class="top"><span>Tony Oddo land</span><span>Flood wait</span></div><h3>Parcel · lots</h3><p class="notes">Flood and title stay a person call.</p></article>
@@ -61,6 +61,8 @@
     <div class="how"><b>People</b><span>Invite family, friend, helper, or staff. One account sits on two desks. Owner owns Stop. <a href="people.html">Open People →</a></span></div>
     <div class="how"><b>AI agent</b><span>Owner Approve. Drafts on the card, then Off desk. Cannot Stop or move money. Not a public Bot API.</span></div>
     <div class="how"><b>Connections</b><span>Webhook is live. Named vendors hold. Draft accounts draft only. Log in does not send. <a href="connections.html">Open Pipes →</a></span></div>
+    <p class="sec">Thin pack example</p>
+    <div class="how"><b>App / webhook</b><span>When the www hook writes a card. If it is tagged Lead. Then a named desk AI drafts. Buyer binds their own keys on Pipes. Yes / Stop / Kill before anything leaves. Not a listed SKU. Not a bindings product. Webhook is the live pipe. Collect stays HOLD. <a href="help.html#build-pack">Build a pack →</a></span></div>
     <div class="how"><b>World users</b><span>Owner can list a desk for public drop search. Private desks never appear. Family cards stay private.</span></div>
     <div class="bar">
       <button class="btn" type="button" id="shuffle">Shuffle six</button>
@@ -73,7 +75,7 @@
     <p class="sec">How to use the account</p>
     <div class="how"><b>1. Open a desk</b><span>Desk name + desk code. Email is not required to start.</span></div>
     <div class="how"><b>2. Email + password is a second door</b><span>Same account. Min 8 characters. No email or SMS reset.</span></div>
-    <div class="how"><b>3. Stay signed in</b><span>Hashed session, 14 days, slides on use, cookie + X-Session, max 8 phones.</span></div>
+    <div class="how"><b>3. Stay on this phone</b><span>This phone remembers you. Up to 8 phones on the same account.</span></div>
     <div class="how"><b>4. One account per person</b><span>Own desks and sit on others from that login. Invite a helper. They get their own code. Owner owns Stop.</span></div>
     <div class="how"><b>5. Authenticator stays HOLD</b><span>No live MFA. No email codes. No SMS codes.</span></div>
     <div class="how"><b>6. Plan stays free</b><span>Switching a plan does not charge.</span></div>
@@ -82,12 +84,18 @@
     <div class="how"><b>9. Connections</b><span>Copy the inbound hook. Named vendors stay hold. Draft accounts draft only.</span></div>
     <div class="cta">
       <a class="btn" href="onboard.html">Open your desk</a>
+      <a class="btn quiet" href="drop.html#talk">Talk</a>
+      <a class="btn quiet" href="history.html">Give pack</a>
+      <a class="btn quiet" href="history.html">Update pack</a>
+      <button type="button" class="aia-tip" data-aia-tip="give-pack" aria-label="More about Give pack">?</button>
+      <button type="button" class="aia-tip" data-aia-tip="update-pack" aria-label="More about Update pack">?</button>
       <a class="btn quiet" href="setup.html">First-day setup</a>
       <a class="btn quiet" href="login.html">Sign in</a>
     </div>
     <p class="note">These cards are labeled DEMO. They are not live clients. Insurance cards say Insurance / Quote It Away. Bind and premium stay off the desk.</p>
   </main>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="setup-demo.js"></script>
   <script>
     const grid = document.getElementById("grid");

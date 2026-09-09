@@ -267,7 +267,7 @@ module.exports = async function handler(req, res) {
       return res.status(201).json({
         ok: true,
         connection: publicAi(row),
-        next: spec.label + " drafts on this desk. You still tap Send and Stop."
+        next: spec.label + " drafts on this desk. You still tap Yes or Stop."
       });
     }
 
