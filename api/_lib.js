@@ -21,7 +21,7 @@ const SESSION_MAX = 8;
 const LOCK_FAILS = 8;
 const LOCK_MINUTES = 15;
 const BLOB_KEY = "aia/store.json";
-const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null, access: null };
+const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null, access: null, auth: null };
 const PERSIST_TEST_DROP = {
   "consign-it-away": ["job_mtegpvhk", "job_mtegkkap", "job_mtegezu8"],
   "p1-synth": ["job_mtemdqeq", "job_mtemdpyc", "job_mtemdpc3"],
@@ -95,11 +95,47 @@ function blobStoreId() {
   return process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID || "";
 }
 
-function blobAuthOpts() {
+function blobOidcReady() {
+  return !!(process.env.VERCEL_OIDC_TOKEN && blobStoreId());
+}
+
+function blobAuthKind() {
+  if (blobOidcReady()) return "oidc";
+  if (blobToken()) return "token";
+  return null;
+}
+
+function blobTokenOpts() {
   const opts = {};
   if (blobStoreId()) opts.storeId = blobStoreId();
   if (blobToken()) opts.token = blobToken();
   return opts;
+}
+
+function blobAuthOpts() {
+  if (blobOidcReady()) return { storeId: blobStoreId() };
+  return blobTokenOpts();
+}
+
+async function blobTryAuth(run) {
+  try {
+    const out = await run(blobAuthOpts());
+    blobProbe.auth = blobAuthKind();
+    return out;
+  } catch (e) {
+    if (blobOidcReady() && blobToken() && blobIs403((e && e.message) || e)) {
+      const out = await run(blobTokenOpts());
+      blobProbe.auth = "token";
+      return out;
+    }
+    throw e;
+  }
+}
+
+function blobMayWrite() {
+  if (mem.driver === "blob") return true;
+  if (blobProbe.read !== "error") return true;
+  return !!(mem.account || (mem.accounts && mem.accounts.length) || (mem.workspaces && mem.workspaces.length));
 }
 
 function blobAccess() {
@@ -114,20 +150,24 @@ function blobIs403(msg) {
   return /403|forbidden/i.test(String(msg || ""));
 }
 
-function blobGetOpts(access) {
+function blobMissing(msg) {
+  return /not found|404|does not exist/i.test(String(msg || ""));
+}
+
+function blobGetOpts(access, auth) {
   return Object.assign({
     access: access || blobAccess(),
     useCache: false
-  }, blobAuthOpts());
+  }, auth || blobAuthOpts());
 }
 
-function blobPutOpts(access) {
+function blobPutOpts(access, auth) {
   return Object.assign({
     access: access || blobAccess(),
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: "application/json"
-  }, blobAuthOpts());
+  }, auth || blobAuthOpts());
 }
 
 function blobOpts() {
@@ -164,7 +204,7 @@ async function parseBlobGet(result) {
 
 async function blobGetKey(access, key) {
   const { get } = require("@vercel/blob");
-  return parseBlobGet(await get(key || BLOB_KEY, blobGetOpts(access)));
+  return parseBlobGet(await blobTryAuth((auth) => get(key || BLOB_KEY, blobGetOpts(access, auth))));
 }
 
 function markBlobHit(access, url) {
@@ -172,22 +212,103 @@ function markBlobHit(access, url) {
   blobProbe.read = "ok";
   blobProbe.status = 200;
   blobProbe.detail = null;
+  blobProbe.auth = blobAuthKind();
   blobProbe.url = url ? "set" : blobProbe.url;
   if (url) mem.blobUrl = url;
 }
 
+function markBlobEmpty(access) {
+  if (access) blobProbe.access = access;
+  blobProbe.read = "empty";
+  blobProbe.status = 404;
+  blobProbe.detail = null;
+  blobProbe.auth = blobAuthKind();
+}
+
+async function blobHeadMeta() {
+  const { head } = require("@vercel/blob");
+  try {
+    const meta = await blobTryAuth((auth) => head(BLOB_KEY, auth));
+    if (!meta) return { empty: true };
+    return { meta };
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    if (blobMissing(msg)) return { empty: true };
+    throw e;
+  }
+}
+
 async function blobListStore() {
   const { list } = require("@vercel/blob");
-  const listed = await list(Object.assign({ prefix: "aia/", limit: 20 }, blobAuthOpts()));
+  const listed = await blobTryAuth((auth) => list(Object.assign({ prefix: "aia/", limit: 20 }, auth)));
   const blobs = (listed && listed.blobs) || [];
   return blobs.find((b) => b && (b.pathname === BLOB_KEY || String(b.pathname || "").indexOf("store.json") >= 0)) || null;
 }
 
+async function blobFetchUrl(url, access) {
+  if (!url) return null;
+  try {
+    const got = await blobGetKey(access || blobAccessOfUrl(url), url);
+    if (got.data) return got;
+  } catch (e) {
+    if (!blobIs403(e && e.message) && !blobMissing(e && e.message)) throw e;
+  }
+  async function fetchWith(token) {
+    const headers = token ? { Authorization: "Bearer " + token } : {};
+    return fetch(url, { headers });
+  }
+  let r = await fetchWith(blobOidcReady() ? process.env.VERCEL_OIDC_TOKEN : blobToken());
+  if (r.status === 403 && blobOidcReady() && blobToken()) {
+    r = await fetchWith(blobToken());
+    blobProbe.auth = "token";
+  }
+  if (r.status === 404) return { empty: true, status: 404 };
+  if (!r.ok) {
+    const err = new Error("Vercel Blob: Failed to fetch blob: " + r.status + " " + r.statusText);
+    err.status = r.status;
+    throw err;
+  }
+  return { data: shape(JSON.parse(await r.text())), url: url };
+}
+
 async function blobRead() {
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
-  const modes = blobProbe.access === "public" ? ["public", "private"] : ["private", "public"];
+  blobProbe.auth = blobAuthKind();
   let lastErr = "";
   let saw403 = false;
+  try {
+    const headed = await blobHeadMeta();
+    if (headed.empty) {
+      markBlobEmpty(blobProbe.access || "private");
+      return null;
+    }
+    const url = headed.meta.url || headed.meta.downloadUrl;
+    const access = blobAccessOfUrl(url);
+    const got = await blobFetchUrl(url, access);
+    if (got && got.data) {
+      markBlobHit(access, url);
+      return got.data;
+    }
+    if (got && got.empty) {
+      markBlobEmpty(access);
+      return null;
+    }
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    lastErr = msg.slice(0, 180);
+    if (blobMissing(msg)) {
+      markBlobEmpty(blobProbe.access || "private");
+      return null;
+    }
+    if (blobIs403(msg)) saw403 = true;
+    else {
+      blobProbe.read = "error";
+      blobProbe.detail = lastErr;
+      blobProbe.status = e && e.status || blobProbe.status;
+      return null;
+    }
+  }
+  const modes = blobProbe.access === "public" ? ["public", "private"] : ["private", "public"];
   for (let i = 0; i < modes.length; i++) {
     const access = modes[i];
     try {
@@ -206,19 +327,13 @@ async function blobRead() {
         blobProbe.status = got.status;
         return null;
       }
-      blobProbe.access = access;
-      blobProbe.read = "empty";
-      blobProbe.status = 404;
-      blobProbe.detail = null;
+      markBlobEmpty(access);
       return null;
     } catch (e) {
       const msg = String((e && e.message) || e);
       lastErr = msg.slice(0, 180);
-      if (/not found|404/i.test(msg)) {
-        blobProbe.access = access;
-        blobProbe.read = "empty";
-        blobProbe.status = 404;
-        blobProbe.detail = null;
+      if (blobMissing(msg)) {
+        markBlobEmpty(access);
         return null;
       }
       if (blobIs403(msg)) {
@@ -234,43 +349,58 @@ async function blobRead() {
     try {
       const hit = await blobListStore();
       if (!hit) {
-        blobProbe.read = "empty";
-        blobProbe.status = 404;
-        blobProbe.detail = null;
-        if (!blobProbe.access) blobProbe.access = "public";
+        markBlobEmpty(blobProbe.access || "private");
         return null;
       }
       const access = blobAccessOfUrl(hit.url || hit.downloadUrl);
-      const key = hit.url || hit.downloadUrl || BLOB_KEY;
-      const got = await blobGetKey(access, key);
-      if (got.data) {
+      const got = await blobFetchUrl(hit.url || hit.downloadUrl, access);
+      if (got && got.data) {
         markBlobHit(access, hit.url || hit.downloadUrl);
         return got.data;
       }
-      if (got.empty) {
-        blobProbe.access = access;
-        blobProbe.read = "empty";
-        blobProbe.status = 404;
-        blobProbe.detail = null;
+      if (got && got.empty) {
+        markBlobEmpty(access);
         return null;
       }
     } catch (e) {
       lastErr = String((e && e.message) || e).slice(0, 180);
+      if (blobMissing(lastErr)) {
+        markBlobEmpty(blobProbe.access || "private");
+        return null;
+      }
     }
   }
   blobProbe.read = "error";
   blobProbe.detail = lastErr || "Failed to fetch blob";
   blobProbe.status = saw403 ? 403 : blobProbe.status;
+  blobProbe.auth = blobAuthKind();
   return null;
 }
 
 async function blobPut(body, access) {
   const { put } = require("@vercel/blob");
-  return put(BLOB_KEY, body, blobPutOpts(access));
+  return blobTryAuth((auth) => put(BLOB_KEY, body, blobPutOpts(access, auth)));
+}
+
+async function blobWriteStick(blob, used) {
+  const url = blob && (blob.url || blob.downloadUrl);
+  if (url) {
+    try {
+      const got = await blobFetchUrl(url, used);
+      if (got && got.data) return true;
+    } catch (e) {}
+  }
+  try {
+    const headed = await blobHeadMeta();
+    if (headed && headed.meta) return true;
+  } catch (e) {}
+  const remote = await blobRead();
+  return !!remote;
 }
 
 async function blobWrite() {
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
+  blobProbe.auth = blobAuthKind();
   const body = JSON.stringify(payload());
   const firstAccess = blobAccess();
   const otherAccess = firstAccess === "public" ? "private" : "public";
@@ -304,12 +434,14 @@ async function blobWrite() {
     if (!blobProbe.detail || blobProbe.detail === "Failed to fetch blob") blobProbe.detail = null;
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
-    const stuck = await blobRead();
+    const stuck = await blobWriteStick(blob, used);
     if (!stuck) {
       blobProbe.write = "no-stick";
       blobProbe.detail = (blobProbe.detail || "Blob write did not stick").slice(0, 180);
       return false;
     }
+    blobProbe.read = "ok";
+    blobProbe.auth = blobAuthKind();
     return true;
   } catch (e) {
     blobProbe.write = "fail";
@@ -448,7 +580,7 @@ async function save() {
   dropPersistTests();
   const disk = writeDisk();
   if (blobReady()) {
-    if (blobProbe.read === "error" && mem.driver !== "blob") {
+    if (!blobMayWrite()) {
       mem.driver = disk;
       return disk !== "memory-fallback";
     }
@@ -1318,6 +1450,7 @@ function readBody(req) {
 module.exports = {
   PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
+  blobOidcReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
