@@ -433,7 +433,7 @@ module.exports = async function handler(req, res) {
       wallet: made.wallet,
       hint: off
         ? "Disconnected. Address cleared on this desk session. Collect stays HOLD."
-        : "Browser wallet saved on this desk session. Identity only. Collect stays HOLD. Mint / Bridge stay external."
+        : "Your wallet saved on this desk session. AIA does not hold keys. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."
     }));
   }
 

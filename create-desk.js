@@ -37,7 +37,7 @@
       return `<label class="adv">What is it?</label><select class="adv" name="dropKind"><option value="task">A task</option><option value="chore">An errand</option><option value="list">A list</option><option value="idea">An idea</option><option value="project">A project</option><option value="build">A build</option><option value="request">A request</option><option value="note">A note</option><option value="call">Missed call</option><option value="message">A message to send</option><option value="pickup">Pickup / drop-off</option><option value="ride">A ride</option><option value="reminder">A reminder</option><option value="book">Book a time</option><option value="form">Form / paper</option><option value="photo">A photo</option><option value="quote">Need a quote</option><option value="follow">Follow up</option><option value="walk-in">Walk-in job</option></select>`;
     }
     function outcomeSelect() {
-      return `<label class="adv">Preferred outcome</label><select class="adv" name="outcome"><option value="wait">Owner decides</option><option value="text">Text them</option><option value="email">Email them</option><option value="call">Call them back</option><option value="book">Put it on the calendar</option><option value="hand">Hand it to someone</option><option value="list">Draft a list</option><option value="quote">Draft a quote</option><option value="note">Just keep the note</option></select><p class="hint adv">Draft only. An AI agent or a human still taps Yes or No before anything leaves.</p>`;
+      return `<label class="adv">Preferred outcome</label><select class="adv" name="outcome"><option value="wait">Owner decides</option><option value="text">Text them</option><option value="email">Email them</option><option value="call">Call them back</option><option value="book">Put it on the calendar</option><option value="hand">Hand it to someone</option><option value="list">Draft a list</option><option value="quote">Draft a quote</option><option value="note">Just keep the note</option></select><p class="hint adv">Draft only. An AI agent or a human still taps Yes or Stop before anything leaves.</p>`;
     }
     function packRows() {
       const rows = PACKS.filter((p) => {
@@ -97,7 +97,7 @@
       <p class="cta"><a class="use" href="/desk">Open this desk</a><a class="use ghost" href="/onboard">Unlock this desk</a><a class="use ghost" href="/studio">Name a desk AI in Studio</a></p>
       <p class="hint">Yes / Stop / Kill stay human. Collect stays HOLD. No silent money or mail. Create a .aia email for automations after the desk is open.</p>`;
         }
-        return `<label>Name this desk AI</label><input name="name" required placeholder="James’s AI"><label>AIA Internet name</label><input name="aia" placeholder="james.aia"><label>Role</label><select name="role"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select><label>What it drafts</label><input name="does" placeholder="Drafts desk work for this project"><label>Steps it may draft</label><input name="steps" placeholder="qualify, do, follow"><label>Draft line</label><textarea name="prompt" rows="2" placeholder="Do not send. Do not invent money. Wait on Yes."></textarea><p class="hint">Bound to this desk on AIA Internet as a .aia name. Create a .aia email for automations on Account, Studio, or Desks — james-ai@funditaway.aia. Never Yes, Stop, money, or mail. Collect stays HOLD. Send HOLD. Pack it in Studio to list or keep private. Wallet / registry connect later as a Pipe HOLD.</p>`;
+        return `<label>Name this desk AI <button type="button" class="aia-tip" data-aia-tip="desk-ai" aria-label="More about Desk AI">?</button></label><input name="name" required placeholder="James’s AI"><label>AIA Internet name</label><input name="aia" placeholder="james.aia"><label>Role</label><select name="role"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select><label>What it drafts</label><input name="does" placeholder="Drafts desk work for this project"><label>Steps it may draft</label><input name="steps" placeholder="qualify, do, follow"><label>Draft line</label><textarea name="prompt" rows="2" placeholder="Do not send. Do not invent money. Wait on Yes."></textarea><p class="hint">Bound to this desk on AIA Internet as a .aia name. Create a .aia email for automations on Account, Studio, or Desks — james-ai@funditaway.aia. Never Yes, Stop, money, or mail. Collect stays HOLD. Send HOLD. Pack it in Studio to list or keep private. Wallet / registry connect later as a Pipe HOLD.</p>`;
       }
       if (kind === "pack") return packFields();
       if (kind === "model") return `<label>Name this automation</label><input name="name" required placeholder="Lawn route"><label>What the desk does</label><input name="does" placeholder="Call in → schedule → invoice"><label>Share</label><select name="share"><option value="private">This desk only</option><option value="listed">Public — show in pack search</option><option value="market">Market — set an ask</option></select><label>Ask if this is a market pack</label><input name="price" inputmode="decimal" placeholder="0 means free. No card taken today."><p class="hint">Listed packs are free in search. A market ask is a tag. AIA does not take a card for packs yet.</p><label class="adv">How unique is it?</label><select class="adv" name="complexity"><option value="simple">Simple — same five steps</option><option value="custom">Custom — this desk only</option><option value="unique">Unique — own fields</option><option value="complex">Complex — fields + a first card</option></select><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Patient, due date, ask"><label class="adv">First card on the queue</label><input class="adv" name="firstWork" placeholder="Recall Rex Friday">`;
@@ -119,7 +119,7 @@
     function renderPicks() {
       picks.innerHTML = TYPES.map(t => "<button type=\"button\" class=\"pick " + (t.id === kind ? "on" : "") + "\" data-kind=\"" + t.id + "\"><b>" + t.name + "</b><span>" + t.hint + "</span></button>").join("");
       const gated = kind === "ai" && !deskOpen();
-      form.innerHTML = fields() + (gated ? "" : "<button class=\"go\" type=\"submit\">" + goLabel() + "</button>") + "<p class=\"hint\">Same five steps: Capture, Qualify, Do, Collect, Follow. You still tap Yes or No on anything that needs a yes or no from an AI agent or a human.</p>";
+      form.innerHTML = fields() + (gated ? "" : "<button class=\"go\" type=\"submit\">" + goLabel() + "</button>") + "<p class=\"hint\">Same five steps: Capture, Qualify, Do, Collect, Follow. You still tap Yes or Stop on anything that needs a Yes or Stop from an AI agent or a human.</p>";
       ok.style.display = "none"; err.style.display = "none";
       wirePackSearch();
     }
@@ -294,7 +294,7 @@
           const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(body) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not put that on the queue.");
-          return done(kind === "capture" ? "Captured. Not shipped. Qualify first. You still tap Yes or No." : "Job is on the queue. Same five steps. You still tap Yes or No.");
+          return done(kind === "capture" ? "Captured. Not shipped. Qualify first. You still tap Yes or Stop." : "Job is on the queue. Same five steps. You still tap Yes or Stop.");
         }
         if (kind === "model") {
           const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "create", kind: "model", complexity: f.get("complexity") || (advanced ? "custom" : "simple"), name: f.get("name"), does: f.get("does"), fields: f.get("fields"), firstWork: f.get("firstWork"), share: f.get("share") || "private", price: f.get("price") || 0 }) });
@@ -309,7 +309,7 @@
             if (!listed.ok) extra = " Saved on this desk. " + (pack.error || "Could not list it for search.");
             else extra = " " + (pack.note || extra);
           }
-          return done((data.job ? "Automation saved. First card is on the queue." : "This automation is on the desk.") + extra + " You still tap Yes or No.");
+          return done((data.job ? "Automation saved. First card is on the queue." : "This automation is on the desk.") + extra + " You still tap Yes or Stop.");
         }
         if (kind === "teammate") {
           const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "invite", name: f.get("name"), role: "employee", kind: f.get("kind") || "helper", pin: f.get("pin"), phone: f.get("phone") || "", email: f.get("email") || "" }) });
@@ -321,7 +321,7 @@
           const r = await fetch("/api/rules", { method: "POST", headers: headers(), body: JSON.stringify({ action: "add", text: f.get("text"), when: f.get("when") || "drop", then: f.get("then") || "draft", ifMoney: f.get("ifMoney"), contains: f.get("contains"), ifField: f.get("ifField"), ifValue: f.get("ifValue"), ifTag: f.get("ifTag"), tag: f.get("tag") }) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not add that rule.");
-          return done("Guardrail is on. Ask me if… New cards honor it. You still tap Yes or No.");
+          return done("Guardrail is on. Ask me if… New cards honor it. You still tap Yes or Stop.");
         }
         const pin = String(f.get("pin") || "");
         if (pin.length < 4) return fail("Pick a desk code with at least 4 digits.");

@@ -1,9 +1,14 @@
-/* AIA Wallet Connect — EIP-1193 / browser wallet on Account. Address only. No keys. Collect HOLD. */
+/* Connect existing wallet — MetaMask / WalletConnect. User's keys stay in their wallet.
+   Address bind only. No Wallet.AIA. No hosted keys. No deposit. Collect HOLD. No silent send. */
 (function () {
   var ADDR_KEY = "aia_wallet_address";
   var CHAIN_KEY = "aia_wallet_chain";
-  var HELP = "Wallet is for AIA Internet identity / TLD ownership. Mint and Bridge stay external until ready. Collect stays HOLD.";
-  var MISSING = "No browser wallet on this phone. Install MetaMask or another EIP-1193 wallet, then tap Connect.";
+  var HELP = "Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks.";
+  var DENY = "Not Wallet.AIA — not compute credits or a creator payout ledger. No AIA token or gas currency.";
+  var MISSING_MM = "No MetaMask on this phone. Install MetaMask or open this page in its browser. AIA does not hold keys.";
+  var MISSING_WC = "No WalletConnect wallet on this phone. Open this page in your WalletConnect app’s browser. AIA does not host Wallet.AIA or keys.";
+  var MISSING = "No MetaMask or WalletConnect on this phone. Use your wallet’s browser. AIA does not hold keys.";
+  var announced = [];
 
   function host() { return document.getElementById("aia-wallet"); }
   function slugify(s) {
@@ -59,8 +64,78 @@
   function opened() {
     return !!(localStorage.getItem("aia_session") || (localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin")));
   }
-  function provider() {
+  function injected() {
     return (typeof window !== "undefined" && window.ethereum) || null;
+  }
+  function infoText(row) {
+    var info = (row && row.info) || {};
+    return String((info.name || "") + " " + (info.rdns || "")).toLowerCase();
+  }
+  function onAnnounce(e) {
+    var d = e && e.detail;
+    if (!d || !d.provider) return;
+    var rdns = (d.info && d.info.rdns) || "";
+    for (var i = 0; i < announced.length; i++) {
+      var have = (announced[i].info && announced[i].info.rdns) || "";
+      if (rdns && have === rdns) return;
+    }
+    announced.push(d);
+  }
+  function discover() {
+    if (typeof window === "undefined" || window.__aia6963) return;
+    window.__aia6963 = true;
+    window.addEventListener("eip6963:announceProvider", onAnnounce);
+    try { window.dispatchEvent(new Event("eip6963:requestProvider")); } catch (e) {}
+  }
+  function isMetaMask(provider, row) {
+    if (!provider) return false;
+    var n = infoText(row);
+    if (/walletconnect|coinbase|rainbow|okx|phantom|rabby/.test(n)) return false;
+    if (/metamask|io\.metamask/.test(n)) return true;
+    return !!(provider.isMetaMask && !provider.isWalletConnect);
+  }
+  function isWalletConnect(provider, row) {
+    if (!provider) return false;
+    var n = infoText(row);
+    if (/walletconnect|wallet connect/.test(n)) return true;
+    return !!provider.isWalletConnect;
+  }
+  function pickProvider(kind) {
+    discover();
+    var i;
+    if (kind === "metamask") {
+      for (i = 0; i < announced.length; i++) {
+        if (isMetaMask(announced[i].provider, announced[i])) return announced[i].provider;
+      }
+      var mmHost = injected();
+      if (mmHost && mmHost.providers && mmHost.providers.length) {
+        for (i = 0; i < mmHost.providers.length; i++) {
+          if (isMetaMask(mmHost.providers[i])) return mmHost.providers[i];
+        }
+      }
+      if (isMetaMask(mmHost)) return mmHost;
+      return null;
+    }
+    if (kind === "walletconnect") {
+      for (i = 0; i < announced.length; i++) {
+        if (isWalletConnect(announced[i].provider, announced[i])) return announced[i].provider;
+      }
+      var wcHost = injected();
+      if (wcHost && wcHost.providers && wcHost.providers.length) {
+        for (i = 0; i < wcHost.providers.length; i++) {
+          if (isWalletConnect(wcHost.providers[i])) return wcHost.providers[i];
+        }
+      }
+      if (isWalletConnect(wcHost)) return wcHost;
+      return null;
+    }
+    if (announced[0] && announced[0].provider) return announced[0].provider;
+    return injected();
+  }
+  function missingFor(kind) {
+    if (kind === "metamask") return MISSING_MM;
+    if (kind === "walletconnect") return MISSING_WC;
+    return MISSING;
   }
   function parseChainId(raw) {
     if (raw == null || raw === "") return 0;
@@ -83,22 +158,28 @@
     var short = (wallet && (wallet.short || shortAddress(wallet.address))) || "";
     var body;
     if (!opened()) {
-      body = "<p class=\"meta\">Open this desk first, then connect a browser wallet.</p>";
+      body = "<p class=\"meta\">Open this desk first, then connect your MetaMask or WalletConnect wallet.</p>";
     } else if (connected) {
       body = "<p><strong id=\"aia-wallet-short\">" + esc(short) + "</strong></p>" +
         "<p class=\"meta\" id=\"aia-wallet-chain\">" + esc(chain || "Chain unknown") +
+        " · your wallet · AIA does not hold keys" +
         (Number(wallet.chainId) === 1 ? "" : " · Ethereum mainnet preferred for Decentraweb") + "</p>" +
         "<p class=\"row\"><button type=\"button\" class=\"edit\" id=\"aia-wallet-off\">Disconnect</button></p>";
     } else {
-      body = "<p class=\"row\"><button type=\"button\" class=\"go\" id=\"aia-wallet-on\">Connect Wallet</button></p>";
+      body = "<p class=\"row\">" +
+        "<button type=\"button\" class=\"go\" id=\"aia-wallet-mm\">Connect MetaMask</button>" +
+        "<button type=\"button\" class=\"edit\" id=\"aia-wallet-wc\">Connect WalletConnect</button>" +
+        "</p>";
     }
-    el.innerHTML = "<h2>Wallet</h2>" +
-      "<p class=\"meta\">" + HELP + "</p>" +
+    el.innerHTML = "<h2>Connect existing wallet</h2>" +
+      "<p class=\"meta\">" + HELP + " " + DENY + "</p>" +
       body +
       "<p class=\"meta\" id=\"aia-wallet-msg\">" + esc(hint || "") + "</p>";
-    var on = document.getElementById("aia-wallet-on");
+    var mm = document.getElementById("aia-wallet-mm");
+    var wc = document.getElementById("aia-wallet-wc");
     var off = document.getElementById("aia-wallet-off");
-    if (on) on.onclick = connect;
+    if (mm) mm.onclick = function () { connect("metamask"); };
+    if (wc) wc.onclick = function () { connect("walletconnect"); };
     if (off) off.onclick = disconnect;
     if (window.AIATld && AIATld.fromWallet) AIATld.fromWallet(wallet);
   }
@@ -117,14 +198,14 @@
     if (d.wallet && d.wallet.address) remember(d.wallet.address, d.wallet.chainId);
     return d.wallet || localWallet();
   }
-  async function connect() {
+  async function connect(kind) {
     if (!opened()) {
-      paint(null, "Open this desk first, then connect a browser wallet.");
+      paint(null, "Open this desk first, then connect your MetaMask or WalletConnect wallet.");
       return;
     }
-    var eth = provider();
+    var eth = pickProvider(kind);
     if (!eth || typeof eth.request !== "function") {
-      paint(localWallet(), MISSING);
+      paint(localWallet(), missingFor(kind));
       return;
     }
     try {
@@ -138,7 +219,7 @@
       try { chainRaw = await eth.request({ method: "eth_chainId" }); } catch (e) { chainRaw = "0x1"; }
       var chainId = parseChainId(chainRaw);
       var wallet = await persist(address, chainId);
-      paint(wallet, wallet && wallet.connected ? "Connected on this desk session." : "");
+      paint(wallet, wallet && wallet.connected ? "Connected. Your wallet. AIA does not hold keys." : "");
     } catch (err) {
       var text = (err && (err.message || err.error)) || "Wallet did not connect.";
       paint(localWallet(), text);
@@ -156,7 +237,8 @@
     paint({ connected: false }, "Disconnected. Address cleared on this desk session.");
   }
   function listen() {
-    var eth = provider();
+    discover();
+    var eth = injected();
     if (!eth || typeof eth.on !== "function" || eth.__aiaWalletBound) return;
     eth.__aiaWalletBound = true;
     eth.on("accountsChanged", function (accounts) {
@@ -193,6 +275,7 @@
   }
   async function load(state) {
     if (!host()) return;
+    discover();
     if (state && (state.account || state.wallet)) {
       paint(fromAccount(state));
       listen();

@@ -7,11 +7,15 @@
   }
   function desk() {
     var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || {};
-    var q = new URLSearchParams(location.search).get("ws") || "";
-    return {
-      slug: q || cur.slug || window.ws || localStorage.getItem("aia_ws") || "",
-      name: cur.name || q || localStorage.getItem("aia_desk_name") || ""
-    };
+    var q = "";
+    try { q = String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { q = ""; }
+    if (window.AIADesks && AIADesks.slugify) q = AIADesks.slugify(q);
+    var saved = (q && window.AIADesks && AIADesks.find) ? AIADesks.find(q) : null;
+    var slug = q || cur.slug || window.ws || localStorage.getItem("aia_ws") || "";
+    var name = q
+      ? ((saved && saved.name) || q)
+      : (cur.name || localStorage.getItem("aia_desk_name") || slug);
+    return { slug: slug, name: name };
   }
   function recent() {
     try {
@@ -33,8 +37,8 @@
       var title = document.getElementById("drop-title");
       if (title && title.parentNode) title.parentNode.insertBefore(el, title.nextSibling);
     }
-    if (!on.slug) { el.textContent = "No desk yet. Pick one, say which desk, or find a public desk."; return; }
-    el.innerHTML = "Dropping on <b>" + esc(on.name || on.slug) + "</b>. <a href=\"/drop\">Change desk</a>";
+    if (!on.slug) { el.textContent = "No desk yet. Pick one, add a saved desk, or find a public desk."; return; }
+    el.innerHTML = "This drop goes to <b>" + esc(on.name || on.slug) + "</b>. Lands on that queue. You still tap Yes or Stop. <a href=\"/drop\">Change desk</a>";
   }
   function camera() {
     var photo = document.getElementById("photo"); if (!photo) return;
@@ -122,6 +126,7 @@
     var on = desk();
     if (on.slug && /(?:^|[?&])ws=/.test(location.search)) rememberPublic(on);
   }
+  window.AIADropNow = { banner: banner };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();

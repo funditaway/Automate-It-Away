@@ -10,11 +10,18 @@
   }
   function desk() {
     var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || {};
-    var q = new URLSearchParams(location.search).get("ws") || "";
+    var q = "";
+    try { q = String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { q = ""; }
+    if (window.AIADesks && AIADesks.slugify) q = AIADesks.slugify(q);
+    var saved = (q && window.AIADesks && AIADesks.find) ? AIADesks.find(q) : null;
+    var slug = q || cur.slug || window.ws || localStorage.getItem("aia_ws") || "";
+    var name = q
+      ? ((saved && saved.name) || q)
+      : (cur.name || localStorage.getItem("aia_desk_name") || slug || "this desk");
     return {
-      slug: q || cur.slug || window.ws || localStorage.getItem("aia_ws") || "",
-      name: cur.name || q || localStorage.getItem("aia_desk_name") || "this desk",
-      pin: cur.pin || localStorage.getItem("aia_pin") || ""
+      slug: slug,
+      name: name,
+      pin: (saved && saved.pin) || (!q ? (cur.pin || localStorage.getItem("aia_pin") || "") : "")
     };
   }
   function headers() {
