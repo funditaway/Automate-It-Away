@@ -115,6 +115,23 @@
     put("apple-mobile-web-app-status-bar-style", "black-translucent");
     put("apple-mobile-web-app-title", "AIA");
   }
+  function ensureIcons() {
+    function icon(rel, href, extra) {
+      if (!document.head) return;
+      if (document.querySelector('link[rel="' + rel + '"][href="' + href + '"]')) return;
+      var el = document.createElement("link");
+      el.rel = rel;
+      el.href = href;
+      if (extra) {
+        Object.keys(extra).forEach(function (k) { el.setAttribute(k, extra[k]); });
+      }
+      document.head.appendChild(el);
+    }
+    icon("icon", "/favicon.svg", { type: "image/svg+xml" });
+    icon("icon", "/favicon.ico", { sizes: "any" });
+    icon("apple-touch-icon", "/apple-touch-icon.png", { sizes: "180x180" });
+    icon("manifest", "/site.webmanifest");
+  }
   apply();
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
@@ -274,6 +291,7 @@
   var SITE_LINKS = [
     { id: "how", href: "/how", label: "How" },
     { id: "setup", href: "/setup", label: "Setup" },
+    { id: "help", href: "/help", label: "Help" },
     { id: "desk", href: "/desk", label: "Desk" }
   ];
   var FOOT_LINKS = [
@@ -334,6 +352,7 @@
   }
   function mark() {
     ensurePhoneMeta();
+    ensureIcons();
     lockHeader();
     ensureFixCss();
     ensureBtn();

@@ -118,7 +118,11 @@ else pass("Studio links aia-implement");
   else pass(name + " is desk language");
   if (!pages[name].includes("ai.aia")) fail(name + " missing ai.aia door");
   else pass(name + " names ai.aia");
+  if (!pages[name].includes("not a mint lesson")) fail(name + " must not teach mint");
+  else pass(name + " does not teach mint");
 });
+if (/implementation path/.test(pages["help.html"])) fail("help must not teach implementation path");
+else pass("help drops implementation path");
 if (!pages["developer.html"].includes("ai.aia")) fail("Studio missing ai.aia door");
 else pass("Studio names ai.aia");
 

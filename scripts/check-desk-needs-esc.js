@@ -33,6 +33,8 @@ if (/\s*"<":"<"/.test(fn) || /\s*"&":"&"/.test(fn)) {
 
 if (!src.includes("<h3>\" + esc(j.title)")) fail("queue card must esc titles into innerHTML");
 if (!src.includes("esc(j.title)")) fail("cap band must esc titles into innerHTML");
+if (!src.includes("esc(label)") || !src.includes("Then draft")) fail("Then draft name must be escaped");
+if (!src.includes("esc(f.name") && !src.includes("esc(f.name ||")) fail("file names must be escaped");
 if (/<h3>" \+ String\(j\.title/.test(src)) fail("titles must not paint with String(j.title)");
 if (src.includes("<h3>\" + String(j.title")) fail("titles must not paint with String(j.title)");
 if (src.includes("src=\\\"\" + j.photoUrl")) fail("photoUrl must be escaped in the thumb src");

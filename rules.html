@@ -6,7 +6,8 @@
   <title>Rules · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
@@ -77,7 +78,7 @@
     <div class="strip" aria-label="When If Then">
       <div><b>When</b><span>Trigger — Drop, pipe, inbound name@account.aia, status change.</span></div>
       <div><b>If</b><span>Condition — Qualify check, tag, word, unassigned, older than.</span></div>
-      <div><b>Then</b><span>Action — desk AI drafts, Queue card, notify. Human Yes/Stop for outbound or money.</span></div>
+      <div><b>Then</b><span>Action — a named desk AI drafts (you pick which), Queue card, notify. Human Yes/Stop for outbound or money.</span></div>
       <div><b>Human</b><span>Yes or Stop. Collect stays HOLD. Nothing sends itself.</span></div>
     </div>
     <div class="vs">
@@ -97,7 +98,7 @@
       <div class="item" id="desk-ais" hidden></div>
       <div class="item" id="rules">
       <h3>Owner rules</h3>
-      <p>One When → If → Then on this desk. Desk AI drafts. Queue card or notify. Human Yes/Stop for outbound or money. Worker never Send. Collect stays HOLD.</p>
+      <p>One When → If → Then on this desk. Owner picks which named desk AI writes Then draft. Queue card or notify. Human Yes/Stop for outbound or money. Worker never Send. Collect stays HOLD.</p>
       <ul id="rule-list"></ul>
       <div id="rule-add" hidden style="margin-top:10px">
         <label class="field" for="rule-text">Ask me if</label>
@@ -119,8 +120,8 @@
           </div>
           <div>
             <label class="field" for="rule-then">Then · Action</label>
-            <select id="rule-then">
-              <option value="draft">Desk AI drafts</option>
+            <select id="rule-then" onchange="paintAiPick()">
+              <option value="draft">Named desk AI drafts</option>
               <option value="queue">Queue card / alert</option>
               <option value="notify">Notify — draft HOLD</option>
               <option value="tag">Tag the card</option>
@@ -148,6 +149,13 @@
           </div>
         </div>
         <label class="field" style="margin-top:8px"><input id="rule-unassigned" type="checkbox"> If unassigned</label>
+        <div id="rule-ai-box" style="margin-top:8px">
+          <label class="field" for="rule-ai">Then · named desk AI</label>
+          <select id="rule-ai" style="width:100%">
+            <option value="">Any desk AI that can draft</option>
+          </select>
+          <p class="meta" id="rule-ai-hint">Picks who writes Then draft on matching cards. Yes / Stop / Kill stay human. Nothing sent alone.</p>
+        </div>
         <div class="row" style="margin-top:8px">
           <button class="edit" type="button" id="adv-toggle" onclick="toggleAdv()">Advanced</button>
           <button class="go" type="button" onclick="saveRule()">Add a rule</button>
@@ -216,6 +224,7 @@
     let role = localStorage.getItem("aia_role") || "";
     let youName = localStorage.getItem("aia_name") || "";
     let RULES = [];
+    let AIS = [];
     let EDIT_ID = "";
     let ADV_ON = false;
     let NOUNS = AIADesks.nounsOf();
@@ -262,10 +271,10 @@
       const c = Number(n) || 0;
       document.getElementById("widget-count").textContent = c === 1 ? "1 widget on" : c + " widgets on";
     }
-    function thenWord(t) {
+    function thenWord(t, name) {
       if (t === "wait") return "wait on owner";
       if (t === "stop") return "stop";
-      if (t === "draft") return "desk AI draft HOLD";
+      if (t === "draft") return name ? (name + " draft HOLD") : "desk AI draft HOLD";
       if (t === "queue") return "Queue card";
       if (t === "notify") return "notify HOLD";
       if (t === "tag") return "tag";
@@ -275,7 +284,7 @@
     function ruleBits(r) {
       const bits = [];
       if (r.when) bits.push("When " + r.when);
-      if (r.then) bits.push("Then " + thenWord(r.then));
+      if (r.then) bits.push("Then " + thenWord(r.then, r.aiName));
       if (r.ifTag) bits.push("If tagged " + r.ifTag);
       if (r.ifStatus) bits.push("If status " + r.ifStatus);
       if (r.ifUnassigned) bits.push("If unassigned");
@@ -308,6 +317,30 @@
       }).join("") || "<li><span class=\"meta\">No rules yet. Add one if you need it.</span></li>";
       document.getElementById("rule-add").hidden = !canEdit;
       paintCount((rows.filter((r) => r.widget && r.widget.on)).length);
+      paintAiPick();
+    }
+    function paintAiPick() {
+      const sel = document.getElementById("rule-ai");
+      const hint = document.getElementById("rule-ai-hint");
+      const thenEl = document.getElementById("rule-then");
+      const box = document.getElementById("rule-ai-box");
+      if (!sel || !box) return;
+      const then = thenEl ? thenEl.value : "draft";
+      box.hidden = then !== "draft";
+      const keep = sel.value;
+      if (!AIS.length) {
+        sel.innerHTML = "<option value=\"\">No named AI on this desk yet</option>";
+        sel.disabled = true;
+        if (hint) hint.textContent = "Create one in Studio or Create. Then still drafts HOLD. Nothing sent alone.";
+        return;
+      }
+      sel.disabled = false;
+      sel.innerHTML = "<option value=\"\">Any desk AI that can draft</option>" + AIS.map(function (a) {
+        const value = a.id || a.name || "";
+        return "<option value=\"" + esc(value) + "\">" + esc(a.name || "Desk AI") + "</option>";
+      }).join("");
+      if (keep && AIS.some(function (a) { return a.id === keep || a.name === keep; })) sel.value = keep;
+      if (hint) hint.textContent = "Picks who writes Then draft on matching cards. Yes / Stop / Kill stay human. Nothing sent alone.";
     }
     function toggleAdv(force) {
       ADV_ON = force == null ? !ADV_ON : !!force;
@@ -319,6 +352,8 @@
       document.getElementById("rule-text").value = "";
       document.getElementById("rule-when").value = "drop";
       document.getElementById("rule-then").value = "draft";
+      const aiEl = document.getElementById("rule-ai");
+      if (aiEl) aiEl.value = "";
       document.getElementById("rule-money").value = "";
       document.getElementById("rule-contains").value = "";
       document.getElementById("rule-field").value = "";
@@ -331,6 +366,7 @@
       document.getElementById("adv-cancel").hidden = true;
       document.querySelector("#rule-add .go").textContent = "Add a rule";
       toggleAdv(false);
+      paintAiPick();
     }
     function payload() {
       const body = {
@@ -342,6 +378,10 @@
         tag: document.getElementById("rule-tag").value,
         ifUnassigned: !!(document.getElementById("rule-unassigned") || {}).checked
       };
+      if (body.then === "draft") {
+        const aiEl = document.getElementById("rule-ai");
+        body.ai = aiEl ? (aiEl.value || "") : "";
+      }
       const older = document.getElementById("rule-older").value;
       if (older) body.ifOlder = older;
       if (ADV_ON || EDIT_ID) {
@@ -361,6 +401,9 @@
       document.getElementById("rule-text").value = r.text || "";
       document.getElementById("rule-when").value = r.when || "drop";
       document.getElementById("rule-then").value = r.then || "draft";
+      paintAiPick();
+      const aiEl = document.getElementById("rule-ai");
+      if (aiEl) aiEl.value = r.aiId || r.aiName || "";
       document.getElementById("rule-money").value = r.ifMoney != null ? r.ifMoney : "";
       document.getElementById("rule-contains").value = r.contains || "";
       document.getElementById("rule-field").value = r.ifField || "";
@@ -433,6 +476,7 @@
       if (!workspaceSlug()) {
         banner.textContent = "Name this desk. Open it.";
         RULES = [];
+        AIS = [];
         paintRules([], false);
         paintNouns(AIADesks.defaultNouns(), false);
         return;
@@ -452,6 +496,7 @@
         }
         const rulesOut = await api("/api/rules");
         RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || [];
+        AIS = (rulesOut.data && rulesOut.data.ais) || [];
         const can = !!(rulesOut.data && rulesOut.data.canAdd);
         paintRules(RULES, can);
         paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);
@@ -460,6 +505,7 @@
         paintGate();
       } catch (e) {
         banner.textContent = "Could not reach the desk.";
+        AIS = [];
         paintRules([], false);
         paintNouns(AIADesks.defaultNouns(), false);
       }

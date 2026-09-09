@@ -6,7 +6,7 @@ const {
   publicDesk, applyDeskEdit, setDeskClosed, setDeskCode, exportDesk, wipeDesk,
   adminPinOk, canDesk, setDeskPerms, setSeatCan, logDesk, exploreDesk, deskEventsOf
 } = require("./_desk");
-const { historyOf, filterHistory, facetsOf, isPriorityJob, capCard, needsOf } = require("./_history");
+const { historyOf, filterHistory, facetsOf, accountRoadmapOf, isPriorityJob, capCard, needsOf } = require("./_history");
 const packHandler = require("./_packs");
 
 function deskClosed(ws) {
@@ -152,7 +152,7 @@ module.exports = async function handler(req, res) {
     const shown = filterHistory(items, body);
     const counts = { need: 0, doing: 0, wait: 0, ext: 0, done: 0, stopped: 0, past: 0, now: 0, next: 0, all: items.length };
     items.forEach((it) => { if (counts[it.lane] != null) counts[it.lane] += 1; if (it.when && counts[it.when] != null) counts[it.when] += 1; });
-    return res.status(200).json({ ok: true, format: "aia.desk.v1", advanced: !!advanced, desks, counts, facets: facetsOf(items), items: shown.slice(0, advanced ? 120 : 80) });
+    return res.status(200).json({ ok: true, format: "aia.desk.v1", advanced: !!advanced, desks, account: accountRoadmapOf(desks), counts, facets: facetsOf(items), items: shown.slice(0, advanced ? 120 : 80) });
   }
 
   if (action === "priority" || action === "cap") {

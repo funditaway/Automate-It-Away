@@ -158,7 +158,7 @@ function normalizeCites(rows) {
   }).filter(Boolean).slice(0, 6);
 }
 
-const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"citations\":[{\"title\":\"\",\"url\":\"https://...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Citations only for real http(s) URLs you used — never invent links or money. Short local English. If the desk has a named AI, draft as that AI on this desk only. Never send money, never email a customer, never Stop a job, never Yes yourself. Human taps Yes or No.";
+const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"citations\":[{\"title\":\"\",\"url\":\"https://...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Citations only for real http(s) URLs you used — never invent links or money. Short local English. If the desk has a named AI, draft as that AI on this desk only. Never send money, never email a customer, never Stop a job, never Yes yourself. Human taps Yes or Stop.";
 
 async function callOpenAI(drafter, job, shop) {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
