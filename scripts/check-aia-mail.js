@@ -73,7 +73,7 @@ holdFiles.forEach(function (name) {
   else pass(name + " no $250");
 });
 
-["../api/_lib", "../api/_account", "../api/_aia-mail", "../api/_fields", "../api/_account-http", "../api/auth", "../api/desks", "../api/hook", "../api/health", "../api/connections", "../api/_packs"].forEach(function (mod) {
+["../api/_lib", "../api/_account", "../api/_aia-mail", "../api/_fields", "../api/_account-http", "../api/auth", "../api/_desks-http", "../api/hook", "../api/health", "../api/connections", "../api/_packs"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
@@ -81,7 +81,7 @@ const lib = require("../api/_lib");
 const mail = require("../api/_aia-mail");
 const account = require("../api/_account-http");
 const auth = require("../api/auth");
-const desks = require("../api/desks");
+const desks = require("../api/_desks-http");
 const hook = require("../api/hook");
 const health = require("../api/health");
 const connections = require("../api/connections");

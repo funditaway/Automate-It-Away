@@ -95,8 +95,8 @@ const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("action === \"priority\"") || !jobs.includes("needsOf")) fail("jobs.js missing priority / needs");
 else pass("jobs API pins cap cards");
 
-const desks = fs.readFileSync(path.join(root, "api/desks.js"), "utf8");
-if (!desks.includes("action === \"priority\"") || !desks.includes("capCard")) fail("desks.js missing account cap list");
+const desks = fs.readFileSync(path.join(root, "api/_desks-http.js"), "utf8");
+if (!desks.includes("action === \"priority\"") || !desks.includes("capCard")) fail("desks handler missing account cap list");
 else pass("desks API lists cap cards across desks");
 
 if (process.exitCode) {

@@ -113,13 +113,26 @@ if (packMd.indexOf("open Owner desk") < 0) fail("PACK.md must name the open Owne
 else pass("PACK.md names open Owner desk Studio login");
 if (packMd.indexOf("Desk AIs leftover") < 0) fail("PACK.md must name Desk AIs leftover");
 else pass("PACK.md names Desk AIs leftover");
+if (packMd.indexOf("/api/auth?via=desks") < 0 || packMd.indexOf("_desks-http") < 0) fail("PACK.md must name the desks auth fold");
+else pass("PACK.md names desks auth fold");
+if (yesNo.indexOf("/api/auth?via=desks") < 0 || yesNo.indexOf("_desks-http") < 0) fail("ACCOUNT-YES-NO must name the desks auth fold");
+else pass("ACCOUNT-YES-NO names desks auth fold");
+if (fs.existsSync(path.join(root, "api/desks.js"))) fail("api/desks.js must not be its own Lambda");
+else pass("api/desks.js is folded into auth");
+const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+if (!vercel.includes("/api/auth?via=desks") || !/"\/api\/desks"/.test(vercel)) fail("vercel.json must rewrite /api/desks onto /api/auth?via=desks");
+else pass("vercel.json runs desks on the auth function");
+const authSrc = fs.readFileSync(path.join(root, "api/auth.js"), "utf8");
+if (authSrc.indexOf("function wantsDesks") < 0 || authSrc.indexOf("./_desks-http") < 0) fail("auth.js must dispatch via=desks onto _desks-http");
+else pass("auth.js dispatches via=desks");
 
 const net = require("../api/_aia-net");
 const lib = require("../api/_lib");
 const ais = require("../api/_ais");
 const packHandler = require("../api/_packs");
 const jobsHandler = require("../api/jobs");
-const desksHandler = require("../api/desks");
+const desksHandler = require("../api/_desks-http");
+const authHandler = require("../api/auth");
 const { mem, hashPin, ensurePeople, ready, save } = lib;
 
 function mockRes() {
@@ -219,6 +232,47 @@ async function main() {
   if (!leftoverAis.some(function (a) { return a && a.name === "Project AI"; })) {
     fail("leftover session + pin must still paint named AIs, not empty ais");
   } else pass("leftover session + pin still paints named AIs");
+
+  const foldPin = "3579";
+  const onboarded = await call(authHandler, "POST", { "x-workspace": "fold-desk", "x-pin": foldPin }, {
+    action: "account",
+    name: "Pat",
+    biz: "Fold Desk",
+    slug: "fold-desk",
+    workspace: "fold-desk",
+    kind: "owner",
+    role: "owner",
+    pin: foldPin
+  });
+  const onboardTok = onboarded.body && onboarded.body.session && onboarded.body.session.token;
+  if (onboarded.statusCode !== 201 || !onboardTok) {
+    fail("Owner onboard via /api/auth should mint fold-desk " + onboarded.statusCode + " " + JSON.stringify(onboarded.body));
+  } else pass("Owner onboard mints fold-desk for desks fold");
+  const foldEmpty = await call(authHandler, "GET", { "x-workspace": "fold-desk", "x-session": leftover }, {}, { via: "desks" });
+  if (foldEmpty.statusCode !== 401) fail("folded GET /api/desks empty pin must 401, got " + foldEmpty.statusCode);
+  else pass("folded GET /api/desks empty pin stays 401");
+  const foldGet = await call(authHandler, "GET", {
+    "x-workspace": "fold-desk",
+    "x-pin": foldPin,
+    "x-session": onboardTok
+  }, {}, { via: "desks" });
+  if (foldGet.statusCode !== 200 || !foldGet.body || !foldGet.body.desk || foldGet.body.desk.slug !== "fold-desk") {
+    fail("folded GET /api/desks must see the onboard desk " + foldGet.statusCode + " " + JSON.stringify(foldGet.body));
+  } else pass("folded GET /api/desks sees the onboard Owner desk");
+  const foldSave = await call(authHandler, "POST", {
+    "x-workspace": "fold-desk",
+    "x-pin": foldPin,
+    "x-session": onboardTok
+  }, {
+    action: "save-ai",
+    name: "Fold AI",
+    role: "Doer",
+    does: "Draft on the folded desk",
+    steps: "qualify, follow"
+  }, { via: "desks" });
+  if (foldSave.statusCode !== 200 || !foldSave.body || !foldSave.body.ok || !(foldSave.body.ais || []).some(function (a) { return a && a.name === "Fold AI"; })) {
+    fail("folded save-ai must bind on the onboard desk " + foldSave.statusCode + " " + JSON.stringify(foldSave.body));
+  } else pass("folded save-ai binds on the onboard desk");
 
   const priv = await call(packHandler, "POST", owner, {
     action: "private-pack",

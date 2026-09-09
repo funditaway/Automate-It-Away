@@ -166,6 +166,12 @@ async function main() {
   if (require("fs").existsSync(path.join(__dirname, "..", "api/account.js"))) {
     fail("api/account.js must not be its own Lambda");
   } else pass("api/account.js is folded into auth");
+  if (!vercel.includes("/api/auth?via=desks") || !/"\/api\/desks"/.test(vercel)) {
+    fail("vercel.json must rewrite /api/desks onto /api/auth?via=desks");
+  } else pass("vercel.json runs desks on the auth function");
+  if (require("fs").existsSync(path.join(__dirname, "..", "api/desks.js"))) {
+    fail("api/desks.js must not be its own Lambda");
+  } else pass("api/desks.js is folded into auth");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");
