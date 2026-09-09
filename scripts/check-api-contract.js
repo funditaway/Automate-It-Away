@@ -40,7 +40,7 @@ function mockRes() {
 async function main() {
   [
     "issueSession", "findSession", "listSessions", "revokeSession", "sessionCookie",
-    "clearSessionCookie", "parseCookies", "sessionFromReq", "isLocked", "noteFail", "noteOk", "sessionTokenOf"
+    "clearSessionCookie", "parseCookies", "sessionFromReq", "isLocked", "noteFail", "noteOk", "sessionTokenOf", "applyStore"
   ].forEach((key) => {
     if (typeof lib[key] !== "function") fail("_lib missing " + key);
   });
@@ -158,6 +158,20 @@ async function main() {
   if (conn.body.inbound !== "https://www.automateitaway.com/api/hook") {
     fail("connections inbound must be www host, got " + conn.body.inbound);
   } else pass("connections inbound uses www host");
+
+  const vercel = require("fs").readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8");
+  if (!vercel.includes("/api/auth?via=account") || !/"\/api\/account"/.test(vercel)) {
+    fail("vercel.json must rewrite /api/account onto /api/auth?via=account");
+  } else pass("vercel.json runs Studio account on the auth function");
+  if (require("fs").existsSync(path.join(__dirname, "..", "api/account.js"))) {
+    fail("api/account.js must not be its own Lambda");
+  } else pass("api/account.js is folded into auth");
+  if (!vercel.includes("/api/auth?via=desks") || !/"\/api\/desks"/.test(vercel)) {
+    fail("vercel.json must rewrite /api/desks onto /api/auth?via=desks");
+  } else pass("vercel.json runs desks on the auth function");
+  if (require("fs").existsSync(path.join(__dirname, "..", "api/desks.js"))) {
+    fail("api/desks.js must not be its own Lambda");
+  } else pass("api/desks.js is folded into auth");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");

@@ -104,7 +104,7 @@
     const decide = isDecideJob(j);
     const next = typeof visitorLine === "function" ? visitorLine(j.next) : j.next;
     const outDesk = j.status === "out" || j.awaiting === "writeback";
-    const line = outDesk ? (next || "Off the desk. Confirm done, or tap Needs a hand.") : decide ? (next || "Yes or No.") : (next || "Hand off, send off the desk, or ask Grok.");
+    const line = outDesk ? (next || "Off the desk. Confirm done, or tap Needs a hand.") : decide ? (next || "Yes or Stop.") : (next || "Hand off, send off the desk, or ask Grok.");
     const draft = j.draft || j.title || "";
     const sms = typeof smsHref === "function" ? smsHref(draft) : "sms:?&body=" + encodeURIComponent(draft);
     const mail = typeof mailHref === "function" ? mailHref(j.title, draft) : "mailto:?subject=" + encodeURIComponent(j.title || "") + "&body=" + encodeURIComponent(draft);

@@ -216,7 +216,7 @@
       "<div class=\"how\">" +
         "<div><b>1. Capture</b>" + esc(how.capture || "Drop the facts this pack named.") + "</div>" +
         "<div><b>2. Qualify</b>" + esc(how.qualify || "Rules Cap or Wait on the words that matter.") + "</div>" +
-        "<div><b>3. Do the work</b>" + esc(how.do || "AIA drafts. A person still taps Yes or No.") + "</div>" +
+        "<div><b>3. Do the work</b>" + esc(how.do || "AIA drafts. A person still taps Yes or Stop.") + "</div>" +
         "<div><b>4. Collect</b>" + esc(how.collect || "Collect stays HOLD until Yes and a live money pipe.") + "</div>" +
         "<div><b>5. Follow</b>" + esc(how.follow || "The card stays on History until it is done.") + "</div>" +
       "</div>" +

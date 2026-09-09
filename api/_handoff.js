@@ -43,7 +43,7 @@ function crewOf(job, shop) {
   const holdAt = shop ? moneyWaitOf(rules) : null;
   if (job.risk === "legal" || job.risk === "title" || job.risk === "credit" || job.risk === "suitability"
     || ruleWantsStop(rules, job, "do") || ruleWantsStop(rules, job, "qualify")) {
-    return { id: "rail", label: "Rail", does: "Hold. Owner taps Yes or No." };
+    return { id: "rail", label: "Rail", does: "Hold. Owner taps Yes or Stop." };
   }
   if (moneyNeedsOwner(moneyOf(job), holdAt) || ruleWantsOwner(rules, job, "do") || ruleWantsOwner(rules, job, "qualify")) {
     return { id: "owner", label: "Owner", does: "Desk rule wait. Owner taps." };
@@ -59,7 +59,7 @@ function crewOf(job, shop) {
   if (job.agentDraft && job.agentDraft.crew) {
     return { id: String(job.agentDraft.crew).toLowerCase(), label: job.agentDraft.name || job.agentDraft.crew, kind: "agent", does: job.agentDraft.does, artifact: job.agentDraft.artifact, deskAi: !!job.agentDraft.deskAi };
   }
-  if (job.draft) return { id: "doer", label: "Doer", does: "Draft only. You tap Yes or No." };
+  if (job.draft) return { id: "doer", label: "Doer", does: "Draft only. You tap Yes or Stop." };
   return { id: "worker", label: "Worker", does: "Qualify and nudge. Never Send." };
 }
 function applyHandoff(job, who, shop) {
@@ -95,23 +95,56 @@ function agentDraft(job, who) {
     Builder: "Build note for " + title + ". What the desk still needs. Builder does not deploy and does not flip a pipe live.",
     Worker: "Qualify " + title + ". " + (notes || "Need the missing fact before Yes.") + " Worker nudges. Never Send."
   };
-  const text = namedLine || bits[spec.crew] || (spec.crew + " draft for " + title + ". A person taps Send.");
-  job.agentDraft = { crew: spec.crew, name: who.name, title: spec.title, artifact: spec.artifact, does: spec.does, never: spec.never || ais.NEVER.slice(), text: text, at: new Date().toISOString(), deskAi: !!who.deskAi };
+  const text = namedLine || bits[spec.crew] || (spec.crew + " draft for " + title + ". A person taps Yes.");
+  job.agentDraft = { crew: spec.crew, name: who.name, title: spec.title, artifact: spec.artifact, does: spec.does, prompt: String(who.prompt || "").trim().slice(0, 160), never: spec.never || ais.NEVER.slice(), text: text, at: new Date().toISOString(), deskAi: !!who.deskAi };
   if (!job.draft) job.draft = text;
   job.artifact = spec.artifact;
   job.agentDrafted = true;
   job.waitingOn = "person";
-  job.deskAi = { name: who.name, role: who.crew || spec.crew, never: spec.never || ais.NEVER.slice() };
+  job.deskAi = {
+    name: who.name,
+    role: who.crew || spec.crew,
+    does: who.does || spec.does || "",
+    prompt: String(who.prompt || "").trim().slice(0, 160),
+    never: spec.never || ais.NEVER.slice()
+  };
   job.next = (who.deskAi ? who.name : spec.crew) + " wrote a " + spec.artifact + ". A person taps Yes or Stop.";
   job.crew = { id: String(spec.crew).toLowerCase(), label: who.name || spec.crew, kind: "agent", does: spec.does, artifact: spec.artifact, deskAi: !!who.deskAi };
   return job;
 }
 
-function applyDeskAiDraft(job, shop, step) {
+function stampDeskAi(job, shop, picked) {
+  if (!job) return job;
+  if (!picked && job.thenAiGone && !ais.findDeskAi(shop, job.deskAi)) return job;
+  const ai = picked || (shop ? ais.pickDeskAi(shop, ais.stepOf(job) || "qualify", job.deskAi) : null);
+  if (!ai) return job;
+  const does = String(ai.does || (job.deskAi && job.deskAi.does) || "").trim().slice(0, 160);
+  const prompt = String(ai.prompt || (job.deskAi && job.deskAi.prompt) || "").trim().slice(0, 160);
+  job.deskAi = Object.assign({}, job.deskAi || {}, {
+    id: ai.id || (job.deskAi && job.deskAi.id) || "",
+    name: ai.name || (job.deskAi && job.deskAi.name) || "",
+    role: ai.role || (job.deskAi && job.deskAi.role) || "Doer",
+    does: does,
+    prompt: prompt,
+    never: ai.never || (job.deskAi && job.deskAi.never) || ais.NEVER.slice()
+  });
+  if (job.thenAiGone) delete job.thenAiGone;
+  if (job.agentDraft) {
+    job.agentDraft.name = job.agentDraft.name || ai.name;
+    job.agentDraft.does = job.agentDraft.does || does;
+    job.agentDraft.prompt = job.agentDraft.prompt || prompt;
+    job.agentDraft.deskAi = true;
+  }
+  return job;
+}
+
+function applyDeskAiDraft(job, shop, step, hint) {
   if (!job || !shop) return job;
+  const want = hint || job.deskAi;
+  if (job.thenAiGone && !ais.findDeskAi(shop, want)) return job;
   const st = ais.stepOf(job) || step || "qualify";
   if (!ais.aiMayDraft({ steps: ais.STEPS_DEFAULT, deny: ais.NEVER }, st) && st === "collect") return job;
-  const picked = ais.pickDeskAi(shop, st);
+  const picked = ais.pickDeskAi(shop, st, want);
   if (!picked) return job;
   const who = ais.findAiSeat(shop, picked) || {
     name: picked.name,
@@ -126,7 +159,8 @@ function applyDeskAiDraft(job, shop, step) {
     steps: picked.steps
   };
   if (!ais.aiMayDraft(picked, st) && !ais.aiMayDraft(who, st)) return job;
+  stampDeskAi(job, shop, picked);
   if (job.agentDrafted && job.deskAi) return job;
   return agentDraft(job, who);
 }
-module.exports = { personNamed, isApprovedAgent, agentSpec, crewOf, applyHandoff, agentDraft, applyDeskAiDraft };
+module.exports = { personNamed, isApprovedAgent, agentSpec, crewOf, applyHandoff, agentDraft, applyDeskAiDraft, stampDeskAi };
