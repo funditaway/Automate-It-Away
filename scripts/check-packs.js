@@ -88,6 +88,16 @@ if (!studioJs.includes("workflows") || !studioJs.includes("When → If → Then"
 else pass("Studio pack workflows");
 if (studio.includes("AIA Studio Pro")) fail("must not brand AIA Studio Pro");
 else pass("not AIA Studio Pro");
+if (!studio.includes("ai.aia") || !studio.includes(".aia") || !studio.includes("automateitaway.com")) fail("Studio landing must name ai.aia + .aia + desk host");
+else pass("Studio landing names ai.aia");
+if (studio.includes("www.aia.aia")) fail("Studio must not brand www.aia.aia");
+else pass("Studio does not use www.aia.aia");
+if (!market.includes("ai.aia") || !market.includes("automateitaway.com")) fail("market.html must name ai.aia and the live desk host");
+else pass("market.html names ai.aia");
+if (market.includes("www.aia.aia")) fail("market.html must not brand www.aia.aia");
+else pass("market.html does not use www.aia.aia");
+if (!shop.includes("ai.aia") || !shop.includes("Install .aia") || !shop.includes("Download")) fail("market chrome missing ai.aia / Install .aia");
+else pass("market chrome has ai.aia and Install .aia");
 if (!studio.includes("Creators / earnings") || !studio.includes("no public payout baseline")) fail("developer.html missing honest earnings");
 else pass("Studio honest earnings");
 if (!studio.includes("off-platform")) fail("developer.html missing agency off-platform");

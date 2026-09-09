@@ -107,6 +107,14 @@ if (!createJs.includes("save-ai") || !createJs.includes('id: "ai"')) fail("creat
 else pass("Create can name a desk AI");
 if (!createJs.includes("deskOpen") || !createJs.includes("Open or unlock this desk first")) fail("Create must gate Desk AI Bind behind an open desk");
 else pass("Create gates Desk AI Bind");
+["developer.html", "market.html", "create.html", "more.html", "help.html"].forEach(function (file) {
+  const html = fs.readFileSync(path.join(root, file), "utf8");
+  if (!html.includes("ai.aia")) fail(file + " missing ai.aia brand");
+  else pass(file + " names ai.aia");
+  if (html.includes("www.aia.aia")) fail(file + " branded www.aia.aia");
+  else pass(file + " does not use www.aia.aia");
+  if (file !== "more.html" && !html.includes(".aia")) fail(file + " missing .aia files");
+});
 if (!create.includes("You tap Yes or Stop.")) fail("create.html must keep Yes or Stop");
 else pass("Create lead is Yes or Stop");
 if (createJs.includes("Yes or No") || createJs.includes("yes or no")) fail("create-desk.js still paints Yes or No as the rail");
