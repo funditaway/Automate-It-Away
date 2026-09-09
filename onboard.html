@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Open your account · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
@@ -35,25 +35,25 @@
     <h1>Open your account</h1>
     <p class="sub">Three doors. Same AIA Account. Owner opens a free account and a desk. Member asks to join. Continue-with is identity only — never Send, Stop, pay, or draft. Monthly later — we tell you before we charge.</p>
     <div id="oauth-wall"></div>
-    <label>Your name</label>
+    <label>Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
     <input name="name" required placeholder="Alex Rivera" autocomplete="name">
     <div class="row">
       <div>
-        <label>Desk name</label>
+        <label>Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
         <input name="biz" required placeholder="Oddo house">
       </div>
       <div>
-        <label>City</label>
+        <label>City <button type="button" class="aia-tip" data-aia-tip="city" aria-label="More about City">?</button></label>
         <input name="city" placeholder="Springfield">
       </div>
     </div>
-    <label>You are</label>
+    <label>You are <button type="button" class="aia-tip" data-aia-tip="you-are" aria-label="More about You are">?</button></label>
     <select name="role" id="role" required>
       <option value="owner">Owner — full admin account</option>
       <option value="member">Member — join a desk</option>
     </select>
     <div id="member-box" class="custom-box" hidden>
-      <label>Permission you are asking for</label>
+      <label>Permission you are asking for <button type="button" class="aia-tip" data-aia-tip="permission" aria-label="More about Permission">?</button></label>
       <select name="kind" id="kind">
         <option value="member">Member</option>
         <option value="family">Family</option>
@@ -63,16 +63,16 @@
       </select>
       <p class="hint">Owner approves and can change this. Members never Stop or send money.</p>
     </div>
-    <label>What this desk is for</label>
+    <label>What this desk is for <button type="button" class="aia-tip" data-aia-tip="desk-for" aria-label="More about What this desk is for">?</button></label>
     <select name="model" id="model">
       <option>Home &amp; family</option>
       <option>Consignment &amp; resale</option>
       <option>Insurance</option>
       <option>Something else</option>
     </select>
-    <label>Email <span class="meta">optional</span></label>
+    <label>Email <span class="meta">optional</span> <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
     <input type="email" name="email" placeholder="you@shop.com">
-    <label>Desk code</label>
+    <label>Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
     <button class="btn" type="submit" id="go">Open the account</button>
     <p class="hint" id="hint">Owner: full admin, free now. Member: join an existing desk. Desk name + your code is the login. World doors stay Hold until they are lit.</p>
@@ -80,12 +80,13 @@
   </form>
   <section class="gate-card" id="playbook-card" style="margin-top:0">
     <h2>Four steps on this desk</h2>
-    <p class="sub">After you open: find the leaks, hook the pipes, name a desk AI, you still tap. Walk 1→2→3→4. Collect stays HOLD. AIA AI home is ai.aia (www.ai.aia) — orange until DNS answers. Live desk is automateitaway.com.</p>
+    <p class="sub">After you open: find the leaks, hook the pipes, name a desk AI, you still tap. Walk 1→2→3→4. Collect stays HOLD. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Live desk is automateitaway.com.</p>
     <div data-aia-playbook="embed">
       <p>1 Find the leaks. 2 Hook the pipes. 3 Name a desk AI. 4 You still tap.</p>
     </div>
   </section>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-playbook.js"></script>
   <script src="desk-switch.js"></script>
   <script src="login-doors.js"></script>

@@ -1,4 +1,4 @@
-const RESERVED_HANDLES = ["aia", "automateitaway", "automate-it-away"];
+const RESERVED_HANDLES = ["aia", "ai", "automateitaway", "automate-it-away"];
 const REVIEWER_DESKS = ["aia", "automateitaway", "funditaway"];
 const PLATFORM_ACCOUNT_ID = "aia";
 

@@ -20,7 +20,7 @@ function grokRecsBox(j) {
     .filter(Boolean)
     .filter(function (t, i, a) { return a.indexOf(t) === i; })
     .slice(0, 5);
-  const fallback = recs.length ? recs : ["Open this card. Yes or no."];
+  const fallback = recs.length ? recs : ["Open this card. Yes or Stop."];
   return "<div class=\"recs\" id=\"grok-recs\">" +
     "<div class=\"recs-title\">Next step</div>" +
     "<ul>" + fallback.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" +
@@ -29,7 +29,7 @@ function grokRecsBox(j) {
 function openUsType() {
   document.getElementById("sheet-card").innerHTML =
     "<h3>We type it onto this queue</h3>" +
-    "<p class=\"meta\">You tell us. We write the card. You still tap yes or no.</p>" +
+    "<p class=\"meta\">You tell us. We write the card. You still tap Yes or Stop.</p>" +
     "<label>What should we put on the queue?</label>" +
     "<input id=\"cap-title\" placeholder=\"Permission slip Friday, oil change, oak dresser\">" +
     "<label>When or ask</label>" +
@@ -49,6 +49,140 @@ async function captureFromUs() {
   const kind = document.getElementById("cap-kind");
   if (kind) kind.value = "note";
   await capture();
+}
+function thenWhoOf(j) {
+  if (j && j.deskAi && j.deskAi.name) return String(j.deskAi.name);
+  if (j && j.agentDraft && j.agentDraft.deskAi && (j.agentDraft.name || j.agentDraft.crew)) {
+    return String(j.agentDraft.name || j.agentDraft.crew);
+  }
+  return "";
+}
+function thenGoneOf(j) {
+  const g = j && j.thenAiGone;
+  const name = g && (g.name || g.id) || "";
+  return String(name || "").trim();
+}
+function namedNeedsWhoOf(j) {
+  const who = thenWhoOf(j);
+  if (who) return who;
+  const gone = thenGoneOf(j);
+  return gone ? (gone + " · not on this desk") : "";
+}
+function sheetNeedOf(j) {
+  if (typeof cardNeeds === "function") return cardNeeds(j, false);
+  return { decide: false, missing: [], priority: !!(j && (j.priority || j.cap)) };
+}
+function sheetChipsHtml(j) {
+  if (typeof chipsHtml === "function") return chipsHtml(j, sheetNeedOf(j), "");
+  const who = thenWhoOf(j);
+  const gone = thenGoneOf(j);
+  const bits = [];
+  if (who) bits.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+  if (gone && !who) bits.push("<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>");
+  const wait = String((j && j.waitingOn) || "").toLowerCase();
+  const st = String((j && j.status) || "");
+  const needYou = wait === "owner" || wait === "person" || wait === "info" || wait === "helper" || st === "held" || st === "exception" || st === "waiting";
+  if (needYou) {
+    const named = namedNeedsWhoOf(j);
+    bits.push("<span class=\"q-chip q-need\">" + esc(who ? (who + " · Needs you") : (named || "Needs you")) + "</span>");
+  }
+  return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
+}
+function sheetPromptHtml(j) {
+  if (typeof promptHtml === "function") return promptHtml(j, sheetNeedOf(j));
+  const who = thenWhoOf(j);
+  const named = namedNeedsWhoOf(j);
+  const wait = String((j && j.waitingOn) || "").toLowerCase();
+  const st = String((j && j.status) || "");
+  if (st === "shipped" || st === "killed" || st === "out" || (j && j.offDesk)) return "";
+  const asked = talkTurnsOf(j).some(function (row) { return row.kind === "ask"; });
+  if (!(wait === "info" || wait === "helper" || wait === "person" || wait === "owner" || asked || who || thenGoneOf(j))) return "";
+  const askHuman = wait === "info";
+  const label = askHuman ? "Ask the human" : (who ? (who + " asks") : (named || "Needs you"));
+  let q = "Reply on this card. Nothing sent alone.";
+  if (askHuman && j && (j.why || j.next)) q = String(j.why || j.next);
+  else if (who) q = who + " asked on this card. Type a reply. Nothing sent alone.";
+  else if (named) q = named + ". Type a reply. Nothing sent alone.";
+  return "<div class=\"q-prompt\">" +
+    "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
+    "<p class=\"q-prompt-q\">" + esc(q) + "</p>" +
+    "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
+    "</div>";
+}
+function talkLabelOf(row, who, gone) {
+  if (row.kind === "reply") return (row.from || "You") + " · you";
+  if (row.kind === "ask" || row.kind === "rec") {
+    if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
+    if (gone) return gone + " · not on this desk";
+    const name = row.from || "Desk AI";
+    return row.kind === "ask" ? (name + " · asks") : (name + " · Then draft");
+  }
+  return (row.from || "desk") + " · " + (row.kind || "note");
+}
+function talkTurnsOf(j) {
+  const rows = [];
+  const seen = {};
+  function add(kind, from, text) {
+    const t = String(text || "").replace(/\s+/g, " ").trim();
+    if (!t) return;
+    const key = String(kind || "") + "|" + t;
+    if (seen[key]) return;
+    seen[key] = true;
+    rows.push({ kind: kind, from: from || "", text: t });
+  }
+  (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
+    if (!t || !t.text) return;
+    const k = String(t.kind || "note");
+    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    add(k, t.from, t.text);
+  });
+  (j && Array.isArray(j.replies) ? j.replies : []).forEach(function (r) {
+    if (!r) return;
+    add("reply", r.from || "You", r.text);
+  });
+  const draft = String((j && (j.draft || (j.agentDraft && j.agentDraft.text))) || "").replace(/\s+/g, " ").trim();
+  return rows.filter(function (row) {
+    if (row.kind !== "rec") return true;
+    if (draft && row.text === draft) return false;
+    return true;
+  });
+}
+function threadSheetHtml(j) {
+  const draftText = (j && (j.draft || (j.agentDraft && j.agentDraft.text))) || "";
+  const who = thenWhoOf(j);
+  const gone = thenGoneOf(j);
+  const face = who
+    ? "<span class=\"q-chip q-ai\">" + esc(who) + "</span>"
+    : (gone ? "<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>" : "");
+  const draftHtml = draftText
+    ? "<div class=\"draft q-then\"><div class=\"q-then-who\">" + esc(who ? (who + " · Then draft") : (gone ? (gone + " · not on this desk") : "Draft")) + "</div>" +
+      (face ? "<div class=\"q-then-face\">" + face + "</div>" : "") +
+      "<div class=\"q-then-text\">" + esc(draftText) + "</div></div>"
+    : "";
+  const rows = talkTurnsOf(j);
+  (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
+    if (!t || !t.text) return;
+    const k = String(t.kind || "note");
+    if (k === "ask" || k === "reply" || k === "rec") return;
+    if (rows.some(function (row) { return row.text === String(t.text).replace(/\s+/g, " ").trim(); })) return;
+    rows.push({ kind: k, from: t.from || "desk", text: String(t.text) });
+  });
+  const talks = rows.length
+    ? "<div class=\"q-talk\">" + rows.map(function (row) {
+      const ai = row.kind === "ask" || row.kind === "rec";
+      const you = row.kind === "reply";
+      const label = talkLabelOf(row, who, gone);
+      return "<div class=\"q-turn " + (ai ? "q-turn-ai" : (you ? "q-turn-you" : "q-turn-ai")) + "\">" +
+        "<div class=\"q-turn-who\">" + esc(label) + "</div>" +
+        "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
+    }).join("") + "</div>"
+    : "<div>No notes yet.</div>";
+  const prompt = sheetPromptHtml(j);
+  const chips = sheetChipsHtml(j);
+  const stacked = !!(draftHtml && (rows.length || prompt));
+  return chips + (stacked ? "<div class=\"q-thread\">" : "<div class=\"talk\">") + draftHtml + talks + prompt +
+    "<p class=\"q-prompt-hold\">On the card. Nothing sent alone.</p>" +
+    (stacked ? "</div>" : "</div>");
 }
 function jobBy(id) { return JOBS.find(j => j.id === id); }
 var PEOPLE = typeof PEOPLE === "undefined" ? [] : PEOPLE;
@@ -74,7 +208,6 @@ async function openJob(id) {
   await loadPeople();
   const staff = role === "employee";
   const money = Number(j.amount || j.ask || 0);
-  const thread = (j.thread || []).map(t => "<div><b>" + esc(t.from) + "</b> · " + esc(t.kind || "note") + "<br>" + esc(t.text) + "</div>").join("") || "<div>No notes yet.</div>";
   const custom = (FIELDS || []).map(f => {
     const val = (j.custom && j.custom[f.key]) || j[f.key] || "";
     return "<label>" + esc(f.label) + "</label><input data-field=\"" + esc(f.key) + "\" value=\"" + esc(val) + "\" placeholder=\"" + esc(f.label) + "\">";
@@ -93,14 +226,14 @@ async function openJob(id) {
     grokRecsBox(j) +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
-    (j.draft ? "<div class=\"draft\">" + esc(j.draft) + "</div>" : "") +
-    "<div class=\"talk\">" + thread + "</div>" + custom +
+    threadSheetHtml(j) + custom +
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
     "<p class=\"meta\">Desk</p>" +
     "<div class=\"row actions\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + j.id + "')\">Save info</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + j.id + "')\">Ask for more</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + j.id + "')\">Add note</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "'))\">Reply on card</button>" +
       (staff ? "" : "<button class=\"edit\" type=\"button\" onclick=\"addFieldPrompt('" + j.id + "')\">Add field</button>") +
     "</div>" +
     (peopleOpts

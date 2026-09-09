@@ -116,6 +116,8 @@ async function health(req, res) {
         write: blobProbe.write,
         read: blobProbe.read,
         status: blobProbe.status,
+        access: blobProbe.access || null,
+        auth: blobProbe.auth || null,
         url: blobProbe.url ? "set" : null,
         detail: blobProbe.detail
       }
@@ -131,7 +133,7 @@ async function health(req, res) {
     automation: {
       capture: true,
       qualify: "on capture + worker",
-      do: "draft only — Send and Stop stay on the desk",
+      do: "draft only — Yes and Stop stay on the desk",
       collect: catalog().some((p) => p.live && p.id === "webhook") ? "webhook live — other paid pipes on hold" : "demo ship",
       follow: "worker + cron",
       inbound: "/api/hook",

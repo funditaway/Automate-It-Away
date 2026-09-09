@@ -25,6 +25,7 @@ const ready = hist.needsOf({
 if (!ready.decide) fail("list card with draft+photo should be decide-ready");
 if (!ready.actions.some((a) => a.id === "yes")) fail("ready card needs Yes");
 if (!ready.actions.some((a) => a.id === "stop")) fail("ready card needs Stop for owner");
+if (!ready.actions.some((a) => a.id === "kill")) fail("ready card needs Kill for owner");
 if (!ready.actions.some((a) => a.id === "cap")) fail("open card can go on the cap");
 else pass("ready card gets Yes / Stop / Cap, not a blank row");
 
@@ -72,18 +73,30 @@ const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
 });
 if (!process.exitCode) pass("desk.html has Cap band + need taps");
 
-const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
+const needs = fs.readFileSync(path.join(root, "desk-needs.js"), "utf8");
 ["function cardNeeds", "function pinCap", "action: \"priority\"", "cardActionHtml"].forEach((bit) => {
+  if (!needs.includes(bit)) fail("desk-needs.js missing " + bit);
+});
+if (!process.exitCode) pass("desk-needs.js paints need taps + Cap");
+
+const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
+["function openJob", ">Yes<", ">No<"].forEach((bit) => {
   if (!card.includes(bit)) fail("desk-card.js missing " + bit);
 });
-if (!process.exitCode) pass("desk-card.js paints need taps + Cap");
+if (!process.exitCode) pass("desk-card.js still paints the sheet");
+
+const queueJs = fs.readFileSync(path.join(root, "desk-queue.js"), "utf8");
+if (queueJs.includes("Yes or No.") || queueJs.includes("yes or no")) fail("desk-queue.js still paints Yes or No as the rail");
+else pass("desk-queue decide fallback does not paint Yes or No");
+if (!queueJs.includes("Yes or Stop.")) fail("desk-queue.js decide fallback must keep Yes or Stop");
+else pass("desk-queue decide fallback is Yes or Stop");
 
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("action === \"priority\"") || !jobs.includes("needsOf")) fail("jobs.js missing priority / needs");
 else pass("jobs API pins cap cards");
 
-const desks = fs.readFileSync(path.join(root, "api/desks.js"), "utf8");
-if (!desks.includes("action === \"priority\"") || !desks.includes("capCard")) fail("desks.js missing account cap list");
+const desks = fs.readFileSync(path.join(root, "api/_desks-http.js"), "utf8");
+if (!desks.includes("action === \"priority\"") || !desks.includes("capCard")) fail("desks handler missing account cap list");
 else pass("desks API lists cap cards across desks");
 
 if (process.exitCode) {

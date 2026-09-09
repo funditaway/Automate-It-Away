@@ -48,7 +48,7 @@
     { "source": "/account", "destination": "/account.html" },
     { "source": "/desks", "destination": "/desks.html" },
     { "source": "/history", "destination": "/history.html" },
-    { "source": "/api/desks", "destination": "/api/desks" },
+    { "source": "/api/desks", "destination": "/api/auth?via=desks" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
     { "source": "/api/health", "destination": "/api/health" },
@@ -57,7 +57,7 @@
     { "source": "/api/worker", "destination": "/api/worker" },
     { "source": "/api/upload", "destination": "/api/upload" },
     { "source": "/api/admin", "destination": "/api/admin" },
-    { "source": "/api/account", "destination": "/api/account" },
+    { "source": "/api/account", "destination": "/api/auth?via=account" },
     { "source": "/api/intake", "destination": "/api/intake" },
     { "source": "/api/hook", "destination": "/api/hook" },
     { "source": "/api/rules", "destination": "/api/rules" }
