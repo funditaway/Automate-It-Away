@@ -221,6 +221,22 @@ async function main() {
     fail("GET /api/account via auth must accept onboard session + pin");
   } else pass("GET /api/account via auth accepts onboard session + pin");
 
+  const leftoverGet = await call(account, "GET", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover
+  }, {});
+  if (leftoverGet.statusCode !== 401) {
+    fail("leftover session without pin must still 401 GET /api/account");
+  } else pass("leftover session without pin stays 401 on GET");
+  const leftoverGetPin = await call(account, "GET", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover,
+    "x-pin": strangerPin
+  }, {});
+  if (leftoverGetPin.statusCode !== 200 || !leftoverGetPin.body || !leftoverGetPin.body.ok) {
+    fail("leftover session + matching pin must still GET /api/account");
+  } else pass("leftover session + pin GET opens the account");
+
   const deskOnly = (lib.mem.accounts || []).find((a) => a && a.slug === "rivera-resale");
   const deskRow = (lib.mem.workspaces || []).find((w) => w && w.slug === "rivera-resale");
   if (deskOnly) {

@@ -32,6 +32,13 @@ function pass(m) { console.log("ok   " + m); }
   else pass(name + " loads aia-mail.js");
 });
 
+const mailJs = fs.readFileSync(path.join(root, "aia-mail.js"), "utf8");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(mailJs)) {
+  fail("aia-mail hdr must still send the open-desk pin when a session token is present");
+} else pass("aia-mail hdr keeps X-Pin with X-Session");
+if (mailJs.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("aia-mail hdr must send X-Pin");
+else pass("aia-mail hdr sends X-Pin");
+
 const pipesSrc = fs.readFileSync(path.join(root, "pipes.html"), "utf8");
 if (!/"event": "mail"/.test(pipesSrc) || !/queue@account\.aia/.test(pipesSrc)) fail("pipes.html missing inbound identity recipe");
 else pass("pipes.html inbound identity recipe");
@@ -49,15 +56,20 @@ if (!/https:\/\/www\.automateitaway\.com\/api\/hook/.test(connHtml)) fail("conne
 else pass("connections.html Copy hook fallback uses www");
 
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 if (!/james-ai@funditaway\.aia/.test(packMd) || !/queue@springfield-shop\.aia/.test(packMd)) fail("PACK.md missing examples");
 else pass("PACK.md examples");
 if (!/Outbound Send stays HOLD/.test(packMd) || !/does not resolve yet/.test(packMd)) fail("PACK.md missing honest MX copy");
 else pass("PACK.md honest MX");
+if (yesNo.indexOf("Studio mail leftover") < 0) fail("ACCOUNT-YES-NO must name Studio mail leftover");
+else pass("ACCOUNT-YES-NO names Studio mail leftover");
+if (packMd.indexOf("Studio mail leftover") < 0) fail("PACK.md must name Studio mail leftover");
+else pass("PACK.md names Studio mail leftover");
 
 const holdFiles = ["api/_aia-mail.js", "aia-mail.js", "PACK.md"];
 holdFiles.forEach(function (name) {
   const src = fs.readFileSync(path.join(root, name), "utf8");
-  if (/\$250/.test(src)) fail(name + " invented $250");
+  if (/\$250/.test(src.replace(/\$250 never/g, ""))) fail(name + " invented $250");
   else pass(name + " no $250");
 });
 
@@ -112,6 +124,15 @@ async function main() {
   });
   if (opened.statusCode !== 201 && opened.statusCode !== 200) fail("open desk " + opened.statusCode);
   else pass("open desk");
+
+  const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
+  const mailGate = await call(account, "GET", { "x-workspace": slug, "x-session": leftover }, {});
+  if (mailGate.statusCode !== 401) fail("leftover session without pin must 401 mail GET");
+  else pass("leftover session without pin stays 401");
+  const mailOpen = await call(account, "GET", { "x-workspace": slug, "x-session": leftover, "x-pin": pin }, {});
+  if (mailOpen.statusCode !== 200 || !mailOpen.body || !(mailOpen.body.ok || mailOpen.body.account)) {
+    fail("leftover session + matching pin must open mail GET");
+  } else pass("leftover session + pin opens mail GET");
 
   const owner = { "x-workspace": slug, "x-pin": pin };
   const handle = await call(account, "POST", owner, { action: "handle", handle: "funditaway.aia" });
