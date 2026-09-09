@@ -19,8 +19,8 @@
     consign: {
       id: "consign", name: "Consign",
       who: "Seller", what: "Item", when: "List when", where: "Photo / channel",
-      how: "Draft a listing. Payout waits.",
-      next: "Draft the title. Payout waits on you.",
+      how: "Draft a listing. Collect HOLD until Yes + a real money pipe.",
+      next: "Draft the title. Collect HOLD until Yes + a real money pipe.",
       rails: ["Cap title-missing items.", "Wait on me before a payout leaves."],
       keys: { who: ["contactName", "who"], what: ["title", "need", "condition"], when: ["timing", "when"], where: ["where"], how: ["condition", "ask", "amount"] }
     },
@@ -76,21 +76,40 @@
     if (s === "insurance" || s === "quote" || s === "year2" || s === "missed-call") s = "vita";
     if (s === "family") s = "home";
     if (s === "resale" || s === "consignment") s = "consign";
-    return FACES[s] ? s : "";
+    return s;
   }
   function faceOf(j) {
     var id = packId(j);
-    return id ? FACES[id] : null;
+    if (FACES[id]) return FACES[id];
+    var custom = (j && j.custom) || {};
+    var stored = custom.face && typeof custom.face === "object" ? custom.face : {};
+    var name = String((j && j.packName) || custom.packName || stored.name || "").trim();
+    if (!id && !name) return null;
+    if (!id && !stored.who && !stored.what && !stored.how) return null;
+    var labels = stored.labels || {};
+    return {
+      id: id || "pack",
+      name: name || "Pack",
+      who: labels.who || "Who it is for",
+      what: labels.what || "What they need",
+      when: labels.when || "When",
+      where: labels.where || "Where",
+      how: stored.how || "Draft. You tap Yes or Stop.",
+      next: stored.how || "On the queue. You tap Yes or Stop.",
+      rails: [],
+      keys: { who: ["who"], what: ["what"], when: ["when"], where: ["where"], how: ["how"] }
+    };
   }
   function valuesOf(j) {
     var face = faceOf(j);
     if (!face) return null;
+    var stored = ((j && j.custom) || {}).face || {};
     return {
-      who: first(j, face.keys.who),
-      what: first(j, face.keys.what) || String((j && (j.title || j.kind)) || ""),
-      when: first(j, face.keys.when) || String((j && j.timing) || ""),
-      where: first(j, face.keys.where),
-      how: first(j, face.keys.how) || face.how
+      who: stored.who || first(j, face.keys.who),
+      what: stored.what || first(j, face.keys.what) || String((j && (j.title || j.kind)) || ""),
+      when: stored.when || first(j, face.keys.when) || String((j && j.timing) || ""),
+      where: stored.where || first(j, face.keys.where),
+      how: stored.how || first(j, face.keys.how) || face.how
     };
   }
   function esc(s) {

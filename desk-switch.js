@@ -380,4 +380,5 @@
     nounsOf: nounsOf,
     stepNoun: stepNoun
   };
+  root.AIADeskSwitch = root.AIADesks;
 })(typeof window !== "undefined" ? window : globalThis);

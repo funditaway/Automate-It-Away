@@ -56,6 +56,14 @@
     localStorage.setItem("aia_theme", next);
     apply();
   }
+  function accountChip() {
+    var chip = document.getElementById("who-chip");
+    if (chip && chip.tagName !== "A") {
+      chip = document.querySelector("header a.who-chip, .hdr-tools a.who-chip");
+    }
+    if (chip && chip.tagName !== "A") chip = null;
+    return chip;
+  }
   function liftChrome(header) {
     if (!header) return;
     var tools = header.querySelector(".hdr-tools");
@@ -65,7 +73,7 @@
       header.appendChild(tools);
     }
     var btn = header.querySelector("[data-theme-btn], .theme-btn");
-    var chip = document.getElementById("who-chip");
+    var chip = accountChip();
     if (chip && chip.parentNode !== tools) tools.appendChild(chip);
     if (btn && btn.parentNode !== tools) tools.appendChild(btn);
   }
@@ -106,6 +114,23 @@
     put("mobile-web-app-capable", "yes");
     put("apple-mobile-web-app-status-bar-style", "black-translucent");
     put("apple-mobile-web-app-title", "AIA");
+  }
+  function ensureIcons() {
+    function icon(rel, href, extra) {
+      if (!document.head) return;
+      if (document.querySelector('link[rel="' + rel + '"][href="' + href + '"]')) return;
+      var el = document.createElement("link");
+      el.rel = rel;
+      el.href = href;
+      if (extra) {
+        Object.keys(extra).forEach(function (k) { el.setAttribute(k, extra[k]); });
+      }
+      document.head.appendChild(el);
+    }
+    icon("icon", "/favicon.svg", { type: "image/svg+xml" });
+    icon("icon", "/favicon.ico", { sizes: "any" });
+    icon("apple-touch-icon", "/apple-touch-icon.png", { sizes: "180x180" });
+    icon("manifest", "/site.webmanifest");
   }
   apply();
   if (window.matchMedia) {
@@ -228,10 +253,10 @@
     if (!header) return;
     if (document.body && document.body.classList.contains("embed")) return;
     if (header.classList.contains("top") && header.querySelector(".who")) return;
-    var chip = document.getElementById("who-chip");
+    var chip = accountChip();
     if (!chip) {
       chip = document.createElement("a");
-      chip.id = "who-chip";
+      if (!document.getElementById("who-chip")) chip.id = "who-chip";
       chip.className = "who-chip";
       header.appendChild(chip);
     }
@@ -266,6 +291,7 @@
   var SITE_LINKS = [
     { id: "how", href: "/how", label: "How" },
     { id: "setup", href: "/setup", label: "Setup" },
+    { id: "help", href: "/help", label: "Help" },
     { id: "desk", href: "/desk", label: "Desk" }
   ];
   var FOOT_LINKS = [
@@ -326,6 +352,7 @@
   }
   function mark() {
     ensurePhoneMeta();
+    ensureIcons();
     lockHeader();
     ensureFixCss();
     ensureBtn();

@@ -3,6 +3,7 @@
   var KIND = "broke";
   var asked = 0;
   var PROMPT = "What broke? Which page? Name of your desk (not the code). How do we reach you?";
+  var HOME = PROMPT;
 
   function $(id) { return document.getElementById(id); }
   function setOk(t) { var el = $("ok"); if (el) el.textContent = t || ""; }
@@ -31,6 +32,8 @@
     return "broke";
   }
 
+  var askCtx = { field: "", tip: "", page: "" };
+
   function payload() {
     var title = (($("title") || {}).value || "").trim();
     var notes = (($("notes") || {}).value || "").trim();
@@ -43,11 +46,13 @@
     return {
       title: title,
       notes: notes,
-      page: page,
+      page: page || askCtx.page,
       deskName: deskName,
       who: who,
       email: email,
       phone: phone,
+      field: askCtx.field,
+      tip: askCtx.tip,
       kind: currentKind()
     };
   }
@@ -89,7 +94,9 @@
       custom: {
         outcome: "ticket",
         page: p.page,
-        deskName: p.deskName
+        deskName: p.deskName,
+        field: p.field,
+        tip: p.tip
       }
     };
     var res;
@@ -128,31 +135,71 @@
       return;
     }
     thread("Listening …");
-    AIASpeech.listen({
-      ontext: function (t) {
-        var said = String(t || "").trim();
-        if (!said) return;
-        if (/\bdrop it\b|file it|send it/i.test(said)) {
-          applyTalk(said.replace(/\b(drop it|file it|send it)\b/ig, "").trim());
-          dropCard();
-          return;
-        }
-        applyTalk(said);
-        asked += 1;
-        if (asked === 1) thread("Which page, and the name of your desk — not the code?");
-        else if (asked === 2) thread("How do we reach you? Then say drop it.");
-        else thread("Say drop it to put this on the AIA desk.");
-      },
-      onend: function () {}
+    AIASpeech.listen(function (t) {
+      var said = String(t || "").trim();
+      if (!said) return;
+      if (/\bdrop it\b|file it|send it/i.test(said)) {
+        applyTalk(said.replace(/\b(drop it|file it|send it)\b/ig, "").trim());
+        dropCard();
+        return;
+      }
+      applyTalk(said);
+      asked += 1;
+      if (asked === 1) thread("Which page, and the name of your desk — not the code?");
+      else if (asked === 2) thread("How do we reach you? Then say drop it.");
+      else thread("Say drop it to put this on the AIA desk.");
+    }, function (msg) {
+      setOk(msg || "Did not catch that. Tap Talk and say it again.");
     });
   }
 
   function quiet() {
     if (window.AIASpeech && AIASpeech.stopTalk) AIASpeech.stopTalk();
-    thread(PROMPT);
+    thread(HOME);
+  }
+
+  function paintAsk() {
+    var q = {};
+    try { q = new URLSearchParams(location.search || ""); } catch (e) { q = new URLSearchParams(); }
+    var field = q.get("field") || "";
+    var ask = q.get("ask") || "";
+    var from = q.get("from") || "";
+    var tipText = q.get("tip") || "";
+    var tips = (window.AIATip && AIATip.tips) || {};
+    var tip = tips[field];
+    if (!tipText && tip) tipText = tip.body || "";
+    askCtx = {
+      field: field,
+      tip: tipText,
+      page: from ? ("/" + from.replace(/\.html$/, "")) : ""
+    };
+    var line = "";
+    if (tip || tipText) {
+      line = ((tip && tip.title) ? tip.title + " — " : "") +
+        (tipText || (tip && tip.body) || "") +
+        " Need more? Type it or Talk. This chat stays draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human.";
+    } else if (ask) {
+      line = ask + " Type more or Talk. This chat stays draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human.";
+    }
+    if (!line) return;
+    HOME = line;
+    thread(line);
+    var title = $("title");
+    var notes = $("notes");
+    var page = $("page");
+    if (title && !title.value) title.value = (tip && tip.ask) || ask;
+    if (notes && !notes.value) {
+      notes.value = (from ? ("From " + from + ". ") : "") +
+        (field ? ("Field " + field + ". ") : "") +
+        (tipText ? (tipText + " ") : "") +
+        ((tip && tip.ask) || ask);
+    }
+    if (page && from && !page.value) page.value = askCtx.page;
+    paintKind(guessKind((tip && tip.ask) || ask || field));
   }
 
   function bind() {
+    paintAsk();
     document.querySelectorAll("#kinds button").forEach(function (btn) {
       btn.addEventListener("click", function () { paintKind(btn.getAttribute("data-kind")); });
     });

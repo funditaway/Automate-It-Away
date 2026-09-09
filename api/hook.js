@@ -2,6 +2,7 @@ const { cors, mem, log, save, ready, slugify, readBody } = require("./_lib");
 const { deskClosed, deskClosedMessage } = require("./_desk");
 const { qualifyJob, applyRules } = require("./_engine");
 const { makeCapturedJob, addTalk } = require("./_fields");
+const { applyDeskAiDraft } = require("./_handoff");
 const mail = require("./_aia-mail");
 
 function eventOf(body) {
@@ -63,7 +64,7 @@ module.exports = async function handler(req, res) {
   const identity = toAddr ? mail.findByAddress(toAddr) : null;
   if (toAddr && /\.aia$/i.test(String(toAddr).trim()) && !identity) {
     const parsed = mail.parseAddress(toAddr);
-    return res.status(404).json({
+    return res.status(400).json({
       ok: false,
       error: parsed.ok ? ("No .aia email identity for " + parsed.address + ".") : parsed.error,
       mx: mail.statusOf()
@@ -71,6 +72,14 @@ module.exports = async function handler(req, res) {
   }
   const workspace = slugify(req.headers["x-workspace"] || req.query.workspace || body.workspace || (identity && identity.workspace) || "");
   if (!workspace) return res.status(400).json({ ok: false, error: "Name the desk or send to a .aia email." });
+  const shop = (mem.workspaces || []).find((w) => w && w.slug === workspace) || null;
+  if (!shop) {
+    return res.status(400).json({
+      ok: false,
+      error: "No desk with that name.",
+      mx: mail.statusOf()
+    });
+  }
   const event = identity ? "capture" : eventOf(body);
   const title = body.title || body.item || body.name || body.notes || "Pipe update";
 
@@ -83,7 +92,6 @@ module.exports = async function handler(req, res) {
   }
 
   if (event === "capture" || !job) {
-    const shop = (mem.workspaces || []).find((w) => w && w.slug === workspace) || null;
     if (deskClosed(shop)) {
       return res.status(409).json({ ok: false, error: deskClosedMessage(shop), closed: true });
     }
@@ -103,7 +111,9 @@ module.exports = async function handler(req, res) {
       job.to = identity.address;
       job.kind = job.kind || "email";
       job.custom = Object.assign({}, job.custom || {}, inbound.custom || {});
-      if (identity.aiName) job.assignee = identity.aiName;
+      const box = String(identity.address || "").toLowerCase();
+      if (job.assignee && String(job.assignee).toLowerCase() === box) delete job.assignee;
+      if (identity.bind === "ai" && identity.aiName) job.assignee = identity.aiName;
     }
     qualifyJob(job, shop);
     try {
@@ -111,6 +121,7 @@ module.exports = async function handler(req, res) {
       const grok = await grokRecommend(job, shop, workspace);
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
     } catch (e) {}
+    applyDeskAiDraft(job, shop, "qualify");
     if (job.notes) addTalk(job, job.from || "pipe", job.notes, "note");
     mem.jobs.unshift(job);
     mem.inbox.unshift({

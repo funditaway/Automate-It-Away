@@ -48,10 +48,10 @@ World users drop. Agents draft on the same card. They do not replace the user.
 
 ## Packs on a World user's desk
 
-World users inherit the packs on the **desk they drop onto**.
+World users inherit the packs on the **desk they drop onto**. An installed pack auto-shapes the queue card. You do not pick a pack on every Drop.
 
-- **0 packs** — generic Quick chips (home / family kinds).
-- **1 pack** — that pack owns Quick chips, Talk guesses, rails, and the pack field. No pack switcher.
+- **0 packs** — generic Quick chips (home / family kinds). Engine may still guess a pack from the words.
+- **1 pack** — that pack owns Quick chips, Talk guesses, rails, and the pack field. No pack switcher. The queue card already uses that pack's face.
 - **2+ packs** — chips under the modes: All · Home · Insurance · Consign · …. All merges kinds and rails. One pack acts like the one-pack path.
 
 Insurance (alone or inside All): quote, missed call, sit-down, illustration. Bind stays off Drop. Illustration send is an owner tap. Rail seats itself.

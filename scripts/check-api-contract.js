@@ -40,7 +40,7 @@ function mockRes() {
 async function main() {
   [
     "issueSession", "findSession", "listSessions", "revokeSession", "sessionCookie",
-    "clearSessionCookie", "parseCookies", "sessionFromReq", "isLocked", "noteFail", "noteOk", "sessionTokenOf"
+    "clearSessionCookie", "parseCookies", "sessionFromReq", "isLocked", "noteFail", "noteOk", "sessionTokenOf", "applyStore"
   ].forEach((key) => {
     if (typeof lib[key] !== "function") fail("_lib missing " + key);
   });
@@ -67,7 +67,15 @@ async function main() {
 
   if (res.body.accounts.login !== "desk name + desk code, or email + password") fail("health login copy should mention both doors");
   else if (!/^HOLD/.test(res.body.accounts.mfa)) fail("health mfa copy should say HOLD");
+  else if (/opt-in/i.test(res.body.accounts.note || "")) fail("health accounts.note must not claim authenticator opt-in");
+  else if (!/HOLD/.test(res.body.accounts.note || "")) fail("health accounts.note must stay HOLD with mfa");
   else pass("health copy matches account doors");
+
+  const statusHtml = require("fs").readFileSync(path.join(__dirname, "..", "status.html"), "utf8");
+  if (/Pin workspace/.test(statusHtml)) fail("status.html must not hardcode pin-only accounts");
+  else if (!/id="accounts"/.test(statusHtml) || !/accounts\.login/.test(statusHtml)) fail("status.html must paint World user accounts from health.accounts.login");
+  else if (/authenticator is opt-in/i.test(statusHtml)) fail("status.html must not claim authenticator opt-in");
+  else pass("status.html paints accounts from health");
 
   if (lib.slugify("") !== "" || lib.slugify(null) !== "") fail("slugify should not invent demo");
   else pass("slugify leaves an empty name empty");
@@ -114,6 +122,9 @@ async function main() {
   if (live.body.status !== "live" || live.body.workspace !== "probe-desk" || live.body.answered !== true) {
     fail("writeback should mark that desk live, got " + JSON.stringify(live.body));
   } else pass("status goes live only after a real pipe answers");
+  if (live.body.inbound !== "https://www.automateitaway.com/api/hook?workspace=probe-desk") {
+    fail("status inbound must be www host, got " + live.body.inbound);
+  } else pass("status inbound uses www host");
   const stillHold = mockRes();
   await status({ method: "GET", headers: {}, query: {} }, stillHold);
   if (stillHold.body.status !== "hold" || stillHold.body.workspace) fail("unset workspace should not inherit another desk's writeback");
@@ -144,6 +155,23 @@ async function main() {
   if (conn.statusCode !== 200) fail("connections should answer without a desk");
   else if (conn.body.workspace === "demo") fail("connections should not label an empty desk demo");
   else pass("connections workspace is unset without a desk");
+  if (conn.body.inbound !== "https://www.automateitaway.com/api/hook") {
+    fail("connections inbound must be www host, got " + conn.body.inbound);
+  } else pass("connections inbound uses www host");
+
+  const vercel = require("fs").readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8");
+  if (!vercel.includes("/api/auth?via=account") || !/"\/api\/account"/.test(vercel)) {
+    fail("vercel.json must rewrite /api/account onto /api/auth?via=account");
+  } else pass("vercel.json runs Studio account on the auth function");
+  if (require("fs").existsSync(path.join(__dirname, "..", "api/account.js"))) {
+    fail("api/account.js must not be its own Lambda");
+  } else pass("api/account.js is folded into auth");
+  if (!vercel.includes("/api/auth?via=desks") || !/"\/api\/desks"/.test(vercel)) {
+    fail("vercel.json must rewrite /api/desks onto /api/auth?via=desks");
+  } else pass("vercel.json runs desks on the auth function");
+  if (require("fs").existsSync(path.join(__dirname, "..", "api/desks.js"))) {
+    fail("api/desks.js must not be its own Lambda");
+  } else pass("api/desks.js is folded into auth");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");

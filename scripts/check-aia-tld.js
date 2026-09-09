@@ -36,14 +36,18 @@ if (!/Ready to mint when Bridge clears/.test(ui)) fail("UI missing ready-to-mint
 else pass("ready-to-mint copy");
 if (!/Open Decentraweb Register/.test(ui)) fail("UI missing Decentraweb Register CTA");
 else pass("Register CTA");
+if (!/Register \.aia/.test(ui)) fail("UI missing on-desk Register .aia");
+else pass("on-desk Register .aia");
 if (!/dns\.decentraweb\.org\/name\/aia/.test(ui)) fail("UI must deep-link to Decentraweb .aia");
 else pass("Decentraweb .aia link");
 if (!/Collect stays HOLD/.test(ui)) fail("UI must keep Collect HOLD");
 else pass("Collect HOLD in UI");
 if (/privateKey|mnemonic|seed phrase|demo ETH|fake ETH|0\.00 ETH/i.test(ui)) fail("UI must not show keys or demo ETH");
 else pass("no keys or demo ETH in UI");
-if (/eth_sendTransaction|eth_sendRawTransaction|wallet_sendCalls/.test(ui)) fail("this PR must not broadcast a mint tx");
-else pass("UI does not broadcast a mint");
+if (!/eth_sendTransaction/.test(ui)) fail("unlocked Register must use eth_sendTransaction after James taps");
+else pass("unlocked Register can send after a tap");
+if (/eth_sendTransaction/.test(ui) && !/Sign commit/.test(ui)) fail("send must sit behind Sign commit / Sign register");
+else pass("send is behind Sign commit / Sign register");
 
 const helper = fs.readFileSync(path.join(root, "api/_aia-tld.js"), "utf8");
 if (/approve-registration/.test(helper) && !/Never approve-registration/.test(helper)) {
@@ -59,14 +63,14 @@ const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (/ethers|privy|walletconnect|wagmi|viem/i.test(pkg)) fail("package.json must not add a web3 stack");
 else pass("package.json stays thin");
 
-["../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/_aia-tld", "../api/account", "../api/auth", "../api/health"].forEach(function (mod) {
+["../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/_aia-tld", "../api/_account-http", "../api/auth", "../api/health"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
 const lib = require("../api/_lib");
 const tld = require("../api/_aia-tld");
 const connect = require("../api/_connect-wallet");
-const account = require("../api/account");
+const account = require("../api/_account-http");
 const auth = require("../api/auth");
 const health = require("../api/health");
 const { mem, ready, save } = lib;

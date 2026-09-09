@@ -433,7 +433,31 @@ module.exports = async function handler(req, res) {
       wallet: made.wallet,
       hint: off
         ? "Disconnected. Address cleared on this desk session. Collect stays HOLD."
-        : "Browser wallet saved on this desk session. Identity only. Collect stays HOLD. Mint / Bridge stay external."
+        : "Your wallet saved on this desk session. AIA does not hold keys. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."
+    }));
+  }
+
+  if (action === "aia-quote" || action === "register-quote" || action === "aia-encode" || action === "register-encode") {
+    const { found, account } = authAccount(req);
+    if (!found.workspace || !found.person || !account) {
+      return res.status(401).json({ ok: false, error: "Sign in first." });
+    }
+    const connect = require("./_connect-wallet");
+    const register = require("./_aia-register");
+    const wallet = connect.publicOf(account, connect.currentSession(req));
+    const owner = body.owner || body.walletAddress || body.address || (wallet && wallet.address) || "";
+    if (!wallet.connected || !wallet.address) {
+      return res.status(400).json({ ok: false, error: "Connect a wallet first. Register uses that address as owner.", collect: "hold", mint: false });
+    }
+    if (!owner || connect.normalizeAddress(owner) !== connect.normalizeAddress(wallet.address)) {
+      return res.status(400).json({ ok: false, error: "Owner must be the connected wallet.", collect: "hold", mint: false });
+    }
+    const plan = register.encodePlan(Object.assign({}, body, { owner: owner }));
+    if (!plan.ok) return res.status(plan.status || 400).json(plan);
+    refreshSession(req, res);
+    return res.status(200).json(Object.assign(plan, {
+      wallet: wallet,
+      aiaTld: require("./_aia-tld").peek(wallet)
     }));
   }
 
@@ -460,6 +484,6 @@ module.exports = async function handler(req, res) {
   return res.status(400).json({
     ok: false,
     error: "Unknown account action.",
-    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "handle", "reviewer", "logout", "logout-all", "sessions", "export", "mfa", "providers", "oauth-start", "ask-other", "link-provider", "unlink-provider", "mail", "mail-add", "mail-remove", "wallet", "connect-wallet", "disconnect-wallet"]
+    actions: ["login", "open", "save", "attach", "plan", "mint", "password", "details", "handle", "reviewer", "logout", "logout-all", "sessions", "export", "mfa", "providers", "oauth-start", "ask-other", "link-provider", "unlink-provider", "mail", "mail-add", "mail-remove", "wallet", "connect-wallet", "disconnect-wallet", "aia-quote", "aia-encode"]
   });
 };

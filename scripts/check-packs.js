@@ -49,6 +49,10 @@ if (!shop.includes("aia-line off") && !shop.includes("pipeMissing")) fail("marke
 else pass("market orange if pipe missing");
 if (shop.includes("Labeled DEMO")) fail("market still shows demo chrome");
 else pass("market has no demo chrome");
+if (!shop.includes("A person still taps Yes or Stop.")) fail("market missing Yes or Stop");
+else pass("market Do-the-work is Yes or Stop");
+if (shop.includes("Yes or No") || shop.includes("yes or no")) fail("market still paints Yes or No as the rail");
+else pass("market does not paint Yes or No");
 
 const packsApi2 = packsApi;
 if (!packsApi2.includes("buy-pack")) fail("_packs.js missing buy-pack");
@@ -84,6 +88,22 @@ if (!studioJs.includes("workflows") || !studioJs.includes("When → If → Then"
 else pass("Studio pack workflows");
 if (studio.includes("AIA Studio Pro")) fail("must not brand AIA Studio Pro");
 else pass("not AIA Studio Pro");
+if (!studio.includes("ai.aia") || !studio.includes(".aia") || !studio.includes("automateitaway.com")) fail("Studio landing must name ai.aia + .aia + desk host");
+else pass("Studio landing names ai.aia");
+if (studio.includes("www.aia.aia")) fail("Studio must not brand www.aia.aia");
+else pass("Studio does not use www.aia.aia");
+if (!market.includes("ai.aia") || !market.includes("automateitaway.com")) fail("market.html must name ai.aia and the live desk host");
+else pass("market.html names ai.aia");
+if (market.includes("www.aia.aia")) fail("market.html must not brand www.aia.aia");
+else pass("market.html does not use www.aia.aia");
+if (!shop.includes("ai.aia") || !shop.includes("Install .aia") || !shop.includes("Download")) fail("market chrome missing ai.aia / Install .aia");
+else pass("market chrome has ai.aia and Install .aia");
+if (!studio.includes("Creators / earnings") || !studio.includes("no public payout baseline")) fail("developer.html missing honest earnings");
+else pass("Studio honest earnings");
+if (!studio.includes("off-platform")) fail("developer.html missing agency off-platform");
+else pass("Studio agency off-platform");
+if (/\$1\.5k|\$10k|15\s*[–-]\s*30\s*%|AI Creator/i.test(studio + studioJs + shop)) fail("invented creator income bands");
+else pass("no invented creator income bands");
 
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 if (!vercel.includes("\"/studio\"") || !vercel.includes("/developer.html")) fail("vercel /studio must rewrite to developer.html");

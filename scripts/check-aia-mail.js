@@ -32,32 +32,62 @@ function pass(m) { console.log("ok   " + m); }
   else pass(name + " loads aia-mail.js");
 });
 
+const mailJs = fs.readFileSync(path.join(root, "aia-mail.js"), "utf8");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(mailJs)) {
+  fail("aia-mail hdr must still send the open-desk pin when a session token is present");
+} else pass("aia-mail hdr keeps X-Pin with X-Session");
+if (mailJs.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("aia-mail hdr must send X-Pin");
+else pass("aia-mail hdr sends X-Pin");
+
+const pipesSrc = fs.readFileSync(path.join(root, "pipes.html"), "utf8");
+if (!/"event": "mail"/.test(pipesSrc) || !/queue@account\.aia/.test(pipesSrc)) fail("pipes.html missing inbound identity recipe");
+else pass("pipes.html inbound identity recipe");
+if (/live MX|MX live|smtp live/i.test(pipesSrc)) fail("pipes.html must not claim live MX");
+else pass("pipes.html no fake live MX");
+if (/https:\/\/automateitaway\.com\/api\/hook/.test(pipesSrc)) fail("pipes.html must not advertise apex hook");
+else pass("pipes.html does not advertise apex hook");
+if (!/https:\/\/www\.automateitaway\.com\/api\/hook/.test(pipesSrc)) fail("pipes.html Copy hook fallback must use www");
+else pass("pipes.html Copy hook fallback uses www");
+
+const connHtml = fs.readFileSync(path.join(root, "connections.html"), "utf8");
+if (/https:\/\/automateitaway\.com\/api\/hook/.test(connHtml)) fail("connections.html must not advertise apex hook");
+else pass("connections.html does not advertise apex hook");
+if (!/https:\/\/www\.automateitaway\.com\/api\/hook/.test(connHtml)) fail("connections.html Copy hook fallback must use www");
+else pass("connections.html Copy hook fallback uses www");
+
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 if (!/james-ai@funditaway\.aia/.test(packMd) || !/queue@springfield-shop\.aia/.test(packMd)) fail("PACK.md missing examples");
 else pass("PACK.md examples");
 if (!/Outbound Send stays HOLD/.test(packMd) || !/does not resolve yet/.test(packMd)) fail("PACK.md missing honest MX copy");
 else pass("PACK.md honest MX");
+if (yesNo.indexOf("Studio mail leftover") < 0) fail("ACCOUNT-YES-NO must name Studio mail leftover");
+else pass("ACCOUNT-YES-NO names Studio mail leftover");
+if (packMd.indexOf("Studio mail leftover") < 0) fail("PACK.md must name Studio mail leftover");
+else pass("PACK.md names Studio mail leftover");
 
 const holdFiles = ["api/_aia-mail.js", "aia-mail.js", "PACK.md"];
 holdFiles.forEach(function (name) {
   const src = fs.readFileSync(path.join(root, name), "utf8");
-  if (/\$250/.test(src)) fail(name + " invented $250");
+  if (/\$250/.test(src.replace(/\$250 never/g, ""))) fail(name + " invented $250");
   else pass(name + " no $250");
 });
 
-["../api/_lib", "../api/_account", "../api/_aia-mail", "../api/account", "../api/auth", "../api/desks", "../api/hook", "../api/health", "../api/_packs"].forEach(function (mod) {
+["../api/_lib", "../api/_account", "../api/_aia-mail", "../api/_fields", "../api/_account-http", "../api/auth", "../api/_desks-http", "../api/hook", "../api/health", "../api/connections", "../api/_packs"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
 const lib = require("../api/_lib");
 const mail = require("../api/_aia-mail");
-const account = require("../api/account");
+const account = require("../api/_account-http");
 const auth = require("../api/auth");
-const desks = require("../api/desks");
+const desks = require("../api/_desks-http");
 const hook = require("../api/hook");
 const health = require("../api/health");
+const connections = require("../api/connections");
 const packHandler = require("../api/_packs");
-const { mem, hashPin, ensurePeople, ready, save } = lib;
+const { pickFields } = require("../api/_fields");
+const { mem, hashPin, ensurePeople, ready, save, hookUrl, PUBLIC_HOST } = lib;
 
 function mockRes() {
   return {
@@ -94,6 +124,15 @@ async function main() {
   });
   if (opened.statusCode !== 201 && opened.statusCode !== 200) fail("open desk " + opened.statusCode);
   else pass("open desk");
+
+  const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
+  const mailGate = await call(account, "GET", { "x-workspace": slug, "x-session": leftover }, {});
+  if (mailGate.statusCode !== 401) fail("leftover session without pin must 401 mail GET");
+  else pass("leftover session without pin stays 401");
+  const mailOpen = await call(account, "GET", { "x-workspace": slug, "x-session": leftover, "x-pin": pin }, {});
+  if (mailOpen.statusCode !== 200 || !mailOpen.body || !(mailOpen.body.ok || mailOpen.body.account)) {
+    fail("leftover session + matching pin must open mail GET");
+  } else pass("leftover session + pin opens mail GET");
 
   const owner = { "x-workspace": slug, "x-pin": pin };
   const handle = await call(account, "POST", owner, { action: "handle", handle: "funditaway.aia" });
@@ -199,14 +238,72 @@ async function main() {
   else pass("inbound lands on bound desk");
   if (job.aiaMail !== "james-ai@funditaway.aia") fail("job missing aiaMail");
   else pass("job stamped with identity");
+  if (job.to !== "james-ai@funditaway.aia") fail("job missing to for inbound rules");
+  else pass("job.to preserved for inbound");
+  if (job.assignee === "james-ai@funditaway.aia") fail("AI-bound inbound must not use mailbox as assignee");
+  else if (job.assignee !== "James’s AI") fail("AI-bound inbound assignee should be aiName, got " + job.assignee);
+  else pass("AI-bound inbound assigns named AI");
+  if (!job.draft && !job.deskAi && !job.agentDraft) fail("AI-bound inbound should draft when a named AI exists");
+  else pass("AI-bound inbound drafts named desk AI");
   if (!job.custom || !job.custom.automation || job.custom.automation.trigger !== "mail") fail("automation trigger missing");
   else pass("automations trigger from inbound");
   if (job.status === "shipped" || job.rail === "sent") fail("inbound must not send");
   else pass("inbound does not send");
 
+  const picked = pickFields({
+    event: "mail",
+    to: "queue@springfield-shop.aia",
+    from: "neighbor@example.com",
+    subject: "Need a quote",
+    text: "Porch"
+  });
+  if (picked.assignee === "queue@springfield-shop.aia") fail("pickFields must not treat mail to as assignee");
+  else pass("pickFields leaves mail recipient off assignee");
+  if (picked.to !== "queue@springfield-shop.aia") fail("pickFields must keep job.to");
+  else pass("pickFields keeps job.to");
+
+  const deskIn = await call(hook, "POST", {}, {
+    event: "mail",
+    to: "queue@springfield-shop.aia",
+    from: "neighbor@example.com",
+    subject: "Porch quote",
+    text: "Can you look at the porch?"
+  });
+  if (deskIn.statusCode !== 201 || !deskIn.body || !deskIn.body.job) {
+    fail("desk-bound inbound " + deskIn.statusCode + " " + JSON.stringify(deskIn.body));
+  } else pass("desk-bound inbound captures");
+  const deskJob = deskIn.body.job;
+  if (deskJob.workspace !== slug) fail("desk-bound inbound landed on wrong desk");
+  else pass("desk-bound inbound lands on bound desk");
+  if (deskJob.aiaMail !== "queue@springfield-shop.aia" || deskJob.to !== "queue@springfield-shop.aia") {
+    fail("desk-bound job missing to/aiaMail");
+  } else pass("desk-bound job keeps mailbox on to/aiaMail");
+  if (String(deskJob.assignee || "").toLowerCase() === "queue@springfield-shop.aia" || /@/.test(String(deskJob.assignee || ""))) {
+    fail("desk-bound inbound must not assign the mailbox, got " + deskJob.assignee);
+  } else pass("desk-bound inbound assignee is not the mailbox");
+
   const missing = await call(hook, "POST", {}, { to: "nobody@funditaway.aia", subject: "x" });
-  if (missing.statusCode !== 404) fail("unknown identity must 404, got " + missing.statusCode);
-  else pass("unknown identity 404");
+  if (missing.statusCode !== 400 || missing.body.ok !== false) {
+    fail("unknown identity must 400, got " + missing.statusCode + " " + JSON.stringify(missing.body));
+  } else if (!/No \.aia email identity for nobody@funditaway\.aia/.test(missing.body.error || "")) {
+    fail("unknown identity error should name the address, got " + JSON.stringify(missing.body));
+  } else pass("unknown identity 400");
+
+  const noDesk = await call(hook, "POST", {}, { workspace: "no-such-desk", title: "ghost card" });
+  if (noDesk.statusCode !== 400 || noDesk.body.ok !== false) {
+    fail("missing desk must 400, got " + noDesk.statusCode + " " + JSON.stringify(noDesk.body));
+  } else if (!/No desk with that name/.test(noDesk.body.error || "")) {
+    fail("missing desk error should be clear, got " + JSON.stringify(noDesk.body));
+  } else pass("missing desk 400");
+
+  if (PUBLIC_HOST !== "https://www.automateitaway.com" || hookUrl(slug) !== "https://www.automateitaway.com/api/hook?workspace=" + encodeURIComponent(slug)) {
+    fail("canonical hook host must be www, got " + hookUrl(slug));
+  } else pass("canonical hook host is www");
+
+  const conn = await call(connections, "GET", owner, {}, {});
+  if (!conn.body || conn.body.inbound !== hookUrl(slug)) {
+    fail("connections inbound must be www hook, got " + (conn.body && conn.body.inbound));
+  } else pass("connections inbound is www hook");
 
   const h = await call(health, "GET", {}, {}, {});
   if (!h.body || !h.body.mail || h.body.mail.mx || h.body.mail.live || h.body.mail.smtp) fail("health must not claim MX");

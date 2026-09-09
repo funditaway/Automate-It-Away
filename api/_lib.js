@@ -243,20 +243,20 @@ async function hydrate() {
   if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
-      Object.assign(mem, remote);
+      applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
       await persistScrub();
       return;
     }
     if (blobProbe.read === "error") {
-      Object.assign(mem, readDisk());
+      applyStore(readDisk());
       dropPersistTests();
       mem.driver = writeDisk();
       mem.path = storePath();
       return;
     }
-    Object.assign(mem, readDisk());
+    applyStore(readDisk());
     dropPersistTests();
     writeDisk();
     const ok = await blobWrite();
@@ -266,7 +266,7 @@ async function hydrate() {
       return;
     }
   }
-  Object.assign(mem, readDisk());
+  applyStore(readDisk());
   dropPersistTests();
   mem.driver = writeDisk();
   mem.path = storePath();
@@ -276,12 +276,32 @@ if (!globalThis.__aiaHydrate) {
   globalThis.__aiaHydrate = hydrate();
 }
 
+function applyStore(parsed) {
+  const next = shape(parsed);
+  mem.account = next.account;
+  mem.accounts = next.accounts;
+  mem.sessions = next.sessions;
+  mem.approvals = next.approvals;
+  mem.locks = next.locks;
+  mem.connections = next.connections;
+  mem.jobs = next.jobs;
+  mem.audit = next.audit;
+  mem.money = next.money;
+  mem.workspaces = next.workspaces;
+  mem.inbox = next.inbox;
+  mem.files = next.files;
+  mem.tickets = next.tickets;
+  mem.packs = next.packs;
+  mem.mail = next.mail;
+  return mem;
+}
+
 async function ready() {
   await globalThis.__aiaHydrate;
-  if (blobReady() && mem.driver !== "blob") {
+  if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
-      Object.assign(mem, remote);
+      applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
     }
@@ -334,6 +354,15 @@ function catalog() {
       ? "Not a launch pipe"
       : configured(id) ? "env present" : "connect when keys are set"
   }));
+}
+
+const PUBLIC_HOST = "https://www.automateitaway.com";
+
+function hookUrl(workspace) {
+  const slug = String(workspace || "").trim();
+  return slug
+    ? PUBLIC_HOST + "/api/hook?workspace=" + encodeURIComponent(slug)
+    : PUBLIC_HOST + "/api/hook";
 }
 
 function pipeWroteBack(dispatch) {
@@ -663,13 +692,27 @@ function ensurePeople(ws) {
       email: ws.email || "",
       createdAt: ws.createdAt || new Date().toISOString()
     }];
+  } else if (ws.pin) {
+    const owner = ws.people.find((p) => p && p.role === "owner");
+    if (owner && !owner.pin) owner.pin = ws.pin;
   }
   return ws;
 }
 
 function publicPerson(p) {
   if (!p) return null;
-  return { id: p.id, name: p.name, role: p.role, email: p.email || "" };
+  return {
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    email: p.email || "",
+    kind: p.kind || "",
+    deskAi: !!p.deskAi,
+    does: p.does || "",
+    prompt: String(p.prompt || "").trim().slice(0, 160),
+    aia: p.aia || "",
+    aiId: p.aiId || ""
+  };
 }
 
 function personOf(req, workspaceSlug) {
@@ -789,6 +832,8 @@ function publicRule(r) {
     ifUnassigned: !!r.ifUnassigned,
     ifOlder: r.ifOlder != null && Number.isFinite(Number(r.ifOlder)) ? Number(r.ifOlder) : null,
     tag: clipRule(r.tag || r.thenTag, 40),
+    aiId: clipRule(r.aiId || (r.ai && r.ai.id) || "", 40),
+    aiName: clipRule(r.aiName || (r.ai && r.ai.name) || "", 40),
     widget: publicRuleWidget(r.widget)
   };
 }
@@ -903,7 +948,7 @@ function isPipeJob(job) {
 
 function isInboundAia(job) {
   if (!job) return false;
-  const blob = [job.from, job.inbound, job.to, job.aia, job.source].join(" ");
+  const blob = [job.from, job.inbound, job.to, job.aiaMail, job.aia, job.source].join(" ");
   return /@[\w.-]+\.aia\b/i.test(blob) || /\binbound\b/i.test(blob);
 }
 
@@ -963,6 +1008,8 @@ function applyRuleBody(rule, src) {
     rule.ifOlder = n;
   }
   if (src.tag != null || src.thenTag != null) rule.tag = clipRule(src.tag || src.thenTag, 40);
+  if (src.aiId != null) rule.aiId = clipRule(src.aiId, 40);
+  if (src.aiName != null) rule.aiName = clipRule(src.aiName, 40);
   return rule;
 }
 
@@ -1007,6 +1054,8 @@ function addWorkspaceRule(ws, src, person) {
     when: "qualify",
     then: "note",
     ifMoney: null,
+    aiId: "",
+    aiName: "",
     widget: { on: false, label: "" },
     createdAt: new Date().toISOString(),
     by: (person && person.name) || "owner"
@@ -1133,7 +1182,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
