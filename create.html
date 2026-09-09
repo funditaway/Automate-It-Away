@@ -93,7 +93,7 @@
     <section class="card start" id="start">
       <h2>What should the desk do?</h2>
       <p class="hint">One AIA account. Drop anything. Connections and skills stay on this desk.</p>
-      <label for="start-kind">What is it?</label>
+      <label for="start-kind">What is it? <button type="button" class="aia-tip" data-aia-tip="drop-kind" aria-label="More about What is it">?</button></label>
       <select id="start-kind">
         <option value="task">A task</option>
         <option value="chore">An errand</option>
@@ -102,7 +102,7 @@
         <option value="project">A project</option>
         <option value="build">A build</option>
       </select>
-      <label for="start-what">How / what</label>
+      <label for="start-what">How / what <button type="button" class="aia-tip" data-aia-tip="drop-need" aria-label="More about What do you need">?</button></label>
       <textarea id="start-what" rows="4" placeholder="Grocery list for Friday · porch lamp idea · Saturday build"></textarea>
       <div class="row-btns">
         <button type="button" class="ghost" id="start-draft">Ask the desk</button>
@@ -136,6 +136,7 @@
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="create-desk.js"></script>

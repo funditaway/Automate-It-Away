@@ -196,13 +196,13 @@
     );
     if (tab === "ais" || tab === "bots") return (
       "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Bound to this desk — not a free-roaming bot. Addressed on AIA Internet as a .aia name. Drafts desk work under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
-      "<label>AI 1 name</label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
+      "<label>AI 1 name <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"desk-ai\" aria-label=\"More about Desk AI\">?</button></label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
       "<label>AIA Internet name</label><input id=\"ai1-aia\" placeholder=\"james.aia\">" +
       "<label>Role</label><select id=\"ai1-role\"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select>" +
       "<label>What it drafts</label><input id=\"ai1-does\" placeholder=\"Draft the next step on this desk\">" +
       "<label>Steps it may draft</label><input id=\"ai1-steps\" placeholder=\"qualify, do, follow\">" +
       "<label>Draft line</label><textarea id=\"ai1-prompt\" rows=\"2\" placeholder=\"Do not send it. Do not invent a price. Wait on Yes.\"></textarea>" +
-      "<label>AI 2 name</label><input id=\"ai2-name\" placeholder=\"Lane Worker\">" +
+      "<label>AI 2 name <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"desk-ai\" aria-label=\"More about Desk AI\">?</button></label><input id=\"ai2-name\" placeholder=\"Lane Worker\">" +
       "<label>AIA Internet name</label><input id=\"ai2-aia\" placeholder=\"lane-worker.aia\">" +
       "<label>Role</label><select id=\"ai2-role\"><option>Worker</option><option>Doer</option><option>Rail</option><option>Foreman</option></select>" +
       "<label>What it drafts</label><input id=\"ai2-does\" placeholder=\"Qualify and write the follow note\">" +
