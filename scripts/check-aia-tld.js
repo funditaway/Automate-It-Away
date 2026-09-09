@@ -63,14 +63,14 @@ const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (/ethers|privy|walletconnect|wagmi|viem/i.test(pkg)) fail("package.json must not add a web3 stack");
 else pass("package.json stays thin");
 
-["../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/_aia-tld", "../api/account", "../api/auth", "../api/health"].forEach(function (mod) {
+["../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/_aia-tld", "../api/_account-http", "../api/auth", "../api/health"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
 const lib = require("../api/_lib");
 const tld = require("../api/_aia-tld");
 const connect = require("../api/_connect-wallet");
-const account = require("../api/account");
+const account = require("../api/_account-http");
 const auth = require("../api/auth");
 const health = require("../api/health");
 const { mem, ready, save } = lib;

@@ -39,8 +39,9 @@
   window.helpWithAi = async function (id) {
     const banner = document.getElementById("banner");
     const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "recommend", id: id, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
-    if (banner) banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not draft help.") : "Grok drafted on the card. Nothing sent.";
+    const line = out.status >= 400 ? ((out.data && out.data.error) || "Could not draft help.") : "Grok drafted on the card. Nothing sent.";
     if (typeof load === "function") await load();
+    if (banner) banner.textContent = line;
     if (typeof openJob === "function") openJob(id);
   };
   window.openHandOff = async function (id) {
@@ -103,7 +104,7 @@
     const decide = isDecideJob(j);
     const next = typeof visitorLine === "function" ? visitorLine(j.next) : j.next;
     const outDesk = j.status === "out" || j.awaiting === "writeback";
-    const line = outDesk ? (next || "Off the desk. Confirm done, or tap Needs a hand.") : decide ? (next || "Yes or No.") : (next || "Hand off, send off the desk, or ask Grok.");
+    const line = outDesk ? (next || "Off the desk. Confirm done, or tap Needs a hand.") : decide ? (next || "Yes or Stop.") : (next || "Hand off, send off the desk, or ask Grok.");
     const draft = j.draft || j.title || "";
     const sms = typeof smsHref === "function" ? smsHref(draft) : "sms:?&body=" + encodeURIComponent(draft);
     const mail = typeof mailHref === "function" ? mailHref(j.title, draft) : "mailto:?subject=" + encodeURIComponent(j.title || "") + "&body=" + encodeURIComponent(draft);

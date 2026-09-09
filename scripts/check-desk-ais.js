@@ -48,6 +48,22 @@ if (!create.includes("if (!deskOpen()) return fail")) fail("create save-ai must 
 else pass("create will not Bind without an open desk");
 if (!studio.includes("Named desk AIs") || !studio.includes("save-ai") || !studio.includes("install-aia")) fail("Studio naming / .aia install must stay");
 else pass("Studio naming and .aia install stay");
+if (!studio.includes("ai.aia") || create.indexOf("ai.aia") < 0) fail("Studio and Create must name ai.aia");
+else pass("Studio and Create name ai.aia");
+if (studio.includes("www.aia.aia") || create.includes("www.aia.aia")) fail("must not brand www.aia.aia");
+else pass("no www.aia.aia");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(studio)) {
+  fail("Studio hdr must still send the open-desk pin when a session token is present");
+} else pass("Studio hdr keeps X-Pin with X-Session");
+if (studio.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("Studio hdr must send X-Pin");
+else pass("Studio hdr sends X-Pin");
+const gateAt = studio.indexOf("function paintGate");
+const labAt = studio.indexOf("function paintLab");
+const gateSrc = gateAt >= 0 ? studio.slice(gateAt, labAt > gateAt ? labAt : gateAt + 900) : "";
+if (gateSrc.indexOf('localStorage.getItem("aia_pin")') < 0) fail("Studio Open gate must prefill the saved owner code");
+else pass("Studio Open gate prefills aia_pin");
+if (gateSrc.indexOf("Open Studio") < 0) fail("Studio Open gate must stay");
+else pass("Studio Open gate stays");
 
 const market = fs.readFileSync(path.join(root, "market-shop.js"), "utf8");
 if (!market.includes("aiRows") || !market.includes("Desk AI")) fail("market missing desk AI listing");
@@ -58,6 +74,24 @@ else pass("market installs .aia");
 const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
 if (!desk.includes("id=\"desk-ais\"")) fail("desk.html missing desk-ais strip");
 else pass("desk shows AI rails");
+const deskAisSrc = fs.readFileSync(path.join(root, "desk-ais.js"), "utf8");
+if (!deskAisSrc.includes("ai-card") || !deskAisSrc.includes("On queue cards") || !deskAisSrc.includes("prompt")) {
+  fail("desk-ais.js must paint named AI cards with does / prompt / queue face");
+} else pass("desk-ais paints bot cards");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(deskAisSrc)) {
+  fail("desk-ais hdr must still send the open-desk pin when a session token is present");
+} else pass("desk-ais hdr keeps X-Pin with X-Session");
+if (deskAisSrc.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk-ais hdr must send X-Pin");
+else pass("desk-ais hdr sends X-Pin");
+if (deskAisSrc.indexOf("function closedPaint") < 0) fail("desk-ais must name closedPaint");
+else pass("desk-ais names closedPaint");
+const refreshAt = deskAisSrc.indexOf("async function refresh");
+const refreshSrc = refreshAt >= 0 ? deskAisSrc.slice(refreshAt, refreshAt + 900) : "";
+if (refreshSrc.indexOf("closedPaint()") < 0 || refreshSrc.indexOf("!r.ok") < 0) {
+  fail("desk-ais leftover 401 must paint Open this desk, not empty ais");
+} else pass("desk-ais leftover 401 paints Open this desk");
+if (refreshSrc.indexOf("paint({ ais: [] })") >= 0) fail("desk-ais must not treat leftover 401 as no named AI");
+else pass("desk-ais does not paint empty ais on leftover 401");
 
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");
@@ -70,12 +104,39 @@ else pass("jobs block AI Yes/Stop");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (!packMd.includes("Named desk AIs") || !packMd.includes("\"ais\"") || !packMd.includes("AIA Internet") || !packMd.includes(".aia")) fail("PACK.md missing ais syntax");
 else pass("PACK.md documents ais");
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+if (yesNo.indexOf("Studio Open leftover") < 0) fail("ACCOUNT-YES-NO must name Studio Open leftover");
+else pass("ACCOUNT-YES-NO names Studio Open leftover");
+if (yesNo.indexOf("open Owner desk") < 0 && yesNo.indexOf("open-desk store") < 0) fail("ACCOUNT-YES-NO must name the auth vs account Studio Open store leftover");
+else pass("ACCOUNT-YES-NO names auth vs account Studio Open store");
+if (yesNo.indexOf("Desk AIs leftover") < 0) fail("ACCOUNT-YES-NO must name Desk AIs leftover");
+else pass("ACCOUNT-YES-NO names Desk AIs leftover");
+if (packMd.indexOf("Studio Open leftover") < 0) fail("PACK.md must name Studio Open leftover");
+else pass("PACK.md names Studio Open leftover");
+if (packMd.indexOf("open Owner desk") < 0) fail("PACK.md must name the open Owner desk Studio login leftover");
+else pass("PACK.md names open Owner desk Studio login");
+if (packMd.indexOf("Desk AIs leftover") < 0) fail("PACK.md must name Desk AIs leftover");
+else pass("PACK.md names Desk AIs leftover");
+if (packMd.indexOf("/api/auth?via=desks") < 0 || packMd.indexOf("_desks-http") < 0) fail("PACK.md must name the desks auth fold");
+else pass("PACK.md names desks auth fold");
+if (yesNo.indexOf("/api/auth?via=desks") < 0 || yesNo.indexOf("_desks-http") < 0) fail("ACCOUNT-YES-NO must name the desks auth fold");
+else pass("ACCOUNT-YES-NO names desks auth fold");
+if (fs.existsSync(path.join(root, "api/desks.js"))) fail("api/desks.js must not be its own Lambda");
+else pass("api/desks.js is folded into auth");
+const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+if (!vercel.includes("/api/auth?via=desks") || !/"\/api\/desks"/.test(vercel)) fail("vercel.json must rewrite /api/desks onto /api/auth?via=desks");
+else pass("vercel.json runs desks on the auth function");
+const authSrc = fs.readFileSync(path.join(root, "api/auth.js"), "utf8");
+if (authSrc.indexOf("function wantsDesks") < 0 || authSrc.indexOf("./_desks-http") < 0) fail("auth.js must dispatch via=desks onto _desks-http");
+else pass("auth.js dispatches via=desks");
 
 const net = require("../api/_aia-net");
 const lib = require("../api/_lib");
 const ais = require("../api/_ais");
 const packHandler = require("../api/_packs");
 const jobsHandler = require("../api/jobs");
+const desksHandler = require("../api/_desks-http");
+const authHandler = require("../api/auth");
 const { mem, hashPin, ensurePeople, ready, save } = lib;
 
 function mockRes() {
@@ -157,6 +218,65 @@ async function main() {
   else pass("GET desk ais");
   if (!/Yes \/ Stop \/ Kill/.test(getAis.body.rails || "")) fail("rails copy");
   else pass("rails visible");
+
+  const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
+  const leftoverDesk = await call(desksHandler, "GET", { "x-workspace": slug, "x-session": leftover }, {}, {});
+  if (leftoverDesk.statusCode !== 401 || !/Desk code required/.test((leftoverDesk.body && leftoverDesk.body.error) || "")) {
+    fail("leftover session without pin must 401 GET /api/desks " + leftoverDesk.statusCode + " " + JSON.stringify(leftoverDesk.body));
+  } else pass("leftover session without pin stays 401 on GET /api/desks");
+  const leftoverDeskPin = await call(desksHandler, "GET", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": pin
+  }, {}, {});
+  if (leftoverDeskPin.statusCode !== 200 || !leftoverDeskPin.body || !leftoverDeskPin.body.desk) {
+    fail("leftover session + matching pin must GET /api/desks " + leftoverDeskPin.statusCode + " " + JSON.stringify(leftoverDeskPin.body));
+  } else pass("leftover session + pin GET opens the desk");
+  const leftoverAis = (leftoverDeskPin.body.desk && leftoverDeskPin.body.desk.ais) || [];
+  if (!leftoverAis.some(function (a) { return a && a.name === "Project AI"; })) {
+    fail("leftover session + pin must still paint named AIs, not empty ais");
+  } else pass("leftover session + pin still paints named AIs");
+
+  const foldPin = "3579";
+  const onboarded = await call(authHandler, "POST", { "x-workspace": "fold-desk", "x-pin": foldPin }, {
+    action: "account",
+    name: "Pat",
+    biz: "Fold Desk",
+    slug: "fold-desk",
+    workspace: "fold-desk",
+    kind: "owner",
+    role: "owner",
+    pin: foldPin
+  });
+  const onboardTok = onboarded.body && onboarded.body.session && onboarded.body.session.token;
+  if (onboarded.statusCode !== 201 || !onboardTok) {
+    fail("Owner onboard via /api/auth should mint fold-desk " + onboarded.statusCode + " " + JSON.stringify(onboarded.body));
+  } else pass("Owner onboard mints fold-desk for desks fold");
+  const foldEmpty = await call(authHandler, "GET", { "x-workspace": "fold-desk", "x-session": leftover }, {}, { via: "desks" });
+  if (foldEmpty.statusCode !== 401) fail("folded GET /api/desks empty pin must 401, got " + foldEmpty.statusCode);
+  else pass("folded GET /api/desks empty pin stays 401");
+  const foldGet = await call(authHandler, "GET", {
+    "x-workspace": "fold-desk",
+    "x-pin": foldPin,
+    "x-session": onboardTok
+  }, {}, { via: "desks" });
+  if (foldGet.statusCode !== 200 || !foldGet.body || !foldGet.body.desk || foldGet.body.desk.slug !== "fold-desk") {
+    fail("folded GET /api/desks must see the onboard desk " + foldGet.statusCode + " " + JSON.stringify(foldGet.body));
+  } else pass("folded GET /api/desks sees the onboard Owner desk");
+  const foldSave = await call(authHandler, "POST", {
+    "x-workspace": "fold-desk",
+    "x-pin": foldPin,
+    "x-session": onboardTok
+  }, {
+    action: "save-ai",
+    name: "Fold AI",
+    role: "Doer",
+    does: "Draft on the folded desk",
+    steps: "qualify, follow"
+  }, { via: "desks" });
+  if (foldSave.statusCode !== 200 || !foldSave.body || !foldSave.body.ok || !(foldSave.body.ais || []).some(function (a) { return a && a.name === "Fold AI"; })) {
+    fail("folded save-ai must bind on the onboard desk " + foldSave.statusCode + " " + JSON.stringify(foldSave.body));
+  } else pass("folded save-ai binds on the onboard desk");
 
   const priv = await call(packHandler, "POST", owner, {
     action: "private-pack",

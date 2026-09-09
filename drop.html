@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Drop · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
   </script>
@@ -72,7 +72,7 @@
   </header>
   <main class="wrap">
     <h1 id="drop-title">Drop anything</h1>
-    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or No. Nobody sends money from here.</p>
+    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.</p>
     <div class="modes" id="modes">
       <button type="button" class="on" data-mode="quick" aria-pressed="true">Quick drop</button>
       <button type="button" data-mode="custom" aria-pressed="false">Custom drop</button>
@@ -84,9 +84,9 @@
       <p class="desk-on off" id="desk-on" role="status">No desk yet. Pick a saved desk, add one you already opened, or create a new desk.</p>
       <div class="desk-chips" id="desk-chips"></div>
       <div id="desk-add" hidden>
-        <label for="add-ws">Desk name</label>
+        <label for="add-ws">Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
         <input id="add-ws" placeholder="Oddo house" autocomplete="username">
-        <label for="add-pin">Desk code</label>
+        <label for="add-pin">Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
         <input id="add-pin" placeholder="Your code" inputmode="numeric" minlength="4" autocomplete="current-password">
         <button type="button" class="go" id="add-open" style="margin-top:10px">Save and open this desk</button>
       </div>
@@ -107,9 +107,9 @@
       <div class="card">
         <strong id="lane-title" style="color:var(--heading)">Drop anything. It becomes a card.</strong>
         <div id="pane-work">
-          <label>I am</label>
+          <label>I am <button type="button" class="aia-tip" data-aia-tip="drop-who" aria-label="More about I am">?</button></label>
           <div class="who-chips" id="who-chips"></div>
-          <label for="kind">What is it?</label>
+          <label for="kind">What is it? <button type="button" class="aia-tip" data-aia-tip="drop-kind" aria-label="More about What is it">?</button></label>
           <select id="kind">
             <option value="task">A task</option>
             <option value="chore">An errand</option>
@@ -142,23 +142,23 @@
             <option value="grocery">Groceries / store</option>
             <option value="custom">Custom drop</option>
           </select>
-          <label for="title">Title</label>
+          <label for="title">Title <button type="button" class="aia-tip" data-aia-tip="drop-title" aria-label="More about Title">?</button></label>
           <input id="title" placeholder="Need a ride Friday · grocery list · porch idea">
           <p class="sub" id="title-hint">Short name for the card. Required to drop.</p>
-          <label for="who">Your name</label>
+          <label for="who">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
           <input id="who" placeholder="Name">
-          <label for="phone">Phone</label>
+          <label for="phone">Phone <button type="button" class="aia-tip" data-aia-tip="drop-phone" aria-label="More about Phone">?</button></label>
           <input id="phone" placeholder="417-555-0100" inputmode="tel">
-          <label for="photo">Photos, documents, or video</label>
+          <label for="photo">Photos, documents, or video <button type="button" class="aia-tip" data-aia-tip="drop-photo" aria-label="More about Photos, documents, or video">?</button></label>
           <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm" aria-describedby="file-list">
           <p class="sub file-list" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
-          <label for="note">What do you need?</label>
+          <label for="note">What do you need? <button type="button" class="aia-tip" data-aia-tip="drop-need" aria-label="More about What do you need">?</button></label>
           <textarea id="note" rows="3" placeholder="A task, an errand, a list, an idea, a project — in your words"></textarea>
         </div>
         <div id="pane-agent" hidden>
-          <label>Paste the data</label>
+          <label for="implement">Paste the data <button type="button" class="aia-tip" data-aia-tip="drop-paste" aria-label="More about Paste the data">?</button></label>
           <textarea id="implement" rows="6" placeholder="Name: Sam&#10;Phone: 417-555-0100&#10;Need a pickup Friday 3pm&#10;Ask: $85"></textarea>
-          <label>What should the desk do with it?</label>
+          <label for="agent-tell">What should the desk do with it? <button type="button" class="aia-tip" data-aia-tip="drop-tell" aria-label="More about What should the desk do with it">?</button></label>
           <textarea id="agent-tell" rows="2" placeholder="Put this on the card. Draft the next step. Do not send."></textarea>
           <p class="sub" id="agent-preview" hidden></p>
         </div>
@@ -190,6 +190,7 @@
   <script src="desk-nav.js"></script>
   <script src="drop-pick.js"></script>
   <script src="drop-agent.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="speech.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
@@ -200,6 +201,8 @@
     if (ws) window.ws = ws;
     let pin = localStorage.getItem("aia_pin") || "";
     let deskOpen = (window.AIADesks && AIADesks.shopOpen) ? !!AIADesks.shopOpen() : !!(ws && (pin || localStorage.getItem("aia_session")));
+    const authWs = localStorage.getItem("aia_ws");
+    if (deskOpen && ws && authWs && ws !== authWs) deskOpen = false;
     if (deskOpen) document.body.classList.add("desk-open");
     let mode = params.get("mode") || "quick";
     let whoKind = params.get("who") || "helper";
@@ -302,10 +305,16 @@
         const shop = data.workspace || {};
         if ((shop.biz || shop.name) && desk) desk.name = shop.biz || shop.name;
         FIELDS = shop.fields || [];
+        window.__aiaDeskPack = shop.pack ? { id: shop.pack, name: shop.packName || shop.pack } : null;
+        if (window.AIADropAgent && AIADropAgent.applyInstalledPack) AIADropAgent.applyInstalledPack(window.__aiaDeskPack);
         const nouns = (window.AIADesks && AIADesks.nounsOf) ? AIADesks.nounsOf(shop.nouns) : null;
-        if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
-          const sub = document.getElementById("drop-sub");
-          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or No. Nobody sends money from here.";
+        const sub = document.getElementById("drop-sub");
+        if (sub && ws && shop.pack) {
+          const packName = shop.packName || "This pack";
+          const cap = (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) ? (nouns.capture + " lands here. ") : "";
+          sub.textContent = cap + packName + " is on this desk. Drop anything — the queue card already uses that pack. You don't pick a pack each time. You still tap Yes or Stop. Nobody sends money from here.";
+        } else if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
+          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or Stop. Nobody sends money from here.";
         }
       } catch (e) {}
       paintEmbed();
