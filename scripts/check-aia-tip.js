@@ -81,6 +81,7 @@ mustNot(tip, "escrow", "tip ETH escrow");
 mustNot(tip, "micro-wei", "tip micro-wei billing");
 mustNot(tip, "streaming ETH", "tip streaming ETH");
 mustNot(tip, "state channel", "tip L2 state channel");
+mustNot(tip, "on-chain split", "tip on-chain splits");
 mustNot(tip, "NFT", "tip pack NFT license");
 mustNot(tip, "DID login", "tip DID login");
 mustNot(tip, "governance token", "tip governance token");
