@@ -369,19 +369,72 @@ html.dark .who-chip {
 .gate-card .err { display: none; margin-top: 10px; color: var(--kill-ink); font-size: 14px; }
 .gate-card .ok { display: none; margin-top: 12px; color: #1b7a3d; }
 html.dark .gate-card .ok { color: #8ee0ad; }
-.tip {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
+.tip,
+button.aia-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--edit);
   color: var(--edit-ink);
-  font-size: 11px;
-  line-height: 16px;
-  text-align: center;
-  cursor: help;
+  font: 700 14px/1 "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
   margin-left: 4px;
   vertical-align: middle;
+}
+.aia-tip-pop {
+  position: fixed;
+  z-index: 80;
+  box-sizing: border-box;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+.aia-tip-pop h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--heading);
+}
+.aia-tip-pop p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.aia-tip-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.aia-tip-acts .ask {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--orange);
+  color: #0c1116;
+  font-weight: 700;
+  text-decoration: none;
+}
+.aia-tip-acts .got {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--teal);
+  font-weight: 700;
 }
 .custom-box {
   margin-top: 8px;

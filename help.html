@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Help · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
   </script>
@@ -24,6 +24,7 @@
     .card{border:1px solid var(--line);border-radius:14px;padding:16px;margin:10px 0}
     dt{font-weight:700;margin-top:8px;color:var(--heading)}
     dd{color:var(--muted);margin:0 0 8px}
+    .pack-ex{display:block;white-space:pre-wrap;word-break:break-word;font-size:12px;margin-top:4px}
   </style>
 </head>
 <body class="has-desk-nav">
@@ -36,10 +37,11 @@
   </header>
   <main class="wrap">
     <h1>How to run the desk</h1>
-    <p>Name a desk. Drop anything. Try first — real cards on the queue, not a demo. A person sends the draft — or Stops it — before it goes out.</p>
+    <p>Name a desk. Drop anything. Try first — real cards on the queue, not a demo. A person taps Yes — or Stops it — before it goes out. You send the draft yourself. ai.aia is the AIA Internet brand. The desk runs on automateitaway.com. Packs and named desk AIs travel as .aia files.</p>
+    <p><a href="history.html">Give pack</a> <button type="button" class="aia-tip" data-aia-tip="give-pack" aria-label="More about Give pack">?</button> · <a href="history.html">Update pack</a> <button type="button" class="aia-tip" data-aia-tip="update-pack" aria-label="More about Update pack">?</button> · <a href="/support">Talk to AIA</a></p>
     <div class="card" id="playbook-card">
       <h2>Four steps on this desk</h2>
-      <p>The implementation path. Walk 1→2→3→4. Springfield desk voice. Teal, then orange. Collect stays HOLD. AIA AI home is ai.aia (www.ai.aia) — orange until DNS answers. Live desk is automateitaway.com.</p>
+      <p>One AIA account. Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Live desk is automateitaway.com.</p>
       <div data-aia-playbook="embed">
         <p>1 Find the leaks — Capture · Qualify. 2 Hook the pipes — Pipes. 3 Name a desk AI — Create · Studio. 4 You still tap — Rules · Yes / Stop / Kill.</p>
       </div>
@@ -52,9 +54,9 @@
       <p>Off-platform: OpenAI / Anthropic keys, Make / Zapier, CRMs — connect as pipes when you provide keys + Yes. AIA does not invent live connectors. Agency / DFY / co-pilot are off-platform labels — not an AIA rate card. Social auto-post is a future / off-platform pipe — not live OAuth.</p>
       <dl>
         <dt>Account</dt>
-        <dd>Open a desk (name + code) or set email + password on <a href="account.html">Account</a>. Not social SSO.</dd>
+        <dd>Open a desk (name + code) or set email + password on <a href="account.html">Account</a>. History shows this account’s past / now / next — install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Not social SSO.</dd>
         <dt>Workflow &amp; Agent Pack Creator</dt>
-        <dd>On-desk Studio. Package automation logic — named desk AIs, webhooks, CRM pipes when connected — into a <code>.aia</code> pack. Solve a specific problem: lead qualify, review responder, social <i>repurposing drafts</i>. Not auto-publish unless a live pipe exists. Sell on Marketplace or keep private. You set prices. Collect stays HOLD until Yes + a money pipe.</dd>
+        <dd>On-desk Studio. Package automation logic — named desk AIs, webhooks, CRM pipes when connected — into a <code>.aia</code> pack. A pack puts When → If → Then on this desk queue. Buyer binds their own keys. Yes / Stop / Kill before anything leaves. Webhook is the live pipe. Solve a specific problem: lead qualify, review responder, social <i>repurposing drafts</i>. Not auto-publish unless a live pipe exists. Sell on Marketplace or keep private. You set prices. Collect stays HOLD until Yes + a money pipe.</dd>
         <dt>Build automation packs</dt>
         <dd><b>Niche problem.</b> Real estate, e-com, or agency ideas — not seeded demo rules. Pick a measurable leak: time saved or leads captured. <b>Core logic stack</b> = this desk engine. Trigger = webhook / Drop / pipe / inbound .aia. Processing = Qualify + named desk AI prompts (JSON / structured). Fallbacks = Rules + Rail (Yes / Stop / Kill) / alert — no silent crash. Destination = pipes (Sheets / CRM) when connected. Collect stays HOLD. <b>Plug-and-play.</b> Clear credential vars. Dashboards via pipes when connected. Recommend a 2-min quickstart in pack docs. <b>Tiers.</b> Free / core / DFY — illustrative $ only; you set the price; Collect stays HOLD. DFY is mostly an off-platform service wrapping the pack.</dd>
         <dt>Limits on create / sell</dt>
@@ -70,11 +72,11 @@
         <dt>4. GTM</dt>
         <dd>Build in public (60s clips). Publish packs on Marketplace / Studio. Use clear titles + niche keywords on Marketplace. Local SMB outreach or a risk-free trial. AIA does not rank listings on platform search and does not guarantee top rankings.</dd>
         <dt>Four models</dt>
-        <dd>Label on-desk vs off-platform. <b>Automation Agency (AAA)</b> — off-platform client work on this desk (real estate, contractors, insurance, law). Sell outcomes. AIA is the desk engine: Capture → Qualify → Do → Collect HOLD → Follow + Yes / Stop / Kill. Build / retainer fees are example / off-platform — not AIA rates. <b>DFY</b> — off-platform service wrapping a repeatable install (example: lead qualify bot in 48h). Flat fees illustrative only. On-desk: named desk AIs + packs + pipes. Collect HOLD until Yes. <b>Marketplace</b> — on-desk Studio: sell <code>.aia</code> packs. Lead magnet → core pack → VIP / club is a ladder you run. You set the price. No public payout baseline. No affiliate percent. <b>Co-pilot</b> — off-platform revenue-share. Cuts like 10–15% are examples only, not AIA terms.</dd>
+        <dd>Label on-desk vs off-platform. <b>Automation Agency (AAA)</b> — off-platform client work on this desk (real estate, contractors, insurance, law). Sell outcomes. AIA is the desk engine: Drop → Qualify → Do → Collect HOLD → Follow + Yes / Stop / Kill. Build / retainer fees are example / off-platform — not AIA rates. <b>DFY</b> — off-platform service wrapping a repeatable install (example: lead qualify bot in 48h). Flat fees illustrative only. On-desk: named desk AIs + packs + pipes. Collect HOLD until Yes. <b>Marketplace</b> — on-desk Studio: sell <code>.aia</code> packs. Lead magnet → core pack → VIP / club is a ladder you run. You set the price. No public payout baseline. No affiliate percent. <b>Co-pilot</b> — off-platform revenue-share. Cuts like 10–15% are examples only, not AIA terms.</dd>
         <dt>First 3 clients</dt>
         <dd>Manual-work audit (playbook step 1 · Find the leaks) → 60s proof video → risk-free trial. No invented close rates.</dd>
         <dt>Pack quality &amp; retention</dt>
-        <dd>Ship operational infrastructure — Capture → Qualify → Do → Collect HOLD → Follow — not dead templates. Fallbacks: Rules + Rail (Yes / Stop / Kill), alerts on fail, a backup path — not “always works.” Visual outcomes: Follow / Collect on the card. Slack / Sheets / Notion via pipes when connected (HOLD until Yes / keys). Prompt architecture: Qualify with structured prompts, variables, and JSON constraints on named desk AIs. Recommend a 2-min quickstart in pack docs. Do not invent review-rate stats.</dd>
+        <dd>Ship operational infrastructure — Drop → Qualify → Do → Collect HOLD → Follow — not dead templates. Fallbacks: Rules + Rail (Yes / Stop / Kill), alerts on fail, a backup path — not “always works.” Visual outcomes: Follow / Collect on the card. Slack / Sheets / Notion via pipes when connected (HOLD until Yes / keys). Prompt architecture: Qualify with structured prompts, variables, and JSON constraints on named desk AIs. Recommend a 2-min quickstart in pack docs. Do not invent review-rate stats.</dd>
         <dt>Funnel tiers</dt>
         <dd>Tripwire / Core / High-ticket DFY. You set prices. Illustrative only — not an AIA rate card. Collect stays HOLD until Yes + a live money pipe. High-ticket implementation is mostly an off-platform service wrapping packs.</dd>
         <dt>Expansion</dt>
@@ -87,7 +89,7 @@
     </div>
     <div class="card" id="people-desk">
       <h2>Add people to this desk</h2>
-      <p>People lives under More. Search a world @handle. Invite them to this desk. They Accept on People. Email is not a world name. AIA does not send invite mail.</p>
+      <p>People lives under More. Search a world @handle. Invite them to this desk. They Accept on People. Email is not a world name. AIA does not send invite mail. Open cards on the shared trail show the Then draft, named desk AI or gone HOLD, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card.</p>
       <dl>
         <dt>Owner</dt>
         <dd>Connects pipes. Writes rules. Taps Stop. Can delete the desk or change the owner code. Do not share the owner desk code or login. Each person keeps their own seat.</dd>
@@ -153,12 +155,14 @@
         <li><strong>You still tap.</strong> Yes / Stop / Kill stay human. Yes is not a collect charge. Collect stays HOLD.</li>
       </ol>
       <p>Fallbacks: Needs you, or <a href="/support">Talk to AIA</a>.</p>
-      <p>Write a thin <code>.aia</code> in Creators Studio (<code>/dev</code>). Buyers bring their own pipes and keys.</p>
+      <p>Write a thin <code>.aia</code> in Creators Studio (<code>/dev</code>). Buyers bring their own pipes and keys. First .aia pack docs: <a href="/dev#first-pack">/dev#first-pack</a>.</p>
       <p>Sample JSON is illustrative only — desk words, not a bindings product: <code>{ "when": "pipe", "if": "tag Lead", "then": "draft" }</code></p>
+      <p>Thin App / webhook pack — copy, do not seed. Not a listed SKU. Not a bindings product. Buyer binds their own keys on Pipes. Yes / Stop / Kill before anything leaves. Webhook is the live pipe. Collect stays HOLD.</p>
+      <p><code class="pack-ex">{ "name": "Lead from the site", "pipes": ["webhook"], "rules": [{ "text": "Hook + Lead → draft. Yes before outbound.", "when": "pipe", "ifTag": "Lead", "then": "draft" }] }</code></p>
     </div>
     <div class="card" id="ideas-queue">
       <h2>Ideas → queue</h2>
-      <p>Drop → Qualify → card → Yes / Stop. History is past / now / next. No effort or token estimate on this desk.</p>
+      <p>Drop → Qualify → card → Yes / Stop. History is past / now / next — the card trail and this account’s roadmap. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. History shows the Then draft, gone HOLD when the named Then AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. No effort or token estimate on this desk.</p>
     </div>
     <div class="card" id="faq">
       <h2>FAQ</h2>
@@ -172,7 +176,13 @@
         <dt>What plan tiers exist?</dt>
         <dd>No public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Collect and payouts HOLD. No merchant-of-record.</dd>
         <dt>If I Create or Drop a goal, what happens?</dt>
-        <dd>Create or Drop a goal → a draft card → you tap Yes. No autonomous ETA engine. No SaaS codegen.</dd>
+        <dd>Create or Drop a goal → a draft card → you tap Yes. Needs you / prompt ask-who when the desk asks. Installed pack auto-shapes the card — you do not pick a pack on every Drop. No autonomous ETA engine. No SaaS codegen. Collect stays HOLD.</dd>
+        <dt>What does Needs you mean?</dt>
+        <dd>Waiting on a person. When a named desk AI asks, Needs you and the prompt ask-who name that AI. If that AI is gone, they hold <code>Shop Bot · not on this desk</code> — not anonymous Needs you or The desk AI asked. Type a reply on the Queue card. Reply does not Yes, ship, or send money. Queue, Cap, Open, History, Explore, and People paint the same. Yes / Stop / Kill stay human. Collect stays HOLD.</dd>
+        <dt>How do I install, give, or update a pack?</dt>
+        <dd>On History — this account’s past / now / next. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Installed packs auto-shape queue cards. You do not pick a pack on every Drop. Collect stays HOLD. No silent charge.</dd>
+        <dt>How do I Connect a wallet?</dt>
+        <dd>Connect existing wallet on Account or Desk. Connect MetaMask or WalletConnect. Your wallet. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks. not compute credits or a creator payout ledger.</dd>
       </dl>
     </div>
     <div class="card" id="queue-runs">
@@ -183,8 +193,12 @@
     <div class="card" id="desk-cards">
       <h2>Desk cards</h2>
       <p>When → If → Then: a named desk AI drafts a queue card — fields and notes, not a raw chat blob.</p>
+      <p>Installed packs auto-shape those queue cards. You do not pick a pack on every Drop. Drop, the www hook, and desk chat stamp that pack’s face (who / what / when / where / how) onto the card. Pack rules already on the desk still fire. Yes / Stop / Kill stay human. Collect stays HOLD.</p>
       <p>On /desk the card shows the named Then draft — which desk AI wrote it, plus a short does / prompt chip — not an anonymous draft blob. Needs you, the draft tap, and the prompt reply name that AI when one is set. Files and Yes / Stop / Kill stay. HOLD. Nothing sent alone.</p>
-      <p>Open /desk to view each bound desk AI as a card (name, does, prompt summary, and how it shows on queue cards). People → Agents shows the same bots.</p>
+      <p>Open /desk to view each bound desk AI as a card (name, does, prompt summary, and how it shows on queue cards). People → Agents shows the same bots. Owner can edit name / does / prompt on those bot cards without leaving the desk. Queue chips follow.</p>
+      <p>Owner picks which desk AI owns Then / Needs you on a queue card. The card updates the name and does / prompt chip. Yes / Stop / Kill stay human.</p>
+      <p>On Rules, Then = named desk AI drafts. Owner picks which bot writes matching cards. Cards follow that bind. If that bot is gone, the card stays HOLD and does not pretend another desk AI wrote Then. Ask on that card holds the gone bind (`Shop Bot · not on this desk` / HOLD ask) and does not name another live desk AI. Needs you and the prompt reply on that card hold the same gone bind — not an anonymous Needs you or The desk AI asked. The owner picker holds the same gone bind and does not first-select another live desk AI. Capture, hook, and the worker honor the same bind. Yes / Stop / Kill stay human.</p>
+      <p>When replies and Then drafts stack, the q-card shows an AI ↔ human thread — still escaped, still on the card. History, Explore, Cap, and Open paint that same thread, including gone HOLD (`Shop Bot · not on this desk`) when the named Then AI is gone. Cap cards and Open paint the same Needs you / prompt ask-who gone HOLD as Queue — not an anonymous Needs you or The desk AI asked. History, Explore, and People open cards paint that same Needs you / prompt ask-who gone HOLD. People open cards on the shared trail (yours / theirs) paint the same Then draft, named desk AI or gone HOLD, Needs you / prompt ask-who, and ask / reply turns. On the card. Nothing sent alone.</p>
       <p>Owner or a seated helper types a reply on the card. The reply lands on the card history. It can unblock the next Then. Reply does not Yes, ship, or send money alone.</p>
       <p>After Yes, When=do Then can open a new card or the next Then. HITL stays. Yes / Stop / Kill stay human. Yes is not auto-send mail, push git, or a Collect charge. Collect stays HOLD.</p>
       <p>Write a thin <code>.aia</code> in Creators Studio. Test it via Drop or the www hook. A desk holds up to 12 card fields — that is the real cap.</p>
@@ -199,7 +213,7 @@
     </div>
     <div class="card">
       <h2>Something broke?</h2>
-      <p>Talk to AIA. We write a card on the AIA Admin Desk. A person looks. Nothing sends itself.</p>
+      <p>Talk to AIA. Help, tickets, and messages move as cards between your desk and the AIA Admin desk. A person looks. Nothing sends itself. Not a ticket portal. Agents, bots, guardrails, and job cards stay this desk.</p>
       <p><a href="/support">Talk to AIA</a></p>
     </div>
     <div class="card">
@@ -216,36 +230,34 @@
         <dt>Rule</dt>
         <dd>One When → If → Then on this desk. Fresh desks start empty. Add a wait only if you want one. New drops honor the current list.</dd>
         <dt>History</dt>
-        <dd>Past, now, and next on one page. Advanced finds who worked it, files, drafts, and audit. Copy or email the story. Nothing sends from History.</dd>
+        <dd>Past, now, and next on one page — the card trail and this account’s roadmap. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Advanced finds who worked it, files, drafts, and audit. Copy or email the story. Nothing sends from History.</dd>
         <dt>People</dt>
-        <dd>Search a world @handle. Invite them to this desk. They Accept on People under More. Email is not a world name. AIA does not send.</dd>
+        <dd>Search a world @handle. Invite them to this desk. They Accept on People under More. Open cards on the shared trail show the Then draft, named desk AI or gone HOLD, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. Email is not a world name. AIA does not send.</dd>
         <dt>Send</dt>
         <dd>Copy, text, email, or hand the draft off. Stop is the owner cancel. AIA does not send the text or the money.</dd>
         <dt>Desk AI</dt>
-        <dd>A named AI bound to this desk — project, company, or family. Addressed on AIA Internet as a .aia name. AIA AI home is ai.aia — orange until DNS answers. Live desk is automateitaway.com. Drafts under this desk’s rules. Yes / Stop / Kill stay human. Never money or mail. Pack it in Creators Studio to list or keep private.</dd>
-        <dt>AI agent</dt>
-        <dd>Approved crew seat. Drafts on the card. Off desk tap on decision, ideas, editing, working, and ext. Cannot Stop. Cannot move money. Not a public Bot API.</dd>
+        <dd>A named AI bound to this desk — project, company, or family. Addressed on AIA Internet as a .aia name. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Live desk is automateitaway.com. Drafts under this desk’s rules. Yes / Stop / Kill stay human. Never money or mail. Pack it in Creators Studio to list or keep private.</dd>
       </dl>
     </div>
     <div class="card">
       <h2>Pages that exist</h2>
-      <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#creator-takeaways">Creator takeaways</a> · <a href="#build-pack">Build a pack / desk AI</a> · <a href="#desk-orch">Desk orchestration</a> · <a href="#ideas-queue">Ideas → queue</a> · <a href="#queue-runs">How the queue runs</a> · <a href="#desk-cards">Desk cards</a> · <a href="#aia-inbound">.aia inbound</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Packs</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Pipes</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop#talk">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
+      <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#creator-takeaways">Creator takeaways</a> · <a href="#build-pack">Build a pack / desk AI</a> · <a href="#desk-orch">Desk orchestration</a> · <a href="#ideas-queue">Ideas → queue</a> · <a href="#queue-runs">How the queue runs</a> · <a href="#desk-cards">Desk cards</a> · <a href="#aia-inbound">.aia inbound</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open your desk</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Packs</a> · <a href="history.html">Give pack</a> · <a href="history.html">Update pack</a> · <a href="login.html">Sign in</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Pipes</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop#talk">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
     </div>
     <div class="card">
       <h2>Owner vs helper</h2>
       <dl>
         <dt>Owner</dt>
-        <dd>Connects or drops a pipe. Writes rules. Taps Stop. On Desks: explore, rename, close, change the owner code, export, delete, and grant helper edit. Delete writes a log that stays after the shop is gone.</dd>
+        <dd>Connects or drops a pipe. Writes rules. Taps Stop. On Desks: explore, rename, close, change the owner code, export, delete, and grant helper edit. Delete writes a log that stays after the desk is gone.</dd>
         <dt>Helper</dt>
-        <dd>Works the queue. Needs you, Open, Send when the rule allows, hand the card, phone file. Cannot connect a pipe. Cannot Stop. Cannot delete a desk or change the owner code. May edit shop details only if the owner turns that on.</dd>
+        <dd>Works the queue. Needs you, Open, Yes when the rule allows, hand the card, phone file. Cannot connect a pipe. Cannot Stop. Cannot delete a desk or change the owner code. May edit desk details only if the owner turns that on.</dd>
         <dt>We type it in</dt>
-        <dd>A helper can still take a note. AIA writes the card. A person still taps Send or Stop.</dd>
+        <dd>A helper can still take a note. AIA writes the card. A person still taps Yes or Stop.</dd>
         <dt>Kind of work</dt>
         <dd>Owner names the work on open, or later on Create. Fields stay on the card. Drop still takes free text if you skip fields.</dd>
         <dt>Creators Studio</dt>
-        <dd>Same login on /dev. Write a thin JSON pack on AIA Internet. Download, share, or install it as a .aia file. Test it on this desk. AIA lists it. World desks install it onto an empty starting queue. You earn by pricing a pack — AIA has no public payout baseline. Agency consulting is off-platform. Collect stays HOLD until a person taps Yes. Wallet / registry connect later as a Pipe HOLD.</dd>
+        <dd>Same login on /dev. Write a thin JSON pack on AIA Internet. ai.aia is the brand. Download, share, or install it as a .aia file. Test it on this desk. AIA lists it. World desks install it onto an empty starting queue. You earn by pricing a pack — AIA has no public payout baseline. Agency consulting is off-platform. Collect stays HOLD until a person taps Yes. Wallet / registry connect later as a Pipe HOLD.</dd>
         <dt>Packs</dt>
-        <dd>Browse on /market. Open packs on AIA Internet: thin JSON a world desk can install, named like springfield-shop.aia. Download or share as a .aia file. Install a .aia onto this desk. Use a pack on this desk. A listed ask still installs — Collect stays HOLD. No silent charge. No public payout table. Fresh desks start empty until you add or install a pack. Packs do not send money, bind coverage, or pay out. When a pack is worth it: <a href="#pack-worth">#pack-worth</a>.</dd>
+        <dd>Browse on /market. Open packs on AIA Internet (ai.aia): thin JSON a world desk can install, named like springfield-shop.aia. Download or share as a .aia file. Install a .aia onto this desk. Use a pack on this desk. A listed ask still installs — Collect stays HOLD. No silent charge. No public payout table. Fresh desks start empty until you add or install a pack. Packs do not send money, bind coverage, or pay out. When a pack is worth it: <a href="#pack-worth">#pack-worth</a>.</dd>
       </dl>
     </div>
     <div class="card">
@@ -256,7 +268,7 @@
         <dt>Workers decide</dt>
         <dd>AI drafts. A person taps Yes, Stop, or Kill. Helpers cannot Stop. Literacy: the draft sits on the card until you send it your way.</dd>
         <dt>Open packs</dt>
-        <dd>Thin JSON. Creators Studio publishes. World desks install it onto their empty starting queue. No dashboard fork.</dd>
+        <dd>Thin JSON. Creators Studio publishes a .aia file on AIA Internet. ai.aia is the brand. World desks install it onto their empty starting queue. The desk stays on automateitaway.com. No dashboard fork.</dd>
         <dt>Secure from the start</dt>
         <dd>Every draft call is audited. Orange until a live pipe. No silent money. No seed rules. No fake floor on money. Collect stays HOLD.</dd>
       </dl>
@@ -271,7 +283,7 @@
         <dt>If · Condition</dt>
         <dd>Rules / Qualify check. Tag, word on the card, unassigned, older than, money, field.</dd>
         <dt>Then · Action</dt>
-        <dd>Desk AI drafts. Queue card. Notify. After Yes, When=do Then can continue on a new card. Human Yes / Stop for outbound or money. Collect stays HOLD.</dd>
+        <dd>A named desk AI drafts — owner picks which on Rules. Queue card. Notify. After Yes, When=do Then can continue on a new card. Human Yes / Stop for outbound or money. Collect stays HOLD.</dd>
         <dt>Rule</dt>
         <dd>One When → If → Then on this desk. Fresh desks start empty. Add a wait only if you want one.</dd>
         <dt>Workflow / Sequence</dt>
@@ -313,13 +325,13 @@
       <h2>Words on the buttons</h2>
       <dl>
         <dt>Needs you</dt>
-        <dd>Waiting on a person.</dd>
+        <dd>Waiting on a person. Names the desk AI when one is set. Gone Then holds that bind (<code>Shop Bot · not on this desk</code>), not anonymous Needs you. Type a reply on the Queue card. Reply does not Yes or send. Cap, Open, History, Explore, and People paint the same ask-who.</dd>
         <dt>Yes</dt>
-        <dd>Go — post it, text it, or mark it sent. Helpers can do this unless a rule waits on the owner.</dd>
+        <dd>Yes is the human tap. You send the draft yourself. AIA does not send. Helpers can Yes unless a rule waits on the owner.</dd>
         <dt>Stop</dt>
         <dd>Owner, twice. No — cancel it. Only the owner.</dd>
-        <dt>Money wait</dt>
-        <dd>Only if the owner wrote that rule. Floor can get the job ready. Owner lets the money move.</dd>
+        <dt>Collect</dt>
+        <dd>Collect stays HOLD until a person taps Yes and a real money pipe is live. Helper can prep the draft. Yes is not a collect charge.</dd>
         <dt>Open</dt>
         <dd>The job. Notes, extra fields, ask for more.</dd>
         <dt>Save a file</dt>
@@ -327,7 +339,7 @@
         <dt>Calendar file</dt>
         <dd>Drops a file on your phone. Google Calendar write stays off until the key is set.</dd>
         <dt>Talk or type it</dt>
-        <dd>Talk or type it. We write the card on your queue. Worker-first: you still send the draft, or Stop.</dd>
+        <dd>Talk or type it. We write the card on your queue. Worker-first: you still tap Yes or Stop. You send the draft yourself.</dd>
         <dt>Drop anything</dt>
         <dd>A task, an errand, a list, an idea, a project — family, friend, helper, or staff drops it. Or paste data and the desk writes the card. Rules still run. Nobody sends money from here.</dd>
         <dt>Queue filters</dt>
@@ -337,12 +349,12 @@
         <dt>Copy hook</dt>
         <dd>Puts the inbound URL on the clipboard. Paste it into Zapier, Make, or that site’s webhook. Does not send money.</dd>
         <dt>Log in</dt>
-        <dd>Vendor console or draft-account key page. Chat login alone cannot draft. Owner still taps Send and Stop.</dd>
+        <dd>Vendor console or draft-account key page. Chat login alone cannot draft. Owner still taps Yes and Stop.</dd>
       </dl>
     </div>
     <div class="card">
       <h2>Login</h2>
-      <p>Desk name + desk code, or email + password on Account. Not social SSO. Set an AIA Internet name like james.aia on Account so people can find you. Email is not a world name. .aia names on this desk now. Wallet Connect is a browser wallet for .aia / registry when Bridge unlocks — not compute credits or a creator payout ledger. Collect and payouts HOLD.</p>
+      <p>Desk name + desk code, or email + password on Account. Not social SSO. Set an AIA Internet name like james.aia on Account so people can find you. ai.aia is the brand. The desk runs on automateitaway.com. Email is not a world name. .aia names on this desk now. Connect MetaMask or WalletConnect. Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks. Not Wallet.AIA. Not compute credits or a creator payout ledger. Collect and payouts HOLD.</p>
     </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">
@@ -353,6 +365,7 @@
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-playbook.js"></script>
   <script src="desk-nav.js"></script>
 </body>

@@ -86,7 +86,7 @@
     if (FILTER === "work") return "No work-pack cards here. Drop with Home, Consign, Insurance, Fund, or Land — or a creator pack.";
     if (canon(FILTER) === "insurance") return "Drop a name, a state, and what they need. Bind stays off.";
     if (FILTER === "home") return "Drop a chore, school form, or same-day pickup. Cap same-day.";
-    if (FILTER === "consign") return "Drop a photo of the item. Draft the title. Payout waits on you.";
+    if (FILTER === "consign") return "Drop a photo of the item. Draft the title. Collect HOLD until Yes + a real money pipe.";
     if (FILTER === "fund") return "Drop the campaign note. Credit waits on you.";
     if (FILTER === "land") return "Drop the lot note. Cap flood. Cap title.";
     if (FILTER === "aia-adoption") return "Try first. Drop a task, an errand, or an idea. AIA drafts. You tap Yes or Stop.";

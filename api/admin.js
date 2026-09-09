@@ -11,7 +11,7 @@ const aiaAdmin = require("./_aia-admin");
 const worldPeople = require("./_world-people");
 const { setDeskPerms, setSeatCan, publicDesk } = require("./_desk");
 const plans = require("./_plans");
-const { historyOf, filterHistory } = require("./_history");
+const { historyOf, filterHistory, historyItem } = require("./_history");
 
 function ticketsOf(slug) {
   return (mem.tickets || []).filter((t) => t && (!slug || t.workspace === slug)).slice(0, 40);
@@ -66,24 +66,16 @@ function touchTime(job) {
   return String((job && (job.doneAt || job.updatedAt || job.createdAt || job.t)) || "");
 }
 function historyCard(job, row) {
-  if (!job) return null;
-  return {
-    id: job.id,
-    title: job.title || "Card",
-    slug: job.workspace || (row && row.slug) || "",
-    desk: deskName(row) || job.workspace || "",
-    status: job.status || "",
-    step: job.step || "",
-    waitingOn: job.waitingOn || "",
-    assignee: job.assignee || "",
-    from: job.from || "",
-    whoTapped: job.whoTapped || "",
-    doneBy: job.doneBy || "",
-    contactName: job.contactName || "",
-    t: touchTime(job),
+  const item = historyItem(job, row);
+  if (!item) return null;
+  return Object.assign({}, item, {
+    title: item.title || job.title || "Card",
+    slug: item.slug || job.workspace || (row && row.slug) || "",
+    desk: item.desk || deskName(row) || job.workspace || "",
+    t: item.t || touchTime(job),
     offDesk: !!(job.status === "out" || job.offDesk),
     done: job.status === "shipped" || job.status === "killed"
-  };
+  });
 }
 function jobTouchesPerson(job, match) {
   if (!job) return false;

@@ -59,6 +59,7 @@ function publicPerson(p) {
     ext: Number(p.ext) || 0,
     deskAi: !!p.deskAi,
     aia: p.aia || "",
+    aiId: p.aiId || "",
     does: p.does || "",
     prompt: String(p.prompt || "").trim().slice(0, 160),
     steps: p.steps || p.allow || [],
