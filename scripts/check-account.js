@@ -267,8 +267,9 @@ async function main() {
 
   const relogin = await call(account, "POST", {}, { action: "login", email, password });
   const allToken = relogin.body && relogin.body.session && relogin.body.session.token;
+  const oddoAcc = (lib.mem.accounts || []).find((a) => a && (a.slug === "oddo-books" || (a.desks || []).indexOf("oddo-books") >= 0));
   const allOut = await call(account, "POST", { "x-workspace": "oddo-books", "x-session": allToken }, { action: "logout-all" });
-  if (allOut.statusCode !== 200 || (lib.listSessions({ accountId: ((lib.mem.accounts || [])[0] || {}).id }) || []).length) fail("logout-all should clear every phone");
+  if (allOut.statusCode !== 200 || (lib.listSessions({ accountId: (oddoAcc || {}).id }) || []).length) fail("logout-all should clear every phone");
   else pass("logout-all clears every phone");
 
   const relogin2 = await call(account, "POST", {}, { action: "login", email, password });
