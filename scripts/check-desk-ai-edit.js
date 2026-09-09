@@ -197,7 +197,7 @@ async function apiPath() {
   const lib = require("../api/_lib");
   const ais = require("../api/_ais");
   const jobsHandler = require("../api/jobs");
-  const desksHandler = require("../api/desks");
+  const desksHandler = require("../api/_desks-http");
   const { mem, hashPin, ensurePeople, ready } = lib;
 
   function mockRes() {

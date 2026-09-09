@@ -340,6 +340,109 @@ function thenGoneOf(item) {
   return String((g && (g.name || g.id)) || "").trim();
 }
 
+function goneHoldLabel(gone) {
+  var name = String(gone || "").trim();
+  return name ? (name + " · not on this desk") : "";
+}
+
+function namedNeedsWho(item) {
+  var who = thenWhoOf(item);
+  if (who) return who;
+  return goneHoldLabel(thenGoneOf(item));
+}
+
+function whyOf(item) {
+  return String((item && (item.why || item.how || item.next)) || "");
+}
+
+function lastAskOf(item) {
+  var rows = ((item && item.thread) || []).filter(function (t) {
+    return t && t.text && String(t.kind || "") === "ask";
+  });
+  return rows.length ? rows[rows.length - 1] : null;
+}
+
+function isAskHuman(item) {
+  if (!item) return false;
+  if (String(item.waitingOn || "").toLowerCase() === "info") return true;
+  if (item.missing && item.missing.length) return true;
+  return /Need .+ before/i.test(whyOf(item));
+}
+
+function isNeedsYou(item) {
+  if (!item) return false;
+  var st = String(item.status || "");
+  if (st === "shipped" || st === "killed") return false;
+  var wait = String(item.waitingOn || "").toLowerCase();
+  return wait === "owner" || wait === "person" || wait === "info" || wait === "helper" || st === "exception" || st === "held";
+}
+
+function isPromptReply(item) {
+  if (!item) return false;
+  var st = String(item.status || "");
+  if (st === "shipped" || st === "killed" || st === "out" || item.offDesk) return false;
+  if (isAskHuman(item)) return true;
+  var wait = String(item.waitingOn || "").toLowerCase();
+  if (wait === "info" || wait === "helper") return true;
+  if ((item.deskAi || thenGoneOf(item)) && (wait === "person" || wait === "owner" || wait === "helper" || !wait)) return true;
+  return !!lastAskOf(item);
+}
+
+function promptQuestion(item) {
+  if (!item) return "The desk asked. Reply on this card.";
+  if (isAskHuman(item)) {
+    var miss = whyOf(item);
+    if (miss) return miss;
+  }
+  var asked = lastAskOf(item);
+  if (asked && asked.text) return asked.text;
+  var why = whyOf(item);
+  if (why && !/HOLD/i.test(why) && !/^Captured\.?$/i.test(why.trim())) return why;
+  if (item.deskAi || thenGoneOf(item)) {
+    var who = thenWhoOf(item);
+    var hold = goneHoldLabel(thenGoneOf(item));
+    if (who) return who + " asked on this card. Type a reply. Nothing sent alone.";
+    if (hold) return hold + ". Type a reply. Nothing sent alone.";
+    return "The desk AI asked on this card. Type a reply. Nothing sent alone.";
+  }
+  return "Reply on this card. Nothing sent alone.";
+}
+
+function promptHtml(item) {
+  if (!isPromptReply(item)) return "";
+  var who = thenWhoOf(item);
+  var named = namedNeedsWho(item);
+  var label = isAskHuman(item) ? "Ask the human" : (who ? (who + " asks") : (named || "Needs you"));
+  return "<div class=\"q-prompt\">" +
+    "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
+    "<p class=\"q-prompt-q\">" + esc(promptQuestion(item)) + "</p>" +
+    "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
+    "</div>";
+}
+
+function chipsHtml(item) {
+  var bits = [];
+  var who = thenWhoOf(item);
+  var gone = thenGoneOf(item);
+  if (who) bits.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+  if (gone && !who) bits.push("<span class=\"q-chip q-ai-gone\">" + esc(goneHoldLabel(gone)) + "</span>");
+  if (isNeedsYou(item)) {
+    var named = namedNeedsWho(item);
+    bits.push("<span class=\"q-chip q-need\">" + esc(who ? (who + " · Needs you") : (named || "Needs you")) + "</span>");
+  }
+  if (isAskHuman(item)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
+  return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
+}
+
+function talkLabelOf(row, who, gone) {
+  if (row.kind === "reply") return (row.from || "You") + " · you";
+  if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
+  var hold = goneHoldLabel(gone);
+  if (hold) return hold;
+  var name = row.from || "Desk AI";
+  return row.kind === "ask" ? (name + " · asks") : (name + " · Then draft");
+}
+
 function talkRowsOf(item) {
   var rows = [];
   var seen = {};
@@ -373,16 +476,17 @@ function trailThreadHtml(item) {
   var draftText = (item && item.draft) || "";
   var who = thenWhoOf(item);
   var gone = thenGoneOf(item);
-  var label = who ? (who + " · Then draft") : (gone ? (gone + " · not on this desk") : "Draft");
+  var hold = goneHoldLabel(gone);
+  var label = who ? (who + " · Then draft") : (hold || "Draft");
   var face = who
     ? "<span class=\"chip p-ai\">" + esc(who) + "</span>"
-    : (gone ? "<span class=\"chip p-ai-gone\">" + esc(gone + " · not on this desk") + "</span>" : "");
+    : (hold ? "<span class=\"chip p-ai-gone\">" + esc(hold) + "</span>" : "");
   var draftHtml = draftText
     ? "<div class=\"p-then\"><div class=\"p-then-who\">" + esc(label) + "</div>" +
       (face ? "<div class=\"p-then-face\">" + face + "</div>" : "") +
       "<div class=\"p-then-text\">" + esc(draftText) + "</div></div>"
-    : (gone && !who
-      ? "<div class=\"p-then\"><div class=\"p-then-who\">" + esc(gone + " · not on this desk") + "</div>" +
+    : (hold && !who
+      ? "<div class=\"p-then\"><div class=\"p-then-who\">" + esc(hold) + "</div>" +
         (face ? "<div class=\"p-then-face\">" + face + "</div>" : "") + "</div>"
       : "");
   var rows = talkRowsOf(item);
@@ -390,18 +494,16 @@ function trailThreadHtml(item) {
     ? "<div class=\"p-talk\">" + rows.map(function (row) {
       var ai = row.kind === "ask" || row.kind === "rec";
       var you = row.kind === "reply";
-      var turnLabel = you
-        ? ((row.from || "You") + " · you")
-        : (row.kind === "ask"
-          ? ((who || row.from || "Desk AI") + " · asks")
-          : ((who || row.from || "Desk AI") + " · Then draft"));
+      var turnLabel = talkLabelOf(row, who, gone);
       return "<div class=\"p-turn " + (ai ? "p-turn-ai" : (you ? "p-turn-you" : "p-turn-ai")) + "\">" +
         "<div class=\"p-turn-who\">" + esc(turnLabel) + "</div>" +
         "<div class=\"p-turn-text\">" + esc(row.text) + "</div></div>";
     }).join("") + "</div>"
     : "";
-  if (!draftHtml && !talks) return "";
-  return "<div class=\"p-thread\">" + draftHtml + talks + "<p class=\"p-hold\">On the card. Nothing sent alone.</p></div>";
+  var prompt = promptHtml(item);
+  var chips = chipsHtml(item);
+  if (!draftHtml && !talks && !prompt) return chips;
+  return chips + "<div class=\"p-thread\">" + draftHtml + talks + prompt + "<p class=\"p-hold\">On the card. Nothing sent alone.</p></div>";
 }
 
 function cardHtml(cardItem) {
@@ -415,6 +517,10 @@ function historyHtml(item) {
   var title = item.what || item.title || item.card || "Activity";
   var meta = [item.who || "", item.desk || "", item.t ? fmtTime(item.t) : ""].filter(Boolean).join(" · ");
   return "<div class=\"sheet-row\"><b>" + esc(title) + "</b><div class=\"meta\">" + esc(meta) + "</div>" + trailThreadHtml(item) + "</div>";
+}
+
+function accountRoadMini() {
+  return "<div class=\"road-mini\"><b>This account</b><div class=\"meta\">Past / now / next on History. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. .aia identity HOLD until mint.</div><div class=\"acts\"><a class=\"go\" href=\"/history#account-road\">Account roadmap on History</a></div></div>";
 }
 
 async function openSheet(person) {
@@ -455,7 +561,9 @@ async function openSheet(person) {
   document.getElementById("sheet-hear").onclick = function () {
     if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak(line);
   };
-  document.getElementById("sheet-history-link").href = "/history?who=" + encodeURIComponent((data.person && data.person.name) || person.name || "");
+  var road = document.getElementById("sheet-road");
+  if (road) road.innerHTML = accountRoadMini();
+  document.getElementById("sheet-history-link").href = "/history?who=" + encodeURIComponent((data.person && data.person.name) || person.name || "") + "#account-road";
   document.getElementById("sheet-close").onclick = function () { sheet.hidden = true; };
 
   sheet.hidden = false;

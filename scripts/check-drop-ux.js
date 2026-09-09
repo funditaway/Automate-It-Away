@@ -52,6 +52,8 @@ function copyFn(src, label) {
   if (src.indexOf("Saving file") < 0) fail(file + " must say Saving file while upload runs");
   if (src.indexOf("File did not save.") < 0) fail(file + " upload error must say File did not save");
   if (src.indexOf("Photo did not save.") >= 0) fail(file + " still says Photo did not save");
+  if (src.indexOf("You still tap Yes or Stop") < 0) fail(file + " sub must keep Yes or Stop");
+  if (src.indexOf("You still tap Yes or No") >= 0) fail(file + " still paints Yes or No as the rail");
   if (send.indexOf("You still tap Yes or Stop") < 0) fail(file + " success must keep Yes or Stop");
   if (send.indexOf("Dropping…") < 0 && send.indexOf("Dropping...") < 0) fail(file + " send() must show Dropping…");
   if (send.indexOf("attachFiles(item") < 0) fail(file + " send() must still attachFiles");

@@ -5,7 +5,7 @@ const net = require("./_aia-net");
 
 const OFFICIAL = [
   { id: "home", name: "Home & family", type: "work", family: "Automate It Away", aisle: "Home", official: true, price: 0, use: "ok", does: "Reminders, chores, school, same-day.", features: ["reminder", "calendar", "same-day cap"], kinds: ["chore", "school", "pickup", "repair"] },
-  { id: "consign", name: "Consignment & resale", type: "work", family: "Consign It Away", aisle: "Consign", official: true, price: 0, use: "ok", does: "Photo in. Listing draft. Payout waits.", features: ["listing draft", "title hold", "payout wait"], kinds: ["list", "title", "payout"] },
+  { id: "consign", name: "Consignment & resale", type: "work", family: "Consign It Away", aisle: "Consign", official: true, price: 0, use: "ok", does: "Photo in. Listing draft. Collect HOLD until Yes + a real money pipe.", features: ["listing draft", "title hold", "collect hold"], kinds: ["list", "title", "payout"] },
   { id: "quote", name: "Insurance", type: "work", family: "Quote It Away", aisle: "Insurance", official: true, price: 0, use: "ok", does: "Fact-find and packet draft. Bind stays off.", features: ["packet draft", "bind off desk", "year-2 review"], kinds: ["lead", "quote", "call", "review"], face: "Insurance", packId: "vita" },
   { id: "fund", name: "Fund raise", type: "work", family: "Fund It Away", aisle: "Fund", official: true, price: 0, use: "ok", does: "Campaign draft. Credit waits on the owner.", features: ["campaign draft", "credit wait"], kinds: ["raise", "credit"] },
   { id: "land", name: "Land lot", type: "work", family: "Land", aisle: "Land", official: true, price: 0, use: "ok", does: "Lot note. Flood and title wait.", features: ["lot note", "flood wait", "title wait"], kinds: ["lot", "flood", "survey", "title"] },
@@ -272,6 +272,38 @@ function slugPack(name) {
   return String(name || "pack").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "pack";
 }
 
+function clipFaceSlot(slot) {
+  if (!slot) return null;
+  if (typeof slot === "string") {
+    const label = clip(slot, 40);
+    return label ? { label: label, key: "" } : null;
+  }
+  if (typeof slot === "object") {
+    const key = clip(slot.key, 32);
+    const label = clip(slot.label || slot.key, 40);
+    if (!key && !label) return null;
+    return { key: key, label: label || key };
+  }
+  return null;
+}
+
+function clipPackFace(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const who = clipFaceSlot(raw.who);
+  const what = clipFaceSlot(raw.what);
+  const when = clipFaceSlot(raw.when);
+  const where = clipFaceSlot(raw.where);
+  const how = clip(typeof raw.how === "string" ? raw.how : (raw.how && raw.how.label), 200);
+  if (!who && !what && !when && !where && !how) return null;
+  const out = {};
+  if (who) out.who = who;
+  if (what) out.what = what;
+  if (when) out.when = when;
+  if (where) out.where = where;
+  if (how) out.how = how;
+  return out;
+}
+
 function clip(s, n) {
   return String(s == null ? "" : s).trim().slice(0, n || 160);
 }
@@ -338,6 +370,7 @@ function normalizeCreatorPack(body, workspace, person) {
       bots: bots,
       dropHint: clip(body.dropHint || (body.dropForm && body.dropForm.hint), 160),
       dropForm: body.dropForm || null,
+      face: clipPackFace(body.face),
       pipes: clip(typeof body.pipes === "string" ? body.pipes : (body.pipes || []).join(", "), 80),
       ext: clip(body.ext, 160),
       handTo: clip(body.handTo, 40),
@@ -366,9 +399,12 @@ function normalizeCreatorPack(body, workspace, person) {
 function installPackOnDesk(shop, pack) {
   const file = pack.official ? loadOfficialFile(pack.packId || pack.id) : pack;
   shop.pack = pack.packId || pack.id;
-  shop.packName = pack.face || pack.name;
-  if (file && file.queue) shop.packQueue = file.queue;
-  else if (pack.queue) shop.packQueue = pack.queue;
+  const q = (file && file.queue) || pack.queue || {};
+  shop.packName = (q && q.badge) || (typeof pack.face === "string" ? pack.face : "") || pack.name || shop.pack;
+  if (q && (q.badge || q.empty || q.never)) shop.packQueue = q;
+  const face = clipPackFace((file && file.face) || pack.face);
+  if (face) shop.packFace = face;
+  else if (shop.packFace && shop.pack !== (pack.packId || pack.id)) delete shop.packFace;
   const packAis = ais.normalizeAis([].concat((file && (file.ais || file.bots)) || [], pack.ais || [], pack.bots || []), shop.slug);
   if (packAis.length) ais.attachAisToDesk(shop, packAis);
   else if (Array.isArray(pack.bots) && pack.bots.length) shop.packBots = pack.bots.slice(0, 3);
