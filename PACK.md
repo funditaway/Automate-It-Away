@@ -179,6 +179,8 @@ Account leftover: after Studio / mail / Desk AIs send the saved pin with leftove
 
 Desks book leftover: after Account / mail / Desk AIs send the saved pin with leftover session, `/desks` still skipped `X-Pin` when a leftover session token was present (`desks-book.js` sent X-Session and skipped X-Pin). Mine 401’d and stayed on Sign in to see every desk. Mail on the same page was already open. The book now sends the saved pin with the session. Wrong code still 401. Collect HOLD. No silent send.
 
+Desks book leftover after blob: pin-with-session mine 200 in curl did not paint `/desks` owned desks. Blob `get` used `access: "private"` and 403’d on a Public store, so hydrate never left Lambda `/tmp`. Get retries public on 403; `ready()` re-reads uncached. Wrong or empty pin still 401. Collect HOLD. No silent send. No new Lambda.
+
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
 Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.”
