@@ -226,7 +226,9 @@ async function openJob(id) {
     grokRecsBox(j) +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
-    threadSheetHtml(j) + custom +
+    threadSheetHtml(j) +
+    (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
+    custom +
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
     "<p class=\"meta\">Desk</p>" +
     "<div class=\"row actions\">" +

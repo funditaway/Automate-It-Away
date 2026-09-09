@@ -84,6 +84,7 @@
   }
   function isOwnerSeat() {
     if (window.AIADeskAis && window.AIADeskAis.owner === true) return true;
+    if (window.AIADeskAis && window.AIADeskAis.owner === false) return false;
     try { return localStorage.getItem("aia_role") === "owner"; } catch (e) { return false; }
   }
   function thenWho(j) {
@@ -271,11 +272,13 @@
         "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
     }).join("") + "</div>";
   }
-  function bindAiHtml(j) {
+  function bindAiHtml(j, where) {
     const ais = deskAis();
     if (!ais.length || !isOwnerSeat()) return "";
     const id = cardId(j);
     if (!id) return "";
+    const slot = String(where || "queue").replace(/[^a-z]/g, "") || "queue";
+    const fid = "q-ai-" + slot + "-" + id;
     const who = thenWho(j);
     const gone = thenGone(j);
     const hold = !!(gone && !who);
@@ -289,8 +292,8 @@
       return "<option value=\"" + esc(value) + "\"" + sel + ">" + esc(a.name || "Desk AI") + "</option>";
     }).join("");
     return "<div class=\"q-bind\">" +
-      "<label class=\"q-bind-lab\" for=\"q-ai-" + id + "\">Desk AI on this card</label>" +
-      "<select id=\"q-ai-" + id + "\" class=\"q-ai-pick\" onchange=\"bindAiOnCard('" + id + "', this.value)\">" +
+      "<label class=\"q-bind-lab\" for=\"" + fid + "\">Desk AI on this card</label>" +
+      "<select id=\"" + fid + "\" class=\"q-ai-pick\" onchange=\"bindAiOnCard('" + id + "', this.value)\">" +
       holdOpt + opts +
       "</select>" +
       "<p class=\"q-bind-hold\">" + (hold
@@ -546,8 +549,9 @@
     const prompt = promptHtml(j, need);
     const stacked = !!(talks && (draft || prompt));
     const thread = stacked ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>" : (draft + talks + prompt);
+    const bind = other ? "" : bindAiHtml(j, "cap");
     return "<article class=\"item q-card cap-card\" data-job=\"" + esc(j.id || "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
-      filesHtml(j) + thread +
+      filesHtml(j) + thread + bind +
       "<p class=\"next-line\">" + esc(line) + "</p>" +
       (other ? "<div class=\"row actions tap-opts\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
       "</article>";
@@ -576,6 +580,7 @@
   window.cardActionHtml = cardActionHtml;
   window.setCardBusy = setCardBusy;
   window.replyOnCard = replyOnCard;
+  window.bindAiHtml = bindAiHtml;
   window.bindAiOnCard = bindAiOnCard;
   window.helpWithAi = helpWithAi;
   window.pinCap = pinCap;
@@ -593,7 +598,7 @@
     const draft = thenDraftHtml(j);
     const talks = talkHtml(j);
     const prompt = promptHtml(j, need);
-    const bind = bindAiHtml(j);
+    const bind = bindAiHtml(j, "queue");
     const stacked = !!(talks && (draft || prompt));
     const thread = stacked
       ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>"
