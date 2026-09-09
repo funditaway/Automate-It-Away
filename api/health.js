@@ -116,6 +116,8 @@ async function health(req, res) {
         write: blobProbe.write,
         read: blobProbe.read,
         status: blobProbe.status,
+        access: blobProbe.access || null,
+        auth: blobProbe.auth || null,
         url: blobProbe.url ? "set" : null,
         detail: blobProbe.detail
       }
