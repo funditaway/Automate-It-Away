@@ -24,6 +24,18 @@ function pickDesk(src, label) {
   if (src.indexOf("cannot Send, Stop") >= 0 || src.indexOf("tap Send and Stop") >= 0) {
     throw new Error(file + " still paints Send as the HITL rail");
   }
+  if (src.indexOf("input.full{flex:1 1 100%;min-width:100%}") < 0) {
+    throw new Error(file + " must give search/webhook a full row so the placeholder is not clipped");
+  }
+  if (src.indexOf('id="q" class="full"') < 0) {
+    throw new Error(file + " search field must use the full-row class");
+  }
+  if (src.indexOf('id="hook" class="full"') < 0) {
+    throw new Error(file + " webhook field must use the full-row class");
+  }
+  if (src.indexOf('id="q"') >= 0 && /id="q"[^>]*min-width:180px/.test(src)) {
+    throw new Error(file + " search field still uses the 180px min-width that clips the placeholder");
+  }
 });
 
 const switchJs = read("desk-switch.js");
@@ -41,6 +53,8 @@ if (health.indexOf("Send and Stop stay on the desk") >= 0) throw new Error("heal
 const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
 if (yesNo.indexOf("Pipes / Connections leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes leftover");
+if (yesNo.indexOf("Pipes placeholder leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes placeholder leftover");
 if (packMd.indexOf("Pipes / Connections leftover") < 0) throw new Error("PACK.md must name Pipes leftover");
+if (packMd.indexOf("Pipes placeholder leftover") < 0) throw new Error("PACK.md must name Pipes placeholder leftover");
 
 console.log("check-pipes-switch: ok");

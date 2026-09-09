@@ -161,6 +161,8 @@ Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue h
 
 Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on `/pipes` and `/connections` say You still tap Yes or Stop. Connect-drafts flash matches. Health Do is Yes and Stop stay on the desk. Buyer binds own keys. Collect HOLD. No silent send.
 
+Pipes placeholder leftover: Search and On this desk webhook take a full row so the honest placeholder is not clipped on a phone. Same copy. Collect HOLD. No silent send.
+
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
 Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.”
