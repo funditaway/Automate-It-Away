@@ -85,14 +85,14 @@ function payload() {
 }
 
 function blobToken() {
-  return process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
-    || process.env.BLOB_READ_WRITE_TOKEN
+  return process.env.BLOB_READ_WRITE_TOKEN
+    || process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
     || process.env.AIA_BLOB_TOKEN
     || "";
 }
 
 function blobStoreId() {
-  return process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID || "";
+  return process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || "";
 }
 
 function blobOidcReady() {
@@ -100,36 +100,110 @@ function blobOidcReady() {
 }
 
 function blobAuthKind() {
+  if (blobProbe.auth === "token" || blobProbe.auth === "rest") return blobProbe.auth;
   if (blobOidcReady()) return "oidc";
   if (blobToken()) return "token";
   return null;
 }
 
-function blobTokenOpts() {
-  const opts = {};
-  if (blobStoreId()) opts.storeId = blobStoreId();
-  if (blobToken()) opts.token = blobToken();
-  return opts;
+function blobAuthAttempts() {
+  const attempts = [{}];
+  if (blobStoreId()) attempts.push({ storeId: blobStoreId() });
+  if (blobToken()) attempts.push({ token: blobToken() });
+  return attempts;
 }
 
 function blobAuthOpts() {
-  if (blobStoreId()) return { storeId: blobStoreId() };
-  return blobTokenOpts();
+  return blobStoreId() ? { storeId: blobStoreId() } : (blobToken() ? { token: blobToken() } : {});
 }
 
 async function blobTryAuth(run) {
-  try {
-    const out = await run(blobAuthOpts());
-    if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
-    return out;
-  } catch (e) {
-    if (blobStoreId() && blobToken() && blobIs403((e && e.message) || e)) {
-      const out = await run(blobTokenOpts());
-      blobProbe.auth = "token";
+  const attempts = blobAuthAttempts();
+  let last;
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      const out = await run(attempts[i]);
+      blobProbe.auth = attempts[i].token ? "token" : "oidc";
       return out;
+    } catch (e) {
+      last = e;
+      const msg = (e && e.message) || e;
+      if (blobMissing(msg)) throw e;
+      if (!blobIs403(msg)) throw e;
+    }
+  }
+  throw last;
+}
+
+function blobRestHeaders(extra) {
+  return Object.assign({
+    Authorization: "Bearer " + blobToken(),
+    "x-api-version": "7"
+  }, extra || {});
+}
+
+async function blobRestGet() {
+  if (!blobToken()) return null;
+  const r = await fetch("https://blob.vercel-storage.com/" + BLOB_KEY, {
+    headers: blobRestHeaders()
+  });
+  if (r.status === 404) return { empty: true, status: 404 };
+  if (!r.ok) {
+    const err = new Error("Vercel Blob: Failed to fetch blob: " + r.status + " " + r.statusText);
+    err.status = r.status;
+    throw err;
+  }
+  const raw = await r.text();
+  if (!raw) return { empty: true, status: 200, url: r.url || null };
+  return { data: shape(JSON.parse(blobOpen(raw))), url: r.url || null };
+}
+
+async function blobRestPut(body) {
+  if (!blobToken()) throw new Error("Vercel Blob: no BLOB_READ_WRITE_TOKEN");
+  const r = await fetch("https://blob.vercel-storage.com/" + BLOB_KEY, {
+    method: "PUT",
+    headers: blobRestHeaders({
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0",
+      "x-allow-overwrite": "1"
+    }),
+    body: blobSeal(body)
+  });
+  const text = await r.text();
+  let json = {};
+  try { json = JSON.parse(text); } catch (e) { json = { raw: text }; }
+  if (!r.ok) throw new Error(json.error || json.message || text.slice(0, 180));
+  blobProbe.auth = "rest";
+  blobProbe.detail = "rest";
+  return {
+    url: json.url || "https://blob.vercel-storage.com/" + BLOB_KEY,
+    downloadUrl: json.downloadUrl || json.url || null
+  };
+}
+
+async function blobRestRead() {
+  try {
+    const rest = await blobRestGet();
+    if (rest && rest.data) {
+      markBlobHit("public", rest.url);
+      blobProbe.auth = "rest";
+      blobProbe.detail = "rest";
+      return rest.data;
+    }
+    if (rest && rest.empty) {
+      markBlobEmpty("public");
+      blobProbe.auth = "rest";
+      return null;
+    }
+  } catch (e) {
+    if (blobMissing((e && e.message) || e)) {
+      markBlobEmpty("public");
+      blobProbe.auth = "rest";
+      return null;
     }
     throw e;
   }
+  return undefined;
 }
 
 const BLOB_WRAP = "aia-blob-1";
@@ -342,8 +416,16 @@ async function blobRead() {
       markBlobEmpty(blobProbe.access || "private");
       return null;
     }
-    if (blobIs403(msg)) saw403 = true;
-    else {
+    if (blobIs403(msg)) {
+      saw403 = true;
+      try {
+        const rest = await blobRestRead();
+        if (rest) return rest;
+        if (blobProbe.read === "empty") return null;
+      } catch (re) {
+        lastErr = String((re && re.message) || re).slice(0, 180);
+      }
+    } else {
       blobProbe.read = "error";
       blobProbe.detail = lastErr;
       blobProbe.status = e && e.status || blobProbe.status;
@@ -411,6 +493,13 @@ async function blobRead() {
         return null;
       }
     }
+    try {
+      const rest = await blobRestRead();
+      if (rest) return rest;
+      if (blobProbe.read === "empty") return null;
+    } catch (re) {
+      lastErr = String((re && re.message) || re).slice(0, 180);
+    }
   }
   blobProbe.read = "error";
   blobProbe.detail = lastErr || "Failed to fetch blob";
@@ -436,6 +525,10 @@ async function blobWriteStick(blob, used) {
     const headed = await blobHeadMeta();
     if (headed && headed.meta) return true;
   } catch (e) {}
+  try {
+    const rest = await blobRestGet();
+    if (rest && rest.data) return true;
+  } catch (e) {}
   const remote = await blobRead();
   return !!remote;
 }
@@ -451,15 +544,22 @@ async function blobWrite() {
       blob = await blobPut(body, "private");
     } catch (first) {
       const msg = String((first && first.message) || first);
-      if (!blobToken() || !(blobWantsPublic(msg) || blobIs403(msg))) throw first;
-      blob = await blobPut(blobSeal(body), "public");
-      used = "public";
-      blobProbe.detail = "sealed-public";
+      try {
+        if (!blobToken() || !(blobWantsPublic(msg) || blobIs403(msg))) throw first;
+        blob = await blobPut(blobSeal(body), "public");
+        used = "public";
+        blobProbe.detail = "sealed-public";
+      } catch (second) {
+        blob = await blobRestPut(body);
+        used = "public";
+        blobProbe.detail = "rest";
+      }
     }
     blobProbe.access = used;
     blobProbe.write = "ok";
     blobProbe.status = 200;
-    blobProbe.detail = used === "public" ? "sealed-public" : null;
+    if (blobProbe.auth === "rest" || blobProbe.detail === "rest") blobProbe.detail = "rest";
+    else blobProbe.detail = used === "public" ? "sealed-public" : null;
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
     const stuck = await blobWriteStick(blob, used);

@@ -10,11 +10,19 @@ const fake = {
   gets: [],
   puts: [],
   heads: [],
-  tokens: []
+  tokens: [],
+  rests: [],
+  sdkFail: false,
+  forcePublic: false
 };
 
 function noteAuth(opts) {
   fake.tokens.push(opts && Object.prototype.hasOwnProperty.call(opts, "token") ? opts.token : undefined);
+}
+
+function sdkDenied() {
+  if (!fake.sdkFail) return false;
+  throw new Error("Vercel Blob: Failed to fetch blob: 403 Forbidden");
 }
 
 const origLoad = Module._load;
@@ -25,6 +33,7 @@ Module._load = function (request, parent, isMain) {
         const access = opts && opts.access;
         fake.gets.push(access);
         noteAuth(opts);
+        sdkDenied();
         const url = String(key || "");
         if (!/^https?:/i.test(url)) {
           throw new Error("Vercel Blob: Failed to fetch blob: 403 Forbidden");
@@ -41,6 +50,7 @@ Module._load = function (request, parent, isMain) {
       async head(key, opts) {
         fake.heads.push(key);
         noteAuth(opts);
+        sdkDenied();
         if (!fake.files[BLOB_KEY]) {
           throw new Error("Vercel Blob: The requested blob does not exist");
         }
@@ -54,6 +64,7 @@ Module._load = function (request, parent, isMain) {
         const access = opts && opts.access;
         fake.puts.push(access);
         noteAuth(opts);
+        sdkDenied();
         if (access === "private" && fake.forcePublic) {
           throw new Error("Vercel Blob: access must be \"public\" for this store");
         }
@@ -69,6 +80,7 @@ Module._load = function (request, parent, isMain) {
       },
       async list(opts) {
         noteAuth(opts);
+        sdkDenied();
         const prefix = (opts && opts.prefix) || "";
         const blobs = Object.keys(fake.files).filter((p) => p.indexOf(prefix) === 0).map((p) => ({
           pathname: p,
@@ -80,6 +92,36 @@ Module._load = function (request, parent, isMain) {
     };
   }
   return origLoad.apply(this, arguments);
+};
+
+const origFetch = global.fetch;
+global.fetch = async function (url, opts) {
+  const u = String(url || "");
+  if (u.indexOf("blob.vercel-storage.com/") < 0) {
+    if (typeof origFetch === "function") return origFetch.apply(this, arguments);
+    throw new Error("unexpected fetch " + u);
+  }
+  fake.rests.push((opts && opts.method) || "GET");
+  const method = String((opts && opts.method) || "GET").toUpperCase();
+  if (method === "PUT") {
+    fake.files[BLOB_KEY] = opts && opts.body;
+    fake.access = "public";
+    return {
+      ok: true,
+      status: 200,
+      url: "https://blob.vercel-storage.com/" + BLOB_KEY,
+      text: async () => JSON.stringify({ url: "https://testhost.public.blob.vercel-storage.com/" + BLOB_KEY })
+    };
+  }
+  if (!fake.files[BLOB_KEY]) {
+    return { ok: false, status: 404, statusText: "Not Found", url: u, text: async () => "" };
+  }
+  return {
+    ok: true,
+    status: 200,
+    url: u,
+    text: async () => fake.files[BLOB_KEY]
+  };
 };
 
 process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_testhost_secret";
@@ -139,6 +181,9 @@ async function main() {
   if (src.indexOf("blobPut(body, otherAccess)") >= 0) {
     fail("_lib must not put plaintext store JSON as public");
   } else pass("_lib does not put plaintext store JSON as public");
+  if (src.indexOf("blobRestPut") < 0 || src.indexOf("blob.vercel-storage.com") < 0) {
+    fail("_lib must REST put/get aia/store.json the same way upload.js does when the SDK 403s");
+  } else pass("_lib REST-falls back like upload.js when SDK 403s");
   const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
   const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
   if (yesNo.indexOf("Desks book leftover after blob 403 still") < 0) fail("ACCOUNT-YES-NO must name Desks book leftover after blob 403 still");
@@ -282,6 +327,57 @@ async function main() {
   }, { action: "mine" }, { via: "desks" });
   if (wrongP.statusCode !== 401) fail("wrong pin must still 401 on sealed public replica, got " + wrongP.statusCode);
   else pass("wrong pin stays 401 on sealed public replica");
+
+  fake.files = Object.create(null);
+  fake.puts = [];
+  fake.tokens = [];
+  fake.rests = [];
+  fake.forcePublic = false;
+  fake.sdkFail = true;
+  fake.access = "private";
+  const storeR = path.join(os.tmpdir(), "aia-blob-r-" + Date.now() + ".json");
+  const rested = boot(storeR);
+  const onboardR = await call(rested.auth, "POST", { "x-workspace": "probe-desk", "x-pin": pin }, {
+    action: "account",
+    name: "Pat",
+    biz: "probe-desk",
+    slug: "probe-desk",
+    pin
+  });
+  if (onboardR.statusCode !== 201 || rested.lib.mem.driver !== "blob" || rested.lib.blobProbe.read !== "ok") {
+    fail("SDK 403 must REST-stick onboard, got " + onboardR.statusCode + " driver " + rested.lib.mem.driver + " " + JSON.stringify(rested.lib.blobProbe));
+  } else pass("SDK 403 REST-sticks onboard as driver blob read ok");
+  const restStored = fake.files[BLOB_KEY] || "";
+  let restJson = null;
+  try { restJson = JSON.parse(restStored); } catch (e) { restJson = null; }
+  if (!restJson || restJson.aia !== "aia-blob-1" || restJson.workspaces) {
+    fail("REST aia/store.json must be sealed, got " + String(restStored).slice(0, 180));
+  } else pass("REST aia/store.json is sealed, not plaintext desks");
+  const storeS = path.join(os.tmpdir(), "aia-blob-s-" + Date.now() + ".json");
+  const restReplica = boot(storeS);
+  await restReplica.lib.ready();
+  const mineR = await call(restReplica.auth, "POST", {
+    "x-workspace": "probe-desk",
+    "x-session": leftover,
+    "x-pin": pin
+  }, { action: "mine" }, { via: "desks" });
+  const ownedR = (mineR.body && mineR.body.owned) || [];
+  if (mineR.statusCode !== 200 || !ownedR.some((d) => d && d.slug === "probe-desk")) {
+    fail("REST replica leftover+pin mine must paint owned desks, got " + mineR.statusCode + " " + JSON.stringify(mineR.body));
+  } else pass("REST replica leftover+pin mine paints owned desks");
+  const emptyR = await call(restReplica.auth, "POST", {
+    "x-workspace": "probe-desk",
+    "x-session": leftover
+  }, { action: "mine" }, { via: "desks" });
+  if (emptyR.statusCode !== 401) fail("empty pin must still 401 on REST replica, got " + emptyR.statusCode);
+  else pass("empty pin stays 401 on REST replica");
+  const wrongR = await call(restReplica.auth, "POST", {
+    "x-workspace": "probe-desk",
+    "x-session": leftover,
+    "x-pin": "0000"
+  }, { action: "mine" }, { via: "desks" });
+  if (wrongR.statusCode !== 401) fail("wrong pin must still 401 on REST replica, got " + wrongR.statusCode);
+  else pass("wrong pin stays 401 on REST replica");
 
   if (process.exitCode) {
     console.error("check-blob-store failed");

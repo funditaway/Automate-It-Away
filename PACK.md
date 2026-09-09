@@ -181,7 +181,7 @@ Desks book leftover: after Account / mail / Desk AIs send the saved pin with lef
 
 Desks book leftover after blob: pin-with-session mine 200 in curl did not paint `/desks` owned desks. Blob `get` used `access: "private"` and 403’d on a Public store, so hydrate never left Lambda `/tmp`. Get retries public on 403; `ready()` re-reads uncached. Wrong or empty pin still 401. Collect HOLD. No silent send. No new Lambda.
 
-Desks book leftover after blob 403 still: preview `a0d101d` stayed `tmp-file` / get 403 with `auth=token` because the static token was passed when `VERCEL_OIDC_TOKEN` was missing from Lambda env. Do not pass `token` when storeId is set (SDK OIDC from the request header). Store JSON is private; Public store fallback is sealed. Wrong pin still 401. Collect HOLD.
+Desks book leftover after blob 403 still: preview `b69995a` stayed `tmp-file` / get 403 with `auth=oidc` because SDK head/get still 403’d and hydrate never put. REST PUT/GET on `blob.vercel-storage.com` (same as upload) with a sealed store JSON. Wrong pin still 401. Collect HOLD.
 
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
