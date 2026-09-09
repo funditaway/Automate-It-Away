@@ -1,71 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open this queue · Automate It Away</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Open this desk · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
   <style>
-    :root { --teal:#0d6b6b; --orange:#f39c12; --ink:#1a2332; --muted:#6b7c8f; --line:#d1dae3; }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Segoe UI",system-ui,sans-serif;background:linear-gradient(160deg,#f2fbfb,#fff 50%);color:var(--ink);min-height:100vh}
-    a{color:var(--teal);text-decoration:none}
-    header{padding:14px 5vw;display:flex;justify-content:space-between}
-    .card{width:min(440px,94vw);margin:24px auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px}
-    h1{color:#0a4f4f;font-size:1.4rem;margin-bottom:6px}
-    p{color:var(--muted);margin-bottom:16px}
-    label{display:block;font-size:12px;font-weight:700;color:#0a4f4f;margin:12px 0 6px}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
-    input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit}
-    button{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
-    .err{display:none;margin-top:10px;color:#c0392b;font-size:14px}
+    .door-row{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+    .door-row button{min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:700 13px inherit;padding:8px 12px;cursor:pointer}
+    .door-row button.on{background:#0d6b6b;color:#fff;border-color:#0d6b6b}
+    .oauth-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+    .oauth-btn{min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:700 13px inherit;padding:8px 12px;cursor:pointer}
+    .oauth-tag{font-size:10px;letter-spacing:.04em;text-transform:uppercase;margin-left:6px}
+    .oauth-tag.now{color:#0d6b6b}.oauth-tag.hold{color:#c27b0e}.oauth-tag.ask{color:#6b7c8f}
+    .oauth-lead,.oauth-more summary{font-size:13px;color:var(--muted)}
+    .oauth-more{margin:8px 0}
+    .oauth-ext input{min-height:44px;border-radius:10px;border:1px solid var(--line);padding:8px 10px;flex:1;min-width:140px;font:inherit;background:var(--card);color:inherit}
   </style>
 </head>
-<body>
-  <header>
-    <a href="index.html"><strong>Automate It Away</strong></a>
-    <a href="onboard.html">New desk</a>
+<body class="page-bg">
+  <header class="site-header">
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <div class="nav">
+      <a href="onboard.html">New desk</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
   </header>
-  <form class="card" id="form">
-    <h1>Open this queue</h1>
-    <p>Shop name + your desk code. Owner and helper land on the same desk.</p>
-    <label>Shop name <span class="tip" title="The name you used when you opened the desk.">?</span></label>
-    <input name="slug" required placeholder="automate-it-away" autocomplete="username">
-    <label>Your desk code <span class="tip" title="Owner and helper each have their own code.">?</span></label>
-    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
-    <button type="submit">That's my queue</button>
+  <form class="gate-card" id="form">
+    <h1>Open this desk</h1>
+    <p class="sub">One AIA account. Three doors: desk name + code, email + password, or continue with. Continue-with is identity only — never Send, Stop, pay, or draft. <a href="account.html">Your account</a></p>
+    <div class="door-row" role="tablist">
+      <button type="button" class="on" id="door-desk">Desk name + code</button>
+      <button type="button" id="door-email">Email + password</button>
+    </div>
+    <div class="talk-bar" id="talkBar" hidden>
+      <p class="talk-status" id="talkStatus">Say the desk name. Code and password stay typed — not read back.</p>
+      <button type="button" id="hearBtn">Hear this</button>
+      <button type="button" id="talkBtn">Talk</button>
+      <button type="button" id="quietBtn">Quiet</button>
+    </div>
+    <div id="desk-door">
+      <label>Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
+      <input name="slug" placeholder="Desk name" autocomplete="username">
+      <label>Your desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
+      <input name="pin" inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
+    </div>
+    <div id="email-door" hidden>
+      <label>Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
+      <input type="email" name="email" placeholder="you@shop.com" autocomplete="username">
+      <label>Password <button type="button" class="aia-tip" data-aia-tip="password" aria-label="More about Password">?</button></label>
+      <input type="password" name="password" minlength="8" placeholder="At least 8 characters" autocomplete="current-password">
+    </div>
+    <div id="mfa-box" hidden>
+      <label>Authenticator code</label>
+      <input name="code" inputmode="numeric" maxlength="8" placeholder="Six digits" autocomplete="one-time-code">
+      <p class="hint">This account has the app factor on. We do not text or email a code.</p>
+    </div>
+    <button class="btn" type="submit">Open</button>
+    <div id="oauth-wall"></div>
+    <p class="hint">No password yet? Open with the desk code, then set email and password on Your account. World doors stay Hold until they are lit.</p>
     <p class="err" id="err"></p>
   </form>
-  <script src="analytics.js"></script>
+  <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-switch.js"></script>
+  <script src="speech.js"></script>
+  <script src="doors.js"></script>
   <script>
-    document.getElementById("form").onsubmit = async (e) => {
+    const form = document.getElementById("form");
+    const talkBar = document.getElementById("talkBar");
+    const talkStatus = document.getElementById("talkStatus");
+    const talkBtn = document.getElementById("talkBtn");
+    const deskDoor = document.getElementById("desk-door");
+    const emailDoor = document.getElementById("email-door");
+    const doorDesk = document.getElementById("door-desk");
+    const doorEmail = document.getElementById("door-email");
+    let door = "desk";
+    function showDoor(next) {
+      door = next;
+      deskDoor.hidden = next !== "desk";
+      emailDoor.hidden = next !== "email";
+      doorDesk.classList.toggle("on", next === "desk");
+      doorEmail.classList.toggle("on", next === "email");
+      form.elements.slug.required = next === "desk";
+      form.elements.pin.required = next === "desk";
+      form.elements.email.required = next === "email";
+      form.elements.password.required = next === "email";
+    }
+    doorDesk.onclick = function () { showDoor("desk"); try { localStorage.setItem("aia_login_door", "desk"); } catch (e) {} };
+    doorEmail.onclick = function () { showDoor("email"); try { localStorage.setItem("aia_login_door", "email"); } catch (e) {} };
+    try {
+      const savedMail = localStorage.getItem("aia_email") || "";
+      if (savedMail) form.elements.email.value = savedMail;
+      showDoor(localStorage.getItem("aia_login_door") === "email" || (savedMail && !localStorage.getItem("aia_ws")) ? "email" : "desk");
+    } catch (e) {
+      showDoor("desk");
+    }
+    if (window.AIASpeech && (AIASpeech.canSpeak() || AIASpeech.canListen())) {
+      talkBar.hidden = false;
+    }
+    document.getElementById("hearBtn").onclick = function () {
+      AIASpeech.speak(door === "email" ? "Type your email and password." : "Say the desk name. Then type your desk code.");
+    };
+    talkBtn.onclick = function () {
+      if (door === "email") {
+        talkStatus.textContent = "Type the email and password. Talk does not hear a password.";
+        return;
+      }
+      talkBtn.classList.add("on");
+      talkStatus.textContent = "Listening for the desk name…";
+      form.elements.slug.classList.add("on-talk");
+      AIASpeech.listen(function (heard) {
+        talkBtn.classList.remove("on");
+        form.elements.slug.value = heard.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        talkStatus.textContent = "Heard " + form.elements.slug.value + ". Type your code.";
+        form.elements.pin.focus();
+      }, function (msg) {
+        talkBtn.classList.remove("on");
+        talkStatus.textContent = msg;
+      });
+    };
+    document.getElementById("quietBtn").onclick = function () {
+      AIASpeech.stopTalk();
+      talkBtn.classList.remove("on");
+      talkStatus.textContent = "Quiet. Type the login.";
+    };
+    form.onsubmit = async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
-      const slug = AIADesks.slugify(f.get("slug"));
+      const slug = String(f.get("slug") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const pin = f.get("pin");
+      const email = String(f.get("email") || "").trim();
+      const password = String(f.get("password") || "");
       const err = document.getElementById("err");
+      const payload = door === "email"
+        ? { action: "login", email: email, password: password, code: f.get("code") || "" }
+        : { action: "login", slug: slug, pin: pin, code: f.get("code") || "" };
       try {
+        const headers = { "Content-Type": "application/json" };
+        if (slug) headers["X-Workspace"] = slug;
         const r = await fetch("/api/auth", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Workspace": slug },
-          body: JSON.stringify({ action: "login", slug, pin })
+          headers: headers,
+          body: JSON.stringify(payload)
         });
         const data = await r.json();
-        if (!r.ok) { err.textContent = data.error || "Shop name or code does not match."; err.style.display = "block"; return; }
-        const shop = (data && data.workspace) || {};
-        AIADesks.open({
-          slug: shop.slug || slug,
-          name: shop.biz || shop.name || shop.slug || slug,
-          pin: pin,
-          role: (data.you && data.you.role) || ""
-        });
-        if (data.you && data.you.name) localStorage.setItem("aia_name", data.you.name);
-        if (shop.model) localStorage.setItem("aia_model", shop.model);
-        location.href = "desk.html";
+        if (data.mfaRequired) {
+          document.getElementById("mfa-box").hidden = false;
+          form.elements.code.focus();
+          err.textContent = data.error || "Enter the six-digit app code.";
+          err.style.display = "block";
+          return;
+        }
+        if (!r.ok) { err.textContent = data.error || "Login does not match."; err.style.display = "block"; return; }
+        if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data, pin);
+        if (email) localStorage.setItem("aia_email", email);
+        if (window.AIADesks && AIADesks.open && data.workspace) {
+          AIADesks.open({
+            slug: data.workspace.slug,
+            name: (data.workspace && (data.workspace.biz || data.workspace.name)) || data.workspace.slug,
+            pin: pin || "",
+            token: data.session && data.session.token,
+            role: (data.you && data.you.role) || "owner",
+            who: (data.you && data.you.name) || ""
+          });
+        }
+        location.href = data.workspace ? "desk.html" : "account.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
         err.style.display = "block";

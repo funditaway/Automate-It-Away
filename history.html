@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>History · Automate It Away</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#0d6b6b">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="desk-nav.css">
+<script>
+(function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+</script>
+<script src="theme.js"></script>
+<style>
+body{margin:0}a{color:inherit;text-decoration:none}
+header{background:var(--header);color:#fff;padding:12px 4vw}header a{color:#fff}
+.wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 24px}
+h1{font-size:1.4rem;margin:0 0 8px}p{color:var(--muted);margin:0 0 12px}
+.banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.chips button,.chips a{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 12px;font:700 13px inherit;min-height:40px}
+.chips button.on{background:var(--orange);color:#0c1116;border-color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
+.card h2{font-size:1rem;margin:0 0 4px}.meta{font-size:13px;color:var(--muted)}
+.lane{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;margin-right:6px}
+.need{color:var(--kill-ink)}.doing{color:var(--teal)}.wait{color:#b45309}.ext{color:#6b21a8}.done{color:var(--teal)}
+select,input[type=search]{min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;background:var(--card);color:var(--ink);width:100%;margin-bottom:10px}
+.adv{margin:0 0 12px}.adv[hidden],.sheet[hidden]{display:none!important}
+.acts a,.acts button{min-height:44px;padding:8px 12px;border-radius:10px;border:0;background:var(--edit);color:var(--edit-ink);font:700 13px inherit;margin:0 8px 8px 0;display:inline-flex;align-items:center;text-decoration:none}
+.tag{display:inline-block;font-size:11px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin:0 6px 6px 0}
+.tag.aia{border-color:var(--teal);color:var(--teal)}
+.tag.off,.tag.gone{border-color:var(--orange);color:#b45309}
+.cites{margin:6px 0 0}.cites a{display:block;color:var(--teal);font-weight:700;font-size:13px;margin:3px 0}
+.h-thread{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}
+.h-then{background:var(--edit);border-radius:10px;padding:10px 12px;margin:8px 0}
+.h-then-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+.h-then-face{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.h-then-text{font-size:14px;line-height:1.4;white-space:pre-wrap}
+.h-talk{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.h-turn{border-radius:10px;padding:8px 10px}
+.h-turn-ai{background:var(--edit)}
+.h-turn-you{background:var(--bg);border:1px solid var(--line)}
+.h-turn-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 4px}
+.h-turn-text{font-size:14px;line-height:1.4;white-space:pre-wrap}
+.h-hold{font-size:12px;color:var(--muted);margin:8px 0 0}
+.q-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+.q-chip{display:inline-block;font-size:11px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+.q-chip.q-ai{border-color:var(--teal);color:var(--teal)}
+.q-chip.q-ai-gone,.q-chip.q-need{border-color:var(--orange);color:#b45309}
+.q-prompt{background:var(--edit);border-radius:10px;padding:10px 12px;margin:8px 0}
+.q-prompt-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+.q-prompt-q{font-size:14px;line-height:1.4;margin:0 0 6px;white-space:pre-wrap}
+.q-prompt-hold{font-size:12px;color:var(--muted);margin:0}
+.aia-line{background:var(--edit);color:var(--edit-ink);border:1px solid var(--teal);border-radius:12px;padding:10px 12px;font-size:13px;margin:0 0 12px}
+.aia-line.off{background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading);border-color:var(--orange)}
+.logic{border-left:3px solid var(--teal);padding:8px 10px;margin:0 0 12px;font-size:13px}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--card);border-top:1px solid var(--line);padding:16px 4vw 88px;max-height:72vh;overflow:auto}
+.sheet h2{margin:0 0 8px;font-size:1.1rem}
+.kv{display:grid;grid-template-columns:90px 1fr;gap:6px 10px;font-size:13px;margin:10px 0}
+.kv b{color:var(--muted);font-weight:700}
+#who-chip[hidden]{display:none!important}
+.road{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:0 0 12px}
+.road h2{font-size:1rem;margin:0 0 4px}
+#account-road{scroll-margin-top:72px}
+.road-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px;margin:8px 0}
+.road-col{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.road-col p{margin:0;font-size:13px;color:var(--muted)}
+.road-sheet{margin:8px 0 0}
+</style>
+</head>
+<body class="has-desk-nav">
+<header>
+<a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+<button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+<nav class="desk-tabs" aria-label="Desk tabs">
+<a href="/desk" data-tab="queue">Queue</a>
+<a href="/drop" data-tab="drop">Drop</a>
+<a href="/create" data-tab="create">Create</a>
+<a href="/history" data-tab="history">History</a>
+<a href="/more" data-tab="more">More</a>
+</nav>
+</header>
+<main class="wrap">
+<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+<div><h1>History</h1><p>What this desk did. This account’s past / now / next on the roadmap. Jobs, Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread. Install / give / update a .aia with Yes. Links only when Grok or the web was used. Nothing sends from here.</p></div>
+<button type="button" id="adv-btn" style="min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);font:700 13px inherit;padding:8px 14px">Advanced</button>
+</div>
+<p class="aia-line" id="aia-line">Checking whether drafts are on this box…</p>
+<section class="road" id="account-road" aria-label="Account roadmap">
+<h2>This account</h2>
+<p class="meta">One account → one desk. Past / now / next. Thin packs with Yes. Nothing silent.</p>
+<div id="road-body"></div>
+</section>
+<input id="road-file" type="file" accept=".aia,application/json" hidden>
+<div class="banner" id="banner">Open a desk on this phone first.</div>
+<label class="meta" for="desk-pick">Desk</label>
+<select id="desk-pick"></select>
+<input id="q" type="search" placeholder="Find a card, person, or draft" autocomplete="off">
+<div class="chips" id="talk-bar">
+<button type="button" id="hear">Hear this</button>
+<button type="button" id="talk">Talk</button>
+<button type="button" id="quiet">Quiet</button>
+</div>
+<p class="meta">Filter views — these do not invent cards</p>
+<div class="chips" id="examples">
+<button type="button" data-ex="need-week">Need you this week</button>
+<button type="button" data-ex="missing">Missing a fact</button>
+<button type="button" data-ex="money-hand">Money handed off</button>
+<button type="button" data-ex="late-cap">Late on the cap</button>
+<button type="button" data-ex="ext">Off the desk</button>
+<button type="button" data-ex="grok">Grok drafts</button>
+<button type="button" data-ex="audit-month">Audit this month</button>
+<button type="button" data-ex="stopped">Stopped</button>
+</div>
+<div class="chips" id="whens">
+<button type="button" class="on" data-when="all">All time</button>
+<button type="button" data-when="past">Past</button>
+<button type="button" data-when="now">Now</button>
+<button type="button" data-when="next">Next</button>
+</div>
+<div class="chips" id="lanes">
+<button type="button" class="on" data-lane="all">All</button>
+<button type="button" data-lane="need">Need you</button>
+<button type="button" data-lane="doing">In progress</button>
+<button type="button" data-lane="wait">Waiting on</button>
+<button type="button" data-lane="ext">Ext</button>
+<button type="button" data-lane="done">Done</button>
+<button type="button" data-lane="stopped">Stopped</button>
+</div>
+<div class="adv" id="adv-box" hidden>
+<p class="meta">Every tap is AND. A card has to match the lane, the time bucket, the search, who, kind, pipe, the day window, and every flag you left on.</p>
+<select id="who"><option value="">Anyone</option></select>
+<select id="work"><option value="">Any kind</option></select>
+<select id="pipe"><option value="">Any pipe</option></select>
+<select id="since"><option value="">Any day</option><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option></select>
+<div class="chips" id="flags">
+<button type="button" data-flag="money">Money</button>
+<button type="button" data-flag="grok">Grok</button>
+<button type="button" data-flag="files">Files</button>
+<button type="button" data-flag="cap">Cap</button>
+<button type="button" data-flag="missing">Missing</button>
+<button type="button" data-flag="handed">Handed</button>
+<button type="button" data-flag="late">Late</button>
+<button type="button" data-flag="audit">Audit</button>
+</div>
+</div>
+<div class="logic" id="logic">Showing every card this phone can open.</div>
+<div class="chips" id="who-chip" hidden>
+<button type="button" id="who-label">Person</button>
+<a id="who-people" href="/people">Open on People</a>
+<button type="button" id="who-clear">Clear person</button>
+</div>
+<div id="counts" class="meta"></div>
+<div class="acts">
+<button type="button" id="copy-view">Copy this view</button>
+<a id="text-view" href="#">Text this view</a>
+<a id="mail-view" href="#">Email this view</a>
+<button type="button" id="clear-view">Clear filters</button>
+</div>
+<div id="list"></div>
+</main>
+<aside class="sheet" id="sheet" hidden>
+<div class="meta" id="sheet-lane"></div>
+<h2 id="sheet-title">Card</h2>
+<p class="meta" id="sheet-how"></p>
+<div id="sheet-road" class="road road-sheet"></div>
+<div id="sheet-thread"></div>
+<div class="kv" id="sheet-kv"></div>
+<p class="meta" id="sheet-why"></p>
+<div class="acts">
+<button type="button" id="sheet-copy">Copy data</button>
+<a id="sheet-open" href="/desk">Open on desk</a>
+<button type="button" id="sheet-close">Close</button>
+</div>
+</aside>
+<nav id="desk-nav" aria-label="Desk">
+<a href="/desk" data-tab="queue"><span>Queue</span></a>
+<a href="/drop" data-tab="drop"><span>Drop</span></a>
+<a href="/create" data-tab="create"><span>Create</span></a>
+<a href="/history" data-tab="history"><span>History</span></a>
+<a href="/more" data-tab="more"><span>More</span></a>
+</nav>
+<script src="speech.js"></script>
+<script src="desk-switch.js"></script>
+<script src="desk-nav.js"></script>
+<script>
+var lane="all",when="all",slug="",q="",who="",work="",pipe="",since="",advanced=false,last=[],openItem=null;
+var flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};
+var EXAMPLES={
+ "need-week":{lane:"need",when:"all",since:"week",q:"",advanced:true},
+ "missing":{lane:"all",flags:{missing:1},advanced:true},
+ "money-hand":{lane:"all",flags:{money:1,handed:1},advanced:true},
+ "late-cap":{lane:"need",flags:{late:1,cap:1},advanced:true},
+ "ext":{lane:"ext"},
+ "grok":{flags:{grok:1},advanced:true},
+ "audit-month":{since:"month",flags:{audit:1},advanced:true},
+ "stopped":{lane:"stopped",when:"past"}
+};
+function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];});}
+function phone(){return (window.AIADesks&&AIADesks.list())||[];}
+function thenWho(it){return (it&&it.deskAi&&it.deskAi.name)||(it&&it.thenWho)||"";}
+function thenGone(it){var g=it&&it.thenAiGone;return String((g&&(g.name||g.id))||"").trim();}
+function goneHoldLabel(gone){var name=String(gone||"").trim();return name?(name+" · not on this desk"):"";}
+function namedNeedsWho(it){var who=thenWho(it);if(who)return who;return goneHoldLabel(thenGone(it));}
+function whyOf(it){return String((it&&(it.why||it.how||it.next))||"");}
+function lastAsk(it){var rows=((it&&it.thread)||[]).filter(function(t){return t&&t.text&&String(t.kind||"")==="ask";});return rows.length?rows[rows.length-1]:null;}
+function isAskHuman(it){if(!it)return false;if(String(it.waitingOn||"").toLowerCase()==="info")return true;if(it.missing&&it.missing.length)return true;return /Need .+ before/i.test(whyOf(it));}
+function isNeedsYou(it){if(!it)return false;var st=String(it.status||"");if(st==="shipped"||st==="killed")return false;var wait=String(it.waitingOn||"").toLowerCase();return wait==="owner"||wait==="person"||wait==="info"||wait==="helper"||st==="exception"||st==="held";}
+function isPromptReply(it){if(!it)return false;var st=String(it.status||"");if(st==="shipped"||st==="killed"||st==="out"||it.offDesk)return false;if(isAskHuman(it))return true;var wait=String(it.waitingOn||"").toLowerCase();if(wait==="info"||wait==="helper")return true;if((it.deskAi||thenGone(it))&&(wait==="person"||wait==="owner"||wait==="helper"||!wait))return true;return !!lastAsk(it);}
+function promptQuestion(it){if(!it)return "The desk asked. Reply on this card.";if(isAskHuman(it)){var miss=whyOf(it);if(miss)return miss;}var asked=lastAsk(it);if(asked&&asked.text)return asked.text;var why=whyOf(it);if(why&&!/HOLD/i.test(why)&&!/^Captured\.?$/i.test(why.trim()))return why;if(it.deskAi||thenGone(it)){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(who)return who+" asked on this card. Type a reply. Nothing sent alone.";if(hold)return hold+". Type a reply. Nothing sent alone.";return "The desk AI asked on this card. Type a reply. Nothing sent alone.";}return "Reply on this card. Nothing sent alone.";}
+function promptHtml(it){if(!isPromptReply(it))return "";var who=thenWho(it),named=namedNeedsWho(it);var label=isAskHuman(it)?"Ask the human":(who?(who+" asks"):(named||"Needs you"));return "<div class=\"q-prompt\"><div class=\"q-prompt-who\">"+esc(label)+"</div><p class=\"q-prompt-q\">"+esc(promptQuestion(it))+"</p><p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p></div>";}
+function chipsHtml(it){var bits=[],who=thenWho(it),gone=thenGone(it);if(who)bits.push("<span class=\"q-chip q-ai\">"+esc(who)+"</span>");if(gone&&!who)bits.push("<span class=\"q-chip q-ai-gone\">"+esc(goneHoldLabel(gone))+"</span>");if(isNeedsYou(it)){var named=namedNeedsWho(it);bits.push("<span class=\"q-chip q-need\">"+esc(who?(who+" · Needs you"):(named||"Needs you"))+"</span>");}if(isAskHuman(it))bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");return bits.length?"<div class=\"q-chips\">"+bits.join(" ")+"</div>":"";}
+function thenLabel(it){var who=thenWho(it);return who?(who+" · Then draft"):(goneHoldLabel(thenGone(it))||"Draft");}
+function thenTagHtml(it){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(who)return "<span class=\"tag aia\">"+esc(who+" · Then draft")+"</span>";if(hold)return "<span class=\"tag gone\">"+esc(hold)+"</span>";return "";}
+function deskAiLine(it){return thenWho(it)||goneHoldLabel(thenGone(it))||"—";}
+function talkRows(it){return ((it&&it.thread)||[]).filter(function(t){return t&&t.text&&(t.kind==="ask"||t.kind==="reply"||t.kind==="rec");});}
+function talkLabel(row,it){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(row.kind==="reply")return (row.from||"You")+" · you";if(who)return row.kind==="ask"?(who+" · asks"):(who+" · Then draft");if(hold)return hold;var name=row.from||"Desk AI";return row.kind==="ask"?(name+" · asks"):(name+" · Then draft");}
+function thenHtml(it){
+ var text=(it&&it.draft)||"";
+ var who=thenWho(it);
+ var hold=goneHoldLabel(thenGone(it));
+ if(!text&&!(hold&&!who))return "";
+ var ai=it&&it.deskAi;
+ var chips="";
+ if(who)chips+="<span class=\"tag aia\">"+esc(who)+"</span>";
+ else if(hold)chips+="<span class=\"tag gone\">"+esc(hold)+"</span>";
+ if(ai&&ai.does)chips+="<span class=\"tag\">"+esc(ai.does)+"</span>";
+ if(ai&&ai.prompt&&ai.prompt!==ai.does)chips+="<span class=\"tag\">"+esc(ai.prompt)+"</span>";
+ return "<div class=\"h-then\"><div class=\"h-then-who\">"+esc(thenLabel(it))+"</div>"+(chips?"<div class=\"h-then-face\">"+chips+"</div>":"")+(text?"<div class=\"h-then-text\">"+esc(text)+"</div>":"")+"</div>";
+}
+function talkHtml(it){
+ var rows=talkRows(it);
+ if(!rows.length)return "";
+ return "<div class=\"h-talk\">"+rows.map(function(row){
+  var ai=row.kind==="ask"||row.kind==="rec";
+  return "<div class=\"h-turn "+(ai?"h-turn-ai":"h-turn-you")+"\"><div class=\"h-turn-who\">"+esc(talkLabel(row,it))+"</div><div class=\"h-turn-text\">"+esc(row.text)+"</div></div>";
+ }).join("")+"</div>";
+}
+function threadHtml(it){
+ var draft=thenHtml(it);
+ var talks=talkHtml(it);
+ var prompt=promptHtml(it);
+ var chips=chipsHtml(it);
+ if(!draft&&!talks&&!prompt)return chips;
+ return chips+"<div class=\"h-thread\">"+draft+talks+prompt+"<p class=\"h-hold\">On the card. Nothing sent alone.</p></div>";
+}
+var lastRoad={};
+function packHdr(){
+ var h={"Content-Type":"application/json"};
+ var d=null;
+ if(window.AIADesks){
+  var rows=AIADesks.list()||[];
+  d=slug?rows.filter(function(x){return x.slug===slug;})[0]:(AIADesks.current&&AIADesks.current());
+ }
+ if(!d)d={slug:localStorage.getItem("aia_ws")||"",pin:localStorage.getItem("aia_pin")||"",token:localStorage.getItem("aia_session")||""};
+ if(d&&d.slug)h["X-Workspace"]=d.slug;
+ var tok=(d&&d.token)||localStorage.getItem("aia_session")||"";
+ if(tok)h["X-Session"]=tok;
+ else if(d&&d.pin)h["X-Pin"]=d.pin;
+ return h;
+}
+function roadFrom(data){
+ var acc=(data&&data.account)||{};
+ var desks=(data&&data.desks)||[];
+ var one=desks.filter(function(d){return d&&d.ok;})[0]||{};
+ var you=one.you||{};
+ return {
+  desk:acc.desk||one.name||one.slug||"",
+  pack:acc.pack||one.packName||one.pack||"",
+  packId:acc.packId||one.pack||"",
+  owner:acc.owner!=null?!!acc.owner:String(you.role||you.kind||"")==="owner"
+ };
+}
+function roadHtml(road){
+ road=road||{};
+ var desk=String(road.desk||"");
+ var pack=String(road.pack||"");
+ var past="Trail of real cards. Then draft. AI ↔ human thread. Needs you / gone HOLD already shipped.";
+ var now="One account → one desk. Drop → Qualify → Do → Collect HOLD → Follow. Named desk AIs. Yes / Stop / Kill. People share. Install a .aia with Yes.";
+ if(desk)now+=" This desk · "+desk+".";
+ now+=pack?(" Pack on this desk · "+pack+"."):" No pack on this desk yet.";
+ var next="Give pack = download / share this .aia. They install with Yes. Push to another desk HOLD. Update pack = install this .aia again with Yes. Recurring update pass HOLD. .aia identity HOLD until mint.";
+ return "<div class=\"road-cols\">"+
+  "<div class=\"road-col\"><div class=\"lane done\">Past</div><p>"+esc(past)+"</p></div>"+
+  "<div class=\"road-col\"><div class=\"lane doing\">Now</div><p>"+esc(now)+"</p></div>"+
+  "<div class=\"road-col\"><div class=\"lane wait\">Next</div><p>"+esc(next)+"</p></div>"+
+  "</div>"+
+  "<div class=\"acts\">"+
+  "<button type=\"button\" data-road=\"install\">Install pack</button>"+
+  "<button type=\"button\" data-road=\"give\">Give pack · .aia</button>"+
+  "<button type=\"button\" data-road=\"update\">Update pack · Yes</button>"+
+  "<a href=\"/market\">Market</a><a href=\"/dev\">Studio</a><a href=\"/account\">Account</a>"+
+  "</div>"+
+  "<p class=\"h-hold\">Give is the file. Update is install again. Nothing silent. Collect HOLD. Browser wallet on Account is identity / .aia prep — not custody.</p>"+
+  "<p class=\"meta road-hint\"></p>";
+}
+function paintRoad(road){
+ lastRoad=road||{};
+ var html=roadHtml(lastRoad);
+ var main=document.getElementById("road-body");
+ if(main)main.innerHTML=html;
+ var sheet=document.getElementById("sheet-road");
+ if(sheet)sheet.innerHTML=html;
+}
+function roadHint(text){
+ document.querySelectorAll(".road-hint").forEach(function(el){el.textContent=text||"";});
+}
+function pickAia(){
+ var input=document.getElementById("road-file");
+ if(!input)return;
+ input.value="";
+ input.click();
+}
+async function postAia(file){
+ if(!file){roadHint("Pick a .aia pack file first.");return;}
+ if(file.name&&!/\.aia$/i.test(file.name)){roadHint("Use a .aia pack file.");return;}
+ var text="";
+ try{text=await file.text();}catch(e){roadHint("Could not read that .aia file.");return;}
+ var parsed;
+ try{parsed=JSON.parse(text);}catch(e){roadHint("That .aia file is not JSON.");return;}
+ try{
+  var r=await fetch("/api/desks",{method:"POST",headers:packHdr(),body:JSON.stringify({action:"install-aia",filename:file.name,pack:parsed})});
+  var d=await r.json().catch(function(){return {};});
+  roadHint(r.ok?((d.note||"Installed .aia onto this desk.")+" Owner Yes. Collect HOLD."):(d.error||"Could not install that .aia pack."));
+  if(r.ok)load();
+ }catch(e){roadHint("Could not reach this box.");}
+}
+function saveAiaBlob(name,text){
+ var file=String(name||"pack.aia").replace(/[^\w.-]+/g,"-");
+ if(!/\.aia$/i.test(file))file+=".aia";
+ var blob=new Blob([text],{type:"application/json"});
+ var a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download=file;
+ a.click();
+ setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
+}
+async function givePack(){
+ var id=lastRoad.packId||"";
+ if(!id){roadHint("No pack on this desk yet. Install a .aia first, or write one in Studio.");return;}
+ try{
+  var r=await fetch("/api/desks",{method:"POST",headers:packHdr(),body:JSON.stringify({action:"download-pack",id:id,aia:id})});
+  var raw=await r.text();
+  var d={};
+  try{d=JSON.parse(raw);}catch(e){d={};}
+  if(!r.ok){roadHint((d&&d.error)||"Could not download that .aia pack.");return;}
+  var file=(d&&d.file)||id||"pack";
+  saveAiaBlob(file,d&&d.format?JSON.stringify(d,null,2):raw);
+  roadHint("Downloaded "+(/\.aia$/i.test(String(file))?file:(file+".aia"))+". They install with Yes. No silent push.");
+ }catch(e){roadHint("Could not reach this box.");}
+}
+function story(){
+ return last.map(function(it){
+  var who=thenWho(it);
+  var gone=thenGone(it);
+  var draft=it.draft?(thenLabel(it)+" · "+it.draft):(gone&&!who?thenLabel(it):"");
+  var talks=talkRows(it).map(function(t){return (t.from||t.kind||"")+" · "+(t.text||"");}).join(" / ");
+  var need=isPromptReply(it)||isNeedsYou(it)?(namedNeedsWho(it)||(isAskHuman(it)?"Ask the human":"Needs you")):"";
+  return (it.title||"Card")+" · "+(it.label||"")+" · "+(it.desk||"")+(it.who?" · "+it.who:"")+(draft?"\n"+draft:"")+(talks?"\n"+talks:"")+(need?"\n"+need:"");
+ }).join("\n")||"Nothing in this view.";
+}
+function saveView(){try{localStorage.setItem("aia_history_view",JSON.stringify({lane:lane,when:when,q:q,who:who,work:work,pipe:pipe,since:since,advanced:advanced,flags:flags}));}catch(e){}}
+function loadView(){try{var v=JSON.parse(localStorage.getItem("aia_history_view")||"{}");if(!v||typeof v!=="object")return;lane=v.lane||"all";when=v.when||"all";q=v.q||"";who=v.who||"";work=v.work||"";pipe=v.pipe||"";since=v.since||"";advanced=!!v.advanced;if(v.flags)flags=Object.assign(flags,v.flags);document.getElementById("q").value=q;}catch(e){}}
+function logicLine(){
+ var bits=[];
+ if(lane!=="all")bits.push(lane==="need"?"Need you":lane==="doing"?"in progress":lane==="wait"?"waiting on someone":lane==="ext"?"off the desk":lane);
+ if(when!=="all")bits.push(when==="past"?"already finished":when==="now"?"on the desk now":when==="next"?"due or follow later":"");
+ if(since==="today")bits.push("touched today");
+ if(since==="week")bits.push("touched this week");
+ if(since==="month")bits.push("touched this month");
+ if(q)bits.push('search "'+q+'"');
+ if(who)bits.push("who includes "+who);
+ if(work)bits.push("kind "+work);
+ if(pipe)bits.push("pipe "+pipe);
+ if(flags.money)bits.push("has an amount");
+ if(flags.grok)bits.push("has a Grok draft");
+ if(flags.files)bits.push("has a file or photo");
+ if(flags.cap)bits.push("on the cap");
+ if(flags.missing)bits.push("missing a fact");
+ if(flags.handed)bits.push("handed to someone");
+ if(flags.late)bits.push("late or expired");
+ if(flags.audit)bits.push("desk or audit rows only");
+ if(!bits.length)return "No extra filters. Every card this phone can open, newest first. Filters AND together — a card must pass every line you turn on.";
+ return "This view is "+bits.join(" AND ")+". A card must match all of those. Open Explore on a card to see the fields.";
+}
+function paint(){
+ document.getElementById("adv-box").hidden=!advanced;
+ document.getElementById("adv-btn").textContent=advanced?"Simple":"Advanced";
+ document.querySelectorAll("#flags [data-flag]").forEach(function(b){b.classList.toggle("on",!!flags[b.getAttribute("data-flag")]);});
+ document.querySelectorAll("#lanes button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-lane")===lane);});
+ document.querySelectorAll("#whens button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-when")===when);});
+ document.getElementById("who-chip").hidden=!who;
+ document.getElementById("who-label").textContent=who?("Person · "+who):"Person";
+ document.getElementById("who-people").href="/people?who="+encodeURIComponent(who||"");
+ document.getElementById("logic").textContent=logicLine();
+}
+function fillPick(){
+ var rows=phone(),cur=(window.AIADesks&&AIADesks.current&&AIADesks.current())||{},el=document.getElementById("desk-pick");
+ el.innerHTML="<option value=\"\">All desks on this phone</option>"+rows.map(function(d){return "<option value=\""+esc(d.slug)+"\">"+esc(d.name||d.slug)+"</option>";}).join("");
+ if(cur.slug)el.value=cur.slug;slug=el.value||"";
+}
+function applyTalk(text){
+ var t=String(text||"").toLowerCase();
+ if(/need you|needs you/.test(t))lane="need";
+ if(/in progress|doing/.test(t))lane="doing";
+ if(/waiting/.test(t))lane="wait";
+ if(/\bext\b|off desk/.test(t))lane="ext";
+ if(/\bdone\b/.test(t))lane="done";
+ if(/stopped|killed/.test(t))lane="stopped";
+ if(/\bpast\b/.test(t))when="past";
+ if(/\bnow\b/.test(t))when="now";
+ if(/\bnext\b/.test(t))when="next";
+ if(/today/.test(t))since="today";
+ if(/this week/.test(t))since="week";
+ if(/this month/.test(t))since="month";
+ if(/money/.test(t))flags.money=1;
+ if(/grok/.test(t))flags.grok=1;
+ if(/file/.test(t))flags.files=1;
+ if(/\bcap\b/.test(t))flags.cap=1;
+ if(/missing/.test(t))flags.missing=1;
+ if(/handed/.test(t))flags.handed=1;
+ if(/late|expired/.test(t))flags.late=1;
+ if(/audit/.test(t))flags.audit=1;
+ if(/advanced/.test(t))advanced=true;
+ if(/simple|clear/.test(t))reset();
+ var m=t.match(/find (.+)/);if(m)q=m[1].replace(/\.$/,"");
+ document.getElementById("q").value=q;document.getElementById("since").value=since;
+}
+function reset(){
+ lane="all";when="all";q=who=work=pipe=since="";flags={money:0,grok:0,files:0,cap:0,audit:0,missing:0,handed:0,late:0};advanced=false;
+ document.getElementById("q").value="";document.getElementById("since").value="";
+}
+function applyEx(id){
+ var ex=EXAMPLES[id];if(!ex)return;
+ reset();
+ if(ex.lane)lane=ex.lane;
+ if(ex.when)when=ex.when;
+ if(ex.since)since=ex.since;
+ if(ex.q)q=ex.q;
+ if(ex.advanced)advanced=true;
+ if(ex.flags)Object.keys(ex.flags).forEach(function(k){flags[k]=ex.flags[k];});
+ document.getElementById("q").value=q;document.getElementById("since").value=since;
+}
+function whyCard(it){
+ var pass=[];
+ if(lane!=="all")pass.push("lane is "+(it.label||it.lane));
+ if(when!=="all")pass.push("bucket is "+(it.when||when));
+ if(it.money&&flags.money)pass.push("amount "+(it.amount!=null?it.amount:"set"));
+ if(it.grok&&flags.grok)pass.push("Grok draft on the card");
+ if(it.files&&it.files.length&&flags.files)pass.push((it.files.length)+" file(s)");
+ if(it.priority&&flags.cap)pass.push("on the cap");
+ if(it.missing&&it.missing.length&&flags.missing)pass.push("missing "+it.missing.join(", "));
+ if(it.handed&&flags.handed)pass.push("handed to "+(it.hands&&it.hands[0]||"someone"));
+ if((it.late||it.expired)&&flags.late)pass.push(it.expired?"expired":"late");
+ if((it.kind==="audit"||it.kind==="desk")&&flags.audit)pass.push("audit/desk row");
+ if(q)pass.push("matched “"+q+"”");
+ return pass.length?"Kept because: "+pass.join("; ")+".":"Kept because no extra flags were on.";
+}
+function explore(it){
+ openItem=it;
+ document.getElementById("sheet-title").textContent=it.title||"Card";
+ document.getElementById("sheet-lane").textContent=(it.label||it.lane||"")+" · "+(it.when||"")+" · "+(it.desk||"");
+ document.getElementById("sheet-how").textContent=it.how||it.result||it.past||"";
+ var rows=[
+  ["Kind",it.kind||"job"],["Work",it.work||it.pack||"—"],["Who",it.who||"—"],
+  ["Hands",(it.hands||[]).join(", ")||"—"],["Pipe",it.pipe||"—"],
+  ["AIA",it.aiaStatus||(it.grok?"Grok drafted":"No draft")],
+  ["Amount",it.money?(it.amount!=null?String(it.amount):"yes"):"none"],
+  ["Files",it.files&&it.files.length?String(it.files.length):"none"],
+  ["Missing",it.missing&&it.missing.length?it.missing.join(", "):"none"],
+  ["Waiting",it.waitingOn||"—"],["Step",it.step||it.status||"—"],
+  ["When",(it.t||"").replace("T"," ").slice(0,16)||"—"],
+  ["Desk AI",deskAiLine(it)],
+  ["Then draft",it.draft||"—"],
+  ["Needs you",isNeedsYou(it)?(namedNeedsWho(it)||"Needs you"):"—"],
+  ["Prompt",isPromptReply(it)?(isAskHuman(it)?"Ask the human":(thenWho(it)?(thenWho(it)+" asks"):(namedNeedsWho(it)||"Needs you"))):"—"],
+  ["Thread",talkRows(it).length?String(talkRows(it).length)+" turn"+(talkRows(it).length===1?"":"s"):"none"],
+  ["Links",(it.citations||[]).map(function(c){return (c&&(c.url||c.title))||"";}).filter(Boolean).join(" ")||"none"]
+ ];
+ document.getElementById("sheet-kv").innerHTML=rows.map(function(r){return "<b>"+esc(r[0])+"</b><span>"+esc(r[1])+"</span>";}).join("");
+ document.getElementById("sheet-thread").innerHTML=threadHtml(it);
+ document.getElementById("sheet-why").textContent=whyCard(it);
+ document.getElementById("sheet-open").onclick=function(){if(window.AIADesks&&it.slug)AIADesks.switchTo(it.slug);};
+ document.getElementById("sheet").hidden=false;
+}
+async function load(){
+ saveView();paint();
+ var rows=phone(),asked=slug?rows.filter(function(d){return d.slug===slug;}):rows;
+ var banner=document.getElementById("banner"),list=document.getElementById("list");
+  if(!asked.length){paintRoad({});banner.textContent="Open a desk on this phone first. History does not invent activity.";list.innerHTML="<div class=\"card\"><p>No desk on this phone. History stays empty until you open one and Create or Drop work.</p></div>";return;}
+ var body={action:"history",lane:lane,when:when,q:q,who:who,kind:work,pipe:pipe,since:since,advanced:advanced,desks:asked.map(function(d){return {slug:d.slug,pin:d.pin};})};
+ Object.keys(flags).forEach(function(k){if(flags[k])body[k]=true;});
+ try{
+  var r=await fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  var data=await r.json().catch(function(){return {};});
+  var c=data.counts||{};
+  document.getElementById("counts").textContent="Need you "+(c.need||0)+" · in progress "+(c.doing||0)+" · waiting "+(c.wait||0)+" · ext "+(c.ext||0)+" · done "+(c.done||0)+(c.stopped?" · stopped "+c.stopped:"");
+  paintRoad(roadFrom(data));
+  banner.textContent=slug?"This desk — what AIA did, how it finished, links only when Grok or the web was used.":"Every desk this phone can open. Filter by desk. Empty stays empty.";
+  var f=data.facets||{};
+  function sel(id,rows,blank){var el=document.getElementById(id),cur=el.value;el.innerHTML="<option value=\"\">"+blank+"</option>"+(rows||[]).map(function(n){return "<option>"+esc(n)+"</option>";}).join("");if(cur)el.value=cur;}
+  sel("who",f.who,"Anyone");sel("work",f.work,"Any kind");sel("pipe",f.pipes,"Any pipe");if(who)document.getElementById("who").value=who;
+  var items=data.items||[];last=items;
+  var text=encodeURIComponent((logicLine()+"\n"+story()).slice(0,900));
+  document.getElementById("text-view").href="sms:?&body="+text;
+  document.getElementById("mail-view").href="mailto:?subject="+encodeURIComponent("Desk history")+"&body="+text;
+  if(!items.length){list.innerHTML="<div class=\"card\"><p>Nothing on this trail. History does not invent activity. Create or Drop something, or clear a filter.</p></div>";return;}
+  list.innerHTML=items.map(function(it){
+    var stamp=(it.t||"").replace("T"," ").slice(0,16);
+    var extra=it.waitingOn?" · waiting on "+esc(it.waitingOn):"";
+    var tags="";
+    if(it.aiaStatus)tags+="<span class=\"tag "+(it.grok?"aia":"off")+"\">"+esc(it.aiaStatus)+"</span>";
+    if(it.money)tags+="<span class=\"tag\">Money</span>";
+    if(it.files&&it.files.length)tags+="<span class=\"tag\">Files</span>";
+    if(it.priority)tags+="<span class=\"tag\">Cap</span>";
+    if(it.missing&&it.missing.length)tags+="<span class=\"tag\">Missing "+esc(it.missing[0])+"</span>";
+    if(it.handed)tags+="<span class=\"tag\">Handed</span>";
+    if(it.late||it.expired)tags+="<span class=\"tag\">Late</span>";
+    if(it.kind==="audit"||it.kind==="desk")tags+="<span class=\"tag\">Audit</span>";
+    tags+=thenTagHtml(it);
+    if(talkRows(it).some(function(t){return t.kind==="reply";}))tags+="<span class=\"tag\">Reply</span>";
+    var cites=(it.citations||[]).map(function(c){
+      var url=String((c&&(c.url||c.href))||"");
+      if(!/^https?:\/\//i.test(url))return "";
+      return "<a href=\""+esc(url)+"\" target=\"_blank\" rel=\"noopener\">"+esc((c&&c.title)||url)+"</a>";
+    }).filter(Boolean).join("");
+    var citeBox=cites?"<div class=\"cites\">"+cites+"</div>":"";
+    return "<article class=\"card\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(stamp)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.how||it.past||it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p>"+tags+citeBox+threadHtml(it)+"<div class=\"acts\"><button type=\"button\" data-explore=\""+esc(it.id)+"\">Explore</button><a href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\">Open on desk</a><button type=\"button\" data-id=\""+esc(it.id)+"\">Copy story</button></div></article>";
+  }).join("");
+ }catch(e){paintRoad({});banner.textContent="Could not reach history.";}
+}
+document.getElementById("lanes").onclick=function(e){var b=e.target.closest("[data-lane]");if(!b)return;lane=b.getAttribute("data-lane");load();};
+document.getElementById("whens").onclick=function(e){var b=e.target.closest("[data-when]");if(!b)return;when=b.getAttribute("data-when");load();};
+document.getElementById("flags").onclick=function(e){var b=e.target.closest("[data-flag]");if(!b)return;flags[b.getAttribute("data-flag")]=!flags[b.getAttribute("data-flag")];load();};
+document.getElementById("examples").onclick=function(e){var b=e.target.closest("[data-ex]");if(!b)return;applyEx(b.getAttribute("data-ex"));load();};
+document.getElementById("adv-btn").onclick=function(){advanced=!advanced;load();};
+document.getElementById("desk-pick").onchange=function(){slug=this.value||"";load();};
+document.getElementById("who").onchange=function(){who=this.value||"";load();};
+document.getElementById("who-clear").onclick=function(){who="";document.getElementById("who").value="";load();};
+document.getElementById("work").onchange=function(){work=this.value||"";load();};
+document.getElementById("pipe").onchange=function(){pipe=this.value||"";load();};
+document.getElementById("since").onchange=function(){since=this.value||"";load();};
+var timer;document.getElementById("q").oninput=function(){var v=this.value||"";clearTimeout(timer);timer=setTimeout(function(){q=v;load();},220);};
+document.getElementById("copy-view").onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(logicLine()+"\n"+story());};
+document.getElementById("clear-view").onclick=function(){reset();load();};
+document.getElementById("list").onclick=function(e){
+ var ex=e.target.closest("[data-explore]");
+ if(ex){var it=last.filter(function(x){return x.id===ex.getAttribute("data-explore");})[0];if(it)explore(it);return;}
+ var b=e.target.closest("[data-id]");if(!b)return;var row=last.filter(function(x){return x.id===b.getAttribute("data-id");})[0];if(row&&navigator.clipboard)navigator.clipboard.writeText((row.title||"")+"\n"+(row.how||row.past||"")+"\n"+whyCard(row));
+};
+document.getElementById("sheet-close").onclick=function(){document.getElementById("sheet").hidden=true;};
+document.getElementById("sheet-copy").onclick=function(){if(openItem&&navigator.clipboard)navigator.clipboard.writeText(JSON.stringify(openItem,null,2));};
+document.getElementById("hear").onclick=function(){if(window.AIASpeech&&AIASpeech.speak)AIASpeech.speak(logicLine()+" "+story().split("\n").slice(0,5).join(". "));};
+document.getElementById("quiet").onclick=function(){if(window.AIASpeech&&AIASpeech.stopTalk)AIASpeech.stopTalk();};
+document.getElementById("talk").onclick=function(){if(!window.AIASpeech||!AIASpeech.listen)return;AIASpeech.listen(function(text){applyTalk(text);load();});};
+function paintAia(){
+ fetch("/api/health").then(function(r){return r.json();}).then(function(h){
+  var g=h&&h.automation&&h.automation.grok;
+  var el=document.getElementById("aia-line");
+  if(!el)return;
+  var on=!!(g&&g.on);
+  el.classList.toggle("off",!on);
+  el.textContent=on
+   ?"Grok drafts are on. History shows this account’s past / now / next, the trail — Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, the AI ↔ human thread — and links only when the web was used. Nothing invented."
+   :"Drafts are off — no XAI_API_KEY on this box. History still shows real cards only. Empty stays empty.";
+ }).catch(function(){
+  var el=document.getElementById("aia-line");
+  if(!el)return;
+  el.classList.add("off");
+  el.textContent="Could not reach this box. History will not invent activity.";
+ });
+}
+document.getElementById("account-road").onclick=onRoadClick;
+document.getElementById("sheet-road").onclick=onRoadClick;
+function onRoadClick(e){
+ var b=e.target.closest("[data-road]");
+ if(!b)return;
+ var act=b.getAttribute("data-road");
+ if(act==="install"||act==="update")pickAia();
+ if(act==="give")givePack();
+}
+document.getElementById("road-file").onchange=function(){
+ var file=this.files&&this.files[0];
+ if(file)postAia(file);
+};
+paintRoad({});
+loadView();var params=new URLSearchParams(location.search||"");if(params.get("who"))who=params.get("who");fillPick();paintAia();load();
+</script>
+</body>
+</html>

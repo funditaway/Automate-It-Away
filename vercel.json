@@ -3,7 +3,7 @@
   "trailingSlash": false,
   "functions": {
     "api/*.js": {
-      "includeFiles": "api/data/**"
+      "includeFiles": "{api/data/**,packs/**}"
     }
   },
   "crons": [
@@ -13,18 +13,51 @@
   "redirects": [
     { "source": "/dashboard", "destination": "/desk", "permanent": true },
     { "source": "/dashboard.html", "destination": "/desk.html", "permanent": true },
-    { "source": "/people", "destination": "/admin", "permanent": true },
-    { "source": "/people.html", "destination": "/admin", "permanent": true }
+    { "source": "/dev", "destination": "/developer", "permanent": false },
+    { "source": "/studio", "destination": "/developer", "permanent": false },
+    { "source": "/lab", "destination": "/developer", "permanent": false },
+    { "source": "/creators", "destination": "/developer", "permanent": false }
   ],
   "rewrites": [
-    { "source": "/people", "destination": "/admin.html" },
+    { "source": "/setup", "destination": "/setup.html" },
+    { "source": "/how", "destination": "/how.html" },
+    { "source": "/help", "destination": "/help.html" },
+    { "source": "/examples", "destination": "/examples.html" },
+    { "source": "/people", "destination": "/people.html" },
+    { "source": "/desk", "destination": "/desk.html" },
+    { "source": "/rules", "destination": "/rules.html" },
+    { "source": "/more", "destination": "/more.html" },
+    { "source": "/drop", "destination": "/drop.html" },
+    { "source": "/pipes", "destination": "/pipes.html" },
+    { "source": "/create", "destination": "/create.html" },
+    { "source": "/creator", "destination": "/create.html" },
+    { "source": "/studio", "destination": "/developer.html" },
+    { "source": "/creators", "destination": "/developer.html" },
+    { "source": "/market", "destination": "/market.html" },
+    { "source": "/shop", "destination": "/market.html" },
+    { "source": "/packs", "destination": "/market.html" },
+    { "source": "/pack", "destination": "/market.html" },
+    { "source": "/dev", "destination": "/developer.html" },
+    { "source": "/developer", "destination": "/developer.html" },
+    { "source": "/lab", "destination": "/developer.html" },
+    { "source": "/onboard", "destination": "/onboard.html" },
+    { "source": "/widget", "destination": "/drop.html" },
+    { "source": "/connections", "destination": "/pipes.html" },
+    { "source": "/chat", "destination": "/chat.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/account", "destination": "/account.html" },
+    { "source": "/desks", "destination": "/desks.html" },
+    { "source": "/history", "destination": "/history.html" },
+    { "source": "/api/desks", "destination": "/api/auth?via=desks" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
     { "source": "/api/health", "destination": "/api/health" },
+    { "source": "/api/status", "destination": "/api/health?view=status" },
     { "source": "/api/auth", "destination": "/api/auth" },
     { "source": "/api/worker", "destination": "/api/worker" },
     { "source": "/api/upload", "destination": "/api/upload" },
     { "source": "/api/admin", "destination": "/api/admin" },
+    { "source": "/api/account", "destination": "/api/auth?via=account" },
     { "source": "/api/intake", "destination": "/api/intake" },
     { "source": "/api/hook", "destination": "/api/hook" },
     { "source": "/api/rules", "destination": "/api/rules" }

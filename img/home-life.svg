@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-label="Kitchen table with a school form and a drafted reminder">
+  <rect width="960" height="640" fill="#f3ece3"/>
+  <rect x="0" y="420" width="960" height="220" fill="#c9a882"/>
+  <rect x="80" y="180" width="300" height="220" rx="8" fill="#f7f1e6" stroke="#d7c4a8"/>
+  <text x="106" y="220" font-family="Georgia, serif" font-size="20" fill="#3b2a18" font-weight="700">PERMISSION SLIP</text>
+  <text x="106" y="252" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#6b5340">Field trip Thursday</text>
+  <text x="106" y="286" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#8a6d54">Parent / guardian signature</text>
+  <line x1="106" y1="320" x2="340" y2="320" stroke="#8a6d54"/>
+  <rect x="420" y="200" width="240" height="200" rx="8" fill="#fffaf2" stroke="#d7c4a8"/>
+  <text x="444" y="236" font-family="Georgia, serif" font-size="18" fill="#3b2a18">To do</text>
+  <text x="444" y="272" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#6b5340">Sign the slip</text>
+  <text x="444" y="300" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#6b5340">Dentist 3:40</text>
+  <text x="444" y="328" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#6b5340">Oil change</text>
+  <rect x="700" y="160" width="200" height="360" rx="32" fill="#163333"/>
+  <rect x="716" y="184" width="168" height="312" rx="22" fill="#0b3f3f"/>
+  <text x="736" y="220" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#9fd4d4">Reminder</text>
+  <text x="736" y="256" font-family="Segoe UI, system-ui, sans-serif" font-size="15" fill="#fff" font-weight="700">Dentist Thursday</text>
+  <text x="736" y="280" font-family="Segoe UI, system-ui, sans-serif" font-size="13" fill="#c9e8e8">Need the slip signed tonight.</text>
+  <rect x="736" y="312" width="60" height="28" rx="8" fill="#f39c12"/>
+  <text x="746" y="331" font-family="Segoe UI, system-ui, sans-serif" font-size="11" fill="#fff" font-weight="700">Copy</text>
+  <rect x="802" y="312" width="62" height="28" rx="8" fill="#119494"/>
+  <text x="812" y="331" font-family="Segoe UI, system-ui, sans-serif" font-size="11" fill="#fff" font-weight="700">Text it</text>
+</svg>

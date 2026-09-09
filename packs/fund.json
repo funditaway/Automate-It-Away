@@ -1,0 +1,34 @@
+{
+  "id": "fund",
+  "name": "Fund raise",
+  "family": "Fund It Away",
+  "capture": ["note", "form"],
+  "qualify": ["goal", "credit"],
+  "do": ["campaign draft"],
+  "collect": ["credit wait"],
+  "follow": ["one nudge"],
+  "taps": ["credit decision"],
+  "kill": ["not a fit"],
+  "pipes": ["webhook"],
+  "artifacts": ["campaign page"],
+  "face": {
+    "who": { "key": "contactName", "label": "Campaign owner" },
+    "what": { "key": "title", "label": "Campaign" },
+    "when": { "key": "timing", "label": "Raise window" },
+    "where": { "key": "where", "label": "Page" },
+    "how": "Draft the page. Credit waits."
+  },
+  "rules": [
+    { "text": "Wait on me before a credit decision.", "when": "collect", "then": "wait", "contains": "credit" }
+  ],
+  "queue": {
+    "badge": "Fund",
+    "family": "Fund It Away",
+    "empty": "Drop the campaign note. Credit waits on you.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["raise", "credit"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  }
+}

@@ -8,9 +8,10 @@ process.env.AIA_STORE_PATH = store;
 const lib = require("../api/_lib");
 const rulesHandler = require("../api/rules");
 const jobsHandler = require("../api/jobs");
+const authHandler = require("../api/auth");
 const {
-  mem, hashPin, ensurePeople, ensureRules,
-  SEED_RULE_TEXT, forbiddenRule, ready, save,
+  mem, hashPin, ensurePeople, ensureRules, ensureNouns, defaultNouns,
+  moneyWaitOf, moneyNeedsOwner, forbiddenRule, ready, save,
   dropPersistTests, isPersistTestJob
 } = lib;
 
@@ -93,16 +94,22 @@ async function main() {
   mem.workspaces.unshift(shop);
 
   const first = ensureRules(shop);
-  if (!first.some((r) => r.text === SEED_RULE_TEXT)) fail("seed missing on first ensure");
-  else pass("seed on first ensure");
+  if (first.length !== 0) fail("fresh desk should start with empty rules, got " + first.length);
+  else pass("fresh desk has no seeded rules");
 
   const owner = { "x-workspace": slug, "x-pin": ownerPin };
   const staff = { "x-workspace": slug, "x-pin": staffPin };
 
   let get1 = await call(rulesHandler, "GET", owner);
-  if (get1.statusCode !== 200 || !get1.body.rules.some((r) => r.text === SEED_RULE_TEXT)) {
-    fail("GET rules missing seed");
-  } else pass("GET shows seed");
+  if (get1.statusCode !== 200 || (get1.body.rules || []).length !== 0) {
+    fail("GET rules should be empty on a new desk");
+  } else pass("GET shows empty rules");
+
+  if (moneyWaitOf([]) != null) fail("empty rules should not money-wait");
+  else if (moneyWaitOf([{ text: "Ask me if the title is missing." }]) != null) fail("non-money rule should not money-wait");
+  else if (moneyWaitOf([{ text: "Payments over $250 wait for the owner." }]) !== 250) fail("should parse $250 from owner rule");
+  else if (!moneyNeedsOwner(250, 250) || moneyNeedsOwner(20, 250) || moneyNeedsOwner(250, null)) fail("moneyNeedsOwner threshold");
+  else pass("money wait is parsed from owner rules only");
 
   const extra = "Ask me if the title is missing.";
   const add = await call(rulesHandler, "POST", owner, { text: extra });
@@ -151,26 +158,26 @@ async function main() {
     log: []
   });
 
-  const seedId = (shop.rules || []).find((r) => r.seed || r.text === SEED_RULE_TEXT);
-  const dropSeed = await call(rulesHandler, "POST", owner, { action: "remove", id: seedId && seedId.id });
-  if (dropSeed.statusCode !== 200 || dropSeed.body.rules.some((r) => r.text === SEED_RULE_TEXT)) {
-    fail("owner should be able to delete the seed line");
-  } else pass("owner can delete seed");
-  const afterDelete = await call(rulesHandler, "GET", owner);
-  if (afterDelete.body.rules.some((r) => r.text === SEED_RULE_TEXT)) fail("GET re-seeded after delete");
-  else if (!afterDelete.body.rules.some((r) => r.text === extra)) fail("extra gone after seed delete");
-  else pass("seed delete does not re-seed or drop extra");
-
   const extraId = (shop.rules || []).find((r) => r.text === extra);
   await call(rulesHandler, "POST", owner, { action: "remove", id: extraId && extraId.id });
   ensureRules(shop);
   if (shop.rules.length !== 0) fail("ensureRules re-seeded empty list");
   else pass("empty list stays empty");
 
+  const noRule = await call(jobsHandler, "POST", owner, { action: "ship", id: "job_hold250", amount: 250, confirm: false });
+  if (noRule.statusCode === 409) {
+    fail("empty-list amount 250 must not 409 without a money-wait rule, got " + noRule.statusCode + " " + JSON.stringify(noRule.body));
+  } else pass("no money-wait rule → amount does not 409");
+
+  const moneyLine = "Payments over $250 wait for the owner.";
+  const addMoney = await call(rulesHandler, "POST", owner, { text: moneyLine });
+  if (addMoney.statusCode !== 201) fail("could not add money-wait rule");
   const hold = await call(jobsHandler, "POST", owner, { action: "ship", id: "job_hold250", amount: 250, confirm: false });
   if (hold.statusCode !== 409 || !hold.body.job || hold.body.job.status !== "held") {
-    fail("empty-list $250 ship should 409 held, got " + hold.statusCode + " " + JSON.stringify(hold.body));
-  } else pass("empty-list $250 ship still 409 held");
+    fail("money-wait rule should 409, got " + hold.statusCode + " " + JSON.stringify(hold.body));
+  } else pass("owner money-wait rule still 409s");
+  const moneyId = (shop.rules || []).find((r) => r.text === moneyLine);
+  await call(rulesHandler, "POST", owner, { action: "remove", id: moneyId && moneyId.id });
 
   const demo = await call(jobsHandler, "POST", owner, { action: "ship", id: "job_demo", amount: 20, confirm: true });
   if (!demo.body.job || demo.body.job.status === "shipped" || !(demo.body.job.dispatch && demo.body.job.dispatch.demo)) {
@@ -187,6 +194,11 @@ async function main() {
   if (getNone.statusCode !== 400) fail("GET missing workspace should 400, got " + getNone.statusCode);
   else pass("GET missing workspace rejected");
 
+  ["desk-alpha", "desk-beta"].forEach(function (slugName) {
+    const row = { slug: slugName, name: slugName, biz: slugName, people: [] };
+    ensurePeople(row);
+    mem.workspaces.unshift(row);
+  });
   const capA = await call(jobsHandler, "POST", { "x-workspace": "desk-alpha" }, { action: "capture", title: "Alpha only" });
   const capB = await call(jobsHandler, "POST", { "x-workspace": "desk-beta" }, { action: "capture", title: "Beta only" });
   if (capA.statusCode !== 201 || capB.statusCode !== 201) fail("capture A/B should 201");
@@ -201,9 +213,136 @@ async function main() {
     fail("Oil change job_mtenqutb must stay");
   } else pass("Oil change job still on consign-it-away");
 
+  const firstNouns = ensureNouns(shop);
+  if (firstNouns.capture !== "Capture" || firstNouns.do !== "Do") fail("default nouns should be Capture/Qualify/Do/Collect/Follow");
+  else pass("default nouns are generic");
+
+  const nounsSave = await call(authHandler, "POST", owner, {
+    action: "nouns",
+    nouns: { capture: "Drop", qualify: "Fit", do: "Draft", collect: "Pay", follow: "Nudge" }
+  });
+  if (nounsSave.statusCode !== 200 || !nounsSave.body.nouns || nounsSave.body.nouns.capture !== "Drop") {
+    fail("owner nouns save failed " + nounsSave.statusCode + " " + JSON.stringify(nounsSave.body));
+  } else pass("owner can save nouns");
+
+  const staffNouns = await call(authHandler, "POST", staff, {
+    action: "nouns",
+    nouns: { capture: "Steal" }
+  });
+  if (staffNouns.statusCode !== 403) fail("employee nouns should 403, got " + staffNouns.statusCode);
+  else pass("employee cannot save nouns");
+
+  const authGet = await call(authHandler, "GET", owner);
+  if (!authGet.body.workspace || authGet.body.workspace.nouns.capture !== "Drop") fail("GET /api/auth lost nouns");
+  else pass("GET auth returns desk nouns");
+
+  const jobsNouns = await call(jobsHandler, "GET", owner);
+  if (!jobsNouns.body.nouns || jobsNouns.body.nouns.capture !== "Drop") fail("GET /api/jobs missing nouns");
+  else pass("GET jobs returns desk nouns");
+
+  const deskB = {
+    slug: "nouns-b",
+    name: "Other",
+    biz: "nouns-b",
+    pin: hashPin(ownerPin),
+    createdAt: new Date().toISOString(),
+    people: []
+  };
+  ensurePeople(deskB);
+  mem.workspaces.unshift(deskB);
+  const bOwner = { "x-workspace": "nouns-b", "x-pin": ownerPin };
+  ensureNouns(deskB);
+  const bSave = await call(authHandler, "POST", bOwner, {
+    action: "nouns",
+    nouns: { capture: "Intake", qualify: "Screen", do: "Write", collect: "Bill", follow: "Ping" }
+  });
+  if (bSave.statusCode !== 200 || bSave.body.nouns.capture !== "Intake") fail("desk B nouns save failed");
+  const aAgain = await call(authHandler, "GET", owner);
+  const bAgain = await call(authHandler, "GET", bOwner);
+  if (aAgain.body.workspace.nouns.capture !== "Drop") fail("desk A nouns leaked or reset");
+  else if (bAgain.body.workspace.nouns.capture !== "Intake") fail("desk B nouns missing");
+  else if (aAgain.body.workspace.nouns.capture === bAgain.body.workspace.nouns.capture) fail("two desks share nouns");
+  else pass("two desks keep separate nouns");
+
+  const widgetLine = "Ask me if the photo is blurry.";
+  const addWidget = await call(rulesHandler, "POST", owner, { text: widgetLine });
+  if (addWidget.statusCode !== 201 || !addWidget.body.rule) fail("could not add widget rule");
+  const widgetId = addWidget.body.rule.id;
+  if (addWidget.body.rule.widget && addWidget.body.rule.widget.on) fail("new rule widget should start off");
+  else pass("new rule widget defaults off");
+
+  const widgetOn = await call(rulesHandler, "POST", owner, { action: "widget", id: widgetId, on: true, label: "Front drop" });
+  if (widgetOn.statusCode !== 200 || !widgetOn.body.rule || !widgetOn.body.rule.widget.on || widgetOn.body.widgetsOn < 1) {
+    fail("owner widget on failed " + widgetOn.statusCode + " " + JSON.stringify(widgetOn.body));
+  } else pass("owner can turn a rule widget on");
+
+  const staffWidget = await call(rulesHandler, "POST", staff, { action: "widget", id: widgetId, on: false });
+  if (staffWidget.statusCode !== 403) fail("employee widget should 403, got " + staffWidget.statusCode);
+  else pass("employee cannot toggle widget");
+
+  const rulesGet = await call(rulesHandler, "GET", owner);
+  if (!rulesGet.body.rules.some((r) => r.id === widgetId && r.widget && r.widget.on && r.widget.label === "Front drop")) {
+    fail("GET rules lost widget");
+  } else if (rulesGet.body.widgetsOn < 1) fail("GET rules missing widgetsOn");
+  else pass("GET rules returns widget + count");
+
+  const disk2 = JSON.parse(fs.readFileSync(store, "utf8"));
+  const stored = (disk2.workspaces || []).find((w) => w.slug === slug);
+  const storedRule = ((stored && stored.rules) || []).find((r) => r.id === widgetId);
+  if (!storedRule || !storedRule.widget || !storedRule.widget.on) fail("widget not on workspace blob row");
+  else pass("widget persisted on workspace rule row");
+
+  const bWidget = await call(rulesHandler, "GET", bOwner);
+  if ((bWidget.body.widgetsOn || 0) !== 0) fail("desk B inherited desk A widgets");
+  else pass("two desks keep separate widgets");
+
+  if (/consign|vita|fund|land/i.test(JSON.stringify(defaultNouns()))) fail("defaults leaked a vertical name");
+  else pass("defaults are not a vertical");
+
   const pinLeak = (mem.audit || []).some((a) => /4821|7390/.test(JSON.stringify(a)));
   if (pinLeak) fail("PIN appeared in audit");
   else pass("no PIN in audit");
+
+  const witLine = "Click + Lead → tag Interested. Draft HOLD.";
+  const addWit = await call(rulesHandler, "POST", owner, {
+    text: witLine,
+    when: "drop",
+    then: "draft",
+    ifTag: "Lead",
+    contains: "click",
+    tag: "Interested"
+  });
+  if (addWit.statusCode !== 201 || !addWit.body.rule) fail("could not add When/If/Then rule");
+  else if (addWit.body.rule.when !== "drop" || addWit.body.rule.then !== "draft" || addWit.body.rule.ifTag !== "Lead" || addWit.body.rule.tag !== "Interested") {
+    fail("publicRule stripped When/If/Then " + JSON.stringify(addWit.body.rule));
+  } else pass("When/If/Then persists on the rule");
+
+  const getWit = await call(rulesHandler, "GET", owner);
+  const storedWit = (getWit.body.rules || []).find((r) => r.text === witLine);
+  if (!storedWit || storedWit.when !== "drop" || storedWit.then !== "draft") fail("GET rules lost When/If/Then");
+  else pass("GET rules returns When/If/Then");
+  if (!Array.isArray(getWit.body.when) || getWit.body.when.indexOf("drop") < 0 || getWit.body.when.indexOf("inbound") < 0) {
+    fail("GET rules missing trigger When list");
+  } else pass("GET rules lists drop/pipe/inbound/status");
+  if (!Array.isArray(getWit.body.then) || getWit.body.then.indexOf("draft") < 0 || getWit.body.then.indexOf("notify") < 0) {
+    fail("GET rules missing Then actions");
+  } else pass("GET rules lists draft/queue/notify");
+
+  const { flattenWorkflows } = lib;
+  const flat = flattenWorkflows({
+    workflows: [{
+      name: "Lead click",
+      rules: [{ text: "Click + Lead → tag Interested. Draft HOLD.", when: "drop", ifTag: "Lead", then: "draft", tag: "Interested" }]
+    }],
+    sequences: [{
+      name: "Support late",
+      delay: "24h",
+      rules: [{ text: "Unassigned + older than 24h → escalate.", when: "status", ifUnassigned: true, then: "escalate" }]
+    }]
+  });
+  if (flat.length !== 2) fail("flattenWorkflows should string two rules, got " + flat.length);
+  else if (flat[1].ifOlder !== 24) fail("sequence delay should become ifOlder 24, got " + flat[1].ifOlder);
+  else pass("workflows flatten to rules with delay");
 
   await save();
   if (process.exitCode) {

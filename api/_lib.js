@@ -12,9 +12,16 @@ const PROVIDERS = {
   whatnot: { label: "Whatnot", acts: ["list"], env: ["WHATNOT_TOKEN"] }
 };
 
-const EMPTY = { connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [] };
+const EMPTY = {
+  account: null, accounts: [], sessions: [], approvals: [], locks: [],
+  connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [], packs: [], mail: []
+};
+const SESSION_DAYS = 14;
+const SESSION_MAX = 8;
+const LOCK_FAILS = 8;
+const LOCK_MINUTES = 15;
 const BLOB_KEY = "aia/store.json";
-const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null };
+const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null, access: null, auth: null };
 const PERSIST_TEST_DROP = {
   "consign-it-away": ["job_mtegpvhk", "job_mtegkkap", "job_mtegezu8"],
   "p1-synth": ["job_mtemdqeq", "job_mtemdpyc", "job_mtemdpc3"],
@@ -37,7 +44,13 @@ function storePath() {
 }
 
 function shape(parsed) {
+  parsed = parsed && typeof parsed === "object" ? parsed : {};
   return {
+    account: parsed.account && typeof parsed.account === "object" ? parsed.account : null,
+    accounts: Array.isArray(parsed.accounts) ? parsed.accounts : [],
+    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+    approvals: Array.isArray(parsed.approvals) ? parsed.approvals : [],
+    locks: Array.isArray(parsed.locks) ? parsed.locks : [],
     connections: Array.isArray(parsed.connections) ? parsed.connections : [],
     jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
     audit: Array.isArray(parsed.audit) ? parsed.audit : [],
@@ -45,12 +58,19 @@ function shape(parsed) {
     workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : [],
     inbox: Array.isArray(parsed.inbox) ? parsed.inbox : [],
     files: Array.isArray(parsed.files) ? parsed.files : [],
-    tickets: Array.isArray(parsed.tickets) ? parsed.tickets : []
+    tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
+    packs: Array.isArray(parsed.packs) ? parsed.packs : [],
+    mail: Array.isArray(parsed.mail) ? parsed.mail : []
   };
 }
 
 function payload() {
   return {
+    account: mem.account,
+    accounts: mem.accounts,
+    sessions: mem.sessions,
+    approvals: mem.approvals,
+    locks: mem.locks,
     connections: mem.connections,
     jobs: mem.jobs,
     audit: mem.audit,
@@ -58,26 +78,271 @@ function payload() {
     workspaces: mem.workspaces,
     inbox: mem.inbox,
     files: mem.files,
-    tickets: mem.tickets
+    tickets: mem.tickets,
+    packs: mem.packs,
+    mail: mem.mail
   };
 }
 
 function blobToken() {
-  return process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
-    || process.env.BLOB_READ_WRITE_TOKEN
+  return process.env.BLOB_READ_WRITE_TOKEN
+    || process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
     || process.env.AIA_BLOB_TOKEN
     || "";
 }
 
 function blobStoreId() {
-  return process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID || "";
+  return process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || "";
+}
+
+function blobOidcReady() {
+  return !!blobStoreId();
+}
+
+function blobAuthKind() {
+  if (blobProbe.auth === "token" || blobProbe.auth === "rest") return blobProbe.auth;
+  if (blobOidcReady()) return "oidc";
+  if (blobToken()) return "token";
+  return null;
+}
+
+function blobAuthAttempts() {
+  const attempts = [];
+  if (blobStoreId()) attempts.push({ storeId: blobStoreId() });
+  attempts.push({});
+  if (blobToken()) attempts.push({ token: blobToken() });
+  return attempts;
+}
+
+function blobAuthOpts() {
+  return blobStoreId() ? { storeId: blobStoreId() } : (blobToken() ? { token: blobToken() } : {});
+}
+
+async function blobTryAuth(run) {
+  const attempts = blobAuthAttempts();
+  let last;
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      const out = await run(attempts[i]);
+      blobProbe.auth = attempts[i].token ? "token" : "oidc";
+      return out;
+    } catch (e) {
+      last = e;
+      const msg = (e && e.message) || e;
+      if (blobMissing(msg)) throw e;
+      if (!blobNeedsRetry(msg)) throw e;
+    }
+  }
+  throw last;
+}
+
+const BLOB_REST_KEY = "aia-store.json";
+
+function blobRestErr(json, text, status) {
+  const err = json && (json.error || json.message);
+  if (err && typeof err === "object") {
+    return String(err.message || err.code || JSON.stringify(err)).slice(0, 180);
+  }
+  if (err) return String(err).slice(0, 180);
+  if (text && text !== "[object Object]") return String(text).slice(0, 180);
+  return ("rest-" + (status || "fail")).slice(0, 180);
+}
+
+function blobRestHeaders(extra) {
+  return Object.assign({
+    Authorization: "Bearer " + blobToken(),
+    "x-api-version": "7"
+  }, extra || {});
+}
+
+async function blobRestGet() {
+  if (!blobToken()) return null;
+  const names = [BLOB_REST_KEY, BLOB_KEY];
+  let saw404 = false;
+  for (let i = 0; i < names.length; i++) {
+    const r = await fetch("https://blob.vercel-storage.com/" + names[i], {
+      headers: blobRestHeaders()
+    });
+    if (r.status === 404) {
+      saw404 = true;
+      continue;
+    }
+    if (!r.ok) {
+      const text = await r.text();
+      let json = {};
+      try { json = JSON.parse(text); } catch (e) { json = {}; }
+      const err = new Error(blobRestErr(json, text, r.status));
+      err.status = r.status;
+      throw err;
+    }
+    const raw = await r.text();
+    if (!raw) return { empty: true, status: 200, url: r.url || null };
+    return { data: shape(JSON.parse(blobOpen(raw))), url: r.url || null };
+  }
+  if (saw404) return { empty: true, status: 404 };
+  return null;
+}
+
+async function blobRestPut(body) {
+  if (!blobToken()) throw new Error("Vercel Blob: no BLOB_READ_WRITE_TOKEN");
+  const payload = blobSeal(body);
+  const names = [BLOB_REST_KEY, BLOB_KEY];
+  const variants = [
+    {
+      "content-type": "application/json",
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0",
+      "x-vercel-blob-access": "public"
+    },
+    {
+      "content-type": "application/json",
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0",
+      "x-vercel-blob-access": "public",
+      "x-allow-overwrite": "1"
+    },
+    {
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0"
+    }
+  ];
+  let last = "rest put failed";
+  for (let n = 0; n < names.length; n++) {
+    for (let v = 0; v < variants.length; v++) {
+      const r = await fetch("https://blob.vercel-storage.com/" + names[n], {
+        method: "PUT",
+        headers: blobRestHeaders(variants[v]),
+        body: payload
+      });
+      const text = await r.text();
+      let json = {};
+      try { json = JSON.parse(text); } catch (e) { json = { raw: text }; }
+      if (r.ok) {
+        blobProbe.auth = "rest";
+        blobProbe.detail = "rest";
+        return {
+          url: json.url || "https://blob.vercel-storage.com/" + names[n],
+          downloadUrl: json.downloadUrl || json.url || null
+        };
+      }
+      last = blobRestErr(json, text, r.status);
+    }
+  }
+  throw new Error(last);
+}
+
+async function blobRestRead() {
+  try {
+    const rest = await blobRestGet();
+    if (rest && rest.data) {
+      markBlobHit("public", rest.url);
+      blobProbe.auth = "rest";
+      blobProbe.detail = "rest";
+      return rest.data;
+    }
+    if (rest && rest.empty) {
+      markBlobEmpty("public");
+      blobProbe.auth = "rest";
+      return null;
+    }
+  } catch (e) {
+    if (blobMissing((e && e.message) || e)) {
+      markBlobEmpty("public");
+      blobProbe.auth = "rest";
+      return null;
+    }
+    throw e;
+  }
+  return undefined;
+}
+
+const BLOB_WRAP = "aia-blob-1";
+
+function blobSealKey() {
+  const raw = blobToken();
+  if (!raw) return null;
+  return crypto.createHash("sha256").update("aia-store|" + raw).digest();
+}
+
+function blobSeal(plain) {
+  const key = blobSealKey();
+  if (!key) return String(plain || "");
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const bin = Buffer.concat([cipher.update(Buffer.from(String(plain || ""), "utf8")), cipher.final()]);
+  return JSON.stringify({
+    aia: BLOB_WRAP,
+    iv: iv.toString("base64"),
+    tag: cipher.getAuthTag().toString("base64"),
+    data: bin.toString("base64")
+  });
+}
+
+function blobOpen(raw) {
+  const text = String(raw || "");
+  if (!text) return text;
+  let parsed;
+  try { parsed = JSON.parse(text); } catch (e) { return text; }
+  if (!parsed || parsed.aia !== BLOB_WRAP) return text;
+  const key = blobSealKey();
+  if (!key) throw new Error("Vercel Blob: sealed store needs BLOB_READ_WRITE_TOKEN");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(parsed.iv, "base64"));
+  decipher.setAuthTag(Buffer.from(parsed.tag, "base64"));
+  return Buffer.concat([
+    decipher.update(Buffer.from(parsed.data, "base64")),
+    decipher.final()
+  ]).toString("utf8");
+}
+
+function blobWantsPublic(msg) {
+  return /access.*(public|private)|must be \"public\"|public store|private storage/i.test(String(msg || ""));
+}
+
+function blobMayWrite() {
+  if (mem.driver === "blob") return true;
+  if (blobProbe.read !== "error") return true;
+  return !!(mem.account || (mem.accounts && mem.accounts.length) || (mem.workspaces && mem.workspaces.length));
+}
+
+function blobAccess() {
+  return blobProbe.access === "public" ? "public" : "private";
+}
+
+function blobAccessOfUrl(url) {
+  return /\.public\.blob\./i.test(String(url || "")) ? "public" : "private";
+}
+
+function blobIs403(msg) {
+  return /403|forbidden/i.test(String(msg || ""));
+}
+
+function blobNeedsRetry(msg) {
+  const text = String(msg || "");
+  return blobIs403(text) || /no blob credentials|invalid token|unable to extract store|oidcToken was passed/i.test(text);
+}
+
+function blobMissing(msg) {
+  return /not found|404|does not exist/i.test(String(msg || ""));
+}
+
+function blobGetOpts(access, auth) {
+  return Object.assign({
+    access: access || blobAccess(),
+    useCache: false
+  }, auth || blobAuthOpts());
+}
+
+function blobPutOpts(access, auth) {
+  return Object.assign({
+    access: access || blobAccess(),
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: "application/json"
+  }, auth || blobAuthOpts());
 }
 
 function blobOpts() {
-  const opts = { access: "private", addRandomSuffix: false, allowOverwrite: true };
-  if (blobStoreId()) opts.storeId = blobStoreId();
-  if (blobToken()) opts.token = blobToken();
-  return opts;
+  return blobPutOpts();
 }
 
 function blobReady() {
@@ -92,68 +357,281 @@ async function streamText(stream) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-async function blobRead() {
-  blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
+async function parseBlobGet(result) {
+  if (result === null) return { empty: true, status: 404 };
+  const status = result && (result.statusCode || result.status);
+  if (status && status !== 200) return { error: true, status: status, read: "get-" + status };
+  const raw = result && result.stream
+    ? await streamText(result.stream)
+    : result && result.blob && result.blob.body
+      ? await streamText(result.blob.body)
+      : "";
+  if (!raw) return { empty: true, status: status || 200 };
+  return {
+    data: shape(JSON.parse(blobOpen(raw))),
+    url: (result.blob && (result.blob.url || result.blob.downloadUrl)) || null
+  };
+}
+
+async function blobGetKey(access, key) {
+  const { get } = require("@vercel/blob");
+  return parseBlobGet(await blobTryAuth((auth) => get(key || BLOB_KEY, blobGetOpts(access, auth))));
+}
+
+function markBlobHit(access, url) {
+  blobProbe.access = access === "public" ? "public" : "private";
+  blobProbe.read = "ok";
+  blobProbe.status = 200;
+  blobProbe.detail = null;
+  if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
+  blobProbe.url = url ? "set" : blobProbe.url;
+  if (url) mem.blobUrl = url;
+}
+
+function markBlobEmpty(access) {
+  if (access) blobProbe.access = access;
+  blobProbe.read = "empty";
+  blobProbe.status = 404;
+  blobProbe.detail = null;
+  if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
+}
+
+async function blobHeadMeta() {
+  const { head } = require("@vercel/blob");
   try {
-    const { get } = require("@vercel/blob");
-    const result = await get(BLOB_KEY, blobOpts());
-    if (result === null) {
-      blobProbe.read = "empty";
-      blobProbe.status = 404;
-      return null;
-    }
-    const status = result && (result.statusCode || result.status);
-    if (status && status !== 200) {
-      blobProbe.read = "get-" + status;
-      blobProbe.status = status;
-      return null;
-    }
-    const raw = result && result.stream
-      ? await streamText(result.stream)
-      : result && result.blob && result.blob.body
-        ? await streamText(result.blob.body)
-        : "";
-    if (!raw) {
-      blobProbe.read = "empty";
-      return null;
-    }
-    const parsed = JSON.parse(raw);
-    blobProbe.read = "ok";
-    blobProbe.url = "set";
-    return shape(parsed);
+    const meta = await blobTryAuth((auth) => head(BLOB_KEY, auth));
+    if (!meta) return { empty: true };
+    return { meta };
   } catch (e) {
     const msg = String((e && e.message) || e);
-    blobProbe.read = /not found|404/i.test(msg) ? "empty" : "error";
-    blobProbe.detail = msg.slice(0, 180);
-    return null;
+    if (blobMissing(msg)) return { empty: true };
+    throw e;
   }
 }
 
-async function blobPut(body) {
+async function blobListStore() {
+  const { list } = require("@vercel/blob");
+  const listed = await blobTryAuth((auth) => list(Object.assign({ prefix: "aia/", limit: 20 }, auth)));
+  const blobs = (listed && listed.blobs) || [];
+  return blobs.find((b) => b && (b.pathname === BLOB_KEY || String(b.pathname || "").indexOf("store.json") >= 0)) || null;
+}
+
+async function blobFetchUrl(url, access) {
+  if (!url) return null;
+  try {
+    const got = await blobGetKey(access || blobAccessOfUrl(url), url);
+    if (got.data) return got;
+  } catch (e) {
+    if (!blobIs403(e && e.message) && !blobMissing(e && e.message)) throw e;
+  }
+  async function fetchWith(token) {
+    const headers = token ? { Authorization: "Bearer " + token } : {};
+    return fetch(url, { headers });
+  }
+  let r = await fetchWith(process.env.VERCEL_OIDC_TOKEN || blobToken());
+  if (r.status === 403 && process.env.VERCEL_OIDC_TOKEN && blobToken()) {
+    r = await fetchWith(blobToken());
+    blobProbe.auth = "token";
+  }
+  if (r.status === 404) return { empty: true, status: 404 };
+  if (!r.ok) {
+    const err = new Error("Vercel Blob: Failed to fetch blob: " + r.status + " " + r.statusText);
+    err.status = r.status;
+    throw err;
+  }
+  return { data: shape(JSON.parse(blobOpen(await r.text()))), url: url };
+}
+
+async function blobRead() {
+  blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
+  blobProbe.auth = blobAuthKind();
+  let lastErr = "";
+  let saw403 = false;
+  try {
+    const headed = await blobHeadMeta();
+    if (headed.empty) {
+      markBlobEmpty(blobProbe.access || "private");
+      return null;
+    }
+    const url = headed.meta.url || headed.meta.downloadUrl;
+    const access = blobAccessOfUrl(url);
+    const got = await blobFetchUrl(url, access);
+    if (got && got.data) {
+      markBlobHit(access, url);
+      return got.data;
+    }
+    if (got && got.empty) {
+      markBlobEmpty(access);
+      return null;
+    }
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    lastErr = msg.slice(0, 180);
+    if (blobMissing(msg)) {
+      markBlobEmpty(blobProbe.access || "private");
+      return null;
+    }
+    if (blobIs403(msg) || blobNeedsRetry(msg)) {
+      saw403 = blobIs403(msg) || saw403;
+      try {
+        const rest = await blobRestRead();
+        if (rest) return rest;
+        if (blobProbe.read === "empty") return null;
+      } catch (re) {
+        lastErr = String((re && re.message) || re).slice(0, 180);
+      }
+    } else {
+      try {
+        const rest = await blobRestRead();
+        if (rest) return rest;
+        if (blobProbe.read === "empty") return null;
+      } catch (re) {
+        lastErr = String((re && re.message) || re).slice(0, 180);
+      }
+      blobProbe.read = "error";
+      blobProbe.detail = lastErr;
+      blobProbe.status = e && e.status || blobProbe.status;
+      return null;
+    }
+  }
+  const modes = blobProbe.access === "public" ? ["public", "private"] : ["private", "public"];
+  for (let i = 0; i < modes.length; i++) {
+    const access = modes[i];
+    try {
+      const got = await blobGetKey(access);
+      if (got.data) {
+        markBlobHit(access, got.url);
+        return got.data;
+      }
+      if (got.error) {
+        if (got.status === 403) {
+          saw403 = true;
+          lastErr = "get-" + got.status;
+          continue;
+        }
+        blobProbe.read = got.read || "error";
+        blobProbe.status = got.status;
+        return null;
+      }
+      markBlobEmpty(access);
+      return null;
+    } catch (e) {
+      const msg = String((e && e.message) || e);
+      lastErr = msg.slice(0, 180);
+      if (blobMissing(msg)) {
+        markBlobEmpty(access);
+        return null;
+      }
+      if (blobIs403(msg)) {
+        saw403 = true;
+        continue;
+      }
+      blobProbe.read = "error";
+      blobProbe.detail = lastErr;
+      return null;
+    }
+  }
+  if (saw403) {
+    try {
+      const hit = await blobListStore();
+      if (!hit) {
+        markBlobEmpty(blobProbe.access || "private");
+        return null;
+      }
+      const access = blobAccessOfUrl(hit.url || hit.downloadUrl);
+      const got = await blobFetchUrl(hit.url || hit.downloadUrl, access);
+      if (got && got.data) {
+        markBlobHit(access, hit.url || hit.downloadUrl);
+        return got.data;
+      }
+      if (got && got.empty) {
+        markBlobEmpty(access);
+        return null;
+      }
+    } catch (e) {
+      lastErr = String((e && e.message) || e).slice(0, 180);
+      if (blobMissing(lastErr)) {
+        markBlobEmpty(blobProbe.access || "private");
+        return null;
+      }
+    }
+    try {
+      const rest = await blobRestRead();
+      if (rest) return rest;
+      if (blobProbe.read === "empty") return null;
+    } catch (re) {
+      lastErr = String((re && re.message) || re).slice(0, 180);
+    }
+  }
+  blobProbe.read = "error";
+  blobProbe.detail = lastErr || "Failed to fetch blob";
+  blobProbe.status = saw403 ? 403 : blobProbe.status;
+  blobProbe.auth = blobAuthKind();
+  return null;
+}
+
+async function blobPut(body, access) {
   const { put } = require("@vercel/blob");
-  return put(BLOB_KEY, body, Object.assign({
-    contentType: "application/json"
-  }, blobOpts()));
+  return blobTryAuth((auth) => put(BLOB_KEY, body, blobPutOpts(access, auth)));
+}
+
+async function blobWriteStick(blob, used) {
+  const url = blob && (blob.url || blob.downloadUrl);
+  if (url) {
+    try {
+      const got = await blobFetchUrl(url, used);
+      if (got && got.data) return true;
+    } catch (e) {}
+  }
+  try {
+    const headed = await blobHeadMeta();
+    if (headed && headed.meta) return true;
+  } catch (e) {}
+  try {
+    const rest = await blobRestGet();
+    if (rest && rest.data) return true;
+  } catch (e) {}
+  const remote = await blobRead();
+  return !!remote;
 }
 
 async function blobWrite() {
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
+  if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   const body = JSON.stringify(payload());
   try {
     let blob;
+    let used = "private";
     try {
-      blob = await blobPut(body);
+      blob = await blobPut(body, "private");
     } catch (first) {
-      const { del } = require("@vercel/blob");
-      await del(BLOB_KEY, blobOpts()).catch(() => null);
-      blob = await blobPut(body);
-      blobProbe.detail = "rewrote";
+      const msg = String((first && first.message) || first);
+      try {
+        if (!blobToken() || !(blobWantsPublic(msg) || blobNeedsRetry(msg))) throw first;
+        blob = await blobPut(blobSeal(body), "public");
+        used = "public";
+        blobProbe.detail = "sealed-public";
+      } catch (second) {
+        blob = await blobRestPut(body);
+        used = "public";
+        blobProbe.detail = "rest";
+      }
     }
+    blobProbe.access = used;
     blobProbe.write = "ok";
     blobProbe.status = 200;
-    if (!blobProbe.detail) blobProbe.detail = null;
+    if (blobProbe.auth === "rest" || blobProbe.detail === "rest") blobProbe.detail = "rest";
+    else blobProbe.detail = used === "public" ? "sealed-public" : null;
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
+    const stuck = await blobWriteStick(blob, used);
+    if (!stuck) {
+      blobProbe.write = "no-stick";
+      blobProbe.detail = (blobProbe.detail || "Blob write did not stick").slice(0, 180);
+      return false;
+    }
+    blobProbe.read = "ok";
+    if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
     return true;
   } catch (e) {
     blobProbe.write = "fail";
@@ -221,20 +699,20 @@ async function hydrate() {
   if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
-      Object.assign(mem, remote);
+      applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
       await persistScrub();
       return;
     }
     if (blobProbe.read === "error") {
-      Object.assign(mem, readDisk());
+      applyStore(readDisk());
       dropPersistTests();
       mem.driver = writeDisk();
       mem.path = storePath();
       return;
     }
-    Object.assign(mem, readDisk());
+    applyStore(readDisk());
     dropPersistTests();
     writeDisk();
     const ok = await blobWrite();
@@ -244,7 +722,7 @@ async function hydrate() {
       return;
     }
   }
-  Object.assign(mem, readDisk());
+  applyStore(readDisk());
   dropPersistTests();
   mem.driver = writeDisk();
   mem.path = storePath();
@@ -254,12 +732,32 @@ if (!globalThis.__aiaHydrate) {
   globalThis.__aiaHydrate = hydrate();
 }
 
+function applyStore(parsed) {
+  const next = shape(parsed);
+  mem.account = next.account;
+  mem.accounts = next.accounts;
+  mem.sessions = next.sessions;
+  mem.approvals = next.approvals;
+  mem.locks = next.locks;
+  mem.connections = next.connections;
+  mem.jobs = next.jobs;
+  mem.audit = next.audit;
+  mem.money = next.money;
+  mem.workspaces = next.workspaces;
+  mem.inbox = next.inbox;
+  mem.files = next.files;
+  mem.tickets = next.tickets;
+  mem.packs = next.packs;
+  mem.mail = next.mail;
+  return mem;
+}
+
 async function ready() {
   await globalThis.__aiaHydrate;
-  if (blobReady() && mem.driver !== "blob") {
+  if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
-      Object.assign(mem, remote);
+      applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
     }
@@ -268,11 +766,14 @@ async function ready() {
 }
 
 async function save() {
-  await ready();
+  // Wait for first hydrate only. Do not call ready() — that re-reads the blob
+  // and would replace in-request mutations (onboard, sessions, Studio Open login)
+  // with the pre-mutation snapshot before write.
+  await globalThis.__aiaHydrate;
   dropPersistTests();
   const disk = writeDisk();
   if (blobReady()) {
-    if (blobProbe.read === "error" && mem.driver !== "blob") {
+    if (!blobMayWrite()) {
       mem.driver = disk;
       return disk !== "memory-fallback";
     }
@@ -290,7 +791,7 @@ async function save() {
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Workspace, X-Pin");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Workspace, X-Pin, X-Session");
 }
 
 function configured(provider) {
@@ -314,15 +815,47 @@ function catalog() {
   }));
 }
 
-const SEED_RULE_TEXT = "Payments over $250 wait for the owner.";
+const PUBLIC_HOST = "https://www.automateitaway.com";
+
+function hookUrl(workspace) {
+  const slug = String(workspace || "").trim();
+  return slug
+    ? PUBLIC_HOST + "/api/hook?workspace=" + encodeURIComponent(slug)
+    : PUBLIC_HOST + "/api/hook";
+}
+
+function pipeWroteBack(dispatch) {
+  return !!(dispatch && !dispatch.demo && (dispatch.ok === true || dispatch.inbound === true));
+}
+
+function pipesAnswered(workspace) {
+  const ws = String(workspace || "");
+  if (!ws) return false;
+  return (mem.jobs || []).some((j) => j && j.workspace === ws && pipeWroteBack(j.dispatch));
+}
+
+function answeredProviders(workspace) {
+  const ws = String(workspace || "");
+  const ids = [];
+  if (!ws) return ids;
+  (mem.jobs || []).forEach((j) => {
+    if (!j || j.workspace !== ws || !pipeWroteBack(j.dispatch)) return;
+    const provider = (j.dispatch && j.dispatch.provider) || j.provider;
+    if (provider && ids.indexOf(provider) < 0) ids.push(provider);
+  });
+  return ids;
+}
+
 const RULE_TEXT_MAX = 140;
 const RULE_MAX = 8;
-const RULE_FORBID = /auto[-\s]?pay|auto[-\s]?list|auto[-\s]?ship|auto[-\s]?release|un-?\s?kill|skip\s+(the\s+)?(kill|payout|pay\b|named\s+outbound|live\s+list|outbound|\$?250)|live\s+list|mark\s+ebay|ebay\s+live|set\s+ebay|go\s+live\s+on\s+ebay/;
+const RULE_FORBID = /auto[-\s]?pay|auto[-\s]?list|auto[-\s]?ship|auto[-\s]?release|un-?\s?kill|skip\s+(the\s+)?(kill|payout|pay\b|named\s+outbound|live\s+list|outbound)|live\s+list|mark\s+ebay|ebay\s+live|set\s+ebay|go\s+live\s+on\s+ebay/;
 const RULE_FORBID_MSG = "Hard stops still win. A rule cannot skip payout, Kill, a live list, or named outbound. It cannot auto-pay, auto-list, or un-kill junk.";
 
 function scrubLog(s) {
   return String(s == null ? "" : s)
     .replace(/x-pin["'\s:=]+[^,\s]+/ig, "x-pin:[redacted]")
+    .replace(/x-session["'\s:=]+[^,\s]+/ig, "x-session:[redacted]")
+    .replace(/aia_session=[^;\s]+/ig, "aia_session=[redacted]")
     .replace(/\bpin["'\s:=]+\d+/ig, "pin:[redacted]");
 }
 
@@ -339,11 +872,11 @@ function log(agent, action, result, workspace) {
 }
 
 function slugify(s) {
-  return String(s || "demo")
+  return String(s || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 40) || "demo";
+    .slice(0, 40);
 }
 
 function hashPin(pin) {
@@ -354,7 +887,257 @@ function hashPin(pin) {
 }
 
 function workspaceOf(req) {
-  return slugify(req.headers["x-workspace"] || req.query.workspace || "demo");
+  req = req || {};
+  const headers = req.headers || {};
+  const query = req.query || {};
+  return slugify(headers["x-workspace"] || query.workspace || "");
+}
+
+function ensureAuthState() {
+  if (!Array.isArray(mem.accounts)) mem.accounts = [];
+  if (!Array.isArray(mem.sessions)) mem.sessions = [];
+  if (!Array.isArray(mem.approvals)) mem.approvals = [];
+  if (!Array.isArray(mem.locks)) mem.locks = [];
+  return mem;
+}
+
+function hashSession(token) {
+  return hashPin("session|" + String(token || ""));
+}
+
+function parseCookies(req) {
+  const raw = String((req && req.headers && req.headers.cookie) || "");
+  const out = {};
+  raw.split(";").forEach((part) => {
+    const i = part.indexOf("=");
+    if (i < 0) return;
+    const key = part.slice(0, i).trim();
+    if (!key) return;
+    const val = part.slice(i + 1).trim();
+    try { out[key] = decodeURIComponent(val); } catch (e) { out[key] = val; }
+  });
+  return out;
+}
+
+function sessionTokenOf(req) {
+  const headers = (req && req.headers) || {};
+  return String(headers["x-session"] || parseCookies(req).aia_session || "").trim();
+}
+
+function sessionMaxAge() {
+  return SESSION_DAYS * 24 * 60 * 60;
+}
+
+function sessionExpiresAt(now) {
+  return new Date(now + sessionMaxAge() * 1000).toISOString();
+}
+
+function sessionPublic(row, token) {
+  if (!row) return null;
+  const out = {
+    id: row.id,
+    workspace: row.workspace || "",
+    personId: row.personId || "",
+    accountId: row.accountId || "",
+    role: row.role || "",
+    name: row.name || "",
+    createdAt: row.createdAt || "",
+    seenAt: row.seenAt || row.createdAt || "",
+    expiresAt: row.expiresAt || "",
+    current: !!row.current,
+    walletAddress: row.walletAddress || "",
+    walletChainId: row.walletChainId || 0
+  };
+  if (token) out.token = token;
+  if (row.ua) out.ua = row.ua;
+  return out;
+}
+
+function pruneSessions() {
+  ensureAuthState();
+  const now = Date.now();
+  mem.sessions = (mem.sessions || []).filter((row) => {
+    if (!row || !row.tokenHash) return false;
+    if (!row.expiresAt) return true;
+    const t = Date.parse(row.expiresAt);
+    return !Number.isFinite(t) || t > now;
+  });
+  return mem.sessions;
+}
+
+function sessionMatches(row, hint) {
+  const h = hint || {};
+  if (!row) return false;
+  if (h.id && row.id !== h.id) return false;
+  if (h.accountId && row.accountId !== h.accountId) return false;
+  if (h.personId && row.personId !== h.personId) return false;
+  if (h.workspace && row.workspace !== slugify(h.workspace)) return false;
+  return !!(h.id || h.accountId || h.personId || h.workspace) ? true : true;
+}
+
+function touchSession(row, req) {
+  if (!row) return row;
+  const now = Date.now();
+  row.seenAt = new Date(now).toISOString();
+  row.expiresAt = sessionExpiresAt(now);
+  const headers = (req && req.headers) || {};
+  const ua = String(headers["user-agent"] || "").trim().slice(0, 160);
+  if (ua) row.ua = ua;
+  const ip = String(headers["x-forwarded-for"] || headers["x-real-ip"] || "").split(",")[0].trim().slice(0, 80);
+  if (ip) row.ip = ip;
+  return row;
+}
+
+function findSession(token, options) {
+  const raw = String(token || "").trim();
+  if (!raw) return null;
+  pruneSessions();
+  const row = (mem.sessions || []).find((item) => item && item.tokenHash === hashSession(raw)) || null;
+  if (!row) return null;
+  const opts = options || {};
+  if (opts.slide !== false) touchSession(row, opts.req);
+  return row;
+}
+
+function listSessions(hint) {
+  const h = hint || {};
+  const currentHash = h.currentToken ? hashSession(h.currentToken) : "";
+  return pruneSessions()
+    .filter((row) => sessionMatches(row, h))
+    .sort((a, b) => String(b.seenAt || b.createdAt || "").localeCompare(String(a.seenAt || a.createdAt || "")))
+    .slice(0, 32)
+    .map((row) => sessionPublic(Object.assign({}, row, { current: !!(currentHash && row.tokenHash === currentHash) })));
+}
+
+function revokeSession(tokenOrId, hint) {
+  ensureAuthState();
+  pruneSessions();
+  const raw = String(tokenOrId || "").trim();
+  const tokenHash = raw && !/^sess_/i.test(raw) ? hashSession(raw) : "";
+  const id = /^sess_/i.test(raw) ? raw : "";
+  let removed = 0;
+  mem.sessions = (mem.sessions || []).filter((row) => {
+    if (!row) return false;
+    const hit = (tokenHash && row.tokenHash === tokenHash) || (id && row.id === id) || (!tokenHash && !id && sessionMatches(row, hint));
+    const allowed = hit && (!hint || sessionMatches(row, hint));
+    if (allowed) {
+      removed += 1;
+      return false;
+    }
+    return true;
+  });
+  return removed;
+}
+
+function issueSession(person, workspace, account, req) {
+  ensureAuthState();
+  pruneSessions();
+  const now = Date.now();
+  const token = crypto.randomBytes(24).toString("hex");
+  const row = {
+    id: "sess_" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    tokenHash: hashSession(token),
+    workspace: slugify((workspace && workspace.slug) || (account && account.slug) || (req && workspaceOf(req)) || ""),
+    accountId: (account && account.id) || (person && person.accountId) || (workspace && workspace.accountId) || "",
+    personId: (person && person.id) || "",
+    name: (person && person.name) || "",
+    role: (person && person.role) || "",
+    email: (person && person.email) || (account && account.email) || "",
+    createdAt: new Date(now).toISOString(),
+    seenAt: new Date(now).toISOString(),
+    expiresAt: sessionExpiresAt(now)
+  };
+  touchSession(row, req);
+  const group = (mem.sessions || [])
+    .filter((item) => item && ((row.accountId && item.accountId === row.accountId) || (!row.accountId && item.workspace === row.workspace && item.personId === row.personId)))
+    .sort((a, b) => String(b.seenAt || b.createdAt || "").localeCompare(String(a.seenAt || a.createdAt || "")));
+  const keep = new Set(group.slice(0, SESSION_MAX - 1).map((item) => item.id));
+  mem.sessions = (mem.sessions || []).filter((item) => !item || !group.length || keep.has(item.id) || !(((row.accountId && item.accountId === row.accountId) || (!row.accountId && item.workspace === row.workspace && item.personId === row.personId))));
+  mem.sessions.unshift(row);
+  return sessionPublic(row, token);
+}
+
+function sessionCookie(token) {
+  return "aia_session=" + encodeURIComponent(String(token || "")) + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + sessionMaxAge();
+}
+
+function clearSessionCookie() {
+  return "aia_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+}
+
+function sessionFromReq(req, options) {
+  const token = sessionTokenOf(req);
+  if (!token) return null;
+  const row = findSession(token, Object.assign({ req }, options || {}));
+  if (!row) return null;
+  if (req) {
+    req.__aiaSessionToken = token;
+    req.__aiaSession = sessionPublic(row);
+  }
+  return { token, session: row };
+}
+
+function pruneLocks() {
+  ensureAuthState();
+  const now = Date.now();
+  mem.locks = (mem.locks || []).filter((row) => {
+    if (!row || !row.id) return false;
+    const until = row.until ? Date.parse(row.until) : NaN;
+    if (Number.isFinite(until) && until <= now) {
+      row.until = null;
+      row.count = 0;
+    }
+    return !!row.id;
+  });
+  return mem.locks;
+}
+
+function lockRow(id, create) {
+  ensureAuthState();
+  pruneLocks();
+  const key = String(id || "").trim();
+  if (!key) return null;
+  let row = (mem.locks || []).find((item) => item && item.id === key) || null;
+  if (!row && create) {
+    row = { id: key, count: 0, until: null, lastFailAt: null, lastOkAt: null };
+    mem.locks.unshift(row);
+  }
+  return row;
+}
+
+function isLocked(id) {
+  const row = lockRow(id, false);
+  if (!row || !row.until) return false;
+  const until = Date.parse(row.until);
+  if (!Number.isFinite(until) || until <= Date.now()) {
+    row.until = null;
+    row.count = 0;
+    return false;
+  }
+  return true;
+}
+
+function noteFail(id) {
+  const row = lockRow(id, true);
+  if (!row) return { ok: false };
+  const now = Date.now();
+  if (!isLocked(id) && row.until) {
+    row.until = null;
+    row.count = 0;
+  }
+  row.count = Number(row.count || 0) + 1;
+  row.lastFailAt = new Date(now).toISOString();
+  if (row.count >= LOCK_FAILS) row.until = new Date(now + LOCK_MINUTES * 60 * 1000).toISOString();
+  return { ok: true, locked: isLocked(id), count: row.count, until: row.until };
+}
+
+function noteOk(id) {
+  const row = lockRow(id, false);
+  if (!row) return { ok: true, cleared: false };
+  row.count = 0;
+  row.until = null;
+  row.lastOkAt = new Date().toISOString();
+  return { ok: true, cleared: true };
 }
 
 function ensurePeople(ws) {
@@ -368,23 +1151,58 @@ function ensurePeople(ws) {
       email: ws.email || "",
       createdAt: ws.createdAt || new Date().toISOString()
     }];
+  } else if (ws.pin) {
+    const owner = ws.people.find((p) => p && p.role === "owner");
+    if (owner && !owner.pin) owner.pin = ws.pin;
   }
   return ws;
 }
 
 function publicPerson(p) {
   if (!p) return null;
-  return { id: p.id, name: p.name, role: p.role, email: p.email || "" };
+  return {
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    email: p.email || "",
+    kind: p.kind || "",
+    deskAi: !!p.deskAi,
+    does: p.does || "",
+    prompt: String(p.prompt || "").trim().slice(0, 160),
+    aia: p.aia || "",
+    aiId: p.aiId || ""
+  };
 }
 
 function personOf(req, workspaceSlug) {
-  const slug = workspaceSlug || workspaceOf(req);
-  const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || null);
-  const raw = req.headers["x-pin"] || "";
-  if (!ws || !raw) return { workspace: ws, person: null };
+  req = req || {};
+  const headers = req.headers || {};
+  const query = req.query || {};
+  const fromSession = sessionFromReq(req, { slide: true });
+  const asked = String(headers["x-workspace"] || query.workspace || workspaceSlug || "").trim();
+  const slug = slugify(asked || (fromSession && fromSession.session && fromSession.session.workspace) || "");
+  const fallbackSlug = fromSession && fromSession.session ? fromSession.session.workspace : "";
+  const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || mem.workspaces.find((w) => w && w.slug === fallbackSlug) || null);
+  if (!ws) return { workspace: null, person: null };
+  if (fromSession && fromSession.session) {
+    const session = fromSession.session;
+    const person = (ws.people || []).find((p) => p && (
+      (session.personId && p.id === session.personId)
+      || (session.accountId && p.accountId && p.accountId === session.accountId)
+      || (session.email && p.email && String(p.email).trim().toLowerCase() === String(session.email).trim().toLowerCase())
+      || (session.role === "owner" && p.role === "owner")
+    )) || null;
+    if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
+    if (person && person.status === "denied") return { workspace: ws, person: null, denied: true, session: sessionPublic(session) };
+    if (person) return { workspace: ws, person, session: sessionPublic(session) };
+  }
+  const raw = String(headers["x-pin"] || "");
+  if (!raw) return { workspace: ws, person: null };
   const hashed = hashPin(raw);
-  const person = (ws.people || []).find((p) => p.pin === hashed)
-    || (ws.pin === hashed ? (ws.people || []).find((p) => p.role === "owner") : null);
+  const person = (ws.people || []).find((p) => p && p.pin === hashed)
+    || (ws.pin === hashed ? (ws.people || []).find((p) => p && p.role === "owner") : null);
+  if (person && person.status === "pending") return { workspace: ws, person: null, pending: true };
+  if (person && person.status === "denied") return { workspace: ws, person: null, denied: true };
   return { workspace: ws, person: person || null };
 }
 
@@ -392,28 +1210,270 @@ function isOwner(person) {
   return !!(person && person.role === "owner");
 }
 
+const NOUN_KEYS = ["capture", "qualify", "do", "collect", "follow"];
+const NOUN_MAX = 24;
+const DEFAULT_NOUNS = {
+  capture: "Capture",
+  qualify: "Qualify",
+  do: "Do",
+  collect: "Collect",
+  follow: "Follow"
+};
+
+function defaultNouns() {
+  return {
+    capture: DEFAULT_NOUNS.capture,
+    qualify: DEFAULT_NOUNS.qualify,
+    do: DEFAULT_NOUNS.do,
+    collect: DEFAULT_NOUNS.collect,
+    follow: DEFAULT_NOUNS.follow
+  };
+}
+
+function cleanNoun(val, fallback) {
+  const t = String(val == null ? "" : val).trim().replace(/\s+/g, " ").slice(0, NOUN_MAX);
+  return t || fallback;
+}
+
+function publicNouns(src) {
+  const n = src && typeof src === "object" ? src : {};
+  return {
+    capture: cleanNoun(n.capture, DEFAULT_NOUNS.capture),
+    qualify: cleanNoun(n.qualify, DEFAULT_NOUNS.qualify),
+    do: cleanNoun(n.do, DEFAULT_NOUNS.do),
+    collect: cleanNoun(n.collect, DEFAULT_NOUNS.collect),
+    follow: cleanNoun(n.follow, DEFAULT_NOUNS.follow)
+  };
+}
+
+function ensureNouns(ws) {
+  if (!ws) return defaultNouns();
+  if (!ws.nouns || typeof ws.nouns !== "object") ws.nouns = defaultNouns();
+  return publicNouns(ws.nouns);
+}
+
+function setWorkspaceNouns(ws, incoming) {
+  if (!ws) return { ok: false, error: "Open a desk first so the words have a home." };
+  const src = incoming && typeof incoming === "object" ? incoming : {};
+  ws.nouns = publicNouns(src);
+  return { ok: true, nouns: publicNouns(ws.nouns) };
+}
+
+function publicRuleWidget(w) {
+  if (!w || typeof w !== "object") return { on: false, label: "" };
+  return {
+    on: !!w.on,
+    label: String(w.label || "").trim().replace(/\s+/g, " ").slice(0, NOUN_MAX)
+  };
+}
+
+function clipRule(s, n) {
+  return String(s == null ? "" : s).trim().replace(/\s+/g, " ").slice(0, n || 80);
+}
+
 function publicRule(r) {
   if (!r) return null;
+  const when = normalizeWhen(r.when || r.attach);
+  const then = normalizeThen(r.then);
   return {
     id: r.id,
     text: r.text,
     seed: !!r.seed,
-    attach: "qualify"
+    attach: when,
+    when: when,
+    then: then,
+    ifMoney: r.ifMoney != null && Number.isFinite(Number(r.ifMoney)) ? Number(r.ifMoney) : null,
+    contains: clipRule(r.contains, 80),
+    ifField: clipRule(r.ifField, 32),
+    ifValue: clipRule(r.ifValue, 80),
+    ifTag: clipRule(r.ifTag, 40),
+    ifStatus: clipRule(r.ifStatus, 32),
+    ifUnassigned: !!r.ifUnassigned,
+    ifOlder: r.ifOlder != null && Number.isFinite(Number(r.ifOlder)) ? Number(r.ifOlder) : null,
+    tag: clipRule(r.tag || r.thenTag, 40),
+    aiId: clipRule(r.aiId || (r.ai && r.ai.id) || "", 40),
+    aiName: clipRule(r.aiName || (r.ai && r.ai.name) || "", 40),
+    widget: publicRuleWidget(r.widget)
   };
 }
 
-function seedRuleRow(createdAt) {
+function moneyWaitOf(rules) {
+  let hold = null;
+  (rules || []).forEach((r) => {
+    const t = String((r && r.text) || "").toLowerCase();
+    if (!t) return;
+    const dollar = t.match(/\$\s*(\d+(?:\.\d+)?)/);
+    const moneyWord = /\b(money|pay(?:ment|out)?s?|amount|invoice|\$)\b/.test(t);
+    const ownerWait = /wait(?:s|ing)?\s+(?:for|on)\s+(?:the\s+)?owner/.test(t)
+      || /owner\s+(?:must|confirms?|releases?|taps?)/.test(t)
+      || (/\bowner\b/.test(t) && /\bwait/.test(t));
+    if (dollar && (ownerWait || moneyWord || /over|above|more than|at least/.test(t))) {
+      const n = Number(dollar[1]);
+      if (Number.isFinite(n) && (hold == null || n < hold)) hold = n;
+    } else if (ownerWait && moneyWord) {
+      if (hold == null) hold = 0;
+    }
+  });
+  return hold;
+}
+
+function moneyNeedsOwner(amount, hold) {
+  if (hold == null) return false;
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return false;
+  if (hold === 0) return n > 0;
+  return n >= hold;
+}
+
+function widgetsOn(rules) {
+  return (rules || []).filter((r) => r && r.widget && r.widget.on);
+}
+
+function widgetCount(rules) {
+  return widgetsOn(rules).length;
+}
+
+function setRuleWidget(ws, id, on, label) {
+  if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
+  if (!Array.isArray(ws.rules)) ensureRules(ws);
+  const key = String(id || "");
+  const rule = (ws.rules || []).find((r) => r && r.id === key);
+  if (!rule) return { ok: false, error: "Rule not found." };
+  const next = publicRuleWidget(rule.widget);
+  if (on != null) next.on = !!on;
+  if (label != null) next.label = String(label).trim().replace(/\s+/g, " ").slice(0, NOUN_MAX);
+  rule.widget = next;
+  return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
+}
+
+const RULE_WHEN = ["drop", "pipe", "inbound", "status", "capture", "qualify", "do", "collect", "follow"];
+const RULE_THEN = ["draft", "queue", "notify", "note", "wait", "stop", "tag", "escalate"];
+const RULE_IF = ["qualify", "contains", "tag", "status", "unassigned", "older", "money", "field"];
+
+function normalizeWhen(when) {
+  const w = String(when || "").toLowerCase().trim();
+  if (RULE_WHEN.indexOf(w) >= 0) return w;
+  if (w === "hook" || w === "webhook") return "pipe";
+  if (w === "aia" || w === "mail" || w === "email") return "inbound";
+  if (w === "done" || w === "change") return "status";
+  return "qualify";
+}
+
+function normalizeThen(then) {
+  const t = String(then || "").toLowerCase().trim();
+  if (RULE_THEN.indexOf(t) >= 0) return t;
+  if (t === "cap" || t === "priority") return "escalate";
+  if (t === "alert" || t === "card") return "queue";
+  if (t === "hold") return "wait";
+  if (t === "kill") return "stop";
+  return "note";
+}
+
+function parseDelayHours(raw) {
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  const t = String(raw).toLowerCase().trim();
+  const n = Number((t.match(/(\d+(?:\.\d+)?)/) || [])[1]);
+  if (!Number.isFinite(n)) return null;
+  if (/day/.test(t)) return n * 24;
+  if (/min/.test(t)) return n / 60;
+  return n;
+}
+
+function jobOlderHours(job, now) {
+  const t = Date.parse((job && (job.createdAt || job.qualifiedAt)) || "") || 0;
+  if (!t) return 0;
+  return ((now || Date.now()) - t) / 3600000;
+}
+
+function jobTagsOf(job) {
+  const raw = (job && job.tags) || (job && job.custom && job.custom.tags) || [];
+  const list = Array.isArray(raw) ? raw : String(raw).split(/[,;]+/);
+  return list.map(function (s) { return String(s || "").trim(); }).filter(Boolean);
+}
+
+function jobAssigned(job) {
+  if (!job) return false;
+  if (job.assignee) return true;
+  if (job.handedTo && (job.handedTo.name || job.handedTo.id)) return true;
+  return false;
+}
+
+function isPipeJob(job) {
+  if (!job) return false;
+  const blob = [job.from, job.provider, job.lane, job.source, job.why].join(" ").toLowerCase();
+  return /\b(pipe|webhook|hook|zapier|make)\b/.test(blob) || job.lane === "ext";
+}
+
+function isInboundAia(job) {
+  if (!job) return false;
+  const blob = [job.from, job.inbound, job.to, job.aiaMail, job.aia, job.source].join(" ");
+  return /@[\w.-]+\.aia\b/i.test(blob) || /\binbound\b/i.test(blob);
+}
+
+function flattenWorkflows(pack) {
+  const src = pack && typeof pack === "object" ? pack : {};
+  const rows = [].concat(src.workflows || [], src.sequences || []);
+  const rules = [];
+  rows.forEach(function (wf) {
+    if (!wf) return;
+    const delay = parseDelayHours(wf.delay || wf.delayHours);
+    const branch = clipRule(wf.branch, 80);
+    [].concat(wf.rules || wf.steps || []).forEach(function (r) {
+      if (!r) return;
+      const copy = typeof r === "string" ? { text: r } : Object.assign({}, r);
+      if (delay != null && (copy.ifOlder == null || copy.ifOlder === "")) copy.ifOlder = delay;
+      if (branch && !copy.contains && !copy.ifTag) copy.contains = branch;
+      rules.push(copy);
+    });
+  });
+  return rules;
+}
+
+function publicWorkflow(wf) {
+  if (!wf) return null;
+  const rules = [].concat(wf.rules || wf.steps || []).map(function (r) {
+    return typeof r === "string" ? { text: clipRule(r, RULE_TEXT_MAX) } : publicRule(Object.assign({ id: r.id || "wf" }, r));
+  }).filter(Boolean);
   return {
-    id: "rule_seed_250",
-    text: SEED_RULE_TEXT,
-    seed: true,
-    attach: "qualify",
-    createdAt: createdAt || new Date().toISOString()
+    id: clipRule(wf.id || wf.name, 40),
+    name: clipRule(wf.name || wf.id, 80),
+    delay: wf.delay || wf.delayHours || null,
+    branch: clipRule(wf.branch, 80),
+    rules: rules.slice(0, RULE_MAX)
   };
+}
+
+function ruleStarters() {
+  return [];
+}
+
+function applyRuleBody(rule, src) {
+  if (!rule || !src || typeof src !== "object") return rule;
+  if (src.when != null && src.when !== "") rule.when = normalizeWhen(src.when);
+  if (src.then != null && src.then !== "") rule.then = normalizeThen(src.then);
+  if (src.ifMoney != null) {
+    const n = Number(src.ifMoney);
+    rule.ifMoney = Number.isFinite(n) ? n : null;
+  }
+  if (src.contains != null) rule.contains = clipRule(src.contains, 80);
+  if (src.ifField != null) rule.ifField = clipRule(src.ifField, 32);
+  if (src.ifValue != null) rule.ifValue = clipRule(src.ifValue, 80);
+  if (src.ifTag != null) rule.ifTag = clipRule(src.ifTag, 40);
+  if (src.ifStatus != null) rule.ifStatus = clipRule(src.ifStatus, 32);
+  if (src.ifUnassigned != null) rule.ifUnassigned = !!src.ifUnassigned;
+  if (src.ifOlder != null) {
+    const n = parseDelayHours(src.ifOlder);
+    rule.ifOlder = n;
+  }
+  if (src.tag != null || src.thenTag != null) rule.tag = clipRule(src.tag || src.thenTag, 40);
+  if (src.aiId != null) rule.aiId = clipRule(src.aiId, 40);
+  if (src.aiName != null) rule.aiName = clipRule(src.aiName, 40);
+  return rule;
 }
 
 function defaultRules() {
-  return [publicRule(seedRuleRow())];
+  return [];
 }
 
 function forbiddenRule(text) {
@@ -422,14 +1482,19 @@ function forbiddenRule(text) {
 
 function ensureRules(ws) {
   if (!ws) return [];
-  if (!Array.isArray(ws.rules)) ws.rules = [seedRuleRow(ws.createdAt)];
+  if (!Array.isArray(ws.rules)) ws.rules = [];
   return ws.rules.map(publicRule).filter(Boolean);
 }
 
-function addWorkspaceRule(ws, text, person) {
+function ruleTextOf(src) {
+  if (src && typeof src === "object") return String(src.text || "");
+  return String(src == null ? "" : src);
+}
+
+function addWorkspaceRule(ws, src, person) {
   if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
   if (!Array.isArray(ws.rules)) ensureRules(ws);
-  const clean = String(text || "").trim().replace(/\s+/g, " ");
+  const clean = ruleTextOf(src).trim().replace(/\s+/g, " ");
   if (clean.length < 4) return { ok: false, error: "Type a small wait-for-owner line." };
   if (clean.length > RULE_TEXT_MAX) return { ok: false, error: "Keep the rule short." };
   if (forbiddenRule(clean)) return { ok: false, error: RULE_FORBID_MSG };
@@ -439,16 +1504,117 @@ function addWorkspaceRule(ws, text, person) {
   if ((ws.rules || []).length >= RULE_MAX) {
     return { ok: false, error: "This desk has enough rules." };
   }
+  const body = src && typeof src === "object" ? src : {};
   const rule = {
     id: "rule_" + Date.now().toString(36),
     text: clean,
     seed: false,
     attach: "qualify",
+    when: "qualify",
+    then: "note",
+    ifMoney: null,
+    aiId: "",
+    aiName: "",
+    widget: { on: false, label: "" },
     createdAt: new Date().toISOString(),
     by: (person && person.name) || "owner"
   };
+  applyRuleBody(rule, body);
+  rule.attach = rule.when;
   ws.rules.push(rule);
   return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
+}
+
+function updateWorkspaceRule(ws, id, body) {
+  if (!ws) return { ok: false, error: "Open a desk first so rules have a home." };
+  if (!Array.isArray(ws.rules)) ensureRules(ws);
+  const key = String(id || "");
+  const rule = (ws.rules || []).find((r) => r && r.id === key);
+  if (!rule) return { ok: false, error: "Rule not found." };
+  const src = body && typeof body === "object" ? body : {};
+  if (src.text != null) {
+    const clean = String(src.text || "").trim().replace(/\s+/g, " ");
+    if (clean.length < 4) return { ok: false, error: "Type a small wait-for-owner line." };
+    if (clean.length > RULE_TEXT_MAX) return { ok: false, error: "Keep the rule short." };
+    if (forbiddenRule(clean)) return { ok: false, error: RULE_FORBID_MSG };
+    rule.text = clean;
+  }
+  applyRuleBody(rule, src);
+  rule.attach = rule.when || rule.attach || "qualify";
+  return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
+}
+
+function whenMatches(ruleWhen, step, job) {
+  const w = String(ruleWhen || "").toLowerCase();
+  const s = String(step || "").toLowerCase();
+  if (!w || !s || w === "any" || w === s) return true;
+  if (w === "drop" && (s === "capture" || s === "drop")) return true;
+  if (w === "pipe" && (s === "pipe" || s === "capture") && isPipeJob(job)) return true;
+  if (w === "inbound" && (s === "inbound" || s === "capture") && isInboundAia(job)) return true;
+  if (w === "status" && (s === "status" || s === "do" || s === "follow" || s === "done")) return true;
+  if (w === "capture" && s === "drop") return true;
+  return false;
+}
+
+function ifMatches(rule, job, now) {
+  if (!rule || !job) return false;
+  if (rule.ifKind && String(job.kind || "").toLowerCase() !== String(rule.ifKind).toLowerCase()) return false;
+  if (rule.contains) {
+    const blob = [
+      job.title, job.notes, job.kind, job.pack, job.why, job.draft, job.tell,
+      (job.tags || []).join(" ")
+    ].join(" ").toLowerCase();
+    if (blob.indexOf(String(rule.contains).toLowerCase()) < 0) return false;
+  }
+  if (rule.ifField && rule.ifValue) {
+    const got = String((job[rule.ifField] != null ? job[rule.ifField] : (job.custom && job.custom[rule.ifField])) || "").toLowerCase();
+    if (got !== String(rule.ifValue).toLowerCase() && got.indexOf(String(rule.ifValue).toLowerCase()) < 0) return false;
+  }
+  if (rule.ifTag) {
+    const want = String(rule.ifTag).toLowerCase();
+    const tags = jobTagsOf(job).map(function (t) { return t.toLowerCase(); });
+    const blob = [job.title, job.notes, job.kind].join(" ").toLowerCase();
+    if (tags.indexOf(want) < 0 && blob.indexOf(want) < 0) return false;
+  }
+  if (rule.ifStatus) {
+    const want = String(rule.ifStatus).toLowerCase();
+    const have = String(job.status || "").toLowerCase();
+    const step = String(job.step || "").toLowerCase();
+    if (want === "done" && !(have === "shipped" || have === "done" || step === "follow" || job.doneAt)) return false;
+    else if (want !== "done" && have !== want && step !== want) return false;
+  }
+  if (rule.ifUnassigned && jobAssigned(job)) return false;
+  if (rule.ifOlder != null && Number(rule.ifOlder) > 0 && jobOlderHours(job, now) < Number(rule.ifOlder)) return false;
+  if (rule.ifMoney != null) {
+    const n = Number(job.amount != null ? job.amount : job.ask);
+    if (!Number.isFinite(n) || n < Number(rule.ifMoney)) return false;
+  }
+  return true;
+}
+
+function matchingRules(rules, job, step, now) {
+  const want = String(step || "").toLowerCase();
+  return (rules || []).filter(function (r) {
+    if (!r) return false;
+    if (!whenMatches(r.when || r.attach, want, job)) return false;
+    if (job && !ifMatches(r, job, now)) return false;
+    return true;
+  });
+}
+
+function ruleWantsOwner(rules, job, step) {
+  return matchingRules(rules, job, step).some(function (r) { return r.then === "wait"; });
+}
+
+function ruleWantsStop(rules, job, step) {
+  return matchingRules(rules, job, step).some(function (r) { return r.then === "stop"; });
+}
+
+function ruleWhy(rules, job, step) {
+  const hit = matchingRules(rules, job, step).find(function (r) {
+    return r.then === "wait" || r.then === "stop";
+  });
+  return hit ? hit.text : "";
 }
 
 function removeWorkspaceRule(ws, id) {
@@ -475,9 +1641,18 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, mem, log, save, ready, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
+  blobOidcReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
+  ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
+  isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
-  SEED_RULE_TEXT, RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
-  addWorkspaceRule, removeWorkspaceRule, forbiddenRule, seedRuleRow, scrubLog
+  RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
+  addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
+  matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy, whenMatches, ifMatches,
+  normalizeWhen, normalizeThen, flattenWorkflows, publicWorkflow, applyRuleBody,
+  jobOlderHours, jobTagsOf, isPipeJob, isInboundAia, parseDelayHours,
+  NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
+  publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
+  ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF
 };

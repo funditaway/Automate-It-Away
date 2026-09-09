@@ -11,6 +11,13 @@
   "kill": ["already done", "not ours", "duplicate"],
   "pipes": ["calendar", "sms", "webhook"],
   "artifacts": ["reminder", "form note", "calendar"],
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "need", "label": "What is needed" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "where", "label": "Where" },
+    "how": "Text, calendar file, or hand it."
+  },
   "fields": {
     "capture": ["title", "kind", "from", "contactName", "phone", "notes", "photoUrl", "pack", "timing"],
     "qualify": ["timing", "risk", "why", "amount"],
@@ -20,8 +27,21 @@
     "rail": ["killReason", "whoTapped"]
   },
   "rails": [
-    "Ask me if money out is $250 or more.",
     "Ask me if a child or school is named on a public post.",
     "Ask me if this is same-day and it bumps something already on the week."
-  ]
+  ],
+  "rules": [
+    { "text": "Cap same-day cards.", "when": "qualify", "then": "cap", "contains": "same-day" },
+    { "text": "Ask me if a kid or school is named.", "when": "qualify", "then": "wait", "contains": "school" }
+  ],
+  "queue": {
+    "badge": "Home",
+    "family": "Automate It Away",
+    "empty": "Drop a chore, school form, or same-day pickup. Cap same-day.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["chore", "school", "pickup", "repair"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  }
 }

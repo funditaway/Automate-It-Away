@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Rules · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0d6b6b">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="desk-nav.css">
+  <script src="theme.js"></script>
+  <script src="analytics.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,sans-serif}
+    .desk-tabs a{color:#fff}
+    body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 24px}
+    .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+    .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .item h3{font-size:1rem;color:var(--heading)}
+    .item p{color:var(--muted);font-size:13px;margin:4px 0 8px}
+    .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    button,a.go{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
+    .go{background:#119494;color:#fff;display:inline-block}
+    .kill{background:var(--kill-bg);color:var(--kill-ink)}
+    .edit{background:var(--edit);color:var(--edit-ink)}
+    .meta{font-size:11px;opacity:.7}
+    .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
+    input,textarea,select{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
+    label.field{display:block;font-size:11px;font-weight:700;color:var(--heading);margin:8px 0 4px}
+    #noun-fields{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0}
+    #noun-fields label{font-size:11px;font-weight:700;color:var(--heading);display:block;margin:0 0 4px}
+    #noun-fields input{width:100%}
+    #rule-list{list-style:none;padding:0;margin:8px 0 0}
+    #rule-list li{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13px;color:var(--muted)}
+    #rule-list li span{flex:1;min-width:160px}
+    #rule-list .kill,#rule-list .edit{padding:4px 8px;font-size:12px}
+    #wit-box,#adv-box{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+    .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}
+    .strip div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+    .strip b{display:block;color:var(--heading);font-size:12px}
+    .strip span{font-size:12px;color:var(--muted)}
+    .vs{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px}
+    .vs b{color:var(--heading)}
+    .vs p{color:var(--muted);font-size:13px;margin:4px 0 0}
+    .scenarios{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+    .scenarios article{background:var(--bg-soft,rgba(13,107,107,.08));border-radius:10px;padding:10px}
+    .scenarios b{display:block;color:var(--heading);font-size:13px}
+    .scenarios span{font-size:12px;color:var(--muted)}
+    #gate[hidden],#session[hidden],#rule-add[hidden],#noun-save[hidden],#adv-box[hidden]{display:none!important}
+    @media(max-width:640px){#noun-fields,#wit-box,#adv-box,.scenarios{grid-template-columns:1fr 1fr}.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
+</head>
+<body class="has-desk-nav">
+  <header>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <span><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></span>
+    <nav class="desk-tabs" aria-label="Desk tabs">
+      <a href="/desk" data-tab="queue">Queue</a>
+      <a href="/drop" data-tab="drop" id="head-drop">Drop</a>
+      <a href="/create" data-tab="create">Create</a>
+      <a href="/history" data-tab="history">History</a>
+      <a href="/more" data-tab="more">More</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <div class="banner" id="banner">Add a rule. When / If / Then. Turn a widget on. Advanced lives here.</div>
+    <div class="strip" aria-label="When If Then">
+      <div><b>When</b><span>Trigger — Drop, pipe, inbound name@account.aia, status change.</span></div>
+      <div><b>If</b><span>Condition — Qualify check, tag, word, unassigned, older than.</span></div>
+      <div><b>Then</b><span>Action — a named desk AI drafts (you pick which), Queue card, notify. Human Yes/Stop for outbound or money.</span></div>
+      <div><b>Human</b><span>Yes or Stop. Collect stays HOLD. Nothing sends itself.</span></div>
+    </div>
+    <div class="vs">
+      <b>Rules vs pack workflows</b>
+      <p><b>Rule</b> = one When → If → Then on this desk. <b>Workflow / Sequence</b> = a pack that strings rules (optional delay / branch). Still thin JSON. No dashboard fork. Creators Studio writes the pack.</p>
+    </div>
+    <div class="lock" id="session" hidden>
+      <span id="who-line"></span>
+      <a class="edit" href="/desk">Queue</a>
+    </div>
+    <div class="row" id="gate" style="margin-bottom:8px">
+      <input id="ws" placeholder="Desk name">
+      <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
+      <button class="edit" type="button" onclick="load()">Open</button>
+    </div>
+      <p class="meta" id="widget-count">0 widgets on</p>
+      <div class="item" id="desk-ais" hidden></div>
+      <div class="item" id="rules">
+      <h3>Owner rules</h3>
+      <p>One When → If → Then on this desk. Owner picks which named desk AI writes Then draft. Queue card or notify. Human Yes/Stop for outbound or money. Worker never Send. Collect stays HOLD.</p>
+      <ul id="rule-list"></ul>
+      <div id="rule-add" hidden style="margin-top:10px">
+        <label class="field" for="rule-text">Ask me if</label>
+        <input id="rule-text" placeholder="Ask me if money out waits on the owner." maxlength="180" style="width:100%">
+        <div id="wit-box">
+          <div>
+            <label class="field" for="rule-when">When · Trigger</label>
+            <select id="rule-when">
+              <option value="drop">Drop</option>
+              <option value="pipe">Pipe event</option>
+              <option value="inbound">Inbound name@account.aia</option>
+              <option value="status">Status change</option>
+              <option value="qualify">Qualify</option>
+              <option value="capture">Capture</option>
+              <option value="do">Do</option>
+              <option value="collect">Collect</option>
+              <option value="follow">Follow</option>
+            </select>
+          </div>
+          <div>
+            <label class="field" for="rule-then">Then · Action</label>
+            <select id="rule-then" onchange="paintAiPick()">
+              <option value="draft">Named desk AI drafts</option>
+              <option value="queue">Queue card / alert</option>
+              <option value="notify">Notify — draft HOLD</option>
+              <option value="tag">Tag the card</option>
+              <option value="escalate">Escalate priority</option>
+              <option value="note">Note on the card</option>
+              <option value="wait">Wait on the owner</option>
+              <option value="stop">Stop — owner taps No</option>
+            </select>
+          </div>
+          <div>
+            <label class="field" for="rule-contains">If · card contains</label>
+            <input id="rule-contains" maxlength="80" placeholder="click, international, Lead">
+          </div>
+          <div>
+            <label class="field" for="rule-iftag">If · tagged</label>
+            <input id="rule-iftag" maxlength="40" placeholder="Lead">
+          </div>
+          <div>
+            <label class="field" for="rule-tag">Then tag</label>
+            <input id="rule-tag" maxlength="40" placeholder="Interested">
+          </div>
+          <div>
+            <label class="field" for="rule-older">If · older than hours</label>
+            <input id="rule-older" inputmode="numeric" placeholder="24">
+          </div>
+        </div>
+        <label class="field" style="margin-top:8px"><input id="rule-unassigned" type="checkbox"> If unassigned</label>
+        <div id="rule-ai-box" style="margin-top:8px">
+          <label class="field" for="rule-ai">Then · named desk AI</label>
+          <select id="rule-ai" style="width:100%">
+            <option value="">Any desk AI that can draft</option>
+          </select>
+          <p class="meta" id="rule-ai-hint">Picks who writes Then draft on matching cards. Yes / Stop / Kill stay human. Nothing sent alone.</p>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="edit" type="button" id="adv-toggle" onclick="toggleAdv()">Advanced</button>
+          <button class="go" type="button" onclick="saveRule()">Add a rule</button>
+          <button class="edit" type="button" id="adv-cancel" hidden onclick="clearForm()">Cancel edit</button>
+        </div>
+        <div id="adv-box" hidden>
+          <div>
+            <label class="field" for="rule-money">If money is at least $</label>
+            <input id="rule-money" inputmode="decimal" placeholder="leave blank">
+          </div>
+          <div>
+            <label class="field" for="rule-ifstatus">If status</label>
+            <input id="rule-ifstatus" maxlength="32" placeholder="done">
+          </div>
+          <div>
+            <label class="field" for="rule-field">If field</label>
+            <input id="rule-field" maxlength="32" placeholder="kind, pack, city">
+          </div>
+          <div>
+            <label class="field" for="rule-value">equals / contains</label>
+            <input id="rule-value" maxlength="80" placeholder="international">
+          </div>
+        </div>
+        <p class="meta" id="rule-hint">This desk only. Starts empty. Owner desk code to change them. Stop still needs the owner’s second tap. Outbound and money stay HOLD.</p>
+      </div>
+      <div id="scenarios">
+        <h3 style="margin-top:12px">Example When → If → Then</h3>
+        <p>Copy the line. Do not install a seed. No live eBay or mail. Collect stays HOLD.</p>
+        <div class="scenarios">
+          <article><b>Lead click</b><span>When Drop · If tagged Lead and contains click · Then tag Interested. Desk AI drafts. Human send HOLD.</span></article>
+          <article><b>Task done</b><span>When status Done · Then notify owner. Desk AI draft. Nothing sends itself.</span></article>
+          <article><b>International order</b><span>When Drop · If new order + international · Then Customs Form alert on Queue.</span></article>
+          <article><b>Support late</b><span>When status · If unassigned + older than 24h · Then escalate priority.</span></article>
+        </div>
+      </div>
+    </div>
+    <div class="item" id="nouns">
+      <h3>Step words</h3>
+      <p>This desk only. Five short names. The drop box and queue use them.</p>
+      <div id="noun-fields">
+        <div><label for="noun-capture">Capture</label><input id="noun-capture" maxlength="24" placeholder="Capture"></div>
+        <div><label for="noun-qualify">Qualify</label><input id="noun-qualify" maxlength="24" placeholder="Qualify"></div>
+        <div><label for="noun-do">Do</label><input id="noun-do" maxlength="24" placeholder="Do"></div>
+        <div><label for="noun-collect">Collect</label><input id="noun-collect" maxlength="24" placeholder="Collect"></div>
+        <div><label for="noun-follow">Follow</label><input id="noun-follow" maxlength="24" placeholder="Follow"></div>
+      </div>
+      <div class="row" id="noun-save" hidden>
+        <button class="edit" type="button" onclick="saveNouns()">Save words</button>
+      </div>
+      <p class="meta" id="noun-hint">Owner desk code required to save.</p>
+    </div>
+    <p class="meta"><a href="/legal">Legal</a> is the draft contract. This page is the desk’s wait lines.</p>
+  </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
+    <a href="/drop" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
+    <a href="/create" data-tab="create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5zM14 4v5h5M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Create</span></a>
+    <a href="/history" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>History</span></a>
+    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+  </nav>
+  <script src="desk-switch.js"></script>
+  <script src="desk-nav.js"></script>
+  <script>
+    const wsEl = document.getElementById("ws");
+    const pinEl = document.getElementById("pin");
+    let role = localStorage.getItem("aia_role") || "";
+    let youName = localStorage.getItem("aia_name") || "";
+    let RULES = [];
+    let AIS = [];
+    let EDIT_ID = "";
+    let ADV_ON = false;
+    let NOUNS = AIADesks.nounsOf();
+    function workspaceSlug() {
+      return AIADesks.slugify(wsEl.value || localStorage.getItem("aia_ws") || "");
+    }
+    function headers() {
+      const h = { "Content-Type": "application/json" };
+      const ws = workspaceSlug();
+      if (ws) h["X-Workspace"] = ws;
+      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    }
+    async function api(path, opts) {
+      const r = await fetch(path, Object.assign({ headers: headers() }, opts || {}));
+      const data = await r.json().catch(() => ({}));
+      return { status: r.status, data };
+    }
+    function esc(s) {
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+    }
+    function paintGate() {
+      const on = AIADesks.shopOpen();
+      document.getElementById("gate").hidden = on;
+      document.getElementById("session").hidden = !on;
+      const name = (AIADesks.current() && AIADesks.current().name) || localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_ws") || "";
+      document.getElementById("who-line").textContent = (youName ? youName + " \u00b7 " : "") + name + (role === "employee" ? " \u00b7 helper" : role === "owner" ? " \u00b7 owner" : "");
+      const drop = AIADesks.widgetHref();
+      ["nav-drop", "head-drop"].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute("href", drop);
+      });
+    }
+    function paintNouns(nouns, canEdit) {
+      NOUNS = AIADesks.nounsOf(nouns);
+      ["capture", "qualify", "do", "collect", "follow"].forEach((k) => {
+        const el = document.getElementById("noun-" + k);
+        if (el) el.value = NOUNS[k];
+      });
+      document.getElementById("noun-save").hidden = !canEdit;
+    }
+    function paintCount(n) {
+      const c = Number(n) || 0;
+      document.getElementById("widget-count").textContent = c === 1 ? "1 widget on" : c + " widgets on";
+    }
+    function thenWord(t, name) {
+      if (t === "wait") return "wait on owner";
+      if (t === "stop") return "stop";
+      if (t === "draft") return name ? (name + " draft HOLD") : "desk AI draft HOLD";
+      if (t === "queue") return "Queue card";
+      if (t === "notify") return "notify HOLD";
+      if (t === "tag") return "tag";
+      if (t === "escalate") return "escalate";
+      return "note";
+    }
+    function ruleBits(r) {
+      const bits = [];
+      if (r.when) bits.push("When " + r.when);
+      if (r.then) bits.push("Then " + thenWord(r.then, r.aiName));
+      if (r.ifTag) bits.push("If tagged " + r.ifTag);
+      if (r.ifStatus) bits.push("If status " + r.ifStatus);
+      if (r.ifUnassigned) bits.push("If unassigned");
+      if (r.ifOlder != null) bits.push("If older " + r.ifOlder + "h");
+      if (r.ifMoney != null) bits.push("$" + r.ifMoney + "+");
+      if (r.contains) bits.push("If \"" + r.contains + "\"");
+      if (r.tag) bits.push("tag " + r.tag);
+      if (r.ifField) bits.push(r.ifField + (r.ifValue ? "=" + r.ifValue : ""));
+      return bits;
+    }
+    function paintRules(rules, canEdit) {
+      const list = document.getElementById("rule-list");
+      const rows = rules || [];
+      list.innerHTML = rows.map((r) => {
+        const on = !!(r.widget && r.widget.on);
+        const label = (r.widget && r.widget.label) || "";
+        const bits = ruleBits(r);
+        return "<li><span><b>" + esc(r.text) + "</b>" +
+          (bits.length ? "<br><span class=\"meta\">" + esc(bits.join(" \u00b7 ")) + "</span>" : "") +
+          (on ? "<br><span class=\"meta\">widget on" + (label ? " \u00b7 " + esc(label) : "") + "</span>" : "") +
+          "</span>" +
+          (canEdit
+            ? "<span class=\"row\">" +
+              "<button class=\"edit\" type=\"button\" onclick=\"editRule('" + esc(r.id) + "')\">Edit</button>" +
+              "<button class=\"edit\" type=\"button\" onclick=\"toggleWidget('" + esc(r.id) + "', " + (on ? "false" : "true") + ")\">" + (on ? "Widget off" : "Widget on") + "</button>" +
+              "<button class=\"kill\" type=\"button\" onclick=\"removeRule('" + esc(r.id) + "')\">Remove</button>" +
+              "</span>"
+            : "") +
+          "</li>";
+      }).join("") || "<li><span class=\"meta\">No rules yet. Add one if you need it.</span></li>";
+      document.getElementById("rule-add").hidden = !canEdit;
+      paintCount((rows.filter((r) => r.widget && r.widget.on)).length);
+      paintAiPick();
+    }
+    function paintAiPick() {
+      const sel = document.getElementById("rule-ai");
+      const hint = document.getElementById("rule-ai-hint");
+      const thenEl = document.getElementById("rule-then");
+      const box = document.getElementById("rule-ai-box");
+      if (!sel || !box) return;
+      const then = thenEl ? thenEl.value : "draft";
+      box.hidden = then !== "draft";
+      const keep = sel.value;
+      if (!AIS.length) {
+        sel.innerHTML = "<option value=\"\">No named AI on this desk yet</option>";
+        sel.disabled = true;
+        if (hint) hint.textContent = "Create one in Studio or Create. Then still drafts HOLD. Nothing sent alone.";
+        return;
+      }
+      sel.disabled = false;
+      sel.innerHTML = "<option value=\"\">Any desk AI that can draft</option>" + AIS.map(function (a) {
+        const value = a.id || a.name || "";
+        return "<option value=\"" + esc(value) + "\">" + esc(a.name || "Desk AI") + "</option>";
+      }).join("");
+      if (keep && AIS.some(function (a) { return a.id === keep || a.name === keep; })) sel.value = keep;
+      if (hint) hint.textContent = "Picks who writes Then draft on matching cards. Yes / Stop / Kill stay human. Nothing sent alone.";
+    }
+    function toggleAdv(force) {
+      ADV_ON = force == null ? !ADV_ON : !!force;
+      document.getElementById("adv-box").hidden = !ADV_ON;
+      document.getElementById("adv-toggle").textContent = ADV_ON ? "Hide advanced" : "Advanced";
+    }
+    function clearForm() {
+      EDIT_ID = "";
+      document.getElementById("rule-text").value = "";
+      document.getElementById("rule-when").value = "drop";
+      document.getElementById("rule-then").value = "draft";
+      const aiEl = document.getElementById("rule-ai");
+      if (aiEl) aiEl.value = "";
+      document.getElementById("rule-money").value = "";
+      document.getElementById("rule-contains").value = "";
+      document.getElementById("rule-field").value = "";
+      document.getElementById("rule-value").value = "";
+      document.getElementById("rule-iftag").value = "";
+      document.getElementById("rule-tag").value = "";
+      document.getElementById("rule-older").value = "";
+      document.getElementById("rule-ifstatus").value = "";
+      document.getElementById("rule-unassigned").checked = false;
+      document.getElementById("adv-cancel").hidden = true;
+      document.querySelector("#rule-add .go").textContent = "Add a rule";
+      toggleAdv(false);
+      paintAiPick();
+    }
+    function payload() {
+      const body = {
+        text: ((document.getElementById("rule-text") || {}).value || "").trim(),
+        when: document.getElementById("rule-when").value,
+        then: document.getElementById("rule-then").value,
+        contains: document.getElementById("rule-contains").value,
+        ifTag: document.getElementById("rule-iftag").value,
+        tag: document.getElementById("rule-tag").value,
+        ifUnassigned: !!(document.getElementById("rule-unassigned") || {}).checked
+      };
+      if (body.then === "draft") {
+        const aiEl = document.getElementById("rule-ai");
+        body.ai = aiEl ? (aiEl.value || "") : "";
+      }
+      const older = document.getElementById("rule-older").value;
+      if (older) body.ifOlder = older;
+      if (ADV_ON || EDIT_ID) {
+        body.advanced = true;
+        const money = document.getElementById("rule-money").value;
+        if (money) body.ifMoney = money;
+        body.ifField = document.getElementById("rule-field").value;
+        body.ifValue = document.getElementById("rule-value").value;
+        body.ifStatus = document.getElementById("rule-ifstatus").value;
+      }
+      return body;
+    }
+    function editRule(id) {
+      const r = RULES.find((row) => row && row.id === id);
+      if (!r) return;
+      EDIT_ID = id;
+      document.getElementById("rule-text").value = r.text || "";
+      document.getElementById("rule-when").value = r.when || "drop";
+      document.getElementById("rule-then").value = r.then || "draft";
+      paintAiPick();
+      const aiEl = document.getElementById("rule-ai");
+      if (aiEl) aiEl.value = r.aiId || r.aiName || "";
+      document.getElementById("rule-money").value = r.ifMoney != null ? r.ifMoney : "";
+      document.getElementById("rule-contains").value = r.contains || "";
+      document.getElementById("rule-field").value = r.ifField || "";
+      document.getElementById("rule-value").value = r.ifValue || "";
+      document.getElementById("rule-iftag").value = r.ifTag || "";
+      document.getElementById("rule-tag").value = r.tag || "";
+      document.getElementById("rule-older").value = r.ifOlder != null ? r.ifOlder : "";
+      document.getElementById("rule-ifstatus").value = r.ifStatus || "";
+      document.getElementById("rule-unassigned").checked = !!r.ifUnassigned;
+      document.getElementById("adv-cancel").hidden = false;
+      document.querySelector("#rule-add .go").textContent = "Save rule";
+      toggleAdv(!!r.advanced || r.ifMoney != null || r.ifField || r.ifStatus);
+      document.getElementById("rule-text").focus();
+    }
+    async function saveRule() {
+      const body = payload();
+      if (EDIT_ID) {
+        body.action = "update";
+        body.id = EDIT_ID;
+      }
+      const out = await api("/api/rules", { method: "POST", body: JSON.stringify(body) });
+      if (out.status >= 400) {
+        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not save that rule.";
+        return;
+      }
+      clearForm();
+      load();
+    }
+    async function removeRule(id) {
+      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ action: "remove", id }) });
+      if (out.status >= 400) {
+        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not remove that line.";
+        return;
+      }
+      if (EDIT_ID === id) clearForm();
+      load();
+    }
+    async function toggleWidget(id, on) {
+      const out = await api("/api/rules", { method: "POST", body: JSON.stringify({ action: "widget", id, on: !!on }) });
+      if (out.status >= 400) {
+        document.getElementById("rule-hint").textContent = (out.data && out.data.error) || "Could not change that widget.";
+        return;
+      }
+      load();
+    }
+    async function saveNouns() {
+      const nouns = {
+        capture: (document.getElementById("noun-capture") || {}).value,
+        qualify: (document.getElementById("noun-qualify") || {}).value,
+        do: (document.getElementById("noun-do") || {}).value,
+        collect: (document.getElementById("noun-collect") || {}).value,
+        follow: (document.getElementById("noun-follow") || {}).value
+      };
+      const out = await api("/api/auth", { method: "POST", body: JSON.stringify({ action: "nouns", nouns }) });
+      if (out.status >= 400) {
+        document.getElementById("noun-hint").textContent = (out.data && out.data.error) || "Could not save those words.";
+        return;
+      }
+      document.getElementById("noun-hint").textContent = "Saved. This desk only.";
+      load();
+    }
+    async function load() {
+      if (wsEl.value) {
+        const slug = AIADesks.slugify(wsEl.value);
+        if (slug) { localStorage.setItem("aia_ws", slug); wsEl.value = slug; }
+      }
+      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
+      paintGate();
+      const banner = document.getElementById("banner");
+      if (!workspaceSlug()) {
+        banner.textContent = "Name this desk. Open it.";
+        RULES = [];
+        AIS = [];
+        paintRules([], false);
+        paintNouns(AIADesks.defaultNouns(), false);
+        return;
+      }
+      try {
+        const auth = await api("/api/auth");
+        if (auth.data && auth.data.you && auth.data.you.role) {
+          role = auth.data.you.role;
+          youName = auth.data.you.name || youName;
+          localStorage.setItem("aia_role", role);
+          if (youName) localStorage.setItem("aia_name", youName);
+        }
+        if (auth.data && auth.data.workspace) {
+          const w = auth.data.workspace;
+          if (w.biz || w.name) localStorage.setItem("aia_desk_name", w.biz || w.name);
+          NOUNS = AIADesks.nounsOf(w.nouns);
+        }
+        const rulesOut = await api("/api/rules");
+        RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || [];
+        AIS = (rulesOut.data && rulesOut.data.ais) || [];
+        const can = !!(rulesOut.data && rulesOut.data.canAdd);
+        paintRules(RULES, can);
+        paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);
+        if (rulesOut.data && rulesOut.data.widgetsOn != null) paintCount(rulesOut.data.widgetsOn);
+        banner.textContent = "Add a rule. When / If / Then. A pack workflow strings rules. This page is not Legal.";
+        paintGate();
+      } catch (e) {
+        banner.textContent = "Could not reach the desk.";
+        AIS = [];
+        paintRules([], false);
+        paintNouns(AIADesks.defaultNouns(), false);
+      }
+    }
+    if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
+    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
+    paintGate(); load();
+  </script>
+</body>
+</html>

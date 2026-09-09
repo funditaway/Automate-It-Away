@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
 
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Status · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
   <style>
     body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#07090c;color:#f4f7fa}
     a{color:#fff;text-decoration:none}
@@ -20,31 +24,47 @@
   </style>
 </head>
 <body>
-  <header><a href="index.html">AUTOMATE IT AWAY</a> · Status</header>
+  <header><a href="index.html">AUTOMATE IT AWAY</a> · Status <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
   <main class="wrap">
     <h1>automateitaway.com</h1>
     <div class="row"><span>Marketing site</span><span class="up">Prototype up</span></div>
     <div class="row"><span>Dashboard UI</span><span class="up">Prototype up</span></div>
     <div class="row"><span>API / health</span><span id="api" class="hold">Checking…</span></div>
-    <div class="row"><span>World user accounts</span><span class="hold">Pin workspace — not email login</span></div>
+    <div class="row"><span>World user accounts</span><span id="accounts" class="hold">Checking…</span></div>
     <div class="row"><span>Hosted jobs store</span><span id="store" class="hold">Unknown</span></div>
     <div class="row"><span>Photo / file store</span><span id="files" class="hold">Unknown</span></div>
     <div class="row"><span>Domain DNS</span><span class="up">Pointed — this host answered</span></div>
+    <div class="row"><span>Talk on desk</span><span class="up">Work · Note · Invite · Rule — drafts only</span></div>
+    <div class="row"><span>Helper seats</span><span class="up">Own desk code — owner Stop</span></div>
+    <div class="row"><span>Drop from anywhere</span><span class="up">/drop?ws= · embed · hook — no money</span></div>
     <div class="row"><span>Inbound pipe</span><span class="up">POST /api/hook</span></div>
     <div class="row"><span>Square / eBay / Calendar</span><span id="pipes" class="hold">Not connected</span></div>
     <div class="row"><span>Included Grok drafts</span><span class="hold">API key not set</span></div>
     <div class="row"><span>ChatGPT / Claude required</span><span class="up">No — never required</span></div>
+    <div class="row"><span>Coming soon wall</span><span class="hold">Shown on /connections — not live</span></div>
     <div class="row"><span>Whatnot</span><span class="down">Not a launch pipe</span></div>
     <div class="row"><span>Grok Bot public API</span><span class="down">Does not exist — not a gate</span></div>
+    <div class="row"><span>Browser wallet</span><span id="wallet" class="hold">Checking…</span></div>
+    <div class="row"><span>AIA Internet · .aia TLD</span><span id="aia-tld-row" class="hold">Checking…</span></div>
     <p style="color:#8b9aab;margin-top:18px">Green is honest. Orange is P1. Red we skip for launch.</p>
-    <pre id="raw">waiting on /api/health</pre>
+    <pre id="raw">waiting on /api/status</pre>
   </main>
   <script>
-    fetch("/api/health").then(r => r.json()).then(data => {
-      document.getElementById("raw").textContent = JSON.stringify(data, null, 2);
+    Promise.all([
+      fetch("/api/health").then(r => r.json()),
+      fetch("/api/status").then(r => r.ok ? r.json() : { ok: false, statusCode: r.status })
+    ]).then(([data, status]) => {
+      document.getElementById("raw").textContent = JSON.stringify({ health: data, status: status }, null, 2);
       const api = document.getElementById("api");
       api.textContent = data.ok ? "Up on this host" : "Down";
       api.className = data.ok ? "up" : "down";
+      const accountsEl = document.getElementById("accounts");
+      if (accountsEl) {
+        const login = (data.accounts && data.accounts.login) || "";
+        const emailDoor = /email/i.test(login) && /password/i.test(login);
+        accountsEl.textContent = login || "Unknown";
+        accountsEl.className = emailDoor ? "up" : "hold";
+      }
       const store = document.getElementById("store");
       const d = data.store || {};
       store.textContent = (d.driver || "?") + (d.note ? " — " + d.note : "");
@@ -57,13 +77,44 @@
       }
       const live = (data.pipes || []).filter(p => p.live && p.id !== "webhook");
       const pipes = document.getElementById("pipes");
-      if (live.length) { pipes.textContent = live.map(p => p.id).join(", "); pipes.className = "up"; }
-      else { pipes.textContent = "No paid pipes live"; pipes.className = "hold"; }
+      const deskHold = status && status.status === "hold";
+      if (live.length && !deskHold) { pipes.textContent = live.map(p => p.id).join(", "); pipes.className = "up"; }
+      else { pipes.textContent = (status && status.note) || "No paid pipes live"; pipes.className = "hold"; }
+      const walletEl = document.getElementById("wallet");
+      const w = (status && status.wallet) || {};
+      if (walletEl) {
+        if (w.connected && (w.short || w.address)) {
+          walletEl.textContent = (w.short || w.address) + (w.chain ? " · " + w.chain : "") + " — identity only. Collect stays HOLD.";
+          walletEl.className = "up";
+        } else {
+          var note = w.note || "No wallet connected on this open desk. Connect MetaMask or WalletConnect on Account or Desk.";
+          walletEl.textContent = /Collect stays HOLD/i.test(note) ? note : (note + " Collect stays HOLD.");
+          walletEl.className = "hold";
+        }
+      }
+      const tldEl = document.getElementById("aia-tld-row");
+      const tld = (status && status.aiaTld) || {};
+      if (tldEl) {
+        if (tld.ownedByConnected || tld.owned) {
+          tldEl.textContent = "Owned — wallet matches registry owner. Collect stays HOLD.";
+          tldEl.className = "up";
+        } else if (tld.bridgeLocked) {
+          tldEl.textContent = (tld.note || "Bridge locked on Decentraweb — watching.") + " Collect stays HOLD.";
+          tldEl.className = "hold";
+        } else if (tld.available) {
+          tldEl.textContent = "Available to register — Connect wallet then Register .aia on Account. Collect stays HOLD.";
+          tldEl.className = "up";
+        } else {
+          tldEl.textContent = (tld.note || "Watching Decentraweb for .aia.") + ( /Collect stays HOLD/i.test(tld.note || "") ? "" : " Collect stays HOLD.");
+          tldEl.className = "hold";
+        }
+      }
     }).catch(() => {
       document.getElementById("api").textContent = "Not on this host";
       document.getElementById("api").className = "hold";
       document.getElementById("raw").textContent = "Static host — API lives on the Vercel project automate-it-away.";
     });
   </script>
+  <script src="theme.js"></script>
 </body>
 </html>

@@ -1,9 +1,26 @@
-/* Phone desk tabs. In the page so Pipes/More stay visible if JS never runs. */
+/* Phone desk tabs. Header tabs stay in the markup as a no-JS fallback.
+   With JS (or the HTML bottom bar) the phone uses only the bottom nav. */
 body.has-desk-nav {
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+body.has-desk-nav header {
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
 }
 header {
   flex-wrap: wrap;
+}
+@media (max-width: 859px) {
+  body.has-desk-nav .desk-tabs {
+    display: none !important;
+  }
+}
+@media (min-width: 860px) {
+  body.has-desk-nav {
+    padding-bottom: 24px;
+  }
+  body.has-desk-nav #desk-nav {
+    display: none !important;
+  }
 }
 .desk-tabs {
   width: 100%;
@@ -68,4 +85,157 @@ header {
   position: relative;
   z-index: 2;
   pointer-events: auto;
+}
+
+button, a.go, a.edit, .btn {
+  min-height: 44px;
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.wrap {
+  container-type: inline-size;
+  container-name: desk;
+}
+
+#desk-actions, .row.actions, .row.decide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+#desk-actions a.go, #desk-actions .go { grid-column: 1 / -1; }
+
+#gate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  gap: 8px;
+  width: 100%;
+  align-items: stretch;
+}
+#gate input,
+#gate button { min-height: 44px; width: 100%; }
+#gate button,
+#gate button.go,
+#gate button.edit,
+#gate button.open-desk {
+  background: var(--orange, #f39c12);
+  color: #0c1116;
+  font-weight: 800;
+}
+
+#queue > .item > .row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+}
+#queue > .item > .row > .edit:first-child { grid-column: 1 / -1; }
+
+@container desk (max-width: 519px) {
+  #gate {
+    grid-template-columns: minmax(0, 1fr) 110px;
+  }
+  #gate button { grid-column: 1 / -1; }
+}
+
+@container desk (min-width: 560px) {
+  #queue {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+  #queue > .item {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+  #queue > .item > .row {
+    margin-top: auto;
+  }
+  #queue > .queue-empty,
+  #queue > p,
+  #queue > .row {
+    grid-column: 1 / -1;
+  }
+}
+
+.sheet { z-index: 80; }
+.sheet-card { max-height: 90vh; overflow: auto; }
+.sheet-decide {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--card, #fff);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 16px -16px -16px;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line, #d1dae3);
+}
+.sheet-decide .go, .sheet-decide .kill { min-height: 48px; font-size: 16px; }
+.recs {
+  background: var(--edit, #e6f7f7);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 8px 0 12px;
+}
+.recs-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--heading, #0a4f4f);
+  margin: 0 0 6px;
+}
+.recs ul { margin: 0; padding-left: 18px; }
+.recs li { margin: 0 0 4px; font-size: 14px; }
+#desk-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#desk-list button { width: 100%; margin: 0; }
+
+#queue-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#queue-filters button {
+  min-height: 40px;
+  flex: 0 1 auto;
+}
+.lock { flex-wrap: wrap; }
+.lock > span:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tap-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.tap-opts a, .tap-opts button { width: 100%; margin: 0; }
+@media (max-width: 420px) {
+  .tap-opts { grid-template-columns: 1fr 1fr; }
+  .sheet-decide { grid-template-columns: 1fr 1fr; }
+  .sheet-decide .go { grid-column: 1 / -1; }
+}
+
+.verify-cells button,
+button[data-jump] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
 }

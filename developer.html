@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="theme-color" content="#0d6b6b">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Creators Studio · ai.aia · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="description" content="Creators Studio on AIA Internet. ai.aia is the brand. The desk runs on automateitaway.com. Build packs and named desk AIs as .aia files. No public payout baseline — you earn by pricing a pack. Collect stays HOLD. Packs never Send, Stop, or pay.">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="desk-nav.css">
+  <style>
+    body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;margin:0}
+    a{color:inherit;text-decoration:none}
+    .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 80px}
+    h1{color:var(--heading);font-size:1.35rem;margin:0}
+    h2{color:var(--heading);font-size:1.02rem;margin:18px 0 8px}
+    .sub,.hint{color:var(--muted);margin:4px 0 14px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--card);color:var(--ink);box-sizing:border-box}
+    .go,.use{min-height:44px;border:0;border-radius:10px;padding:10px 12px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer}
+    .ghost{background:transparent;color:var(--heading);border:1px solid var(--line)}
+    .err{color:var(--kill-ink);display:none;margin-top:8px}
+    .ok{color:#1b7a3d;display:none;margin-top:8px}
+    .pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+    .pills button{min-height:36px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:transparent;color:var(--heading);font:700 12px system-ui;cursor:pointer}
+    .pills button.on{background:var(--orange);color:#fff;border-color:transparent}
+    .cta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .cta a,.cta button{min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+    .banner{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+    .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+    .strip div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+    .strip b{display:block;color:var(--heading);font-size:12px}
+    .strip span{font-size:12px;color:var(--muted)}
+    .pack-row{border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+    .pack-row b{display:block;color:var(--heading)}
+    .aia-line{background:var(--edit);color:var(--edit-ink);border:1px solid var(--teal);border-radius:12px;padding:10px 12px;font-size:13px;margin:8px 0}
+    .aia-line.off{background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading);border-color:var(--orange)}
+    .draft{display:none;margin-top:12px;border-left:3px solid var(--teal);padding:8px 10px;font-size:14px;white-space:pre-wrap}
+    .draft.on{display:block}
+    .yes{background:var(--teal);color:#fff}
+    .stop{background:transparent;color:var(--heading);border:1px solid var(--line)}
+    #grok-decide[hidden]{display:none!important}
+    @media(max-width:640px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:420px){.cta a,.cta button{width:100%}}
+  </style>
+</head>
+<body class="page-bg has-desk-nav">
+  <header class="site-header">
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <span class="brand-page">Creators Studio</span>
+    <div class="nav">
+      <a href="/create">Create</a>
+      <a href="/market">Packs</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
+    <nav class="desk-tabs" aria-label="Desk tabs">
+      <a href="/desk" data-tab="queue">Queue</a>
+      <a href="/drop" data-tab="drop">Drop</a>
+      <a href="/create" data-tab="create">Create</a>
+      <a href="/history" data-tab="history">History</a>
+      <a href="/more" data-tab="more">More</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>Creators Studio. Build a pack. Name a desk AI. Ship a .aia file.</h1>
+    <p class="sub">ai.aia is the AIA Internet brand. The desk runs on automateitaway.com — not a new website. Packs and named desk AIs travel as .aia files. Same AIA account. Collect stays HOLD until Yes and a money pipe. Packs never Send. Outbound mail HOLD.</p>
+    <p class="aia-line off">ai.aia is the brand. automateitaway.com is the desk. .aia is the pack file. No on-chain claim.</p>
+    <div class="card" id="world">
+      <h2>World users · launch an automation business</h2>
+      <p class="hint">Same AIA account. Days are a guide, not a promise. Spine: Audit → Pipes → named desk AI → Rules (When → If → Then). Yes / Stop / Kill stay human. Collect stays HOLD until Yes + a live money pipe.</p>
+      <p class="hint"><b>1. Core setup.</b> Offer = packs / agency / DFY (agency, DFY, and co-pilot are off-platform labels). Niche 1–2. Stack = this desk + pipes (webhook, www hook). Open a desk → create / name a desk AI → pack .aia → Marketplace or private. Price bands ($47–$197 packs, retainers, $997 DFY) are illustrative / off-platform — not an AIA rate card.</p>
+      <p class="hint"><b>2. First pack suite.</b> Ideas, not seeded demo rules: Lead capture + follow-up; Content multiplier; Document / email processing. Map Trigger → Condition → Action on this desk.</p>
+      <p class="hint"><b>3. Package &amp; monetize.</b> Lead magnet → mid pack → high-ticket VIP / setup. You set prices. Collect stays HOLD. No public payout baseline. No affiliate percent. No silent charge. No demo seed.</p>
+      <p class="hint"><b>4. GTM.</b> Build in public (60s clips). Publish on Marketplace / Studio. Use clear titles + niche keywords on Marketplace. Local SMB outreach or a risk-free trial. AIA does not rank listings on platform search and does not guarantee top rankings.</p>
+      <p class="hint"><b>Account.</b> Open a desk (name + code) or email + password on /account. Not social SSO. <b>Pack Creator</b> (on-desk): package desk AIs, webhooks, and CRM pipes when connected into a .aia. Lead qualify, review responder, social repurposing drafts — not auto-publish unless a live pipe exists. You set prices. Collect HOLD. Social auto-post is a future / off-platform pipe — not live OAuth.</p>
+      <p class="hint"><b>Build automation packs.</b> Niche problem — real estate / e-com / agency ideas, not seeded demo rules; measurable time or leads. Core logic stack = this desk: Trigger (webhook / Drop / pipe / inbound .aia) → Qualify + named desk AI prompts (JSON / structured) → Fallbacks (Rules + Rail Yes/Stop/Kill / alert — no silent crash) → Destination pipes when connected. Collect HOLD. Plug-and-play: clear credential vars, dashboards via pipes, 2-min quickstart. Tiers: Free / core / DFY — illustrative $ only; you set the price; DFY mostly off-platform.</p>
+      <p class="hint"><b>Limits on create / sell.</b> Real numbers only. Desk: 6 named AIs (Studio draft saves 3), 8 Rules, 12 fields, 12 .aia emails per account. No published Marketplace listing cap. No published .aia file-size cap. Desk card uploads cap at 8 MB. External storefronts are off-platform. Buyers bring their own keys — no AIA usage billing. Version packs when APIs change. 3–5 strong packs beat 50 thin ones.</p>
+      <p class="hint"><b>Learn packs.</b> Rebuild a pack from memory on an empty desk; say Trigger → Condition → Action in plain words. Revisit Rules over days. Practice Qualify prompts, fallback Rules, and pipe connect with Simulate inbound. One pack end-to-end. 20-hour competence is a guide, not a guarantee. Collect HOLD. Not social SSO.</p>
+      <p class="hint"><b>Four models.</b> AAA = off-platform client work on this desk. Sell outcomes. AIA is the desk engine (Drop → Qualify → Do → Collect HOLD → Follow). Fees are example / off-platform — not AIA rates. DFY = off-platform service wrapping a repeatable install (example: lead qualify in 48h). Marketplace = on-desk Studio; you set the price. Lead magnet → core pack → VIP / club is your ladder. Co-pilot = off-platform; 10–15% cuts are examples only, not AIA terms. First 3 clients: Audit (Find the leaks) → 60s proof → risk-free trial. No invented close rates.</p>
+      <p class="hint"><b>Pack quality.</b> Ship operational infrastructure — Drop → Qualify → Do → Collect HOLD → Follow — not dead templates. Fallbacks: Rules + Rail, alerts on fail, backup path — not “always works.” Follow / Collect on the card. Slack / Sheets / Notion pipes HOLD until Yes / keys. Structured prompts on named desk AIs. Recommend a 2-min quickstart. No review-rate stats.</p>
+      <p class="hint"><b>Funnel + expansion.</b> Tripwire / Core / High-ticket DFY — you set prices; illustrative only. High-ticket implementation is mostly off-platform wrapping packs. Recurring update pass: Collect HOLD; no invented subscription engine. Industry bundles = repackage .aia. $0.05/exec micro-SaaS is off-platform or a future pipe — AIA does not host per-run billing.</p>
+      <p class="hint"><b>Add people.</b> Search a world @handle on People under More. They Accept there. Email is not a world name. AIA does not send invite mail. Don’t share the owner desk code — each person their own seat. Collect HOLD.</p>
+      <p class="hint"><b>Onboard this desk.</b> Four beats — pipes, name, people, pack. Copy the inbound hook. Fresh desks stay empty until you drop or install. Collect HOLD. Full beat: <a href="/help#onboard-desk">/help#onboard-desk</a>.</p>
+      <p class="hint"><b>Selling packs.</b> Thin JSON. Drafts on the buyer’s desk. Yes / Stop / Kill stay human. Collect HOLD. Buyer’s keys — never hardcode yours. Do not promise 100% safe. Help is not legal advice. Full beat: <a href="/help#sell-packs">/help#sell-packs</a>.</p>
+      <p class="hint"><b>Build a pack / desk AI.</b> When → If → Then. Desk AI drafts the card. Yes / Stop / Kill. Fallbacks: Needs you / Talk to AIA. Thin .aia from /dev. Buyer pipes and keys. Yes is not a collect charge. Collect HOLD. Full beat: <a href="/help#build-pack">/help#build-pack</a>.</p>
+      <p class="hint"><b>How the queue runs.</b> Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill. Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD. Full beat: <a href="/help#queue-runs">/help#queue-runs</a>.</p>
+      <p class="hint"><b>Desk cards.</b> When → If → Then drafts a queue card (fields / notes), not a chat blob. Installed packs auto-shape the card — you do not pick a pack on every Drop. Reply on the card when the desk asks — it does not Yes or send. After Yes, When=do Then can open a new card. Yes is not auto-send mail, push git, or a Collect charge. Thin .aia. Test via Drop or www hook. Up to 12 card fields. Full beat: <a href="/help#desk-cards">/help#desk-cards</a>.</p>
+      <p class="hint"><b>.aia inbound.</b> Users create name@account.aia. When for packs and rules. www.automateitaway.com/api/hook can write a card; unknown .aia → 400. MX/DNS for *.aia HOLD. ai.aia orange until DNS. No Gmail forward wizard, email vault, or voice/SMS receptionist. Full beat: <a href="/help#aia-inbound">/help#aia-inbound</a>.</p>
+      <p class="hint">On-desk: Simulate inbound / www hook. Fresh rules stay empty. Off-platform pipes (OpenAI / Anthropic, Make / Zapier, CRMs) wait on your keys + Yes. AIA does not invent live connectors or live MX.</p>
+      <p class="cta"><a class="go ghost" href="/onboard">Open a desk</a><a class="go ghost" href="/create?kind=ai">Name a desk AI</a><a class="go ghost" href="/help#world">Help</a></p>
+    </div>
+    <div class="card" id="earnings">
+      <h2>Creators / earnings</h2>
+      <p class="hint">AIA has no public payout baseline and no published creator rate card. You earn by pricing a pack — a listed ask on Marketplace. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. No silent charge. No demo seed. Private project, company, or family desks stay off Market.</p>
+      <p class="hint"><b>Paid ads (off-platform).</b> If World users buy Meta, Google, TikTok, or YouTube ads off-platform to market packs, earnings depend on ROAS, CAC, and the funnel — lead magnet → tripwire → pack → upsell — not raw sales volume. Example thinking only. AIA does not run ads and does not guarantee ROAS.</p>
+      <p class="hint">Agency or client consulting is off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com.</p>
+      <p class="hint"><b>FAQ.</b> Can I buy stock in Automate It Away? No. AIA is a privately held web app — not listed on NYSE or Nasdaq. Retail investors cannot buy shares on Robinhood, Fidelity, or other brokers. Not investment advice. How do I work with or for AIA? Build packs + Talk to AIA; agency / DFY off-platform. No careers portal. No certified partner program. AIA License? No separate license SKU — desk account + pack install. Collect and payouts HOLD. No Free / Pro / Agency license tiers. No merchant-of-record. No auto EULA. Plan tiers? No public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Create or Drop a goal → draft card → Yes. Needs you / prompt ask-who when the desk asks. Install / give / update a .aia with Yes on History. Connect existing wallet is your MetaMask or WalletConnect — not Wallet.AIA. Collect HOLD. No autonomous ETA engine. No SaaS codegen. See <a href="/help#faq">Help</a>.</p>
+    </div>
+    <div data-aia-playbook>
+      <p class="hint">Four steps on this desk. 1 Find the leaks. 2 Hook the pipes. 3 Name a desk AI. 4 You still tap. AIA AI home is ai.aia (www.ai.aia) — orange until DNS answers. Live desk is automateitaway.com.</p>
+    </div>
+    <div class="strip" aria-label="When If Then">
+      <div><b>When</b><span>Trigger — Drop, pipe, inbound name@account.aia, status.</span></div>
+      <div><b>If</b><span>Condition — Qualify check, tag, word, unassigned, older than.</span></div>
+      <div><b>Then</b><span>Action — desk AI drafts, Queue card, notify. Human Yes/Stop.</span></div>
+      <div><b>Pack workflow</b><span>Strings rules. Optional delay / branch. Thin JSON. Collect HOLD.</span></div>
+    </div>
+    <div class="card">
+      <h2>Rules vs pack workflows</h2>
+      <p class="hint"><b>Rule</b> = one When → If → Then on this desk. <b>Workflow / Sequence</b> = a pack that strings rules. Still thin JSON. No dashboard fork.</p>
+      <p class="hint"><b>Example When → If → Then</b> — copy, do not seed. No live eBay or mail.</p>
+      <p class="hint">Lead click: Drop + tagged Lead + click → tag Interested. Draft. Human send HOLD.</p>
+      <p class="hint">App / webhook: pipe + tagged Lead → draft. Buyer keys on Pipes. Yes before outbound.</p>
+      <p class="hint">Task done: status Done → notify owner. Desk AI draft.</p>
+      <p class="hint">International order: Drop + international → Customs Form alert on Queue.</p>
+      <p class="hint">Support late: unassigned + older than 24h → escalate priority.</p>
+    </div>
+    <div class="card" id="first-pack">
+      <h2>First .aia pack</h2>
+      <p class="hint">Real Studio on this desk. Not a CLI. Not a signed DID. Not a stake publish.</p>
+      <p class="hint">1. Open a desk (name + code).</p>
+      <p class="hint">2. Name a desk AI on Create.</p>
+      <p class="hint">3. Write When → If → Then. Webhook is the live pipe.</p>
+      <p class="hint">4. Buyer binds their own keys on Pipes. Never hardcode yours. Not a bindings product.</p>
+      <p class="hint">5. Test via Drop or Simulate inbound / www hook.</p>
+      <p class="hint">6. Yes / Stop / Kill before anything leaves.</p>
+      <p class="hint">7. Download .aia (Give) or Install .aia with Yes (Update). Collect stays HOLD.</p>
+      <p class="hint">Thin App / webhook: When = pipe, If = tag Lead, Then = draft. Copy, do not seed. Full beat: <a href="/help#build-pack">/help#build-pack</a>.</p>
+      <p class="hint">No AAM mainnet. No paymasters. No AIA token. No DAO slash. No DePIN. No Grandma brand.</p>
+      <p class="cta"><a class="go ghost" href="/create?kind=ai">Name a desk AI</a><a class="go ghost" href="/pipes">Pipes</a><a class="go ghost" href="/rules">Rules</a></p>
+    </div>
+    <p class="err" id="err"></p>
+    <p class="ok" id="ok"></p>
+    <div id="view"></div>
+  </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><span>Queue</span></a>
+    <a href="/drop" data-tab="drop"><span>Drop</span></a>
+    <a href="/create" data-tab="create"><span>Create</span></a>
+    <a href="/history" data-tab="history"><span>History</span></a>
+    <a href="/more" data-tab="more"><span>More</span></a>
+  </nav>
+  <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
+  <script src="desk-switch.js"></script>
+  <script src="desk-nav.js"></script>
+  <script src="desk-playbook.js"></script>
+  <script src="aia-mail.js"></script>
+  <script src="developer.js"></script>
+</body>
+</html>

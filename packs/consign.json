@@ -11,6 +11,13 @@
   "kill": ["stolen / no title / unsellable"],
   "pipes": ["ebay", "square", "consign"],
   "artifacts": ["listing", "payout memo"],
+  "face": {
+    "who": { "key": "contactName", "label": "Seller" },
+    "what": { "key": "title", "label": "Item" },
+    "when": { "key": "timing", "label": "List when" },
+    "where": { "key": "where", "label": "Photo / channel" },
+    "how": "Draft a listing. Collect HOLD until Yes + a real money pipe."
+  },
   "fields": {
     "capture": ["title", "kind", "from", "contactName", "phone", "email", "notes", "photoUrl", "provider", "pack"],
     "qualify": ["condition", "titlePresent", "compsLow", "compsHigh", "ask", "risk", "timing", "why"],
@@ -18,5 +25,19 @@
     "collect": ["amount", "payoutTo", "confirm"],
     "follow": ["followed"],
     "rail": ["killReason", "whoTapped", "promptVersion"]
+  },
+  "rules": [
+    { "text": "Cap title-missing items.", "when": "qualify", "then": "cap", "contains": "title" },
+    { "text": "Wait on me before a payout leaves.", "when": "collect", "then": "wait" }
+  ],
+  "queue": {
+    "badge": "Consign",
+    "family": "Consign It Away",
+    "empty": "Drop a photo of the item. Draft the title. Collect HOLD until Yes + a real money pipe.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["list", "title", "payout"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
   }
 }

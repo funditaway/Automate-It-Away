@@ -1,99 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open your desk · Automate It Away</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Open your account · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
   <style>
-    :root { --teal-900:#0a4f4f;--teal-800:#0d6b6b;--orange-500:#f39c12;--gray-900:#1a2332;--gray-500:#6b7c8f;--gray-300:#d1dae3;--teal-50:#f2fbfb; }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Segoe UI",system-ui,sans-serif;background:linear-gradient(160deg,var(--teal-50),#fff 45%,#fff8f0);color:var(--gray-900);min-height:100vh}
-    a{color:var(--teal-800);text-decoration:none}
-    header{padding:14px 5vw;display:flex;justify-content:space-between;align-items:center}
-    .card{width:min(520px,94vw);margin:12px auto 40px;background:#fff;border:1px solid var(--gray-300);border-radius:18px;padding:22px;box-shadow:0 12px 40px rgba(10,79,79,.12)}
-    h1{font-size:1.45rem;color:var(--teal-900);margin-bottom:6px}
-    p.sub{color:var(--gray-500);margin-bottom:18px;font-size:.95rem}
-    label{display:block;font-size:12px;font-weight:700;color:var(--teal-900);margin:12px 0 6px}
-    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:#e6f7f7;color:#0a4f4f;font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px;vertical-align:middle}
-    input,select{width:100%;padding:11px 12px;border:1px solid var(--gray-300);border-radius:10px;font:inherit}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .btn{width:100%;margin-top:16px;border:0;border-radius:12px;padding:12px;background:var(--orange-500);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
-    .hint{margin-top:12px;font-size:13px;color:var(--gray-500);text-align:center}
-    .err{display:none;margin-top:10px;color:#c0392b;font-size:14px}
-    @media(max-width:560px){.row{grid-template-columns:1fr}}
+    .oauth-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+    .oauth-btn{min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:700 13px inherit;padding:8px 12px;cursor:pointer}
+    .oauth-tag{font-size:10px;letter-spacing:.04em;text-transform:uppercase;margin-left:6px}
+    .oauth-tag.now{color:#0d6b6b}.oauth-tag.hold{color:#c27b0e}.oauth-tag.ask{color:#6b7c8f}
+    .oauth-lead,.oauth-more{margin:8px 0;font-size:13px}
+    .oauth-ext label{display:block;font-size:13px;margin:8px 0 4px}
   </style>
 </head>
-<body>
-  <header>
-    <a href="index.html"><strong>Automate It Away</strong></a>
-    <a href="setup.html">How to set this up</a> · <a href="login.html">Already have a shop</a>
+<body class="page-bg">
+  <header class="site-header">
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <div class="nav">
+      <a href="setup.html">Setup</a>
+      <a href="login.html">Have a desk</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
   </header>
-  <form class="card" id="form">
-    <h1>Name this desk</h1>
-    <p class="sub">Open it.</p>
-    <label>Your name</label>
-    <input name="name" required placeholder="Your name" autocomplete="name">
+  <form class="gate-card" id="form">
+    <h1>Open your account</h1>
+    <p class="sub">Three doors. Same AIA Account. Owner opens a free account and a desk. Member asks to join. Continue-with is identity only — never Send, Stop, pay, or draft. Monthly later — we tell you before we charge.</p>
+    <div id="oauth-wall"></div>
+    <label>Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
+    <input name="name" required placeholder="Alex Rivera" autocomplete="name">
     <div class="row">
       <div>
-        <label>Desk name <span class="tip" title="House name or shop name. Letters and dashes. This is the login.">?</span></label>
-        <input name="biz" required placeholder="House or shop name">
+        <label>Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
+        <input name="biz" required placeholder="Oddo house">
       </div>
       <div>
-        <label>City</label>
-        <input name="city" required placeholder="Springfield">
+        <label>City <button type="button" class="aia-tip" data-aia-tip="city" aria-label="More about City">?</button></label>
+        <input name="city" placeholder="Springfield">
       </div>
     </div>
-    <label>You are</label>
-    <select name="role" required>
-      <option value="owner">Owner</option>
-      <option value="employee">Helper</option>
+    <label>You are <button type="button" class="aia-tip" data-aia-tip="you-are" aria-label="More about You are">?</button></label>
+    <select name="role" id="role" required>
+      <option value="owner">Owner — full admin account</option>
+      <option value="member">Member — join a desk</option>
     </select>
-    <label>What this desk is for</label>
-    <select name="model" required>
-      <option>Home & family</option>
-      <option>Consignment & resale</option>
+    <div id="member-box" class="custom-box" hidden>
+      <label>Permission you are asking for <button type="button" class="aia-tip" data-aia-tip="permission" aria-label="More about Permission">?</button></label>
+      <select name="kind" id="kind">
+        <option value="member">Member</option>
+        <option value="family">Family</option>
+        <option value="friend">Friend</option>
+        <option value="helper">Helper</option>
+        <option value="staff">Staff</option>
+      </select>
+      <p class="hint">Owner approves and can change this. Members never Stop or send money.</p>
+    </div>
+    <label>What this desk is for <button type="button" class="aia-tip" data-aia-tip="desk-for" aria-label="More about What this desk is for">?</button></label>
+    <select name="model" id="model">
+      <option>Home &amp; family</option>
+      <option>Consignment &amp; resale</option>
+      <option>Insurance</option>
       <option>Something else</option>
     </select>
-    <label>Email <span class="tip" title="For you. Login is shop name + desk code, not email.">?</span></label>
-    <input type="email" name="email" required placeholder="you@shop.com">
-    <label>Desk code <span class="tip" title="4 or more digits. Same code on any phone opens this shop.">?</span></label>
+    <label>Email <span class="meta">optional</span> <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
+    <input type="email" name="email" placeholder="you@shop.com">
+    <label>Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
-    <button class="btn" type="submit">Open it</button>
-    <p class="hint">Adds this desk on this phone. The last one stays.</p>
+    <button class="btn" type="submit" id="go">Open the account</button>
+    <p class="hint" id="hint">Owner: full admin, free now. Member: join an existing desk. Desk name + your code is the login. World doors stay Hold until they are lit.</p>
     <p class="err" id="err"></p>
   </form>
-  <script src="analytics.js"></script>
+  <section class="gate-card" id="playbook-card" style="margin-top:0">
+    <h2>Four steps on this desk</h2>
+    <p class="sub">After you open: find the leaks, hook the pipes, name a desk AI, you still tap. Walk 1→2→3→4. Collect stays HOLD. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Live desk is automateitaway.com.</p>
+    <div data-aia-playbook="embed">
+      <p>1 Find the leaks. 2 Hook the pipes. 3 Name a desk AI. 4 You still tap.</p>
+    </div>
+  </section>
+  <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
+  <script src="desk-playbook.js"></script>
   <script src="desk-switch.js"></script>
+  <script src="login-doors.js"></script>
   <script>
-    document.getElementById("form").onsubmit = async (e) => {
+    const form = document.getElementById("form");
+    const roleEl = document.getElementById("role");
+    const memberBox = document.getElementById("member-box");
+    const goBtn = document.getElementById("go");
+    const hintEl = document.getElementById("hint");
+    const err = document.getElementById("err");
+    function showRole() {
+      const member = roleEl.value === "member";
+      memberBox.hidden = !member;
+      goBtn.textContent = member ? "Ask to join" : "Open the account";
+      hintEl.textContent = member
+        ? "Desk name is the shop you are joining. Pick your own code. Owner approves and sets the permission."
+        : "Owner: full admin, free now. Desk name + this code opens the queue on any phone.";
+    }
+    roleEl.addEventListener("change", showRole);
+    showRole();
+    form.onsubmit = async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
       const pin = String(f.get("pin") || "");
-      const err = document.getElementById("err");
       if (pin.length < 4) { err.textContent = "Pick a desk code with at least 4 digits."; err.style.display = "block"; return; }
-      const slug = AIADesks.slugify(f.get("biz"));
-      if (!slug) { err.textContent = "Name this desk."; err.style.display = "block"; return; }
+      const isMember = String(f.get("role") || "") === "member";
+      const slug = String(f.get("biz") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
       try {
         const r = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Workspace": slug, "X-Pin": pin },
-          body: JSON.stringify({ action: "open", name: f.get("name"), biz: f.get("biz"), city: f.get("city"), model: f.get("model"), email: f.get("email"), pin })
+          body: JSON.stringify({
+            action: isMember ? "join" : "account",
+            name: f.get("name"),
+            biz: f.get("biz"),
+            workspace: slug,
+            slug: slug,
+            city: f.get("city"),
+            model: f.get("model"),
+            email: f.get("email"),
+            kind: isMember ? (f.get("kind") || "member") : "owner",
+            role: isMember ? "member" : "owner",
+            pin
+          })
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) { err.textContent = data.error || "Could not open the shop."; err.style.display = "block"; return; }
-        const shop = (data && data.workspace) || {};
-        AIADesks.open({
-          slug: shop.slug || slug,
-          name: shop.biz || shop.name || f.get("biz") || slug,
-          pin: pin,
-          role: (data.you && data.you.role) || f.get("role") || "owner"
-        });
-        localStorage.setItem("aia_name", f.get("name") || "");
-        localStorage.setItem("aia_model", (shop.model || f.get("model") || ""));
+        if (data.pending) {
+          err.style.display = "block";
+          err.textContent = data.hint || "On the book. Owner approves your member seat on People, then you sign in.";
+          return;
+        }
+        if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data, pin);
+        localStorage.setItem("aia_ws", slug);
+        localStorage.setItem("aia_pin", pin);
+        localStorage.setItem("aia_role", (data.you && data.you.role) || (isMember ? "member" : "owner"));
+        localStorage.setItem("aia_name", (data.you && data.you.name) || f.get("name") || "");
+        localStorage.setItem("aia_desk_name", (data.workspace && (data.workspace.biz || data.workspace.name)) || String(f.get("biz") || slug));
+        if (window.AIADesks && AIADesks.open) {
+          AIADesks.open({
+            slug: (data.workspace && data.workspace.slug) || slug,
+            name: (data.workspace && (data.workspace.biz || data.workspace.name)) || String(f.get("biz") || slug),
+            pin: pin,
+            token: data.session && data.session.token,
+            role: (data.you && data.you.role) || (isMember ? "member" : "owner"),
+            who: (data.you && data.you.name) || f.get("name") || ""
+          });
+        }
         location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach the desk.";
