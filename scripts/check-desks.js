@@ -6,13 +6,13 @@ process.env.AIA_STORE_PATH = store;
 
 delete global.__aia;
 delete global.__aiaHydrate;
-["../api/_lib", "../api/auth", "../api/desks", "../api/account"].forEach((mod) => {
+["../api/_lib", "../api/auth", "../api/desks", "../api/_account-http"].forEach((mod) => {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
 const auth = require("../api/auth");
 const desks = require("../api/desks");
-const account = require("../api/account");
+const account = require("../api/_account-http");
 const lib = require("../api/_lib");
 
 function fail(msg) {

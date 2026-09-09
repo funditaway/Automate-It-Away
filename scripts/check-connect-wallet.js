@@ -82,13 +82,13 @@ else pass("non-custodial uncharged");
 if (!/hosted: false/.test(helper) || !/token: false/.test(helper) || !/deposit: false/.test(helper)) fail("helper must deny hosted / token / deposit");
 else pass("not hosted, no token, no deposit");
 
-["../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/account", "../api/auth", "../api/health"].forEach(function (mod) {
+["../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/_account-http", "../api/auth", "../api/health"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
 const lib = require("../api/_lib");
 const connect = require("../api/_connect-wallet");
-const account = require("../api/account");
+const account = require("../api/_account-http");
 const auth = require("../api/auth");
 const health = require("../api/health");
 const { mem, ready, save } = lib;

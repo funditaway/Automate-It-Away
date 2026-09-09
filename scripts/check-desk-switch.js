@@ -194,6 +194,8 @@ if (!vercel.includes("/api/auth?via=account") || !/"\/api\/account"/.test(vercel
 } else pass("vercel.json rewrites /api/account onto auth");
 if (fs.existsSync(path.join(root, "api/status.js"))) fail("api/status.js is a 13th Hobby function — fold it into health.js");
 else pass("no extra api/status.js function");
+if (fs.existsSync(path.join(root, "api/account.js"))) fail("api/account.js is its own Lambda — fold it into auth.js like status into health");
+else pass("no extra api/account.js function");
 const healthSrc = fs.readFileSync(path.join(root, "api/health.js"), "utf8");
 if (!healthSrc.includes("function wantsStatus") || !healthSrc.includes("function deskStatus") || !healthSrc.includes("handler.status")) {
   fail("api/health.js should serve honest /api/status");

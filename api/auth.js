@@ -85,7 +85,7 @@ function wantsAccount(req) {
 }
 
 module.exports = async function handler(req, res) {
-  if (wantsAccount(req)) return require("./account")(req, res);
+  if (wantsAccount(req)) return require("./_account-http")(req, res);
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();

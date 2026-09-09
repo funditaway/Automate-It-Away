@@ -163,6 +163,9 @@ async function main() {
   if (!vercel.includes("/api/auth?via=account") || !/"\/api\/account"/.test(vercel)) {
     fail("vercel.json must rewrite /api/account onto /api/auth?via=account");
   } else pass("vercel.json runs Studio account on the auth function");
+  if (require("fs").existsSync(path.join(__dirname, "..", "api/account.js"))) {
+    fail("api/account.js must not be its own Lambda");
+  } else pass("api/account.js is folded into auth");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");

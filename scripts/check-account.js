@@ -8,7 +8,7 @@ process.env.AIA_STORE_PATH = store;
 function resetModules() {
   delete global.__aia;
   delete global.__aiaHydrate;
-  ["../api/_lib", "../api/_account", "../api/_plans", "../api/account", "../api/auth"].forEach((mod) => {
+  ["../api/_lib", "../api/_account", "../api/_plans", "../api/_account-http", "../api/auth"].forEach((mod) => {
     try { delete require.cache[require.resolve(mod)]; } catch (e) {}
   });
 }
@@ -17,7 +17,7 @@ function boot() {
   resetModules();
   return {
     lib: require("../api/_lib"),
-    account: require("../api/account"),
+    account: require("../api/_account-http"),
     auth: require("../api/auth")
   };
 }
@@ -178,6 +178,9 @@ async function main() {
   if (!/"\/api\/account"/.test(vercel) || !vercel.includes("/api/auth?via=account")) {
     fail("vercel.json must run /api/account on the /api/auth function");
   } else pass("vercel.json runs /api/account on the /api/auth function");
+  if (fs.existsSync(path.join(__dirname, "..", "api/account.js"))) {
+    fail("api/account.js must not be its own Lambda");
+  } else pass("api/account.js is folded into auth");
 
   const dispatched = await call(auth, "POST", {
     "x-workspace": "rivera-resale",
@@ -198,6 +201,25 @@ async function main() {
   if (dispatchedWrong.statusCode !== 401 || !/Account name or code does not match/.test((dispatchedWrong.body && dispatchedWrong.body.error) || "")) {
     fail("auth?via=account wrong pin should still 401");
   } else pass("auth?via=account wrong pin stays 401");
+
+  const dispatchedOpen = await call(auth, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": strangerPin
+  }, {
+    action: "open", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+  }, { via: "account" });
+  if (dispatchedOpen.statusCode !== 200 || !dispatchedOpen.body || !dispatchedOpen.body.ok) {
+    fail("auth?via=account open must accept the onboard Owner slug+pin");
+  } else pass("auth?via=account open accepts onboard Owner slug+pin");
+
+  const dispatchedGet = await call(auth, "GET", {
+    "x-workspace": "rivera-resale",
+    "x-pin": strangerPin,
+    "x-session": onboardTok
+  }, {}, { via: "account" });
+  if (dispatchedGet.statusCode !== 200 || !dispatchedGet.body || !dispatchedGet.body.ok) {
+    fail("GET /api/account via auth must accept onboard session + pin");
+  } else pass("GET /api/account via auth accepts onboard session + pin");
 
   const deskOnly = (lib.mem.accounts || []).find((a) => a && a.slug === "rivera-resale");
   const deskRow = (lib.mem.workspaces || []).find((w) => w && w.slug === "rivera-resale");
