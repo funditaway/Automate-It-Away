@@ -189,6 +189,9 @@ const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 if (!vercel.includes("\"/api/status\"") || !vercel.includes("/api/health?view=status")) {
   fail("vercel.json should rewrite /api/status onto /api/health?view=status");
 } else pass("vercel.json rewrites /api/status onto health");
+if (!vercel.includes("/api/auth?via=account") || !/"\/api\/account"/.test(vercel)) {
+  fail("vercel.json should rewrite /api/account onto /api/auth?via=account");
+} else pass("vercel.json rewrites /api/account onto auth");
 if (fs.existsSync(path.join(root, "api/status.js"))) fail("api/status.js is a 13th Hobby function — fold it into health.js");
 else pass("no extra api/status.js function");
 const healthSrc = fs.readFileSync(path.join(root, "api/health.js"), "utf8");

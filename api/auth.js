@@ -73,7 +73,19 @@ function firstJobFrom(row, body, workspace) {
   return job;
 }
 
+function wantsAccount(req) {
+  req = req || {};
+  const q = req.query || {};
+  const url = String(req.url || "");
+  const path = url.split("?")[0];
+  const headers = req.headers || {};
+  const invoke = String(headers["x-invoke-path"] || headers["x-matched-path"] || "").split("?")[0];
+  return q.via === "account" || q.account === "1" || /[?&](?:via=account|account=1)/.test(url)
+    || /\/api\/account\/?$/.test(path) || /\/api\/account\/?$/.test(invoke);
+}
+
 module.exports = async function handler(req, res) {
+  if (wantsAccount(req)) return require("./account")(req, res);
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();

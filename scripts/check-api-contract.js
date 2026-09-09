@@ -159,6 +159,11 @@ async function main() {
     fail("connections inbound must be www host, got " + conn.body.inbound);
   } else pass("connections inbound uses www host");
 
+  const vercel = require("fs").readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8");
+  if (!vercel.includes("/api/auth?via=account") || !/"\/api\/account"/.test(vercel)) {
+    fail("vercel.json must rewrite /api/account onto /api/auth?via=account");
+  } else pass("vercel.json runs Studio account on the auth function");
+
   if (process.exitCode) {
     console.error("check-api-contract failed");
     process.exit(1);

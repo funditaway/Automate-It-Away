@@ -174,6 +174,31 @@ async function main() {
     fail("wrong onboard Owner code should still 401");
   } else pass("wrong onboard Owner code stays 401");
 
+  const vercel = fs.readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8");
+  if (!/"\/api\/account"/.test(vercel) || !vercel.includes("/api/auth?via=account")) {
+    fail("vercel.json must run /api/account on the /api/auth function");
+  } else pass("vercel.json runs /api/account on the /api/auth function");
+
+  const dispatched = await call(auth, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": strangerPin
+  }, {
+    action: "login", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+  }, { via: "account" });
+  if (dispatched.statusCode !== 200 || !dispatched.body || !dispatched.body.ok) {
+    fail("auth?via=account must open Studio on the same function as Owner onboard");
+  } else pass("auth?via=account opens Studio on the onboard function");
+
+  const dispatchedWrong = await call(auth, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": "0000"
+  }, {
+    action: "login", slug: "rivera-resale", pin: "0000", name: "rivera-resale"
+  }, { via: "account" });
+  if (dispatchedWrong.statusCode !== 401 || !/Account name or code does not match/.test((dispatchedWrong.body && dispatchedWrong.body.error) || "")) {
+    fail("auth?via=account wrong pin should still 401");
+  } else pass("auth?via=account wrong pin stays 401");
+
   const deskOnly = (lib.mem.accounts || []).find((a) => a && a.slug === "rivera-resale");
   const deskRow = (lib.mem.workspaces || []).find((w) => w && w.slug === "rivera-resale");
   if (deskOnly) {
