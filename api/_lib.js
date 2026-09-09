@@ -96,7 +96,7 @@ function blobStoreId() {
 }
 
 function blobOidcReady() {
-  return !!(process.env.VERCEL_OIDC_TOKEN && blobStoreId());
+  return !!blobStoreId();
 }
 
 function blobAuthKind() {
@@ -113,23 +113,65 @@ function blobTokenOpts() {
 }
 
 function blobAuthOpts() {
-  if (blobOidcReady()) return { storeId: blobStoreId() };
+  if (blobStoreId()) return { storeId: blobStoreId() };
   return blobTokenOpts();
 }
 
 async function blobTryAuth(run) {
   try {
     const out = await run(blobAuthOpts());
-    blobProbe.auth = blobAuthKind();
+    if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
     return out;
   } catch (e) {
-    if (blobOidcReady() && blobToken() && blobIs403((e && e.message) || e)) {
+    if (blobStoreId() && blobToken() && blobIs403((e && e.message) || e)) {
       const out = await run(blobTokenOpts());
       blobProbe.auth = "token";
       return out;
     }
     throw e;
   }
+}
+
+const BLOB_WRAP = "aia-blob-1";
+
+function blobSealKey() {
+  const raw = blobToken();
+  if (!raw) return null;
+  return crypto.createHash("sha256").update("aia-store|" + raw).digest();
+}
+
+function blobSeal(plain) {
+  const key = blobSealKey();
+  if (!key) return String(plain || "");
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const bin = Buffer.concat([cipher.update(Buffer.from(String(plain || ""), "utf8")), cipher.final()]);
+  return JSON.stringify({
+    aia: BLOB_WRAP,
+    iv: iv.toString("base64"),
+    tag: cipher.getAuthTag().toString("base64"),
+    data: bin.toString("base64")
+  });
+}
+
+function blobOpen(raw) {
+  const text = String(raw || "");
+  if (!text) return text;
+  let parsed;
+  try { parsed = JSON.parse(text); } catch (e) { return text; }
+  if (!parsed || parsed.aia !== BLOB_WRAP) return text;
+  const key = blobSealKey();
+  if (!key) throw new Error("Vercel Blob: sealed store needs BLOB_READ_WRITE_TOKEN");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(parsed.iv, "base64"));
+  decipher.setAuthTag(Buffer.from(parsed.tag, "base64"));
+  return Buffer.concat([
+    decipher.update(Buffer.from(parsed.data, "base64")),
+    decipher.final()
+  ]).toString("utf8");
+}
+
+function blobWantsPublic(msg) {
+  return /access.*(public|private)|must be \"public\"|public store|private storage/i.test(String(msg || ""));
 }
 
 function blobMayWrite() {
@@ -197,7 +239,7 @@ async function parseBlobGet(result) {
       : "";
   if (!raw) return { empty: true, status: status || 200 };
   return {
-    data: shape(JSON.parse(raw)),
+    data: shape(JSON.parse(blobOpen(raw))),
     url: (result.blob && (result.blob.url || result.blob.downloadUrl)) || null
   };
 }
@@ -212,7 +254,7 @@ function markBlobHit(access, url) {
   blobProbe.read = "ok";
   blobProbe.status = 200;
   blobProbe.detail = null;
-  blobProbe.auth = blobAuthKind();
+  if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   blobProbe.url = url ? "set" : blobProbe.url;
   if (url) mem.blobUrl = url;
 }
@@ -222,7 +264,7 @@ function markBlobEmpty(access) {
   blobProbe.read = "empty";
   blobProbe.status = 404;
   blobProbe.detail = null;
-  blobProbe.auth = blobAuthKind();
+  if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
 }
 
 async function blobHeadMeta() {
@@ -257,8 +299,8 @@ async function blobFetchUrl(url, access) {
     const headers = token ? { Authorization: "Bearer " + token } : {};
     return fetch(url, { headers });
   }
-  let r = await fetchWith(blobOidcReady() ? process.env.VERCEL_OIDC_TOKEN : blobToken());
-  if (r.status === 403 && blobOidcReady() && blobToken()) {
+  let r = await fetchWith(process.env.VERCEL_OIDC_TOKEN || blobToken());
+  if (r.status === 403 && process.env.VERCEL_OIDC_TOKEN && blobToken()) {
     r = await fetchWith(blobToken());
     blobProbe.auth = "token";
   }
@@ -268,7 +310,7 @@ async function blobFetchUrl(url, access) {
     err.status = r.status;
     throw err;
   }
-  return { data: shape(JSON.parse(await r.text())), url: url };
+  return { data: shape(JSON.parse(blobOpen(await r.text()))), url: url };
 }
 
 async function blobRead() {
@@ -400,38 +442,24 @@ async function blobWriteStick(blob, used) {
 
 async function blobWrite() {
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
-  blobProbe.auth = blobAuthKind();
+  if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   const body = JSON.stringify(payload());
-  const firstAccess = blobAccess();
-  const otherAccess = firstAccess === "public" ? "private" : "public";
   try {
     let blob;
-    let used = firstAccess;
+    let used = "private";
     try {
-      blob = await blobPut(body, firstAccess);
+      blob = await blobPut(body, "private");
     } catch (first) {
-      try {
-        blob = await blobPut(body, otherAccess);
-        used = otherAccess;
-        blobProbe.detail = "access-" + otherAccess;
-      } catch (second) {
-        const { del } = require("@vercel/blob");
-        await del(BLOB_KEY, blobPutOpts(firstAccess)).catch(() => null);
-        await del(BLOB_KEY, blobPutOpts(otherAccess)).catch(() => null);
-        try {
-          blob = await blobPut(body, firstAccess);
-          used = firstAccess;
-        } catch (third) {
-          blob = await blobPut(body, otherAccess);
-          used = otherAccess;
-        }
-        blobProbe.detail = "rewrote";
-      }
+      const msg = String((first && first.message) || first);
+      if (!blobToken() || !(blobWantsPublic(msg) || blobIs403(msg))) throw first;
+      blob = await blobPut(blobSeal(body), "public");
+      used = "public";
+      blobProbe.detail = "sealed-public";
     }
     blobProbe.access = used;
     blobProbe.write = "ok";
     blobProbe.status = 200;
-    if (!blobProbe.detail || blobProbe.detail === "Failed to fetch blob") blobProbe.detail = null;
+    blobProbe.detail = used === "public" ? "sealed-public" : null;
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
     const stuck = await blobWriteStick(blob, used);
@@ -441,7 +469,7 @@ async function blobWrite() {
       return false;
     }
     blobProbe.read = "ok";
-    blobProbe.auth = blobAuthKind();
+    if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
     return true;
   } catch (e) {
     blobProbe.write = "fail";
@@ -1450,7 +1478,7 @@ function readBody(req) {
 module.exports = {
   PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
-  blobOidcReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite,
+  blobOidcReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,

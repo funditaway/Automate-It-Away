@@ -54,6 +54,10 @@ Module._load = function (request, parent, isMain) {
         const access = opts && opts.access;
         fake.puts.push(access);
         noteAuth(opts);
+        if (access === "private" && fake.forcePublic) {
+          throw new Error("Vercel Blob: access must be \"public\" for this store");
+        }
+        fake.access = access || fake.access;
         fake.files[key] = typeof body === "string" ? body : String(body);
         return {
           url: "https://testhost." + (access || fake.access) + ".blob.vercel-storage.com/" + key,
@@ -80,7 +84,7 @@ Module._load = function (request, parent, isMain) {
 
 process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_testhost_secret";
 process.env.BLOB_STORE_ID = "testhost";
-process.env.VERCEL_OIDC_TOKEN = "eyJhbGciOiJoidc-test";
+delete process.env.VERCEL_OIDC_TOKEN;
 
 function fail(msg) {
   console.error("FAIL " + msg);
@@ -129,9 +133,12 @@ async function main() {
   if (src.indexOf("blobHeadMeta") < 0 || src.indexOf("head") < 0) {
     fail("_lib must head() the blob store so a CDN get 403 is not a hard error");
   } else pass("_lib uses API head() before CDN get");
-  if (src.indexOf("blobMayWrite") < 0 || src.indexOf("blobTryAuth") < 0) {
-    fail("_lib must allow onboard put when CDN get 403s and retry token if OIDC 403s");
-  } else pass("_lib may put onboard after CDN 403 and retries token if OIDC 403s");
+  if (src.indexOf("blobSeal") < 0 || src.indexOf("sealed-public") < 0) {
+    fail("_lib must seal public fallback so aia/store.json is not world-readable plaintext");
+  } else pass("_lib seals public fallback of aia/store.json");
+  if (src.indexOf("blobPut(body, otherAccess)") >= 0) {
+    fail("_lib must not put plaintext store JSON as public");
+  } else pass("_lib does not put plaintext store JSON as public");
   const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
   const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
   if (yesNo.indexOf("Desks book leftover after blob 403 still") < 0) fail("ACCOUNT-YES-NO must name Desks book leftover after blob 403 still");
@@ -167,6 +174,9 @@ async function main() {
   if (lib.blobProbe.read !== "ok" || lib.mem.driver !== "blob" || lib.blobProbe.auth !== "oidc") {
     fail("onboard must stick after CDN get 403 when head/put work, probe " + JSON.stringify(lib.blobProbe) + " driver " + lib.mem.driver);
   } else pass("onboard sticks on blob after CDN get 403");
+  if (fake.puts.some((a) => a === "public")) {
+    fail("private store must not put aia/store.json as public, puts " + JSON.stringify(fake.puts));
+  } else pass("private store puts stay private");
 
   const mineA = await call(auth, "POST", {
     "x-workspace": "probe-desk",
@@ -220,6 +230,58 @@ async function main() {
   if (getB.statusCode !== 200 || !getB.body || !getB.body.desk || getB.body.desk.slug !== "probe-desk") {
     fail("replica GET /api/desks leftover+pin must see the Owner desk, got " + getB.statusCode + " " + JSON.stringify(getB.body));
   } else pass("replica GET /api/desks leftover+pin sees the Owner desk");
+
+  const sealed = lib.blobSeal(JSON.stringify({ slug: "probe-desk", pin: "2468" }));
+  let sealedJson;
+  try { sealedJson = JSON.parse(sealed); } catch (e) { sealedJson = null; }
+  if (!sealedJson || sealedJson.aia !== "aia-blob-1" || /2468/.test(sealed)) {
+    fail("blobSeal must wrap PIN material, got " + String(sealed).slice(0, 120));
+  } else pass("blobSeal wraps PIN material");
+  if (lib.blobOpen(sealed).indexOf("probe-desk") < 0) fail("blobOpen must round-trip sealed store JSON");
+  else pass("blobOpen round-trips sealed store JSON");
+
+  fake.files = Object.create(null);
+  fake.puts = [];
+  fake.tokens = [];
+  fake.forcePublic = true;
+  fake.access = "public";
+  const storeP = path.join(os.tmpdir(), "aia-blob-p-" + Date.now() + ".json");
+  const pub = boot(storeP);
+  const onboardP = await call(pub.auth, "POST", { "x-workspace": "probe-desk", "x-pin": pin }, {
+    action: "account",
+    name: "Pat",
+    biz: "probe-desk",
+    slug: "probe-desk",
+    pin
+  });
+  if (onboardP.statusCode !== 201 || pub.lib.mem.driver !== "blob" || pub.lib.blobProbe.access !== "public") {
+    fail("public store onboard must stick sealed, got " + onboardP.statusCode + " driver " + pub.lib.mem.driver + " " + JSON.stringify(pub.lib.blobProbe));
+  } else pass("public store onboard sticks as sealed-public");
+  const stored = fake.files[BLOB_KEY] || "";
+  let storedJson = null;
+  try { storedJson = JSON.parse(stored); } catch (e) { storedJson = null; }
+  if (!storedJson || storedJson.aia !== "aia-blob-1" || storedJson.workspaces || /probe-desk/.test(stored)) {
+    fail("public aia/store.json must be sealed, got " + stored.slice(0, 180));
+  } else pass("public aia/store.json is sealed, not plaintext desks");
+  const storeQ = path.join(os.tmpdir(), "aia-blob-q-" + Date.now() + ".json");
+  const pubReplica = boot(storeQ);
+  await pubReplica.lib.ready();
+  const mineP = await call(pubReplica.auth, "POST", {
+    "x-workspace": "probe-desk",
+    "x-session": leftover,
+    "x-pin": pin
+  }, { action: "mine" }, { via: "desks" });
+  const ownedP = (mineP.body && mineP.body.owned) || [];
+  if (mineP.statusCode !== 200 || !ownedP.some((d) => d && d.slug === "probe-desk")) {
+    fail("sealed public replica leftover+pin mine must paint owned desks, got " + mineP.statusCode + " " + JSON.stringify(mineP.body));
+  } else pass("sealed public replica leftover+pin mine paints owned desks");
+  const wrongP = await call(pubReplica.auth, "POST", {
+    "x-workspace": "probe-desk",
+    "x-session": leftover,
+    "x-pin": "0000"
+  }, { action: "mine" }, { via: "desks" });
+  if (wrongP.statusCode !== 401) fail("wrong pin must still 401 on sealed public replica, got " + wrongP.statusCode);
+  else pass("wrong pin stays 401 on sealed public replica");
 
   if (process.exitCode) {
     console.error("check-blob-store failed");
