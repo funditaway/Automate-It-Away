@@ -1,7 +1,9 @@
 const hand = require("./_handoff");
+const ais = require("./_ais");
 const {
   ensureRules, moneyWaitOf, moneyNeedsOwner,
-  ruleWantsOwner, ruleWantsStop, ruleWhy
+  ruleWantsOwner, ruleWantsStop, ruleWhy,
+  whenMatches, ifMatches, jobTagsOf
 } = require("./_lib");
 const clock = require("./_clock");
 
@@ -31,30 +33,242 @@ function blobOf(job) {
   return [
     job && job.title, job && job.notes, job && job.kind, job && job.pack,
     job && job.why, job && job.draft, job && job.risk, job && job.timing,
-    job && job.tell, custom.outcome, custom.pack, custom.need
+    job && job.tell, jobTagsOf(job).join(" "), custom.outcome, custom.pack, custom.need
   ].filter(Boolean).join(" ").toLowerCase();
 }
 
-function packFace(id) {
+const FACE_SPEC = {
+  vita: {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What they need" },
+    when: { key: "timing", label: "When" },
+    where: { key: "state", label: "State" },
+    how: "Draft a packet. Bind stays off. Illustration send is an owner tap.",
+    next: "Draft the packet. Illustration send is an owner tap.",
+    rails: ["Bind stays off the desk.", "Illustration send is an owner tap."],
+    keys: { who: ["whoFor", "contactName", "who"], what: ["need", "product", "title", "kind"], when: ["timing", "when"], where: ["state", "where"] }
+  },
+  home: {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What is needed" },
+    when: { key: "timing", label: "When" },
+    where: { key: "where", label: "Where" },
+    how: "Text, calendar file, or hand it.",
+    next: "Cap same-day. Ask if a kid is named.",
+    rails: ["Cap same-day cards."],
+    keys: { who: ["whoFor", "contactName", "who"], what: ["need", "title", "kind"], when: ["timing", "when"], where: ["where"] }
+  },
+  consign: {
+    who: { key: "contactName", label: "Seller" },
+    what: { key: "title", label: "Item" },
+    when: { key: "timing", label: "List when" },
+    where: { key: "where", label: "Photo / channel" },
+    how: "Draft a listing. Collect HOLD until Yes + a real money pipe.",
+    next: "Draft the title. Collect HOLD until Yes + a real money pipe.",
+    rails: ["Wait on me before a payout leaves."],
+    keys: { who: ["contactName", "who"], what: ["title", "need", "condition"], when: ["timing", "when"], where: ["where"] }
+  },
+  fund: {
+    who: { key: "contactName", label: "Campaign owner" },
+    what: { key: "title", label: "Campaign" },
+    when: { key: "timing", label: "Raise window" },
+    where: { key: "where", label: "Page" },
+    how: "Draft the page. Credit waits.",
+    next: "Draft the page. Credit decision waits on you.",
+    rails: ["Wait on me before a credit decision."],
+    keys: { who: ["contactName", "who"], what: ["campaign", "title", "need"], when: ["timing", "when"], where: ["where"] }
+  },
+  land: {
+    who: { key: "contactName", label: "Buyer" },
+    what: { key: "title", label: "Lot" },
+    when: { key: "timing", label: "Interest when" },
+    where: { key: "where", label: "Flood / access" },
+    how: "Lot note. Cap flood and title.",
+    next: "Write the lot note. Cap flood and title.",
+    rails: ["Cap flood cards.", "Cap title cards."],
+    keys: { who: ["contactName", "who"], what: ["lot", "title", "need"], when: ["timing", "when"], where: ["where"] }
+  },
+  "aia-adoption": {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What the work is" },
+    when: { key: "timing", label: "When" },
+    where: { key: "deskName", label: "This desk" },
+    how: "Drop real work. AIA drafts. You tap Yes or Stop.",
+    next: "AIA drafts. A person taps Yes or Stop. Collect stays HOLD.",
+    rails: ["Worker-first: a person taps Yes or Stop.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
+  },
+  "aia-implement": {
+    who: { key: "contactName", label: "Who does the work now" },
+    what: { key: "need", label: "Which leak or step" },
+    when: { key: "timing", label: "When it piles up" },
+    where: { key: "deskName", label: "This desk" },
+    how: "Walk 1→2→3→4. AIA drafts. You tap Yes, Stop, or Kill.",
+    next: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
+    rails: ["Four steps on this desk.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
+  }
+};
+
+function clipFace(s, n) {
+  return String(s || "").trim().slice(0, n || 200);
+}
+
+function installedPackId(shop) {
+  if (!shop) return "";
+  const raw = String(shop.pack || shop.packId || "").toLowerCase();
+  if (raw) return raw;
+  if (Array.isArray(shop.packs) && shop.packs[0]) {
+    const p = shop.packs[0];
+    return String((p && (p.id || p.packId || p)) || "").toLowerCase();
+  }
+  return "";
+}
+
+function packFace(id, shop) {
   const key = String(id || "").toLowerCase();
-  return FACES[key] || FACES.home;
+  if (FACES[key]) return FACES[key];
+  const installed = installedPackId(shop);
+  const use = key || installed;
+  if (shop && use && (use === installed || use === String(shop.pack || "").toLowerCase())) {
+    const q = shop.packQueue || {};
+    return {
+      id: use,
+      key: use,
+      name: clipFace(shop.packName || q.badge || use, 48) || "Pack",
+      family: clipFace(q.family || "", 48)
+    };
+  }
+  return FACES.home;
 }
 
 function detectPack(job, shop) {
   const custom = (job && job.custom && typeof job.custom === "object") ? job.custom : {};
-  const raw = String(
-    (job && job.pack) || custom.pack || (shop && (shop.pack || shop.model)) ||
-    (shop && Array.isArray(shop.packs) && shop.packs[0]) || ""
-  ).toLowerCase();
-  if (FACES[raw]) return packFace(raw).id;
+  const explicit = String((job && job.pack) || custom.pack || "").trim().toLowerCase();
+  if (explicit) {
+    if (FACES[explicit]) return packFace(explicit).id;
+    return explicit.slice(0, 40);
+  }
+  const installed = installedPackId(shop);
+  if (installed) {
+    if (FACES[installed]) return packFace(installed).id;
+    return installed.slice(0, 40);
+  }
   const text = blobOf(job) + " " + String((shop && (shop.does || shop.biz || shop.model)) || "").toLowerCase();
   if (/\b(quote|insur|illustration|life policy|annuity|missed call|sit-down)\b/.test(text)) return "vita";
   if (/\b(consign|resale|ebay|listing|payout|comps)\b/.test(text)) return "consign";
   if (/\b(fund|campaign|raise|credit)\b/.test(text)) return "fund";
   if (/\b(lot|acre|survey|flood|earnest|title run)\b/.test(text)) return "land";
   if (/\b(home|family|school|chore|grocery|ride|pickup|reminder)\b/.test(text)) return "home";
-  if (shop && shop.pack) return packFace(shop.pack).id;
   return "home";
+}
+
+function slotLabel(slot, fallback) {
+  if (slot && typeof slot === "object" && slot.label) return clipFace(slot.label, 40);
+  if (typeof slot === "string" && slot.trim()) return clipFace(slot, 40);
+  return fallback;
+}
+
+function slotKey(slot) {
+  if (slot && typeof slot === "object" && slot.key) return String(slot.key);
+  return "";
+}
+
+function specKeys(slot, extra) {
+  const out = [];
+  const k = slotKey(slot);
+  if (k) out.push(k);
+  (extra || []).forEach(function (key) {
+    if (key && out.indexOf(key) < 0) out.push(key);
+  });
+  return out;
+}
+
+function firstFaceValue(job, keys) {
+  const custom = (job && job.custom && typeof job.custom === "object") ? job.custom : {};
+  const face = custom.face && typeof custom.face === "object" ? custom.face : {};
+  const list = keys || [];
+  for (let i = 0; i < list.length; i++) {
+    const k = list[i];
+    const v = face[k] || custom[k] || (job && job[k]);
+    if (v != null && String(v).trim()) return clipFace(v, 200);
+  }
+  return "";
+}
+
+function howOfSpec(spec) {
+  if (!spec) return "";
+  if (typeof spec.how === "string") return clipFace(spec.how, 200);
+  if (spec.how && spec.how.label) return clipFace(spec.how.label, 200);
+  return "";
+}
+
+function packSpecOf(packId, shop) {
+  const id = String(packId || installedPackId(shop) || "").toLowerCase();
+  const builtId = FACES[id] ? packFace(id).id : id;
+  const built = FACE_SPEC[builtId] || FACE_SPEC[id] || null;
+  const file = loadPackFile(id) || (builtId !== id ? loadPackFile(builtId) : null);
+  const installed = installedPackId(shop);
+  const fromShop = shop && shop.packFace && typeof shop.packFace === "object" && (!installed || installed === id || (FACES[installed] && packFace(installed).id === id))
+    ? shop.packFace
+    : null;
+  const raw = fromShop || (file && file.face && typeof file.face === "object" ? file.face : null) || built;
+  if (!raw && !id) return null;
+  const q = (shop && shop.packQueue) || (file && file.queue) || {};
+  const name = clipFace((shop && shop.packName) || q.badge || (file && file.name) || (FACES[id] && FACES[id].name) || id, 48);
+  const spec = {
+    id: builtId || id,
+    name: name || "Pack",
+    family: clipFace(q.family || (file && file.family) || (FACES[id] && FACES[id].family) || "", 48),
+    who: (raw && raw.who) || (built && built.who),
+    what: (raw && raw.what) || (built && built.what),
+    when: (raw && raw.when) || (built && built.when),
+    where: (raw && raw.where) || (built && built.where),
+    how: howOfSpec(raw) || howOfSpec(built),
+    next: clipFace((raw && raw.next) || (built && built.next) || q.empty || "", 200),
+    rails: (raw && Array.isArray(raw.rails) ? raw.rails : null) || (built && built.rails) || [],
+    keys: (built && built.keys) || {}
+  };
+  if (!spec.how) spec.how = name ? (name + ". Draft the next step. A person taps Yes or Stop.") : "";
+  if (!spec.next) spec.next = "On the queue. You tap Yes or Stop. Collect stays HOLD.";
+  return spec;
+}
+
+function stampPackShape(job, shop) {
+  if (!job) return job;
+  const spec = packSpecOf(job.pack, shop);
+  const faceMeta = packFace(job.pack, shop);
+  const name = (spec && spec.name) || (faceMeta && faceMeta.name) || job.packName || "";
+  const whoKeys = specKeys(spec && spec.who, (spec && spec.keys && spec.keys.who) || ["whoFor", "contactName", "who"]);
+  const whatKeys = specKeys(spec && spec.what, (spec && spec.keys && spec.keys.what) || ["need", "title", "kind"]);
+  const whenKeys = specKeys(spec && spec.when, (spec && spec.keys && spec.keys.when) || ["timing", "when"]);
+  const whereKeys = specKeys(spec && spec.where, (spec && spec.keys && spec.keys.where) || ["state", "where"]);
+  const who = firstFaceValue(job, whoKeys);
+  const what = firstFaceValue(job, whatKeys) || clipFace((job && (job.title || job.kind)) || "", 200);
+  const when = firstFaceValue(job, whenKeys) || clipFace((job && job.timing) || "", 80);
+  const where = firstFaceValue(job, whereKeys);
+  const how = (spec && spec.how) || "";
+  job.packName = name || job.packName;
+  if (spec && spec.family) job.packFamily = spec.family;
+  job.custom = Object.assign({}, job.custom || {}, {
+    pack: job.pack || "",
+    packName: job.packName || "",
+    face: {
+      who: who,
+      what: what,
+      when: when,
+      where: where,
+      how: how,
+      name: job.packName || "",
+      labels: {
+        who: slotLabel(spec && spec.who, "Who it is for"),
+        what: slotLabel(spec && spec.what, "What they need"),
+        when: slotLabel(spec && spec.when, "When"),
+        where: slotLabel(spec && spec.where, "Where")
+      }
+    }
+  });
+  return job;
 }
 
 function detectKind(job) {
@@ -85,8 +299,8 @@ function packRulesOf(packId) {
   return (file && Array.isArray(file.rules)) ? file.rules : [];
 }
 
-function brainOf(packId, kind) {
-  const face = packFace(packId);
+function brainOf(packId, kind, shop) {
+  const face = packFace(packId, shop);
   const pack = String(packId || "").toLowerCase();
   const k = String(kind || "request").toLowerCase();
   if (face.id === "vita") {
@@ -103,7 +317,7 @@ function brainOf(packId, kind) {
       risk: k === "list" ? "title" : "none",
       artifact: "listing",
       draft: "Draft the listing. Price and channel stay on the card. You still send it.",
-      next: "Qualify condition and title. Draft the listing. Payout waits on the owner."
+      next: "Qualify condition and title. Draft the listing. Collect HOLD until Yes + a real money pipe."
     };
   }
   if (face.id === "fund") {
@@ -138,6 +352,16 @@ function brainOf(packId, kind) {
       next: "Walk 1→2→3→4. Queue cards count. Yes, Stop, or Kill stay human."
     };
   }
+  const spec = packSpecOf(pack, shop);
+  const installed = installedPackId(shop);
+  if (spec && installed && !FACES[pack] && pack !== "home") {
+    return {
+      risk: "none",
+      artifact: "draft on the card",
+      draft: (spec.how || (spec.name + ". Draft the next step.")) + (/\bHOLD\b/i.test(spec.how || "") ? "" : " A person taps Yes or Stop. Collect stays HOLD."),
+      next: spec.next || "On the queue. You tap Yes or Stop. Collect stays HOLD."
+    };
+  }
   return {
     risk: /school|child|kid/.test(k) ? "legal" : "none",
     artifact: k === "book" || k === "reminder" ? "calendar" : "note",
@@ -154,26 +378,16 @@ function rulesOf(job, shop) {
 
 function ruleMatches(rule, job, step) {
   if (!rule || !job) return false;
-  const when = String(rule.when || rule.step || "qualify").toLowerCase();
-  if (when && when !== "any" && step && when !== String(step).toLowerCase()) return false;
-  if (rule.ifKind && String(job.kind || "").toLowerCase() !== String(rule.ifKind).toLowerCase()) return false;
+  if (!whenMatches(rule.when || rule.step || rule.attach || "qualify", step, job)) return false;
+  if (!ifMatches(rule, job)) return false;
   if (rule.ifPack || rule.ifModel) {
     const want = String(rule.ifPack || rule.ifModel).toLowerCase();
     const have = String(job.pack || "").toLowerCase();
     if (have !== want && packFace(have).id !== want && packFace(have).key !== want) return false;
   }
-  if (rule.contains && blobOf(job).indexOf(String(rule.contains).toLowerCase()) < 0) return false;
-  if (rule.ifField && rule.ifValue) {
-    const got = String((job[rule.ifField] != null ? job[rule.ifField] : (job.custom && job.custom[rule.ifField])) || "").toLowerCase();
-    if (got !== String(rule.ifValue).toLowerCase()) return false;
-  }
   if (rule.ifLate && !job.late) return false;
   if (rule.ifExpired && !job.expired) return false;
   if (rule.ifDue && !(job.dueAt || job.due || job.timing)) return false;
-  if (rule.ifMoney != null) {
-    const n = moneyOf(job);
-    if (n == null || n < Number(rule.ifMoney)) return false;
-  }
   return true;
 }
 
@@ -189,9 +403,13 @@ function capCount(jobs, workspace) {
 function applyCap(job, shop, jobs) {
   if (!job) return job;
   const hits = matchingRules(job, shop, "qualify").concat(matchingRules(job, shop, "follow"))
-    .filter((r) => String(r.then || "").toLowerCase() === "cap");
+    .concat(matchingRules(job, shop, "status"))
+    .filter((r) => {
+      const t = String(r.then || "").toLowerCase();
+      return t === "cap" || t === "escalate";
+    });
   if (!hits.length) return job;
-  if (job.cap || job.priority) return job;
+  if (job.cap && job.priority) return job;
   const ws = job.workspace || (shop && shop.slug) || "";
   const used = capCount(jobs || [], ws);
   if (used >= CAP_MAX) {
@@ -206,24 +424,158 @@ function applyCap(job, shop, jobs) {
   return job;
 }
 
+function addTag(job, tag) {
+  const next = String(tag || "").trim();
+  if (!next) return;
+  const have = jobTagsOf(job);
+  if (have.some(function (t) { return String(t).toLowerCase() === next.toLowerCase(); })) return;
+  job.tags = have.concat([next]);
+  job.custom = Object.assign({}, job.custom || {}, { tags: job.tags });
+}
+
+function markThenAiGone(job, hint) {
+  if (!job || !hint) return job;
+  job.thenAiGone = {
+    id: String(hint.id || hint.aiId || "").slice(0, 40),
+    name: String(hint.name || hint.aiName || "").slice(0, 40)
+  };
+  return job;
+}
+
+function applyThen(job, rule, step, shop) {
+  const then = String(rule.then || "").toLowerCase();
+  const why = rule.text || ruleWhy([rule], job, step) || "Desk rule.";
+  if (then === "stop") {
+    job.waitingOn = "owner";
+    job.rail = job.rail || "held";
+    job.why = why;
+    job.next = why + " Stop stays an owner tap.";
+  } else if (then === "wait") {
+    job.waitingOn = job.waitingOn || "owner";
+    job.why = job.why || why;
+    job.next = why;
+  } else if (then === "draft") {
+    const keep = job._incomingDraft;
+    const hint = (rule.aiId || rule.aiName) ? { id: rule.aiId || "", name: rule.aiName || "" } : null;
+    const bound = hint && shop ? ais.findDeskAi(shop, hint) : null;
+    if (hint && !bound) markThenAiGone(job, hint);
+    else if (bound && job.thenAiGone) delete job.thenAiGone;
+    if (shop && typeof hand.applyDeskAiDraft === "function") {
+      if (!keep) {
+        job.draft = "";
+        job.agentDrafted = false;
+        if (hint) job.deskAi = null;
+      }
+      if (!hint || bound) {
+        hand.applyDeskAiDraft(job, shop, step || "qualify", bound || hint || job.deskAi);
+      }
+    }
+    if (!job.draft) job.draft = why + " Desk AI draft. Human send HOLD.";
+    else if (!/HOLD/i.test(String(job.draft))) job.draft = String(job.draft) + " Human send HOLD.";
+    job.waitingOn = job.waitingOn || "person";
+    const who = job.deskAi && job.deskAi.name;
+    const goneName = hint && hint.name;
+    job.next = who
+      ? (who + " drafted on the card. Human send HOLD.")
+      : (hint && !bound
+        ? ((goneName || "That named desk AI") + " is not on this desk. Draft HOLD.")
+        : (why + " Draft on the card. Human send HOLD."));
+    job.log = (job.log || []).concat(["When/If/Then · draft HOLD"]);
+  } else if (then === "notify") {
+    const hint = (rule.aiId || rule.aiName) ? { id: rule.aiId || "", name: rule.aiName || "" } : null;
+    const bound = hint && shop ? ais.findDeskAi(shop, hint) : null;
+    if (bound && typeof hand.stampDeskAi === "function") {
+      if (job.thenAiGone) delete job.thenAiGone;
+      hand.stampDeskAi(job, shop, bound);
+    } else if (hint && !bound) {
+      markThenAiGone(job, hint);
+    }
+    const who = job.deskAi && job.deskAi.name;
+    const line = who
+      ? (who + " drafted. Nothing sent.")
+      : (hint && !bound
+        ? ((hint.name || "That named desk AI") + " is not on this desk. Nothing sent.")
+        : (why + " Desk AI draft. Nothing sent."));
+    job.notify = (job.notify || []).concat([{ who: "owner", text: line, hold: true }]);
+    if (!job.draft) job.draft = line;
+    job.waitingOn = job.waitingOn || "owner";
+    job.next = job.next || line;
+    job.log = (job.log || []).concat(["When/If/Then · notify HOLD"]);
+  } else if (then === "queue") {
+    job.alert = why;
+    job.status = job.status && job.status !== "exception" ? job.status : "waiting";
+    job.next = job.next || why;
+    job.log = (job.log || []).concat(["When/If/Then · Queue alert"]);
+  } else if (then === "tag") {
+    addTag(job, rule.tag || rule.thenTag || rule.contains);
+    job.log = (job.log || []).concat(["When/If/Then · tag " + (rule.tag || rule.thenTag || "")]);
+  } else if (then === "escalate" || then === "cap") {
+    job.priority = true;
+    job.priorityAt = job.priorityAt || new Date().toISOString();
+    job.priorityBy = job.priorityBy || "rule";
+    job.next = job.next || why;
+    job.log = (job.log || []).concat(["When/If/Then · escalate"]);
+  } else if (then === "note") {
+    job.log = (job.log || []).concat([why]);
+  }
+  if (rule.tag && then !== "tag") addTag(job, rule.tag);
+}
+
+function thenHits(job, shop, step) {
+  return matchingRules(job, shop, step || "do");
+}
+
+function thenAfterYes(job, shop) {
+  if (!job || !shop) return null;
+  const hits = thenHits(job, shop, "do");
+  if (!hits.length) return null;
+  const spawn = hits.some(function (r) {
+    const t = String((r && r.then) || "").toLowerCase();
+    return t === "draft" || t === "queue";
+  });
+  if (!spawn) {
+    applyRules(job, shop, "do");
+    return null;
+  }
+  const next = {
+    id: "job_" + Date.now().toString(36) + "n",
+    workspace: job.workspace,
+    title: job.title || "Next Then",
+    notes: job.notes || "",
+    why: "After Yes. Next Then. A person still taps.",
+    status: "waiting",
+    step: "Do",
+    from: "then",
+    parentId: job.id,
+    pack: job.pack,
+    kind: job.kind,
+    tags: (job.tags || []).slice(),
+    custom: Object.assign({}, job.custom || {}),
+    createdAt: new Date().toISOString(),
+    log: ["Then after Yes · from " + job.id],
+    charged: false,
+    waitingOn: "person"
+  };
+  if (job.deskAi) next.deskAi = job.deskAi;
+  applyRules(next, shop, "do");
+  if (next.status === "shipped" || next.status === "killed") next.status = "waiting";
+  next.charged = false;
+  if (next.waitingOn !== "owner") next.waitingOn = next.waitingOn || "person";
+  if (!/HOLD/i.test(String(next.next || "")) && !/nothing sent/i.test(String(next.next || ""))) {
+    next.next = String(next.next || "Next Then.").replace(/\.\s*$/, "") + ". HOLD. Nothing sent alone.";
+  } else if (!/nothing sent/i.test(String(next.next || ""))) {
+    next.next = String(next.next).replace(/\.\s*$/, "") + ". Nothing sent alone.";
+  }
+  job.nextJobId = next.id;
+  job.log = (job.log || []).concat(["Then after Yes · " + next.id]);
+  return next;
+}
+
 function applyRules(job, shop, step) {
   if (!job) return job;
   const hits = matchingRules(job, shop, step || "qualify");
   hits.forEach((rule) => {
-    const then = String(rule.then || "").toLowerCase();
-    const why = rule.text || ruleWhy([rule], job, step) || "Desk rule.";
-    if (then === "stop") {
-      job.waitingOn = "owner";
-      job.rail = job.rail || "held";
-      job.why = why;
-      job.next = why + " Stop stays an owner tap.";
-    } else if (then === "wait") {
-      job.waitingOn = job.waitingOn || "owner";
-      job.why = job.why || why;
-      job.next = why;
-    } else if (then === "note") {
-      job.log = (job.log || []).concat([why]);
-    }
+    applyThen(job, rule, step, shop);
   });
   if (ruleWantsStop && shop && (ruleWantsStop(ensureRules(shop), job, step || "qualify"))) {
     job.waitingOn = "owner";
@@ -236,7 +588,7 @@ function applyRules(job, shop, step) {
 }
 
 function engineRecs(job, shop) {
-  const face = packFace(job && job.pack);
+  const face = packFace(job && job.pack, shop);
   const pack = String((job && job.pack) || "").toLowerCase();
   const recs = [];
   function add(kind, text) {
@@ -252,7 +604,7 @@ function engineRecs(job, shop) {
   } else if (face.id === "consign") {
     add("ask", "Condition and title on the piece?");
     add("draft", "Draft the listing. You still post it.");
-    add("hold", "Payout waits on the owner.");
+    add("hold", "Collect stays HOLD until Yes + a real money pipe.");
   } else if (face.id === "fund") {
     add("ask", "What is the raise for, and the goal?");
     add("hold", "Credit decision waits on the owner.");
@@ -267,6 +619,12 @@ function engineRecs(job, shop) {
     add("ask", "Which step — leak, pipe, desk AI, or guard?");
     add("draft", "AIA drafts. A person taps Yes, Stop, or Kill.");
     add("hold", "Collect stays HOLD. No silent send. No fake on-chain.");
+  } else if (shop && installedPackId(shop) && !FACES[pack] && pack !== "home") {
+    const spec = packSpecOf(pack, shop);
+    const askBits = [slotLabel(spec && spec.who, ""), slotLabel(spec && spec.what, ""), slotLabel(spec && spec.when, "")].filter(Boolean);
+    add("ask", askBits.length ? (askBits.join(", ") + "?") : "What is the work, and who is it for?");
+    add("draft", (spec && spec.how) || "AIA drafts. A person taps Yes or Stop.");
+    add("hold", "Collect stays HOLD. No silent send.");
   } else {
     add("next", "Copy, text, email, or hand this card.");
     add("ask", "Who is it for, and when?");
@@ -292,18 +650,19 @@ function qualifyJob(job, shop, jobs) {
   if (!job) return job;
   job.pack = detectPack(job, shop);
   job.kind = detectKind(job);
-  const face = packFace(job.pack);
+  const face = packFace(job.pack, shop);
   job.packName = face.name;
   job.packFamily = face.family;
-  job.custom = Object.assign({}, job.custom || {}, { pack: job.pack, packName: face.name });
+  stampPackShape(job, shop);
   if (!job.status || job.status === "exception") job.status = "waiting";
   if (!job.step) job.step = "Qualify";
   clock.applyClock(job, job);
   clock.tickClock(job);
-  const brain = brainOf(job.pack, job.kind);
+  const brain = brainOf(job.pack, job.kind, shop);
   if (!job.risk || job.risk === "none") job.risk = brain.risk || "none";
   if (!job.artifact) job.artifact = brain.artifact;
-  if (!job.draft) job.draft = brain.draft;
+  if (job.draft) job._incomingDraft = job.draft;
+  else job.draft = brain.draft;
   const rules = shop ? ensureRules(shop) : [];
   const holdAt = shop ? moneyWaitOf(rules) : MONEY_HOLD;
   if (moneyNeedsOwner(moneyOf(job), holdAt)) {
@@ -312,10 +671,13 @@ function qualifyJob(job, shop, jobs) {
   }
   applyRules(job, shop, "qualify");
   applyRules(job, shop, "capture");
+  applyRules(job, shop, "drop");
+  applyRules(job, shop, "pipe");
+  applyRules(job, shop, "inbound");
   applyCap(job, shop, jobs);
   if (!job.next) {
     const line = clock.clockLine(job);
-    job.next = line || brain.next || "On the queue. You tap Yes or No.";
+    job.next = line || brain.next || "On the queue. You tap Yes or Stop.";
   }
   if (job.risk === "suitability" || job.risk === "legal" || job.risk === "title" || job.risk === "credit") {
     job.waitingOn = job.waitingOn || "owner";
@@ -324,6 +686,7 @@ function qualifyJob(job, shop, jobs) {
   job.crew = hand.crewOf(job, shop);
   job.qualifiedAt = job.qualifiedAt || new Date().toISOString();
   job.engine = "aia.desk.v1";
+  delete job._incomingDraft;
   return job;
 }
 
@@ -331,6 +694,7 @@ function followJob(job, shop) {
   if (!job || job.status === "killed" || job.status === "shipped") return job;
   clock.tickClock(job);
   applyRules(job, shop, "follow");
+  applyRules(job, shop, "status");
   if (job.expired) {
     job.waitingOn = job.waitingOn || "owner";
     job.next = job.next || "This card expired. Open it or Stop it. Nothing sent.";
@@ -409,12 +773,17 @@ module.exports = Object.assign({}, hand, {
   detectPack,
   detectKind,
   packFace,
+  packSpecOf,
+  stampPackShape,
+  installedPackId,
   recommend,
   icsOf,
   whenOf,
   markFlow,
   applyRules,
   applyCap,
+  thenAfterYes,
+  thenHits,
   crewOf: hand.crewOf,
   MONEY_HOLD,
   PACKS,

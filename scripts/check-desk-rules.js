@@ -194,6 +194,11 @@ async function main() {
   if (getNone.statusCode !== 400) fail("GET missing workspace should 400, got " + getNone.statusCode);
   else pass("GET missing workspace rejected");
 
+  ["desk-alpha", "desk-beta"].forEach(function (slugName) {
+    const row = { slug: slugName, name: slugName, biz: slugName, people: [] };
+    ensurePeople(row);
+    mem.workspaces.unshift(row);
+  });
   const capA = await call(jobsHandler, "POST", { "x-workspace": "desk-alpha" }, { action: "capture", title: "Alpha only" });
   const capB = await call(jobsHandler, "POST", { "x-workspace": "desk-beta" }, { action: "capture", title: "Beta only" });
   if (capA.statusCode !== 201 || capB.statusCode !== 201) fail("capture A/B should 201");
@@ -297,6 +302,47 @@ async function main() {
   const pinLeak = (mem.audit || []).some((a) => /4821|7390/.test(JSON.stringify(a)));
   if (pinLeak) fail("PIN appeared in audit");
   else pass("no PIN in audit");
+
+  const witLine = "Click + Lead → tag Interested. Draft HOLD.";
+  const addWit = await call(rulesHandler, "POST", owner, {
+    text: witLine,
+    when: "drop",
+    then: "draft",
+    ifTag: "Lead",
+    contains: "click",
+    tag: "Interested"
+  });
+  if (addWit.statusCode !== 201 || !addWit.body.rule) fail("could not add When/If/Then rule");
+  else if (addWit.body.rule.when !== "drop" || addWit.body.rule.then !== "draft" || addWit.body.rule.ifTag !== "Lead" || addWit.body.rule.tag !== "Interested") {
+    fail("publicRule stripped When/If/Then " + JSON.stringify(addWit.body.rule));
+  } else pass("When/If/Then persists on the rule");
+
+  const getWit = await call(rulesHandler, "GET", owner);
+  const storedWit = (getWit.body.rules || []).find((r) => r.text === witLine);
+  if (!storedWit || storedWit.when !== "drop" || storedWit.then !== "draft") fail("GET rules lost When/If/Then");
+  else pass("GET rules returns When/If/Then");
+  if (!Array.isArray(getWit.body.when) || getWit.body.when.indexOf("drop") < 0 || getWit.body.when.indexOf("inbound") < 0) {
+    fail("GET rules missing trigger When list");
+  } else pass("GET rules lists drop/pipe/inbound/status");
+  if (!Array.isArray(getWit.body.then) || getWit.body.then.indexOf("draft") < 0 || getWit.body.then.indexOf("notify") < 0) {
+    fail("GET rules missing Then actions");
+  } else pass("GET rules lists draft/queue/notify");
+
+  const { flattenWorkflows } = lib;
+  const flat = flattenWorkflows({
+    workflows: [{
+      name: "Lead click",
+      rules: [{ text: "Click + Lead → tag Interested. Draft HOLD.", when: "drop", ifTag: "Lead", then: "draft", tag: "Interested" }]
+    }],
+    sequences: [{
+      name: "Support late",
+      delay: "24h",
+      rules: [{ text: "Unassigned + older than 24h → escalate.", when: "status", ifUnassigned: true, then: "escalate" }]
+    }]
+  });
+  if (flat.length !== 2) fail("flattenWorkflows should string two rules, got " + flat.length);
+  else if (flat[1].ifOlder !== 24) fail("sequence delay should become ifOlder 24, got " + flat[1].ifOlder);
+  else pass("workflows flatten to rules with delay");
 
   await save();
   if (process.exitCode) {

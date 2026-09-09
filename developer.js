@@ -21,7 +21,7 @@
     var tok = localStorage.getItem("aia_session") || "";
     if (ws) h["X-Workspace"] = slugify(ws);
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return h;
   }
   function show(msg, good) {
@@ -42,6 +42,20 @@
       var el = document.getElementById(id);
       if (el) el.value = formState[id];
     });
+  }
+  function parseWorkflows(raw) {
+    var t = String(raw || "").trim();
+    if (!t) return [];
+    try {
+      var parsed = JSON.parse(t);
+      return Array.isArray(parsed) ? parsed : (parsed && (parsed.workflows || parsed.sequences || parsed.rules) ? [].concat(parsed.workflows || parsed.sequences || [parsed]) : []);
+    } catch (e) {
+      return t.split(/\n+/).map(function (line) {
+        line = String(line || "").trim();
+        if (!line) return null;
+        return { name: line.slice(0, 80), rules: [{ text: line.slice(0, 140) }] };
+      }).filter(Boolean);
+    }
   }
   function parseFields(line) {
     return String(line || "").split(/[,;\n]+/).map(function (part) {
@@ -96,6 +110,7 @@
       fields: parseFields(val("fields") || formState.fields || ""),
       kinds: val("kinds") || formState.kinds || "",
       rules: (val("rule") || formState.rule) ? [{ text: val("rule") || formState.rule }] : [],
+      workflows: parseWorkflows(val("workflows") || formState.workflows || ""),
       ask: Number(val("ask") || formState.ask || 0) || 0,
       bots: bots(),
       ais: aisFromForm(),
@@ -136,6 +151,7 @@
       ["grok", "Grok"],
       ["pack", "Pack"],
       ["ais", "Desk AIs"],
+      ["mail", "Mail"],
       ["drop", "Drop form"],
       ["queue", "Queue"],
       ["pipes", "Pipes"],
@@ -170,20 +186,23 @@
       "<label>What it does</label><input id=\"does\" placeholder=\"Photo in. Draft the title. Wait on payout.\">" +
       "<label>Fields (label:type)</label><input id=\"fields\" placeholder=\"who:text, lots:number, titled:yesno\">" +
       "<label>Kinds</label><input id=\"kinds\" placeholder=\"list, photo, walk-in\">" +
-      "<label>Rule line</label><input id=\"rule\" placeholder=\"Cap title-missing items.\">" +
+      "<label>Rule line</label><input id=\"rule\" placeholder=\"When Drop · If tagged Lead · Then tag Interested. Draft HOLD.\">" +
+      "<label>Workflows / Sequences (thin JSON)</label>" +
+      "<textarea id=\"workflows\" rows=\"4\" placeholder='[{\"name\":\"Lead click\",\"rules\":[{\"when\":\"drop\",\"ifTag\":\"Lead\",\"contains\":\"click\",\"then\":\"draft\",\"tag\":\"Interested\",\"text\":\"Click + Lead → tag Interested. Draft HOLD.\"}]}]'></textarea>" +
+      "<p class=\"hint\">A <b>rule</b> is one When → If → Then on this desk. A <b>workflow / sequence</b> strings rules (optional delay / branch). Still thin JSON. No dashboard fork. Collect stays HOLD. Never Send.</p>" +
       "<label>Ask (Collect stays HOLD)</label><input id=\"ask\" inputmode=\"decimal\" placeholder=\"Leave blank to list free\">" +
-      "<p class=\"hint\">A number here is a listed ask. World desks can still install the pack. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
+      "<p class=\"hint\">A number here is a listed ask. World desks can still install the pack. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. AIA has no public payout baseline — you earn by the ask you set.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-pack\">Save draft</button></p></div>"
     );
     if (tab === "ais" || tab === "bots") return (
       "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Bound to this desk — not a free-roaming bot. Addressed on AIA Internet as a .aia name. ai.aia is the brand. The desk runs on automateitaway.com. Drafts under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
-      "<label>AI 1 name</label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
+      "<label>AI 1 name <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"desk-ai\" aria-label=\"More about Desk AI\">?</button></label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
       "<label>AIA Internet name</label><input id=\"ai1-aia\" placeholder=\"james.aia\">" +
       "<label>Role</label><select id=\"ai1-role\"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select>" +
       "<label>What it drafts</label><input id=\"ai1-does\" placeholder=\"Draft the next step on this desk\">" +
       "<label>Steps it may draft</label><input id=\"ai1-steps\" placeholder=\"qualify, do, follow\">" +
       "<label>Draft line</label><textarea id=\"ai1-prompt\" rows=\"2\" placeholder=\"Do not send it. Do not invent a price. Wait on Yes.\"></textarea>" +
-      "<label>AI 2 name</label><input id=\"ai2-name\" placeholder=\"Lane Worker\">" +
+      "<label>AI 2 name <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"desk-ai\" aria-label=\"More about Desk AI\">?</button></label><input id=\"ai2-name\" placeholder=\"Lane Worker\">" +
       "<label>AIA Internet name</label><input id=\"ai2-aia\" placeholder=\"lane-worker.aia\">" +
       "<label>Role</label><select id=\"ai2-role\"><option>Worker</option><option>Doer</option><option>Rail</option><option>Foreman</option></select>" +
       "<label>What it drafts</label><input id=\"ai2-does\" placeholder=\"Qualify and write the follow note\">" +
@@ -192,6 +211,11 @@
       "<p class=\"hint\">Never: Send · Stop · pay · mail · Yes itself. Collect stays HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-ais\">Save AIs on draft</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"attach-ai\">Attach AI 1 to this desk now</button></p></div>"
+    );
+    if (tab === "mail") return (
+      "<div class=\"card\" id=\"aia-mail\"></div>" +
+      "<div class=\"card\"><h2>Automations from inbound</h2>" +
+      "<p class=\"hint\">Create .aia email for automations. Mail (or a simulated webhook) to that address Drops a card on the bound desk — same path as /api/hook. Automations can trigger from inbound. Outbound Send stays HOLD. No live SMTP / MX. DNS for ai.aia / *.aia does not resolve yet.</p></div>"
     );
     if (tab === "drop") return (
       "<div class=\"card\"><h2>Drop form inside the pack</h2>" +
@@ -230,7 +254,8 @@
     );
     if (tab === "submit") return (
       "<div class=\"card\"><h2>Submit to AIA</h2>" +
-      "<p class=\"hint\">Publish lists it on /market and puts the thin JSON onto this desk. Keep private attaches the pack and named AIs to this desk only — project, company, or family. An ask is listed. Collect stays HOLD until a person taps Yes and a money pipe is live.</p>" +
+      "<p class=\"hint\">Publish lists it on /market and puts the thin JSON onto this desk. Keep private attaches the pack and named AIs to this desk only — project, company, or family. An ask is listed. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. AIA has no public payout baseline.</p>" +
+      "<p class=\"hint\">Agency consulting is off-platform — your client rates, not an AIA published schedule.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"submit-pack\">Publish · land on Market</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"private-pack\">Keep private on this desk</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download .aia</button>" +
@@ -243,8 +268,10 @@
       "<p class=\"aia-line off\" id=\"aia-net-line\">ai.aia is the AIA Internet brand. .aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" data-tab=\"grok\">Ask Grok</button>" +
       "<a class=\"go ghost\" href=\"/market?creator=grok\">Grok packs on Market</a></p></div>" +
+      "<div class=\"card\" id=\"aia-mail\"></div>" +
       "<div class=\"card\"><h2>AIA Internet · ai.aia · .aia pack</h2>" +
       "<p class=\"hint\">ai.aia is the brand. The desk runs on automateitaway.com. Download or share a pack as a .aia file — JSON inside, named desk AIs and guardrails included. Install a .aia onto this project, company, or family desk. Private until you list it. Collect stays HOLD. No on-chain claim.</p>" +
+      "<p class=\"hint\"><b>First .aia pack.</b> When → If → Then. Buyer binds their own keys on Pipes. Yes / Stop / Kill before outbound. Webhook is the live pipe. Not a bindings product. Docs: <a href=\"#first-pack\">#first-pack</a>.</p>" +
       "<label>Install a .aia file</label><input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"download-aia\">Download this pack as .aia</button></p></div>" +
@@ -254,8 +281,48 @@
       "<a class=\"go ghost\" href=\"/pipes\">2 Pipes</a>" +
       "<a class=\"go ghost\" href=\"/create?kind=ai\">3 Create · AI</a>" +
       "<a class=\"go ghost\" href=\"/rules\">4 Rules</a></p></div>" +
+      "<div class=\"card\" id=\"world-lab\"><h2>World users · launch an automation business</h2>" +
+      "<p class=\"hint\">Days are a guide, not a promise. Spine: Audit → Pipes → named desk AI → Rules (When → If → Then). Yes / Stop / Kill. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live.</p>" +
+      "<p class=\"hint\"><b>1. Core setup.</b> Packs / agency / DFY. Niche 1–2. This desk + pipes. Open a desk → create / name a desk AI → pack .aia → Marketplace or private. Price bands ($47–$197 packs, retainers, $997 DFY) are illustrative / off-platform — not an AIA rate card. Agency / DFY / co-pilot stay off-platform labels.</p>" +
+      "<p class=\"hint\"><b>2. First pack suite.</b> Ideas, not seeded demo rules: Lead capture + follow-up; Content multiplier; Document / email processing. Trigger → Condition → Action.</p>" +
+      "<p class=\"hint\"><b>3. Package &amp; monetize.</b> Lead magnet → mid pack → high-ticket VIP / setup. You set prices. No affiliate percent. No silent charge. No demo seed.</p>" +
+      "<p class=\"hint\"><b>4. GTM.</b> 60s clips. Publish on Marketplace / Studio. Use clear titles + niche keywords on Marketplace. Local SMB or a risk-free trial. AIA does not rank listings on platform search and does not guarantee top rankings.</p>" +
+      "<p class=\"hint\"><b>Account.</b> Open a desk (name + code) or email + password on /account. Not social SSO. <b>Pack Creator</b> (on-desk): named desk AIs, webhooks, CRM pipes when connected, packed as .aia. Lead qualify, review responder, social repurposing drafts — not auto-publish unless a live pipe exists. Social auto-post is a future / off-platform pipe — not live OAuth.</p>" +
+      "<p class=\"hint\"><b>Build automation packs.</b> Niche problem — real estate / e-com / agency ideas, not seeded demo rules; measurable time or leads. Core logic stack = this desk: Trigger (webhook / Drop / pipe / inbound .aia) → Qualify + named desk AI prompts → Fallbacks (Rules + Rail — no silent crash) → Destination pipes when connected. Collect HOLD. Plug-and-play: credential vars, dashboards via pipes, 2-min quickstart. Tiers: Free / core / DFY — illustrative $ only; you set the price.</p>" +
+      "<p class=\"hint\"><b>Limits on create / sell.</b> Real numbers only. Desk: 6 named AIs (Studio draft saves 3), 8 Rules, 12 fields, 12 .aia emails per account. No published Marketplace listing cap. No published .aia file-size cap. Desk card uploads cap at 8 MB. External storefronts are off-platform. Buyers bring their own keys — no AIA usage billing. Version packs when APIs change. 3–5 strong packs beat 50 thin ones.</p>" +
+      "<p class=\"hint\"><b>Learn packs.</b> Rebuild from memory on an empty desk. Trigger → Condition → Action in plain words. Revisit Rules over days. Practice Qualify prompts, fallback Rules, pipe connect. Simulate inbound. One pack end-to-end. 20-hour competence is a guide, not a guarantee. Collect HOLD. Not social SSO.</p>" +
+      "<p class=\"hint\"><b>Four models.</b> AAA = off-platform client work. Sell outcomes. AIA is the desk engine (Drop → Qualify → Do → Collect HOLD → Follow). Fees are example / off-platform — not AIA rates. DFY = off-platform wrapping a repeatable install. Marketplace = on-desk Studio; you set the price. Co-pilot = off-platform; 10–15% cuts are examples only, not AIA terms. First 3 clients: Audit (Find the leaks) → 60s proof → risk-free trial.</p>" +
+      "<p class=\"hint\"><b>Pack quality.</b> Ship operational infrastructure — Drop → Qualify → Do → Collect HOLD → Follow — not dead templates. Fallbacks: Rules + Rail. Slack / Sheets / Notion pipes HOLD until Yes / keys. Structured prompts. Recommend a 2-min quickstart. No review-rate stats.</p>" +
+      "<p class=\"hint\"><b>Funnel + expansion.</b> Tripwire / Core / High-ticket DFY — you set prices; illustrative only. Recurring update pass: Collect HOLD; no invented subscription engine. Industry bundles = repackage .aia. $0.05/exec is off-platform or a future pipe — AIA does not host per-run billing.</p>" +
+      "<p class=\"hint\"><b>Add people.</b> Search a world @handle on People under More. They Accept there. Email is not a world name. AIA does not send invite mail. Don’t share the owner desk code — each person their own seat. Collect HOLD.</p>" +
+      "<p class=\"hint\"><b>Onboard this desk.</b> Four beats — pipes, name, people, pack. Copy the inbound hook. Fresh desks stay empty until you drop or install. Collect HOLD. Full beat: <a href=\"/help#onboard-desk\">/help#onboard-desk</a>.</p>" +
+      "<p class=\"hint\"><b>Selling packs.</b> Thin JSON. Drafts on the buyer’s desk. Yes / Stop / Kill stay human. Collect HOLD. Buyer’s keys — never hardcode yours. Do not promise 100% safe. Help is not legal advice. Full beat: <a href=\"/help#sell-packs\">/help#sell-packs</a>.</p>" +
+      "<p class=\"hint\"><b>Build a pack / desk AI.</b> When → If → Then. Desk AI drafts the card. Yes / Stop / Kill. Fallbacks: Needs you / Talk to AIA. Thin .aia from /dev. Buyer pipes and keys. Yes is not a collect charge. Collect HOLD. Full beat: <a href=\"/help#build-pack\">/help#build-pack</a>.</p>" +
+      "<p class=\"hint\"><b>How the queue runs.</b> Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill. Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD. Full beat: <a href=\"/help#queue-runs\">/help#queue-runs</a>.</p>" +
+      "<p class=\"hint\"><b>Desk cards.</b> When → If → Then drafts a queue card (fields / notes), not a chat blob. Installed packs auto-shape the card — you do not pick a pack on every Drop. Reply on the card when the desk asks — it does not Yes or send. After Yes, When=do Then can open a new card. Yes is not auto-send mail, push git, or a Collect charge. Thin .aia. Test via Drop or www hook. Up to 12 card fields. Full beat: <a href=\"/help#desk-cards\">/help#desk-cards</a>.</p>" +
+      "<p class=\"hint\"><b>.aia inbound.</b> Users create name@account.aia. When for packs and rules. www.automateitaway.com/api/hook can write a card; unknown .aia → 400. MX/DNS for *.aia HOLD. ai.aia orange until DNS. No Gmail forward wizard, email vault, or voice/SMS receptionist. Full beat: <a href=\"/help#aia-inbound\">/help#aia-inbound</a>.</p>" +
+      "<p class=\"hint\">On-desk: Simulate inbound / www hook. Fresh rules stay empty. Off-platform pipes wait on your keys + Yes. AIA does not invent live connectors or live MX.</p></div>" +
+      "<div class=\"card\"><h2>Creators / earnings</h2>" +
+      "<p class=\"hint\">AIA has no public payout baseline and no published creator rate card. You earn by pricing a pack — a listed ask. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. No silent charge. No demo seed. Private project, company, or family desks stay off Market.</p>" +
+      "<p class=\"hint\"><b>Paid ads (off-platform).</b> If World users buy Meta, Google, TikTok, or YouTube ads off-platform to market packs, earnings depend on ROAS, CAC, and the funnel — lead magnet → tripwire → pack → upsell — not raw sales volume. Example thinking only. AIA does not run ads and does not guarantee ROAS.</p>" +
+      "<p class=\"hint\">Agency consulting is off-platform — your client rates, not an AIA published schedule. There is no affiliate portal or referral percent on automateitaway.com.</p>" +
+      "<p class=\"hint\"><b>FAQ.</b> Can I buy stock in Automate It Away? No. AIA is a privately held web app — not listed. Not investment advice. How do I work with or for AIA? Build packs + Talk to AIA; agency / DFY off-platform. No careers portal. No certified partner program. AIA License? No separate license SKU — desk account + pack install. Collect and payouts HOLD. No Free / Pro / Agency license tiers. No merchant-of-record. No auto EULA. Plan tiers? No public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Create or Drop a goal → draft card → Yes. Needs you / prompt ask-who when the desk asks. Install / give / update a .aia with Yes on History. Connect existing wallet is your MetaMask or WalletConnect — not Wallet.AIA. Collect HOLD. No autonomous ETA engine. No SaaS codegen.</p></div>" +
       "<div class=\"card\"><h2>Creators Studio</h2>" +
       "<p class=\"hint\">Try first. Drop real work. Queue cards are the measure — not a model demo. Worker-first: drafts wait on Yes or Stop. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect, no auto mail.</p>" +
+      "<div class=\"strip\" aria-label=\"When If Then\">" +
+        "<div><b>When</b><span>Trigger — Drop, pipe, inbound name@account.aia, status.</span></div>" +
+        "<div><b>If</b><span>Condition — Qualify check, tag, word, unassigned, older than.</span></div>" +
+        "<div><b>Then</b><span>Action — desk AI drafts, Queue card, notify. Human Yes/Stop.</span></div>" +
+        "<div><b>Pack workflow</b><span>Strings rules. Optional delay / branch. Thin JSON. Collect HOLD.</span></div>" +
+      "</div>" +
+      "<div class=\"card\" style=\"margin:8px 0 0;padding:0;border:0;box-shadow:none\">" +
+        "<p class=\"hint\"><b>Example When → If → Then</b> — copy, do not seed. No live eBay or mail.</p>" +
+        "<p class=\"hint\">Lead click: Drop + tagged Lead + click → tag Interested. Draft. Human send HOLD.</p>" +
+        "<p class=\"hint\">App / webhook: pipe + tagged Lead → draft. Buyer keys on Pipes. Yes before outbound.</p>" +
+        "<p class=\"hint\">Task done: status Done → notify owner. Desk AI draft.</p>" +
+        "<p class=\"hint\">International order: Drop + international → Customs Form alert on Queue.</p>" +
+        "<p class=\"hint\">Support late: unassigned + older than 24h → escalate priority.</p>" +
+      "</div>" +
       "<p class=\"cta\"><a class=\"go ghost\" href=\"/market?pack=aia-adoption\">Try it on this desk</a>" +
       "<a class=\"go ghost\" href=\"/market?pack=aia-implement\">Four steps pack</a></p>" +
       "<div id=\"mine-list\"></div></div>" +
@@ -273,6 +340,8 @@
       "<p class=\"cta\"><button class=\"go\" type=\"submit\">Open Studio</button></p></form>";
     var slug = document.getElementById("slug");
     if (slug) slug.value = localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_ws") || "";
+    var pinEl = document.getElementById("pin");
+    if (pinEl) pinEl.value = localStorage.getItem("aia_pin") || "";
     document.getElementById("gate").addEventListener("submit", openLab);
   }
 
@@ -280,7 +349,7 @@
     snap();
     view.innerHTML =
       "<div class=\"card banner\"><div><b>" + (creator ? "Creators Studio on · still free" : "Studio flag is off") + "</b>" +
-      "<p class=\"hint\">Draft → test on this desk → keep private or submit to AIA → Market. Named AIs bind to the desk. Packs travel as .aia files. Packs never Send. Collect stays HOLD.</p></div>" +
+      "<p class=\"hint\">Draft → test on this desk → keep private or submit to AIA → Market. Named AIs bind to the desk. Packs travel as .aia files. Packs never Send. Collect stays HOLD. No public payout baseline.</p></div>" +
       "<div class=\"cta\"><button class=\"go\" type=\"button\" id=\"on-dev\">I make packs</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"off-dev\">Regular account</button></div></div>" +
       "<div class=\"pills\" id=\"tabs\">" + tabs() + "</div>" + pane();
@@ -290,11 +359,13 @@
       loadMine();
       loadOfficial();
       paintAia();
+      if (window.AIAMail && AIAMail.load) AIAMail.load();
     }
     if (tab === "grok") {
       paintAia();
       showGrokDraft(grokDraft);
     }
+    if (tab === "mail" && window.AIAMail && AIAMail.load) AIAMail.load();
   }
 
   function bindLab() {
@@ -404,6 +475,9 @@
       }).filter(Boolean).join(", ") : "");
     formState.kinds = Array.isArray(pack.kinds) ? pack.kinds.join(", ") : (pack.kinds || "");
     formState.rule = pack.rule || (pack.rules && pack.rules[0] && (pack.rules[0].text || pack.rules[0])) || "";
+    formState.workflows = Array.isArray(pack.workflows) || Array.isArray(pack.sequences)
+      ? JSON.stringify(pack.workflows || pack.sequences, null, 2)
+      : (pack.workflows || "");
     formState.ask = pack.ask != null ? String(pack.ask) : "";
     formState["drop-hint"] = pack.dropHint || "";
     if (pack.queue) {

@@ -11,7 +11,7 @@ const root = path.join(__dirname, "..");
 const pages = [
   "desk.html", "drop.html", "widget.html", "create.html", "history.html",
   "pipes.html", "connections.html", "help.html", "rules.html", "more.html",
-  "developer.html", "market.html"
+  "developer.html", "market.html", "account.html"
 ];
 const need = ["Queue", "Drop", "Create", "History", "More", "has-desk-nav", "id=\"desk-nav\""];
 
@@ -115,6 +115,12 @@ else pass("Create gates Desk AI Bind");
   else pass(file + " does not use www.aia.aia");
   if (file !== "more.html" && !html.includes(".aia")) fail(file + " missing .aia files");
 });
+if (!create.includes("You tap Yes or Stop.")) fail("create.html must keep Yes or Stop");
+else pass("Create lead is Yes or Stop");
+if (createJs.includes("Yes or No") || createJs.includes("yes or no")) fail("create-desk.js still paints Yes or No as the rail");
+else pass("Create form does not paint Yes or No");
+if (!createJs.includes("You still tap Yes or Stop")) fail("create-desk.js must keep Yes or Stop");
+else pass("Create form keeps Yes or Stop");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {

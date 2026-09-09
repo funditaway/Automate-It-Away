@@ -46,6 +46,11 @@ if (js.indexOf("paintSiteNav") < 0 || js.indexOf("paintFooter") < 0 || js.indexO
 } else {
   pass("theme.js paints one header and one footer");
 }
+if (js.indexOf('id: "help", href: "/help", label: "Help"') < 0) {
+  fail("shared site nav must include Help");
+} else {
+  pass("shared site nav includes Help");
+}
 if (!css.includes(".site-foot") || !css.includes(".site-nav")) {
   fail("theme.css missing site-foot / site-nav");
 } else {

@@ -148,7 +148,7 @@
       "<div id=\"rows\">" + shopMarkup(LAST) + "</div>" +
       "<div class=\"card\">" +
         "<b>List a pack on AIA Internet</b>" +
-        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack, add a desk AI, write a rule, then list it here or keep it private. Download and install use .aia files. An ask is listed. Collect stays HOLD. No silent charge.</p>" +
+        "<p class=\"hint\">Creators Studio lives on /dev. Name the pack on AIA Internet, add a desk AI, write a rule, then list it here or keep it private. Download and install use .aia files. An ask is listed. Collect stays HOLD. No silent charge. AIA has no public payout baseline — you earn by the ask you set. Agency consulting is off-platform.</p>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a><a class=\"use ghost\" href=\"/account\">Creator / Dev flag</a></div>" +
       "</div>" +
       "<div class=\"card\">" +
@@ -220,7 +220,7 @@
       "<div class=\"how\">" +
         "<div><b>1. Capture</b>" + esc(how.capture || "Drop the facts this pack named.") + "</div>" +
         "<div><b>2. Qualify</b>" + esc(how.qualify || "Rules Cap or Wait on the words that matter.") + "</div>" +
-        "<div><b>3. Do the work</b>" + esc(how.do || "AIA drafts. A person still taps Yes or No.") + "</div>" +
+        "<div><b>3. Do the work</b>" + esc(how.do || "AIA drafts. A person still taps Yes or Stop.") + "</div>" +
         "<div><b>4. Collect</b>" + esc(how.collect || "Collect stays HOLD until Yes and a live money pipe.") + "</div>" +
         "<div><b>5. Follow</b>" + esc(how.follow || "The card stays on History until it is done.") + "</div>" +
       "</div>" +
@@ -252,7 +252,7 @@
       "<h2>Packs on AIA Internet</h2>" +
       (packs.length ? "<div class=\"grid\">" + packs.map(shopCard).join("") + "</div>" : "<p class=\"hint\">No listed pack from this creator yet.</p>") +
       (others.length ? "<h2>Other official packs</h2><div class=\"grid\">" + others.map(shopCard).join("") + "</div>" : "") +
-      "<div class=\"card\"><b>Make a pack for your niche</b><p class=\"hint\">Any trade, shop, or house desk can list thin JSON. Billing for an ask stays HOLD until Yes.</p>" +
+      "<div class=\"card\"><b>Make a pack for your niche</b><p class=\"hint\">Any trade, shop, or house desk can list thin JSON. Billing for an ask stays HOLD until Yes. AIA has no public payout baseline. Agency consulting is off-platform.</p>" +
         "<div class=\"cta\"><a class=\"use\" href=\"/dev\">Open Creators Studio</a></div></div>";
   }
   async function loadShop(q) {

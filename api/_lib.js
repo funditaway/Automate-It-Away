@@ -14,7 +14,7 @@ const PROVIDERS = {
 
 const EMPTY = {
   account: null, accounts: [], sessions: [], approvals: [], locks: [],
-  connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [], packs: []
+  connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [], packs: [], mail: []
 };
 const SESSION_DAYS = 14;
 const SESSION_MAX = 8;
@@ -59,7 +59,8 @@ function shape(parsed) {
     inbox: Array.isArray(parsed.inbox) ? parsed.inbox : [],
     files: Array.isArray(parsed.files) ? parsed.files : [],
     tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
-    packs: Array.isArray(parsed.packs) ? parsed.packs : []
+    packs: Array.isArray(parsed.packs) ? parsed.packs : [],
+    mail: Array.isArray(parsed.mail) ? parsed.mail : []
   };
 }
 
@@ -78,7 +79,8 @@ function payload() {
     inbox: mem.inbox,
     files: mem.files,
     tickets: mem.tickets,
-    packs: mem.packs
+    packs: mem.packs,
+    mail: mem.mail
   };
 }
 
@@ -241,20 +243,20 @@ async function hydrate() {
   if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
-      Object.assign(mem, remote);
+      applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
       await persistScrub();
       return;
     }
     if (blobProbe.read === "error") {
-      Object.assign(mem, readDisk());
+      applyStore(readDisk());
       dropPersistTests();
       mem.driver = writeDisk();
       mem.path = storePath();
       return;
     }
-    Object.assign(mem, readDisk());
+    applyStore(readDisk());
     dropPersistTests();
     writeDisk();
     const ok = await blobWrite();
@@ -264,7 +266,7 @@ async function hydrate() {
       return;
     }
   }
-  Object.assign(mem, readDisk());
+  applyStore(readDisk());
   dropPersistTests();
   mem.driver = writeDisk();
   mem.path = storePath();
@@ -274,12 +276,32 @@ if (!globalThis.__aiaHydrate) {
   globalThis.__aiaHydrate = hydrate();
 }
 
+function applyStore(parsed) {
+  const next = shape(parsed);
+  mem.account = next.account;
+  mem.accounts = next.accounts;
+  mem.sessions = next.sessions;
+  mem.approvals = next.approvals;
+  mem.locks = next.locks;
+  mem.connections = next.connections;
+  mem.jobs = next.jobs;
+  mem.audit = next.audit;
+  mem.money = next.money;
+  mem.workspaces = next.workspaces;
+  mem.inbox = next.inbox;
+  mem.files = next.files;
+  mem.tickets = next.tickets;
+  mem.packs = next.packs;
+  mem.mail = next.mail;
+  return mem;
+}
+
 async function ready() {
   await globalThis.__aiaHydrate;
-  if (blobReady() && mem.driver !== "blob") {
+  if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
-      Object.assign(mem, remote);
+      applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
     }
@@ -332,6 +354,15 @@ function catalog() {
       ? "Not a launch pipe"
       : configured(id) ? "env present" : "connect when keys are set"
   }));
+}
+
+const PUBLIC_HOST = "https://www.automateitaway.com";
+
+function hookUrl(workspace) {
+  const slug = String(workspace || "").trim();
+  return slug
+    ? PUBLIC_HOST + "/api/hook?workspace=" + encodeURIComponent(slug)
+    : PUBLIC_HOST + "/api/hook";
 }
 
 function pipeWroteBack(dispatch) {
@@ -454,7 +485,9 @@ function sessionPublic(row, token) {
     createdAt: row.createdAt || "",
     seenAt: row.seenAt || row.createdAt || "",
     expiresAt: row.expiresAt || "",
-    current: !!row.current
+    current: !!row.current,
+    walletAddress: row.walletAddress || "",
+    walletChainId: row.walletChainId || 0
   };
   if (token) out.token = token;
   if (row.ua) out.ua = row.ua;
@@ -659,13 +692,27 @@ function ensurePeople(ws) {
       email: ws.email || "",
       createdAt: ws.createdAt || new Date().toISOString()
     }];
+  } else if (ws.pin) {
+    const owner = ws.people.find((p) => p && p.role === "owner");
+    if (owner && !owner.pin) owner.pin = ws.pin;
   }
   return ws;
 }
 
 function publicPerson(p) {
   if (!p) return null;
-  return { id: p.id, name: p.name, role: p.role, email: p.email || "" };
+  return {
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    email: p.email || "",
+    kind: p.kind || "",
+    deskAi: !!p.deskAi,
+    does: p.does || "",
+    prompt: String(p.prompt || "").trim().slice(0, 160),
+    aia: p.aia || "",
+    aiId: p.aiId || ""
+  };
 }
 
 function personOf(req, workspaceSlug) {
@@ -761,13 +808,32 @@ function publicRuleWidget(w) {
   };
 }
 
+function clipRule(s, n) {
+  return String(s == null ? "" : s).trim().replace(/\s+/g, " ").slice(0, n || 80);
+}
+
 function publicRule(r) {
   if (!r) return null;
+  const when = normalizeWhen(r.when || r.attach);
+  const then = normalizeThen(r.then);
   return {
     id: r.id,
     text: r.text,
     seed: !!r.seed,
-    attach: "qualify",
+    attach: when,
+    when: when,
+    then: then,
+    ifMoney: r.ifMoney != null && Number.isFinite(Number(r.ifMoney)) ? Number(r.ifMoney) : null,
+    contains: clipRule(r.contains, 80),
+    ifField: clipRule(r.ifField, 32),
+    ifValue: clipRule(r.ifValue, 80),
+    ifTag: clipRule(r.ifTag, 40),
+    ifStatus: clipRule(r.ifStatus, 32),
+    ifUnassigned: !!r.ifUnassigned,
+    ifOlder: r.ifOlder != null && Number.isFinite(Number(r.ifOlder)) ? Number(r.ifOlder) : null,
+    tag: clipRule(r.tag || r.thenTag, 40),
+    aiId: clipRule(r.aiId || (r.ai && r.ai.id) || "", 40),
+    aiName: clipRule(r.aiName || (r.ai && r.ai.name) || "", 40),
     widget: publicRuleWidget(r.widget)
   };
 }
@@ -821,11 +887,130 @@ function setRuleWidget(ws, id, on, label) {
   return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
 }
 
-const RULE_WHEN = ["capture", "qualify", "do", "collect", "follow"];
-const RULE_THEN = ["note", "wait", "stop"];
+const RULE_WHEN = ["drop", "pipe", "inbound", "status", "capture", "qualify", "do", "collect", "follow"];
+const RULE_THEN = ["draft", "queue", "notify", "note", "wait", "stop", "tag", "escalate"];
+const RULE_IF = ["qualify", "contains", "tag", "status", "unassigned", "older", "money", "field"];
+
+function normalizeWhen(when) {
+  const w = String(when || "").toLowerCase().trim();
+  if (RULE_WHEN.indexOf(w) >= 0) return w;
+  if (w === "hook" || w === "webhook") return "pipe";
+  if (w === "aia" || w === "mail" || w === "email") return "inbound";
+  if (w === "done" || w === "change") return "status";
+  return "qualify";
+}
+
+function normalizeThen(then) {
+  const t = String(then || "").toLowerCase().trim();
+  if (RULE_THEN.indexOf(t) >= 0) return t;
+  if (t === "cap" || t === "priority") return "escalate";
+  if (t === "alert" || t === "card") return "queue";
+  if (t === "hold") return "wait";
+  if (t === "kill") return "stop";
+  return "note";
+}
+
+function parseDelayHours(raw) {
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  const t = String(raw).toLowerCase().trim();
+  const n = Number((t.match(/(\d+(?:\.\d+)?)/) || [])[1]);
+  if (!Number.isFinite(n)) return null;
+  if (/day/.test(t)) return n * 24;
+  if (/min/.test(t)) return n / 60;
+  return n;
+}
+
+function jobOlderHours(job, now) {
+  const t = Date.parse((job && (job.createdAt || job.qualifiedAt)) || "") || 0;
+  if (!t) return 0;
+  return ((now || Date.now()) - t) / 3600000;
+}
+
+function jobTagsOf(job) {
+  const raw = (job && job.tags) || (job && job.custom && job.custom.tags) || [];
+  const list = Array.isArray(raw) ? raw : String(raw).split(/[,;]+/);
+  return list.map(function (s) { return String(s || "").trim(); }).filter(Boolean);
+}
+
+function jobAssigned(job) {
+  if (!job) return false;
+  if (job.assignee) return true;
+  if (job.handedTo && (job.handedTo.name || job.handedTo.id)) return true;
+  return false;
+}
+
+function isPipeJob(job) {
+  if (!job) return false;
+  const blob = [job.from, job.provider, job.lane, job.source, job.why].join(" ").toLowerCase();
+  return /\b(pipe|webhook|hook|zapier|make)\b/.test(blob) || job.lane === "ext";
+}
+
+function isInboundAia(job) {
+  if (!job) return false;
+  const blob = [job.from, job.inbound, job.to, job.aiaMail, job.aia, job.source].join(" ");
+  return /@[\w.-]+\.aia\b/i.test(blob) || /\binbound\b/i.test(blob);
+}
+
+function flattenWorkflows(pack) {
+  const src = pack && typeof pack === "object" ? pack : {};
+  const rows = [].concat(src.workflows || [], src.sequences || []);
+  const rules = [];
+  rows.forEach(function (wf) {
+    if (!wf) return;
+    const delay = parseDelayHours(wf.delay || wf.delayHours);
+    const branch = clipRule(wf.branch, 80);
+    [].concat(wf.rules || wf.steps || []).forEach(function (r) {
+      if (!r) return;
+      const copy = typeof r === "string" ? { text: r } : Object.assign({}, r);
+      if (delay != null && (copy.ifOlder == null || copy.ifOlder === "")) copy.ifOlder = delay;
+      if (branch && !copy.contains && !copy.ifTag) copy.contains = branch;
+      rules.push(copy);
+    });
+  });
+  return rules;
+}
+
+function publicWorkflow(wf) {
+  if (!wf) return null;
+  const rules = [].concat(wf.rules || wf.steps || []).map(function (r) {
+    return typeof r === "string" ? { text: clipRule(r, RULE_TEXT_MAX) } : publicRule(Object.assign({ id: r.id || "wf" }, r));
+  }).filter(Boolean);
+  return {
+    id: clipRule(wf.id || wf.name, 40),
+    name: clipRule(wf.name || wf.id, 80),
+    delay: wf.delay || wf.delayHours || null,
+    branch: clipRule(wf.branch, 80),
+    rules: rules.slice(0, RULE_MAX)
+  };
+}
 
 function ruleStarters() {
   return [];
+}
+
+function applyRuleBody(rule, src) {
+  if (!rule || !src || typeof src !== "object") return rule;
+  if (src.when != null && src.when !== "") rule.when = normalizeWhen(src.when);
+  if (src.then != null && src.then !== "") rule.then = normalizeThen(src.then);
+  if (src.ifMoney != null) {
+    const n = Number(src.ifMoney);
+    rule.ifMoney = Number.isFinite(n) ? n : null;
+  }
+  if (src.contains != null) rule.contains = clipRule(src.contains, 80);
+  if (src.ifField != null) rule.ifField = clipRule(src.ifField, 32);
+  if (src.ifValue != null) rule.ifValue = clipRule(src.ifValue, 80);
+  if (src.ifTag != null) rule.ifTag = clipRule(src.ifTag, 40);
+  if (src.ifStatus != null) rule.ifStatus = clipRule(src.ifStatus, 32);
+  if (src.ifUnassigned != null) rule.ifUnassigned = !!src.ifUnassigned;
+  if (src.ifOlder != null) {
+    const n = parseDelayHours(src.ifOlder);
+    rule.ifOlder = n;
+  }
+  if (src.tag != null || src.thenTag != null) rule.tag = clipRule(src.tag || src.thenTag, 40);
+  if (src.aiId != null) rule.aiId = clipRule(src.aiId, 40);
+  if (src.aiName != null) rule.aiName = clipRule(src.aiName, 40);
+  return rule;
 }
 
 function defaultRules() {
@@ -866,13 +1051,17 @@ function addWorkspaceRule(ws, src, person) {
     text: clean,
     seed: false,
     attach: "qualify",
-    when: RULE_WHEN.indexOf(body.when) >= 0 ? body.when : "qualify",
-    then: RULE_THEN.indexOf(body.then) >= 0 ? body.then : "note",
-    ifMoney: body.ifMoney != null && Number.isFinite(Number(body.ifMoney)) ? Number(body.ifMoney) : null,
+    when: "qualify",
+    then: "note",
+    ifMoney: null,
+    aiId: "",
+    aiName: "",
     widget: { on: false, label: "" },
     createdAt: new Date().toISOString(),
     by: (person && person.name) || "owner"
   };
+  applyRuleBody(rule, body);
+  rule.attach = rule.when;
   ws.rules.push(rule);
   return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
 }
@@ -891,21 +1080,66 @@ function updateWorkspaceRule(ws, id, body) {
     if (forbiddenRule(clean)) return { ok: false, error: RULE_FORBID_MSG };
     rule.text = clean;
   }
-  if (src.when && RULE_WHEN.indexOf(src.when) >= 0) rule.when = src.when;
-  if (src.then && RULE_THEN.indexOf(src.then) >= 0) rule.then = src.then;
-  if (src.ifMoney != null) {
-    const n = Number(src.ifMoney);
-    rule.ifMoney = Number.isFinite(n) ? n : null;
-  }
+  applyRuleBody(rule, src);
+  rule.attach = rule.when || rule.attach || "qualify";
   return { ok: true, rule: publicRule(rule), rules: ws.rules.map(publicRule).filter(Boolean) };
 }
 
-function matchingRules(rules, job, step) {
+function whenMatches(ruleWhen, step, job) {
+  const w = String(ruleWhen || "").toLowerCase();
+  const s = String(step || "").toLowerCase();
+  if (!w || !s || w === "any" || w === s) return true;
+  if (w === "drop" && (s === "capture" || s === "drop")) return true;
+  if (w === "pipe" && (s === "pipe" || s === "capture") && isPipeJob(job)) return true;
+  if (w === "inbound" && (s === "inbound" || s === "capture") && isInboundAia(job)) return true;
+  if (w === "status" && (s === "status" || s === "do" || s === "follow" || s === "done")) return true;
+  if (w === "capture" && s === "drop") return true;
+  return false;
+}
+
+function ifMatches(rule, job, now) {
+  if (!rule || !job) return false;
+  if (rule.ifKind && String(job.kind || "").toLowerCase() !== String(rule.ifKind).toLowerCase()) return false;
+  if (rule.contains) {
+    const blob = [
+      job.title, job.notes, job.kind, job.pack, job.why, job.draft, job.tell,
+      (job.tags || []).join(" ")
+    ].join(" ").toLowerCase();
+    if (blob.indexOf(String(rule.contains).toLowerCase()) < 0) return false;
+  }
+  if (rule.ifField && rule.ifValue) {
+    const got = String((job[rule.ifField] != null ? job[rule.ifField] : (job.custom && job.custom[rule.ifField])) || "").toLowerCase();
+    if (got !== String(rule.ifValue).toLowerCase() && got.indexOf(String(rule.ifValue).toLowerCase()) < 0) return false;
+  }
+  if (rule.ifTag) {
+    const want = String(rule.ifTag).toLowerCase();
+    const tags = jobTagsOf(job).map(function (t) { return t.toLowerCase(); });
+    const blob = [job.title, job.notes, job.kind].join(" ").toLowerCase();
+    if (tags.indexOf(want) < 0 && blob.indexOf(want) < 0) return false;
+  }
+  if (rule.ifStatus) {
+    const want = String(rule.ifStatus).toLowerCase();
+    const have = String(job.status || "").toLowerCase();
+    const step = String(job.step || "").toLowerCase();
+    if (want === "done" && !(have === "shipped" || have === "done" || step === "follow" || job.doneAt)) return false;
+    else if (want !== "done" && have !== want && step !== want) return false;
+  }
+  if (rule.ifUnassigned && jobAssigned(job)) return false;
+  if (rule.ifOlder != null && Number(rule.ifOlder) > 0 && jobOlderHours(job, now) < Number(rule.ifOlder)) return false;
+  if (rule.ifMoney != null) {
+    const n = Number(job.amount != null ? job.amount : job.ask);
+    if (!Number.isFinite(n) || n < Number(rule.ifMoney)) return false;
+  }
+  return true;
+}
+
+function matchingRules(rules, job, step, now) {
   const want = String(step || "").toLowerCase();
   return (rules || []).filter(function (r) {
     if (!r) return false;
-    const when = String(r.when || r.attach || "").toLowerCase();
-    return !want || !when || when === want;
+    if (!whenMatches(r.when || r.attach, want, job)) return false;
+    if (job && !ifMatches(r, job, now)) return false;
+    return true;
   });
 }
 
@@ -948,15 +1182,17 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
-  matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy,
+  matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy, whenMatches, ifMatches,
+  normalizeWhen, normalizeThen, flattenWorkflows, publicWorkflow, applyRuleBody,
+  jobOlderHours, jobTagsOf, isPipeJob, isInboundAia, parseDelayHours,
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
   publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
-  ruleStarters, RULE_WHEN, RULE_THEN
+  ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF
 };

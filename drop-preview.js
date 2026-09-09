@@ -19,11 +19,14 @@
   }
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
   function embedOn() { return document.body.classList.contains("embed") || window !== window.parent; }
+  function queryWs() {
+    try { return String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { return ""; }
+  }
   function deskName() {
     var d = window.desk || {};
-    return d.name || d.slug || window.ws || localStorage.getItem("aia_ws") || "";
+    return d.name || d.slug || queryWs() || window.ws || localStorage.getItem("aia_ws") || "";
   }
-  function deskSlug() { return window.ws || localStorage.getItem("aia_ws") || ""; }
+  function deskSlug() { return queryWs() || window.ws || localStorage.getItem("aia_ws") || ""; }
   function readCard() {
     var kindEl = document.getElementById("kind");
     var files = (window.AIADropWell && AIADropWell.filesFromInput) ? AIADropWell.filesFromInput() : [];
@@ -264,10 +267,19 @@
     btn.setAttribute("data-preview-gate", "1");
     btn.addEventListener("click", function (e) {
       var card = readCard();
-      var miss = missing(card);
-      if (!miss && card.desk && card.title) return;
+      if (card.desk && card.title) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      var err = document.getElementById("err");
+      var ok = document.getElementById("ok");
+      if (ok) ok.style.display = "none";
+      if (err) {
+        err.style.display = "block";
+        err.textContent = card.desk
+          ? "Say what you need."
+          : (document.body.classList.contains("embed") ? "This drop is missing a desk." : "Pick a desk above, add a saved one, or create a new desk.");
+        if (err.scrollIntoView) err.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
       if (!thread.length) addLine("desk", "Got it. Checking the card.", "note");
       hear(val("talkType") || val("title") || val("note") || "need a card", { text: val("talkType") || val("title") || val("note"), sendNow: false });
     }, true);

@@ -1,11 +1,11 @@
-const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog } = require("./_lib");
+const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow } = require("./_lib");
 const { grokOn, studioDraft } = require("./_grok");
 const ais = require("./_ais");
 const net = require("./_aia-net");
 
 const OFFICIAL = [
   { id: "home", name: "Home & family", type: "work", family: "Automate It Away", aisle: "Home", official: true, price: 0, use: "ok", does: "Reminders, chores, school, same-day.", features: ["reminder", "calendar", "same-day cap"], kinds: ["chore", "school", "pickup", "repair"] },
-  { id: "consign", name: "Consignment & resale", type: "work", family: "Consign It Away", aisle: "Consign", official: true, price: 0, use: "ok", does: "Photo in. Listing draft. Payout waits.", features: ["listing draft", "title hold", "payout wait"], kinds: ["list", "title", "payout"] },
+  { id: "consign", name: "Consignment & resale", type: "work", family: "Consign It Away", aisle: "Consign", official: true, price: 0, use: "ok", does: "Photo in. Listing draft. Collect HOLD until Yes + a real money pipe.", features: ["listing draft", "title hold", "collect hold"], kinds: ["list", "title", "payout"] },
   { id: "quote", name: "Insurance", type: "work", family: "Quote It Away", aisle: "Insurance", official: true, price: 0, use: "ok", does: "Fact-find and packet draft. Bind stays off.", features: ["packet draft", "bind off desk", "year-2 review"], kinds: ["lead", "quote", "call", "review"], face: "Insurance", packId: "vita" },
   { id: "fund", name: "Fund raise", type: "work", family: "Fund It Away", aisle: "Fund", official: true, price: 0, use: "ok", does: "Campaign draft. Credit waits on the owner.", features: ["campaign draft", "credit wait"], kinds: ["raise", "credit"] },
   { id: "land", name: "Land lot", type: "work", family: "Land", aisle: "Land", official: true, price: 0, use: "ok", does: "Lot note. Flood and title wait.", features: ["lot note", "flood wait", "title wait"], kinds: ["lot", "flood", "survey", "title"] },
@@ -137,6 +137,8 @@ function publicPack(p) {
     aiRows: deskAis.slice(0, 3).map(ais.publicAi),
     rules: rules.length,
     ruleRows: rules.slice(0, 8),
+    workflows: Array.isArray(p.workflows) ? p.workflows.length : (Array.isArray(p.sequences) ? p.sequences.length : 0),
+    workflowRows: safeWorkflows([].concat(p.workflows || [], p.sequences || [])).slice(0, 4),
     dropHint: p.dropHint || "",
     queue: p.queue || null,
     collect: priced ? "hold" : "none",
@@ -220,6 +222,13 @@ function safeRules(rows) {
   });
 }
 
+function safeWorkflows(rows) {
+  return (rows || []).map(publicWorkflow).filter(Boolean).filter(function (wf) {
+    const blob = JSON.stringify(wf || {});
+    return !/\$250|over \$250|placeholder=\"250\"/i.test(blob);
+  }).slice(0, 8);
+}
+
 function listingOf(id, opts) {
   const row = findPack(id, opts);
   if (!row) return null;
@@ -236,6 +245,9 @@ function listingOf(id, opts) {
   if (typeof out.how !== "object") out.how = { do: String(out.how) };
   out.rules = safeRules((file && file.rules) || row.rules || []);
   out.ruleRows = out.rules;
+  out.workflows = safeWorkflows([].concat((file && (file.workflows || file.sequences)) || [], row.workflows || [], row.sequences || []));
+  out.workflowRows = out.workflows;
+  out.sequences = out.workflows;
   out.rails = (file && file.rails) || [];
   out.queue = (file && file.queue) || row.queue || null;
   out.never = ["send", "stop", "pay"];
@@ -258,6 +270,38 @@ function namedWorkspace(req) {
 
 function slugPack(name) {
   return String(name || "pack").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "pack";
+}
+
+function clipFaceSlot(slot) {
+  if (!slot) return null;
+  if (typeof slot === "string") {
+    const label = clip(slot, 40);
+    return label ? { label: label, key: "" } : null;
+  }
+  if (typeof slot === "object") {
+    const key = clip(slot.key, 32);
+    const label = clip(slot.label || slot.key, 40);
+    if (!key && !label) return null;
+    return { key: key, label: label || key };
+  }
+  return null;
+}
+
+function clipPackFace(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const who = clipFaceSlot(raw.who);
+  const what = clipFaceSlot(raw.what);
+  const when = clipFaceSlot(raw.when);
+  const where = clipFaceSlot(raw.where);
+  const how = clip(typeof raw.how === "string" ? raw.how : (raw.how && raw.how.label), 200);
+  if (!who && !what && !when && !where && !how) return null;
+  const out = {};
+  if (who) out.who = who;
+  if (what) out.what = what;
+  if (when) out.when = when;
+  if (where) out.where = where;
+  if (how) out.how = how;
+  return out;
 }
 
 function clip(s, n) {
@@ -290,7 +334,8 @@ function normalizeCreatorPack(body, workspace, person) {
   const vis = visRaw === "listed" || visRaw === "published" || visRaw === "submitted" || visRaw === "market"
     ? (visRaw === "market" ? "listed" : visRaw)
     : (visRaw === "private" ? "private" : "");
-  const rules = safeRules([].concat(body.rules || [], body.rule ? [{ text: String(body.rule) }] : [])).slice(0, 8);
+  const rules = safeRules([].concat(body.rules || [], body.rule ? [{ text: String(body.rule) }] : [], flattenWorkflows(body))).slice(0, 8);
+  const workflows = safeWorkflows([].concat(body.workflows || [], body.sequences || []));
   const queue = body.queue && typeof body.queue === "object" ? body.queue : {};
   const never = ["send", "stop", "pay", "bind"];
   const named = net.parseName(body.aia || body.aiaName || body.file || name, slugPack(name));
@@ -316,6 +361,8 @@ function normalizeCreatorPack(body, workspace, person) {
       fields: body.fields || [],
       kinds: body.kinds,
       rules: rules,
+      workflows: workflows,
+      sequences: workflows,
       ask: ask,
       priced: ask > 0,
       price: ask,
@@ -323,6 +370,7 @@ function normalizeCreatorPack(body, workspace, person) {
       bots: bots,
       dropHint: clip(body.dropHint || (body.dropForm && body.dropForm.hint), 160),
       dropForm: body.dropForm || null,
+      face: clipPackFace(body.face),
       pipes: clip(typeof body.pipes === "string" ? body.pipes : (body.pipes || []).join(", "), 80),
       ext: clip(body.ext, 160),
       handTo: clip(body.handTo, 40),
@@ -351,13 +399,16 @@ function normalizeCreatorPack(body, workspace, person) {
 function installPackOnDesk(shop, pack) {
   const file = pack.official ? loadOfficialFile(pack.packId || pack.id) : pack;
   shop.pack = pack.packId || pack.id;
-  shop.packName = pack.face || pack.name;
-  if (file && file.queue) shop.packQueue = file.queue;
-  else if (pack.queue) shop.packQueue = pack.queue;
+  const q = (file && file.queue) || pack.queue || {};
+  shop.packName = (q && q.badge) || (typeof pack.face === "string" ? pack.face : "") || pack.name || shop.pack;
+  if (q && (q.badge || q.empty || q.never)) shop.packQueue = q;
+  const face = clipPackFace((file && file.face) || pack.face);
+  if (face) shop.packFace = face;
+  else if (shop.packFace && shop.pack !== (pack.packId || pack.id)) delete shop.packFace;
   const packAis = ais.normalizeAis([].concat((file && (file.ais || file.bots)) || [], pack.ais || [], pack.bots || []), shop.slug);
   if (packAis.length) ais.attachAisToDesk(shop, packAis);
   else if (Array.isArray(pack.bots) && pack.bots.length) shop.packBots = pack.bots.slice(0, 3);
-  const incoming = safeRules((file && file.rules) || pack.rules || []);
+  const incoming = safeRules([].concat((file && file.rules) || pack.rules || [], flattenWorkflows(file || pack)));
   const have = ensureRules(shop).map(function (r) { return String(r.text || ""); });
   let added = 0;
   incoming.forEach(function (r) {
