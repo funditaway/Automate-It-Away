@@ -171,6 +171,8 @@ Studio Open leftover: Creators Studio kept the saved owner code when a leftover 
 
 Studio mail leftover: after the lab is open, Create .aia email still skipped the saved pin when a leftover session token was present (`aia-mail.js` sent X-Session and skipped X-Pin). Mail GET 401’d and painted Open this account on the open lab. Mail now sends the saved pin with the session. Wrong code still 401. Outbound Send HOLD. Collect HOLD. No silent send.
 
+Desk AIs leftover: after the desk is open, the Desk AIs strip still skipped the saved pin when a leftover session token was present (`desk-ais.js` sent X-Session and skipped X-Pin). `/api/desks` 401’d and painted No named AI on this desk yet. The strip now sends the saved pin with the session. Leftover session without a pin still 401 and paints Open this desk. Did not invent a Name-field tip. Collect HOLD. No silent send.
+
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
 Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.”

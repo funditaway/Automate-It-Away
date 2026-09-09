@@ -74,6 +74,20 @@ const deskAisSrc = fs.readFileSync(path.join(root, "desk-ais.js"), "utf8");
 if (!deskAisSrc.includes("ai-card") || !deskAisSrc.includes("On queue cards") || !deskAisSrc.includes("prompt")) {
   fail("desk-ais.js must paint named AI cards with does / prompt / queue face");
 } else pass("desk-ais paints bot cards");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(deskAisSrc)) {
+  fail("desk-ais hdr must still send the open-desk pin when a session token is present");
+} else pass("desk-ais hdr keeps X-Pin with X-Session");
+if (deskAisSrc.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk-ais hdr must send X-Pin");
+else pass("desk-ais hdr sends X-Pin");
+if (deskAisSrc.indexOf("function closedPaint") < 0) fail("desk-ais must name closedPaint");
+else pass("desk-ais names closedPaint");
+const refreshAt = deskAisSrc.indexOf("async function refresh");
+const refreshSrc = refreshAt >= 0 ? deskAisSrc.slice(refreshAt, refreshAt + 900) : "";
+if (refreshSrc.indexOf("closedPaint()") < 0 || refreshSrc.indexOf("!r.ok") < 0) {
+  fail("desk-ais leftover 401 must paint Open this desk, not empty ais");
+} else pass("desk-ais leftover 401 paints Open this desk");
+if (refreshSrc.indexOf("paint({ ais: [] })") >= 0) fail("desk-ais must not treat leftover 401 as no named AI");
+else pass("desk-ais does not paint empty ais on leftover 401");
 
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");
@@ -91,16 +105,21 @@ if (yesNo.indexOf("Studio Open leftover") < 0) fail("ACCOUNT-YES-NO must name St
 else pass("ACCOUNT-YES-NO names Studio Open leftover");
 if (yesNo.indexOf("open Owner desk") < 0 && yesNo.indexOf("open-desk store") < 0) fail("ACCOUNT-YES-NO must name the auth vs account Studio Open store leftover");
 else pass("ACCOUNT-YES-NO names auth vs account Studio Open store");
+if (yesNo.indexOf("Desk AIs leftover") < 0) fail("ACCOUNT-YES-NO must name Desk AIs leftover");
+else pass("ACCOUNT-YES-NO names Desk AIs leftover");
 if (packMd.indexOf("Studio Open leftover") < 0) fail("PACK.md must name Studio Open leftover");
 else pass("PACK.md names Studio Open leftover");
 if (packMd.indexOf("open Owner desk") < 0) fail("PACK.md must name the open Owner desk Studio login leftover");
 else pass("PACK.md names open Owner desk Studio login");
+if (packMd.indexOf("Desk AIs leftover") < 0) fail("PACK.md must name Desk AIs leftover");
+else pass("PACK.md names Desk AIs leftover");
 
 const net = require("../api/_aia-net");
 const lib = require("../api/_lib");
 const ais = require("../api/_ais");
 const packHandler = require("../api/_packs");
 const jobsHandler = require("../api/jobs");
+const desksHandler = require("../api/desks");
 const { mem, hashPin, ensurePeople, ready, save } = lib;
 
 function mockRes() {
@@ -182,6 +201,24 @@ async function main() {
   else pass("GET desk ais");
   if (!/Yes \/ Stop \/ Kill/.test(getAis.body.rails || "")) fail("rails copy");
   else pass("rails visible");
+
+  const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
+  const leftoverDesk = await call(desksHandler, "GET", { "x-workspace": slug, "x-session": leftover }, {}, {});
+  if (leftoverDesk.statusCode !== 401 || !/Desk code required/.test((leftoverDesk.body && leftoverDesk.body.error) || "")) {
+    fail("leftover session without pin must 401 GET /api/desks " + leftoverDesk.statusCode + " " + JSON.stringify(leftoverDesk.body));
+  } else pass("leftover session without pin stays 401 on GET /api/desks");
+  const leftoverDeskPin = await call(desksHandler, "GET", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": pin
+  }, {}, {});
+  if (leftoverDeskPin.statusCode !== 200 || !leftoverDeskPin.body || !leftoverDeskPin.body.desk) {
+    fail("leftover session + matching pin must GET /api/desks " + leftoverDeskPin.statusCode + " " + JSON.stringify(leftoverDeskPin.body));
+  } else pass("leftover session + pin GET opens the desk");
+  const leftoverAis = (leftoverDeskPin.body.desk && leftoverDeskPin.body.desk.ais) || [];
+  if (!leftoverAis.some(function (a) { return a && a.name === "Project AI"; })) {
+    fail("leftover session + pin must still paint named AIs, not empty ais");
+  } else pass("leftover session + pin still paints named AIs");
 
   const priv = await call(packHandler, "POST", owner, {
     action: "private-pack",
