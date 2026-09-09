@@ -151,8 +151,15 @@ function loginAccount(name, pin, extra) {
     via.account = homeAccount(via.person, via.desk) || via.account;
     return via;
   }
-  if (via.desk && (!via.account || !via.account.id)) via.account = accountForDesk(via.desk);
-  if (via.account && via.desk) connectDesk(via.account, via.desk, "owner");
+  if (via.desk && via.desk.accountId) {
+    const owned = (lib.mem.accounts || []).find((a) => a && a.id === via.desk.accountId);
+    if (owned) via.account = owned;
+  } else if (via.desk && (!via.account || !via.account.id)) {
+    via.account = accountForDesk(via.desk);
+  }
+  if (via.account && via.desk && (!via.desk.accountId || via.desk.accountId === via.account.id)) {
+    connectDesk(via.account, via.desk, "owner");
+  }
   if (via.account && !via.account.pin && via.desk && via.desk.pin) via.account.pin = via.desk.pin;
   if (via.desk && !via.person) via.person = (via.desk.people || []).find((p) => p && p.role === "owner") || via.person;
   return via;
