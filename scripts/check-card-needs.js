@@ -85,12 +85,18 @@ const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
 });
 if (!process.exitCode) pass("desk-card.js still paints the sheet");
 
+const queueJs = fs.readFileSync(path.join(root, "desk-queue.js"), "utf8");
+if (queueJs.includes("Yes or No.") || queueJs.includes("yes or no")) fail("desk-queue.js still paints Yes or No as the rail");
+else pass("desk-queue decide fallback does not paint Yes or No");
+if (!queueJs.includes("Yes or Stop.")) fail("desk-queue.js decide fallback must keep Yes or Stop");
+else pass("desk-queue decide fallback is Yes or Stop");
+
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("action === \"priority\"") || !jobs.includes("needsOf")) fail("jobs.js missing priority / needs");
 else pass("jobs API pins cap cards");
 
-const desks = fs.readFileSync(path.join(root, "api/desks.js"), "utf8");
-if (!desks.includes("action === \"priority\"") || !desks.includes("capCard")) fail("desks.js missing account cap list");
+const desks = fs.readFileSync(path.join(root, "api/_desks-http.js"), "utf8");
+if (!desks.includes("action === \"priority\"") || !desks.includes("capCard")) fail("desks handler missing account cap list");
 else pass("desks API lists cap cards across desks");
 
 if (process.exitCode) {

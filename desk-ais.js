@@ -12,7 +12,7 @@
     var tok = localStorage.getItem("aia_session") || "";
     if (ws) h["X-Workspace"] = ws;
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return h;
   }
   function esc(s) {
@@ -95,6 +95,12 @@
       editOf(a) +
       "</article>";
   }
+  function closedPaint(box) {
+    if (!box) box = document.getElementById("desk-ais");
+    if (!box) return;
+    box.hidden = false;
+    box.innerHTML = "<div class=\"meta\">Desk AIs</div><p class=\"meta\">Open this desk to see named AIs and how they show on queue cards. Yes / Stop / Kill stay human.</p>";
+  }
   function youOf(data) {
     var you = (data && (data.you || (data.desk && data.desk.you))) || {};
     var role = (data && (data.role || (data.desk && data.desk.role))) || you.role || you.kind || "";
@@ -140,19 +146,19 @@
         window.AIADeskAis.rows = ROWS;
         window.AIADeskAis.owner = OWNER;
       }
-      var box = document.getElementById("desk-ais");
-      if (box) {
-        box.hidden = false;
-        box.innerHTML = "<div class=\"meta\">Desk AIs</div><p class=\"meta\">Open this desk to see named AIs and how they show on queue cards. Yes / Stop / Kill stay human.</p>";
-      }
+      closedPaint();
       return;
     }
     try {
       var r = await fetch("/api/desks", { headers: headers() });
       var d = await r.json().catch(function () { return {}; });
-      paint(d.desk ? Object.assign({}, d.desk, { you: d.desk.you || d.you, role: d.desk.role || d.role }) : d);
+      if (!r.ok || !d.desk) {
+        closedPaint();
+        return;
+      }
+      paint(Object.assign({}, d.desk, { you: d.desk.you || d.you, role: d.desk.role || d.role }));
     } catch (e) {
-      paint({ ais: [] });
+      closedPaint();
     }
   }
   async function load() {

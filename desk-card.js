@@ -20,7 +20,7 @@ function grokRecsBox(j) {
     .filter(Boolean)
     .filter(function (t, i, a) { return a.indexOf(t) === i; })
     .slice(0, 5);
-  const fallback = recs.length ? recs : ["Open this card. Yes or no."];
+  const fallback = recs.length ? recs : ["Open this card. Yes or Stop."];
   return "<div class=\"recs\" id=\"grok-recs\">" +
     "<div class=\"recs-title\">Next step</div>" +
     "<ul>" + fallback.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" +
@@ -29,7 +29,7 @@ function grokRecsBox(j) {
 function openUsType() {
   document.getElementById("sheet-card").innerHTML =
     "<h3>We type it onto this queue</h3>" +
-    "<p class=\"meta\">You tell us. We write the card. You still tap yes or no.</p>" +
+    "<p class=\"meta\">You tell us. We write the card. You still tap Yes or Stop.</p>" +
     "<label>What should we put on the queue?</label>" +
     "<input id=\"cap-title\" placeholder=\"Permission slip Friday, oil change, oak dresser\">" +
     "<label>When or ask</label>" +

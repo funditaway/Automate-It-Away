@@ -145,7 +145,24 @@ function loginAccount(name, pin, extra) {
   const rawEmail = extra.email || (looksLikeEmail(name) ? name : "");
   const password = extra.password || extra.pass || "";
   if (looksLikeEmail(rawEmail) && password) return loginWithEmail(rawEmail, password);
-  return plans.loginAccount(name, pin);
+  const via = plans.loginAccount(name, pin);
+  if (!via || !via.ok) return via;
+  if (via.memberLogin) {
+    via.account = homeAccount(via.person, via.desk) || via.account;
+    return via;
+  }
+  if (via.desk && via.desk.accountId) {
+    const owned = (lib.mem.accounts || []).find((a) => a && a.id === via.desk.accountId);
+    if (owned) via.account = owned;
+  } else if (via.desk && (!via.account || !via.account.id)) {
+    via.account = accountForDesk(via.desk);
+  }
+  if (via.account && via.desk && (!via.desk.accountId || via.desk.accountId === via.account.id)) {
+    connectDesk(via.account, via.desk, "owner");
+  }
+  if (via.account && !via.account.pin && via.desk && via.desk.pin) via.account.pin = via.desk.pin;
+  if (via.desk && !via.person) via.person = (via.desk.people || []).find((p) => p && p.role === "owner") || via.person;
+  return via;
 }
 function proHome(acc, person, session) {
   const home = plans.proHome(acc, person) || { ok: true };
@@ -223,6 +240,7 @@ function createOwnerAccount(body, row) {
     if (row) connectDesk(existing, row, "owner");
     if (body && body.password && !existing.password) setAccountPassword(existing, body.password);
     if (body && body.email && looksLikeEmail(body.email) && !existing.email) existing.email = emailOf(body);
+    if (!existing.pin) existing.pin = (body && body.pin ? lib.hashPin(body.pin) : (row && row.pin)) || "";
     return existing;
   }
   const acc = {

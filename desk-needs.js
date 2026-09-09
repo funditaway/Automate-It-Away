@@ -422,6 +422,42 @@
     return (hitl.length ? "<div class=\"row actions tap-opts q-hitl\">" + hitl.join("") + "</div>" : "") +
       "<div class=\"row actions tap-opts\">" + rest.join("") + "</div>";
   }
+  function cardRoot(id) {
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    const queue = document.getElementById("queue");
+    if (queue && queue.querySelector) {
+      const hit = queue.querySelector('[data-job="' + safe + '"]');
+      if (hit) return hit;
+    }
+    const sheet = document.getElementById("sheet-card");
+    if (sheet) return sheet;
+    return document.getElementById("q-reply-" + safe);
+  }
+  function setCardBusy(id, on) {
+    const root = cardRoot(id);
+    if (!root || !root.classList) return;
+    root.classList.toggle("q-pending", !!on);
+    if (root.setAttribute) root.setAttribute("aria-busy", on ? "true" : "false");
+    let line = root.querySelector ? root.querySelector(".q-busy") : null;
+    if (on) {
+      if (!line && root.appendChild) {
+        line = document.createElement("p");
+        line.className = "q-busy meta";
+        line.textContent = "Working. Nothing sent yet.";
+        const next = root.querySelector && root.querySelector(".next-line, .q-prompt-hold, .sheet-decide");
+        if (next && next.parentNode) next.parentNode.insertBefore(line, next);
+        else root.appendChild(line);
+      }
+      if (root.querySelectorAll) {
+        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = true; });
+      }
+    } else {
+      if (line && line.remove) line.remove();
+      if (root.querySelectorAll) {
+        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = false; });
+      }
+    }
+  }
   async function replyOnCard(id) {
     const banner = document.getElementById("banner");
     const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
@@ -432,12 +468,17 @@
       return;
     }
     if (typeof api !== "function") return;
-    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "reply", id: safe, text: text, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
-    const line = out.status >= 400
-      ? ((out.data && out.data.error) || "Could not save that reply.")
-      : "Reply is on the card. Nothing sent.";
-    if (typeof load === "function") await load();
-    if (banner) banner.textContent = line;
+    setCardBusy(safe, true);
+    try {
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "reply", id: safe, text: text, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
+      const line = out.status >= 400
+        ? ((out.data && out.data.error) || "Could not save that reply.")
+        : "Reply is on the card. Nothing sent.";
+      if (typeof load === "function") await load();
+      if (banner) banner.textContent = line;
+    } finally {
+      setCardBusy(safe, false);
+    }
   }
   async function helpWithAi(id) {
     const banner = document.getElementById("banner");
@@ -505,7 +546,7 @@
     const prompt = promptHtml(j, need);
     const stacked = !!(talks && (draft || prompt));
     const thread = stacked ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>" : (draft + talks + prompt);
-    return "<article class=\"item q-card cap-card\"><div class=\"q-head\">" + chipsHtml(j, need, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
+    return "<article class=\"item q-card cap-card\" data-job=\"" + esc(j.id || "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
       filesHtml(j) + thread +
       "<p class=\"next-line\">" + esc(line) + "</p>" +
       (other ? "<div class=\"row actions tap-opts\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
@@ -533,6 +574,7 @@
   }
   window.cardNeeds = cardNeeds;
   window.cardActionHtml = cardActionHtml;
+  window.setCardBusy = setCardBusy;
   window.replyOnCard = replyOnCard;
   window.bindAiOnCard = bindAiOnCard;
   window.helpWithAi = helpWithAi;
@@ -556,7 +598,7 @@
     const thread = stacked
       ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>"
       : (draft + talks + prompt);
-    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thread + bind + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
+    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thread + bind + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
   };
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }
@@ -568,6 +610,26 @@
       return out;
     };
     window.load._aiaCap = true;
+  }
+  function wrapHitl() {
+    if (typeof window.ship !== "function" || typeof window.confirmKill !== "function") {
+      setTimeout(wrapHitl, 200);
+      return;
+    }
+    if (window.ship._aiaBusy) return;
+    function wrap(name) {
+      const prev = window[name];
+      if (typeof prev !== "function") return;
+      window[name] = async function (id) {
+        setCardBusy(id, true);
+        try { return await prev.apply(this, arguments); }
+        finally { setCardBusy(id, false); }
+      };
+    }
+    wrap("ship");
+    wrap("confirmShip");
+    wrap("confirmKill");
+    window.ship._aiaBusy = true;
   }
   function injectCap() {
     if (!document.getElementById("cap-band")) {
@@ -626,7 +688,11 @@
         ".q-ai-pick{width:100%;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}" +
         ".q-bind-hold{font-size:12px;color:var(--muted);margin:6px 0 0}" +
         "#queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}" +
+        ".q-busy{font-size:12px;color:var(--muted);margin:6px 0}" +
+        ".q-pending{opacity:.86}" +
+        ".q-pending .q-yes,.q-pending .q-stop,.q-pending .q-kill,.q-pending .q-reply-tap{opacity:.55;pointer-events:none}" +
         ".q-hitl{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}" +
+
         ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px;width:100%}" +
         ".cap-card{border-left:4px solid var(--orange,#f39c12)}" +
         ".cap-mark{display:inline-flex;background:var(--orange,#f39c12);color:#0c1116;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px}" +
@@ -647,6 +713,7 @@
     }
   }
   wrapLoad();
+  wrapHitl();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", injectCap);
   else injectCap();
 })();

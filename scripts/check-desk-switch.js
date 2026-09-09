@@ -132,6 +132,31 @@ if (!cardJs.includes(">Save a file<") || !cardJs.includes(">Yes<") || !cardJs.in
 if (cardJs.includes(">Grok recs<") || cardJs.includes(">Phone calendar<") || cardJs.includes("That's my queue") || cardJs.includes("How work gets here") || cardJs.includes(">Send<") || cardJs.includes(">Stop<")) {
   fail("desk-card.js still has Grok / old button labels");
 } else pass("desk-card.js has no Grok recs or old labels");
+if (cardJs.includes("Yes or no") || cardJs.includes("yes or no")) fail("desk-card.js still paints Yes or No as the rail");
+else pass("desk-card rec / type-it does not paint Yes or No");
+if (!cardJs.includes("Open this card. Yes or Stop.") || !cardJs.includes("You still tap Yes or Stop.")) {
+  fail("desk-card.js must keep Yes or Stop");
+} else pass("desk-card rec / type-it keep Yes or Stop");
+
+const homeJs = fs.readFileSync(path.join(root, "desk-home.js"), "utf8");
+if (homeJs.includes("yes or no") || homeJs.includes("Yes or No") || homeJs.includes("Yes or no")) {
+  fail("desk-home.js still paints Yes or No as the rail");
+} else pass("desk-home how-in does not paint Yes or No");
+if (!homeJs.includes("You still say Yes or Stop.")) fail("desk-home.js must keep Yes or Stop");
+else pass("desk-home how-in says Yes or Stop");
+
+if (desk.includes("Yes or no") || desk.includes("Yes or No") || desk.includes("yes or no")) {
+  fail("desk.html still paints Yes or No as the rail");
+} else pass("desk.html fallback does not paint Yes or No");
+if (!desk.includes("Yes or Stop.")) fail("desk.html fallback next must keep Yes or Stop");
+else pass("desk.html fallback next is Yes or Stop");
+
+if (!fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8").includes("Desk home / card / queue / handoff leftover")) {
+  fail("ACCOUNT-YES-NO must record desk home / card / queue / handoff leftover");
+} else pass("ACCOUNT-YES-NO records desk Yes-rail leftover");
+if (!fs.readFileSync(path.join(root, "PACK.md"), "utf8").includes("Desk home / card / queue / handoff leftover")) {
+  fail("PACK.md must record desk home / card / queue / handoff leftover");
+} else pass("PACK.md records desk Yes-rail leftover");
 
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("Open a desk first.") || jobs.includes("workspaceOf(req)")) {
@@ -164,8 +189,18 @@ const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 if (!vercel.includes("\"/api/status\"") || !vercel.includes("/api/health?view=status")) {
   fail("vercel.json should rewrite /api/status onto /api/health?view=status");
 } else pass("vercel.json rewrites /api/status onto health");
+if (!vercel.includes("/api/auth?via=account") || !/"\/api\/account"/.test(vercel)) {
+  fail("vercel.json should rewrite /api/account onto /api/auth?via=account");
+} else pass("vercel.json rewrites /api/account onto auth");
+if (!vercel.includes("/api/auth?via=desks") || !/"\/api\/desks"/.test(vercel)) {
+  fail("vercel.json should rewrite /api/desks onto /api/auth?via=desks");
+} else pass("vercel.json rewrites /api/desks onto auth");
 if (fs.existsSync(path.join(root, "api/status.js"))) fail("api/status.js is a 13th Hobby function — fold it into health.js");
 else pass("no extra api/status.js function");
+if (fs.existsSync(path.join(root, "api/account.js"))) fail("api/account.js is its own Lambda — fold it into auth.js like status into health");
+else pass("no extra api/account.js function");
+if (fs.existsSync(path.join(root, "api/desks.js"))) fail("api/desks.js is its own Lambda — fold it into auth.js like account");
+else pass("no extra api/desks.js function");
 const healthSrc = fs.readFileSync(path.join(root, "api/health.js"), "utf8");
 if (!healthSrc.includes("function wantsStatus") || !healthSrc.includes("function deskStatus") || !healthSrc.includes("handler.status")) {
   fail("api/health.js should serve honest /api/status");
@@ -251,7 +286,7 @@ if (leak) fail(leak);
 else pass("public pages have no crew build notes");
 if (!fs.readFileSync(path.join(root, "index.html"), "utf8").includes("Name your desk")) fail("home missing doer copy");
 else pass("home says Name your desk");
-if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the work. You tap yes or no.")) fail("how missing doer copy");
+if (!fs.readFileSync(path.join(root, "how.html"), "utf8").includes("Drop the work. You tap Yes or Stop.")) fail("how missing doer copy");
 else pass("how is doer-short");
 if (!fs.readFileSync(path.join(root, "setup.html"), "utf8").includes("Add a rule if you need one")) fail("setup missing doer copy");
 else pass("setup is doer-short");
@@ -266,6 +301,15 @@ else pass("rules has no starter chrome");
 if (!login.includes("placeholder=\"Desk name\"")) fail("login still names a slug");
 else pass("login placeholder is generic");
 const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
+if (help.includes("Capture → Qualify")) fail("help.html still shows Capture → Qualify");
+else if (!help.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail("help.html missing desk-true Drop spine");
+else pass("help.html Drop spine matches the desk");
+["developer.html", "developer.js"].forEach((file) => {
+  const src = fs.readFileSync(path.join(root, file), "utf8");
+  if (src.includes("Capture → Qualify")) fail(file + " still shows Capture → Qualify");
+  else if (!src.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail(file + " missing desk-true Drop spine");
+  else pass(file + " Drop spine matches the desk");
+});
 if (!help.includes("Waiting on a person.") || !help.includes("Owner, twice.") || !help.includes("The job.") || !help.includes("Save a file")) {
   fail("help.html missing doer button labels");
 } else pass("help.html uses doer button labels");

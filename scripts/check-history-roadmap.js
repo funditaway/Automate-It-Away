@@ -16,7 +16,7 @@ function read(rel) {
   return fs.readFileSync(path.join(root, rel), "utf8");
 }
 
-["people.js", "api/_history.js", "api/_desk.js", "api/desks.js"].forEach(function (name) {
+["people.js", "api/_history.js", "api/_desk.js", "api/_desks-http.js"].forEach(function (name) {
   const syntax = spawnSync(process.execPath, ["--check", path.join(root, name)], { encoding: "utf8" });
   if (syntax.status !== 0) fail(name + " must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
   else pass(name + " parses");
@@ -46,7 +46,7 @@ const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 const histSrc = read("api/_history.js");
 const deskSrc = read("api/_desk.js");
-const desksSrc = read("api/desks.js");
+const desksSrc = read("api/_desks-http.js");
 const packsSrc = read("api/_packs.js");
 
 [

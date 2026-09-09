@@ -45,7 +45,7 @@ function verdict(answers) {
   });
   if (!known && !blocked.length) return { can: false, title: "Needs a look", why: "That job is not one of the five steps we already run (capture, qualify, do, collect, follow).", need, ready, held, next: "request" };
   if (blocked.length) return { can: false, title: "Not on this desk yet", why: blocked.join(" "), need, ready, held, next: "request" };
-  return { can: true, title: "We can run this", why: "Capture lands in your queue. You tap Send or Stop.", need, ready, held, next: "setup" };
+  return { can: true, title: "We can run this", why: "Capture lands in your queue. You tap Yes or Stop.", need, ready, held, next: "setup" };
 }
 
 function publicIntake(row) {
@@ -77,15 +77,15 @@ function whoFor(job, shop, person) {
   const hard = job.risk === "legal" || job.risk === "title" || job.risk === "credit" || job.risk === "suitability";
   if (money || hard) return { role: "owner", line: "Waiting on the owner." };
   if (job.assignee) return { role: "assignee", line: "Waiting on " + job.assignee + "." };
-  if (person && person.role === "employee") return { role: "helper", line: "You can tap Yes. Only the owner can tap No." };
-  return { role: "desk", line: "You tap Yes or No." };
+  if (person && person.role === "employee") return { role: "helper", line: "You can tap Yes. Only the owner can tap Stop." };
+  return { role: "desk", line: "You tap Yes or Stop." };
 }
 function matchPerson(shop, text) {
   const t = String(text || "").toLowerCase();
   return ((shop && shop.people) || []).find((p) => p && p.name && t.indexOf(String(p.name).toLowerCase()) !== -1) || null;
 }
 function replyFor(job, who) {
-  return "On the queue as \u201c" + job.title + "\u201d. " + (who && who.line ? who.line : "You tap Yes or No.") + (job.draft ? " Draft: " + job.draft : "");
+  return "On the queue as \u201c" + job.title + "\u201d. " + (who && who.line ? who.line : "You tap Yes or Stop.") + (job.draft ? " Draft: " + job.draft : "");
 }
 
 module.exports = async function handler(req, res) {
@@ -111,7 +111,7 @@ module.exports = async function handler(req, res) {
   const action = body.action || "start";
 
   if (action === "start") {
-    const row = { id: "in_" + Date.now().toString(36), workspace, step: 0, answers: {}, messages: [{ from: "desk", text: "Say the work. It lands on this desk\u2019s queue. You still tap Yes or No." }], createdAt: new Date().toISOString() };
+    const row = { id: "in_" + Date.now().toString(36), workspace, step: 0, answers: {}, messages: [{ from: "desk", text: "Say the work. It lands on this desk\u2019s queue. You still tap Yes or Stop." }], createdAt: new Date().toISOString() };
     mem.intakes.unshift(row);
     log("Intake", "Chat opened", "OK", workspace);
     await save();
@@ -124,14 +124,14 @@ module.exports = async function handler(req, res) {
     if (!shop) return res.status(404).json({ ok: false, error: "Open a desk first." });
     let row = body.id ? mem.intakes.find((i) => i.id === body.id && i.workspace === workspace) : null;
     if (!row) {
-      row = { id: "in_" + Date.now().toString(36), workspace, step: 0, answers: {}, messages: [{ from: "desk", text: "Say the work. It lands on this desk\u2019s queue. You still tap Yes or No." }], createdAt: new Date().toISOString() };
+      row = { id: "in_" + Date.now().toString(36), workspace, step: 0, answers: {}, messages: [{ from: "desk", text: "Say the work. It lands on this desk\u2019s queue. You still tap Yes or Stop." }], createdAt: new Date().toISOString() };
       mem.intakes.unshift(row);
     }
     row.messages.push({ from: "you", text });
     const job = row.jobId ? mem.jobs.find((j) => j.id === row.jobId && j.workspace === workspace) : null;
     const kind = intentOf(text, !!job);
     if (kind === "decide-yes" || kind === "decide-no") {
-      row.messages.push({ from: "desk", text: kind === "decide-no" ? "Stop is an owner tap on the queue. Open the card and press No." : "Yes is a tap on the queue. Chat does not send money or a public message." });
+      row.messages.push({ from: "desk", text: kind === "decide-no" ? "Stop is an owner tap on the queue. Open the card and press Stop." : "Yes is a tap on the queue. Chat does not send money or a public message." });
       row.next = "/desk";
       await save();
       return res.status(200).json({ ok: true, intake: publicIntake(row), job: job || null });
@@ -148,7 +148,7 @@ module.exports = async function handler(req, res) {
       job.next = "Waiting on " + whoPerson.name + ".";
       job.log = (job.log || []).concat(["Assigned \u00b7 " + whoPerson.name]);
       row.who = whoFor(job, shop, person);
-      row.messages.push({ from: "desk", text: "Handed to " + whoPerson.name + ". Still needs a Yes or No tap." });
+      row.messages.push({ from: "desk", text: "Handed to " + whoPerson.name + ". Still needs a Yes or Stop tap." });
       log("Desk", "Assigned \u00b7 " + job.title + " \u00b7 " + whoPerson.name, "Waiting", workspace);
       await save();
       return res.status(200).json({ ok: true, intake: publicIntake(row), job });
@@ -161,7 +161,7 @@ module.exports = async function handler(req, res) {
       await save();
       return res.status(200).json({ ok: true, intake: publicIntake(row), job });
     }
-    const created = { id: "job_" + Date.now().toString(36), workspace, title: titleOf(text), notes: text, amount: amountOf(text), why: "From desk talk. Human before send.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured from desk talk"], from: "desk-chat", whoTapped: (person && person.name) || "desk" };
+    const created = { id: "job_" + Date.now().toString(36), workspace, title: titleOf(text), notes: text, amount: amountOf(text), why: "From desk talk. Human before Yes.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured from desk talk"], from: "desk-chat", whoTapped: (person && person.name) || "desk" };
     qualifyJob(created, shop);
     mem.jobs.unshift(created);
     row.jobId = created.id;
@@ -192,7 +192,7 @@ module.exports = async function handler(req, res) {
     row.verdict = verdict(row.answers);
     const v = row.verdict;
     const pipeLine = (v.held || []).concat(v.ready || []).join(". ");
-    row.messages.push({ from: "desk", text: v.can ? v.why + (pipeLine ? " Connections: " + pipeLine + "." : "") + " Open your desk and the first job lands in the queue." : v.why + " We cannot turn that on from this chat. Send a request and we will look at it." });
+    row.messages.push({ from: "desk", text: v.can ? v.why + (pipeLine ? " Connections: " + pipeLine + "." : "") + " Open your desk and the first job lands in the queue." : v.why + " We cannot turn that on from this chat. Talk to AIA and we will look at it." });
     await save();
     return res.status(200).json({ ok: true, intake: publicIntake(row) });
   }
@@ -200,11 +200,11 @@ module.exports = async function handler(req, res) {
     if (!row.verdict || !row.verdict.can) return res.status(409).json({ error: "This one is a request, not a live job.", intake: publicIntake(row) });
     const title = row.answers.work || "Automation from desk chat";
     const blob = String(title + " " + Object.values(row.answers).join(" ")).toLowerCase();
-    const job = { id: "job_" + Date.now().toString(36), workspace, title, why: "From desk chat. Guardrail: human before send.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured from desk chat"], notes: Object.values(row.answers).join(" \u00b7 "), from: "desk-chat", pack: /school|home|family|oil change|grocery|chore|house/.test(blob) ? "home" : undefined };
+    const job = { id: "job_" + Date.now().toString(36), workspace, title, why: "From desk chat. Guardrail: human before Yes.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured from desk chat"], notes: Object.values(row.answers).join(" \u00b7 "), from: "desk-chat", pack: /school|home|family|oil change|grocery|chore|house/.test(blob) ? "home" : undefined };
     qualifyJob(job, shop);
     mem.jobs.unshift(job);
     row.jobId = job.id;
-    row.messages.push({ from: "desk", text: "Job is in the queue as \u201c" + title + "\u201d. Open the desk to Send or Stop." });
+    row.messages.push({ from: "desk", text: "Job is in the queue as \u201c" + title + "\u201d. Open the desk to Yes or Stop." });
     log("Intake", "Setup \u00b7 " + title, "Waiting", workspace);
     await save();
     return res.status(201).json({ ok: true, intake: publicIntake(row), job });

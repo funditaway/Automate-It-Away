@@ -24,7 +24,7 @@
         box.className = "item";
         box.innerHTML = "<div class=\"meta\">How work gets here</div>" +
           "<p><b>You drop it</b> — photo, form, missed call. Two taps.</p>" +
-          "<p><b>We type it</b> — tell us. We write the card. You still say yes or no.</p>" +
+          "<p><b>We type it</b> — tell us. We write the card. You still say Yes or Stop.</p>" +
           "<p><b>A pipe</b> — optional. The queue works without one.</p>" +
           "<p class=\"meta\"><a href=\"connections.html\">Add a pipe</a> · <a href=\"chat.html\">Tell us</a></p>";
         q.parentNode.insertBefore(box, q);

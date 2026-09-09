@@ -9,7 +9,8 @@ function sessionHdr(slug, pin) {
   var h = { "Content-Type": "application/json" };
   if (slug) h["X-Workspace"] = slug;
   var tok = localStorage.getItem("aia_session") || "";
-  if (tok) h["X-Session"] = tok; else if (pin) h["X-Pin"] = pin;
+  if (tok) h["X-Session"] = tok;
+  if (pin) h["X-Pin"] = pin;
   return h;
 }
 function atOf(value) {
