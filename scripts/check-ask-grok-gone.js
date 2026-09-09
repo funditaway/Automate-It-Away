@@ -40,7 +40,7 @@ const namedSrc = needs.slice(needs.indexOf("function namedAskWho"), needs.indexO
 if (!/thenGone/.test(namedSrc)) fail("namedAskWho must consult thenGone before primaryAi");
 else pass("namedAskWho consults thenGone");
 const labelSrc = needs.slice(needs.indexOf("function askGrokLabel"), needs.indexOf("function jobOf"));
-if (labelSrc.indexOf("not on this desk") < 0) fail("askGrokLabel must paint gone HOLD");
+if (labelSrc.indexOf("goneHoldLabel") < 0 && labelSrc.indexOf("not on this desk") < 0) fail("askGrokLabel must paint gone HOLD");
 else pass("askGrokLabel paints gone HOLD");
 if (needs.indexOf("namedAskWho({ id: id })") >= 0 || needs.indexOf("namedAskWho({id:id})") >= 0) {
   fail("helpWithAi must not first-eligible namedAskWho({ id }) to primaryAi");

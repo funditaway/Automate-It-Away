@@ -43,6 +43,10 @@ if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge/i.test(needs + de
   if (deskAis.indexOf(bit) < 0) fail("desk-ais.js missing " + bit);
 });
 if (!/function stampDeskAi/.test(handSrc)) fail("_handoff.js must stamp does / prompt on deskAi");
+if (handSrc.includes("Yes or No")) fail("_handoff still paints Yes or No as the rail");
+if (!handSrc.includes("Owner taps Yes or Stop.") || !handSrc.includes("You tap Yes or Stop.")) {
+  fail("_handoff Rail/Doer must keep Yes or Stop");
+}
 if (!/stampDeskAi/.test(jobsSrc) || !/applyDeskAiDraft/.test(jobsSrc)) fail("recommend must stamp the named desk AI");
 if (!/promptSummary/.test(aisSrc) || !/prompt: prompt/.test(aisSrc)) fail("publicAi must expose prompt");
 if (peopleJs.indexOf("On queue cards") < 0 || peopleJs.indexOf("desk AI") < 0) fail("People agent cards must show desk AI face");

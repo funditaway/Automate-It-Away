@@ -60,7 +60,7 @@ const peopleHtml = read("people.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
-["function thenWhoOf", "function thenGoneOf", "function talkLabelOf", "function talkRowsOf", "function trailThreadHtml", "function cardHtml", "Then draft", "not on this desk", "On the card. Nothing sent alone", "item.thread", "p-thread", "p-then", "p-turn-ai", "p-turn-you"].forEach(function (bit) {
+["function thenWhoOf", "function thenGoneOf", "function talkLabelOf", "function talkRowsOf", "function trailThreadHtml", "function cardHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "Then draft", "not on this desk", "On the card. Nothing sent alone", "item.thread", "p-thread", "p-then", "p-turn-ai", "p-turn-you"].forEach(function (bit) {
   if (people.indexOf(bit) < 0) fail("people.js missing " + bit);
   else pass("people.js " + bit);
 });
@@ -90,6 +90,12 @@ if (peopleHtml.indexOf("p-thread") < 0 || peopleHtml.indexOf("p-hold") < 0) {
 if (peopleHtml.indexOf("Open cards on the shared trail") < 0) {
   fail("people.html must say open cards show Then draft / thread");
 } else pass("people.html names open-card honesty");
+if (people.indexOf("promptHtml(item)") < 0 || people.indexOf("chipsHtml(item)") < 0) {
+  fail("People trailThreadHtml must insert promptHtml / chipsHtml");
+} else pass("People trailThreadHtml inserts promptHtml / chipsHtml");
+if (peopleHtml.indexOf("Needs you / prompt ask-who") < 0) {
+  fail("people.html must name Needs you / prompt ask-who");
+} else pass("people.html names Needs you / prompt ask-who");
 if (help.indexOf("People open cards on the shared trail") < 0) {
   fail("help#desk-cards must name People open cards");
 } else pass("help names People open cards");

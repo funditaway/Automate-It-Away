@@ -26,7 +26,7 @@ const dropAgent = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "desk-needs.js")], { encoding: "utf8" });
 if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
 
-["function isPromptReply", "function promptHtml", "function replyOnCard", "q-prompt", "q-reply-box", "Nothing sent alone", "action: \"reply\""].forEach(function (bit) {
+["function isPromptReply", "function promptHtml", "function replyOnCard", "function setCardBusy", "q-prompt", "q-reply-box", "Nothing sent alone", "action: \"reply\"", "Working. Nothing sent yet."].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
 if (!/function thenAfterYes/.test(engineSrc)) fail("_engine.js must export thenAfterYes");

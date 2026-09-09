@@ -18,6 +18,12 @@ const needs = fs.readFileSync(path.join(root, "desk-needs.js"), "utf8");
 const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+const grokSrc = fs.readFileSync(path.join(root, "api/_grok.js"), "utf8");
+if (!grokSrc.includes("Human taps Yes or Stop.")) fail("grok SYSTEM must keep Human taps Yes or Stop");
+if (grokSrc.includes("Human taps Yes or No.")) fail("grok SYSTEM still paints Yes or No");
+if (!/Create \/ market \/ engine \/ grok leftover/.test(yesNo)) {
+  fail("ACCOUNT-YES-NO must record Create / market / engine / grok leftover");
+}
 
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "desk-needs.js")], { encoding: "utf8" });
 if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
