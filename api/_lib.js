@@ -136,6 +136,18 @@ async function blobTryAuth(run) {
   throw last;
 }
 
+const BLOB_REST_KEY = "aia-store.json";
+
+function blobRestErr(json, text, status) {
+  const err = json && (json.error || json.message);
+  if (err && typeof err === "object") {
+    return String(err.message || err.code || JSON.stringify(err)).slice(0, 180);
+  }
+  if (err) return String(err).slice(0, 180);
+  if (text && text !== "[object Object]") return String(text).slice(0, 180);
+  return ("rest-" + (status || "fail")).slice(0, 180);
+}
+
 function blobRestHeaders(extra) {
   return Object.assign({
     Authorization: "Bearer " + blobToken(),
@@ -145,41 +157,78 @@ function blobRestHeaders(extra) {
 
 async function blobRestGet() {
   if (!blobToken()) return null;
-  const r = await fetch("https://blob.vercel-storage.com/" + BLOB_KEY, {
-    headers: blobRestHeaders()
-  });
-  if (r.status === 404) return { empty: true, status: 404 };
-  if (!r.ok) {
-    const err = new Error("Vercel Blob: Failed to fetch blob: " + r.status + " " + r.statusText);
-    err.status = r.status;
-    throw err;
+  const names = [BLOB_REST_KEY, BLOB_KEY];
+  let saw404 = false;
+  for (let i = 0; i < names.length; i++) {
+    const r = await fetch("https://blob.vercel-storage.com/" + names[i], {
+      headers: blobRestHeaders()
+    });
+    if (r.status === 404) {
+      saw404 = true;
+      continue;
+    }
+    if (!r.ok) {
+      const text = await r.text();
+      let json = {};
+      try { json = JSON.parse(text); } catch (e) { json = {}; }
+      const err = new Error(blobRestErr(json, text, r.status));
+      err.status = r.status;
+      throw err;
+    }
+    const raw = await r.text();
+    if (!raw) return { empty: true, status: 200, url: r.url || null };
+    return { data: shape(JSON.parse(blobOpen(raw))), url: r.url || null };
   }
-  const raw = await r.text();
-  if (!raw) return { empty: true, status: 200, url: r.url || null };
-  return { data: shape(JSON.parse(blobOpen(raw))), url: r.url || null };
+  if (saw404) return { empty: true, status: 404 };
+  return null;
 }
 
 async function blobRestPut(body) {
   if (!blobToken()) throw new Error("Vercel Blob: no BLOB_READ_WRITE_TOKEN");
-  const r = await fetch("https://blob.vercel-storage.com/" + BLOB_KEY, {
-    method: "PUT",
-    headers: blobRestHeaders({
+  const payload = blobSeal(body);
+  const names = [BLOB_REST_KEY, BLOB_KEY];
+  const variants = [
+    {
+      "content-type": "application/json",
       "x-content-type": "application/json",
       "x-add-random-suffix": "0",
+      "x-vercel-blob-access": "public"
+    },
+    {
+      "content-type": "application/json",
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0",
+      "x-vercel-blob-access": "public",
       "x-allow-overwrite": "1"
-    }),
-    body: blobSeal(body)
-  });
-  const text = await r.text();
-  let json = {};
-  try { json = JSON.parse(text); } catch (e) { json = { raw: text }; }
-  if (!r.ok) throw new Error(json.error || json.message || text.slice(0, 180));
-  blobProbe.auth = "rest";
-  blobProbe.detail = "rest";
-  return {
-    url: json.url || "https://blob.vercel-storage.com/" + BLOB_KEY,
-    downloadUrl: json.downloadUrl || json.url || null
-  };
+    },
+    {
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0"
+    }
+  ];
+  let last = "rest put failed";
+  for (let n = 0; n < names.length; n++) {
+    for (let v = 0; v < variants.length; v++) {
+      const r = await fetch("https://blob.vercel-storage.com/" + names[n], {
+        method: "PUT",
+        headers: blobRestHeaders(variants[v]),
+        body: payload
+      });
+      const text = await r.text();
+      let json = {};
+      try { json = JSON.parse(text); } catch (e) { json = { raw: text }; }
+      if (r.ok) {
+        blobProbe.auth = "rest";
+        blobProbe.detail = "rest";
+        return {
+          url: json.url || "https://blob.vercel-storage.com/" + names[n],
+          downloadUrl: json.downloadUrl || json.url || null
+        };
+      }
+      last = blobRestErr(json, text, r.status);
+    }
+  }
+  throw new Error(last);
 }
 
 async function blobRestRead() {

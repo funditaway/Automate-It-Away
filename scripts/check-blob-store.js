@@ -188,9 +188,9 @@ async function main() {
   if (src.indexOf("blobNeedsRetry") < 0 || src.indexOf("no blob credentials") < 0) {
     fail("_lib must retry token/REST when SDK says no blob credentials, not only on 403");
   } else pass("_lib retries token/REST on missing SDK credentials");
-  if (src.indexOf("blobRestPut") < 0 || src.indexOf("blob.vercel-storage.com") < 0) {
-    fail("_lib must REST put/get aia/store.json the same way upload.js does when the SDK 403s");
-  } else pass("_lib REST-falls back like upload.js when SDK 403s");
+  if (src.indexOf("x-vercel-blob-access") < 0 || src.indexOf("blobRestErr") < 0) {
+    fail("_lib REST put must send public access and stringify object errors");
+  } else pass("_lib REST put sends public access and stringifies object errors");
   const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
   const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
   if (yesNo.indexOf("Desks book leftover after blob 403 still") < 0) fail("ACCOUNT-YES-NO must name Desks book leftover after blob 403 still");
