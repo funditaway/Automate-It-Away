@@ -32,6 +32,10 @@
     p{color:var(--muted);margin:0 0 12px}
     .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
     .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .row.desk-in{align-items:flex-end}
+    label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 6px}
+    .field{display:flex;flex-direction:column}
+    .field.grow{flex:1;min-width:140px}
     input,select{padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink);min-height:44px}
     input.full{flex:1 1 100%;min-width:100%}
     button,.btn,a.edit,a.go{border:0;border-radius:10px;padding:12px 14px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--edit);color:var(--edit-ink);min-height:44px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;touch-action:manipulation}
@@ -67,15 +71,22 @@
     <h1>This desk’s pipes.</h1>
     <p>You do not need a pipe to start. Search any site. Talk it if your hands are full. Log in opens that vendor. If we do not have a name yet, the inbound hook still takes the card. None of them send, post, or pay by themselves.</p>
     <div class="item">
-      <div class="row">
-        <input id="ws" placeholder="Desk name">
-        <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
+      <div class="row desk-in">
+        <div class="field grow">
+          <label for="ws">Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
+          <input id="ws" placeholder="Desk name">
+        </div>
+        <div class="field">
+          <label for="pin">Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
+          <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
+        </div>
         <button class="go" type="button" onclick="listPipes()">Show pipes</button>
       </div>
       <div class="row" id="saved" style="margin-top:8px"></div>
       <p class="meta" style="margin-top:8px">Owner connects or drops a pipe. Helpers work the queue only.</p>
     </div>
     <div class="item">
+      <label for="q">Search a site <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about Pipes">?</button></label>
       <div class="row">
         <input id="q" class="full" placeholder="Search Gmail, X, Shopify, any site…">
         <button class="go" type="button" onclick="searchPipes()">Search</button>
@@ -84,7 +95,7 @@
         <button type="button" onclick="quietPipes()">Quiet</button>
       </div>
       <div class="row" id="chips" style="margin-top:8px"></div>
-      <p class="meta" style="margin-top:8px">Name a site we do not list</p>
+      <label for="ask" style="margin-top:8px">Name a site we do not list <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about Pipes">?</button></label>
       <div class="row">
         <input id="ask" placeholder="Any site on the internet">
         <button type="button" onclick="askSite()">Log in + hook</button>
@@ -93,7 +104,7 @@
     </div>
     <h2>Cross the internet now</h2>
     <div class="item">
-      <b>Inbound hook</b><span class="tag tag-now">Live</span>
+      <b>Inbound hook</b> <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about Pipes">?</button><span class="tag tag-now">Live</span>
       <div class="meta">Anything on the internet can write a card here. Zapier and Make can post here today.</div>
       <div class="url" id="inbound">Open your desk to see the write-back URL.</div>
       <p class="meta">.aia identities work on this desk now. POST that hook with a created local@account.aia and it Drops a Queue card. Internet mail when the MX pipe connects. Send stays HOLD.</p>
@@ -135,6 +146,9 @@
           <option value="square">Square</option>
           <option value="ebay">eBay</option>
         </select>
+      </div>
+      <label for="hook" style="margin-top:8px">Webhook URL <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about Pipes">?</button></label>
+      <div class="row">
         <input id="hook" class="full" placeholder="Webhook URL if you picked that">
         <button class="go" type="button" onclick="connect()">Connect</button>
       </div>
@@ -157,6 +171,7 @@
   <script src="speech.js"></script>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
+  <script src="aia-tip.js"></script>
   <script>
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");

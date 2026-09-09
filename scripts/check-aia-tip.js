@@ -91,7 +91,7 @@ mustNot(tip, "virtual phone", "tip virtual phone numbers");
 must(theme, ".aia-tip-pop", "theme paints tip popover");
 must(theme, "button.aia-tip", "theme paints tip button");
 
-["index.html", "how.html", "setup.html", "onboard.html", "drop.html", "login.html", "widget.html", "account.html", "examples.html", "help.html", "support.html"].forEach(function (name) {
+["index.html", "how.html", "setup.html", "onboard.html", "drop.html", "login.html", "widget.html", "account.html", "examples.html", "help.html", "support.html", "pipes.html", "connections.html"].forEach(function (name) {
   const html = read(name);
   must(html, "aia-tip.js", name + " loads aia-tip.js");
   must(html, "data-aia-tip", name + " has a field tip");
@@ -164,6 +164,15 @@ must(read("help.html"), "Webhook is the live pipe", "help webhook near lane");
 must(read("support.html"), 'data-aia-tip="support-title"', "support Title tip");
 must(read("support.html"), 'data-aia-tip="support-broke"', "support What-broke tip");
 must(read("support.html"), 'data-aia-tip="support-page"', "support page tip");
+must(tip, '"pipes"', "pipes tip");
+must(tip, "Webhook is live", "pipes webhook live");
+must(tip, "Log in opens the vendor", "pipes login opens vendor");
+must(read("pipes.html"), 'data-aia-tip="pipes"', "pipes page pipes tip");
+must(read("pipes.html"), 'data-aia-tip="desk-name"', "pipes Desk name tip");
+must(read("pipes.html"), 'data-aia-tip="desk-code"', "pipes Desk code tip");
+must(read("connections.html"), 'data-aia-tip="pipes"', "connections page pipes tip");
+must(read("connections.html"), 'data-aia-tip="desk-name"', "connections Desk name tip");
+must(read("connections.html"), 'data-aia-tip="desk-code"', "connections Desk code tip");
 must(read("consign.html"), ">Drop it<", "consign Drop it not Send to engine");
 mustNot(read("consign.html"), "Send to engine", "consign Send-to-engine jargon");
 mustNot(read("consign.html"), ">Approve<", "consign Approve as Yes");
@@ -195,8 +204,10 @@ mustNot(support, "escrow", "support ETH escrow");
 
 must(yesNo, "check-aia-tip.js", "ACCOUNT-YES-NO records tip honesty");
 must(yesNo, "Help chat Quiet leftover", "ACCOUNT-YES-NO names Quiet leftover");
+must(yesNo, "Pipes field tips leftover", "ACCOUNT-YES-NO names Pipes field tips leftover");
 must(packMd, "Ask AIA", "PACK.md names Ask AIA");
 must(packMd, "Quiet on Help chat stops speech and keeps that answer", "PACK.md Quiet keeps Ask AIA");
+must(packMd, "Pipes field tips leftover", "PACK.md names Pipes field tips leftover");
 must(pkg, "check-aia-tip.js", "package.json runs check-aia-tip");
 
 console.log("check-aia-tip: ok");

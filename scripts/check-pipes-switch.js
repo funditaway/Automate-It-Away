@@ -36,6 +36,10 @@ function pickDesk(src, label) {
   if (src.indexOf('id="q"') >= 0 && /id="q"[^>]*min-width:180px/.test(src)) {
     throw new Error(file + " search field still uses the 180px min-width that clips the placeholder");
   }
+  if (src.indexOf("aia-tip.js") < 0) throw new Error(file + " must load aia-tip.js");
+  if (src.indexOf('data-aia-tip="pipes"') < 0) throw new Error(file + " must wire the pipes field tip");
+  if (src.indexOf('data-aia-tip="desk-name"') < 0) throw new Error(file + " must wire the Desk name tip");
+  if (src.indexOf('data-aia-tip="desk-code"') < 0) throw new Error(file + " must wire the Desk code tip");
 });
 
 const switchJs = read("desk-switch.js");
@@ -54,7 +58,9 @@ const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
 if (yesNo.indexOf("Pipes / Connections leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes leftover");
 if (yesNo.indexOf("Pipes placeholder leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes placeholder leftover");
+if (yesNo.indexOf("Pipes field tips leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes field tips leftover");
 if (packMd.indexOf("Pipes / Connections leftover") < 0) throw new Error("PACK.md must name Pipes leftover");
 if (packMd.indexOf("Pipes placeholder leftover") < 0) throw new Error("PACK.md must name Pipes placeholder leftover");
+if (packMd.indexOf("Pipes field tips leftover") < 0) throw new Error("PACK.md must name Pipes field tips leftover");
 
 console.log("check-pipes-switch: ok");
