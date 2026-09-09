@@ -11,6 +11,13 @@
   "kill": ["not a fit"],
   "pipes": ["webhook"],
   "artifacts": ["campaign page"],
+  "face": {
+    "who": { "key": "contactName", "label": "Campaign owner" },
+    "what": { "key": "title", "label": "Campaign" },
+    "when": { "key": "timing", "label": "Raise window" },
+    "where": { "key": "where", "label": "Page" },
+    "how": "Draft the page. Credit waits."
+  },
   "rules": [
     { "text": "Wait on me before a credit decision.", "when": "collect", "then": "wait", "contains": "credit" }
   ],

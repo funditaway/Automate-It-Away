@@ -124,6 +124,8 @@ function publicDesk(row, person) {
     aiCount: rails.count,
     aiRails: rails.rails,
     never: rails.never,
+    pack: row.pack || "",
+    packName: row.packName || "",
     aia: rails.aia,
     internet: net.INTERNET,
     net: rails.net,

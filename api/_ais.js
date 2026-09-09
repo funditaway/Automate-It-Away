@@ -95,9 +95,14 @@ function normalizeAis(rows, workspace) {
   return out;
 }
 
+function promptSummary(ai, n) {
+  return clip((ai && (ai.promptSummary || ai.prompt)) || "", n || 80);
+}
+
 function publicAi(ai) {
   if (!ai) return null;
   const aia = net.of(ai.aia || ai.aiaName || ai.file || ai.name, ai.id || "desk-ai");
+  const prompt = clip(ai.prompt, 400);
   return {
     id: ai.id,
     name: ai.name,
@@ -107,6 +112,9 @@ function publicAi(ai) {
     internet: net.INTERNET,
     role: ai.role || "Doer",
     does: ai.does || "",
+    prompt: prompt,
+    promptSummary: clip(prompt, 80),
+    face: clip(ai.name, 40) + " · Then draft",
     steps: ai.steps || [],
     allow: ai.allow || ai.steps || [],
     deny: ai.deny || NEVER.slice(),
@@ -136,9 +144,72 @@ function aiMayDraft(ai, step) {
   return allow.indexOf(st) >= 0;
 }
 
-function pickDeskAi(shop, step) {
-  const ais = deskAisOf(shop);
+function allDeskAis(shop) {
+  if (!shop) return [];
+  const rows = [].concat(shop.ais || [], shop.packAis || [], shop.packBots || []);
+  const out = [];
+  const seen = {};
+  rows.forEach(function (row) {
+    const ai = normalizeAi(row, shop.slug);
+    if (!ai) return;
+    const key = String(ai.id || ai.name).toLowerCase();
+    if (seen[key]) return;
+    seen[key] = true;
+    out.push(ai);
+  });
+  return out.slice(0, 6);
+}
+
+function findDeskAi(shop, hint) {
+  if (!shop) return null;
+  const rows = allDeskAis(shop);
+  const raw = hint && typeof hint === "object" ? hint : { id: hint, name: hint };
+  const id = clip(raw.id || raw.aiId || raw.ai || "", 40).toLowerCase();
+  const name = clip(raw.name || raw.aiName || "", 40).toLowerCase();
+  if (id) {
+    const byId = rows.find(function (a) {
+      return a && (String(a.id || "").toLowerCase() === id || String(a.seatId || "").toLowerCase() === id);
+    });
+    if (byId) return byId;
+    const seat = (shop.people || []).find(function (p) {
+      if (!p || !p.deskAi) return false;
+      return String(p.id || "").toLowerCase() === id || String(p.aiId || "").toLowerCase() === id;
+    });
+    if (seat) {
+      const viaSeat = rows.find(function (a) {
+        return a && (a.id === seat.aiId || String(a.name || "").toLowerCase() === String(seat.name || "").toLowerCase());
+      });
+      if (viaSeat) return viaSeat;
+    }
+  }
+  if (name) {
+    return rows.find(function (a) { return a && String(a.name || "").toLowerCase() === name; }) || null;
+  }
+  return null;
+}
+
+function aiHintPresent(hint) {
+  if (hint == null || hint === false) return false;
+  if (typeof hint === "string") return !!clip(hint, 40);
+  if (typeof hint !== "object") return false;
+  return !!(clip(hint.id || hint.aiId || hint.ai || "", 40) || clip(hint.name || hint.aiName || "", 40));
+}
+
+function pickDeskAi(shop, step, hint) {
+  const ais = allDeskAis(shop);
+  const bound = findDeskAi(shop, hint);
+  if (bound && aiMayDraft(bound, step)) return bound;
+  if (bound) return bound;
+  if (aiHintPresent(hint)) return null;
   return ais.find(function (a) { return aiMayDraft(a, step); }) || null;
+}
+
+function liveDeskAi(shop, hint) {
+  const found = findDeskAi(shop, hint);
+  if (!found || !shop || !Array.isArray(shop.ais)) return null;
+  return shop.ais.find(function (a) {
+    return a && (a.id === found.id || String(a.name || "").toLowerCase() === String(found.name || "").toLowerCase());
+  }) || null;
 }
 
 function findAiSeat(shop, ai) {
@@ -158,10 +229,13 @@ function attachAisToDesk(shop, rows) {
   if (!Array.isArray(shop.ais)) shop.ais = [];
   let added = 0;
   incoming.forEach(function (ai) {
-    let have = shop.ais.find(function (a) {
-      return a && (a.id === ai.id || String(a.name || "").toLowerCase() === ai.name.toLowerCase());
-    });
-    if (have) Object.assign(have, ai);
+    let have = liveDeskAi(shop, ai);
+    if (have) {
+      const keepId = have.id;
+      const keepSeat = have.seatId;
+      Object.assign(have, ai, { id: keepId });
+      if (keepSeat) have.seatId = keepSeat;
+    }
     else {
       shop.ais.push(ai);
       added += 1;
@@ -193,6 +267,7 @@ function attachAisToDesk(shop, rows) {
       seat.status = "approved";
       seat.kind = "agent";
       seat.role = "agent";
+      seat.name = row.name || seat.name;
       seat.crew = row.role || seat.crew;
       seat.allow = row.allow;
       seat.steps = row.steps;
@@ -200,6 +275,7 @@ function attachAisToDesk(shop, rows) {
       seat.never = row.never;
       seat.prompt = row.prompt;
       seat.does = row.does;
+      seat.aia = row.aia || seat.aia;
       seat.deskAi = true;
       seat.aiId = row.id;
       seat.approvedAt = seat.approvedAt || new Date().toISOString();
@@ -236,7 +312,7 @@ function actorIsDeskAi(person) {
 }
 
 function railsOf(shop) {
-  const ais = deskAisOf(shop);
+  const ais = allDeskAis(shop);
   const deskNet = net.of(shop && (shop.aia || shop.aiaName || shop.slug), shop && shop.slug);
   return {
     ais: ais.map(publicAi).filter(Boolean),
@@ -267,8 +343,12 @@ module.exports = {
   normalizeAis,
   publicAi,
   deskAisOf,
+  promptSummary,
   aiMayDraft,
   pickDeskAi,
+  aiHintPresent,
+  findDeskAi,
+  liveDeskAi,
   findAiSeat,
   attachAisToDesk,
   removeDeskAi,
