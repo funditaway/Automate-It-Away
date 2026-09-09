@@ -218,7 +218,7 @@ module.exports = async function handler(req, res) {
       const wasWaiting = String(job.waitingOn || "").toLowerCase();
       qualifyJob(job, shop);
       const miss = missingOf(job);
-      if ((wasWaiting === "info" || wasWaiting === "person" || wasWaiting === "helper" || wasWaiting === "owner") && !miss.length) {
+      if ((wasWaiting === "info" || wasWaiting === "helper") && !miss.length) {
         job.waitingOn = "person";
         applyRules(job, shop, "do");
       }

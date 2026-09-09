@@ -298,10 +298,17 @@
         : "Picks who owns Then / Needs you on this card. Yes / Stop / Kill stay human. Nothing sent alone.") + "</p>" +
       "</div>";
   }
-  function promptHtml(j, need) {
+  function promptSurface(where) {
+    const w = String(where || "queue").toLowerCase();
+    if (w === "cap" || w === "sheet" || w === "read" || w === "queue") return w;
+    return "queue";
+  }
+  function promptHtml(j, need, where) {
     if (!isPromptReply(j, need)) return "";
     const id = cardId(j);
     if (!id) return "";
+    const surface = promptSurface(where);
+    const send = surface !== "read";
     const who = thenWho(j);
     const named = namedNeedsWho(j);
     const label = isAskHuman(j, need)
@@ -313,15 +320,19 @@
     const replyLine = (!stacked && reply)
       ? "<p class=\"q-reply-was\">" + esc((reply.from || "You") + " · " + (reply.text || "")) + "</p>"
       : "";
+    const boxId = "q-reply-" + surface + "-" + id;
+    const sendHtml = send
+      ? ("<label class=\"q-prompt-lab\" for=\"" + boxId + "\">Reply on this card</label>" +
+        "<textarea id=\"" + boxId + "\" class=\"q-reply-box\" rows=\"2\" placeholder=\"Type the answer here\"></textarea>" +
+        "<div class=\"row actions tap-opts q-prompt-go\">" +
+          "<button class=\"go q-reply-tap\" type=\"button\" onclick=\"replyOnCard('" + id + "','" + surface + "')\">Reply</button>" +
+        "</div>")
+      : "";
     return "<div class=\"q-prompt\">" +
       "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
       "<p class=\"q-prompt-q\">" + esc(q) + "</p>" +
       replyLine +
-      "<label class=\"q-prompt-lab\" for=\"q-reply-" + id + "\">Reply on this card</label>" +
-      "<textarea id=\"q-reply-" + id + "\" class=\"q-reply-box\" rows=\"2\" placeholder=\"Type the answer here\"></textarea>" +
-      "<div class=\"row actions tap-opts q-prompt-go\">" +
-        "<button class=\"go q-reply-tap\" type=\"button\" onclick=\"replyOnCard('" + id + "')\">Reply</button>" +
-      "</div>" +
+      sendHtml +
       "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
       "</div>";
   }
@@ -422,8 +433,20 @@
     return (hitl.length ? "<div class=\"row actions tap-opts q-hitl\">" + hitl.join("") + "</div>" : "") +
       "<div class=\"row actions tap-opts\">" + rest.join("") + "</div>";
   }
-  function cardRoot(id) {
+  function cardRoot(id, where) {
     const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    const surface = promptSurface(where);
+    if (surface === "cap") {
+      const cap = document.getElementById("cap-list");
+      if (cap && cap.querySelector) {
+        const hit = cap.querySelector('[data-job="' + safe + '"]');
+        if (hit) return hit;
+      }
+    }
+    if (surface === "sheet") {
+      const sheet = document.getElementById("sheet-card");
+      if (sheet) return sheet;
+    }
     const queue = document.getElementById("queue");
     if (queue && queue.querySelector) {
       const hit = queue.querySelector('[data-job="' + safe + '"]');
@@ -431,10 +454,11 @@
     }
     const sheet = document.getElementById("sheet-card");
     if (sheet) return sheet;
-    return document.getElementById("q-reply-" + safe);
+    return document.getElementById("q-reply-" + surface + "-" + safe)
+      || document.getElementById("q-reply-" + safe);
   }
-  function setCardBusy(id, on) {
-    const root = cardRoot(id);
+  function setCardBusy(id, on, where) {
+    const root = cardRoot(id, where);
     if (!root || !root.classList) return;
     root.classList.toggle("q-pending", !!on);
     if (root.setAttribute) root.setAttribute("aria-busy", on ? "true" : "false");
@@ -458,17 +482,22 @@
       }
     }
   }
-  async function replyOnCard(id) {
+  async function replyOnCard(id, where) {
     const banner = document.getElementById("banner");
     const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
-    const box = document.getElementById("q-reply-" + safe) || document.getElementById("job-note");
+    const surface = promptSurface(where);
+    const root = cardRoot(safe, surface);
+    const box = (root && root.querySelector && root.querySelector(".q-reply-box"))
+      || document.getElementById("q-reply-" + surface + "-" + safe)
+      || document.getElementById("q-reply-" + safe)
+      || document.getElementById("job-note");
     const text = box && box.value ? String(box.value).trim() : "";
     if (!text) {
       if (banner) banner.textContent = "Type a reply on the card.";
       return;
     }
     if (typeof api !== "function") return;
-    setCardBusy(safe, true);
+    setCardBusy(safe, true, surface);
     try {
       const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "reply", id: safe, text: text, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
       const line = out.status >= 400
@@ -477,7 +506,7 @@
       if (typeof load === "function") await load();
       if (banner) banner.textContent = line;
     } finally {
-      setCardBusy(safe, false);
+      setCardBusy(safe, false, surface);
     }
   }
   async function helpWithAi(id) {
@@ -543,7 +572,7 @@
     const line = honestNext(j, { line: (need && need.line) || j.next || "On the cap.", decide: need.decide, priority: true });
     const draft = thenDraftHtml(j);
     const talks = talkHtml(j);
-    const prompt = promptHtml(j, need);
+    const prompt = promptHtml(j, need, other ? "read" : "cap");
     const stacked = !!(talks && (draft || prompt));
     const thread = stacked ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>" : (draft + talks + prompt);
     return "<article class=\"item q-card cap-card\" data-job=\"" + esc(j.id || "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
@@ -581,6 +610,7 @@
   window.pinCap = pinCap;
   window.openCapDesk = openCapDesk;
   window.promptHtml = promptHtml;
+  window.promptSurface = promptSurface;
   window.chipsHtml = chipsHtml;
   window.capCardHtml = capCardHtml;
   window.loadCap = loadCap;
@@ -592,7 +622,7 @@
     const line = honestNext(j, need);
     const draft = thenDraftHtml(j);
     const talks = talkHtml(j);
-    const prompt = promptHtml(j, need);
+    const prompt = promptHtml(j, need, "queue");
     const bind = bindAiHtml(j);
     const stacked = !!(talks && (draft || prompt));
     const thread = stacked
