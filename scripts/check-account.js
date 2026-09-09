@@ -8,7 +8,7 @@ process.env.AIA_STORE_PATH = store;
 function resetModules() {
   delete global.__aia;
   delete global.__aiaHydrate;
-  ["../api/_lib", "../api/_account", "../api/account", "../api/auth"].forEach((mod) => {
+  ["../api/_lib", "../api/_account", "../api/_plans", "../api/account", "../api/auth"].forEach((mod) => {
     try { delete require.cache[require.resolve(mod)]; } catch (e) {}
   });
 }
@@ -112,6 +112,124 @@ async function main() {
   if (pinLogin.statusCode !== 200 || !pinLogin.body || !pinLogin.body.ok) {
     fail("matching Studio Open code should open the account");
   } else pass("matching Studio Open code opens the account");
+
+  const strangerPin = "2468";
+  const onboarded = await call(auth, "POST", { "x-workspace": "rivera-resale", "x-pin": strangerPin }, {
+    action: "account",
+    name: "Pat",
+    biz: "Rivera Resale",
+    slug: "rivera-resale",
+    workspace: "rivera-resale",
+    kind: "owner",
+    role: "owner",
+    pin: strangerPin
+  });
+  const onboardTok = onboarded.body && onboarded.body.session && onboarded.body.session.token;
+  if (onboarded.statusCode !== 201 || !onboarded.body.account || !onboardTok || !/aia_session=/.test(String(onboarded.headers["Set-Cookie"] || ""))) {
+    fail("Owner onboard via /api/auth should mint the desk and issue a session");
+  } else pass("Owner onboard issues a session for Studio leftover");
+
+  const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
+  const openLab = await call(account, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover,
+    "x-pin": strangerPin
+  }, {
+    action: "login", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+  });
+  if (openLab.statusCode !== 200 || !openLab.body || !openLab.body.ok) {
+    fail("Studio openLab must accept the Owner slug+pin auth just created");
+  } else pass("Studio openLab accepts onboard Owner slug+pin");
+
+  const openLabName = await call(account, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover,
+    "x-pin": strangerPin
+  }, {
+    action: "login", slug: "Rivera Resale", pin: strangerPin, name: "Rivera Resale"
+  });
+  if (openLabName.statusCode !== 200 || !openLabName.body || !openLabName.body.ok) {
+    fail("Studio openLab must accept the prefilled desk name + Owner code");
+  } else pass("Studio openLab accepts prefilled desk name");
+
+  const openLabSession = await call(account, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-session": onboardTok,
+    "x-pin": strangerPin
+  }, {
+    action: "login", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+  });
+  if (openLabSession.statusCode !== 200 || !openLabSession.body || !openLabSession.body.ok) {
+    fail("Studio openLab must still honor leftover X-Session + matching X-Pin");
+  } else pass("Studio openLab honors leftover session with matching pin");
+
+  const wrongOnboard = await call(account, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover,
+    "x-pin": "0000"
+  }, {
+    action: "login", slug: "rivera-resale", pin: "0000", name: "rivera-resale"
+  });
+  if (wrongOnboard.statusCode !== 401 || !/Account name or code does not match/.test((wrongOnboard.body && wrongOnboard.body.error) || "")) {
+    fail("wrong onboard Owner code should still 401");
+  } else pass("wrong onboard Owner code stays 401");
+
+  const deskOnly = (lib.mem.accounts || []).find((a) => a && a.slug === "rivera-resale");
+  const deskRow = (lib.mem.workspaces || []).find((w) => w && w.slug === "rivera-resale");
+  if (deskOnly) {
+    deskOnly.pin = "";
+    deskOnly.slug = "other-home";
+    deskOnly.name = "Other Home";
+  }
+  const viaDesk = await call(account, "POST", { "x-workspace": "rivera-resale", "x-pin": strangerPin }, {
+    action: "login", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+  });
+  if (viaDesk.statusCode !== 200 || !viaDesk.body || !viaDesk.body.ok) {
+    fail("open-desk pin must still open Studio when the account-store pin/slug drifted");
+  } else pass("open-desk pin opens Studio when account store drifted");
+
+  if (deskRow) deskRow.pin = "";
+  if (deskOnly) {
+    deskOnly.pin = "";
+    deskOnly.slug = "other-home";
+    deskOnly.name = "Other Home";
+  }
+  const viaOwner = await call(account, "POST", { "x-workspace": "rivera-resale", "x-pin": strangerPin }, {
+    action: "login", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+  });
+  if (viaOwner.statusCode !== 200 || !viaOwner.body || !viaOwner.body.ok) {
+    fail("owner seat pin must still open Studio when desk.pin and account.pin are empty");
+  } else pass("owner seat pin opens Studio when other pins are empty");
+
+  await lib.save();
+  const diskSnap = JSON.parse(fs.readFileSync(store, "utf8"));
+  lib.mem.workspaces = [];
+  lib.mem.accounts = [];
+  lib.mem.sessions = [];
+  const staleInst = await call(account, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-session": leftover,
+    "x-pin": strangerPin
+  }, {
+    action: "login", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+  });
+  if (staleInst.statusCode !== 401) {
+    fail("empty in-memory store should 401 until the shared store is applied");
+  } else pass("stale instance without the open desk stays 401");
+  if (typeof lib.applyStore !== "function") fail("applyStore should reload the shared auth/account store");
+  else {
+    lib.applyStore(diskSnap);
+    const reloaded = await call(account, "POST", {
+      "x-workspace": "rivera-resale",
+      "x-session": leftover,
+      "x-pin": strangerPin
+    }, {
+      action: "login", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+    });
+    if (reloaded.statusCode !== 200 || !reloaded.body || !reloaded.body.ok) {
+      fail("applyStore must make the onboard Owner desk visible to /api/account login");
+    } else pass("shared store reload lets /api/account see the auth-created Owner desk");
+  }
 
   const login = await call(account, "POST", {}, { action: "login", email, password });
   const token = login.body && login.body.session && login.body.session.token;

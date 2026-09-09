@@ -40,7 +40,7 @@ function mockRes() {
 async function main() {
   [
     "issueSession", "findSession", "listSessions", "revokeSession", "sessionCookie",
-    "clearSessionCookie", "parseCookies", "sessionFromReq", "isLocked", "noteFail", "noteOk", "sessionTokenOf"
+    "clearSessionCookie", "parseCookies", "sessionFromReq", "isLocked", "noteFail", "noteOk", "sessionTokenOf", "applyStore"
   ].forEach((key) => {
     if (typeof lib[key] !== "function") fail("_lib missing " + key);
   });

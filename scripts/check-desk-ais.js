@@ -89,8 +89,12 @@ else pass("PACK.md documents ais");
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 if (yesNo.indexOf("Studio Open leftover") < 0) fail("ACCOUNT-YES-NO must name Studio Open leftover");
 else pass("ACCOUNT-YES-NO names Studio Open leftover");
+if (yesNo.indexOf("open Owner desk") < 0 && yesNo.indexOf("open-desk store") < 0) fail("ACCOUNT-YES-NO must name the auth vs account Studio Open store leftover");
+else pass("ACCOUNT-YES-NO names auth vs account Studio Open store");
 if (packMd.indexOf("Studio Open leftover") < 0) fail("PACK.md must name Studio Open leftover");
 else pass("PACK.md names Studio Open leftover");
+if (packMd.indexOf("open Owner desk") < 0) fail("PACK.md must name the open Owner desk Studio login leftover");
+else pass("PACK.md names open Owner desk Studio login");
 
 const net = require("../api/_aia-net");
 const lib = require("../api/_lib");

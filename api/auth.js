@@ -335,18 +335,25 @@ module.exports = async function handler(req, res) {
       ensurePeople(row);
       row.people[0].name = body.name || "Owner";
       row.people[0].email = body.email || "";
+      if (row.pin && row.people[0] && !row.people[0].pin) row.people[0].pin = row.pin;
       applyCustomOpen(row, body);
       mem.workspaces.unshift(row);
       const acc = createOwnerAccount(body, row);
+      const owner = (row.people || []).find((p) => p && p.role === "owner") || row.people[0];
       const first = firstJobFrom(row, body, slug);
+      let session = null;
+      if (typeof libx.issueSession === "function") session = libx.issueSession(owner, row, acc, req);
+      if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
       log("Auth", "Opened shop · free account · " + slug, "OK", slug);
       await save();
       return res.status(201).json({
         ok: true,
+        savedLogin: true,
+        session,
         account: { id: acc.id, name: acc.name, ownerName: acc.ownerName },
         plan: publicPlan(acc),
         workspace: publicWorkspace(row),
-        you: publicPerson((row.people || []).find((p) => p.role === "owner")),
+        you: publicPerson(owner),
         job: first,
         hint: "Full owner account. Free for now. Monthly later. Shop name + desk code opens this queue."
       });
@@ -355,13 +362,20 @@ module.exports = async function handler(req, res) {
       const hashed = hashPin(body.pin);
       const match = row.people.find((p) => p.pin === hashed) || (row.pin === hashed ? row.people[0] : null);
       if (!match) return res.status(401).json({ ok: false, error: "Desk code does not match this shop" });
+      const acc = accountForDesk(row);
+      let session = null;
+      if (typeof libx.issueSession === "function") session = libx.issueSession(match, row, acc, req);
+      if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
+      await save();
+      return res.status(201).json({
+        ok: true,
+        savedLogin: true,
+        session,
+        workspace: publicWorkspace(row),
+        you: publicPerson(match),
+        hint: "Shop name + desk code opens this queue on any phone."
+      });
     }
-    return res.status(201).json({
-      ok: true,
-      workspace: publicWorkspace(row),
-      you: publicPerson((row.people || []).find((p) => p.role === "owner")),
-      hint: "Shop name + desk code opens this queue on any phone."
-    });
   }
 
   return res.status(405).json({ error: "Use GET or POST" });

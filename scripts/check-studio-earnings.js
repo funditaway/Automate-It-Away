@@ -218,6 +218,8 @@ if (!/No published Marketplace listing cap/i.test(packMd) || !/12 \.aia emails/i
 else pass("PACK.md real pack limits");
 if (!/Studio Open leftover/i.test(yesNo) || !/Studio Open leftover/i.test(packMd)) fail("canon must name Studio Open leftover");
 else pass("canon names Studio Open leftover");
+if (!/open Owner desk/i.test(packMd) || !/open-desk store|open Owner desk/i.test(yesNo)) fail("canon must name auth vs account Studio Open store leftover");
+else pass("canon names auth vs account Studio Open store");
 
 if (failed) {
   console.error(failed + " failed");
