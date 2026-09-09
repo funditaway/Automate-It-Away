@@ -78,6 +78,41 @@ async function main() {
     fail("password action should hash and save the password");
   } else pass("password action stores only a hash");
 
+  const deskGet = await call(account, "GET", { "x-workspace": "oddo-books", "x-pin": ownerPin });
+  if (deskGet.statusCode !== 200 || !deskGet.body || !deskGet.body.ok) {
+    fail("open desk pin should GET /api/account");
+  } else pass("open desk pin GETs account");
+
+  const staleGet = await call(account, "GET", {
+    "x-workspace": "oddo-books",
+    "x-session": "deadbeefdeadbeefdeadbeefdeadbeef",
+    "x-pin": ownerPin
+  });
+  if (staleGet.statusCode !== 200 || !staleGet.body || !staleGet.body.ok) {
+    fail("stale session must not drop a matching open-desk pin on GET /api/account");
+  } else pass("stale session still honors open-desk pin");
+
+  const emptyLogin = await call(account, "POST", { "x-workspace": "oddo-books" }, {
+    action: "login", slug: "oddo-books", pin: "", name: "oddo-books"
+  });
+  if (emptyLogin.statusCode !== 401 || !/Account name or code does not match/.test((emptyLogin.body && emptyLogin.body.error) || "")) {
+    fail("empty Studio Open code should 401");
+  } else pass("empty Studio Open code stays 401");
+
+  const wrongLogin = await call(account, "POST", {}, {
+    action: "login", slug: "oddo-books", pin: "0000", name: "oddo-books"
+  });
+  if (wrongLogin.statusCode !== 401 || !/Account name or code does not match/.test((wrongLogin.body && wrongLogin.body.error) || "")) {
+    fail("wrong Studio Open code should 401");
+  } else pass("wrong Studio Open code stays 401");
+
+  const pinLogin = await call(account, "POST", {}, {
+    action: "login", slug: "oddo-books", pin: ownerPin, name: "oddo-books"
+  });
+  if (pinLogin.statusCode !== 200 || !pinLogin.body || !pinLogin.body.ok) {
+    fail("matching Studio Open code should open the account");
+  } else pass("matching Studio Open code opens the account");
+
   const login = await call(account, "POST", {}, { action: "login", email, password });
   const token = login.body && login.body.session && login.body.session.token;
   if (login.statusCode !== 200 || !token || !/aia_session=/.test(String(login.headers["Set-Cookie"] || ""))) {

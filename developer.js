@@ -21,7 +21,7 @@
     var tok = localStorage.getItem("aia_session") || "";
     if (ws) h["X-Workspace"] = slugify(ws);
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return h;
   }
   function show(msg, good) {
@@ -340,6 +340,8 @@
       "<p class=\"cta\"><button class=\"go\" type=\"submit\">Open Studio</button></p></form>";
     var slug = document.getElementById("slug");
     if (slug) slug.value = localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_ws") || "";
+    var pinEl = document.getElementById("pin");
+    if (pinEl) pinEl.value = localStorage.getItem("aia_pin") || "";
     document.getElementById("gate").addEventListener("submit", openLab);
   }
 

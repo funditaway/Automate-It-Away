@@ -48,6 +48,18 @@ if (!create.includes("if (!deskOpen()) return fail")) fail("create save-ai must 
 else pass("create will not Bind without an open desk");
 if (!studio.includes("Named desk AIs") || !studio.includes("save-ai") || !studio.includes("install-aia")) fail("Studio naming / .aia install must stay");
 else pass("Studio naming and .aia install stay");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(studio)) {
+  fail("Studio hdr must still send the open-desk pin when a session token is present");
+} else pass("Studio hdr keeps X-Pin with X-Session");
+if (studio.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("Studio hdr must send X-Pin");
+else pass("Studio hdr sends X-Pin");
+const gateAt = studio.indexOf("function paintGate");
+const labAt = studio.indexOf("function paintLab");
+const gateSrc = gateAt >= 0 ? studio.slice(gateAt, labAt > gateAt ? labAt : gateAt + 900) : "";
+if (gateSrc.indexOf('localStorage.getItem("aia_pin")') < 0) fail("Studio Open gate must prefill the saved owner code");
+else pass("Studio Open gate prefills aia_pin");
+if (gateSrc.indexOf("Open Studio") < 0) fail("Studio Open gate must stay");
+else pass("Studio Open gate stays");
 
 const market = fs.readFileSync(path.join(root, "market-shop.js"), "utf8");
 if (!market.includes("aiRows") || !market.includes("Desk AI")) fail("market missing desk AI listing");
@@ -74,6 +86,11 @@ else pass("jobs block AI Yes/Stop");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (!packMd.includes("Named desk AIs") || !packMd.includes("\"ais\"") || !packMd.includes("AIA Internet") || !packMd.includes(".aia")) fail("PACK.md missing ais syntax");
 else pass("PACK.md documents ais");
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+if (yesNo.indexOf("Studio Open leftover") < 0) fail("ACCOUNT-YES-NO must name Studio Open leftover");
+else pass("ACCOUNT-YES-NO names Studio Open leftover");
+if (packMd.indexOf("Studio Open leftover") < 0) fail("PACK.md must name Studio Open leftover");
+else pass("PACK.md names Studio Open leftover");
 
 const net = require("../api/_aia-net");
 const lib = require("../api/_lib");
