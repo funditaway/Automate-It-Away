@@ -63,6 +63,10 @@ if (/X-Pin/.test(talk)) fail("world door must not send X-Pin");
 else pass("no pin on world door");
 if (/Twilio/.test(talk)) fail("no Twilio");
 else pass("no Twilio");
+if (/AIASpeech\.listen\(\s*\{/.test(talk)) fail("support-talk must call listen(fn, fn), not an object");
+else pass("support-talk listen is two functions");
+if (!/AIASpeech\.listen\(\s*function/.test(talk)) fail("support-talk must pass a result function to listen");
+else pass("support-talk listen result fn");
 
 if (failed) {
   console.error(failed + " failed");

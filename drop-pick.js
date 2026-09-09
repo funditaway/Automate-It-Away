@@ -84,13 +84,27 @@
     box.hidden = false;
     var rows = (window.AIADesks && AIADesks.list) ? AIADesks.list() : [];
     var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || {};
-    var ws = cur.slug || localStorage.getItem("aia_ws") || "";
+    var q = "";
+    try { q = String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { q = ""; }
+    if (window.AIADesks && AIADesks.slugify) q = AIADesks.slugify(q);
+    var saved = (q && window.AIADesks && AIADesks.find) ? AIADesks.find(q) : null;
+    var ws = q || cur.slug || localStorage.getItem("aia_ws") || window.ws || "";
+    var onName = (saved && saved.name) || (q && q) || (cur && (cur.name || cur.slug)) || (window.AIADropOn && AIADropOn.name && AIADropOn.name()) || ws;
+    if (window.AIADropOn && AIADropOn.paint) AIADropOn.paint();
     if (!rows.length) {
       chips.innerHTML = "";
-      if (sub) sub.textContent = "This phone has no saved desk yet. Pick a world desk above, add one you already opened, or create a new desk.";
+      if (sub) {
+        sub.textContent = ws
+          ? ("This drop goes to " + (onName || ws) + " from the link. Add a saved desk or create a new one if you need another.")
+          : "This phone has no saved desk yet. Pick a world desk above, add one you already opened, or create a new desk.";
+      }
       return;
     }
-    if (sub) sub.textContent = "Desks saved on this phone. World desks stay at the top.";
+    if (sub) {
+      sub.textContent = ws
+        ? "Desks saved on this phone. This drop goes to the highlighted desk."
+        : "Desks saved on this phone. Pick one. World desks stay at the top.";
+    }
     chips.innerHTML = rows.map(function (d) {
       var on = d.slug === ws ? " on" : "";
       var who = d.role === "owner" ? " · owner" : d.role === "employee" ? " · helper" : "";
@@ -101,7 +115,11 @@
   function pick(slug) {
     var row = window.AIADesks ? AIADesks.find(slug) : null;
     if (!row) return;
-    if (row.pin) { AIADesks.switchTo(row.slug); goDrop(row.slug); return; }
+    if ((window.AIADesks && AIADesks.hasAuth && AIADesks.hasAuth(row)) || row.pin || row.token) {
+      if (window.AIADesks && AIADesks.switchTo) AIADesks.switchTo(row.slug);
+      goDrop(row.slug);
+      return;
+    }
     var add = document.getElementById("desk-add"); if (add) add.hidden = false;
     var name = document.getElementById("add-ws"); var err = document.getElementById("desk-err");
     if (name) name.value = row.name || row.slug;

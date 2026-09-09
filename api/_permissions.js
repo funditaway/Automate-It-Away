@@ -56,7 +56,15 @@ function publicPerson(p) {
       charged: false,
       live: false
     },
-    ext: Number(p.ext) || 0
+    ext: Number(p.ext) || 0,
+    deskAi: !!p.deskAi,
+    aia: p.aia || "",
+    aiId: p.aiId || "",
+    does: p.does || "",
+    prompt: String(p.prompt || "").trim().slice(0, 160),
+    steps: p.steps || p.allow || [],
+    allow: p.allow || p.steps || [],
+    deny: p.deny || never
   };
 }
 

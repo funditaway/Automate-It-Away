@@ -80,7 +80,11 @@ function jobBrief(job, shop) {
     missingWhy: clip(job && job.why, 200),
     desk: shop && (shop.biz || shop.name || shop.slug),
     model: shop && shop.model,
-    rules: ((shop && shop.rules) || []).slice(0, 8).map((r) => clip(r && r.text, 120)).filter(Boolean)
+    rules: ((shop && shop.rules) || []).slice(0, 8).map((r) => clip(r && r.text, 120)).filter(Boolean),
+    ais: ((shop && shop.ais) || []).slice(0, 3).map(function (a) {
+      if (!a) return null;
+      return { name: clip(a.name, 40), role: clip(a.role || a.crew, 16), does: clip(a.does, 120), steps: a.steps || a.allow || [] };
+    }).filter(Boolean)
   };
 }
 
@@ -137,10 +141,24 @@ function applyGrok(job, parsed, drafter) {
   job.promptVersion = (drafter && drafter.provider ? drafter.provider : "grok") + "-" + ((drafter && drafter.model) || grokModel());
   job.grokAt = new Date().toISOString();
   job.draftFrom = drafter && drafter.provider;
+  const cites = normalizeCites([].concat(parsed.citations || [], job.citations || []));
+  if (cites.length) job.citations = cites;
   return job;
 }
 
-const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Never invent money. Short local English. Never send money, never email a customer, never Stop a job. Human taps Yes or No.";
+function normalizeCites(rows) {
+  const have = {};
+  return (rows || []).map(function (c) {
+    if (!c) return null;
+    const url = String(typeof c === "string" ? c : (c.url || c.href || "")).trim();
+    if (!/^https?:\/\//i.test(url) || have[url]) return null;
+    have[url] = true;
+    const title = String((c && (c.title || c.text)) || url).trim().slice(0, 80);
+    return { url: url.slice(0, 300), title: title || url };
+  }).filter(Boolean).slice(0, 6);
+}
+
+const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"citations\":[{\"title\":\"\",\"url\":\"https://...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Citations only for real http(s) URLs you used — never invent links or money. Short local English. If the desk has a named AI, draft as that AI on this desk only. Never send money, never email a customer, never Stop a job, never Yes yourself. Human taps Yes or Stop.";
 
 async function callOpenAI(drafter, job, shop) {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -185,24 +203,33 @@ async function callAnthropic(drafter, job, shop) {
   return { ok: true, text: block && block.text };
 }
 
-async function callGrok(drafter, job, shop) {
+async function callGrok(drafter, job, shop, opts) {
+  const payload = {
+    model: drafter.model || grokModel(),
+    temperature: 0.2,
+    max_tokens: 360,
+    messages: [
+      { role: "system", content: SYSTEM },
+      { role: "user", content: JSON.stringify(jobBrief(job, shop)) }
+    ]
+  };
+  if (!opts || opts.search !== false) payload.search_parameters = { mode: "auto" };
   const r = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + drafter.key },
-    body: JSON.stringify({
-      model: drafter.model || grokModel(),
-      temperature: 0.2,
-      max_tokens: 360,
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: JSON.stringify(jobBrief(job, shop)) }
-      ]
-    }),
+    body: JSON.stringify(payload),
     signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) return { ok: false, reason: "http-" + r.status, error: clip(data.error && data.error.message, 120) };
-  return { ok: true, text: data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content };
+  if (!r.ok) {
+    const err = clip(data.error && data.error.message, 120);
+    if ((!opts || opts.search !== false) && (r.status === 400 || r.status === 422 || /search/i.test(err || ""))) {
+      return callGrok(drafter, job, shop, { search: false });
+    }
+    return { ok: false, reason: "http-" + r.status, error: err };
+  }
+  const cites = normalizeCites([].concat(data.citations || [], data.choices && data.choices[0] && data.choices[0].citations || []));
+  return { ok: true, text: data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content, citations: cites };
 }
 
 async function grokRecommend(job, shop, workspace) {
@@ -216,13 +243,82 @@ async function grokRecommend(job, shop, workspace) {
     else if (drafter.provider === "anthropic") out = await callAnthropic(drafter, job, shop);
     else out = await callGrok(drafter, job, shop);
     if (!out || !out.ok) return { ok: false, skipped: false, reason: (out && out.reason) || "http", error: out && out.error, provider: drafter.provider };
-    const parsed = parseGrok(out.text);
-    if (!parsed) return { ok: false, skipped: false, reason: "bad-json", provider: drafter.provider };
+    const parsed = parseGrok(out.text) || {};
+    if (out.citations && out.citations.length) parsed.citations = [].concat(parsed.citations || [], out.citations);
+    if (!parsed.draft && !parsed.next && !parsed.recs && !out.text) return { ok: false, skipped: false, reason: "bad-json", provider: drafter.provider };
+    if (!parsed.draft && out.text && !parseGrok(out.text)) parsed.draft = clip(out.text, 400);
     applyGrok(job, parsed, drafter);
-    return { ok: true, model: drafter.model, provider: drafter.provider, source: drafter.source, recs: job.recs };
+    return { ok: true, model: drafter.model, provider: drafter.provider, source: drafter.source, recs: job.recs, citations: job.citations || [] };
   } catch (e) {
     return { ok: false, skipped: false, reason: "net", error: clip(e && e.message, 80), provider: drafter.provider };
   }
 }
 
-module.exports = { grokOn, grokModel, grokRecommend, applyGrok, jobBrief, pickDrafter };
+const STUDIO_SYSTEM = "You draft thin JSON packs and named desk AIs for Automate It Away Creators Studio. Return JSON only: {\"name\":\"\",\"aia\":\"springfield-shop.aia\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"workflows\":[{\"name\":\"\",\"delay\":null,\"branch\":\"\",\"rules\":[{\"when\":\"drop\",\"ifTag\":\"\",\"contains\":\"\",\"then\":\"draft\",\"tag\":\"\",\"text\":\"\"}]}],\"ask\":0,\"ais\":[{\"name\":\"\",\"aia\":\"james.aia\",\"role\":\"Doer\",\"does\":\"\",\"prompt\":\"\",\"steps\":\"qualify,do,follow\"}],\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia). A rule is one When (drop|pipe|inbound|status) → If (Qualify/tag/word) → Then (draft|queue|notify|tag|escalate). Workflows/sequences string rules with optional delay/branch. Still thin JSON. Never invent on-chain ownership. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Desk AIs are bound to one desk. They draft only. Human taps Yes / Stop / Kill. Collect stays HOLD. Draft only. Human taps Yes to save or install. Short local English. Worker-first: AI drafts, the owner decides. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect.";
+
+async function studioDraft(brief, workspace, opts) {
+  const drafter = pickDrafter(workspace);
+  if (!drafter) return { ok: false, skipped: true, reason: "no-key" };
+  const text = String(brief || "").trim().slice(0, 800);
+  if (!text) return { ok: false, skipped: true, reason: "no-brief" };
+  const kind = String((opts && opts.kind) || "pack").toLowerCase();
+  try {
+    const payload = {
+      model: drafter.model || grokModel(),
+      temperature: 0.2,
+      max_tokens: 500,
+      messages: [
+        { role: "system", content: STUDIO_SYSTEM },
+        { role: "user", content: JSON.stringify({ brief: text, kind: kind, never: ["send", "stop", "pay", "bind", "mail"], collect: "hold", aisBound: "desk", tld: ".aia", internet: "AIA Internet", chain: false }) }
+      ]
+    };
+    const url = drafter.provider === "openai"
+      ? "https://api.openai.com/v1/chat/completions"
+      : drafter.provider === "anthropic"
+        ? "https://api.anthropic.com/v1/messages"
+        : "https://api.x.ai/v1/chat/completions";
+    const headers = { "Content-Type": "application/json" };
+    let body = payload;
+    if (drafter.provider === "anthropic") {
+      headers["x-api-key"] = drafter.key;
+      headers["anthropic-version"] = "2023-06-01";
+      body = { model: drafter.model, max_tokens: 500, temperature: 0.2, system: STUDIO_SYSTEM, messages: [{ role: "user", content: payload.messages[1].content }] };
+    } else {
+      headers.Authorization = "Bearer " + drafter.key;
+    }
+    const r = await fetch(url, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(body),
+      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(14000) : undefined
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, skipped: false, reason: "http-" + r.status, error: clip(data.error && data.error.message, 120), provider: drafter.provider };
+    let raw = "";
+    if (drafter.provider === "anthropic") {
+      const block = (data.content || []).find((b) => b && b.type === "text");
+      raw = block && block.text;
+    } else {
+      raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    }
+    const parsed = parseGrok(raw);
+    if (!parsed) return { ok: false, skipped: false, reason: "bad-json", provider: drafter.provider, text: clip(raw, 400) };
+    if (parsed.ask != null) {
+      const n = Number(parsed.ask);
+      parsed.ask = Number.isFinite(n) && n >= 0 ? n : 0;
+    }
+    if (/\$250|over \$250/i.test(JSON.stringify(parsed))) {
+      parsed.ask = 0;
+      if (parsed.rule) parsed.rule = String(parsed.rule).replace(/\$250/g, "");
+    }
+    parsed.never = ["send", "stop", "pay"];
+    parsed.collect = "hold";
+    if (Array.isArray(parsed.bots) && !parsed.ais) parsed.ais = parsed.bots;
+    if (Array.isArray(parsed.ais) && !parsed.bots) parsed.bots = parsed.ais;
+    return { ok: true, pack: parsed, provider: drafter.provider, model: drafter.model, source: drafter.source || "included" };
+  } catch (e) {
+    return { ok: false, skipped: false, reason: "net", error: clip(e && e.message, 80) };
+  }
+}
+
+module.exports = { grokOn, grokModel, grokRecommend, applyGrok, jobBrief, pickDrafter, normalizeCites, studioDraft };

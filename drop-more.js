@@ -51,7 +51,7 @@
     if (document.getElementById("pane-custom")) return;
     var work = document.getElementById("pane-work"); if (!work) return;
     var pane = document.createElement("div"); pane.id = "pane-custom"; pane.hidden = true;
-    pane.innerHTML = "<label>Name this drop</label><input id=\"custom-name\" placeholder=\"Lawn route · porch repair\"><label>Fields on the card</label><input id=\"custom-fields\" placeholder=\"Color, size, when\"><p class=\"sub\">Your own kind of work. Same five steps. You still tap Yes or No.</p>";
+    pane.innerHTML = "<label>Name this drop</label><input id=\"custom-name\" placeholder=\"Lawn route · porch repair\"><label>Fields on the card</label><input id=\"custom-fields\" placeholder=\"Color, size, when\"><p class=\"sub\">Your own kind of work. Same five steps. You still tap Yes or Stop.</p>";
     work.appendChild(pane);
   }
   function boot() {

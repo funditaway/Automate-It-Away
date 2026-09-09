@@ -28,6 +28,8 @@ else pass("ask is a tag filter");
 
 if (!nav.includes("desk-queue-packs.js")) fail("desk-nav.js must load desk-queue-packs.js");
 else pass("nav loads queue packs");
+if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");
+else pass("nav loads desk ais");
 if (!nav.includes("desk-needs.js")) fail("desk-nav.js must load desk-needs.js");
 else pass("nav loads needs");
 if (!nav.includes("desk-inbox.js")) fail("desk-nav.js must load desk-inbox.js");
@@ -40,7 +42,7 @@ else pass("pack-card maps year2 and missed-call");
 if (!card.includes('name: "Insurance"')) fail("pack-card missing Insurance face");
 else pass("pack-card Insurance face");
 
-["home", "consign", "fund", "land", "vita"].forEach(function (id) {
+["home", "consign", "fund", "land", "vita", "aia-adoption", "aia-implement"].forEach(function (id) {
   const file = JSON.parse(fs.readFileSync(path.join(root, "packs", id + ".json"), "utf8"));
   if (!file.queue) fail(id + " missing queue{}");
   else pass(id + " has queue{}");
@@ -70,6 +72,41 @@ if (!dev.includes("Queue") || !dev.includes("q-badge")) fail("developer.js missi
 else pass("developer Queue tab");
 if (!dev.includes("pack.queue") && !dev.includes("queue:")) fail("developer.js must save pack.queue");
 else pass("developer saves pack.queue");
+if (!dev.includes("Ask Grok") || !dev.includes("studio-draft")) fail("Creators Studio missing Grok drafter");
+else pass("Studio Ask Grok");
+if (!dev.includes("grok-yes") || !dev.includes("grok-stop")) fail("Studio Grok must wait on Yes/Stop");
+else pass("Studio Grok Yes/Stop");
+if (!dev.includes("Grok · AIA Studio")) fail("developer.js missing Grok AIA Studio identity");
+else pass("Studio Grok identity");
+
+const adoption = JSON.parse(fs.readFileSync(path.join(root, "packs", "aia-adoption.json"), "utf8"));
+if (!Array.isArray(adoption.rules) || adoption.rules.length) fail("aia-adoption must have empty rules");
+else pass("aia-adoption empty rules");
+if (/\$250/.test(JSON.stringify(adoption))) fail("aia-adoption must not mention $250");
+else pass("aia-adoption has no $250");
+if (!/try first/i.test(JSON.stringify(adoption))) fail("aia-adoption missing try-first copy");
+else pass("aia-adoption try-first");
+["Worker-first", "Open packs", "Secure-by-design", "Queue cards count"].forEach(function (bit) {
+  if (!JSON.stringify(adoption).includes(bit)) fail("aia-adoption missing " + bit);
+  else pass("aia-adoption " + bit);
+});
+if (/White House|Action Plan|executive order/i.test(JSON.stringify(adoption))) fail("aia-adoption must not reprint policy");
+else pass("aia-adoption is desk language, not a reprint");
+
+const helpPage = fs.readFileSync(path.join(root, "help.html"), "utf8");
+["Try first", "Workers decide", "Open packs", "Secure from the start", "When · If · Then", "Workflow / Sequence"].forEach(function (bit) {
+  if (!helpPage.includes(bit)) fail("help.html missing " + bit);
+  else pass("help " + bit);
+});
+if (!/Four steps|find the leaks/i.test(JSON.stringify(adoption))) fail("aia-adoption should point at the four steps");
+else pass("aia-adoption points at the four steps");
+if (/White House|Action Plan/i.test(helpPage)) fail("help.html must not reprint policy");
+else pass("help is desk language");
+if (helpPage.includes("Grok")) fail("help.html must not leak Grok");
+else pass("help has no Grok leak");
+
+if (!dev.includes("Queue cards are the measure")) fail("Studio missing queue-as-measure copy");
+else pass("Studio measures Queue cards");
 
 if (process.exitCode) {
   console.error("check-queue-packs failed");

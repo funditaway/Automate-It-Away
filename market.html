@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Marketplace · Automate It Away</title>
-  <meta name="description" content="Shop AIA packs. See what’s in a listing. Use a free pack on your desk. A priced pack is a tag — no card. Packs copy rules. They do not send money.">
+  <title>Marketplace · ai.aia · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="description" content="AIA Internet packs as .aia files. ai.aia is the brand. The desk runs on automateitaway.com. Install a creator pack onto your desk. A priced pack still installs. Collect stays HOLD. Packs never send money.">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
@@ -53,7 +53,8 @@
     .taps{font-size:12px;color:var(--orange);font-weight:700}
     .back{display:inline-block;margin:0 0 10px;font-weight:700;color:var(--teal);min-height:44px;line-height:44px}
     .inc li{margin:0 0 6px;color:var(--ink)}
-    .profile b{display:block}
+    .aia-line{background:var(--edit);color:var(--edit-ink);border:1px solid var(--teal);border-radius:12px;padding:10px 12px;font-size:13px;margin:8px 0}
+    .aia-line.off{background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading);border-color:var(--orange)}
     @media(max-width:640px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:420px){
       .grid{grid-template-columns:1fr}
@@ -64,21 +65,22 @@
 <body class="page-bg has-desk-nav">
   <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
-    <span class="brand-page">Marketplace</span>
+    <span class="brand-page">Packs</span>
     <div class="nav">
       <a href="/create">Create</a>
-      <a href="/examples">Examples</a>
+      <a href="/dev">Studio</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop">Drop</a>
-      <a href="/rules" data-tab="rules">Rules</a>
-      <a href="/pipes" data-tab="pipes">Pipes</a>
+      <a href="/create" data-tab="create">Create</a>
+      <a href="/history" data-tab="history">History</a>
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
   <main class="wrap" id="main">
+    <p class="aia-line off">ai.aia is the AIA Internet brand. The desk runs on automateitaway.com. Packs travel as .aia files. Collect stays HOLD.</p>
     <p class="err" id="err"></p>
     <p class="ok" id="ok"></p>
     <div id="view"></div>
@@ -86,8 +88,8 @@
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
     <a href="/drop" data-tab="drop"><span>Drop</span></a>
-    <a href="/rules" data-tab="rules"><span>Rules</span></a>
-    <a href="/pipes" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/create" data-tab="create"><span>Create</span></a>
+    <a href="/history" data-tab="history"><span>History</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="theme.js"></script>

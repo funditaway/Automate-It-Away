@@ -145,9 +145,19 @@ function loginAccount(name, pin, extra) {
   const rawEmail = extra.email || (looksLikeEmail(name) ? name : "");
   const password = extra.password || extra.pass || "";
   if (looksLikeEmail(rawEmail) && password) return loginWithEmail(rawEmail, password);
-  return plans.loginAccount(name, pin);
+  const via = plans.loginAccount(name, pin);
+  if (!via || !via.ok) return via;
+  if (via.memberLogin) {
+    via.account = homeAccount(via.person, via.desk) || via.account;
+    return via;
+  }
+  if (via.desk && (!via.account || !via.account.id)) via.account = accountForDesk(via.desk);
+  if (via.account && via.desk) connectDesk(via.account, via.desk, "owner");
+  if (via.account && !via.account.pin && via.desk && via.desk.pin) via.account.pin = via.desk.pin;
+  if (via.desk && !via.person) via.person = (via.desk.people || []).find((p) => p && p.role === "owner") || via.person;
+  return via;
 }
-function proHome(acc, person) {
+function proHome(acc, person, session) {
   const home = plans.proHome(acc, person) || { ok: true };
   if (home.account && acc) {
     home.account.email = acc.email || "";
@@ -165,7 +175,29 @@ function proHome(acc, person) {
     home.account.hasPassword = !!acc.password;
     home.account.mfaOn = !!acc.mfaOn;
     home.account.ownerName = acc.ownerName || home.account.ownerName || "";
+    home.account.handle = acc.handle || "";
+    home.account.aia = acc.aia || (acc.handle ? acc.handle + ".aia" : "");
+    home.account.internet = "AIA Internet";
+    home.account.chain = false;
+    home.account.owned = false;
+    try {
+      const connect = require("./_connect-wallet");
+      home.account.walletAddress = acc.walletAddress || "";
+      home.account.walletChainId = acc.walletChainId || 0;
+      home.account.wallet = connect.publicOf(acc, session || null);
+      home.wallet = home.account.wallet;
+    } catch (e) {}
   }
+  try {
+    const mail = require("./_aia-mail");
+    home.mail = mail.listForAccount(acc);
+    home.mx = mail.statusOf();
+    home.mailNote = mail.HOLD_NOTE;
+    if (home.account) {
+      home.account.mail = home.mail;
+      home.account.mx = mail.statusOf();
+    }
+  } catch (e) {}
   return home;
 }
 
@@ -201,6 +233,7 @@ function createOwnerAccount(body, row) {
     if (row) connectDesk(existing, row, "owner");
     if (body && body.password && !existing.password) setAccountPassword(existing, body.password);
     if (body && body.email && looksLikeEmail(body.email) && !existing.email) existing.email = emailOf(body);
+    if (!existing.pin) existing.pin = (body && body.pin ? lib.hashPin(body.pin) : (row && row.pin)) || "";
     return existing;
   }
   const acc = {

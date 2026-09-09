@@ -1,6 +1,90 @@
-const { cors, catalog, mem, ready, save, storePath, blobToken, blobProbe } = require("./_lib");
+const {
+  cors, catalog, mem, ready, save, storePath, blobToken, blobProbe,
+  workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl
+} = require("./_lib");
 
-module.exports = async function handler(req, res) {
+function wantsStatus(req) {
+  const url = String((req && req.url) || "");
+  if (/\/api\/status(?:\?|$)/.test(url)) return true;
+  const q = (req && req.query) || {};
+  return q.view === "status" || q.status === "1";
+}
+
+function honestConnection(row, answered) {
+  const id = row && row.provider;
+  if (!id) return null;
+  if (id === "whatnot") {
+    return {
+      id: row.id,
+      provider: id,
+      label: row.label || "Whatnot",
+      live: false,
+      status: "down",
+      note: "Not a launch pipe"
+    };
+  }
+  const wrote = answered.indexOf(id) >= 0;
+  return {
+    id: row.id,
+    provider: id,
+    label: row.label || id,
+    live: wrote,
+    status: wrote ? "live" : "hold",
+    note: wrote ? "Pipe wrote back." : "Hold until this pipe answers."
+  };
+}
+
+async function deskStatus(req, res) {
+  cors(res);
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "GET") return res.status(405).json({ error: "Use GET" });
+  await ready();
+
+  const workspace = workspaceOf(req);
+  const { workspace: row, person } = personOf(req, workspace);
+  const pipes = catalog();
+  const answered = answeredProviders(workspace);
+  const wrote = pipesAnswered(workspace);
+  const mine = workspace
+    ? (mem.connections || []).filter((c) => c && c.workspace === workspace && c.lane !== "draft")
+    : [];
+  const connect = require("./_connect-wallet");
+  const tld = require("./_aia-tld");
+  let wallet = connect.emptyPublic();
+  if (person) {
+    let acc = null;
+    try { acc = require("./_account").homeAccount(person, row); } catch (e) { acc = null; }
+    wallet = connect.publicOf(acc, connect.currentSession(req));
+  }
+  let aiaTld = tld.peek(wallet);
+  try { aiaTld = await tld.forWallet(wallet); } catch (e) { aiaTld = tld.emptyPublic(wallet); }
+
+  return res.status(200).json({
+    ok: true,
+    workspace: workspace || "",
+    label: row ? (row.biz || row.name || row.slug || "") : "",
+    status: wrote ? "live" : "hold",
+    answered: wrote,
+    answeredPipes: answered,
+    note: wrote
+      ? "A pipe wrote back on this desk."
+      : "Orange until a real pipe answers. Catalog matches /api/health.",
+    pipes,
+    connections: mine.map((c) => honestConnection(c, answered)).filter(Boolean),
+    inbound: workspace ? hookUrl(workspace) : "",
+    internet: require("./_aia-net").statusOf(),
+    mail: require("./_aia-mail").statusOf(),
+    wallet,
+    aiaTld,
+    honesty: {
+      rule: "hold until a real pipe answers",
+      writeback: "dispatch.ok or dispatch.inbound, never dispatch.demo",
+      catalog: "same as /api/health — webhook live; paid pipes hold unless env; whatnot down"
+    }
+  });
+}
+
+async function health(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
@@ -47,10 +131,11 @@ module.exports = async function handler(req, res) {
     automation: {
       capture: true,
       qualify: "on capture + worker",
-      do: "draft only — Send and Stop stay on the desk",
+      do: "draft only — Yes and Stop stay on the desk",
       collect: catalog().some((p) => p.live && p.id === "webhook") ? "webhook live — other paid pipes on hold" : "demo ship",
       follow: "worker + cron",
       inbound: "/api/hook",
+      mail: require("./_aia-mail").statusOf(),
       persist: (mem.driver === "blob") ? "shared blob" : "Lambda /tmp until BLOB_READ_WRITE_TOKEN",
       ownerStops: ["kill"],
       grok: {
@@ -110,10 +195,22 @@ module.exports = async function handler(req, res) {
       status: "free",
       monthly: "later per extra member or staff login",
       charged: false,
-      note: "One account per person. Session persists on the blob store. Authenticator is opt-in on /account."
+      note: "One account per person. Session persists on the blob store. Authenticator stays HOLD — not live on /account."
     },
     domain: "automateitaway.com",
     dns: "pointed",
+    internet: require("./_aia-net").statusOf(),
+    mail: require("./_aia-mail").statusOf(),
+    wallet: require("./_connect-wallet").healthBlock(),
+    aiaTld: require("./_aia-tld").healthBlock(),
     repo: "funditaway/Automate-It-Away"
   });
-};
+}
+
+async function handler(req, res) {
+  if (wantsStatus(req)) return deskStatus(req, res);
+  return health(req, res);
+}
+
+handler.status = deskStatus;
+module.exports = handler;

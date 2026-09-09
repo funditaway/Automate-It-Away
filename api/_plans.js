@@ -3,7 +3,7 @@ const PLANS = {
   desk: { id: "desk", name: "Desk", tag: "One desk", features: { desksMax: 1, extraSeats: 0, teamQueues: false, timeline: false, scheduled: false, pipes: false, agents: false, staffLogins: false, savedLogin: true, packs: false, marketplace: false, automation: "Queue and drop" }, includes: ["One desk", "Your own account", "Desks you own and sit on", "Ask or change permission", "Queue and drop"], hides: ["Account-wide team queues", "Live pipes"] },
   pro: { id: "pro", name: "Pro", tag: "Every desk", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, automation: "Full" }, includes: ["Every desk", "Your own account", "Member desks", "Ask or change permission", "Team queues", "Pipes"], hides: [] },
   crew: { id: "crew", name: "Crew", tag: "Shops and staff", features: { desksMax: 40, extraSeats: 40, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, automation: "Full + staff" }, includes: ["Many desks", "Your own account", "Member desks", "Ask or change permission", "Staff logins", "Pipes"], hides: [] },
-  dev: { id: "dev", name: "Dev", tag: "Pack creator", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, creator: true, automation: "Packs + desks" }, includes: ["Every desk", "List packs on the marketplace", "Preview priced packs", "Drop using a pack", "Ask is a tag — no card"], hides: ["Live pack checkout"] }
+  dev: { id: "dev", name: "Dev", tag: "Pack creator", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, creator: true, automation: "Packs + desks" }, includes: ["Every desk", "Creators Studio on this same account", "List packs on the marketplace", "Buy / install onto this desk", "Ask listed · Collect HOLD"], hides: ["Silent pack checkout"] }
 };
 function planOf(id) { return PLANS[String(id || "pro").toLowerCase()] || PLANS.pro; }
 function publicPlans() {
@@ -35,7 +35,8 @@ function desksForPerson(hint) {
     const hit = (w.people || []).find((p) => p && ((aid && (p.accountId === aid || p.id === aid)) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && p.pin === pin)));
     if (!hit) return;
     const ownerHit = hit.role === "owner" || hit.kind === "owner";
-    const card = { slug: w.slug, name: w.biz || w.name || w.slug, role: ownerHit ? "owner" : (hit.kind || "member"), kind: ownerHit ? "owner" : (hit.kind || "member"), status: hit.status || "approved", requestedKind: hit.requestedKind || "", personId: hit.id, yours: ownerHit ? "own" : "member" };
+    const aia = require("./_aia-net").of(w.aia || w.slug, w.slug).name;
+    const card = { slug: w.slug, name: w.biz || w.name || w.slug, aia: aia, role: ownerHit ? "owner" : (hit.kind || "member"), kind: ownerHit ? "owner" : (hit.kind || "member"), status: hit.status || "approved", requestedKind: hit.requestedKind || "", personId: hit.id, yours: ownerHit ? "own" : "member" };
     if (ownerHit) owned.push(card); else member.push(card);
   });
   return { owned, member };
@@ -59,15 +60,37 @@ function setPermission(row, id, want, actor) {
   seat.kind = kind; seat.status = "approved"; seat.requestedKind = "";
   return { ok: true, person: typeof lib.publicPerson === "function" ? lib.publicPerson(seat) : seat };
 }
+function ownerOf(desk) {
+  return ((desk && desk.people) || []).find((p) => p && p.role === "owner") || null;
+}
+
+function accountForSlug(slug, desk) {
+  return (lib.mem.accounts || []).find((a) => a && (
+    (slug && (a.slug === slug || lib.slugify(a.name) === slug || (a.desks || []).indexOf(slug) >= 0))
+    || (desk && desk.accountId && a.id === desk.accountId)
+  )) || null;
+}
+
+function pinMatches(stored, hashed) {
+  return !!(stored && hashed && stored === hashed);
+}
+
 function loginAccount(name, pin) {
   const slug = lib.slugify(name || "");
-  const hashed = lib.hashPin(pin || "");
-  const acc = (lib.mem.accounts || []).find((a) => a && (a.slug === slug || lib.slugify(a.name) === slug) && a.pin && a.pin === hashed);
-  if (acc) return { ok: true, account: acc };
-  const desk = (lib.mem.workspaces || []).find((w) => w && w.slug === slug);
-  if (desk && desk.pin === hashed) return { ok: true, account: { name: desk.biz, slug: desk.slug, desks: [desk.slug], plan: "pro", pin: desk.pin }, desk };
-  const found = lib.personOf({ headers: { "x-workspace": slug, "x-pin": pin || "" } }, slug);
-  if (found && found.person && found.person.role === "owner") return { ok: true, account: { name: found.workspace.biz, slug, desks: [slug], plan: "pro" }, desk: found.workspace, person: found.person };
+  const raw = String(pin || "");
+  const hashed = raw ? lib.hashPin(raw) : "";
+  if (!slug || !hashed) return { ok: false, status: 401, error: "Account name or code does not match." };
+  const desk = (lib.mem.workspaces || []).find((w) => w && w.slug === slug) || null;
+  if (desk && typeof lib.ensurePeople === "function") lib.ensurePeople(desk);
+  const owner = ownerOf(desk);
+  const acc = accountForSlug(slug, desk);
+  const pinOk = pinMatches(acc && acc.pin, hashed) || pinMatches(desk && desk.pin, hashed) || pinMatches(owner && owner.pin, hashed);
+  if (pinOk) {
+    const account = acc || { name: (desk && (desk.biz || desk.name)) || slug, slug, desks: desk ? [desk.slug] : [], plan: "pro", pin: (desk && desk.pin) || (owner && owner.pin) || (acc && acc.pin) || hashed };
+    return { ok: true, account, desk: desk || null, person: owner || null };
+  }
+  const found = lib.personOf({ headers: { "x-workspace": slug, "x-pin": raw } }, slug);
+  if (found && found.person && found.person.role === "owner") return { ok: true, account: acc || { name: found.workspace.biz, slug, desks: [slug], plan: "pro" }, desk: found.workspace, person: found.person };
   if (found && found.pending) return { ok: false, status: 403, pending: true, error: "That seat is waiting on the owner." };
   if (found && found.person) return { ok: true, account: { name: found.person.name, slug, desks: [], plan: "desk" }, desk: found.workspace, person: found.person, memberLogin: true };
   return { ok: false, status: 401, error: "Account name or code does not match." };

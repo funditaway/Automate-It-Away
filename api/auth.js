@@ -8,8 +8,11 @@ const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccoun
   loginWithEmail, looksLikeEmail, emailTaken, emailOf, applyAccountDetails, setAccountPassword, passwordOk, homeAccount, accountForDesk, passwordMatches
 } = require("./_account");
 const libx = require("./_lib");
+const ais = require("./_ais");
+const net = require("./_aia-net");
 
 function publicWorkspace(row) {
+  const rails = ais.railsOf(row);
   return {
     slug: row.slug,
     name: row.name,
@@ -21,7 +24,14 @@ function publicWorkspace(row) {
     nouns: ensureNouns(row),
     rules: ensureRules(row),
     fields: ensureFields(row),
-    creations: ensureCreations(row).map(publicCreation).filter(Boolean)
+    creations: ensureCreations(row).map(publicCreation).filter(Boolean),
+    ais: rails.ais,
+    aiRails: rails.rails,
+    pack: row.pack || "",
+    packName: row.packName || "",
+    aia: rails.aia,
+    internet: net.INTERNET,
+    net: rails.net
   };
 }
 
@@ -50,7 +60,7 @@ function firstJobFrom(row, body, workspace) {
     workspace,
     title: text.slice(0, 80),
     notes: text,
-    why: "From opening the desk. Human before send.",
+    why: "From opening the desk. Human before Yes.",
     status: "exception",
     step: "Qualify",
     createdAt: new Date().toISOString(),
@@ -63,7 +73,31 @@ function firstJobFrom(row, body, workspace) {
   return job;
 }
 
+function wantsAccount(req) {
+  req = req || {};
+  const q = req.query || {};
+  const url = String(req.url || "");
+  const path = url.split("?")[0];
+  const headers = req.headers || {};
+  const invoke = String(headers["x-invoke-path"] || headers["x-matched-path"] || "").split("?")[0];
+  return q.via === "account" || q.account === "1" || /[?&](?:via=account|account=1)/.test(url)
+    || /\/api\/account\/?$/.test(path) || /\/api\/account\/?$/.test(invoke);
+}
+
+function wantsDesks(req) {
+  req = req || {};
+  const q = req.query || {};
+  const url = String(req.url || "");
+  const path = url.split("?")[0];
+  const headers = req.headers || {};
+  const invoke = String(headers["x-invoke-path"] || headers["x-matched-path"] || "").split("?")[0];
+  return q.via === "desks" || q.desks === "1" || /[?&](?:via=desks|desks=1)/.test(url)
+    || /\/api\/desks\/?$/.test(path) || /\/api\/desks\/?$/.test(invoke);
+}
+
 module.exports = async function handler(req, res) {
+  if (wantsAccount(req)) return require("./_account-http")(req, res);
+  if (wantsDesks(req)) return require("./_desks-http")(req, res);
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
@@ -325,18 +359,25 @@ module.exports = async function handler(req, res) {
       ensurePeople(row);
       row.people[0].name = body.name || "Owner";
       row.people[0].email = body.email || "";
+      if (row.pin && row.people[0] && !row.people[0].pin) row.people[0].pin = row.pin;
       applyCustomOpen(row, body);
       mem.workspaces.unshift(row);
       const acc = createOwnerAccount(body, row);
+      const owner = (row.people || []).find((p) => p && p.role === "owner") || row.people[0];
       const first = firstJobFrom(row, body, slug);
+      let session = null;
+      if (typeof libx.issueSession === "function") session = libx.issueSession(owner, row, acc, req);
+      if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
       log("Auth", "Opened shop · free account · " + slug, "OK", slug);
       await save();
       return res.status(201).json({
         ok: true,
+        savedLogin: true,
+        session,
         account: { id: acc.id, name: acc.name, ownerName: acc.ownerName },
         plan: publicPlan(acc),
         workspace: publicWorkspace(row),
-        you: publicPerson((row.people || []).find((p) => p.role === "owner")),
+        you: publicPerson(owner),
         job: first,
         hint: "Full owner account. Free for now. Monthly later. Shop name + desk code opens this queue."
       });
@@ -345,13 +386,20 @@ module.exports = async function handler(req, res) {
       const hashed = hashPin(body.pin);
       const match = row.people.find((p) => p.pin === hashed) || (row.pin === hashed ? row.people[0] : null);
       if (!match) return res.status(401).json({ ok: false, error: "Desk code does not match this shop" });
+      const acc = accountForDesk(row);
+      let session = null;
+      if (typeof libx.issueSession === "function") session = libx.issueSession(match, row, acc, req);
+      if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
+      await save();
+      return res.status(201).json({
+        ok: true,
+        savedLogin: true,
+        session,
+        workspace: publicWorkspace(row),
+        you: publicPerson(match),
+        hint: "Shop name + desk code opens this queue on any phone."
+      });
     }
-    return res.status(201).json({
-      ok: true,
-      workspace: publicWorkspace(row),
-      you: publicPerson((row.people || []).find((p) => p.role === "owner")),
-      hint: "Shop name + desk code opens this queue on any phone."
-    });
   }
 
   return res.status(405).json({ error: "Use GET or POST" });

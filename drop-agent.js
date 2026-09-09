@@ -22,14 +22,14 @@
     { id: "walk-in", label: "Walk-in job", fields: ["need", "timing", "amount"], outcome: "wait" }
   ];
   var FIELDSPEC = {
-    need: { label: "What is needed", ph: "Grocery run · porch idea · Friday ride" },
-    whoFor: { label: "Who it is for", ph: "Sam" },
-    where: { label: "Where", ph: "School · shop · house" },
-    fromWhere: { label: "From", ph: "Practice" },
-    timing: { label: "When", ph: "Friday 3pm" },
-    amount: { label: "Amount note", ph: "85", mode: "decimal" },
+    need: { label: "What is needed", ph: "Grocery run · porch idea · Friday ride", tip: "drop-kind-need" },
+    whoFor: { label: "Who it is for", ph: "Sam", tip: "drop-kind-who-for" },
+    where: { label: "Where", ph: "School · shop · house", tip: "drop-kind-where" },
+    fromWhere: { label: "From", ph: "Practice", tip: "drop-kind-from" },
+    timing: { label: "When", ph: "Friday 3pm", tip: "drop-kind-when" },
+    amount: { label: "Amount note", ph: "85", mode: "decimal", tip: "drop-kind-amount" },
     condition: { label: "Condition", ph: "Good / needs clean" },
-    phone: { label: "Callback number", ph: "417-555-0100", mode: "tel" }
+    phone: { label: "Callback number", ph: "417-555-0100", mode: "tel", tip: "drop-kind-callback" }
   };
   var ACTIONS = [
     { id: "draft", label: "Draft it", hint: "Qualify and draft. Do not send." },
@@ -100,6 +100,10 @@
     sel.innerHTML = TYPES.map(function (t) { return "<option value=\"" + t.id + "\"" + (t.id === on ? " selected" : "") + ">" + t.label + "</option>"; }).join("");
     sel.value = on; return on;
   }
+  function tipMark(id, title) {
+    if (!id) return "";
+    return " <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"" + id + "\" aria-label=\"More about " + title + "\">?</button>";
+  }
   function paintKindFields(box, kindId, preset) {
     if (!box) return;
     var t = typeOf(kindId); var have = preset || {};
@@ -107,7 +111,7 @@
       var spec = FIELDSPEC[key] || { label: key, ph: "" };
       var mode = spec.mode ? (" inputmode=\"" + spec.mode + "\"") : "";
       var val = have[key] ? String(have[key]).replace(/"/g, "&quot;") : "";
-      return "<label>" + spec.label + "</label><input data-kind-field=\"" + key + "\" placeholder=\"" + spec.ph + "\"" + mode + " value=\"" + val + "\">";
+      return "<label>" + spec.label + tipMark(spec.tip, spec.label) + "</label><input data-kind-field=\"" + key + "\" placeholder=\"" + spec.ph + "\"" + mode + " value=\"" + val + "\">";
     }).join("");
   }
   function collectKindFields() {
@@ -133,8 +137,31 @@
     if (extras.need && document.getElementById("note") && !document.getElementById("note").value) document.getElementById("note").value = extras.need;
     if (extras.whoFor && document.getElementById("who") && !document.getElementById("who").value) document.getElementById("who").value = extras.whoFor;
   }
-  function deskIsOpen() { return document.body.classList.contains("desk-open") || !!(localStorage.getItem("aia_pin") && (localStorage.getItem("aia_ws") || localStorage.getItem("aia_desk"))); }
-  function isEmbed() { return document.body.classList.contains("embed"); }
+  function slugOf(s) {
+    if (window.AIADesks && AIADesks.slugify) return AIADesks.slugify(s);
+    return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+  }
+  function destSlug() {
+    var q = "";
+    try { q = slugOf(new URLSearchParams(location.search).get("ws") || ""); } catch (e) { q = ""; }
+    if (q) return q;
+    return slugOf(window.ws || (typeof localStorage !== "undefined" && localStorage.getItem("aia_ws")) || "");
+  }
+  function deskIsOpen() {
+    if (isEmbed()) return false;
+    var dest = destSlug();
+    if (!dest) return false;
+    var cur = "";
+    try { cur = slugOf(localStorage.getItem("aia_ws") || ""); } catch (e) { cur = ""; }
+    if (cur && dest !== cur) return false;
+    if (window.AIADesks && AIADesks.shopOpen) return !!AIADesks.shopOpen();
+    try {
+      return !!(cur && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
+    } catch (e) {
+      return false;
+    }
+  }
+  function isEmbed() { return document.body.classList.contains("embed") || window !== window.parent; }
   function paintActions(box, on) {
     if (!box) return on || {};
     var picked = on && typeof on === "object" ? on : {};
@@ -145,6 +172,20 @@
     var bits = ACTIONS.filter(function (a) { return picked && picked[a.id]; }).map(function (a) { return a.hint; });
     if (!bits.length) return "Advanced stays off until you tap a quick action. Nobody sends money from here.";
     return bits.join(" ") + " Nobody sends money from here.";
+  }
+  function applyInstalledPack(pack) {
+    window.__aiaDeskPack = pack && pack.id ? pack : null;
+    var sel = document.getElementById("drop-pack");
+    if (!sel) return;
+    var lab = sel.previousElementSibling;
+    var on = !!(pack && pack.id);
+    sel.hidden = on;
+    if (lab && lab.tagName === "LABEL") lab.hidden = on;
+    if (on) {
+      sel.value = "";
+      var hint = document.getElementById("action-hint");
+      if (hint) hint.textContent = (pack.name || "This pack") + " is on this desk. Drop anything — the queue card already uses that pack. You don't pick a pack each time. Nobody sends money from here.";
+    }
   }
   function collectAutomation() {
     var picked = window.__aiaActions || {}; var auto = {};
@@ -160,7 +201,8 @@
     if (!document.getElementById("kind-fields")) {
       var fields = document.createElement("div"); fields.id = "kind-fields";
       kind.parentNode.insertBefore(fields, kind.nextSibling);
-      var lab = document.createElement("label"); lab.textContent = "Preferred outcome";
+      var lab = document.createElement("label");
+      lab.innerHTML = "Preferred outcome" + tipMark("drop-outcome", "Preferred outcome");
       fields.parentNode.insertBefore(lab, fields.nextSibling);
       var chips = document.createElement("div"); chips.id = "outcome-chips"; chips.className = "outcomes who-chips";
       lab.parentNode.insertBefore(chips, lab.nextSibling);
@@ -173,12 +215,12 @@
       css.textContent = ".outcomes,.drop-actions{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}.outcomes button,.drop-actions button,.adv-toggle{flex:1;min-width:96px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer}.outcomes button.on,.drop-actions button.on,.adv-toggle.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}#pane-auto{margin-top:8px}";
       document.head.appendChild(css);
     }
-    if (isEmbed() || document.getElementById("drop-actions")) return;
+    if (isEmbed() || !deskIsOpen() || document.getElementById("drop-actions")) return;
     var after = document.getElementById("outcome-hint") || document.getElementById("outcome-chips") || kind;
     var tog = document.createElement("button"); tog.type = "button"; tog.id = "adv-toggle"; tog.className = "adv-toggle"; tog.textContent = "Advanced";
     after.parentNode.insertBefore(tog, after.nextSibling);
     var pane = document.createElement("div"); pane.id = "pane-auto"; pane.hidden = true;
-    pane.innerHTML = "<label>Quick actions</label><div class=\"drop-actions\" id=\"drop-actions\"></div><p class=\"sub\" id=\"action-hint\">Tap what the desk should do after this lands. Draft only.</p><label>Pack</label><select id=\"drop-pack\"><option value=\"\">This desk / let the engine pick</option><option value=\"home\">Home</option><option value=\"consign\">Consign</option><option value=\"vita\">Insurance</option><option value=\"fund\">Fund</option><option value=\"land\">Land</option></select><label>Hand to</label><select id=\"drop-hand\"><option value=\"\">Leave on the queue</option></select><label>Follow when</label><input id=\"drop-follow-when\" placeholder=\"Tomorrow · Friday\">";
+    pane.innerHTML = "<label>Quick actions</label><div class=\"drop-actions\" id=\"drop-actions\"></div><p class=\"sub\" id=\"action-hint\">Tap what the desk should do after this lands. Draft only.</p><label>Pack</label><select id=\"drop-pack\"><option value=\"\">This desk / let the engine pick</option><option value=\"home\">Home</option><option value=\"consign\">Consign</option><option value=\"vita\">Insurance</option><option value=\"fund\">Fund</option><option value=\"land\">Land</option><option value=\"aia-adoption\">AIA · Try it on this desk</option><option value=\"aia-implement\">AIA · Four steps on this desk</option></select><label>Hand to</label><select id=\"drop-hand\"><option value=\"\">Leave on the queue</option></select><label>Follow when</label><input id=\"drop-follow-when\" placeholder=\"Tomorrow · Friday\">";
     tog.parentNode.insertBefore(pane, tog.nextSibling);
   }
   function bootDropKinds() {
@@ -210,8 +252,11 @@
     }
     if (deskIsOpen()) {
       try {
-        var ws = localStorage.getItem("aia_ws") || ""; var pin = localStorage.getItem("aia_pin") || "";
-        var headers = { "Content-Type": "application/json" }; if (ws) headers["X-Workspace"] = ws; if (pin) headers["X-Pin"] = pin;
+        var headers = (window.AIADesks && AIADesks.authHeaders) ? AIADesks.authHeaders() : { "Content-Type": "application/json" };
+        if (!headers["X-Workspace"]) {
+          var ws = localStorage.getItem("aia_ws") || ""; var pin = localStorage.getItem("aia_pin") || "";
+          if (ws) headers["X-Workspace"] = ws; if (pin) headers["X-Pin"] = pin;
+        }
         fetch("/api/auth", { headers: headers }).then(function (r) { return r.json(); }).then(function (data) {
           var people = (data && data.workspace && data.workspace.people) || (data && data.people) || [];
           var hand = document.getElementById("drop-hand"); if (!hand || !people.length) return;
@@ -224,6 +269,7 @@
         }).catch(function () {});
       } catch (e) {}
     }
+    if (window.__aiaDeskPack && applyInstalledPack) applyInstalledPack(window.__aiaDeskPack);
     kindSel.addEventListener("change", function () {
       var t = typeOf(kindSel.value);
       paintKindFields(document.getElementById("kind-fields"), t.id);
@@ -285,5 +331,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootDropKinds);
   else bootDropKinds();
-  window.AIADropAgent = { WHO: WHO, TYPES: TYPES, OUTCOMES: OUTCOMES, ACTIONS: ACTIONS, implementFromText: implementFromText, paintWho: paintWho, paintPreview: paintPreview, paintKinds: paintKinds, paintKindFields: paintKindFields, collectKindFields: collectKindFields, paintOutcomes: paintOutcomes, typeOf: typeOf, outcomeOf: outcomeOf, applyKindToForm: applyKindToForm, bootDropKinds: bootDropKinds, firstLine: firstLine, val: val };
+  window.AIADropAgent = { WHO: WHO, TYPES: TYPES, OUTCOMES: OUTCOMES, ACTIONS: ACTIONS, implementFromText: implementFromText, paintWho: paintWho, paintPreview: paintPreview, paintKinds: paintKinds, paintKindFields: paintKindFields, collectKindFields: collectKindFields, paintOutcomes: paintOutcomes, typeOf: typeOf, outcomeOf: outcomeOf, applyKindToForm: applyKindToForm, bootDropKinds: bootDropKinds, firstLine: firstLine, val: val, destSlug: destSlug, deskIsOpen: deskIsOpen, applyInstalledPack: applyInstalledPack };
 })();

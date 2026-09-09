@@ -1,4 +1,4 @@
-const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner } = require("./_lib");
+const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf, readBody, personOf, isOwner, hookUrl } = require("./_lib");
 const crypto = require("crypto");
 
 const AI_PROVIDERS = {
@@ -92,7 +92,8 @@ const SOON = {
   google: { label: "Google search / Cloud", group: "search", acts: ["capture"], login: "https://console.cloud.google.com/", note: "Search the catalog here. Google login is Cloud credentials, not a web-search pipe." },
   maps: { label: "Google Maps", group: "search", acts: ["capture"], login: "https://console.cloud.google.com/google/maps-apis", note: "Place later." },
   zapier: { label: "Zapier", group: "search", acts: ["post"], login: "https://zapier.com/app/login", note: "Send Zaps to the inbound hook today." },
-  make: { label: "Make", group: "search", acts: ["post"], login: "https://www.make.com/", note: "Same. Hook is live." }
+  make: { label: "Make", group: "search", acts: ["post"], login: "https://www.make.com/", note: "Same. Hook is live." },
+  dotaia: { label: "AIA Internet · .aia", group: "identity", acts: ["name"], login: "", note: ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD. No on-chain claim." }
 };
 
 function soonCatalog() {
@@ -133,10 +134,7 @@ function searchPipes(q) {
 }
 
 function inboundOf(workspace) {
-  const slug = String(workspace || "");
-  return slug
-    ? "https://automateitaway.com/api/hook?workspace=" + encodeURIComponent(slug)
-    : "https://automateitaway.com/api/hook";
+  return hookUrl(workspace);
 }
 
 module.exports = async function handler(req, res) {
@@ -269,7 +267,7 @@ module.exports = async function handler(req, res) {
       return res.status(201).json({
         ok: true,
         connection: publicAi(row),
-        next: spec.label + " drafts on this desk. You still tap Send and Stop."
+        next: spec.label + " drafts on this desk. You still tap Yes or Stop."
       });
     }
 

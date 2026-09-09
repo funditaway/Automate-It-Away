@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Drop · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
   </script>
@@ -39,9 +39,16 @@
     input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--card);color:var(--ink)}
     button.go,#drop-send{border:0;border-radius:10px;padding:12px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
     button.ghost{border:1px solid var(--line);background:var(--edit);color:var(--edit-ink);border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
-    pre{background:#1a2332;color:#e6f7f7;padding:12px;border-radius:10px;font-size:11px;overflow:auto;white-space:pre-wrap}
+    pre{background:#1a2332;color:#e6f7f7;padding:12px;border-radius:10px;font-size:11px;overflow:auto;white-space:pre-wrap;word-break:break-all;user-select:all}
     .ok{margin-top:10px;color:#1b7a3d;font-size:14px;display:none}
     .err{margin-top:10px;color:var(--kill-ink);font-size:14px;display:none}
+    .ok a{color:inherit;text-decoration:underline}
+    .desk-on{margin:8px 0 0;padding:10px 12px;border-radius:10px;background:var(--edit);color:var(--edit-ink);font:700 14px/1.35 system-ui,sans-serif}
+    .desk-on.off{background:var(--banner);color:var(--banner-ink)}
+    #ok,#err,#share-ok,#desk-err{scroll-margin:12px}
+    button.go:disabled,#drop-send:disabled{opacity:.7;cursor:wait}
+    .share-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .share-actions button{flex:1;min-width:140px;margin-top:0}
     body.embed header,body.embed #desk-nav,body.embed .desk-tabs,body.embed #embed-card,body.embed #desk-pick{display:none}
     .talk-bar,.desk-pick{margin:0 0 14px}
     .desk-actions{margin-top:10px}
@@ -58,27 +65,28 @@
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
       <a href="/drop" data-tab="drop">Drop</a>
-      <a href="/rules" data-tab="rules">Rules</a>
-      <a href="/pipes" data-tab="pipes">Pipes</a>
+      <a href="/create" data-tab="create">Create</a>
+      <a href="/history" data-tab="history">History</a>
       <a href="/more" data-tab="more">More</a>
     </nav>
   </header>
   <main class="wrap">
     <h1 id="drop-title">Drop anything</h1>
-    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or No. Nobody sends money from here.</p>
+    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.</p>
     <div class="modes" id="modes">
-      <button type="button" class="on" data-mode="quick">Quick drop</button>
-      <button type="button" data-mode="custom">Custom drop</button>
-      <button type="button" data-mode="agent">Put data on</button>
+      <button type="button" class="on" data-mode="quick" aria-pressed="true">Quick drop</button>
+      <button type="button" data-mode="custom" aria-pressed="false">Custom drop</button>
+      <button type="button" data-mode="agent" aria-pressed="false">Put data on</button>
     </div>
     <div class="card desk-pick" id="desk-pick">
       <strong style="color:var(--heading)">Which desk gets this</strong>
-      <p class="sub" id="desk-pick-sub">Desks saved on this phone. Pick one, add a desk you already opened, or create a new one.</p>
+      <p class="sub" id="desk-pick-sub">Desks saved on this phone. Pick one, add a desk you already opened, or create a new desk.</p>
+      <p class="desk-on off" id="desk-on" role="status">No desk yet. Pick a saved desk, add one you already opened, or create a new desk.</p>
       <div class="desk-chips" id="desk-chips"></div>
       <div id="desk-add" hidden>
-        <label>Desk name</label>
+        <label for="add-ws">Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
         <input id="add-ws" placeholder="Oddo house" autocomplete="username">
-        <label>Desk code</label>
+        <label for="add-pin">Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
         <input id="add-pin" placeholder="Your code" inputmode="numeric" minlength="4" autocomplete="current-password">
         <button type="button" class="go" id="add-open" style="margin-top:10px">Save and open this desk</button>
       </div>
@@ -99,9 +107,9 @@
       <div class="card">
         <strong id="lane-title" style="color:var(--heading)">Drop anything. It becomes a card.</strong>
         <div id="pane-work">
-          <label>I am</label>
+          <label>I am <button type="button" class="aia-tip" data-aia-tip="drop-who" aria-label="More about I am">?</button></label>
           <div class="who-chips" id="who-chips"></div>
-          <label>What is it?</label>
+          <label for="kind">What is it? <button type="button" class="aia-tip" data-aia-tip="drop-kind" aria-label="More about What is it">?</button></label>
           <select id="kind">
             <option value="task">A task</option>
             <option value="chore">An errand</option>
@@ -134,49 +142,55 @@
             <option value="grocery">Groceries / store</option>
             <option value="custom">Custom drop</option>
           </select>
-          <label>Title</label>
+          <label for="title">Title <button type="button" class="aia-tip" data-aia-tip="drop-title" aria-label="More about Title">?</button></label>
           <input id="title" placeholder="Need a ride Friday · grocery list · porch idea">
-          <label>Your name</label>
+          <p class="sub" id="title-hint">Short name for the card. Required to drop.</p>
+          <label for="who">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
           <input id="who" placeholder="Name">
-          <label>Phone</label>
+          <label for="phone">Phone <button type="button" class="aia-tip" data-aia-tip="drop-phone" aria-label="More about Phone">?</button></label>
           <input id="phone" placeholder="417-555-0100" inputmode="tel">
-          <label>Photos, documents, or video</label>
-          <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm">
-          <p class="sub" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
-          <label>What do you need?</label>
+          <label for="photo">Photos, documents, or video <button type="button" class="aia-tip" data-aia-tip="drop-photo" aria-label="More about Photos, documents, or video">?</button></label>
+          <input id="photo" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,text/csv,video/mp4,video/quicktime,video/webm" aria-describedby="file-list">
+          <p class="sub file-list" id="file-list">Optional. Up to 8 files. Each under 8MB.</p>
+          <label for="note">What do you need? <button type="button" class="aia-tip" data-aia-tip="drop-need" aria-label="More about What do you need">?</button></label>
           <textarea id="note" rows="3" placeholder="A task, an errand, a list, an idea, a project — in your words"></textarea>
         </div>
         <div id="pane-agent" hidden>
-          <label>Paste the data</label>
+          <label for="implement">Paste the data <button type="button" class="aia-tip" data-aia-tip="drop-paste" aria-label="More about Paste the data">?</button></label>
           <textarea id="implement" rows="6" placeholder="Name: Sam&#10;Phone: 417-555-0100&#10;Need a pickup Friday 3pm&#10;Ask: $85"></textarea>
-          <label>What should the desk do with it?</label>
+          <label for="agent-tell">What should the desk do with it? <button type="button" class="aia-tip" data-aia-tip="drop-tell" aria-label="More about What should the desk do with it">?</button></label>
           <textarea id="agent-tell" rows="2" placeholder="Put this on the card. Draft the next step. Do not send."></textarea>
           <p class="sub" id="agent-preview" hidden></p>
         </div>
         <button type="button" class="go" id="drop-send">Drop it</button>
-        <p class="ok" id="ok">On the queue. Rules on this desk apply. You still tap Yes or Stop.</p>
-        <p class="err" id="err"></p>
+        <p class="ok" id="ok" role="status" aria-live="polite">On the queue. Rules on this desk apply. You still tap Yes or Stop.</p>
+        <p class="err" id="err" role="alert" aria-live="assertive"></p>
       </div>
       <div class="card" id="embed-card">
         <strong style="color:var(--heading)">Drop from anywhere</strong>
         <p class="sub">Share the link with family, a friend, a helper, or staff. They drop a task, an errand, a list, an idea, or a project. Public drop never sees money, Stop, or People.</p>
-        <label>Share this link</label>
-        <pre id="drop-link"></pre>
-        <button type="button" class="ghost" onclick="copyDropShare()">Copy drop link</button>
+        <label for="drop-link">Share this link</label>
+        <pre id="drop-link" tabindex="0"></pre>
+        <div class="share-actions">
+          <button type="button" class="ghost" id="share-copy">Copy drop link</button>
+          <button type="button" class="ghost" id="share-native" hidden>Share this drop</button>
+        </div>
+        <p class="ok" id="share-ok" role="status" aria-live="polite"></p>
       </div>
     </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
     <a href="/drop" data-tab="drop"><span>Drop</span></a>
-    <a href="/rules" data-tab="rules"><span>Rules</span></a>
-    <a href="/pipes" data-tab="pipes"><span>Pipes</span></a>
+    <a href="/create" data-tab="create"><span>Create</span></a>
+    <a href="/history" data-tab="history"><span>History</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="drop-pick.js"></script>
   <script src="drop-agent.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="speech.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
@@ -184,8 +198,11 @@
     if (embed) document.body.classList.add("embed");
     let desk = (window.AIADesks && AIADesks.captureDesk) ? AIADesks.captureDesk() : null;
     let ws = (desk && desk.slug) || "";
+    if (ws) window.ws = ws;
     let pin = localStorage.getItem("aia_pin") || "";
-    let deskOpen = !!(ws && pin);
+    let deskOpen = (window.AIADesks && AIADesks.shopOpen) ? !!AIADesks.shopOpen() : !!(ws && (pin || localStorage.getItem("aia_session")));
+    const authWs = localStorage.getItem("aia_ws");
+    if (deskOpen && ws && authWs && ws !== authWs) deskOpen = false;
     if (deskOpen) document.body.classList.add("desk-open");
     let mode = params.get("mode") || "quick";
     let whoKind = params.get("who") || "helper";
@@ -199,7 +216,9 @@
     function showMode(next) {
       mode = embed ? "quick" : (next === "agent" ? "agent" : next === "custom" ? "custom" : "quick");
       document.querySelectorAll("#modes button").forEach(function (b) {
-        b.classList.toggle("on", b.getAttribute("data-mode") === mode);
+        const on = b.getAttribute("data-mode") === mode;
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
       });
       const modesEl = document.getElementById("modes");
       if (modesEl) modesEl.hidden = !!embed;
@@ -212,11 +231,71 @@
       document.getElementById("drop-send").textContent = agent ? "Put this on the desk" : "Drop it";
       if (mode === "custom" && window.AIADropAgent && AIADropAgent.applyQuick) AIADropAgent.applyQuick("custom");
     }
-    function paintEmbed() {
-      const name = (desk && (desk.name || desk.slug)) || ws || "a desk";
-      document.getElementById("drop-title").textContent = ws ? ("Drop anything · " + name) : "Drop anything";
+    function esc(s) {
+      return String(s || "").replace(/[&<>"']/g, function (c) {
+        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
+      });
+    }
+    function deskNameOf() {
+      return (desk && (desk.name || desk.slug)) || ws || "";
+    }
+    function shareUrl() {
+      return ws ? ("https://www.automateitaway.com/drop?ws=" + encodeURIComponent(ws)) : "";
+    }
+    function sendLabel() {
+      return mode === "agent" ? "Put this on the desk" : "Drop it";
+    }
+    function showNote(el, text, isHtml) {
+      if (!el) return;
+      el.style.display = "block";
+      if (isHtml) el.innerHTML = text;
+      else el.textContent = text;
+      if (el.scrollIntoView) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+    function paintDeskOn() {
+      const el = document.getElementById("desk-on");
+      if (!el) return;
+      const name = deskNameOf();
+      if (name) {
+        el.classList.remove("off");
+        el.textContent = "This drop goes to " + name + ". Lands on that queue. You still tap Yes or Stop.";
+      } else {
+        el.classList.add("off");
+        el.textContent = "No desk yet. Pick a saved desk, add one you already opened, or create a new desk.";
+      }
+    }
+    function paintFiles() {
+      const photo = document.getElementById("photo");
+      const list = document.getElementById("file-list");
+      if (!list) return;
+      const files = photo && photo.files ? [].slice.call(photo.files, 0, 8) : [];
+      if (!files.length) {
+        list.textContent = "Optional. Up to 8 files. Each under 8MB.";
+        return;
+      }
+      const bits = files.map(function (f) {
+        return f.name + (f.size > 8000000 ? " · too big" : "");
+      });
+      const over = files.some(function (f) { return f.size > 8000000; });
+      list.textContent = files.length + (files.length === 1 ? " file rides on the card: " : " files ride on the card: ") + bits.join(", ") + (over ? ". Each file must stay under 8MB." : ".");
+    }
+    function paintShare() {
       const el = document.getElementById("drop-link");
-      if (el) el.textContent = ws ? ("https://automateitaway.com/drop?ws=" + encodeURIComponent(ws)) : "Open a desk first. Then this link appears.";
+      const copyBtn = document.getElementById("share-copy");
+      const shareBtn = document.getElementById("share-native");
+      const url = shareUrl();
+      if (el) el.textContent = url || "Pick a desk first. Then this link appears.";
+      if (copyBtn) copyBtn.disabled = !url;
+      if (shareBtn) {
+        shareBtn.hidden = !url || !navigator.share;
+        shareBtn.disabled = !url;
+      }
+    }
+    function paintEmbed() {
+      const name = deskNameOf() || "a desk";
+      document.getElementById("drop-title").textContent = ws ? ("Drop anything · " + name) : "Drop anything";
+      paintDeskOn();
+      paintShare();
     }
     async function bootDesk() {
       if (!ws) return;
@@ -226,13 +305,20 @@
         const shop = data.workspace || {};
         if ((shop.biz || shop.name) && desk) desk.name = shop.biz || shop.name;
         FIELDS = shop.fields || [];
+        window.__aiaDeskPack = shop.pack ? { id: shop.pack, name: shop.packName || shop.pack } : null;
+        if (window.AIADropAgent && AIADropAgent.applyInstalledPack) AIADropAgent.applyInstalledPack(window.__aiaDeskPack);
         const nouns = (window.AIADesks && AIADesks.nounsOf) ? AIADesks.nounsOf(shop.nouns) : null;
-        if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
-          const sub = document.getElementById("drop-sub");
-          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or No. Nobody sends money from here.";
+        const sub = document.getElementById("drop-sub");
+        if (sub && ws && shop.pack) {
+          const packName = shop.packName || "This pack";
+          const cap = (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) ? (nouns.capture + " lands here. ") : "";
+          sub.textContent = cap + packName + " is on this desk. Drop anything — the queue card already uses that pack. You don't pick a pack each time. You still tap Yes or Stop. Nobody sends money from here.";
+        } else if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
+          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or Stop. Nobody sends money from here.";
         }
       } catch (e) {}
       paintEmbed();
+      if (window.AIADropNow && AIADropNow.banner) AIADropNow.banner();
     }
     whoKind = (window.AIADropAgent && AIADropAgent.paintWho(whoKind)) || whoKind;
     const whoBox = document.getElementById("who-chips");
@@ -254,19 +340,59 @@
     });
     paintEmbed();
     bootDesk();
+    const photoEl = document.getElementById("photo");
+    if (photoEl) photoEl.addEventListener("change", paintFiles);
+    async function attachFiles(item, err) {
+      const photo = document.getElementById("photo");
+      const picked = photo && photo.files ? [].slice.call(photo.files, 0, 8) : [];
+      if (!picked.length) return true;
+      for (let i = 0; i < picked.length; i++) {
+        if (picked[i].size > 8000000) {
+          showNote(err, "Each file must stay under 8MB.");
+          return false;
+        }
+      }
+      function readFile(file) {
+        return new Promise(function (resolve, reject) {
+          const r = new FileReader();
+          r.onload = function () { resolve(r.result); };
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+      }
+      const btn = document.getElementById("drop-send");
+      if (btn) btn.textContent = picked.length === 1 ? "Saving file…" : "Saving files…";
+      const packed = [];
+      for (let j = 0; j < picked.length; j++) {
+        packed.push({ name: picked[j].name, type: picked[j].type, data: await readFile(picked[j]) });
+      }
+      const up = await fetch("/api/upload", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(packed.length === 1 ? packed[0] : { files: packed })
+      });
+      const data = await up.json().catch(function () { return {}; });
+      if (!up.ok) {
+        showNote(err, data.error || "File did not save.");
+        return false;
+      }
+      if (data.photoUrl) item.photoUrl = data.photoUrl;
+      if (Array.isArray(data.files) && data.files.length) item.files = data.files;
+      return true;
+    }
     async function send() {
       const ok = document.getElementById("ok");
       const err = document.getElementById("err");
       const btn = document.getElementById("drop-send");
       ok.style.display = "none"; err.style.display = "none";
-      if (!ws) { err.style.display = "block"; err.textContent = embed ? "This drop is missing a desk." : "Pick a desk above, add a saved one, or create a new desk."; return; }
+      if (!ws) { showNote(err, embed ? "This drop is missing a desk." : "Pick a desk above, add a saved one, or create a new desk."); return; }
       const agentOn = mode === "agent";
       const implement = ((document.getElementById("implement") && document.getElementById("implement").value) || "").trim();
       const mapped = (window.AIADropAgent && agentOn) ? AIADropAgent.implementFromText(implement, FIELDS) : {};
       const note = agentOn ? implement : document.getElementById("note").value;
       const title = document.getElementById("title").value || mapped.title || note || ((document.getElementById("custom-name") && document.getElementById("custom-name").value) || "");
       const tell = agentOn ? (((document.getElementById("agent-tell") && document.getElementById("agent-tell").value) || implement)) : "";
-      if (!String(title || tell || implement).trim()) { err.style.display = "block"; err.textContent = agentOn ? "Paste the data to put on the desk." : "Say what you need."; return; }
+      if (!String(title || tell || implement).trim()) { showNote(err, agentOn ? "Paste the data to put on the desk." : "Say what you need."); return; }
       const item = {
         action: "capture",
         kind: agentOn ? "note" : document.getElementById("kind").value,
@@ -281,32 +407,75 @@
       };
       if (agentOn && mapped.amount != null) item.amount = mapped.amount;
       if (agentOn && mapped.timing) item.timing = mapped.timing;
-      if (btn) btn.disabled = true;
+      if (btn) { btn.disabled = true; btn.textContent = "Dropping…"; }
       try {
+        if (!(await attachFiles(item, err))) return;
+        if (btn) btn.textContent = "Dropping…";
         const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(item) });
         const out = await r.json().catch(function () { return {}; });
         if (r.ok) {
-          ok.style.display = "block";
-          ok.innerHTML = "On the queue. Rules on this desk apply." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>");
+          const name = deskNameOf();
+          const dropped = String(title || "").trim().slice(0, 80);
+          showNote(ok, "On the queue" + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes or Stop." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>"), true);
           if (window.AIASpeech) AIASpeech.speak("On the queue.");
           document.getElementById("title").value = ""; document.getElementById("note").value = "";
           if (document.getElementById("implement")) document.getElementById("implement").value = "";
           if (document.getElementById("agent-tell")) document.getElementById("agent-tell").value = "";
           if (document.getElementById("photo")) document.getElementById("photo").value = "";
+          paintFiles();
           if (window.AIADropAgent) AIADropAgent.paintPreview({});
-        } else { err.style.display = "block"; err.textContent = out.error || "Could not send."; }
-      } catch (ex) { err.style.display = "block"; err.textContent = "Could not reach the desk."; }
-      finally { if (btn) btn.disabled = false; }
+        } else { showNote(err, out.error || "Could not send."); }
+      } catch (ex) { showNote(err, "Could not reach the desk."); }
+      finally { if (btn) { btn.disabled = false; btn.textContent = sendLabel(); } }
     }
     document.getElementById("drop-send").addEventListener("click", function () { send(); });
     function copyDropShare() {
+      const url = shareUrl();
+      const note = document.getElementById("share-ok");
+      if (!url) { showNote(note, "Pick a desk first. Then this link appears."); return; }
+      function copied() {
+        showNote(note, "Drop link copied. Anyone with it can send work to this desk. They never see money, Stop, or People.");
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(copied).catch(function () {
+          showNote(note, "Copy the link above.");
+        });
+        return;
+      }
       const el = document.getElementById("drop-link");
-      navigator.clipboard.writeText(el ? el.textContent : "");
-      const ok = document.getElementById("ok");
-      ok.textContent = "Drop link copied. Anyone with it can send work to this desk.";
-      ok.style.display = "block";
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand("copy");
+        copied();
+      } catch (e) { showNote(note, "Copy the link above."); }
     }
+    function shareDrop() {
+      const url = shareUrl();
+      const note = document.getElementById("share-ok");
+      if (!url) { showNote(note, "Pick a desk first. Then this link appears."); return; }
+      if (!navigator.share) { copyDropShare(); return; }
+      navigator.share({
+        title: "Drop on " + (deskNameOf() || "this desk"),
+        text: "Drop a task on this desk. You still tap Yes or Stop. Nobody sends money from here.",
+        url: url
+      }).then(function () {
+        showNote(note, "Share sheet opened. Public drop never sees money, Stop, or People.");
+      }).catch(function () {});
+    }
+    const shareCopy = document.getElementById("share-copy");
+    const shareNative = document.getElementById("share-native");
+    if (shareCopy) shareCopy.addEventListener("click", function () { copyDropShare(); });
+    if (shareNative) shareNative.addEventListener("click", function () { shareDrop(); });
     window.copyDropShare = copyDropShare;
+    window.AIADropWell = { filesFromInput: function () {
+      const photo = document.getElementById("photo");
+      return photo && photo.files ? [].slice.call(photo.files, 0, 8) : [];
+    }, paint: paintFiles };
+    window.AIADropOn = { paint: paintDeskOn, name: deskNameOf };
   </script>
 </body>
 </html>
