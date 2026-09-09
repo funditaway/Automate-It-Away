@@ -161,6 +161,8 @@ Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue h
 
 Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on `/pipes` and `/connections` say You still tap Yes or Stop. Connect-drafts flash matches. Health Do is Yes and Stop stay on the desk. Buyer binds own keys. Collect HOLD. No silent send.
 
+More leftover: `/more` `#grok-line` Yes or Stop, not “You send them. Or you Stop.” Default and grok-on name the rail. Send-it-yourself stays. Packs still never Send. Collect HOLD. No silent send.
+
 Pipes placeholder leftover: Search and On this desk webhook take a full row so the honest placeholder is not clipped on a phone. Same copy. Collect HOLD. No silent send.
 
 Pipes field tips leftover: `/pipes` and `/connections` tap `?` like How / Drop / Help. Unused `"pipes"` tip is on Search, any-site, webhook, and inbound hook. Desk name / Desk code match Drop / Login. Collect HOLD. No silent send.

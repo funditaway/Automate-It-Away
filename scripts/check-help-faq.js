@@ -79,6 +79,9 @@ must(more, "Needs you / prompt ask-who", "more.html FAQ Needs you");
 must(more, "Install / give / update a .aia with Yes", "more.html FAQ give-update");
 must(more, "Connect existing wallet", "more.html FAQ Connect");
 must(more, "not Wallet.AIA", "more.html FAQ not Wallet.AIA");
+must(more, "You tap Yes or Stop. You send the draft yourself.", "more.html grok-line Yes rail");
+must(more, "You tap Yes or Stop. Never Send.", "more.html grok-on Yes rail");
+if (more.includes("You send them. Or you Stop.")) throw new Error("more.html grok-line painted Send as the HITL rail");
 
 must(help, "A person still taps Yes or Stop.", "Help We type it in Yes or Stop");
 must(help, "you still tap Yes or Stop. You send the draft yourself.", "Help Talk tap Yes or Stop");

@@ -47,7 +47,7 @@
     <h1>This desk.</h1>
     <p>Talk to the desk on Drop. Invite a helper. Add a rule if something should wait. Same queue. Nothing leaves until you tap. Packs travel on AIA Internet as .aia files. ai.aia is the brand. The desk is automateitaway.com.</p>
     <div data-aia-playbook></div>
-    <p class="meta" id="grok-line">Drafts land on the card. You send them. Or you Stop.</p>
+    <p class="meta" id="grok-line">Drafts land on the card. You tap Yes or Stop. You send the draft yourself.</p>
     <h2>You</h2>
     <div class="card">
       <a href="/account">Your account<span>Photo, name, .aia name on AIA Internet (ai.aia), connect your MetaMask or WalletConnect (not Wallet.AIA), honest .aia TLD status, Register .aia when Bridge unlocks, .aia email for automations, desks, plan. Your wallet. AIA does not hold keys. Three doors. Continue-with is identity only. Collect and pack pay stay HOLD until Yes + real pipe.</span></a>
@@ -99,7 +99,7 @@
       const el = document.getElementById("grok-line");
       if (!el || !g) return;
       el.textContent = g.on
-        ? "Drafts are on. They land on the card. Never Send."
+        ? "Drafts are on. They land on the card. You tap Yes or Stop. Never Send."
         : "Drafts are off until a draft key is on. You still tap Yes or Stop.";
     }).catch(function () {});
   </script>
