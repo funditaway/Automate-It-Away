@@ -113,12 +113,13 @@ function wipTalkLabelOf(row) {
   const from = String((row && row.from) || "").trim();
   const kind = String((row && row.kind) || "note");
   if (kind === "follow") return (from || "pipe") + " · follow";
+  if (kind === "tell") return (from || "drop") + " · tell";
   if (/^(pipe|webhook|worker|capture)$/i.test(from)) return from + " · pipe WIP";
   return (from || "desk") + " · note";
 }
 function talkLabelOf(row, who, gone) {
   if (row.kind === "reply") return (row.from || "You") + " · you";
-  if (row.kind === "note" || row.kind === "follow") return wipTalkLabelOf(row);
+  if (row.kind === "note" || row.kind === "follow" || row.kind === "tell") return wipTalkLabelOf(row);
   if (row.kind === "ask" || row.kind === "rec") {
     if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
     if (gone) return gone + " · not on this desk";
@@ -141,7 +142,7 @@ function talkTurnsOf(j) {
   (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
     if (!t || !t.text) return;
     const k = String(t.kind || "note");
-    if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow") return;
+    if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow" && k !== "tell") return;
     add(k, t.from, t.text);
   });
   (j && Array.isArray(j.replies) ? j.replies : []).forEach(function (r) {
@@ -178,7 +179,7 @@ function threadSheetHtml(j) {
   const talks = rows.length
     ? "<div class=\"q-talk\">" + rows.map(function (row) {
       const ai = row.kind === "ask" || row.kind === "rec";
-      const you = row.kind === "reply";
+      const you = row.kind === "reply" || row.kind === "tell";
       const label = talkLabelOf(row, who, gone);
       return "<div class=\"q-turn " + (ai ? "q-turn-ai" : (you ? "q-turn-you" : "q-turn-ai")) + "\">" +
         "<div class=\"q-turn-who\">" + esc(label) + "</div>" +

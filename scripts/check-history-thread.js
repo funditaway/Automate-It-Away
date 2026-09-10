@@ -90,6 +90,7 @@ if (yesNo.indexOf("not on this desk") < 0) fail("ACCOUNT-YES-NO must record Hist
 ["function talkTurns", "function deskAiOf", "thread: thread", "thenWho", "k !== \"note\" && k !== \"follow\""].forEach(function (bit) {
   if (histSrc.indexOf(bit) < 0) fail("api/_history.js missing " + bit);
 });
+if (history.indexOf('k==="tell"') < 0) fail("History talkRows must keep tell");
 if (needs.indexOf("function wipTalkLabel") < 0 || needs.indexOf("pipe WIP") < 0) {
   fail("Cap talkHtml must label pipe WIP / note / follow");
 }
@@ -114,7 +115,8 @@ const job = {
     { kind: "reply", from: "Pat", text: "Sam at the shop", at: "2026-09-06T12:01:00Z" },
     { kind: "note", from: "desk", text: "Dropped by neighbor.", at: "2026-09-06T11:59:00Z" },
     { kind: "note", from: "pipe", text: "Pipe update.", at: "2026-09-06T12:03:00Z" },
-    { kind: "follow", from: "webhook", text: "Pipe confirmed done.", at: "2026-09-06T12:04:00Z" }
+    { kind: "follow", from: "webhook", text: "Pipe confirmed done.", at: "2026-09-06T12:04:00Z" },
+    { kind: "tell", from: "drop", text: "Not shipped. Qualify first.", at: "2026-09-06T11:58:00Z" }
   ],
   replies: [{ from: "Pat", text: "Sam at the shop" }],
   why: "James’s AI drafted on the card. Human send HOLD.",
@@ -143,6 +145,9 @@ if (!item.thread.some(function (t) { return t.kind === "note" && t.from === "pip
 if (!item.thread.some(function (t) { return t.kind === "follow" && t.text.indexOf("Pipe confirmed done") >= 0; })) {
   fail("historyItem thread must keep follow rows");
 }
+if (!item.thread.some(function (t) { return t.kind === "tell" && t.text.indexOf("Qualify first") >= 0; })) {
+  fail("historyItem thread must keep Tell AIA rows");
+}
 if (!item.replies || !item.replies.some(function (r) { return /Sam at the shop/.test(r.text || ""); })) {
   fail("historyItem must keep replies");
 }
@@ -160,6 +165,8 @@ const foundWip = hist.filterHistory([item], { q: "Pipe update" });
 if (!foundWip.length) fail("History search must find pipe WIP");
 const foundFollow = hist.filterHistory([item], { q: "Pipe confirmed done" });
 if (!foundFollow.length) fail("History search must find follow");
+const foundTell = hist.filterHistory([item], { q: "Qualify first" });
+if (!foundTell.length) fail("History search must find Tell AIA");
 const miss = hist.filterHistory([item], { q: "not-on-this-card" });
 if (miss.length) fail("History search must not invent a miss");
 
@@ -172,7 +179,8 @@ const xssJob = {
   thread: [
     { kind: "ask", from: "AI <bot>", text: "Need <phone>?" },
     { kind: "reply", from: "Sam <helper>", text: "Use <script> no" },
-    { kind: "note", from: "pipe", text: "WIP <script>x" }
+    { kind: "note", from: "pipe", text: "WIP <script>x" },
+    { kind: "tell", from: "drop", text: "Tell <script>no" }
   ],
   replies: [{ from: "Sam <helper>", text: "Use <script> no" }]
 };
@@ -205,6 +213,8 @@ if (painted.indexOf("Sam &lt;helper&gt;") < 0) fail("reply from must stay text")
 if (painted.indexOf("Use &lt;script&gt; no") < 0) fail("reply text must stay text");
 if (painted.indexOf("WIP <script>x") >= 0) fail("raw < in pipe WIP must not become markup");
 if (painted.indexOf("WIP &lt;script&gt;x") < 0) fail("pipe WIP must stay text");
+if (painted.indexOf("Tell <script>no") >= 0) fail("raw < in Tell AIA must not become markup");
+if (painted.indexOf("Tell &lt;script&gt;no") < 0) fail("Tell AIA must stay text");
 if (painted.indexOf("AI <bot>") >= 0) fail("raw < in the AI name must not become markup");
 if (painted.indexOf("Don't use <b>html</b>") >= 0) fail("raw draft markup must not land");
 if (painted.indexOf("Don&#39;t use &lt;b&gt;html&lt;/b&gt;") < 0 && painted.indexOf("Don&#39;t use") < 0) {
@@ -221,10 +231,16 @@ if (stacked.indexOf("Pipe update.") < 0) fail("History must show pipe WIP");
 if (stacked.indexOf("pipe · pipe WIP") < 0) fail("History must label pipe notes as pipe WIP");
 if (stacked.indexOf("Pipe confirmed done.") < 0) fail("History must show follow");
 if (stacked.indexOf("webhook · follow") < 0) fail("History must label follow");
+if (stacked.indexOf("Not shipped. Qualify first.") < 0) fail("History must show Tell AIA");
+if (stacked.indexOf("drop · tell") < 0) fail("History must label Tell AIA as tell");
 if (stacked.indexOf("h-turn-you") < 0 || stacked.indexOf("h-turn-ai") < 0) fail("History must mark AI and human turns");
 if (stacked.indexOf("James’s AI · Then draft") < 0 && stacked.indexOf("James") < 0) {
   fail("History must name the Then draft");
 }
+if (typeof ctx.story !== "function") fail("History must expose story");
+ctx.last = [item];
+if (ctx.story().indexOf("Qualify first") < 0) fail("History Copy story must copy Tell AIA");
+ctx.last = [];
 
 const goneJob = {
   id: "j-gone",
@@ -346,6 +362,15 @@ if (ctx.talkLabel({ kind: "note", from: "desk" }, item).indexOf("desk · note") 
 if (ctx.talkLabel({ kind: "follow", from: "webhook" }, item).indexOf("follow") < 0) {
   fail("follow must label follow");
 }
+if (ctx.talkLabel({ kind: "tell", from: "drop" }, item).indexOf("drop · tell") < 0) {
+  fail("Tell AIA must label drop · tell");
+}
+if (ctx.talkLabel({ kind: "tell", from: "drop" }, item).indexOf("Then draft") >= 0) {
+  fail("Tell AIA must not look like a Then draft");
+}
+if (ctx.talkLabel({ kind: "tell" }, goneAnonItem).indexOf("Desk AI") >= 0) {
+  fail("gone tell must not fall back to Desk AI");
+}
 if (ctx.talkLabel({ kind: "note", from: "pipe" }, item).indexOf("Then draft") >= 0) {
   fail("pipe WIP must not look like a Then draft");
 }
@@ -386,6 +411,9 @@ if (qPaint.indexOf("Pipe update.") < 0) fail("queue card must show pipe WIP");
 if (qPaint.indexOf("pipe · pipe WIP") < 0) fail("queue card must label pipe notes as pipe WIP");
 if (qPaint.indexOf("Pipe confirmed done.") < 0) fail("queue card must show follow");
 if (qPaint.indexOf("webhook · follow") < 0) fail("queue card must label follow");
+if (qPaint.indexOf("Not shipped. Qualify first.") < 0) fail("queue card must show Tell AIA");
+if (qPaint.indexOf("drop · tell") < 0) fail("queue card must label Tell AIA as tell");
+if (qPaint.indexOf("q-turn-you") < 0) fail("queue card must mark Tell AIA as a human turn");
 if (qPaint.indexOf(">Yes<") < 0 && qPaint.indexOf("Yes") < 0) fail("queue card must keep Yes human");
 if (needs.indexOf("filesHtml(j) + thread") < 0) fail("Cap loadCap must insert the thread, not only Then draft");
 const qGone = capCtx.card(goneJob, false);
@@ -432,6 +460,11 @@ if (openWip.indexOf("Dropped by neighbor") < 0) fail("open-job must show the des
 if (openWip.indexOf("desk · note") < 0) fail("open-job must label a desk note as note");
 if (openWip.indexOf("pipe · pipe WIP") < 0) fail("open-job must label pipe notes as pipe WIP");
 if (openWip.indexOf("webhook · follow") < 0) fail("open-job must label follow");
+if (openWip.indexOf("Not shipped. Qualify first.") < 0) fail("open-job must show Tell AIA");
+if (openWip.indexOf("drop · tell") < 0) fail("open-job must label Tell AIA as tell");
+if (cardCtx.talkLabelOf({ kind: "tell", from: "drop" }, "James’s AI", "").indexOf("Then draft") >= 0) {
+  fail("open-job Tell AIA must not look like a Then draft");
+}
 if (typeof cardCtx.wipTalkLabelOf !== "function") fail("open-job must expose wipTalkLabelOf");
 if (cardCtx.talkLabelOf({ kind: "note", from: "pipe" }, "James’s AI", "").indexOf("pipe WIP") < 0) {
   fail("open-job pipe note must label pipe WIP, not Then draft");
