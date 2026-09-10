@@ -21,7 +21,7 @@ const SESSION_MAX = 8;
 const LOCK_FAILS = 8;
 const LOCK_MINUTES = 15;
 const BLOB_KEY = "aia/store.json";
-const BLOB_STAMP = "put-v3";
+const BLOB_STAMP = "write-v1";
 const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null, access: null, auth: null, stamp: BLOB_STAMP, rev: null };
 const PERSIST_TEST_DROP = {
   "consign-it-away": ["job_mtegpvhk", "job_mtegkkap", "job_mtegezu8"],
@@ -442,7 +442,7 @@ function markBlobHit(access, url) {
   blobProbe.access = access === "public" ? "public" : "private";
   blobProbe.read = "ok";
   blobProbe.status = 200;
-  blobProbe.detail = null;
+  if (blobProbe.write !== "fail" && blobProbe.write !== "no-stick") blobProbe.detail = null;
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   blobProbe.url = url ? "set" : blobProbe.url;
   if (url) mem.blobUrl = url;
@@ -452,7 +452,7 @@ function markBlobEmpty(access) {
   if (access) blobProbe.access = access;
   blobProbe.read = "empty";
   blobProbe.status = 404;
-  blobProbe.detail = null;
+  if (blobProbe.write !== "fail" && blobProbe.write !== "no-stick") blobProbe.detail = null;
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
 }
 
@@ -651,8 +651,12 @@ async function blobWriteStick(blob, used) {
     const rest = await blobRestGet();
     if (rest && rest.data) return true;
   } catch (e) {}
-  const remote = await blobRead();
-  return !!remote;
+  try {
+    const remote = await blobRead();
+    return !!remote;
+  } catch (e) {
+    return false;
+  }
 }
 
 async function blobWrite() {
@@ -681,7 +685,7 @@ async function blobWrite() {
     blobProbe.write = "ok";
     blobProbe.status = 200;
     if (blobProbe.auth === "rest" || blobProbe.detail === "rest") blobProbe.detail = "rest";
-    else blobProbe.detail = used === "public" ? "sealed-public" : null;
+    else blobProbe.detail = used === "public" ? "sealed-public" : "ok";
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
     const stuck = await blobWriteStick(blob, used);
@@ -695,9 +699,48 @@ async function blobWrite() {
     return true;
   } catch (e) {
     blobProbe.write = "fail";
-    blobProbe.detail = blobErrText(e);
+    const why = blobErrText(e);
+    blobProbe.detail = why && why !== "[object Object]" ? why : "blob-fail";
     return false;
   }
+}
+
+function publicBlobDetail() {
+  const write = blobProbe.write;
+  let detail = blobProbe.detail;
+  if (write === "fail" || write === "no-stick") {
+    detail = blobErrText(detail);
+    if (!detail || detail === "[object Object]") {
+      if (blobProbe.read === "error") return "read error — will not overwrite store";
+      return write === "no-stick" ? "Blob write did not stick" : "blob-fail";
+    }
+    return detail;
+  }
+  if (write === "ok") {
+    if (detail === "rest" || blobProbe.auth === "rest") return "rest";
+    if (detail === "sealed-public" || blobProbe.access === "public") return "sealed-public";
+    return "ok";
+  }
+  if (detail == null || detail === "") return null;
+  if (typeof detail === "string" && detail !== "[object Object]") return detail;
+  const text = blobErrText(detail);
+  return text === "[object Object]" ? "blob-fail" : text;
+}
+
+function publicBlobProbe() {
+  return {
+    token: !!blobToken(),
+    storeId: !!(process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID),
+    write: blobProbe.write,
+    read: blobProbe.read,
+    status: blobProbe.status,
+    access: blobProbe.access || null,
+    auth: blobProbe.auth || null,
+    url: blobProbe.url ? "set" : null,
+    detail: publicBlobDetail(),
+    stamp: BLOB_STAMP,
+    rev: blobRev() || null
+  };
 }
 
 function readDisk() {
@@ -835,6 +878,13 @@ async function save() {
   if (blobReady()) {
     if (!blobMayWrite()) {
       mem.driver = disk;
+      if (blobProbe.write !== "ok") {
+        blobProbe.write = "fail";
+        const why = blobErrText(blobProbe.detail);
+        blobProbe.detail = why && why !== "blob-fail"
+          ? why
+          : "read error — will not overwrite store";
+      }
       return disk !== "memory-fallback";
     }
     const ok = await blobWrite();
@@ -1703,8 +1753,8 @@ function readBody(req) {
 module.exports = {
   PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
-  blobOidcReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
-  BLOB_STAMP, blobRev, blobErrText,
+  blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
+  BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,

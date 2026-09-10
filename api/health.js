@@ -1,7 +1,7 @@
 const {
-  cors, catalog, mem, ready, save, storePath, blobToken, blobProbe,
+  cors, catalog, mem, ready, save, storePath, blobToken, blobReady,
   workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl,
-  BLOB_STAMP, blobRev
+  publicBlobProbe
 } = require("./_lib");
 
 function wantsStatus(req) {
@@ -89,7 +89,9 @@ async function health(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
-  if ((blobToken() || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID) && mem.driver !== "blob") await save();
+  // Probe the same persist path onboard uses. Skipping save() when driver is
+  // already blob left leftover write=fail + detail=null after a later read.
+  if (blobReady()) await save();
   const driver = mem.driver || "file";
   res.status(200).json({
     ok: true,
@@ -111,19 +113,7 @@ async function health(req, res) {
           : driver === "file"
             ? "File store on this box"
             : "Memory only",
-      blob: {
-        token: !!blobToken(),
-        storeId: !!(process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID),
-        write: blobProbe.write,
-        read: blobProbe.read,
-        status: blobProbe.status,
-        access: blobProbe.access || null,
-        auth: blobProbe.auth || null,
-        url: blobProbe.url ? "set" : null,
-        detail: blobProbe.detail,
-        stamp: BLOB_STAMP,
-        rev: blobRev() || null
-      }
+      blob: publicBlobProbe()
     },
     files: {
       driver: blobToken() ? "blob" : "tmp-file",

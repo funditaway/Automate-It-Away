@@ -216,9 +216,16 @@ async function main() {
   if (src.indexOf("blobNeedsRetry") < 0 || src.indexOf("no blob credentials") < 0) {
     fail("_lib must retry token/REST when SDK says no blob credentials, not only on 403");
   } else pass("_lib retries token/REST on missing SDK credentials");
-  if (src.indexOf("blobErrText") < 0 || src.indexOf("BLOB_STAMP") < 0 || src.indexOf("put-v3") < 0) {
-    fail("_lib must fingerprint put-v3 and stringify nested blob errors");
-  } else pass("_lib fingerprints put-v3 and stringifies nested blob errors");
+  if (src.indexOf("blobErrText") < 0 || src.indexOf("BLOB_STAMP") < 0 || src.indexOf("write-v1") < 0) {
+    fail("_lib must fingerprint write-v1 and stringify nested blob errors");
+  } else pass("_lib fingerprints write-v1 and stringifies nested blob errors");
+  if (src.indexOf("publicBlobProbe") < 0 || src.indexOf("blobReady()") < 0) {
+    fail("_lib must expose publicBlobProbe and blobReady so health can re-probe write");
+  } else pass("_lib exposes publicBlobProbe and blobReady");
+  const healthSrc = fs.readFileSync(path.join(__dirname, "..", "api/health.js"), "utf8");
+  if (healthSrc.indexOf('mem.driver !== "blob"') >= 0) {
+    fail("health must not skip the write probe when driver is already blob");
+  } else pass("health re-probes write even when driver is already blob");
   if (src.indexOf('Buffer.from(blobSeal(body), "utf8")') < 0 || src.indexOf('"content-type": "application/json"') >= 0) {
     fail("_lib REST put must send a Buffer like upload.js, not a JSON content-type string");
   } else pass("_lib REST put sends a Buffer body like upload.js");
@@ -231,6 +238,10 @@ async function main() {
   else pass("ACCOUNT-YES-NO names Desks book leftover after blob 403 still");
   if (packMd.indexOf("Desks book leftover after blob 403 still") < 0) fail("PACK.md must name Desks book leftover after blob 403 still");
   else pass("PACK.md names Desks book leftover after blob 403 still");
+  if (yesNo.indexOf("Health write leftover after put-v3") < 0) fail("ACCOUNT-YES-NO must name Health write leftover after put-v3");
+  else pass("ACCOUNT-YES-NO names Health write leftover after put-v3");
+  if (packMd.indexOf("Health write leftover after put-v3") < 0) fail("PACK.md must name Health write leftover after put-v3");
+  else pass("PACK.md names Health write leftover after put-v3");
 
   const storeA = path.join(os.tmpdir(), "aia-blob-a-" + Date.now() + ".json");
   const { lib, auth } = boot(storeA);
@@ -283,15 +294,23 @@ async function main() {
     fail("replica health must be blob read ok, driver " + replica.lib.mem.driver + " " + JSON.stringify(replica.lib.blobProbe));
   } else pass("replica store driver is blob and read ok");
   process.env.VERCEL_GIT_COMMIT_SHA = "putv2testsha0001deadbeef";
+  replica.lib.blobProbe.write = "fail";
+  replica.lib.blobProbe.detail = null;
   const health = require("../api/health");
   const probed = await call(health, "GET");
   const finger = probed.body && probed.body.store && probed.body.store.blob;
-  if (!finger || finger.stamp !== "put-v3") {
-    fail("health must fingerprint stamp put-v3, got " + JSON.stringify(finger));
-  } else pass("health fingerprints stamp put-v3");
+  if (!finger || finger.stamp !== "write-v1") {
+    fail("health must fingerprint stamp write-v1, got " + JSON.stringify(finger));
+  } else pass("health fingerprints stamp write-v1");
   if (!finger || finger.rev !== "putv2testsha0001deadbeef") {
     fail("health must fingerprint rev from VERCEL_GIT_COMMIT_SHA, got " + JSON.stringify(finger));
   } else pass("health fingerprints rev from VERCEL_GIT_COMMIT_SHA");
+  if (!finger || finger.write !== "ok" || !finger.detail || finger.detail === "[object Object]") {
+    fail("health must re-probe write after leftover fail+null, got " + JSON.stringify(finger));
+  } else pass("health re-probes write=ok with a string detail after leftover fail+null");
+  if (finger.detail == null || String(finger.detail) === "null") {
+    fail("health write detail must never be null, got " + JSON.stringify(finger));
+  } else pass("health write detail is a real string");
 
   const mineB = await call(replica.auth, "POST", {
     "x-workspace": "probe-desk",
@@ -500,6 +519,28 @@ async function main() {
   }, { action: "mine" }, { via: "desks" });
   if (wrongC.statusCode !== 401) fail("wrong pin must still 401 after no-credentials REST, got " + wrongC.statusCode);
   else pass("wrong pin stays 401 after no-credentials REST");
+
+  fake.files = Object.create(null);
+  fake.puts = [];
+  fake.tokens = [];
+  fake.rests = [];
+  fake.putBodies = [];
+  fake.sdkFail = true;
+  fake.sdkCreds = false;
+  fake.forcePublic = false;
+  fake.restPutErr = { error: { message: { code: "denied" } } };
+  fake.restPutStatus = 403;
+  const storeHealthFail = path.join(os.tmpdir(), "aia-blob-health-fail-" + Date.now() + ".json");
+  boot(storeHealthFail);
+  const healthFail = require("../api/health");
+  const probedFail = await call(healthFail, "GET");
+  const failFinger = probedFail.body && probedFail.body.store && probedFail.body.store.blob;
+  if (!failFinger || failFinger.write !== "fail") {
+    fail("health must report write=fail when PUT does not stick, got " + JSON.stringify(failFinger));
+  } else pass("health reports write=fail when PUT does not stick");
+  if (!failFinger || !failFinger.detail || failFinger.detail === "[object Object]" || failFinger.detail === "null") {
+    fail("health fail detail must be a real string, got " + JSON.stringify(failFinger));
+  } else pass("health fail detail is a real string, not null or [object Object]");
 
   if (process.exitCode) {
     console.error("check-blob-store failed");

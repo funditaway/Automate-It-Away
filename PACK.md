@@ -183,7 +183,9 @@ Desks book leftover: after Account / mail / Desk AIs send the saved pin with lef
 
 Desks book leftover after blob: pin-with-session mine 200 in curl did not paint `/desks` owned desks. Blob `get` used `access: "private"` and 403’d on a Public store, so hydrate never left Lambda `/tmp`. Get retries public on 403; `ready()` re-reads uncached. Wrong or empty pin still 401. Collect HOLD. No silent send. No new Lambda.
 
-Desks book leftover after blob 403 still: live REST GET 404’d (empty) but PUT failed `[object Object]` / missing store id. REST put matches the SDK (`vercel.com/api/blob/?pathname=` + `x-vercel-blob-store-id`), Buffer body, sealed. Health `blob.stamp=put-v3` + `blob.rev`. Wrong pin 401. Collect HOLD.
+Desks book leftover after blob 403 still: live REST GET 404’d (empty) but PUT failed `[object Object]` / missing store id. REST put matches the SDK (`vercel.com/api/blob/?pathname=` + `x-vercel-blob-store-id`), Buffer body, sealed. Health `blob.stamp=write-v1` + `blob.rev`. Wrong pin 401. Collect HOLD.
+
+Health write leftover after put-v3: persist already stuck on www (`driver blob`, `read ok`) but health still reported `write=fail` `detail=null` because it skipped the write probe when driver was already blob. Health re-probes that same persist write. Fail detail is a real string. `blob.stamp=write-v1`. Wrong pin 401. Collect HOLD.
 
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
