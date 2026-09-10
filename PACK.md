@@ -137,7 +137,7 @@ When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk 
 
 First `.aia` pack docs live on Studio `/dev#first-pack` and match real Studio: open a desk → name a desk AI → When → If → Then (webhook is the live pipe) → buyer binds their own keys on Pipes → test via Drop or www hook → Yes / Stop / Kill before outbound → Download `.aia` (Give) or Install `.aia` with Yes (Update). Not a CLI. Not a signed DID. Not a stake publish. No AAM mainnet, paymasters, AIA token, DAO slash, DePIN, or Grandma brand.
 
-Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node, sub-agent mesh, or node canvas.
+Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node. Not a mesh of Desk AIs. Not a node canvas. Do not invent a sub-agent mesh.
 
 Ideas → queue = Drop → Qualify → card → Yes / Stop. History is past / now / next — the card trail and this account’s roadmap. No effort or token estimate UI.
 
@@ -178,6 +178,8 @@ World-home Desk AI leftover: `/` and `/how` no longer title Desk AI / bots or sa
 Examples / Setup Desk AI leftover: `/examples` no longer titles AI agent or says “Approve an AI agent.” Setup niche and demo chip say Desk AI. World cards use the firm draft-only line. Demo fixture id `agent` stays. Collect HOLD. No silent send.
 
 People / header Desk AI leftover: after People chrome said Desk AIs, card chips, open-sheet seats, the who-chip, queue handoff, Help Rules Then bind, and inbox Needs you still painted agent / an agent / which bot. Those faces now say Desk AI. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Help Pack Creator leftover: after People/header chips said Desk AI, Help `#world` still titled Workflow & Agent Pack Creator and `#desk-orch` still said sub-agent mesh. Studio already said Pack Creator (on-desk). Help now titles On-desk Pack Creator. Orchestration denies a mesh of Desk AIs — not Agent paint. Do not invent a sub-agent mesh. Seat id `agent` stays. Collect HOLD. No silent send.
 
 Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 
@@ -257,7 +259,7 @@ First 3 clients: Audit (playbook step 1 · Find the leaks) → 60s proof → ris
 
 **Expansion:** recurring update pass — Collect HOLD; do not invent a subscription engine. Industry bundles = repackage `.aia`. `$0.05/exec` micro-SaaS is off-platform or a future pipe — AIA does not host per-run billing.
 
-**Workflow & Agent Pack Creator (on-desk):** package named desk AIs, webhooks, and CRM pipes when connected into a `.aia`. Solve a specific problem (lead qualify, review responder, social *repurposing drafts*). Not auto-publish unless a live pipe exists. You set prices. Collect HOLD. Social auto-post is a future / off-platform pipe — not live OAuth. Account door: desk name + code, or email + password — not social SSO. Marketplace GTM: clear titles + niche keywords. No top-ranking guarantee.
+**On-desk Pack Creator:** package named desk AIs, webhooks, and CRM pipes when connected into a `.aia`. Solve a specific problem (lead qualify, review responder, social *repurposing drafts*). Not auto-publish unless a live pipe exists. You set prices. Collect HOLD. Social auto-post is a future / off-platform pipe — not live OAuth. Account door: desk name + code, or email + password — not social SSO. Marketplace GTM: clear titles + niche keywords. No top-ranking guarantee.
 
 **Build automation packs** (map to this desk):
 
