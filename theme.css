@@ -194,6 +194,16 @@ header nav:not(.desk-tabs),
   flex: 0 0 28px;
   isolation: isolate;
   mix-blend-mode: normal;
+  background: transparent;
+}
+header .brand-mark,
+.site-header .brand-mark {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 0;
+  background: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.28));
 }
 header > a,
 .site-header > a,
