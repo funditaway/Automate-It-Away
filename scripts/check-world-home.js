@@ -77,10 +77,22 @@ must(index, "More desks", "index more desks");
 must(index, "Collect stays HOLD until Yes + a real money pipe.", "index follow-up Collect HOLD");
 must(index, "Bill due on the card. Collect HOLD until Yes + a real money pipe.", "index Bills Collect HOLD");
 must(index, "Name your desk", "index doer copy");
+mustNot(index, "Desk AI / bots", "index Desk AI / bots title");
+mustNot(index, "A bot cannot send or pay", "index MVP bot send/pay line");
+must(index, "<b>Desk AI</b>", "index Desk AI card title");
+must(index, "Desk AIs that draft. Humans that decide.", "index Desk AI tagline");
+must(index, "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "index Desk AI firm line");
+must(yesNo, "World-home Desk AI leftover", "ACCOUNT-YES-NO names world-home Desk AI leftover");
+must(packMd, "World-home Desk AI leftover", "PACK.md names world-home Desk AI leftover");
 
 must(how, "Drop the work. You tap Yes or Stop.", "how doer copy");
 mustNot(how, "You tap yes or no.", "how Yes or No as rail");
 must(how, "Yes / Stop / Kill", "how Yes / Stop / Kill");
+mustNot(how, "Desk AI / bots", "how Desk AI / bots title");
+mustNot(how, "A bot cannot send or pay", "how MVP bot send/pay line");
+must(how, "<b>Desk AI</b>", "how Desk AI card title");
+must(how, "Desk AIs that draft. Humans that decide.", "how Desk AI tagline");
+must(how, "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "how Desk AI firm line");
 must(yesNo, "How lead / Talk / public Drop leftover", "ACCOUNT-YES-NO names How Yes-or-No leftover");
 must(packMd, "How lead / Talk / public Drop leftover", "PACK.md names How Yes-or-No leftover");
 must(yesNo, "Create / market / engine / grok leftover", "ACCOUNT-YES-NO names Create Yes-or-No leftover");
@@ -95,6 +107,8 @@ must(setup, "Collect HOLD until Yes + a real money pipe.", "setup Consign HOLD")
 must(setup, "Your MetaMask or WalletConnect", "setup wallet honesty");
 mustNot(setup, "I will send this once", "setup practice draft assistant-that-sends");
 must(setup, "Draft ready. Copy, text, or email it. AIA does not send.", "setup practice draft Desk AI voice");
+mustNot(setup, "Bots stay crew", "setup MVP bots stay crew");
+must(setup, "Desk AIs stay crew", "setup Desk AIs stay crew");
 
 mustNot(nav, "drop-pack.js", "desk-nav loads drop-pack.js");
 must(themeJs, 'id: "help", href: "/help", label: "Help"', "theme.js shared nav Help");
@@ -133,6 +147,8 @@ mustNot(helpFirst, "www.ai.aia", "help First day www.ai.aia mint door");
 
 mustNot(examples, "Hashed session", "examples hashed-session jargon");
 mustNot(examples, "X-Session", "examples X-Session jargon");
+mustNot(examples, "Bots stay crew", "examples MVP bots stay crew");
+must(examples, "Desk AIs stay crew", "examples Desk AIs stay crew");
 must(examples, "This phone remembers you", "examples stay-on-phone");
 must(examples, "Up to 8 phones", "examples eight phones");
 
