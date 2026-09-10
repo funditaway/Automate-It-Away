@@ -259,8 +259,9 @@ function packHdr(){
  if(!d)d={slug:localStorage.getItem("aia_ws")||"",pin:localStorage.getItem("aia_pin")||"",token:localStorage.getItem("aia_session")||""};
  if(d&&d.slug)h["X-Workspace"]=d.slug;
  var tok=(d&&d.token)||localStorage.getItem("aia_session")||"";
+ var pin=(d&&d.pin)||localStorage.getItem("aia_pin")||"";
  if(tok)h["X-Session"]=tok;
- else if(d&&d.pin)h["X-Pin"]=d.pin;
+ if(pin)h["X-Pin"]=pin;
  return h;
 }
 function roadFrom(data){

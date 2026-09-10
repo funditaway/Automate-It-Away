@@ -189,6 +189,8 @@ Health write leftover after put-v3: persist already stuck on www (`driver blob`,
 
 Wallet leftover: after Account / mail / Desk AIs / Desks book send the saved pin with leftover session, `aia-wallet.js` still skipped `X-Pin` when a leftover session token was present. `/desk` Connect then 401’d Sign in first even though the desk was open. Wallet now sends the saved pin with the session. Wrong code still 401. Collect HOLD. No silent send. Mint / ETH stay HOLD.
 
+History leftover: after Account / mail / Desk AIs / Desks book / wallet send the saved pin with leftover session, `/history` `packHdr()` still skipped `X-Pin` when a leftover session token was present. Trail still painted. Update pack then 403’d Only the owner can install even though the desk was open. History now sends the saved pin with the session. Wrong code still 403. Give is the file. Recurring update HOLD. Collect HOLD. No silent send.
+
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 
 Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.”

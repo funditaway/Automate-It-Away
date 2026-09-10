@@ -122,6 +122,15 @@ if (yesNo.indexOf("check-history-roadmap.js") < 0) fail("ACCOUNT-YES-NO must rec
 else pass("ACCOUNT-YES-NO records History account roadmap");
 if (yesNo.indexOf("Give pack as a silent push") < 0) fail("ACCOUNT-YES-NO must HOLD silent give");
 else pass("ACCOUNT-YES-NO HOLDs silent give");
+if (yesNo.indexOf("History leftover") < 0) fail("ACCOUNT-YES-NO must name History leftover");
+else pass("ACCOUNT-YES-NO names History leftover");
+if (packMd.indexOf("History leftover") < 0) fail("PACK.md must name History leftover");
+else pass("PACK.md names History leftover");
+if (/if\(tok\)h\["X-Session"\]=tok;\s*else if\(d&&d\.pin\)/.test(history)) {
+  fail("History packHdr must still send the open-desk pin when a session token is present");
+} else pass("History packHdr keeps X-Pin with X-Session");
+if (history.indexOf('if(pin)h["X-Pin"]=pin') < 0) fail("History packHdr must send X-Pin");
+else pass("History packHdr sends X-Pin");
 if (pkg.indexOf("check-history-roadmap.js") < 0) fail("package.json must run check-history-roadmap");
 else pass("package.json runs check-history-roadmap");
 
@@ -203,8 +212,123 @@ if (!paintSrc) {
 if (people.indexOf("accountRoadMini()") < 0) fail("People openSheet must paint accountRoadMini");
 else pass("People openSheet paints accountRoadMini");
 
-if (failed) {
-  console.error(failed + " failed");
-  process.exit(1);
+function mockRes() {
+  return {
+    headers: {},
+    statusCode: 200,
+    body: null,
+    setHeader(k, v) { this.headers[k] = v; },
+    status(c) { this.statusCode = c; return this; },
+    json(b) { this.body = b; return this; },
+    send(b) { this.body = b; return this; },
+    end() { return this; }
+  };
 }
-console.log("check-history-roadmap: ok");
+function reqOf(method, headers, body, query) {
+  return { method: method, headers: headers || {}, body: body || {}, query: query || {} };
+}
+async function call(handler, method, headers, body, query) {
+  const res = mockRes();
+  await handler(reqOf(method, headers, body, query), res);
+  return res;
+}
+
+async function leftoverMain() {
+  const store = path.join(require("os").tmpdir(), "aia-history-road-leftover-" + Date.now() + ".json");
+  process.env.AIA_STORE_PATH = store;
+  delete global.__aia;
+  delete global.__aiaHydrate;
+  ["../api/_lib", "../api/_packs", "../api/auth", "../api/_desks-http"].forEach(function (mod) {
+    try { delete require.cache[require.resolve(mod)]; } catch (e) {}
+  });
+  const lib = require("../api/_lib");
+  const packHandler = require("../api/_packs");
+  const auth = require("../api/auth");
+  const { mem, ready, save, hashPin, ensurePeople } = lib;
+  await ready();
+  const slug = "history-pack-desk";
+  const pin = "2468";
+  const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
+  const opened = await call(auth, "POST", { "x-workspace": slug }, {
+    action: "open",
+    slug: slug,
+    biz: "History Pack Desk",
+    name: "Pat",
+    pin: pin
+  });
+  if (opened.statusCode !== 201 && opened.statusCode !== 200) fail("open desk " + opened.statusCode);
+  else pass("open desk");
+  const shop = (mem.workspaces || []).find(function (w) { return w && w.slug === slug; });
+  if (!shop) fail("open desk missing workspace");
+  else {
+    ensurePeople(shop);
+    shop.pin = shop.pin || hashPin(pin);
+  }
+  const owner = { "x-workspace": slug, "x-pin": pin };
+  const packed = await call(packHandler, "POST", owner, {
+    action: "private-pack",
+    name: "History lane",
+    aia: "history-lane.aia",
+    does: "Draft the lane. Collect HOLD."
+  });
+  if (packed.statusCode !== 200 || !packed.body || !packed.body.ok) {
+    fail("private-pack " + packed.statusCode + " " + JSON.stringify(packed.body));
+  } else pass("private-pack on History desk");
+
+  const leftoverInstall = await call(packHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover
+  }, { action: "install-aia", filename: "history-lane.aia", pack: { name: "History lane", aia: "history-lane.aia", does: "Draft. Collect HOLD." } });
+  if (leftoverInstall.statusCode !== 403) {
+    fail("leftover session without pin must still 403 History install-aia, got " + leftoverInstall.statusCode);
+  } else pass("leftover session without pin stays 403 on History install-aia");
+
+  const leftoverInstallPin = await call(packHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": pin
+  }, { action: "install-aia", filename: "history-lane.aia", pack: { name: "History lane", aia: "history-lane.aia", does: "Draft. Collect HOLD." } });
+  if (leftoverInstallPin.statusCode !== 200 || !leftoverInstallPin.body || !leftoverInstallPin.body.ok) {
+    fail("leftover session + matching pin must still install-aia " + leftoverInstallPin.statusCode + " " + JSON.stringify(leftoverInstallPin.body));
+  } else pass("leftover session + pin installs .aia");
+
+  const leftoverGive = await call(packHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": pin
+  }, { action: "download-pack", id: "history-lane.aia", aia: "history-lane.aia" });
+  if (leftoverGive.statusCode !== 200) {
+    fail("leftover session + pin must still download-pack " + leftoverGive.statusCode);
+  } else pass("leftover session + pin downloads .aia");
+
+  const leftoverWrong = await call(packHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": "0000"
+  }, { action: "install-aia", filename: "history-lane.aia", pack: { name: "History lane", aia: "history-lane.aia" } });
+  if (leftoverWrong.statusCode !== 403) {
+    fail("wrong leftover pin must still 403 History install-aia, got " + leftoverWrong.statusCode);
+  } else pass("wrong leftover pin stays 403 on History install-aia");
+
+  const leftoverEmpty = await call(packHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": ""
+  }, { action: "install-aia", filename: "history-lane.aia", pack: { name: "History lane", aia: "history-lane.aia" } });
+  if (leftoverEmpty.statusCode !== 403) {
+    fail("empty leftover pin must still 403 History install-aia, got " + leftoverEmpty.statusCode);
+  } else pass("empty leftover pin stays 403 on History install-aia");
+
+  await save();
+  try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
+  if (failed) {
+    console.error(failed + " failed");
+    process.exit(1);
+  }
+  console.log("check-history-roadmap: ok");
+}
+
+leftoverMain().catch(function (e) {
+  console.error(e);
+  process.exit(1);
+});
