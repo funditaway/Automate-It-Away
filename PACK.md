@@ -181,6 +181,8 @@ People / header Desk AI leftover: after People chrome said Desk AIs, card chips,
 
 Help Pack Creator leftover: after People/header chips said Desk AI, Help `#world` still titled Workflow & Agent Pack Creator and `#desk-orch` still said sub-agent mesh. Studio already said Pack Creator (on-desk). Help now titles On-desk Pack Creator. Orchestration denies a mesh of Desk AIs — not Agent paint. Do not invent a sub-agent mesh. Seat id `agent` stays. Collect HOLD. No silent send.
 
+People Say leftover: after People chips / open-sheet seats said Desk AI, the People open-sheet Say placeholder still said human, agent, or pipe. Inbox already said Humans, Desk AIs, and connections. Say now names Desk AI. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 
 Studio Open leftover after bind: `save()` no longer re-reads the blob over in-request writes. Login keeps the open Owner desk on its own account — a later shop name that slugifies to that desk cannot take it. Wrong code still 401. No silent open. Collect HOLD. No silent send.

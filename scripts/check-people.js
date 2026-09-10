@@ -4,6 +4,7 @@ const root = path.join(__dirname, "..");
 const adminSrc = fs.readFileSync(path.join(root, "api/admin.js"), "utf8");
 const peopleHtml = fs.readFileSync(path.join(root, "people.html"), "utf8");
 const peopleJs = fs.readFileSync(path.join(root, "people.js"), "utf8");
+const peopleDesk = fs.readFileSync(path.join(root, "people-desk.js"), "utf8");
 const historyHtml = fs.readFileSync(path.join(root, "history.html"), "utf8");
 
 function fail(msg) {
@@ -42,6 +43,10 @@ if (/esc\(kindOf\(p\)\)/.test(peopleJs)) fail("people card seat chip must not pa
 else pass("people card seat chip uses kindLabel");
 if (peopleJs.indexOf("kindLabel(seat.kind") < 0) fail("people open-sheet seats must label agent Desk AI");
 else pass("people open-sheet seats use kindLabel");
+if (peopleDesk.indexOf("human, agent, or pipe") >= 0) fail("people-desk Say still says agent");
+else pass("people-desk Say does not say agent");
+if (peopleDesk.indexOf("human, Desk AI, or pipe") < 0) fail("people-desk Say must name Desk AI");
+else pass("people-desk Say names Desk AI");
 
 if (historyHtml.indexOf("params.get(\"who\")") < 0) fail("history reads ?who=");
 else pass("history reads ?who=");
