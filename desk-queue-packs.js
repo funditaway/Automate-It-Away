@@ -223,7 +223,7 @@
     var tok = localStorage.getItem("aia_session");
     if (ws) h["X-Workspace"] = ws;
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return fetch("/api/desks?packs=1", { headers: h }).then(function (r) { return r.json(); }).then(function (d) {
       CATALOG = (d && d.packs) || [];
     }).catch(function () { CATALOG = []; });

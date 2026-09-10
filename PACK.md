@@ -223,6 +223,8 @@ Wallet leftover: after Account / mail / Desk AIs / Desks book send the saved pin
 
 History leftover: after Account / mail / Desk AIs / Desks book / wallet send the saved pin with leftover session, `/history` `packHdr()` still skipped `X-Pin` when a leftover session token was present. Trail still painted. Update pack then 403’d Only the owner can install even though the desk was open. History now sends the saved pin with the session. Wrong code still 403. Give is the file. Recurring update HOLD. Collect HOLD. No silent send.
 
+Drop / Queue leftover: after History / Account / wallet send the saved pin with leftover session, Drop `AIADesks.authHeaders`, Queue pack catalog, and other-desk view still skipped `X-Pin` when a leftover session token was present. Hand to / List this desk / pack chips then 401’d even though the desk was open. Those faces now send the saved pin with the session. Wrong code still 401. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

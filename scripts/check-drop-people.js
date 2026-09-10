@@ -37,6 +37,11 @@ if (handAt < 0) fail("People fetch must stay behind deskIsOpen()");
 const hand = agent.slice(handAt, handAt + 900);
 if (hand.indexOf("drop-hand") < 0) fail("People fetch must fill #drop-hand");
 if (hand.indexOf("AIADesks.authHeaders") < 0) fail("People fetch must use AIADesks.authHeaders() on the open desk");
+const switchSrc = read("desk-switch.js");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(switchSrc)) {
+  fail("AIADesks.authHeaders must still send the open-desk pin when a session token is present");
+}
+if (switchSrc.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("AIADesks.authHeaders must send X-Pin");
 
 const now = read("drop-now.js");
 const nowDeskAt = now.indexOf("function desk()");
@@ -51,6 +56,7 @@ if (chatDesk.indexOf("cur.name || q") >= 0) fail("drop-chat.js must not greet wi
 if (chatDesk.indexOf("AIADesks.find") < 0) fail("drop-chat.js must name the link desk");
 
 const pick = read("drop-pick.js");
+if (pick.indexOf("AIADesks.authHeaders") < 0) fail("List this desk must use AIADesks.authHeaders()");
 if (/var ws = cur\.slug \|\| q/.test(pick)) fail("drop-pick.js must not prefer a leftover desk over ?ws=");
 if (pick.indexOf("q || cur.slug") < 0) fail("drop-pick.js must highlight the link desk first");
 

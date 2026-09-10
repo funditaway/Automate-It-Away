@@ -263,6 +263,35 @@ if (!morePage.includes("id=\"desk-nav\"") || !morePage.includes("href=\"/more\""
 });
 if (!process.exitCode) pass("more.html has no public crew / demo notes");
 
+const switchSrc = fs.readFileSync(path.join(root, "desk-switch.js"), "utf8");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(switchSrc)) {
+  fail("desk-switch authHeaders must still send the open-desk pin when a session token is present");
+} else pass("desk-switch authHeaders keeps X-Pin with X-Session");
+if (switchSrc.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk-switch authHeaders must send X-Pin");
+else pass("desk-switch authHeaders sends X-Pin");
+
+store.aia_ws = "pin-desk";
+store.aia_session = "leftover-tok";
+store.aia_pin = "4821";
+const hdrBoth = AIA.authHeaders();
+if (!hdrBoth["X-Session"] || hdrBoth["X-Session"] !== "leftover-tok") fail("authHeaders must keep leftover X-Session");
+else if (!hdrBoth["X-Pin"] || hdrBoth["X-Pin"] !== "4821") fail("authHeaders must send leftover X-Pin with X-Session");
+else pass("authHeaders sends leftover session + pin");
+
+const viewSrc = fs.readFileSync(path.join(root, "desk-view.js"), "utf8");
+if (/if \(desk\.token\) h\["X-Session"\] = desk\.token;\s*else if \(desk\.pin\)/.test(viewSrc)) {
+  fail("desk-view headersFor must still send the saved pin when a desk token is present");
+} else pass("desk-view headersFor keeps X-Pin with X-Session");
+if (viewSrc.indexOf('if (desk.pin) h["X-Pin"] = desk.pin') < 0) fail("desk-view headersFor must send X-Pin");
+else pass("desk-view headersFor sends X-Pin");
+
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+if (yesNo.indexOf("Drop / Queue leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Drop / Queue leftover");
+else pass("ACCOUNT-YES-NO records Drop / Queue leftover");
+if (packMd.indexOf("Drop / Queue leftover:") < 0) fail("PACK.md must record the Drop / Queue leftover");
+else pass("PACK.md records Drop / Queue leftover");
+
 const publicPages = ["index.html", "how.html", "setup.html", "login.html", "onboard.html", "help.html", "widget.html", "desk.html", "rules.html", "more.html"];
 const leaks = [
   "eBay stays on hold",
