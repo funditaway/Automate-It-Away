@@ -39,7 +39,7 @@ const pkg = read("package.json");
 });
 
 const capSrc = needs.slice(needs.indexOf("function capCardHtml"), needs.indexOf("async function loadCap"));
-if (capSrc.indexOf("promptHtml(j, need)") < 0) fail("capCardHtml must call promptHtml");
+if (capSrc.indexOf("promptHtml(j, need") < 0) fail("capCardHtml must call promptHtml");
 else pass("capCardHtml calls promptHtml");
 if (capSrc.indexOf("chipsHtml(j, need") < 0) fail("capCardHtml must call chipsHtml with cardNeeds");
 else pass("capCardHtml uses chipsHtml + cardNeeds");

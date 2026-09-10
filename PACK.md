@@ -161,6 +161,8 @@ Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue h
 
 Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on `/pipes` and `/connections` say You still tap Yes or Stop. Connect-drafts flash matches. Health Do is Yes and Stop stay on the desk. Buyer binds own keys. Collect HOLD. No silent send.
 
+More leftover: `/more` `#grok-line` Yes or Stop, not “You send them. Or you Stop.” Default and grok-on name the rail. Send-it-yourself stays. Packs still never Send. Collect HOLD. No silent send.
+
 Pipes placeholder leftover: Search and On this desk webhook take a full row so the honest placeholder is not clipped on a phone. Same copy. Collect HOLD. No silent send.
 
 Pipes field tips leftover: `/pipes` and `/connections` tap `?` like How / Drop / Help. Unused `"pipes"` tip is on Search, any-site, webhook, and inbound hook. Desk name / Desk code match Drop / Login. Collect HOLD. No silent send.
@@ -179,7 +181,7 @@ Desk AIs leftover: after the desk is open, the Desk AIs strip still skipped the 
 
 Desk AIs leftover after pin+session: GET `/api/desks` still missed Owner desks `/api/auth` just created (404 No desk; save-ai “Open a desk first.”). Preview blob 403 keeps `/tmp` per function. `api/desks.js` is folded into the auth function (`_desks-http` + `/api/auth?via=desks`) so GET/POST desks including save-ai share onboard memory. Packs stay on that same handler (`?packs=1`) — not a new Lambda. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 
-Account leftover: after Studio / mail / Desk AIs send the saved pin with leftover session, `/account` still skipped `X-Pin` when a leftover session token was present (`account.html` sent X-Session and skipped X-Pin). Boot GET 401’d and stayed on Open the account. Account now sends the saved pin with the session, and Open the account prefills Your code like Drop / Desk / Pipes / Studio. Wrong code still 401. Collect HOLD. No silent send.
+Account leftover: after Studio / mail / Desk AIs send the saved pin with leftover session, `/account` still skipped `X-Pin` when a leftover session token was present (`account.html` sent X-Session and skipped X-Pin). Boot GET 401’d and stayed on Open the account. Account now sends the saved pin with the session, and Open the account prefills Your code like Drop / Desk / Pipes / Studio. After the book opens, `#gate[hidden]` hides Open the account. Wrong code still 401. Collect HOLD. No silent send.
 
 Desks book leftover: after Account / mail / Desk AIs send the saved pin with leftover session, `/desks` still skipped `X-Pin` when a leftover session token was present (`desks-book.js` sent X-Session and skipped X-Pin). Mine 401’d and stayed on Sign in to see every desk. Mail on the same page was already open. The book now sends the saved pin with the session. Wrong code still 401. Collect HOLD. No silent send.
 
@@ -192,6 +194,10 @@ Health write leftover after put-v3: persist already stuck on www (`driver blob`,
 Wallet leftover: after Account / mail / Desk AIs / Desks book send the saved pin with leftover session, `aia-wallet.js` still skipped `X-Pin` when a leftover session token was present. `/desk` Connect then 401’d Sign in first even though the desk was open. Wallet now sends the saved pin with the session. Wrong code still 401. Collect HOLD. No silent send. Mint / ETH stay HOLD.
 
 History leftover: after Account / mail / Desk AIs / Desks book / wallet send the saved pin with leftover session, `/history` `packHdr()` still skipped `X-Pin` when a leftover session token was present. Trail still painted. Update pack then 403’d Only the owner can install even though the desk was open. History now sends the saved pin with the session. Wrong code still 403. Give is the file. Recurring update HOLD. Collect HOLD. No silent send.
+
+Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
+
+History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
 
 index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
 

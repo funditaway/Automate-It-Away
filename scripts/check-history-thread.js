@@ -48,7 +48,7 @@ if (/who\|\|row\.from\|\|"Desk AI"/.test(history.replace(/\s+/g, ""))) {
 if (needs.indexOf("const talks = talkHtml(j)") < 0 || needs.indexOf("q-thread") < 0) {
   fail("Cap cards must paint talkHtml / q-thread");
 }
-if (needs.indexOf("function capCardHtml") < 0 || needs.indexOf("promptHtml(j, need)") < 0) {
+if (needs.indexOf("function capCardHtml") < 0 || needs.indexOf("promptHtml(j, need") < 0) {
   fail("Cap cards must paint promptHtml via capCardHtml");
 }
 if (card.indexOf("function sheetPromptHtml") < 0 || card.indexOf("sheetPromptHtml(j)") < 0) {
@@ -80,6 +80,9 @@ if (history.indexOf("gone HOLD when that named AI is not on this desk") < 0) {
 if (history.indexOf("Needs you / prompt ask-who") < 0) fail("History intro must name Needs you / prompt ask-who");
 if (history.indexOf("promptHtml(it)") < 0 || history.indexOf("chipsHtml(it)") < 0) {
   fail("History threadHtml must insert promptHtml / chipsHtml");
+}
+if (history.indexOf("function storyOf") < 0 || history.indexOf("storyOf(row)") < 0) {
+  fail("History Copy story must copy storyOf");
 }
 if (yesNo.indexOf("check-history-thread.js") < 0) fail("ACCOUNT-YES-NO must record History thread");
 if (yesNo.indexOf("not on this desk") < 0) fail("ACCOUNT-YES-NO must record History gone HOLD");
