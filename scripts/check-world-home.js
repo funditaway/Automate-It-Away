@@ -109,6 +109,10 @@ mustNot(setup, "I will send this once", "setup practice draft assistant-that-sen
 must(setup, "Draft ready. Copy, text, or email it. AIA does not send.", "setup practice draft Desk AI voice");
 mustNot(setup, "Bots stay crew", "setup MVP bots stay crew");
 must(setup, "Desk AIs stay crew", "setup Desk AIs stay crew");
+mustNot(setup, 'g:"Agent"', "setup Agent niche chip");
+mustNot(setup, "Drafts then Off desk. Cannot Stop or pay.", "setup Agent MVP line");
+must(setup, 'g:"Desk AI"', "setup Desk AI niche chip");
+must(setup, "Desk AIs that draft. Humans that decide.", "setup Desk AI tagline");
 
 mustNot(nav, "drop-pack.js", "desk-nav loads drop-pack.js");
 must(themeJs, 'id: "help", href: "/help", label: "Help"', "theme.js shared nav Help");
@@ -149,8 +153,20 @@ mustNot(examples, "Hashed session", "examples hashed-session jargon");
 mustNot(examples, "X-Session", "examples X-Session jargon");
 mustNot(examples, "Bots stay crew", "examples MVP bots stay crew");
 must(examples, "Desk AIs stay crew", "examples Desk AIs stay crew");
+mustNot(examples, "AI agent", "examples AI agent title");
+mustNot(examples, "Approve an AI agent", "examples Approve an AI agent");
+mustNot(examples, "People and agents", "examples People and agents");
+mustNot(examples, "People · agents · pipes", "examples agents section");
+must(examples, "<b>Desk AI</b>", "examples Desk AI card title");
+must(examples, "Desk AIs that draft. Humans that decide.", "examples Desk AI tagline");
+must(examples, "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "examples Desk AI firm line");
 must(examples, "This phone remembers you", "examples stay-on-phone");
 must(examples, "Up to 8 phones", "examples eight phones");
+must(yesNo, "Examples / Setup Desk AI leftover", "ACCOUNT-YES-NO names Examples / Setup Desk AI leftover");
+must(packMd, "Examples / Setup Desk AI leftover", "PACK.md names Examples / Setup Desk AI leftover");
+const demoJs = read("setup-demo.js");
+mustNot(demoJs, 'label: "AI agent"', "setup-demo AI agent chip");
+must(demoJs, 'label: "Desk AI"', "setup-demo Desk AI chip");
 
 must(playbook, "compact || embed", "playbook hides DNS hold on world embed");
 must(playbook, "not a mint lesson", "playbook world embed does not teach mint");
