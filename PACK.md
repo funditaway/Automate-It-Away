@@ -167,6 +167,8 @@ Pipes field tips leftover: `/pipes` and `/connections` tap `?` like How / Drop /
 
 Desk AI field tips leftover: unused `"desk-ai"` tip is on Create **Name this desk AI** and Studio **AI 1 name** / **AI 2 name** — those fields already existed. Create start **What is it?** / **How / what** reuse Drop’s kind and need tips. Did not invent a Name-a-desk-AI field. Yes / Stop / Kill stay human. A bot cannot send or pay. Collect HOLD. No silent send.
 
+Desk AI voice leftover: Create **Name this desk AI** and Studio **AI 1 name** / **AI 2 name** now use the firm draft-only tip. Desk AIs that draft. Humans that decide. A bot cannot send, pay, or bind. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
+
 Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 
 Studio Open leftover after bind: `save()` no longer re-reads the blob over in-request writes. Login keeps the open Owner desk on its own account — a later shop name that slugifies to that desk cannot take it. Wrong code still 401. No silent open. Collect HOLD. No silent send.

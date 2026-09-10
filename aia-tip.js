@@ -92,8 +92,8 @@
       ask: "How do I Connect a wallet?"
     },
     "desk-ai": {
-      title: "Desk AI / bots",
-      body: "Name a desk AI. It drafts. Yes / Stop / Kill stay human. A bot cannot send or pay.",
+      title: "Desk AI",
+      body: "Name a desk AI. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Yes / Stop / Kill stay human.",
       ask: "What does a desk AI do?"
     },
     "pipes": {

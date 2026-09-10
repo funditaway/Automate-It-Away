@@ -195,7 +195,7 @@
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-pack\">Save draft</button></p></div>"
     );
     if (tab === "ais" || tab === "bots") return (
-      "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Bound to this desk — not a free-roaming bot. Addressed on AIA Internet as a .aia name. ai.aia is the brand. The desk runs on automateitaway.com. Drafts under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
+      "<div class=\"card\"><h2>Named desk AIs</h2><p class=\"hint\">Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Bound to this desk — not a free-roaming bot. Addressed on AIA Internet as a .aia name. ai.aia is the brand. The desk runs on automateitaway.com. Drafts under this desk’s rules. Human taps Yes / Stop / Kill. Never money or mail. Owner install is the Approve. Grok can draft these; you still tap Yes.</p>" +
       "<label>AI 1 name <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"desk-ai\" aria-label=\"More about Desk AI\">?</button></label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
       "<label>AIA Internet name</label><input id=\"ai1-aia\" placeholder=\"james.aia\">" +
       "<label>Role</label><select id=\"ai1-role\"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select>" +
