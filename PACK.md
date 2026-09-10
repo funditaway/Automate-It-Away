@@ -106,8 +106,8 @@ Pack JSON may declare one or more desk AIs. Installing the pack attaches them to
     {
       "name": "James’s AI",
       "role": "Doer",
-      "does": "Drafts desk work for this project",
-      "prompt": "Do not send. Do not invent a price.",
+      "does": "Drafts the next step and the words. Nothing sent.",
+      "prompt": "Draft ready. I cannot send, pay, or bind anything. You stay in control.",
       "steps": ["qualify", "do", "follow"],
       "deny": ["send", "stop", "money", "mail", "yes", "kill"]
     }
@@ -170,6 +170,8 @@ Pipes field tips leftover: `/pipes` and `/connections` tap `?` like How / Drop /
 Desk AI field tips leftover: unused `"desk-ai"` tip is on Create **Name this desk AI** and Studio **AI 1 name** / **AI 2 name** — those fields already existed. Create start **What is it?** / **How / what** reuse Drop’s kind and need tips. Did not invent a Name-a-desk-AI field. Yes / Stop / Kill stay human. A bot cannot send or pay. Collect HOLD. No silent send.
 
 Desk AI voice leftover: Create **Name this desk AI** and Studio **AI 1 name** / **AI 2 name** now use the firm draft-only tip. Desk AIs that draft. Humans that decide. A bot cannot send, pay, or bind. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
+
+Desk AI canon leftover: Grok SYSTEM, Studio SYSTEM, default does / prompt, and empty named-AI instructions now use Desk AI canon — not an MVP demo bot. Firm: Draft ready. I cannot send, pay, or bind anything. You stay in control. Tagline: Desk AIs that draft. Humans that decide. Named AI prompt rides in the Grok brief. Collect HOLD. No silent send.
 
 Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 

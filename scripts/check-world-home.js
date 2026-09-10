@@ -93,6 +93,8 @@ mustNot(how, "until Send", "how until Send");
 must(setup, "Add a rule if you need one", "setup doer copy");
 must(setup, "Collect HOLD until Yes + a real money pipe.", "setup Consign HOLD");
 must(setup, "Your MetaMask or WalletConnect", "setup wallet honesty");
+mustNot(setup, "I will send this once", "setup practice draft assistant-that-sends");
+must(setup, "Draft ready. Copy, text, or email it. AIA does not send.", "setup practice draft Desk AI voice");
 
 mustNot(nav, "drop-pack.js", "desk-nav loads drop-pack.js");
 must(themeJs, 'id: "help", href: "/help", label: "Help"', "theme.js shared nav Help");

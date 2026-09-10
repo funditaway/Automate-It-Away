@@ -229,7 +229,7 @@ function paintFilters() {
   var waiting = STATE.people.filter(function (p) { return p.status === "pending"; }).length;
   var several = STATE.people.filter(function (p) { return (p.desks || []).length >= 2; }).length;
   var extN = STATE.people.filter(function (p) { return extOf(p); }).length;
-  var chips = [["all", "All"], ["waiting", "Waiting" + (waiting ? " · " + waiting : "")], ["several", "Several desks" + (several ? " · " + several : "")], ["family", "Family"], ["helper", "Helpers"], ["staff", "Staff"], ["agent", "Agents"], ["ext", "Off desk" + (extN ? " · " + extN : "")]];
+  var chips = [["all", "All"], ["waiting", "Waiting" + (waiting ? " · " + waiting : "")], ["several", "Several desks" + (several ? " · " + several : "")], ["family", "Family"], ["helper", "Helpers"], ["staff", "Staff"], ["agent", "Desk AIs"], ["ext", "Off desk" + (extN ? " · " + extN : "")]];
   document.getElementById("filters").innerHTML = chips.map(function (c) {
     return "<button type=\"button\" data-f=\"" + c[0] + "\" class=\"" + (STATE.filter === c[0] ? "on" : "") + "\">" + c[1] + "</button>";
   }).join("");
@@ -293,7 +293,7 @@ function paintList() {
   var box = document.getElementById("list");
   if (!STATE.people.length) {
     if (STATE.all) box.innerHTML = "<div class=\"person empty\"><p>Nobody on your saved desks yet.</p><p class=\"meta\">Open one desk and tap Add someone.</p></div>";
-    else box.innerHTML = "<div class=\"person empty\"><p>Nobody else on this desk yet.</p><p class=\"meta\">Add family, a helper, or an approved agent.</p></div>";
+    else box.innerHTML = "<div class=\"person empty\"><p>Nobody else on this desk yet.</p><p class=\"meta\">Add family, a helper, or a named Desk AI.</p></div>";
     return;
   }
   if (!rows.length) {

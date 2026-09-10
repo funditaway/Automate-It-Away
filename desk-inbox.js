@@ -32,7 +32,7 @@
   }
   function kindLabel(p) {
     var k = String((p && p.kind) || (p && p.role) || "helper").toLowerCase();
-    if (k === "agent") return "AI agent";
+    if (k === "agent") return "Desk AI";
     if (k === "pipe" || k === "connection") return "Connection";
     if (k === "family" || k === "friend") return "Family";
     if (k === "staff") return "Staff";

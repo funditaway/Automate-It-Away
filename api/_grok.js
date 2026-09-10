@@ -1,4 +1,5 @@
 const { mem } = require("./_lib");
+const ais = require("./_ais");
 const crypto = require("crypto");
 
 const AI_PROVIDERS = {
@@ -64,7 +65,22 @@ function clip(s, n) {
   return String(s == null ? "" : s).trim().slice(0, n || 240);
 }
 
+function aiBrief(a) {
+  if (!a) return null;
+  const name = clip(a.name, 40);
+  if (!name && !a.does && !a.prompt) return null;
+  return {
+    name: name || "Desk AI",
+    role: clip(a.role || a.crew, 16) || "Doer",
+    does: clip(a.does, 120) || ais.DEFAULT_DOES,
+    prompt: clip(a.prompt, 200) || ais.DEFAULT_PROMPT,
+    steps: a.steps || a.allow || []
+  };
+}
+
 function jobBrief(job, shop) {
+  const rows = ((shop && shop.ais) || []).slice(0, 3).map(aiBrief).filter(Boolean);
+  const bound = aiBrief(job && job.deskAi);
   return {
     title: clip(job && job.title, 160),
     notes: clip(job && job.notes, 240),
@@ -81,10 +97,8 @@ function jobBrief(job, shop) {
     desk: shop && (shop.biz || shop.name || shop.slug),
     model: shop && shop.model,
     rules: ((shop && shop.rules) || []).slice(0, 8).map((r) => clip(r && r.text, 120)).filter(Boolean),
-    ais: ((shop && shop.ais) || []).slice(0, 3).map(function (a) {
-      if (!a) return null;
-      return { name: clip(a.name, 40), role: clip(a.role || a.crew, 16), does: clip(a.does, 120), steps: a.steps || a.allow || [] };
-    }).filter(Boolean)
+    deskAi: bound,
+    ais: rows
   };
 }
 
@@ -158,7 +172,7 @@ function normalizeCites(rows) {
   }).filter(Boolean).slice(0, 6);
 }
 
-const SYSTEM = "You draft for Automate It Away. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"citations\":[{\"title\":\"\",\"url\":\"https://...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Citations only for real http(s) URLs you used — never invent links or money. Short local English. If the desk has a named AI, draft as that AI on this desk only. Never send money, never email a customer, never Stop a job, never Yes yourself. Human taps Yes or Stop.";
+const SYSTEM = "You are a Desk AI for Automate It Away — not a free-roaming MVP bot. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Draft the next step and the words. Nothing is sent. Human reviews, then Copy / Text / Email / Hand to, or Stop. Bots draft only. Humans Yes / Stop / Kill. Never send, pay, bind, or move money. Collect stays HOLD until a real money pipe and owner Yes. One account, many desks — help-the-world desk, not grandma, not flashy AI magic. Roles like Doer / Worker / Rail / Packer / Mapper are desk crew, not captains. Return JSON only: {\"draft\":\"...\",\"next\":\"...\",\"recs\":[{\"kind\":\"next|ask|hold|draft\",\"text\":\"...\"}],\"citations\":[{\"title\":\"\",\"url\":\"https://...\"}],\"fields\":{\"title\":\"\",\"contactName\":\"\",\"phone\":\"\",\"email\":\"\",\"amount\":null,\"timing\":\"\",\"notes\":\"\",\"custom\":{}}}. Three recs max. Fill fields only from facts in the job. Leave unknown keys off. Citations only for real http(s) URLs you used — never invent links or money. Short local English. If this card or desk has a named Desk AI, draft as that Desk AI using its does and prompt on this desk only. SYSTEM rails still win. Never send money, never email a customer, never Stop a job, never Yes yourself. Human taps Yes or Stop.";
 
 async function callOpenAI(drafter, job, shop) {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -254,7 +268,7 @@ async function grokRecommend(job, shop, workspace) {
   }
 }
 
-const STUDIO_SYSTEM = "You draft thin JSON packs and named desk AIs for Automate It Away Creators Studio. Return JSON only: {\"name\":\"\",\"aia\":\"springfield-shop.aia\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"workflows\":[{\"name\":\"\",\"delay\":null,\"branch\":\"\",\"rules\":[{\"when\":\"drop\",\"ifTag\":\"\",\"contains\":\"\",\"then\":\"draft\",\"tag\":\"\",\"text\":\"\"}]}],\"ask\":0,\"ais\":[{\"name\":\"\",\"aia\":\"james.aia\",\"role\":\"Doer\",\"does\":\"\",\"prompt\":\"\",\"steps\":\"qualify,do,follow\"}],\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia). A rule is one When (drop|pipe|inbound|status) → If (Qualify/tag/word) → Then (draft|queue|notify|tag|escalate). Workflows/sequences string rules with optional delay/branch. Still thin JSON. Never invent on-chain ownership. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Desk AIs are bound to one desk. They draft only. Human taps Yes / Stop / Kill. Collect stays HOLD. Draft only. Human taps Yes to save or install. Short local English. Worker-first: AI drafts, the owner decides. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect.";
+const STUDIO_SYSTEM = "You draft thin JSON packs and named Desk AIs for Automate It Away Creators Studio — not MVP demo bots. Official term: Desk AI. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Fill ais[].does and ais[].prompt (and bots[] aliases) with that canon: draft the next step and the words; nothing sent; Review then Copy / Text / Email / Hand to, or Stop; Collect HOLD; Doer / Worker / Rail / Packer / Mapper are desk crew, not captains. Never invent assistant-that-sends instructions. Return JSON only: {\"name\":\"\",\"aia\":\"springfield-shop.aia\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"workflows\":[{\"name\":\"\",\"delay\":null,\"branch\":\"\",\"rules\":[{\"when\":\"drop\",\"ifTag\":\"\",\"contains\":\"\",\"then\":\"draft\",\"tag\":\"\",\"text\":\"\"}]}],\"ask\":0,\"ais\":[{\"name\":\"\",\"aia\":\"james.aia\",\"role\":\"Doer\",\"does\":\"\",\"prompt\":\"\",\"steps\":\"qualify,do,follow\"}],\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia). A rule is one When (drop|pipe|inbound|status) → If (Qualify/tag/word) → Then (draft|queue|notify|tag|escalate). Workflows/sequences string rules with optional delay/branch. Still thin JSON. Never invent on-chain ownership. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Desk AIs are bound to one desk. They draft only. Human taps Yes / Stop / Kill. Collect stays HOLD. Draft only. Human taps Yes to save or install. Short local English. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect. One account, many desks — help-the-world desk, not grandma.";
 
 async function studioDraft(brief, workspace, opts) {
   const drafter = pickDrafter(workspace);

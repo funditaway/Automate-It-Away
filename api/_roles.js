@@ -55,9 +55,9 @@ const LEVELS = {
   },
   agent: {
     id: "agent",
-    label: "AI agent",
-    who: "Approved crew seat",
-    does: "Draft onto the card after owner Approve. Never Send. Never Stop. Never money."
+    label: "Desk AI",
+    who: "Approved desk crew seat",
+    does: "Drafts the next step and the words. Nothing sent. Never Yes, Stop, pay, or bind."
   },
   owner: {
     id: "owner",

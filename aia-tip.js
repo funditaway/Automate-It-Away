@@ -93,7 +93,7 @@
     },
     "desk-ai": {
       title: "Desk AI",
-      body: "Name a desk AI. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Yes / Stop / Kill stay human.",
+      body: "Name a desk AI — not a free-roaming MVP bot. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Drafts the next step and the words. Nothing sent. Review then Copy / Text / Email / Hand to, or Stop. Yes / Stop / Kill stay human. Collect stays HOLD.",
       ask: "What does a desk AI do?"
     },
     "pipes": {

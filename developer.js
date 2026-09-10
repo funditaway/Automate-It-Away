@@ -199,16 +199,16 @@
       "<label>AI 1 name <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"desk-ai\" aria-label=\"More about Desk AI\">?</button></label><input id=\"ai1-name\" placeholder=\"James’s AI\">" +
       "<label>AIA Internet name</label><input id=\"ai1-aia\" placeholder=\"james.aia\">" +
       "<label>Role</label><select id=\"ai1-role\"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select>" +
-      "<label>What it drafts</label><input id=\"ai1-does\" placeholder=\"Draft the next step on this desk\">" +
+      "<label>What it drafts</label><input id=\"ai1-does\" placeholder=\"Drafts the next step and the words. Nothing sent.\">" +
       "<label>Steps it may draft</label><input id=\"ai1-steps\" placeholder=\"qualify, do, follow\">" +
-      "<label>Draft line</label><textarea id=\"ai1-prompt\" rows=\"2\" placeholder=\"Do not send it. Do not invent a price. Wait on Yes.\"></textarea>" +
+      "<label>Draft line</label><textarea id=\"ai1-prompt\" rows=\"2\" placeholder=\"Draft ready. I cannot send, pay, or bind anything. You stay in control.\"></textarea>" +
       "<label>AI 2 name <button type=\"button\" class=\"aia-tip\" data-aia-tip=\"desk-ai\" aria-label=\"More about Desk AI\">?</button></label><input id=\"ai2-name\" placeholder=\"Lane Worker\">" +
       "<label>AIA Internet name</label><input id=\"ai2-aia\" placeholder=\"lane-worker.aia\">" +
       "<label>Role</label><select id=\"ai2-role\"><option>Worker</option><option>Doer</option><option>Rail</option><option>Foreman</option></select>" +
-      "<label>What it drafts</label><input id=\"ai2-does\" placeholder=\"Qualify and write the follow note\">" +
+      "<label>What it drafts</label><input id=\"ai2-does\" placeholder=\"Qualifies the card and drafts the follow note. Nothing sent.\">" +
       "<label>Steps it may draft</label><input id=\"ai2-steps\" placeholder=\"qualify, follow\">" +
-      "<label>Draft line</label><textarea id=\"ai2-prompt\" rows=\"2\"></textarea>" +
-      "<p class=\"hint\">Never: Send · Stop · pay · mail · Yes itself. Collect stays HOLD.</p>" +
+      "<label>Draft line</label><textarea id=\"ai2-prompt\" rows=\"2\" placeholder=\"Draft ready. I cannot send, pay, or bind anything. You stay in control.\"></textarea>" +
+      "<p class=\"hint\">Doer, Worker, Rail, Packer, and Mapper are desk crew, not captains. Never: Send · Stop · pay · mail · Yes itself. Collect stays HOLD.</p>" +
       "<p class=\"cta\"><button class=\"go\" type=\"button\" id=\"save-ais\">Save AIs on draft</button>" +
       "<button class=\"go ghost\" type=\"button\" id=\"attach-ai\">Attach AI 1 to this desk now</button></p></div>"
     );
