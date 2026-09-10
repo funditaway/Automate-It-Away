@@ -1,6 +1,7 @@
 const {
   cors, catalog, mem, ready, save, storePath, blobToken, blobProbe,
-  workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl
+  workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl,
+  BLOB_STAMP, blobRev
 } = require("./_lib");
 
 function wantsStatus(req) {
@@ -119,7 +120,9 @@ async function health(req, res) {
         access: blobProbe.access || null,
         auth: blobProbe.auth || null,
         url: blobProbe.url ? "set" : null,
-        detail: blobProbe.detail
+        detail: blobProbe.detail,
+        stamp: BLOB_STAMP,
+        rev: blobRev() || null
       }
     },
     files: {

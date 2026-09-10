@@ -12,10 +12,23 @@ const fake = {
   heads: [],
   tokens: [],
   rests: [],
+  putBodies: [],
+  restPutErr: null,
   sdkFail: false,
   sdkCreds: false,
   forcePublic: false
 };
+
+function restPath(u) {
+  try {
+    const parsed = new URL(String(u || ""), "https://example.invalid");
+    const q = parsed.searchParams.get("pathname");
+    if (q) return q;
+    const m = String(u || "").match(/blob\.vercel-storage\.com\/(.+)$/);
+    if (m) return decodeURIComponent(m[1]);
+  } catch (e) {}
+  return BLOB_KEY;
+}
 
 function noteAuth(opts) {
   fake.tokens.push(opts && Object.prototype.hasOwnProperty.call(opts, "token") ? opts.token : undefined);
@@ -101,30 +114,45 @@ Module._load = function (request, parent, isMain) {
 const origFetch = global.fetch;
 global.fetch = async function (url, opts) {
   const u = String(url || "");
-  if (u.indexOf("blob.vercel-storage.com/") < 0) {
+  if (u.indexOf("blob.vercel-storage.com/") < 0 && u.indexOf("vercel.com/api/blob") < 0) {
     if (typeof origFetch === "function") return origFetch.apply(this, arguments);
     throw new Error("unexpected fetch " + u);
   }
   fake.rests.push((opts && opts.method) || "GET");
   const method = String((opts && opts.method) || "GET").toUpperCase();
+  const pathname = restPath(u);
   if (method === "PUT") {
-    fake.files[BLOB_KEY] = opts && opts.body;
+    if (fake.restPutErr) {
+      return {
+        ok: false,
+        status: fake.restPutStatus || 400,
+        url: u,
+        text: async () => JSON.stringify(fake.restPutErr)
+      };
+    }
+    const body = opts && opts.body;
+    fake.putBodies.push({
+      pathname,
+      isBuffer: Buffer.isBuffer(body),
+      headers: Object.assign({}, (opts && opts.headers) || {})
+    });
+    fake.files[pathname] = Buffer.isBuffer(body) ? body.toString("utf8") : String(body || "");
     fake.access = "public";
     return {
       ok: true,
       status: 200,
-      url: "https://blob.vercel-storage.com/" + BLOB_KEY,
-      text: async () => JSON.stringify({ url: "https://testhost.public.blob.vercel-storage.com/" + BLOB_KEY })
+      url: "https://blob.vercel-storage.com/" + pathname,
+      text: async () => JSON.stringify({ url: "https://testhost.public.blob.vercel-storage.com/" + pathname })
     };
   }
-  if (!fake.files[BLOB_KEY]) {
+  if (!fake.files[pathname]) {
     return { ok: false, status: 404, statusText: "Not Found", url: u, text: async () => "" };
   }
   return {
     ok: true,
     status: 200,
     url: u,
-    text: async () => fake.files[BLOB_KEY]
+    text: async () => fake.files[pathname]
   };
 };
 
@@ -162,7 +190,7 @@ function boot(storeFile) {
   delete global.__aia;
   delete global.__aiaHydrate;
   Object.keys(require.cache).forEach((id) => {
-    if (/\/api\/_lib\.js$|\/api\/auth\.js$|\/api\/_desks-http\.js$|\/api\/_account/.test(id) || /\/api\/_plans\.js$/.test(id)) {
+    if (/\/api\/_lib\.js$|\/api\/auth\.js$|\/api\/health\.js$|\/api\/_desks-http\.js$|\/api\/_account/.test(id) || /\/api\/_plans\.js$/.test(id)) {
       delete require.cache[id];
     }
   });
@@ -188,9 +216,15 @@ async function main() {
   if (src.indexOf("blobNeedsRetry") < 0 || src.indexOf("no blob credentials") < 0) {
     fail("_lib must retry token/REST when SDK says no blob credentials, not only on 403");
   } else pass("_lib retries token/REST on missing SDK credentials");
-  if (src.indexOf("x-vercel-blob-access") < 0 || src.indexOf("blobRestErr") < 0) {
-    fail("_lib REST put must send public access and stringify object errors");
-  } else pass("_lib REST put sends public access and stringifies object errors");
+  if (src.indexOf("blobErrText") < 0 || src.indexOf("BLOB_STAMP") < 0 || src.indexOf("put-v3") < 0) {
+    fail("_lib must fingerprint put-v3 and stringify nested blob errors");
+  } else pass("_lib fingerprints put-v3 and stringifies nested blob errors");
+  if (src.indexOf('Buffer.from(blobSeal(body), "utf8")') < 0 || src.indexOf('"content-type": "application/json"') >= 0) {
+    fail("_lib REST put must send a Buffer like upload.js, not a JSON content-type string");
+  } else pass("_lib REST put sends a Buffer body like upload.js");
+  if (src.indexOf("x-vercel-blob-store-id") < 0 || src.indexOf("vercel.com/api/blob/?pathname=") < 0) {
+    fail("_lib REST put must send store id and use the blob control-plane pathname URL");
+  } else pass("_lib REST put sends store id on the blob control-plane pathname URL");
   const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
   const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
   if (yesNo.indexOf("Desks book leftover after blob 403 still") < 0) fail("ACCOUNT-YES-NO must name Desks book leftover after blob 403 still");
@@ -248,6 +282,16 @@ async function main() {
   if (replica.lib.mem.driver !== "blob" || replica.lib.blobProbe.read !== "ok") {
     fail("replica health must be blob read ok, driver " + replica.lib.mem.driver + " " + JSON.stringify(replica.lib.blobProbe));
   } else pass("replica store driver is blob and read ok");
+  process.env.VERCEL_GIT_COMMIT_SHA = "putv2testsha0001deadbeef";
+  const health = require("../api/health");
+  const probed = await call(health, "GET");
+  const finger = probed.body && probed.body.store && probed.body.store.blob;
+  if (!finger || finger.stamp !== "put-v3") {
+    fail("health must fingerprint stamp put-v3, got " + JSON.stringify(finger));
+  } else pass("health fingerprints stamp put-v3");
+  if (!finger || finger.rev !== "putv2testsha0001deadbeef") {
+    fail("health must fingerprint rev from VERCEL_GIT_COMMIT_SHA, got " + JSON.stringify(finger));
+  } else pass("health fingerprints rev from VERCEL_GIT_COMMIT_SHA");
 
   const mineB = await call(replica.auth, "POST", {
     "x-workspace": "probe-desk",
@@ -339,6 +383,29 @@ async function main() {
   fake.puts = [];
   fake.tokens = [];
   fake.rests = [];
+  fake.putBodies = [];
+  fake.forcePublic = false;
+  fake.sdkFail = true;
+  fake.access = "private";
+  fake.restPutErr = { error: { code: "store_mismatch", message: { why: "denied" } } };
+  const storeFail = path.join(os.tmpdir(), "aia-blob-fail-" + Date.now() + ".json");
+  const failed = boot(storeFail);
+  await failed.lib.ready();
+  await failed.lib.blobWrite();
+  const failDetail = String(failed.lib.blobProbe.detail || "");
+  if (failed.lib.blobProbe.write !== "fail") {
+    fail("REST object error must mark write fail, probe " + JSON.stringify(failed.lib.blobProbe));
+  } else if (failDetail.indexOf("[object Object]") >= 0) {
+    fail("REST object error must not stringify to [object Object], got " + failDetail);
+  } else if (failDetail.indexOf("denied") < 0 && failDetail.indexOf("store_mismatch") < 0) {
+    fail("REST object error must keep a real API message, got " + failDetail);
+  } else pass("REST object error detail is a real string, not [object Object]");
+  fake.restPutErr = null;
+  fake.files = Object.create(null);
+  fake.puts = [];
+  fake.tokens = [];
+  fake.rests = [];
+  fake.putBodies = [];
   fake.forcePublic = false;
   fake.sdkFail = true;
   fake.access = "private";
@@ -354,7 +421,15 @@ async function main() {
   if (onboardR.statusCode !== 201 || rested.lib.mem.driver !== "blob" || rested.lib.blobProbe.read !== "ok") {
     fail("SDK 403 must REST-stick onboard, got " + onboardR.statusCode + " driver " + rested.lib.mem.driver + " " + JSON.stringify(rested.lib.blobProbe));
   } else pass("SDK 403 REST-sticks onboard as driver blob read ok");
-  const restStored = fake.files[BLOB_KEY] || "";
+  const firstPut = fake.putBodies[0];
+  if (!firstPut || !firstPut.isBuffer) {
+    fail("REST put must send a Buffer body like upload.js, got " + JSON.stringify(firstPut));
+  } else if (firstPut.headers && firstPut.headers["content-type"]) {
+    fail("REST put must not send JSON content-type, headers " + JSON.stringify(firstPut.headers));
+  } else if (!firstPut.headers || firstPut.headers["x-vercel-blob-store-id"] !== "testhost") {
+    fail("REST put must send x-vercel-blob-store-id, headers " + JSON.stringify(firstPut && firstPut.headers));
+  } else pass("REST put sends Buffer, store id, and no JSON content-type");
+  const restStored = fake.files["aia-store.json"] || fake.files[BLOB_KEY] || "";
   let restJson = null;
   try { restJson = JSON.parse(restStored); } catch (e) { restJson = null; }
   if (!restJson || restJson.aia !== "aia-blob-1" || restJson.workspaces) {
@@ -390,6 +465,7 @@ async function main() {
   fake.puts = [];
   fake.tokens = [];
   fake.rests = [];
+  fake.putBodies = [];
   fake.sdkFail = false;
   fake.sdkCreds = true;
   fake.forcePublic = false;

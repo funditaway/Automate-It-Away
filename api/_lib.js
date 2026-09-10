@@ -21,7 +21,8 @@ const SESSION_MAX = 8;
 const LOCK_FAILS = 8;
 const LOCK_MINUTES = 15;
 const BLOB_KEY = "aia/store.json";
-const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null, access: null, auth: null };
+const BLOB_STAMP = "put-v3";
+const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null, access: null, auth: null, stamp: BLOB_STAMP, rev: null };
 const PERSIST_TEST_DROP = {
   "consign-it-away": ["job_mtegpvhk", "job_mtegkkap", "job_mtegezu8"],
   "p1-synth": ["job_mtemdqeq", "job_mtemdpyc", "job_mtemdpc3"],
@@ -91,6 +92,38 @@ function blobToken() {
     || "";
 }
 
+function blobRev() {
+  return String(process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 40);
+}
+
+function blobErrText(e) {
+  if (e == null) return "blob-fail";
+  if (typeof e === "string") {
+    const s = e.trim();
+    if (!s || s === "[object Object]") return "blob-fail";
+    return s.slice(0, 180);
+  }
+  if (typeof e === "number" || typeof e === "boolean") return String(e);
+  const msg = e && e.message;
+  if (typeof msg === "string" && msg && msg !== "[object Object]") return msg.slice(0, 180);
+  if (msg && typeof msg === "object" && msg !== e) {
+    const inner = blobErrText(msg);
+    if (inner !== "blob-fail") return inner;
+  }
+  const nested = e && (e.error || e.cause);
+  if (nested && nested !== e) {
+    const inner = blobErrText(nested);
+    if (inner !== "blob-fail") return inner;
+  }
+  if (e && typeof e === "object") {
+    try {
+      const json = JSON.stringify(e);
+      if (json && json !== "{}" && json !== "[]") return json.slice(0, 180);
+    } catch (x) {}
+  }
+  return "blob-fail";
+}
+
 function blobStoreId() {
   return process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || "";
 }
@@ -139,20 +172,41 @@ async function blobTryAuth(run) {
 const BLOB_REST_KEY = "aia-store.json";
 
 function blobRestErr(json, text, status) {
-  const err = json && (json.error || json.message);
-  if (err && typeof err === "object") {
-    return String(err.message || err.code || JSON.stringify(err)).slice(0, 180);
+  const fromJson = blobErrText(json && (json.error || json.message || json));
+  if (fromJson && fromJson !== "blob-fail") return fromJson.slice(0, 180);
+  if (text && text !== "[object Object]") {
+    const t = String(text).trim();
+    if (t) return t.slice(0, 180);
   }
-  if (err) return String(err).slice(0, 180);
-  if (text && text !== "[object Object]") return String(text).slice(0, 180);
   return ("rest-" + (status || "fail")).slice(0, 180);
 }
 
+function blobRestStoreId() {
+  const env = blobStoreId();
+  if (env) return env;
+  const t = blobToken();
+  if (/^vercel_blob_rw_/.test(t)) {
+    const parts = t.split("_");
+    return parts[3] || "";
+  }
+  return "";
+}
+
 function blobRestHeaders(extra) {
-  return Object.assign({
+  const headers = {
     Authorization: "Bearer " + blobToken(),
     "x-api-version": "7"
-  }, extra || {});
+  };
+  const storeId = blobRestStoreId();
+  if (storeId) headers["x-vercel-blob-store-id"] = storeId;
+  return Object.assign(headers, extra || {});
+}
+
+function blobRestPutUrls(name) {
+  return [
+    "https://vercel.com/api/blob/?pathname=" + encodeURIComponent(name),
+    "https://blob.vercel-storage.com/" + name
+  ];
 }
 
 async function blobRestGet() {
@@ -185,31 +239,36 @@ async function blobRestGet() {
 
 async function blobRestPut(body) {
   if (!blobToken()) throw new Error("Vercel Blob: no BLOB_READ_WRITE_TOKEN");
-  const payload = blobSeal(body);
+  const payload = Buffer.from(blobSeal(body), "utf8");
   const names = [BLOB_REST_KEY, BLOB_KEY];
   const variants = [
     {
-      "content-type": "application/json",
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0"
+    },
+    {
+      "x-content-type": "application/json",
+      "x-add-random-suffix": "0",
+      "x-allow-overwrite": "1"
+    },
+    {
       "x-content-type": "application/json",
       "x-add-random-suffix": "0",
       "x-vercel-blob-access": "public"
     },
     {
-      "content-type": "application/json",
       "x-content-type": "application/json",
       "x-add-random-suffix": "0",
       "x-vercel-blob-access": "public",
       "x-allow-overwrite": "1"
-    },
-    {
-      "x-content-type": "application/json",
-      "x-add-random-suffix": "0"
     }
   ];
   let last = "rest put failed";
   for (let n = 0; n < names.length; n++) {
+    const urls = blobRestPutUrls(names[n]);
+    for (let u = 0; u < urls.length; u++) {
     for (let v = 0; v < variants.length; v++) {
-      const r = await fetch("https://blob.vercel-storage.com/" + names[n], {
+      const r = await fetch(urls[u], {
         method: "PUT",
         headers: blobRestHeaders(variants[v]),
         body: payload
@@ -226,6 +285,7 @@ async function blobRestPut(body) {
         };
       }
       last = blobRestErr(json, text, r.status);
+    }
     }
   }
   throw new Error(last);
@@ -403,7 +463,7 @@ async function blobHeadMeta() {
     if (!meta) return { empty: true };
     return { meta };
   } catch (e) {
-    const msg = String((e && e.message) || e);
+    const msg = blobErrText(e);
     if (blobMissing(msg)) return { empty: true };
     throw e;
   }
@@ -465,8 +525,8 @@ async function blobRead() {
       return null;
     }
   } catch (e) {
-    const msg = String((e && e.message) || e);
-    lastErr = msg.slice(0, 180);
+    const msg = blobErrText(e);
+    lastErr = msg;
     if (blobMissing(msg)) {
       markBlobEmpty(blobProbe.access || "private");
       return null;
@@ -478,7 +538,7 @@ async function blobRead() {
         if (rest) return rest;
         if (blobProbe.read === "empty") return null;
       } catch (re) {
-        lastErr = String((re && re.message) || re).slice(0, 180);
+        lastErr = blobErrText(re);
       }
     } else {
       try {
@@ -486,7 +546,7 @@ async function blobRead() {
         if (rest) return rest;
         if (blobProbe.read === "empty") return null;
       } catch (re) {
-        lastErr = String((re && re.message) || re).slice(0, 180);
+        lastErr = blobErrText(re);
       }
       blobProbe.read = "error";
       blobProbe.detail = lastErr;
@@ -516,8 +576,8 @@ async function blobRead() {
       markBlobEmpty(access);
       return null;
     } catch (e) {
-      const msg = String((e && e.message) || e);
-      lastErr = msg.slice(0, 180);
+      const msg = blobErrText(e);
+      lastErr = msg;
       if (blobMissing(msg)) {
         markBlobEmpty(access);
         return null;
@@ -549,7 +609,7 @@ async function blobRead() {
         return null;
       }
     } catch (e) {
-      lastErr = String((e && e.message) || e).slice(0, 180);
+      lastErr = blobErrText(e);
       if (blobMissing(lastErr)) {
         markBlobEmpty(blobProbe.access || "private");
         return null;
@@ -560,7 +620,7 @@ async function blobRead() {
       if (rest) return rest;
       if (blobProbe.read === "empty") return null;
     } catch (re) {
-      lastErr = String((re && re.message) || re).slice(0, 180);
+      lastErr = blobErrText(re);
     }
   }
   blobProbe.read = "error";
@@ -605,7 +665,7 @@ async function blobWrite() {
     try {
       blob = await blobPut(body, "private");
     } catch (first) {
-      const msg = String((first && first.message) || first);
+      const msg = blobErrText(first);
       try {
         if (!blobToken() || !(blobWantsPublic(msg) || blobNeedsRetry(msg))) throw first;
         blob = await blobPut(blobSeal(body), "public");
@@ -635,7 +695,7 @@ async function blobWrite() {
     return true;
   } catch (e) {
     blobProbe.write = "fail";
-    blobProbe.detail = String((e && e.message) || e).slice(0, 180);
+    blobProbe.detail = blobErrText(e);
     return false;
   }
 }
@@ -1644,6 +1704,7 @@ module.exports = {
   PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
+  BLOB_STAMP, blobRev, blobErrText,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
