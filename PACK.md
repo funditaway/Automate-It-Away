@@ -27,7 +27,7 @@ Every card uses the same states. Packs do not add a second machine. They change 
 
 **Also on the card:** `waitingOn` (`owner` | `helper` | `info`), `pack`, `custom.face` `{who,what,when,where,how}`, `next`, `draft`, `rail`.
 
-Human still taps Yes or Stop. Agents only draft.
+Human still taps Yes or Stop. Desk AIs only draft.
 
 ## Pack config syntax
 
@@ -182,6 +182,8 @@ People / header Desk AI leftover: after People chrome said Desk AIs, card chips,
 Help Pack Creator leftover: after People/header chips said Desk AI, Help `#world` still titled Workflow & Agent Pack Creator and `#desk-orch` still said sub-agent mesh. Studio already said Pack Creator (on-desk). Help now titles On-desk Pack Creator. Orchestration denies a mesh of Desk AIs — not Agent paint. Do not invent a sub-agent mesh. Seat id `agent` stays. Collect HOLD. No silent send.
 
 People Say leftover: after People chips / open-sheet seats said Desk AI, the People open-sheet Say placeholder still said human, agent, or pipe. Inbox already said Humans, Desk AIs, and connections. Say now names Desk AI. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Legal / Studio Desk AI leftover: after People Say said Desk AI, legal.html still said The agent may draft, Studio pack preview still painted Bot:, and Help Four models still said lead qualify bot. Those faces now say Desk AI. `bots[]` stays an alias. Seat id `agent` stays. Collect HOLD. No silent send.
 
 Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 

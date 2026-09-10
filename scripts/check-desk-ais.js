@@ -64,6 +64,10 @@ if (studio.includes("Do not send it. Do not invent a price.")) fail("Studio stil
 else pass("Studio dropped MVP AI 1 prompt placeholder");
 if (studio.includes("Qualify and write the follow note")) fail("Studio still uses MVP AI 2 does placeholder");
 else pass("Studio dropped MVP AI 2 does placeholder");
+if (studio.indexOf('"Bot: "') >= 0) fail("Studio pack preview still paints Bot:");
+else pass("Studio pack preview does not paint Bot:");
+if (studio.indexOf('"Desk AI: "') < 0) fail("Studio pack preview must paint Desk AI:");
+else pass("Studio pack preview paints Desk AI:");
 if (!studio.includes("desk crew, not captains")) fail("Studio must say roles are desk crew");
 else pass("Studio names desk crew roles");
 if (!studio.includes("ai.aia") || create.indexOf("ai.aia") < 0) fail("Studio and Create must name ai.aia");
@@ -143,8 +147,14 @@ if (yesNo.indexOf("Desk AI canon leftover") < 0) fail("ACCOUNT-YES-NO must name 
 else pass("ACCOUNT-YES-NO names Desk AI canon leftover");
 if (packMd.indexOf("Desk AI canon leftover") < 0) fail("PACK.md must name Desk AI canon leftover");
 else pass("PACK.md names Desk AI canon leftover");
-if (packMd.indexOf("Drafts desk work for this project") >= 0) fail("PACK.md ais example still uses MVP does");
-else pass("PACK.md ais example uses Desk AI does");
+if (packMd.indexOf("Human still taps Yes or Stop. Agents only draft.") >= 0) fail("PACK.md card-state still says Agents only draft");
+else pass("PACK.md card-state does not say Agents only draft");
+if (packMd.indexOf("Human still taps Yes or Stop. Desk AIs only draft.") < 0) fail("PACK.md card-state must say Desk AIs only draft");
+else pass("PACK.md card-state says Desk AIs only draft");
+if (yesNo.indexOf("Legal / Studio Desk AI leftover") < 0) fail("ACCOUNT-YES-NO must name Legal / Studio Desk AI leftover");
+else pass("ACCOUNT-YES-NO names Legal / Studio Desk AI leftover");
+if (packMd.indexOf("Legal / Studio Desk AI leftover") < 0) fail("PACK.md must name Legal / Studio Desk AI leftover");
+else pass("PACK.md names Legal / Studio Desk AI leftover");
 const aisSrc = fs.readFileSync(path.join(root, "api/_ais.js"), "utf8");
 if (!aisSrc.includes("DEFAULT_DOES") || !aisSrc.includes("DEFAULT_PROMPT")) fail("_ais.js must export Desk AI default does / prompt");
 else pass("_ais.js names default does / prompt");
