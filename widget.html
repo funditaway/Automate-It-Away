@@ -390,7 +390,7 @@
       const mapped = (window.AIADropAgent && agentOn) ? AIADropAgent.implementFromText(implement, FIELDS) : {};
       const note = agentOn ? implement : document.getElementById("note").value;
       const title = document.getElementById("title").value || mapped.title || note || ((document.getElementById("custom-name") && document.getElementById("custom-name").value) || "");
-      const tell = agentOn ? (((document.getElementById("agent-tell") && document.getElementById("agent-tell").value) || implement)) : "";
+      const tell = agentOn ? (((document.getElementById("agent-tell") && document.getElementById("agent-tell").value) || "").trim()) : "";
       if (!String(title || tell || implement).trim()) { showNote(err, agentOn ? "Paste the data to put on the desk." : "Say what you need."); return; }
       const item = {
         action: "capture",

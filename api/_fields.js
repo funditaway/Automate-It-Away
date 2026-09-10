@@ -25,8 +25,10 @@ function pickFields(body) {
   const fields = { pack: PACKS.includes(body.pack) ? body.pack : (body.pack || null), kind: blank(body.kind), from: blank(body.from), contactName: blank(body.contactName || body.name || body.who), phone: contact.phone, email: contact.email, notes: blank(body.notes || body.text), photoUrl: blank(body.photoUrl), provider: blank(body.provider), amount: Number.isFinite(amount) ? amount : null, condition: blank(body.condition), titlePresent: blank(body.titlePresent), compsLow: body.compsLow === undefined || body.compsLow === "" ? null : Number(body.compsLow), compsHigh: body.compsHigh === undefined || body.compsHigh === "" ? null : Number(body.compsHigh), ask: body.ask === undefined || body.ask === "" ? null : Number(body.ask), risk: RISKS.includes(body.risk) ? body.risk : (blank(body.risk) || "none"), timing: blank(body.timing), artifact: blank(body.artifact), draft: blank(body.draft), payoutTo: blank(body.payoutTo), killReason: blank(body.killReason), whoTapped: blank(body.whoTapped), promptVersion: blank(body.promptVersion), assignee: blank(body.assignee || body.handTo || body.ai), droppedByKind: whoKind, sourceUrl, custom };
   const to = blank(body.to);
   const aiaMail = blank(body.aiaMail);
+  const tellIn = blank(body.tell || body.tellAia);
   if (to) fields.to = to;
   if (aiaMail) fields.aiaMail = aiaMail;
+  if (tellIn) fields.tell = String(tellIn).slice(0, 400);
   return fields;
 }
 function mergeFields(job, body) {
@@ -275,7 +277,7 @@ function makeCapturedJob(workspace, shop, body) {
   const job = { id: "job_" + Date.now().toString(36), workspace, title: String(src.title || fields.notes || "Untitled").slice(0, 160), why: src.why || "Captured.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured"], ...fields, from: fields.from || src.from || "widget", externalId: src.externalId ? String(src.externalId).slice(0, 80) : null };
   if (fields.custom) job.custom = fields.custom;
   assignIfKnown(job, shop, src);
-  const tell = String(src.tell || src.tellAia || src.implement || "").trim().slice(0, 800);
+  const tell = String(job.tell || src.tell || src.tellAia || "").trim().slice(0, 800);
   if (tell) {
     job.tell = tell.slice(0, 400);
     addTalk(job, src.whoTapped || src.contactName || "drop", tell, "tell");

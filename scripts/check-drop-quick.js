@@ -56,6 +56,32 @@ try {
   else pass("capture stores family/friend/helper/staff");
   if (!job.custom || !job.custom.implemented) fail("agent capture did not implement");
   else pass("agent capture implements onto the card");
+  if ((job.thread || []).some(function (t) { return t && t.kind === "tell"; })) {
+    fail("Put data on without Tell AIA must not store kind tell");
+  } else pass("Put data on without Tell AIA stays note");
+  const told = api.makeCapturedJob("test-desk", { fields: [], people: [] }, {
+    title: "Name: Sam",
+    notes: "Name: Sam\nNeed a pickup Friday 3pm\n$40",
+    tell: "Not shipped. Qualify first.",
+    implement: "Name: Sam\nNeed a pickup Friday 3pm\n$40",
+    mode: "agent",
+    contactName: "PROBE",
+    droppedByKind: "helper"
+  });
+  const tellRow = (told.thread || []).find(function (t) { return t && t.kind === "tell"; });
+  if (!tellRow || String(tellRow.text || "").indexOf("Qualify first") < 0) {
+    fail("Tell AIA must store kind tell, got " + JSON.stringify(told.thread));
+  } else pass("Tell AIA stores kind tell");
+  if (tellRow.from !== "PROBE") fail("Tell AIA from must be the dropper");
+  else pass("Tell AIA from is the dropper");
+  if ((told.thread || []).some(function (t) { return t && t.kind === "tell" && /Need a pickup/.test(t.text || ""); })) {
+    fail("pasted Put data must not become kind tell");
+  } else pass("pasted Put data stays off tell");
+  const hist = require(path.join(root, "api/_history"));
+  const item = hist.historyItem(told, { slug: "test-desk", biz: "Test" });
+  if (!item || !item.thread.some(function (t) { return t.kind === "tell" && /Qualify first/.test(t.text || ""); })) {
+    fail("historyItem must keep Tell AIA as tell");
+  } else pass("historyItem keeps Tell AIA as tell");
 } catch (e) {
   fail("fields load/test: " + e.message);
 }
