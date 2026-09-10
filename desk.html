@@ -434,8 +434,16 @@
         if (up.status >= 400) { document.getElementById("banner").textContent = (up.data && up.data.error) || "Photo did not save."; return; }
         item.photoUrl = up.data.photoUrl;
       }
-      await api("/api/jobs", { method: "POST", body: JSON.stringify(item) });
-      document.getElementById("sheet").classList.remove("on"); load();
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify(item) });
+      document.getElementById("sheet").classList.remove("on");
+      const n = (out.data && out.data.jobs && out.data.jobs.length) || 1;
+      const banner = document.getElementById("banner");
+      if (banner) {
+        banner.textContent = n > 1
+          ? ("On the queue as " + n + " cards. You still tap Yes or Stop on each. Collect HOLD.")
+          : "On the queue. You still tap Yes or Stop.";
+      }
+      load();
     }
     if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
     if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");

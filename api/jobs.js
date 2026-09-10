@@ -1,6 +1,6 @@
 const { dropCannedSeeds } = require("./_drop-seed");
 const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack, hookUrl } = require("./_lib");
-const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob, applyImplement } = require("./_fields");
+const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob, makeFanOutJobs, holdCapturedJob, applyImplement } = require("./_fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, markFlow, applyRules, thenAfterYes } = require("./_engine");
 const { grokRecommend, normalizeCites } = require("./_grok");
 const { needsOf, isPriorityJob, missingOf } = require("./_history");
@@ -133,27 +133,46 @@ module.exports = async function handler(req, res) {
     }
     if (action === "capture") {
       if (!shop) return res.status(404).json({ ok: false, error: "No desk with that name. Open one first." });
-      const job = makeCapturedJob(workspace, shop, body);
-      qualifyJob(job, shop);
+      const jobs = makeFanOutJobs(workspace, shop, body);
       const incomingCites = normalizeCites(body.citations || []);
-      if (incomingCites.length) job.citations = incomingCites;
-      if (Array.isArray(body.recs) && body.recs.length && !job.recs) job.recs = body.recs.slice(0, 8);
       let grok = null;
-      if (!job.draft) {
-        grok = await grokRecommend(job, shop, workspace);
-        if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
-      } else {
-        addTalk(job, "grok", job.draft, "rec");
+      for (let i = 0; i < jobs.length; i++) {
+        const job = jobs[i];
+        qualifyJob(job, shop);
+        if (incomingCites.length) job.citations = incomingCites;
+        if (Array.isArray(body.recs) && body.recs.length && !job.recs) job.recs = body.recs.slice(0, 8);
+        if (jobs.length === 1 && !job.draft) {
+          grok = await grokRecommend(job, shop, workspace);
+          if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+        } else if (job.draft) {
+          addTalk(job, "grok", job.draft, "rec");
+        }
+        applyDeskAiDraft(job, shop, "qualify");
+        holdCapturedJob(job);
+        if (job.notes) addTalk(job, job.from || "capture", job.notes, "note");
+        addTalk(job, "desk", job.why || "In the queue.", "rec");
       }
-      applyDeskAiDraft(job, shop, "qualify");
-      if (job.notes) addTalk(job, job.from || "capture", job.notes, "note");
-      addTalk(job, "desk", job.why || "In the queue.", "rec");
-      mem.jobs.unshift(job);
-      mem.inbox.unshift({ id: "in_" + Date.now().toString(36), workspace, text: job.title, from: job.from, at: Date.now() });
-      log("Capture", job.title, "Waiting", workspace);
+      const lead = jobs[0];
+      for (let i = jobs.length - 1; i >= 0; i--) mem.jobs.unshift(jobs[i]);
+      const inboxText = jobs.length > 1
+        ? (jobs.length + " cards · " + ((lead.custom && lead.custom.dropHeading) || lead.title))
+        : lead.title;
+      mem.inbox.unshift({ id: "in_" + Date.now().toString(36), workspace, text: inboxText, from: lead.from, at: Date.now() });
+      log("Capture", inboxText, "Waiting", workspace);
       runWorkspace(mem.jobs.filter((j) => j.workspace === workspace), Date.now(), shop);
       await save();
-      return res.status(201).json({ ok: true, job, notify: job.notify || [], crew: job.crew || null, grok: grok && grok.ok ? "on" : (grok && grok.reason) || (job.draft ? "on" : "off") });
+      return res.status(201).json({
+        ok: true,
+        job: lead,
+        jobs: jobs,
+        fanOut: jobs.length,
+        notify: lead.notify || [],
+        crew: lead.crew || null,
+        grok: grok && grok.ok ? "on" : (grok && grok.reason) || (lead.draft ? "on" : "off"),
+        note: jobs.length > 1
+          ? ("On the queue as " + jobs.length + " cards. You still tap Yes or Stop on each. Collect HOLD.")
+          : undefined
+      });
     }
     const job = mem.jobs.find((j) => j.id === body.id && j.workspace === workspace);
     if (!job) return res.status(404).json({ error: "Job not found" });
