@@ -82,6 +82,14 @@ if (dropMd.indexOf("Photo OCR is **not live**") < 0 && dropMd.indexOf("Photo OCR
 if (/vision API|we read the photo|OCR extracted/i.test(dropMd) && /is live/i.test(dropMd)) {
   fail("DROP.md must not fake live OCR");
 }
+if (dropMd.indexOf("## Agents with AIA World users") >= 0) fail("DROP.md title still says Agents with AIA World users");
+else pass("DROP.md title is not Agents with AIA World users");
+if (dropMd.indexOf("## Desk AIs with AIA World users") < 0) fail("DROP.md must title Desk AIs with AIA World users");
+else pass("DROP.md titles Desk AIs with AIA World users");
+if (/World users drop\. Agents draft/.test(dropMd)) fail("DROP.md still says Agents draft");
+else pass("DROP.md does not say Agents draft");
+if (dropMd.indexOf("World users drop. Desk AIs draft") < 0) fail("DROP.md must say Desk AIs draft");
+else pass("DROP.md says Desk AIs draft");
 
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
@@ -89,6 +97,10 @@ if (yesNo.indexOf("Drop → many-cards leftover") < 0) fail("ACCOUNT-YES-NO must
 else pass("ACCOUNT-YES-NO names leftover");
 if (packMd.indexOf("Drop → many-cards leftover") < 0) fail("PACK.md must name Drop → many-cards leftover");
 else pass("PACK.md names leftover");
+if (yesNo.indexOf("Desk AI copy leftover") < 0) fail("ACCOUNT-YES-NO must name Desk AI copy leftover");
+else pass("ACCOUNT-YES-NO names Desk AI copy leftover");
+if (packMd.indexOf("Desk AI copy leftover") < 0) fail("PACK.md must name Desk AI copy leftover");
+else pass("PACK.md names Desk AI copy leftover");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

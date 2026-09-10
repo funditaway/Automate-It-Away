@@ -155,6 +155,20 @@ if (yesNo.indexOf("Legal / Studio Desk AI leftover") < 0) fail("ACCOUNT-YES-NO m
 else pass("ACCOUNT-YES-NO names Legal / Studio Desk AI leftover");
 if (packMd.indexOf("Legal / Studio Desk AI leftover") < 0) fail("PACK.md must name Legal / Studio Desk AI leftover");
 else pass("PACK.md names Legal / Studio Desk AI leftover");
+if (yesNo.indexOf("Desk AI copy leftover") < 0) fail("ACCOUNT-YES-NO must name Desk AI copy leftover");
+else pass("ACCOUNT-YES-NO names Desk AI copy leftover");
+if (packMd.indexOf("Desk AI copy leftover") < 0) fail("PACK.md must name Desk AI copy leftover");
+else pass("PACK.md names Desk AI copy leftover");
+if (jobsSrc.indexOf('log("Agent", "Killed') >= 0) fail("jobs.js Kill audit still logs Agent");
+else pass("jobs.js Kill audit does not log Agent");
+if (jobsSrc.indexOf('log("Desk AI", "Killed') < 0) fail("jobs.js Kill audit must log Desk AI");
+else pass("jobs.js Kill audit logs Desk AI");
+if (jobsSrc.indexOf('pipe.label : "Agent"') >= 0) fail("jobs.js Ship audit still logs Agent");
+else pass("jobs.js Ship audit does not log Agent");
+if (jobsSrc.indexOf('pipe.label : "Desk AI"') < 0) fail("jobs.js Ship audit must log Desk AI");
+else pass("jobs.js Ship audit logs Desk AI");
+if (jobsSrc.indexOf('kind: "agent"') < 0 || jobsSrc.indexOf('role: "agent"') < 0) fail("jobs.js must keep seat id agent");
+else pass("jobs.js keeps seat id agent");
 const aisSrc = fs.readFileSync(path.join(root, "api/_ais.js"), "utf8");
 if (!aisSrc.includes("DEFAULT_DOES") || !aisSrc.includes("DEFAULT_PROMPT")) fail("_ais.js must export Desk AI default does / prompt");
 else pass("_ais.js names default does / prompt");
@@ -381,6 +395,30 @@ async function main() {
   if (ownerShip.statusCode >= 400 && ownerShip.statusCode !== 200) {
     fail("owner ship should still work, got " + ownerShip.statusCode);
   } else pass("owner still taps Yes");
+  const shipAudit = (mem.audit || []).find(function (a) {
+    return a && /Pay the bill/.test(a.action || "") && /Shipped|Out/.test(a.action || "");
+  });
+  if (!shipAudit) fail("owner Yes must write a ship or out audit row");
+  else if (shipAudit.agent === "Agent") fail("ship/out audit still logs Agent");
+  else pass("ship/out audit does not log Agent");
+
+  mem.jobs.unshift({
+    id: "job_ai_kill",
+    workspace: slug,
+    title: "Stop this card",
+    status: "waiting",
+    step: "Do",
+    log: []
+  });
+  const ownerKill = await call(jobsHandler, "POST", owner, { action: "kill", id: "job_ai_kill", confirm: true });
+  if (ownerKill.statusCode !== 200 || !ownerKill.body || !ownerKill.body.ok) {
+    fail("owner kill should 200, got " + ownerKill.statusCode + " " + JSON.stringify(ownerKill.body));
+  } else pass("owner still taps Kill");
+  const killAudit = (mem.audit || []).find(function (a) { return a && /Killed · Stop this card/.test(a.action || ""); });
+  if (!killAudit) fail("owner kill must write an audit row");
+  else if (killAudit.agent === "Agent") fail("kill audit still logs Agent");
+  else if (killAudit.agent !== "Desk AI") fail("kill audit must log Desk AI, got " + killAudit.agent);
+  else pass("kill audit logs Desk AI");
 
   shop.people.push({ id: "human_helper", name: "Sam", role: "employee", kind: "helper", status: "approved" });
   mem.jobs.unshift({

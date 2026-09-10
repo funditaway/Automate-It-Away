@@ -22,9 +22,9 @@ Public drop search sits at the **top** of `/drop`.
 - This-phone saved desks stay under the world list.
 - Tapping a world desk opens `/drop?ws=` for that desk. Public drop never sees money, Stop, or People.
 
-## Agents with AIA World users
+## Desk AIs with AIA World users
 
-World users drop. Agents draft on the same card. They do not replace the user.
+World users drop. Desk AIs draft on the same card. They do not replace the user.
 
 - Grok is the included drafter (`api/_grok.js`). Writes `draft`, `next`, up to 3 recs. Never sends. Never Stop. Never invents money.
 - Tell the desk (`drop-chat.js`) posts `POST /api/intake action=do`. Any line becomes a card in the thread plus a desk reply. Key off → engine draft. Key on → Grok draft.
