@@ -82,6 +82,8 @@ async function main() {
   if (deskGet.statusCode !== 200 || !deskGet.body || !deskGet.body.ok) {
     fail("open desk pin should GET /api/account");
   } else pass("open desk pin GETs account");
+  if (!Array.isArray(deskGet.body.sessions)) fail("GET /api/account should include the session trail");
+  else pass("GET account includes sessions");
 
   const staleGet = await call(account, "GET", {
     "x-workspace": "oddo-books",
@@ -430,6 +432,11 @@ async function main() {
   else pass("cold start keeps email login working");
 
   const sessionHeaders = { "x-workspace": "oddo-books", "x-session": cold.body.session.token };
+  const homeGet = await call(account, "GET", sessionHeaders);
+  const homeSessions = homeGet.body && homeGet.body.sessions || [];
+  if (homeGet.statusCode !== 200 || !homeSessions.length || !homeSessions.some((row) => row.current)) {
+    fail("GET /api/account should paint current phone on the session trail");
+  } else pass("GET account paints current phone");
   const sessions = await call(account, "POST", sessionHeaders, { action: "sessions" });
   const listed = sessions.body && sessions.body.sessions || [];
   if (sessions.statusCode !== 200 || !listed.length || !listed.some((row) => row.current)) fail("sessions action should list current phones");
