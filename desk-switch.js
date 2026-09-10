@@ -259,7 +259,7 @@
     var pin = store && store.getItem("aia_pin");
     if (ws) h["X-Workspace"] = ws;
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return h;
   }
 
