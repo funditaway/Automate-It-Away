@@ -81,6 +81,9 @@ if (history.indexOf("Needs you / prompt ask-who") < 0) fail("History intro must 
 if (history.indexOf("promptHtml(it)") < 0 || history.indexOf("chipsHtml(it)") < 0) {
   fail("History threadHtml must insert promptHtml / chipsHtml");
 }
+if (history.indexOf("function storyOf") < 0 || history.indexOf("storyOf(row)") < 0) {
+  fail("History Copy story must copy storyOf");
+}
 if (yesNo.indexOf("check-history-thread.js") < 0) fail("ACCOUNT-YES-NO must record History thread");
 if (yesNo.indexOf("not on this desk") < 0) fail("ACCOUNT-YES-NO must record History gone HOLD");
 
