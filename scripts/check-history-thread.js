@@ -31,7 +31,7 @@ const more = read("more.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const histSrc = read("api/_history.js");
 
-["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function talkLabel", "function talkHtml", "function threadHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
+["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function wipTalkLabel", "function talkLabel", "function talkHtml", "function threadHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "pipe WIP", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
   if (history.indexOf(bit) < 0) fail("history.html missing " + bit);
 });
 if (!/HOLD|Nothing sent alone/.test(history)) fail("History must stay HOLD / nothing sent");
@@ -87,9 +87,15 @@ if (history.indexOf("function storyOf") < 0 || history.indexOf("storyOf(row)") <
 if (yesNo.indexOf("check-history-thread.js") < 0) fail("ACCOUNT-YES-NO must record History thread");
 if (yesNo.indexOf("not on this desk") < 0) fail("ACCOUNT-YES-NO must record History gone HOLD");
 
-["function talkTurns", "function deskAiOf", "thread: thread", "thenWho"].forEach(function (bit) {
+["function talkTurns", "function deskAiOf", "thread: thread", "thenWho", "k !== \"note\" && k !== \"follow\""].forEach(function (bit) {
   if (histSrc.indexOf(bit) < 0) fail("api/_history.js missing " + bit);
 });
+if (needs.indexOf("function wipTalkLabel") < 0 || needs.indexOf("pipe WIP") < 0) {
+  fail("Cap talkHtml must label pipe WIP / note / follow");
+}
+if (card.indexOf("function wipTalkLabelOf") < 0 || card.indexOf("pipe WIP") < 0) {
+  fail("Open talkHtml must label pipe WIP / note / follow");
+}
 
 const hist = require(path.join(root, "api/_history"));
 if (typeof hist.historyItem !== "function" || typeof hist.talkTurns !== "function" || typeof hist.capCard !== "function") {
@@ -106,7 +112,9 @@ const job = {
   thread: [
     { kind: "ask", from: "James’s AI", text: "Who is this for?", at: "2026-09-06T12:00:00Z" },
     { kind: "reply", from: "Pat", text: "Sam at the shop", at: "2026-09-06T12:01:00Z" },
-    { kind: "note", from: "desk", text: "Dropped by neighbor.", at: "2026-09-06T11:59:00Z" }
+    { kind: "note", from: "desk", text: "Dropped by neighbor.", at: "2026-09-06T11:59:00Z" },
+    { kind: "note", from: "pipe", text: "Pipe update.", at: "2026-09-06T12:03:00Z" },
+    { kind: "follow", from: "webhook", text: "Pipe confirmed done.", at: "2026-09-06T12:04:00Z" }
   ],
   replies: [{ from: "Pat", text: "Sam at the shop" }],
   why: "James’s AI drafted on the card. Human send HOLD.",
@@ -126,7 +134,15 @@ if (!item.thread.some(function (t) { return t.kind === "ask" && t.text.indexOf("
 if (!item.thread.some(function (t) { return t.kind === "reply" && t.text.indexOf("Sam at the shop") >= 0; })) {
   fail("historyItem thread must keep the human reply");
 }
-if (item.thread.some(function (t) { return t.kind === "note"; })) fail("historyItem thread is ask / reply / rec only");
+if (!item.thread.some(function (t) { return t.kind === "note" && t.text.indexOf("Dropped by neighbor") >= 0; })) {
+  fail("historyItem thread must keep desk notes");
+}
+if (!item.thread.some(function (t) { return t.kind === "note" && t.from === "pipe" && t.text.indexOf("Pipe update") >= 0; })) {
+  fail("historyItem thread must keep pipe WIP notes");
+}
+if (!item.thread.some(function (t) { return t.kind === "follow" && t.text.indexOf("Pipe confirmed done") >= 0; })) {
+  fail("historyItem thread must keep follow rows");
+}
 if (!item.replies || !item.replies.some(function (r) { return /Sam at the shop/.test(r.text || ""); })) {
   fail("historyItem must keep replies");
 }
@@ -140,6 +156,10 @@ const found = hist.filterHistory([item], { q: "Sam at the shop" });
 if (!found.length) fail("History search must find a human reply");
 const foundAi = hist.filterHistory([item], { q: "James’s AI" });
 if (!foundAi.length) fail("History search must find the named desk AI");
+const foundWip = hist.filterHistory([item], { q: "Pipe update" });
+if (!foundWip.length) fail("History search must find pipe WIP");
+const foundFollow = hist.filterHistory([item], { q: "Pipe confirmed done" });
+if (!foundFollow.length) fail("History search must find follow");
 const miss = hist.filterHistory([item], { q: "not-on-this-card" });
 if (miss.length) fail("History search must not invent a miss");
 
@@ -151,7 +171,8 @@ const xssJob = {
   deskAi: { name: "AI <bot>", does: "Draft <leads>", prompt: "Never use <script>" },
   thread: [
     { kind: "ask", from: "AI <bot>", text: "Need <phone>?" },
-    { kind: "reply", from: "Sam <helper>", text: "Use <script> no" }
+    { kind: "reply", from: "Sam <helper>", text: "Use <script> no" },
+    { kind: "note", from: "pipe", text: "WIP <script>x" }
   ],
   replies: [{ from: "Sam <helper>", text: "Use <script> no" }]
 };
@@ -182,6 +203,8 @@ if (painted.indexOf("Need <phone>?") >= 0) fail("raw < in the ask must not becom
 if (painted.indexOf("Need &lt;phone&gt;?") < 0) fail("ask must stay text");
 if (painted.indexOf("Sam &lt;helper&gt;") < 0) fail("reply from must stay text");
 if (painted.indexOf("Use &lt;script&gt; no") < 0) fail("reply text must stay text");
+if (painted.indexOf("WIP <script>x") >= 0) fail("raw < in pipe WIP must not become markup");
+if (painted.indexOf("WIP &lt;script&gt;x") < 0) fail("pipe WIP must stay text");
 if (painted.indexOf("AI <bot>") >= 0) fail("raw < in the AI name must not become markup");
 if (painted.indexOf("Don't use <b>html</b>") >= 0) fail("raw draft markup must not land");
 if (painted.indexOf("Don&#39;t use &lt;b&gt;html&lt;/b&gt;") < 0 && painted.indexOf("Don&#39;t use") < 0) {
@@ -192,6 +215,12 @@ if (painted.indexOf("Nothing sent alone") < 0) fail("History thread must stay no
 const stacked = ctx.threadHtml(item);
 if (stacked.indexOf("Who is this for?") < 0) fail("History must show the AI ask");
 if (stacked.indexOf("Sam at the shop") < 0) fail("History must show the human reply");
+if (stacked.indexOf("Dropped by neighbor") < 0) fail("History must show the desk note");
+if (stacked.indexOf("desk · note") < 0) fail("History must label a desk note as note");
+if (stacked.indexOf("Pipe update.") < 0) fail("History must show pipe WIP");
+if (stacked.indexOf("pipe · pipe WIP") < 0) fail("History must label pipe notes as pipe WIP");
+if (stacked.indexOf("Pipe confirmed done.") < 0) fail("History must show follow");
+if (stacked.indexOf("webhook · follow") < 0) fail("History must label follow");
 if (stacked.indexOf("h-turn-you") < 0 || stacked.indexOf("h-turn-ai") < 0) fail("History must mark AI and human turns");
 if (stacked.indexOf("James’s AI · Then draft") < 0 && stacked.indexOf("James") < 0) {
   fail("History must name the Then draft");
@@ -307,6 +336,31 @@ if (ctx.talkLabel({ kind: "ask", from: "James’s AI" }, item).indexOf("James") 
 if (ctx.talkLabel({ kind: "ask" }, { draft: "hi" }).indexOf("Desk AI") < 0) {
   fail("live anonymous ask may still say Desk AI");
 }
+if (typeof ctx.wipTalkLabel !== "function") fail("History must expose wipTalkLabel");
+if (ctx.talkLabel({ kind: "note", from: "pipe" }, item).indexOf("pipe WIP") < 0) {
+  fail("pipe note must label pipe WIP");
+}
+if (ctx.talkLabel({ kind: "note", from: "desk" }, item).indexOf("desk · note") < 0) {
+  fail("desk note must label note");
+}
+if (ctx.talkLabel({ kind: "follow", from: "webhook" }, item).indexOf("follow") < 0) {
+  fail("follow must label follow");
+}
+if (ctx.talkLabel({ kind: "note", from: "pipe" }, item).indexOf("Then draft") >= 0) {
+  fail("pipe WIP must not look like a Then draft");
+}
+if (ctx.talkLabel({ kind: "note" }, goneAnonItem).indexOf("Desk AI") >= 0) {
+  fail("gone note must not fall back to Desk AI");
+}
+if (ctx.talkLabel({ kind: "note" }, goneAnonItem).indexOf("Then draft") >= 0) {
+  fail("gone note must not look like a live Then draft");
+}
+if (ctx.talkLabel({ kind: "follow" }, goneAnonItem).indexOf("not on this desk") >= 0) {
+  fail("gone follow must not use gone HOLD");
+}
+if (/Agent|Bot MVP|crew agent/i.test(ctx.talkLabel({ kind: "note", from: "pipe" }, item))) {
+  fail("pipe WIP must stay Desk-AI-safe");
+}
 
 const capCtx = {
   window: {},
@@ -326,6 +380,13 @@ if (typeof capCtx.card !== "function") fail("desk-needs.js must set window.card"
 const qPaint = capCtx.card(job, false);
 if (qPaint.indexOf("q-thread") < 0) fail("queue card must still wrap Then + thread");
 if (qPaint.indexOf("Sam at the shop") < 0) fail("queue card must still show the human reply");
+if (qPaint.indexOf("Dropped by neighbor") < 0) fail("queue card must show the desk note");
+if (qPaint.indexOf("desk · note") < 0) fail("queue card must label a desk note as note");
+if (qPaint.indexOf("Pipe update.") < 0) fail("queue card must show pipe WIP");
+if (qPaint.indexOf("pipe · pipe WIP") < 0) fail("queue card must label pipe notes as pipe WIP");
+if (qPaint.indexOf("Pipe confirmed done.") < 0) fail("queue card must show follow");
+if (qPaint.indexOf("webhook · follow") < 0) fail("queue card must label follow");
+if (qPaint.indexOf(">Yes<") < 0 && qPaint.indexOf("Yes") < 0) fail("queue card must keep Yes human");
 if (needs.indexOf("filesHtml(j) + thread") < 0) fail("Cap loadCap must insert the thread, not only Then draft");
 const qGone = capCtx.card(goneJob, false);
 if (qGone.indexOf("James") >= 0) fail("Cap gone card must not name James");
@@ -363,7 +424,21 @@ const openPaint = cardCtx.threadSheetHtml(xssJob);
 if (openPaint.indexOf("q-thread") < 0 && openPaint.indexOf("Then draft") < 0) fail("open-job must show Then draft / thread");
 if (openPaint.indexOf("Need <phone>?") >= 0) fail("open-job ask must stay escaped");
 if (openPaint.indexOf("Need &lt;phone&gt;?") < 0) fail("open-job ask must stay text");
+if (openPaint.indexOf("WIP <script>x") >= 0) fail("open-job pipe WIP must stay escaped");
+if (openPaint.indexOf("WIP &lt;script&gt;x") < 0) fail("open-job pipe WIP must stay text");
 if (openPaint.indexOf("Nothing sent alone") < 0) fail("open-job thread must stay nothing sent");
+const openWip = cardCtx.threadSheetHtml(job);
+if (openWip.indexOf("Dropped by neighbor") < 0) fail("open-job must show the desk note");
+if (openWip.indexOf("desk · note") < 0) fail("open-job must label a desk note as note");
+if (openWip.indexOf("pipe · pipe WIP") < 0) fail("open-job must label pipe notes as pipe WIP");
+if (openWip.indexOf("webhook · follow") < 0) fail("open-job must label follow");
+if (typeof cardCtx.wipTalkLabelOf !== "function") fail("open-job must expose wipTalkLabelOf");
+if (cardCtx.talkLabelOf({ kind: "note", from: "pipe" }, "James’s AI", "").indexOf("pipe WIP") < 0) {
+  fail("open-job pipe note must label pipe WIP, not Then draft");
+}
+if (cardCtx.talkLabelOf({ kind: "note", from: "pipe" }, "James’s AI", "").indexOf("Then draft") >= 0) {
+  fail("open-job pipe WIP must not look like a Then draft");
+}
 if (typeof cardCtx.talkLabelOf !== "function") fail("open-job must expose talkLabelOf");
 const openGone = cardCtx.threadSheetHtml(goneJob);
 if (openGone.indexOf("Desk AI") >= 0) fail("open-job gone talk must not fall back to Desk AI");

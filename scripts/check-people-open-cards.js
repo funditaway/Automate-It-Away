@@ -60,7 +60,7 @@ const peopleHtml = read("people.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
-["function thenWhoOf", "function thenGoneOf", "function talkLabelOf", "function talkRowsOf", "function trailThreadHtml", "function cardHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "Then draft", "not on this desk", "On the card. Nothing sent alone", "item.thread", "p-thread", "p-then", "p-turn-ai", "p-turn-you"].forEach(function (bit) {
+["function thenWhoOf", "function thenGoneOf", "function wipTalkLabelOf", "function talkLabelOf", "function talkRowsOf", "function trailThreadHtml", "function cardHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "Then draft", "pipe WIP", "not on this desk", "On the card. Nothing sent alone", "item.thread", "p-thread", "p-then", "p-turn-ai", "p-turn-you"].forEach(function (bit) {
   if (people.indexOf(bit) < 0) fail("people.js missing " + bit);
   else pass("people.js " + bit);
 });
@@ -122,7 +122,9 @@ const stackedJob = {
   thread: [
     { kind: "ask", from: "James’s AI", text: "Who is this for?", at: "2026-09-06T12:00:00Z" },
     { kind: "reply", from: "Pat", text: "Sam at the shop", at: "2026-09-06T12:01:00Z" },
-    { kind: "note", from: "desk", text: "Dropped by neighbor.", at: "2026-09-06T11:59:00Z" }
+    { kind: "note", from: "desk", text: "Dropped by neighbor.", at: "2026-09-06T11:59:00Z" },
+    { kind: "note", from: "pipe", text: "Pipe update.", at: "2026-09-06T12:03:00Z" },
+    { kind: "follow", from: "webhook", text: "Pipe confirmed done.", at: "2026-09-06T12:04:00Z" }
   ],
   replies: [{ from: "Pat", text: "Sam at the shop" }],
   why: "James’s AI drafted on the card. Human send HOLD.",
@@ -140,6 +142,11 @@ if (!stacked.thread || !stacked.thread.some(function (t) { return t.kind === "as
 else pass("historyItem keeps the AI ask");
 if (!stacked.thread.some(function (t) { return t.kind === "reply"; })) fail("historyItem must keep the human reply");
 else pass("historyItem keeps the human reply");
+if (!stacked.thread.some(function (t) { return t.kind === "note" && /Dropped by neighbor/.test(t.text || ""); })) {
+  fail("historyItem must keep desk notes");
+} else pass("historyItem keeps desk notes");
+if (!stacked.thread.some(function (t) { return t.kind === "follow"; })) fail("historyItem must keep follow rows");
+else pass("historyItem keeps follow");
 
 const goneJob = {
   id: "j-gone",
@@ -197,8 +204,20 @@ if (openPaint.indexOf("p-turn-you") < 0 || openPaint.indexOf("p-turn-ai") < 0) {
 } else pass("open card marks AI and human turns");
 if (openPaint.indexOf("On the card. Nothing sent alone.") < 0) fail("open card must stay nothing sent alone");
 else pass("open card stays nothing sent alone");
-if (openPaint.indexOf("Dropped by neighbor") >= 0) fail("open card thread is ask / reply / rec only");
-else pass("open card omits plain notes");
+if (openPaint.indexOf("Dropped by neighbor") < 0) fail("open card must show the desk note");
+else pass("open card shows the desk note");
+if (openPaint.indexOf("desk · note") < 0) fail("open card must label a desk note as note");
+else pass("open card labels desk note");
+if (openPaint.indexOf("Pipe update.") < 0) fail("open card must show pipe WIP");
+else pass("open card shows pipe WIP");
+if (openPaint.indexOf("pipe · pipe WIP") < 0) fail("open card must label pipe notes as pipe WIP");
+else pass("open card labels pipe WIP");
+if (openPaint.indexOf("Pipe confirmed done.") < 0) fail("open card must show follow");
+else pass("open card shows follow");
+if (openPaint.indexOf("webhook · follow") < 0) fail("open card must label follow");
+else pass("open card labels follow");
+if (openPaint.indexOf("Agent") >= 0 || /Bot MVP/i.test(openPaint)) fail("open card WIP must stay Desk-AI-safe");
+else pass("open card WIP stays Desk-AI-safe");
 
 const gonePaint = ctx.cardHtml(Object.assign({ desk: "Shop", side: "theirs" }, goneItem));
 if (gonePaint.indexOf("James") >= 0) fail("gone open card must not name James");
