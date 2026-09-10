@@ -1,5 +1,10 @@
+const fs = require("fs");
+const path = require("path");
 const perms = require("../api/_permissions");
 const roles = require("../api/_roles");
+const permsSrc = fs.readFileSync(path.join(__dirname, "../api/_permissions.js"), "utf8");
+const yesNo = fs.readFileSync(path.join(__dirname, "../ACCOUNT-YES-NO.md"), "utf8");
+const packMd = fs.readFileSync(path.join(__dirname, "../PACK.md"), "utf8");
 
 function fail(msg) {
   console.error("FAIL " + msg);
@@ -30,6 +35,8 @@ if (!oPass.ok || oPass.rail !== "owner-override" || oPass.charged !== false || o
 
 const aHold = perms.gateOverride(agent, true, { amount: 20, confirm: true, reason: "Already paid cash." });
 if (aHold.ok || aHold.status !== 403) fail("agent HOLD override must 403");
+else if (aHold.error !== "Desk AIs never send, stop, or touch money.") fail("agent HOLD error must say Desk AIs, got " + aHold.error);
+else if (/Agents never send/.test(aHold.error || "")) fail("agent HOLD error still says Agents");
 else pass("5 agent cannot pass a HOLD");
 
 const desk = { people: [{ id: "p_sam", name: "Sam", role: "employee", kind: "helper", status: "approved" }] };
@@ -61,6 +68,17 @@ else pass("10 helper money and stop strip; send can stay");
 const agentCan = roles.stripHard(roles.resolveCan("agent", "Doer", "approved"), agent);
 if (agentCan.send || agentCan.stop || agentCan.money) fail("agent can must never send/stop/money");
 else pass("11 agent never send, stop, or money");
+
+if (/Agents never send, stop, or touch money/.test(permsSrc)) fail("permissions still say Agents never send");
+else if (!/Desk AIs never send, stop, or touch money/.test(permsSrc)) fail("permissions must say Desk AIs never send");
+else pass("permissions HOLD error says Desk AIs");
+
+if (yesNo.indexOf("Wallet / permission Desk AI leftover") < 0) fail("ACCOUNT-YES-NO must name Wallet / permission Desk AI leftover");
+else pass("ACCOUNT-YES-NO names Wallet / permission leftover");
+if (packMd.indexOf("Wallet / permission Desk AI leftover") < 0) fail("PACK.md must name Wallet / permission Desk AI leftover");
+else pass("PACK.md names Wallet / permission leftover");
+if (yesNo.indexOf("Agents never send, stop, or touch money") < 0) fail("ACCOUNT-YES-NO leftover must name the old Agents never-send error");
+else pass("ACCOUNT-YES-NO leftover names old Agents never-send error");
 
 const card = perms.publicPerson({
   id: "p_sam",

@@ -68,7 +68,7 @@ function walletOfPerson(personId, workspace) {
 
 function canOpenForKind(kind, adult) {
   const k = String(kind || "").toLowerCase();
-  if (AGENT_KINDS.indexOf(k) >= 0) return { ok: false, error: "Agents do not hold money." };
+  if (AGENT_KINDS.indexOf(k) >= 0) return { ok: false, error: "Desk AIs do not hold money." };
   if (FAMILY_KINDS.indexOf(k) >= 0 && !adult) {
     return { ok: false, error: "Family wallets stay off unless an adult seat is marked. Kids are not billed." };
   }
@@ -157,7 +157,7 @@ function chargeWallet(walletId, amount, reason, actor, extra) {
     return { ok: false, status: 403, error: "That bill hits the owner of this wallet. It never falls back to someone else." };
   }
   if (actor.kind === "agent" || actor.role === "agent") {
-    return { ok: false, status: 403, error: "Agents do not spend money." };
+    return { ok: false, status: 403, error: "Desk AIs do not spend money." };
   }
   const why = String(reason || extra.reason || "other").toLowerCase().replace(/[^a-z]+/g, "").slice(0, 40) || "other";
   if (!wallet.allowAny && REASONS.indexOf(why) < 0) {
