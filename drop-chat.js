@@ -141,11 +141,19 @@
         body: JSON.stringify({ action: "do", text: raw, source: "drop-chat" })
       });
       var out = await r.json().catch(function () { return {}; });
-      if (r.ok && out.job) {
+      if (r.ok && (out.job || (out.jobs && out.jobs.length))) {
         var msg = "";
         if (out.intake && out.intake.messages && out.intake.messages.length) {
           var last = out.intake.messages[out.intake.messages.length - 1];
           if (last && last.from === "desk") msg = last.text;
+        }
+        var many = Array.isArray(out.jobs) && out.jobs.length > 1 ? out.jobs : null;
+        if (many) {
+          addLine("desk", msg || ("On the queue as " + many.length + " cards. You tap Yes or Stop on each."));
+          many.forEach(function (j) { addLine("card", j.draft || j.next || j.title, j); });
+          fillForm(many[0]);
+          window.__aiaLastDrop = many[0];
+          return;
         }
         paintJob(out.job, msg);
         return;

@@ -72,7 +72,7 @@
   </header>
   <main class="wrap">
     <h1 id="drop-title">Drop anything</h1>
-    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.</p>
+      <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. A list becomes more than one card. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.</p>
     <div class="modes" id="modes">
       <button type="button" class="on" data-mode="quick" aria-pressed="true">Quick drop</button>
       <button type="button" data-mode="custom" aria-pressed="false">Custom drop</button>
@@ -416,8 +416,10 @@
         if (r.ok) {
           const name = deskNameOf();
           const dropped = String(title || "").trim().slice(0, 80);
-          showNote(ok, "On the queue" + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes or Stop." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>"), true);
-          if (window.AIASpeech) AIASpeech.speak("On the queue.");
+          const n = (out.jobs && out.jobs.length) || 1;
+          const fan = n > 1 ? (" as " + n + " cards") : "";
+          showNote(ok, "On the queue" + fan + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes or Stop" + (n > 1 ? " on each" : "") + "." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>"), true);
+          if (window.AIASpeech) AIASpeech.speak(n > 1 ? ("On the queue as " + n + " cards.") : "On the queue.");
           document.getElementById("title").value = ""; document.getElementById("note").value = "";
           if (document.getElementById("implement")) document.getElementById("implement").value = "";
           if (document.getElementById("agent-tell")) document.getElementById("agent-tell").value = "";

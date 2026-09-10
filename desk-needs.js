@@ -391,6 +391,11 @@
     }
     if (isAskHuman(j, need)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
     if (need && need.decide) bits.push("<span class=\"q-chip q-hitl-mark\">Yes / Stop / Kill</span>");
+    const fanTotal = j && j.custom && Number(j.custom.dropTotal);
+    if (fanTotal > 1) {
+      const n = Number(j.custom.dropIndex) || 0;
+      bits.push("<span class=\"q-chip q-fan\">" + esc((n ? n + " of " + fanTotal : fanTotal + " cards") + " from this Drop") + "</span>");
+    }
     if (status) bits.push("<span class=\"q-chip q-stat\">" + esc(status) + "</span>");
     return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
   }

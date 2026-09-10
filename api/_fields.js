@@ -124,6 +124,103 @@ function customFromText(shop, text) {
 function firstWorkLine(text) {
   return String(text || "").split(/\n/).map((s) => s.trim()).find(Boolean) || "";
 }
+const FAN_OUT_MAX = 8;
+function stripListBullet(s) {
+  return String(s || "").trim().replace(/^(?:[-*•–—]|\d+[.)]|[a-z][.)])\s+/i, "").trim();
+}
+function looksLikeFormBlob(blob) {
+  const labels = String(blob || "").match(/^[A-Za-z][A-Za-z0-9 /'&-]{0,24}\s*[:=]\s+\S+/gm);
+  return !!(labels && labels.length >= 2);
+}
+function dropListBlob(src) {
+  const row = src && typeof src === "object" ? src : {};
+  const notes = String(row.notes || row.text || "").trim();
+  if (notes) return notes;
+  const tell = String(row.tell || row.implement || "").trim();
+  if (tell) return tell;
+  return String(row.title || "").trim();
+}
+function fanOutItems(text, opts) {
+  const blob = String(text || "").trim();
+  if (!blob) return [];
+  const kind = String((opts && opts.kind) || "").toLowerCase();
+  const hasPhoto = !!(opts && (opts.photoUrl || (Array.isArray(opts.files) && opts.files.length)));
+  if (hasPhoto && (kind === "list" || kind === "photo")) return [blob];
+  if (looksLikeFormBlob(blob)) return [blob];
+  const rawLines = blob.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const items = rawLines.map(stripListBullet).filter(Boolean);
+  const anyBullet = rawLines.some((l) => /^(?:[-*•–—]|\d+[.)])\s+/.test(l));
+  const kindWants = kind === "list" || kind === "task" || kind === "chore" || kind === "note" || kind === "idea";
+  if (rawLines.length === 1) {
+    if (!/\$|@|:/.test(blob) && kind === "list") {
+      const parts = blob.split(/\s*,\s*/).map(stripListBullet).filter((s) => s.length >= 2 && s.length <= 40);
+      if (parts.length >= 2 && parts.length <= FAN_OUT_MAX) return parts;
+    }
+    return [blob];
+  }
+  const allShort = items.every((i) => i.length <= 120);
+  if (!allShort && !anyBullet && !kindWants) return [blob];
+  if (anyBullet || kindWants || (allShort && items.length >= 2)) {
+    const capped = items.slice(0, FAN_OUT_MAX);
+    if (items.length > FAN_OUT_MAX) {
+      capped[capped.length - 1] = capped[capped.length - 1] + " · Also: " + items.slice(FAN_OUT_MAX).join("; ");
+    }
+    return capped;
+  }
+  return [blob];
+}
+function fanOutKind(kind, count) {
+  if (count <= 1) return kind || null;
+  const k = String(kind || "").toLowerCase();
+  if (k === "list" || k === "photo" || !k) return "task";
+  return k;
+}
+function holdCapturedJob(job) {
+  if (!job) return job;
+  if (job.status === "shipped" || job.status === "killed") job.status = "waiting";
+  job.charged = false;
+  if (!job.waitingOn) job.waitingOn = "person";
+  if (!String(job.draft || "").trim()) {
+    job.draft = "Draft ready. I cannot send, pay, or bind anything. You stay in control.";
+  }
+  return job;
+}
+function makeFanOutJobs(workspace, shop, body) {
+  const src = body && typeof body === "object" ? body : {};
+  const blob = dropListBlob(src);
+  const items = fanOutItems(blob, { kind: src.kind, photoUrl: src.photoUrl, files: src.files });
+  const dropId = "drop_" + Date.now().toString(36);
+  if (items.length <= 1) {
+    return [makeCapturedJob(workspace, shop, src)];
+  }
+  const heading = String(src.title || "").trim();
+  const headingIsItem = items.some((item) => item === heading);
+  return items.map(function (item, i) {
+    const title = heading && !headingIsItem && heading !== item
+      ? (heading + " · " + item).slice(0, 160)
+      : item.slice(0, 160);
+    const bodyI = Object.assign({}, src, {
+      title: title,
+      notes: item,
+      kind: fanOutKind(src.kind, items.length),
+      why: src.why || "From a list Drop. Draft only. You tap Yes or Stop."
+    });
+    if (i > 0) {
+      delete bodyI.photoUrl;
+      delete bodyI.files;
+    }
+    const job = makeCapturedJob(workspace, shop, bodyI);
+    job.id = "job_" + Date.now().toString(36) + "f" + String(i);
+    job.parentId = dropId;
+    job.custom = Object.assign({}, job.custom || {}, {
+      dropId: dropId,
+      dropIndex: i + 1,
+      dropTotal: items.length,
+      dropHeading: heading && !headingIsItem ? heading.slice(0, 80) : undefined
+    });
+    return job;
+  });
+}
 function implementFromText(shop, text) {
   const blob = String(text || "").trim();
   const out = { custom: customFromText(shop, blob) };
@@ -220,4 +317,4 @@ function addTalk(job, from, text, kind) {
   job.thread = job.thread.slice(-40);
   return job;
 }
-module.exports = { pickFields, mergeFields, PACKS, KINDS, RISKS, DROP_WHO, slugField, defaultFields, ensureFields, addTalk, assignIfKnown, makeCapturedJob, publicField, parseFieldList, addShopField, applyFieldList, ensureCreations, publicCreation, addCreation, customFromText, implementFromText, applyImplement, firstWorkLine };
+module.exports = { pickFields, mergeFields, PACKS, KINDS, RISKS, DROP_WHO, FAN_OUT_MAX, slugField, defaultFields, ensureFields, addTalk, assignIfKnown, makeCapturedJob, publicField, parseFieldList, addShopField, applyFieldList, ensureCreations, publicCreation, addCreation, customFromText, implementFromText, applyImplement, firstWorkLine, stripListBullet, looksLikeFormBlob, dropListBlob, fanOutItems, fanOutKind, holdCapturedJob, makeFanOutJobs };

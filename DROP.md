@@ -57,3 +57,14 @@ World users inherit the packs on the **desk they drop onto**. An installed pack 
 Insurance (alone or inside All): quote, missed call, sit-down, illustration. Bind stays off Drop. Illustration send is an owner tap. Rail seats itself.
 
 Capture stamps `pack`, `custom.pack`, `custom.packs[]`, `custom.packName`. Grok drafts from that. Nobody sends, binds, or Stops from Drop.
+
+## Fan-out · one Drop → many cards
+
+A list or multi-line Drop becomes **more than one** draft queue card. Each card is one item. Desk AIs draft only. You still tap Yes or Stop on each. Collect HOLD. Nothing sent, paid, or bound from Drop.
+
+- Newline list (`milk` / `eggs` / `bread`) or bullets → one card per line (cap 8).
+- Quick **A list** with a comma list (`milk, eggs, bread`) → one card per item.
+- Named form paste (`Name: Sam` / `Phone: …`) stays **one** card.
+- Photo OCR is **not live**. A photo Drop stays one card until vision is wired. Do not fake it.
+
+Same queue chrome. No Cap page. No marketplace charge.

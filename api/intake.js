@@ -3,6 +3,7 @@ const {
   personOf, isOwner, moneyWaitOf, moneyNeedsOwner, ensureRules
 } = require("./_lib");
 const { qualifyJob } = require("./_engine");
+const { makeFanOutJobs, holdCapturedJob } = require("./_fields");
 
 const STEPS = [
   { id: "work", ask: "What do you do by hand every week that should run without you sitting on it?" },
@@ -161,18 +162,36 @@ module.exports = async function handler(req, res) {
       await save();
       return res.status(200).json({ ok: true, intake: publicIntake(row), job });
     }
-    const created = { id: "job_" + Date.now().toString(36), workspace, title: titleOf(text), notes: text, amount: amountOf(text), why: "From desk talk. Human before Yes.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured from desk talk"], from: "desk-chat", whoTapped: (person && person.name) || "desk" };
-    qualifyJob(created, shop);
-    mem.jobs.unshift(created);
+    const createdList = makeFanOutJobs(workspace, shop, {
+      title: titleOf(text),
+      notes: text,
+      amount: amountOf(text),
+      from: "desk-chat",
+      whoTapped: (person && person.name) || "desk",
+      why: "From desk talk. Human before Yes."
+    });
+    createdList.forEach(function (created) {
+      qualifyJob(created, shop);
+      holdCapturedJob(created);
+    });
+    createdList.slice().reverse().forEach(function (created) { mem.jobs.unshift(created); });
+    const created = createdList[0];
     row.jobId = created.id;
+    row.jobIds = createdList.map(function (j) { return j.id; });
     row.answers.work = text;
     row.who = whoFor(created, shop, person);
     row.next = "/desk";
     row.verdict = { can: true, title: created.title, why: row.who.line };
-    row.messages.push({ from: "desk", text: replyFor(created, row.who) });
-    log("Intake", "Talk \u00b7 " + created.title, "Waiting", workspace);
+    const many = createdList.length > 1;
+    row.messages.push({
+      from: "desk",
+      text: many
+        ? ("On the queue as " + createdList.length + " cards. " + (row.who && row.who.line ? row.who.line : "You tap Yes or Stop.") + " Desk AIs that draft. Humans that decide.")
+        : replyFor(created, row.who)
+    });
+    log("Intake", (many ? (createdList.length + " cards · ") : "Talk · ") + created.title, "Waiting", workspace);
     await save();
-    return res.status(201).json({ ok: true, intake: publicIntake(row), job: created });
+    return res.status(201).json({ ok: true, intake: publicIntake(row), job: created, jobs: createdList, fanOut: createdList.length });
   }
 
   const row = mem.intakes.find((i) => i.id === body.id);

@@ -139,7 +139,9 @@ First `.aia` pack docs live on Studio `/dev#first-pack` and match real Studio: o
 
 Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node. Not a mesh of Desk AIs. Not a node canvas. Do not invent a sub-agent mesh.
 
-Ideas → queue = Drop → Qualify → card → Yes / Stop. History is past / now / next — the card trail and this account’s roadmap. No effort or token estimate UI.
+Ideas → queue = Drop → Qualify → card → Yes / Stop. A list or multi-line Drop fans into more than one draft card. History is past / now / next — the card trail and this account’s roadmap. No effort or token estimate UI. Photo OCR is not live.
+
+Drop → many-cards leftover: world Drop / Talk still wrote one blob card for a list. Capture now fans a list or multi-line Drop into N draft queue cards (cap 8). Each card is draft-only. Yes / Stop / Kill stay human. Photo OCR is not live. Collect HOLD. No silent send.
 
 Give pack = download / share the `.aia` file (`download-pack`). They install with Yes. No silent push to another desk.
 
@@ -184,6 +186,8 @@ Help Pack Creator leftover: after People/header chips said Desk AI, Help `#world
 People Say leftover: after People chips / open-sheet seats said Desk AI, the People open-sheet Say placeholder still said human, agent, or pipe. Inbox already said Humans, Desk AIs, and connections. Say now names Desk AI. Seat id `agent` stays. Collect HOLD. No silent send.
 
 Legal / Studio Desk AI leftover: after People Say said Desk AI, legal.html still said The agent may draft, Studio pack preview still painted Bot:, and Help Four models still said lead qualify bot. Those faces now say Desk AI. `bots[]` stays an alias. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop → many-cards leftover: world Drop / Talk still wrote one blob card for a list. Capture now fans a list or multi-line Drop into N draft queue cards. Each card is draft-only. Yes / Stop / Kill stay human. Photo OCR is not live. Collect HOLD. No silent send.
 
 Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 
