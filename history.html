@@ -86,7 +86,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 </header>
 <main class="wrap">
 <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-<div><h1>History</h1><p>What this desk did. This account’s past / now / next on the roadmap. Jobs, Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread. Install / give / update a .aia with Yes. Links only when Grok or the web was used. Nothing sends from here.</p></div>
+<div><h1>History</h1><p>What this desk did. This account’s past / now / next on the roadmap. Jobs, Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread — including pipe WIP / note / follow already on the card. Install / give / update a .aia with Yes. Links only when Grok or the web was used. Nothing sends from here.</p></div>
 <button type="button" id="adv-btn" style="min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);font:700 13px inherit;padding:8px 14px">Advanced</button>
 </div>
 <p class="aia-line" id="aia-line">Checking whether drafts are on this box…</p>
@@ -217,8 +217,9 @@ function chipsHtml(it){var bits=[],who=thenWho(it),gone=thenGone(it);if(who)bits
 function thenLabel(it){var who=thenWho(it);return who?(who+" · Then draft"):(goneHoldLabel(thenGone(it))||"Draft");}
 function thenTagHtml(it){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(who)return "<span class=\"tag aia\">"+esc(who+" · Then draft")+"</span>";if(hold)return "<span class=\"tag gone\">"+esc(hold)+"</span>";return "";}
 function deskAiLine(it){return thenWho(it)||goneHoldLabel(thenGone(it))||"—";}
-function talkRows(it){return ((it&&it.thread)||[]).filter(function(t){return t&&t.text&&(t.kind==="ask"||t.kind==="reply"||t.kind==="rec");});}
-function talkLabel(row,it){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(row.kind==="reply")return (row.from||"You")+" · you";if(who)return row.kind==="ask"?(who+" · asks"):(who+" · Then draft");if(hold)return hold;var name=row.from||"Desk AI";return row.kind==="ask"?(name+" · asks"):(name+" · Then draft");}
+function wipTalkLabel(row){var from=String((row&&row.from)||"").trim();var kind=String((row&&row.kind)||"note");if(kind==="follow")return (from||"pipe")+" · follow";if(/^(pipe|webhook|worker|capture)$/i.test(from))return from+" · pipe WIP";return (from||"desk")+" · note";}
+function talkRows(it){return ((it&&it.thread)||[]).filter(function(t){var k=String((t&&t.kind)||"note");return t&&t.text&&(k==="ask"||k==="reply"||k==="rec"||k==="note"||k==="follow");});}
+function talkLabel(row,it){if(row.kind==="reply")return (row.from||"You")+" · you";if(row.kind==="note"||row.kind==="follow")return wipTalkLabel(row);var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(who)return row.kind==="ask"?(who+" · asks"):(who+" · Then draft");if(hold)return hold;var name=row.from||"Desk AI";return row.kind==="ask"?(name+" · asks"):(name+" · Then draft");}
 function thenHtml(it){
  var text=(it&&it.draft)||"";
  var who=thenWho(it);
@@ -236,8 +237,8 @@ function talkHtml(it){
  var rows=talkRows(it);
  if(!rows.length)return "";
  return "<div class=\"h-talk\">"+rows.map(function(row){
-  var ai=row.kind==="ask"||row.kind==="rec";
-  return "<div class=\"h-turn "+(ai?"h-turn-ai":"h-turn-you")+"\"><div class=\"h-turn-who\">"+esc(talkLabel(row,it))+"</div><div class=\"h-turn-text\">"+esc(row.text)+"</div></div>";
+  var you=row.kind==="reply";
+  return "<div class=\"h-turn "+(you?"h-turn-you":"h-turn-ai")+"\"><div class=\"h-turn-who\">"+esc(talkLabel(row,it))+"</div><div class=\"h-turn-text\">"+esc(row.text)+"</div></div>";
  }).join("")+"</div>";
 }
 function threadHtml(it){

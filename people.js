@@ -439,8 +439,17 @@ function chipsHtml(item) {
   return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
 }
 
+function wipTalkLabelOf(row) {
+  var from = String((row && row.from) || "").trim();
+  var kind = String((row && row.kind) || "note");
+  if (kind === "follow") return (from || "pipe") + " · follow";
+  if (/^(pipe|webhook|worker|capture)$/i.test(from)) return from + " · pipe WIP";
+  return (from || "desk") + " · note";
+}
+
 function talkLabelOf(row, who, gone) {
   if (row.kind === "reply") return (row.from || "You") + " · you";
+  if (row.kind === "note" || row.kind === "follow") return wipTalkLabelOf(row);
   if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
   var hold = goneHoldLabel(gone);
   if (hold) return hold;
@@ -462,7 +471,7 @@ function talkRowsOf(item) {
   ((item && item.thread) || []).forEach(function (t) {
     if (!t || !t.text) return;
     var k = String(t.kind || "note");
-    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow") return;
     add(k, t.from, t.text);
   });
   ((item && item.replies) || []).forEach(function (r) {
