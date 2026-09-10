@@ -98,6 +98,11 @@ if (inbox.indexOf("Humans, agents, and connections") >= 0) fail("inbox still say
 else pass("inbox does not say Humans, agents");
 if (inbox.indexOf("Humans, Desk AIs, and connections") < 0) fail("inbox must name Desk AIs");
 else pass("inbox names Desk AIs");
+const peopleDesk = read("people-desk.js");
+if (peopleDesk.indexOf("human, agent, or pipe") >= 0) fail("people-desk Say still says agent");
+else pass("people-desk Say does not say agent");
+if (peopleDesk.indexOf("human, Desk AI, or pipe") < 0) fail("people-desk Say must name Desk AI");
+else pass("people-desk Say names Desk AI");
 const helpSrc = read("help.html");
 if (helpSrc.indexOf("Agents, bots, guardrails") >= 0) fail("help still says Agents, bots");
 else pass("help Talk does not say Agents, bots");
