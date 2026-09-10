@@ -124,7 +124,8 @@ const stackedJob = {
     { kind: "reply", from: "Pat", text: "Sam at the shop", at: "2026-09-06T12:01:00Z" },
     { kind: "note", from: "desk", text: "Dropped by neighbor.", at: "2026-09-06T11:59:00Z" },
     { kind: "note", from: "pipe", text: "Pipe update.", at: "2026-09-06T12:03:00Z" },
-    { kind: "follow", from: "webhook", text: "Pipe confirmed done.", at: "2026-09-06T12:04:00Z" }
+    { kind: "follow", from: "webhook", text: "Pipe confirmed done.", at: "2026-09-06T12:04:00Z" },
+    { kind: "tell", from: "drop", text: "Not shipped. Qualify first.", at: "2026-09-06T11:58:00Z" }
   ],
   replies: [{ from: "Pat", text: "Sam at the shop" }],
   why: "James’s AI drafted on the card. Human send HOLD.",
@@ -147,6 +148,9 @@ if (!stacked.thread.some(function (t) { return t.kind === "note" && /Dropped by 
 } else pass("historyItem keeps desk notes");
 if (!stacked.thread.some(function (t) { return t.kind === "follow"; })) fail("historyItem must keep follow rows");
 else pass("historyItem keeps follow");
+if (!stacked.thread.some(function (t) { return t.kind === "tell" && /Qualify first/.test(t.text || ""); })) {
+  fail("historyItem must keep Tell AIA rows");
+} else pass("historyItem keeps Tell AIA");
 
 const goneJob = {
   id: "j-gone",
@@ -216,6 +220,14 @@ if (openPaint.indexOf("Pipe confirmed done.") < 0) fail("open card must show fol
 else pass("open card shows follow");
 if (openPaint.indexOf("webhook · follow") < 0) fail("open card must label follow");
 else pass("open card labels follow");
+if (openPaint.indexOf("Not shipped. Qualify first.") < 0) fail("open card must show Tell AIA");
+else pass("open card shows Tell AIA");
+if (openPaint.indexOf("drop · tell") < 0) fail("open card must label Tell AIA as tell");
+else pass("open card labels Tell AIA");
+if (typeof ctx.talkLabelOf !== "function") fail("People must expose talkLabelOf");
+else if (ctx.talkLabelOf({ kind: "tell", from: "drop" }, "James’s AI", "").indexOf("Then draft") >= 0) {
+  fail("open card Tell AIA must not look like a Then draft");
+} else pass("open card Tell AIA is not a Then draft");
 if (openPaint.indexOf("Agent") >= 0 || /Bot MVP/i.test(openPaint)) fail("open card WIP must stay Desk-AI-safe");
 else pass("open card WIP stays Desk-AI-safe");
 

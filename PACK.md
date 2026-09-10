@@ -225,6 +225,8 @@ History leftover: after Account / mail / Desk AIs / Desks book / wallet send the
 
 Drop / Queue leftover: after History / Account / wallet send the saved pin with leftover session, Drop `AIADesks.authHeaders`, Queue pack catalog, and other-desk view still skipped `X-Pin` when a leftover session token was present. Hand to / List this desk / pack chips then 401’d even though the desk was open. Those faces now send the saved pin with the session. Wrong code still 401. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
 
+Tell leftover after pipe WIP: Drop already stores Tell AIA on `job.thread` as `tell`. Queue / History kept only ask / reply / rec / note / follow after #160, so Tell AIA never painted. Those faces now keep `tell`. Label is `drop · tell` — not Agent / Bot, not a live Then draft. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
