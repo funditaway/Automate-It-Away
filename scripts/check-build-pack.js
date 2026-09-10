@@ -37,7 +37,7 @@ must(help, "Collect stays HOLD", "help.html Collect HOLD");
 must(help, "Thin App / webhook pack", "help.html app/webhook pack example");
 must(help, '"pipes": ["webhook"]', "help.html webhook pipes");
 must(help, "Yes before outbound", "help.html Yes before outbound");
-must(help, "Buyer binds their own keys on Pipes", "help.html buyer keys on Pipes");
+must(help, "Buyer binds their own keys and devices on Pipes", "help.html buyer keys on Pipes");
 must(help, "Not a listed SKU", "help.html not listed SKU");
 
 must(help, 'id="desk-orch"', "help.html desk-orch card");
@@ -103,7 +103,7 @@ must(help, "/dev#first-pack", "help.html first-pack link");
 
 must(examples, "App / webhook", "examples App/webhook pack");
 must(examples, "Buyer binds their own keys", "examples buyer keys");
-must(examples, "Yes / Stop / Kill before anything leaves", "examples Yes before outbound");
+must(examples, "Yes / Stop / Kill before outbound or hardware", "examples Yes before outbound");
 must(examples, "Not a listed SKU", "examples not listed SKU");
 must(examples, "Not a bindings product", "examples no bindings product");
 must(examples, "help.html#build-pack", "examples links build-pack");

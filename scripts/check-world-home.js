@@ -70,6 +70,10 @@ pages.forEach(function (row) {
   mustNot(html, "X-Session", name + " admin X-Session jargon");
   mustNot(html, "Hashed session", name + " hashed-session jargon");
   mustNot(html, "implementation path", name + " implementation-path jargon");
+  mustNot(html, "micro-wei", name + " micro-wei billing");
+  mustNot(html, "streaming ETH", name + " streaming ETH");
+  mustNot(html, "state channel", name + " L2 state channel");
+  mustNot(html, "on-chain split", name + " on-chain splits");
 });
 
 must(index, "On one AIA account", "index one-account section");
@@ -122,6 +126,8 @@ mustNot(help, "post it, text it", "help Yes as outbound post");
 mustNot(help, "streaming ETH", "help streaming ETH");
 mustNot(help, "state channel", "help L2 state channel");
 mustNot(help, "DID login", "help DID login");
+mustNot(help, "micro-wei", "help micro-wei billing");
+mustNot(help, "on-chain split", "help on-chain splits");
 
 const helpFirst = help.slice(help.indexOf("<h2>First day</h2>"), help.indexOf("<h2>Pages that exist</h2>"));
 if (!helpFirst) throw new Error("help.html First day card missing");
