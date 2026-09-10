@@ -445,14 +445,14 @@
       return;
     }
     var pack = data.pack || data;
+    var aiRow = (pack.ais && pack.ais[0]) || (pack.bots && pack.bots[0]);
     var lines = [
       pack.name && ("Name: " + pack.name),
       pack.aia && ("AIA Internet: " + pack.aia),
       pack.does && ("Does: " + pack.does),
       pack.niche && ("Niche: " + pack.niche),
       pack.rule && ("Rule: " + pack.rule),
-      (pack.ais && pack.ais[0] && pack.ais[0].name) && ("Desk AI: " + pack.ais[0].name),
-      (pack.bots && pack.bots[0] && pack.bots[0].name) && ("Bot: " + pack.bots[0].name),
+      aiRow && aiRow.name && ("Desk AI: " + aiRow.name),
       "Collect stays HOLD. Never Send."
     ].filter(Boolean);
     box.classList.add("on");

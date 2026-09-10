@@ -57,6 +57,9 @@ if (packMd.includes("**Workflow & Agent Pack Creator")) throw new Error("PACK.md
 must(packMd, "**On-desk Pack Creator:**", "PACK.md On-desk Pack Creator");
 must(packMd, "Not a mesh of Desk AIs", "PACK.md no mesh of Desk AIs");
 must(yesNo, "Help Pack Creator leftover", "ACCOUNT-YES-NO leftover bullet");
+must(yesNo, "Legal / Studio Desk AI leftover", "ACCOUNT-YES-NO Legal / Studio leftover");
+if (help.includes("lead qualify bot")) throw new Error("help.html still says lead qualify bot");
+must(help, "lead qualify in 48h", "help.html DFY lead qualify");
 
 must(help, 'id="ideas-queue"', "help.html ideas-queue card");
 must(help, "Drop → Qualify → card → Yes / Stop", "help.html ideas path");
