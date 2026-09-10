@@ -184,7 +184,10 @@
       const h = { "Content-Type": "application/json" };
       const ws = (wsEl.value || localStorage.getItem("aia_ws") || "").trim();
       if (ws) h["X-Workspace"] = ws;
-      if (pinEl.value) h["X-Pin"] = pinEl.value;
+      const tok = localStorage.getItem("aia_session") || "";
+      if (tok) h["X-Session"] = tok;
+      const pin = pinEl.value || localStorage.getItem("aia_pin") || "";
+      if (pin) h["X-Pin"] = pin;
       return h;
     }
     function tagFor(st) {

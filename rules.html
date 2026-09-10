@@ -235,6 +235,8 @@
       const h = { "Content-Type": "application/json" };
       const ws = workspaceSlug();
       if (ws) h["X-Workspace"] = ws;
+      const tok = localStorage.getItem("aia_session") || "";
+      if (tok) h["X-Session"] = tok;
       const pin = pinEl.value || localStorage.getItem("aia_pin");
       if (pin) h["X-Pin"] = pin;
       return h;

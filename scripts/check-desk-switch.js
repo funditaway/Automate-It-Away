@@ -270,6 +270,14 @@ if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(switchSrc)) {
 if (switchSrc.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk-switch authHeaders must send X-Pin");
 else pass("desk-switch authHeaders sends X-Pin");
 
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(desk)) {
+  fail("desk.html headers must still send the open-desk pin when a session token is present");
+} else pass("desk.html headers keeps X-Pin with X-Session");
+if (desk.indexOf('if (tok) h["X-Session"] = tok') < 0) fail("desk.html headers must send leftover X-Session");
+else pass("desk.html headers sends leftover X-Session");
+if (desk.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk.html headers must send X-Pin");
+else pass("desk.html headers sends X-Pin");
+
 store.aia_ws = "pin-desk";
 store.aia_session = "leftover-tok";
 store.aia_pin = "4821";
