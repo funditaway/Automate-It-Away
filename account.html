@@ -261,8 +261,7 @@
       const who=s.name||s.role||"Seat";
       const desk=s.workspace||"";
       const now=s.current?" · this phone":"";
-      const ua=String(s.ua||"").slice(0,48);
-      return "<div class=\"item\"><strong>"+esc(who)+now+"</strong><div class=\"meta\">"+esc(desk)+(when?" · seen "+esc(when):"")+(ua?" · "+esc(ua):"")+"</div></div>";
+      return "<div class=\"item\"><strong>"+esc(who)+now+"</strong><div class=\"meta\">"+esc(desk)+(when?" · seen "+esc(when):"")+"</div></div>";
     }
     function paintPhones(rows){
       const box=document.getElementById("phone-list");
