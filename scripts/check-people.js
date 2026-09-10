@@ -35,6 +35,13 @@ if (peopleJs.indexOf("/history?who=") < 0) fail("people history who link");
 else pass("people history who link");
 if (peopleJs.indexOf("openFromQuery") < 0) fail("people ?who= open");
 else pass("people ?who= open");
+if (peopleJs.indexOf("function kindLabel") < 0 || peopleJs.indexOf('if (k === "agent") return "Desk AI"') < 0) {
+  fail("people.js must label agent seats Desk AI");
+} else pass("people kindLabel maps agent to Desk AI");
+if (/esc\(kindOf\(p\)\)/.test(peopleJs)) fail("people card seat chip must not paint raw kindOf");
+else pass("people card seat chip uses kindLabel");
+if (peopleJs.indexOf("kindLabel(seat.kind") < 0) fail("people open-sheet seats must label agent Desk AI");
+else pass("people open-sheet seats use kindLabel");
 
 if (historyHtml.indexOf("params.get(\"who\")") < 0) fail("history reads ?who=");
 else pass("history reads ?who=");

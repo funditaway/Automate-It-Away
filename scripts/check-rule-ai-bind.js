@@ -72,9 +72,12 @@ if (!/bindRuleAi/.test(rulesSrc) || !/No desk AI by that name/.test(rulesSrc)) {
 if (!/rule\.aiId/.test(engineSrc) || !/thenAiGone/.test(engineSrc) || !/is not on this desk/.test(engineSrc)) {
   fail("_engine Then draft must honor rule AI and gone-AI honesty");
 } else pass("engine Then uses rule AI");
-if (help.indexOf("owner picks which on Rules") < 0 && help.indexOf("Owner picks which bot writes matching cards") < 0) {
+if (help.indexOf("Owner picks which desk AI writes matching cards") < 0) {
   fail("help must name Rules Then bind");
 } else pass("help names Rules Then bind");
+if (help.indexOf("Owner picks which bot writes matching cards") >= 0 || help.indexOf("If that bot is gone") >= 0) {
+  fail("help still says which bot on Rules Then bind");
+} else pass("help Rules Then bind says desk AI not bot");
 if (yesNo.indexOf("check-rule-ai-bind.js") < 0) fail("ACCOUNT-YES-NO must record Rules Then bind");
 else pass("ACCOUNT-YES-NO records bind");
 

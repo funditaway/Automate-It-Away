@@ -109,7 +109,7 @@
     }
     el.hidden = false;
     var who = owner ? "Owner desk. Accept, deny, or talk here." : "Waiting on the owner. You can say something. AIA does not send.";
-    el.innerHTML = "<h2>Needs you</h2><p class=\"meta\">" + who + " Humans, agents, and connections talk on this desk.</p>" + waiting.map(card).join("");
+    el.innerHTML = "<h2>Needs you</h2><p class=\"meta\">" + who + " Humans, Desk AIs, and connections talk on this desk.</p>" + waiting.map(card).join("");
     el.onclick = function (e) {
       var btn = e.target.closest("[data-act]");
       if (!btn) return;
