@@ -655,9 +655,11 @@
       const prev = window[name];
       if (typeof prev !== "function") return;
       window[name] = async function (id) {
-        setCardBusy(id, true);
+        const sheet = document.getElementById("sheet");
+        const where = sheet && sheet.classList && sheet.classList.contains("on") ? "sheet" : undefined;
+        setCardBusy(id, true, where);
         try { return await prev.apply(this, arguments); }
-        finally { setCardBusy(id, false); }
+        finally { setCardBusy(id, false, where); }
       };
     }
     wrap("ship");

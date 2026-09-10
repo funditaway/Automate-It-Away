@@ -29,6 +29,12 @@ if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || s
 ["function isPromptReply", "function promptHtml", "function replyOnCard", "function setCardBusy", "q-prompt", "q-reply-box", "Nothing sent alone", "action: \"reply\"", "Working. Nothing sent yet."].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
+["desk-card.js", "desk-queue.js", "desk-home.js"].forEach(function (name) {
+  const src = fs.readFileSync(path.join(root, name), "utf8");
+  if (src.indexOf("Working. Nothing sent yet.") < 0) fail(name + " missing Working busy-face");
+  if (src.indexOf("function setCardBusy") < 0) fail(name + " missing setCardBusy");
+  if (src.indexOf("q-pending") < 0 || src.indexOf("q-busy") < 0) fail(name + " missing q-busy / q-pending paint");
+});
 if (!/function thenAfterYes/.test(engineSrc)) fail("_engine.js must export thenAfterYes");
 if (!/action === \"reply\"/.test(jobsSrc)) fail("jobs.js must handle reply");
 if (!/thenAfterYes/.test(jobsSrc)) fail("jobs.js must call thenAfterYes after Yes");

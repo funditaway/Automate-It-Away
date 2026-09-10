@@ -144,6 +144,12 @@ if (homeJs.includes("yes or no") || homeJs.includes("Yes or No") || homeJs.inclu
 } else pass("desk-home how-in does not paint Yes or No");
 if (!homeJs.includes("You still say Yes or Stop.")) fail("desk-home.js must keep Yes or Stop");
 else pass("desk-home how-in says Yes or Stop");
+if (!homeJs.includes("Working. Nothing sent yet.") || !homeJs.includes("function setCardBusy")) {
+  fail("desk-home.js missing Working busy-face");
+} else pass("desk-home leftover paints Working busy-face");
+if (!cardJs.includes("Working. Nothing sent yet.") || !cardJs.includes("function setCardBusy")) {
+  fail("desk-card.js missing Working busy-face");
+} else pass("desk-card Open sheet paints Working busy-face");
 
 if (desk.includes("Yes or no") || desk.includes("Yes or No") || desk.includes("yes or no")) {
   fail("desk.html still paints Yes or No as the rail");

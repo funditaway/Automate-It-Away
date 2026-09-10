@@ -35,4 +35,49 @@
     const chat = document.querySelector('a[href="chat.html"]');
     if (chat) chat.textContent = "Tell us";
   });
+  function setCardBusy(id, on) {
+    if (typeof window.setCardBusy === "function" && window.setCardBusy !== setCardBusy) {
+      window.setCardBusy(id, on);
+      return;
+    }
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    const queue = document.getElementById("queue");
+    const root = (queue && queue.querySelector && queue.querySelector('[data-job="' + safe + '"]'))
+      || document.getElementById("sheet-card");
+    if (!root || !root.classList) return;
+    root.classList.toggle("q-pending", !!on);
+    if (root.setAttribute) root.setAttribute("aria-busy", on ? "true" : "false");
+    let line = root.querySelector ? root.querySelector(".q-busy") : null;
+    if (on) {
+      if (!line && root.appendChild) {
+        line = document.createElement("p");
+        line.className = "q-busy meta";
+        line.textContent = "Working. Nothing sent yet.";
+        const next = root.querySelector && root.querySelector(".next-line, .q-prompt-hold, .sheet-decide");
+        if (next && next.parentNode) next.parentNode.insertBefore(line, next);
+        else root.appendChild(line);
+      }
+    } else if (line && line.remove) line.remove();
+  }
+  function wrapHitlBusy() {
+    if (typeof window.ship !== "function" || typeof window.confirmKill !== "function") {
+      setTimeout(wrapHitlBusy, 200);
+      return;
+    }
+    if (window.ship._aiaBusy) return;
+    function wrap(name) {
+      const prev = window[name];
+      if (typeof prev !== "function") return;
+      window[name] = async function (id) {
+        setCardBusy(id, true);
+        try { return await prev.apply(this, arguments); }
+        finally { setCardBusy(id, false); }
+      };
+    }
+    wrap("ship");
+    wrap("confirmShip");
+    wrap("confirmKill");
+    window.ship._aiaBusy = true;
+  }
+  wrapHitlBusy();
 })();

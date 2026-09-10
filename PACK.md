@@ -157,7 +157,7 @@ How lead / Talk / public Drop leftover: Yes or Stop, not Yes or No. Talk cards H
 
 Create / market / engine / grok leftover: Yes or Stop, not Yes or No. Create form hints / success, Marketplace Do-the-work default, engine queue next, and Grok SYSTEM Human taps Yes or Stop. Collect HOLD. No silent send.
 
-Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue how-in, card rec fallback, We-type-it sheet, desk.html next fallback, unused desk-queue decide fallback, and Rail/Doer handoff Owner/You tap Yes or Stop. Thin card busy while Reply / Yes / Stop pending. Collect HOLD. No silent send.
+Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue how-in, card rec fallback, We-type-it sheet, desk.html next fallback, unused desk-queue decide fallback, and Rail/Doer handoff Owner/You tap Yes or Stop. Thin card busy while Reply / Yes / Stop pending — Working. Nothing sent yet. `desk-needs.js` plus leftover `desk-card.js` / `desk-queue.js` / `desk-home.js` paint that busy-face. Collect HOLD. No silent send.
 
 Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on `/pipes` and `/connections` say You still tap Yes or Stop. Connect-drafts flash matches. Health Do is Yes and Stop stay on the desk. Buyer binds own keys. Collect HOLD. No silent send.
 
