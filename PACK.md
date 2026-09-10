@@ -189,6 +189,8 @@ Legal / Studio Desk AI leftover: after People Say said Desk AI, legal.html still
 
 Drop → many-cards leftover: world Drop / Talk still wrote one blob card for a list. Capture now fans a list or multi-line Drop into N draft queue cards. Each card is draft-only. Yes / Stop / Kill stay human. Photo OCR is not live. Collect HOLD. No silent send.
 
+Desk AI copy leftover: after Legal / Studio / Drop→many-cards, DROP.md still titled Agents with AIA World users, Grok SYSTEM still said Bots draft only, and admin audit still logged Agent on Kill / Ship. Those faces now say Desk AI. Seat id `agent` and `bots[]` alias stay. Photo OCR is not live. Collect / mint / ETH / Cap / aia-tld Register stay HOLD. No silent send.
+
 Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 
 Studio Open leftover after bind: `save()` no longer re-reads the blob over in-request writes. Login keeps the open Owner desk on its own account — a later shop name that slugifies to that desk cannot take it. Wrong code still 401. No silent open. Collect HOLD. No silent send.

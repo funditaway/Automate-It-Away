@@ -186,7 +186,7 @@ module.exports = async function handler(req, res) {
       job.killReason = body.killReason || job.killReason || "Owner kill";
       job.whoTapped = actorName(person, body);
       job.log = (job.log || []).concat(["Killed · " + job.killReason]);
-      log("Agent", "Killed · " + job.title, "Stopped", workspace);
+      log("Desk AI", "Killed · " + job.title, "Stopped", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }
@@ -365,7 +365,7 @@ module.exports = async function handler(req, res) {
       markFlow(job, "collect");
       job.log = (job.log || []).concat([moneyNeedsOwner(amount, holdAt) ? "Owner confirmed" : "Shipped"]);
       mem.money.unshift({ at: new Date().toISOString(), workspace, who: job.payoutTo || job.title, what: "Ship", amt: amount ? "$" + amount : "—", held: false });
-      log(pipe ? pipe.label : "Agent", "Shipped · " + job.title, "OK", workspace);
+      log(pipe ? pipe.label : "Desk AI", "Shipped · " + job.title, "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job, nextJob: nextJob || undefined });
     }

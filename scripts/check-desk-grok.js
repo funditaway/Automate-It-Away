@@ -35,12 +35,18 @@ if (!grokSrc.includes("prompt: clip(a.prompt")) fail("jobBrief must pass named D
 if (!grokSrc.includes("deskAi: bound")) fail("jobBrief must pass the bound deskAi");
 if (!grokSrc.includes("not MVP demo bots")) fail("Studio SYSTEM must not seed MVP demo bots");
 if (!grokSrc.includes("Fill ais[].does and ais[].prompt")) fail("Studio SYSTEM must fill Desk AI does / prompt with canon");
+if (grokSrc.includes("Bots draft only.")) fail("grok SYSTEM still says Bots draft only");
+if (!grokSrc.includes("Desk AIs draft only.")) fail("grok SYSTEM must say Desk AIs draft only");
 if (!/Create \/ market \/ engine \/ grok leftover/.test(yesNo)) {
   fail("ACCOUNT-YES-NO must record Create / market / engine / grok leftover");
 }
 if (!/Desk AI canon leftover/.test(yesNo)) {
   fail("ACCOUNT-YES-NO must record Desk AI canon leftover");
 }
+if (!/Desk AI copy leftover/.test(yesNo)) {
+  fail("ACCOUNT-YES-NO must record Desk AI copy leftover");
+}
+if (!grokSrc.includes("bots[]")) fail("Studio SYSTEM must keep bots[] alias");
 
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "desk-needs.js")], { encoding: "utf8" });
 if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
