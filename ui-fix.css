@@ -240,8 +240,15 @@ button.open-desk {
 }
 .theme-btn {
   white-space: nowrap;
-  min-width: auto !important;
+  min-width: 52px !important;
   flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.6) !important;
+  background: rgba(12, 17, 22, .45) !important;
+  color: #fff !important;
+}
+.kpis {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 .brand-mark {
   background: transparent;
