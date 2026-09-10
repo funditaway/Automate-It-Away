@@ -78,6 +78,12 @@ if (!playbook.includes('href: "/drop"') || !playbook.includes('href: "/pipes"'))
 else pass("playbook Drop + Pipes");
 if (!playbook.includes("/create?kind=ai") || !playbook.includes("/studio")) fail("playbook missing Create/Studio AI links");
 else pass("playbook Create + Studio");
+if (playbook.includes('tag: "Agents"')) fail("playbook step 3 still says Agents");
+else pass("playbook step 3 is Desk AI");
+if (!playbook.includes('tag: "Desk AI"')) fail("playbook must tag step 3 Desk AI");
+else pass("playbook tags Desk AI");
+if (playbook.includes("It categorizes, drafts, summarizes")) fail("playbook still uses MVP bot does");
+else pass("playbook dropped MVP bot does");
 if (!playbook.includes('href: "/rules"')) fail("playbook missing Rules");
 else pass("playbook Rules");
 if (!playbook.includes("/desk")) fail("playbook missing Qualify/Queue");

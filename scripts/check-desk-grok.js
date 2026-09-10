@@ -21,8 +21,25 @@ const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const grokSrc = fs.readFileSync(path.join(root, "api/_grok.js"), "utf8");
 if (!grokSrc.includes("Human taps Yes or Stop.")) fail("grok SYSTEM must keep Human taps Yes or Stop");
 if (grokSrc.includes("Human taps Yes or No.")) fail("grok SYSTEM still paints Yes or No");
+if (grokSrc.includes("You draft for Automate It Away.")) fail("grok SYSTEM still opens as a generic MVP drafter");
+if (!grokSrc.includes("You are a Desk AI for Automate It Away")) fail("grok SYSTEM must name Desk AI");
+if (!grokSrc.includes("Desk AIs that draft. Humans that decide.")) fail("grok SYSTEM must keep the Desk AI tagline");
+if (!grokSrc.includes("Draft ready. I cannot send, pay, or bind anything. You stay in control.")) {
+  fail("grok SYSTEM must keep the firm draft-only line");
+}
+if (!grokSrc.includes("Collect stays HOLD")) fail("grok SYSTEM must keep Collect HOLD");
+if (!grokSrc.includes("desk crew, not captains")) fail("grok SYSTEM must keep desk-crew roles");
+if (!grokSrc.includes("using its does and prompt")) fail("grok SYSTEM must draft as the named Desk AI prompt");
+if (!grokSrc.includes("function aiBrief")) fail("jobBrief must map named Desk AI prompt via aiBrief");
+if (!grokSrc.includes("prompt: clip(a.prompt")) fail("jobBrief must pass named Desk AI prompt");
+if (!grokSrc.includes("deskAi: bound")) fail("jobBrief must pass the bound deskAi");
+if (!grokSrc.includes("not MVP demo bots")) fail("Studio SYSTEM must not seed MVP demo bots");
+if (!grokSrc.includes("Fill ais[].does and ais[].prompt")) fail("Studio SYSTEM must fill Desk AI does / prompt with canon");
 if (!/Create \/ market \/ engine \/ grok leftover/.test(yesNo)) {
   fail("ACCOUNT-YES-NO must record Create / market / engine / grok leftover");
+}
+if (!/Desk AI canon leftover/.test(yesNo)) {
+  fail("ACCOUNT-YES-NO must record Desk AI canon leftover");
 }
 
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "desk-needs.js")], { encoding: "utf8" });
@@ -158,6 +175,29 @@ async function main() {
   if (!job) fail("recommend returned no job");
   if (job.status === "shipped" || job.charged === true) fail("recommend must not ship or charge");
   if (!(job.draft || (job.recs && job.recs.length))) fail("recommend must leave a draft or recs on the card");
+
+  const grokMod = require("../api/_grok");
+  const briefNamed = grokMod.jobBrief(
+    { title: "Oak dresser" },
+    { ais: [{ name: "James’s AI", role: "Doer", does: "Help the world desk", prompt: "Draft ready. I cannot send, pay, or bind anything. You stay in control." }] }
+  );
+  if (!briefNamed.ais || !briefNamed.ais[0] || (briefNamed.ais[0].prompt || "").indexOf("Draft ready") < 0) {
+    fail("jobBrief must pass the named Desk AI prompt");
+  }
+  const briefEmpty = grokMod.jobBrief({ title: "Oak dresser" }, { ais: [{ name: "James’s AI" }] });
+  if (!briefEmpty.ais || !briefEmpty.ais[0] || (briefEmpty.ais[0].prompt || "").indexOf("Draft ready") < 0) {
+    fail("empty named-AI prompt must fall back to AIA canon");
+  }
+  if (!briefEmpty.ais[0].does || briefEmpty.ais[0].does.indexOf("Nothing sent") < 0) {
+    fail("empty named-AI does must fall back to AIA canon");
+  }
+  const briefBound = grokMod.jobBrief({
+    title: "Oak dresser",
+    deskAi: { name: "James’s AI", prompt: "Draft ready. I cannot send, pay, or bind anything. You stay in control." }
+  }, {});
+  if (!briefBound.deskAi || (briefBound.deskAi.prompt || "").indexOf("Draft ready") < 0) {
+    fail("jobBrief must pass the bound deskAi prompt");
+  }
 
   console.log("check-desk-grok: ok");
 }
