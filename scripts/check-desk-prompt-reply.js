@@ -29,6 +29,12 @@ if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || s
 ["function isPromptReply", "function promptHtml", "function replyOnCard", "function setCardBusy", "q-prompt", "q-reply-box", "Nothing sent alone", "action: \"reply\"", "Working. Nothing sent yet."].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
+["desk-card.js", "desk-queue.js", "desk-home.js"].forEach(function (name) {
+  const src = fs.readFileSync(path.join(root, name), "utf8");
+  if (src.indexOf("Working. Nothing sent yet.") < 0) fail(name + " missing Working busy-face");
+  if (src.indexOf("function setCardBusy") < 0) fail(name + " missing setCardBusy");
+  if (src.indexOf("q-pending") < 0 || src.indexOf("q-busy") < 0) fail(name + " missing q-busy / q-pending paint");
+});
 if (!/function thenAfterYes/.test(engineSrc)) fail("_engine.js must export thenAfterYes");
 if (!/action === \"reply\"/.test(jobsSrc)) fail("jobs.js must handle reply");
 if (!/thenAfterYes/.test(jobsSrc)) fail("jobs.js must call thenAfterYes after Yes");
@@ -79,7 +85,7 @@ if (askCard.indexOf("Need a number") < 0) fail("ask card must show the question"
 if (askCard.indexOf("q-reply-box") < 0) fail("ask card missing reply field");
 if (askCard.indexOf(">Reply<") < 0) fail("ask card missing Reply tap");
 if (askCard.indexOf("Nothing sent alone") < 0) fail("ask card must say nothing sent alone");
-if (askCard.indexOf("replyOnCard('j-ask')") < 0) fail("Reply tap must call replyOnCard");
+if (askCard.indexOf("replyOnCard('j-ask','queue')") < 0) fail("Reply tap must call replyOnCard with the queue surface");
 if (/>Yes</.test(askCard)) fail("ask card must not show Yes");
 
 const aiCard = ctx.card({
@@ -231,6 +237,27 @@ async function apiPath() {
     fail("reply must land on the card history");
   }
   if (!job.phone || String(job.phone).indexOf("555") < 0) fail("reply should fill the missing number, got " + job.phone);
+
+  const readyCap = await call(jobsHandler, "POST", owner, {
+    action: "capture",
+    title: "Ready lead",
+    notes: "facts already on the card",
+    from: "desk"
+  });
+  if (readyCap.statusCode !== 201 || !readyCap.body.job) fail("ready capture " + readyCap.statusCode);
+  const readyReply = await call(jobsHandler, "POST", owner, {
+    action: "reply",
+    id: readyCap.body.job.id,
+    text: "Just a note on the card",
+    whoTapped: "Pat"
+  });
+  if (readyReply.statusCode !== 200 || !readyReply.body.ok) {
+    fail("Yes-ready reply should 200, got " + readyReply.statusCode + " " + JSON.stringify(readyReply.body));
+  }
+  if (readyReply.body.nextJob) fail("reply on a Yes-ready card must not spawn Then-after-Yes");
+  if (readyReply.body.job && (readyReply.body.job.status === "shipped" || readyReply.body.job.charged === true || readyReply.body.sent === true)) {
+    fail("Yes-ready reply must not Yes / ship / send");
+  }
 
   const click = await call(jobsHandler, "POST", owner, {
     action: "capture",

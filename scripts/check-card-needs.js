@@ -90,6 +90,9 @@ if (queueJs.includes("Yes or No.") || queueJs.includes("yes or no")) fail("desk-
 else pass("desk-queue decide fallback does not paint Yes or No");
 if (!queueJs.includes("Yes or Stop.")) fail("desk-queue.js decide fallback must keep Yes or Stop");
 else pass("desk-queue decide fallback is Yes or Stop");
+if (!queueJs.includes("Working. Nothing sent yet.") || !queueJs.includes("function setCardBusy") || !queueJs.includes("data-job=")) {
+  fail("desk-queue.js missing Working busy-face");
+} else pass("desk-queue leftover paints Working busy-face");
 
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("action === \"priority\"") || !jobs.includes("needsOf")) fail("jobs.js missing priority / needs");
