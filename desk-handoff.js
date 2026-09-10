@@ -12,10 +12,13 @@
     if (who && (kind === "agent" || j.waitingOn === "agent" || (j.deskAi && j.deskAi.name))) {
       return (j.deskAi && j.deskAi.name ? j.deskAi.name : who) + " · desk AI · drafts only · Yes stays human";
     }
-    if (who) return "Handed to " + who + (kind ? " · " + kind : "");
+    if (who) {
+      var kindFace = kind === "agent" ? "Desk AI" : kind;
+      return "Handed to " + who + (kindFace ? " · " + kindFace : "");
+    }
     if (j.waitingOn === "owner") return "Waiting on the owner";
     if (j.status === "out") return "Off the desk. Confirm done or Needs a hand.";
-    return "On this desk. Hand to a person or an agent.";
+    return "On this desk. Hand to a person or a Desk AI.";
   };
   window.handCardTo = window.handCardTo || async function (id) {
     var sel = document.getElementById("hand-to-" + id) || document.getElementById("hand-to");
@@ -36,7 +39,7 @@
   function people() { return (typeof PEOPLE !== "undefined" && PEOPLE) || []; }
   function opts(j) {
     return people().filter(function (p) { return p && p.status !== "pending" && p.status !== "denied"; }).map(function (p) {
-      var tag = p.deskAi ? "desk AI" : ((p.kind === "agent" || p.role === "agent") ? "agent" : (p.kind || p.role || ""));
+      var tag = (p.deskAi || p.kind === "agent" || p.role === "agent") ? "Desk AI" : (p.kind || p.role || "");
       var sel = j && j.assignee === p.name ? " selected" : "";
       return "<option value=\"" + esc(p.name) + "\"" + sel + ">" + esc(p.name) + (tag ? " · " + esc(tag) : "") + "</option>";
     }).join("");

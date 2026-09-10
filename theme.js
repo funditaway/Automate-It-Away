@@ -222,7 +222,7 @@
     if (r === "helper") return "Helper";
     if (r === "friend") return "Friend";
     if (r === "family") return "Family";
-    if (r === "agent") return "Agent";
+    if (r === "agent") return "Desk AI";
     if (!r) return "";
     return r.charAt(0).toUpperCase() + r.slice(1);
   }

@@ -36,6 +36,11 @@ function kindOf(p) {
   if (p && (p.deskAi || p.kind === "agent" || p.role === "agent")) return "agent";
   return (p && p.kind) || (p && p.role === "owner" ? "owner" : "helper");
 }
+function kindLabel(kind) {
+  var k = String(kind || "").toLowerCase();
+  if (k === "agent") return "Desk AI";
+  return kind || "";
+}
 function isDeskAi(p) {
   return !!(p && p.deskAi);
 }
@@ -171,7 +176,7 @@ function paintYou() {
   var you = STATE.you || {};
   if (!you.name && !you.role) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = "<h3>You · " + esc(you.name || "Desk") + "</h3><p class=\"meta\">" + esc(you.kind || you.role || "") + (STATE.shop ? " · " + esc(STATE.shop) : "") + ". Owner owns Stop, money, pipes, and delete.</p>";
+  el.innerHTML = "<h3>You · " + esc(you.name || "Desk") + "</h3><p class=\"meta\">" + esc(kindLabel(you.kind || you.role || "")) + (STATE.shop ? " · " + esc(STATE.shop) : "") + ". Owner owns Stop, money, pipes, and delete.</p>";
 }
 
 function groupPeople(list) {
@@ -283,7 +288,7 @@ function card(p) {
       "<p class=\"meta\">Updates name / does / prompt. Queue chips follow. Yes / Stop / Kill stay human.</p>" +
       "</form>"
     : "";
-  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindOf(p)) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
+  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindLabel(kindOf(p))) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
 }
 
 function paintList() {
@@ -328,7 +333,7 @@ function seatHtml(seat) {
   if (seat.holding) bits.push("Holding " + seat.holding);
   if (seat.ext) bits.push("Ext " + seat.ext);
   if (seat.done) bits.push("Done " + seat.done);
-  return "<div class=\"sheet-row\"><b>" + esc(seat.desk || seat.slug || "Desk") + "</b><div class=\"meta\">" + esc(seat.kind || "helper") + (bits.length ? " · " + esc(bits.join(" · ")) : "") + (seat.lastSeen ? " · " + esc(fmtTime(seat.lastSeen)) : "") + "</div></div>";
+  return "<div class=\"sheet-row\"><b>" + esc(seat.desk || seat.slug || "Desk") + "</b><div class=\"meta\">" + esc(kindLabel(seat.kind || "helper")) + (bits.length ? " · " + esc(bits.join(" · ")) : "") + (seat.lastSeen ? " · " + esc(fmtTime(seat.lastSeen)) : "") + "</div></div>";
 }
 
 function thenWhoOf(item) {
