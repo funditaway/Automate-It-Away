@@ -57,6 +57,11 @@ function copyFn(src, label) {
   if (send.indexOf("You still tap Yes or Stop") < 0) fail(file + " success must keep Yes or Stop");
   if (send.indexOf("Dropping…") < 0 && send.indexOf("Dropping...") < 0) fail(file + " send() must show Dropping…");
   if (send.indexOf("attachFiles(item") < 0) fail(file + " send() must still attachFiles");
+  if (send.indexOf("agent-tell") < 0) fail(file + " send() must read Tell AIA from #agent-tell");
+  if (/\|\|\s*implement\)\s*\)\s*:/.test(send) || /tell\s*=\s*agentOn[\s\S]{0,120}\|\|\s*implement/.test(send)) {
+    fail(file + " Tell AIA must not fall back to pasted implement");
+  }
+  if (send.indexOf("tell: tell") < 0) fail(file + " send() must post tell");
   if (copy.indexOf("share-ok") < 0) fail(file + " copyDropShare must write #share-ok");
   if (/getElementById\(["']ok["']\)/.test(copy)) fail(file + " copyDropShare must not hijack #ok");
   if (copy.indexOf("never see money") < 0) fail(file + " share copy must stay honest about money");

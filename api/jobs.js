@@ -149,7 +149,11 @@ module.exports = async function handler(req, res) {
         }
         applyDeskAiDraft(job, shop, "qualify");
         holdCapturedJob(job);
-        if (job.notes) addTalk(job, job.from || "capture", job.notes, "note");
+        const tell = String(job.tell || "").trim();
+        if (tell && !(job.thread || []).some((t) => t && t.kind === "tell" && String(t.text || "").trim() === tell)) {
+          addTalk(job, job.whoTapped || job.contactName || "drop", tell, "tell");
+        }
+        if (job.notes && String(job.notes).trim() !== tell) addTalk(job, job.from || "capture", job.notes, "note");
         addTalk(job, "desk", job.why || "In the queue.", "rec");
       }
       const lead = jobs[0];

@@ -490,4 +490,38 @@ if (cardCtx.talkLabelOf({ kind: "rec" }, "", "Shop Bot") === "Desk AI · Then dr
   fail("open-job gone rec with no from must not say Desk AI");
 }
 
+const fieldsApi = require(path.join(root, "api/_fields"));
+const putTell = fieldsApi.makeCapturedJob("shop", { fields: [], people: [] }, {
+  title: "Name: Sam",
+  notes: "Name: Sam\nNeed a pickup Friday 3pm",
+  tell: "Not shipped. Qualify first.",
+  implement: "Name: Sam\nNeed a pickup Friday 3pm",
+  mode: "agent",
+  from: "widget",
+  contactName: "PROBE",
+  droppedByKind: "helper"
+});
+if (!(putTell.thread || []).some(function (t) { return t.kind === "tell" && /Qualify first/.test(t.text || ""); })) {
+  fail("Drop Put + Tell AIA must store kind tell");
+}
+if ((putTell.thread || []).some(function (t) { return t.kind === "note" && /Qualify first/.test(t.text || ""); })) {
+  fail("Drop Put + Tell AIA must not store the tell as note");
+}
+const putItem = hist.historyItem(putTell, { slug: "shop", biz: "Shop" });
+if (!putItem.thread.some(function (t) { return t.kind === "tell"; })) fail("History must keep captured Tell AIA as tell");
+if (ctx.talkLabel({ kind: "tell", from: "PROBE" }, putItem).indexOf("PROBE · tell") < 0) {
+  fail("History must label dropper · tell");
+}
+if (ctx.talkLabel({ kind: "tell", from: "PROBE" }, putItem).indexOf("NOTE") >= 0 || ctx.talkLabel({ kind: "tell", from: "PROBE" }, putItem).indexOf("note") >= 0) {
+  fail("History Tell AIA must not paint NOTE");
+}
+const putOpen = cardCtx.threadSheetHtml(putTell);
+if (putOpen.indexOf("Qualify first") < 0) fail("open-job must show captured Tell AIA");
+if (putOpen.indexOf("PROBE · tell") < 0 && putOpen.indexOf("drop · tell") < 0) {
+  fail("open-job must paint drop · tell or dropper · tell, not NOTE");
+}
+if (putOpen.indexOf("PROBE · note") >= 0 && putOpen.indexOf("Qualify first") >= 0 && putOpen.indexOf("PROBE · tell") < 0) {
+  fail("open-job captured Tell AIA painted as NOTE");
+}
+
 console.log("check-history-thread: ok");
