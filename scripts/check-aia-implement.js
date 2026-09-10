@@ -103,6 +103,10 @@ if (peopleDesk.indexOf("human, agent, or pipe") >= 0) fail("people-desk Say stil
 else pass("people-desk Say does not say agent");
 if (peopleDesk.indexOf("human, Desk AI, or pipe") < 0) fail("people-desk Say must name Desk AI");
 else pass("people-desk Say names Desk AI");
+if (peopleJs.indexOf('bits.push("agents")') >= 0) fail("people logicLine still says agents");
+else pass("people logicLine does not say agents");
+if (peopleJs.indexOf('bits.push("Desk AIs")') < 0) fail("people logicLine must say Desk AIs");
+else pass("people logicLine names Desk AIs");
 const helpSrc = read("help.html");
 if (helpSrc.indexOf("Agents, bots, guardrails") >= 0) fail("help still says Agents, bots");
 else pass("help Talk does not say Agents, bots");

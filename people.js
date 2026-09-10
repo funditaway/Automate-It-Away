@@ -101,7 +101,7 @@ function logicLine() {
   else if (f === "family") bits.push("family or friends");
   else if (f === "helper") bits.push("helpers");
   else if (f === "staff") bits.push("staff or owners");
-  else if (f === "agent") bits.push("agents");
+  else if (f === "agent") bits.push("Desk AIs");
   else if (f === "ext") bits.push("off the desk");
   else if (f === "hold") bits.push("holding a card");
   var q = queryText();

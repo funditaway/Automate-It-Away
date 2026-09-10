@@ -47,6 +47,16 @@ if (peopleDesk.indexOf("human, agent, or pipe") >= 0) fail("people-desk Say stil
 else pass("people-desk Say does not say agent");
 if (peopleDesk.indexOf("human, Desk AI, or pipe") < 0) fail("people-desk Say must name Desk AI");
 else pass("people-desk Say names Desk AI");
+if (peopleJs.indexOf('bits.push("agents")') >= 0) fail("people logicLine still says agents");
+else pass("people logicLine does not say agents");
+if (peopleJs.indexOf('bits.push("Desk AIs")') < 0) fail("people logicLine must say Desk AIs");
+else pass("people logicLine names Desk AIs");
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+if (yesNo.indexOf("People logic leftover") < 0) fail("ACCOUNT-YES-NO must name People logic leftover");
+else pass("ACCOUNT-YES-NO names People logic leftover");
+if (packMd.indexOf("People logic leftover") < 0) fail("PACK.md must name People logic leftover");
+else pass("PACK.md names People logic leftover");
 
 if (historyHtml.indexOf("params.get(\"who\")") < 0) fail("history reads ?who=");
 else pass("history reads ?who=");
