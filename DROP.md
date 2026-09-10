@@ -9,7 +9,7 @@ One intake. Three ways in. Same queue. Human taps Yes or Stop.
 2. **Quick drop / manual** (`/drop`, embed)
    Tap a kind. Fill the short card. Drop it. Two taps.
 3. **Custom / Advanced** (`?mode=custom` or `?mode=agent`)
-   Name your own kind, paste data (**Put data on**), pick pack, seat a crew agent. Draft only.
+   Name your own kind, paste data (**Put data on**), pick pack, seat a crew Desk AI. Draft only.
 
 ## World users · accounts · desks
 
@@ -41,7 +41,7 @@ World users drop. Desk AIs draft on the same card. They do not replace the user.
 - `drop-talk.js` — Talk to the desk
 - `drop-now.js` — Quick / recent / after-drop
 - `drop-more.js` — Custom kinds
-- `drop-agent.js` — Advanced + agents
+- `drop-agent.js` — Advanced + Desk AIs
 - `drop-packs.js` — Active packs on this desk (one pack or many)
 - `drop-preview.js` — Thread + card preview gate
 - `chat.html` — bounce to `/drop?mode=talk#talk`

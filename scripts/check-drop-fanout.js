@@ -90,6 +90,14 @@ if (/World users drop\. Agents draft/.test(dropMd)) fail("DROP.md still says Age
 else pass("DROP.md does not say Agents draft");
 if (dropMd.indexOf("World users drop. Desk AIs draft") < 0) fail("DROP.md must say Desk AIs draft");
 else pass("DROP.md says Desk AIs draft");
+if (dropMd.indexOf("seat a crew agent") >= 0) fail("DROP.md Advanced still says seat a crew agent");
+else pass("DROP.md Advanced does not say seat a crew agent");
+if (dropMd.indexOf("seat a crew Desk AI") < 0) fail("DROP.md Advanced must say seat a crew Desk AI");
+else pass("DROP.md Advanced says seat a crew Desk AI");
+if (dropMd.indexOf("Advanced + agents") >= 0) fail("DROP.md files list still says Advanced + agents");
+else pass("DROP.md files list does not say Advanced + agents");
+if (dropMd.indexOf("Advanced + Desk AIs") < 0) fail("DROP.md files list must say Advanced + Desk AIs");
+else pass("DROP.md files list says Advanced + Desk AIs");
 
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
@@ -101,6 +109,10 @@ if (yesNo.indexOf("Desk AI copy leftover") < 0) fail("ACCOUNT-YES-NO must name D
 else pass("ACCOUNT-YES-NO names Desk AI copy leftover");
 if (packMd.indexOf("Desk AI copy leftover") < 0) fail("PACK.md must name Desk AI copy leftover");
 else pass("PACK.md names Desk AI copy leftover");
+if (yesNo.indexOf("DROP.md Advanced leftover") < 0) fail("ACCOUNT-YES-NO must name DROP.md Advanced leftover");
+else pass("ACCOUNT-YES-NO names DROP.md Advanced leftover");
+if (packMd.indexOf("DROP.md Advanced leftover") < 0) fail("PACK.md must name DROP.md Advanced leftover");
+else pass("PACK.md names DROP.md Advanced leftover");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

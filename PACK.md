@@ -193,6 +193,8 @@ Desk AI copy leftover: after Legal / Studio / Drop→many-cards, DROP.md still t
 
 People logic leftover: after People chips / Say / KPI said Desk AI, the filter logic line still said Showing people who match agents. Hear this speaks that line. Logic now says Desk AIs. Filter value `agent` stays. Collect HOLD. No silent send.
 
+DROP.md Advanced leftover: after DROP.md titled Desk AIs, Advanced still said seat a crew agent and the files list said Advanced + agents. Those parked lines now say crew Desk AI / Desk AIs. Mode `?mode=agent` and `drop-agent.js` stay. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
 
 Studio Open leftover after bind: `save()` no longer re-reads the blob over in-request writes. Login keeps the open Owner desk on its own account — a later shop name that slugifies to that desk cannot take it. Wrong code still 401. No silent open. Collect HOLD. No silent send.
