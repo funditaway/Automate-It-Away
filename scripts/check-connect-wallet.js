@@ -38,6 +38,11 @@ if (!/Connect existing wallet/.test(ui)) fail("UI missing Connect existing walle
 else pass("Connect existing wallet title");
 if (!/Connect MetaMask/.test(ui) || !/Connect WalletConnect/.test(ui)) fail("UI missing MetaMask / WalletConnect");
 else pass("Connect MetaMask / WalletConnect");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(ui)) {
+  fail("wallet hdr must still send the open-desk pin when a session token is present");
+} else pass("wallet hdr keeps X-Pin with X-Session");
+if (ui.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("wallet hdr must send X-Pin");
+else pass("wallet hdr sends X-Pin");
 if (/Wallet\.AIA/.test(ui) && !/Not Wallet\.AIA/.test(ui)) fail("UI must not ship custodial Wallet.AIA");
 else pass("not custodial Wallet.AIA");
 if (!/Disconnect/.test(ui)) fail("UI missing Disconnect");
@@ -218,6 +223,50 @@ async function main() {
   const guest = await call(account, "POST", {}, { action: "wallet", walletAddress: addr, walletChainId: 1 });
   if (guest.statusCode !== 401) fail("wallet without sign-in must 401, got " + guest.statusCode);
   else pass("wallet requires open desk");
+
+  const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
+  const leftoverWallet = await call(account, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover
+  }, { action: "wallet", walletAddress: addr, walletChainId: 1 });
+  if (leftoverWallet.statusCode !== 401) {
+    fail("leftover session without pin must still 401 wallet, got " + leftoverWallet.statusCode);
+  } else pass("leftover session without pin stays 401 on wallet");
+
+  const leftoverWalletPin = await call(account, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": pin
+  }, { action: "wallet", walletAddress: addr, walletChainId: "0x1" });
+  const leftoverW = leftoverWalletPin.body && leftoverWalletPin.body.wallet;
+  if (leftoverWalletPin.statusCode !== 200 || !leftoverW || !leftoverW.connected || leftoverW.short !== "0x1234…5678") {
+    fail("leftover session + matching pin must still bind wallet " + leftoverWalletPin.statusCode + " " + JSON.stringify(leftoverWalletPin.body));
+  } else pass("leftover session + pin binds wallet");
+
+  const leftoverWrong = await call(account, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": "0000"
+  }, { action: "wallet", walletAddress: addr, walletChainId: 1 });
+  if (leftoverWrong.statusCode !== 401) {
+    fail("wrong leftover pin must still 401 wallet, got " + leftoverWrong.statusCode);
+  } else pass("wrong leftover pin stays 401 on wallet");
+
+  const leftoverEmpty = await call(account, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover,
+    "x-pin": ""
+  }, { action: "wallet", walletAddress: addr, walletChainId: 1 });
+  if (leftoverEmpty.statusCode !== 401) {
+    fail("empty leftover pin must still 401 wallet, got " + leftoverEmpty.statusCode);
+  } else pass("empty leftover pin stays 401 on wallet");
+
+  const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+  const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+  if (yesNo.indexOf("Wallet leftover") < 0) fail("ACCOUNT-YES-NO must name Wallet leftover");
+  else pass("ACCOUNT-YES-NO names Wallet leftover");
+  if (packMd.indexOf("Wallet leftover") < 0) fail("PACK.md must name Wallet leftover");
+  else pass("PACK.md names Wallet leftover");
 
   if (/\$250|demo seed|fake ETH|silent Collect/i.test(JSON.stringify(saved.body) + JSON.stringify(st.body.wallet) + ui + html)) {
     fail("hard-line leak");

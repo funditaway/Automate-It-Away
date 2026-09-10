@@ -21,7 +21,7 @@
     var tok = localStorage.getItem("aia_session") || "";
     if (ws) h["X-Workspace"] = slugify(ws);
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return h;
   }
   function esc(s) {
