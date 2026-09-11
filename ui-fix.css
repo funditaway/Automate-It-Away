@@ -254,3 +254,44 @@ button.open-desk {
   background: transparent;
   box-shadow: none;
 }
+
+/* World desk chips: labels full-width, buttons wrap, never clipped by bottom nav */
+.desk-chips {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: stretch;
+  gap: 8px !important;
+  width: 100%;
+  max-width: 100%;
+}
+.desk-chips .chip-label,
+.desk-chips .sub,
+#public-desk-hits .chip-label,
+#public-desk-hits .sub {
+  flex: 1 0 100% !important;
+  width: 100% !important;
+  margin: 6px 0 0 !important;
+  color: var(--muted);
+  font: 600 13px/1.3 system-ui, sans-serif;
+}
+.desk-chips button,
+#public-desk-hits button {
+  flex: 1 1 148px !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 859px) {
+  #public-desk-search,
+  #desk-pick,
+  .desk-pick {
+    margin-bottom: 12px;
+  }
+}
+
+/* KPI never renders as a stray dash */
+.kpi b {
+  font-family: ui-sans-serif, system-ui, sans-serif !important;
+}
