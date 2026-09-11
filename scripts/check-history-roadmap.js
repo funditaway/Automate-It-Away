@@ -131,6 +131,15 @@ if (/if\(tok\)h\["X-Session"\]=tok;\s*else if\(d&&d\.pin\)/.test(history)) {
 } else pass("History packHdr keeps X-Pin with X-Session");
 if (history.indexOf('if(pin)h["X-Pin"]=pin') < 0) fail("History packHdr must send X-Pin");
 else pass("History packHdr sends X-Pin");
+if (history.indexOf("function livePin") < 0 || history.indexOf("function pinOf") < 0) {
+  fail("History must name livePin / pinOf so leftover session does not send stale desk-row X-Pin");
+} else pass("History names livePin / pinOf");
+if (history.indexOf("var pin=liveTok()?livePin():pinOf(d)") < 0) {
+  fail("History packHdr must omit stale desk-row pin when leftover aia_session is live and aia_pin is empty");
+} else pass("History packHdr uses live aia_pin only when leftover session is live");
+if (history.indexOf("desks:asked.map(function(d){return {slug:d.slug,pin:pinOf(d)};})") < 0) {
+  fail("History trail load must pinOf desks so session-only leftover does not post stale desks[].pin");
+} else pass("History trail load uses pinOf for desks[].pin");
 if (history.indexOf('fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"}') >= 0) {
   fail("History trail load still skips leftover X-Session");
 } else pass("History trail load does not skip leftover X-Session");
@@ -140,9 +149,15 @@ if (history.indexOf('fetch("/api/desks",{method:"POST",headers:packHdr()') < 0) 
 if (yesNo.indexOf("History leftover session after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name History leftover session");
 } else pass("ACCOUNT-YES-NO names History leftover session");
+if (yesNo.indexOf("History leftover stale pin after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name History leftover stale pin");
+} else pass("ACCOUNT-YES-NO names History leftover stale pin");
 if (packMd.indexOf("History leftover session:") < 0) {
   fail("PACK.md must name History leftover session");
 } else pass("PACK.md names History leftover session");
+if (packMd.indexOf("History leftover stale pin:") < 0) {
+  fail("PACK.md must name History leftover stale pin");
+} else pass("PACK.md names History leftover stale pin");
 if (pkg.indexOf("check-history-roadmap.js") < 0) fail("package.json must run check-history-roadmap");
 else pass("package.json runs check-history-roadmap");
 
@@ -223,6 +238,70 @@ if (!paintSrc) {
 
 if (people.indexOf("accountRoadMini()") < 0) fail("People openSheet must paint accountRoadMini");
 else pass("People openSheet paints accountRoadMini");
+
+(function () {
+  const packSrc = history.match(/function livePin\(\)\{[\s\S]*?\nfunction roadFrom/);
+  if (!packSrc) {
+    fail("could not extract History packHdr / pinOf");
+    return;
+  }
+  function runPack(opts) {
+    const store = {
+      aia_pin: opts.aia_pin == null ? "" : opts.aia_pin,
+      aia_session: opts.aia_session == null ? "" : opts.aia_session,
+      aia_ws: opts.ws || "shop"
+    };
+    const row = {
+      slug: store.aia_ws,
+      pin: opts.rowPin == null ? "" : opts.rowPin,
+      token: opts.rowTok == null ? store.aia_session : opts.rowTok
+    };
+    const desks = {
+      list: function () { return [row]; },
+      current: function () { return row; }
+    };
+    const ctx = {
+      slug: opts.slug != null ? opts.slug : "shop",
+      localStorage: {
+        getItem: function (k) { return store[k] || ""; }
+      },
+      AIADesks: desks,
+      window: { AIADesks: desks }
+    };
+    vm.runInNewContext(packSrc[0].replace(/\nfunction roadFrom[\s\S]*$/, ""), ctx);
+    return { hdr: ctx.packHdr(), pin: ctx.pinOf(row) };
+  }
+  const stale = runPack({ aia_session: "leftover-tok", aia_pin: "", rowPin: "4821" });
+  if (!stale.hdr["X-Session"] || stale.hdr["X-Session"] !== "leftover-tok") {
+    fail("leftover session + empty aia_pin must still send X-Session, got " + JSON.stringify(stale.hdr));
+  } else if (stale.hdr["X-Pin"]) {
+    fail("leftover session + empty aia_pin must omit stale desk-row X-Pin, got " + JSON.stringify(stale.hdr));
+  } else if (stale.pin) {
+    fail("session-only leftover pinOf must not use stale desks[].pin, got " + JSON.stringify(stale.pin));
+  } else pass("leftover session + empty aia_pin + stale row.pin omits X-Pin");
+
+  const live = runPack({ aia_session: "leftover-tok", aia_pin: "4821", rowPin: "9999" });
+  if (live.hdr["X-Pin"] !== "4821") {
+    fail("leftover session + live aia_pin must send X-Pin, got " + JSON.stringify(live.hdr));
+  } else pass("leftover session + aia_pin sends X-Pin");
+
+  const desk = runPack({ aia_session: "", aia_pin: "", rowPin: "4821" });
+  if (desk.hdr["X-Session"]) {
+    fail("desk code path must not invent X-Session, got " + JSON.stringify(desk.hdr));
+  } else if (desk.hdr["X-Pin"] !== "4821" || desk.pin !== "4821") {
+    fail("desk code pin must still send X-Pin / desks[].pin, got " + JSON.stringify(desk));
+  } else pass("desk code pin still sends X-Pin");
+
+  const typed = runPack({ aia_session: "", aia_pin: "2468", rowPin: "" });
+  if (typed.hdr["X-Pin"] !== "2468") {
+    fail("explicit aia_pin must still send X-Pin, got " + JSON.stringify(typed.hdr));
+  } else pass("explicit aia_pin still sends X-Pin");
+
+  const blank = runPack({ aia_session: "leftover-tok", aia_pin: "   ", rowPin: "4821" });
+  if (blank.hdr["X-Pin"]) {
+    fail("trimmed empty aia_pin must not send blank X-Pin from stale row, got " + JSON.stringify(blank.hdr));
+  } else pass("trimmed empty aia_pin omits blank X-Pin");
+})();
 
 function mockRes() {
   return {

@@ -250,6 +250,9 @@ function threadHtml(it){
  return chips+"<div class=\"h-thread\">"+draft+talks+prompt+"<p class=\"h-hold\">On the card. Nothing sent alone.</p></div>";
 }
 var lastRoad={};
+function livePin(){return String(localStorage.getItem("aia_pin")||"").trim();}
+function liveTok(){return String(localStorage.getItem("aia_session")||"").trim();}
+function pinOf(d){var live=livePin(),tok=liveTok();if(tok&&!live)return"";return String((d&&d.pin)||live||"").trim();}
 function packHdr(){
  var h={"Content-Type":"application/json"};
  var d=null;
@@ -257,10 +260,10 @@ function packHdr(){
   var rows=AIADesks.list()||[];
   d=slug?rows.filter(function(x){return x.slug===slug;})[0]:(AIADesks.current&&AIADesks.current());
  }
- if(!d)d={slug:localStorage.getItem("aia_ws")||"",pin:localStorage.getItem("aia_pin")||"",token:localStorage.getItem("aia_session")||""};
+ if(!d)d={slug:localStorage.getItem("aia_ws")||"",pin:livePin(),token:liveTok()};
  if(d&&d.slug)h["X-Workspace"]=d.slug;
- var tok=(d&&d.token)||localStorage.getItem("aia_session")||"";
- var pin=(d&&d.pin)||localStorage.getItem("aia_pin")||"";
+ var tok=(d&&d.token)||liveTok()||"";
+ var pin=liveTok()?livePin():pinOf(d);
  if(tok)h["X-Session"]=tok;
  if(pin)h["X-Pin"]=pin;
  return h;
@@ -495,7 +498,7 @@ async function load(){
  var rows=phone(),asked=slug?rows.filter(function(d){return d.slug===slug;}):rows;
  var banner=document.getElementById("banner"),list=document.getElementById("list");
   if(!asked.length){paintRoad({});banner.textContent="Open a desk on this phone first. History does not invent activity.";list.innerHTML="<div class=\"card\"><p>No desk on this phone. History stays empty until you open one and Create or Drop work.</p></div>";return;}
- var body={action:"history",lane:lane,when:when,q:q,who:who,kind:work,pipe:pipe,since:since,advanced:advanced,desks:asked.map(function(d){return {slug:d.slug,pin:d.pin};})};
+ var body={action:"history",lane:lane,when:when,q:q,who:who,kind:work,pipe:pipe,since:since,advanced:advanced,desks:asked.map(function(d){return {slug:d.slug,pin:pinOf(d)};})};
  Object.keys(flags).forEach(function(k){if(flags[k])body[k]=true;});
  try{
   var r=await fetch("/api/desks",{method:"POST",headers:packHdr(),body:JSON.stringify(body)});
