@@ -73,11 +73,6 @@
   <main class="wrap">
     <h1 id="drop-title">Drop anything</h1>
     <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. A list becomes more than one card. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.</p>
-    <div class="modes" id="modes">
-      <button type="button" class="on" data-mode="quick" aria-pressed="true">Quick drop</button>
-      <button type="button" data-mode="custom" aria-pressed="false">Custom drop</button>
-      <button type="button" data-mode="agent" aria-pressed="false">Put data on</button>
-    </div>
     <div class="card desk-pick" id="desk-pick">
       <strong style="color:var(--heading)">Which desk gets this</strong>
       <p class="sub" id="desk-pick-sub">Desks saved on this phone. Pick one, add a desk you already opened, or create a new desk.</p>
@@ -103,8 +98,13 @@
       <button type="button" id="talkBtn">Talk</button>
       <button type="button" id="quietBtn">Quiet</button>
     </div>
+    <div class="modes" id="modes">
+      <button type="button" class="on" data-mode="quick" aria-pressed="true">Quick drop</button>
+      <button type="button" data-mode="custom" aria-pressed="false">Custom drop</button>
+      <button type="button" data-mode="agent" aria-pressed="false">Put data on</button>
+    </div>
     <div class="grid">
-      <div class="card">
+      <div class="card" id="drop-form-card">
         <strong id="lane-title" style="color:var(--heading)">Drop anything. It becomes a card.</strong>
         <div id="pane-work">
           <label>I am <button type="button" class="aia-tip" data-aia-tip="drop-who" aria-label="More about I am">?</button></label>
@@ -189,6 +189,7 @@
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="drop-pick.js"></script>
+  <script src="drop-steps.js"></script>
   <script src="drop-agent.js"></script>
   <script src="aia-tip.js"></script>
   <script src="speech.js"></script>
@@ -250,6 +251,7 @@
       el.style.display = "block";
       if (isHtml) el.innerHTML = text;
       else el.textContent = text;
+      if (window.AIADropSteps && AIADropSteps.reveal) AIADropSteps.reveal(el);
       if (el.scrollIntoView) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
     function paintDeskOn() {

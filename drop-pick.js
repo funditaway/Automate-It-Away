@@ -10,6 +10,7 @@
   }
   function goDrop(slug) {
     var use = slugify(slug);
+    if (use) { try { sessionStorage.setItem("aia_drop_step", "tell"); } catch (e) {} }
     location.href = use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
   }
   function paintSearch(rows, accounts, q) {
@@ -53,7 +54,7 @@
     var title = document.getElementById("drop-title");
     var sub = document.getElementById("drop-sub");
     var banner = document.getElementById("drop-on");
-    var after = banner || sub || title;
+    var after = document.getElementById("desk-pick") || banner || sub || title;
     if (main && after && after.parentNode === main) {
       after.parentNode.insertBefore(wrap, after.nextSibling);
     } else {

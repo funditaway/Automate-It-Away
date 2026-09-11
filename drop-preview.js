@@ -375,6 +375,7 @@
         var b = e.target.closest("[data-jump]"); if (!b) return;
         var jump = b.getAttribute("data-jump");
         var map = { what: "title", who: "who", due: "drop-follow-when", files: "photo", desk: "desk-pick" };
+        if (window.AIADropSteps && AIADropSteps.go) AIADropSteps.go(jump === "desk" ? "desk" : "card", true);
         var el = document.getElementById(map[jump] || jump);
         if (el && el.focus) el.focus();
         if (jump === "desk") {
