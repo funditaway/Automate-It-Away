@@ -76,18 +76,21 @@
   }
   function inject() {
     if (document.getElementById("drop-preview")) return;
-    var after = document.getElementById("talkBar") || document.getElementById("desk-pick") || document.getElementById("drop-sub");
+    var after = document.getElementById("drop-chat-wrap") || document.getElementById("drop-thread-card") || document.getElementById("talkBar") || document.getElementById("desk-pick") || document.getElementById("drop-sub");
     if (!after || !after.parentNode) return;
     var box = document.createElement("div");
     box.id = "drop-preview-wrap";
-    box.innerHTML =
+    var hasThread = !!document.getElementById("drop-thread");
+    var threadHtml = hasThread ? "" :
       "<div class=\"card\" id=\"drop-thread-card\">" +
       "<strong>Tell the desk</strong>" +
       "<p class=\"sub\" id=\"thread-empty\">Say anything. A Desk AI drafts the card. You still tap Yes or Stop. Nobody sends money from here.</p>" +
       "<div id=\"drop-thread\" class=\"drop-thread\"></div>" +
       "<input id=\"talkType\" placeholder=\"Say anything. A Desk AI drafts the card.\" autocomplete=\"off\">" +
       "<div class=\"talk-actions\"><button type=\"button\" id=\"talkTypeBtn\">Tell the desk</button></div>" +
-      "</div>" +
+      "</div>";
+    box.innerHTML =
+      threadHtml +
       "<div class=\"card\" id=\"verify-strip\"><strong>This drop</strong><div id=\"verify-cells\" class=\"verify-cells\"></div></div>" +
       "<div class=\"card\" id=\"drop-preview\"><strong>Card preview</strong><p class=\"sub\" id=\"preview-sub\">Not on the queue yet. Fix it here. You still tap Yes or Stop.</p><div id=\"preview-body\"></div><p class=\"sub\" id=\"drop-ask\"></p></div>" +
       "<div class=\"card\" id=\"drop-log-card\"><strong>Drops from this phone</strong><div id=\"drop-log\"></div></div>";

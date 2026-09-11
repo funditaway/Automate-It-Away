@@ -198,6 +198,7 @@
     if (embed) document.body.classList.add("embed");
     let desk = (window.AIADesks && AIADesks.captureDesk) ? AIADesks.captureDesk() : null;
     let ws = (desk && desk.slug) || "";
+    if (ws) window.ws = ws;
     let pin = localStorage.getItem("aia_pin") || "";
     let deskOpen = (window.AIADesks && AIADesks.shopOpen) ? !!AIADesks.shopOpen() : !!(ws && (pin || localStorage.getItem("aia_session")));
     const authWs = localStorage.getItem("aia_ws");

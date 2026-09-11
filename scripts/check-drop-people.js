@@ -90,6 +90,27 @@ if (preview.indexOf("The desk still will not send it") >= 0) {
 if (preview.indexOf("What is needed? A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
   fail("drop-preview.js title ask must say A Desk AI drafts the card");
 }
+const previewInjectAt = preview.indexOf("function inject");
+const previewInject = preview.slice(previewInjectAt, preview.indexOf("function addLine", previewInjectAt));
+if (previewInject.indexOf("hasThread") < 0 || previewInject.indexOf('getElementById("drop-thread")') < 0) {
+  fail("drop-preview.js inject must reuse an existing Tell the desk thread");
+}
+if (!/hasThread \? ""/.test(previewInject) && previewInject.indexOf("hasThread ? \"\"") < 0) {
+  fail("drop-preview.js inject must skip a second Tell the desk card");
+}
+
+const dropNav = read("desk-nav.js");
+const loadAt = dropNav.indexOf("function loadDrop");
+const loadDropFn = dropNav.slice(loadAt, dropNav.indexOf("function loadQueue", loadAt));
+if (loadDropFn.indexOf("then") < 0 || loadDropFn.indexOf("el.onload") < 0) {
+  fail("desk-nav.js loadDrop must wait before the next Drop script");
+}
+if (dropNav.indexOf('loadDrop("drop-preview.js", "data-aia-drop-preview", function ()') < 0) {
+  fail("desk-nav.js must load drop-chat.js after drop-preview.js");
+}
+if (!/loadDrop\("drop-preview\.js"[\s\S]{0,120}loadDrop\("drop-chat\.js"/.test(dropNav)) {
+  fail("desk-nav.js must chain drop-chat.js onto drop-preview.js");
+}
 
 const talk = read("drop-talk.js");
 if (talk.indexOf("Talk the work in your words") >= 0) fail("drop-talk.js Hear this still says Talk the work in your words");
@@ -104,6 +125,7 @@ if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js Hear this 
 
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
+  if (src.indexOf("window.ws = ws") < 0) fail(file + " must share ws with preview");
   if (src.indexOf("The desk writes the card") >= 0) fail(file + " Put data on still says The desk writes the card");
   if (src.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
     fail(file + " Put data on must say A Desk AI drafts the card");

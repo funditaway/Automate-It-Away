@@ -41,6 +41,7 @@ must(more, "/help#desk-cards", "more.html desk-cards link");
 must(preview, 'get("ws")', "drop-preview reads ?ws=");
 must(preview, "function queryWs", "drop-preview queryWs");
 must(drop, "window.ws = ws", "drop.html shares ws with preview");
+must(read("widget.html"), "window.ws = ws", "widget.html shares ws with preview");
 
 must(yesNo, "Desk cards", "ACCOUNT-YES-NO desk-cards");
 
