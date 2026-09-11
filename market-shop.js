@@ -12,12 +12,15 @@
     const h = { "Content-Type": "application/json" };
     const ws = localStorage.getItem("aia_ws");
     const pin = localStorage.getItem("aia_pin");
+    const tok = localStorage.getItem("aia_session");
     if (ws) h["X-Workspace"] = ws;
+    if (tok) h["X-Session"] = tok;
     if (pin) h["X-Pin"] = pin;
     return h;
   }
   function hasDesk() {
-    return !!(localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin"));
+    if (window.AIADesks && typeof AIADesks.shopOpen === "function") return !!AIADesks.shopOpen();
+    return !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
   }
   function deskName() {
     return localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_name") || localStorage.getItem("aia_ws") || "";
