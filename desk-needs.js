@@ -606,8 +606,9 @@
     const rows = (window.AIADesks && AIADesks.list) ? AIADesks.list() : [];
     const here = localStorage.getItem("aia_ws") || "";
     const pin = localStorage.getItem("aia_pin") || "";
+    const tok = localStorage.getItem("aia_session") || "";
     const desks = rows.filter(function (d) { return d && d.slug && d.pin && String(d.pin).length >= 4; });
-    if (here && pin && !desks.some(function (d) { return d.slug === here; })) desks.unshift({ slug: here, pin: pin });
+    if (here && (pin || tok) && !desks.some(function (d) { return d.slug === here; })) desks.unshift({ slug: here, pin: pin });
     if (!desks.length) { band.hidden = true; return; }
     try {
       const out = await api("/api/desks", { method: "POST", body: JSON.stringify({ action: "priority", desks: desks.slice(0, 32) }) });
