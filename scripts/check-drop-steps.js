@@ -56,6 +56,15 @@ table.forEach(function (step) {
   });
 });
 
+if ((table[0].off || []).indexOf("drop-on") < 0) {
+  fail("the Desk step must hush #drop-on — the desk card already says where the drop lands");
+}
+table.forEach(function (step) {
+  (step.off || []).forEach(function (id) {
+    if (seats[id]) fail("#" + id + " cannot be both seated on and hushed by a Drop step");
+  });
+});
+
 if (steps.indexOf(".step-off{display:none!important}") < 0) {
   fail("drop-steps.js must hide the off-step cards with .step-off");
 }
@@ -66,6 +75,12 @@ if (steps.indexOf("#drop-steps{position:sticky") < 0) fail("the step rail must s
 if (steps.indexOf("#drop-step-foot{position:sticky") < 0) fail("Back / Next must stay on screen");
 if (steps.indexOf("min-height:44px") < 0 || steps.indexOf("min-height:48px") < 0) {
   fail("step taps must stay thumb sized");
+}
+if (steps.indexOf("#drop-step-tabs button{flex:1 1 auto;min-height:44px;min-width:0") < 0) {
+  fail("the five step pills must share one phone row instead of clipping the last one");
+}
+if (steps.indexOf("body.drop-steps #public-desk-hits{max-height:184px;overflow:auto}") < 0) {
+  fail("the world desk list must stay capped so step one does not grow past a phone screen");
 }
 if (steps.indexOf("You still tap Yes or Stop") < 0) fail("the step rail vow must keep Yes or Stop");
 if (steps.indexOf("Nobody sends money from here") < 0) fail("the step rail vow must keep no money");

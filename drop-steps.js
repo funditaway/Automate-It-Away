@@ -6,7 +6,8 @@
       id: "desk", label: "Desk",
       hint: "Pick the desk first. Every drop rides to that queue.",
       ids: ["desk-pick", "public-desk-search"],
-      also: ["drop-sub"]
+      also: ["drop-sub"],
+      off: ["drop-on"]
     },
     {
       id: "tell", label: "Tell",
@@ -46,6 +47,13 @@
   function nodesOf(step) {
     return step.ids.concat(step.also || []).map(el).filter(Boolean);
   }
+  function dupes() {
+    var ids = [];
+    STEPS.forEach(function (step) {
+      (step.off || []).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+    });
+    return ids;
+  }
   function live(step) {
     return step.ids.some(function (id) {
       var node = el(id);
@@ -65,14 +73,16 @@
     tag.textContent =
       ".step-off{display:none!important}" +
       "body.drop-steps .grid{grid-template-columns:1fr}" +
-      "#drop-steps{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0 8px;margin:0 0 12px}" +
-      "#drop-step-tabs{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}" +
-      "#drop-step-tabs button{flex:1 0 auto;min-height:44px;min-width:74px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer;white-space:nowrap}" +
+      "#drop-steps{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0 6px;margin:0 0 10px}" +
+      "#drop-step-tabs{display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch}" +
+      "#drop-step-tabs button{flex:1 1 auto;min-height:44px;min-width:0;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:700 12px system-ui,sans-serif;cursor:pointer;white-space:nowrap}" +
       "#drop-step-tabs button.done{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}" +
       "#drop-step-tabs button.on{background:var(--orange);color:#0c1116;border-color:var(--orange)}" +
-      "#drop-step-hint{margin:8px 0 0}" +
-      "#drop-step-vow{margin:2px 0 0}" +
-      "#drop-step-foot{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:19;display:flex;gap:8px;margin:14px 0 0;padding:8px 0;background:var(--bg)}" +
+      "#drop-step-hint{margin:6px 0 0;font-size:12px}" +
+      "#drop-step-vow{margin:1px 0 0;font-size:12px}" +
+      "body.drop-steps #drop-sub{margin:4px 0 10px}" +
+      "body.drop-steps #public-desk-hits{max-height:184px;overflow:auto}" +
+      "#drop-step-foot{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:19;display:flex;gap:8px;margin:10px 0 0;padding:6px 0;background:var(--bg)}" +
       "#drop-step-foot button{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:700 15px system-ui,sans-serif;cursor:pointer}" +
       "#drop-step-next{background:var(--orange);color:#0c1116;border-color:var(--orange)}";
     document.head.appendChild(tag);
@@ -130,6 +140,11 @@
       nodesOf(step).forEach(function (node) { node.classList.toggle("step-off", !on); });
     });
     var at = rows.indexOf(stepOf(active));
+    var hush = rows[at].off || [];
+    dupes().forEach(function (id) {
+      var node = el(id);
+      if (node) node.classList.toggle("step-off", hush.indexOf(id) >= 0);
+    });
     setHtml(el("drop-step-tabs"), rows.map(function (step, i) {
       var cls = step.id === active ? "on" : i < at ? "done" : "";
       return "<button type=\"button\" role=\"tab\" aria-selected=\"" + (step.id === active) +
