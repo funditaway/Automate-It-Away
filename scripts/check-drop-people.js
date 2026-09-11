@@ -142,6 +142,12 @@ if (tipSrc.indexOf("What should the desk do with it?") >= 0) fail("aia-tip.js dr
 if (tipSrc.indexOf("Tell the desk the next draft") >= 0) fail("aia-tip.js drop-tell still says Tell the desk the next draft");
 if (tipSrc.indexOf("What should a Desk AI draft?") < 0) fail("aia-tip.js drop-tell must say What should a Desk AI draft");
 if (tipSrc.indexOf("Tell a Desk AI the next draft") < 0) fail("aia-tip.js drop-tell must say Tell a Desk AI the next draft");
+if (tipSrc.indexOf("What the desk should do next") >= 0) fail("aia-tip.js drop-outcome still says What the desk should do next");
+if (tipSrc.indexOf("What a Desk AI should draft next") < 0) fail("aia-tip.js drop-outcome must say What a Desk AI should draft next");
+if (agent.indexOf("What the desk should do next") >= 0) fail("drop-agent.js Preferred outcome still says What the desk should do next");
+if (agent.indexOf("Tap what the desk should do after this lands") >= 0) fail("drop-agent.js Advanced still says Tap what the desk should do");
+if (agent.indexOf("What a Desk AI should draft next") < 0) fail("drop-agent.js Preferred outcome must say What a Desk AI should draft next");
+if (agent.indexOf("You still tap Yes or Stop") < 0) fail("drop-agent.js Preferred outcome must keep Yes or Stop");
 
 const pick = read("drop-pick.js");
 if (pick.indexOf("AIADesks.authHeaders") < 0) fail("List this desk must use AIADesks.authHeaders()");

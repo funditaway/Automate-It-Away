@@ -63,7 +63,10 @@ must(yesNo, "Drop Put data on Tell leftover after that pass", "ACCOUNT-YES-NO na
 must(packMd, "Drop Put data on Tell leftover:", "PACK.md names Drop Put data on Tell leftover");
 must(tip, "Extra note for this kind", "drop-kind-need lands on card");
 must(tip, "Optional time on the card", "drop-kind-when optional time");
-must(tip, "What the desk should do next", "drop-outcome draft next");
+mustNot(tip, "What the desk should do next", "drop-outcome still says What the desk should do next");
+must(tip, "What a Desk AI should draft next", "drop-outcome Desk AI draft next");
+must(yesNo, "Drop Preferred outcome leftover after that pass", "ACCOUNT-YES-NO names Drop Preferred outcome leftover");
+must(packMd, "Drop Preferred outcome leftover:", "PACK.md names Drop Preferred outcome leftover");
 must(tip, "Optional place on the card", "drop-kind-where optional place");
 must(tip, "Who this drop is for", "drop-kind-who-for optional name");
 must(tip, "Optional start place on the card", "drop-kind-from optional start");
