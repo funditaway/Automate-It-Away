@@ -235,6 +235,8 @@ Account book leftover session: after Create / Market send leftover `X-Session`, 
 
 History leftover session: after Account book send leftover `X-Session`, `/history` `packHdr()` already sent leftover session for Give / Update, but the trail `load()` still posted pin-only desks and skipped `X-Session`. Email leftover often has no pin — History painted empty even though Queue / Account book were open. Trail now sends leftover session with the pin. Helper leftover can read. Give / Update still owner. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
 
+Cap leftover session: after History trail send leftover `X-Session`, Queue `api()` already sent leftover session and `/api/desks` `priority` already accepted a live leftover token — but `loadCap()` still required a leftover pin and hid the Cap band. Email leftover often has no pin — Cap stayed hidden even though Queue / History were open. Cap now treats leftover email session as enough for this desk. Helper leftover can read. Other-desk Cap stays pin-gated and read-only. Did not invent Cap greenfield. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
+
 Drop pick / preview leftover: cf09d93 + the preview restore decoded `esc()` so `/drop` / `/widget` never parsed. World chips and card preview now load. `esc()` encodes again. Chip labels stay on their own row. Drop capture stays public. Collect HOLD. No silent send.
 
 Tell leftover after pipe WIP: Drop already stores Tell AIA on `job.thread` as `tell`. Queue / History kept only ask / reply / rec / note / follow after #160, so Tell AIA never painted. Those faces now keep `tell`. Label is `drop · tell` — not Agent / Bot, not a live Then draft. Collect HOLD. No silent send.

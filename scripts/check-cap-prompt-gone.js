@@ -27,6 +27,7 @@ const card = read("desk-card.js");
 const help = read("help.html");
 const more = read("more.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
+const packMd = read("PACK.md");
 const pkg = read("package.json");
 
 ["function capCardHtml", "function promptHtml", "function namedNeedsWho", "function chipsHtml", "function goneHoldLabel", "not on this desk"].forEach(function (bit) {
@@ -45,6 +46,26 @@ if (capSrc.indexOf("chipsHtml(j, need") < 0) fail("capCardHtml must call chipsHt
 else pass("capCardHtml uses chipsHtml + cardNeeds");
 if (capSrc.indexOf("primaryAi(") >= 0) fail("capCardHtml must not first-eligible primaryAi");
 else pass("capCardHtml does not first-eligible primaryAi");
+
+const loadCapSrc = needs.slice(needs.indexOf("async function loadCap"), needs.indexOf("window.loadCap"));
+if (/if \(here && pin && !desks\.some/.test(loadCapSrc)) {
+  fail("Cap load still requires leftover pin and skips email-session desks");
+} else pass("Cap load does not require leftover pin");
+if (loadCapSrc.indexOf('localStorage.getItem("aia_session")') < 0) {
+  fail("Cap load must read leftover X-Session so email-session owners still see the cap");
+} else pass("Cap load reads leftover X-Session");
+if (/if \(here && \(pin \|\| tok\) && !desks\.some/.test(loadCapSrc) === false) {
+  fail("Cap load must unshift this desk when leftover email session is live");
+} else pass("Cap load unshifts this desk on leftover email session");
+if (yesNo.indexOf("Cap leftover session after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Cap leftover session");
+} else pass("ACCOUNT-YES-NO names Cap leftover session");
+if (packMd.indexOf("Cap leftover session:") < 0) {
+  fail("PACK.md must name Cap leftover session");
+} else pass("PACK.md names Cap leftover session");
+if (yesNo.indexOf("Did not invent Cap greenfield") < 0 && packMd.indexOf("Did not invent Cap greenfield") < 0) {
+  fail("canon must deny Cap greenfield invent");
+} else pass("canon denies Cap greenfield invent");
 
 const sheetSrc = card.slice(card.indexOf("function sheetPromptHtml"), card.indexOf("function talkLabelOf"));
 if (sheetSrc.indexOf("namedNeedsWhoOf") < 0 && sheetSrc.indexOf("promptHtml") < 0) {
@@ -244,4 +265,129 @@ if (failed) {
   console.error(failed + " failed");
   process.exit(1);
 }
-console.log("check-cap-prompt-gone: ok");
+
+const os = require("os");
+const store = path.join(os.tmpdir(), "aia-cap-session-check-" + Date.now() + ".json");
+process.env.AIA_STORE_PATH = store;
+delete global.__aia;
+delete global.__aiaHydrate;
+["../api/_lib", "../api/_history", "../api/_desks-http", "../api/auth"].forEach(function (mod) {
+  try { delete require.cache[require.resolve(mod)]; } catch (e) {}
+});
+
+function mockRes() {
+  return {
+    headers: {},
+    statusCode: 200,
+    body: null,
+    setHeader(k, v) { this.headers[k] = v; },
+    status(c) { this.statusCode = c; return this; },
+    json(b) { this.body = b; return this; },
+    send(b) { this.body = b; return this; },
+    end() { return this; }
+  };
+}
+function reqOf(method, headers, body, query) {
+  return { method: method, headers: headers || {}, body: body || {}, query: query || {} };
+}
+async function call(handler, method, headers, body, query) {
+  const res = mockRes();
+  await handler(reqOf(method, headers, body, query), res);
+  return res;
+}
+
+async function checkCapSession() {
+  const lib = require("../api/_lib");
+  const desksHandler = require("../api/_desks-http");
+  const { mem, ready, hashPin, ensurePeople } = lib;
+  await ready();
+  const slug = "cap-session-desk";
+  const pin = "4821";
+  const shop = {
+    slug: slug,
+    name: "Cap Session",
+    biz: slug,
+    pin: hashPin(pin),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: []
+  };
+  ensurePeople(shop);
+  mem.workspaces.unshift(shop);
+  mem.jobs = (mem.jobs || []).concat([{
+    id: "j-cap-session",
+    workspace: slug,
+    title: "Email leftover cap",
+    status: "waiting",
+    priority: true,
+    cap: true,
+    createdAt: new Date().toISOString()
+  }]);
+
+  const dead = await call(desksHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": "deadbeefdeadbeefdeadbeefdeadbeef"
+  }, { action: "priority", desks: [{ slug: slug, pin: "" }] });
+  if (dead.statusCode !== 200) fail("dead leftover session Cap should 200 empty, got " + dead.statusCode);
+  else if ((dead.body.items || []).some(function (it) { return it && it.id === "j-cap-session"; })) {
+    fail("dead leftover session must not paint the Cap band");
+  } else pass("dead leftover session Cap stays empty");
+
+  const closed = await call(desksHandler, "POST", { "x-workspace": slug }, {
+    action: "priority",
+    desks: [{ slug: slug, pin: "" }]
+  });
+  if (closed.statusCode !== 200) fail("Cap without pin or session should 200 empty, got " + closed.statusCode);
+  else if ((closed.body.items || []).some(function (it) { return it && it.id === "j-cap-session"; })) {
+    fail("closed Cap must not paint the card");
+  } else pass("Cap without pin or session stays empty");
+
+  const pinTrail = await call(desksHandler, "POST", { "x-workspace": slug, "x-pin": pin }, {
+    action: "priority",
+    desks: [{ slug: slug, pin: pin }]
+  });
+  if (pinTrail.statusCode !== 200 || !(pinTrail.body.items || []).some(function (it) { return it && it.id === "j-cap-session"; })) {
+    fail("desk code Cap should still paint, got " + pinTrail.statusCode + " " + JSON.stringify(pinTrail.body));
+  } else pass("desk code still paints Cap");
+
+  const issued = lib.issueSession(shop.people[0], shop, null, { headers: { "x-workspace": slug } });
+  if (!issued || !issued.token) fail("must issue leftover email-session token for Cap");
+  else pass("issued leftover email-session token for Cap");
+  const sessionCap = await call(desksHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": issued.token
+  }, { action: "priority", desks: [{ slug: slug, pin: "" }] });
+  if (sessionCap.statusCode !== 200 || !sessionCap.body || !sessionCap.body.ok) {
+    fail("leftover email-session owner Cap should 200, got " + sessionCap.statusCode + " " + JSON.stringify(sessionCap.body));
+  } else if (!(sessionCap.body.items || []).some(function (it) { return it && it.id === "j-cap-session"; })) {
+    fail("leftover email-session owner must see the Cap band, got " + JSON.stringify(sessionCap.body));
+  } else pass("leftover email-session owner sees the Cap band");
+
+  const helperSeat = {
+    id: "p_cap_helper",
+    name: "Cap helper",
+    role: "employee",
+    kind: "helper",
+    status: "approved"
+  };
+  shop.people.push(helperSeat);
+  const helperTok = lib.issueSession(helperSeat, shop, null, { headers: { "x-workspace": slug } });
+  const helperCap = await call(desksHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": helperTok.token
+  }, { action: "priority", desks: [{ slug: slug, pin: "" }] });
+  if (helperCap.statusCode !== 200 || !(helperCap.body.items || []).some(function (it) { return it && it.id === "j-cap-session"; })) {
+    fail("helper leftover session Cap should still read, got " + helperCap.statusCode);
+  } else pass("helper leftover session can read Cap");
+
+  if (failed) {
+    console.error(failed + " failed");
+    process.exit(1);
+  }
+  console.log("check-cap-prompt-gone: ok");
+}
+
+checkCapSession().catch(function (err) {
+  console.error("check-cap-prompt-gone failed: " + (err && err.stack || err));
+  process.exit(1);
+});
