@@ -269,6 +269,8 @@ Drop widget empty Tell leftover: after `/widget` skipped This drop, embed `/widg
 
 Drop widget Talk bar leftover: after embed empty Tell skipped a second blank, drop-talk.js still unhid `#talkBar` (Hear this / Talk / Quiet) on embed `/widget`. Preview meant to keep Talk hidden on embed. Those faces now skip the Talk bar, same as chat. `/drop` still paints Talk. Card preview + one Tell the desk thread stay. Full Drop chrome stay later. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop widget phone log leftover: after embed `/widget` skipped the Talk bar, drop-preview.js still injected Drops from this phone (`#drop-log-card`). World `/widget` then showed the phone log next to Tell. Those faces now skip Drops from this phone. `/drop` still paints Drops from this phone. Card preview + one Tell the desk thread stay. Full Drop chrome stay later. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

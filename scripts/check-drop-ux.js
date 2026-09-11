@@ -159,6 +159,18 @@ if (inject.indexOf("slim ? \"\"") < 0) {
 if (inject.indexOf("id=\\\"verify-strip\\\"") < 0 && inject.indexOf("id=\"verify-strip\"") < 0) {
   fail("drop-preview.js must still paint This drop on /drop");
 }
+if (inject.indexOf("logHtml") < 0) {
+  fail("drop-preview.js inject must skip Drops from this phone on /widget");
+}
+if (inject.indexOf("id=\\\"drop-log-card\\\"") < 0 && inject.indexOf("id=\"drop-log-card\"") < 0) {
+  fail("drop-preview.js must still paint Drops from this phone on /drop");
+}
+if (yesNo.indexOf("Drop widget phone log leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget phone log leftover");
+}
+if (packMd.indexOf("Drop widget phone log leftover:") < 0) {
+  fail("PACK.md must name Drop widget phone log leftover");
+}
 if (preview.indexOf("function widgetOn") < 0) fail("drop-preview.js must detect /widget path");
 if (preview.indexOf("function slimChrome") < 0) fail("drop-preview.js must slim This drop on /widget");
 if (yesNo.indexOf("Drop widget This drop leftover after that pass") < 0) {
