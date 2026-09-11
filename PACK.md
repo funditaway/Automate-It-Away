@@ -233,6 +233,8 @@ Create / Market leftover session: after Desk / Rules / Pipes send leftover `X-Se
 
 Account book leftover session: after Create / Market send leftover `X-Session`, `/admin` still sent pin only and only loaded when a leftover pin was present. More → Account book then 401’d Pin required even though leftover email session was live. Account book now sends leftover session with the pin, and Open admin loads when leftover session is live. Helper leftover still cannot invite. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
 
+History leftover session: after Account book send leftover `X-Session`, `/history` `packHdr()` already sent leftover session for Give / Update, but the trail `load()` still posted pin-only desks and skipped `X-Session`. Email leftover often has no pin — History painted empty even though Queue / Account book were open. Trail now sends leftover session with the pin. Helper leftover can read. Give / Update still owner. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
+
 Drop pick / preview leftover: cf09d93 + the preview restore decoded `esc()` so `/drop` / `/widget` never parsed. World chips and card preview now load. `esc()` encodes again. Chip labels stay on their own row. Drop capture stays public. Collect HOLD. No silent send.
 
 Tell leftover after pipe WIP: Drop already stores Tell AIA on `job.thread` as `tell`. Queue / History kept only ask / reply / rec / note / follow after #160, so Tell AIA never painted. Those faces now keep `tell`. Label is `drop · tell` — not Agent / Bot, not a live Then draft. Collect HOLD. No silent send.

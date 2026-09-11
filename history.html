@@ -498,7 +498,7 @@ async function load(){
  var body={action:"history",lane:lane,when:when,q:q,who:who,kind:work,pipe:pipe,since:since,advanced:advanced,desks:asked.map(function(d){return {slug:d.slug,pin:d.pin};})};
  Object.keys(flags).forEach(function(k){if(flags[k])body[k]=true;});
  try{
-  var r=await fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  var r=await fetch("/api/desks",{method:"POST",headers:packHdr(),body:JSON.stringify(body)});
   var data=await r.json().catch(function(){return {};});
   var c=data.counts||{};
   document.getElementById("counts").textContent="Need you "+(c.need||0)+" · in progress "+(c.doing||0)+" · waiting "+(c.wait||0)+" · ext "+(c.ext||0)+" · done "+(c.done||0)+(c.stopped?" · stopped "+c.stopped:"");
