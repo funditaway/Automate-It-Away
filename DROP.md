@@ -38,7 +38,7 @@ World users drop. Desk AIs draft on the same card. They do not replace the user.
 - `widget.html` — Drop UI (`/drop` and `/widget`)
 - `drop-pick.js` — World search first, then this-phone desks
 - `drop-chat.js` — Tell the desk / type anything → reply + card in thread
-- `drop-talk.js` — Talk to the desk
+- `drop-talk.js` — Talk to the desk. Hear this / empty `#talkStatus` match Talk: A Desk AI drafts the card. You still tap Yes or Stop.
 - `drop-now.js` — Quick / recent / after-drop
 - `drop-more.js` — Custom kinds
 - `drop-agent.js` — Advanced + Desk AIs
