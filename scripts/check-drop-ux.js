@@ -142,11 +142,29 @@ if (preview.indexOf("The desk still will not send it") >= 0) {
 if (preview.indexOf("What is needed? A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
   fail("drop-preview.js title ask must say A Desk AI drafts the card");
 }
+const injectAt = preview.indexOf("function inject");
+const inject = preview.slice(injectAt, preview.indexOf("function addLine", injectAt));
+if (inject.indexOf("hasThread") < 0 || inject.indexOf('getElementById("drop-thread")') < 0) {
+  fail("drop-preview.js inject must reuse an existing Tell the desk thread");
+}
+if (inject.indexOf("hasThread ? \"\"") < 0) {
+  fail("drop-preview.js inject must skip a second Tell the desk card");
+}
+const nav = read("desk-nav.js");
+if (nav.indexOf('loadDrop("drop-preview.js", "data-aia-drop-preview", function ()') < 0) {
+  fail("desk-nav.js must load drop-chat.js after drop-preview.js");
+}
 if (yesNo.indexOf("Drop preview ask leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop preview ask leftover");
 }
 if (packMd.indexOf("Drop preview ask leftover:") < 0) {
   fail("PACK.md must name Drop preview ask leftover");
+}
+if (yesNo.indexOf("Drop widget Tell leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget Tell leftover");
+}
+if (packMd.indexOf("Drop widget Tell leftover:") < 0) {
+  fail("PACK.md must name Drop widget Tell leftover");
 }
 
 ["drop.html", "widget.html"].forEach(function (file) {

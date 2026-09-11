@@ -132,12 +132,19 @@
     nav.style.bottom = gap ? gap + "px" : "0px";
   }
 
-  function loadDrop(name, attr) {
+  function loadDrop(name, attr, then) {
     if (tabOf() !== "drop") return;
-    if (document.querySelector("script[" + attr + "]")) return;
+    if (document.querySelector("script[" + attr + "]")) {
+      if (typeof then === "function") then();
+      return;
+    }
     var el = document.createElement("script");
     el.src = "/" + name;
     el.setAttribute(attr, "1");
+    if (typeof then === "function") {
+      el.onload = then;
+      el.onerror = then;
+    }
     document.body.appendChild(el);
   }
 
@@ -215,8 +222,9 @@
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");
-    loadDrop("drop-preview.js", "data-aia-drop-preview");
-    loadDrop("drop-chat.js", "data-aia-drop-chat");
+    loadDrop("drop-preview.js", "data-aia-drop-preview", function () {
+      loadDrop("drop-chat.js", "data-aia-drop-chat");
+    });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
