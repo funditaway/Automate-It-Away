@@ -233,7 +233,7 @@ button.open-desk {
 }
 .theme-btn {
   white-space: nowrap;
-  min-width: 52px !important;
+  min-width: 64px !important;
   flex: 0 0 auto;
   border: 1px solid rgba(255,255,255,.6) !important;
   background: rgba(12, 17, 22, .45) !important;
@@ -242,7 +242,9 @@ button.open-desk {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  overflow: visible !important;
 }
+.theme-btn .theme-lab { display: inline; }
 @media (max-width: 640px) {
   .theme-btn {
     min-width: 44px !important;
@@ -253,11 +255,16 @@ button.open-desk {
     line-height: 0 !important;
   }
   .theme-btn::before {
-    content: "\25D0";
-    font-size: 16px !important;
+    font-size: 15px !important;
     line-height: 44px !important;
+    font-weight: 800;
     color: #fff;
+    letter-spacing: 0;
   }
+  .theme-btn[data-mode="system"]::before,
+  .theme-btn:not([data-mode])::before { content: "A"; }
+  .theme-btn[data-mode="dark"]::before { content: "Dk"; font-size: 13px !important; }
+  .theme-btn[data-mode="light"]::before { content: "Lt"; font-size: 13px !important; }
   .theme-btn .theme-lab {
     position: absolute;
     width: 1px;
