@@ -14,7 +14,7 @@
   var lastAsk = "";
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;" })[c];
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
     });
   }
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
