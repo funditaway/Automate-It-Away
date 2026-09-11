@@ -227,6 +227,8 @@ Drop / Queue leftover: after History / Account / wallet send the saved pin with 
 
 Desk session leftover: after Drop chips open a token-only email-session desk, `/desk` / Rules / Pipes still skipped `X-Session`. Queue painted. Yes / Stop / Kill / Reply then 403’d even though the desk was open. Those faces now send the leftover session with the pin. Wrong code still 401 / 403. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
 
+Rules session leftover: `/rules` already sends leftover `X-Session` + `X-Pin`, but `canAdd` / save still required an owner seat. Email leftover often has no pin; `personOf` could hit a helper on the same account or miss `acct_*_owner`. Add a rule stayed gated. Leftover email-session owner now `canAdd` and can save. Helper leftover still 403. Wrong or empty session still 403. Pipes bind matches. Collect HOLD. No mesh.
+
 Tell leftover after pipe WIP: Drop already stores Tell AIA on `job.thread` as `tell`. Queue / History kept only ask / reply / rec / note / follow after #160, so Tell AIA never painted. Those faces now keep `tell`. Label is `drop · tell` — not Agent / Bot, not a live Then draft. Collect HOLD. No silent send.
 
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.

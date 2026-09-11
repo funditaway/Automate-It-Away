@@ -179,7 +179,7 @@
             <input id="rule-value" maxlength="80" placeholder="international">
           </div>
         </div>
-        <p class="meta" id="rule-hint">This desk only. Starts empty. Owner desk code to change them. Stop still needs the owner’s second tap. Outbound and money stay HOLD.</p>
+        <p class="meta" id="rule-hint">This desk only. Starts empty. Owner leftover email session or desk code to change them. Stop still needs the owner’s second tap. Outbound and money stay HOLD.</p>
       </div>
       <div id="scenarios">
         <h3 style="margin-top:12px">Example When → If → Then</h3>
@@ -205,7 +205,7 @@
       <div class="row" id="noun-save" hidden>
         <button class="edit" type="button" onclick="saveNouns()">Save words</button>
       </div>
-      <p class="meta" id="noun-hint">Owner desk code required to save.</p>
+      <p class="meta" id="noun-hint">Owner leftover email session or desk code required to save.</p>
     </div>
     <p class="meta"><a href="/legal">Legal</a> is the draft contract. This page is the desk’s wait lines.</p>
   </main>
@@ -502,6 +502,18 @@
         const can = !!(rulesOut.data && rulesOut.data.canAdd);
         paintRules(RULES, can);
         paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);
+        const nounHint = document.getElementById("noun-hint");
+        const ruleHint = document.getElementById("rule-hint");
+        if (nounHint) {
+          nounHint.textContent = can
+            ? "Owner on this phone can save. Leftover email session or desk code. Wrong or empty sign-in still 403."
+            : "Owner leftover email session or desk code required to save.";
+        }
+        if (ruleHint) {
+          ruleHint.textContent = can
+            ? "This desk only. Starts empty. Owner on this phone can add. Stop still needs the owner’s second tap. Outbound and money stay HOLD."
+            : "This desk only. Starts empty. Owner leftover email session or desk code to change them. Stop still needs the owner’s second tap. Outbound and money stay HOLD.";
+        }
         if (rulesOut.data && rulesOut.data.widgetsOn != null) paintCount(rulesOut.data.widgetsOn);
         banner.textContent = "Add a rule. When / If / Then. A pack workflow strings rules. This page is not Legal.";
         paintGate();
