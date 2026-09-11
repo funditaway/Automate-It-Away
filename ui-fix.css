@@ -146,7 +146,7 @@ body.has-desk-nav .site-header .desk-tabs {
   body.has-desk-nav main,
   body.has-desk-nav .wrap,
   body.has-desk-nav main.wrap {
-    padding-bottom: 48px !important;
+    padding-bottom: 72px !important;
   }
   body.kb-open #desk-nav {
     display: none !important;
@@ -197,14 +197,15 @@ button[data-jump] .v {
 .kpi b,
 .kpi strong {
   display: block !important;
-  min-height: 1.6em !important;
-  font-size: 1.75rem !important;
+  min-height: 1.4em !important;
+  font-size: 1.6rem !important;
   font-weight: 800 !important;
-  line-height: 1.15 !important;
+  line-height: 1.2 !important;
   letter-spacing: 0 !important;
   color: var(--teal-deep, #0a4f4f) !important;
   font-variant-numeric: tabular-nums;
   overflow: visible !important;
+  font-family: ui-sans-serif, system-ui, sans-serif !important;
 }
 .kpi b:empty::after,
 .kpi strong:empty::after {
@@ -245,6 +246,28 @@ button.open-desk {
   border: 1px solid rgba(255,255,255,.6) !important;
   background: rgba(12, 17, 22, .45) !important;
   color: #fff !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.theme-btn .theme-lab {
+  font: 700 13px/1 system-ui, sans-serif;
+}
+@media (max-width: 640px) {
+  .theme-btn {
+    min-width: 44px !important;
+    width: 44px !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+  }
+  .theme-btn .theme-lab {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
 }
 .kpis {
   display: grid !important;
@@ -255,7 +278,6 @@ button.open-desk {
   box-shadow: none;
 }
 
-/* World desk chips: labels full-width, buttons wrap, never clipped by bottom nav */
 .desk-chips {
   display: flex !important;
   flex-wrap: wrap !important;
@@ -289,9 +311,24 @@ button.open-desk {
   .desk-pick {
     margin-bottom: 12px;
   }
+  body.has-desk-nav .row:has(#drop-go),
+  body.has-desk-nav #gate {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 16px !important;
+  }
 }
 
-/* KPI never renders as a stray dash */
-.kpi b {
-  font-family: ui-sans-serif, system-ui, sans-serif !important;
+@media (max-width: 640px) {
+  #gate {
+    display: grid !important;
+    grid-template-columns: 1fr 110px;
+    gap: 8px;
+  }
+  #gate #ws { grid-column: 1 / -1; width: 100% !important; }
+  #gate button {
+    grid-column: 1 / -1;
+    width: 100% !important;
+    min-height: 48px;
+  }
 }
