@@ -259,6 +259,8 @@ Drop Preferred outcome leftover: after Put data on Tell said What should a Desk 
 
 Help Desk AI leftover: after Preferred outcome said What a Desk AI should draft next, Help First day Drop, We type it in, Talk or type it, Drop anything, and playbook Audit still said The desk asks what’s missing / AIA writes the card / We write the card / the desk writes the card. Those faces now say A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop Tell click leftover: after one Tell the desk thread, `#talkTypeBtn` still had two empty handlers. Empty Tell painted two blank-chat prompts in the one `#drop-thread`. Chat now owns Tell on `/drop`. Preview still owns Tell on `/widget`. One empty tap → one Type the work. A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

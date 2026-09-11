@@ -182,7 +182,13 @@
     var btn = document.getElementById("talkTypeBtn");
     function go() {
       var text = typeEl ? String(typeEl.value || "").trim() : "";
-      if (!text) { addLine("desk", "Type the work. A Desk AI drafts the card in this chat."); return; }
+      if (!text) {
+        var box = document.getElementById("drop-thread");
+        var last = box && box.querySelector(".line.desk:last-child");
+        if (last && /Type the work\. A Desk AI drafts the card/.test(last.textContent || "")) return;
+        addLine("desk", "Type the work. A Desk AI drafts the card in this chat.");
+        return;
+      }
       if (typeEl) typeEl.value = "";
       tell(text);
     }

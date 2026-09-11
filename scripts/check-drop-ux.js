@@ -150,6 +150,21 @@ if (inject.indexOf("hasThread") < 0 || inject.indexOf('getElementById("drop-thre
 if (inject.indexOf("hasThread ? \"\"") < 0) {
   fail("drop-preview.js inject must skip a second Tell the desk card");
 }
+const hookTypeAt = preview.indexOf("function hookType");
+const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAlias", hookTypeAt));
+if (hookType.indexOf("if (window.AIADropChat) return") < 0) {
+  fail("drop-preview.js hookType must yield Tell to chat on the one #drop-thread");
+}
+const chat = read("drop-chat.js");
+if (chat.indexOf("if (last && /Type the work\\. A Desk AI drafts the card/") < 0) {
+  fail("drop-chat.js empty Tell must skip a second blank-chat prompt");
+}
+if (yesNo.indexOf("Drop Tell click leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop Tell click leftover");
+}
+if (packMd.indexOf("Drop Tell click leftover:") < 0) {
+  fail("PACK.md must name Drop Tell click leftover");
+}
 const nav = read("desk-nav.js");
 if (nav.indexOf('loadDrop("drop-preview.js", "data-aia-drop-preview", function ()') < 0) {
   fail("desk-nav.js must load drop-chat.js after drop-preview.js");
