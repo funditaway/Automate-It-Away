@@ -9,12 +9,16 @@ function read(rel) {
 function must(hay, needle, label) {
   if (!hay.includes(needle)) throw new Error("missing " + label + ": " + needle);
 }
+function mustNot(hay, needle, label) {
+  if (hay.includes(needle)) throw new Error("invented " + label + ": " + needle);
+}
 
 const help = read("help.html");
 const studio = read("developer.html");
 const studioJs = read("developer.js");
 const more = read("more.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
+const packMd = read("PACK.md");
 const pkg = read("package.json");
 
 const faqStart = help.indexOf('id="faq"');
@@ -85,6 +89,13 @@ if (more.includes("You send them. Or you Stop.")) throw new Error("more.html gro
 
 must(help, "A person still taps Yes or Stop.", "Help We type it in Yes or Stop");
 must(help, "you still tap Yes or Stop. You send the draft yourself.", "Help Talk tap Yes or Stop");
+must(help, "A Desk AI drafts the card", "Help Desk AI drafts");
+mustNot(help, "The desk asks what’s missing", "Help First day Drop still says The desk asks");
+mustNot(help, "AIA writes the card", "Help We type it in still says AIA writes");
+mustNot(help, "We write the card on your queue", "Help Talk still says We write the card");
+mustNot(help, "the desk writes the card", "Help Drop anything still says the desk writes");
+must(yesNo, "Help Desk AI leftover after that pass", "ACCOUNT-YES-NO names Help Desk AI leftover");
+must(packMd, "Help Desk AI leftover:", "PACK.md names Help Desk AI leftover");
 must(help, "Owner still taps Yes and Stop.", "Help Log in Yes and Stop");
 must(help, "Yes when the rule allows", "Help Helper Yes not Send");
 must(help, "A person taps Yes — or Stops it — before it goes out.", "Help lead Yes rail");

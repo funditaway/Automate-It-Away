@@ -9,7 +9,7 @@
       tag: "Audit",
       name: "Find the leaks",
       surface: "Capture · Qualify",
-      what: "Map the busywork. High-volume, low-complexity. Drop it. The desk asks what’s missing. Queue cards count.",
+      what: "Map the busywork. High-volume, low-complexity. Drop it. A Desk AI drafts the card. Queue cards count.",
       href: "/drop",
       go: "Drop · Capture",
       alsoHref: "/desk",

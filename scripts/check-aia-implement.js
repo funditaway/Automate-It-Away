@@ -114,6 +114,10 @@ if (!playbook.includes('tag: "Desk AI"')) fail("playbook must tag step 3 Desk AI
 else pass("playbook tags Desk AI");
 if (playbook.includes("It categorizes, drafts, summarizes")) fail("playbook still uses MVP bot does");
 else pass("playbook dropped MVP bot does");
+if (playbook.includes("The desk asks")) fail("playbook Audit still says The desk asks");
+else pass("playbook Audit does not say The desk asks");
+if (!playbook.includes("A Desk AI drafts the card")) fail("playbook Audit must say A Desk AI drafts the card");
+else pass("playbook Audit says A Desk AI drafts the card");
 if (!playbook.includes('href: "/rules"')) fail("playbook missing Rules");
 else pass("playbook Rules");
 if (!playbook.includes("/desk")) fail("playbook missing Qualify/Queue");
