@@ -61,7 +61,11 @@
   }
   function inject() {
     if (document.getElementById("drop-pack-pane")) return;
-    if (document.body.classList.contains("embed")) return;
+    if (document.body.classList.contains("embed") || (document.documentElement && document.documentElement.classList.contains("embed"))) return;
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "").split("/").pop() || "";
+      if (p === "widget" || p === "widget.html") return;
+    } catch (e) {}
     var after = document.getElementById("talkBar") || document.getElementById("modes") || document.getElementById("drop-sub") || document.getElementById("drop-title");
     if (!after || !after.parentNode) return;
     var pane = document.createElement("div");

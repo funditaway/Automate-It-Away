@@ -13,6 +13,20 @@
     return p.replace(/\.html$/, "") || "index";
   }
 
+  function widgetPath() {
+    return file() === "widget";
+  }
+
+  function dropEmbedOn() {
+    if (widgetPath()) return true;
+    var name = file();
+    if (name !== "drop" && name !== "widget") return false;
+    if (document.documentElement && document.documentElement.classList.contains("embed")) return true;
+    if (document.body && document.body.classList.contains("embed")) return true;
+    if (window !== window.parent) return true;
+    return /(?:^|[?&])embed=1(?:&|$)/.test(location.search || "");
+  }
+
   function shopOpen() {
     return !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
   }
@@ -159,7 +173,19 @@
     document.body.appendChild(el);
   }
 
+  function bootDropEmbed() {
+    if (document.documentElement) document.documentElement.classList.add("embed");
+    if (document.body) document.body.classList.add("embed");
+    loadDrop("drop-now.js", "data-aia-drop-now");
+    loadDrop("drop-more.js", "data-aia-drop-more");
+    loadDrop("drop-preview.js", "data-aia-drop-preview");
+  }
+
   function boot() {
+    if (dropEmbedOn()) {
+      bootDropEmbed();
+      return;
+    }
     if (window !== window.parent) return;
     ensureCss();
     document.body.classList.add("has-desk-nav");

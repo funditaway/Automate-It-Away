@@ -305,7 +305,10 @@
     return /^(desk|widget|drop|rules|connections|more|desks|history|admin|create|help|account)$/.test(pageName());
   }
   function isEmbed() {
-    return !!(document.body && document.body.classList.contains("embed"));
+    if (document.documentElement && document.documentElement.classList.contains("embed")) return true;
+    if (document.body && document.body.classList.contains("embed")) return true;
+    if (pageName() === "widget") return true;
+    return false;
   }
   function paintSiteNav() {
     if (isEmbed() || isDeskFamily()) return;

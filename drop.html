@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
   <link rel="manifest" href="/site.webmanifest">
   <script>
-  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);try{var p=(location.pathname||'').replace(/\/+$/,'').split('/').pop()||'';if(p==='widget'||p==='widget.html'||window!==window.parent||/[?&]embed=1(?:&|$)/.test(location.search||''))document.documentElement.classList.add('embed')}catch(e){}})();
   </script>
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="desk-nav.css">
@@ -49,12 +49,14 @@
     button.go:disabled,#drop-send:disabled{opacity:.7;cursor:wait}
     .share-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
     .share-actions button{flex:1;min-width:140px;margin-top:0}
-    body.embed header,body.embed #desk-nav,body.embed .desk-tabs,body.embed #embed-card,body.embed #desk-pick{display:none}
+    html.embed header,html.embed #desk-nav,html.embed .desk-tabs,html.embed #embed-card,html.embed #desk-pick,html.embed #public-desk-search,html.embed #recent-public,html.embed #drop-log-card,html.embed #talkBar,html.embed .site-foot,html.embed #modes,
+    body.embed header,body.embed #desk-nav,body.embed .desk-tabs,body.embed #embed-card,body.embed #desk-pick,body.embed #public-desk-search,body.embed #recent-public,body.embed #drop-log-card,body.embed #talkBar,body.embed .site-foot,body.embed #modes{display:none}
     .talk-bar,.desk-pick{margin:0 0 14px}
     .desk-actions{margin-top:10px}
     .desk-actions a,.desk-actions button{min-height:44px;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center}
     .desk-actions a{background:var(--edit);color:var(--edit-ink);border:1px solid var(--line)}
-    body.embed{background:transparent}
+    html.embed,html.embed body,body.embed{background:transparent}
+    html.embed body.has-desk-nav,body.embed.has-desk-nav{padding-bottom:0}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -194,8 +196,17 @@
   <script src="speech.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
-    const embed = window !== window.parent || params.get("embed") === "1";
-    if (embed) document.body.classList.add("embed");
+    function widgetPath() {
+      try {
+        var p = (location.pathname || "").replace(/\/+$/, "").split("/").pop() || "";
+        return p === "widget" || p === "widget.html";
+      } catch (e) { return false; }
+    }
+    const embed = window !== window.parent || params.get("embed") === "1" || widgetPath() || document.documentElement.classList.contains("embed");
+    if (embed) {
+      document.documentElement.classList.add("embed");
+      document.body.classList.add("embed");
+    }
     let desk = (window.AIADesks && AIADesks.captureDesk) ? AIADesks.captureDesk() : null;
     let ws = (desk && desk.slug) || "";
     if (ws) window.ws = ws;

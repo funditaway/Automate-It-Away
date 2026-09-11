@@ -176,4 +176,46 @@ if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js must keep 
   if (src.indexOf("A Desk AI drafts the card") < 0) fail(file + " Talk bar must say A Desk AI drafts the card");
 });
 
+const nav = read("desk-nav.js");
+if (nav.indexOf("function dropEmbedOn") < 0 || nav.indexOf("function bootDropEmbed") < 0) {
+  fail("desk-nav.js must treat /widget as slim embed chrome");
+}
+if (nav.indexOf("widgetPath()") < 0 && nav.indexOf("file() === \"widget\"") < 0) {
+  fail("desk-nav.js must detect the /widget path");
+}
+const embedBoot = nav.slice(nav.indexOf("function bootDropEmbed"), nav.indexOf("function boot()"));
+if (embedBoot.indexOf("drop-chat.js") >= 0) fail("widget embed must not load drop-chat.js");
+if (embedBoot.indexOf("drop-talk.js") >= 0) fail("widget embed must not load drop-talk.js Talk bar");
+if (embedBoot.indexOf("drop-preview.js") < 0) fail("widget embed must load drop-preview.js for one Tell the desk");
+if (nav.indexOf("loadDrop(\"drop-chat.js\"") < 0) fail("desk-nav.js must still load drop-chat.js on /drop");
+
+["drop.html", "widget.html"].forEach(function (file) {
+  const src = read(file);
+  if (src.indexOf("p==='widget'") < 0 && src.indexOf("p === \"widget\"") < 0) {
+    fail(file + " must mark /widget as embed on first paint");
+  }
+  if (src.indexOf("function widgetPath") < 0) fail(file + " must treat /widget path as embed");
+  if (src.indexOf("html.embed header") < 0 || src.indexOf("html.embed #desk-nav") < 0) {
+    fail(file + " must hide full Drop chrome on /widget");
+  }
+  if (src.indexOf("html.embed body.has-desk-nav") < 0) fail(file + " must drop the desk-nav gap on /widget");
+});
+
+const chat = read("drop-chat.js");
+if (chat.indexOf("widgetPath()") < 0) fail("drop-chat.js must skip /widget so Tell the desk is not duplicated");
+
+if (preview.indexOf("haveTell") < 0) fail("drop-preview.js must not inject a second Tell the desk");
+if (preview.indexOf('p === "widget"') < 0) fail("drop-preview.js embedOn must treat /widget as embed");
+
+if (pick.indexOf("function embedOn") < 0 || pick.indexOf('p === "widget"') < 0) {
+  fail("drop-pick.js must skip world-desk chrome on /widget");
+}
+
+if (yesNo.indexOf("Drop widget chrome leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget chrome leftover");
+}
+if (packMd.indexOf("Drop widget chrome leftover:") < 0) {
+  fail("PACK.md must name Drop widget chrome leftover");
+}
+
 console.log("check-drop-ux: ok");

@@ -161,7 +161,16 @@
       return false;
     }
   }
-  function isEmbed() { return document.body.classList.contains("embed") || window !== window.parent; }
+  function isEmbed() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "").split("/").pop() || "";
+      if (p === "widget" || p === "widget.html") return true;
+    } catch (e) {}
+    return document.body.classList.contains("embed")
+      || (document.documentElement && document.documentElement.classList.contains("embed"))
+      || window !== window.parent
+      || /(?:^|[?&])embed=1(?:&|$)/.test(location.search || "");
+  }
   function paintActions(box, on) {
     if (!box) return on || {};
     var picked = on && typeof on === "object" ? on : {};

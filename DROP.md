@@ -35,7 +35,8 @@ World users drop. Desk AIs draft on the same card. They do not replace the user.
 
 ## Files
 
-- `widget.html` — Drop UI (`/drop` and `/widget`)
+- `widget.html` — slim embed Drop (`/widget`). One Tell the desk. No full `/drop` chrome.
+- `drop.html` — full Drop (`/drop`). Vercel still rewrites `/widget` here; the page marks embed from the `/widget` path.
 - `drop-pick.js` — World search first, then this-phone desks
 - `drop-chat.js` — Tell the desk / type anything → reply + card in thread
 - `drop-talk.js` — Talk to the desk. Hear this / empty `#talkStatus` match Talk: A Desk AI drafts the card. You still tap Yes or Stop.

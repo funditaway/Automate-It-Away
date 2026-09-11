@@ -119,6 +119,16 @@
     var line = (parsed.title || parsed.text) + ". Say drop it if that is right.";
     status(line); if (window.AIASpeech) AIASpeech.speak(line);
   }
+  function embedOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "").split("/").pop() || "";
+      if (p === "widget" || p === "widget.html") return true;
+    } catch (e) {}
+    return (document.documentElement && document.documentElement.classList.contains("embed"))
+      || (document.body && document.body.classList.contains("embed"))
+      || window !== window.parent
+      || /(?:^|[?&])embed=1(?:&|$)/.test(location.search || "");
+  }
   function styleBar(bar) {
     if (!document.getElementById("talk-drop-css")) {
       var css = document.createElement("style"); css.id = "talk-drop-css";
@@ -145,6 +155,7 @@
   }
   function boot() {
     var bar = document.getElementById("talkBar"); if (!bar) return;
+    if (embedOn()) return;
     styleBar(bar);
     if (!window.AIASpeech) status("Type the drop. Speech is off on this phone.");
     var talkBtn = document.getElementById("talkBtn"); var hear = document.getElementById("hearBtn"); var quiet = document.getElementById("quietBtn");

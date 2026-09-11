@@ -29,6 +29,16 @@
     rows.unshift({ slug: row.slug, name: row.name || row.slug, at: Date.now() });
     try { localStorage.setItem(RECENT, JSON.stringify(rows.slice(0, 6))); } catch (e) {}
   }
+  function embedOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "").split("/").pop() || "";
+      if (p === "widget" || p === "widget.html") return true;
+    } catch (e) {}
+    return (document.documentElement && document.documentElement.classList.contains("embed"))
+      || (document.body && document.body.classList.contains("embed"))
+      || window !== window.parent
+      || /(?:^|[?&])embed=1(?:&|$)/.test(location.search || "");
+  }
   function banner() {
     var on = desk();
     var el = document.getElementById("drop-on");
@@ -37,8 +47,8 @@
       var title = document.getElementById("drop-title");
       if (title && title.parentNode) title.parentNode.insertBefore(el, title.nextSibling);
     }
-    if (!on.slug) { el.textContent = "No desk yet. Pick one, add a saved desk, or find a public desk."; return; }
-    el.innerHTML = "This drop goes to <b>" + esc(on.name || on.slug) + "</b>. Lands on that queue. You still tap Yes or Stop. <a href=\"/drop\">Change desk</a>";
+    if (!on.slug) { el.textContent = embedOn() ? "This drop needs a desk on the link." : "No desk yet. Pick one, add a saved desk, or find a public desk."; return; }
+    el.innerHTML = "This drop goes to <b>" + esc(on.name || on.slug) + "</b>. Lands on that queue. You still tap Yes or Stop." + (embedOn() ? "" : " <a href=\"/drop\">Change desk</a>");
   }
   function camera() {
     var photo = document.getElementById("photo"); if (!photo) return;
@@ -50,6 +60,7 @@
     btn.onclick = function () { photo.setAttribute("capture", "environment"); photo.click(); };
   }
   function paintRecent() {
+    if (embedOn()) return;
     var host = document.getElementById("public-desk-search") || document.getElementById("desk-pick");
     if (!host || document.getElementById("recent-public")) return;
     var rows = recent(); if (!rows.length) return;

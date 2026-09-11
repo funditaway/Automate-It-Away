@@ -222,9 +222,15 @@
       ? ("This is " + (on.name || on.slug) + ". Say anything. A Desk AI drafts the card. You still tap Yes or Stop.")
       : "Pick a world desk at the top, or say the work. A Desk AI drafts the card.");
   }
+  function widgetPath() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "").split("/").pop() || "";
+      return p === "widget" || p === "widget.html";
+    } catch (e) { return false; }
+  }
   function boot() {
     if (!document.getElementById("drop-title")) return;
-    if (document.body.classList.contains("embed") || window !== window.parent) return;
+    if (widgetPath() || document.documentElement.classList.contains("embed") || document.body.classList.contains("embed") || window !== window.parent) return;
     hook();
     greet();
     window.AIADropChat = { tell: tell, localDraft: localDraft };

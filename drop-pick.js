@@ -4,6 +4,16 @@
       return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
     });
   }
+  function embedOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "").split("/").pop() || "";
+      if (p === "widget" || p === "widget.html") return true;
+    } catch (e) {}
+    return (document.documentElement && document.documentElement.classList.contains("embed"))
+      || (document.body && document.body.classList.contains("embed"))
+      || window !== window.parent
+      || /(?:^|[?&])embed=1(?:&|$)/.test(location.search || "");
+  }
   function slugify(s) {
     if (window.AIADesks) return AIADesks.slugify(s);
     return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
@@ -44,7 +54,7 @@
   }
   function injectSearch() {
     if (document.getElementById("public-desk-q")) return;
-    if (window !== window.parent || /embed=1/.test(location.search)) return;
+    if (embedOn()) return;
     var wrap = document.createElement("div");
     wrap.id = "public-desk-search";
     wrap.className = "card desk-pick";
@@ -80,7 +90,7 @@
     var chips = document.getElementById("desk-chips");
     var sub = document.getElementById("desk-pick-sub");
     if (!box || !chips) return;
-    if (window !== window.parent || /embed=1/.test(location.search)) { box.hidden = true; return; }
+    if (embedOn()) { box.hidden = true; return; }
     box.hidden = false;
     var rows = (window.AIADesks && AIADesks.list) ? AIADesks.list() : [];
     var cur = (window.AIADesks && AIADesks.current && AIADesks.current()) || {};

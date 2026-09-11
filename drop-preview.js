@@ -18,7 +18,13 @@
     });
   }
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
-  function embedOn() { return document.body.classList.contains("embed") || window !== window.parent; }
+  function embedOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "").split("/").pop() || "";
+      if (p === "widget" || p === "widget.html") return true;
+    } catch (e) {}
+    return document.documentElement.classList.contains("embed") || document.body.classList.contains("embed") || window !== window.parent || /(?:^|[?&])embed=1(?:&|$)/.test(location.search || "");
+  }
   function queryWs() {
     try { return String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { return ""; }
   }
@@ -78,19 +84,20 @@
     if (document.getElementById("drop-preview")) return;
     var after = document.getElementById("talkBar") || document.getElementById("desk-pick") || document.getElementById("drop-sub");
     if (!after || !after.parentNode) return;
+    var haveTell = !!document.getElementById("drop-thread");
     var box = document.createElement("div");
     box.id = "drop-preview-wrap";
     box.innerHTML =
-      "<div class=\"card\" id=\"drop-thread-card\">" +
+      (haveTell ? "" : ("<div class=\"card\" id=\"drop-thread-card\">" +
       "<strong>Tell the desk</strong>" +
       "<p class=\"sub\" id=\"thread-empty\">Say anything. A Desk AI drafts the card. You still tap Yes or Stop. Nobody sends money from here.</p>" +
       "<div id=\"drop-thread\" class=\"drop-thread\"></div>" +
       "<input id=\"talkType\" placeholder=\"Say anything. A Desk AI drafts the card.\" autocomplete=\"off\">" +
       "<div class=\"talk-actions\"><button type=\"button\" id=\"talkTypeBtn\">Tell the desk</button></div>" +
-      "</div>" +
+      "</div>")) +
       "<div class=\"card\" id=\"verify-strip\"><strong>This drop</strong><div id=\"verify-cells\" class=\"verify-cells\"></div></div>" +
       "<div class=\"card\" id=\"drop-preview\"><strong>Card preview</strong><p class=\"sub\" id=\"preview-sub\">Not on the queue yet. Fix it here. You still tap Yes or Stop.</p><div id=\"preview-body\"></div><p class=\"sub\" id=\"drop-ask\"></p></div>" +
-      "<div class=\"card\" id=\"drop-log-card\"><strong>Drops from this phone</strong><div id=\"drop-log\"></div></div>";
+      (embedOn() ? "" : "<div class=\"card\" id=\"drop-log-card\"><strong>Drops from this phone</strong><div id=\"drop-log\"></div></div>");
     after.parentNode.insertBefore(box, after.nextSibling);
     if (!document.getElementById("drop-preview-css")) {
       var css = document.createElement("style"); css.id = "drop-preview-css";
