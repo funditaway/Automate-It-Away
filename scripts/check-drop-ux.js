@@ -271,6 +271,17 @@ if (talk.indexOf("Then say drop it. Nobody sends money from here.") >= 0) {
 }
 if (talk.indexOf("A Desk AI drafts the card") < 0) fail("drop-talk.js Hear this must say A Desk AI drafts the card");
 if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js must keep Yes or Stop");
+const talkBootAt = talk.indexOf("function boot");
+const talkBoot = talk.slice(talkBootAt, talk.indexOf("if (document.readyState", talkBootAt));
+if (talkBoot.indexOf('classList.contains("embed")') < 0 || talkBoot.indexOf("window !== window.parent") < 0) {
+  fail("drop-talk.js boot must skip the Talk bar on embed /widget");
+}
+if (yesNo.indexOf("Drop widget Talk bar leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget Talk bar leftover");
+}
+if (packMd.indexOf("Drop widget Talk bar leftover:") < 0) {
+  fail("PACK.md must name Drop widget Talk bar leftover");
+}
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
   if (src.indexOf("Talk the work in your words") >= 0) fail(file + " Talk bar still says Talk the work in your words");

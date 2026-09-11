@@ -144,6 +144,7 @@
     var typeEl = document.getElementById("talkType"); if (typeEl) typeEl.focus();
   }
   function boot() {
+    if (document.body.classList.contains("embed") || window !== window.parent) return;
     var bar = document.getElementById("talkBar"); if (!bar) return;
     styleBar(bar);
     if (!window.AIASpeech) status("Type the drop. Speech is off on this phone.");
