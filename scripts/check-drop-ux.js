@@ -173,7 +173,19 @@ if (packMd.indexOf("Drop widget Tell leftover:") < 0) {
   if (src.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
     fail(file + " Put data on must say A Desk AI drafts the card");
   }
+  if (src.indexOf("What should the desk do with it?") >= 0) fail(file + " Put data on Tell still says What should the desk do with it");
+  if (src.indexOf("What should a Desk AI draft?") < 0) fail(file + " Put data on Tell must say What should a Desk AI draft");
 });
+if (yesNo.indexOf("Drop Put data on Tell leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop Put data on Tell leftover");
+}
+if (packMd.indexOf("Drop Put data on Tell leftover:") < 0) {
+  fail("PACK.md must name Drop Put data on Tell leftover");
+}
+const tip = read("aia-tip.js");
+if (tip.indexOf("What should the desk do with it?") >= 0) fail("aia-tip.js drop-tell still says What should the desk do with it");
+if (tip.indexOf("Tell the desk the next draft") >= 0) fail("aia-tip.js drop-tell still says Tell the desk the next draft");
+if (tip.indexOf("What should a Desk AI draft?") < 0) fail("aia-tip.js drop-tell must say What should a Desk AI draft");
 if (yesNo.indexOf("Drop Put data on leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop Put data on leftover");
 }

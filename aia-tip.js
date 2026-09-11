@@ -147,9 +147,9 @@
       ask: "What do I paste on Put data on?"
     },
     "drop-tell": {
-      title: "What should the desk do with it?",
-      body: "Tell the desk the next draft. It stays on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
-      ask: "What do I tell the desk on Put data on?"
+      title: "What should a Desk AI draft?",
+      body: "Tell a Desk AI the next draft. It stays on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      ask: "What do I tell a Desk AI on Put data on?"
     },
     "drop-kind-need": {
       title: "What is needed",
