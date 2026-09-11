@@ -34,8 +34,12 @@ must(help, '"when": "drop"', "help.html sample when drop");
 must(studio, "Desk cards.", "studio desk-cards one-liner");
 must(studio, "/help#desk-cards", "studio desk-cards link");
 must(studio, "12 card fields", "studio 12 fields");
+must(studio, "Reply on the card when a Desk AI asks", "studio desk-cards Desk AI asks");
+if (studio.includes("when the desk asks")) throw new Error("studio desk-cards still says when the desk asks");
 must(studioJs, "Desk cards.", "studio js desk-cards one-liner");
 must(studioJs, "/help#desk-cards", "studio js desk-cards link");
+must(studioJs, "Reply on the card when a Desk AI asks", "studio js desk-cards Desk AI asks");
+if (studioJs.includes("when the desk asks")) throw new Error("studio js desk-cards still says when the desk asks");
 must(more, "/help#desk-cards", "more.html desk-cards link");
 
 must(preview, 'get("ws")', "drop-preview reads ?ws=");
@@ -44,6 +48,8 @@ must(drop, "window.ws = ws", "drop.html shares ws with preview");
 must(read("widget.html"), "window.ws = ws", "widget.html shares ws with preview");
 
 must(yesNo, "Desk cards", "ACCOUNT-YES-NO desk-cards");
+must(yesNo, "Help FAQ Desk AI leftover after that pass", "ACCOUNT-YES-NO names Help FAQ Desk AI leftover");
+must(read("PACK.md"), "Help FAQ Desk AI leftover:", "PACK.md names Help FAQ Desk AI leftover");
 
 ["render_desk_card", "interactive_review", "code_diff", "token badge"].forEach(function (bit) {
   if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit)) {

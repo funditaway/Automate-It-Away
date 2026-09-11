@@ -261,6 +261,8 @@ Help Desk AI leftover: after Preferred outcome said What a Desk AI should draft 
 
 Drop Tell click leftover: after one Tell the desk thread, `#talkTypeBtn` still had two empty handlers. Empty Tell painted two blank-chat prompts in the one `#drop-thread`. Chat now owns Tell on `/drop`. Preview still owns Tell on `/widget`. One empty tap → one Type the work. A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Help FAQ Desk AI leftover: after Help First day Drop said A Desk AI drafts the card, FAQ Create/Drop plus Studio FAQ and Studio Desk cards still said when the desk asks. Those faces now say when a Desk AI asks. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
@@ -281,7 +283,7 @@ Field tips + Ask AIA: `aia-tip.js` on How, Setup, Home, onboard, login, Drop, wi
 
 When → If → Then: a named desk AI drafts a queue card (fields / notes), not a raw chat blob. Yes / Stop / Kill stay human. Yes is not auto-send mail, push git, or a Collect charge. Collect HOLD. Thin `.aia` from Studio; test via Drop or the www hook. A desk holds up to 12 card fields — real cap. Sample JSON is illustrative only — desk words. Do not invent `render_desk_card`, interactive_review layout, or code_diff / confidence / token badge field types.
 
-Plan tiers FAQ: no public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Create / Drop a goal → draft card → Yes. No autonomous ETA engine. No SaaS codegen.
+Plan tiers FAQ: no public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Create / Drop a goal → draft card → Yes. Needs you / prompt ask-who when a Desk AI asks. No autonomous ETA engine. No SaaS codegen.
 
 ## World users · launch an automation business
 
