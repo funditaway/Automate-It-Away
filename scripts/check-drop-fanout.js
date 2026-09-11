@@ -176,6 +176,16 @@ if (dropMd.indexOf("What a Desk AI should draft next") < 0) fail("DROP.md Prefer
 else pass("DROP.md Preferred outcome says What a Desk AI should draft next");
 if (dropMd.indexOf("Not What the desk should do next") < 0) fail("DROP.md Preferred outcome must deny What the desk should do next");
 else pass("DROP.md Preferred outcome denies What the desk should do next");
+if (yesNo.indexOf("Drop widget This drop leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget This drop leftover");
+else pass("ACCOUNT-YES-NO names Drop widget This drop leftover");
+if (packMd.indexOf("Drop widget This drop leftover:") < 0) fail("PACK.md must name Drop widget This drop leftover");
+else pass("PACK.md names Drop widget This drop leftover");
+if (dropMd.indexOf("skip the This drop / Counter strip") < 0) fail("DROP.md preview must skip This drop / Counter on /widget");
+else pass("DROP.md preview skips This drop / Counter on /widget");
+if (previewSrc.indexOf("function widgetOn") < 0) fail("drop-preview.js must detect /widget path");
+else pass("drop-preview.js detects /widget path");
+if (previewSrc.indexOf("slim ? \"\"") < 0) fail("drop-preview.js must omit This drop strip when slim");
+else pass("drop-preview.js omits This drop strip when slim");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

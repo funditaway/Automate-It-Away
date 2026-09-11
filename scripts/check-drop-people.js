@@ -98,6 +98,11 @@ if (previewInject.indexOf("hasThread") < 0 || previewInject.indexOf('getElementB
 if (!/hasThread \? ""/.test(previewInject) && previewInject.indexOf("hasThread ? \"\"") < 0) {
   fail("drop-preview.js inject must skip a second Tell the desk card");
 }
+if (previewInject.indexOf("slimChrome") < 0 || previewInject.indexOf("stripHtml") < 0) {
+  fail("drop-preview.js inject must skip This drop / Counter on /widget");
+}
+if (preview.indexOf("function widgetOn") < 0) fail("drop-preview.js must detect /widget path");
+if (preview.indexOf("function slimChrome") < 0) fail("drop-preview.js must slim This drop on /widget");
 const hookTypeAt = preview.indexOf("function hookType");
 const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAlias", hookTypeAt));
 if (hookType.indexOf("if (window.AIADropChat) return") < 0) {
