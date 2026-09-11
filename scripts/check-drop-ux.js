@@ -150,6 +150,41 @@ if (inject.indexOf("hasThread") < 0 || inject.indexOf('getElementById("drop-thre
 if (inject.indexOf("hasThread ? \"\"") < 0) {
   fail("drop-preview.js inject must skip a second Tell the desk card");
 }
+if (inject.indexOf("slimChrome") < 0 || inject.indexOf("stripHtml") < 0) {
+  fail("drop-preview.js inject must skip This drop / Counter on /widget");
+}
+if (inject.indexOf("slim ? \"\"") < 0) {
+  fail("drop-preview.js inject must omit #verify-strip when slim");
+}
+if (inject.indexOf("id=\\\"verify-strip\\\"") < 0 && inject.indexOf("id=\"verify-strip\"") < 0) {
+  fail("drop-preview.js must still paint This drop on /drop");
+}
+if (preview.indexOf("function widgetOn") < 0) fail("drop-preview.js must detect /widget path");
+if (preview.indexOf("function slimChrome") < 0) fail("drop-preview.js must slim This drop on /widget");
+if (yesNo.indexOf("Drop widget This drop leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget This drop leftover");
+}
+if (packMd.indexOf("Drop widget This drop leftover:") < 0) {
+  fail("PACK.md must name Drop widget This drop leftover");
+}
+function runSlim(opts) {
+  const sandbox = {
+    document: { body: { classList: { contains: function (c) { return !!opts.embed && c === "embed"; } } } },
+    location: { pathname: opts.path || "/drop" }
+  };
+  sandbox.window = sandbox;
+  sandbox.parent = opts.iframe ? {} : sandbox;
+  const start = preview.indexOf("function embedOn");
+  const end = preview.indexOf("function queryWs");
+  vm.runInNewContext(preview.slice(start, end) + "\nthis.widgetOn = widgetOn;\nthis.slimChrome = slimChrome;", sandbox);
+  return !!sandbox.slimChrome();
+}
+if (!runSlim({ path: "/widget" })) fail("/widget must skip This drop / Counter");
+if (!runSlim({ path: "/widget.html" })) fail("/widget.html must skip This drop / Counter");
+if (!runSlim({ path: "/drop", embed: true })) fail("embed /drop must skip This drop / Counter");
+if (!runSlim({ path: "/drop", iframe: true })) fail("iframe /drop must skip This drop / Counter");
+if (runSlim({ path: "/drop" })) fail("/drop must still paint This drop / Counter");
+if (runSlim({ path: "/drop.html" })) fail("/drop.html must still paint This drop / Counter");
 const hookTypeAt = preview.indexOf("function hookType");
 const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAlias", hookTypeAt));
 if (hookType.indexOf("if (window.AIADropChat) return") < 0) {

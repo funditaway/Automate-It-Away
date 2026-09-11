@@ -43,7 +43,7 @@ World users drop. Desk AIs draft on the same card. They do not replace the user.
 - `drop-more.js` — Custom kinds
 - `drop-agent.js` — Advanced + Desk AIs
 - `drop-packs.js` — Active packs on this desk (one pack or many)
-- `drop-preview.js` — Thread + card preview gate. Talk empty / speaker / placeholder / missing-field asks match `drop-chat.js`: A Desk AI drafts the card. Speaker is Desk AI. You still tap Yes or Stop. One Tell the desk thread — preview reuses `#drop-thread` if Talk already painted it; `desk-nav.js` loads chat after preview. Chat owns empty Tell on `/drop` so one `#drop-thread` does not paint two blank-chat prompts. Preview still owns Tell on `/widget`. Full Drop chrome / Counter stay later.
+- `drop-preview.js` — Thread + card preview gate. Talk empty / speaker / placeholder / missing-field asks match `drop-chat.js`: A Desk AI drafts the card. Speaker is Desk AI. You still tap Yes or Stop. One Tell the desk thread — preview reuses `#drop-thread` if Talk already painted it; `desk-nav.js` loads chat after preview. Chat owns empty Tell on `/drop` so one `#drop-thread` does not paint two blank-chat prompts. Preview still owns Tell on `/widget`. `/widget` and embed skip the This drop / Counter strip (`#verify-strip`). Full Drop chrome (header / modes / share) stay later.
 - Put data on Tell (`#agent-tell` + `aia-tip.js` drop-tell) — What should a Desk AI draft? You still tap Yes or Stop. Not What should the desk do with it.
 - Preferred outcome (`drop-agent.js` `#outcome-hint` + `aia-tip.js` drop-outcome) — What a Desk AI should draft next. You still tap Yes or Stop. Not What the desk should do next.
 - `chat.html` — bounce to `/drop?mode=talk#talk`

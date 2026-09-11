@@ -19,6 +19,13 @@
   }
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
   function embedOn() { return document.body.classList.contains("embed") || window !== window.parent; }
+  function widgetOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+    } catch (e) { return false; }
+  }
+  function slimChrome() { return embedOn() || widgetOn(); }
   function queryWs() {
     try { return String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { return ""; }
   }
@@ -81,6 +88,7 @@
     var box = document.createElement("div");
     box.id = "drop-preview-wrap";
     var hasThread = !!document.getElementById("drop-thread");
+    var slim = slimChrome();
     var threadHtml = hasThread ? "" :
       "<div class=\"card\" id=\"drop-thread-card\">" +
       "<strong>Tell the desk</strong>" +
@@ -89,9 +97,11 @@
       "<input id=\"talkType\" placeholder=\"Say anything. A Desk AI drafts the card.\" autocomplete=\"off\">" +
       "<div class=\"talk-actions\"><button type=\"button\" id=\"talkTypeBtn\">Tell the desk</button></div>" +
       "</div>";
+    var stripHtml = slim ? "" :
+      "<div class=\"card\" id=\"verify-strip\"><strong>This drop</strong><div id=\"verify-cells\" class=\"verify-cells\"></div></div>";
     box.innerHTML =
       threadHtml +
-      "<div class=\"card\" id=\"verify-strip\"><strong>This drop</strong><div id=\"verify-cells\" class=\"verify-cells\"></div></div>" +
+      stripHtml +
       "<div class=\"card\" id=\"drop-preview\"><strong>Card preview</strong><p class=\"sub\" id=\"preview-sub\">Not on the queue yet. Fix it here. You still tap Yes or Stop.</p><div id=\"preview-body\"></div><p class=\"sub\" id=\"drop-ask\"></p></div>" +
       "<div class=\"card\" id=\"drop-log-card\"><strong>Drops from this phone</strong><div id=\"drop-log\"></div></div>";
     after.parentNode.insertBefore(box, after.nextSibling);

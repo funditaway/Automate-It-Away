@@ -263,6 +263,8 @@ Drop Tell click leftover: after one Tell the desk thread, `#talkTypeBtn` still h
 
 Help FAQ Desk AI leftover: after Help First day Drop said A Desk AI drafts the card, FAQ Create/Drop plus Studio FAQ and Studio Desk cards still said when the desk asks. Those faces now say when a Desk AI asks. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop widget This drop leftover: after Help FAQ said when a Desk AI asks, `/widget` still painted the This drop Counter strip (`#verify-strip` / verify-cells). World `/widget` then showed Desk / Who / For / Do / Due / Files next to Tell. Those faces now skip the This drop / Counter strip. `/drop` still paints This drop. Card preview + one Tell the desk thread stay. Full Drop chrome stay later. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
