@@ -194,6 +194,18 @@ if (packMd.indexOf("Drop widget empty Tell leftover:") < 0) fail("PACK.md must n
 else pass("PACK.md names Drop widget empty Tell leftover");
 if (dropMd.indexOf("Embed empty Tell skips a second blank-chat prompt") < 0) fail("DROP.md must name embed empty Tell skip");
 else pass("DROP.md names embed empty Tell skip");
+if (yesNo.indexOf("Drop widget Talk bar leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget Talk bar leftover");
+else pass("ACCOUNT-YES-NO names Drop widget Talk bar leftover");
+if (packMd.indexOf("Drop widget Talk bar leftover:") < 0) fail("PACK.md must name Drop widget Talk bar leftover");
+else pass("PACK.md names Drop widget Talk bar leftover");
+if (dropMd.indexOf("Embed `/widget` skips the Talk bar") < 0) fail("DROP.md must name embed Talk bar skip");
+else pass("DROP.md names embed Talk bar skip");
+const talkSrc = fs.readFileSync(path.join(root, "drop-talk.js"), "utf8");
+const talkBootAt = talkSrc.indexOf("function boot");
+const talkBoot = talkSrc.slice(talkBootAt, talkSrc.indexOf("if (document.readyState", talkBootAt));
+if (talkBoot.indexOf('classList.contains("embed")') < 0 || talkBoot.indexOf("window !== window.parent") < 0) {
+  fail("drop-talk.js boot must skip the Talk bar on embed /widget");
+} else pass("drop-talk.js boot skips the Talk bar on embed");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

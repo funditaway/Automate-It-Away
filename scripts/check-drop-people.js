@@ -141,6 +141,11 @@ if (talk.indexOf("End with drop it if you want it on the queue") >= 0) {
 }
 if (talk.indexOf("A Desk AI drafts the card") < 0) fail("drop-talk.js Hear this must say A Desk AI drafts the card");
 if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js Hear this must keep Yes or Stop");
+const talkBootAt = talk.indexOf("function boot");
+const talkBoot = talk.slice(talkBootAt, talk.indexOf("if (document.readyState", talkBootAt));
+if (talkBoot.indexOf('classList.contains("embed")') < 0 || talkBoot.indexOf("window !== window.parent") < 0) {
+  fail("drop-talk.js boot must skip the Talk bar on embed /widget");
+}
 
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
