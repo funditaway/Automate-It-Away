@@ -81,6 +81,14 @@ if (preview.indexOf("Type the work. A Desk AI drafts the card in this chat.") < 
   fail("drop-preview.js Talk empty tap must say A Desk AI drafts the card");
 }
 
+["drop.html", "widget.html"].forEach(function (file) {
+  const src = read(file);
+  if (src.indexOf("The desk writes the card") >= 0) fail(file + " Put data on still says The desk writes the card");
+  if (src.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
+    fail(file + " Put data on must say A Desk AI drafts the card");
+  }
+});
+
 const pick = read("drop-pick.js");
 if (pick.indexOf("AIADesks.authHeaders") < 0) fail("List this desk must use AIADesks.authHeaders()");
 if (/var ws = cur\.slug \|\| q/.test(pick)) fail("drop-pick.js must not prefer a leftover desk over ?ws=");

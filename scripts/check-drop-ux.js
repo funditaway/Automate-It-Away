@@ -133,4 +133,18 @@ if (preview.indexOf("You still tap Yes or Stop") < 0) fail("drop-preview.js must
 if (preview.indexOf(': "Desk")') >= 0) fail("drop-preview.js Talk speaker still says Desk");
 if (preview.indexOf(': "Desk AI")') < 0) fail("drop-preview.js Talk speaker must say Desk AI");
 
+["drop.html", "widget.html"].forEach(function (file) {
+  const src = read(file);
+  if (src.indexOf("The desk writes the card") >= 0) fail(file + " Put data on still says The desk writes the card");
+  if (src.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
+    fail(file + " Put data on must say A Desk AI drafts the card");
+  }
+});
+if (yesNo.indexOf("Drop Put data on leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop Put data on leftover");
+}
+if (packMd.indexOf("Drop Put data on leftover:") < 0) {
+  fail("PACK.md must name Drop Put data on leftover");
+}
+
 console.log("check-drop-ux: ok");
