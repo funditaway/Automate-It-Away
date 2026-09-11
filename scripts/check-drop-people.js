@@ -55,8 +55,16 @@ const chatDesk = chat.slice(chatDeskAt, chat.indexOf("function headers", chatDes
 if (chatDesk.indexOf("cur.name || q") >= 0) fail("drop-chat.js must not greet with a leftover desk on a ?ws= link");
 if (chatDesk.indexOf("AIADesks.find") < 0) fail("drop-chat.js must name the link desk");
 if (chat.indexOf("AIA AI answers") >= 0) fail("drop-chat.js Talk empty still says AIA AI answers");
+if (chat.indexOf("AIA writes") >= 0) fail("drop-chat.js Talk still says AIA writes");
+if (chat.indexOf("AIA still answers") >= 0) fail("drop-chat.js Talk greet still says AIA still answers");
+if (chat.indexOf("AIA answers and writes") >= 0) fail("drop-chat.js Talk empty tap still says AIA answers");
+if (chat.indexOf("AIA would write") >= 0) fail("drop-chat.js Talk no-desk still says AIA would write");
+if (chat.indexOf("AIA still wrote") >= 0) fail("drop-chat.js Talk 401 still says AIA still wrote");
 if (chat.indexOf("A Desk AI drafts the card") < 0) fail("drop-chat.js Talk empty must say A Desk AI drafts the card");
 if (chat.indexOf("You still tap Yes or Stop") < 0) fail("drop-chat.js Talk empty must keep Yes or Stop");
+if (chat.indexOf("Pick a world desk at the top, or say the work. A Desk AI drafts the card.") < 0) {
+  fail("drop-chat.js Talk greet must say A Desk AI drafts the card");
+}
 
 const pick = read("drop-pick.js");
 if (pick.indexOf("AIADesks.authHeaders") < 0) fail("List this desk must use AIADesks.authHeaders()");

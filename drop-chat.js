@@ -117,7 +117,7 @@
   }
   async function tell(text) {
     var raw = String(text || "").trim();
-    if (!raw) { addLine("desk", "Say anything. AIA writes the card here."); return; }
+    if (!raw) { addLine("desk", "Say anything. A Desk AI drafts the card here."); return; }
     if (/^(stop|kill|send money|pay them|bind|wire it)\b/i.test(raw)) {
       addLine("you", raw);
       addLine("desk", "Chat does not Send, Stop, pay, or bind. Open the card on the queue if the owner needs to tap.");
@@ -127,7 +127,7 @@
     var on = desk();
     if (!on.slug) {
       var local = localDraft(raw);
-      addLine("desk", "Pick a world desk at the top first. Here is the card AIA would write.");
+      addLine("desk", "Pick a world desk at the top first. Here is the draft card.");
       addLine("card", local.draft, local);
       fillForm(local);
       var q = document.getElementById("public-desk-q");
@@ -160,7 +160,7 @@
       }
       if (r.status === 404 || r.status === 401) {
         var draft = localDraft(raw);
-        addLine("desk", out.error || "That desk needs a code on this phone, or pick another world desk. AIA still wrote a draft card here.");
+        addLine("desk", out.error || "That desk needs a code on this phone, or pick another world desk. A Desk AI still drafted a card here.");
         addLine("card", draft.draft, draft);
         fillForm(draft);
         return;
@@ -182,7 +182,7 @@
     var btn = document.getElementById("talkTypeBtn");
     function go() {
       var text = typeEl ? String(typeEl.value || "").trim() : "";
-      if (!text) { addLine("desk", "Type the work. AIA answers and writes the card in this chat."); return; }
+      if (!text) { addLine("desk", "Type the work. A Desk AI drafts the card in this chat."); return; }
       if (typeEl) typeEl.value = "";
       tell(text);
     }
@@ -193,7 +193,7 @@
     }
     if (typeEl && !typeEl.getAttribute("data-aia-chat")) {
       typeEl.setAttribute("data-aia-chat", "1");
-      typeEl.setAttribute("placeholder", "Say anything. AIA writes the card.");
+      typeEl.setAttribute("placeholder", "Say anything. A Desk AI drafts the card.");
       typeEl.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); }
       });
@@ -219,8 +219,8 @@
     if (!box || box.getAttribute("data-greeted")) return;
     box.setAttribute("data-greeted", "1");
     addLine("desk", on.slug
-      ? ("This is " + (on.name || on.slug) + ". Say anything. AIA writes a card in this chat. You still tap Yes or Stop.")
-      : "Pick a world desk at the top, or say the work. AIA still answers.");
+      ? ("This is " + (on.name || on.slug) + ". Say anything. A Desk AI drafts the card. You still tap Yes or Stop.")
+      : "Pick a world desk at the top, or say the work. A Desk AI drafts the card.");
   }
   function boot() {
     if (!document.getElementById("drop-title")) return;
