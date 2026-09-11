@@ -131,6 +131,18 @@ if (/if\(tok\)h\["X-Session"\]=tok;\s*else if\(d&&d\.pin\)/.test(history)) {
 } else pass("History packHdr keeps X-Pin with X-Session");
 if (history.indexOf('if(pin)h["X-Pin"]=pin') < 0) fail("History packHdr must send X-Pin");
 else pass("History packHdr sends X-Pin");
+if (history.indexOf('fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"}') >= 0) {
+  fail("History trail load still skips leftover X-Session");
+} else pass("History trail load does not skip leftover X-Session");
+if (history.indexOf('fetch("/api/desks",{method:"POST",headers:packHdr()') < 0) {
+  fail("History trail load must send packHdr leftover X-Session so email-session owners still see the trail");
+} else pass("History trail load sends packHdr leftover X-Session");
+if (yesNo.indexOf("History leftover session after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name History leftover session");
+} else pass("ACCOUNT-YES-NO names History leftover session");
+if (packMd.indexOf("History leftover session:") < 0) {
+  fail("PACK.md must name History leftover session");
+} else pass("PACK.md names History leftover session");
 if (pkg.indexOf("check-history-roadmap.js") < 0) fail("package.json must run check-history-roadmap");
 else pass("package.json runs check-history-roadmap");
 
@@ -318,6 +330,81 @@ async function leftoverMain() {
   if (leftoverEmpty.statusCode !== 403) {
     fail("empty leftover pin must still 403 History install-aia, got " + leftoverEmpty.statusCode);
   } else pass("empty leftover pin stays 403 on History install-aia");
+
+  mem.jobs = mem.jobs || [];
+  mem.jobs.unshift({
+    id: "j-hist-session",
+    workspace: slug,
+    title: "Email leftover trail",
+    status: "waiting",
+    createdAt: new Date().toISOString(),
+    t: new Date().toISOString()
+  });
+  const desks = require("../api/_desks-http");
+  const deadTrail = await call(desks, "POST", {
+    "x-workspace": slug,
+    "x-session": leftover
+  }, { action: "history", desks: [{ slug: slug, pin: "" }] });
+  if (deadTrail.statusCode !== 200) {
+    fail("dead leftover session History trail should 200 empty, got " + deadTrail.statusCode);
+  } else if ((deadTrail.body.items || []).some(function (it) { return it && it.id === "j-hist-session"; })) {
+    fail("dead leftover session must not paint the History trail");
+  } else pass("dead leftover session History trail stays empty");
+
+  const ownerSeat = (shop.people || []).find(function (p) { return p && (p.role === "owner" || p.kind === "owner"); }) || shop.people[0];
+  const issued = lib.issueSession(ownerSeat, shop, null, { headers: { "x-workspace": slug } });
+  if (!issued || !issued.token) fail("must issue leftover email-session token for History trail");
+  else pass("issued leftover email-session token for History trail");
+  const sessionTrail = await call(desks, "POST", {
+    "x-workspace": slug,
+    "x-session": issued.token
+  }, { action: "history", desks: [{ slug: slug, pin: "" }] });
+  if (sessionTrail.statusCode !== 200 || !sessionTrail.body || !sessionTrail.body.ok) {
+    fail("leftover email-session owner History trail should 200, got " + sessionTrail.statusCode + " " + JSON.stringify(sessionTrail.body));
+  } else if (!(sessionTrail.body.items || []).some(function (it) { return it && it.id === "j-hist-session"; })) {
+    fail("leftover email-session owner must see the History trail, got " + JSON.stringify(sessionTrail.body));
+  } else pass("leftover email-session owner sees the History trail");
+
+  const pinTrail = await call(desks, "POST", {
+    "x-workspace": slug,
+    "x-pin": pin
+  }, { action: "history", desks: [{ slug: slug, pin: pin }] });
+  if (pinTrail.statusCode !== 200 || !(pinTrail.body.items || []).some(function (it) { return it && it.id === "j-hist-session"; })) {
+    fail("desk code History trail must still paint, got " + pinTrail.statusCode + " " + JSON.stringify(pinTrail.body));
+  } else pass("desk code still paints History trail");
+
+  const helperSeat = {
+    id: "p_hist_helper",
+    name: "History helper",
+    role: "employee",
+    kind: "helper",
+    status: "approved"
+  };
+  shop.people.push(helperSeat);
+  const helperTok = lib.issueSession(helperSeat, shop, null, { headers: { "x-workspace": slug } });
+  const helperTrail = await call(desks, "POST", {
+    "x-workspace": slug,
+    "x-session": helperTok.token
+  }, { action: "history", desks: [{ slug: slug, pin: "" }] });
+  if (helperTrail.statusCode !== 200 || !(helperTrail.body.items || []).some(function (it) { return it && it.id === "j-hist-session"; })) {
+    fail("helper leftover session History trail should still read, got " + helperTrail.statusCode + " " + JSON.stringify(helperTrail.body));
+  } else pass("helper leftover session can read History trail");
+  const helperInstall = await call(packHandler, "POST", {
+    "x-workspace": slug,
+    "x-session": helperTok.token
+  }, { action: "install-aia", filename: "history-lane.aia", pack: { name: "History lane", aia: "history-lane.aia" } });
+  if (helperInstall.statusCode !== 403) {
+    fail("helper leftover session install-aia must 403, got " + helperInstall.statusCode);
+  } else pass("helper leftover session cannot install");
+
+  const closedTrail = await call(desks, "POST", {
+    "x-workspace": slug
+  }, { action: "history", desks: [{ slug: slug, pin: "" }] });
+  if (closedTrail.statusCode !== 200) {
+    fail("History trail without pin or session should 200 empty, got " + closedTrail.statusCode);
+  } else if ((closedTrail.body.items || []).some(function (it) { return it && it.id === "j-hist-session"; })) {
+    fail("History trail without auth must not paint cards");
+  } else pass("History trail without auth stays empty");
 
   await save();
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
