@@ -241,6 +241,8 @@ Drop pick / preview leftover: cf09d93 + the preview restore decoded `esc()` so `
 
 Tell leftover after pipe WIP: Drop already stores Tell AIA on `job.thread` as `tell`. Queue / History kept only ask / reply / rec / note / follow after #160, so Tell AIA never painted. Those faces now keep `tell`. Label is `drop · tell` — not Agent / Bot, not a live Then draft. Collect HOLD. No silent send.
 
+Drop Talk Desk AI leftover: after DROP.md titled Desk AIs, Talk empty thread, greet, placeholder, empty tap, speaker label, and DROP.md Ways in still said AIA AI answers / AIA writes / AIA still answers, and desk lines were labeled AIA. Greet paints first and hides the empty thread. World Talk now says A Desk AI drafts the card. Speaker is Desk AI. You still tap Yes or Stop. `AIA AI home is ai.aia` brand lines stay. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
