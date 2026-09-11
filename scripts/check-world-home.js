@@ -148,6 +148,12 @@ if (!helpFirst) throw new Error("help.html First day card missing");
 must(helpFirst, "not a mint lesson", "help First day Desk AI does not teach mint");
 mustNot(helpFirst, "orange until DNS", "help First day DNS mint how-to");
 mustNot(helpFirst, "www.ai.aia", "help First day www.ai.aia mint door");
+must(helpFirst, "A Desk AI drafts the card", "help First day Drop Desk AI drafts");
+mustNot(helpFirst, "The desk asks", "help First day Drop still says The desk asks");
+must(playbook, "A Desk AI drafts the card", "playbook Audit Desk AI drafts");
+mustNot(playbook, "The desk asks", "playbook Audit still says The desk asks");
+must(yesNo, "Help Desk AI leftover after that pass", "ACCOUNT-YES-NO names Help Desk AI leftover");
+must(packMd, "Help Desk AI leftover:", "PACK.md names Help Desk AI leftover");
 
 mustNot(examples, "Hashed session", "examples hashed-session jargon");
 mustNot(examples, "X-Session", "examples X-Session jargon");

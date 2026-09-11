@@ -257,6 +257,8 @@ Drop Put data on Tell leftover: after Put data on `#lane-title` / paste tip and 
 
 Drop Preferred outcome leftover: after Put data on Tell said What should a Desk AI draft, Preferred outcome `#outcome-hint` and the drop-outcome tip still said What the desk should do next. Those faces now say What a Desk AI should draft next. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Help Desk AI leftover: after Preferred outcome said What a Desk AI should draft next, Help First day Drop, We type it in, Talk or type it, Drop anything, and playbook Audit still said The desk asks what’s missing / AIA writes the card / We write the card / the desk writes the card. Those faces now say A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
