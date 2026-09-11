@@ -186,6 +186,14 @@ if (previewSrc.indexOf("function widgetOn") < 0) fail("drop-preview.js must dete
 else pass("drop-preview.js detects /widget path");
 if (previewSrc.indexOf("slim ? \"\"") < 0) fail("drop-preview.js must omit This drop strip when slim");
 else pass("drop-preview.js omits This drop strip when slim");
+if (hookType.indexOf("if (last && /Type the work\\. A Desk AI drafts the card/") < 0) fail("drop-preview.js empty Tell must skip a second blank-chat prompt");
+else pass("drop-preview.js empty Tell skips a second blank-chat prompt");
+if (yesNo.indexOf("Drop widget empty Tell leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget empty Tell leftover");
+else pass("ACCOUNT-YES-NO names Drop widget empty Tell leftover");
+if (packMd.indexOf("Drop widget empty Tell leftover:") < 0) fail("PACK.md must name Drop widget empty Tell leftover");
+else pass("PACK.md names Drop widget empty Tell leftover");
+if (dropMd.indexOf("Embed empty Tell skips a second blank-chat prompt") < 0) fail("DROP.md must name embed empty Tell skip");
+else pass("DROP.md names embed empty Tell skip");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

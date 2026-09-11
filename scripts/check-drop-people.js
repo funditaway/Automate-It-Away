@@ -108,6 +108,9 @@ const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAli
 if (hookType.indexOf("if (window.AIADropChat) return") < 0) {
   fail("drop-preview.js hookType must yield Tell to chat on the one #drop-thread");
 }
+if (hookType.indexOf("if (last && /Type the work\\. A Desk AI drafts the card/") < 0) {
+  fail("drop-preview.js empty Tell must skip a second blank-chat prompt");
+}
 if (chat.indexOf("Type the work. A Desk AI drafts the card") < 0) {
   fail("drop-chat.js empty Tell must say A Desk AI drafts the card");
 }
