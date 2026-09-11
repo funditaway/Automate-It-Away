@@ -21,14 +21,6 @@ a.outline {
 .who-chip.signed-out .who-pic {
   display: none !important;
 }
-.kpi b {
-  display: block;
-  min-height: 1.35em;
-  font-size: 1.3rem;
-  line-height: 1.2;
-  color: var(--teal);
-  font-variant-numeric: tabular-nums;
-}
 body.has-desk-nav .site-foot {
   padding-bottom: 20px;
 }
@@ -251,15 +243,20 @@ button.open-desk {
   justify-content: center;
   gap: 6px;
 }
-.theme-btn .theme-lab {
-  font: 700 13px/1 system-ui, sans-serif;
-}
 @media (max-width: 640px) {
   .theme-btn {
     min-width: 44px !important;
     width: 44px !important;
     padding: 0 !important;
     border-radius: 999px !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+  }
+  .theme-btn::before {
+    content: "\25D0";
+    font-size: 16px !important;
+    line-height: 44px !important;
+    color: #fff;
   }
   .theme-btn .theme-lab {
     position: absolute;
