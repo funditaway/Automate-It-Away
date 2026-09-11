@@ -3,11 +3,11 @@
   var DRAFT_KEY = "aia_drop_preview";
   var ASK = [
     { id: "desk", when: function (c) { return !c.desk; }, ask: "Which desk gets this?" },
-    { id: "what", when: function (c) { return !c.title; }, ask: "What should the desk do with this?" },
+    { id: "what", when: function (c) { return !c.title; }, ask: "What is needed? A Desk AI drafts the card. You still tap Yes or Stop." },
     { id: "whoFor", when: function (c) { return /^(call|message|quote|follow)$/.test(c.kind) && !c.whoFor; }, ask: "Who is this for?" },
-    { id: "do", when: function (c) { return !c.action; }, ask: "Should the desk text them, call them, put it on the calendar, or just keep the note?" },
+    { id: "do", when: function (c) { return !c.action; }, ask: "Text, call, calendar, or just a note? A Desk AI drafts. You still tap Yes or Stop." },
     { id: "due", when: function (c) { return /^(reminder|book|follow|school|ride|pickup|delivery)$/.test(c.kind) && !c.due; }, ask: "When is this due?" },
-    { id: "phone", when: function (c) { return /^(text|email|call)$/.test(c.action) && !c.phone && !c.email; }, ask: "Need a number or email so the draft has somewhere to go. The desk still will not send it." },
+    { id: "phone", when: function (c) { return /^(text|email|call)$/.test(c.action) && !c.phone && !c.email; }, ask: "Need a number or email so the draft has somewhere to go. A Desk AI does not send. You still tap Yes or Stop." },
     { id: "paper", when: function (c) { return /^(form|files|photo)$/.test(c.kind) && !c.files && !c.notes; }, ask: "Drop the paper, or say what is on it." }
   ];
   var thread = [];

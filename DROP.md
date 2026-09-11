@@ -43,7 +43,7 @@ World users drop. Desk AIs draft on the same card. They do not replace the user.
 - `drop-more.js` — Custom kinds
 - `drop-agent.js` — Advanced + Desk AIs
 - `drop-packs.js` — Active packs on this desk (one pack or many)
-- `drop-preview.js` — Thread + card preview gate. Talk empty / speaker / placeholder match `drop-chat.js`: A Desk AI drafts the card. Speaker is Desk AI. You still tap Yes or Stop.
+- `drop-preview.js` — Thread + card preview gate. Talk empty / speaker / placeholder / missing-field asks match `drop-chat.js`: A Desk AI drafts the card. Speaker is Desk AI. You still tap Yes or Stop.
 - `chat.html` — bounce to `/drop?mode=talk#talk`
 
 ## Packs on a World user's desk

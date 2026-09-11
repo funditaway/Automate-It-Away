@@ -132,6 +132,22 @@ if (preview.indexOf("A Desk AI drafts the card") < 0) fail("drop-preview.js Talk
 if (preview.indexOf("You still tap Yes or Stop") < 0) fail("drop-preview.js must keep Yes or Stop");
 if (preview.indexOf(': "Desk")') >= 0) fail("drop-preview.js Talk speaker still says Desk");
 if (preview.indexOf(': "Desk AI")') < 0) fail("drop-preview.js Talk speaker must say Desk AI");
+if (preview.indexOf("What should the desk do with this") >= 0) {
+  fail("drop-preview.js ask still says What should the desk do with this");
+}
+if (preview.indexOf("Should the desk text them") >= 0) fail("drop-preview.js ask still says Should the desk text them");
+if (preview.indexOf("The desk still will not send it") >= 0) {
+  fail("drop-preview.js ask still says The desk still will not send it");
+}
+if (preview.indexOf("What is needed? A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
+  fail("drop-preview.js title ask must say A Desk AI drafts the card");
+}
+if (yesNo.indexOf("Drop preview ask leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop preview ask leftover");
+}
+if (packMd.indexOf("Drop preview ask leftover:") < 0) {
+  fail("PACK.md must name Drop preview ask leftover");
+}
 
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);

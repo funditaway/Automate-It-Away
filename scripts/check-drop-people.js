@@ -80,6 +80,16 @@ if (preview.indexOf("You still tap Yes or Stop") < 0) fail("drop-preview.js Talk
 if (preview.indexOf("Type the work. A Desk AI drafts the card in this chat.") < 0) {
   fail("drop-preview.js Talk empty tap must say A Desk AI drafts the card");
 }
+if (preview.indexOf("What should the desk do with this") >= 0) {
+  fail("drop-preview.js ask still says What should the desk do with this");
+}
+if (preview.indexOf("Should the desk text them") >= 0) fail("drop-preview.js ask still says Should the desk text them");
+if (preview.indexOf("The desk still will not send it") >= 0) {
+  fail("drop-preview.js ask still says The desk still will not send it");
+}
+if (preview.indexOf("What is needed? A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
+  fail("drop-preview.js title ask must say A Desk AI drafts the card");
+}
 
 const talk = read("drop-talk.js");
 if (talk.indexOf("Talk the work in your words") >= 0) fail("drop-talk.js Hear this still says Talk the work in your words");

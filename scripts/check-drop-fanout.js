@@ -136,6 +136,12 @@ if (yesNo.indexOf("Drop Talk voice leftover after that pass") < 0) fail("ACCOUNT
 else pass("ACCOUNT-YES-NO names Drop Talk voice leftover");
 if (packMd.indexOf("Drop Talk voice leftover:") < 0) fail("PACK.md must name Drop Talk voice leftover");
 else pass("PACK.md names Drop Talk voice leftover");
+if (yesNo.indexOf("Drop preview ask leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop preview ask leftover");
+else pass("ACCOUNT-YES-NO names Drop preview ask leftover");
+if (packMd.indexOf("Drop preview ask leftover:") < 0) fail("PACK.md must name Drop preview ask leftover");
+else pass("PACK.md names Drop preview ask leftover");
+if (dropMd.indexOf("missing-field asks") < 0) fail("DROP.md preview must name missing-field asks");
+else pass("DROP.md preview names missing-field asks");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");
