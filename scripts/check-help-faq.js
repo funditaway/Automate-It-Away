@@ -49,7 +49,8 @@ must(faq, "Collect and pack pay stay HOLD", "FAQ Collect / pack pay HOLD");
 must(faq, "not compute credits", "FAQ not compute credits");
 must(faq, "creator payout ledger", "FAQ not payout ledger");
 must(faq, "Create or Drop a goal → a draft card → you tap Yes", "FAQ goal path");
-must(faq, "Needs you / prompt ask-who when the desk asks", "FAQ Create/Drop names Needs you");
+must(faq, "Needs you / prompt ask-who when a Desk AI asks", "FAQ Create/Drop names Needs you");
+mustNot(faq, "when the desk asks", "FAQ Create/Drop still says when the desk asks");
 must(faq, "Collect stays HOLD", "FAQ Collect HOLD");
 
 const peopleStart = help.indexOf("<dt>People</dt>");
@@ -67,13 +68,15 @@ must(peopleDesk, "Needs you / prompt ask-who", "people-desk open cards name Need
 must(help, "Names the desk AI when one is set", "Words on the buttons Needs you names the AI");
 must(help, "not anonymous Needs you", "Words on the buttons not anonymous");
 
-must(studio, "Needs you / prompt ask-who when the desk asks", "Studio FAQ Needs you");
+must(studio, "Needs you / prompt ask-who when a Desk AI asks", "Studio FAQ Needs you");
+mustNot(studio, "when the desk asks", "Studio still says when the desk asks");
 must(studio, "Install / give / update a .aia with Yes", "Studio FAQ give-update");
 must(studio, "Connect existing wallet", "Studio FAQ Connect");
 must(studio, "not Wallet.AIA", "Studio FAQ not Wallet.AIA");
 must(studio, "/help#faq", "Studio FAQ link");
 
-must(studioJs, "Needs you / prompt ask-who when the desk asks", "Studio js FAQ Needs you");
+must(studioJs, "Needs you / prompt ask-who when a Desk AI asks", "Studio js FAQ Needs you");
+mustNot(studioJs, "when the desk asks", "Studio js still says when the desk asks");
 must(studioJs, "Install / give / update a .aia with Yes", "Studio js FAQ give-update");
 must(studioJs, "Connect existing wallet", "Studio js FAQ Connect");
 must(studioJs, "not Wallet.AIA", "Studio js FAQ not Wallet.AIA");
@@ -96,6 +99,9 @@ mustNot(help, "We write the card on your queue", "Help Talk still says We write 
 mustNot(help, "the desk writes the card", "Help Drop anything still says the desk writes");
 must(yesNo, "Help Desk AI leftover after that pass", "ACCOUNT-YES-NO names Help Desk AI leftover");
 must(packMd, "Help Desk AI leftover:", "PACK.md names Help Desk AI leftover");
+must(yesNo, "Help FAQ Desk AI leftover after that pass", "ACCOUNT-YES-NO names Help FAQ Desk AI leftover");
+must(packMd, "Help FAQ Desk AI leftover:", "PACK.md names Help FAQ Desk AI leftover");
+must(yesNo, "Needs you / prompt ask-who when a Desk AI asks", "ACCOUNT-YES-NO FAQ Desk AI asks");
 must(help, "Owner still taps Yes and Stop.", "Help Log in Yes and Stop");
 must(help, "Yes when the rule allows", "Help Helper Yes not Send");
 must(help, "A person taps Yes — or Stops it — before it goes out.", "Help lead Yes rail");
