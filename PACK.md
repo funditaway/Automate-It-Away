@@ -247,6 +247,8 @@ Drop preview Talk leftover: after drop-chat.js said A Desk AI drafts the card, d
 
 Drop Put data on leftover: after Talk / preview said A Desk AI drafts the card, Put data on `#lane-title` and the drop-paste tip still said The desk writes the card. Those faces now say A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop Talk voice leftover: after Talk thread / preview said A Desk AI drafts the card, drop-talk.js Hear this / empty `#talkStatus` / listening still said Talk the work in your words / Then say drop it. World Talk hears that bar first. Those faces now say A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

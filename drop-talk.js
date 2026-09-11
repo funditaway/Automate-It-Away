@@ -51,7 +51,7 @@
   function dropLine() {
     var work = workText();
     if (work) return work + ". Say drop it to put this on " + deskName() + ".";
-    return "Talk or type the work. Then say drop it. Nobody sends money from here.";
+    return "Talk or type the work. A Desk AI drafts the card. You still tap Yes or Stop.";
   }
   function parseTalk(raw) {
     var text = String(raw || "").replace(/\s+/g, " ").trim();
@@ -153,7 +153,7 @@
     if (hear) hear.onclick = function () { var line = dropLine(); status(line); if (window.AIASpeech) AIASpeech.speak(line); };
     if (talkBtn) talkBtn.onclick = function () {
       if (!window.AIASpeech || !AIASpeech.canListen()) { status("This phone will not take speech here. Type the drop."); if (typeEl) typeEl.focus(); return; }
-      talkBtn.classList.add("on"); status("Listening… say the work. End with drop it if you want it on the queue.");
+      talkBtn.classList.add("on"); status("Listening… say the work. A Desk AI drafts the card.");
       AIASpeech.listen(function (heard) { talkBtn.classList.remove("on"); fill(heard); }, function (msg) { talkBtn.classList.remove("on"); status(msg); });
     };
     if (quiet) quiet.onclick = function () { if (window.AIASpeech) AIASpeech.stopTalk(); if (talkBtn) talkBtn.classList.remove("on"); status("Quiet. Tap Talk to the desk, or type."); };

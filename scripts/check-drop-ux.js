@@ -147,4 +147,17 @@ if (packMd.indexOf("Drop Put data on leftover:") < 0) {
   fail("PACK.md must name Drop Put data on leftover");
 }
 
+const talk = read("drop-talk.js");
+if (talk.indexOf("Talk the work in your words") >= 0) fail("drop-talk.js still says Talk the work in your words");
+if (talk.indexOf("Then say drop it. Nobody sends money from here.") >= 0) {
+  fail("drop-talk.js empty still says Then say drop it");
+}
+if (talk.indexOf("A Desk AI drafts the card") < 0) fail("drop-talk.js Hear this must say A Desk AI drafts the card");
+if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js must keep Yes or Stop");
+["drop.html", "widget.html"].forEach(function (file) {
+  const src = read(file);
+  if (src.indexOf("Talk the work in your words") >= 0) fail(file + " Talk bar still says Talk the work in your words");
+  if (src.indexOf("A Desk AI drafts the card") < 0) fail(file + " Talk bar must say A Desk AI drafts the card");
+});
+
 console.log("check-drop-ux: ok");

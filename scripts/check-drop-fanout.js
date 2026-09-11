@@ -132,6 +132,10 @@ else pass("PACK.md names Drop Put data on leftover");
 if (dropMd.indexOf("A Desk AI drafts the card. You still tap Yes or Stop. Draft only.") < 0) {
   fail("DROP.md Put data on must say A Desk AI drafts the card");
 } else pass("DROP.md Put data on says A Desk AI drafts the card");
+if (yesNo.indexOf("Drop Talk voice leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop Talk voice leftover");
+else pass("ACCOUNT-YES-NO names Drop Talk voice leftover");
+if (packMd.indexOf("Drop Talk voice leftover:") < 0) fail("PACK.md must name Drop Talk voice leftover");
+else pass("PACK.md names Drop Talk voice leftover");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

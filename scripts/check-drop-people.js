@@ -81,11 +81,26 @@ if (preview.indexOf("Type the work. A Desk AI drafts the card in this chat.") < 
   fail("drop-preview.js Talk empty tap must say A Desk AI drafts the card");
 }
 
+const talk = read("drop-talk.js");
+if (talk.indexOf("Talk the work in your words") >= 0) fail("drop-talk.js Hear this still says Talk the work in your words");
+if (talk.indexOf("Then say drop it. Nobody sends money from here.") >= 0) {
+  fail("drop-talk.js empty still says Then say drop it");
+}
+if (talk.indexOf("End with drop it if you want it on the queue") >= 0) {
+  fail("drop-talk.js listening still says End with drop it");
+}
+if (talk.indexOf("A Desk AI drafts the card") < 0) fail("drop-talk.js Hear this must say A Desk AI drafts the card");
+if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js Hear this must keep Yes or Stop");
+
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
   if (src.indexOf("The desk writes the card") >= 0) fail(file + " Put data on still says The desk writes the card");
   if (src.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
     fail(file + " Put data on must say A Desk AI drafts the card");
+  }
+  if (src.indexOf("Talk the work in your words") >= 0) fail(file + " Talk bar still says Talk the work in your words");
+  if (src.indexOf("id=\"talkStatus\">Talk or type the work. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
+    fail(file + " Talk bar empty must say A Desk AI drafts the card");
   }
 });
 
