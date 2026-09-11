@@ -342,6 +342,7 @@
     var btn = document.getElementById("talkTypeBtn");
     function go() {
       var text = typeEl ? String(typeEl.value || "").trim() : "";
+      if (window.AIADropChat) return;
       if (!text) { addLine("desk", "Type the work. A Desk AI drafts the card in this chat.", "ask"); return; }
       if (window.AIADropTalk && AIADropTalk.fill) AIADropTalk.fill(text);
       else hear(text, { text: text, sendNow: /\bdrop it\b/i.test(text) });

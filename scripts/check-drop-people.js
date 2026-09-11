@@ -98,6 +98,17 @@ if (previewInject.indexOf("hasThread") < 0 || previewInject.indexOf('getElementB
 if (!/hasThread \? ""/.test(previewInject) && previewInject.indexOf("hasThread ? \"\"") < 0) {
   fail("drop-preview.js inject must skip a second Tell the desk card");
 }
+const hookTypeAt = preview.indexOf("function hookType");
+const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAlias", hookTypeAt));
+if (hookType.indexOf("if (window.AIADropChat) return") < 0) {
+  fail("drop-preview.js hookType must yield Tell to chat on the one #drop-thread");
+}
+if (chat.indexOf("Type the work. A Desk AI drafts the card") < 0) {
+  fail("drop-chat.js empty Tell must say A Desk AI drafts the card");
+}
+if (chat.indexOf("if (last && /Type the work\\. A Desk AI drafts the card/") < 0) {
+  fail("drop-chat.js empty Tell must skip a second blank-chat prompt");
+}
 
 const dropNav = read("desk-nav.js");
 const loadAt = dropNav.indexOf("function loadDrop");
