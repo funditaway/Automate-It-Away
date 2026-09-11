@@ -1284,6 +1284,43 @@ function publicPerson(p) {
   };
 }
 
+function sessionLooksOwner(session) {
+  if (!session) return false;
+  const role = String(session.role || session.kind || "").toLowerCase();
+  if (role === "owner") return true;
+  return /_owner$/.test(String(session.personId || ""));
+}
+
+function seatLooksOwner(person) {
+  if (!person) return false;
+  const role = String(person.role || "").toLowerCase();
+  const kind = String(person.kind || "").toLowerCase();
+  return role === "owner" || kind === "owner";
+}
+
+function seatOpen(person) {
+  return !!(person && person.status !== "pending" && person.status !== "denied");
+}
+
+function ownerSeatOf(ws) {
+  return ((ws && ws.people) || []).find((p) => seatOpen(p) && seatLooksOwner(p)) || null;
+}
+
+function sessionOwnerPerson(session, ws) {
+  const seated = ownerSeatOf(ws);
+  if (seated) return seated;
+  return {
+    id: (session && session.personId) || "owner",
+    name: (session && session.name) || "Owner",
+    role: "owner",
+    kind: "owner",
+    status: "approved",
+    accountId: (session && session.accountId) || "",
+    email: (session && session.email) || "",
+    deskAi: false
+  };
+}
+
 function personOf(req, workspaceSlug) {
   req = req || {};
   const headers = req.headers || {};
@@ -1296,12 +1333,19 @@ function personOf(req, workspaceSlug) {
   if (!ws) return { workspace: null, person: null };
   if (fromSession && fromSession.session) {
     const session = fromSession.session;
-    const person = (ws.people || []).find((p) => p && (
-      (session.personId && p.id === session.personId)
-      || (session.accountId && p.accountId && p.accountId === session.accountId)
-      || (session.email && p.email && String(p.email).trim().toLowerCase() === String(session.email).trim().toLowerCase())
-      || (session.role === "owner" && p.role === "owner")
-    )) || null;
+    const people = ws.people || [];
+    let person = people.find((p) => seatOpen(p) && session.personId && p.id === session.personId) || null;
+    if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
+    if (!person && session.accountId) {
+      person = people.find((p) => seatOpen(p) && p.accountId && p.accountId === session.accountId && seatLooksOwner(p))
+        || people.find((p) => seatOpen(p) && p.accountId && p.accountId === session.accountId) || null;
+    }
+    if (!person && session.email) {
+      const e = String(session.email).trim().toLowerCase();
+      person = people.find((p) => seatOpen(p) && p.email && String(p.email).trim().toLowerCase() === e) || null;
+    }
+    if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
+    if (!person && sessionLooksOwner(session)) person = sessionOwnerPerson(session, ws);
     if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
     if (person && person.status === "denied") return { workspace: ws, person: null, denied: true, session: sessionPublic(session) };
     if (person) return { workspace: ws, person, session: sessionPublic(session) };
@@ -1310,14 +1354,14 @@ function personOf(req, workspaceSlug) {
   if (!raw) return { workspace: ws, person: null };
   const hashed = hashPin(raw);
   const person = (ws.people || []).find((p) => p && p.pin === hashed)
-    || (ws.pin === hashed ? (ws.people || []).find((p) => p && p.role === "owner") : null);
+    || (ws.pin === hashed ? ownerSeatOf(ws) : null);
   if (person && person.status === "pending") return { workspace: ws, person: null, pending: true };
   if (person && person.status === "denied") return { workspace: ws, person: null, denied: true };
   return { workspace: ws, person: person || null };
 }
 
 function isOwner(person) {
-  return !!(person && person.role === "owner");
+  return seatLooksOwner(person);
 }
 
 const NOUN_KEYS = ["capture", "qualify", "do", "collect", "follow"];

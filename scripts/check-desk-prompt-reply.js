@@ -286,6 +286,28 @@ async function apiPath() {
   });
   if (aiYes.statusCode !== 403) fail("desk AI still cannot Yes, got " + aiYes.statusCode);
 
+  const leftover = lib.issueSession(desk.people[0], desk, null, { headers: { "x-workspace": slug } });
+  if (!leftover || !leftover.token) fail("must issue leftover email-session token");
+  const closed = await call(jobsHandler, "POST", { "x-workspace": slug }, {
+    action: "reply",
+    id: id,
+    text: "Token-only note",
+    whoTapped: "Pat"
+  });
+  if (closed.statusCode !== 403) fail("reply without pin or session must 403, got " + closed.statusCode);
+  const leftoverOut = await call(jobsHandler, "POST", { "x-workspace": slug, "x-session": leftover.token }, {
+    action: "reply",
+    id: id,
+    text: "Token-only note",
+    whoTapped: "Pat"
+  });
+  if (leftoverOut.statusCode !== 200 || !leftoverOut.body.ok) {
+    fail("leftover email-session reply should 200, got " + leftoverOut.statusCode + " " + JSON.stringify(leftoverOut.body));
+  }
+  if (leftoverOut.body.sent === true || leftoverOut.body.shipped === true || leftoverOut.body.job.charged === true) {
+    fail("leftover email-session reply must not Yes / ship / send");
+  }
+
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
 }
 

@@ -133,7 +133,10 @@ function loginWithEmail(email, password) {
   const desk = desks[0] || (lib.mem.workspaces || []).find((w) => w && w.accountId === acc.id) || null;
   let person = null;
   if (desk) {
-    person = (desk.people || []).find((p) => p && (p.accountId === acc.id || emailOf(p) === e || p.role === "owner")) || null;
+    const people = desk.people || [];
+    person = people.find((p) => p && (p.role === "owner" || p.kind === "owner") && p.status !== "pending" && p.status !== "denied")
+      || people.find((p) => p && (p.accountId === acc.id || emailOf(p) === e) && p.status !== "pending" && p.status !== "denied")
+      || null;
   }
   if (!person) {
     person = { id: acc.id + "_owner", name: acc.ownerName || acc.name || "Owner", role: "owner", kind: "owner", status: "approved", accountId: acc.id, email: acc.email };
