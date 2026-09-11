@@ -186,6 +186,18 @@ const tip = read("aia-tip.js");
 if (tip.indexOf("What should the desk do with it?") >= 0) fail("aia-tip.js drop-tell still says What should the desk do with it");
 if (tip.indexOf("Tell the desk the next draft") >= 0) fail("aia-tip.js drop-tell still says Tell the desk the next draft");
 if (tip.indexOf("What should a Desk AI draft?") < 0) fail("aia-tip.js drop-tell must say What should a Desk AI draft");
+if (tip.indexOf("What the desk should do next") >= 0) fail("aia-tip.js drop-outcome still says What the desk should do next");
+if (tip.indexOf("What a Desk AI should draft next") < 0) fail("aia-tip.js drop-outcome must say What a Desk AI should draft next");
+const agent = read("drop-agent.js");
+if (agent.indexOf("What the desk should do next") >= 0) fail("drop-agent.js Preferred outcome still says What the desk should do next");
+if (agent.indexOf("Tap what the desk should do after this lands") >= 0) fail("drop-agent.js Advanced still says Tap what the desk should do");
+if (agent.indexOf("What a Desk AI should draft next") < 0) fail("drop-agent.js Preferred outcome must say What a Desk AI should draft next");
+if (yesNo.indexOf("Drop Preferred outcome leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop Preferred outcome leftover");
+}
+if (packMd.indexOf("Drop Preferred outcome leftover:") < 0) {
+  fail("PACK.md must name Drop Preferred outcome leftover");
+}
 if (yesNo.indexOf("Drop Put data on leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop Put data on leftover");
 }

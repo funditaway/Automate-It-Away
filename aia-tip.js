@@ -163,7 +163,7 @@
     },
     "drop-outcome": {
       title: "Preferred outcome",
-      body: "What the desk should do next. Still a draft. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      body: "What a Desk AI should draft next. Still a draft. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
       ask: "What does Preferred outcome mean on Drop?"
     },
     "drop-kind-where": {

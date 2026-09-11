@@ -154,6 +154,14 @@ if (packMd.indexOf("Drop Put data on Tell leftover:") < 0) fail("PACK.md must na
 else pass("PACK.md names Drop Put data on Tell leftover");
 if (dropMd.indexOf("What should a Desk AI draft?") < 0) fail("DROP.md Put data on Tell must say What should a Desk AI draft");
 else pass("DROP.md Put data on Tell says What should a Desk AI draft");
+if (yesNo.indexOf("Drop Preferred outcome leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop Preferred outcome leftover");
+else pass("ACCOUNT-YES-NO names Drop Preferred outcome leftover");
+if (packMd.indexOf("Drop Preferred outcome leftover:") < 0) fail("PACK.md must name Drop Preferred outcome leftover");
+else pass("PACK.md names Drop Preferred outcome leftover");
+if (dropMd.indexOf("What a Desk AI should draft next") < 0) fail("DROP.md Preferred outcome must say What a Desk AI should draft next");
+else pass("DROP.md Preferred outcome says What a Desk AI should draft next");
+if (dropMd.indexOf("Not What the desk should do next") < 0) fail("DROP.md Preferred outcome must deny What the desk should do next");
+else pass("DROP.md Preferred outcome denies What the desk should do next");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");
