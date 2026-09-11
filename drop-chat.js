@@ -94,7 +94,7 @@
         "<p>" + esc(extra.draft || extra.next || extra.notes || "On the queue.") + "</p>" +
         (extra.id ? "<p class=\"sub\"><a href=\"/desk?job=" + encodeURIComponent(extra.id) + "\">Open on the queue</a> · Copy, text, or email it. Desk does not send.</p>" : "<p class=\"sub\">Draft only. You still tap Yes or Stop.</p>");
     } else {
-      div.innerHTML = "<span>" + (from === "you" ? "You" : "AIA") + "</span> " + esc(text);
+      div.innerHTML = "<span>" + (from === "you" ? "You" : "Desk AI") + "</span> " + esc(text);
     }
     box.appendChild(div);
     try { box.scrollTop = box.scrollHeight; } catch (e) {}

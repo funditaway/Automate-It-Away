@@ -60,6 +60,8 @@ if (chat.indexOf("AIA still answers") >= 0) fail("drop-chat.js Talk greet still 
 if (chat.indexOf("AIA answers and writes") >= 0) fail("drop-chat.js Talk empty tap still says AIA answers");
 if (chat.indexOf("AIA would write") >= 0) fail("drop-chat.js Talk no-desk still says AIA would write");
 if (chat.indexOf("AIA still wrote") >= 0) fail("drop-chat.js Talk 401 still says AIA still wrote");
+if (chat.indexOf('from === "you" ? "You" : "AIA"') >= 0) fail("drop-chat.js Talk speaker still says AIA");
+if (chat.indexOf('from === "you" ? "You" : "Desk AI"') < 0) fail("drop-chat.js Talk speaker must say Desk AI");
 if (chat.indexOf("A Desk AI drafts the card") < 0) fail("drop-chat.js Talk empty must say A Desk AI drafts the card");
 if (chat.indexOf("You still tap Yes or Stop") < 0) fail("drop-chat.js Talk empty must keep Yes or Stop");
 if (chat.indexOf("Pick a world desk at the top, or say the work. A Desk AI drafts the card.") < 0) {
