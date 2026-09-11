@@ -125,6 +125,13 @@ if (yesNo.indexOf("Drop preview Talk leftover after that pass") < 0) fail("ACCOU
 else pass("ACCOUNT-YES-NO names Drop preview Talk leftover");
 if (packMd.indexOf("Drop preview Talk leftover:") < 0) fail("PACK.md must name Drop preview Talk leftover");
 else pass("PACK.md names Drop preview Talk leftover");
+if (yesNo.indexOf("Drop Put data on leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop Put data on leftover");
+else pass("ACCOUNT-YES-NO names Drop Put data on leftover");
+if (packMd.indexOf("Drop Put data on leftover:") < 0) fail("PACK.md must name Drop Put data on leftover");
+else pass("PACK.md names Drop Put data on leftover");
+if (dropMd.indexOf("A Desk AI drafts the card. You still tap Yes or Stop. Draft only.") < 0) {
+  fail("DROP.md Put data on must say A Desk AI drafts the card");
+} else pass("DROP.md Put data on says A Desk AI drafts the card");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

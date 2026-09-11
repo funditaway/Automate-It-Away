@@ -9,7 +9,7 @@ One intake. Three ways in. Same queue. Human taps Yes or Stop.
 2. **Quick drop / manual** (`/drop`, embed)
    Tap a kind. Fill the short card. Drop it. Two taps.
 3. **Custom / Advanced** (`?mode=custom` or `?mode=agent`)
-   Name your own kind, paste data (**Put data on**), pick pack, seat a crew Desk AI. Draft only.
+   Name your own kind, paste data (**Put data on**), pick pack, seat a crew Desk AI. A Desk AI drafts the card. You still tap Yes or Stop. Draft only.
 
 ## World users · accounts · desks
 

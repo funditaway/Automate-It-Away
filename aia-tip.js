@@ -143,7 +143,7 @@
     },
     "drop-paste": {
       title: "Paste the data",
-      body: "Paste a name, phone, when, or amount. The desk writes a card from it. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      body: "Paste a name, phone, when, or amount. A Desk AI drafts the card from it. Lands on this queue. You still tap Yes or Stop before anything leaves. Collect stays HOLD. Nobody sends from here.",
       ask: "What do I paste on Put data on?"
     },
     "drop-tell": {

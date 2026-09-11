@@ -227,7 +227,7 @@
       document.getElementById("pane-agent").hidden = !agent;
       const customPane = document.getElementById("pane-custom");
       if (customPane) customPane.hidden = mode !== "custom";
-      document.getElementById("lane-title").textContent = agent ? "Paste the data. The desk writes the card." : mode === "custom" ? "Name your own drop. It becomes a card." : "Drop anything. Tap a kind. It becomes a card.";
+      document.getElementById("lane-title").textContent = agent ? "Paste the data. A Desk AI drafts the card. You still tap Yes or Stop." : mode === "custom" ? "Name your own drop. It becomes a card." : "Drop anything. Tap a kind. It becomes a card.";
       document.getElementById("drop-send").textContent = agent ? "Put this on the desk" : "Drop it";
       if (mode === "custom" && window.AIADropAgent && AIADropAgent.applyQuick) AIADropAgent.applyQuick("custom");
     }
