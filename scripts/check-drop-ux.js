@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 "use strict";
 
+const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -13,6 +15,31 @@ function fail(msg) {
 
 function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), "utf8");
+}
+
+function mustParseAndEsc(rel) {
+  const file = path.join(ROOT, rel);
+  const syntax = spawnSync(process.execPath, ["--check", file], { encoding: "utf8" });
+  if (syntax.status !== 0) {
+    fail(rel + " must parse: " + (syntax.stderr || syntax.stdout || "syntax error").trim());
+  }
+  const src = read(rel);
+  const start = src.indexOf("function esc(s)");
+  if (start < 0) fail(rel + " missing esc()");
+  const end = src.indexOf("\n  function ", start + 10);
+  const fn = src.slice(start, end > start ? end : start + 400);
+  if (!/"&":\s*"&amp;"/.test(fn) || !/"<":\s*"&lt;"/.test(fn)) fail(rel + " esc() does not encode & / <");
+  if (!/">":\s*"&gt;"/.test(fn) || !/"\\"":\s*"&quot;"/.test(fn)) fail(rel + " esc() does not encode > / \"");
+  if (fn.indexOf("&#39;") < 0) fail(rel + " esc() does not encode '");
+  if (/\s*"<":"<"/.test(fn) || /\s*"&":"&"/.test(fn) || /'"':\s*"""/.test(fn)) {
+    fail(rel + " esc() is a no-op or invalid quote map");
+  }
+  const ctx = {};
+  vm.runInNewContext(fn + "; this.esc = esc;", ctx);
+  if (ctx.esc("Shop <desk>") !== "Shop &lt;desk&gt;") fail(rel + " esc must encode < in desk names");
+  if (ctx.esc("A & B") !== "A &amp; B") fail(rel + " esc must encode &");
+  if (ctx.esc('"hi"') !== "&quot;hi&quot;") fail(rel + " esc must encode \"");
+  if (ctx.esc("O'Brien") !== "O&#39;Brien") fail(rel + " esc must encode '");
 }
 
 function sendFn(src, label) {
@@ -68,10 +95,24 @@ function copyFn(src, label) {
   if (src.indexOf("AIADesks.shopOpen") < 0) fail(file + " deskOpen must still follow shopOpen()");
 });
 
+["drop-pick.js", "drop-preview.js"].forEach(mustParseAndEsc);
+
 const pick = read("drop-pick.js");
 if (pick.indexOf("from the link") < 0) fail("drop-pick.js must name a link desk when this phone has no saved desk");
 if (!/AIADesks\.hasAuth\s*\(\s*row\s*\)/.test(pick)) {
   fail("drop-pick.js pick() must still treat AIADesks.hasAuth(row) as enough");
+}
+if (pick.indexOf('class=\\"chip-label\\"') < 0 && pick.indexOf('class="chip-label"') < 0) {
+  fail("drop-pick.js must keep World accounts / World desks on their own chip-label row");
+}
+
+const yesNo = read("ACCOUNT-YES-NO.md");
+const packMd = read("PACK.md");
+if (yesNo.indexOf("Drop pick / preview leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop pick / preview leftover");
+}
+if (packMd.indexOf("Drop pick / preview leftover:") < 0) {
+  fail("PACK.md must name Drop pick / preview leftover");
 }
 
 const now = read("drop-now.js");
