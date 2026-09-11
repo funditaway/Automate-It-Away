@@ -54,6 +54,13 @@ if (!create.includes("function deskOpen") || !create.includes("Open or unlock th
 else pass("create gates Desk AI Bind");
 if (!create.includes("if (!deskOpen()) return fail")) fail("create save-ai must refuse without an open desk");
 else pass("create will not Bind without an open desk");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(create)) {
+  fail("create-desk.js headers must still send the open-desk pin when a session token is present");
+} else pass("create-desk.js headers keeps X-Pin with X-Session");
+if (create.indexOf('if (tok) h["X-Session"] = tok') < 0) fail("create-desk.js headers must send leftover X-Session so email-session Bind still opens");
+else pass("create-desk.js headers sends leftover X-Session");
+if (create.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("create-desk.js headers must send X-Pin");
+else pass("create-desk.js headers sends X-Pin");
 if (!studio.includes("Named desk AIs") || !studio.includes("save-ai") || !studio.includes("install-aia")) fail("Studio naming / .aia install must stay");
 else pass("Studio naming and .aia install stay");
 if (!studio.includes("Drafts the next step and the words. Nothing sent.")) fail("Studio AI 1 does placeholder must be Desk AI canon");
@@ -92,6 +99,19 @@ if (!market.includes("aiRows") || !market.includes("Desk AI")) fail("market miss
 else pass("market shows desk AIs");
 if (!market.includes("install-aia") || !market.includes("aia-file")) fail("market missing install .aia");
 else pass("market installs .aia");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(market)) {
+  fail("market headers must still send the open-desk pin when a session token is present");
+} else pass("market headers keeps X-Pin with X-Session");
+if (market.indexOf('if (tok) h["X-Session"] = tok') < 0) fail("market headers must send leftover X-Session so email-session install still opens");
+else pass("market headers sends leftover X-Session");
+if (market.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("market headers must send X-Pin");
+else pass("market headers sends X-Pin");
+if (/return !!\(localStorage\.getItem\("aia_ws"\) && localStorage\.getItem\("aia_pin"\)\)/.test(market)) {
+  fail("market hasDesk still requires a leftover pin and skips email-session desks");
+} else pass("market hasDesk does not require pin-only");
+if (market.indexOf("aia_session") < 0 && market.indexOf("AIADesks.shopOpen") < 0) {
+  fail("market hasDesk must treat leftover email session as an open desk");
+} else pass("market hasDesk treats leftover email session as open");
 
 const desk = fs.readFileSync(path.join(root, "desk.html"), "utf8");
 if (!desk.includes("id=\"desk-ais\"")) fail("desk.html missing desk-ais strip");
@@ -159,6 +179,10 @@ if (yesNo.indexOf("Desk AI copy leftover") < 0) fail("ACCOUNT-YES-NO must name D
 else pass("ACCOUNT-YES-NO names Desk AI copy leftover");
 if (packMd.indexOf("Desk AI copy leftover") < 0) fail("PACK.md must name Desk AI copy leftover");
 else pass("PACK.md names Desk AI copy leftover");
+if (yesNo.indexOf("Create / Market leftover session after that pass") < 0) fail("ACCOUNT-YES-NO must name Create / Market leftover session");
+else pass("ACCOUNT-YES-NO names Create / Market leftover session");
+if (packMd.indexOf("Create / Market leftover session:") < 0) fail("PACK.md must name Create / Market leftover session");
+else pass("PACK.md names Create / Market leftover session");
 if (jobsSrc.indexOf('log("Agent", "Killed') >= 0) fail("jobs.js Kill audit still logs Agent");
 else pass("jobs.js Kill audit does not log Agent");
 if (jobsSrc.indexOf('log("Desk AI", "Killed') < 0) fail("jobs.js Kill audit must log Desk AI");
@@ -303,6 +327,38 @@ async function main() {
   if (!leftoverAis.some(function (a) { return a && a.name === "Project AI"; })) {
     fail("leftover session + pin must still paint named AIs, not empty ais");
   } else pass("leftover session + pin still paints named AIs");
+
+  const issued = lib.issueSession(shop.people[0], shop, null, { headers: { "x-workspace": slug } });
+  if (!issued || !issued.token) fail("must issue leftover email-session token for Create Bind");
+  else pass("issued leftover email-session token for Create Bind");
+  const sessionOnly = { "x-workspace": slug, "x-session": issued.token };
+  const leftoverBind = await call(packHandler, "POST", sessionOnly, {
+    action: "save-ai",
+    name: "Session AI",
+    role: "Doer",
+    does: "Draft on leftover email session",
+    steps: "qualify, follow"
+  });
+  if (leftoverBind.statusCode !== 200 || !leftoverBind.body || !leftoverBind.body.ok || !(leftoverBind.body.ais || []).some(function (a) { return a && a.name === "Session AI"; })) {
+    fail("leftover email-session owner save-ai should 200, got " + leftoverBind.statusCode + " " + JSON.stringify(leftoverBind.body));
+  } else pass("leftover email-session owner can Bind a desk AI");
+  const closedBind = await call(packHandler, "POST", { "x-workspace": slug }, {
+    action: "save-ai",
+    name: "Closed AI",
+    role: "Doer"
+  });
+  if (closedBind.statusCode !== 403) fail("save-ai without pin or session must 403, got " + closedBind.statusCode);
+  else pass("save-ai without auth still 403");
+  const helperSeat = { id: "p_create_helper", name: "Create helper", role: "employee", kind: "helper", status: "approved" };
+  shop.people.push(helperSeat);
+  const helperTok = lib.issueSession(helperSeat, shop, null, { headers: { "x-workspace": slug } });
+  const helperBind = await call(packHandler, "POST", { "x-workspace": slug, "x-session": helperTok.token }, {
+    action: "save-ai",
+    name: "Helper AI",
+    role: "Doer"
+  });
+  if (helperBind.statusCode !== 403) fail("helper leftover session save-ai must 403, got " + helperBind.statusCode);
+  else pass("helper leftover session cannot Bind");
 
   const foldPin = "3579";
   const onboarded = await call(authHandler, "POST", { "x-workspace": "fold-desk", "x-pin": foldPin }, {
