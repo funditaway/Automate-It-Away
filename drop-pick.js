@@ -1,7 +1,7 @@
 (function () {
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
+      return ({ "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;" })[c];
     });
   }
   function slugify(s) {
@@ -33,7 +33,7 @@
       if (d.does) bits.push(esc(d.does));
       return "<button type=\"button\" data-public-desk=\"" + esc(d.slug) + "\" data-world=\"desk\">" + bits.join(" · ") + "</button>";
     }).join("");
-    box.innerHTML = (accHtml ? "<p class=\"sub\">World accounts</p>" + accHtml : "") + (deskHtml ? "<p class=\"sub\">World desks</p>" + deskHtml : "");
+    box.innerHTML = (accHtml ? "<p class=\"chip-label\">World accounts</p>" + accHtml : "") + (deskHtml ? "<p class=\"chip-label\">World desks</p>" + deskHtml : "");
   }
   async function searchPublic(q) {
     try {
