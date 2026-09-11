@@ -44,6 +44,7 @@ World users drop. Desk AIs draft on the same card. They do not replace the user.
 - `drop-agent.js` — Advanced + Desk AIs
 - `drop-packs.js` — Active packs on this desk (one pack or many)
 - `drop-preview.js` — Thread + card preview gate. Talk empty / speaker / placeholder / missing-field asks match `drop-chat.js`: A Desk AI drafts the card. Speaker is Desk AI. You still tap Yes or Stop. One Tell the desk thread — preview reuses `#drop-thread` if Talk already painted it; `desk-nav.js` loads chat after preview. Full Drop chrome / Counter stay later.
+- Put data on Tell (`#agent-tell` + `aia-tip.js` drop-tell) — What should a Desk AI draft? You still tap Yes or Stop. Not What should the desk do with it.
 - `chat.html` — bounce to `/drop?mode=talk#talk`
 
 ## Packs on a World user's desk

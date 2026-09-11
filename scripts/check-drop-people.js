@@ -130,11 +130,18 @@ if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js Hear this 
   if (src.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
     fail(file + " Put data on must say A Desk AI drafts the card");
   }
+  if (src.indexOf("What should the desk do with it?") >= 0) fail(file + " Put data on Tell still says What should the desk do with it");
+  if (src.indexOf("What should a Desk AI draft?") < 0) fail(file + " Put data on Tell must say What should a Desk AI draft");
   if (src.indexOf("Talk the work in your words") >= 0) fail(file + " Talk bar still says Talk the work in your words");
   if (src.indexOf("id=\"talkStatus\">Talk or type the work. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
     fail(file + " Talk bar empty must say A Desk AI drafts the card");
   }
 });
+const tipSrc = read("aia-tip.js");
+if (tipSrc.indexOf("What should the desk do with it?") >= 0) fail("aia-tip.js drop-tell still says What should the desk do with it");
+if (tipSrc.indexOf("Tell the desk the next draft") >= 0) fail("aia-tip.js drop-tell still says Tell the desk the next draft");
+if (tipSrc.indexOf("What should a Desk AI draft?") < 0) fail("aia-tip.js drop-tell must say What should a Desk AI draft");
+if (tipSrc.indexOf("Tell a Desk AI the next draft") < 0) fail("aia-tip.js drop-tell must say Tell a Desk AI the next draft");
 
 const pick = read("drop-pick.js");
 if (pick.indexOf("AIADesks.authHeaders") < 0) fail("List this desk must use AIADesks.authHeaders()");
