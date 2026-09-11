@@ -54,6 +54,9 @@ const chatDeskAt = chat.indexOf("function desk()");
 const chatDesk = chat.slice(chatDeskAt, chat.indexOf("function headers", chatDeskAt));
 if (chatDesk.indexOf("cur.name || q") >= 0) fail("drop-chat.js must not greet with a leftover desk on a ?ws= link");
 if (chatDesk.indexOf("AIADesks.find") < 0) fail("drop-chat.js must name the link desk");
+if (chat.indexOf("AIA AI answers") >= 0) fail("drop-chat.js Talk empty still says AIA AI answers");
+if (chat.indexOf("A Desk AI drafts the card") < 0) fail("drop-chat.js Talk empty must say A Desk AI drafts the card");
+if (chat.indexOf("You still tap Yes or Stop") < 0) fail("drop-chat.js Talk empty must keep Yes or Stop");
 
 const pick = read("drop-pick.js");
 if (pick.indexOf("AIADesks.authHeaders") < 0) fail("List this desk must use AIADesks.authHeaders()");

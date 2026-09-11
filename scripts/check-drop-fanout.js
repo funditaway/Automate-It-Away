@@ -98,6 +98,10 @@ if (dropMd.indexOf("Advanced + agents") >= 0) fail("DROP.md files list still say
 else pass("DROP.md files list does not say Advanced + agents");
 if (dropMd.indexOf("Advanced + Desk AIs") < 0) fail("DROP.md files list must say Advanced + Desk AIs");
 else pass("DROP.md files list says Advanced + Desk AIs");
+if (dropMd.indexOf("AIA AI answers") >= 0) fail("DROP.md Talk still says AIA AI answers");
+else pass("DROP.md Talk does not say AIA AI answers");
+if (dropMd.indexOf("A Desk AI drafts the card") < 0) fail("DROP.md Talk must say A Desk AI drafts the card");
+else pass("DROP.md Talk says A Desk AI drafts the card");
 
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
@@ -113,6 +117,10 @@ if (yesNo.indexOf("DROP.md Advanced leftover") < 0) fail("ACCOUNT-YES-NO must na
 else pass("ACCOUNT-YES-NO names DROP.md Advanced leftover");
 if (packMd.indexOf("DROP.md Advanced leftover") < 0) fail("PACK.md must name DROP.md Advanced leftover");
 else pass("PACK.md names DROP.md Advanced leftover");
+if (yesNo.indexOf("Drop Talk Desk AI leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop Talk Desk AI leftover");
+else pass("ACCOUNT-YES-NO names Drop Talk Desk AI leftover");
+if (packMd.indexOf("Drop Talk Desk AI leftover:") < 0) fail("PACK.md must name Drop Talk Desk AI leftover");
+else pass("PACK.md names Drop Talk Desk AI leftover");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

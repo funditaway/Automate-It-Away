@@ -69,7 +69,7 @@
     box.className = "card";
     box.innerHTML =
       "<strong>Tell the desk</strong>" +
-      "<p class=\"sub\" id=\"thread-empty\">Say anything. AIA AI answers. The card lands in this chat. Nobody sends money from here.</p>" +
+      "<p class=\"sub\" id=\"thread-empty\">Say anything. A Desk AI drafts the card. You still tap Yes or Stop. Nobody sends money from here.</p>" +
       "<div id=\"drop-thread\" class=\"drop-thread\"></div>" +
       "<input id=\"talkType\" placeholder=\"Tell the desk…\" autocomplete=\"off\">" +
       "<div class=\"talk-actions\"><button type=\"button\" id=\"talkTypeBtn\">Tell the desk</button></div>";

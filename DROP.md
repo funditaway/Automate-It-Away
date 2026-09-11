@@ -5,7 +5,7 @@ One intake. Three ways in. Same queue. Human taps Yes or Stop.
 ## Ways in
 
 1. **Talk to the desk** (`/drop?mode=talk#talk`, `/chat`)
-   Talk or type anything. AIA AI answers. The card is born in the chat. Say **drop it** if you want it on the queue a second time — the first Tell already wrote the card.
+   Talk or type anything. A Desk AI drafts the card. The card is born in the chat. Say **drop it** if you want it on the queue a second time — the first Tell already wrote the card.
 2. **Quick drop / manual** (`/drop`, embed)
    Tap a kind. Fill the short card. Drop it. Two taps.
 3. **Custom / Advanced** (`?mode=custom` or `?mode=agent`)
