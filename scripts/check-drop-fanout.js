@@ -121,6 +121,10 @@ if (yesNo.indexOf("Drop Talk Desk AI leftover after that pass") < 0) fail("ACCOU
 else pass("ACCOUNT-YES-NO names Drop Talk Desk AI leftover");
 if (packMd.indexOf("Drop Talk Desk AI leftover:") < 0) fail("PACK.md must name Drop Talk Desk AI leftover");
 else pass("PACK.md names Drop Talk Desk AI leftover");
+if (yesNo.indexOf("Drop preview Talk leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop preview Talk leftover");
+else pass("ACCOUNT-YES-NO names Drop preview Talk leftover");
+if (packMd.indexOf("Drop preview Talk leftover:") < 0) fail("PACK.md must name Drop preview Talk leftover");
+else pass("PACK.md names Drop preview Talk leftover");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

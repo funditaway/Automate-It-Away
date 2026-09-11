@@ -126,5 +126,11 @@ if (gate.indexOf("Say what you need") < 0) fail("gateSend must show Say what you
 if (!/if\s*\(\s*card\.desk\s*&&\s*card\.title\s*\)\s*return/.test(gate)) {
   fail("gateSend must still let Drop it run when desk and title are set");
 }
+if (preview.indexOf("Then send it") >= 0) fail("drop-preview.js still says Then send it");
+if (preview.indexOf("The desk asks what is missing") >= 0) fail("drop-preview.js Talk empty still says The desk asks");
+if (preview.indexOf("A Desk AI drafts the card") < 0) fail("drop-preview.js Talk empty must say A Desk AI drafts the card");
+if (preview.indexOf("You still tap Yes or Stop") < 0) fail("drop-preview.js must keep Yes or Stop");
+if (preview.indexOf(': "Desk")') >= 0) fail("drop-preview.js Talk speaker still says Desk");
+if (preview.indexOf(': "Desk AI")') < 0) fail("drop-preview.js Talk speaker must say Desk AI");
 
 console.log("check-drop-ux: ok");

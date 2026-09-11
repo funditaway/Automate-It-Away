@@ -82,14 +82,14 @@
     box.id = "drop-preview-wrap";
     box.innerHTML =
       "<div class=\"card\" id=\"drop-thread-card\">" +
-      "<strong>Talk with this desk</strong>" +
-      "<p class=\"sub\" id=\"thread-empty\">Talk to this desk. The desk asks what is missing. The card stays here until it is right.</p>" +
+      "<strong>Tell the desk</strong>" +
+      "<p class=\"sub\" id=\"thread-empty\">Say anything. A Desk AI drafts the card. You still tap Yes or Stop. Nobody sends money from here.</p>" +
       "<div id=\"drop-thread\" class=\"drop-thread\"></div>" +
-      "<input id=\"talkType\" placeholder=\"Say the work. The desk will ask.\" autocomplete=\"off\">" +
+      "<input id=\"talkType\" placeholder=\"Say anything. A Desk AI drafts the card.\" autocomplete=\"off\">" +
       "<div class=\"talk-actions\"><button type=\"button\" id=\"talkTypeBtn\">Tell the desk</button></div>" +
       "</div>" +
       "<div class=\"card\" id=\"verify-strip\"><strong>This drop</strong><div id=\"verify-cells\" class=\"verify-cells\"></div></div>" +
-      "<div class=\"card\" id=\"drop-preview\"><strong>Card preview</strong><p class=\"sub\" id=\"preview-sub\">Not on the queue yet. Fix it here. Then send it.</p><div id=\"preview-body\"></div><p class=\"sub\" id=\"drop-ask\"></p></div>" +
+      "<div class=\"card\" id=\"drop-preview\"><strong>Card preview</strong><p class=\"sub\" id=\"preview-sub\">Not on the queue yet. Fix it here. You still tap Yes or Stop.</p><div id=\"preview-body\"></div><p class=\"sub\" id=\"drop-ask\"></p></div>" +
       "<div class=\"card\" id=\"drop-log-card\"><strong>Drops from this phone</strong><div id=\"drop-log\"></div></div>";
     after.parentNode.insertBefore(box, after.nextSibling);
     if (!document.getElementById("drop-preview-css")) {
@@ -115,7 +115,7 @@
     var box = document.getElementById("drop-thread"); var empty = document.getElementById("thread-empty");
     if (!box) return;
     box.innerHTML = thread.map(function (l) {
-      return "<div class=\"line " + (l.from === "you" ? "you" : "desk") + "\"><span>" + (l.from === "you" ? "You" : "Desk") + "</span> " + esc(l.text) + "</div>";
+      return "<div class=\"line " + (l.from === "you" ? "you" : "desk") + "\"><span>" + (l.from === "you" ? "You" : "Desk AI") + "</span> " + esc(l.text) + "</div>";
     }).join("");
     if (empty) empty.hidden = thread.length > 0;
     try { box.scrollTop = box.scrollHeight; } catch (e) {}
@@ -339,7 +339,7 @@
     var btn = document.getElementById("talkTypeBtn");
     function go() {
       var text = typeEl ? String(typeEl.value || "").trim() : "";
-      if (!text) { addLine("desk", "Say the work. The desk will ask.", "ask"); return; }
+      if (!text) { addLine("desk", "Type the work. A Desk AI drafts the card in this chat.", "ask"); return; }
       if (window.AIADropTalk && AIADropTalk.fill) AIADropTalk.fill(text);
       else hear(text, { text: text, sendNow: /\bdrop it\b/i.test(text) });
       if (typeEl) typeEl.value = "";
