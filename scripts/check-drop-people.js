@@ -68,6 +68,19 @@ if (chat.indexOf("Pick a world desk at the top, or say the work. A Desk AI draft
   fail("drop-chat.js Talk greet must say A Desk AI drafts the card");
 }
 
+const preview = read("drop-preview.js");
+if (preview.indexOf("The desk asks what is missing") >= 0) fail("drop-preview.js Talk empty still says The desk asks");
+if (preview.indexOf("Then send it") >= 0) fail("drop-preview.js preview-sub still says Then send it");
+if (preview.indexOf("The desk will ask") >= 0) fail("drop-preview.js Talk still says The desk will ask");
+if (preview.indexOf("Talk with this desk") >= 0) fail("drop-preview.js Talk title still says Talk with this desk");
+if (preview.indexOf(': "Desk")') >= 0) fail("drop-preview.js Talk speaker still says Desk");
+if (preview.indexOf(': "Desk AI")') < 0) fail("drop-preview.js Talk speaker must say Desk AI");
+if (preview.indexOf("A Desk AI drafts the card") < 0) fail("drop-preview.js Talk empty must say A Desk AI drafts the card");
+if (preview.indexOf("You still tap Yes or Stop") < 0) fail("drop-preview.js Talk empty must keep Yes or Stop");
+if (preview.indexOf("Type the work. A Desk AI drafts the card in this chat.") < 0) {
+  fail("drop-preview.js Talk empty tap must say A Desk AI drafts the card");
+}
+
 const pick = read("drop-pick.js");
 if (pick.indexOf("AIADesks.authHeaders") < 0) fail("List this desk must use AIADesks.authHeaders()");
 if (/var ws = cur\.slug \|\| q/.test(pick)) fail("drop-pick.js must not prefer a leftover desk over ?ws=");
