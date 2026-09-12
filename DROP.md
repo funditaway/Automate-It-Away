@@ -13,14 +13,14 @@ One intake. Three ways in. Same queue. Human taps Yes or Stop.
 
 ## World users · accounts · desks
 
-Public drop search sits at the **top** of `/drop`.
+Public drop search sits on **step one** of `/drop`, under **Which desk gets this**.
 
 - Label: **World users · accounts · desks**.
 - Boots with `GET /api/desks?listed=1` so listed world desks paint with no typing.
 - Each hit is account · desk · city · what it does.
 - Private desks never appear. Closed desks never appear.
-- This-phone saved desks stay under the world list.
-- Tapping a world desk opens `/drop?ws=` for that desk. Public drop never sees money, Stop, or People.
+- This-phone saved desks sit **above** the world list — a dropper picks a desk they already have before searching the world.
+- Tapping a world desk opens `/drop?ws=` for that desk and moves the rail to step two. Public drop never sees money, Stop, or People.
 
 ## Desk AIs with AIA World users
 
@@ -36,7 +36,8 @@ World users drop. Desk AIs draft on the same card. They do not replace the user.
 ## Files
 
 - `widget.html` — Drop UI (`/drop` and `/widget`)
-- `drop-pick.js` — World search first, then this-phone desks
+- `drop-steps.js` — One step at a time: **Desk · Tell · Card · Check · Share**. Desk is step one — Which desk gets this (`#desk-pick`) sits above the modes, the world search, the Talk bar, and the form. A sticky rail switches steps, sticky Back / Next walks them, and every off-step card is `.step-off`, so a dropper reaches every action without a long scroll. All five pills share one phone row. Step one stays inside a phone screen: it hushes the `#drop-on` banner (the desk card already says where the drop lands), hands the **Drop anything** line (`#drop-sub`) to the Card step it describes, and caps the world desk list. Back / Next hide with `.step-off`, not the `hidden` attribute — a global button display rule beats `hidden`. The rail always carries the vow: **Draft only. You still tap Yes or Stop. Nobody sends money from here.** Cards that load after boot get seated by a `MutationObserver`. `showNote` and the This drop cells reveal the step that holds the field, so no note lands off screen. Embed and `?embed=1` skip the rail — that face is already slim.
+- `drop-pick.js` — This-phone desks first, then world search under them
 - `drop-chat.js` — Tell the desk / type anything → reply + card in thread
 - `drop-talk.js` — Talk to the desk. Hear this / empty `#talkStatus` match Talk: A Desk AI drafts the card. You still tap Yes or Stop. Embed `/widget` skips the Talk bar (Hear this / Talk / Quiet), same as chat skips embed. `/drop` still paints Talk. Preview still owns Tell on `/widget`.
 - `drop-now.js` — Quick / recent / after-drop
