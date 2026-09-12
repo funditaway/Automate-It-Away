@@ -79,6 +79,9 @@ if (steps.indexOf("body.drop-steps .grid{grid-template-columns:1fr}") < 0) {
 }
 if (steps.indexOf("#drop-steps{position:sticky") < 0) fail("the step rail must stay on screen");
 if (steps.indexOf("#drop-step-foot{position:sticky") < 0) fail("Back / Next must stay on screen");
+if (steps.indexOf("@media(min-width:860px){#drop-step-foot{bottom:0}}") < 0) {
+  fail("Back / Next must drop to the floor where desk-nav.css hides the phone bar");
+}
 if (steps.indexOf("min-height:44px") < 0 || steps.indexOf("min-height:48px") < 0) {
   fail("step taps must stay thumb sized");
 }
