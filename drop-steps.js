@@ -6,7 +6,6 @@
       id: "desk", label: "Desk",
       hint: "Pick the desk first. Every drop rides to that queue.",
       ids: ["desk-pick", "public-desk-search"],
-      also: ["drop-sub"],
       off: ["drop-on"]
     },
     {
@@ -17,7 +16,8 @@
     {
       id: "card", label: "Card",
       hint: "Fill the card. Drop it when you say so.",
-      ids: ["modes", "drop-form-card"]
+      ids: ["modes", "drop-form-card"],
+      also: ["drop-sub"]
     },
     {
       id: "check", label: "Check",
@@ -154,11 +154,11 @@
     var back = el("drop-step-back");
     var next = el("drop-step-next");
     if (back) {
-      back.hidden = at <= 0;
+      back.classList.toggle("step-off", at <= 0);
       setText(back, at > 0 ? "Back · " + rows[at - 1].label : "Back");
     }
     if (next) {
-      next.hidden = at >= rows.length - 1;
+      next.classList.toggle("step-off", at >= rows.length - 1);
       setText(next, at < rows.length - 1 ? "Next · " + rows[at + 1].label : "Next");
     }
   }

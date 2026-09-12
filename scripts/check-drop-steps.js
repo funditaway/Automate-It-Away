@@ -41,6 +41,12 @@ if (table[0].ids.indexOf("desk-pick") < 0) fail("step one must own #desk-pick");
 if (table[0].ids.indexOf("public-desk-search") < 0) fail("step one must own the world desk search");
 if (table[2].ids.indexOf("drop-form-card") < 0) fail("the Card step must own #drop-form-card");
 if (table[2].ids.indexOf("modes") < 0) fail("the Card step must own #modes");
+if ((table[2].also || []).indexOf("drop-sub") < 0) {
+  fail("the Drop anything line must ride the Card step it describes, not crowd step one");
+}
+if ((table[0].also || []).indexOf("drop-sub") >= 0) {
+  fail("step one must stay short — the Drop anything line belongs on the Card step");
+}
 if (table[4].ids.indexOf("embed-card") < 0) fail("the Share step must own #embed-card");
 table.forEach(function (step) {
   if (!step.label) fail("step " + step.id + " needs a tab label");
@@ -91,6 +97,12 @@ if (steps.indexOf("if (!onDrop() || embedOn()) return") < 0) {
   fail("drop-steps.js must stay off embed and off pages that are not Drop");
 }
 if (steps.indexOf("reveal") < 0) fail("drop-steps.js must expose reveal() so a hidden note is not lost");
+if (/\b(back|next)\.hidden\s*=/.test(steps)) {
+  fail("Back / Next must hide with .step-off — a global button display rule beats the hidden attribute");
+}
+if (steps.indexOf('back.classList.toggle("step-off"') < 0 || steps.indexOf('next.classList.toggle("step-off"') < 0) {
+  fail("Back / Next must hide with .step-off at the ends of the rail");
+}
 
 function runEmbed(opts) {
   const sandbox = {
