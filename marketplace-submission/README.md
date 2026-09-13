@@ -2,7 +2,7 @@
 
 Validated against `xai-org/plugin-marketplace` main.
 
-Pinned SHA: `ab47fff9355be41dc41e404b4af48692420491a6`  
+Pinned SHA: `85e6206f26e30943a705a5e2d1e16ac553aa99d2`  
 Path: `plugins/automate-it-away`  
 Issue: https://github.com/xai-org/plugin-marketplace/issues/704
 

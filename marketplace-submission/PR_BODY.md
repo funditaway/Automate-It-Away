@@ -2,7 +2,7 @@
 
 - Plugin name: `automate-it-away`
 - Type: remote source
-- Source URL + pinned SHA: `https://github.com/funditaway/Automate-It-Away.git` @ `ab47fff9355be41dc41e404b4af48692420491a6`
+- Source URL + pinned SHA: `https://github.com/funditaway/Automate-It-Away.git` @ `85e6206f26e30943a705a5e2d1e16ac553aa99d2`
 - Path: `plugins/automate-it-away`
 - Homepage: https://automateitaway.com
 
