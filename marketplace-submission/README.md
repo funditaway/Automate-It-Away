@@ -2,16 +2,25 @@
 
 Validated against `xai-org/plugin-marketplace` main.
 
-Pinned SHA: `85e6206f26e30943a705a5e2d1e16ac553aa99d2`  
+Pinned SHA: `ecdd5f6e3966365c6d3d2688bfffa19f2ca71458`  
 Path: `plugins/automate-it-away`  
 Issue: https://github.com/xai-org/plugin-marketplace/issues/704
 
 ## One-shot PR (recommended)
 
+### Option A — GitHub Action (no local fork needed)
+
+1. Create a GitHub PAT that can fork public repos and open PRs.
+2. Add repo secret `MARKETPLACE_GITHUB_TOKEN` = that PAT.
+3. Actions → **Submit Grok marketplace PR** → Run workflow.
+
+### Option B — Local CLI
+
 From a machine where `gh` can fork `xai-org/plugin-marketplace`:
 
 ```bash
 ./scripts/submit-marketplace-pr.sh
+# or: MARKETPLACE_GITHUB_TOKEN=ghp_... ./scripts/submit-marketplace-pr.sh
 ```
 
 ## Manual
