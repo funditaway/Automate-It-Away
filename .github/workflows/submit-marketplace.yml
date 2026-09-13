@@ -1,0 +1,59 @@
+name: Submit Grok marketplace PR
+
+# Opens (or updates) the Automate It Away catalog PR against xai-org/plugin-marketplace.
+# Requires a PAT that can fork public repos and open PRs.
+#
+# Setup (one time):
+#   1. Create a PAT with permission to fork + open PRs on public repos
+#   2. Add repo secret MARKETPLACE_GITHUB_TOKEN = that PAT
+#   3. Actions → Submit Grok marketplace PR → Run workflow
+#
+# Related: https://github.com/xai-org/plugin-marketplace/issues/704
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Validate only; do not push or open PR"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Automate-It-Away
+        uses: actions/checkout@v4
+
+      - name: Require MARKETPLACE_GITHUB_TOKEN
+        env:
+          MARKETPLACE_GITHUB_TOKEN: ${{ secrets.MARKETPLACE_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$MARKETPLACE_GITHUB_TOKEN" ]; then
+            echo "::error::Add repo secret MARKETPLACE_GITHUB_TOKEN (a PAT that can fork xai-org/plugin-marketplace and open PRs)."
+            exit 1
+          fi
+
+      - name: Submit marketplace PR
+        env:
+          GH_TOKEN: ${{ secrets.MARKETPLACE_GITHUB_TOKEN }}
+          MARKETPLACE_GITHUB_TOKEN: ${{ secrets.MARKETPLACE_GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+          m = json.loads(Path("marketplace-submission/marketplace.json").read_text())
+          e = next(x for x in m["plugins"] if x["name"] == "automate-it-away")
+          print("dry-run entry:")
+          print(json.dumps(e, indent=2))
+          PY
+            echo "Dry run only — skipping fork/PR."
+            exit 0
+          fi
+          chmod +x scripts/submit-marketplace-pr.sh
+          ./scripts/submit-marketplace-pr.sh
