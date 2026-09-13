@@ -1,5 +1,5 @@
 diff --git a/.grok-plugin/marketplace.json b/.grok-plugin/marketplace.json
-index 4149c23..8f42131 100644
+index 4149c23..1787fc7 100644
 --- a/.grok-plugin/marketplace.json
 +++ b/.grok-plugin/marketplace.json
 @@ -15,8 +15,14 @@
@@ -508,7 +508,7 @@ index 4149c23..8f42131 100644
 +      "source": {
 +        "source": "url",
 +        "url": "https://github.com/funditaway/Automate-It-Away.git",
-+        "sha": "61e005575ec3947ede099e4ee05d086c0f1bb5eb",
++        "sha": "ab47fff9355be41dc41e404b4af48692420491a6",
 +        "path": "plugins/automate-it-away"
 +      },
 +      "homepage": "https://automateitaway.com",

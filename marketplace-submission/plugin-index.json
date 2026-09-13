@@ -2,7 +2,7 @@
   "version": 1,
   "plugins": {
     "automate-it-away": {
-      "sha": "61e005575ec3947ede099e4ee05d086c0f1bb5eb",
+      "sha": "ab47fff9355be41dc41e404b4af48692420491a6",
       "version": "1.0.0",
       "components": {
         "mcpServers": [
