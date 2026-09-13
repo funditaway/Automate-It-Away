@@ -35,8 +35,17 @@
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
     var meta = document.querySelector("meta[name='theme-color']");
     if (meta) meta.setAttribute("content", dark ? "#0c1116" : "#0d6b6b");
+    var mode = localStorage.getItem("aia_theme") || "system";
     document.querySelectorAll("[data-theme-btn], .theme-btn").forEach(function (b) {
-      b.textContent = label();
+      b.setAttribute("data-mode", mode);
+      var lab = b.querySelector(".theme-lab");
+      if (!lab) {
+        b.textContent = "";
+        lab = document.createElement("span");
+        lab.className = "theme-lab";
+        b.appendChild(lab);
+      }
+      lab.textContent = label();
       b.setAttribute("aria-label", "Theme " + label());
       b.title = "Theme: " + label() + ". Tap to change.";
     });
