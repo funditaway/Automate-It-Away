@@ -1,0 +1,10 @@
+{
+  "name": "automate-it-away",
+  "version": "1.0.0",
+  "author": "Automate It Away <support@automateitaway.com>",
+  "description": "Seamlessly automate workflows, trigger background task agents, and execute multi-step desk scripts via Automate It Away directly inside Grok chats.",
+  "mcp_endpoint": "https://api.automateitaway.com/mcp",
+  "homepage": "https://automateitaway.com",
+  "repository": "https://github.com/funditaway/Automate-It-Away",
+  "license": "MIT"
+}
