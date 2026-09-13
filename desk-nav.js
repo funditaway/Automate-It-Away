@@ -207,6 +207,7 @@
     loadQueue("desk-ais.js", "data-aia-desk-ais");
     loadQueue("pack-card.js", "data-aia-pack-card");
     loadQueue("desk-needs.js", "data-aia-desk-needs");
+    loadQueue("desk-queue-ux.js", "data-aia-queue-ux");
     loadQueue("desk-inbox.js", "data-aia-desk-inbox");
     loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
     loadPeople("people-desk.js", "data-aia-people-desk");

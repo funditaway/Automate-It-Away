@@ -317,3 +317,12 @@ Owner: James Oddo. Product: one AIA account, many desks.
 7. Export the book. Open the file. No password hash.
 8. Turn on authenticator — page should say HOLD.
 9. Ship $251 on the desk — still 409 held if that desk has the money-wait rule.
+
+## Queue desk simplify (2026-09-13)
+
+- `/desk` (also `/queue`) is the queue. The queue *is* the page.
+- Calm desk surface: secondary chrome (wallet, Desk AIs, widgets, playbook) folds into **Desk tools**. Pack filter lecture line stays in DOM but hides visually.
+- Cards paint clear states — Waiting / Working / Needs you / Cap / Done — with a left state rail and icon mark.
+- Face keeps status, title, Then draft, prompt Reply, next-line, and Yes / Stop / Kill. Advanced taps + Desk AI bind sit in **More on this card**.
+- Tap the ⋮⋮ handle or drag a card onto Cap to prioritize. Cap / Off the cap taps stay. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
+- `scripts/check-queue-ux.js` covers that face. Existing `check-desk-queue-cards.js` still owns the HITL / Then / prompt contract.

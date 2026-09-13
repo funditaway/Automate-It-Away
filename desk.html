@@ -84,6 +84,9 @@
     .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
     .kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
     .kpi b{font-size:1.3rem;color:var(--teal)}
+    body.queue-desk .kpis{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    #queue-desk-rail{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+    .banner{margin-bottom:8px}
     .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
     input,textarea,select{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
     .sheet{position:fixed;inset:0;background:rgba(10,79,79,.45);display:none;align-items:flex-end;justify-content:center;z-index:20}
@@ -133,7 +136,7 @@
   </header>
   <main class="wrap">
     <div class="banner" id="banner">This desk’s work.</div>
-    <div class="kpis">
+    <div class="kpis" aria-hidden="true">
       <div class="kpi"><span>Waiting on a person.</span><b id="k-wait">—</b></div>
       <div class="kpi"><span>Sent</span><b id="k-ship">—</b></div>
     </div>
@@ -170,7 +173,7 @@
       <h2>Cap · orange · every desk on this account</h2>
       <div id="cap-list"></div>
     </div>
-    <div id="queue" data-card-needs="cardNeeds"></div>
+    <div id="queue" class="q-desk" data-card-needs="cardNeeds"></div>
     <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
     <div id="recent"></div>
     <p class="meta" id="rules-line"><a href="/rules">Rules</a> — no rules yet. Add one if you need it.</p>

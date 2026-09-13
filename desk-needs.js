@@ -633,9 +633,22 @@
   window.chipsHtml = chipsHtml;
   window.capCardHtml = capCardHtml;
   window.loadCap = loadCap;
+  function cardState(j, need) {
+    if (!j) return "pending";
+    if (j.status === "shipped" || j.carried) return "done";
+    if ((need && need.priority) || j.priority || j.cap) return "cap";
+    if (j.status === "exception" || isNeedsYou(j, need) || isAskHuman(j, need) || isPromptReply(j, need)) return "flagged";
+    if (j.status === "out" || j.awaiting === "writeback") return "running";
+    return "pending";
+  }
+  function stateMark(state) {
+    const labels = { pending: "Waiting", running: "Working", flagged: "Needs you", cap: "Cap", done: "Done" };
+    return "<div class=\"q-state-mark\"><span class=\"pip\" aria-hidden=\"true\"></span><span>" + esc(labels[state] || "Waiting") + "</span></div>";
+  }
   window.card = function (j, staff) {
     const need = cardNeeds(j, staff);
     const cap = !!need.priority;
+    const state = cardState(j, need);
     const why = (typeof visitorLine === "function" ? visitorLine(j.why) : (j.why || ""));
     const status = typeof labelStatus === "function" ? labelStatus(j.status) : (j.status || "");
     const line = honestNext(j, need);
@@ -647,7 +660,31 @@
     const thread = stacked
       ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>"
       : (draft + talks + prompt);
-    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thread + bind + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
+    const actions = cardActionHtml(j, staff, "queue");
+    const hitlMatch = actions.match(/<div class="row actions tap-opts q-hitl">[\s\S]*?<\/div>/);
+    const hitl = hitlMatch ? hitlMatch[0] : "";
+    const rest = hitl ? actions.replace(hitl, "") : actions;
+    const openTap = rest.match(/<button class="edit" type="button" onclick="openJob\('[^']+'\)">Open<\/button>/);
+    const openBtn = openTap ? openTap[0] : "";
+    const moreTaps = openBtn ? rest.replace(openBtn, "") : rest;
+    return "<article class=\"item q-card q-state-" + state + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\">" +
+      "<div class=\"q-drag\" title=\"Tap or drag to Cap\" aria-label=\"Cap this card\" role=\"button\">⋮⋮</div>" +
+      "<div class=\"q-face\">" +
+        stateMark(state) +
+        "<div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div>" +
+        "<h3>" + esc(j.title) + "</h3>" +
+        filesHtml(j) +
+        (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") +
+        thread +
+        "<p class=\"next-line\">" + esc(line) + "</p>" +
+        hitl +
+        (openBtn ? "<div class=\"row actions tap-opts\">" + openBtn + "</div>" : "") +
+      "</div>" +
+      "<details class=\"q-drawer\"><summary>More on this card</summary><div class=\"q-drawer-body\">" +
+        bind +
+        moreTaps +
+      "</div></details>" +
+      "</article>";
   };
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }
@@ -698,6 +735,11 @@
       css.id = "aia-cap-css";
       css.textContent = "#queue .q-card,#cap-list .q-card{border-radius:14px;padding:14px;margin:10px 0;box-shadow:var(--shadow)}" +
         "#queue .q-card h3,#cap-list .q-card h3{font-size:1.12rem;line-height:1.3;margin:8px 0 6px}" +
+        ".q-face{position:relative}" +
+        ".q-drawer{margin-top:8px}" +
+        ".q-state-mark{display:inline-flex;align-items:center;gap:6px;font:800 10px/1 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}" +
+        ".q-state-mark .pip{width:7px;height:7px;border-radius:50%;background:currentColor}" +
+        ".q-drag{position:absolute;right:6px;top:8px;z-index:3;width:36px;height:40px;display:flex;align-items:center;justify-content:center;opacity:.85;cursor:pointer;user-select:none;border-radius:8px}" +
         ".q-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}" +
         ".q-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}" +
         ".q-chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.03em}" +
