@@ -42,7 +42,8 @@
       "#queue .q-card:hover{transform:translateY(-1px);box-shadow:0 14px 32px color-mix(in srgb,var(--teal-deep) 12%,transparent)}" +
       "#queue .q-card.q-dragging{opacity:.55;transform:scale(.98)}" +
       "#queue .q-card.q-drop-over{border-color:var(--orange);box-shadow:0 0 0 2px color-mix(in srgb,var(--orange) 35%,transparent)}" +
-      ".q-drag{position:absolute;right:8px;top:10px;width:28px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:grab;user-select:none;font-size:14px;letter-spacing:-2px;opacity:.55}" +
+      ".q-drag{position:absolute;right:6px;top:8px;z-index:3;width:36px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;user-select:none;font-size:16px;letter-spacing:-2px;opacity:.85;border-radius:8px}" +
+      ".q-drag:hover{opacity:1;color:var(--orange);background:color-mix(in srgb,var(--orange) 12%,transparent)}" +
       ".q-drag:active{cursor:grabbing}" +
       ".q-face{padding-right:28px}" +
       ".q-state-mark{display:inline-flex;align-items:center;gap:6px;min-height:24px;font:800 10px/1 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}" +
@@ -98,12 +99,13 @@
     if (!el.querySelector(".q-drag")) {
       var drag = document.createElement("div");
       drag.className = "q-drag";
-      drag.title = "Drag to Cap";
-      drag.setAttribute("aria-hidden", "true");
+      drag.title = "Tap or drag to Cap";
+      drag.setAttribute("aria-label", "Cap this card");
+      drag.setAttribute("role", "button");
       drag.textContent = "⋮⋮";
       el.appendChild(drag);
     }
-    el.setAttribute("draggable", "true");
+    el.setAttribute("draggable", "false");
   }
 
   function paintStates() {
@@ -211,10 +213,41 @@
     if (document.documentElement.__aiaQueueDrag) return;
     document.documentElement.__aiaQueueDrag = true;
     var dragId = "";
+    var dragged = false;
+    document.addEventListener("mousedown", function (e) {
+      var handle = e.target && e.target.closest && e.target.closest("#queue .q-drag");
+      if (!handle) return;
+      var card = handle.closest(".q-card[data-job]");
+      if (!card) return;
+      card.setAttribute("draggable", "true");
+      dragged = false;
+    });
+    document.addEventListener("touchstart", function (e) {
+      var handle = e.target && e.target.closest && e.target.closest("#queue .q-drag");
+      if (!handle) return;
+      var card = handle.closest(".q-card[data-job]");
+      if (!card) return;
+      card.setAttribute("draggable", "true");
+      dragged = false;
+    }, { passive: true });
+    document.addEventListener("click", function (e) {
+      var handle = e.target && e.target.closest && e.target.closest("#queue .q-drag");
+      if (!handle) return;
+      var card = handle.closest(".q-card[data-job]");
+      if (!card) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (dragged) { dragged = false; return; }
+      var id = card.getAttribute("data-job") || "";
+      if (!id || typeof window.pinCap !== "function") return;
+      var on = !card.classList.contains("q-state-cap") && !card.classList.contains("cap-card");
+      window.pinCap(id, on);
+    });
     document.addEventListener("dragstart", function (e) {
       var card = e.target && e.target.closest && e.target.closest("#queue .q-card[data-job]");
       if (!card) return;
       dragId = card.getAttribute("data-job") || "";
+      dragged = true;
       card.classList.add("q-dragging");
       if (e.dataTransfer) {
         e.dataTransfer.setData("text/plain", dragId);
@@ -223,13 +256,17 @@
       var zone = document.getElementById("cap-drop");
       if (zone) zone.classList.add("on");
     });
-    document.addEventListener("dragend", function () {
+    document.addEventListener("dragend", function (e) {
       document.querySelectorAll(".q-dragging,.q-drop-over").forEach(function (el) {
         el.classList.remove("q-dragging", "q-drop-over");
+      });
+      document.querySelectorAll("#queue .q-card[draggable]").forEach(function (el) {
+        el.removeAttribute("draggable");
       });
       var zone = document.getElementById("cap-drop");
       if (zone) zone.classList.remove("on", "hot");
       dragId = "";
+      setTimeout(function () { dragged = false; }, 0);
     });
     document.addEventListener("dragover", function (e) {
       var zone = e.target && e.target.closest && e.target.closest("#cap-drop");
@@ -252,19 +289,8 @@
       var id = dragId || (e.dataTransfer && e.dataTransfer.getData("text/plain")) || "";
       if (!id) return;
       e.preventDefault();
-      if (zone) {
+      if (zone || (card && card.getAttribute("data-job") !== id)) {
         if (typeof window.pinCap === "function") window.pinCap(id, true);
-        return;
-      }
-      if (card && card.getAttribute("data-job") !== id) {
-        var target = card.getAttribute("data-job");
-        var jobs = window.JOBS || [];
-        var dest = jobs.filter(function (j) { return j && String(j.id) === String(target); })[0];
-        if (dest && (dest.priority || dest.cap) && typeof window.pinCap === "function") {
-          window.pinCap(id, true);
-        } else if (typeof window.pinCap === "function") {
-          window.pinCap(id, true);
-        }
       }
     });
   }

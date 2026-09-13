@@ -667,8 +667,8 @@
     const openTap = rest.match(/<button class="edit" type="button" onclick="openJob\('[^']+'\)">Open<\/button>/);
     const openBtn = openTap ? openTap[0] : "";
     const moreTaps = openBtn ? rest.replace(openBtn, "") : rest;
-    return "<article class=\"item q-card q-state-" + state + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\" draggable=\"true\">" +
-      "<div class=\"q-drag\" title=\"Drag to Cap\" aria-hidden=\"true\">⋮⋮</div>" +
+    return "<article class=\"item q-card q-state-" + state + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\">" +
+      "<div class=\"q-drag\" title=\"Tap or drag to Cap\" aria-label=\"Cap this card\" role=\"button\">⋮⋮</div>" +
       "<div class=\"q-face\">" +
         stateMark(state) +
         "<div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div>" +
@@ -739,7 +739,7 @@
         ".q-drawer{margin-top:8px}" +
         ".q-state-mark{display:inline-flex;align-items:center;gap:6px;font:800 10px/1 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}" +
         ".q-state-mark .pip{width:7px;height:7px;border-radius:50%;background:currentColor}" +
-        ".q-drag{float:right;opacity:.45;cursor:grab;user-select:none;padding:2px 4px}" +
+        ".q-drag{position:absolute;right:6px;top:8px;z-index:3;width:36px;height:40px;display:flex;align-items:center;justify-content:center;opacity:.85;cursor:pointer;user-select:none;border-radius:8px}" +
         ".q-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}" +
         ".q-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}" +
         ".q-chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.03em}" +

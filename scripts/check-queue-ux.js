@@ -37,7 +37,7 @@ pass("desk-needs parses");
 });
 pass("desk-needs paints calm card face + drawer");
 
-["cap-drop", "pinCap", "q-state-pending", "q-state-flagged", "desk-tools", "queue-desk-rail", "Drag to Cap"].forEach(function (bit) {
+["cap-drop", "pinCap", "q-state-pending", "q-state-flagged", "desk-tools", "queue-desk-rail", "Tap or drag to Cap", "closest(\"#queue .q-drag\")"].forEach(function (bit) {
   if (ux.indexOf(bit) < 0) fail("desk-queue-ux.js missing " + bit);
 });
 pass("desk-queue-ux has Cap drag + chrome fold");

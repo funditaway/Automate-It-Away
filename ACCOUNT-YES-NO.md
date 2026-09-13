@@ -324,5 +324,5 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Calm desk surface: secondary chrome (wallet, Desk AIs, widgets, playbook) folds into **Desk tools**. Pack filter lecture line stays in DOM but hides visually.
 - Cards paint clear states — Waiting / Working / Needs you / Cap / Done — with a left state rail and icon mark.
 - Face keeps status, title, Then draft, prompt Reply, next-line, and Yes / Stop / Kill. Advanced taps + Desk AI bind sit in **More on this card**.
-- Drag a card onto Cap (or onto a Cap card) to prioritize. Cap / Off the cap taps stay. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
+- Tap the ⋮⋮ handle or drag a card onto Cap to prioritize. Cap / Off the cap taps stay. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
 - `scripts/check-queue-ux.js` covers that face. Existing `check-desk-queue-cards.js` still owns the HITL / Then / prompt contract.
