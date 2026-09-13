@@ -166,16 +166,16 @@
       "header .brand-mark, .site-header .brand-mark{width:32px;height:32px;flex:0 0 32px;border-radius:8px;background:transparent}" +
       ".who-chip{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px;" +
       "min-height:44px;width:auto;margin-left:0;max-width:min(46vw,168px);padding:4px 12px 4px 4px;border-radius:999px;" +
-      "border:1px solid rgba(255,255,255,.4)!important;background:#083838!important;color:#fff!important;text-decoration:none;overflow:hidden}" +
+      "border:1px solid rgba(255,255,255,.9)!important;background:#fff!important;color:#0a4f4f!important;text-decoration:none;overflow:hidden}" +
       ".who-chip.signed-out{padding:8px 16px!important;max-width:none!important;gap:0}" +
       ".who-chip.signed-out .who-pic{display:none}" +
       ".who-chip.signed-out .who-copy{text-align:center}" +
       ".who-chip.signed-out .who-copy strong{display:inline!important}" +
       ".who-chip.signed-out .who-copy > span{display:none!important}" +
       ".who-pic{width:32px;height:32px;border-radius:50%;flex:0 0 32px;display:inline-flex;align-items:center;" +
-      "justify-content:center;background:rgba(255,255,255,.18);color:#fff;object-fit:cover;overflow:hidden}" +
+      "justify-content:center;background:#0d6b6b;color:#fff;object-fit:cover;overflow:hidden}" +
       ".who-copy{min-width:0;flex:1 1 auto;text-align:right}" +
-      ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#fff!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+      ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#0a4f4f!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
       ".brand-short{display:none}" +
       "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}" +
       ".kpi b{display:block;min-height:1.35em;font-size:1.3rem;line-height:1.2;color:var(--teal)}" +
