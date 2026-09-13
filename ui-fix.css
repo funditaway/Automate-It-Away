@@ -323,16 +323,32 @@ button.open-desk {
   }
 }
 
+#gate input#ws,
+#gate input#pin,
+#gate #ws,
+#gate #pin {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
 @media (max-width: 640px) {
   #gate {
     display: grid !important;
-    grid-template-columns: 1fr 110px;
+    grid-template-columns: 1fr !important;
     gap: 8px;
   }
-  #gate #ws { grid-column: 1 / -1; width: 100% !important; }
+  #gate #ws,
+  #gate #pin,
   #gate button {
     grid-column: 1 / -1;
     width: 100% !important;
-    min-height: 48px;
   }
+}
+header .brand-mark,
+.site-header .brand-mark {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  background: transparent !important;
+  filter: none;
 }
