@@ -2,11 +2,13 @@
 
 - Plugin name: `automate-it-away`
 - Type: remote source
-- Source URL + pinned SHA: `https://github.com/funditaway/Automate-It-Away.git` @ `61e005575ec3947ede099e4ee05d086c0f1bb5eb`
+- Source URL + pinned SHA: `https://github.com/funditaway/Automate-It-Away.git` @ `ab47fff9355be41dc41e404b4af48692420491a6`
 - Path: `plugins/automate-it-away`
 - Homepage: https://automateitaway.com
 
 Adds Automate It Away to the official Grok plugin marketplace so global Grok users can install AIA desks, packs, and MCP tools.
+
+Related: https://github.com/xai-org/plugin-marketplace/issues/704
 
 ## Ownership
 

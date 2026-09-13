@@ -556,7 +556,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/funditaway/Automate-It-Away.git",
-        "sha": "61e005575ec3947ede099e4ee05d086c0f1bb5eb",
+        "sha": "ab47fff9355be41dc41e404b4af48692420491a6",
         "path": "plugins/automate-it-away"
       },
       "homepage": "https://automateitaway.com",
