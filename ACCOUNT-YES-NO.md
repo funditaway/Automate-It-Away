@@ -326,3 +326,11 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Face keeps status, title, Then draft, prompt Reply, next-line, and Yes / Stop / Kill. Advanced taps + Desk AI bind sit in **More on this card**.
 - Tap the ⋮⋮ handle or drag a card onto Cap to prioritize. Cap / Off the cap taps stay. Yes / Stop / Kill stay human. Collect HOLD. Nothing sent alone.
 - `scripts/check-queue-ux.js` covers that face. Existing `check-desk-queue-cards.js` still owns the HITL / Then / prompt contract.
+
+## History simple words + UX (2026-09-14)
+
+- `/history` keeps the same trail + account roadmap. Words on the face are short: what this desk did, real cards only, nothing sends.
+- Dense honesty (Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, pipe WIP / note / follow / tell) lives under **What you see here**. Roadmap Past / Now / Next still HOLD Collect, silent give, recurring update, and mint.
+- Clearer taps: Already done / On the desk / Coming up, Off desk (was Ext), Cap priority, More filters with a count badge, Quick finds fold, Show talk / Hide talk on cards, Refresh, copy toast, Esc closes Explore, `/` focuses search.
+- Empty states point at Open a desk / Drop / Create. Give is the file. Update is install again. Nothing silent. Collect HOLD.
+- `scripts/check-history-ux.js` covers that face. Existing History thread / prompt / roadmap checks still own honesty.
