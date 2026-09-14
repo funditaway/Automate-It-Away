@@ -101,7 +101,7 @@ mustNot(tip, "virtual phone", "tip virtual phone numbers");
 must(theme, ".aia-tip-pop", "theme paints tip popover");
 must(theme, "button.aia-tip", "theme paints tip button");
 
-["index.html", "how.html", "setup.html", "onboard.html", "drop.html", "login.html", "widget.html", "account.html", "examples.html", "help.html", "support.html", "pipes.html", "connections.html", "create.html"].forEach(function (name) {
+["index.html", "how.html", "setup.html", "onboard.html", "drop.html", "login.html", "widget.html", "account.html", "examples.html", "help.html", "support.html", "pipes.html", "connections.html", "create.html", "more.html"].forEach(function (name) {
   const html = read(name);
   must(html, "aia-tip.js", name + " loads aia-tip.js");
   must(html, "data-aia-tip", name + " has a field tip");
@@ -243,10 +243,31 @@ must(yesNo, "check-aia-tip.js", "ACCOUNT-YES-NO records tip honesty");
 must(yesNo, "Help chat Quiet leftover", "ACCOUNT-YES-NO names Quiet leftover");
 must(yesNo, "Pipes field tips leftover", "ACCOUNT-YES-NO names Pipes field tips leftover");
 must(yesNo, "Desk AI field tips leftover", "ACCOUNT-YES-NO names Desk AI field tips leftover");
+must(yesNo, "More page tips leftover", "ACCOUNT-YES-NO names More page tips leftover");
 must(packMd, "Ask AIA", "PACK.md names Ask AIA");
 must(packMd, "Quiet on Help chat stops speech and keeps that answer", "PACK.md Quiet keeps Ask AIA");
 must(packMd, "Pipes field tips leftover", "PACK.md names Pipes field tips leftover");
 must(packMd, "Desk AI field tips leftover", "PACK.md names Desk AI field tips leftover");
+must(packMd, "More page tips leftover", "PACK.md names More page tips leftover");
 must(pkg, "check-aia-tip.js", "package.json runs check-aia-tip");
+
+const moreHtml = read("more.html");
+must(moreHtml, "aia-tip.js", "more loads aia-tip.js");
+must(moreHtml, 'data-aia-tip="more-queue"', "more Queue tip");
+must(moreHtml, 'data-aia-tip="more-account"', "more Account tip");
+must(moreHtml, 'data-aia-tip="more-history"', "more History tip");
+must(moreHtml, 'data-aia-tip="more-find"', "more Find tip");
+must(moreHtml, 'id="more-q"', "more Find input");
+must(moreHtml, "data-more-item", "more filterable items");
+must(moreHtml, "Tap <b>?</b> for more detail", "more invites tips");
+mustNot(moreHtml, "not a model demo", "more face hides queue jargon");
+must(tip, '"more-queue"', "more-queue tip");
+must(tip, '"more-account"', "more-account tip");
+must(tip, '"more-history"', "more-history tip");
+must(tip, '"more-find"', "more-find tip");
+must(tip, "Cap on this desk can Reply", "more-queue Cap Reply");
+must(tip, "owner picker holds the same gone bind", "more-queue gone bind picker");
+must(tip, "Copy story copies that same trail", "more-history Copy story");
+must(tip, "not anonymous desk AI", "more-queue not anonymous");
 
 console.log("check-aia-tip: ok");

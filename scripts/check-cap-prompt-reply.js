@@ -27,6 +27,7 @@ const card = read("desk-card.js");
 const jobsSrc = read("api/jobs.js");
 const help = read("help.html");
 const more = read("more.html");
+const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
@@ -50,8 +51,10 @@ if (help.indexOf("Cap on this desk") < 0) fail("help must name Cap on this desk 
 else pass("help names Cap on this desk reply");
 if (help.indexOf("Other-desk Cap") < 0) fail("help must name other-desk Cap read-only");
 else pass("help names other-desk Cap read-only");
-if (more.indexOf("Cap on this desk can Reply") < 0) fail("more.html Queue must name Cap this-desk Reply");
-else pass("more.html names Cap this-desk Reply");
+if (moreTips.indexOf("Cap on this desk can Reply") < 0) fail("more Queue tip must name Cap this-desk Reply");
+else pass("more Queue tip names Cap this-desk Reply");
+if (more.indexOf('data-aia-tip="more-queue"') < 0) fail("more.html must wire more-queue tip");
+else pass("more.html wires more-queue tip");
 if (yesNo.indexOf("check-cap-prompt-reply.js") < 0) fail("ACCOUNT-YES-NO must record Cap prompt reply leftover");
 else pass("ACCOUNT-YES-NO records Cap prompt reply leftover");
 if (pkg.indexOf("check-cap-prompt-reply.js") < 0) fail("package.json must run check-cap-prompt-reply");

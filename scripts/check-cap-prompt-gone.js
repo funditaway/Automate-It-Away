@@ -26,6 +26,7 @@ const needs = read("desk-needs.js");
 const card = read("desk-card.js");
 const help = read("help.html");
 const more = read("more.html");
+const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
 const pkg = read("package.json");
@@ -87,9 +88,11 @@ if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge|silent send/i.tes
 if (help.indexOf("Cap cards and Open") < 0 || help.indexOf("prompt ask-who") < 0) {
   fail("help#desk-cards must name Cap / Open prompt ask-who HOLD");
 } else pass("help names Cap / Open prompt ask-who HOLD");
-if (more.indexOf("Cap and Open") < 0 || more.indexOf("not anonymous desk AI") < 0) {
-  fail("more.html Queue must name Cap / Open gone Needs you / prompt HOLD");
-} else pass("more.html names Cap / Open gone HOLD");
+if (moreTips.indexOf("Cap and Open") < 0 || moreTips.indexOf("not anonymous desk AI") < 0) {
+  fail("more Queue tip must name Cap / Open gone Needs you / prompt HOLD");
+} else pass("more Queue tip names Cap / Open gone HOLD");
+if (more.indexOf('data-aia-tip="more-queue"') < 0) fail("more.html must wire more-queue tip");
+else pass("more.html wires more-queue tip");
 if (yesNo.indexOf("check-cap-prompt-gone.js") < 0) fail("ACCOUNT-YES-NO must record Cap / Open prompt gone HOLD");
 else pass("ACCOUNT-YES-NO records Cap / Open prompt gone HOLD");
 if (pkg.indexOf("check-cap-prompt-gone.js") < 0) fail("package.json must run check-cap-prompt-gone");

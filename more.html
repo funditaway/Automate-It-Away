@@ -24,11 +24,21 @@
     h1{font-size:1.4rem;margin:0 0 8px}
     h2{font-size:.95rem;margin:18px 0 6px;color:var(--heading)}
     p{color:var(--muted);margin:0 0 12px}
-    .card{border:1px solid var(--line);border-radius:14px;padding:4px 4px;margin:10px 0;box-shadow:var(--shadow)}
+    .more-find{margin:0 0 14px}
+    .more-find label{display:block;font-weight:700;color:var(--heading);font-size:14px;margin:0 0 6px}
+    .more-find input{width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:600 15px/1.3 "Segoe UI",system-ui,sans-serif}
+    .more-find .hint{margin:6px 0 0;font-size:13px}
+    .card{border:1px solid var(--line);border-radius:14px;padding:4px;margin:10px 0;box-shadow:var(--shadow)}
     @media(min-width:640px){.card{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}}
-    .card a{display:block;color:var(--heading);font-weight:700;padding:14px 12px;border-radius:12px}
-    .card a span{display:block;font-weight:600;color:var(--muted);font-size:13px;margin-top:2px}
-    .card a:active{background:var(--edit)}
+    .more-item{position:relative;padding:14px 44px 14px 12px;border-radius:12px}
+    .more-item[hidden]{display:none!important}
+    .more-item a.more-go{display:block;color:var(--heading);font-weight:700}
+    .more-item a.more-go:active{opacity:.85}
+    .more-item .more-sub{display:block;font-weight:600;color:var(--muted);font-size:13px;margin-top:4px;line-height:1.35}
+    .more-item .aia-tip{position:absolute;top:12px;right:10px;margin:0}
+    .more-empty{display:none;margin:8px 4px 4px;color:var(--muted);font-size:14px}
+    .more-empty.on{display:block}
+    .meta{color:var(--muted);font-size:14px}
   </style>
 </head>
 <body class="has-desk-nav">
@@ -45,44 +55,154 @@
   </header>
   <main class="wrap">
     <h1>This desk.</h1>
-    <p>Talk to the desk on Drop. Invite a helper. Add a rule if something should wait. Same queue. Nothing leaves until you tap. Packs travel on AIA Internet as .aia files. ai.aia is the brand. The desk is automateitaway.com.</p>
+    <p>Talk on Drop. Invite a helper. Add a rule when something should wait. Same queue — nothing leaves until you tap. Packs travel as .aia files. ai.aia is the brand. Tap <b>?</b> for more detail.</p>
     <div data-aia-playbook></div>
     <p class="meta" id="grok-line">Drafts land on the card. You tap Yes or Stop. You send the draft yourself.</p>
-    <h2>You</h2>
-    <div class="card">
-      <a href="/account">Your account<span>Photo, name, .aia name on AIA Internet (ai.aia), phones on this account, export the book, leave this phone or every phone, authenticator HOLD, connect your MetaMask or WalletConnect (not Wallet.AIA), honest .aia TLD status, Register .aia when Bridge unlocks, .aia email for automations, desks, plan. Your wallet. AIA does not hold keys. Three doors. Continue-with is identity only. Collect and pack pay stay HOLD until Yes + real pipe.</span></a>
-      <a href="/desks">Your desks<span>Desks this account can open. See the seat. Leave anytime. Ask for family, friend, helper, member, or staff. AIA Internet names use the .aia TLD. Brand is ai.aia. Create .aia email for automations.</span></a>
-      <a href="/people">People<span>Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card — including pipe WIP / note / follow / tell. Lives here, not on the tab bar. AIA does not send.</span></a>
-      <a href="/admin">Account book<span>Tickets, audit, money log, helper taps. Owner book.</span></a>
+    <div class="more-find">
+      <label for="more-q">Find on More <button type="button" class="aia-tip" data-aia-tip="more-find" aria-label="More about Find on More">?</button></label>
+      <input id="more-q" type="search" placeholder="Account, Queue, Packs, Help…" autocomplete="off" enterkeyhint="search">
+      <p class="hint" id="more-find-hint">Type to narrow the list. Clear to see all.</p>
     </div>
-    <h2>The work</h2>
-    <div class="card">
-      <a href="/desk">Queue<span>Real cards. Try first. Talk, Yes, or Stop. Ask on a gone Then bind holds that named AI (`… · not on this desk` / HOLD ask), not another live primary. Needs you / prompt ask-who hold the same gone bind, not anonymous desk AI. Cap on this desk can Reply. Other-desk Cap stays read-only. Cap and Open, History, Explore, and People paint that same Needs you / prompt ask-who. Owner picks the named desk AI on Open and this-desk Cap, same as the queue card. The owner picker holds the same gone bind. The queue is the measure — not a model demo. AIA does not send.</span></a>
-      <a href="/drop#talk">Drop · Talk to the desk<span>Pick a desk. Drop anything — a task, an errand, a list, an idea. Orange only when you mark it first.</span></a>
-      <a href="/create">Create<span>On the tab bar. Start AIA work. Worker-first: drafts land on the card. You still tap Yes or Stop.</span></a>
-      <a href="/history">History<span>On the tab bar. What this desk did. This account’s past / now / next. Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card — including pipe WIP / note / follow / tell. Copy story copies that same trail. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Filter by desk. Links only when a draft used the web. Empty stays empty. Nothing sends from here.</span></a>
-      <a href="/pipes">Pipes and draft accounts<span>Lives here, not on the tab bar. Search any site. Webhook is live. Orange until a real pipe. Drafts never Send.</span></a>
-      <a href="/rules">Rules<span>Lives here, not on the tab bar. When → If → Then. Owner picks which named desk AI writes Then. A pack workflow strings them. Fresh desks start empty.</span></a>
-      <a href="/dev">Creators Studio<span>Same login. AIA Internet brand is ai.aia. Four steps: find the leaks, hook the pipes, name a desk AI, you still tap. Download, share, or install as .aia files. Create .aia email for automations. Test on this desk. No public payout baseline — you earn by pricing a pack. Agency consulting is off-platform. Collect stays HOLD. Send HOLD.</span></a>
-      <a href="/market">Packs<span>Start with Try it on this desk. Four steps on this desk. AIA Internet listings on ai.aia. Download or install a .aia file. The desk stays on automateitaway.com. Collect stays HOLD until Yes and a money pipe. No silent charge. No public payout table.</span></a>
+    <h2 data-more-section="you">You</h2>
+    <div class="card" data-more-section="you">
+      <article class="more-item" data-more-item data-more-keys="account photo name phones export leave authenticator wallet">
+        <a class="more-go" href="/account">Your account</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-account" aria-label="More about Your account">?</button>
+        <span class="more-sub">Photo, name, and phones. Export or leave anytime. Authenticator stays HOLD.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="desks seat leave family friend helper member staff">
+        <a class="more-go" href="/desks">Your desks</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-desks" aria-label="More about Your desks">?</button>
+        <span class="more-sub">Desks this account can open. See the seat. Leave anytime.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="people handle invite accept cards">
+        <a class="more-go" href="/people">People</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-people" aria-label="More about People">?</button>
+        <span class="more-sub">Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft. Lives here, not on the tab bar.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="admin book tickets audit money">
+        <a class="more-go" href="/admin">Account book</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-admin" aria-label="More about Account book">?</button>
+        <span class="more-sub">Tickets, audit, money log, helper taps. Owner book.</span>
+      </article>
     </div>
-    <h2>If you need a hand</h2>
-    <div class="card">
-      <a href="/help#playbook">Help<span>Four steps on this desk. ai.aia is the AIA Internet brand. Packs travel as .aia files.</span></a>
-      <a href="/help#world">Help · world users<span>Launch path, four models, pack quality. Onboard this desk: pipes, name, people, pack. Days are a guide. Collect stays HOLD.</span></a>
-      <a href="/help#faq">FAQ<span>Needs you / prompt ask-who. Install / give / update a .aia with Yes. Connect existing wallet — your MetaMask or WalletConnect, not Wallet.AIA. Collect HOLD.</span></a>
-      <a href="/help#onboard-desk">Onboard this desk<span>Four beats. Copy the inbound hook. Name the desk. Invite a helper. Drop or install a pack. Collect HOLD.</span></a>
-      <a href="/help#sell-packs">Selling packs<span>Thin JSON. Buyer keys. Not 100% safe. Help is not legal advice. Collect HOLD.</span></a>
-      <a href="/help#pack-worth">When a pack is worth it<span>Works by hand, with fallbacks. Not a broken offer or a note you can Drop yourself.</span></a>
-      <a href="/help#build-pack">Build a pack / desk AI<span>When → If → Then. Desk AI drafts. Yes is not a collect charge. Collect HOLD.</span></a>
-      <a href="/dev#first-pack">First .aia pack<span>Real Studio. When → If → Then. Buyer keys on Pipes. Yes / Stop before outbound. Webhook is the live pipe.</span></a>
-      <a href="/help#queue-runs">How the queue runs<span>Pipes → Rules → draft → Yes / Stop / Kill. Not codegen or GitHub auto-patch. Collect HOLD.</span></a>
-      <a href="/help#desk-cards">Desk cards<span>Named desk AI drafts a queue card. Installed pack auto-shapes it — no pack pick on every Drop. Yes is not mail, git, or Collect. 12 fields. Collect HOLD.</span></a>
-      <a href="/help#aia-inbound">.aia inbound<span>name@account.aia. Hook writes a card. Unknown .aia → 400. MX/DNS HOLD.</span></a>
-      <a href="/support">Talk to AIA<span>World problem. Card on the AIA Admin Desk.</span></a>
-      <a href="/legal">Legal<span>What AIA does not do.</span></a>
-      <a href="/status">Status<span>What is live on this desk.</span></a>
+    <h2 data-more-section="work">The work</h2>
+    <div class="card" data-more-section="work">
+      <article class="more-item" data-more-item data-more-keys="queue cards yes stop talk cap open">
+        <a class="more-go" href="/desk">Queue</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-queue" aria-label="More about Queue">?</button>
+        <span class="more-sub">Real cards. Talk, Yes, or Stop. AIA does not send.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="drop talk task errand list idea">
+        <a class="more-go" href="/drop#talk">Drop · Talk to the desk</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-drop" aria-label="More about Drop">?</button>
+        <span class="more-sub">Pick a desk. Drop a task, errand, list, or idea. Orange only when you mark it first.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="create start work draft">
+        <a class="more-go" href="/create">Create</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-create" aria-label="More about Create">?</button>
+        <span class="more-sub">On the tab bar. Start work. Drafts land on the card. You still tap Yes or Stop.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="history past now next give update pack">
+        <a class="more-go" href="/history">History</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-history" aria-label="More about History">?</button>
+        <span class="more-sub">What this desk did. This account’s past / now / next. Give is the file. Update is install again.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="pipes webhook site draft accounts">
+        <a class="more-go" href="/pipes">Pipes and draft accounts</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-pipes" aria-label="More about Pipes">?</button>
+        <span class="more-sub">Lives here, not on the tab bar. Search any site. Webhook is live.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="rules when if then">
+        <a class="more-go" href="/rules">Rules</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-rules" aria-label="More about Rules">?</button>
+        <span class="more-sub">Lives here, not on the tab bar. When → If → Then. Fresh desks start empty.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="creators studio pack payout">
+        <a class="more-go" href="/dev">Creators Studio</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-studio" aria-label="More about Creators Studio">?</button>
+        <span class="more-sub">Build and share .aia packs on this desk. No public payout baseline.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="packs market try install">
+        <a class="more-go" href="/market">Packs</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-packs" aria-label="More about Packs">?</button>
+        <span class="more-sub">Start with Try it on this desk. No public payout table. Collect stays HOLD.</span>
+      </article>
     </div>
+    <h2 data-more-section="help">If you need a hand</h2>
+    <div class="card" data-more-section="help">
+      <article class="more-item" data-more-item data-more-keys="help playbook four steps">
+        <a class="more-go" href="/help#playbook">Help</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-help" aria-label="More about Help">?</button>
+        <span class="more-sub">Four steps on this desk. Packs travel as .aia files.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="world users launch onboard">
+        <a class="more-go" href="/help#world">Help · world users</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-world" aria-label="More about world users">?</button>
+        <span class="more-sub">Launch path and how to onboard this desk. Collect stays HOLD.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="faq needs wallet give update">
+        <a class="more-go" href="/help#faq">FAQ</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-faq" aria-label="More about FAQ">?</button>
+        <span class="more-sub">Needs you / prompt ask-who. Install / give / update a .aia with Yes. Connect existing wallet — not Wallet.AIA.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="onboard hook name helper pack">
+        <a class="more-go" href="/help#onboard-desk">Onboard this desk</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-onboard" aria-label="More about Onboard this desk">?</button>
+        <span class="more-sub">Copy the hook. Name the desk. Invite a helper. Drop or install a pack.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="selling packs thin json buyer">
+        <a class="more-go" href="/help#sell-packs">Selling packs</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-sell" aria-label="More about Selling packs">?</button>
+        <span class="more-sub">Thin JSON. Buyer keys. Help is not legal advice. Collect HOLD.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="pack worth hand fallback">
+        <a class="more-go" href="/help#pack-worth">When a pack is worth it</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-worth" aria-label="More about when a pack is worth it">?</button>
+        <span class="more-sub">Works by hand, with fallbacks. Not a note you can Drop yourself.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="build pack desk ai">
+        <a class="more-go" href="/help#build-pack">Build a pack / desk AI</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-build" aria-label="More about Build a pack">?</button>
+        <span class="more-sub">When → If → Then. Desk AI drafts. Yes is not a collect charge.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="first aia pack studio">
+        <a class="more-go" href="/dev#first-pack">First .aia pack</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-first-pack" aria-label="More about First .aia pack">?</button>
+        <span class="more-sub">Real Studio. Buyer keys on Pipes. Yes / Stop before anything leaves.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="queue runs pipes rules draft">
+        <a class="more-go" href="/help#queue-runs">How the queue runs</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-queue-runs" aria-label="More about how the queue runs">?</button>
+        <span class="more-sub">Pipes → Rules → draft → Yes / Stop / Kill. Collect HOLD.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="desk cards pack shape drop">
+        <a class="more-go" href="/help#desk-cards">Desk cards</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-desk-cards" aria-label="More about Desk cards">?</button>
+        <span class="more-sub">Named desk AI drafts a queue card. Installed pack auto-shapes it — no pack pick on every Drop.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="inbound aia email hook">
+        <a class="more-go" href="/help#aia-inbound">.aia inbound</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-inbound" aria-label="More about .aia inbound">?</button>
+        <span class="more-sub">name@account.aia. Hook writes a card. MX/DNS HOLD.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="support talk admin">
+        <a class="more-go" href="/support">Talk to AIA</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-support" aria-label="More about Talk to AIA">?</button>
+        <span class="more-sub">World problem. Card on the AIA Admin Desk.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="legal">
+        <a class="more-go" href="/legal">Legal</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-legal" aria-label="More about Legal">?</button>
+        <span class="more-sub">What AIA does not do.</span>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="status live">
+        <a class="more-go" href="/status">Status</a>
+        <button type="button" class="aia-tip" data-aia-tip="more-status" aria-label="More about Status">?</button>
+        <span class="more-sub">What is live on this desk.</span>
+      </article>
+    </div>
+    <p class="more-empty" id="more-empty" hidden>Nothing matches. Clear Find to see all.</p>
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
@@ -93,7 +213,39 @@
   </nav>
   <script src="desk-playbook.js"></script>
   <script src="desk-nav.js"></script>
+  <script src="aia-tip.js"></script>
   <script>
+    (function () {
+      var q = document.getElementById("more-q");
+      var empty = document.getElementById("more-empty");
+      if (!q) return;
+      function paint() {
+        var needle = String(q.value || "").trim().toLowerCase();
+        var items = document.querySelectorAll("[data-more-item]");
+        var shown = 0;
+        items.forEach(function (el) {
+          var hay = ((el.getAttribute("data-more-keys") || "") + " " + (el.textContent || "")).toLowerCase();
+          var on = !needle || hay.indexOf(needle) >= 0;
+          el.hidden = !on;
+          if (on) shown += 1;
+        });
+        document.querySelectorAll("[data-more-section]").forEach(function (sec) {
+          var id = sec.getAttribute("data-more-section");
+          var any = false;
+          document.querySelectorAll('[data-more-section="' + id + '"] [data-more-item]').forEach(function (el) {
+            if (!el.hidden) any = true;
+          });
+          if (sec.tagName === "H2") sec.hidden = !!needle && !any;
+          else if (sec.classList.contains("card")) sec.hidden = !!needle && !any;
+        });
+        if (empty) {
+          empty.hidden = shown > 0;
+          empty.classList.toggle("on", shown === 0);
+        }
+      }
+      q.addEventListener("input", paint);
+      q.addEventListener("search", paint);
+    })();
     fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {
       const g = h && h.automation && h.automation.grok;
       const el = document.getElementById("grok-line");
