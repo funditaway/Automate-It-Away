@@ -28,6 +28,7 @@ const card = read("desk-card.js");
 const people = read("people.js");
 const help = read("help.html");
 const more = read("more.html");
+const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const histSrc = read("api/_history.js");
 
@@ -72,8 +73,9 @@ if (people.indexOf("function talkLabelOf") < 0 || /who \|\| row\.from \|\| "Desk
 if (help.indexOf("History, Explore, Cap, and Open") < 0) fail("help#desk-cards must name History / Explore / Cap / Open thread");
 if (help.indexOf("not on this desk") < 0) fail("help#desk-cards must name gone HOLD on History");
 if (help.indexOf("History shows the Then draft") < 0) fail("help#ideas-queue must name History Then draft");
-if (more.indexOf("AI ↔ human thread") < 0) fail("more.html History must name the thread");
-if (more.indexOf("not on this desk") < 0) fail("more.html History must name gone HOLD");
+if (moreTips.indexOf("AI ↔ human thread") < 0) fail("more History tip must name the thread");
+if (moreTips.indexOf("not on this desk") < 0) fail("more History tip must name gone HOLD");
+if (more.indexOf('data-aia-tip="more-history"') < 0) fail("more.html must wire more-history tip");
 if (history.indexOf("gone HOLD when that named AI is not on this desk") < 0) {
   fail("History intro / health must name gone HOLD");
 }

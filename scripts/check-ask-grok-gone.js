@@ -26,6 +26,7 @@ function read(rel) {
 const needs = read("desk-needs.js");
 const help = read("help.html");
 const more = read("more.html");
+const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
@@ -56,12 +57,14 @@ if (help.indexOf("HOLD ask") < 0 || help.indexOf("does not name another live des
 if (help.indexOf("does not first-select another live desk AI") < 0) {
   fail("help#desk-cards must name gone bind picker HOLD");
 } else pass("help names gone bind picker HOLD");
-if (more.indexOf("HOLD ask") < 0 || more.indexOf("not on this desk") < 0) {
-  fail("more.html Queue must name gone Ask HOLD");
-} else pass("more.html names gone Ask HOLD");
-if (more.indexOf("owner picker holds the same gone bind") < 0) {
-  fail("more.html Queue must name gone bind picker HOLD");
-} else pass("more.html names gone bind picker HOLD");
+if (moreTips.indexOf("HOLD ask") < 0 || moreTips.indexOf("not on this desk") < 0) {
+  fail("more Queue tip must name gone Ask HOLD");
+} else pass("more Queue tip names gone Ask HOLD");
+if (moreTips.indexOf("owner picker holds the same gone bind") < 0) {
+  fail("more Queue tip must name gone bind picker HOLD");
+} else pass("more Queue tip names gone bind picker HOLD");
+if (more.indexOf('data-aia-tip="more-queue"') < 0) fail("more.html must wire more-queue tip");
+else pass("more.html wires more-queue tip");
 if (yesNo.indexOf("check-ask-grok-gone.js") < 0) fail("ACCOUNT-YES-NO must record Ask Grok gone HOLD");
 else pass("ACCOUNT-YES-NO records Ask Grok gone HOLD");
 if (pkg.indexOf("check-ask-grok-gone.js") < 0) fail("package.json must run check-ask-grok-gone");

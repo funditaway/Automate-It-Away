@@ -17,6 +17,7 @@ const needs = fs.readFileSync(path.join(root, "desk-needs.js"), "utf8");
 const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
 const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
 const more = fs.readFileSync(path.join(root, "more.html"), "utf8");
+const moreTips = more + "\n" + fs.readFileSync(path.join(root, "aia-tip.js"), "utf8");
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 const drop = fs.readFileSync(path.join(root, "drop.html"), "utf8");
@@ -43,9 +44,10 @@ if (help.indexOf("Open and from this-desk Cap") < 0 && help.indexOf("Open and th
   fail("help#desk-cards must name Open / Cap desk AI pick");
 }
 if (help.indexOf("Grok") >= 0) fail("help.html must not lecture Grok");
-if (more.indexOf("Open and this-desk Cap") < 0 && more.indexOf("Cap and Open") < 0) {
-  fail("more.html Queue must name Cap / Open bind");
+if (moreTips.indexOf("Open and this-desk Cap") < 0 && moreTips.indexOf("Cap and Open") < 0) {
+  fail("more Queue tip must name Cap / Open bind");
 }
+if (more.indexOf('data-aia-tip="more-queue"') < 0) fail("more.html must wire more-queue tip");
 if (yesNo.indexOf("check-open-cap-bind.js") < 0) fail("ACCOUNT-YES-NO must record Open / Cap bind");
 if (pkg.indexOf("check-open-cap-bind.js") < 0) fail("package.json must run check-open-cap-bind");
 if (drop.indexOf("Public drop never sees money, Stop, or People") < 0) fail("public Drop copy drifted");
