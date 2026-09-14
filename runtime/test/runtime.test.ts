@@ -120,6 +120,29 @@ describe('ghl mapping + dry dispatch', () => {
   })
 })
 
+describe('desk terminal', () => {
+  it('serves the sovereign desk UI', async () => {
+    const ws = tempWorkspace()
+    const { app, vault } = createApp({
+      dataDir: ws.dataDir,
+      dbPath: ws.dbPath,
+      keyDir: ws.keyDir,
+      dryRun: true,
+    })
+    const server = app.listen(0, '127.0.0.1')
+    await new Promise<void>((r) => server.once('listening', () => r()))
+    const { port } = server.address() as { port: number }
+    const res = await fetch(`http://127.0.0.1:${port}/`)
+    assert.equal(res.status, 200)
+    const html = await res.text()
+    assert.match(html, /Active Decision Queue/)
+    assert.match(html, /SIMULATE GHL WEBHOOK/)
+    server.close()
+    vault.close()
+    rmSync(ws.root, { recursive: true, force: true })
+  })
+})
+
 describe('http server ghl loop', () => {
   it('webhook → authorize → ledger + dispatch', async () => {
     const ws = tempWorkspace()

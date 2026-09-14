@@ -28,9 +28,15 @@ function mustExist(rel) {
   'src/ghl.ts',
   'src/types.ts',
   'src/data/card_ui.json',
+  'public/index.html',
   'agents/sample-ghl/logic.js',
   'test/runtime.test.ts',
 ].forEach(mustExist)
+
+const terminal = fs.readFileSync(path.join(runtime, 'public/index.html'), 'utf8')
+;['SIMULATE GHL WEBHOOK', '/webhook/ghl', '/queue/', 'AUTHORIZE & SIGN', 'Active Decision Queue'].forEach((bit) => {
+  if (terminal.indexOf(bit) < 0) fail('public/index.html missing ' + bit)
+})
 
 const db = fs.readFileSync(path.join(runtime, 'src/db.ts'), 'utf8')
 ;['vault', 'queue', 'provenance_ledger', 'aes-256-gcm', 'aia_vault.db'].forEach((bit) => {

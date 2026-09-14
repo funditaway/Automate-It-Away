@@ -19,7 +19,10 @@ npm install
 npm run dev
 ```
 
+Desk terminal: [http://127.0.0.1:3847/](http://127.0.0.1:3847/)  
 Health: `GET http://127.0.0.1:3847/health`
+
+The sovereign desk UI (`public/index.html`) loads the live queue from SQLite, simulates GHL webhooks, and calls `/queue/:id/authorize` to Ed25519-sign cards and dispatch.
 
 ## Modules
 

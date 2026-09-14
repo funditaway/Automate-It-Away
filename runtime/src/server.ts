@@ -43,7 +43,19 @@ export function createApp(opts: CreateServerOptions = {}): {
   const cardUi = loadCardUiSchema()
 
   const app = express()
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-AIA-Agent')
+    if (req.method === 'OPTIONS') return res.status(204).end()
+    next()
+  })
   app.use(express.json({ limit: '2mb' }))
+
+  const publicDir = join(__dirname, '..', 'public')
+  if (existsSync(publicDir)) {
+    app.use(express.static(publicDir))
+  }
 
   app.get('/health', (_req, res) => {
     res.json({
@@ -246,6 +258,7 @@ export function startServer(opts: CreateServerOptions = {}) {
   const { app, vault, keypair } = createApp({ ...opts, port })
   const server = app.listen(port, '127.0.0.1', () => {
     console.log(`[AIA runtime] listening on http://127.0.0.1:${port}`)
+    console.log(`[AIA runtime] desk UI http://127.0.0.1:${port}/`)
     console.log(`[AIA runtime] vault=${vault.dbPath}`)
     console.log(`[AIA runtime] pubkey=${shortPublicKey(keypair.publicKeyHex)}`)
     console.log(`[AIA runtime] ledgerTip=${vault.ledgerTipHash()}`)
