@@ -1,0 +1,26 @@
+{
+  "title": "Active Decision Card",
+  "subtitle": "Review payload, audit the diff, then authorize with a cryptographic Yes.",
+  "fields": [
+    { "id": "agent", "label": "Agent", "path": "payload.agentId", "kind": "text" },
+    { "id": "pack", "label": "Pack", "path": "payload.packName", "kind": "text" },
+    { "id": "action", "label": "Action", "path": "payload.actionType", "kind": "mono" },
+    { "id": "risk", "label": "Risk", "path": "payload.riskLevel", "kind": "badge" },
+    { "id": "endpoint", "label": "Target endpoint", "path": "payload.targetEndpoint", "kind": "mono" },
+    { "id": "summary", "label": "Summary", "path": "payload.summary", "kind": "text" },
+    { "id": "cost", "label": "Resource cost", "path": "payload.resourceCost", "kind": "cost" },
+    { "id": "when", "label": "Queued", "path": "payload.timestamp", "kind": "time" },
+    { "id": "diff", "label": "Payload diff", "path": "payload.diffData", "kind": "diff" }
+  ],
+  "actions": {
+    "primary": {
+      "id": "yes",
+      "label": "Yes — Authorize & Sign",
+      "shortcut": "⌘↵ / Enter"
+    },
+    "secondary": [
+      { "id": "reject", "label": "Reject" },
+      { "id": "delegate", "label": "Delegate" }
+    ]
+  }
+}
