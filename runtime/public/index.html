@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AIA // Sovereign Desk & GHL Integration Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -53,26 +53,27 @@
 </head>
 <body class="bg-desk-900 text-slate-100 h-[100dvh] flex flex-col overflow-hidden select-none">
 
+    <!-- Top Sovereign Header / Node Telemetry -->
     <header class="h-14 border-b border-desk-700 bg-desk-800/90 backdrop-blur px-4 md:px-6 flex items-center justify-between shrink-0 z-20">
         <div class="flex items-center space-x-3">
             <div class="flex items-center space-x-2">
-                <div id="node-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                <div id="node-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
                 <span class="font-mono font-bold text-xs md:text-sm tracking-widest text-emerald-400">AIA // NODE-01</span>
             </div>
             <span class="text-desk-500 hidden sm:inline">|</span>
             <div class="hidden sm:flex items-center space-x-2 text-xs font-mono text-slate-400">
-                <span>GHL: <strong id="ghl-status" class="text-amber-400">…</strong></span>
+                <span>GHL: <strong id="ghl-status" class="text-indigo-400">SYNCED</strong></span>
                 <span class="text-desk-500">•</span>
-                <span>VAULT: <strong id="vault-status" class="text-amber-400">…</strong></span>
+                <span>VAULT: <strong id="vault-status" class="text-emerald-400">SECURE (AES-256)</strong></span>
             </div>
         </div>
 
         <div class="flex items-center space-x-3">
             <div class="hidden md:flex items-center space-x-2 text-xs font-mono bg-desk-700 px-3 py-1.5 rounded border border-desk-600">
-                <span class="text-slate-400">LEDGER:</span>
+                <span class="text-slate-400">LEDGER HASH:</span>
                 <span id="ledger-hash" class="text-indigo-400 font-semibold">—</span>
             </div>
-            <button id="btn-simulate" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-semibold px-3 py-1.5 rounded transition shadow-lg shadow-indigo-900/30 flex items-center space-x-1.5">
+            <button onclick="app.simulateInboundWebhook()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-semibold px-3 py-1.5 rounded transition shadow-lg shadow-indigo-900/30 flex items-center space-x-1.5">
                 <i data-lucide="webhook" class="w-3.5 h-3.5"></i>
                 <span class="hidden sm:inline">SIMULATE GHL WEBHOOK</span>
                 <span class="sm:hidden">SIM GHL</span>
@@ -80,8 +81,10 @@
         </div>
     </header>
 
+    <!-- Main Workspace Layout -->
     <div class="flex-1 flex overflow-hidden relative">
 
+        <!-- Queue List Pane -->
         <div class="w-full md:w-[380px] border-r border-desk-700 bg-desk-800/40 flex flex-col shrink-0 h-full">
             <div class="p-4 border-b border-desk-700 flex items-center justify-between bg-desk-800/60">
                 <div class="flex items-center space-x-2">
@@ -91,24 +94,29 @@
                 <span id="queue-count" class="font-mono text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-500/30">0</span>
             </div>
 
-            <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-20 md:pb-3"></div>
+            <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-20 md:pb-3">
+                <!-- Populated via JS -->
+            </div>
 
             <div class="p-3 border-t border-desk-700 bg-desk-800/30 text-[11px] font-mono text-slate-500 hidden md:flex justify-between items-center">
                 <span>SHORTCUT: [ENTER] TO SIGN</span>
-                <span id="footer-status" class="text-indigo-400">CONNECTING…</span>
+                <span id="footer-status" class="text-indigo-400">GHL + LOCAL VAULT ACTIVE</span>
             </div>
         </div>
 
+        <!-- Inspector Pane / Mobile Drawer Overlay -->
         <div id="inspector-wrapper" class="absolute inset-0 md:relative md:inset-auto flex-1 bg-desk-900 flex flex-col overflow-hidden transition-transform duration-300 translate-x-full md:translate-x-0 z-30 drawer-slide">
 
+            <!-- Mobile Back Bar -->
             <div class="md:hidden p-4 border-b border-desk-700 bg-desk-800 flex items-center justify-between shrink-0">
-                <button id="btn-back" class="text-xs font-mono text-slate-300 flex items-center space-x-1.5 py-1 px-2 bg-desk-700 rounded border border-desk-600">
+                <button onclick="app.closeMobileInspector()" class="text-xs font-mono text-slate-300 flex items-center space-x-1.5 py-1 px-2 bg-desk-700 rounded border border-desk-600">
                     <i data-lucide="arrow-left" class="w-4 h-4"></i>
                     <span>Back to Queue</span>
                 </button>
                 <span id="mobile-card-id" class="font-mono text-xs text-indigo-400 font-semibold"></span>
             </div>
 
+            <!-- Empty State -->
             <div id="empty-state" class="hidden md:flex absolute inset-0 flex-col items-center justify-center text-center p-8 text-slate-500">
                 <div class="w-16 h-16 rounded-2xl bg-desk-800 border border-desk-700 flex items-center justify-center mb-4 text-slate-600">
                     <i data-lucide="shield-check" class="w-8 h-8"></i>
@@ -117,8 +125,10 @@
                 <p class="text-xs max-w-sm text-slate-500">Select an item from the queue to inspect GoHighLevel payload diffs, verify sandbox logic, and sign with your local keypair.</p>
             </div>
 
+            <!-- Inspector Body -->
             <div id="inspector-content" class="flex-1 flex flex-col h-full overflow-hidden hidden">
 
+                <!-- Inspector Header -->
                 <div class="p-5 md:p-6 border-b border-desk-700 bg-desk-800/40 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
                         <div class="flex items-center space-x-3 mb-2 flex-wrap gap-y-1">
@@ -135,8 +145,10 @@
                     </div>
                 </div>
 
+                <!-- Scrollable Inspector Details -->
                 <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 pb-28 md:pb-6">
 
+                    <!-- Meta Grid -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                         <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
                             <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Target API Endpoint (GHL / Webhook)</div>
@@ -148,11 +160,13 @@
                         </div>
                     </div>
 
+                    <!-- Summary -->
                     <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5 md:p-4">
                         <div class="text-[10px] font-mono text-slate-400 mb-1.5 uppercase tracking-wider">Execution Summary</div>
                         <p id="card-summary" class="text-xs md:text-sm text-slate-300 leading-relaxed"></p>
                     </div>
 
+                    <!-- Payload Diff Viewer -->
                     <div class="space-y-3">
                         <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Payload Diff Inspector (`card_ui.json`)</div>
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 font-mono text-xs">
@@ -173,26 +187,22 @@
                         </div>
                     </div>
 
-                    <div id="last-signature" class="hidden bg-desk-800/60 border border-emerald-900/40 rounded-lg p-3.5">
-                        <div class="text-[10px] font-mono text-emerald-400 mb-1 uppercase tracking-wider">Last Ed25519 Signature</div>
-                        <div id="last-signature-hex" class="font-mono text-[10px] text-slate-300 break-all"></div>
-                    </div>
-
                 </div>
 
+                <!-- Action Footer -->
                 <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-desk-700 bg-desk-800/95 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 z-20">
                     <div class="flex items-center space-x-2 w-full sm:w-auto">
-                        <button id="btn-reject" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-rose-950/40 hover:text-rose-400 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center space-x-2">
+                        <button onclick="app.rejectSelected()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-rose-950/40 hover:text-rose-400 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center space-x-2">
                             <i data-lucide="x" class="w-4 h-4"></i>
                             <span>Reject</span>
                         </button>
-                        <button id="btn-delegate" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-desk-600 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center space-x-2">
+                        <button onclick="app.delegateSelected()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-desk-600 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center space-x-2">
                             <i data-lucide="git-fork" class="w-4 h-4"></i>
                             <span>Delegate</span>
                         </button>
                     </div>
 
-                    <button id="btn-sign" class="w-full sm:w-auto px-6 py-3.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-mono font-bold tracking-wider shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2 group">
+                    <button onclick="app.signSelected()" class="w-full sm:w-auto px-6 py-3.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-mono font-bold tracking-wider shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2 group">
                         <i data-lucide="check-circle-2" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
                         <span>YES: AUTHORIZE & SIGN [ENTER]</span>
                     </button>
@@ -203,6 +213,7 @@
 
     </div>
 
+    <!-- Application Script — wired to local runtime API (SQLite vault + GHL) -->
     <script>
         const API = '';
 
@@ -239,62 +250,16 @@
             }
         ];
 
-        const GHL_SIMULATIONS = [
-            {
-                type: 'ContactCreate',
-                packName: 'GoHighLevel SMS Broadcast',
-                actionType: 'GHL_BULK_SMS_DISPATCH',
-                summary: 'Inbound trigger: Send appointment reminder SMS to 34 contacts scheduled for tomorrow.',
-                suggestedAction: {
-                    method: 'POST',
-                    endpoint: '/conversations/messages',
-                    body: { type: 'SMS', message: 'Reminder: appointment tomorrow', contactIds: 34 }
-                },
-                contact: { id: 'sim-' + Math.random().toString(36).slice(2, 7), tags: ['appointment'], status: 'open' }
-            },
-            {
-                type: 'OpportunityStageUpdate',
-                packName: 'GoHighLevel Opportunity Move',
-                actionType: 'GHL_OPP_PIPELINE_UPDATE',
-                summary: 'Inbound webhook: Move deal stage to "Contract Sent" based on form completion.',
-                suggestedAction: {
-                    method: 'PUT',
-                    endpoint: '/opportunities/update',
-                    body: { stage: 'Contract Sent' }
-                },
-                contact: { id: 'opp-' + Math.random().toString(36).slice(2, 7), tags: ['deal'], status: 'qualified' }
-            },
-            {
-                type: 'ContactTagUpdate',
-                packName: 'GoHighLevel Lead Nurture Pack',
-                actionType: 'GHL_CONTACT_TAG_UPDATE',
-                summary: 'Tag inbound lead and authorize write-back via local vault credential.',
-                suggestedAction: {
-                    method: 'PUT',
-                    endpoint: '/contacts/batch/update',
-                    body: { tags: ['Hot Prospect'] }
-                },
-                contact: { id: 'tag-' + Math.random().toString(36).slice(2, 7), tags: ['inbound_web'], status: 'new' }
-            }
-        ];
-
         class AIAQueueApp {
             constructor() {
                 this.cards = [];
                 this.selectedId = null;
                 this.isMobileInspectorOpen = false;
                 this.busy = false;
-                this.online = false;
                 this.init();
             }
 
-            async init() {
-                document.getElementById('btn-simulate').addEventListener('click', () => this.simulateInboundWebhook());
-                document.getElementById('btn-back').addEventListener('click', () => this.closeMobileInspector());
-                document.getElementById('btn-reject').addEventListener('click', () => this.rejectSelected());
-                document.getElementById('btn-delegate').addEventListener('click', () => this.delegateSelected());
-                document.getElementById('btn-sign').addEventListener('click', () => this.signSelected());
-
+            init() {
                 window.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && this.selectedId && !this.busy) {
                         e.preventDefault();
@@ -304,8 +269,7 @@
                         this.closeMobileInspector();
                     }
                 });
-
-                await this.refresh(true);
+                this.refresh(true);
                 setInterval(() => this.refresh(false), 4000);
             }
 
@@ -314,7 +278,7 @@
                 el.className = 'toast';
                 el.textContent = msg;
                 document.body.appendChild(el);
-                setTimeout(() => el.remove(), 3200);
+                setTimeout(() => el.remove(), 2800);
             }
 
             async api(path, opts = {}) {
@@ -333,14 +297,15 @@
                         this.api('/health'),
                         this.api('/queue?status=pending'),
                     ]);
-                    this.online = true;
                     document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
                     document.getElementById('ghl-status').className = 'text-indigo-400';
-                    document.getElementById('ghl-status').textContent = health.dryRun ? 'DRY-RUN' : 'SYNCED';
+                    document.getElementById('ghl-status').textContent = 'SYNCED';
                     document.getElementById('vault-status').className = 'text-emerald-400';
                     document.getElementById('vault-status').textContent = 'SECURE (AES-256)';
                     document.getElementById('ledger-hash').textContent = health.ledgerTip || queue.ledgerTip || '—';
-                    document.getElementById('footer-status').textContent = 'GHL + LOCAL VAULT ACTIVE';
+                    document.getElementById('footer-status').textContent = health.dryRun
+                        ? 'GHL + LOCAL VAULT ACTIVE (DRY-RUN)'
+                        : 'GHL + LOCAL VAULT ACTIVE';
 
                     this.cards = (queue.cards || []).slice().sort((a, b) => {
                         const order = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -362,7 +327,6 @@
                     }
                     this.render();
                 } catch (err) {
-                    this.online = false;
                     document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
                     document.getElementById('ghl-status').className = 'text-rose-400';
                     document.getElementById('ghl-status').textContent = 'OFFLINE';
@@ -378,24 +342,63 @@
                 if (this.busy) return;
                 this.busy = true;
                 try {
-                    const sample = GHL_SIMULATIONS[Math.floor(Math.random() * GHL_SIMULATIONS.length)];
-                    const contactId = 'sim-' + Math.random().toString(36).slice(2, 8);
-                    const body = {
-                        type: sample.type,
-                        packName: sample.packName,
-                        actionType: sample.actionType,
-                        summary: sample.summary,
-                        contactId,
-                        contact: { ...(sample.contact || {}), id: contactId },
-                        locationId: 'loc-desk-01',
-                        suggestedAction: sample.suggestedAction,
-                    };
-                    const queued = await this.api('/webhook/ghl', { method: 'POST', body: JSON.stringify(body) });
+                    const ghlActions = [
+                        { name: 'GoHighLevel SMS Broadcast', type: 'GHL_BULK_SMS_DISPATCH', risk: 'high', endpoint: 'https://services.leadconnectorhq.com/conversations/messages', desc: 'Inbound trigger: Send appointment reminder SMS to 34 contacts scheduled for tomorrow.', via: 'ghl' },
+                        { name: 'GoHighLevel Opportunity Move', type: 'GHL_OPP_PIPELINE_UPDATE', risk: 'medium', endpoint: 'https://services.leadconnectorhq.com/opportunities/update', desc: 'Inbound webhook: Move deal stage to "Contract Sent" based on form completion.', via: 'ghl' },
+                        { name: 'Autonomous Vault Transfer', type: 'SOL_VAULT_TRANSFER', risk: 'critical', endpoint: '0x49B...C102 (Mainnet Vault)', desc: 'Agent logic.js requests emergency liquidity allocation for arbitrage execution.', via: 'queue' }
+                    ];
+                    const sample = ghlActions[Math.floor(Math.random() * ghlActions.length)];
+                    let cardId;
+
+                    if (sample.via === 'ghl') {
+                        const contactId = 'sim-' + Math.random().toString(36).slice(2, 8);
+                        const queued = await this.api('/webhook/ghl', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                type: sample.type.includes('SMS') ? 'ContactCreate' : 'OpportunityStageUpdate',
+                                packName: sample.name,
+                                actionType: sample.type,
+                                summary: sample.desc,
+                                contactId,
+                                contact: { id: contactId, tags: ['inbound'], status: 'open' },
+                                locationId: 'loc-desk-01',
+                                suggestedAction: {
+                                    method: sample.type.includes('SMS') ? 'POST' : 'PUT',
+                                    endpoint: sample.endpoint.replace('https://services.leadconnectorhq.com', ''),
+                                    body: { source: 'desk-terminal-sim' },
+                                },
+                            }),
+                        });
+                        cardId = queued.cardId;
+                    } else {
+                        const created = await this.api('/queue', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                payload: {
+                                    agentId: 'agent_' + Math.random().toString(36).substring(2, 8),
+                                    packName: sample.name,
+                                    actionType: sample.type,
+                                    riskLevel: sample.risk,
+                                    targetEndpoint: sample.endpoint,
+                                    summary: sample.desc,
+                                    diffData: {
+                                        before: { executionStatus: 'paused_in_sandbox', auditLocked: true },
+                                        after: { executionStatus: 'authorized_dispatch', signaturePending: true },
+                                    },
+                                    resourceCost: { amount: (Math.random() * 0.04).toFixed(3), token: 'ETH' },
+                                    source: 'sandbox',
+                                    timestamp: Date.now(),
+                                },
+                            }),
+                        });
+                        cardId = created.card.cardId;
+                    }
+
                     await this.refresh(false);
-                    this.selectedId = queued.cardId;
+                    this.selectedId = cardId;
                     if (window.innerWidth < 768) this.openMobileInspector();
                     this.render();
-                    this.toast('Queued ' + queued.cardId.slice(0, 18) + '…');
+                    this.toast('Queued ' + String(cardId).slice(0, 18) + '…');
                 } catch (err) {
                     this.toast(err.message || 'Simulate failed');
                 } finally {
@@ -430,12 +433,8 @@
                 try {
                     const result = await this.api('/queue/' + encodeURIComponent(cardId) + '/authorize', { method: 'POST' });
                     if (navigator.vibrate) navigator.vibrate(40);
-                    const sigEl = document.getElementById('last-signature');
-                    const sigHex = document.getElementById('last-signature-hex');
-                    sigEl.classList.remove('hidden');
-                    sigHex.textContent = result.signature;
-                    this.toast('Signed · ledger #' + result.provenanceId + (result.dispatch?.dryRun ? ' · dry-run dispatch' : ''));
                     document.getElementById('ledger-hash').textContent = result.ledgerTip || '—';
+                    this.toast('Signed · ledger #' + result.provenanceId + (result.dispatch?.dryRun ? ' · dry-run' : ''));
                     await this.refresh(false);
                     if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
                 } catch (err) {
@@ -466,7 +465,7 @@
                 this.busy = true;
                 try {
                     await this.api('/queue/' + encodeURIComponent(cardId) + '/delegate', { method: 'POST' });
-                    this.toast('Delegated ' + cardId.slice(0, 18) + '…');
+                    this.toast('Delegated ' + String(cardId).slice(0, 18) + '…');
                     await this.refresh(false);
                     if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
                 } catch (err) {
@@ -498,7 +497,7 @@
                         }[c.payload.riskLevel] || 'bg-desk-700 text-slate-300 border-desk-600';
 
                         return `
-                            <div data-card-id="${c.cardId}" class="queue-item p-3.5 rounded-xl border transition cursor-pointer font-mono text-xs ${isSelected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/50' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'}">
+                            <div onclick="app.selectCard('${c.cardId}')" class="p-3.5 rounded-xl border transition cursor-pointer font-mono text-xs ${isSelected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/50' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'}">
                                 <div class="flex items-center justify-between mb-2">
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${riskColors}">${c.payload.riskLevel}</span>
                                     <span class="text-[10px] text-slate-500">${new Date(c.payload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
@@ -508,9 +507,6 @@
                             </div>
                         `;
                     }).join('');
-                    listEl.querySelectorAll('.queue-item').forEach((el) => {
-                        el.addEventListener('click', () => this.selectCard(el.getAttribute('data-card-id')));
-                    });
                 }
 
                 const emptyStateEl = document.getElementById('empty-state');

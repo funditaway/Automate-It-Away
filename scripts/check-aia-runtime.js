@@ -34,7 +34,7 @@ function mustExist(rel) {
 ].forEach(mustExist)
 
 const terminal = fs.readFileSync(path.join(runtime, 'public/index.html'), 'utf8')
-;['SIMULATE GHL WEBHOOK', '/webhook/ghl', '/queue/', 'AUTHORIZE & SIGN', 'Active Decision Queue'].forEach((bit) => {
+;['SIMULATE GHL WEBHOOK', '/webhook/ghl', '/queue/', 'AUTHORIZE & SIGN', 'Active Decision Queue', 'LEDGER HASH'].forEach((bit) => {
   if (terminal.indexOf(bit) < 0) fail('public/index.html missing ' + bit)
 })
 
