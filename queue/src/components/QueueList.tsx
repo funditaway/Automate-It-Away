@@ -30,6 +30,7 @@ function QueueListItem({ card, selected, exiting, onSelect, onExitDone }: QueueL
   return (
     <button
       type="button"
+      data-queue-item={card.cardId}
       onClick={onSelect}
       aria-pressed={selected}
       className={`group relative w-full rounded-xl border px-3.5 py-3 text-left transition-all duration-300 ease-out ${

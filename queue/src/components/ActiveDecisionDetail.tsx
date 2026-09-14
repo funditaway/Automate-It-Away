@@ -105,6 +105,7 @@ export function ActiveDecisionDetail({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              data-queue-action="delegate"
               onClick={onDelegate}
               className="rounded-xl border border-[var(--line)] bg-transparent px-4 py-2.5 text-sm font-semibold text-[var(--muted)] transition hover:border-sky-400/40 hover:text-sky-200"
             >
@@ -112,6 +113,7 @@ export function ActiveDecisionDetail({
             </button>
             <button
               type="button"
+              data-queue-action="reject"
               onClick={onReject}
               className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
             >
@@ -119,6 +121,7 @@ export function ActiveDecisionDetail({
             </button>
             <button
               type="button"
+              data-queue-action="yes"
               onClick={onSign}
               className="yes-btn rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 px-5 py-2.5 text-sm font-bold text-[#042f2e] shadow-[0_10px_28px_rgba(13,107,107,0.35)] transition hover:brightness-110 active:scale-[0.98]"
             >

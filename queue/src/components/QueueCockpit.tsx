@@ -28,11 +28,19 @@ export function QueueCockpit() {
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
           return
         }
+        // Let Reject / Delegate (and Yes) handle their own activation — do not also sign.
+        if (target.closest('[data-queue-action]')) {
+          return
+        }
       }
       const isEnter = e.key === 'Enter'
       const isCmdEnter = isEnter && (e.metaKey || e.ctrlKey)
       if (isEnter || isCmdEnter) {
         e.preventDefault()
+        // If a queue row still has focus, blur so Enter does not re-toggle selection.
+        if (target?.closest('[data-queue-item]')) {
+          target.blur()
+        }
         const sig = signCard(selectedCardId)
         if (sig) {
           setFlash(`Signed · ${sig.slice(0, 22)}…`)
