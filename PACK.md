@@ -165,6 +165,8 @@ Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on 
 
 More leftover: `/more` `#grok-line` Yes or Stop, not “You send them. Or you Stop.” Default and grok-on name the rail. Send-it-yourself stays. Packs still never Send. Collect HOLD. No silent send.
 
+More page tips leftover: `/more` face copy is short. Dense Cap / Open / gone HOLD / payout / wallet honesty lives in `?` / Ask AIA tips. Find on More narrows the list. Yes / Stop stay human. Collect HOLD. No silent send.
+
 Pipes placeholder leftover: Search and On this desk webhook take a full row so the honest placeholder is not clipped on a phone. Same copy. Collect HOLD. No silent send.
 
 Pipes field tips leftover: `/pipes` and `/connections` tap `?` like How / Drop / Help. Unused `"pipes"` tip is on Search, any-site, webhook, and inbound hook. Desk name / Desk code match Drop / Login. Collect HOLD. No silent send.

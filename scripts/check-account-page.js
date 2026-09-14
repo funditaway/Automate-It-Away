@@ -41,6 +41,7 @@ const account = read("account.html");
 const http = read("api/_account-http.js");
 const help = read("help.html");
 const more = read("more.html");
+const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
@@ -88,11 +89,13 @@ if (help.indexOf("Account lists phones on this account") < 0 || help.indexOf("le
 if (help.indexOf("Authenticator stays HOLD") < 0) fail("help Login must keep authenticator HOLD");
 else pass("help Login keeps authenticator HOLD");
 
-if (more.indexOf("phones on this account") < 0 || more.indexOf("export the book") < 0 || more.indexOf("leave this phone or every phone") < 0) {
-  fail("more.html Account must name phones / export / leave every phone");
-} else pass("more.html names the account trail");
-if (more.indexOf("authenticator HOLD") < 0) fail("more.html Account must keep authenticator HOLD");
-else pass("more.html keeps authenticator HOLD");
+if (moreTips.indexOf("phones on this account") < 0 || moreTips.indexOf("export the book") < 0 || moreTips.indexOf("leave this phone or every phone") < 0) {
+  fail("more Account tip must name phones / export / leave every phone");
+} else pass("more Account tip names the account trail");
+if (moreTips.indexOf("authenticator HOLD") < 0) fail("more Account tip must keep authenticator HOLD");
+else pass("more Account tip keeps authenticator HOLD");
+if (more.indexOf('data-aia-tip="more-account"') < 0) fail("more.html must wire more-account tip");
+else pass("more.html wires more-account tip");
 
 if (yesNo.indexOf("check-account-page.js") < 0) fail("ACCOUNT-YES-NO must record the Account phones leftover");
 else pass("ACCOUNT-YES-NO records the leftover");

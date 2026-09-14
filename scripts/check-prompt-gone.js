@@ -25,6 +25,7 @@ function read(rel) {
 const needs = read("desk-needs.js");
 const help = read("help.html");
 const more = read("more.html");
+const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
@@ -59,9 +60,11 @@ if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge|silent send/i.tes
 if (help.indexOf("Needs you and the prompt reply") < 0 || help.indexOf("The desk AI asked") < 0) {
   fail("help#desk-cards must name gone Needs you / prompt HOLD");
 } else pass("help names gone Needs you / prompt HOLD");
-if (more.indexOf("Needs you / prompt ask-who") < 0 || more.indexOf("not anonymous desk AI") < 0) {
-  fail("more.html Queue must name gone Needs you / prompt HOLD");
-} else pass("more.html names gone Needs you / prompt HOLD");
+if (moreTips.indexOf("Needs you / prompt ask-who") < 0 || moreTips.indexOf("not anonymous desk AI") < 0) {
+  fail("more Queue tip must name gone Needs you / prompt HOLD");
+} else pass("more Queue tip names gone Needs you / prompt HOLD");
+if (more.indexOf('data-aia-tip="more-queue"') < 0) fail("more.html must wire more-queue tip");
+else pass("more.html wires more-queue tip");
 if (yesNo.indexOf("check-prompt-gone.js") < 0) fail("ACCOUNT-YES-NO must record prompt gone HOLD");
 else pass("ACCOUNT-YES-NO records prompt gone HOLD");
 if (pkg.indexOf("check-prompt-gone.js") < 0) fail("package.json must run check-prompt-gone");
