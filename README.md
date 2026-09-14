@@ -30,3 +30,13 @@ Store: file or `/tmp` until `BLOB_READ_WRITE_TOKEN` is set. Then jobs and worksp
 
 First vertical pack: `packs/consign.json`.
 World login: `/login.html` (slug + pin). New desk: `/onboard.html`. Rules: `/rules.html`.
+
+## Local runtime (SQLite vault + GHL bridge)
+
+Sovereign desk services live in `runtime/` — local SQLite vault, Ed25519 provenance ledger, sandbox IPC for `logic.js`, and GoHighLevel webhook ingest on `127.0.0.1:3847`.
+
+```bash
+cd runtime && npm install && npm run dev
+```
+
+See `runtime/README.md`.
