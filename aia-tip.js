@@ -248,7 +248,7 @@
     },
     "more-history": {
       title: "History",
-      body: "On the tab bar. What this desk did. This account’s past / now / next. Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card — including pipe WIP / note / follow / tell. Copy story copies that same trail. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Filter by desk. Links only when a draft used the web. Empty stays empty. Nothing sends from here.",
+      body: "On the tab bar. What this desk did — real cards only. This account’s past / now / next. Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card — including pipe WIP / note / follow / tell. Copy story copies that same trail. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Filter by desk. Links only when a draft used the web. Empty stays empty. Nothing sends from here.",
       ask: "What is History?"
     },
     "more-pipes": {

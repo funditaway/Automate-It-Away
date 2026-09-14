@@ -18,7 +18,7 @@ function laneLabel(lane) {
     need: "Need you",
     doing: "In progress",
     wait: "Waiting on",
-    ext: "Ext",
+    ext: "Off desk",
     done: "Done",
     stopped: "Stopped",
     desk: "Desk",
