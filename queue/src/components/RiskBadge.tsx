@@ -8,10 +8,10 @@ interface RiskBadgeProps {
 
 export function RiskBadge({ level, size = 'sm' }: RiskBadgeProps) {
   const style = RISK_STYLES[level]
-  const pad = size === 'md' ? 'px-2.5 py-0.5' : 'px-2 py-0.5'
+  const pad = size === 'md' ? 'min-h-11 px-3 py-2 text-[11px]' : 'min-h-8 px-2.5 py-1.5 text-[10px]'
   return (
     <span
-      className={`inline-flex items-center rounded font-mono text-[10px] font-bold uppercase tracking-wide ${pad} ${style.badge} ${style.glow ? 'critical-glow' : ''}`}
+      className={`inline-flex items-center justify-center rounded-md font-mono font-bold uppercase tracking-wide ${pad} ${style.badge} ${style.glow ? 'critical-glow' : ''}`}
     >
       {style.label}
     </span>

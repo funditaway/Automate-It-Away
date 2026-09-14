@@ -1,11 +1,19 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-desk-900: #090a0f;
-  --color-desk-800: #12141c;
-  --color-desk-700: #1b1e2b;
-  --color-desk-600: #262a3a;
-  --color-desk-500: #383e54;
+  --color-aia-teal: #0d6b6b;
+  --color-aia-teal-deep: #0a4f4f;
+  --color-aia-teal-bright: #1a8a8a;
+  --color-aia-orange: #f39c12;
+  --color-aia-night: #0c1116;
+  --color-aia-day: #eef4f6;
+  --color-aia-ink: #1a2332;
+  --color-aia-alert: #c0392b;
+  --color-desk-900: #0c1116;
+  --color-desk-800: #141a22;
+  --color-desk-700: #1e2630;
+  --color-desk-600: #2a3440;
+  --color-desk-500: #3d4a58;
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -18,12 +26,13 @@ body,
 
 body {
   margin: 0;
-  background: #090a0f;
+  background: var(--color-aia-night);
   color: #e2e8f0;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .font-mono {
@@ -35,23 +44,23 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090a0f;
+  background: #0c1116;
 }
 ::-webkit-scrollbar-thumb {
-  background: #262a3a;
+  background: #2a3440;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #383e54;
+  background: #3d4a58;
 }
 
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+    box-shadow: 0 0 15px rgba(192, 57, 43, 0.25);
   }
   50% {
-    box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 28px rgba(243, 156, 18, 0.35);
   }
 }
 
@@ -83,4 +92,45 @@ body {
 
 .toast-in {
   animation: toast-in 0.3s ease-out;
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sheet-up {
+  animation: sheet-up 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.backdrop-in {
+  animation: backdrop-in 0.25s ease-out;
+}
+
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }

@@ -13,20 +13,20 @@ export const RISK_STYLES: Record<
 > = {
   critical: {
     label: 'critical',
-    badge: 'bg-rose-500/20 text-rose-300 border border-rose-500/40',
+    badge: 'bg-aia-alert/20 text-red-300 border border-aia-alert/45',
     glow: true,
   },
   high: {
     label: 'high',
-    badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/40',
+    badge: 'bg-aia-orange/20 text-aia-orange border border-aia-orange/45',
   },
   medium: {
     label: 'medium',
-    badge: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40',
+    badge: 'bg-aia-teal/20 text-teal-300 border border-aia-teal/45',
   },
   low: {
     label: 'low',
-    badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
+    badge: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/35',
   },
 }
 
