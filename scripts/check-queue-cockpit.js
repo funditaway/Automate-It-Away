@@ -34,19 +34,24 @@ const types = fs.readFileSync(path.join(queue, 'src/types.ts'), 'utf8')
   'export type RiskLevel',
   'export interface DecisionCardPayload',
   'export interface ActiveDecisionCard',
-  "riskLevel: RiskLevel",
-  "status: DecisionCardStatus",
+  'riskLevel: RiskLevel',
+  'status: DecisionCardStatus',
 ].forEach((bit) => {
   if (types.indexOf(bit) < 0) fail('types.ts missing ' + bit)
 })
 if (/Record<string,\s*any>/.test(types)) fail('types.ts must not use any')
 
 const store = fs.readFileSync(path.join(queue, 'src/store/useQueueStore.ts'), 'utf8')
-;['enqueueCard', 'signCard', 'rejectCard', 'delegateCard', 'compareRiskThenFifo', 'generateMockSignature'].forEach(
-  (bit) => {
-    if (store.indexOf(bit) < 0) fail('useQueueStore missing ' + bit)
-  },
-)
+;[
+  'enqueueCard',
+  'signCard',
+  'rejectCard',
+  'delegateCard',
+  'compareRiskThenFifo',
+  'generateMockSignature',
+].forEach((bit) => {
+  if (store.indexOf(bit) < 0) fail('useQueueStore missing ' + bit)
+})
 
 const cockpit = fs.readFileSync(path.join(queue, 'src/components/QueueCockpit.tsx'), 'utf8')
 ;['signCard', 'keydown', 'Enter', 'QueueList', 'ActiveDecisionDetail'].forEach((bit) => {

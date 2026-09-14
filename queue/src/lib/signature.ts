@@ -1,6 +1,6 @@
 /** Mock cryptographic signature: 64-byte hex digest shaped like an Ed25519/HMAC seal. */
-export function generateMockSignature(cardId: string, payloadDigest: string): string {
-  const seed = `${cardId}:${payloadDigest}:${Date.now()}:${Math.random().toString(36)}`
+export function generateMockSignature(cardId: string, digest: string): string {
+  const seed = `${cardId}:${digest}:${Date.now()}:${Math.random().toString(36)}`
   let h1 = 0x811c9dc5
   let h2 = 0x01000193
   for (let i = 0; i < seed.length; i += 1) {

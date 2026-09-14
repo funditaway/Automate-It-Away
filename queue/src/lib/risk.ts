@@ -9,27 +9,24 @@ export const RISK_ORDER: Record<RiskLevel, number> = {
 
 export const RISK_STYLES: Record<
   RiskLevel,
-  { label: string; className: string; pip: string }
+  { label: string; badge: string; glow?: boolean }
 > = {
   critical: {
-    label: 'Critical',
-    className: 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/40',
-    pip: 'bg-rose-400',
+    label: 'critical',
+    badge: 'bg-rose-500/20 text-rose-300 border border-rose-500/40',
+    glow: true,
   },
   high: {
-    label: 'High',
-    className: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40',
-    pip: 'bg-amber-400',
+    label: 'high',
+    badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/40',
   },
   medium: {
-    label: 'Medium',
-    className: 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/35',
-    pip: 'bg-sky-400',
+    label: 'medium',
+    badge: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40',
   },
   low: {
-    label: 'Low',
-    className: 'bg-teal-500/15 text-teal-300 ring-1 ring-teal-500/35',
-    pip: 'bg-teal-400',
+    label: 'low',
+    badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
   },
 }
 

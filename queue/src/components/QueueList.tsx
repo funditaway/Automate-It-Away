@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { agentDisplayName, formatTimestamp, relativeAge } from '../lib/format'
-import { compareRiskThenFifo } from '../lib/risk'
+import { formatClock, relativeAge } from '../lib/format'
+import { compareRiskThenFifo, RISK_STYLES } from '../lib/risk'
 import { useQueueStore } from '../store/useQueueStore'
 import type { ActiveDecisionCard } from '../types'
 import { RiskBadge } from './RiskBadge'
@@ -21,11 +21,13 @@ function QueueListItem({ card, selected, exiting, onSelect, onExitDone }: QueueL
     const t = window.setTimeout(() => {
       setGone(true)
       onExitDone()
-    }, 320)
+    }, 280)
     return () => window.clearTimeout(t)
   }, [exiting, onExitDone])
 
   if (gone) return null
+
+  const risk = RISK_STYLES[card.payload.riskLevel]
 
   return (
     <button
@@ -33,29 +35,21 @@ function QueueListItem({ card, selected, exiting, onSelect, onExitDone }: QueueL
       data-queue-item={card.cardId}
       onClick={onSelect}
       aria-pressed={selected}
-      className={`group relative w-full rounded-xl border px-3.5 py-3 text-left transition-all duration-300 ease-out ${
+      className={`w-full rounded-xl border p-3.5 text-left font-mono text-xs transition ${
         exiting
-          ? 'pointer-events-none translate-x-6 opacity-0'
+          ? 'queue-exit pointer-events-none'
           : selected
-            ? 'border-teal-400/50 bg-teal-500/10 shadow-[0_0_0_1px_rgba(45,212,191,0.18)]'
-            : 'border-[var(--line)] bg-[var(--panel)] hover:border-teal-500/30 hover:bg-[var(--panel-hover)]'
-      }`}
+            ? 'border-indigo-500/50 bg-desk-700/80 shadow-md shadow-indigo-950/50'
+            : 'border-desk-700/60 bg-desk-800/40 hover:border-desk-600 hover:bg-desk-700/40'
+      } ${!exiting && !selected && risk.glow ? 'critical-glow' : ''}`}
     >
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <span className="font-[family-name:var(--font-display)] text-[15px] font-semibold tracking-tight text-[var(--ink)]">
-          {agentDisplayName(card.payload.agentId)}
-        </span>
+      <div className="mb-2 flex items-center justify-between gap-2">
         <RiskBadge level={card.payload.riskLevel} />
+        <span className="text-[10px] text-slate-500">{formatClock(card.payload.timestamp)}</span>
       </div>
-      <p className="truncate font-mono text-[11px] uppercase tracking-[0.06em] text-teal-300/80">
-        {card.payload.actionType}
-      </p>
-      <p
-        className="mt-1.5 text-[12px] text-[var(--muted)]"
-        title={formatTimestamp(card.payload.timestamp)}
-      >
-        {relativeAge(card.payload.timestamp)} · {card.payload.packName}
-      </p>
+      <div className="mb-1 truncate font-semibold text-slate-200">{card.payload.packName}</div>
+      <div className="truncate text-[11px] text-slate-400">{card.payload.actionType}</div>
+      <div className="mt-1.5 text-[10px] text-slate-600">{relativeAge(card.payload.timestamp)}</div>
     </button>
   )
 }
@@ -67,33 +61,34 @@ export function QueueList() {
   const selectCard = useQueueStore((s) => s.selectCard)
   const clearExiting = useQueueStore((s) => s.clearExiting)
 
-  const ordered = useMemo(() => {
-    return cards
-      .filter((c) => c.status === 'pending' || exitingCardIds.includes(c.cardId))
-      .slice()
-      .sort((a, b) =>
-        compareRiskThenFifo(
-          a.payload.riskLevel,
-          a.payload.timestamp,
-          b.payload.riskLevel,
-          b.payload.timestamp,
+  const ordered = useMemo(
+    () =>
+      cards
+        .filter((c) => c.status === 'pending' || exitingCardIds.includes(c.cardId))
+        .slice()
+        .sort((a, b) =>
+          compareRiskThenFifo(
+            a.payload.riskLevel,
+            a.payload.timestamp,
+            b.payload.riskLevel,
+            b.payload.timestamp,
+          ),
         ),
-      )
-  }, [cards, exitingCardIds])
+    [cards, exitingCardIds],
+  )
 
   if (ordered.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[var(--line)] bg-[var(--panel)]/60 px-4 py-10 text-center">
-        <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">
-          Queue clear
-        </p>
-        <p className="mt-1 text-sm text-[var(--muted)]">No pending decisions. Agents idle.</p>
+      <div className="py-12 text-center font-mono text-xs text-slate-500">
+        <div className="mb-2 text-2xl text-emerald-500/50">✓</div>
+        QUEUE CLEAR
+        <div className="mt-1 text-[10px] text-slate-600">All agent swarms synced</div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-2.5" role="listbox" aria-label="Decision queue">
+    <div className="space-y-2.5" role="listbox" aria-label="Active decision queue">
       {ordered.map((card) => (
         <QueueListItem
           key={card.cardId}

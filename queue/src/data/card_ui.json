@@ -1,26 +1,26 @@
 {
   "title": "Active Decision Card",
-  "subtitle": "Review payload, audit the diff, then authorize with a cryptographic Yes.",
+  "subtitle": "Inspect payload diffs and cryptographically authorize agent execution.",
   "fields": [
-    { "id": "agent", "label": "Agent", "path": "payload.agentId", "kind": "text" },
+    { "id": "agent", "label": "Agent ID", "path": "payload.agentId", "kind": "mono" },
     { "id": "pack", "label": "Pack", "path": "payload.packName", "kind": "text" },
     { "id": "action", "label": "Action", "path": "payload.actionType", "kind": "mono" },
     { "id": "risk", "label": "Risk", "path": "payload.riskLevel", "kind": "badge" },
-    { "id": "endpoint", "label": "Target endpoint", "path": "payload.targetEndpoint", "kind": "mono" },
-    { "id": "summary", "label": "Summary", "path": "payload.summary", "kind": "text" },
-    { "id": "cost", "label": "Resource cost", "path": "payload.resourceCost", "kind": "cost" },
+    { "id": "endpoint", "label": "Target Endpoint", "path": "payload.targetEndpoint", "kind": "mono" },
+    { "id": "summary", "label": "Execution Summary", "path": "payload.summary", "kind": "text" },
+    { "id": "cost", "label": "Resource Cost", "path": "payload.resourceCost", "kind": "cost" },
     { "id": "when", "label": "Queued", "path": "payload.timestamp", "kind": "time" },
-    { "id": "diff", "label": "Payload diff", "path": "payload.diffData", "kind": "diff" }
+    { "id": "diff", "label": "Payload Diff Inspector", "path": "payload.diffData", "kind": "diff" }
   ],
   "actions": {
     "primary": {
       "id": "yes",
-      "label": "Yes — Authorize & Sign",
-      "shortcut": "⌘↵ / Enter"
+      "label": "YES: AUTHORIZE & SIGN",
+      "shortcut": "ENTER"
     },
     "secondary": [
-      { "id": "reject", "label": "Reject" },
-      { "id": "delegate", "label": "Delegate" }
+      { "id": "reject", "label": "Reject & Abort" },
+      { "id": "delegate", "label": "Delegate to Sub-Agent" }
     ]
   }
 }
