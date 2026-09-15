@@ -3,7 +3,14 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { VaultDb } from './db.js'
-import type { ActiveDecisionCard, CardUiSchema, DecisionCardPayload, RiskLevel, SandboxRequest } from './types.js'
+import {
+  buildWorkerContext,
+  inferSandboxRisk,
+  packageSensitiveRequest,
+  type HostToWorkerMessage,
+  type WorkerToHostMessage,
+} from './sandboxWorker.js'
+import type { ActiveDecisionCard, CardUiSchema, DecisionCardPayload, SandboxRequest } from './types.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -32,35 +39,27 @@ export function loadCardUiSchema(path?: string): CardUiSchema {
   }
 }
 
-function inferRisk(url: string, method: string): RiskLevel {
-  const u = url.toLowerCase()
-  const m = method.toUpperCase()
-  if (/delete|purge|destroy|wipe/.test(u) || m === 'DELETE') return 'critical'
-  if (/contacts|opportunities|conversations|campaigns|workflows/.test(u)) return 'high'
-  if (m === 'POST' || m === 'PUT' || m === 'PATCH') return 'medium'
-  return 'low'
-}
-
 function buildPayload(
   agentId: string,
   packName: string,
   req: SandboxRequest,
   cardUi: CardUiSchema,
 ): DecisionCardPayload {
-  const method = (req.method || 'POST').toUpperCase()
-  const riskLevel = req.riskLevel || inferRisk(req.url, method)
+  const packaged = packageSensitiveRequest(req)
+  const method = packaged.method || 'POST'
+  const riskLevel = packaged.riskLevel || inferSandboxRisk(packaged.url, method)
   return {
     agentId,
     packName,
-    actionType: req.actionType || `SANDBOX_${method}`,
+    actionType: packaged.actionType || `SANDBOX_${method}`,
     riskLevel,
-    targetEndpoint: req.url,
+    targetEndpoint: packaged.url,
     method,
-    body: req.body,
-    headers: req.headers,
+    body: packaged.body,
+    headers: packaged.headers,
     summary:
-      req.summary ||
-      `${cardUi.title}: agent ${agentId} requests ${method} ${req.url}`,
+      packaged.summary ||
+      `${cardUi.title}: agent ${agentId} requests ${method} ${packaged.url}`,
     diffData: {
       before: { authorized: false, status: 'paused' },
       after: { authorized: true, status: 'awaiting_human' },
@@ -75,9 +74,20 @@ export interface SandboxRunOptions {
   packName?: string
   scriptPath: string
   context?: Record<string, unknown>
+  /** Synthesized meta-prompt injected into logic.js context */
+  metaPrompt?: {
+    templateId?: string
+    systemPrompt?: string
+    agentInstructions?: string
+    constraints?: string[]
+    outputSchema?: Record<string, unknown>
+    sandboxContext?: Record<string, unknown>
+  }
   /** How long to wait for human auth per intercepted call */
   authTimeoutMs?: number
   cardUiPath?: string
+  /** Invoked when a sensitive call is packaged into an Active Decision Card */
+  onCardQueued?: (card: ActiveDecisionCard) => void
 }
 
 export interface SandboxRunResult {
@@ -98,20 +108,24 @@ export class SandboxManager {
     const cardUi = loadCardUiSchema(opts.cardUiPath)
     const scriptSource = readFileSync(opts.scriptPath, 'utf8')
     const cards: ActiveDecisionCard[] = []
-    const workerPath = join(__dirname, 'sandboxWorker.js')
-    if (!existsSync(workerPath)) {
+    const workerPath = [
+      join(__dirname, 'sandboxWorkerEntry.js'),
+      join(__dirname, 'sandboxWorker.js'),
+    ].find((p) => existsSync(p))
+    if (!workerPath) {
       return Promise.resolve({
         ok: false,
         cards,
-        error: `sandboxWorker missing at ${workerPath}`,
+        error: `sandboxWorkerEntry missing under ${__dirname}`,
       })
     }
 
     return new Promise((resolve) => {
+      const workerContext = buildWorkerContext(opts.context || {}, opts.metaPrompt)
       const worker = new Worker(workerPath, {
         workerData: {
           scriptSource,
-          context: opts.context || {},
+          context: workerContext,
           scriptPath: opts.scriptPath,
         },
       })
@@ -124,7 +138,7 @@ export class SandboxManager {
         resolve(out)
       }
 
-      worker.on('message', (msg: { type: string; request?: SandboxRequest; requestId?: string; result?: unknown; error?: string }) => {
+      worker.on('message', (msg: WorkerToHostMessage) => {
         void (async () => {
           if (msg.type === 'sensitive_request' && msg.request && msg.requestId) {
             const payload = buildPayload(
@@ -133,37 +147,40 @@ export class SandboxManager {
               msg.request,
               cardUi,
             )
+            // Sovereign boundary: enqueue Active Decision Card; never call out yet
             const card = this.vault.enqueueCard(payload)
             cards.push(card)
+            opts.onCardQueued?.(card)
             try {
               const resolved = await this.vault.waitForResolution(card.cardId, {
                 timeoutMs: opts.authTimeoutMs ?? 300_000,
               })
               cards[cards.length - 1] = resolved
-              if (resolved.status === 'signed' || resolved.status === 'dispatched') {
-                worker.postMessage({
-                  type: 'auth_result',
-                  requestId: msg.requestId,
-                  authorized: true,
-                  cardId: resolved.cardId,
-                  signature: resolved.signature,
-                })
-              } else {
-                worker.postMessage({
-                  type: 'auth_result',
-                  requestId: msg.requestId,
-                  authorized: false,
-                  cardId: resolved.cardId,
-                  reason: resolved.status,
-                })
-              }
+              const reply: HostToWorkerMessage =
+                resolved.status === 'signed' || resolved.status === 'dispatched'
+                  ? {
+                      type: 'auth_result',
+                      requestId: msg.requestId,
+                      authorized: true,
+                      cardId: resolved.cardId,
+                      signature: resolved.signature,
+                    }
+                  : {
+                      type: 'auth_result',
+                      requestId: msg.requestId,
+                      authorized: false,
+                      cardId: resolved.cardId,
+                      reason: resolved.status,
+                    }
+              worker.postMessage(reply)
             } catch (err) {
-              worker.postMessage({
+              const reply: HostToWorkerMessage = {
                 type: 'auth_result',
                 requestId: msg.requestId,
                 authorized: false,
                 reason: err instanceof Error ? err.message : String(err),
-              })
+              }
+              worker.postMessage(reply)
             }
             return
           }

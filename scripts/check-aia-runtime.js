@@ -22,8 +22,11 @@ function mustExist(rel) {
   'package.json',
   'src/db.ts',
   'src/crypto.ts',
+  'src/promptSynthesizer.ts',
+  'src/recommendationEngine.ts',
   'src/sandboxManager.ts',
-  'src/sandboxWorker.js',
+  'src/sandboxWorker.ts',
+  'src/sandboxWorkerEntry.js',
   'src/server.ts',
   'src/ghl.ts',
   'src/types.ts',
@@ -48,13 +51,28 @@ const cryptoSrc = fs.readFileSync(path.join(runtime, 'src/crypto.ts'), 'utf8')
   if (cryptoSrc.indexOf(bit) < 0) fail('crypto.ts missing ' + bit)
 })
 
+const synth = fs.readFileSync(path.join(runtime, 'src/promptSynthesizer.ts'), 'utf8')
+;['synthesizeMetaPrompt', 'compileTemplate', 'PROMPT_TEMPLATES', 'selectTemplate'].forEach((bit) => {
+  if (synth.indexOf(bit) < 0) fail('promptSynthesizer.ts missing ' + bit)
+})
+
+const rec = fs.readFileSync(path.join(runtime, 'src/recommendationEngine.ts'), 'utf8')
+;['recommendNextActions', 'enqueueRecommendations', 'source: \'recommendation\''].forEach((bit) => {
+  if (rec.indexOf(bit) < 0) fail('recommendationEngine.ts missing ' + bit)
+})
+
+const sandboxProto = fs.readFileSync(path.join(runtime, 'src/sandboxWorker.ts'), 'utf8')
+;['requiresAuthorization', 'packageSensitiveRequest', 'isSensitiveUrl', 'Active Decision'].forEach((bit) => {
+  if (sandboxProto.indexOf(bit) < 0) fail('sandboxWorker.ts missing ' + bit)
+})
+
 const sandbox = fs.readFileSync(path.join(runtime, 'src/sandboxManager.ts'), 'utf8')
-;['Worker', 'enqueueCard', 'waitForResolution', 'card_ui'].forEach((bit) => {
+;['Worker', 'enqueueCard', 'waitForResolution', 'card_ui', 'buildWorkerContext'].forEach((bit) => {
   if (sandbox.indexOf(bit) < 0) fail('sandboxManager.ts missing ' + bit)
 })
 
 const server = fs.readFileSync(path.join(runtime, 'src/server.ts'), 'utf8')
-;['/webhook/ghl', '3847', 'authorize', 'leadconnectorhq', 'appendProvenance'].forEach((bit) => {
+;['/webhook/ghl', '3847', 'authorize', 'leadconnectorhq', 'appendProvenance', 'synthesizeMetaPrompt', 'enqueueRecommendations'].forEach((bit) => {
   if (server.indexOf(bit) < 0) fail('server.ts missing ' + bit)
 })
 
@@ -69,8 +87,17 @@ if (test.status !== 0) fail('runtime tests failed:\n' + (test.stdout || '') + (t
 const build = spawnSync('npm', ['run', 'build'], { cwd: runtime, encoding: 'utf8' })
 if (build.status !== 0) fail('runtime build failed:\n' + (build.stderr || build.stdout))
 
+if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorkerEntry.js'))) {
+  fail('build did not copy sandboxWorkerEntry.js')
+}
+if (!fs.existsSync(path.join(runtime, 'dist', 'promptSynthesizer.js'))) {
+  fail('build did not emit promptSynthesizer.js')
+}
+if (!fs.existsSync(path.join(runtime, 'dist', 'recommendationEngine.js'))) {
+  fail('build did not emit recommendationEngine.js')
+}
 if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorker.js'))) {
-  fail('build did not copy sandboxWorker.js')
+  fail('build did not emit sandboxWorker.js')
 }
 
 console.log('check-aia-runtime: ok')

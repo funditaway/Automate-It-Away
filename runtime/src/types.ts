@@ -2,6 +2,14 @@ export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
 export type DecisionCardStatus = 'pending' | 'signed' | 'rejected' | 'delegated' | 'dispatched' | 'failed'
 
+export interface MetaPromptAttachment {
+  templateId: string
+  systemPrompt: string
+  agentInstructions: string
+  constraints: string[]
+  outputSchema?: Record<string, unknown>
+}
+
 export interface DecisionCardPayload {
   agentId: string
   packName: string
@@ -20,8 +28,13 @@ export interface DecisionCardPayload {
     amount: string
     token: string
   }
-  source?: 'ghl_webhook' | 'sandbox' | 'manual'
+  source?: 'ghl_webhook' | 'sandbox' | 'manual' | 'recommendation'
   webhookEvent?: string
+  /** Attached when the meta-prompt synthesizer compiled this card */
+  metaPrompt?: MetaPromptAttachment
+  /** Parent card that spawned a recommendation (closed-loop) */
+  parentCardId?: string
+  recommendationKind?: string
   timestamp: number
 }
 
