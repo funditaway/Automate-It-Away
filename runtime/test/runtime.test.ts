@@ -14,6 +14,16 @@ import {
 import { createApp } from '../src/server.js'
 import { SandboxManager } from '../src/sandboxManager.js'
 import { cardFromGhlWebhook, dispatchToGhl } from '../src/ghl.js'
+import {
+  compileTemplate,
+  selectTemplate,
+  synthesizeMetaPrompt,
+} from '../src/promptSynthesizer.js'
+import {
+  enqueueRecommendations,
+  recommendNextActions,
+} from '../src/recommendationEngine.js'
+import { requiresAuthorization, packageSensitiveRequest } from '../src/sandboxWorker.js'
 
 function tempWorkspace(): { root: string; dataDir: string; keyDir: string; dbPath: string } {
   const root = mkdtempSync(join(tmpdir(), 'aia-runtime-'))
@@ -81,6 +91,121 @@ describe('vault db', () => {
   })
 })
 
+describe('meta-prompt synthesizer', () => {
+  it('compiles templates from slots without handler-hardcoded prose', () => {
+    const out = compileTemplate('Hello {{contact.name|lead}} via {{event}}', {
+      contact: { name: 'Ada' },
+      event: 'ContactCreate',
+    })
+    assert.equal(out, 'Hello Ada via ContactCreate')
+    assert.equal(selectTemplate('OpportunityStageUpdate').id, 'ghl.opportunity.stage')
+  })
+
+  it('synthesizes a Decision Card + meta-prompt from a GHL webhook + vault context', () => {
+    const bundle = synthesizeMetaPrompt(
+      {
+        type: 'ContactCreate',
+        contactId: 'abc',
+        contact: { id: 'abc', tags: ['new'], status: 'open', fullName: 'Ada Lovelace' },
+        locationId: 'loc1',
+      },
+      {
+        agentId: 'agent_ghl_inbound',
+        packName: 'Lead Pack',
+        credentials: [{ label: 'GHL', provider: 'gohighlevel', last4: '9999' }],
+        deskRules: ['When lead → If new → Then nurture'],
+      },
+    )
+    assert.equal(bundle.templateId, 'ghl.contact.created')
+    assert.match(bundle.systemPrompt, /agent_ghl_inbound/)
+    assert.match(bundle.agentInstructions, /Ada Lovelace/)
+    assert.match(bundle.agentInstructions, /gohighlevel/)
+    assert.ok(bundle.constraints.some((c) => /Active Decision Cards|HOLD|desk/.test(c)))
+    assert.ok(bundle.constraints.some((c) => /When lead/.test(c)))
+    assert.equal(bundle.decisionPayload.source, 'ghl_webhook')
+    assert.ok(bundle.decisionPayload.metaPrompt)
+    assert.equal(bundle.decisionPayload.metaPrompt?.templateId, 'ghl.contact.created')
+    assert.match(bundle.decisionPayload.targetEndpoint, /leadconnectorhq\.com/)
+    assert.deepEqual(bundle.outputSchema.required, ['diffData', 'suggestedAction'])
+  })
+})
+
+describe('recommendation engine', () => {
+  it('queues next-action cards after successful completion (no cascade)', () => {
+    const ws = tempWorkspace()
+    const vault = new VaultDb({ dbPath: ws.dbPath, keyDir: ws.keyDir })
+    const parent = vault.enqueueCard({
+      agentId: 'agent_test',
+      packName: 'Lead Pack',
+      actionType: 'GHL_CONTACTCREATE',
+      riskLevel: 'high',
+      targetEndpoint: 'https://services.leadconnectorhq.com/contacts/c-1',
+      summary: 'tag contact',
+      source: 'ghl_webhook',
+      webhookEvent: 'ContactCreate',
+      diffData: { before: { contactId: 'c-1' }, after: { contactId: 'c-1' } },
+      timestamp: Date.now(),
+    })
+    vault.updateCardStatus(parent.cardId, 'dispatched')
+    const completed = vault.getCard(parent.cardId)!
+    const recs = enqueueRecommendations(vault, { completedCard: completed })
+    assert.ok(recs.length >= 1)
+    assert.equal(recs[0].status, 'pending')
+    assert.equal(recs[0].payload.source, 'recommendation')
+    assert.ok(recs[0].payload.parentCardId === parent.cardId)
+
+    // Sovereign: recommendations do not auto-cascade
+    const cascaded = recommendNextActions({
+      completedCard: { ...recs[0], status: 'dispatched' },
+    })
+    assert.equal(cascaded.length, 0)
+    vault.close()
+    rmSync(ws.root, { recursive: true, force: true })
+  })
+
+  it('turns CRM reply feedback into outreach + schedule recommendations', () => {
+    const ws = tempWorkspace()
+    const vault = new VaultDb({ dbPath: ws.dbPath, keyDir: ws.keyDir })
+    const parent = vault.enqueueCard({
+      agentId: 'a',
+      packName: 'p',
+      actionType: 'GHL_OUTBOUND',
+      riskLevel: 'high',
+      targetEndpoint: 'https://services.leadconnectorhq.com/contacts/c-9',
+      summary: 'prior',
+      source: 'ghl_webhook',
+      timestamp: Date.now(),
+    })
+    vault.updateCardStatus(parent.cardId, 'dispatched')
+    const recs = recommendNextActions({
+      completedCard: vault.getCard(parent.cardId)!,
+      feedback: { contactReplied: true, contactId: 'c-9', event: 'InboundMessage' },
+    })
+    assert.ok(recs.some((r) => r.kind === 'follow_up_outreach'))
+    assert.ok(recs.some((r) => r.kind === 'schedule_appointment'))
+    vault.close()
+    rmSync(ws.root, { recursive: true, force: true })
+  })
+})
+
+describe('sandbox protocol', () => {
+  it('requires authorization for high-stakes URLs', () => {
+    assert.equal(
+      requiresAuthorization({
+        url: 'https://services.leadconnectorhq.com/contacts/',
+        method: 'POST',
+      }),
+      true,
+    )
+    assert.equal(requiresAuthorization({ url: 'local-note', method: 'GET' }), false)
+    const packaged = packageSensitiveRequest({
+      url: 'https://services.leadconnectorhq.com/contacts/1',
+      method: 'DELETE',
+    })
+    assert.equal(packaged.riskLevel, 'critical')
+  })
+})
+
 describe('ghl mapping + dry dispatch', () => {
   it('builds a decision card from webhook body', () => {
     const payload = cardFromGhlWebhook({
@@ -143,8 +268,8 @@ describe('desk terminal', () => {
   })
 })
 
-describe('http server ghl loop', () => {
-  it('webhook → authorize → ledger + dispatch', async () => {
+describe('http server closed-loop orchestration', () => {
+  it('webhook → synthesize meta-prompt → authorize → ledger + dispatch → recommendations', async () => {
     const ws = tempWorkspace()
     const { app, vault } = createApp({
       dataDir: ws.dataDir,
@@ -172,8 +297,18 @@ describe('http server ghl loop', () => {
       }),
     })
     assert.equal(wh.status, 202)
-    const queued = (await wh.json()) as { cardId: string; queued: boolean }
+    const queued = (await wh.json()) as {
+      cardId: string
+      queued: boolean
+      metaPrompt: { templateId: string; systemPrompt: string }
+    }
     assert.equal(queued.queued, true)
+    assert.ok(queued.metaPrompt)
+    assert.equal(queued.metaPrompt.templateId, 'ghl.opportunity.stage')
+    assert.match(queued.metaPrompt.systemPrompt, /pipeline/)
+
+    const stored = vault.getCard(queued.cardId)!
+    assert.ok(stored.payload.metaPrompt?.systemPrompt)
 
     vault.putCredential('GHL', 'gohighlevel', 'test-token')
 
@@ -184,12 +319,15 @@ describe('http server ghl loop', () => {
       signature: string
       provenanceId: number
       dispatch: { ok: boolean; dryRun: boolean }
+      recommendations: Array<{ cardId: string; status: string; recommendationKind: string }>
     }
     assert.equal(body.ok, true)
     assert.match(body.signature, /^[0-9a-f]{128}$/i)
     assert.ok(body.provenanceId >= 1)
     assert.equal(body.dispatch.ok, true)
     assert.equal(body.dispatch.dryRun, true)
+    assert.ok(body.recommendations.length >= 1)
+    assert.equal(body.recommendations[0].status, 'pending')
 
     const ledger = await fetch(`${base}/ledger`)
     const ledgerBody = (await ledger.json()) as { entries: Array<{ cardId: string; signature: string }> }
@@ -199,6 +337,11 @@ describe('http server ghl loop', () => {
     const card = vault.getCard(queued.cardId)
     assert.ok(card)
     assert.equal(card!.status, 'dispatched')
+
+    // Recommendation cards sit in the queue awaiting human sign-off
+    const pendingRec = vault.getCard(body.recommendations[0].cardId)!
+    assert.equal(pendingRec.payload.source, 'recommendation')
+    assert.equal(pendingRec.status, 'pending')
 
     server.close()
     vault.close()
@@ -235,6 +378,12 @@ describe('sandbox interceptor', () => {
       packName: 'Test Pack',
       scriptPath,
       authTimeoutMs: 10_000,
+      metaPrompt: {
+        templateId: 'ghl.contact.created',
+        systemPrompt: 'test system',
+        agentInstructions: 'test instructions',
+        constraints: ['no autonomous send'],
+      },
     })
 
     // Wait until card is queued
