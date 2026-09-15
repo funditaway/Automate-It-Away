@@ -1,565 +1,790 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AIA // Sovereign Desk & GHL Integration Terminal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        desk: {
-                            900: '#090a0f',
-                            800: '#12141c',
-                            700: '#1b1e2b',
-                            600: '#262a3a',
-                            500: '#383e54',
-                        }
-                    },
-                    fontFamily: {
-                        mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
-                    }
-                }
-            }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>AIA // Sovereign Desk Terminal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            desk: { 950:'#05060a', 900:'#090a0f', 800:'#12141c', 700:'#1b1e2b', 600:'#262a3a', 500:'#383e54' }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+          }
         }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: #090a0f; }
-        ::-webkit-scrollbar-thumb { background: #262a3a; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: #383e54; }
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
-            50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.4); }
-        }
-        .critical-glow { animation: pulse-glow 3s infinite; }
-        .drawer-slide { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        .toast {
-            position: fixed; bottom: 5.5rem; left: 50%; transform: translateX(-50%);
-            z-index: 50; max-width: min(92vw, 28rem);
-            background: #1b1e2b; border: 1px solid #383e54; color: #e2e8f0;
-            font-family: 'JetBrains Mono', monospace; font-size: 11px;
-            padding: 0.65rem 0.9rem; border-radius: 0.5rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,.45);
-        }
-    </style>
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { height: 100%; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background:
+        radial-gradient(1100px 520px at 8% -12%, rgba(99,102,241,.13), transparent 55%),
+        radial-gradient(800px 420px at 100% 0%, rgba(16,185,129,.07), transparent 50%),
+        #090a0f;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #090a0f; }
+    ::-webkit-scrollbar-thumb { background: #262a3a; border-radius: 2px; }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(244,63,94,.28); }
+      50% { box-shadow: 0 0 18px 2px rgba(244,63,94,.42); }
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scan {
+      from { transform: translateY(-120%); }
+      to { transform: translateY(240%); }
+    }
+    .critical-glow { animation: pulse-glow 2.4s ease-in-out infinite; }
+    .ai-shimmer {
+      background: linear-gradient(90deg, #818cf8, #34d399, #a78bfa, #818cf8);
+      background-size: 220% 100%;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      animation: shimmer 3.2s linear infinite;
+    }
+    .drawer-slide { transition: transform .32s cubic-bezier(.16,1,.3,1); }
+    .toast {
+      position: fixed; bottom: 5.75rem; left: 50%; transform: translateX(-50%);
+      z-index: 80; max-width: min(92vw, 28rem);
+      background: #1b1e2b; border: 1px solid #383e54; color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      padding: .7rem .95rem; border-radius: .55rem;
+      box-shadow: 0 12px 36px rgba(0,0,0,.5); animation: fade-up .25s ease-out;
+    }
+    .scanline { pointer-events: none; position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+    .scanline::after {
+      content: ''; position: absolute; left: 0; right: 0; height: 30%;
+      background: linear-gradient(to bottom, transparent, rgba(99,102,241,.07), transparent);
+      animation: scan 2.8s linear infinite;
+    }
+    pre.diff { white-space: pre-wrap; word-break: break-word; }
+  </style>
 </head>
 <body class="bg-desk-900 text-slate-100 h-[100dvh] flex flex-col overflow-hidden select-none">
 
-    <!-- Top Sovereign Header / Node Telemetry -->
-    <header class="h-14 border-b border-desk-700 bg-desk-800/90 backdrop-blur px-4 md:px-6 flex items-center justify-between shrink-0 z-20">
-        <div class="flex items-center space-x-3">
-            <div class="flex items-center space-x-2">
-                <div id="node-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span class="font-mono font-bold text-xs md:text-sm tracking-widest text-emerald-400">AIA // NODE-01</span>
-            </div>
-            <span class="text-desk-500 hidden sm:inline">|</span>
-            <div class="hidden sm:flex items-center space-x-2 text-xs font-mono text-slate-400">
-                <span>GHL: <strong id="ghl-status" class="text-indigo-400">SYNCED</strong></span>
-                <span class="text-desk-500">•</span>
-                <span>VAULT: <strong id="vault-status" class="text-emerald-400">SECURE (AES-256)</strong></span>
-            </div>
-        </div>
-
-        <div class="flex items-center space-x-3">
-            <div class="hidden md:flex items-center space-x-2 text-xs font-mono bg-desk-700 px-3 py-1.5 rounded border border-desk-600">
-                <span class="text-slate-400">LEDGER HASH:</span>
-                <span id="ledger-hash" class="text-indigo-400 font-semibold">—</span>
-            </div>
-            <button onclick="app.simulateInboundWebhook()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-semibold px-3 py-1.5 rounded transition shadow-lg shadow-indigo-900/30 flex items-center space-x-1.5">
-                <i data-lucide="webhook" class="w-3.5 h-3.5"></i>
-                <span class="hidden sm:inline">SIMULATE GHL WEBHOOK</span>
-                <span class="sm:hidden">SIM GHL</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Workspace Layout -->
-    <div class="flex-1 flex overflow-hidden relative">
-
-        <!-- Queue List Pane -->
-        <div class="w-full md:w-[380px] border-r border-desk-700 bg-desk-800/40 flex flex-col shrink-0 h-full">
-            <div class="p-4 border-b border-desk-700 flex items-center justify-between bg-desk-800/60">
-                <div class="flex items-center space-x-2">
-                    <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i>
-                    <h2 class="font-mono text-xs font-bold tracking-wider text-slate-300 uppercase">Active Decision Queue</h2>
-                </div>
-                <span id="queue-count" class="font-mono text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-500/30">0</span>
-            </div>
-
-            <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-20 md:pb-3">
-                <!-- Populated via JS -->
-            </div>
-
-            <div class="p-3 border-t border-desk-700 bg-desk-800/30 text-[11px] font-mono text-slate-500 hidden md:flex justify-between items-center">
-                <span>SHORTCUT: [ENTER] TO SIGN</span>
-                <span id="footer-status" class="text-indigo-400">GHL + LOCAL VAULT ACTIVE</span>
-            </div>
-        </div>
-
-        <!-- Inspector Pane / Mobile Drawer Overlay -->
-        <div id="inspector-wrapper" class="absolute inset-0 md:relative md:inset-auto flex-1 bg-desk-900 flex flex-col overflow-hidden transition-transform duration-300 translate-x-full md:translate-x-0 z-30 drawer-slide">
-
-            <!-- Mobile Back Bar -->
-            <div class="md:hidden p-4 border-b border-desk-700 bg-desk-800 flex items-center justify-between shrink-0">
-                <button onclick="app.closeMobileInspector()" class="text-xs font-mono text-slate-300 flex items-center space-x-1.5 py-1 px-2 bg-desk-700 rounded border border-desk-600">
-                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
-                    <span>Back to Queue</span>
-                </button>
-                <span id="mobile-card-id" class="font-mono text-xs text-indigo-400 font-semibold"></span>
-            </div>
-
-            <!-- Empty State -->
-            <div id="empty-state" class="hidden md:flex absolute inset-0 flex-col items-center justify-center text-center p-8 text-slate-500">
-                <div class="w-16 h-16 rounded-2xl bg-desk-800 border border-desk-700 flex items-center justify-center mb-4 text-slate-600">
-                    <i data-lucide="shield-check" class="w-8 h-8"></i>
-                </div>
-                <h3 class="font-mono text-sm font-semibold text-slate-400 mb-1">NO ACTIVE DECISION CARD SELECTED</h3>
-                <p class="text-xs max-w-sm text-slate-500">Select an item from the queue to inspect GoHighLevel payload diffs, verify sandbox logic, and sign with your local keypair.</p>
-            </div>
-
-            <!-- Inspector Body -->
-            <div id="inspector-content" class="flex-1 flex flex-col h-full overflow-hidden hidden">
-
-                <!-- Inspector Header -->
-                <div class="p-5 md:p-6 border-b border-desk-700 bg-desk-800/40 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div>
-                        <div class="flex items-center space-x-3 mb-2 flex-wrap gap-y-1">
-                            <span id="card-risk-badge" class="font-mono text-[10px] px-2.5 py-0.5 rounded font-bold uppercase"></span>
-                            <span id="card-pack-name" class="font-mono text-xs text-slate-400"></span>
-                            <span class="text-desk-500 hidden sm:inline">•</span>
-                            <span id="card-timestamp" class="font-mono text-xs text-slate-500"></span>
-                        </div>
-                        <h1 id="card-title" class="text-lg md:text-xl font-semibold text-white font-mono tracking-tight"></h1>
-                    </div>
-                    <div class="text-left sm:text-right bg-desk-800/60 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-desk-700">
-                        <div class="text-[10px] font-mono text-slate-500">RESOURCE COST / GAS</div>
-                        <div id="card-cost" class="font-mono text-sm font-semibold text-indigo-400"></div>
-                    </div>
-                </div>
-
-                <!-- Scrollable Inspector Details -->
-                <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 pb-28 md:pb-6">
-
-                    <!-- Meta Grid -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                        <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
-                            <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Target API Endpoint (GHL / Webhook)</div>
-                            <div id="card-endpoint" class="font-mono text-xs text-slate-200 truncate"></div>
-                        </div>
-                        <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
-                            <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Agent Sandbox ID (`logic.js`)</div>
-                            <div id="card-agent-id" class="font-mono text-xs text-slate-200 truncate"></div>
-                        </div>
-                    </div>
-
-                    <!-- Summary -->
-                    <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5 md:p-4">
-                        <div class="text-[10px] font-mono text-slate-400 mb-1.5 uppercase tracking-wider">Execution Summary</div>
-                        <p id="card-summary" class="text-xs md:text-sm text-slate-300 leading-relaxed"></p>
-                    </div>
-
-                    <!-- Payload Diff Viewer -->
-                    <div class="space-y-3">
-                        <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Payload Diff Inspector (`card_ui.json`)</div>
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 font-mono text-xs">
-                            <div class="bg-desk-800 border border-red-900/40 rounded-lg p-3.5 overflow-x-auto">
-                                <div class="text-[10px] text-red-400 mb-2 font-bold flex items-center space-x-1">
-                                    <i data-lucide="minus-circle" class="w-3 h-3"></i>
-                                    <span>BEFORE STATE</span>
-                                </div>
-                                <pre id="diff-before" class="text-slate-400 text-[11px]"></pre>
-                            </div>
-                            <div class="bg-desk-800 border border-emerald-900/40 rounded-lg p-3.5 overflow-x-auto">
-                                <div class="text-[10px] text-emerald-400 mb-2 font-bold flex items-center space-x-1">
-                                    <i data-lucide="plus-circle" class="w-3 h-3"></i>
-                                    <span>PROPOSED AFTER STATE</span>
-                                </div>
-                                <pre id="diff-after" class="text-slate-200 text-[11px]"></pre>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Action Footer -->
-                <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-desk-700 bg-desk-800/95 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 z-20">
-                    <div class="flex items-center space-x-2 w-full sm:w-auto">
-                        <button onclick="app.rejectSelected()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-rose-950/40 hover:text-rose-400 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center space-x-2">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                            <span>Reject</span>
-                        </button>
-                        <button onclick="app.delegateSelected()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-desk-600 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center space-x-2">
-                            <i data-lucide="git-fork" class="w-4 h-4"></i>
-                            <span>Delegate</span>
-                        </button>
-                    </div>
-
-                    <button onclick="app.signSelected()" class="w-full sm:w-auto px-6 py-3.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-mono font-bold tracking-wider shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2 group">
-                        <i data-lucide="check-circle-2" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
-                        <span>YES: AUTHORIZE & SIGN [ENTER]</span>
-                    </button>
-                </div>
-
-            </div>
-        </div>
-
+  <header class="h-14 border-b border-desk-700 bg-desk-800/90 backdrop-blur px-3 sm:px-5 flex items-center justify-between shrink-0 z-40">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="flex items-center gap-2">
+        <div id="node-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+        <span class="font-mono font-bold text-xs sm:text-sm tracking-widest text-emerald-400 truncate">AIA // NODE-01</span>
+      </div>
+      <span class="text-desk-500 hidden sm:inline">|</span>
+      <div class="hidden sm:flex items-center gap-2 text-xs font-mono text-slate-400">
+        <span>GHL: <strong id="ghl-status" class="text-indigo-400">SYNCED</strong></span>
+        <span class="text-desk-500">•</span>
+        <span>VAULT: <strong id="vault-status" class="text-emerald-400">SECURE (AES-256)</strong></span>
+      </div>
     </div>
+    <div class="flex items-center gap-2 sm:gap-3">
+      <div class="hidden md:flex items-center gap-2 text-xs font-mono bg-desk-700 px-3 py-1.5 rounded border border-desk-600">
+        <span class="text-slate-400">LEDGER HASH:</span>
+        <span id="ledger-hash" class="text-indigo-400 font-semibold">genesis</span>
+      </div>
+      <button id="btn-simulate" type="button" class="bg-indigo-600 hover:bg-indigo-500 active:scale-[.98] text-white text-xs font-mono font-semibold px-3 py-1.5 rounded transition shadow-lg shadow-indigo-900/30 flex items-center gap-1.5">
+        <i data-lucide="webhook" class="w-3.5 h-3.5"></i>
+        <span class="hidden sm:inline">SIMULATE GHL WEBHOOK</span>
+        <span class="sm:hidden">SIM GHL</span>
+      </button>
+    </div>
+  </header>
 
-    <!-- Application Script — wired to local runtime API (SQLite vault + GHL) -->
-    <script>
-        const API = '';
+  <div class="flex-1 flex overflow-hidden relative">
+    <aside class="w-full md:w-[380px] border-r border-desk-700 bg-desk-800/40 flex flex-col shrink-0 h-full z-10">
+      <div class="p-4 border-b border-desk-700 flex items-center justify-between bg-desk-800/60">
+        <div class="flex items-center gap-2">
+          <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i>
+          <h2 class="font-mono text-xs font-bold tracking-wider text-slate-300 uppercase">Active Decision Queue</h2>
+        </div>
+        <span id="queue-count" class="font-mono text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-500/30">0</span>
+      </div>
+      <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-24 md:pb-3"></div>
+      <div class="p-3 border-t border-desk-700 bg-desk-800/30 text-[11px] font-mono text-slate-500 hidden md:flex justify-between items-center">
+        <span>SHORTCUT: [ENTER] TO SIGN</span>
+        <span id="footer-status" class="text-indigo-400">GHL + LOCAL VAULT ACTIVE</span>
+      </div>
+    </aside>
 
-        const SEED_PAYLOADS = [
-            {
-                agentId: 'agent_ghl_nurture_v1',
-                packName: 'GoHighLevel Pipeline Automation',
-                actionType: 'GHL_CONTACT_TAG_UPDATE',
-                riskLevel: 'high',
-                targetEndpoint: 'https://services.leadconnectorhq.com/contacts/batch/update',
-                summary: 'Webhook received from GHL pipeline stage change. Automatically tag 84 leads as "Hot Prospect" and trigger SMS sequence via local vault API token.',
-                diffData: {
-                    before: { pipelineStage: 'New Lead', tags: ['inbound_web'], autoSmsActive: false },
-                    after: { pipelineStage: 'Qualified Prospect', tags: ['inbound_web', 'Hot Prospect'], autoSmsActive: true }
-                },
-                resourceCost: { amount: '0.015', token: 'ETH (Gas)' },
-                source: 'manual',
-                timestamp: Date.now() - 1000 * 42
+    <section id="inspector-wrapper" class="absolute inset-0 md:relative md:inset-auto flex-1 bg-desk-900 flex flex-col overflow-hidden drawer-slide translate-x-full md:translate-x-0 z-30">
+      <div class="md:hidden p-3 border-b border-desk-700 bg-desk-800 flex items-center justify-between shrink-0">
+        <button id="btn-back" type="button" class="text-xs font-mono text-slate-300 flex items-center gap-1.5 py-1.5 px-2.5 bg-desk-700 rounded border border-desk-600">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>Back to Queue</span>
+        </button>
+        <span id="mobile-card-id" class="font-mono text-[11px] text-indigo-400 font-semibold truncate max-w-[45%]"></span>
+      </div>
+
+      <div id="empty-state" class="hidden md:flex absolute inset-0 flex-col items-center justify-center text-center p-8 text-slate-500">
+        <div class="relative w-16 h-16 rounded-2xl bg-desk-800 border border-desk-700 flex items-center justify-center mb-4 text-slate-600 overflow-hidden">
+          <div class="scanline"></div>
+          <i data-lucide="shield-check" class="w-8 h-8"></i>
+        </div>
+        <h3 class="font-mono text-sm font-semibold text-slate-400 mb-1">NO ACTIVE DECISION CARD SELECTED</h3>
+        <p class="text-xs max-w-sm text-slate-500">Select a queued card to inspect meta-prompts, payload diffs, and closed-loop next actions — then AUTHORIZE &amp; SIGN.</p>
+      </div>
+
+      <div id="inspector-content" class="flex-1 flex flex-col h-full overflow-hidden hidden">
+        <div class="p-4 md:p-6 border-b border-desk-700 bg-desk-800/40 flex flex-col sm:flex-row sm:items-start justify-between gap-4 shrink-0">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <span id="card-risk-badge" class="font-mono text-[10px] px-2.5 py-0.5 rounded font-bold uppercase border"></span>
+              <span id="card-pack-name" class="font-mono text-xs text-slate-400"></span>
+              <span class="text-desk-500 hidden sm:inline">•</span>
+              <span id="card-timestamp" class="font-mono text-xs text-slate-500"></span>
+            </div>
+            <h1 id="card-title" class="text-lg md:text-xl font-semibold text-white font-mono tracking-tight truncate"></h1>
+            <p id="card-source" class="mt-1 font-mono text-[10px] text-slate-500 uppercase tracking-wider"></p>
+          </div>
+          <div class="text-left sm:text-right bg-desk-800/60 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-desk-700 shrink-0">
+            <div class="text-[10px] font-mono text-slate-500">RESOURCE COST / GAS</div>
+            <div id="card-cost" class="font-mono text-sm font-semibold text-indigo-400"></div>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-5 pb-32 md:pb-8">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
+              <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Target Endpoint</div>
+              <div id="card-endpoint" class="font-mono text-xs text-slate-200 break-all"></div>
+            </div>
+            <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
+              <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Agent Sandbox (`logic.js`)</div>
+              <div id="card-agent-id" class="font-mono text-xs text-slate-200 truncate"></div>
+            </div>
+          </div>
+
+          <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5 md:p-4">
+            <div class="text-[10px] font-mono text-slate-400 mb-1.5 uppercase tracking-wider">Execution Summary</div>
+            <p id="card-summary" class="text-xs md:text-sm text-slate-300 leading-relaxed"></p>
+          </div>
+
+          <div class="relative bg-desk-800/70 border border-indigo-500/25 rounded-xl p-3.5 md:p-4 overflow-hidden">
+            <div class="scanline"></div>
+            <div class="flex items-center justify-between gap-2 mb-3 relative">
+              <div class="flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4 text-indigo-300"></i>
+                <span class="font-mono text-[10px] uppercase tracking-wider ai-shimmer font-bold">Meta-Prompt Synthesizer</span>
+              </div>
+              <span id="meta-template-id" class="font-mono text-[10px] text-indigo-300/80 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded"></span>
+            </div>
+            <div class="space-y-3 relative">
+              <div>
+                <div class="text-[10px] font-mono text-slate-500 mb-1 uppercase">System Prompt</div>
+                <pre id="meta-system" class="font-mono text-[11px] text-slate-300 bg-desk-900/70 border border-desk-700 rounded-lg p-3 leading-relaxed max-h-28 overflow-y-auto"></pre>
+              </div>
+              <div>
+                <div class="text-[10px] font-mono text-slate-500 mb-1 uppercase">Agent Instructions</div>
+                <pre id="meta-instructions" class="font-mono text-[11px] text-slate-300 bg-desk-900/70 border border-desk-700 rounded-lg p-3 leading-relaxed max-h-28 overflow-y-auto"></pre>
+              </div>
+              <div>
+                <div class="text-[10px] font-mono text-slate-500 mb-1.5 uppercase">Constraints</div>
+                <ul id="meta-constraints" class="space-y-1.5"></ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center gap-2 text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+              <i data-lucide="git-compare" class="w-3.5 h-3.5"></i>
+              <span>State Diff Inspector (`card_ui.json`)</span>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 font-mono text-xs">
+              <div class="bg-desk-800 border border-rose-900/40 rounded-lg p-3.5 overflow-x-auto">
+                <div class="text-[10px] text-rose-400 mb-2 font-bold flex items-center gap-1">
+                  <i data-lucide="minus-circle" class="w-3 h-3"></i>
+                  <span>BEFORE STATE</span>
+                </div>
+                <pre id="diff-before" class="diff text-slate-400 text-[11px]"></pre>
+              </div>
+              <div class="bg-desk-800 border border-emerald-900/40 rounded-lg p-3.5 overflow-x-auto">
+                <div class="text-[10px] text-emerald-400 mb-2 font-bold flex items-center gap-1">
+                  <i data-lucide="plus-circle" class="w-3 h-3"></i>
+                  <span>PROPOSED AFTER STATE</span>
+                </div>
+                <pre id="diff-after" class="diff text-slate-200 text-[11px]"></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-desk-800/60 border border-desk-700 rounded-xl p-3.5 md:p-4">
+            <div class="flex items-center justify-between mb-3 gap-2">
+              <div class="flex items-center gap-2">
+                <i data-lucide="git-branch" class="w-4 h-4 text-emerald-400"></i>
+                <span class="font-mono text-[10px] uppercase tracking-wider text-slate-400">Closed-Loop Next-Action Preview</span>
+              </div>
+              <span class="font-mono text-[10px] text-slate-500">chains on human YES</span>
+            </div>
+            <div id="next-actions" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <div class="absolute bottom-0 left-0 right-0 p-3 sm:p-4 border-t border-desk-700 bg-desk-800/95 backdrop-blur flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0 z-20">
+          <div class="flex items-center gap-2">
+            <button id="btn-reject" type="button" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-rose-950/40 hover:text-rose-400 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center gap-2">
+              <i data-lucide="x" class="w-4 h-4"></i><span>Reject</span>
+            </button>
+            <button id="btn-delegate" type="button" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-desk-600 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center gap-2">
+              <i data-lucide="git-fork" class="w-4 h-4"></i><span>Delegate</span>
+            </button>
+          </div>
+          <button id="btn-sign" type="button" class="w-full sm:w-auto px-6 py-3.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-mono font-bold tracking-wider shadow-lg shadow-emerald-900/40 transition flex items-center justify-center gap-2">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            <span>AUTHORIZE &amp; SIGN [ENTER]</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+const API_BASE = '';
+const RISK_STYLE = {
+  critical: 'bg-rose-500/15 text-rose-300 border-rose-500/40',
+  high: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
+  medium: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40',
+  low: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+};
+const NEXT_ACTION_CATALOG = {
+  ContactCreate: [
+    { kind: 'tag_enrichment', label: 'Tag enrichment', risk: 'medium', action: 'RECOMMEND_TAG_ENRICHMENT' },
+    { kind: 'follow_up_outreach', label: 'Personalized SMS outreach', risk: 'high', action: 'RECOMMEND_FOLLOW_UP_OUTREACH' },
+  ],
+  OpportunityStageUpdate: [
+    { kind: 'pipeline_promotion', label: 'Pipeline promotion', risk: 'high', action: 'RECOMMEND_PIPELINE_PROMOTION' },
+    { kind: 'generate_media', label: 'Dynamic video request', risk: 'medium', action: 'RECOMMEND_GENERATE_MEDIA' },
+  ],
+  InboundMessage: [
+    { kind: 'follow_up_outreach', label: 'Reply draft', risk: 'high', action: 'RECOMMEND_FOLLOW_UP_OUTREACH' },
+    { kind: 'schedule_appointment', label: 'Book appointment', risk: 'high', action: 'RECOMMEND_SCHEDULE_APPOINTMENT' },
+  ],
+  default: [
+    { kind: 'follow_up_outreach', label: 'Follow-up outreach', risk: 'high', action: 'RECOMMEND_FOLLOW_UP_OUTREACH' },
+  ],
+};
+
+function uid(prefix) {
+  return prefix + '-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function shortHash(input) {
+  let h = 2166136261 >>> 0;
+  const str = String(input);
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(16).padStart(8, '0') + (((h * 2654435761) >>> 0).toString(16).padStart(8, '0'));
+}
+
+function synthesizeMetaPromptLocal(event) {
+  const contact = event.contact || {};
+  const contactId = contact.id || event.contactId || 'unknown';
+  const name = contact.fullName || contact.name || contactId;
+  const eventType = event.type || 'ContactCreate';
+  const packName = event.packName || 'GoHighLevel Lead Nurture Pack';
+  const agentId = event.agentId || 'agent_ghl_inbound';
+  const templates = {
+    ContactCreate: {
+      templateId: 'ghl.contact.created',
+      system: `You are the ${agentId} desk agent for pack "${packName}". Operate local-first: draft only. Never send, pay, or bind without human YES on the cryptographic queue.`,
+      instructions: `Inbound lead ${name} (${contactId}) arrived via ${eventType}. Qualify using vault providers, then propose a CRM write-back that tags and stages the contact. Emit a JSON diff matching the output schema.`,
+      constraints: [
+        'No autonomous outbound HTTP — all writes pause as Active Decision Cards',
+        'Secrets stay in the local vault; never echo credential material',
+        'Collect / money actions remain HOLD until human sign-off',
+      ],
+      risk: 'high', actionType: 'GHL_CONTACT_CREATE',
+      endpoint: `https://services.leadconnectorhq.com/contacts/${contactId}`, method: 'PUT',
+      before: { contactId, status: contact.status || 'inbound', tags: contact.tags || [] },
+      after: { contactId, status: 'authorized_writeback', tags: ['aia-reviewed', 'nurture'] },
+      body: { tags: ['aia-reviewed', 'nurture'], source: 'aia-meta-prompt' },
+      summary: `Meta-prompt ghl.contact.created: ${eventType} → authorize PUT for contact ${contactId}`,
+    },
+    OpportunityStageUpdate: {
+      templateId: 'ghl.opportunity.stage',
+      system: `You are ${agentId} promoting pipeline state for "${packName}". Stage changes are high-risk; queue a Decision Card before CRM mutation.`,
+      instructions: `Stage update for contact ${contactId}: event ${eventType}. Compare prior pipeline state to the requested after-state and propose the minimal authorized write.`,
+      constraints: [
+        'Do not skip human authorization for pipeline writes',
+        'Preserve provenance: before/after must be explicit JSON diffs',
+      ],
+      risk: 'high', actionType: 'GHL_OPPORTUNITY_STAGE_UPDATE',
+      endpoint: `https://services.leadconnectorhq.com/opportunities/${contactId}`, method: 'PUT',
+      before: { contactId, stage: event.fromStage || 'new' },
+      after: { contactId, stage: event.toStage || 'qualified' },
+      body: { stage: event.toStage || 'qualified', source: 'aia-meta-prompt' },
+      summary: `Meta-prompt ghl.opportunity.stage: promote contact ${contactId}`,
+    },
+    InboundMessage: {
+      templateId: 'ghl.contact.replied',
+      system: `You are ${agentId} drafting a reply plan for "${packName}". Outreach is recommendation-only until the local queue is signed.`,
+      instructions: `Contact ${contactId} replied (${eventType}). Draft a personalized follow-up and any scheduling or media-generation requests for human review.`,
+      constraints: [
+        'Never send messages without YES on the desk queue',
+        'Prefer short, personalized drafts over bulk blasts',
+      ],
+      risk: 'high', actionType: 'GHL_INBOUND_MESSAGE',
+      endpoint: 'https://services.leadconnectorhq.com/conversations/messages', method: 'POST',
+      before: { contactId, unreplied: true },
+      after: { contactId, channel: 'SMS', intent: 'personalized_outreach' },
+      body: { type: 'SMS', contactId, message: event.message || 'Thanks — locking next step for human review.', source: 'aia-meta-prompt' },
+      summary: `Meta-prompt ghl.contact.replied: draft outreach for ${contactId}`,
+    },
+  };
+  const t = templates[eventType] || templates.ContactCreate;
+  return {
+    templateId: t.templateId,
+    decisionPayload: {
+      agentId, packName, actionType: t.actionType, riskLevel: t.risk,
+      targetEndpoint: t.endpoint, method: t.method, body: t.body, summary: t.summary,
+      diffData: { before: t.before, after: t.after },
+      source: 'ghl_webhook', webhookEvent: eventType,
+      metaPrompt: { templateId: t.templateId, systemPrompt: t.system, agentInstructions: t.instructions, constraints: t.constraints },
+      resourceCost: { amount: (0.008 + Math.random() * 0.03).toFixed(3), token: 'ETH' },
+      timestamp: Date.now(),
+    },
+  };
+}
+
+function previewNextActions(payload) {
+  const key = payload.webhookEvent || 'default';
+  const list = NEXT_ACTION_CATALOG[key] || NEXT_ACTION_CATALOG.default;
+  return list.map((item) => ({ ...item, parentAction: payload.actionType }));
+}
+
+class AIASovereignTerminal {
+  constructor() {
+    this.cards = [];
+    this.selectedId = null;
+    this.busy = false;
+    this.online = false;
+    this.ledgerTip = 'genesis';
+    this.provenanceSeq = 0;
+    this._bindUi();
+    this.boot();
+  }
+
+  _bindUi() {
+    document.getElementById('btn-simulate').addEventListener('click', () => this.simulateInboundEvent());
+    document.getElementById('btn-back').addEventListener('click', () => this.closeMobileInspector());
+    document.getElementById('btn-sign').addEventListener('click', () => this.signSelected());
+    document.getElementById('btn-reject').addEventListener('click', () => this.rejectSelected());
+    document.getElementById('btn-delegate').addEventListener('click', () => this.delegateSelected());
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && this.selectedId && !this.busy && !e.metaKey && !e.ctrlKey) {
+        const tag = (e.target && e.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        this.signSelected();
+      }
+      if (e.key === 'Escape' && window.innerWidth < 768) this.closeMobileInspector();
+    });
+  }
+
+  async boot() {
+    const ok = await this.tryHydrateFromRuntime();
+    if (!ok) { this.seedLocalQueue(); this.setOfflineChrome(); }
+    this.render();
+    setInterval(() => this.tryHydrateFromRuntime(true), 5000);
+  }
+
+  toast(msg) {
+    const el = document.createElement('div');
+    el.className = 'toast'; el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2800);
+  }
+  haptic(pattern = 36) {
+    try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (_) {}
+  }
+
+  setOfflineChrome() {
+    document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+    document.getElementById('ghl-status').textContent = 'LOCAL-SIM';
+    document.getElementById('ghl-status').className = 'text-amber-300';
+    document.getElementById('vault-status').textContent = 'IN-MEMORY';
+    document.getElementById('vault-status').className = 'text-amber-300';
+    document.getElementById('footer-status').textContent = 'STANDALONE TERMINAL (NO RUNTIME)';
+    document.getElementById('ledger-hash').textContent = this.ledgerTip;
+  }
+  setOnlineChrome(health) {
+    this.online = true;
+    document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+    document.getElementById('ghl-status').textContent = 'SYNCED';
+    document.getElementById('ghl-status').className = 'text-indigo-400';
+    document.getElementById('vault-status').textContent = 'SECURE (AES-256)';
+    document.getElementById('vault-status').className = 'text-emerald-400';
+    document.getElementById('footer-status').textContent = (health?.dryRun !== false) ? 'GHL + LOCAL VAULT ACTIVE (DRY-RUN)' : 'GHL + LOCAL VAULT ACTIVE';
+    if (health?.ledgerTip) {
+      this.ledgerTip = health.ledgerTip;
+      document.getElementById('ledger-hash').textContent = health.ledgerTip;
+    }
+  }
+
+  async api(path, opts = {}) {
+    const res = await fetch(API_BASE + path, {
+      headers: { 'content-type': 'application/json', ...(opts.headers || {}) },
+      ...opts,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || res.statusText || 'request failed');
+    return body;
+  }
+
+  normalizeCard(raw) {
+    if (!raw) return null;
+    const payload = raw.payload || raw;
+    const meta = payload.metaPrompt || null;
+    const normalizedMeta = meta ? {
+      templateId: meta.templateId,
+      systemPrompt: meta.systemPrompt,
+      agentInstructions: meta.agentInstructions || meta.instructions,
+      constraints: meta.constraints || [],
+    } : null;
+    const risk = payload.riskLevel || 'medium';
+    return {
+      cardId: raw.cardId || raw.id || payload.cardId || uid('card'),
+      status: raw.status || 'pending',
+      payload: {
+        agentId: payload.agentId || 'agent_local',
+        packName: payload.packName || 'Local Pack',
+        actionType: payload.actionType || 'UNKNOWN',
+        riskLevel: risk === 'critical' ? 'critical' : risk,
+        targetEndpoint: payload.targetEndpoint || '',
+        method: payload.method || 'POST',
+        body: payload.body,
+        summary: payload.summary || '',
+        diffData: payload.diffData || { before: {}, after: {} },
+        source: payload.source || 'manual',
+        webhookEvent: payload.webhookEvent,
+        metaPrompt: normalizedMeta,
+        parentCardId: payload.parentCardId,
+        recommendationKind: payload.recommendationKind,
+        resourceCost: payload.resourceCost,
+        timestamp: payload.timestamp || Date.now(),
+      },
+      nextActions: raw.nextActions || previewNextActions({
+        webhookEvent: payload.webhookEvent,
+        actionType: payload.actionType,
+        source: payload.source,
+      }),
+    };
+  }
+
+  seedLocalQueue() {
+    const events = [
+      { type: 'ContactCreate', contactId: 'demo-42', contact: { id: 'demo-42', fullName: 'Ada Lovelace', tags: ['new'], status: 'open' }, packName: 'Lead Nurture Pack' },
+      { type: 'OpportunityStageUpdate', contactId: 'demo-99', contact: { id: 'demo-99', fullName: 'Grace Hopper' }, fromStage: 'new', toStage: 'qualified', packName: 'Pipeline Ops Pack' },
+    ];
+    this.cards = events.map((ev) => {
+      const synth = synthesizeMetaPromptLocal(ev);
+      return this.normalizeCard({ cardId: uid('card'), status: 'pending', payload: synth.decisionPayload, nextActions: previewNextActions(synth.decisionPayload) });
+    });
+    const critical = synthesizeMetaPromptLocal({
+      type: 'OpportunityStageUpdate', contactId: 'vault-7',
+      contact: { id: 'vault-7', fullName: 'Treasury Agent' },
+      fromStage: 'review', toStage: 'closed', packName: 'Treasury Guard Pack', agentId: 'agent_treasury',
+    });
+    critical.decisionPayload.riskLevel = 'critical';
+    critical.decisionPayload.actionType = 'SOL_VAULT_TRANSFER';
+    critical.decisionPayload.targetEndpoint = '0x49B…C102 (Mainnet Vault)';
+    critical.decisionPayload.summary = 'Critical vault transfer request intercepted — human AUTHORIZE & SIGN required.';
+    this.cards.unshift(this.normalizeCard({ cardId: uid('card'), status: 'pending', payload: critical.decisionPayload, nextActions: previewNextActions(critical.decisionPayload) }));
+    this.selectedId = this.cards[0]?.cardId || null;
+    this.ledgerTip = shortHash('seed:' + this.cards.map((c) => c.cardId).join('|'));
+    document.getElementById('ledger-hash').textContent = this.ledgerTip;
+  }
+
+  async tryHydrateFromRuntime(silent) {
+    try {
+      const [health, queue] = await Promise.all([ this.api('/health'), this.api('/queue?status=pending') ]);
+      if (queue.ledgerTip) health.ledgerTip = queue.ledgerTip;
+      this.setOnlineChrome(health);
+      const remote = (queue.cards || []).map((c) => this.normalizeCard(c)).filter(Boolean);
+      this.cards = remote.sort((a, b) => {
+        const order = { critical: 0, high: 1, medium: 2, low: 3 };
+        return (order[a.payload.riskLevel] ?? 9) - (order[b.payload.riskLevel] ?? 9) || (a.payload.timestamp - b.payload.timestamp);
+      });
+      if (!this.selectedId || !this.cards.find((c) => c.cardId === this.selectedId)) this.selectedId = this.cards[0]?.cardId || null;
+      this.render();
+      return true;
+    } catch (_) {
+      if (!silent && !this.cards.length) this.setOfflineChrome();
+      this.online = false;
+      return false;
+    }
+  }
+
+  async simulateInboundEvent() {
+    if (this.busy) return;
+    this.busy = true;
+    try {
+      const catalog = [
+        { type: 'ContactCreate', contactId: 'sim-' + Math.random().toString(36).slice(2, 8), packName: 'Lead Nurture Pack' },
+        { type: 'OpportunityStageUpdate', contactId: 'opp-' + Math.random().toString(36).slice(2, 7), fromStage: 'new', toStage: 'demo_booked', packName: 'Pipeline Ops Pack' },
+        { type: 'InboundMessage', contactId: 'msg-' + Math.random().toString(36).slice(2, 7), message: 'Can we book a call tomorrow?', packName: 'Conversation Pack' },
+      ];
+      const pick = catalog[Math.floor(Math.random() * catalog.length)];
+      pick.contact = {
+        id: pick.contactId,
+        fullName: ['Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Katherine Johnson'][Math.floor(Math.random() * 4)],
+        tags: ['inbound'], status: 'open',
+      };
+
+      if (this.online) {
+        const queued = await this.api('/webhook/ghl', {
+          method: 'POST',
+          body: JSON.stringify({
+            type: pick.type, contactId: pick.contactId, contact: pick.contact, packName: pick.packName,
+            message: pick.message, fromStage: pick.fromStage, toStage: pick.toStage,
+            suggestedAction: {
+              method: pick.type === 'InboundMessage' ? 'POST' : 'PUT',
+              endpoint: pick.type === 'InboundMessage' ? '/conversations/messages' : `/contacts/${pick.contactId}`,
+              body: { source: 'desk-terminal-sim' },
             },
-            {
-                agentId: 'agent_superfluid_stream',
-                packName: 'Superfluid Treasury Stream',
-                actionType: 'SUPERFLUID_STREAM_MODIFY',
-                riskLevel: 'critical',
-                targetEndpoint: '0x8f3Cf7ad23Cd33B...f92C',
-                summary: 'Agent logic.js evaluated weekly milestone completion. Adjust real-time payroll token stream flow rate by +10%.',
-                diffData: {
-                    before: { flowRatePerSec: '0.000010 ETH/s' },
-                    after: { flowRatePerSec: '0.000011 ETH/s' }
-                },
-                resourceCost: { amount: '0.080', token: 'USDCx' },
-                source: 'sandbox',
-                timestamp: Date.now() - 1000 * 180
-            }
-        ];
+          }),
+        });
+        await this.tryHydrateFromRuntime(true);
+        this.selectedId = queued.cardId;
+        this.toast('Queued via /webhook/ghl · ' + String(queued.cardId).slice(0, 18) + '…');
+      } else {
+        const synth = synthesizeMetaPromptLocal(pick);
+        const card = this.normalizeCard({ cardId: uid('card'), status: 'pending', payload: synth.decisionPayload, nextActions: previewNextActions(synth.decisionPayload) });
+        this.cards.unshift(card);
+        this.selectedId = card.cardId;
+        this.toast('Simulated inbound · meta-prompt ' + synth.templateId);
+      }
+      this.haptic(25);
+      if (window.innerWidth < 768) this.openMobileInspector();
+      this.render();
+    } catch (err) {
+      this.toast(err.message || 'Simulate failed');
+    } finally {
+      this.busy = false;
+    }
+  }
 
-        class AIAQueueApp {
-            constructor() {
-                this.cards = [];
-                this.selectedId = null;
-                this.isMobileInspectorOpen = false;
-                this.busy = false;
-                this.init();
-            }
+  selectCard(id) {
+    this.selectedId = id;
+    if (window.innerWidth < 768) this.openMobileInspector();
+    this.render();
+  }
+  openMobileInspector() {
+    const wrap = document.getElementById('inspector-wrapper');
+    wrap.classList.remove('translate-x-full'); wrap.classList.add('translate-x-0');
+  }
+  closeMobileInspector() {
+    const wrap = document.getElementById('inspector-wrapper');
+    wrap.classList.remove('translate-x-0'); wrap.classList.add('translate-x-full');
+  }
+  selected() { return this.cards.find((c) => c.cardId === this.selectedId) || null; }
 
-            init() {
-                window.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && this.selectedId && !this.busy) {
-                        e.preventDefault();
-                        this.signSelected();
-                    }
-                    if (e.key === 'Escape' && window.innerWidth < 768) {
-                        this.closeMobileInspector();
-                    }
-                });
-                this.refresh(true);
-                setInterval(() => this.refresh(false), 4000);
-            }
+  async signSelected() {
+    const card = this.selected();
+    if (!card || this.busy) return;
+    this.busy = true;
+    try {
+      if (this.online) {
+        const result = await this.api('/queue/' + encodeURIComponent(card.cardId) + '/authorize', { method: 'POST' });
+        this.ledgerTip = result.ledgerTip || this.ledgerTip;
+        document.getElementById('ledger-hash').textContent = this.ledgerTip;
+        this.haptic([30, 40, 30]);
+        const recs = result.recommendations || [];
+        this.toast('AUTHORIZE & SIGN ok · ledger #' + (result.provenanceId || '?') + (recs.length ? ` · +${recs.length} next-actions` : ''));
+        await this.tryHydrateFromRuntime(true);
+      } else {
+        const next = (card.nextActions || []).map((n) => {
+          const contactId = card.payload.diffData?.before?.contactId || 'unknown';
+          return this.normalizeCard({
+            cardId: uid('card'), status: 'pending',
+            payload: {
+              agentId: card.payload.agentId, packName: card.payload.packName, actionType: n.action, riskLevel: n.risk,
+              targetEndpoint: 'https://services.leadconnectorhq.com/conversations/messages', method: 'POST',
+              summary: `Closed-loop: ${n.label} after ${card.payload.actionType}`,
+              diffData: { before: { contactId, parentCardId: card.cardId, parentStatus: 'signed' }, after: { contactId, intent: n.kind } },
+              source: 'recommendation', recommendationKind: n.kind, parentCardId: card.cardId, webhookEvent: card.payload.webhookEvent,
+              metaPrompt: {
+                templateId: 'recommendation.' + n.kind,
+                systemPrompt: 'Recommendation agent — queue only; never auto-send.',
+                agentInstructions: `Propose ${n.label} for human review.`,
+                constraints: ['Requires second AUTHORIZE & SIGN', 'No cascade beyond one hop'],
+              },
+              resourceCost: { amount: '0.004', token: 'ETH' }, timestamp: Date.now(),
+            },
+            nextActions: [],
+          });
+        });
+        this.cards = this.cards.filter((c) => c.cardId !== card.cardId);
+        this.cards = [...next, ...this.cards];
+        this.provenanceSeq += 1;
+        this.ledgerTip = shortHash(card.cardId + ':' + this.provenanceSeq + ':' + Date.now());
+        document.getElementById('ledger-hash').textContent = this.ledgerTip;
+        this.selectedId = this.cards[0]?.cardId || null;
+        this.haptic([30, 40, 30]);
+        this.toast(`Signed locally · ledger #${this.provenanceSeq}` + (next.length ? ` · +${next.length} recs` : ''));
+      }
+      if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
+      this.render();
+    } catch (err) {
+      this.toast(err.message || 'Authorize failed');
+    } finally {
+      this.busy = false;
+    }
+  }
 
-            toast(msg) {
-                const el = document.createElement('div');
-                el.className = 'toast';
-                el.textContent = msg;
-                document.body.appendChild(el);
-                setTimeout(() => el.remove(), 2800);
-            }
+  async rejectSelected() {
+    const card = this.selected();
+    if (!card || this.busy) return;
+    this.busy = true;
+    try {
+      if (this.online) {
+        await this.api('/queue/' + encodeURIComponent(card.cardId) + '/reject', { method: 'POST' });
+        await this.tryHydrateFromRuntime(true);
+      } else {
+        this.cards = this.cards.filter((c) => c.cardId !== card.cardId);
+        this.selectedId = this.cards[0]?.cardId || null;
+      }
+      this.haptic(20);
+      this.toast('Rejected ' + String(card.cardId).slice(0, 16) + '…');
+      if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
+      this.render();
+    } catch (err) {
+      this.toast(err.message || 'Reject failed');
+    } finally {
+      this.busy = false;
+    }
+  }
 
-            async api(path, opts = {}) {
-                const res = await fetch(API + path, {
-                    headers: { 'content-type': 'application/json', ...(opts.headers || {}) },
-                    ...opts,
-                });
-                const body = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(body.error || res.statusText || 'request failed');
-                return body;
-            }
+  async delegateSelected() {
+    const card = this.selected();
+    if (!card || this.busy) return;
+    this.busy = true;
+    try {
+      if (this.online) {
+        await this.api('/queue/' + encodeURIComponent(card.cardId) + '/delegate', { method: 'POST' });
+        await this.tryHydrateFromRuntime(true);
+      } else {
+        this.cards = this.cards.filter((c) => c.cardId !== card.cardId);
+        this.selectedId = this.cards[0]?.cardId || null;
+      }
+      this.toast('Delegated ' + String(card.cardId).slice(0, 16) + '…');
+      if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
+      this.render();
+    } catch (err) {
+      this.toast(err.message || 'Delegate failed');
+    } finally {
+      this.busy = false;
+    }
+  }
 
-            async refresh(seedIfEmpty) {
-                try {
-                    const [health, queue] = await Promise.all([
-                        this.api('/health'),
-                        this.api('/queue?status=pending'),
-                    ]);
-                    document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
-                    document.getElementById('ghl-status').className = 'text-indigo-400';
-                    document.getElementById('ghl-status').textContent = 'SYNCED';
-                    document.getElementById('vault-status').className = 'text-emerald-400';
-                    document.getElementById('vault-status').textContent = 'SECURE (AES-256)';
-                    document.getElementById('ledger-hash').textContent = health.ledgerTip || queue.ledgerTip || '—';
-                    document.getElementById('footer-status').textContent = health.dryRun
-                        ? 'GHL + LOCAL VAULT ACTIVE (DRY-RUN)'
-                        : 'GHL + LOCAL VAULT ACTIVE';
+  renderQueue() {
+    const list = document.getElementById('queue-list');
+    document.getElementById('queue-count').textContent = String(this.cards.length);
+    if (!this.cards.length) {
+      list.innerHTML = `<div class="text-center py-16 text-slate-500 font-mono text-xs"><i data-lucide="check-circle" class="w-8 h-8 mx-auto mb-2 text-emerald-500/50"></i>QUEUE CLEAR<br><span class="text-[10px] text-slate-600">Awaiting inbound GHL / agent events</span></div>`;
+      return;
+    }
+    list.innerHTML = this.cards.map((c) => {
+      const selected = c.cardId === this.selectedId;
+      const risk = RISK_STYLE[c.payload.riskLevel] || RISK_STYLE.medium;
+      const src = c.payload.source === 'recommendation' ? 'REC' : String(c.payload.source || 'EVT').slice(0, 8).toUpperCase();
+      return `<button type="button" data-card="${escapeHtml(c.cardId)}" class="w-full text-left p-3.5 rounded-xl border transition font-mono text-xs ${selected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/40' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'} ${c.payload.riskLevel === 'critical' ? 'critical-glow' : ''}">
+        <div class="flex items-center justify-between mb-2 gap-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${risk}">${escapeHtml(c.payload.riskLevel)}</span>
+          <span class="text-[10px] text-slate-500">${new Date(c.payload.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })}</span>
+        </div>
+        <div class="font-semibold text-slate-200 truncate mb-1">${escapeHtml(c.payload.packName)}</div>
+        <div class="flex items-center justify-between gap-2">
+          <div class="text-[11px] text-slate-400 truncate">${escapeHtml(c.payload.actionType)}</div>
+          <span class="text-[9px] text-slate-500 border border-desk-600 rounded px-1.5 py-0.5">${src}</span>
+        </div>
+      </button>`;
+    }).join('');
+    list.querySelectorAll('[data-card]').forEach((btn) => {
+      btn.addEventListener('click', () => this.selectCard(btn.getAttribute('data-card')));
+    });
+  }
 
-                    this.cards = (queue.cards || []).slice().sort((a, b) => {
-                        const order = { critical: 0, high: 1, medium: 2, low: 3 };
-                        const ra = order[a.payload.riskLevel] ?? 9;
-                        const rb = order[b.payload.riskLevel] ?? 9;
-                        if (ra !== rb) return ra - rb;
-                        return (a.payload.timestamp || 0) - (b.payload.timestamp || 0);
-                    });
+  renderInspector() {
+    const empty = document.getElementById('empty-state');
+    const content = document.getElementById('inspector-content');
+    const card = this.selected();
+    if (!card) {
+      empty.classList.remove('hidden'); empty.classList.add('md:flex'); content.classList.add('hidden');
+      return;
+    }
+    empty.classList.add('hidden'); empty.classList.remove('md:flex'); content.classList.remove('hidden');
 
-                    if (seedIfEmpty && this.cards.length === 0) {
-                        for (const payload of SEED_PAYLOADS) {
-                            await this.api('/queue', { method: 'POST', body: JSON.stringify({ payload }) });
-                        }
-                        return this.refresh(false);
-                    }
+    document.getElementById('mobile-card-id').textContent = card.cardId;
+    const badge = document.getElementById('card-risk-badge');
+    badge.textContent = card.payload.riskLevel + ' risk';
+    badge.className = 'font-mono text-[10px] px-2.5 py-0.5 rounded font-bold uppercase border ' + (RISK_STYLE[card.payload.riskLevel] || RISK_STYLE.medium);
+    document.getElementById('card-pack-name').textContent = card.payload.packName || '—';
+    document.getElementById('card-timestamp').textContent = new Date(card.payload.timestamp).toLocaleString();
+    document.getElementById('card-title').textContent = card.payload.actionType;
+    document.getElementById('card-source').textContent = (card.payload.source || 'manual') + (card.payload.parentCardId ? ' · parent ' + String(card.payload.parentCardId).slice(0, 14) + '…' : '');
+    const cost = card.payload.resourceCost;
+    document.getElementById('card-cost').textContent = cost ? `${cost.amount} ${cost.token}` : '—';
+    document.getElementById('card-endpoint').textContent = card.payload.targetEndpoint || '—';
+    document.getElementById('card-agent-id').textContent = card.payload.agentId || '—';
+    document.getElementById('card-summary').textContent = card.payload.summary || '—';
 
-                    if (!this.selectedId || !this.cards.find((c) => c.cardId === this.selectedId)) {
-                        this.selectedId = this.cards[0]?.cardId || null;
-                    }
-                    this.render();
-                } catch (err) {
-                    document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
-                    document.getElementById('ghl-status').className = 'text-rose-400';
-                    document.getElementById('ghl-status').textContent = 'OFFLINE';
-                    document.getElementById('vault-status').className = 'text-rose-400';
-                    document.getElementById('vault-status').textContent = 'UNREACHABLE';
-                    document.getElementById('footer-status').textContent = 'RUNTIME OFFLINE';
-                    if (seedIfEmpty) this.toast('Runtime offline — start with npm run dev');
-                    this.render();
-                }
-            }
+    const meta = card.payload.metaPrompt || {
+      templateId: 'synthetic.fallback', systemPrompt: 'Local fallback prompt — authorize before any external effect.',
+      agentInstructions: card.payload.summary || '', constraints: ['Sovereign queue gate required'],
+    };
+    document.getElementById('meta-template-id').textContent = meta.templateId || '—';
+    document.getElementById('meta-system').textContent = meta.systemPrompt || '';
+    document.getElementById('meta-instructions').textContent = meta.agentInstructions || '';
+    document.getElementById('meta-constraints').innerHTML = (meta.constraints || [])
+      .map((c) => `<li class="flex gap-2 text-[11px] text-slate-300 font-mono"><span class="text-indigo-400 shrink-0">▹</span><span>${escapeHtml(c)}</span></li>`)
+      .join('') || '<li class="text-[11px] text-slate-500 font-mono">No constraints attached</li>';
 
-            async simulateInboundWebhook() {
-                if (this.busy) return;
-                this.busy = true;
-                try {
-                    const ghlActions = [
-                        { name: 'GoHighLevel SMS Broadcast', type: 'GHL_BULK_SMS_DISPATCH', risk: 'high', endpoint: 'https://services.leadconnectorhq.com/conversations/messages', desc: 'Inbound trigger: Send appointment reminder SMS to 34 contacts scheduled for tomorrow.', via: 'ghl' },
-                        { name: 'GoHighLevel Opportunity Move', type: 'GHL_OPP_PIPELINE_UPDATE', risk: 'medium', endpoint: 'https://services.leadconnectorhq.com/opportunities/update', desc: 'Inbound webhook: Move deal stage to "Contract Sent" based on form completion.', via: 'ghl' },
-                        { name: 'Autonomous Vault Transfer', type: 'SOL_VAULT_TRANSFER', risk: 'critical', endpoint: '0x49B...C102 (Mainnet Vault)', desc: 'Agent logic.js requests emergency liquidity allocation for arbitrage execution.', via: 'queue' }
-                    ];
-                    const sample = ghlActions[Math.floor(Math.random() * ghlActions.length)];
-                    let cardId;
+    document.getElementById('diff-before').textContent = JSON.stringify(card.payload.diffData?.before || {}, null, 2);
+    document.getElementById('diff-after').textContent = JSON.stringify(card.payload.diffData?.after || {}, null, 2);
 
-                    if (sample.via === 'ghl') {
-                        const contactId = 'sim-' + Math.random().toString(36).slice(2, 8);
-                        const queued = await this.api('/webhook/ghl', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                type: sample.type.includes('SMS') ? 'ContactCreate' : 'OpportunityStageUpdate',
-                                packName: sample.name,
-                                actionType: sample.type,
-                                summary: sample.desc,
-                                contactId,
-                                contact: { id: contactId, tags: ['inbound'], status: 'open' },
-                                locationId: 'loc-desk-01',
-                                suggestedAction: {
-                                    method: sample.type.includes('SMS') ? 'POST' : 'PUT',
-                                    endpoint: sample.endpoint.replace('https://services.leadconnectorhq.com', ''),
-                                    body: { source: 'desk-terminal-sim' },
-                                },
-                            }),
-                        });
-                        cardId = queued.cardId;
-                    } else {
-                        const created = await this.api('/queue', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                payload: {
-                                    agentId: 'agent_' + Math.random().toString(36).substring(2, 8),
-                                    packName: sample.name,
-                                    actionType: sample.type,
-                                    riskLevel: sample.risk,
-                                    targetEndpoint: sample.endpoint,
-                                    summary: sample.desc,
-                                    diffData: {
-                                        before: { executionStatus: 'paused_in_sandbox', auditLocked: true },
-                                        after: { executionStatus: 'authorized_dispatch', signaturePending: true },
-                                    },
-                                    resourceCost: { amount: (Math.random() * 0.04).toFixed(3), token: 'ETH' },
-                                    source: 'sandbox',
-                                    timestamp: Date.now(),
-                                },
-                            }),
-                        });
-                        cardId = created.card.cardId;
-                    }
+    const nextEl = document.getElementById('next-actions');
+    const next = card.nextActions || previewNextActions(card.payload);
+    if (!next.length || card.payload.source === 'recommendation') {
+      nextEl.innerHTML = `<div class="text-[11px] font-mono text-slate-500 py-2">No further chain — awaiting human AUTHORIZE &amp; SIGN only.</div>`;
+    } else {
+      nextEl.innerHTML = next.map((n) => `
+        <div class="flex items-center justify-between gap-3 bg-desk-900/60 border border-desk-700 rounded-lg px-3 py-2.5">
+          <div class="min-w-0">
+            <div class="font-mono text-[11px] text-slate-200 truncate">${escapeHtml(n.label)}</div>
+            <div class="font-mono text-[10px] text-slate-500 truncate">${escapeHtml(n.action)}</div>
+          </div>
+          <span class="shrink-0 font-mono text-[9px] uppercase px-2 py-0.5 rounded border ${RISK_STYLE[n.risk] || RISK_STYLE.medium}">${escapeHtml(n.risk)}</span>
+        </div>`).join('');
+    }
+  }
 
-                    await this.refresh(false);
-                    this.selectedId = cardId;
-                    if (window.innerWidth < 768) this.openMobileInspector();
-                    this.render();
-                    this.toast('Queued ' + String(cardId).slice(0, 18) + '…');
-                } catch (err) {
-                    this.toast(err.message || 'Simulate failed');
-                } finally {
-                    this.busy = false;
-                }
-            }
+  render() {
+    this.renderQueue();
+    this.renderInspector();
+    if (window.lucide) lucide.createIcons();
+  }
+}
 
-            selectCard(id) {
-                this.selectedId = id;
-                if (window.innerWidth < 768) this.openMobileInspector();
-                this.render();
-            }
-
-            openMobileInspector() {
-                this.isMobileInspectorOpen = true;
-                const wrapper = document.getElementById('inspector-wrapper');
-                wrapper.classList.remove('translate-x-full');
-                wrapper.classList.add('translate-x-0');
-            }
-
-            closeMobileInspector() {
-                this.isMobileInspectorOpen = false;
-                const wrapper = document.getElementById('inspector-wrapper');
-                wrapper.classList.remove('translate-x-0');
-                wrapper.classList.add('translate-x-full');
-            }
-
-            async signSelected() {
-                if (!this.selectedId || this.busy) return;
-                const cardId = this.selectedId;
-                this.busy = true;
-                try {
-                    const result = await this.api('/queue/' + encodeURIComponent(cardId) + '/authorize', { method: 'POST' });
-                    if (navigator.vibrate) navigator.vibrate(40);
-                    document.getElementById('ledger-hash').textContent = result.ledgerTip || '—';
-                    this.toast('Signed · ledger #' + result.provenanceId + (result.dispatch?.dryRun ? ' · dry-run' : ''));
-                    await this.refresh(false);
-                    if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
-                } catch (err) {
-                    this.toast(err.message || 'Authorize failed');
-                } finally {
-                    this.busy = false;
-                }
-            }
-
-            async rejectSelected() {
-                if (!this.selectedId || this.busy) return;
-                const cardId = this.selectedId;
-                this.busy = true;
-                try {
-                    await this.api('/queue/' + encodeURIComponent(cardId) + '/reject', { method: 'POST' });
-                    await this.refresh(false);
-                    if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
-                } catch (err) {
-                    this.toast(err.message || 'Reject failed');
-                } finally {
-                    this.busy = false;
-                }
-            }
-
-            async delegateSelected() {
-                if (!this.selectedId || this.busy) return;
-                const cardId = this.selectedId;
-                this.busy = true;
-                try {
-                    await this.api('/queue/' + encodeURIComponent(cardId) + '/delegate', { method: 'POST' });
-                    this.toast('Delegated ' + String(cardId).slice(0, 18) + '…');
-                    await this.refresh(false);
-                    if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
-                } catch (err) {
-                    this.toast(err.message || 'Delegate failed');
-                } finally {
-                    this.busy = false;
-                }
-            }
-
-            render() {
-                document.getElementById('queue-count').textContent = this.cards.length;
-
-                const listEl = document.getElementById('queue-list');
-                if (this.cards.length === 0) {
-                    listEl.innerHTML = `
-                        <div class="text-center py-16 text-slate-500 font-mono text-xs">
-                            <i data-lucide="check-circle" class="w-8 h-8 mx-auto mb-2 text-emerald-500/50"></i>
-                            QUEUE CLEAR<br><span class="text-[10px] text-slate-600">All GHL & agent swarms synced</span>
-                        </div>
-                    `;
-                } else {
-                    listEl.innerHTML = this.cards.map((c) => {
-                        const isSelected = c.cardId === this.selectedId;
-                        const riskColors = {
-                            critical: 'bg-rose-500/10 text-rose-400 border-rose-500/30 critical-glow',
-                            high: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-                            medium: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
-                            low: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                        }[c.payload.riskLevel] || 'bg-desk-700 text-slate-300 border-desk-600';
-
-                        return `
-                            <div onclick="app.selectCard('${c.cardId}')" class="p-3.5 rounded-xl border transition cursor-pointer font-mono text-xs ${isSelected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/50' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'}">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${riskColors}">${c.payload.riskLevel}</span>
-                                    <span class="text-[10px] text-slate-500">${new Date(c.payload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                                </div>
-                                <div class="font-semibold text-slate-200 truncate mb-1">${escapeHtml(c.payload.packName)}</div>
-                                <div class="text-[11px] text-slate-400 truncate">${escapeHtml(c.payload.actionType)}</div>
-                            </div>
-                        `;
-                    }).join('');
-                }
-
-                const emptyStateEl = document.getElementById('empty-state');
-                const inspectorEl = document.getElementById('inspector-content');
-                const activeCard = this.cards.find((c) => c.cardId === this.selectedId);
-
-                if (!activeCard) {
-                    emptyStateEl.classList.remove('hidden');
-                    emptyStateEl.classList.add('md:flex');
-                    inspectorEl.classList.add('hidden');
-                } else {
-                    emptyStateEl.classList.add('hidden');
-                    emptyStateEl.classList.remove('md:flex');
-                    inspectorEl.classList.remove('hidden');
-
-                    document.getElementById('mobile-card-id').textContent = activeCard.cardId;
-
-                    const badgeEl = document.getElementById('card-risk-badge');
-                    badgeEl.textContent = activeCard.payload.riskLevel + ' risk';
-                    badgeEl.className = 'font-mono text-[10px] px-2.5 py-0.5 rounded font-bold uppercase ' + ({
-                        critical: 'bg-rose-500/20 text-rose-300 border border-rose-500/40',
-                        high: 'bg-amber-500/20 text-amber-300 border border-amber-500/40',
-                        medium: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40',
-                        low: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                    }[activeCard.payload.riskLevel] || 'bg-desk-700 text-slate-300');
-
-                    document.getElementById('card-pack-name').textContent = activeCard.payload.packName;
-                    document.getElementById('card-timestamp').textContent = new Date(activeCard.payload.timestamp).toLocaleString();
-                    document.getElementById('card-title').textContent = activeCard.payload.actionType;
-                    const cost = activeCard.payload.resourceCost;
-                    document.getElementById('card-cost').textContent = cost
-                        ? `${cost.amount} ${cost.token}`
-                        : '—';
-                    document.getElementById('card-endpoint').textContent = activeCard.payload.targetEndpoint;
-                    document.getElementById('card-agent-id').textContent = activeCard.payload.agentId;
-                    document.getElementById('card-summary').textContent = activeCard.payload.summary;
-                    document.getElementById('diff-before').textContent = JSON.stringify(activeCard.payload.diffData?.before || {}, null, 2);
-                    document.getElementById('diff-after').textContent = JSON.stringify(activeCard.payload.diffData?.after || {}, null, 2);
-                }
-
-                if (window.lucide) lucide.createIcons();
-            }
-        }
-
-        function escapeHtml(s) {
-            return String(s || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
-
-        const app = new AIAQueueApp();
-    </script>
+window.simulateInboundEvent = function simulateInboundEvent() { return app.simulateInboundEvent(); };
+const app = new AIASovereignTerminal();
+</script>
 </body>
 </html>
