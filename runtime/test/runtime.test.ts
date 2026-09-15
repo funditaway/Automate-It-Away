@@ -137,6 +137,93 @@ describe('desk terminal', () => {
     const html = await res.text()
     assert.match(html, /Active Decision Queue/)
     assert.match(html, /SIMULATE GHL WEBHOOK/)
+    assert.match(html, /\/api\/sign/)
+    assert.match(html, /Visual Audit Receipt/)
+    assert.match(html, /Meta-Prompt Synthesis/)
+    assert.match(html, /toggleSimulation/)
+    server.close()
+    vault.close()
+    rmSync(ws.root, { recursive: true, force: true })
+  })
+})
+
+describe('realtime + /api/sign', () => {
+  it('signs via POST /api/sign and streams SSE events', async () => {
+    const ws = tempWorkspace()
+    const { app, vault, attachRealtime } = createApp({
+      dataDir: ws.dataDir,
+      dbPath: ws.dbPath,
+      keyDir: ws.keyDir,
+      dryRun: true,
+    })
+    const { createServer } = await import('node:http')
+    const server = createServer(app)
+    attachRealtime(server)
+    server.listen(0, '127.0.0.1')
+    await new Promise<void>((r) => server.once('listening', () => r()))
+    const { port } = server.address() as { port: number }
+    const base = `http://127.0.0.1:${port}`
+
+    const events: string[] = []
+    const streamRes = await fetch(`${base}/api/stream`)
+    assert.equal(streamRes.status, 200)
+    assert.match(String(streamRes.headers.get('content-type')), /text\/event-stream/)
+    const reader = streamRes.body!.getReader()
+    const decoder = new TextDecoder()
+    const readHello = (async () => {
+      let buf = ''
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        if (buf.includes('event: hello')) {
+          events.push('hello')
+          break
+        }
+      }
+    })()
+    await Promise.race([readHello, new Promise((_, rej) => setTimeout(() => rej(new Error('SSE timeout')), 3000))])
+
+    const created = await fetch(`${base}/queue`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        payload: {
+          agentId: 'agent_sse',
+          packName: 'SSE Pack',
+          actionType: 'GHL_TEST_SIGN',
+          riskLevel: 'high',
+          targetEndpoint: 'https://services.leadconnectorhq.com/contacts/1',
+          summary: 'sign via api',
+          timestamp: Date.now(),
+        },
+      }),
+    })
+    assert.equal(created.status, 201)
+    const cardBody = (await created.json()) as { card: { cardId: string } }
+
+    vault.putCredential('GHL', 'gohighlevel', 'test-token')
+    const signed = await fetch(`${base}/api/sign`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ cardId: cardBody.card.cardId }),
+    })
+    assert.equal(signed.status, 200)
+    const sigBody = (await signed.json()) as {
+      ok: boolean
+      signature: string
+      payloadHash: string
+      verified: boolean
+      provenanceId: number
+    }
+    assert.equal(sigBody.ok, true)
+    assert.equal(sigBody.verified, true)
+    assert.match(sigBody.signature, /^[0-9a-f]{128}$/i)
+    assert.ok(sigBody.payloadHash)
+    assert.ok(sigBody.provenanceId >= 1)
+    assert.ok(events.includes('hello'))
+
+    try { reader.cancel() } catch { /* ignore */ }
     server.close()
     vault.close()
     rmSync(ws.root, { recursive: true, force: true })

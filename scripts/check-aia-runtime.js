@@ -34,7 +34,21 @@ function mustExist(rel) {
 ].forEach(mustExist)
 
 const terminal = fs.readFileSync(path.join(runtime, 'public/index.html'), 'utf8')
-;['SIMULATE GHL WEBHOOK', '/webhook/ghl', '/queue/', 'AUTHORIZE & SIGN', 'Active Decision Queue', 'LEDGER HASH'].forEach((bit) => {
+;[
+  'SIMULATE GHL WEBHOOK',
+  '/webhook/ghl',
+  '/queue/',
+  '/api/sign',
+  'AUTHORIZE & SIGN',
+  'Active Decision Queue',
+  'LEDGER',
+  'Visual Audit Receipt',
+  'Meta-Prompt Synthesis',
+  'toggleSimulation',
+  'EventSource',
+  'WebSocket',
+  'critical-glow',
+].forEach((bit) => {
   if (terminal.indexOf(bit) < 0) fail('public/index.html missing ' + bit)
 })
 
@@ -54,9 +68,23 @@ const sandbox = fs.readFileSync(path.join(runtime, 'src/sandboxManager.ts'), 'ut
 })
 
 const server = fs.readFileSync(path.join(runtime, 'src/server.ts'), 'utf8')
-;['/webhook/ghl', '3847', 'authorize', 'leadconnectorhq', 'appendProvenance'].forEach((bit) => {
+;[
+  '/webhook/ghl',
+  '3847',
+  'authorize',
+  'leadconnectorhq',
+  'appendProvenance',
+  '/api/sign',
+  '/api/stream',
+  '/ws',
+  'WebSocketServer',
+  'broadcast',
+].forEach((bit) => {
   if (server.indexOf(bit) < 0) fail('server.ts missing ' + bit)
 })
+
+const pkg = JSON.parse(fs.readFileSync(path.join(runtime, 'package.json'), 'utf8'))
+if (!pkg.dependencies || !pkg.dependencies.ws) fail('package.json missing ws dependency')
 
 if (!fs.existsSync(path.join(runtime, 'node_modules'))) {
   const install = spawnSync('npm', ['install'], { cwd: runtime, encoding: 'utf8' })

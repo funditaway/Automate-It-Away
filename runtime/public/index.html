@@ -2,8 +2,8 @@
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AIA // Sovereign Desk & GHL Integration Terminal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AIA // Sovereign Desk Terminal Connector</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -26,196 +26,260 @@
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --desk-900: #090a0f;
+            --desk-800: #12141c;
+            --desk-700: #1b1e2b;
+            --teal: #14b8a6;
+            --amber: #f59e0b;
+            --rose: #f43f5e;
+        }
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            -webkit-tap-highlight-color: transparent;
+            background:
+                radial-gradient(1200px 600px at 10% -10%, rgba(20, 184, 166, 0.08), transparent 55%),
+                radial-gradient(900px 500px at 100% 0%, rgba(99, 102, 241, 0.07), transparent 50%),
+                var(--desk-900);
+        }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: #090a0f; }
         ::-webkit-scrollbar-thumb { background: #262a3a; border-radius: 2px; }
         ::-webkit-scrollbar-thumb:hover { background: #383e54; }
         @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
-            50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.4); }
+            0%, 100% { box-shadow: 0 0 12px rgba(244, 63, 94, 0.18); border-color: rgba(244, 63, 94, 0.35); }
+            50% { box-shadow: 0 0 28px rgba(244, 63, 94, 0.42); border-color: rgba(244, 63, 94, 0.65); }
         }
-        .critical-glow { animation: pulse-glow 3s infinite; }
+        .critical-glow { animation: pulse-glow 2.4s ease-in-out infinite; }
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        .ai-shimmer {
+            background: linear-gradient(110deg, rgba(20,184,166,0.12) 0%, rgba(99,102,241,0.18) 35%, rgba(20,184,166,0.12) 70%, rgba(245,158,11,0.14) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 4.5s linear infinite;
+        }
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fade-up 0.35s ease-out both; }
+        @keyframes receipt-pop {
+            0% { opacity: 0; transform: scale(0.96) translateY(6px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .receipt-pop { animation: receipt-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
         .drawer-slide { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .toast {
             position: fixed; bottom: 5.5rem; left: 50%; transform: translateX(-50%);
-            z-index: 50; max-width: min(92vw, 28rem);
+            z-index: 60; max-width: min(92vw, 28rem);
             background: #1b1e2b; border: 1px solid #383e54; color: #e2e8f0;
             font-family: 'JetBrains Mono', monospace; font-size: 11px;
             padding: 0.65rem 0.9rem; border-radius: 0.5rem;
             box-shadow: 0 10px 30px rgba(0,0,0,.45);
         }
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .sig-verified { box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.35); }
     </style>
 </head>
 <body class="bg-desk-900 text-slate-100 h-[100dvh] flex flex-col overflow-hidden select-none">
 
-    <!-- Top Sovereign Header / Node Telemetry -->
-    <header class="h-14 border-b border-desk-700 bg-desk-800/90 backdrop-blur px-4 md:px-6 flex items-center justify-between shrink-0 z-20">
-        <div class="flex items-center space-x-3">
-            <div class="flex items-center space-x-2">
-                <div id="node-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span class="font-mono font-bold text-xs md:text-sm tracking-widest text-emerald-400">AIA // NODE-01</span>
+    <!-- Connection Telemetry Bar -->
+    <header class="h-14 border-b border-desk-700 bg-desk-800/90 backdrop-blur px-3 md:px-6 flex items-center justify-between shrink-0 z-20 pt-safe">
+        <div class="flex items-center gap-2 md:gap-3 min-w-0">
+            <div class="flex items-center gap-2 min-w-0">
+                <div id="node-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0" title="Connection"></div>
+                <span class="font-mono font-bold text-xs md:text-sm tracking-widest text-emerald-400 truncate">AIA // NODE-01</span>
             </div>
             <span class="text-desk-500 hidden sm:inline">|</span>
-            <div class="hidden sm:flex items-center space-x-2 text-xs font-mono text-slate-400">
-                <span>GHL: <strong id="ghl-status" class="text-indigo-400">SYNCED</strong></span>
+            <div class="hidden sm:flex items-center gap-2 text-[10px] md:text-xs font-mono text-slate-400">
+                <span>LINK: <strong id="link-status" class="text-slate-400">BOOT</strong></span>
                 <span class="text-desk-500">•</span>
-                <span>VAULT: <strong id="vault-status" class="text-emerald-400">SECURE (AES-256)</strong></span>
+                <span>VAULT: <strong id="vault-status" class="text-slate-400">—</strong></span>
+                <span class="text-desk-500">•</span>
+                <span class="hidden lg:inline">KEY: <strong id="key-status" class="text-teal-400">—</strong></span>
             </div>
         </div>
 
-        <div class="flex items-center space-x-3">
-            <div class="hidden md:flex items-center space-x-2 text-xs font-mono bg-desk-700 px-3 py-1.5 rounded border border-desk-600">
-                <span class="text-slate-400">LEDGER HASH:</span>
+        <div class="flex items-center gap-2 md:gap-3 shrink-0">
+            <div class="hidden md:flex items-center gap-2 text-[10px] font-mono bg-desk-700 px-3 py-1.5 rounded border border-desk-600">
+                <span class="text-slate-400">LEDGER</span>
                 <span id="ledger-hash" class="text-indigo-400 font-semibold">—</span>
             </div>
-            <button onclick="app.simulateInboundWebhook()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-semibold px-3 py-1.5 rounded transition shadow-lg shadow-indigo-900/30 flex items-center space-x-1.5">
+            <button id="btn-sim-toggle" onclick="app.toggleSimulation()" class="text-[10px] font-mono px-2.5 py-1.5 rounded border border-desk-600 bg-desk-700 hover:bg-desk-600 text-slate-300 transition" title="Toggle offline simulation">
+                SIM <span id="sim-label">OFF</span>
+            </button>
+            <button onclick="app.simulateInboundWebhook()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] md:text-xs font-mono font-semibold px-2.5 md:px-3 py-1.5 rounded transition shadow-lg shadow-indigo-900/30 flex items-center gap-1.5">
                 <i data-lucide="webhook" class="w-3.5 h-3.5"></i>
                 <span class="hidden sm:inline">SIMULATE GHL WEBHOOK</span>
-                <span class="sm:hidden">SIM GHL</span>
+                <span class="sm:hidden">SIM</span>
             </button>
         </div>
     </header>
 
-    <!-- Main Workspace Layout -->
+    <!-- Secondary telemetry strip (mobile + hash preview) -->
+    <div class="md:hidden px-3 py-1.5 border-b border-desk-700 bg-desk-800/50 flex items-center justify-between text-[10px] font-mono text-slate-400">
+        <span id="mobile-link">LINK: BOOT</span>
+        <span class="truncate ml-2">LEDGER <span id="ledger-hash-mobile" class="text-indigo-400">—</span></span>
+    </div>
+
     <div class="flex-1 flex overflow-hidden relative">
 
         <!-- Queue List Pane -->
         <div class="w-full md:w-[380px] border-r border-desk-700 bg-desk-800/40 flex flex-col shrink-0 h-full">
             <div class="p-4 border-b border-desk-700 flex items-center justify-between bg-desk-800/60">
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center gap-2">
                     <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i>
                     <h2 class="font-mono text-xs font-bold tracking-wider text-slate-300 uppercase">Active Decision Queue</h2>
                 </div>
                 <span id="queue-count" class="font-mono text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-500/30">0</span>
             </div>
 
-            <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-20 md:pb-3">
-                <!-- Populated via JS -->
-            </div>
+            <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-20 md:pb-3"></div>
 
-            <div class="p-3 border-t border-desk-700 bg-desk-800/30 text-[11px] font-mono text-slate-500 hidden md:flex justify-between items-center">
+            <div class="p-3 border-t border-desk-700 bg-desk-800/30 text-[10px] font-mono text-slate-500 hidden md:flex justify-between items-center">
                 <span>SHORTCUT: [ENTER] TO SIGN</span>
-                <span id="footer-status" class="text-indigo-400">GHL + LOCAL VAULT ACTIVE</span>
+                <span id="footer-status" class="text-indigo-400">CONNECTING…</span>
             </div>
         </div>
 
-        <!-- Inspector Pane / Mobile Drawer Overlay -->
+        <!-- Inspector / Mobile Drawer -->
         <div id="inspector-wrapper" class="absolute inset-0 md:relative md:inset-auto flex-1 bg-desk-900 flex flex-col overflow-hidden transition-transform duration-300 translate-x-full md:translate-x-0 z-30 drawer-slide">
 
-            <!-- Mobile Back Bar -->
-            <div class="md:hidden p-4 border-b border-desk-700 bg-desk-800 flex items-center justify-between shrink-0">
-                <button onclick="app.closeMobileInspector()" class="text-xs font-mono text-slate-300 flex items-center space-x-1.5 py-1 px-2 bg-desk-700 rounded border border-desk-600">
+            <div class="md:hidden p-3 border-b border-desk-700 bg-desk-800 flex items-center justify-between shrink-0">
+                <button onclick="app.closeMobileInspector()" class="text-xs font-mono text-slate-300 flex items-center gap-1.5 py-1.5 px-2.5 bg-desk-700 rounded border border-desk-600">
                     <i data-lucide="arrow-left" class="w-4 h-4"></i>
-                    <span>Back to Queue</span>
+                    <span>Queue</span>
                 </button>
-                <span id="mobile-card-id" class="font-mono text-xs text-indigo-400 font-semibold"></span>
+                <span id="mobile-card-id" class="font-mono text-[10px] text-indigo-400 font-semibold truncate max-w-[50%]"></span>
             </div>
 
-            <!-- Empty State -->
             <div id="empty-state" class="hidden md:flex absolute inset-0 flex-col items-center justify-center text-center p-8 text-slate-500">
                 <div class="w-16 h-16 rounded-2xl bg-desk-800 border border-desk-700 flex items-center justify-center mb-4 text-slate-600">
                     <i data-lucide="shield-check" class="w-8 h-8"></i>
                 </div>
                 <h3 class="font-mono text-sm font-semibold text-slate-400 mb-1">NO ACTIVE DECISION CARD SELECTED</h3>
-                <p class="text-xs max-w-sm text-slate-500">Select an item from the queue to inspect GoHighLevel payload diffs, verify sandbox logic, and sign with your local keypair.</p>
+                <p class="text-xs max-w-sm text-slate-500">Select a queue item to inspect payload diffs, meta-prompt synthesis, and cryptographically authorize with the local ledger bridge.</p>
             </div>
 
-            <!-- Inspector Body -->
             <div id="inspector-content" class="flex-1 flex flex-col h-full overflow-hidden hidden">
-
-                <!-- Inspector Header -->
-                <div class="p-5 md:p-6 border-b border-desk-700 bg-desk-800/40 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div>
-                        <div class="flex items-center space-x-3 mb-2 flex-wrap gap-y-1">
+                <div class="p-4 md:p-6 border-b border-desk-700 bg-desk-800/40 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 mb-2 flex-wrap">
                             <span id="card-risk-badge" class="font-mono text-[10px] px-2.5 py-0.5 rounded font-bold uppercase"></span>
-                            <span id="card-pack-name" class="font-mono text-xs text-slate-400"></span>
-                            <span class="text-desk-500 hidden sm:inline">•</span>
-                            <span id="card-timestamp" class="font-mono text-xs text-slate-500"></span>
+                            <span id="card-pack-name" class="font-mono text-xs text-slate-400 truncate"></span>
+                            <span id="card-timestamp" class="font-mono text-[10px] text-slate-500"></span>
+                            <span id="sig-badge" class="hidden font-mono text-[10px] px-2 py-0.5 rounded border border-teal-500/40 bg-teal-500/10 text-teal-300 uppercase tracking-wider">Ed25519 verified</span>
                         </div>
-                        <h1 id="card-title" class="text-lg md:text-xl font-semibold text-white font-mono tracking-tight"></h1>
+                        <h1 id="card-title" class="text-base md:text-xl font-semibold text-white font-mono tracking-tight break-all"></h1>
                     </div>
-                    <div class="text-left sm:text-right bg-desk-800/60 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-desk-700">
-                        <div class="text-[10px] font-mono text-slate-500">RESOURCE COST / GAS</div>
+                    <div class="text-left sm:text-right bg-desk-800/60 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-desk-700 shrink-0">
+                        <div class="text-[10px] font-mono text-slate-500">RESOURCE COST</div>
                         <div id="card-cost" class="font-mono text-sm font-semibold text-indigo-400"></div>
                     </div>
                 </div>
 
-                <!-- Scrollable Inspector Details -->
-                <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 pb-28 md:pb-6">
-
-                    <!-- Meta Grid -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-5 pb-32 md:pb-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
-                            <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Target API Endpoint (GHL / Webhook)</div>
+                            <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Target Endpoint</div>
                             <div id="card-endpoint" class="font-mono text-xs text-slate-200 truncate"></div>
                         </div>
                         <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
-                            <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Agent Sandbox ID (`logic.js`)</div>
+                            <div class="text-[10px] font-mono text-slate-400 mb-1 uppercase tracking-wider">Agent Sandbox ID</div>
                             <div id="card-agent-id" class="font-mono text-xs text-slate-200 truncate"></div>
                         </div>
                     </div>
 
-                    <!-- Summary -->
-                    <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5 md:p-4">
+                    <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
                         <div class="text-[10px] font-mono text-slate-400 mb-1.5 uppercase tracking-wider">Execution Summary</div>
                         <p id="card-summary" class="text-xs md:text-sm text-slate-300 leading-relaxed"></p>
                     </div>
 
-                    <!-- Payload Diff Viewer -->
+                    <!-- Meta-prompt synthesis -->
+                    <div class="ai-shimmer border border-teal-500/25 rounded-lg p-3.5 md:p-4">
+                        <div class="text-[10px] font-mono text-teal-300/90 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="sparkles" class="w-3 h-3"></i>
+                            <span>Meta-Prompt Synthesis</span>
+                        </div>
+                        <pre id="meta-prompt" class="text-[11px] text-slate-200 whitespace-pre-wrap leading-relaxed font-mono"></pre>
+                    </div>
+
                     <div class="space-y-3">
-                        <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Payload Diff Inspector (`card_ui.json`)</div>
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 font-mono text-xs">
+                        <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Payload Diff Inspector</div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 font-mono text-xs">
                             <div class="bg-desk-800 border border-red-900/40 rounded-lg p-3.5 overflow-x-auto">
-                                <div class="text-[10px] text-red-400 mb-2 font-bold flex items-center space-x-1">
+                                <div class="text-[10px] text-red-400 mb-2 font-bold flex items-center gap-1">
                                     <i data-lucide="minus-circle" class="w-3 h-3"></i>
-                                    <span>BEFORE STATE</span>
+                                    <span>BEFORE</span>
                                 </div>
                                 <pre id="diff-before" class="text-slate-400 text-[11px]"></pre>
                             </div>
                             <div class="bg-desk-800 border border-emerald-900/40 rounded-lg p-3.5 overflow-x-auto">
-                                <div class="text-[10px] text-emerald-400 mb-2 font-bold flex items-center space-x-1">
+                                <div class="text-[10px] text-emerald-400 mb-2 font-bold flex items-center gap-1">
                                     <i data-lucide="plus-circle" class="w-3 h-3"></i>
-                                    <span>PROPOSED AFTER STATE</span>
+                                    <span>AFTER</span>
                                 </div>
                                 <pre id="diff-after" class="text-slate-200 text-[11px]"></pre>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Visual Audit Receipt -->
+                    <div id="audit-receipt" class="hidden receipt-pop rounded-lg border border-teal-500/40 bg-teal-500/10 p-4 sig-verified">
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <div class="text-[10px] font-mono text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="file-check-2" class="w-3.5 h-3.5"></i>
+                                <span>Visual Audit Receipt</span>
+                            </div>
+                            <span class="font-mono text-[10px] text-teal-200/80" id="receipt-time"></span>
+                        </div>
+                        <div class="space-y-2 text-[11px] font-mono">
+                            <div><span class="text-slate-500">signature</span><br><span id="receipt-sig" class="text-teal-100 break-all"></span></div>
+                            <div><span class="text-slate-500">payload hash</span><br><span id="receipt-hash" class="text-indigo-200 break-all"></span></div>
+                            <div class="flex flex-wrap gap-3 text-slate-400">
+                                <span>ledger <strong id="receipt-ledger" class="text-indigo-300 font-normal"></strong></span>
+                                <span>prov #<strong id="receipt-prov" class="text-slate-200 font-normal"></strong></span>
+                                <span id="receipt-verified" class="text-teal-300">✓ verified</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Action Footer -->
-                <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-desk-700 bg-desk-800/95 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 z-20">
-                    <div class="flex items-center space-x-2 w-full sm:w-auto">
-                        <button onclick="app.rejectSelected()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-rose-950/40 hover:text-rose-400 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center space-x-2">
+                <div class="absolute bottom-0 left-0 right-0 p-3 md:p-4 border-t border-desk-700 bg-desk-800/95 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0 z-20 pb-safe">
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <button onclick="app.rejectSelected()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-rose-950/40 hover:text-rose-400 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center gap-2">
                             <i data-lucide="x" class="w-4 h-4"></i>
                             <span>Reject</span>
                         </button>
-                        <button onclick="app.delegateSelected()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-desk-600 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center space-x-2">
+                        <button onclick="app.delegateSelected()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-desk-600 border border-desk-600 rounded-lg text-xs font-mono font-medium text-slate-300 transition flex items-center justify-center gap-2">
                             <i data-lucide="git-fork" class="w-4 h-4"></i>
                             <span>Delegate</span>
                         </button>
                     </div>
-
-                    <button onclick="app.signSelected()" class="w-full sm:w-auto px-6 py-3.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-mono font-bold tracking-wider shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2 group">
+                    <button onclick="app.signSelected()" class="w-full sm:w-auto px-6 py-3.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-mono font-bold tracking-wider shadow-lg shadow-emerald-900/40 transition flex items-center justify-center gap-2 group">
                         <i data-lucide="check-circle-2" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
                         <span>YES: AUTHORIZE & SIGN [ENTER]</span>
                     </button>
                 </div>
-
             </div>
         </div>
-
     </div>
 
-    <!-- Application Script — wired to local runtime API (SQLite vault + GHL) -->
     <script>
-        const API = '';
+    (() => {
+        const params = new URLSearchParams(location.search);
+        const stored = localStorage.getItem('aia_daemon_url') || '';
+        const defaultDaemon = (location.protocol === 'http:' || location.protocol === 'https:')
+            ? ''
+            : 'http://127.0.0.1:3847';
+        const API = (params.get('daemon') || params.get('api') || stored || defaultDaemon).replace(/\/$/, '');
 
         const SEED_PAYLOADS = [
             {
@@ -231,7 +295,7 @@
                 },
                 resourceCost: { amount: '0.015', token: 'ETH (Gas)' },
                 source: 'manual',
-                timestamp: Date.now() - 1000 * 42
+                timestamp: Date.now() - 42_000
             },
             {
                 agentId: 'agent_superfluid_stream',
@@ -246,9 +310,209 @@
                 },
                 resourceCost: { amount: '0.080', token: 'USDCx' },
                 source: 'sandbox',
-                timestamp: Date.now() - 1000 * 180
+                timestamp: Date.now() - 180_000
+            },
+            {
+                agentId: 'agent_social_publisher',
+                packName: 'Autonomous Brand Pod',
+                actionType: 'API_DISPATCH_TWITTER',
+                riskLevel: 'medium',
+                targetEndpoint: 'https://api.x.com/2/tweets',
+                summary: 'Publish thread summarizing weekly sovereign agent swarm performance and local Provenance Ledger metrics.',
+                diffData: {
+                    before: { draftPublished: false, scheduledSlot: '12:00 UTC' },
+                    after: { draftPublished: true, tweetId: '1893742910482' }
+                },
+                resourceCost: { amount: '0.001', token: 'ETH' },
+                source: 'manual',
+                timestamp: Date.now() - 950_000
             }
         ];
+
+        const SIM_TEMPLATES = [
+            { name: 'GoHighLevel SMS Broadcast', type: 'GHL_BULK_SMS_DISPATCH', risk: 'high', endpoint: 'https://services.leadconnectorhq.com/conversations/messages', desc: 'Inbound trigger: Send appointment reminder SMS to 34 contacts scheduled for tomorrow.', via: 'ghl' },
+            { name: 'GoHighLevel Opportunity Move', type: 'GHL_OPP_PIPELINE_UPDATE', risk: 'medium', endpoint: 'https://services.leadconnectorhq.com/opportunities/update', desc: 'Inbound webhook: Move deal stage to "Contract Sent" based on form completion.', via: 'ghl' },
+            { name: 'Autonomous Vault Transfer', type: 'SOL_VAULT_TRANSFER', risk: 'critical', endpoint: '0x49B...C102 (Mainnet Vault)', desc: 'Agent logic.js requests emergency liquidity allocation for arbitrage execution.', via: 'queue' },
+            { name: 'Email Outreach Dispatch', type: 'SMTP_BULK_SEND', risk: 'low', endpoint: 'smtp.mailgun.org/v3/messages', desc: 'Dispatch weekly newsletter batch to 820 verified subscribers.', via: 'queue' }
+        ];
+
+        function escapeHtml(s) {
+            return String(s || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function shortHash(seed) {
+            let h = 0x811c9dc5;
+            const str = String(seed) + ':' + Date.now();
+            for (let i = 0; i < str.length; i++) {
+                h ^= str.charCodeAt(i);
+                h = Math.imul(h, 0x01000193);
+            }
+            return '0x' + (h >>> 0).toString(16).padStart(8, '0') + (Math.imul(h, 0x85ebca6b) >>> 0).toString(16).padStart(8, '0');
+        }
+
+        function mockSignature(cardId, digest) {
+            const seed = `${cardId}:${digest}:${Date.now()}:${Math.random().toString(36)}`;
+            let a = 0x811c9dc5, b = 0x01000193;
+            const bytes = [];
+            for (let i = 0; i < seed.length; i++) {
+                const c = seed.charCodeAt(i);
+                a ^= c; a = Math.imul(a, 0x01000193);
+                b = Math.imul(b ^ (c << (i % 7)), 0x85ebca6b) >>> 0;
+            }
+            for (let i = 0; i < 32; i++) {
+                a = Math.imul(a ^ (a >>> 13), 0x5bd1e995) >>> 0;
+                b = Math.imul(b ^ (b >>> 16), 0x27d4eb2d) >>> 0;
+                bytes.push(((a ^ b ^ (i * 0x9e3779b9)) & 0xff).toString(16).padStart(2, '0'));
+                a = (a + 0x9e3779b9 + (b << 3)) >>> 0;
+                b = (b + 0x6c078965 + (a >>> 5)) >>> 0;
+            }
+            return bytes.join('');
+        }
+
+        function compareRiskThenFifo(a, b) {
+            const order = { critical: 0, high: 1, medium: 2, low: 3 };
+            const ra = order[a.payload?.riskLevel] ?? 9;
+            const rb = order[b.payload?.riskLevel] ?? 9;
+            if (ra !== rb) return ra - rb;
+            return (a.payload?.timestamp || 0) - (b.payload?.timestamp || 0);
+        }
+
+        function synthesizeMetaPrompt(card) {
+            const p = card.payload || {};
+            return [
+                `SYSTEM · HITL gate for ${p.agentId || 'agent'}`,
+                `ACTION · ${p.actionType || 'UNKNOWN'} @ risk=${(p.riskLevel || 'medium').toUpperCase()}`,
+                `INTENT · ${p.summary || 'No summary'}`,
+                `CONSTRAINT · Desk AIs draft only. Human Yes / Stop / Kill. Collect HOLD.`,
+                `VERIFY · Diff before→after, then Ed25519 sign before dispatch to ${p.targetEndpoint || 'target'}.`,
+            ].join('\n');
+        }
+
+        class RealtimeBridge {
+            constructor(apiBase, onEvent, onStatus) {
+                this.apiBase = apiBase;
+                this.onEvent = onEvent;
+                this.onStatus = onStatus;
+                this.ws = null;
+                this.es = null;
+                this.pollTimer = null;
+                this.mode = 'idle';
+                this.stopped = false;
+            }
+
+            start() {
+                this.stopped = false;
+                if (!this.apiBase && location.protocol === 'file:') {
+                    this.onStatus('offline', 'FILE');
+                    return;
+                }
+                this.connectWs();
+            }
+
+            stop() {
+                this.stopped = true;
+                this.teardown();
+            }
+
+            teardown() {
+                if (this.ws) { try { this.ws.close(); } catch (_) {} this.ws = null; }
+                if (this.es) { try { this.es.close(); } catch (_) {} this.es = null; }
+                if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+            }
+
+            wsUrl() {
+                const base = this.apiBase || `${location.protocol}//${location.host}`;
+                const u = new URL(base);
+                u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
+                u.pathname = '/ws';
+                u.search = '';
+                return u.toString();
+            }
+
+            connectWs() {
+                if (this.stopped) return;
+                this.teardown();
+                let settled = false;
+                const failTimer = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
+                    try { this.ws?.close(); } catch (_) {}
+                    this.connectSse();
+                }, 1800);
+                try {
+                    this.ws = new WebSocket(this.wsUrl());
+                    this.ws.onopen = () => {
+                        if (settled) return;
+                        settled = true;
+                        clearTimeout(failTimer);
+                        this.mode = 'ws';
+                        this.onStatus('ws', 'WS');
+                        this.ws.send(JSON.stringify({ type: 'ping' }));
+                    };
+                    this.ws.onmessage = (ev) => {
+                        try { this.onEvent(JSON.parse(ev.data)); } catch (_) {}
+                    };
+                    this.ws.onerror = () => {
+                        if (settled) return;
+                        settled = true;
+                        clearTimeout(failTimer);
+                        this.connectSse();
+                    };
+                    this.ws.onclose = () => {
+                        if (this.stopped) return;
+                        if (this.mode === 'ws') {
+                            this.mode = 'idle';
+                            setTimeout(() => this.connectWs(), 2500);
+                        }
+                    };
+                } catch (_) {
+                    clearTimeout(failTimer);
+                    this.connectSse();
+                }
+            }
+
+            connectSse() {
+                if (this.stopped) return;
+                this.teardown();
+                const url = (this.apiBase || '') + '/api/stream';
+                try {
+                    this.es = new EventSource(url);
+                    this.es.onopen = () => {
+                        this.mode = 'sse';
+                        this.onStatus('sse', 'SSE');
+                    };
+                    const handle = (ev) => {
+                        try { this.onEvent(JSON.parse(ev.data)); } catch (_) {}
+                    };
+                    this.es.addEventListener('hello', handle);
+                    this.es.addEventListener('card.enqueued', handle);
+                    this.es.addEventListener('card.signed', handle);
+                    this.es.addEventListener('card.rejected', handle);
+                    this.es.addEventListener('card.delegated', handle);
+                    this.es.onmessage = handle;
+                    this.es.onerror = () => {
+                        if (this.stopped) return;
+                        try { this.es.close(); } catch (_) {}
+                        this.es = null;
+                        this.startPoll();
+                    };
+                } catch (_) {
+                    this.startPoll();
+                }
+            }
+
+            startPoll() {
+                if (this.stopped) return;
+                this.teardown();
+                this.mode = 'poll';
+                this.onStatus('poll', 'POLL');
+                this.pollTimer = setInterval(() => this.onEvent({ type: 'poll' }), 4000);
+            }
+        }
 
         class AIAQueueApp {
             constructor() {
@@ -256,12 +520,18 @@
                 this.selectedId = null;
                 this.isMobileInspectorOpen = false;
                 this.busy = false;
+                this.simulation = localStorage.getItem('aia_sim_mode') === '1';
+                this.lastReceipt = null;
+                this.receiptByCard = new Map();
+                this.bridge = null;
                 this.init();
             }
 
             init() {
                 window.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && this.selectedId && !this.busy) {
+                        const t = e.target;
+                        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
                         e.preventDefault();
                         this.signSelected();
                     }
@@ -269,13 +539,41 @@
                         this.closeMobileInspector();
                     }
                 });
-                this.refresh(true);
-                setInterval(() => this.refresh(false), 4000);
+                this.applySimUi();
+                if (this.simulation) {
+                    this.bootSimulation(true);
+                } else {
+                    this.connectLive();
+                }
+            }
+
+            applySimUi() {
+                document.getElementById('sim-label').textContent = this.simulation ? 'ON' : 'OFF';
+                const btn = document.getElementById('btn-sim-toggle');
+                btn.classList.toggle('border-amber-500/50', this.simulation);
+                btn.classList.toggle('text-amber-300', this.simulation);
+                btn.classList.toggle('bg-amber-500/10', this.simulation);
+            }
+
+            setTelemetry({ link, linkLabel, vault, key, ledger, footer, online }) {
+                const dot = document.getElementById('node-dot');
+                dot.className = 'w-2.5 h-2.5 rounded-full shrink-0 ' + (online ? 'bg-emerald-500 animate-pulse' : (this.simulation ? 'bg-amber-400 animate-pulse' : 'bg-rose-500'));
+                document.getElementById('link-status').className = online ? 'text-emerald-400' : (this.simulation ? 'text-amber-300' : 'text-rose-400');
+                document.getElementById('link-status').textContent = linkLabel || link || '—';
+                document.getElementById('mobile-link').textContent = 'LINK: ' + (linkLabel || link || '—');
+                document.getElementById('vault-status').className = online || this.simulation ? 'text-emerald-400' : 'text-rose-400';
+                document.getElementById('vault-status').textContent = vault || '—';
+                if (key) document.getElementById('key-status').textContent = key;
+                if (ledger) {
+                    document.getElementById('ledger-hash').textContent = ledger;
+                    document.getElementById('ledger-hash-mobile').textContent = ledger;
+                }
+                if (footer) document.getElementById('footer-status').textContent = footer;
             }
 
             toast(msg) {
                 const el = document.createElement('div');
-                el.className = 'toast';
+                el.className = 'toast fade-up';
                 el.textContent = msg;
                 document.body.appendChild(el);
                 setTimeout(() => el.remove(), 2800);
@@ -291,66 +589,169 @@
                 return body;
             }
 
-            async refresh(seedIfEmpty) {
-                try {
-                    const [health, queue] = await Promise.all([
-                        this.api('/health'),
-                        this.api('/queue?status=pending'),
-                    ]);
-                    document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
-                    document.getElementById('ghl-status').className = 'text-indigo-400';
-                    document.getElementById('ghl-status').textContent = 'SYNCED';
-                    document.getElementById('vault-status').className = 'text-emerald-400';
-                    document.getElementById('vault-status').textContent = 'SECURE (AES-256)';
-                    document.getElementById('ledger-hash').textContent = health.ledgerTip || queue.ledgerTip || '—';
-                    document.getElementById('footer-status').textContent = health.dryRun
-                        ? 'GHL + LOCAL VAULT ACTIVE (DRY-RUN)'
-                        : 'GHL + LOCAL VAULT ACTIVE';
-
-                    this.cards = (queue.cards || []).slice().sort((a, b) => {
-                        const order = { critical: 0, high: 1, medium: 2, low: 3 };
-                        const ra = order[a.payload.riskLevel] ?? 9;
-                        const rb = order[b.payload.riskLevel] ?? 9;
-                        if (ra !== rb) return ra - rb;
-                        return (a.payload.timestamp || 0) - (b.payload.timestamp || 0);
-                    });
-
-                    if (seedIfEmpty && this.cards.length === 0) {
-                        for (const payload of SEED_PAYLOADS) {
-                            await this.api('/queue', { method: 'POST', body: JSON.stringify({ payload }) });
-                        }
-                        return this.refresh(false);
-                    }
-
-                    if (!this.selectedId || !this.cards.find((c) => c.cardId === this.selectedId)) {
-                        this.selectedId = this.cards[0]?.cardId || null;
-                    }
-                    this.render();
-                } catch (err) {
-                    document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
-                    document.getElementById('ghl-status').className = 'text-rose-400';
-                    document.getElementById('ghl-status').textContent = 'OFFLINE';
-                    document.getElementById('vault-status').className = 'text-rose-400';
-                    document.getElementById('vault-status').textContent = 'UNREACHABLE';
-                    document.getElementById('footer-status').textContent = 'RUNTIME OFFLINE';
-                    if (seedIfEmpty) this.toast('Runtime offline — start with npm run dev');
-                    this.render();
+            toggleSimulation() {
+                this.simulation = !this.simulation;
+                localStorage.setItem('aia_sim_mode', this.simulation ? '1' : '0');
+                this.applySimUi();
+                if (this.bridge) { this.bridge.stop(); this.bridge = null; }
+                if (this.simulation) {
+                    this.bootSimulation(false);
+                    this.toast('Simulation mode ON — offline seed queue');
+                } else {
+                    this.cards = [];
+                    this.selectedId = null;
+                    this.connectLive();
+                    this.toast('Simulation OFF — connecting to daemon');
                 }
+            }
+
+            bootSimulation(fresh) {
+                this.setTelemetry({
+                    online: false,
+                    linkLabel: 'SIM',
+                    vault: 'LOCAL SIM (AES mock)',
+                    key: 'sim-ed25519',
+                    ledger: shortHash('sim-tip'),
+                    footer: 'OFFLINE SIMULATION ACTIVE',
+                });
+                if (fresh || this.cards.length === 0) {
+                    this.cards = SEED_PAYLOADS.map((payload, i) => ({
+                        cardId: 'sim-card-' + (i + 1),
+                        status: 'pending',
+                        payload: { ...payload },
+                    })).sort(compareRiskThenFifo);
+                    this.selectedId = this.cards[0]?.cardId || null;
+                }
+                this.render();
+            }
+
+            connectLive() {
+                this.setTelemetry({
+                    online: false,
+                    linkLabel: 'CONNECTING',
+                    vault: 'PROBING',
+                    footer: 'CONNECTING TO DAEMON…',
+                });
+                this.bridge = new RealtimeBridge(
+                    API,
+                    (ev) => this.onRealtime(ev),
+                    (mode, label) => {
+                        this.setTelemetry({
+                            online: mode === 'ws' || mode === 'sse' || mode === 'poll',
+                            linkLabel: label,
+                            vault: mode === 'poll' ? 'POLL SYNC' : 'SECURE (AES-256)',
+                            footer: mode === 'ws' ? 'WS + LOCAL VAULT ACTIVE'
+                                : mode === 'sse' ? 'SSE + LOCAL VAULT ACTIVE'
+                                : mode === 'poll' ? 'POLL FALLBACK ACTIVE'
+                                : 'RUNTIME OFFLINE',
+                        });
+                        if (mode === 'ws' || mode === 'sse' || mode === 'poll') this.refresh(true);
+                    },
+                );
+                this.bridge.start();
+                this.refresh(true).catch(() => {
+                    this.setTelemetry({
+                        online: false,
+                        linkLabel: 'OFFLINE',
+                        vault: 'UNREACHABLE',
+                        footer: 'RUNTIME OFFLINE — enable SIM',
+                    });
+                    this.toast('Runtime offline — toggle SIM or start daemon');
+                    this.render();
+                });
+            }
+
+            async onRealtime(ev) {
+                if (!ev || this.simulation) return;
+                if (ev.type === 'hello') {
+                    if (ev.ledgerTip) this.setTelemetry({ online: true, ledger: ev.ledgerTip, key: ev.publicKey || undefined });
+                    await this.refresh(false);
+                    return;
+                }
+                if (ev.type === 'poll' || ev.type?.startsWith('card.')) {
+                    if (ev.ledgerTip) {
+                        document.getElementById('ledger-hash').textContent = ev.ledgerTip;
+                        document.getElementById('ledger-hash-mobile').textContent = ev.ledgerTip;
+                    }
+                    if (ev.type === 'card.signed' && ev.cardId === this.selectedId) {
+                        this.showReceipt({
+                            signature: ev.signature,
+                            payloadHash: ev.payloadHash,
+                            ledgerTip: ev.ledgerTip,
+                            provenanceId: ev.provenanceId,
+                            signedAt: ev.at || Date.now(),
+                            verified: true,
+                        });
+                    }
+                    await this.refresh(false);
+                }
+            }
+
+            async refresh(seedIfEmpty) {
+                if (this.simulation) {
+                    this.render();
+                    return;
+                }
+                const [health, queue] = await Promise.all([
+                    this.api('/health'),
+                    this.api('/queue?status=pending'),
+                ]);
+                this.setTelemetry({
+                    online: true,
+                    linkLabel: document.getElementById('link-status').textContent || 'LIVE',
+                    vault: 'SECURE (AES-256)',
+                    key: health.publicKey || '—',
+                    ledger: health.ledgerTip || queue.ledgerTip || '—',
+                    footer: health.dryRun ? 'GHL + LOCAL VAULT ACTIVE (DRY-RUN)' : 'GHL + LOCAL VAULT ACTIVE',
+                });
+
+                this.cards = (queue.cards || []).slice().sort(compareRiskThenFifo);
+
+                if (seedIfEmpty && this.cards.length === 0) {
+                    for (const payload of SEED_PAYLOADS) {
+                        await this.api('/queue', { method: 'POST', body: JSON.stringify({ payload }) });
+                    }
+                    return this.refresh(false);
+                }
+
+                if (!this.selectedId || !this.cards.find((c) => c.cardId === this.selectedId)) {
+                    this.selectedId = this.cards[0]?.cardId || null;
+                }
+                this.render();
             }
 
             async simulateInboundWebhook() {
                 if (this.busy) return;
                 this.busy = true;
                 try {
-                    const ghlActions = [
-                        { name: 'GoHighLevel SMS Broadcast', type: 'GHL_BULK_SMS_DISPATCH', risk: 'high', endpoint: 'https://services.leadconnectorhq.com/conversations/messages', desc: 'Inbound trigger: Send appointment reminder SMS to 34 contacts scheduled for tomorrow.', via: 'ghl' },
-                        { name: 'GoHighLevel Opportunity Move', type: 'GHL_OPP_PIPELINE_UPDATE', risk: 'medium', endpoint: 'https://services.leadconnectorhq.com/opportunities/update', desc: 'Inbound webhook: Move deal stage to "Contract Sent" based on form completion.', via: 'ghl' },
-                        { name: 'Autonomous Vault Transfer', type: 'SOL_VAULT_TRANSFER', risk: 'critical', endpoint: '0x49B...C102 (Mainnet Vault)', desc: 'Agent logic.js requests emergency liquidity allocation for arbitrage execution.', via: 'queue' }
-                    ];
-                    const sample = ghlActions[Math.floor(Math.random() * ghlActions.length)];
+                    const sample = SIM_TEMPLATES[Math.floor(Math.random() * SIM_TEMPLATES.length)];
                     let cardId;
 
-                    if (sample.via === 'ghl') {
+                    if (this.simulation) {
+                        cardId = 'sim-' + Date.now().toString(36);
+                        this.cards.push({
+                            cardId,
+                            status: 'pending',
+                            payload: {
+                                agentId: 'agent_' + Math.random().toString(36).slice(2, 8),
+                                packName: sample.name,
+                                actionType: sample.type,
+                                riskLevel: sample.risk,
+                                targetEndpoint: sample.endpoint,
+                                summary: sample.desc,
+                                diffData: {
+                                    before: { executionStatus: 'paused_in_sandbox', auditLocked: true },
+                                    after: { executionStatus: 'authorized_dispatch', signaturePending: true },
+                                },
+                                resourceCost: { amount: (Math.random() * 0.04).toFixed(3), token: 'ETH' },
+                                source: sample.via === 'ghl' ? 'ghl_webhook' : 'sandbox',
+                                timestamp: Date.now(),
+                            },
+                        });
+                        this.cards.sort(compareRiskThenFifo);
+                        document.getElementById('ledger-hash').textContent = shortHash(cardId);
+                        document.getElementById('ledger-hash-mobile').textContent = shortHash(cardId);
+                    } else if (sample.via === 'ghl') {
                         const contactId = 'sim-' + Math.random().toString(36).slice(2, 8);
                         const queued = await this.api('/webhook/ghl', {
                             method: 'POST',
@@ -370,6 +771,7 @@
                             }),
                         });
                         cardId = queued.cardId;
+                        await this.refresh(false);
                     } else {
                         const created = await this.api('/queue', {
                             method: 'POST',
@@ -392,9 +794,9 @@
                             }),
                         });
                         cardId = created.card.cardId;
+                        await this.refresh(false);
                     }
 
-                    await this.refresh(false);
                     this.selectedId = cardId;
                     if (window.innerWidth < 768) this.openMobileInspector();
                     this.render();
@@ -408,6 +810,7 @@
 
             selectCard(id) {
                 this.selectedId = id;
+                this.lastReceipt = this.receiptByCard.get(id) || null;
                 if (window.innerWidth < 768) this.openMobileInspector();
                 this.render();
             }
@@ -426,17 +829,59 @@
                 wrapper.classList.add('translate-x-full');
             }
 
+            showReceipt(receipt) {
+                this.lastReceipt = receipt;
+                if (this.selectedId) this.receiptByCard.set(this.selectedId, receipt);
+                const el = document.getElementById('audit-receipt');
+                el.classList.remove('hidden');
+                el.classList.remove('receipt-pop');
+                void el.offsetWidth;
+                el.classList.add('receipt-pop');
+                document.getElementById('receipt-sig').textContent = receipt.signature || '—';
+                document.getElementById('receipt-hash').textContent = receipt.payloadHash || '—';
+                document.getElementById('receipt-ledger').textContent = receipt.ledgerTip || '—';
+                document.getElementById('receipt-prov').textContent = receipt.provenanceId ?? '—';
+                document.getElementById('receipt-time').textContent = new Date(receipt.signedAt || Date.now()).toLocaleString();
+                document.getElementById('sig-badge').classList.remove('hidden');
+                if (receipt.ledgerTip) {
+                    document.getElementById('ledger-hash').textContent = receipt.ledgerTip;
+                    document.getElementById('ledger-hash-mobile').textContent = receipt.ledgerTip;
+                }
+            }
+
             async signSelected() {
                 if (!this.selectedId || this.busy) return;
                 const cardId = this.selectedId;
+                const card = this.cards.find((c) => c.cardId === cardId);
+                if (!card) return;
                 this.busy = true;
                 try {
-                    const result = await this.api('/queue/' + encodeURIComponent(cardId) + '/authorize', { method: 'POST' });
+                    let result;
+                    if (this.simulation) {
+                        const signature = mockSignature(cardId, JSON.stringify(card.payload));
+                        const payloadHash = shortHash(JSON.stringify(card.payload));
+                        result = {
+                            signature,
+                            payloadHash,
+                            ledgerTip: shortHash(signature),
+                            provenanceId: Math.floor(Math.random() * 900) + 100,
+                            signedAt: Date.now(),
+                            verified: true,
+                        };
+                        this.cards = this.cards.filter((c) => c.cardId !== cardId);
+                        this.selectedId = this.cards[0]?.cardId || null;
+                    } else {
+                        result = await this.api('/api/sign', {
+                            method: 'POST',
+                            body: JSON.stringify({ cardId }),
+                        });
+                        await this.refresh(false);
+                    }
                     if (navigator.vibrate) navigator.vibrate(40);
-                    document.getElementById('ledger-hash').textContent = result.ledgerTip || '—';
+                    this.showReceipt(result);
                     this.toast('Signed · ledger #' + result.provenanceId + (result.dispatch?.dryRun ? ' · dry-run' : ''));
-                    await this.refresh(false);
                     if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
+                    this.render();
                 } catch (err) {
                     this.toast(err.message || 'Authorize failed');
                 } finally {
@@ -449,9 +894,15 @@
                 const cardId = this.selectedId;
                 this.busy = true;
                 try {
-                    await this.api('/queue/' + encodeURIComponent(cardId) + '/reject', { method: 'POST' });
-                    await this.refresh(false);
+                    if (this.simulation) {
+                        this.cards = this.cards.filter((c) => c.cardId !== cardId);
+                        this.selectedId = this.cards[0]?.cardId || null;
+                    } else {
+                        await this.api('/queue/' + encodeURIComponent(cardId) + '/reject', { method: 'POST' });
+                        await this.refresh(false);
+                    }
                     if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
+                    this.render();
                 } catch (err) {
                     this.toast(err.message || 'Reject failed');
                 } finally {
@@ -464,10 +915,17 @@
                 const cardId = this.selectedId;
                 this.busy = true;
                 try {
-                    await this.api('/queue/' + encodeURIComponent(cardId) + '/delegate', { method: 'POST' });
-                    this.toast('Delegated ' + String(cardId).slice(0, 18) + '…');
-                    await this.refresh(false);
+                    if (this.simulation) {
+                        this.cards = this.cards.filter((c) => c.cardId !== cardId);
+                        this.selectedId = this.cards[0]?.cardId || null;
+                        this.toast('Delegated (sim) ' + String(cardId).slice(0, 18) + '…');
+                    } else {
+                        await this.api('/queue/' + encodeURIComponent(cardId) + '/delegate', { method: 'POST' });
+                        this.toast('Delegated ' + String(cardId).slice(0, 18) + '…');
+                        await this.refresh(false);
+                    }
                     if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
+                    this.render();
                 } catch (err) {
                     this.toast(err.message || 'Delegate failed');
                 } finally {
@@ -481,7 +939,7 @@
                 const listEl = document.getElementById('queue-list');
                 if (this.cards.length === 0) {
                     listEl.innerHTML = `
-                        <div class="text-center py-16 text-slate-500 font-mono text-xs">
+                        <div class="text-center py-16 text-slate-500 font-mono text-xs fade-up">
                             <i data-lucide="check-circle" class="w-8 h-8 mx-auto mb-2 text-emerald-500/50"></i>
                             QUEUE CLEAR<br><span class="text-[10px] text-slate-600">All GHL & agent swarms synced</span>
                         </div>
@@ -497,9 +955,9 @@
                         }[c.payload.riskLevel] || 'bg-desk-700 text-slate-300 border-desk-600';
 
                         return `
-                            <div onclick="app.selectCard('${c.cardId}')" class="p-3.5 rounded-xl border transition cursor-pointer font-mono text-xs ${isSelected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/50' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'}">
+                            <div onclick="app.selectCard('${escapeHtml(c.cardId)}')" class="p-3.5 rounded-xl border transition cursor-pointer font-mono text-xs fade-up ${isSelected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/50' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'}">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${riskColors}">${c.payload.riskLevel}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${riskColors}">${escapeHtml(c.payload.riskLevel)}</span>
                                     <span class="text-[10px] text-slate-500">${new Date(c.payload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                                 </div>
                                 <div class="font-semibold text-slate-200 truncate mb-1">${escapeHtml(c.payload.packName)}</div>
@@ -527,7 +985,7 @@
                     const badgeEl = document.getElementById('card-risk-badge');
                     badgeEl.textContent = activeCard.payload.riskLevel + ' risk';
                     badgeEl.className = 'font-mono text-[10px] px-2.5 py-0.5 rounded font-bold uppercase ' + ({
-                        critical: 'bg-rose-500/20 text-rose-300 border border-rose-500/40',
+                        critical: 'bg-rose-500/20 text-rose-300 border border-rose-500/40 critical-glow',
                         high: 'bg-amber-500/20 text-amber-300 border border-amber-500/40',
                         medium: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40',
                         low: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
@@ -537,29 +995,36 @@
                     document.getElementById('card-timestamp').textContent = new Date(activeCard.payload.timestamp).toLocaleString();
                     document.getElementById('card-title').textContent = activeCard.payload.actionType;
                     const cost = activeCard.payload.resourceCost;
-                    document.getElementById('card-cost').textContent = cost
-                        ? `${cost.amount} ${cost.token}`
-                        : '—';
+                    document.getElementById('card-cost').textContent = cost ? `${cost.amount} ${cost.token}` : '—';
                     document.getElementById('card-endpoint').textContent = activeCard.payload.targetEndpoint;
                     document.getElementById('card-agent-id').textContent = activeCard.payload.agentId;
                     document.getElementById('card-summary').textContent = activeCard.payload.summary;
+                    document.getElementById('meta-prompt').textContent = synthesizeMetaPrompt(activeCard);
                     document.getElementById('diff-before').textContent = JSON.stringify(activeCard.payload.diffData?.before || {}, null, 2);
                     document.getElementById('diff-after').textContent = JSON.stringify(activeCard.payload.diffData?.after || {}, null, 2);
+
+                    const receipt = this.receiptByCard.get(activeCard.cardId) || null;
+                    const receiptEl = document.getElementById('audit-receipt');
+                    if (receipt) {
+                        receiptEl.classList.remove('hidden');
+                        document.getElementById('receipt-sig').textContent = receipt.signature || '—';
+                        document.getElementById('receipt-hash').textContent = receipt.payloadHash || '—';
+                        document.getElementById('receipt-ledger').textContent = receipt.ledgerTip || '—';
+                        document.getElementById('receipt-prov').textContent = receipt.provenanceId ?? '—';
+                        document.getElementById('receipt-time').textContent = new Date(receipt.signedAt || Date.now()).toLocaleString();
+                        document.getElementById('sig-badge').classList.remove('hidden');
+                    } else {
+                        receiptEl.classList.add('hidden');
+                        document.getElementById('sig-badge').classList.add('hidden');
+                    }
                 }
 
                 if (window.lucide) lucide.createIcons();
             }
         }
 
-        function escapeHtml(s) {
-            return String(s || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
-
-        const app = new AIAQueueApp();
+        window.app = new AIAQueueApp();
+    })();
     </script>
 </body>
 </html>
