@@ -143,9 +143,14 @@
 
             <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-20 md:pb-3"></div>
 
-            <div class="p-3 border-t border-desk-700 bg-desk-800/30 text-[10px] font-mono text-slate-500 hidden md:flex justify-between items-center">
-                <span>SHORTCUT: [ENTER] TO SIGN</span>
-                <span id="footer-status" class="text-indigo-400">CONNECTING…</span>
+            <div class="p-3 border-t border-desk-700 bg-desk-800/30 text-[10px] font-mono text-slate-500 hidden md:flex flex-col gap-1.5">
+                <div class="flex justify-between items-center">
+                    <span>SHORTCUT: [ENTER] TO SIGN</span>
+                    <span id="footer-status" class="text-indigo-400">CONNECTING…</span>
+                </div>
+                <div id="last-audit-strip" class="hidden text-teal-300/90 truncate">
+                    Last audit · <span id="last-audit-hash"></span>
+                </div>
             </div>
         </div>
 
@@ -673,7 +678,7 @@
                         document.getElementById('ledger-hash').textContent = ev.ledgerTip;
                         document.getElementById('ledger-hash-mobile').textContent = ev.ledgerTip;
                     }
-                    if (ev.type === 'card.signed' && ev.cardId === this.selectedId) {
+                    if (ev.type === 'card.signed' && ev.cardId) {
                         this.showReceipt({
                             signature: ev.signature,
                             payloadHash: ev.payloadHash,
@@ -681,7 +686,7 @@
                             provenanceId: ev.provenanceId,
                             signedAt: ev.at || Date.now(),
                             verified: true,
-                        });
+                        }, ev.cardId);
                     }
                     await this.refresh(false);
                 }
@@ -698,7 +703,7 @@
                 ]);
                 this.setTelemetry({
                     online: true,
-                    linkLabel: document.getElementById('link-status').textContent || 'LIVE',
+                    linkLabel: this.linkLabelFromBridge(),
                     vault: 'SECURE (AES-256)',
                     key: health.publicKey || '—',
                     ledger: health.ledgerTip || queue.ledgerTip || '—',
@@ -829,24 +834,43 @@
                 wrapper.classList.add('translate-x-full');
             }
 
-            showReceipt(receipt) {
+            showReceipt(receipt, cardId) {
                 this.lastReceipt = receipt;
-                if (this.selectedId) this.receiptByCard.set(this.selectedId, receipt);
+                const id = cardId || this.selectedId;
+                if (id) this.receiptByCard.set(id, receipt);
                 const el = document.getElementById('audit-receipt');
-                el.classList.remove('hidden');
-                el.classList.remove('receipt-pop');
-                void el.offsetWidth;
-                el.classList.add('receipt-pop');
-                document.getElementById('receipt-sig').textContent = receipt.signature || '—';
-                document.getElementById('receipt-hash').textContent = receipt.payloadHash || '—';
-                document.getElementById('receipt-ledger').textContent = receipt.ledgerTip || '—';
-                document.getElementById('receipt-prov').textContent = receipt.provenanceId ?? '—';
-                document.getElementById('receipt-time').textContent = new Date(receipt.signedAt || Date.now()).toLocaleString();
-                document.getElementById('sig-badge').classList.remove('hidden');
+                const showInline = this.selectedId === id && this.cards.some((c) => c.cardId === id);
+                if (showInline) {
+                    el.classList.remove('hidden');
+                    el.classList.remove('receipt-pop');
+                    void el.offsetWidth;
+                    el.classList.add('receipt-pop');
+                    document.getElementById('receipt-sig').textContent = receipt.signature || '—';
+                    document.getElementById('receipt-hash').textContent = receipt.payloadHash || '—';
+                    document.getElementById('receipt-ledger').textContent = receipt.ledgerTip || '—';
+                    document.getElementById('receipt-prov').textContent = receipt.provenanceId ?? '—';
+                    document.getElementById('receipt-time').textContent = new Date(receipt.signedAt || Date.now()).toLocaleString();
+                    document.getElementById('sig-badge').classList.remove('hidden');
+                }
+                const strip = document.getElementById('last-audit-strip');
+                const hashEl = document.getElementById('last-audit-hash');
+                if (strip && hashEl) {
+                    strip.classList.remove('hidden');
+                    hashEl.textContent = (receipt.payloadHash || receipt.signature || '—').slice(0, 28) + '… · ' + new Date(receipt.signedAt || Date.now()).toLocaleTimeString();
+                }
                 if (receipt.ledgerTip) {
                     document.getElementById('ledger-hash').textContent = receipt.ledgerTip;
                     document.getElementById('ledger-hash-mobile').textContent = receipt.ledgerTip;
                 }
+            }
+
+            linkLabelFromBridge() {
+                const mode = this.bridge?.mode;
+                if (mode === 'ws') return 'WS';
+                if (mode === 'sse') return 'SSE';
+                if (mode === 'poll') return 'POLL';
+                if (this.simulation) return 'SIM';
+                return document.getElementById('link-status').textContent || 'LIVE';
             }
 
             async signSelected() {
@@ -868,6 +892,9 @@
                             signedAt: Date.now(),
                             verified: true,
                         };
+                        this.showReceipt(result, cardId);
+                        this.render();
+                        await new Promise((r) => setTimeout(r, 900));
                         this.cards = this.cards.filter((c) => c.cardId !== cardId);
                         this.selectedId = this.cards[0]?.cardId || null;
                     } else {
@@ -875,10 +902,12 @@
                             method: 'POST',
                             body: JSON.stringify({ cardId }),
                         });
+                        this.showReceipt(result, cardId);
+                        this.render();
+                        await new Promise((r) => setTimeout(r, 900));
                         await this.refresh(false);
                     }
                     if (navigator.vibrate) navigator.vibrate(40);
-                    this.showReceipt(result);
                     this.toast('Signed · ledger #' + result.provenanceId + (result.dispatch?.dryRun ? ' · dry-run' : ''));
                     if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
                     this.render();
