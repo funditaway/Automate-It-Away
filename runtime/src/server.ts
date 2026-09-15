@@ -2,6 +2,8 @@ import express, { type Express, type Request, type Response } from 'express'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { existsSync } from 'node:fs'
+import { createServer as createHttpServer, type Server as HttpServer } from 'node:http'
+import { WebSocketServer, type WebSocket } from 'ws'
 import { VaultDb } from './db.js'
 import {
   loadOrCreateKeypair,
@@ -32,6 +34,12 @@ export interface CreateServerOptions {
   dataDir?: string
 }
 
+type BusEvent = {
+  type: string
+  at: number
+  [key: string]: unknown
+}
+
 function vaultContextFrom(vault: VaultDb, body: Record<string, unknown>) {
   return {
     credentials: vault.listCredentials().map((c) => ({
@@ -51,6 +59,8 @@ export function createApp(opts: CreateServerOptions = {}): {
   keypair: ReturnType<typeof loadOrCreateKeypair>
   sandbox: SandboxManager
   dataDir: string
+  attachRealtime: (server: HttpServer) => WebSocketServer
+  broadcast: (event: BusEvent) => void
 } {
   const dataDir = opts.dataDir || join(process.cwd(), 'data')
   const dbPath = opts.dbPath || join(dataDir, 'aia_vault.db')
@@ -60,6 +70,29 @@ export function createApp(opts: CreateServerOptions = {}): {
   const sandbox = new SandboxManager(vault)
   const dryRun = opts.dryRun ?? process.env.AIA_GHL_DRY_RUN !== '0'
   const cardUi = loadCardUiSchema()
+
+  const sseClients = new Set<Response>()
+  const wsClients = new Set<WebSocket>()
+
+  function broadcast(event: BusEvent) {
+    const payload = JSON.stringify(event)
+    for (const res of sseClients) {
+      try {
+        res.write(`event: ${event.type}\ndata: ${payload}\n\n`)
+      } catch {
+        sseClients.delete(res)
+      }
+    }
+    for (const socket of wsClients) {
+      if (socket.readyState === 1 /* OPEN */) {
+        try {
+          socket.send(payload)
+        } catch {
+          wsClients.delete(socket)
+        }
+      }
+    }
+  }
 
   const app = express()
   app.use((req, res, next) => {
@@ -85,11 +118,43 @@ export function createApp(opts: CreateServerOptions = {}): {
       publicKey: shortPublicKey(keypair.publicKeyHex),
       queuePending: vault.listCards('pending').length,
       dryRun,
+      realtime: { sse: sseClients.size, ws: wsClients.size },
     })
   })
 
   app.get('/card_ui.json', (_req, res) => {
     res.json(cardUi)
+  })
+
+  /** Server-Sent Events stream for live decision-card sync */
+  app.get('/api/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache, no-transform')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders?.()
+    sseClients.add(res)
+    res.write(
+      `event: hello\ndata: ${JSON.stringify({
+        type: 'hello',
+        at: Date.now(),
+        ledgerTip: vault.ledgerTipHash(),
+        publicKey: shortPublicKey(keypair.publicKeyHex),
+        pending: vault.listCards('pending').length,
+      })}\n\n`,
+    )
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`: ping ${Date.now()}\n\n`)
+      } catch {
+        clearInterval(heartbeat)
+        sseClients.delete(res)
+      }
+    }, 15_000)
+    req.on('close', () => {
+      clearInterval(heartbeat)
+      sseClients.delete(res)
+    })
   })
 
   app.get('/queue', (req, res) => {
@@ -141,6 +206,12 @@ export function createApp(opts: CreateServerOptions = {}): {
       agentId,
     })
     const card = vault.enqueueCard(synthesized.decisionPayload)
+    broadcast({
+      type: 'card.enqueued',
+      at: Date.now(),
+      card,
+      ledgerTip: vault.ledgerTipHash(),
+    })
 
     // Optional closed-loop feedback mode: CRM follow-up events can also
     // enqueue recommendation cards (still pending human YES — never auto-sent).
@@ -171,6 +242,16 @@ export function createApp(opts: CreateServerOptions = {}): {
         raw: body,
       }
       recommendations = recommendationsFromFeedback(vault, feedbackHints, card)
+      for (const rec of recommendations) {
+        broadcast({
+          type: 'card.enqueued',
+          at: Date.now(),
+          card: rec,
+          ledgerTip: vault.ledgerTipHash(),
+          parentCardId: card.cardId,
+          source: 'recommendation',
+        })
+      }
     }
 
     res.status(202).json({
@@ -197,8 +278,8 @@ export function createApp(opts: CreateServerOptions = {}): {
   })
 
   /** Authorize & sign a pending card, append provenance, dispatch to GHL when applicable */
-  app.post('/queue/:cardId/authorize', async (req: Request, res: Response) => {
-    const card = vault.getCard(req.params.cardId)
+  async function authorizeCard(cardId: string, res: Response) {
+    const card = vault.getCard(cardId)
     if (!card) return res.status(404).json({ ok: false, error: 'Card not found' })
     if (card.status !== 'pending') {
       return res.status(409).json({ ok: false, error: `Card already ${card.status}` })
@@ -247,13 +328,27 @@ export function createApp(opts: CreateServerOptions = {}): {
       nextActions = enqueueRecommendations(vault, { completedCard: finalCard })
     }
 
-    res.json({
+    for (const rec of nextActions) {
+      broadcast({
+        type: 'card.enqueued',
+        at: Date.now(),
+        card: rec,
+        ledgerTip: vault.ledgerTipHash(),
+        parentCardId: card.cardId,
+        source: 'recommendation',
+      })
+    }
+
+    const result = {
       ok: true,
       cardId: card.cardId,
       signature,
       payloadHash: hash,
       provenanceId: entry.id,
       ledgerTip: vault.ledgerTipHash(),
+      signedAt: Date.now(),
+      publicKey: shortPublicKey(keypair.publicKeyHex),
+      verified: true,
       dispatch,
       recommendations: nextActions.map((c) => ({
         cardId: c.cardId,
@@ -261,7 +356,29 @@ export function createApp(opts: CreateServerOptions = {}): {
         recommendationKind: c.payload.recommendationKind,
         status: c.status,
       })),
+    }
+    broadcast({
+      type: 'card.signed',
+      at: Date.now(),
+      cardId: card.cardId,
+      signature,
+      payloadHash: hash,
+      ledgerTip: result.ledgerTip,
+      provenanceId: entry.id,
     })
+    res.json(result)
+  }
+
+  /** Authorize & sign a pending card, append provenance, dispatch to GHL when applicable */
+  app.post('/queue/:cardId/authorize', async (req: Request, res: Response) => {
+    await authorizeCard(String(req.params.cardId), res)
+  })
+
+  /** Cryptographic signature dispatcher used by the standalone terminal client */
+  app.post('/api/sign', async (req: Request, res: Response) => {
+    const cardId = String(req.body?.cardId || req.query.cardId || '')
+    if (!cardId) return res.status(400).json({ ok: false, error: 'cardId is required' })
+    await authorizeCard(cardId, res)
   })
 
   app.post('/queue/:cardId/reject', (req, res) => {
@@ -271,6 +388,12 @@ export function createApp(opts: CreateServerOptions = {}): {
       return res.status(409).json({ ok: false, error: `Card already ${card.status}` })
     }
     vault.updateCardStatus(card.cardId, 'rejected')
+    broadcast({
+      type: 'card.rejected',
+      at: Date.now(),
+      cardId: card.cardId,
+      ledgerTip: vault.ledgerTipHash(),
+    })
     res.json({ ok: true, cardId: card.cardId, status: 'rejected' })
   })
 
@@ -281,6 +404,12 @@ export function createApp(opts: CreateServerOptions = {}): {
       return res.status(409).json({ ok: false, error: `Card already ${card.status}` })
     }
     vault.updateCardStatus(card.cardId, 'delegated')
+    broadcast({
+      type: 'card.delegated',
+      at: Date.now(),
+      cardId: card.cardId,
+      ledgerTip: vault.ledgerTipHash(),
+    })
     res.json({ ok: true, cardId: card.cardId, status: 'delegated' })
   })
 
@@ -299,6 +428,12 @@ export function createApp(opts: CreateServerOptions = {}): {
       summary: payload.summary || payload.actionType,
       timestamp: payload.timestamp || Date.now(),
       source: payload.source || 'manual',
+    })
+    broadcast({
+      type: 'card.enqueued',
+      at: Date.now(),
+      card,
+      ledgerTip: vault.ledgerTipHash(),
     })
     res.status(201).json({ ok: true, card })
   })
@@ -370,6 +505,14 @@ export function createApp(opts: CreateServerOptions = {}): {
 
     await new Promise((r) => setTimeout(r, 150))
     const pending = vault.listCards('pending')
+    if (pending[0]) {
+      broadcast({
+        type: 'card.enqueued',
+        at: Date.now(),
+        card: pending[0],
+        ledgerTip: vault.ledgerTipHash(),
+      })
+    }
     res.status(202).json({
       ok: true,
       started: true,
@@ -381,7 +524,7 @@ export function createApp(opts: CreateServerOptions = {}): {
             agentInstructions: metaPrompt.agentInstructions,
           }
         : null,
-      note: 'Authorize pending cards via POST /queue/:cardId/authorize to resume the sandbox',
+      note: 'Authorize pending cards via POST /queue/:cardId/authorize or POST /api/sign to resume the sandbox',
     })
 
     void runPromise
@@ -399,15 +542,47 @@ export function createApp(opts: CreateServerOptions = {}): {
       .catch(() => undefined)
   })
 
-  return { app, vault, keypair, sandbox, dataDir }
+  function attachRealtime(server: HttpServer): WebSocketServer {
+    const wss = new WebSocketServer({ server, path: '/ws' })
+    wss.on('connection', (socket) => {
+      wsClients.add(socket)
+      socket.send(
+        JSON.stringify({
+          type: 'hello',
+          at: Date.now(),
+          ledgerTip: vault.ledgerTipHash(),
+          publicKey: shortPublicKey(keypair.publicKeyHex),
+          pending: vault.listCards('pending').length,
+        }),
+      )
+      socket.on('close', () => wsClients.delete(socket))
+      socket.on('error', () => wsClients.delete(socket))
+      socket.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(String(raw)) as { type?: string }
+          if (msg.type === 'ping') {
+            socket.send(JSON.stringify({ type: 'pong', at: Date.now() }))
+          }
+        } catch {
+          /* ignore malformed */
+        }
+      })
+    })
+    return wss
+  }
+
+  return { app, vault, keypair, sandbox, dataDir, attachRealtime, broadcast }
 }
 
 export function startServer(opts: CreateServerOptions = {}) {
   const port = opts.port ?? Number(process.env.AIA_RUNTIME_PORT || DEFAULT_PORT)
-  const { app, vault, keypair } = createApp({ ...opts, port })
-  const server = app.listen(port, '127.0.0.1', () => {
+  const { app, vault, keypair, attachRealtime } = createApp({ ...opts, port })
+  const server = createHttpServer(app)
+  attachRealtime(server)
+  server.listen(port, '127.0.0.1', () => {
     console.log(`[AIA runtime] listening on http://127.0.0.1:${port}`)
     console.log(`[AIA runtime] desk UI http://127.0.0.1:${port}/`)
+    console.log(`[AIA runtime] ws://127.0.0.1:${port}/ws · SSE /api/stream · POST /api/sign`)
     console.log(`[AIA runtime] vault=${vault.dbPath}`)
     console.log(`[AIA runtime] pubkey=${shortPublicKey(keypair.publicKeyHex)}`)
     console.log(`[AIA runtime] ledgerTip=${vault.ledgerTipHash()}`)

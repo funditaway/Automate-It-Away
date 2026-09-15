@@ -22,7 +22,12 @@ npm run dev
 Desk terminal: [http://127.0.0.1:3847/](http://127.0.0.1:3847/)  
 Health: `GET http://127.0.0.1:3847/health`
 
-The sovereign desk UI (`public/index.html`) loads the live queue from SQLite, simulates GHL webhooks, and calls `/queue/:id/authorize` to Ed25519-sign cards and dispatch.
+The sovereign desk UI (`public/index.html`) is a **single-file** HTML/CSS/JS client (Tailwind CDN, Lucide, JetBrains Mono). It:
+
+- Syncs the queue over **WebSocket** (`/ws`) with **SSE** fallback (`/api/stream`) and poll fallback
+- Signs via `POST /api/sign` (Ed25519 + ledger hash proof → visual audit receipt)
+- Supports toggleable **offline simulation** for multi-risk cards, meta-prompt synthesis, and diffs without the daemon
+- Can open as a standalone file with `?daemon=http://127.0.0.1:3847` (or any port, e.g. `3000` via `AIA_RUNTIME_PORT`)
 
 ## Modules
 
@@ -45,6 +50,9 @@ The sovereign desk UI (`public/index.html`) loads the live queue from SQLite, si
 | `POST` | `/webhook/ghl` | Inbound GHL event → meta-prompt synthesis → Decision Card in queue |
 | `GET` | `/queue` | List cards (`?status=pending`) |
 | `POST` | `/queue/:cardId/authorize` | Sign with local Ed25519, append ledger, dispatch GHL, queue next-action recs |
+| `POST` | `/api/sign` | Same as authorize; body `{ cardId }` for the terminal client |
+| `GET` | `/api/stream` | SSE live queue / signature events |
+| `WS` | `/ws` | WebSocket live sync (same event payload as SSE) |
 | `POST` | `/queue/:cardId/reject` | Abort |
 | `POST` | `/recommendations/from-feedback` | CRM feedback → recommendation cards (pending YES) |
 | `POST` | `/vault` | Store encrypted credential `{ label, provider, secret }` |
