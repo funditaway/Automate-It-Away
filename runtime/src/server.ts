@@ -14,7 +14,13 @@ import {
   defaultKeyDir,
 } from './crypto.js'
 import { SandboxManager, loadCardUiSchema } from './sandboxManager.js'
-import { cardFromGhlWebhook, dispatchToGhl } from './ghl.js'
+import { dispatchToGhl } from './ghl.js'
+import { synthesizeMetaPrompt } from './promptSynthesizer.js'
+import {
+  enqueueRecommendations,
+  recommendationsFromFeedback,
+  type CrmFeedback,
+} from './recommendationEngine.js'
 import type { DecisionCardPayload } from './types.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -32,6 +38,19 @@ type BusEvent = {
   type: string
   at: number
   [key: string]: unknown
+}
+
+function vaultContextFrom(vault: VaultDb, body: Record<string, unknown>) {
+  return {
+    credentials: vault.listCredentials().map((c) => ({
+      label: c.label,
+      provider: c.provider,
+      last4: c.last4,
+    })),
+    packName: body.packName ? String(body.packName) : undefined,
+    agentId: body.agentId ? String(body.agentId) : undefined,
+    deskRules: Array.isArray(body.deskRules) ? body.deskRules.map(String) : undefined,
+  }
 }
 
 export function createApp(opts: CreateServerOptions = {}): {
@@ -175,29 +194,90 @@ export function createApp(opts: CreateServerOptions = {}): {
     })
   })
 
-  /** Inbound GoHighLevel webhooks → evaluate risk → queue Decision Card */
+  /**
+   * Inbound GoHighLevel webhooks → meta-prompt synthesis → Decision Card queue.
+   * Feedback-shaped events also fan into the recommendation engine (still pending YES).
+   */
   app.post('/webhook/ghl', (req, res) => {
     const body = (req.body || {}) as Record<string, unknown>
     const agentId = String(body.agentId || req.headers['x-aia-agent'] || 'agent_ghl_inbound')
-    const payload = cardFromGhlWebhook(body, agentId)
-    const card = vault.enqueueCard(payload)
+    const synthesized = synthesizeMetaPrompt(body, {
+      ...vaultContextFrom(vault, body),
+      agentId,
+    })
+    const card = vault.enqueueCard(synthesized.decisionPayload)
     broadcast({
       type: 'card.enqueued',
       at: Date.now(),
       card,
       ledgerTip: vault.ledgerTipHash(),
     })
+
+    // Optional closed-loop feedback mode: CRM follow-up events can also
+    // enqueue recommendation cards (still pending human YES — never auto-sent).
+    let recommendations: ReturnType<typeof recommendationsFromFeedback> = []
+    const asFeedback =
+      body.asFeedback === true ||
+      body.closedLoop === true ||
+      String(body.mode || '').toLowerCase() === 'feedback'
+    if (asFeedback) {
+      const event = String(body.type || body.event || '').toLowerCase()
+      const feedbackHints: CrmFeedback = {
+        event: String(body.type || body.event || ''),
+        contactId: String(
+          (body.contact as { id?: string } | undefined)?.id ||
+            body.contactId ||
+            synthesized.sandboxContext.contactId ||
+            '',
+        ),
+        contactReplied: /replied|inboundmessage|conversation|sms_reply|email_reply/.test(event),
+        stageUpdated: /stage|pipeline|opportunity/.test(event),
+        stage:
+          String(
+            (body.opportunity as { stage?: string } | undefined)?.stage || body.stage || '',
+          ) || undefined,
+        mediaRequested: Boolean(body.mediaRequested),
+        appointmentRequested: Boolean(body.appointmentRequested),
+        messagePreview: body.messagePreview ? String(body.messagePreview) : undefined,
+        raw: body,
+      }
+      recommendations = recommendationsFromFeedback(vault, feedbackHints, card)
+      for (const rec of recommendations) {
+        broadcast({
+          type: 'card.enqueued',
+          at: Date.now(),
+          card: rec,
+          ledgerTip: vault.ledgerTipHash(),
+          parentCardId: card.cardId,
+          source: 'recommendation',
+        })
+      }
+    }
+
     res.status(202).json({
       ok: true,
       queued: true,
       cardId: card.cardId,
       status: card.status,
-      riskLevel: payload.riskLevel,
+      riskLevel: synthesized.decisionPayload.riskLevel,
+      metaPrompt: {
+        templateId: synthesized.templateId,
+        systemPrompt: synthesized.systemPrompt,
+        agentInstructions: synthesized.agentInstructions,
+        constraints: synthesized.constraints,
+        outputSchema: synthesized.outputSchema,
+      },
+      recommendations: recommendations.map((c) => ({
+        cardId: c.cardId,
+        actionType: c.payload.actionType,
+        recommendationKind: c.payload.recommendationKind,
+      })),
       cardUi,
       message: 'Paused for human authorization in the local queue',
     })
   })
 
+  /** Authorize & sign a pending card, append provenance, dispatch to GHL when applicable */
   async function authorizeCard(cardId: string, res: Response) {
     const card = vault.getCard(cardId)
     if (!card) return res.status(404).json({ ok: false, error: 'Card not found' })
@@ -233,10 +313,29 @@ export function createApp(opts: CreateServerOptions = {}): {
       card.payload.source === 'ghl_webhook' ||
       /^GHL_/i.test(card.payload.actionType)
 
+    let finalCard = vault.getCard(card.cardId)!
     if (isGhl) {
       dispatch = await dispatchToGhl(vault, card.payload, { dryRun })
-      vault.updateCardStatus(card.cardId, dispatch.ok ? 'dispatched' : 'failed', {
-        dispatchResult: JSON.stringify(dispatch),
+      finalCard =
+        vault.updateCardStatus(card.cardId, dispatch.ok ? 'dispatched' : 'failed', {
+          dispatchResult: JSON.stringify(dispatch),
+        }) || finalCard
+    }
+
+    // Closed-loop: successful completion feeds the recommendation engine
+    let nextActions: ReturnType<typeof enqueueRecommendations> = []
+    if (finalCard.status === 'signed' || finalCard.status === 'dispatched') {
+      nextActions = enqueueRecommendations(vault, { completedCard: finalCard })
+    }
+
+    for (const rec of nextActions) {
+      broadcast({
+        type: 'card.enqueued',
+        at: Date.now(),
+        card: rec,
+        ledgerTip: vault.ledgerTipHash(),
+        parentCardId: card.cardId,
+        source: 'recommendation',
       })
     }
 
@@ -251,6 +350,12 @@ export function createApp(opts: CreateServerOptions = {}): {
       publicKey: shortPublicKey(keypair.publicKeyHex),
       verified: true,
       dispatch,
+      recommendations: nextActions.map((c) => ({
+        cardId: c.cardId,
+        actionType: c.payload.actionType,
+        recommendationKind: c.payload.recommendationKind,
+        status: c.status,
+      })),
     }
     broadcast({
       type: 'card.signed',
@@ -333,6 +438,25 @@ export function createApp(opts: CreateServerOptions = {}): {
     res.status(201).json({ ok: true, card })
   })
 
+  /** Explicit CRM feedback → recommendation cards only (no silent send) */
+  app.post('/recommendations/from-feedback', (req, res) => {
+    const feedback = (req.body || {}) as CrmFeedback
+    const parentId = req.body?.parentCardId ? String(req.body.parentCardId) : undefined
+    const anchor = parentId ? vault.getCard(parentId) || undefined : undefined
+    const cards = recommendationsFromFeedback(vault, feedback, anchor)
+    res.status(202).json({
+      ok: true,
+      queued: cards.length,
+      cards: cards.map((c) => ({
+        cardId: c.cardId,
+        actionType: c.payload.actionType,
+        recommendationKind: c.payload.recommendationKind,
+        status: c.status,
+      })),
+      message: 'Recommendations queued pending human authorization',
+    })
+  })
+
   /** Run a logic.js agent pack through the sandbox interceptor */
   app.post('/sandbox/run', async (req, res) => {
     const scriptPath = String(req.body?.scriptPath || '')
@@ -342,13 +466,43 @@ export function createApp(opts: CreateServerOptions = {}): {
       return res.status(400).json({ ok: false, error: 'scriptPath must point to an existing logic.js' })
     }
     const authTimeoutMs = Number(req.body?.authTimeoutMs || 120_000)
+
+    let metaPrompt = req.body?.metaPrompt as
+      | {
+          templateId?: string
+          systemPrompt?: string
+          agentInstructions?: string
+          constraints?: string[]
+          outputSchema?: Record<string, unknown>
+          sandboxContext?: Record<string, unknown>
+        }
+      | undefined
+
+    // Optional: synthesize meta-prompt from an inline webhook payload
+    if (!metaPrompt && req.body?.webhook && typeof req.body.webhook === 'object') {
+      const bundle = synthesizeMetaPrompt(
+        req.body.webhook as Record<string, unknown>,
+        vaultContextFrom(vault, req.body.webhook as Record<string, unknown>),
+      )
+      metaPrompt = {
+        templateId: bundle.templateId,
+        systemPrompt: bundle.systemPrompt,
+        agentInstructions: bundle.agentInstructions,
+        constraints: bundle.constraints,
+        outputSchema: bundle.outputSchema,
+        sandboxContext: bundle.sandboxContext,
+      }
+    }
+
     const runPromise = sandbox.runLogic({
       agentId,
       packName,
       scriptPath,
       context: req.body?.context || {},
+      metaPrompt,
       authTimeoutMs,
     })
+
     await new Promise((r) => setTimeout(r, 150))
     const pending = vault.listCards('pending')
     if (pending[0]) {
@@ -363,9 +517,29 @@ export function createApp(opts: CreateServerOptions = {}): {
       ok: true,
       started: true,
       pendingCards: pending.map((c) => c.cardId),
+      metaPrompt: metaPrompt
+        ? {
+            templateId: metaPrompt.templateId,
+            systemPrompt: metaPrompt.systemPrompt,
+            agentInstructions: metaPrompt.agentInstructions,
+          }
+        : null,
       note: 'Authorize pending cards via POST /queue/:cardId/authorize or POST /api/sign to resume the sandbox',
     })
-    void runPromise.catch(() => undefined)
+
+    void runPromise
+      .then((result) => {
+        if (!result.ok) return
+        // After sandbox completes successfully, recommend next actions from the last signed card
+        const signed = [...result.cards]
+          .reverse()
+          .find((c) => c.status === 'signed' || c.status === 'dispatched')
+        if (signed) {
+          const fresh = vault.getCard(signed.cardId) || signed
+          enqueueRecommendations(vault, { completedCard: fresh })
+        }
+      })
+      .catch(() => undefined)
   })
 
   function attachRealtime(server: HttpServer): WebSocketServer {

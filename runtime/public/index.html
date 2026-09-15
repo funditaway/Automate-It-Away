@@ -388,13 +388,32 @@
 
         function synthesizeMetaPrompt(card) {
             const p = card.payload || {};
+            const meta = p.metaPrompt;
+            if (meta && (meta.systemPrompt || meta.agentInstructions)) {
+                const lines = [
+                    `TEMPLATE · ${meta.templateId || 'runtime'}`,
+                    `SYSTEM · ${meta.systemPrompt || ''}`.trim(),
+                    `INSTRUCTIONS · ${meta.agentInstructions || ''}`.trim(),
+                ];
+                if (Array.isArray(meta.constraints) && meta.constraints.length) {
+                    lines.push('CONSTRAINT · ' + meta.constraints.join(' · '));
+                }
+                if (p.source === 'recommendation' || p.recommendationKind) {
+                    lines.push(`NEXT · recommendation/${p.recommendationKind || 'follow-up'} — still pending human YES`);
+                }
+                lines.push(`VERIFY · Diff before→after, then Ed25519 sign before dispatch to ${p.targetEndpoint || 'target'}.`);
+                return lines.filter(Boolean).join('\n');
+            }
             return [
                 `SYSTEM · HITL gate for ${p.agentId || 'agent'}`,
                 `ACTION · ${p.actionType || 'UNKNOWN'} @ risk=${(p.riskLevel || 'medium').toUpperCase()}`,
                 `INTENT · ${p.summary || 'No summary'}`,
                 `CONSTRAINT · Desk AIs draft only. Human Yes / Stop / Kill. Collect HOLD.`,
+                p.source === 'recommendation'
+                    ? `NEXT · recommendation/${p.recommendationKind || 'follow-up'} — still pending human YES`
+                    : null,
                 `VERIFY · Diff before→after, then Ed25519 sign before dispatch to ${p.targetEndpoint || 'target'}.`,
-            ].join('\n');
+            ].filter(Boolean).join('\n');
         }
 
         class RealtimeBridge {
@@ -908,7 +927,15 @@
                         await this.refresh(false);
                     }
                     if (navigator.vibrate) navigator.vibrate(40);
-                    this.toast('Signed · ledger #' + result.provenanceId + (result.dispatch?.dryRun ? ' · dry-run' : ''));
+                    const recs = result.recommendations || [];
+                    const recNote = recs.length
+                        ? ` · +${recs.length} next-action card${recs.length === 1 ? '' : 's'} (pending YES)`
+                        : '';
+                    this.toast(
+                        'Signed · ledger #' + result.provenanceId
+                        + (result.dispatch?.dryRun ? ' · dry-run' : '')
+                        + recNote,
+                    );
                     if (window.innerWidth < 768 && !this.selectedId) this.closeMobileInspector();
                     this.render();
                 } catch (err) {
@@ -983,14 +1010,21 @@
                             low: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                         }[c.payload.riskLevel] || 'bg-desk-700 text-slate-300 border-desk-600';
 
+                        const isRec = c.payload.source === 'recommendation' || !!c.payload.recommendationKind;
+                        const srcChip = isRec
+                            ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-teal-500/40 bg-teal-500/10 text-teal-300">REC</span>'
+                            : '';
                         return `
                             <div onclick="app.selectCard('${escapeHtml(c.cardId)}')" class="p-3.5 rounded-xl border transition cursor-pointer font-mono text-xs fade-up ${isSelected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/50' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'}">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${riskColors}">${escapeHtml(c.payload.riskLevel)}</span>
-                                    <span class="text-[10px] text-slate-500">${new Date(c.payload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                                <div class="flex items-center justify-between mb-2 gap-2">
+                                    <div class="flex items-center gap-1.5 min-w-0">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${riskColors}">${escapeHtml(c.payload.riskLevel)}</span>
+                                        ${srcChip}
+                                    </div>
+                                    <span class="text-[10px] text-slate-500 shrink-0">${new Date(c.payload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                                 </div>
                                 <div class="font-semibold text-slate-200 truncate mb-1">${escapeHtml(c.payload.packName)}</div>
-                                <div class="text-[11px] text-slate-400 truncate">${escapeHtml(c.payload.actionType)}</div>
+                                <div class="text-[11px] text-slate-400 truncate">${escapeHtml(c.payload.actionType)}${isRec && c.payload.recommendationKind ? ' · ' + escapeHtml(c.payload.recommendationKind) : ''}</div>
                             </div>
                         `;
                     }).join('');

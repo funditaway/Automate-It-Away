@@ -35,21 +35,26 @@ The sovereign desk UI (`public/index.html`) is a **single-file** HTML/CSS/JS cli
 |------|------|
 | `src/db.ts` | SQLite vault, queue, append-only provenance ledger |
 | `src/crypto.ts` | Ed25519 keypair + canonical JSON signing |
-| `src/sandboxManager.ts` | Worker sandbox for `logic.js` with HITL intercept |
+| `src/promptSynthesizer.ts` | Template compiler: webhook + vault → meta-prompt + Decision Card |
+| `src/sandboxWorker.ts` | Sandbox interceptor protocol (sensitivity rules, card packaging) |
+| `src/sandboxWorkerEntry.js` | Worker-thread entry that runs `logic.js` with HITL pause |
+| `src/sandboxManager.ts` | Host-side worker manager; queues Active Decision Cards |
+| `src/recommendationEngine.ts` | Closed-loop next-action recommendations into the local queue |
 | `src/server.ts` | GHL webhook ingest + authorize/dispatch API |
-| `src/ghl.ts` | Webhook → card mapping and outbound GHL dispatch |
+| `src/ghl.ts` | Webhook helpers and outbound GHL dispatch |
 
 ## API
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/webhook/ghl` | Inbound GHL event → Decision Card in queue |
+| `POST` | `/webhook/ghl` | Inbound GHL event → meta-prompt synthesis → Decision Card in queue |
 | `GET` | `/queue` | List cards (`?status=pending`) |
-| `POST` | `/queue/:cardId/authorize` | Sign with local Ed25519, append ledger, dispatch GHL |
+| `POST` | `/queue/:cardId/authorize` | Sign with local Ed25519, append ledger, dispatch GHL, queue next-action recs |
 | `POST` | `/api/sign` | Same as authorize; body `{ cardId }` for the terminal client |
 | `GET` | `/api/stream` | SSE live queue / signature events |
 | `WS` | `/ws` | WebSocket live sync (same event payload as SSE) |
 | `POST` | `/queue/:cardId/reject` | Abort |
+| `POST` | `/recommendations/from-feedback` | CRM feedback → recommendation cards (pending YES) |
 | `POST` | `/vault` | Store encrypted credential `{ label, provider, secret }` |
 | `GET` | `/ledger` | Read provenance proofs |
 | `POST` | `/sandbox/run` | Run `logic.js`; sensitive calls pause for auth |
@@ -57,11 +62,14 @@ The sovereign desk UI (`public/index.html`) is a **single-file** HTML/CSS/JS cli
 ## GHL loop
 
 1. CRM posts to `POST /webhook/ghl`
-2. Runtime queues a high-risk Decision Card and returns `202`
+2. Runtime **synthesizes a meta-prompt** from templates + vault context and queues a high-risk Decision Card (`202`)
 3. Human authorizes via `POST /queue/:id/authorize` (or the Queue cockpit)
 4. Runtime verifies Ed25519 signature, appends `provenance_ledger`, and dispatches to `https://services.leadconnectorhq.com/...` using the decrypted vault credential
+5. On success, the **recommendation engine** enqueues logical next-action cards (outreach, schedule, media, pipeline) — still pending human YES
 
 Outbound calls default to **dry-run** (`AIA_GHL_DRY_RUN` unset or not `0`). Set `AIA_GHL_DRY_RUN=0` and store a real key with `provider: "gohighlevel"` to hit the live API.
+
+Sovereign rule: no external side effect runs without passing through the local cryptographic queue.
 
 ## Data layout
 

@@ -1,6 +1,7 @@
 /**
  * Worker entry (plain JS): executes agent logic.js with an intercepted network bridge.
  * Kept as .js so Worker threads load without a TypeScript loader.
+ * Protocol helpers live in sandboxWorker.ts (host-side TypeScript module).
  */
 import { parentPort, workerData } from 'node:worker_threads'
 import { createRequire } from 'node:module'
@@ -15,6 +16,10 @@ const port = parentPort
 const { scriptSource, context, scriptPath } = workerData
 
 const pending = new Map()
+
+/** Mirrors sandboxWorker.ts SENSITIVE_URL_RE + isSensitiveUrl */
+const SENSITIVE_URL_RE =
+  /leadconnectorhq\.com|gohighlevel|googleapis|api\.|webhook|smtp|rpc|0x[a-f0-9]{6}/i
 
 port.on('message', (msg) => {
   if (msg.type !== 'auth_result' || !msg.requestId) return
@@ -35,10 +40,16 @@ port.on('message', (msg) => {
 function isSensitiveUrl(url) {
   const u = String(url || '').toLowerCase()
   return (
-    /leadconnectorhq\.com|gohighlevel|googleapis|api\.|webhook|smtp|rpc|0x[a-f0-9]{6}/i.test(u) ||
+    SENSITIVE_URL_RE.test(u) ||
     u.startsWith('http://') ||
     u.startsWith('https://')
   )
+}
+
+function requiresAuthorization(req) {
+  const method = (req.method || 'POST').toUpperCase()
+  if (!isSensitiveUrl(req.url) && method === 'GET') return false
+  return true
 }
 
 function requestAuthorization(req) {
@@ -52,9 +63,10 @@ function requestAuthorization(req) {
 const bridge = {
   async http(req) {
     const method = (req.method || 'POST').toUpperCase()
-    if (!isSensitiveUrl(req.url) && method === 'GET') {
+    if (!requiresAuthorization({ url: req.url, method })) {
       return { authorized: true, skipped: true, note: 'non-sensitive GET allowed' }
     }
+    // High-stakes boundary → Active Decision Card via host interceptor
     return requestAuthorization({
       method,
       url: req.url,
@@ -77,6 +89,7 @@ const bridge = {
 
 async function main() {
   const require = createRequire(scriptPath || import.meta.url)
+  const runContext = context || {}
   const sandbox = {
     console,
     setTimeout,
@@ -89,8 +102,9 @@ async function main() {
     require,
     module: { exports: {} },
     exports: {},
-    context: context || {},
-    ...context,
+    context: runContext,
+    metaPrompt: runContext.metaPrompt || null,
+    ...runContext,
   }
   sandbox.global = sandbox
   sandbox.globalThis = sandbox
