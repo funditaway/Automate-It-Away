@@ -36,9 +36,10 @@
     var meta = document.querySelector("meta[name='theme-color']");
     if (meta) meta.setAttribute("content", dark ? "#0c1116" : "#0d6b6b");
     document.querySelectorAll("[data-theme-btn], .theme-btn").forEach(function (b) {
-      b.textContent = label();
-      b.setAttribute("aria-label", "Theme " + label());
-      b.title = "Theme: " + label() + ". Tap to change.";
+      var lab = label();
+      b.innerHTML = '<span class="theme-lab">' + lab + "</span>";
+      b.setAttribute("aria-label", "Theme " + lab);
+      b.title = "Theme: " + lab + ". Tap to change.";
     });
     paintMarks();
   }
@@ -162,7 +163,10 @@
       "grid-area:nav!important;width:100%;min-width:0;display:flex!important;flex-wrap:wrap;gap:10px 14px;align-items:center}" +
       "header .desk-tabs, .site-header .desk-tabs{grid-area:nav!important;width:100%}" +
       "header .theme-btn, .theme-btn{position:relative;z-index:8;pointer-events:auto!important;" +
-      "flex:0 0 auto;min-height:40px;min-width:auto;padding:6px 12px;cursor:pointer;white-space:nowrap}" +
+      "flex:0 0 auto;min-height:40px;height:40px;width:auto!important;min-width:4.6em!important;" +
+      "padding:0 14px!important;cursor:pointer;white-space:nowrap;overflow:visible!important;" +
+      "box-sizing:border-box;line-height:40px;font-weight:800}" +
+      ".theme-btn .theme-lab{display:inline!important;white-space:nowrap}" +
       "header .brand-mark, .site-header .brand-mark{width:32px;height:32px;flex:0 0 32px;border-radius:8px;background:transparent}" +
       ".who-chip{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px;" +
       "min-height:44px;width:auto;margin-left:0;max-width:min(46vw,168px);padding:4px 12px 4px 4px;border-radius:999px;" +
