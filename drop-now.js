@@ -38,8 +38,11 @@
   }
   function widgetOn() {
     try {
+      if (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("widget")) return true;
+      if (document.body && document.body.classList && document.body.classList.contains("widget")) return true;
       var p = String(location.pathname || "").replace(/\/+$/, "");
-      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
     } catch (e) { return false; }
   }
   function slimChrome() { return embedOn() || widgetOn(); }

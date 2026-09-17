@@ -58,8 +58,15 @@ if (nowBanner.indexOf("Change desk") < 0 || nowBanner.indexOf("/drop") < 0) {
 }
 function runSlimNow(opts) {
   const sandbox = {
-    document: { body: { classList: { contains: function (c) { return !!opts.embed && c === "embed"; } } } },
-    location: { pathname: opts.path || "/drop", search: opts.search || "" }
+    document: {
+      documentElement: { classList: { contains: function (c) { return !!opts.htmlWidget && c === "widget"; } } },
+      body: { classList: { contains: function (c) {
+        if (c === "embed") return !!opts.embed;
+        if (c === "widget") return !!opts.widget;
+        return false;
+      } } }
+    },
+    location: { pathname: opts.path || "/drop", search: opts.search || "", href: opts.href || "" }
   };
   sandbox.window = sandbox;
   sandbox.parent = opts.iframe ? {} : sandbox;
@@ -71,6 +78,7 @@ function runSlimNow(opts) {
 if (!runSlimNow({ path: "/widget" })) fail("/widget must skip #drop-on");
 if (!runSlimNow({ path: "/widget.html" })) fail("/widget.html must skip #drop-on");
 if (!runSlimNow({ search: "?embed=1" })) fail("?embed=1 must skip #drop-on");
+if (!runSlimNow({ widget: true, path: "/drop.html" })) fail("body.widget must skip #drop-on even when pathname is drop.html");
 if (runSlimNow({ path: "/drop" })) fail("/drop must still paint #drop-on");
 if (runSlimNow({ search: "?ws=springfield-shop" })) fail("/drop?ws= must still paint #drop-on");
 
@@ -139,6 +147,9 @@ if (steps.indexOf("function widgetOn") < 0) fail("drop-steps.js must detect the 
 if (steps.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
   fail("drop-steps.js boot must skip the step rail on /widget");
 }
+if (steps.indexOf("function slimChrome") < 0 || steps.indexOf("if (slimChrome()) hush()") < 0) {
+  fail("drop-steps.js must hush #drop-steps on /widget via slimChrome");
+}
 const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
 if (yesNo.indexOf("Drop widget Drop-tab rail leftover after that pass") < 0) {
@@ -158,6 +169,12 @@ if (yesNo.indexOf("Drop `#drop-on` keep leftover after that pass") < 0) {
 }
 if (packMd.indexOf("Drop `#drop-on` keep leftover:") < 0) {
   fail("PACK.md must name Drop #drop-on keep leftover");
+}
+if (yesNo.indexOf("Drop widget standalone steps rail leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget standalone steps rail leftover");
+}
+if (packMd.indexOf("Drop widget standalone steps rail leftover:") < 0) {
+  fail("PACK.md must name Drop widget standalone steps rail leftover");
 }
 if (/off:\s*\[["']drop-on["']\]/.test(steps)) {
   fail("drop-steps.js must not hush #drop-on on /drop step one");

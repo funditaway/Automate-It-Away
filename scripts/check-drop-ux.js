@@ -129,8 +129,15 @@ if (bannerFn.indexOf("Change desk") < 0 || bannerFn.indexOf("/drop") < 0) {
 }
 function runSlimNow(opts) {
   const sandbox = {
-    document: { body: { classList: { contains: function (c) { return !!opts.embed && c === "embed"; } } } },
-    location: { pathname: opts.path || "/drop", search: opts.search || "" }
+    document: {
+      documentElement: { classList: { contains: function (c) { return !!opts.htmlWidget && c === "widget"; } } },
+      body: { classList: { contains: function (c) {
+        if (c === "embed") return !!opts.embed;
+        if (c === "widget") return !!opts.widget;
+        return false;
+      } } }
+    },
+    location: { pathname: opts.path || "/drop", search: opts.search || "", href: opts.href || "" }
   };
   sandbox.window = sandbox;
   sandbox.parent = opts.iframe ? {} : sandbox;
@@ -145,6 +152,7 @@ if (!runSlimNow({ path: "/widget/" })) fail("/widget/ must skip #drop-on");
 if (!runSlimNow({ path: "/drop", embed: true })) fail("embed /drop must skip #drop-on");
 if (!runSlimNow({ path: "/drop", iframe: true })) fail("iframe /drop must skip #drop-on");
 if (!runSlimNow({ search: "?ws=springfield-shop&embed=1" })) fail("?embed=1 must skip #drop-on");
+if (!runSlimNow({ widget: true, path: "/drop.html" })) fail("body.widget must skip #drop-on even when pathname is drop.html");
 if (runSlimNow({ path: "/drop" })) fail("/drop must still paint #drop-on");
 if (runSlimNow({ path: "/drop.html" })) fail("/drop.html must still paint #drop-on");
 if (runSlimNow({ search: "?ws=springfield-shop" })) fail("/drop?ws= must still paint #drop-on");
@@ -167,6 +175,12 @@ if (/off:\s*\[["']drop-on["']\]/.test(stepsHush)) {
 }
 if (stepsHush.indexOf('keep.classList.remove("step-off")') < 0) {
   fail("drop-steps.js paint() must keep #drop-on visible on /drop");
+}
+if (yesNo.indexOf("Drop widget standalone steps rail leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget standalone steps rail leftover");
+}
+if (packMd.indexOf("Drop widget standalone steps rail leftover:") < 0) {
+  fail("PACK.md must name Drop widget standalone steps rail leftover");
 }
 
 const preview = read("drop-preview.js");
@@ -231,8 +245,15 @@ if (packMd.indexOf("Drop widget This drop leftover:") < 0) {
 }
 function runSlim(opts) {
   const sandbox = {
-    document: { body: { classList: { contains: function (c) { return !!opts.embed && c === "embed"; } } } },
-    location: { pathname: opts.path || "/drop" }
+    document: {
+      documentElement: { classList: { contains: function (c) { return !!opts.htmlWidget && c === "widget"; } } },
+      body: { classList: { contains: function (c) {
+        if (c === "embed") return !!opts.embed;
+        if (c === "widget") return !!opts.widget;
+        return false;
+      } } }
+    },
+    location: { pathname: opts.path || "/drop", href: opts.href || "" }
   };
   sandbox.window = sandbox;
   sandbox.parent = opts.iframe ? {} : sandbox;
@@ -245,6 +266,7 @@ if (!runSlim({ path: "/widget" })) fail("/widget must skip This drop / Counter")
 if (!runSlim({ path: "/widget.html" })) fail("/widget.html must skip This drop / Counter");
 if (!runSlim({ path: "/drop", embed: true })) fail("embed /drop must skip This drop / Counter");
 if (!runSlim({ path: "/drop", iframe: true })) fail("iframe /drop must skip This drop / Counter");
+if (!runSlim({ widget: true, path: "/drop.html" })) fail("body.widget must skip This drop / Counter even when pathname is drop.html");
 if (runSlim({ path: "/drop" })) fail("/drop must still paint This drop / Counter");
 if (runSlim({ path: "/drop.html" })) fail("/drop.html must still paint This drop / Counter");
 const hookTypeAt = preview.indexOf("function hookType");
@@ -360,6 +382,9 @@ const steps = read("drop-steps.js");
 if (steps.indexOf("function widgetOn") < 0) fail("drop-steps.js must detect the /widget path");
 if (steps.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
   fail("drop-steps.js boot must skip the step rail on /widget");
+}
+if (steps.indexOf("function slimChrome") < 0 || steps.indexOf("if (slimChrome()) hush()") < 0) {
+  fail("drop-steps.js must hush #drop-steps on /widget via slimChrome");
 }
 const hrefSrc = read("desk-switch.js");
 const hrefAt = hrefSrc.indexOf("function widgetHref");

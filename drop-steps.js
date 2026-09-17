@@ -39,12 +39,22 @@
     if (document.body.classList.contains("embed") || window !== window.parent) return true;
     return /embed=1/.test(location.search);
   }
+  function markedWidget() {
+    try {
+      if (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("widget")) return true;
+      if (document.body && document.body.classList && document.body.classList.contains("widget")) return true;
+    } catch (e) {}
+    return false;
+  }
   function widgetOn() {
     try {
+      if (markedWidget()) return true;
       var p = String(location.pathname || "").replace(/\/+$/, "");
-      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
     } catch (e) { return false; }
   }
+  function slimChrome() { return embedOn() || widgetOn(); }
   function stepOf(id) {
     for (var i = 0; i < STEPS.length; i++) if (STEPS[i].id === id) return STEPS[i];
     return null;
@@ -219,7 +229,16 @@
     }).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
   }
 
+  function hush() {
+    var rail = el("drop-steps");
+    if (rail && rail.parentNode) rail.parentNode.removeChild(rail);
+    var foot = el("drop-step-foot");
+    if (foot && foot.parentNode) foot.parentNode.removeChild(foot);
+    if (document.body && document.body.classList) document.body.classList.remove("drop-steps");
+  }
+
   function boot() {
+    if (slimChrome()) hush();
     if (!onDrop() || embedOn() || widgetOn()) return;
     css();
     document.body.classList.add("drop-steps");
