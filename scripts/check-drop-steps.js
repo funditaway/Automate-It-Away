@@ -198,6 +198,15 @@ if (yesNo.indexOf("Drop widget Drop-tab rail leftover after that pass") < 0) {
 if (packMd.indexOf("Drop widget Drop-tab rail leftover:") < 0) {
   fail("PACK.md must name Drop widget Drop-tab rail leftover");
 }
+if (yesNo.indexOf("Drop widget `#drop-on` leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget #drop-on leftover");
+}
+if (packMd.indexOf("Drop widget `#drop-on` leftover:") < 0) {
+  fail("PACK.md must name Drop widget #drop-on leftover");
+}
+if (dropMd.indexOf("skip the `#drop-on` banner") < 0) {
+  fail("DROP.md must say /widget skips #drop-on");
+}
 if (dropMd.indexOf("widgetHref") < 0 || dropMd.indexOf("Drop tab") < 0) {
   fail("DROP.md must say the Drop tab widgetHref points at /widget");
 }

@@ -48,6 +48,31 @@ const nowDeskAt = now.indexOf("function desk()");
 const nowDesk = now.slice(nowDeskAt, now.indexOf("function recent", nowDeskAt));
 if (nowDesk.indexOf("cur.name || q") >= 0) fail("drop-now.js must not name a leftover desk on a ?ws= link");
 if (nowDesk.indexOf("AIADesks.find") < 0) fail("drop-now.js must name a link desk from the saved row or the slug");
+if (now.indexOf("function widgetOn") < 0) fail("drop-now.js must detect the /widget path");
+if (now.indexOf("function slimChrome") < 0) fail("drop-now.js must slim #drop-on on /widget");
+const nowBannerAt = now.indexOf("function banner");
+const nowBanner = now.slice(nowBannerAt, now.indexOf("function camera", nowBannerAt));
+if (nowBanner.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #drop-on on /widget");
+if (nowBanner.indexOf("Change desk") < 0 || nowBanner.indexOf("/drop") < 0) {
+  fail("drop-now.js /drop banner must still offer Change desk");
+}
+function runSlimNow(opts) {
+  const sandbox = {
+    document: { body: { classList: { contains: function (c) { return !!opts.embed && c === "embed"; } } } },
+    location: { pathname: opts.path || "/drop", search: opts.search || "" }
+  };
+  sandbox.window = sandbox;
+  sandbox.parent = opts.iframe ? {} : sandbox;
+  const start = now.indexOf("function embedOn");
+  const end = now.indexOf("function banner");
+  vm.runInNewContext(now.slice(start, end) + "\nthis.slimChrome = slimChrome;", sandbox);
+  return !!sandbox.slimChrome();
+}
+if (!runSlimNow({ path: "/widget" })) fail("/widget must skip #drop-on");
+if (!runSlimNow({ path: "/widget.html" })) fail("/widget.html must skip #drop-on");
+if (!runSlimNow({ search: "?embed=1" })) fail("?embed=1 must skip #drop-on");
+if (runSlimNow({ path: "/drop" })) fail("/drop must still paint #drop-on");
+if (runSlimNow({ search: "?ws=springfield-shop" })) fail("/drop?ws= must still paint #drop-on");
 
 const chat = read("drop-chat.js");
 const chatDeskAt = chat.indexOf("function desk()");
@@ -121,6 +146,12 @@ if (yesNo.indexOf("Drop widget Drop-tab rail leftover after that pass") < 0) {
 }
 if (packMd.indexOf("Drop widget Drop-tab rail leftover:") < 0) {
   fail("PACK.md must name Drop widget Drop-tab rail leftover");
+}
+if (yesNo.indexOf("Drop widget `#drop-on` leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget #drop-on leftover");
+}
+if (packMd.indexOf("Drop widget `#drop-on` leftover:") < 0) {
+  fail("PACK.md must name Drop widget #drop-on leftover");
 }
 const hrefFn = read("desk-switch.js");
 const hrefAt = hrefFn.indexOf("function widgetHref");
