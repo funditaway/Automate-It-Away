@@ -281,6 +281,8 @@ Drop widget Drop-tab rail leftover: after `/widget` pathname skipped the rail, w
 
 Drop widget `#drop-on` leftover: after widgetHref pointed the Drop tab at `/widget` and the rail skipped, drop-now.js still injected This drop goes to … Change desk (`#drop-on`). The desk card already says where the drop lands. Those faces now skip `#drop-on`. `/drop` still paints `#drop-on`. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop `#drop-on` keep leftover: after `/widget` skipped `#drop-on`, `/drop` still created `#drop-on` then step one hushed it (`display:none`). Counter KEEP failed. Step one now paints `#drop-on` (This drop goes to … Change desk). `/widget` and embed still skip `#drop-on`. `/drop` still paints the rail. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
