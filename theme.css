@@ -119,3 +119,61 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   pointer-events: auto;
   white-space: nowrap;
 }
+header .brand-name, .site-header .brand-name, header .brand strong {
+  font: 700 16px/1.15 "Segoe UI", system-ui, sans-serif;
+}
+.site-nav { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.facts, .kpis, .words, .parts, .steps { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
+.site-foot { padding: 28px 5vw; color: var(--muted); display: flex; flex-wrap: wrap; gap: 10px 16px; border-top: 1px solid var(--line); }
+.who-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.who-copy strong { font-size: 16px; }
+body.kb-open #desk-nav { display: none !important; }
+.field-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+button.aia-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px !important;
+  padding: 0;
+  margin: 0 0 0 4px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--teal) 45%, var(--line));
+  background: var(--card);
+  color: var(--teal);
+  font: 700 13px/1 "Segoe UI", system-ui, sans-serif;
+  vertical-align: middle;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+button.aia-tip:hover, button.aia-tip:focus-visible {
+  background: var(--edit);
+  color: var(--edit-ink);
+}
+.aia-tip-pop {
+  position: fixed;
+  z-index: 80;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 14px 14px 12px;
+  max-width: 320px;
+}
+.aia-tip-pop h3 { margin: 0 0 6px; font: 800 16px/1.2 "Segoe UI", system-ui, sans-serif; color: var(--heading); }
+.aia-tip-pop p { margin: 0 0 12px; font: 500 14px/1.4 "Segoe UI", system-ui, sans-serif; color: var(--muted); }
+.aia-tip-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.aia-tip-acts .ask, .aia-tip-acts .got {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: 700 14px/1 "Segoe UI", system-ui, sans-serif;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.aia-tip-acts .ask { background: var(--orange); color: #0c1116; }
+.aia-tip-acts .got { background: transparent; border: 1px solid var(--line); color: var(--ink); cursor: pointer; }
