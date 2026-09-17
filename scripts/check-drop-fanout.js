@@ -208,6 +208,18 @@ if (dropMd.indexOf("skip **Drops from this phone**") < 0) fail("DROP.md preview 
 else pass("DROP.md preview skips Drops from this phone on /widget");
 if (previewSrc.indexOf("logHtml") < 0) fail("drop-preview.js must omit Drops from this phone when slim");
 else pass("drop-preview.js omits Drops from this phone when slim");
+if (yesNo.indexOf("Drop widget steps rail leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget steps rail leftover");
+else pass("ACCOUNT-YES-NO names Drop widget steps rail leftover");
+if (packMd.indexOf("Drop widget steps rail leftover:") < 0) fail("PACK.md must name Drop widget steps rail leftover");
+else pass("PACK.md names Drop widget steps rail leftover");
+if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the rail") < 0) fail("DROP.md must say /widget skips the step rail");
+else pass("DROP.md says /widget skips the step rail");
+const stepsSrc = fs.readFileSync(path.join(root, "drop-steps.js"), "utf8");
+if (stepsSrc.indexOf("function widgetOn") < 0) fail("drop-steps.js must detect the /widget path");
+else pass("drop-steps.js detects the /widget path");
+if (stepsSrc.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
+  fail("drop-steps.js boot must skip the step rail on /widget");
+} else pass("drop-steps.js boot skips the step rail on /widget");
 const talkSrc = fs.readFileSync(path.join(root, "drop-talk.js"), "utf8");
 const talkBootAt = talkSrc.indexOf("function boot");
 const talkBoot = talkSrc.slice(talkBootAt, talkSrc.indexOf("if (document.readyState", talkBootAt));

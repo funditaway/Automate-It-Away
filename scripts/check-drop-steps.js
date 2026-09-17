@@ -96,9 +96,10 @@ if (steps.indexOf("Nobody sends money from here") < 0) fail("the step rail vow m
 if (steps.indexOf("Draft only") < 0) fail("the step rail vow must say Draft only");
 if (steps.indexOf("aia_drop_step") < 0) fail("drop-steps.js must remember the step across a desk pick");
 if (steps.indexOf("MutationObserver") < 0) fail("drop-steps.js must seat cards that load after boot");
-if (steps.indexOf("if (!onDrop() || embedOn()) return") < 0) {
-  fail("drop-steps.js must stay off embed and off pages that are not Drop");
+if (steps.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
+  fail("drop-steps.js must stay off /widget, off embed, and off pages that are not Drop");
 }
+if (steps.indexOf("function widgetOn") < 0) fail("drop-steps.js must detect the /widget path");
 if (steps.indexOf("reveal") < 0) fail("drop-steps.js must expose reveal() so a hidden note is not lost");
 if (/\b(back|next)\.hidden\s*=/.test(steps)) {
   fail("Back / Next must hide with .step-off — a global button display rule beats the hidden attribute");
@@ -107,22 +108,27 @@ if (steps.indexOf('back.classList.toggle("step-off"') < 0 || steps.indexOf('next
   fail("Back / Next must hide with .step-off at the ends of the rail");
 }
 
-function runEmbed(opts) {
+function runSkip(opts) {
   const sandbox = {
     document: { body: { classList: { contains: function (c) { return !!opts.embed && c === "embed"; } } } },
-    location: { search: opts.search || "" }
+    location: { search: opts.search || "", pathname: opts.path || "/drop" }
   };
   sandbox.window = sandbox;
   sandbox.parent = opts.iframe ? {} : sandbox;
   const start = steps.indexOf("function embedOn");
   const end = steps.indexOf("function stepOf");
-  vm.runInNewContext(steps.slice(start, end) + "\nthis.embedOn = embedOn;", sandbox);
-  return !!sandbox.embedOn();
+  vm.runInNewContext(steps.slice(start, end) + "\nthis.embedOn = embedOn;\nthis.widgetOn = widgetOn;", sandbox);
+  return !!(sandbox.embedOn() || sandbox.widgetOn());
 }
-if (!runEmbed({ embed: true })) fail("body.embed must skip the step rail");
-if (!runEmbed({ iframe: true })) fail("an iframe Drop must skip the step rail");
-if (!runEmbed({ search: "?ws=springfield-shop&embed=1" })) fail("?embed=1 must skip the step rail");
-if (runEmbed({ search: "?ws=springfield-shop" })) fail("/drop must still paint the step rail");
+if (!runSkip({ embed: true })) fail("body.embed must skip the step rail");
+if (!runSkip({ iframe: true })) fail("an iframe Drop must skip the step rail");
+if (!runSkip({ search: "?ws=springfield-shop&embed=1" })) fail("?embed=1 must skip the step rail");
+if (!runSkip({ path: "/widget" })) fail("/widget must skip the step rail");
+if (!runSkip({ path: "/widget.html" })) fail("/widget.html must skip the step rail");
+if (!runSkip({ path: "/widget/" })) fail("/widget/ must skip the step rail");
+if (runSkip({ search: "?ws=springfield-shop" })) fail("/drop must still paint the step rail");
+if (runSkip({ path: "/drop" })) fail("/drop must still paint the step rail");
+if (runSkip({ path: "/drop.html" })) fail("/drop.html must still paint the step rail");
 
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
@@ -168,11 +174,23 @@ if (dropMd.indexOf("drop-steps.js") < 0) fail("DROP.md must name drop-steps.js")
 if (dropMd.indexOf("Desk · Tell · Card · Check · Share") < 0) {
   fail("DROP.md must name the five Drop steps in order");
 }
+if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the rail") < 0) {
+  fail("DROP.md must say /widget skips the step rail");
+}
+if (dropMd.indexOf("`/drop` still paints Desk · Tell · Card · Check · Share") < 0) {
+  fail("DROP.md must keep the step rail on /drop");
+}
 if (yesNo.indexOf("Drop desk-first steps leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop desk-first steps leftover");
 }
 if (packMd.indexOf("Drop desk-first steps leftover:") < 0) {
   fail("PACK.md must name Drop desk-first steps leftover");
+}
+if (yesNo.indexOf("Drop widget steps rail leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget steps rail leftover");
+}
+if (packMd.indexOf("Drop widget steps rail leftover:") < 0) {
+  fail("PACK.md must name Drop widget steps rail leftover");
 }
 
 console.log("check-drop-steps: ok");
