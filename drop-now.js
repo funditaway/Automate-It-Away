@@ -43,6 +43,14 @@
     } catch (e) { return false; }
   }
   function slimChrome() { return embedOn() || widgetOn(); }
+  function dropHref(slug) {
+    var use = String(slug || "").trim();
+    if (widgetOn()) {
+      if (window.AIADesks && AIADesks.widgetHref) return AIADesks.widgetHref(use);
+      return use ? ("/widget?ws=" + encodeURIComponent(use)) : "/widget";
+    }
+    return use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
+  }
   function banner() {
     if (slimChrome()) {
       var gone = document.getElementById("drop-on");
@@ -78,7 +86,7 @@
     host.appendChild(box);
     box.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-public-desk]");
-      if (btn) location.href = "/drop?ws=" + encodeURIComponent(btn.getAttribute("data-public-desk"));
+      if (btn) location.href = dropHref(btn.getAttribute("data-public-desk"));
     });
   }
   function afterLinks(job) {

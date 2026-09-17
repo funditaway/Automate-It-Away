@@ -171,6 +171,28 @@ const href = hrefFn.slice(hrefAt, hrefFn.indexOf("function captureDesk"));
 if (href.indexOf('return "/widget"') < 0 || href.indexOf('"/widget?ws="') < 0) {
   fail("widgetHref must point the Drop tab at /widget so #drop-steps skips");
 }
+if (yesNo.indexOf("Drop widget pick href leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget pick href leftover");
+}
+if (packMd.indexOf("Drop widget pick href leftover:") < 0) {
+  fail("PACK.md must name Drop widget pick href leftover");
+}
+const pickHref = read("drop-pick.js");
+if (pickHref.indexOf("function widgetOn") < 0) fail("drop-pick.js must detect the /widget path");
+if (pickHref.indexOf("function dropHref") < 0) fail("drop-pick.js must pick /widget vs /drop");
+if (pickHref.indexOf("location.href = dropHref(use)") < 0) {
+  fail("drop-pick.js goDrop must use dropHref so /widget stays on /widget");
+}
+if (pickHref.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
+  fail("drop-pick.js goDrop must not always dump to /drop");
+}
+if (now.indexOf("function dropHref") < 0) fail("drop-now.js must pick /widget vs /drop for recent desks");
+if (now.indexOf("location.href = dropHref(") < 0) {
+  fail("drop-now.js recent public desks must use dropHref");
+}
+if (now.indexOf('location.href = "/drop?ws="') >= 0) {
+  fail("drop-now.js recent public desks must not always dump to /drop");
+}
 const hookTypeAt = preview.indexOf("function hookType");
 const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAlias", hookTypeAt));
 if (hookType.indexOf("if (window.AIADropChat) return") < 0) {
