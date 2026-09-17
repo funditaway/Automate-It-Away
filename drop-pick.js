@@ -8,10 +8,24 @@
     if (window.AIADesks) return AIADesks.slugify(s);
     return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
   }
+  function widgetOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+    } catch (e) { return false; }
+  }
+  function dropHref(slug) {
+    var use = slugify(slug);
+    if (widgetOn()) {
+      if (window.AIADesks && AIADesks.widgetHref) return AIADesks.widgetHref(use);
+      return use ? ("/widget?ws=" + encodeURIComponent(use)) : "/widget";
+    }
+    return use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
+  }
   function goDrop(slug) {
     var use = slugify(slug);
     if (use) { try { sessionStorage.setItem("aia_drop_step", "tell"); } catch (e) {} }
-    location.href = use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
+    location.href = dropHref(use);
   }
   function paintSearch(rows, accounts, q) {
     var box = document.getElementById("public-desk-hits");
