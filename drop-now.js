@@ -50,6 +50,11 @@
     if (slimChrome()) {
       var gone = document.getElementById("drop-on");
       if (gone && gone.parentNode) gone.parentNode.removeChild(gone);
+      var rail = document.getElementById("drop-steps");
+      if (rail && rail.parentNode) rail.parentNode.removeChild(rail);
+      var foot = document.getElementById("drop-step-foot");
+      if (foot && foot.parentNode) foot.parentNode.removeChild(foot);
+      if (document.body && document.body.classList) document.body.classList.remove("drop-steps");
       return;
     }
     var on = desk();

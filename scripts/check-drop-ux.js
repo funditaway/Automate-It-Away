@@ -124,6 +124,9 @@ if (now.indexOf("function slimChrome") < 0) fail("drop-now.js must slim #drop-on
 const bannerAt = now.indexOf("function banner");
 const bannerFn = now.slice(bannerAt, now.indexOf("function camera", bannerAt));
 if (bannerFn.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #drop-on on /widget");
+if (bannerFn.indexOf("drop-steps") < 0 || bannerFn.indexOf("drop-step-foot") < 0) {
+  fail("drop-now.js slimChrome must tear down #drop-steps on /widget");
+}
 if (bannerFn.indexOf("Change desk") < 0 || bannerFn.indexOf("/drop") < 0) {
   fail("drop-now.js /drop banner must still offer Change desk");
 }

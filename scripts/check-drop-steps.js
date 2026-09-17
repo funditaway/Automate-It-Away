@@ -167,8 +167,14 @@ if (runSkip({ path: "/drop.html" })) fail("/drop.html must still paint the step 
   if (form < 0) fail(file + " form card needs id drop-form-card so a step can seat it");
   if (pick > modes) fail(file + " must ask which desk gets this before the drop modes");
   if (pick > form) fail(file + " must ask which desk gets this before the drop form");
-  if (src.indexOf('<script src="drop-steps.js"></script>') < 0) {
-    fail(file + " must load drop-steps.js");
+  if (src.indexOf('<script src="drop-steps.js"></script>') >= 0) {
+    fail(file + " must not load drop-steps.js unconditionally — /widget never paints #drop-steps");
+  }
+  if (src.indexOf("function skipSteps") < 0 || src.indexOf("if (skipSteps()) return") < 0) {
+    fail(file + " must skip loading drop-steps.js on /widget");
+  }
+  if (src.indexOf('s.src = "drop-steps.js"') < 0) {
+    fail(file + " must still load drop-steps.js on /drop");
   }
   const noteAt = src.indexOf("function showNote");
   const note = src.slice(noteAt, src.indexOf("function paintDeskOn", noteAt));
@@ -214,6 +220,12 @@ if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the rail") < 0) {
 }
 if (dropMd.indexOf("body.widget") < 0) {
   fail("DROP.md must say widget.html marks body.widget");
+}
+if (dropMd.indexOf("skipSteps()") < 0) {
+  fail("DROP.md must say /widget does not load drop-steps.js");
+}
+if (dropMd.indexOf("tears down `#drop-steps`") < 0) {
+  fail("DROP.md must say slimChrome tears down #drop-steps on /widget");
 }
 if (dropMd.indexOf("`/drop` still paints Desk · Tell · Card · Check · Share") < 0) {
   fail("DROP.md must keep the step rail on /drop");

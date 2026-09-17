@@ -53,6 +53,9 @@ if (now.indexOf("function slimChrome") < 0) fail("drop-now.js must slim #drop-on
 const nowBannerAt = now.indexOf("function banner");
 const nowBanner = now.slice(nowBannerAt, now.indexOf("function camera", nowBannerAt));
 if (nowBanner.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #drop-on on /widget");
+if (nowBanner.indexOf("drop-steps") < 0 || nowBanner.indexOf("drop-step-foot") < 0) {
+  fail("drop-now.js slimChrome must tear down #drop-steps on /widget");
+}
 if (nowBanner.indexOf("Change desk") < 0 || nowBanner.indexOf("/drop") < 0) {
   fail("drop-now.js /drop banner must still offer Change desk");
 }

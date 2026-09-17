@@ -245,6 +245,9 @@ const nowBannerAt = nowSrc.indexOf("function banner");
 const nowBanner = nowSrc.slice(nowBannerAt, nowSrc.indexOf("function camera", nowBannerAt));
 if (nowBanner.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #drop-on on /widget");
 else pass("drop-now.js banner skips #drop-on on /widget");
+if (nowBanner.indexOf("drop-steps") < 0 || nowBanner.indexOf("drop-step-foot") < 0) {
+  fail("drop-now.js slimChrome must tear down #drop-steps on /widget");
+} else pass("drop-now.js slimChrome tears down #drop-steps on /widget");
 if (nowBanner.indexOf("Change desk") < 0 || nowBanner.indexOf("/drop") < 0) fail("drop-now.js /drop banner must still offer Change desk");
 else pass("drop-now.js /drop banner still offers Change desk");
 if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the rail") < 0) fail("DROP.md must say /widget skips the step rail");

@@ -189,7 +189,25 @@
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="drop-pick.js"></script>
-  <script src="drop-steps.js"></script>
+  <script>
+  (function () {
+    function skipSteps() {
+      try {
+        if (document.body && document.body.classList.contains("widget")) return true;
+        var p = String(location.pathname || "").replace(/\/+$/, "");
+        if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+        if (/\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""))) return true;
+        if (window !== window.parent) return true;
+        if (/embed=1/.test(location.search)) return true;
+      } catch (e) {}
+      return false;
+    }
+    if (skipSteps()) return;
+    var s = document.createElement("script");
+    s.src = "drop-steps.js";
+    document.body.appendChild(s);
+  })();
+  </script>
   <script src="drop-agent.js"></script>
   <script src="aia-tip.js"></script>
   <script src="speech.js"></script>

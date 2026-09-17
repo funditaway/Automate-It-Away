@@ -283,7 +283,7 @@ Drop widget `#drop-on` leftover: after widgetHref pointed the Drop tab at `/widg
 
 Drop `#drop-on` keep leftover: after `/widget` skipped `#drop-on`, `/drop` still created `#drop-on` then step one hushed it (`display:none`). Counter KEEP failed. Step one now paints `#drop-on` (This drop goes to … Change desk). `/widget` and embed still skip `#drop-on`. `/drop` still paints the rail. Seat id `agent` stays. Collect HOLD. No silent send.
 
-Drop widget standalone steps rail leftover: after `#drop-on` stay painted on `/drop`, Counter phone standalone `/widget` still showed `#drop-steps` display:block. `widgetOn()` only trusted pathname `/widget`; the drop.html rewrite plus Drop-tab fallback `/drop` missed the skip. `widget.html` marks `body.widget`. `slimChrome()` hushes `#drop-steps`. Drop tab fallback is `/widget`. Embed still 0. `/drop` still paints the rail and `#drop-on` at Desk step. Seat id `agent` stays. Collect HOLD. No silent send.
+Drop widget standalone steps rail leftover: after `#drop-on` stay painted on `/drop`, Counter phone standalone `/widget` still showed `#drop-steps` display:block. Source already had `boot()` `widgetOn()` early return and widgetHref → `/widget`; no static `#drop-steps` in markup. Earlier prod PASS only checked `#drop-on`. Those faces now do not load `drop-steps.js` (`skipSteps()`). `drop-now.js` `slimChrome()` tears down `#drop-steps` if a leftover rail painted. Embed still 0. `/drop` still paints the rail and `#drop-on` at Desk step. Seat id `agent` stays. Collect HOLD. No silent send.
 
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
