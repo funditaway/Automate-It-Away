@@ -207,7 +207,15 @@
       ".hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}" +
       ".reels,.kpis{grid-template-columns:1fr 1fr!important}" +
       ".who-pic{width:28px;height:28px;flex-basis:28px}" +
-      "}";
+      "}" +
+      "button.aia-tip{display:inline-flex;align-items:center;justify-content:center;" +
+      "width:22px;height:22px;min-width:22px;min-height:22px!important;padding:0;margin:0 0 0 4px;" +
+      "border-radius:999px;border:1px solid color-mix(in srgb,var(--teal) 45%,var(--line));" +
+      "background:var(--card);color:var(--teal);font:700 13px/1 Segoe UI,system-ui,sans-serif;cursor:pointer}" +
+      ".aia-tip-pop{position:fixed;z-index:80;background:var(--card);color:var(--ink);border:1px solid var(--line);" +
+      "border-radius:14px;box-shadow:var(--shadow);padding:14px;max-width:320px}" +
+      ".field-line{display:flex;align-items:center;flex-wrap:wrap;gap:8px}" +
+      "body.kb-open #desk-nav{display:none!important}";
     document.head.appendChild(s);
   }
   function esc(s) {
@@ -287,7 +295,7 @@
     }
     chip.innerHTML = '<span class="who-copy"><strong>Sign in</strong></span>';
     chip.href = "/login";
-    chip.title = "Open this desk";
+    chip.title = "Desk name + code";
   }
   var SITE_LINKS = [
     { id: "how", href: "/how", label: "How" },
