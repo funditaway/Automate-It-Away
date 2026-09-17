@@ -371,4 +371,20 @@ if (nowSrc.indexOf('location.href = "/drop?ws="') >= 0) {
   fail("drop-now.js recent public desks must not always dump to /drop");
 }
 
+if (yesNo.indexOf("Drop widget standalone Talk bar leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget standalone Talk bar leftover");
+}
+if (packMd.indexOf("Drop widget standalone Talk bar leftover:") < 0) {
+  fail("PACK.md must name Drop widget standalone Talk bar leftover");
+}
+if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the Talk bar") < 0) {
+  fail("DROP.md must say /widget skips the Talk bar");
+}
+if (dropMd.indexOf("`/drop` still paints Talk") < 0) {
+  fail("DROP.md must keep Talk on /drop");
+}
+if (nowSrc.indexOf("talkBar") < 0 || nowSrc.indexOf("talk.hidden = true") < 0) {
+  fail("drop-now.js slimChrome must keep #talkBar hidden on /widget");
+}
+
 console.log("check-drop-steps: ok");

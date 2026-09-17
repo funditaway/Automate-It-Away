@@ -38,6 +38,23 @@
     { re: /\bwait|ask (me|the owner)\b/i, outcome: "wait" }
   ];
   var CREW = ["Foreman", "Mapper", "Packer", "Doer", "Rail", "Builder", "Worker"];
+  function embedOn() {
+    try {
+      if (document.body && document.body.classList.contains("embed")) return true;
+      if (window !== window.parent) return true;
+      return /embed=1/.test(location.search);
+    } catch (e) { return false; }
+  }
+  function widgetOn() {
+    try {
+      if (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("widget")) return true;
+      if (document.body && document.body.classList && document.body.classList.contains("widget")) return true;
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
+    } catch (e) { return false; }
+  }
+  function slimChrome() { return embedOn() || widgetOn(); }
   function status(text) { var el = document.getElementById("talkStatus"); if (el) el.textContent = text; }
   function deskName() { return (window.desk && (desk.name || desk.slug)) || window.ws || "this desk"; }
   function workText() {
@@ -144,7 +161,7 @@
     var typeEl = document.getElementById("talkType"); if (typeEl) typeEl.focus();
   }
   function boot() {
-    if (document.body.classList.contains("embed") || window !== window.parent) return;
+    if (slimChrome()) return;
     var bar = document.getElementById("talkBar"); if (!bar) return;
     styleBar(bar);
     if (!window.AIASpeech) status("Type the drop. Speech is off on this phone.");

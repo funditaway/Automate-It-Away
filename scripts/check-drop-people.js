@@ -56,6 +56,9 @@ if (nowBanner.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #d
 if (nowBanner.indexOf("drop-steps") < 0 || nowBanner.indexOf("drop-step-foot") < 0) {
   fail("drop-now.js slimChrome must tear down #drop-steps on /widget");
 }
+if (nowBanner.indexOf("talkBar") < 0 || nowBanner.indexOf("talk.hidden = true") < 0) {
+  fail("drop-now.js slimChrome must keep #talkBar hidden on /widget");
+}
 if (nowBanner.indexOf("Change desk") < 0 || nowBanner.indexOf("/drop") < 0) {
   fail("drop-now.js /drop banner must still offer Change desk");
 }
@@ -136,6 +139,9 @@ if (!/hasThread \? ""/.test(previewInject) && previewInject.indexOf("hasThread ?
 }
 if (previewInject.indexOf("slimChrome") < 0 || previewInject.indexOf("stripHtml") < 0) {
   fail("drop-preview.js inject must skip This drop / Counter on /widget");
+}
+if (previewInject.indexOf("bar.hidden = slimChrome()") < 0) {
+  fail("drop-preview.js inject must skip the Talk bar on /widget");
 }
 if (previewInject.indexOf("logHtml") < 0) {
   fail("drop-preview.js inject must skip Drops from this phone on /widget");
@@ -253,8 +259,18 @@ if (talk.indexOf("A Desk AI drafts the card") < 0) fail("drop-talk.js Hear this 
 if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js Hear this must keep Yes or Stop");
 const talkBootAt = talk.indexOf("function boot");
 const talkBoot = talk.slice(talkBootAt, talk.indexOf("if (document.readyState", talkBootAt));
-if (talkBoot.indexOf('classList.contains("embed")') < 0 || talkBoot.indexOf("window !== window.parent") < 0) {
-  fail("drop-talk.js boot must skip the Talk bar on embed /widget");
+if (talk.indexOf("function widgetOn") < 0) fail("drop-talk.js must detect the /widget path");
+if (talk.indexOf("function slimChrome") < 0 || talkBoot.indexOf("if (slimChrome()) return") < 0) {
+  fail("drop-talk.js boot must skip the Talk bar on /widget");
+}
+if (talk.indexOf('classList.contains("embed")') < 0 || talk.indexOf("window !== window.parent") < 0) {
+  fail("drop-talk.js boot must still skip the Talk bar on embed");
+}
+if (yesNo.indexOf("Drop widget standalone Talk bar leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget standalone Talk bar leftover");
+}
+if (packMd.indexOf("Drop widget standalone Talk bar leftover:") < 0) {
+  fail("PACK.md must name Drop widget standalone Talk bar leftover");
 }
 
 ["drop.html", "widget.html"].forEach(function (file) {
