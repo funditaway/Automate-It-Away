@@ -108,6 +108,7 @@ if (pick.indexOf('class=\\"chip-label\\"') < 0 && pick.indexOf('class="chip-labe
 
 const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
+const dropMd = read("DROP.md");
 if (yesNo.indexOf("Drop pick / preview leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop pick / preview leftover");
 }
@@ -118,6 +119,42 @@ if (packMd.indexOf("Drop pick / preview leftover:") < 0) {
 const now = read("drop-now.js");
 if (now.indexOf("This drop goes to") < 0) fail("drop-now.js banner must name the destination desk");
 if (now.indexOf("You still tap Yes or Stop") < 0) fail("drop-now.js banner must keep Yes or Stop");
+if (now.indexOf("function widgetOn") < 0) fail("drop-now.js must detect the /widget path");
+if (now.indexOf("function slimChrome") < 0) fail("drop-now.js must slim #drop-on on /widget");
+const bannerAt = now.indexOf("function banner");
+const bannerFn = now.slice(bannerAt, now.indexOf("function camera", bannerAt));
+if (bannerFn.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #drop-on on /widget");
+if (bannerFn.indexOf("Change desk") < 0 || bannerFn.indexOf("/drop") < 0) {
+  fail("drop-now.js /drop banner must still offer Change desk");
+}
+function runSlimNow(opts) {
+  const sandbox = {
+    document: { body: { classList: { contains: function (c) { return !!opts.embed && c === "embed"; } } } },
+    location: { pathname: opts.path || "/drop", search: opts.search || "" }
+  };
+  sandbox.window = sandbox;
+  sandbox.parent = opts.iframe ? {} : sandbox;
+  const start = now.indexOf("function embedOn");
+  const end = now.indexOf("function banner");
+  vm.runInNewContext(now.slice(start, end) + "\nthis.slimChrome = slimChrome;", sandbox);
+  return !!sandbox.slimChrome();
+}
+if (!runSlimNow({ path: "/widget" })) fail("/widget must skip #drop-on");
+if (!runSlimNow({ path: "/widget.html" })) fail("/widget.html must skip #drop-on");
+if (!runSlimNow({ path: "/widget/" })) fail("/widget/ must skip #drop-on");
+if (!runSlimNow({ path: "/drop", embed: true })) fail("embed /drop must skip #drop-on");
+if (!runSlimNow({ path: "/drop", iframe: true })) fail("iframe /drop must skip #drop-on");
+if (!runSlimNow({ search: "?ws=springfield-shop&embed=1" })) fail("?embed=1 must skip #drop-on");
+if (runSlimNow({ path: "/drop" })) fail("/drop must still paint #drop-on");
+if (runSlimNow({ path: "/drop.html" })) fail("/drop.html must still paint #drop-on");
+if (runSlimNow({ search: "?ws=springfield-shop" })) fail("/drop?ws= must still paint #drop-on");
+if (dropMd.indexOf("skip the `#drop-on` banner") < 0) fail("DROP.md must say /widget skips #drop-on");
+if (yesNo.indexOf("Drop widget `#drop-on` leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget #drop-on leftover");
+}
+if (packMd.indexOf("Drop widget `#drop-on` leftover:") < 0) {
+  fail("PACK.md must name Drop widget #drop-on leftover");
+}
 
 const preview = read("drop-preview.js");
 const gateAt = preview.indexOf("function gateSend");

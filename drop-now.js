@@ -29,7 +29,26 @@
     rows.unshift({ slug: row.slug, name: row.name || row.slug, at: Date.now() });
     try { localStorage.setItem(RECENT, JSON.stringify(rows.slice(0, 6))); } catch (e) {}
   }
+  function embedOn() {
+    try {
+      if (document.body && document.body.classList.contains("embed")) return true;
+      if (window !== window.parent) return true;
+      return /embed=1/.test(location.search);
+    } catch (e) { return false; }
+  }
+  function widgetOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+    } catch (e) { return false; }
+  }
+  function slimChrome() { return embedOn() || widgetOn(); }
   function banner() {
+    if (slimChrome()) {
+      var gone = document.getElementById("drop-on");
+      if (gone && gone.parentNode) gone.parentNode.removeChild(gone);
+      return;
+    }
     var on = desk();
     var el = document.getElementById("drop-on");
     if (!el) {
