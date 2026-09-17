@@ -200,6 +200,14 @@ if (packMd.indexOf("Drop widget Talk bar leftover:") < 0) fail("PACK.md must nam
 else pass("PACK.md names Drop widget Talk bar leftover");
 if (dropMd.indexOf("Embed `/widget` skips the Talk bar") < 0) fail("DROP.md must name embed Talk bar skip");
 else pass("DROP.md names embed Talk bar skip");
+if (yesNo.indexOf("Drop widget phone log leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget phone log leftover");
+else pass("ACCOUNT-YES-NO names Drop widget phone log leftover");
+if (packMd.indexOf("Drop widget phone log leftover:") < 0) fail("PACK.md must name Drop widget phone log leftover");
+else pass("PACK.md names Drop widget phone log leftover");
+if (dropMd.indexOf("skip **Drops from this phone**") < 0) fail("DROP.md preview must skip Drops from this phone on /widget");
+else pass("DROP.md preview skips Drops from this phone on /widget");
+if (previewSrc.indexOf("logHtml") < 0) fail("drop-preview.js must omit Drops from this phone when slim");
+else pass("drop-preview.js omits Drops from this phone when slim");
 const talkSrc = fs.readFileSync(path.join(root, "drop-talk.js"), "utf8");
 const talkBootAt = talkSrc.indexOf("function boot");
 const talkBoot = talkSrc.slice(talkBootAt, talkSrc.indexOf("if (document.readyState", talkBootAt));

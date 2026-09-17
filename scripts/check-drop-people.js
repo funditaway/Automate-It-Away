@@ -101,6 +101,12 @@ if (!/hasThread \? ""/.test(previewInject) && previewInject.indexOf("hasThread ?
 if (previewInject.indexOf("slimChrome") < 0 || previewInject.indexOf("stripHtml") < 0) {
   fail("drop-preview.js inject must skip This drop / Counter on /widget");
 }
+if (previewInject.indexOf("logHtml") < 0) {
+  fail("drop-preview.js inject must skip Drops from this phone on /widget");
+}
+if (previewInject.indexOf("id=\\\"drop-log-card\\\"") < 0 && previewInject.indexOf("id=\"drop-log-card\"") < 0) {
+  fail("drop-preview.js must still paint Drops from this phone on /drop");
+}
 if (preview.indexOf("function widgetOn") < 0) fail("drop-preview.js must detect /widget path");
 if (preview.indexOf("function slimChrome") < 0) fail("drop-preview.js must slim This drop on /widget");
 const hookTypeAt = preview.indexOf("function hookType");

@@ -99,11 +99,13 @@
       "</div>";
     var stripHtml = slim ? "" :
       "<div class=\"card\" id=\"verify-strip\"><strong>This drop</strong><div id=\"verify-cells\" class=\"verify-cells\"></div></div>";
+    var logHtml = slim ? "" :
+      "<div class=\"card\" id=\"drop-log-card\"><strong>Drops from this phone</strong><div id=\"drop-log\"></div></div>";
     box.innerHTML =
       threadHtml +
       stripHtml +
       "<div class=\"card\" id=\"drop-preview\"><strong>Card preview</strong><p class=\"sub\" id=\"preview-sub\">Not on the queue yet. Fix it here. You still tap Yes or Stop.</p><div id=\"preview-body\"></div><p class=\"sub\" id=\"drop-ask\"></p></div>" +
-      "<div class=\"card\" id=\"drop-log-card\"><strong>Drops from this phone</strong><div id=\"drop-log\"></div></div>";
+      logHtml;
     after.parentNode.insertBefore(box, after.nextSibling);
     if (!document.getElementById("drop-preview-css")) {
       var css = document.createElement("style"); css.id = "drop-preview-css";
