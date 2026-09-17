@@ -248,6 +248,8 @@ else pass("drop-now.js banner skips #drop-on on /widget");
 if (nowBanner.indexOf("drop-steps") < 0 || nowBanner.indexOf("drop-step-foot") < 0) {
   fail("drop-now.js slimChrome must tear down #drop-steps on /widget");
 } else pass("drop-now.js slimChrome tears down #drop-steps on /widget");
+if (nowBanner.indexOf("talkBar") < 0) fail("drop-now.js slimChrome must tear down #talkBar on /widget");
+else pass("drop-now.js slimChrome tears down #talkBar on /widget");
 if (nowBanner.indexOf("Change desk") < 0 || nowBanner.indexOf("/drop") < 0) fail("drop-now.js /drop banner must still offer Change desk");
 else pass("drop-now.js /drop banner still offers Change desk");
 if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the rail") < 0) fail("DROP.md must say /widget skips the step rail");
@@ -298,12 +300,28 @@ if (nowSrc.indexOf("location.href = dropHref(") < 0) fail("drop-now.js recent pu
 else pass("drop-now.js recent public desks use dropHref");
 if (nowSrc.indexOf('location.href = "/drop?ws="') >= 0) fail("drop-now.js recent public desks must not always dump to /drop");
 else pass("drop-now.js recent public desks do not always dump to /drop");
+if (yesNo.indexOf("Drop widget standalone Talk bar leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget standalone Talk bar leftover");
+else pass("ACCOUNT-YES-NO names Drop widget standalone Talk bar leftover");
+if (packMd.indexOf("Drop widget standalone Talk bar leftover:") < 0) fail("PACK.md must name Drop widget standalone Talk bar leftover");
+else pass("PACK.md names Drop widget standalone Talk bar leftover");
+if (dropMd.indexOf("Standalone `/widget` also skips the Talk bar") < 0) fail("DROP.md must say standalone /widget skips the Talk bar");
+else pass("DROP.md says standalone /widget skips the Talk bar");
+if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the Talk bar") < 0) fail("DROP.md must say /widget skips the Talk bar");
+else pass("DROP.md says /widget skips the Talk bar");
+if (previewSrc.indexOf("if (bar && slimChrome())") < 0) fail("drop-preview.js must skip unhiding Talk on /widget");
+else pass("drop-preview.js skips unhiding Talk on /widget");
 const talkSrc = fs.readFileSync(path.join(root, "drop-talk.js"), "utf8");
 const talkBootAt = talkSrc.indexOf("function boot");
 const talkBoot = talkSrc.slice(talkBootAt, talkSrc.indexOf("if (document.readyState", talkBootAt));
 if (talkBoot.indexOf('classList.contains("embed")') < 0 || talkBoot.indexOf("window !== window.parent") < 0) {
   fail("drop-talk.js boot must skip the Talk bar on embed /widget");
 } else pass("drop-talk.js boot skips the Talk bar on embed");
+if (talkSrc.indexOf("function widgetOn") < 0) fail("drop-talk.js must detect the /widget path");
+else pass("drop-talk.js detects the /widget path");
+if (talkBoot.indexOf("widgetOn()") < 0) fail("drop-talk.js boot must skip the Talk bar on standalone /widget");
+else pass("drop-talk.js boot skips the Talk bar on standalone /widget");
+if (talkBoot.indexOf("hushTalk()") < 0) fail("drop-talk.js boot must tear down leftover #talkBar on /widget");
+else pass("drop-talk.js boot tears down leftover #talkBar on /widget");
 
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");

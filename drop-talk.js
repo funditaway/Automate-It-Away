@@ -143,8 +143,24 @@
     try { bar.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) { bar.scrollIntoView(true); }
     var typeEl = document.getElementById("talkType"); if (typeEl) typeEl.focus();
   }
+  function widgetOn() {
+    try {
+      if (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("widget")) return true;
+      if (document.body && document.body.classList && document.body.classList.contains("widget")) return true;
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
+    } catch (e) { return false; }
+  }
+  function hushTalk() {
+    var gone = document.getElementById("talkBar");
+    if (gone && gone.parentNode) gone.parentNode.removeChild(gone);
+  }
   function boot() {
-    if (document.body.classList.contains("embed") || window !== window.parent) return;
+    if (document.body.classList.contains("embed") || window !== window.parent || /embed=1/.test(location.search) || widgetOn()) {
+      hushTalk();
+      return;
+    }
     var bar = document.getElementById("talkBar"); if (!bar) return;
     styleBar(bar);
     if (!window.AIASpeech) status("Type the drop. Speech is off on this phone.");

@@ -62,6 +62,8 @@
       if (rail && rail.parentNode) rail.parentNode.removeChild(rail);
       var foot = document.getElementById("drop-step-foot");
       if (foot && foot.parentNode) foot.parentNode.removeChild(foot);
+      var talk = document.getElementById("talkBar");
+      if (talk && talk.parentNode) talk.parentNode.removeChild(talk);
       if (document.body && document.body.classList) document.body.classList.remove("drop-steps");
       return;
     }
