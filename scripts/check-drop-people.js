@@ -109,6 +109,11 @@ if (previewInject.indexOf("id=\\\"drop-log-card\\\"") < 0 && previewInject.index
 }
 if (preview.indexOf("function widgetOn") < 0) fail("drop-preview.js must detect /widget path");
 if (preview.indexOf("function slimChrome") < 0) fail("drop-preview.js must slim This drop on /widget");
+const steps = read("drop-steps.js");
+if (steps.indexOf("function widgetOn") < 0) fail("drop-steps.js must detect the /widget path");
+if (steps.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
+  fail("drop-steps.js boot must skip the step rail on /widget");
+}
 const hookTypeAt = preview.indexOf("function hookType");
 const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAlias", hookTypeAt));
 if (hookType.indexOf("if (window.AIADropChat) return") < 0) {

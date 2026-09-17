@@ -40,6 +40,12 @@
     if (document.body.classList.contains("embed") || window !== window.parent) return true;
     return /embed=1/.test(location.search);
   }
+  function widgetOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+    } catch (e) { return false; }
+  }
   function stepOf(id) {
     for (var i = 0; i < STEPS.length; i++) if (STEPS[i].id === id) return STEPS[i];
     return null;
@@ -213,7 +219,7 @@
   }
 
   function boot() {
-    if (!onDrop() || embedOn()) return;
+    if (!onDrop() || embedOn() || widgetOn()) return;
     css();
     document.body.classList.add("drop-steps");
     active = recall();

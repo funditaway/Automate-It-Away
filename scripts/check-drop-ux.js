@@ -294,6 +294,17 @@ if (yesNo.indexOf("Drop widget Talk bar leftover after that pass") < 0) {
 if (packMd.indexOf("Drop widget Talk bar leftover:") < 0) {
   fail("PACK.md must name Drop widget Talk bar leftover");
 }
+if (yesNo.indexOf("Drop widget steps rail leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget steps rail leftover");
+}
+if (packMd.indexOf("Drop widget steps rail leftover:") < 0) {
+  fail("PACK.md must name Drop widget steps rail leftover");
+}
+const steps = read("drop-steps.js");
+if (steps.indexOf("function widgetOn") < 0) fail("drop-steps.js must detect the /widget path");
+if (steps.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
+  fail("drop-steps.js boot must skip the step rail on /widget");
+}
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
   if (src.indexOf("Talk the work in your words") >= 0) fail(file + " Talk bar still says Talk the work in your words");
