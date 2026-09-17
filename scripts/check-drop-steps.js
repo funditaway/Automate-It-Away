@@ -62,8 +62,16 @@ table.forEach(function (step) {
   });
 });
 
-if ((table[0].off || []).indexOf("drop-on") < 0) {
-  fail("the Desk step must hush #drop-on — the desk card already says where the drop lands");
+if ((table[0].off || []).indexOf("drop-on") >= 0) {
+  fail("the Desk step must paint #drop-on — This drop goes to / Change desk is initial chrome on /drop");
+}
+table.forEach(function (step) {
+  if ((step.off || []).indexOf("drop-on") >= 0) {
+    fail("step " + step.id + " must not hush #drop-on on /drop");
+  }
+});
+if (steps.indexOf('keep.classList.remove("step-off")') < 0) {
+  fail("paint() must keep #drop-on visible on /drop — not display:none at step one");
 }
 table.forEach(function (step) {
   (step.off || []).forEach(function (id) {
@@ -206,6 +214,21 @@ if (packMd.indexOf("Drop widget `#drop-on` leftover:") < 0) {
 }
 if (dropMd.indexOf("skip the `#drop-on` banner") < 0) {
   fail("DROP.md must say /widget skips #drop-on");
+}
+if (dropMd.indexOf("paints the `#drop-on` banner") < 0) {
+  fail("DROP.md must say /drop paints #drop-on at step one");
+}
+if (dropMd.indexOf("still paints `#drop-on` at step one") < 0) {
+  fail("DROP.md must keep #drop-on painted at /drop step one");
+}
+if (dropMd.indexOf("it hushes the `#drop-on` banner") >= 0) {
+  fail("DROP.md must not say step one hushes #drop-on");
+}
+if (yesNo.indexOf("Drop `#drop-on` keep leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop #drop-on keep leftover");
+}
+if (packMd.indexOf("Drop `#drop-on` keep leftover:") < 0) {
+  fail("PACK.md must name Drop #drop-on keep leftover");
 }
 if (dropMd.indexOf("widgetHref") < 0 || dropMd.indexOf("Drop tab") < 0) {
   fail("DROP.md must say the Drop tab widgetHref points at /widget");

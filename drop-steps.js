@@ -5,8 +5,7 @@
     {
       id: "desk", label: "Desk",
       hint: "Pick the desk first. Every drop rides to that queue.",
-      ids: ["desk-pick", "public-desk-search"],
-      off: ["drop-on"]
+      ids: ["desk-pick", "public-desk-search"]
     },
     {
       id: "tell", label: "Tell",
@@ -152,6 +151,8 @@
       var node = el(id);
       if (node) node.classList.toggle("step-off", hush.indexOf(id) >= 0);
     });
+    var keep = el("drop-on");
+    if (keep) keep.classList.remove("step-off");
     setHtml(el("drop-step-tabs"), rows.map(function (step, i) {
       var cls = step.id === active ? "on" : i < at ? "done" : "";
       return "<button type=\"button\" role=\"tab\" aria-selected=\"" + (step.id === active) +

@@ -153,6 +153,18 @@ if (yesNo.indexOf("Drop widget `#drop-on` leftover after that pass") < 0) {
 if (packMd.indexOf("Drop widget `#drop-on` leftover:") < 0) {
   fail("PACK.md must name Drop widget #drop-on leftover");
 }
+if (yesNo.indexOf("Drop `#drop-on` keep leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop #drop-on keep leftover");
+}
+if (packMd.indexOf("Drop `#drop-on` keep leftover:") < 0) {
+  fail("PACK.md must name Drop #drop-on keep leftover");
+}
+if (/off:\s*\[["']drop-on["']\]/.test(steps)) {
+  fail("drop-steps.js must not hush #drop-on on /drop step one");
+}
+if (steps.indexOf('keep.classList.remove("step-off")') < 0) {
+  fail("drop-steps.js paint() must keep #drop-on visible on /drop");
+}
 const hrefFn = read("desk-switch.js");
 const hrefAt = hrefFn.indexOf("function widgetHref");
 const href = hrefFn.slice(hrefAt, hrefFn.indexOf("function captureDesk"));
