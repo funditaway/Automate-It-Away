@@ -212,6 +212,10 @@ if (yesNo.indexOf("Drop widget steps rail leftover after that pass") < 0) fail("
 else pass("ACCOUNT-YES-NO names Drop widget steps rail leftover");
 if (packMd.indexOf("Drop widget steps rail leftover:") < 0) fail("PACK.md must name Drop widget steps rail leftover");
 else pass("PACK.md names Drop widget steps rail leftover");
+if (yesNo.indexOf("Drop widget Drop-tab rail leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget Drop-tab rail leftover");
+else pass("ACCOUNT-YES-NO names Drop widget Drop-tab rail leftover");
+if (packMd.indexOf("Drop widget Drop-tab rail leftover:") < 0) fail("PACK.md must name Drop widget Drop-tab rail leftover");
+else pass("PACK.md names Drop widget Drop-tab rail leftover");
 if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the rail") < 0) fail("DROP.md must say /widget skips the step rail");
 else pass("DROP.md says /widget skips the step rail");
 const stepsSrc = fs.readFileSync(path.join(root, "drop-steps.js"), "utf8");
@@ -220,6 +224,12 @@ else pass("drop-steps.js detects the /widget path");
 if (stepsSrc.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
   fail("drop-steps.js boot must skip the step rail on /widget");
 } else pass("drop-steps.js boot skips the step rail on /widget");
+const hrefSrc = fs.readFileSync(path.join(root, "desk-switch.js"), "utf8");
+const hrefAt = hrefSrc.indexOf("function widgetHref");
+const hrefFn = hrefSrc.slice(hrefAt, hrefSrc.indexOf("function captureDesk"));
+if (hrefFn.indexOf('return "/widget"') < 0 || hrefFn.indexOf('"/widget?ws="') < 0) {
+  fail("widgetHref must point the Drop tab at /widget");
+} else pass("widgetHref points the Drop tab at /widget");
 const talkSrc = fs.readFileSync(path.join(root, "drop-talk.js"), "utf8");
 const talkBootAt = talkSrc.indexOf("function boot");
 const talkBoot = talkSrc.slice(talkBootAt, talkSrc.indexOf("if (document.readyState", talkBootAt));

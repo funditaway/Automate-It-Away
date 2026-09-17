@@ -277,6 +277,8 @@ Drop desk-first steps leftover: after embed `/widget` skipped the Talk bar, `/dr
 
 Drop widget steps rail leftover: after `/widget` skipped Drops from this phone, drop-steps.js still painted Desk · Tell · Card · Check · Share on `/widget`. `onDrop()` matches widget.html and only embed skipped the rail. Those faces now skip the step rail. `/drop` still paints the rail. Embed still skips. Header / modes / share stay on `/drop`. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop widget Drop-tab rail leftover: after `/widget` pathname skipped the rail, widgetHref still returned `/drop?ws=`. Counter phone Drop tab painted Desk · Tell · Card · Check · Share. widgetHref now points at `/widget`. `/widget` and `/widget?embed=1` omit `#drop-steps`. `/drop` still paints the rail. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

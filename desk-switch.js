@@ -288,8 +288,8 @@
 
   function widgetHref(slug) {
     var use = slugify(slug || (store && store.getItem("aia_ws")) || "");
-    if (!use) return "/drop";
-    return "/drop?ws=" + encodeURIComponent(use);
+    if (!use) return "/widget";
+    return "/widget?ws=" + encodeURIComponent(use);
   }
 
   function captureDesk() {
