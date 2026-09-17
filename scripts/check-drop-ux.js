@@ -300,10 +300,22 @@ if (yesNo.indexOf("Drop widget steps rail leftover after that pass") < 0) {
 if (packMd.indexOf("Drop widget steps rail leftover:") < 0) {
   fail("PACK.md must name Drop widget steps rail leftover");
 }
+if (yesNo.indexOf("Drop widget Drop-tab rail leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget Drop-tab rail leftover");
+}
+if (packMd.indexOf("Drop widget Drop-tab rail leftover:") < 0) {
+  fail("PACK.md must name Drop widget Drop-tab rail leftover");
+}
 const steps = read("drop-steps.js");
 if (steps.indexOf("function widgetOn") < 0) fail("drop-steps.js must detect the /widget path");
 if (steps.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
   fail("drop-steps.js boot must skip the step rail on /widget");
+}
+const hrefSrc = read("desk-switch.js");
+const hrefAt = hrefSrc.indexOf("function widgetHref");
+const hrefFn = hrefSrc.slice(hrefAt, hrefSrc.indexOf("function captureDesk"));
+if (hrefFn.indexOf('return "/widget"') < 0 || hrefFn.indexOf('"/widget?ws="') < 0) {
+  fail("widgetHref must point the Drop tab at /widget so #drop-steps skips");
 }
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);

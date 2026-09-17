@@ -114,6 +114,20 @@ if (steps.indexOf("function widgetOn") < 0) fail("drop-steps.js must detect the 
 if (steps.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
   fail("drop-steps.js boot must skip the step rail on /widget");
 }
+const yesNo = read("ACCOUNT-YES-NO.md");
+const packMd = read("PACK.md");
+if (yesNo.indexOf("Drop widget Drop-tab rail leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget Drop-tab rail leftover");
+}
+if (packMd.indexOf("Drop widget Drop-tab rail leftover:") < 0) {
+  fail("PACK.md must name Drop widget Drop-tab rail leftover");
+}
+const hrefFn = read("desk-switch.js");
+const hrefAt = hrefFn.indexOf("function widgetHref");
+const href = hrefFn.slice(hrefAt, hrefFn.indexOf("function captureDesk"));
+if (href.indexOf('return "/widget"') < 0 || href.indexOf('"/widget?ws="') < 0) {
+  fail("widgetHref must point the Drop tab at /widget so #drop-steps skips");
+}
 const hookTypeAt = preview.indexOf("function hookType");
 const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAlias", hookTypeAt));
 if (hookType.indexOf("if (window.AIADropChat) return") < 0) {

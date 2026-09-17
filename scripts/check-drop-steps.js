@@ -192,5 +192,23 @@ if (yesNo.indexOf("Drop widget steps rail leftover after that pass") < 0) {
 if (packMd.indexOf("Drop widget steps rail leftover:") < 0) {
   fail("PACK.md must name Drop widget steps rail leftover");
 }
+if (yesNo.indexOf("Drop widget Drop-tab rail leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget Drop-tab rail leftover");
+}
+if (packMd.indexOf("Drop widget Drop-tab rail leftover:") < 0) {
+  fail("PACK.md must name Drop widget Drop-tab rail leftover");
+}
+if (dropMd.indexOf("widgetHref") < 0 || dropMd.indexOf("Drop tab") < 0) {
+  fail("DROP.md must say the Drop tab widgetHref points at /widget");
+}
+const switchSrc = read("desk-switch.js");
+const hrefAt = switchSrc.indexOf("function widgetHref");
+const hrefFn = switchSrc.slice(hrefAt, switchSrc.indexOf("function captureDesk"));
+if (hrefFn.indexOf('return "/widget"') < 0 || hrefFn.indexOf('"/widget?ws="') < 0) {
+  fail("widgetHref must point the Drop tab at /widget, not /drop");
+}
+if (hrefFn.indexOf('"/drop?ws="') >= 0 || hrefFn.indexOf('return "/drop"') >= 0) {
+  fail("widgetHref must not send the Drop tab to /drop");
+}
 
 console.log("check-drop-steps: ok");

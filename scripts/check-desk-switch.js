@@ -71,6 +71,15 @@ sandbox.location.search = "";
 if (AIA.captureDesk()) fail("still no current desk, should stay empty");
 else pass("never default to demo");
 
+store.aia_ws = "desk-a";
+if (AIA.widgetHref() !== "/widget?ws=desk-a") fail("widgetHref must be /widget?ws= not /drop?ws=");
+else pass("widgetHref points at /widget");
+if (AIA.widgetHref("Desk B") !== "/widget?ws=desk-b") fail("widgetHref(slug) must stay on /widget");
+else pass("widgetHref(slug) stays on /widget");
+store.aia_ws = "";
+if (AIA.widgetHref() !== "/widget") fail("empty widgetHref must be /widget");
+else pass("empty widgetHref is /widget");
+
 const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
 if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.test(widget)) {
   fail("widget.html still falls back to demo or aia_ws||");
