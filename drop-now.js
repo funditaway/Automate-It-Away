@@ -38,8 +38,11 @@
   }
   function widgetOn() {
     try {
+      if (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("widget")) return true;
+      if (document.body && document.body.classList && document.body.classList.contains("widget")) return true;
       var p = String(location.pathname || "").replace(/\/+$/, "");
-      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
     } catch (e) { return false; }
   }
   function slimChrome() { return embedOn() || widgetOn(); }
@@ -55,6 +58,11 @@
     if (slimChrome()) {
       var gone = document.getElementById("drop-on");
       if (gone && gone.parentNode) gone.parentNode.removeChild(gone);
+      var rail = document.getElementById("drop-steps");
+      if (rail && rail.parentNode) rail.parentNode.removeChild(rail);
+      var foot = document.getElementById("drop-step-foot");
+      if (foot && foot.parentNode) foot.parentNode.removeChild(foot);
+      if (document.body && document.body.classList) document.body.classList.remove("drop-steps");
       return;
     }
     var on = desk();

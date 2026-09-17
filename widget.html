@@ -58,13 +58,13 @@
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
-<body class="has-desk-nav">
+<body class="has-desk-nav widget">
   <header>
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
-      <a href="/drop" data-tab="drop">Drop</a>
+      <a href="/widget" data-tab="drop">Drop</a>
       <a href="/create" data-tab="create">Create</a>
       <a href="/history" data-tab="history">History</a>
       <a href="/more" data-tab="more">More</a>
@@ -181,7 +181,7 @@
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
-    <a href="/drop" data-tab="drop"><span>Drop</span></a>
+    <a href="/widget" data-tab="drop"><span>Drop</span></a>
     <a href="/create" data-tab="create"><span>Create</span></a>
     <a href="/history" data-tab="history"><span>History</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
@@ -189,7 +189,25 @@
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="drop-pick.js"></script>
-  <script src="drop-steps.js"></script>
+  <script>
+  (function () {
+    function skipSteps() {
+      try {
+        if (document.body && document.body.classList.contains("widget")) return true;
+        var p = String(location.pathname || "").replace(/\/+$/, "");
+        if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+        if (/\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""))) return true;
+        if (window !== window.parent) return true;
+        if (/embed=1/.test(location.search)) return true;
+      } catch (e) {}
+      return false;
+    }
+    if (skipSteps()) return;
+    var s = document.createElement("script");
+    s.src = "drop-steps.js";
+    document.body.appendChild(s);
+  })();
+  </script>
   <script src="drop-agent.js"></script>
   <script src="aia-tip.js"></script>
   <script src="speech.js"></script>

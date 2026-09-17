@@ -1,7 +1,7 @@
 (function () {
   var TABS = [
     { id: "queue", label: "Queue", href: "/desk", ico: "M4 6h16M4 12h16M4 18h10" },
-    { id: "drop", label: "Drop", href: "/drop", ico: "M12 5v14M5 12h14" },
+    { id: "drop", label: "Drop", href: "/widget", ico: "M12 5v14M5 12h14" },
     { id: "create", label: "Create", href: "/create", ico: "M5 4h9l5 5v11H5zM14 4v5h5M8 13h8M8 17h5" },
     { id: "history", label: "History", href: "/history", ico: "M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" },
     { id: "more", label: "More", href: "/more", ico: "M6 12h.01M12 12h.01M18 12h.01" }
@@ -20,8 +20,8 @@
   function dropHref() {
     if (window.AIADesks && window.AIADesks.widgetHref) return window.AIADesks.widgetHref();
     var ws = localStorage.getItem("aia_ws");
-    if (ws) return "/drop?ws=" + encodeURIComponent(ws);
-    return "/drop";
+    if (ws) return "/widget?ws=" + encodeURIComponent(ws);
+    return "/widget";
   }
 
   function tabOf() {

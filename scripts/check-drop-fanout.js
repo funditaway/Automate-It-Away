@@ -224,6 +224,10 @@ if (yesNo.indexOf("Drop `#drop-on` keep leftover after that pass") < 0) fail("AC
 else pass("ACCOUNT-YES-NO names Drop #drop-on keep leftover");
 if (packMd.indexOf("Drop `#drop-on` keep leftover:") < 0) fail("PACK.md must name Drop #drop-on keep leftover");
 else pass("PACK.md names Drop #drop-on keep leftover");
+if (yesNo.indexOf("Drop widget standalone steps rail leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget standalone steps rail leftover");
+else pass("ACCOUNT-YES-NO names Drop widget standalone steps rail leftover");
+if (packMd.indexOf("Drop widget standalone steps rail leftover:") < 0) fail("PACK.md must name Drop widget standalone steps rail leftover");
+else pass("PACK.md names Drop widget standalone steps rail leftover");
 if (dropMd.indexOf("skip the `#drop-on` banner") < 0) fail("DROP.md must say /widget skips #drop-on");
 else pass("DROP.md says /widget skips #drop-on");
 if (dropMd.indexOf("paints the `#drop-on` banner") < 0) fail("DROP.md must say /drop paints #drop-on at step one");
@@ -241,6 +245,9 @@ const nowBannerAt = nowSrc.indexOf("function banner");
 const nowBanner = nowSrc.slice(nowBannerAt, nowSrc.indexOf("function camera", nowBannerAt));
 if (nowBanner.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #drop-on on /widget");
 else pass("drop-now.js banner skips #drop-on on /widget");
+if (nowBanner.indexOf("drop-steps") < 0 || nowBanner.indexOf("drop-step-foot") < 0) {
+  fail("drop-now.js slimChrome must tear down #drop-steps on /widget");
+} else pass("drop-now.js slimChrome tears down #drop-steps on /widget");
 if (nowBanner.indexOf("Change desk") < 0 || nowBanner.indexOf("/drop") < 0) fail("drop-now.js /drop banner must still offer Change desk");
 else pass("drop-now.js /drop banner still offers Change desk");
 if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the rail") < 0) fail("DROP.md must say /widget skips the step rail");
@@ -251,6 +258,12 @@ else pass("drop-steps.js detects the /widget path");
 if (stepsSrc.indexOf("if (!onDrop() || embedOn() || widgetOn()) return") < 0) {
   fail("drop-steps.js boot must skip the step rail on /widget");
 } else pass("drop-steps.js boot skips the step rail on /widget");
+if (stepsSrc.indexOf("function slimChrome") < 0 || stepsSrc.indexOf("if (slimChrome()) hush()") < 0) {
+  fail("drop-steps.js must hush #drop-steps on /widget via slimChrome");
+} else pass("drop-steps.js hushes #drop-steps on /widget");
+if (stepsSrc.indexOf('contains("widget")') < 0) {
+  fail("widgetOn must honor body.widget so the /widget skip does not depend on pathname");
+} else pass("widgetOn honors body.widget");
 if (/off:\s*\[["']drop-on["']\]/.test(stepsSrc)) fail("drop-steps.js must not hush #drop-on on /drop step one");
 else pass("drop-steps.js does not hush #drop-on on /drop");
 if (stepsSrc.indexOf('keep.classList.remove("step-off")') < 0) fail("drop-steps.js paint() must keep #drop-on visible on /drop");
