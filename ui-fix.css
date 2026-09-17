@@ -129,3 +129,34 @@ button.aia-tip {
 }
 .aia-tip-pop { z-index: 80; }
 .field-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Footer links must not smash into How·Setup·Help */
+.site-foot nav {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center;
+  gap: 6px 12px !important;
+}
+.site-foot nav span[aria-hidden] {
+  margin: 0 2px;
+  opacity: .55;
+}
+#desk-switch a[href="/onboard"],
+a.open-another {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  margin-top: 8px;
+  border-radius: 12px;
+  background: var(--edit, #e8f4f4);
+  color: var(--teal, #0a4f4f) !important;
+  font-weight: 800;
+  text-decoration: none;
+}
+#pack-chips {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}

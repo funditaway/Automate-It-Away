@@ -299,5 +299,76 @@ if (dropHrefFn.indexOf('return "/widget"') < 0 || dropHrefFn.indexOf('"/widget?w
 if (dropHrefFn.indexOf('"/drop?ws="') >= 0 || dropHrefFn.indexOf('return "/drop"') >= 0) {
   fail("desk-nav.js dropHref must not fall back to /drop");
 }
+if (yesNo.indexOf("Drop widget pick href leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget pick href leftover");
+}
+if (packMd.indexOf("Drop widget pick href leftover:") < 0) {
+  fail("PACK.md must name Drop widget pick href leftover");
+}
+if (dropMd.indexOf("stays on `/widget?ws=`") < 0) {
+  fail("DROP.md must say /widget world pick stays on /widget?ws=");
+}
+if (dropMd.indexOf("does not dump onto Desk · Tell · Card · Check · Share") < 0) {
+  fail("DROP.md must say /widget pick does not dump onto the step rail");
+}
+if (pickSrc.indexOf("function widgetOn") < 0) fail("drop-pick.js must detect the /widget path");
+if (pickSrc.indexOf("function dropHref") < 0) fail("drop-pick.js must pick /widget vs /drop");
+if (pickSrc.indexOf("location.href = dropHref(use)") < 0) {
+  fail("drop-pick.js goDrop must use dropHref so /widget stays on /widget");
+}
+if (pickSrc.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
+  fail("drop-pick.js goDrop must not always dump to /drop");
+}
+function runPickHref(opts) {
+  const sandbox = {
+    location: { pathname: opts.path || "/drop" },
+    window: {},
+    AIADesks: {
+      slugify: function (s) {
+        return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+      },
+      widgetHref: function (slug) {
+        var use = sandbox.AIADesks.slugify(slug);
+        if (!use) return "/widget";
+        return "/widget?ws=" + encodeURIComponent(use);
+      }
+    }
+  };
+  sandbox.window = sandbox;
+  sandbox.window.AIADesks = sandbox.AIADesks;
+  const start = pickSrc.indexOf("function slugify");
+  const end = pickSrc.indexOf("function paintSearch");
+  vm.runInNewContext(pickSrc.slice(start, end) + "\nthis.dropHref = dropHref;", sandbox);
+  return sandbox.dropHref(opts.slug);
+}
+if (runPickHref({ path: "/widget", slug: "springfield-shop" }) !== "/widget?ws=springfield-shop") {
+  fail("/widget world pick must stay on /widget?ws=");
+}
+if (runPickHref({ path: "/widget.html", slug: "springfield-shop" }) !== "/widget?ws=springfield-shop") {
+  fail("/widget.html world pick must stay on /widget?ws=");
+}
+if (runPickHref({ path: "/widget/", slug: "springfield-shop" }) !== "/widget?ws=springfield-shop") {
+  fail("/widget/ world pick must stay on /widget?ws=");
+}
+if (runPickHref({ path: "/drop", slug: "springfield-shop" }) !== "/drop?ws=springfield-shop") {
+  fail("/drop world pick must still open /drop?ws=");
+}
+if (runPickHref({ path: "/drop.html", slug: "springfield-shop" }) !== "/drop?ws=springfield-shop") {
+  fail("/drop.html world pick must still open /drop?ws=");
+}
+if (runPickHref({ path: "/widget", slug: "" }) !== "/widget") {
+  fail("empty /widget pick must stay on /widget");
+}
+if (runPickHref({ path: "/drop", slug: "" }) !== "/drop") {
+  fail("empty /drop pick must stay on /drop");
+}
+const nowSrc = read("drop-now.js");
+if (nowSrc.indexOf("function dropHref") < 0) fail("drop-now.js must pick /widget vs /drop for recent desks");
+if (nowSrc.indexOf("location.href = dropHref(") < 0) {
+  fail("drop-now.js recent public desks must use dropHref");
+}
+if (nowSrc.indexOf('location.href = "/drop?ws="') >= 0) {
+  fail("drop-now.js recent public desks must not always dump to /drop");
+}
 
 console.log("check-drop-steps: ok");

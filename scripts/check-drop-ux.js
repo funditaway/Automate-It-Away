@@ -395,6 +395,31 @@ const hrefFn = hrefSrc.slice(hrefAt, hrefSrc.indexOf("function captureDesk"));
 if (hrefFn.indexOf('return "/widget"') < 0 || hrefFn.indexOf('"/widget?ws="') < 0) {
   fail("widgetHref must point the Drop tab at /widget so #drop-steps skips");
 }
+if (yesNo.indexOf("Drop widget pick href leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget pick href leftover");
+}
+if (packMd.indexOf("Drop widget pick href leftover:") < 0) {
+  fail("PACK.md must name Drop widget pick href leftover");
+}
+if (dropMd.indexOf("stays on `/widget?ws=`") < 0) {
+  fail("DROP.md must say /widget world pick stays on /widget?ws=");
+}
+const pickHref = read("drop-pick.js");
+if (pickHref.indexOf("function widgetOn") < 0) fail("drop-pick.js must detect the /widget path");
+if (pickHref.indexOf("function dropHref") < 0) fail("drop-pick.js must pick /widget vs /drop");
+if (pickHref.indexOf("location.href = dropHref(use)") < 0) {
+  fail("drop-pick.js goDrop must use dropHref so /widget stays on /widget");
+}
+if (pickHref.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
+  fail("drop-pick.js goDrop must not always dump to /drop");
+}
+if (now.indexOf("function dropHref") < 0) fail("drop-now.js must pick /widget vs /drop for recent desks");
+if (now.indexOf("location.href = dropHref(") < 0) {
+  fail("drop-now.js recent public desks must use dropHref");
+}
+if (now.indexOf('location.href = "/drop?ws="') >= 0) {
+  fail("drop-now.js recent public desks must not always dump to /drop");
+}
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
   if (src.indexOf("Talk the work in your words") >= 0) fail(file + " Talk bar still says Talk the work in your words");

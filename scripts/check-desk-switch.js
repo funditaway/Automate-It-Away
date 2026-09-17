@@ -80,6 +80,21 @@ store.aia_ws = "";
 if (AIA.widgetHref() !== "/widget") fail("empty widgetHref must be /widget");
 else pass("empty widgetHref is /widget");
 
+const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
+if (pickJs.indexOf("function dropHref") < 0 || pickJs.indexOf("location.href = dropHref(use)") < 0) {
+  fail("drop-pick.js goDrop must stay on /widget when already on /widget");
+} else pass("drop-pick.js goDrop uses dropHref");
+if (pickJs.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
+  fail("drop-pick.js goDrop must not always dump to /drop");
+} else pass("drop-pick.js goDrop does not always dump to /drop");
+const nowJs = fs.readFileSync(path.join(root, "drop-now.js"), "utf8");
+if (nowJs.indexOf("function dropHref") < 0 || nowJs.indexOf("location.href = dropHref(") < 0) {
+  fail("drop-now.js recent public desks must stay on /widget when already on /widget");
+} else pass("drop-now.js recent desks use dropHref");
+if (nowJs.indexOf('location.href = "/drop?ws="') >= 0) {
+  fail("drop-now.js recent public desks must not always dump to /drop");
+} else pass("drop-now.js recent desks do not always dump to /drop");
+
 const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
 if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.test(widget)) {
   fail("widget.html still falls back to demo or aia_ws||");
@@ -87,7 +102,6 @@ if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.
 if (widget.includes("location.replace(\"/onboard\")")) {
   fail("widget.html still bounces to /onboard before they can pick");
 } else pass("widget.html stays on /drop");
-const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
 if (!widget.includes("AIADesks.captureDesk") || !pickJs.includes("AIADesks.list") || !pickJs.includes("switchTo")) {
   fail("widget.html must list and switch saved desks");
 } else pass("widget.html lists saved desks");

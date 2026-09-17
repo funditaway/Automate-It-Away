@@ -15,7 +15,7 @@
     return "Auto";
   }
   function tileSrc() {
-    return isDark() ? "/img/aia-pyramid-tile.svg" : "/img/aia-pyramid-tile-light.svg";
+    return isDark() ? "/img/aia-pyramid-header.svg" : "/img/aia-pyramid-tile-light.svg";
   }
   function markSrc() {
     return "/img/aia-pyramid-header.svg";
