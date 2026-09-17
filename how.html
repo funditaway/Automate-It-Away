@@ -94,7 +94,7 @@
       <button type="button" id="quietBtn">Quiet</button>
     </div>
     <div class="stage">
-      <video id="film" class="hero" poster="img/how-hero.jpg" controls playsinline preload="metadata">
+      <video id="film" class="hero" poster="img/how-lots.png" controls playsinline preload="metadata">
         <source src="video/how-all.mp4" type="video/mp4">
       </video>
     </div>
@@ -166,12 +166,12 @@
   <script src="speech.js"></script>
   <script>
     const FILMS = [
-      { id: "all", name: "Whole film", src: "video/how-all.mp4", poster: "img/how-hero.jpg", line: "Name a desk. Drop anything. The desk writes the next step. You tap Yes. You send the draft yourself. Stop cancels it." },
-      { id: "capture", name: "1 Capture", src: "video/how-capture.mp4", poster: "img/how-capture.jpg", line: "Capture. The work hits the queue once." },
-      { id: "qualify", name: "2 Qualify", src: "video/how-qualify.mp4", poster: "img/how-qualify.jpg", line: "Qualify. Rules screen fit, price, risk, timing." },
-      { id: "do", name: "3 Do", src: "video/how-do.mp4", poster: "img/how-do.jpg", line: "Do the work. Draft only. Nothing leaves until Yes. You send it yourself." },
-      { id: "paid", name: "4 Collect HOLD", src: "video/how-paid.mp4", poster: "img/how-paid.jpg", line: "Collect stays HOLD until a person taps Yes and a real money pipe is live." },
-      { id: "follow", name: "5 Follow", src: "video/how-follow.mp4", poster: "img/how-follow.jpg", line: "Follow. One reminder. Then it stops." }
+      { id: "all", name: "Whole film", src: "video/how-all.mp4", poster: "img/how-lots.png", line: "Name a desk. Drop anything. The desk writes the next step. You tap Yes. You send the draft yourself. Stop cancels it." },
+      { id: "capture", name: "1 Capture", src: "video/how-capture.mp4", poster: "img/how-lots.png", line: "Capture. The work hits the queue once." },
+      { id: "qualify", name: "2 Qualify", src: "video/how-qualify.mp4", poster: "img/how-lots.png", line: "Qualify. Rules screen fit, price, risk, timing." },
+      { id: "do", name: "3 Do", src: "video/how-do.mp4", poster: "img/how-lots.png", line: "Do the work. Draft only. Nothing leaves until Yes. You send it yourself." },
+      { id: "paid", name: "4 Collect HOLD", src: "video/how-paid.mp4", poster: "img/how-lots.png", line: "Collect stays HOLD until a person taps Yes and a real money pipe is live." },
+      { id: "follow", name: "5 Follow", src: "video/how-follow.mp4", poster: "img/how-lots.png", line: "Follow. One reminder. Then it stops." }
     ];
     const NICHES = [
       { id: "life", label: "Home & family", keys: ["home", "family", "household", "school", "kid", "life"] },
@@ -204,9 +204,25 @@
     let shop = "life", openId = "", filmId = "all";
     const filmEl = document.getElementById("film");
     const talkStatus = document.getElementById("talkStatus");
+    bindVideoFallback(filmEl);
 
     function currentFilm() {
       return FILMS.find(function (f) { return f.id === filmId; }) || FILMS[0];
+    }
+    function keepPosterStill(videoEl, posterSrc) {
+      if (!videoEl) return;
+      videoEl.pause();
+      videoEl.poster = posterSrc || videoEl.poster || "img/how-lots.png";
+      const source = videoEl.querySelector("source");
+      if (source) source.removeAttribute("src");
+      videoEl.load();
+    }
+    function bindVideoFallback(videoEl) {
+      if (!videoEl || videoEl.dataset.fallbackBound === "1") return;
+      videoEl.dataset.fallbackBound = "1";
+      videoEl.addEventListener("error", function () {
+        keepPosterStill(videoEl, videoEl.poster);
+      });
     }
     function showFilm(id, autoplay) {
       filmId = id;
@@ -217,7 +233,7 @@
       filmEl.load();
       if (autoplay) {
         const p = filmEl.play();
-        if (p && p.catch) p.catch(function () {});
+        if (p && p.catch) p.catch(function () { if (filmEl.error) keepPosterStill(filmEl, f.poster); });
       }
       talkStatus.textContent = f.line;
       paintReels();
