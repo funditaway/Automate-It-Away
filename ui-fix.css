@@ -68,14 +68,29 @@ header nav:not(.desk-tabs),
   align-items: center;
   -webkit-overflow-scrolling: touch;
 }
-@media (min-width: 860px) {
+@media (min-width: 861px) {
   header:not(:has(.desk-tabs)),
   .site-header:not(:has(.desk-tabs)) {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "brand nav tools";
   }
 }
-@media (max-width: 720px) {
+@media (max-width: 860px) {
+  header,
+  .site-header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "brand tools"
+      "nav nav" !important;
+  }
+  header nav.site-nav,
+  header .nav.site-nav,
+  header nav:not(.desk-tabs),
+  .site-header .nav {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+  }
   header .brand-name,
   .site-header .brand-name,
   header > a strong,
@@ -85,6 +100,9 @@ header nav:not(.desk-tabs),
   header .brand-short,
   .site-header .brand-short {
     display: inline !important;
+  }
+  .theme-btn {
+    min-width: 3.8em !important;
   }
 }
 .brand-short { display: none; }
