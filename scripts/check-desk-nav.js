@@ -117,10 +117,26 @@ else pass("Create gates Desk AI Bind");
 });
 if (!create.includes("You tap Yes or Stop.")) fail("create.html must keep Yes or Stop");
 else pass("Create lead is Yes or Stop");
+if (create.includes("What should the desk do?")) fail("create.html start still says What should the desk do");
+else pass("Create start does not say What should the desk do");
+if (!create.includes("What should a Desk AI draft?")) fail("create.html start must ask What should a Desk AI draft");
+else pass("Create start is What should a Desk AI draft");
+if (!create.includes(">Ask the desk<")) fail("create.html must keep the Ask the desk tap");
+else pass("Create keeps Ask the desk");
 if (createJs.includes("Yes or No") || createJs.includes("yes or no")) fail("create-desk.js still paints Yes or No as the rail");
 else pass("Create form does not paint Yes or No");
 if (!createJs.includes("You still tap Yes or Stop")) fail("create-desk.js must keep Yes or Stop");
 else pass("Create form keeps Yes or Stop");
+if (createJs.includes("Say what the desk should do.")) fail("create-desk.js empty start still says the desk should do");
+else pass("Create empty start does not say the desk should do");
+if (!createJs.includes("Say what a Desk AI should draft.")) fail("create-desk.js empty start must say Say what a Desk AI should draft");
+else pass("Create empty start is Say what a Desk AI should draft");
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+if (yesNo.indexOf("Create start leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Create start leftover");
+else pass("ACCOUNT-YES-NO records Create start leftover");
+if (packMd.indexOf("Create start leftover:") < 0) fail("PACK.md must record the Create start leftover");
+else pass("PACK.md records Create start leftover");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {

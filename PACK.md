@@ -175,6 +175,8 @@ Pipes field tips leftover: `/pipes` and `/connections` tap `?` like How / Drop /
 
 Desk AI field tips leftover: unused `"desk-ai"` tip is on Create **Name this desk AI** and Studio **AI 1 name** / **AI 2 name** — those fields already existed. Create start **What is it?** / **How / what** reuse Drop’s kind and need tips. Did not invent a Name-a-desk-AI field. Yes / Stop / Kill stay human. A bot cannot send or pay. Collect HOLD. No silent send.
 
+Create start leftover: after Drop Put data on / Preferred outcome said What should a Desk AI draft, `/create` start still said What should the desk do. Empty Ask the desk still said Say what the desk should do. Those faces now say What should a Desk AI draft. Ask the desk tap stays. Yes / Stop stay human. Collect HOLD. No silent send.
+
 Desk AI voice leftover: Create **Name this desk AI** and Studio **AI 1 name** / **AI 2 name** now use the firm draft-only tip. Desk AIs that draft. Humans that decide. A bot cannot send, pay, or bind. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
 
 Desk AI canon leftover: Grok SYSTEM, Studio SYSTEM, default does / prompt, and empty named-AI instructions now use Desk AI canon — not an MVP demo bot. Firm: Draft ready. I cannot send, pay, or bind anything. You stay in control. Tagline: Desk AIs that draft. Humans that decide. Named AI prompt rides in the Grok brief. Collect HOLD. No silent send.
