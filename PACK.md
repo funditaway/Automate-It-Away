@@ -287,7 +287,7 @@ Drop widget standalone steps rail leftover: after `#drop-on` stay painted on `/d
 
 Drop widget pick href leftover: after widgetHref pointed the Drop tab at `/widget` and `/widget` skipped `#drop-on`, `drop-pick.js` `goDrop` and `drop-now.js` recent public desks still sent `/drop?ws=`. World `/widget` then dumped onto `/drop` — Desk · Tell · Card · Check · Share. Those faces now stay on `/widget?ws=`. `/drop` still opens `/drop?ws=`. Share links stay `/drop?ws=`. Seat id `agent` stays. Collect HOLD. No silent send.
 
-Drop widget standalone Talk bar leftover: after `/widget` skipped the rail / `#drop-on` / pick stayed on `/widget`, `drop-talk.js` `styleBar` still unhid `#talkBar` (Hear this / Talk / Quiet) on standalone `/widget`. Preview only kept Talk hidden on embed. World `/widget` then showed Hear this / Talk / Quiet next to Tell — leftover Drop chrome on the slim face. Those faces now skip the Talk bar, same as embed. `/drop` still paints Talk. Header / modes / share stay on `/drop`. Seat id `agent` stays. Collect HOLD. No silent send.
+Drop widget standalone Talk bar leftover: after world pick stayed on `/widget?ws=`, drop-talk.js still unhid `#talkBar` (Hear this / Talk / Quiet) on standalone `/widget`. Preview already skipped Talk on embed. World `/widget` then showed the Talk bar next to Tell. Those faces now skip Talk, same as embed. `/drop` still paints Talk. Preview still owns Tell on `/widget`. Card preview + one Tell the desk thread stay. Seat id `agent` stays. Collect HOLD. No silent send.
 
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 

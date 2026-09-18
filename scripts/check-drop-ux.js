@@ -127,7 +127,9 @@ if (bannerFn.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #dr
 if (bannerFn.indexOf("drop-steps") < 0 || bannerFn.indexOf("drop-step-foot") < 0) {
   fail("drop-now.js slimChrome must tear down #drop-steps on /widget");
 }
-if (bannerFn.indexOf("talkBar") < 0) fail("drop-now.js slimChrome must tear down #talkBar on /widget");
+if (bannerFn.indexOf("talkBar") < 0 || bannerFn.indexOf("talk.hidden = true") < 0) {
+  fail("drop-now.js slimChrome must keep #talkBar hidden on /widget");
+}
 if (bannerFn.indexOf("Change desk") < 0 || bannerFn.indexOf("/drop") < 0) {
   fail("drop-now.js /drop banner must still offer Change desk");
 }
@@ -223,6 +225,9 @@ if (inject.indexOf("slimChrome") < 0 || inject.indexOf("stripHtml") < 0) {
 }
 if (inject.indexOf("slim ? \"\"") < 0) {
   fail("drop-preview.js inject must omit #verify-strip when slim");
+}
+if (inject.indexOf("bar.hidden = slimChrome()") < 0) {
+  fail("drop-preview.js inject must skip the Talk bar on /widget");
 }
 if (inject.indexOf("id=\\\"verify-strip\\\"") < 0 && inject.indexOf("id=\"verify-strip\"") < 0) {
   fail("drop-preview.js must still paint This drop on /drop");
@@ -361,27 +366,63 @@ if (talk.indexOf("A Desk AI drafts the card") < 0) fail("drop-talk.js Hear this 
 if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js must keep Yes or Stop");
 const talkBootAt = talk.indexOf("function boot");
 const talkBoot = talk.slice(talkBootAt, talk.indexOf("if (document.readyState", talkBootAt));
-if (talkBoot.indexOf('classList.contains("embed")') < 0 || talkBoot.indexOf("window !== window.parent") < 0) {
-  fail("drop-talk.js boot must skip the Talk bar on embed /widget");
-}
 if (talk.indexOf("function widgetOn") < 0) fail("drop-talk.js must detect the /widget path");
-if (talkBoot.indexOf("widgetOn()") < 0) fail("drop-talk.js boot must skip the Talk bar on standalone /widget");
-if (talkBoot.indexOf("hushTalk()") < 0) fail("drop-talk.js boot must tear down leftover #talkBar on /widget");
-if (preview.indexOf("if (bar && slimChrome())") < 0) fail("drop-preview.js must skip unhiding Talk on /widget");
+if (talk.indexOf("function slimChrome") < 0 || talkBoot.indexOf("if (slimChrome()) return") < 0) {
+  fail("drop-talk.js boot must skip the Talk bar on /widget");
+}
+if (talk.indexOf('classList.contains("embed")') < 0 || talk.indexOf("window !== window.parent") < 0) {
+  fail("drop-talk.js boot must still skip the Talk bar on embed");
+}
+function runTalkSkip(opts) {
+  const sandbox = {
+    document: {
+      documentElement: { classList: { contains: function (c) { return !!opts.htmlWidget && c === "widget"; } } },
+      body: { classList: { contains: function (c) {
+        if (c === "embed") return !!opts.embed;
+        if (c === "widget") return !!opts.widget;
+        return false;
+      } } }
+    },
+    location: { pathname: opts.path || "/drop", search: opts.search || "", href: opts.href || "" }
+  };
+  sandbox.window = sandbox;
+  sandbox.parent = opts.iframe ? {} : sandbox;
+  const start = talk.indexOf("function embedOn");
+  const end = talk.indexOf("function status");
+  vm.runInNewContext(talk.slice(start, end) + "\nthis.slimChrome = slimChrome;", sandbox);
+  return !!sandbox.slimChrome();
+}
+if (!runTalkSkip({ path: "/widget" })) fail("/widget must skip the Talk bar");
+if (!runTalkSkip({ path: "/widget.html" })) fail("/widget.html must skip the Talk bar");
+if (!runTalkSkip({ path: "/widget/" })) fail("/widget/ must skip the Talk bar");
+if (!runTalkSkip({ embed: true, path: "/drop" })) fail("embed /drop must skip the Talk bar");
+if (!runTalkSkip({ iframe: true, path: "/drop" })) fail("iframe /drop must skip the Talk bar");
+if (!runTalkSkip({ search: "?ws=springfield-shop&embed=1" })) fail("?embed=1 must skip the Talk bar");
+if (!runTalkSkip({ widget: true, path: "/drop.html" })) fail("body.widget must skip the Talk bar even when pathname is drop.html");
+if (!runTalkSkip({ htmlWidget: true, path: "/drop.html" })) fail("html.widget must skip the Talk bar even when pathname is drop.html");
+if (!runTalkSkip({ href: "https://www.automateitaway.com/widget?ws=springfield-shop", path: "/drop.html" })) {
+  fail("location.href /widget must skip the Talk bar even when pathname is drop.html");
+}
+if (runTalkSkip({ path: "/drop" })) fail("/drop must still paint the Talk bar");
+if (runTalkSkip({ path: "/drop.html" })) fail("/drop.html must still paint the Talk bar");
+if (runTalkSkip({ search: "?ws=springfield-shop" })) fail("/drop?ws= must still paint the Talk bar");
+if (yesNo.indexOf("Drop widget Talk bar leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget Talk bar leftover");
+}
+if (packMd.indexOf("Drop widget Talk bar leftover:") < 0) {
+  fail("PACK.md must name Drop widget Talk bar leftover");
+}
 if (yesNo.indexOf("Drop widget standalone Talk bar leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop widget standalone Talk bar leftover");
 }
 if (packMd.indexOf("Drop widget standalone Talk bar leftover:") < 0) {
   fail("PACK.md must name Drop widget standalone Talk bar leftover");
 }
-if (dropMd.indexOf("Standalone `/widget` also skips the Talk bar") < 0) {
-  fail("DROP.md must say standalone /widget skips the Talk bar");
+if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the Talk bar") < 0) {
+  fail("DROP.md must say /widget skips the Talk bar");
 }
-if (yesNo.indexOf("Drop widget Talk bar leftover after that pass") < 0) {
-  fail("ACCOUNT-YES-NO must name Drop widget Talk bar leftover");
-}
-if (packMd.indexOf("Drop widget Talk bar leftover:") < 0) {
-  fail("PACK.md must name Drop widget Talk bar leftover");
+if (dropMd.indexOf("`/drop` still paints Talk") < 0) {
+  fail("DROP.md must keep Talk on /drop");
 }
 if (yesNo.indexOf("Drop widget steps rail leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop widget steps rail leftover");

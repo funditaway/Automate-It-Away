@@ -370,27 +370,21 @@ if (nowSrc.indexOf("location.href = dropHref(") < 0) {
 if (nowSrc.indexOf('location.href = "/drop?ws="') >= 0) {
   fail("drop-now.js recent public desks must not always dump to /drop");
 }
+
 if (yesNo.indexOf("Drop widget standalone Talk bar leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop widget standalone Talk bar leftover");
 }
 if (packMd.indexOf("Drop widget standalone Talk bar leftover:") < 0) {
   fail("PACK.md must name Drop widget standalone Talk bar leftover");
 }
-if (dropMd.indexOf("Standalone `/widget` also skips the Talk bar") < 0) {
-  fail("DROP.md must say standalone /widget skips the Talk bar");
-}
 if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the Talk bar") < 0) {
   fail("DROP.md must say /widget skips the Talk bar");
 }
-const talkSrc = read("drop-talk.js");
-const talkBootAt = talkSrc.indexOf("function boot");
-const talkBoot = talkSrc.slice(talkBootAt, talkSrc.indexOf("if (document.readyState", talkBootAt));
-if (talkSrc.indexOf("function widgetOn") < 0) fail("drop-talk.js must detect the /widget path");
-if (talkBoot.indexOf("widgetOn()") < 0) fail("drop-talk.js boot must skip the Talk bar on standalone /widget");
-if (talkBoot.indexOf("hushTalk()") < 0) fail("drop-talk.js boot must tear down leftover #talkBar on /widget");
-if (preview.indexOf("if (bar && slimChrome())") < 0) fail("drop-preview.js must skip unhiding Talk on /widget");
-const nowBannerAt = nowSrc.indexOf("function banner");
-const nowBanner = nowSrc.slice(nowBannerAt, nowSrc.indexOf("function camera", nowBannerAt));
-if (nowBanner.indexOf("talkBar") < 0) fail("drop-now.js slimChrome must tear down #talkBar on /widget");
+if (dropMd.indexOf("`/drop` still paints Talk") < 0) {
+  fail("DROP.md must keep Talk on /drop");
+}
+if (nowSrc.indexOf("talkBar") < 0 || nowSrc.indexOf("talk.hidden = true") < 0) {
+  fail("drop-now.js slimChrome must keep #talkBar hidden on /widget");
+}
 
 console.log("check-drop-steps: ok");
