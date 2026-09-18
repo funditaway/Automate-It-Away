@@ -413,7 +413,7 @@
     }
     async function suggestStart() {
       const body = startBody();
-      if (!body.title) return fail("Say what the desk should do.");
+      if (!body.title) return fail("Say what a Desk AI should draft.");
       const go = document.getElementById("start-draft");
       if (go) go.disabled = true;
       try {
@@ -434,7 +434,7 @@
     }
     async function queueStart(useDraft) {
       const body = startBody();
-      if (!body.title) return fail("Say what the desk should do.");
+      if (!body.title) return fail("Say what a Desk AI should draft.");
       if (useDraft && startDraft) {
         if (startDraft.draft) body.draft = startDraft.draft;
         if (startDraft.next) body.why = startDraft.next;
