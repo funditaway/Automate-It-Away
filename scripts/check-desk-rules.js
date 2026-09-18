@@ -501,13 +501,22 @@ async function main() {
   } else pass("rules.html leftover session can save");
   if (rulesPage.indexOf("canAdd") < 0) fail("rules.html must still gate add on canAdd");
   else pass("rules.html still gates add on canAdd");
+  if (rulesPage.indexOf("owner taps No") >= 0 || rulesPage.indexOf("taps No") >= 0) {
+    fail("rules.html Then still says owner taps No");
+  } else pass("rules.html Then does not say taps No");
+  if (rulesPage.indexOf("Stop — owner taps Stop") < 0) fail("rules.html Then must name Stop");
+  else pass("rules.html Then is Stop — owner taps Stop");
 
   const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
   const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
   if (yesNo.indexOf("Rules session leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Rules session leftover");
   else pass("ACCOUNT-YES-NO names Rules session leftover");
+  if (yesNo.indexOf("Open Stop leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Open Stop leftover");
+  else pass("ACCOUNT-YES-NO names Open Stop leftover");
   if (packMd.indexOf("Rules session leftover:") < 0) fail("PACK.md must record the Rules session leftover");
   else pass("PACK.md names Rules session leftover");
+  if (packMd.indexOf("Open Stop leftover:") < 0) fail("PACK.md must record the Open Stop leftover");
+  else pass("PACK.md names Open Stop leftover");
 
   await save();
   if (process.exitCode) {

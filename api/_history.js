@@ -313,10 +313,10 @@ function needLine(job, missing, decide, outDesk, priority) {
     return "Need " + (map[missing[0]] || missing[0]) + " before this can go.";
   }
   if (job && job.next) return String(job.next);
-  if (decide) return "Ready. Yes sends it off this desk. Stop kills it.";
+  if (decide) return "Ready. Yes / Stop / Kill stay human.";
   if (priority) return "On the cap. Do this first.";
   if (job && job.waitingOn === "owner") return "Waiting on the owner.";
-  return "Do the next thing this card needs. Not a Yes/No card yet.";
+  return "Do the next thing this card needs.";
 }
 
 function capCard(job, desk) {

@@ -28,6 +28,18 @@ if (!ready.actions.some((a) => a.id === "stop")) fail("ready card needs Stop for
 if (!ready.actions.some((a) => a.id === "kill")) fail("ready card needs Kill for owner");
 if (!ready.actions.some((a) => a.id === "cap")) fail("open card can go on the cap");
 else pass("ready card gets Yes / Stop / Cap, not a blank row");
+if (/Yes sends it off|Yes\/No card|taps No/.test(ready.line || "")) fail("decide needLine still paints Send / Yes-No");
+if ((ready.line || "").indexOf("Yes / Stop / Kill stay human") < 0) fail("decide needLine must name Yes / Stop / Kill");
+else pass("decide needLine is Yes / Stop / Kill, not Yes sends");
+
+const idle = hist.needsOf({
+  id: "j-idle",
+  status: "exception",
+  title: "A note on the desk"
+});
+if (/Yes\/No card|Yes sends it off|taps No/.test(idle.line || "")) fail("idle needLine still paints Yes-No / Send");
+if ((idle.line || "").indexOf("Do the next thing this card needs") < 0) fail("idle needLine must stay Do the next thing");
+else pass("idle needLine does not say Yes/No card");
 
 const miss = hist.needsOf({
   id: "j2",
@@ -88,10 +100,17 @@ if (!process.exitCode) pass("desk-card.js Open sheet is Yes / Stop");
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 if (yesNo.indexOf("Queue Open / Stop leftover") < 0) fail("ACCOUNT-YES-NO must record the Queue Open / Stop leftover");
 else pass("ACCOUNT-YES-NO records Queue Open / Stop leftover");
+if (yesNo.indexOf("Open Stop leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Open Stop needLine leftover");
+else pass("ACCOUNT-YES-NO records Open Stop leftover");
+const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+if (packMd.indexOf("Open Stop leftover:") < 0) fail("PACK.md must record the Open Stop leftover");
+else pass("PACK.md records Open Stop leftover");
 
 const queueJs = fs.readFileSync(path.join(root, "desk-queue.js"), "utf8");
 if (queueJs.includes("Yes or No.") || queueJs.includes("yes or no")) fail("desk-queue.js still paints Yes or No as the rail");
 else pass("desk-queue decide fallback does not paint Yes or No");
+if (queueJs.includes(">No</button>") || queueJs.includes(" · Yes/No")) fail("desk-queue.js leftover still paints No as the rail");
+else pass("desk-queue leftover Stop is Stop, not No");
 if (!queueJs.includes("Yes or Stop.")) fail("desk-queue.js decide fallback must keep Yes or Stop");
 else pass("desk-queue decide fallback is Yes or Stop");
 if (!queueJs.includes("Working. Nothing sent yet.") || !queueJs.includes("function setCardBusy") || !queueJs.includes("data-job=")) {
