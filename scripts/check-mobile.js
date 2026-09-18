@@ -81,6 +81,12 @@ if (js.indexOf("chip.tagName !== \"A\"") < 0) {
   pass("account chip ignores foreign #who-chip");
 }
 
+if (!css.includes(".site-foot nav") || !fix.includes("Footer links must not smash")) {
+  fail("footer nav must stay spaced on phone and desktop");
+} else {
+  pass("footer nav spaced");
+}
+
 if (process.exitCode) {
   console.error("check-mobile failed");
   process.exit(1);

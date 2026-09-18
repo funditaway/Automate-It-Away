@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "automate-it-away": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/run.mjs"],
+      "env": {
+        "AIA_BASE_URL": "${AIA_BASE_URL}",
+        "AIA_WORKSPACE": "${AIA_WORKSPACE}",
+        "AIA_PIN": "${AIA_PIN}",
+        "AIA_SESSION": "${AIA_SESSION}"
+      },
+      "note": "Official Automate It Away MCP server (stdio). Talks to https://automateitaway.com over HTTPS using X-Workspace / X-Pin / X-Session. Set AIA_WORKSPACE (desk slug) and AIA_PIN before calling tools that mutate a desk. No secrets are collected or exfiltrated by this server. ${CLAUDE_PLUGIN_ROOT} is substituted to the installed plugin root (Grok/Claude marketplace convention)."
+    }
+  }
+}

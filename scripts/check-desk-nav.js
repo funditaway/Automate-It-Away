@@ -84,8 +84,8 @@ if (nav.includes("href: \"/rules\"") || nav.includes("href: \"/pipes\"")) fail("
 else pass("Rules and Pipes are off the tab bar");
 if (!nav.includes("href: \"/more\"") || !nav.includes("name === \"more\"")) fail("desk-nav.js More href is not /more");
 else pass("More tab href is /more");
-if (!nav.includes("href: \"/drop\"") || !nav.includes("return \"/drop\"")) fail("desk-nav.js Drop href is not /drop");
-else pass("Drop tab href is /drop");
+if (!nav.includes("href: \"/widget\"") || !nav.includes("return \"/widget\"")) fail("desk-nav.js Drop href is not /widget");
+else pass("Drop tab href is /widget");
 if (/display:\s*none/.test(desk) && /header span a/.test(desk)) {
   fail("desk.html still hides header links on phone");
 }

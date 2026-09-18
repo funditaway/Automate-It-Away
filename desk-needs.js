@@ -84,6 +84,7 @@
   }
   function isOwnerSeat() {
     if (window.AIADeskAis && window.AIADeskAis.owner === true) return true;
+    if (window.AIADeskAis && window.AIADeskAis.owner === false) return false;
     try { return localStorage.getItem("aia_role") === "owner"; } catch (e) { return false; }
   }
   function thenWho(j) {
@@ -237,7 +238,7 @@
     (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
       if (!t || !t.text) return;
       const k = String(t.kind || "note");
-      if (k !== "ask" && k !== "reply" && k !== "rec") return;
+      if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow" && k !== "tell") return;
       add(k, t.from, t.text, t.at);
     });
     (j && Array.isArray(j.replies) ? j.replies : []).forEach(function (r) {
@@ -251,8 +252,17 @@
       return true;
     });
   }
+  function wipTalkLabel(row) {
+    const from = String((row && row.from) || "").trim();
+    const kind = String((row && row.kind) || "note");
+    if (kind === "follow") return (from || "pipe") + " · follow";
+    if (kind === "tell") return (from || "drop") + " · tell";
+    if (/^(pipe|webhook|worker|capture)$/i.test(from)) return from + " · pipe WIP";
+    return (from || "desk") + " · note";
+  }
   function talkLabel(row, who, gone) {
     if (row.kind === "reply") return (row.from || "You") + " · you";
+    if (row.kind === "note" || row.kind === "follow" || row.kind === "tell") return wipTalkLabel(row);
     if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
     const hold = goneHoldLabel(gone);
     if (hold) return hold;
@@ -265,17 +275,19 @@
     const who = thenWho(j);
     const gone = thenGone(j);
     return "<div class=\"q-talk\">" + rows.map(function (row) {
-      const ai = row.kind === "ask" || row.kind === "rec";
-      return "<div class=\"q-turn " + (ai ? "q-turn-ai" : "q-turn-you") + "\">" +
+      const you = row.kind === "reply" || row.kind === "tell";
+      return "<div class=\"q-turn " + (you ? "q-turn-you" : "q-turn-ai") + "\">" +
         "<div class=\"q-turn-who\">" + esc(talkLabel(row, who, gone)) + "</div>" +
         "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
     }).join("") + "</div>";
   }
-  function bindAiHtml(j) {
+  function bindAiHtml(j, where) {
     const ais = deskAis();
     if (!ais.length || !isOwnerSeat()) return "";
     const id = cardId(j);
     if (!id) return "";
+    const slot = String(where || "queue").replace(/[^a-z]/g, "") || "queue";
+    const fid = "q-ai-" + slot + "-" + id;
     const who = thenWho(j);
     const gone = thenGone(j);
     const hold = !!(gone && !who);
@@ -289,8 +301,8 @@
       return "<option value=\"" + esc(value) + "\"" + sel + ">" + esc(a.name || "Desk AI") + "</option>";
     }).join("");
     return "<div class=\"q-bind\">" +
-      "<label class=\"q-bind-lab\" for=\"q-ai-" + id + "\">Desk AI on this card</label>" +
-      "<select id=\"q-ai-" + id + "\" class=\"q-ai-pick\" onchange=\"bindAiOnCard('" + id + "', this.value)\">" +
+      "<label class=\"q-bind-lab\" for=\"" + fid + "\">Desk AI on this card</label>" +
+      "<select id=\"" + fid + "\" class=\"q-ai-pick\" onchange=\"bindAiOnCard('" + id + "', this.value)\">" +
       holdOpt + opts +
       "</select>" +
       "<p class=\"q-bind-hold\">" + (hold
@@ -298,10 +310,17 @@
         : "Picks who owns Then / Needs you on this card. Yes / Stop / Kill stay human. Nothing sent alone.") + "</p>" +
       "</div>";
   }
-  function promptHtml(j, need) {
+  function promptSurface(where) {
+    const w = String(where || "queue").toLowerCase();
+    if (w === "cap" || w === "sheet" || w === "read" || w === "queue") return w;
+    return "queue";
+  }
+  function promptHtml(j, need, where) {
     if (!isPromptReply(j, need)) return "";
     const id = cardId(j);
     if (!id) return "";
+    const surface = promptSurface(where);
+    const send = surface !== "read";
     const who = thenWho(j);
     const named = namedNeedsWho(j);
     const label = isAskHuman(j, need)
@@ -313,15 +332,19 @@
     const replyLine = (!stacked && reply)
       ? "<p class=\"q-reply-was\">" + esc((reply.from || "You") + " · " + (reply.text || "")) + "</p>"
       : "";
+    const boxId = "q-reply-" + surface + "-" + id;
+    const sendHtml = send
+      ? ("<label class=\"q-prompt-lab\" for=\"" + boxId + "\">Reply on this card</label>" +
+        "<textarea id=\"" + boxId + "\" class=\"q-reply-box\" rows=\"2\" placeholder=\"Type the answer here\"></textarea>" +
+        "<div class=\"row actions tap-opts q-prompt-go\">" +
+          "<button class=\"go q-reply-tap\" type=\"button\" onclick=\"replyOnCard('" + id + "','" + surface + "')\">Reply</button>" +
+        "</div>")
+      : "";
     return "<div class=\"q-prompt\">" +
       "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
       "<p class=\"q-prompt-q\">" + esc(q) + "</p>" +
       replyLine +
-      "<label class=\"q-prompt-lab\" for=\"q-reply-" + id + "\">Reply on this card</label>" +
-      "<textarea id=\"q-reply-" + id + "\" class=\"q-reply-box\" rows=\"2\" placeholder=\"Type the answer here\"></textarea>" +
-      "<div class=\"row actions tap-opts q-prompt-go\">" +
-        "<button class=\"go q-reply-tap\" type=\"button\" onclick=\"replyOnCard('" + id + "')\">Reply</button>" +
-      "</div>" +
+      sendHtml +
       "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
       "</div>";
   }
@@ -377,6 +400,11 @@
     }
     if (isAskHuman(j, need)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
     if (need && need.decide) bits.push("<span class=\"q-chip q-hitl-mark\">Yes / Stop / Kill</span>");
+    const fanTotal = j && j.custom && Number(j.custom.dropTotal);
+    if (fanTotal > 1) {
+      const n = Number(j.custom.dropIndex) || 0;
+      bits.push("<span class=\"q-chip q-fan\">" + esc((n ? n + " of " + fanTotal : fanTotal + " cards") + " from this Drop") + "</span>");
+    }
     if (status) bits.push("<span class=\"q-chip q-stat\">" + esc(status) + "</span>");
     return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
   }
@@ -422,8 +450,20 @@
     return (hitl.length ? "<div class=\"row actions tap-opts q-hitl\">" + hitl.join("") + "</div>" : "") +
       "<div class=\"row actions tap-opts\">" + rest.join("") + "</div>";
   }
-  function cardRoot(id) {
+  function cardRoot(id, where) {
     const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    const surface = promptSurface(where);
+    if (surface === "cap") {
+      const cap = document.getElementById("cap-list");
+      if (cap && cap.querySelector) {
+        const hit = cap.querySelector('[data-job="' + safe + '"]');
+        if (hit) return hit;
+      }
+    }
+    if (surface === "sheet") {
+      const sheet = document.getElementById("sheet-card");
+      if (sheet) return sheet;
+    }
     const queue = document.getElementById("queue");
     if (queue && queue.querySelector) {
       const hit = queue.querySelector('[data-job="' + safe + '"]');
@@ -431,10 +471,11 @@
     }
     const sheet = document.getElementById("sheet-card");
     if (sheet) return sheet;
-    return document.getElementById("q-reply-" + safe);
+    return document.getElementById("q-reply-" + surface + "-" + safe)
+      || document.getElementById("q-reply-" + safe);
   }
-  function setCardBusy(id, on) {
-    const root = cardRoot(id);
+  function setCardBusy(id, on, where) {
+    const root = cardRoot(id, where);
     if (!root || !root.classList) return;
     root.classList.toggle("q-pending", !!on);
     if (root.setAttribute) root.setAttribute("aria-busy", on ? "true" : "false");
@@ -458,17 +499,22 @@
       }
     }
   }
-  async function replyOnCard(id) {
+  async function replyOnCard(id, where) {
     const banner = document.getElementById("banner");
     const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
-    const box = document.getElementById("q-reply-" + safe) || document.getElementById("job-note");
+    const surface = promptSurface(where);
+    const root = cardRoot(safe, surface);
+    const box = (root && root.querySelector && root.querySelector(".q-reply-box"))
+      || document.getElementById("q-reply-" + surface + "-" + safe)
+      || document.getElementById("q-reply-" + safe)
+      || document.getElementById("job-note");
     const text = box && box.value ? String(box.value).trim() : "";
     if (!text) {
       if (banner) banner.textContent = "Type a reply on the card.";
       return;
     }
     if (typeof api !== "function") return;
-    setCardBusy(safe, true);
+    setCardBusy(safe, true, surface);
     try {
       const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "reply", id: safe, text: text, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
       const line = out.status >= 400
@@ -477,7 +523,7 @@
       if (typeof load === "function") await load();
       if (banner) banner.textContent = line;
     } finally {
-      setCardBusy(safe, false);
+      setCardBusy(safe, false, surface);
     }
   }
   async function helpWithAi(id) {
@@ -543,11 +589,12 @@
     const line = honestNext(j, { line: (need && need.line) || j.next || "On the cap.", decide: need.decide, priority: true });
     const draft = thenDraftHtml(j);
     const talks = talkHtml(j);
-    const prompt = promptHtml(j, need);
+    const prompt = promptHtml(j, need, other ? "read" : "cap");
     const stacked = !!(talks && (draft || prompt));
     const thread = stacked ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>" : (draft + talks + prompt);
+    const bind = other ? "" : bindAiHtml(j, "cap");
     return "<article class=\"item q-card cap-card\" data-job=\"" + esc(j.id || "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, j.desk || j.slug || "") + "</div><h3>" + esc(j.title) + "</h3>" +
-      filesHtml(j) + thread +
+      filesHtml(j) + thread + bind +
       "<p class=\"next-line\">" + esc(line) + "</p>" +
       (other ? "<div class=\"row actions tap-opts\"><button class=\"go cap-tap\" type=\"button\" onclick=\"openCapDesk('" + String(j.slug || "").replace(/'/g, "") + "','" + String(j.id || "").replace(/'/g, "") + "')\">Open on " + esc(j.desk || j.slug || "that desk") + "</button></div>" : "<div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + String(j.id || "").replace(/'/g, "") + "')\">Open</button></div>") +
       "</article>";
@@ -559,8 +606,9 @@
     const rows = (window.AIADesks && AIADesks.list) ? AIADesks.list() : [];
     const here = localStorage.getItem("aia_ws") || "";
     const pin = localStorage.getItem("aia_pin") || "";
+    const tok = localStorage.getItem("aia_session") || "";
     const desks = rows.filter(function (d) { return d && d.slug && d.pin && String(d.pin).length >= 4; });
-    if (here && pin && !desks.some(function (d) { return d.slug === here; })) desks.unshift({ slug: here, pin: pin });
+    if (here && (pin || tok) && !desks.some(function (d) { return d.slug === here; })) desks.unshift({ slug: here, pin: pin });
     if (!desks.length) { band.hidden = true; return; }
     try {
       const out = await api("/api/desks", { method: "POST", body: JSON.stringify({ action: "priority", desks: desks.slice(0, 32) }) });
@@ -576,6 +624,7 @@
   window.cardActionHtml = cardActionHtml;
   window.setCardBusy = setCardBusy;
   window.replyOnCard = replyOnCard;
+  window.bindAiHtml = bindAiHtml;
   window.bindAiOnCard = bindAiOnCard;
   window.helpWithAi = helpWithAi;
   window.pinCap = pinCap;
@@ -584,21 +633,58 @@
   window.chipsHtml = chipsHtml;
   window.capCardHtml = capCardHtml;
   window.loadCap = loadCap;
+  function cardState(j, need) {
+    if (!j) return "pending";
+    if (j.status === "shipped" || j.carried) return "done";
+    if ((need && need.priority) || j.priority || j.cap) return "cap";
+    if (j.status === "exception" || isNeedsYou(j, need) || isAskHuman(j, need) || isPromptReply(j, need)) return "flagged";
+    if (j.status === "out" || j.awaiting === "writeback") return "running";
+    return "pending";
+  }
+  function stateMark(state) {
+    const labels = { pending: "Waiting", running: "Working", flagged: "Needs you", cap: "Cap", done: "Done" };
+    return "<div class=\"q-state-mark\"><span class=\"pip\" aria-hidden=\"true\"></span><span>" + esc(labels[state] || "Waiting") + "</span></div>";
+  }
   window.card = function (j, staff) {
     const need = cardNeeds(j, staff);
     const cap = !!need.priority;
+    const state = cardState(j, need);
     const why = (typeof visitorLine === "function" ? visitorLine(j.why) : (j.why || ""));
     const status = typeof labelStatus === "function" ? labelStatus(j.status) : (j.status || "");
     const line = honestNext(j, need);
     const draft = thenDraftHtml(j);
     const talks = talkHtml(j);
     const prompt = promptHtml(j, need);
-    const bind = bindAiHtml(j);
+    const bind = bindAiHtml(j, "queue");
     const stacked = !!(talks && (draft || prompt));
     const thread = stacked
       ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>"
       : (draft + talks + prompt);
-    return "<article class=\"item q-card" + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\"><div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div><h3>" + esc(j.title) + "</h3>" + filesHtml(j) + (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") + thread + bind + "<p class=\"next-line\">" + esc(line) + "</p>" + cardActionHtml(j, staff, "queue") + "</article>";
+    const actions = cardActionHtml(j, staff, "queue");
+    const hitlMatch = actions.match(/<div class="row actions tap-opts q-hitl">[\s\S]*?<\/div>/);
+    const hitl = hitlMatch ? hitlMatch[0] : "";
+    const rest = hitl ? actions.replace(hitl, "") : actions;
+    const openTap = rest.match(/<button class="edit" type="button" onclick="openJob\('[^']+'\)">Open<\/button>/);
+    const openBtn = openTap ? openTap[0] : "";
+    const moreTaps = openBtn ? rest.replace(openBtn, "") : rest;
+    return "<article class=\"item q-card q-state-" + state + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\">" +
+      "<div class=\"q-drag\" title=\"Tap or drag to Cap\" aria-label=\"Cap this card\" role=\"button\">⋮⋮</div>" +
+      "<div class=\"q-face\">" +
+        stateMark(state) +
+        "<div class=\"q-head\">" + chipsHtml(j, need, status) + (j.assignee ? "<div class=\"meta q-assignee\">" + esc(j.assignee) + "</div>" : "") + "</div>" +
+        "<h3>" + esc(j.title) + "</h3>" +
+        filesHtml(j) +
+        (why ? "<p class=\"q-why\">" + esc(why) + "</p>" : "") +
+        thread +
+        "<p class=\"next-line\">" + esc(line) + "</p>" +
+        hitl +
+        (openBtn ? "<div class=\"row actions tap-opts\">" + openBtn + "</div>" : "") +
+      "</div>" +
+      "<details class=\"q-drawer\"><summary>More on this card</summary><div class=\"q-drawer-body\">" +
+        bind +
+        moreTaps +
+      "</div></details>" +
+      "</article>";
   };
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }
@@ -621,9 +707,11 @@
       const prev = window[name];
       if (typeof prev !== "function") return;
       window[name] = async function (id) {
-        setCardBusy(id, true);
+        const sheet = document.getElementById("sheet");
+        const where = sheet && sheet.classList && sheet.classList.contains("on") ? "sheet" : undefined;
+        setCardBusy(id, true, where);
         try { return await prev.apply(this, arguments); }
-        finally { setCardBusy(id, false); }
+        finally { setCardBusy(id, false, where); }
       };
     }
     wrap("ship");
@@ -647,6 +735,11 @@
       css.id = "aia-cap-css";
       css.textContent = "#queue .q-card,#cap-list .q-card{border-radius:14px;padding:14px;margin:10px 0;box-shadow:var(--shadow)}" +
         "#queue .q-card h3,#cap-list .q-card h3{font-size:1.12rem;line-height:1.3;margin:8px 0 6px}" +
+        ".q-face{position:relative}" +
+        ".q-drawer{margin-top:8px}" +
+        ".q-state-mark{display:inline-flex;align-items:center;gap:6px;font:800 10px/1 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}" +
+        ".q-state-mark .pip{width:7px;height:7px;border-radius:50%;background:currentColor}" +
+        ".q-drag{position:absolute;right:6px;top:8px;z-index:3;width:36px;height:40px;display:flex;align-items:center;justify-content:center;opacity:.85;cursor:pointer;user-select:none;border-radius:8px}" +
         ".q-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}" +
         ".q-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}" +
         ".q-chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.03em}" +

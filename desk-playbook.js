@@ -9,7 +9,7 @@
       tag: "Audit",
       name: "Find the leaks",
       surface: "Capture · Qualify",
-      what: "Map the busywork. High-volume, low-complexity. Drop it. The desk asks what’s missing. Queue cards count.",
+      what: "Map the busywork. High-volume, low-complexity. Drop it. A Desk AI drafts the card. Queue cards count.",
       href: "/drop",
       go: "Drop · Capture",
       alsoHref: "/desk",
@@ -28,10 +28,10 @@
     {
       n: 3,
       id: "agent",
-      tag: "Agents",
+      tag: "Desk AI",
       name: "Name a desk AI",
       surface: "Create · Studio",
-      what: "Create the work. Name a desk AI as a .aia. AIA AI home is ai.aia — orange until DNS answers. It categorizes, drafts, summarizes. Never silent send.",
+      what: "Create the work. Name a desk AI as a .aia. AIA AI home is ai.aia — orange until DNS answers. Drafts the next step and the words. Nothing sent.",
       href: "/create?kind=ai",
       go: "Create · name an AI",
       alsoHref: "/studio",
@@ -88,7 +88,7 @@
 
   function stepWhat(p, embed) {
     if (embed && p.id === "agent") {
-      return "Create the work. Name a desk AI as a .aia. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. It categorizes, drafts, summarizes. Never silent send.";
+      return "Create the work. Name a desk AI as a .aia. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Drafts the next step and the words. Nothing sent.";
     }
     return p.what;
   }
