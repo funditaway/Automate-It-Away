@@ -149,8 +149,7 @@ if (xss.indexOf("Shop Bot <gone>") >= 0) fail("raw < in Open bind must not becom
 if (xss.indexOf("Shop Bot &lt;gone&gt;") < 0) fail("Open gone bind name must stay text");
 
 const cardSrc = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
-if (/>Kill</.test(cardSrc) === false && cardSrc.indexOf(">No<") >= 0) {
-  /* sheet Kill label leftover is HOLD — do not invent Stop/Kill rename here */
-}
+if (cardSrc.indexOf(">Stop<") < 0) fail("Open sheet decide must name Stop, not No");
+if (cardSrc.indexOf(">No<") >= 0 || cardSrc.indexOf("No?") >= 0) fail("Open sheet still paints No as the rail");
 
 console.log("check-open-cap-bind: ok");

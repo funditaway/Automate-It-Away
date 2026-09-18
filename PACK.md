@@ -161,6 +161,8 @@ Create / market / engine / grok leftover: Yes or Stop, not Yes or No. Create for
 
 Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue how-in, card rec fallback, We-type-it sheet, desk.html next fallback, unused desk-queue decide fallback, and Rail/Doer handoff Owner/You tap Yes or Stop. Thin card busy while Reply / Yes / Stop pending — Working. Nothing sent yet. `desk-needs.js` plus leftover `desk-card.js` / `desk-queue.js` / `desk-home.js` paint that busy-face. Collect HOLD. No silent send.
 
+Queue Open / Stop leftover: Open sheet-decide, Stop/Kill confirm, owner-wait dismiss, leftover queue `card()`, and killed status name Stop / Stopped — not No / No?. Helpers still do not get Stop. Same kill action. Collect HOLD. No silent send.
+
 Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on `/pipes` and `/connections` say You still tap Yes or Stop. Connect-drafts flash matches. Health Do is Yes and Stop stay on the desk. Buyer binds own keys. Collect HOLD. No silent send.
 
 More leftover: `/more` `#grok-line` Yes or Stop, not “You send them. Or you Stop.” Default and grok-on name the rail. Send-it-yourself stays. Packs still never Send. Collect HOLD. No silent send.

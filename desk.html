@@ -316,7 +316,7 @@
       if (s === "exception") return "Waiting on a person.";
       if (s === "held") return "Waiting on the owner";
       if (s === "shipped") return "Sent";
-      if (s === "killed") return "No";
+      if (s === "killed") return "Stopped";
       return s || "";
     }
     function esc(s) {
@@ -326,7 +326,7 @@
       const money = Number(j.amount || j.ask || 0);
       const why = visitorLine(j.why);
       const next = visitorLine(j.next) || "Yes or Stop.";
-      return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">Yes</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">No</button>`}</div></article>`;
+      return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">Yes</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
     }
     async function load() {
       if (wsEl.value) {
@@ -396,7 +396,7 @@
     async function ship(id, amount) {
       const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: false, whoTapped: youName || role || "desk" }) });
       if (out.status === 409 || out.status === 403) {
-        document.getElementById("sheet-card").innerHTML = `<h3>Waiting on the owner</h3><p style="color:var(--muted);margin:8px 0">Waiting on the owner.</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Yes</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">No</button></div>`;
+        document.getElementById("sheet-card").innerHTML = `<h3>Waiting on the owner</h3><p style="color:var(--muted);margin:8px 0">Waiting on the owner.</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Yes</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Stop</button></div>`;
         document.getElementById("sheet").classList.add("on"); load(); return;
       }
       await load();
@@ -409,7 +409,7 @@
       document.getElementById("sheet").classList.remove("on"); load();
     }
     async function kill(id, title) {
-      document.getElementById("sheet-card").innerHTML = `<h3>No?</h3><p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p><div class="row"><button class="kill" onclick="confirmKill('${id}')">Yes</button><button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">No</button></div>`;
+      document.getElementById("sheet-card").innerHTML = `<h3>Stop?</h3><p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p><div class="row"><button class="kill" onclick="confirmKill('${id}')">Stop</button><button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep the card</button></div>`;
       document.getElementById("sheet").classList.add("on");
     }
     async function confirmKill(id) {

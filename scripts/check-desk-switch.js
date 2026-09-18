@@ -149,10 +149,12 @@ if (desk.includes("Grok") || desk.includes("the box") || desk.includes("Phone ca
 } else pass("desk.html has no Grok / box / floor-staff");
 
 const cardJs = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
-if (!cardJs.includes(">Save a file<") || !cardJs.includes(">Yes<") || !cardJs.includes(">No<")) {
-  fail("desk-card.js missing Save a file / Yes / No");
-} else pass("desk-card.js uses Save a file / Yes / No");
-if (cardJs.includes(">Grok recs<") || cardJs.includes(">Phone calendar<") || cardJs.includes("That's my queue") || cardJs.includes("How work gets here") || cardJs.includes(">Send<") || cardJs.includes(">Stop<")) {
+if (!cardJs.includes(">Save a file<") || !cardJs.includes(">Yes<") || !cardJs.includes(">Stop<")) {
+  fail("desk-card.js missing Save a file / Yes / Stop");
+} else pass("desk-card.js uses Save a file / Yes / Stop");
+if (cardJs.includes(">No<") || cardJs.includes("No?")) fail("desk-card.js Open sheet still paints No as the rail");
+else pass("desk-card.js Open sheet is not No");
+if (cardJs.includes(">Grok recs<") || cardJs.includes(">Phone calendar<") || cardJs.includes("That's my queue") || cardJs.includes("How work gets here") || cardJs.includes(">Send<")) {
   fail("desk-card.js still has Grok / old button labels");
 } else pass("desk-card.js has no Grok recs or old labels");
 if (cardJs.includes("Yes or no") || cardJs.includes("yes or no")) fail("desk-card.js still paints Yes or No as the rail");
