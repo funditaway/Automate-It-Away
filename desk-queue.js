@@ -1,4 +1,4 @@
-/* Queue cards: Yes/No on decide jobs. Off-desk done / needs a hand. */
+/* Queue cards: Yes/Stop on decide jobs. Off-desk done / needs a hand. */
 (function () {
   function isDecideJob(j) {
     if (!j) return false;
@@ -110,9 +110,9 @@
     const mail = typeof mailHref === "function" ? mailHref(j.title, draft) : "mailto:?subject=" + encodeURIComponent(j.title || "") + "&body=" + encodeURIComponent(draft);
     const live = livePipes().map(function (p) { return p.label; });
     const pipeLine = live.length ? "Live pipes: " + live.join(", ") : "Live pipe: inbound webhook. Named pipes on hold.";
-    const decideBtns = decide ? ("<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" + (staff ? "" : "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">No</button>")) : "";
+    const decideBtns = decide ? ("<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" + (staff ? "" : "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>")) : "";
     const safe = typeof esc === "function" ? esc : function (s) { return String(s || ""); };
-    return "<article class=\"item q-card\" data-job=\"" + safe(j.id || "") + "\"><div class=\"meta\">" + (outDesk ? "Off the desk" : (typeof labelStatus === "function" ? labelStatus(j.status) : j.status)) + (j.assignee ? " · handed to " + safe(j.assignee) : "") + (decide ? " · Yes/No" : outDesk ? " · write-back" : "") + "</div><h3>" + safe(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + safe(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + safe(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + safe(j.draft) + "</div>" : "") + "<p class=\"meta\">" + safe(line) + "</p><p class=\"meta\">" + safe(pipeLine) + "</p><div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button><a class=\"edit\" href=\"" + sms + "\">Text</a><a class=\"edit\" href=\"" + mail + "\">Email</a><button class=\"edit\" type=\"button\" onclick=\"openHandOff('" + j.id + "')\">Hand off</button><button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button><button class=\"edit\" type=\"button\" onclick=\"helpWithAi('" + j.id + "')\">Ask Grok</button><button class=\"go\" type=\"button\" onclick=\"doneOffDesk('" + j.id + "')\">Done off desk</button><button class=\"edit\" type=\"button\" onclick=\"needsHand('" + j.id + "')\">Needs a hand</button>" + decideBtns + "</div></article>";
+    return "<article class=\"item q-card\" data-job=\"" + safe(j.id || "") + "\"><div class=\"meta\">" + (outDesk ? "Off the desk" : (typeof labelStatus === "function" ? labelStatus(j.status) : j.status)) + (j.assignee ? " · handed to " + safe(j.assignee) : "") + (decide ? " · Yes/Stop" : outDesk ? " · write-back" : "") + "</div><h3>" + safe(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + safe(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + safe(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + safe(j.draft) + "</div>" : "") + "<p class=\"meta\">" + safe(line) + "</p><p class=\"meta\">" + safe(pipeLine) + "</p><div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button><a class=\"edit\" href=\"" + sms + "\">Text</a><a class=\"edit\" href=\"" + mail + "\">Email</a><button class=\"edit\" type=\"button\" onclick=\"openHandOff('" + j.id + "')\">Hand off</button><button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button><button class=\"edit\" type=\"button\" onclick=\"helpWithAi('" + j.id + "')\">Ask Grok</button><button class=\"go\" type=\"button\" onclick=\"doneOffDesk('" + j.id + "')\">Done off desk</button><button class=\"edit\" type=\"button\" onclick=\"needsHand('" + j.id + "')\">Needs a hand</button>" + decideBtns + "</div></article>";
   };
   function setCardBusy(id, on) {
     if (typeof window.setCardBusy === "function" && window.setCardBusy !== setCardBusy) {
@@ -199,7 +199,7 @@
         if (sheet && !decide) {
           sheet.querySelectorAll(".sheet-decide .go, .sheet-decide .kill").forEach(function (el) {
             const label = (el.textContent || "").trim();
-            if (label === "Yes" || label === "No") el.remove();
+            if (label === "Yes" || label === "No" || label === "Stop") el.remove();
           });
         }
         if (sheet && !sheet.querySelector("[data-aia-done]")) {

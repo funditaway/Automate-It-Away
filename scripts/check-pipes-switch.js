@@ -56,6 +56,8 @@ if (switchJs.indexOf("function open") < 0) throw new Error("desk-switch.js must 
 const conn = read("api/connections.js");
 if (conn.indexOf("You still tap Yes or Stop.") < 0) throw new Error("connections next must keep Yes or Stop");
 if (conn.indexOf("tap Send and Stop") >= 0) throw new Error("connections next still paints Send as the HITL rail");
+if (conn.indexOf("tap No") >= 0) throw new Error("connections helper still paints tap No");
+if (conn.indexOf("Cannot connect a pipe or tap Stop.") < 0) throw new Error("connections helper must name Stop");
 
 const health = read("api/health.js");
 if (health.indexOf("Yes and Stop stay on the desk") < 0) throw new Error("health Do must keep Yes and Stop");
@@ -67,9 +69,11 @@ if (yesNo.indexOf("Pipes / Connections leftover") < 0) throw new Error("ACCOUNT-
 if (yesNo.indexOf("Pipes placeholder leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes placeholder leftover");
 if (yesNo.indexOf("Pipes field tips leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes field tips leftover");
 if (yesNo.indexOf("Desk session leftover after that pass") < 0) throw new Error("ACCOUNT-YES-NO must name Desk session leftover");
+if (yesNo.indexOf("Open Stop leftover after that pass") < 0) throw new Error("ACCOUNT-YES-NO must name Open Stop leftover");
 if (packMd.indexOf("Pipes / Connections leftover") < 0) throw new Error("PACK.md must name Pipes leftover");
 if (packMd.indexOf("Pipes placeholder leftover") < 0) throw new Error("PACK.md must name Pipes placeholder leftover");
 if (packMd.indexOf("Pipes field tips leftover") < 0) throw new Error("PACK.md must name Pipes field tips leftover");
 if (packMd.indexOf("Desk session leftover:") < 0) throw new Error("PACK.md must name Desk session leftover");
+if (packMd.indexOf("Open Stop leftover:") < 0) throw new Error("PACK.md must name Open Stop leftover");
 
 console.log("check-pipes-switch: ok");

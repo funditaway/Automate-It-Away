@@ -165,6 +165,8 @@ Queue Open / Stop leftover: Open sheet-decide, Stop/Kill confirm, owner-wait dis
 
 Queue `/queue` leftover: after YES said `/desk` (also `/queue`) is the queue, live `/queue` still served the empty Sovereign Cockpit stub (`queue/index.html`) because the rewrite lost to the filesystem. Public `/queue` now redirects to `/desk`. Local `queue/` cockpit stays. Collect HOLD. No silent send.
 
+Open Stop leftover: after Queue Open named Stop, Rules Then still said owner taps No, Queue / Cap / plugin `needLine` still said Yes sends it off / Not a Yes/No card yet, leftover `desk-queue.js` still painted No, and Pipes helper still said tap No. Those faces now name Stop. Yes is not send. Collect HOLD. No silent send.
+
 Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on `/pipes` and `/connections` say You still tap Yes or Stop. Connect-drafts flash matches. Health Do is Yes and Stop stay on the desk. Buyer binds own keys. Collect HOLD. No silent send.
 
 More leftover: `/more` `#grok-line` Yes or Stop, not “You send them. Or you Stop.” Default and grok-on name the rail. Send-it-yourself stays. Packs still never Send. Collect HOLD. No silent send.

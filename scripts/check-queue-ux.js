@@ -56,6 +56,13 @@ if (!desk.includes("<h3>Stop?</h3>") || !desk.includes(">Stop</button>") || !des
   fail("desk.html Stop confirm must name Stop / Stopped");
 }
 pass("desk.html Stop confirm is Stop, not No");
+const queueJs = fs.readFileSync(path.join(root, "desk-queue.js"), "utf8");
+if (queueJs.includes(">No</button>") || queueJs.includes(" · Yes/No")) fail("desk-queue.js leftover still paints No as the rail");
+else pass("desk-queue leftover Stop is Stop, not No");
+const histSrc = fs.readFileSync(path.join(root, "api/_history.js"), "utf8");
+if (/Yes sends it off|Yes\/No card yet/.test(histSrc)) fail("_history needLine still paints Send / Yes-No");
+if (histSrc.indexOf("Yes / Stop / Kill stay human") < 0) fail("_history needLine must name Yes / Stop / Kill");
+else pass("_history needLine is Yes / Stop / Kill, not Yes sends");
 if (!desk.includes("id=\"aia-wallet\"") || !desk.includes("id=\"desk-ais\"")) {
   fail("desk.html must keep wallet + desk-ais hosts");
 }
@@ -82,11 +89,15 @@ if (yesNo.indexOf("Queue Open / Stop leftover") < 0) fail("ACCOUNT-YES-NO must r
 pass("ACCOUNT-YES-NO records Queue Open / Stop leftover");
 if (yesNo.indexOf("Queue `/queue` leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the /queue alias leftover");
 pass("ACCOUNT-YES-NO records /queue alias leftover");
+if (yesNo.indexOf("Open Stop leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Open Stop leftover");
+pass("ACCOUNT-YES-NO records Open Stop leftover");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (packMd.indexOf("Queue Open / Stop leftover") < 0) fail("PACK.md must record the Queue Open / Stop leftover");
 pass("PACK.md records Queue Open / Stop leftover");
 if (packMd.indexOf("Queue `/queue` leftover:") < 0) fail("PACK.md must record the /queue alias leftover");
 pass("PACK.md records /queue alias leftover");
+if (packMd.indexOf("Open Stop leftover:") < 0) fail("PACK.md must record the Open Stop leftover");
+pass("PACK.md records Open Stop leftover");
 
 const ctx = {
   window: {},

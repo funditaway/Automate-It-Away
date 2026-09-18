@@ -159,7 +159,7 @@ module.exports = async function handler(req, res) {
       groups: ["mail", "calendar", "social", "shop", "pay", "crm", "files", "talk", "books", "search"],
       helpers: {
         owner: "Connect, drop, Stop, money rules. Draft accounts are owner-only.",
-        helper: "Work the queue. Yes when the rule allows. Cannot connect a pipe or tap No."
+        helper: "Work the queue. Yes when the rule allows. Cannot connect a pipe or tap Stop."
       },
       note: "Webhook is the cross-internet pipe today. Search the wall. Log in opens that vendor. Name any other site — inbound hook still takes the card. Nothing here sends, posts, or pays by itself.",
       connections: mine.filter((c) => c.lane !== "draft").map((c) => {
