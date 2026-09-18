@@ -65,14 +65,28 @@ if (!/"\/queue"/.test(vercel) || !/destination": "\/desk\.html"/.test(vercel)) {
   fail("vercel.json must rewrite /queue to desk");
 }
 pass("/queue rewrites to desk");
+let vercelJson;
+try { vercelJson = JSON.parse(vercel); } catch (e) { fail("vercel.json must parse"); }
+const queueRedirect = (vercelJson.redirects || []).find(function (r) { return r && r.source === "/queue"; });
+if (!queueRedirect || queueRedirect.destination !== "/desk") {
+  fail("vercel.json must redirect /queue to /desk so queue/index.html cannot win the filesystem");
+}
+pass("/queue redirects to /desk (beats queue/index.html)");
+const queueHtml = fs.readFileSync(path.join(root, "queue/index.html"), "utf8");
+if (queueHtml.indexOf("Sovereign Desk Queue Cockpit") < 0) fail("queue/index.html cockpit stub missing — leftover was that stub winning /queue");
+else pass("local queue cockpit stub stays; public /queue is the desk");
 
 if (yesNo.indexOf("check-queue-ux.js") < 0) fail("ACCOUNT-YES-NO must record queue UX");
 pass("ACCOUNT-YES-NO records queue UX");
 if (yesNo.indexOf("Queue Open / Stop leftover") < 0) fail("ACCOUNT-YES-NO must record the Queue Open / Stop leftover");
 pass("ACCOUNT-YES-NO records Queue Open / Stop leftover");
+if (yesNo.indexOf("Queue `/queue` leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the /queue alias leftover");
+pass("ACCOUNT-YES-NO records /queue alias leftover");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (packMd.indexOf("Queue Open / Stop leftover") < 0) fail("PACK.md must record the Queue Open / Stop leftover");
 pass("PACK.md records Queue Open / Stop leftover");
+if (packMd.indexOf("Queue `/queue` leftover:") < 0) fail("PACK.md must record the /queue alias leftover");
+pass("PACK.md records /queue alias leftover");
 
 const ctx = {
   window: {},

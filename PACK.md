@@ -163,6 +163,8 @@ Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue h
 
 Queue Open / Stop leftover: Open sheet-decide, Stop/Kill confirm, owner-wait dismiss, leftover queue `card()`, and killed status name Stop / Stopped — not No / No?. Helpers still do not get Stop. Same kill action. Collect HOLD. No silent send.
 
+Queue `/queue` leftover: after YES said `/desk` (also `/queue`) is the queue, live `/queue` still served the empty Sovereign Cockpit stub (`queue/index.html`) because the rewrite lost to the filesystem. Public `/queue` now redirects to `/desk`. Local `queue/` cockpit stays. Collect HOLD. No silent send.
+
 Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on `/pipes` and `/connections` say You still tap Yes or Stop. Connect-drafts flash matches. Health Do is Yes and Stop stay on the desk. Buyer binds own keys. Collect HOLD. No silent send.
 
 More leftover: `/more` `#grok-line` Yes or Stop, not “You send them. Or you Stop.” Default and grok-on name the rail. Send-it-yourself stays. Packs still never Send. Collect HOLD. No silent send.
