@@ -26,6 +26,12 @@ else pass("color does not hide work");
 if (!q.includes("FILTER === \"ask\")") && !q.includes('FILTER === "ask"')) fail("ask filter missing");
 else pass("ask is a tag filter");
 
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(q)) {
+  fail("queue pack catalog must still send the open-desk pin when a session token is present");
+} else pass("queue pack catalog keeps X-Pin with X-Session");
+if (q.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("queue pack catalog must send X-Pin");
+else pass("queue pack catalog sends X-Pin");
+
 if (!nav.includes("desk-queue-packs.js")) fail("desk-nav.js must load desk-queue-packs.js");
 else pass("nav loads queue packs");
 if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");

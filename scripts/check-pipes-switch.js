@@ -40,6 +40,13 @@ function pickDesk(src, label) {
   if (src.indexOf('data-aia-tip="pipes"') < 0) throw new Error(file + " must wire the pipes field tip");
   if (src.indexOf('data-aia-tip="desk-name"') < 0) throw new Error(file + " must wire the Desk name tip");
   if (src.indexOf('data-aia-tip="desk-code"') < 0) throw new Error(file + " must wire the Desk code tip");
+  if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(src)) {
+    throw new Error(file + " headers must still send the open-desk pin when a session token is present");
+  }
+  if (src.indexOf('if (tok) h["X-Session"] = tok') < 0) {
+    throw new Error(file + " headers must send leftover X-Session so email-session owners can bind pipes");
+  }
+  if (src.indexOf('if (pin) h["X-Pin"] = pin') < 0) throw new Error(file + " headers must send X-Pin");
 });
 
 const switchJs = read("desk-switch.js");
@@ -59,8 +66,10 @@ const packMd = read("PACK.md");
 if (yesNo.indexOf("Pipes / Connections leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes leftover");
 if (yesNo.indexOf("Pipes placeholder leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes placeholder leftover");
 if (yesNo.indexOf("Pipes field tips leftover") < 0) throw new Error("ACCOUNT-YES-NO must name Pipes field tips leftover");
+if (yesNo.indexOf("Desk session leftover after that pass") < 0) throw new Error("ACCOUNT-YES-NO must name Desk session leftover");
 if (packMd.indexOf("Pipes / Connections leftover") < 0) throw new Error("PACK.md must name Pipes leftover");
 if (packMd.indexOf("Pipes placeholder leftover") < 0) throw new Error("PACK.md must name Pipes placeholder leftover");
 if (packMd.indexOf("Pipes field tips leftover") < 0) throw new Error("PACK.md must name Pipes field tips leftover");
+if (packMd.indexOf("Desk session leftover:") < 0) throw new Error("PACK.md must name Desk session leftover");
 
 console.log("check-pipes-switch: ok");

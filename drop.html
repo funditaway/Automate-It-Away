@@ -64,7 +64,7 @@
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
-      <a href="/drop" data-tab="drop">Drop</a>
+      <a href="/widget" data-tab="drop">Drop</a>
       <a href="/create" data-tab="create">Create</a>
       <a href="/history" data-tab="history">History</a>
       <a href="/more" data-tab="more">More</a>
@@ -72,12 +72,7 @@
   </header>
   <main class="wrap">
     <h1 id="drop-title">Drop anything</h1>
-    <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.</p>
-    <div class="modes" id="modes">
-      <button type="button" class="on" data-mode="quick" aria-pressed="true">Quick drop</button>
-      <button type="button" data-mode="custom" aria-pressed="false">Custom drop</button>
-      <button type="button" data-mode="agent" aria-pressed="false">Put data on</button>
-    </div>
+      <p class="sub" id="drop-sub">Drop anything — a task, an errand, a list, an idea, a project. A list becomes more than one card. Photos or a short video can ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.</p>
     <div class="card desk-pick" id="desk-pick">
       <strong style="color:var(--heading)">Which desk gets this</strong>
       <p class="sub" id="desk-pick-sub">Desks saved on this phone. Pick one, add a desk you already opened, or create a new desk.</p>
@@ -98,13 +93,18 @@
       <p class="err" id="desk-err"></p>
     </div>
     <div class="talk-bar" id="talkBar" hidden>
-      <p class="talk-status" id="talkStatus">Talk the work in your words. Hear this reads it back. Nobody sends money from here.</p>
+      <p class="talk-status" id="talkStatus">Talk or type the work. A Desk AI drafts the card. You still tap Yes or Stop.</p>
       <button type="button" id="hearBtn">Hear this</button>
       <button type="button" id="talkBtn">Talk</button>
       <button type="button" id="quietBtn">Quiet</button>
     </div>
+    <div class="modes" id="modes">
+      <button type="button" class="on" data-mode="quick" aria-pressed="true">Quick drop</button>
+      <button type="button" data-mode="custom" aria-pressed="false">Custom drop</button>
+      <button type="button" data-mode="agent" aria-pressed="false">Put data on</button>
+    </div>
     <div class="grid">
-      <div class="card">
+      <div class="card" id="drop-form-card">
         <strong id="lane-title" style="color:var(--heading)">Drop anything. It becomes a card.</strong>
         <div id="pane-work">
           <label>I am <button type="button" class="aia-tip" data-aia-tip="drop-who" aria-label="More about I am">?</button></label>
@@ -158,7 +158,7 @@
         <div id="pane-agent" hidden>
           <label for="implement">Paste the data <button type="button" class="aia-tip" data-aia-tip="drop-paste" aria-label="More about Paste the data">?</button></label>
           <textarea id="implement" rows="6" placeholder="Name: Sam&#10;Phone: 417-555-0100&#10;Need a pickup Friday 3pm&#10;Ask: $85"></textarea>
-          <label for="agent-tell">What should the desk do with it? <button type="button" class="aia-tip" data-aia-tip="drop-tell" aria-label="More about What should the desk do with it">?</button></label>
+          <label for="agent-tell">What should a Desk AI draft? <button type="button" class="aia-tip" data-aia-tip="drop-tell" aria-label="More about What should a Desk AI draft">?</button></label>
           <textarea id="agent-tell" rows="2" placeholder="Put this on the card. Draft the next step. Do not send."></textarea>
           <p class="sub" id="agent-preview" hidden></p>
         </div>
@@ -181,7 +181,7 @@
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
-    <a href="/drop" data-tab="drop"><span>Drop</span></a>
+    <a href="/widget" data-tab="drop"><span>Drop</span></a>
     <a href="/create" data-tab="create"><span>Create</span></a>
     <a href="/history" data-tab="history"><span>History</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
@@ -189,6 +189,25 @@
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="drop-pick.js"></script>
+  <script>
+  (function () {
+    function skipSteps() {
+      try {
+        if (document.body && document.body.classList.contains("widget")) return true;
+        var p = String(location.pathname || "").replace(/\/+$/, "");
+        if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+        if (/\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""))) return true;
+        if (window !== window.parent) return true;
+        if (/embed=1/.test(location.search)) return true;
+      } catch (e) {}
+      return false;
+    }
+    if (skipSteps()) return;
+    var s = document.createElement("script");
+    s.src = "drop-steps.js";
+    document.body.appendChild(s);
+  })();
+  </script>
   <script src="drop-agent.js"></script>
   <script src="aia-tip.js"></script>
   <script src="speech.js"></script>
@@ -227,7 +246,7 @@
       document.getElementById("pane-agent").hidden = !agent;
       const customPane = document.getElementById("pane-custom");
       if (customPane) customPane.hidden = mode !== "custom";
-      document.getElementById("lane-title").textContent = agent ? "Paste the data. The desk writes the card." : mode === "custom" ? "Name your own drop. It becomes a card." : "Drop anything. Tap a kind. It becomes a card.";
+      document.getElementById("lane-title").textContent = agent ? "Paste the data. A Desk AI drafts the card. You still tap Yes or Stop." : mode === "custom" ? "Name your own drop. It becomes a card." : "Drop anything. Tap a kind. It becomes a card.";
       document.getElementById("drop-send").textContent = agent ? "Put this on the desk" : "Drop it";
       if (mode === "custom" && window.AIADropAgent && AIADropAgent.applyQuick) AIADropAgent.applyQuick("custom");
     }
@@ -250,6 +269,7 @@
       el.style.display = "block";
       if (isHtml) el.innerHTML = text;
       else el.textContent = text;
+      if (window.AIADropSteps && AIADropSteps.reveal) AIADropSteps.reveal(el);
       if (el.scrollIntoView) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
     function paintDeskOn() {
@@ -391,7 +411,7 @@
       const mapped = (window.AIADropAgent && agentOn) ? AIADropAgent.implementFromText(implement, FIELDS) : {};
       const note = agentOn ? implement : document.getElementById("note").value;
       const title = document.getElementById("title").value || mapped.title || note || ((document.getElementById("custom-name") && document.getElementById("custom-name").value) || "");
-      const tell = agentOn ? (((document.getElementById("agent-tell") && document.getElementById("agent-tell").value) || implement)) : "";
+      const tell = agentOn ? (((document.getElementById("agent-tell") && document.getElementById("agent-tell").value) || "").trim()) : "";
       if (!String(title || tell || implement).trim()) { showNote(err, agentOn ? "Paste the data to put on the desk." : "Say what you need."); return; }
       const item = {
         action: "capture",
@@ -416,8 +436,10 @@
         if (r.ok) {
           const name = deskNameOf();
           const dropped = String(title || "").trim().slice(0, 80);
-          showNote(ok, "On the queue" + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes or Stop." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>"), true);
-          if (window.AIASpeech) AIASpeech.speak("On the queue.");
+          const n = (out.jobs && out.jobs.length) || 1;
+          const fan = n > 1 ? (" as " + n + " cards") : "";
+          showNote(ok, "On the queue" + fan + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes or Stop" + (n > 1 ? " on each" : "") + "." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>"), true);
+          if (window.AIASpeech) AIASpeech.speak(n > 1 ? ("On the queue as " + n + " cards.") : "On the queue.");
           document.getElementById("title").value = ""; document.getElementById("note").value = "";
           if (document.getElementById("implement")) document.getElementById("implement").value = "";
           if (document.getElementById("agent-tell")) document.getElementById("agent-tell").value = "";

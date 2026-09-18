@@ -133,7 +133,10 @@ function loginWithEmail(email, password) {
   const desk = desks[0] || (lib.mem.workspaces || []).find((w) => w && w.accountId === acc.id) || null;
   let person = null;
   if (desk) {
-    person = (desk.people || []).find((p) => p && (p.accountId === acc.id || emailOf(p) === e || p.role === "owner")) || null;
+    const people = desk.people || [];
+    person = people.find((p) => p && (p.role === "owner" || p.kind === "owner") && p.status !== "pending" && p.status !== "denied")
+      || people.find((p) => p && (p.accountId === acc.id || emailOf(p) === e) && p.status !== "pending" && p.status !== "denied")
+      || null;
   }
   if (!person) {
     person = { id: acc.id + "_owner", name: acc.ownerName || acc.name || "Owner", role: "owner", kind: "owner", status: "approved", accountId: acc.id, email: acc.email };
@@ -151,8 +154,15 @@ function loginAccount(name, pin, extra) {
     via.account = homeAccount(via.person, via.desk) || via.account;
     return via;
   }
-  if (via.desk && (!via.account || !via.account.id)) via.account = accountForDesk(via.desk);
-  if (via.account && via.desk) connectDesk(via.account, via.desk, "owner");
+  if (via.desk && via.desk.accountId) {
+    const owned = (lib.mem.accounts || []).find((a) => a && a.id === via.desk.accountId);
+    if (owned) via.account = owned;
+  } else if (via.desk && (!via.account || !via.account.id)) {
+    via.account = accountForDesk(via.desk);
+  }
+  if (via.account && via.desk && (!via.desk.accountId || via.desk.accountId === via.account.id)) {
+    connectDesk(via.account, via.desk, "owner");
+  }
   if (via.account && !via.account.pin && via.desk && via.desk.pin) via.account.pin = via.desk.pin;
   if (via.desk && !via.person) via.person = (via.desk.people || []).find((p) => p && p.role === "owner") || via.person;
   return via;

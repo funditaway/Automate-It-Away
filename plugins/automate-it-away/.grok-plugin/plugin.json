@@ -1,0 +1,23 @@
+{
+  "name": "automate-it-away",
+  "version": "1.0.0",
+  "description": "Seamlessly automate workflows, trigger background task agents, and execute multi-step desk scripts via Automate It Away directly inside Grok chats.",
+  "author": {
+    "name": "Automate It Away",
+    "email": "support@automateitaway.com",
+    "url": "https://automateitaway.com"
+  },
+  "homepage": "https://automateitaway.com",
+  "repository": "https://github.com/funditaway/Automate-It-Away",
+  "license": "MIT",
+  "keywords": [
+    "automate-it-away",
+    "aia",
+    "aia desk",
+    "aia packs",
+    "automate it away"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "logo": "./assets/logo.svg"
+}

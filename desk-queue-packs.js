@@ -126,7 +126,7 @@
     box.className = "item";
     box.innerHTML = "<p class=\"now\">Packs on this queue</p>" +
       "<p class=\"meta\">Packs change how the card looks. You still tap Copy, Text, Email, Hand, Cap, or Stop. Nobody sends money from here.</p>" +
-      "<div id=\"pack-chips\"></div>";
+      "<div id=\"pack-chips\" role=\"toolbar\" aria-label=\"Pack filters\"></div>";
     var view = document.getElementById("desk-view");
     var queue = document.getElementById("queue");
     if (view && view.parentNode) view.parentNode.insertBefore(box, view.nextSibling);
@@ -223,7 +223,7 @@
     var tok = localStorage.getItem("aia_session");
     if (ws) h["X-Workspace"] = ws;
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return fetch("/api/desks?packs=1", { headers: h }).then(function (r) { return r.json(); }).then(function (d) {
       CATALOG = (d && d.packs) || [];
     }).catch(function () { CATALOG = []; });

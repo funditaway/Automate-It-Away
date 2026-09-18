@@ -92,8 +92,8 @@
       ask: "How do I Connect a wallet?"
     },
     "desk-ai": {
-      title: "Desk AI / bots",
-      body: "Name a desk AI. It drafts. Yes / Stop / Kill stay human. A bot cannot send or pay.",
+      title: "Desk AI",
+      body: "Name a desk AI — not a free-roaming MVP bot. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Drafts the next step and the words. Nothing sent. Review then Copy / Text / Email / Hand to, or Stop. Yes / Stop / Kill stay human. Collect stays HOLD.",
       ask: "What does a desk AI do?"
     },
     "pipes": {
@@ -143,13 +143,13 @@
     },
     "drop-paste": {
       title: "Paste the data",
-      body: "Paste a name, phone, when, or amount. The desk writes a card from it. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      body: "Paste a name, phone, when, or amount. A Desk AI drafts the card from it. Lands on this queue. You still tap Yes or Stop before anything leaves. Collect stays HOLD. Nobody sends from here.",
       ask: "What do I paste on Put data on?"
     },
     "drop-tell": {
-      title: "What should the desk do with it?",
-      body: "Tell the desk the next draft. It stays on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
-      ask: "What do I tell the desk on Put data on?"
+      title: "What should a Desk AI draft?",
+      body: "Tell a Desk AI the next draft. It stays on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      ask: "What do I tell a Desk AI on Put data on?"
     },
     "drop-kind-need": {
       title: "What is needed",
@@ -163,7 +163,7 @@
     },
     "drop-outcome": {
       title: "Preferred outcome",
-      body: "What the desk should do next. Still a draft. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      body: "What a Desk AI should draft next. Still a draft. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
       ask: "What does Preferred outcome mean on Drop?"
     },
     "drop-kind-where": {
@@ -205,6 +205,141 @@
       title: "Which page",
       body: "The path you were on — /desk, /drop, /login. Helps the desk find it. Optional.",
       ask: "Which page do I name on Help?"
+    },
+    "more-find": {
+      title: "Find on More",
+      body: "Type a word to narrow this list. Clear the box to see all. Tap ? on a row for the longer honesty. Yes / Stop stay human. Collect stays HOLD.",
+      ask: "How do I find something on More?"
+    },
+    "more-account": {
+      title: "Your account",
+      body: "Photo, name, .aia name on AIA Internet (ai.aia), phones on this account, export the book, leave this phone or every phone, authenticator HOLD, connect your MetaMask or WalletConnect (not Wallet.AIA), honest .aia TLD status, Register .aia when Bridge unlocks, .aia email for automations, desks, plan. Your wallet. AIA does not hold keys. Three doors. Continue-with is identity only. Collect and pack pay stay HOLD until Yes + real pipe.",
+      ask: "What is on Your account?"
+    },
+    "more-desks": {
+      title: "Your desks",
+      body: "Desks this account can open. See the seat. Leave anytime. Ask for family, friend, helper, member, or staff. AIA Internet names use the .aia TLD. Brand is ai.aia. Create .aia email for automations.",
+      ask: "What are Your desks?"
+    },
+    "more-people": {
+      title: "People",
+      body: "Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card — including pipe WIP / note / follow / tell. Lives here, not on the tab bar. AIA does not send.",
+      ask: "What does People do?"
+    },
+    "more-admin": {
+      title: "Account book",
+      body: "Tickets, audit, money log, helper taps. Owner book. AIA does not send money from here.",
+      ask: "What is the Account book?"
+    },
+    "more-queue": {
+      title: "Queue",
+      body: "Real cards. Try first. Talk, Yes, or Stop. Ask on a gone Then bind holds that named AI (`… · not on this desk` / HOLD ask), not another live primary. Needs you / prompt ask-who hold the same gone bind, not anonymous desk AI. Cap on this desk can Reply. Other-desk Cap stays read-only. Cap and Open, History, Explore, and People paint that same Needs you / prompt ask-who. Owner picks the named desk AI on Open and this-desk Cap, same as the queue card. The owner picker holds the same gone bind. The queue is the measure — not a model demo. AIA does not send.",
+      ask: "How does the Queue work?"
+    },
+    "more-drop": {
+      title: "Drop · Talk",
+      body: "Pick a desk. Drop anything — a task, an errand, a list, an idea. A list becomes more than one card. Orange only when you mark it first. You still tap Yes or Stop. Nobody sends money from here.",
+      ask: "What do I Drop?"
+    },
+    "more-create": {
+      title: "Create",
+      body: "On the tab bar. Start AIA work. Worker-first: drafts land on the card. You still tap Yes or Stop. Collect stays HOLD.",
+      ask: "What is Create?"
+    },
+    "more-history": {
+      title: "History",
+      body: "On the tab bar. What this desk did — real cards only. This account’s past / now / next. Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card — including pipe WIP / note / follow / tell. Copy story copies that same trail. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Filter by desk. Links only when a draft used the web. Empty stays empty. Nothing sends from here.",
+      ask: "What is History?"
+    },
+    "more-pipes": {
+      title: "Pipes and draft accounts",
+      body: "Lives here, not on the tab bar. Search any site. Webhook is live. Orange until a real pipe. Drafts never Send. Buyer binds their own keys. Collect stays HOLD.",
+      ask: "What are Pipes?"
+    },
+    "more-rules": {
+      title: "Rules",
+      body: "Lives here, not on the tab bar. When → If → Then. Owner picks which named desk AI writes Then. A pack workflow strings them. Fresh desks start empty. Yes / Stop / Kill stay human.",
+      ask: "What are Rules?"
+    },
+    "more-studio": {
+      title: "Creators Studio",
+      body: "Same login. AIA Internet brand is ai.aia. Four steps: find the leaks, hook the pipes, name a desk AI, you still tap. Download, share, or install as .aia files. Create .aia email for automations. Test on this desk. No public payout baseline — you earn by pricing a pack. Agency consulting is off-platform. Collect stays HOLD. Send HOLD.",
+      ask: "What is Creators Studio?"
+    },
+    "more-packs": {
+      title: "Packs",
+      body: "Start with Try it on this desk. Four steps on this desk. AIA Internet listings on ai.aia. Download or install a .aia file. The desk stays on automateitaway.com. Collect stays HOLD until Yes and a money pipe. No silent charge. No public payout table.",
+      ask: "How do Packs work?"
+    },
+    "more-help": {
+      title: "Help",
+      body: "Four steps on this desk. ai.aia is the AIA Internet brand. Packs travel as .aia files. Yes / Stop stay human. Collect stays HOLD.",
+      ask: "Where do I start in Help?"
+    },
+    "more-world": {
+      title: "Help · world users",
+      body: "Launch path, four models, pack quality. Onboard this desk: pipes, name, people, pack. Days are a guide. Collect stays HOLD.",
+      ask: "What should world users read first?"
+    },
+    "more-faq": {
+      title: "FAQ",
+      body: "Needs you / prompt ask-who. Install / give / update a .aia with Yes. Connect existing wallet — your MetaMask or WalletConnect, not Wallet.AIA. Collect HOLD.",
+      ask: "What does the FAQ cover?"
+    },
+    "more-onboard": {
+      title: "Onboard this desk",
+      body: "Four beats. Copy the inbound hook. Name the desk. Invite a helper. Drop or install a pack. Collect HOLD.",
+      ask: "How do I onboard this desk?"
+    },
+    "more-sell": {
+      title: "Selling packs",
+      body: "Thin JSON. Buyer keys. Not 100% safe. Help is not legal advice. Collect HOLD.",
+      ask: "How do I sell a pack?"
+    },
+    "more-worth": {
+      title: "When a pack is worth it",
+      body: "Works by hand, with fallbacks. Not a broken offer or a note you can Drop yourself.",
+      ask: "When is a pack worth it?"
+    },
+    "more-build": {
+      title: "Build a pack / desk AI",
+      body: "When → If → Then. Desk AI drafts. Yes is not a collect charge. Collect HOLD.",
+      ask: "How do I build a pack?"
+    },
+    "more-first-pack": {
+      title: "First .aia pack",
+      body: "Real Studio. When → If → Then. Buyer keys on Pipes. Yes / Stop before outbound. Webhook is the live pipe.",
+      ask: "How do I ship my first .aia pack?"
+    },
+    "more-queue-runs": {
+      title: "How the queue runs",
+      body: "Pipes → Rules → draft → Yes / Stop / Kill. Not codegen or GitHub auto-patch. Collect HOLD.",
+      ask: "How does the queue run?"
+    },
+    "more-desk-cards": {
+      title: "Desk cards",
+      body: "Named desk AI drafts a queue card. Installed pack auto-shapes it — no pack pick on every Drop. Yes is not mail, git, or Collect. 12 fields. Collect HOLD.",
+      ask: "What is on a desk card?"
+    },
+    "more-inbound": {
+      title: ".aia inbound",
+      body: "name@account.aia. Hook writes a card. Unknown .aia → 400. MX/DNS HOLD.",
+      ask: "How does .aia inbound work?"
+    },
+    "more-support": {
+      title: "Talk to AIA",
+      body: "World problem. Ask AIA answers draft / help first. Need a person? Drop a card on the AIA Admin Desk. Yes / Stop stay human.",
+      ask: "How do I talk to AIA?"
+    },
+    "more-legal": {
+      title: "Legal",
+      body: "What AIA does not do. Not legal advice for your shop. Collect stays HOLD.",
+      ask: "What does Legal cover?"
+    },
+    "more-status": {
+      title: "Status",
+      body: "What is live on this desk. Orange means wait. Collect stays HOLD until Yes + a real pipe.",
+      ask: "What does Status show?"
     }
   };
 
