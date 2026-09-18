@@ -21,104 +21,76 @@ a.outline {
 .who-chip.signed-out .who-pic {
   display: none !important;
 }
-.kpi b {
-  display: block;
-  min-height: 1.35em;
-  font-size: 1.3rem;
-  line-height: 1.2;
-  color: var(--teal);
-  font-variant-numeric: tabular-nums;
-}
-body.has-desk-nav .site-foot {
-  padding-bottom: 20px;
-}
-@media (max-width: 859px) {
-  body.has-desk-nav .site-foot nav {
-    row-gap: 6px;
-  }
-}
-.menu.card > a {
-  display: block;
-  padding: 12px 16px;
-  color: var(--heading);
-  text-decoration: none;
-  font-weight: 700;
-  border-bottom: 1px solid var(--line);
-}
-.menu.card > a span {
-  display: block;
-  margin-top: 3px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted);
-}
-
 header,
-.site-header,
+.site-header {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "brand nav tools";
+  align-items: center;
+  gap: 8px 12px;
+  overflow: visible;
+}
 body.has-desk-nav header,
 body.has-desk-nav .site-header {
-  display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "brand tools"
     "nav nav";
-  align-items: center;
-  gap: 8px 10px;
-  overflow: visible;
 }
 header > .brand,
 .site-header > .brand,
 header > a.brand,
-header a.brand,
-header > a:first-child,
-body.has-desk-nav header > .brand,
-body.has-desk-nav header > a.brand,
-body.has-desk-nav header > a:first-child,
-body.has-desk-nav .site-header > .brand {
+header a.brand {
   grid-area: brand !important;
   justify-self: start;
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 header .hdr-tools,
-.site-header .hdr-tools,
-body.has-desk-nav header .hdr-tools,
-body.has-desk-nav .site-header .hdr-tools {
+.site-header .hdr-tools {
   grid-area: tools !important;
   justify-self: end;
   margin-left: 0;
 }
-header > nav,
 header nav.site-nav,
 header .nav.site-nav,
 header nav:not(.desk-tabs),
 .site-header .nav {
   grid-area: nav !important;
-  width: 100%;
+  width: auto;
+  min-width: 0;
   display: flex !important;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 10px 14px;
   align-items: center;
+  -webkit-overflow-scrolling: touch;
 }
-body.has-desk-nav header nav.site-nav,
-body.has-desk-nav header .nav.site-nav {
-  display: none !important;
-}
-body.has-desk-nav header .desk-tabs,
-body.has-desk-nav .site-header .desk-tabs {
-  grid-area: nav !important;
-  width: 100%;
-}
-@media (min-width: 860px) {
+@media (min-width: 861px) {
   header:not(:has(.desk-tabs)),
   .site-header:not(:has(.desk-tabs)) {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "brand nav tools";
   }
-  body.has-desk-nav { padding-bottom: 24px; }
-  body.has-desk-nav #desk-nav { display: none !important; }
 }
-
-@media (max-width: 640px) {
+@media (max-width: 860px) {
+  header,
+  .site-header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "brand tools"
+      "nav nav" !important;
+  }
+  header nav.site-nav,
+  header .nav.site-nav,
+  header nav:not(.desk-tabs),
+  .site-header .nav {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+  }
   header .brand-name,
   .site-header .brand-name,
   header > a strong,
@@ -129,115 +101,86 @@ body.has-desk-nav .site-header .desk-tabs {
   .site-header .brand-short {
     display: inline !important;
   }
-}
-
-@media (max-width: 859px) {
-  body.has-desk-nav .desk-tabs { display: none !important; }
-  html { scroll-padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
-  body.has-desk-nav {
-    padding-bottom: calc(152px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-  body.has-desk-nav main,
-  body.has-desk-nav .wrap,
-  body.has-desk-nav main.wrap {
-    padding-bottom: 48px !important;
-  }
-  body.kb-open #desk-nav {
-    display: none !important;
-  }
-  body.kb-open.has-desk-nav {
-    padding-bottom: 24px !important;
-  }
-  header a.brand {
-    min-width: 0;
-    overflow: hidden;
+  .theme-btn {
+    min-width: 3.8em !important;
   }
 }
-
-.verify-cells {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.verify-cells button,
-button[data-jump] {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: flex-start !important;
-  justify-content: center !important;
-  text-align: left !important;
-  gap: 2px;
-  width: 100%;
-  min-height: 56px;
-  padding: 8px 10px !important;
-}
-.verify-cells button .k,
-button[data-jump] .k {
-  display: block;
-  font: 600 11px/1.2 system-ui, sans-serif;
-  color: var(--muted);
-}
-.verify-cells button .v,
-button[data-jump] .v {
-  display: block;
-  font: 700 14px/1.25 system-ui, sans-serif;
-  color: var(--ink);
-  white-space: normal;
-}
-@media (max-width: 720px) {
-  .verify-cells { grid-template-columns: 1fr; }
-}
-
-.kpi b,
-.kpi strong {
-  display: block !important;
-  min-height: 1.6em !important;
-  font-size: 1.75rem !important;
-  font-weight: 800 !important;
-  line-height: 1.15 !important;
-  letter-spacing: 0 !important;
-  color: var(--teal-deep, #0a4f4f) !important;
-  font-variant-numeric: tabular-nums;
+.brand-short { display: none; }
+.theme-btn {
+  white-space: nowrap;
+  min-width: 4.6em !important;
+  width: auto !important;
+  height: 40px !important;
+  padding: 0 14px !important;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.9) !important;
+  background: rgba(255,255,255,.22) !important;
+  color: #fff !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
   overflow: visible !important;
+  box-sizing: border-box;
+  border-radius: 999px !important;
+  font-weight: 800 !important;
 }
-.kpi b:empty::after,
-.kpi strong:empty::after {
-  content: "0";
+.theme-btn .theme-lab { display: inline !important; white-space: nowrap; }
+header .brand-mark, .site-header .brand-mark {
+  width: 32px; height: 32px; border-radius: 0;
+  background: transparent !important;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
+  object-fit: contain;
 }
-
-#gate button,
-#gate button.edit,
-#gate button.go,
-#open-desk,
-button.open-desk {
+header .brand, .site-header .brand, header .brand-short, .site-header .brand-short {
+  color: #fff !important;
+}
+#gate button, #open-desk, button.open-desk {
   background: var(--orange, #f39c12) !important;
   color: #0c1116 !important;
   font-weight: 800 !important;
-  opacity: 1 !important;
-  border: 0 !important;
 }
+.verify-cells, .verify-cells button {
+  flex-direction: column;
+}
+button.aia-tip {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  line-height: 1 !important;
+}
+.aia-tip-pop { z-index: 80; }
+.field-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-.sheet { z-index: 80 !important; }
-.sheet.on,
-.sheet[open],
-.sheet.busy { z-index: 90 !important; }
-.sheet-card {
-  max-height: min(90vh, calc(100dvh - 88px - env(safe-area-inset-bottom, 0px)));
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+/* Footer links must not smash into How·Setup·Help */
+.site-foot nav {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center;
+  gap: 6px 12px !important;
 }
-#desk-nav { z-index: 50 !important; }
-.brand-short { display: none; }
-@media (max-width: 640px) {
-  header .brand-short,
-  .site-header .brand-short { display: inline !important; }
+.site-foot nav span[aria-hidden] {
+  margin: 0 2px;
+  opacity: .55;
 }
-.theme-btn {
-  white-space: nowrap;
-  min-width: auto !important;
-  flex: 0 0 auto;
+#desk-switch a[href="/onboard"],
+a.open-another {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  margin-top: 8px;
+  border-radius: 12px;
+  background: var(--edit, #e8f4f4);
+  color: var(--teal, #0a4f4f) !important;
+  font-weight: 800;
+  text-decoration: none;
 }
-.brand-mark {
-  background: transparent;
-  box-shadow: none;
+#pack-chips {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
 }

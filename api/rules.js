@@ -173,7 +173,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "POST") {
     if (!row) return res.status(404).json({ ok: false, error: "Open a desk first so rules have a home." });
     if (!isOwner(person)) {
-      return res.status(403).json({ ok: false, error: "Only the owner can change desk rules." });
+      return res.status(403).json({ ok: false, error: "Only the owner can change desk rules. Leftover email session or desk code." });
     }
     const body = await readBody(req);
     const action = body.action || (body.id && !body.text ? "remove" : "add");

@@ -8,9 +8,24 @@
     if (window.AIADesks) return AIADesks.slugify(s);
     return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
   }
+  function widgetOn() {
+    try {
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+    } catch (e) { return false; }
+  }
+  function dropHref(slug) {
+    var use = slugify(slug);
+    if (widgetOn()) {
+      if (window.AIADesks && AIADesks.widgetHref) return AIADesks.widgetHref(use);
+      return use ? ("/widget?ws=" + encodeURIComponent(use)) : "/widget";
+    }
+    return use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
+  }
   function goDrop(slug) {
     var use = slugify(slug);
-    location.href = use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
+    if (use) { try { sessionStorage.setItem("aia_drop_step", "tell"); } catch (e) {} }
+    location.href = dropHref(use);
   }
   function paintSearch(rows, accounts, q) {
     var box = document.getElementById("public-desk-hits");
@@ -33,7 +48,7 @@
       if (d.does) bits.push(esc(d.does));
       return "<button type=\"button\" data-public-desk=\"" + esc(d.slug) + "\" data-world=\"desk\">" + bits.join(" · ") + "</button>";
     }).join("");
-    box.innerHTML = (accHtml ? "<p class=\"sub\">World accounts</p>" + accHtml : "") + (deskHtml ? "<p class=\"sub\">World desks</p>" + deskHtml : "");
+    box.innerHTML = (accHtml ? "<p class=\"chip-label\">World accounts</p>" + accHtml : "") + (deskHtml ? "<p class=\"chip-label\">World desks</p>" + deskHtml : "");
   }
   async function searchPublic(q) {
     try {
@@ -53,7 +68,7 @@
     var title = document.getElementById("drop-title");
     var sub = document.getElementById("drop-sub");
     var banner = document.getElementById("drop-on");
-    var after = banner || sub || title;
+    var after = document.getElementById("desk-pick") || banner || sub || title;
     if (main && after && after.parentNode === main) {
       after.parentNode.insertBefore(wrap, after.nextSibling);
     } else {

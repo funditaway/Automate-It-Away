@@ -29,7 +29,44 @@
     rows.unshift({ slug: row.slug, name: row.name || row.slug, at: Date.now() });
     try { localStorage.setItem(RECENT, JSON.stringify(rows.slice(0, 6))); } catch (e) {}
   }
+  function embedOn() {
+    try {
+      if (document.body && document.body.classList.contains("embed")) return true;
+      if (window !== window.parent) return true;
+      return /embed=1/.test(location.search);
+    } catch (e) { return false; }
+  }
+  function widgetOn() {
+    try {
+      if (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("widget")) return true;
+      if (document.body && document.body.classList && document.body.classList.contains("widget")) return true;
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
+    } catch (e) { return false; }
+  }
+  function slimChrome() { return embedOn() || widgetOn(); }
+  function dropHref(slug) {
+    var use = String(slug || "").trim();
+    if (widgetOn()) {
+      if (window.AIADesks && AIADesks.widgetHref) return AIADesks.widgetHref(use);
+      return use ? ("/widget?ws=" + encodeURIComponent(use)) : "/widget";
+    }
+    return use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
+  }
   function banner() {
+    if (slimChrome()) {
+      var gone = document.getElementById("drop-on");
+      if (gone && gone.parentNode) gone.parentNode.removeChild(gone);
+      var rail = document.getElementById("drop-steps");
+      if (rail && rail.parentNode) rail.parentNode.removeChild(rail);
+      var foot = document.getElementById("drop-step-foot");
+      if (foot && foot.parentNode) foot.parentNode.removeChild(foot);
+      if (document.body && document.body.classList) document.body.classList.remove("drop-steps");
+      var talk = document.getElementById("talkBar");
+      if (talk) talk.hidden = true;
+      return;
+    }
     var on = desk();
     var el = document.getElementById("drop-on");
     if (!el) {
@@ -59,7 +96,7 @@
     host.appendChild(box);
     box.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-public-desk]");
-      if (btn) location.href = "/drop?ws=" + encodeURIComponent(btn.getAttribute("data-public-desk"));
+      if (btn) location.href = dropHref(btn.getAttribute("data-public-desk"));
     });
   }
   function afterLinks(job) {

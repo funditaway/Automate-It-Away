@@ -134,7 +134,7 @@ function gateOverride(actor, hold, opts) {
   }
   if (!actor) return { ok: false, status: 401, error: "Sign in to pass a HOLD." };
   if (actor.kind === "agent" || actor.role === "agent") {
-    return { ok: false, status: 403, error: "Agents never send, stop, or touch money." };
+    return { ok: false, status: 403, error: "Desk AIs never send, stop, or touch money." };
   }
   if (!ownerish(actor)) {
     return { ok: false, status: 403, error: "Only the owner can pass a HOLD." };

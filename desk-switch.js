@@ -259,7 +259,7 @@
     var pin = store && store.getItem("aia_pin");
     if (ws) h["X-Workspace"] = ws;
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return h;
   }
 
@@ -288,8 +288,8 @@
 
   function widgetHref(slug) {
     var use = slugify(slug || (store && store.getItem("aia_ws")) || "");
-    if (!use) return "/drop";
-    return "/drop?ws=" + encodeURIComponent(use);
+    if (!use) return "/widget";
+    return "/widget?ws=" + encodeURIComponent(use);
   }
 
   function captureDesk() {

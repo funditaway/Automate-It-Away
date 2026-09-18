@@ -9,6 +9,7 @@ const lib = require("../api/_lib");
 const rulesHandler = require("../api/rules");
 const jobsHandler = require("../api/jobs");
 const authHandler = require("../api/auth");
+const connectionsHandler = require("../api/connections");
 const {
   mem, hashPin, ensurePeople, ensureRules, ensureNouns, defaultNouns,
   moneyWaitOf, moneyNeedsOwner, forbiddenRule, ready, save,
@@ -343,6 +344,170 @@ async function main() {
   if (flat.length !== 2) fail("flattenWorkflows should string two rules, got " + flat.length);
   else if (flat[1].ifOlder !== 24) fail("sequence delay should become ifOlder 24, got " + flat[1].ifOlder);
   else pass("workflows flatten to rules with delay");
+
+  const leftover = lib.issueSession(shop.people[0], shop, null, { headers: { "x-workspace": slug } });
+  if (!leftover || !leftover.token) fail("must issue leftover owner session");
+  const sessionOnly = { "x-workspace": slug, "x-session": leftover.token };
+  const closedRules = await call(rulesHandler, "GET", { "x-workspace": slug });
+  if (closedRules.body && closedRules.body.canAdd) fail("GET rules without pin or session must not canAdd");
+  else pass("GET rules without auth keeps canAdd false");
+  const closedAdd = await call(rulesHandler, "POST", { "x-workspace": slug }, { text: "Ask me if the leftover is empty." });
+  if (closedAdd.statusCode !== 403) fail("save without pin or session must 403, got " + closedAdd.statusCode);
+  else pass("save without auth still 403");
+  const wrongAdd = await call(rulesHandler, "POST", { "x-workspace": slug, "x-session": "deadbeefdeadbeefdeadbeefdeadbeef" }, { text: "Ask me if the leftover is fake." });
+  if (wrongAdd.statusCode !== 403) fail("wrong leftover session must 403, got " + wrongAdd.statusCode);
+  else pass("wrong leftover session still 403");
+  const leftoverGet = await call(rulesHandler, "GET", sessionOnly);
+  if (leftoverGet.statusCode !== 200 || !leftoverGet.body.canAdd) {
+    fail("leftover email-session owner GET must canAdd, got " + leftoverGet.statusCode + " " + JSON.stringify(leftoverGet.body));
+  } else pass("leftover email-session owner GET canAdd");
+  const leftoverAdd = await call(rulesHandler, "POST", sessionOnly, { text: "Ask me if leftover session can save." });
+  if (leftoverAdd.statusCode !== 201 || !leftoverAdd.body.ok) {
+    fail("leftover email-session owner save should 201, got " + leftoverAdd.statusCode + " " + JSON.stringify(leftoverAdd.body));
+  } else pass("leftover email-session owner can save a rule");
+
+  shop.people.push({
+    id: "p_shared",
+    name: "Shared helper",
+    role: "employee",
+    kind: "helper",
+    status: "approved",
+    accountId: "acct_shared",
+    createdAt: new Date().toISOString()
+  });
+  const collide = lib.issueSession({
+    id: "acct_shared_owner",
+    name: "Pat",
+    role: "owner",
+    kind: "owner",
+    status: "approved",
+    accountId: "acct_shared"
+  }, shop, { id: "acct_shared", slug }, { headers: { "x-workspace": slug } });
+  const collideGet = await call(rulesHandler, "GET", { "x-workspace": slug, "x-session": collide.token });
+  if (!collideGet.body || !collideGet.body.canAdd) fail("owner leftover session must not lose canAdd to a helper on the same account");
+  else pass("owner leftover session wins over helper accountId");
+
+  const helperSess = lib.issueSession(shop.people.find((p) => p.id === "p_staff"), shop, null, { headers: { "x-workspace": slug } });
+  const helperGet = await call(rulesHandler, "GET", { "x-workspace": slug, "x-session": helperSess.token });
+  if (helperGet.body && helperGet.body.canAdd) fail("helper leftover session must not canAdd");
+  else pass("helper leftover session cannot add rules");
+
+  const ghost = lib.issueSession({
+    id: "acct_ghost_owner",
+    name: "Pat",
+    role: "owner",
+    kind: "owner",
+    status: "approved",
+    accountId: "acct_ghost",
+    email: "ghost-rules@example.com"
+  }, shop, { id: "acct_ghost", slug }, { headers: { "x-workspace": slug } });
+  const ghostGet = await call(rulesHandler, "GET", { "x-workspace": slug, "x-session": ghost.token });
+  if (!ghostGet.body || !ghostGet.body.canAdd) fail("leftover owner session whose personId is not on the desk must still canAdd");
+  else pass("leftover owner session with synthetic personId canAdd");
+
+  const kindOnly = {
+    slug: "kind-owner",
+    name: "Kind",
+    biz: "kind-owner",
+    pin: hashPin(ownerPin),
+    createdAt: new Date().toISOString(),
+    people: [{
+      id: "p_kind",
+      name: "Kind",
+      kind: "owner",
+      status: "approved",
+      accountId: "acct_kind",
+      createdAt: new Date().toISOString()
+    }]
+  };
+  mem.workspaces.unshift(kindOnly);
+  const kindSess = lib.issueSession({
+    id: "acct_kind_owner",
+    name: "Kind",
+    role: "owner",
+    kind: "owner",
+    status: "approved",
+    accountId: "acct_kind"
+  }, kindOnly, { id: "acct_kind", slug: "kind-owner" }, { headers: { "x-workspace": "kind-owner" } });
+  const kindGet = await call(rulesHandler, "GET", { "x-workspace": "kind-owner", "x-session": kindSess.token });
+  if (!kindGet.body || !kindGet.body.canAdd) fail("kind-only owner seat leftover session must canAdd");
+  else pass("kind-only owner seat leftover session canAdd");
+
+  const mail = "rules-owner@example.com";
+  const opened = await call(authHandler, "POST", { "x-workspace": "email-rules" }, {
+    action: "open",
+    slug: "email-rules",
+    biz: "Email Rules",
+    name: "Pat",
+    email: mail,
+    pin: ownerPin
+  });
+  if (opened.statusCode !== 201) fail("email-rules open should 201, got " + opened.statusCode);
+  const pw = await call(authHandler, "POST", { "x-workspace": "email-rules", "x-pin": ownerPin }, {
+    action: "password",
+    email: mail,
+    password: "good-pass1"
+  });
+  if (pw.statusCode !== 200 && pw.statusCode !== 201) {
+    const viaAccount = await call(authHandler, "POST", { "x-workspace": "email-rules", "x-pin": ownerPin }, {
+      action: "password",
+      email: mail,
+      password: "good-pass1"
+    }, { via: "account" });
+    if (viaAccount.statusCode !== 200) fail("email-rules password should save, got " + pw.statusCode + "/" + viaAccount.statusCode);
+  }
+  const emailDesk = (mem.workspaces || []).find((w) => w && w.slug === "email-rules");
+  if (emailDesk) {
+    emailDesk.people = emailDesk.people || [];
+    emailDesk.people.unshift({
+      id: "p_email_helper",
+      name: "Helper first",
+      role: "employee",
+      kind: "helper",
+      status: "approved",
+      accountId: emailDesk.accountId,
+      email: mail,
+      createdAt: new Date().toISOString()
+    });
+  }
+  const emailed = await call(authHandler, "POST", {}, { action: "login", email: mail, password: "good-pass1" });
+  const emailTok = emailed.body && emailed.body.session && emailed.body.session.token;
+  if (emailed.statusCode !== 200 || !emailTok) {
+    fail("email login should 200 with a leftover session, got " + emailed.statusCode + " " + JSON.stringify(emailed.body));
+  } else pass("email login issues leftover session");
+  const emailGet = await call(rulesHandler, "GET", { "x-workspace": "email-rules", "x-session": emailTok });
+  if (emailGet.statusCode !== 200 || !emailGet.body.canAdd) {
+    fail("email leftover session GET /api/rules must canAdd, got " + emailGet.statusCode + " " + JSON.stringify(emailGet.body));
+  } else pass("email leftover session GET canAdd");
+  const emailAdd = await call(rulesHandler, "POST", { "x-workspace": "email-rules", "x-session": emailTok }, { text: "Ask me if email session can save." });
+  if (emailAdd.statusCode !== 201) {
+    fail("email leftover session save should 201, got " + emailAdd.statusCode + " " + JSON.stringify(emailAdd.body));
+  } else pass("email leftover session can save a rule");
+
+  const pipeSearch = await call(connectionsHandler, "POST", { "x-workspace": slug }, { action: "pipe-search", q: "webhook" });
+  if (pipeSearch.statusCode !== 200) fail("pipe search without session must still 200, got " + pipeSearch.statusCode);
+  else pass("pipe search without auth still 200");
+  const pipeClosed = await call(connectionsHandler, "POST", { "x-workspace": slug }, { provider: "webhook", hook: "https://example.com/hook" });
+  if (pipeClosed.statusCode !== 403) fail("pipe bind without session must 403, got " + pipeClosed.statusCode);
+  else pass("pipe bind without auth still 403");
+  const pipeLeftover = await call(connectionsHandler, "POST", sessionOnly, { provider: "webhook", hook: "https://example.com/hook" });
+  if (pipeLeftover.statusCode !== 201) {
+    fail("leftover email-session owner pipe bind should 201, got " + pipeLeftover.statusCode + " " + JSON.stringify(pipeLeftover.body));
+  } else pass("leftover email-session owner can bind a pipe");
+
+  const rulesPage = fs.readFileSync(path.join(__dirname, "..", "rules.html"), "utf8");
+  if (rulesPage.indexOf("Owner desk code required to save.") >= 0) {
+    fail("rules.html still says Owner desk code required to save as the only gate");
+  } else pass("rules.html leftover session can save");
+  if (rulesPage.indexOf("canAdd") < 0) fail("rules.html must still gate add on canAdd");
+  else pass("rules.html still gates add on canAdd");
+
+  const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
+  const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
+  if (yesNo.indexOf("Rules session leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Rules session leftover");
+  else pass("ACCOUNT-YES-NO names Rules session leftover");
+  if (packMd.indexOf("Rules session leftover:") < 0) fail("PACK.md must record the Rules session leftover");
+  else pass("PACK.md names Rules session leftover");
 
   await save();
   if (process.exitCode) {

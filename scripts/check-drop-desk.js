@@ -63,6 +63,46 @@ async function main() {
     throw new Error("empty real desk lost the card");
   }
 
+  const told = await call({ "x-workspace": "springfield-desk" }, {
+    action: "capture",
+    kind: "note",
+    title: "Name: Sam",
+    from: "widget",
+    contactName: "PROBE",
+    notes: "Name: Sam\nPhone: 417-555-0100\nNeed a pickup Friday 3pm",
+    tell: "Not shipped. Qualify first.",
+    implement: "Name: Sam\nPhone: 417-555-0100\nNeed a pickup Friday 3pm",
+    mode: "agent",
+    droppedByKind: "helper",
+    lane: "ops"
+  });
+  const tellJob = told.body && told.body.job;
+  if (told.statusCode !== 201 || !tellJob) {
+    throw new Error("Tell AIA Put must capture, got " + told.statusCode);
+  }
+  const tellRow = (tellJob.thread || []).find((t) => t && t.kind === "tell" && /Qualify first/.test(t.text || ""));
+  if (!tellRow) throw new Error("Tell AIA Put must store kind tell, got " + JSON.stringify(tellJob.thread));
+  if ((tellJob.thread || []).some((t) => t && t.kind === "note" && /Qualify first/.test(t.text || ""))) {
+    throw new Error("Tell AIA text must not also store as note");
+  }
+  const noteOnly = await call({ "x-workspace": "springfield-desk" }, {
+    action: "capture",
+    title: "Grocery run",
+    from: "widget",
+    notes: "Milk and bread",
+    droppedByKind: "family"
+  });
+  const noteJob = noteOnly.body && noteOnly.body.job;
+  if (noteOnly.statusCode !== 201 || !noteJob) {
+    throw new Error("desk note Put must capture, got " + noteOnly.statusCode);
+  }
+  if ((noteJob.thread || []).some((t) => t && t.kind === "tell")) {
+    throw new Error("desk notes without Tell AIA must stay note, got " + JSON.stringify(noteJob.thread));
+  }
+  if (!(noteJob.thread || []).some((t) => t && t.kind === "note" && /Milk and bread/.test(t.text || ""))) {
+    throw new Error("desk notes without Tell AIA must store kind note");
+  }
+
   console.log("check-drop-desk: ok");
 }
 

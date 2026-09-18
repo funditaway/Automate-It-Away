@@ -82,6 +82,8 @@ async function main() {
   if (deskGet.statusCode !== 200 || !deskGet.body || !deskGet.body.ok) {
     fail("open desk pin should GET /api/account");
   } else pass("open desk pin GETs account");
+  if (!Array.isArray(deskGet.body.sessions)) fail("GET /api/account should include the session trail");
+  else pass("GET account includes sessions");
 
   const staleGet = await call(account, "GET", {
     "x-workspace": "oddo-books",
@@ -183,12 +185,19 @@ async function main() {
   if (accountHtml.indexOf('pinEl.value=localStorage.getItem("aia_pin")') < 0) {
     fail("Account Open gate must prefill the saved owner code");
   } else pass("Account Open gate prefills aia_pin");
+  if (accountHtml.indexOf("#gate[hidden]") < 0 || accountHtml.indexOf("display:none!important") < 0) {
+    fail("Account Open gate must honor hidden after leftover session opens the book");
+  } else pass("Account Open gate honors hidden");
   const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
   const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
   if (yesNo.indexOf("Account leftover") < 0) fail("ACCOUNT-YES-NO must name Account leftover");
   else pass("ACCOUNT-YES-NO names Account leftover");
   if (packMd.indexOf("Account leftover") < 0) fail("PACK.md must name Account leftover");
   else pass("PACK.md names Account leftover");
+  if (yesNo.indexOf("own account") < 0 && yesNo.indexOf("rebind") < 0) fail("ACCOUNT-YES-NO must name Studio Open bind leftover");
+  else pass("ACCOUNT-YES-NO names Studio Open bind leftover");
+  if (packMd.indexOf("own account") < 0 && packMd.indexOf("rebind") < 0) fail("PACK.md must name Studio Open bind leftover");
+  else pass("PACK.md names Studio Open bind leftover");
 
   const vercel = fs.readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8");
   if (!/"\/api\/account"/.test(vercel) || !vercel.includes("/api/auth?via=account")) {
@@ -280,6 +289,96 @@ async function main() {
     fail("owner seat pin must still open Studio when desk.pin and account.pin are empty");
   } else pass("owner seat pin opens Studio when other pins are empty");
 
+  const laterPin = "1357";
+  const later = await call(auth, "POST", { "x-workspace": "later-shop", "x-pin": laterPin }, {
+    action: "account",
+    name: "Sam",
+    biz: "Later Shop",
+    slug: "later-shop",
+    workspace: "later-shop",
+    kind: "owner",
+    role: "owner",
+    pin: laterPin
+  });
+  if (later.statusCode !== 201 || !later.body || !later.body.account) {
+    fail("second Owner onboard should mint another desk");
+  } else pass("second Owner onboard mints another desk");
+
+  const riveraDesk = (lib.mem.workspaces || []).find((w) => w && w.slug === "rivera-resale");
+  const riveraAccId = riveraDesk && riveraDesk.accountId;
+  const laterAcc = (lib.mem.accounts || []).find((a) => a && a.slug === "later-shop");
+  if (laterAcc) laterAcc.name = "rivera-resale";
+
+  const stealPin = await call(account, "POST", {}, {
+    action: "login", slug: "rivera-resale", pin: laterPin, name: "rivera-resale"
+  });
+  if (stealPin.statusCode !== 401) {
+    fail("another account pin must not open a different Owner desk");
+  } else pass("another account pin stays 401 on a different Owner desk");
+
+  const keepOwner = await call(account, "POST", {}, {
+    action: "login", slug: "rivera-resale", pin: strangerPin, name: "rivera-resale"
+  });
+  const riveraAfter = (lib.mem.workspaces || []).find((w) => w && w.slug === "rivera-resale");
+  if (keepOwner.statusCode !== 200 || !keepOwner.body || !keepOwner.body.ok) {
+    fail("Owner desk pin must still open Studio after a name-collision account exists");
+  } else if (riveraAccId && riveraAfter && riveraAfter.accountId !== riveraAccId) {
+    fail("Studio Open must not rebind the Owner desk onto another account");
+  } else if (riveraAccId && keepOwner.body.account && keepOwner.body.account.id && keepOwner.body.account.id !== riveraAccId) {
+    fail("Studio Open must open the Owner desk's own account");
+  } else pass("Studio Open keeps the Owner desk on its own account");
+
+  const keepId = "acct_keepwrite";
+  const staleSnap = JSON.parse(JSON.stringify({
+    account: lib.mem.account,
+    accounts: lib.mem.accounts || [],
+    sessions: lib.mem.sessions || [],
+    approvals: lib.mem.approvals || [],
+    locks: lib.mem.locks || [],
+    connections: lib.mem.connections || [],
+    jobs: lib.mem.jobs || [],
+    audit: lib.mem.audit || [],
+    money: lib.mem.money || [],
+    workspaces: lib.mem.workspaces || [],
+    inbox: lib.mem.inbox || [],
+    files: lib.mem.files || [],
+    tickets: lib.mem.tickets || [],
+    packs: lib.mem.packs || [],
+    mail: lib.mem.mail || []
+  }));
+  let blobMod = "";
+  try { blobMod = require.resolve("@vercel/blob"); } catch (e) { blobMod = ""; }
+  const prevBlob = blobMod && require.cache[blobMod];
+  const prevOidc = process.env.VERCEL_OIDC_TOKEN;
+  if (blobMod) {
+    require.cache[blobMod] = {
+      id: blobMod,
+      filename: blobMod,
+      loaded: true,
+      exports: {
+        get: async function () {
+          return { status: 200, stream: { text: async function () { return JSON.stringify(staleSnap); } } };
+        },
+        put: async function () { return { url: "https://blob.test/aia/store.json" }; },
+        del: async function () { return null; }
+      }
+    };
+  }
+  process.env.VERCEL_OIDC_TOKEN = "test-oidc";
+  (lib.mem.accounts || []).unshift({ id: keepId, name: "Keep Write", slug: "keep-write", desks: [], plan: "pro" });
+  await lib.save();
+  const keptMem = (lib.mem.accounts || []).some(function (a) { return a && a.id === keepId; });
+  const keptDisk = JSON.parse(fs.readFileSync(store, "utf8"));
+  const keptFile = (keptDisk.accounts || []).some(function (a) { return a && a.id === keepId; });
+  if (!keptMem || !keptFile) fail("save must persist in-request writes instead of reloading a stale blob");
+  else pass("save persists in-request writes over a stale blob");
+  if (prevOidc == null) delete process.env.VERCEL_OIDC_TOKEN;
+  else process.env.VERCEL_OIDC_TOKEN = prevOidc;
+  if (blobMod) {
+    if (prevBlob) require.cache[blobMod] = prevBlob;
+    else delete require.cache[blobMod];
+  }
+
   await lib.save();
   const diskSnap = JSON.parse(fs.readFileSync(store, "utf8"));
   lib.mem.workspaces = [];
@@ -333,6 +432,11 @@ async function main() {
   else pass("cold start keeps email login working");
 
   const sessionHeaders = { "x-workspace": "oddo-books", "x-session": cold.body.session.token };
+  const homeGet = await call(account, "GET", sessionHeaders);
+  const homeSessions = homeGet.body && homeGet.body.sessions || [];
+  if (homeGet.statusCode !== 200 || !homeSessions.length || !homeSessions.some((row) => row.current)) {
+    fail("GET /api/account should paint current phone on the session trail");
+  } else pass("GET account paints current phone");
   const sessions = await call(account, "POST", sessionHeaders, { action: "sessions" });
   const listed = sessions.body && sessions.body.sessions || [];
   if (sessions.statusCode !== 200 || !listed.length || !listed.some((row) => row.current)) fail("sessions action should list current phones");

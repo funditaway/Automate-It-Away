@@ -174,7 +174,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "POST") {
     const { person } = personOf(req, workspace);
     if (person && !isOwner(person)) {
-      return res.status(403).json({ error: "Owner pin required to connect a pipe." });
+      return res.status(403).json({ error: "Only the owner can bind a pipe. Leftover email session or desk code." });
     }
     const body = await readBody(req);
     const action = String(body.action || "").toLowerCase();
@@ -244,6 +244,9 @@ module.exports = async function handler(req, res) {
           provider
         });
       }
+      if (!isOwner(person)) {
+        return res.status(403).json({ error: "Only the owner can bind a pipe. Leftover email session or desk code." });
+      }
       mem.connections = mem.connections.filter((c) => !(c.workspace === workspace && c.lane === "draft" && c.provider === provider));
       const row = {
         id: "ai_" + Date.now().toString(36),
@@ -308,6 +311,9 @@ module.exports = async function handler(req, res) {
     if (!PROVIDERS[provider]) {
       return res.status(400).json({ error: "Unknown provider", catalog: catalog(), soon: soonCatalog() });
     }
+    if (!isOwner(person)) {
+      return res.status(403).json({ error: "Only the owner can bind a pipe. Leftover email session or desk code." });
+    }
     if (provider === "whatnot") {
       return res.status(409).json({ error: "Whatnot stays down. Not a launch pipe.", status: "down" });
     }
@@ -337,8 +343,8 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "DELETE") {
     const { person } = personOf(req, workspace);
-    if (person && !isOwner(person)) {
-      return res.status(403).json({ error: "Owner pin required to drop a pipe." });
+    if (!isOwner(person)) {
+      return res.status(403).json({ error: "Only the owner can drop a pipe. Leftover email session or desk code." });
     }
     const id = req.query.id;
     const before = mem.connections.length;
