@@ -17,7 +17,7 @@
     if (!desk) return h;
     if (desk.slug) h["X-Workspace"] = desk.slug;
     if (desk.token) h["X-Session"] = desk.token;
-    else if (desk.pin) h["X-Pin"] = desk.pin;
+    if (desk.pin) h["X-Pin"] = desk.pin;
     return h;
   }
   function ensureCss() {

@@ -145,7 +145,21 @@ const staff = ctx.card({
   draft: "List the oak dresser."
 }, true);
 if (/>Stop</.test(staff) || />Kill</.test(staff)) fail("helper must not get Stop / Kill");
-if (staff.indexOf(">Yes<") < 0) fail("helper may still Yes when the rule allows");
+  if (staff.indexOf(">Yes<") < 0) fail("helper may still Yes when the rule allows");
+
+const fanCard = ctx.card({
+  id: "j-fan",
+  status: "waiting",
+  title: "eggs",
+  notes: "eggs",
+  draft: "Draft ready. I cannot send, pay, or bind anything. You stay in control.",
+  waitingOn: "person",
+  custom: { dropId: "drop_1", dropIndex: 2, dropTotal: 3 }
+}, false);
+if (fanCard.indexOf("2 of 3 from this Drop") < 0) fail("fanned card must show Drop index");
+if (fanCard.indexOf("Needs you") < 0) fail("fanned card must show Needs you");
+if (fanCard.indexOf(">Yes<") < 0 || fanCard.indexOf(">Stop<") < 0) fail("fanned card must keep Yes / Stop human");
+if (!/HOLD/i.test(fanCard) || fanCard.indexOf("Nothing sent alone") < 0) fail("fanned card must stay HOLD");
 
 const capNeed = ctx.cardNeeds({
   id: "j-cap",

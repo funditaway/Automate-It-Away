@@ -5,6 +5,10 @@ const STEPS_OK = ["capture", "qualify", "do", "follow"];
 const STEPS_DEFAULT = ["qualify", "do", "follow"];
 const CREWS = ["Doer", "Worker", "Rail", "Packer", "Mapper", "Foreman", "Builder"];
 const RAILS = "Yes / Stop / Kill stay human. Desk AIs never Yes themselves. Collect stays HOLD. No silent money or mail.";
+const FIRM = "Draft ready. I cannot send, pay, or bind anything. You stay in control.";
+const TAGLINE = "Desk AIs that draft. Humans that decide.";
+const DEFAULT_DOES = "Drafts the next step and the words. Nothing sent.";
+const DEFAULT_PROMPT = FIRM + " " + TAGLINE + " Never send, pay, or bind. Collect stays HOLD.";
 
 function clip(s, n) {
   return String(s == null ? "" : s).trim().slice(0, n || 160);
@@ -66,8 +70,8 @@ function normalizeAi(raw, workspace) {
     file: aia.file,
     internet: net.INTERNET,
     role: crewOf(raw.role || raw.crew || "Doer"),
-    does: clip(raw.does, 160),
-    prompt: clip(raw.prompt, 400),
+    does: clip(raw.does, 160) || DEFAULT_DOES,
+    prompt: clip(raw.prompt, 400) || DEFAULT_PROMPT,
     steps: steps,
     allow: steps.slice(),
     deny: deny,
@@ -102,7 +106,7 @@ function promptSummary(ai, n) {
 function publicAi(ai) {
   if (!ai) return null;
   const aia = net.of(ai.aia || ai.aiaName || ai.file || ai.name, ai.id || "desk-ai");
-  const prompt = clip(ai.prompt, 400);
+  const prompt = clip(ai.prompt, 400) || DEFAULT_PROMPT;
   return {
     id: ai.id,
     name: ai.name,
@@ -111,7 +115,7 @@ function publicAi(ai) {
     file: aia.file,
     internet: net.INTERNET,
     role: ai.role || "Doer",
-    does: ai.does || "",
+    does: ai.does || DEFAULT_DOES,
     prompt: prompt,
     promptSummary: clip(prompt, 80),
     face: clip(ai.name, 40) + " · Then draft",
@@ -337,6 +341,10 @@ module.exports = {
   STEPS_OK,
   STEPS_DEFAULT,
   RAILS,
+  FIRM,
+  TAGLINE,
+  DEFAULT_DOES,
+  DEFAULT_PROMPT,
   clip,
   slugAi,
   normalizeAi,

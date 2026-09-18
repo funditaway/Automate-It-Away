@@ -110,13 +110,66 @@
     const mail = typeof mailHref === "function" ? mailHref(j.title, draft) : "mailto:?subject=" + encodeURIComponent(j.title || "") + "&body=" + encodeURIComponent(draft);
     const live = livePipes().map(function (p) { return p.label; });
     const pipeLine = live.length ? "Live pipes: " + live.join(", ") : "Live pipe: inbound webhook. Named pipes on hold.";
-    const decideBtns = decide ? ("<button class=\"go\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" + (staff ? "" : "<button class=\"kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">No</button>")) : "";
+    const decideBtns = decide ? ("<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" + (staff ? "" : "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">No</button>")) : "";
     const safe = typeof esc === "function" ? esc : function (s) { return String(s || ""); };
-    return "<article class=\"item\"><div class=\"meta\">" + (outDesk ? "Off the desk" : (typeof labelStatus === "function" ? labelStatus(j.status) : j.status)) + (j.assignee ? " · handed to " + safe(j.assignee) : "") + (decide ? " · Yes/No" : outDesk ? " · write-back" : "") + "</div><h3>" + safe(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + safe(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + safe(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + safe(j.draft) + "</div>" : "") + "<p class=\"meta\">" + safe(line) + "</p><p class=\"meta\">" + safe(pipeLine) + "</p><div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button><a class=\"edit\" href=\"" + sms + "\">Text</a><a class=\"edit\" href=\"" + mail + "\">Email</a><button class=\"edit\" type=\"button\" onclick=\"openHandOff('" + j.id + "')\">Hand off</button><button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button><button class=\"edit\" type=\"button\" onclick=\"helpWithAi('" + j.id + "')\">Ask Grok</button><button class=\"go\" type=\"button\" onclick=\"doneOffDesk('" + j.id + "')\">Done off desk</button><button class=\"edit\" type=\"button\" onclick=\"needsHand('" + j.id + "')\">Needs a hand</button>" + decideBtns + "</div></article>";
+    return "<article class=\"item q-card\" data-job=\"" + safe(j.id || "") + "\"><div class=\"meta\">" + (outDesk ? "Off the desk" : (typeof labelStatus === "function" ? labelStatus(j.status) : j.status)) + (j.assignee ? " · handed to " + safe(j.assignee) : "") + (decide ? " · Yes/No" : outDesk ? " · write-back" : "") + "</div><h3>" + safe(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + safe(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + safe(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + safe(j.draft) + "</div>" : "") + "<p class=\"meta\">" + safe(line) + "</p><p class=\"meta\">" + safe(pipeLine) + "</p><div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button><a class=\"edit\" href=\"" + sms + "\">Text</a><a class=\"edit\" href=\"" + mail + "\">Email</a><button class=\"edit\" type=\"button\" onclick=\"openHandOff('" + j.id + "')\">Hand off</button><button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button><button class=\"edit\" type=\"button\" onclick=\"helpWithAi('" + j.id + "')\">Ask Grok</button><button class=\"go\" type=\"button\" onclick=\"doneOffDesk('" + j.id + "')\">Done off desk</button><button class=\"edit\" type=\"button\" onclick=\"needsHand('" + j.id + "')\">Needs a hand</button>" + decideBtns + "</div></article>";
   };
+  function setCardBusy(id, on) {
+    if (typeof window.setCardBusy === "function" && window.setCardBusy !== setCardBusy) {
+      window.setCardBusy(id, on);
+      return;
+    }
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    const queue = document.getElementById("queue");
+    const root = (queue && queue.querySelector && queue.querySelector('[data-job="' + safe + '"]'))
+      || document.getElementById("sheet-card");
+    if (!root || !root.classList) return;
+    root.classList.toggle("q-pending", !!on);
+    if (root.setAttribute) root.setAttribute("aria-busy", on ? "true" : "false");
+    let line = root.querySelector ? root.querySelector(".q-busy") : null;
+    if (on) {
+      if (!line && root.appendChild) {
+        line = document.createElement("p");
+        line.className = "q-busy meta";
+        line.textContent = "Working. Nothing sent yet.";
+        const next = root.querySelector && root.querySelector(".next-line, .q-prompt-hold, .sheet-decide");
+        if (next && next.parentNode) next.parentNode.insertBefore(line, next);
+        else root.appendChild(line);
+      }
+      if (root.querySelectorAll) {
+        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = true; });
+      }
+    } else {
+      if (line && line.remove) line.remove();
+      if (root.querySelectorAll) {
+        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = false; });
+      }
+    }
+  }
+  function wrapHitlBusy() {
+    if (typeof window.ship !== "function" || typeof window.confirmKill !== "function") {
+      setTimeout(wrapHitlBusy, 200);
+      return;
+    }
+    if (window.ship._aiaBusy) return;
+    function wrap(name) {
+      const prev = window[name];
+      if (typeof prev !== "function") return;
+      window[name] = async function (id) {
+        setCardBusy(id, true);
+        try { return await prev.apply(this, arguments); }
+        finally { setCardBusy(id, false); }
+      };
+    }
+    wrap("ship");
+    wrap("confirmShip");
+    wrap("confirmKill");
+    window.ship._aiaBusy = true;
+  }
   window.paintQueueCard = function () {
     const box = document.getElementById("queue");
     if (!box || typeof JOBS === "undefined") return;
+    if (box.querySelector && box.querySelector(".q-card[data-job]")) return;
     const staff = typeof role !== "undefined" && role === "employee";
     const open = JOBS.filter(function (j) { return j.status === "held" || j.status === "exception" || j.status === "waiting" || j.status === "out"; });
     box.innerHTML = open.map(function (j) { return window.queueCard(j, staff); }).join("") || "<p style=\"color:var(--muted)\">Nothing here yet.</p>";
@@ -167,4 +220,5 @@
   }
   wrapLoad();
   wrapOpen();
+  wrapHitlBusy();
 })();

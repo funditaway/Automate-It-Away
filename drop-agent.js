@@ -207,7 +207,7 @@
       var chips = document.createElement("div"); chips.id = "outcome-chips"; chips.className = "outcomes who-chips";
       lab.parentNode.insertBefore(chips, lab.nextSibling);
       var hint = document.createElement("p"); hint.id = "outcome-hint"; hint.className = "sub";
-      hint.textContent = "What the desk should do next. Still a draft. Nobody sends money from here.";
+      hint.textContent = "What a Desk AI should draft next. Still a draft. You still tap Yes or Stop. Nobody sends money from here.";
       chips.parentNode.insertBefore(hint, chips.nextSibling);
     }
     if (!document.getElementById("drop-outcome-css")) {
@@ -220,7 +220,7 @@
     var tog = document.createElement("button"); tog.type = "button"; tog.id = "adv-toggle"; tog.className = "adv-toggle"; tog.textContent = "Advanced";
     after.parentNode.insertBefore(tog, after.nextSibling);
     var pane = document.createElement("div"); pane.id = "pane-auto"; pane.hidden = true;
-    pane.innerHTML = "<label>Quick actions</label><div class=\"drop-actions\" id=\"drop-actions\"></div><p class=\"sub\" id=\"action-hint\">Tap what the desk should do after this lands. Draft only.</p><label>Pack</label><select id=\"drop-pack\"><option value=\"\">This desk / let the engine pick</option><option value=\"home\">Home</option><option value=\"consign\">Consign</option><option value=\"vita\">Insurance</option><option value=\"fund\">Fund</option><option value=\"land\">Land</option><option value=\"aia-adoption\">AIA · Try it on this desk</option><option value=\"aia-implement\">AIA · Four steps on this desk</option></select><label>Hand to</label><select id=\"drop-hand\"><option value=\"\">Leave on the queue</option></select><label>Follow when</label><input id=\"drop-follow-when\" placeholder=\"Tomorrow · Friday\">";
+    pane.innerHTML = "<label>Quick actions</label><div class=\"drop-actions\" id=\"drop-actions\"></div><p class=\"sub\" id=\"action-hint\">Tap what a Desk AI should draft after this lands. Draft only. You still tap Yes or Stop.</p><label>Pack</label><select id=\"drop-pack\"><option value=\"\">This desk / let the engine pick</option><option value=\"home\">Home</option><option value=\"consign\">Consign</option><option value=\"vita\">Insurance</option><option value=\"fund\">Fund</option><option value=\"land\">Land</option><option value=\"aia-adoption\">AIA · Try it on this desk</option><option value=\"aia-implement\">AIA · Four steps on this desk</option></select><label>Hand to</label><select id=\"drop-hand\"><option value=\"\">Leave on the queue</option></select><label>Follow when</label><input id=\"drop-follow-when\" placeholder=\"Tomorrow · Friday\">";
     tog.parentNode.insertBefore(pane, tog.nextSibling);
   }
   function bootDropKinds() {

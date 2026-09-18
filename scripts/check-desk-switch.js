@@ -71,6 +71,30 @@ sandbox.location.search = "";
 if (AIA.captureDesk()) fail("still no current desk, should stay empty");
 else pass("never default to demo");
 
+store.aia_ws = "desk-a";
+if (AIA.widgetHref() !== "/widget?ws=desk-a") fail("widgetHref must be /widget?ws= not /drop?ws=");
+else pass("widgetHref points at /widget");
+if (AIA.widgetHref("Desk B") !== "/widget?ws=desk-b") fail("widgetHref(slug) must stay on /widget");
+else pass("widgetHref(slug) stays on /widget");
+store.aia_ws = "";
+if (AIA.widgetHref() !== "/widget") fail("empty widgetHref must be /widget");
+else pass("empty widgetHref is /widget");
+
+const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
+if (pickJs.indexOf("function dropHref") < 0 || pickJs.indexOf("location.href = dropHref(use)") < 0) {
+  fail("drop-pick.js goDrop must stay on /widget when already on /widget");
+} else pass("drop-pick.js goDrop uses dropHref");
+if (pickJs.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
+  fail("drop-pick.js goDrop must not always dump to /drop");
+} else pass("drop-pick.js goDrop does not always dump to /drop");
+const nowJs = fs.readFileSync(path.join(root, "drop-now.js"), "utf8");
+if (nowJs.indexOf("function dropHref") < 0 || nowJs.indexOf("location.href = dropHref(") < 0) {
+  fail("drop-now.js recent public desks must stay on /widget when already on /widget");
+} else pass("drop-now.js recent desks use dropHref");
+if (nowJs.indexOf('location.href = "/drop?ws="') >= 0) {
+  fail("drop-now.js recent public desks must not always dump to /drop");
+} else pass("drop-now.js recent desks do not always dump to /drop");
+
 const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
 if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.test(widget)) {
   fail("widget.html still falls back to demo or aia_ws||");
@@ -78,7 +102,6 @@ if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.
 if (widget.includes("location.replace(\"/onboard\")")) {
   fail("widget.html still bounces to /onboard before they can pick");
 } else pass("widget.html stays on /drop");
-const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
 if (!widget.includes("AIADesks.captureDesk") || !pickJs.includes("AIADesks.list") || !pickJs.includes("switchTo")) {
   fail("widget.html must list and switch saved desks");
 } else pass("widget.html lists saved desks");
@@ -144,6 +167,12 @@ if (homeJs.includes("yes or no") || homeJs.includes("Yes or No") || homeJs.inclu
 } else pass("desk-home how-in does not paint Yes or No");
 if (!homeJs.includes("You still say Yes or Stop.")) fail("desk-home.js must keep Yes or Stop");
 else pass("desk-home how-in says Yes or Stop");
+if (!homeJs.includes("Working. Nothing sent yet.") || !homeJs.includes("function setCardBusy")) {
+  fail("desk-home.js missing Working busy-face");
+} else pass("desk-home leftover paints Working busy-face");
+if (!cardJs.includes("Working. Nothing sent yet.") || !cardJs.includes("function setCardBusy")) {
+  fail("desk-card.js missing Working busy-face");
+} else pass("desk-card Open sheet paints Working busy-face");
 
 if (desk.includes("Yes or no") || desk.includes("Yes or No") || desk.includes("yes or no")) {
   fail("desk.html still paints Yes or No as the rail");
@@ -256,6 +285,43 @@ if (!morePage.includes("id=\"desk-nav\"") || !morePage.includes("href=\"/more\""
   if (morePage.includes(bit)) fail("more.html still shows crew note: " + bit);
 });
 if (!process.exitCode) pass("more.html has no public crew / demo notes");
+
+const switchSrc = fs.readFileSync(path.join(root, "desk-switch.js"), "utf8");
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(switchSrc)) {
+  fail("desk-switch authHeaders must still send the open-desk pin when a session token is present");
+} else pass("desk-switch authHeaders keeps X-Pin with X-Session");
+if (switchSrc.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk-switch authHeaders must send X-Pin");
+else pass("desk-switch authHeaders sends X-Pin");
+
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(desk)) {
+  fail("desk.html headers must still send the open-desk pin when a session token is present");
+} else pass("desk.html headers keeps X-Pin with X-Session");
+if (desk.indexOf('if (tok) h["X-Session"] = tok') < 0) fail("desk.html headers must send leftover X-Session");
+else pass("desk.html headers sends leftover X-Session");
+if (desk.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk.html headers must send X-Pin");
+else pass("desk.html headers sends X-Pin");
+
+store.aia_ws = "pin-desk";
+store.aia_session = "leftover-tok";
+store.aia_pin = "4821";
+const hdrBoth = AIA.authHeaders();
+if (!hdrBoth["X-Session"] || hdrBoth["X-Session"] !== "leftover-tok") fail("authHeaders must keep leftover X-Session");
+else if (!hdrBoth["X-Pin"] || hdrBoth["X-Pin"] !== "4821") fail("authHeaders must send leftover X-Pin with X-Session");
+else pass("authHeaders sends leftover session + pin");
+
+const viewSrc = fs.readFileSync(path.join(root, "desk-view.js"), "utf8");
+if (/if \(desk\.token\) h\["X-Session"\] = desk\.token;\s*else if \(desk\.pin\)/.test(viewSrc)) {
+  fail("desk-view headersFor must still send the saved pin when a desk token is present");
+} else pass("desk-view headersFor keeps X-Pin with X-Session");
+if (viewSrc.indexOf('if (desk.pin) h["X-Pin"] = desk.pin') < 0) fail("desk-view headersFor must send X-Pin");
+else pass("desk-view headersFor sends X-Pin");
+
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+if (yesNo.indexOf("Drop / Queue leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Drop / Queue leftover");
+else pass("ACCOUNT-YES-NO records Drop / Queue leftover");
+if (packMd.indexOf("Drop / Queue leftover:") < 0) fail("PACK.md must record the Drop / Queue leftover");
+else pass("PACK.md records Drop / Queue leftover");
 
 const publicPages = ["index.html", "how.html", "setup.html", "login.html", "onboard.html", "help.html", "widget.html", "desk.html", "rules.html", "more.html"];
 const leaks = [

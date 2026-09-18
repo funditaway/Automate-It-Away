@@ -36,7 +36,7 @@
       "<button class=\"kill\" type=\"button\" id=\"sheet-deny\">Deny</button>" +
       "</div>" +
       "<div class=\"talk\" id=\"sheet-talk\">" +
-      "<input id=\"sheet-say\" placeholder=\"Say it on this desk — human, agent, or pipe\" autocomplete=\"off\">" +
+      "<input id=\"sheet-say\" placeholder=\"Say it on this desk — human, Desk AI, or pipe\" autocomplete=\"off\">" +
       "<button class=\"edit\" type=\"button\" id=\"sheet-say-btn\">Say</button>" +
       "</div>" +
       "<p class=\"meta\">Talk stays on the desk. AIA does not send.</p>";

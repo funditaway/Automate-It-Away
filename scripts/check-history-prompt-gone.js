@@ -40,6 +40,7 @@ const people = read("people.js");
 const peopleHtml = read("people.html");
 const help = read("help.html");
 const more = read("more.html");
+const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
@@ -90,9 +91,9 @@ if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge|silent send/i.tes
 if (help.indexOf("History, Explore, and People open cards") < 0 || help.indexOf("prompt ask-who") < 0) {
   fail("help#desk-cards must name History / Explore / People prompt ask-who HOLD");
 } else pass("help names History / Explore / People prompt ask-who HOLD");
-if (more.indexOf("History, Explore, and People") < 0 || more.indexOf("not anonymous desk AI") < 0) {
-  fail("more.html Queue must name History / Explore / People gone Needs you / prompt HOLD");
-} else pass("more.html names History / Explore / People gone HOLD");
+if (moreTips.indexOf("History, Explore, and People") < 0 || moreTips.indexOf("not anonymous desk AI") < 0) {
+  fail("more Queue tip must name History / Explore / People gone Needs you / prompt HOLD");
+} else pass("more Queue tip names History / Explore / People gone HOLD");
 if (yesNo.indexOf("check-history-prompt-gone.js") < 0) fail("ACCOUNT-YES-NO must record History / People prompt gone HOLD");
 else pass("ACCOUNT-YES-NO records History / People prompt gone HOLD");
 if (pkg.indexOf("check-history-prompt-gone.js") < 0) fail("package.json must run check-history-prompt-gone");
@@ -101,6 +102,15 @@ if (peopleHtml.indexOf("Needs you / prompt ask-who") < 0) fail("people.html must
 else pass("people.html names Needs you / prompt ask-who");
 if (history.indexOf("Needs you / prompt ask-who") < 0) fail("History intro must name Needs you / prompt ask-who");
 else pass("History intro names Needs you / prompt ask-who");
+if (help.indexOf("Copy story") < 0 || moreTips.indexOf("Copy story copies that same trail") < 0) {
+  fail("help / more tip must name History Copy story honesty");
+} else pass("help / more tip name History Copy story honesty");
+if (more.indexOf('data-aia-tip="more-history"') < 0) fail("more.html must wire more-history tip");
+else pass("more.html wires more-history tip");
+if (history.indexOf("storyOf(row)") < 0) fail("History Copy story must copy storyOf");
+else pass("History Copy story copies storyOf");
+if (history.indexOf("last.map(storyOf)") < 0) fail("History Copy this view must reuse storyOf");
+else pass("History Copy this view reuses storyOf");
 
 function esc(s) {
   return String(s || "").replace(/[&<>"']/g, function (c) {
@@ -287,6 +297,30 @@ if (hCtx) {
   if (emptyHist.indexOf("q-prompt") >= 0 || emptyHist.indexOf("q-need") >= 0) {
     fail("bare History card must not invent Needs you / prompt");
   } else pass("bare History card stays bare");
+  if (typeof hCtx.storyOf !== "function") fail("History storyOf must run");
+  else pass("History storyOf runs");
+  const goneCopy = hCtx.storyOf(goneJob);
+  if (goneCopy.indexOf("Shop Bot · not on this desk") < 0) fail("Copy story gone card must name Shop Bot · not on this desk, got " + goneCopy);
+  else pass("Copy story gone card names Shop Bot · not on this desk");
+  if (/James/.test(goneCopy)) fail("Copy story gone card must not name James");
+  else pass("Copy story gone card does not name James");
+  if (goneCopy.indexOf("Then draft") >= 0) fail("Copy story gone card must not look like a live Then draft");
+  else pass("Copy story gone card does not look live");
+  const liveCopy = hCtx.storyOf(liveJob);
+  if (liveCopy.indexOf("Shop Bot") < 0) fail("Copy story live card must still name Shop Bot, got " + liveCopy);
+  else pass("Copy story live card still names Shop Bot");
+  if (liveCopy.indexOf("not on this desk") >= 0) fail("Copy story live card must not paint gone HOLD");
+  else pass("Copy story live card has no gone HOLD");
+  const unboundCopy = hCtx.storyOf(unbound);
+  if (unboundCopy.indexOf("Needs you") < 0 && unboundCopy.indexOf("Ask the human") < 0) {
+    fail("Copy story unbound card must keep Needs you / Ask the human, got " + unboundCopy);
+  } else pass("Copy story unbound card keeps Needs you / Ask the human");
+  if (unboundCopy.indexOf("not on this desk") >= 0) fail("Copy story unbound card must not paint gone HOLD");
+  else pass("Copy story unbound card has no gone HOLD");
+  const bareCopy = hCtx.storyOf({ title: "Bare card", status: "waiting" });
+  if (bareCopy.indexOf("Needs you") >= 0 || bareCopy.indexOf("not on this desk") >= 0) {
+    fail("Copy story bare card must not invent Needs you / gone HOLD, got " + bareCopy);
+  } else pass("Copy story bare card stays bare");
 }
 
 if (failed) {
