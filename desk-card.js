@@ -89,7 +89,7 @@ function sheetChipsHtml(j) {
   return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
 }
 function sheetPromptHtml(j) {
-  if (typeof promptHtml === "function") return promptHtml(j, sheetNeedOf(j));
+  if (typeof promptHtml === "function") return promptHtml(j, sheetNeedOf(j), "sheet");
   const who = thenWhoOf(j);
   const named = namedNeedsWhoOf(j);
   const wait = String((j && j.waitingOn) || "").toLowerCase();
@@ -109,8 +109,17 @@ function sheetPromptHtml(j) {
     "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
     "</div>";
 }
+function wipTalkLabelOf(row) {
+  const from = String((row && row.from) || "").trim();
+  const kind = String((row && row.kind) || "note");
+  if (kind === "follow") return (from || "pipe") + " · follow";
+  if (kind === "tell") return (from || "drop") + " · tell";
+  if (/^(pipe|webhook|worker|capture)$/i.test(from)) return from + " · pipe WIP";
+  return (from || "desk") + " · note";
+}
 function talkLabelOf(row, who, gone) {
   if (row.kind === "reply") return (row.from || "You") + " · you";
+  if (row.kind === "note" || row.kind === "follow" || row.kind === "tell") return wipTalkLabelOf(row);
   if (row.kind === "ask" || row.kind === "rec") {
     if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
     if (gone) return gone + " · not on this desk";
@@ -133,7 +142,7 @@ function talkTurnsOf(j) {
   (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
     if (!t || !t.text) return;
     const k = String(t.kind || "note");
-    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow" && k !== "tell") return;
     add(k, t.from, t.text);
   });
   (j && Array.isArray(j.replies) ? j.replies : []).forEach(function (r) {
@@ -170,7 +179,7 @@ function threadSheetHtml(j) {
   const talks = rows.length
     ? "<div class=\"q-talk\">" + rows.map(function (row) {
       const ai = row.kind === "ask" || row.kind === "rec";
-      const you = row.kind === "reply";
+      const you = row.kind === "reply" || row.kind === "tell";
       const label = talkLabelOf(row, who, gone);
       return "<div class=\"q-turn " + (ai ? "q-turn-ai" : (you ? "q-turn-you" : "q-turn-ai")) + "\">" +
         "<div class=\"q-turn-who\">" + esc(label) + "</div>" +
@@ -226,14 +235,16 @@ async function openJob(id) {
     grokRecsBox(j) +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
-    threadSheetHtml(j) + custom +
+    threadSheetHtml(j) +
+    (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
+    custom +
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
     "<p class=\"meta\">Desk</p>" +
     "<div class=\"row actions\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + j.id + "')\">Save info</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + j.id + "')\">Ask for more</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + j.id + "')\">Add note</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "'))\">Reply on card</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "','sheet'))\">Reply on card</button>" +
       (staff ? "" : "<button class=\"edit\" type=\"button\" onclick=\"addFieldPrompt('" + j.id + "')\">Add field</button>") +
     "</div>" +
     (peopleOpts
@@ -404,5 +415,64 @@ async function addField(label, id) {
   await load();
   if (id) openJob(id);
 }
+
+function setCardBusy(id, on) {
+  if (typeof window.setCardBusy === "function" && window.setCardBusy !== setCardBusy) {
+    const sheet = document.getElementById("sheet");
+    const where = sheet && sheet.classList && sheet.classList.contains("on") ? "sheet" : undefined;
+    window.setCardBusy(id, on, where);
+    return;
+  }
+  const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+  const queue = document.getElementById("queue");
+  const sheet = document.getElementById("sheet");
+  const sheetOn = sheet && sheet.classList && sheet.classList.contains("on");
+  const root = (sheetOn && document.getElementById("sheet-card"))
+    || (queue && queue.querySelector && queue.querySelector('[data-job="' + safe + '"]'))
+    || document.getElementById("sheet-card");
+  if (!root || !root.classList) return;
+  root.classList.toggle("q-pending", !!on);
+  if (root.setAttribute) root.setAttribute("aria-busy", on ? "true" : "false");
+  let line = root.querySelector ? root.querySelector(".q-busy") : null;
+  if (on) {
+    if (!line && root.appendChild) {
+      line = document.createElement("p");
+      line.className = "q-busy meta";
+      line.textContent = "Working. Nothing sent yet.";
+      const next = root.querySelector && root.querySelector(".next-line, .q-prompt-hold, .sheet-decide");
+      if (next && next.parentNode) next.parentNode.insertBefore(line, next);
+      else root.appendChild(line);
+    }
+    if (root.querySelectorAll) {
+      root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = true; });
+    }
+  } else {
+    if (line && line.remove) line.remove();
+    if (root.querySelectorAll) {
+      root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = false; });
+    }
+  }
+}
+function wrapHitlBusy() {
+  if (typeof window.ship !== "function" || typeof window.confirmKill !== "function") {
+    setTimeout(wrapHitlBusy, 200);
+    return;
+  }
+  if (window.ship._aiaBusy) return;
+  function wrap(name) {
+    const prev = window[name];
+    if (typeof prev !== "function") return;
+    window[name] = async function (id) {
+      setCardBusy(id, true);
+      try { return await prev.apply(this, arguments); }
+      finally { setCardBusy(id, false); }
+    };
+  }
+  wrap("ship");
+  wrap("confirmShip");
+  wrap("confirmKill");
+  window.ship._aiaBusy = true;
+}
+wrapHitlBusy();
 
 // Buttons live in #desk-actions on desk.html. Do not inject into #gate.

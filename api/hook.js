@@ -122,7 +122,11 @@ module.exports = async function handler(req, res) {
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
     } catch (e) {}
     applyDeskAiDraft(job, shop, "qualify");
-    if (job.notes) addTalk(job, job.from || "pipe", job.notes, "note");
+    const tell = String(job.tell || "").trim();
+    if (tell && !(job.thread || []).some((t) => t && t.kind === "tell" && String(t.text || "").trim() === tell)) {
+      addTalk(job, job.whoTapped || job.contactName || "drop", tell, "tell");
+    }
+    if (job.notes && String(job.notes).trim() !== tell) addTalk(job, job.from || "pipe", job.notes, "note");
     mem.jobs.unshift(job);
     mem.inbox.unshift({
       id: "in_" + Date.now().toString(36),
