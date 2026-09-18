@@ -26,6 +26,12 @@ else pass("color does not hide work");
 if (!q.includes("FILTER === \"ask\")") && !q.includes('FILTER === "ask"')) fail("ask filter missing");
 else pass("ask is a tag filter");
 
+if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(q)) {
+  fail("queue pack catalog must still send the open-desk pin when a session token is present");
+} else pass("queue pack catalog keeps X-Pin with X-Session");
+if (q.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("queue pack catalog must send X-Pin");
+else pass("queue pack catalog sends X-Pin");
+
 if (!nav.includes("desk-queue-packs.js")) fail("desk-nav.js must load desk-queue-packs.js");
 else pass("nav loads queue packs");
 if (!nav.includes("desk-ais.js")) fail("desk-nav.js must load desk-ais.js");
@@ -98,6 +104,8 @@ const helpPage = fs.readFileSync(path.join(root, "help.html"), "utf8");
   if (!helpPage.includes(bit)) fail("help.html missing " + bit);
   else pass("help " + bit);
 });
+if (!/Four steps|find the leaks/i.test(JSON.stringify(adoption))) fail("aia-adoption should point at the four steps");
+else pass("aia-adoption points at the four steps");
 if (/White House|Action Plan/i.test(helpPage)) fail("help.html must not reprint policy");
 else pass("help is desk language");
 if (helpPage.includes("Grok")) fail("help.html must not leak Grok");

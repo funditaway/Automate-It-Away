@@ -3,11 +3,11 @@
   var DRAFT_KEY = "aia_drop_preview";
   var ASK = [
     { id: "desk", when: function (c) { return !c.desk; }, ask: "Which desk gets this?" },
-    { id: "what", when: function (c) { return !c.title; }, ask: "What should the desk do with this?" },
+    { id: "what", when: function (c) { return !c.title; }, ask: "What is needed? A Desk AI drafts the card. You still tap Yes or Stop." },
     { id: "whoFor", when: function (c) { return /^(call|message|quote|follow)$/.test(c.kind) && !c.whoFor; }, ask: "Who is this for?" },
-    { id: "do", when: function (c) { return !c.action; }, ask: "Should the desk text them, call them, put it on the calendar, or just keep the note?" },
+    { id: "do", when: function (c) { return !c.action; }, ask: "Text, call, calendar, or just a note? A Desk AI drafts. You still tap Yes or Stop." },
     { id: "due", when: function (c) { return /^(reminder|book|follow|school|ride|pickup|delivery)$/.test(c.kind) && !c.due; }, ask: "When is this due?" },
-    { id: "phone", when: function (c) { return /^(text|email|call)$/.test(c.action) && !c.phone && !c.email; }, ask: "Need a number or email so the draft has somewhere to go. The desk still will not send it." },
+    { id: "phone", when: function (c) { return /^(text|email|call)$/.test(c.action) && !c.phone && !c.email; }, ask: "Need a number or email so the draft has somewhere to go. A Desk AI does not send. You still tap Yes or Stop." },
     { id: "paper", when: function (c) { return /^(form|files|photo)$/.test(c.kind) && !c.files && !c.notes; }, ask: "Drop the paper, or say what is on it." }
   ];
   var thread = [];
@@ -19,6 +19,16 @@
   }
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
   function embedOn() { return document.body.classList.contains("embed") || window !== window.parent; }
+  function widgetOn() {
+    try {
+      if (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("widget")) return true;
+      if (document.body && document.body.classList && document.body.classList.contains("widget")) return true;
+      var p = String(location.pathname || "").replace(/\/+$/, "");
+      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
+    } catch (e) { return false; }
+  }
+  function slimChrome() { return embedOn() || widgetOn(); }
   function queryWs() {
     try { return String(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { return ""; }
   }
@@ -38,7 +48,7 @@
     }
     var action = window.__aiaOutcome || mapped.wanted || "";
     var title = val("title") || mapped.title || val("custom-name") || val("talkType") || val("note");
-    title = String(title || "").split(/[.!?]/)[0].trim().slice(0, 80);
+    title = String(title || "").split(/[.!?\n]/)[0].trim().slice(0, 80);
     var hold = holdWhy(title + " " + val("note") + " " + val("talkType"), mapped.amount);
     return {
       desk: deskSlug(),
@@ -76,29 +86,37 @@
   }
   function inject() {
     if (document.getElementById("drop-preview")) return;
-    var after = document.getElementById("talkBar") || document.getElementById("desk-pick") || document.getElementById("drop-sub");
+    var after = document.getElementById("drop-chat-wrap") || document.getElementById("drop-thread-card") || document.getElementById("talkBar") || document.getElementById("desk-pick") || document.getElementById("drop-sub");
     if (!after || !after.parentNode) return;
     var box = document.createElement("div");
     box.id = "drop-preview-wrap";
-    box.innerHTML =
+    var hasThread = !!document.getElementById("drop-thread");
+    var slim = slimChrome();
+    var threadHtml = hasThread ? "" :
       "<div class=\"card\" id=\"drop-thread-card\">" +
-      "<strong>Talk with this desk</strong>" +
-      "<p class=\"sub\" id=\"thread-empty\">Talk to this desk. The desk asks what is missing. The card stays here until it is right.</p>" +
+      "<strong>Tell the desk</strong>" +
+      "<p class=\"sub\" id=\"thread-empty\">Say anything. A Desk AI drafts the card. You still tap Yes or Stop. Nobody sends money from here.</p>" +
       "<div id=\"drop-thread\" class=\"drop-thread\"></div>" +
-      "<input id=\"talkType\" placeholder=\"Say the work. The desk will ask.\" autocomplete=\"off\">" +
+      "<input id=\"talkType\" placeholder=\"Say anything. A Desk AI drafts the card.\" autocomplete=\"off\">" +
       "<div class=\"talk-actions\"><button type=\"button\" id=\"talkTypeBtn\">Tell the desk</button></div>" +
-      "</div>" +
-      "<div class=\"card\" id=\"verify-strip\"><strong>This drop</strong><div id=\"verify-cells\" class=\"verify-cells\"></div></div>" +
-      "<div class=\"card\" id=\"drop-preview\"><strong>Card preview</strong><p class=\"sub\" id=\"preview-sub\">Not on the queue yet. Fix it here. Then send it.</p><div id=\"preview-body\"></div><p class=\"sub\" id=\"drop-ask\"></p></div>" +
+      "</div>";
+    var stripHtml = slim ? "" :
+      "<div class=\"card\" id=\"verify-strip\"><strong>This drop</strong><div id=\"verify-cells\" class=\"verify-cells\"></div></div>";
+    var logHtml = slim ? "" :
       "<div class=\"card\" id=\"drop-log-card\"><strong>Drops from this phone</strong><div id=\"drop-log\"></div></div>";
+    box.innerHTML =
+      threadHtml +
+      stripHtml +
+      "<div class=\"card\" id=\"drop-preview\"><strong>Card preview</strong><p class=\"sub\" id=\"preview-sub\">Not on the queue yet. Fix it here. You still tap Yes or Stop.</p><div id=\"preview-body\"></div><p class=\"sub\" id=\"drop-ask\"></p></div>" +
+      logHtml;
     after.parentNode.insertBefore(box, after.nextSibling);
     if (!document.getElementById("drop-preview-css")) {
       var css = document.createElement("style"); css.id = "drop-preview-css";
-      css.textContent = "#drop-preview-wrap{display:grid;gap:12px;margin:0 0 14px}#drop-thread{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin:8px 0}#drop-thread .line{border-radius:12px;padding:8px 10px;font:600 14px/1.35 system-ui,sans-serif}#drop-thread .you{background:var(--edit);align-self:flex-end}#drop-thread .desk{background:var(--card);border:1px solid var(--line);align-self:flex-start}.verify-cells{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.verify-cells button{text-align:left;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px;font:700 12px system-ui,sans-serif;color:var(--ink);min-height:52px}.verify-cells button span{display:block;font:600 11px/1.2 system-ui,sans-serif;color:var(--muted)}#talkType{width:100%;min-height:44px;font-size:16px;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}#talkTypeBtn,#card-ready{min-height:48px}#drop-log p{margin:6px 0;font:600 13px system-ui,sans-serif}@media(max-width:720px){.verify-cells{grid-template-columns:1fr}}";
+      css.textContent = "#drop-preview-wrap{display:grid;gap:12px;margin:0 0 14px}#drop-thread{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin:8px 0}#drop-thread .line{border-radius:12px;padding:8px 10px;font:600 14px/1.35 system-ui,sans-serif}#drop-thread .you{background:var(--edit);align-self:flex-end}#drop-thread .desk{background:var(--card);border:1px solid var(--line);align-self:flex-start}.verify-cells{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.verify-cells button{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px;font:700 12px system-ui,sans-serif;color:var(--ink);min-height:52px}.verify-cells button .k{display:block;font:600 11px/1.2 system-ui,sans-serif;color:var(--muted)}.verify-cells button .v{display:block;font:700 13px/1.25 system-ui,sans-serif;color:var(--ink)}#talkType{width:100%;min-height:44px;font-size:16px;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}#talkTypeBtn,#card-ready{min-height:48px}#drop-log p{margin:6px 0;font:600 13px system-ui,sans-serif}@media(max-width:720px){.verify-cells{grid-template-columns:1fr}}";
       document.head.appendChild(css);
     }
     var bar = document.getElementById("talkBar");
-    if (bar && !embedOn()) bar.hidden = false;
+    if (bar) bar.hidden = slimChrome();
     if (document.getElementById("talkType") && document.querySelectorAll("#talkType").length > 1) {
       var extras = document.querySelectorAll("#talkType");
       if (extras.length > 1 && extras[0].closest("#talkBar")) extras[1].id = "talkTypePreview";
@@ -115,7 +133,7 @@
     var box = document.getElementById("drop-thread"); var empty = document.getElementById("thread-empty");
     if (!box) return;
     box.innerHTML = thread.map(function (l) {
-      return "<div class=\"line " + (l.from === "you" ? "you" : "desk") + "\"><span>" + (l.from === "you" ? "You" : "Desk") + "</span> " + esc(l.text) + "</div>";
+      return "<div class=\"line " + (l.from === "you" ? "you" : "desk") + "\"><span>" + (l.from === "you" ? "You" : "Desk AI") + "</span> " + esc(l.text) + "</div>";
     }).join("");
     if (empty) empty.hidden = thread.length > 0;
     try { box.scrollTop = box.scrollHeight; } catch (e) {}
@@ -132,7 +150,7 @@
     ];
     if (card.hold) cells.push(["HOLD", card.hold, "hold"]);
     box.innerHTML = cells.map(function (c) {
-      return "<button type=\"button\" data-jump=\"" + c[2] + "\"><span>" + c[0] + "</span>" + esc(c[1]) + "</button>";
+      return "<button type=\"button\" data-jump=\"" + c[2] + "\"><span class=\"k\">" + c[0] + "</span><span class=\"v\">" + esc(c[1]) + "</span></button>";
     }).join("");
   }
   function paintPreview(card) {
@@ -339,7 +357,13 @@
     var btn = document.getElementById("talkTypeBtn");
     function go() {
       var text = typeEl ? String(typeEl.value || "").trim() : "";
-      if (!text) { addLine("desk", "Say the work. The desk will ask.", "ask"); return; }
+      if (window.AIADropChat) return;
+      if (!text) {
+        var last = thread.length ? thread[thread.length - 1] : null;
+        if (last && /Type the work\. A Desk AI drafts the card/.test(last.text || "")) return;
+        addLine("desk", "Type the work. A Desk AI drafts the card in this chat.", "ask");
+        return;
+      }
       if (window.AIADropTalk && AIADropTalk.fill) AIADropTalk.fill(text);
       else hear(text, { text: text, sendNow: /\bdrop it\b/i.test(text) });
       if (typeEl) typeEl.value = "";
@@ -356,6 +380,7 @@
         var b = e.target.closest("[data-jump]"); if (!b) return;
         var jump = b.getAttribute("data-jump");
         var map = { what: "title", who: "who", due: "drop-follow-when", files: "photo", desk: "desk-pick" };
+        if (window.AIADropSteps && AIADropSteps.go) AIADropSteps.go(jump === "desk" ? "desk" : "card", true);
         var el = document.getElementById(map[jump] || jump);
         if (el && el.focus) el.focus();
         if (jump === "desk") {

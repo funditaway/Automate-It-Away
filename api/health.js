@@ -1,6 +1,7 @@
 const {
-  cors, catalog, mem, ready, save, storePath, blobToken, blobProbe,
-  workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl
+  cors, catalog, mem, ready, save, storePath, blobToken, blobReady,
+  workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl,
+  publicBlobProbe
 } = require("./_lib");
 
 function wantsStatus(req) {
@@ -88,7 +89,9 @@ async function health(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
-  if ((blobToken() || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID) && mem.driver !== "blob") await save();
+  // Probe the same persist path onboard uses. Skipping save() when driver is
+  // already blob left leftover write=fail + detail=null after a later read.
+  if (blobReady()) await save();
   const driver = mem.driver || "file";
   res.status(200).json({
     ok: true,
@@ -110,15 +113,7 @@ async function health(req, res) {
           : driver === "file"
             ? "File store on this box"
             : "Memory only",
-      blob: {
-        token: !!blobToken(),
-        storeId: !!(process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID),
-        write: blobProbe.write,
-        read: blobProbe.read,
-        status: blobProbe.status,
-        url: blobProbe.url ? "set" : null,
-        detail: blobProbe.detail
-      }
+      blob: publicBlobProbe()
     },
     files: {
       driver: blobToken() ? "blob" : "tmp-file",
@@ -131,7 +126,7 @@ async function health(req, res) {
     automation: {
       capture: true,
       qualify: "on capture + worker",
-      do: "draft only — Send and Stop stay on the desk",
+      do: "draft only — Yes and Stop stay on the desk",
       collect: catalog().some((p) => p.live && p.id === "webhook") ? "webhook live — other paid pipes on hold" : "demo ship",
       follow: "worker + cron",
       inbound: "/api/hook",

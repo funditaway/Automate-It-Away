@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Open this desk · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
@@ -48,15 +48,15 @@
       <button type="button" id="quietBtn">Quiet</button>
     </div>
     <div id="desk-door">
-      <label>Desk name <span class="tip" title="The name you used when you opened the desk. Letters and dashes.">?</span></label>
+      <label>Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
       <input name="slug" placeholder="Desk name" autocomplete="username">
-      <label>Your desk code <span class="tip" title="Owner and staff each have their own code. Do not share the owner code.">?</span></label>
+      <label>Your desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
       <input name="pin" inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
     </div>
     <div id="email-door" hidden>
-      <label>Email</label>
+      <label>Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
       <input type="email" name="email" placeholder="you@shop.com" autocomplete="username">
-      <label>Password</label>
+      <label>Password <button type="button" class="aia-tip" data-aia-tip="password" aria-label="More about Password">?</button></label>
       <input type="password" name="password" minlength="8" placeholder="At least 8 characters" autocomplete="current-password">
     </div>
     <div id="mfa-box" hidden>
@@ -70,6 +70,7 @@
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-switch.js"></script>
   <script src="speech.js"></script>
   <script src="doors.js"></script>

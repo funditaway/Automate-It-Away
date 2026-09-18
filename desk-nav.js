@@ -1,7 +1,7 @@
 (function () {
   var TABS = [
     { id: "queue", label: "Queue", href: "/desk", ico: "M4 6h16M4 12h16M4 18h10" },
-    { id: "drop", label: "Drop", href: "/drop", ico: "M12 5v14M5 12h14" },
+    { id: "drop", label: "Drop", href: "/widget", ico: "M12 5v14M5 12h14" },
     { id: "create", label: "Create", href: "/create", ico: "M5 4h9l5 5v11H5zM14 4v5h5M8 13h8M8 17h5" },
     { id: "history", label: "History", href: "/history", ico: "M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" },
     { id: "more", label: "More", href: "/more", ico: "M6 12h.01M12 12h.01M18 12h.01" }
@@ -20,8 +20,8 @@
   function dropHref() {
     if (window.AIADesks && window.AIADesks.widgetHref) return window.AIADesks.widgetHref();
     var ws = localStorage.getItem("aia_ws");
-    if (ws) return "/drop?ws=" + encodeURIComponent(ws);
-    return "/drop";
+    if (ws) return "/widget?ws=" + encodeURIComponent(ws);
+    return "/widget";
   }
 
   function tabOf() {
@@ -132,12 +132,19 @@
     nav.style.bottom = gap ? gap + "px" : "0px";
   }
 
-  function loadDrop(name, attr) {
+  function loadDrop(name, attr, then) {
     if (tabOf() !== "drop") return;
-    if (document.querySelector("script[" + attr + "]")) return;
+    if (document.querySelector("script[" + attr + "]")) {
+      if (typeof then === "function") then();
+      return;
+    }
     var el = document.createElement("script");
     el.src = "/" + name;
     el.setAttribute(attr, "1");
+    if (typeof then === "function") {
+      el.onload = then;
+      el.onerror = then;
+    }
     document.body.appendChild(el);
   }
 
@@ -200,6 +207,7 @@
     loadQueue("desk-ais.js", "data-aia-desk-ais");
     loadQueue("pack-card.js", "data-aia-pack-card");
     loadQueue("desk-needs.js", "data-aia-desk-needs");
+    loadQueue("desk-queue-ux.js", "data-aia-queue-ux");
     loadQueue("desk-inbox.js", "data-aia-desk-inbox");
     loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
     loadPeople("people-desk.js", "data-aia-people-desk");
@@ -215,8 +223,9 @@
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");
-    loadDrop("drop-preview.js", "data-aia-drop-preview");
-    loadDrop("drop-chat.js", "data-aia-drop-chat");
+    loadDrop("drop-preview.js", "data-aia-drop-preview", function () {
+      loadDrop("drop-chat.js", "data-aia-drop-chat");
+    });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

@@ -61,10 +61,11 @@ module.exports = async function handler(req, res) {
     const shop = shopOf(job.workspace);
     const step = ais.stepOf(job);
     if (step === "collect") return;
+    if (job.thenAiGone && !ais.findDeskAi(shop, job.deskAi)) return;
     let who = personNamed(shop, job.assignee);
     if (who && !isApprovedAgent(who)) return;
     if (!isApprovedAgent(who)) {
-      const picked = ais.pickDeskAi(shop, step);
+      const picked = ais.pickDeskAi(shop, step, job.deskAi);
       who = picked ? (ais.findAiSeat(shop, picked) || { name: picked.name, crew: picked.role, deskAi: true, status: "approved", kind: "agent", role: "agent", prompt: picked.prompt, does: picked.does, never: picked.never, steps: picked.steps }) : null;
     }
     if (!isApprovedAgent(who) && !(who && who.deskAi && who.status === "approved")) return;

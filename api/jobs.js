@@ -1,12 +1,12 @@
 const { dropCannedSeeds } = require("./_drop-seed");
 const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack, hookUrl } = require("./_lib");
-const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob } = require("./_fields");
-const { qualifyJob, recommend, icsOf, runWorkspace, markFlow, applyRules } = require("./_engine");
+const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob, makeFanOutJobs, holdCapturedJob, applyImplement } = require("./_fields");
+const { qualifyJob, recommend, icsOf, runWorkspace, markFlow, applyRules, thenAfterYes } = require("./_engine");
 const { grokRecommend, normalizeCites } = require("./_grok");
-const { needsOf, isPriorityJob } = require("./_history");
+const { needsOf, isPriorityJob, missingOf } = require("./_history");
 const clock = require("./_clock");
 const ais = require("./_ais");
-const { applyHandoff, applyDeskAiDraft } = require("./_handoff");
+const { applyHandoff, applyDeskAiDraft, stampDeskAi, agentDraft } = require("./_handoff");
 
 function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
@@ -133,27 +133,50 @@ module.exports = async function handler(req, res) {
     }
     if (action === "capture") {
       if (!shop) return res.status(404).json({ ok: false, error: "No desk with that name. Open one first." });
-      const job = makeCapturedJob(workspace, shop, body);
-      qualifyJob(job, shop);
+      const jobs = makeFanOutJobs(workspace, shop, body);
       const incomingCites = normalizeCites(body.citations || []);
-      if (incomingCites.length) job.citations = incomingCites;
-      if (Array.isArray(body.recs) && body.recs.length && !job.recs) job.recs = body.recs.slice(0, 8);
       let grok = null;
-      if (!job.draft) {
-        grok = await grokRecommend(job, shop, workspace);
-        if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
-      } else {
-        addTalk(job, "grok", job.draft, "rec");
+      for (let i = 0; i < jobs.length; i++) {
+        const job = jobs[i];
+        qualifyJob(job, shop);
+        if (incomingCites.length) job.citations = incomingCites;
+        if (Array.isArray(body.recs) && body.recs.length && !job.recs) job.recs = body.recs.slice(0, 8);
+        if (jobs.length === 1 && !job.draft) {
+          grok = await grokRecommend(job, shop, workspace);
+          if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+        } else if (job.draft) {
+          addTalk(job, "grok", job.draft, "rec");
+        }
+        applyDeskAiDraft(job, shop, "qualify");
+        holdCapturedJob(job);
+        const tell = String(job.tell || "").trim();
+        if (tell && !(job.thread || []).some((t) => t && t.kind === "tell" && String(t.text || "").trim() === tell)) {
+          addTalk(job, job.whoTapped || job.contactName || "drop", tell, "tell");
+        }
+        if (job.notes && String(job.notes).trim() !== tell) addTalk(job, job.from || "capture", job.notes, "note");
+        addTalk(job, "desk", job.why || "In the queue.", "rec");
       }
-      applyDeskAiDraft(job, shop, "qualify");
-      if (job.notes) addTalk(job, job.from || "capture", job.notes, "note");
-      addTalk(job, "desk", job.why || "In the queue.", "rec");
-      mem.jobs.unshift(job);
-      mem.inbox.unshift({ id: "in_" + Date.now().toString(36), workspace, text: job.title, from: job.from, at: Date.now() });
-      log("Capture", job.title, "Waiting", workspace);
+      const lead = jobs[0];
+      for (let i = jobs.length - 1; i >= 0; i--) mem.jobs.unshift(jobs[i]);
+      const inboxText = jobs.length > 1
+        ? (jobs.length + " cards · " + ((lead.custom && lead.custom.dropHeading) || lead.title))
+        : lead.title;
+      mem.inbox.unshift({ id: "in_" + Date.now().toString(36), workspace, text: inboxText, from: lead.from, at: Date.now() });
+      log("Capture", inboxText, "Waiting", workspace);
       runWorkspace(mem.jobs.filter((j) => j.workspace === workspace), Date.now(), shop);
       await save();
-      return res.status(201).json({ ok: true, job, notify: job.notify || [], crew: job.crew || null, grok: grok && grok.ok ? "on" : (grok && grok.reason) || (job.draft ? "on" : "off") });
+      return res.status(201).json({
+        ok: true,
+        job: lead,
+        jobs: jobs,
+        fanOut: jobs.length,
+        notify: lead.notify || [],
+        crew: lead.crew || null,
+        grok: grok && grok.ok ? "on" : (grok && grok.reason) || (lead.draft ? "on" : "off"),
+        note: jobs.length > 1
+          ? ("On the queue as " + jobs.length + " cards. You still tap Yes or Stop on each. Collect HOLD.")
+          : undefined
+      });
     }
     const job = mem.jobs.find((j) => j.id === body.id && j.workspace === workspace);
     if (!job) return res.status(404).json({ error: "Job not found" });
@@ -167,7 +190,7 @@ module.exports = async function handler(req, res) {
       job.killReason = body.killReason || job.killReason || "Owner kill";
       job.whoTapped = actorName(person, body);
       job.log = (job.log || []).concat(["Killed · " + job.killReason]);
-      log("Agent", "Killed · " + job.title, "Stopped", workspace);
+      log("Desk AI", "Killed · " + job.title, "Stopped", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
     }
@@ -187,6 +210,8 @@ module.exports = async function handler(req, res) {
       const grok = await grokRecommend(job, shop, workspace);
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
       else recommend(job, [], shop);
+      applyDeskAiDraft(job, shop, "qualify");
+      stampDeskAi(job, shop);
       log("Desk", "Grok recs · " + job.title, grok && grok.ok ? "OK" : "Hold", workspace);
       await save();
       return res.status(200).json({ ok: true, job, grok: grok && grok.ok ? "on" : (grok && grok.reason) || "off" });
@@ -199,6 +224,38 @@ module.exports = async function handler(req, res) {
       log("Desk", "Note · " + job.title, "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job });
+    }
+    if (action === "reply") {
+      if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never reply as Yes. A person types on the card.", never: ais.NEVER.slice(), job });
+      if (!person) return res.status(403).json({ ok: false, error: "Open this desk to reply.", job });
+      const text = String(body.text || body.notes || body.reply || "").trim();
+      if (!text) return res.status(400).json({ error: "Type a reply on the card." });
+      addTalk(job, actorName(person, body), text, "reply");
+      job.replies = (job.replies || []).concat([{
+        from: actorName(person, body),
+        text: text,
+        at: new Date().toISOString()
+      }]).slice(-20);
+      applyImplement(job, shop, { implement: text, notes: text });
+      if (body.custom && typeof body.custom === "object") mergeFields(job, body);
+      const wasWaiting = String(job.waitingOn || "").toLowerCase();
+      qualifyJob(job, shop);
+      const miss = missingOf(job);
+      if ((wasWaiting === "info" || wasWaiting === "helper") && !miss.length) {
+        job.waitingOn = "person";
+        applyRules(job, shop, "do");
+      }
+      if (job.status === "shipped" || job.status === "killed") job.status = "waiting";
+      job.charged = false;
+      job.whoTapped = actorName(person, body);
+      job.log = (job.log || []).concat(["Reply on the card"]);
+      job.next = job.next || "Reply is on the card. Yes / Stop / Kill stay human. Nothing sent alone.";
+      if (!/nothing sent/i.test(String(job.next))) {
+        job.next = String(job.next).replace(/\.\s*$/, "") + ". Nothing sent alone.";
+      }
+      log("Desk", "Reply · " + job.title, "OK", workspace);
+      await save();
+      return res.status(200).json({ ok: true, job, sent: false, shipped: false, charged: false });
     }
     if (action === "ask") {
       const text = String(body.text || "").trim() || "Need a bit more before this can go.";
@@ -273,6 +330,8 @@ module.exports = async function handler(req, res) {
         await save();
         return res.status(403).json({ ok: false, error: waitLine, job });
       }
+      const nextJob = thenAfterYes(job, shop);
+      if (nextJob) mem.jobs.unshift(nextJob);
       const provider = body.provider || job.provider || (job.pack === "home" ? "calendar" : null);
       if (job.pack === "home" || provider === "calendar") { job.ics = icsOf(job); job.artifact = "calendar"; }
       const pipe = pipesFor(workspace).find((c) => !provider || c.provider === provider);
@@ -300,7 +359,7 @@ module.exports = async function handler(req, res) {
         addTalk(job, actorName(person, body), "Sent off the desk. Confirm when it is done.", "note");
         log(pipe ? pipe.label : "Desk", "Out · " + job.title, "Waiting", workspace);
         await save();
-        return res.status(200).json({ ok: true, job, awaiting: "writeback" });
+        return res.status(200).json({ ok: true, job, nextJob: nextJob || undefined, awaiting: "writeback" });
       }
       job.status = "shipped";
       job.amount = amount || job.amount;
@@ -310,9 +369,41 @@ module.exports = async function handler(req, res) {
       markFlow(job, "collect");
       job.log = (job.log || []).concat([moneyNeedsOwner(amount, holdAt) ? "Owner confirmed" : "Shipped"]);
       mem.money.unshift({ at: new Date().toISOString(), workspace, who: job.payoutTo || job.title, what: "Ship", amt: amount ? "$" + amount : "—", held: false });
-      log(pipe ? pipe.label : "Agent", "Shipped · " + job.title, "OK", workspace);
+      log(pipe ? pipe.label : "Desk AI", "Shipped · " + job.title, "OK", workspace);
       await save();
-      return res.status(200).json({ ok: true, job });
+      return res.status(200).json({ ok: true, job, nextJob: nextJob || undefined });
+    }
+    if (action === "bind-ai" || action === "set-ai" || action === "assign-ai") {
+      if (!shop) return res.status(404).json({ error: "Open a desk first.", job });
+      if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never assign themselves. A person taps.", never: ais.NEVER.slice(), job });
+      if (!isOwner(person)) return res.status(403).json({ ok: false, error: "Only the owner can pick which desk AI owns this card.", job });
+      const hint = body.ai || body.aiId || body.name || body.deskAi || "";
+      const picked = ais.findDeskAi(shop, hint);
+      if (!picked) return res.status(404).json({ ok: false, error: "Name a desk AI already on this desk.", job });
+      stampDeskAi(job, shop, picked);
+      if (job.agentDrafted || (job.agentDraft && job.agentDraft.deskAi)) {
+        const who = ais.findAiSeat(shop, picked) || {
+          name: picked.name,
+          crew: picked.role,
+          deskAi: true,
+          status: "approved",
+          kind: "agent",
+          role: "agent",
+          prompt: picked.prompt,
+          does: picked.does,
+          never: picked.never,
+          steps: picked.steps
+        };
+        job.agentDrafted = false;
+        agentDraft(job, who);
+      }
+      job.whoTapped = actorName(person, body);
+      job.next = picked.name + " owns Then / Ask Grok / Needs you on this card. HOLD. Nothing sent alone.";
+      addTalk(job, actorName(person, body), "Desk AI on this card · " + picked.name + ".", "note");
+      job.log = (job.log || []).concat(["Desk AI · " + picked.name]);
+      log("Desk", "Desk AI · " + job.title + " · " + picked.name, "OK", workspace);
+      await save();
+      return res.status(200).json({ ok: true, job, ai: ais.publicAi(picked), charged: false, sent: false });
     }
     if (action === "assign") {
       if (!shop) return res.status(404).json({ error: "Open a desk first.", job });
@@ -392,7 +483,7 @@ module.exports = async function handler(req, res) {
       await save();
       return res.status(200).json({ ok: true, job, needs: needsOf(job, { staff: person && person.role === "employee" }) });
     }
-    return res.status(400).json({ error: "action must be capture, qualify, recommend, ship, kill, say, ask, fill, define-field, assign, carry, done, hand, priority, schedule, or snooze" });
+    return res.status(400).json({ error: "action must be capture, qualify, recommend, ship, kill, say, reply, ask, fill, define-field, assign, bind-ai, carry, done, hand, priority, schedule, or snooze" });
   }
   return res.status(405).json({ error: "Use GET or POST" });
 };

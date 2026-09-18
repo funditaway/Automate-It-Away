@@ -1,10 +1,10 @@
-/* Browser wallet bind only. EIP-1193 address + chainId. No keys. No tx.
-   Collect stays HOLD until a human Yes. Kill / $250 owner gates stay in jobs. */
+/* Connect existing wallet — EIP-1193 address + chainId. No Wallet.AIA. No keys. No tx.
+   Collect and pack pay stay HOLD until a human Yes + a real pipe. */
 const lib = require("./_lib");
 
 const HELP =
-  "Wallet is for AIA Internet identity / TLD ownership. Mint and Bridge stay external until ready. Collect stays HOLD.";
-const MISSING = "No browser wallet on this phone. Install MetaMask or another EIP-1193 wallet, then tap Connect.";
+  "Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks.";
+const MISSING = "No MetaMask or WalletConnect on this phone. Use your wallet’s browser. AIA does not hold keys.";
 const CHAINS = {
   1: "Ethereum mainnet",
   11155111: "Sepolia",
@@ -62,7 +62,7 @@ function emptyPublic(extra) {
     collect: "hold",
     mint: false,
     live: false,
-    note: "No browser wallet on this open desk. Connect on Account. Collect stays HOLD."
+    note: "No wallet connected on this open desk. Connect MetaMask or WalletConnect on Account or Desk. AIA does not hold keys. Collect stays HOLD."
   }, extra || {});
 }
 
@@ -137,7 +137,7 @@ function clearConnect(acc, session, person) {
       }
     });
   }
-  return { ok: true, wallet: emptyPublic({ note: "Browser wallet disconnected on this desk session. Collect stays HOLD." }) };
+  return { ok: true, wallet: emptyPublic({ note: "Your wallet disconnected on this desk session. AIA does not hold keys. Collect stays HOLD." }) };
 }
 
 function ofRequest(req, acc, session) {
@@ -151,11 +151,15 @@ function ofRequest(req, acc, session) {
 function healthBlock() {
   return {
     connect: "eip-1193",
+    kind: "existing",
+    hosted: false,
     custodial: false,
     charged: false,
     collect: "hold",
     mint: false,
-    note: "Browser wallet on Account. Address only. No keys on this server. Collect stays HOLD. Mint / Bridge stay external."
+    token: false,
+    deposit: false,
+    note: "Your wallet on Account or Desk. MetaMask / WalletConnect. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."
   };
 }
 

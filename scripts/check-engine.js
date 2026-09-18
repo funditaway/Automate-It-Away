@@ -17,6 +17,12 @@ function fail(msg) {
 }
 function pass(msg) { console.log("ok  " + msg); }
 
+const engineSrc = fs.readFileSync(path.join(__dirname, "..", "api/_engine.js"), "utf8");
+if (!engineSrc.includes("On the queue. You tap Yes or Stop.")) fail("engine next must keep Yes or Stop");
+else pass("engine next is Yes or Stop");
+if (engineSrc.includes("You tap Yes or No.")) fail("engine next still paints Yes or No");
+else pass("engine next does not paint Yes or No");
+
 function blob(job) {
   return JSON.stringify(job || {}).toLowerCase();
 }

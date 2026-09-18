@@ -11,6 +11,13 @@
   "kill": ["no access", "not ours"],
   "pipes": ["calendar", "webhook"],
   "artifacts": ["lot note"],
+  "face": {
+    "who": { "key": "contactName", "label": "Buyer" },
+    "what": { "key": "title", "label": "Lot" },
+    "when": { "key": "timing", "label": "Interest when" },
+    "where": { "key": "where", "label": "Flood / access" },
+    "how": "Lot note. Cap flood and title."
+  },
   "rules": [
     { "text": "Cap flood cards.", "when": "qualify", "then": "wait", "contains": "flood" },
     { "text": "Cap title cards.", "when": "qualify", "then": "wait", "contains": "title" }

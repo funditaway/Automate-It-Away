@@ -114,6 +114,12 @@ function accountHome(acc, person, req) {
 
 async function accountHomeJson(acc, person, req, opts) {
   const home = accountHome(acc, person, req);
+  home.sessions = typeof lib.listSessions === "function"
+    ? lib.listSessions({
+      accountId: acc && acc.id,
+      currentToken: (opts && opts.currentToken) || sessionTokenOf(req)
+    })
+    : [];
   const tld = require("./_aia-tld");
   try {
     if (opts && opts.peek) {
@@ -187,7 +193,7 @@ module.exports = async function handler(req, res) {
       aiaAdmin.stampAdminAccount(via.account);
     }
     await save();
-    const home = await accountHomeJson(via.account, who, req, { peek: true });
+    const home = await accountHomeJson(via.account, who, req, { peek: true, currentToken: session && session.token });
     return res.status(200).json(Object.assign({ savedLogin: true, session }, home));
   }
 
@@ -433,7 +439,7 @@ module.exports = async function handler(req, res) {
       wallet: made.wallet,
       hint: off
         ? "Disconnected. Address cleared on this desk session. Collect stays HOLD."
-        : "Browser wallet saved on this desk session. Identity only. Collect stays HOLD. Mint / Bridge stay external."
+        : "Your wallet saved on this desk session. AIA does not hold keys. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."
     }));
   }
 

@@ -46,6 +46,11 @@ if (js.indexOf("paintSiteNav") < 0 || js.indexOf("paintFooter") < 0 || js.indexO
 } else {
   pass("theme.js paints one header and one footer");
 }
+if (js.indexOf('id: "help", href: "/help", label: "Help"') < 0) {
+  fail("shared site nav must include Help");
+} else {
+  pass("shared site nav includes Help");
+}
 if (!css.includes(".site-foot") || !css.includes(".site-nav")) {
   fail("theme.css missing site-foot / site-nav");
 } else {
@@ -74,6 +79,12 @@ if (js.indexOf("chip.tagName !== \"A\"") < 0) {
   fail("theme.js must not steal a non-link #who-chip");
 } else {
   pass("account chip ignores foreign #who-chip");
+}
+
+if (!css.includes(".site-foot nav") || !fix.includes("Footer links must not smash")) {
+  fail("footer nav must stay spaced on phone and desktop");
+} else {
+  pass("footer nav spaced");
 }
 
 if (process.exitCode) {

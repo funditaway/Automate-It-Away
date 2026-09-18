@@ -9,7 +9,7 @@
       tag: "Audit",
       name: "Find the leaks",
       surface: "Capture · Qualify",
-      what: "Map the busywork. High-volume, low-complexity. Drop it. The desk asks what’s missing. Queue cards count.",
+      what: "Map the busywork. High-volume, low-complexity. Drop it. A Desk AI drafts the card. Queue cards count.",
       href: "/drop",
       go: "Drop · Capture",
       alsoHref: "/desk",
@@ -28,10 +28,10 @@
     {
       n: 3,
       id: "agent",
-      tag: "Agents",
+      tag: "Desk AI",
       name: "Name a desk AI",
       surface: "Create · Studio",
-      what: "Create the work. Name a desk AI as a .aia. AIA AI home is ai.aia — orange until DNS answers. It categorizes, drafts, summarizes. Never silent send.",
+      what: "Create the work. Name a desk AI as a .aia. AIA AI home is ai.aia — orange until DNS answers. Drafts the next step and the words. Nothing sent.",
       href: "/create?kind=ai",
       go: "Create · name an AI",
       alsoHref: "/studio",
@@ -43,7 +43,7 @@
       tag: "Guardrails",
       name: "You still tap",
       surface: "Rules · Yes / Stop / Kill",
-      what: "Edge cases go to a person. Yes, Stop, or Kill. Collect stays HOLD.",
+      what: "Bind the named desk AI on Then. Edge cases go to a person. Yes, Stop, or Kill. Collect stays HOLD.",
       href: "/rules",
       go: "Open Rules"
     }
@@ -86,7 +86,14 @@
     document.head.appendChild(el);
   }
 
-  function stepHtml(p, compact) {
+  function stepWhat(p, embed) {
+    if (embed && p.id === "agent") {
+      return "Create the work. Name a desk AI as a .aia. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Drafts the next step and the words. Nothing sent.";
+    }
+    return p.what;
+  }
+
+  function stepHtml(p, compact, embed) {
     var also = (!compact && p.alsoHref)
       ? "<a class=\"pb-also\" href=\"" + esc(p.alsoHref) + "\">" + esc(p.also) + "</a>"
       : "";
@@ -95,7 +102,7 @@
       "<small class=\"pb-tag\">" + esc(p.tag) + "</small>" +
       "<b class=\"pb-name\">" + esc(p.name) + "</b>" +
       "<span class=\"pb-surface\">" + esc(p.surface) + "</span>" +
-      (compact ? "" : "<span class=\"pb-what\">" + esc(p.what) + "</span>") +
+      (compact ? "" : "<span class=\"pb-what\">" + esc(stepWhat(p, embed)) + "</span>") +
       "<div><a class=\"pb-go\" href=\"" + esc(p.href) + "\">" + esc(p.go) + "</a>" + also + "</div>" +
       "</article>";
   }
@@ -106,8 +113,8 @@
     var head = (compact || embed) ? "" : ("<h2 class=\"pb-title\">" + TITLE + "</h2><p class=\"pb-lead\">" + LEAD + "</p>");
     return "<section class=\"aia-playbook" + (compact ? " compact" : "") + "\" id=\"playbook\" aria-label=\"" + TITLE + "\">" +
       head +
-      "<div class=\"pb-steps\">" + PHASES.map(function (p) { return stepHtml(p, compact); }).join("") + "</div>" +
-      (compact ? "" : "<p class=\"pb-hold\">AIA AI door is <a href=\"http://www.ai.aia\">ai.aia</a>. Names on this desk now. DNS stays orange until it answers. Live desk is automateitaway.com.</p>") +
+      "<div class=\"pb-steps\">" + PHASES.map(function (p) { return stepHtml(p, compact, embed); }).join("") + "</div>" +
+      (compact || embed ? "" : "<p class=\"pb-hold\">AIA AI door is <a href=\"http://www.ai.aia\">ai.aia</a>. Names on this desk now. DNS stays orange until it answers. Live desk is automateitaway.com.</p>") +
       "</section>";
   }
 
