@@ -630,6 +630,7 @@
   window.pinCap = pinCap;
   window.openCapDesk = openCapDesk;
   window.promptHtml = promptHtml;
+  window.promptSurface = promptSurface;
   window.chipsHtml = chipsHtml;
   window.capCardHtml = capCardHtml;
   window.loadCap = loadCap;
@@ -654,7 +655,7 @@
     const line = honestNext(j, need);
     const draft = thenDraftHtml(j);
     const talks = talkHtml(j);
-    const prompt = promptHtml(j, need);
+    const prompt = promptHtml(j, need, "queue");
     const bind = bindAiHtml(j, "queue");
     const stacked = !!(talks && (draft || prompt));
     const thread = stacked
