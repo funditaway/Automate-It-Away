@@ -40,6 +40,18 @@ header .brand-name, .site-header .brand-name, header > a strong { color: #fff; f
 .who-copy strong { display: block; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .page-bg { min-height: 100vh; background: var(--bg); }
 .gate-card { width: min(520px, 94vw); margin: 18px auto 40px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+.gate-card label,
+.gate-card input,
+.gate-card textarea,
+.gate-card select { display: block; width: 100%; }
+.gate-card label { margin: 10px 0 6px; }
+.gate-card label .aia-tip { display: inline-flex; vertical-align: middle; }
+.gate-card input,
+.gate-card textarea,
+.gate-card select { margin: 0 0 10px; }
+.gate-card .btn,
+.gate-card button.btn,
+.gate-card button[type="submit"] { display: inline-flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; margin: 8px 0 12px; min-height: 48px; padding: 12px 16px; }
 .hero-grid, .facts, .words, .parts, .steps, .kpis, .split { display: grid; gap: 8px; }
 .hero-grid { grid-template-columns: minmax(0,1.1fr) minmax(0,.9fr); gap: 22px; align-items: center; }
 .facts, .kpis { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
