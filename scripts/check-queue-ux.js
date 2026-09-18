@@ -49,6 +49,13 @@ if (!desk.includes("id=\"queue\"") || !desk.includes("Taps match what the card n
   fail("desk.html queue contract drifted");
 }
 pass("desk.html queue host intact");
+if (desk.includes("<h3>No?</h3>") || desk.includes(">No</button>") || desk.includes("return \"No\"")) {
+  fail("desk.html Stop / Kill confirm still paints No");
+}
+if (!desk.includes("<h3>Stop?</h3>") || !desk.includes(">Stop</button>") || !desk.includes("return \"Stopped\"")) {
+  fail("desk.html Stop confirm must name Stop / Stopped");
+}
+pass("desk.html Stop confirm is Stop, not No");
 if (!desk.includes("id=\"aia-wallet\"") || !desk.includes("id=\"desk-ais\"")) {
   fail("desk.html must keep wallet + desk-ais hosts");
 }
@@ -61,6 +68,11 @@ pass("/queue rewrites to desk");
 
 if (yesNo.indexOf("check-queue-ux.js") < 0) fail("ACCOUNT-YES-NO must record queue UX");
 pass("ACCOUNT-YES-NO records queue UX");
+if (yesNo.indexOf("Queue Open / Stop leftover") < 0) fail("ACCOUNT-YES-NO must record the Queue Open / Stop leftover");
+pass("ACCOUNT-YES-NO records Queue Open / Stop leftover");
+const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+if (packMd.indexOf("Queue Open / Stop leftover") < 0) fail("PACK.md must record the Queue Open / Stop leftover");
+pass("PACK.md records Queue Open / Stop leftover");
 
 const ctx = {
   window: {},

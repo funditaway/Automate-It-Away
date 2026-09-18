@@ -80,10 +80,14 @@ const needs = fs.readFileSync(path.join(root, "desk-needs.js"), "utf8");
 if (!process.exitCode) pass("desk-needs.js paints need taps + Cap");
 
 const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
-["function openJob", ">Yes<", ">No<"].forEach((bit) => {
+["function openJob", ">Yes<", ">Stop<"].forEach((bit) => {
   if (!card.includes(bit)) fail("desk-card.js missing " + bit);
 });
-if (!process.exitCode) pass("desk-card.js still paints the sheet");
+if (card.includes(">No<") || card.includes("No?")) fail("desk-card.js Open sheet still paints No as the rail");
+if (!process.exitCode) pass("desk-card.js Open sheet is Yes / Stop");
+const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
+if (yesNo.indexOf("Queue Open / Stop leftover") < 0) fail("ACCOUNT-YES-NO must record the Queue Open / Stop leftover");
+else pass("ACCOUNT-YES-NO records Queue Open / Stop leftover");
 
 const queueJs = fs.readFileSync(path.join(root, "desk-queue.js"), "utf8");
 if (queueJs.includes("Yes or No.") || queueJs.includes("yes or no")) fail("desk-queue.js still paints Yes or No as the rail");
