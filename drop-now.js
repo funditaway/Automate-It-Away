@@ -65,6 +65,8 @@
       if (document.body && document.body.classList) document.body.classList.remove("drop-steps");
       var talk = document.getElementById("talkBar");
       if (talk) talk.hidden = true;
+      var share = document.getElementById("embed-card");
+      if (share && share.parentNode) share.parentNode.removeChild(share);
       return;
     }
     var on = desk();

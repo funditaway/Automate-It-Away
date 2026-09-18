@@ -272,6 +272,15 @@ if (yesNo.indexOf("Drop widget standalone Talk bar leftover after that pass") < 
 if (packMd.indexOf("Drop widget standalone Talk bar leftover:") < 0) {
   fail("PACK.md must name Drop widget standalone Talk bar leftover");
 }
+if (nowBanner.indexOf("embed-card") < 0) {
+  fail("drop-now.js slimChrome must tear down #embed-card on /widget");
+}
+if (yesNo.indexOf("Drop widget share leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget share leftover");
+}
+if (packMd.indexOf("Drop widget share leftover:") < 0) {
+  fail("PACK.md must name Drop widget share leftover");
+}
 
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);

@@ -289,6 +289,8 @@ Drop widget pick href leftover: after widgetHref pointed the Drop tab at `/widge
 
 Drop widget standalone Talk bar leftover: after world pick stayed on `/widget?ws=`, drop-talk.js still unhid `#talkBar` (Hear this / Talk / Quiet) on standalone `/widget`. Preview already skipped Talk on embed. World `/widget` then showed the Talk bar next to Tell. Those faces now skip Talk, same as embed. `/drop` still paints Talk. Preview still owns Tell on `/widget`. Card preview + one Tell the desk thread stay. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop widget share leftover: after standalone `/widget` skipped the Talk bar, `#embed-card` (Drop from anywhere / Copy drop link) still painted. Embed already hid `#embed-card`. World `/widget` then showed the Share-step card next to Tell. Those faces now skip `#embed-card`. `drop-now.js` `slimChrome()` tears down `#embed-card` if a leftover share card painted. `/drop` still paints Drop from anywhere on Share. Header / modes stay on `/drop`. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

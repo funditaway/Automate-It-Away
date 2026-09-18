@@ -386,5 +386,35 @@ if (dropMd.indexOf("`/drop` still paints Talk") < 0) {
 if (nowSrc.indexOf("talkBar") < 0 || nowSrc.indexOf("talk.hidden = true") < 0) {
   fail("drop-now.js slimChrome must keep #talkBar hidden on /widget");
 }
+if (nowSrc.indexOf("embed-card") < 0) {
+  fail("drop-now.js slimChrome must tear down #embed-card on /widget");
+}
+["drop.html", "widget.html"].forEach(function (file) {
+  const src = read(file);
+  if (src.indexOf("html.widget #embed-card") < 0 || src.indexOf("body.widget #embed-card") < 0) {
+    fail(file + " must hide #embed-card on /widget");
+  }
+  if (src.indexOf("classList.add('widget')") < 0 && src.indexOf('classList.add("widget")') < 0) {
+    fail(file + " must first-paint html.widget so /widget rewrite hides #embed-card");
+  }
+  if (src.indexOf('id="embed-card"') < 0) fail(file + " must still keep #embed-card markup for /drop");
+  if (/body\.widget header/.test(src)) fail(file + " must not hide header on /widget");
+  if (/body\.widget #modes/.test(src)) fail(file + " must not hide #modes on /widget");
+});
+if (yesNo.indexOf("Drop widget share leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget share leftover");
+}
+if (packMd.indexOf("Drop widget share leftover:") < 0) {
+  fail("PACK.md must name Drop widget share leftover");
+}
+if (dropMd.indexOf("skip `#embed-card`") < 0) {
+  fail("DROP.md must say /widget skips #embed-card");
+}
+if (dropMd.indexOf("still paints Drop from anywhere") < 0) {
+  fail("DROP.md must keep Drop from anywhere on /drop");
+}
+if (dropMd.indexOf("tears down `#embed-card`") < 0) {
+  fail("DROP.md must say slimChrome tears down #embed-card on /widget");
+}
 
 console.log("check-drop-steps: ok");

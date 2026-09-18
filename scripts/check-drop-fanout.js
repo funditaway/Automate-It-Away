@@ -331,6 +331,20 @@ if (talkSrc.indexOf('classList.contains("embed")') < 0 || talkSrc.indexOf("windo
   fail("drop-talk.js boot must still skip the Talk bar on embed");
 } else pass("drop-talk.js boot still skips the Talk bar on embed");
 
+if (nowBanner.indexOf("embed-card") < 0) {
+  fail("drop-now.js slimChrome must tear down #embed-card on /widget");
+} else pass("drop-now.js slimChrome tears down #embed-card on /widget");
+if (yesNo.indexOf("Drop widget share leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget share leftover");
+else pass("ACCOUNT-YES-NO names Drop widget share leftover");
+if (packMd.indexOf("Drop widget share leftover:") < 0) fail("PACK.md must name Drop widget share leftover");
+else pass("PACK.md names Drop widget share leftover");
+if (dropMd.indexOf("skip `#embed-card`") < 0) fail("DROP.md must say /widget skips #embed-card");
+else pass("DROP.md says /widget skips #embed-card");
+if (dropMd.indexOf("still paints Drop from anywhere") < 0) fail("DROP.md must keep Drop from anywhere on /drop");
+else pass("DROP.md keeps Drop from anywhere on /drop");
+if (dropMd.indexOf("tears down `#embed-card`") < 0) fail("DROP.md must say slimChrome tears down #embed-card on /widget");
+else pass("DROP.md says slimChrome tears down #embed-card on /widget");
+
 const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (pkg.indexOf("check-drop-fanout.js") < 0) fail("package.json must run check-drop-fanout.js");
 else pass("package.json runs check-drop-fanout");
