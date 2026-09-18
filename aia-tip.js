@@ -63,7 +63,7 @@
     },
     "give-pack": {
       title: "Give pack",
-      body: "Give is the file. They install with Yes. A pack puts When → If → Then on this desk queue. Buyer binds their own keys. Yes / Stop / Kill before anything leaves. Webhook is the live pipe. Recurring update HOLD. Collect stays HOLD.",
+      body: "Give is the file. They install with Yes. A pack puts When → If → Then on this desk queue. Buyer binds their own keys and devices. Yes / Stop / Kill before outbound or hardware. App / webhook is the live pipe. Recurring update HOLD. Collect stays HOLD.",
       ask: "How do I give a pack?"
     },
     "update-pack": {
