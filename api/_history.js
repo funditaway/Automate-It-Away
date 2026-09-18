@@ -18,7 +18,7 @@ function laneLabel(lane) {
     need: "Need you",
     doing: "In progress",
     wait: "Waiting on",
-    ext: "Ext",
+    ext: "Off desk",
     done: "Done",
     stopped: "Stopped",
     desk: "Desk",
@@ -90,7 +90,7 @@ function talkTurns(job) {
   (job && Array.isArray(job.thread) ? job.thread : []).forEach(function (t) {
     if (!t || !t.text) return;
     const k = String(t.kind || "note");
-    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow" && k !== "tell") return;
     add(k, t.from, t.text, t.at);
   });
   (job && Array.isArray(job.replies) ? job.replies : []).forEach(function (r) {
@@ -458,6 +458,23 @@ function filterHistory(items, query) {
   });
 }
 
+function accountRoadmapOf(desks) {
+  const live = (desks || []).filter(function (d) { return d && d.ok; });
+  const one = live[0] || null;
+  const you = (one && one.you) || {};
+  const role = String(you.role || you.kind || "").toLowerCase();
+  return {
+    desks: live.length,
+    desk: one ? String(one.name || one.slug || "") : "",
+    pack: one ? String(one.packName || one.pack || "") : "",
+    packId: one ? String(one.pack || "") : "",
+    owner: role === "owner",
+    install: { live: true, action: "install-aia" },
+    give: { live: true, action: "download-pack" },
+    update: { live: true, action: "install-aia" }
+  };
+}
+
 function facetsOf(items) {
   const who = {}, work = {}, pipes = {}, outcomes = {};
   (items || []).forEach((it) => {
@@ -480,6 +497,7 @@ module.exports = {
   historyItem,
   historyOf,
   filterHistory,
+  accountRoadmapOf,
   talkTurns,
   deskAiOf,
   thenAiGoneOf,

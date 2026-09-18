@@ -216,6 +216,10 @@ if (!/Learn packs/i.test(packMd) || !/20-hour competence is a guide/i.test(packM
 else pass("PACK.md learn packs");
 if (!/No published Marketplace listing cap/i.test(packMd) || !/12 \.aia emails/i.test(packMd)) fail("PACK.md missing real pack limits");
 else pass("PACK.md real pack limits");
+if (!/Studio Open leftover/i.test(yesNo) || !/Studio Open leftover/i.test(packMd)) fail("canon must name Studio Open leftover");
+else pass("canon names Studio Open leftover");
+if (!/open Owner desk/i.test(packMd) || !/open-desk store|open Owner desk/i.test(yesNo)) fail("canon must name auth vs account Studio Open store leftover");
+else pass("canon names auth vs account Studio Open store");
 
 if (failed) {
   console.error(failed + " failed");

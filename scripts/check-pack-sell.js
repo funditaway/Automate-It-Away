@@ -57,10 +57,13 @@ must(help, "No email Team seats", "help.html takeaways no email seats");
 must(help, "No merchant-of-record money desk", "help.html takeaways no MoR");
 must(help, "No social OAuth auto-post", "help.html takeaways no social OAuth");
 
-must(help, "Wallet Connect is a browser wallet", "help.html wallet one-liner");
+must(help, "Your wallet. AIA does not hold keys", "help.html wallet honesty");
+must(help, "Collect and pack pay stay HOLD", "help.html pack pay HOLD");
+must(help, ".aia Register when Bridge unlocks", "help.html Register when Bridge");
 must(help, "not compute credits", "help.html not compute credits");
 must(help, "creator payout ledger", "help.html not payout ledger");
 must(help, "Collect and payouts HOLD", "help.html collect payouts HOLD");
+must(help, "Not Wallet.AIA", "help.html not Wallet.AIA");
 
 must(studio, "Selling packs.", "studio sell-packs one-liner");
 must(studio, "/help#sell-packs", "studio sell-packs link");
@@ -70,13 +73,16 @@ must(studioJs, "/help#sell-packs", "studio js sell-packs link");
 must(more, "/help#sell-packs", "more.html sell-packs link");
 must(more, "/help#pack-worth", "more.html pack-worth link");
 
-must(account, "Wallet Connect is a browser wallet", "account.html wallet one-liner");
+must(account, "Your wallet. AIA does not hold keys", "account.html wallet honesty");
+must(account, "Collect and pack pay stay HOLD", "account.html pack pay HOLD");
+must(account, ".aia Register when Bridge unlocks", "account.html Register when Bridge");
 must(account, "not compute credits", "account.html not compute credits");
 must(account, "creator payout ledger", "account.html not payout ledger");
+must(walletUi, "Your wallet. AIA does not hold keys", "aia-wallet.js honesty");
 must(walletUi, "not compute credits", "aia-wallet.js not compute credits");
 must(walletUi, "creator payout ledger", "aia-wallet.js not payout ledger");
-must(walletUi, "Collect stays HOLD", "aia-wallet.js Collect HOLD");
-must(walletUi, "Mint and Bridge stay external", "aia-wallet.js mint/Bridge");
+must(walletUi, "Collect and pack pay stay HOLD", "aia-wallet.js Collect HOLD");
+must(walletUi, ".aia Register when Bridge unlocks", "aia-wallet.js Register when Bridge");
 
 must(packMd, "Selling packs — risk honesty", "PACK.md risk honesty");
 must(packMd, "When a pack is worth it", "PACK.md pack worth");

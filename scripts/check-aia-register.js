@@ -54,7 +54,7 @@ const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
 if (/ethers|@decentraweb\/core|privy|walletconnect|wagmi|viem/i.test(pkg)) fail("package.json must stay thin");
 else pass("no ethers / @decentraweb/core in package.json");
 
-["../aia-register-abi", "../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/_aia-tld", "../api/_aia-register", "../api/account", "../api/auth", "../api/health"].forEach(function (mod) {
+["../aia-register-abi", "../api/_lib", "../api/_account", "../api/_connect-wallet", "../api/_aia-tld", "../api/_aia-register", "../api/_account-http", "../api/auth", "../api/health"].forEach(function (mod) {
   try { delete require.cache[require.resolve(mod)]; } catch (e) {}
 });
 
@@ -62,7 +62,7 @@ const abi = require("../aia-register-abi");
 const register = require("../api/_aia-register");
 const tld = require("../api/_aia-tld");
 const connect = require("../api/_connect-wallet");
-const account = require("../api/account");
+const account = require("../api/_account-http");
 const auth = require("../api/auth");
 const lib = require("../api/_lib");
 const { ready, save } = lib;

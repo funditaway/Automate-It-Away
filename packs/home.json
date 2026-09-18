@@ -11,6 +11,13 @@
   "kill": ["already done", "not ours", "duplicate"],
   "pipes": ["calendar", "sms", "webhook"],
   "artifacts": ["reminder", "form note", "calendar"],
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "need", "label": "What is needed" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "where", "label": "Where" },
+    "how": "Text, calendar file, or hand it."
+  },
   "fields": {
     "capture": ["title", "kind", "from", "contactName", "phone", "notes", "photoUrl", "pack", "timing"],
     "qualify": ["timing", "risk", "why", "amount"],

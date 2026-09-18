@@ -20,7 +20,7 @@ function grokRecsBox(j) {
     .filter(Boolean)
     .filter(function (t, i, a) { return a.indexOf(t) === i; })
     .slice(0, 5);
-  const fallback = recs.length ? recs : ["Open this card. Yes or no."];
+  const fallback = recs.length ? recs : ["Open this card. Yes or Stop."];
   return "<div class=\"recs\" id=\"grok-recs\">" +
     "<div class=\"recs-title\">Next step</div>" +
     "<ul>" + fallback.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" +
@@ -29,7 +29,7 @@ function grokRecsBox(j) {
 function openUsType() {
   document.getElementById("sheet-card").innerHTML =
     "<h3>We type it onto this queue</h3>" +
-    "<p class=\"meta\">You tell us. We write the card. You still tap yes or no.</p>" +
+    "<p class=\"meta\">You tell us. We write the card. You still tap Yes or Stop.</p>" +
     "<label>What should we put on the queue?</label>" +
     "<input id=\"cap-title\" placeholder=\"Permission slip Friday, oil change, oak dresser\">" +
     "<label>When or ask</label>" +
@@ -62,8 +62,64 @@ function thenGoneOf(j) {
   const name = g && (g.name || g.id) || "";
   return String(name || "").trim();
 }
+function namedNeedsWhoOf(j) {
+  const who = thenWhoOf(j);
+  if (who) return who;
+  const gone = thenGoneOf(j);
+  return gone ? (gone + " · not on this desk") : "";
+}
+function sheetNeedOf(j) {
+  if (typeof cardNeeds === "function") return cardNeeds(j, false);
+  return { decide: false, missing: [], priority: !!(j && (j.priority || j.cap)) };
+}
+function sheetChipsHtml(j) {
+  if (typeof chipsHtml === "function") return chipsHtml(j, sheetNeedOf(j), "");
+  const who = thenWhoOf(j);
+  const gone = thenGoneOf(j);
+  const bits = [];
+  if (who) bits.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+  if (gone && !who) bits.push("<span class=\"q-chip q-ai-gone\">" + esc(gone + " · not on this desk") + "</span>");
+  const wait = String((j && j.waitingOn) || "").toLowerCase();
+  const st = String((j && j.status) || "");
+  const needYou = wait === "owner" || wait === "person" || wait === "info" || wait === "helper" || st === "held" || st === "exception" || st === "waiting";
+  if (needYou) {
+    const named = namedNeedsWhoOf(j);
+    bits.push("<span class=\"q-chip q-need\">" + esc(who ? (who + " · Needs you") : (named || "Needs you")) + "</span>");
+  }
+  return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
+}
+function sheetPromptHtml(j) {
+  if (typeof promptHtml === "function") return promptHtml(j, sheetNeedOf(j), "sheet");
+  const who = thenWhoOf(j);
+  const named = namedNeedsWhoOf(j);
+  const wait = String((j && j.waitingOn) || "").toLowerCase();
+  const st = String((j && j.status) || "");
+  if (st === "shipped" || st === "killed" || st === "out" || (j && j.offDesk)) return "";
+  const asked = talkTurnsOf(j).some(function (row) { return row.kind === "ask"; });
+  if (!(wait === "info" || wait === "helper" || wait === "person" || wait === "owner" || asked || who || thenGoneOf(j))) return "";
+  const askHuman = wait === "info";
+  const label = askHuman ? "Ask the human" : (who ? (who + " asks") : (named || "Needs you"));
+  let q = "Reply on this card. Nothing sent alone.";
+  if (askHuman && j && (j.why || j.next)) q = String(j.why || j.next);
+  else if (who) q = who + " asked on this card. Type a reply. Nothing sent alone.";
+  else if (named) q = named + ". Type a reply. Nothing sent alone.";
+  return "<div class=\"q-prompt\">" +
+    "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
+    "<p class=\"q-prompt-q\">" + esc(q) + "</p>" +
+    "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
+    "</div>";
+}
+function wipTalkLabelOf(row) {
+  const from = String((row && row.from) || "").trim();
+  const kind = String((row && row.kind) || "note");
+  if (kind === "follow") return (from || "pipe") + " · follow";
+  if (kind === "tell") return (from || "drop") + " · tell";
+  if (/^(pipe|webhook|worker|capture)$/i.test(from)) return from + " · pipe WIP";
+  return (from || "desk") + " · note";
+}
 function talkLabelOf(row, who, gone) {
   if (row.kind === "reply") return (row.from || "You") + " · you";
+  if (row.kind === "note" || row.kind === "follow" || row.kind === "tell") return wipTalkLabelOf(row);
   if (row.kind === "ask" || row.kind === "rec") {
     if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
     if (gone) return gone + " · not on this desk";
@@ -86,7 +142,7 @@ function talkTurnsOf(j) {
   (j && Array.isArray(j.thread) ? j.thread : []).forEach(function (t) {
     if (!t || !t.text) return;
     const k = String(t.kind || "note");
-    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow" && k !== "tell") return;
     add(k, t.from, t.text);
   });
   (j && Array.isArray(j.replies) ? j.replies : []).forEach(function (r) {
@@ -123,15 +179,17 @@ function threadSheetHtml(j) {
   const talks = rows.length
     ? "<div class=\"q-talk\">" + rows.map(function (row) {
       const ai = row.kind === "ask" || row.kind === "rec";
-      const you = row.kind === "reply";
+      const you = row.kind === "reply" || row.kind === "tell";
       const label = talkLabelOf(row, who, gone);
       return "<div class=\"q-turn " + (ai ? "q-turn-ai" : (you ? "q-turn-you" : "q-turn-ai")) + "\">" +
         "<div class=\"q-turn-who\">" + esc(label) + "</div>" +
         "<div class=\"q-turn-text\">" + esc(row.text) + "</div></div>";
     }).join("") + "</div>"
     : "<div>No notes yet.</div>";
-  const stacked = !!(draftHtml && rows.length);
-  return (stacked ? "<div class=\"q-thread\">" : "<div class=\"talk\">") + draftHtml + talks +
+  const prompt = sheetPromptHtml(j);
+  const chips = sheetChipsHtml(j);
+  const stacked = !!(draftHtml && (rows.length || prompt));
+  return chips + (stacked ? "<div class=\"q-thread\">" : "<div class=\"talk\">") + draftHtml + talks + prompt +
     "<p class=\"q-prompt-hold\">On the card. Nothing sent alone.</p>" +
     (stacked ? "</div>" : "</div>");
 }
@@ -177,14 +235,16 @@ async function openJob(id) {
     grokRecsBox(j) +
     (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
-    threadSheetHtml(j) + custom +
+    threadSheetHtml(j) +
+    (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
+    custom +
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
     "<p class=\"meta\">Desk</p>" +
     "<div class=\"row actions\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + j.id + "')\">Save info</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + j.id + "')\">Ask for more</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + j.id + "')\">Add note</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "'))\">Reply on card</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "','sheet'))\">Reply on card</button>" +
       (staff ? "" : "<button class=\"edit\" type=\"button\" onclick=\"addFieldPrompt('" + j.id + "')\">Add field</button>") +
     "</div>" +
     (peopleOpts
@@ -355,5 +415,64 @@ async function addField(label, id) {
   await load();
   if (id) openJob(id);
 }
+
+function setCardBusy(id, on) {
+  if (typeof window.setCardBusy === "function" && window.setCardBusy !== setCardBusy) {
+    const sheet = document.getElementById("sheet");
+    const where = sheet && sheet.classList && sheet.classList.contains("on") ? "sheet" : undefined;
+    window.setCardBusy(id, on, where);
+    return;
+  }
+  const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+  const queue = document.getElementById("queue");
+  const sheet = document.getElementById("sheet");
+  const sheetOn = sheet && sheet.classList && sheet.classList.contains("on");
+  const root = (sheetOn && document.getElementById("sheet-card"))
+    || (queue && queue.querySelector && queue.querySelector('[data-job="' + safe + '"]'))
+    || document.getElementById("sheet-card");
+  if (!root || !root.classList) return;
+  root.classList.toggle("q-pending", !!on);
+  if (root.setAttribute) root.setAttribute("aria-busy", on ? "true" : "false");
+  let line = root.querySelector ? root.querySelector(".q-busy") : null;
+  if (on) {
+    if (!line && root.appendChild) {
+      line = document.createElement("p");
+      line.className = "q-busy meta";
+      line.textContent = "Working. Nothing sent yet.";
+      const next = root.querySelector && root.querySelector(".next-line, .q-prompt-hold, .sheet-decide");
+      if (next && next.parentNode) next.parentNode.insertBefore(line, next);
+      else root.appendChild(line);
+    }
+    if (root.querySelectorAll) {
+      root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = true; });
+    }
+  } else {
+    if (line && line.remove) line.remove();
+    if (root.querySelectorAll) {
+      root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = false; });
+    }
+  }
+}
+function wrapHitlBusy() {
+  if (typeof window.ship !== "function" || typeof window.confirmKill !== "function") {
+    setTimeout(wrapHitlBusy, 200);
+    return;
+  }
+  if (window.ship._aiaBusy) return;
+  function wrap(name) {
+    const prev = window[name];
+    if (typeof prev !== "function") return;
+    window[name] = async function (id) {
+      setCardBusy(id, true);
+      try { return await prev.apply(this, arguments); }
+      finally { setCardBusy(id, false); }
+    };
+  }
+  wrap("ship");
+  wrap("confirmShip");
+  wrap("confirmKill");
+  window.ship._aiaBusy = true;
+}
+wrapHitlBusy();
 
 // Buttons live in #desk-actions on desk.html. Do not inject into #gate.

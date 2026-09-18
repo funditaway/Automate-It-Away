@@ -36,6 +36,11 @@ function kindOf(p) {
   if (p && (p.deskAi || p.kind === "agent" || p.role === "agent")) return "agent";
   return (p && p.kind) || (p && p.role === "owner" ? "owner" : "helper");
 }
+function kindLabel(kind) {
+  var k = String(kind || "").toLowerCase();
+  if (k === "agent") return "Desk AI";
+  return kind || "";
+}
 function isDeskAi(p) {
   return !!(p && p.deskAi);
 }
@@ -96,7 +101,7 @@ function logicLine() {
   else if (f === "family") bits.push("family or friends");
   else if (f === "helper") bits.push("helpers");
   else if (f === "staff") bits.push("staff or owners");
-  else if (f === "agent") bits.push("agents");
+  else if (f === "agent") bits.push("Desk AIs");
   else if (f === "ext") bits.push("off the desk");
   else if (f === "hold") bits.push("holding a card");
   var q = queryText();
@@ -171,7 +176,7 @@ function paintYou() {
   var you = STATE.you || {};
   if (!you.name && !you.role) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = "<h3>You · " + esc(you.name || "Desk") + "</h3><p class=\"meta\">" + esc(you.kind || you.role || "") + (STATE.shop ? " · " + esc(STATE.shop) : "") + ". Owner owns Stop, money, pipes, and delete.</p>";
+  el.innerHTML = "<h3>You · " + esc(you.name || "Desk") + "</h3><p class=\"meta\">" + esc(kindLabel(you.kind || you.role || "")) + (STATE.shop ? " · " + esc(STATE.shop) : "") + ". Owner owns Stop, money, pipes, and delete.</p>";
 }
 
 function groupPeople(list) {
@@ -229,7 +234,7 @@ function paintFilters() {
   var waiting = STATE.people.filter(function (p) { return p.status === "pending"; }).length;
   var several = STATE.people.filter(function (p) { return (p.desks || []).length >= 2; }).length;
   var extN = STATE.people.filter(function (p) { return extOf(p); }).length;
-  var chips = [["all", "All"], ["waiting", "Waiting" + (waiting ? " · " + waiting : "")], ["several", "Several desks" + (several ? " · " + several : "")], ["family", "Family"], ["helper", "Helpers"], ["staff", "Staff"], ["agent", "Agents"], ["ext", "Off desk" + (extN ? " · " + extN : "")]];
+  var chips = [["all", "All"], ["waiting", "Waiting" + (waiting ? " · " + waiting : "")], ["several", "Several desks" + (several ? " · " + several : "")], ["family", "Family"], ["helper", "Helpers"], ["staff", "Staff"], ["agent", "Desk AIs"], ["ext", "Off desk" + (extN ? " · " + extN : "")]];
   document.getElementById("filters").innerHTML = chips.map(function (c) {
     return "<button type=\"button\" data-f=\"" + c[0] + "\" class=\"" + (STATE.filter === c[0] ? "on" : "") + "\">" + c[1] + "</button>";
   }).join("");
@@ -283,7 +288,7 @@ function card(p) {
       "<p class=\"meta\">Updates name / does / prompt. Queue chips follow. Yes / Stop / Kill stay human.</p>" +
       "</form>"
     : "";
-  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindOf(p)) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
+  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindLabel(kindOf(p))) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
 }
 
 function paintList() {
@@ -293,7 +298,7 @@ function paintList() {
   var box = document.getElementById("list");
   if (!STATE.people.length) {
     if (STATE.all) box.innerHTML = "<div class=\"person empty\"><p>Nobody on your saved desks yet.</p><p class=\"meta\">Open one desk and tap Add someone.</p></div>";
-    else box.innerHTML = "<div class=\"person empty\"><p>Nobody else on this desk yet.</p><p class=\"meta\">Add family, a helper, or an approved agent.</p></div>";
+    else box.innerHTML = "<div class=\"person empty\"><p>Nobody else on this desk yet.</p><p class=\"meta\">Add family, a helper, or a named Desk AI.</p></div>";
     return;
   }
   if (!rows.length) {
@@ -328,7 +333,7 @@ function seatHtml(seat) {
   if (seat.holding) bits.push("Holding " + seat.holding);
   if (seat.ext) bits.push("Ext " + seat.ext);
   if (seat.done) bits.push("Done " + seat.done);
-  return "<div class=\"sheet-row\"><b>" + esc(seat.desk || seat.slug || "Desk") + "</b><div class=\"meta\">" + esc(seat.kind || "helper") + (bits.length ? " · " + esc(bits.join(" · ")) : "") + (seat.lastSeen ? " · " + esc(fmtTime(seat.lastSeen)) : "") + "</div></div>";
+  return "<div class=\"sheet-row\"><b>" + esc(seat.desk || seat.slug || "Desk") + "</b><div class=\"meta\">" + esc(kindLabel(seat.kind || "helper")) + (bits.length ? " · " + esc(bits.join(" · ")) : "") + (seat.lastSeen ? " · " + esc(fmtTime(seat.lastSeen)) : "") + "</div></div>";
 }
 
 function thenWhoOf(item) {
@@ -340,10 +345,115 @@ function thenGoneOf(item) {
   return String((g && (g.name || g.id)) || "").trim();
 }
 
+function goneHoldLabel(gone) {
+  var name = String(gone || "").trim();
+  return name ? (name + " · not on this desk") : "";
+}
+
+function namedNeedsWho(item) {
+  var who = thenWhoOf(item);
+  if (who) return who;
+  return goneHoldLabel(thenGoneOf(item));
+}
+
+function whyOf(item) {
+  return String((item && (item.why || item.how || item.next)) || "");
+}
+
+function lastAskOf(item) {
+  var rows = ((item && item.thread) || []).filter(function (t) {
+    return t && t.text && String(t.kind || "") === "ask";
+  });
+  return rows.length ? rows[rows.length - 1] : null;
+}
+
+function isAskHuman(item) {
+  if (!item) return false;
+  if (String(item.waitingOn || "").toLowerCase() === "info") return true;
+  if (item.missing && item.missing.length) return true;
+  return /Need .+ before/i.test(whyOf(item));
+}
+
+function isNeedsYou(item) {
+  if (!item) return false;
+  var st = String(item.status || "");
+  if (st === "shipped" || st === "killed") return false;
+  var wait = String(item.waitingOn || "").toLowerCase();
+  return wait === "owner" || wait === "person" || wait === "info" || wait === "helper" || st === "exception" || st === "held";
+}
+
+function isPromptReply(item) {
+  if (!item) return false;
+  var st = String(item.status || "");
+  if (st === "shipped" || st === "killed" || st === "out" || item.offDesk) return false;
+  if (isAskHuman(item)) return true;
+  var wait = String(item.waitingOn || "").toLowerCase();
+  if (wait === "info" || wait === "helper") return true;
+  if ((item.deskAi || thenGoneOf(item)) && (wait === "person" || wait === "owner" || wait === "helper" || !wait)) return true;
+  return !!lastAskOf(item);
+}
+
+function promptQuestion(item) {
+  if (!item) return "The desk asked. Reply on this card.";
+  if (isAskHuman(item)) {
+    var miss = whyOf(item);
+    if (miss) return miss;
+  }
+  var asked = lastAskOf(item);
+  if (asked && asked.text) return asked.text;
+  var why = whyOf(item);
+  if (why && !/HOLD/i.test(why) && !/^Captured\.?$/i.test(why.trim())) return why;
+  if (item.deskAi || thenGoneOf(item)) {
+    var who = thenWhoOf(item);
+    var hold = goneHoldLabel(thenGoneOf(item));
+    if (who) return who + " asked on this card. Type a reply. Nothing sent alone.";
+    if (hold) return hold + ". Type a reply. Nothing sent alone.";
+    return "The desk AI asked on this card. Type a reply. Nothing sent alone.";
+  }
+  return "Reply on this card. Nothing sent alone.";
+}
+
+function promptHtml(item) {
+  if (!isPromptReply(item)) return "";
+  var who = thenWhoOf(item);
+  var named = namedNeedsWho(item);
+  var label = isAskHuman(item) ? "Ask the human" : (who ? (who + " asks") : (named || "Needs you"));
+  return "<div class=\"q-prompt\">" +
+    "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
+    "<p class=\"q-prompt-q\">" + esc(promptQuestion(item)) + "</p>" +
+    "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
+    "</div>";
+}
+
+function chipsHtml(item) {
+  var bits = [];
+  var who = thenWhoOf(item);
+  var gone = thenGoneOf(item);
+  if (who) bits.push("<span class=\"q-chip q-ai\">" + esc(who) + "</span>");
+  if (gone && !who) bits.push("<span class=\"q-chip q-ai-gone\">" + esc(goneHoldLabel(gone)) + "</span>");
+  if (isNeedsYou(item)) {
+    var named = namedNeedsWho(item);
+    bits.push("<span class=\"q-chip q-need\">" + esc(who ? (who + " · Needs you") : (named || "Needs you")) + "</span>");
+  }
+  if (isAskHuman(item)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
+  return bits.length ? "<div class=\"q-chips\">" + bits.join(" ") + "</div>" : "";
+}
+
+function wipTalkLabelOf(row) {
+  var from = String((row && row.from) || "").trim();
+  var kind = String((row && row.kind) || "note");
+  if (kind === "follow") return (from || "pipe") + " · follow";
+  if (kind === "tell") return (from || "drop") + " · tell";
+  if (/^(pipe|webhook|worker|capture)$/i.test(from)) return from + " · pipe WIP";
+  return (from || "desk") + " · note";
+}
+
 function talkLabelOf(row, who, gone) {
   if (row.kind === "reply") return (row.from || "You") + " · you";
+  if (row.kind === "note" || row.kind === "follow" || row.kind === "tell") return wipTalkLabelOf(row);
   if (who) return row.kind === "ask" ? (who + " · asks") : (who + " · Then draft");
-  if (gone) return gone + " · not on this desk";
+  var hold = goneHoldLabel(gone);
+  if (hold) return hold;
   var name = row.from || "Desk AI";
   return row.kind === "ask" ? (name + " · asks") : (name + " · Then draft");
 }
@@ -362,7 +472,7 @@ function talkRowsOf(item) {
   ((item && item.thread) || []).forEach(function (t) {
     if (!t || !t.text) return;
     var k = String(t.kind || "note");
-    if (k !== "ask" && k !== "reply" && k !== "rec") return;
+    if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow" && k !== "tell") return;
     add(k, t.from, t.text);
   });
   ((item && item.replies) || []).forEach(function (r) {
@@ -381,31 +491,34 @@ function trailThreadHtml(item) {
   var draftText = (item && item.draft) || "";
   var who = thenWhoOf(item);
   var gone = thenGoneOf(item);
-  var label = who ? (who + " · Then draft") : (gone ? (gone + " · not on this desk") : "Draft");
+  var hold = goneHoldLabel(gone);
+  var label = who ? (who + " · Then draft") : (hold || "Draft");
   var face = who
     ? "<span class=\"chip p-ai\">" + esc(who) + "</span>"
-    : (gone ? "<span class=\"chip p-ai-gone\">" + esc(gone + " · not on this desk") + "</span>" : "");
+    : (hold ? "<span class=\"chip p-ai-gone\">" + esc(hold) + "</span>" : "");
   var draftHtml = draftText
     ? "<div class=\"p-then\"><div class=\"p-then-who\">" + esc(label) + "</div>" +
       (face ? "<div class=\"p-then-face\">" + face + "</div>" : "") +
       "<div class=\"p-then-text\">" + esc(draftText) + "</div></div>"
-    : (gone && !who
-      ? "<div class=\"p-then\"><div class=\"p-then-who\">" + esc(gone + " · not on this desk") + "</div>" +
+    : (hold && !who
+      ? "<div class=\"p-then\"><div class=\"p-then-who\">" + esc(hold) + "</div>" +
         (face ? "<div class=\"p-then-face\">" + face + "</div>" : "") + "</div>"
       : "");
   var rows = talkRowsOf(item);
   var talks = rows.length
     ? "<div class=\"p-talk\">" + rows.map(function (row) {
       var ai = row.kind === "ask" || row.kind === "rec";
-      var you = row.kind === "reply";
+      var you = row.kind === "reply" || row.kind === "tell";
       var turnLabel = talkLabelOf(row, who, gone);
       return "<div class=\"p-turn " + (ai ? "p-turn-ai" : (you ? "p-turn-you" : "p-turn-ai")) + "\">" +
         "<div class=\"p-turn-who\">" + esc(turnLabel) + "</div>" +
         "<div class=\"p-turn-text\">" + esc(row.text) + "</div></div>";
     }).join("") + "</div>"
     : "";
-  if (!draftHtml && !talks) return "";
-  return "<div class=\"p-thread\">" + draftHtml + talks + "<p class=\"p-hold\">On the card. Nothing sent alone.</p></div>";
+  var prompt = promptHtml(item);
+  var chips = chipsHtml(item);
+  if (!draftHtml && !talks && !prompt) return chips;
+  return chips + "<div class=\"p-thread\">" + draftHtml + talks + prompt + "<p class=\"p-hold\">On the card. Nothing sent alone.</p></div>";
 }
 
 function cardHtml(cardItem) {
@@ -419,6 +532,10 @@ function historyHtml(item) {
   var title = item.what || item.title || item.card || "Activity";
   var meta = [item.who || "", item.desk || "", item.t ? fmtTime(item.t) : ""].filter(Boolean).join(" · ");
   return "<div class=\"sheet-row\"><b>" + esc(title) + "</b><div class=\"meta\">" + esc(meta) + "</div>" + trailThreadHtml(item) + "</div>";
+}
+
+function accountRoadMini() {
+  return "<div class=\"road-mini\"><b>This account</b><div class=\"meta\">Past / now / next on History. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. .aia identity HOLD until mint.</div><div class=\"acts\"><a class=\"go\" href=\"/history#account-road\">Account roadmap on History</a></div></div>";
 }
 
 async function openSheet(person) {
@@ -459,7 +576,9 @@ async function openSheet(person) {
   document.getElementById("sheet-hear").onclick = function () {
     if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak(line);
   };
-  document.getElementById("sheet-history-link").href = "/history?who=" + encodeURIComponent((data.person && data.person.name) || person.name || "");
+  var road = document.getElementById("sheet-road");
+  if (road) road.innerHTML = accountRoadMini();
+  document.getElementById("sheet-history-link").href = "/history?who=" + encodeURIComponent((data.person && data.person.name) || person.name || "") + "#account-road";
   document.getElementById("sheet-close").onclick = function () { sheet.hidden = true; };
 
   sheet.hidden = false;

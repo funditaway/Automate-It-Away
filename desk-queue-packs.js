@@ -86,7 +86,7 @@
     if (FILTER === "work") return "No work-pack cards here. Drop with Home, Consign, Insurance, Fund, or Land — or a creator pack.";
     if (canon(FILTER) === "insurance") return "Drop a name, a state, and what they need. Bind stays off.";
     if (FILTER === "home") return "Drop a chore, school form, or same-day pickup. Cap same-day.";
-    if (FILTER === "consign") return "Drop a photo of the item. Draft the title. Payout waits on you.";
+    if (FILTER === "consign") return "Drop a photo of the item. Draft the title. Collect HOLD until Yes + a real money pipe.";
     if (FILTER === "fund") return "Drop the campaign note. Credit waits on you.";
     if (FILTER === "land") return "Drop the lot note. Cap flood. Cap title.";
     if (FILTER === "aia-adoption") return "Try first. Drop a task, an errand, or an idea. AIA drafts. You tap Yes or Stop.";
@@ -126,7 +126,7 @@
     box.className = "item";
     box.innerHTML = "<p class=\"now\">Packs on this queue</p>" +
       "<p class=\"meta\">Packs change how the card looks. You still tap Copy, Text, Email, Hand, Cap, or Stop. Nobody sends money from here.</p>" +
-      "<div id=\"pack-chips\"></div>";
+      "<div id=\"pack-chips\" role=\"toolbar\" aria-label=\"Pack filters\"></div>";
     var view = document.getElementById("desk-view");
     var queue = document.getElementById("queue");
     if (view && view.parentNode) view.parentNode.insertBefore(box, view.nextSibling);
@@ -223,7 +223,7 @@
     var tok = localStorage.getItem("aia_session");
     if (ws) h["X-Workspace"] = ws;
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return fetch("/api/desks?packs=1", { headers: h }).then(function (r) { return r.json(); }).then(function (d) {
       CATALOG = (d && d.packs) || [];
     }).catch(function () { CATALOG = []; });

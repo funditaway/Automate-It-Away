@@ -43,6 +43,8 @@
     if (window.AIADropAgent && AIADropAgent.paintKindFields) AIADropAgent.paintKindFields(document.getElementById("kind-fields"), q.kind);
     if (window.AIADropAgent && AIADropAgent.paintOutcomes) window.__aiaOutcome = AIADropAgent.paintOutcomes(document.getElementById("outcome-chips"), q.outcome);
     var title = document.getElementById("title"); if (title && q.title && !title.value) title.value = q.title;
+    var note = document.getElementById("note");
+    if (note && q.id === "list") note.placeholder = "One item per line. Each becomes a card. You still tap Yes or Stop.";
     var pane = document.getElementById("pane-custom");
     if (pane && !document.getElementById("modes")) pane.hidden = q.kind !== "custom";
     document.querySelectorAll("#quick-chips button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-quick") === id); });
@@ -51,7 +53,7 @@
     if (document.getElementById("pane-custom")) return;
     var work = document.getElementById("pane-work"); if (!work) return;
     var pane = document.createElement("div"); pane.id = "pane-custom"; pane.hidden = true;
-    pane.innerHTML = "<label>Name this drop</label><input id=\"custom-name\" placeholder=\"Lawn route · porch repair\"><label>Fields on the card</label><input id=\"custom-fields\" placeholder=\"Color, size, when\"><p class=\"sub\">Your own kind of work. Same five steps. You still tap Yes or No.</p>";
+    pane.innerHTML = "<label>Name this drop</label><input id=\"custom-name\" placeholder=\"Lawn route · porch repair\"><label>Fields on the card</label><input id=\"custom-fields\" placeholder=\"Color, size, when\"><p class=\"sub\">Your own kind of work. Same five steps. You still tap Yes or Stop.</p>";
     work.appendChild(pane);
   }
   function boot() {

@@ -12,7 +12,7 @@
     var tok = localStorage.getItem("aia_session") || "";
     if (ws) h["X-Workspace"] = ws;
     if (tok) h["X-Session"] = tok;
-    else if (pin) h["X-Pin"] = pin;
+    if (pin) h["X-Pin"] = pin;
     return h;
   }
   function esc(s) {
@@ -87,13 +87,19 @@
       "<div class=\"q-head\"><div class=\"q-chips\">" + chips + "</div></div>" +
       "<h3>" + esc(a.name || "Desk AI") + (a.aia ? " · " + esc(a.aia) : "") + "</h3>" +
       (does ? "<p class=\"ai-does\">" + esc(does) + "</p>" : "") +
-      (prompt ? "<p class=\"ai-prompt\">Prompt · " + esc(prompt) + "</p>" : "<p class=\"ai-prompt\">No prompt on this bot yet. It still drafts HOLD.</p>") +
+      (prompt ? "<p class=\"ai-prompt\">Prompt · " + esc(prompt) + "</p>" : "<p class=\"ai-prompt\">No prompt on this Desk AI yet. It still drafts HOLD. Draft ready. I cannot send, pay, or bind anything. You stay in control.</p>") +
       "<p class=\"meta\">On queue cards: " + esc(faceOf(a)) + ". Ask Grok / Then draft / Needs you name this AI.</p>" +
       "<p class=\"meta\">Drafts " + esc((a.steps || a.allow || []).join(", ") || "qualify, do, follow") +
         ". Never " + esc((a.never || ["send", "stop", "money", "mail"]).join(" · ")) +
         ". Yes / Stop / Kill stay human.</p>" +
       editOf(a) +
       "</article>";
+  }
+  function closedPaint(box) {
+    if (!box) box = document.getElementById("desk-ais");
+    if (!box) return;
+    box.hidden = false;
+    box.innerHTML = "<div class=\"meta\">Desk AIs</div><p class=\"meta\">Open this desk to see named AIs and how they show on queue cards. Yes / Stop / Kill stay human.</p>";
   }
   function youOf(data) {
     var you = (data && (data.you || (data.desk && data.desk.you))) || {};
@@ -140,19 +146,19 @@
         window.AIADeskAis.rows = ROWS;
         window.AIADeskAis.owner = OWNER;
       }
-      var box = document.getElementById("desk-ais");
-      if (box) {
-        box.hidden = false;
-        box.innerHTML = "<div class=\"meta\">Desk AIs</div><p class=\"meta\">Open this desk to see named AIs and how they show on queue cards. Yes / Stop / Kill stay human.</p>";
-      }
+      closedPaint();
       return;
     }
     try {
       var r = await fetch("/api/desks", { headers: headers() });
       var d = await r.json().catch(function () { return {}; });
-      paint(d.desk ? Object.assign({}, d.desk, { you: d.desk.you || d.you, role: d.desk.role || d.role }) : d);
+      if (!r.ok || !d.desk) {
+        closedPaint();
+        return;
+      }
+      paint(Object.assign({}, d.desk, { you: d.desk.you || d.you, role: d.desk.role || d.role }));
     } catch (e) {
-      paint({ ais: [] });
+      closedPaint();
     }
   }
   async function load() {

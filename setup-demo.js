@@ -1,7 +1,7 @@
 (function (w) {
   var HOW = [
     { id: "life", label: "Home & family", family: "Automate It Away", mean: "School form. Oil change. Neighbor text." },
-    { id: "estate", label: "Estate & consignment", family: "Consign It Away", mean: "Photo to comps to listing draft. Payout waits." },
+    { id: "estate", label: "Estate & consignment", family: "Consign It Away", mean: "Photo to comps to listing draft. Collect HOLD until Yes + a real money pipe." },
     { id: "assets", label: "Titled assets", family: "Consign It Away", mean: "VIN and title photo. Settlement waits on title." },
     { id: "auto", label: "Wholesale auto", family: "Consign It Away", mean: "Stock photo and VIN. Funds before keys is owner." },
     { id: "vita", label: "Insurance", display: "Insurance", family: "Quote It Away", mean: "Fact-find to packet draft. Bind stays off the desk." },
@@ -55,7 +55,7 @@
     { id: "build", label: "Build project", extra: 1, mean: "Material hold and schedule draft." },
     { id: "world", label: "World users", extra: 1, mean: "Public listing check draft." },
     { id: "pipes", label: "Pipes", extra: 1, mean: "Webhook and vendor hold note draft." },
-    { id: "agent", label: "AI agent", extra: 1, mean: "Approve seat then off-desk draft." },
+    { id: "agent", label: "Desk AI", extra: 1, mean: "Approve seat then off-desk draft. Cannot Yes, Stop, pay, or bind." },
     { id: "people", label: "People", extra: 1, mean: "Invite and role note draft." },
     { id: "rules", label: "Rules", extra: 1, mean: "Hold/stop rule note draft." },
     { id: "drop", label: "Drop", extra: 1, mean: "Talk capture and follow-up draft." },

@@ -27,7 +27,7 @@ Every card uses the same states. Packs do not add a second machine. They change 
 
 **Also on the card:** `waitingOn` (`owner` | `helper` | `info`), `pack`, `custom.face` `{who,what,when,where,how}`, `next`, `draft`, `rail`.
 
-Human still taps Yes or Stop. Agents only draft.
+Human still taps Yes or Stop. Desk AIs only draft.
 
 ## Pack config syntax
 
@@ -106,8 +106,8 @@ Pack JSON may declare one or more desk AIs. Installing the pack attaches them to
     {
       "name": "James’s AI",
       "role": "Doer",
-      "does": "Drafts desk work for this project",
-      "prompt": "Do not send. Do not invent a price.",
+      "does": "Drafts the next step and the words. Nothing sent.",
+      "prompt": "Draft ready. I cannot send, pay, or bind anything. You stay in control.",
       "steps": ["qualify", "do", "follow"],
       "deny": ["send", "stop", "money", "mail", "yes", "kill"]
     }
@@ -133,21 +133,183 @@ Worth it: the process already works by hand; multi-step qualify → draft with f
 
 ## Build a pack / desk AI
 
-When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk AI drafts the card) → Yes / Stop / Kill. Fallbacks: Needs you / Talk to AIA. Thin `.aia` from `/dev`. Buyer pipes and keys. Sample JSON is illustrative only — desk words (`when` / `if` / `then`), not a bindings product. Yes is not a collect charge. Collect stays HOLD.
+When (pipe / `name@account.aia` / status / optional wait) → If → Then (desk AI drafts the card) → Yes / Stop / Kill. Fallbacks: Needs you / Talk to AIA. Thin `.aia` from `/dev`. Buyer pipes and keys. Sample JSON is illustrative only — desk words (`when` / `if` / `then`), not a bindings product. Thin App / webhook pack example (copy, do not seed): When = www hook / pipe, If = tag Lead, Then = draft. Buyer binds their own keys on Pipes. Yes / Stop / Kill before outbound. Not a listed SKU. Not a bindings product. Webhook is the live pipe. Yes is not a collect charge. Collect stays HOLD.
 
-Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node, sub-agent mesh, or node canvas.
+First `.aia` pack docs live on Studio `/dev#first-pack` and match real Studio: open a desk → name a desk AI → When → If → Then (webhook is the live pipe) → buyer binds their own keys on Pipes → test via Drop or www hook → Yes / Stop / Kill before outbound → Download `.aia` (Give) or Install `.aia` with Yes (Update). Not a CLI. Not a signed DID. Not a stake publish. No AAM mainnet, paymasters, AIA token, DAO slash, DePIN, or Grandma brand.
 
-Ideas → queue = Drop → Qualify → card → Yes / Stop. History is past / now / next. No effort or token estimate UI.
+Desk orchestration = When · If · Then. Sequential = one rule after another. Conditional = If. Human in the loop = Yes / Stop / Kill. Not a Router Node. Not a mesh of Desk AIs. Not a node canvas. Do not invent a sub-agent mesh.
+
+Ideas → queue = Drop → Qualify → card → Yes / Stop. A list or multi-line Drop fans into more than one draft card. History is past / now / next — the card trail and this account’s roadmap. No effort or token estimate UI. Photo OCR is not live.
+
+Drop → many-cards leftover: world Drop / Talk still wrote one blob card for a list. Capture now fans a list or multi-line Drop into N draft queue cards (cap 8). Each card is draft-only. Yes / Stop / Kill stay human. Photo OCR is not live. Collect HOLD. No silent send.
+
+Give pack = download / share the `.aia` file (`download-pack`). They install with Yes. No silent push to another desk.
+
+Update pack = install this `.aia` again (`install-aia`) with owner Yes. Recurring update pass / subscription HOLD. No silent refresh. Collect HOLD.
 
 FAQ: work with / for AIA = build packs + Talk to AIA; agency / DFY off-platform; no careers portal / certified partner program. AIA License = no separate license SKU — desk account + pack install; Collect and payouts HOLD; no Free / Pro / Agency license tiers, merchant-of-record, or auto EULA.
 
 How the queue runs: Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill → Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD.
 
+how.html Paid / Collect: Collect stays HOLD until a person taps Yes and a real Collect money pipe is live. Not “Collect when due.” Shop-week examples name when money would be due — they do not collect. Yes is not a collect charge. No fake pricing, credits, or AIA coin.
+
+how.html facts / Do film, help.html Owner vs helper / Talk / Log in, desk Talk, and Queue handoff: Yes / Stop / Kill is the rail. Not “Send or Stop.” Not “Nothing leaves until Send.” Send-it-yourself (copy, text, email) stays. AIA does not send.
+
+How lead / Talk / public Drop leftover: Yes or Stop, not Yes or No. Talk cards Human before Yes, not before send. Drop / widget sub matches. Send-it-yourself stays.
+
+Create / market / engine / grok leftover: Yes or Stop, not Yes or No. Create form hints / success, Marketplace Do-the-work default, engine queue next, and Grok SYSTEM Human taps Yes or Stop. Collect HOLD. No silent send.
+
+Desk home / card / queue / handoff leftover: Yes or Stop, not Yes or No. Queue how-in, card rec fallback, We-type-it sheet, desk.html next fallback, unused desk-queue decide fallback, and Rail/Doer handoff Owner/You tap Yes or Stop. Thin card busy while Reply / Yes / Stop pending — Working. Nothing sent yet. `desk-needs.js` plus leftover `desk-card.js` / `desk-queue.js` / `desk-home.js` paint that busy-face. Collect HOLD. No silent send.
+
+Pipes / Connections leftover: Yes or Stop, not Send and Stop. Draft accounts on `/pipes` and `/connections` say You still tap Yes or Stop. Connect-drafts flash matches. Health Do is Yes and Stop stay on the desk. Buyer binds own keys. Collect HOLD. No silent send.
+
+More leftover: `/more` `#grok-line` Yes or Stop, not “You send them. Or you Stop.” Default and grok-on name the rail. Send-it-yourself stays. Packs still never Send. Collect HOLD. No silent send.
+
+More page tips leftover: `/more` face copy is short. Dense Cap / Open / gone HOLD / payout / wallet honesty lives in `?` / Ask AIA tips. Find on More narrows the list. Yes / Stop stay human. Collect HOLD. No silent send.
+
+Pipes placeholder leftover: Search and On this desk webhook take a full row so the honest placeholder is not clipped on a phone. Same copy. Collect HOLD. No silent send.
+
+Pipes field tips leftover: `/pipes` and `/connections` tap `?` like How / Drop / Help. Unused `"pipes"` tip is on Search, any-site, webhook, and inbound hook. Desk name / Desk code match Drop / Login. Collect HOLD. No silent send.
+
+Desk AI field tips leftover: unused `"desk-ai"` tip is on Create **Name this desk AI** and Studio **AI 1 name** / **AI 2 name** — those fields already existed. Create start **What is it?** / **How / what** reuse Drop’s kind and need tips. Did not invent a Name-a-desk-AI field. Yes / Stop / Kill stay human. A bot cannot send or pay. Collect HOLD. No silent send.
+
+Desk AI voice leftover: Create **Name this desk AI** and Studio **AI 1 name** / **AI 2 name** now use the firm draft-only tip. Desk AIs that draft. Humans that decide. A bot cannot send, pay, or bind. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
+
+Desk AI canon leftover: Grok SYSTEM, Studio SYSTEM, default does / prompt, and empty named-AI instructions now use Desk AI canon — not an MVP demo bot. Firm: Draft ready. I cannot send, pay, or bind anything. You stay in control. Tagline: Desk AIs that draft. Humans that decide. Named AI prompt rides in the Grok brief. Collect HOLD. No silent send.
+
+World-home Desk AI leftover: `/` and `/how` no longer title Desk AI / bots or say “A bot cannot send or pay.” World cards use Desk AI + the firm draft-only line. Setup / Examples runtime cards say Desk AIs stay crew. Collect HOLD. No silent send.
+
+Examples / Setup Desk AI leftover: `/examples` no longer titles AI agent or says “Approve an AI agent.” Setup niche and demo chip say Desk AI. World cards use the firm draft-only line. Demo fixture id `agent` stays. Collect HOLD. No silent send.
+
+People / header Desk AI leftover: after People chrome said Desk AIs, card chips, open-sheet seats, the who-chip, queue handoff, Help Rules Then bind, and inbox Needs you still painted agent / an agent / which bot. Those faces now say Desk AI. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Help Pack Creator leftover: after People/header chips said Desk AI, Help `#world` still titled Workflow & Agent Pack Creator and `#desk-orch` still said sub-agent mesh. Studio already said Pack Creator (on-desk). Help now titles On-desk Pack Creator. Orchestration denies a mesh of Desk AIs — not Agent paint. Do not invent a sub-agent mesh. Seat id `agent` stays. Collect HOLD. No silent send.
+
+People Say leftover: after People chips / open-sheet seats said Desk AI, the People open-sheet Say placeholder still said human, agent, or pipe. Inbox already said Humans, Desk AIs, and connections. Say now names Desk AI. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Legal / Studio Desk AI leftover: after People Say said Desk AI, legal.html still said The agent may draft, Studio pack preview still painted Bot:, and Help Four models still said lead qualify bot. Those faces now say Desk AI. `bots[]` stays an alias. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop → many-cards leftover: world Drop / Talk still wrote one blob card for a list. Capture now fans a list or multi-line Drop into N draft queue cards. Each card is draft-only. Yes / Stop / Kill stay human. Photo OCR is not live. Collect HOLD. No silent send.
+
+Desk AI copy leftover: after Legal / Studio / Drop→many-cards, DROP.md still titled Agents with AIA World users, Grok SYSTEM still said Bots draft only, and admin audit still logged Agent on Kill / Ship. Those faces now say Desk AI. Seat id `agent` and `bots[]` alias stay. Photo OCR is not live. Collect / mint / ETH / Cap / aia-tld Register stay HOLD. No silent send.
+
+People logic leftover: after People chips / Say / KPI said Desk AI, the filter logic line still said Showing people who match agents. Hear this speaks that line. Logic now says Desk AIs. Filter value `agent` stays. Collect HOLD. No silent send.
+
+DROP.md Advanced leftover: after DROP.md titled Desk AIs, Advanced still said seat a crew agent and the files list said Advanced + agents. Those parked lines now say crew Desk AI / Desk AIs. Mode `?mode=agent` and `drop-agent.js` stay. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Wallet / permission Desk AI leftover: after DROP.md Advanced said Desk AI, wallet and HOLD-override errors still said Agents do not hold money / Agents do not spend money / Agents never send, stop, or touch money. Those API errors now say Desk AIs. Seat id `agent` stays. Collect / money pipes / mint / ETH / Bridge Register stay HOLD. No charge rails added. Collect HOLD. No silent send.
+
+Studio Open leftover: Creators Studio kept the saved owner code when a leftover session token was present, and the Open Studio gate prefills Owner code like Drop / Desk / Pipes. `/api/account` login accepts the same open Owner desk slug+pin `/api/auth` just created (account, desk, or owner seat). Preview blob 403 keeps `/tmp` per function. `api/account.js` is folded into the auth function (`_account-http` + `/api/auth?via=account`) so login / open / GET share onboard memory. Wrong code still 401. No silent open. Collect HOLD. No silent send.
+
+Studio Open leftover after bind: `save()` no longer re-reads the blob over in-request writes. Login keeps the open Owner desk on its own account — a later shop name that slugifies to that desk cannot take it. Wrong code still 401. No silent open. Collect HOLD. No silent send.
+
+Studio mail leftover: after the lab is open, Create .aia email still skipped the saved pin when a leftover session token was present (`aia-mail.js` sent X-Session and skipped X-Pin). Mail GET 401’d and painted Open this account on the open lab. Mail now sends the saved pin with the session. Wrong code still 401. Outbound Send HOLD. Collect HOLD. No silent send.
+
+Desk AIs leftover: after the desk is open, the Desk AIs strip still skipped the saved pin when a leftover session token was present (`desk-ais.js` sent X-Session and skipped X-Pin). `/api/desks` 401’d and painted No named AI on this desk yet. The strip now sends the saved pin with the session. Leftover session without a pin still 401 and paints Open this desk. Did not invent a Name-field tip. Collect HOLD. No silent send.
+
+Desk AIs leftover after pin+session: GET `/api/desks` still missed Owner desks `/api/auth` just created (404 No desk; save-ai “Open a desk first.”). Preview blob 403 keeps `/tmp` per function. `api/desks.js` is folded into the auth function (`_desks-http` + `/api/auth?via=desks`) so GET/POST desks including save-ai share onboard memory. Packs stay on that same handler (`?packs=1`) — not a new Lambda. Wrong code still 401. No silent open. Collect HOLD. No silent send.
+
+Account leftover: after Studio / mail / Desk AIs send the saved pin with leftover session, `/account` still skipped `X-Pin` when a leftover session token was present (`account.html` sent X-Session and skipped X-Pin). Boot GET 401’d and stayed on Open the account. Account now sends the saved pin with the session, and Open the account prefills Your code like Drop / Desk / Pipes / Studio. After the book opens, `#gate[hidden]` hides Open the account. Wrong code still 401. Collect HOLD. No silent send.
+
+Account leftover after that pass: API already had sessions / export / logout / logout-all / mfa HOLD, and YES already said the Account page lists phones, export, leave every phone — but `/account` only cleared localStorage on Leave this phone. Signed-in world users now see phones on this account, export the book (no pin / no password hash), leave this phone or every phone, and Authenticator HOLD. GET `/api/account` includes the existing session list. Help Login + More name the same trail. No new billing. Mint / Collect stay HOLD.
+
+Desks book leftover: after Account / mail / Desk AIs send the saved pin with leftover session, `/desks` still skipped `X-Pin` when a leftover session token was present (`desks-book.js` sent X-Session and skipped X-Pin). Mine 401’d and stayed on Sign in to see every desk. Mail on the same page was already open. The book now sends the saved pin with the session. Wrong code still 401. Collect HOLD. No silent send.
+
+Desks book leftover after blob: pin-with-session mine 200 in curl did not paint `/desks` owned desks. Blob `get` used `access: "private"` and 403’d on a Public store, so hydrate never left Lambda `/tmp`. Get retries public on 403; `ready()` re-reads uncached. Wrong or empty pin still 401. Collect HOLD. No silent send. No new Lambda.
+
+Desks book leftover after blob 403 still: live REST GET 404’d (empty) but PUT failed `[object Object]` / missing store id. REST put matches the SDK (`vercel.com/api/blob/?pathname=` + `x-vercel-blob-store-id`), Buffer body, sealed. Health `blob.stamp=write-v1` + `blob.rev`. Wrong pin 401. Collect HOLD.
+
+Health write leftover after put-v3: persist already stuck on www (`driver blob`, `read ok`) but health still reported `write=fail` `detail=null` because it skipped the write probe when driver was already blob. Health re-probes that same persist write. Fail detail is a real string. `blob.stamp=write-v1`. Wrong pin 401. Collect HOLD.
+
+Wallet leftover: after Account / mail / Desk AIs / Desks book send the saved pin with leftover session, `aia-wallet.js` still skipped `X-Pin` when a leftover session token was present. `/desk` Connect then 401’d Sign in first even though the desk was open. Wallet now sends the saved pin with the session. Wrong code still 401. Collect HOLD. No silent send. Mint / ETH stay HOLD.
+
+History leftover: after Account / mail / Desk AIs / Desks book / wallet send the saved pin with leftover session, `/history` `packHdr()` still skipped `X-Pin` when a leftover session token was present. Trail still painted. Update pack then 403’d Only the owner can install even though the desk was open. History now sends the saved pin with the session. Wrong code still 403. Give is the file. Recurring update HOLD. Collect HOLD. No silent send.
+
+Drop / Queue leftover: after History / Account / wallet send the saved pin with leftover session, Drop `AIADesks.authHeaders`, Queue pack catalog, and other-desk view still skipped `X-Pin` when a leftover session token was present. Hand to / List this desk / pack chips then 401’d even though the desk was open. Those faces now send the saved pin with the session. Wrong code still 401. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
+
+Desk session leftover: after Drop chips open a token-only email-session desk, `/desk` / Rules / Pipes still skipped `X-Session`. Queue painted. Yes / Stop / Kill / Reply then 403’d even though the desk was open. Those faces now send the leftover session with the pin. Wrong code still 401 / 403. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
+
+Rules session leftover: `/rules` already sends leftover `X-Session` + `X-Pin`, but `canAdd` / save still required an owner seat. Email leftover often has no pin; `personOf` could hit a helper on the same account or miss `acct_*_owner`. Add a rule stayed gated. Leftover email-session owner now `canAdd` and can save. Helper leftover still 403. Wrong or empty session still 403. Pipes bind matches. Collect HOLD. No mesh.
+
+Create / Market leftover session: after Desk / Rules / Pipes send leftover `X-Session`, `/create` Bind and Market install still sent pin only. `deskOpen()` already treated leftover session as open; save-ai then 403’d. Market `hasDesk()` required a leftover pin, so an email-session desk painted Open a desk. Those faces now send leftover session with the pin. Market treats leftover email session as open. Helper leftover still 403. `aia-tld.js` hdr stays — Register / mint HOLD. Drop capture stays public. Collect HOLD. No silent send.
+
+Account book leftover session: after Create / Market send leftover `X-Session`, `/admin` still sent pin only and only loaded when a leftover pin was present. More → Account book then 401’d Pin required even though leftover email session was live. Account book now sends leftover session with the pin, and Open admin loads when leftover session is live. Helper leftover still cannot invite. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
+
+History leftover session: after Account book send leftover `X-Session`, `/history` `packHdr()` already sent leftover session for Give / Update, but the trail `load()` still posted pin-only desks and skipped `X-Session`. Email leftover often has no pin — History painted empty even though Queue / Account book were open. Trail now sends leftover session with the pin. Helper leftover can read. Give / Update still owner. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
+
+Cap leftover session: after History trail send leftover `X-Session`, Queue `api()` already sent leftover session and `/api/desks` `priority` already accepted a live leftover token — but `loadCap()` still required a leftover pin and hid the Cap band. Email leftover often has no pin — Cap stayed hidden even though Queue / History were open. Cap now treats leftover email session as enough for this desk. Helper leftover can read. Other-desk Cap stays pin-gated and read-only. Did not invent Cap greenfield. `aia-tld.js` hdr stays — Register / mint HOLD. Collect HOLD. No silent send.
+
+Drop pick / preview leftover: cf09d93 + the preview restore decoded `esc()` so `/drop` / `/widget` never parsed. World chips and card preview now load. `esc()` encodes again. Chip labels stay on their own row. Drop capture stays public. Collect HOLD. No silent send.
+
+Tell leftover after pipe WIP: Drop already stores Tell AIA on `job.thread` as `tell`. Queue / History kept only ask / reply / rec / note / follow after #160, so Tell AIA never painted. Those faces now keep `tell`. Label is `drop · tell` — not Agent / Bot, not a live Then draft. Collect HOLD. No silent send.
+
+Drop Talk Desk AI leftover: after DROP.md titled Desk AIs, Talk empty thread, greet, placeholder, empty tap, speaker label, and DROP.md Ways in still said AIA AI answers / AIA writes / AIA still answers, and desk lines were labeled AIA. Greet paints first and hides the empty thread. World Talk now says A Desk AI drafts the card. Speaker is Desk AI. You still tap Yes or Stop. `AIA AI home is ai.aia` brand lines stay. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop preview Talk leftover: after drop-chat.js said A Desk AI drafts the card, drop-preview.js still loaded first and owned `#drop-thread`. `/drop` / `/widget` then said Talk with this desk / The desk asks what is missing / Then send it, and desk lines were labeled Desk. Embed skips drop-chat.js. Those faces now say A Desk AI drafts the card. Speaker is Desk AI. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop Put data on leftover: after Talk / preview said A Desk AI drafts the card, Put data on `#lane-title` and the drop-paste tip still said The desk writes the card. Those faces now say A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop Talk voice leftover: after Talk thread / preview said A Desk AI drafts the card, drop-talk.js Hear this / empty `#talkStatus` / listening still said Talk the work in your words / Then say drop it. World Talk hears that bar first. Those faces now say A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop preview ask leftover: after Talk / preview empty / Put data on / Talk bar said A Desk AI drafts the card, Card preview `#drop-ask` and Talk ask lines still said What should the desk do with this / Should the desk text them. Those asks now say A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget Tell leftover: after Card preview asks said A Desk AI drafts the card, `/widget` still painted full Drop and drop-preview.js plus drop-chat.js both injected Tell the desk. Chat winning the race left two Tell the desk cards. Those faces now keep one Tell the desk thread. Preview reuses an existing thread. Chat loads after preview. widget.html shares window.ws. Full Drop chrome / Counter stay later. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop Put data on Tell leftover: after Put data on `#lane-title` / paste tip and Card preview asks said A Desk AI drafts the card, Put data on `#agent-tell` and the drop-tell tip still said What should the desk do with it / Tell the desk the next draft. Those faces now say What should a Desk AI draft? You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop Preferred outcome leftover: after Put data on Tell said What should a Desk AI draft, Preferred outcome `#outcome-hint` and the drop-outcome tip still said What the desk should do next. Those faces now say What a Desk AI should draft next. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Help Desk AI leftover: after Preferred outcome said What a Desk AI should draft next, Help First day Drop, We type it in, Talk or type it, Drop anything, and playbook Audit still said The desk asks what’s missing / AIA writes the card / We write the card / the desk writes the card. Those faces now say A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop Tell click leftover: after one Tell the desk thread, `#talkTypeBtn` still had two empty handlers. Empty Tell painted two blank-chat prompts in the one `#drop-thread`. Chat now owns Tell on `/drop`. Preview still owns Tell on `/widget`. One empty tap → one Type the work. A Desk AI drafts the card. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Help FAQ Desk AI leftover: after Help First day Drop said A Desk AI drafts the card, FAQ Create/Drop plus Studio FAQ and Studio Desk cards still said when the desk asks. Those faces now say when a Desk AI asks. You still tap Yes or Stop. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget This drop leftover: after Help FAQ said when a Desk AI asks, `/widget` still painted the This drop Counter strip (`#verify-strip` / verify-cells). World `/widget` then showed Desk / Who / For / Do / Due / Files next to Tell. Those faces now skip the This drop / Counter strip. `/drop` still paints This drop. Card preview + one Tell the desk thread stay. Full Drop chrome stay later. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget empty Tell leftover: after `/widget` skipped This drop, embed `/widget` still owned Tell (preview hookType; chat skips embed). Empty Tell had no skip — two empty taps painted two Type the work. A Desk AI drafts the card. lines. Embed empty Tell now skips a second blank-chat prompt, same as chat on `/drop`. Card preview + one Tell the desk thread stay. Full Drop chrome stay later. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget Talk bar leftover: after embed empty Tell skipped a second blank, drop-talk.js still unhid `#talkBar` (Hear this / Talk / Quiet) on embed `/widget`. Preview meant to keep Talk hidden on embed. Those faces now skip the Talk bar, same as chat. `/drop` still paints Talk. Card preview + one Tell the desk thread stay. Full Drop chrome stay later. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget phone log leftover: after embed `/widget` skipped the Talk bar, drop-preview.js still injected Drops from this phone (`#drop-log-card`). World `/widget` then showed the phone log next to Tell. Those faces now skip Drops from this phone. `/drop` still paints Drops from this phone. Card preview + one Tell the desk thread stay. Full Drop chrome stay later. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop desk-first steps leftover: after embed `/widget` skipped the Talk bar, `/drop` still stacked every card in one column and buried **Which desk gets this** under the world search and the modes. Drop now runs one step at a time — Desk · Tell · Card · Check · Share (`drop-steps.js`). Desk is step one, the world search seats under it, a sticky rail plus Back / Next walks the rest, and off-step cards are `.step-off`. Picking a desk moves the rail to Tell. The rail always carries Draft only. You still tap Yes or Stop. Nobody sends money from here. Embed skips the rail. No card copy changed. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget steps rail leftover: after `/widget` skipped Drops from this phone, drop-steps.js still painted Desk · Tell · Card · Check · Share on `/widget`. `onDrop()` matches widget.html and only embed skipped the rail. Those faces now skip the step rail. `/drop` still paints the rail. Embed still skips. Header / modes / share stay on `/drop`. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget Drop-tab rail leftover: after `/widget` pathname skipped the rail, widgetHref still returned `/drop?ws=`. Counter phone Drop tab painted Desk · Tell · Card · Check · Share. widgetHref now points at `/widget`. `/widget` and `/widget?embed=1` omit `#drop-steps`. `/drop` still paints the rail. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget `#drop-on` leftover: after widgetHref pointed the Drop tab at `/widget` and the rail skipped, drop-now.js still injected This drop goes to … Change desk (`#drop-on`). The desk card already says where the drop lands. Those faces now skip `#drop-on`. `/drop` still paints `#drop-on`. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop `#drop-on` keep leftover: after `/widget` skipped `#drop-on`, `/drop` still created `#drop-on` then step one hushed it (`display:none`). Counter KEEP failed. Step one now paints `#drop-on` (This drop goes to … Change desk). `/widget` and embed still skip `#drop-on`. `/drop` still paints the rail. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget standalone steps rail leftover: after `#drop-on` stay painted on `/drop`, Counter phone standalone `/widget` still showed `#drop-steps` display:block. Source already had `boot()` `widgetOn()` early return and widgetHref → `/widget`; no static `#drop-steps` in markup. Earlier prod PASS only checked `#drop-on`. Those faces now do not load `drop-steps.js` (`skipSteps()`). `drop-now.js` `slimChrome()` tears down `#drop-steps` if a leftover rail painted. Embed still 0. `/drop` still paints the rail and `#drop-on` at Desk step. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget pick href leftover: after widgetHref pointed the Drop tab at `/widget` and `/widget` skipped `#drop-on`, `drop-pick.js` `goDrop` and `drop-now.js` recent public desks still sent `/drop?ws=`. World `/widget` then dumped onto `/drop` — Desk · Tell · Card · Check · Share. Those faces now stay on `/widget?ws=`. `/drop` still opens `/drop?ws=`. Share links stay `/drop?ws=`. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Drop widget standalone Talk bar leftover: after world pick stayed on `/widget?ws=`, drop-talk.js still unhid `#talkBar` (Hear this / Talk / Quiet) on standalone `/widget`. Preview already skipped Talk on embed. World `/widget` then showed the Talk bar next to Tell. Those faces now skip Talk, same as embed. `/drop` still paints Talk. Preview still owns Tell on `/widget`. Card preview + one Tell the desk thread stay. Seat id `agent` stays. Collect HOLD. No silent send.
+
+Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
+
+History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
+
+index.html follow-up / Bills, help.html Collect dd, consign.html 4 Paid: same Collect HOLD until Yes + a real money pipe. Not “money waits only if you wrote that rule.” Not “Owner lets the money move.” Not live “Square payout.”
+
+Leftover public surfaces after that pass: how.html film reel, setup.html / examples.html / setup-demo.js Consign cards, marketplace catalog + consign pack face / queue empty / engine hold rec, pricing.html Desk card, legal.html lead + billed-jobs line. Same Collect HOLD until Yes + a real money pipe. Not “4 Paid.” Not “Payout waits on you.” Not live “Per shipped job.”
+
+World-home (`index.html`, `how.html`, `setup.html`): How · Setup · Help · Desk in the header. Open desk, Talk, Give pack, Update pack, Desk, Help as page CTAs. Give pack = the file. Update pack = install again with Yes. One AIA account. Connect existing wallet, not Wallet.AIA. No grandma brand. No mint / Decentraweb / DNS lesson on those pages. Collect HOLD. No silent send.
+
+World Help playbook (`help.html` `#playbook-card`): four steps on one AIA account. `ai.aia` is the door, not a mint lesson. Studio / More keep the DNS HOLD line. `examples.html` Stay on this phone — no hashed-session / X-Session.
+
+World Help leftover (`help.html` lead, First day Desk AI, Yes button words): Yes is the rail, not Send-or-Stop. First day Desk AI does not teach orange-until-DNS mint. You send the draft yourself — Yes does not “post it.” `#aia-inbound` MX/DNS HOLD stays.
+
+Field tips + Ask AIA: `aia-tip.js` on How, Setup, Home, onboard, login, Drop, widget, Account, Examples, Help, Support, Pipes, Connections, Create, and Studio. Extra info on the field. Ask AIA opens Help chat (`/support`) with field id + plain tip text + page. Quiet on Help chat stops speech and keeps that answer — it does not wipe back to the stock prompt. Help chat stays draft / help. Need a person? Drop a card on the AIA Admin desk. Yes / Stop stay human. Give pack / Update pack named CTAs on world doors, Help, and Account. A pack puts When → If → Then on this desk queue; buyer binds their own keys; Yes / Stop / Kill before outbound; webhook is the live pipe. Drop / widget also tip I am, kind, phone, photo, Put data on paste / tell, and injected kind-fields What is needed / When / Preferred outcome / Where / Who it is for / From / Amount note / Callback number — Drop writes a card; Yes before anything leaves; Collect HOLD; no silent send. Thin App / webhook pack example on Help `#build-pack`, Examples, and Studio — copy, do not seed; not a listed SKU; not a bindings product. consign.html Drop it / Yes. Not a ticket portal. Not a new chat product. No ETH escrow, micro-wei, streaming ETH, or L2 state channels.
+
 ## Desk cards
 
 When → If → Then: a named desk AI drafts a queue card (fields / notes), not a raw chat blob. Yes / Stop / Kill stay human. Yes is not auto-send mail, push git, or a Collect charge. Collect HOLD. Thin `.aia` from Studio; test via Drop or the www hook. A desk holds up to 12 card fields — real cap. Sample JSON is illustrative only — desk words. Do not invent `render_desk_card`, interactive_review layout, or code_diff / confidence / token badge field types.
 
-Plan tiers FAQ: no public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Create / Drop a goal → draft card → Yes. No autonomous ETA engine. No SaaS codegen.
+Plan tiers FAQ: no public Free / Pro / Team / Enterprise SKUs or credit pricing yet. One desk account. Create / Drop a goal → draft card → Yes. Needs you / prompt ask-who when a Desk AI asks. No autonomous ETA engine. No SaaS codegen.
 
 ## World users · launch an automation business
 
@@ -168,20 +330,20 @@ Paid ads (off-platform, optional): ROAS / CAC / funnel (lead magnet → tripwire
 
 **Four models** (label on-desk vs off-platform):
 
-1. Automation Agency (AAA) — off-platform client work on the AIA desk. Sell outcomes. AIA is the desk engine (Capture → Qualify → Do → Collect HOLD → Follow). Fees are example / off-platform — not AIA rates. Do not publish $1.5k–$5k / $300–$1k as AIA rates.
+1. Automation Agency (AAA) — off-platform client work on the AIA desk. Sell outcomes. AIA is the desk engine (Drop → Qualify → Do → Collect HOLD → Follow). Fees are example / off-platform — not AIA rates. Do not publish $1.5k–$5k / $300–$1k as AIA rates.
 2. DFY — off-platform service wrapping a repeatable install (example: lead qualify in 48h). Flat fees illustrative only.
 3. Marketplace — on-desk Studio. You set the price. Lead magnet → core pack → VIP / club is your ladder. No public payout baseline. Do not treat $47–$147 as platform prices.
 4. Co-pilot — off-platform revenue-share. 10–15% cuts are examples only, not AIA terms.
 
 First 3 clients: Audit (playbook step 1 · Find the leaks) → 60s proof → risk-free trial. No invented close rates.
 
-**Pack quality:** ship operational infrastructure (Capture → Qualify → Do → Collect HOLD → Follow), not dead templates. Fallbacks = Rules + Rail. Visual outcomes on Follow / Collect. Slack / Sheets / Notion via pipes when connected (HOLD until Yes / keys). Structured prompts on named desk AIs. Recommend a 2-min quickstart. No review-rate stats.
+**Pack quality:** ship operational infrastructure (Drop → Qualify → Do → Collect HOLD → Follow), not dead templates. Fallbacks = Rules + Rail. Visual outcomes on Follow / Collect. Slack / Sheets / Notion via pipes when connected (HOLD until Yes / keys). Structured prompts on named desk AIs. Recommend a 2-min quickstart. No review-rate stats.
 
 **Funnel tiers:** Tripwire / Core / High-ticket DFY. You set prices. Illustrative only. High-ticket implementation is mostly off-platform wrapping packs.
 
 **Expansion:** recurring update pass — Collect HOLD; do not invent a subscription engine. Industry bundles = repackage `.aia`. `$0.05/exec` micro-SaaS is off-platform or a future pipe — AIA does not host per-run billing.
 
-**Workflow & Agent Pack Creator (on-desk):** package named desk AIs, webhooks, and CRM pipes when connected into a `.aia`. Solve a specific problem (lead qualify, review responder, social *repurposing drafts*). Not auto-publish unless a live pipe exists. You set prices. Collect HOLD. Social auto-post is a future / off-platform pipe — not live OAuth. Account door: desk name + code, or email + password — not social SSO. Marketplace GTM: clear titles + niche keywords. No top-ranking guarantee.
+**On-desk Pack Creator:** package named desk AIs, webhooks, and CRM pipes when connected into a `.aia`. Solve a specific problem (lead qualify, review responder, social *repurposing drafts*). Not auto-publish unless a live pipe exists. You set prices. Collect HOLD. Social auto-post is a future / off-platform pipe — not live OAuth. Account door: desk name + code, or email + password — not social SSO. Marketplace GTM: clear titles + niche keywords. No top-ranking guarantee.
 
 **Build automation packs** (map to this desk):
 
@@ -207,7 +369,7 @@ First 3 clients: Audit (playbook step 1 · Find the leaks) → 60s proof → ris
 
 ## AIA Internet · `.aia` packs
 
-**AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks.
+**AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks. Public brand: **ai.aia**. Live desk host: **automateitaway.com**. Do not invent www.aia.aia.
 
 **`.aia`** is the pack + desk-AI artifact format (and the TLD for identity: `james.aia`, `springfield-shop.aia`). Download, share, or install a pack as a `name.aia` file. JSON inside is fine. MIME/extension is `.aia`. Named desk AIs and guardrails travel with the file. Marketplace listings and private desk installs use `.aia`.
 
@@ -243,7 +405,7 @@ Outbound Send stays HOLD. No silent mail. Rail / Yes. Status orange until a real
 ## Pack logic
 
 1. World user drops onto a desk.
-2. Drop stamps `pack` + `custom.face` (who / what / when / where / how).
+2. Qualify stamps `pack` + `custom.face` (who / what / when / where / how) from the pack already installed on that desk. Drop does not ask you to pick a pack each time.
 3. Capture makes a card in `exception` / Qualify.
 4. Qualify fills `next` from the pack. Grok drafts in that pack's language.
 5. Queue paints the pack face.

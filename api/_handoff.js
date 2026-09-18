@@ -22,14 +22,14 @@ function agentSpec(who) {
     ? {
       crew: who.crew || who.role || who.name || "Desk AI",
       title: who.name || "Desk AI",
-      does: who.does || "Drafts desk work on this desk. Never Yes, Stop, money, or mail.",
+      does: who.does || ais.DEFAULT_DOES,
       artifact: "draft on the card",
       never: who.never || ais.NEVER.slice()
     }
     : null;
   return named || roles.agentOf(who.crew || who.name) || {
     crew: who.crew || who.name || "Agent", title: "Draft the card",
-    does: "Writes a draft on the card. Never Send.", artifact: "note",
+    does: ais.DEFAULT_DOES, artifact: "note",
     never: ["send", "stop", "money", "approve"]
   };
 }
@@ -38,12 +38,12 @@ function moneyOf(job) {
   return Number.isFinite(n) ? n : null;
 }
 function crewOf(job, shop) {
-  if (!job) return { id: "worker", label: "Worker", does: "Qualify and nudge. Never Send." };
+  if (!job) return { id: "worker", label: "Worker", does: "Qualifies the card. Desk crew. Drafts only." };
   const rules = shop ? ensureRules(shop) : [];
   const holdAt = shop ? moneyWaitOf(rules) : null;
   if (job.risk === "legal" || job.risk === "title" || job.risk === "credit" || job.risk === "suitability"
     || ruleWantsStop(rules, job, "do") || ruleWantsStop(rules, job, "qualify")) {
-    return { id: "rail", label: "Rail", does: "Hold. Owner taps Yes or No." };
+    return { id: "rail", label: "Rail", does: "Hold. Owner taps Yes or Stop." };
   }
   if (moneyNeedsOwner(moneyOf(job), holdAt) || ruleWantsOwner(rules, job, "do") || ruleWantsOwner(rules, job, "qualify")) {
     return { id: "owner", label: "Owner", does: "Desk rule wait. Owner taps." };
@@ -59,8 +59,8 @@ function crewOf(job, shop) {
   if (job.agentDraft && job.agentDraft.crew) {
     return { id: String(job.agentDraft.crew).toLowerCase(), label: job.agentDraft.name || job.agentDraft.crew, kind: "agent", does: job.agentDraft.does, artifact: job.agentDraft.artifact, deskAi: !!job.agentDraft.deskAi };
   }
-  if (job.draft) return { id: "doer", label: "Doer", does: "Draft only. You tap Yes or No." };
-  return { id: "worker", label: "Worker", does: "Qualify and nudge. Never Send." };
+  if (job.draft) return { id: "doer", label: "Doer", does: "Draft only. You tap Yes or Stop." };
+  return { id: "worker", label: "Worker", does: "Qualifies the card. Desk crew. Drafts only." };
 }
 function applyHandoff(job, who, shop) {
   if (!job || !who) return job;
@@ -95,7 +95,7 @@ function agentDraft(job, who) {
     Builder: "Build note for " + title + ". What the desk still needs. Builder does not deploy and does not flip a pipe live.",
     Worker: "Qualify " + title + ". " + (notes || "Need the missing fact before Yes.") + " Worker nudges. Never Send."
   };
-  const text = namedLine || bits[spec.crew] || (spec.crew + " draft for " + title + ". A person taps Send.");
+  const text = namedLine || bits[spec.crew] || (spec.crew + " draft for " + title + ". A person taps Yes.");
   job.agentDraft = { crew: spec.crew, name: who.name, title: spec.title, artifact: spec.artifact, does: spec.does, prompt: String(who.prompt || "").trim().slice(0, 160), never: spec.never || ais.NEVER.slice(), text: text, at: new Date().toISOString(), deskAi: !!who.deskAi };
   if (!job.draft) job.draft = text;
   job.artifact = spec.artifact;

@@ -6,7 +6,8 @@
   <title>Rules · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
@@ -178,7 +179,7 @@
             <input id="rule-value" maxlength="80" placeholder="international">
           </div>
         </div>
-        <p class="meta" id="rule-hint">This desk only. Starts empty. Owner desk code to change them. Stop still needs the owner’s second tap. Outbound and money stay HOLD.</p>
+        <p class="meta" id="rule-hint">This desk only. Starts empty. Owner leftover email session or desk code to change them. Stop still needs the owner’s second tap. Outbound and money stay HOLD.</p>
       </div>
       <div id="scenarios">
         <h3 style="margin-top:12px">Example When → If → Then</h3>
@@ -204,7 +205,7 @@
       <div class="row" id="noun-save" hidden>
         <button class="edit" type="button" onclick="saveNouns()">Save words</button>
       </div>
-      <p class="meta" id="noun-hint">Owner desk code required to save.</p>
+      <p class="meta" id="noun-hint">Owner leftover email session or desk code required to save.</p>
     </div>
     <p class="meta"><a href="/legal">Legal</a> is the draft contract. This page is the desk’s wait lines.</p>
   </main>
@@ -234,6 +235,8 @@
       const h = { "Content-Type": "application/json" };
       const ws = workspaceSlug();
       if (ws) h["X-Workspace"] = ws;
+      const tok = localStorage.getItem("aia_session") || "";
+      if (tok) h["X-Session"] = tok;
       const pin = pinEl.value || localStorage.getItem("aia_pin");
       if (pin) h["X-Pin"] = pin;
       return h;
@@ -499,6 +502,18 @@
         const can = !!(rulesOut.data && rulesOut.data.canAdd);
         paintRules(RULES, can);
         paintNouns((rulesOut.data && rulesOut.data.nouns) || NOUNS, can);
+        const nounHint = document.getElementById("noun-hint");
+        const ruleHint = document.getElementById("rule-hint");
+        if (nounHint) {
+          nounHint.textContent = can
+            ? "Owner on this phone can save. Leftover email session or desk code. Wrong or empty sign-in still 403."
+            : "Owner leftover email session or desk code required to save.";
+        }
+        if (ruleHint) {
+          ruleHint.textContent = can
+            ? "This desk only. Starts empty. Owner on this phone can add. Stop still needs the owner’s second tap. Outbound and money stay HOLD."
+            : "This desk only. Starts empty. Owner leftover email session or desk code to change them. Stop still needs the owner’s second tap. Outbound and money stay HOLD.";
+        }
         if (rulesOut.data && rulesOut.data.widgetsOn != null) paintCount(rulesOut.data.widgetsOn);
         banner.textContent = "Add a rule. When / If / Then. A pack workflow strings rules. This page is not Legal.";
         paintGate();

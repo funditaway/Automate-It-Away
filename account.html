@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Your account · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
   <script>(function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();</script>
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="desk-nav.css">
@@ -36,6 +38,7 @@
     .aia-tld-steps{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
     .aia-tld-steps li{margin:4px 0}
     a.go,a.edit{display:inline-flex;align-items:center;text-decoration:none}
+    #gate[hidden]{display:none!important}
     @media (max-width:420px){.facts{grid-template-columns:1fr}}
   </style>
 </head>
@@ -55,25 +58,38 @@
     <h1>Your account</h1>
     <p class="muted">One AIA account. Desk name + code, or email + password. We do not email a reset code. Create .aia email for automations — james-ai@funditaway.aia. Owner taps stay on the owner seat.</p>
     <div class="banner" id="plan">AIA plan · free</div>
+    <div class="card" id="account-road">
+      <h2>Past / now / next</h2>
+      <p class="meta">This account on History. One desk. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. .aia identity HOLD until mint.</p>
+      <div class="links">
+        <a href="/history#account-road">Give pack</a>
+        <button type="button" class="aia-tip" data-aia-tip="give-pack" aria-label="More about Give pack">?</button>
+        <a href="/history#account-road">Update pack</a>
+        <button type="button" class="aia-tip" data-aia-tip="update-pack" aria-label="More about Update pack">?</button>
+        <a href="/history#account-road">Account roadmap on History</a>
+        <a href="/dev">Studio</a>
+        <a href="/market">Install pack</a>
+      </div>
+    </div>
     <div class="card">
       <h2>You</h2>
       <div class="you-row">
         <button type="button" class="you-pic" id="pic-btn" aria-label="Change photo">AIA</button>
         <input id="pic-file" type="file" accept="image/*" hidden>
         <div style="flex:1;min-width:0">
-          <label for="you-name">Your name</label>
+          <label for="you-name">Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
           <input id="you-name" maxlength="80" placeholder="What this phone should call you">
         </div>
       </div>
-      <label for="you-email">Email</label>
+      <label for="you-email">Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
       <input id="you-email" type="email" placeholder="you@shop.com">
       <label for="you-phone">Phone</label>
       <input id="you-phone" maxlength="32" placeholder="417-555-0100">
-      <label for="you-city">City</label>
+      <label for="you-city">City <button type="button" class="aia-tip" data-aia-tip="city" aria-label="More about City">?</button></label>
       <input id="you-city" maxlength="60" placeholder="Springfield">
       <label for="you-handle">AIA Internet name</label>
       <input id="you-handle" maxlength="63" placeholder="james.aia" autocomplete="username">
-      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Wallet Connect is a browser wallet for .aia / registry when Bridge unlocks — not compute credits or a creator payout ledger. Mint / Bridge stay HOLD. Collect and payouts HOLD. Not your email.</p>
+      <p class="meta">AIA Internet uses the .aia TLD. Names on this desk now. Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks. Not Wallet.AIA. not compute credits or a creator payout ledger. Not your email.</p>
       <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>
       <p class="meta" id="you-hint">Tap the circle for a photo.</p>
       <div class="links"><a href="/more">More</a><a href="/desks">Desks</a><a href="/people">People</a><a href="/studio">Studio</a><a href="#" id="leave-phone">Leave this phone</a></div>
@@ -89,15 +105,15 @@
         <button type="button" class="edit" id="use-email">Email + password</button>
       </div>
       <div id="gate-desk">
-        <label>Account or desk name</label>
+        <label>Account or desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
         <input id="slug">
-        <label>Your code</label>
+        <label>Your code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
         <input id="pin" inputmode="numeric" minlength="4">
       </div>
       <div id="gate-email" hidden>
-        <label>Email</label>
+        <label>Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
         <input id="gate-mail" type="email">
-        <label>Password</label>
+        <label>Password <button type="button" class="aia-tip" data-aia-tip="password" aria-label="More about Password">?</button></label>
         <input id="gate-pass" type="password" minlength="8">
       </div>
       <p><button class="go" type="submit">Open the account</button></p>
@@ -120,6 +136,27 @@
       <div class="card"><h2>AIA subscription</h2><div class="row" id="plans"></div></div>
       <div class="card" id="owned"></div>
       <div class="card" id="member"></div>
+      <div class="card" id="phones">
+        <h2>Phones on this account</h2>
+        <p class="meta">Up to 8 phones. Same AIA account. Leave this phone or every phone. Sessions last 14 days.</p>
+        <div id="phone-list"></div>
+        <div class="row">
+          <button class="edit" type="button" id="leave-all">Leave every phone</button>
+        </div>
+        <p class="meta" id="phone-hint"></p>
+      </div>
+      <div class="card" id="export-card">
+        <h2>Export the book</h2>
+        <p class="meta">Copy of this account. No pin. No password hash. Nothing sends from here. Collect HOLD.</p>
+        <p><button class="edit" type="button" id="export-book">Export account book</button></p>
+        <p class="meta" id="export-hint"></p>
+      </div>
+      <div class="card" id="mfa-card">
+        <h2>Authenticator</h2>
+        <p class="meta">HOLD. Not live. No email codes. No SMS codes.</p>
+        <p><button class="edit" type="button" id="mfa-on">Turn on authenticator</button></p>
+        <p class="meta" id="mfa-hint">Page should say HOLD.</p>
+      </div>
     </div>
   </main>
   <nav id="desk-nav" aria-label="Desk">
@@ -130,6 +167,7 @@
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
   <script src="theme.js"></script>
+  <script src="aia-tip.js"></script>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
   <script src="aia-wallet.js"></script>
@@ -150,6 +188,7 @@
     const youHint=document.getElementById("you-hint");
     let door="desk";
     slugEl.value=localStorage.getItem("aia_desk_name")||localStorage.getItem("aia_ws")||"";
+    pinEl.value=localStorage.getItem("aia_pin")||"";
     youName.value=localStorage.getItem("aia_name")||"";
     youEmail.value=localStorage.getItem("aia_email")||"";
     document.getElementById("gate-mail").value=localStorage.getItem("aia_email")||"";
@@ -183,7 +222,8 @@
       const h={"Content-Type":"application/json"};
       if(slug) h["X-Workspace"]=slug;
       const tok=localStorage.getItem("aia_session")||"";
-      if(tok) h["X-Session"]=tok; else if(pin) h["X-Pin"]=pin;
+      if(tok) h["X-Session"]=tok;
+      if(pin) h["X-Pin"]=pin;
       return h;
     }
     function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c];});}
@@ -198,7 +238,7 @@
         "<p><b>Phone</b>"+esc(acc.phone||"Not set")+"</p>"+
         "<p><b>City</b>"+esc(acc.city||"—")+"</p>"+
         "<p><b>AIA Internet</b>"+esc(acc.aia||(acc.handle?acc.handle+".aia":"Not set"))+"</p>"+
-        "<p><b>Wallet</b>"+esc((d.wallet&&d.wallet.connected&&(d.wallet.short||d.wallet.address))||(acc.wallet&&acc.wallet.short)||"Not connected")+"</p>"+
+        "<p><b>Your wallet</b>"+esc((d.wallet&&d.wallet.connected&&(d.wallet.short||d.wallet.address))||(acc.wallet&&acc.wallet.short)||"Not connected")+"</p>"+
         "<p><b>.aia TLD</b>"+esc((d.aiaTld&&d.aiaTld.label)||"Watching")+"</p>"+
         "<p><b>Password door</b>"+(acc.hasPassword?"On":"Off")+"</p>"+
         "<p><b>Opened</b>"+esc((acc.createdAt||"").slice(0,10)||"—")+"</p></div>";
@@ -213,6 +253,41 @@
       document.getElementById("owned").innerHTML="<h2>Desks you own</h2>"+(owned.length?owned.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">Owner</div></div>";}).join(""):"<p class=\"meta\">Open a desk as owner.</p>");
       const sitting=d.desksMember||(d.mine&&d.mine.member)||[];
       document.getElementById("member").innerHTML="<h2>Desks you sit on</h2>"+(sitting.length?sitting.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">"+esc(w.kind)+"</div></div>";}).join(""):"<p class=\"meta\">Join a desk as a member.</p>");
+      if(Array.isArray(d.sessions)) paintPhones(d.sessions);
+      else loadPhones();
+    }
+    function phoneLine(s){
+      const when=String(s.seenAt||s.createdAt||"").replace("T"," ").slice(0,16);
+      const who=s.name||s.role||"Seat";
+      const desk=s.workspace||"";
+      const now=s.current?" · this phone":"";
+      return "<div class=\"item\"><strong>"+esc(who)+now+"</strong><div class=\"meta\">"+esc(desk)+(when?" · seen "+esc(when):"")+"</div></div>";
+    }
+    function paintPhones(rows){
+      const box=document.getElementById("phone-list");
+      if(!box) return;
+      const list=Array.isArray(rows)?rows:[];
+      box.innerHTML=list.length?list.map(phoneLine).join(""):"<p class=\"meta\">No other phones on this account yet. This phone is the trail once Open saves a session.</p>";
+    }
+    async function loadPhones(){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"sessions"})});
+      const d=await r.json().catch(function(){return {};});
+      if(r.ok) paintPhones(d.sessions||[]);
+      else document.getElementById("phone-hint").textContent=d.error||"Could not list phones.";
+    }
+    function wipePhone(){
+      ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email","aia_wallet_address","aia_wallet_chain"].forEach(function(k){localStorage.removeItem(k);});
+      location.href="/login";
+    }
+    async function leavePhone(all){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      try{
+        await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:all?"logout-all":"logout"})});
+      }catch(e){}
+      wipePhone();
     }
     document.getElementById("save-you").onclick=async function(){
       if(youName.value) localStorage.setItem("aia_name",youName.value);
@@ -239,8 +314,37 @@
     };
     document.getElementById("leave-phone").onclick=function(e){
       e.preventDefault();
-      ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email","aia_wallet_address","aia_wallet_chain"].forEach(function(k){localStorage.removeItem(k);});
-      location.href="/login";
+      leavePhone(false);
+    };
+    document.getElementById("leave-all").onclick=function(){leavePhone(true);};
+    document.getElementById("export-book").onclick=async function(){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      const hint=document.getElementById("export-hint");
+      try{
+        const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"export"})});
+        const d=await r.json().catch(function(){return {};});
+        if(!r.ok||!d.pack){hint.textContent=d.error||"Could not export." ;return;}
+        const text=JSON.stringify(d.pack,null,2);
+        if(/"password"\s*:/.test(text)||/"pin"\s*:/.test(text)){hint.textContent="Export omitted. Book had a pin or password hash.";return;}
+        const file=String((d.pack.account&&d.pack.account.slug)||slug||"account").replace(/[^\w.-]+/g,"-")+"-account.json";
+        const a=document.createElement("a");
+        a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+        a.download=file;
+        a.click();
+        setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
+        hint.textContent="Exported. No pin. No password hash. Collect HOLD.";
+      }catch(e){hint.textContent="Could not reach this box.";}
+    };
+    document.getElementById("mfa-on").onclick=async function(){
+      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
+      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
+      const hint=document.getElementById("mfa-hint");
+      try{
+        const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"mfa",on:true})});
+        const d=await r.json().catch(function(){return {};});
+        hint.textContent=(d.error||d.hint||"HOLD. Authenticator is not live on this account.")+(d.hold||r.status===409?" Authenticator stays HOLD.":"");
+      }catch(e){hint.textContent="Could not reach this box.";}
     };
     async function act(action, extra){
       const slug=String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
