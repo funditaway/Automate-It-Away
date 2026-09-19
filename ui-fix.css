@@ -184,3 +184,75 @@ a.open-another {
   flex-wrap: wrap !important;
   gap: 8px !important;
 }
+
+/* Stack labels over inputs on every gate + desk open form. */
+.gate-card label,
+#form label,
+#desk-door label,
+#email-door label,
+#mfa-box label,
+.onboard-card label,
+.page-bg form label {
+  display: block !important;
+  width: 100%;
+  margin: 12px 0 6px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.gate-card input,
+#form input,
+#desk-door input,
+#email-door input,
+#mfa-box input,
+.onboard-card input {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100%;
+  margin: 0 0 4px;
+}
+.gate-card .btn[type="submit"],
+#form button.btn[type="submit"] {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px !important;
+  margin: 16px 0 8px;
+  border-radius: 12px;
+}
+.talk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+.talk-bar .talk-status {
+  flex: 1 1 100%;
+  margin: 0 0 4px;
+}
+body.has-desk-nav #ws, body.has-desk-nav #pin {
+  min-width: 0 !important;
+}
+body.has-desk-nav #pin {
+  width: auto !important;
+  min-width: 7.5em;
+  flex: 0 1 140px;
+}
+.desk-open-row,
+#gate, #open-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+.desk-open-row input,
+#gate input {
+  flex: 1 1 160px;
+}
+@media (max-width: 720px) {
+  body.has-desk-nav #ws, body.has-desk-nav #pin {
+    width: 100% !important;
+    flex: 1 1 100%;
+  }
+}

@@ -60,3 +60,7 @@ html.light header a, html.light .site-header a { color: #fff; }
   body.has-desk-nav { padding-bottom: 24px; }
   body.has-desk-nav #desk-nav { display: none !important; }
 }
+
+.gate-card label { display:block; width:100%; margin:12px 0 6px; font-weight:700; }
+.gate-card input { display:block; width:100%; }
+.gate-card .btn[type="submit"] { display:flex; width:100%; min-height:48px; align-items:center; justify-content:center; margin-top:16px; }
