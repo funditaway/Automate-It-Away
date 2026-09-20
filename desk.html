@@ -110,7 +110,7 @@
     #noun-fields{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0}
     #noun-fields label{font-size:11px;font-weight:700;color:var(--heading);display:block;margin:0 0 4px}
     #noun-fields input{width:100%}
-    #gate[hidden],#session[hidden],#desk-switch[hidden],#rule-add[hidden],#noun-save[hidden],#nav-consign[hidden],#recent-label[hidden]{display:none!important}
+    #gate[hidden],#session[hidden],#desk-switch[hidden],#rule-add[hidden],#noun-save[hidden],#nav-consign[hidden],#recent-label[hidden],#queue-filters[hidden],#pack-filters[hidden]{display:none!important}
     @media(max-width:640px){#noun-fields{grid-template-columns:1fr 1fr}}
     .talk{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
     .talk div{margin:0 0 6px}
@@ -355,11 +355,15 @@
         paintNouns(AIADesks.defaultNouns());
         paintRules([]);
         if (filters) filters.hidden = true;
+        const packsBar = document.getElementById("pack-filters");
+        if (packsBar) packsBar.hidden = true;
         document.getElementById("queue").innerHTML = queueEmptyHtml("nodesk");
         showConsignNav();
         return;
       }
       if (filters) filters.hidden = false;
+      const packsBar = document.getElementById("pack-filters");
+      if (packsBar) packsBar.hidden = false;
       try {
         await api("/api/worker");
         const health = await api("/api/health");

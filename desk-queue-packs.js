@@ -92,10 +92,14 @@
     if (FILTER === "aia-adoption") return "Try first. Drop a task, an errand, or an idea. AIA drafts. You tap Yes or Stop.";
     if (FILTER === "aia-implement") return "Four steps. Drop a leak, a pipe note, a desk AI idea, or a guard. You still tap.";
     if (WANTED.indexOf(FILTER) >= 0) return "Make this pack on Create, then drop it. Use still says Make this pack.";
-    if (FILTER === "all") return "Nothing on this queue yet. Drop anything. Find a pack. Add a rule if you need one.";
     return "Drop work for this pack. You still tap Yes or Stop.";
   }
   function emptyHtml() {
+    var here = "";
+    try { here = localStorage.getItem("aia_ws") || ""; } catch (e) {}
+    if (typeof window.queueEmptyHtml === "function" && (FILTER === "all" || !here)) {
+      return window.queueEmptyHtml(here ? "empty" : "nodesk");
+    }
     var pack = FILTER === "all" || TYPES.indexOf(FILTER) >= 0 ? "" : FILTER;
     var drop = pack ? "/drop?pack=" + encodeURIComponent(pack) : "/drop";
     var make = WANTED.indexOf(FILTER) >= 0 ? "/create?kind=pack&idea=" + encodeURIComponent(FILTER) : "";
@@ -111,7 +115,7 @@
     var css = document.createElement("style");
     css.id = "queue-pack-css";
     css.textContent =
-      "#pack-filters{margin:0 0 10px}" +
+      "#pack-filters[hidden]{display:none!important}" +
       "#pack-filters .now{color:var(--heading);font-weight:700;margin:0 0 4px}" +
       "#pack-chips{display:flex;flex-wrap:wrap;gap:6px}" +
       "#pack-chips button{min-height:40px;padding:6px 10px;border-radius:999px;font-size:12px}" +
@@ -151,6 +155,11 @@
   function paintBar() {
     ensureCss();
     ensureDom();
+    var bar = document.getElementById("pack-filters");
+    var here = "";
+    try { here = localStorage.getItem("aia_ws") || ""; } catch (e) {}
+    if (bar) bar.hidden = !here;
+    if (!here) return;
     var chips = document.getElementById("pack-chips");
     if (!chips) return;
     var n = counts();
