@@ -311,6 +311,8 @@ History drafted-card trail leftover: after Create Open/Unlock clear was honest, 
 
 Queue empty / Status orange leftover: after History empty stayed honest, `/desk` still said Nothing here yet. Drop anything / Add a rule for a stranger phone and an open empty desk. `#queue-empty` CSS never painted. Cap · orange hid when empty. `/status` hardcoded Grok API key not set and Orange is P1. No desk now says Queue does not invent Yes / Stop cards. Open empty says Drop or Create. Cap orange is do this first — not Collect. Status paints Grok from health. Orange is HOLD — wait. Collect HOLD. No silent send.
 
+Health JSON honesty leftover: after `/status` said Orange is HOLD — not P1, public `GET /api/health` still published `phase: "P1"`, `dispatch.demo`, and Grok **T2 $250**. Those strings are gone. No phase. Writeback is `dispatch.ok or dispatch.inbound`. Grok tiers stay T0 / T1 / T3 / T4. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

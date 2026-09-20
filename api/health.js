@@ -79,7 +79,7 @@ async function deskStatus(req, res) {
     aiaTld,
     honesty: {
       rule: "hold until a real pipe answers",
-      writeback: "dispatch.ok or dispatch.inbound, never dispatch.demo",
+      writeback: "dispatch.ok or dispatch.inbound",
       catalog: "same as /api/health — webhook live; paid pipes hold unless env; whatnot down"
     }
   });
@@ -97,7 +97,6 @@ async function health(req, res) {
     ok: true,
     product: "Automate It Away",
     engine: ["capture", "qualify", "do", "collect", "follow"],
-    phase: "P1",
     store: {
       driver,
       path: mem.path || storePath(),
@@ -168,7 +167,7 @@ async function health(req, res) {
         rate: {
           source: "https://docs.x.ai/docs/rate-limits",
           startTier: "T0 until $50 prepaid API spend",
-          tiers: "T0 $0 · T1 $50 · T2 $250 · T3 $1k · T4 $5k",
+          tiers: "T0 $0 · T1 $50 · T3 $1k · T4 $5k",
           languageT0: "Published flagship language models: 37 RPS / 10M TPM at T0",
           multiAgentT0: "Multi-agent is tighter: 9 RPS / 2.5M TPM at T0 — not for every card",
           over: "429 Too Many Requests. Desk keeps the card. Human taps still work.",

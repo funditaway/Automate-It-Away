@@ -71,6 +71,22 @@ async function main() {
   else if (!/HOLD/.test(res.body.accounts.note || "")) fail("health accounts.note must stay HOLD with mfa");
   else pass("health copy matches account doors");
 
+  const healthJson = JSON.stringify(res.body);
+  const grokTiers = (((res.body.automation || {}).grok || {}).rate || {}).tiers || "";
+  if (Object.prototype.hasOwnProperty.call(res.body, "phase") || res.body.phase === "P1") {
+    fail("health must not publish top-level phase / P1");
+  } else if (/dispatch\.demo/.test(healthJson)) {
+    fail("health JSON must not mention dispatch.demo");
+  } else if (/\$250|T2 \$250/.test(grokTiers) || /T2 \$250/.test(healthJson)) {
+    fail("health grok rate tiers must not publish $250 / T2 $250");
+  } else pass("health JSON drops phase / dispatch.demo / T2 $250");
+
+  const healthSrc = require("fs").readFileSync(path.join(__dirname, "..", "api/health.js"), "utf8");
+  if (/phase:\s*["']P1["']/.test(healthSrc)) fail("api/health.js still hardcodes phase P1");
+  else if (healthSrc.indexOf("dispatch.demo") >= 0) fail("api/health.js still mentions dispatch.demo");
+  else if (/T2 \$250|\$250/.test(healthSrc)) fail("api/health.js still publishes $250 / T2 $250");
+  else pass("health.js source drops phase P1 / dispatch.demo / T2 $250");
+
   const statusHtml = require("fs").readFileSync(path.join(__dirname, "..", "status.html"), "utf8");
   if (/Pin workspace/.test(statusHtml)) fail("status.html must not hardcode pin-only accounts");
   else if (!/id="accounts"/.test(statusHtml) || !/accounts\.login/.test(statusHtml)) fail("status.html must paint World user accounts from health.accounts.login");
@@ -98,6 +114,8 @@ async function main() {
   else pass("empty status workspace is not demo");
   if (st.body.status !== "hold" || st.body.answered !== false) fail("empty desk should stay hold until a pipe answers");
   else pass("status stays hold with no writeback");
+  if (/dispatch\.demo/.test(JSON.stringify(st.body))) fail("status JSON must not mention dispatch.demo");
+  else pass("status JSON drops dispatch.demo");
   if (!st.body.aiaTld || st.body.aiaTld.owned || st.body.aiaTld.ownedByConnected || st.body.aiaTld.mint || st.body.aiaTld.charged || st.body.aiaTld.collect !== "hold") {
     fail("status aiaTld must stay honest HOLD and not invent owned " + JSON.stringify(st.body.aiaTld));
   } else pass("status aiaTld is honest HOLD");
@@ -177,6 +195,15 @@ async function main() {
   if (require("fs").existsSync(path.join(__dirname, "..", "api/desks.js"))) {
     fail("api/desks.js must not be its own Lambda");
   } else pass("api/desks.js is folded into auth");
+
+  const yesNo = require("fs").readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
+  const packMd = require("fs").readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
+  if (yesNo.indexOf("Health JSON honesty leftover after that pass") < 0) {
+    fail("ACCOUNT-YES-NO must record Health JSON honesty leftover");
+  } else pass("ACCOUNT-YES-NO records Health JSON honesty leftover");
+  if (packMd.indexOf("Health JSON honesty leftover:") < 0) {
+    fail("PACK.md must record Health JSON honesty leftover");
+  } else pass("PACK.md records Health JSON honesty leftover");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");
