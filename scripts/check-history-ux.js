@@ -79,6 +79,12 @@ if (history.indexOf("Nothing matches these filters") < 0) {
 if (history.indexOf("Clear filters only when a filter hid the trail") < 0) {
   fail("History must not offer Clear filters on a truly empty trail");
 } else pass("Clear filters only when a filter hid the trail");
+if (history.indexOf('id="clear-view" hidden') < 0 && history.indexOf("clr.hidden=n<1") < 0) {
+  fail("History toolbar Clear filters must hide when no filter is on");
+} else pass("History toolbar Clear filters hides when no filter is on");
+if (history.indexOf("clr.hidden=n<1") < 0) {
+  fail("paint() must hide #clear-view when filterCount is 0");
+} else pass("paint() hides #clear-view when filterCount is 0");
 if (history.indexOf("History does not invent Yes / Stop cards") < 0) {
   fail("empty History must not invent Yes / Stop cards");
 } else pass("empty History does not invent Yes / Stop cards");

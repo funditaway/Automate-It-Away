@@ -62,7 +62,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 .sheet h2{margin:0 0 8px;font-size:1.1rem}
 .kv{display:grid;grid-template-columns:90px 1fr;gap:6px 10px;font-size:13px;margin:10px 0}
 .kv b{color:var(--muted);font-weight:700}
-#who-chip[hidden]{display:none!important}
+#who-chip[hidden],#clear-view[hidden]{display:none!important}
 .road{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:0 0 12px}
 .road h2{font-size:1rem;margin:0 0 4px}
 #account-road{scroll-margin-top:72px}
@@ -200,7 +200,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" id="copy-view">Copy this view</button>
 <a id="text-view" href="#">Text this view</a>
 <a id="mail-view" href="#">Email this view</a>
-<button type="button" id="clear-view">Clear filters</button>
+<button type="button" id="clear-view" hidden>Clear filters</button>
 </div>
 <div id="list"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -481,6 +481,8 @@ function paint(){
  document.getElementById("who-label").textContent=who?("Person · "+who):"Person";
  document.getElementById("who-people").href="/people?who="+encodeURIComponent(who||"");
  document.getElementById("logic").textContent=logicLine();
+ var clr=document.getElementById("clear-view");
+ if(clr)clr.hidden=n<1;
 }
 function fillPick(){
  var rows=phone(),cur=(window.AIADesks&&AIADesks.current&&AIADesks.current())||{},el=document.getElementById("desk-pick");
