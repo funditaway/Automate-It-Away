@@ -315,6 +315,8 @@ Health JSON honesty leftover: after `/status` said Orange is HOLD — not P1, pu
 
 Create → Queue handoff leftover: after Create Yes said On the queue, Open the desk → still went to `/desk` with no card. Drop already linked `/desk?job=` and Queue never opened it. Yes now links Open this card → `/desk?job=`. Queue honors `?job=` once — Open sheet + teal mark. Missing card stays honest. Did not add Kill on Create decide. Did not redo Health JSON. Collect HOLD. No silent send.
 
+Status / health env-name leftover: after Create / More chrome used Desk AI voice, public `/api/health` and `/api/status` still named `XAI_API_KEY`, `AIA_GROK_MODEL`, and `env present`. Those strings are gone. Drafts-off is A Desk AI can't draft on this phone yet. Drafts-on is A Desk AI can draft. Pipe notes stay honest without env names. Did not redo Create → Queue handoff. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
