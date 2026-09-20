@@ -243,7 +243,7 @@
     },
     "more-create": {
       title: "Create",
-      body: "On the tab bar. Start AIA work. Worker-first: drafts land on the card. You still tap Yes or Stop. Collect stays HOLD.",
+      body: "On the tab bar. Start AIA work. Worker-first: drafts land on the card. Yes puts a card on the queue. Open this card. You still tap Yes or Stop. Collect stays HOLD.",
       ask: "What is Create?"
     },
     "more-history": {

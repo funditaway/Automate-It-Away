@@ -197,7 +197,14 @@
       }
     });
     function fail(msg) { err.style.display = "block"; err.textContent = msg; ok.style.display = "none"; }
-    function done(msg) { ok.style.display = "block"; ok.innerHTML = msg + ' <a href="desk.html">Open the desk →</a>'; err.style.display = "none"; form.reset(); }
+    function queueHref(jobId) {
+      const id = String(jobId || "").replace(/[^a-zA-Z0-9_-]/g, "");
+      return id ? ("/desk?job=" + encodeURIComponent(id)) : "/desk";
+    }
+    function queueTap(jobId) {
+      return jobId ? "Open this card →" : "Open the desk →";
+    }
+    function done(msg, jobId) { ok.style.display = "block"; ok.innerHTML = msg + ' <a href="' + queueHref(jobId) + '">' + queueTap(jobId) + "</a>"; err.style.display = "none"; form.reset(); }
     function parseCustom(line) {
       const custom = {};
       String(line || "").split(/[,;]+/).forEach((part) => {
@@ -296,7 +303,7 @@
           const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(body) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not put that on the queue.");
-          return done(kind === "capture" ? "Captured. Not shipped. Qualify first. You still tap Yes or Stop." : "Job is on the queue. Same five steps. You still tap Yes or Stop.");
+          return done(kind === "capture" ? "Captured. Not shipped. Qualify first. You still tap Yes or Stop." : "Job is on the queue. Same five steps. You still tap Yes or Stop.", data.job && data.job.id);
         }
         if (kind === "model") {
           const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "create", kind: "model", complexity: f.get("complexity") || (advanced ? "custom" : "simple"), name: f.get("name"), does: f.get("does"), fields: f.get("fields"), firstWork: f.get("firstWork"), share: f.get("share") || "private", price: f.get("price") || 0 }) });
@@ -311,7 +318,7 @@
             if (!listed.ok) extra = " Saved on this desk. " + (pack.error || "Could not list it for search.");
             else extra = " " + (pack.note || extra);
           }
-          return done((data.job ? "Automation saved. First card is on the queue." : "This automation is on the desk.") + extra + " You still tap Yes or Stop.");
+          return done((data.job ? "Automation saved. First card is on the queue." : "This automation is on the desk.") + extra + " You still tap Yes or Stop.", data.job && data.job.id);
         }
         if (kind === "teammate") {
           const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "invite", name: f.get("name"), role: "employee", kind: f.get("kind") || "helper", pin: f.get("pin"), phone: f.get("phone") || "", email: f.get("email") || "" }) });
@@ -407,8 +414,8 @@
       startNote("", "", false);
       paintStartDesk();
     }
-    function startDone(msg) {
-      startNote(msg + ' <a href="/desk">Open the desk →</a>', "ok", false);
+    function startDone(msg, jobId) {
+      startNote(msg + ' <a href="' + queueHref(jobId) + '">' + queueTap(jobId) + "</a>", "ok", false);
     }
     function startNeedDesk() {
       startFail("Open or unlock this desk first. A draft lands on this queue — not a stranger form.", true);
@@ -504,7 +511,7 @@
         if (!r.ok) return startFail(data.error || "Could not put that on the queue.");
         clearStartDraft();
         document.getElementById("start-what").value = "";
-        return startDone("On the queue. Same Drop card. You still tap Yes / Stop / Kill.");
+        return startDone("On the queue. Same Drop card. You still tap Yes / Stop / Kill.", data.job && data.job.id);
       } catch (e) {
         startFail("Could not reach the desk.");
       } finally {

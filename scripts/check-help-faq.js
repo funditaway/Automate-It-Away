@@ -92,6 +92,7 @@ if (more.includes("You send them. Or you Stop.")) throw new Error("more.html gro
 
 must(help, "A person still taps Yes or Stop.", "Help We type it in Yes or Stop");
 must(help, "you still tap Yes or Stop. You send the draft yourself.", "Help Talk tap Yes or Stop");
+must(help, "Yes puts a card on the queue. Open this card.", "First day Create Open this card");
 must(help, "A Desk AI drafts the card", "Help Desk AI drafts");
 mustNot(help, "The desk asks what’s missing", "Help First day Drop still says The desk asks");
 mustNot(help, "AIA writes the card", "Help We type it in still says AIA writes");

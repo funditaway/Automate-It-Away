@@ -200,8 +200,19 @@ if (!createJs.includes("You still tap Yes / Stop / Kill.")) {
 if (createJs.includes('return done("On the queue. Same Drop card.')) {
   fail("create-desk.js start Yes must not dump success under the form");
 } else pass("Create start Yes stays on the start card");
+if (!createJs.includes("function queueHref") || !createJs.includes("/desk?job=") || !createJs.includes("Open this card")) {
+  fail("create-desk.js Yes handoff must link Open this card /desk?job=");
+} else pass("Create Yes handoff links Open this card /desk?job=");
+if (!create.includes("Open this card.")) fail("create.html start must name Open this card");
+else pass("Create start hint names Open this card");
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
+if (yesNo.indexOf("Create → Queue handoff leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record the Create → Queue handoff leftover");
+} else pass("ACCOUNT-YES-NO records Create → Queue handoff leftover");
+if (packMd.indexOf("Create → Queue handoff leftover:") < 0) {
+  fail("PACK.md must record the Create → Queue handoff leftover");
+} else pass("PACK.md records Create → Queue handoff leftover");
 if (yesNo.indexOf("Create start leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Create start leftover");
 else pass("ACCOUNT-YES-NO records Create start leftover");
 if (packMd.indexOf("Create start leftover:") < 0) fail("PACK.md must record the Create start leftover");

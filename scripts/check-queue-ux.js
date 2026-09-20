@@ -158,6 +158,35 @@ if (tips.indexOf("Cap orange is do this first — not Collect") < 0) {
 }
 pass("more-queue tip names Cap orange honesty");
 
+const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
+if (card.indexOf("function wantJobId") < 0 || card.indexOf("function openWantedJob") < 0 || card.indexOf("get(\"job\")") < 0) {
+  fail("desk-card.js must honor /desk?job= from Create / Drop");
+}
+if (card.indexOf("That card is not on this queue") < 0) fail("desk-card.js missing-card ?job= must stay honest");
+if (card.indexOf("__aiaOpenedJob") < 0) fail("desk-card.js must open ?job= once, not every 20s refresh");
+pass("desk-card.js honors /desk?job= once");
+if (needs.indexOf("openWantedJob") < 0) fail("desk-needs wrapLoad must open the wanted card after paint");
+if (needs.indexOf("q-wanted") < 0) fail("desk-needs must teal-mark the wanted card");
+pass("desk-needs opens and marks the wanted card");
+if (more.indexOf("Open this card") < 0) fail("more.html Create must name Open this card");
+else pass("more.html Create names Open this card");
+if (help.indexOf("Yes puts a card on the queue. Open this card.") < 0) {
+  fail("help.html First day Create must name Open this card");
+}
+pass("help.html First day Create names Open this card");
+if (tips.indexOf("Yes puts a card on the queue. Open this card.") < 0) {
+  fail("more-create tip must name Open this card");
+}
+pass("more-create tip names Open this card");
+if (yesNo.indexOf("Create → Queue handoff leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record the Create → Queue handoff leftover");
+}
+pass("ACCOUNT-YES-NO records Create → Queue handoff leftover");
+if (packMd.indexOf("Create → Queue handoff leftover:") < 0) {
+  fail("PACK.md must record the Create → Queue handoff leftover");
+}
+pass("PACK.md records Create → Queue handoff leftover");
+
 const ctx = {
   window: {},
   document: {

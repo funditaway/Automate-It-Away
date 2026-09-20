@@ -280,5 +280,9 @@ must(tip, "Cap on this desk can Reply", "more-queue Cap Reply");
 must(tip, "owner picker holds the same gone bind", "more-queue gone bind picker");
 must(tip, "Copy story copies that same trail", "more-history Copy story");
 must(tip, "not anonymous desk AI", "more-queue not anonymous");
+must(tip, "Yes puts a card on the queue. Open this card.", "more-create Open this card");
+must(moreHtml, "Yes puts a card on the queue. Open this card.", "more Create face Open this card");
+must(yesNo, "Create → Queue handoff leftover after that pass", "ACCOUNT-YES-NO names Create → Queue handoff leftover");
+must(packMd, "Create → Queue handoff leftover:", "PACK.md names Create → Queue handoff leftover");
 
 console.log("check-aia-tip: ok");
