@@ -81,11 +81,29 @@ async function main() {
     fail("health grok rate tiers must not publish $250 / T2 $250");
   } else pass("health JSON drops phase / dispatch.demo / T2 $250");
 
+  const envJargon = /XAI_|AIA_GROK_|GROK_API_KEY|env present|BLOB_READ_WRITE_TOKEN/i;
+  const grokNote = (((res.body.automation || {}).grok || {}).note) || "";
+  const grokOn = !!((res.body.automation || {}).grok || {}).on;
+  if (envJargon.test(healthJson)) {
+    fail("health JSON must not name env vars / env present");
+  } else if (grokOn && grokNote !== "A Desk AI can draft.") {
+    fail("health drafts-on note must be Desk AI voice, got " + JSON.stringify(grokNote));
+  } else if (!grokOn && grokNote !== "A Desk AI can't draft on this phone yet.") {
+    fail("health drafts-off note must be Desk AI voice, got " + JSON.stringify(grokNote));
+  } else pass("health JSON drops env names; drafts note is Desk AI voice");
+
   const healthSrc = require("fs").readFileSync(path.join(__dirname, "..", "api/health.js"), "utf8");
   if (/phase:\s*["']P1["']/.test(healthSrc)) fail("api/health.js still hardcodes phase P1");
   else if (healthSrc.indexOf("dispatch.demo") >= 0) fail("api/health.js still mentions dispatch.demo");
   else if (/T2 \$250|\$250/.test(healthSrc)) fail("api/health.js still publishes $250 / T2 $250");
   else pass("health.js source drops phase P1 / dispatch.demo / T2 $250");
+  if (healthSrc.indexOf("Set XAI_API_KEY") >= 0 || healthSrc.indexOf("Do not set AIA_GROK_MODEL") >= 0 || healthSrc.indexOf("No BLOB_READ_WRITE_TOKEN") >= 0) {
+    fail("api/health.js still publishes env-name notes");
+  } else pass("health.js source drops env-name notes");
+  const libSrc = require("fs").readFileSync(path.join(__dirname, "..", "api/_lib.js"), "utf8");
+  if (libSrc.indexOf("env present") >= 0 || libSrc.indexOf("connect when keys are set") >= 0) {
+    fail("catalog still publishes env present / keys-are-set notes");
+  } else pass("catalog notes drop env present");
 
   const statusHtml = require("fs").readFileSync(path.join(__dirname, "..", "status.html"), "utf8");
   if (/Pin workspace/.test(statusHtml)) fail("status.html must not hardcode pin-only accounts");
@@ -96,9 +114,13 @@ async function main() {
   else if (!/Orange is HOLD/.test(statusHtml)) fail("status.html must say Orange is HOLD — wait");
   else if (!/id="grok"/.test(statusHtml) || !/automation\.grok/.test(statusHtml)) fail("status.html must paint Grok drafts from health.automation.grok");
   else if (/API key not set/.test(statusHtml)) fail("status.html must not hardcode Grok API key not set");
-  else if (/XAI_API_KEY|this box|P1/.test(statusHtml)) fail("status.html must not name XAI_API_KEY / this box / P1");
-  else if (!/A Desk AI can't draft on this phone yet/.test(statusHtml)) fail("status.html drafts-off must use Desk AI voice");
-  else pass("status.html paints Grok from health; orange is HOLD");
+  else if (/Drafts are off — no XAI_API_KEY/.test(statusHtml) || /no XAI_API_KEY on this box/.test(statusHtml)) {
+    fail("status.html must not fall back to XAI_API_KEY on this box");
+  } else if (!/deskPublicDump/.test(statusHtml)) {
+    fail("status.html must scrub env names from dumped Status JSON");
+  } else if (!/A Desk AI can't draft on this phone yet/.test(statusHtml)) {
+    fail("status.html drafts-off must use Desk AI voice");
+  } else pass("status.html paints Grok from health; orange is HOLD");
 
   if (lib.slugify("") !== "" || lib.slugify(null) !== "") fail("slugify should not invent demo");
   else pass("slugify leaves an empty name empty");
@@ -116,8 +138,13 @@ async function main() {
   else pass("empty status workspace is not demo");
   if (st.body.status !== "hold" || st.body.answered !== false) fail("empty desk should stay hold until a pipe answers");
   else pass("status stays hold with no writeback");
-  if (/dispatch\.demo/.test(JSON.stringify(st.body))) fail("status JSON must not mention dispatch.demo");
+  const statusJson = JSON.stringify(st.body);
+  if (/dispatch\.demo/.test(statusJson)) fail("status JSON must not mention dispatch.demo");
   else pass("status JSON drops dispatch.demo");
+  if (envJargon.test(statusJson)) fail("status JSON must not name env vars / env present");
+  else if ((st.body.pipes || []).some((p) => /env present|XAI_|AIA_GROK_/i.test(p.note || ""))) {
+    fail("status pipe notes must not name env / keys");
+  } else pass("status JSON drops env names");
   if (!st.body.aiaTld || st.body.aiaTld.owned || st.body.aiaTld.ownedByConnected || st.body.aiaTld.mint || st.body.aiaTld.charged || st.body.aiaTld.collect !== "hold") {
     fail("status aiaTld must stay honest HOLD and not invent owned " + JSON.stringify(st.body.aiaTld));
   } else pass("status aiaTld is honest HOLD");
@@ -136,6 +163,13 @@ async function main() {
   else if (!whatnot || whatnot.status !== "down" || whatnot.live) fail("whatnot should stay down");
   else if (held.some((p) => p.status !== "hold" || p.live)) fail("paid pipes should stay hold without keys");
   else pass("catalog honesty matches health");
+  if ((webhook && /env present/i.test(webhook.note || "")) || held.some((p) => /env present|keys are set/i.test(p.note || ""))) {
+    fail("catalog notes must not say env present / keys are set");
+  } else if (webhook && webhook.note !== "This pipe is set up.") {
+    fail("webhook catalog note should stay plain, got " + JSON.stringify(webhook.note));
+  } else if (held.some((p) => p.note !== "Hold until this pipe is set up.")) {
+    fail("held pipe notes should stay Hold until this pipe is set up");
+  } else pass("catalog notes use Desk voice, not env present");
 
   lib.mem.jobs.push({
     id: "job_status_writeback",
@@ -164,6 +198,25 @@ async function main() {
   await health({ method: "GET", url: "/api/status", headers: {}, query: {} }, viaUrl);
   if (viaUrl.body.status !== "hold" || viaUrl.body.product) fail("/api/status on health should return the status payload");
   else pass("health handler answers /api/status");
+  if (envJargon.test(JSON.stringify(viaUrl.body)) || envJargon.test(JSON.stringify(viaRewrite.body))) {
+    fail("health status view must not name env vars / env present");
+  } else pass("health status view drops env names");
+
+  const hadKey = process.env.XAI_API_KEY;
+  process.env.XAI_API_KEY = "probe-drafts-on";
+  const onRes = mockRes();
+  await health({ method: "GET", headers: {}, query: {} }, onRes);
+  const onJson = JSON.stringify(onRes.body);
+  const onNote = (((onRes.body.automation || {}).grok || {}).note) || "";
+  if (!onRes.body.automation || !onRes.body.automation.grok || !onRes.body.automation.grok.on) {
+    fail("health must flip drafts on when a draft pipe is set");
+  } else if (onNote !== "A Desk AI can draft.") {
+    fail("health drafts-on note must be Desk AI voice, got " + JSON.stringify(onNote));
+  } else if (envJargon.test(onJson)) {
+    fail("health JSON must not name env vars when drafts are on");
+  } else pass("health drafts-on stays Desk AI voice with no env names");
+  if (hadKey == null) delete process.env.XAI_API_KEY;
+  else process.env.XAI_API_KEY = hadKey;
 
   const rulesRes = mockRes();
   await rules({ method: "GET", headers: {}, query: {} }, rulesRes);
@@ -206,6 +259,12 @@ async function main() {
   if (packMd.indexOf("Health JSON honesty leftover:") < 0) {
     fail("PACK.md must record Health JSON honesty leftover");
   } else pass("PACK.md records Health JSON honesty leftover");
+  if (yesNo.indexOf("Status / health env-name leftover after that pass") < 0) {
+    fail("ACCOUNT-YES-NO must record Status / health env-name leftover");
+  } else pass("ACCOUNT-YES-NO records Status / health env-name leftover");
+  if (packMd.indexOf("Status / health env-name leftover:") < 0) {
+    fail("PACK.md must record Status / health env-name leftover");
+  } else pass("PACK.md records Status / health env-name leftover");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");

@@ -80,7 +80,7 @@ async function deskStatus(req, res) {
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound",
-      catalog: "same as /api/health — webhook live; paid pipes hold unless env; whatnot down"
+      catalog: "same as /api/health — webhook live; paid pipes hold until set up; whatnot down"
     }
   });
 }
@@ -119,7 +119,7 @@ async function health(req, res) {
       count: (mem.files || []).length,
       note: blobToken()
         ? "Vercel Blob live"
-        : "No BLOB_READ_WRITE_TOKEN — files sit in /tmp"
+        : "Files sit on this host only"
     },
     pipes: catalog(),
     automation: {
@@ -130,7 +130,7 @@ async function health(req, res) {
       follow: "worker + cron",
       inbound: "/api/hook",
       mail: require("./_aia-mail").statusOf(),
-      persist: (mem.driver === "blob") ? "shared blob" : "Lambda /tmp until BLOB_READ_WRITE_TOKEN",
+      persist: (mem.driver === "blob") ? "shared blob" : "This host only until shared store is on",
       ownerStops: ["kill"],
       grok: {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
@@ -154,15 +154,15 @@ async function health(req, res) {
         })(),
         heavyChat: "SuperGrok Heavy is the chat plan. It does not fund this key.",
         note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
-          ? "Included drafts on the card. Never Send."
-          : "Set XAI_API_KEY on Vercel from console.x.ai. Chat login is not a draft pipe.",
+          ? "A Desk AI can draft."
+          : "A Desk AI can't draft on this phone yet.",
         spend: {
           list: "$0.20 / 1M in · $0.50 / 1M out on grok-4-fast-non-reasoning",
           perDraft: "~900 in + 250 out · about $0.0003",
           pilotMonth: "1 desk, 20–40 cards/week · under $1",
           busyMonth: "10 desks × 30 drafts/day · about $3",
           prepaid: "Buy $10–25 credits on console.x.ai. Heavy $300 does not add API credit.",
-          avoid: "Do not set AIA_GROK_MODEL to grok-4, grok-4.6, or multi-agent for card drafts."
+          avoid: "Card drafts stay on the fast model. Heavy or multi-agent is not for every card."
         },
         rate: {
           source: "https://docs.x.ai/docs/rate-limits",
