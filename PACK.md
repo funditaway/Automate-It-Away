@@ -313,9 +313,11 @@ Queue empty / Status orange leftover: after History empty stayed honest, `/desk`
 
 Health JSON honesty leftover: after `/status` said Orange is HOLD — not P1, public `GET /api/health` still published `phase: "P1"`, `dispatch.demo`, and Grok **T2 $250**. Those strings are gone. No phase. Writeback is `dispatch.ok or dispatch.inbound`. Grok tiers stay T0 / T1 / T3 / T4. Collect HOLD. No silent send.
 
-Create → Queue handoff leftover: after Create Yes said On the queue, Open the desk → still went to `/desk` with no card. Drop already linked `/desk?job=` and Queue never opened it. Yes now links Open this card → `/desk?job=`. Queue honors `?job=` once — Open sheet + teal mark. Missing card stays honest. Did not add Kill on Create decide. Did not redo Health JSON. Collect HOLD. No silent send.
+Create → Queue handoff leftover: after Create Yes said On the queue, Open the desk → still went to `/desk` with no card. Drop already linked `/desk?job=` and Queue never opened it. Yes now links Open this card → `/desk?job=`. Queue honors `?job=` once — Open sheet + teal mark. Missing card stays honest. Drafts-off on Create / More / Status says A Desk AI can't draft on this phone yet — no XAI_API_KEY, no this box, no P1. Did not add Kill on Create decide. Did not redo Health JSON. Collect HOLD. No silent send.
 
 Status / health env-name leftover: after Create / More chrome used Desk AI voice, public `/api/health` and `/api/status` still named `XAI_API_KEY`, `AIA_GROK_MODEL`, and `env present`. Those strings are gone. Drafts-off is A Desk AI can't draft on this phone yet. Drafts-on is A Desk AI can draft. Pipe notes stay honest without env names. Did not redo Create → Queue handoff. Collect HOLD. No silent send.
+
+Create / More / Status drafts-off leftover: after Create Yes opened the card, Create / More / Status chrome still said XAI_API_KEY / this box / draft key / not P1. Those faces now say A Desk AI can't draft on this phone yet. Did not redo Create → Queue handoff. Did not redo Health JSON. Collect HOLD. No silent send.
 
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 

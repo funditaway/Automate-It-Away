@@ -29,7 +29,7 @@
     <h1>automateitaway.com</h1>
     <div class="row"><span>Marketing site</span><span class="up">Prototype up</span></div>
     <div class="row"><span>Dashboard UI</span><span class="up">Prototype up</span></div>
-    <div class="row"><span>API / health</span><span id="api" class="hold">Checking…</span></div>
+    <div class="row"><span>Desk health</span><span id="api" class="hold">Checking…</span></div>
     <div class="row"><span>World user accounts</span><span id="accounts" class="hold">Checking…</span></div>
     <div class="row"><span>Hosted jobs store</span><span id="store" class="hold">Unknown</span></div>
     <div class="row"><span>Photo / file store</span><span id="files" class="hold">Unknown</span></div>
@@ -37,13 +37,13 @@
     <div class="row"><span>Talk on desk</span><span class="up">Work · Note · Invite · Rule — drafts only</span></div>
     <div class="row"><span>Helper seats</span><span class="up">Own desk code — owner Stop</span></div>
     <div class="row"><span>Drop from anywhere</span><span class="up">/drop?ws= · embed · hook — no money</span></div>
-    <div class="row"><span>Inbound pipe</span><span class="up">POST /api/hook</span></div>
+    <div class="row"><span>Inbound pipe</span><span class="up">Hook writes a card. No money.</span></div>
     <div class="row"><span>Square / eBay / Calendar</span><span id="pipes" class="hold">Not connected</span></div>
-    <div class="row"><span>Included Grok drafts</span><span id="grok" class="hold">Checking…</span></div>
+    <div class="row"><span>Desk AI drafts</span><span id="grok" class="hold">Checking…</span></div>
     <div class="row"><span>ChatGPT / Claude required</span><span class="up">No — never required</span></div>
     <div class="row"><span>Coming soon wall</span><span class="hold">Shown on /connections — not live</span></div>
     <div class="row"><span>Whatnot</span><span class="down">Not a launch pipe</span></div>
-    <div class="row"><span>Grok Bot public API</span><span class="down">Does not exist — not a gate</span></div>
+    <div class="row"><span>Grok Bot</span><span class="down">Does not exist — not a gate</span></div>
     <div class="row"><span>Browser wallet</span><span id="wallet" class="hold">Checking…</span></div>
     <div class="row"><span>AIA Internet · .aia TLD</span><span id="aia-tld-row" class="hold">Checking…</span></div>
     <p style="color:#8b9aab;margin-top:18px">Green is live. Orange is HOLD — wait. Red we skip for launch. Collect stays HOLD until Yes + a real pipe.</p>
@@ -94,7 +94,7 @@
         if (g.on) {
           grokEl.textContent = (g.note && !/XAI_|AIA_GROK_|API_KEY|env present/i.test(g.note))
             ? g.note
-            : "A Desk AI can draft.";
+            : "A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop.";
           grokEl.className = "up";
         } else {
           grokEl.textContent = (g.note && !/XAI_|AIA_GROK_|API_KEY|env present|this box/i.test(g.note))

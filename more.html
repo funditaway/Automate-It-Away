@@ -198,7 +198,7 @@
       </article>
       <article class="more-item" data-more-item data-more-keys="status live">
         <a class="more-go" href="/status">Status
-        <span class="more-sub">What is live on this desk. Orange means wait — not P1, not Collect.</span></a>
+        <span class="more-sub">What is live on this desk. Orange means wait — HOLD. Not Collect.</span></a>
         <button type="button" class="aia-tip" data-aia-tip="more-status" aria-label="More about Status">?</button>
       </article>
     </div>
@@ -251,8 +251,8 @@
       const el = document.getElementById("grok-line");
       if (!el || !g) return;
       el.textContent = g.on
-        ? "Drafts are on. They land on the card. You tap Yes or Stop. Never Send."
-        : "Drafts are off until a draft key is on. You still tap Yes or Stop.";
+        ? "A Desk AI can draft. Drafts land on the card. You tap Yes or Stop. Never Send."
+        : "A Desk AI can't draft on this phone yet. You still tap Yes or Stop.";
     }).catch(function () {});
   </script>
 </body>

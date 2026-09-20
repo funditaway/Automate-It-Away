@@ -127,7 +127,7 @@ module.exports = async function handler(req, res) {
         note: grok && grok.ok
           ? "Draft only. Yes puts it on the queue. Stop discards it. AIA does not send."
           : (grok && grok.reason === "no-key"
-            ? "Drafts are off until XAI_API_KEY is on. You can still put the work on the queue."
+            ? "A Desk AI can't draft on this phone yet. You can still put the work on the queue."
             : "No draft this time. You can still put the work on the queue.")
       });
     }
