@@ -309,6 +309,8 @@ Create start Open/Unlock leftover: after start notes painted `is-err` / `is-ok`,
 
 History drafted-card trail leftover: after Create Open/Unlock clear was honest, `/history` still offered Clear filters on a truly empty trail and never labeled Create / Drop drafted Yes / Stop cards. Empty History now says the trail is empty — Clear filters (empty box and the toolbar tap) only when a filter hid the trail. Create / Drop drafted cards label Create / Drop and Yes / Stop / Kill when they still wait on a human. Pack Install / Give / Update stay off until a desk is open. Collect HOLD. No silent send.
 
+Queue empty / Status orange leftover: after History empty stayed honest, `/desk` still said Nothing here yet. Drop anything / Add a rule for a stranger phone and an open empty desk. `#queue-empty` CSS never painted. Cap · orange hid when empty. `/status` hardcoded Grok API key not set and Orange is P1. No desk now says Queue does not invent Yes / Stop cards. Open empty says Drop or Create. Cap orange is do this first — not Collect. Status paints Grok from health. Orange is HOLD — wait. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

@@ -39,14 +39,14 @@
     <div class="row"><span>Drop from anywhere</span><span class="up">/drop?ws= · embed · hook — no money</span></div>
     <div class="row"><span>Inbound pipe</span><span class="up">POST /api/hook</span></div>
     <div class="row"><span>Square / eBay / Calendar</span><span id="pipes" class="hold">Not connected</span></div>
-    <div class="row"><span>Included Grok drafts</span><span class="hold">API key not set</span></div>
+    <div class="row"><span>Included Grok drafts</span><span id="grok" class="hold">Checking…</span></div>
     <div class="row"><span>ChatGPT / Claude required</span><span class="up">No — never required</span></div>
     <div class="row"><span>Coming soon wall</span><span class="hold">Shown on /connections — not live</span></div>
     <div class="row"><span>Whatnot</span><span class="down">Not a launch pipe</span></div>
     <div class="row"><span>Grok Bot public API</span><span class="down">Does not exist — not a gate</span></div>
     <div class="row"><span>Browser wallet</span><span id="wallet" class="hold">Checking…</span></div>
     <div class="row"><span>AIA Internet · .aia TLD</span><span id="aia-tld-row" class="hold">Checking…</span></div>
-    <p style="color:#8b9aab;margin-top:18px">Green is honest. Orange is P1. Red we skip for launch.</p>
+    <p style="color:#8b9aab;margin-top:18px">Green is live. Orange is HOLD — wait. Red we skip for launch. Collect stays HOLD until Yes + a real pipe.</p>
     <pre id="raw">waiting on /api/status</pre>
   </main>
   <script>
@@ -74,6 +74,17 @@
       if (files) {
         files.textContent = (fl.driver || "?") + (fl.note ? " — " + fl.note : "");
         files.className = fl.driver === "blob" ? "up" : "hold";
+      }
+      const grokEl = document.getElementById("grok");
+      const g = (data.automation && data.automation.grok) || {};
+      if (grokEl) {
+        if (g.on) {
+          grokEl.textContent = g.note || "Included drafts on the card. Never Send.";
+          grokEl.className = "up";
+        } else {
+          grokEl.textContent = g.note || "Drafts are off — no XAI_API_KEY on this box. Orange copy only.";
+          grokEl.className = "hold";
+        }
       }
       const live = (data.pipes || []).filter(p => p.live && p.id !== "webhook");
       const pipes = document.getElementById("pipes");

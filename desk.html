@@ -85,6 +85,9 @@
     .kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
     .kpi b{font-size:1.3rem;color:var(--teal)}
     body.queue-desk .kpis{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    #queue-empty,#cap-empty{padding:28px 16px;text-align:center;border:1px dashed var(--line);border-radius:16px;background:color-mix(in srgb,var(--card) 80%,transparent)}
+    #queue-empty p,#cap-empty p{margin:0 0 12px;color:var(--muted)}
+    #queue-empty .row,#cap-empty .row{justify-content:center}
     #queue-desk-rail{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 10px}
     .banner{margin-bottom:8px}
     .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
@@ -322,6 +325,13 @@
     function esc(s) {
       return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
     }
+    function queueEmptyHtml(kind) {
+      if (kind === "nodesk") {
+        return "<div id=\"queue-empty\"><p>No desk on this phone yet. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a><a class=\"edit\" href=\"/drop\">Drop work</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+      }
+      return "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop something</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+    }
+    window.queueEmptyHtml = queueEmptyHtml;
     function card(j, staff) {
       const money = Number(j.amount || j.ask || 0);
       const why = visitorLine(j.why);
@@ -337,16 +347,19 @@
       keepDesk();
       paintGate();
       const banner = document.getElementById("banner");
+      const filters = document.getElementById("queue-filters");
       if (!workspaceSlug()) {
-        banner.textContent = "Name this desk. Open it.";
+        banner.textContent = "No desk on this phone yet. Queue does not invent Yes / Stop cards.";
         JOBS = [];
         RULES = [];
         paintNouns(AIADesks.defaultNouns());
         paintRules([]);
-        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">Nothing here yet. Drop anything / <a href="/rules">Add a rule</a>.</p>`;
+        if (filters) filters.hidden = true;
+        document.getElementById("queue").innerHTML = queueEmptyHtml("nodesk");
         showConsignNav();
         return;
       }
+      if (filters) filters.hidden = false;
       try {
         await api("/api/worker");
         const health = await api("/api/health");
@@ -387,7 +400,7 @@
       document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
       const open = held.concat(waiting, ready);
-      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Nothing here yet. Drop anything / <a href="/rules">Add a rule</a>.</p>`;
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || queueEmptyHtml("empty");
       if (location.hash === "#rules") location.replace("/rules");
       const recent = shipped.slice(0, 3);
       document.getElementById("recent-label").hidden = !recent.length;

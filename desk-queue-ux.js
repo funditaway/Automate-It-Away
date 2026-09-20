@@ -61,8 +61,9 @@
       "#cap-drop{margin:0 0 12px;padding:14px;border:1.5px dashed color-mix(in srgb,var(--orange) 55%,var(--line));border-radius:14px;background:color-mix(in srgb,var(--orange) 8%,var(--card));text-align:center;color:var(--banner-ink);font:700 13px/1.3 system-ui,sans-serif;opacity:0;max-height:0;overflow:hidden;transition:opacity .18s ease,max-height .18s ease,margin .18s ease,padding .18s ease}" +
       "#cap-drop.on{opacity:1;max-height:80px;margin-bottom:12px;padding:14px}" +
       "#cap-drop.hot{background:color-mix(in srgb,var(--orange) 18%,var(--card));border-color:var(--orange)}" +
-      "#queue-empty{padding:28px 16px;text-align:center;border:1px dashed var(--line);border-radius:16px;background:color-mix(in srgb,var(--card) 80%,transparent)}" +
-      "#queue-empty p{margin:0 0 12px;color:var(--muted)}" +
+      "#queue-empty,#cap-empty{padding:28px 16px;text-align:center;border:1px dashed var(--line);border-radius:16px;background:color-mix(in srgb,var(--card) 80%,transparent)}" +
+      "#queue-empty p,#cap-empty p{margin:0 0 12px;color:var(--muted)}" +
+      "#queue-empty .row,#cap-empty .row{justify-content:center}" +
       "@media(max-width:640px){.queue-desk .kpis{display:none}#queue-desk-rail{margin-bottom:8px}}";
     document.head.appendChild(css);
   }
@@ -140,6 +141,12 @@
     var done = jobs.filter(function (j) { return j && j.status === "shipped"; }).length;
     var metrics = rail.querySelector(".q-metrics");
     if (!metrics) return;
+    var here = "";
+    try { here = localStorage.getItem("aia_ws") || ""; } catch (e) {}
+    if (!here) {
+      metrics.innerHTML = "";
+      return;
+    }
     metrics.innerHTML =
       "<span class=\"q-metric is-wait\" title=\"Open work\"><span class=\"dot\" aria-hidden=\"true\"></span>Open <b>" + open.length + "</b></span>" +
       "<span class=\"q-metric\" title=\"Waiting\"><span class=\"dot\" aria-hidden=\"true\"></span>Wait <b>" + wait + "</b></span>" +
