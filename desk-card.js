@@ -211,6 +211,50 @@ function smsHref(text) {
 function mailHref(title, text) {
   return "mailto:?subject=" + encodeURIComponent(title || "Desk draft") + "&body=" + encodeURIComponent(text || "");
 }
+function wantJobId() {
+  try { return String(new URLSearchParams(location.search || "").get("job") || "").replace(/[^a-zA-Z0-9_-]/g, ""); }
+  catch (e) { return ""; }
+}
+function openWantedJob() {
+  const id = wantJobId();
+  if (!id) return false;
+  let j;
+  try { j = jobBy(id); } catch (e) { return false; }
+  if (!j) {
+    const banner = document.getElementById("banner");
+    const here = (typeof localStorage !== "undefined" && localStorage.getItem("aia_ws")) || "";
+    if (banner && here && window.__aiaOpenedJob !== id) {
+      banner.textContent = "That card is not on this queue. Queue does not invent Yes / Stop cards.";
+    }
+    return false;
+  }
+  if (window.__aiaOpenedJob !== id) {
+    window.__aiaOpenedJob = id;
+    openJob(id);
+  }
+  const card = document.querySelector('[data-job="' + id + '"]');
+  if (card && card.classList) card.classList.add("q-wanted");
+  if (card && card.scrollIntoView) card.scrollIntoView({ block: "nearest" });
+  return true;
+}
+function wrapLoadWanted() {
+  if (typeof window.load !== "function") { setTimeout(wrapLoadWanted, 50); return; }
+  if (!window.load._aiaWanted) {
+    const prev = window.load;
+    window.load = async function () {
+      const out = await prev.apply(this, arguments);
+      try { openWantedJob(); } catch (e) {}
+      return out;
+    };
+    window.load._aiaWanted = true;
+  }
+  try { if (openWantedJob()) return; } catch (e) {}
+  window.__aiaWantedTries = (window.__aiaWantedTries || 0) + 1;
+  if (!window.__aiaOpenedJob && wantJobId() && window.__aiaWantedTries < 12) setTimeout(wrapLoadWanted, 250);
+}
+window.wantJobId = wantJobId;
+window.openWantedJob = openWantedJob;
+wrapLoadWanted();
 async function openJob(id) {
   const j = jobBy(id);
   if (!j) return;

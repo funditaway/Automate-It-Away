@@ -693,6 +693,7 @@
     window.load = async function () {
       const out = await p.apply(this, arguments);
       try { await loadCap(); } catch (e) {}
+      try { if (typeof window.openWantedJob === "function") window.openWantedJob(); } catch (e) {}
       return out;
     };
     window.load._aiaCap = true;
@@ -791,6 +792,7 @@
         ".cap-mark{display:inline-flex;background:var(--orange,#f39c12);color:#0c1116;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px}" +
         ".cap-band h2{font-size:13px;margin:8px 0 6px}" +
         ".cap-tap{background:var(--orange,#f39c12);color:#0c1116}" +
+        "#queue .q-card.q-wanted{border-color:var(--teal,#0d6b6b);box-shadow:0 0 0 2px color-mix(in srgb,var(--teal,#0d6b6b) 28%,transparent)}" +
         "@media(max-width:420px){#queue .q-card,#cap-list .q-card{padding:14px 12px}.q-files .thumb{max-width:100%}.q-hitl{grid-template-columns:1fr 1fr 1fr}}";
       document.head.appendChild(css);
     }
