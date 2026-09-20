@@ -117,6 +117,7 @@ if (desk.indexOf("Nothing here yet. Drop anything") >= 0) {
 }
 if (desk.indexOf("filters.hidden = true") < 0) fail("desk.html must hide Cap · orange on no desk");
 if (desk.indexOf("#queue-filters[hidden]") < 0) fail("desk.html must force-hide Cap · orange when hidden (display:flex beats the attribute)");
+if (!/id="queue-filters" hidden/.test(desk)) fail("desk.html Cap · orange must start hidden until a desk is open");
 pass("desk.html Queue empty is honest");
 
 if (queueJs.indexOf("queueEmptyHtml") < 0) fail("desk-queue leftover must reuse queueEmptyHtml");
@@ -126,6 +127,7 @@ pass("desk-queue leftover empty stays honest");
 const packs = fs.readFileSync(path.join(root, "desk-queue-packs.js"), "utf8");
 if (packs.indexOf("queueEmptyHtml") < 0) fail("desk-queue-packs must reuse queueEmptyHtml on all / no-desk");
 if (packs.indexOf("bar.hidden = !here") < 0) fail("desk-queue-packs must hide pack chips on no desk");
+if (packs.indexOf("box.hidden = !here") < 0) fail("desk-queue-packs must start pack chips hidden on no desk");
 if (packs.indexOf("Nothing on this queue yet. Drop anything. Find a pack.") >= 0) {
   fail("desk-queue-packs must not clobber no-desk empty with Find a pack / Add a rule");
 }
