@@ -106,7 +106,10 @@
     host.appendChild(box);
     box.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-public-desk]");
-      if (btn) location.href = dropHref(btn.getAttribute("data-public-desk"));
+      if (btn) {
+        try { sessionStorage.setItem("aia_drop_step", "card"); } catch (e) {}
+        location.href = dropHref(btn.getAttribute("data-public-desk"));
+      }
     });
   }
   function afterLinks(job) {

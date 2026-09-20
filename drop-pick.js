@@ -24,7 +24,7 @@
   }
   function goDrop(slug) {
     var use = slugify(slug);
-    if (use) { try { sessionStorage.setItem("aia_drop_step", "tell"); } catch (e) {} }
+    if (use) { try { sessionStorage.setItem("aia_drop_step", "card"); } catch (e) {} }
     location.href = dropHref(use);
   }
   function paintSearch(rows, accounts, q) {

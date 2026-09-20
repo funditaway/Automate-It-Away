@@ -14,7 +14,7 @@
     },
     {
       id: "card", label: "Card",
-      hint: "Fill the card. Drop it when you say so.",
+      hint: "Tap a kind. Type the work. Drop it when you say so.",
       ids: ["modes", "drop-form-card"],
       also: ["drop-sub"]
     },
@@ -55,6 +55,15 @@
     } catch (e) { return false; }
   }
   function slimChrome() { return embedOn() || widgetOn(); }
+  function talkWanted() {
+    try {
+      if (String(location.hash || "") === "#talk") return true;
+      return /(?:^|[?&])(?:talk=1|mode=talk)(?:&|$)/.test(String(location.search || ""));
+    } catch (e) { return false; }
+  }
+  function deskFromLink() {
+    try { return !!(new URLSearchParams(location.search).get("ws") || "").trim(); } catch (e) { return false; }
+  }
   function stepOf(id) {
     for (var i = 0; i < STEPS.length; i++) if (STEPS[i].id === id) return STEPS[i];
     return null;
@@ -243,7 +252,8 @@
     css();
     document.body.classList.add("drop-steps");
     active = recall();
-    if (!stepOf(active)) active = STEPS[0].id;
+    if (talkWanted()) active = "tell";
+    else if (!stepOf(active)) active = deskFromLink() ? "card" : STEPS[0].id;
     sync();
     watch();
     var ticks = 0;
