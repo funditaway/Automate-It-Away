@@ -127,6 +127,12 @@ if (!createJs.includes("action: \"suggest\"") || !createJs.includes("/api/health
 if (createJs.includes("XAI_API_KEY") || createJs.includes("this box") || create.includes("XAI_API_KEY") || create.includes("this box") || create.includes("when a key is on")) {
   fail("Create must not name XAI_API_KEY / this box / key-on jargon");
 } else pass("Create drafts-off uses Desk AI voice");
+["history.html", "more.html", "desk.html", "drop-agent.js"].forEach(function (file) {
+  const src = fs.readFileSync(path.join(root, file), "utf8");
+  if (src.indexOf("XAI_API_KEY") >= 0) fail(file + " still names XAI_API_KEY on public chrome");
+  else if (/\bthis box\b/.test(src)) fail(file + " still says this box on public chrome");
+  else pass(file + " Desk AI voice has no key / box jargon");
+});
 if (create.includes("$250") || create.includes("placeholder=\"250\"")) fail("create.html invented a $250 default");
 else pass("Create has no $250 default");
 if (!createJs.includes("save-ai") || !createJs.includes('id: "ai"')) fail("create-desk.js must name a desk AI");
@@ -228,6 +234,26 @@ if (yesNo.indexOf("Create start Open/Unlock leftover after that pass") < 0) fail
 else pass("ACCOUNT-YES-NO records Create start Open/Unlock leftover");
 if (packMd.indexOf("Create start Open/Unlock leftover:") < 0) fail("PACK.md must record the Create start Open/Unlock leftover");
 else pass("PACK.md records Create start Open/Unlock leftover");
+if (yesNo.indexOf("Counter Desk AI voice leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record the Counter Desk AI voice leftover");
+} else pass("ACCOUNT-YES-NO records Counter Desk AI voice leftover");
+if (packMd.indexOf("Counter Desk AI voice leftover:") < 0) {
+  fail("PACK.md must record the Counter Desk AI voice leftover");
+} else pass("PACK.md records Counter Desk AI voice leftover");
+const statusPage = fs.readFileSync(path.join(root, "status.html"), "utf8");
+if (statusPage.indexOf("XAI_API_KEY") >= 0 || /Could not reach this box/.test(statusPage) || /Static host — API lives on the Vercel/.test(statusPage) || /\/drop\?ws=/.test(statusPage)) {
+  fail("status.html still names keys, this box, Vercel, or /drop?ws= on the face");
+} else if (!/Could not reach the desk/.test(statusPage) || !/From a link or this phone/.test(statusPage)) {
+  fail("status.html must use Desk AI voice on catch / Drop");
+} else if (/id="raw"|deskPublicDump/.test(statusPage) || /\bblob\b|Decentraweb/i.test(statusPage)) {
+  fail("status.html still dumps raw health JSON or names blob / Decentraweb");
+} else pass("status.html Counter chrome uses Desk AI voice; no raw dump");
+if (yesNo.indexOf("Status raw health dump leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record the Status raw health dump leftover");
+} else pass("ACCOUNT-YES-NO records Status raw health dump leftover");
+if (packMd.indexOf("Status raw health dump leftover:") < 0) {
+  fail("PACK.md must record the Status raw health dump leftover");
+} else pass("PACK.md records Status raw health dump leftover");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {
