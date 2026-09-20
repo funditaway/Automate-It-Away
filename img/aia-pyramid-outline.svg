@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="1024" height="1024">
-  <rect width="256" height="256" rx="56" fill="#ffffff"/>
-  <polygon fill="#f39c12" points="128,36 98,88 128,96"/>
-  <polygon fill="#f39c12" points="128,36 158,88 128,96"/>
-  <g fill="none" stroke="#0a4f4f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M40 196 L128 36 L216 196 L128 220 Z"/>
-    <path d="M128 36 L128 220"/>
-    <path d="M98 88 L128 96 L158 88"/>
-    <path d="M76 128 L128 142 L180 128"/>
+  <polygon fill="#f39c12" points="128,28 100,86 128,94"/>
+  <polygon fill="#f39c12" points="128,28 156,86 128,94"/>
+  <g fill="none" stroke="#0a4f4f" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M36 188 L128 28 L220 188 L128 220 Z"/>
+    <path d="M128 28 L128 220"/>
+    <path d="M100 86 L128 94 L156 86"/>
+    <path d="M76 128 L128 146 L180 128"/>
   </g>
 </svg>
