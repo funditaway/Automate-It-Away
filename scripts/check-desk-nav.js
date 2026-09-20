@@ -97,6 +97,15 @@ const createJs = fs.readFileSync(path.join(root, "create-desk.js"), "utf8");
 if (!create.includes("id=\"start-decide\"") || !create.includes("#start-decide[hidden]")) {
   fail("create.html must hide Yes/Stop until a draft exists");
 } else pass("Create hides Yes/Stop until Ask the desk");
+if (!create.includes("id=\"start-note\"") || !create.includes("id=\"start-open\"")) {
+  fail("create.html must keep Ask / Yes / stranger notes on the start card");
+} else pass("Create start notes stay on the start card");
+if (!create.includes("Open this desk") || !create.includes("Unlock this desk")) {
+  fail("create.html start must offer Open this desk / Unlock this desk");
+} else pass("Create start stranger path is Open / Unlock");
+if (!create.includes("#start-queue[hidden]") || !create.includes("#start-note[hidden]")) {
+  fail("create.html must hide Put it on the queue and start notes with hidden");
+} else pass("Create start skip and notes honor hidden");
 if (!create.includes("task") || !create.includes("idea") || !create.includes("project") || !create.includes("build")) {
   fail("create.html must start real AIA work kinds");
 } else pass("Create kinds are task/errand/list/idea/project/build");
@@ -133,12 +142,36 @@ if (createJs.includes("Say what the desk should do.")) fail("create-desk.js empt
 else pass("Create empty start does not say the desk should do");
 if (!createJs.includes("Say what a Desk AI should draft.")) fail("create-desk.js empty start must say Say what a Desk AI should draft");
 else pass("Create empty start is Say what a Desk AI should draft");
+if (createJs.includes('return fail("Say what a Desk AI should draft.")') || createJs.includes('return fail("Open a desk on this phone first.")')) {
+  fail("create-desk.js start fail must stay on the start card, not #err under the form");
+} else pass("Create start fail stays on the start card");
+if (!createJs.includes("function startFail") || !createJs.includes("function startDone") || !createJs.includes("function paintStartDesk")) {
+  fail("create-desk.js must paint start Ask / Yes / stranger notes on the start card");
+} else pass("Create start paints Ask / Yes / stranger on the start card");
+if (createJs.includes("Put the work on the queue, or Stop")) fail("create-desk.js drafts-off start still says Put the work, or Stop");
+else pass("Create drafts-off start does not say Put the work, or Stop");
+if (!createJs.includes("Yes puts the work on the queue. Stop discards it.")) {
+  fail("create-desk.js drafts-off start must name Yes / Stop");
+} else pass("Create drafts-off start names Yes / Stop");
+if (!createJs.includes("skip.hidden = !!on") || !createJs.includes("start-queue")) {
+  fail("create-desk.js must hide Put it on the queue while Yes / Stop decide");
+} else pass("Create hides the skip while Yes / Stop decide");
+if (!createJs.includes("You still tap Yes / Stop / Kill.")) {
+  fail("create-desk.js start Yes handoff must name the Queue rail");
+} else pass("Create start Yes handoff names Yes / Stop / Kill");
+if (createJs.includes('return done("On the queue. Same Drop card.')) {
+  fail("create-desk.js start Yes must not dump success under the form");
+} else pass("Create start Yes stays on the start card");
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (yesNo.indexOf("Create start leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Create start leftover");
 else pass("ACCOUNT-YES-NO records Create start leftover");
 if (packMd.indexOf("Create start leftover:") < 0) fail("PACK.md must record the Create start leftover");
 else pass("PACK.md records Create start leftover");
+if (yesNo.indexOf("Create start card leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Create start card leftover");
+else pass("ACCOUNT-YES-NO records Create start card leftover");
+if (packMd.indexOf("Create start card leftover:") < 0) fail("PACK.md must record the Create start card leftover");
+else pass("PACK.md records Create start card leftover");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {

@@ -382,59 +382,98 @@
         el.textContent = "Could not reach this box. Drafts stay off. You can still put work on the queue.";
       }
     }
+    function startNote(msg, kind, open) {
+      const note = document.getElementById("start-note");
+      const gate = document.getElementById("start-open");
+      if (!note) return;
+      note.hidden = !msg;
+      note.classList.toggle("err", kind === "err");
+      note.classList.toggle("ok", kind === "ok");
+      if (kind === "ok") note.innerHTML = msg || "";
+      else note.textContent = msg || "";
+      if (gate) gate.hidden = !open;
+      if (msg && note.scrollIntoView) note.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+    function startFail(msg, open) {
+      startNote(msg, "err", open === true || (open !== false && !deskOpen()));
+    }
+    function startDone(msg) {
+      startNote(msg + ' <a href="/desk">Open the desk →</a>', "ok", false);
+    }
+    function startNeedDesk() {
+      startFail("Open or unlock this desk first. A draft lands on this queue — not a stranger form.", true);
+    }
+    function paintStartDesk() {
+      const gate = document.getElementById("start-open");
+      const note = document.getElementById("start-note");
+      if (deskOpen()) {
+        if (gate) gate.hidden = true;
+        if (note && note.classList.contains("err") && /Open or unlock this desk first/.test(note.textContent || "")) {
+          startNote("", "", false);
+        }
+        return;
+      }
+      startNeedDesk();
+    }
+    function setStartDecide(on) {
+      const decide = document.getElementById("start-decide");
+      const skip = document.getElementById("start-queue");
+      if (decide) decide.hidden = !on;
+      if (skip) skip.hidden = !!on;
+    }
     function showStartDraft(data) {
       const box = document.getElementById("start-draft-box");
-      const decide = document.getElementById("start-decide");
       const cites = document.getElementById("start-cites");
-      if (!box || !decide) return;
+      if (!box) return;
       startDraft = data || null;
       const text = data && (data.draft || data.next);
       if (text) {
         box.classList.add("on");
         box.textContent = text + (data.next && data.draft && data.next !== data.draft ? "\n\nNext: " + data.next : "");
-        decide.hidden = false;
       } else {
         box.classList.add("on");
         box.textContent = (data && data.note) || (grokOn
-          ? "No draft this time. You can still put the work on the queue."
-          : "Drafts are off. No invented copy. Put the work on the queue, or Stop.");
-        decide.hidden = false;
+          ? "No draft this time. Yes puts the work on the queue."
+          : "Drafts are off. No invented copy. Yes puts the work on the queue. Stop discards it.");
       }
+      setStartDecide(true);
+      startNote("", "", false);
       paintCites(cites, data && data.citations);
     }
     function clearStartDraft() {
       startDraft = null;
       const box = document.getElementById("start-draft-box");
-      const decide = document.getElementById("start-decide");
       const cites = document.getElementById("start-cites");
       if (box) { box.classList.remove("on"); box.textContent = ""; }
-      if (decide) decide.hidden = true;
+      setStartDecide(false);
       paintCites(cites, []);
     }
     async function suggestStart() {
       const body = startBody();
-      if (!body.title) return fail("Say what a Desk AI should draft.");
+      if (!body.title) return startFail("Say what a Desk AI should draft.");
+      if (!deskOpen()) return startNeedDesk();
       const go = document.getElementById("start-draft");
       if (go) go.disabled = true;
       try {
         const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(Object.assign({ action: "suggest" }, body)) });
         const data = await r.json().catch(function () { return {}; });
-        if (r.status === 400 && /Open a desk first/i.test(data.error || "")) return fail("Open a desk on this phone first.");
-        if (!r.ok) return fail(data.error || "Could not ask the desk.");
+        if (r.status === 400 && /Open a desk first/i.test(data.error || "")) return startNeedDesk();
+        if (!r.ok) return startFail(data.error || "Could not ask the desk.");
         showStartDraft(data);
         if (data.grok === "no-key" || data.grok === "off") {
           const line = document.getElementById("aia-line");
           if (line) { line.classList.add("off"); line.textContent = data.note || "Drafts are off — no XAI_API_KEY on this box. Orange copy only."; }
         }
       } catch (e) {
-        fail("Could not reach the desk.");
+        startFail("Could not reach the desk.");
       } finally {
         if (go) go.disabled = false;
       }
     }
     async function queueStart(useDraft) {
       const body = startBody();
-      if (!body.title) return fail("Say what a Desk AI should draft.");
+      if (!body.title) return startFail("Say what a Desk AI should draft.");
+      if (!deskOpen()) return startNeedDesk();
       if (useDraft && startDraft) {
         if (startDraft.draft) body.draft = startDraft.draft;
         if (startDraft.next) body.why = startDraft.next;
@@ -448,13 +487,13 @@
       try {
         const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(Object.assign({ action: "capture" }, body)) });
         const data = await r.json().catch(function () { return {}; });
-        if (r.status === 400 && /Open a desk first/i.test(data.error || "")) return fail("Open a desk on this phone first.");
-        if (!r.ok) return fail(data.error || "Could not put that on the queue.");
+        if (r.status === 400 && /Open a desk first/i.test(data.error || "")) return startNeedDesk();
+        if (!r.ok) return startFail(data.error || "Could not put that on the queue.");
         clearStartDraft();
         document.getElementById("start-what").value = "";
-        return done("On the queue. Same Drop card. You still tap Yes or Stop.");
+        return startDone("On the queue. Same Drop card. You still tap Yes / Stop / Kill.");
       } catch (e) {
-        fail("Could not reach the desk.");
+        startFail("Could not reach the desk.");
       } finally {
         if (go) go.disabled = false;
         if (yes) yes.disabled = false;
@@ -468,7 +507,7 @@
       if (draft) draft.addEventListener("click", function () { suggestStart(); });
       if (queue) queue.addEventListener("click", function () { queueStart(false); });
       if (yes) yes.addEventListener("click", function () { queueStart(true); });
-      if (stop) stop.addEventListener("click", function () { clearStartDraft(); });
+      if (stop) stop.addEventListener("click", function () { clearStartDraft(); startNote("", "", false); paintStartDesk(); });
     }
     (function boot() {
       const params = new URLSearchParams(location.search);
@@ -481,4 +520,5 @@
       if (kind === "pack") loadPacks();
       wireStart();
       paintAia();
+      paintStartDesk();
     })();
