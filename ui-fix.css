@@ -264,3 +264,40 @@ body.has-desk-nav #pin {
     flex: 1 1 100%;
   }
 }
+
+/* Dark + mobile contrast for chips, cards, outline taps */
+html.dark .chip,
+html.dark .actions .chip {
+  color: var(--ink) !important;
+  background: color-mix(in srgb, white 16%, var(--aia-night)) !important;
+  border-color: color-mix(in srgb, white 32%, var(--aia-night)) !important;
+}
+html.dark a.btn.outline,
+html.dark .btn.outline,
+html.dark a.outline {
+  color: color-mix(in srgb, var(--aia-teal) 30%, white) !important;
+  border-color: color-mix(in srgb, var(--aia-teal) 30%, white) !important;
+}
+html.dark .card,
+html.dark .kpi,
+html.dark .item,
+html.dark .sheet-card {
+  color: var(--ink);
+}
+html.dark .card p,
+html.dark .kpi p,
+html.dark .item p {
+  color: var(--muted);
+}
+@media (max-width: 720px) {
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .actions .chip {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+}

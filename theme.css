@@ -34,12 +34,12 @@
 html.dark {
   color-scheme: dark;
   --bg: var(--aia-night);
-  --bg-soft: color-mix(in srgb, var(--aia-night) 88%, white);
-  --ink: color-mix(in srgb, var(--aia-day) 90%, white);
-  --heading: color-mix(in srgb, var(--aia-teal) 32%, white);
-  --card: color-mix(in srgb, var(--aia-night) 82%, white);
-  --line: color-mix(in srgb, white 16%, var(--aia-night));
-  --muted: color-mix(in srgb, var(--aia-day) 52%, var(--aia-night));
+  --bg-soft: color-mix(in srgb, var(--aia-night) 82%, white);
+  --ink: color-mix(in srgb, var(--aia-day) 96%, white);
+  --heading: color-mix(in srgb, var(--aia-teal) 18%, white);
+  --card: color-mix(in srgb, var(--aia-night) 72%, white);
+  --line: color-mix(in srgb, white 28%, var(--aia-night));
+  --muted: color-mix(in srgb, var(--aia-day) 78%, var(--aia-night));
   --teal: color-mix(in srgb, var(--aia-teal) 58%, white);
   --teal-deep: color-mix(in srgb, var(--aia-teal) 38%, white);
   --orange: var(--aia-orange);
