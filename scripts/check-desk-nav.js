@@ -100,9 +100,12 @@ if (!create.includes("id=\"start-decide\"") || !create.includes("#start-decide[h
 if (!create.includes("id=\"start-note\"") || !create.includes("id=\"start-open\"")) {
   fail("create.html must keep Ask / Yes / stranger notes on the start card");
 } else pass("Create start notes stay on the start card");
-if (!create.includes(".start-note.err") || !create.includes("var(--orange)") || !create.includes(".start-note.ok") || !create.includes("var(--teal)")) {
+if (!create.includes(".start-note.is-err") || !create.includes("var(--orange)") || !create.includes(".start-note.is-ok") || !create.includes("var(--teal)")) {
   fail("create.html start notes must paint orange fail / teal Yes on the start card");
 } else pass("Create start notes paint orange fail / teal Yes");
+if (createJs.includes('classList.toggle("err"') || createJs.includes('classList.toggle("ok"')) {
+  fail("create-desk.js start notes must not reuse .err/.ok display:none");
+} else pass("Create start notes do not reuse .err/.ok display:none");
 if (create.indexOf("id=\"start-note\"") > create.indexOf("id=\"start-kind\"")) {
   fail("create.html start notes must sit above How / what so a phone sees them");
 } else pass("Create start notes sit above the fields");

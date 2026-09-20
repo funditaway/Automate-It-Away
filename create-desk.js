@@ -387,8 +387,8 @@
       const gate = document.getElementById("start-open");
       if (!note) return;
       note.hidden = !msg;
-      note.classList.toggle("err", kind === "err");
-      note.classList.toggle("ok", kind === "ok");
+      note.classList.toggle("is-err", kind === "err");
+      note.classList.toggle("is-ok", kind === "ok");
       if (kind === "ok") note.innerHTML = msg || "";
       else note.textContent = msg || "";
       if (gate) gate.hidden = !open;
