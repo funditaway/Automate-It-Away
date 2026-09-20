@@ -57,8 +57,12 @@
     .start{margin-bottom:14px}
     .start h2{font-size:1rem;color:var(--heading);margin:0 0 6px}
     .row-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-    .row-btns[hidden],#start-decide[hidden]{display:none!important}
+    .row-btns[hidden],#start-decide[hidden],#start-queue[hidden],#start-open[hidden],#start-note[hidden]{display:none!important}
     .row-btns button,.row-btns a{flex:1;min-height:48px;border:0;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center}
+    .start-note{margin:10px 0;font-size:13px;border-radius:12px;padding:10px 12px}
+    .start-note.is-err{background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading);border:1px solid var(--orange)}
+    .start-note.is-ok{background:var(--edit);color:var(--edit-ink);border:1px solid var(--teal)}
+    .start-note a{color:inherit;font-weight:700;text-decoration:underline}
     .ghost{background:transparent;color:var(--heading);border:1px solid var(--line)}
     .yes{background:var(--teal);color:#fff}
     .stop{background:transparent;color:var(--heading);border:1px solid var(--line)}
@@ -93,6 +97,11 @@
     <section class="card start" id="start">
       <h2>What should a Desk AI draft?</h2>
       <p class="hint">One AIA account. Drop anything. Connections and skills stay on this desk.</p>
+      <p class="start-note" id="start-note" hidden></p>
+      <p class="cta" id="start-open" hidden>
+        <a class="use" href="/desk">Open this desk</a>
+        <a class="use ghost" href="/onboard">Unlock this desk</a>
+      </p>
       <label for="start-kind">What is it? <button type="button" class="aia-tip" data-aia-tip="drop-kind" aria-label="More about What is it">?</button></label>
       <select id="start-kind">
         <option value="task">A task</option>
