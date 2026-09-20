@@ -10,16 +10,18 @@
   }
   function widgetOn() {
     try {
+      if (typeof document !== "undefined" && document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("widget")) return true;
+      if (typeof document !== "undefined" && document.body && document.body.classList && document.body.classList.contains("widget")) return true;
+    } catch (e) {}
+    try {
       var p = String(location.pathname || "").replace(/\/+$/, "");
-      return /(?:^|\/)widget(?:\.html)?$/i.test(p);
+      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
+      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
     } catch (e) { return false; }
   }
   function dropHref(slug) {
     var use = slugify(slug);
-    if (widgetOn()) {
-      if (window.AIADesks && AIADesks.widgetHref) return AIADesks.widgetHref(use);
-      return use ? ("/widget?ws=" + encodeURIComponent(use)) : "/widget";
-    }
+    if (widgetOn()) return use ? ("/widget?ws=" + encodeURIComponent(use)) : "/widget";
     return use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
   }
   function goDrop(slug) {

@@ -48,10 +48,7 @@
   function slimChrome() { return embedOn() || widgetOn(); }
   function dropHref(slug) {
     var use = String(slug || "").trim();
-    if (widgetOn()) {
-      if (window.AIADesks && AIADesks.widgetHref) return AIADesks.widgetHref(use);
-      return use ? ("/widget?ws=" + encodeURIComponent(use)) : "/widget";
-    }
+    if (widgetOn()) return use ? ("/widget?ws=" + encodeURIComponent(use)) : "/widget";
     return use ? ("/drop?ws=" + encodeURIComponent(use)) : "/drop";
   }
   function banner() {

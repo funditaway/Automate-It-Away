@@ -197,8 +197,11 @@ if (steps.indexOf('keep.classList.remove("step-off")') < 0) {
 const hrefFn = read("desk-switch.js");
 const hrefAt = hrefFn.indexOf("function widgetHref");
 const href = hrefFn.slice(hrefAt, hrefFn.indexOf("function captureDesk"));
-if (href.indexOf('return "/widget"') < 0 || href.indexOf('"/widget?ws="') < 0) {
-  fail("widgetHref must point the Drop tab at /widget so #drop-steps skips");
+if (href.indexOf('return "/drop"') < 0 || href.indexOf('"/drop?ws="') < 0) {
+  fail("widgetHref must point the Drop tab at /drop so the rail paints");
+}
+if (href.indexOf('"/widget?ws="') >= 0 || href.indexOf('return "/widget"') >= 0) {
+  fail("widgetHref must not send the Drop tab to /widget");
 }
 if (yesNo.indexOf("Drop widget pick href leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop widget pick href leftover");
@@ -215,12 +218,18 @@ if (pickHref.indexOf("location.href = dropHref(use)") < 0) {
 if (pickHref.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
   fail("drop-pick.js goDrop must not always dump to /drop");
 }
+if (pickHref.indexOf("AIADesks.widgetHref") >= 0) {
+  fail("drop-pick.js must not use widgetHref — Drop tab /drop must not dump /widget pick onto the rail");
+}
 if (now.indexOf("function dropHref") < 0) fail("drop-now.js must pick /widget vs /drop for recent desks");
 if (now.indexOf("location.href = dropHref(") < 0) {
   fail("drop-now.js recent public desks must use dropHref");
 }
 if (now.indexOf('location.href = "/drop?ws="') >= 0) {
   fail("drop-now.js recent public desks must not always dump to /drop");
+}
+if (now.indexOf("AIADesks.widgetHref") >= 0) {
+  fail("drop-now.js must not use widgetHref — Drop tab /drop must not dump /widget recent desks onto the rail");
 }
 const hookTypeAt = preview.indexOf("function hookType");
 const hookType = preview.slice(hookTypeAt, preview.indexOf("function hookSendAlias", hookTypeAt));
@@ -280,6 +289,12 @@ if (yesNo.indexOf("Drop widget Talk chrome leftover after that pass") < 0) {
 }
 if (packMd.indexOf("Drop widget Talk chrome leftover:") < 0) {
   fail("PACK.md must name Drop widget Talk chrome leftover");
+}
+if (yesNo.indexOf("Drop tab full Drop leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop tab full Drop leftover");
+}
+if (packMd.indexOf("Drop tab full Drop leftover:") < 0) {
+  fail("PACK.md must name Drop tab full Drop leftover");
 }
 
 ["drop.html", "widget.html"].forEach(function (file) {

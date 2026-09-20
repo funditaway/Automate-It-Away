@@ -301,6 +301,8 @@ Drop widget Talk chrome leftover: after slimChrome skipped Talk with only `hidde
 
 Drop Card manual leftover: after `/drop` painted Desk · Tell · Card · Check · Share, picking a desk still remembered Tell, and Card still asked I am before the kind and buried What do you need under name / phone / files. Tell is hidden at boot so the rail snapped back to Desk. Picking a desk or `/drop?ws=` now lands on Card. Core chips are A task · An errand · A list · An idea · A project. Title and What do you need sit under the kind. Tell stays on the rail. `/widget` still skips the rail. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop tab full Drop leftover: after widgetHref pointed the Drop tab at `/widget` so the slim skip would fire, the phone Drop tab lost Desk · Tell · Card · Check · Share. Drop was over-slimmed. Drop tab / widgetHref now open `/drop?ws=`. `/widget` and embed stay slim. World pick on `/widget` stays on `/widget?ws=`. Share links stay `/drop?ws=`. `/create` still Desk AI draft copy. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.
