@@ -76,6 +76,11 @@ async function main() {
   else if (!/id="accounts"/.test(statusHtml) || !/accounts\.login/.test(statusHtml)) fail("status.html must paint World user accounts from health.accounts.login");
   else if (/authenticator is opt-in/i.test(statusHtml)) fail("status.html must not claim authenticator opt-in");
   else pass("status.html paints accounts from health");
+  if (/Orange is P1/.test(statusHtml)) fail("status.html must not call orange P1");
+  else if (!/Orange is HOLD/.test(statusHtml)) fail("status.html must say Orange is HOLD — wait");
+  else if (!/id="grok"/.test(statusHtml) || !/automation\.grok/.test(statusHtml)) fail("status.html must paint Grok drafts from health.automation.grok");
+  else if (/API key not set/.test(statusHtml)) fail("status.html must not hardcode Grok API key not set");
+  else pass("status.html paints Grok from health; orange is HOLD");
 
   if (lib.slugify("") !== "" || lib.slugify(null) !== "") fail("slugify should not invent demo");
   else pass("slugify leaves an empty name empty");

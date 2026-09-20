@@ -91,6 +91,10 @@ if (yesNo.indexOf("Queue `/queue` leftover after that pass") < 0) fail("ACCOUNT-
 pass("ACCOUNT-YES-NO records /queue alias leftover");
 if (yesNo.indexOf("Open Stop leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Open Stop leftover");
 pass("ACCOUNT-YES-NO records Open Stop leftover");
+if (yesNo.indexOf("Queue empty / Status orange leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record the Queue empty / Status orange leftover");
+}
+pass("ACCOUNT-YES-NO records Queue empty / Status orange leftover");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (packMd.indexOf("Queue Open / Stop leftover") < 0) fail("PACK.md must record the Queue Open / Stop leftover");
 pass("PACK.md records Queue Open / Stop leftover");
@@ -98,6 +102,61 @@ if (packMd.indexOf("Queue `/queue` leftover:") < 0) fail("PACK.md must record th
 pass("PACK.md records /queue alias leftover");
 if (packMd.indexOf("Open Stop leftover:") < 0) fail("PACK.md must record the Open Stop leftover");
 pass("PACK.md records Open Stop leftover");
+if (packMd.indexOf("Queue empty / Status orange leftover:") < 0) fail("PACK.md must record the Queue empty / Status orange leftover");
+pass("PACK.md records Queue empty / Status orange leftover");
+
+if (desk.indexOf("function queueEmptyHtml") < 0) fail("desk.html must own queueEmptyHtml");
+if (desk.indexOf("No desk on this phone yet. Queue does not invent Yes / Stop cards.") < 0) {
+  fail("desk.html no-desk empty must stay honest");
+}
+if (desk.indexOf("Nothing on this queue yet. Drop or Create a card.") < 0) {
+  fail("desk.html open-empty must stay honest");
+}
+if (desk.indexOf("Nothing here yet. Drop anything") >= 0) {
+  fail("desk.html must not lump stranger + empty as Drop anything / Add a rule");
+}
+if (desk.indexOf("filters.hidden = true") < 0) fail("desk.html must hide Cap · orange on no desk");
+if (desk.indexOf("#queue-filters[hidden]") < 0) fail("desk.html must force-hide Cap · orange when hidden (display:flex beats the attribute)");
+if (!/id="queue-filters" hidden/.test(desk)) fail("desk.html Cap · orange must start hidden until a desk is open");
+pass("desk.html Queue empty is honest");
+
+if (queueJs.indexOf("queueEmptyHtml") < 0) fail("desk-queue leftover must reuse queueEmptyHtml");
+if (queueJs.indexOf("Nothing here yet.") >= 0) fail("desk-queue leftover must not clobber empty with Nothing here yet");
+pass("desk-queue leftover empty stays honest");
+
+const packs = fs.readFileSync(path.join(root, "desk-queue-packs.js"), "utf8");
+if (packs.indexOf("queueEmptyHtml") < 0) fail("desk-queue-packs must reuse queueEmptyHtml on all / no-desk");
+if (packs.indexOf("bar.hidden = !here") < 0) fail("desk-queue-packs must hide pack chips on no desk");
+if (packs.indexOf("box.hidden = !here") < 0) fail("desk-queue-packs must start pack chips hidden on no desk");
+if (packs.indexOf("Nothing on this queue yet. Drop anything. Find a pack.") >= 0) {
+  fail("desk-queue-packs must not clobber no-desk empty with Find a pack / Add a rule");
+}
+pass("desk-queue-packs empty stays honest");
+
+if (needs.indexOf("Nothing on the Cap. Orange means do this first") < 0) {
+  fail("desk-needs Cap empty must name orange do-this-first, not Collect");
+}
+if (needs.indexOf("Open a desk first. Queue does not invent a Cap.") < 0) {
+  fail("desk-needs Cap tap on no desk must stay honest");
+}
+pass("desk-needs Cap · orange empty is honest");
+
+if (ux.indexOf("if (!here)") < 0) fail("desk-queue-ux must hide metrics on no desk");
+pass("desk-queue-ux hides metrics on no desk");
+
+const more = fs.readFileSync(path.join(root, "more.html"), "utf8");
+if (more.indexOf("Empty stays empty") < 0) fail("more.html Queue must say empty stays empty");
+else pass("more.html Queue empty stays empty");
+const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
+if (help.indexOf("Queue does not invent Yes / Stop cards") < 0) {
+  fail("help.html First day Queue must keep empty honesty");
+}
+pass("help.html First day Queue empty is honest");
+const tips = fs.readFileSync(path.join(root, "aia-tip.js"), "utf8");
+if (tips.indexOf("Cap orange is do this first — not Collect") < 0) {
+  fail("more-queue tip must name Cap orange honesty");
+}
+pass("more-queue tip names Cap orange honesty");
 
 const ctx = {
   window: {},

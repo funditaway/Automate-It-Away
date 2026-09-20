@@ -85,6 +85,9 @@
     .kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
     .kpi b{font-size:1.3rem;color:var(--teal)}
     body.queue-desk .kpis{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    #queue-empty,#cap-empty{padding:28px 16px;text-align:center;border:1px dashed var(--line);border-radius:16px;background:color-mix(in srgb,var(--card) 80%,transparent)}
+    #queue-empty p,#cap-empty p{margin:0 0 12px;color:var(--muted)}
+    #queue-empty .row,#cap-empty .row{justify-content:center}
     #queue-desk-rail{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 10px}
     .banner{margin-bottom:8px}
     .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
@@ -107,7 +110,7 @@
     #noun-fields{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0}
     #noun-fields label{font-size:11px;font-weight:700;color:var(--heading);display:block;margin:0 0 4px}
     #noun-fields input{width:100%}
-    #gate[hidden],#session[hidden],#desk-switch[hidden],#rule-add[hidden],#noun-save[hidden],#nav-consign[hidden],#recent-label[hidden]{display:none!important}
+    #gate[hidden],#session[hidden],#desk-switch[hidden],#rule-add[hidden],#noun-save[hidden],#nav-consign[hidden],#recent-label[hidden],#queue-filters[hidden],#pack-filters[hidden]{display:none!important}
     @media(max-width:640px){#noun-fields{grid-template-columns:1fr 1fr}}
     .talk{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
     .talk div{margin:0 0 6px}
@@ -168,7 +171,7 @@
     <p class="meta" id="widget-count">0 widgets on</p>
     <div class="row" id="rule-widgets" style="margin-bottom:8px"></div>
     <p class="meta" id="queue-taps">Taps match what the card needs. Yes / Stop / Kill stay human.</p>
-    <div id="queue-filters"><button class="edit" type="button" data-filter="cap">Cap · orange</button></div>
+    <div id="queue-filters" hidden><button class="edit" type="button" data-filter="cap">Cap · orange</button></div>
     <div id="cap-band" class="cap-band" hidden>
       <h2>Cap · orange · every desk on this account</h2>
       <div id="cap-list"></div>
@@ -322,6 +325,13 @@
     function esc(s) {
       return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
     }
+    function queueEmptyHtml(kind) {
+      if (kind === "nodesk") {
+        return "<div id=\"queue-empty\"><p>No desk on this phone yet. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a><a class=\"edit\" href=\"/drop\">Drop work</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+      }
+      return "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop something</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+    }
+    window.queueEmptyHtml = queueEmptyHtml;
     function card(j, staff) {
       const money = Number(j.amount || j.ask || 0);
       const why = visitorLine(j.why);
@@ -337,16 +347,23 @@
       keepDesk();
       paintGate();
       const banner = document.getElementById("banner");
+      const filters = document.getElementById("queue-filters");
       if (!workspaceSlug()) {
-        banner.textContent = "Name this desk. Open it.";
+        banner.textContent = "No desk on this phone yet. Queue does not invent Yes / Stop cards.";
         JOBS = [];
         RULES = [];
         paintNouns(AIADesks.defaultNouns());
         paintRules([]);
-        document.getElementById("queue").innerHTML = `<p style="color:var(--muted)">Nothing here yet. Drop anything / <a href="/rules">Add a rule</a>.</p>`;
+        if (filters) filters.hidden = true;
+        const packsBar = document.getElementById("pack-filters");
+        if (packsBar) packsBar.hidden = true;
+        document.getElementById("queue").innerHTML = queueEmptyHtml("nodesk");
         showConsignNav();
         return;
       }
+      if (filters) filters.hidden = false;
+      const packsBar = document.getElementById("pack-filters");
+      if (packsBar) packsBar.hidden = false;
       try {
         await api("/api/worker");
         const health = await api("/api/health");
@@ -387,7 +404,7 @@
       document.getElementById("k-ship").textContent = shipped.length;
       const staff = role === "employee";
       const open = held.concat(waiting, ready);
-      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || `<p style="color:var(--muted)">Nothing here yet. Drop anything / <a href="/rules">Add a rule</a>.</p>`;
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || queueEmptyHtml("empty");
       if (location.hash === "#rules") location.replace("/rules");
       const recent = shipped.slice(0, 3);
       document.getElementById("recent-label").hidden = !recent.length;

@@ -233,7 +233,7 @@
     },
     "more-queue": {
       title: "Queue",
-      body: "Real cards. Try first. Talk, Yes, or Stop. Ask on a gone Then bind holds that named AI (`… · not on this desk` / HOLD ask), not another live primary. Needs you / prompt ask-who hold the same gone bind, not anonymous desk AI. Cap on this desk can Reply. Other-desk Cap stays read-only. Cap and Open, History, Explore, and People paint that same Needs you / prompt ask-who. Owner picks the named desk AI on Open and this-desk Cap, same as the queue card. The owner picker holds the same gone bind. The queue is the measure — not a model demo. AIA does not send.",
+      body: "Real cards. Empty stays empty. No desk on this phone does not invent Yes / Stop cards. Cap orange is do this first — not Collect. Talk, Yes, or Stop. Ask on a gone Then bind holds that named AI (`… · not on this desk` / HOLD ask), not another live primary. Needs you / prompt ask-who hold the same gone bind, not anonymous desk AI. Cap on this desk can Reply. Other-desk Cap stays read-only. Cap and Open, History, Explore, and People paint that same Needs you / prompt ask-who. Owner picks the named desk AI on Open and this-desk Cap, same as the queue card. The owner picker holds the same gone bind. The queue is the measure — not a model demo. AIA does not send.",
       ask: "How does the Queue work?"
     },
     "more-drop": {
@@ -338,7 +338,7 @@
     },
     "more-status": {
       title: "Status",
-      body: "What is live on this desk. Orange means wait. Collect stays HOLD until Yes + a real pipe.",
+      body: "What is live on this desk. Orange means wait — not P1, not Collect. Grok drafts paint from health. Collect stays HOLD until Yes + a real pipe.",
       ask: "What does Status show?"
     }
   };

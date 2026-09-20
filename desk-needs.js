@@ -609,7 +609,7 @@
     const tok = localStorage.getItem("aia_session") || "";
     const desks = rows.filter(function (d) { return d && d.slug && d.pin && String(d.pin).length >= 4; });
     if (here && (pin || tok) && !desks.some(function (d) { return d.slug === here; })) desks.unshift({ slug: here, pin: pin });
-    if (!desks.length) { band.hidden = true; return; }
+    if (!desks.length) { band.hidden = true; box.innerHTML = ""; return; }
     try {
       const out = await api("/api/desks", { method: "POST", body: JSON.stringify({ action: "priority", desks: desks.slice(0, 32) }) });
       const items = (out.data && out.data.items) || [];
@@ -800,7 +800,20 @@
         const btn = e.target.closest("[data-filter=\"cap\"]");
         if (!btn) return;
         const band = document.getElementById("cap-band");
-        if (band && !band.hidden) band.scrollIntoView({ behavior: "smooth", block: "start" });
+        const box = document.getElementById("cap-list");
+        const here = localStorage.getItem("aia_ws") || "";
+        if (!here) {
+          const banner = document.getElementById("banner");
+          if (banner) banner.textContent = "Open a desk first. Queue does not invent a Cap.";
+          return;
+        }
+        if (band) {
+          band.hidden = false;
+          if (box && !box.querySelector(".q-card") && !document.getElementById("cap-empty")) {
+            box.innerHTML = "<div id=\"cap-empty\"><p>Nothing on the Cap. Orange means do this first — not Collect. Queue does not invent Yes / Stop cards.</p></div>";
+          }
+          band.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       });
       filters.__aiaCap = true;
     }

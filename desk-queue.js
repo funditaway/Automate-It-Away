@@ -172,7 +172,10 @@
     if (box.querySelector && box.querySelector(".q-card[data-job]")) return;
     const staff = typeof role !== "undefined" && role === "employee";
     const open = JOBS.filter(function (j) { return j.status === "held" || j.status === "exception" || j.status === "waiting" || j.status === "out"; });
-    box.innerHTML = open.map(function (j) { return window.queueCard(j, staff); }).join("") || "<p style=\"color:var(--muted)\">Nothing here yet.</p>";
+    var empty = typeof window.queueEmptyHtml === "function"
+      ? window.queueEmptyHtml(localStorage.getItem("aia_ws") ? "empty" : "nodesk")
+      : "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card. Queue does not invent Yes / Stop cards.</p></div>";
+    box.innerHTML = open.map(function (j) { return window.queueCard(j, staff); }).join("") || empty;
   };
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }

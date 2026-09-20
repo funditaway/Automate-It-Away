@@ -140,8 +140,11 @@ else pass("desk.html has no demo fallback");
   if (src.includes("|| \"demo\"") || src.includes("|| 'demo'")) fail(file + " still falls back to demo");
   else pass(file + " has no demo fallback");
 });
-if (!desk.includes("Drop anything") || !desk.includes("Add a rule") || !desk.includes("This desk") || !desk.includes("no rules yet")) fail("desk copy missing");
+if (!desk.includes("Drop anything") || !desk.includes("This desk") || !desk.includes("no rules yet")) fail("desk copy missing");
 else pass("desk queue/rules copy");
+if (!desk.includes("Queue does not invent Yes / Stop cards") || desk.includes("Nothing here yet. Drop anything")) {
+  fail("desk empty must stay honest");
+} else pass("desk empty stays honest");
 if (!desk.includes("widget-count") || !desk.includes("rule-widgets") || !desk.includes("/rules")) {
   fail("desk.html missing widget count or /rules link");
 } else pass("desk.html shows widget count and /rules");
