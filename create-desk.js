@@ -392,7 +392,6 @@
       if (kind === "ok") note.innerHTML = msg || "";
       else note.textContent = msg || "";
       if (gate) gate.hidden = !open;
-      if (msg && note.scrollIntoView) note.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
     function startFail(msg, open) {
       startNote(msg, "err", open === true || (open !== false && !deskOpen()));
