@@ -64,6 +64,36 @@ if (history.indexOf("Needs you / prompt ask-who") < 0) {
 if (history.indexOf("Give is the file") < 0 || history.indexOf("Collect HOLD") < 0) {
   fail("History must keep Give / Collect HOLD");
 } else pass("History keeps Give / Collect HOLD");
+if (history.indexOf("Create / Drop drafted cards label Yes / Stop / Kill") < 0) {
+  fail("History must label Create / Drop drafted Yes / Stop cards");
+} else pass("History labels Create / Drop drafted Yes / Stop cards");
+if (history.indexOf("function viaLabel") < 0 || history.indexOf("it.decide") < 0) {
+  fail("History must paint via + decide tags");
+} else pass("History paints via + decide tags");
+if (history.indexOf("Nothing on this trail yet") < 0) {
+  fail("empty History with no filters must say the trail is empty");
+} else pass("empty History with no filters is honest");
+if (history.indexOf("Nothing matches these filters") < 0) {
+  fail("empty History with filters must say nothing matches");
+} else pass("filtered empty History is honest");
+if (history.indexOf("Clear filters only when a filter hid the trail") < 0) {
+  fail("History must not offer Clear filters on a truly empty trail");
+} else pass("Clear filters only when a filter hid the trail");
+if (history.indexOf('id="clear-view" hidden') < 0 && history.indexOf("clr.hidden=n<1") < 0) {
+  fail("History toolbar Clear filters must hide when no filter is on");
+} else pass("History toolbar Clear filters hides when no filter is on");
+if (history.indexOf("clr.hidden=n<1") < 0) {
+  fail("paint() must hide #clear-view when filterCount is 0");
+} else pass("paint() hides #clear-view when filterCount is 0");
+if (history.indexOf("History does not invent Yes / Stop cards") < 0) {
+  fail("empty History must not invent Yes / Stop cards");
+} else pass("empty History does not invent Yes / Stop cards");
+if (histSrc.indexOf("function viaOf") < 0 || histSrc.indexOf("function whoOf") < 0) {
+  fail("_history must expose viaOf / whoOf");
+} else pass("_history exposes viaOf / whoOf");
+if (yesNo.indexOf("History drafted-card trail leftover") < 0) {
+  fail("ACCOUNT-YES-NO must name History drafted-card trail leftover");
+} else pass("ACCOUNT-YES-NO names History drafted-card trail leftover");
 
 if (histSrc.indexOf('ext: "Off desk"') < 0) fail("laneLabel must say Off desk");
 else pass("laneLabel says Off desk");

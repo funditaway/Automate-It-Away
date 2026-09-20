@@ -129,6 +129,9 @@ const job = {
 
 const item = hist.historyItem(job, { slug: "shop", biz: "Shop" });
 if (!item || !item.draft || item.draft.indexOf("Ask who it is for") < 0) fail("historyItem must keep Then draft");
+if (!item.decide) fail("waiting drafted card must expose decide");
+if (item.via !== "drop") fail("tell from drop must label via drop");
+if (item.who === "desk" || item.who === "drop" || item.who === "create") fail("historyItem who must not be Create/Drop jargon");
 if (!item.deskAi || item.deskAi.name !== "James’s AI") fail("historyItem must name the desk AI");
 if (!item.thenWho || item.thenWho !== "James’s AI") fail("historyItem must expose thenWho");
 if (!item.thread || item.thread.length < 2) fail("historyItem must expose the AI ↔ human thread");
@@ -511,6 +514,22 @@ if ((putTell.thread || []).some(function (t) { return t.kind === "note" && /Qual
 }
 const putItem = hist.historyItem(putTell, { slug: "shop", biz: "Shop" });
 if (!putItem.thread.some(function (t) { return t.kind === "tell"; })) fail("History must keep captured Tell AIA as tell");
+if (putItem.via !== "drop") fail("widget / Drop capture must label via drop");
+if (putItem.who === "widget" || putItem.who === "drop") fail("Drop capture who must not be widget jargon");
+const createItem = hist.historyItem({
+  id: "j-create",
+  status: "waiting",
+  title: "Grocery list for Friday",
+  from: "create",
+  whoTapped: "desk",
+  waitingOn: "person",
+  draft: "Buy milk. Do not send."
+}, { slug: "shop", biz: "Shop" });
+if (!createItem || createItem.via !== "create") fail("Create capture must label via create");
+if (!createItem.decide) fail("Create Yes/Stop card must expose decide");
+if (createItem.who) fail("Create whoTapped desk must not paint as who");
+if (typeof hist.viaOf !== "function" || hist.viaOf({ from: "create" }) !== "create") fail("viaOf must map create");
+if (hist.viaOf({ from: "widget" }) !== "drop") fail("viaOf must map widget to drop");
 if (ctx.talkLabel({ kind: "tell", from: "PROBE" }, putItem).indexOf("PROBE · tell") < 0) {
   fail("History must label dropper · tell");
 }
