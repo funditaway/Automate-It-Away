@@ -11,6 +11,7 @@
   <link rel="manifest" href="/site.webmanifest">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  (function(){try{var p=String(location.pathname||"").replace(/\/+$/,"");if(/(?:^|\/)widget(?:\.html)?$/i.test(p)||/\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href||"")))document.documentElement.classList.add("widget");if(window!==window.parent||/embed=1/.test(location.search))document.documentElement.classList.add("embed");}catch(e){}})();
   </script>
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="desk-nav.css">
@@ -50,6 +51,8 @@
     .share-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
     .share-actions button{flex:1;min-width:140px;margin-top:0}
     body.embed header,body.embed #desk-nav,body.embed .desk-tabs,body.embed #embed-card,body.embed #desk-pick{display:none}
+    html.widget #talkBar,html.embed #talkBar,body.widget #talkBar,body.embed #talkBar{display:none!important}
+    html.widget #talkBar *,html.embed #talkBar *,body.widget #talkBar *,body.embed #talkBar *{display:none!important}
     .talk-bar,.desk-pick{margin:0 0 14px}
     .desk-actions{margin-top:10px}
     .desk-actions a,.desk-actions button{min-height:44px;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center}
@@ -193,6 +196,7 @@
   (function () {
     function skipSteps() {
       try {
+        if (document.documentElement && document.documentElement.classList.contains("widget")) return true;
         if (document.body && document.body.classList.contains("widget")) return true;
         var p = String(location.pathname || "").replace(/\/+$/, "");
         if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
@@ -214,7 +218,11 @@
   <script>
     const params = new URLSearchParams(location.search);
     const embed = window !== window.parent || params.get("embed") === "1";
-    if (embed) document.body.classList.add("embed");
+    if (embed) {
+      document.documentElement.classList.add("embed");
+      document.body.classList.add("embed");
+    }
+    if (document.documentElement.classList.contains("widget")) document.body.classList.add("widget");
     let desk = (window.AIADesks && AIADesks.captureDesk) ? AIADesks.captureDesk() : null;
     let ws = (desk && desk.slug) || "";
     if (ws) window.ws = ws;

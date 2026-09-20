@@ -64,7 +64,17 @@
       if (foot && foot.parentNode) foot.parentNode.removeChild(foot);
       if (document.body && document.body.classList) document.body.classList.remove("drop-steps");
       var talk = document.getElementById("talkBar");
-      if (talk) talk.hidden = true;
+      if (talk && talk.parentNode) talk.parentNode.removeChild(talk);
+      try {
+        if (widgetOn()) {
+          if (document.documentElement && document.documentElement.classList) document.documentElement.classList.add("widget");
+          if (document.body && document.body.classList) document.body.classList.add("widget");
+        }
+        if (embedOn()) {
+          if (document.documentElement && document.documentElement.classList) document.documentElement.classList.add("embed");
+          if (document.body && document.body.classList) document.body.classList.add("embed");
+        }
+      } catch (e) {}
       return;
     }
     var on = desk();

@@ -225,6 +225,16 @@ a.open-another {
   align-items: center;
   margin: 0 0 12px;
 }
+html.widget #talkBar,
+html.embed #talkBar,
+body.widget #talkBar,
+body.embed #talkBar,
+html.widget #talkBar *,
+html.embed #talkBar *,
+body.widget #talkBar *,
+body.embed #talkBar * {
+  display: none !important;
+}
 .talk-bar .talk-status {
   flex: 1 1 100%;
   margin: 0 0 4px;

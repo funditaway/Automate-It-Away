@@ -127,8 +127,8 @@ if (bannerFn.indexOf("slimChrome()") < 0) fail("drop-now.js banner must skip #dr
 if (bannerFn.indexOf("drop-steps") < 0 || bannerFn.indexOf("drop-step-foot") < 0) {
   fail("drop-now.js slimChrome must tear down #drop-steps on /widget");
 }
-if (bannerFn.indexOf("talkBar") < 0 || bannerFn.indexOf("talk.hidden = true") < 0) {
-  fail("drop-now.js slimChrome must keep #talkBar hidden on /widget");
+if (bannerFn.indexOf("talkBar") < 0 || bannerFn.indexOf("talk.parentNode.removeChild(talk)") < 0) {
+  fail("drop-now.js slimChrome must tear down #talkBar on /widget");
 }
 if (bannerFn.indexOf("Change desk") < 0 || bannerFn.indexOf("/drop") < 0) {
   fail("drop-now.js /drop banner must still offer Change desk");
@@ -226,8 +226,11 @@ if (inject.indexOf("slimChrome") < 0 || inject.indexOf("stripHtml") < 0) {
 if (inject.indexOf("slim ? \"\"") < 0) {
   fail("drop-preview.js inject must omit #verify-strip when slim");
 }
-if (inject.indexOf("bar.hidden = slimChrome()") < 0) {
-  fail("drop-preview.js inject must skip the Talk bar on /widget");
+if (inject.indexOf("bar.hidden = slimChrome()") >= 0) {
+  fail("drop-preview.js must not leave Talk as hidden-only on /widget");
+}
+if (inject.indexOf("talkBar") < 0 || inject.indexOf("slimChrome()") < 0 || inject.indexOf("removeChild") < 0) {
+  fail("drop-preview.js inject must tear down the Talk bar on /widget");
 }
 if (inject.indexOf("id=\\\"verify-strip\\\"") < 0 && inject.indexOf("id=\"verify-strip\"") < 0) {
   fail("drop-preview.js must still paint This drop on /drop");
@@ -367,8 +370,8 @@ if (talk.indexOf("You still tap Yes or Stop") < 0) fail("drop-talk.js must keep 
 const talkBootAt = talk.indexOf("function boot");
 const talkBoot = talk.slice(talkBootAt, talk.indexOf("if (document.readyState", talkBootAt));
 if (talk.indexOf("function widgetOn") < 0) fail("drop-talk.js must detect the /widget path");
-if (talk.indexOf("function slimChrome") < 0 || talkBoot.indexOf("if (slimChrome()) return") < 0) {
-  fail("drop-talk.js boot must skip the Talk bar on /widget");
+if (talk.indexOf("function slimChrome") < 0 || talkBoot.indexOf("hushTalk()") < 0) {
+  fail("drop-talk.js boot must tear down the Talk bar on /widget");
 }
 if (talk.indexOf('classList.contains("embed")') < 0 || talk.indexOf("window !== window.parent") < 0) {
   fail("drop-talk.js boot must still skip the Talk bar on embed");
@@ -406,6 +409,98 @@ if (!runTalkSkip({ href: "https://www.automateitaway.com/widget?ws=springfield-s
 if (runTalkSkip({ path: "/drop" })) fail("/drop must still paint the Talk bar");
 if (runTalkSkip({ path: "/drop.html" })) fail("/drop.html must still paint the Talk bar");
 if (runTalkSkip({ search: "?ws=springfield-shop" })) fail("/drop?ws= must still paint the Talk bar");
+function runTalkTeardown(opts) {
+  const ids = {};
+  function classList(initial) {
+    const set = {};
+    (initial || []).forEach(function (c) { set[c] = true; });
+    return {
+      contains: function (c) { return !!set[c]; },
+      add: function (c) { set[c] = true; },
+      remove: function (c) { delete set[c]; },
+      toggle: function () {}
+    };
+  }
+  const talkBar = {
+    id: "talkBar",
+    hidden: true,
+    classList: classList(["talk-bar"]),
+    parentNode: null,
+    querySelector: function () { return null; }
+  };
+  const parent = {
+    removeChild: function (n) {
+      if (n === talkBar) { delete ids.talkBar; talkBar.parentNode = null; }
+    }
+  };
+  talkBar.parentNode = parent;
+  ids.talkBar = talkBar;
+  const sandbox = {
+    document: {
+      documentElement: { classList: classList() },
+      body: { classList: classList(opts.bodyClass ? [opts.bodyClass] : []) },
+      head: { appendChild: function () {} },
+      readyState: "complete",
+      getElementById: function (id) { return ids[id] || null; },
+      createElement: function () { return { id: "", textContent: "" }; },
+      addEventListener: function () {},
+      querySelector: function () { return null; },
+      querySelectorAll: function () { return []; }
+    },
+    location: {
+      pathname: opts.path || "/drop",
+      search: opts.search || "",
+      href: opts.href || ("https://www.automateitaway.com" + (opts.path || "/drop")),
+      hash: ""
+    },
+    addEventListener: function () {},
+    URLSearchParams: URLSearchParams
+  };
+  sandbox.window = sandbox;
+  sandbox.parent = opts.iframe ? {} : sandbox;
+  vm.runInNewContext(talk, sandbox);
+  return !ids.talkBar;
+}
+if (!runTalkTeardown({ path: "/widget" })) fail("/widget boot must remove #talkBar from the DOM");
+if (!runTalkTeardown({ path: "/widget", search: "?embed=1" })) fail("/widget?embed=1 boot must remove #talkBar from the DOM");
+if (!runTalkTeardown({ path: "/drop", search: "?embed=1" })) fail("embed /drop boot must remove #talkBar from the DOM");
+if (runTalkTeardown({ path: "/drop" })) fail("/drop boot must keep #talkBar in the DOM");
+if (runTalkTeardown({ path: "/drop.html" })) fail("/drop.html boot must keep #talkBar in the DOM");
+if (yesNo.indexOf("Drop widget Talk chrome leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget Talk chrome leftover");
+}
+if (packMd.indexOf("Drop widget Talk chrome leftover:") < 0) {
+  fail("PACK.md must name Drop widget Talk chrome leftover");
+}
+if (dropMd.indexOf("tears down `#talkBar`") < 0) {
+  fail("DROP.md must say slimChrome tears down #talkBar");
+}
+if (dropMd.indexOf("display:none!important") < 0) {
+  fail("DROP.md must say .widget hard-hides Talk with display:none!important");
+}
+if (dropMd.indexOf("Probe /widget vs /drop Talk") < 0) {
+  fail("DROP.md must include Probe /widget vs /drop Talk");
+}
+if (talk.indexOf("display:none!important") < 0 || talk.indexOf("body.widget #talkBar") < 0) {
+  fail("drop-talk.js must hard-hide #talkBar on .widget so preview cannot unhide");
+}
+["drop.html", "widget.html"].forEach(function (file) {
+  const src = read(file);
+  if (src.indexOf("html.widget #talkBar") < 0 || src.indexOf("body.widget #talkBar") < 0) {
+    fail(file + " must hard-hide #talkBar on .widget");
+  }
+  if (src.indexOf("display:none!important") < 0) {
+    fail(file + " must hard-hide #talkBar with display:none!important");
+  }
+});
+const uiFix = read("ui-fix.css");
+if (uiFix.indexOf("body.widget #talkBar") < 0 || uiFix.indexOf("html.widget #talkBar") < 0) {
+  fail("ui-fix.css must hard-hide #talkBar on .widget so .talk-bar flex cannot paint Hear this");
+}
+const dropHtmlSrc = read("drop.html");
+if (dropHtmlSrc.indexOf('classList.add("widget")') < 0) {
+  fail("drop.html must stamp html.widget on /widget so Talk CSS hide applies on the drop.html rewrite");
+}
 if (yesNo.indexOf("Drop widget Talk bar leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop widget Talk bar leftover");
 }

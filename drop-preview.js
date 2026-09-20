@@ -116,7 +116,9 @@
       document.head.appendChild(css);
     }
     var bar = document.getElementById("talkBar");
-    if (bar) bar.hidden = slimChrome();
+    if (bar && slimChrome()) {
+      if (bar.parentNode) bar.parentNode.removeChild(bar);
+    }
     if (document.getElementById("talkType") && document.querySelectorAll("#talkType").length > 1) {
       var extras = document.querySelectorAll("#talkType");
       if (extras.length > 1 && extras[0].closest("#talkBar")) extras[1].id = "talkTypePreview";

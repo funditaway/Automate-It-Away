@@ -55,6 +55,29 @@
     } catch (e) { return false; }
   }
   function slimChrome() { return embedOn() || widgetOn(); }
+  function markSlim() {
+    try {
+      if (widgetOn()) {
+        if (document.documentElement && document.documentElement.classList) document.documentElement.classList.add("widget");
+        if (document.body && document.body.classList) document.body.classList.add("widget");
+      }
+      if (embedOn()) {
+        if (document.documentElement && document.documentElement.classList) document.documentElement.classList.add("embed");
+        if (document.body && document.body.classList) document.body.classList.add("embed");
+      }
+    } catch (e) {}
+  }
+  function talkCss() {
+    if (document.getElementById("talk-drop-css")) return;
+    var css = document.createElement("style"); css.id = "talk-drop-css";
+    css.textContent = "html.widget #talkBar,html.embed #talkBar,body.widget #talkBar,body.embed #talkBar{display:none!important}html.widget #talkBar *,html.embed #talkBar *,body.widget #talkBar *,body.embed #talkBar *{display:none!important}body:not(.widget):not(.embed) #talkBar{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 14px}#talkBar .talk-status{font:600 15px/1.35 system-ui,sans-serif;color:var(--heading);margin:0 0 10px}#talkBar #talkType{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink);margin:0 0 8px}body:not(.widget):not(.embed) #talkBar button{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--edit);color:var(--edit-ink);font:700 15px system-ui,sans-serif;padding:10px 14px;margin-right:8px;margin-top:4px}body:not(.widget):not(.embed) #talkBtn,body:not(.widget):not(.embed) #talkTypeBtn{background:var(--orange);color:#0c1116;border-color:var(--orange);min-width:30%;font-size:17px}#talkBtn.on{outline:3px solid var(--teal)}";
+    document.head.appendChild(css);
+  }
+  function hushTalk() {
+    talkCss();
+    var bar = document.getElementById("talkBar");
+    if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
+  }
   function status(text) { var el = document.getElementById("talkStatus"); if (el) el.textContent = text; }
   function deskName() { return (window.desk && (desk.name || desk.slug)) || window.ws || "this desk"; }
   function workText() {
@@ -137,11 +160,8 @@
     status(line); if (window.AIASpeech) AIASpeech.speak(line);
   }
   function styleBar(bar) {
-    if (!document.getElementById("talk-drop-css")) {
-      var css = document.createElement("style"); css.id = "talk-drop-css";
-      css.textContent = "#talkBar{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 14px}#talkBar .talk-status{font:600 15px/1.35 system-ui,sans-serif;color:var(--heading);margin:0 0 10px}#talkBar #talkType{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink);margin:0 0 8px}#talkBar button{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--edit);color:var(--edit-ink);font:700 15px system-ui,sans-serif;padding:10px 14px;margin-right:8px;margin-top:4px}#talkBtn,#talkTypeBtn{background:var(--orange);color:#0c1116;border-color:var(--orange);min-width:30%;font-size:17px}#talkBtn.on{outline:3px solid var(--teal)}";
-      document.head.appendChild(css);
-    }
+    if (slimChrome()) { hushTalk(); return; }
+    talkCss();
     bar.hidden = false; bar.classList.add("talk-first");
     var main = document.querySelector("main.wrap"); var title = document.getElementById("drop-title");
     if (main && title && bar.parentNode === main) {
@@ -155,13 +175,14 @@
     return location.hash === "#talk" || params.get("talk") === "1" || params.get("mode") === "talk";
   }
   function focusTalk() {
+    if (slimChrome()) { hushTalk(); return; }
     var bar = document.getElementById("talkBar"); if (!bar) return;
     bar.hidden = false;
     try { bar.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) { bar.scrollIntoView(true); }
     var typeEl = document.getElementById("talkType"); if (typeEl) typeEl.focus();
   }
   function boot() {
-    if (slimChrome()) return;
+    if (slimChrome()) { markSlim(); hushTalk(); return; }
     var bar = document.getElementById("talkBar"); if (!bar) return;
     styleBar(bar);
     if (!window.AIASpeech) status("Type the drop. Speech is off on this phone.");

@@ -383,8 +383,20 @@ if (dropMd.indexOf("`/widget`, embed, and `?embed=1` skip the Talk bar") < 0) {
 if (dropMd.indexOf("`/drop` still paints Talk") < 0) {
   fail("DROP.md must keep Talk on /drop");
 }
-if (nowSrc.indexOf("talkBar") < 0 || nowSrc.indexOf("talk.hidden = true") < 0) {
-  fail("drop-now.js slimChrome must keep #talkBar hidden on /widget");
+if (nowSrc.indexOf("talkBar") < 0 || nowSrc.indexOf("talk.parentNode.removeChild(talk)") < 0) {
+  fail("drop-now.js slimChrome must tear down #talkBar on /widget");
+}
+if (yesNo.indexOf("Drop widget Talk chrome leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop widget Talk chrome leftover");
+}
+if (packMd.indexOf("Drop widget Talk chrome leftover:") < 0) {
+  fail("PACK.md must name Drop widget Talk chrome leftover");
+}
+if (dropMd.indexOf("tears down `#talkBar`") < 0) {
+  fail("DROP.md must say slimChrome tears down #talkBar");
+}
+if (dropMd.indexOf("Probe /widget vs /drop Talk") < 0) {
+  fail("DROP.md must include Probe /widget vs /drop Talk");
 }
 
 console.log("check-drop-steps: ok");
