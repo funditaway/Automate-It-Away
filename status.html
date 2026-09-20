@@ -50,11 +50,24 @@
     <pre id="raw">waiting on /api/status</pre>
   </main>
   <script>
+    function deskPublicDump(obj) {
+      return JSON.stringify(obj, function (k, v) {
+        if (typeof v !== "string") return v;
+        if (/env present/i.test(v)) return "This pipe is set up.";
+        if (/XAI_|AIA_GROK_|GROK_API_KEY/i.test(v)) {
+          return /Included drafts|can draft|Never Send/i.test(v)
+            ? "A Desk AI can draft."
+            : "A Desk AI can't draft on this phone yet.";
+        }
+        if (/BLOB_READ_WRITE_TOKEN/i.test(v)) return "This host only until shared store is on.";
+        return v;
+      }, 2);
+    }
     Promise.all([
       fetch("/api/health").then(r => r.json()),
       fetch("/api/status").then(r => r.ok ? r.json() : { ok: false, statusCode: r.status })
     ]).then(([data, status]) => {
-      document.getElementById("raw").textContent = JSON.stringify({ health: data, status: status }, null, 2);
+      document.getElementById("raw").textContent = deskPublicDump({ health: data, status: status });
       const api = document.getElementById("api");
       api.textContent = data.ok ? "Up on this host" : "Down";
       api.className = data.ok ? "up" : "down";
@@ -79,10 +92,14 @@
       const g = (data.automation && data.automation.grok) || {};
       if (grokEl) {
         if (g.on) {
-          grokEl.textContent = g.note || "Included drafts on the card. Never Send.";
+          grokEl.textContent = (g.note && !/XAI_|AIA_GROK_|API_KEY|env present/i.test(g.note))
+            ? g.note
+            : "A Desk AI can draft.";
           grokEl.className = "up";
         } else {
-          grokEl.textContent = g.note || "Drafts are off — no XAI_API_KEY on this box. Orange copy only.";
+          grokEl.textContent = (g.note && !/XAI_|AIA_GROK_|API_KEY|env present|this box/i.test(g.note))
+            ? g.note
+            : "A Desk AI can't draft on this phone yet.";
           grokEl.className = "hold";
         }
       }
