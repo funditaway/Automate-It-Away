@@ -91,6 +91,14 @@ async function main() {
   } else if (!grokOn && grokNote !== "A Desk AI can't draft on this phone yet.") {
     fail("health drafts-off note must be Desk AI voice, got " + JSON.stringify(grokNote));
   } else pass("health JSON drops env names; drafts note is Desk AI voice");
+  const stackJargon = /\bblob\b|Decentraweb|decentraweb|\bDWEB\b/;
+  if (stackJargon.test(healthJson)) {
+    fail("health JSON must not name blob / Decentraweb");
+  } else if (res.body.store && res.body.store.blob) {
+    fail("health must not publish store.blob to strangers");
+  } else if (!res.body.store || !res.body.store.save) {
+    fail("health persist fingerprint must live on store.save");
+  } else pass("health JSON drops blob / Decentraweb; persist fingerprint is store.save");
 
   const healthSrc = require("fs").readFileSync(path.join(__dirname, "..", "api/health.js"), "utf8");
   if (/phase:\s*["']P1["']/.test(healthSrc)) fail("api/health.js still hardcodes phase P1");
@@ -117,7 +125,13 @@ async function main() {
   else if (/Drafts are off — no XAI_API_KEY/.test(statusHtml) || /no XAI_API_KEY on this box/.test(statusHtml)) {
     fail("status.html must not fall back to XAI_API_KEY on this box");
   } else if (!/deskPublicDump/.test(statusHtml)) {
-    fail("status.html must scrub env names from dumped Status JSON");
+    fail("status.html must keep deskPublicDump so Status does not paint raw health JSON");
+  } else if (/deskPublicDump\(\{\s*health/.test(statusHtml)) {
+    fail("status.html must not paint raw health / status JSON below the fold");
+  } else if (!/Desk notes above/.test(statusHtml)) {
+    fail("status.html below-fold must stay Desk AI notes");
+  } else if (/\bblob\b|Decentraweb|decentraweb/i.test(statusHtml)) {
+    fail("status.html must not name blob / Decentraweb");
   } else if (!/A Desk AI can't draft on this phone yet/.test(statusHtml)) {
     fail("status.html drafts-off must use Desk AI voice");
   } else pass("status.html paints Grok from health; orange is HOLD");
@@ -142,9 +156,10 @@ async function main() {
   if (/dispatch\.demo/.test(statusJson)) fail("status JSON must not mention dispatch.demo");
   else pass("status JSON drops dispatch.demo");
   if (envJargon.test(statusJson)) fail("status JSON must not name env vars / env present");
+  else if (stackJargon.test(statusJson)) fail("status JSON must not name blob / Decentraweb");
   else if ((st.body.pipes || []).some((p) => /env present|XAI_|AIA_GROK_/i.test(p.note || ""))) {
     fail("status pipe notes must not name env / keys");
-  } else pass("status JSON drops env names");
+  } else pass("status JSON drops env names and blob / Decentraweb");
   if (!st.body.aiaTld || st.body.aiaTld.owned || st.body.aiaTld.ownedByConnected || st.body.aiaTld.mint || st.body.aiaTld.charged || st.body.aiaTld.collect !== "hold") {
     fail("status aiaTld must stay honest HOLD and not invent owned " + JSON.stringify(st.body.aiaTld));
   } else pass("status aiaTld is honest HOLD");
@@ -200,7 +215,9 @@ async function main() {
   else pass("health handler answers /api/status");
   if (envJargon.test(JSON.stringify(viaUrl.body)) || envJargon.test(JSON.stringify(viaRewrite.body))) {
     fail("health status view must not name env vars / env present");
-  } else pass("health status view drops env names");
+  } else if (stackJargon.test(JSON.stringify(viaUrl.body)) || stackJargon.test(JSON.stringify(viaRewrite.body))) {
+    fail("health status view must not name blob / Decentraweb");
+  } else pass("health status view drops env names and blob / Decentraweb");
 
   const hadKey = process.env.XAI_API_KEY;
   process.env.XAI_API_KEY = "probe-drafts-on";
@@ -214,6 +231,8 @@ async function main() {
     fail("health drafts-on note must be Desk AI voice, got " + JSON.stringify(onNote));
   } else if (envJargon.test(onJson)) {
     fail("health JSON must not name env vars when drafts are on");
+  } else if (stackJargon.test(onJson)) {
+    fail("health JSON must not name blob / Decentraweb when drafts are on");
   } else pass("health drafts-on stays Desk AI voice with no env names");
   if (hadKey == null) delete process.env.XAI_API_KEY;
   else process.env.XAI_API_KEY = hadKey;
@@ -276,6 +295,12 @@ async function main() {
   if (packMd.indexOf("Counter Desk AI voice leftover:") < 0) {
     fail("PACK.md must record Counter Desk AI voice leftover");
   } else pass("PACK.md records Counter Desk AI voice leftover");
+  if (yesNo.indexOf("Status public dump leftover after that pass") < 0) {
+    fail("ACCOUNT-YES-NO must record Status public dump leftover");
+  } else pass("ACCOUNT-YES-NO records Status public dump leftover");
+  if (packMd.indexOf("Status public dump leftover:") < 0) {
+    fail("PACK.md must record Status public dump leftover");
+  } else pass("PACK.md records Status public dump leftover");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");

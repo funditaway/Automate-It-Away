@@ -47,38 +47,23 @@
     <div class="row"><span>Wallet</span><span id="wallet" class="hold">Checking…</span></div>
     <div class="row"><span>.aia name</span><span id="aia-tld-row" class="hold">Checking…</span></div>
     <p style="color:#8b9aab;margin-top:18px">Green is live. Orange is HOLD — wait. Red we skip for launch. Collect stays HOLD until Yes + a real pipe.</p>
-    <pre id="raw">Checking…</pre>
+    <p id="raw" style="color:#8b9aab;margin-top:12px">Desk notes above. Orange is HOLD — wait. Collect stays HOLD.</p>
   </main>
   <script>
     function deskFaceNote(text, fallback) {
       var n = String(text || "");
-      if (!n || /XAI_|AIA_GROK_|API_KEY|env present|this box|Lambda|\/tmp|Vercel|BLOB_|console\.x\.ai|Decentraweb/i.test(n)) return fallback;
+      if (!n || /XAI_|AIA_GROK_|API_KEY|env present|this box|Lambda|\/tmp|Vercel|BLOB_|console\.x\.ai/i.test(n)) return fallback;
+      if (/locked on|Watching .+ for \.aia/i.test(n)) return fallback;
       return n;
     }
-    function deskPublicDump(obj) {
-      return JSON.stringify(obj, function (k, v) {
-        if (typeof v !== "string") return v;
-        if (/env present/i.test(v)) return "This pipe is set up.";
-        if (/XAI_|AIA_GROK_|GROK_API_KEY/i.test(v)) {
-          return /Included drafts|can draft|Never Send/i.test(v)
-            ? "A Desk AI can draft."
-            : "A Desk AI can't draft on this phone yet.";
-        }
-        if (/BLOB_READ_WRITE_TOKEN|Lambda|\/tmp|Vercel Blob|File store on this box|this box|this host only/i.test(v)) {
-          return /saved|shared|second phone/i.test(v)
-            ? "A second phone can see the same queue."
-            : "Saved on this desk for now.";
-        }
-        if (/console\.x\.ai|API key|fund this key/i.test(v)) return "A chat login is not a draft pipe.";
-        if (/Bridge locked on Decentraweb/i.test(v)) return "Name register stays HOLD.";
-        return v;
-      }, 2);
+    function deskPublicDump() {
+      return "Desk notes above. Orange is HOLD — wait. Collect stays HOLD.";
     }
     Promise.all([
       fetch("/api/health").then(r => r.json()),
       fetch("/api/status").then(r => r.ok ? r.json() : { ok: false, statusCode: r.status })
     ]).then(([data, status]) => {
-      document.getElementById("raw").textContent = deskPublicDump({ health: data, status: status });
+      document.getElementById("raw").textContent = deskPublicDump();
       const api = document.getElementById("api");
       api.textContent = data.ok ? "Up" : "Down";
       api.className = data.ok ? "up" : "down";
@@ -92,12 +77,12 @@
       const store = document.getElementById("store");
       const d = data.store || {};
       store.textContent = deskFaceNote(d.note, d.live ? "Saved on this desk" : "Not saved yet");
-      store.className = (d.driver === "blob" || d.driver === "file") ? "up" : "hold";
+      store.className = d.live ? "up" : "hold";
       const files = document.getElementById("files");
       const fl = data.files || {};
       if (files) {
-        files.textContent = deskFaceNote(fl.note, fl.driver === "blob" ? "Photos and files are saved" : "Photos and files are not saved for long");
-        files.className = fl.driver === "blob" ? "up" : "hold";
+        files.textContent = deskFaceNote(fl.note, /are saved/i.test(fl.note || "") ? "Photos and files are saved" : "Photos and files are not saved for long");
+        files.className = /are saved/i.test(fl.note || "") ? "up" : "hold";
       }
       const grokEl = document.getElementById("grok");
       const g = (data.automation && data.automation.grok) || {};
@@ -137,18 +122,11 @@
         if (tld.ownedByConnected || tld.owned) {
           tldEl.textContent = "Owned — wallet matches registry owner. Collect stays HOLD.";
           tldEl.className = "up";
-        } else if (tld.bridgeLocked) {
-          tldEl.textContent = (/Decentraweb|Bridge locked/i.test(tld.note || "")
-            ? "Name register stays HOLD."
-            : (tld.note || "Name register stays HOLD.")) + (/Collect stays HOLD/i.test(tld.note || "") ? "" : " Collect stays HOLD.");
-          tldEl.className = "hold";
         } else if (tld.available) {
           tldEl.textContent = "Available to register — Connect wallet then Register .aia on Account. Collect stays HOLD.";
           tldEl.className = "up";
         } else {
-          tldEl.textContent = (/Decentraweb/i.test(tld.note || "")
-            ? "Name register stays HOLD."
-            : (tld.note || "Name register stays HOLD.")) + (/Collect stays HOLD/i.test(tld.note || "") ? "" : " Collect stays HOLD.");
+          tldEl.textContent = deskFaceNote(tld.note, "Name register stays HOLD.") + (/Collect stays HOLD/i.test(tld.note || "") ? "" : " Collect stays HOLD.");
           tldEl.className = "hold";
         }
       }

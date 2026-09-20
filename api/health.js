@@ -1,5 +1,5 @@
 const {
-  cors, catalog, mem, ready, save, storePath, blobToken, blobReady,
+  cors, catalog, mem, ready, save, blobToken, blobReady,
   workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl,
   publicBlobProbe
 } = require("./_lib");
@@ -9,6 +9,64 @@ function wantsStatus(req) {
   if (/\/api\/status(?:\?|$)/.test(url)) return true;
   const q = (req && req.query) || {};
   return q.view === "status" || q.status === "1";
+}
+
+function publicDriver(driver) {
+  if (driver === "blob") return "shared";
+  if (driver === "file" || driver === "tmp-file") return "this-desk";
+  return "not-saved";
+}
+
+function deskPublicTld(row) {
+  if (!row || typeof row !== "object") return row;
+  const t = Object.assign({}, row);
+  if (t.registerUrl) delete t.registerUrl;
+  if (t.register && typeof t.register === "object") {
+    t.register = Object.assign({}, t.register);
+    if (t.register.approveUrl) delete t.register.approveUrl;
+    if (/DWEB|decentraweb/i.test(t.register.fee || "")) t.register.fee = "HOLD";
+    if (/Decentraweb|decentraweb/i.test(t.register.note || "")) {
+      t.register.note = "Name register stays HOLD.";
+    }
+  }
+  if (/Decentraweb|decentraweb|Bridge locked on/i.test(t.note || "")) {
+    t.note = "Name register stays HOLD.";
+  }
+  if (/Bridge locked/i.test(t.label || "")) t.label = "HOLD";
+  if (/DWEB|decentraweb/i.test(t.fee || "")) t.fee = "HOLD";
+  if (t.followUp && /Decentraweb|decentraweb|approve-registration/i.test(t.followUp)) {
+    t.followUp = "Name register stays HOLD. Collect stays HOLD.";
+  }
+  return t;
+}
+
+function deskPublicJson(value) {
+  if (Array.isArray(value)) return value.map(deskPublicJson);
+  if (value && typeof value === "object") {
+    const out = {};
+    Object.keys(value).forEach(function (k) {
+      if (/decentraweb/i.test(k)) return;
+      const nextKey = /^blob$/i.test(k) ? "save" : k;
+      out[nextKey] = deskPublicJson(value[k]);
+    });
+    return out;
+  }
+  if (typeof value !== "string") return value;
+  if (/decentraweb/i.test(value)) return "Name register stays HOLD.";
+  if (/^blob$/i.test(value)) return "shared";
+  if (/^blob:/.test(value)) return "saved";
+  if (/\bblob\b/i.test(value)) {
+    if (/Session persists/i.test(value)) {
+      return "One account per person. Session stays on the saved desk. Authenticator stays HOLD — not live on /account.";
+    }
+    if (/second phone|shared save|shared/i.test(value)) return "A second phone can see the same queue";
+    return value.replace(/\bblob\b/ig, "save");
+  }
+  return value;
+}
+
+function sendPublic(res, code, body) {
+  return res.status(code).json(deskPublicJson(body));
 }
 
 function honestConnection(row, answered) {
@@ -60,7 +118,7 @@ async function deskStatus(req, res) {
   let aiaTld = tld.peek(wallet);
   try { aiaTld = await tld.forWallet(wallet); } catch (e) { aiaTld = tld.emptyPublic(wallet); }
 
-  return res.status(200).json({
+  return sendPublic(res, 200, {
     ok: true,
     workspace: workspace || "",
     label: row ? (row.biz || row.name || row.slug || "") : "",
@@ -76,7 +134,7 @@ async function deskStatus(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet,
-    aiaTld,
+    aiaTld: deskPublicTld(aiaTld),
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound",
@@ -93,13 +151,12 @@ async function health(req, res) {
   // already blob left leftover write=fail + detail=null after a later read.
   if (blobReady()) await save();
   const driver = mem.driver || "file";
-  res.status(200).json({
+  sendPublic(res, 200, {
     ok: true,
     product: "Automate It Away",
     engine: ["capture", "qualify", "do", "collect", "follow"],
     store: {
-      driver,
-      path: mem.path || storePath(),
+      driver: publicDriver(driver),
       jobs: mem.jobs.length,
       connections: mem.connections.length,
       audit: mem.audit.length,
@@ -112,10 +169,10 @@ async function health(req, res) {
           : driver === "file"
             ? "Saved on this desk"
             : "Not saved yet",
-      blob: publicBlobProbe()
+      save: publicBlobProbe()
     },
     files: {
-      driver: blobToken() ? "blob" : "tmp-file",
+      driver: publicDriver(blobToken() ? "blob" : "tmp-file"),
       count: (mem.files || []).length,
       note: blobToken()
         ? "Photos and files are saved"
@@ -189,14 +246,14 @@ async function health(req, res) {
       status: "free",
       monthly: "later per extra member or staff login",
       charged: false,
-      note: "One account per person. Session persists on the blob store. Authenticator stays HOLD — not live on /account."
+      note: "One account per person. Session stays on the saved desk. Authenticator stays HOLD — not live on /account."
     },
     domain: "automateitaway.com",
     dns: "pointed",
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet: require("./_connect-wallet").healthBlock(),
-    aiaTld: require("./_aia-tld").healthBlock(),
+    aiaTld: deskPublicTld(require("./_aia-tld").healthBlock()),
     repo: "funditaway/Automate-It-Away"
   });
 }

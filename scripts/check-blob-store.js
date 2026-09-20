@@ -298,7 +298,7 @@ async function main() {
   replica.lib.blobProbe.detail = null;
   const health = require("../api/health");
   const probed = await call(health, "GET");
-  const finger = probed.body && probed.body.store && probed.body.store.blob;
+  const finger = probed.body && probed.body.store && probed.body.store.save;
   if (!finger || finger.stamp !== "write-v1") {
     fail("health must fingerprint stamp write-v1, got " + JSON.stringify(finger));
   } else pass("health fingerprints stamp write-v1");
@@ -534,7 +534,7 @@ async function main() {
   boot(storeHealthFail);
   const healthFail = require("../api/health");
   const probedFail = await call(healthFail, "GET");
-  const failFinger = probedFail.body && probedFail.body.store && probedFail.body.store.blob;
+  const failFinger = probedFail.body && probedFail.body.store && probedFail.body.store.save;
   if (!failFinger || failFinger.write !== "fail") {
     fail("health must report write=fail when PUT does not stick, got " + JSON.stringify(failFinger));
   } else pass("health reports write=fail when PUT does not stick");
