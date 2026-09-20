@@ -284,9 +284,12 @@ else pass("drop-steps.js paint() keeps #drop-on visible on /drop");
 const hrefSrc = fs.readFileSync(path.join(root, "desk-switch.js"), "utf8");
 const hrefAt = hrefSrc.indexOf("function widgetHref");
 const hrefFn = hrefSrc.slice(hrefAt, hrefSrc.indexOf("function captureDesk"));
-if (hrefFn.indexOf('return "/widget"') < 0 || hrefFn.indexOf('"/widget?ws="') < 0) {
-  fail("widgetHref must point the Drop tab at /widget");
-} else pass("widgetHref points the Drop tab at /widget");
+if (hrefFn.indexOf('return "/drop"') < 0 || hrefFn.indexOf('"/drop?ws="') < 0) {
+  fail("widgetHref must point the Drop tab at /drop");
+} else pass("widgetHref points the Drop tab at /drop");
+if (hrefFn.indexOf('"/widget?ws="') >= 0 || hrefFn.indexOf('return "/widget"') >= 0) {
+  fail("widgetHref must not send the Drop tab to /widget");
+} else pass("widgetHref does not send the Drop tab to /widget");
 if (yesNo.indexOf("Drop widget pick href leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget pick href leftover");
 else pass("ACCOUNT-YES-NO names Drop widget pick href leftover");
 if (packMd.indexOf("Drop widget pick href leftover:") < 0) fail("PACK.md must name Drop widget pick href leftover");
@@ -305,12 +308,16 @@ if (pickSrc.indexOf("location.href = dropHref(use)") < 0) fail("drop-pick.js goD
 else pass("drop-pick.js goDrop uses dropHref");
 if (pickSrc.indexOf('location.href = use ? ("/drop?ws="') >= 0) fail("drop-pick.js goDrop must not always dump to /drop");
 else pass("drop-pick.js goDrop does not always dump to /drop");
+if (pickSrc.indexOf("AIADesks.widgetHref") >= 0) fail("drop-pick.js must not use widgetHref — Drop tab /drop must not dump /widget pick onto the rail");
+else pass("drop-pick.js does not follow widgetHref on /widget");
 if (nowSrc.indexOf("function dropHref") < 0) fail("drop-now.js must pick /widget vs /drop for recent desks");
 else pass("drop-now.js picks /widget vs /drop for recent desks");
 if (nowSrc.indexOf("location.href = dropHref(") < 0) fail("drop-now.js recent public desks must use dropHref");
 else pass("drop-now.js recent public desks use dropHref");
 if (nowSrc.indexOf('location.href = "/drop?ws="') >= 0) fail("drop-now.js recent public desks must not always dump to /drop");
 else pass("drop-now.js recent public desks do not always dump to /drop");
+if (nowSrc.indexOf("AIADesks.widgetHref") >= 0) fail("drop-now.js must not use widgetHref — Drop tab /drop must not dump /widget recent desks onto the rail");
+else pass("drop-now.js does not follow widgetHref on /widget");
 if (yesNo.indexOf("Drop widget standalone Talk bar leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop widget standalone Talk bar leftover");
 else pass("ACCOUNT-YES-NO names Drop widget standalone Talk bar leftover");
 if (packMd.indexOf("Drop widget standalone Talk bar leftover:") < 0) fail("PACK.md must name Drop widget standalone Talk bar leftover");
@@ -339,6 +346,12 @@ if (dropMd.indexOf("tears down `#talkBar`") < 0) fail("DROP.md must say slimChro
 else pass("DROP.md says slimChrome tears down #talkBar");
 if (dropMd.indexOf("Probe /widget vs /drop Talk") < 0) fail("DROP.md must include Probe /widget vs /drop Talk");
 else pass("DROP.md includes Probe /widget vs /drop Talk");
+if (dropMd.indexOf("Probe Drop tab vs /widget") < 0) fail("DROP.md must include Probe Drop tab vs /widget");
+else pass("DROP.md includes Probe Drop tab vs /widget");
+if (yesNo.indexOf("Drop tab full Drop leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop tab full Drop leftover");
+else pass("ACCOUNT-YES-NO names Drop tab full Drop leftover");
+if (packMd.indexOf("Drop tab full Drop leftover:") < 0) fail("PACK.md must name Drop tab full Drop leftover");
+else pass("PACK.md names Drop tab full Drop leftover");
 if (talkSrc.indexOf('classList.contains("embed")') < 0 || talkSrc.indexOf("window !== window.parent") < 0) {
   fail("drop-talk.js boot must still skip the Talk bar on embed");
 } else pass("drop-talk.js boot still skips the Talk bar on embed");

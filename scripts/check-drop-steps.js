@@ -279,25 +279,28 @@ if (packMd.indexOf("Drop widget standalone steps rail leftover:") < 0) {
   fail("PACK.md must name Drop widget standalone steps rail leftover");
 }
 if (dropMd.indexOf("widgetHref") < 0 || dropMd.indexOf("Drop tab") < 0) {
-  fail("DROP.md must say the Drop tab widgetHref points at /widget");
+  fail("DROP.md must name the Drop tab widgetHref");
+}
+if (dropMd.indexOf("point at `/drop`") < 0 && dropMd.indexOf("widgetHref` is `/drop`") < 0) {
+  fail("DROP.md must say the Drop tab widgetHref points at /drop");
 }
 const switchSrc = read("desk-switch.js");
 const hrefAt = switchSrc.indexOf("function widgetHref");
 const hrefFn = switchSrc.slice(hrefAt, switchSrc.indexOf("function captureDesk"));
-if (hrefFn.indexOf('return "/widget"') < 0 || hrefFn.indexOf('"/widget?ws="') < 0) {
-  fail("widgetHref must point the Drop tab at /widget, not /drop");
+if (hrefFn.indexOf('return "/drop"') < 0 || hrefFn.indexOf('"/drop?ws="') < 0) {
+  fail("widgetHref must point the Drop tab at /drop, not /widget");
 }
-if (hrefFn.indexOf('"/drop?ws="') >= 0 || hrefFn.indexOf('return "/drop"') >= 0) {
-  fail("widgetHref must not send the Drop tab to /drop");
+if (hrefFn.indexOf('"/widget?ws="') >= 0 || hrefFn.indexOf('return "/widget"') >= 0) {
+  fail("widgetHref must not send the Drop tab to /widget");
 }
 const navSrc = read("desk-nav.js");
 const dropHrefAt = navSrc.indexOf("function dropHref");
 const dropHrefFn = navSrc.slice(dropHrefAt, navSrc.indexOf("function tabOf"));
-if (dropHrefFn.indexOf('return "/widget"') < 0 || dropHrefFn.indexOf('"/widget?ws="') < 0) {
-  fail("desk-nav.js dropHref fallback must be /widget so #drop-steps skips");
+if (dropHrefFn.indexOf('return "/drop"') < 0 || dropHrefFn.indexOf('"/drop?ws="') < 0) {
+  fail("desk-nav.js dropHref fallback must be /drop so the Drop tab paints the rail");
 }
-if (dropHrefFn.indexOf('"/drop?ws="') >= 0 || dropHrefFn.indexOf('return "/drop"') >= 0) {
-  fail("desk-nav.js dropHref must not fall back to /drop");
+if (dropHrefFn.indexOf('"/widget?ws="') >= 0 || dropHrefFn.indexOf('return "/widget"') >= 0) {
+  fail("desk-nav.js dropHref must not fall back to /widget");
 }
 if (yesNo.indexOf("Drop widget pick href leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop widget pick href leftover");
@@ -319,9 +322,12 @@ if (pickSrc.indexOf("location.href = dropHref(use)") < 0) {
 if (pickSrc.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
   fail("drop-pick.js goDrop must not always dump to /drop");
 }
+if (pickSrc.indexOf("AIADesks.widgetHref") >= 0) {
+  fail("drop-pick.js must not use widgetHref — Drop tab /drop must not dump /widget pick onto the rail");
+}
 function runPickHref(opts) {
   const sandbox = {
-    location: { pathname: opts.path || "/drop" },
+    location: { pathname: opts.path || "/drop", href: opts.href || "" },
     window: {},
     AIADesks: {
       slugify: function (s) {
@@ -329,8 +335,8 @@ function runPickHref(opts) {
       },
       widgetHref: function (slug) {
         var use = sandbox.AIADesks.slugify(slug);
-        if (!use) return "/widget";
-        return "/widget?ws=" + encodeURIComponent(use);
+        if (!use) return "/drop";
+        return "/drop?ws=" + encodeURIComponent(use);
       }
     }
   };
@@ -370,6 +376,38 @@ if (nowSrc.indexOf("location.href = dropHref(") < 0) {
 if (nowSrc.indexOf('location.href = "/drop?ws="') >= 0) {
   fail("drop-now.js recent public desks must not always dump to /drop");
 }
+if (nowSrc.indexOf("AIADesks.widgetHref") >= 0) {
+  fail("drop-now.js must not use widgetHref — Drop tab /drop must not dump /widget recent desks onto the rail");
+}
+function runNowHref(opts) {
+  const sandbox = {
+    location: { pathname: opts.path || "/drop", href: opts.href || "", search: opts.search || "" },
+    document: {
+      documentElement: { classList: { contains: function (c) { return c === "widget" && !!opts.htmlWidget; } } },
+      body: { classList: { contains: function (c) { return c === "widget" && !!opts.widget; } } }
+    },
+    window: {},
+    AIADesks: {
+      widgetHref: function (slug) {
+        var use = String(slug || "").trim();
+        if (!use) return "/drop";
+        return "/drop?ws=" + encodeURIComponent(use);
+      }
+    }
+  };
+  sandbox.window = sandbox;
+  sandbox.window.AIADesks = sandbox.AIADesks;
+  const start = nowSrc.indexOf("function widgetOn");
+  const end = nowSrc.indexOf("function banner");
+  vm.runInNewContext(nowSrc.slice(start, end) + "\nthis.dropHref = dropHref;", sandbox);
+  return sandbox.dropHref(opts.slug);
+}
+if (runNowHref({ path: "/widget", slug: "springfield-shop" }) !== "/widget?ws=springfield-shop") {
+  fail("/widget recent desks must stay on /widget?ws= even when widgetHref is /drop");
+}
+if (runNowHref({ path: "/drop", slug: "springfield-shop" }) !== "/drop?ws=springfield-shop") {
+  fail("/drop recent desks must still open /drop?ws=");
+}
 
 if (yesNo.indexOf("Drop widget standalone Talk bar leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop widget standalone Talk bar leftover");
@@ -397,6 +435,15 @@ if (dropMd.indexOf("tears down `#talkBar`") < 0) {
 }
 if (dropMd.indexOf("Probe /widget vs /drop Talk") < 0) {
   fail("DROP.md must include Probe /widget vs /drop Talk");
+}
+if (dropMd.indexOf("Probe Drop tab vs /widget") < 0) {
+  fail("DROP.md must include Probe Drop tab vs /widget");
+}
+if (yesNo.indexOf("Drop tab full Drop leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop tab full Drop leftover");
+}
+if (packMd.indexOf("Drop tab full Drop leftover:") < 0) {
+  fail("PACK.md must name Drop tab full Drop leftover");
 }
 
 console.log("check-drop-steps: ok");

@@ -481,6 +481,15 @@ if (dropMd.indexOf("display:none!important") < 0) {
 if (dropMd.indexOf("Probe /widget vs /drop Talk") < 0) {
   fail("DROP.md must include Probe /widget vs /drop Talk");
 }
+if (dropMd.indexOf("Probe Drop tab vs /widget") < 0) {
+  fail("DROP.md must include Probe Drop tab vs /widget");
+}
+if (yesNo.indexOf("Drop tab full Drop leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop tab full Drop leftover");
+}
+if (packMd.indexOf("Drop tab full Drop leftover:") < 0) {
+  fail("PACK.md must name Drop tab full Drop leftover");
+}
 if (talk.indexOf("display:none!important") < 0 || talk.indexOf("body.widget #talkBar") < 0) {
   fail("drop-talk.js must hard-hide #talkBar on .widget so preview cannot unhide");
 }
@@ -542,8 +551,11 @@ if (steps.indexOf("function slimChrome") < 0 || steps.indexOf("if (slimChrome())
 const hrefSrc = read("desk-switch.js");
 const hrefAt = hrefSrc.indexOf("function widgetHref");
 const hrefFn = hrefSrc.slice(hrefAt, hrefSrc.indexOf("function captureDesk"));
-if (hrefFn.indexOf('return "/widget"') < 0 || hrefFn.indexOf('"/widget?ws="') < 0) {
-  fail("widgetHref must point the Drop tab at /widget so #drop-steps skips");
+if (hrefFn.indexOf('return "/drop"') < 0 || hrefFn.indexOf('"/drop?ws="') < 0) {
+  fail("widgetHref must point the Drop tab at /drop so the rail paints");
+}
+if (hrefFn.indexOf('"/widget?ws="') >= 0 || hrefFn.indexOf('return "/widget"') >= 0) {
+  fail("widgetHref must not send the Drop tab to /widget");
 }
 if (yesNo.indexOf("Drop widget pick href leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop widget pick href leftover");
@@ -563,12 +575,18 @@ if (pickHref.indexOf("location.href = dropHref(use)") < 0) {
 if (pickHref.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
   fail("drop-pick.js goDrop must not always dump to /drop");
 }
+if (pickHref.indexOf("AIADesks.widgetHref") >= 0) {
+  fail("drop-pick.js must not use widgetHref — Drop tab /drop must not dump /widget pick onto the rail");
+}
 if (now.indexOf("function dropHref") < 0) fail("drop-now.js must pick /widget vs /drop for recent desks");
 if (now.indexOf("location.href = dropHref(") < 0) {
   fail("drop-now.js recent public desks must use dropHref");
 }
 if (now.indexOf('location.href = "/drop?ws="') >= 0) {
   fail("drop-now.js recent public desks must not always dump to /drop");
+}
+if (now.indexOf("AIADesks.widgetHref") >= 0) {
+  fail("drop-now.js must not use widgetHref — Drop tab /drop must not dump /widget recent desks onto the rail");
 }
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);

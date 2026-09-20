@@ -84,8 +84,10 @@ if (nav.includes("href: \"/rules\"") || nav.includes("href: \"/pipes\"")) fail("
 else pass("Rules and Pipes are off the tab bar");
 if (!nav.includes("href: \"/more\"") || !nav.includes("name === \"more\"")) fail("desk-nav.js More href is not /more");
 else pass("More tab href is /more");
-if (!nav.includes("href: \"/widget\"") || !nav.includes("return \"/widget\"")) fail("desk-nav.js Drop href is not /widget");
-else pass("Drop tab href is /widget");
+if (!nav.includes("href: \"/drop\"") || !nav.includes("return \"/drop\"")) fail("desk-nav.js Drop href is not /drop");
+else pass("Drop tab href is /drop");
+if (nav.includes("href: \"/widget\"") || nav.includes("return \"/widget\"")) fail("desk-nav.js Drop href must not be /widget");
+else pass("Drop tab href is not /widget");
 if (/display:\s*none/.test(desk) && /header span a/.test(desk)) {
   fail("desk.html still hides header links on phone");
 }
@@ -177,6 +179,19 @@ if (theme.includes("header span a { display: none; }")) {
 const css = fs.readFileSync(path.join(root, "desk-nav.css"), "utf8");
 if (!css.includes("#desk-nav") || !css.includes("position: fixed")) fail("desk-nav.css missing fixed bar");
 else pass("desk-nav.css paints the bottom bar");
+
+["drop.html", "widget.html"].forEach(function (file) {
+  const src = fs.readFileSync(path.join(root, file), "utf8");
+  if (!src.includes('href="/drop" data-tab="drop"')) fail(file + " Drop tab must open /drop");
+  else pass(file + " Drop tab opens /drop");
+  if (src.includes('href="/widget" data-tab="drop"')) fail(file + " Drop tab must not open /widget");
+  else pass(file + " Drop tab is not /widget");
+});
+
+if (yesNo.indexOf("Drop tab full Drop leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop tab full Drop leftover");
+else pass("ACCOUNT-YES-NO records Drop tab full Drop leftover");
+if (packMd.indexOf("Drop tab full Drop leftover:") < 0) fail("PACK.md must name Drop tab full Drop leftover");
+else pass("PACK.md records Drop tab full Drop leftover");
 
 const jobs = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
 if (!jobs.includes("action === \"suggest\"") || !jobs.includes("saved: false")) fail("jobs.js must draft without inventing a saved card");

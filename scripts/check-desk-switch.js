@@ -72,13 +72,13 @@ if (AIA.captureDesk()) fail("still no current desk, should stay empty");
 else pass("never default to demo");
 
 store.aia_ws = "desk-a";
-if (AIA.widgetHref() !== "/widget?ws=desk-a") fail("widgetHref must be /widget?ws= not /drop?ws=");
-else pass("widgetHref points at /widget");
-if (AIA.widgetHref("Desk B") !== "/widget?ws=desk-b") fail("widgetHref(slug) must stay on /widget");
-else pass("widgetHref(slug) stays on /widget");
+if (AIA.widgetHref() !== "/drop?ws=desk-a") fail("widgetHref must be /drop?ws= not /widget?ws=");
+else pass("widgetHref points at /drop");
+if (AIA.widgetHref("Desk B") !== "/drop?ws=desk-b") fail("widgetHref(slug) must open /drop");
+else pass("widgetHref(slug) opens /drop");
 store.aia_ws = "";
-if (AIA.widgetHref() !== "/widget") fail("empty widgetHref must be /widget");
-else pass("empty widgetHref is /widget");
+if (AIA.widgetHref() !== "/drop") fail("empty widgetHref must be /drop");
+else pass("empty widgetHref is /drop");
 
 const pickJs = fs.readFileSync(path.join(root, "drop-pick.js"), "utf8");
 if (pickJs.indexOf("function dropHref") < 0 || pickJs.indexOf("location.href = dropHref(use)") < 0) {
@@ -87,6 +87,9 @@ if (pickJs.indexOf("function dropHref") < 0 || pickJs.indexOf("location.href = d
 if (pickJs.indexOf('location.href = use ? ("/drop?ws="') >= 0) {
   fail("drop-pick.js goDrop must not always dump to /drop");
 } else pass("drop-pick.js goDrop does not always dump to /drop");
+if (pickJs.indexOf("AIADesks.widgetHref") >= 0) {
+  fail("drop-pick.js must not use widgetHref — Drop tab /drop must not dump /widget pick onto the rail");
+} else pass("drop-pick.js does not follow widgetHref on /widget");
 const nowJs = fs.readFileSync(path.join(root, "drop-now.js"), "utf8");
 if (nowJs.indexOf("function dropHref") < 0 || nowJs.indexOf("location.href = dropHref(") < 0) {
   fail("drop-now.js recent public desks must stay on /widget when already on /widget");
@@ -94,6 +97,9 @@ if (nowJs.indexOf("function dropHref") < 0 || nowJs.indexOf("location.href = dro
 if (nowJs.indexOf('location.href = "/drop?ws="') >= 0) {
   fail("drop-now.js recent public desks must not always dump to /drop");
 } else pass("drop-now.js recent desks do not always dump to /drop");
+if (nowJs.indexOf("AIADesks.widgetHref") >= 0) {
+  fail("drop-now.js must not use widgetHref — Drop tab /drop must not dump /widget recent desks onto the rail");
+} else pass("drop-now.js does not follow widgetHref on /widget");
 
 const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
 if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.test(widget)) {
@@ -324,6 +330,10 @@ if (yesNo.indexOf("Drop / Queue leftover after that pass") < 0) fail("ACCOUNT-YE
 else pass("ACCOUNT-YES-NO records Drop / Queue leftover");
 if (packMd.indexOf("Drop / Queue leftover:") < 0) fail("PACK.md must record the Drop / Queue leftover");
 else pass("PACK.md records Drop / Queue leftover");
+if (yesNo.indexOf("Drop tab full Drop leftover after that pass") < 0) fail("ACCOUNT-YES-NO must name Drop tab full Drop leftover");
+else pass("ACCOUNT-YES-NO records Drop tab full Drop leftover");
+if (packMd.indexOf("Drop tab full Drop leftover:") < 0) fail("PACK.md must name Drop tab full Drop leftover");
+else pass("PACK.md records Drop tab full Drop leftover");
 
 const publicPages = ["index.html", "how.html", "setup.html", "login.html", "onboard.html", "help.html", "widget.html", "desk.html", "rules.html", "more.html"];
 const leaks = [
