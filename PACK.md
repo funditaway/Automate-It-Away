@@ -319,6 +319,8 @@ Status / health env-name leftover: after Create / More chrome used Desk AI voice
 
 Create / More / Status drafts-off leftover: after Create Yes opened the card, Create / More / Status chrome still said XAI_API_KEY / this box / draft key / not P1. Those faces now say A Desk AI can't draft on this phone yet. Did not redo Create → Queue handoff. Did not redo Health JSON. Collect HOLD. No silent send.
 
+Counter Desk AI voice leftover: after Create / More / Status drafts-off used Desk AI voice, History still said XAI_API_KEY / this box, Status still painted blob / Vercel / /drop?ws= / Decentraweb, Queue Ask still said Grok drafted, and More / Drop tips still named Thin JSON / MX/DNS / until the key is set. Those faces now use short Desk AI words. Did not redo Open this card. Did not redo empty queue. Did not redo Health JSON env names. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

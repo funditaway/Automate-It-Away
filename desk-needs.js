@@ -533,11 +533,15 @@
     const job = (out.data && out.data.job) || jobOf(id) || { id: id };
     const gone = thenGone(job);
     const who = namedAskWho(job);
+    const grok = out.data && out.data.grok;
+    const draftsOff = grok === "no-key" || grok === "off";
     const line = out.status >= 400
       ? ((out.data && out.data.error) || "Could not draft help.")
-      : (gone && !who
-        ? (goneHoldLabel(gone) + ". HOLD ask. Nothing sent.")
-        : ((who ? (who + " drafted on the card.") : "Grok drafted on the card.") + " Nothing sent."));
+      : (draftsOff
+        ? "A Desk AI can't draft on this phone yet. You still tap Yes or Stop. Nothing sent."
+        : (gone && !who
+          ? (goneHoldLabel(gone) + ". HOLD ask. Nothing sent.")
+          : ((who ? (who + " drafted on the card.") : "A Desk AI drafted on the card.") + " Nothing sent.")));
     if (typeof load === "function") await load();
     if (banner) banner.textContent = line;
     if (typeof openJob === "function") openJob(id);

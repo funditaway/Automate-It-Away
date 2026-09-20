@@ -61,6 +61,14 @@ if (history.indexOf("gone HOLD when that named AI is not on this desk") < 0) {
 if (history.indexOf("Needs you / prompt ask-who") < 0) {
   fail("History must keep Needs you / prompt ask-who");
 } else pass("History keeps Needs you / prompt ask-who");
+if (history.indexOf("XAI_API_KEY") >= 0 || /\bthis box\b/.test(history)) {
+  fail("History must not name XAI_API_KEY / this box");
+} else if (history.indexOf("A Desk AI can't draft on this phone yet.") < 0 || history.indexOf("Could not reach the desk.") < 0) {
+  fail("History drafts-off must use Desk AI voice");
+} else pass("History drafts-off uses Desk AI voice");
+if (yesNo.indexOf("Counter Desk AI voice leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record Counter Desk AI voice leftover");
+} else pass("ACCOUNT-YES-NO records Counter Desk AI voice leftover");
 if (history.indexOf("Give is the file") < 0 || history.indexOf("Collect HOLD") < 0) {
   fail("History must keep Give / Collect HOLD");
 } else pass("History keeps Give / Collect HOLD");

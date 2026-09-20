@@ -265,6 +265,17 @@ async function main() {
   if (packMd.indexOf("Status / health env-name leftover:") < 0) {
     fail("PACK.md must record Status / health env-name leftover");
   } else pass("PACK.md records Status / health env-name leftover");
+  const storeNote = ((res.body.store || {}).note) || "";
+  const filesNote = ((res.body.files || {}).note) || "";
+  if (/this box|Lambda|\/tmp|Vercel Blob|BLOB_READ_WRITE_TOKEN/i.test(storeNote + " " + filesNote)) {
+    fail("health store/files notes must not name this box / Lambda / Vercel Blob");
+  } else pass("health store/files notes use Desk AI voice");
+  if (yesNo.indexOf("Counter Desk AI voice leftover after that pass") < 0) {
+    fail("ACCOUNT-YES-NO must record Counter Desk AI voice leftover");
+  } else pass("ACCOUNT-YES-NO records Counter Desk AI voice leftover");
+  if (packMd.indexOf("Counter Desk AI voice leftover:") < 0) {
+    fail("PACK.md must record Counter Desk AI voice leftover");
+  } else pass("PACK.md records Counter Desk AI voice leftover");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");

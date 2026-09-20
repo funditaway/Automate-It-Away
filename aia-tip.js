@@ -213,7 +213,7 @@
     },
     "more-account": {
       title: "Your account",
-      body: "Photo, name, .aia name on AIA Internet (ai.aia), phones on this account, export the book, leave this phone or every phone, authenticator HOLD, connect your MetaMask or WalletConnect (not Wallet.AIA), honest .aia TLD status, Register .aia when Bridge unlocks, .aia email for automations, desks, plan. Your wallet. AIA does not hold keys. Three doors. Continue-with is identity only. Collect and pack pay stay HOLD until Yes + real pipe.",
+      body: "Photo, name, phones on this account, export the book, leave this phone or every phone, authenticator HOLD. Your MetaMask or WalletConnect. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + a real pipe.",
       ask: "What is on Your account?"
     },
     "more-desks": {
@@ -223,7 +223,7 @@
     },
     "more-people": {
       title: "People",
-      body: "Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card — including pipe WIP / note / follow / tell. Lives here, not on the tab bar. AIA does not send.",
+      body: "Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. AIA does not send.",
       ask: "What does People do?"
     },
     "more-admin": {
@@ -233,7 +233,7 @@
     },
     "more-queue": {
       title: "Queue",
-      body: "Real cards. Empty stays empty. No desk on this phone does not invent Yes / Stop cards. Cap orange is do this first — not Collect. Talk, Yes, or Stop. Ask on a gone Then bind holds that named AI (`… · not on this desk` / HOLD ask), not another live primary. Needs you / prompt ask-who hold the same gone bind, not anonymous desk AI. Cap on this desk can Reply. Other-desk Cap stays read-only. Cap and Open, History, Explore, and People paint that same Needs you / prompt ask-who. Owner picks the named desk AI on Open and this-desk Cap, same as the queue card. The owner picker holds the same gone bind. The queue is the measure — not a model demo. AIA does not send.",
+      body: "Real cards. Empty stays empty. No desk on this phone does not invent Yes / Stop cards. Cap orange is do this first — not Collect. Talk, Yes, or Stop. Ask on a gone Then bind holds that named AI (`… · not on this desk` / HOLD ask). Needs you / prompt ask-who hold the same gone bind, not anonymous desk AI. Cap and Open, History, Explore, and People paint that same Needs you / prompt ask-who. Cap on this desk can Reply. Other-desk Cap stays read-only. The owner picker holds the same gone bind. AIA does not send.",
       ask: "How does the Queue work?"
     },
     "more-drop": {
@@ -243,17 +243,17 @@
     },
     "more-create": {
       title: "Create",
-      body: "On the tab bar. Start AIA work. Worker-first: drafts land on the card. Yes puts a card on the queue. Open this card. You still tap Yes or Stop. Collect stays HOLD.",
+      body: "On the tab bar. Start work. Drafts land on the card. Yes puts a card on the queue. Open this card. You still tap Yes or Stop. Collect stays HOLD.",
       ask: "What is Create?"
     },
     "more-history": {
       title: "History",
-      body: "On the tab bar. What this desk did — real cards only. This account’s past / now / next. Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card — including pipe WIP / note / follow / tell. Copy story copies that same trail. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Filter by desk. Links only when a draft used the web. Empty stays empty. Nothing sends from here.",
+      body: "On the tab bar. What this desk did — real cards only. Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. Copy story copies that same trail. Install / give / update a .aia with Yes. Give is the file. Update is install again. Empty stays empty. Nothing sends from here.",
       ask: "What is History?"
     },
     "more-pipes": {
       title: "Pipes and draft accounts",
-      body: "Lives here, not on the tab bar. Search any site. Webhook is live. Orange until a real pipe. Drafts never Send. Buyer binds their own keys. Collect stays HOLD.",
+      body: "Search any site. Webhook is live. Orange until a real pipe. Buyer uses their own keys. Collect stays HOLD.",
       ask: "What are Pipes?"
     },
     "more-rules": {
@@ -293,7 +293,7 @@
     },
     "more-sell": {
       title: "Selling packs",
-      body: "Thin JSON. Buyer keys. Not 100% safe. Help is not legal advice. Collect HOLD.",
+      body: "Buyer uses their own keys. Not 100% safe. Help is not legal advice. Collect HOLD.",
       ask: "How do I sell a pack?"
     },
     "more-worth": {
@@ -323,12 +323,12 @@
     },
     "more-inbound": {
       title: ".aia inbound",
-      body: "name@account.aia. Hook writes a card. Unknown .aia → 400. MX/DNS HOLD.",
+      body: "Mail in writes a card. Mail setup stays HOLD.",
       ask: "How does .aia inbound work?"
     },
     "more-support": {
       title: "Talk to AIA",
-      body: "World problem. Ask AIA answers draft / help first. Need a person? Drop a card on the AIA Admin Desk. Yes / Stop stay human.",
+      body: "Tell AIA a problem. Ask AIA answers first. Need a person? It can become a card. Yes / Stop stay human.",
       ask: "How do I talk to AIA?"
     },
     "more-legal": {

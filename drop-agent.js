@@ -35,7 +35,7 @@
     { id: "draft", label: "Draft it", hint: "Qualify and draft. Do not send." },
     { id: "follow", label: "Follow later", hint: "Nudge after it sits. Still a draft." },
     { id: "hand", label: "Hand it off", hint: "Assign to a name on People." },
-    { id: "calendar", label: "Calendar file", hint: "Save a phone file. Google write stays off." },
+    { id: "calendar", label: "Calendar file", hint: "Save a phone file. Google write stays HOLD." },
     { id: "rules", label: "Run desk rules", hint: "Honor the rules already on this desk." },
     { id: "owner", label: "Owner first", hint: "Wait on the owner before Yes." }
   ];
@@ -43,7 +43,7 @@
     { id: "text", label: "Text them", next: "Copy or text the draft. Desk does not send." },
     { id: "email", label: "Email them", next: "Copy or email the draft. Desk does not send." },
     { id: "call", label: "Call them back", next: "Call them back. Then mark it done." },
-    { id: "book", label: "Put it on the calendar", next: "Save the phone calendar file. Google write stays off until the key is set." },
+    { id: "book", label: "Put it on the calendar", next: "Save the phone calendar file. Google write stays HOLD until that pipe is on." },
     { id: "hand", label: "Hand it to someone", next: "Hand this to a name on People." },
     { id: "list", label: "Draft a list", next: "Keep the list on the card. Owner taps Yes." },
     { id: "quote", label: "Draft a quote", next: "Draft only. Do not send a quote from here." },

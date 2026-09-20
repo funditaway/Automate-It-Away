@@ -39,7 +39,7 @@
   window.helpWithAi = async function (id) {
     const banner = document.getElementById("banner");
     const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "recommend", id: id, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
-    const line = out.status >= 400 ? ((out.data && out.data.error) || "Could not draft help.") : "Grok drafted on the card. Nothing sent.";
+    const line = out.status >= 400 ? ((out.data && out.data.error) || "Could not draft help.") : "A Desk AI drafted on the card. Nothing sent.";
     if (typeof load === "function") await load();
     if (banner) banner.textContent = line;
     if (typeof openJob === "function") openJob(id);
