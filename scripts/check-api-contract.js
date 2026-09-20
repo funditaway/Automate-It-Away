@@ -109,11 +109,6 @@ async function main() {
     fail("health grok.note must stay honest in Desk AI voice");
   } else pass("health notes use Desk AI voice");
 
-  const yesNo = require("fs").readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
-  if (yesNo.indexOf("Desk AI drafts-off leftover after that pass") < 0) {
-    fail("ACCOUNT-YES-NO must record Desk AI drafts-off leftover");
-  } else pass("ACCOUNT-YES-NO records Desk AI drafts-off leftover");
-
   if (lib.slugify("") !== "" || lib.slugify(null) !== "") fail("slugify should not invent demo");
   else pass("slugify leaves an empty name empty");
   if (lib.workspaceOf({ headers: {}, query: {} }) !== "") fail("workspaceOf should not default to demo");
@@ -220,6 +215,12 @@ async function main() {
   if (packMd.indexOf("Health JSON honesty leftover:") < 0) {
     fail("PACK.md must record Health JSON honesty leftover");
   } else pass("PACK.md records Health JSON honesty leftover");
+  if (yesNo.indexOf("Desk AI drafts-off leftover after that pass") < 0) {
+    fail("ACCOUNT-YES-NO must record Desk AI drafts-off leftover");
+  } else pass("ACCOUNT-YES-NO records Desk AI drafts-off leftover");
+  if (packMd.indexOf("Desk AI drafts-off leftover:") < 0) {
+    fail("PACK.md must record Desk AI drafts-off leftover");
+  } else pass("PACK.md records Desk AI drafts-off leftover");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");
