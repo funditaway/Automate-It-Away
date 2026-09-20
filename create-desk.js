@@ -390,12 +390,22 @@
       note.hidden = !msg;
       note.classList.toggle("is-err", kind === "err");
       note.classList.toggle("is-ok", kind === "ok");
+      note.classList.toggle("is-ask", kind === "ask");
       if (kind === "ok") note.innerHTML = msg || "";
       else note.textContent = msg || "";
       if (gate) gate.hidden = !open;
     }
     function startFail(msg, open) {
       startNote(msg, "err", open === true || (open !== false && !deskOpen()));
+    }
+    function startHint(msg, open) {
+      startNote(msg, "ask", open === true || (open !== false && !deskOpen()));
+    }
+    function clearStartHint() {
+      const note = document.getElementById("start-note");
+      if (!note || !note.classList.contains("is-ask")) return;
+      startNote("", "", false);
+      paintStartDesk();
     }
     function startDone(msg) {
       startNote(msg + ' <a href="/desk">Open the desk →</a>', "ok", false);
@@ -408,7 +418,8 @@
       const note = document.getElementById("start-note");
       if (deskOpen()) {
         if (gate) gate.hidden = true;
-        if (note && note.classList.contains("is-err") && /Open or unlock this desk first/.test(note.textContent || "")) {
+        const unlock = note && note.classList.contains("is-err") && /Open or unlock this desk first/.test(note.textContent || "");
+        if (unlock || (note && note.classList.contains("is-ask"))) {
           startNote("", "", false);
         }
         return;
@@ -452,7 +463,7 @@
     }
     async function suggestStart() {
       const body = startBody();
-      if (!body.title) return startFail("Say what a Desk AI should draft.");
+      if (!body.title) return startHint("Say what a Desk AI should draft.");
       if (!deskOpen()) return startNeedDesk();
       const go = document.getElementById("start-draft");
       if (go) go.disabled = true;
@@ -474,7 +485,7 @@
     }
     async function queueStart(useDraft) {
       const body = startBody();
-      if (!body.title) return startFail("Say what a Desk AI should draft.");
+      if (!body.title) return startHint("Say what a Desk AI should draft.");
       if (!deskOpen()) return startNeedDesk();
       if (useDraft && startDraft) {
         if (startDraft.draft) body.draft = startDraft.draft;
@@ -506,7 +517,15 @@
       const queue = document.getElementById("start-queue");
       const yes = document.getElementById("start-yes");
       const stop = document.getElementById("start-stop");
-      if (draft) draft.addEventListener("click", function () { suggestStart(); });
+      const what = document.getElementById("start-what");
+      if (what) {
+        what.addEventListener("input", clearStartHint);
+        what.addEventListener("focus", clearStartHint);
+      }
+      if (draft) {
+        draft.addEventListener("focus", clearStartHint);
+        draft.addEventListener("click", function () { suggestStart(); });
+      }
       if (queue) queue.addEventListener("click", function () { queueStart(false); });
       if (yes) yes.addEventListener("click", function () { queueStart(true); });
       if (stop) stop.addEventListener("click", function () { clearStartDraft(); startNote("", "", false); paintStartDesk(); });

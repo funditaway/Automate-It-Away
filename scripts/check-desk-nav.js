@@ -103,6 +103,9 @@ if (!create.includes("id=\"start-note\"") || !create.includes("id=\"start-open\"
 if (!create.includes(".start-note.is-err") || !create.includes("var(--orange)") || !create.includes(".start-note.is-ok") || !create.includes("var(--teal)")) {
   fail("create.html start notes must paint orange fail / teal Yes on the start card");
 } else pass("Create start notes paint orange fail / teal Yes");
+if (!create.includes(".start-note.is-ask")) {
+  fail("create.html empty Ask must paint a non-sticky is-ask note, not leftover is-err");
+} else pass("Create empty Ask paints is-ask, not is-err");
 if (createJs.includes('classList.toggle("err"') || createJs.includes('classList.toggle("ok"')) {
   fail("create-desk.js start notes must not reuse .err/.ok display:none");
 } else pass("Create start notes do not reuse .err/.ok display:none");
@@ -151,6 +154,15 @@ if (createJs.includes("Say what the desk should do.")) fail("create-desk.js empt
 else pass("Create empty start does not say the desk should do");
 if (!createJs.includes("Say what a Desk AI should draft.")) fail("create-desk.js empty start must say Say what a Desk AI should draft");
 else pass("Create empty start is Say what a Desk AI should draft");
+if (createJs.includes('return startFail("Say what a Desk AI should draft.")')) {
+  fail("create-desk.js empty Ask must not paint is-err via startFail");
+} else pass("Create empty Ask does not use startFail / is-err");
+if (!createJs.includes("function startHint") || !createJs.includes("function clearStartHint") || !createJs.includes('kind === "ask"')) {
+  fail("create-desk.js empty Ask must use a non-sticky startHint path");
+} else pass("Create empty Ask uses startHint");
+if (!createJs.includes('addEventListener("input", clearStartHint') || !createJs.includes('addEventListener("focus", clearStartHint')) {
+  fail("create-desk.js must clear empty-Ask hint on type / focus");
+} else pass("Create empty Ask hint clears on type / focus");
 if (createJs.includes('return fail("Say what a Desk AI should draft.")') || createJs.includes('return fail("Open a desk on this phone first.")')) {
   fail("create-desk.js start fail must stay on the start card, not #err under the form");
 } else pass("Create start fail stays on the start card");
