@@ -305,6 +305,8 @@ Drop tab full Drop leftover: after widgetHref pointed the Drop tab at `/widget` 
 
 Create start card leftover: after Create start said What should a Desk AI draft, empty Ask / no-desk / Yes still painted under the Job form. A stranger tapping Ask the desk heard nothing. Those faces now stay on the start card, above How / what. Open / Unlock on no desk. Put it on the queue hides while Yes / Stop decide. Yes handoff names Yes / Stop / Kill. Ask the desk tap stays. Collect HOLD. No silent send.
 
+Create start Open/Unlock leftover: after start notes painted `is-err` / `is-ok`, `paintStartDesk` still checked class `err`. Open / Unlock clear then never fired — the stranger note could stick after the desk was open. That face now checks `is-err`. pageshow + same-page Workspace open re-paint. Empty Ask / Yes stay on the start card. History drafted-card trail not dug. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

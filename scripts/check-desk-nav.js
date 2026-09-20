@@ -157,6 +157,23 @@ if (createJs.includes('return fail("Say what a Desk AI should draft.")') || crea
 if (!createJs.includes("function startFail") || !createJs.includes("function startDone") || !createJs.includes("function paintStartDesk")) {
   fail("create-desk.js must paint start Ask / Yes / stranger notes on the start card");
 } else pass("Create start paints Ask / Yes / stranger on the start card");
+if (createJs.includes('classList.contains("err")')) {
+  fail("create-desk.js paintStartDesk must check is-err, not leftover .err");
+} else pass("Create start Open/Unlock clear does not check leftover .err");
+if (!createJs.includes('classList.contains("is-err")')) {
+  fail("create-desk.js paintStartDesk must clear the is-err Open/Unlock note");
+} else pass("Create start Open/Unlock clear checks is-err");
+if (!createJs.includes('addEventListener("pageshow"') || !/pageshow[\s\S]{0,80}paintStartDesk/.test(createJs)) {
+  fail("create-desk.js must re-paint start desk on pageshow so Open/Unlock clear is honest");
+} else pass("Create start re-paints on pageshow");
+(function () {
+  const from = createJs.indexOf('localStorage.setItem("aia_ws"');
+  const to = createJs.indexOf('return done("Workspace is open');
+  const block = from >= 0 && to > from ? createJs.slice(from, to) : "";
+  if (block.indexOf("paintStartDesk()") < 0) {
+    fail("create-desk.js must paintStartDesk after same-page Workspace open");
+  } else pass("Create start clears Open/Unlock after same-page open");
+})();
 if (createJs.includes("Put the work on the queue, or Stop")) fail("create-desk.js drafts-off start still says Put the work, or Stop");
 else pass("Create drafts-off start does not say Put the work, or Stop");
 if (!createJs.includes("Yes puts the work on the queue. Stop discards it.")) {
@@ -181,6 +198,10 @@ if (yesNo.indexOf("Create start card leftover after that pass") < 0) fail("ACCOU
 else pass("ACCOUNT-YES-NO records Create start card leftover");
 if (packMd.indexOf("Create start card leftover:") < 0) fail("PACK.md must record the Create start card leftover");
 else pass("PACK.md records Create start card leftover");
+if (yesNo.indexOf("Create start Open/Unlock leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Create start Open/Unlock leftover");
+else pass("ACCOUNT-YES-NO records Create start Open/Unlock leftover");
+if (packMd.indexOf("Create start Open/Unlock leftover:") < 0) fail("PACK.md must record the Create start Open/Unlock leftover");
+else pass("PACK.md records Create start Open/Unlock leftover");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {

@@ -332,6 +332,7 @@
         const data = await r.json().catch(() => ({}));
         if (!r.ok) return fail(data.error || "Could not open that desk.");
         localStorage.setItem("aia_ws", slug); localStorage.setItem("aia_pin", pin); localStorage.setItem("aia_role", "owner"); localStorage.setItem("aia_name", f.get("name") || ""); localStorage.setItem("aia_desk_name", String(f.get("biz") || slug));
+        paintStartDesk();
         return done("Workspace is open. Same five steps on this shop. Drop work next.");
       } catch (ex) { fail("Could not reach the desk."); }
       finally { if (go) go.disabled = false; }
@@ -407,7 +408,7 @@
       const note = document.getElementById("start-note");
       if (deskOpen()) {
         if (gate) gate.hidden = true;
-        if (note && note.classList.contains("err") && /Open or unlock this desk first/.test(note.textContent || "")) {
+        if (note && note.classList.contains("is-err") && /Open or unlock this desk first/.test(note.textContent || "")) {
           startNote("", "", false);
         }
         return;
@@ -522,4 +523,5 @@
       wireStart();
       paintAia();
       paintStartDesk();
+      window.addEventListener("pageshow", function () { paintStartDesk(); });
     })();
