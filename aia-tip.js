@@ -338,7 +338,7 @@
     },
     "more-status": {
       title: "Status",
-      body: "What is live on this desk. Orange means wait — not P1, not Collect. Grok drafts paint from health. Collect stays HOLD until Yes + a real pipe.",
+      body: "What is live on this desk. Orange means wait — HOLD. Not Collect. Desk AI drafts show when they are set up on this phone. Collect stays HOLD until Yes + a real pipe.",
       ask: "What does Status show?"
     }
   };
