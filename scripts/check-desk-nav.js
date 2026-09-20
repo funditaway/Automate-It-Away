@@ -100,6 +100,9 @@ if (!create.includes("id=\"start-decide\"") || !create.includes("#start-decide[h
 if (!create.includes("id=\"start-note\"") || !create.includes("id=\"start-open\"")) {
   fail("create.html must keep Ask / Yes / stranger notes on the start card");
 } else pass("Create start notes stay on the start card");
+if (create.indexOf("id=\"start-note\"") > create.indexOf("id=\"start-kind\"")) {
+  fail("create.html start notes must sit above How / what so a phone sees them");
+} else pass("Create start notes sit above the fields");
 if (!create.includes("Open this desk") || !create.includes("Unlock this desk")) {
   fail("create.html start must offer Open this desk / Unlock this desk");
 } else pass("Create start stranger path is Open / Unlock");

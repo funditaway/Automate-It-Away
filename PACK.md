@@ -303,7 +303,7 @@ Drop Card manual leftover: after `/drop` painted Desk · Tell · Card · Check �
 
 Drop tab full Drop leftover: after widgetHref pointed the Drop tab at `/widget` so the slim skip would fire, the phone Drop tab lost Desk · Tell · Card · Check · Share. Drop was over-slimmed. Drop tab / widgetHref now open `/drop?ws=`. `/widget` and embed stay slim. World pick on `/widget` stays on `/widget?ws=`. Share links stay `/drop?ws=`. `/create` still Desk AI draft copy. Seat id `agent` stays. Collect HOLD. No silent send.
 
-Create start card leftover: after Create start said What should a Desk AI draft, empty Ask / no-desk / Yes still painted under the Job form. A stranger tapping Ask the desk heard nothing. Those faces now stay on the start card. Open / Unlock on no desk. Put it on the queue hides while Yes / Stop decide. Yes handoff names Yes / Stop / Kill. Ask the desk tap stays. Collect HOLD. No silent send.
+Create start card leftover: after Create start said What should a Desk AI draft, empty Ask / no-desk / Yes still painted under the Job form. A stranger tapping Ask the desk heard nothing. Those faces now stay on the start card, above How / what. Open / Unlock on no desk. Put it on the queue hides while Yes / Stop decide. Yes handoff names Yes / Stop / Kill. Ask the desk tap stays. Collect HOLD. No silent send.
 
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 

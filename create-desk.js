@@ -439,6 +439,8 @@
       setStartDecide(true);
       startNote("", "", false);
       paintCites(cites, data && data.citations);
+      const decide = document.getElementById("start-decide");
+      if (decide && decide.scrollIntoView) decide.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
     function clearStartDraft() {
       startDraft = null;
