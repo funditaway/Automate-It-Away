@@ -116,11 +116,15 @@ async function main() {
   else if (/API key not set/.test(statusHtml)) fail("status.html must not hardcode Grok API key not set");
   else if (/Drafts are off — no XAI_API_KEY/.test(statusHtml) || /no XAI_API_KEY on this box/.test(statusHtml)) {
     fail("status.html must not fall back to XAI_API_KEY on this box");
-  } else if (!/deskPublicDump/.test(statusHtml)) {
-    fail("status.html must scrub env names from dumped Status JSON");
+  } else if (/id="raw"|deskPublicDump|JSON\.stringify/.test(statusHtml)) {
+    fail("status.html must not dump raw health JSON on the phone");
+  } else if (/\bblob\b|Decentraweb|BLOB_|XAI_API_KEY|AIA_GROK_|GROK_API_KEY|env present/i.test(statusHtml)) {
+    fail("status.html must not name blob / Decentraweb / env keys on the phone");
   } else if (!/A Desk AI can't draft on this phone yet/.test(statusHtml)) {
     fail("status.html drafts-off must use Desk AI voice");
-  } else pass("status.html paints Grok from health; orange is HOLD");
+  } else if (!/Name register stays HOLD/.test(statusHtml) || !/Saved on this desk/.test(statusHtml) || !/Photos and files are saved/.test(statusHtml)) {
+    fail("status.html must keep Saved work / Photos and files / Name register in Desk AI voice");
+  } else pass("status.html paints Grok from health; orange is HOLD; no raw dump");
 
   if (lib.slugify("") !== "" || lib.slugify(null) !== "") fail("slugify should not invent demo");
   else pass("slugify leaves an empty name empty");
@@ -276,6 +280,12 @@ async function main() {
   if (packMd.indexOf("Counter Desk AI voice leftover:") < 0) {
     fail("PACK.md must record Counter Desk AI voice leftover");
   } else pass("PACK.md records Counter Desk AI voice leftover");
+  if (yesNo.indexOf("Status raw health dump leftover after that pass") < 0) {
+    fail("ACCOUNT-YES-NO must record Status raw health dump leftover");
+  } else pass("ACCOUNT-YES-NO records Status raw health dump leftover");
+  if (packMd.indexOf("Status raw health dump leftover:") < 0) {
+    fail("PACK.md must record Status raw health dump leftover");
+  } else pass("PACK.md records Status raw health dump leftover");
 
   if (process.exitCode) {
     console.error("check-api-contract failed");

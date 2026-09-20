@@ -245,7 +245,15 @@ if (statusPage.indexOf("XAI_API_KEY") >= 0 || /Could not reach this box/.test(st
   fail("status.html still names keys, this box, Vercel, or /drop?ws= on the face");
 } else if (!/Could not reach the desk/.test(statusPage) || !/From a link or this phone/.test(statusPage)) {
   fail("status.html must use Desk AI voice on catch / Drop");
-} else pass("status.html Counter chrome uses Desk AI voice");
+} else if (/id="raw"|deskPublicDump/.test(statusPage) || /\bblob\b|Decentraweb/i.test(statusPage)) {
+  fail("status.html still dumps raw health JSON or names blob / Decentraweb");
+} else pass("status.html Counter chrome uses Desk AI voice; no raw dump");
+if (yesNo.indexOf("Status raw health dump leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record the Status raw health dump leftover");
+} else pass("ACCOUNT-YES-NO records Status raw health dump leftover");
+if (packMd.indexOf("Status raw health dump leftover:") < 0) {
+  fail("PACK.md must record the Status raw health dump leftover");
+} else pass("PACK.md records Status raw health dump leftover");
 
 const history = fs.readFileSync(path.join(root, "history.html"), "utf8");
 if (!history.includes("id=\"aia-line\"") || !history.includes("id=\"desk-pick\"") || !history.includes("does not invent")) {
