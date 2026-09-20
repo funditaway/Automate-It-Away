@@ -299,6 +299,8 @@ Drop widget standalone Talk bar leftover: after world pick stayed on `/widget?ws
 
 Drop widget Talk chrome leftover: after slimChrome skipped Talk with only `hidden=""`, Probe still found Hear this / Talk / Quiet in the DOM. `/widget` rewrites to `drop.html`. Those faces now tear down `#talkBar` and hard-hide with `display:none!important` on `.widget` / embed so preview/talk cannot unhide. `/widget` and `/widget?embed=1` never paint Hear this / Talk / Quiet. `/drop` still paints Talk on Tell. Slim still skips `#drop-steps`, `#drop-on`, Drops from this phone, This drop strip. Seat id `agent` stays. Collect HOLD. No silent send.
 
+Drop Card manual leftover: after `/drop` painted Desk · Tell · Card · Check · Share, picking a desk still remembered Tell, and Card still asked I am before the kind and buried What do you need under name / phone / files. Tell is hidden at boot so the rail snapped back to Desk. Picking a desk or `/drop?ws=` now lands on Card. Core chips are A task · An errand · A list · An idea · A project. Title and What do you need sit under the kind. Tell stays on the rail. `/widget` still skips the rail. Seat id `agent` stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

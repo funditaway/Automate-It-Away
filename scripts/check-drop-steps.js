@@ -198,9 +198,12 @@ if (inject.indexOf('document.getElementById("desk-pick") || banner') < 0) {
   fail("drop-pick.js must seat the world desk search under Which desk gets this");
 }
 const goAt = pickSrc.indexOf("function goDrop");
-const go = pickSrc.slice(goAt, goAt + 320);
-if (go.indexOf("aia_drop_step") < 0 || go.indexOf('"tell"') < 0) {
-  fail("drop-pick.js goDrop must move the picker to the next step after a desk is picked");
+const go = pickSrc.slice(goAt, goAt + 360);
+if (go.indexOf("aia_drop_step") < 0 || go.indexOf('"card"') < 0) {
+  fail("drop-pick.js goDrop must move the picker to Card after a desk is picked");
+}
+if (go.indexOf('"tell"') >= 0) {
+  fail("drop-pick.js goDrop must not dump manual entry onto Tell");
 }
 
 const preview = read("drop-preview.js");
@@ -398,5 +401,50 @@ if (dropMd.indexOf("tears down `#talkBar`") < 0) {
 if (dropMd.indexOf("Probe /widget vs /drop Talk") < 0) {
   fail("DROP.md must include Probe /widget vs /drop Talk");
 }
+
+if (dropMd.indexOf("still moves the rail to Tell") >= 0 || dropMd.indexOf("moves the rail to step two") >= 0) {
+  fail("DROP.md must not dump a desk pick onto Tell");
+}
+if (dropMd.indexOf("moves the rail to Card") < 0) {
+  fail("DROP.md must say a desk pick lands on Card");
+}
+if (yesNo.indexOf("Drop Card manual leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name Drop Card manual leftover");
+}
+if (packMd.indexOf("Drop Card manual leftover:") < 0) {
+  fail("PACK.md must name Drop Card manual leftover");
+}
+if (table[2].hint.indexOf("Tap a kind") < 0) {
+  fail("the Card step hint must tell a dropper to tap a kind");
+}
+if (steps.indexOf("function talkWanted") < 0) fail("drop-steps.js must keep Talk URLs on Tell");
+if (steps.indexOf("function deskFromLink") < 0) fail("drop-steps.js must detect a /drop?ws= share");
+if (steps.indexOf('deskFromLink() ? "card"') < 0) {
+  fail("drop-steps.js must land a /drop?ws= share on Card when no step is remembered");
+}
+if (nowSrc.indexOf('sessionStorage.setItem("aia_drop_step", "card")') < 0) {
+  fail("drop-now.js recent public desks must land on Card");
+}
+const moreSrc = read("drop-more.js");
+if (moreSrc.indexOf('var CORE = ["task", "chore", "list", "idea", "project"]') < 0) {
+  fail("drop-more.js must lead Card with task / errand / list / idea / project chips");
+}
+if (moreSrc.indexOf("Quick drops") >= 0) {
+  fail("drop-more.js must not add a second Quick drops label over What is it");
+}
+["drop.html", "widget.html"].forEach(function (file) {
+  const src = read(file);
+  const pane = src.indexOf('id="pane-work"');
+  const paneEnd = src.indexOf('id="pane-agent"', pane);
+  const box = src.slice(pane, paneEnd > pane ? paneEnd : pane + 4000);
+  const kindAt = box.indexOf('id="kind"');
+  const titleAt = box.indexOf('id="title"');
+  const noteAt = box.indexOf('id="note"');
+  const whoAt = box.indexOf('id="who-chips"');
+  if (kindAt < 0 || titleAt < 0 || noteAt < 0 || whoAt < 0) fail(file + " Card form is missing kind / title / need / I am");
+  if (!(kindAt < titleAt && titleAt < noteAt && noteAt < whoAt)) {
+    fail(file + " Card form must run kind → title → What do you need → I am");
+  }
+});
 
 console.log("check-drop-steps: ok");

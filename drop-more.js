@@ -1,4 +1,5 @@
 (function () {
+  var CORE = ["task", "chore", "list", "idea", "project"];
   var QUICKS = [
     { id: "task", label: "A task", kind: "task", outcome: "wait", title: "" },
     { id: "chore", label: "An errand", kind: "chore", outcome: "hand", title: "" },
@@ -29,12 +30,13 @@
     var box = document.getElementById("quick-chips");
     if (!box) {
       var kind = document.getElementById("kind"); if (!kind) return;
-      var lab = document.createElement("label"); lab.textContent = "Quick drops";
       box = document.createElement("div"); box.id = "quick-chips"; box.className = "who-chips";
-      kind.parentNode.insertBefore(lab, kind); lab.parentNode.insertBefore(box, lab.nextSibling);
+      kind.parentNode.insertBefore(box, kind);
     }
-    box.innerHTML = QUICKS.map(function (q) {
-      return "<button type=\"button\" data-quick=\"" + q.id + "\">" + q.label + "</button>";
+    var onKind = ((document.getElementById("kind") || {}).value || "task");
+    var rows = QUICKS.filter(function (q) { return CORE.indexOf(q.id) >= 0; });
+    box.innerHTML = rows.map(function (q) {
+      return "<button type=\"button\" class=\"" + (q.kind === onKind ? "on" : "") + "\" data-quick=\"" + q.id + "\">" + q.label + "</button>";
     }).join("");
   }
   function applyQuick(id) {

@@ -107,7 +107,10 @@
   function paintKindFields(box, kindId, preset) {
     if (!box) return;
     var t = typeOf(kindId); var have = preset || {};
-    box.innerHTML = (t.fields || []).map(function (key) {
+    var keys = (t.fields || []).filter(function (key) {
+      return !(key === "need" && document.getElementById("note"));
+    });
+    box.innerHTML = keys.map(function (key) {
       var spec = FIELDSPEC[key] || { label: key, ph: "" };
       var mode = spec.mode ? (" inputmode=\"" + spec.mode + "\"") : "";
       var val = have[key] ? String(have[key]).replace(/"/g, "&quot;") : "";
@@ -200,7 +203,8 @@
     var kind = document.getElementById("kind"); if (!kind) return;
     if (!document.getElementById("kind-fields")) {
       var fields = document.createElement("div"); fields.id = "kind-fields";
-      kind.parentNode.insertBefore(fields, kind.nextSibling);
+      var after = document.getElementById("note") || kind;
+      after.parentNode.insertBefore(fields, after.nextSibling);
       var lab = document.createElement("label");
       lab.innerHTML = "Preferred outcome" + tipMark("drop-outcome", "Preferred outcome");
       fields.parentNode.insertBefore(lab, fields.nextSibling);
