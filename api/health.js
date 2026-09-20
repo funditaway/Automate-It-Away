@@ -80,7 +80,7 @@ async function deskStatus(req, res) {
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound",
-      catalog: "same as /api/health — webhook live; paid pipes hold unless env; whatnot down"
+      catalog: "same as /api/health — webhook live; paid pipes hold until they answer; whatnot down"
     }
   });
 }
@@ -106,20 +106,20 @@ async function health(req, res) {
       workspaces: mem.workspaces.length,
       live: driver === "blob" || driver === "file",
       note: driver === "blob"
-        ? "Shared blob — second phone can see the same queue"
+        ? "Shared — a second phone can see the same queue"
         : driver === "tmp-file"
-          ? "Lambda /tmp — Blob write did not stick"
+          ? "This desk did not keep the save"
           : driver === "file"
-            ? "File store on this box"
-            : "Memory only",
+            ? "Saved on this desk"
+            : "Not saved yet",
       blob: publicBlobProbe()
     },
     files: {
       driver: blobToken() ? "blob" : "tmp-file",
       count: (mem.files || []).length,
       note: blobToken()
-        ? "Vercel Blob live"
-        : "No BLOB_READ_WRITE_TOKEN — files sit in /tmp"
+        ? "Photos and files are saved"
+        : "Photos and files are not saved for long"
     },
     pipes: catalog(),
     automation: {
@@ -130,7 +130,7 @@ async function health(req, res) {
       follow: "worker + cron",
       inbound: "/api/hook",
       mail: require("./_aia-mail").statusOf(),
-      persist: (mem.driver === "blob") ? "shared blob" : "Lambda /tmp until BLOB_READ_WRITE_TOKEN",
+      persist: (mem.driver === "blob") ? "shared save" : "this desk may forget the save",
       ownerStops: ["kill"],
       grok: {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
@@ -152,10 +152,10 @@ async function health(req, res) {
             note: "List-price estimate on the fast model. Real invoice is on console.x.ai."
           };
         })(),
-        heavyChat: "SuperGrok Heavy is the chat plan. It does not fund this key.",
+        heavyChat: "SuperGrok Heavy is the chat plan. It does not turn drafts on.",
         note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
           ? "Included drafts on the card. Never Send."
-          : "Set XAI_API_KEY on Vercel from console.x.ai. Chat login is not a draft pipe.",
+          : "Drafts are off. Desk AI cannot draft right now. A chat login is not a draft pipe.",
         spend: {
           list: "$0.20 / 1M in · $0.50 / 1M out on grok-4-fast-non-reasoning",
           perDraft: "~900 in + 250 out · about $0.0003",
@@ -177,7 +177,7 @@ async function health(req, res) {
       drafts: {
         included: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
         deskAccounts: (mem.connections || []).filter((c) => c && c.lane === "draft" && c.keyPacked).length,
-        note: "Owner connects a draft account on /connections. Chat login alone is not enough — paste the API key after login. Drafts only."
+        note: "Owner connects a draft account on Connections. Chat login alone is not enough. Drafts only."
       }
     },
     accounts: {

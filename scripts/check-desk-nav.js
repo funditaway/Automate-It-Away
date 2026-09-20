@@ -121,7 +121,7 @@ if (!create.includes("#start-queue[hidden]") || !create.includes("#start-note[hi
 if (!create.includes("task") || !create.includes("idea") || !create.includes("project") || !create.includes("build")) {
   fail("create.html must start real AIA work kinds");
 } else pass("Create kinds are task/errand/list/idea/project/build");
-if (!createJs.includes("action: \"suggest\"") || !createJs.includes("/api/health") || !createJs.includes("XAI_API_KEY")) {
+if (!createJs.includes("action: \"suggest\"") || !createJs.includes("/api/health") || !createJs.includes("Desk AI cannot draft right now")) {
   fail("create-desk.js must ask the desk and stay honest when drafts are off");
 } else pass("Create asks the desk and stays honest offline");
 if (create.includes("$250") || create.includes("placeholder=\"250\"")) fail("create.html invented a $250 default");
@@ -213,6 +213,24 @@ if (yesNo.indexOf("Create → Queue handoff leftover after that pass") < 0) {
 if (packMd.indexOf("Create → Queue handoff leftover:") < 0) {
   fail("PACK.md must record the Create → Queue handoff leftover");
 } else pass("PACK.md records Create → Queue handoff leftover");
+if (yesNo.indexOf("Desk AI drafts-off leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record the Desk AI drafts-off leftover");
+} else pass("ACCOUNT-YES-NO records Desk AI drafts-off leftover");
+if (packMd.indexOf("Desk AI drafts-off leftover:") < 0) {
+  fail("PACK.md must record the Desk AI drafts-off leftover");
+} else pass("PACK.md records Desk AI drafts-off leftover");
+["create.html", "create-desk.js", "history.html", "more.html", "status.html", "help.html", "developer.js"].forEach(function (file) {
+  const src = fs.readFileSync(path.join(root, file), "utf8");
+  if (src.indexOf("XAI_API_KEY") >= 0) fail(file + " still names XAI_API_KEY on public chrome");
+  else if (/\bthis box\b/.test(src)) fail(file + " still says this box on public chrome");
+  else pass(file + " Desk AI voice has no key / box jargon");
+});
+if (!createJs.includes("Desk AI cannot draft right now") || !create.includes("Checking whether Desk AI can draft")) {
+  fail("Create chrome must say Desk AI cannot draft / Checking whether Desk AI can draft");
+} else pass("Create chrome uses Desk AI drafts-off voice");
+if (create.includes("when a key is on") || create.includes("Offline stays orange")) {
+  fail("create.html start hint still names a key or orange offline");
+} else pass("Create start hint has no key / orange jargon");
 if (yesNo.indexOf("Create start leftover after that pass") < 0) fail("ACCOUNT-YES-NO must record the Create start leftover");
 else pass("ACCOUNT-YES-NO records Create start leftover");
 if (packMd.indexOf("Create start leftover:") < 0) fail("PACK.md must record the Create start leftover");

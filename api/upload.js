@@ -88,7 +88,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         workspace, driver: driverOf(),
         files: mem.files.filter((f) => f.workspace === workspace).slice(0, 40),
-        note: driverOf() === "blob" ? "Vercel Blob — durable" : "Lambda /tmp — file dies with the instance. Add BLOB_READ_WRITE_TOKEN."
+        note: driverOf() === "blob" ? "Photos and files are saved" : "Photos and files are not saved for long"
       });
     }
     const rec = mem.files.find((f) => f.id === id && f.workspace === workspace);

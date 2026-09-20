@@ -104,6 +104,11 @@ must(yesNo, "Help FAQ Desk AI leftover after that pass", "ACCOUNT-YES-NO names H
 must(packMd, "Help FAQ Desk AI leftover:", "PACK.md names Help FAQ Desk AI leftover");
 must(yesNo, "Needs you / prompt ask-who when a Desk AI asks", "ACCOUNT-YES-NO FAQ Desk AI asks");
 must(help, "Owner still taps Yes and Stop.", "Help Log in Yes and Stop");
+must(help, "Open Connections to draft with that account.", "Help Log in Desk AI voice");
+mustNot(help, "draft-account key page", "Help Log in key page");
+mustNot(help, "until the key is set", "Help Calendar key jargon");
+must(yesNo, "Desk AI drafts-off leftover after that pass", "ACCOUNT-YES-NO names Desk AI drafts-off leftover");
+must(packMd, "Desk AI drafts-off leftover:", "PACK.md names Desk AI drafts-off leftover");
 must(help, "Yes when the rule allows", "Help Helper Yes not Send");
 must(help, "A person taps Yes — or Stops it — before it goes out.", "Help lead Yes rail");
 must(help, "You send the draft yourself.", "Help lead send-it-yourself");

@@ -383,11 +383,11 @@
         el.classList.toggle("off", !grokOn);
         el.textContent = grokOn
           ? "Grok drafts are on. They land on the card. You still tap Yes or Stop. AIA does not send."
-          : "Drafts are off — no XAI_API_KEY on this box. Orange copy only. You can still put work on the queue.";
+          : "Drafts are off. Desk AI cannot draft right now. You can still put work on the queue.";
       } catch (e) {
         grokOn = false;
         el.classList.add("off");
-        el.textContent = "Could not reach this box. Drafts stay off. You can still put work on the queue.";
+        el.textContent = "Could not reach the desk. Drafts stay off. You can still put work on the queue.";
       }
     }
     function startNote(msg, kind, open) {
@@ -482,7 +482,7 @@
         showStartDraft(data);
         if (data.grok === "no-key" || data.grok === "off") {
           const line = document.getElementById("aia-line");
-          if (line) { line.classList.add("off"); line.textContent = data.note || "Drafts are off — no XAI_API_KEY on this box. Orange copy only."; }
+          if (line) { line.classList.add("off"); line.textContent = data.note || "Drafts are off. Desk AI cannot draft right now."; }
         }
       } catch (e) {
         startFail("Could not reach the desk.");

@@ -97,7 +97,7 @@
       }
       var d = await r.json().catch(function () { return {}; });
       if (d && d.url) { location.href = d.url; return; }
-      say(d.error || d.hint || (r.status === 409 ? "Hold. That door is on the wall until the key or the vendor admits AIA." : "Could not start that door."));
+      say(d.error || d.hint || (r.status === 409 ? "Hold. That door is on the wall until the vendor admits AIA." : "Could not start that door."));
     } catch (e) {
       say("Could not reach the account.");
     }

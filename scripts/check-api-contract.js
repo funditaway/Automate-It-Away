@@ -96,7 +96,23 @@ async function main() {
   else if (!/Orange is HOLD/.test(statusHtml)) fail("status.html must say Orange is HOLD — wait");
   else if (!/id="grok"/.test(statusHtml) || !/automation\.grok/.test(statusHtml)) fail("status.html must paint Grok drafts from health.automation.grok");
   else if (/API key not set/.test(statusHtml)) fail("status.html must not hardcode Grok API key not set");
+  else if (/XAI_API_KEY|this box/.test(statusHtml)) fail("status.html must not name XAI_API_KEY or this box");
+  else if (!/Desk AI cannot draft right now/.test(statusHtml)) fail("status.html drafts-off fallback must use Desk AI voice");
   else pass("status.html paints Grok from health; orange is HOLD");
+
+  const grokNote = (((res.body.automation || {}).grok || {}).note) || "";
+  const storeNote = ((res.body.store || {}).note) || "";
+  const filesNote = ((res.body.files || {}).note) || "";
+  if (/XAI_API_KEY|this box|BLOB_READ_WRITE_TOKEN|console\.x\.ai/.test(grokNote + storeNote + filesNote)) {
+    fail("health notes must not name keys, boxes, or env talk");
+  } else if (!/Desk AI cannot draft right now/.test(grokNote) && !/Included drafts on the card/.test(grokNote)) {
+    fail("health grok.note must stay honest in Desk AI voice");
+  } else pass("health notes use Desk AI voice");
+
+  const yesNo = require("fs").readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
+  if (yesNo.indexOf("Desk AI drafts-off leftover after that pass") < 0) {
+    fail("ACCOUNT-YES-NO must record Desk AI drafts-off leftover");
+  } else pass("ACCOUNT-YES-NO records Desk AI drafts-off leftover");
 
   if (lib.slugify("") !== "" || lib.slugify(null) !== "") fail("slugify should not invent demo");
   else pass("slugify leaves an empty name empty");

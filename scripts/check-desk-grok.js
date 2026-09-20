@@ -118,6 +118,9 @@ async function main() {
   if (body.id !== "j1") fail("helpWithAi did not send the card id");
   if (ctx._opened !== "j1") fail("helpWithAi should open the card after draft");
   if (!/Nothing sent/.test(banner.textContent)) fail("banner must say nothing was sent");
+  if (!/Desk AI cannot draft right now/.test(banner.textContent)) {
+    fail("Ask blocked when drafts are off must say Desk AI cannot draft right now");
+  }
 
   const html = ctx.card({
     id: "j9",

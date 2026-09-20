@@ -315,6 +315,8 @@ Health JSON honesty leftover: after `/status` said Orange is HOLD — not P1, pu
 
 Create → Queue handoff leftover: after Create Yes said On the queue, Open the desk → still went to `/desk` with no card. Drop already linked `/desk?job=` and Queue never opened it. Yes now links Open this card → `/desk?job=`. Queue honors `?job=` once — Open sheet + teal mark. Missing card stays honest. Did not add Kill on Create decide. Did not redo Health JSON. Collect HOLD. No silent send.
 
+Desk AI drafts-off leftover: Counter Create still said Drafts are off — no XAI_API_KEY on this box. Public chrome now uses Desk AI voice: Drafts are off. Desk AI cannot draft right now. Could not reach the desk. Ask blocked stays honest. Open this card handoff stays. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

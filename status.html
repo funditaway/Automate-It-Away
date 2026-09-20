@@ -67,12 +67,12 @@
       }
       const store = document.getElementById("store");
       const d = data.store || {};
-      store.textContent = (d.driver || "?") + (d.note ? " — " + d.note : "");
+      store.textContent = d.note || (d.live ? "Saved on this desk" : "Not saved yet");
       store.className = (d.driver === "blob" || d.driver === "file") ? "up" : "hold";
       const files = document.getElementById("files");
       const fl = data.files || {};
       if (files) {
-        files.textContent = (fl.driver || "?") + (fl.note ? " — " + fl.note : "");
+        files.textContent = fl.note || (fl.driver === "blob" ? "Photos and files are saved" : "Photos and files are not saved for long");
         files.className = fl.driver === "blob" ? "up" : "hold";
       }
       const grokEl = document.getElementById("grok");
@@ -82,7 +82,7 @@
           grokEl.textContent = g.note || "Included drafts on the card. Never Send.";
           grokEl.className = "up";
         } else {
-          grokEl.textContent = g.note || "Drafts are off — no XAI_API_KEY on this box. Orange copy only.";
+          grokEl.textContent = g.note || "Drafts are off. Desk AI cannot draft right now.";
           grokEl.className = "hold";
         }
       }
@@ -123,7 +123,7 @@
     }).catch(() => {
       document.getElementById("api").textContent = "Not on this host";
       document.getElementById("api").className = "hold";
-      document.getElementById("raw").textContent = "Static host — API lives on the Vercel project automate-it-away.";
+      document.getElementById("raw").textContent = "Could not reach the desk.";
     });
   </script>
   <script src="theme.js"></script>

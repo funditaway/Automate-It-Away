@@ -418,8 +418,8 @@
       grokOn = !!(g && g.on);
       el.classList.toggle("off", !grokOn);
       el.textContent = grokOn
-        ? "Grok drafts are on via api.x.ai. Every call is audited. Never Send. You still tap Yes or Stop."
-        : "Drafts are off — no XAI_API_KEY on this box. Orange copy only. You can still write the pack by hand.";
+        ? "Grok drafts are on. They land on the pack. You still tap Yes or Stop. AIA does not send."
+        : "Drafts are off. Desk AI cannot draft right now. You can still write the pack by hand.";
       var netEl = document.getElementById("aia-net-line");
       var inet = h && h.internet;
       if (netEl && inet) {
@@ -429,7 +429,7 @@
     } catch (e) {
       grokOn = false;
       el.classList.add("off");
-      el.textContent = "Could not reach this box. Drafts stay off. You can still write the pack by hand.";
+      el.textContent = "Could not reach the desk. Drafts stay off. You can still write the pack by hand.";
     }
   }
 
@@ -527,7 +527,7 @@
       var d = await r.json().catch(function () { return {}; });
       if (d.grok === "off" || d.reason === "no-key") {
         var line = document.getElementById("aia-line");
-        if (line) { line.classList.add("off"); line.textContent = d.note || "Drafts are off — no XAI_API_KEY on this box. Orange copy only."; }
+        if (line) { line.classList.add("off"); line.textContent = d.note || "Drafts are off. Desk AI cannot draft right now."; }
         grokOn = false;
       }
       if (!d.ok) {

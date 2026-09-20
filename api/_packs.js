@@ -542,7 +542,7 @@ async function packHandler(req, res) {
       wanted: rows.filter(function (p) { return p.wanted; }),
       color: rows.filter(function (p) { return p.type === "cosmetic"; }),
       creator: rows.filter(function (p) { return !p.official && !p.wanted && p.type !== "cosmetic"; }),
-      grok: { on: grokOn(), note: grokOn() ? "Grok drafts in Creators Studio. Never Send." : "Set XAI_API_KEY for Studio drafts." },
+      grok: { on: grokOn(), note: grokOn() ? "Grok drafts in Creators Studio. Never Send." : "Drafts are off. Desk AI cannot draft right now." },
       studio: grokStudio(),
       never: ["send", "stop", "pay"],
       internet: net.statusOf()
@@ -570,7 +570,7 @@ async function packHandler(req, res) {
         ok: false,
         grok: "off",
         saved: false,
-        note: "Drafts are off until XAI_API_KEY is on. Orange copy only. You can still write the pack by hand."
+        note: "Drafts are off. Desk AI cannot draft right now. You can still write the pack by hand."
       });
     }
     if (!grok || !grok.ok) {
