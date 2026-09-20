@@ -110,7 +110,7 @@ header nav:not(.desk-tabs),
   white-space: nowrap;
   min-width: 4.6em !important;
   width: auto !important;
-  height: 40px !important;
+  height: 44px !important;
   padding: 0 14px !important;
   flex: 0 0 auto;
   border: 1px solid rgba(255,255,255,.9) !important;
@@ -154,7 +154,6 @@ button.aia-tip {
 .aia-tip-pop { z-index: 80; }
 .field-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-/* Footer links must not smash into How·Setup·Help */
 .site-foot nav {
   display: flex !important;
   flex-wrap: wrap !important;
@@ -185,7 +184,6 @@ a.open-another {
   gap: 8px !important;
 }
 
-/* Stack labels over inputs on every gate + desk open form. */
 .gate-card label,
 #form label,
 #desk-door label,
