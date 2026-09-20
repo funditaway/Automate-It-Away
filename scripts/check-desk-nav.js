@@ -121,9 +121,12 @@ if (!create.includes("#start-queue[hidden]") || !create.includes("#start-note[hi
 if (!create.includes("task") || !create.includes("idea") || !create.includes("project") || !create.includes("build")) {
   fail("create.html must start real AIA work kinds");
 } else pass("Create kinds are task/errand/list/idea/project/build");
-if (!createJs.includes("action: \"suggest\"") || !createJs.includes("/api/health") || !createJs.includes("XAI_API_KEY")) {
+if (!createJs.includes("action: \"suggest\"") || !createJs.includes("/api/health") || !createJs.includes("A Desk AI can't draft on this phone yet.")) {
   fail("create-desk.js must ask the desk and stay honest when drafts are off");
 } else pass("Create asks the desk and stays honest offline");
+if (createJs.includes("XAI_API_KEY") || createJs.includes("this box") || create.includes("XAI_API_KEY") || create.includes("this box") || create.includes("when a key is on")) {
+  fail("Create must not name XAI_API_KEY / this box / key-on jargon");
+} else pass("Create drafts-off uses Desk AI voice");
 if (create.includes("$250") || create.includes("placeholder=\"250\"")) fail("create.html invented a $250 default");
 else pass("Create has no $250 default");
 if (!createJs.includes("save-ai") || !createJs.includes('id: "ai"')) fail("create-desk.js must name a desk AI");

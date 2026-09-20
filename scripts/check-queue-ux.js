@@ -186,6 +186,18 @@ if (packMd.indexOf("Create → Queue handoff leftover:") < 0) {
   fail("PACK.md must record the Create → Queue handoff leftover");
 }
 pass("PACK.md records Create → Queue handoff leftover");
+if (more.indexOf("not P1") >= 0 || more.indexOf("draft key") >= 0 || more.indexOf("XAI_API_KEY") >= 0) {
+  fail("more.html must not name P1 / draft key / XAI_API_KEY");
+}
+if (more.indexOf("A Desk AI can't draft on this phone yet.") < 0) {
+  fail("more.html drafts-off must use Desk AI voice");
+}
+pass("more.html drafts-off uses Desk AI voice");
+if (tips.indexOf("not P1") >= 0) fail("more-status tip must not name P1");
+if (tips.indexOf("Orange means wait — HOLD. Not Collect.") < 0) {
+  fail("more-status tip must say Orange means wait — HOLD");
+}
+pass("more-status tip drops P1");
 
 const ctx = {
   window: {},

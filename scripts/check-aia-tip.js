@@ -284,5 +284,13 @@ must(tip, "Yes puts a card on the queue. Open this card.", "more-create Open thi
 must(moreHtml, "Yes puts a card on the queue. Open this card.", "more Create face Open this card");
 must(yesNo, "Create → Queue handoff leftover after that pass", "ACCOUNT-YES-NO names Create → Queue handoff leftover");
 must(packMd, "Create → Queue handoff leftover:", "PACK.md names Create → Queue handoff leftover");
+must(moreHtml, "A Desk AI can't draft on this phone yet.", "more drafts-off Desk AI voice");
+must(tip, "Orange means wait — HOLD. Not Collect.", "more-status no P1");
+if (moreHtml.indexOf("not P1") >= 0 || moreHtml.indexOf("draft key") >= 0 || moreHtml.indexOf("XAI_API_KEY") >= 0) {
+  throw new Error("more.html still names P1 / draft key / XAI_API_KEY");
+}
+if (tip.indexOf("not P1") >= 0 || tip.indexOf("paint from health") >= 0) {
+  throw new Error("aia-tip still names P1 / paint from health");
+}
 
 console.log("check-aia-tip: ok");
