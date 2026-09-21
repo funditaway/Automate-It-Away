@@ -1,0 +1,36 @@
+# AIA (Automate It Away) - Cursor Project Rules
+
+## Project Overview
+You are building **AIA (Automate It Away)**, a sovereign, local-first Command Center and universal orchestration layer. AIA unifies physical and digital products/services into interoperable "AIA Packs" managed via a single master account using cryptographic proofs and human-in-the-loop (HITL) oversight.
+
+## Technology Stack & Constraints
+- **Frontend Only Stack:** Pure HTML5, vanilla JavaScript (ES modules), and Tailwind CSS via CDN. No heavy frontend build tools (no React, Vue, or Vite unless explicitly requested).
+- **Backend / Daemon:** Node.js / Bun, Express.js.
+- **Intelligence:** Grok (SpaceXAI API) for dynamic meta-prompt synthesis and structured decision card generation.
+- **Security & Cryptography:** Node.js native `crypto` module (Ed25519 keypairs, SHA-256 hash proofs, and append-only `ledger.ndjson` audit trails).
+
+## Core Architectural Guardrails
+1. **Sovereignty First:** All actions require explicit human authorization (HITL) via keyboard shortcut (`[ENTER]`) or click before execution. Never auto-execute state-changing actions.
+2. **Append-Only Integrity:** Every signed action must generate a SHA-256 hash proof and an Ed25519 signature, committed immutably to `ledger.ndjson`.
+3. **Resilient Local Fallback:** If the local daemon (`http://localhost:3000`) is offline, the frontend must gracefully fall back to simulation mode so the UI remains fully testable.
+4. **Design Language:** Dark-mode terminal interface using Tailwind utility classes (`bg-desk-900`, `bg-desk-800`, `font-mono`, clean borders, high-contrast badges for risk levels).
+
+## File Structure Standards
+- `index.html`: Complete single-file sovereign command center terminal
+- `server.js`: Core Express daemon and Ed25519 signing router
+- `webhookIngest.js`: Inbound telemetry and webhook gateway
+- `grokBotPrompt.js`: Grok API synthesizer for decision cards
+- `verifyLedger.js`: Cryptographic ledger integrity verification tool
+- `doctor.js`: Environment and system health diagnostic tool
+- `deploySwarm.js`: Multi-agent swarm pack registry
+- `bridgeModule.js`: Web3 cross-chain and domain manager
+- `ecosystem.config.cjs`: PM2 process manager configuration
+- `start.sh`: One-command initialization and boot script
+
+These files live in `command/` so the repo-root CommonJS site and Vercel functions stay untouched. The desk terminal is the single file `command/public/index.html` (served at `http://127.0.0.1:3000/`). Ledger lines are appended to `command/data/ledger.ndjson` at runtime and are not committed. Express is the only external module; signing uses Node `crypto`.
+
+## Code Generation Guidelines
+- Keep code modular, well-commented, and robust.
+- When modifying frontend logic in `index.html`, preserve reactive queue updating, keyboard listeners, and risk badge coloring.
+- Avoid introducing external node modules unless required for core cryptographic or server functions.
+- Do not add a web3 client stack (`ethers`, `viem`, `wagmi`, WalletConnect). Bridge and domain actions are proposals queued for HITL. They are never broadcast from this daemon.

@@ -1,0 +1,19 @@
+{
+  "name": "aia-command",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AIA sovereign command center — HITL signing daemon, append-only ledger, pack swarm",
+  "scripts": {
+    "start": "node server.js",
+    "doctor": "node doctor.js",
+    "verify": "node verifyLedger.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

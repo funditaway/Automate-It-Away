@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AIA // Sovereign Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        desk: {
+                            900: '#090a0f',
+                            800: '#12141c',
+                            700: '#1b1e2b',
+                            600: '#262a3a',
+                            500: '#383e54',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Courier New', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            background:
+                radial-gradient(1200px 600px at 10% -10%, rgba(20, 184, 166, 0.08), transparent 55%),
+                radial-gradient(900px 500px at 100% 0%, rgba(99, 102, 241, 0.07), transparent 50%),
+                #090a0f;
+        }
+        .critical-glow { animation: pulse-glow 2.4s ease-in-out infinite; }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 12px rgba(244, 63, 94, 0.18); }
+            50% { box-shadow: 0 0 28px rgba(244, 63, 94, 0.42); }
+        }
+        .ai-shimmer {
+            background: linear-gradient(110deg, rgba(20,184,166,0.12) 0%, rgba(99,102,241,0.18) 35%, rgba(20,184,166,0.12) 70%);
+            background-size: 200% 100%;
+            animation: shimmer 4.5s linear infinite;
+        }
+        @keyframes shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        .toast {
+            position: fixed; bottom: 5.5rem; left: 50%; transform: translateX(-50%);
+            z-index: 60; max-width: min(92vw, 28rem);
+            background: #1b1e2b; border: 1px solid #383e54; color: #e2e8f0;
+            font-size: 11px; padding: 0.65rem 0.9rem; border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-desk-900 text-slate-100 h-[100dvh] flex flex-col overflow-hidden select-none font-mono">
+
+    <header class="h-14 border-b border-desk-700 bg-desk-800/90 backdrop-blur px-3 md:px-6 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center gap-2 md:gap-3 min-w-0">
+            <div id="node-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0" title="Connection"></div>
+            <span class="font-bold text-xs md:text-sm tracking-widest text-emerald-400 truncate">AIA // COMMAND</span>
+            <span class="text-desk-500 hidden sm:inline">|</span>
+            <div class="hidden sm:flex items-center gap-2 text-[10px] md:text-xs text-slate-400">
+                <span>LINK: <strong id="link-status" class="text-slate-300">BOOT</strong></span>
+                <span class="text-desk-500">•</span>
+                <span>KEY: <strong id="key-status" class="text-teal-400">—</strong></span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <div class="hidden md:flex items-center gap-2 text-[10px] bg-desk-700 px-3 py-1.5 rounded border border-desk-600">
+                <span class="text-slate-400">LEDGER</span>
+                <span id="ledger-hash" class="text-indigo-400 font-semibold max-w-[9rem] truncate">—</span>
+            </div>
+            <button id="btn-simulate" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] md:text-xs font-semibold px-2.5 md:px-3 py-1.5 rounded">
+                SIMULATE GHL WEBHOOK
+            </button>
+        </div>
+    </header>
+
+    <div id="mode-banner" class="hidden px-3 py-1.5 border-b border-amber-500/30 bg-amber-500/10 text-[10px] text-amber-200">
+        SIMULATION — daemon offline. Cards and signatures stay in this tab. Nothing is written to ledger.ndjson.
+    </div>
+
+    <div class="flex-1 flex overflow-hidden relative">
+        <section class="w-full md:w-[380px] border-r border-desk-700 bg-desk-800/40 flex flex-col shrink-0 h-full">
+            <div class="p-4 border-b border-desk-700 flex items-center justify-between bg-desk-800/60">
+                <h2 class="text-xs font-bold tracking-wider text-slate-300 uppercase">Active Decision Queue</h2>
+                <span id="queue-count" class="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-500/30">0</span>
+            </div>
+            <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-24 md:pb-3"></div>
+            <div class="p-3 border-t border-desk-700 bg-desk-800/30 text-[10px] text-slate-500 hidden md:flex flex-col gap-1.5">
+                <div class="flex justify-between">
+                    <span>SHORTCUT: [ENTER] TO SIGN</span>
+                    <span id="footer-status" class="text-indigo-400">CONNECTING…</span>
+                </div>
+                <div id="last-audit-strip" class="hidden text-teal-300/90 truncate">
+                    Last audit · <span id="last-audit-hash"></span>
+                </div>
+            </div>
+        </section>
+
+        <section id="inspector-wrapper" class="absolute inset-0 md:relative md:inset-auto flex-1 bg-desk-900 flex flex-col overflow-hidden translate-x-full md:translate-x-0 z-30 transition-transform duration-300">
+            <div class="md:hidden p-3 border-b border-desk-700 bg-desk-800 flex items-center justify-between">
+                <button id="btn-back" type="button" class="text-xs text-slate-300 py-1.5 px-2.5 bg-desk-700 rounded border border-desk-600">Queue</button>
+                <span id="mobile-card-id" class="text-[10px] text-indigo-400 truncate max-w-[50%]"></span>
+            </div>
+
+            <div id="empty-state" class="hidden md:flex absolute inset-0 flex-col items-center justify-center text-center p-8 text-slate-500">
+                <h3 class="text-sm font-semibold text-slate-400 mb-1">NO ACTIVE DECISION CARD SELECTED</h3>
+                <p class="text-xs max-w-sm">Select a queue item. Authorize with a click or [ENTER]. Nothing runs before that.</p>
+            </div>
+
+            <div id="inspector-content" class="flex-1 flex flex-col h-full overflow-hidden hidden">
+                <div class="p-4 md:p-6 border-b border-desk-700 bg-desk-800/40">
+                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                        <span id="card-risk-badge" class="text-[10px] px-2.5 py-0.5 rounded font-bold uppercase border"></span>
+                        <span id="card-pack-name" class="text-xs text-slate-400 truncate"></span>
+                        <span id="sig-badge" class="hidden text-[10px] px-2 py-0.5 rounded border border-teal-500/40 bg-teal-500/10 text-teal-300 uppercase">Ed25519 verified</span>
+                    </div>
+                    <h1 id="card-title" class="text-base md:text-xl font-semibold text-white tracking-tight break-all"></h1>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 pb-32 md:pb-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
+                            <div class="text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Target Endpoint</div>
+                            <div id="card-endpoint" class="text-xs text-slate-200 break-all"></div>
+                        </div>
+                        <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
+                            <div class="text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Agent</div>
+                            <div id="card-agent-id" class="text-xs text-slate-200 truncate"></div>
+                        </div>
+                    </div>
+                    <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
+                        <div class="text-[10px] text-slate-400 mb-1.5 uppercase tracking-wider">Execution Summary</div>
+                        <p id="card-summary" class="text-xs md:text-sm text-slate-300 leading-relaxed"></p>
+                    </div>
+                    <div class="ai-shimmer border border-teal-500/25 rounded-lg p-3.5">
+                        <div class="text-[10px] text-teal-300/90 mb-1.5 uppercase tracking-wider">Meta-Prompt Synthesis</div>
+                        <pre id="meta-prompt" class="text-[11px] text-slate-200 whitespace-pre-wrap leading-relaxed"></pre>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
+                        <div class="bg-desk-800 border border-red-900/40 rounded-lg p-3.5 overflow-x-auto">
+                            <div class="text-[10px] text-red-400 mb-2 font-bold">BEFORE</div>
+                            <pre id="diff-before" class="text-slate-400 text-[11px]"></pre>
+                        </div>
+                        <div class="bg-desk-800 border border-emerald-900/40 rounded-lg p-3.5 overflow-x-auto">
+                            <div class="text-[10px] text-emerald-400 mb-2 font-bold">AFTER</div>
+                            <pre id="diff-after" class="text-slate-200 text-[11px]"></pre>
+                        </div>
+                    </div>
+                    <div id="audit-receipt" class="hidden rounded-lg border border-teal-500/40 bg-teal-500/10 p-4">
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <div id="receipt-label" class="text-[10px] text-teal-300 uppercase tracking-wider">Visual Audit Receipt</div>
+                            <span id="receipt-time" class="text-[10px] text-teal-200/80"></span>
+                        </div>
+                        <div class="space-y-2 text-[11px]">
+                            <div><span class="text-slate-500">signature</span><br><span id="receipt-sig" class="text-teal-100 break-all"></span></div>
+                            <div><span class="text-slate-500">payload hash</span><br><span id="receipt-hash" class="text-indigo-200 break-all"></span></div>
+                            <div class="text-slate-400">ledger <strong id="receipt-ledger" class="text-indigo-300 font-normal break-all"></strong> · #<span id="receipt-prov"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-0 left-0 right-0 p-3 md:p-4 border-t border-desk-700 bg-desk-800/95 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-2 z-20">
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <button id="btn-reject" type="button" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-rose-950/40 border border-desk-600 rounded-lg text-xs text-slate-300">Reject</button>
+                        <button id="btn-delegate" type="button" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-desk-700 hover:bg-desk-600 border border-desk-600 rounded-lg text-xs text-slate-300">Delegate</button>
+                    </div>
+                    <button id="btn-sign" type="button" class="w-full sm:w-auto px-6 py-3.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold tracking-wider">
+                        YES: AUTHORIZE &amp; SIGN [ENTER]
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+
+    <!--
+      Single-file desk. This module is inline so the page still runs when it
+      is opened outside the daemon. If http://localhost:3000 is down, boot()
+      falls into simulation instead of throwing.
+    -->
+    <script type="module">
+        const RISK_CLASS = {
+            critical: 'bg-rose-500/10 text-rose-400 border-rose-500/30 critical-glow',
+            high: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+            medium: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+            low: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+        }
+
+        const app = {
+            cards: [],
+            selectedId: null,
+            simulation: false,
+            online: false,
+            busy: false,
+            receipts: new Map(),
+            daemon: resolveDaemon(),
+        }
+
+        function resolveDaemon() {
+            const params = new URLSearchParams(location.search)
+            const fromQuery = params.get('daemon') || params.get('api')
+            if (fromQuery) return fromQuery.replace(/\/$/, '')
+            if ((location.protocol === 'http:' || location.protocol === 'https:') && location.port === '3000') {
+                return location.origin
+            }
+            return 'http://localhost:3000'
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+        }
+
+        function riskClass(level) {
+            return RISK_CLASS[level] || 'bg-desk-700 text-slate-300 border-desk-600'
+        }
+
+        function compareRiskThenFifo(a, b) {
+            const order = { critical: 0, high: 1, medium: 2, low: 3 }
+            const ra = order[a.payload?.riskLevel] ?? 9
+            const rb = order[b.payload?.riskLevel] ?? 9
+            if (ra !== rb) return ra - rb
+            return (a.payload?.timestamp || 0) - (b.payload?.timestamp || 0)
+        }
+
+        function toast(message) {
+            const el = document.getElementById('toast')
+            el.textContent = message
+            el.classList.remove('hidden')
+            clearTimeout(toast._t)
+            toast._t = setTimeout(() => el.classList.add('hidden'), 2800)
+        }
+
+        function icons() {
+            if (window.lucide) window.lucide.createIcons()
+        }
+
+        async function api(path, options = {}) {
+            const res = await fetch(app.daemon + path, {
+                ...options,
+                headers: { 'content-type': 'application/json', ...(options.headers || {}) },
+            })
+            const body = await res.json().catch(() => ({}))
+            if (!res.ok) throw new Error(body.error || res.statusText || 'request failed')
+            return body
+        }
+
+        async function probe() {
+            const ctrl = new AbortController()
+            const timer = setTimeout(() => ctrl.abort(), 2500)
+            try {
+                const res = await fetch(app.daemon + '/health', { signal: ctrl.signal })
+                if (!res.ok) return null
+                return await res.json()
+            } catch {
+                return null
+            } finally {
+                clearTimeout(timer)
+            }
+        }
+
+        function seedSimulation() {
+            const samples = [
+                ['critical', 'Cross-chain bridge', 'BRIDGE_TRANSFER', 'Review a transfer proposal. Simulation will not broadcast.'],
+                ['high', 'GoHighLevel', 'GHL_CONTACT_CREATE', 'Inbound lead waiting for a CRM write-back. Nothing has been sent.'],
+                ['medium', 'SmartHQ', 'SMARTHQ_CYCLE_COMPLETE', 'Dryer cycle reported. Hold the notification until you say yes.'],
+            ]
+            const now = Date.now()
+            app.cards = samples.map((sample, index) => ({
+                cardId: 'sim-' + (index + 1),
+                status: 'pending',
+                payload: {
+                    agentId: 'agent_sim',
+                    packName: sample[1],
+                    actionType: sample[2],
+                    riskLevel: sample[0],
+                    targetEndpoint: 'simulation://local',
+                    summary: sample[3],
+                    diffData: {
+                        before: { status: 'paused' },
+                        after: { status: 'awaiting_human_yes' },
+                    },
+                    metaPrompt: {
+                        source: 'local',
+                        systemPrompt: 'Simulation desk. Draft only.',
+                        agentInstructions: sample[3],
+                        constraints: ['No ledger write in simulation', 'Enter or click to authorize locally'],
+                    },
+                    timestamp: now - index * 1000,
+                },
+            }))
+            app.cards.sort(compareRiskThenFifo)
+            app.selectedId = app.cards[0]?.cardId || null
+        }
+
+        function enterSimulation(reason) {
+            app.simulation = true
+            app.online = false
+            if (!app.cards.length) seedSimulation()
+            document.getElementById('mode-banner').classList.remove('hidden')
+            document.getElementById('mode-banner').textContent =
+                'SIMULATION — ' + (reason || 'daemon offline') + '. The desk stays usable. Nothing is written to ledger.ndjson.'
+            document.getElementById('link-status').textContent = 'SIM'
+            document.getElementById('footer-status').textContent = 'SIMULATION'
+            document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0'
+            document.getElementById('key-status').textContent = 'LOCAL'
+            document.getElementById('ledger-hash').textContent = 'simulation'
+            render()
+        }
+
+        function applyHealth(health) {
+            app.simulation = false
+            app.online = true
+            document.getElementById('mode-banner').classList.add('hidden')
+            document.getElementById('link-status').textContent = 'LIVE'
+            document.getElementById('footer-status').textContent = health.dryRun ? 'DRY-RUN' : 'LIVE'
+            document.getElementById('node-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0'
+            document.getElementById('key-status').textContent = health.publicKey || '—'
+            document.getElementById('ledger-hash').textContent = health.ledgerTip || '—'
+        }
+
+        function metaText(card) {
+            const meta = card?.payload?.metaPrompt
+            if (!meta) return 'No meta-prompt attached.'
+            const lines = [
+                'source: ' + (meta.source || 'unknown'),
+                '',
+                meta.systemPrompt || '',
+                '',
+                meta.agentInstructions || '',
+            ]
+            if (Array.isArray(meta.constraints) && meta.constraints.length) {
+                lines.push('', 'constraints:')
+                for (const line of meta.constraints) lines.push('- ' + line)
+            }
+            return lines.join('\n')
+        }
+
+        function showReceipt(receipt, cardId) {
+            if (cardId) app.receipts.set(cardId, receipt)
+            const strip = document.getElementById('last-audit-strip')
+            const hashEl = document.getElementById('last-audit-hash')
+            strip.classList.remove('hidden')
+            const label = receipt.simulated ? 'sim' : 'signed'
+            hashEl.textContent = label + ' · ' + String(receipt.payloadHash || receipt.signature || '—').slice(0, 24)
+            if (receipt.ledgerTip && !receipt.simulated) {
+                document.getElementById('ledger-hash').textContent = receipt.ledgerTip
+            }
+        }
+
+        function fillReceipt(receipt) {
+            const el = document.getElementById('audit-receipt')
+            if (!receipt) {
+                el.classList.add('hidden')
+                document.getElementById('sig-badge').classList.add('hidden')
+                return
+            }
+            el.classList.remove('hidden')
+            document.getElementById('receipt-label').textContent = receipt.simulated
+                ? 'Simulated receipt — not a ledger proof'
+                : 'Visual Audit Receipt'
+            document.getElementById('receipt-sig').textContent = receipt.signature || '—'
+            document.getElementById('receipt-hash').textContent = receipt.payloadHash || '—'
+            document.getElementById('receipt-ledger').textContent = receipt.ledgerTip || '—'
+            document.getElementById('receipt-prov').textContent = receipt.provenanceId ?? '—'
+            document.getElementById('receipt-time').textContent = new Date(receipt.signedAt || Date.now()).toLocaleString()
+            const badge = document.getElementById('sig-badge')
+            if (receipt.verified && !receipt.simulated) {
+                badge.classList.remove('hidden')
+                badge.textContent = 'Ed25519 verified'
+            } else {
+                badge.classList.remove('hidden')
+                badge.textContent = 'Simulated'
+            }
+        }
+
+        function openInspector() {
+            const wrapper = document.getElementById('inspector-wrapper')
+            wrapper.classList.remove('translate-x-full')
+            wrapper.classList.add('translate-x-0')
+        }
+
+        function closeInspector() {
+            const wrapper = document.getElementById('inspector-wrapper')
+            wrapper.classList.add('translate-x-full')
+            wrapper.classList.remove('translate-x-0')
+        }
+
+        /** Rebuild the queue and inspector from app.cards. Call after every mutation. */
+        function render() {
+            const listEl = document.getElementById('queue-list')
+            document.getElementById('queue-count').textContent = String(app.cards.length)
+            if (!app.cards.length) {
+                listEl.innerHTML = '<div class="text-center py-16 text-slate-500 text-xs">QUEUE CLEAR<br><span class="text-[10px] text-slate-600">Waiting for a human-gated card</span></div>'
+            } else {
+                listEl.innerHTML = app.cards.map((card) => {
+                    const selected = card.cardId === app.selectedId
+                    const level = card.payload?.riskLevel || 'low'
+                    const selectedClass = selected
+                        ? 'bg-desk-700/80 border-indigo-500/50'
+                        : 'bg-desk-800/40 border-desk-700/60 hover:border-desk-600'
+                    return (
+                        '<button type="button" data-card-id="' + escapeHtml(card.cardId) + '" class="w-full text-left p-3.5 rounded-xl border transition ' + selectedClass + '">' +
+                        '<div class="flex items-center justify-between mb-2 gap-2">' +
+                        '<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ' + riskClass(level) + '">' + escapeHtml(level) + '</span>' +
+                        '<span class="text-[10px] text-slate-500">' + escapeHtml(new Date(card.payload.timestamp || Date.now()).toLocaleTimeString()) + '</span>' +
+                        '</div>' +
+                        '<div class="font-semibold text-slate-200 truncate mb-1">' + escapeHtml(card.payload.packName) + '</div>' +
+                        '<div class="text-[11px] text-slate-400 truncate">' + escapeHtml(card.payload.actionType) + '</div>' +
+                        '</button>'
+                    )
+                }).join('')
+            }
+
+            const card = app.cards.find((item) => item.cardId === app.selectedId)
+            const empty = document.getElementById('empty-state')
+            const content = document.getElementById('inspector-content')
+            if (!card) {
+                empty.classList.remove('hidden')
+                empty.classList.add('md:flex')
+                content.classList.add('hidden')
+                return
+            }
+            empty.classList.add('hidden')
+            empty.classList.remove('md:flex')
+            content.classList.remove('hidden')
+            document.getElementById('mobile-card-id').textContent = card.cardId
+            const badge = document.getElementById('card-risk-badge')
+            const level = card.payload.riskLevel || 'low'
+            badge.textContent = level + ' risk'
+            badge.className = 'text-[10px] px-2.5 py-0.5 rounded font-bold uppercase border ' + riskClass(level)
+            document.getElementById('card-pack-name').textContent = card.payload.packName || ''
+            document.getElementById('card-title').textContent = card.payload.actionType || ''
+            document.getElementById('card-endpoint').textContent = card.payload.targetEndpoint || '—'
+            document.getElementById('card-agent-id').textContent = card.payload.agentId || '—'
+            document.getElementById('card-summary').textContent = card.payload.summary || ''
+            document.getElementById('meta-prompt').textContent = metaText(card)
+            document.getElementById('diff-before').textContent = JSON.stringify(card.payload.diffData?.before || {}, null, 2)
+            document.getElementById('diff-after').textContent = JSON.stringify(card.payload.diffData?.after || {}, null, 2)
+            fillReceipt(app.receipts.get(card.cardId) || null)
+            icons()
+        }
+
+        function selectCard(id) {
+            app.selectedId = id
+            if (window.innerWidth < 768) openInspector()
+            render()
+        }
+
+        async function refresh() {
+            const queue = await api('/queue?status=pending')
+            app.cards = (queue.cards || []).slice().sort(compareRiskThenFifo)
+            if (!app.selectedId || !app.cards.some((card) => card.cardId === app.selectedId)) {
+                app.selectedId = app.cards[0]?.cardId || null
+            }
+            if (queue.ledgerTip) document.getElementById('ledger-hash').textContent = queue.ledgerTip
+            render()
+        }
+
+        async function simulateInbound() {
+            if (app.busy) return
+            app.busy = true
+            try {
+                if (app.simulation) {
+                    const card = {
+                        cardId: 'sim-' + Date.now().toString(36),
+                        status: 'pending',
+                        payload: {
+                            agentId: 'agent_sim',
+                            packName: 'GoHighLevel',
+                            actionType: 'GHL_CONTACT_CREATE',
+                            riskLevel: 'high',
+                            targetEndpoint: 'simulation://ghl',
+                            summary: 'Simulated inbound lead. Authorize locally — the daemon is not in this loop.',
+                            diffData: { before: { status: 'inbound' }, after: { status: 'pending_human_yes' } },
+                            metaPrompt: {
+                                source: 'local',
+                                systemPrompt: 'Simulation synthesizer.',
+                                agentInstructions: 'Draft a review card only.',
+                                constraints: ['Do not claim a ledger write'],
+                            },
+                            timestamp: Date.now(),
+                        },
+                    }
+                    app.cards.push(card)
+                    app.cards.sort(compareRiskThenFifo)
+                    app.selectedId = card.cardId
+                    if (window.innerWidth < 768) openInspector()
+                    render()
+                    toast('Queued simulation card')
+                    return
+                }
+                const queued = await api('/webhook/ghl', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        type: 'ContactCreate',
+                        packName: 'GoHighLevel',
+                        contactId: 'sim-' + Math.random().toString(36).slice(2, 8),
+                        contact: { tags: ['inbound'], status: 'open' },
+                    }),
+                })
+                await refresh()
+                app.selectedId = queued.cardId
+                if (window.innerWidth < 768) openInspector()
+                render()
+                toast('Queued ' + String(queued.cardId).slice(0, 18))
+            } catch (err) {
+                toast(err.message || 'Simulate failed')
+            } finally {
+                app.busy = false
+            }
+        }
+
+        async function signSelected() {
+            if (!app.selectedId || app.busy) return
+            const cardId = app.selectedId
+            const card = app.cards.find((item) => item.cardId === cardId)
+            if (!card) return
+            app.busy = true
+            try {
+                if (app.simulation) {
+                    const receipt = {
+                        simulated: true,
+                        verified: false,
+                        signature: 'sim-not-a-ledger-proof',
+                        payloadHash: 'sim-' + cardId,
+                        ledgerTip: 'simulation',
+                        provenanceId: 'sim',
+                        signedAt: Date.now(),
+                    }
+                    showReceipt(receipt, cardId)
+                    app.cards = app.cards.filter((item) => item.cardId !== cardId)
+                    app.selectedId = app.cards[0]?.cardId || null
+                    render()
+                    toast('Simulated authorize — ledger unchanged')
+                    return
+                }
+                const result = await api('/api/sign', {
+                    method: 'POST',
+                    body: JSON.stringify({ cardId, confirm: true }),
+                })
+                showReceipt(result, cardId)
+                fillReceipt(result)
+                toast('Signed · ledger #' + result.provenanceId + (result.dispatch?.dryRun ? ' · dry-run' : ''))
+                await refresh()
+            } catch (err) {
+                toast(err.message || 'Authorize failed')
+            } finally {
+                app.busy = false
+            }
+        }
+
+        async function postAction(kind) {
+            if (!app.selectedId || app.busy) return
+            const cardId = app.selectedId
+            app.busy = true
+            try {
+                if (app.simulation) {
+                    app.cards = app.cards.filter((item) => item.cardId !== cardId)
+                    app.selectedId = app.cards[0]?.cardId || null
+                    render()
+                    toast(kind + ' (simulation)')
+                    return
+                }
+                await api('/queue/' + encodeURIComponent(cardId) + '/' + kind, {
+                    method: 'POST',
+                    body: JSON.stringify({ confirm: true }),
+                })
+                toast(kind + ' signed')
+                await refresh()
+                if (window.innerWidth < 768 && !app.selectedId) closeInspector()
+            } catch (err) {
+                toast(err.message || kind + ' failed')
+            } finally {
+                app.busy = false
+            }
+        }
+
+        document.getElementById('queue-list').addEventListener('click', (event) => {
+            const row = event.target.closest('[data-card-id]')
+            if (row) selectCard(row.getAttribute('data-card-id'))
+        })
+        document.getElementById('btn-simulate').addEventListener('click', () => { simulateInbound() })
+        document.getElementById('btn-sign').addEventListener('click', () => { signSelected() })
+        document.getElementById('btn-reject').addEventListener('click', () => { postAction('reject') })
+        document.getElementById('btn-delegate').addEventListener('click', () => { postAction('delegate') })
+        document.getElementById('btn-back').addEventListener('click', closeInspector)
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || event.repeat) return
+            const tag = event.target && event.target.tagName
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target.isContentEditable) return
+            event.preventDefault()
+            signSelected()
+        })
+
+        async function boot() {
+            try {
+                const health = await probe()
+                if (!health) {
+                    enterSimulation('http://localhost:3000 is offline')
+                    return
+                }
+                applyHealth(health)
+                await refresh()
+            } catch (err) {
+                enterSimulation(err && err.message ? err.message : 'daemon unreachable')
+            }
+        }
+
+        boot()
+    </script>
+</body>
+</html>
