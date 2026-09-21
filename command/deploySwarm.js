@@ -76,11 +76,16 @@ export function createSwarm(packsDir) {
         targetEndpoint: `swarm://packs/${pack.id}`,
         method: 'POST',
         summary: `Arm pack "${pack.name}" on this node. Nothing in the pack runs until you authorize.`,
+        metaPrompt:
+          `You are the ${pack.name} swarm agent. Draft only. ` +
+          'Never arm, send, pay, or broadcast without an explicit human YES.',
         diffData: {
           before: { armed: false, rails: pack.rails },
           after: { armed: true, packId: pack.id },
         },
+        resourceCost: { amount: '0', token: 'none' },
         source: 'swarm',
+        nextRecommendation: `Confirm arming "${pack.name}", then Yes to authorize or Stop to abort.`,
         timestamp: Date.now(),
       }
     },

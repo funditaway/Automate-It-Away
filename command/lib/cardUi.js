@@ -13,6 +13,9 @@ export const DEFAULT_CARD_UI = {
     { id: 'risk', label: 'Risk', path: 'payload.riskLevel', kind: 'badge' },
     { id: 'endpoint', label: 'Target Endpoint', path: 'payload.targetEndpoint', kind: 'mono' },
     { id: 'summary', label: 'Execution Summary', path: 'payload.summary', kind: 'text' },
+    { id: 'meta', label: 'Meta Prompt', path: 'payload.metaPrompt', kind: 'text' },
+    { id: 'cost', label: 'Resource Cost', path: 'payload.resourceCost', kind: 'cost' },
+    { id: 'next', label: 'Next Recommendation', path: 'payload.nextRecommendation', kind: 'text' },
     { id: 'diff', label: 'Payload Diff', path: 'payload.diffData', kind: 'diff' },
   ],
   actions: {

@@ -2,8 +2,10 @@
  * In-memory decision-card queue.
  * Pending cards are not ledger entries. Only an explicit human
  * authorize / reject / delegate commits a signed line.
+ *
+ * Every enqueue goes through the universal Active Decision Card schema.
  */
-import { randomBytes } from 'node:crypto'
+import { newCardId, normalizeDecisionPayload, toUniversalDecisionCard } from './decisionCard.js'
 
 const RISK_ORDER = { critical: 0, high: 1, medium: 2, low: 3 }
 
@@ -19,19 +21,19 @@ export class CardQueue {
     this.cards = new Map()
   }
 
-  add(payload) {
-    const now = Number(payload?.timestamp) || Date.now()
-    const cardId = 'card_' + randomBytes(8).toString('hex')
+  add(partial) {
+    const universal = toUniversalDecisionCard(partial, partial?.cardId || newCardId())
+    const now = universal.payload.timestamp
     const card = {
-      cardId,
+      cardId: universal.cardId,
       status: 'pending',
-      payload: { ...payload, timestamp: now },
+      payload: normalizeDecisionPayload({ ...universal.payload, timestamp: now }),
       signature: null,
       payloadHash: null,
       createdAt: now,
       updatedAt: now,
     }
-    this.cards.set(cardId, card)
+    this.cards.set(card.cardId, card)
     return card
   }
 

@@ -29,6 +29,7 @@ function mustExist(rel) {
   'ecosystem.config.cjs',
   'start.sh',
   'public/index.html',
+  'lib/decisionCard.js',
 ].forEach(mustExist)
 
 const server = fs.readFileSync(path.join(command, 'server.js'), 'utf8')
@@ -51,9 +52,42 @@ const ledger = fs.readFileSync(path.join(command, 'lib', 'ledger.js'), 'utf8')
 if (ledger.indexOf('sha256') < 0 && ledger.indexOf('payloadHash') < 0) fail('ledger missing hash proof')
 
 const desk = fs.readFileSync(path.join(command, 'public', 'index.html'), 'utf8')
-;['bg-desk-900', 'keydown', 'enterSimulation', 'localhost:3000', 'YES: AUTHORIZE'].forEach((bit) => {
+;[
+  'bg-desk-900',
+  'keydown',
+  'enterSimulation',
+  'localhost:3000',
+  'YES: AUTHORIZE',
+  'card-next',
+  'nextRecommendation',
+].forEach((bit) => {
   if (desk.indexOf(bit) < 0) fail('public/index.html missing ' + bit)
 })
+
+const decisionCard = fs.readFileSync(path.join(command, 'lib', 'decisionCard.js'), 'utf8')
+;[
+  'toUniversalDecisionCard',
+  'normalizeDecisionPayload',
+  'metaPromptToString',
+  'nextRecommendation',
+].forEach((bit) => {
+  if (decisionCard.indexOf(bit) < 0) fail('lib/decisionCard.js missing ' + bit)
+})
+
+const webhook = fs.readFileSync(path.join(command, 'webhookIngest.js'), 'utf8')
+;['buildDecisionPayload', 'normalizeDecisionPayload', 'nextRecommendation'].forEach((bit) => {
+  if (webhook.indexOf(bit) < 0) fail('webhookIngest.js missing ' + bit)
+})
+
+const bridge = fs.readFileSync(path.join(command, 'bridgeModule.js'), 'utf8')
+;['adaptPackEvent', 'buildBridgePayload', 'normalizeDecisionPayload'].forEach((bit) => {
+  if (bridge.indexOf(bit) < 0) fail('bridgeModule.js missing ' + bit)
+})
+
+const rules = fs.readFileSync(path.join(root, '.cursorrules'), 'utf8')
+if (rules.indexOf('Standardized Decision Payload Format') < 0) {
+  fail('.cursorrules missing Integration Pack & Webhook Standards')
+}
 
 const start = fs.readFileSync(path.join(command, 'start.sh'), 'utf8')
 if (start.indexOf('doctor.js') < 0 || start.indexOf('server.js') < 0) fail('start.sh must run doctor and the daemon')
