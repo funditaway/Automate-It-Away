@@ -1,6 +1,6 @@
 import { createHash, generateKeyPairSync, sign as cryptoSign, verify as cryptoVerify } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
 export interface LocalKeypair {
   publicKeyPem: string
@@ -44,14 +44,41 @@ export function defaultKeyDir(baseDir: string): string {
   return join(baseDir, '.keys')
 }
 
-export function loadOrCreateKeypair(keyDir: string): LocalKeypair {
-  mkdirSync(keyDir, { recursive: true })
-  const pubPath = join(keyDir, 'ed25519.pub.pem')
-  const privPath = join(keyDir, 'ed25519.pem')
+/** Standard filenames (Cryptography & Immutable Ledger Standards). */
+export const PRIVATE_KEY_FILE = 'private_key.pem'
+export const PUBLIC_KEY_FILE = 'public_key.pem'
 
-  if (existsSync(pubPath) && existsSync(privPath)) {
-    const publicKeyPem = readFileSync(pubPath, 'utf8')
-    const privateKeyPem = readFileSync(privPath, 'utf8')
+/** Legacy filenames kept for backward compatibility with existing installs. */
+const LEGACY_PRIVATE_KEY_FILE = 'ed25519.pem'
+const LEGACY_PUBLIC_KEY_FILE = 'ed25519.pub.pem'
+
+function resolveExistingKeyPaths(keyDir: string): { pubPath: string; privPath: string } | null {
+  const standard = {
+    pubPath: join(keyDir, PUBLIC_KEY_FILE),
+    privPath: join(keyDir, PRIVATE_KEY_FILE),
+  }
+  if (existsSync(standard.pubPath) && existsSync(standard.privPath)) return standard
+
+  const legacy = {
+    pubPath: join(keyDir, LEGACY_PUBLIC_KEY_FILE),
+    privPath: join(keyDir, LEGACY_PRIVATE_KEY_FILE),
+  }
+  if (existsSync(legacy.pubPath) && existsSync(legacy.privPath)) return legacy
+
+  return null
+}
+
+/**
+ * Ensure Ed25519 private_key.pem / public_key.pem exist on startup.
+ * Loads existing keys (standard or legacy names); otherwise generates a fresh pair.
+ */
+export function loadOrCreateKeypair(keyDir: string): LocalKeypair {
+  mkdirSync(keyDir, { recursive: true, mode: 0o700 })
+
+  const existing = resolveExistingKeyPaths(keyDir)
+  if (existing) {
+    const publicKeyPem = readFileSync(existing.pubPath, 'utf8')
+    const privateKeyPem = readFileSync(existing.privPath, 'utf8')
     return {
       publicKeyPem,
       privateKeyPem,
@@ -59,22 +86,26 @@ export function loadOrCreateKeypair(keyDir: string): LocalKeypair {
     }
   }
 
+  const pubPath = join(keyDir, PUBLIC_KEY_FILE)
+  const privPath = join(keyDir, PRIVATE_KEY_FILE)
   const { publicKey, privateKey } = generateKeyPairSync('ed25519')
   const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString()
   const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
   writeFileSync(pubPath, publicKeyPem, { mode: 0o600 })
   writeFileSync(privPath, privateKeyPem, { mode: 0o600 })
-  // Ensure parent dir is restrictive when possible
-  try {
-    mkdirSync(dirname(privPath), { recursive: true, mode: 0o700 })
-  } catch {
-    /* ignore */
-  }
 
   return {
     publicKeyPem,
     privateKeyPem,
     publicKeyHex: pemToRawPublicHex(publicKeyPem),
+  }
+}
+
+/** Paths for standard key files (may not exist yet). */
+export function standardKeyPaths(keyDir: string): { publicKeyPath: string; privateKeyPath: string } {
+  return {
+    publicKeyPath: join(keyDir, PUBLIC_KEY_FILE),
+    privateKeyPath: join(keyDir, PRIVATE_KEY_FILE),
   }
 }
 

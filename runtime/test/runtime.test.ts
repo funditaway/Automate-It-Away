@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { VaultDb } from '../src/db.js'
@@ -10,7 +10,17 @@ import {
   payloadHash,
   signCanonical,
   verifyCanonical,
+  PRIVATE_KEY_FILE,
+  PUBLIC_KEY_FILE,
 } from '../src/crypto.js'
+import {
+  appendLedgerEntry,
+  buildLedgerTransaction,
+  defaultLedgerPath,
+  readLedgerEntries,
+  signLedgerTransaction,
+  verifyLedgerEntries,
+} from '../src/ledger.js'
 import { createApp } from '../src/server.js'
 import { SandboxManager } from '../src/sandboxManager.js'
 import { cardFromGhlWebhook, dispatchToGhl } from '../src/ghl.js'
@@ -49,6 +59,65 @@ describe('crypto', () => {
     assert.equal(verifyCanonical(kp.publicKeyPem, payload, sig), true)
     assert.equal(verifyCanonical(kp.publicKeyPem, { ...payload, cardId: 'other' }, sig), false)
     rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('writes standard private_key.pem / public_key.pem on first boot', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'aia-keys-std-'))
+    loadOrCreateKeypair(dir)
+    assert.equal(existsSync(join(dir, PRIVATE_KEY_FILE)), true)
+    assert.equal(existsSync(join(dir, PUBLIC_KEY_FILE)), true)
+    const again = loadOrCreateKeypair(dir)
+    assert.match(again.publicKeyHex, /^[0-9a-f]{64}$/i)
+    rmSync(dir, { recursive: true, force: true })
+  })
+})
+
+describe('append-only ledger.ndjson', () => {
+  it('hashes, signs, appends, and verifies with [PASS]/[FAIL] semantics', () => {
+    const ws = tempWorkspace()
+    const kp = loadOrCreateKeypair(ws.keyDir)
+    const card = {
+      cardId: 'card_ledger_1',
+      status: 'pending' as const,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      payload: {
+        agentId: 'agent_x',
+        packName: 'Pack',
+        actionType: 'GHL_UPDATE',
+        riskLevel: 'high' as const,
+        targetEndpoint: 'https://services.leadconnectorhq.com/contacts/1',
+        summary: 'update tags',
+        diffData: { before: { tags: [] }, after: { tags: ['nurture'] } },
+        timestamp: Date.now(),
+        source: 'manual' as const,
+      },
+    }
+    const tx = buildLedgerTransaction(card)
+    const entry = signLedgerTransaction(kp.privateKeyPem, tx)
+    assert.match(entry.hash, /^[0-9a-f]{64}$/i)
+    assert.match(entry.signature, /^[0-9a-f]{128}$/i)
+    assert.equal(entry.hash, payloadHash(tx))
+
+    const ledgerPath = defaultLedgerPath(ws.dataDir)
+    appendLedgerEntry(ledgerPath, entry)
+    const loaded = readLedgerEntries(ledgerPath)
+    assert.equal(loaded.length, 1)
+    assert.equal(loaded[0].tx.cardId, 'card_ledger_1')
+    assert.deepEqual(loaded[0].tx.diffData, card.payload.diffData)
+
+    const results = verifyLedgerEntries(loaded, kp.publicKeyPem)
+    assert.equal(results[0].pass, true)
+    assert.equal(results[0].hashOk, true)
+    assert.equal(results[0].sigOk, true)
+
+    const tampered = structuredClone(loaded)
+    tampered[0].hash = '0'.repeat(64)
+    const bad = verifyLedgerEntries(tampered, kp.publicKeyPem)
+    assert.equal(bad[0].pass, false)
+    assert.equal(bad[0].hashOk, false)
+
+    rmSync(ws.root, { recursive: true, force: true })
   })
 })
 
@@ -347,6 +416,20 @@ describe('realtime + /api/sign', () => {
     assert.ok(sigBody.payloadHash)
     assert.ok(sigBody.provenanceId >= 1)
     assert.ok(events.includes('hello'))
+
+    const ledgerPath = defaultLedgerPath(ws.dataDir)
+    assert.equal(existsSync(ledgerPath), true)
+    const ndjson = readFileSync(ledgerPath, 'utf8').trim().split('\n')
+    assert.equal(ndjson.length, 1)
+    const line = JSON.parse(ndjson[0]) as {
+      tx: { cardId: string; targetEndpoint: string; diffData?: unknown }
+      hash: string
+      signature: string
+    }
+    assert.equal(line.tx.cardId, cardBody.card.cardId)
+    assert.equal(line.hash, sigBody.payloadHash)
+    assert.equal(line.signature, sigBody.signature)
+    assert.match(line.tx.targetEndpoint, /leadconnectorhq/)
 
     try { reader.cancel() } catch { /* ignore */ }
     server.close()
