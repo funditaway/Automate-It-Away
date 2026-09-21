@@ -198,6 +198,15 @@ if (tips.indexOf("Orange means wait — HOLD. Not Collect.") < 0) {
   fail("more-status tip must say Orange means wait — HOLD");
 }
 pass("more-status tip drops P1");
+if (needs.indexOf("Grok drafted on the card") >= 0 || queueJs.indexOf("Grok drafted on the card") >= 0) {
+  fail("Queue Ask must not say Grok drafted on the card");
+}
+if (needs.indexOf("A Desk AI drafted on the card") < 0 && needs.indexOf("A Desk AI can't draft on this phone yet.") < 0) {
+  fail("Queue Ask must use Desk AI voice");
+} else pass("Queue Ask uses Desk AI voice");
+if (yesNo.indexOf("Counter Desk AI voice leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record Counter Desk AI voice leftover");
+} else pass("ACCOUNT-YES-NO records Counter Desk AI voice leftover");
 
 const ctx = {
   window: {},

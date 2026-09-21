@@ -292,5 +292,13 @@ if (moreHtml.indexOf("not P1") >= 0 || moreHtml.indexOf("draft key") >= 0 || mor
 if (tip.indexOf("not P1") >= 0 || tip.indexOf("paint from health") >= 0) {
   throw new Error("aia-tip still names P1 / paint from health");
 }
+if (moreHtml.indexOf("Thin JSON") >= 0 || moreHtml.indexOf("MX/DNS") >= 0) {
+  throw new Error("more.html still names Thin JSON / MX/DNS");
+}
+if (tip.indexOf("until the key is set") >= 0) {
+  throw new Error("aia-tip still names until the key is set");
+}
+must(yesNo, "Counter Desk AI voice leftover after that pass", "ACCOUNT-YES-NO names Counter Desk AI voice leftover");
+must(packMd, "Counter Desk AI voice leftover:", "PACK.md names Counter Desk AI voice leftover");
 
 console.log("check-aia-tip: ok");

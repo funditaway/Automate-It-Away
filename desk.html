@@ -168,7 +168,7 @@
     <div data-aia-playbook="compact"></div>
     <div class="item" id="desk-ais" hidden></div>
     <div class="item" id="aia-wallet"></div>
-    <p class="meta" id="widget-count">0 widgets on</p>
+    <p class="meta" id="widget-count">No Drop links yet</p>
     <div class="row" id="rule-widgets" style="margin-bottom:8px"></div>
     <p class="meta" id="queue-taps">Taps match what the card needs. Yes / Stop / Kill stay human.</p>
     <div id="queue-filters" hidden><button class="edit" type="button" data-filter="cap">Cap · orange</button></div>
@@ -288,7 +288,7 @@
     function paintWidgets(rules) {
       const on = (rules || []).filter((r) => r && r.widget && r.widget.on);
       const count = document.getElementById("widget-count");
-      if (count) count.textContent = on.length === 1 ? "1 widget on" : on.length + " widgets on";
+      if (count) count.textContent = on.length === 0 ? "No Drop links yet" : (on.length === 1 ? "1 Drop link on" : on.length + " Drop links on");
       const box = document.getElementById("rule-widgets");
       if (!box) return;
       const ws = workspaceSlug();

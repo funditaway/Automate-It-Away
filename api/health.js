@@ -106,20 +106,20 @@ async function health(req, res) {
       workspaces: mem.workspaces.length,
       live: driver === "blob" || driver === "file",
       note: driver === "blob"
-        ? "Shared blob — second phone can see the same queue"
+        ? "A second phone can see the same queue"
         : driver === "tmp-file"
-          ? "Lambda /tmp — Blob write did not stick"
+          ? "This desk did not keep the save"
           : driver === "file"
-            ? "File store on this box"
-            : "Memory only",
+            ? "Saved on this desk"
+            : "Not saved yet",
       blob: publicBlobProbe()
     },
     files: {
       driver: blobToken() ? "blob" : "tmp-file",
       count: (mem.files || []).length,
       note: blobToken()
-        ? "Vercel Blob live"
-        : "Files sit on this host only"
+        ? "Photos and files are saved"
+        : "Photos and files are not saved for long"
     },
     pipes: catalog(),
     automation: {
@@ -130,7 +130,7 @@ async function health(req, res) {
       follow: "worker + cron",
       inbound: "/api/hook",
       mail: require("./_aia-mail").statusOf(),
-      persist: (mem.driver === "blob") ? "shared blob" : "This host only until shared store is on",
+      persist: (mem.driver === "blob") ? "shared save" : "this desk may forget the save",
       ownerStops: ["kill"],
       grok: {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
@@ -149,10 +149,10 @@ async function health(req, res) {
             prompt,
             completion,
             dollars: Math.round(dollars * 10000) / 10000,
-            note: "List-price estimate on the fast model. Real invoice is on console.x.ai."
+            note: "List-price estimate on the fast model."
           };
         })(),
-        heavyChat: "SuperGrok Heavy is the chat plan. It does not fund this key.",
+        heavyChat: "SuperGrok Heavy is the chat plan. It does not turn drafts on.",
         note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
           ? "A Desk AI can draft."
           : "A Desk AI can't draft on this phone yet.",
@@ -177,7 +177,7 @@ async function health(req, res) {
       drafts: {
         included: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
         deskAccounts: (mem.connections || []).filter((c) => c && c.lane === "draft" && c.keyPacked).length,
-        note: "Owner connects a draft account on /connections. Chat login alone is not enough — paste the API key after login. Drafts only."
+        note: "Owner connects a draft account on Connections. A chat login is not enough. Drafts only."
       }
     },
     accounts: {

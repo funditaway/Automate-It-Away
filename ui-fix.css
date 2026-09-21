@@ -301,3 +301,12 @@ html.dark .item p {
     align-items: center;
   }
 }
+
+header .brand-mark, .site-header .brand-mark {
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none;
+}
+.stage video:not([src]), .stage video[src=""] {
+  background: url("/img/aia-pyramid-on-orange.svg") center/40% no-repeat #0a3d3d;
+}
