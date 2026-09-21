@@ -29,6 +29,36 @@ You are building **AIA (Automate It Away)**, a sovereign, local-first Command Ce
 
 These files live in `command/` so the repo-root CommonJS site and Vercel functions stay untouched. The desk terminal is the single file `command/public/index.html` (served at `http://127.0.0.1:3000/`). Ledger lines are appended to `command/data/ledger.ndjson` at runtime and are not committed. Express is the only external module; signing uses Node `crypto`.
 
+## Integration Pack & Webhook Standards
+
+When generating or updating webhook handlers (`webhookIngest.js`) or integration modules (`bridgeModule.js`, custom pack adapters):
+
+1. **Standardized Decision Payload Format:**
+   Every incoming webhook or telemetry event must be normalized into the universal Active Decision Card schema before hitting the HITL queue:
+   ```json
+   {
+     "cardId": "string (hex)",
+     "status": "pending",
+     "payload": {
+       "agentId": "string",
+       "packName": "string",
+       "actionType": "string",
+       "riskLevel": "low | medium | high | critical",
+       "targetEndpoint": "string (URL or MQTT topic)",
+       "summary": "string",
+       "metaPrompt": "string",
+       "diffData": { "before": {}, "after": {} },
+       "resourceCost": { "amount": "string", "token": "string" },
+       "timestamp": "number",
+       "nextRecommendation": "string"
+     }
+   }
+   ```
+   Use `command/lib/decisionCard.js` (`normalizeDecisionPayload`, `toUniversalDecisionCard`).
+   Webhooks go through `buildDecisionPayload` in `webhookIngest.js`.
+   Pack adapters use `adaptPackEvent` / `buildBridgePayload` in `bridgeModule.js`.
+   Never enqueue a raw channel body. Never auto-execute from ingest.
+
 ## Code Generation Guidelines
 - Keep code modular, well-commented, and robust.
 - When modifying frontend logic in `index.html`, preserve reactive queue updating, keyboard listeners, and risk badge coloring.

@@ -58,11 +58,22 @@ test('webhook ingest queues a card and does not sign the ledger', async () => {
     assert.equal(queued.body.executed, false)
     assert.equal(queued.body.status, 'pending')
     assert.equal(queued.body.synthesis, 'local')
+    assert.equal(queued.body.schema, 'active-decision-card')
+    assert.match(queued.body.cardId, /^[0-9a-f]{32}$/i)
     assert.equal(ledger.readEntries().length, 0)
 
     const queue = await request(base, '/queue?status=pending')
     assert.equal(queue.body.cards.length, 1)
-    assert.equal(queue.body.cards[0].payload.riskLevel, 'high')
+    const card = queue.body.cards[0]
+    assert.equal(card.payload.riskLevel, 'high')
+    assert.equal(typeof card.payload.metaPrompt, 'string')
+    assert.ok(card.payload.metaPrompt.length > 0)
+    assert.equal(typeof card.payload.nextRecommendation, 'string')
+    assert.ok(card.payload.nextRecommendation.length > 0)
+    assert.equal(typeof card.payload.resourceCost?.amount, 'string')
+    assert.equal(typeof card.payload.resourceCost?.token, 'string')
+    assert.equal(typeof card.payload.diffData?.before, 'object')
+    assert.equal(typeof card.payload.diffData?.after, 'object')
   })
 })
 
@@ -233,9 +244,15 @@ test('bridge proposals never broadcast and do not call fetch', async () => {
       assert.equal(proposed.status, 202)
       assert.equal(proposed.body.broadcast, false)
       assert.equal(proposed.body.executed, false)
+      assert.equal(proposed.body.schema, 'active-decision-card')
+      assert.match(proposed.body.cardId, /^[0-9a-f]{32}$/i)
       const card = (await request(base, '/queue?status=pending')).body.cards[0]
       assert.equal(card.payload.riskLevel, 'critical')
       assert.equal(card.payload.actionType, 'BRIDGE_TRANSFER')
+      assert.equal(typeof card.payload.metaPrompt, 'string')
+      assert.equal(typeof card.payload.nextRecommendation, 'string')
+      assert.equal(card.payload.resourceCost.amount, '0.01')
+      assert.equal(card.payload.resourceCost.token, 'ETH')
       assert.equal(called, 0)
     },
     {
@@ -245,6 +262,54 @@ test('bridge proposals never broadcast and do not call fetch', async () => {
       },
     },
   )
+})
+
+test('pack adapter events normalize to the universal Active Decision Card schema', async () => {
+  await withCenter(async ({ base }) => {
+    const queued = await request(base, '/api/pack/home/event', {
+      method: 'POST',
+      body: {
+        event: 'door.open',
+        summary: 'Front door reported open. Hold unlock.',
+        mqttTopic: 'home/doors/front',
+        riskLevel: 'high',
+      },
+    })
+    assert.equal(queued.status, 202)
+    assert.equal(queued.body.executed, false)
+    assert.equal(queued.body.schema, 'active-decision-card')
+    assert.match(queued.body.cardId, /^[0-9a-f]{32}$/i)
+    const card = (await request(base, '/queue?status=pending')).body.cards[0]
+    assert.equal(card.status, 'pending')
+    assert.equal(card.payload.targetEndpoint, 'home/doors/front')
+    assert.equal(typeof card.payload.metaPrompt, 'string')
+    assert.match(card.payload.nextRecommendation, /Yes|Stop|authorize/i)
+  })
+})
+
+test('decisionCard normalizer rejects incomplete payloads and coerces metaPrompt to string', async () => {
+  const { isUniversalDecisionCard, metaPromptToString, toUniversalDecisionCard } = await import(
+    '../lib/decisionCard.js'
+  )
+  assert.throws(() => toUniversalDecisionCard({ agentId: 'a' }), /targetEndpoint/)
+  const card = toUniversalDecisionCard({
+    agentId: 'agent_x',
+    packName: 'Test',
+    actionType: 'TEST_ACT',
+    riskLevel: 'low',
+    targetEndpoint: 'mqtt://desk/test',
+    summary: 'unit',
+    metaPrompt: {
+      source: 'local',
+      systemPrompt: 'Draft only.',
+      agentInstructions: 'Hold.',
+      constraints: ['no send'],
+    },
+  })
+  assert.equal(isUniversalDecisionCard(card), true)
+  assert.equal(typeof card.payload.metaPrompt, 'string')
+  assert.match(card.payload.metaPrompt, /Draft only/)
+  assert.match(metaPromptToString({ systemPrompt: 'x' }), /x/)
 })
 
 test('reject requires confirm and appends a signed line', async () => {

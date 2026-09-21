@@ -99,6 +99,9 @@ export function localSynthesis({ inbound, pack }) {
       },
       targetEndpoint: inbound?.targetEndpoint || '',
       method: inbound?.method || 'POST',
+      nextRecommendation:
+        inbound?.nextRecommendation ||
+        `Review the ${packName} diff for ${event}, then Yes to authorize or Stop to abort.`,
     },
   }
 }
@@ -142,6 +145,9 @@ function fromModel(parsed, inbound, pack) {
           : fallback.decision.diffData,
       targetEndpoint: String(parsed.targetEndpoint || fallback.decision.targetEndpoint || ''),
       method: String(parsed.method || fallback.decision.method || 'POST').toUpperCase(),
+      nextRecommendation: String(
+        parsed.nextRecommendation || fallback.decision.nextRecommendation || '',
+      ),
     },
   }
 }
@@ -168,7 +174,8 @@ async function callGrok({ inbound, pack, fetchImpl, apiKey, apiUrl, model }) {
               'You draft AIA decision cards. Reply with JSON only. ' +
               'Fields: summary, riskLevel (low|medium|high|critical), actionType, ' +
               'systemPrompt, agentInstructions, constraints (array of strings), ' +
-              'diffData {before, after}, card_ui {title, subtitle}. ' +
+              'diffData {before, after}, nextRecommendation (string), ' +
+              'card_ui {title, subtitle}. ' +
               'Never include secrets. Never claim an action already ran.',
           },
           { role: 'user', content: JSON.stringify(safe) },

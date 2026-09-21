@@ -137,6 +137,16 @@
                         <div class="text-[10px] text-slate-400 mb-1.5 uppercase tracking-wider">Execution Summary</div>
                         <p id="card-summary" class="text-xs md:text-sm text-slate-300 leading-relaxed"></p>
                     </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
+                            <div class="text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Resource Cost</div>
+                            <div id="card-cost" class="text-xs text-slate-200"></div>
+                        </div>
+                        <div class="bg-desk-800/60 border border-desk-700 rounded-lg p-3.5">
+                            <div class="text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Next Recommendation</div>
+                            <p id="card-next" class="text-xs text-slate-300 leading-relaxed"></p>
+                        </div>
+                    </div>
                     <div class="ai-shimmer border border-teal-500/25 rounded-lg p-3.5">
                         <div class="text-[10px] text-teal-300/90 mb-1.5 uppercase tracking-wider">Meta-Prompt Synthesis</div>
                         <pre id="meta-prompt" class="text-[11px] text-slate-200 whitespace-pre-wrap leading-relaxed"></pre>
@@ -270,13 +280,13 @@
 
         function seedSimulation() {
             const samples = [
-                ['critical', 'Cross-chain bridge', 'BRIDGE_TRANSFER', 'Review a transfer proposal. Simulation will not broadcast.'],
-                ['high', 'GoHighLevel', 'GHL_CONTACT_CREATE', 'Inbound lead waiting for a CRM write-back. Nothing has been sent.'],
-                ['medium', 'SmartHQ', 'SMARTHQ_CYCLE_COMPLETE', 'Dryer cycle reported. Hold the notification until you say yes.'],
+                ['critical', 'Cross-chain bridge', 'BRIDGE_TRANSFER', 'Review a transfer proposal. Simulation will not broadcast.', '0.01', 'ETH'],
+                ['high', 'GoHighLevel', 'GHL_CONTACT_CREATE', 'Inbound lead waiting for a CRM write-back. Nothing has been sent.', '0', 'none'],
+                ['medium', 'SmartHQ', 'SMARTHQ_CYCLE_COMPLETE', 'Dryer cycle reported. Hold the notification until you say yes.', '0', 'none'],
             ]
             const now = Date.now()
             app.cards = samples.map((sample, index) => ({
-                cardId: 'sim-' + (index + 1),
+                cardId: (index + 1).toString(16).padStart(32, '0'),
                 status: 'pending',
                 payload: {
                     agentId: 'agent_sim',
@@ -285,17 +295,17 @@
                     riskLevel: sample[0],
                     targetEndpoint: 'simulation://local',
                     summary: sample[3],
+                    metaPrompt:
+                        'source: local\n\nSimulation desk. Draft only.\n\n' +
+                        sample[3] +
+                        '\n\nconstraints:\n- No ledger write in simulation\n- Enter or click to authorize locally',
                     diffData: {
                         before: { status: 'paused' },
                         after: { status: 'awaiting_human_yes' },
                     },
-                    metaPrompt: {
-                        source: 'local',
-                        systemPrompt: 'Simulation desk. Draft only.',
-                        agentInstructions: sample[3],
-                        constraints: ['No ledger write in simulation', 'Enter or click to authorize locally'],
-                    },
+                    resourceCost: { amount: sample[4], token: sample[5] },
                     timestamp: now - index * 1000,
+                    nextRecommendation: 'Review the diff, then Yes to authorize or Stop to abort. Nothing runs until a human confirms.',
                 },
             }))
             app.cards.sort(compareRiskThenFifo)
@@ -331,6 +341,7 @@
         function metaText(card) {
             const meta = card?.payload?.metaPrompt
             if (!meta) return 'No meta-prompt attached.'
+            if (typeof meta === 'string') return meta
             const lines = [
                 'source: ' + (meta.source || 'unknown'),
                 '',
@@ -443,6 +454,12 @@
             document.getElementById('card-endpoint').textContent = card.payload.targetEndpoint || '—'
             document.getElementById('card-agent-id').textContent = card.payload.agentId || '—'
             document.getElementById('card-summary').textContent = card.payload.summary || ''
+            const cost = card.payload.resourceCost
+            document.getElementById('card-cost').textContent = cost
+                ? String(cost.amount || '0') + ' ' + String(cost.token || 'none')
+                : '0 none'
+            document.getElementById('card-next').textContent =
+                card.payload.nextRecommendation || 'Review the diff, then Yes to authorize or Stop to abort.'
             document.getElementById('meta-prompt').textContent = metaText(card)
             document.getElementById('diff-before').textContent = JSON.stringify(card.payload.diffData?.before || {}, null, 2)
             document.getElementById('diff-after').textContent = JSON.stringify(card.payload.diffData?.after || {}, null, 2)
@@ -472,7 +489,7 @@
             try {
                 if (app.simulation) {
                     const card = {
-                        cardId: 'sim-' + Date.now().toString(36),
+                        cardId: Date.now().toString(16).padStart(32, '0'),
                         status: 'pending',
                         payload: {
                             agentId: 'agent_sim',
@@ -481,14 +498,12 @@
                             riskLevel: 'high',
                             targetEndpoint: 'simulation://ghl',
                             summary: 'Simulated inbound lead. Authorize locally — the daemon is not in this loop.',
+                            metaPrompt:
+                                'source: local\n\nSimulation synthesizer.\n\nDraft a review card only.\n\nconstraints:\n- Do not claim a ledger write',
                             diffData: { before: { status: 'inbound' }, after: { status: 'pending_human_yes' } },
-                            metaPrompt: {
-                                source: 'local',
-                                systemPrompt: 'Simulation synthesizer.',
-                                agentInstructions: 'Draft a review card only.',
-                                constraints: ['Do not claim a ledger write'],
-                            },
+                            resourceCost: { amount: '0', token: 'none' },
                             timestamp: Date.now(),
+                            nextRecommendation: 'Review the CRM write-back, then Yes to authorize or Stop to abort.',
                         },
                     }
                     app.cards.push(card)
