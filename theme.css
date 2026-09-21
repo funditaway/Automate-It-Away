@@ -34,19 +34,19 @@
 html.dark {
   color-scheme: dark;
   --bg: var(--aia-night);
-  --bg-soft: color-mix(in srgb, var(--aia-night) 82%, white);
-  --ink: color-mix(in srgb, var(--aia-day) 96%, white);
-  --heading: color-mix(in srgb, var(--aia-teal) 18%, white);
-  --card: color-mix(in srgb, var(--aia-night) 72%, white);
-  --line: color-mix(in srgb, white 28%, var(--aia-night));
-  --muted: color-mix(in srgb, var(--aia-day) 78%, var(--aia-night));
-  --teal: color-mix(in srgb, var(--aia-teal) 58%, white);
-  --teal-deep: color-mix(in srgb, var(--aia-teal) 38%, white);
+  --bg-soft: #141b22;
+  --ink: #f3f7f8;
+  --heading: #f4fbfb;
+  --card: #171e26;
+  --line: color-mix(in srgb, white 18%, #171e26);
+  --muted: #c5d0d4;
+  --teal: #5ec4c4;
+  --teal-deep: #9ee0e0;
   --orange: var(--aia-orange);
   --banner: color-mix(in srgb, var(--aia-orange) 22%, var(--aia-night));
-  --banner-ink: color-mix(in srgb, var(--aia-orange) 42%, white);
-  --edit: color-mix(in srgb, var(--aia-teal) 22%, var(--aia-night));
-  --edit-ink: color-mix(in srgb, var(--aia-teal) 38%, white);
+  --banner-ink: #ffd89a;
+  --edit: #1b3a3a;
+  --edit-ink: #d7f3f3;
   --kill-bg: color-mix(in srgb, var(--aia-alert) 22%, var(--aia-night));
   --kill-ink: color-mix(in srgb, var(--aia-alert) 42%, white);
   --shadow: 0 16px 40px color-mix(in srgb, black 35%, transparent);
@@ -81,6 +81,23 @@ input, select, textarea {
   border-radius: 10px;
   font: inherit;
   font-size: 16px;
+}
+input::placeholder, textarea::placeholder, select::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+html.dark input, html.dark select, html.dark textarea {
+  background: #10161c;
+  border-color: color-mix(in srgb, white 22%, #10161c);
+  color: #f3f7f8;
+}
+html.dark input::placeholder, html.dark textarea::placeholder {
+  color: #9aa8ae;
+}
+html.dark .edit, html.dark a.edit, html.dark a.open-another {
+  background: #1b3a3a;
+  color: #e8ffff;
+  border: 1px solid color-mix(in srgb, white 16%, #1b3a3a);
 }
 input, select, textarea, button, a.go, a.edit, .btn {
   min-height: 44px;

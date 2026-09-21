@@ -263,6 +263,18 @@ if (!history.includes("citations") || !history.includes("aiaStatus")) fail("hist
 else pass("History shows AIA status and citations");
 if (history.includes("$250") || /demo activity|fake job/i.test(history)) fail("history.html invented demo activity");
 else pass("History has no fake activity");
+if (history.includes("XAI_API_KEY") || history.includes("this box") || history.includes("draft key")) {
+  fail("History must not name XAI_API_KEY / this box / draft key");
+} else pass("History drafts-off uses Desk AI voice");
+if (!history.includes("A Desk AI can't draft on this phone yet.") || !history.includes("A Desk AI can draft.")) {
+  fail("History aia-line must use Desk AI voice");
+} else pass("History aia-line uses Desk AI voice");
+if (yesNo.indexOf("History drafts-off leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must record the History drafts-off leftover");
+} else pass("ACCOUNT-YES-NO records History drafts-off leftover");
+if (packMd.indexOf("History drafts-off leftover:") < 0) {
+  fail("PACK.md must record the History drafts-off leftover");
+} else pass("PACK.md records History drafts-off leftover");
 
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 if (!/"source": "\/pipes"/.test(vercel) || !/\/pipes\.html/.test(vercel)) {
