@@ -7,7 +7,18 @@ export {
   verifyCanonical,
   shortPublicKey,
   defaultKeyDir,
+  PRIVATE_KEY_FILE,
+  PUBLIC_KEY_FILE,
 } from './crypto.js'
+export {
+  appendLedgerEntry,
+  buildLedgerTransaction,
+  defaultLedgerPath,
+  hashTransaction,
+  readLedgerEntries,
+  signLedgerTransaction,
+  verifyLedgerEntries,
+} from './ledger.js'
 export { SandboxManager, loadCardUiSchema } from './sandboxManager.js'
 export {
   isSensitiveUrl,

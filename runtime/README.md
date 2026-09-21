@@ -15,12 +15,21 @@ Runs entirely on the machine — secrets and provenance never leave `aia_vault.d
 
 ```bash
 cd runtime
-npm install
-npm run dev
+./start.sh
+# or: npm install && npm run dev
 ```
 
-Desk terminal: [http://127.0.0.1:3847/](http://127.0.0.1:3847/)  
+Desk terminal: [http://127.0.0.1:3847](http://127.0.0.1:3847/)  
 Health: `GET http://127.0.0.1:3847/health`
+
+On startup, `./start.sh` (and `loadOrCreateKeypair`) ensure `.keys/private_key.pem` + `.keys/public_key.pem` exist, generating a fresh Ed25519 pair when missing.
+
+Diagnostics:
+
+```bash
+npm run doctor          # key + ledger + crypto self-check
+npm run verify-ledger   # [PASS]/[FAIL] for every ledger.ndjson line
+```
 
 The sovereign desk UI (`public/index.html`) is a **single-file** HTML/CSS/JS client (Tailwind CDN, Lucide, JetBrains Mono). It:
 
@@ -34,7 +43,11 @@ The sovereign desk UI (`public/index.html`) is a **single-file** HTML/CSS/JS cli
 | File | Role |
 |------|------|
 | `src/db.ts` | SQLite vault, queue, append-only provenance ledger |
-| `src/crypto.ts` | Ed25519 keypair + canonical JSON signing |
+| `src/crypto.ts` | Ed25519 keypair (`private_key.pem` / `public_key.pem`) + canonical JSON signing |
+| `src/ledger.ts` | Append-only `ledger.ndjson` (SHA-256 hash proof + Ed25519 signature) |
+| `verifyLedger.js` | Independent ledger verifier (`[PASS]` / `[FAIL]` per entry) |
+| `doctor.js` | System diagnostics for keys, crypto, and ledger |
+| `start.sh` | Bootstrap keys + launch runtime |
 | `src/promptSynthesizer.ts` | Template compiler: webhook + vault → meta-prompt + Decision Card |
 | `src/sandboxWorker.ts` | Sandbox interceptor protocol (sensitivity rules, card packaging) |
 | `src/sandboxWorkerEntry.js` | Worker-thread entry that runs `logic.js` with HITL pause |
@@ -74,6 +87,7 @@ Sovereign rule: no external side effect runs without passing through the local c
 ## Data layout
 
 ```
-runtime/data/aia_vault.db   # vault + queue + ledger
-runtime/.keys/              # ed25519 + AES master key (mode 0600)
+runtime/data/aia_vault.db   # vault + queue + SQLite provenance
+runtime/data/ledger.ndjson  # append-only signed transaction log
+runtime/.keys/              # private_key.pem + public_key.pem (+ AES master key)
 ```

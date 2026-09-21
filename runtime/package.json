@@ -9,6 +9,8 @@
     "build": "tsc -p tsconfig.json && cp src/sandboxWorkerEntry.js dist/sandboxWorkerEntry.js && mkdir -p dist/data && cp src/data/card_ui.json dist/data/card_ui.json",
     "dev": "tsx src/server.ts",
     "start": "node dist/server.js",
+    "doctor": "node doctor.js",
+    "verify-ledger": "node verifyLedger.js",
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

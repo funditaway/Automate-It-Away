@@ -9,10 +9,15 @@ import {
   loadOrCreateKeypair,
   payloadHash,
   shortPublicKey,
-  signCanonical,
   verifyCanonical,
   defaultKeyDir,
 } from './crypto.js'
+import {
+  appendLedgerEntry,
+  buildLedgerTransaction,
+  defaultLedgerPath,
+  signLedgerTransaction,
+} from './ledger.js'
 import { SandboxManager, loadCardUiSchema } from './sandboxManager.js'
 import { dispatchToGhl } from './ghl.js'
 import { synthesizeMetaPrompt } from './promptSynthesizer.js'
@@ -65,6 +70,7 @@ export function createApp(opts: CreateServerOptions = {}): {
   const dataDir = opts.dataDir || join(process.cwd(), 'data')
   const dbPath = opts.dbPath || join(dataDir, 'aia_vault.db')
   const keyDir = opts.keyDir || defaultKeyDir(join(dataDir, '..'))
+  const ledgerPath = defaultLedgerPath(dataDir)
   const vault = new VaultDb({ dbPath, keyDir })
   const keypair = loadOrCreateKeypair(keyDir)
   const sandbox = new SandboxManager(vault)
@@ -285,21 +291,21 @@ export function createApp(opts: CreateServerOptions = {}): {
       return res.status(409).json({ ok: false, error: `Card already ${card.status}` })
     }
 
-    const signature = signCanonical(keypair.privateKeyPem, {
-      cardId: card.cardId,
-      payload: card.payload,
-    })
-    const hash = payloadHash(card.payload)
-    const valid = verifyCanonical(
-      keypair.publicKeyPem,
-      { cardId: card.cardId, payload: card.payload },
-      signature,
-    )
+    // Append-only ledger protocol: dequeue → tx payload → SHA-256 → Ed25519 → ledger.ndjson
+    const tx = buildLedgerTransaction(card)
+    const ledgerEntry = signLedgerTransaction(keypair.privateKeyPem, tx)
+    const signature = ledgerEntry.signature
+    const hash = ledgerEntry.hash
+    const valid =
+      verifyCanonical(keypair.publicKeyPem, tx, signature) &&
+      hash === payloadHash(tx)
     if (!valid) {
       return res.status(500).json({ ok: false, error: 'Local signature verification failed' })
     }
 
+    // Remove from the active (pending) queue
     vault.updateCardStatus(card.cardId, 'signed', { signature })
+    appendLedgerEntry(ledgerPath, ledgerEntry)
     const entry = vault.appendProvenance({
       cardId: card.cardId,
       payloadHash: hash,

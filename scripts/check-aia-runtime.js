@@ -22,6 +22,7 @@ function mustExist(rel) {
   'package.json',
   'src/db.ts',
   'src/crypto.ts',
+  'src/ledger.ts',
   'src/promptSynthesizer.ts',
   'src/recommendationEngine.ts',
   'src/sandboxManager.ts',
@@ -34,6 +35,9 @@ function mustExist(rel) {
   'public/index.html',
   'agents/sample-ghl/logic.js',
   'test/runtime.test.ts',
+  'verifyLedger.js',
+  'doctor.js',
+  'start.sh',
 ].forEach(mustExist)
 
 const terminal = fs.readFileSync(path.join(runtime, 'public/index.html'), 'utf8')
@@ -61,8 +65,23 @@ const db = fs.readFileSync(path.join(runtime, 'src/db.ts'), 'utf8')
 })
 
 const cryptoSrc = fs.readFileSync(path.join(runtime, 'src/crypto.ts'), 'utf8')
-;['ed25519', 'canonicalJson', 'signCanonical', 'verifyCanonical'].forEach((bit) => {
+;['ed25519', 'canonicalJson', 'signCanonical', 'verifyCanonical', 'private_key.pem', 'public_key.pem'].forEach((bit) => {
   if (cryptoSrc.indexOf(bit) < 0) fail('crypto.ts missing ' + bit)
+})
+
+const ledgerSrc = fs.readFileSync(path.join(runtime, 'src/ledger.ts'), 'utf8')
+;['ledger.ndjson', 'appendLedgerEntry', 'signLedgerTransaction', 'verifyLedgerEntries', 'diffData'].forEach((bit) => {
+  if (ledgerSrc.indexOf(bit) < 0) fail('ledger.ts missing ' + bit)
+})
+
+const verifyLedger = fs.readFileSync(path.join(runtime, 'verifyLedger.js'), 'utf8')
+;['[PASS]', '[FAIL]', 'createHash', 'cryptoVerify', 'public_key.pem'].forEach((bit) => {
+  if (verifyLedger.indexOf(bit) < 0) fail('verifyLedger.js missing ' + bit)
+})
+
+const doctor = fs.readFileSync(path.join(runtime, 'doctor.js'), 'utf8')
+;['[PASS]', '[FAIL]', 'private_key.pem', 'ledger.ndjson', 'ed25519'].forEach((bit) => {
+  if (doctor.indexOf(bit) < 0) fail('doctor.js missing ' + bit)
 })
 
 const synth = fs.readFileSync(path.join(runtime, 'src/promptSynthesizer.ts'), 'utf8')
@@ -92,6 +111,7 @@ const server = fs.readFileSync(path.join(runtime, 'src/server.ts'), 'utf8')
   'authorize',
   'leadconnectorhq',
   'appendProvenance',
+  'appendLedgerEntry',
   'synthesizeMetaPrompt',
   'enqueueRecommendations',
   '/api/sign',
@@ -117,6 +137,9 @@ if (test.status !== 0) fail('runtime tests failed:\n' + (test.stdout || '') + (t
 const build = spawnSync('npm', ['run', 'build'], { cwd: runtime, encoding: 'utf8' })
 if (build.status !== 0) fail('runtime build failed:\n' + (build.stderr || build.stdout))
 
+if (!fs.existsSync(path.join(runtime, 'dist', 'ledger.js'))) {
+  fail('build did not emit ledger.js')
+}
 if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorkerEntry.js'))) {
   fail('build did not copy sandboxWorkerEntry.js')
 }
