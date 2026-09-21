@@ -323,6 +323,8 @@ Counter Desk AI voice leftover: after Create / More / Status drafts-off used Des
 
 Status raw health dump leftover: after Counter chrome used Desk AI voice, `/status` below the fold still dumped raw `/api/health` + `/api/status` JSON that named blob and Decentraweb. That dump is gone from the phone. Saved work / Photos and files / Name register stay plain. Machine health JSON for scripts is unchanged. Did not redo History / Create / Queue. Collect HOLD. No silent send.
 
+History drafts-off leftover: after Create / More / Status said A Desk AI can't draft on this phone yet, `/history` still said XAI_API_KEY / this box and dumped a Grok crew note on drafts-on. History is a desk tab. Checking / on / off / fail now use Desk AI voice. Pack fail says Could not reach the desk. Did not redo History trail. Did not redo Create / More / Status. Queue Pipes sheet and Status store row stay. Collect HOLD. No silent send.
+
 Cap leftover after prompt reply: Queue / Cap / Open each own a reply field. Cap on this desk can Reply. Other-desk Cap stays read-only. Reply on a Yes-ready card does not fire Then-after-Yes. Collect HOLD. No silent send.
 
 History Copy story leftover: Copy story / Copy this view copy the same Then / Needs you / prompt ask-who trail (`storyOf`), including gone HOLD. Nothing sends from History. Collect HOLD.

@@ -16,6 +16,7 @@ const histSrc = read("api/_history.js");
 const more = read("more.html");
 const help = read("help.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
+const packMd = read("PACK.md");
 const pkg = read("package.json");
 
 (function () {
@@ -96,12 +97,33 @@ if (history.indexOf("clr.hidden=n<1") < 0) {
 if (history.indexOf("History does not invent Yes / Stop cards") < 0) {
   fail("empty History must not invent Yes / Stop cards");
 } else pass("empty History does not invent Yes / Stop cards");
+if (history.indexOf("XAI_API_KEY") >= 0 || history.indexOf("this box") >= 0 || history.indexOf("draft key") >= 0) {
+  fail("History must not name XAI_API_KEY / this box / draft key");
+} else pass("History drafts-off uses Desk AI voice");
+if (history.indexOf("Checking whether a Desk AI can draft on this phone") < 0) {
+  fail("History checking line must use Desk AI voice");
+} else pass("History checking line uses Desk AI voice");
+if (history.indexOf("A Desk AI can't draft on this phone yet.") < 0 || history.indexOf("A Desk AI can draft.") < 0) {
+  fail("History aia-line must use Desk AI drafts-on / drafts-off voice");
+} else pass("History aia-line uses Desk AI drafts-on / drafts-off voice");
+if (history.indexOf("Could not reach the desk.") < 0) {
+  fail("History fail notes must say Could not reach the desk");
+} else pass("History fail notes use desk, not box");
+if (history.indexOf("Grok drafts are on") >= 0) {
+  fail("History aia-line must not dump Grok crew notes");
+} else pass("History aia-line drops Grok crew notes");
 if (histSrc.indexOf("function viaOf") < 0 || histSrc.indexOf("function whoOf") < 0) {
   fail("_history must expose viaOf / whoOf");
 } else pass("_history exposes viaOf / whoOf");
 if (yesNo.indexOf("History drafted-card trail leftover") < 0) {
   fail("ACCOUNT-YES-NO must name History drafted-card trail leftover");
 } else pass("ACCOUNT-YES-NO names History drafted-card trail leftover");
+if (yesNo.indexOf("History drafts-off leftover after that pass") < 0) {
+  fail("ACCOUNT-YES-NO must name History drafts-off leftover");
+} else pass("ACCOUNT-YES-NO names History drafts-off leftover");
+if (packMd.indexOf("History drafts-off leftover:") < 0) {
+  fail("PACK.md must name History drafts-off leftover");
+} else pass("PACK.md names History drafts-off leftover");
 
 if (histSrc.indexOf('ext: "Off desk"') < 0) fail("laneLabel must say Off desk");
 else pass("laneLabel says Off desk");
