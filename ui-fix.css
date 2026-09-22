@@ -1,3 +1,4 @@
+/* Footer links must not smash on phone and desktop. */
 /* Phone + desktop visibility. Loaded after theme.css (and injected by theme.js). */
 a.btn.outline,
 .btn.outline,
