@@ -311,3 +311,68 @@ header .brand-mark, .site-header .brand-mark {
 .stage video:not([src]), .stage video[src=""] {
   background: url("/img/aia-pyramid-on-orange.svg") center/40% no-repeat #0a3d3d;
 }
+
+/* 2026-09-22 visibility pass — phone header, pale taps, clipped queue */
+@media (max-width: 860px) {
+  .theme-btn {
+    min-width: 3.1em !important;
+    height: 40px !important;
+    padding: 0 12px !important;
+    font-size: 14px !important;
+  }
+  .who-chip.signed-out {
+    padding: 8px 12px !important;
+    min-height: 40px !important;
+    font-size: 14px !important;
+  }
+  header .hdr-tools,
+  .site-header .hdr-tools {
+    gap: 6px;
+  }
+}
+button.edit,
+a.edit,
+#refresh,
+button#refresh,
+.desk-open-row button.edit,
+#gate button.edit {
+  background: #0d6b6b !important;
+  color: #fff !important;
+  border: 0 !important;
+  font-weight: 800 !important;
+}
+#gate button.open-desk,
+#open-desk,
+button.open-desk,
+.desk-open-row button.go,
+#gate button.go {
+  background: #f39c12 !important;
+  color: #0c1116 !important;
+  font-weight: 800 !important;
+}
+#desk-switch a[href="/onboard"],
+a.open-another,
+#desk-list + a,
+#desk-switch .edit {
+  background: #0d6b6b !important;
+  color: #fff !important;
+}
+body.has-desk-nav {
+  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+}
+body.has-desk-nav .site-foot {
+  margin-bottom: 12px;
+}
+.queue-empty,
+#queue .queue-empty,
+#queue > p {
+  padding-bottom: 8px;
+}
+@media (max-width: 720px) {
+  .desk-tools,
+  #desk-tools,
+  details.lock summary,
+  .lock {
+    flex-wrap: wrap !important;
+  }
+}
