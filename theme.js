@@ -149,7 +149,7 @@
       ".brand-short{display:none;color:#fff!important}" +
       "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}" +
       ".kpi b{display:block;min-height:1.35em;font-size:1.3rem;line-height:1.2;color:var(--teal)}" +
-      "body.has-desk-nav header nav.site-nav, body.has-desk-nav header .nav.site-nav{display:none!important}" +
+      "body.has-desk-nav header nav.site-nav, body.has-desk-nav header .nav.site-nav{display:flex!important}" +
       "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}header .brand-short,.site-header .brand-short{display:inline!important}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}}" +
       "@media (max-width:420px){.hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}.reels,.kpis{grid-template-columns:1fr 1fr!important}.who-pic{width:28px;height:28px;flex-basis:28px}}";
     document.head.appendChild(s);
@@ -252,7 +252,7 @@
   }
   function isEmbed() { return !!(document.body && document.body.classList.contains("embed")); }
   function paintSiteNav() {
-    if (isEmbed() || isDeskFamily()) return;
+    if (isEmbed()) return;
     if (/^(consign|dashboard|chat)$/.test(pageName())) return;
     var header = document.querySelector("header, .site-header");
     if (!header) return;
