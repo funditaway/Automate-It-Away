@@ -150,8 +150,12 @@
       "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}" +
       ".kpi b{display:block;min-height:1.35em;font-size:1.3rem;line-height:1.2;color:var(--teal)}" +
       "body.has-desk-nav header nav.site-nav, body.has-desk-nav header .nav.site-nav{display:flex!important}" +
-      "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}header .brand-short,.site-header .brand-short{display:inline!important}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}}" +
-      "@media (max-width:420px){.hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}.reels,.kpis{grid-template-columns:1fr 1fr!important}.who-pic{width:28px;height:28px;flex-basis:28px}}";
+      "body.has-desk-nav{padding-bottom:calc(140px + env(safe-area-inset-bottom,0px))!important}" +
+      "#desk-nav{z-index:60!important}" +
+      "main,#queue,.queue,#gate{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}" +
+      ".queue-empty,#queue .empty,body.has-desk-nav #queue > :last-child{margin-bottom:24px}" +
+      "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}header .brand-short,.site-header .brand-short{display:inline!important}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}header, .site-header{grid-template-columns:auto 1fr auto;row-gap:6px}header .site-nav, header nav.site-nav{grid-column:1/-1;width:100%!important}}" +
+      "@media (max-width:420px){.hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}.reels,.kpis{grid-template-columns:1fr 1fr!important}.who-pic{width:28px;height:28px;flex-basis:28px}a.btn, .btn{min-height:44px}}";
     document.head.appendChild(s);
   }
   function esc(s) {
@@ -273,6 +277,42 @@
     var links = FOOT_LINKS.map(function (l) { return "<a href=\"" + l.href + "\">" + l.label + "</a>"; }).join("<span aria-hidden=\"true\">·</span>");
     foot.innerHTML = "<p>© 2026 Automate It Away</p><nav>" + links + "</nav>";
   }
+  function rewriteHtmlHrefs() {
+    var map = {
+      "index.html": "/",
+      "how.html": "/how",
+      "setup.html": "/setup",
+      "help.html": "/help",
+      "desk.html": "/desk",
+      "drop.html": "/drop",
+      "onboard.html": "/onboard",
+      "login.html": "/login",
+      "history.html": "/history",
+      "market.html": "/market",
+      "pipes.html": "/pipes",
+      "rules.html": "/rules",
+      "more.html": "/more",
+      "account.html": "/account",
+      "people.html": "/people",
+      "create.html": "/create",
+      "pricing.html": "/pricing",
+      "legal.html": "/legal",
+      "status.html": "/status",
+      "admin.html": "/admin",
+      "desks.html": "/desks",
+      "developer.html": "/developer",
+      "support.html": "/support"
+    };
+    document.querySelectorAll("a[href]").forEach(function (a) {
+      var raw = a.getAttribute("href") || "";
+      if (!raw || raw.charAt(0) === "#" || raw.indexOf("http") === 0 || raw.indexOf("mailto:") === 0) return;
+      var parts = raw.split("#");
+      var path = parts[0];
+      var hash = parts[1] ? "#" + parts[1] : "";
+      var file = path.split("/").pop();
+      if (map[file]) a.setAttribute("href", map[file] + hash);
+    });
+  }
   function ensureFixCss() {
     if (document.getElementById("aia-ui-fix-link")) return;
     var l = document.createElement("link");
@@ -280,7 +320,7 @@
     document.head.appendChild(l);
   }
   function mark() {
-    ensurePhoneMeta(); ensureIcons(); lockHeader(); ensureFixCss(); ensureBtn(); paintSiteNav(); paintWho(); paintFooter();
+    ensurePhoneMeta(); ensureIcons(); lockHeader(); ensureFixCss(); ensureBtn(); paintSiteNav(); paintWho(); paintFooter(); rewriteHtmlHrefs();
     liftChrome(document.querySelector("header, .site-header"));
     var brandHost = document.querySelector(".site-header > a, header > a.brand, header > a, header .logo, header .brand");
     if (brandHost && brandHost.tagName === "A") {
