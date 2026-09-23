@@ -312,7 +312,7 @@ header .brand-mark, .site-header .brand-mark {
   background: url("/img/aia-pyramid-on-orange.svg") center/40% no-repeat #0a3d3d;
 }
 
-/* 2026-09-22 visibility pass — phone header, pale taps, clipped queue */
+/* 2026-09-23 visibility pass — phone header, pale taps, clipped queue */
 @media (max-width: 860px) {
   .theme-btn {
     min-width: 3.1em !important;
@@ -358,15 +358,19 @@ a.open-another,
   color: #fff !important;
 }
 body.has-desk-nav {
-  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(148px + env(safe-area-inset-bottom, 0px)) !important;
 }
 body.has-desk-nav .site-foot {
-  margin-bottom: 12px;
+  margin-bottom: 88px;
 }
 .queue-empty,
 #queue .queue-empty,
-#queue > p {
-  padding-bottom: 8px;
+#queue > p,
+#queue > :last-child {
+  padding-bottom: 28px;
+}
+#desk-nav {
+  z-index: 60;
 }
 @media (max-width: 720px) {
   .desk-tools,
