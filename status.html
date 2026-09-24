@@ -78,7 +78,7 @@
         files.className = /Photos and files are saved/.test(filesNote) ? "up" : "hold";
       }
       const grokEl = document.getElementById("grok");
-      const g = (data.automation && data.automation.grok) || {};
+      const g = (data.automation && (data.automation.deskAi || data.automation.grok)) || {};
       if (grokEl) {
         grokEl.textContent = deskFaceNote(g.note, g.on
           ? "A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop."
