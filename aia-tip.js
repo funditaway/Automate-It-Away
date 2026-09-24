@@ -1,1 +1,1 @@
-@/tmp/aia-tip.js.new
+PLACEHOLDER_LOAD_FROM_WORKSPACE_CU_aia_tip_js_json
