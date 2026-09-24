@@ -223,7 +223,7 @@
     },
     "more-people": {
       title: "People",
-      body: "Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI → human thread when those are on the card. AIA does not send.",
+      body: "Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. AIA does not send.",
       ask: "What does People do?"
     },
     "more-admin": {
