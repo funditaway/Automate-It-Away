@@ -1,0 +1,37 @@
+name: Counter plain Create Desk
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: counter/plain-create-desk-free-roaming
+      - name: Apply prepared counter files
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("create-desk.js")
+          s = p.read_text()
+          old = "not a free-roaming MVP bot"
+          new = "not a free-roaming bot"
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, new, 1))
+          p = Path("scripts/check-aia-tip.js")
+          s = p.read_text()
+          anchor = 'must(read("create-desk.js"), "Desk AIs that draft. Humans that decide.", "create Desk AI pick tagline");\n'
+          additions = 'must(read("create-desk.js"), "not a free-roaming bot", "create Desk AI not free-roaming bot");\nmustNot(read("create-desk.js"), "free-roaming MVP", "create Desk AI still MVP bot");\n'
+          assert s.count(anchor) == 1
+          assert additions not in s
+          p.write_text(s.replace(anchor, anchor + additions, 1))
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/counter-plain-desk.yml
+          git add create-desk.js scripts/check-aia-tip.js
+          git commit -m "Counter: plain Create Desk free-roaming wording"
+          git push origin HEAD:counter/plain-create-desk-free-roaming
