@@ -13,6 +13,12 @@ function mustNot(hay, needle, label) {
   if (hay.includes(needle)) throw new Error("invented " + label + ": " + needle);
 }
 
+function studioPack() {
+  const zlib = require("zlib");
+  const b64 = read("developer.z64.txt").replace(/\s+/g, "");
+  return zlib.gunzipSync(Buffer.from(b64, "base64")).toString("utf8");
+}
+
 const tip = read("aia-tip.js");
 const supportTalk = read("support-talk.js");
 const support = read("support.html");
@@ -161,7 +167,7 @@ must(read("drop-agent.js"), '"drop-kind-from"', "kind-fields From tip id");
 must(read("drop-agent.js"), '"drop-kind-amount"', "kind-fields Amount note tip id");
 must(read("drop-agent.js"), '"drop-kind-callback"', "kind-fields Callback number tip id");
 must(read("drop-agent.js"), "data-aia-tip=", "kind-fields paint data-aia-tip");
-must(read("drop-agent.js"), 'class=\\"aia-tip\\"', "kind-fields paint aia-tip button");
+must(read("drop-agent.js"), 'class=\"aia-tip\"', "kind-fields paint aia-tip button");
 must(read("drop.html"), "drop-agent.js", "drop loads kind-field paint");
 must(read("widget.html"), "drop-agent.js", "widget loads kind-field paint");
 must(read("account.html"), 'data-aia-tip="give-pack"', "account Give pack tip");
@@ -215,8 +221,10 @@ must(read("create.html"), "aia-tip.js", "create loads aia-tip.js");
 must(read("create.html"), 'data-aia-tip="drop-kind"', "create start What is it tip");
 must(read("create.html"), 'data-aia-tip="drop-need"', "create start How / what tip");
 must(read("create.html"), "Desk AIs that draft. Humans that decide.", "create lead tagline");
-must(read("developer.js"), 'data-aia-tip=\\"desk-ai\\"', "studio AI name tip");
-must(read("developer.js"), "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "studio Desk AI helper firm");
+must(read("developer.js"), "developer.z64.txt", "studio loads Creators Studio pack");
+must(read("developer.js"), "DecompressionStream", "studio unpacks gzip pack");
+must(studioPack(), 'data-aia-tip=\"desk-ai\"', "studio AI name tip");
+must(studioPack(), "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "studio Desk AI helper firm");
 must(read("developer.html"), "aia-tip.js", "studio loads aia-tip.js");
 mustNot(read("developer.html"), "drop-pack.js", "studio loads drop-pack.js");
 mustNot(read("developer.html"), "AIA coin", "studio AIA coin");
