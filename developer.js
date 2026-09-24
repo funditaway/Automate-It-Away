@@ -1,1 +1,1 @@
-PLACEHOLDER_LOAD_FROM_/tmp/payload_for_callmcp.json
+@/workspace/aia-plain/ready-developer-args.json
