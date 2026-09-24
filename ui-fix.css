@@ -492,3 +492,40 @@ html.dark .hero .outline {
     justify-content: center;
   }
 }
+
+/* 2026-09-24 queue actions — stop hugging the right edge */
+#queue-desk-actions,
+.queue-desk .row:has(#drop-go),
+.queue-desk .row:has(#ws),
+.queue-desk .row:has(#refresh) {
+  justify-content: flex-start !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+#queue-desk-actions a.go,
+#queue-desk-actions button,
+#drop-go,
+a#drop-go {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px !important;
+  margin-left: 0 !important;
+}
+@media (max-width: 720px) {
+  #queue-desk-actions,
+  .queue-desk .row:has(#drop-go),
+  .queue-desk .row:has(#refresh) {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  #queue-desk-actions a,
+  #queue-desk-actions button,
+  #drop-go,
+  a#drop-go,
+  .queue-desk .row:has(#refresh) button {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
