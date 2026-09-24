@@ -226,7 +226,7 @@
       if(pin) h["X-Pin"]=pin;
       return h;
     }
-    function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&","<":"<",">":">","\"":"""})[c];});}
+    function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"\x26amp;","<":"\x26lt;",">":"\x26gt;","\"":"\x26quot;"})[c];});}
     function paint(d){
       document.getElementById("gate").hidden=true;
       document.getElementById("home").hidden=false;
