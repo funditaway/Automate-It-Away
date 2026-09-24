@@ -21,6 +21,15 @@ function pickDesk(src, label) {
   if (/AIADeskSwitch\.open/.test(fn)) throw new Error(file + " pickDesk still calls missing AIADeskSwitch.open");
   if (src.indexOf("AIADesks.list") < 0) throw new Error(file + " must list saved desks via AIADesks");
   if (src.indexOf("You still tap Yes or Stop.") < 0) throw new Error(file + " draft-accounts must keep Yes or Stop");
+  if (src.indexOf("a Desk AI can draft when drafts are on.") < 0) {
+    throw new Error(file + " draft-accounts must say Desk AI drafts when drafts are on");
+  }
+  if (src.indexOf("Orange until a real pipe answers. Naming the pipe does not turn it green.") < 0) {
+    throw new Error(file + " connect hold must stay orange until a real pipe");
+  }
+  ["our key", "No keys on the box", "included Grok", "Grok liking"].forEach(function (bad) {
+    if (src.indexOf(bad) >= 0) throw new Error(file + " still paints " + JSON.stringify(bad));
+  });
   if (src.indexOf("cannot Send, Stop") >= 0 || src.indexOf("tap Send and Stop") >= 0) {
     throw new Error(file + " still paints Send as the HITL rail");
   }
