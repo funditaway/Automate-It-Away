@@ -19,7 +19,7 @@
   ];
   var box, flash, rows = FALLBACK.slice();
   function esc(s) {
-    return String(s || "").replace(/[&<>\"]/g, function (c) {
+    return String(s || "").replace(/[&<>"]/g, function (c) {
       var m = { "&": "amp", "<": "lt", ">": "gt", "\"": "quot" };
       return "&" + m[c] + ";";
     });
