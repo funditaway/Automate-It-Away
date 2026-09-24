@@ -13,6 +13,7 @@ const ALLOW = {
   "application/pdf": "pdf",
   "text/plain": "txt",
   "text/csv": "csv",
+  "text/html": "html",
   "application/rtf": "rtf",
   "application/msword": "doc",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
@@ -61,7 +62,7 @@ async function putBlob(name, buf, mime) {
 }
 function extFromName(name) {
   const ext = String(name || "").split(".").pop().toLowerCase();
-  const map = { jpg: "jpg", jpeg: "jpg", png: "png", webp: "webp", gif: "gif", heic: "heic", heif: "heif", pdf: "pdf", txt: "txt", csv: "csv", rtf: "rtf", doc: "doc", docx: "docx", xls: "xls", xlsx: "xlsx", mp4: "mp4", mov: "mov", webm: "webm", "3gp": "3gp" };
+  const map = { jpg: "jpg", jpeg: "jpg", png: "png", webp: "webp", gif: "gif", heic: "heic", heif: "heif", pdf: "pdf", txt: "txt", csv: "csv", html: "html", htm: "html", rtf: "rtf", doc: "doc", docx: "docx", xls: "xls", xlsx: "xlsx", mp4: "mp4", mov: "mov", webm: "webm", "3gp": "3gp" };
   return map[ext] || null;
 }
 function mimeFromExt(ext) {
