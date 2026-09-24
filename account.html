@@ -226,7 +226,7 @@
       if(pin) h["X-Pin"]=pin;
       return h;
     }
-    function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c];});}
+    function esc(s){return String(s||"").replace(/[&<>\"]/g,function(c){var m={"&":"amp","<":"lt",">":"gt","\"":"quot"};return"&"+m[c]+";";});}
     function paint(d){
       document.getElementById("gate").hidden=true;
       document.getElementById("home").hidden=false;
@@ -334,7 +334,7 @@
         a.click();
         setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
         hint.textContent="Exported. No pin. No password hash. Collect HOLD.";
-      }catch(e){hint.textContent="Could not reach this box.";}
+      }catch(e){hint.textContent="Could not reach the desk.";}
     };
     document.getElementById("mfa-on").onclick=async function(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
@@ -344,7 +344,7 @@
         const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"mfa",on:true})});
         const d=await r.json().catch(function(){return {};});
         hint.textContent=(d.error||d.hint||"HOLD. Authenticator is not live on this account.")+(d.hold||r.status===409?" Authenticator stays HOLD.":"");
-      }catch(e){hint.textContent="Could not reach this box.";}
+      }catch(e){hint.textContent="Could not reach the desk.";}
     };
     async function act(action, extra){
       const slug=String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
