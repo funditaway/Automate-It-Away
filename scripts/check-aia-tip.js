@@ -216,6 +216,8 @@ must(yesNo, "Drop Put data on leftover after that pass", "ACCOUNT-YES-NO names D
 must(packMd, "Drop Put data on leftover:", "PACK.md names Drop Put data on leftover");
 must(read("create-desk.js"), 'data-aia-tip="desk-ai"', "create Name this desk AI tip");
 must(read("create-desk.js"), "Desk AIs that draft. Humans that decide.", "create Desk AI pick tagline");
+must(read("create-desk.js"), "not a free-roaming bot", "create Desk AI not free-roaming bot");
+mustNot(read("create-desk.js"), "free-roaming MVP", "create Desk AI still MVP bot");
 must(read("create-desk.js"), "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "create Desk AI helper firm");
 must(read("create.html"), "aia-tip.js", "create loads aia-tip.js");
 must(read("create.html"), 'data-aia-tip="drop-kind"', "create start What is it tip");
