@@ -42,23 +42,104 @@ function driverOf() {
   if (process.env.BLOB_READ_WRITE_TOKEN) return "blob";
   return "tmp-file";
 }
+function blobErrText(e) {
+  if (e == null) return "blob-fail";
+  if (typeof e === "string") {
+    const s = e.trim();
+    if (!s || s === "[object Object]") return "blob-fail";
+    return s.slice(0, 180);
+  }
+  if (typeof e === "number" || typeof e === "boolean") return String(e);
+  const msg = e && e.message;
+  if (typeof msg === "string" && msg && msg !== "[object Object]") return msg.slice(0, 180);
+  if (msg && typeof msg === "object" && msg !== e) {
+    const inner = blobErrText(msg);
+    if (inner !== "blob-fail") return inner;
+  }
+  const nested = e && (e.error || e.cause);
+  if (nested && nested !== e) {
+    const inner = blobErrText(nested);
+    if (inner !== "blob-fail") return inner;
+  }
+  if (e && typeof e === "object") {
+    try {
+      const json = JSON.stringify(e);
+      if (json && json !== "{}" && json !== "[]") return json.slice(0, 180);
+    } catch (x) {}
+  }
+  return "blob-fail";
+}
+function blobStoreId(token) {
+  const env = process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || "";
+  if (env) return env;
+  const t = String(token || "");
+  if (/^vercel_blob_rw_/.test(t)) {
+    const parts = t.split("_");
+    return parts[3] || "";
+  }
+  return "";
+}
 async function putBlob(name, buf, mime) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  const r = await fetch("https://blob.vercel-storage.com/" + name, {
-    method: "PUT",
-    headers: {
-      Authorization: "Bearer " + token,
-      "x-api-version": "7",
-      "x-content-type": mime,
-      "x-add-random-suffix": "0"
-    },
-    body: buf
-  });
-  const text = await r.text();
-  let json = {};
-  try { json = JSON.parse(text); } catch (e) { json = { raw: text }; }
-  if (!r.ok) throw new Error(json.error || json.message || text.slice(0, 160));
-  return json.url;
+  if (!token) throw new Error("Blob not configured");
+  const storeId = blobStoreId(token);
+  let last = "put failed";
+
+  try {
+    const { put } = require("@vercel/blob");
+    const attempts = [];
+    if (storeId) attempts.push({ storeId: storeId });
+    attempts.push({});
+    attempts.push({ token: token });
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        const blob = await put(name, buf, Object.assign({
+          access: "public",
+          contentType: mime,
+          addRandomSuffix: false,
+          allowOverwrite: true
+        }, attempts[i]));
+        if (blob && blob.url) return blob.url;
+      } catch (e) {
+        last = blobErrText(e);
+      }
+    }
+  } catch (e) {
+    last = blobErrText(e);
+  }
+
+  const headersBase = {
+    Authorization: "Bearer " + token,
+    "x-api-version": "7",
+    "x-content-type": mime,
+    "x-add-random-suffix": "0"
+  };
+  if (storeId) headersBase["x-vercel-blob-store-id"] = storeId;
+  const urls = [
+    "https://vercel.com/api/blob/?pathname=" + encodeURIComponent(name),
+    "https://blob.vercel-storage.com/" + name
+  ];
+  const variants = [
+    {},
+    { "x-allow-overwrite": "1" },
+    { "x-vercel-blob-access": "public" },
+    { "x-allow-overwrite": "1", "x-vercel-blob-access": "public" }
+  ];
+  for (let u = 0; u < urls.length; u++) {
+    for (let v = 0; v < variants.length; v++) {
+      const r = await fetch(urls[u], {
+        method: "PUT",
+        headers: Object.assign({}, headersBase, variants[v]),
+        body: buf
+      });
+      const text = await r.text();
+      let json = {};
+      try { json = JSON.parse(text); } catch (e) { json = { raw: text }; }
+      if (r.ok && json.url) return json.url;
+      last = blobErrText(json.error || json.message || text || ("http-" + r.status));
+    }
+  }
+  throw new Error(last);
 }
 function extFromName(name) {
   const ext = String(name || "").split(".").pop().toLowerCase();
@@ -131,7 +212,7 @@ module.exports = async function handler(req, res) {
         rec.url = "/api/upload?id=" + id;
       }
     } catch (e) {
-      return res.status(500).json({ error: "Store failed", detail: String(e.message || e) });
+      return res.status(500).json({ error: "Store failed", detail: blobErrText(e) });
     }
     mem.files.unshift(rec);
     saved.push(publicFile(rec));
