@@ -85,7 +85,7 @@ if (!/HOLD/i.test(thenCard) || thenCard.indexOf("Nothing sent alone") < 0) {
   fail("Then card next-line must stay HOLD / nothing sent");
 }
 if (thenCard.indexOf("Pat") < 0) fail("assignee must stay on the card");
-if (/Ask Grok/.test(thenCard)) fail("a card that already has a draft must not show Ask Grok");
+if (/Ask the desk/.test(thenCard)) fail("a card that already has a draft must not show Ask the desk");
 
 const askCard = ctx.card({
   id: "j-ask",
@@ -98,7 +98,7 @@ const askCard = ctx.card({
 }, false);
 if (askCard.indexOf("Ask the human") < 0) fail("missing-info card must show Ask the human");
 if (askCard.indexOf("Needs you") < 0) fail("missing-info card must show Needs you");
-if (askCard.indexOf("Ask Grok") < 0) fail("a waiting card with no draft must show Ask Grok");
+if (askCard.indexOf("Ask the desk") < 0) fail("a waiting card with no draft must show Ask the desk");
 if (askCard.indexOf("q-prompt") < 0) fail("missing-info card must show the prompt reply");
 if (askCard.indexOf("q-reply-box") < 0) fail("missing-info card must have a reply field");
 if (askCard.indexOf(">Reply<") < 0) fail("missing-info card must have a Reply tap");
@@ -131,7 +131,7 @@ const xss = ctx.card({
 if (/<h3>Need 2 < 3/.test(xss)) fail("raw < in a title must not become markup");
 if (xss.indexOf("Need 2 &lt; 3 &amp; &quot;go&quot;") < 0) fail("title must stay text");
 if (xss.indexOf("Buy &lt;5 gallons") < 0) fail("why must stay text");
-if (/<p class="q-prompt-q">Buy <5/.test(xss)) fail("prompt question must stay text");
+if (/<p class=\"q-prompt-q\">Buy <5/.test(xss)) fail("prompt question must stay text");
 if (xss.indexOf("Don&#39;t use &lt;b&gt;html&lt;/b&gt;") < 0) fail("draft must stay text");
 if (xss.indexOf("Sam &lt;helper&gt;") < 0) fail("assignee must stay text");
 if (xss.indexOf("AI &lt;bot&gt;") < 0) fail("Then name must stay text");
