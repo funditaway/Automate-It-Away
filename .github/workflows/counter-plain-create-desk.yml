@@ -1,6 +1,8 @@
 name: Counter plain Create Desk
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - counter/plain-create-desk-free-roaming
 permissions:
   contents: write
 jobs:
