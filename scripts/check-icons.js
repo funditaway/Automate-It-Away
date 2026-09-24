@@ -54,13 +54,18 @@ else {
 
 const svg = fs.readFileSync(path.join(root, "favicon.svg"), "utf8");
 if (svg.includes(BOLT) || /lightning|bolt/i.test(svg)) fail("favicon.svg still has the bolt");
-else if (!svg.includes("128,36") || !svg.includes("#0d6b6b") || !svg.includes("#ffffff")) {
+else if (!svg.includes("#0d6b6b") || !svg.includes("#ffffff") || !svg.includes("#f39c12")) {
   fail("favicon.svg is not the header pyramid");
 } else pass("favicon.svg is the AIA pyramid");
 
 const header = fs.readFileSync(path.join(root, "img", "aia-pyramid-header.svg"), "utf8");
-if (!header.includes("M40 196 L128 36 L216 196 L128 220")) fail("header mark missing pyramid path");
-else pass("header pyramid still the source mark");
+if (!header.includes("M40 186 L128 32 L216 186 L128 216") && !header.includes("M40 196 L128 36 L216 196 L128 220")) {
+  fail("header mark missing pyramid path");
+} else pass("header pyramid still the source mark");
+
+const tileDark = fs.readFileSync(path.join(root, "img", "aia-pyramid-tile.svg"), "utf8");
+if (!tileDark.includes("#f39c12") || !tileDark.includes("#0c1116")) fail("dark tile missing night + tip");
+else pass("dark tile has night ground + orange tip");
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "site.webmanifest"), "utf8"));
 const srcs = (manifest.icons || []).map((i) => i.src + " " + i.type);

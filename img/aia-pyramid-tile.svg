@@ -4,7 +4,7 @@
   <polygon fill="#1a8a8a" points="128,36 212,188 128,214"/>
   <polygon fill="#f39c12" points="128,36 102,84 128,92"/>
   <polygon fill="#f39c12" points="128,36 154,84 128,92"/>
-  <g fill="none" stroke="#083838" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+  <g fill="none" stroke="#7ec8c8" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
     <path d="M44 188 L128 36 L212 188 L128 214 Z"/>
     <path d="M128 36 L128 214"/>
     <path d="M102 84 L128 92 L154 84"/>
