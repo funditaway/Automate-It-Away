@@ -1,8 +1,43 @@
 const {
   cors, catalog, mem, ready, save, storePath, blobToken, blobReady,
-  workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl,
-  publicBlobProbe
+  workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl
 } = require("./_lib");
+
+
+function strangerTld(row) {
+  if (!row || typeof row !== "object") {
+    return {
+      tld: ".aia",
+      status: "watching",
+      label: "Watching",
+      collect: "hold",
+      mint: false,
+      live: false,
+      note: "Name register stays HOLD. Collect stays HOLD.",
+      wallet: { connected: false, short: "" }
+    };
+  }
+  const w = row.wallet || {};
+  return {
+    tld: row.tld || ".aia",
+    status: row.status || "watching",
+    label: row.label || "Watching",
+    collect: "hold",
+    mint: false,
+    live: !!row.live,
+    note: "Name register stays HOLD. Collect stays HOLD.",
+    wallet: {
+      connected: !!w.connected,
+      short: w.short || ""
+    }
+  };
+}
+
+function publicStoreDriver(driver) {
+  if (driver === "blob") return "shared";
+  if (driver === "tmp-file") return "tmp";
+  return driver || "file";
+}
 
 function wantsStatus(req) {
   const url = String((req && req.url) || "");
@@ -76,7 +111,15 @@ async function deskStatus(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet,
-    aiaTld,
+    aiaTld: strangerTld(aiaTld),
+    automation: {
+      deskAi: {
+        on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
+        note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
+          ? "A Desk AI can draft."
+          : "A Desk AI can't draft on this phone yet."
+      }
+    },
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound",
@@ -98,8 +141,7 @@ async function health(req, res) {
     product: "Automate It Away",
     engine: ["capture", "qualify", "do", "collect", "follow"],
     store: {
-      driver,
-      path: mem.path || storePath(),
+      driver: publicStoreDriver(driver),
       jobs: mem.jobs.length,
       connections: mem.connections.length,
       audit: mem.audit.length,
@@ -111,11 +153,10 @@ async function health(req, res) {
           ? "This desk did not keep the save"
           : driver === "file"
             ? "Saved on this desk"
-            : "Not saved yet",
-      blob: publicBlobProbe()
+            : "Not saved yet"
     },
     files: {
-      driver: blobToken() ? "blob" : "tmp-file",
+      driver: blobToken() ? "shared" : "tmp",
       count: (mem.files || []).length,
       note: blobToken()
         ? "Photos and files are saved"
@@ -132,47 +173,11 @@ async function health(req, res) {
       mail: require("./_aia-mail").statusOf(),
       persist: (mem.driver === "blob") ? "shared save" : "this desk may forget the save",
       ownerStops: ["kill"],
-      grok: {
+      deskAi: {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
-        model: process.env.AIA_GROK_MODEL || "grok-4-fast-non-reasoning",
-        endpoint: "https://api.x.ai/v1/chat/completions",
-        draftsOnCards: (mem.jobs || []).filter((j) => j && j.grokAt).length,
-        measured: (function () {
-          const rows = (mem.jobs || []).filter((j) => j && j.grokUsage);
-          const prompt = rows.reduce((n, j) => n + (Number(j.grokUsage.prompt) || 0), 0);
-          const completion = rows.reduce((n, j) => n + (Number(j.grokUsage.completion) || 0), 0);
-          const calls = rows.reduce((n, j) => n + (Number(j.grokUsage.calls) || 0), 0);
-          const dollars = prompt * 0.2 / 1e6 + completion * 0.5 / 1e6;
-          return {
-            jobs: rows.length,
-            calls,
-            prompt,
-            completion,
-            dollars: Math.round(dollars * 10000) / 10000,
-            note: "List-price estimate on the fast model."
-          };
-        })(),
-        heavyChat: "SuperGrok Heavy is the chat plan. It does not turn drafts on.",
         note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
           ? "A Desk AI can draft."
-          : "A Desk AI can't draft on this phone yet.",
-        spend: {
-          list: "$0.20 / 1M in · $0.50 / 1M out on grok-4-fast-non-reasoning",
-          perDraft: "~900 in + 250 out · about $0.0003",
-          pilotMonth: "1 desk, 20–40 cards/week · under $1",
-          busyMonth: "10 desks × 30 drafts/day · about $3",
-          prepaid: "Buy $10–25 credits on console.x.ai. Heavy $300 does not add API credit.",
-          avoid: "Card drafts stay on the fast model. Heavy or multi-agent is not for every card."
-        },
-        rate: {
-          source: "https://docs.x.ai/docs/rate-limits",
-          startTier: "T0 until $50 prepaid API spend",
-          tiers: "T0 $0 · T1 $50 · T3 $1k · T4 $5k",
-          languageT0: "Published flagship language models: 37 RPS / 10M TPM at T0",
-          multiAgentT0: "Multi-agent is tighter: 9 RPS / 2.5M TPM at T0 — not for every card",
-          over: "429 Too Many Requests. Desk keeps the card. Human taps still work.",
-          console: "https://console.x.ai/team/default/rate-limits"
-        }
+          : "A Desk AI can't draft on this phone yet."
       },
       drafts: {
         included: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
@@ -189,14 +194,14 @@ async function health(req, res) {
       status: "free",
       monthly: "later per extra member or staff login",
       charged: false,
-      note: "One account per person. Session persists on the blob store. Authenticator stays HOLD — not live on /account."
+      note: "One account per person. Session persists on the shared save. Authenticator stays HOLD — not live on /account."
     },
     domain: "automateitaway.com",
     dns: "pointed",
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet: require("./_connect-wallet").healthBlock(),
-    aiaTld: require("./_aia-tld").healthBlock(),
+    aiaTld: strangerTld(require("./_aia-tld").healthBlock()),
     repo: "funditaway/Automate-It-Away"
   });
 }
