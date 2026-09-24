@@ -167,7 +167,7 @@ must(read("drop-agent.js"), '"drop-kind-from"', "kind-fields From tip id");
 must(read("drop-agent.js"), '"drop-kind-amount"', "kind-fields Amount note tip id");
 must(read("drop-agent.js"), '"drop-kind-callback"', "kind-fields Callback number tip id");
 must(read("drop-agent.js"), "data-aia-tip=", "kind-fields paint data-aia-tip");
-must(read("drop-agent.js"), 'class=\"aia-tip\"', "kind-fields paint aia-tip button");
+must(read("drop-agent.js"), 'class=\\"aia-tip\\"', "kind-fields paint aia-tip button");
 must(read("drop.html"), "drop-agent.js", "drop loads kind-field paint");
 must(read("widget.html"), "drop-agent.js", "widget loads kind-field paint");
 must(read("account.html"), 'data-aia-tip="give-pack"', "account Give pack tip");
@@ -193,7 +193,7 @@ must(read("support.html"), 'data-aia-tip="support-broke"', "support What-broke t
 must(read("support.html"), 'data-aia-tip="support-page"', "support page tip");
 must(tip, '"pipes"', "pipes tip");
 must(tip, "Webhook is live", "pipes webhook live");
-must(tip, "Log in opens the vendor", "pipes login opens vendor");
+must(tip, "Log in opens the vendor", "pipes login opens the vendor");
 must(read("pipes.html"), 'data-aia-tip="pipes"', "pipes page pipes tip");
 must(read("pipes.html"), 'data-aia-tip="desk-name"', "pipes Desk name tip");
 must(read("pipes.html"), 'data-aia-tip="desk-code"', "pipes Desk code tip");
@@ -223,7 +223,7 @@ must(read("create.html"), 'data-aia-tip="drop-need"', "create start How / what t
 must(read("create.html"), "Desk AIs that draft. Humans that decide.", "create lead tagline");
 must(read("developer.js"), "developer.z64.txt", "studio loads Creators Studio pack");
 must(read("developer.js"), "DecompressionStream", "studio unpacks gzip pack");
-must(studioPack(), 'data-aia-tip=\"desk-ai\"', "studio AI name tip");
+must(studioPack(), 'data-aia-tip=\\"desk-ai\\"', "studio AI name tip");
 must(studioPack(), "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "studio Desk AI helper firm");
 must(read("developer.html"), "aia-tip.js", "studio loads aia-tip.js");
 mustNot(read("developer.html"), "drop-pack.js", "studio loads drop-pack.js");
