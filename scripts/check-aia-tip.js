@@ -13,6 +13,12 @@ function mustNot(hay, needle, label) {
   if (hay.includes(needle)) throw new Error("invented " + label + ": " + needle);
 }
 
+function studioPack() {
+  const zlib = require("zlib");
+  const b64 = read("developer.z64.txt").replace(/\s+/g, "");
+  return zlib.gunzipSync(Buffer.from(b64, "base64")).toString("utf8");
+}
+
 const tip = read("aia-tip.js");
 const supportTalk = read("support-talk.js");
 const support = read("support.html");
@@ -187,7 +193,7 @@ must(read("support.html"), 'data-aia-tip="support-broke"', "support What-broke t
 must(read("support.html"), 'data-aia-tip="support-page"', "support page tip");
 must(tip, '"pipes"', "pipes tip");
 must(tip, "Webhook is live", "pipes webhook live");
-must(tip, "Log in opens the vendor", "pipes login opens vendor");
+must(tip, "Log in opens the vendor", "pipes login opens the vendor");
 must(read("pipes.html"), 'data-aia-tip="pipes"', "pipes page pipes tip");
 must(read("pipes.html"), 'data-aia-tip="desk-name"', "pipes Desk name tip");
 must(read("pipes.html"), 'data-aia-tip="desk-code"', "pipes Desk code tip");
@@ -200,7 +206,7 @@ must(tip, "Desk AIs that draft", "desk-ai tagline drafts");
 must(tip, "Humans that decide", "desk-ai tagline humans");
 must(tip, "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "desk-ai firm draft-only");
 must(tip, "Yes / Stop / Kill stay human", "desk-ai Yes Stop Kill human");
-must(tip, "not a free-roaming MVP bot", "desk-ai not MVP bot");
+must(tip, "not a free-roaming bot", "desk-ai not MVP bot");
 must(tip, "Drafts the next step and the words", "desk-ai next step");
 must(yesNo, "Desk AI canon leftover", "ACCOUNT-YES-NO names Desk AI canon leftover");
 must(packMd, "Desk AI canon leftover", "PACK.md names Desk AI canon leftover");
@@ -215,8 +221,10 @@ must(read("create.html"), "aia-tip.js", "create loads aia-tip.js");
 must(read("create.html"), 'data-aia-tip="drop-kind"', "create start What is it tip");
 must(read("create.html"), 'data-aia-tip="drop-need"', "create start How / what tip");
 must(read("create.html"), "Desk AIs that draft. Humans that decide.", "create lead tagline");
-must(read("developer.js"), 'data-aia-tip=\\"desk-ai\\"', "studio AI name tip");
-must(read("developer.js"), "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "studio Desk AI helper firm");
+must(read("developer.js"), "developer.z64.txt", "studio loads Creators Studio pack");
+must(read("developer.js"), "DecompressionStream", "studio unpacks gzip pack");
+must(studioPack(), 'data-aia-tip=\\"desk-ai\\"', "studio AI name tip");
+must(studioPack(), "Draft ready. I cannot send, pay, or bind anything. You stay in control.", "studio Desk AI helper firm");
 must(read("developer.html"), "aia-tip.js", "studio loads aia-tip.js");
 mustNot(read("developer.html"), "drop-pack.js", "studio loads drop-pack.js");
 mustNot(read("developer.html"), "AIA coin", "studio AIA coin");
