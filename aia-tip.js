@@ -1,1 +1,1 @@
-PLACEHOLDER_WILL_REPLACE
+@/tmp/aia-tip.js.new
