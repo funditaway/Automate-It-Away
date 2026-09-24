@@ -66,6 +66,7 @@ else pass("desk-queue Pipes sheet orange until real pipe");
 });
 pass("desk-queue Pipes sheet no keys-on-box");
 
+
 if (needs.indexOf("openPipesSheet") < 0) fail("desk-needs must own openPipesSheet (live Queue never loads desk-queue.js)");
 if (needs.indexOf("Orange until a real pipe answers") < 0) fail("desk-needs Pipes sheet must say Orange until a real pipe answers");
 else pass("desk-needs Pipes sheet orange until real pipe");
@@ -194,7 +195,7 @@ if (help.indexOf("Yes puts a card on the queue. Open this card.") < 0) {
 }
 pass("help.html First day Create names Open this card");
 if (tips.indexOf("Yes puts a card on the queue. Open this card.") < 0) {
-  fail("more-create tip must name Open this card");
+  fail("more-create tip names Open this card");
 }
 pass("more-create tip names Open this card");
 if (yesNo.indexOf("Create → Queue handoff leftover after that pass") < 0) {
