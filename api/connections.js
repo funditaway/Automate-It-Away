@@ -48,7 +48,7 @@ const SOON = {
   icloudmail: { label: "iCloud Mail", group: "mail", acts: ["capture"], login: "https://appleid.apple.com/", note: "No public iCloud mail key. Use the inbound hook." },
   mailchimp: { label: "Mailchimp", group: "mail", acts: ["notify"], login: "https://login.mailchimp.com/", note: "List later. AIA does not blast the list." },
   klaviyo: { label: "Klaviyo", group: "mail", acts: ["notify"], login: "https://www.klaviyo.com/login", note: "Same. No blast from the desk." },
-  microsoft: { label: "Microsoft 365", group: "calendar", acts: ["capture", "book"], login: "https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade", note: "Graph later. Hold until Azure keys sit on the box." },
+  microsoft: { label: "Microsoft 365", group: "calendar", acts: ["capture", "book"], login: "https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade", note: "Graph later. Orange until a real Microsoft pipe answers." },
   apple: { label: "Apple Calendar / iCloud", group: "calendar", acts: ["book"], login: "https://appleid.apple.com/", note: "Phone .ics already works. Apple login is not a send key." },
   calendly: { label: "Calendly", group: "calendar", acts: ["book"], login: "https://calendly.com/app", note: "Booking link later. Desk still owns Yes." },
   shopify: { label: "Shopify", group: "shop", acts: ["list", "sync"], login: "https://admin.shopify.com/", note: "Inventory in. Queue owns Yes." },
