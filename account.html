@@ -147,7 +147,7 @@
       </div>
       <div class="card" id="export-card">
         <h2>Export the book</h2>
-        <p class="meta">Copy of this account. No pin. No password hash. Nothing sends from here. Collect HOLD.</p>
+        <p class="meta">Copy of this account. No desk code. No password hash. Nothing sends from here. Collect HOLD.</p>
         <p><button class="edit" type="button" id="export-book">Export account book</button></p>
         <p class="meta" id="export-hint"></p>
       </div>
@@ -326,14 +326,14 @@
         const d=await r.json().catch(function(){return {};});
         if(!r.ok||!d.pack){hint.textContent=d.error||"Could not export." ;return;}
         const text=JSON.stringify(d.pack,null,2);
-        if(/"password"\s*:/.test(text)||/"pin"\s*:/.test(text)){hint.textContent="Export omitted. Book had a pin or password hash.";return;}
+        if(/"password"\s*:/.test(text)||/"pin"\s*:/.test(text)){hint.textContent="Export omitted. Book had a desk code or password hash.";return;}
         const file=String((d.pack.account&&d.pack.account.slug)||slug||"account").replace(/[^\w.-]+/g,"-")+"-account.json";
         const a=document.createElement("a");
         a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));
         a.download=file;
         a.click();
         setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
-        hint.textContent="Exported. No pin. No password hash. Collect HOLD.";
+        hint.textContent="Exported. No desk code. No password hash. Collect HOLD.";
       }catch(e){hint.textContent="Could not reach the desk.";}
     };
     document.getElementById("mfa-on").onclick=async function(){

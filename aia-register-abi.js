@@ -245,7 +245,7 @@
       var nodeCrypto = null;
       try { nodeCrypto = require("crypto"); } catch (e) { nodeCrypto = null; }
       if (nodeCrypto && nodeCrypto.randomBytes) bytes = nodeCrypto.randomBytes(32);
-      else throw new Error("No CSPRNG on this box.");
+      else throw new Error("No CSPRNG on this phone.");
     }
     return "0x" + hexOf(bytes);
   }
