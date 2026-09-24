@@ -125,8 +125,8 @@ async function main() {
     title: "Oak dresser"
   }, false);
   if (!html) fail("card() must return HTML");
-  if (!/Ask Grok/.test(html)) fail("a waiting card with no draft must show Ask Grok");
-  if (!/helpWithAi\('j9'\)/.test(html)) fail("Ask Grok tap must call helpWithAi('j9')");
+  if (!/Ask the desk/.test(html)) fail("a waiting card with no draft must show Ask the desk");
+  if (!/helpWithAi\('j9'\)/.test(html)) fail("Ask the desk tap must call helpWithAi('j9')");
   if (!/>Yes</.test(html)) fail("Yes must stay on a decide card");
   if (!/>Stop</.test(html)) fail("Stop must stay on a decide card for the owner");
   if (/askGrok/.test(html)) fail("queue card must not call Studio askGrok");
@@ -137,7 +137,7 @@ async function main() {
     title: "Oak dresser",
     draft: "List the oak dresser."
   }, false);
-  if (/Ask Grok/.test(drafted)) fail("a card that already has a draft must not show Ask Grok");
+  if (/Ask the desk/.test(drafted)) fail("a card that already has a draft must not show Ask the desk");
 
   const store = path.join(os.tmpdir(), "aia-desk-grok-" + Date.now() + ".json");
   process.env.AIA_STORE_PATH = store;
@@ -185,12 +185,12 @@ async function main() {
   const grokMod = require("../api/_grok");
   const briefNamed = grokMod.jobBrief(
     { title: "Oak dresser" },
-    { ais: [{ name: "James’s AI", role: "Doer", does: "Help the world desk", prompt: "Draft ready. I cannot send, pay, or bind anything. You stay in control." }] }
+    { ais: [{ name: "James\u2019s AI", role: "Doer", does: "Help the world desk", prompt: "Draft ready. I cannot send, pay, or bind anything. You stay in control." }] }
   );
   if (!briefNamed.ais || !briefNamed.ais[0] || (briefNamed.ais[0].prompt || "").indexOf("Draft ready") < 0) {
     fail("jobBrief must pass the named Desk AI prompt");
   }
-  const briefEmpty = grokMod.jobBrief({ title: "Oak dresser" }, { ais: [{ name: "James’s AI" }] });
+  const briefEmpty = grokMod.jobBrief({ title: "Oak dresser" }, { ais: [{ name: "James\u2019s AI" }] });
   if (!briefEmpty.ais || !briefEmpty.ais[0] || (briefEmpty.ais[0].prompt || "").indexOf("Draft ready") < 0) {
     fail("empty named-AI prompt must fall back to AIA canon");
   }
@@ -199,7 +199,7 @@ async function main() {
   }
   const briefBound = grokMod.jobBrief({
     title: "Oak dresser",
-    deskAi: { name: "James’s AI", prompt: "Draft ready. I cannot send, pay, or bind anything. You stay in control." }
+    deskAi: { name: "James\u2019s AI", prompt: "Draft ready. I cannot send, pay, or bind anything. You stay in control." }
   }, {});
   if (!briefBound.deskAi || (briefBound.deskAi.prompt || "").indexOf("Draft ready") < 0) {
     fail("jobBrief must pass the bound deskAi prompt");
