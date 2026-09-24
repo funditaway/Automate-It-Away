@@ -1,2 +1,1 @@
-/* Creators Studio. Desk AI probe */
-console.log('Could not reach the desk');
+/tmp/dev_content_for_mcp.js
