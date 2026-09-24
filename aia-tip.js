@@ -93,7 +93,7 @@
     },
     "desk-ai": {
       title: "Desk AI",
-      body: "Name a desk AI — not a free-roaming MVP bot. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Drafts the next step and the words. Nothing sent. Review then Copy / Text / Email / Hand to, or Stop. Yes / Stop / Kill stay human. Collect stays HOLD.",
+      body: "Name a desk AI — not a free-roaming bot. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Drafts the next step and the words. Nothing sent. Review then Copy / Text / Email / Hand to, or Stop. Yes / Stop / Kill stay human. Collect stays HOLD.",
       ask: "What does a desk AI do?"
     },
     "pipes": {
@@ -223,7 +223,7 @@
     },
     "more-people": {
       title: "People",
-      body: "Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. AIA does not send.",
+      body: "Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI → human thread when those are on the card. AIA does not send.",
       ask: "What does People do?"
     },
     "more-admin": {

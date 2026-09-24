@@ -71,7 +71,7 @@
       1, 0, 32898, 0, 32906, 2147483648, 2147516416, 2147483648, 32907, 0, 2147483649, 0,
       2147516545, 2147483648, 32777, 2147483648, 138, 0, 136, 0, 2147516425, 0, 2147483658, 0,
       2147516555, 0, 139, 2147483648, 32905, 2147483648, 32771, 2147483648, 32770, 2147483648,
-      128, 2147483648, 32778, 0, 2147483658, 2147483648, 2147516545, 2147483648, 32896, 2147483648,
+      128, 2147483648, 32778, 0, 2147483658, 0, 2147516545, 2147483648, 32896, 2147483648,
       2147483649, 0, 2147516424, 2147483648
     ];
     var s = new Uint32Array(50);
@@ -245,7 +245,7 @@
       var nodeCrypto = null;
       try { nodeCrypto = require("crypto"); } catch (e) { nodeCrypto = null; }
       if (nodeCrypto && nodeCrypto.randomBytes) bytes = nodeCrypto.randomBytes(32);
-      else throw new Error("No CSPRNG on this box.");
+      else throw new Error("No CSPRNG on this phone.");
     }
     return "0x" + hexOf(bytes);
   }
