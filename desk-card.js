@@ -277,7 +277,7 @@ async function openJob(id) {
       : "") +
     clockSheet(j) +
     grokRecsBox(j) +
-    (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "") +
+    (typeof filesHtml === "function" ? filesHtml(j) : (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "")) +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
     threadSheetHtml(j) +
     (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
