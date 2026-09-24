@@ -1,1 +1,1 @@
-file:///tmp/create-desk-final.js
+hex:deadbeef
