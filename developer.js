@@ -1,1 +1,1 @@
-/tmp/dev_content_for_mcp.js
+PLACEHOLDER_LOAD_FROM_/tmp/payload_for_callmcp.json
