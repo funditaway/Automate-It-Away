@@ -104,14 +104,14 @@ const goneCard = ctx.card({
   title: "Oak dresser",
   thenAiGone: { id: "shop-bot", name: "Shop Bot" }
 }, false);
-if (goneCard.indexOf("Ask Grok") < 0) fail("gone waiting card with no draft must still show Ask Grok");
-else pass("gone card still shows Ask Grok");
-if (goneCard.indexOf("Ask Grok · James") >= 0 || /Ask Grok[^<]*James/.test(goneCard)) {
-  fail("gone Ask Grok must not first-eligible to James: " + goneCard.match(/Ask Grok[^<]*/));
-} else pass("gone Ask Grok does not name James");
-if (goneCard.indexOf("Ask Grok · Shop Bot · not on this desk") < 0) {
-  fail("gone Ask Grok must hold Shop Bot · not on this desk");
-} else pass("gone Ask Grok holds Shop Bot");
+if (goneCard.indexOf("Ask the desk") < 0) fail("gone waiting card with no draft must still show Ask the desk");
+else pass("gone card still shows Ask the desk");
+if (goneCard.indexOf("Ask the desk · James") >= 0 || /Ask the desk[^<]*James/.test(goneCard)) {
+  fail("gone Ask the desk must not first-eligible to James: " + goneCard.match(/Ask the desk[^<]*/));
+} else pass("gone Ask the desk does not name James");
+if (goneCard.indexOf("Ask the desk · Shop Bot · not on this desk") < 0) {
+  fail("gone Ask the desk must hold Shop Bot · not on this desk");
+} else pass("gone Ask the desk holds Shop Bot");
 if (goneCard.indexOf("q-ai-gone") < 0 || goneCard.indexOf("not on this desk") < 0) {
   fail("gone card must still chip not on this desk");
 } else pass("gone card chips not on this desk");
@@ -129,7 +129,7 @@ else if (xss.indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) fail("gon
 else pass("gone Ask Grok name stays text");
 if (xss.indexOf("Need 2 &lt; 3") < 0) fail("gone title must stay text");
 else pass("gone title stays text");
-if (/James/.test(xss) && xss.indexOf("Ask Grok · James") >= 0) fail("xss gone card named James");
+if (/James/.test(xss) && xss.indexOf("Ask the desk · James") >= 0) fail("xss gone card named James");
 else pass("xss gone card does not first-eligible James");
 
 const live = ctx.card({
@@ -138,9 +138,9 @@ const live = ctx.card({
   title: "Oak dresser",
   deskAi: { name: "Shop Bot", does: "Qualify the click" }
 }, false);
-if (live.indexOf("Ask Grok · Shop Bot") < 0) fail("live bind must still name Shop Bot on Ask Grok");
+if (live.indexOf("Ask the desk · Shop Bot") < 0) fail("live bind must still name Shop Bot on Ask the desk");
 else pass("live bind still names Shop Bot");
-if (/Ask Grok · James/.test(live)) fail("live Shop Bot must not first-eligible James");
+if (/Ask the desk · James/.test(live)) fail("live Shop Bot must not first-eligible James");
 else pass("live bind does not name James");
 
 const unbound = ctx.card({
@@ -148,8 +148,8 @@ const unbound = ctx.card({
   status: "waiting",
   title: "Oak dresser"
 }, false);
-if (unbound.indexOf("Ask Grok · James") < 0) fail("unbound Ask Grok must still name the live primary");
-else pass("unbound Ask Grok still names primary");
+if (unbound.indexOf("Ask the desk · James") < 0) fail("unbound Ask the desk must still name the live primary");
+else pass("unbound Ask the desk still names primary");
 
 function selectedLabel(html) {
   const m = String(html || "").match(/<option[^>]*\sselected[^>]*>([^<]*)<\/option>/i)
@@ -173,8 +173,8 @@ const ownerGone = ownerCtx().card({
 }, false);
 if (ownerGone.indexOf("q-ai-pick") < 0) fail("owner gone card must still show the desk AI picker");
 else pass("owner gone card shows picker");
-if (ownerGone.indexOf("Ask Grok · Shop Bot · not on this desk") < 0) fail("owner gone Ask Grok must still hold Shop Bot");
-else pass("owner gone Ask Grok holds Shop Bot");
+if (ownerGone.indexOf("Ask the desk · Shop Bot · not on this desk") < 0) fail("owner gone Ask the desk must still hold Shop Bot");
+else pass("owner gone Ask the desk holds Shop Bot");
 if (/<option[^>]*selected[^>]*>[^<]*James/.test(ownerGone) || /<option[^>]*James[^<]*selected/.test(ownerGone)) {
   fail("gone bind picker must not first-select James");
 } else pass("gone bind picker does not first-select James");

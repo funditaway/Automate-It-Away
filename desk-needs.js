@@ -125,10 +125,10 @@
   function askGrokLabel(j) {
     const who = thenWho(j);
     const hold = goneHoldLabel(thenGone(j));
-    if (who) return "Ask Grok · " + who;
-    if (hold) return "Ask Grok · " + hold;
+    if (who) return "Ask the desk · " + who;
+    if (hold) return "Ask the desk · " + hold;
     const primary = namedAskWho(j);
-    return primary ? ("Ask Grok · " + primary) : "Ask Grok";
+    return primary ? ("Ask the desk · " + primary) : "Ask the desk";
   }
   function jobOf(id) {
     try {
@@ -426,7 +426,7 @@
     if (a.id === "stop") return "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>";
     if (a.id === "kill") return "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Kill</button>";
     if (a.id === "copy") return "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>";
-    if (a.id === "grok") return "<button class=\"edit\" type=\"button\" onclick=\"(typeof helpWithAi==='function'&&helpWithAi('" + j.id + "'))\">" + esc(a.label || "Ask Grok") + "</button>";
+    if (a.id === "grok") return "<button class=\"edit\" type=\"button\" onclick=\"(typeof helpWithAi==='function'&&helpWithAi('" + j.id + "'))\">" + esc(a.label || "Ask the desk") + "</button>";
     if (a.id === "cap") return "<button class=\"go cap-tap\" type=\"button\" onclick=\"pinCap('" + j.id + "', true)\">Cap</button>";
     if (a.id === "uncap") return "<button class=\"edit\" type=\"button\" onclick=\"pinCap('" + j.id + "', false)\">Off the cap</button>";
     if (a.id === "fill" || a.id === "ask" || a.id === "hand") return "<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">" + a.label + "</button>";
@@ -665,10 +665,22 @@
       ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>"
       : (draft + talks + prompt);
     const actions = cardActionHtml(j, staff, "queue");
-    const hitlMatch = actions.match(/<div class="row actions tap-opts q-hitl">[\s\S]*?<\/div>/);
+    const hitlOpen = '<div class="row actions tap-opts q-hitl">';
+    const hitlAt = actions.indexOf(hitlOpen);
+    let hitlMatch = null;
+    if (hitlAt >= 0) {
+      const hitlEnd = actions.indexOf("</div>", hitlAt + hitlOpen.length);
+      if (hitlEnd >= 0) hitlMatch = [actions.slice(hitlAt, hitlEnd + 6)];
+    }
     const hitl = hitlMatch ? hitlMatch[0] : "";
     const rest = hitl ? actions.replace(hitl, "") : actions;
-    const openTap = rest.match(/<button class="edit" type="button" onclick="openJob\('[^']+'\)">Open<\/button>/);
+    const openNeedle = '">Open</button>';
+    let openTap = null;
+    const openBtnStart = rest.indexOf('<button class="edit" type="button" onclick="openJob(');
+    if (openBtnStart >= 0) {
+      const openBtnEnd = rest.indexOf(openNeedle, openBtnStart);
+      if (openBtnEnd >= 0) openTap = [rest.slice(openBtnStart, openBtnEnd + openNeedle.length)];
+    }
     const openBtn = openTap ? openTap[0] : "";
     const moreTaps = openBtn ? rest.replace(openBtn, "") : rest;
     return "<article class=\"item q-card q-state-" + state + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\">" +

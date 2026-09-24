@@ -125,8 +125,8 @@ async function main() {
     title: "Oak dresser"
   }, false);
   if (!html) fail("card() must return HTML");
-  if (!/Ask Grok/.test(html)) fail("a waiting card with no draft must show Ask Grok");
-  if (!/helpWithAi\('j9'\)/.test(html)) fail("Ask Grok tap must call helpWithAi('j9')");
+  if (!/Ask the desk/.test(html)) fail("a waiting card with no draft must show Ask the desk");
+  if (!/helpWithAi\('j9'\)/.test(html)) fail("Ask the desk tap must call helpWithAi('j9')");
   if (!/>Yes</.test(html)) fail("Yes must stay on a decide card");
   if (!/>Stop</.test(html)) fail("Stop must stay on a decide card for the owner");
   if (/askGrok/.test(html)) fail("queue card must not call Studio askGrok");
@@ -137,7 +137,7 @@ async function main() {
     title: "Oak dresser",
     draft: "List the oak dresser."
   }, false);
-  if (/Ask Grok/.test(drafted)) fail("a card that already has a draft must not show Ask Grok");
+  if (/Ask the desk/.test(drafted)) fail("a card that already has a draft must not show Ask the desk");
 
   const store = path.join(os.tmpdir(), "aia-desk-grok-" + Date.now() + ".json");
   process.env.AIA_STORE_PATH = store;

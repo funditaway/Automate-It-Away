@@ -127,10 +127,10 @@ const askNamed = ctx.card({
   why: "Need a number before this can go.",
   deskAi: { name: "James’s AI", does: "Ask who it is for" }
 }, false);
-if (askNamed.indexOf("Ask Grok · James") < 0 && askNamed.indexOf("Ask Grok") < 0) {
-  fail("Ask Grok must stay, and name the AI when one is set");
+if (askNamed.indexOf("Ask the desk · James") < 0 && askNamed.indexOf("Ask the desk") < 0) {
+  fail("Ask the desk must stay, and name the AI when one is set");
 }
-if (askNamed.indexOf("James") < 0) fail("Needs you / Ask Grok card must name the desk AI");
+if (askNamed.indexOf("James") < 0) fail("Needs you / Ask the desk card must name the desk AI");
 if (/>Yes</.test(askNamed)) fail("missing-info card must not show Yes");
 
 ctx.AIADeskAis = {
@@ -142,8 +142,8 @@ const grokNamed = ctx.card({
   status: "waiting",
   title: "Oak dresser"
 }, false);
-if (grokNamed.indexOf("Ask Grok") < 0) fail("Ask Grok must stay on a waiting card with no draft");
-if (grokNamed.indexOf("Shop Bot") < 0) fail("Ask Grok must name the bound desk AI when one is set");
+if (grokNamed.indexOf("Ask the desk") < 0) fail("Ask the desk must stay on a waiting card with no draft");
+if (grokNamed.indexOf("Shop Bot") < 0) fail("Ask the desk must name the bound desk AI when one is set");
 
 const xss = ctx.card({
   id: "j-xss",
