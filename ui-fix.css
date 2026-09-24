@@ -379,3 +379,116 @@ body.has-desk-nav .site-foot {
     flex-wrap: wrap !important;
   }
 }
+
+/* 2026-09-24 visibility — desk gate + phone taps */
+#gate,
+#gate.row,
+.desk-open-row,
+#open-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: 100%;
+  margin-left: 0 !important;
+}
+#gate input,
+#ws,
+#pin {
+  flex: 1 1 160px;
+  min-height: 48px !important;
+  width: auto !important;
+  max-width: 100%;
+}
+#gate button,
+#gate .go,
+#gate .edit,
+#drop-go,
+a#drop-go,
+#open-desk,
+button.open-desk {
+  margin-left: 0 !important;
+  min-height: 48px !important;
+}
+@media (max-width: 720px) {
+  #gate,
+  #gate.row,
+  .desk-open-row,
+  #open-row,
+  .wrap > .row:has(#drop-go),
+  .wrap > .row:has(#ws) {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  #gate input,
+  #ws,
+  #pin,
+  #gate button,
+  #drop-go,
+  a#drop-go,
+  #open-desk,
+  button.open-desk,
+  #refresh,
+  button#refresh {
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    max-width: 100% !important;
+  }
+  header .theme-btn,
+  .theme-btn {
+    min-width: 3.2em !important;
+    padding: 0 10px !important;
+  }
+}
+
+/* Marks stay sharp on teal header and pale page */
+header .brand-mark,
+.site-header .brand-mark {
+  width: 32px !important;
+  height: 32px !important;
+  background: transparent !important;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.28));
+}
+html.dark header .brand-mark,
+html.dark .site-header .brand-mark {
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.55));
+}
+
+/* Outline taps readable on pale and dark */
+a.btn.outline,
+.btn.outline,
+a.outline,
+.hero .outline {
+  color: #0a4f4f !important;
+  border-color: #0a4f4f !important;
+  background: #fff !important;
+}
+html.dark a.btn.outline,
+html.dark .btn.outline,
+html.dark a.outline,
+html.dark .hero .outline {
+  color: #e8f4f4 !important;
+  border-color: #9ad4d4 !important;
+  background: transparent !important;
+}
+
+/* Home action stack on a phone */
+@media (max-width: 720px) {
+  .hero .row,
+  .hero-actions,
+  .actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .hero .row a,
+  .hero .row button,
+  .hero-actions a,
+  .hero-actions button,
+  .actions a,
+  .actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
