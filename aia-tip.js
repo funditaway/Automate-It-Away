@@ -138,7 +138,7 @@
     },
     "drop-photo": {
       title: "Photos, documents, or video",
-      body: "Optional. Up to 8 files. Each under 8MB. They ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.",
+      body: "Optional. Up to 8 files — photos, docs, HTML, short video. Each under 8MB. They ride on the card. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.",
       ask: "Do files on Drop leave the desk?"
     },
     "drop-paste": {
