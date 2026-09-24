@@ -112,6 +112,8 @@ mustNot(leftover["legal.html"], "We bill shipped jobs", "legal live shipped-job 
 mustNot(leftover["legal.html"], "before money moves", "legal money-moves-alone");
 mustNot(leftover["legal.html"], "The agent may draft", "legal agent may draft");
 must(leftover["legal.html"], "Desk AIs draft. Humans Yes / Stop / Kill.", "legal Desk AIs draft");
+  must(leftover["legal.html"], "A Desk AI can draft when drafts are on.", "legal Desk AI drafts-on");
+  mustNot(leftover["legal.html"], "our key", "legal our-key honesty");
 must(yesNo, "Legal / Studio Desk AI leftover", "ACCOUNT-YES-NO names Legal / Studio Desk AI leftover");
 must(packMd, "Legal / Studio Desk AI leftover", "PACK.md names Legal / Studio Desk AI leftover");
 must(yesNo, "setup.html", "ACCOUNT-YES-NO names setup.html leftover");
