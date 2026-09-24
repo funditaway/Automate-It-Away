@@ -85,4 +85,16 @@ if (packMd.indexOf("Pipes field tips leftover") < 0) throw new Error("PACK.md mu
 if (packMd.indexOf("Desk session leftover:") < 0) throw new Error("PACK.md must name Desk session leftover");
 if (packMd.indexOf("Open Stop leftover:") < 0) throw new Error("PACK.md must name Open Stop leftover");
 
+
+// Help FAQ: same naming≠green honesty as pipes (no "draft liking the name")
+(function () {
+  const help = read("help.html");
+  if (help.indexOf("Naming the pipe does not turn them green.") < 0) {
+    throw new Error("help FAQ must say Naming the pipe does not turn them green");
+  }
+  if (help.indexOf("draft liking the name") >= 0) {
+    throw new Error("help FAQ still paints draft liking the name");
+  }
+})();
+
 console.log("check-pipes-switch: ok");
