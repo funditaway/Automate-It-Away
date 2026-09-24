@@ -665,10 +665,22 @@
       ? "<div class=\"q-thread\">" + draft + talks + prompt + "</div>"
       : (draft + talks + prompt);
     const actions = cardActionHtml(j, staff, "queue");
-    const hitlMatch = actions.match(/<div class=\"row actions tap-opts q-hitl\">[\s\S]*?<\\/div>/);
+    const hitlOpen = '<div class="row actions tap-opts q-hitl">';
+    const hitlAt = actions.indexOf(hitlOpen);
+    let hitlMatch = null;
+    if (hitlAt >= 0) {
+      const hitlEnd = actions.indexOf("</div>", hitlAt + hitlOpen.length);
+      if (hitlEnd >= 0) hitlMatch = [actions.slice(hitlAt, hitlEnd + 6)];
+    }
     const hitl = hitlMatch ? hitlMatch[0] : "";
     const rest = hitl ? actions.replace(hitl, "") : actions;
-    const openTap = rest.match(/<button class=\"edit\" type=\"button\" onclick=\"openJob\\('[^']+'\\)\">Open<\\/button>/);
+    const openNeedle = '">Open</button>';
+    let openTap = null;
+    const openBtnStart = rest.indexOf('<button class="edit" type="button" onclick="openJob(');
+    if (openBtnStart >= 0) {
+      const openBtnEnd = rest.indexOf(openNeedle, openBtnStart);
+      if (openBtnEnd >= 0) openTap = [rest.slice(openBtnStart, openBtnEnd + openNeedle.length)];
+    }
     const openBtn = openTap ? openTap[0] : "";
     const moreTaps = openBtn ? rest.replace(openBtn, "") : rest;
     return "<article class=\"item q-card q-state-" + state + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\">" +
