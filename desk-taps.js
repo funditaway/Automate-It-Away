@@ -89,7 +89,7 @@
     bar.id = "talkBar";
     bar.hidden = !(localStorage.getItem("aia_ws") && localStorage.getItem("aia_pin"));
     bar.innerHTML =
-      "<p class=\"talk-status\" id=\"talkStatus\">Work hits this desk. Grok drafts. You text, email, hand off, Yes, or Stop.</p>" +
+      "<p class=\"talk-status\" id=\"talkStatus\">Work hits this desk. A Desk AI drafts. You text, email, hand off, Yes, or Stop.</p>" +
       "<div class=\"talk-opts\" id=\"talkOpts\">" +
         "<button type=\"button\" data-talk=\"work\" class=\"on\">Work</button>" +
         "<button type=\"button\" data-talk=\"note\">Note</button>" +
