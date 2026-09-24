@@ -31,7 +31,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/counter-plain-desk.yml
+          git rm .github/workflows/counter-plain-create-desk.yml
           git add create-desk.js scripts/check-aia-tip.js
           git commit -m "Counter: plain Create Desk free-roaming wording"
           git push origin HEAD:counter/plain-create-desk-free-roaming
