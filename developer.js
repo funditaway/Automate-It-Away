@@ -1,1 +1,2 @@
-PLACEHOLDER_LOAD_FROM_FILE
+/* Creators Studio. Desk AI probe */
+console.log('Could not reach the desk');
