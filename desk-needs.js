@@ -2,9 +2,43 @@
 (function () {
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
+      return ({ "&": "&#38;", "<": "&#60;", ">": "&#62;", "\"": "&#34;", "'": "&#39;" })[c];
     });
   }
+
+  window.PIPES = window.PIPES || [];
+  window.INBOUND = window.INBOUND || "";
+  async function loadPipes() {
+    try {
+      const out = await api("/api/connections");
+      const data = out.data || {};
+      window.INBOUND = data.inbound || "";
+      const catalog = data.catalog || [];
+      const mine = data.connections || [];
+      window.PIPES = catalog.map(function (p) {
+        const on = mine.find(function (c) { return c.provider === p.id; });
+        return { id: p.id, label: p.label, status: on ? (on.status || p.status) : p.status, live: !!(on ? on.live : p.live), onDesk: !!on, note: p.note || "" };
+      });
+    } catch (e) { window.PIPES = window.PIPES || []; }
+    return window.PIPES;
+  }
+  function livePipes() {
+    return (window.PIPES || []).filter(function (p) { return p.live && p.status === "live"; });
+  }
+  window.openPipesSheet = async function (id) {
+    await loadPipes();
+    const sheet = document.getElementById("sheet-card");
+    const wrap = document.getElementById("sheet");
+    if (!sheet || !wrap) return;
+    const live = livePipes();
+    const hold = (window.PIPES || []).filter(function (p) { return !p.live; });
+    const liveRows = live.map(function (p) { return "<p><b>" + p.label + "</b> · live" + (p.onDesk ? " · on this desk" : "") + "</p>"; }).join("") || "<p class=\"meta\">No named pipe is live. Webhook inbound still writes cards.</p>";
+    const holdRows = hold.map(function (p) { return "<p class=\"meta\">" + p.label + " · " + (p.status || "hold") + (p.note ? " · " + p.note : "") + "</p>"; }).join("");
+    sheet.innerHTML = "<h3>Pipes</h3><p class=\"meta\">Write back done or hand. AIA does not send money from this sheet.</p><p class=\"meta\">Live now</p>" + liveRows + (window.INBOUND ? "<p class=\"meta\">Inbound hook</p><div class=\"draft\">" + window.INBOUND + "</div>" : "") + "<p class=\"meta\">Orange until a real pipe answers</p>" + holdRows + "<div class=\"row actions\" style=\"margin-top:12px\"><a class=\"edit\" href=\"/connections\">Open Pipes wall</a></div><div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
+    wrap.classList.add("on");
+  };
+  window.sendToPipe = function (id) { openPipesSheet(id); };
+
   function val(j, key) {
     if (!j) return "";
     const custom = j.custom && typeof j.custom === "object" ? j.custom : {};
@@ -19,6 +53,9 @@
       const decide = !!j.decide;
       if (decide && !staff && !actions.some(function (a) { return a && a.id === "kill"; })) {
         actions.push({ id: "kill", label: "Kill" });
+      }
+      if (!actions.some(function (a) { return a && a.id === "pipes"; })) {
+        actions.push({ id: "pipes", label: "Pipes" });
       }
       return { line: j.needLine || j.next || "", actions: actions, missing: j.missing || [], decide: decide, priority: !!(j.priority || j.cap) };
     }
@@ -49,6 +86,7 @@
     if (phone && (outcome === "call" || kind === "call")) add("call", "Call", { href: "tel:" + phone.replace(/[^\d+]/g, "") });
     if (!j.draft && !done) add("grok", askGrokLabel(j));
     if (!done) add(priority ? "uncap" : "cap", priority ? "Off the cap" : "Cap");
+    if (!done) add("pipes", "Pipes");
     const line = outDesk ? "Off the desk. Confirm done, or tap Needs a hand." : (missing.length ? "Need " + missing[0] + " before this can go." : (j.needLine || j.next || (decide ? "Ready. Yes / Stop / Kill stay human." : (priority ? "On the cap. Do this first." : "Do the next thing this card needs."))));
     return { line: line, actions: actions, missing: missing, decide: decide, priority: priority, outDesk: outDesk };
   }
@@ -432,6 +470,7 @@
     if (a.id === "fill" || a.id === "ask" || a.id === "hand") return "<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">" + a.label + "</button>";
     if (a.id === "handback") return "<button class=\"edit\" type=\"button\" onclick=\"(typeof needHand==='function'&&needHand('" + j.id + "'))\">Needs a hand</button>";
     if (a.id === "done") return "<button class=\"go\" type=\"button\" onclick=\"(typeof carryJob==='function'&&carryJob('" + j.id + "'))\">Done</button>";
+    if (a.id === "pipes") return "<button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button>";
     return "";
   }
   function cardActionHtml(j, staff, where) {
@@ -442,11 +481,13 @@
     if (where === "queue") rest.push("<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button>");
     need.actions.slice(0, where === "queue" ? 8 : 10).forEach(function (a) {
       if (where === "queue" && a.id === "open") return;
+      if (a.id === "pipes") return;
       const bit = paintAction(j, a, money);
       if (!bit) return;
       if (a.id === "yes" || a.id === "stop" || a.id === "kill") hitl.push(bit);
       else rest.push(bit);
     });
+    rest.push("<button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button>");
     return (hitl.length ? "<div class=\"row actions tap-opts q-hitl\">" + hitl.join("") + "</div>" : "") +
       "<div class=\"row actions tap-opts\">" + rest.join("") + "</div>";
   }
@@ -702,6 +743,43 @@
       "</div></details>" +
       "</article>";
   };
+
+  function ensurePipesTap(tries) {
+    if (document.getElementById("queue-pipes-tap")) return;
+    const btn = document.createElement("button");
+    btn.id = "queue-pipes-tap";
+    btn.className = "edit";
+    btn.type = "button";
+    btn.textContent = "Pipes";
+    if (btn.setAttribute) btn.setAttribute("aria-label", "Pipes");
+    btn.onclick = function () { openPipesSheet(); };
+    const actions = document.getElementById("queue-desk-actions");
+    if (actions) { actions.appendChild(btn); return; }
+    const rail = document.getElementById("queue-desk-rail");
+    if (rail) {
+      let row = rail.querySelector("#queue-desk-actions") || rail.querySelector(".row");
+      if (!row) {
+        row = document.createElement("div");
+        row.className = "row";
+        row.id = "queue-desk-actions";
+        rail.appendChild(row);
+      }
+      row.appendChild(btn);
+      return;
+    }
+    const banner = document.getElementById("banner");
+    if (banner && banner.parentNode) {
+      const wrap = document.createElement("div");
+      wrap.className = "row";
+      wrap.id = "queue-pipes-row";
+      wrap.style.margin = "0 0 8px";
+      wrap.appendChild(btn);
+      banner.parentNode.insertBefore(wrap, banner.nextSibling);
+      return;
+    }
+    const n = typeof tries === "number" ? tries : 0;
+    if (n < 40) setTimeout(function () { ensurePipesTap(n + 1); }, 200);
+  }
   function wrapLoad() {
     if (typeof window.load !== "function") { setTimeout(wrapLoad, 200); return; }
     if (window.load._aiaCap) return;
@@ -709,6 +787,8 @@
     window.load = async function () {
       const out = await p.apply(this, arguments);
       try { await loadCap(); } catch (e) {}
+      try { await loadPipes(); } catch (e) {}
+      try { ensurePipesTap(); } catch (e) {}
       try { if (typeof window.openWantedJob === "function") window.openWantedJob(); } catch (e) {}
       return out;
     };
@@ -838,6 +918,10 @@
   }
   wrapLoad();
   wrapHitl();
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", injectCap);
-  else injectCap();
+  function bootPipes() {
+    injectCap();
+    ensurePipesTap();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootPipes);
+  else bootPipes();
 })();

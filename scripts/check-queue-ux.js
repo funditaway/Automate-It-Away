@@ -59,6 +59,26 @@ pass("desk.html Stop confirm is Stop, not No");
 const queueJs = fs.readFileSync(path.join(root, "desk-queue.js"), "utf8");
 if (queueJs.includes(">No</button>") || queueJs.includes(" · Yes/No")) fail("desk-queue.js leftover still paints No as the rail");
 else pass("desk-queue leftover Stop is Stop, not No");
+if (queueJs.indexOf("Orange until a real pipe answers") < 0) fail("desk-queue Pipes sheet must say Orange until a real pipe answers");
+else pass("desk-queue Pipes sheet orange until real pipe");
+["keys sit on the box", "keys on the box"].forEach(function (bad) {
+  if (queueJs.indexOf(bad) >= 0) fail("desk-queue Pipes sheet still paints " + JSON.stringify(bad));
+});
+pass("desk-queue Pipes sheet no keys-on-box");
+
+
+if (needs.indexOf("openPipesSheet") < 0) fail("desk-needs must own openPipesSheet (live Queue never loads desk-queue.js)");
+if (needs.indexOf("Orange until a real pipe answers") < 0) fail("desk-needs Pipes sheet must say Orange until a real pipe answers");
+else pass("desk-needs Pipes sheet orange until real pipe");
+["keys sit on the box", "keys on the box"].forEach(function (bad) {
+  if (needs.indexOf(bad) >= 0) fail("desk-needs Pipes sheet still paints " + JSON.stringify(bad));
+});
+pass("desk-needs Pipes sheet no keys-on-box");
+if (needs.indexOf("queue-pipes-tap") < 0) fail("desk-needs must paint a Queue Pipes tap for empty / stranger Queue");
+else pass("desk-needs Queue Pipes tap reaches sheet without a card");
+if (nav.includes("desk-queue.js")) fail("desk-nav must not load desk-queue.js");
+else pass("nav does not load desk-queue.js");
+
 const histSrc = fs.readFileSync(path.join(root, "api/_history.js"), "utf8");
 if (/Yes sends it off|Yes\/No card yet/.test(histSrc)) fail("_history needLine still paints Send / Yes-No");
 if (histSrc.indexOf("Yes / Stop / Kill stay human") < 0) fail("_history needLine must name Yes / Stop / Kill");
@@ -175,7 +195,7 @@ if (help.indexOf("Yes puts a card on the queue. Open this card.") < 0) {
 }
 pass("help.html First day Create names Open this card");
 if (tips.indexOf("Yes puts a card on the queue. Open this card.") < 0) {
-  fail("more-create tip must name Open this card");
+  fail("more-create tip names Open this card");
 }
 pass("more-create tip names Open this card");
 if (yesNo.indexOf("Create → Queue handoff leftover after that pass") < 0) {
