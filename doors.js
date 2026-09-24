@@ -20,7 +20,8 @@
   var box, flash, rows = FALLBACK.slice();
   function esc(s) {
     return String(s || "").replace(/[&<>"]/g, function (c) {
-      return ({ "&": "&", "<": "<", ">": ">", "\"": """ })[c];
+      var m = { "&": "amp", "<": "lt", ">": "gt", "\"": "quot" };
+      return "&" + m[c] + ";";
     });
   }
   function nameOf(p) { return p.label || p.name || p.id; }
@@ -68,7 +69,7 @@
     var site = "";
     if (id === "other" || id === "site" || id === "ext") {
       var inp = box && box.querySelector("#oauth-site");
-      site = inp ? String(inp.value || "").trim() : "";
+      site = inp Tip ? String(inp.value || "").trim() : "";
       if (!site && id === "other") { say("Name the site."); return; }
     }
     say("");
