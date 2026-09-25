@@ -1,0 +1,46 @@
+/* 2026-09-25 visibility — tab bar must not cover last line */
+body.has-desk-nav {
+  padding-bottom: calc(168px + env(safe-area-inset-bottom, 0px)) !important;
+}
+body.has-desk-nav main,
+body.has-desk-nav .wrap,
+body.has-desk-nav #queue,
+body.has-desk-nav .queue {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+}
+body.has-desk-nav .site-foot {
+  margin-bottom: 96px;
+}
+@media (min-width: 860px) {
+  body.has-desk-nav {
+    padding-bottom: 24px !important;
+  }
+  body.has-desk-nav main,
+  body.has-desk-nav .wrap,
+  body.has-desk-nav #queue,
+  body.has-desk-nav .queue {
+    padding-bottom: 24px !important;
+  }
+  body.has-desk-nav .site-foot {
+    margin-bottom: 0;
+  }
+}
+@media (max-width: 860px) {
+  header,
+  .site-header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "brand tools"
+      "nav nav" !important;
+  }
+  header .site-nav,
+  header nav.site-nav {
+    grid-area: nav !important;
+    width: 100% !important;
+  }
+  header .theme-btn,
+  .theme-btn {
+    min-width: 3.2em !important;
+    min-height: 40px !important;
+  }
+}
