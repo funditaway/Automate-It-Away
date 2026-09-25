@@ -2,7 +2,9 @@
   <rect width="256" height="256" rx="56" fill="#f39c12"/>
   <polygon fill="#0a4f4f" points="128,32 40,186 128,216"/>
   <polygon fill="#168080" points="128,32 216,186 128,216"/>
-  <g fill="none" stroke="#ffffff" stroke-width="11" stroke-linejoin="round" stroke-linecap="round">
+  <polygon fill="#0a4f4f" points="128,32 100,84 128,94"/>
+  <polygon fill="#0a4f4f" points="128,32 156,84 128,94"/>
+  <g fill="none" stroke="#ffffff" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
     <path d="M40 186 L128 32 L216 186 L128 216 Z"/>
     <path d="M128 32 L128 216"/>
     <path d="M100 84 L128 94 L156 84"/>
