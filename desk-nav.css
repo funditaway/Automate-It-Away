@@ -1,7 +1,7 @@
 /* Phone desk tabs. Header tabs stay in the markup as a no-JS fallback.
    With JS (or the HTML bottom bar) the phone uses only the bottom nav. */
 body.has-desk-nav {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(168px + env(safe-area-inset-bottom, 0px));
 }
 body.has-desk-nav header {
   padding-top: calc(12px + env(safe-area-inset-top, 0px));
@@ -43,7 +43,7 @@ header {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 40;
+  z-index: 60;
   display: flex;
   background: #0d6b6b;
   color: #fff;
