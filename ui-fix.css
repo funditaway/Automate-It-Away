@@ -46,6 +46,14 @@ header a.brand {
   align-items: center;
   gap: 8px;
 }
+header .brand-mark,
+.site-header .brand-mark {
+  width: 40px !important;
+  height: 40px !important;
+  flex: 0 0 40px !important;
+  filter: drop-shadow(0 0 1px #083838);
+}
+
 header .hdr-tools,
 .site-header .hdr-tools {
   grid-area: tools !important;
@@ -126,3 +134,5 @@ header nav:not(.desk-tabs),
   border-radius: 999px !important;
   font-weight: 800 !important;
 }
+
+.verify-cells button { flex-direction: column; }
