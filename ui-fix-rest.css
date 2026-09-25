@@ -1,1 +1,114 @@
-/* rest lives back in ui-fix.css on the next commit */
+header .brand, .site-header .brand, header .brand-short, .site-header .brand-short {
+  color: #fff !important;
+}
+#gate button, #open-desk, button.open-desk {
+  background: var(--orange, #f39c12) !important;
+  color: #0c1116 !important;
+  font-weight: 800 !important;
+}
+button.aia-tip {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  line-height: 1 !important;
+}
+.site-foot nav {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center;
+  gap: 6px 12px !important;
+}
+#desk-switch a[href="/onboard"],
+a.open-another {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  margin-top: 8px;
+  border-radius: 12px;
+  background: #0d6b6b !important;
+  color: #fff !important;
+  font-weight: 800;
+  text-decoration: none;
+}
+.gate-card input,
+#form input,
+#desk-door input,
+.onboard-card input {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100%;
+}
+button.edit,
+a.edit,
+#refresh,
+button#refresh {
+  background: #0d6b6b !important;
+  color: #fff !important;
+  border: 0 !important;
+  font-weight: 800 !important;
+}
+#gate,
+.desk-open-row,
+#open-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  width: 100%;
+}
+#gate input,
+#ws,
+#pin {
+  flex: 1 1 160px;
+  min-height: 48px !important;
+}
+@media (max-width: 720px) {
+  #gate,
+  .desk-open-row,
+  #open-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  #gate input,
+  #ws,
+  #pin,
+  #gate button,
+  #open-desk,
+  #refresh {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .hero .row,
+  .hero-actions,
+  .actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .hero .row a,
+  .hero-actions a,
+  .actions a {
+    width: 100%;
+    justify-content: center;
+  }
+}
+a.btn.outline,
+.btn.outline,
+a.outline,
+.hero .outline {
+  color: #0a4f4f !important;
+  border-color: #0a4f4f !important;
+  background: #fff !important;
+}
+html.dark a.btn.outline,
+html.dark .btn.outline,
+html.dark a.outline,
+html.dark .hero .outline {
+  color: #e8f4f4 !important;
+  border-color: #9ad4d4 !important;
+  background: transparent !important;
+}
