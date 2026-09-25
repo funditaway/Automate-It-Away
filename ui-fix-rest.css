@@ -29,6 +29,7 @@ a.open-another {
   min-height: 44px;
   padding: 8px 14px;
   margin-top: 8px;
+  margin-bottom: 8px;
   border-radius: 12px;
   background: #0d6b6b !important;
   color: #fff !important;
@@ -42,6 +43,8 @@ a.open-another {
   display: block !important;
   width: 100% !important;
   max-width: 100%;
+  min-height: 48px !important;
+  max-height: 56px !important;
 }
 button.edit,
 a.edit,
@@ -59,12 +62,15 @@ button#refresh {
   flex-wrap: wrap !important;
   gap: 8px !important;
   width: 100%;
+  align-items: flex-start !important;
 }
 #gate input,
 #ws,
 #pin {
   flex: 1 1 160px;
+  height: 48px !important;
   min-height: 48px !important;
+  max-height: 52px !important;
 }
 @media (max-width: 720px) {
   #gate,
@@ -81,6 +87,7 @@ button#refresh {
   #refresh {
     width: 100% !important;
     max-width: 100% !important;
+    flex: 0 0 auto !important;
   }
   .hero .row,
   .hero-actions,

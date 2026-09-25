@@ -6,10 +6,32 @@ body.has-desk-nav main,
 body.has-desk-nav .wrap,
 body.has-desk-nav #queue,
 body.has-desk-nav .queue {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
 }
 body.has-desk-nav .site-foot {
   margin-bottom: 96px;
+}
+body.has-desk-nav #desk-switch,
+body.has-desk-nav #session,
+body.has-desk-nav .item:last-of-type {
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+}
+#ws,
+#pin,
+#gate input,
+#open-row input,
+.desk-open-row input {
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 52px !important;
+  flex: 0 0 auto !important;
+  align-self: stretch;
+}
+#gate,
+.desk-open-row,
+#open-row {
+  align-items: flex-start !important;
 }
 @media (min-width: 860px) {
   body.has-desk-nav {
@@ -42,5 +64,9 @@ body.has-desk-nav .site-foot {
   .theme-btn {
     min-width: 3.2em !important;
     min-height: 40px !important;
+  }
+  #desk-actions,
+  .row.actions {
+    justify-content: flex-start !important;
   }
 }
