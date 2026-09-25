@@ -1,4 +1,5 @@
 @import url("/phone-clear.css");
+@import url("/ui-fix-rest.css");
 /* Footer links must not smash on phone and desktop. */
 /* Phone + desktop visibility. Loaded after theme.css (and injected by theme.js). */
 a.btn.outline,
