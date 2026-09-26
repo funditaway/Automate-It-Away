@@ -17,8 +17,10 @@ a.outline {
   flex: 0 0 auto;
 }
 .who-chip.signed-out {
-  padding: 8px 16px !important;
+  padding: 8px 14px !important;
   max-width: none !important;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .who-chip.signed-out .who-copy > span,
 .who-chip.signed-out .who-pic {
@@ -133,6 +135,39 @@ header nav:not(.desk-tabs),
   box-sizing: border-box;
   border-radius: 999px !important;
   font-weight: 800 !important;
+}
+
+@media (max-width: 860px) {
+  header,
+  .site-header {
+    overflow: visible !important;
+  }
+  header .hdr-tools,
+  .site-header .hdr-tools {
+    max-width: none;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .who-chip,
+  .who-chip.signed-out {
+    min-height: 40px !important;
+    height: 40px;
+    padding: 0 12px !important;
+    font-size: 14px !important;
+  }
+  .who-chip .who-copy strong {
+    font-size: 14px !important;
+  }
+  .theme-btn {
+    min-width: 4.2em !important;
+    width: auto !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    overflow: visible !important;
+  }
 }
 
 .verify-cells button { flex-direction: column; }
