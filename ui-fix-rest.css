@@ -62,17 +62,32 @@ button#refresh {
   flex-wrap: wrap !important;
   gap: 8px !important;
   width: 100%;
-  align-items: flex-start !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
 }
 #gate input,
 #ws,
 #pin {
-  flex: 1 1 160px;
+  flex: 1 1 220px !important;
+  width: auto !important;
+  max-width: 100% !important;
   height: 48px !important;
   min-height: 48px !important;
   max-height: 52px !important;
 }
-@media (max-width: 720px) {
+#desk-actions,
+.row.actions,
+#desk-tools-row {
+  justify-content: flex-start !important;
+  width: 100%;
+  gap: 8px;
+}
+header select,
+header .goog-te-combo,
+.hdr-tools select {
+  display: none !important;
+}
+@media (max-width: 860px) {
   #gate,
   .desk-open-row,
   #open-row {
@@ -84,10 +99,23 @@ button#refresh {
   #pin,
   #gate button,
   #open-desk,
-  #refresh {
+  #refresh,
+  #drop-go {
     width: 100% !important;
     max-width: 100% !important;
     flex: 0 0 auto !important;
+  }
+  #desk-actions,
+  .row.actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  #desk-actions a,
+  #desk-actions button,
+  .row.actions a,
+  .row.actions button {
+    width: 100% !important;
+    justify-content: center;
   }
   .hero .row,
   .hero-actions,
@@ -101,6 +129,16 @@ button#refresh {
   .actions a {
     width: 100%;
     justify-content: center;
+  }
+}
+@media (min-width: 861px) {
+  header,
+  .site-header {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    grid-template-areas: "brand nav tools" !important;
+  }
+  #pin {
+    flex: 1 1 180px !important;
   }
 }
 a.btn.outline,
