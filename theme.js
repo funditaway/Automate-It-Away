@@ -15,10 +15,10 @@
     return "Auto";
   }
   function tileSrc() {
-    return isDark() ? "/img/aia-pyramid-tile.svg" : "/img/aia-pyramid-tile-light.svg";
+    return isDark() ? "/img/aia-mark-dark.png" : "/img/aia-mark-light.png";
   }
   function markSrc() {
-    return "/img/aia-pyramid-header.svg";
+    return "/img/aia-mark-teal.png";
   }
   function paintMarks() {
     var headerSrc = markSrc();
