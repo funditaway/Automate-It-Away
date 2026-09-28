@@ -54,7 +54,7 @@ header .brand-mark,
   height: 40px !important;
   flex: 0 0 40px !important;
   border-radius: 22%;
-  object-fit: cover;
+  object-fit: contain;
   background: transparent;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .35);
 }
@@ -106,11 +106,15 @@ header nav:not(.desk-tabs),
   .site-header .brand-name,
   header > a strong,
   header .brand strong {
-    display: none !important;
+    display: inline !important;
+    font-size: 13px !important;
+    line-height: 1.15 !important;
+    max-width: 11.5em;
+    white-space: normal;
   }
   header .brand-short,
   .site-header .brand-short {
-    display: inline !important;
+    display: none !important;
   }
   .theme-btn {
     min-width: 0 !important;
