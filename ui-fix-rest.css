@@ -157,3 +157,38 @@ html.dark .hero .outline {
   border-color: #9ad4d4 !important;
   background: transparent !important;
 }
+
+#queue-desk-rail,
+#queue-desk-actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start !important;
+  gap: 8px;
+}
+#queue-desk-actions a,
+#queue-desk-actions button {
+  min-height: 44px;
+}
+#drop-go {
+  flex: 1 1 160px;
+}
+#open-desk,
+#queue-pipes-tap {
+  flex: 0 1 auto;
+}
+@media (max-width: 860px) {
+  #queue-desk-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+  #drop-go {
+    grid-column: 1 / -1;
+    width: 100% !important;
+  }
+  #open-desk {
+    width: 100% !important;
+  }
+}
