@@ -18,7 +18,7 @@
     return isDark() ? "/img/aia-mark-dark.png" : "/img/aia-mark-light.png";
   }
   function markSrc() {
-    return "/img/aia-mark-teal.png";
+    return "/img/aia-pyramid-header.svg";
   }
   function paintMarks() {
     var headerSrc = markSrc();
@@ -154,7 +154,7 @@
       "#desk-nav{z-index:60!important}" +
       "main,#queue,.queue,#gate{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}" +
       ".queue-empty,#queue .empty,body.has-desk-nav #queue > :last-child{margin-bottom:24px}" +
-      "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}header .brand-short,.site-header .brand-short{display:inline!important}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}header, .site-header{grid-template-columns:auto 1fr auto;row-gap:6px}header .site-nav, header nav.site-nav{grid-column:1/-1;width:100%!important}}" +
+      "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:inline!important;font-size:13px!important;line-height:1.15!important;max-width:11.5em;white-space:normal}header .brand-short,.site-header .brand-short{display:none!important}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}header, .site-header{grid-template-columns:auto 1fr auto;row-gap:6px}header .site-nav, header nav.site-nav{grid-column:1/-1;width:100%!important}}" +
       "@media (max-width:420px){.hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}.reels,.kpis{grid-template-columns:1fr 1fr!important}.who-pic{width:28px;height:28px;flex-basis:28px}a.btn, .btn{min-height:44px}}";
     document.head.appendChild(s);
   }
@@ -327,7 +327,7 @@
       brandHost.classList.add("brand");
       if (!brandHost.querySelector(".brand-mark")) {
         var img = document.createElement("img");
-        img.className = "brand-mark"; img.src = markSrc(); img.width = 32; img.height = 32; img.alt = "";
+        img.className = "brand-mark"; img.src = markSrc(); img.width = 32; img.height = 32; img.alt = "Automate It Away";
         brandHost.insertBefore(img, brandHost.firstChild);
       }
       if (!brandHost.querySelector(".brand-name")) {
