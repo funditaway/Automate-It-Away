@@ -18,13 +18,26 @@
     return isDark() ? "/img/aia-mark-dark.png" : "/img/aia-mark-light.png";
   }
   function markSrc() {
-    return "/img/aia-pyramid-header.svg";
+    /* Header bar is always teal. White-stroke pyramid on teal. */
+    return "/img/aia-mark-teal.png";
+  }
+  function orangeSrc() {
+    return "/img/aia-mark-orange.png";
+  }
+  function outlineSrc() {
+    return "/img/aia-mark-outline.png";
   }
   function paintMarks() {
     var headerSrc = markSrc();
     var tile = tileSrc();
-    document.querySelectorAll("img.brand-mark").forEach(function (img) {
-      var inHeader = img.closest("header, .site-header");
+    document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
+      var kind = (img.getAttribute("data-mark") || "").toLowerCase();
+      if (kind === "orange") { img.setAttribute("src", orangeSrc()); return; }
+      if (kind === "outline") { img.setAttribute("src", outlineSrc()); return; }
+      if (kind === "dark") { img.setAttribute("src", "/img/aia-mark-dark.png"); return; }
+      if (kind === "light") { img.setAttribute("src", "/img/aia-mark-light.png"); return; }
+      if (kind === "teal" || kind === "header") { img.setAttribute("src", headerSrc); return; }
+      var inHeader = img.closest("header, .site-header, .desk-nav, #desk-nav");
       img.setAttribute("src", inHeader ? headerSrc : tile);
     });
   }
@@ -133,7 +146,7 @@
       "header:not(.top), .site-header{background:var(--header)!important;color:#fff!important;padding:10px 4.5vw!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important;}" +
       "header, .site-header{display:grid!important;align-items:center!important;overflow:visible!important}" +
       "header .theme-btn, .theme-btn{position:relative;z-index:8;pointer-events:auto!important;flex:0 0 auto;min-height:44px;min-width:4.6em;padding:6px 12px;cursor:pointer;white-space:nowrap}" +
-      "header .brand-mark, .site-header .brand-mark{width:32px;height:32px;flex:0 0 32px;border-radius:0;background:transparent;object-fit:contain}" +
+      "header .brand-mark, .site-header .brand-mark{width:40px;height:40px;flex:0 0 40px;border-radius:22%;background:transparent;object-fit:contain}" +
       ".hdr-tools{display:flex!important;align-items:center;gap:8px;margin-left:0;flex:0 0 auto;justify-self:end;max-width:100%}" +
       "header > .brand, .site-header > .brand, header > a.brand, header > a:first-child{min-width:0;display:inline-flex!important;align-items:center;gap:8px;color:#fff!important}" +
       "header nav.site-nav, header .nav.site-nav, header nav:not(.desk-tabs), header .nav:not(.desk-tabs), .site-header .nav{width:auto;min-width:0;display:flex!important;flex-wrap:nowrap;overflow-x:auto;gap:10px 14px;align-items:center;-webkit-overflow-scrolling:touch}" +
@@ -327,7 +340,7 @@
       brandHost.classList.add("brand");
       if (!brandHost.querySelector(".brand-mark")) {
         var img = document.createElement("img");
-        img.className = "brand-mark"; img.src = markSrc(); img.width = 32; img.height = 32; img.alt = "Automate It Away";
+        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "Automate It Away";
         brandHost.insertBefore(img, brandHost.firstChild);
       }
       if (!brandHost.querySelector(".brand-name")) {
@@ -346,5 +359,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mark);
   else mark();
-  window.AIATheme = { apply: apply, cycle: cycle, label: label, paintWho: paintWho, initials: initials, paintFooter: paintFooter };
+  window.AIATheme = { apply: apply, cycle: cycle, label: label, paintWho: paintWho, initials: initials, paintFooter: paintFooter, paintMarks: paintMarks };
 })();
