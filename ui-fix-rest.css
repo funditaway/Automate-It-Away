@@ -192,3 +192,23 @@ html.dark .hero .outline {
     width: 100% !important;
   }
 }
+
+/* Phone: Drop lives in the tab bar. Do not stack a second Drop anything under it. */
+@media (max-width: 860px) {
+  body.has-desk-nav #drop-go {
+    display: none !important;
+  }
+  body.has-desk-nav main,
+  body.has-desk-nav #gate,
+  body.has-desk-nav #queue {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  #desk-nav {
+    z-index: 80 !important;
+  }
+}
+@media (min-width: 861px) {
+  #drop-go {
+    position: static !important;
+  }
+}
