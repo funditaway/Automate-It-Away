@@ -54,7 +54,7 @@ header .brand-mark,
   height: 40px !important;
   flex: 0 0 40px !important;
   border-radius: 22%;
-  object-fit: contain;
+  object-fit: cover;
   background: transparent;
   box-shadow: none;
 }
@@ -178,3 +178,30 @@ header nav:not(.desk-tabs),
 }
 
 .verify-cells button { flex-direction: column; }
+
+/* Desk queue chrome: keep Pipes / Drop / Refresh off the bottom bar. */
+@media (max-width: 859px) {
+  body.has-desk-nav {
+    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #queue-pipes-row,
+  .wrap > .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: stretch;
+  }
+  #queue-pipes-tap,
+  .wrap > .row > .go,
+  .wrap > .row > .edit,
+  .wrap > .row > a.go,
+  .wrap > .row > button.edit {
+    flex: 1 1 100%;
+    min-height: 48px;
+    width: 100%;
+    margin: 0;
+  }
+  #desk-nav {
+    z-index: 80;
+  }
+}
