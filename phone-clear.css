@@ -1,6 +1,6 @@
 /* 2026-09-25 visibility — tab bar must not cover last line */
 body.has-desk-nav {
-  padding-bottom: calc(168px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px)) !important;
 }
 body.has-desk-nav main,
 body.has-desk-nav .wrap,
@@ -68,5 +68,28 @@ body.has-desk-nav .item:last-of-type {
   #desk-actions,
   .row.actions {
     justify-content: flex-start !important;
+  }
+}
+
+/* 2026-09-30: Refresh / Drop must sit above the phone tab bar. */
+@media (max-width: 859px) {
+  body.has-desk-nav {
+    padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.has-desk-nav #refresh,
+  body.has-desk-nav button#refresh,
+  body.has-desk-nav #desk-actions,
+  body.has-desk-nav .row.actions {
+    position: relative;
+    z-index: 2;
+    margin-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #desk-nav {
+    z-index: 90 !important;
+  }
+  header .brand-mark,
+  .site-header .brand-mark {
+    object-fit: contain !important;
+    background: transparent !important;
   }
 }
