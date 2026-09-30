@@ -62,8 +62,9 @@ body.has-desk-nav .item:last-of-type {
   }
   header .theme-btn,
   .theme-btn {
-    min-width: 3.2em !important;
+    min-width: 4.6em !important;
     min-height: 40px !important;
+    overflow: visible !important;
   }
   #desk-actions,
   .row.actions {
@@ -78,11 +79,13 @@ body.has-desk-nav .item:last-of-type {
   }
   body.has-desk-nav #refresh,
   body.has-desk-nav button#refresh,
+  body.has-desk-nav a#refresh,
   body.has-desk-nav #desk-actions,
-  body.has-desk-nav .row.actions {
+  body.has-desk-nav .row.actions,
+  body.has-desk-nav #queue-pipes-row {
     position: relative;
     z-index: 2;
-    margin-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+    margin-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
   }
   #desk-nav {
     z-index: 90 !important;
