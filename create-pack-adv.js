@@ -1,0 +1,101 @@
+/* Packs leftover after Studio create ?idea=: Advanced clarity + Use-on-desk honesty.
+   Collect HOLD. Not Market. No silent bind. */
+(function () {
+  function setAdvanced(on) {
+    if (typeof window.AIACreateSetMode === "function") {
+      window.AIACreateSetMode(!!on);
+      return;
+    }
+    document.body.classList.toggle("show-adv", !!on);
+    var simple = document.getElementById("mode-simple");
+    var adv = document.getElementById("mode-advanced");
+    if (simple) simple.classList.toggle("on", !on);
+    if (adv) adv.classList.toggle("on", !!on);
+  }
+  window.AIACreateSetMode = window.AIACreateSetMode || setAdvanced;
+
+  function revealListFields(form) {
+    if (!form) return;
+    ["listName", "listDoes"].forEach(function (name) {
+      var el = form.querySelector('[name="' + name + '"]');
+      if (!el) return;
+      el.classList.remove("adv");
+      var lab = el.previousElementSibling;
+      if (lab && lab.tagName === "LABEL") lab.classList.remove("adv");
+    });
+    var ask = form.querySelector('[name="listAsk"]');
+    if (ask && !/Collect HOLD/i.test(ask.placeholder || "")) {
+      ask.placeholder = (ask.placeholder || "Leave blank to list free") + " · Collect HOLD";
+    }
+  }
+
+  function ensureListHint(form) {
+    if (!form || document.getElementById("pack-list-adv-hint")) return;
+    var list = document.getElementById("pack-list");
+    if (!list || !list.parentNode) return;
+    var hint = document.createElement("p");
+    hint.className = "hint";
+    hint.id = "pack-list-adv-hint";
+    hint.textContent = "List your own pack below — name + what it does stay visible in Simple. Ask (price tag) is Advanced. List does not Use; after List, tap Use on this desk. You still tap Yes, then Start. Packs do not send money. Collect stays HOLD.";
+    var install = form.querySelector("#install-aia");
+    var anchor = install && install.closest("p") ? install.closest("p").nextSibling : list;
+    form.insertBefore(hint, anchor || list);
+  }
+
+  function honestyUnderUse(row) {
+    if (!row || row.querySelector(".pack-use-honest")) return;
+    var btn = row.querySelector("[data-use], a.use");
+    if (!btn) return;
+    var wanted = !!(btn.tagName === "A" && /idea=/.test(btn.getAttribute("href") || ""));
+    var p = document.createElement("p");
+    p.className = "hint pack-use-honest";
+    p.textContent = wanted
+      ? "Opens Advanced list fields. You still tap Yes, then Start. Packs do not send money."
+      : "Copies rules onto this desk. You still tap Yes, then Start. Packs do not send money. Collect stays HOLD.";
+    btn.insertAdjacentElement("afterend", p);
+  }
+
+  function polishPackRows() {
+    var list = document.getElementById("pack-list");
+    if (!list) return;
+    list.querySelectorAll(".pack-row").forEach(honestyUnderUse);
+  }
+
+  function honestOk(node) {
+    if (!node || node.dataset.packHonest === "1") return;
+    var t = String(node.textContent || "");
+    if (!/Pack is on this desk|Installed \.aia|Pack is listed|Rules added/i.test(t)) return;
+    if (/Yes, then Start/i.test(t)) {
+      node.dataset.packHonest = "1";
+      return;
+    }
+    node.textContent = t.replace(/\s*$/, "") + " You still tap Yes, then Start. Packs do not send money.";
+    node.dataset.packHonest = "1";
+  }
+
+  function tick() {
+    var form = document.getElementById("form");
+    if (!form) return;
+    if (!form.querySelector('[name="listName"]') && !document.getElementById("pack-q")) return;
+    revealListFields(form);
+    ensureListHint(form);
+    polishPackRows();
+    honestOk(document.getElementById("ok"));
+  }
+
+  function boot() {
+    tick();
+    var form = document.getElementById("form");
+    if (form && window.MutationObserver) {
+      new MutationObserver(function () { tick(); }).observe(form, { childList: true, subtree: true });
+    }
+    var ok = document.getElementById("ok");
+    if (ok && window.MutationObserver) {
+      new MutationObserver(function () { honestOk(ok); }).observe(ok, { childList: true, characterData: true, subtree: true });
+    }
+    setInterval(tick, 800);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
