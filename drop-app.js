@@ -42,7 +42,7 @@ const params = new URLSearchParams(location.search);
     }
     function esc(s) {
       return String(s || "").replace(/[&<>"']/g, function (c) {
-        return ({ "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;" })[c];
+        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": """, "'": "&#39;" })[c];
       });
     }
     function deskNameOf() {
