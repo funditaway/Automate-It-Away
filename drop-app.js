@@ -84,13 +84,13 @@ const params = new URLSearchParams(location.search);
       if (way === "share") {
         if (window.AIADropSteps && AIADropSteps.go) AIADropSteps.go("share");
         const card = document.getElementById("embed-card");
-        if (card && card.scrollIntoView) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        if (card && card.scrollIntoView({ block: "nearest", behavior: "smooth" }));
         return;
       }
     }
     function esc(s) {
       return String(s || "").replace(/[&<>"']/g, function (c) {
-        return ({ "&": "&", "<": "<", ">": ">", "\"": "&#x26;quot;", "'": "&#39;" })[c];
+        return ({ "&": "\u0026amp;", "<": "\u0026lt;", ">": "\u0026gt;", "\"": "\u0026quot;", "'": "\u0027" })[c];
       });
     }
     function deskNameOf() {
