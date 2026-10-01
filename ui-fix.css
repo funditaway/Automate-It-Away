@@ -43,10 +43,26 @@ header > a.brand,
 header a.brand {
   grid-area: brand !important;
   justify-self: start;
-  min-width: 0;
+  min-width: max-content !important;
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  overflow: visible !important;
+}
+header .brand-name,
+.site-header .brand-name {
+  color: #fff !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip;
+  flex: 0 0 auto !important;
+}
+@media (min-width: 861px) and (max-width: 1180px) {
+  header .brand-name,
+  .site-header .brand-name {
+    font-size: 14px !important;
+  }
 }
 header .brand-mark,
 .site-header .brand-mark {
