@@ -1,1 +1,1 @@
-__LOAD_FROM_PATH__/workspace/counter-talk-say/desk-card.js
+PLACEHOLDER_WILL_FAIL
