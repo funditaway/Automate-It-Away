@@ -1,0 +1,214 @@
+header .brand, .site-header .brand, header .brand-short, .site-header .brand-short {
+  color: #fff !important;
+}
+#gate button, #open-desk, button.open-desk {
+  background: var(--orange, #f39c12) !important;
+  color: #0c1116 !important;
+  font-weight: 800 !important;
+}
+button.aia-tip {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  line-height: 1 !important;
+}
+.site-foot nav {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center;
+  gap: 6px 12px !important;
+}
+#desk-switch a[href="/onboard"],
+a.open-another {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: #0d6b6b !important;
+  color: #fff !important;
+  font-weight: 800;
+  text-decoration: none;
+}
+.gate-card input,
+#form input,
+#desk-door input,
+.onboard-card input {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100%;
+  min-height: 48px !important;
+  max-height: 56px !important;
+}
+button.edit,
+a.edit,
+#refresh,
+button#refresh {
+  background: #0d6b6b !important;
+  color: #fff !important;
+  border: 0 !important;
+  font-weight: 800 !important;
+}
+#gate,
+.desk-open-row,
+#open-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  width: 100%;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+#gate input,
+#ws,
+#pin {
+  flex: 1 1 220px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 52px !important;
+}
+#desk-actions,
+.row.actions,
+#desk-tools-row {
+  justify-content: flex-start !important;
+  width: 100%;
+  gap: 8px;
+}
+header select,
+header .goog-te-combo,
+.hdr-tools select {
+  display: none !important;
+}
+@media (max-width: 860px) {
+  #gate,
+  .desk-open-row,
+  #open-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  #gate input,
+  #ws,
+  #pin,
+  #gate button,
+  #open-desk,
+  #refresh,
+  #drop-go {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+  #desk-actions,
+  .row.actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  #desk-actions a,
+  #desk-actions button,
+  .row.actions a,
+  .row.actions button {
+    width: 100% !important;
+    justify-content: center;
+  }
+  .hero .row,
+  .hero-actions,
+  .actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .hero .row a,
+  .hero-actions a,
+  .actions a {
+    width: 100%;
+    justify-content: center;
+  }
+}
+@media (min-width: 861px) {
+  header,
+  .site-header {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    grid-template-areas: "brand nav tools" !important;
+  }
+  #pin {
+    flex: 1 1 180px !important;
+  }
+}
+a.btn.outline,
+.btn.outline,
+a.outline,
+.hero .outline {
+  color: #0a4f4f !important;
+  border-color: #0a4f4f !important;
+  background: #fff !important;
+}
+html.dark a.btn.outline,
+html.dark .btn.outline,
+html.dark a.outline,
+html.dark .hero .outline {
+  color: #e8f4f4 !important;
+  border-color: #9ad4d4 !important;
+  background: transparent !important;
+}
+
+#queue-desk-rail,
+#queue-desk-actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start !important;
+  gap: 8px;
+}
+#queue-desk-actions a,
+#queue-desk-actions button {
+  min-height: 44px;
+}
+#drop-go {
+  flex: 1 1 160px;
+}
+#open-desk,
+#queue-pipes-tap {
+  flex: 0 1 auto;
+}
+@media (max-width: 860px) {
+  #queue-desk-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+  #drop-go {
+    grid-column: 1 / -1;
+    width: 100% !important;
+  }
+  #open-desk {
+    width: 100% !important;
+  }
+}
+
+/* Phone: Drop lives in the tab bar. Do not stack a second Drop anything under it. */
+@media (max-width: 860px) {
+  body.has-desk-nav #drop-go {
+    display: none !important;
+  }
+  body.has-desk-nav main,
+  body.has-desk-nav #gate,
+  body.has-desk-nav #queue {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  #desk-nav {
+    z-index: 80 !important;
+  }
+}
+@media (min-width: 861px) {
+  #drop-go {
+    position: static !important;
+  }
+}

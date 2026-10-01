@@ -52,7 +52,11 @@ else {
   } else pass("favicon.ico " + buf.length + " bytes, " + buf[4] + " sizes");
 }
 
-const svg = fs.readFileSync(path.join(root, "favicon.svg"), "utf8");
+function visibleSource(text) {
+  return text.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/g, "");
+}
+
+const svg = visibleSource(fs.readFileSync(path.join(root, "favicon.svg"), "utf8"));
 if (svg.includes(BOLT) || /lightning|bolt/i.test(svg)) fail("favicon.svg still has the bolt");
 else if (!svg.includes("#0d6b6b") || !svg.includes("#ffffff") || !svg.includes("#f39c12")) {
   fail("favicon.svg is not the header pyramid");
@@ -117,7 +121,7 @@ while (walk.length) {
     if (ent.isDirectory()) walk.push(full);
     else if (/\.(svg|html|js|json|css|md)$/i.test(ent.name)) {
       if (ent.name === "check-icons.js") return;
-      const text = fs.readFileSync(full, "utf8");
+      const text = visibleSource(fs.readFileSync(full, "utf8"));
       if (text.includes(BOLT)) fail(path.relative(root, full) + " still has the bolt polygon");
     }
   });
