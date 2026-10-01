@@ -207,6 +207,7 @@
     loadQueue("desk-ais.js", "data-aia-desk-ais");
     loadQueue("pack-card.js", "data-aia-pack-card");
     loadQueue("desk-needs.js", "data-aia-desk-needs");
+    loadQueue("desk-html-view.js", "data-aia-desk-html-view");
     loadQueue("desk-queue-ux.js", "data-aia-queue-ux");
     loadQueue("desk-inbox.js", "data-aia-desk-inbox");
     loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
@@ -220,6 +221,7 @@
         document.body.appendChild(a);
       }
     }
+    loadDrop("drop-html-accept.js", "data-aia-drop-html-accept");
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");

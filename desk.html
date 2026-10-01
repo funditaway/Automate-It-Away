@@ -194,6 +194,7 @@
   <script src="desk-switch.js"></script>
   <script src="aia-wallet.js"></script>
   <script src="desk-card.js"></script>
+  <script src="desk-html-boot.js"></script>
   <script src="desk-playbook.js"></script>
   <script src="desk-nav.js"></script>
   <script>
@@ -323,7 +324,7 @@
       return s || "";
     }
     function esc(s) {
-      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&amp;quot;","'":"&#39;" }[c]));
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
