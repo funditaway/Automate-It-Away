@@ -51,6 +51,20 @@
     if (Array.isArray(j.needs) && j.needs.length && typeof j.needs[0] === "object") {
       const actions = j.needs.slice();
       const decide = !!j.decide;
+      if (decide) {
+        const approved = isCardApproved(j.id);
+        for (let i = 0; i < actions.length; i++) {
+          if (!actions[i]) continue;
+          if (approved && actions[i].id === "yes") { actions[i] = { id: "start", label: "Start" }; }
+          if (!approved && actions[i].id === "start") { actions[i] = { id: "yes", label: "Yes" }; }
+        }
+        if (approved && !actions.some(function (a) { return a && a.id === "start"; }) && !actions.some(function (a) { return a && a.id === "yes"; })) {
+          actions.unshift({ id: "start", label: "Start" });
+        }
+        if (!approved && !actions.some(function (a) { return a && a.id === "yes"; }) && !actions.some(function (a) { return a && a.id === "start"; })) {
+          actions.unshift({ id: "yes", label: "Yes" });
+        }
+      }
       if (decide && !staff && !actions.some(function (a) { return a && a.id === "kill"; })) {
         actions.push({ id: "kill", label: "Kill" });
       }
@@ -79,7 +93,11 @@
     if (!done) add("open", "Open");
     if (outDesk) { add("done", "Done off desk"); add("handback", "Needs a hand"); }
     else if (missing.length) { add("fill", "Add " + missing[0]); add("ask", "Ask for more"); }
-    else if (decide) { add("yes", "Yes"); if (!staff) { add("stop", "Stop"); add("kill", "Kill"); } }
+    else if (decide) {
+      if (isCardApproved(j.id)) add("start", "Start");
+      else add("yes", "Yes");
+      if (!staff) { add("stop", "Stop"); add("kill", "Kill"); }
+    }
     if (j.draft && !missing.length) add("copy", "Copy draft");
     if (phone || j.draft) add("text", "Text");
     if (val(j, "email") || j.draft) add("email", "Email");
@@ -87,7 +105,7 @@
     if (!j.draft && !done) add("grok", askGrokLabel(j));
     if (!done) add(priority ? "uncap" : "cap", priority ? "Off the cap" : "Cap");
     if (!done) add("pipes", "Pipes");
-    const line = outDesk ? "Off the desk. Confirm done, or tap Needs a hand." : (missing.length ? "Need " + missing[0] + " before this can go." : (j.needLine || j.next || (decide ? "Ready. Yes / Stop / Kill stay human." : (priority ? "On the cap. Do this first." : "Do the next thing this card needs."))));
+    const line = outDesk ? "Off the desk. Confirm done, or tap Needs a hand." : (missing.length ? "Need " + missing[0] + " before this can go." : (j.needLine || j.next || (decide ? "Ready. Yes · Start / Stop stay human." : (priority ? "On the cap. Do this first." : "Do the next thing this card needs."))));
     return { line: line, actions: actions, missing: missing, decide: decide, priority: priority, outDesk: outDesk };
   }
   function clipFace(s, n) {
@@ -223,6 +241,21 @@
   function cardId(j) {
     return String((j && j.id) || "").replace(/[^a-zA-Z0-9_-]/g, "");
   }
+
+  window.__aiaApproved = window.__aiaApproved || {};
+  function isCardApproved(id) {
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    if (!safe) return false;
+    if (window.__aiaApproved && window.__aiaApproved[safe]) return true;
+    try { return sessionStorage.getItem("aia_ok_" + safe) === "1"; } catch (e) { return false; }
+  }
+  function markCardApproved(id) {
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    if (!safe) return;
+    window.__aiaApproved = window.__aiaApproved || {};
+    window.__aiaApproved[safe] = true;
+    try { sessionStorage.setItem("aia_ok_" + safe, "1"); } catch (e) {}
+  }
   function lastOfKind(j, kind) {
     const rows = (j && Array.isArray(j.thread) ? j.thread : []).filter(function (t) {
       return t && t.text && String(t.kind || "") === kind;
@@ -340,12 +373,12 @@
     }).join("");
     return "<div class=\"q-bind\">" +
       "<label class=\"q-bind-lab\" for=\"" + fid + "\">Desk AI on this card</label>" +
-      "<select id=\"" + fid + "\" class=\"q-ai-pick\" onchange=\"bindAiOnCard('" + id + "', this.value)\">" +
+      "<select id=\"" + fid + "\" class=\"q-ai-pick\">" +
       holdOpt + opts +
       "</select>" +
       "<p class=\"q-bind-hold\">" + (hold
-        ? "Gone bind HOLDs. Pick a desk AI already on this desk to clear. Yes / Stop / Kill stay human. Nothing sent alone."
-        : "Picks who owns Then / Needs you on this card. Yes / Stop / Kill stay human. Nothing sent alone.") + "</p>" +
+        ? "Gone bind HOLDs. Pick stays pending until Yes. Yes / Start / Stop stay human. Nothing sent alone."
+        : "Pick stays pending until Yes. Yes / Start / Stop stay human. Nothing sent alone.") + "</p>" +
       "</div>";
   }
   function promptSurface(where) {
@@ -388,7 +421,7 @@
   }
   function honestNext(j, need) {
     let line = String((need && need.line) || (j && j.next) || "").trim();
-    if (!line) line = (need && need.decide) ? "Ready. Yes / Stop / Kill stay human." : "Do the next thing this card needs.";
+    if (!line) line = (need && need.decide) ? "Ready. Yes · Start / Stop stay human." : "Do the next thing this card needs.";
     if (!/HOLD/i.test(line) && !/nothing sent/i.test(line)) {
       line = line.replace(/\.\s*$/, "") + ". HOLD. Nothing sent alone.";
     } else if (!/nothing sent/i.test(line)) {
@@ -437,7 +470,7 @@
       bits.push("<span class=\"q-chip q-need\">" + esc(needWho) + "</span>");
     }
     if (isAskHuman(j, need)) bits.push("<span class=\"q-chip q-ask\">Ask the human</span>");
-    if (need && need.decide) bits.push("<span class=\"q-chip q-hitl-mark\">Yes / Stop / Kill</span>");
+    if (need && need.decide) bits.push("<span class=\"q-chip q-hitl-mark\">Yes · Start / Stop</span>");
     const fanTotal = j && j.custom && Number(j.custom.dropTotal);
     if (fanTotal > 1) {
       const n = Number(j.custom.dropIndex) || 0;
@@ -460,7 +493,8 @@
     if (a.id === "text") return "<a class=\"edit\" href=\"" + smsOf(j) + "\">" + a.label + "</a>";
     if (a.id === "email") return "<a class=\"edit\" href=\"" + mailOf(j) + "\">" + a.label + "</a>";
     if (a.id === "call") return "<a class=\"edit\" href=\"" + (a.href || "#") + "\">" + a.label + "</a>";
-    if (a.id === "yes") return "<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>";
+    if (a.id === "yes") return "<button class=\"go q-yes\" type=\"button\" onclick=\"approveCard('" + j.id + "')\">Yes</button>";
+    if (a.id === "start") return "<button class=\"go q-start\" type=\"button\" onclick=\"startCard('" + j.id + "', " + money + ")\">Start</button>";
     if (a.id === "stop") return "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>";
     if (a.id === "kill") return "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Kill</button>";
     if (a.id === "copy") return "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>";
@@ -484,7 +518,7 @@
       if (a.id === "pipes") return;
       const bit = paintAction(j, a, money);
       if (!bit) return;
-      if (a.id === "yes" || a.id === "stop" || a.id === "kill") hitl.push(bit);
+      if (a.id === "yes" || a.id === "start" || a.id === "stop" || a.id === "kill") hitl.push(bit);
       else rest.push(bit);
     });
     rest.push("<button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button>");
@@ -531,12 +565,12 @@
         else root.appendChild(line);
       }
       if (root.querySelectorAll) {
-        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = true; });
+        root.querySelectorAll(".q-yes, .q-start, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = true; });
       }
     } else {
       if (line && line.remove) line.remove();
       if (root.querySelectorAll) {
-        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = false; });
+        root.querySelectorAll(".q-yes, .q-start, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = false; });
       }
     }
   }
@@ -587,6 +621,36 @@
     if (banner) banner.textContent = line;
     if (typeof openJob === "function") openJob(id);
   }
+
+  async function approveCard(id) {
+    const banner = document.getElementById("banner");
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    if (!safe) return;
+    const pick = document.getElementById("q-ai-queue-" + safe)
+      || document.getElementById("q-ai-cap-" + safe)
+      || document.getElementById("q-ai-sheet-" + safe);
+    const value = pick && pick.value ? String(pick.value).trim() : "";
+    if (value && typeof bindAiOnCard === "function") {
+      await bindAiOnCard(safe, value);
+    }
+    markCardApproved(safe);
+    if (banner) banner.textContent = "Approved. Tap Start when ready. HOLD. Nothing sent alone.";
+    if (typeof load === "function") await load();
+    const sheet = document.getElementById("sheet");
+    if (sheet && sheet.classList && sheet.classList.contains("on") && typeof openJob === "function") {
+      openJob(safe);
+    }
+  }
+  function startCard(id, money) {
+    const banner = document.getElementById("banner");
+    const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    if (!isCardApproved(safe)) {
+      if (banner) banner.textContent = "Tap Yes to approve first.";
+      return;
+    }
+    if (typeof ship === "function") ship(safe, money);
+  }
+
   async function bindAiOnCard(id, ai) {
     const banner = document.getElementById("banner");
     const safe = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
@@ -671,6 +735,10 @@
   window.replyOnCard = replyOnCard;
   window.bindAiHtml = bindAiHtml;
   window.bindAiOnCard = bindAiOnCard;
+  window.approveCard = approveCard;
+  window.startCard = startCard;
+  window.isCardApproved = isCardApproved;
+  window.markCardApproved = markCardApproved;
   window.helpWithAi = helpWithAi;
   window.pinCap = pinCap;
   window.openCapDesk = openCapDesk;
@@ -724,7 +792,8 @@
     }
     const openBtn = openTap ? openTap[0] : "";
     const moreTaps = openBtn ? rest.replace(openBtn, "") : rest;
-    return "<article class=\"item q-card q-state-" + state + (cap ? " cap-card" : "") + "\" data-job=\"" + esc(j.id || "") + "\">" +
+    const approved = isCardApproved(j.id);
+    return "<article class=\"item q-card q-state-" + state + (cap ? " cap-card" : "") + (approved ? " q-approved" : "") + "\" data-job=\"" + esc(j.id || "") + "\">" +
       "<div class=\"q-drag\" title=\"Tap or drag to Cap\" aria-label=\"Cap this card\" role=\"button\">⋮⋮</div>" +
       "<div class=\"q-face\">" +
         stateMark(state) +
@@ -880,7 +949,7 @@
         "#queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}" +
         ".q-busy{font-size:12px;color:var(--muted);margin:6px 0}" +
         ".q-pending{opacity:.86}" +
-        ".q-pending .q-yes,.q-pending .q-stop,.q-pending .q-kill,.q-pending .q-reply-tap{opacity:.55;pointer-events:none}" +
+        ".q-pending .q-yes,.q-pending .q-start,.q-pending .q-stop,.q-pending .q-kill,.q-pending .q-reply-tap{opacity:.55;pointer-events:none}.q-approved{border-left:3px solid var(--teal,#119494)}.q-card:not(.q-approved) .q-start{opacity:.55;pointer-events:none}" +
         ".q-hitl{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}" +
 
         ".q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px;width:100%}" +

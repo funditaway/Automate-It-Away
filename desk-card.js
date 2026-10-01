@@ -304,8 +304,10 @@ async function openJob(id) {
     "<div class=\"sheet-decide\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"carryJob('" + j.id + "')\">Done by hand</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button>" +
-      "<button class=\"go\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" +
-      (staff ? "<span></span>" : "<button class=\"kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + esc(j.title).replace(/'/g, "") + "')\">Stop</button>") +
+      (typeof isCardApproved === "function" && isCardApproved(j.id)
+        ? "<button class=\"go q-start\" type=\"button\" onclick=\"startCard('" + j.id + "', " + money + ")\">Start</button>"
+        : "<button class=\"go q-yes\" type=\"button\" onclick=\"approveCard('" + j.id + "')\">Yes</button>") +
+      (staff ? "<span></span>" : "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + j.id + "', '" + esc(j.title).replace(/'/g, "") + "')\">Stop</button>") +
     "</div>";
   document.getElementById("sheet").classList.add("on");
 }
@@ -488,12 +490,12 @@ function setCardBusy(id, on) {
       else root.appendChild(line);
     }
     if (root.querySelectorAll) {
-      root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = true; });
+      root.querySelectorAll(".q-yes, .q-start, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = true; });
     }
   } else {
     if (line && line.remove) line.remove();
     if (root.querySelectorAll) {
-      root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = false; });
+      root.querySelectorAll(".q-yes, .q-start, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = false; });
     }
   }
 }
