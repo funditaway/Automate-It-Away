@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIA talk cards</title>
+<link rel="icon" href="/favicon.svg">
+<style>
+:root{--bg:#0b1f1c;--card:#122e29;--ink:#f4f7f6;--mute:#9bb8b1;--teal:#1aa89a;--orange:#f26b2b;--line:#1e4a43}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:18px 16px 8px}
+h1{margin:0;font-size:22px}
+.sub{color:var(--mute);font-size:13px;margin-top:6px}
+main{padding:8px 16px 88px;display:grid;gap:12px}
+article{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+article h2{margin:0 0 8px;font-size:16px;color:var(--orange)}
+pre{white-space:pre-wrap;word-break:break-word;background:#081614;border-radius:10px;padding:12px;margin:0 0 10px;font-size:13px}
+button{background:var(--teal);color:#06201c;border:0;border-radius:999px;padding:8px 12px;font-weight:700}
+button:active{opacity:.8}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{border-top:1px solid var(--line);padding:8px 4px;text-align:left}
+a{color:var(--teal)}
+.ok{color:var(--teal);font-size:13px;margin:0 0 10px}
+</style>
+</head>
+<body>
+<header>
+<h1>AIA talk cards</h1>
+<p class="sub">Six bots. One card each. Persist is shared blob. Whatnot stays down.</p>
+<p class="ok">Live store: blob:aia/store.json · <a href="/api/health">health</a></p>
+</header>
+<main>
+<article>
+<h2>All-hands</h2>
+<pre id="all">All six stay in role.
+Foreman sequences. Mapper maps one shop. Packer writes JSON. Doer drafts. Rail judges ship. Builder evolves existing files.
+Phase is P1. Persist is shared blob. Prove it: second phone opens the same workspace queue.
+Do not open P3–P5. Do not mark Whatnot live. Do not invent a seventh bot.
+Foreman, issue one job card now.</pre>
+<button data-copy="all">Copy</button>
+</article>
+<article>
+<h2>Job card</h2>
+<pre id="job">Owner:
+Input:
+Done when:
+Hands to:
+Rail: yes | no</pre>
+<button data-copy="job">Copy</button>
+</article>
+<article>
+<h2>Reply card</h2>
+<pre id="reply">BOT: [name]
+PHASE: P0–P5
+SHIP | HOLD | KILL
+
+Result
+- …
+
+Next
+- Owner:
+- Job:
+- Done when:
+
+Did not
+- …</pre>
+<button data-copy="reply">Copy</button>
+</article>
+<article>
+<h2>Foreman</h2>
+<pre id="foreman">Foreman.
+Phase line first. What is live vs local.
+Issue exactly one job card.
+Out of scope this week.
+One sentence I can do now.</pre>
+<button data-copy="foreman">Copy</button>
+</article>
+<article>
+<h2>Mapper</h2>
+<pre id="mapper">Mapper. Map this shop.
+[name + city]
+[one line what they sell]
+Five steps only. Pack fit. First pipe. Kill in Qualify. Hands to.</pre>
+<button data-copy="mapper">Copy</button>
+</article>
+<article>
+<h2>Packer</h2>
+<pre id="packer">Packer. Write the [consign | vita | fund | land] pack JSON.
+Allowed pipes only: square, ebay, calendar, consign, sms, webhook.
+HOLD if money, illustration, app, or legal send is implied.
+Attach Rail lines as Ask me if [condition].</pre>
+<button data-copy="packer">Copy</button>
+</article>
+<article>
+<h2>Doer</h2>
+<pre id="doer">Doer. Draft the [listing | packet | proposal | nudge | widget copy | help string].
+Shop: [name]
+Voice: short, local, teal/orange desk.
+Do not send. Mark HOLD if money, named customer, illustration, or live publish.</pre>
+<button data-copy="doer">Copy</button>
+</article>
+<article>
+<h2>Rail</h2>
+<pre id="rail">Rail. Can this ship?
+Artifact: [paste]
+Ask me if [condition].
+Audit row. Who taps. Undo path.
+If the stop belongs in code, hands to Builder with the exact check.</pre>
+<button data-copy="rail">Copy</button>
+</article>
+<article>
+<h2>Builder</h2>
+<pre id="builder">Builder. P1 card.
+Keep X-Workspace and /api/jobs capture|ship|kill.
+Repo is funditaway/Automate-It-Away. Vercel project automate-it-away.
+globalThis.__aia is the in-process cache. Shared store is Vercel Blob aia/store.json.
+Cite file paths. Mark anything still dispatch.demo.
+Do not create a new GitHub repo. Do not merge HOLD / preview PRs.</pre>
+<button data-copy="builder">Copy</button>
+</article>
+<article>
+<h2>Who to tap</h2>
+<table>
+<tr><th>You say</th><th>Bot</th></tr>
+<tr><td>phase, next, go-live, stop</td><td>Foreman</td></tr>
+<tr><td>map this, five steps, this shop</td><td>Mapper</td></tr>
+<tr><td>pack JSON, adapter</td><td>Packer</td></tr>
+<tr><td>draft, listing, packet, copy</td><td>Doer</td></tr>
+<tr><td>ship?, guardrail, ask me if</td><td>Rail</td></tr>
+<tr><td>API, repo, pipe, Vercel, store</td><td>Builder</td></tr>
+</table>
+</article>
+</main>
+<script>
+document.querySelectorAll("[data-copy]").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    var el = document.getElementById(btn.getAttribute("data-copy"));
+    navigator.clipboard.writeText(el.textContent).then(function(){
+      btn.textContent = "Copied";
+      setTimeout(function(){ btn.textContent = "Copy"; }, 1200);
+    });
+  });
+});
+</script>
+</body>
+</html>
