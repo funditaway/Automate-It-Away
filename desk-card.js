@@ -1,1 +1,1 @@
-PLACEHOLDER_WILL_FAIL
+@/workspace/counter-approve-start/desk-card.js
