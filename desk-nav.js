@@ -226,6 +226,8 @@
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");
+    loadDrop("drop-custom.js", "data-aia-drop-custom");
+    loadDrop("aia-tip-custom.js", "data-aia-tip-custom");
     loadDrop("drop-preview.js", "data-aia-drop-preview", function () {
       loadDrop("drop-chat.js", "data-aia-drop-chat");
     });
