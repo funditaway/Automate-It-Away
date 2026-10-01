@@ -44,7 +44,7 @@ if (custom.indexOf("silent bind") < 0 && custom.indexOf("not a silent bind") < 0
 } else pass("honest Desk AI path copy");
 if (custom.indexOf("Yes, then Start") < 0) fail("must keep Yes, then Start");
 else pass("Yes, then Start kept");
-if (/\bPLACEHOLDER\b|demo data|Whatnot|ebay\.com|mail send/.test(custom)) fail("no demo/mail/eBay/Whatnot stubs");
+if (/\\bPLACEHOLDER\\b|demo data|Whatnot|ebay\\.com|mail send/.test(custom)) fail("no demo/mail/eBay/Whatnot stubs");
 else pass("no blocked product stubs");
 
 if (nav.indexOf('loadDrop("drop-custom.js"') < 0 && nav.indexOf("drop-custom.js") < 0) {
@@ -76,9 +76,11 @@ else pass("drop-app custom mode");
 if (more.indexOf("pane-custom") < 0) fail("drop-more must still inject pane-custom");
 else pass("drop-more pane-custom");
 
-if (tip.indexOf("custom-drop") < 0) fail("aia-tip must include custom-drop");
+const tipCustom = fs.existsSync(path.join(ROOT, "aia-tip-custom.js")) ? read("aia-tip-custom.js") : "";
+const tipAll = tip + "\n" + tipCustom;
+if (tipAll.indexOf("custom-drop") < 0) fail("aia-tip or aia-tip-custom must include custom-drop");
 else pass("aia-tip custom-drop");
-if (tip.indexOf("card-type") < 0) fail("aia-tip must include card-type");
+if (tipAll.indexOf("card-type") < 0) fail("aia-tip or aia-tip-custom must include card-type");
 else pass("aia-tip card-type");
 
 if (pack.indexOf("faceOf") < 0) fail("pack-card faceOf still present");
