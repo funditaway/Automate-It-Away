@@ -1,2 +1,476 @@
 <!DOCTYPE html>
-<!-- exact local file content from /workspace/counter-drop-html/cloud-push/desk.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Desk · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0d6b6b">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="desk-nav.css">
+  <script src="theme.js"></script>
+  <script src="analytics.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    header{background:linear-gradient(135deg,#0f7f7f,#0d6b6b);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 10px;padding-top:8px;font:700 13px/1.2 system-ui,sans-serif}
+    .desk-tabs a{color:#fff}
+    body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+    #desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}
+    #desk-nav a{flex:1;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,sans-serif;text-decoration:none}
+    #desk-nav a.on{color:#f39c12}
+    #desk-nav svg{width:22px;height:22px;display:block;pointer-events:none}
+    .wrap{width:min(880px,94vw);margin:0 auto;padding:16px 0 24px}
+    .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+    .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+    .item h3{font-size:1.12rem;line-height:1.3;color:var(--heading);margin:6px 0}
+    .item p{color:var(--muted);font-size:14px;margin:4px 0 8px}
+    #queue .item,#cap-list .item{box-shadow:var(--shadow)}
+    #queue .next-line,#cap-list .next-line{font-size:14px;font-weight:700;color:var(--heading);margin:8px 0 10px}
+    #queue .tap-opts button,#queue .tap-opts a,#cap-list .tap-opts button{min-height:44px}
+    .q-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+    .q-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .q-chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.03em;background:var(--edit);color:var(--edit-ink)}
+    .q-need{background:var(--banner);color:var(--banner-ink)}
+    .q-ask{background:var(--edit);color:var(--heading)}
+    .q-hitl-mark{background:var(--edit);color:var(--heading)}
+    .q-stat{color:var(--muted);font-weight:700}
+    .q-then-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+    .q-then-face{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+    .q-ai{background:var(--teal,#119494);color:#fff}
+    .q-ai-gone{background:var(--banner);color:var(--banner-ink)}
+    .q-ai-does,.q-ai-prompt{background:var(--edit);color:var(--heading);font-weight:700}
+    .q-files{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+    .q-file{min-height:44px}
+    .q-hitl{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .q-hitl .go,.q-hitl .kill{min-height:48px;font-size:16px;width:100%}
+    .q-prompt{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+    .q-prompt-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 6px}
+    .q-prompt-q{font-size:15px;line-height:1.4;color:var(--heading);margin:0 0 8px}
+    .q-reply-was{font-size:13px;color:var(--muted);margin:0 0 8px;white-space:pre-wrap}
+    .q-prompt-lab{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 4px}
+    .q-reply-box{width:100%;min-height:64px;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--bg);color:var(--ink)}
+    .q-prompt-go{margin-top:8px}
+    .q-reply-tap{min-height:44px}
+    .q-prompt-hold{font-size:12px;color:var(--muted);margin:8px 0 0}
+    .q-busy{font-size:12px;color:var(--muted);margin:6px 0}
+    .q-pending{opacity:.86}
+    .q-pending .q-yes,.q-pending .q-stop,.q-pending .q-kill,.q-pending .q-reply-tap{opacity:.55;pointer-events:none}
+    .q-thread{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}
+    .q-talk{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+    .q-turn{border-radius:10px;padding:8px 10px}
+    .q-turn-ai{background:var(--edit)}
+    .q-turn-you{background:var(--bg);border:1px solid var(--line)}
+    .q-turn-who{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--heading);margin:0 0 4px}
+    .q-turn-text{font-size:14px;line-height:1.4;white-space:pre-wrap}
+    .q-bind{margin:8px 0}
+    .q-bind-lab{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:0 0 4px}
+    .q-ai-pick{width:100%;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}
+    .q-bind-hold{font-size:12px;color:var(--muted);margin:6px 0 0}
+    .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    button,a.go{border:0;border-radius:9px;padding:8px 10px;font-weight:700;cursor:pointer;font-family:inherit}
+    .go{background:#119494;color:#fff;display:inline-block}
+    .kill{background:var(--kill-bg);color:var(--kill-ink)}
+    .edit{background:var(--edit);color:var(--edit-ink)}
+    .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+    .kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
+    .kpi b{font-size:1.3rem;color:var(--teal)}
+    body.queue-desk .kpis{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    #queue-empty,#cap-empty{padding:28px 16px;text-align:center;border:1px dashed var(--line);border-radius:16px;background:color-mix(in srgb,var(--card) 80%,transparent)}
+    #queue-empty p,#cap-empty p{margin:0 0 12px;color:var(--muted)}
+    #queue-empty .row,#cap-empty .row{justify-content:center}
+    #queue-desk-rail{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+    .banner{margin-bottom:8px}
+    .tip{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--edit);color:var(--edit-ink);font-size:11px;line-height:16px;text-align:center;cursor:help;margin-left:4px}
+    input,textarea,select{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
+    .sheet{position:fixed;inset:0;background:rgba(10,79,79,.45);display:none;align-items:flex-end;justify-content:center;z-index:20}
+    .sheet.on{display:flex}
+    .sheet-card{background:var(--card);color:var(--ink);width:min(480px,100%);border-radius:16px 16px 0 0;padding:16px}
+    .sheet-card label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
+    .sheet-card input,.sheet-card textarea{width:100%}
+    img.thumb{max-width:min(160px,42vw);border-radius:10px;display:block;margin:6px 0}
+    .draft{background:var(--edit);border-radius:10px;padding:10px 12px;font-size:14px;margin:8px 0;line-height:1.4}
+    .meta{font-size:11px;opacity:.7}
+    .ok{color:#0d6b6b;font-size:13px}
+    #aia-wallet h2{font-size:1.12rem;color:var(--heading);margin:0 0 6px}
+    #aia-wallet .row{margin:8px 0}
+    .sent{opacity:.75}
+    .lock{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
+    a.edit{display:inline-block}
+    #desk-list button{width:auto;margin:4px 6px 0 0}
+    #noun-fields{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0}
+    #noun-fields label{font-size:11px;font-weight:700;color:var(--heading);display:block;margin:0 0 4px}
+    #noun-fields input{width:100%}
+    #gate[hidden],#session[hidden],#desk-switch[hidden],#rule-add[hidden],#noun-save[hidden],#nav-consign[hidden],#recent-label[hidden],#queue-filters[hidden],#pack-filters[hidden]{display:none!important}
+    @media(max-width:640px){#noun-fields{grid-template-columns:1fr 1fr}}
+    .talk{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
+    .talk div{margin:0 0 6px}
+    .talk b{color:var(--heading)}
+    #rule-list{list-style:none;padding:0;margin:8px 0 0}
+    #rule-list li{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 6px;font-size:13px;color:var(--muted)}
+    #rule-list li span{flex:1}
+    #rule-list .kill{padding:4px 8px;font-size:12px}
+    @media(max-width:640px){.kpis{grid-template-columns:1fr}}
+  </style>
+</head>
+<body class="has-desk-nav">
+  <header>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-tile.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <span>
+      <a href="consign.html" id="nav-consign" hidden>Consign</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </span>
+    <nav class="desk-tabs" aria-label="Desk tabs">
+      <a href="/desk" data-tab="queue">Queue</a>
+      <a href="/drop" data-tab="drop" id="head-drop">Drop</a>
+      <a href="/create" data-tab="create">Create</a>
+      <a href="/history" data-tab="history">History</a>
+      <a href="/more" data-tab="more">More</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <div class="banner" id="banner">This desk’s work.</div>
+    <div class="kpis" aria-hidden="true">
+      <div class="kpi"><span>Waiting on a person.</span><b id="k-wait">—</b></div>
+      <div class="kpi"><span>Sent</span><b id="k-ship">—</b></div>
+    </div>
+    <div class="lock" id="session" hidden>
+      <span id="who-line"></span>
+      <span>
+        <button class="edit" type="button" onclick="unlock()">Change desk</button>
+        <a class="edit" href="/onboard">Open another</a>
+      </span>
+    </div>
+    <div class="row" id="gate" style="margin-bottom:8px">
+      <input id="ws" placeholder="Desk name">
+      <input id="pin" placeholder="Desk code" inputmode="numeric" style="width:110px">
+      <button class="edit" type="button" onclick="load()">Open</button>
+    </div>
+    <div class="item" id="desk-switch" hidden>
+      <p class="meta">Desks on this phone</p>
+      <div id="desk-list"></div>
+      <p class="meta" style="margin-top:8px"><a href="/onboard">Open another</a></p>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <a class="go" id="drop-go" href="/drop">Drop anything</a>
+      <button class="edit" type="button" onclick="load()">Refresh</button>
+    </div>
+    <p class="meta" id="step-words">Capture · Qualify · Do · Collect · Follow</p>
+    <div data-aia-playbook="compact"></div>
+    <div class="item" id="desk-ais" hidden></div>
+    <div class="item" id="aia-wallet"></div>
+    <p class="meta" id="widget-count">No Drop links yet</p>
+    <div class="row" id="rule-widgets" style="margin-bottom:8px"></div>
+    <p class="meta" id="queue-taps">Taps match what the card needs. Yes / Stop / Kill stay human.</p>
+    <div id="queue-filters" hidden><button class="edit" type="button" data-filter="cap">Cap · orange</button></div>
+    <div id="cap-band" class="cap-band" hidden>
+      <h2>Cap · orange · every desk on this account</h2>
+      <div id="cap-list"></div>
+    </div>
+    <div id="queue" class="q-desk" data-card-needs="cardNeeds"></div>
+    <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
+    <div id="recent"></div>
+    <p class="meta" id="rules-line"><a href="/rules">Rules</a> — no rules yet. Add one if you need it.</p>
+  </main>
+  <div class="sheet" id="sheet" onclick="if(event.target===this) this.classList.remove('on')">
+    <div class="sheet-card" id="sheet-card"></div>
+  </div>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
+    <a href="/drop" data-tab="drop" id="nav-drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
+    <a href="/create" data-tab="create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5zM14 4v5h5M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Create</span></a>
+    <a href="/history" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>History</span></a>
+    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+  </nav>
+  <script src="desk-switch.js"></script>
+  <script src="aia-wallet.js"></script>
+  <script src="desk-card.js"></script>
+  <script src="desk-html-boot.js"></script>
+  <script src="desk-playbook.js"></script>
+  <script src="desk-nav.js"></script>
+  <script>
+    const wsEl = document.getElementById("ws");
+    const pinEl = document.getElementById("pin");
+    let role = localStorage.getItem("aia_role") || "";
+    let youName = localStorage.getItem("aia_name") || "";
+    let JOBS = [];
+    let FIELDS = [];
+    let RULES = [];
+    let NOUNS = AIADesks.nounsOf();
+    function workspaceSlug() {
+      return AIADesks.slugify(wsEl.value || localStorage.getItem("aia_ws") || "");
+    }
+    function headers() {
+      const h = { "Content-Type": "application/json" };
+      const ws = workspaceSlug();
+      if (ws) h["X-Workspace"] = ws;
+      const tok = localStorage.getItem("aia_session") || "";
+      if (tok) h["X-Session"] = tok;
+      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      if (pin) h["X-Pin"] = pin;
+      return h;
+    }
+    async function api(path, opts) {
+      const r = await fetch(path, Object.assign({ headers: headers() }, opts || {}));
+      const data = await r.json().catch(() => ({}));
+      return { status: r.status, data };
+    }
+    function locked() { return AIADesks.shopOpen(); }
+    function deskLabel() {
+      const cur = AIADesks.current();
+      return (cur && cur.name) || localStorage.getItem("aia_desk_name") || localStorage.getItem("aia_ws") || "";
+    }
+    function paintSwitch() {
+      const box = document.getElementById("desk-list");
+      if (!box) return;
+      const cur = localStorage.getItem("aia_ws");
+      const rows = AIADesks.list();
+      box.innerHTML = rows.map((d) =>
+        "<button class=\"edit\" type=\"button\" onclick=\"switchDesk('" + esc(d.slug) + "')\">" +
+        esc(d.name || d.slug) + (d.slug === cur ? " · this desk" : "") + "</button>"
+      ).join("") || "<p class=\"meta\">No other desks on this phone.</p>";
+    }
+    function paintGate() {
+      const on = locked();
+      document.getElementById("gate").hidden = on;
+      document.getElementById("session").hidden = !on;
+      const shop = deskLabel();
+      document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + shop + (role === "employee" ? " · helper" : role === "owner" ? " · owner" : "");
+      document.getElementById("desk-switch").hidden = on;
+      if (!on) paintSwitch();
+      wireDrop();
+    }
+    function unlock() {
+      AIADesks.unlock();
+      pinEl.value = "";
+      document.getElementById("desk-switch").hidden = false;
+      paintSwitch();
+      paintGate();
+    }
+    function switchDesk(slug) {
+      if (!AIADesks.switchTo(slug)) return;
+      wsEl.value = localStorage.getItem("aia_ws") || "";
+      pinEl.value = localStorage.getItem("aia_pin") || "";
+      role = localStorage.getItem("aia_role") || role;
+      document.getElementById("desk-switch").hidden = true;
+      load();
+    }
+    function wireDrop() {
+      const href = AIADesks.widgetHref();
+      document.querySelectorAll("#drop-go, #nav-drop, #head-drop, #desk-nav [data-tab=\"drop\"], .desk-tabs [data-tab=\"drop\"]").forEach((el) => {
+        if (el && el.tagName === "A") el.setAttribute("href", href);
+      });
+    }
+    function keepDesk(shop) {
+      const slug = (shop && shop.slug) || workspaceSlug();
+      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      if (!slug || !pin) return;
+      AIADesks.add({
+        slug: slug,
+        name: (shop && (shop.biz || shop.name)) || localStorage.getItem("aia_desk_name") || slug,
+        pin: pin,
+        role: role || localStorage.getItem("aia_role") || ""
+      });
+    }
+    function paintNouns(nouns) {
+      NOUNS = AIADesks.nounsOf(nouns);
+      const strip = document.getElementById("step-words");
+      if (strip) strip.textContent = [NOUNS.capture, NOUNS.qualify, NOUNS.do, NOUNS.collect, NOUNS.follow].join(" · ");
+    }
+    function paintWidgets(rules) {
+      const on = (rules || []).filter((r) => r && r.widget && r.widget.on);
+      const count = document.getElementById("widget-count");
+      if (count) count.textContent = on.length === 0 ? "No Drop links yet" : (on.length === 1 ? "1 Drop link on" : on.length + " Drop links on");
+      const box = document.getElementById("rule-widgets");
+      if (!box) return;
+      const ws = workspaceSlug();
+      const cap = NOUNS.capture || "Capture";
+      box.innerHTML = on.map((r) => {
+        const label = (r.widget && r.widget.label) || cap;
+        const href = ws ? "/drop?ws=" + encodeURIComponent(ws) + "&rule=" + encodeURIComponent(r.id) : "/drop";
+        return "<a class=\"go\" href=\"" + href + "\">" + esc(label) + "</a>";
+      }).join("");
+    }
+    function paintRules(rules) {
+      const rows = rules || [];
+      const line = document.getElementById("rules-line");
+      if (line) {
+        line.innerHTML = rows.length
+          ? "<a href=\"/rules\">Rules</a> — " + rows.length + (rows.length === 1 ? " rule on this desk." : " rules on this desk.")
+          : "<a href=\"/rules\">Rules</a> — no rules yet. Add one if you need it.";
+      }
+      paintWidgets(rows);
+    }
+    function showConsignNav(model) {
+      const el = document.getElementById("nav-consign");
+      if (!el) return;
+      const blob = String(model || localStorage.getItem("aia_model") || "") + " " + (wsEl.value || "");
+      el.hidden = !/consign|resale/i.test(blob);
+    }
+    function labelStatus(s) {
+      if (s === "exception") return "Waiting on a person.";
+      if (s === "held") return "Waiting on the owner";
+      if (s === "shipped") return "Sent";
+      if (s === "killed") return "Stopped";
+      return s || "";
+    }
+    function esc(s) {
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&","<":"<",">":">","\"":""","'":"&#39;" }[c]));
+    }
+    function queueEmptyHtml(kind) {
+      if (kind === "nodesk") {
+        return "<div id=\"queue-empty\"><p>No desk on this phone yet. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a><a class=\"edit\" href=\"/drop\">Drop work</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+      }
+      return "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop something</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+    }
+    window.queueEmptyHtml = queueEmptyHtml;
+    function card(j, staff) {
+      const money = Number(j.amount || j.ask || 0);
+      const why = visitorLine(j.why);
+      const next = visitorLine(j.next) || "Yes or Stop.";
+      return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">Yes</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
+    }
+    async function load() {
+      if (wsEl.value) {
+        const slug = AIADesks.slugify(wsEl.value);
+        if (slug) { localStorage.setItem("aia_ws", slug); wsEl.value = slug; }
+      }
+      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
+      keepDesk();
+      paintGate();
+      const banner = document.getElementById("banner");
+      const filters = document.getElementById("queue-filters");
+      if (!workspaceSlug()) {
+        banner.textContent = "No desk on this phone yet. Queue does not invent Yes / Stop cards.";
+        JOBS = [];
+        RULES = [];
+        paintNouns(AIADesks.defaultNouns());
+        paintRules([]);
+        if (filters) filters.hidden = true;
+        const packsBar = document.getElementById("pack-filters");
+        if (packsBar) packsBar.hidden = true;
+        document.getElementById("queue").innerHTML = queueEmptyHtml("nodesk");
+        showConsignNav();
+        return;
+      }
+      if (filters) filters.hidden = false;
+      const packsBar = document.getElementById("pack-filters");
+      if (packsBar) packsBar.hidden = false;
+      try {
+        await api("/api/worker");
+        const health = await api("/api/health");
+        const store = (health.data && health.data.store) || {};
+        banner.textContent = "This desk’s work.";
+        const jobs = await api("/api/jobs");
+        JOBS = jobs.data.jobs || [];
+        FIELDS = jobs.data.fields || FIELDS;
+        if (jobs.data.you && jobs.data.you.role) { role = jobs.data.you.role; youName = jobs.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
+        if (window.AIADeskAis) {
+          if (Array.isArray(jobs.data.ais) && jobs.data.ais.length) window.AIADeskAis.rows = jobs.data.ais.slice();
+          const you = jobs.data.you || {};
+          if (you.role === "owner" || you.kind === "owner" || role === "owner") window.AIADeskAis.owner = true;
+        }
+        const auth = await api("/api/auth");
+        if (auth.data && auth.data.you && auth.data.you.role) { role = auth.data.you.role; youName = auth.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
+        if (jobs.data && jobs.data.nouns) NOUNS = AIADesks.nounsOf(jobs.data.nouns);
+        if (auth.data && auth.data.workspace) {
+          const w = auth.data.workspace;
+          if (w.biz || w.name) localStorage.setItem("aia_desk_name", w.biz || w.name);
+          if (w.model) localStorage.setItem("aia_model", w.model);
+          if (w.nouns) NOUNS = AIADesks.nounsOf(w.nouns);
+          keepDesk(w);
+          showConsignNav(w.model);
+        } else showConsignNav();
+        const rulesOut = await api("/api/rules");
+        RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || jobs.data.rules || [];
+        if (rulesOut.data && rulesOut.data.nouns) NOUNS = AIADesks.nounsOf(rulesOut.data.nouns);
+        paintNouns(NOUNS);
+        paintRules(RULES);
+        paintGate();
+      } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintNouns(AIADesks.defaultNouns()); paintRules([]); showConsignNav(); }
+      const waiting = JOBS.filter(j => j.status === "exception");
+      const ready = JOBS.filter(j => j.status === "waiting");
+      const held = JOBS.filter(j => j.status === "held");
+      const shipped = JOBS.filter(j => j.status === "shipped");
+      document.getElementById("k-wait").textContent = waiting.length + ready.length + held.length;
+      document.getElementById("k-ship").textContent = shipped.length;
+      const staff = role === "employee";
+      const open = held.concat(waiting, ready);
+      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || queueEmptyHtml("empty");
+      if (location.hash === "#rules") location.replace("/rules");
+      const recent = shipped.slice(0, 3);
+      document.getElementById("recent-label").hidden = !recent.length;
+      document.getElementById("recent").innerHTML = recent.map(j => `<article class="item sent"><div class="meta">Sent${j.followed ? " · follow queued" : ""}</div><h3>${esc(j.title)}</h3><p>${esc(j.followNote || j.draft || "")}</p></article>`).join("");
+    }
+    async function ship(id, amount) {
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: false, whoTapped: youName || role || "desk" }) });
+      if (out.status === 409 || out.status === 403) {
+        document.getElementById("sheet-card").innerHTML = `<h3>Waiting on the owner</h3><p style="color:var(--muted);margin:8px 0">Waiting on the owner.</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Yes</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Stop</button></div>`;
+        document.getElementById("sheet").classList.add("on"); load(); return;
+      }
+      await load();
+      if (out.data && out.data.nextJob) {
+        document.getElementById("banner").textContent = "Yes. Next Then is on a new card. HOLD. Nothing sent alone.";
+      }
+    }
+    async function confirmShip(id, amount) {
+      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: true, whoTapped: youName || "owner" }) });
+      document.getElementById("sheet").classList.remove("on"); load();
+    }
+    async function kill(id, title) {
+      document.getElementById("sheet-card").innerHTML = `<h3>Stop?</h3><p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p><div class="row"><button class="kill" onclick="confirmKill('${id}')">Stop</button><button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep the card</button></div>`;
+      document.getElementById("sheet").classList.add("on");
+    }
+    async function confirmKill(id) {
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "kill", id, confirm: true, whoTapped: youName || "owner" }) });
+      document.getElementById("sheet").classList.remove("on");
+      if (out.status === 403) document.getElementById("banner").textContent = "Waiting on the owner.";
+      load();
+    }
+    function openCapture() {
+      document.getElementById("sheet-card").innerHTML = `<h3>Drop anything</h3><label>This is</label><select id="cap-kind"><option value="task" selected>A task</option><option value="chore">An errand</option><option value="list">A list</option><option value="idea">An idea</option><option value="project">A project / build</option><option value="home">Home & family</option><option value="form">School / form</option><option value="note">A note</option></select><label>What is it?</label><input id="cap-title" placeholder="Grocery list, porch idea, Friday ride"><label>When</label><input id="cap-when" placeholder="Friday"><label>Photo or PDF (optional)</label><input id="cap-file" type="file" accept="image/*,application/pdf"><label>Note</label><textarea id="cap-note" rows="2" placeholder="Who it is for, what to do"></textarea><div class="row" style="margin-top:12px"><button class="go" type="button" onclick="capture()">Add to queue</button><button class="edit" type="button" onclick="document.getElementById('sheet').classList.remove('on')">Cancel</button></div>`;
+      document.getElementById("sheet").classList.add("on");
+    }
+    async function capture() {
+      const title = (document.getElementById("cap-title") || {}).value || "";
+      const notes = (document.getElementById("cap-note") || {}).value || "";
+      const when = (document.getElementById("cap-when") || {}).value || "";
+      const kindPick = (document.getElementById("cap-kind") || {}).value || "";
+      const amount = Number(String(when).replace(/[^0-9.]/g, ""));
+      const fileEl = document.getElementById("cap-file");
+      const pack = kindPick === "home" || kindPick === "form" ? "home" : undefined;
+      const item = { action: "capture", title: title || notes || "Desk drop", notes, timing: /[a-z]/i.test(when) ? when : undefined, amount: Number.isFinite(amount) && amount > 0 ? amount : undefined, from: "desk", kind: kindPick || "task", pack };
+      if (fileEl && fileEl.files && fileEl.files[0]) {
+        const file = fileEl.files[0];
+        if (file.size > 3500000) { document.getElementById("banner").textContent = "Photo over 3.5MB."; return; }
+        const data = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file); });
+        const up = await api("/api/upload", { method: "POST", body: JSON.stringify({ name: file.name, type: file.type, data }) });
+        if (up.status >= 400) { document.getElementById("banner").textContent = (up.data && up.data.error) || "Photo did not save."; return; }
+        item.photoUrl = up.data.photoUrl;
+      }
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify(item) });
+      document.getElementById("sheet").classList.remove("on");
+      const n = (out.data && out.data.jobs && out.data.jobs.length) || 1;
+      const banner = document.getElementById("banner");
+      if (banner) {
+        banner.textContent = n > 1
+          ? ("On the queue as " + n + " cards. You still tap Yes or Stop on each. Collect HOLD.")
+          : "On the queue. You still tap Yes or Stop.";
+      }
+      load();
+    }
+    if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
+    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
+    showConsignNav(); paintGate(); load(); setInterval(load, 20000);
+  </script>
+</body>
+</html>
