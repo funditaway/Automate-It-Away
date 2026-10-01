@@ -1,4 +1,4 @@
-/* HTML file face for queue cards: sandboxed iframe, never innerHTML of file bytes. */
+/* HTML file face for Queue cards: sandboxed iframe, never innerHTML of file bytes. */
 (function () {
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
