@@ -1,8 +1,8 @@
 (function () {
   function run() {
     var parts = window.__aiaDropCustomParts || [];
-    if (parts.length < 4) return;
-    for (var i = 0; i < 4; i++) if (typeof parts[i] !== "string") return;
+    if (parts.length < 7) return;
+    for (var i = 0; i < 7; i++) if (typeof parts[i] !== "string") return;
     if (window.__aiaDropCustomLoaded) return;
     window.__aiaDropCustomLoaded = true;
     var s = document.createElement("script");
