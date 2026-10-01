@@ -8,13 +8,16 @@
     .wrap{width:min(880px,94vw);margin:0 auto;padding:18px 0 24px}
     h1{color:var(--heading);font-size:1.4rem}
     .sub{color:var(--muted);margin:4px 0 16px}
-    .modes,.who-chips,.lanes,.desk-chips,.desk-actions{display:flex;flex-wrap:wrap;gap:8px}
+    .modes,.who-chips,.lanes,.desk-chips,.desk-actions,.ways-chips{display:flex;flex-wrap:wrap;gap:8px}
     .modes{margin:0 0 14px}
-    .modes button,.who-chips button,.lanes button,.desk-chips button{flex:1;min-width:72px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer}
+    .modes button,.who-chips button,.lanes button,.desk-chips button,.ways-chips button{flex:1;min-width:72px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:700 13px system-ui,sans-serif;cursor:pointer}
     .modes button.on{background:var(--orange);color:#0c1116;border-color:var(--orange)}
+    .ways-chips button.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}
     .who-chips button.on,.lanes button.on,.desk-chips button.on{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}
     .who-chips{margin:6px 0 10px}
     .who-chips button{text-transform:capitalize}
+    #drop-ways{margin:0 0 12px}
+    .ways-lead{margin:0 0 8px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
     label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
@@ -31,7 +34,7 @@
     button.go:disabled,#drop-send:disabled{opacity:.7;cursor:wait}
     .share-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
     .share-actions button{flex:1;min-width:140px;margin-top:0}
-    body.embed header,body.embed #desk-nav,body.embed .desk-tabs,body.embed #embed-card,body.embed #desk-pick{display:none}
+    body.embed header,body.embed #desk-nav,body.embed .desk-tabs,body.embed #embed-card,body.embed #desk-pick,body.embed #drop-ways{display:none}
     html.widget #talkBar,html.embed #talkBar,body.widget #talkBar,body.embed #talkBar{display:none!important}
     html.widget #talkBar *,html.embed #talkBar *,body.widget #talkBar *,body.embed #talkBar *{display:none!important}
     .talk-bar,.desk-pick{margin:0 0 14px}
