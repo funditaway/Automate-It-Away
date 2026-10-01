@@ -1,18 +1,22 @@
 /* Packs leftover after Studio create ?idea=: Advanced clarity + Use-on-desk honesty.
    Collect HOLD. Not Market. No silent bind. */
 (function () {
-  function setAdvanced(on) {
-    if (typeof window.AIACreateSetMode === "function") {
-      window.AIACreateSetMode(!!on);
-      return;
-    }
+  function applyAdvancedUi(on) {
     document.body.classList.toggle("show-adv", !!on);
     var simple = document.getElementById("mode-simple");
     var adv = document.getElementById("mode-advanced");
     if (simple) simple.classList.toggle("on", !on);
     if (adv) adv.classList.toggle("on", !!on);
   }
-  window.AIACreateSetMode = window.AIACreateSetMode || setAdvanced;
+  var priorMode = typeof window.AIACreateSetMode === "function" ? window.AIACreateSetMode : null;
+  function setAdvanced(on) {
+    if (priorMode && priorMode !== setAdvanced) {
+      priorMode(!!on);
+      return;
+    }
+    applyAdvancedUi(on);
+  }
+  window.AIACreateSetMode = setAdvanced;
 
   function revealListFields(form) {
     if (!form) return;
