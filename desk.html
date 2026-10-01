@@ -324,7 +324,7 @@
       return s || "";
     }
     function esc(s) {
-      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&","<":"<",">":">","\"":""","'":"&#39;" }[c]));
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":""","'":"&#39;" }[c]));
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
