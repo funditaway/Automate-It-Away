@@ -1,4 +1,4 @@
-/* HTML file face for Queue cards: sandboxed iframe, never innerHTML of file bytes. */
+/* HTML file face for queue cards: sandboxed iframe, never innerHTML of file bytes. */
 (function () {
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
@@ -44,6 +44,7 @@
     }).join("") + "</div>";
   }
   window.filesHtml = filesHtml;
+  // Inject CSS once
   if (!document.getElementById("aia-q-html-css")) {
     var s = document.createElement("style");
     s.id = "aia-q-html-css";
