@@ -13,6 +13,10 @@
     return String(p.get("idea") || p.get("pack") || "").trim();
   }
   function setAdvanced(on) {
+    if (typeof window.AIACreateSetMode === "function") {
+      window.AIACreateSetMode(!!on);
+      return;
+    }
     document.body.classList.toggle("show-adv", !!on);
     var simple = document.getElementById("mode-simple");
     var adv = document.getElementById("mode-advanced");
