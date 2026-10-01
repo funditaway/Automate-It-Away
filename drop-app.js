@@ -31,18 +31,66 @@ const params = new URLSearchParams(location.search);
       });
       const modesEl = document.getElementById("modes");
       if (modesEl) modesEl.hidden = !!embed;
+      const waysEl = document.getElementById("drop-ways");
+      if (waysEl) waysEl.hidden = !!embed;
       const agent = mode === "agent";
       document.getElementById("pane-work").hidden = agent;
       document.getElementById("pane-agent").hidden = !agent;
       const customPane = document.getElementById("pane-custom");
       if (customPane) customPane.hidden = mode !== "custom";
-      document.getElementById("lane-title").textContent = agent ? "Paste the data. A Desk AI drafts the card. You still tap Yes or Stop." : mode === "custom" ? "Name your own drop. It becomes a card." : "Drop anything. Tap a kind. It becomes a card.";
+      document.getElementById("lane-title").textContent = agent ? "Paste the data. A Desk AI drafts the card. You still tap Yes, then Start." : mode === "custom" ? "Name your own drop. It becomes a card." : "Drop anything. Tap a kind. It becomes a card.";
       document.getElementById("drop-send").textContent = agent ? "Put this on the desk" : "Drop it";
+      paintWays(mode);
       if (mode === "custom" && window.AIADropAgent && AIADropAgent.applyQuick) AIADropAgent.applyQuick("custom");
+    }
+    function paintWays(active) {
+      const chips = document.getElementById("ways-chips");
+      if (!chips) return;
+      chips.querySelectorAll("[data-way]").forEach(function (b) {
+        const w = b.getAttribute("data-way");
+        const on = w === active || (active === "agent" && w === "agent") || (active === "quick" && w === "quick") || (active === "custom" && w === "custom");
+        b.classList.toggle("on", !!on && (w === "quick" || w === "custom" || w === "agent"));
+      });
+    }
+    function goWay(way) {
+      if (way === "quick" || way === "custom" || way === "agent") {
+        if (window.AIADropSteps && AIADropSteps.go) AIADropSteps.go("card");
+        showMode(way);
+        const send = document.getElementById("drop-send");
+        if (send && send.scrollIntoView) send.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        return;
+      }
+      if (way === "talk") {
+        if (window.AIADropSteps && AIADropSteps.go) AIADropSteps.go("tell");
+        const bar = document.getElementById("talkBar");
+        if (bar) {
+          bar.hidden = false;
+          if (bar.scrollIntoView) bar.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+        const talk = document.getElementById("talkBtn");
+        if (talk) talk.focus();
+        return;
+      }
+      if (way === "files") {
+        if (window.AIADropSteps && AIADropSteps.go) AIADropSteps.go("card");
+        showMode(mode === "agent" ? "quick" : mode);
+        const photo = document.getElementById("photo");
+        if (photo) {
+          if (photo.scrollIntoView) photo.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          try { photo.focus(); } catch (e) {}
+        }
+        return;
+      }
+      if (way === "share") {
+        if (window.AIADropSteps && AIADropSteps.go) AIADropSteps.go("share");
+        const card = document.getElementById("embed-card");
+        if (card && card.scrollIntoView) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        return;
+      }
     }
     function esc(s) {
       return String(s || "").replace(/[&<>"']/g, function (c) {
-        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&#x26;quot;", "'": "&#39;" })[c];
+        return ({ "&": "\u0026amp;", "<": "\u0026lt;", ">": "\u0026gt;", "\"": "\u0026quot;", "'": "\u0027" })[c];
       });
     }
     function deskNameOf() {
@@ -68,7 +116,7 @@ const params = new URLSearchParams(location.search);
       const name = deskNameOf();
       if (name) {
         el.classList.remove("off");
-        el.textContent = "This drop goes to " + name + ". Lands on that queue. You still tap Yes or Stop.";
+        el.textContent = "This drop goes to " + name + ". Lands on that queue. You still tap Yes, then Start.";
       } else {
         el.classList.add("off");
         el.textContent = "No desk yet. Pick a saved desk, add one you already opened, or create a new desk.";
@@ -122,9 +170,9 @@ const params = new URLSearchParams(location.search);
         if (sub && ws && shop.pack) {
           const packName = shop.packName || "This pack";
           const cap = (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) ? (nouns.capture + " lands here. ") : "";
-          sub.textContent = cap + packName + " is on this desk. Drop anything — the queue card already uses that pack. You don't pick a pack each time. You still tap Yes or Stop. Nobody sends money from here.";
+          sub.textContent = cap + packName + " is on this desk. Drop many easy ways — the queue card already uses that pack. You don't pick a pack each time. You still tap Yes, then Start. Nobody sends money from here.";
         } else if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
-          if (sub && ws) sub.textContent = nouns.capture + " lands here — a task, an errand, a list, an idea, a project. You still tap Yes or Stop. Nobody sends money from here.";
+          if (sub && ws) sub.textContent = nouns.capture + " lands here — many easy ways in. You still tap Yes, then Start. Nobody sends money from here.";
         }
       } catch (e) {}
       paintEmbed();
@@ -139,10 +187,17 @@ const params = new URLSearchParams(location.search);
       AIADropAgent.paintWho(whoKind);
     });
     document.getElementById("modes").hidden = !!embed;
+    const waysBox = document.getElementById("drop-ways");
+    if (waysBox) waysBox.hidden = !!embed;
     showMode(mode);
     document.getElementById("modes").addEventListener("click", function (e) {
       const btn = e.target.closest("[data-mode]");
       if (btn) showMode(btn.getAttribute("data-mode"));
+    });
+    const waysChips = document.getElementById("ways-chips");
+    if (waysChips) waysChips.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-way]");
+      if (btn) goWay(btn.getAttribute("data-way"));
     });
     const implementEl = document.getElementById("implement");
     if (implementEl) implementEl.addEventListener("input", function () {
@@ -228,7 +283,7 @@ const params = new URLSearchParams(location.search);
           const dropped = String(title || "").trim().slice(0, 80);
           const n = (out.jobs && out.jobs.length) || 1;
           const fan = n > 1 ? (" as " + n + " cards") : "";
-          showNote(ok, "On the queue" + fan + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes or Stop" + (n > 1 ? " on each" : "") + "." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>"), true);
+          showNote(ok, "On the queue" + fan + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes, then Start" + (n > 1 ? " on each" : "") + ". Nothing silent." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>"), true);
           if (window.AIASpeech) AIASpeech.speak(n > 1 ? ("On the queue as " + n + " cards.") : "On the queue.");
           document.getElementById("title").value = ""; document.getElementById("note").value = "";
           if (document.getElementById("implement")) document.getElementById("implement").value = "";
@@ -272,7 +327,7 @@ const params = new URLSearchParams(location.search);
       if (!navigator.share) { copyDropShare(); return; }
       navigator.share({
         title: "Drop on " + (deskNameOf() || "this desk"),
-        text: "Drop a task on this desk. You still tap Yes or Stop. Nobody sends money from here.",
+        text: "Drop a task on this desk. You still tap Yes, then Start. Nobody sends money from here.",
         url: url
       }).then(function () {
         showNote(note, "Share sheet opened. Public drop never sees money, Stop, or People.");
@@ -288,3 +343,4 @@ const params = new URLSearchParams(location.search);
       return photo && photo.files ? [].slice.call(photo.files, 0, 8) : [];
     }, paint: paintFiles };
     window.AIADropOn = { paint: paintDeskOn, name: deskNameOf };
+    window.AIADropWays = { go: goWay, paint: paintWays };

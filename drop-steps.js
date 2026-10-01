@@ -1,6 +1,6 @@
 (function () {
   var KEY = "aia_drop_step";
-  var VOW = "Draft only. You still tap Yes or Stop. Nobody sends money from here.";
+  var VOW = "Draft only. Lands on the queue. You still tap Yes, then Start. Nobody sends money from here.";
   var STEPS = [
     {
       id: "desk", label: "Desk",
@@ -9,13 +9,13 @@
     },
     {
       id: "tell", label: "Tell",
-      hint: "Say it or type it. A Desk AI drafts the card.",
+      hint: "Talk or type it — one easy way in. A Desk AI drafts the card.",
       ids: ["talkBar", "drop-chat-wrap", "drop-thread-card"]
     },
     {
       id: "card", label: "Card",
-      hint: "Tap a kind. Type the work. Drop it when you say so.",
-      ids: ["modes", "drop-form-card"],
+      hint: "Quick, Custom, Put data on, or files/photos. Drop it when you say so.",
+      ids: ["drop-ways", "modes", "drop-form-card"],
       also: ["drop-sub"]
     },
     {
@@ -25,7 +25,7 @@
     },
     {
       id: "share", label: "Share",
-      hint: "Share the drop link. Public drop never sees money, Stop, or People.",
+      hint: "Share the drop link — another easy way in. Public drop never sees money, Stop, or People.",
       ids: ["embed-card", "drop-log-card"]
     }
   ];
