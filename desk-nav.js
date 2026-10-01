@@ -221,6 +221,7 @@
         document.body.appendChild(a);
       }
     }
+    loadDrop("drop-html-accept.js", "data-aia-drop-html-accept");
     loadDrop("drop-talk.js", "data-aia-drop-talk");
     loadDrop("drop-now.js", "data-aia-drop-now");
     loadDrop("drop-more.js", "data-aia-drop-more");
