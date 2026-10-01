@@ -28,8 +28,8 @@
       padding:0;overflow:hidden;cursor:pointer;text-align:left;color:inherit;font:inherit;
       min-height:44px;
     }
-    .reel img{width:100%;height:64px;object-fit:cover;display:block;background:#163333}
-    .reel b{display:block;padding:6px 8px 8px;font-size:12px;color:var(--heading)}
+    .reel img{width:100%;height:72px;object-fit:cover;display:block;background:#163333}
+    .reel b{display:block;padding:6px 8px 8px;font-size:13px;color:var(--heading)}
     .reel.on{border-color:var(--orange);box-shadow:var(--focus)}
     .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:8px;margin:0 0 18px}
     .fact{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
@@ -94,7 +94,7 @@
       <button type="button" id="quietBtn">Quiet</button>
     </div>
     <div class="stage">
-      <video id="film" class="hero" poster="img/how-hero.jpg" controls playsinline preload="metadata">
+      <video id="film" class="hero" poster="img/home-hero.svg" controls playsinline preload="none">
         <source src="video/how-all.mp4" type="video/mp4">
       </video>
     </div>
@@ -158,7 +158,7 @@
       <a class="btn quiet" href="desk.html">Desk</a>
       <a class="btn quiet" href="help.html">Help</a>
     </div>
-    <p class="note">Films are stills plus a spoken line. If a clip is missing, the picture still shows the step. If the desk cannot run a job, it says so.</p>
+    <p class="note">Films are stills plus a spoken line. Clips are not on the desk yet. The picture still shows the step. Play reads the line if the clip is missing.</p>
   </main>
   <script src="theme.js"></script>
   <script src="aia-tip.js"></script>
@@ -166,12 +166,12 @@
   <script src="speech.js"></script>
   <script>
     const FILMS = [
-      { id: "all", name: "Whole film", src: "video/how-all.mp4", poster: "img/how-hero.jpg", line: "Name a desk. Drop anything. The desk writes the next step. You tap Yes. You send the draft yourself. Stop cancels it." },
-      { id: "capture", name: "1 Capture", src: "video/how-capture.mp4", poster: "img/how-capture.jpg", line: "Capture. The work hits the queue once." },
-      { id: "qualify", name: "2 Qualify", src: "video/how-qualify.mp4", poster: "img/how-qualify.jpg", line: "Qualify. Rules screen fit, price, risk, timing." },
-      { id: "do", name: "3 Do", src: "video/how-do.mp4", poster: "img/how-do.jpg", line: "Do the work. Draft only. Nothing leaves until Yes. You send it yourself." },
-      { id: "paid", name: "4 Collect HOLD", src: "video/how-paid.mp4", poster: "img/how-paid.jpg", line: "Collect stays HOLD until a person taps Yes and a real money pipe is live." },
-      { id: "follow", name: "5 Follow", src: "video/how-follow.mp4", poster: "img/how-follow.jpg", line: "Follow. One reminder. Then it stops." }
+      { id: "all", name: "Whole film", src: "video/how-all.mp4", poster: "img/home-hero.svg", line: "Name a desk. Drop anything. The desk writes the next step. You tap Yes. You send the draft yourself. Stop cancels it." },
+      { id: "capture", name: "1 Capture", src: "video/how-capture.mp4", poster: "img/home-life.png", line: "Capture. The work hits the queue once." },
+      { id: "qualify", name: "2 Qualify", src: "video/how-qualify.mp4", poster: "img/home-work.svg", line: "Qualify. Rules screen fit, price, risk, timing." },
+      { id: "do", name: "3 Do", src: "video/how-do.mp4", poster: "img/home-counter.png", line: "Do the work. Draft only. Nothing leaves until Yes. You send it yourself." },
+      { id: "paid", name: "4 Collect HOLD", src: "video/how-paid.mp4", poster: "img/how-lots.png", line: "Collect stays HOLD until a person taps Yes and a real money pipe is live." },
+      { id: "follow", name: "5 Follow", src: "video/how-follow.mp4", poster: "img/home-life.png", line: "Follow. One reminder. Then it stops." }
     ];
     const NICHES = [
       { id: "life", label: "Home & family", keys: ["home", "family", "household", "school", "kid", "life"] },
@@ -214,10 +214,17 @@
       filmEl.poster = f.poster;
       const src = filmEl.querySelector("source");
       if (src) src.src = f.src;
+      filmEl.onerror = function () {
+        talkStatus.textContent = f.line + " Clip is not on the desk yet. The picture and the line still are.";
+        if (autoplay && window.AIASpeech) AIASpeech.speak(f.line);
+      };
       filmEl.load();
       if (autoplay) {
         const p = filmEl.play();
-        if (p && p.catch) p.catch(function () {});
+        if (p && p.catch) p.catch(function () {
+          talkStatus.textContent = f.line + " Clip is not on the desk yet. Hear this reads the line.";
+          if (window.AIASpeech) AIASpeech.speak(f.line);
+        });
       }
       talkStatus.textContent = f.line;
       paintReels();
@@ -268,7 +275,7 @@
       panel.className = "panel on";
       panel.innerHTML =
         "<h2>"+op.name+" · "+niche.label+"</h2>"+
-        (clip ? "<video controls playsinline poster=\""+clip.poster+"\" preload=\"metadata\"><source src=\""+clip.src+"\" type=\"video/mp4\"></video>" : "")+
+        (clip ? "<img alt=\"\" src=\""+clip.poster+"\" style=\"width:100%;border-radius:12px;margin:8px 0;aspect-ratio:16/9;object-fit:cover;background:#0a3d3d\">" : "")+
         "<p>"+op.what+"</p>"+
         "<p><b>Here:</b> "+op.mean[shop]+"</p>"+
         (op.tap ? "<p class=\"tap\"><b>Needs a person when:</b> "+op.tap+"</p>" : "")+
