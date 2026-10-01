@@ -121,14 +121,28 @@ if (synCreate.status !== 0) fail("create-desk.js must parse: " + (synCreate.stde
 else pass("create-desk.js parses");
 if (create.indexOf("Make this pack") < 0) fail("create-desk must keep Make this pack");
 else pass("Make this pack link");
-if (create.indexOf('params.get("idea")') < 0) fail("create-desk must read ?idea= for Make this pack Studio create");
-else pass("reads ?idea= Studio create");
-if (create.indexOf("applyPackIdea") < 0) fail("create-desk must applyPackIdea for wanted packs");
-else pass("applyPackIdea wanted packs");
-if (create.indexOf("Yes, then Start") < 0) fail("pack create path must keep Yes, then Start");
-else pass("Yes, then Start on pack create");
 if (create.indexOf("listName") < 0) fail("create-desk must keep listName Advanced list-pack");
 else pass("listName Advanced list-pack");
+const ideaJsPath = path.join(root, "create-pack-idea.js");
+if (!fs.existsSync(ideaJsPath)) fail("create-pack-idea.js missing for Studio create ?idea= slice");
+else pass("create-pack-idea.js present");
+const ideaJs = fs.readFileSync(ideaJsPath, "utf8");
+const synIdea = spawnSync(process.execPath, ["--check", ideaJsPath], { encoding: "utf8" });
+if (synIdea.status !== 0) fail("create-pack-idea.js must parse: " + (synIdea.stderr || synIdea.stdout || "").trim());
+else pass("create-pack-idea.js parses");
+if (ideaJs.indexOf("applyPackIdea") < 0) fail("create-pack-idea must expose applyPackIdea");
+else pass("applyPackIdea wanted packs");
+if (ideaJs.indexOf('get("idea")') < 0 && ideaJs.indexOf("get('idea')") < 0) fail("create-pack-idea must read ?idea=");
+else pass("reads ?idea= Studio create");
+if (ideaJs.indexOf("Yes, then Start") < 0) fail("pack create path must keep Yes, then Start");
+else pass("Yes, then Start on pack create");
+const createHtml = fs.readFileSync(path.join(root, "create.html"), "utf8");
+if (createHtml.indexOf("create-pack-idea.js") < 0) fail("create.html must load create-pack-idea.js");
+else pass("create.html loads create-pack-idea.js");
+["Queue", "Drop", "Create", "History", "More"].forEach(function (t) {
+  if (createHtml.indexOf(t) < 0) fail("create.html missing bar tab " + t);
+});
+pass("live bar tabs on create.html");
 if (process.exitCode) {
   console.error("check-packs failed");
   process.exit(1);
