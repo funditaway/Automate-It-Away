@@ -104,9 +104,9 @@ function sheetPromptHtml(j) {
   else if (who) q = who + " asked on this card. Type a reply. Nothing sent alone.";
   else if (named) q = named + ". Type a reply. Nothing sent alone.";
   return "<div class=\"q-prompt\">" +
-    "<div class=\"q-prompt-who\">" + esc(label) + "</div>" +
+    "<div class=\"q-prompt-who\">" + esc(label) + " · Talk · Say · Reply</div>" +
     "<p class=\"q-prompt-q\">" + esc(q) + "</p>" +
-    "<p class=\"q-prompt-hold\">Reply stays on the card. Nothing sent alone.</p>" +
+    "<p class=\"q-prompt-hold\">Talk / Say / Reply stays on the card. Nothing sent alone.</p>" +
     "</div>";
 }
 function wipTalkLabelOf(row) {
@@ -288,7 +288,7 @@ async function openJob(id) {
       "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + j.id + "')\">Save info</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + j.id + "')\">Ask for more</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + j.id + "')\">Add note</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "','sheet'))\">Reply on card</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "','sheet'))\">Talk · Reply on card</button>" +
       (staff ? "" : "<button class=\"edit\" type=\"button\" onclick=\"addFieldPrompt('" + j.id + "')\">Add field</button>") +
     "</div>" +
     (peopleOpts
@@ -490,12 +490,12 @@ function setCardBusy(id, on) {
       else root.appendChild(line);
     }
     if (root.querySelectorAll) {
-      root.querySelectorAll(".q-yes, .q-start, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = true; });
+      root.querySelectorAll(".q-yes, .q-start, .q-stop, .q-kill, .q-reply-tap, .q-talk-tap, .q-say-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = true; });
     }
   } else {
     if (line && line.remove) line.remove();
     if (root.querySelectorAll) {
-      root.querySelectorAll(".q-yes, .q-start, .q-stop, .q-kill, .q-reply-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = false; });
+      root.querySelectorAll(".q-yes, .q-start, .q-stop, .q-kill, .q-reply-tap, .q-talk-tap, .q-say-tap, .sheet-decide .go, .sheet-decide .kill").forEach(function (el) { el.disabled = false; });
     }
   }
 }
