@@ -29,3 +29,4 @@ else pass("install/empty Collect HOLD");
 const createHtml = fs.readFileSync(path.join(root, "create.html"), "utf8");
 if (createHtml.indexOf("create-pack-install.js") < 0) fail("create.html must load create-pack-install.js");
 else pass("create.html loads create-pack-install.js");
+require("./check-packs-download-assert.js");
