@@ -28,9 +28,12 @@ if (giveJs.indexOf("No silent push") < 0) fail("history-pack-give must deny sile
 else pass("History Give no silent push");
 if (giveJs.indexOf("They install with Yes. No silent push") < 0) fail("history-pack-give must rewrite soft Give success");
 else pass("History Give soft success rewrite");
+const navJs = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
+if (navJs.indexOf("history-pack-give.js") < 0) fail("desk-nav.js must load history-pack-give.js on History");
+else pass("desk-nav loads history-pack-give.js");
+if (navJs.indexOf("loadHistory") < 0) fail("desk-nav.js must keep loadHistory helper");
+else pass("desk-nav loadHistory helper");
 const historyHtml = fs.readFileSync(path.join(root, "history.html"), "utf8");
-if (historyHtml.indexOf("history-pack-give.js") < 0) fail("history.html must load history-pack-give.js");
-else pass("history.html loads history-pack-give.js");
 ["Queue", "Drop", "Create", "History", "More"].forEach(function (t) {
   if (historyHtml.indexOf(t) < 0) fail("history.html missing bar tab " + t);
 });
