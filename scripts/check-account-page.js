@@ -62,7 +62,7 @@ const pkg = read("package.json");
   "action:\"mfa\"",
   "function paintPhones",
   "function leavePhone",
-  "No pin. No password hash",
+  "No desk code. No password hash",
   "Authenticator stays HOLD"
 ].forEach(function (bit) {
   if (account.indexOf(bit) < 0) fail("account.html missing " + bit);
@@ -88,6 +88,10 @@ if (help.indexOf("Account lists phones on this account") < 0 || help.indexOf("le
 } else pass("help Login names the account trail");
 if (help.indexOf("Authenticator stays HOLD") < 0) fail("help Login must keep authenticator HOLD");
 else pass("help Login keeps authenticator HOLD");
+if (help.indexOf("no desk code, no password hash") < 0) fail("help Login must say no desk code, no password hash");
+else pass("help Login says no desk code, no password hash");
+if (/no pin, no password/i.test(help)) fail("help Login mustNot no pin, no password");
+else pass("help Login mustNot no pin, no password");
 
 if (moreTips.indexOf("phones on this account") < 0 || moreTips.indexOf("export the book") < 0 || moreTips.indexOf("leave this phone or every phone") < 0) {
   fail("more Account tip must name phones / export / leave every phone");

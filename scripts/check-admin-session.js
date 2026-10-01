@@ -35,6 +35,15 @@ if (admin.indexOf("if (wsEl.value && (pinEl.value || localStorage.getItem(\"aia_
   fail("admin.html must load when leftover session is live");
 } else pass("admin.html loads when leftover session is live");
 
+["Owner pin", "New pin", "Pin required."].forEach(function (bit) {
+  if (admin.indexOf(bit) >= 0) fail("admin.html mustNot " + bit);
+  else pass("admin.html mustNot " + bit);
+});
+["Owner desk code", "New desk code", "Desk code required."].forEach(function (bit) {
+  if (admin.indexOf(bit) < 0) fail("admin.html must " + bit);
+  else pass("admin.html must " + bit);
+});
+
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 if (yesNo.indexOf("Account book leftover session after that pass") < 0) {
