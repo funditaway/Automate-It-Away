@@ -1,1 +1,127 @@
-PLACEHOLDER
+/* 2026-09-25 visibility — tab bar must not cover last line */
+body.has-desk-nav {
+  padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px)) !important;
+}
+body.has-desk-nav main,
+body.has-desk-nav .wrap,
+body.has-desk-nav #queue,
+body.has-desk-nav .queue {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+}
+body.has-desk-nav .site-foot {
+  margin-bottom: 96px;
+}
+body.has-desk-nav #desk-switch,
+body.has-desk-nav #session,
+body.has-desk-nav .item:last-of-type {
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+}
+#ws,
+#pin,
+#gate input,
+#open-row input,
+.desk-open-row input {
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 52px !important;
+  flex: 0 0 auto !important;
+  align-self: stretch;
+}
+#gate,
+.desk-open-row,
+#open-row {
+  align-items: flex-start !important;
+}
+@media (min-width: 860px) {
+  body.has-desk-nav {
+    padding-bottom: 24px !important;
+  }
+  body.has-desk-nav main,
+  body.has-desk-nav .wrap,
+  body.has-desk-nav #queue,
+  body.has-desk-nav .queue {
+    padding-bottom: 24px !important;
+  }
+  body.has-desk-nav .site-foot {
+    margin-bottom: 0;
+  }
+}
+@media (max-width: 860px) {
+  header,
+  .site-header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "brand tools"
+      "nav nav" !important;
+  }
+  header .site-nav,
+  header nav.site-nav {
+    grid-area: nav !important;
+    width: 100% !important;
+  }
+  header .theme-btn,
+  .theme-btn {
+    min-width: 3.6em !important;
+    min-height: 40px !important;
+    overflow: visible !important;
+  }
+  #desk-actions,
+  .row.actions {
+    justify-content: flex-start !important;
+  }
+}
+
+/* 2026-09-30: Refresh / Drop must sit above the phone tab bar. */
+@media (max-width: 859px) {
+  body.has-desk-nav {
+    padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.has-desk-nav #refresh,
+  body.has-desk-nav button#refresh,
+  body.has-desk-nav a#refresh,
+  body.has-desk-nav #desk-actions,
+  body.has-desk-nav .row.actions,
+  body.has-desk-nav #queue-pipes-row {
+    position: relative;
+    z-index: 2;
+    margin-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #desk-nav {
+    z-index: 90 !important;
+  }
+  header .brand-mark,
+  .site-header .brand-mark {
+    object-fit: contain !important;
+    background: transparent !important;
+  }
+}
+
+/* 2026-10-01: last desk card + Open another must clear the phone tab bar. */
+@media (max-width: 859px) {
+  #desk-switch,
+  #session,
+  #gate {
+    margin-bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.has-desk-nav main.wrap {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body:has(#gate:not([hidden])) .kpis {
+    display: none !important;
+  }
+  header .hdr-tools,
+  .site-header .hdr-tools {
+    padding-right: 2px;
+    flex-shrink: 0;
+  }
+  .theme-btn {
+    min-width: 3.6em !important;
+    padding: 0 12px !important;
+  }
+}
+.kpi b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: 0;
+}
