@@ -72,7 +72,9 @@ body.has-desk-nav .item:last-of-type {
   }
 }
 
-/* 2026-09-30: Refresh / Drop must sit above the phone tab bar. */
+/* 2026-09-30: Refresh / Drop must sit above the phone tab bar.
+   Do NOT apply this to #queue-pipes-row — that row sits under the banner
+   at the top of Queue. The old rule left a 108px hole on the phone. */
 @media (max-width: 859px) {
   body.has-desk-nav {
     padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px)) !important;
@@ -82,10 +84,17 @@ body.has-desk-nav .item:last-of-type {
   body.has-desk-nav a#refresh,
   body.has-desk-nav #desk-actions,
   body.has-desk-nav .row.actions,
-  body.has-desk-nav #queue-pipes-row {
+  body.has-desk-nav #drop-go,
+  body.has-desk-nav a#drop-go {
     position: relative;
     z-index: 2;
-    margin-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.has-desk-nav #queue-pipes-row {
+    margin: 0 0 10px !important;
+  }
+  body.has-desk-nav #queue-pipes-tap {
+    width: 100%;
+    min-height: 48px;
   }
   #desk-nav {
     z-index: 90 !important;
@@ -109,6 +118,11 @@ body.has-desk-nav .item:last-of-type {
   }
   body:has(#gate:not([hidden])) .kpis {
     display: none !important;
+  }
+  /* Locked gate: keep Drop / Refresh from floating in the hole above the tab bar. */
+  body:has(#gate:not([hidden])) #drop-go,
+  body:has(#gate:not([hidden])) a#drop-go {
+    margin-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
   }
   header .hdr-tools,
   .site-header .hdr-tools {
