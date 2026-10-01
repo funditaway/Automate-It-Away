@@ -207,6 +207,10 @@ header nav:not(.desk-tabs),
   #desk-nav {
     z-index: 80;
   }
+  #desk-switch,
+  #session {
+    margin-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
 
 .kpis {
