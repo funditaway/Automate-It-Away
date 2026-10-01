@@ -108,12 +108,27 @@ else pass("no invented creator income bands");
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 if (!vercel.includes("\"/studio\"") || !vercel.includes("/developer.html")) fail("vercel /studio must rewrite to developer.html");
 else pass("/studio → developer.html");
-if (!/"\/dev"/.test(vercel) || !vercel.includes("\"/developer\"")) fail("vercel /dev must send people to Creators Studio");
+if (!/\"\/dev\"/.test(vercel) || !vercel.includes("\"/developer\"")) fail("vercel /dev must send people to Creators Studio");
 else pass("/dev → Creators Studio");
 const stub = fs.readFileSync(path.join(root, "dev.html"), "utf8");
 if (!stub.includes("Creators Studio") || stub.includes(">Developer ·")) fail("dev.html stub must title Creators Studio");
 else pass("dev.html is Creators Studio stub");
 
+
+const { spawnSync } = require("child_process");
+const synCreate = spawnSync(process.execPath, ["--check", path.join(root, "create-desk.js")], { encoding: "utf8" });
+if (synCreate.status !== 0) fail("create-desk.js must parse: " + (synCreate.stderr || synCreate.stdout || "").trim());
+else pass("create-desk.js parses");
+if (create.indexOf("Make this pack") < 0) fail("create-desk must keep Make this pack");
+else pass("Make this pack link");
+if (create.indexOf('params.get("idea")') < 0) fail("create-desk must read ?idea= for Make this pack Studio create");
+else pass("reads ?idea= Studio create");
+if (create.indexOf("applyPackIdea") < 0) fail("create-desk must applyPackIdea for wanted packs");
+else pass("applyPackIdea wanted packs");
+if (create.indexOf("Yes, then Start") < 0) fail("pack create path must keep Yes, then Start");
+else pass("Yes, then Start on pack create");
+if (create.indexOf("listName") < 0) fail("create-desk must keep listName Advanced list-pack");
+else pass("listName Advanced list-pack");
 if (process.exitCode) {
   console.error("check-packs failed");
   process.exit(1);
