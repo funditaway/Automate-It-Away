@@ -140,7 +140,7 @@
       document.getElementById("mode-advanced").classList.toggle("on", advanced);
     }
     function esc(s) {
-      return String(s || "").replace(/[&<>\"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","'":"&#39;" }[c]));
+      return String(s || "").replace(/[&<>\"']/g, (c) => ({ "&":"&"+"amp;","<":"&"+"lt;",">":"&"+"gt;","\"":"&"+"quot;","'":"&#39;" }[c]));
     }
     picks.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-kind]"); if (!btn) return;
@@ -379,18 +379,30 @@
       }
       return n;
     }
+    function deskAiFromHealth(h) {
+      const a = (h && h.automation) || {};
+      const g = a.deskAi || a.grok || {};
+      const drafts = a.drafts || {};
+      const on = !!(g && g.on) || !!drafts.included;
+      const note = (g && g.note) || (on
+        ? "A Desk AI can draft. Drafts land on the card. You still tap Yes or Stop. AIA does not send."
+        : "A Desk AI can't draft on this phone yet. Orange means wait. You can still put work on the queue.");
+      return { on: on, note: note };
+    }
     async function paintAia() {
       const el = document.getElementById("aia-line");
       if (!el) return;
       try {
         const r = await fetch("/api/health");
         const h = await r.json().catch(function () { return {}; });
-        const g = h && h.automation && h.automation.grok;
-        grokOn = !!(g && g.on);
+        const face = deskAiFromHealth(h);
+        grokOn = !!face.on;
         el.classList.toggle("off", !grokOn);
-        el.textContent = grokOn
-          ? "A Desk AI can draft. Drafts land on the card. You still tap Yes or Stop. AIA does not send."
-          : "A Desk AI can't draft on this phone yet. Orange means wait. You can still put work on the queue.";
+        el.textContent = face.on
+          ? (face.note && /can draft/i.test(face.note)
+            ? "A Desk AI can draft. Drafts land on the card. You still tap Yes or Stop. AIA does not send."
+            : face.note)
+          : draftsOffNote(face.note);
       } catch (e) {
         grokOn = false;
         el.classList.add("off");
@@ -490,6 +502,8 @@
         if (data.grok === "no-key" || data.grok === "off") {
           const line = document.getElementById("aia-line");
           if (line) { line.classList.add("off"); line.textContent = draftsOffNote(data.note); }
+        } else if (data.grok && String(data.grok).indexOf("http-") === 0) {
+          startHint(data.note || "Ask the desk did not finish. You can still put the work on the queue.");
         }
       } catch (e) {
         startFail("Could not reach the desk.");

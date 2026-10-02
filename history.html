@@ -242,7 +242,7 @@ var EXAMPLES={
  "audit-month":{since:"month",flags:{audit:1},advanced:true},
  "stopped":{lane:"stopped",when:"past"}
 };
-function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];});}
+function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&"+"amp;","<":"&"+"lt;",">":"&"+"gt;","\"":"&"+"quot;","'":"&#39;"})[c];});}
 function phone(){return (window.AIADesks&&AIADesks.list())||[];}
 function thenWho(it){return (it&&it.deskAi&&it.deskAi.name)||(it&&it.thenWho)||"";}
 function thenGone(it){var g=it&&it.thenAiGone;return String((g&&(g.name||g.id))||"").trim();}
@@ -678,10 +678,11 @@ document.getElementById("quiet").onclick=function(){if(window.AIASpeech&&AIASpee
 document.getElementById("talk").onclick=function(){if(!window.AIASpeech||!AIASpeech.listen)return;AIASpeech.listen(function(text){applyTalk(text);load();});};
 function paintAia(){
  fetch("/api/health").then(function(r){return r.json();}).then(function(h){
-  var g=h&&h.automation&&h.automation.grok;
+  var a=(h&&h.automation)||{};
+  var g=a.deskAi||a.grok||{};
   var el=document.getElementById("aia-line");
   if(!el)return;
-  var on=!!(g&&g.on);
+  var on=!!(g&&g.on)||!!(a.drafts&&a.drafts.included);
   el.classList.toggle("off",!on);
   el.textContent=on
    ?"A Desk AI can draft. History still shows real cards only. You still tap Yes or Stop. AIA does not send."
