@@ -40,6 +40,8 @@
     { "source": "/shop", "destination": "/market.html" },
     { "source": "/packs", "destination": "/market.html" },
     { "source": "/pack", "destination": "/market.html" },
+    { "source": "/own", "destination": "/packs-own.html" },
+    { "source": "/packs-own", "destination": "/packs-own.html" },
     { "source": "/dev", "destination": "/developer.html" },
     { "source": "/developer", "destination": "/developer.html" },
     { "source": "/lab", "destination": "/developer.html" },
