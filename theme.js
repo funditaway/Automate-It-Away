@@ -160,7 +160,7 @@
       ".who-copy{min-width:0;flex:1 1 auto;text-align:right}" +
       ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#fff!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
       ".brand-short{display:none;color:#fff!important}" +
-      "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}" +
+      "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}header a.btn.outline,header .btn.outline{color:#fff!important;border-color:#fff!important}html.dark a.btn.outline,html.dark .btn.outline{color:#9ee0e0!important;border-color:#9ee0e0!important}@media(max-width:860px){header nav.site-nav,header .nav.site-nav,header nav:not(.desk-tabs),.site-header .nav{flex-wrap:wrap!important;overflow:visible!important;width:100%!important}}" +
       ".kpi b{display:block;min-height:1.35em;font-size:1.3rem;line-height:1.2;color:var(--teal)}" +
       "body.has-desk-nav header nav.site-nav, body.has-desk-nav header .nav.site-nav{display:flex!important}" +
       "body.has-desk-nav{padding-bottom:calc(140px + env(safe-area-inset-bottom,0px))!important}" +

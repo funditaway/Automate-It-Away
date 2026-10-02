@@ -356,3 +356,74 @@ header .brand-mark,
   color: var(--heading, #1a2332);
 }
 html.dark .page-title { color: #eef4f6; }
+
+/* 2026-10-02: mark contrast + phone/desktop tap and text visibility. */
+header .theme-btn,
+.site-header .theme-btn,
+button.theme-btn {
+  color: #fff !important;
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,.5) !important;
+  min-height: 44px !important;
+}
+header a.btn.outline,
+header .btn.outline,
+.site-header a.outline {
+  color: #fff !important;
+  border-color: #fff !important;
+  background: transparent !important;
+}
+html.dark a.btn.outline,
+html.dark .btn.outline,
+html.dark a.outline {
+  color: #9ee0e0 !important;
+  border-color: #9ee0e0 !important;
+}
+.site-foot nav a {
+  color: var(--teal-deep, #0a4f4f) !important;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+html.dark .site-foot nav a {
+  color: #9ee0e0 !important;
+}
+header nav.site-nav a,
+header .nav a,
+.site-header .nav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: #fff !important;
+}
+input, select, textarea {
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--card);
+}
+button.aia-tip { position: relative; }
+button.aia-tip::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
+:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
+}
+@media (max-width: 420px) {
+  header .brand-name,
+  .site-header .brand-name {
+    font-size: 15px !important;
+  }
+}
+@media (max-width: 860px) {
+  header nav.site-nav,
+  header .nav.site-nav,
+  header nav:not(.desk-tabs),
+  .site-header .nav {
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+    row-gap: 4px !important;
+  }
+}

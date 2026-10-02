@@ -1,19 +1,28 @@
 (function () {
+  var TEAL = "/img/aia-mark-teal.png";
+  var DARK = "/img/aia-mark-dark.png";
+  var LIGHT = "/img/aia-mark-light.png";
+  var ORANGE = "/img/aia-mark-orange.png";
   function paint() {
-    /* Header bar is teal. Use the white-stroke pyramid on teal tile. */
-    var src = "/img/aia-mark-teal.png";
-    document.querySelectorAll("header img.brand-mark, .site-header img.brand-mark, img.brand-mark").forEach(function (img) {
+    var dark = document.documentElement.classList.contains("dark");
+    document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
       var kind = (img.getAttribute("data-mark") || "").toLowerCase();
-      if (kind && kind !== "header" && kind !== "teal") return;
       var inHeader = img.closest("header, .site-header");
-      if (inHeader) {
-        img.setAttribute("src", src);
-        img.style.background = "transparent";
-      }
+      var src = TEAL;
+      if (kind === "orange") src = ORANGE;
+      else if (kind === "light") src = LIGHT;
+      else if (kind === "dark") src = DARK;
+      else if (kind === "outline") src = "/img/aia-mark-outline.png";
+      else if (inHeader) src = TEAL;
+      else src = dark ? DARK : LIGHT;
+      if (img.getAttribute("src") !== src) img.setAttribute("src", src);
+      img.style.background = "transparent";
+      img.alt = img.alt || "Automate It Away";
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paint);
   else paint();
   setTimeout(paint, 50);
   setTimeout(paint, 400);
+  new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 })();
