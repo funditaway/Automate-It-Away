@@ -137,12 +137,18 @@
         else root.appendChild(line);
       }
       if (root.querySelectorAll) {
-        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = true; });
+        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) {
+          el.disabled = true;
+          el.setAttribute("aria-disabled", "true");
+        });
       }
     } else {
       if (line && line.remove) line.remove();
       if (root.querySelectorAll) {
-        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) { el.disabled = false; });
+        root.querySelectorAll(".q-yes, .q-stop, .q-kill, .q-reply-tap").forEach(function (el) {
+          el.disabled = false;
+          el.removeAttribute("aria-disabled");
+        });
       }
     }
   }
