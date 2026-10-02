@@ -294,3 +294,65 @@ button.aia-tip {
     background: rgba(255, 255, 255, 0.12);
   }
 }
+
+/* 2026-10-02 phone + desktop: mark, gate, titles, duplicate chrome. */
+header .brand-mark,
+.site-header .brand-mark {
+  background: transparent !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.35);
+}
+@media (max-width: 859px) {
+  header .brand-name,
+  .site-header .brand-name {
+    display: inline !important;
+    color: #fff !important;
+    font-size: 13px !important;
+    font-weight: 800;
+    line-height: 1.15 !important;
+    max-width: 9.2em;
+    white-space: normal !important;
+  }
+  header .brand-short,
+  .site-header .brand-short {
+    display: none !important;
+  }
+  body.has-desk-nav header nav.site-nav,
+  body.has-desk-nav header .nav.site-nav {
+    display: none !important;
+  }
+  #gate,
+  .desk-open-row,
+  #open-row {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  #gate input,
+  #open-row input,
+  .desk-open-row input,
+  #gate button,
+  #open-row button,
+  .desk-open-row button {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 48px !important;
+  }
+}
+@media (min-width: 860px) {
+  header .brand-name,
+  .site-header .brand-name {
+    display: inline !important;
+  }
+  header .brand-short,
+  .site-header .brand-short {
+    display: none !important;
+  }
+}
+.page-title {
+  margin: 0 0 10px;
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--heading, #1a2332);
+}
+html.dark .page-title { color: #eef4f6; }
