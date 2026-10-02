@@ -140,7 +140,7 @@
       document.getElementById("mode-advanced").classList.toggle("on", advanced);
     }
     function esc(s) {
-      return String(s || "").replace(/[&<>\"']/g, (c) => ({ "&":"&","<":"<",">":">","\\\"":""","'":"&#39;" }[c]));
+      return String(s || "").replace(/[&<>\"']/g, (c) => ({ "&":"&"+"amp;","<":"&"+"lt;",">":"&"+"gt;","\"":"&"+"quot;","'":"&#39;" }[c]));
     }
     picks.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-kind]"); if (!btn) return;
