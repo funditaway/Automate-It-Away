@@ -37,3 +37,4 @@ else pass("create.html loads create-pack-download.js");
   if (createHtml.indexOf(t) < 0) fail("create.html missing bar tab " + t);
 });
 pass("live bar tabs still on create.html");
+require("./check-packs-give-assert.js");

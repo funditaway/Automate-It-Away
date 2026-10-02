@@ -166,6 +166,16 @@
     document.body.appendChild(el);
   }
 
+  function loadHistory(name, attr) {
+    if (tabOf() !== "history") return;
+    if (document.querySelector("script[" + attr + "]")) return;
+    var el = document.createElement("script");
+    el.src = "/" + name;
+    el.setAttribute(attr, "1");
+    document.body.appendChild(el);
+  }
+
+
   function boot() {
     if (window !== window.parent) return;
     ensureCss();
@@ -214,6 +224,7 @@
     loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
     loadPeople("people-desk.js", "data-aia-people-desk");
     loadPeople("people-world.js", "data-aia-people-world");
+    loadHistory("history-pack-give.js", "data-aia-history-pack-give");
     if (file() === "rules" || file() === "create" || file() === "more") {
       if (!document.querySelector("script[data-aia-desk-ais]")) {
         var a = document.createElement("script");
