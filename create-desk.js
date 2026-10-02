@@ -1,1 +1,1 @@
-PLACEHOLDER_LOAD_FROM_FILE
+LOAD_FROM:/workspace/Automate-It-Away/create-desk.js
