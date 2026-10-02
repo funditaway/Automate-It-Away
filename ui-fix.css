@@ -249,3 +249,48 @@ header nav:not(.desk-tabs),
   }
   body:has(#gate:not([hidden])) .kpis { display: none !important; }
 }
+
+/* 2026-10-02 visibility: header, footer, and tip taps were 18–22px. */
+header .site-nav a,
+.site-header .site-nav a,
+header nav a {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 44px !important;
+  padding: 8px 10px !important;
+  border-radius: 10px;
+  line-height: 1.1 !important;
+}
+.site-foot nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 6px;
+}
+button.aia-tip {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  margin: 0 0 0 2px !important;
+}
+@media (max-width: 860px) {
+  header .site-nav,
+  header nav.site-nav {
+    gap: 0 4px !important;
+    padding-bottom: 4px;
+  }
+  header .site-nav a,
+  header nav.site-nav a {
+    flex: 1 1 auto;
+  }
+}
+@media (min-width: 861px) {
+  header .site-nav a:hover,
+  header .site-nav a:focus-visible,
+  .site-header .site-nav a:hover,
+  .site-header .site-nav a:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
