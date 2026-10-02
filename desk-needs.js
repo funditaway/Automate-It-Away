@@ -1,1 +1,1 @@
-PLACEHOLDER_WILL_FAIL
+$file:/tmp/i02-needs-content-only.js
