@@ -597,7 +597,7 @@ function cardHtml(it){
   return "<a href=\""+esc(url)+"\" target=\"_blank\" rel=\"noopener\">"+esc((c&&c.title)||url)+"</a>";
  }).filter(Boolean).join("");
  var citeBox=cites?"<div class=\"cites\">"+cites+"</div>":"";
- return "<article class=\"card\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(stamp)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.how||it.past||it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p>"+tags+citeBox+threadFace(it)+"<div class=\"acts\"><button type=\"button\" data-explore=\""+esc(it.id)+"">Explore</button><a href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\">Open on desk</a><button type=\"button\" data-id=\""+esc(it.id)+"">Copy story</button></div></article>";
+ return "<article class=\"card\"><div class=\"meta\"><span class=\"lane "+esc(it.lane)+"\">"+esc(it.label)+"</span>"+esc(stamp)+" · "+esc(it.desk)+"</div><h2>"+esc(it.title)+"</h2><p class=\"meta\">"+esc(it.how||it.past||it.step||it.status)+extra+(it.who?" · "+esc(it.who):"")+"</p>"+tags+citeBox+threadFace(it)+"<div class=\"acts\"><button type=\"button\" data-explore=\""+esc(it.id)+"\">Explore</button><a href=\"/desk\" onclick=\"if(window.AIADesks)AIADesks.switchTo('"+esc(it.slug)+"')\">Open on desk</a><button type=\"button\" data-id=\""+esc(it.id)+"\">Copy story</button></div></article>";
 }
 function paintCards(){
  var list=document.getElementById("list");
