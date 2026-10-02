@@ -247,10 +247,12 @@
       q.addEventListener("search", paint);
     })();
     fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {
-      const g = h && h.automation && h.automation.grok;
+      const a = (h && h.automation) || {};
+      const g = a.deskAi || a.grok || {};
+      const on = !!(g && g.on) || !!(a.drafts && a.drafts.included);
       const el = document.getElementById("grok-line");
-      if (!el || !g) return;
-      el.textContent = g.on
+      if (!el) return;
+      el.textContent = on
         ? "A Desk AI can draft. Drafts land on the card. You tap Yes or Stop. Never Send."
         : "A Desk AI can't draft on this phone yet. You still tap Yes or Stop.";
     }).catch(function () {});
