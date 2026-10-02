@@ -325,7 +325,7 @@
       return s || "";
     }
     function esc(s) {
-      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&amp;quot;","'":"&#39;" }[c]));
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;amp;amp;","<":"&amp;lt;",">":"&amp;gt;","\"":"&amp;quot;","'":"&#39;" }[c]));
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
@@ -338,7 +338,15 @@
       const money = Number(j.amount || j.ask || 0);
       const why = visitorLine(j.why);
       const next = visitorLine(j.next) || "Yes or Stop.";
-      return `<article class="item"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button><button class="go" onclick="ship('${j.id}', ${money})">Yes</button>${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
+      const approved = typeof isCardApproved === "function" && isCardApproved(j.id);
+      const hitl = (typeof approveCard === "function" && typeof startCard === "function")
+        ? (approved
+          ? `<button class="go q-start" onclick="startCard('${j.id}', ${money})">Start</button>`
+          : `<button class="go q-yes" onclick="approveCard('${j.id}')">Yes</button>`)
+        : (typeof approveCard === "function"
+          ? `<button class="go q-yes" onclick="approveCard('${j.id}')">Yes</button>`
+          : `<button class="go q-yes" type="button">Yes</button>`);
+      return `<article class="item${approved ? " q-approved" : ""}" data-job="${esc(j.id || "")}"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button>${hitl}${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
     }
     async function load() {
       if (wsEl.value) {
