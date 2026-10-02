@@ -168,6 +168,7 @@ else pass("create-pack-idea uses AIACreateSetMode");
 if (createHtml.indexOf("create-pack-adv.js") < 0) fail("create.html must load create-pack-adv.js");
 else pass("create.html loads create-pack-adv.js");
 require("./check-packs-install-assert.js");
+require("./check-packs-own.js");
 if (process.exitCode) {
   console.error("check-packs failed");
   process.exit(1);
