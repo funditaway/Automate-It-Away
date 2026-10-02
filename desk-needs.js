@@ -1,1 +1,1 @@
-$file:/tmp/i02-needs-content-only.js
+PLACEHOLDER
