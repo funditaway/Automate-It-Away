@@ -32,9 +32,9 @@ else pass("packs-own.js parses");
   ["Your packs", html],
   ["Put on a desk", html + js],
   ["Put on more desks", html + js],
-  ["A pack can change how a desk works", html + js],
+  ["A pack can change a desk", html + js],
   ["Buy once", html + js],
-  ["Money stays off until you tap Yes", html],
+  ["Money stays off until Yes", html],
   ["data-activate", js],
   ["data-multi", js],
   ["use-pack", js],
@@ -84,7 +84,7 @@ else pass("account links Your packs");
 const market = fs.readFileSync(path.join(root, "market-shop.js"), "utf8");
 if (!market.includes("/own")) fail("market-shop missing Your packs");
 else pass("market links Your packs");
-if (!market.includes("Buy once") || !market.includes("change how a desk")) fail("market missing buy-once honesty");
+if (!market.includes("Buy once") || !market.includes("change a desk")) fail("market missing buy-once honesty");
 else pass("market buy-once honesty");
 
 // Do not regress Yes/Start/Stop or invent /api/packs

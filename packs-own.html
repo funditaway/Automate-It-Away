@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
-  <meta name="description" content="Your packs on this AIA account. Put a pack on any desk you own. A pack can change how a desk works. Money stays off until you tap Yes.">
+  <meta name="description" content="Your packs. Put on desks you own. Money stays off until Yes.">
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
   </script>
@@ -57,8 +57,8 @@
   </header>
   <main class="wrap" id="main">
     <h1>Your packs</h1>
-    <p id="honest-lead">Packs you can put on desks you own. A pack can change how a desk works. Buy once on this account — put it on any desk you own. Money stays off until you tap Yes.</p>
-    <div class="banner" id="banner">Open a desk as owner to put a pack on it. You still tap Yes or Stop on the queue.</div>
+    <p id="honest-lead">Put a pack on desks you own. A pack can change a desk. Buy once — any desk. Money stays off until Yes.</p>
+    <div class="banner" id="banner">Open a desk as owner. You still tap Yes or Stop.</div>
     <div class="links" id="top-links">
       <a href="/market">Install pack</a>
       <a href="/history#account-road">Give pack</a>
@@ -68,12 +68,12 @@
     </div>
     <div class="card" id="shells">
       <h2>Free pack shells</h2>
-      <p class="hint">Plain faces only. No live keys. No silent money. Not a live shop.</p>
+      <p class="hint">No live keys. Money stays off.</p>
       <div class="pack-row" data-shell="muse">
         <b>Muse Pack</b>
         <span class="shell-tag">FREE</span>
         <span class="shell-tag">Meta + Claude</span>
-        <p class="hint">Drafts side by side on the same card. You pick. Desk AIs draft — you still tap Yes or Stop.</p>
+        <p class="hint">Side-by-side drafts. You pick. You still tap Yes or Stop.</p>
         <div class="row">
           <button type="button" class="go" data-yes-shell="muse">Yes</button>
           <button type="button" class="ghost" data-stop-shell="muse">Stop</button>
@@ -83,7 +83,7 @@
       <div class="pack-row" data-shell="meta">
         <b>Meta Official Packs</b>
         <span class="shell-tag">FREE</span>
-        <p class="hint">AIA holds no keys. Meta Account packs need a Meta automations account first, then the pack. Usage stays off.</p>
+        <p class="hint">AIA holds no keys. Meta account first, then the pack. Usage stays off.</p>
         <div class="row">
           <button type="button" class="go" data-yes-shell="meta">Yes</button>
           <button type="button" class="ghost" data-stop-shell="meta">Stop</button>
@@ -93,12 +93,12 @@
     </div>
     <div class="card" id="owned-packs">
       <h2>Packs on this account</h2>
-      <p class="hint" id="owned-hint">Official free packs and packs listed from your desks. Put one on a desk — or on more than one.</p>
+      <p class="hint" id="owned-hint">Free packs and yours. Put on one desk or more.</p>
       <div id="pack-list"></div>
     </div>
     <div class="card" id="listed-packs">
       <h2>Your Studio listings</h2>
-      <p class="hint">Create, edit, or unlist with the same desk tools. List does not put the pack on a desk — tap Put on a desk after.</p>
+      <p class="hint">List on Create. Put on a desk after. Unlist here.</p>
       <div class="links">
         <a href="/create?kind=pack">Create / edit listing</a>
         <a href="/dev#first-pack">Studio · First .aia pack</a>
