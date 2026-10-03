@@ -82,14 +82,14 @@ if (history.indexOf("esc(past)") < 0 || history.indexOf("esc(now)") < 0 || histo
   fail("History roadmap copy must stay escaped");
 } else pass("History roadmap copy is escaped");
 
-if (!/accept=[\"']\\.aia/.test(history)) fail("History pack picker must accept .aia");
+if (!/accept=["']\.aia/.test(history)) fail("History pack picker must accept .aia");
 else pass("History pack picker accepts .aia");
 
-if (/action:\\s*[\"']give-pack[\"']|action:\\s*[\"']update-pack[\"']/.test(history)) {
+if (/action:\s*["']give-pack["']|action:\s*["']update-pack["']/.test(history)) {
   fail("History must not invent give-pack / update-pack charge actions");
 } else pass("History uses existing pack actions");
 
-const fiction = /Wallet\\.AIA|on-chain pack buy|AIA coin|gas pricing|cloud hosting|account levels|credits metering|fake economy|OAuth|robots\\/IoT|silent charge|Collect charge/i;
+const fiction = /Wallet\.AIA|on-chain pack buy|AIA coin|gas pricing|cloud hosting|account levels|credits metering|fake economy|OAuth|robots\/IoT|silent charge|Collect charge/i;
 if (fiction.test(history)) fail("History roadmap invented a HOLD item as live");
 else pass("History roadmap has no invented live economy");
 
@@ -130,15 +130,15 @@ if (yesNo.indexOf("History leftover") < 0) fail("ACCOUNT-YES-NO must name Histor
 else pass("ACCOUNT-YES-NO names History leftover");
 if (packMd.indexOf("History leftover") < 0) fail("PACK.md must name History leftover");
 else pass("PACK.md names History leftover");
-if (/if\\(tok\\)h\\[\"X-Session\"\\]=tok;\\s*else if\\(d&&d\\.pin\\)/.test(history)) {
+if (/if\(tok\)h\["X-Session"\]=tok;\s*else if\(d&&d\.pin\)/.test(history)) {
   fail("History packHdr must still send the open-desk pin when a session token is present");
 } else pass("History packHdr keeps X-Pin with X-Session");
-if (history.indexOf('if(pin)h[\"X-Pin\"]=pin') < 0) fail("History packHdr must send X-Pin");
+if (history.indexOf('if(pin)h["X-Pin"]=pin') < 0) fail("History packHdr must send X-Pin");
 else pass("History packHdr sends X-Pin");
-if (history.indexOf('fetch(\"/api/desks\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"}') >= 0) {
+if (history.indexOf('fetch("/api/desks",{method:"POST",headers:{"Content-Type":"application/json"}') >= 0) {
   fail("History trail load still skips leftover X-Session");
 } else pass("History trail load does not skip leftover X-Session");
-if (history.indexOf('fetch(\"/api/desks\",{method:\"POST\",headers:packHdr()') < 0) {
+if (history.indexOf('fetch("/api/desks",{method:"POST",headers:packHdr()') < 0) {
   fail("History trail load must send packHdr leftover X-Session so email-session owners still see the trail");
 } else pass("History trail load sends packHdr leftover X-Session");
 if (yesNo.indexOf("History leftover session after that pass") < 0) {
@@ -158,7 +158,7 @@ if (deskSrc.indexOf("pack: row.pack") < 0 || deskSrc.indexOf("packName: row.pack
   fail("publicDesk must expose the installed pack");
 } else pass("publicDesk exposes installed pack");
 
-if (packsSrc.indexOf("action === \\\"give-pack\\\"") >= 0 || packsSrc.indexOf("action === \\\"update-pack\\\"") >= 0) {
+if (packsSrc.indexOf("action === \"give-pack\"") >= 0 || packsSrc.indexOf("action === \"update-pack\"") >= 0) {
   fail("do not invent give-pack / update-pack APIs");
 } else pass("no invented give-pack / update-pack APIs");
 if (packsSrc.indexOf("charged: false") < 0) fail("packs must stay charged: false");
@@ -189,17 +189,17 @@ if (!liveRoad.owner) fail("accountRoadmapOf must mark the owner");
 else pass("accountRoadmapOf marks owner");
 
 function esc(s) {
-  return String(s || "").replace(/[&<>\"']/g, function (c) {
-    return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\\\"": "&quot;", "'": "&#39;" })[c];
+  return String(s || "").replace(/[&<>"']/g, function (c) {
+    return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
   });
 }
 
-const paintSrc = history.match(/function roadHtml\\(road\\)[\\s\\S]*?\\nfunction paintRoad/);
+const paintSrc = history.match(/function roadHtml\(road\)[\s\S]*?\nfunction paintRoad/);
 if (!paintSrc) {
   fail("could not extract History roadHtml");
 } else {
   const ctx = { esc: esc };
-  vm.runInNewContext(paintSrc[0].replace(/\\nfunction paintRoad[\\s\\S]*$/, ""), ctx);
+  vm.runInNewContext(paintSrc[0].replace(/\nfunction paintRoad[\s\S]*$/, ""), ctx);
   if (typeof ctx.roadHtml !== "function") fail("roadHtml must run");
   else pass("roadHtml runs");
   const html = ctx.roadHtml({ desk: "Shop <desk>", pack: "Insurance <pack>" });
@@ -210,18 +210,18 @@ if (!paintSrc) {
   } else pass("roadHtml desk / pack stay text");
   if (html.indexOf("Give pack") < 0 || html.indexOf("Update pack") < 0) fail("roadHtml must name give / update");
   else pass("roadHtml names give / update");
-  if (html.indexOf("data-road=\\\"install\\\"") < 0 || html.indexOf("data-road=\\\"give\\\"") < 0 || html.indexOf("data-road=\\\"update\\\"") < 0) {
+  if (html.indexOf("data-road=\"install\"") < 0 || html.indexOf("data-road=\"give\"") < 0 || html.indexOf("data-road=\"update\"") < 0) {
     fail("roadHtml must keep install / give / update taps");
   } else pass("roadHtml keeps pack taps");
   if (html.indexOf("They install with Yes") < 0 || html.indexOf("installs it again with Yes") < 0) {
     fail("roadHtml must say give downloads and update installs again");
   } else pass("roadHtml says give / update in plain words");
-  if (/Collect|\\bmint\\b|wallet|\\$|price|charge/i.test(html)) fail("roadHtml must stay quiet on Collect, mint, wallet, and price");
+  if (/Collect|\bmint\b|wallet|\$|price|charge/i.test(html)) fail("roadHtml must stay quiet on Collect, mint, wallet, and price");
   else pass("roadHtml stays quiet on Collect");
   const bare = ctx.roadHtml({});
   if (bare.indexOf("No pack on this desk yet") < 0) fail("empty roadmap must not invent a pack");
   else pass("empty roadmap does not invent a pack");
-  if (/vita\\.json|demo pack|placeholder pack/i.test(bare)) fail("empty roadmap invented a placeholder pack");
+  if (/vita\.json|demo pack|placeholder pack/i.test(bare)) fail("empty roadmap invented a placeholder pack");
   else pass("empty roadmap has no placeholder pack");
 }
 
