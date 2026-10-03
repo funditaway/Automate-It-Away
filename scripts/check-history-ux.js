@@ -56,12 +56,12 @@ const pkg = read("package.json");
   else pass("history.html " + bit);
 });
 
-if (history.indexOf("gone HOLD when that named AI is not on this desk") < 0) {
-  fail("History must keep gone HOLD honesty copy");
-} else pass("History keeps gone HOLD honesty copy");
-if (history.indexOf("Needs you / prompt ask-who") < 0) {
-  fail("History must keep Needs you / prompt ask-who");
-} else pass("History keeps Needs you / prompt ask-who");
+if (history.indexOf("not on this desk") < 0) {
+  fail("History must say when a named desk AI is not on this desk");
+} else pass("History says when a named desk AI is not on this desk");
+if (history.indexOf("Needs you") < 0) {
+  fail("History must keep Needs you");
+} else pass("History keeps Needs you");
 if (history.indexOf("XAI_API_KEY") >= 0 || /\bthis box\b/.test(history)) {
   fail("History must not name XAI_API_KEY / this box");
 } else if (history.indexOf("A Desk AI can't draft on this phone yet.") < 0 || history.indexOf("Could not reach the desk.") < 0) {
@@ -70,12 +70,15 @@ if (history.indexOf("XAI_API_KEY") >= 0 || /\bthis box\b/.test(history)) {
 if (yesNo.indexOf("Counter Desk AI voice leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must record Counter Desk AI voice leftover");
 } else pass("ACCOUNT-YES-NO records Counter Desk AI voice leftover");
-if (history.indexOf("Give is the file") < 0 || history.indexOf("Collect HOLD") < 0) {
-  fail("History must keep Give / Collect HOLD");
-} else pass("History keeps Give / Collect HOLD");
-if (history.indexOf("Create / Drop drafted cards label Yes / Stop / Kill") < 0) {
-  fail("History must label Create / Drop drafted Yes / Stop cards");
-} else pass("History labels Create / Drop drafted Yes / Stop cards");
+if (history.indexOf("Give is the file") < 0) {
+  fail("History must keep Give is the file");
+} else pass("History keeps Give is the file");
+if (history.indexOf("Collect HOLD") >= 0 || /\$\d|price|charge/i.test(history)) {
+  fail("History must stay quiet on Collect and price");
+} else pass("History stays quiet on Collect");
+if (history.indexOf("Yes / Stop / Kill") < 0 || history.indexOf("You still tap Yes or Stop") < 0) {
+  fail("History must keep Yes / Stop on cards");
+} else pass("History keeps Yes / Stop");
 if (history.indexOf("function viaLabel") < 0 || history.indexOf("it.decide") < 0) {
   fail("History must paint via + decide tags");
 } else pass("History paints via + decide tags");
@@ -94,9 +97,9 @@ if (history.indexOf('id="clear-view" hidden') < 0 && history.indexOf("clr.hidden
 if (history.indexOf("clr.hidden=n<1") < 0) {
   fail("paint() must hide #clear-view when filterCount is 0");
 } else pass("paint() hides #clear-view when filterCount is 0");
-if (history.indexOf("History does not invent Yes / Stop cards") < 0) {
-  fail("empty History must not invent Yes / Stop cards");
-} else pass("empty History does not invent Yes / Stop cards");
+if (history.indexOf("You still tap Yes or Stop") < 0 || history.indexOf("Nothing on this trail yet") < 0) {
+  fail("empty History must stay honest and keep Yes or Stop");
+} else pass("empty History stays honest");
 if (history.indexOf("XAI_API_KEY") >= 0 || history.indexOf("this box") >= 0 || history.indexOf("draft key") >= 0) {
   fail("History must not name XAI_API_KEY / this box / draft key");
 } else pass("History drafts-off uses Desk AI voice");
