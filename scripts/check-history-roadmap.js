@@ -60,19 +60,23 @@ const packsSrc = read("api/_packs.js");
   "function postAia",
   "Give pack",
   "Update pack",
+  "Install pack",
   "install-aia",
   "download-pack",
-  "Recurring update pass HOLD",
-  "Push to another desk HOLD",
-  ".aia identity HOLD until mint",
+  "Give pack downloads the file",
+  "They install with Yes",
+  "Update pack installs it again with Yes",
   "Give is the file",
   "Update is install again",
-  "Collect HOLD",
-  "not custody"
+  "Nothing sends until you tap Yes"
 ].forEach(function (bit) {
   if (history.indexOf(bit) < 0) fail("history.html missing " + bit);
   else pass("history.html " + bit);
 });
+
+if (/Collect HOLD|HOLD until mint|Browser wallet|not custody|Push to another desk HOLD/.test(history)) {
+  fail("history.html must stay quiet on Collect, mint, and wallet");
+} else pass("history.html stays quiet on Collect");
 
 if (history.indexOf("esc(past)") < 0 || history.indexOf("esc(now)") < 0 || history.indexOf("esc(next)") < 0) {
   fail("History roadmap copy must stay escaped");
@@ -209,11 +213,11 @@ if (!paintSrc) {
   if (html.indexOf("data-road=\"install\"") < 0 || html.indexOf("data-road=\"give\"") < 0 || html.indexOf("data-road=\"update\"") < 0) {
     fail("roadHtml must keep install / give / update taps");
   } else pass("roadHtml keeps pack taps");
-  if (html.indexOf("Push to another desk HOLD") < 0 || html.indexOf("Recurring update pass HOLD") < 0) {
-    fail("roadHtml must HOLD silent give / recurring update");
-  } else pass("roadHtml HOLDs silent give / recurring update");
-  if (html.indexOf("Collect HOLD") < 0 || html.indexOf("HOLD until mint") < 0) fail("roadHtml must HOLD Collect / mint");
-  else pass("roadHtml HOLDs Collect / mint");
+  if (html.indexOf("They install with Yes") < 0 || html.indexOf("installs it again with Yes") < 0) {
+    fail("roadHtml must say give downloads and update installs again");
+  } else pass("roadHtml says give / update in plain words");
+  if (/Collect|\bmint\b|wallet|\$|price|charge/i.test(html)) fail("roadHtml must stay quiet on Collect, mint, wallet, and price");
+  else pass("roadHtml stays quiet on Collect");
   const bare = ctx.roadHtml({});
   if (bare.indexOf("No pack on this desk yet") < 0) fail("empty roadmap must not invent a pack");
   else pass("empty roadmap does not invent a pack");

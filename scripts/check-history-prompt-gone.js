@@ -100,8 +100,8 @@ if (pkg.indexOf("check-history-prompt-gone.js") < 0) fail("package.json must run
 else pass("package.json runs check-history-prompt-gone");
 if (peopleHtml.indexOf("Needs you / prompt ask-who") < 0) fail("people.html must name Needs you / prompt ask-who");
 else pass("people.html names Needs you / prompt ask-who");
-if (history.indexOf("Needs you / prompt ask-who") < 0) fail("History intro must name Needs you / prompt ask-who");
-else pass("History intro names Needs you / prompt ask-who");
+if (history.indexOf("Needs you") < 0) fail("History must keep Needs you");
+else pass("History keeps Needs you");
 if (help.indexOf("Copy story") < 0 || moreTips.indexOf("Copy story copies that same trail") < 0) {
   fail("help / more tip must name History Copy story honesty");
 } else pass("help / more tip name History Copy story honesty");

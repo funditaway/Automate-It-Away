@@ -108,14 +108,14 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <div class="rail">
 <div>
 <h1>History</h1>
-<p>What this desk did. Real cards only — filter, read, or share the story. Install / give / update a .aia with Yes. Nothing sends from here.</p>
+<p>What this desk did. Real cards only. Filter, read, or share. Nothing sends from here.</p>
 </div>
 <button type="button" id="adv-btn" style="min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--card);font:700 13px inherit;padding:8px 14px">More filters</button>
 </div>
 <details class="how" id="how-history">
 <summary>What you see here</summary>
 <div>
-<p>Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who. Create / Drop drafted cards label Yes / Stop / Kill when they still wait on a human. Empty stays empty — Clear filters only when a filter hid the trail.</p>
+<p>Real cards from Queue, Drop, and Create. Yes and Stop stay on a card that still waits on you. If a named desk AI is not on this desk, the card says so. Clear filters only when a filter hid the trail.</p>
 </div>
 </details>
 <p class="aia-line" id="aia-line">Checking whether a Desk AI can draft on this phone…</p>
@@ -123,7 +123,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <details class="fold" id="road-fold" open>
 <summary>This account · past / now / next</summary>
 <div>
-<p class="meta">One account → one desk. Packs install with Yes. Nothing silent.</p>
+<p class="meta">One account, one desk. Install a pack with Yes. Nothing sends from here.</p>
 <div id="road-body"></div>
 </div>
 </details>
@@ -136,7 +136,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <details class="fold" id="quick-fold">
 <summary>Quick finds</summary>
 <div>
-<p class="meta">These do not invent cards — they only filter what is already here.</p>
+<p class="meta">These only filter cards already here.</p>
 <div class="chips" id="examples">
 <button type="button" data-ex="need-week">Need you this week</button>
 <button type="button" data-ex="missing">Missing a fact</button>
@@ -172,7 +172,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" data-lane="stopped">Stopped</button>
 </div>
 <div class="adv" id="adv-box" hidden>
-<p class="meta">Every filter stacks. A card must match the status, when bucket, search, who, kind, pipe, day window, and every flag you turn on.</p>
+<p class="meta">Filters stack. A card has to match every one you turn on.</p>
 <select id="who"><option value="">Anyone</option></select>
 <select id="work"><option value="">Any kind</option></select>
 <select id="pipe"><option value="">Any pipe</option></select>
@@ -354,13 +354,13 @@ function roadHtml(road){
  var desk=String(road.desk||"");
  var pack=String(road.pack||"");
  var locked=!desk;
- var past="Trail of real cards that already finished. Then draft. AI ↔ human thread. Needs you / gone HOLD already shipped.";
- var now="One account → one desk. Drop → Qualify → Do → Collect HOLD → Follow. Named desk AIs. Yes / Stop / Kill. People share. Install a .aia with Yes.";
+ var past="Cards that already finished on this desk.";
+ var now="One desk. Queue, Drop, Create, History, More. You tap Yes or Stop. Install a pack with Yes.";
  if(desk)now+=" This desk · "+desk+".";
  now+=pack?(" Pack on this desk · "+pack+"."):" No pack on this desk yet.";
- var next="Give pack = download / share this .aia. They install with Yes. Push to another desk HOLD. Update pack = install this .aia again with Yes. Recurring update pass HOLD. .aia identity HOLD until mint.";
+ var next="Give pack downloads the file. They install with Yes. Update pack installs it again with Yes.";
  var acts=locked
-  ?"<p class=\"meta\">Open a desk to install, give, or update a .aia. History does not invent Yes / Stop cards.</p>"
+  ?"<p class=\"meta\">Open a desk to install or give a pack.</p>"
   :"<div class=\"acts\">"+
   "<button type=\"button\" data-road=\"install\">Install pack</button>"+
   "<button type=\"button\" data-road=\"give\">Give pack · .aia</button>"+
@@ -373,7 +373,7 @@ function roadHtml(road){
   "<div class=\"road-col\"><div class=\"lane wait\">Next</div><p>"+esc(next)+"</p></div>"+
   "</div>"+
   acts+
-  "<p class=\"h-hold\">Give is the file. Update is install again. Nothing silent. Collect HOLD. Browser wallet on Account is identity / .aia prep — not custody.</p>"+
+  "<p class=\"h-hold\">Give is the file. Update is install again. Nothing sends until you tap Yes.</p>"+
   "<p class=\"meta road-hint\"></p>";
 }
 function paintRoad(road){
@@ -403,7 +403,7 @@ async function postAia(file){
  try{
   var r=await fetch("/api/desks",{method:"POST",headers:packHdr(),body:JSON.stringify({action:"install-aia",filename:file.name,pack:parsed})});
   var d=await r.json().catch(function(){return {};});
-  roadHint(r.ok?((d.note||"Installed .aia onto this desk.")+" Owner Yes. Collect HOLD."):(d.error||"Could not install that .aia pack."));
+  roadHint(r.ok?((d.note||"Installed .aia onto this desk.")+" You still tap Yes."):(d.error||"Could not install that .aia pack."));
   if(r.ok)load();
  }catch(e){roadHint("Could not reach the desk.");}
 }
@@ -419,7 +419,7 @@ function saveAiaBlob(name,text){
 }
 async function givePack(){
  var id=lastRoad.packId||"";
- if(!id){roadHint("No pack on this desk yet. Install a .aia first, or write one in Studio.");return;}
+ if(!id){roadHint("No pack on this desk yet. Install a pack first.");return;}
  try{
   var r=await fetch("/api/desks",{method:"POST",headers:packHdr(),body:JSON.stringify({action:"download-pack",id:id,aia:id})});
   var raw=await r.text();
@@ -428,7 +428,7 @@ async function givePack(){
   if(!r.ok){roadHint((d&&d.error)||"Could not download that .aia pack.");return;}
   var file=(d&&d.file)||id||"pack";
   saveAiaBlob(file,d&&d.format?JSON.stringify(d,null,2):raw);
-  roadHint("Downloaded "+(/\.aia$/i.test(String(file))?file:(file+".aia"))+". They install with Yes. No silent push.");
+  roadHint("Downloaded "+(/\.aia$/i.test(String(file))?file:(file+".aia"))+". They install with Yes.");
  }catch(e){roadHint("Could not reach the desk.");}
 }
 function viaLabel(it){return it&&it.via==="create"?"Create":it&&it.via==="drop"?"Drop":"";}
@@ -608,7 +608,7 @@ async function load(){
  saveView();paint();
  var rows=phone(),asked=slug?rows.filter(function(d){return d.slug===slug;}):rows;
  var banner=document.getElementById("banner"),list=document.getElementById("list");
-  if(!asked.length){paintRoad({});banner.textContent="Open a desk on this phone first. History does not invent Yes / Stop cards.";list.innerHTML="<div class=\"empty\"><p>No desk on this phone yet. History does not invent Yes / Stop cards.</p><div class=\"acts\"><a href=\"/onboard\">Open a desk</a><a href=\"/drop\">Drop work</a><a href=\"/create\">Create</a></div></div>";return;}
+  if(!asked.length){paintRoad({});banner.textContent="Open a desk to see History.";list.innerHTML="<div class=\"empty\"><p>Open a desk to see History.</p><div class=\"acts\"><a href=\"/onboard\">Open a desk</a></div></div>";return;}
  var body={action:"history",lane:lane,when:when,q:q,who:who,kind:work,pipe:pipe,since:since,advanced:advanced,desks:asked.map(function(d){return {slug:d.slug,pin:d.pin};})};
  Object.keys(flags).forEach(function(k){if(flags[k])body[k]=true;});
  try{
@@ -618,7 +618,7 @@ async function load(){
   function metric(label,n,cls){return "<span class=\"q-metric"+(cls?" "+cls:"")+"\"><span class=\"dot\"></span><b>"+esc(String(n||0))+"</b> "+esc(label)+"</span>";}
   document.getElementById("counts").innerHTML=metric("Need you",c.need,"is-wait")+metric("In progress",c.doing)+metric("Waiting",c.wait,"is-wait")+metric("Off desk",c.ext)+metric("Done",c.done)+(c.stopped?metric("Stopped",c.stopped):"");
   paintRoad(roadFrom(data));
-  banner.textContent=slug?"This desk — real work only. Links show only when a Desk AI or the web was used.":"Every desk this phone can open. Pick a desk to narrow. Empty stays empty.";
+  banner.textContent=slug?"This desk. Real cards only.":"Every desk on this phone. Pick one to narrow.";
   var f=data.facets||{};
   function sel(id,rows,blank){var el=document.getElementById(id),cur=el.value;el.innerHTML="<option value=\"\">"+blank+"</option>"+(rows||[]).map(function(n){return "<option>"+esc(n)+"</option>";}).join("");if(cur)el.value=cur;}
   sel("who",f.who,"Anyone");sel("work",f.work,"Any kind");sel("pipe",f.pipes,"Any pipe");if(who)document.getElementById("who").value=who;
@@ -629,8 +629,8 @@ async function load(){
   if(!items.length){
    var filtered=filterCount()>0;
    list.innerHTML=filtered
-    ?"<div class=\"empty\"><p>Nothing matches these filters. History does not invent cards.</p><div class=\"acts\"><button type=\"button\" id=\"empty-clear\">Clear filters</button><a href=\"/drop\">Drop something</a><a href=\"/create\">Create</a></div></div>"
-    :"<div class=\"empty\"><p>Nothing on this trail yet. Drop or Create a card. History does not invent Yes / Stop cards.</p><div class=\"acts\"><a href=\"/drop\">Drop something</a><a href=\"/create\">Create</a></div></div>";
+    ?"<div class=\"empty\"><p>Nothing matches these filters.</p><div class=\"acts\"><button type=\"button\" id=\"empty-clear\">Clear filters</button><a href=\"/drop\">Drop</a><a href=\"/create\">Create</a></div></div>"
+    :"<div class=\"empty\"><p>Nothing on this trail yet. Drop or Create a card. You still tap Yes or Stop.</p><div class=\"acts\"><a href=\"/drop\">Drop</a><a href=\"/create\">Create</a></div></div>";
    var clr=document.getElementById("empty-clear");if(clr)clr.onclick=function(){reset();load();};return;
   }
   paintCards();
@@ -685,8 +685,8 @@ function paintAia(){
   var on=!!(g&&g.on)||!!(a.drafts&&a.drafts.included);
   el.classList.toggle("off",!on);
   el.textContent=on
-   ?"A Desk AI can draft. History still shows real cards only. You still tap Yes or Stop. AIA does not send."
-   :"A Desk AI can't draft on this phone yet. History still shows real cards only. Empty stays empty.";
+   ?"A Desk AI can draft. You still tap Yes or Stop."
+   :"A Desk AI can't draft on this phone yet.";
  }).catch(function(){
   var el=document.getElementById("aia-line");
   if(!el)return;
