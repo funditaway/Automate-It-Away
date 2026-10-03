@@ -1,10 +1,10 @@
 /* Packs leftover after Install .aia honesty: Download .aia Create path + after-List #mine clarity.
-   Collect HOLD. Not Market. No silent bind. */
+   Collect HOLD. Not Market. No silent bind. Collect stays HOLD. */
 (function () {
   var DOWNLOAD_HONEST =
-    "Download / Give .aia is on History (Give pack · .aia). Install is on this Create path. They install with Yes, then Start. Packs do not send money. Collect stays HOLD.";
+    "Download and Give pack are on History. Install is here. You still tap Yes, then Start. Packs do not send money.";
   var MINE_HONEST =
-    "Listed from this desk. Unlist removes the listing only. List does not Use — tap Use on this desk in the list above. Download / Give .aia is on History. You still tap Yes, then Start. Packs do not send money. Collect stays HOLD.";
+    "Listed from this desk. Unlist removes the listing only. Tap Use on this desk above. Give pack is on History. You still tap Yes, then Start. Packs do not send money.";
 
   function ensureDownloadHonesty(form) {
     if (!form || document.getElementById("pack-download-honest")) return;
