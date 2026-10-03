@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
 <link rel="manifest" href="/site.webmanifest">
 <meta name="theme-color" content="#0d6b6b">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
 <link rel="stylesheet" href="desk-nav.css">
 <script>
 (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
@@ -710,5 +710,5 @@ document.getElementById("road-file").onchange=function(){
 paintRoad({});
 loadView();var params=new URLSearchParams(location.search||"");if(params.get("who"))who=params.get("who");fillPick();paintAia();load();
 </script>
-</body>
+<script src="/mark-fix.js"></script></body>
 </html>

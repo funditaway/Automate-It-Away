@@ -12,7 +12,7 @@
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
   </script>
-  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
   <link rel="stylesheet" href="desk-nav.css">
   <script src="theme.js"></script>
   <script src="analytics.js"></script>
@@ -529,5 +529,5 @@
     if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
     paintGate(); load();
   </script>
-</body>
+<script src="/mark-fix.js"></script></body>
 </html>

@@ -202,3 +202,51 @@ button.aia-tip:hover, button.aia-tip:focus-visible {
 }
 .aia-tip-acts .ask { background: var(--orange); color: #0c1116; }
 .aia-tip-acts .got { background: transparent; border: 1px solid var(--line); color: var(--ink); cursor: pointer; }
+
+
+/* 2026-10-03 visibility — mark tiles, phone tab bar, tap targets */
+html, body { overflow-x: clip; max-width: 100%; }
+img.brand-mark, img.aia-mark {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  object-fit: contain;
+  background: transparent;
+  border-radius: 22%;
+}
+header .brand-short, .site-header .brand-short {
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: #fff;
+}
+input, select, textarea { font-size: 16px; }
+button, a.btn, .go, .ghost {
+  min-height: 44px;
+}
+@media (max-width: 859px) {
+  body:has(#desk-nav) {
+    padding-bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  }
+  body:has(#desk-nav) main,
+  body:has(#desk-nav) .wrap {
+    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+  header, .site-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  header .desk-tabs, header nav.desk-tabs {
+    display: none;
+  }
+  .theme-btn {
+    min-width: 4.2em;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+}
+@media (min-width: 860px) {
+  body:has(#desk-nav) { padding-bottom: 24px; }
+  #desk-nav { display: none; }
+}

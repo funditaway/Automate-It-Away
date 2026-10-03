@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#0d6b6b">
-  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
   <link rel="stylesheet" href="desk-nav.css">
   <script src="theme.js"></script>
   <script src="analytics.js"></script>
@@ -170,5 +170,5 @@
     if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
     if (wsEl.value && (pinEl.value || localStorage.getItem("aia_session"))) load();
   </script>
-</body>
+<script src="/mark-fix.js"></script></body>
 </html>

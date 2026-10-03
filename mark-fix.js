@@ -1,57 +1,35 @@
 (function () {
-  var TEAL = "/img/aia-mark-teal.png";
-  var DARK = "/img/aia-mark-dark.png";
-  var LIGHT = "/img/aia-mark-light.png";
-  var ORANGE = "/img/aia-mark-orange.png";
-  var OUTLINE = "/img/aia-mark-outline.png";
-  function paint() {
-    var dark = document.documentElement.classList.contains("dark");
-    document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
-      var kind = (img.getAttribute("data-mark") || "").toLowerCase();
-      var inHeader = img.closest("header, .site-header");
-      var src = OUTLINE;
-      if (kind === "orange") src = ORANGE;
-      else if (kind === "light") src = LIGHT;
-      else if (kind === "dark") src = DARK;
-      else if (kind === "teal") src = TEAL;
-      else if (kind === "outline") src = OUTLINE;
-      else if (inHeader) src = OUTLINE;
-      else src = dark ? DARK : LIGHT;
-      if (img.getAttribute("src") !== src) img.setAttribute("src", src);
-      img.style.background = "transparent";
-      img.style.objectFit = "contain";
-      img.alt = img.alt || "Automate It Away";
-    });
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paint);
-  else paint();
-  setTimeout(paint, 50);
-  setTimeout(paint, 400);
-  new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-})();
-
-(function () {
+  /* theme.js owns which tile shows. This file only keeps the name from covering Sign in. */
   function fitHeader() {
     var header = document.querySelector("header, .site-header");
     if (!header) return;
     var name = header.querySelector(".brand-name");
+    if (!name) return;
     var short = header.querySelector(".brand-short");
-    var tools = header.querySelector(".hdr-tools");
-    if (!name || !tools) return;
-    name.style.setProperty("display", "", "important");
-    if (short) short.style.setProperty("display", "none", "important");
-    var nameBox = name.getBoundingClientRect();
-    var toolsBox = tools.getBoundingClientRect();
-    var tight = window.innerWidth <= 430 || nameBox.right > toolsBox.left - 8;
+    if (!short) {
+      short = document.createElement("span");
+      short.className = "brand-short";
+      short.textContent = "AIA";
+      short.hidden = true;
+      name.after(short);
+    }
+    var tools = header.querySelector(".hdr-tools, .theme-btn");
+    name.hidden = false;
+    short.hidden = true;
+    var tight = window.innerWidth <= 430;
+    if (!tight && tools) {
+      var nameBox = name.getBoundingClientRect();
+      var toolsBox = tools.getBoundingClientRect();
+      tight = nameBox.right > toolsBox.left - 8;
+    }
     if (tight) {
-      name.style.setProperty("display", "none", "important");
-      if (short) short.style.setProperty("display", "inline", "important");
+      name.hidden = true;
+      short.hidden = false;
     }
   }
   function go() { fitHeader(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go);
   else go();
-  setTimeout(go, 60);
-  setTimeout(go, 400);
   window.addEventListener("resize", go);
+  setTimeout(go, 60);
 })();

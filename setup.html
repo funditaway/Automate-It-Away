@@ -13,7 +13,7 @@
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
-  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
   <style>
     .wrap{width:min(840px,94vw);margin:0 auto;padding:20px 0 36px}
     h1{font-size:clamp(1.45rem,4.2vw,2rem);line-height:1.15}
@@ -235,5 +235,5 @@
       paintNiches();
     })();
   </script>
-</body>
+<script src="/mark-fix.js"></script></body>
 </html>

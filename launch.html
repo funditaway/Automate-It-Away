@@ -7,7 +7,7 @@
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
   <script src="theme.js"></script>
   <script src="analytics.js"></script>
 <style>
@@ -40,4 +40,4 @@ const saved=JSON.parse(localStorage.getItem(key)||"[]");
 document.getElementById("list").innerHTML = ITEMS.map((r,i)=>`<label class="item"><input type="checkbox" ${saved[i]?"checked":""} onchange="flip(${i})"> <b>${r[0]}</b> — ${r[1]}</label>`).join("");
 function flip(i){const on=JSON.parse(localStorage.getItem(key)||"[]");on[i]=!on[i];localStorage.setItem(key,JSON.stringify(on));}
 </script>
-</body></html>
+<script src="/mark-fix.js"></script></body></html>

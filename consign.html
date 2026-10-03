@@ -10,7 +10,7 @@
 <script>
 (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
 </script>
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
 <script src="theme.js"></script>
 <style>
 body{font-family:system-ui;margin:0;background:var(--bg);color:var(--ink)}
@@ -55,4 +55,4 @@ function kill(id){const i=Q.findIndex(x=>x.id===id);if(i<0)return;const r=Q.spli
 paint();
 </script>
 <script src="desk-nav.js"></script>
-</body></html>
+<script src="/mark-fix.js"></script></body></html>
