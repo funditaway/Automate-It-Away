@@ -295,7 +295,7 @@
       paintPic();
       const slug=localStorage.getItem("aia_ws")||"";
       const pin=localStorage.getItem("aia_pin")||"";
-      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
       const d=await r.json().catch(function(){return {};});
       let handleHint="";
       if(youHandle&&youHandle.value){
@@ -307,7 +307,7 @@
     };
     document.getElementById("save-pass").onclick=async function(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value;
-      const r=await fetch("/api/auth",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
       const d=await r.json().catch(function(){return {};});
       document.getElementById("pw-hint").textContent=r.ok?(d.hint||"Password saved."):(d.error||"Could not save.");
       document.getElementById("pw-hint").className=r.ok?"ok":"meta";
