@@ -100,8 +100,8 @@ if (pkg.indexOf("check-history-prompt-gone.js") < 0) fail("package.json must run
 else pass("package.json runs check-history-prompt-gone");
 if (peopleHtml.indexOf("Needs you / prompt ask-who") < 0) fail("people.html must name Needs you / prompt ask-who");
 else pass("people.html names Needs you / prompt ask-who");
-if (history.indexOf("Needs you / prompt ask-who") < 0) fail("History intro must name Needs you / prompt ask-who");
-else pass("History intro names Needs you / prompt ask-who");
+if (history.indexOf("Needs you") < 0) fail("History must keep Needs you");
+else pass("History keeps Needs you");
 if (help.indexOf("Copy story") < 0 || moreTips.indexOf("Copy story copies that same trail") < 0) {
   fail("help / more tip must name History Copy story honesty");
 } else pass("help / more tip name History Copy story honesty");
@@ -190,18 +190,18 @@ const gone = paintPair(goneJob);
   const html = pair[1];
   if (html.indexOf("q-prompt") < 0) fail(where + " gone card must show prompt ask-who");
   else pass(where + " gone card shows prompt ask-who");
-  if (promptWho(html).indexOf("Shop Bot · not on this desk") < 0) {
-    fail(where + " gone prompt ask-who must hold Shop Bot · not on this desk, got " + promptWho(html));
+  if (promptWho(html).indexOf("Shop Bot \u00b7 not on this desk") < 0) {
+    fail(where + " gone prompt ask-who must hold Shop Bot \u00b7 not on this desk, got " + promptWho(html));
   } else pass(where + " gone prompt ask-who holds Shop Bot");
   if (promptWho(html) === "Needs you") fail(where + " gone prompt ask-who must not stay Needs you");
   else pass(where + " gone prompt ask-who is not anonymous Needs you");
   if (promptQ(html).indexOf("The desk AI asked") >= 0) fail(where + " gone prompt must not say The desk AI asked");
   else pass(where + " gone prompt does not say The desk AI asked");
-  if (promptQ(html).indexOf("Shop Bot · not on this desk") < 0) {
-    fail(where + " gone prompt question must name Shop Bot · not on this desk, got " + promptQ(html));
+  if (promptQ(html).indexOf("Shop Bot \u00b7 not on this desk") < 0) {
+    fail(where + " gone prompt question must name Shop Bot \u00b7 not on this desk, got " + promptQ(html));
   } else pass(where + " gone prompt question holds Shop Bot");
-  if (needChip(html).indexOf("Shop Bot · not on this desk") < 0) {
-    fail(where + " gone Needs you chip must hold Shop Bot · not on this desk, got " + needChip(html));
+  if (needChip(html).indexOf("Shop Bot \u00b7 not on this desk") < 0) {
+    fail(where + " gone Needs you chip must hold Shop Bot \u00b7 not on this desk, got " + needChip(html));
   } else pass(where + " gone Needs you chip holds Shop Bot");
   if (/James/.test(html) && (promptWho(html).indexOf("James") >= 0 || needChip(html).indexOf("James") >= 0)) {
     fail(where + " gone prompt / Needs you must not first-eligible to James");
@@ -219,7 +219,7 @@ if (needChip(gone.history) !== needChip(gone.people)) {
 
 if (hCtx && typeof hCtx.deskAiLine === "function") {
   const line = hCtx.deskAiLine(goneJob);
-  if (line.indexOf("Shop Bot · not on this desk") < 0) fail("Explore Desk AI must name gone HOLD");
+  if (line.indexOf("Shop Bot \u00b7 not on this desk") < 0) fail("Explore Desk AI must name gone HOLD");
   else pass("Explore Desk AI names gone HOLD");
 }
 
@@ -235,12 +235,12 @@ const xss = paintPair(xssJob);
   const where = pair[0];
   const html = pair[1];
   if (html.indexOf("Shop Bot <gone>") >= 0) fail(where + " raw < in gone prompt name must not become markup");
-  else if (html.indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) fail(where + " gone prompt name must stay text");
+  else if (html.indexOf("Shop Bot &lt;gone&gt; \u00b7 not on this desk") < 0) fail(where + " gone prompt name must stay text");
   else pass(where + " gone prompt name stays text");
-  if (promptWho(html).indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) {
+  if (promptWho(html).indexOf("Shop Bot &lt;gone&gt; \u00b7 not on this desk") < 0) {
     fail(where + " gone prompt-who must escape the bind, got " + promptWho(html));
   } else pass(where + " gone prompt-who stays text");
-  if (needChip(html).indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) {
+  if (needChip(html).indexOf("Shop Bot &lt;gone&gt; \u00b7 not on this desk") < 0) {
     fail(where + " gone Needs you chip must escape the bind, got " + needChip(html));
   } else pass(where + " gone Needs you chip stays text");
 });
@@ -258,7 +258,7 @@ const live = paintPair(liveJob);
   const html = pair[1];
   if (promptWho(html).indexOf("Shop Bot asks") < 0) fail(where + " live prompt must still say Shop Bot asks, got " + promptWho(html));
   else pass(where + " live prompt still names Shop Bot");
-  if (needChip(html).indexOf("Shop Bot · Needs you") < 0) fail(where + " live Needs you chip must still name Shop Bot, got " + needChip(html));
+  if (needChip(html).indexOf("Shop Bot \u00b7 Needs you") < 0) fail(where + " live Needs you chip must still name Shop Bot, got " + needChip(html));
   else pass(where + " live Needs you chip still names Shop Bot");
   if (html.indexOf("not on this desk") >= 0) fail(where + " live bind must not paint gone HOLD");
   else pass(where + " live bind has no gone HOLD");
@@ -300,8 +300,8 @@ if (hCtx) {
   if (typeof hCtx.storyOf !== "function") fail("History storyOf must run");
   else pass("History storyOf runs");
   const goneCopy = hCtx.storyOf(goneJob);
-  if (goneCopy.indexOf("Shop Bot · not on this desk") < 0) fail("Copy story gone card must name Shop Bot · not on this desk, got " + goneCopy);
-  else pass("Copy story gone card names Shop Bot · not on this desk");
+  if (goneCopy.indexOf("Shop Bot \u00b7 not on this desk") < 0) fail("Copy story gone card must name Shop Bot \u00b7 not on this desk, got " + goneCopy);
+  else pass("Copy story gone card names Shop Bot \u00b7 not on this desk");
   if (/James/.test(goneCopy)) fail("Copy story gone card must not name James");
   else pass("Copy story gone card does not name James");
   if (goneCopy.indexOf("Then draft") >= 0) fail("Copy story gone card must not look like a live Then draft");
