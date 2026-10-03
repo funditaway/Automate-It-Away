@@ -475,3 +475,91 @@ footer a,
   align-items: center;
   padding: 8px 6px;
 }
+
+/* 2026-10-03: mark stays visible; phone fields stack; taps not clipped. */
+header .brand-mark,
+.site-header .brand-mark,
+img.aia-mark {
+  object-fit: contain !important;
+  background: transparent !important;
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+header .brand,
+.site-header .brand {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff !important;
+}
+header .site-nav a,
+header nav a,
+.site-header nav a,
+.desk-tabs a {
+  color: #fff !important;
+}
+header .site-nav a[aria-current="page"],
+header nav a.on,
+.desk-tabs a.on {
+  color: #f39c12 !important;
+}
+.theme-btn {
+  color: #0c1116 !important;
+  background: #f39c12 !important;
+  border: 0 !important;
+  font-weight: 800 !important;
+}
+.row.desk-in,
+.desk-in {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  width: 100%;
+}
+.row.desk-in .field,
+.desk-in .field,
+.row.desk-in input,
+.desk-in input,
+.row.desk-in button,
+.desk-in button {
+  min-width: 0;
+}
+@media (max-width: 860px) {
+  .row.desk-in,
+  .desk-in,
+  .row.desk-in .field,
+  .desk-in .field {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+  .row.desk-in input,
+  .desk-in input,
+  #pin,
+  #ws,
+  #ask,
+  #hook,
+  #q {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 48px !important;
+  }
+  .row.desk-in button,
+  .desk-in button.go {
+    width: 100% !important;
+  }
+  header .brand-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  img, svg, video {
+    max-width: 100%;
+    height: auto;
+  }
+}
+:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
+}

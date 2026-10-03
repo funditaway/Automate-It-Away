@@ -3,20 +3,23 @@
   var DARK = "/img/aia-mark-dark.png";
   var LIGHT = "/img/aia-mark-light.png";
   var ORANGE = "/img/aia-mark-orange.png";
+  var OUTLINE = "/img/aia-mark-outline.png";
   function paint() {
     var dark = document.documentElement.classList.contains("dark");
     document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
       var kind = (img.getAttribute("data-mark") || "").toLowerCase();
       var inHeader = img.closest("header, .site-header");
-      var src = TEAL;
+      var src = OUTLINE;
       if (kind === "orange") src = ORANGE;
       else if (kind === "light") src = LIGHT;
       else if (kind === "dark") src = DARK;
-      else if (kind === "outline") src = "/img/aia-mark-outline.png";
-      else if (inHeader) src = TEAL;
+      else if (kind === "teal") src = TEAL;
+      else if (kind === "outline") src = OUTLINE;
+      else if (inHeader) src = OUTLINE;
       else src = dark ? DARK : LIGHT;
       if (img.getAttribute("src") !== src) img.setAttribute("src", src);
       img.style.background = "transparent";
+      img.style.objectFit = "contain";
       img.alt = img.alt || "Automate It Away";
     });
   }
