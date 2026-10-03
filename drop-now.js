@@ -2,7 +2,13 @@
   var RECENT = "aia_drop_recent";
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
+      return ({
+        "&": "&" + "amp;",
+        "<": "&" + "lt;",
+        ">": "&" + "gt;",
+        "\"": "&" + "quot;",
+        "'": "&#39;"
+      })[c];
     });
   }
   function desk() {
@@ -82,7 +88,7 @@
       if (title && title.parentNode) title.parentNode.insertBefore(el, title.nextSibling);
     }
     if (!on.slug) { el.textContent = "No desk yet. Pick one, add a saved desk, or find a public desk."; return; }
-    el.innerHTML = "This drop goes to <b>" + esc(on.name || on.slug) + "</b>. Lands on that queue. You still tap Yes or Stop. <a href=\"/drop\">Change desk</a>";
+    el.innerHTML = "This drop goes to <b>" + esc(on.name || on.slug) + "</b>. You still tap Yes, then Start. <a href=\"/drop\">Change desk</a>";
   }
   function camera() {
     var photo = document.getElementById("photo"); if (!photo) return;
