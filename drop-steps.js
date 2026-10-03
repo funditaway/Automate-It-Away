@@ -1,6 +1,6 @@
 (function () {
   var KEY = "aia_drop_step";
-  var VOW = "Draft only. Lands on the queue. You still tap Yes, then Start. Nobody sends money from here.";
+  var VOW = "You still tap Yes, then Start. Nobody sends money from here.";
   var STEPS = [
     {
       id: "desk", label: "Desk",

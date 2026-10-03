@@ -4,7 +4,7 @@
     if (AIATip.tips["custom-drop"] && AIATip.tips["card-type"]) return true;
     AIATip.tips["custom-drop"] = {
       title: "Custom Drop",
-      body: "Name your own drop and pick a card type. Ask Desk AI to draft — visible, not a silent bind. You still tap Yes, then Start. Collect stays HOLD.",
+      body: "Name your own drop and pick a card type. Ask a Desk AI to draft. You still tap Yes, then Start.",
       ask: "How do I draft a Custom Drop?"
     };
     AIATip.tips["card-type"] = {
