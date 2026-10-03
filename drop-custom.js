@@ -74,7 +74,7 @@
     if (!pane) return null;
     if (!document.getElementById("card-type-chips")) {
       var wrap = document.createElement("div");
-      wrap.innerHTML = "<label class=\"lbl\">Card type</label><div id=\"card-type-chips\" class=\"card-type-chips\" role=\"group\" aria-label=\"Card type\"></div><div id=\"custom-ai-box\"><p class=\"muted\">Desk AI draft path — not a silent bind. Yes, then Start.</p><textarea id=\"custom-ai-ask\" rows=\"2\" placeholder=\"What should Desk AI draft?\" style=\"width:100%\"></textarea><div id=\"custom-ai-row\"><button type=\"button\" id=\"custom-ask\">Ask Desk AI to draft</button><button type=\"button\" id=\"custom-yes\" hidden>Use draft</button><button type=\"button\" id=\"custom-stop\" hidden>Clear</button></div><div id=\"custom-ai-draft\"></div></div>";
+      wrap.innerHTML = "<label class=\"lbl\">Card type</label><div id=\"card-type-chips\" class=\"card-type-chips\" role=\"group\" aria-label=\"Card type\"></div><div id=\"custom-ai-box\"><p class=\"muted\">A Desk AI drafts. You still tap Yes, then Start.</p><textarea id=\"custom-ai-ask\" rows=\"2\" placeholder=\"What should Desk AI draft?\" style=\"width:100%\"></textarea><div id=\"custom-ai-row\"><button type=\"button\" id=\"custom-ask\">Ask Desk AI to draft</button><button type=\"button\" id=\"custom-yes\" hidden>Use draft</button><button type=\"button\" id=\"custom-stop\" hidden>Clear</button></div><div id=\"custom-ai-draft\"></div></div>";
       pane.appendChild(wrap);
       setType(window.__aiaCardType || "custom");
       pane.addEventListener("click", function (e) {
@@ -148,7 +148,7 @@
       };
       if (draftEl) {
         draftEl.classList.add("on");
-        draftEl.textContent = "Desk AI draft (not a silent bind):\n" + (draftBlob.title ? ("Title: " + draftBlob.title + "\n") : "") + (draftBlob.notes || "");
+        draftEl.textContent = "Desk AI draft:\n" + (draftBlob.title ? ("Title: " + draftBlob.title + "\n") : "") + (draftBlob.notes || "");
       }
       var y = document.getElementById("custom-yes");
       var s = document.getElementById("custom-stop");
