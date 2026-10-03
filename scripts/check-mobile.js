@@ -81,6 +81,11 @@ if (js.indexOf("chip.tagName !== \"A\"") < 0) {
   pass("account chip ignores foreign #who-chip");
 }
 
+if (/body\.has-desk-nav header nav\.site-nav,[\s\S]{0,120}display:\s*none/.test(fix)) {
+  fail("phone desk pages must keep How / Setup / Help visible");
+} else {
+  pass("phone desk pages keep site nav");
+}
 if (!css.includes(".site-foot nav") || !fix.includes("Footer links must not smash")) {
   fail("footer nav must stay spaced on phone and desktop");
 } else {

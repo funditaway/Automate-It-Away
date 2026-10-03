@@ -316,9 +316,22 @@ header .brand-mark,
   .site-header .brand-short {
     display: none !important;
   }
+  /* Phone desk pages still need How / Setup / Help. Bottom bar is the queue, not the site. */
   body.has-desk-nav header nav.site-nav,
   body.has-desk-nav header .nav.site-nav {
-    display: none !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    width: 100% !important;
+    grid-column: 1 / -1;
+    gap: 0 !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.has-desk-nav header nav.site-nav a,
+  body.has-desk-nav header .nav.site-nav a {
+    flex: 0 0 auto !important;
+    min-height: 44px !important;
+    padding: 6px 12px !important;
   }
   #gate,
   .desk-open-row,
