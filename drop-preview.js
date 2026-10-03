@@ -14,7 +14,13 @@
   var lastAsk = "";
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
+      return ({
+        "&": "&" + "amp;",
+        "<": "&" + "lt;",
+        ">": "&" + "gt;",
+        "\"": "&" + "quot;",
+        "'": "&#39;"
+      })[c];
     });
   }
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
@@ -71,8 +77,8 @@
   }
   function holdWhy(text, amount) {
     var t = String(text || "");
-    if (/\b(bind|coverage|illustration|application|policy)\b/i.test(t)) return "HOLD · bind / illustration / app";
-    if (/\b(wire|payout|send money|pay them|move money)\b/i.test(t)) return "HOLD · move money";
+    if (/\b(bind|coverage|illustration|application|policy)\b/i.test(t)) return "Do not send this. You still tap Yes or Stop.";
+    if (/\b(wire|payout|send money|pay them|move money)\b/i.test(t)) return "Do not send money. You still tap Yes or Stop.";
     return "";
   }
   function missing(card) {
@@ -150,7 +156,7 @@
       ["Due", card.due || "No due yet", "due"],
       ["Files", card.files ? (card.files + " file" + (card.files > 1 ? "s" : "")) : "None", "files"]
     ];
-    if (card.hold) cells.push(["HOLD", card.hold, "hold"]);
+    if (card.hold) cells.push(["Wait", card.hold, "hold"]);
     box.innerHTML = cells.map(function (c) {
       return "<button type=\"button\" data-jump=\"" + c[2] + "\"><span class=\"k\">" + c[0] + "</span><span class=\"v\">" + esc(c[1]) + "</span></button>";
     }).join("");
@@ -166,7 +172,7 @@
         "<p><b>Do</b> " + esc(card.action ? actionLabel(card.action) : "Need this") + "</p>" +
         "<p><b>Due</b> " + esc(card.due || "No due yet") + "</p>" +
         (card.phone ? "<p><b>Phone</b> " + esc(card.phone) + "</p>" : "") +
-        (card.hold ? "<p><b>HOLD</b> " + esc(card.hold) + ". Owner taps Yes or Stop after it lands.</p>" : "");
+        (card.hold ? "<p><b>Wait</b> " + esc(card.hold) + "</p>" : "");
     }
     if (sub) sub.textContent = card.ready ? "Card looks right. Drop it when you say so." : "Need one more thing before this can leave.";
     if (ask) ask.textContent = miss ? miss.ask : (card.ready ? "The card looks right. Desk, who, what, do, and due are filled. Drop it when you say so." : "");
