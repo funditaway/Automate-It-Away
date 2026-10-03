@@ -1,0 +1,3 @@
+var p = String(location.pathname || "").replace(/\/+$/, "");
+<div id=\"drop-step-tabs\">
+Talk — hi · there
