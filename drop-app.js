@@ -116,10 +116,10 @@ const params = new URLSearchParams(location.search);
       const name = deskNameOf();
       if (name) {
         el.classList.remove("off");
-        el.textContent = "This drop goes to " + name + ". Lands on that queue. You still tap Yes, then Start.";
+        el.textContent = "This drop goes to " + name + ". You still tap Yes, then Start.";
       } else {
         el.classList.add("off");
-        el.textContent = "No desk yet. Pick a saved desk, add one you already opened, or create a new desk.";
+        el.textContent = "No desk yet. Pick one, add a saved desk, or create a new desk.";
       }
     }
     function paintFiles() {
@@ -170,9 +170,9 @@ const params = new URLSearchParams(location.search);
         if (sub && ws && shop.pack) {
           const packName = shop.packName || "This pack";
           const cap = (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) ? (nouns.capture + " lands here. ") : "";
-          sub.textContent = cap + packName + " is on this desk. Drop many easy ways — the queue card already uses that pack. You don't pick a pack each time. You still tap Yes, then Start. Nobody sends money from here.";
+          sub.textContent = cap + packName + " is on this desk. You still tap Yes, then Start.";
         } else if (nouns && nouns.capture && !/^capture$/i.test(nouns.capture)) {
-          if (sub && ws) sub.textContent = nouns.capture + " lands here — many easy ways in. You still tap Yes, then Start. Nobody sends money from here.";
+          if (sub && ws) sub.textContent = nouns.capture + " lands here. You still tap Yes, then Start.";
         }
       } catch (e) {}
       paintEmbed();
@@ -283,7 +283,7 @@ const params = new URLSearchParams(location.search);
           const dropped = String(title || "").trim().slice(0, 80);
           const n = (out.jobs && out.jobs.length) || 1;
           const fan = n > 1 ? (" as " + n + " cards") : "";
-          showNote(ok, "On the queue" + fan + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes, then Start" + (n > 1 ? " on each" : "") + ". Nothing silent." + (embed ? "" : " <a href=\"/desk\">Open the queue →</a>"), true);
+          showNote(ok, "On the queue" + fan + (name ? " · " + esc(name) : "") + (dropped ? " · " + esc(dropped) : "") + ". You still tap Yes, then Start" + (n > 1 ? " on each" : "") + "." + (embed ? "" : " <a href=\"/desk\">Open the queue</a>"), true);
           if (window.AIASpeech) AIASpeech.speak(n > 1 ? ("On the queue as " + n + " cards.") : "On the queue.");
           document.getElementById("title").value = ""; document.getElementById("note").value = "";
           if (document.getElementById("implement")) document.getElementById("implement").value = "";
@@ -301,7 +301,7 @@ const params = new URLSearchParams(location.search);
       const note = document.getElementById("share-ok");
       if (!url) { showNote(note, "Pick a desk first. Then this link appears."); return; }
       function copied() {
-        showNote(note, "Drop link copied. Anyone with it can send work to this desk. They never see money, Stop, or People.");
+        showNote(note, "Drop link copied. They never see money, Stop, or People.");
       }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(copied).catch(function () {
@@ -327,10 +327,10 @@ const params = new URLSearchParams(location.search);
       if (!navigator.share) { copyDropShare(); return; }
       navigator.share({
         title: "Drop on " + (deskNameOf() || "this desk"),
-        text: "Drop a task on this desk. You still tap Yes, then Start. Nobody sends money from here.",
+        text: "Drop work on this desk. You still tap Yes, then Start.",
         url: url
       }).then(function () {
-        showNote(note, "Share sheet opened. Public drop never sees money, Stop, or People.");
+        showNote(note, "Shared. They never see money, Stop, or People.");
       }).catch(function () {});
     }
     const shareCopy = document.getElementById("share-copy");
