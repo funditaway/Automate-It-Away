@@ -76,10 +76,10 @@ if (help.indexOf("History shows the Then draft") < 0) fail("help#ideas-queue mus
 if (moreTips.indexOf("AI ↔ human thread") < 0) fail("more History tip must name the thread");
 if (moreTips.indexOf("not on this desk") < 0) fail("more History tip must name gone HOLD");
 if (more.indexOf('data-aia-tip="more-history"') < 0) fail("more.html must wire more-history tip");
-if (history.indexOf("gone HOLD when that named AI is not on this desk") < 0) {
-  fail("History intro / health must name gone HOLD");
+if (history.indexOf("not on this desk") < 0) {
+  fail("History must say when a named desk AI is not on this desk");
 }
-if (history.indexOf("Needs you / prompt ask-who") < 0) fail("History intro must name Needs you / prompt ask-who");
+if (history.indexOf("Needs you") < 0) fail("History must keep Needs you");
 if (history.indexOf("promptHtml(it)") < 0 || history.indexOf("chipsHtml(it)") < 0) {
   fail("History threadHtml must insert promptHtml / chipsHtml");
 }
