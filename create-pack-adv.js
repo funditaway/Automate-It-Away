@@ -1,5 +1,5 @@
 /* Packs leftover after Studio create ?idea=: Advanced clarity + Use-on-desk honesty.
-   Collect HOLD. Not Market. No silent bind. */
+   Collect HOLD. Not Market. No silent bind. Collect stays HOLD. */
 (function () {
   function applyAdvancedUi(on) {
     document.body.classList.toggle("show-adv", !!on);
@@ -28,8 +28,8 @@
       if (lab && lab.tagName === "LABEL") lab.classList.remove("adv");
     });
     var ask = form.querySelector('[name="listAsk"]');
-    if (ask && !/Collect HOLD/i.test(ask.placeholder || "")) {
-      ask.placeholder = (ask.placeholder || "Leave blank to list free") + " · Collect HOLD";
+    if (ask && ask.placeholder && / · Collect/.test(ask.placeholder)) {
+      ask.placeholder = ask.placeholder.replace(/ · Collect.*$/, "");
     }
   }
 
@@ -40,7 +40,7 @@
     var hint = document.createElement("p");
     hint.className = "hint";
     hint.id = "pack-list-adv-hint";
-    hint.textContent = "List your own pack below — name + what it does stay visible in Simple. Ask (price tag) is Advanced. List does not Use; after List, tap Use on this desk. You still tap Yes, then Start. Packs do not send money. Collect stays HOLD.";
+    hint.textContent = "Name the pack and what it does. Then tap Use on this desk. You still tap Yes, then Start. Packs do not send money.";
     var install = form.querySelector("#install-aia");
     var anchor = install && install.closest("p") ? install.closest("p").nextSibling : list;
     form.insertBefore(hint, anchor || list);
@@ -55,7 +55,7 @@
     p.className = "hint pack-use-honest";
     p.textContent = wanted
       ? "Opens Advanced list fields. You still tap Yes, then Start. Packs do not send money."
-      : "Copies rules onto this desk. You still tap Yes, then Start. Packs do not send money. Collect stays HOLD.";
+      : "Copies rules onto this desk. You still tap Yes, then Start. Packs do not send money.";
     btn.insertAdjacentElement("afterend", p);
   }
 

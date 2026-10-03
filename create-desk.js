@@ -1,12 +1,13 @@
+/* ai.aia. Collect stays HOLD — packs do not charge from this page. */
     const TYPES = [
-      { id: "job", name: "Job", hint: "A piece of work in the queue" },
-      { id: "capture", name: "Capture", hint: "Photo, call, form — not shipped" },
+      { id: "job", name: "Job", hint: "A card on the queue" },
+      { id: "capture", name: "Capture", hint: "A photo, call, or form" },
       { id: "ai", name: "Desk AI", hint: "Desk AIs that draft. Humans that decide." },
-      { id: "pack", name: "Pack", hint: "Install a .aia pack. ai.aia is the brand" },
-      { id: "model", name: "Automation", hint: "Your pack. Keep, list, or price it." },
-      { id: "teammate", name: "Teammate", hint: "Who can tap on this shop" },
+      { id: "pack", name: "Pack", hint: "Add a pack to this desk" },
+      { id: "model", name: "Automation", hint: "Keep it, or list it" },
+      { id: "teammate", name: "Teammate", hint: "Someone else on this desk" },
       { id: "rule", name: "Guardrail", hint: "Ask me if…" },
-      { id: "workspace", name: "Workspace", hint: "Open another shop" }
+      { id: "workspace", name: "Workspace", hint: "Open another desk" }
     ];
     let kind = "job";
     let advanced = false;
@@ -57,7 +58,7 @@
       });
       if (!rows.length) return `<p class="hint">No pack matches. Try home, consign, insurance, fund, land, or AIA.</p>`;
       return rows.map((p) => {
-        const tag = p.priced ? ("Ask $" + p.ask + " · Collect HOLD") : (p.official ? "Free official" : "Free listed");
+        const tag = p.priced ? ("Ask $" + p.ask) : (p.official ? "Free official" : "Free listed");
         const btn = p.wanted
           ? `<a class="use" href="/create?kind=pack&idea=${encodeURIComponent(p.id)}">Make this pack</a>`
           : `<button type="button" data-use="${esc(p.id)}">Use on this desk</button>`;
@@ -79,7 +80,7 @@
         <button type="button" data-chip="aia" class="${packChip === "aia" ? "on" : ""}">AIA</button>
       </div>
       <div id="pack-list">${packRows()}</div>
-      <p class="hint">Packs copy rules onto this desk. They do not send money. A priced pack still installs — Collect stays HOLD until Yes. Four steps: find the leaks, hook the pipes, name a desk AI, you still tap. Download and install use .aia files. ai.aia is the brand. The desk stays here. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
+      <p class="hint">Packs copy rules onto this desk. You still tap Yes, then Start. They do not send money. <button type="button" class="ghost" data-copy-link="1">Copy pack link</button></p>
       <label>Install a .aia pack</label>
       <input id="aia-file" type="file" accept=".aia,application/json">
       <p class="cta"><button type="button" class="use" id="install-aia">Install .aia on this desk</button></p>
@@ -91,37 +92,37 @@
       <input class="adv" name="listAsk" inputmode="decimal" placeholder="Leave blank to list free">`;
     }
     function fields() {
-      if (kind === "job") return `<label>What is the work?</label><input name="title" required placeholder="Grocery list · porch idea · Friday ride"><label>Notes</label><textarea name="notes" rows="3" placeholder="Anything this desk should run"></textarea>${packSelect()}${kindSelect()}${outcomeSelect()}<label class="adv">Ask / amount</label><input class="adv" name="amount" inputmode="decimal" placeholder="85"><label class="adv">When</label><input class="adv" name="timing" placeholder="Friday 3pm"><label class="adv">Hand to</label><input class="adv" name="assignee" placeholder="Name already on People"><label class="adv">Custom fields</label><input class="adv" name="customLine" placeholder="Patient: Rex, due date: Friday"><label class="adv">Tell AIA</label><textarea class="adv" name="tell" rows="2" placeholder="What Worker and Doer should know before they draft"></textarea>`;
-      if (kind === "capture") return `<label>What came in?</label><textarea name="notes" rows="3" required placeholder="Photo of the porch lamp, pickup Thursday"></textarea>${kindSelect()}${outcomeSelect()}<label class="adv">From</label><input class="adv" name="from" placeholder="Counter · Thursday"><label class="adv">I am</label><select class="adv" name="whoKind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label class="adv">Name</label><input class="adv" name="contactName" placeholder="Taylor"><label class="adv">Phone</label><input class="adv" name="phone" placeholder="417-555-0100"><label class="adv">When</label><input class="adv" name="timing" placeholder="Thursday 3pm"><label class="adv">Tell AIA</label><textarea class="adv" name="tell" rows="2" placeholder="Not shipped. Qualify first."></textarea>`;
+      if (kind === "job") return `<label>What is the work?</label><input name="title" required placeholder="Grocery list · porch idea · Friday ride"><label>Notes</label><textarea name="notes" rows="3" placeholder="Anything this desk should run"></textarea>${packSelect()}${kindSelect()}${outcomeSelect()}<label class="adv">Ask / amount</label><input class="adv" name="amount" inputmode="decimal" placeholder="85"><label class="adv">When</label><input class="adv" name="timing" placeholder="Friday 3pm"><label class="adv">Hand to</label><input class="adv" name="assignee" placeholder="Name already on People"><label class="adv">Custom fields</label><input class="adv" name="customLine" placeholder="Patient: Rex, due date: Friday"><label class="adv">Notes for the draft</label><textarea class="adv" name="tell" rows="2" placeholder="What to draft. Do not send."></textarea>`;
+      if (kind === "capture") return `<label>What came in?</label><textarea name="notes" rows="3" required placeholder="Photo of the porch lamp, pickup Thursday"></textarea>${kindSelect()}${outcomeSelect()}<label class="adv">From</label><input class="adv" name="from" placeholder="Counter · Thursday"><label class="adv">I am</label><select class="adv" name="whoKind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label class="adv">Name</label><input class="adv" name="contactName" placeholder="Taylor"><label class="adv">Phone</label><input class="adv" name="phone" placeholder="417-555-0100"><label class="adv">When</label><input class="adv" name="timing" placeholder="Thursday 3pm"><label class="adv">Notes for the draft</label><textarea class="adv" name="tell" rows="2" placeholder="What to draft. Do not send."></textarea>`;
       if (kind === "ai") {
         if (!deskOpen()) {
-          return `<p class="aia-line off">Open or unlock this desk first. A desk AI binds to this desk — not a stranger form. Name it here after the desk is open, or in Creators Studio.</p>
-      <p class="cta"><a class="use" href="/desk">Open this desk</a><a class="use ghost" href="/onboard">Unlock this desk</a><a class="use ghost" href="/studio">Name a desk AI in Studio</a></p>
-      <p class="hint">Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. ai.aia is the brand. Packs travel as .aia files. Yes / Stop / Kill stay human. Collect stays HOLD. No silent money or mail. Create a .aia email for automations after the desk is open.</p>`;
+          return `<p class="aia-line off">Open or unlock this desk first.</p>
+      <p class="cta"><a class="use" href="/desk">Open this desk</a><a class="use ghost" href="/onboard">Unlock this desk</a></p>
+      <p class="hint">Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control.</p>`;
         }
-        return `<label>Name this desk AI <button type="button" class="aia-tip" data-aia-tip="desk-ai" aria-label="More about Desk AI">?</button></label><input name="name" required placeholder="James’s AI"><label>AIA Internet name</label><input name="aia" placeholder="james.aia"><label>Role</label><select name="role"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select><label>What it drafts</label><input name="does" placeholder="Drafts the next step and the words. Nothing sent."><label>Steps it may draft</label><input name="steps" placeholder="qualify, do, follow"><label>Draft line</label><textarea name="prompt" rows="2" placeholder="Draft ready. I cannot send, pay, or bind anything. You stay in control."></textarea><p class="hint">Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Bound to this desk — not a free-roaming bot. Doer, Worker, Rail, Packer, and Mapper are desk crew, not captains. ai.aia is the brand. The desk runs on automateitaway.com. Addressed as a .aia name. Create a .aia email for automations on Account, Studio, or Desks — james-ai@funditaway.aia. Never Yes, Stop, money, or mail. Collect stays HOLD. Send HOLD. Pack it in Studio to list or keep private. Wallet / registry connect later as a Pipe HOLD.</p>`;
+        return `<label>Name this desk AI <button type="button" class="aia-tip" data-aia-tip="desk-ai" aria-label="More about Desk AI">?</button></label><input name="name" required placeholder="James’s AI"><label>AIA Internet name</label><input name="aia" placeholder="james.aia"><label>Role</label><select name="role"><option>Doer</option><option>Worker</option><option>Rail</option><option>Packer</option><option>Mapper</option></select><label>What it drafts</label><input name="does" placeholder="Drafts the next step and the words. Nothing sent."><label>Steps it may draft</label><input name="steps" placeholder="qualify, do, follow"><label>Draft line</label><textarea name="prompt" rows="2" placeholder="Draft ready. I cannot send, pay, or bind anything. You stay in control."></textarea><p class="hint">Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Bound to this desk, not a free-roaming bot. You still tap Yes or Stop.</p>`;
       }
       if (kind === "pack") return packFields();
-      if (kind === "model") return `<label>Name this automation</label><input name="name" required placeholder="Lawn route"><label>What the desk does</label><input name="does" placeholder="Call in → schedule → invoice"><label>Share</label><select name="share"><option value="private">This desk only</option><option value="listed">Public — show in pack search</option><option value="market">Market — set an ask</option></select><label>Ask if this is a market pack</label><input name="price" inputmode="decimal" placeholder="0 means free. No card taken today."><p class="hint">Listed packs are free in search. A market ask is a tag. AIA does not take a card for packs yet.</p><label class="adv">How unique is it?</label><select class="adv" name="complexity"><option value="simple">Simple — same five steps</option><option value="custom">Custom — this desk only</option><option value="unique">Unique — own fields</option><option value="complex">Complex — fields + a first card</option></select><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Patient, due date, ask"><label class="adv">First card on the queue</label><input class="adv" name="firstWork" placeholder="Recall Rex Friday">`;
+      if (kind === "model") return `<label>Name this automation</label><input name="name" required placeholder="Lawn route"><label>What the desk does</label><input name="does" placeholder="Call in → schedule → invoice"><label>Share</label><select name="share"><option value="private">This desk only</option><option value="listed">Public — show in pack search</option><option value="market">Market — set an ask</option></select><label>Ask if this is a market pack</label><input name="price" inputmode="decimal" placeholder="0 means free. No card taken today."><p class="hint">A price here is only a tag. Nothing is charged. You still tap Yes or Stop.</p><label class="adv">How unique is it?</label><select class="adv" name="complexity"><option value="simple">Simple</option><option value="custom">Custom — this desk only</option><option value="unique">Unique — own fields</option><option value="complex">Complex — fields + a first card</option></select><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Patient, due date, ask"><label class="adv">First card on the queue</label><input class="adv" name="firstWork" placeholder="Recall Rex Friday">`;
       if (kind === "teammate") return `<label>Name</label><input name="name" required placeholder="Sam"><label>Who they are</label><select name="kind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label>Their desk code</label><input name="pin" required inputmode="numeric" minlength="4" placeholder="4+ digits"><label class="adv">Phone</label><input class="adv" name="phone" inputmode="tel" placeholder="417-555-0100"><label class="adv">Email</label><input class="adv" name="email" inputmode="email" placeholder="sam@shop.com">`;
-      if (kind === "rule") return `<label>Ask me if…</label><input name="text" required placeholder="Ask me if money out waits on the owner"><label>When · Trigger</label><select name="when"><option value="drop">Drop</option><option value="pipe">Pipe event</option><option value="inbound">Inbound name@account.aia</option><option value="status">Status change</option><option value="qualify">Qualify</option></select><label>If · tagged</label><input name="ifTag" placeholder="Lead"><label>If the card contains</label><input name="contains" placeholder="click, international"><label>Then · Action</label><select name="then"><option value="draft">Desk AI drafts</option><option value="queue">Queue card / alert</option><option value="notify">Notify — draft HOLD</option><option value="tag">Tag the card</option><option value="escalate">Escalate priority</option><option value="wait">Wait for owner</option><option value="stop">Stop</option><option value="note">Note only</option></select><label>Then tag</label><input name="tag" placeholder="Interested"><label class="adv">If money is at least</label><input class="adv" name="ifMoney" inputmode="decimal" placeholder="Leave blank unless this is a money wait"><label class="adv">If field</label><input class="adv" name="ifField" placeholder="city"><label class="adv">equals or has</label><input class="adv" name="ifValue" placeholder="international"><p class="hint">One When → If → Then on this desk. A pack workflow strings rules. Collect stays HOLD.</p>`;
+      if (kind === "rule") return `<label>Ask me if…</label><input name="text" required placeholder="Ask me if money out waits on the owner"><label>When · Trigger</label><select name="when"><option value="drop">Drop</option><option value="pipe">Pipe event</option><option value="inbound">Inbound name@account.aia</option><option value="status">Status change</option><option value="qualify">Check</option></select><label>If · tagged</label><input name="ifTag" placeholder="Lead"><label>If the card contains</label><input name="contains" placeholder="click, international"><label>Then · Action</label><select name="then"><option value="draft">Desk AI drafts</option><option value="queue">Queue card / alert</option><option value="notify">Notify — draft only</option><option value="tag">Tag the card</option><option value="escalate">Escalate priority</option><option value="wait">Wait for owner</option><option value="stop">Stop</option><option value="note">Note only</option></select><label>Then tag</label><input name="tag" placeholder="Interested"><label class="adv">If money is at least</label><input class="adv" name="ifMoney" inputmode="decimal" placeholder="Leave blank unless this is a money wait"><label class="adv">If field</label><input class="adv" name="ifField" placeholder="city"><label class="adv">equals or has</label><input class="adv" name="ifValue" placeholder="international"><p class="hint">One When, If, Then on this desk. You still tap Yes or Stop.</p>`;
       return `<label>Your name</label><input name="name" required><label>Desk name</label><input name="biz" required placeholder="Rivera Resale"><label>Desk code</label><input name="pin" required inputmode="numeric" minlength="4"><label class="adv">City</label><input class="adv" name="city" placeholder="Springfield"><label class="adv">What this desk is for</label><input class="adv" name="model" placeholder="Trades"><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Job, when, ask"><label class="adv">First card</label><input class="adv" name="firstWork" placeholder="First thing on the queue">`;
     }
     function goLabel() {
       if (kind === "job") return "Put the job on the queue";
-      if (kind === "capture") return "Capture it — not shipped";
-      if (kind === "ai") return "Bind this AI to the desk";
+      if (kind === "capture") return "Put it on the queue";
+      if (kind === "ai") return "Save this desk AI";
       if (kind === "pack") return "List this pack";
       if (kind === "model") return "Save this automation";
       if (kind === "teammate") return "Add this teammate";
       if (kind === "rule") return "Add this guardrail";
-      if (kind === "workspace") return "Open this shop";
+      if (kind === "workspace") return "Open this desk";
       return "Save";
     }
     function renderPicks() {
       picks.innerHTML = TYPES.map(t => "<button type=\"button\" class=\"pick " + (t.id === kind ? "on" : "") + "\" data-kind=\"" + t.id + "\"><b>" + t.name + "</b><span>" + t.hint + "</span></button>").join("");
       const gated = kind === "ai" && !deskOpen();
-      form.innerHTML = fields() + (gated ? "" : "<button class=\"go\" type=\"submit\">" + goLabel() + "</button>") + "<p class=\"hint\">Same five steps: Capture, Qualify, Do, Collect, Follow. Desk AI drafts. You still tap Yes or Stop on anything that needs a Yes or Stop from a person.</p>";
+      form.innerHTML = fields() + (gated ? "" : "<button class=\"go\" type=\"submit\">" + goLabel() + "</button>") + "<p class=\"hint\">You still tap Yes or Stop.</p>";
       ok.style.display = "none"; err.style.display = "none";
       wirePackSearch();
     }
@@ -181,7 +182,7 @@
         e.preventDefault();
         const url = location.origin + "/market?kind=pack&q=" + encodeURIComponent(packQ || "");
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(function(){});
-        done("Pack link copied. Open /market to search.");
+        done("Pack link copied.");
         return;
       }
       const buy = e.target.closest("[data-buy]");
@@ -274,7 +275,7 @@
           const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: "save-ai", name: name, aia: f.get("aia") || "", role: f.get("role") || "Doer", does: f.get("does") || "", prompt: f.get("prompt") || "", steps: f.get("steps") || "qualify, do, follow" }) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not bind that AI.");
-          return done((data.note || (name + " is bound to this desk.")) + " Guardrails: Yes / Stop / Kill stay human. Pack it in Studio to list or keep private.");
+          return done((data.note || (name + " is on this desk.")) + " You still tap Yes or Stop.");
         }
         if (kind === "pack") {
           const name = String(f.get("listName") || "").trim();
@@ -283,7 +284,7 @@
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not list that pack.");
           await loadPacks();
-          return done(data.note || "Pack is listed. Collect stays HOLD. No silent charge.");
+          return done(data.note || "Pack is listed. You still tap Yes or Stop.");
         }
         if (kind === "job" || kind === "capture") {
           const title = kind === "job" ? (f.get("title") || f.get("notes")) : (f.get("notes") || "");
@@ -303,7 +304,7 @@
           const r = await fetch("/api/jobs", { method: "POST", headers: headers(), body: JSON.stringify(body) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not put that on the queue.");
-          return done(kind === "capture" ? "Captured. Not shipped. Qualify first. You still tap Yes or Stop." : "Job is on the queue. Same five steps. You still tap Yes or Stop.", data.job && data.job.id);
+          return done(kind === "capture" ? "On the queue. You still tap Yes or Stop." : "On the queue. You still tap Yes or Stop.", data.job && data.job.id);
         }
         if (kind === "model") {
           const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "create", kind: "model", complexity: f.get("complexity") || (advanced ? "custom" : "simple"), name: f.get("name"), does: f.get("does"), fields: f.get("fields"), firstWork: f.get("firstWork"), share: f.get("share") || "private", price: f.get("price") || 0 }) });
@@ -324,13 +325,13 @@
           const r = await fetch("/api/auth", { method: "POST", headers: headers(), body: JSON.stringify({ action: "invite", name: f.get("name"), role: "employee", kind: f.get("kind") || "helper", pin: f.get("pin"), phone: f.get("phone") || "", email: f.get("email") || "" }) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not add that person.");
-          return done("Teammate can open this shop with their own code. Same queue. They tap work. They do not send money.");
+          return done("They can open this desk with their code. You still tap Yes or Stop.");
         }
         if (kind === "rule") {
           const r = await fetch("/api/rules", { method: "POST", headers: headers(), body: JSON.stringify({ action: "add", text: f.get("text"), when: f.get("when") || "drop", then: f.get("then") || "draft", ifMoney: f.get("ifMoney"), contains: f.get("contains"), ifField: f.get("ifField"), ifValue: f.get("ifValue"), ifTag: f.get("ifTag"), tag: f.get("tag") }) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not add that rule.");
-          return done("Guardrail is on. Ask me if… New cards honor it. You still tap Yes or Stop.");
+          return done("Saved. You still tap Yes or Stop.");
         }
         const pin = String(f.get("pin") || "");
         if (pin.length < 4) return fail("Pick a desk code with at least 4 digits.");
@@ -340,7 +341,7 @@
         if (!r.ok) return fail(data.error || "Could not open that desk.");
         localStorage.setItem("aia_ws", slug); localStorage.setItem("aia_pin", pin); localStorage.setItem("aia_role", "owner"); localStorage.setItem("aia_name", f.get("name") || ""); localStorage.setItem("aia_desk_name", String(f.get("biz") || slug));
         paintStartDesk();
-        return done("Workspace is open. Same five steps on this shop. Drop work next.");
+        return done("Workspace is open. Drop work next.");
       } catch (ex) { fail("Could not reach the desk."); }
       finally { if (go) go.disabled = false; }
     });
@@ -375,7 +376,7 @@
     function draftsOffNote(note) {
       const n = String(note || "");
       if (!n || /XAI_|API_KEY|this\s+box|Vercel|console\.x\.ai|draft\s+key/i.test(n)) {
-        return "A Desk AI can't draft on this phone yet. Orange means wait. You can still put work on the queue.";
+        return "A Desk AI can't draft on this phone yet. You can still put work on the queue.";
       }
       return n;
     }
@@ -385,8 +386,8 @@
       const drafts = a.drafts || {};
       const on = !!(g && g.on) || !!drafts.included;
       const note = (g && g.note) || (on
-        ? "A Desk AI can draft. Drafts land on the card. You still tap Yes or Stop. AIA does not send."
-        : "A Desk AI can't draft on this phone yet. Orange means wait. You can still put work on the queue.");
+        ? "A Desk AI can draft. You still tap Yes or Stop."
+        : "A Desk AI can't draft on this phone yet. You can still put work on the queue.");
       return { on: on, note: note };
     }
     async function paintAia() {
@@ -400,7 +401,7 @@
         el.classList.toggle("off", !grokOn);
         el.textContent = face.on
           ? (face.note && /can draft/i.test(face.note)
-            ? "A Desk AI can draft. Drafts land on the card. You still tap Yes or Stop. AIA does not send."
+            ? "A Desk AI can draft. You still tap Yes or Stop."
             : face.note)
           : draftsOffNote(face.note);
       } catch (e) {
@@ -437,7 +438,7 @@
       startNote(msg + ' <a href="' + queueHref(jobId) + '">' + queueTap(jobId) + "</a>", "ok", false);
     }
     function startNeedDesk() {
-      startFail("Open or unlock this desk first. A draft lands on this queue — not a stranger form.", true);
+      startFail("Open or unlock this desk first.", true);
     }
     function paintStartDesk() {
       const gate = document.getElementById("start-open");
@@ -471,7 +472,7 @@
         box.classList.add("on");
         box.textContent = (data && data.note) || (grokOn
           ? "No draft this time. Yes puts the work on the queue."
-          : "Drafts are off. No invented copy. Yes puts the work on the queue. Stop discards it.");
+          : "Yes puts the work on the queue. Stop discards it.");
       }
       setStartDecide(true);
       startNote("", "", false);
@@ -532,7 +533,7 @@
         if (!r.ok) return startFail(data.error || "Could not put that on the queue.");
         clearStartDraft();
         document.getElementById("start-what").value = "";
-        return startDone("On the queue. Same Drop card. You still tap Yes / Stop / Kill.", data.job && data.job.id);
+        return startDone("On the queue. You still tap Yes / Stop / Kill.", data.job && data.job.id);
       } catch (e) {
         startFail("Could not reach the desk.");
       } finally {

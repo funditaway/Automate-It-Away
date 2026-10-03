@@ -1,11 +1,11 @@
 /* Packs leftover after Advanced Use honesty: empty pack-list + Install .aia Create path clarity.
-   Collect HOLD. Not Market. No silent bind. */
+   Collect HOLD. Not Market. No silent bind. Collect stays HOLD. */
 (function () {
   var EMPTY_SOFT = /No pack matches/i;
   var EMPTY_HONEST =
-    "No pack matches here. Clear chips or try another search — or List your own pack below, or Install a .aia file. You still tap Yes, then Start. Packs do not send money. Collect stays HOLD.";
+    "No pack matches. Search again, list your own, or install a .aia file. You still tap Yes, then Start. Packs do not send money.";
   var INSTALL_HONEST =
-    "Install copies rules from a .aia file onto this desk. You still tap Yes, then Start. Packs do not send money. Collect stays HOLD.";
+    "Install copies rules from a .aia file onto this desk. You still tap Yes, then Start. Packs do not send money.";
 
   function honestEmpty(list) {
     if (!list) return;
