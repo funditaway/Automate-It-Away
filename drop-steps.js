@@ -1,6 +1,6 @@
 (function () {
   var KEY = "aia_drop_step";
-  var VOW = "Draft only. Lands on the queue. You still tap Yes, then Start. Nobody sends money from here.";
+  var VOW = "You still tap Yes, then Start. Nobody sends money from here.";
   var STEPS = [
     {
       id: "desk", label: "Desk",
@@ -9,7 +9,7 @@
     },
     {
       id: "tell", label: "Tell",
-      hint: "Talk or type it — one easy way in. A Desk AI drafts the card.",
+      hint: "Talk or type it \u2014 one easy way in. A Desk AI drafts the card.",
       ids: ["talkBar", "drop-chat-wrap", "drop-thread-card"]
     },
     {
@@ -25,7 +25,7 @@
     },
     {
       id: "share", label: "Share",
-      hint: "Share the drop link — another easy way in. Public drop never sees money, Stop, or People.",
+      hint: "Share the drop link \u2014 another easy way in. Public drop never sees money, Stop, or People.",
       ids: ["embed-card", "drop-log-card"]
     }
   ];
@@ -49,9 +49,9 @@
   function widgetOn() {
     try {
       if (markedWidget()) return true;
-      var p = String(location.pathname || "").replace(/\/+$/, "");
-      if (/(?:^|\/)widget(?:\.html)?$/i.test(p)) return true;
-      return /\/widget(?:\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
+      var p = String(location.pathname || "").replace(/\\/+$/, "");
+      if (/(?:^|\\/)widget(?:\\.html)?$/i.test(p)) return true;
+      return /\\/widget(?:\\.html)?(?:[?#]|$)/i.test(String(location.href || ""));
     } catch (e) { return false; }
   }
   function slimChrome() { return embedOn() || widgetOn(); }
@@ -120,9 +120,9 @@
       var rail = document.createElement("div");
       rail.id = "drop-steps";
       rail.innerHTML =
-        "<div id=\"drop-step-tabs\" role=\"tablist\" aria-label=\"Drop steps\"></div>" +
-        "<p class=\"sub\" id=\"drop-step-hint\"></p>" +
-        "<p class=\"sub\" id=\"drop-step-vow\">" + VOW + "</p>";
+        "<div id=\\\"drop-step-tabs\\\" role=\\\"tablist\\\" aria-label=\\\"Drop steps\\\"></div>" +
+        "<p class=\\\"sub\\\" id=\\\"drop-step-hint\\\"></p>" +
+        "<p class=\\\"sub\\\" id=\\\"drop-step-vow\\\">" + VOW + "</p>";
       main.insertBefore(rail, main.firstChild);
       el("drop-step-tabs").addEventListener("click", function (e) {
         var btn = e.target.closest("[data-step]");
@@ -133,8 +133,8 @@
       var foot = document.createElement("div");
       foot.id = "drop-step-foot";
       foot.innerHTML =
-        "<button type=\"button\" id=\"drop-step-back\">Back</button>" +
-        "<button type=\"button\" id=\"drop-step-next\">Next</button>";
+        "<button type=\\\"button\\\" id=\\\"drop-step-back\\\">Back</button>" +
+        "<button type=\\\"button\\\" id=\\\"drop-step-next\\\">Next</button>";
       main.appendChild(foot);
       el("drop-step-back").addEventListener("click", function () { hop(-1); });
       el("drop-step-next").addEventListener("click", function () { hop(1); });
@@ -174,19 +174,19 @@
     if (keep) keep.classList.remove("step-off");
     setHtml(el("drop-step-tabs"), rows.map(function (step, i) {
       var cls = step.id === active ? "on" : i < at ? "done" : "";
-      return "<button type=\"button\" role=\"tab\" aria-selected=\"" + (step.id === active) +
-        "\" class=\"" + cls + "\" data-step=\"" + step.id + "\">" + (i + 1) + " " + step.label + "</button>";
+      return "<button type=\\\"button\\\" role=\\\"tab\\\" aria-selected=\\\"" + (step.id === active) +
+        "\\\" class=\\\"" + cls + "\\\" data-step=\\\"" + step.id + "\\\">" + (i + 1) + " " + step.label + "</button>";
     }).join(""));
-    setText(el("drop-step-hint"), "Step " + (at + 1) + " of " + rows.length + " · " + rows[at].hint);
+    setText(el("drop-step-hint"), "Step " + (at + 1) + " of " + rows.length + " \u00b7 " + rows[at].hint);
     var back = el("drop-step-back");
     var next = el("drop-step-next");
     if (back) {
       back.classList.toggle("step-off", at <= 0);
-      setText(back, at > 0 ? "Back · " + rows[at - 1].label : "Back");
+      setText(back, at > 0 ? "Back \u00b7 " + rows[at - 1].label : "Back");
     }
     if (next) {
       next.classList.toggle("step-off", at >= rows.length - 1);
-      setText(next, at < rows.length - 1 ? "Next · " + rows[at + 1].label : "Next");
+      setText(next, at < rows.length - 1 ? "Next \u00b7 " + rows[at + 1].label : "Next");
     }
   }
 
