@@ -133,7 +133,7 @@
     },
     "drop-phone": {
       title: "Phone",
-      body: "Optional number on the card so a person can call or text later. Desk does not dial or send from here. You still tap Yes before anything leaves. Collect stays HOLD.",
+      body: "Optional number on the card so a person can call or text later. Desk does not dial or send from here. You still tap Yes before anything leaves.",
       ask: "Why does Drop ask for a phone?"
     },
     "drop-photo": {
@@ -143,52 +143,52 @@
     },
     "drop-paste": {
       title: "Paste the data",
-      body: "Paste a name, phone, when, or amount. A Desk AI drafts the card from it. Lands on this queue. You still tap Yes or Stop before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      body: "Paste a name, phone, when, or amount. A Desk AI drafts the card from it. Lands on this queue. You still tap Yes or Stop before anything leaves. Nobody sends from here.",
       ask: "What do I paste on Put data on?"
     },
     "drop-tell": {
       title: "What should a Desk AI draft?",
-      body: "Tell a Desk AI the next draft. It stays on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      body: "Tell a Desk AI the next draft. It stays on the card. You still tap Yes or Stop. Nobody sends money from here.",
       ask: "What do I tell a Desk AI on Put data on?"
     },
     "drop-kind-need": {
       title: "What is needed",
-      body: "Extra note for this kind. Lands on the card. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      body: "Extra note for this kind. Lands on the card. You still tap Yes or Stop. Nobody sends money from here.",
       ask: "What do I put in What is needed on Drop?"
     },
     "drop-kind-when": {
       title: "When",
-      body: "Optional time on the card. Friday 3pm. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      body: "Optional time on the card. Friday 3pm. Lands on this queue. You still tap Yes before anything leaves. Nobody sends from here.",
       ask: "What does When mean on Drop?"
     },
     "drop-outcome": {
       title: "Preferred outcome",
-      body: "What a Desk AI should draft next. Still a draft. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      body: "What a Desk AI should draft next. Still a draft. You still tap Yes or Stop. Nobody sends money from here.",
       ask: "What does Preferred outcome mean on Drop?"
     },
     "drop-kind-where": {
       title: "Where",
-      body: "Optional place on the card. School, shop, or house. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      body: "Optional place on the card. School, shop, or house. Lands on this queue. You still tap Yes before anything leaves. Nobody sends from here.",
       ask: "What does Where mean on Drop?"
     },
     "drop-kind-who-for": {
       title: "Who it is for",
-      body: "Optional name on the card. Who this drop is for. Lands on this queue. You still tap Yes or Stop. Collect stays HOLD. Nobody sends money from here.",
+      body: "Optional name on the card. Who this drop is for. Lands on this queue. You still tap Yes or Stop. Nobody sends money from here.",
       ask: "What does Who it is for mean on Drop?"
     },
     "drop-kind-from": {
       title: "From",
-      body: "Optional start place on the card. Practice, school, or house. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends from here.",
+      body: "Optional start place on the card. Practice, school, or house. Lands on this queue. You still tap Yes before anything leaves. Nobody sends from here.",
       ask: "What does From mean on Drop?"
     },
     "drop-kind-amount": {
       title: "Amount note",
-      body: "Optional number on the card. A note, not a charge. Lands on this queue. You still tap Yes before anything leaves. Collect stays HOLD. Nobody sends money from here.",
+      body: "Optional number on the card. A note, not a charge. Lands on this queue. You still tap Yes before anything leaves. Nobody sends money from here.",
       ask: "What does Amount note mean on Drop?"
     },
     "drop-kind-callback": {
       title: "Callback number",
-      body: "Optional number on the card so a person can call or text later. Desk does not dial or send from here. You still tap Yes before anything leaves. Collect stays HOLD.",
+      body: "Optional number on the card so a person can call or text later. Desk does not dial or send from here. You still tap Yes before anything leaves.",
       ask: "Why does this kind ask for a callback number?"
     },
     "support-title": {
