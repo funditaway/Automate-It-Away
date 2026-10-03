@@ -38,10 +38,10 @@
     var askEl = form.querySelector('input[name="listAsk"]');
     var q = document.getElementById("pack-q");
     var name = ideaLabel(raw);
-    var does = "Make this pack on this desk. Draft only. You still tap Yes, then Start. Collect stays HOLD.";
+    var does = "Make this pack on this desk. You still tap Yes, then Start.";
     if (nameEl && !nameEl.value) nameEl.value = name;
     if (doesEl && !doesEl.value) doesEl.value = does;
-    if (askEl && !askEl.value) askEl.placeholder = "Leave blank to list free · Collect HOLD";
+    if (askEl && !askEl.value) askEl.placeholder = "Leave blank to list free";
     if (q) {
       q.value = raw.replace(/^find\s+/i, "").trim();
       try { q.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {}
@@ -51,7 +51,7 @@
       var note = document.createElement("p");
       note.className = "hint";
       note.id = "pack-idea-note";
-      note.textContent = "Make this pack: " + name + ". Advanced fields are open. List it, then Use on this desk. You still tap Yes, then Start. Packs do not send money.";
+      note.textContent = "Make this pack: " + name + ". List it, then Use on this desk. You still tap Yes, then Start. Packs do not send money.";
       list.parentNode.insertBefore(note, list);
     }
     if (nameEl && nameEl.focus) nameEl.focus();

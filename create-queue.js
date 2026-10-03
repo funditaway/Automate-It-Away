@@ -29,7 +29,7 @@
       "<label>Group cards by</label><select name=\"queueGroup\"><option value=\"none\">None</option><option value=\"kind\">Kind</option><option value=\"when\">When</option></select>" +
       "<label>Sort</label><select name=\"queueSort\"><option value=\"cap-first\">Cap first</option><option value=\"new\">Newest</option></select>" +
       "<label>Taps that show</label><input name=\"queueTaps\" placeholder=\"copy, text, email, hand, cap\">" +
-      "<p class=\"hint\">Packs never Send, Stop, or pay. Insurance badge is Insurance \u2014 never Vita.</p></div>";
+      "<p class=\"hint\">Labels on the queue. You still tap Yes or Stop.</p></div>";
   }
   function inject() {
     var form = document.getElementById("form");
