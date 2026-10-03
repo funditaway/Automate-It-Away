@@ -18,7 +18,7 @@
     return isDark() ? "/img/aia-mark-dark.png" : "/img/aia-mark-light.png";
   }
   function markSrc() {
-    /* Header bar is always teal. White-stroke pyramid on teal. */
+    /* Header bar is teal. White-stroke pyramid, dark tile so the square does not vanish. */
     return "/img/aia-mark-teal.png";
   }
   function orangeSrc() {
