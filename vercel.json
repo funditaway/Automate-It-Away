@@ -35,6 +35,7 @@
     { "source": "/creator", "destination": "/create.html" },
     { "source": "/studio", "destination": "/developer.html" },
     { "source": "/creators", "destination": "/creators.html" },
+    { "source": "/desk-ais", "destination": "/desk-ais.html" },
     { "source": "/market", "destination": "/market.html" },
     { "source": "/shop", "destination": "/market.html" },
     { "source": "/packs", "destination": "/market.html" },
