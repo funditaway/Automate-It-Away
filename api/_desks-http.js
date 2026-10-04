@@ -8,7 +8,6 @@ const {
 } = require("./_desk");
 const { historyOf, filterHistory, facetsOf, accountRoadmapOf, isPriorityJob, capCard, needsOf } = require("./_history");
 const packHandler = require("./_packs");
-const ownedPacks = require("./_owned-packs");
 
 function deskClosed(ws) {
   return !!(ws && (ws.closed === true || ws.accepts === false));
@@ -129,10 +128,6 @@ module.exports = async function handler(req, res) {
       mx: mail.statusOf(),
       note: mail.HOLD_NOTE
     });
-  }
-
-  if (action === "owned-packs" || action === "pack-on" || action === "pack-off") {
-    return ownedPacks(req, res, body);
   }
 
   if (action === "history" || action === "timeline") {
@@ -354,5 +349,5 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
   }
-  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "mine", "packs", "list-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "preview-pack", "studio-draft", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete", "mail", "mail-add", "mail-remove", "owned-packs", "pack-on", "pack-off"] });
+  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "mine", "packs", "list-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "preview-pack", "studio-draft", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete", "mail", "mail-add", "mail-remove"] });
 };
