@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Your pack listings · Automate It Away</title>
+  <title>Name a Desk AI · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
@@ -41,13 +41,11 @@
     .draft.on{display:block}
     .ok{color:#1b7a3d;display:none;margin-top:8px}
     .err{color:var(--kill-ink,#9b2c2c);display:none;margin-top:8px}
-    .builds{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-    .builds a{min-height:44px;display:inline-flex;align-items:center;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--heading);font-weight:700}
   </style>
 </head>
 <body class="has-desk-nav">
   <header>
-    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-header.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-teal.png" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
@@ -58,43 +56,31 @@
     </nav>
   </header>
   <main class="wrap">
-    <h1>Your pack listings</h1>
-    <p>Create, edit, update, or delete a listing for a pack on this desk. A Desk AI may draft. Nothing is saved or removed until you tap Yes. Stop cancels the draft. Nothing is charged.</p>
-    <p><a href="/desk-ais">Name a Desk AI</a></p>
-    <p id="desk-line">Open a desk to see your listings.</p>
+    <h1>Name a Desk AI</h1>
+    <p>Yes names the Desk AI on this desk. The pack listing does not change. Stop clears the draft. Nothing is charged.</p>
+    <p id="desk-line">Open a desk to name a Desk AI.</p>
     <section class="card">
-      <h2>Build options</h2>
-      <p>These already live on this desk. This page does not add a new shop.</p>
-      <div class="builds">
-        <a href="/create?kind=pack">Pack</a>
-        <a href="/create?kind=ai">Desk AI</a>
-        <a href="/create?kind=model">Automation</a>
-        <a href="/create?kind=rule">Guardrail</a>
-        <a href="/dev">Creators Studio</a>
-      </div>
-      <p>Market stays its own page. <a href="/market">Open Market</a></p>
+      <h2>Named on this desk</h2>
+      <div id="named"><p>None yet.</p></div>
     </section>
     <section class="card">
-      <h2>Your listings</h2>
-      <div id="list"><p>Loading your listings…</p></div>
+      <h2>Listings on this desk</h2>
+      <p>These are listings on this desk. Naming a Desk AI does not edit them.</p>
+      <div id="list"><p>Loading listings…</p></div>
+      <div id="ais"></div>
     </section>
     <section class="card">
-      <h2 id="form-title">New listing</h2>
+      <h2 id="form-title">Name a Desk AI</h2>
       <label for="name">Name</label>
-      <input id="name" maxlength="48" placeholder="Saturday oil-change lane">
+      <input id="name" maxlength="40" placeholder="Lane helper">
       <label for="does">What it does</label>
-      <textarea id="does" maxlength="200" placeholder="Photo in. Draft the title. Wait for a person."></textarea>
-      <label for="rule">One rule, if you want one</label>
-      <input id="rule" maxlength="140" placeholder="When someone drops a photo, draft a title.">
-      <label for="share">Where it shows</label>
-      <select id="share">
-        <option value="private">On this desk only</option>
-        <option value="listed">On the public list</option>
-      </select>
+      <input id="does" maxlength="160" placeholder="Draft the next step. Wait for a person.">
+      <label for="prompt">Words it should use</label>
+      <textarea id="prompt" maxlength="400" placeholder="Draft the next step and the words. Nothing is sent."></textarea>
+      <input id="ai-id" type="hidden" value="">
       <div class="row">
         <button type="button" class="ghost" id="ask">Ask the desk</button>
-        <button type="button" class="go" id="stage">Save listing</button>
-        <button type="button" class="ghost" id="fresh">New listing</button>
+        <button type="button" class="go" id="stage">Name this Desk AI</button>
       </div>
       <div class="draft" id="draft"></div>
       <div class="row" id="decide" hidden>
@@ -103,7 +89,7 @@
       </div>
       <p class="ok" id="ok"></p>
       <p class="err" id="err"></p>
-      <p>Yes is required. Stop throws the draft away. Nothing is charged.</p>
+      <p>Yes names the Desk AI on this desk. The pack listing does not change. Stop clears the draft. Nothing is charged.</p>
     </section>
   </main>
   <nav id="desk-nav" aria-label="Desk">
@@ -114,6 +100,6 @@
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
   <script src="desk-nav.js"></script>
-  <script src="creators.js"></script>
+  <script src="pack-desk-ais.js"></script>
 <script src="/mark-fix.js"></script></body>
 </html>
