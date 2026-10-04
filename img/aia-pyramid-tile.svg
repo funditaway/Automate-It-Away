@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- dark tile #f39c12 #0c1116 -->
   <rect width="512" height="512" rx="112" fill="#0c1116"/>
-  <path fill="#0d6b6b" stroke="#0b4f57" stroke-width="14" stroke-linejoin="round" d="M256 64 L420 292 L348 412 L108 372 Z"/>
-  <path fill="#f39c12" d="M256 78 L292 154 L256 168 L220 154 Z"/>
-  <path fill="#117a82" d="M256 168 L376 274 L256 306 L136 286 Z"/>
-  <path fill="none" stroke="#0b4f57" stroke-width="10" d="M256 64 L256 392 M168 228 L344 214 M132 286 L380 262"/>
+  <path fill="#0d6b6b" stroke="#0b4f57" stroke-width="16" stroke-linejoin="round" d="M256 72 L412 232 L378 412 L134 412 L100 232 Z"/>
+  <path fill="#14919b" d="M256 168 L378 268 L358 388 L256 404 L154 388 L134 268 Z"/>
+  <path fill="#0f766e" d="M154 388 L256 404 L256 268 L134 268 Z"/>
+  <path fill="#f39c12" d="M256 96 L304 168 L256 188 L208 168 Z"/>
+  <path fill="none" stroke="#08343a" stroke-width="10" d="M256 96 L256 404 M176 230 L336 230 M150 320 L362 320"/>
 </svg>
