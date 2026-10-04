@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Desk AIs on this pack · Automate It Away</title>
+  <title>Name a Desk AI · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
@@ -56,17 +56,21 @@
     </nav>
   </header>
   <main class="wrap">
-    <h1>Desk AIs on this pack</h1>
-    <p>Pick one pack on this desk. Name a Desk AI for it. A Desk AI may draft. Yes is the only save. Stop clears the draft and saves nothing. Nothing is charged.</p>
-    <p id="desk-line">Open a desk to see your packs.</p>
+    <h1>Name a Desk AI</h1>
+    <p>Yes names the Desk AI on this desk. The pack listing does not change. Stop clears the draft. Nothing is charged.</p>
+    <p id="desk-line">Open a desk to name a Desk AI.</p>
     <section class="card">
-      <h2>Your packs</h2>
-      <div id="list"><p>Loading your packs…</p></div>
+      <h2>Named on this desk</h2>
+      <div id="named"><p>None yet.</p></div>
+    </section>
+    <section class="card">
+      <h2>Listings on this desk</h2>
+      <p>These are listings on this desk. Naming a Desk AI does not edit them.</p>
+      <div id="list"><p>Loading listings…</p></div>
+      <div id="ais"></div>
     </section>
     <section class="card">
       <h2 id="form-title">Name a Desk AI</h2>
-      <p id="picked">Pick a pack first. Nothing is saved until you tap Yes.</p>
-      <div id="ais"></div>
       <label for="name">Name</label>
       <input id="name" maxlength="40" placeholder="Lane helper">
       <label for="does">What it does</label>
@@ -85,7 +89,7 @@
       </div>
       <p class="ok" id="ok"></p>
       <p class="err" id="err"></p>
-      <p>Yes is the only save. Stop clears the draft and saves nothing. Nothing is charged.</p>
+      <p>Yes names the Desk AI on this desk. The pack listing does not change. Stop clears the draft. Nothing is charged.</p>
     </section>
   </main>
   <nav id="desk-nav" aria-label="Desk">

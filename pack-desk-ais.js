@@ -1,16 +1,15 @@
-/* Desk AIs on this pack. A Desk AI may draft. Yes is the only save. Stop clears the draft. Nothing is charged. */
+/* Name a Desk AI on this desk. Yes is the only save. Stop clears the draft. Nothing is charged. */
 (function () {
   var listEl = document.getElementById("list");
   var aisEl = document.getElementById("ais");
+  var namedEl = document.getElementById("named");
   var draftEl = document.getElementById("draft");
   var decideEl = document.getElementById("decide");
   var okEl = document.getElementById("ok");
   var errEl = document.getElementById("err");
-  var pickedEl = document.getElementById("picked");
   if (!listEl || !draftEl) return;
 
   var packs = [];
-  var picked = null;
   var pending = null;
 
   function esc(s) {
@@ -89,34 +88,47 @@
     if (decideEl) decideEl.hidden = false;
   }
 
-  function paintAis() {
-    if (!aisEl) return;
-    var rows = rowsOf(picked);
-    if (!picked) {
-      aisEl.innerHTML = "";
-      return;
-    }
+  function paintNamed(rows) {
+    if (!namedEl) return;
+    rows = Array.isArray(rows) ? rows.filter(function (a) { return a && a.name; }) : [];
     if (!rows.length) {
-      aisEl.innerHTML = "<p>No Desk AI on this pack yet. Name one below. Nothing is saved until you tap Yes.</p>";
+      namedEl.innerHTML = "<p>No Desk AI named on this desk yet.</p>";
       return;
     }
-    aisEl.innerHTML = rows.map(function (a) {
+    namedEl.innerHTML = rows.map(function (a) {
       return "<article class=\"pack\"><b>" + esc(a.name) + "</b>" +
         (a.does ? "<p>" + esc(a.does) + "</p>" : "") +
         "<div class=\"row\"><button type=\"button\" class=\"ghost\" data-use=\"" + esc(a.id || a.name) + "\">Use this name</button></div></article>";
     }).join("");
   }
 
+  function paintListing(p) {
+    if (!aisEl) return;
+    if (!p) {
+      aisEl.innerHTML = "";
+      return;
+    }
+    var rows = rowsOf(p);
+    var head = "<p>Listing: " + esc(p.name || p.id) + ". Naming does not edit this listing.</p>";
+    if (!rows.length) {
+      aisEl.innerHTML = head + "<p>This listing does not show a Desk AI.</p>";
+      return;
+    }
+    aisEl.innerHTML = head + rows.map(function (a) {
+      return "<article class=\"pack\"><b>" + esc(a.name) + "</b>" +
+        (a.does ? "<p>" + esc(a.does) + "</p>" : "") + "</article>";
+    }).join("");
+  }
+
   function paintList() {
     if (!packs.length) {
-      listEl.innerHTML = "<p>No packs on this desk yet.</p>";
+      listEl.innerHTML = "<p>No listings on this desk yet. Naming still happens on this desk.</p>";
       return;
     }
     listEl.innerHTML = packs.map(function (p) {
-      var n = rowsOf(p).length;
       return "<article class=\"pack\"><b>" + esc(p.name || p.id) + "</b>" +
-        "<p>" + esc(n ? (n + " Desk AI" + (n === 1 ? "" : "s")) : "No Desk AI yet") + (p.does ? (" · " + esc(p.does)) : "") + "</p>" +
-        "<div class=\"row\"><button type=\"button\" class=\"ghost\" data-pack=\"" + esc(p.id) + "\">Use this pack</button></div></article>";
+        (p.does ? "<p>" + esc(p.does) + "</p>" : "") +
+        "<div class=\"row\"><button type=\"button\" class=\"ghost\" data-pack=\"" + esc(p.id) + "\">Read this listing</button></div></article>";
     }).join("");
   }
 
@@ -131,13 +143,7 @@
     fillAi(null);
   }
 
-  async function load() {
-    var line = document.getElementById("desk-line");
-    if (!deskOpen()) {
-      location.replace("/onboard");
-      return;
-    }
-    if (line) line.textContent = "These packs are on this desk. Pick one, then name a Desk AI.";
+  async function loadPacks() {
     try {
       var r = await fetch("/api/desks?packs=1&mine=1", { headers: hdr() });
       var d = await r.json().catch(function () { return {}; });
@@ -146,7 +152,7 @@
         return;
       }
       if (!r.ok) {
-        listEl.innerHTML = "<p>" + esc((d && d.error) || "Could not load your packs.") + "</p>";
+        listEl.innerHTML = "<p>" + esc((d && d.error) || "Could not load listings.") + "</p>";
         return;
       }
       packs = (d.packs || []).filter(ownPack);
@@ -156,33 +162,44 @@
     }
   }
 
-  function pick(id) {
-    hideDecide();
-    picked = null;
+  async function loadNamed() {
+    try {
+      var r = await fetch("/api/desks", { headers: hdr() });
+      var d = await r.json().catch(function () { return {}; });
+      if (r.status === 401 || r.status === 404) {
+        location.replace("/onboard");
+        return;
+      }
+      var rows = (d && d.desk && d.desk.ais) || (d && d.ais) || [];
+      paintNamed(rows);
+    } catch (e) {
+      paintNamed([]);
+    }
+  }
+
+  function readListing(id) {
+    var picked = null;
     for (var i = 0; i < packs.length; i++) {
       if (packs[i] && packs[i].id === id) picked = packs[i];
     }
-    clearForm();
-    if (pickedEl) {
-      pickedEl.textContent = picked
-        ? ("Pack: " + (picked.name || picked.id) + ". Name a Desk AI below. Nothing is saved until you tap Yes.")
-        : "Pick a pack first. Nothing is saved until you tap Yes.";
-    }
-    paintAis();
-    show(picked ? "Pack picked. Nothing was saved." : "That pack is not on this desk.", !!picked);
+    paintListing(picked);
+    show(picked ? "Listing only. Naming does not edit it." : "That listing is not on this desk.", !!picked);
   }
 
   function useAi(key) {
-    var rows = rowsOf(picked);
-    var hit = null;
-    for (var i = 0; i < rows.length; i++) {
-      var a = rows[i];
-      if ((a.id || a.name) === key) hit = a;
+    var rows = [];
+    if (namedEl) {
+      namedEl.querySelectorAll("[data-use]").forEach(function (btn) {
+        if (btn.getAttribute("data-use") === key) rows.push(btn);
+      });
     }
-    if (!hit) return show("That Desk AI is not on this pack.", false);
+    var card = rows[0] && rows[0].closest(".pack");
+    var name = card && card.querySelector("b") ? card.querySelector("b").textContent : "";
+    var does = card && card.querySelector("p") ? card.querySelector("p").textContent : "";
+    if (!name) return show("That Desk AI is not named on this desk.", false);
     hideDecide();
-    fillAi(hit);
-    show("Loaded into the form. Nothing is saved until you tap Yes.", true);
+    fillAi({ id: key, name: name, does: does, prompt: "" });
+    show("Loaded into the form. Nothing is named until you tap Yes.", true);
   }
 
   function stage() {
@@ -190,16 +207,15 @@
       location.replace("/onboard");
       return;
     }
-    if (!picked || !picked.id) return show("Pick a pack first. Nothing was saved.", false);
     var name = val("name");
-    if (!name) return show("Name the Desk AI first. Nothing was saved.", false);
+    if (!name) return show("Name the Desk AI first. Nothing was named.", false);
     pending = {
       id: val("ai-id"),
       name: name,
       does: val("does"),
       prompt: val("prompt")
     };
-    showDecide("Name \"" + name + "\" on " + (picked.name || picked.id) + ".\nNothing is saved until you tap Yes. Stop clears this draft and saves nothing. Nothing is charged.");
+    showDecide("Name \"" + name + "\" on this desk.\nNothing is named until you tap Yes. Stop clears this draft. Nothing is charged. The pack listing does not change.");
     show("", true);
     if (okEl) okEl.style.display = "none";
   }
@@ -209,9 +225,8 @@
       location.replace("/onboard");
       return;
     }
-    if (!picked) return show("Pick a pack first. Nothing was saved.", false);
-    var brief = [picked.name, val("name"), val("does"), val("prompt")].filter(Boolean).join(". ");
-    if (!brief) return show("Say what the Desk AI should do first. Nothing was saved.", false);
+    var brief = [val("name"), val("does"), val("prompt")].filter(Boolean).join(". ");
+    if (!brief) return show("Say what the Desk AI should do first. Nothing was named.", false);
     var btn = document.getElementById("ask");
     if (btn) btn.disabled = true;
     try {
@@ -225,13 +240,13 @@
       var rows = pack ? rowsOf(pack) : [];
       var ai = rows[0] || null;
       if (!d || !d.ok || !ai || !ai.name) {
-        return show("No draft this time. You can still write it by hand. Nothing was saved.", false);
+        return show("No draft this time. You can still write it by hand. Nothing was named.", false);
       }
       var keep = val("ai-id");
       fillAi({ id: keep, name: ai.name, does: ai.does || "", prompt: ai.prompt || "" });
-      show("Draft only. Nothing is saved until you tap Yes.", true);
+      show("Draft only. Nothing is named until you tap Yes.", true);
     } catch (e) {
-      show("Could not reach the desk. Nothing was saved.", false);
+      show("Could not reach the desk. Nothing was named.", false);
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -243,7 +258,6 @@
       return;
     }
     if (!pending || !pending.name) return show("Nothing is waiting. Name a Desk AI first.", false);
-    if (!picked || !picked.id) return show("Pick a pack first. Nothing was saved.", false);
     var btn = document.getElementById("yes");
     if (btn) btn.disabled = true;
     var body = {
@@ -265,18 +279,15 @@
         return;
       }
       if (!r.ok || d.ok === false) {
-        show((d && d.error) || "The desk did not do that. Nothing was saved.", false);
+        show((d && d.error) || "The desk did not do that. Nothing was named.", false);
         return;
       }
       hideDecide();
       clearForm();
-      show("Saved. Nothing was charged.", true);
-      await load();
-      picked = null;
-      if (pickedEl) pickedEl.textContent = "Pick a pack first. Nothing is saved until you tap Yes.";
-      if (aisEl) aisEl.innerHTML = "";
+      if (Array.isArray(d.ais)) paintNamed(d.ais);
+      show("Named on this desk. The pack listing did not change. Nothing was charged.", true);
     } catch (e) {
-      show("Could not reach the desk. Nothing was saved.", false);
+      show("Could not reach the desk. Nothing was named.", false);
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -284,15 +295,15 @@
 
   function stop() {
     hideDecide();
-    show("Stopped. The draft is cleared. Nothing was saved.", true);
+    show("Stopped. The draft is cleared. Nothing was named.", true);
   }
 
   listEl.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-pack]");
     if (!btn) return;
-    pick(btn.getAttribute("data-pack"));
+    readListing(btn.getAttribute("data-pack"));
   });
-  if (aisEl) aisEl.addEventListener("click", function (e) {
+  if (namedEl) namedEl.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-use]");
     if (!btn) return;
     useAi(btn.getAttribute("data-use"));
@@ -307,5 +318,10 @@
   if (stopBtn) stopBtn.addEventListener("click", stop);
 
   if (!deskOpen()) location.replace("/onboard");
-  else load();
+  else {
+    var line = document.getElementById("desk-line");
+    if (line) line.textContent = "Yes names the Desk AI on this desk. Listings stay as they are.";
+    loadNamed();
+    loadPacks();
+  }
 })();
