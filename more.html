@@ -1,1 +1,263 @@
-LOAD_FROM_/workspace/studio-pack/more.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>More · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0d6b6b">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
+  <link rel="stylesheet" href="desk-nav.css">
+  <script src="theme.js"></script>
+  <style>
+    body{margin:0}
+    a{color:inherit;text-decoration:none}
+    header{background:var(--header);color:#fff;padding:12px 4vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
+    header a{color:#fff}
+    .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 24px}
+    h1{font-size:1.4rem;margin:0 0 8px}
+    h2{font-size:.95rem;margin:18px 0 6px;color:var(--heading)}
+    p{color:var(--muted);margin:0 0 12px}
+    .more-find{margin:0 0 14px}
+    .more-find label{display:block;font-weight:700;color:var(--heading);font-size:14px;margin:0 0 6px}
+    .more-find input{width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:600 15px/1.3 "Segoe UI",system-ui,sans-serif}
+    .more-find .hint{margin:6px 0 0;font-size:13px}
+    .card{border:1px solid var(--line);border-radius:14px;padding:4px;margin:10px 0;box-shadow:var(--shadow)}
+    @media(min-width:640px){.card{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}}
+    .more-item{position:relative;padding:14px 44px 14px 12px;border-radius:12px}
+    .more-item[hidden]{display:none!important}
+    .more-item a.more-go{display:block;color:var(--heading);font-weight:700}
+    .more-item a.more-go:active{opacity:.85}
+    .more-item .more-sub{display:block;font-weight:600;color:var(--muted);font-size:13px;margin-top:4px;line-height:1.35}
+    .more-item .aia-tip{position:absolute;top:12px;right:10px;margin:0}
+    .more-empty{display:none;margin:8px 4px 4px;color:var(--muted);font-size:14px}
+    .more-empty.on{display:block}
+    .meta{color:var(--muted);font-size:14px}
+  </style>
+</head>
+<body class="has-desk-nav">
+  <header>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-teal.png" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    <nav class="desk-tabs" aria-label="Desk tabs">
+      <a href="/desk" data-tab="queue">Queue</a>
+      <a href="/drop" data-tab="drop">Drop</a>
+      <a href="/create" data-tab="create">Create</a>
+      <a href="/history" data-tab="history">History</a>
+      <a href="/more" data-tab="more">More</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>This desk.</h1>
+    <p>Queue, Drop, Create, and History stay on the tab bar. Everything else is here. You still tap Yes or Stop. Tap <b>?</b> for more detail.</p>
+    <p class="meta" id="grok-line">A Desk AI can draft. You tap Yes or Stop.</p>
+    <div class="more-find">
+      <label for="more-q">Find on More <button type="button" class="aia-tip" data-aia-tip="more-find" aria-label="More about Find on More">?</button></label>
+      <input id="more-q" type="search" placeholder="Account, Queue, Packs, Help…" autocomplete="off" enterkeyhint="search">
+      <p class="hint" id="more-find-hint">Type to narrow the list. Clear to see all.</p>
+    </div>
+    <h2 data-more-section="you">You</h2>
+    <div class="card" data-more-section="you">
+      <article class="more-item" data-more-item data-more-keys="account photo name phones export leave">
+        <a class="more-go" href="/account">Your account
+        <span class="more-sub">Photo, name, and phones. Export or leave anytime.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-account" aria-label="More about Your account">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="desks seat leave family friend helper member staff">
+        <a class="more-go" href="/desks">Your desks
+        <span class="more-sub">Desks this account can open. See the seat. Leave anytime.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-desks" aria-label="More about Your desks">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="people handle invite accept cards">
+        <a class="more-go" href="/people">People
+        <span class="more-sub">Search @handle. Invite them to this desk. They Accept.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-people" aria-label="More about People">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="admin book tickets helper">
+        <a class="more-go" href="/admin">Account book
+        <span class="more-sub">Tickets and helper taps. Owner book.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-admin" aria-label="More about Account book">?</button>
+      </article>
+    </div>
+    <h2 data-more-section="work">The work</h2>
+    <div class="card" data-more-section="work">
+      <article class="more-item" data-more-item data-more-keys="queue cards yes stop talk reply">
+        <a class="more-go" href="/desk">Queue
+        <span class="more-sub">Real cards. Empty stays empty. Talk, Yes, or Stop.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-queue" aria-label="More about Queue">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="drop talk task errand list idea">
+        <a class="more-go" href="/drop#talk">Drop
+        <span class="more-sub">Pick a desk. Drop a task, errand, list, or idea. You still tap Yes or Stop.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-drop" aria-label="More about Drop">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="create start work draft">
+        <a class="more-go" href="/create">Create
+        <span class="more-sub">Start work. Yes puts a card on the queue. Open this card. You still tap Yes or Stop.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-create" aria-label="More about Create">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="history past now next give update pack">
+        <a class="more-go" href="/history">History
+        <span class="more-sub">What this desk did — real cards only. This account’s past / now / next. Give is the file.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-history" aria-label="More about History">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="pipes hook site card">
+        <a class="more-go" href="/pipes">Pipes
+        <span class="more-sub">Search any site. A hook writes a card.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-pipes" aria-label="More about Pipes">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="rules when wait">
+        <a class="more-go" href="/rules">Rules
+        <span class="more-sub">Lives here, not on the tab bar. When something should wait. Fresh desks start empty.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-rules" aria-label="More about Rules">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="creators studio pack">
+        <a class="more-go" href="/dev">Creators Studio
+        <span class="more-sub">Build and share packs on this desk.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-studio" aria-label="More about Creators Studio">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="your pack listings create edit update delete">
+        <a class="more-go" href="/creators">Your pack listings
+        <span class="more-sub">Create, edit, update, or delete a listing. You still tap Yes or Stop.</span></a>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="packs try install">
+        <a class="more-go" href="/market">Packs
+        <span class="more-sub">Try it on this desk. Install pack with Yes.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-packs" aria-label="More about Packs">?</button>
+      </article>
+    </div>
+    <h2 data-more-section="help">If you need a hand</h2>
+    <div class="card" data-more-section="help">
+      <article class="more-item" data-more-item data-more-keys="help four steps">
+        <a class="more-go" href="/help#playbook">Help
+        <span class="more-sub">Four steps are in Help.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-help" aria-label="More about Help">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="start onboard helper">
+        <a class="more-go" href="/help#world">Help · getting started
+        <span class="more-sub">How to start on this desk.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-world" aria-label="More about getting started">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="faq give install pack">
+        <a class="more-go" href="/help#faq">FAQ
+        <span class="more-sub">Short answers. Install pack or Give pack with Yes.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-faq" aria-label="More about FAQ">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="onboard link name helper pack">
+        <a class="more-go" href="/help#onboard-desk">Onboard this desk
+        <span class="more-sub">Copy the incoming link. Name the desk. Invite a helper. Drop or Install pack.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-onboard" aria-label="More about Onboard this desk">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="selling packs buyer">
+        <a class="more-go" href="/help#sell-packs">Selling packs
+        <span class="more-sub">How a buyer uses a pack. This is not legal advice.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-sell" aria-label="More about Selling packs">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="pack worth hand">
+        <a class="more-go" href="/help#pack-worth">When a pack is worth it
+        <span class="more-sub">When the same work keeps coming back.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-worth" aria-label="More about when a pack is worth it">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="build pack desk ai">
+        <a class="more-go" href="/help#build-pack">Build a pack
+        <span class="more-sub">A Desk AI drafts. You still tap Yes or Stop.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-build" aria-label="More about Build a pack">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="first aia pack studio">
+        <a class="more-go" href="/dev#first-pack">First .aia pack
+        <span class="more-sub">Write it in Studio. You still tap Yes or Stop.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-first-pack" aria-label="More about First .aia pack">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="queue runs rules draft">
+        <a class="more-go" href="/help#queue-runs">How the queue runs
+        <span class="more-sub">Work comes in, a rule drafts a card, you tap Yes or Stop.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-queue-runs" aria-label="More about how the queue runs">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="desk cards pack shape drop">
+        <a class="more-go" href="/help#desk-cards">Desk cards
+        <span class="more-sub">A named desk AI drafts a card. An installed pack shapes it — no pack pick on every Drop.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-desk-cards" aria-label="More about Desk cards">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="inbound mail card">
+        <a class="more-go" href="/help#aia-inbound">Mail in
+        <span class="more-sub">Mail in can write a card.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-inbound" aria-label="More about mail in">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="support talk">
+        <a class="more-go" href="/support">Talk to AIA
+        <span class="more-sub">Tell AIA a problem. It can become a card.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-support" aria-label="More about Talk to AIA">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="legal">
+        <a class="more-go" href="/legal">Legal
+        <span class="more-sub">What AIA does not do.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-legal" aria-label="More about Legal">?</button>
+      </article>
+      <article class="more-item" data-more-item data-more-keys="status live wait">
+        <a class="more-go" href="/status">Status
+        <span class="more-sub">What is live on this desk. Orange means wait.</span></a>
+        <button type="button" class="aia-tip" data-aia-tip="more-status" aria-label="More about Status">?</button>
+      </article>
+    </div>
+    <p class="more-empty" id="more-empty" hidden>Nothing matches. Clear Find to see all.</p>
+  </main>
+  <nav id="desk-nav" aria-label="Desk">
+    <a href="/desk" data-tab="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Queue</span></a>
+    <a href="/drop" data-tab="drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Drop</span></a>
+    <a href="/create" data-tab="create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5zM14 4v5h5M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Create</span></a>
+    <a href="/history" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>History</span></a>
+    <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
+  </nav>
+  <script src="desk-nav.js"></script>
+  <script src="aia-tip.js"></script>
+  <script>
+    (function () {
+      var q = document.getElementById("more-q");
+      var empty = document.getElementById("more-empty");
+      if (!q) return;
+      function paint() {
+        var needle = String(q.value || "").trim().toLowerCase();
+        var items = document.querySelectorAll("[data-more-item]");
+        var shown = 0;
+        items.forEach(function (el) {
+          var hay = ((el.getAttribute("data-more-keys") || "") + " " + (el.textContent || "")).toLowerCase();
+          var on = !needle || hay.indexOf(needle) >= 0;
+          el.hidden = !on;
+          if (on) shown += 1;
+        });
+        document.querySelectorAll("[data-more-section]").forEach(function (sec) {
+          var id = sec.getAttribute("data-more-section");
+          var any = false;
+          document.querySelectorAll('[data-more-section="' + id + '"] [data-more-item]').forEach(function (el) {
+            if (!el.hidden) any = true;
+          });
+          if (sec.tagName === "H2") sec.hidden = !!needle && !any;
+          else if (sec.classList.contains("card")) sec.hidden = !!needle && !any;
+        });
+        if (empty) {
+          empty.hidden = shown > 0;
+          empty.classList.toggle("on", shown === 0);
+        }
+      }
+      q.addEventListener("input", paint);
+      q.addEventListener("search", paint);
+    })();
+    fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {
+      const a = (h && h.automation) || {};
+      const g = a.deskAi || a.grok || {};
+      const on = !!(g && g.on) || !!(a.drafts && a.drafts.included);
+      const el = document.getElementById("grok-line");
+      if (!el) return;
+      el.textContent = on
+        ? "A Desk AI can draft. You tap Yes or Stop."
+        : "A Desk AI can't draft on this phone yet. You tap Yes or Stop.";
+    }).catch(function () {});
+  </script>
+<script src="/mark-fix.js"></script></body>
+</html>
