@@ -21,8 +21,8 @@ files.forEach((file) => {
   }
   const hdr = m[0];
   if (!hdr.includes('class="brand"')) fail(file + " header missing class=brand");
-  if (!hdr.includes('class="brand-name">Automate It Away</span>')) {
-    fail(file + " header wordmark is not Automate It Away");
+  if (!hdr.includes('class="brand-name">AIA</span>')) {
+    fail(file + " header wordmark is not AIA");
   } else {
     pass(file + " wordmark");
   }

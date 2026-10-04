@@ -31,6 +31,11 @@
     var headerSrc = markSrc();
     var tile = tileSrc();
     document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
+      var inHeader = img.closest("header, .site-header");
+      if (inHeader && img.classList.contains("brand-mark")) {
+        img.setAttribute("src", headerSrc);
+        return;
+      }
       var kind = (img.getAttribute("data-mark") || "").toLowerCase();
       if (kind === "orange") { img.setAttribute("src", orangeSrc()); return; }
       if (kind === "outline") { img.setAttribute("src", outlineSrc()); return; }
@@ -348,13 +353,15 @@
       brandHost.classList.add("brand");
       if (!brandHost.querySelector(".brand-mark")) {
         var img = document.createElement("img");
-        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "Automate It Away";
+        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "";
         brandHost.insertBefore(img, brandHost.firstChild);
       }
       if (!brandHost.querySelector(".brand-name")) {
         var strong = brandHost.querySelector("strong");
         if (strong) strong.classList.add("brand-name");
       }
+      var named = brandHost.querySelector(".brand-name");
+      if (named) named.textContent = "AIA";
       if (!brandHost.querySelector(".brand-short")) {
         var short = document.createElement("span");
         short.className = "brand-short"; short.textContent = "AIA";
