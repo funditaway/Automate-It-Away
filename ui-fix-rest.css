@@ -7,10 +7,10 @@ header .brand, .site-header .brand, header .brand-short, .site-header .brand-sho
   font-weight: 800 !important;
 }
 button.aia-tip {
-  width: 22px !important;
-  height: 22px !important;
-  min-width: 22px !important;
-  min-height: 22px !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
   padding: 0 !important;
   border-radius: 999px !important;
   line-height: 1 !important;

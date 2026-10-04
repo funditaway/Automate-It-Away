@@ -584,3 +584,81 @@ header .brand-mark,
     font-weight: 800;
   }
 }
+
+/* 2026-10-04 visibility + tap pass. Loaded after phone-clear. One bottom gap. */
+body.has-desk-nav {
+  padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+}
+body.has-desk-nav main.wrap,
+body.has-desk-nav main,
+body.has-desk-nav .wrap,
+body.has-desk-nav #queue {
+  padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+  margin-bottom: 0 !important;
+}
+body.has-desk-nav .site-foot { margin-bottom: 8px !important; }
+@media (min-width: 860px) {
+  body.has-desk-nav,
+  body.has-desk-nav main,
+  body.has-desk-nav main.wrap,
+  body.has-desk-nav .wrap,
+  body.has-desk-nav #queue {
+    padding-bottom: 24px !important;
+  }
+}
+button.aia-tip {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  font-size: 16px !important;
+}
+header .brand-mark,
+.site-header .brand-mark,
+img.aia-mark {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px;
+  min-height: 40px;
+  object-fit: contain !important;
+  background: transparent !important;
+  filter: drop-shadow(0 0 1px rgba(0,0,0,.35));
+}
+#desk-nav span {
+  display: block !important;
+  color: inherit !important;
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#desk-nav {
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+}
+@media (max-width: 859px) {
+  body.has-desk-nav .desk-tabs { display: none !important; }
+  #gate,
+  .desk-open-row,
+  #open-row {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  #gate input, #gate button, #ws, #pin, #gate .edit {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+  }
+  .hero-grid img, .hero img { width: 100%; height: auto; }
+  footer a, .site-foot a { color: var(--teal-deep, #0a4f4f) !important; }
+  html.dark footer a, html.dark .site-foot a { color: #9ee0e0 !important; }
+}
+header nav.site-nav a,
+header .site-nav a {
+  color: #fff !important;
+}
+.theme-btn, .who-chip { color: #fff !important; }
+:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
+}

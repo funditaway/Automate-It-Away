@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Automate It Away">
-  <!-- White-stroke pyramid for the teal header. Orange cap stays visible. -->
-  <path fill="#0a4f4f" stroke="#ffffff" stroke-width="14" stroke-linejoin="round" d="M128 22 L214 150 L174 214 L50 190 Z"/>
-  <path fill="#f39c12" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" d="M128 34 L152 78 L128 86 L104 78 Z"/>
+  <path fill="#0a4f4f" stroke="#ffffff" stroke-width="16" stroke-linejoin="round" d="M128 22 L214 150 L174 214 L50 190 Z"/>
+  <path fill="#f39c12" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" d="M128 34 L152 78 L128 86 L104 78 Z"/>
   <path fill="#117a82" d="M128 86 L198 142 L128 160 L64 148 Z"/>
-  <path fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round" d="M128 34 L128 200 M78 112 L178 104 M62 150 L196 136"/>
+  <path fill="none" stroke="#ffffff" stroke-width="8" stroke-linejoin="round" d="M128 34 L128 200 M78 112 L178 104 M62 150 L196 136"/>
 </svg>
