@@ -36,6 +36,7 @@
     { "source": "/studio", "destination": "/developer.html" },
     { "source": "/creators", "destination": "/creators.html" },
     { "source": "/market", "destination": "/market.html" },
+    { "source": "/packs-you-own", "destination": "/packs-you-own.html" },
     { "source": "/shop", "destination": "/market.html" },
     { "source": "/packs", "destination": "/market.html" },
     { "source": "/pack", "destination": "/market.html" },
