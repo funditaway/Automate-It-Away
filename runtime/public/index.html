@@ -4,5 +4,116 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AIA // Sovereign Desk Terminal Connector</title>
-PLACEHOLDER_WILL_NOT_SEND
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        desk: {
+                            900: '#090a0f',
+                            800: '#12141c',
+                            700: '#1b1e2b',
+                            600: '#262a3a',
+                            500: '#383e54',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --desk-900: #090a0f;
+            --desk-800: #12141c;
+            --desk-700: #1b1e2b;
+            --teal: #14b8a6;
+            --amber: #f59e0b;
+            --rose: #f43f5e;
+        }
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            -webkit-tap-highlight-color: transparent;
+            background:
+                radial-gradient(1200px 600px at 10% -10%, rgba(20, 184, 166, 0.08), transparent 55%),
+                radial-gradient(900px 500px at 100% 0%, rgba(99, 102, 241, 0.07), transparent 50%),
+                var(--desk-900);
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #090a0f; }
+        ::-webkit-scrollbar-thumb { background: #262a3a; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #383e54; }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 12px rgba(244, 63, 94, 0.18); border-color: rgba(244, 63, 94, 0.35); }
+            50% { box-shadow: 0 0 28px rgba(244, 63, 94, 0.42); border-color: rgba(244, 63, 94, 0.65); }
+        }
+        .critical-glow { animation: pulse-glow 2.4s ease-in-out infinite; }
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        .ai-shimmer {
+            background: linear-gradient(110deg, rgba(20,184,166,0.12) 0%, rgba(99,102,241,0.18) 35%, rgba(20,184,166,0.12) 70%, rgba(245,158,11,0.14) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 4.5s linear infinite;
+        }
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fade-up 0.35s ease-out both; }
+        @keyframes receipt-pop {
+            0% { opacity: 0; transform: scale(0.96) translateY(6px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .receipt-pop { animation: receipt-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .drawer-slide { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .toast {
+            position: fixed; bottom: 5.5rem; left: 50%; transform: translateX(-50%);
+            z-index: 60; max-width: min(92vw, 28rem);
+            background: #1b1e2b; border: 1px solid #383e54; color: #e2e8f0;
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            padding: 0.65rem 0.9rem; border-radius: 0.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,.45);
+        }
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .sig-verified { box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.35); }
+    </style>
+</head>
+<body class="bg-desk-900 text-slate-100 h-[100dvh] flex flex-col overflow-hidden select-none">
+
+    <!-- Connection Telemetry Bar -->
+    <header class="h-14 border-b border-desk-700 bg-desk-800/90 backdrop-blur px-3 md:px-6 flex items-center justify-between shrink-0 z-20 pt-safe">
+        <div class="flex items-center gap-2 md:gap-3 min-w-0">
+            <div class="flex items-center gap-2 min-w-0">
+                <div id="node-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0" title="Connection"></div>
+                <img class="brand-mark" src="/img/aia-pyramid-header.svg" width="28" height="28" alt=""><span class="font-mono font-bold text-xs md:text-sm tracking-widest text-emerald-400 truncate">AIA</span>
+            </div>
+            <span class="text-desk-500 hidden sm:inline">|</span>
+            <div class="hidden sm:flex items-center gap-2 text-[10px] md:text-xs font-mono text-slate-400">
+                <span>LINK: <strong id="link-status" class="text-slate-400">BOOT</strong></span>
+                <span class="text-desk-500">•</span>
+                <span>VAULT: <strong id="vault-status" class="text-slate-400">—</strong></span>
+                <span class="text-desk-500">•</span>
+                <span class="hidden lg:inline">KEY: <strong id="key-status" class="text-teal-400">—</strong></span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 md:gap-3 shrink-0">
+            <div class="hidden md:flex items-center gap-2 text-[10px] font-mono bg-desk-700 px-3 py-1.5 rounded border border-desk-600">
+                <span class="text-slate-400">LEDGER</span>
+                <span id="ledger-hash" class="text-indigo-400 font-semibold">—</span>
+            </div>
+            <button id="btn-sim-toggle" onclick="app.toggleSimulation()" class="text-[10px] font-mono px-2.5 py-1.5 rounded border border-desk-600 bg-desk-700 hover:bg-desk-600 text-slate-300 transition" title="Toggle offline simulation">SIM <span id="sim-label">OFF</span></button>
+            <button onclick="app.simulateInboundWebhook()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] md:text-xs font-mono font-semibold px-2.5 md:px-3 py-1.5 rounded transition shadow-lg shadow-indigo-900/30 flex items-center gap-1.5"><i data-lucide="webhook" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">SIMULATE GHL WEBHOOK</span><span class="sm:hidden">SIM</span></button>
+        </div>
+    </header>
+</body>
 </html>
