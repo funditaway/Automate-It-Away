@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Automate It Away">
-  <!-- M40 186 L128 32 L216 186 L128 216 official header pyramid #ffffff #f39c12 -->
-  <path fill="#0d6b6b" stroke="#0b4f57" stroke-width="8" stroke-linejoin="round" d="M128 24 L216 148 L176 214 L48 192 Z"/>
-  <path fill="#f39c12" d="M128 32 L148 74 L128 82 L108 74 Z"/>
-  <path fill="#117a82" d="M128 82 L194 140 L128 158 L62 148 Z"/>
-  <path fill="none" stroke="#0b4f57" stroke-width="6" d="M128 24 L128 200 M80 112 L176 104 M60 150 L196 136"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Automate It Away">
+  <!-- White-stroke pyramid for the teal header. Orange cap stays visible. -->
+  <path fill="#0a4f4f" stroke="#ffffff" stroke-width="14" stroke-linejoin="round" d="M128 22 L214 150 L174 214 L50 190 Z"/>
+  <path fill="#f39c12" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" d="M128 34 L152 78 L128 86 L104 78 Z"/>
+  <path fill="#117a82" d="M128 86 L198 142 L128 160 L64 148 Z"/>
+  <path fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round" d="M128 34 L128 200 M78 112 L178 104 M62 150 L196 136"/>
 </svg>

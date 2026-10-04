@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- outline pyramid #0a4f4f #f39c12 -->
-  <path fill="#ffffff" stroke="#0a4f4f" stroke-width="16" stroke-linejoin="round" d="M256 48 L432 292 L356 428 L100 384 Z"/>
-  <path fill="#f39c12" d="M256 64 L294 146 L256 160 L218 146 Z"/>
-  <path fill="none" stroke="#0a4f4f" stroke-width="12" d="M256 48 L256 406 M164 220 L348 204 M124 292 L388 266"/>
+  <path fill="#ffffff" stroke="#0a4f4f" stroke-width="18" stroke-linejoin="round" d="M256 40 L436 292 L360 428 L96 384 Z"/>
+  <path fill="#f39c12" d="M256 58 L296 148 L256 164 L216 148 Z"/>
+  <path fill="none" stroke="#0a4f4f" stroke-width="12" d="M256 58 L256 406 M160 216 L352 202 M120 292 L392 266"/>
 </svg>

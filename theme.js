@@ -15,17 +15,17 @@
     return "Auto";
   }
   function tileSrc() {
-    return isDark() ? "/img/aia-mark-dark.png" : "/img/aia-mark-light.png";
+    return isDark() ? "/img/aia-pyramid-tile.svg" : "/img/aia-pyramid-tile-light.svg";
   }
   function markSrc() {
-    /* Header bar is always teal. White-stroke pyramid on teal. */
-    return "/img/aia-mark-teal.png";
+    /* Header bar is always teal. White-stroke pyramid, orange cap. */
+    return "/img/aia-pyramid-header.svg";
   }
   function orangeSrc() {
-    return "/img/aia-mark-orange.png";
+    return "/img/aia-pyramid-on-orange.svg";
   }
   function outlineSrc() {
-    return "/img/aia-mark-outline.png";
+    return "/img/aia-pyramid-outline.svg";
   }
   function paintMarks() {
     var headerSrc = markSrc();
@@ -134,7 +134,10 @@
   document.addEventListener("click", function (ev) {
     var t = ev.target;
     if (!t || !t.closest) return;
-    if (t.closest("[data-theme-btn], button.theme-btn")) cycle(ev);
+    var btn = t.closest("[data-theme-btn], button.theme-btn");
+    if (!btn) return;
+    if (btn.getAttribute("data-aia-bound") === "1") return;
+    cycle(ev);
   });
   function lockHeader() {
     if (document.getElementById("aia-header-lock")) return;
