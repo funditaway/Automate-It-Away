@@ -208,137 +208,137 @@
     },
     "more-find": {
       title: "Find on More",
-      body: "Type a word to narrow this list. Clear the box to see all. Tap ? on a row for the longer honesty. Yes / Stop stay human. Collect stays HOLD.",
+      body: "Type a word to narrow this list. Clear the box to see all. You still tap Yes or Stop.",
       ask: "How do I find something on More?"
     },
     "more-account": {
       title: "Your account",
-      body: "Photo, name, phones on this account, export the book, leave this phone or every phone, authenticator HOLD. Your MetaMask or WalletConnect. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + a real pipe.",
+      body: "Photo, name, phones on this account, export the book, leave this phone or every phone. Sign-in codes stay on your phone.",
       ask: "What is on Your account?"
     },
     "more-desks": {
       title: "Your desks",
-      body: "Desks this account can open. See the seat. Leave anytime. Ask for family, friend, helper, member, or staff. AIA Internet names use the .aia TLD. Brand is ai.aia. Create .aia email for automations.",
+      body: "Desks this account can open. See the seat. Leave anytime.",
       ask: "What are Your desks?"
     },
     "more-people": {
       title: "People",
-      body: "Search @handle. Invite them to this desk. They Accept. Open cards show the Then draft, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. AIA does not send.",
+      body: "Search @handle. Invite them to this desk. They Accept. Nothing sends from here.",
       ask: "What does People do?"
     },
     "more-admin": {
       title: "Account book",
-      body: "Tickets, audit, money log, helper taps. Owner book. AIA does not send money from here.",
+      body: "Tickets and helper taps. Owner book. Nothing sends from here.",
       ask: "What is the Account book?"
     },
     "more-queue": {
       title: "Queue",
-      body: "Real cards. Empty stays empty. No desk on this phone does not invent Yes / Stop cards. Cap orange is do this first — not Collect. Talk, Yes, or Stop. Ask on a gone Then bind holds that named AI (`… · not on this desk` / HOLD ask). Needs you / prompt ask-who hold the same gone bind, not anonymous desk AI. Cap and Open, History, Explore, and People paint that same Needs you / prompt ask-who. Cap on this desk can Reply. Other-desk Cap stays read-only. The owner picker holds the same gone bind. AIA does not send.",
+      body: "Real cards. Empty stays empty. Talk, Yes, or Stop. You can Reply on this desk. If a named desk AI is not on this desk, the card says so. Nothing sends from here.",
       ask: "How does the Queue work?"
     },
     "more-drop": {
-      title: "Drop · Talk",
-      body: "Pick a desk. Drop anything — a task, an errand, a list, an idea. A list becomes more than one card. Orange only when you mark it first. You still tap Yes or Stop. Nobody sends money from here.",
+      title: "Drop",
+      body: "Pick a desk. Drop a task, an errand, a list, or an idea. You still tap Yes or Stop. Nothing sends from here.",
       ask: "What do I Drop?"
     },
     "more-create": {
       title: "Create",
-      body: "On the tab bar. Start work. Drafts land on the card. Yes puts a card on the queue. Open this card. You still tap Yes or Stop. Collect stays HOLD.",
+      body: "Start work. Yes puts a card on the queue. Open this card. You still tap Yes or Stop.",
       ask: "What is Create?"
     },
     "more-history": {
       title: "History",
-      body: "On the tab bar. What this desk did — real cards only. Then draft, gone HOLD when that named AI is not on this desk, Needs you / prompt ask-who, and the AI ↔ human thread when those are on the card. Copy story copies that same trail. Install / give / update a .aia with Yes. Give is the file. Update is install again. Empty stays empty. Nothing sends from here.",
+      body: "What this desk did — real cards only. If a named desk AI is not on this desk, the card says so. You can read the back-and-forth on the card. Give is the file. Update is install again. Nothing sends from here.",
       ask: "What is History?"
     },
     "more-pipes": {
-      title: "Pipes and draft accounts",
-      body: "Search any site. Webhook is live. Orange until a real pipe. Buyer uses their own keys. Collect stays HOLD.",
+      title: "Pipes",
+      body: "Search any site. A hook writes a card. You still tap Yes or Stop.",
       ask: "What are Pipes?"
     },
     "more-rules": {
       title: "Rules",
-      body: "Lives here, not on the tab bar. When → If → Then. Owner picks which named desk AI writes Then. A pack workflow strings them. Fresh desks start empty. Yes / Stop / Kill stay human.",
+      body: "Lives here, not on the tab bar. When something should wait. Fresh desks start empty. You still tap Yes or Stop.",
       ask: "What are Rules?"
     },
     "more-studio": {
       title: "Creators Studio",
-      body: "Same login. AIA Internet brand is ai.aia. Four steps: find the leaks, hook the pipes, name a desk AI, you still tap. Download, share, or install as .aia files. Create .aia email for automations. Test on this desk. No public payout baseline — you earn by pricing a pack. Agency consulting is off-platform. Collect stays HOLD. Send HOLD.",
+      body: "Build and share packs on this desk. You still tap Yes or Stop.",
       ask: "What is Creators Studio?"
     },
     "more-packs": {
       title: "Packs",
-      body: "Start with Try it on this desk. Four steps on this desk. AIA Internet listings on ai.aia. Download or install a .aia file. The desk stays on automateitaway.com. Collect stays HOLD until Yes and a money pipe. No silent charge. No public payout table.",
+      body: "Try it on this desk. Install pack with Yes. You still tap Yes or Stop.",
       ask: "How do Packs work?"
     },
     "more-help": {
       title: "Help",
-      body: "Four steps on this desk. ai.aia is the AIA Internet brand. Packs travel as .aia files. Yes / Stop stay human. Collect stays HOLD.",
+      body: "Four steps are in Help. You still tap Yes or Stop.",
       ask: "Where do I start in Help?"
     },
     "more-world": {
-      title: "Help · world users",
-      body: "Launch path, four models, pack quality. Onboard this desk: pipes, name, people, pack. Days are a guide. Collect stays HOLD.",
-      ask: "What should world users read first?"
+      title: "Getting started",
+      body: "How to start on this desk. Name it, invite a helper, then Drop or Install pack.",
+      ask: "How do I start on this desk?"
     },
     "more-faq": {
       title: "FAQ",
-      body: "Needs you / prompt ask-who. Install / give / update a .aia with Yes. Connect existing wallet — your MetaMask or WalletConnect, not Wallet.AIA. Collect HOLD.",
+      body: "Short answers. Install pack or Give pack with Yes. You still tap Yes or Stop.",
       ask: "What does the FAQ cover?"
     },
     "more-onboard": {
       title: "Onboard this desk",
-      body: "Four beats. Copy the inbound hook. Name the desk. Invite a helper. Drop or install a pack. Collect HOLD.",
+      body: "Copy the incoming link. Name the desk. Invite a helper. Drop or Install pack.",
       ask: "How do I onboard this desk?"
     },
     "more-sell": {
       title: "Selling packs",
-      body: "Buyer uses their own keys. Not 100% safe. Help is not legal advice. Collect HOLD.",
-      ask: "How do I sell a pack?"
+      body: "A buyer uses their own sign-in. This is not legal advice.",
+      ask: "How does someone else use a pack?"
     },
     "more-worth": {
       title: "When a pack is worth it",
-      body: "Works by hand, with fallbacks. Not a broken offer or a note you can Drop yourself.",
+      body: "Worth it when the same work keeps coming back, and you can still do it by hand.",
       ask: "When is a pack worth it?"
     },
     "more-build": {
-      title: "Build a pack / desk AI",
-      body: "When → If → Then. Desk AI drafts. Yes is not a collect charge. Collect HOLD.",
+      title: "Build a pack",
+      body: "A Desk AI drafts. You still tap Yes or Stop.",
       ask: "How do I build a pack?"
     },
     "more-first-pack": {
       title: "First .aia pack",
-      body: "Real Studio. When → If → Then. Buyer keys on Pipes. Yes / Stop before outbound. Webhook is the live pipe.",
-      ask: "How do I ship my first .aia pack?"
+      body: "Write the first pack in Studio. You still tap Yes or Stop.",
+      ask: "How do I write my first pack?"
     },
     "more-queue-runs": {
       title: "How the queue runs",
-      body: "Pipes → Rules → draft → Yes / Stop / Kill. Not codegen or GitHub auto-patch. Collect HOLD.",
+      body: "Work comes in, a rule drafts a card, you tap Yes or Stop.",
       ask: "How does the queue run?"
     },
     "more-desk-cards": {
       title: "Desk cards",
-      body: "Named desk AI drafts a queue card. Installed pack auto-shapes it — no pack pick on every Drop. Yes is not mail, git, or Collect. 12 fields. Collect HOLD.",
+      body: "A named desk AI drafts a card. An installed pack shapes it — no pack pick on every Drop. You still tap Yes or Stop.",
       ask: "What is on a desk card?"
     },
     "more-inbound": {
-      title: ".aia inbound",
-      body: "Mail in writes a card. Mail setup stays HOLD.",
-      ask: "How does .aia inbound work?"
+      title: "Mail in",
+      body: "Mail in can write a card.",
+      ask: "How does mail in work?"
     },
     "more-support": {
       title: "Talk to AIA",
-      body: "Tell AIA a problem. Ask AIA answers first. Need a person? It can become a card. Yes / Stop stay human.",
+      body: "Tell AIA a problem. It can become a card. You still tap Yes or Stop.",
       ask: "How do I talk to AIA?"
     },
     "more-legal": {
       title: "Legal",
-      body: "What AIA does not do. Not legal advice for your shop. Collect stays HOLD.",
+      body: "What AIA does not do. This is not legal advice.",
       ask: "What does Legal cover?"
     },
     "more-status": {
       title: "Status",
-      body: "What is live on this desk. Orange means wait — HOLD. Not Collect. Desk AI drafts show when they are set up on this phone. Collect stays HOLD until Yes + a real pipe.",
+      body: "What is live on this desk. Orange means wait.",
       ask: "What does Status show?"
     }
   };
