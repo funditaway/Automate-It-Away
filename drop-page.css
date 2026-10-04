@@ -22,7 +22,7 @@
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
     label{display:block;font-size:12px;font-weight:700;color:var(--heading);margin:10px 0 4px}
     input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--card);color:var(--ink)}
-    button.go,#drop-send{border:0;border-radius:10px;padding:12px;background:var(--orange);color:#fff;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
+    button.go,#drop-send{border:0;border-radius:10px;padding:12px;background:var(--orange);color:#0c1116;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
     button.ghost{border:1px solid var(--line);background:var(--edit);color:var(--edit-ink);border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
     pre{background:#1a2332;color:#e6f7f7;padding:12px;border-radius:10px;font-size:11px;overflow:auto;white-space:pre-wrap;word-break:break-all;user-select:all}
     .ok{margin-top:10px;color:#1b7a3d;font-size:14px;display:none}

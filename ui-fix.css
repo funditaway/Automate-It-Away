@@ -563,3 +563,6 @@ header nav a.on,
   outline: 3px solid #f39c12;
   outline-offset: 2px;
 }
+
+/* 2026-10-04 orange ink — white on #f39c12 fails contrast */
+button.go,a.go,.go,.use,button.use,.primary,a.primary,button.or,a.or,.pills button.on,.kinds button.on{color:#0c1116 !important;}
