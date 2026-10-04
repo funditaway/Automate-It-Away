@@ -210,6 +210,7 @@
     var name = val("name");
     if (!name) return show("Name the Desk AI first. Nothing was named.", false);
     pending = {
+      kind: "save",
       id: val("ai-id"),
       name: name,
       does: val("does"),
@@ -220,36 +221,18 @@
     if (okEl) okEl.style.display = "none";
   }
 
-  async function askDesk() {
+  function askDesk() {
     if (!deskOpen()) {
       location.replace("/onboard");
       return;
     }
-    var brief = [val("name"), val("does"), val("prompt")].filter(Boolean).join(". ");
-    if (!brief) return show("Say what the Desk AI should do first. Nothing was named.", false);
-    var btn = document.getElementById("ask");
-    if (btn) btn.disabled = true;
-    try {
-      var r = await fetch("/api/desks", {
-        method: "POST",
-        headers: hdr(),
-        body: JSON.stringify({ action: "studio-draft", brief: brief, kind: "ai" })
-      });
-      var d = await r.json().catch(function () { return {}; });
-      var pack = d && d.pack;
-      var rows = pack ? rowsOf(pack) : [];
-      var ai = rows[0] || null;
-      if (!d || !d.ok || !ai || !ai.name) {
-        return show("No draft this time. You can still write it by hand. Nothing was named.", false);
-      }
-      var keep = val("ai-id");
-      fillAi({ id: keep, name: ai.name, does: ai.does || "", prompt: ai.prompt || "" });
-      show("Draft only. Nothing is named until you tap Yes.", true);
-    } catch (e) {
-      show("Could not reach the desk. Nothing was named.", false);
-    } finally {
-      if (btn) btn.disabled = false;
-    }
+    pending = {
+      kind: "ask",
+      brief: [val("name"), val("does"), val("prompt")].filter(Boolean).join(". ")
+    };
+    showDecide("The desk will draft a name on this desk.\nNothing is named until you tap Yes. Stop clears this draft. Nothing is charged. The pack listing does not change.");
+    show("", true);
+    if (okEl) okEl.style.display = "none";
   }
 
   async function yes() {
@@ -257,34 +240,59 @@
       location.replace("/onboard");
       return;
     }
-    if (!pending || !pending.name) return show("Nothing is waiting. Name a Desk AI first.", false);
+    if (!pending || !pending.kind) return show("Nothing is waiting. Name a Desk AI first.", false);
     var btn = document.getElementById("yes");
     if (btn) btn.disabled = true;
-    var body = {
-      action: "save-ai",
-      id: pending.id || "",
-      name: pending.name,
-      does: pending.does || "",
-      prompt: pending.prompt || ""
-    };
     try {
-      var r = await fetch("/api/desks", {
+      if (pending.kind === "ask") {
+        var brief = pending.brief || "Draft a Desk AI name.";
+        var r = await fetch("/api/desks", {
+          method: "POST",
+          headers: hdr(),
+          body: JSON.stringify({ action: "studio-draft", brief: brief, kind: "ai" })
+        });
+        var d = await r.json().catch(function () { return {}; });
+        if (r.status === 401 || r.status === 404) {
+          location.replace("/onboard");
+          return;
+        }
+        var pack = d && d.pack;
+        var rows = pack ? rowsOf(pack) : [];
+        var ai = rows[0] || null;
+        hideDecide();
+        if (!r.ok || !d || d.ok === false || !ai || !ai.name) {
+          show((d && d.error) || "No draft this time. You can still write it by hand. Nothing was named.", false);
+          return;
+        }
+        fillAi({ id: val("ai-id"), name: ai.name, does: ai.does || "", prompt: ai.prompt || "" });
+        show("Draft only. Nothing is named until you stage the name and tap Yes again.", true);
+        return;
+      }
+      if (!pending.name) return show("Nothing is waiting. Name a Desk AI first.", false);
+      var body = {
+        action: "save-ai",
+        id: pending.id || "",
+        name: pending.name,
+        does: pending.does || "",
+        prompt: pending.prompt || ""
+      };
+      var r2 = await fetch("/api/desks", {
         method: "POST",
         headers: hdr(),
         body: JSON.stringify(body)
       });
-      var d = await r.json().catch(function () { return {}; });
-      if (r.status === 401 || r.status === 404) {
+      var d2 = await r2.json().catch(function () { return {}; });
+      if (r2.status === 401 || r2.status === 404) {
         location.replace("/onboard");
         return;
       }
-      if (!r.ok || d.ok === false) {
-        show((d && d.error) || "The desk did not do that. Nothing was named.", false);
+      if (!r2.ok || d2.ok === false) {
+        show((d2 && d2.error) || "The desk did not do that. Nothing was named.", false);
         return;
       }
       hideDecide();
       clearForm();
-      if (Array.isArray(d.ais)) paintNamed(d.ais);
+      if (Array.isArray(d2.ais)) paintNamed(d2.ais);
       show("Named on this desk. The pack listing did not change. Nothing was charged.", true);
     } catch (e) {
       show("Could not reach the desk. Nothing was named.", false);
