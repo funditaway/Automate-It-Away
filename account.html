@@ -44,7 +44,7 @@
 </head>
 <body class="page-bg has-desk-nav">
   <header>
-    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-header.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-header.svg" width="28" height="28" alt=""><span class="brand-name">AIA</span></a>
     <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     <nav class="desk-tabs" aria-label="Desk tabs">
       <a href="/desk" data-tab="queue">Queue</a>
@@ -226,7 +226,7 @@
       if(pin) h["X-Pin"]=pin;
       return h;
     }
-    function esc(s){return String(s||"").replace(/[&<>\"]/g,function(c){var m={"&":"amp","<":"lt",">":"gt","\"":"quot"};return"&"+m[c]+";";});}
+    function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){var m={"&":"amp","<":"lt",">":"gt","\"":"quot"};return"&"+m[c]+";";});}
     function paint(d){
       document.getElementById("gate").hidden=true;
       document.getElementById("home").hidden=false;
