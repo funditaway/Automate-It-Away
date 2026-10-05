@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Automate It Away">
-  <rect width="512" height="512" rx="112" fill="#eef3f4"/>
-  <path fill="#127a82" stroke="#0c4c54" stroke-width="14" stroke-linejoin="round" d="M256 68 L396 196 L436 372 L256 438 L76 372 L116 196 Z"/>
-  <path fill="#f39c12" d="M256 98 L294 148 L256 164 L218 148 Z"/>
-  <path fill="none" stroke="#0c4c54" stroke-width="11" stroke-linejoin="round" d="M256 98 V412 M170 218 H342 M132 294 H380"/>
+  <rect width="512" height="512" rx="112" fill="#f4f7f8"/>
+  <path fill="#127a82" stroke="#0c4c54" stroke-width="16" stroke-linejoin="round" d="M256 78 L392 196 L432 338 L256 412 L80 338 L120 196 Z"/>
+  <path fill="#0f6d74" d="M256 196 L392 196 L432 338 L256 412 Z"/>
+  <path fill="#f39c12" d="M256 108 L294 156 L256 168 L218 156 Z"/>
+  <path fill="none" stroke="#0c4c54" stroke-width="12" stroke-linejoin="round" d="M256 108 V392 M188 214 H324 M146 286 H366"/>
 </svg>

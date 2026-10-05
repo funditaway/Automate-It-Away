@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Automate It Away">
-  <!-- source mark M40 196 L128 36 L216 196 L128 220 -->
-  <path fill="#0f766e" stroke="#0b4f57" stroke-width="10" stroke-linejoin="round" d="M128 28 L214 118 L196 214 L60 214 L42 118 Z"/>
-  <path fill="#14919b" d="M128 92 L196 140 L186 198 L128 208 L70 198 L60 140 Z"/>
-  <path fill="#0d6b6b" d="M70 198 L128 208 L128 140 L60 140 Z"/>
-  <path fill="#f39c12" d="M128 40 L156 84 L128 96 L100 84 Z"/>
-  <path fill="none" stroke="#0b4f57" stroke-width="6" d="M128 40 L128 208 M86 118 L170 118 M70 164 L186 164"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Automate It Away">
+  <path fill="#127a82" stroke="#0c4c54" stroke-width="2.2" stroke-linejoin="round" d="M32 4 L54 22 L60 44 L32 56 L4 44 L10 22 Z"/>
+  <path fill="#0f6d74" d="M32 22 L54 22 L60 44 L32 56 Z"/>
+  <path fill="#f39c12" d="M32 8.4 L38.2 16.2 L32 18.2 L25.8 16.2 Z"/>
+  <path fill="none" stroke="#0c4c54" stroke-width="1.7" stroke-linejoin="round" d="M32 8.4 V53 M21 25 H43 L32 53 L21 25 M14.5 36.5 H49.5"/>
 </svg>
