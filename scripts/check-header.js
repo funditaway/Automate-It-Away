@@ -15,10 +15,9 @@ const root = path.join(__dirname, "..");
    Move a page off this list once its header says AIA. */
 const LEFT_AS_MAIN = [
   "account.html", "admin.html", "connections.html", "create.html", "creators.html",
-  "desk-ais.html", "desks.html", "developer.html", "drop.html", "examples.html",
-  "help.html", "history.html", "how.html", "legal.html", "login.html", "market.html",
-  "onboard.html", "people.html", "pipes.html", "rules.html", "setup.html",
-  "status.html", "support.html", "widget.html"
+  "desk-ais.html", "developer.html", "examples.html", "help.html", "history.html",
+  "how.html", "login.html", "market.html", "onboard.html", "people.html",
+  "pipes.html", "rules.html", "setup.html", "support.html", "widget.html"
 ];
 const files = fs.readdirSync(root).filter((f) => f.endsWith(".html"));
 
