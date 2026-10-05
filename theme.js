@@ -1,0 +1,371 @@
+(function () {
+  function systemDark() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function isDark() {
+    var t = localStorage.getItem("aia_theme") || "system";
+    if (t === "dark") return true;
+    if (t === "light") return false;
+    return systemDark();
+  }
+  function label() {
+    var t = localStorage.getItem("aia_theme") || "system";
+    if (t === "dark") return "Dark";
+    if (t === "light") return "Light";
+    return "Auto";
+  }
+  function tileSrc() {
+    return isDark() ? "/img/aia-pyramid-tile.svg" : "/img/aia-pyramid-tile-light.svg";
+  }
+  function markSrc() {
+    /* Header bar is always teal. White stroke so the edge does not vanish. Orange cap stays. */
+    return "/img/aia-pyramid-header.svg";
+  }
+  function orangeSrc() {
+    return "/img/aia-pyramid-on-orange.svg";
+  }
+  function outlineSrc() {
+    return "/img/aia-pyramid-outline.svg";
+  }
+  function paintMarks() {
+    var headerSrc = markSrc();
+    var tile = tileSrc();
+    document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
+      var kind = (img.getAttribute("data-mark") || "").toLowerCase();
+      if (kind === "orange") { img.setAttribute("src", orangeSrc()); return; }
+      if (kind === "outline") { img.setAttribute("src", outlineSrc()); return; }
+      if (kind === "dark") { img.setAttribute("src", "/img/aia-mark-dark.png"); return; }
+      if (kind === "light") { img.setAttribute("src", "/img/aia-mark-light.png"); return; }
+      if (kind === "teal" || kind === "header") { img.setAttribute("src", headerSrc); return; }
+      var inHeader = img.closest("header, .site-header, .desk-nav, #desk-nav");
+      img.setAttribute("src", inHeader ? headerSrc : tile);
+    });
+  }
+  function apply() {
+    var dark = isDark();
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.classList.toggle("light", !dark);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    var meta = document.querySelector("meta[name='theme-color']");
+    if (meta) meta.setAttribute("content", dark ? "#0c1116" : "#0d6b6b");
+    document.querySelectorAll("[data-theme-btn], .theme-btn").forEach(function (b) {
+      b.textContent = label();
+      b.setAttribute("aria-label", "Theme " + label());
+      b.title = "Theme: " + label() + ". Tap to change.";
+    });
+    paintMarks();
+  }
+  var lastTap = 0;
+  function cycle(ev) {
+    var now = Date.now();
+    if (now - lastTap < 280) return;
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    lastTap = now;
+    var cur = localStorage.getItem("aia_theme") || "system";
+    var next = cur === "system" ? "dark" : cur === "dark" ? "light" : "system";
+    localStorage.setItem("aia_theme", next);
+    apply();
+  }
+  function accountChip() {
+    var chip = document.getElementById("who-chip");
+    if (chip && chip.tagName !== "A") chip = document.querySelector("header a.who-chip, .hdr-tools a.who-chip");
+    if (chip && chip.tagName !== "A") chip = null;
+    return chip;
+  }
+  function liftChrome(header) {
+    if (!header) return;
+    var tools = header.querySelector(".hdr-tools");
+    if (!tools) { tools = document.createElement("div"); tools.className = "hdr-tools"; header.appendChild(tools); }
+    var btn = header.querySelector("[data-theme-btn], .theme-btn");
+    var chip = accountChip();
+    if (chip && chip.parentNode !== tools) tools.appendChild(chip);
+    if (btn && btn.parentNode !== tools) tools.appendChild(btn);
+  }
+  function ensureBtn() {
+    var header = document.querySelector("header, .site-header");
+    if (!header) return;
+    if (document.body && document.body.classList.contains("embed")) return;
+    var tools = header.querySelector(".hdr-tools");
+    var btn = header.querySelector("[data-theme-btn], .theme-btn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "theme-btn";
+      btn.setAttribute("data-theme-btn", "");
+      (tools || header).appendChild(btn);
+    }
+    btn.type = "button";
+    btn.setAttribute("data-theme-btn", "");
+    btn.classList.add("theme-btn");
+    if (tools && btn.parentNode !== tools) tools.appendChild(btn);
+    else if (!tools && btn.parentNode !== header) header.appendChild(btn);
+    if (!btn.getAttribute("data-aia-bound")) {
+      btn.setAttribute("data-aia-bound", "1");
+      btn.addEventListener("click", cycle);
+    }
+  }
+  function ensurePhoneMeta() {
+    function put(name, content) {
+      var el = document.querySelector('meta[name="' + name + '"]');
+      if (!el) { el = document.createElement("meta"); el.setAttribute("name", name); document.head.appendChild(el); }
+      el.setAttribute("content", content);
+    }
+    put("apple-mobile-web-app-capable", "yes");
+    put("mobile-web-app-capable", "yes");
+    put("apple-mobile-web-app-status-bar-style", "black-translucent");
+    put("apple-mobile-web-app-title", "AIA");
+  }
+  function ensureIcons() {
+    function icon(rel, href, extra) {
+      if (!document.head) return;
+      if (document.querySelector('link[rel="' + rel + '"][href="' + href + '"]')) return;
+      var el = document.createElement("link");
+      el.rel = rel; el.href = href;
+      if (extra) Object.keys(extra).forEach(function (k) { el.setAttribute(k, extra[k]); });
+      document.head.appendChild(el);
+    }
+    icon("icon", "/favicon.svg", { type: "image/svg+xml" });
+    icon("icon", "/favicon.ico", { sizes: "any" });
+    icon("apple-touch-icon", "/apple-touch-icon.png", { sizes: "180x180" });
+    icon("manifest", "/site.webmanifest");
+  }
+  apply();
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    var btn = t.closest("[data-theme-btn], button.theme-btn");
+    if (!btn) return;
+    if (btn.getAttribute("data-aia-bound") === "1") return;
+    cycle(ev);
+  });
+  function lockHeader() {
+    if (document.getElementById("aia-header-lock")) return;
+    var s = document.createElement("style");
+    s.id = "aia-header-lock";
+    s.textContent =
+      "html,body{overflow-x:clip;max-width:100%}" +
+      "img,video,canvas{max-width:100%}" +
+      "header:not(.top), .site-header{background:var(--header)!important;color:#fff!important;padding:10px 4.5vw!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important;}" +
+      "header, .site-header{display:grid!important;align-items:center!important;overflow:visible!important}" +
+      "header .theme-btn, .theme-btn{position:relative;z-index:8;pointer-events:auto!important;flex:0 0 auto;min-height:44px;min-width:4.6em;padding:6px 12px;cursor:pointer;white-space:nowrap}" +
+      "header .brand-mark, .site-header .brand-mark{width:40px;height:40px;flex:0 0 40px;border-radius:22%;background:transparent;object-fit:contain}" +
+      ".hdr-tools{display:flex!important;align-items:center;gap:8px;margin-left:0;flex:0 0 auto;justify-self:end;max-width:100%}" +
+      "header > .brand, .site-header > .brand, header > a.brand, header > a:first-child{min-width:0;display:inline-flex!important;align-items:center;gap:8px;color:#fff!important}" +
+      "header nav.site-nav, header .nav.site-nav, header nav:not(.desk-tabs), header .nav:not(.desk-tabs), .site-header .nav{width:auto;min-width:0;display:flex!important;flex-wrap:nowrap;overflow-x:auto;gap:10px 14px;align-items:center;-webkit-overflow-scrolling:touch}" +
+      ".who-chip{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px;min-height:44px;width:auto;margin-left:0;max-width:min(46vw,168px);padding:4px 12px 4px 4px;border-radius:999px;border:1px solid rgba(255,255,255,.4)!important;background:#083838!important;color:#fff!important;text-decoration:none;overflow:hidden}" +
+      ".who-chip.signed-out{padding:8px 16px!important;max-width:none!important;gap:0}" +
+      ".who-chip.signed-out .who-pic{display:none}" +
+      ".who-chip.signed-out .who-copy{text-align:center}" +
+      ".who-chip.signed-out .who-copy strong{display:inline!important}" +
+      ".who-chip.signed-out .who-copy > span{display:none!important}" +
+      ".who-pic{width:32px;height:32px;border-radius:50%;flex:0 0 32px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.18);color:#fff;object-fit:cover;overflow:hidden}" +
+      ".who-copy{min-width:0;flex:1 1 auto;text-align:right}" +
+      ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#fff!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+      ".brand-short{display:none;color:#fff!important}" +
+      "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}header a.btn.outline,header .btn.outline{color:#fff!important;border-color:#fff!important}html.dark a.btn.outline,html.dark .btn.outline{color:#9ee0e0!important;border-color:#9ee0e0!important}@media(max-width:860px){header nav.site-nav,header .nav.site-nav,header nav:not(.desk-tabs),.site-header .nav{flex-wrap:wrap!important;overflow:visible!important;width:100%!important}}" +
+      ".kpi b{display:block;min-height:1.35em;font-size:1.3rem;line-height:1.2;color:var(--teal)}" +
+      "body.has-desk-nav header nav.site-nav, body.has-desk-nav header .nav.site-nav{display:flex!important}" +
+      "body.has-desk-nav{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))!important}" +
+      "#desk-nav{z-index:60!important}" +
+      "main,#queue,.queue,#gate{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}" +
+      ".queue-empty,#queue .empty,body.has-desk-nav #queue > :last-child{margin-bottom:24px}" +
+      "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:inline!important;font-size:13px!important;line-height:1.15!important;max-width:11.5em;white-space:normal}header .brand-short,.site-header .brand-short{display:none!important}}@media (max-width:430px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}header .brand-short,.site-header .brand-short{display:inline!important;color:#fff!important;font-weight:800}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}header, .site-header{grid-template-columns:auto 1fr auto;row-gap:6px}header .site-nav, header nav.site-nav{grid-column:1/-1;width:100%!important}}" +
+      "@media (max-width:420px){.hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}.reels,.kpis{grid-template-columns:1fr 1fr!important}.who-pic{width:28px;height:28px;flex-basis:28px}a.btn, .btn{min-height:44px}}"+ "button.go,a.go,.go,.use,button.use,.primary,a.primary,button.or,a.or,.pills button.on,.kinds button.on{color:#0c1116!important}button.go,a.go,.go,.use,.primary,a.primary{background:var(--orange,#f39c12)!important}header .theme-btn,.theme-btn{color:#0c1116!important;background:#f39c12!important}";
+    document.head.appendChild(s);
+  }
+  function esc(s) {
+    return String(s || "").replace(/[&<>"']/g, function (c) {
+      if (c === "&") return "&" + "amp;";
+      if (c === "<") return "&" + "lt;";
+      if (c === ">") return "&" + "gt;";
+      if (c === '"') return "&" + "quot;";
+      return "&#39;";
+    });
+  }
+  function roleLabel(r) {
+    r = String(r || "").toLowerCase();
+    if (r === "owner") return "Owner";
+    if (r === "staff") return "Staff";
+    if (r === "helper") return "Helper";
+    if (r === "friend") return "Friend";
+    if (r === "family") return "Family";
+    if (r === "agent") return "Desk AI";
+    if (!r) return "";
+    return r.charAt(0).toUpperCase() + r.slice(1);
+  }
+  function pageName() {
+    var p = (location.pathname || "").replace(/\/+$/, "");
+    p = p.split("/").pop() || "index";
+    return p.replace(/\.html$/, "") || "index";
+  }
+  function initials(name) {
+    var p = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!p.length) return "AIA";
+    if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+    return (p[0].charAt(0) + p[p.length - 1].charAt(0)).toUpperCase();
+  }
+  function photoSrc() { return localStorage.getItem("aia_photo") || ""; }
+  function picHtml(name) {
+    var src = photoSrc();
+    if (src) return '<img class="who-pic" alt="" src="' + esc(src) + '">';
+    return '<span class="who-pic">' + esc(initials(name)) + "</span>";
+  }
+  function paintWho() {
+    var header = document.querySelector("header, .site-header");
+    if (!header) return;
+    if (document.body && document.body.classList.contains("embed")) return;
+    if (header.classList.contains("top") && header.querySelector(".who")) return;
+    var chip = accountChip();
+    if (!chip) {
+      chip = document.createElement("a");
+      if (!document.getElementById("who-chip")) chip.id = "who-chip";
+      chip.className = "who-chip";
+      header.appendChild(chip);
+    }
+    liftChrome(header);
+    var ws = localStorage.getItem("aia_ws") || "";
+    var pin = localStorage.getItem("aia_pin") || localStorage.getItem("aia_session") || "";
+    var person = localStorage.getItem("aia_name") || "";
+    var role = roleLabel(localStorage.getItem("aia_role") || "");
+    var desk = localStorage.getItem("aia_desk_name") || ws;
+    var page = pageName();
+    if (ws && pin) {
+      chip.classList.remove("out", "signed-out");
+      chip.href = page === "account" ? "/more" : "/account";
+      var title = person || desk || "You";
+      var meta = role || "Signed in";
+      chip.innerHTML = picHtml(title) + '<span class="who-copy"><strong>' + esc(title) + "</strong><span>" + esc(meta) + "</span></span>";
+      chip.title = title + " · Your account";
+      return;
+    }
+    chip.classList.remove("out");
+    chip.classList.add("signed-out");
+    if (/^(login|onboard)$/.test(page)) {
+      chip.innerHTML = '<span class="who-copy"><strong>New desk</strong></span>';
+      chip.href = page === "login" ? "/onboard" : "/login";
+      chip.title = "Desk name + code. Open a desk you already have, or start a new one.";
+      return;
+    }
+    chip.innerHTML = '<span class="who-copy"><strong>Sign in</strong></span>';
+    chip.href = "/login";
+    chip.title = "Desk name + code";
+  }
+  var SITE_LINKS = [
+    { id: "how", href: "/how", label: "How" },
+    { id: "setup", href: "/setup", label: "Setup" },
+    { id: "help", href: "/help", label: "Help" },
+    { id: "desk", href: "/desk", label: "Desk" }
+  ];
+  var FOOT_LINKS = [
+    { href: "/how", label: "How" },
+    { href: "/setup", label: "Setup" },
+    { href: "/help", label: "Help" },
+    { href: "/pricing", label: "Pricing" },
+    { href: "/legal", label: "Legal" },
+    { href: "/status", label: "Status" }
+  ];
+  function isDeskFamily() {
+    if (document.body && document.body.classList.contains("has-desk-nav")) return true;
+    if (document.querySelector(".desk-tabs, #desk-nav")) return true;
+    return /^(desk|widget|drop|rules|connections|more|desks|history|admin|create|help|account)$/.test(pageName());
+  }
+  function isEmbed() { return !!(document.body && document.body.classList.contains("embed")); }
+  function paintSiteNav() {
+    if (isEmbed()) return;
+    if (/^(consign|dashboard|chat)$/.test(pageName())) return;
+    var header = document.querySelector("header, .site-header");
+    if (!header) return;
+    var nav = header.querySelector("nav:not(.desk-tabs), .nav");
+    if (!nav) { nav = document.createElement("nav"); nav.className = "site-nav"; header.appendChild(nav); }
+    nav.classList.add("site-nav");
+    var page = pageName();
+    nav.innerHTML = SITE_LINKS.map(function (l) {
+      return "<a href=\"" + l.href + "\"" + (l.id === page ? " class=\"on\"" : "") + ">" + l.label + "</a>";
+    }).join("");
+  }
+  function paintFooter() {
+    if (isEmbed()) return;
+    if (/^(chat)$/.test(pageName())) return;
+    var foot = document.querySelector("footer");
+    if (!foot) { foot = document.createElement("footer"); foot.className = "site-foot"; document.body.appendChild(foot); }
+    foot.classList.add("site-foot");
+    var links = FOOT_LINKS.map(function (l) { return "<a href=\"" + l.href + "\">" + l.label + "</a>"; }).join("<span aria-hidden=\"true\">·</span>");
+    foot.innerHTML = "<p>© 2026 Automate It Away</p><nav>" + links + "</nav>";
+  }
+  function rewriteHtmlHrefs() {
+    var map = {
+      "index.html": "/",
+      "how.html": "/how",
+      "setup.html": "/setup",
+      "help.html": "/help",
+      "desk.html": "/desk",
+      "drop.html": "/drop",
+      "onboard.html": "/onboard",
+      "login.html": "/login",
+      "history.html": "/history",
+      "market.html": "/market",
+      "pipes.html": "/pipes",
+      "rules.html": "/rules",
+      "more.html": "/more",
+      "account.html": "/account",
+      "people.html": "/people",
+      "create.html": "/create",
+      "pricing.html": "/pricing",
+      "legal.html": "/legal",
+      "status.html": "/status",
+      "admin.html": "/admin",
+      "desks.html": "/desks",
+      "developer.html": "/developer",
+      "support.html": "/support"
+    };
+    document.querySelectorAll("a[href]").forEach(function (a) {
+      var raw = a.getAttribute("href") || "";
+      if (!raw || raw.charAt(0) === "#" || raw.indexOf("http") === 0 || raw.indexOf("mailto:") === 0) return;
+      var parts = raw.split("#");
+      var path = parts[0];
+      var hash = parts[1] ? "#" + parts[1] : "";
+      var file = path.split("/").pop();
+      if (map[file]) a.setAttribute("href", map[file] + hash);
+    });
+  }
+  function ensureFixCss() {
+    if (!document.getElementById("aia-ui-fix-link")) {
+      var l = document.createElement("link");
+      l.id = "aia-ui-fix-link"; l.rel = "stylesheet"; l.href = "/ui-fix.css?v=20261004";
+      document.head.appendChild(l);
+    }
+    return;
+    var l = document.createElement("link");
+    l.id = "aia-ui-fix-link"; l.rel = "stylesheet"; l.href = "/ui-fix.css";
+    document.head.appendChild(l);
+  }
+  function mark() {
+    ensurePhoneMeta(); ensureIcons(); lockHeader(); ensureFixCss(); ensureBtn(); paintSiteNav(); paintWho(); paintFooter(); rewriteHtmlHrefs();
+    liftChrome(document.querySelector("header, .site-header"));
+    var brandHost = document.querySelector(".site-header > a, header > a.brand, header > a, header .logo, header .brand");
+    if (brandHost && brandHost.tagName === "A") {
+      brandHost.classList.add("brand");
+      if (!brandHost.querySelector(".brand-mark")) {
+        var img = document.createElement("img");
+        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "Automate It Away";
+        brandHost.insertBefore(img, brandHost.firstChild);
+      }
+      if (!brandHost.querySelector(".brand-name")) {
+        var strong = brandHost.querySelector("strong");
+        if (strong) strong.classList.add("brand-name");
+      }
+      if (!brandHost.querySelector(".brand-short")) {
+        var short = document.createElement("span");
+        short.className = "brand-short"; short.textContent = "AIA";
+        var nameEl = brandHost.querySelector(".brand-name");
+        if (nameEl && nameEl.parentNode === brandHost) nameEl.insertAdjacentElement("afterend", short);
+        else brandHost.appendChild(short);
+      }
+    }
+    apply();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mark);
+  else mark();
+  window.AIATheme = { apply: apply, cycle: cycle, label: label, paintWho: paintWho, initials: initials, paintFooter: paintFooter, paintMarks: paintMarks };
+})();
