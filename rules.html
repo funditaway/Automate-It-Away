@@ -248,7 +248,7 @@
       return { status: r.status, data };
     }
     function esc(s) {
-      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&","<":"<",">":">","\"":""","'":"&#39;" }[c]));
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"\u0026amp;","<":"\u0026lt;",">":"\u0026gt;","\"":"\u0026quot;","'":"&#39;" }[c]));
     }
     function paintGate() {
       const on = AIADesks.shopOpen();
