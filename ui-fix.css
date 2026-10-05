@@ -554,7 +554,7 @@ header nav a.on,
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  img, svg, video {
+  img:not(.brand-mark):not(.aia-mark), svg, video {
     max-width: 100%;
     height: auto;
   }
@@ -567,14 +567,16 @@ header nav a.on,
 /* 2026-10-04 orange ink — white on #f39c12 fails contrast */
 button.go,a.go,.go,.use,button.use,.primary,a.primary,button.or,a.or,.pills button.on,.kinds button.on{color:#0c1116 !important;}
 
-/* 2026-10-04: white-stroke pyramid must stay visible on the teal bar */
+/* 2026-10-05: teal tile carries its own white stroke. No extra shadow. */
 header .brand-mark,
 .site-header .brand-mark {
   background: transparent !important;
-  filter: drop-shadow(0 0 1px rgba(255,255,255,.35));
-  width: 36px !important;
-  height: 36px !important;
-  flex: 0 0 36px !important;
+  filter: none !important;
+  width: 40px !important;
+  height: 40px !important;
+  flex: 0 0 40px !important;
+  border-radius: 22% !important;
+  object-fit: cover !important;
 }
 @media (max-width: 430px) {
   header .brand-short,
@@ -614,16 +616,20 @@ button.aia-tip {
   padding: 0 !important;
   font-size: 16px !important;
 }
+/* 2026-10-05: official tiles. Do not flatten or drop-shadow them. */
 header .brand-mark,
 .site-header .brand-mark,
-img.aia-mark {
+img.aia-mark,
+img.brand-mark {
   width: 40px !important;
   height: 40px !important;
-  min-width: 40px;
-  min-height: 40px;
-  object-fit: contain !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 40px !important;
+  object-fit: cover !important;
   background: transparent !important;
-  filter: drop-shadow(0 0 1px rgba(0,0,0,.35));
+  filter: none !important;
+  border-radius: 22% !important;
 }
 #desk-nav span {
   display: block !important;
