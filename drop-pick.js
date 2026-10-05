@@ -29,11 +29,16 @@
     if (use) { try { sessionStorage.setItem("aia_drop_step", "card"); } catch (e) {} }
     location.href = dropHref(use);
   }
+  function isProbe(row) {
+    var name = String((row && (row.name || row.biz || row.account)) || "");
+    var slug = String((row && row.slug) || "");
+    return /probe|stranger[- ]path|^test[- ]/i.test(name + " " + slug);
+  }
   function paintSearch(rows, accounts, q) {
     var box = document.getElementById("public-desk-hits");
     if (!box) return;
-    var desks = Array.isArray(rows) ? rows : [];
-    var acc = Array.isArray(accounts) ? accounts : [];
+    var desks = (Array.isArray(rows) ? rows : []).filter(function (d) { return !isProbe(d); });
+    var acc = (Array.isArray(accounts) ? accounts : []).filter(function (a) { return !isProbe(a); });
     if (!desks.length && !acc.length) {
       box.innerHTML = q ? "<p class=\"sub\">No public world desk or account matches that. Private desks stay off this list.</p>" : "<p class=\"sub\">No listed world desks yet. An owner can list theirs. Private desks stay off this list.</p>";
       return;

@@ -17,13 +17,18 @@ function deskListed(ws) {
   if (ws.listed === true) return true;
   return String(ws.visibility || "").toLowerCase() === "public";
 }
+function isProbeDesk(row) {
+  const name = String((row && (row.biz || row.name || row.account)) || "");
+  const slug = String((row && row.slug) || "");
+  return /probe|stranger[- ]path|^test[- ]/i.test(name + " " + slug);
+}
 function listedCard(row) {
   if (!row || !deskListed(row)) return null;
   return { slug: row.slug, name: row.biz || row.name || row.slug, city: row.city || "", does: row.does || "", listed: true, aia: require("./_aia-net").of(row.aia || row.slug, row.slug).name, drop: "/drop?ws=" + encodeURIComponent(row.slug) };
 }
 function searchListedDesks(query) {
   const q = String(query || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 80);
-  const rows = (mem.workspaces || []).map(listedCard).filter(Boolean);
+  const rows = (mem.workspaces || []).filter((row) => !isProbeDesk(row)).map(listedCard).filter(Boolean);
   if (!q) return rows.slice(0, 20);
   return rows.filter((d) => [d.name, d.slug, d.city, d.does].join(" ").toLowerCase().indexOf(q) >= 0).slice(0, 20);
 }

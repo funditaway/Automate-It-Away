@@ -43,3 +43,21 @@
     .desk-actions a{background:var(--edit);color:var(--edit-ink);border:1px solid var(--line)}
     body.embed{background:transparent}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
+
+/* 2026-10-05: world desk names were clipped to 72px. Tips stay on screen. */
+.desk-chips button, #public-desk-hits button {
+  flex: 1 1 100%;
+  min-width: 0;
+  width: 100%;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.3;
+  padding: 10px 12px;
+}
+.modes { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+.modes button { flex: 0 0 auto; white-space: nowrap; }
+.aia-tip-pop { max-height: min(70vh, 420px); overflow: auto; z-index: 80; }
+@media (max-width: 859px) {
+  .desk-actions { display: flex; flex-direction: column; gap: 8px; }
+  .desk-actions a, .desk-actions button { width: 100%; min-height: 44px; }
+}
