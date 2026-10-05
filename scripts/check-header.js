@@ -10,6 +10,16 @@ function pass(msg) {
 }
 
 const root = path.join(__dirname, "..");
+/* Pages not rewritten yet on this branch. Their served header still says
+   Automate It Away; theme.js sets the wordmark to AIA when the page loads.
+   Move a page off this list once its header says AIA. */
+const LEFT_AS_MAIN = [
+  "account.html", "admin.html", "connections.html", "create.html", "creators.html",
+  "desk-ais.html", "desks.html", "developer.html", "drop.html", "examples.html",
+  "help.html", "history.html", "how.html", "legal.html", "login.html", "market.html",
+  "onboard.html", "people.html", "pipes.html", "rules.html", "setup.html",
+  "status.html", "support.html", "widget.html"
+];
 const files = fs.readdirSync(root).filter((f) => f.endsWith(".html"));
 
 files.forEach((file) => {
@@ -21,10 +31,12 @@ files.forEach((file) => {
   }
   const hdr = m[0];
   if (!hdr.includes('class="brand"')) fail(file + " header missing class=brand");
-  if (!hdr.includes('class="brand-name">Automate It Away</span>')) {
-    fail(file + " header wordmark is not Automate It Away");
-  } else {
+  if (hdr.includes('class="brand-name">AIA</span>')) {
     pass(file + " wordmark");
+  } else if (LEFT_AS_MAIN.includes(file) && hdr.includes('class="brand-name">Automate It Away</span>')) {
+    pass(file + " wordmark left as main for now (theme.js shows AIA)");
+  } else {
+    fail(file + " header wordmark is not AIA");
   }
   if (/AUTOMATE\s/.test(hdr) || /automateitaway\.com/.test(hdr)) {
     fail(file + " still uses old header text");
