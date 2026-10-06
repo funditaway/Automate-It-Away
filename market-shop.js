@@ -59,11 +59,11 @@
     const useBtn = p.wanted
       ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
         : p.priced
-        ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install .aia</button>"
+        ? "<span class=\"hint\">Not for sale yet.</span>"
         : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Install .aia on this desk</button>";
     const holdNote = p.pipeMissing
-      ? "<p class=\"aia-line off\">Ask is listed. No money pipe. Collect stays HOLD. Orange until Square or a live webhook is connected.</p>"
-      : (p.priced ? "<p class=\"hint\">Ask listed. Collect stays HOLD until Yes.</p>" : "");
+      ? "<p class=\"aia-line off\">Ask is listed. Not for sale yet. No payment is connected, so Collect stays HOLD.</p>"
+      : (p.priced ? "<p class=\"hint\">Ask listed. Not for sale yet. Collect stays HOLD until Yes.</p>" : "");
     return "<article class=\"card shop\">" +
       "<b>" + esc(p.name) + "</b>" +
       "<p class=\"tag\">" + esc(p.family || "") + " · " + esc(priceOf(p)) + "</p>" +
@@ -124,8 +124,8 @@
     LAST = packs || [];
     view.innerHTML =
       "<h1>Find a pack. Install the .aia on this desk.</h1>" +
-      "<p class=\"sub\">ai.aia is the AIA Internet brand. The desk runs on automateitaway.com. Official packs are free. Download or share as a .aia file. Install a .aia onto this desk. A listed ask still installs. Collect stays HOLD until Yes and a money pipe. Packs never send money.</p>" +
-      "<p class=\"aia-line off\">ai.aia is the brand. .aia names on this desk now. Wallet / registry connect later as a Pipe HOLD. No on-chain claim.</p>" +
+      "<p class=\"sub\">ai.aia is the AIA Internet brand. The desk runs on automateitaway.com. Official packs are free. Download or share as a .aia file. Install a .aia onto this desk. A pack with an ask is not for sale yet. Collect stays HOLD until Yes and a money pipe. Packs never send money.</p>" +
+      "<p class=\"aia-line off\">ai.aia is the brand. .aia names work on this desk now. Wallet and registry connections are not on yet. No on-chain claim.</p>" +
       deskBanner() +
       "<div class=\"strip\">" +
         "<div><b>1. Find</b><span>Search a niche or tap an aisle.</span></div>" +
@@ -161,7 +161,7 @@
         "<input id=\"aia-file\" type=\"file\" accept=\".aia,application/json\">" +
         "<div class=\"cta\"><button class=\"use\" type=\"button\" id=\"install-aia\">Install .aia on this desk</button></div>" +
       "</div>" +
-      "<p class=\"hint\">Priced packs still install. Collect stays HOLD until Yes and a live money pipe. Packs never bind coverage or move payouts. <a href=\"/legal\">Legal</a>.</p>";
+      "<p class=\"hint\">Priced packs are not for sale yet. Collect stays HOLD until Yes and a live money pipe. Packs never bind coverage or move payouts. <a href=\"/legal\">Legal</a>.</p>";
   }
   function pill(id, label) {
     return "<button type=\"button\" data-filter=\"" + id + "\" class=\"" + (FILTER === id ? "on" : "") + "\">" + label + "</button>";
@@ -188,7 +188,7 @@
       ? (p.wanted
         ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
         : p.priced
-          ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install .aia</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>"
+          ? "<span class=\"hint\">Not for sale yet.</span><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>"
           : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Install .aia on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>")
       : "<a class=\"use\" href=\"/onboard\">Open a desk to use it</a>";
     view.innerHTML =
@@ -228,9 +228,9 @@
         "<div><b>5. Follow</b>" + esc(how.follow || "The card stays on History until it is done.") + "</div>" +
       "</div>" +
       "<h2>On a real desk</h2>" +
-      "<p class=\"hint\">No demo chrome. Buy / install puts the thin JSON onto this desk. Fresh desks start empty until a pack or a rule lands.</p>" +
+      "<p class=\"hint\">Install puts the pack onto this desk. Fresh desks start empty until a pack or a rule lands.</p>" +
       (p.pipeMissing || (p.collectHold && !p.collectHold.pipe)
-        ? "<p class=\"aia-line off\">" + esc((p.collectHold && p.collectHold.note) || "Ask is listed. No money pipe. Collect stays HOLD. Orange until Square or a live webhook is connected.") + "</p>"
+        ? "<p class=\"aia-line off\">" + esc((p.collectHold && p.collectHold.note) || "Ask is listed. Not for sale yet. No payment is connected, so Collect stays HOLD.") + "</p>"
         : (p.collectHold && p.collectHold.note ? "<p class=\"hint\">" + esc(p.collectHold.note) + "</p>" : "<p class=\"hint\">Collect stays HOLD. Packs never send money.</p>")) +
       "<h2>Creator</h2>" +
       "<div class=\"card profile\">" +
@@ -241,7 +241,7 @@
       "</div>" +
       (others ? "<h2>Other packs from this creator</h2><div class=\"grid\">" + others + "</div>" : "") +
       (related ? "<h2>Also from AIA</h2><div class=\"grid\">" + related + "</div>" : "") +
-      "<p class=\"hint\">Packs never Send, Stop, or pay. A priced pack still installs. Collect stays HOLD. <a href=\"/legal\">Legal</a> · <a href=\"/dev\">Creators Studio</a>.</p>";
+      "<p class=\"hint\">Packs never Send, Stop, or pay. A priced pack is not for sale yet. Collect stays HOLD. <a href=\"/legal\">Legal</a> · <a href=\"/dev\">Creators Studio</a>.</p>";
   }
   function creatorPage(data) {
     const c = data.creator || {};
