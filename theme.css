@@ -263,3 +263,19 @@ button, a.btn, .go, .ghost {
   .site-foot { scroll-margin-bottom: 128px; }
   .theme-btn { color: #fff; background: #083838; border-color: rgba(255,255,255,.45); }
 }
+
+/* 2026-10-06: info mark, not a stray question mark. 44px hit, 16px icon. */
+button.aia-tip {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  color: #0a4f4f !important;
+  background: #fff !important;
+  border: 2px solid #0d6b6b !important;
+}
+html.dark button.aia-tip {
+  color: #9ee0e0 !important;
+  background: #102428 !important;
+  border-color: #9ee0e0 !important;
+}
+button.aia-tip svg { display: block; width: 16px; height: 16px; pointer-events: none; }
+.aia-tip-pop { max-width: min(320px, calc(100vw - 16px)); }

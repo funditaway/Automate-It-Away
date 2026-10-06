@@ -212,3 +212,19 @@ html.dark .hero .outline {
     position: static !important;
   }
 }
+
+/* 2026-10-06: tips are info marks, not stray question marks. Hit target stays 44. */
+button.aia-tip {
+  font-size: 0 !important;
+  color: var(--teal-deep, #0a4f4f) !important;
+  background: #fff !important;
+  border: 2px solid var(--teal, #0d6b6b) !important;
+  box-shadow: 0 0 0 1px rgba(13,107,107,.15);
+}
+html.dark button.aia-tip {
+  color: #9ee0e0 !important;
+  background: #102428 !important;
+  border-color: #9ee0e0 !important;
+}
+button.aia-tip svg { display: block; width: 16px; height: 16px; }
+.aia-tip-pop { max-width: min(320px, calc(100vw - 16px)); }

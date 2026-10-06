@@ -361,7 +361,7 @@
 
   function askHref(id) {
     var ctx = context(id);
-    return "support.html?ask=" + encodeURIComponent(ctx.ask || "") +
+    return "/support?ask=" + encodeURIComponent(ctx.ask || "") +
       "&field=" + encodeURIComponent(ctx.field || "") +
       "&tip=" + encodeURIComponent(ctx.tip || "") +
       "&from=" + encodeURIComponent(ctx.page || "");
@@ -438,7 +438,22 @@
     if (pop && !t.closest(".aia-tip-pop")) close();
   }
 
+  var INFO = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path fill="currentColor" d="M11 10h2v7h-2zM11 7h2v2h-2z"/></svg>';
+
+  function paintTips() {
+    var nodes = document.querySelectorAll("button.aia-tip");
+    for (var i = 0; i < nodes.length; i++) {
+      var btn = nodes[i];
+      if (btn.getAttribute("data-tip-painted") === "1") continue;
+      if (!btn.getAttribute("aria-expanded")) btn.setAttribute("aria-expanded", "false");
+      btn.textContent = "";
+      btn.insertAdjacentHTML("afterbegin", INFO);
+      btn.setAttribute("data-tip-painted", "1");
+    }
+  }
+
   function bind() {
+    paintTips();
     document.addEventListener("click", onDoc);
     document.addEventListener("keydown", function (ev) {
       if (ev.key === "Escape") close();
