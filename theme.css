@@ -254,3 +254,12 @@ button, a.btn, .go, .ghost {
   body:has(#desk-nav) { padding-bottom: 24px; }
   #desk-nav { display: none; }
 }
+
+/* 2026-10-06 phone bar must not cover the footer. Theme chip stays on the teal bar. */
+@media (max-width: 859px) {
+  body:has(#desk-nav) {
+    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+  }
+  .site-foot { scroll-margin-bottom: 128px; }
+  .theme-btn { color: #fff; background: #083838; border-color: rgba(255,255,255,.45); }
+}
