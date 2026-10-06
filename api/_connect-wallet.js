@@ -3,8 +3,8 @@
 const lib = require("./_lib");
 
 const HELP =
-  "Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks.";
-const MISSING = "No MetaMask or WalletConnect on this phone. Use your wallet’s browser. AIA does not hold keys.";
+  "Your wallet only shows it's you. AIA does not hold keys. Collect stays HOLD.";
+const MISSING = "No wallet app found on this phone. Open this page in your wallet app's browser. AIA does not hold keys.";
 const CHAINS = {
   1: "Ethereum mainnet",
   11155111: "Sepolia",
@@ -62,7 +62,7 @@ function emptyPublic(extra) {
     collect: "hold",
     mint: false,
     live: false,
-    note: "No wallet connected on this open desk. Connect MetaMask or WalletConnect on Account or Desk. AIA does not hold keys. Collect stays HOLD."
+    note: "No wallet connected. You don't need one. AIA does not hold keys. Collect stays HOLD."
   }, extra || {});
 }
 
@@ -137,7 +137,7 @@ function clearConnect(acc, session, person) {
       }
     });
   }
-  return { ok: true, wallet: emptyPublic({ note: "Your wallet disconnected on this desk session. AIA does not hold keys. Collect stays HOLD." }) };
+  return { ok: true, wallet: emptyPublic({ note: "Your wallet is disconnected. AIA does not hold keys. Collect stays HOLD." }) };
 }
 
 function ofRequest(req, acc, session) {
@@ -159,7 +159,7 @@ function healthBlock() {
     mint: false,
     token: false,
     deposit: false,
-    note: "Your wallet on Account or Desk. MetaMask / WalletConnect. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."
+    note: "You can add a wallet on Account or Desk. It only shows it's you. AIA does not hold keys. Collect stays HOLD."
   };
 }
 
