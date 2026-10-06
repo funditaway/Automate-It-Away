@@ -139,3 +139,30 @@ body.has-desk-nav .item:last-of-type {
   font-weight: 800;
   letter-spacing: 0;
 }
+
+/* 2026-10-06: primary rows sit above the phone tab bar on first paint.
+   Padding below the page does not lift a button that already lands on the bar. */
+@media (max-width: 859px) {
+  html { scroll-padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)); }
+  body.has-desk-nav .desk-actions-sticky,
+  body.has-desk-nav #desk-actions,
+  body.has-desk-nav .row-btns {
+    position: sticky;
+    bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+    z-index: 35;
+    background: var(--bg, #f4f7f8);
+    padding: 8px 0;
+  }
+  body.has-desk-nav .row-btns,
+  body.has-desk-nav #rules-line a,
+  body.has-desk-nav .meta a {
+    scroll-margin-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+  }
+  #rules-line a,
+  .meta a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 2px;
+  }
+}
