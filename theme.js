@@ -348,13 +348,15 @@
       brandHost.classList.add("brand");
       if (!brandHost.querySelector(".brand-mark")) {
         var img = document.createElement("img");
-        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "Automate It Away";
+        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "";
         brandHost.insertBefore(img, brandHost.firstChild);
       }
       if (!brandHost.querySelector(".brand-name")) {
         var strong = brandHost.querySelector("strong");
         if (strong) strong.classList.add("brand-name");
       }
+      var named = brandHost.querySelector(".brand-name");
+      if (named) named.textContent = "AIA";
       if (!brandHost.querySelector(".brand-short")) {
         var short = document.createElement("span");
         short.className = "brand-short"; short.textContent = "AIA";
