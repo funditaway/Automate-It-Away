@@ -52,6 +52,7 @@
     { "source": "/account", "destination": "/account.html" },
     { "source": "/desks", "destination": "/desks.html" },
     { "source": "/history", "destination": "/history.html" },
+    { "source": "/lead-catcher", "destination": "/lead-catcher.html" },
     { "source": "/api/desks", "destination": "/api/auth?via=desks" },
     { "source": "/api/jobs", "destination": "/api/jobs" },
     { "source": "/api/connections", "destination": "/api/connections" },
@@ -64,6 +65,7 @@
     { "source": "/api/account", "destination": "/api/auth?via=account" },
     { "source": "/api/intake", "destination": "/api/intake" },
     { "source": "/api/hook", "destination": "/api/hook" },
-    { "source": "/api/rules", "destination": "/api/rules" }
+    { "source": "/api/rules", "destination": "/api/rules" },
+    { "source": "/api/lead-catcher", "destination": "/api/lead-catcher" }
   ]
 }

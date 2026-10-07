@@ -1,0 +1,64 @@
+{
+  "id": "lead-catcher",
+  "name": "Lead Catcher",
+  "family": "Automate It Away",
+  "brand": "AIA",
+  "official": true,
+  "type": "work",
+  "aisle": "AIA",
+  "kind": "desk-pack",
+  "status": "preview",
+  "live": false,
+  "price": 0,
+  "priceLabel": "No charge in AIA",
+  "charged": false,
+  "collectMode": "off",
+  "blurb": "Each website-form or typed-in request becomes one card with an owner and a next step. AIA drafts the reply. A person presses Yes before anything goes out. Email, text and missed call are test only for now.",
+  "face": {
+    "who": { "key": "customer_name", "label": "Customer" },
+    "what": { "key": "original_request", "label": "What they asked" },
+    "when": { "key": "next_action_due", "label": "Next step due" },
+    "where": { "key": "source_channel", "label": "Came in by" },
+    "how": "Catch the request. Give it an owner and a next step. Confirm the contact. AIA drafts a reply. A person presses Yes on the exact words. Nothing sends alone."
+  },
+  "help": [
+    "One request is one card. The customer's words are kept exactly as they came in.",
+    "Every open card has an owner and a next step with a due time. Waiting needs a reason and a follow-up date.",
+    "AIA drafts only. A person presses Yes on the exact reply, contact and channel. Any change cancels the Yes.",
+    "Stop cancels a Yes before it runs. Closing with no action needs a reason and a second tap.",
+    "In this preview, replies go to a test outbox. Nothing is sent to customers. Nothing is charged."
+  ],
+  "capture": ["website form", "typed in by staff", "email (test only)", "text (test only)", "missed call (test only)"],
+  "qualify": ["kind of job", "urgency", "missing details", "contact confirmed by a person"],
+  "do": ["draft reply on the card"],
+  "collect": ["off — nothing is charged"],
+  "follow": ["next step and due time", "waiting reason and follow-up date", "outcome with how we know"],
+  "taps": ["yes", "stop", "kill"],
+  "kill": ["spam", "duplicate", "outside service area", "customer fixed it"],
+  "pipes": [],
+  "artifacts": ["card history", "draft versions", "test outbox line"],
+  "kinds": ["plumbing", "hvac", "electrical", "roofing", "restoration", "other"],
+  "changesDesk": {
+    "cardFields": ["original request", "source and arrival time", "customer and confirmed contact", "missing and unsure flags", "kind of job", "urgency", "owner and backup", "next step and due time", "draft versions", "Yes history", "test send status", "outcome", "full history"],
+    "lifecycle": ["New", "Assigned", "In Review", "Waiting", "Completed", "Closed — No Action"],
+    "seats": ["Desk Owner", "Responder", "Approver", "Technician", "Supervisor", "System Admin"],
+    "intake": { "website form": "ready (test data)", "typed in": "ready", "email": "MOCK", "text": "MOCK", "missed call": "MOCK" },
+    "approval": "Yes is bound to the exact reply, contact, channel and any commitment. Any change cancels it. Each Yes runs once."
+  },
+  "turnOn": {
+    "needsYes": true,
+    "who": "desk owner",
+    "page": "/lead-catcher"
+  },
+  "rules": [],
+  "queue": {
+    "badge": "Lead Catcher",
+    "family": "Automate It Away",
+    "empty": "No requests yet. Turn on Lead Catcher, then a form or a typed-in call becomes a card here.",
+    "group": "status",
+    "sort": "urgency",
+    "chips": ["new", "late", "waiting"],
+    "taps": ["copy", "yes", "stop", "kill"],
+    "never": ["send", "stop", "pay"]
+  }
+}
