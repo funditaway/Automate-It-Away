@@ -149,7 +149,7 @@
       "header:not(.top), .site-header{background:var(--header)!important;color:#fff!important;padding:10px 4.5vw!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important;}" +
       "header, .site-header{display:grid!important;align-items:center!important;overflow:visible!important}" +
       "header .theme-btn, .theme-btn{position:relative;z-index:8;pointer-events:auto!important;flex:0 0 auto;min-height:44px;min-width:4.6em;padding:6px 12px;cursor:pointer;white-space:nowrap}" +
-      "header .brand-mark, .site-header .brand-mark{width:40px;height:40px;flex:0 0 40px;border-radius:22%;background:transparent;object-fit:cover}" +
+      "header .brand-mark, .site-header .brand-mark{width:40px;height:40px;flex:0 0 40px;border-radius:22%;background:transparent!important;object-fit:cover;box-shadow:none}" +
       ".hdr-tools{display:flex!important;align-items:center;gap:8px;margin-left:0;flex:0 0 auto;justify-self:end;max-width:100%}" +
       "header > .brand, .site-header > .brand, header > a.brand, header > a:first-child{min-width:0;display:inline-flex!important;align-items:center;gap:8px;color:#fff!important}" +
       "header nav.site-nav, header .nav.site-nav, header nav:not(.desk-tabs), header .nav:not(.desk-tabs), .site-header .nav{width:auto;min-width:0;display:flex!important;flex-wrap:nowrap;overflow-x:auto;gap:10px 14px;align-items:center;-webkit-overflow-scrolling:touch}" +

@@ -716,11 +716,12 @@ header .site-nav a {
 header .brand-mark,
 .site-header .brand-mark,
 #desk-nav .brand-mark {
-  object-fit: contain !important;
-  background: #083838 !important;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.7) !important;
+  object-fit: cover !important;
+  background: transparent !important;
+  box-shadow: none !important;
   border-radius: 22% !important;
 }
+/* Official tile already has its ground. A second dark chip hid the white stroke. */
 @media (max-width: 859px) {
   header,
   .site-header {
@@ -736,3 +737,57 @@ header .brand-mark,
     border: 1px solid rgba(255,255,255,.55) !important;
   }
 }
+
+
+/* 2026-10-07 phone + desktop visibility and tap pass */
+header nav.site-nav,
+header .nav.site-nav {
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  scrollbar-width: none;
+}
+header nav.site-nav::-webkit-scrollbar { display: none; }
+@media (max-width: 859px) {
+  body.has-desk-nav header nav.site-nav,
+  body.has-desk-nav header .nav.site-nav,
+  body:has(#desk-nav) header nav.site-nav {
+    display: none !important;
+  }
+  body.has-desk-nav header,
+  body:has(#desk-nav) header {
+    grid-template-areas: "brand tools" !important;
+    grid-template-rows: auto !important;
+  }
+  header nav.site-nav a,
+  header .site-nav a {
+    flex: 0 0 auto !important;
+    min-height: 44px !important;
+    color: #fff !important;
+  }
+  .who-chip, header .theme-btn {
+    position: relative;
+    z-index: 5;
+  }
+  #desk-nav a, #desk-nav button {
+    color: #e8ffff !important;
+    font-size: 12px !important;
+    min-width: 0;
+  }
+  #desk-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+img.aia-mark[data-mark="outline"],
+img.brand-mark[data-mark="outline"] {
+  background: #fff !important;
+}
+button.go, a.go, .go, a.primary, button.primary, .use {
+  color: #0c1116 !important;
+}
+html.dark .card, html.dark .item, html.dark .sheet-card {
+  color: #f3f7f8;
+}
+.sheet, .modal, [role="dialog"] {
+  max-width: min(560px, calc(100vw - 24px));
+}
+table { display: block; max-width: 100%; overflow-x: auto; }
