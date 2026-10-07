@@ -117,9 +117,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   font-weight: 700;
 }
 .theme-btn {
-  border: 1px solid rgba(255,255,255,.35);
-  background: rgba(255,255,255,.12);
-  color: #fff;
+  border: 0;
+  background: #f39c12;
+  color: #0c1116;
   border-radius: 999px;
   padding: 0 14px;
   min-height: 40px;

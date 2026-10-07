@@ -663,7 +663,8 @@ header nav.site-nav a,
 header .site-nav a {
   color: #fff !important;
 }
-.theme-btn, .who-chip { color: #fff !important; }
+.who-chip { color: #fff !important; }
+button.theme-btn, header .theme-btn { color: #0c1116 !important; background: #f39c12 !important; }
 :focus-visible {
   outline: 3px solid #f39c12;
   outline-offset: 2px;
@@ -801,3 +802,41 @@ html.dark .card, html.dark .item, html.dark .sheet-card {
   max-width: min(560px, calc(100vw - 24px));
 }
 table { display: block; max-width: 100%; overflow-x: auto; }
+
+
+/* 2026-10-07 pass: Auto was white on teal. Orange chip, dark ink. */
+button.theme-btn,
+header .theme-btn,
+.site-header .theme-btn,
+[data-theme-btn] {
+  color: #0c1116 !important;
+  background: #f39c12 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 0 14px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+}
+header .brand-mark,
+.site-header .brand-mark,
+img.aia-mark,
+img.brand-mark {
+  object-fit: contain !important;
+  background: transparent !important;
+  border-radius: 10px !important;
+}
+button.aia-tip {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  overflow: visible !important;
+}
+html, body { overflow-x: hidden; }
+header .brand-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 42vw; }
+@media (min-width: 860px) {
+  header .brand-name { max-width: none; }
+  header nav.site-nav, header .site-nav { flex-wrap: wrap; }
+}
