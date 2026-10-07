@@ -1,0 +1,20 @@
+date: 2026-10-07 17:10:27 CDT
+command: bash scripts/lead-catcher-mutations.sh
+----
+caught      no-approval-check
+caught      no-hash-check
+caught      no-invalidate
+caught      no-idempotency
+caught      no-desk-filter
+caught      perm-always-true
+caught      no-pack-gate
+caught      no-turn-on-yes
+caught      no-kill-second-tap
+caught      desk-ai-gets-seat
+caught      no-injection-flag
+caught      no-model-allowlist
+caught      no-dedupe
+caught      no-ttl
+caught      no-rerun-guard
+caught      no-live-block
+caught      silent-market-use

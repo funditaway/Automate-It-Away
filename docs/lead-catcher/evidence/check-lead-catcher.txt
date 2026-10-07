@@ -1,0 +1,27 @@
+date: 2026-10-07 17:10:26 CDT
+branch: lead-catcher-slice (local) base 798f269
+node: v20.19.2  os: Linux 6.12.94+ x86_64
+command: AIA_LC_RESULTS_JSON=docs/lead-catcher/evidence/check-results.json node scripts/check-lead-catcher.js
+----
+ok  P01 Lead Catcher is listed as an Official AIA Pack, free, never charged, Collect off
+ok  P02 Market Use/Buy cannot install Lead Catcher silently
+ok  P03 Getting and turning on the pack need the owner's Yes; nothing works while it is off
+ok  P04 Seats: owner sets them with a Yes; a desk AI can never hold one
+ok  T01 Website-form request becomes a New card with original words, source and arrival time kept
+ok  T02 The same request twice makes one card and logs the repeat
+ok  T03 Typed-in path works end to end with no AI model
+ok  T04 Lifecycle: owner + next step, Waiting reason + follow-up, Kill needs reason + second tap, outcome before Completed
+ok  T05 Rule-based helper suggests fields and flags gaps; never confirms contact or overwrites a person
+ok  T06 No external action without a Yes (incl. direct API calls)
+ok  T07 Any change after Yes cancels it (words, contact, direct tampering)
+ok  T08 Approved reply runs once to the MOCK outbox exactly as approved; outcome and numbers recorded
+ok  T09 Stale Yes refused: too old, Stop pressed, card closed
+ok  T10 Cards, Yes history and full history survive a restart; history tampering is detected
+ok  T11 Seats without permission are blocked, incl. direct API; System Admin has no customer-commitment power
+NOT RUN T12 Live channel delivery (real email / SMS / call provider)
+ok  T13 One desk cannot see or touch another desk's cards, Yes presses or numbers
+ok  T14 Instructions hidden in a customer request cannot send, approve, confirm contact or change rules
+ok  T15 Run pressed again or 10 times at once sends once; Yes again on a sent reply is refused
+ok  S01 Lead Catcher never writes the shared AIA store and refuses on the live site
+lead-catcher checks: PASS 19 · FAIL 0 · NOT RUN 1
+exit_code: 0

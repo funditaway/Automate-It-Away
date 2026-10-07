@@ -1,0 +1,32 @@
+date: 2026-10-07 17:11:08 CDT  base: http://127.0.0.1:4318 (127.0.0.1 only, DEV ONLY seed)
+GET /lead-catcher -> 200 8435B
+GET /lead-catcher.js -> 200 20767B
+GET /packs-you-own -> 200 4155B
+GET /img/aia-mark-teal.png -> 200 64871B
+GET /theme.css -> 200 9359B
+pack-status, not signed in -> [401] {"ok":false,"error":"unauthenticated","message":"Open your desk first."}
+list before turn-on -> [409] {"ok":false,"error":"pack_off","message":"Lead Catcher is not turned on for this desk. The desk owner turns it on from the Lead Catcher page."}
+get-pack without Yes -> [409] {"ok":false,"error":"needs_yes","message":"Adding Lead Catcher needs your Yes. Nothing is charged."}
+get-pack with Yes -> [200] {"pack":"lead-catcher","name":"Lead Catcher","official":true,"brand":"AIA","owned":true,"on":false,"desk":"riverbend-demo","price":0,"charged":false,"collect":"off","note":"No charge in AIA. Getting or turning on the pac
+turn-on by staff (not owner) -> [403] {"ok":false,"error":"forbidden","message":"Only the desk owner can turn a pack on."}
+turn-on with Yes -> [200] on=true (form key issued, not printed)
+website form intake -> [201] {"ok":true,"duplicate":false,"receipt":"card_a95399d9f6e880cc31","mock_channel":false}
+same form again (duplicate) -> [200] {"ok":true,"duplicate":true,"receipt":"card_a95399d9f6e880cc31","mock_channel":false}
+live data label -> [400] {"ok":false,"error":"live_disabled","message":"Live customer data is not allowed yet. Use test or demo."}
+card flags -> uncertain=["request_contains_instructions"] status=new
+assign owner + next step -> [200] {"card":{"id":"card_a95399d9f6e880cc31","desk":"riverbend-demo","data_label":"test","status":"assigned","source_channel":"web_form","source_is_mock":false,"source_ref":"smoke-1","dedupe_key":"18eb37dc61cbb847701b89bc4df5
+confirm contact -> [200] {"card":{"id":"card_a95399d9f6e880cc31","desk":"riverbend-demo","data_label":"test","status":"assigned","source_channel":"web_form","source_is_mock":false,"source_ref":"smoke-1","dedupe_key":"18eb37dc61cbb847701b89bc4df5
+draft-generate -> [200] hash=ddb63ae878be…
+Run with no Yes -> [403] {"ok":false,"error":"no_approval","message":"No Yes exists for that action. Nothing runs without a person pressing Yes."}
+Yes by desk AI -> [403] {"ok":false,"error":"forbidden","message":"Your seat (none) cannot do this: Press Yes on an exact draft (customer commitment)."}
+Yes with wrong fingerprint -> [409] {"ok":false,"error":"payload_mismatch","message":"What you saw is not what is stored. Reload and check again."}
+Yes by owner -> [200] {"approval":{"id":"appr_6dfcd32b48de50315c","desk":"riverbend-demo","card_id":"card_a95399d9f6e880cc31","draft_id":"draft_4eb42f66fb30d8a932","draft_version":1,"payload_hash":"ddb63ae878be22ba481d4e05293bcad6026b74d84141
+Run -> [200] {"duplicate":false,"action":{"id":"ext_6bb2433e2bc03b03d2","desk":"riverbend-demo","card_id":"card_a95399d9f6e880cc31","approval_id":"appr_6dfcd32b48de50315c","action_id":"act_1e2e4d763f08e0ba8c","adapter":"mock-outbox",
+Run again -> [200] {"duplicate":true,"action":{"id":"ext_6bb2433e2bc03b03d2","desk":"riverbend-demo","card_id":"card_a95399d9f6e880cc31","approval_id":"appr_6dfcd32b48de50315c","action_id":"act_1e2e4d763f08e0ba8c","adapter":"mock-outbox","
+Yes again on a reply that already ran -> [409] {"ok":false,"error":"already_ran","message":"This exact reply already ran. To reply again, write a new version."}
+record outcome -> [200] {"card":{"id":"card_a95399d9f6e880cc31","desk":"riverbend-demo","data_label":"test","status":"in_review","source_channel":"web_form","source_is_mock":false,"source_ref":"smoke-1","dedupe_key":"18eb37dc61cbb847701b89bc4df
+numbers -> [200] {"as_of":"2026-10-07T22:11:09.498Z","data":"test and demo only","first_customer_response":{"count":1,"median_min":0,"p90_min":0,"without_response":0,"definition":"Arrival to the first customer reply a person approved and
+history check -> [200] {"ok":true,"entries":13}
+---- MOCK outbox after smoke (/tmp/aia-lc-dev-bcrS5j/outbox.mock.ndjson): 1 line(s)
+{"mode":"MOCK","notice":"MOCK — NOT SENT. No email, text, or call left AIA.","channel":"sms","recipient":"+15552013344","approved_by":"p_owner"}
+---- shared AIA store has Lead Catcher data? matches for lead-catcher|card_ in /tmp/aia-lc-dev-bcrS5j/aia.json: 0
