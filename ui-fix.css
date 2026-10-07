@@ -697,3 +697,42 @@ header .site-nav a {
     min-height: 44px;
   }
 }
+
+/* 2026-10-07 visibility pass — phone and desktop.
+   Orange ink on the teal bar was ~2.9:1. Active is white with an orange bar.
+   Header tile gets a light edge so the pyramid does not melt into the bar. */
+#desk-nav a.on,
+#desk-nav button.on,
+.desk-tabs a.on {
+  color: #fff !important;
+}
+#desk-nav a.on,
+#desk-nav button.on {
+  box-shadow: inset 0 3px 0 #f39c12 !important;
+}
+.desk-tabs a.on {
+  box-shadow: inset 0 -3px 0 #f39c12 !important;
+}
+header .brand-mark,
+.site-header .brand-mark,
+#desk-nav .brand-mark {
+  object-fit: contain !important;
+  background: #083838 !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.7) !important;
+  border-radius: 22% !important;
+}
+@media (max-width: 859px) {
+  header,
+  .site-header {
+    padding-top: max(8px, env(safe-area-inset-top)) !important;
+  }
+  header nav.site-nav a,
+  header .site-nav a {
+    padding: 8px 10px !important;
+  }
+  .theme-btn {
+    color: #fff !important;
+    background: #083838 !important;
+    border: 1px solid rgba(255,255,255,.55) !important;
+  }
+}
