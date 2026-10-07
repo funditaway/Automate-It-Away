@@ -697,3 +697,37 @@ header .site-nav a {
     min-height: 44px;
   }
 }
+
+
+/* 2026-10-07 visibility: theme chip, Open, mark fit, tab bar. */
+header .theme-btn,
+button.theme-btn,
+.theme-btn {
+  color: #0c1116 !important;
+  background: #f39c12 !important;
+  border: 0 !important;
+  font-weight: 800 !important;
+}
+#gate button,
+#gate button.edit,
+#gate button.go {
+  background: #f39c12 !important;
+  color: #0c1116 !important;
+}
+header .brand-mark,
+.site-header .brand-mark,
+img.aia-mark,
+img.brand-mark {
+  object-fit: contain !important;
+}
+@media (max-width: 859px) {
+  body.has-desk-nav,
+  body:has(#desk-nav) {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.has-desk-nav #refresh,
+  body.has-desk-nav .desk-actions-sticky {
+    margin-bottom: 12px;
+    scroll-margin-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  }
+}
