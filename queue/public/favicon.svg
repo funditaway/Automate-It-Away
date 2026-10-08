@@ -1,13 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="56" fill="#0d6b6b"/>
-  <polygon fill="#0a4f4f" points="128,36 40,196 128,220"/>
-  <polygon fill="#1a8a8a" points="128,36 216,196 128,220"/>
-  <polygon fill="#f39c12" points="128,36 98,88 128,96"/>
-  <polygon fill="#f39c12" points="128,36 158,88 128,96"/>
-  <g fill="none" stroke="#ffffff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M40 196 L128 36 L216 196 L128 220 Z"/>
-    <path d="M128 36 L128 220"/>
-    <path d="M98 88 L128 96 L158 88"/>
-    <path d="M76 128 L128 142 L180 128"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Automate It Away">
+  <rect width="64" height="64" rx="14" fill="#101820"/>
+  <path fill="#0d6b6b" stroke="#0e4f52" stroke-width="1.7" stroke-linejoin="round" d="M32 8 L52 22 L58 42 L32 54 L6 42 L12 22 Z"/>
+  <path fill="#0a5555" d="M32 22 L52 22 L58 42 L32 54 Z"/>
+  <path fill="#f39c12" d="M32 11 L37.2 18 L32 19.6 L26.8 18 Z"/>
+  <path fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M32 11 V51 M22 26 H42 M16 36.5 H48"/>
 </svg>

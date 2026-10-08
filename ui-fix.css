@@ -906,3 +906,15 @@ html.dark p.note {
   header .brand-short { color: #fff !important; font-size: 16px !important; }
   .who-chip.signed-out { max-width: 42vw !important; }
 }
+
+/* Official tiles: never crop the pyramid base. */
+header .brand-mark,
+.site-header .brand-mark,
+#desk-nav .brand-mark,
+img.aia-mark,
+img.brand-mark {
+  object-fit: contain !important;
+  object-position: center !important;
+  background: transparent;
+  border-radius: 8px;
+}

@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Automate It Away">
   <rect width="64" height="64" rx="14" fill="#101820"/>
-  <path fill="#1f8a86" stroke="#0e4f52" stroke-width="1.7" stroke-linejoin="round" d="M32 9 L51.5 42.5 L32 50.5 L12.5 42.5 Z"/>
-  <path fill="#176e6c" d="M32 50.5 L12.5 42.5 L16 46.2 L32 53.6 Z"/>
-  <path fill="#145e5c" d="M32 50.5 L51.5 42.5 L48 46.2 L32 53.6 Z"/>
-  <path fill="#f5a623" d="M32 12.2 L37.4 21.6 L32 23.4 L26.6 21.6 Z"/>
-  <path fill="none" stroke="#0e4f52" stroke-width="1.35" stroke-linejoin="round" d="M32 12.2 V49.2 M20.6 29.2 H43.4 M16.8 38.4 H47.2 M26.6 21.6 H37.4"/>
+  <path fill="#0d6b6b" stroke="#0e4f52" stroke-width="1.7" stroke-linejoin="round" d="M32 8 L52 22 L58 42 L32 54 L6 42 L12 22 Z"/>
+  <path fill="#0a5555" d="M32 22 L52 22 L58 42 L32 54 Z"/>
+  <path fill="#f39c12" d="M32 11 L37.2 18 L32 19.6 L26.8 18 Z"/>
+  <path fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M32 11 V51 M22 26 H42 M16 36.5 H48"/>
 </svg>
