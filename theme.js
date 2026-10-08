@@ -18,8 +18,8 @@
     return isDark() ? "/img/aia-mark-dark.png" : "/img/aia-mark-light.png";
   }
   function markSrc() {
-    /* Header bar is teal. Teal tile has the white stroke so the pyramid stays readable. */
-    return "/img/aia-mark-teal.png";
+    /* Header bar is teal. Light tile keeps the pyramid and the base visible. Teal tile melts into the bar. */
+    return "/img/aia-mark-light.png";
   }
   function orangeSrc() {
     return "/img/aia-mark-orange.png";
@@ -150,7 +150,7 @@
       "header:not(.top), .site-header{background:var(--header)!important;color:#fff!important;padding:10px 4.5vw!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important;}" +
       "header, .site-header{display:grid!important;align-items:center!important;overflow:visible!important}" +
       "header .theme-btn, .theme-btn{position:relative;z-index:8;pointer-events:auto!important;flex:0 0 auto;min-height:44px;min-width:4.6em;padding:6px 12px;cursor:pointer;white-space:nowrap}" +
-      "header .brand-mark, .site-header .brand-mark{width:40px;height:40px;flex:0 0 40px;border-radius:22%;background:transparent!important;object-fit:cover;box-shadow:none}" +
+      "header .brand-mark, .site-header .brand-mark, #desk-nav .brand-mark{width:40px;height:40px;flex:0 0 40px;border-radius:22%;background:#f4f7f8!important;object-fit:contain!important;object-position:center;box-shadow:0 0 0 2px #fff;padding:1px}" +
       ".hdr-tools{display:flex!important;align-items:center;gap:8px;margin-left:0;flex:0 0 auto;justify-self:end;max-width:100%}" +
       "header > .brand, .site-header > .brand, header > a.brand, header > a:first-child{min-width:0;display:inline-flex!important;align-items:center;gap:8px;color:#fff!important}" +
       "header nav.site-nav, header .nav.site-nav, header nav:not(.desk-tabs), header .nav:not(.desk-tabs), .site-header .nav{width:auto;min-width:0;display:flex!important;flex-wrap:nowrap;overflow-x:auto;gap:10px 14px;align-items:center;-webkit-overflow-scrolling:touch}" +

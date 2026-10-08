@@ -211,12 +211,18 @@ img.brand-mark, img.aia-mark {
   height: 40px;
   flex: 0 0 40px;
   object-fit: contain;
+  object-position: center;
   background: transparent;
   border-radius: 22%;
 }
-/* Teal bar: keep a light edge so the pyramid does not melt into the header on phone or desktop. */
+/* Teal bar: light tile so the official pyramid and its base stay visible on phone and desktop. */
 header .brand-mark, .site-header .brand-mark, #desk-nav .brand-mark {
-  filter: drop-shadow(0 0 1px rgba(255,255,255,.55));
+  background: #f4f7f8 !important;
+  box-shadow: 0 0 0 2px #fff;
+  object-fit: contain !important;
+}
+html.dark img.aia-mark:not(.brand-mark) {
+  background: #10161c;
 }
 header .brand-short, .site-header .brand-short {
   font-weight: 800;
