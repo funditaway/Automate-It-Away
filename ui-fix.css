@@ -975,3 +975,29 @@ html.dark .pill {
     text-overflow: clip !important;
   }
 }
+
+
+/* 2026-10-08 phone + desktop visibility. Mark stays whole. Type stays readable. No sideways scroll. */
+html, body { overflow-x: clip; }
+img.brand-mark, img.aia-mark, header .brand-mark, .site-header .brand-mark, #desk-nav .brand-mark {
+  object-fit: contain !important;
+  object-position: center !important;
+  background: #f4f7f8 !important;
+  box-shadow: 0 0 0 2px #fff !important;
+  padding: 1px !important;
+}
+#desk-nav span {
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+}
+.meta, label.field, .recs-title, #drop-step-hint, #drop-step-vow {
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+header, .site-header, main, .wrap, .card, img, pre, table {
+  max-width: 100%;
+}
+pre, .file-list, #drop-link { overflow-x: auto; }
+@media (max-width: 430px) {
+  header a[href="/login"], header a[href="login.html"] { display: none !important; }
+}

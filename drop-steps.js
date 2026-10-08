@@ -126,7 +126,10 @@
       main.insertBefore(rail, main.firstChild);
       el("drop-step-tabs").addEventListener("click", function (e) {
         var btn = e.target.closest("[data-step]");
-        if (btn) go(btn.getAttribute("data-step"));
+        if (!btn) return;
+        var id = btn.getAttribute("data-step");
+        if (id !== "desk" && !deskReady()) return needDesk();
+        go(id);
       });
     }
     if (!el("drop-step-foot")) {
@@ -198,6 +201,7 @@
 
   function go(id, quiet) {
     if (!stepOf(id)) return;
+    if (id !== "desk" && !deskReady() && !deskFromLink()) return needDesk();
     active = id;
     remember(id);
     sync();
@@ -205,9 +209,21 @@
     try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
   }
 
+  function deskReady() {
+    try {
+      return !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
+    } catch (e) { return false; }
+  }
+  function needDesk() {
+    var err = el("desk-err");
+    if (err) err.textContent = "Pick a desk first. Every drop rides to that queue.";
+    return false;
+  }
   function hop(dir) {
     var rows = open();
-    var to = rows[rows.indexOf(stepOf(active)) + dir];
+    var at = rows.indexOf(stepOf(active));
+    if (dir > 0 && rows[at] && rows[at].id === "desk" && !deskReady()) return needDesk();
+    var to = rows[at + dir];
     if (to) go(to.id);
   }
 
