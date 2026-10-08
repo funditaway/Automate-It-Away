@@ -1,6 +1,6 @@
 # Lead Catcher — Progress Manifest (updated 2026-10-08)
 
-Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, originally based on main `798f269`. **Since 2026-10-08 ~5:18 AM CT it includes current main `542d0fe` (fix G: only production may use the shared Blob store), via merge commit `e1e5ec0` + `package.json` resolution `2854c05`.** Main is untouched by this work. **Draft PR #295 is open and still a draft. Vercel preview builds READY. Not merged, not on the live site.** See "Push status".
+Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, originally based on main `798f269`. **Since 2026-10-08 ~5:18 AM CT it includes current main `542d0fe` (fix G: only production may use the shared Blob store), via merge commit `e1e5ec0` + `package.json` resolution `2854c05`.** Main is untouched by this work; it has since moved to `78548bc` (4 commits not in this branch; a local test merge is clean). **Go-live readiness: see READINESS.md** (supervised demo on the local test build only; not ready for a paying client, real data or live sending). **Draft PR #295 is open and still a draft. Vercel preview builds READY. Not merged, not on the live site.** See "Push status".
 
 ## DONE
 | Item | Files | Evidence |
@@ -29,14 +29,15 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, originally based o
 | **Fix G in this branch** (main `542d0fe` merged in; previews can't use the shared Blob store) | api/_lib.js, api/upload.js, scripts/check-store-guard.js, package.json (both sides' scripts kept) | check-store-guard 79/0, 6/6 mutations; preview `2854c05` READY with `blob=missing`; see PREVIEW_ISOLATION "Fix G in this branch" |
 | Local dev preview + curl smoke (now serves AIA's own /api on a temp store; keys removed, outbound blocked) | scripts/lead-catcher-dev.js, scripts/lead-catcher-smoke.sh | evidence/local-smoke.txt |
 | **Track 3–5 business docs (DRAFT, for James's review)**: proposal, SOW, staff guide, data-handling outline, training, setup workbook (text copy), sales page draft, demo script | docs/lead-catcher/business/ (PROPOSAL.md, SOW.md, STAFF_GUIDE.md, PRIVACY_NOTE.md, TRAINING.md, DEMO_SCRIPT.md, SALES_PAGE_DRAFT.html, workbook/*.md); .xlsx on the box only at /workspace/lead-catcher-business/Lead-Catcher-Setup-Workbook.xlsx | DONE (draft): G30, G31, G32, G34, G40, G41. G51 IN PROGRESS (draft calculator; real costs need a pilot). Not reviewed, not approved, not published. Legal terms (G33) not drafted. |
-| Docs | SPEC (§0 working model, §9 metrics, §13 Queue, §14–§16, §15 manual send), PREVIEW_ISOLATION, GAP_REGISTER (.md/.csv, 48 rows), TEST_RESULTS, ARCHITECTURE, KNOWN_LIMITATIONS, README, /.env.example | this folder |
+| **Go-live readiness assessment (Track lc3)** | docs/lead-catcher/READINESS.md | Verdict, 29 launch gates (READY 11 · BLOCKED 10 · NOT RUN 8), 13 approvals needed from James, open isolation items, recommended order. Draft for James's review; approves nothing. |
+| Docs | READINESS, SPEC (§0 working model, §9 metrics, §13 Queue, §14–§16, §15 manual send), PREVIEW_ISOLATION, GAP_REGISTER (.md/.csv, 50 rows; G28 PUBLIC_HOST and G29 runtime GHL added ~10:00 AM CT), TEST_RESULTS, ARCHITECTURE, KNOWN_LIMITATIONS, README, /.env.example | this folder |
 
 ## IN PROGRESS
 - Several packs per desk (workaround in place; AIA model change needed) — G06.
 - Ownership on the AIA account record (kept in Lead Catcher store for now) — G07.
 - Unit economics — G51: draft calculator written (workbook tab, all inputs blank assumptions); real setup/care hours and third-party costs need a pilot client.
 - Draft PR #295 ("Lead Catcher: official AIA Pack (test build, draft)", base main) is open and **still a draft**, not merged. Merge needs James's explicit go (G20).
-- Preview isolation — PREVIEW_ISOLATION.md: **YES 13 / NO 1 / UNKNOWN 1** (~5:25 AM CT; was YES 9 / NO 1 / UNKNOWN 5). A, B, C, D, J done. G (code guard) is merged to main as `542d0fe`, production is verified (05:09 CT, `store.driver: "shared"`), and since `2854c05` it's in this branch, with Preview still `blob=missing`. The four store-dependent rows moved to YES on code, mocked tests and build-log evidence; no preview function was exercised at runtime. Left: `PUBLIC_HOST` (NO, proposal I) and `runtime` GHL (UNKNOWN, proposal E). **Preview sign-in remains James's call** (G22).
+- Preview isolation — PREVIEW_ISOLATION.md: **YES 13 / NO 1 / UNKNOWN 1** (~5:25 AM CT; was YES 9 / NO 1 / UNKNOWN 5). A, B, C, D, J done. G (code guard) is merged to main as `542d0fe`, production is verified (05:09 CT, `store.driver: "shared"`), and since `2854c05` it's in this branch, with Preview still `blob=missing`. The four store-dependent rows moved to YES on code, mocked tests and build-log evidence; no preview function was exercised at runtime. Left: `PUBLIC_HOST` (NO, proposal I, now G28) and `runtime` GHL (UNKNOWN, proposal E, now G29). **Preview sign-in remains James's call** (G22).
 
 ## BLOCKED
 - Live channels and live send (T12) — need James's channel choice + provider (G03, G04).
@@ -46,6 +47,7 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, originally based o
 ## NOT STARTED
 - Track 3–5 still open: terms (G33, needs a lawyer; placeholders only), third-party cost disclosure (G52, decision), trademark search (G43). The other Track 3–5 docs are now DONE (draft), awaiting James's review.
 - Desk-approved reply templates (G17); calendar/estimate tooling for decisions (G19); System Admin contact on the card page (G18).
+- Isolation leftovers: `PUBLIC_HOST` fix (G28), `runtime` GHL Preview check (G29).
 - Lead Catcher events on the main AIA History tab (G05b); helper kind-of-job tie-break (G12); rate limiting (G25); retention/export/delete (G26); monitoring (G27); notifications (G11); handling-time sampling (G10).
 
 ## Test results
@@ -66,9 +68,14 @@ PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Env presence check
 - Draft PR #295 is open and still a draft. Main is untouched by this work. Nothing is merged.
 - ~5:18 AM CT: main `542d0fe` (fix G) merged into this branch: `d3d1ac3` (temporary main `package.json`), `e1e5ec0` (merge commit made with the connector's PR-branch update, approved by James), and `2854c05` (combined `package.json`). The remote tree matches a local `git merge` exactly, including binary icons. Preview `dpl_yd1sGtKDQc8TdsQE7BNrdZRL55bs` READY 05:18:26 CT, `blob=missing`, with no request made to it. PR #295 is still a draft. Nothing was pushed to main.
 - ~5:45 AM CT: Track 3–5 draft business docs pushed to this branch only (docs/lead-catcher/business/, text files only; the setup workbook .xlsx stays on the box at /workspace/lead-catcher-business/). All marked DRAFT for James's review; nothing published, nothing merged, nothing pushed to main.
+- ~10:00 AM CT: READINESS.md (Track lc3) added; GAP_REGISTER (.md/.csv) G20, G22, G24, L1, L3, L5 updated and G28/G29 added; KNOWN_LIMITATIONS items 2 and 12 brought up to date. Pushed to this branch only; nothing merged, nothing pushed to main, no preview requested.
 
 ## Next tasks (in order)
-1. Draft PR #295 stays a draft; never merge to main without James's explicit go.
-2. *(Done: B, the checksum test and G are all complete, and G is in this branch.)* James decides whether anyone may sign in on a preview (G22). If yes, use a Vercel team login on a preview of this branch; the preview starts from an empty AIA store.
-3. James picks the first live channel; contract it and run T12 in its sandbox.
-4. Pick a durable isolated store (G21).
+Full list with reasons: READINESS.md section (e). Every live step needs the matching approval in READINESS.md section (c).
+1. Draft PR #295 stays a draft; never merge to main without James's explicit go (approval 1).
+2. James reviews READINESS.md and the business drafts; decides self-approval (G09) and Care Plan scope.
+3. James decides preview sign-in (G22, approval 4). If yes: Vercel team login on a preview of this branch (it starts from an empty AIA store), run the checks there (L1) and one before/after production-store check.
+4. Fix `PUBLIC_HOST` on its own branch (G28); James checks the `runtime` Preview setting (G29).
+5. Pick a durable isolated store (G21, approval 10), then monitoring (G27) and rate limits (G25).
+6. Legal review and name check (G33, G34, G43), then retention/export/delete (G26).
+7. James picks the first live channel, fees and a test recipient; run T12 in the provider's sandbox.
