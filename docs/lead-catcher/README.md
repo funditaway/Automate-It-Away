@@ -24,3 +24,14 @@ Dev preview sign-in: open `http://127.0.0.1:4318/__dev-signin?ws=riverbend-demo&
 
 ## Docs
 SPEC.md (the rules) · GAP_REGISTER.md/.csv · TEST_RESULTS.md · ARCHITECTURE.md · KNOWN_LIMITATIONS.md · PROGRESS_MANIFEST.md · PREVIEW_ISOLATION.md (what a preview can reach; changes proposed for James) · evidence/
+
+## Business docs (draft)
+DRAFT — for James's review. Not legal advice. Not published. Pricing is a draft offer ($1,250 setup, optional $350/month Care Plan), not final, subject to James's approval and legal review.
+- [Founding-client proposal](business/PROPOSAL.md)
+- [Statement of work](business/SOW.md) (legal terms left for qualified legal review)
+- [Staff guide (one page)](business/STAFF_GUIDE.md)
+- [Data-handling note (outline)](business/PRIVACY_NOTE.md) (needs legal/privacy review)
+- [30-minute staff training](business/TRAINING.md)
+- [Setup workbook, text copy](business/workbook/README.md) (the .xlsx lives on the box at `/workspace/lead-catcher-business/Lead-Catcher-Setup-Workbook.xlsx`; the connector carries text only)
+- [Sales page draft](business/SALES_PAGE_DRAFT.html) (noindex; not published)
+- [10-minute demo script](business/DEMO_SCRIPT.md) (test build and test outbox)

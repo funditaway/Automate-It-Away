@@ -28,12 +28,13 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, originally based o
 | Mutation check | scripts/lead-catcher-mutations.sh | 56/56 caught |
 | **Fix G in this branch** (main `542d0fe` merged in; previews can't use the shared Blob store) | api/_lib.js, api/upload.js, scripts/check-store-guard.js, package.json (both sides' scripts kept) | check-store-guard 79/0, 6/6 mutations; preview `2854c05` READY with `blob=missing`; see PREVIEW_ISOLATION "Fix G in this branch" |
 | Local dev preview + curl smoke (now serves AIA's own /api on a temp store; keys removed, outbound blocked) | scripts/lead-catcher-dev.js, scripts/lead-catcher-smoke.sh | evidence/local-smoke.txt |
+| **Track 3–5 business docs (DRAFT, for James's review)**: proposal, SOW, staff guide, data-handling outline, training, setup workbook (text copy), sales page draft, demo script | docs/lead-catcher/business/ (PROPOSAL.md, SOW.md, STAFF_GUIDE.md, PRIVACY_NOTE.md, TRAINING.md, DEMO_SCRIPT.md, SALES_PAGE_DRAFT.html, workbook/*.md); .xlsx on the box only at /workspace/lead-catcher-business/Lead-Catcher-Setup-Workbook.xlsx | DONE (draft): G30, G31, G32, G34, G40, G41. G51 IN PROGRESS (draft calculator; real costs need a pilot). Not reviewed, not approved, not published. Legal terms (G33) not drafted. |
 | Docs | SPEC (§0 working model, §9 metrics, §13 Queue, §14–§16, §15 manual send), PREVIEW_ISOLATION, GAP_REGISTER (.md/.csv, 48 rows), TEST_RESULTS, ARCHITECTURE, KNOWN_LIMITATIONS, README, /.env.example | this folder |
 
 ## IN PROGRESS
 - Several packs per desk (workaround in place; AIA model change needed) — G06.
 - Ownership on the AIA account record (kept in Lead Catcher store for now) — G07.
-- Demo script — G41.
+- Unit economics — G51: draft calculator written (workbook tab, all inputs blank assumptions); real setup/care hours and third-party costs need a pilot client.
 - Draft PR #295 ("Lead Catcher: official AIA Pack (test build, draft)", base main) is open and **still a draft**, not merged. Merge needs James's explicit go (G20).
 - Preview isolation — PREVIEW_ISOLATION.md: **YES 13 / NO 1 / UNKNOWN 1** (~5:25 AM CT; was YES 9 / NO 1 / UNKNOWN 5). A, B, C, D, J done. G (code guard) is merged to main as `542d0fe`, production is verified (05:09 CT, `store.driver: "shared"`), and since `2854c05` it's in this branch, with Preview still `blob=missing`. The four store-dependent rows moved to YES on code, mocked tests and build-log evidence; no preview function was exercised at runtime. Left: `PUBLIC_HOST` (NO, proposal I) and `runtime` GHL (UNKNOWN, proposal E). **Preview sign-in remains James's call** (G22).
 
@@ -43,7 +44,7 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, originally based o
 - Terms (refund, cancellation, tax, liability, termination) — need legal review (G33).
 
 ## NOT STARTED
-- Track 3–5 documents: proposal, SOW, staff guide, privacy note, sales page (marked DRAFT), unit economics — listed in GAP_REGISTER, not written by design until reviewed.
+- Track 3–5 still open: terms (G33, needs a lawyer; placeholders only), third-party cost disclosure (G52, decision), trademark search (G43). The other Track 3–5 docs are now DONE (draft), awaiting James's review.
 - Desk-approved reply templates (G17); calendar/estimate tooling for decisions (G19); System Admin contact on the card page (G18).
 - Lead Catcher events on the main AIA History tab (G05b); helper kind-of-job tie-break (G12); rate limiting (G25); retention/export/delete (G26); monitoring (G27); notifications (G11); handling-time sampling (G10).
 
@@ -64,6 +65,7 @@ PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Env presence check
 - Vercel builds two previews per push (`automate-it-away`, `runtime`). c5f8b0e → READY (automate-it-away-laqok0j49-james-oddos-projects.vercel.app); the new head's state is in the session report. Nobody has signed in on a preview. Don't, until G22 is confirmed.
 - Draft PR #295 is open and still a draft. Main is untouched by this work. Nothing is merged.
 - ~5:18 AM CT: main `542d0fe` (fix G) merged into this branch: `d3d1ac3` (temporary main `package.json`), `e1e5ec0` (merge commit made with the connector's PR-branch update, approved by James), and `2854c05` (combined `package.json`). The remote tree matches a local `git merge` exactly, including binary icons. Preview `dpl_yd1sGtKDQc8TdsQE7BNrdZRL55bs` READY 05:18:26 CT, `blob=missing`, with no request made to it. PR #295 is still a draft. Nothing was pushed to main.
+- ~5:45 AM CT: Track 3–5 draft business docs pushed to this branch only (docs/lead-catcher/business/, text files only; the setup workbook .xlsx stays on the box at /workspace/lead-catcher-business/). All marked DRAFT for James's review; nothing published, nothing merged, nothing pushed to main.
 
 ## Next tasks (in order)
 1. Draft PR #295 stays a draft; never merge to main without James's explicit go.
