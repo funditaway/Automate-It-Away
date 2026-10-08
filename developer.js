@@ -11,7 +11,7 @@
     if (!main) return;
     var p = document.createElement("p");
     p.className = "hint";
-    p.innerHTML = "<b>" + QUEUE_LINE + "</b> Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill. Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD. Full beat: <a href=\"" + QUEUE_HREF + "\">" + QUEUE_HREF + "</a>.";
+    p.innerHTML = "<b>" + QUEUE_LINE + "</b> Drop → Qualify → Do → Collect HOLD → Follow. Pipes → Rules When · If · Then → pack / desk AI drafts → Yes / Stop / Kill. Needs you / Talk to AIA. Not codegen, deploy, or GitHub auto-patch. Collect HOLD. Full beat: <a href=\"" + QUEUE_HREF + "\">" + QUEUE_HREF + "</a>.";
     var h1 = main.querySelector("h1");
     if (h1 && h1.parentNode) h1.parentNode.insertBefore(p, h1.nextSibling);
     else main.appendChild(p);
