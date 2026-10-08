@@ -30,7 +30,9 @@ async function actorOf(req) {
   return {
     id: person.id, name: person.name || person.id, desk: ws.slug, deskName: ws.name || ws.biz || ws.slug,
     isOwner: isOwner(person), role: roleOf(person), people,
-    accountKey: ws.accountId || person.accountId || ("desk:" + ws.slug)
+    accountKey: ws.accountId || person.accountId || ("desk:" + ws.slug),
+    // Every key this owner may be known by. AIA can link a desk to an account later; the pack must stay owned.
+    accountKeys: [ws.accountId, person.accountId, "desk:" + ws.slug].filter((k, i, a) => k && a.indexOf(k) === i)
   };
 }
 
@@ -53,7 +55,7 @@ async function handler(req, res) {
       const adapter = { "web-form": "web_form", "mock-email": "mock_email", "mock-sms": "mock_sms", "mock-missed-call": "mock_missed_call" }[ch];
       if (!adapter) throw new HttpError(400, "bad_channel", "Unknown channel.");
       const r = lc.intake(D, adapter, body.request || body, null);
-      return res.status(r.duplicate ? 200 : 201).json({ ok: true, duplicate: r.duplicate, receipt: r.card.id, mock_channel: adapter.indexOf("mock_") === 0 });
+      return res.status(r.duplicate || r.reply ? 200 : 201).json({ ok: true, duplicate: r.duplicate, reply: !!r.reply, receipt: r.card.id, mock_channel: adapter.indexOf("mock_") === 0 });
     }
 
     const actor = await actorOf(req);
@@ -67,6 +69,7 @@ async function handler(req, res) {
       "set-role": () => lc.setRole(actor, body),
       me: () => ({ user: { id: actor.id, name: actor.name, role: actor.role }, desk: actor.desk, deskName: actor.deskName, people: actor.people.filter((p) => !p.deskAi), can: Object.keys(require("./_lc-policy").ACTIONS).filter((a) => require("./_lc-policy").can(actor.role, a)) }),
       list: () => lc.list(actor, q),
+      queue: () => lc.queueItems(actor),
       card: () => lc.detail(actor, id),
       create: () => lc.intakeManual(actor, body),
       assign: () => lc.assign(actor, id, body),
@@ -81,11 +84,15 @@ async function handler(req, res) {
       stop: () => lc.revoke(actor, id, body),
       run: () => lc.execute(actor, id, body),
       outcome: () => lc.recordOutcome(actor, id, body),
+      "ai-context": () => lc.aiContext(actor, id),
+      "package-item": () => lc.reviewItem(actor, id, body),
+      "manual-sent": () => lc.manualSent(actor, id, body),
+      connection: () => lc.setConnection(actor, body),
       numbers: () => lc.metrics(actor, q),
       attempts: () => lc.attempts(actor),
       "history-check": () => lc.historyCheck(actor)
     };
-    const reads = ["pack-status", "me", "list", "card", "numbers", "attempts", "history-check"];
+    const reads = ["pack-status", "me", "list", "queue", "card", "ai-context", "numbers", "attempts", "history-check"];
     if (!routes[action]) throw new HttpError(400, "unknown_action", "Unknown Lead Catcher action.");
     if (reads.indexOf(action) < 0 && req.method !== "POST") throw new HttpError(405, "use_post", "Use POST.");
     const out = await routes[action]();

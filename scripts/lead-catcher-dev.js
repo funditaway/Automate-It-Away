@@ -6,9 +6,15 @@ process.env.AIA_STORE_PATH = path.join(dir, "aia.json");
 process.env.AIA_LC_STORE_PATH = path.join(dir, "lead-catcher.json");
 process.env.AIA_LC_OUTBOX_PATH = path.join(dir, "outbox.mock.ndjson");
 delete process.env.BLOB_READ_WRITE_TOKEN; delete process.env.VERCEL_ENV;
+// DEV ONLY safety: drop every key/token/secret from this process and refuse any network call that is not 127.0.0.1,
+// so no AIA handler served here can reach a model, a webhook, Blob, or any outside service.
+Object.keys(process.env).forEach((k) => { if (/KEY|TOKEN|SECRET|PASSWORD|BLOB/i.test(k)) delete process.env[k]; });
+const realFetch = globalThis.fetch;
+globalThis.fetch = (u, o) => { const h = new URL(String(u && u.url || u), "http://127.0.0.1").hostname; if (h !== "127.0.0.1" && h !== "localhost") return Promise.reject(new Error("DEV ONLY: outbound network blocked (" + h + ")")); return realFetch(u, o); };
 const lib = require("../api/_lib");
 const lc = require("../api/lead-catcher");
 const ROOT = path.join(__dirname, "..");
+const vercel = require("../vercel.json");
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/json", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
 (async () => {
   await lib.ready();
@@ -21,11 +27,18 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", "
   ] });
   const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, "http://local");
-    if (u.pathname === "/api/lead-catcher") {
-      req.query = Object.fromEntries(u.searchParams.entries());
+    if (u.pathname.startsWith("/api/")) { // DEV ONLY: route like vercel.json rewrites, to the repo's own handlers, on the temp store
+      const rw = (vercel.rewrites || []).find((r) => r.source === u.pathname);
+      const dest = new URL(rw ? rw.destination : u.pathname, "http://local");
+      const name = dest.pathname.replace(/^\/api\//, "");
+      const file = path.join(ROOT, "api", name + ".js");
+      if (!/^[a-z-]+$/.test(name) || !fs.existsSync(file)) { res.statusCode = 404; return res.end("{}"); }
+      req.query = Object.assign(Object.fromEntries(dest.searchParams.entries()), Object.fromEntries(u.searchParams.entries()));
       res.status = (c) => { res.statusCode = c; return res; };
       res.json = (b) => { if (!res.headersSent) res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(b)); return res; };
-      return lc(req, res);
+      res.send = (b) => { res.end(typeof b === "string" ? b : JSON.stringify(b)); return res; };
+      try { return await (name === "lead-catcher" ? lc : require(file))(req, res); }
+      catch (e) { res.statusCode = 500; return res.end(JSON.stringify({ ok: false, error: "dev_handler_error", message: String(e && e.message) })); }
     }
     if (u.pathname === "/__dev-signin") { // DEV ONLY helper: puts the fake desk + PIN in this browser, then opens the page.
       res.setHeader("Content-Type", "text/html");
