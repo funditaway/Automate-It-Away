@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { cors, mem, log, save, workspaceOf, readBody } = require("./_lib");
+const { cors, mem, log, save, workspaceOf, readBody, blobAllowed } = require("./_lib");
 
 const ALLOW = {
   "image/jpeg": "jpg",
@@ -39,7 +39,8 @@ function decodeData(data) {
   return { mime: null, buf: Buffer.from(raw, "base64") };
 }
 function driverOf() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return "blob";
+  // Fix G: uploads go to the shared Blob store only on production.
+  if (blobAllowed() && process.env.BLOB_READ_WRITE_TOKEN) return "blob";
   return "tmp-file";
 }
 function blobErrText(e) {
@@ -80,6 +81,7 @@ function blobStoreId(token) {
   return "";
 }
 async function putBlob(name, buf, mime) {
+  if (!blobAllowed()) throw new Error("Blob uploads are production-only");
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) throw new Error("Blob not configured");
   const storeId = blobStoreId(token);
