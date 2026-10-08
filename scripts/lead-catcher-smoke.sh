@@ -77,3 +77,24 @@ curl -s -m 10 -w '\n%{http_code}' -X POST "$A?action=intake" "${J[@]}" -H "x-int
 curl -s -m 10 -w '\n%{http_code}' "$A?action=card&cardId=$WH" "${OWNER[@]}" | show "card after reply" >/dev/null
 echo "card after reply -> replies=$(cat "$LASTF" | j 'o.card.replies.length') original_kept=$(cat "$LASTF" | j 'o.card.original_intact') packages=$(cat "$LASTF" | j 'o.packages.length') newest_trigger=$(cat "$LASTF" | j 'o.packages[0].trigger') decisions=$(cat "$LASTF" | j 'o.packages[0].decisions.map(x=>x.key).join(",")')"
 curl -s -m 10 "$A?action=queue" "${OWNER[@]}" | j '"Queue row -> "+o.items.filter(i=>i.customer_replied).map(i=>i.name+" | "+i.reply).join(" ; ")'
+# "I sent it myself": a failed AIA test send, then a person reports a MANUAL send (AIA sends nothing)
+curl -s -m 10 -w '\n%{http_code}' -X POST "$A?action=intake" "${J[@]}" -H "x-intake-key: $KEY" -d '{"submission_id":"smoke-3","name":"Ola Manual","phone":"555-201-6060","message":"Toilet running all night at 4 Pine Road.","data_label":"demo"}' | show "third request (manual-send path)" >/dev/null
+MC=$(cat "$LASTF" | j 'o.receipt')
+post 1111 "{\"action\":\"assign\",\"cardId\":\"$MC\",\"ownerId\":\"p_rae\",\"nextAction\":\"Call back\",\"nextActionDue\":\"2026-10-08T18:00:00Z\"}" >/dev/null
+post 2222 "{\"action\":\"verify-contact\",\"cardId\":\"$MC\",\"channel\":\"phone\",\"how\":\"Called back, customer answered\"}" >/dev/null
+post 2222 "{\"action\":\"draft-generate\",\"cardId\":\"$MC\"}" > /tmp/lc-m.$$; MDID=$(sed '$d' /tmp/lc-m.$$ | j 'o.drafts.find(d=>d.state==="current").id'); MH=$(sed '$d' /tmp/lc-m.$$ | j 'o.drafts.find(d=>d.state==="current").payload_hash'); rm -f /tmp/lc-m.$$
+post 1111 "{\"action\":\"yes\",\"cardId\":\"$MC\",\"draftId\":\"$MDID\",\"payloadHash\":\"$MH\"}" | show "Yes by owner (manual-send card)" >/dev/null; MACT=$(cat "$LASTF" | j 'o.approval.action_id')
+OBF=${LC_OUTBOX:-$(ls -td "${TMPDIR:-/tmp}"/aia-lc-dev-*/ 2>/dev/null | head -1)outbox.mock.ndjson}  # dev server temp folder (newest)
+OB0=$(cat "$OBF" 2>/dev/null | wc -l)
+post 1111 '{"action":"connection","state":"down","confirm":true}' >/dev/null
+post 2222 "{\"action\":\"run\",\"cardId\":\"$MC\",\"actionId\":\"$MACT\"}" | show "Run while down (manual-send card)"
+post 2222 "{\"action\":\"manual-sent\",\"cardId\":\"$MC\",\"actionId\":\"$MACT\",\"approvedWordsUsed\":true,\"confirm\":true}" | show "I sent it myself, no channel"
+post 2222 "{\"action\":\"manual-sent\",\"cardId\":\"$MC\",\"actionId\":\"$MACT\",\"channel\":\"phone\",\"note\":\"Read it to them on the office phone\",\"approvedWordsUsed\":true,\"confirm\":true}" | show "I sent it myself (phone, approved words)" >/dev/null
+echo "I sent it myself -> $(cat "$LASTF" | j 'o.action.status+" | "+o.action.status_words+" | by "+o.action.reported_by_name+" ("+o.action.reported_by_seat+") | "+o.action.channel_words+" | v"+o.action.draft_version+" fp "+o.action.payload_hash.slice(0,12)+"… | aia_sent="+o.action.result.aia_sent')"
+echo "card actions after manual -> $(cat "$LASTF" | j 'o.detail.actions.map(a=>a.status_words).join(" ; ")')"
+post 1111 '{"action":"connection","state":"up","confirm":true}' >/dev/null
+post 2222 "{\"action\":\"run\",\"cardId\":\"$MC\",\"actionId\":\"$MACT\"}" | show "Run after manual send"
+OB1=$(cat "$OBF" 2>/dev/null | wc -l)
+echo "MOCK outbox lines before/after manual path -> $OB0 / $OB1"
+curl -s -m 10 "$A?action=queue" "${OWNER[@]}" | j '"Queue row -> "+o.items.filter(i=>i.name==="Ola Manual").map(i=>i.name+" | "+i.reply).join(" ; ")'
+curl -s -m 10 "$A?action=numbers" "${OWNER[@]}" | j '"first response -> count "+o.first_customer_response.count+" by_route "+JSON.stringify(o.first_customer_response.by_route)+" manual_not_counted "+o.first_customer_response.manual_not_counted'

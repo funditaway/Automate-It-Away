@@ -55,4 +55,17 @@ run reply-makes-new-card       api/_lc-engine.js "const r = !actor ? customerRep
 run reply-no-new-package       api/_lc-engine.js "  proposePackage(D, c, null, 'customer_reply');" ""
 run reply-without-run          api/_lc-engine.js "x.verified_value === from && ran(x))" "x.verified_value === from)"
 run reply-overwrites-original  api/_lc-engine.js "c.reply_waiting = true; c.updated_at = iso();" "c.reply_waiting = true; c.updated_at = iso(); c.original_request = n.text;"
+run manual-overwrites-failure  api/_lc-engine.js "  D.actions.push(ea);
+  Object.assign(a, { status: 'executed', ended_at: at," "  prior.forEach((x) => { x.status = 'written_to_mock_outbox'; }); D.actions.push(ea);
+  Object.assign(a, { status: 'executed', ended_at: at,"
+run manual-no-channel-check   api/_lc-engine.js "if (!MANUAL_CHANNELS[channel]) throw" "if (false) throw"
+run manual-other-no-note      api/_lc-engine.js "if (channel === 'other' && note.length < 3) throw" "if (false) throw"
+run manual-no-words-answer    api/_lc-engine.js "if (typeof b.approvedWordsUsed !== 'boolean') throw" "if (false) throw"
+run manual-no-reporter        api/_lc-engine.js "reported_by: actor.id, reported_by_name: actor.name || null, reported_by_seat: actor.role," ""
+run manual-no-fingerprint     api/_lc-engine.js "draft_id: a.draft_id, draft_version: a.draft_version, payload_hash: a.payload_hash, recipient: d.recipient," "recipient: d.recipient,"
+run manual-writes-outbox      api/_lc-engine.js "  attempt(D, actor, 'external.manual', c.id, 'allowed');" "  store.outbox.deliver({ desk: D.slug, card_id: c.id, action_id: actionId, at: at }); attempt(D, actor, 'external.manual', c.id, 'allowed');"
+run manual-says-aia           api/_lc-engine.js "status: 'sent_manually', status_words: ACTION_WORDS.sent_manually," "status: 'sent_manually', status_words: ACTION_WORDS.written_to_mock_outbox,"
+run queue-manual-says-aia     api/_lc-engine.js "? 'Sent by a person (manual).' :" "? 'Sent by AIA (test outbox).' :"
+run manual-counts-changed-words api/_lc-engine.js "if (used && !c.first_response_at) { c.first_response_at = at;" "if (!c.first_response_at) { c.first_response_at = at;"
+run metrics-no-manual-flag    api/_lc-engine.js "manual: cards.filter((c) => c.first_response_via === 'manual').length" "manual: 0"
 rm -rf "$W"

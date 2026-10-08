@@ -105,7 +105,7 @@
       if (cur) {
         h += "<p class=\"hash\">Yes covers exactly this text, contact and channel. Fingerprint " + esc(cur.payload_hash.slice(0, 16)) + "…</p>";
         if (cur.lint_flags.length) h += "<label><input type=\"checkbox\" id=\"ack\"> I checked the flagged words</label>";
-        h += "<div class=\"acts\">" + (ran ? "<span class=\"tag mock\">This version already ran (test outbox). Write a new version to reply again.</span>"
+        h += "<div class=\"acts\">" + (ran ? "<span class=\"tag mock\">This version already went out (" + (d.actions.some(function (x) { return x.approval_id === ran.id && x.status === "sent_manually"; }) ? "sent by a person, manual" : "sent by AIA to the test outbox") + "). Write a new version to reply again.</span>"
           : openYes ? "<span class=\"tag\">Yes pressed</span><button class=\"btn primary\" id=\"run\"" + dis("external.execute") + ">" + (failedTries(d, openYes) ? "Try again" : "Run test send") + "</button><button class=\"btn stop\" id=\"stop\"" + dis("approval.revoke") + ">Stop</button>"
           : "<button class=\"btn primary\" id=\"yes\"" + dis("approval.approve") + ">Yes — approve this exact reply</button>") + "</div>";
         if (!ran && !openYes && !can("approval.approve")) h += "<p>Your seat cannot press Yes. Ask an approver, a supervisor or the desk owner.</p>";
@@ -157,8 +157,8 @@
     if (c.needs_attention) h += "<p class=\"pk-warn\">Needs attention: the test send failed several times.</p>";
     var tries = openYes ? failedTries(d, openYes) : 0;
     if (tries) h += "<p class=\"pk-warn\">The test send failed " + tries + " time(s). Nothing was sent. Your Yes still stands: Try again above, or send the approved words yourself and record it here.</p>" +
-      "<div class=\"grid\"><div><label>How you sent it</label><input id=\"m_how\" placeholder=\"Texted from the office phone\"></div></div><label><input type=\"checkbox\" id=\"m_yes\"> Yes, I sent exactly the approved words</label><div class=\"acts\"><button class=\"btn\" id=\"manual\"" + dis("external.execute") + ">I sent it myself</button></div>";
-    h += d.actions.map(function (a) { return "<p><span class=\"tag mock\">" + esc(a.adapter_mode) + "</span> " + esc(String(a.status).replace(/_/g, " ")) + (a.try_no ? " · try " + esc(a.try_no) : "") + " · " + esc(when(a.finished_at || a.started_at)) + (a.status === "sent_manually" ? " · sent by a person, AIA sent nothing" : " · nothing went to the customer") + "</p>"; }).join("");
+      "<div class=\"grid\"><div><label>How you sent it (required)</label><select id=\"m_ch\"><option value=\"\">Pick one</option><option value=\"phone\">Phone call</option><option value=\"text\">Text message</option><option value=\"email\">Email</option><option value=\"in_person\">In person</option><option value=\"other\">Other (say how)</option></select></div><div><label>Note (optional; required for Other)</label><input id=\"m_note\" placeholder=\"From the office phone\"></div><div><label>Did you use the approved words exactly?</label><select id=\"m_words\"><option value=\"\">Pick one</option><option value=\"yes\">Yes, word for word</option><option value=\"no\">No, I changed them</option></select></div></div><label><input type=\"checkbox\" id=\"m_yes\"> Yes, record that I sent it myself (AIA sends nothing)</label><div class=\"acts\"><button class=\"btn\" id=\"manual\"" + dis("external.execute") + ">I sent it myself</button></div>";
+    h += d.actions.map(function (a) { return "<p><span class=\"tag mock\">" + esc(a.adapter_mode) + "</span> " + esc(a.status_words || String(a.status).replace(/_/g, " ")) + (a.try_no ? " · try " + esc(a.try_no) : "") + " · " + esc(when(a.finished_at || a.started_at)) + (a.status === "sent_manually" ? " · reported by " + esc(a.reported_by_name || a.reported_by) + " by " + esc(a.channel_words || a.channel_used) + (a.approved_words_used ? ", approved words" : ", words changed") + (a.note ? " (" + esc(a.note) + ")" : "") + " · AIA sent nothing" : a.status === "written_to_mock_outbox" ? " · test outbox only, nothing went to the customer" : " · nothing went to the customer") + "</p>"; }).join("");
     return h;
   }
   (function css() {
@@ -188,7 +188,7 @@
     document.querySelectorAll("[data-pkfix]").forEach(function (b) { b.onclick = function () { var f = $("#pkfix" + b.dataset.pkfix); if (f) f.hidden = !f.hidden; }; });
     on("ctxShow", function () { api("ai-context", null, k).then(function (r) { var x = $("#ctxBox"); x.textContent = JSON.stringify(r.context, null, 2); x.hidden = false; }).catch(function (e) { msg(false, e.message); }); });
     on("connFlip", function () { var to = window.__lcLast.connection.outbox === "up" ? "down" : "up"; if (!window.confirm("Set the MOCK test outbox connection " + to + "? This only affects test sends.")) return; api("connection", { state: to, confirm: true }).then(function () { openCard(c.id); }).catch(function (e) { msg(false, e.message); }); });
-    on("manual", function () { A("manual-sent", { actionId: openYes.action_id, how: val("m_how"), confirm: !!($("#m_yes") && $("#m_yes").checked) }); });
+    on("manual", function () { var w = val("m_words"); A("manual-sent", { actionId: openYes.action_id, channel: val("m_ch"), note: val("m_note"), approvedWordsUsed: w === "yes" ? true : w === "no" ? false : undefined, confirm: !!($("#m_yes") && $("#m_yes").checked) }); });
     on("verify", function () { A("verify-contact", { channel: val("v_ch"), how: val("v_how") }); });
     on("assign", function () { A("assign", { ownerId: val("a_owner"), backupId: val("a_backup") || null, nextAction: val("a_next"), nextActionDue: new Date(val("a_due")).toISOString() }); });
     on("gen", function () { A("draft-generate"); });
