@@ -1,0 +1,65 @@
+# Lead Catcher — Preview Isolation Evidence (read-only)
+
+Checked 2026-10-08 (CT). **Read-only: no Vercel setting, env var, store or deployment was changed, and no request was sent to a preview URL.** Env vars are listed by name and target only, never values.
+
+## What I could and couldn't see
+| Source | Result |
+|---|---|
+| Vercel `filter_project_envs` (env names + targets), project `automate-it-away`, team `james-oddos-projects` | **403 forbidden** (retried once as asked; earlier attempt also 403). Env targets are therefore **UNKNOWN**. |
+| Vercel `list_integration_configurations` (connected stores / integrations) | **403 forbidden**. UNKNOWN. |
+| Vercel `get_project` `automate-it-away` | Read OK. Password protection **off**, Vercel Authentication (SSO) **off**, trusted IPs off. Domains include www.automateitaway.com, automateitaway.com. |
+| Vercel `get_project` `runtime` | Read OK. Vercel Authentication **on** (`all_except_custom_domains`), password protection off. |
+| Vercel docs (cron jobs) | Cron jobs are defined "for production deployments"; deploying to production activates them. |
+| Repo code on this branch | Read in full for every env name below (`api/_lib.js`, `api/worker.js`, `api/jobs.js`, `api/upload.js`, `api/_grok.js`, `api/_lc-*.js`, `vercel.json`, `.env.example`). |
+
+## What the code does on a preview request
+- Every function that loads `api/_lib.js` (almost all of `api/*.js`, including `api/lead-catcher.js`) runs `hydrate()` once per instance. If **any** of `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`, `AIA_BLOB_TOKEN`, `BLOB_STORE_ID`, `BLOB_READ_WRITE_TOKEN_STORE_ID` or `VERCEL_OIDC_TOKEN` is present, it **reads the shared Blob key `aia/store.json`** (the same key production uses). If that key is empty it **writes** the local seed to it. `persistScrub()` **writes it back** when it finds test jobs.
+- `ready()` (called at the start of most requests, including Lead Catcher's sign-in check) re-reads the same key and calls `persistScrub()`. `save()` (sign-in sessions, onboarding, desk edits, worker runs) writes the same key.
+- There is **no `VERCEL_ENV` check** anywhere in `api/_lib.js`. So whether a preview touches production data depends only on which env vars and store connections Vercel gives the Preview target, which is UNKNOWN (403).
+- Lead Catcher itself keeps its own store (`AIA_LC_STORE_PATH`, default `/tmp`) and MOCK outbox, never calls the shared store's save/Blob (check S01), and refuses every call when `VERCEL_ENV=production`. Its sign-in still goes through AIA's `ready()` above.
+- This shared-store behaviour existed before Lead Catcher. Lead Catcher doesn't add or remove it.
+
+## Isolation table
+| Surface | Preview config | Evidence | Isolated? | What would make it isolated |
+|---|---|---|---|---|
+| Shared AIA store (Vercel Blob `aia/store.json`: desks, PINs, sessions, jobs, connections) | Blob token / store-id env targets unknown; OIDC token present on Vercel deployments by default | Env listing 403; `_lib.js` hydrate/ready/persistScrub/save read and write the same key with no preview check | **UNKNOWN** (code has no guard) | Blob env vars and the Blob store connection set to **Production only**, plus a code guard so non-production uses a separate key or store (proposals A, B, G) |
+| Lead Catcher store and MOCK outbox | `/tmp` per instance (defaults); no env needed | `api/_lc-store.js`; S01 PASS (no shared-store writes, refuses on production) | **YES** | Already isolated. Not durable (G21). |
+| Sign-in / auth (PINs, sessions, admin PIN, PIN salt) | `AIA_PIN_SALT`, `AIA_ADMIN_PIN` targets unknown; PINs and sessions live in the shared store | `_lib.js` hashPin uses `AIA_PIN_SALT`; `_desk.js` uses `AIA_ADMIN_PIN`; sessions saved via `save()` | **UNKNOWN** (follows the shared store) | Store isolation (row 1), and Production-only values for `AIA_PIN_SALT` and `AIA_ADMIN_PIN` (proposal C) |
+| Who can open a preview (deployment protection), `automate-it-away` | Password off, Vercel Authentication off | `get_project` | **NO** (preview URLs are public) | Turn on Vercel Authentication (Standard Protection) for previews (proposal D) |
+| Who can open a preview, `runtime` | Vercel Authentication on, all except custom domains | `get_project` | **YES** | — |
+| Scheduled cron (`/api/worker?all=1`, 14:00 and 22:00 UTC) | Defined in `vercel.json` | Vercel docs: crons run on production deployments only | **YES** (scheduled runs) | — |
+| Worker endpoint called by hand on a preview (`/api/worker`) | No auth on the endpoint; preview is public | `api/worker.js`: no `CRON_SECRET` check; runs all desks' jobs and POSTs to stored customer webhooks (`pingHooks`) | **UNKNOWN** (harmless only if the store is isolated) | Store isolation, plus a `CRON_SECRET` check and no outbound hooks outside production (proposals A, D, H) |
+| Outbound webhooks (`api/jobs.js`, `api/worker.js`) | Hook URLs come from the shared store | `fetch(hook, POST)` in both files | **UNKNOWN** (follows the shared store) | Same as the row above (proposal H) |
+| AI model keys (`XAI_API_KEY`, `GROK_API_KEY`, `AIA_GROK_KEY`, `AIA_GROK_MODEL`, `AIA_LC_MODEL_*`) | Targets unknown | `_grok.js` calls api.x.ai / OpenAI / Anthropic when a key is set; Lead Catcher model is off by default | **UNKNOWN** | Production-only, or a separate low-limit preview key (proposal C) |
+| Connection-token secret (`AIA_CONNECT_SECRET`, falls back to `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN` / `XAI_API_KEY`) | Target unknown | `_grok.js`, `connections.js` | **UNKNOWN** | Production-only value (proposal C) |
+| File uploads (`api/upload.js`) | Uses Blob when `BLOB_READ_WRITE_TOKEN` is set | `upload.js` driverOf/put | **UNKNOWN** (same Blob as row 1) | Proposals A, B |
+| .aia registry / web3 keys (`AIA_DOT_AIA_KEY`, `AIA_REGISTRY_KEY`, `AIA_WEB3_KEY`, `AIA_TLD_PROBE`) | Targets unknown | `_aia-net.js`, `_aia-tld.js` | **UNKNOWN** | Production-only (proposal C) |
+| API base URL (`PUBLIC_HOST`) | Hard-coded `https://www.automateitaway.com` | `_lib.js` line 928; hook URLs and links built from it | **NO** (preview builds production links) | Use the preview's own URL outside production (proposal I). Low risk. |
+| Integrations / connected stores (Marketplace, Blob store connections) | Unknown | `list_integration_configurations` 403 | **UNKNOWN** | Proposal F (read access), then B |
+| `runtime` project GoHighLevel adapter (`AIA_GHL_DRY_RUN`) | Target unknown; dry run unless set to `0` | `runtime/dist/ghl.js` | **UNKNOWN** | Keep `AIA_GHL_DRY_RUN` unset or not `0` on Preview; GHL credentials Production-only (proposal E) |
+
+Summary of 15 surfaces: **YES 3** (Lead Catcher store and outbox, `runtime` preview protection, scheduled crons). **NO 2** (`automate-it-away` previews are public; production base URL). **UNKNOWN 10** (everything that depends on env targets or store connections Vercel would not list). Preview isolation from production data is **not confirmed**.
+
+## Env names the code reads (names only; targets UNKNOWN because the listing returned 403)
+Shared store: `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_STORE_ID`, `BLOB_STORE_ID`, `AIA_BLOB_TOKEN`, `AIA_STORE_PATH`, `AIA_UPLOAD_DIR`; system `VERCEL_OIDC_TOKEN`, `VERCEL_ENV`, `VERCEL_GIT_COMMIT_SHA`.
+Auth: `AIA_PIN_SALT`, `AIA_ADMIN_PIN`. Secrets: `AIA_CONNECT_SECRET`, `AIA_FAKE_SECRET_TOKEN` (test only).
+AI: `XAI_API_KEY`, `GROK_API_KEY`, `AIA_GROK_KEY`, `AIA_GROK_MODEL`; Lead Catcher `AIA_LC_MODEL_ENABLED`, `AIA_LC_MODEL_ENDPOINT`, `AIA_LC_MODEL_NAME`, `AIA_LC_MODEL_API_KEY`.
+Registry: `AIA_DOT_AIA_KEY`, `AIA_REGISTRY_KEY`, `AIA_WEB3_KEY`, `AIA_TLD_PROBE`.
+Lead Catcher: `AIA_LC_STORE_PATH`, `AIA_LC_OUTBOX_PATH`, `AIA_LC_APPROVAL_TTL_MIN`, `AIA_LC_RESULTS_JSON` (tests only).
+runtime project: `AIA_GHL_DRY_RUN`, `AIA_RUNTIME_PORT`.
+
+## Proposed changes for James to approve (none made)
+Vercel settings (James, in the Vercel dashboard):
+- **A.** `automate-it-away` → Settings → Environment Variables. For `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_STORE_ID`, `BLOB_STORE_ID` and `AIA_BLOB_TOKEN` (whichever exist), set the environments to **Production only**: untick Preview and Development.
+- **B.** Storage → the Blob store connected to `automate-it-away` → Projects → set its environments to **Production only**. Optional: create a separate free Blob store (e.g. `aia-preview`) connected to **Preview only**.
+- **C.** Same env page. Set these to **Production only**: `XAI_API_KEY`, `GROK_API_KEY`, `AIA_GROK_KEY`, `AIA_LC_MODEL_API_KEY`, `AIA_CONNECT_SECRET`, `AIA_PIN_SALT`, `AIA_ADMIN_PIN`, `AIA_DOT_AIA_KEY`, `AIA_REGISTRY_KEY`, `AIA_WEB3_KEY`. If previews need any of them, add **separate preview-only values**.
+- **D.** `automate-it-away` → Settings → Deployment Protection → turn on **Vercel Authentication**, Standard Protection (previews need a Vercel login; production custom domains stay public).
+- **E.** `runtime` → env vars. Keep GoHighLevel credentials Production only, and make sure `AIA_GHL_DRY_RUN` is not set to `0` for Preview.
+- **F.** Give the Vercel connector read access to env var names and integrations, **or** run `vercel env ls` yourself and share the names and targets only (no values), so the UNKNOWN rows can be settled.
+
+Code (a separate small PR, only if James approves; it changes shared AIA code, not Lead Catcher):
+- **G.** `api/_lib.js`: when `VERCEL_ENV` is not `production`, use a separate Blob key (e.g. `aia-preview/store.json`) and never write `aia/store.json`.
+- **H.** `api/worker.js`: require `Authorization: Bearer $CRON_SECRET` (Vercel sends it on cron calls), and skip outbound webhooks (`pingHooks`, `api/jobs.js` hook POST) outside production.
+- **I.** `PUBLIC_HOST`: outside production, use the deployment's own URL.
+
+How to confirm afterwards (G22 / L3 acceptance): with A–D done, take a checksum of the production `aia/store.json` before and after one signed-out preview request. They must match. Only then may anyone sign in on a preview.

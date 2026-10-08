@@ -26,14 +26,14 @@ Lead Catcher is an **Official AIA Pack** inside the existing AIA repo (`funditaw
 ```
 
 ## Why a separate store (the "closest isolated module")
-AIA keeps all desks in one shared JSON document (`api/_lib.js` `mem`, a file or Vercel Blob). It has no per-row desk enforcement and no payload-bound approvals, and previews may share the production Blob token (unverified, see G22). Writing test cards there would risk mixing with real desk data. Lead Catcher therefore reads AIA only for sign-in and keeps its own per-desk partition:
+AIA keeps all desks in one shared JSON document (`api/_lib.js` `mem`, a file or Vercel Blob). It has no per-row desk enforcement and no payload-bound approvals, and previews may share the production Blob token (unverified, see G22 and PREVIEW_ISOLATION.md). Writing test cards there would risk mixing with real desk data. Lead Catcher therefore reads AIA only for sign-in and keeps its own per-desk partition:
 `desks[slug] = { slug, pack:{on}, cards, drafts, approvals, actions, activity, attempts, spans, seq, roles, packages, connection, names, business_name }` plus `accounts[accountKey].owned`.
 Writes are atomic (temp file + rename). On Vercel the default path is per-instance `/tmp`, so it is throwaway and not durable (G21).
 
 ## Key flows
 - **Yes**: the client sends `{draftId, payloadHash}`. The server recomputes the hash from the stored draft and refuses on mismatch. It then stores the approval with `action_id` and the TTL.
 - **AI work package**: intake / Prepare again / customer reply → `buildContext(D, seat, card)` → `package.build(ctx)` → stored as a new version (older ones superseded) with the context digest. `package-item` Accept/Fix/Reject → card field or draft; never an approval.
-- **Run**: `preRunChecks` — valid Yes and TTL, approver's seat can still approve, same version + payload hash, same recipient as approved and still confirmed, card active. Then: not already run (success only), connection up (MOCK switch). A failure writes a `failed`/`needs_attention` row and keeps the Yes; success writes one MOCK outbox line and only then uses the Yes. `manual-sent` records a person's own send after a failure.
+- **Run**: `preRunChecks` — valid Yes and TTL, approver's seat can still approve, same version + payload hash, same recipient as approved and still confirmed, card active. Then: not already run (success only), connection up (MOCK switch). A failure writes a `failed`/`needs_attention` row and keeps the Yes; success writes one MOCK outbox line and only then uses the Yes. `manual-sent` records a person's own send after a failure as a separate MANUAL row ("Sent by a person (manual)", channel, reporter, approved version and fingerprint); the failed rows stay unchanged and nothing goes to the outbox.
 - **Customer reply**: MOCK text/email from the confirmed contact of an active card with a run reply → `card.replies[]` (original untouched) → new package.
 - **History**: each event stores `hash = SHA-256(previous hash + event)`, starting from "genesis" (a chain). `history-check` verifies the chain. The original request has its own `original_hash`.
 - **Live guard**: `VERCEL_ENV=production` → 503 on every Lead Catcher call.

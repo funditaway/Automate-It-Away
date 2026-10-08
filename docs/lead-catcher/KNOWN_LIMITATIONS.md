@@ -1,7 +1,7 @@
 # Lead Catcher — Known Limitations (updated 2026-10-08)
 
 1. **Nothing is sent.** Outbound goes to a MOCK outbox file labelled "MOCK — NOT SENT". Email, text and missed-call intake are MOCK adapters. T12 (live channel) is NOT RUN.
-2. **Not on the live site.** Tested on a local handler only. The branch builds as a Vercel preview (READY), but no checks were run against the preview and nobody has signed in on it. Whether a preview can reach the production Blob store is **unverified** (Vercel env listing returned 403). Note that AIA's existing `ready()` can write to the shared store on any request; this was true before Lead Catcher.
+2. **Not on the live site.** Tested on a local handler only. The branch builds as a Vercel preview (READY), but no checks were run against the preview and nobody has signed in on it. Whether a preview can reach the production Blob store is **unverified** (Vercel env and integration listings returned 403, retried once). `automate-it-away` previews are public (no Vercel Authentication). See PREVIEW_ISOLATION.md for the table and the changes proposed for James. Note that AIA's existing `ready()` can write to the shared store on any request; this was true before Lead Catcher.
 3. **Store is not durable on Vercel.** Default `/tmp` is per-instance and temporary. Two serverless instances would not share Lead Catcher data.
 4. **One pack per desk in AIA.** AIA's `shop.pack` holds one pack. Lead Catcher works around this with its own on/off and doesn't touch `shop.pack`.
 5. **Ownership lives in the Lead Catcher store**, not on the AIA account record.
@@ -24,4 +24,4 @@
 22. **Customer replies match by confirmed phone or email** on MOCK channels only, and only to a card whose reply already ran. Real threading (message ids) waits on a real channel (G16). A reply to a card with no reply run yet becomes a new card.
 23. **System Admin can still see contact details on the card page.** The AI context and package hide them for that seat (G18).
 24. **A package prepared before the card had an owner** uses "Someone from our team" in its draft. Press "Prepare again" after assigning to get a draft with the owner's name.
-
+25. **"I sent it myself" is self-reported.** AIA records who reported it, the channel and whether the approved words were used, but can't verify the person actually sent it or what they said.
