@@ -8,6 +8,8 @@
 // URL), else it is left relative ("/api/hook"). Today's callers (hookUrl via
 // _lib, the invite note, the home links) pass no request, so previews use
 // VERCEL_URL. A host that is the live site itself is never trusted off production.
+// LIVE_DOMAIN is the bare domain name (health "domain" field, calendar UIDs): an
+// identifier, not a link, so it is the same in every environment.
 //
 // Not a serverless function (leading underscore), so it doesn't count toward
 // the Vercel function limit.
@@ -77,4 +79,4 @@ function homeUrl(req, env) {
   return publicOrigin(req, LIVE_APEX, env) || "/";
 }
 
-module.exports = { PUBLIC_HOST, LIVE_APEX, isProduction, selfOrigin, publicOrigin, publicUrl, hookUrl, homeUrl };
+module.exports = { PUBLIC_HOST, LIVE_APEX, LIVE_DOMAIN, isProduction, selfOrigin, publicOrigin, publicUrl, hookUrl, homeUrl };

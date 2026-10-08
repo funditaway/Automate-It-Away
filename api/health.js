@@ -196,7 +196,7 @@ async function health(req, res) {
       charged: false,
       note: "One account per person. Session persists on the shared save. Authenticator stays HOLD — not live on /account."
     },
-    domain: "automateitaway.com",
+    domain: require("./_public-host").LIVE_DOMAIN,
     dns: "pointed",
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
