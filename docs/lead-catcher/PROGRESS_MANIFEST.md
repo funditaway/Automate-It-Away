@@ -1,6 +1,6 @@
 # Lead Catcher — Progress Manifest (updated 2026-10-08)
 
-Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798f269`; main is now `054a538` (its new commits touch none of this branch's files; main untouched by this work). **Pushed via the GitHub connector. Draft PR: the connector showed James a submit form (2026-10-08); not created until he submits. Vercel preview builds READY. Not merged, not on the live site.** See "Push status".
+Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798f269`; main is now `92a48be` (its new commits touch none of this branch's files; main untouched by this work). **Pushed via the GitHub connector. Draft PR: the connector showed James a submit form (2026-10-08); not created until he submits. Vercel preview builds READY. Not merged, not on the live site.** See "Push status".
 
 ## DONE
 | Item | Files | Evidence |
@@ -32,8 +32,8 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798
 - Several packs per desk (workaround in place; AIA model change needed) — G06.
 - Ownership on the AIA account record (kept in Lead Catcher store for now) — G07.
 - Demo script — G41.
-- Draft PR — the connector showed James a submit form (base main, draft, title 'Lead Catcher: official AIA Pack (test build, draft)'); pending his submit (G20).
-- Preview isolation — PREVIEW_ISOLATION.md (YES 4 / NO 1 / UNKNOWN 10). D done 2026-10-08 (Vercel login on automate-it-away previews). A/C approved but blocked: Vercel env listing 403. B, E–I await James (G22).
+- Draft PR — no PR exists for `lead-catcher-slice` (checked 02:32 AM CT, all states). The connector showed James the submit form again (base main, draft, title 'Lead Catcher: official AIA Pack (test build, draft)'); pending his submit (G20).
+- Preview isolation — PREVIEW_ISOLATION.md (YES 4 / NO 1 / UNKNOWN 10). D done 2026-10-08 (Vercel login on automate-it-away previews). A/C: connector blocked (env listing 403, again at 02:32 AM CT); James was sent the dashboard link; a production redeploy at 02:26 AM CT fits an env edit but doesn't prove it, so A/C are UNKNOWN until F or J. B, E–J await James (G22). Preview sign-in is not safe yet.
 
 ## BLOCKED
 - Live channels and live send (T12) — need James's channel choice + provider (G03, G04).
@@ -56,6 +56,7 @@ PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Whole repo per-scr
 | No Lead Catcher defects open | — | desk-AI seat gap found by mutation check was fixed (now uses AIA actorIsDeskAi) |
 
 ## Push status
+- Last docs update: 2026-10-08 ~2:35 AM CT (read-only A/C follow-up; this commit also triggers a fresh preview build so any Preview env change is picked up).
 - Remote branch `lead-catcher-slice`: first upload ae9f381, then the Queue and working-model updates (head c5f8b0e). This update ("I sent it myself" as a MANUAL action, preview isolation evidence) is pushed on top of c5f8b0e through the GitHub connector, onto `lead-catcher-slice` only. The resulting head is in the session report (a doc can't name the commit it's in).
 - Not carried by the connector (text only): the PNG screenshots (kept at `/workspace/lc-shots/` and `/workspace/lc-screens/` on the box) and the executable bit on `scripts/*.sh` (run them with `bash`).
 - Vercel builds two previews per push (`automate-it-away`, `runtime`). c5f8b0e → READY (automate-it-away-laqok0j49-james-oddos-projects.vercel.app); the new head's state is in the session report. Nobody has signed in on a preview. Don't, until G22 is confirmed.
@@ -63,6 +64,6 @@ PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Whole repo per-scr
 
 ## Next tasks (in order)
 1. James submits the draft PR form (never merge to main without review).
-2. A/C (approved) are blocked by the env-listing 403: James sets the Blob and secret env vars to Production only in the dashboard, or grants env access (F); then B, and optionally code G–I in PREVIEW_ISOLATION.md; then run the checksum test (G22) before anyone signs in on the preview.
+2. Confirm A/C: James shares env names + environments (F) or approves the read-only check (J); then B, and optionally code G–I in PREVIEW_ISOLATION.md; then the checksum test (G22) before anyone signs in on the preview.
 3. James picks the first live channel; contract it and run T12 in its sandbox.
 4. Pick a durable isolated store (G21).

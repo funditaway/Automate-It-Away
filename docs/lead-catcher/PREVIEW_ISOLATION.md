@@ -1,6 +1,6 @@
 # Lead Catcher — Preview Isolation Evidence
 
-First checked 2026-10-08 ~1:30 AM CT (read-only). Updated 2026-10-08 ~2:01 AM CT after James approved changes **D** and **A/C**. Env vars are listed by name and target only, never values.
+First checked 2026-10-08 ~1:30 AM CT (read-only). Updated 2026-10-08 ~2:01 AM CT after James approved changes **D** and **A/C**, and again ~2:35 AM CT after James was sent the Vercel env-vars link for A/C (read-only follow-up, below). Env vars are listed by name and target only, never values.
 
 ## Changes made 2026-10-08 (approved by James: D and A/C)
 | Change | Call (Vercel connector) | Before | After | Verified |
@@ -10,10 +10,27 @@ First checked 2026-10-08 ~1:30 AM CT (read-only). Updated 2026-10-08 ~2:01 AM CT
 
 Not touched: production values, env vars, DNS, domains, billing, the `runtime` project (E not approved), code, `main`. Nothing was redeployed or promoted. Deployment protection applies at request time, so existing preview URLs were protected immediately (no rebuild needed for D).
 
+## Follow-up 2026-10-08 ~2:32–2:35 AM CT (read-only): did James's env change take effect?
+| Check | Result |
+|---|---|
+| `filter_project_envs` (names + targets, no decrypt), `automate-it-away` | **403 forbidden** again at 02:32:38 CT (`GET /v10/projects/{idOrName}/env`, requestId `iad1:sfo1::cv7qg-1791444758680-21e07763c653`). The error suggested the Vercel CLI instead; not used. Env targets are still **UNKNOWN**. |
+| `list_deployments` / `get_deployment`, `automate-it-away` | Production built from main `92a48be` at **02:16:08 CT** (`source: git`), then the **same commit was redeployed at 02:26:30 CT** (`source: redeploy`, READY 02:26:58 CT). Not done by this work. Vercel offers a redeploy after env vars are edited, so this fits an env change in the dashboard, but it does not show which vars changed or to which targets. **Circumstantial only.** |
+| Newest `lead-catcher-slice` preview | `4ma1may9l` built at 02:03 CT, **before** any env change, so it can't show one. The commit that adds this section triggers a new preview build (state in the session report). |
+| `get_project` | Vercel Authentication still on for previews (`ssoProtection: preview`); password protection off. No env data in this response. |
+| Diagnostic on the preview (`/api/health`, `/api/status`) | **Not run, on purpose.** They aren't read-only. `/api/health` calls `save()` whenever a Blob token, store id or OIDC token is present, so it would **write** `aia/store.json` in whichever store the preview reaches, which is production's if Preview still has the Blob token. `/api/status`, and every function that loads `api/_lib.js`, runs `hydrate()` / `ready()` / `persistScrub()`, which can also write. Also, the connector's protected-preview access (`get_access_to_vercel_url` / `web_fetch_vercel_url`) works by creating a share link valid for up to 23 hours, which lets anyone with the link past change D. Not used. |
+| Checksum test (production `aia/store.json` before/after one preview GET) | **Not run.** No read-only production endpoint exposes the store or a checksum; production `/api/health` also calls `save()`. There's no safe read-only way to do it today. |
+
+Result: **whether A/C took effect is UNKNOWN.** The tally below is unchanged.
+
+Ways to settle it (James picks):
+- **F.** Run `vercel env ls` in `automate-it-away` (or screenshot Settings → Environment Variables) and share **names and environments only**, never values. That settles A and C directly.
+- **J.** *(code, needs approval; not done)* Add a read-only check that doesn't load `api/_lib.js` and returns only true/false for: Blob token present, Blob store id present, AI key present, PIN salt present, and `VERCEL_ENV`. Call it on the new preview (signed in to Vercel, not to AIA) and confirm Blob/secrets show **false**.
+- Checksum: James downloads `aia/store.json` from the Blob store in the Vercel dashboard (or notes its size and upload time), we make one signed-out request to the preview, and he checks again. They must match. Do this only after F or J shows Preview has no Blob token, or after B.
+
 ## What I could and couldn't see
 | Source | Result |
 |---|---|
-| Vercel `filter_project_envs` (env names + targets), project `automate-it-away`, team `james-oddos-projects` | **403 forbidden** (3 times now, including the approved A/C attempt at ~2:01 AM CT). Env targets are therefore **UNKNOWN**. |
+| Vercel `filter_project_envs` (env names + targets), project `automate-it-away`, team `james-oddos-projects` | **403 forbidden** (4 times now: the approved A/C attempt at ~2:01 AM CT and the follow-up at 02:32 AM CT). Env targets are therefore **UNKNOWN**. |
 | Vercel `list_integration_configurations` (connected stores / integrations) | **403 forbidden**. UNKNOWN. |
 | Vercel `get_project` `automate-it-away` | Read OK. Before 2:01 AM CT: password protection **off**, Vercel Authentication (SSO) **off**, trusted IPs off. After change D: Vercel Authentication **on** (`preview`). Domains include www.automateitaway.com, automateitaway.com. |
 | Vercel `get_project` `runtime` | Read OK. Vercel Authentication **on** (`all_except_custom_domains`), password protection off. |
@@ -46,7 +63,7 @@ Not touched: production values, env vars, DNS, domains, billing, the `runtime` p
 | Integrations / connected stores (Marketplace, Blob store connections) | Unknown | `list_integration_configurations` 403 | **UNKNOWN** | Proposal F (read access), then B |
 | `runtime` project GoHighLevel adapter (`AIA_GHL_DRY_RUN`) | Target unknown; dry run unless set to `0` | `runtime/dist/ghl.js` | **UNKNOWN** | Keep `AIA_GHL_DRY_RUN` unset or not `0` on Preview; GHL credentials Production-only (proposal E) |
 
-Summary of 15 surfaces (updated after change D): **YES 4** (Lead Catcher store and outbox, `automate-it-away` preview protection, `runtime` preview protection, scheduled crons). **NO 1** (production base URL `PUBLIC_HOST`). **UNKNOWN 10** (everything that depends on env targets or store connections Vercel would not list; A/C could not be applied because the env listing is 403). Preview isolation from production data is **still not confirmed**. Strangers can no longer open previews, but nobody should sign in on a preview until A/B are done and the checksum test passes.
+Summary of 15 surfaces (updated after change D; unchanged after the 02:32 AM CT follow-up): **YES 4** (Lead Catcher store and outbox, `automate-it-away` preview protection, `runtime` preview protection, scheduled crons). **NO 1** (production base URL `PUBLIC_HOST`). **UNKNOWN 10** (everything that depends on env targets or store connections Vercel would not list; A/C could not be applied because the env listing is 403). Preview isolation from production data is **still not confirmed**. Strangers can no longer open previews, but nobody should sign in on a preview until A/B are **confirmed** (F or J) and the checksum test passes. **Preview sign-in is not safe yet.**
 
 ## Env names the code reads (names only; targets UNKNOWN because the listing returned 403, so nothing could be set to Production only)
 Shared store: `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_STORE_ID`, `BLOB_STORE_ID`, `AIA_BLOB_TOKEN`, `AIA_STORE_PATH`, `AIA_UPLOAD_DIR`; system `VERCEL_OIDC_TOKEN`, `VERCEL_ENV`, `VERCEL_GIT_COMMIT_SHA`.
@@ -58,9 +75,9 @@ runtime project: `AIA_GHL_DRY_RUN`, `AIA_RUNTIME_PORT`.
 
 ## Proposed changes (D done 2026-10-08; A/C approved but blocked by the 403; the rest await James)
 Vercel settings (James, in the Vercel dashboard):
-- **A.** *(Approved; NOT done: env listing 403. James can do it in the dashboard.)* `automate-it-away` → Settings → Environment Variables. For `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_STORE_ID`, `BLOB_STORE_ID` and `AIA_BLOB_TOKEN` (whichever exist), set the environments to **Production only**: untick Preview and Development.
+- **A.** *(Approved. Connector blocked by the env listing 403; James was sent the dashboard link. Whether it's done is UNKNOWN: a production redeploy at 02:26 CT fits an env edit but doesn't prove it. Confirm with F or J.)* `automate-it-away` → Settings → Environment Variables. For `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_STORE_ID`, `BLOB_STORE_ID` and `AIA_BLOB_TOKEN` (whichever exist), set the environments to **Production only**: untick Preview and Development.
 - **B.** Storage → the Blob store connected to `automate-it-away` → Projects → set its environments to **Production only**. Optional: create a separate free Blob store (e.g. `aia-preview`) connected to **Preview only**.
-- **C.** *(Approved; NOT done: env listing 403. James can do it in the dashboard.)* Same env page. Set these to **Production only**: `XAI_API_KEY`, `GROK_API_KEY`, `AIA_GROK_KEY`, `AIA_LC_MODEL_API_KEY`, `AIA_CONNECT_SECRET`, `AIA_PIN_SALT`, `AIA_ADMIN_PIN`, `AIA_DOT_AIA_KEY`, `AIA_REGISTRY_KEY`, `AIA_WEB3_KEY`. If previews need any of them, add **separate preview-only values**.
+- **C.** *(Approved. Same status as A: UNKNOWN until F or J.)* Same env page. Set these to **Production only**: `XAI_API_KEY`, `GROK_API_KEY`, `AIA_GROK_KEY`, `AIA_LC_MODEL_API_KEY`, `AIA_CONNECT_SECRET`, `AIA_PIN_SALT`, `AIA_ADMIN_PIN`, `AIA_DOT_AIA_KEY`, `AIA_REGISTRY_KEY`, `AIA_WEB3_KEY`. If previews need any of them, add **separate preview-only values**.
 - **D.** *(DONE 2026-10-08 ~2:01 AM CT, `ssoProtection: preview`.)* `automate-it-away` → Settings → Deployment Protection → turn on **Vercel Authentication**, Standard Protection (previews need a Vercel login; production custom domains stay public).
 - **E.** `runtime` → env vars. Keep GoHighLevel credentials Production only, and make sure `AIA_GHL_DRY_RUN` is not set to `0` for Preview.
 - **F.** Give the Vercel connector read access to env var names and integrations, **or** run `vercel env ls` yourself and share the names and targets only (no values), so the UNKNOWN rows can be settled.
@@ -70,4 +87,4 @@ Code (a separate small PR, only if James approves; it changes shared AIA code, n
 - **H.** `api/worker.js`: require `Authorization: Bearer $CRON_SECRET` (Vercel sends it on cron calls), and skip outbound webhooks (`pingHooks`, `api/jobs.js` hook POST) outside production.
 - **I.** `PUBLIC_HOST`: outside production, use the deployment's own URL.
 
-How to confirm afterwards (G22 / L3 acceptance): with A–C done (D is done), take a checksum of the production `aia/store.json` before and after one signed-out preview request. They must match. Only then may anyone sign in on a preview.
+How to confirm afterwards (G22 / L3 acceptance): with A–C done and confirmed (D is done), take a checksum of the production `aia/store.json` before and after one signed-out preview request. They must match. Only then may anyone sign in on a preview.
