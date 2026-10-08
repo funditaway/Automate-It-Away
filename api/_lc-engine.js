@@ -175,7 +175,7 @@ function intake(D, adapterName, body, actor, deskName) {
     contact_verified: false, verified_channel: null, verified_value: null, verified_by: null, verified_at: null,
     missing_flags: [], uncertain_flags: [], category: null, urgency: null, owner_id: null, backup_id: null, next_action: null, next_action_due: null,
     waiting_reason: null, follow_up_at: null, close_reason: null, outcome: null, outcome_note: null, outcome_attribution: null, outcome_at: null,
-    first_assigned_at: null, first_response_at: null, created_by: actor ? actor.id : null, created_at: arrived, updated_at: arrived,
+    first_assigned_at: null, first_response_at: null, first_response_via: null, created_by: actor ? actor.id : null, created_at: arrived, updated_at: arrived,
   };
   c.original_hash = originalHash(c);
   D.cards.push(c);
@@ -359,7 +359,7 @@ function queueItems(actor) {
   const items = rows.map((c) => {
     const cur = D.drafts.filter((d) => d.card_id === c.id && d.state === 'current').pop();
     const appr = cur ? D.approvals.filter((a) => a.draft_id === cur.id && (a.status === 'valid' || a.status === 'executed')).pop() : null;
-    const reply = c.reply_waiting ? 'Customer replied. AIA prepared a new package to check.' : !cur ? '' : !appr ? 'Reply drafted. It needs a person\'s Yes on the card.' : appr.status === 'valid' ? 'Yes given. A person can Run it from the card.' : 'Reply ran (test outbox).';
+    const reply = c.reply_waiting ? 'Customer replied. AIA prepared a new package to check.' : !cur ? '' : !appr ? 'Reply drafted. It needs a person\'s Yes on the card.' : appr.status === 'valid' ? 'Yes given. A person can Run it from the card.' : D.actions.some((x) => x.approval_id === appr.id && x.status === 'sent_manually') ? 'Sent by a person (manual).' : 'Sent by AIA (test outbox).';
     const due = c.status === 'waiting' ? c.follow_up_at : c.next_action_due;
     return {
       id: c.id, desk: D.slug, name: c.customer_name || 'No name yet', kind: KIND_WORDS[c.category] || 'Kind of job not set',
@@ -386,7 +386,7 @@ function detail(actor, cardId) {
     card: view(actor, c),
     drafts: clone(D.drafts.filter((d) => d.card_id === c.id)).sort((a, b) => b.version - a.version),
     approvals: clone(D.approvals.filter((a) => a.card_id === c.id)).reverse(),
-    actions: clone(D.actions.filter((a) => a.card_id === c.id)).reverse(),
+    actions: clone(D.actions.filter((a) => a.card_id === c.id)).reverse().map((a) => Object.assign(a, { status_words: ACTION_WORDS[a.status] || a.status })),
     history: clone(D.activity.filter((h) => h.card_id === c.id)),
     packages: packagesFor(D, actor, c),
     connection: { outbox: (D.connection && D.connection.outbox) || 'up', mode: 'MOCK', note: 'Test switch for the MOCK test outbox. It never reaches a customer.' },
@@ -648,7 +648,7 @@ function execute(actor, cardId, b) {
   D.actions.push(ea);
   const fail = (why, code, msg) => {
     const tries = prior.length + 1;
-    ea.status = tries >= MAX_TRIES ? 'needs_attention' : 'failed'; ea.result = { error: why }; ea.finished_at = iso();
+    ea.status = tries >= MAX_TRIES ? 'needs_attention' : 'failed'; ea.status_words = ACTION_WORDS[ea.status]; ea.result = { error: why }; ea.finished_at = iso();
     if (ea.status === 'needs_attention') c.needs_attention = true;
     attempt(D, actor, 'external.execute', c.id, 'failed', why);
     log(D, c, actor, 'human', ea.status === 'needs_attention' ? 'action_needs_attention' : 'action_failed',
@@ -663,17 +663,20 @@ function execute(actor, cardId, b) {
     fail('mock outbox write failed', 'adapter_failed', 'The MOCK outbox write failed.');
   }
   // Only a delivered action uses up the Yes.
-  ea.status = 'written_to_mock_outbox'; ea.finished_at = iso();
+  ea.status = 'written_to_mock_outbox'; ea.status_words = ACTION_WORDS.written_to_mock_outbox; ea.finished_at = iso();
   Object.assign(a, { status: 'executed', ended_at: iso(), ended_reason: 'ran' });
   c.needs_attention = false;
-  if (!c.first_response_at) c.first_response_at = iso();
+  if (!c.first_response_at) { c.first_response_at = iso(); c.first_response_via = 'aia'; }
   attempt(D, actor, 'external.execute', c.id, 'allowed');
   log(D, c, actor, 'human', 'action_ran', 'Test send ran: the approved ' + d.channel + ' reply went to the MOCK outbox. Nothing was sent to the customer.', { action_id: actionId, adapter: ea.adapter, mode: ea.adapter_mode, payload_hash: a.payload_hash, try_no: ea.try_no });
   save();
   return { duplicate: false, action: clone(ea) };
 }
-// Manual fallback: after a failed test send, a person may send the approved words themselves and record it here.
-// AIA sends nothing in this step.
+// Manual fallback: after a failed test send, a person may send the approved reply themselves and REPORT it here.
+// This records a separate MANUAL action. It never changes the failed system tries, never marks the system send as
+// successful, and AIA sends nothing. The entry is bound to the approved version and fingerprint.
+const MANUAL_CHANNELS = { phone: 'phone call', text: 'text message', email: 'email', in_person: 'in person', other: 'other' };
+const ACTION_WORDS = { written_to_mock_outbox: 'Sent by AIA (test outbox)', sent_manually: 'Sent by a person (manual)', failed: 'AIA send failed', needs_attention: 'AIA send failed (needs attention)', pending: 'AIA send in progress' };
 function manualSent(actor, cardId, b) {
   const D = deskOf(actor); requirePackOn(D);
   requirePerm(D, actor, 'external.execute', cardId);
@@ -685,17 +688,30 @@ function manualSent(actor, cardId, b) {
   const prior = D.actions.filter((x) => x.action_id === actionId);
   if (prior.some((x) => RAN.includes(x.status))) deny('already_ran', 'This reply already ran. Nothing to record.', 'already ran');
   if (!prior.some((x) => ['failed', 'needs_attention'].includes(x.status))) deny('no_failure', 'Use Run first. "I sent it myself" is only for when the test send failed.', 'no failed try');
-  const how = String(b.how || '').trim();
-  if (how.length < 4) throw new HttpError(400, 'how_required', 'Say how you sent it (for example: texted from the office phone).');
+  const channel = String(b.channel || '');
+  if (!MANUAL_CHANNELS[channel]) throw new HttpError(400, 'channel_required', 'Pick how you sent it: phone, text, email, in person, or other.');
+  const note = String(b.note || '').trim().slice(0, 300);
+  if (channel === 'other' && note.length < 3) throw new HttpError(400, 'note_required', 'You picked "other". Say how you sent it.');
+  if (typeof b.approvedWordsUsed !== 'boolean') throw new HttpError(400, 'words_required', 'Say whether you used the approved words exactly.');
   if (b.confirm !== true) throw new HttpError(409, 'needs_yes', 'Recording a manual send needs your Yes.');
   const d = preRunChecks(D, actor, c, a, deny);
-  const ea = { id: id('ext'), desk: D.slug, card_id: c.id, approval_id: a.id, action_id: actionId, try_no: prior.length + 1, adapter: 'manual', adapter_mode: 'PERSON', payload_hash: a.payload_hash, recipient: d.recipient, status: 'sent_manually', executed_by: actor.id, started_at: iso(), finished_at: iso(), result: { how: how.slice(0, 200), aia_sent: false } };
+  const used = b.approvedWordsUsed === true;
+  const at = iso();
+  const ea = {
+    id: id('ext'), desk: D.slug, card_id: c.id, approval_id: a.id, action_id: actionId, try_no: null, kind: 'manual',
+    adapter: 'manual', adapter_mode: 'PERSON', status: 'sent_manually', status_words: ACTION_WORDS.sent_manually,
+    draft_id: a.draft_id, draft_version: a.draft_version, payload_hash: a.payload_hash, recipient: d.recipient,
+    reported_by: actor.id, reported_by_name: actor.name || null, reported_by_seat: actor.role, executed_by: actor.id,
+    channel_used: channel, channel_words: MANUAL_CHANNELS[channel], note: note || null, approved_words_used: used,
+    counts_as_first_response: used && !c.first_response_at, follows_failed_tries: prior.filter((x) => ['failed', 'needs_attention'].includes(x.status)).map((x) => x.id),
+    started_at: at, finished_at: at, result: { aia_sent: false },
+  };
   D.actions.push(ea);
-  Object.assign(a, { status: 'executed', ended_at: iso(), ended_reason: 'sent by a person' });
+  Object.assign(a, { status: 'executed', ended_at: at, ended_reason: 'sent by a person (manual)' });
   c.needs_attention = false;
-  if (!c.first_response_at) c.first_response_at = iso();
+  if (used && !c.first_response_at) { c.first_response_at = at; c.first_response_via = 'manual'; }
   attempt(D, actor, 'external.manual', c.id, 'allowed');
-  log(D, c, actor, 'human', 'action_manual', 'Recorded: a person sent the approved words themselves (' + how.slice(0, 200) + '). AIA sent nothing.', { action_id: actionId, payload_hash: a.payload_hash });
+  log(D, c, actor, 'human', 'action_manual', 'Sent by a person (manual): ' + (actor.name || actor.id) + ' reported sending draft v' + a.draft_version + ' by ' + MANUAL_CHANNELS[channel] + (used ? ' using the approved words' : ', NOT word for word') + (note ? ' (' + note + ')' : '') + '. AIA sent nothing. The failed AIA tries stay on record.', { action_id: actionId, manual_action: ea.id, channel: channel, approved_words_used: used, payload_hash: a.payload_hash, draft_version: a.draft_version });
   save();
   return { action: clone(ea), detail: detail(actor, cardId) };
 }
@@ -749,7 +765,12 @@ function metrics(actor, q) {
   const booked = {}; cards.filter((c) => c.outcome === 'booked').forEach((c) => { booked[c.outcome_attribution] = (booked[c.outcome_attribution] || 0) + 1; });
   return {
     as_of: now, data: 'test and demo only',
-    first_customer_response: Object.assign(stats(cards.filter((c) => c.first_response_at).map((c) => mins(c.arrived_at, c.first_response_at))), { without_response: cards.filter((c) => !c.first_response_at && c.status !== 'closed_no_action').length, definition: 'Arrival to the first customer reply a person approved and ran. Giving the card an owner does not count. Here the reply is a MOCK outbox write.' }),
+    first_customer_response: Object.assign(stats(cards.filter((c) => c.first_response_at).map((c) => mins(c.arrived_at, c.first_response_at))), {
+      without_response: cards.filter((c) => !c.first_response_at && c.status !== 'closed_no_action').length,
+      by_route: { aia: cards.filter((c) => c.first_response_at && c.first_response_via !== 'manual').length, manual: cards.filter((c) => c.first_response_via === 'manual').length },
+      manual_not_counted: D.actions.filter((a) => ids.has(a.card_id) && a.status === 'sent_manually' && !a.approved_words_used).length,
+      definition: 'Arrival to the first customer reply a person approved and that went out. Giving the card an owner does not count. "aia" = written to the MOCK outbox by AIA. "manual" = a person reported sending the approved words themselves after AIA\'s send failed; manual sends that did not use the approved words are not counted (manual_not_counted).',
+    }),
     internal_triage: Object.assign(stats(cards.filter((c) => c.first_assigned_at).map((c) => mins(c.arrived_at, c.first_assigned_at))), { definition: 'Arrival to first owner.' }),
     unassigned_active: active.filter((c) => c.status === 'new').length,
     overdue_active: active.filter(isOverdue).length,
@@ -789,5 +810,5 @@ module.exports = {
   PACK_ID, setClock, packStatus, queueItems, getPack, turnOn, turnOff, setRole, deskByIntakeKey, intake, intakeManual, runExtraction,
   list, detail, assign, updateFields, verifyContact, setStatus, generateDraft, saveDraft, rejectDraft, approve, revoke, execute,
   recordOutcome, metrics, attempts, historyCheck, verifyChain, attempt,
-  aiContext, reviewItem, manualSent, setConnection, proposePackage,
+  aiContext, reviewItem, manualSent, setConnection, proposePackage, MANUAL_CHANNELS, ACTION_WORDS,
 };
