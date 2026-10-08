@@ -1,3 +1,4 @@
+branch re-run: 2026-10-08 01:34:37 CDT on the "I sent it myself" change (same method): 32 PASS / 81 scripts; per-script results identical to the branch list below. Main side not re-run (main moved b19bfce -> 054a538, favicon.svg only).
 date: 2026-10-08 01:07:50 CDT  node v20.19.2  Linux 6.12.94+
 method: each command in package.json 'test' chain run on its own (120 s timeout); main = b19bfce clone, branch = lead-catcher-slice working tree
 main:   31 PASS / 80 scripts

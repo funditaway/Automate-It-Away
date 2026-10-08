@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-08T06:07:00.626Z",
+  "at": "2026-10-08T06:34:17.117Z",
   "node": "v20.19.2",
   "rows": [
     {
@@ -179,6 +179,12 @@
     {
       "id": "W06",
       "name": "A customer reply goes back to the same card and AIA prepares a new package",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W07",
+      "name": "\"I sent it myself\" records a separate MANUAL action; failed AIA tries stay unchanged; metrics flag it",
       "result": "PASS",
       "note": ""
     },

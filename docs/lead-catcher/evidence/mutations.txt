@@ -1,4 +1,4 @@
-date: 2026-10-08 01:07:00 CDT
+date: 2026-10-08 01:29:49 CDT (run finished)
 command: bash scripts/lead-catcher-mutations.sh
 ----
 caught      no-approval-check
@@ -46,5 +46,16 @@ caught      reply-makes-new-card
 caught      reply-no-new-package
 caught      reply-without-run
 caught      reply-overwrites-original
+caught      manual-overwrites-failure
+caught      manual-no-channel-check
+caught      manual-other-no-note
+caught      manual-no-words-answer
+caught      manual-no-reporter
+caught      manual-no-fingerprint
+caught      manual-writes-outbox
+caught      manual-says-aia
+caught      queue-manual-says-aia
+caught      manual-counts-changed-words
+caught      metrics-no-manual-flag
 ----
-result: 45 caught / 45 mutations · 0 not caught
+result: 56 caught / 56 mutations · 0 not caught
