@@ -33,7 +33,7 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798
 - Ownership on the AIA account record (kept in Lead Catcher store for now) — G07.
 - Demo script — G41.
 - Draft PR — the connector showed James a submit form (base main, draft, title 'Lead Catcher: official AIA Pack (test build, draft)'); pending his submit (G20).
-- Preview isolation — read-only evidence in PREVIEW_ISOLATION.md (YES 3 / NO 2 / UNKNOWN 10); proposed changes A–I await James (G22).
+- Preview isolation — PREVIEW_ISOLATION.md (YES 4 / NO 1 / UNKNOWN 10). D done 2026-10-08 (Vercel login on automate-it-away previews). A/C approved but blocked: Vercel env listing 403. B, E–I await James (G22).
 
 ## BLOCKED
 - Live channels and live send (T12) — need James's channel choice + provider (G03, G04).
@@ -52,7 +52,7 @@ PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Whole repo per-scr
 | Defect | Owner | Note |
 |---|---|---|
 | AIA `npm test` stops at check-desk-nav on main (49 per-script failures, pre-existing) | AIA maintainers | Not caused by this branch |
-| Preview may share production data (unverified; env listing 403); automate-it-away previews are public | James / Vercel access | See PREVIEW_ISOLATION.md; Lead Catcher never writes the shared store |
+| Preview may share production data (unverified; env listing 403); previews now need a Vercel login (D done) | James / Vercel access | See PREVIEW_ISOLATION.md; Lead Catcher never writes the shared store |
 | No Lead Catcher defects open | — | desk-AI seat gap found by mutation check was fixed (now uses AIA actorIsDeskAi) |
 
 ## Push status
@@ -63,6 +63,6 @@ PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Whole repo per-scr
 
 ## Next tasks (in order)
 1. James submits the draft PR form (never merge to main without review).
-2. James approves the Vercel changes A–F in PREVIEW_ISOLATION.md (and optionally code G–I); then run the checksum test (G22) before anyone signs in on the preview.
+2. A/C (approved) are blocked by the env-listing 403: James sets the Blob and secret env vars to Production only in the dashboard, or grants env access (F); then B, and optionally code G–I in PREVIEW_ISOLATION.md; then run the checksum test (G22) before anyone signs in on the preview.
 3. James picks the first live channel; contract it and run T12 in its sandbox.
 4. Pick a durable isolated store (G21).
