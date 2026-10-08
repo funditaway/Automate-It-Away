@@ -47,18 +47,18 @@ Machine-readable copy: `GAP_REGISTER.csv`.
 
 | ID | Item | Existing evidence | Status | Required work | Dependency | Acceptance test |
 |---|---|---|---|---|---|---|
-| G30 | Founding-client proposal | Not found on box, repo or Drive | NOT STARTED | Write proposal using DRAFT offer ($1,250 setup / $350 Care Plan opt-in) | G33 legal terms | James approves text |
-| G31 | Statement of work (one defined workflow) | Not found | NOT STARTED | SOW naming channels in scope, training, 60-day measurement | G03 channel choice | James approves; channels listed all PASS tests |
-| G32 | Employee handbook / quick guide | Not found | NOT STARTED | One-page Yes/Stop/Kill guide for staff | Slice green (it is) | A new staff member completes a card using only the guide |
+| G30 | Founding-client proposal | docs/lead-catcher/business/PROPOSAL.md (DRAFT; pricing marked draft; terms left as legal-review placeholders) | DONE (draft) | Write proposal using DRAFT offer ($1,250 setup / $350 Care Plan opt-in) | G33 legal terms | James approves text |
+| G31 | Statement of work (one defined workflow) | docs/lead-catcher/business/SOW.md (DRAFT; channels table, setup steps, acceptance checks, client duties, change requests; legal terms are placeholders) + workbook/ + Lead-Catcher-Setup-Workbook.xlsx on the box | DONE (draft) | SOW naming channels in scope, training, 60-day measurement | G03 channel choice | James approves; channels listed all PASS tests |
+| G32 | Employee handbook / quick guide | docs/lead-catcher/business/STAFF_GUIDE.md (one page) + TRAINING.md (30-minute session, 3 made-up practice leads, sign-off checks) | DONE (draft) | One-page Yes/Stop/Kill guide for staff | Slice green (it is) | A new staff member completes a card using only the guide |
 | G33 | Terms: refund, cancellation, tax, liability, termination | Open decisions | BLOCKED | Draft and legal review | James; lawyer | Signed-off terms document |
-| G34 | Privacy / data-processing note | None | NOT STARTED | Describe what is stored, where, how long | G21, G26 | Matches SPEC §10 and actual store |
+| G34 | Privacy / data-processing note | docs/lead-catcher/business/PRIVACY_NOTE.md (DRAFT outline of what the test build stores and who sees it; storage, retention, export, deletion, sharing left as placeholders; no compliance claims) | DONE (draft outline) | Describe what is stored, where, how long | G21, G26 | Matches SPEC §10 and actual store |
 
 ## 4 Sales/demo
 
 | ID | Item | Existing evidence | Status | Required work | Dependency | Acceptance test |
 |---|---|---|---|---|---|---|
-| G40 | Sales page (DRAFT offer) | Not found | NOT STARTED | Page marked DRAFT; no Buy button; no payment wiring | G33 | Page review: draft label present, no checkout link |
-| G41 | Demo script and demo desk | Seed desks riverbend-demo / northside-test in check script and dev preview | IN PROGRESS | 5-minute demo script with demo data | G20 preview | Dry run under 5 minutes, all MOCK labels visible |
+| G40 | Sales page (DRAFT offer) | docs/lead-catcher/business/SALES_PAGE_DRAFT.html (noindex, DRAFT — NOT PUBLISHED banner, Book a call href="#", no Buy or checkout link, no testimonials or stats) | DONE (draft) | Page marked DRAFT; no Buy button; no payment wiring | G33 | Page review: draft label present, no checkout link |
+| G41 | Demo script and demo desk | docs/lead-catcher/business/DEMO_SCRIPT.md (10-minute script on the local test build and test outbox, demo desk riverbend-demo); seed desks riverbend-demo / northside-test | DONE (draft script) | 5-minute demo script with demo data | G20 preview | Dry run under 5 minutes, all MOCK labels visible |
 | G42 | Screenshots for pitch | /workspace/lc-shots/a-queue-lead-catcher.png and b-water-heater-package.png (+ full-page versions); earlier /workspace/lc-screens/*.png; on the box only, not in git (connector is text-only) | DONE (local) | Retake on Vercel preview | G20 | Screens show AIA brand and MOCK labels |
 | G43 | Trademark / name clearance for 'Lead Catcher' | None — no clearance claimed | NOT STARTED | Search before public use | James | Clearance note on file |
 
@@ -67,7 +67,7 @@ Machine-readable copy: `GAP_REGISTER.csv`.
 | ID | Item | Existing evidence | Status | Required work | Dependency | Acceptance test |
 |---|---|---|---|---|---|---|
 | G50 | Metric definitions and numbers page | SPEC §9; api metrics; T08 asserts first-response time from the MOCK run | DONE (test data) | Baseline from the pilot client's current process | Pilot client | Two weeks of baseline vs pilot numbers |
-| G51 | Unit economics of $1,250 / $350 offer | None — offer is DRAFT, not proven profitable | NOT STARTED | Track setup hours, care hours, third-party costs | Pilot | Cost per client recorded for first 3 clients |
+| G51 | Unit economics of $1,250 / $350 offer | docs/lead-catcher/business/workbook/06-unit-economics.md + Unit economics tab in Lead-Catcher-Setup-Workbook.xlsx (formulas; every input is a blank assumption; no market data) | IN PROGRESS (draft calculator) | Track setup hours, care hours, third-party costs | Pilot | Cost per client recorded for first 3 clients |
 | G52 | Third-party cost disclosure (included vs client-paid) | Open | NOT STARTED (decision) | Pick per channel | G03 | Proposal lists each cost and who pays |
 | G53 | Booked-job attribution | Outcome 'booked' needs attribution (staff_recorded/customer_said/calendar_match) | DONE (manual) | Calendar match later | Calendar integration | Booked count matches client's own calendar for a sample week |
 
