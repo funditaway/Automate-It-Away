@@ -1,9 +1,15 @@
 # Lead Catcher — Specification (canonical)
 
-Status: **DRAFT v0.2 — 2026-10-07.** Official AIA Pack, preview. Not on the live site. Not legally reviewed. Commercial terms are a draft service offer, not proven profitable.
+Status: **DRAFT v0.3 — 2026-10-08.** Official AIA Pack, preview. Not on the live site. Not legally reviewed. Commercial terms are a draft service offer, not proven profitable.
 Owner: James Oddo (Automate It Away). This file is the one source of truth for Lead Catcher behavior. Code lives on branch `lead-catcher-slice` of `funditaway/Automate-It-Away`. A standalone reference build with the same rules lives at `/workspace/aia-lead-catcher` (box only).
 
 Words used: **desk** = one business's AIA workspace (the tenant). **card** = one customer request. **Yes / Stop / Kill** = AIA's human taps (approve / cancel an approval / close with no action).
+
+## 0. Working model (James, locked 2026-10-08)
+**AI prepares the work. AIA runs the workflow, permissions and records. A person checks the facts and authorizes. Proposing never grants permission.**
+- **AI prepares**: a work package for each card (§14), built only from the scoped context (§6). Rule-based by default; the optional model adapter is off by default.
+- **AIA manages**: seats (§4), lifecycle (§3), the Yes engine (§5), checks before anything runs (§15), history, and where customer replies land (§16).
+- **A person authorizes**: Accept / Fix / Reject on each prepared item, then Yes / Stop / Kill and Run. Accepting an item never sends anything and never counts as Yes. Time and price questions are always separate decisions for a person.
 
 ## 1. What it does (product behavior)
 1. A request comes in (website form, typed in by staff; email, text and missed call are **MOCK** until a channel is contracted). It becomes **one card**. The customer's words, the source, and the arrival time are saved exactly as received and can't be edited.
@@ -41,8 +47,10 @@ Words used: **desk** = one business's AIA workspace (the tenant). **card** = one
 | `owner_id`, `backup_id` | Who owns it and who covers | Assign |
 | `next_action`, `next_action_due` | Next step and when it's due | Assign |
 | drafts[] (`version`, `channel`, `recipient`, `content`, `attachments`, `commitment`, `payload_hash`, `lint_flags`, `author_kind`, `state`) | Reply versions | Helper or person |
-| approvals[] (`approver_id`, `approver_role`, `approved_at`, `draft_version`, `payload_hash`, `action_id`, `status`, `ended_reason`) | Yes history | Approver |
-| actions[] (`action_id`, `adapter`, `adapter_mode`=MOCK, `status`, `executed_by`, timings) | External action status | Run |
+| approvals[] (`approver_id`, `approver_role`, `approved_at`, `draft_version`, `payload_hash`, `channel`, `recipient`, `action_id`, `status`, `ended_reason`) | Yes history | Approver |
+| actions[] (`action_id`, `try_no`, `adapter`, `adapter_mode`=MOCK or PERSON, `status` written_to_mock_outbox / failed / needs_attention / sent_manually, `executed_by`, timings) | External action status | Run / I sent it myself |
+| packages[] (version, trigger, items with state + review, decisions, context digest) | AI work package (§14) | AIA prepares, person reviews |
+| `replies[]`, `reply_waiting`, `needs_attention`, `service` | Customer replies (§16), failed sends (§15), service from the package | Channel / System / Person |
 | `outcome`, `outcome_note`, `outcome_attribution`, `outcome_at` | What happened and how we know | Person |
 | `waiting_reason`, `follow_up_at`, `close_reason` | Lifecycle details | Person |
 | `first_assigned_at`, `first_response_at` | Metric timestamps | System |
@@ -89,14 +97,15 @@ AIA seat → Lead Catcher seat by default: owner → Desk Owner; staff/helper �
 - **Bound payload** = canonical JSON of `{desk, card, channel, recipient, content, attachments, commitment}`. Its SHA-256 is the draft's `payload_hash`.
 - **Yes** must send the `payloadHash` the approver saw. The server recomputes it from the stored draft and refuses on mismatch. It records approver, seat, time, draft version, hash and a fresh `action_id`.
 - **Material change cancels the Yes**: a new draft version, throwing the draft away, the confirmed contact changing, the card closing, the pack being turned off, or the Yes getting too old (default 60 min, `AIA_LC_APPROVAL_TTL_MIN`).
-- **Run** needs a valid Yes for that card and `action_id`. Before running, the server rechecks the payload hash against the stored draft (catches direct tampering), checks the draft is still current, the recipient still equals the confirmed contact, and the card is active.
-- **Idempotent**: one `action_id` runs at most once. Repeat or parallel Run presses return the first result. Pressing Yes again on a reply that already ran is refused; the reply needs a new version.
+- **Run** needs a valid Yes for that card and `action_id`. Before running, the server runs the checks in §15: the approver's seat can still approve, the recipient is the one that got the Yes, the content is the approved version (version number and payload hash, which also catches direct tampering), the action hasn't already run, and the connection is up. It also checks the card is active.
+- **Idempotent**: one `action_id` succeeds at most once. Repeat or parallel Run presses return the first successful result. A **failed** try does not use up the Yes, so a person can Try again (§15). Pressing Yes again on a reply that already ran is refused; the reply needs a new version.
 - **No bypass**: there is no API that sends arbitrary content. Every rule is enforced server-side in `api/_lc-engine.js`. Roles come from the signed-in AIA seat, never from the request body or headers.
 - **All attempts logged**: every allowed or denied permission check goes to the desk's attempts log, including probes from other desks.
 - **Credentials**: none exist in this build. If added later they stay server-side env vars, never in prompts, client code or history.
 
 ## 6. AI assistance limits
 - Default extractor is deterministic rules (`api/_lc-extract.js`). The optional model adapter (`api/_lc-model.js`) is **off** unless `AIA_LC_MODEL_ENABLED=true` and an endpoint is set. Its output is filtered to an allow-list of five suggestion fields. Anything else is dropped and logged.
+- **Scoped AI context — one builder**: `buildContext` in `api/_lc-context.js` is the only thing the AI step sees (both the rules package builder and the optional model). It holds exactly: `scope` (desk, card id, seat, business name), `original_message`, `latest_replies` (this card, last 3), `card` (allow-listed fields this seat may see), `templates` (the desk's approved reply templates; AIA defaults until a desk stores its own), `workflow` (lifecycle, rules, required fields), `missing`, `needs_approval`, and `never`. It never includes other cards, other desks, credentials, env values, PINs, keys, approvals, activity or the store. System Admin's context has no customer contact. The object is frozen. Read it on any card with `ai-context` ("Show what AIA could see"). The package builder (`api/_lc-package.js`) is a pure function: no store, network or env (W01).
 - AIA must never invent identity, diagnosis, price, availability, coverage or commitments. The draft template states none. Lint flags price, time promises, guarantees, coverage and diagnosis words, and needs a tick before Yes.
 - Inbound text is **untrusted data**: it's stored verbatim, never followed as instructions, and flagged when it reads like instructions (T14).
 - **Manual path**: typing in a request, writing the reply yourself and approving it all work with no AI (T03).
@@ -123,7 +132,7 @@ In scope: the one workflow configured at setup, desk seats, the website form and
 | Late (overdue) | Active cards past their next-step due time, or Waiting cards past their follow-up date. |
 | Unresolved after 48 h | Active cards that arrived more than 48 h ago, split into not-waiting and waiting (with waiting reasons counted separately). |
 | On-time follow-up rate | Waiting periods that ended on or before their follow-up date ÷ (ended Waiting periods + open ones already past their date). |
-| Draft quality | AIA drafts Yes'd as-is / human edits of AIA drafts that got a Yes / human-written drafts that got a Yes / AIA drafts thrown away. |
+| Draft quality | AIA drafts Yes'd as-is / human edits of AIA drafts that got a Yes (incl. Fixed package drafts) / human-written drafts that got a Yes / AIA drafts thrown away. Plus package items: accepted as-is / edited / rejected / waiting / not checked before a newer package. |
 | Booked opportunities | Cards with outcome `booked`, by attribution: staff_recorded, customer_said, calendar_match. Not revenue. |
 | Staff handling time | **Not measured yet.** Plan: a supervisor times a sample of 20 cards per week (open to done, active minutes only). |
 
@@ -143,4 +152,34 @@ Desk = tenant. The desk comes from the signed-in AIA session/PIN, never from a c
 - **Several packs per desk**: Lead Catcher keeps its own on/off state per desk and doesn't replace the desk's existing `shop.pack`. Market's Use/Install/Buy for `lead-catcher` returns 409 with a link to `/lead-catcher`. It never installs silently (P02).
 - **Packs you own** lists Lead Catcher with its on/off state for the open desk.
 - What turning it on changes on a desk: card fields (§2), lifecycle (§3), seats (§4), intake adapters (website form, typed in; email/text/missed call MOCK), and payload-bound Yes (§5).
-- Ownership and on/off state are kept in the isolated Lead Catcher store, not on the AIA account record. Moving them there is a gap that needs review.
+- Ownership and on/off state are kept in the isolated Lead Catcher store, not on the AIA account record. Ownership is checked across every key the owner may be known by (the desk, and the AIA account once AIA links one), so linking an account later doesn't lose the pack. Moving ownership onto the AIA account record is a gap that needs review.
+
+## 13. Lead Catcher cards on the main AIA Queue
+- When Lead Catcher is **on** for the open desk, the Queue (`/desk`) shows that desk's **active** Lead Catcher cards (New, Assigned, In Review, Waiting) in a "Lead Catcher" block above the AIA cards. When it's off, nothing shows.
+- Each row, in plain words: customer name (or "No name yet"), kind of job, urgency, owner or **No owner**, status, next-step or follow-up time with **late** marked, TEST/DEMO label, how it came in (MOCK channels marked "test only"), and where the reply stands ("needs a person's Yes on the card", "Yes given", "ran (test outbox)"). Late cards come first, then by urgency and due time.
+- **Read-only.** The only control is **Open**, which goes to `/lead-catcher#card=<id>`. Yes, Stop, Kill and Run happen only on the card and go through the approval engine (§5). Queue rows carry no draft words, fingerprints, action ids or customer contact details, so nothing on the Queue can approve or run anything.
+- Same desk isolation as §11: rows come from the caller's desk only. Desk AIs and seats without "see cards" get no rows.
+- Data stays in the Lead Catcher store. Nothing is written to the shared AIA store. No charge, no Buy, Collect off.
+
+## 14. AI work package (AI prepares; a person checks each item)
+- Made on every new request, on **Prepare again**, and on every customer reply (§16). Each one is a new version; the older one is kept read-only (`superseded`). History records "Nothing was sent. Nothing is approved." with a digest of the context it used.
+- **Items**: summary; extracted details (name, phone, email, service, location, what they want); missing information as questions to ask; suggested kind of job; **decisions** (below); recommended next step; an editable **draft reply** built only from the desk's templates.
+- **Split decisions**: if the customer asks about timing, the package lists **Scheduling — needs confirmation by a person**. If they ask about cost, it lists **Price — needs an authorized estimate**. They're always separate items. The draft never confirms a time, a booking or a price; it says a person will confirm a time and give an estimate. Lint also flags booking words (`confirms_booking`) on any draft. Fixtures: "Can you replace my water heater tomorrow, and what will it cost?" and the same text with prompt-injection orders (W02, W03).
+- **On the card**: the package sits **beside** the customer's words ("What they said" on the left, "Prepared by AIA — check each item" on the right). Each item has **Accept / Fix / Reject**. Decision items are marked **Needs a person**.
+- **Effects**: Accept or Fix on a detail fills that card field (name, phone, email, kind of job, address, service, next step). A changed phone or email is not confirmed, and if it differs from the confirmed contact it cancels any Yes. Accept on the draft makes it the current draft as written (`rules`); Fix makes a person-edited draft (`edited_from_helper`). Drafts still need an owner and a confirmed contact. Reject records the rejection only.
+- **Never**: accepting sends nothing, creates no Yes, and skips no check. Desk AIs, System Admins and other desks can't review items. Each item is reviewed once; older packages are read-only (W04).
+- **Draft quality**: `draft_quality.package_items` counts accepted as-is / edited / rejected / waiting / not checked before a newer package. `approved_after_edit` includes Fixed package drafts.
+
+## 15. Checks before anything runs; connection up/down (MOCK)
+- Before **Run** writes to the test outbox, the server checks, in order: the Yes is valid and not too old; **the approver's seat can still approve** (else the Yes is cancelled); **the content is the approved version** (draft current, same version, same payload hash); **the recipient is the one approved** (stored on the Yes, still the confirmed contact); the card is active; **the action hasn't already run**; **the connection is up** (W05).
+- **Connection switch**: the desk owner can set the MOCK test outbox connection **down** or **up** (`connection`, needs `confirm: true`). It's labelled as a MOCK test switch and only affects the test outbox.
+- **When down**: Run returns a visible failure (503 `connection_down`), writes a `failed` row and an "action failed" history line, sends nothing, and **keeps the Yes**. The card shows **Try again** and **I sent it myself**. After 3 failed tries the card is marked **Needs attention** on the card and the Queue.
+- **Retry** after the connection is back runs once. The Yes is used up only after a successful write.
+- **Manual fallback** (`manual-sent`): only after a failed try, with a still-valid Yes, a "how you sent it" note and a Yes tick. It records `sent_manually` and "AIA sent nothing". Run afterwards does nothing.
+- Every result (sent to test outbox / failed / needs attention / sent manually) is written to the card history.
+
+## 16. Customer replies come back to the same card
+- A text or email (MOCK channels) from the **confirmed contact** of an **active** card on the **same desk** that has **already had a reply run** is attached to that card as a reply. It doesn't make a new card. The first message is never changed (its hash still checks).
+- AIA then prepares a **new package** (trigger: customer reply) using the original message plus the latest replies. Time or price questions in the reply become decisions again.
+- The Queue shows **Customer replied** until a person checks an item or writes a draft. The same reply arriving twice is logged once. An unknown number, a card with no reply run yet, or another desk makes a new card instead (W06).
+
