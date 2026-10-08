@@ -54,7 +54,7 @@ What this shows: **B took effect.** The Blob store connection no longer gives th
 What it does **not** show (not proven yet):
 - `VERCEL_OIDC_TOKEN` is still present (Vercel sets it on every build), so `blobReady()` in `api/_lib.js` is still true and preview code still *tries* the Blob store in hydrate/ready/persistScrub/save. With no token and no store id it should fail and fall back to `/tmp`, but that is from reading the code, not a test. The check J assumption (Preview build env = Preview runtime env) still applies.
 - **Checksum test:** NOT RUN at ~3:35 AM CT; run 3:37–3:55 AM CT, see "Checksum test" below (PASS as defined, but no preview code ran).
-- Proposal **G** (code guard on `VERCEL_ENV`) is still not done.
+- Proposal **G** (code guard on `VERCEL_ENV`) is still not done. *(~4:40 AM CT: built on branch `preview-store-guard`, not merged; see "Fix G built" below.)*
 
 ## Checksum test 2026-10-08 ~3:37–3:55 AM CT
 Method: James reads `aia/store.json` in Blob store `automate-it-away-blob` (Vercel dashboard), we send one signed-out GET of `/` to the `blob=missing` preview `automate-it-away-idjcwoojq-…vercel.app` (`dpl_HuTgcAaYiZMf2bDnYpSftUX4eHta`), James re-checks. Runtime logs (Vercel connector `get_runtime_logs`, read-only) show who could have written in between. ETags shown by prefix/suffix only.
@@ -78,6 +78,9 @@ Verdict: **PASS as defined** (content unchanged by size and ETag; the ~03:42 re-
 - The runtime log output lists requests that printed something. Every production entry here is Node's `DEP0169` warning, which each `api/*.js` instance printed, so a preview function call would very likely have shown up too, but it is not a full request log. "6 minutes ago" is coarse (about 03:41–03:42).
 - **What it does not prove:** both test requests got the Vercel login (D), and `/` is a static page anyway, so no preview code ran. It shows a signed-out visitor can't make a preview touch the store. It does not show that preview functions, which still `blobReady()` via `VERCEL_OIDC_TOKEN`, can't reach it. The shared-store row stays **UNKNOWN**; the tally is unchanged.
 - To settle that row (needs James's go-ahead; not done): someone signed in to Vercel (not to AIA) makes one GET to a preview API route that loads `api/_lib.js` (not `/api/health`, which always saves), with James's before/after and the same log read. The preview log must show the call, and the last modified time must not move except at logged production requests. Or do G.
+
+## Fix G built 2026-10-08 ~4:40 AM CT (not merged)
+Approved by James. Built on its own branch `preview-store-guard` (head `1167dd4`, based on main `1ecee9b`), separate from this branch. The shared Blob store `aia/store.json` is usable only when `VERCEL_ENV` is exactly `production`. Everywhere else, `blobReady()` and every Blob read/write/upload path refuse, even with `VERCEL_OIDC_TOKEN` or `BLOB_*` present, and fall back to the existing file store (`api/data` or `/tmp`). This replaces the separate preview Blob key in proposal G below with no Blob at all off production. Local tests (mocked env, no network): `scripts/check-store-guard.js` 79 PASS / 0 FAIL, 6/6 mutations caught; no newly failing scripts vs main. The preview build `dpl_7SJJZcyLpgcqn8RazE3L2VbWZdzT` is READY; its API endpoints were not called. **Not merged, not on production.** The shared-store row (and the rows waiting on it) can move to **YES** only once G is merged and verified: production `/api/health` still shows `store.driver: "shared"`, and a preview function shows it can't reach the store. **The tally is unchanged.**
 
 ## Follow-up 2026-10-08 ~2:32–2:35 AM CT (read-only): did James's env change take effect?
 | Check | Result |
@@ -152,7 +155,7 @@ Vercel settings (James, in the Vercel dashboard):
 - **F.** Give the Vercel connector read access to env var names and integrations, **or** run `vercel env ls` yourself and share the names and targets only (no values), so the UNKNOWN rows can be settled.
 
 Code (a separate small PR, only if James approves; it changes shared AIA code, not Lead Catcher):
-- **G.** `api/_lib.js`: when `VERCEL_ENV` is not `production`, use a separate Blob key (e.g. `aia-preview/store.json`) and never write `aia/store.json`.
+- **G.** `api/_lib.js`: when `VERCEL_ENV` is not `production`, use a separate Blob key (e.g. `aia-preview/store.json`) and never write `aia/store.json`. *(Approved ~4:01 AM CT; built on branch `preview-store-guard` as "no Blob off production", not merged; see "Fix G built".)*
 - **H.** `api/worker.js`: require `Authorization: Bearer $CRON_SECRET` (Vercel sends it on cron calls), and skip outbound webhooks (`pingHooks`, `api/jobs.js` hook POST) outside production.
 - **I.** `PUBLIC_HOST`: outside production, use the deployment's own URL.
 - **J.** *(DONE 2026-10-08 ~2:48 AM CT, approved by James.)* `scripts/env-presence.js` as the preview build step, names/booleans only; `scripts/check-env-presence.js` E01–E14.
