@@ -125,9 +125,9 @@
       if (extra) Object.keys(extra).forEach(function (k) { el.setAttribute(k, extra[k]); });
       document.head.appendChild(el);
     }
-    icon("icon", "/favicon.svg", { type: "image/svg+xml" });
+    icon("icon", "/img/aia-mark-dark.png", { type: "image/png", sizes: "512x512" });
+    icon("apple-touch-icon", "/img/aia-mark-dark.png", { sizes: "180x180" });
     icon("icon", "/favicon.ico", { sizes: "any" });
-    icon("apple-touch-icon", "/apple-touch-icon.png", { sizes: "180x180" });
     icon("manifest", "/site.webmanifest");
   }
   apply();

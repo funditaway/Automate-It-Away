@@ -918,3 +918,14 @@ img.brand-mark {
   background: transparent;
   border-radius: 8px;
 }
+
+/* 2026-10-08 phone clearance: last tap sits above the desk bar, not flush with it. */
+body.has-desk-nav {
+  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+}
+#desk-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+input, select, textarea {
+  font-size: 16px !important;
+}
