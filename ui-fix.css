@@ -929,3 +929,49 @@ body.has-desk-nav {
 input, select, textarea {
   font-size: 16px !important;
 }
+
+
+/* 2026-10-08 visibility pass. Official tiles stay whole. Header stays on the light tile. */
+header .brand-mark,
+.site-header .brand-mark,
+#desk-nav .brand-mark {
+  box-shadow: 0 0 0 2px rgba(255,255,255,.85) !important;
+  background: #f4f7f8 !important;
+}
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #f39c12 !important;
+  outline-offset: 2px !important;
+}
+html.dark a.btn.outline,
+html.dark .btn.outline,
+html.dark a.outline {
+  color: #e7fffb !important;
+  border-color: #7ec8c4 !important;
+}
+html.dark .chip,
+html.dark .pill {
+  color: #f4fffe !important;
+}
+@media (max-width: 860px) {
+  header nav a,
+  header .site-nav a,
+  header .theme-btn {
+    min-height: 44px !important;
+  }
+}
+@media (min-width: 861px) {
+  header,
+  .site-header {
+    flex-wrap: nowrap !important;
+  }
+  header .brand-name,
+  .site-header .brand-name {
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}

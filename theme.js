@@ -21,6 +21,9 @@
     /* Header bar is teal. Light tile keeps the pyramid and the base visible. Teal tile melts into the bar. */
     return "/img/aia-mark-light.png";
   }
+  function tealSrc() {
+    return "/img/aia-mark-teal.png";
+  }
   function orangeSrc() {
     return "/img/aia-mark-orange.png";
   }
@@ -34,10 +37,11 @@
       if (!img.getAttribute("alt")) img.setAttribute("alt", "Automate It Away");
       var kind = (img.getAttribute("data-mark") || "").toLowerCase();
       if (kind === "orange") { img.setAttribute("src", orangeSrc()); return; }
+      if (kind === "teal") { img.setAttribute("src", tealSrc()); return; }
       if (kind === "outline") { img.setAttribute("src", outlineSrc()); return; }
       if (kind === "dark") { img.setAttribute("src", "/img/aia-mark-dark.png"); return; }
       if (kind === "light") { img.setAttribute("src", "/img/aia-mark-light.png"); return; }
-      if (kind === "teal" || kind === "header") { img.setAttribute("src", headerSrc); return; }
+      if (kind === "header") { img.setAttribute("src", headerSrc); return; }
       var inHeader = img.closest("header, .site-header, .desk-nav, #desk-nav");
       img.setAttribute("src", inHeader ? headerSrc : tile);
     });
