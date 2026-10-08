@@ -113,3 +113,5 @@ Code (a separate small PR, only if James approves; it changes shared AIA code, n
 - **J.** *(DONE 2026-10-08 ~2:48 AM CT, approved by James.)* `scripts/env-presence.js` as the preview build step, names/booleans only; `scripts/check-env-presence.js` E01–E14.
 
 How to confirm afterwards (G22 / L3 acceptance): when the check J line on a new preview build shows `blob=missing` (after B), take a checksum of the production `aia/store.json` before and after one signed-out preview request. They must match. Only then may anyone sign in on a preview.
+
+Isolation recheck 2026-10-08 ~3:30 AM CT after Blob store Preview/Development unticked (James, store connection for `automate-it-away`): this commit triggers a new preview build; result of its check J line recorded below once read.
