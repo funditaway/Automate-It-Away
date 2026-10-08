@@ -757,7 +757,7 @@ function icsOf(job) {
   const end = new Date(start.getTime() + 30 * 60 * 1000);
   const title = icsEscape((job && job.title) || "Desk item");
   const desc = icsEscape((job && (job.draft || job.why)) || "");
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Automate It Away//Desk//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT", "UID:" + ((job && job.id) || "job") + "@automateitaway.com", "DTSTAMP:" + stamp(new Date()), "DTSTART:" + stamp(start), "DTEND:" + stamp(end), "SUMMARY:" + title, "DESCRIPTION:" + desc, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Automate It Away//Desk//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT", "UID:" + ((job && job.id) || "job") + "@" + require("./_public-host").LIVE_DOMAIN, "DTSTAMP:" + stamp(new Date()), "DTSTART:" + stamp(start), "DTEND:" + stamp(end), "SUMMARY:" + title, "DESCRIPTION:" + desc, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
 }
 
 function markFlow(job, step) {
