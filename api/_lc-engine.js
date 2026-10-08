@@ -10,12 +10,17 @@ const { ADAPTERS } = require('./_lc-intake');
 const rules = require('./_lc-extract');
 const model = require('./_lc-model');
 const draftLib = require('./_lc-draft');
+const ctxLib = require('./_lc-context');
+const packageLib = require('./_lc-package');
 const { sha256, canonical, normPhone, normEmail, normText, HttpError } = require('./_lc-util');
 
 const PACK_ID = 'lead-catcher';
 const OUTCOMES = ['booked', 'quoted', 'referred', 'no_answer', 'not_a_fit', 'lost', 'spam', 'other'];
 const ATTRIBUTION = ['staff_recorded', 'customer_said', 'calendar_match'];
 const URG = ['emergency', 'high', 'normal', 'low'];
+// An action counts as done only when it succeeded. A failed try keeps the Yes so a person can retry or send it themselves.
+const RAN = ['written_to_mock_outbox', 'sent_manually'];
+const MAX_TRIES = 3;
 
 let clock = () => new Date();
 function setClock(fn) { clock = fn || (() => new Date()); }
@@ -53,7 +58,9 @@ function attempt(D, actor, action, target, outcome, reason) {
 function deskOf(actor) {
   if (store.liveBlocked()) throw new HttpError(503, 'not_on_live_site', 'Lead Catcher is not turned on for the live site yet.');
   if (!actor || !actor.desk) throw new HttpError(401, 'unauthenticated', 'Open your desk first.');
-  return store.desk(actor.desk);
+  const D = store.desk(actor.desk);
+  if (actor.deskName) D.business_name = actor.deskName; // used only in reply wording
+  return D;
 }
 function requirePackOn(D) { if (!D.pack || !D.pack.on) throw new HttpError(409, 'pack_off', 'Lead Catcher is not turned on for this desk. The desk owner turns it on from the Lead Catcher page.'); }
 function requirePerm(D, actor, action, target) {
@@ -72,12 +79,16 @@ function seat(actor, personId) { return (actor.people || []).find((p) => p.id ==
 function save() { store.persist(); }
 
 // ---------- pack: get once on the account, turn on per desk; both need a person's Yes ----------
+function ownsPack(actor) {
+  const keys = (actor.accountKeys && actor.accountKeys.length ? actor.accountKeys : [actor.accountKey]).filter(Boolean);
+  const s = store.load();
+  return keys.some((k) => s.accounts[k] && (s.accounts[k].owned || []).some((o) => o.pack === PACK_ID));
+}
 function packStatus(actor) {
   const D = deskOf(actor);
-  const acct = store.account(actor.accountKey);
   return {
     pack: PACK_ID, name: 'Lead Catcher', official: true, brand: 'AIA',
-    owned: acct.owned.some((o) => o.pack === PACK_ID), on: !!(D.pack && D.pack.on), desk: D.slug,
+    owned: ownsPack(actor), on: !!(D.pack && D.pack.on), desk: D.slug,
     price: 0, charged: false, collect: 'off',
     note: 'No charge in AIA. Getting or turning on the pack never charges anything. Collect stays off.',
     store: 'Lead Catcher test store (separate from your live desk data).',
@@ -88,7 +99,7 @@ function getPack(actor, b) {
   if (!actor.isOwner) { attempt(D, actor, 'pack.get', PACK_ID, 'denied', 'not owner'); throw new HttpError(403, 'forbidden', 'Only the desk owner can add a pack to the account.'); }
   if (b.confirm !== true) throw new HttpError(409, 'needs_yes', 'Adding Lead Catcher needs your Yes. Nothing is charged.');
   const acct = store.account(actor.accountKey);
-  if (!acct.owned.some((o) => o.pack === PACK_ID)) acct.owned.push({ pack: PACK_ID, at: iso(), by: actor.id, price: 0, charged: false });
+  if (!ownsPack(actor)) acct.owned.push({ pack: PACK_ID, at: iso(), by: actor.id, price: 0, charged: false });
   attempt(D, actor, 'pack.get', PACK_ID, 'allowed');
   log(D, null, actor, 'human', 'pack_owned', 'Lead Catcher added to the account. No charge.', { charged: false });
   save();
@@ -97,8 +108,7 @@ function getPack(actor, b) {
 function turnOn(actor, b) {
   const D = deskOf(actor);
   if (!actor.isOwner) { attempt(D, actor, 'pack.turn_on', PACK_ID, 'denied', 'not owner'); throw new HttpError(403, 'forbidden', 'Only the desk owner can turn a pack on.'); }
-  const acct = store.account(actor.accountKey);
-  if (!acct.owned.some((o) => o.pack === PACK_ID)) throw new HttpError(409, 'not_owned', 'Add Lead Catcher to the account first.');
+  if (!ownsPack(actor)) throw new HttpError(409, 'not_owned', 'Add Lead Catcher to the account first.');
   if (b.confirm !== true) throw new HttpError(409, 'needs_yes', 'Turning on Lead Catcher changes how this desk works. It needs your Yes.');
   const intakeKey = 'lc_' + crypto.randomBytes(12).toString('hex');
   D.pack = { on: true, at: iso(), by: actor.id, intakeKeyHash: sha256(intakeKey) };
@@ -156,6 +166,8 @@ function intake(D, adapterName, body, actor, deskName) {
     save();
     return { card: existing, duplicate: true };
   }
+  const r = !actor ? customerReply(D, n) : null;
+  if (r) return r;
   const c = {
     id: id('card'), desk: D.slug, data_label: label, status: 'new', source_channel: n.channel, source_is_mock: n.isMock, source_ref: n.sourceRef,
     dedupe_key: dedupe, original_request: n.text, original_fields: n.fields, arrived_at: arrived,
@@ -170,8 +182,98 @@ function intake(D, adapterName, body, actor, deskName) {
   D.spans.push({ card_id: c.id, status: 'new', entered_at: arrived });
   log(D, c, actor, actor ? 'human' : 'channel', 'created', 'Request came in by ' + n.channel.replace(/_/g, ' ') + (n.isMock ? ' (MOCK channel)' : '') + '. Their words are saved exactly as sent.', { source_ref: n.sourceRef, data_label: label });
   applyExtraction(D, c, rules.extract(n.text, n.fields), null, 'rules');
+  proposePackage(D, c, null, 'new_request');
   save();
   return { card: c, duplicate: false };
+}
+// A text or email from the confirmed contact of an active card that already had a reply run goes back to THAT card.
+// Their first message is never changed. AIA prepares a new package; a person checks it.
+function customerReply(D, n) {
+  const from = n.channel === 'mock_sms' ? normPhone(n.fields.phone) : n.channel === 'mock_email' ? normEmail(n.fields.email) : null;
+  if (!from || !normText(n.text)) return null;
+  const ran = (c) => D.actions.some((x) => x.card_id === c.id && RAN.includes(x.status));
+  const c = D.cards.filter((x) => x.desk === D.slug && policy.ACTIVE.includes(x.status) && x.contact_verified && x.verified_value === from && ran(x))
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+  if (!c) return null;
+  c.replies = c.replies || [];
+  const key = n.sourceRef ? sha256(['reply', n.channel, n.sourceRef].join('|')) : sha256(['reply', n.channel, from, normText(n.text), iso().slice(0, 10)].join('|'));
+  if (c.replies.some((x) => x.dedupe_key === key)) {
+    log(D, c, null, 'channel', 'duplicate_reply', 'The same customer reply came in again. Not added twice.', { source_ref: n.sourceRef });
+    save();
+    return { card: c, duplicate: true, reply: true };
+  }
+  c.replies.push({ id: id('reply'), at: iso(), channel: n.channel, mock: n.isMock, from, text: n.text, source_ref: n.sourceRef, dedupe_key: key });
+  c.reply_waiting = true; c.updated_at = iso();
+  log(D, c, null, 'channel', 'customer_reply', 'Customer replied by ' + n.channel.replace(/^mock_/, '').replace('sms', 'text message') + (n.isMock ? ' (MOCK channel)' : '') + '. Added to this card. Their first message is unchanged.', { source_ref: n.sourceRef, reply_count: c.replies.length });
+  proposePackage(D, c, null, 'customer_reply');
+  save();
+  return { card: c, duplicate: false, reply: true };
+}
+
+// ---------- AI work package: AI prepares, a person checks, nothing is approved by accepting ----------
+function pk(D) { D.packages = D.packages || []; return D.packages; }
+function proposePackage(D, c, actor, trigger, extra) {
+  const ctx = ctxLib.buildContext(D, actor, c);
+  const p = packageLib.build(ctx, extra);
+  const all = pk(D).filter((x) => x.card_id === c.id);
+  all.filter((x) => x.state === 'current').forEach((x) => { x.state = 'superseded'; x.superseded_at = iso(); });
+  const row = Object.assign({ id: id('pkg'), desk: D.slug, card_id: c.id, version: all.length + 1, trigger, state: 'current', created_at: iso(),
+    context_digest: sha256(canonical(ctx)), context_keys: Object.keys(ctx), context_seat: ctx.scope.seat }, p);
+  D.packages.push(row);
+  log(D, c, null, p.source === 'rules-v1' ? 'rules' : 'model', 'package_proposed', 'AIA prepared work package v' + row.version + ' (' + trigger.replace(/_/g, ' ') + ')' + (p.decisions.length ? ' with ' + p.decisions.length + ' decision(s) for a person' : '') + '. Nothing was sent. Nothing is approved.', { package_id: row.id, decisions: p.decisions.map((x) => x.key), context_digest: row.context_digest });
+  return row;
+}
+function aiContext(actor, cardId) {
+  const D = deskOf(actor); requirePackOn(D);
+  requirePerm(D, actor, 'card.view', cardId);
+  const c = loadCard(D, actor, cardId, 'card.view');
+  const ctx = ctxLib.buildContext(D, actor, c);
+  return { context: ctx, digest: sha256(canonical(ctx)), note: 'This is everything the AI step may see for this card and your seat. Nothing else is shared with it.' };
+}
+const FIELD_ITEMS = ['customer_name', 'customer_phone', 'customer_email', 'category', 'service', 'service_address', 'next_action'];
+function reviewItem(actor, cardId, b) {
+  const D = deskOf(actor); requirePackOn(D);
+  const p = pk(D).find((x) => x.id === String(b.packageId || ''));
+  const item = p && p.items.find((i) => i.key === String(b.key || ''));
+  const perm = item && item.kind === 'draft' ? 'draft.edit' : 'card.edit_fields';
+  requirePerm(D, actor, perm, cardId);
+  const c = loadCard(D, actor, cardId, perm);
+  if (!p || p.card_id !== c.id || !item) throw new HttpError(404, 'no_item', 'No such item on this card.');
+  if (p.state !== 'current') throw new HttpError(409, 'not_current', 'AIA prepared a newer package. Check that one.');
+  if (item.state !== 'proposed') throw new HttpError(409, 'already_reviewed', 'This item was already checked.');
+  const decision = b.decision;
+  if (!['accept', 'fix', 'reject'].includes(decision)) throw new HttpError(400, 'bad_decision', 'Choose Accept, Fix or Reject.');
+  if (!policy.ACTIVE.includes(c.status)) throw new HttpError(409, 'closed', 'This card is closed.');
+  let value = item.value;
+  if (decision === 'fix') {
+    value = String(b.value || '').trim();
+    if (!value) throw new HttpError(400, 'empty', 'Type the fixed version, or choose Reject.');
+    if (value.length > 1600) throw new HttpError(400, 'too_long', 'Keep it under 1600 characters.');
+  }
+  const changes = {};
+  if (decision !== 'reject') {
+    if (item.kind === 'draft') {
+      draftable(c);
+      const row = addDraft(D, c, actor, decision === 'accept' ? 'rules' : 'human', { channel: c.verified_channel === 'phone' ? 'sms' : 'email', recipient: c.verified_value, content: value, attachments: [], commitment: {} });
+      row.from_package = p.id; row.edited_from_helper = decision === 'fix';
+      changes.draft_id = row.id;
+    } else if (item.field && FIELD_ITEMS.includes(item.field) && !(item.field === 'service_address' && decision === 'accept' && value === 'Not given') && !(item.field === 'service' && decision === 'accept' && value === 'Not clear yet')) {
+      let v = String(value).slice(0, 300);
+      if (item.field === 'customer_phone') v = normPhone(v);
+      if (item.field === 'customer_email') v = normEmail(v);
+      changes[item.field] = v;
+      const contactChanged = c.contact_verified && ((c.verified_channel === 'phone' && item.field === 'customer_phone' && v !== c.verified_value) || (c.verified_channel === 'email' && item.field === 'customer_email' && v !== c.verified_value));
+      c[item.field] = v;
+      if (contactChanged) { Object.assign(c, { contact_verified: false, verified_channel: null, verified_value: null, verified_by: null, verified_at: null }); invalidate(D, c, actor, 'customer contact changed'); }
+    }
+  }
+  item.state = decision === 'accept' ? 'accepted' : decision === 'fix' ? 'edited' : 'rejected';
+  item.review = { by: actor.id, by_name: actor.name, at: iso(), decision, value: decision === 'fix' ? value : null };
+  c.reply_waiting = false; c.updated_at = iso();
+  attempt(D, actor, 'package.review', c.id, 'allowed');
+  log(D, c, actor, 'human', 'package_item', (decision === 'accept' ? 'Accepted' : decision === 'fix' ? 'Fixed' : 'Rejected') + ' "' + item.label + '" from package v' + p.version + '. Nothing was sent. This is not a Yes.', { package_id: p.id, key: item.key, decision, changes });
+  save();
+  return detail(actor, cardId);
 }
 function intakeManual(actor, b) {
   const D = deskOf(actor); requirePackOn(D);
@@ -192,15 +294,17 @@ async function runExtraction(actor, cardId) {
   requirePerm(D, actor, 'card.run_extraction', cardId);
   const c = loadCard(D, actor, cardId, 'card.run_extraction');
   const ex = rules.extract(c.original_request, c.original_fields);
-  let kind = 'rules';
+  let kind = 'rules'; let extra = null;
   if (model.enabled(process.env)) {
     try {
-      const m = await model.suggest(c.original_request, process.env);
-      if (m.ok) { Object.assign(ex.suggestions, m.suggestions); ex.dropped = m.dropped; ex.extractor = 'rules-v1+model'; kind = 'model'; }
+      // The model sees only the scoped context for this card and this seat.
+      const m = await model.suggest(ctxLib.buildContext(D, actor, c), process.env);
+      if (m.ok) { Object.assign(ex.suggestions, m.suggestions); ex.dropped = m.dropped; ex.extractor = 'rules-v1+model'; kind = 'model'; extra = { suggestions: m.suggestions, used: true }; }
     } catch (e) { ex.notes.push('Model helper failed; rules result kept.'); }
   }
   attempt(D, actor, 'card.run_extraction', cardId, 'allowed');
   applyExtraction(D, c, ex, actor, kind);
+  proposePackage(D, c, actor, 'prepared_again', extra);
   save();
   return detail(actor, cardId);
 }
@@ -238,6 +342,42 @@ function list(actor, q) {
   rows.sort(sorts[q.sort] || sorts.arrived_desc);
   return rows.slice(0, 500).map((c) => view(actor, c));
 }
+// ---------- main AIA Queue: read-only, plain-word rows for this desk only ----------
+// The Queue shows Lead Catcher cards but cannot act on them. No draft words, fingerprints or action ids leave here,
+// so nothing on the Queue can press Yes, Stop, Kill or Run. Those stay on the Lead Catcher card page.
+const KIND_WORDS = { plumbing: 'Plumbing', hvac: 'Heating and cooling', electrical: 'Electrical', roofing: 'Roofing', restoration: 'Restoration', other: 'Other job' };
+const URG_WORDS = { emergency: 'Emergency', high: 'Soon', normal: 'Normal', low: 'Low' };
+const SOURCE_WORDS = { web_form: 'website form', manual: 'typed in', mock_email: 'email', mock_sms: 'text message', mock_missed_call: 'missed call' };
+function queueItems(actor) {
+  const D = deskOf(actor);
+  if (!D.pack || !D.pack.on) return { pack: PACK_ID, on: false, items: [] };
+  try { requirePerm(D, actor, 'card.view'); } catch (e) {
+    if (e.status === 403) return { pack: PACK_ID, on: true, items: [], note: 'Your seat does not see Lead Catcher cards.' };
+    throw e;
+  }
+  const rows = D.cards.filter((c) => c.desk === D.slug && policy.ACTIVE.includes(c.status));
+  const items = rows.map((c) => {
+    const cur = D.drafts.filter((d) => d.card_id === c.id && d.state === 'current').pop();
+    const appr = cur ? D.approvals.filter((a) => a.draft_id === cur.id && (a.status === 'valid' || a.status === 'executed')).pop() : null;
+    const reply = c.reply_waiting ? 'Customer replied. AIA prepared a new package to check.' : !cur ? '' : !appr ? 'Reply drafted. It needs a person\'s Yes on the card.' : appr.status === 'valid' ? 'Yes given. A person can Run it from the card.' : 'Reply ran (test outbox).';
+    const due = c.status === 'waiting' ? c.follow_up_at : c.next_action_due;
+    return {
+      id: c.id, desk: D.slug, name: c.customer_name || 'No name yet', kind: KIND_WORDS[c.category] || 'Kind of job not set',
+      urgency: c.urgency || 'normal', urgency_words: URG_WORDS[c.urgency] || 'Normal',
+      owner: nameOf(actor, c.owner_id) || 'No owner', status: c.status, status_words: policy.STATUS_WORDS[c.status],
+      due: due || null, due_words: c.status === 'waiting' ? 'Follow up' : 'Next step due', late: isOverdue(c),
+      label: String(c.data_label || 'test').toUpperCase(), source_words: SOURCE_WORDS[c.source_channel] || 'other', mock: !!c.source_is_mock,
+      waiting_reason: c.status === 'waiting' ? c.waiting_reason || null : null, reply, customer_replied: !!c.reply_waiting, needs_attention: !!c.needs_attention,
+      href: '/lead-catcher#card=' + encodeURIComponent(c.id),
+    };
+  });
+  items.sort((a, b) => (b.late - a.late) || (URG.indexOf(a.urgency) - URG.indexOf(b.urgency)) || String(a.due || '9999').localeCompare(String(b.due || '9999')));
+  return {
+    pack: PACK_ID, on: true, desk: D.slug, items: items.slice(0, 200),
+    counts: { open: items.length, no_owner: items.filter((i) => i.owner === 'No owner').length, late: items.filter((i) => i.late).length },
+    note: 'Open a card to act on it. Yes, Stop and Kill happen on the card. Nothing is sent from the Queue.',
+  };
+}
 function detail(actor, cardId) {
   const D = deskOf(actor); requirePackOn(D);
   requirePerm(D, actor, 'card.view', cardId);
@@ -248,7 +388,16 @@ function detail(actor, cardId) {
     approvals: clone(D.approvals.filter((a) => a.card_id === c.id)).reverse(),
     actions: clone(D.actions.filter((a) => a.card_id === c.id)).reverse(),
     history: clone(D.activity.filter((h) => h.card_id === c.id)),
+    packages: packagesFor(D, actor, c),
+    connection: { outbox: (D.connection && D.connection.outbox) || 'up', mode: 'MOCK', note: 'Test switch for the MOCK test outbox. It never reaches a customer.' },
   };
+}
+function packagesFor(D, actor, c) {
+  const contactOk = ctxLib.CONTACT_SEATS.includes(actor.role);
+  return clone(pk(D).filter((p) => p.card_id === c.id)).sort((a, b) => b.version - a.version).map((p) => {
+    if (!contactOk) p.items = p.items.filter((i) => !/^contact_/.test(i.key)).map((i) => (i.kind === 'draft' || i.kind === 'summary' ? Object.assign(i, { value: '(Hidden for your seat.)' }) : i));
+    return p;
+  });
 }
 
 // ---------- lifecycle ----------
@@ -278,6 +427,7 @@ function assign(actor, cardId, b) {
   if (!next) throw new HttpError(400, 'next_action_required', 'An active card needs a next action.');
   const due = b.nextActionDue ? new Date(b.nextActionDue) : null;
   if (!due || isNaN(due)) throw new HttpError(400, 'due_required', 'The next action needs a due time.');
+  D.names = D.names || {}; D.names[owner.id] = owner.name;
   Object.assign(c, { owner_id: owner.id, backup_id: backup ? backup.id : null, next_action: next.slice(0, 300), next_action_due: due.toISOString(), updated_at: iso() });
   if (!c.first_assigned_at) c.first_assigned_at = iso();
   if (c.status === 'new') { span(D, c, 'assigned'); c.status = 'assigned'; }
@@ -376,6 +526,7 @@ function addDraft(D, c, actor, kind, d) {
     lint_flags: draftLib.lint(d.content), author_kind: kind, author_id: actor ? actor.id : null, based_on_id: prev ? prev.id : null, state: 'current', created_at: iso(),
   };
   if (prev) prev.state = 'superseded';
+  if (actor) c.reply_waiting = false;
   invalidate(D, c, actor, 'draft changed to version ' + version);
   D.drafts.push(row);
   if (c.status === 'assigned') { span(D, c, 'in_review'); c.status = 'in_review'; }
@@ -438,7 +589,7 @@ function approve(actor, cardId, b) {
   if (D.approvals.some((a) => a.draft_id === d.id && a.status === 'executed')) no('already_ran', 'This exact reply already ran. To reply again, write a new version.', 'draft already ran');
   const existing = D.approvals.find((a) => a.draft_id === d.id && a.status === 'valid');
   if (existing) return { approval: clone(existing), alreadyApproved: true, detail: detail(actor, cardId) };
-  const a = { id: id('appr'), desk: D.slug, card_id: c.id, draft_id: d.id, draft_version: d.version, payload_hash: d.payload_hash, action_id: id('act'), approver_id: actor.id, approver_role: actor.role, approved_at: iso(), flags_acknowledged: d.lint_flags.length > 0, status: 'valid' };
+  const a = { id: id('appr'), desk: D.slug, card_id: c.id, draft_id: d.id, draft_version: d.version, payload_hash: d.payload_hash, channel: d.channel, recipient: d.recipient, action_id: id('act'), approver_id: actor.id, approver_role: actor.role, approved_at: iso(), flags_acknowledged: d.lint_flags.length > 0, status: 'valid' };
   D.approvals.push(a);
   attempt(D, actor, 'approval.approve', c.id, 'allowed');
   log(D, c, actor, 'human', 'approved', 'Yes pressed on draft v' + d.version + ' (' + d.channel + ' to ' + d.recipient + '). Bound to this exact text. Any change cancels it.', { approval_id: a.id, action_id: a.action_id, payload_hash: a.payload_hash });
@@ -457,6 +608,22 @@ function revoke(actor, cardId, b) {
   save();
   return detail(actor, cardId);
 }
+// Checks before anything runs. Each one is tested: seat still allowed to approve, same recipient as approved,
+// same content (version + fingerprint) as approved, not already run, connection up.
+function preRunChecks(D, actor, c, a, deny) {
+  if (a.status !== 'valid') deny('approval_not_valid', 'That Yes was ' + a.status + (a.ended_reason ? ' (' + a.ended_reason + ')' : '') + '. Press Yes again on the current draft.', 'approval ' + a.status);
+  if (clock().getTime() - new Date(a.approved_at).getTime() > ttlMs()) { Object.assign(a, { status: 'invalidated', ended_at: iso(), ended_reason: 'too old' }); deny('approval_stale', 'That Yes is too old. Check the draft and press Yes again.', 'approval older than ttl'); }
+  const approver = seat(actor, a.approver_id);
+  if (!approver || approver.deskAi || !policy.can(approver.lcRole, 'approval.approve')) {
+    Object.assign(a, { status: 'invalidated', ended_at: iso(), ended_reason: 'approver can no longer approve' });
+    deny('approver_not_allowed', 'The person who pressed Yes can no longer approve on this desk. Someone who can must check it and press Yes again.', 'approver seat cannot approve');
+  }
+  const d = D.drafts.find((x) => x.id === a.draft_id);
+  if (!d || d.state !== 'current' || d.version !== a.draft_version || draftLib.payloadHash({ tenant_id: D.slug, id: c.id }, d) !== a.payload_hash) deny('payload_changed', 'The draft changed after Yes. Press Yes again on the current version.', 'content differs from approved version');
+  if (!c.contact_verified || c.verified_value !== d.recipient || (a.recipient && a.recipient !== d.recipient)) deny('recipient_unverified', 'The customer contact changed or is not confirmed. It must match the one that got the Yes.', 'recipient differs from approved');
+  if (!policy.ACTIVE.includes(c.status) || c.status === 'new') deny('not_active', 'This card is not active.', 'card not active');
+  return d;
+}
 function execute(actor, cardId, b) {
   const D = deskOf(actor); requirePackOn(D);
   requirePerm(D, actor, 'external.execute', cardId);
@@ -464,9 +631,10 @@ function execute(actor, cardId, b) {
   const actionId = b && typeof b.actionId === 'string' ? b.actionId : '';
   const deny = (code, msg, reason) => { attempt(D, actor, 'external.execute', c.id, 'denied', reason); log(D, c, actor, 'human', 'action_blocked', 'Blocked: ' + msg, { action_id: actionId || null, reason }); save(); throw new HttpError(code === 'no_approval' ? 403 : 409, code, msg); };
   if (!actionId) deny('no_approval', 'No approved action was given. Nothing runs without a person pressing Yes.', 'missing action id');
-  const done = D.actions.find((x) => x.action_id === actionId);
+  const prior = D.actions.filter((x) => x.action_id === actionId);
+  if (prior.some((x) => x.card_id !== c.id)) deny('no_approval', 'That Yes is for a different card.', 'action id belongs to another card');
+  const done = prior.find((x) => !['failed', 'needs_attention'].includes(x.status));
   if (done) {
-    if (done.card_id !== c.id) deny('no_approval', 'That Yes is for a different card.', 'action id belongs to another card');
     attempt(D, actor, 'external.execute', c.id, 'allowed', 'repeat — returned first result, nothing re-run');
     log(D, c, actor, 'human', 'action_repeat', 'Run pressed again for the same Yes. Nothing ran twice.', { action_id: actionId });
     save();
@@ -474,32 +642,73 @@ function execute(actor, cardId, b) {
   }
   const a = D.approvals.find((x) => x.card_id === c.id && x.action_id === actionId);
   if (!a) deny('no_approval', 'No Yes exists for that action. Nothing runs without a person pressing Yes.', 'no approval for action id');
-  if (a.status !== 'valid') deny('approval_not_valid', 'That Yes was ' + a.status + (a.ended_reason ? ' (' + a.ended_reason + ')' : '') + '. Press Yes again on the current draft.', 'approval ' + a.status);
-  if (clock().getTime() - new Date(a.approved_at).getTime() > ttlMs()) { Object.assign(a, { status: 'invalidated', ended_at: iso(), ended_reason: 'too old' }); deny('approval_stale', 'That Yes is too old. Check the draft and press Yes again.', 'approval older than ttl'); }
-  const d = D.drafts.find((x) => x.id === a.draft_id);
-  if (!d || d.state !== 'current' || draftLib.payloadHash({ tenant_id: D.slug, id: c.id }, d) !== a.payload_hash) deny('payload_changed', 'The draft changed after Yes. Press Yes again on the current version.', 'payload hash mismatch');
-  if (!c.contact_verified || c.verified_value !== d.recipient) deny('recipient_unverified', 'The customer contact changed or is not confirmed.', 'recipient mismatch');
-  if (!policy.ACTIVE.includes(c.status) || c.status === 'new') deny('not_active', 'This card is not active.', 'card not active');
+  const d = preRunChecks(D, actor, c, a, deny);
   // Synchronous from here to the save: one Node process cannot interleave, so the action id runs once.
-  const ea = { id: id('ext'), desk: D.slug, card_id: c.id, approval_id: a.id, action_id: actionId, adapter: store.outbox.name, adapter_mode: store.outbox.mode, payload_hash: a.payload_hash, status: 'pending', executed_by: actor.id, started_at: iso() };
+  const ea = { id: id('ext'), desk: D.slug, card_id: c.id, approval_id: a.id, action_id: actionId, try_no: prior.length + 1, adapter: store.outbox.name, adapter_mode: store.outbox.mode, payload_hash: a.payload_hash, recipient: d.recipient, status: 'pending', executed_by: actor.id, started_at: iso() };
   D.actions.push(ea);
-  Object.assign(a, { status: 'executed', ended_at: iso(), ended_reason: 'ran' });
-  save();
+  const fail = (why, code, msg) => {
+    const tries = prior.length + 1;
+    ea.status = tries >= MAX_TRIES ? 'needs_attention' : 'failed'; ea.result = { error: why }; ea.finished_at = iso();
+    if (ea.status === 'needs_attention') c.needs_attention = true;
+    attempt(D, actor, 'external.execute', c.id, 'failed', why);
+    log(D, c, actor, 'human', ea.status === 'needs_attention' ? 'action_needs_attention' : 'action_failed',
+      (ea.status === 'needs_attention' ? 'Needs attention: the test send failed ' + tries + ' times. ' : 'Test send failed (try ' + tries + '). ') + msg + ' Nothing was sent. The Yes still stands: Try again, or send it yourself and press "I sent it myself".', { action_id: actionId, try_no: tries, reason: why });
+    save();
+    throw new HttpError(503, code, msg + ' Nothing was sent.', { action: clone(ea), retry: true, manual_fallback: true, needs_attention: ea.status === 'needs_attention' });
+  };
+  if (D.connection && D.connection.outbox === 'down') fail('connection_down', 'connection_down', 'The test outbox connection is down (MOCK test switch).');
   try {
     ea.result = store.outbox.deliver({ desk: D.slug, card_id: c.id, action_id: actionId, approval_id: a.id, approved_by: a.approver_id, payload_hash: a.payload_hash, at: iso(), payload: draftLib.payloadOf({ tenant_id: D.slug, id: c.id }, d) });
-    ea.status = 'written_to_mock_outbox';
   } catch (e) {
-    ea.status = 'failed'; ea.result = { error: 'mock outbox write failed' };
-    log(D, c, actor, 'human', 'action_failed', 'The MOCK outbox write failed. Nothing was sent.', { action_id: actionId });
-    save();
-    throw new HttpError(500, 'adapter_failed', 'The test send failed. Nothing was sent.');
+    fail('mock outbox write failed', 'adapter_failed', 'The MOCK outbox write failed.');
   }
-  ea.finished_at = iso();
+  // Only a delivered action uses up the Yes.
+  ea.status = 'written_to_mock_outbox'; ea.finished_at = iso();
+  Object.assign(a, { status: 'executed', ended_at: iso(), ended_reason: 'ran' });
+  c.needs_attention = false;
   if (!c.first_response_at) c.first_response_at = iso();
   attempt(D, actor, 'external.execute', c.id, 'allowed');
-  log(D, c, actor, 'human', 'action_ran', 'Test send ran: the approved ' + d.channel + ' reply went to the MOCK outbox. Nothing was sent to the customer.', { action_id: actionId, adapter: ea.adapter, mode: ea.adapter_mode, payload_hash: a.payload_hash });
+  log(D, c, actor, 'human', 'action_ran', 'Test send ran: the approved ' + d.channel + ' reply went to the MOCK outbox. Nothing was sent to the customer.', { action_id: actionId, adapter: ea.adapter, mode: ea.adapter_mode, payload_hash: a.payload_hash, try_no: ea.try_no });
   save();
   return { duplicate: false, action: clone(ea) };
+}
+// Manual fallback: after a failed test send, a person may send the approved words themselves and record it here.
+// AIA sends nothing in this step.
+function manualSent(actor, cardId, b) {
+  const D = deskOf(actor); requirePackOn(D);
+  requirePerm(D, actor, 'external.execute', cardId);
+  const c = loadCard(D, actor, cardId, 'external.execute');
+  const actionId = String(b.actionId || '');
+  const deny = (code, msg, reason) => { attempt(D, actor, 'external.manual', c.id, 'denied', reason); throw new HttpError(409, code, msg); };
+  const a = D.approvals.find((x) => x.card_id === c.id && x.action_id === actionId);
+  if (!a) deny('no_approval', 'No Yes exists for that action.', 'no approval');
+  const prior = D.actions.filter((x) => x.action_id === actionId);
+  if (prior.some((x) => RAN.includes(x.status))) deny('already_ran', 'This reply already ran. Nothing to record.', 'already ran');
+  if (!prior.some((x) => ['failed', 'needs_attention'].includes(x.status))) deny('no_failure', 'Use Run first. "I sent it myself" is only for when the test send failed.', 'no failed try');
+  const how = String(b.how || '').trim();
+  if (how.length < 4) throw new HttpError(400, 'how_required', 'Say how you sent it (for example: texted from the office phone).');
+  if (b.confirm !== true) throw new HttpError(409, 'needs_yes', 'Recording a manual send needs your Yes.');
+  const d = preRunChecks(D, actor, c, a, deny);
+  const ea = { id: id('ext'), desk: D.slug, card_id: c.id, approval_id: a.id, action_id: actionId, try_no: prior.length + 1, adapter: 'manual', adapter_mode: 'PERSON', payload_hash: a.payload_hash, recipient: d.recipient, status: 'sent_manually', executed_by: actor.id, started_at: iso(), finished_at: iso(), result: { how: how.slice(0, 200), aia_sent: false } };
+  D.actions.push(ea);
+  Object.assign(a, { status: 'executed', ended_at: iso(), ended_reason: 'sent by a person' });
+  c.needs_attention = false;
+  if (!c.first_response_at) c.first_response_at = iso();
+  attempt(D, actor, 'external.manual', c.id, 'allowed');
+  log(D, c, actor, 'human', 'action_manual', 'Recorded: a person sent the approved words themselves (' + how.slice(0, 200) + '). AIA sent nothing.', { action_id: actionId, payload_hash: a.payload_hash });
+  save();
+  return { action: clone(ea), detail: detail(actor, cardId) };
+}
+// MOCK test switch for the test outbox connection. Desk owner only. Lets staff practise a failed send.
+function setConnection(actor, b) {
+  const D = deskOf(actor); requirePackOn(D);
+  if (!actor.isOwner) { attempt(D, actor, 'connection.set', 'mock-outbox', 'denied', 'not owner'); throw new HttpError(403, 'forbidden', 'Only the desk owner can flip the test connection.'); }
+  if (!['up', 'down'].includes(b.state)) throw new HttpError(400, 'bad_state', 'Choose up or down.');
+  if (b.confirm !== true) throw new HttpError(409, 'needs_yes', 'Flipping the test connection needs your Yes.');
+  D.connection = { outbox: b.state, at: iso(), by: actor.id, mode: 'MOCK' };
+  log(D, null, actor, 'human', 'connection_set', 'MOCK test switch: test outbox connection set to ' + b.state + '. This only affects the test outbox.', { state: b.state });
+  save();
+  return { connection: clone(D.connection) };
 }
 function recordOutcome(actor, cardId, b) {
   const D = deskOf(actor); requirePackOn(D);
@@ -548,13 +757,22 @@ function metrics(actor, q) {
     on_time_follow_up: { met, missed: ended.length - met + missedOpen, rate: denom ? Math.round((met / denom) * 1000) / 10 : null },
     draft_quality: {
       approved_as_is: drafts.filter((d) => approved(d) && helper(d.author_kind)).length,
-      approved_after_edit: drafts.filter((d) => approved(d) && d.author_kind === 'human' && helper(kindOf(d.based_on_id))).length,
-      human_written_approved: drafts.filter((d) => approved(d) && d.author_kind === 'human' && !helper(kindOf(d.based_on_id))).length,
+      approved_after_edit: drafts.filter((d) => approved(d) && d.author_kind === 'human' && (d.edited_from_helper || helper(kindOf(d.based_on_id)))).length,
+      human_written_approved: drafts.filter((d) => approved(d) && d.author_kind === 'human' && !d.edited_from_helper && !helper(kindOf(d.based_on_id))).length,
       helper_drafts_rejected: drafts.filter((d) => d.state === 'rejected' && helper(d.author_kind)).length,
+      package_items: packageItemCounts(D, ids),
     },
     booked_opportunities: { total: Object.values(booked).reduce((x, y) => x + y, 0), by_attribution: booked, definition: 'Cards marked booked, with how staff know. Not revenue.' },
     staff_handling_time: { measured: false, method: 'Not measured yet. Plan: a supervisor times a sample of 20 cards a week.' },
   };
+}
+function packageItemCounts(D, ids) {
+  const out = { accepted_as_is: 0, edited: 0, rejected: 0, waiting: 0, not_checked_before_newer: 0, definition: 'Each item AIA prepared (summary, details, questions, decisions, draft) and what a person did with it.' };
+  pk(D).filter((p) => ids.has(p.card_id)).forEach((p) => p.items.forEach((i) => {
+    if (i.state === 'accepted') out.accepted_as_is++; else if (i.state === 'edited') out.edited++; else if (i.state === 'rejected') out.rejected++;
+    else if (p.state === 'current') out.waiting++; else out.not_checked_before_newer++;
+  }));
+  return out;
 }
 function attempts(actor) {
   const D = deskOf(actor);
@@ -568,7 +786,8 @@ function historyCheck(actor) {
 }
 
 module.exports = {
-  PACK_ID, setClock, packStatus, getPack, turnOn, turnOff, setRole, deskByIntakeKey, intake, intakeManual, runExtraction,
+  PACK_ID, setClock, packStatus, queueItems, getPack, turnOn, turnOff, setRole, deskByIntakeKey, intake, intakeManual, runExtraction,
   list, detail, assign, updateFields, verifyContact, setStatus, generateDraft, saveDraft, rejectDraft, approve, revoke, execute,
   recordOutcome, metrics, attempts, historyCheck, verifyChain, attempt,
+  aiContext, reviewItem, manualSent, setConnection, proposePackage,
 };
