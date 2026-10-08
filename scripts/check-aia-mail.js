@@ -296,9 +296,14 @@ async function main() {
     fail("missing desk error should be clear, got " + JSON.stringify(noDesk.body));
   } else pass("missing desk 400");
 
-  if (PUBLIC_HOST !== "https://www.automateitaway.com" || hookUrl(slug) !== "https://www.automateitaway.com/api/hook?workspace=" + encodeURIComponent(slug)) {
-    fail("canonical hook host must be www, got " + hookUrl(slug));
-  } else pass("canonical hook host is www");
+  // The live www host is used on production only (api/_public-host.js; off production see check-public-host.js).
+  const prevVercelEnv = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "production";
+  const liveHook = hookUrl(slug);
+  if (prevVercelEnv === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = prevVercelEnv;
+  if (PUBLIC_HOST !== "https://www.automateitaway.com" || liveHook !== "https://www.automateitaway.com/api/hook?workspace=" + encodeURIComponent(slug)) {
+    fail("canonical hook host must be www on production, got " + liveHook);
+  } else pass("canonical hook host is www on production");
 
   const conn = await call(connections, "GET", owner, {}, {});
   if (!conn.body || conn.body.inbound !== hookUrl(slug)) {

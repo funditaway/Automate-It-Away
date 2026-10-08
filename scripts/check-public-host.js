@@ -85,6 +85,7 @@ function unitChecks(ph, tag) {
   t("H16", "a malformed Host header is ignored", v === "/api/hook?workspace=" + SLUG, v);
   t("H17", "isProduction only for exactly 'production'",
     ph.isProduction(prod) === true && ph.isProduction(prev) === false && ph.isProduction(dev) === false && ph.isProduction(unset) === false && ph.isProduction({ VERCEL_ENV: "production " }) === false, "");
+  t("H18", "LIVE_DOMAIN and LIVE_APEX constants unchanged", ph.LIVE_DOMAIN === "automateitaway.com" && ph.LIVE_APEX === APEX, ph.LIVE_DOMAIN + " " + ph.LIVE_APEX);
 }
 
 // ---------- wiring: every live-host string in api/ goes through the helper ----------
@@ -101,6 +102,14 @@ function wiringChecks(files, tag) {
   const lib = files["_lib.js"] || "";
   t("W02", "_lib.js takes PUBLIC_HOST and hookUrl from _public-host.js",
     /require\("\.\/_public-host"\)/.test(lib) && !/const PUBLIC_HOST\s*=/.test(lib) && !/function hookUrl\(/.test(lib), "");
+  const bare = [];
+  Object.keys(files).forEach((name) => {
+    if (name === "_public-host.js") return;
+    files[name].split("\n").forEach((line, i) => {
+      if (/automateitaway\.com/.test(line)) bare.push(name + ":" + (i + 1));
+    });
+  });
+  t("W04", "no other live-host string (automateitaway.com) in api/ outside _public-host.js", bare.length === 0, bare.join(", "));
   const own = Object.keys(files).filter((f) => f !== "_public-host.js" && /function hookUrl\(|const PUBLIC_HOST\s*=/.test(files[f]));
   t("W03", "no other file in api/ defines its own hookUrl or PUBLIC_HOST", own.length === 0, own.join(", "));
 }
@@ -184,7 +193,9 @@ const MUTATIONS = [
   { id: "M6", what: "prefer VERCEL_URL over the request host", file: "_public-host.js", from: 'const fromReq = cleanHost(headerOf(req, "x-forwarded-host")) || cleanHost(headerOf(req, "host"));', to: "const fromReq = cleanHost(envOf(env).VERCEL_URL);" },
   { id: "M7", what: "_lib.js goes back to its own hard-coded hook host", file: "_lib.js", from: 'const { PUBLIC_HOST, hookUrl, publicUrl } = require("./_public-host");', to: 'const { publicUrl } = require("./_public-host");\nconst PUBLIC_HOST = "https://www.automateitaway.com";\nfunction hookUrl(workspace) { return PUBLIC_HOST + "/api/hook"; }' },
   { id: "M8", what: "invite note hard-codes the live site again", file: "_world-people.js", from: '". Open " + publicUrl("/login", null, LIVE_APEX) + " with', to: '". Open https://automateitaway.com/login with' },
-  { id: "M9", what: "accept malformed hosts", file: "_public-host.js", from: "if (!/^(\\[[0-9a-f:.]+\\]|[a-z0-9.-]+)(:\\d{1,5})?$/.test(h)) return \"\";", to: "" }
+  { id: "M9", what: "accept malformed hosts", file: "_public-host.js", from: "if (!/^(\\[[0-9a-f:.]+\\]|[a-z0-9.-]+)(:\\d{1,5})?$/.test(h)) return \"\";", to: "" },
+  { id: "M10", what: "health hard-codes the live domain again", file: "health.js", from: 'domain: require("./_public-host").LIVE_DOMAIN,', to: 'domain: "automateitaway.com",' },
+  { id: "M11", what: "calendar UID hard-codes the live domain again", file: "_engine.js", from: '"@" + require("./_public-host").LIVE_DOMAIN,', to: '"@automateitaway.com",' }
 ];
 
 function runMutations() {
