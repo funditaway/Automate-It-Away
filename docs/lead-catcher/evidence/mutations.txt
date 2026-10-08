@@ -1,4 +1,4 @@
-date: 2026-10-07 17:10:27 CDT
+date: 2026-10-08 01:07:00 CDT
 command: bash scripts/lead-catcher-mutations.sh
 ----
 caught      no-approval-check
@@ -18,3 +18,33 @@ caught      no-ttl
 caught      no-rerun-guard
 caught      no-live-block
 caught      silent-market-use
+caught      queue-ignores-pack-off
+caught      queue-other-desks
+caught      queue-desk-ai-sees
+caught      queue-leaks-draft
+caught      queue-script-acts
+caught      ownership-one-key
+caught      context-leaks-other-cards
+caught      context-leaks-env
+caught      context-contact-sysadmin
+caught      model-gets-desk-cards
+caught      package-echoes-time
+caught      no-split-decisions
+caught      no-booking-lint
+caught      package-draft-skips-owner
+caught      accept-grants-yes
+caught      review-any-seat
+caught      review-twice
+caught      no-approver-recheck
+caught      no-recipient-recheck
+caught      no-version-check
+caught      ignore-connection-down
+caught      failure-consumes-yes
+caught      failure-blocks-retry
+caught      manual-without-failure
+caught      reply-makes-new-card
+caught      reply-no-new-package
+caught      reply-without-run
+caught      reply-overwrites-original
+----
+result: 45 caught / 45 mutations · 0 not caught

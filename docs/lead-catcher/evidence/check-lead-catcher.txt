@@ -1,7 +1,7 @@
-date: 2026-10-07 17:10:26 CDT
-branch: lead-catcher-slice (local) base 798f269
+date: 2026-10-08 01:06:59 CDT
+branch: lead-catcher-slice (local, on top of remote head ae9f381) base main b19bfce
 node: v20.19.2  os: Linux 6.12.94+ x86_64
-command: AIA_LC_RESULTS_JSON=docs/lead-catcher/evidence/check-results.json node scripts/check-lead-catcher.js
+command: node scripts/check-lead-catcher.js
 ----
 ok  P01 Lead Catcher is listed as an Official AIA Pack, free, never charged, Collect off
 ok  P02 Market Use/Buy cannot install Lead Catcher silently
@@ -22,6 +22,16 @@ NOT RUN T12 Live channel delivery (real email / SMS / call provider)
 ok  T13 One desk cannot see or touch another desk's cards, Yes presses or numbers
 ok  T14 Instructions hidden in a customer request cannot send, approve, confirm contact or change rules
 ok  T15 Run pressed again or 10 times at once sends once; Yes again on a sent reply is refused
+ok  Q01 Lead Catcher cards show on the main AIA Queue in plain words when the pack is on
+ok  Q02 No Lead Catcher cards on the main Queue when the pack is off for the desk
+ok  Q03 T13 extension: a desk's Queue never shows another desk's Lead Catcher cards; desk AIs see none
+ok  Q04 The Queue cannot run anything or skip the Yes
+ok  P05 Pack stays owned after AIA links the desk to an account later
+ok  W01 Scoped AI context: one builder, only this card and seat; no other cards, desks, credentials or store
+ok  W02 Water heater: work package beside the request, with separate time and price decisions; draft promises neither
+ok  W03 Water heater with prompt-injection text: same split decisions, injected words ignored, nothing changes
+ok  W04 Accept / Fix / Reject per item is recorded, feeds draft quality, and never sends or approves
+ok  W05 Before Run: seat still allowed, same recipient, same content, not already run, connection up (MOCK switch)
+ok  W06 A customer reply goes back to the same card and AIA prepares a new package
 ok  S01 Lead Catcher never writes the shared AIA store and refuses on the live site
-lead-catcher checks: PASS 19 · FAIL 0 · NOT RUN 1
-exit_code: 0
+lead-catcher checks: PASS 30 · FAIL 0 · NOT RUN 1

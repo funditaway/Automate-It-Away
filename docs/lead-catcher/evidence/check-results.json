@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-07T22:10:27.276Z",
+  "at": "2026-10-08T06:07:00.626Z",
   "node": "v20.19.2",
   "rows": [
     {
@@ -113,6 +113,72 @@
     {
       "id": "T15",
       "name": "Run pressed again or 10 times at once sends once; Yes again on a sent reply is refused",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "Q01",
+      "name": "Lead Catcher cards show on the main AIA Queue in plain words when the pack is on",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "Q02",
+      "name": "No Lead Catcher cards on the main Queue when the pack is off for the desk",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "Q03",
+      "name": "T13 extension: a desk's Queue never shows another desk's Lead Catcher cards; desk AIs see none",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "Q04",
+      "name": "The Queue cannot run anything or skip the Yes",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "P05",
+      "name": "Pack stays owned after AIA links the desk to an account later",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W01",
+      "name": "Scoped AI context: one builder, only this card and seat; no other cards, desks, credentials or store",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W02",
+      "name": "Water heater: work package beside the request, with separate time and price decisions; draft promises neither",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W03",
+      "name": "Water heater with prompt-injection text: same split decisions, injected words ignored, nothing changes",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W04",
+      "name": "Accept / Fix / Reject per item is recorded, feeds draft quality, and never sends or approves",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W05",
+      "name": "Before Run: seat still allowed, same recipient, same content, not already run, connection up (MOCK switch)",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W06",
+      "name": "A customer reply goes back to the same card and AIA prepares a new package",
       "result": "PASS",
       "note": ""
     },
