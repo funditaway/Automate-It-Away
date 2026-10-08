@@ -1,6 +1,6 @@
 # Lead Catcher — Progress Manifest (updated 2026-10-08)
 
-Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798f269`; main is now `92a48be` (its new commits touch none of this branch's files; main untouched by this work). **Pushed via the GitHub connector. Draft PR: the connector showed James a submit form (2026-10-08); not created until he submits. Vercel preview builds READY. Not merged, not on the live site.** See "Push status".
+Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798f269`; main is now `db708bd` (its new commits touch none of this branch's files; main untouched by this work). **Pushed via the GitHub connector. Draft PR: the connector showed James a submit form (2026-10-08); not created until he submits. Vercel preview builds READY. Not merged, not on the live site.** See "Push status".
 
 ## DONE
 | Item | Files | Evidence |
@@ -24,6 +24,7 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798
 | **"I sent it myself" = a MANUAL action** (separate row; reporter, seat, time, required channel, note, approved-words answer, approved version + fingerprint; "Sent by a person (manual)"; failed tries unchanged; no second system send; first response counted only with approved words, flagged manual) | api/_lc-engine.js manualSent/execute/queueItems/detail/metrics, lead-catcher.js | W07 PASS; 11 mutations; smoke |
 | **Customer reply → same card → new package**; Queue "Customer replied" | api/_lc-engine.js customerReply, desk-queue-lead-catcher.js | W06 PASS; /workspace/lc-shots/a-queue-lead-catcher.png |
 | Tests in repo chain | scripts/check-lead-catcher.js (package.json test chain) | PASS 31 · FAIL 0 · NOT RUN 1 |
+| **Preview isolation check J** (approved): build-time env presence line, names/booleans only, never values; runs as `vercel-build`, always exits 0, skips production | scripts/env-presence.js, scripts/check-env-presence.js, package.json | E01–E14: PASS 25 · FAIL 0; 9/9 leak/wiring mutations caught; line read from the preview build log |
 | Mutation check | scripts/lead-catcher-mutations.sh | 56/56 caught |
 | Local dev preview + curl smoke (now serves AIA's own /api on a temp store; keys removed, outbound blocked) | scripts/lead-catcher-dev.js, scripts/lead-catcher-smoke.sh | evidence/local-smoke.txt |
 | Docs | SPEC (§0 working model, §9 metrics, §13 Queue, §14–§16, §15 manual send), PREVIEW_ISOLATION, GAP_REGISTER (.md/.csv, 48 rows), TEST_RESULTS, ARCHITECTURE, KNOWN_LIMITATIONS, README, /.env.example | this folder |
@@ -33,7 +34,7 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798
 - Ownership on the AIA account record (kept in Lead Catcher store for now) — G07.
 - Demo script — G41.
 - Draft PR — no PR exists for `lead-catcher-slice` (checked 02:32 AM CT, all states). The connector showed James the submit form again (base main, draft, title 'Lead Catcher: official AIA Pack (test build, draft)'); pending his submit (G20).
-- Preview isolation — PREVIEW_ISOLATION.md (YES 4 / NO 1 / UNKNOWN 10). D done 2026-10-08 (Vercel login on automate-it-away previews). A/C: connector blocked (env listing 403, again at 02:32 AM CT); James was sent the dashboard link; a production redeploy at 02:26 AM CT fits an env edit but doesn't prove it, so A/C are UNKNOWN until F or J. B, E–J await James (G22). Preview sign-in is not safe yet.
+- Preview isolation — PREVIEW_ISOLATION.md (YES 7 / NO 6 / UNKNOWN 2). D done (Vercel login on previews). J done (build-time presence line). C took effect: every secret key is missing on Preview. A not fully: the connected Blob store's `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_STORE_ID`, `BLOB_READ_WRITE_TOKEN_WEBHOOK_PUBLIC_KEY` still reach Preview, so previews can read and write the production store. Next: B (untick Preview on the store connection). **Preview sign-in is not safe** (G22).
 
 ## BLOCKED
 - Live channels and live send (T12) — need James's channel choice + provider (G03, G04).
@@ -46,17 +47,17 @@ Branch `lead-catcher-slice` on `funditaway/Automate-It-Away`, based on main `798
 - Lead Catcher events on the main AIA History tab (G05b); helper kind-of-job tie-break (G12); rate limiting (G25); retention/export/delete (G26); monitoring (G27); notifications (G11); handling-time sampling (G10).
 
 ## Test results
-PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Whole repo per-script: main 31/80 (b19bfce), branch 32/81 (re-run 2026-10-08 on this change; no new failures). Reference build: 14 PASS, 12/12 mutations caught.
+PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Env presence check: PASS 25 · FAIL 0 (9/9 mutations caught). Whole repo per-script: main 31/80 (b19bfce), branch 32/81 (re-run 2026-10-08 on this change; no new failures). Reference build: 14 PASS, 12/12 mutations caught.
 
 ## Open defects
 | Defect | Owner | Note |
 |---|---|---|
 | AIA `npm test` stops at check-desk-nav on main (49 per-script failures, pre-existing) | AIA maintainers | Not caused by this branch |
-| Preview may share production data (unverified; env listing 403); previews now need a Vercel login (D done) | James / Vercel access | See PREVIEW_ISOLATION.md; Lead Catcher never writes the shared store |
+| Previews can read and write the production Blob store (check J: store connection vars on Preview); secrets are off Preview; previews need a Vercel login | James (proposal B) | See PREVIEW_ISOLATION.md; Lead Catcher never writes the shared store |
 | No Lead Catcher defects open | — | desk-AI seat gap found by mutation check was fixed (now uses AIA actorIsDeskAi) |
 
 ## Push status
-- Last docs update: 2026-10-08 ~2:35 AM CT (read-only A/C follow-up; this commit also triggers a fresh preview build so any Preview env change is picked up).
+- Last docs update: 2026-10-08 ~2:52 AM CT (check J result). Check J code pushed as `7b701b9`; its preview `automate-it-away-ni7zz3s10` READY 02:49 CT; presence line read from its build log.
 - Remote branch `lead-catcher-slice`: first upload ae9f381, then the Queue and working-model updates (head c5f8b0e). This update ("I sent it myself" as a MANUAL action, preview isolation evidence) is pushed on top of c5f8b0e through the GitHub connector, onto `lead-catcher-slice` only. The resulting head is in the session report (a doc can't name the commit it's in).
 - Not carried by the connector (text only): the PNG screenshots (kept at `/workspace/lc-shots/` and `/workspace/lc-screens/` on the box) and the executable bit on `scripts/*.sh` (run them with `bash`).
 - Vercel builds two previews per push (`automate-it-away`, `runtime`). c5f8b0e → READY (automate-it-away-laqok0j49-james-oddos-projects.vercel.app); the new head's state is in the session report. Nobody has signed in on a preview. Don't, until G22 is confirmed.
@@ -64,6 +65,6 @@ PASS 31 · FAIL 0 · NOT RUN 1 (T12). Mutations 56/56 caught. Whole repo per-scr
 
 ## Next tasks (in order)
 1. James submits the draft PR form (never merge to main without review).
-2. Confirm A/C: James shares env names + environments (F) or approves the read-only check (J); then B, and optionally code G–I in PREVIEW_ISOLATION.md; then the checksum test (G22) before anyone signs in on the preview.
+2. B: James unticks Preview (and Development) on the Blob store's connection to `automate-it-away` (names: `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_STORE_ID`, `BLOB_READ_WRITE_TOKEN_WEBHOOK_PUBLIC_KEY`). The next push re-runs check J; it must show `blob=missing`. Then the checksum test, then G (code guard), before anyone signs in on a preview.
 3. James picks the first live channel; contract it and run T12 in its sandbox.
 4. Pick a durable isolated store (G21).
