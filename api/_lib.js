@@ -85,7 +85,22 @@ function payload() {
   };
 }
 
+// Fix G: the shared Blob store (aia/store.json) is the live production data.
+// Only a production deployment may read or write it. Previews, development and
+// local runs never get a token, store id or OIDC path to it, even if Vercel
+// hands them one; they fall back to the file store (api/data or /tmp).
+function blobAllowed() {
+  return process.env.VERCEL_ENV === "production";
+}
+
+function blobOffProd() {
+  const err = new Error("Vercel Blob: shared store is production-only (VERCEL_ENV=" + (process.env.VERCEL_ENV || "unset") + ")");
+  err.code = "AIA_BLOB_PROD_ONLY";
+  return err;
+}
+
 function blobToken() {
+  if (!blobAllowed()) return "";
   return process.env.BLOB_READ_WRITE_TOKEN
     || process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
     || process.env.AIA_BLOB_TOKEN
@@ -125,6 +140,7 @@ function blobErrText(e) {
 }
 
 function blobStoreId() {
+  if (!blobAllowed()) return "";
   return process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || "";
 }
 
@@ -152,6 +168,7 @@ function blobAuthOpts() {
 }
 
 async function blobTryAuth(run) {
+  if (!blobAllowed()) throw blobOffProd();
   const attempts = blobAuthAttempts();
   let last;
   for (let i = 0; i < attempts.length; i++) {
@@ -406,6 +423,7 @@ function blobOpts() {
 }
 
 function blobReady() {
+  if (!blobAllowed()) return false;
   return !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
 }
 
@@ -477,6 +495,7 @@ async function blobListStore() {
 }
 
 async function blobFetchUrl(url, access) {
+  if (!blobAllowed()) throw blobOffProd();
   if (!url) return null;
   try {
     const got = await blobGetKey(access || blobAccessOfUrl(url), url);
@@ -503,6 +522,7 @@ async function blobFetchUrl(url, access) {
 }
 
 async function blobRead() {
+  if (!blobAllowed()) return null;
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
   blobProbe.auth = blobAuthKind();
   let lastErr = "";
@@ -660,6 +680,7 @@ async function blobWriteStick(blob, used) {
 }
 
 async function blobWrite() {
+  if (!blobAllowed()) return false;
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   const body = JSON.stringify(payload());
@@ -730,7 +751,7 @@ function publicBlobDetail() {
 function publicBlobProbe() {
   return {
     token: !!blobToken(),
-    storeId: !!(process.env.BLOB_READ_WRITE_TOKEN_STORE_ID || process.env.BLOB_STORE_ID),
+    storeId: !!blobStoreId(),
     write: blobProbe.write,
     read: blobProbe.read,
     status: blobProbe.status,
@@ -1796,7 +1817,7 @@ function readBody(req) {
 
 module.exports = {
   PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
-  slugify, hashPin, workspaceOf, readBody, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
+  slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
