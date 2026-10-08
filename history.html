@@ -630,7 +630,7 @@ async function load(){
    var filtered=filterCount()>0;
    list.innerHTML=filtered
     ?"<div class=\"empty\"><p>Nothing matches these filters.</p><div class=\"acts\"><button type=\"button\" id=\"empty-clear\">Clear filters</button><a href=\"/drop\">Drop</a><a href=\"/create\">Create</a></div></div>"
-    :"<div class=\"empty\"><p>Nothing on this trail yet. Drop or Create a card. You still tap Yes or Stop.</p><div class=\"acts\"><a href=\"/drop\">Drop</a><a href=\"/create\">Create</a></div></div>";
+    :"<div class=\"empty\"><p>Nothing on this trail yet. Drop or Create a card. History does not invent activity. You still tap Yes or Stop.</p><div class=\"acts\"><a href=\"/drop\">Drop</a><a href=\"/create\">Create</a></div></div>";
    var clr=document.getElementById("empty-clear");if(clr)clr.onclick=function(){reset();load();};return;
   }
   paintCards();
