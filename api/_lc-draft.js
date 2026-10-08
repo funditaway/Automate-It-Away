@@ -29,6 +29,7 @@ const LINT = [
   ['promises_time', /\b(today|tonight|tomorrow|within \d+ (minutes|hours)|at \d{1,2}(:\d{2})?\s?(am|pm))\b/i],
   ['guarantee_words', /\b(guarantee\w*|promise\w*|warrant(y|ies))\b/i],
   ['coverage_words', /\b(insurance (will|should) cover|covered by (your )?insurance|claim (will|is) (approved|covered))\b/i],
+  ['confirms_booking', /\b(you'?re (all )?(booked|scheduled|confirmed)|(booked|scheduled|confirmed) (you|for)|see you (at|on|tomorrow|today|tonight)|we'?ll be there)\b/i],
   ['diagnosis_words', /\b(it'?s (definitely|probably) (a|your)|the problem is|you need a new)\b/i],
 ];
 function lint(content) { return LINT.filter(([, re]) => re.test(content)).map(([k]) => k); }
