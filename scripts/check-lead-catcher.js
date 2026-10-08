@@ -1,4 +1,4 @@
-// Lead Catcher — Official AIA Pack checks (T01–T15, Queue Q01–Q04, working model W01–W06, pack checks). Real handler, real AIA PIN sign-in,
+// Lead Catcher — Official AIA Pack checks (T01–T15, Queue Q01–Q04, working model W01–W07, pack checks). Real handler, real AIA PIN sign-in,
 // temp AIA store + temp isolated Lead Catcher store + temp MOCK outbox. Nothing is sent. Nothing is charged.
 const os = require("os");
 const path = require("path");
@@ -589,12 +589,12 @@ async function main() {
     check(d.card.needs_attention === false && d.history.some((h) => h.event === "action_ran"), "success written to card history");
     // manual fallback
     const m = await readyCard(); const ym = await yes(m.id);
-    check((await call(U.rae, "manual-sent", { cardId: m.id, actionId: ym.body.approval.action_id, how: "texted it", confirm: true })).body.error === "no_failure", "manual send only after a failed try");
+    check((await call(U.rae, "manual-sent", { cardId: m.id, actionId: ym.body.approval.action_id, channel: "text", approvedWordsUsed: true, confirm: true })).body.error === "no_failure", "manual send only after a failed try");
     await call(U.owner, "connection", { state: "down", confirm: true });
     await run(m.id, ym.body.approval.action_id);
-    check((await call(U.rae, "manual-sent", { cardId: m.id, actionId: ym.body.approval.action_id, how: "texted it" })).body.error === "needs_yes", "manual send needs a Yes");
-    check((await call(U.toni, "manual-sent", { cardId: m.id, actionId: ym.body.approval.action_id, how: "texted it", confirm: true })).status === 403, "technician cannot record it");
-    r = await call(U.rae, "manual-sent", { cardId: m.id, actionId: ym.body.approval.action_id, how: "Texted from the office phone", confirm: true });
+    check((await call(U.rae, "manual-sent", { cardId: m.id, actionId: ym.body.approval.action_id, channel: "text", approvedWordsUsed: true })).body.error === "needs_yes", "manual send needs a Yes");
+    check((await call(U.toni, "manual-sent", { cardId: m.id, actionId: ym.body.approval.action_id, channel: "text", approvedWordsUsed: true, confirm: true })).status === 403, "technician cannot record it");
+    r = await call(U.rae, "manual-sent", { cardId: m.id, actionId: ym.body.approval.action_id, channel: "text", note: "From the office phone", approvedWordsUsed: true, confirm: true });
     check(r.status === 200 && r.body.action.status === "sent_manually" && r.body.action.result.aia_sent === false && outbox().length === before + 1, "manual send recorded; AIA sent nothing");
     check(r.body.detail.history.some((h) => h.event === "action_manual" && /AIA sent nothing/.test(h.summary)), "manual send in card history");
     await call(U.owner, "connection", { state: "up", confirm: true });
@@ -626,6 +626,63 @@ async function main() {
     const pk = d.packages[0];
     await call(U.rae, "package-item", { cardId: c.id, packageId: pk.id, key: "summary", decision: "accept" });
     check((await call(U.owner, "queue")).body.items.find((i) => i.id === c.id).customer_replied === false, "flag clears once a person checks the new package");
+  });
+  await T("W07", "\"I sent it myself\" records a separate MANUAL action; failed AIA tries stay unchanged; metrics flag it", async () => {
+    const run = (id, a) => call(U.rae, "run", { cardId: id, actionId: a });
+    const D = store.desk(DEMO);
+    const m0 = (await call(U.owner, "numbers")).body.first_customer_response;
+    const box0 = outbox().length;
+    // an AIA send for contrast
+    const s = await readyCard(); const ys = await yes(s.id);
+    await call(U.owner, "connection", { state: "up", confirm: true });
+    check((await run(s.id, ys.body.approval.action_id)).body.action.status_words === "Sent by AIA (test outbox)", "AIA send reads 'Sent by AIA (test outbox)'");
+    check(D.cards.find((x) => x.id === s.id).first_response_via === "aia", "AIA send flagged 'aia' for first response");
+    // a failed AIA send, then a person sends it themselves
+    const c = await readyCard(); const y = await yes(c.id); const act = y.body.approval.action_id;
+    const appr = D.approvals.find((x) => x.action_id === act);
+    await call(U.owner, "connection", { state: "down", confirm: true });
+    await run(c.id, act); advance(60e3); await run(c.id, act); advance(60e3);
+    const failsBefore = JSON.stringify(D.actions.filter((x) => x.action_id === act));
+    const histBefore = JSON.stringify(D.activity.filter((h) => h.card_id === c.id));
+    const nHist = D.activity.length;
+    const box1 = outbox().length;
+    const M = (b) => call(U.rae, "manual-sent", Object.assign({ cardId: c.id, actionId: act, confirm: true }, b));
+    check((await M({ approvedWordsUsed: true })).body.error === "channel_required", "channel is required");
+    check((await M({ channel: "fax", approvedWordsUsed: true })).body.error === "channel_required", "only phone, text, email, in person or other");
+    check((await M({ channel: "other", approvedWordsUsed: true })).body.error === "note_required", "'other' needs a note");
+    check((await M({ channel: "phone" })).body.error === "words_required", "must say whether the approved words were used");
+    check(JSON.stringify(D.actions.filter((x) => x.action_id === act)) === failsBefore, "refused tries change nothing");
+    const r = await M({ channel: "other", note: "Told them at the counter", approvedWordsUsed: true });
+    const e = r.body.action;
+    check(r.status === 200 && e.status === "sent_manually" && e.kind === "manual" && e.adapter === "manual" && e.result.aia_sent === false, "separate manual entry; AIA sent nothing");
+    check(e.status_words === "Sent by a person (manual)" && e.status_words !== "Sent by AIA (test outbox)", "reads 'Sent by a person (manual)', not 'Sent by AIA'");
+    check(e.reported_by === "p_rae" && e.reported_by_name === "Rae Responder" && e.reported_by_seat === "responder" && e.finished_at === new Date(t).toISOString(), "who reported it (user + seat) and when");
+    check(e.channel_used === "other" && e.note === "Told them at the counter" && e.approved_words_used === true, "channel, note and approved-words answer stored");
+    check(e.approval_id === appr.id && e.draft_id === appr.draft_id && e.draft_version === appr.draft_version && e.payload_hash === appr.payload_hash, "bound to the approved version and fingerprint");
+    const rows = D.actions.filter((x) => x.action_id === act);
+    check(JSON.stringify(rows.slice(0, 2)) === failsBefore && rows.length === 3 && rows.filter((x) => x.status === "failed").length === 2, "the failed AIA tries are unchanged and still on record");
+    check(!rows.some((x) => x.status === "written_to_mock_outbox") && e.follows_failed_tries.length === 2, "the failed system send is never marked successful");
+    check(JSON.stringify(D.activity.filter((h) => h.card_id === c.id).slice(0, JSON.parse(histBefore).length)) === histBefore && D.activity.length > nHist, "earlier history unchanged; manual entry appended");
+    check((await call(U.owner, "history-check")).body.ok === true, "history chain intact");
+    const d = (await call(U.owner, "card", null, { cardId: c.id })).body;
+    check(d.actions.filter((x) => x.status === "failed").every((x) => x.status_words === "AIA send failed") && d.history.some((h) => h.event === "action_manual" && /Sent by a person \(manual\)/.test(h.summary) && /AIA sent nothing/.test(h.summary)), "card shows the failures and the manual entry separately");
+    check((await call(U.owner, "queue")).body.items.find((i) => i.id === c.id).reply === "Sent by a person (manual).", "Queue reads 'Sent by a person (manual).'");
+    check((await call(U.owner, "queue")).body.items.find((i) => i.id === s.id).reply === "Sent by AIA (test outbox).", "Queue reads 'Sent by AIA (test outbox).' for AIA sends");
+    await call(U.owner, "connection", { state: "up", confirm: true });
+    check((await run(c.id, act)).body.duplicate === true && outbox().length === box1 && outbox().length === box0 + 1, "no second system send; outbox only has the AIA contrast send");
+    check((await M({ channel: "phone", approvedWordsUsed: true })).body.error === "already_ran", "cannot record it twice");
+    check(D.cards.find((x) => x.id === c.id).first_response_via === "manual" && D.cards.find((x) => x.id === c.id).first_response_at === e.finished_at, "first response counted and flagged manual");
+    // changed words: recorded, but never counted as the first response
+    const c2 = await readyCard(); const y2 = await yes(c2.id); const a2 = y2.body.approval.action_id;
+    await call(U.owner, "connection", { state: "down", confirm: true });
+    await run(c2.id, a2);
+    const r2 = await call(U.rae, "manual-sent", { cardId: c2.id, actionId: a2, channel: "phone", approvedWordsUsed: false, confirm: true });
+    check(r2.status === 200 && r2.body.action.approved_words_used === false && r2.body.action.counts_as_first_response === false, "changed words recorded as manual, not counted");
+    check(!D.cards.find((x) => x.id === c2.id).first_response_at && !D.cards.find((x) => x.id === c2.id).first_response_via, "no first-response time from changed words");
+    await call(U.owner, "connection", { state: "up", confirm: true });
+    const m1 = (await call(U.owner, "numbers")).body.first_customer_response;
+    check(m1.by_route.manual === m0.by_route.manual + 1 && m1.by_route.aia === m0.by_route.aia + 1, "metrics split AIA vs manual first responses");
+    check(m1.manual_not_counted === m0.manual_not_counted + 1 && m1.count === m0.count + 2 && /manual/.test(m1.definition), "manual with changed words not counted; definition says so");
   });
   await T("S01", "Lead Catcher never writes the shared AIA store and refuses on the live site", async () => {
     const aiaStore = fs.existsSync(process.env.AIA_STORE_PATH) ? fs.readFileSync(process.env.AIA_STORE_PATH, "utf8") : "";
