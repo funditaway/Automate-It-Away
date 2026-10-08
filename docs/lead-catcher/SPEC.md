@@ -1,6 +1,6 @@
 # Lead Catcher — Specification (canonical)
 
-Status: **DRAFT v0.3 — 2026-10-08.** Official AIA Pack, preview. Not on the live site. Not legally reviewed. Commercial terms are a draft service offer, not proven profitable.
+Status: **DRAFT v0.4 — 2026-10-08.** Official AIA Pack, preview. Not on the live site. Not legally reviewed. Commercial terms are a draft service offer, not proven profitable.
 Owner: James Oddo (Automate It Away). This file is the one source of truth for Lead Catcher behavior. Code lives on branch `lead-catcher-slice` of `funditaway/Automate-It-Away`. A standalone reference build with the same rules lives at `/workspace/aia-lead-catcher` (box only).
 
 Words used: **desk** = one business's AIA workspace (the tenant). **card** = one customer request. **Yes / Stop / Kill** = AIA's human taps (approve / cancel an approval / close with no action).
@@ -48,7 +48,7 @@ Words used: **desk** = one business's AIA workspace (the tenant). **card** = one
 | `next_action`, `next_action_due` | Next step and when it's due | Assign |
 | drafts[] (`version`, `channel`, `recipient`, `content`, `attachments`, `commitment`, `payload_hash`, `lint_flags`, `author_kind`, `state`) | Reply versions | Helper or person |
 | approvals[] (`approver_id`, `approver_role`, `approved_at`, `draft_version`, `payload_hash`, `channel`, `recipient`, `action_id`, `status`, `ended_reason`) | Yes history | Approver |
-| actions[] (`action_id`, `try_no`, `adapter`, `adapter_mode`=MOCK or PERSON, `status` written_to_mock_outbox / failed / needs_attention / sent_manually, `executed_by`, timings) | External action status | Run / I sent it myself |
+| actions[] (`action_id`, `try_no`, `adapter`, `adapter_mode`=MOCK or PERSON, `status` written_to_mock_outbox / failed / needs_attention / sent_manually, `status_words` "Sent by AIA (test outbox)" / "AIA send failed" / "Sent by a person (manual)", `executed_by`, timings; manual rows add `reported_by` + seat + name, `channel_used`, `note`, `approved_words_used`, `draft_id`, `draft_version`, `payload_hash`, `follows_failed_tries`) | External action status | Run / I sent it myself |
 | packages[] (version, trigger, items with state + review, decisions, context digest) | AI work package (§14) | AIA prepares, person reviews |
 | `replies[]`, `reply_waiting`, `needs_attention`, `service` | Customer replies (§16), failed sends (§15), service from the package | Channel / System / Person |
 | `outcome`, `outcome_note`, `outcome_attribution`, `outcome_at` | What happened and how we know | Person |
@@ -126,7 +126,7 @@ In scope: the one workflow configured at setup, desk seats, the website form and
 ## 9. Numbers (metric definitions)
 | Metric | Definition |
 |---|---|
-| First customer-response time | Arrival → first **human-approved** customer reply that actually ran. Internal assignment does **not** count. Here "ran" means written to the MOCK outbox. Median and p90 in minutes, plus a count of cards with no reply yet. |
+| First customer-response time | Arrival → first **human-approved** customer reply that actually went out. Internal assignment does **not** count. Two routes, both flagged: `aia` = written to the MOCK outbox by AIA; `manual` = a person reported sending it themselves after AIA's send failed **and said they used the approved words exactly**. A manual send with changed words is recorded but **not** counted (`manual_not_counted`). Median and p90 in minutes, `by_route {aia, manual}`, plus a count of cards with no reply yet. The card stores `first_response_via`. |
 | Internal triage time | Arrival → first owner assigned. |
 | Unassigned active | Cards in New. |
 | Late (overdue) | Active cards past their next-step due time, or Waiting cards past their follow-up date. |
@@ -156,7 +156,7 @@ Desk = tenant. The desk comes from the signed-in AIA session/PIN, never from a c
 
 ## 13. Lead Catcher cards on the main AIA Queue
 - When Lead Catcher is **on** for the open desk, the Queue (`/desk`) shows that desk's **active** Lead Catcher cards (New, Assigned, In Review, Waiting) in a "Lead Catcher" block above the AIA cards. When it's off, nothing shows.
-- Each row, in plain words: customer name (or "No name yet"), kind of job, urgency, owner or **No owner**, status, next-step or follow-up time with **late** marked, TEST/DEMO label, how it came in (MOCK channels marked "test only"), and where the reply stands ("needs a person's Yes on the card", "Yes given", "ran (test outbox)"). Late cards come first, then by urgency and due time.
+- Each row, in plain words: customer name (or "No name yet"), kind of job, urgency, owner or **No owner**, status, next-step or follow-up time with **late** marked, TEST/DEMO label, how it came in (MOCK channels marked "test only"), and where the reply stands ("needs a person's Yes on the card", "Yes given", "Sent by AIA (test outbox)", or "Sent by a person (manual)"). Late cards come first, then by urgency and due time.
 - **Read-only.** The only control is **Open**, which goes to `/lead-catcher#card=<id>`. Yes, Stop, Kill and Run happen only on the card and go through the approval engine (§5). Queue rows carry no draft words, fingerprints, action ids or customer contact details, so nothing on the Queue can approve or run anything.
 - Same desk isolation as §11: rows come from the caller's desk only. Desk AIs and seats without "see cards" get no rows.
 - Data stays in the Lead Catcher store. Nothing is written to the shared AIA store. No charge, no Buy, Collect off.
@@ -175,7 +175,12 @@ Desk = tenant. The desk comes from the signed-in AIA session/PIN, never from a c
 - **Connection switch**: the desk owner can set the MOCK test outbox connection **down** or **up** (`connection`, needs `confirm: true`). It's labelled as a MOCK test switch and only affects the test outbox.
 - **When down**: Run returns a visible failure (503 `connection_down`), writes a `failed` row and an "action failed" history line, sends nothing, and **keeps the Yes**. The card shows **Try again** and **I sent it myself**. After 3 failed tries the card is marked **Needs attention** on the card and the Queue.
 - **Retry** after the connection is back runs once. The Yes is used up only after a successful write.
-- **Manual fallback** (`manual-sent`): only after a failed try, with a still-valid Yes, a "how you sent it" note and a Yes tick. It records `sent_manually` and "AIA sent nothing". Run afterwards does nothing.
+- **Manual fallback — "I sent it myself"** (`manual-sent`, W07). It records a **MANUAL action** and never marks the failed system send as successful.
+  - Allowed only after a failed AIA try, with a still-valid Yes that passes the same pre-Run checks (seat, version, fingerprint, recipient, active card), by a seat that may Run, with a Yes tick.
+  - Required: **channel** (pick one: phone, text, email, in person, other; **other needs a note**) and **did you use the approved words exactly?** (yes/no). Note is optional otherwise.
+  - Adds a **separate** action row: `status sent_manually`, `status_words` **"Sent by a person (manual)"** (AIA sends read "Sent by AIA (test outbox)"), `reported_by` user + seat + name, time, channel, note, `approved_words_used`, and the approved `draft_id`, `draft_version` and `payload_hash`, plus the ids of the failed tries it follows. `result.aia_sent = false`.
+  - The failed rows and earlier history stay **unchanged**. The history line is appended to the hash chain. Nothing is written to the outbox. The Yes is closed (`sent by a person (manual)`), so Run afterwards does nothing and no second system send can happen; recording twice is refused.
+  - Queue and card read "Sent by a person (manual)". Metrics: see §9 (counts only with the approved words, flagged `manual`).
 - Every result (sent to test outbox / failed / needs attention / sent manually) is written to the card history.
 
 ## 16. Customer replies come back to the same card
