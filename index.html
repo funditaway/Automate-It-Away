@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/img/aia-mark-dark.png" type="image/png" sizes="512x512">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
   <link rel="manifest" href="/site.webmanifest">
@@ -26,7 +27,7 @@
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);})();
   </script>
-  <link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
+  <link rel="stylesheet" href="theme.css?v=20261008b"><link rel="stylesheet" href="/phone-clear.css">
   <link rel="stylesheet" href="ui-fix.css">
   <style>
     body{font-family:system-ui,Segoe UI,sans-serif;margin:0;color:var(--ink);background:var(--bg)}
@@ -70,7 +71,7 @@
 </head>
 <body>
 <header>
-  <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-header.svg" width="32" height="32" alt=""><span class="brand-name">Automate It Away</span></a>
+  <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="32" height="32" alt=""><span class="brand-name">Automate It Away</span></a>
   <nav>
     <a href="how.html">How</a>
     <a href="setup.html">Setup</a>
@@ -188,7 +189,7 @@
     <a href="status.html">Status</a>
   </nav>
 </footer>
-<script src="theme.js"></script>
+<script src="theme.js?v=20261008b"></script>
 <script src="mark-fix.js"></script>
 <script src="aia-tip.js"></script>
 </body>

@@ -13,7 +13,7 @@
   <script>
   (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
   </script>
-  <link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/phone-clear.css">
+  <link rel="stylesheet" href="theme.css?v=20261008b"><link rel="stylesheet" href="/phone-clear.css">
   <link rel="stylesheet" href="desk-nav.css">
   <style>
     body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;margin:0}
@@ -54,7 +54,7 @@
 </head>
 <body class="page-bg has-desk-nav">
   <header class="site-header">
-    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-pyramid-header.svg" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <span class="brand-page">Creators Studio</span>
     <div class="nav">
       <a href="/create">Create</a>
@@ -148,7 +148,7 @@
     <a href="/history" data-tab="history"><span>History</span></a>
     <a href="/more" data-tab="more"><span>More</span></a>
   </nav>
-  <script src="theme.js"></script>
+  <script src="theme.js?v=20261008b"></script>
   <script src="aia-tip.js"></script>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
