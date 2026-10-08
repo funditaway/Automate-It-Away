@@ -18,7 +18,7 @@ function policyOf(oauth) {
     never: ["send", "stop", "pay", "draft", "bind", "premium"],
     privacy: "/legal",
     terms: "/legal",
-    home: "https://automateitaway.com",
+    home: require("./_public-host").homeUrl(),
     pipes: "/connections",
     landOn: "/onboard",
     note: "Identity only. Login is not a pipe. Never Send, Stop, pay, draft, bind, or place premium."

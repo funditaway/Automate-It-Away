@@ -47,7 +47,7 @@ function complianceOf() {
     never: ["send", "stop", "pay", "draft", "bind", "premium", "commission"],
     privacy: "/legal",
     terms: "/legal",
-    homepage: "https://automateitaway.com",
+    homepage: require("./_public-host").homeUrl(),
     pipes: "/connections",
     delete: "Leave this phone. Owner can delete a desk. Last owner cannot leave.",
     sellingLists: false,
