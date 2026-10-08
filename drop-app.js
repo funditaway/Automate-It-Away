@@ -116,7 +116,7 @@ const params = new URLSearchParams(location.search);
       const name = deskNameOf();
       if (name) {
         el.classList.remove("off");
-        el.textContent = "This drop goes to " + name + ". You still tap Yes, then Start.";
+        el.textContent = "This drop goes to " + name + ". You still tap Yes or Stop, then Start.";
       } else {
         el.classList.add("off");
         el.textContent = "No desk yet. Pick one, add a saved desk, or create a new desk.";

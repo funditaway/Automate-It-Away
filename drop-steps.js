@@ -1,6 +1,6 @@
 (function () {
   var KEY = "aia_drop_step";
-  var VOW = "You still tap Yes, then Start. Nobody sends money from here.";
+  var VOW = "You still tap Yes or Stop, then Start. Draft only. Nobody sends money from here.";
   var STEPS = [
     {
       id: "desk", label: "Desk",
@@ -14,7 +14,7 @@
     },
     {
       id: "card", label: "Card",
-      hint: "Quick, Custom, Put data on, or files/photos. Drop it when you say so.",
+      hint: "Tap a kind — Quick, Custom, Put data on, or files. Drop it when you say so.",
       ids: ["drop-ways", "modes", "drop-form-card"],
       also: ["drop-sub"]
     },

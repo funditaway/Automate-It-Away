@@ -176,14 +176,18 @@ if (runSkip({ path: "/drop.html" })) fail("/drop.html must still paint the step 
   if (src.indexOf('s.src = "drop-steps.js"') < 0) {
     fail(file + " must still load drop-steps.js on /drop");
   }
-  const noteAt = src.indexOf("function showNote");
-  const note = src.slice(noteAt, src.indexOf("function paintDeskOn", noteAt));
-  if (note.indexOf("AIADropSteps.reveal") < 0) {
-    fail(file + " showNote must reveal the step that holds the note");
-  }
 });
 const widgetHtml = read("widget.html");
 const dropHtml = read("drop.html");
+const app = read("drop-app.js");
+const noteAt = app.indexOf("function showNote");
+const note = app.slice(noteAt, app.indexOf("function paintDeskOn", noteAt));
+if (noteAt < 0 || note.indexOf("AIADropSteps.reveal") < 0) {
+  fail("drop-app.js showNote must reveal the step that holds the note");
+}
+if (dropHtml.indexOf('src="/drop-app.js"') < 0 || widgetHtml.indexOf('src="/drop-app.js"') < 0) {
+  fail("drop.html and widget.html must load drop-app.js so a note can reveal its step");
+}
 if (!/<body[^>]*\bwidget\b/.test(widgetHtml)) {
   fail("widget.html must mark body.widget so #drop-steps stays 0 even if pathname is drop.html");
 }
