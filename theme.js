@@ -31,6 +31,7 @@
     var headerSrc = markSrc();
     var tile = tileSrc();
     document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
+      if (!img.getAttribute("alt")) img.setAttribute("alt", "Automate It Away");
       var kind = (img.getAttribute("data-mark") || "").toLowerCase();
       if (kind === "orange") { img.setAttribute("src", orangeSrc()); return; }
       if (kind === "outline") { img.setAttribute("src", outlineSrc()); return; }
@@ -171,7 +172,7 @@
       "main,#queue,.queue,#gate{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}" +
       ".queue-empty,#queue .empty,body.has-desk-nav #queue > :last-child{margin-bottom:24px}" +
       "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:inline!important;font-size:13px!important;line-height:1.15!important;max-width:11.5em;white-space:normal}header .brand-short,.site-header .brand-short{display:none!important}}@media (max-width:430px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}header .brand-short,.site-header .brand-short{display:inline!important;color:#fff!important;font-weight:800}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}header, .site-header{grid-template-columns:auto 1fr auto;row-gap:6px}header .site-nav, header nav.site-nav{grid-column:1/-1;width:100%!important}}" +
-      "@media (max-width:420px){.hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}.reels,.kpis{grid-template-columns:1fr 1fr!important}.who-pic{width:28px;height:28px;flex-basis:28px}a.btn, .btn{min-height:44px}}"+ "button.go,a.go,.go,.use,button.use,.primary,a.primary,button.or,a.or,.pills button.on,.kinds button.on{color:#0c1116!important}button.go,a.go,.go,.use,.primary,a.primary{background:var(--orange,#f39c12)!important}header .theme-btn,.theme-btn{color:#fff!important;background:#083838!important;border:1px solid rgba(255,255,255,.45)!important}";
+      "@media (max-width:420px){.hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}.reels,.kpis{grid-template-columns:1fr 1fr!important}.who-pic{width:28px;height:28px;flex-basis:28px}a.btn, .btn{min-height:44px}}"+ "button.go,a.go,.go,.use,button.use,.primary,a.primary,button.or,a.or,.pills button.on,.kinds button.on{color:#0c1116!important}button.go,a.go,.go,.use,.primary,a.primary{background:var(--orange,#f39c12)!important}header .theme-btn,.theme-btn,[data-theme-btn]{color:#0c1116!important;background:#f39c12!important;border:0!important}header nav a.on,header .site-nav a.on{color:#fff!important;box-shadow:inset 0 -3px 0 #f39c12}";
     document.head.appendChild(s);
   }
   function esc(s) {
@@ -332,7 +333,7 @@
   function ensureFixCss() {
     if (!document.getElementById("aia-ui-fix-link")) {
       var l = document.createElement("link");
-      l.id = "aia-ui-fix-link"; l.rel = "stylesheet"; l.href = "/ui-fix.css?v=20261004";
+      l.id = "aia-ui-fix-link"; l.rel = "stylesheet"; l.href = "/ui-fix.css?v=20261008";
       document.head.appendChild(l);
     }
     return;
