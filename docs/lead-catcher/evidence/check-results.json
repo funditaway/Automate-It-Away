@@ -1,0 +1,198 @@
+{
+  "at": "2026-10-08T06:34:17.117Z",
+  "node": "v20.19.2",
+  "rows": [
+    {
+      "id": "P01",
+      "name": "Lead Catcher is listed as an Official AIA Pack, free, never charged, Collect off",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "P02",
+      "name": "Market Use/Buy cannot install Lead Catcher silently",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "P03",
+      "name": "Getting and turning on the pack need the owner's Yes; nothing works while it is off",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "P04",
+      "name": "Seats: owner sets them with a Yes; a desk AI can never hold one",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T01",
+      "name": "Website-form request becomes a New card with original words, source and arrival time kept",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T02",
+      "name": "The same request twice makes one card and logs the repeat",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T03",
+      "name": "Typed-in path works end to end with no AI model",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T04",
+      "name": "Lifecycle: owner + next step, Waiting reason + follow-up, Kill needs reason + second tap, outcome before Completed",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T05",
+      "name": "Rule-based helper suggests fields and flags gaps; never confirms contact or overwrites a person",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T06",
+      "name": "No external action without a Yes (incl. direct API calls)",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T07",
+      "name": "Any change after Yes cancels it (words, contact, direct tampering)",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T08",
+      "name": "Approved reply runs once to the MOCK outbox exactly as approved; outcome and numbers recorded",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T09",
+      "name": "Stale Yes refused: too old, Stop pressed, card closed",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T10",
+      "name": "Cards, Yes history and full history survive a restart; history tampering is detected",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T11",
+      "name": "Seats without permission are blocked, incl. direct API; System Admin has no customer-commitment power",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T12",
+      "name": "Live channel delivery (real email / SMS / call provider)",
+      "result": "NOT RUN",
+      "note": "BLOCKED — no channel is connected or contracted. Outbound is MOCK only by design."
+    },
+    {
+      "id": "T13",
+      "name": "One desk cannot see or touch another desk's cards, Yes presses or numbers",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T14",
+      "name": "Instructions hidden in a customer request cannot send, approve, confirm contact or change rules",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "T15",
+      "name": "Run pressed again or 10 times at once sends once; Yes again on a sent reply is refused",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "Q01",
+      "name": "Lead Catcher cards show on the main AIA Queue in plain words when the pack is on",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "Q02",
+      "name": "No Lead Catcher cards on the main Queue when the pack is off for the desk",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "Q03",
+      "name": "T13 extension: a desk's Queue never shows another desk's Lead Catcher cards; desk AIs see none",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "Q04",
+      "name": "The Queue cannot run anything or skip the Yes",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "P05",
+      "name": "Pack stays owned after AIA links the desk to an account later",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W01",
+      "name": "Scoped AI context: one builder, only this card and seat; no other cards, desks, credentials or store",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W02",
+      "name": "Water heater: work package beside the request, with separate time and price decisions; draft promises neither",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W03",
+      "name": "Water heater with prompt-injection text: same split decisions, injected words ignored, nothing changes",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W04",
+      "name": "Accept / Fix / Reject per item is recorded, feeds draft quality, and never sends or approves",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W05",
+      "name": "Before Run: seat still allowed, same recipient, same content, not already run, connection up (MOCK switch)",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W06",
+      "name": "A customer reply goes back to the same card and AIA prepares a new package",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "W07",
+      "name": "\"I sent it myself\" records a separate MANUAL action; failed AIA tries stay unchanged; metrics flag it",
+      "result": "PASS",
+      "note": ""
+    },
+    {
+      "id": "S01",
+      "name": "Lead Catcher never writes the shared AIA store and refuses on the live site",
+      "result": "PASS",
+      "note": ""
+    }
+  ]
+}

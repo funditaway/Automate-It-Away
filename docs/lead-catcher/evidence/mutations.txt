@@ -1,0 +1,61 @@
+date: 2026-10-08 01:29:49 CDT (run finished)
+command: bash scripts/lead-catcher-mutations.sh
+----
+caught      no-approval-check
+caught      no-hash-check
+caught      no-invalidate
+caught      no-idempotency
+caught      no-desk-filter
+caught      perm-always-true
+caught      no-pack-gate
+caught      no-turn-on-yes
+caught      no-kill-second-tap
+caught      desk-ai-gets-seat
+caught      no-injection-flag
+caught      no-model-allowlist
+caught      no-dedupe
+caught      no-ttl
+caught      no-rerun-guard
+caught      no-live-block
+caught      silent-market-use
+caught      queue-ignores-pack-off
+caught      queue-other-desks
+caught      queue-desk-ai-sees
+caught      queue-leaks-draft
+caught      queue-script-acts
+caught      ownership-one-key
+caught      context-leaks-other-cards
+caught      context-leaks-env
+caught      context-contact-sysadmin
+caught      model-gets-desk-cards
+caught      package-echoes-time
+caught      no-split-decisions
+caught      no-booking-lint
+caught      package-draft-skips-owner
+caught      accept-grants-yes
+caught      review-any-seat
+caught      review-twice
+caught      no-approver-recheck
+caught      no-recipient-recheck
+caught      no-version-check
+caught      ignore-connection-down
+caught      failure-consumes-yes
+caught      failure-blocks-retry
+caught      manual-without-failure
+caught      reply-makes-new-card
+caught      reply-no-new-package
+caught      reply-without-run
+caught      reply-overwrites-original
+caught      manual-overwrites-failure
+caught      manual-no-channel-check
+caught      manual-other-no-note
+caught      manual-no-words-answer
+caught      manual-no-reporter
+caught      manual-no-fingerprint
+caught      manual-writes-outbox
+caught      manual-says-aia
+caught      queue-manual-says-aia
+caught      manual-counts-changed-words
+caught      metrics-no-manual-flag
+----
+result: 56 caught / 56 mutations · 0 not caught

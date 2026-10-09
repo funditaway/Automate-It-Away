@@ -1,0 +1,63 @@
+date: 2026-10-08 01:33:47 CDT  base: http://127.0.0.1:4318 (127.0.0.1 only, DEV ONLY seed)
+GET /lead-catcher -> 200 8435B
+GET /lead-catcher.js -> 200 29891B
+GET /desk -> 200 31556B
+GET /desk-queue-lead-catcher.js -> 200 6447B
+GET /packs-you-own -> 200 4155B
+GET /img/aia-mark-teal.png -> 200 64871B
+GET /theme.css -> 200 9359B
+pack-status, not signed in -> [401] {"ok":false,"error":"unauthenticated","message":"Open your desk first."}
+list before turn-on -> [409] {"ok":false,"error":"pack_off","message":"Lead Catcher is not turned on for this desk. The desk owner turns it on from the Lead Catcher page."}
+get-pack without Yes -> [409] {"ok":false,"error":"needs_yes","message":"Adding Lead Catcher needs your Yes. Nothing is charged."}
+get-pack with Yes -> [200] {"pack":"lead-catcher","name":"Lead Catcher","official":true,"brand":"AIA","owned":true,"on":false,"desk":"riverbend-demo","price":0,"charged":false,"collect":"off","note":"No charge in AIA. Getting or turning on the pac
+turn-on by staff (not owner) -> [403] {"ok":false,"error":"forbidden","message":"Only the desk owner can turn a pack on."}
+turn-on with Yes -> [200] on=true (form key issued, not printed)
+website form intake -> [201] {"ok":true,"duplicate":false,"reply":false,"receipt":"card_eb0f758dfc55144a34","mock_channel":false}
+same form again (duplicate) -> [200] {"ok":true,"duplicate":true,"reply":false,"receipt":"card_eb0f758dfc55144a34","mock_channel":false}
+live data label -> [400] {"ok":false,"error":"live_disabled","message":"Live customer data is not allowed yet. Use test or demo."}
+card flags -> uncertain=["request_contains_instructions"] status=new
+assign owner + next step -> [200] {"card":{"id":"card_eb0f758dfc55144a34","desk":"riverbend-demo","data_label":"test","status":"assigned","source_channel":"web_form","source_is_mock":false,"source_ref":"smoke-1","dedupe_key":"18eb37dc61cbb847701b89bc4df5
+confirm contact -> [200] {"card":{"id":"card_eb0f758dfc55144a34","desk":"riverbend-demo","data_label":"test","status":"assigned","source_channel":"web_form","source_is_mock":false,"source_ref":"smoke-1","dedupe_key":"18eb37dc61cbb847701b89bc4df5
+draft-generate -> [200] hash=99cae34eb2d1…
+Run with no Yes -> [403] {"ok":false,"error":"no_approval","message":"No Yes exists for that action. Nothing runs without a person pressing Yes."}
+Yes by desk AI -> [403] {"ok":false,"error":"forbidden","message":"Your seat (none) cannot do this: Press Yes on an exact draft (customer commitment)."}
+Yes with wrong fingerprint -> [409] {"ok":false,"error":"payload_mismatch","message":"What you saw is not what is stored. Reload and check again."}
+Yes by owner -> [200] {"approval":{"id":"appr_77ae834c382e648df7","desk":"riverbend-demo","card_id":"card_eb0f758dfc55144a34","draft_id":"draft_3eefc09d6773610946","draft_version":1,"payload_hash":"99cae34eb2d179eb07b5654da0c23b88f62291121bf4
+Run -> [200] {"duplicate":false,"action":{"id":"ext_fd8dc9c0b8c76b99bb","desk":"riverbend-demo","card_id":"card_eb0f758dfc55144a34","approval_id":"appr_77ae834c382e648df7","action_id":"act_2ec41e090d3b79adda","try_no":1,"adapter":"mo
+Run again -> [200] {"duplicate":true,"action":{"id":"ext_fd8dc9c0b8c76b99bb","desk":"riverbend-demo","card_id":"card_eb0f758dfc55144a34","approval_id":"appr_77ae834c382e648df7","action_id":"act_2ec41e090d3b79adda","try_no":1,"adapter":"moc
+Yes again on a reply that already ran -> [409] {"ok":false,"error":"already_ran","message":"This exact reply already ran. To reply again, write a new version."}
+record outcome -> [200] {"card":{"id":"card_eb0f758dfc55144a34","desk":"riverbend-demo","data_label":"test","status":"in_review","source_channel":"web_form","source_is_mock":false,"source_ref":"smoke-1","dedupe_key":"18eb37dc61cbb847701b89bc4df
+numbers -> [200] {"as_of":"2026-10-08T06:33:48.384Z","data":"test and demo only","first_customer_response":{"count":1,"median_min":0,"p90_min":0,"without_response":0,"by_route":{"aia":1,"manual":0},"manual_not_counted":0,"definition":"Ar
+history check -> [200] {"ok":true,"entries":14}
+second request (no owner yet) -> [201] {"ok":true,"duplicate":false,"reply":false,"receipt":"card_01493221117e2554fc","mock_channel":false}
+Queue rows (owner) -> 2 rows; counts {"open":2,"no_owner":1,"late":0}; rows: Nora Noowner | Heating and cooling | Emergency | No owner | New | DEMO ; Maria Lopez | Plumbing | Normal | Rae Responder | In Review | TEST
+Queue rows carry draft words / fingerprints / action ids? -> false
+Queue rows (desk AI) -> 0 rows. Your seat does not see Lead Catcher cards.
+Queue POST with run/confirm fields -> rows returned, extra fields ignored
+card history before/after Queue calls -> 12 / 12
+water-heater text (MOCK sms) -> [201] {"ok":true,"duplicate":false,"reply":false,"receipt":"card_da40088cff9e9ec91d","mock_channel":true}
+package -> decisions=decision:schedule:confirmation,decision:price:authorized_estimate service=Replace water heater approvals=0
+package draft -> Hi there, thanks for contacting Riverbend Plumbing (DEMO). We got your message about the water heater. Someone from our team will call you to talk about next steps. We have not set a time or a price yet. You asked about timing. A person will check our schedule and confirm a time with you. You asked about cost. A person will give you an estimate after looking at the job. To help us get this right: Who should we ask for? What is the address where the work is needed? — Riverbend Plumbing (DEMO)
+ai-context keys -> scope,original_message,latest_replies,card,templates,workflow,missing,needs_approval,never; mentions other cards? false
+ai-context by desk AI -> [403] {"ok":false,"error":"forbidden","message":"Your seat (none) cannot do this: See cards and their history."}
+Accept kind of job -> category=plumbing approvals=0
+Accept by desk AI -> [403] {"ok":false,"error":"forbidden","message":"Your seat (none) cannot do this: Correct customer name, contact, category, urgency."}
+assign water-heater card -> done
+Accept the prepared draft -> draft by rules approvals=0 (accepting is not a Yes)
+Yes by owner -> approval valid
+connection down by staff -> [403] {"ok":false,"error":"forbidden","message":"Only the desk owner can flip the test connection."}
+connection down by owner (MOCK switch) -> [200] {"connection":{"outbox":"down","at":"2026-10-08T06:33:50.936Z","by":"p_owner","mode":"MOCK"}}
+Run while down -> [503] {"ok":false,"error":"connection_down","message":"The test outbox connection is down (MOCK test switch). Nothing was sent.","action":{"id":"ext_2953e7e778bf7e2141","desk":"riverbend-demo","card_id":"card_da40088cff9e9ec91
+connection up -> [200] {"connection":{"outbox":"up","at":"2026-10-08T06:33:50.963Z","by":"p_owner","mode":"MOCK"}}
+Try again -> [200] {"duplicate":false,"action":{"id":"ext_7d7f73df55d48a508c","desk":"riverbend-demo","card_id":"card_da40088cff9e9ec91d","approval_id":"appr_42ed0b89dd192b8681","action_id":"act_86c36088837840bb2f","try_no":2,"adapter":"mo
+customer reply (MOCK sms) -> [200] {"ok":true,"duplicate":false,"reply":true,"receipt":"card_da40088cff9e9ec91d","mock_channel":true}
+card after reply -> replies=1 original_kept=true packages=2 newest_trigger=customer_reply decisions=decision:schedule,decision:price
+Queue row -> No name yet | Customer replied. AIA prepared a new package to check.
+Run while down (manual-send card) -> [503] {"ok":false,"error":"connection_down","message":"The test outbox connection is down (MOCK test switch). Nothing was sent.","action":{"id":"ext_77c7949c75417f31d7","desk":"riverbend-demo","card_id":"card_a741a1bf5872ec7c8
+I sent it myself, no channel -> [400] {"ok":false,"error":"channel_required","message":"Pick how you sent it: phone, text, email, in person, or other."}
+I sent it myself -> sent_manually | Sent by a person (manual) | by Rae Responder (responder) | phone call | v1 fp 87706c678a38… | aia_sent=false
+card actions after manual -> Sent by a person (manual) ; AIA send failed
+Run after manual send -> [200] {"duplicate":true,"action":{"id":"ext_34b609fdf799bf514e","desk":"riverbend-demo","card_id":"card_a741a1bf5872ec7c83","approval_id":"appr_3b272aac83604e981a","action_id":"act_557b25ec4b4620b424","try_no":null,"kind":"man
+MOCK outbox lines before/after manual path -> 2 / 2
+Queue row -> Ola Manual | Sent by a person (manual).
+first response -> count 3 by_route {"aia":2,"manual":1} manual_not_counted 0

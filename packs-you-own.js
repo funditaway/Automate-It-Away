@@ -55,7 +55,8 @@
     }
     listEl.innerHTML = rows.map(function (p) {
       var notes = (p.notes || []).map(function (n) { return "<p>" + esc(n) + "</p>"; }).join("");
-      return "<article class=\"pack\"><b>" + esc(p.name || p.id) + "</b>" + notes + "</article>";
+      var open = p.href ? "<p><a href=\"" + esc(p.href) + "\">Open " + esc(p.name || p.id) + "</a></p>" : "";
+      return "<article class=\"pack\"><b>" + esc(p.name || p.id) + "</b>" + notes + open + "</article>";
     }).join("");
   }
 
@@ -115,6 +116,16 @@
           remember(map, p.id, p.name || p.id, note);
         });
       });
+      // Official AIA Pack: Lead Catcher. Ownership and turn-on live on its own page (each needs the owner's Yes).
+      try {
+        var lcRes = await fetch("/api/lead-catcher?action=pack-status", { headers: hdr() });
+        var lcs = lcRes.ok ? await lcRes.json() : null;
+        if (lcs && lcs.owned) {
+          remember(map, "lead-catcher", "Lead Catcher", "Official AIA Pack. No charge.");
+          remember(map, "lead-catcher", "Lead Catcher", lcs.on ? "On for this desk." : "Off on this desk. Turn it on from its page.");
+          map["lead-catcher"].href = "/lead-catcher";
+        }
+      } catch (e) {}
       var rows = Object.keys(map).map(function (k) { return map[k]; });
       rows.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
       paint(rows);

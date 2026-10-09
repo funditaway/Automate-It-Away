@@ -212,6 +212,7 @@
     loadQueue("desk-queue-ux.js", "data-aia-queue-ux");
     loadQueue("desk-inbox.js", "data-aia-desk-inbox");
     loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
+    loadQueue("desk-queue-lead-catcher.js", "data-aia-queue-lead-catcher");
     loadPeople("people-desk.js", "data-aia-people-desk");
     loadPeople("people-world.js", "data-aia-people-world");
     if (file() === "rules" || file() === "create" || file() === "more") {

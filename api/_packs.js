@@ -11,6 +11,7 @@ const OFFICIAL = [
   { id: "land", name: "Land lot", type: "work", family: "Land", aisle: "Land", official: true, price: 0, use: "ok", does: "Lot note. Flood and title wait.", features: ["lot note", "flood wait", "title wait"], kinds: ["lot", "flood", "survey", "title"] },
   { id: "aia", name: "AIA Help", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "World problem in. Card on the AIA Admin Desk. You tap.", features: ["talk drop", "ticket card", "draft reply"], kinds: ["broke", "login", "desk", "account", "pack", "pipe", "idea"], face: "AIA Help" },
   { id: "aia-adoption", name: "Try it on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Try first. Drop real work. Workers tap Yes or Stop. Open packs customize this desk. Drafts stay on the card.", features: ["try-first", "worker-first", "open packs", "secure-by-design"], kinds: ["task", "errand", "idea", "project"] },
+  { id: "lead-catcher", name: "Lead Catcher", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Website-form and typed-in requests become one card each, with an owner and a next step. AIA drafts the reply. A person presses Yes before anything goes out. Preview: email, text and missed call are test only, and replies go to a test outbox.", features: ["one card per request", "owner and next step", "Yes on the exact reply", "test outbox only"], kinds: ["plumbing", "hvac", "electrical", "roofing", "restoration"], face: "Lead Catcher", href: "/lead-catcher" },
   { id: "aia-implement", name: "Four steps on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.", features: ["four-steps", "audit", "pipes", "desk AI", "guardrails"], kinds: ["leak", "pipe", "agent", "guard"] }
 ];
 
@@ -29,7 +30,8 @@ const PACK_FILES = {
   land: function () { return require("../packs/land.json"); },
   aia: function () { return require("../packs/aia.json"); },
   "aia-adoption": function () { return require("../packs/aia-adoption.json"); },
-  "aia-implement": function () { return require("../packs/aia-implement.json"); }
+  "aia-implement": function () { return require("../packs/aia-implement.json"); },
+  "lead-catcher": function () { return require("../packs/lead-catcher.json"); }
 };
 
 function wantedRows() {
@@ -748,6 +750,11 @@ async function packHandler(req, res) {
     }
     if (pack.type === "cosmetic") {
       return res.status(200).json({ ok: true, tryOn: pack.id, pack: publicPack(pack), note: "Color on this phone. No rules added." });
+    }
+    if ((pack.packId || pack.id) === "lead-catcher") {
+      // Lead Catcher changes how a desk works. It is never installed from a Use/Buy tap here:
+      // the owner adds it and turns it on from its own page, with a Yes. No charge. Collect stays off.
+      return res.status(409).json({ ok: false, error: "Lead Catcher needs your Yes on its own page.", href: "/lead-catcher", pack: publicPack(pack), charged: false });
     }
     if (!workspace) return res.status(400).json({ error: "Open a desk first." });
     const { workspace: shop, person } = personOf(req, workspace);
