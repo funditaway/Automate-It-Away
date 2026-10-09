@@ -15,21 +15,25 @@ function fail(msg) {
 }
 
 const needsPath = path.join(root, "desk-needs.js");
+const approvePath = path.join(root, "desk-approve.js");
 const cardPath = path.join(root, "desk-card.js");
 const deskHtmlPath = path.join(root, "desk.html");
 if (!fs.existsSync(needsPath)) fail("desk-needs.js missing");
+if (!fs.existsSync(approvePath)) fail("desk-approve.js missing");
 if (!fs.existsSync(cardPath)) fail("desk-card.js missing");
 if (!fs.existsSync(deskHtmlPath)) fail("desk.html missing");
 
-const needs = fs.readFileSync(needsPath, "utf8");
+const needs = fs.readFileSync(needsPath, "utf8") + "\n" + fs.readFileSync(approvePath, "utf8");
 const card = fs.readFileSync(cardPath, "utf8");
 const deskHtml = fs.readFileSync(deskHtmlPath, "utf8");
+const nav = fs.readFileSync(path.join(root, "desk-nav.js"), "utf8");
 
-["desk-needs.js", "desk-card.js"].forEach(function (name) {
+["desk-needs.js", "desk-approve.js", "desk-card.js"].forEach(function (name) {
   const syntax = spawnSync(process.execPath, ["--check", path.join(root, name)], { encoding: "utf8" });
   if (syntax.status !== 0) fail(name + " must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
 });
 
+if (nav.indexOf("desk-approve.js") < 0) fail("desk-nav must load desk-approve.js on the queue");
 if (/onchange\s*=\s*["']bindAiOnCard|onchange=\\"bindAiOnCard/.test(needs)) {
   fail("desk-needs bindAiHtml must not POST onchange=bindAiOnCard (silent bind)");
 }
