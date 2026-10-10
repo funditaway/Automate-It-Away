@@ -11,6 +11,8 @@ function pass(msg) { console.log("ok " + msg); }
 
 const html = fs.readFileSync(path.join(root, "create.html"), "utf8");
 const js = fs.readFileSync(path.join(root, "create-simple.js"), "utf8");
+const rulesPath = path.join(root, "card-rules.js");
+const rulesJs = fs.existsSync(rulesPath) ? fs.readFileSync(rulesPath, "utf8") : "";
 
 const RULES = [
   "One card, one idea. Stay inside this card's topic. Keep its talk, drafts, decisions, and actions here, in order.",
@@ -23,17 +25,37 @@ const RULES = [
   "No silent money. No fees or charges unless the person says Yes.",
   "Use only what this card stores. Don't pretend to remember other cards or desks."
 ];
-const ruleBlock = (html.match(/<details class="cs-rules"[\s\S]*?<\/details>/) || [""])[0];
-const ruleItems = [];
-ruleBlock.replace(/<li>([\s\S]*?)<\/li>/g, function (_, t) { ruleItems.push(t); return _; });
-if (ruleItems.length !== 9) fail("create.html must show exactly nine rules, found " + ruleItems.length);
-else pass("nine rules listed");
+// One official copy of the rules: card-rules.js.
+if (!rulesJs) fail("card-rules.js missing");
+const rulesBox = { window: {} };
+try { vm.runInNewContext(rulesJs, rulesBox); } catch (e) { fail("card-rules.js must run: " + e.message); }
+const shared = rulesBox.window.AIACardRules;
+if (!Array.isArray(shared) || shared.length !== 9) fail("card-rules.js must expose exactly nine rules on window.AIACardRules");
+else pass("card-rules.js exposes nine rules");
 RULES.forEach(function (r, i) {
-  if (ruleItems[i] !== r) fail("rule " + (i + 1) + " is not verbatim");
-  else pass("rule " + (i + 1) + " verbatim");
+  if (!Array.isArray(shared) || shared[i] !== r) fail("rule " + (i + 1) + " in card-rules.js is not verbatim");
+  else pass("rule " + (i + 1) + " verbatim in card-rules.js");
 });
-if (/&[a-z#0-9]+;/i.test(ruleBlock)) fail("rules block must not use HTML entities");
-else pass("rules block has no entities");
+if (/&[a-z#0-9]+;/i.test(rulesJs)) fail("card-rules.js must not use HTML entities");
+else pass("card-rules.js has no entities");
+const loadRules = html.indexOf("<script src=\"card-rules.js\"></script>");
+const loadSimple = html.indexOf("<script src=\"create-simple.js\"></script>");
+if (loadRules < 0) fail("create.html must load card-rules.js");
+else if (loadSimple >= 0 && loadRules > loadSimple) fail("create.html must load card-rules.js before create-simple.js");
+else pass("create.html loads card-rules.js first");
+if (html.indexOf("id=\"cs-rules-list\"") < 0) fail("create.html needs the empty #cs-rules-list the page fills");
+else pass("create.html has #cs-rules-list");
+if (js.indexOf("AIACardRules") < 0) fail("create-simple.js must render from window.AIACardRules");
+else pass("create-simple.js renders from the shared rules");
+RULES.forEach(function (r, i) {
+  const probe = r === "Plain words." ? null : r.slice(0, 40);
+  [["create.html", html], ["create-simple.js", js]].forEach(function (pair) {
+    const hit = probe ? pair[1].indexOf(probe) >= 0 : (/>Plain words\.</.test(pair[1]) || /"Plain words\."/.test(pair[1]));
+    if (hit) fail("second copy of rule " + (i + 1) + " found in " + pair[0]);
+  });
+});
+pass("no second copy of the rules in create.html or create-simple.js");
+const ruleBlock = (html.match(/<details class="cs-rules"[\s\S]*?<\/details>/) || [""])[0];
 if (!/does not enforce these rules/.test(ruleBlock)) fail("rules block must say the page does not enforce them");
 else pass("rules shown as copy only");
 
@@ -111,7 +133,37 @@ else {
   const lines = api.sampleDraft(st, cards[0]);
   if (lines.join(" ").indexOf("Nothing is sent.") < 0) fail("sample draft must say nothing is sent");
   else pass("sample draft says nothing is sent");
+
+  // A comma inside an edited line must survive: lists split on line breaks only.
+  const typed = "Your Yes before anything is used\nNames, dates, or details only you know\n\nPickup times, in order";
+  const edited = typeof api.linesOf === "function" ? api.linesOf(typed) : [];
+  if (typeof api.linesOf !== "function") fail("create-simple.js must expose linesOf for edited lists");
+  else if (edited.length !== 3 || edited[1] !== "Names, dates, or details only you know" || edited[2] !== "Pickup times, in order") fail("edited lines must split on line breaks only and keep commas");
+  else pass("comma inside an edited line survives");
+  const commaDraft = { name: "Pickup helper", job: "Drafts a reply, then a reminder", watches: ["Pickup changes, late or early"], drafts: ["The reply, short and kind"], needs: edited, steps: ["qualify", "do"] };
+  const commaLines = api.sampleDraft(commaDraft, cards[0]).join(" ");
+  if (commaLines.indexOf("names, dates, or details only you know") < 0) fail("sample card must keep the comma line whole");
+  else pass("sample card keeps the comma line whole");
+  if (commaLines.indexOf("the reply, short and kind") < 0) fail("sample card must keep commas in the drafts line");
+  else pass("sample card keeps commas in the drafts line");
+  // Same thing when the lists arrive as raw textarea text.
+  const rawLines = api.sampleDraft({ drafts: "The reply, short and kind", needs: typed }, cards[0]).join(" ");
+  if (rawLines.indexOf("names, dates, or details only you know") < 0 || rawLines.indexOf("the reply, short and kind") < 0) fail("raw textarea text must keep commas on the sample card");
+  else pass("raw textarea text keeps commas on the sample card");
+  const commaPrompt = api.promptOf(commaDraft);
+  if (commaPrompt.indexOf("Drafts a reply, then a reminder") < 0 || commaPrompt.indexOf("Names, dates, or details only you know") < 0 || commaPrompt.indexOf("Pickup changes, late or early") < 0) fail("saved prompt must keep commas inside each line");
+  else pass("saved prompt keeps commas inside each line");
+  if (commaPrompt.indexOf("Names; dates") >= 0) fail("saved prompt must not turn commas into semicolons");
+  else pass("no comma turned into a semicolon");
 }
+
+// The save-ai body sends steps as a list, not a comma string, and does is the job line as typed.
+if (/steps:\s*\(d\.steps \|\| \[\]\)\.join\(/.test(js)) fail("save-ai steps must not be joined with commas");
+else pass("save-ai steps sent as a list");
+if (!/does:\s*d\.job\b/.test(js)) fail("save-ai does must be the job line as typed");
+else pass("save-ai does is the job line");
+if (/split\(\/\[,;\\n\]\+\/\)/.test(js)) fail("create-simple.js must not split edited text on commas");
+else pass("no comma split on edited text");
 
 if (bad) { console.error(bad + " check(s) failed"); process.exit(1); }
 console.log("check-create-simple ok");

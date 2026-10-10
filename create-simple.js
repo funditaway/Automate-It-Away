@@ -14,9 +14,16 @@
     return t.slice(0, n).replace(/\s+\S*$/, "").replace(/[.,;:]+$/, "");
   }
 
-  function listOf(v) {
+  /* Edited lists: one item per line. Commas inside a line stay. */
+  function linesOf(v) {
     if (Array.isArray(v)) return v.map(function (x) { return clean(x, 120); }).filter(Boolean);
-    return String(v == null ? "" : v).split(/[,;\n]+/).map(function (x) { return clean(x, 120); }).filter(Boolean);
+    return String(v == null ? "" : v).split(/\r?\n/).map(function (x) { return clean(x, 120); }).filter(Boolean);
+  }
+
+  /* Only for the short comma lists the studio-draft reply itself uses (kinds, fields, steps). Never for edited text. */
+  function studioCsv(v) {
+    if (Array.isArray(v)) return v.map(function (x) { return clean(x, 60); }).filter(Boolean);
+    return String(v == null ? "" : v).split(",").map(function (x) { return clean(x, 60); }).filter(Boolean);
   }
 
   function nameFrom(words) {
@@ -43,15 +50,15 @@
     if (!pack || typeof pack !== "object") return base;
     var rows = Array.isArray(pack.ais) && pack.ais.length ? pack.ais : (Array.isArray(pack.bots) ? pack.bots : []);
     var ai = rows[0] && typeof rows[0] === "object" ? rows[0] : {};
-    var watches = listOf(pack.kinds).map(function (k) { return "New " + k + " cards on this desk"; });
+    var watches = studioCsv(pack.kinds).map(function (k) { return "New " + k + " cards on this desk"; });
     (Array.isArray(pack.workflows) ? pack.workflows : []).forEach(function (wf) {
       (wf && Array.isArray(wf.rules) ? wf.rules : []).forEach(function (r) {
         if (r && r.contains) watches.push("Cards that mention " + clean(r.contains, 40));
       });
     });
-    var steps = listOf(ai.steps).map(function (s) { return s.toLowerCase(); }).filter(function (s) { return STEP_WORDS[s]; });
+    var steps = studioCsv(ai.steps).map(function (s) { return s.toLowerCase(); }).filter(function (s) { return STEP_WORDS[s]; });
     var drafts = steps.map(function (s) { return STEP_WORDS[s]; });
-    var needs = listOf(pack.fields).map(function (f) {
+    var needs = studioCsv(pack.fields).map(function (f) {
       var key = clean(String(f).split(":")[0], 30);
       return key ? "The " + key : "";
     }).filter(Boolean);
@@ -70,9 +77,9 @@
   function promptOf(d) {
     var parts = [
       "Job: " + clean(d && d.job, 160) + ".",
-      "Watches: " + listOf(d && d.watches).join("; ") + ".",
-      "Drafts: " + listOf(d && d.drafts).join("; ") + ".",
-      "Needs from the person: " + listOf(d && d.needs).join("; ") + ".",
+      "Watches: " + linesOf(d && d.watches).join("; ") + ".",
+      "Drafts: " + linesOf(d && d.drafts).join("; ") + ".",
+      "Needs from the person: " + linesOf(d && d.needs).join("; ") + ".",
       "Draft only. The person presses Yes, Stop, or Kill."
     ];
     return clean(parts.join(" "), 400);
@@ -87,8 +94,8 @@
   }
 
   function sampleDraft(d, card) {
-    var drafts = listOf(d && d.drafts);
-    var needs = listOf(d && d.needs);
+    var drafts = linesOf(d && d.drafts);
+    var needs = linesOf(d && d.needs);
     var main = drafts.filter(function (x) { return /^Drafts/.test(x); })[0] || drafts[0] || "the next step";
     var ask = needs[1] || needs[0] || "your Yes";
     return [
@@ -98,7 +105,12 @@
     ];
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft };
+  function rules() {
+    var list = window.AIACardRules;
+    return Array.isArray(list) ? list.slice() : [];
+  }
+
+  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -122,6 +134,17 @@
   }
 
   var current = null;
+
+  function paintRules() {
+    var list = el("cs-rules-list");
+    if (!list) return;
+    while (list.firstChild) list.removeChild(list.firstChild);
+    rules().forEach(function (r) {
+      var li = doc.createElement("li");
+      li.textContent = r;
+      list.appendChild(li);
+    });
+  }
 
   function note(id, text, tone) {
     var n = el(id);
@@ -153,9 +176,9 @@
       source: current ? current.source : "words",
       name: clean(el("cs-name").value, 40),
       job: clean(el("cs-job").value, 160),
-      watches: listOf(el("cs-watches").value),
-      drafts: listOf(el("cs-drafts").value),
-      needs: listOf(el("cs-needs").value),
+      watches: linesOf(el("cs-watches").value),
+      drafts: linesOf(el("cs-drafts").value),
+      needs: linesOf(el("cs-needs").value),
       steps: current && current.steps ? current.steps : ["qualify", "do", "follow"]
     };
   }
@@ -235,7 +258,7 @@
       var r = await fetch("/api/desks", {
         method: "POST",
         headers: hdr(),
-        body: JSON.stringify({ action: "save-ai", id: "", name: d.name, does: d.job, prompt: promptOf(d), steps: (d.steps || []).join(",") })
+        body: JSON.stringify({ action: "save-ai", id: "", name: d.name, does: d.job, prompt: promptOf(d), steps: (d.steps || []).slice() })
       });
       var out = await r.json().catch(function () { return {}; });
       if (!r.ok || out.ok === false) {
@@ -286,5 +309,6 @@
     var more = el("more-ways");
     if (more) more.open = true;
   }
+  paintRules();
   step(1);
 })();

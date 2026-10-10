@@ -139,17 +139,7 @@
         <textarea id="cs-needs" rows="3"></textarea>
         <details class="cs-rules" id="cs-rules">
           <summary>The rules it follows</summary>
-          <ol>
-            <li>One card, one idea. Stay inside this card's topic. Keep its talk, drafts, decisions, and actions here, in order.</li>
-            <li>New card only when needed. If the talk moves to a different project that needs its own history, suggest a new card. Don't split one idea across cards.</li>
-            <li>Keep the history clear. Note each decision, draft, and next step in plain words.</li>
-            <li>Draft only. Never send, pay, delete, or charge on your own. The person presses Yes, Stop, or Kill.</li>
-            <li>When unsure, stop and ask. Make your first work easy to undo.</li>
-            <li>One job. If another card or Desk AI fits better, say which one. The person moves it.</li>
-            <li>Plain words.</li>
-            <li>No silent money. No fees or charges unless the person says Yes.</li>
-            <li>Use only what this card stores. Don't pretend to remember other cards or desks.</li>
-          </ol>
+          <ol id="cs-rules-list"></ol>
           <p class="hint">Shown so you know how it should act. This page does not enforce these rules, and the desk does not store them yet.</p>
         </details>
         <button type="button" class="go" id="cs-try">Try it on sample cards</button>
@@ -235,6 +225,7 @@
   <script src="create-pack-install.js"></script>
   <script src="create-pack-download.js"></script>
   <script src="create-queue.js"></script>
+  <script src="card-rules.js"></script>
   <script src="create-simple.js"></script>
 <script src="/mark-fix.js"></script></body>
 </html>
