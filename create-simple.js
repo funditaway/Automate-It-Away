@@ -11,7 +11,7 @@
 
   /* Server limits on this branch's api/ (not UI caps): studio-draft reads the first 800 characters of the brief
      (api/_grok.js studioDraft), save-ai keeps name 40, does 160 and prompt 400 (api/_ais.js normalizeAi). */
-  var LIMITS = { brief: 800, name: 40, does: 160, prompt: 400 };
+  var LIMITS = { brief: 800, name: 40, does: 160, prompt: 400, planSteps: 200, planChars: 500 };
 
   function clean(s, n) {
     var t = String(s == null ? "" : s).replace(/\s+/g, " ").trim();
@@ -88,17 +88,15 @@
     };
   }
 
-  /* The summary save-ai keeps (first 400 characters). Order: the draft-only lead, then what it needs,
-     then the job and what it watches and drafts, then the steps last, so a long request trims steps, never the lead or the needs. */
+  /* The summary save-ai keeps (first 400 characters): the draft-only lead, then what it needs, then the job and
+     what it watches and drafts. The steps are not in it: they go to the desk as their own list (plan). */
   function promptParts(d) {
-    var plan = linesOf(d && d.plan);
     return [
       "Draft only. The person presses Yes, Stop, or Kill.",
       "Needs from the person: " + linesOf(d && d.needs).join("; ") + ".",
       "Job: " + serverJob(d) + ".",
       "Watches: " + linesOf(d && d.watches).join("; ") + ".",
-      "Drafts: " + linesOf(d && d.drafts).join("; ") + ".",
-      plan.length ? "Steps: " + plan.map(function (x, i) { return (i + 1) + ") " + x; }).join("; ") + "." : ""
+      "Drafts: " + linesOf(d && d.drafts).join("; ") + "."
     ];
   }
   /* The job exactly as the server keeps it (trim, first 160 characters), so the summary matches what is saved. */
@@ -153,7 +151,7 @@
   }
 
   function saveBody(d) {
-    return { action: "save-ai", id: "", name: d.name, does: d.job, prompt: promptOf(d), steps: (d.steps || []).slice(), rules: rulesText() };
+    return { action: "save-ai", id: "", name: d.name, does: d.job, prompt: promptOf(d), steps: (d.steps || []).slice(), rules: rulesText(), plan: linesOf(d && d.plan) };
   }
 
   /* Honest line after Yes: only say the desk stored the rules if the saved Desk AI came back with them. */
@@ -172,31 +170,25 @@
     if (!v || t.length <= v.length || t.indexOf(v) !== 0) return "";
     return "AIA kept the first " + n + " characters of the " + what + ".";
   }
-  /* Where each piece sits in the full summary (start and end offsets). The note compares these to the length
-     actually saved, so text the person typed (say "Watches:" inside the needs) can never be mistaken for a piece. */
-  var PIECE_NAMES = ["what it needs from you", "the job", "what it watches", "what it drafts", "the steps"];
+  /* Where each piece sits in the full summary. Each piece's own text starts after its label (after "Watches: "),
+     and that is what the note compares with the length really saved, so a saved label alone counts as lost. */
+  var PIECE_NAMES = ["what it needs from you", "the job", "what it watches", "what it drafts"];
   function summaryMap(d) {
     var parts = promptParts(d).map(function (x) { return clean(x); });
-    var plan = linesOf(d && d.plan);
-    var pieces = [], steps = [], cursor = 0, chunks = [];
+    var pieces = [], cursor = 0, chunks = [];
     parts.forEach(function (text, i) {
       if (!text) return;
       var start = cursor, end = start + text.length;
-      /* A piece's closing period is not content: the page's word trim may drop it. */
-      var wholeEnd = /\.$/.test(text) ? end - 1 : end;
-      if (i > 0) pieces.push({ name: PIECE_NAMES[i - 1], start: start, end: wholeEnd, steps: i === 5 });
-      if (i === 5) {
-        var at = start + "Steps: ".length;
-        plan.forEach(function (x, k) {
-          var one = (k + 1) + ") " + x;
-          steps.push({ start: at, end: at + one.length });
-          at += one.length + 2;
-        });
+      if (i > 0) {
+        var label = text.indexOf(": ") + 2;
+        /* A piece's closing period is not content: the page's word trim may drop it. */
+        var textEnd = /\.$/.test(text) ? end - 1 : end;
+        pieces.push({ name: PIECE_NAMES[i - 1], labelStart: start, start: start + label, end: textEnd });
       }
       chunks.push(text);
       cursor = end + 1;
     });
-    return { full: chunks.join(" "), pieces: pieces, steps: steps };
+    return { full: chunks.join(" "), pieces: pieces };
   }
   /* The length the desk really kept: the saved prompt when the server sent it back (and it is this summary),
      otherwise what the page sends (the page trims to the last whole word within 400). */
@@ -210,27 +202,16 @@
     if (xs.length < 2) return xs.join("");
     return xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
   }
-  function stepsNote(map, kept) {
-    var n = map.steps.length, whole = 0;
-    map.steps.forEach(function (st) { if (st.end <= kept) whole += 1; });
-    if (whole >= n) return "";
-    if (whole === 0) return n === 1 ? "Only part of the step fit." : "None of the " + n + " steps fit whole.";
-    if (whole === 1) return "Only the first of the " + n + " steps fit.";
-    return "Only the first " + whole + " of the " + n + " steps fit.";
-  }
   function trimNote(d, savedPrompt) {
     var map = summaryMap(d);
     var kept = savedLength(d, savedPrompt);
     var lost = [], partly = [];
     map.pieces.forEach(function (piece) {
+      if (piece.end <= piece.start) return; /* nothing typed there */
       if (piece.end <= kept) return;
-      if (piece.start >= kept) {
-        lost.push(piece.steps && map.steps.length === 1 ? "the step" : piece.name);
-        return;
-      }
-      partly.push(piece.steps ? stepsNote(map, kept) : "Only part of " + piece.name + " fit.");
+      if (piece.start >= kept) { lost.push(piece.name); return; }
+      partly.push("Only part of " + piece.name + " fit.");
     });
-    partly = partly.filter(Boolean);
     if (!lost.length && !partly.length) return "";
     var out = ["AIA kept the first " + kept + " characters of the summary."];
     partly.forEach(function (x) { out.push(x); });
@@ -239,6 +220,43 @@
       out.push(list.charAt(0).toUpperCase() + list.slice(1) + " didn't fit.");
     }
     return out.join(" ");
+  }
+  /* Steps, people-numbered (1-based), as short ranges: "Step 3", "Steps 201 to 230". */
+  function stepRanges(indexes) {
+    var nums = (indexes || []).map(function (i) { return Number(i) + 1; }).filter(function (n) { return n > 0; }).sort(function (x, y) { return x - y; });
+    var out = [], i = 0;
+    while (i < nums.length) {
+      var j = i;
+      while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j += 1;
+      out.push(i === j ? String(nums[i]) : nums[i] + " to " + nums[j]);
+      i = j + 1;
+    }
+    return { count: nums.length, text: (nums.length === 1 ? "Step " : "Steps ") + andList(out) };
+  }
+  /* The steps note comes only from the server's planCut. Nothing when it is null. */
+  function planNote(planCut) {
+    if (!planCut || typeof planCut !== "object") return "";
+    var out = [];
+    var dropped = stepRanges(planCut.droppedIndexes), trimmed = stepRanges(planCut.trimmedIndexes);
+    var kept = Number(planCut.kept) || 0;
+    if (dropped.count) {
+      out.push(kept === 1 ? "AIA kept the first step." : "AIA kept the first " + kept + " steps.");
+      out.push(dropped.text + " didn't fit.");
+    }
+    if (trimmed.count) out.push(trimmed.text + (trimmed.count === 1 ? " was" : " were") + " shortened to " + LIMITS.planChars + " characters.");
+    return out.join(" ");
+  }
+  /* The steps as the desk stored them (out.ai.plan). If the desk sent none back, say so plainly. */
+  function planLines(d, out) {
+    var ai = (out && out.ai) || {};
+    var typed = linesOf(d && d.plan);
+    if (!Array.isArray(ai.plan)) return typed.length ? ["The desk did not save the steps. This desk does not keep steps yet."] : [];
+    if (!ai.plan.length) return typed.length ? ["The desk did not keep any of the steps."] : [];
+    var lines = ["Its steps, as saved:"];
+    ai.plan.forEach(function (x, i) { lines.push((i + 1) + ") " + x); });
+    var note = planNote(out && out.planCut);
+    if (note) lines.push(note);
+    return lines;
   }
   function savedLine(d, out) {
     var ai = (out && out.ai) || {};
@@ -251,10 +269,10 @@
     rest.push(cutNote(d && d.name, ai.name, LIMITS.name, "name"));
     rest.push(cutNote(d && d.job, ai.does, LIMITS.does, "job"));
     rest.push(trimNote(d, typeof ai.prompt === "string" ? ai.prompt : ""));
-    return [head.join(" "), jobLine, rest.filter(Boolean).join(" ")].filter(Boolean).join("\n");
+    return [head.join(" "), jobLine].concat(planLines(d, out)).concat([rest.filter(Boolean).join(" ")]).filter(Boolean).join("\n");
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote, summaryMap: summaryMap, savedLength: savedLength };
+  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote, summaryMap: summaryMap, savedLength: savedLength, planNote: planNote, planLines: planLines };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -355,7 +373,7 @@
       return;
     }
     try {
-      var r = await fetch("/api/desks", { method: "POST", headers: hdr(), body: JSON.stringify({ action: "studio-draft", brief: words, kind: "ai" }) });
+      var r = await fetch("/api/desks", { method: "POST", headers: hdr(), body: JSON.stringify({ action: "studio-draft", brief: words, kind: "ai", plan: planFrom(raw) }) });
       var d = await r.json().catch(function () { return {}; });
       if (r.ok && d && d.ok && d.pack) showDraft(fromStudio(raw, d.pack));
       else if (d && d.grok === "off") showDraft(starterDraft(raw), "AIA drafting is not on for this desk yet, so this starter is made from your words. Change anything in plain words.");
