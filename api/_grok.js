@@ -74,7 +74,7 @@ function aiBrief(a) {
     role: clip(a.role || a.crew, 16) || "Doer",
     does: clip(a.does, 120) || ais.DEFAULT_DOES,
     prompt: clip(a.prompt, 200) || ais.DEFAULT_PROMPT,
-    steps: a.steps || a.allow || []
+    steps: (Array.isArray(a.allow) && a.allow.length) ? a.allow : (Array.isArray(a.steps) ? a.steps : [])
   };
 }
 
@@ -271,11 +271,16 @@ async function grokRecommend(job, shop, workspace) {
 const STUDIO_SYSTEM = "You draft thin JSON packs and named Desk AIs for Automate It Away Creators Studio — not MVP demo bots. Official term: Desk AI. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Fill ais[].does and ais[].prompt (and bots[] aliases) with that canon: draft the next step and the words; nothing sent; Review then Copy / Text / Email / Hand to, or Stop; Collect HOLD; Doer / Worker / Rail / Packer / Mapper are desk crew, not captains. Never invent assistant-that-sends instructions. Return JSON only: {\"name\":\"\",\"aia\":\"springfield-shop.aia\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"workflows\":[{\"name\":\"\",\"delay\":null,\"branch\":\"\",\"rules\":[{\"when\":\"drop\",\"ifTag\":\"\",\"contains\":\"\",\"then\":\"draft\",\"tag\":\"\",\"text\":\"\"}]}],\"ask\":0,\"ais\":[{\"name\":\"\",\"aia\":\"james.aia\",\"role\":\"Doer\",\"does\":\"\",\"prompt\":\"\",\"steps\":\"qualify,do,follow\"}],\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia). A rule is one When (drop|pipe|inbound|status) → If (Qualify/tag/word) → Then (draft|queue|notify|tag|escalate). Workflows/sequences string rules with optional delay/branch. Still thin JSON. Never invent on-chain ownership. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Desk AIs are bound to one desk. They draft only. Human taps Yes / Stop / Kill. Collect stays HOLD. Draft only. Human taps Yes to save or install. Short local English. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect. One account, many desks — help-the-world desk, not grandma.";
 
 async function studioDraft(brief, workspace, opts) {
-  // Caller text only. Same 1000 cap as the Desk AI field. Not sent to the model.
-  // A non-string is empty text, same as normalizeAi.
+  // Caller text only. Same caps as the Desk AI fields. Not sent to the model.
+  // A non-string rules value is empty text, same as normalizeAi.
+  // steps is an ordered list of plain strings, capped, and is not sent either.
   const rules = ais.rulesText(opts && opts.rules);
+  const stepPack = ais.stepsText(opts && opts.steps);
   function passRules(out) {
-    if (out && typeof out === "object") out.rules = rules;
+    if (out && typeof out === "object") {
+      out.rules = rules;
+      out.steps = stepPack.steps;
+    }
     return out;
   }
   const drafter = pickDrafter(workspace);

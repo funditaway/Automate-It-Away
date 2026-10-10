@@ -152,7 +152,7 @@ async function main() {
     aia: "james.aia",
     role: "Doer",
     does: "Drafts this project desk",
-    steps: "qualify, do, follow"
+    steps: ["qualify", "do", "follow"]
   });
   if (saveAi.statusCode !== 200 || !saveAi.body.ok) fail("save-ai " + JSON.stringify(saveAi.body));
   else pass("named desk AI");

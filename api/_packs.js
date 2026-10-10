@@ -642,6 +642,10 @@ async function packHandler(req, res) {
     if (incoming && incoming.rules != null && typeof incoming.rules !== "string") {
       return res.status(400).json({ ok: false, error: "Rules must be plain text." });
     }
+    if (incoming && incoming.steps != null && !ais.stepsListOk(incoming.steps)) {
+      return res.status(400).json({ ok: false, error: "Steps must be a list of plain text." });
+    }
+    const stepPack = ais.stepsText(incoming && incoming.steps);
     const made = ais.normalizeAi(body.ai || body, workspace);
     if (!made) return res.status(400).json({ ok: false, error: "Name the AI first." });
     const added = ais.attachAisToDesk(shop, [made]);
@@ -651,6 +655,7 @@ async function packHandler(req, res) {
     return res.status(200).json({
       ok: true,
       ai: ais.publicAi(made),
+      stepsCut: stepPack.cut,
       ais: rails.ais,
       added: added,
       charged: false,

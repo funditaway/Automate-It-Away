@@ -89,7 +89,7 @@
       (does ? "<p class=\"ai-does\">" + esc(does) + "</p>" : "") +
       (prompt ? "<p class=\"ai-prompt\">Prompt · " + esc(prompt) + "</p>" : "<p class=\"ai-prompt\">No prompt on this Desk AI yet. It still drafts HOLD. Draft ready. I cannot send, pay, or bind anything. You stay in control.</p>") +
       "<p class=\"meta\">On queue cards: " + esc(faceOf(a)) + ". Ask the desk / Then draft / Needs you name this AI.</p>" +
-      "<p class=\"meta\">Drafts " + esc((a.steps || a.allow || []).join(", ") || "qualify, do, follow") +
+      "<p class=\"meta\">Drafts " + esc((a.allow && a.allow.length ? a.allow : ["qualify", "do", "follow"]).join(", ")) +
         ". Never " + esc((a.never || ["send", "stop", "money", "mail"]).join(" · ")) +
         ". Yes / Stop / Kill stay human.</p>" +
       editOf(a) +

@@ -272,7 +272,7 @@
           if (!deskOpen()) return fail("Open or unlock this desk first.");
           const name = String(f.get("name") || "").trim();
           if (!name) return fail("Name the desk AI first.");
-          const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: "save-ai", name: name, aia: f.get("aia") || "", role: f.get("role") || "Doer", does: f.get("does") || "", prompt: f.get("prompt") || "", steps: f.get("steps") || "qualify, do, follow" }) });
+          const r = await fetch("/api/desks", { method: "POST", headers: headers(), body: JSON.stringify({ action: "save-ai", name: name, aia: f.get("aia") || "", role: f.get("role") || "Doer", does: f.get("does") || "", prompt: f.get("prompt") || "", steps: String(f.get("steps") || "qualify, do, follow").split(/[,;]+/).map(function (s) { return s.trim(); }).filter(Boolean) }) });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) return fail(data.error || "Could not bind that AI.");
           return done((data.note || (name + " is on this desk.")) + " You still tap Yes or Stop.");

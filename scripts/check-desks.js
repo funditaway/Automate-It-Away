@@ -191,7 +191,7 @@ async function main() {
     name: "Project AI",
     role: "Worker",
     does: "Qualify cards on this desk",
-    steps: "qualify, follow"
+    steps: ["qualify", "follow"]
   }, { via: "desks" });
   if (saveAi.statusCode !== 200 || !saveAi.body || !saveAi.body.ok || !(saveAi.body.ais || []).some((a) => a && a.name === "Project AI")) {
     fail("save-ai via auth must bind on the onboard desk " + saveAi.statusCode + " " + JSON.stringify(saveAi.body));
