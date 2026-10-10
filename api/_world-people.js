@@ -1,4 +1,5 @@
 const lib = require("./_lib");
+const { publicUrl, LIVE_APEX } = require("./_public-host");
 const account = require("./_account");
 const aiaAdmin = require("./_aia-admin");
 
@@ -267,7 +268,7 @@ function inviteLine(deskName, kind, handle) {
   const seat = kind || "helper";
   const who = handle || "You";
   const shop = deskName || "this desk";
-  return who + " — you're invited to sit on " + shop + " as " + seat + ". Open https://automateitaway.com/login with your own account. Accept on People. Nobody sends money from here.";
+  return who + " — you're invited to sit on " + shop + " as " + seat + ". Open " + publicUrl("/login", null, LIVE_APEX) + " with your own account. Accept on People. Nobody sends money from here.";
 }
 function incomingInvites(acc) {
   if (!acc) return [];

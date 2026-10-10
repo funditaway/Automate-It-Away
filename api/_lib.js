@@ -946,14 +946,8 @@ function catalog() {
   }));
 }
 
-const PUBLIC_HOST = "https://www.automateitaway.com";
-
-function hookUrl(workspace) {
-  const slug = String(workspace || "").trim();
-  return slug
-    ? PUBLIC_HOST + "/api/hook?workspace=" + encodeURIComponent(slug)
-    : PUBLIC_HOST + "/api/hook";
-}
+// Site address for generated links/callbacks: live host on production only (api/_public-host.js).
+const { PUBLIC_HOST, hookUrl, publicUrl } = require("./_public-host");
 
 function pipeWroteBack(dispatch) {
   return !!(dispatch && !dispatch.demo && (dispatch.ok === true || dispatch.inbound === true));
@@ -1816,7 +1810,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
