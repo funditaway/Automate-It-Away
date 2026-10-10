@@ -1799,18 +1799,26 @@ function removeWorkspaceRule(ws, id) {
 
 const BODY_MAX = 1048576;
 const BODY_TOO_BIG = "That's too big to send. Keep it under 1 MB.";
+const HOOK_MAX = 4000000;
+const HOOK_TOO_BIG = "That's too big to take in. Keep it under 4 MB.";
 
-function tooBigBody() {
-  return { ok: false, error: BODY_TOO_BIG };
+function tooBigBody(message) {
+  return { ok: false, error: message || BODY_TOO_BIG };
 }
 
-function uploadBodyExempt(req) {
+// upload keeps its own decoded-file cap and does not use the 1 MB JSON cap.
+// hook stops at 4,000,000 bytes, under the platform 4.5 MB body limit.
+function bodyRoute(req) {
   const url = String((req && (req.url || req.originalUrl || req.path)) || "");
   const headers = (req && req.headers) || {};
   const invoke = String(headers["x-invoke-path"] || headers["x-matched-path"] || "");
-  if (/\/api\/upload(?:\?|$)/.test(url) || /\/api\/upload(?:\?|$)/.test(invoke)) return true;
+  const blob = url + "\n" + invoke;
+  if (/\/api\/upload(?:\?|$)/.test(blob)) return "upload";
+  if (/\/api\/hook(?:\?|$)/.test(blob)) return "hook";
   const stack = new Error().stack || "";
-  return /[/\\]upload\.js:/.test(stack);
+  if (/[/\\]upload\.js:/.test(stack)) return "upload";
+  if (/[/\\]hook\.js:/.test(stack)) return "hook";
+  return "";
 }
 
 function chunkBytes(chunk) {
@@ -1818,21 +1826,81 @@ function chunkBytes(chunk) {
   return Buffer.byteLength(String(chunk));
 }
 
-// Raw JSON bodies over 1 MB are refused with HTTP 413. Reading stops at the
-// cap: the overflowing chunk is not kept, and the stream is destroyed.
-// /api/upload keeps its own 8 MB file cap and does not use this limit.
+function declaredLength(req) {
+  const headers = (req && req.headers) || {};
+  const raw = headers["content-length"] != null ? headers["content-length"] : headers["Content-Length"];
+  if (raw == null || raw === "") return null;
+  const n = Number(Array.isArray(raw) ? raw[0] : raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+function parsedByteLength(body) {
+  if (typeof body === "string") return Buffer.byteLength(body);
+  if (Buffer.isBuffer(body)) return body.length;
+  try {
+    const raw = JSON.stringify(body);
+    if (typeof raw !== "string") return 0;
+    return Buffer.byteLength(raw);
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Raw JSON bodies over the route cap are refused with HTTP 413. Reading stops
+// at the cap: the overflowing chunk is not kept, and the stream is destroyed.
+// Vercel may pre-parse JSON onto req.body before the function runs. That object
+// is still measured: Content-Length when present, otherwise the byte length of
+// the string or JSON.stringify of the object. The body itself is not returned
+// to the caller and is not attached to the error.
+// Other routes cap at 1 MB. /api/hook caps at 4,000,000 bytes. /api/upload does
+// not use this limit; the file is posted through the function and capped in upload.js.
 function readBody(req, res) {
-  if (req && req.body && typeof req.body === "object") return Promise.resolve(req.body);
-  const cap = uploadBodyExempt(req) ? 0 : BODY_MAX;
+  const route = bodyRoute(req);
+  const cap = route === "upload" ? 0 : (route === "hook" ? HOOK_MAX : BODY_MAX);
+  const tooBigMessage = route === "hook" ? HOOK_TOO_BIG : BODY_TOO_BIG;
+  const parsed = req && req.body != null && (typeof req.body === "object" || typeof req.body === "string");
+  if (parsed) {
+    const declared = declaredLength(req);
+    const fromLength = declared != null;
+    const bytes = fromLength ? declared : parsedByteLength(req.body);
+    if (cap && bytes > cap) {
+      const body = tooBigBody(tooBigMessage);
+      if (res && typeof res.status === "function") {
+        try { res.status(413).json(body); } catch (e) {}
+      }
+      const err = new Error(tooBigMessage);
+      err.statusCode = 413;
+      err.body = body;
+      err.hook = route === "hook";
+      err.kept = null;
+      err.parsed = true;
+      err.measured = !fromLength;
+      err.fromLength = fromLength;
+      err.declared = fromLength ? declared : null;
+      err.seen = fromLength ? 0 : bytes;
+      return Promise.reject(err);
+    }
+    if (typeof req.body === "string") {
+      try {
+        const obj = JSON.parse(req.body);
+        if (obj && typeof obj === "object") return Promise.resolve(obj);
+      } catch (e) {}
+    }
+    return Promise.resolve(req.body);
+  }
   return new Promise((resolve, reject) => {
     if (!req || typeof req.on !== "function") return resolve({});
     let size = 0;
     let parts = [];
     let stopped = false;
+    const declared = declaredLength(req);
 
-    function failTooBig() {
+    function failTooBig(fromLength) {
       if (stopped) return;
       stopped = true;
+      const kept = route === "hook" && parts.length ? Buffer.concat(parts) : null;
+      const seen = size;
       parts = [];
       size = 0;
       if (typeof req.removeListener === "function") {
@@ -1845,25 +1913,36 @@ function readBody(req, res) {
       if (typeof req.destroy === "function") {
         try { req.destroy(); } catch (e) {}
       }
-      const body = tooBigBody();
+      const body = tooBigBody(tooBigMessage);
       if (res && typeof res.status === "function") {
         try { res.status(413).json(body); } catch (e) {}
       }
-      const err = new Error(BODY_TOO_BIG);
+      const err = new Error(tooBigMessage);
       err.statusCode = 413;
       err.body = body;
+      err.hook = route === "hook";
+      err.kept = kept;
+      err.seen = seen;
+      err.declared = fromLength ? declared : null;
+      err.fromLength = !!fromLength;
       reject(err);
     }
 
     function take(chunk) {
       if (stopped) return;
-      const n = chunkBytes(chunk);
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+      const n = buf.length;
       if (cap && size + n > cap) {
-        failTooBig();
+        const room = cap - size;
+        if (room > 0) {
+          parts.push(Buffer.from(buf.subarray(0, room)));
+          size += room;
+        }
+        failTooBig(false);
         return;
       }
       size += n;
-      parts.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+      parts.push(buf);
     }
 
     function onReadable() {
@@ -1892,9 +1971,8 @@ function readBody(req, res) {
       reject(err);
     }
 
-    const declared = Number(req.headers && (req.headers["content-length"] || req.headers["Content-Length"]));
     if (cap && Number.isFinite(declared) && declared > cap) {
-      failTooBig();
+      failTooBig(true);
       return;
     }
 

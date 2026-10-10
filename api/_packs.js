@@ -550,11 +550,9 @@ async function packHandler(req, res) {
   }
 
   if (req.method !== "POST") return res.status(405).json({ error: "Use GET or POST." });
-  let body = req.body;
-  if (!body) {
-    try { body = await readBody(req, res); }
-    catch (err) { if (err && err.statusCode === 413) return; throw err; }
-  }
+  let body;
+  try { body = await readBody(req, res); }
+  catch (err) { if (err && err.statusCode === 413) return; throw err; }
   const action = body.action || "packs";
 
   if (action === "packs" || action === "pack-search" || action === "marketplace") {

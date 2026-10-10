@@ -5,6 +5,322 @@ const { makeCapturedJob, addTalk } = require("./_fields");
 const { applyDeskAiDraft } = require("./_handoff");
 const mail = require("./_aia-mail");
 
+const HOOK_HOUR_MS = 60 * 60 * 1000;
+const HOOK_NEW_CAP = 5;
+let tooBigSeq = 0;
+
+function clipMeta(value) {
+  const text = String(value == null ? "" : value).trim();
+  if (!text) return "";
+  return text.slice(0, 160);
+}
+
+function headerMeta(headers, names) {
+  const bag = {};
+  const src = headers || {};
+  Object.keys(src).forEach(function (key) {
+    bag[String(key).toLowerCase()] = src[key];
+  });
+  for (let i = 0; i < names.length; i++) {
+    const raw = bag[names[i]];
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    const text = clipMeta(value);
+    if (text) return text;
+  }
+  return "";
+}
+
+function readJsonString(text, quoteAt) {
+  if (text.charAt(quoteAt) !== "\"") return null;
+  let i = quoteAt + 1;
+  let out = "";
+  while (i < text.length) {
+    const c = text.charAt(i);
+    if (c === "\\") {
+      if (i + 1 >= text.length) return null;
+      const n = text.charAt(i + 1);
+      if (n === "u") {
+        if (i + 6 > text.length) return null;
+        const hex = text.slice(i + 2, i + 6);
+        if (!/^[0-9a-fA-F]{4}$/.test(hex)) return null;
+        out += String.fromCharCode(parseInt(hex, 16));
+        i += 6;
+        continue;
+      }
+      if (n === "b") out += "\b";
+      else if (n === "f") out += "\f";
+      else if (n === "n") out += "\n";
+      else if (n === "r") out += "\r";
+      else if (n === "t") out += "\t";
+      else out += n;
+      i += 2;
+      continue;
+    }
+    if (c === "\"") return { value: out, end: i + 1 };
+    out += c;
+    i += 1;
+  }
+  return null;
+}
+
+// Only JSON string fields whose closing quote is inside the kept prefix.
+// A value cut off at the cap is ignored. Nothing here is copied onto the card
+// except the sender, subject, and desk fields the caller asks for.
+const HOOK_FIELD_KEYS = {
+  from: true,
+  sender: true,
+  replyTo: true,
+  subject: true,
+  to: true,
+  recipient: true,
+  address: true,
+  workspace: true
+};
+
+function completeStringFields(buf) {
+  const text = Buffer.isBuffer(buf) ? buf.toString("utf8") : String(buf || "");
+  const out = {};
+  let i = 0;
+  while (i < text.length) {
+    const keyStart = text.indexOf("\"", i);
+    if (keyStart < 0) break;
+    const key = readJsonString(text, keyStart);
+    if (!key) {
+      i = keyStart + 1;
+      continue;
+    }
+    let j = key.end;
+    while (j < text.length && /\s/.test(text.charAt(j))) j += 1;
+    if (text.charAt(j) !== ":") {
+      i = keyStart + 1;
+      continue;
+    }
+    j += 1;
+    while (j < text.length && /\s/.test(text.charAt(j))) j += 1;
+    if (text.charAt(j) !== "\"") {
+      i = j < text.length ? j + 1 : text.length;
+      continue;
+    }
+    const keep = !!HOOK_FIELD_KEYS[key.value];
+    if (!keep) {
+      const skipped = readJsonString(text, j);
+      i = skipped ? skipped.end : j + 1;
+      continue;
+    }
+    const val = readJsonString(text, j);
+    if (!val) {
+      i = j + 1;
+      continue;
+    }
+    if (out[key.value] === undefined) out[key.value] = val.value;
+    i = val.end;
+  }
+  return out;
+}
+
+function namedField(fields, names) {
+  const src = fields || {};
+  for (let i = 0; i < names.length; i++) {
+    if (!Object.prototype.hasOwnProperty.call(src, names[i])) continue;
+    const text = clipMeta(src[names[i]]);
+    if (text) return text;
+  }
+  return "";
+}
+
+function sizeText(err) {
+  if (err && err.fromLength && Number.isFinite(Number(err.declared))) {
+    return String(Math.trunc(Number(err.declared))) + " bytes";
+  }
+  const seen = Number(err && err.seen);
+  const n = Number.isFinite(seen) && seen > 0 ? Math.trunc(seen) : 0;
+  if (err && err.measured) return String(n) + " bytes";
+  return "at least " + n + " bytes";
+}
+
+// Identity fields only. Text, notes, and pad stay off the card.
+function fieldsFromParsed(body) {
+  if (typeof body === "string") return completeStringFields(body);
+  if (!body || typeof body !== "object" || Array.isArray(body) || Buffer.isBuffer(body)) return {};
+  const out = {};
+  Object.keys(HOOK_FIELD_KEYS).forEach(function (key) {
+    if (typeof body[key] !== "string") return;
+    const text = body[key].trim().slice(0, 200);
+    if (text) out[key] = text;
+  });
+  return out;
+}
+
+function senderOf(req, fields) {
+  return headerMeta(req && req.headers, ["from", "x-from", "sender", "x-sender", "reply-to"])
+    || namedField(fields, ["from", "sender", "replyTo"])
+    || "unknown";
+}
+
+function subjectOf(req, fields) {
+  return headerMeta(req && req.headers, ["subject", "x-subject"])
+    || namedField(fields, ["subject"])
+    || "unknown";
+}
+
+function deskFromHook(req, fields) {
+  const query = (req && req.query) || {};
+  const headers = (req && req.headers) || {};
+  const toAddr = namedField(fields, ["to", "recipient", "address"]) || query.to || "";
+  const identity = toAddr ? mail.findByAddress(toAddr) : null;
+  const workspaceField = fields && fields.workspace != null ? String(fields.workspace) : "";
+  const workspace = slugify(headers["x-workspace"] || query.workspace || workspaceField || (identity && identity.workspace) || "");
+  const shop = workspace ? ((mem.workspaces || []).find(function (w) { return w && w.slug === workspace; }) || null) : null;
+  return { workspace: workspace, shop: shop };
+}
+
+function tooBigCards(workspace) {
+  return (mem.jobs || []).filter(function (job) {
+    return job && job.workspace === workspace && job.custom && job.custom.tooBig === true;
+  });
+}
+
+function cardOpen(job) {
+  if (!job) return false;
+  const status = String(job.status || "");
+  return status !== "shipped" && status !== "killed";
+}
+
+function openTooBig(workspace, sender) {
+  const want = sender || "unknown";
+  return tooBigCards(workspace).find(function (job) {
+    return cardOpen(job) && String((job.custom && job.custom.sender) || "unknown") === want;
+  }) || null;
+}
+
+function tooBigThisHour(workspace, now) {
+  const cut = now - HOOK_HOUR_MS;
+  return tooBigCards(workspace).filter(function (job) {
+    const at = Date.parse(job.createdAt);
+    return Number.isFinite(at) && at >= cut;
+  });
+}
+
+function newestThisHour(workspace, now) {
+  const rows = tooBigThisHour(workspace, now);
+  let best = null;
+  let bestAt = -1;
+  let bestIndex = Infinity;
+  rows.forEach(function (job) {
+    const at = Date.parse(job.createdAt);
+    const index = (mem.jobs || []).indexOf(job);
+    if (!best || at > bestAt || (at === bestAt && index < bestIndex)) {
+      best = job;
+      bestAt = at;
+      bestIndex = index;
+    }
+  });
+  return best;
+}
+
+function overflowLine(n) {
+  return String(n) + " more too-big posts this hour";
+}
+
+function paintTooBig(job) {
+  const meta = job.custom || {};
+  const sizes = Array.isArray(meta.sizes) ? meta.sizes : [];
+  const latest = sizes.length ? sizes[sizes.length - 1] : "unknown";
+  const sender = meta.sender || "unknown";
+  const subject = meta.subject || "unknown";
+  const count = meta.count || 1;
+  const more = meta.overflow > 0 ? overflowLine(meta.overflow) : "";
+  job.title = "Too big to take in";
+  job.from = sender;
+  job.why = "Size " + latest + ". Sender " + sender + ". Subject " + subject + ". Seen " + count + ". Collect HOLD." + (more ? " " + more : "");
+  job.next = more || "Collect HOLD. You still tap Yes or Stop.";
+  job.overflowNote = more;
+  job.collect = "HOLD";
+  job.charged = false;
+  return job;
+}
+
+function newTooBig(workspace, sender, subject, sizeLabel, nowIso) {
+  tooBigSeq += 1;
+  const job = {
+    id: "job_" + Date.now().toString(36) + "b" + tooBigSeq.toString(36),
+    workspace: workspace,
+    title: "Too big to take in",
+    status: "waiting",
+    step: "Qualify",
+    createdAt: nowIso,
+    lastSeen: nowIso,
+    charged: false,
+    amount: null,
+    waitingOn: "person",
+    collect: "HOLD",
+    log: ["Too big to take in"],
+    custom: {
+      tooBig: true,
+      sender: sender,
+      subject: subject,
+      count: 1,
+      lastSeen: nowIso,
+      sizes: [sizeLabel],
+      overflow: 0
+    }
+  };
+  return paintTooBig(job);
+}
+
+function foldTooBig(job, sizeLabel, nowIso) {
+  const meta = job.custom;
+  meta.count = (Number(meta.count) || 1) + 1;
+  meta.lastSeen = nowIso;
+  if (!Array.isArray(meta.sizes)) meta.sizes = [];
+  meta.sizes.push(sizeLabel);
+  job.lastSeen = nowIso;
+  paintTooBig(job);
+}
+
+function bumpOverflow(job) {
+  job.custom.overflow = (Number(job.custom.overflow) || 0) + 1;
+  paintTooBig(job);
+}
+
+async function noteHookTooBig(req, err) {
+  const fields = err && err.parsed
+    ? fieldsFromParsed(req && req.body)
+    : completeStringFields(err && err.kept);
+  if (err && err.parsed && req) req.body = undefined;
+  if (err) err.kept = null;
+  const desk = deskFromHook(req, fields);
+  if (!desk.shop) {
+    log("Pipe", "Too big to take in", "No desk", desk.workspace || null);
+    await save();
+    return;
+  }
+  const sender = senderOf(req, fields);
+  const subject = subjectOf(req, fields);
+  const sizeLabel = sizeText(err);
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const open = openTooBig(desk.workspace, sender);
+  if (open) {
+    foldTooBig(open, sizeLabel, nowIso);
+    await save();
+    return;
+  }
+  if (tooBigThisHour(desk.workspace, now).length >= HOOK_NEW_CAP) {
+    const host = newestThisHour(desk.workspace, now);
+    if (host) {
+      bumpOverflow(host);
+      await save();
+    }
+    return;
+  }
+  const job = newTooBig(desk.workspace, sender, subject, sizeLabel, nowIso);
+  if (!Array.isArray(mem.jobs)) mem.jobs = [];
+  mem.jobs.unshift(job);
+  log("Pipe", "Too big to take in", "Waiting", desk.workspace);
+  await save();
+}
+
 function eventOf(body) {
   const raw = String(body.event || body.action || body.status || "update").toLowerCase();
   if (/need[s]?\s*a?\s*hand|manual|by[\s-]?hand|retry|reopen/.test(raw)) return "hand";
@@ -58,7 +374,13 @@ module.exports = async function handler(req, res) {
 
   let body;
   try { body = await readBody(req, res); }
-  catch (err) { if (err && err.statusCode === 413) return; throw err; }
+  catch (err) {
+    if (err && err.statusCode === 413) {
+      if (err.hook) await noteHookTooBig(req, err);
+      return;
+    }
+    throw err;
+  }
   if (mail.wantsSend(body)) {
     return res.status(409).json(mail.sendHold());
   }

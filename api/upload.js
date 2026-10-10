@@ -24,7 +24,10 @@ const ALLOW = {
   "video/webm": "webm",
   "video/3gpp": "3gp"
 };
-const MAX = 8_000_000;
+// The browser base64-encodes the file and posts it through this function.
+// Vercel rejects a request body over 4.5 MB before this code runs, so the
+// decoded file cap stays at 4,000,000 bytes, under that platform limit.
+const MAX = 4_000_000;
 const MAX_BATCH = 8;
 
 function dir() {
@@ -199,7 +202,7 @@ module.exports = async function handler(req, res) {
     const ext = ALLOW[type] || extFromName(item.name);
     if (!ext) return res.status(415).json({ error: "Photos, documents, or short videos only.", allow: Object.keys(ALLOW) });
     if (!buf || !buf.length) return res.status(400).json({ error: "Missing file data" });
-    if (buf.length > MAX) return res.status(413).json({ error: "Each file must stay under 8MB." });
+    if (buf.length > MAX) return res.status(413).json({ error: "Each file must stay under 4 MB." });
     const id = "file_" + Date.now().toString(36) + i;
     const name = workspace + "/" + id + "." + ext;
     const rec = { id, workspace, name: item.name || name, type: type || mimeFromExt(ext), bytes: buf.length, kind: kindOf(ext), driver: driverOf(), createdAt: new Date().toISOString() };
