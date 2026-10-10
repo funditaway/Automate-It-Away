@@ -448,16 +448,24 @@ async function main() {
     steps: "qualify, follow"
   }, {});
   const shopOn = mem.workspaces[0];
-  const ids = shopOn.ais.map(function (a) { return a.id; });
-  const onIds = JSON.stringify(shopOn.packAis) === JSON.stringify(ids)
-    && JSON.stringify(shopOn.packBots) === JSON.stringify(ids)
-    && shopOn.packAis.every(function (row) { return typeof row === "string"; })
-    && shopOn.packBots.every(function (row) { return typeof row === "string"; })
+  const refs = shopOn.ais.map(function (a) { return { id: a.id }; });
+  function refOnly(row) {
+    return !!row && typeof row === "object" && !Array.isArray(row)
+      && typeof row.id === "string" && row.id.length > 0
+      && Object.keys(row).length === 1;
+  }
+  const onIds = JSON.stringify(shopOn.packAis) === JSON.stringify(refs)
+    && JSON.stringify(shopOn.packBots) === JSON.stringify(refs)
+    && shopOn.packAis.length > 0
+    && shopOn.packAis.every(refOnly)
+    && shopOn.packBots.every(refOnly)
+    && shopOn.packAis.every(function (row) { return typeof row !== "string"; })
+    && shopOn.packBots.every(function (row) { return typeof row !== "string"; })
     && JSON.stringify(shopOn.packAis).indexOf("\"plan\"") < 0;
   const getOn = await call(packHandler, "GET", ownerHeaders(), {}, { ais: "1" });
   if (savedOn.statusCode !== 200 || !savedOn.body || !savedOn.body.ok || !onIds) {
-    fail("flag true must write ids only");
-  } else pass("flag true writes ids only");
+    fail("flag true must write { id } objects only, no bare strings");
+  } else pass("flag true writes { id } objects only, no bare strings");
   if (JSON.stringify(savedOff.body) !== JSON.stringify(savedOn.body)) fail("save-ai response changed when the flag flipped");
   else pass("save-ai response stays identical with the flag on");
   if (JSON.stringify(getOff.body) !== JSON.stringify(getOn.body)) fail("GET ais changed after an id-only save");
@@ -476,9 +484,10 @@ async function main() {
   if (oldSize.shop.ais[0].plan.length !== 200 || oldSize.shop.ais[0].plan[0].length !== 500) {
     fail("fat plan was not stored at 200 x 500");
   } else pass("fat plan is 200 steps of 500 characters");
-  if (typeof oldSize.shop.packAis[0] === "string" || typeof newSize.shop.packAis[0] !== "string") {
+  const sizedRef = newSize.shop.packAis[0];
+  if (typeof oldSize.shop.packAis[0] === "string" || typeof sizedRef === "string" || !sizedRef || !sizedRef.id || sizedRef.name) {
     fail("size probe wrote the wrong mirror shape");
-  } else pass("size probe used full copies, then ids");
+  } else pass("size probe used full copies, then { id } refs");
 
   install("old");
   const beforeOver = storeSnap();

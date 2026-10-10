@@ -12,8 +12,9 @@ const DEFAULT_PROMPT = FIRM + " " + TAGLINE + " Never send, pay, or bind. Collec
 
 // Full Desk AI objects live in shop.ais. packAis and packBots mirror that list.
 // This stays false in production: a save still writes full object copies, the
-// same shape as before. True writes AI id strings only. Readers accept both.
-// Flip the exported flag in-process for a check. Do not read an env var.
+// same shape as before. True writes { id } objects only, never bare strings.
+// Readers accept full objects, id strings, and { id }. Flip the exported
+// flag in-process for a check. Do not read an env var.
 // A ref has no per-pack fields. It is the AI id and nothing else.
 const STORE_AI_REFS = false;
 
@@ -247,12 +248,12 @@ function storedAiRows(shop) {
 function writePackMirrors(shop) {
   const rows = (shop && shop.ais) || [];
   if (packRefsOn()) {
-    const ids = [];
+    const refs = [];
     rows.forEach(function (ai) {
-      if (ai && ai.id) ids.push(String(ai.id));
+      if (ai && ai.id) refs.push({ id: String(ai.id) });
     });
-    shop.packBots = ids.slice();
-    shop.packAis = ids.slice();
+    shop.packBots = refs.slice();
+    shop.packAis = refs.slice();
     return;
   }
   shop.packBots = rows.slice();
