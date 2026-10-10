@@ -67,10 +67,10 @@ const mirrorHits = files.filter(function (file) {
   return text.indexOf("packAis") >= 0 || text.indexOf("packBots") >= 0;
 }).map(function (file) { return path.relative(root, file).split(path.sep).join("/"); });
 mirrorHits.sort();
-const mirrorWant = ["api/_ais.js", "api/_packs.js", "scripts/check-ai-store-once.js"];
+const mirrorWant = ["api/_ais.js", "api/_packs.js", "scripts/check-ai-plan.js", "scripts/check-ai-store-once.js"];
 if (JSON.stringify(mirrorHits) !== JSON.stringify(mirrorWant)) {
   fail("packAis/packBots readers changed: " + mirrorHits.join(", "));
-} else pass("packAis/packBots only in _ais.js, _packs.js, and this check");
+} else pass("packAis/packBots only in _ais.js, _packs.js, and the AI checks");
 
 const ais = require("../api/_ais");
 const lib = require("../api/_lib");
