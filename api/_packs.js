@@ -566,7 +566,7 @@ async function packHandler(req, res) {
     const { workspace: shop, person } = personOf(req, workspace);
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can ask Grok in Creators Studio." });
-    const grok = await studioDraft(body.brief || body.text || body.does || body.name, workspace, { kind: body.kind || "pack" });
+    const grok = await studioDraft(body.brief || body.text || body.does || body.name, workspace, { kind: body.kind || "pack", plan: body.plan, rules: body.rules });
     log("Grok", "Studio " + (body.kind || "pack") + " draft", grok && grok.ok ? "OK" : ((grok && grok.reason) || "Hold"), workspace);
     await save();
     if (grok && grok.reason === "no-key") {
@@ -574,6 +574,8 @@ async function packHandler(req, res) {
         ok: false,
         grok: "off",
         saved: false,
+        plan: grok.plan,
+        planCut: grok.planCut,
         note: "Drafts are off until XAI_API_KEY is on. Orange copy only. You can still write the pack by hand."
       });
     }
@@ -582,6 +584,8 @@ async function packHandler(req, res) {
         ok: false,
         grok: (grok && grok.reason) || "off",
         saved: false,
+        plan: grok && grok.plan,
+        planCut: grok && grok.planCut,
         note: "No draft this time. You can still write the pack by hand. AIA does not send."
       });
     }
@@ -590,6 +594,8 @@ async function packHandler(req, res) {
       grok: "on",
       saved: false,
       pack: grok.pack,
+      plan: grok.plan,
+      planCut: grok.planCut,
       provider: grok.provider,
       model: grok.model,
       note: "Draft only. Yes saves it on this lab. Stop discards it. AIA does not send. Collect stays HOLD."
@@ -647,7 +653,7 @@ async function packHandler(req, res) {
       return res.status(400).json({ ok: false, error: "Rules must be plain text." });
     }
     if (incoming && incoming.plan != null && !ais.planListOk(incoming.plan)) {
-      return res.status(400).json({ ok: false, error: "Steps must be a list of plain text." });
+      return res.status(400).json({ ok: false, error: "Plan must be a list of plain text." });
     }
     const planPack = ais.planText(incoming && incoming.plan);
     const made = ais.normalizeAi(body.ai || body, workspace);
