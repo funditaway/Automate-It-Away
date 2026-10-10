@@ -16,9 +16,11 @@ function clip(s, n) {
 
 // Desk AI rules are stored text only. Cap at 1000 characters. Do not trim,
 // interpret, or run them. Over-long text is cut to 1000 with no error.
+// null and undefined are empty text. An object, array, number, or boolean
+// is empty text too — never "[object Object]" or any other coerced string.
 function rulesText(v) {
-  if (v == null) return "";
-  return String(v).slice(0, 1000);
+  if (typeof v !== "string") return "";
+  return v.slice(0, 1000);
 }
 
 function slugAi(name) {
