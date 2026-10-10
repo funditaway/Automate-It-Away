@@ -217,7 +217,7 @@ function collectHoldOf(pack) {
     pipe: pipe ? "live" : null,
     note: pipe
       ? "Ask $" + ask + " is listed. Collect stays HOLD until a person taps Yes."
-      : "Ask $" + ask + " is listed. No money pipe on this desk. Collect stays HOLD. Orange until Square or a live webhook is connected."
+      : "Ask $" + ask + " is listed. No money pipe on this desk. Collect stays HOLD. Not for sale yet. No payment is connected."
   };
 }
 
