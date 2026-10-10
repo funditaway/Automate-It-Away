@@ -211,24 +211,43 @@ function findStoredAi(shop, id) {
   }) || null;
 }
 
+function hasAiBody(row) {
+  return !!(row.name || row.does || row.prompt || row.steps || row.allow || row.role || row.aia || row.rules || row.plan || row.deny || row.file || row.workspace);
+}
+
+// Writer ids are slugs. A name string such as "Queue Helper" is not.
+function slugId(s) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(s || ""));
+}
+
 // Old mirrors are full AI objects. New mirrors are an id string or { id }
 // with no AI body. Anything with a name or other stored AI fields is the old
 // shape and is returned as-is. A string that is not an id stays a name.
+// An id that is no longer in ais is a dead ref: leave it out. No blank row
+// and no partial { id } object in the rows readers return.
 function resolvePackRow(shop, row) {
-  if (typeof row === "string") return findStoredAi(shop, row) || row;
-  if (!row || typeof row !== "object" || Array.isArray(row)) return row;
-  if (row.name || row.does || row.prompt || row.steps || row.allow || row.role || row.aia || row.rules || row.plan || row.deny || row.file || row.workspace) {
+  if (typeof row === "string") {
+    if (!String(row).trim()) return null;
+    const hit = findStoredAi(shop, row);
+    if (hit) return hit;
+    if (slugId(row)) return null;
     return row;
   }
-  if (row.id != null && String(row.id) !== "") return findStoredAi(shop, row.id) || row;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+  if (hasAiBody(row)) return row;
+  if (row.id != null && String(row.id) !== "") return findStoredAi(shop, row.id) || null;
   return row;
 }
 
 function storedAiRows(shop) {
   if (!shop) return [];
-  return [].concat(shop.ais || [], shop.packAis || [], shop.packBots || []).map(function (row) {
-    return resolvePackRow(shop, row);
+  const out = [];
+  [].concat(shop.ais || [], shop.packAis || [], shop.packBots || []).forEach(function (row) {
+    const resolved = resolvePackRow(shop, row);
+    if (resolved == null) return;
+    out.push(resolved);
   });
+  return out;
 }
 
 function writePackMirrors(shop) {

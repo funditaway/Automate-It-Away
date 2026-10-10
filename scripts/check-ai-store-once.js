@@ -79,6 +79,7 @@ const desksHandler = require("../api/_desks-http");
 const healthHandler = require("../api/health");
 const jobsHandler = require("../api/jobs");
 const uploadHandler = require("../api/upload");
+const hookHandler = require("../api/hook");
 const { mem, hashPin, ready } = lib;
 
 if (ais.STORE_AI_REFS !== false) fail("exported STORE_AI_REFS must start false");
@@ -191,6 +192,12 @@ function shopOf(kind) {
   }
   if (kind === "ais-only") {
     return baseShop(JSON.parse(JSON.stringify(full)), [], []);
+  }
+  if (kind === "full-pair") {
+    return baseShop(rows, JSON.parse(JSON.stringify(full)), JSON.parse(JSON.stringify(full)));
+  }
+  if (kind === "mixed") {
+    return baseShop(rows, [JSON.parse(JSON.stringify(full[0])), rows[1].id], [{ id: rows[0].id }, JSON.parse(JSON.stringify(full[1]))]);
   }
   throw new Error("unknown shop " + kind);
 }
@@ -358,6 +365,34 @@ async function main() {
     fail("old and new mirrors must keep the name-string bot, got " + oldNames.join(","));
   } else pass("a packBots name string still loads beside id refs");
 
+  const mixedRails = JSON.stringify(ais.railsOf(shopOf("mixed")));
+  const fullPairRails = JSON.stringify(ais.railsOf(shopOf("full-pair")));
+  if (mixedRails !== fullPairRails) fail("a pack holding a full copy and an id ref must match all full copies");
+  else pass("one pack with a full copy and an id ref matches all full copies");
+
+  const live = twoAis();
+  const deadShop = baseShop(live, [live[0].id, { id: "gone-ai" }, "gone-bot"], [{ id: "also-gone" }, "Queue Helper"]);
+  let deadThrew = false;
+  let deadRails = null;
+  try { deadRails = ais.railsOf(deadShop); }
+  catch (err) { deadThrew = true; }
+  const deadNames = ((deadRails && deadRails.ais) || []).map(function (a) { return a && a.name; });
+  const deadJson = JSON.stringify(deadRails);
+  const deadBlank = (deadRails && deadRails.ais || []).some(function (a) {
+    return a == null || !a.name || !String(a.name).trim() || (a.id === "gone-ai" && !a.does);
+  });
+  const deadPartial = /"id"\s*:\s*"gone-ai"|"id"\s*:\s*"also-gone"|"id"\s*:\s*"gone-bot"/.test(deadJson)
+    || deadJson.indexOf("gone-ai") >= 0
+    || deadJson.indexOf("also-gone") >= 0
+    || deadJson.indexOf("gone-bot") >= 0;
+  if (deadThrew) fail("a dead AI ref must not throw");
+  else if (deadNames.join(",") !== "Plan AI,Second AI,Queue Helper") fail("a dead AI ref must be skipped, got " + deadNames.join(","));
+  else if (deadBlank || deadPartial) fail("a dead AI ref leaked into public JSON");
+  else pass("a dead AI ref is skipped with no blank or partial AI");
+  if (deadShop.packAis.some(function (row) { return row && row.id === "gone-ai"; }) && deadShop.packBots.some(function (row) { return row && row.id === "also-gone"; })) {
+    pass("reading does not rewrite the stored dead refs");
+  } else fail("reader rewrote packAis or packBots");
+
   const oldHttp = await responsesFor("old");
   const idHttp = await responsesFor("ids");
   const objHttp = await responsesFor("id-objects");
@@ -366,6 +401,12 @@ async function main() {
     else pass(key + " matches for string id mirrors");
     if (oldHttp[key] !== objHttp[key]) fail(key + " response differs for {id} mirrors: " + clipDiff(oldHttp[key], objHttp[key]));
     else pass(key + " matches for {id} mirrors");
+  });
+  const mixedHttp = await responsesFor("mixed");
+  const fullPairHttp = await responsesFor("full-pair");
+  ["desk", "packs", "listing", "ais", "jobs", "attach-ai", "save-ai", "status", "health"].forEach(function (key) {
+    if (mixedHttp[key] !== fullPairHttp[key]) fail(key + " differs for a mixed full-copy and id ref: " + clipDiff(mixedHttp[key], fullPairHttp[key]));
+    else pass(key + " matches for a mixed full copy and id ref");
   });
   const mirrorHttp = await responsesFor("mirrors-only");
   const canonHttp = await responsesFor("ais-only");
@@ -453,6 +494,22 @@ async function main() {
   else pass("1 MB + 1 saves nothing");
   if (overReq.sent() !== 0) fail("content-length over the cap must not be read, sent " + overReq.sent());
   else pass("content-length over the cap is not read");
+
+  install("old");
+  const beforeHook = storeSnap();
+  const hookReq = countingStream([Buffer.alloc(BODY_MAX + 1, 0x68)]);
+  hookReq.headers["content-length"] = String(BODY_MAX + 1);
+  hookReq.headers["x-workspace"] = SLUG;
+  hookReq.url = "/api/hook";
+  const hookRes = mockRes();
+  await hookHandler(hookReq, hookRes);
+  if (hookRes.statusCode !== 413 || !hookRes.body || hookRes.body.ok !== false || hookRes.body.error !== TOO_BIG) {
+    fail("POST /api/hook of 1 MB + 1 must 413, got " + hookRes.statusCode + " " + JSON.stringify(hookRes.body));
+  } else pass("POST /api/hook of 1048577 bytes returns 413");
+  if (storeSnap() !== beforeHook) fail("POST /api/hook of 1 MB + 1 must save nothing");
+  else pass("POST /api/hook of 1 MB + 1 saves nothing");
+  if (hookReq.sent() !== 0) fail("hook content-length over the cap must not be read, sent " + hookReq.sent());
+  else pass("hook content-length over the cap is not read");
 
   const chunks = [Buffer.alloc(400000, 0x61), Buffer.alloc(400000, 0x62), Buffer.alloc(400000, 0x63), Buffer.alloc(400000, 0x64)];
   const chunkReq = countingStream(chunks);
