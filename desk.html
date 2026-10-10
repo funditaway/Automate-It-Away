@@ -461,7 +461,7 @@
       const item = { action: "capture", title: title || notes || "Desk drop", notes, timing: /[a-z]/i.test(when) ? when : undefined, amount: Number.isFinite(amount) && amount > 0 ? amount : undefined, from: "desk", kind: kindPick || "task", pack };
       if (fileEl && fileEl.files && fileEl.files[0]) {
         const file = fileEl.files[0];
-        if (file.size > 3500000) { document.getElementById("banner").textContent = "Photo over 3.5MB."; return; }
+        if (file.size > 3000000) { document.getElementById("banner").textContent = "Each file must stay under 3 MB."; return; }
         const data = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file); });
         const up = await api("/api/upload", { method: "POST", body: JSON.stringify({ name: file.name, type: file.type, data }) });
         if (up.status >= 400) { document.getElementById("banner").textContent = (up.data && up.data.error) || "Photo did not save."; return; }
