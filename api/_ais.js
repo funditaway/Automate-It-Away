@@ -10,6 +10,13 @@ const TAGLINE = "Desk AIs that draft. Humans that decide.";
 const DEFAULT_DOES = "Drafts the next step and the words. Nothing sent.";
 const DEFAULT_PROMPT = FIRM + " " + TAGLINE + " Never send, pay, or bind. Collect stays HOLD.";
 
+// Full Desk AI objects live in shop.ais. packAis and packBots mirror that list.
+// This stays false in production: a save still writes full object copies, the
+// same shape as before. True writes AI id strings only. Readers accept both.
+// Flip the exported flag in-process for a check. Do not read an env var.
+// A ref has no per-pack fields. It is the AI id and nothing else.
+const STORE_AI_REFS = false;
+
 function clip(s, n) {
   return String(s == null ? "" : s).trim().slice(0, n || 160);
 }
@@ -184,10 +191,56 @@ function publicAi(ai) {
   };
 }
 
+function packRefsOn() {
+  return module.exports.STORE_AI_REFS === true;
+}
+
+function findStoredAi(shop, id) {
+  const want = String(id || "").toLowerCase();
+  if (!want || !shop) return null;
+  return (shop.ais || []).find(function (ai) {
+    return ai && String(ai.id || "").toLowerCase() === want;
+  }) || null;
+}
+
+// Old mirrors are full AI objects. New mirrors are an id string or { id }
+// with no AI body. Anything with a name or other stored AI fields is the old
+// shape and is returned as-is. A string that is not an id stays a name.
+function resolvePackRow(shop, row) {
+  if (typeof row === "string") return findStoredAi(shop, row) || row;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+  if (row.name || row.does || row.prompt || row.steps || row.allow || row.role || row.aia || row.rules || row.plan || row.deny || row.file || row.workspace) {
+    return row;
+  }
+  if (row.id != null && String(row.id) !== "") return findStoredAi(shop, row.id) || row;
+  return row;
+}
+
+function storedAiRows(shop) {
+  if (!shop) return [];
+  return [].concat(shop.ais || [], shop.packAis || [], shop.packBots || []).map(function (row) {
+    return resolvePackRow(shop, row);
+  });
+}
+
+function writePackMirrors(shop) {
+  const rows = (shop && shop.ais) || [];
+  if (packRefsOn()) {
+    const ids = [];
+    rows.forEach(function (ai) {
+      if (ai && ai.id) ids.push(String(ai.id));
+    });
+    shop.packBots = ids.slice();
+    shop.packAis = ids.slice();
+    return;
+  }
+  shop.packBots = rows.slice();
+  shop.packAis = rows.slice();
+}
+
 function deskAisOf(shop) {
   if (!shop) return [];
-  const rows = [].concat(shop.ais || [], shop.packAis || [], shop.packBots || []);
-  return normalizeAis(rows, shop.slug);
+  return normalizeAis(storedAiRows(shop), shop.slug);
 }
 
 function aiMayDraft(ai, step) {
@@ -203,7 +256,7 @@ function aiMayDraft(ai, step) {
 
 function allDeskAis(shop) {
   if (!shop) return [];
-  const rows = [].concat(shop.ais || [], shop.packAis || [], shop.packBots || []);
+  const rows = storedAiRows(shop);
   const out = [];
   const seen = {};
   rows.forEach(function (row) {
@@ -340,8 +393,7 @@ function attachAisToDesk(shop, rows) {
     row.seatId = seat.id;
   });
   shop.ais = shop.ais.slice(0, 6);
-  shop.packBots = shop.ais.slice();
-  shop.packAis = shop.ais.slice();
+  writePackMirrors(shop);
   return added;
 }
 
@@ -357,8 +409,7 @@ function removeDeskAi(shop, id) {
     if (!p || !p.deskAi) return true;
     return String(p.aiId || "").toLowerCase() !== want && String(p.name || "").toLowerCase() !== want && String(p.id || "").toLowerCase() !== want;
   });
-  shop.packBots = (shop.ais || []).slice();
-  shop.packAis = (shop.ais || []).slice();
+  writePackMirrors(shop);
   if ((shop.ais || []).length === before) return { ok: false, error: "No desk AI by that name." };
   return { ok: true, ais: (shop.ais || []).map(publicAi) };
 }
@@ -398,6 +449,7 @@ module.exports = {
   TAGLINE,
   DEFAULT_DOES,
   DEFAULT_PROMPT,
+  STORE_AI_REFS,
   clip,
   rulesText,
   planText,

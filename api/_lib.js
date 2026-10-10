@@ -1797,15 +1797,112 @@ function removeWorkspaceRule(ws, id) {
   return { ok: true, rules: ws.rules.map(publicRule).filter(Boolean) };
 }
 
-function readBody(req) {
+const BODY_MAX = 1048576;
+const BODY_TOO_BIG = "That's too big to send. Keep it under 1 MB.";
+
+function tooBigBody() {
+  return { ok: false, error: BODY_TOO_BIG };
+}
+
+function uploadBodyExempt(req) {
+  const url = String((req && (req.url || req.originalUrl || req.path)) || "");
+  const headers = (req && req.headers) || {};
+  const invoke = String(headers["x-invoke-path"] || headers["x-matched-path"] || "");
+  if (/\/api\/upload(?:\?|$)/.test(url) || /\/api\/upload(?:\?|$)/.test(invoke)) return true;
+  const stack = new Error().stack || "";
+  return /[/\\]upload\.js:/.test(stack);
+}
+
+function chunkBytes(chunk) {
+  if (Buffer.isBuffer(chunk)) return chunk.length;
+  return Buffer.byteLength(String(chunk));
+}
+
+// Raw JSON bodies over 1 MB are refused with HTTP 413. Reading stops at the
+// cap: the overflowing chunk is not kept, and the stream is destroyed.
+// /api/upload keeps its own 8 MB file cap and does not use this limit.
+function readBody(req, res) {
+  if (req && req.body && typeof req.body === "object") return Promise.resolve(req.body);
+  const cap = uploadBodyExempt(req) ? 0 : BODY_MAX;
   return new Promise((resolve, reject) => {
-    if (req.body && typeof req.body === "object") return resolve(req.body);
-    let raw = "";
-    req.on("data", (c) => (raw += c));
-    req.on("end", () => {
+    if (!req || typeof req.on !== "function") return resolve({});
+    let size = 0;
+    let parts = [];
+    let stopped = false;
+
+    function failTooBig() {
+      if (stopped) return;
+      stopped = true;
+      parts = [];
+      size = 0;
+      if (typeof req.removeListener === "function") {
+        req.removeListener("data", onData);
+        req.removeListener("readable", onReadable);
+        req.removeListener("end", onEnd);
+        req.removeListener("error", onError);
+      }
+      if (typeof req.pause === "function") req.pause();
+      if (typeof req.destroy === "function") {
+        try { req.destroy(); } catch (e) {}
+      }
+      const body = tooBigBody();
+      if (res && typeof res.status === "function") {
+        try { res.status(413).json(body); } catch (e) {}
+      }
+      const err = new Error(BODY_TOO_BIG);
+      err.statusCode = 413;
+      err.body = body;
+      reject(err);
+    }
+
+    function take(chunk) {
+      if (stopped) return;
+      const n = chunkBytes(chunk);
+      if (cap && size + n > cap) {
+        failTooBig();
+        return;
+      }
+      size += n;
+      parts.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+    }
+
+    function onReadable() {
+      if (stopped || typeof req.read !== "function") return;
+      let chunk;
+      while ((chunk = req.read()) !== null) take(chunk);
+    }
+
+    function onData(chunk) {
+      take(chunk);
+    }
+
+    function onEnd() {
+      if (stopped) return;
+      stopped = true;
+      const raw = parts.length ? Buffer.concat(parts).toString("utf8") : "";
+      parts = [];
       if (!raw) return resolve({});
       try { resolve(JSON.parse(raw)); } catch (e) { reject(e); }
-    });
+    }
+
+    function onError(err) {
+      if (stopped) return;
+      stopped = true;
+      parts = [];
+      reject(err);
+    }
+
+    const declared = Number(req.headers && (req.headers["content-length"] || req.headers["Content-Length"]));
+    if (cap && Number.isFinite(declared) && declared > cap) {
+      failTooBig();
+      return;
+    }
+
+    // Paused reads so we can destroy before the rest of the body is pulled.
+    if (typeof req.read === "function") req.on("readable", onReadable);
+    else req.on("data", onData);
+    req.on("end", onEnd);
+    req.on("error", onError);
   });
 }
 

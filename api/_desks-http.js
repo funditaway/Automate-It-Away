@@ -81,7 +81,9 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Use GET or POST." });
-  const body = await readBody(req);
+  let body;
+  try { body = await readBody(req, res); }
+  catch (err) { if (err && err.statusCode === 413) return; throw err; }
   const action = String(body.action || "list").toLowerCase();
 
   if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "buy-pack", "preview-pack", "studio-draft", "grok-pack", "private-pack", "save-ai", "attach-ai", "remove-ai", "download-pack", "export-pack", "install-aia", "import-pack", "install-file"].indexOf(action) >= 0) {

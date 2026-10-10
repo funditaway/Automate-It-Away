@@ -108,7 +108,9 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, intakes: mem.intakes.filter((i) => i.workspace === workspace).slice(0, 20).map(publicIntake) });
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Use GET or POST" });
-  const body = await readBody(req);
+  let body;
+  try { body = await readBody(req, res); }
+  catch (err) { if (err && err.statusCode === 413) return; throw err; }
   const action = body.action || "start";
 
   if (action === "start") {
