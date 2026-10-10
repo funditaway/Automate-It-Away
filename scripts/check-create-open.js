@@ -152,5 +152,75 @@ else pass("no auto-run or allowed-actions wording");
 });
 pass("Yes, Stop and Kill unchanged");
 
+// 7. After Yes the page echoes what the desk saved (out.ai), and the 400-character summary keeps the needs.
+(function savedAndOrder() {
+  if (!api || typeof api.savedLine !== "function" || typeof api.promptParts !== "function") {
+    fail("create-simple.js must expose savedLine and promptParts");
+    return;
+  }
+  // The Yes handler must build its line from the server reply, not the typed name.
+  if (!/done\.textContent = savedLine\(d, out\)/.test(js)) fail("the after-Yes line must come from savedLine(d, out)");
+  else pass("after-Yes line is built from the server reply");
+  if (/done\.textContent = d\.name/.test(js)) fail("the after-Yes line must not echo the typed name");
+
+  const longName = "Pickup and carpool helper for the whole family, every week";
+  const longJob = "Reads every school and carpool message, works out who is picking up which child on which day, and drafts a short reply for me to check before anything goes out to anyone at all";
+  const typed = {
+    name: longName,
+    job: longJob,
+    needs: "Names, dates, or details only you know",
+    watches: "School emails\nCarpool texts",
+    drafts: "A reply, short and kind",
+    plan: Array.from({ length: 40 }, function (_, i) { return "Step number " + (i + 1) + ", check the calendar and the group chat"; })
+  };
+  const body = api.saveBody(typed);
+
+  // Real server code turns the body into the saved Desk AI, the same way save-ai does.
+  let ai = null;
+  try {
+    const ais = require(path.join(root, "api", "_ais.js"));
+    ai = ais.publicAi(ais.normalizeAi(body, "check-ws"));
+  } catch (e) {
+    fail("could not run api/_ais.js normalizeAi/publicAi: " + e.message);
+    return;
+  }
+  const line = api.savedLine(typed, { ok: true, ai: ai });
+  if (line.indexOf(ai.name.trim() + " is named on this desk.") !== 0) fail("after-Yes line must start with the saved name: " + line.slice(0, 80));
+  else pass("after-Yes line shows the saved name (" + ai.name.length + " characters)");
+  if (line.indexOf(longName) >= 0) fail("after-Yes line must not show the full typed name");
+  if (line.indexOf("Its job, as saved: " + ai.does.trim()) < 0) fail("after-Yes line must show the saved job");
+  else pass("after-Yes line shows the saved job (" + ai.does.length + " characters)");
+  if (line.indexOf(longJob) >= 0) fail("after-Yes line must not show the full typed job");
+  if (line.indexOf("AIA kept the first " + server.name + " characters of the name.") < 0) fail("after-Yes line must say the name was cut");
+  if (line.indexOf("AIA kept the first " + server.does + " characters of the job.") < 0) fail("after-Yes line must say the job was cut");
+  if (line.indexOf("AIA kept the first " + server.prompt + " characters of the summary") < 0) fail("after-Yes line must say the summary was cut");
+  else pass("after-Yes line says plainly what was cut (name, job, summary)");
+  if (!/drafts only\. Nothing was sent or charged\./.test(line)) fail("after-Yes line must keep the draft-only, nothing-sent line");
+
+  // Short entries: no cut lines.
+  const shortTyped = { name: "Pickup helper", job: "Drafts pickup replies", needs: "Who picks up", watches: "Texts", drafts: "A reply", plan: ["Read", "Draft"] };
+  const shortAi = require(path.join(root, "api", "_ais.js"));
+  const shortLine = api.savedLine(shortTyped, { ok: true, ai: shortAi.publicAi(shortAi.normalizeAi(api.saveBody(shortTyped), "check-ws")) });
+  if (/AIA kept the first/.test(shortLine)) fail("no cut line when nothing was cut: " + shortLine);
+  else pass("no cut line when nothing was cut");
+
+  // Order: lead, then needs, then (job and lists), then steps last.
+  const parts = api.promptParts(typed).filter(Boolean);
+  const lead = "Draft only. The person presses Yes, Stop, or Kill.";
+  if (parts[0] !== lead) fail("summary must start with the draft-only lead");
+  if (!/^Needs from the person: /.test(parts[1] || "")) fail("the needs line must come right after the lead");
+  if (!/^Steps: /.test(parts[parts.length - 1] || "")) fail("the steps must come last so they are what gets trimmed");
+  else pass("summary order: lead, needs, job and lists, steps last");
+
+  // A long request: at most 400 characters, still holds the lead and the whole needs line.
+  const p = api.promptOf(typed);
+  if (p.length > server.prompt) fail("summary must be at most " + server.prompt + " characters, got " + p.length);
+  if (p.indexOf(lead) !== 0) fail("cut summary must keep the lead");
+  if (p.indexOf("Needs from the person: Names, dates, or details only you know.") < 0) fail("cut summary must keep the whole needs line");
+  if (api.promptLength(typed) <= server.prompt) fail("this test request must be longer than the cut");
+  if (ai.prompt.length > server.prompt || ai.prompt.indexOf(lead) !== 0 || ai.prompt.indexOf("Needs from the person: Names, dates, or details only you know.") < 0) fail("the server-saved summary must keep the lead and the needs line");
+  else pass("long request: summary is " + p.length + " characters (of " + api.promptLength(typed) + "), keeps the lead and needs; steps trimmed");
+})();
+
 if (bad) { console.error(bad + " check(s) failed"); process.exit(1); }
 console.log("check-create-open ok");

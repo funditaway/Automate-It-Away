@@ -91,31 +91,26 @@
     };
   }
 
-  function promptOf(d) {
+  /* The summary save-ai keeps (first 400 characters). Order: the draft-only lead, then what it needs,
+     then the job and what it watches and drafts, then the steps last, so a long request trims steps, never the lead or the needs. */
+  function promptParts(d) {
     var plan = linesOf(d && d.plan);
-    /* Draft-only line first so the 400-character cut can never drop it. */
-    var parts = [
+    return [
       "Draft only. The person presses Yes, Stop, or Kill.",
+      "Needs from the person: " + linesOf(d && d.needs).join("; ") + ".",
       "Job: " + clean(d && d.job) + ".",
-      plan.length ? "Steps: " + plan.map(function (x, i) { return (i + 1) + ") " + x; }).join("; ") + "." : "",
       "Watches: " + linesOf(d && d.watches).join("; ") + ".",
       "Drafts: " + linesOf(d && d.drafts).join("; ") + ".",
-      "Needs from the person: " + linesOf(d && d.needs).join("; ") + "."
+      plan.length ? "Steps: " + plan.map(function (x, i) { return (i + 1) + ") " + x; }).join("; ") + "." : ""
     ];
-    return clean(promptFull(parts), LIMITS.prompt);
+  }
+  function promptOf(d) {
+    return clean(promptFull(promptParts(d)), LIMITS.prompt);
   }
   function promptFull(parts) { return clean(parts.filter(Boolean).join(" ")); }
   /* Whole summary before the server's cut, so the page can say how much will be kept. */
   function promptLength(d) {
-    var plan = linesOf(d && d.plan);
-    return promptFull([
-      "Draft only. The person presses Yes, Stop, or Kill.",
-      "Job: " + clean(d && d.job) + ".",
-      plan.length ? "Steps: " + plan.map(function (x, i) { return (i + 1) + ") " + x; }).join("; ") + "." : "",
-      "Watches: " + linesOf(d && d.watches).join("; ") + ".",
-      "Drafts: " + linesOf(d && d.drafts).join("; ") + ".",
-      "Needs from the person: " + linesOf(d && d.needs).join("; ") + "."
-    ]).length;
+    return promptFull(promptParts(d)).length;
   }
 
   function sampleCards() {
@@ -170,7 +165,26 @@
       : "The desk does not store the rules yet. Nothing enforces them.";
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
+  /* After Yes: echo what the desk actually saved (out.ai), not what was typed, and say plainly where it cut. */
+  function cutNote(typed, saved, n, what) {
+    var t = clean(typed), v = clean(saved);
+    if (!v || t.length <= v.length || t.indexOf(v) !== 0) return "";
+    return "AIA kept the first " + n + " characters of the " + what + ".";
+  }
+  function savedLine(d, out) {
+    var ai = (out && out.ai) || {};
+    var name = clean(ai.name) || clean(d && d.name);
+    var does = clean(ai.does);
+    var parts = [name + " is named on this desk."];
+    if (does) parts.push("Its job, as saved: " + does + (/[.!?]$/.test(does) ? "" : "."));
+    parts.push("It drafts only. Nothing was sent or charged.");
+    parts.push(cutNote(d && d.name, ai.name, LIMITS.name, "name"));
+    parts.push(cutNote(d && d.job, ai.does, LIMITS.does, "job"));
+    if (typeof ai.prompt === "string" && ai.prompt && promptLength(d) > clean(ai.prompt).length) parts.push("AIA kept the first " + LIMITS.prompt + " characters of the summary" + (linesOf(d && d.plan).length ? ", so the last steps were trimmed." : "."));
+    return parts.filter(Boolean).join(" ");
+  }
+
+  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -334,7 +348,7 @@
       el("cs-test").hidden = true;
       el("cs-step").textContent = "Done";
       var done = el("cs-done");
-      done.textContent = d.name + " is named on this desk. It drafts only. Nothing was sent or charged. " + rulesLine(out);
+      done.textContent = savedLine(d, out) + " " + rulesLine(out);
       if (rulesStored(out) && el("cs-rules-note")) el("cs-rules-note").textContent = "Shown so you know how it should act. The desk stored these rules with your Desk AI, as text. Nothing enforces them.";
       done.hidden = false;
       el("cs-open-desk").hidden = false;
