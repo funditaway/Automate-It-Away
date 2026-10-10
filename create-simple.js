@@ -333,9 +333,9 @@
     copy.ai = row;
     return copy;
   }
-  /* Not saved: the server's error exactly as sent, or a plain line. No saved, rules, steps or trim claims. */
+  /* Not saved: the server's error exactly as sent, then "Nothing was saved.", or a plain line. No saved, rules, steps or trim claims. */
   function notSavedText(out) {
-    return out && typeof out.error === "string" && out.error ? out.error : "The desk did not save it. Nothing was saved.";
+    return out && typeof out.error === "string" && out.error ? out.error + " Nothing was saved." : "The desk did not save it. Nothing was saved.";
   }
   /* What the page says after Yes. httpOk is r.ok from the fetch. */
   function yesResult(d, out, httpOk) {
