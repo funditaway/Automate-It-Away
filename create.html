@@ -72,6 +72,38 @@
     .cites{display:none;margin-top:8px}
     .cites.on{display:block}
     .cites a{display:block;color:var(--teal);font-weight:700;font-size:13px;margin:4px 0}
+    .cs h2{font-size:1.05rem;color:var(--heading);margin:0 0 6px}
+    .cs-step{font-size:12px;font-weight:700;color:var(--muted);margin:0 0 6px}
+    .cs-src{font-size:13px;color:var(--muted);margin:0 0 4px}
+    .cs-note{margin:10px 0 0;font-size:13px;border-radius:12px;padding:10px 12px;background:var(--card);color:var(--heading);border:1px solid var(--line)}
+    .cs-note.is-err{background:color-mix(in srgb, var(--orange) 18%, var(--card));border-color:var(--orange)}
+    .cs-note.is-ok{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}
+    .cs [hidden]{display:none!important}
+    .cs-rules{margin:12px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+    .cs-rules summary{font-weight:700;color:var(--heading);cursor:pointer}
+    .cs-rules ol{margin:8px 0 0 20px;font-size:13px;color:var(--ink)}
+    .cs-rules li{margin:4px 0}
+    .cs-sample{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+    .cs-sample b{display:block;color:var(--heading);margin:4px 0}
+    .cs-sample p{font-size:13px;color:var(--muted);margin:2px 0}
+    .cs-tag{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading)}
+    .cs .kill{background:transparent;color:var(--kill-ink);border:1px solid var(--kill-ink)}
+    .cs .link{background:none;border:0;color:var(--teal);font-weight:700;cursor:pointer;padding:10px 0;min-height:44px}
+    .cs-done{margin:4px 0 0;color:var(--heading);font-weight:700}
+    .cs-talk{display:flex;gap:8px;align-items:flex-start}
+    .cs-talk textarea{flex:1;min-width:0}
+    .cs .mic{min-height:44px;min-width:44px;padding:0 12px;border-radius:10px;border:1px solid var(--line,#c9d3d3);background:transparent;color:var(--heading);font-weight:700;cursor:pointer;white-space:nowrap}
+    .cs .mic.is-listening{background:var(--orange,#f39c12);border-color:var(--orange,#f39c12);color:#0c1116}
+    .cs-listen{font-size:13px;font-weight:700;color:var(--heading);margin:6px 0 0}
+    .cs-cut{font-size:12px;color:var(--muted);margin:4px 0 10px}
+    .cs-plan{margin:4px 0 6px;padding-left:22px}
+    .cs-plan li{margin:0 0 6px}
+    .cs-plan .cs-plan-row{display:flex;gap:6px;align-items:center}
+    .cs-plan input{flex:1;min-width:0}
+    .cs-plan .link{min-height:44px;white-space:nowrap}
+    .cs-label{font-weight:700;margin:10px 0 4px}
+    .more-ways{margin-top:14px}
+    .more-ways > summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center}
     @media(max-width:420px){.picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
@@ -92,9 +124,73 @@
     </nav>
   </header>
   <main class="wrap">
-    <h1>Start the work. It lands on this desk.</h1>
+    <h1>Tell AIA what to automate.</h1>
     <p class="sub">Desk AIs that draft. Humans that decide. You tap Yes or Stop.</p>
     <p class="aia-line" id="aia-line">Checking whether a Desk AI can draft on this phone…</p>
+    <section class="card cs" id="cs">
+      <p class="cs-step" id="cs-step">Step 1 of 3</p>
+      <div id="cs-ask">
+        <h2>What do you want automated?</h2>
+        <label for="cs-words">Say it in everyday words, as much as you like</label>
+        <div class="cs-talk">
+          <textarea id="cs-words" rows="4" placeholder="For example: when a parent asks to change pickup, draft a reply and a reminder for me."></textarea>
+          <button type="button" class="mic" id="cs-mic" aria-pressed="false" hidden>Talk</button>
+        </div>
+        <p class="cs-listen" id="cs-listen" aria-live="polite" hidden></p>
+        <p class="cs-cut" id="cs-words-cut">AIA reads the first 800 characters when it drafts. You can write more; it stays here for you to edit.</p>
+        <p class="cs-cut" id="cs-mic-note" hidden>Talk turns your speech into words in the text box. Your browser does that, and some browsers send the sound to their maker's service to do it. AIA does not upload or keep any audio. Fix the words before you press Draft it.</p>
+        <button type="button" class="go" id="cs-draft">Draft it</button>
+        <p class="cs-note" id="cs-note" hidden></p>
+      </div>
+      <div id="cs-review" hidden>
+        <h2>Your draft Desk AI</h2>
+        <p class="cs-src" id="cs-src"></p>
+        <label for="cs-name">Name</label>
+        <input id="cs-name">
+        <p class="cs-cut" id="cs-name-cut">The desk keeps the first 40 characters of the name.</p>
+        <label for="cs-job">One job</label>
+        <input id="cs-job">
+        <p class="cs-cut" id="cs-job-cut">The desk keeps the first 160 characters of the job.</p>
+        <p class="cs-label" id="cs-plan-label">Its steps, in order</p>
+        <ol class="cs-plan" id="cs-plan" aria-labelledby="cs-plan-label"></ol>
+        <button type="button" class="link" id="cs-plan-add">Add a step</button>
+        <p class="cs-cut" id="cs-plan-cut">Up to 200 steps. Each step keeps up to 500 characters, in plain words.</p>
+        <p class="cs-cut" id="cs-plan-fit" aria-live="polite" hidden></p>
+        <label for="cs-watches">What it watches (one per line)</label>
+        <textarea id="cs-watches" rows="3"></textarea>
+        <label for="cs-drafts">What it drafts (one per line)</label>
+        <textarea id="cs-drafts" rows="3"></textarea>
+        <label for="cs-needs">What it needs from you (one per line)</label>
+        <textarea id="cs-needs" rows="3"></textarea>
+        <p class="cs-cut" id="cs-save-cut">When you press Yes, the desk saves what it needs, the job and its lists as one summary and keeps the first 400 characters of it. Your steps are saved as their own list. <span id="cs-save-count"></span></p>
+        <details class="cs-rules" id="cs-rules">
+          <summary>The rules it follows</summary>
+          <ol id="cs-rules-list"></ol>
+          <p class="hint" id="cs-rules-note">Shown so you know how it should act. This page does not enforce these rules, and the desk does not store them yet.</p>
+        </details>
+        <button type="button" class="go" id="cs-try">Try it on sample cards</button>
+        <button type="button" class="link" id="cs-back">Change my words</button>
+        <p class="cs-note" id="cs-review-note" hidden></p>
+      </div>
+      <div id="cs-test" hidden>
+        <h2>Try it on a sample desk</h2>
+        <p class="hint">Made-up cards on this phone only. Not real people. Nothing is saved or sent.</p>
+        <div id="cs-samples"></div>
+        <p class="hint">Yes names this Desk AI on your desk. It drafts only. Stop clears the draft and keeps your words. Kill throws it all away.</p>
+        <div class="row-btns" id="cs-decide">
+          <button type="button" class="yes" id="cs-yes">Yes</button>
+          <button type="button" class="stop" id="cs-stop">Stop</button>
+          <button type="button" class="kill" id="cs-kill">Kill</button>
+        </div>
+        <button type="button" class="link" id="cs-edit">Change the draft</button>
+        <p class="cs-note" id="cs-test-note" hidden></p>
+      </div>
+      <p class="cs-done" id="cs-done" hidden></p>
+      <p class="cta" id="cs-open" hidden><a class="use" href="/onboard">Open your desk</a></p>
+      <p class="cta" id="cs-open-desk" hidden><a class="use" href="/desk">Open this desk</a></p>
+    </section>
+    <details class="more-ways" id="more-ways">
+    <summary>Other ways to make something</summary>
     <section class="card start" id="start">
       <h2>What should a Desk AI draft?</h2>
       <p class="start-note" id="start-note" hidden></p>
@@ -136,6 +232,7 @@
     <p class="ok" id="ok"></p>
     <p class="err" id="err"></p>
     <div id="mine" class="card" style="margin-top:12px;display:none"></div>
+    </details>
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
@@ -154,5 +251,7 @@
   <script src="create-pack-install.js"></script>
   <script src="create-pack-download.js"></script>
   <script src="create-queue.js"></script>
+  <script src="card-rules.js"></script>
+  <script src="create-simple.js"></script>
 <script src="/mark-fix.js"></script></body>
 </html>
