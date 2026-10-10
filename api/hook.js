@@ -56,7 +56,9 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  const body = await readBody(req);
+  let body;
+  try { body = await readBody(req, res); }
+  catch (err) { if (err && err.statusCode === 413) return; throw err; }
   if (mail.wantsSend(body)) {
     return res.status(409).json(mail.sendHold());
   }
