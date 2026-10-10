@@ -271,10 +271,16 @@ async function grokRecommend(job, shop, workspace) {
 const STUDIO_SYSTEM = "You draft thin JSON packs and named Desk AIs for Automate It Away Creators Studio — not MVP demo bots. Official term: Desk AI. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Fill ais[].does and ais[].prompt (and bots[] aliases) with that canon: draft the next step and the words; nothing sent; Review then Copy / Text / Email / Hand to, or Stop; Collect HOLD; Doer / Worker / Rail / Packer / Mapper are desk crew, not captains. Never invent assistant-that-sends instructions. Return JSON only: {\"name\":\"\",\"aia\":\"springfield-shop.aia\",\"does\":\"\",\"niche\":\"\",\"fields\":\"who:text,when:text\",\"kinds\":\"task,idea\",\"rule\":\"\",\"workflows\":[{\"name\":\"\",\"delay\":null,\"branch\":\"\",\"rules\":[{\"when\":\"drop\",\"ifTag\":\"\",\"contains\":\"\",\"then\":\"draft\",\"tag\":\"\",\"text\":\"\"}]}],\"ask\":0,\"ais\":[{\"name\":\"\",\"aia\":\"james.aia\",\"role\":\"Doer\",\"does\":\"\",\"prompt\":\"\",\"steps\":\"qualify,do,follow\"}],\"bots\":[{\"name\":\"\",\"crew\":\"Doer\",\"does\":\"\",\"prompt\":\"\"}],\"dropHint\":\"\",\"queue\":{\"badge\":\"\",\"empty\":\"\",\"chips\":\"task,idea\"}}. AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia). A rule is one When (drop|pipe|inbound|status) → If (Qualify/tag/word) → Then (draft|queue|notify|tag|escalate). Workflows/sequences string rules with optional delay/branch. Still thin JSON. Never invent on-chain ownership. Never invent money or $250. Never Send, Stop, or pay. Never auto-mail. Desk AIs are bound to one desk. They draft only. Human taps Yes / Stop / Kill. Collect stays HOLD. Draft only. Human taps Yes to save or install. Short local English. Open packs: thin JSON a world desk can install. Secure-by-design: no silent Collect. One account, many desks — help-the-world desk, not grandma.";
 
 async function studioDraft(brief, workspace, opts) {
+  // Caller text only. Same 1000 cap as the Desk AI field. Not sent to the model.
+  const rules = ais.rulesText(opts && opts.rules);
+  function passRules(out) {
+    if (out && typeof out === "object") out.rules = rules;
+    return out;
+  }
   const drafter = pickDrafter(workspace);
-  if (!drafter) return { ok: false, skipped: true, reason: "no-key" };
+  if (!drafter) return passRules({ ok: false, skipped: true, reason: "no-key" });
   const text = String(brief || "").trim().slice(0, 800);
-  if (!text) return { ok: false, skipped: true, reason: "no-brief" };
+  if (!text) return passRules({ ok: false, skipped: true, reason: "no-brief" });
   const kind = String((opts && opts.kind) || "pack").toLowerCase();
   try {
     const payload = {
@@ -307,7 +313,7 @@ async function studioDraft(brief, workspace, opts) {
       signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(14000) : undefined
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) return { ok: false, skipped: false, reason: "http-" + r.status, error: clip(data.error && data.error.message, 120), provider: drafter.provider };
+    if (!r.ok) return passRules({ ok: false, skipped: false, reason: "http-" + r.status, error: clip(data.error && data.error.message, 120), provider: drafter.provider });
     let raw = "";
     if (drafter.provider === "anthropic") {
       const block = (data.content || []).find((b) => b && b.type === "text");
@@ -316,7 +322,7 @@ async function studioDraft(brief, workspace, opts) {
       raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
     }
     const parsed = parseGrok(raw);
-    if (!parsed) return { ok: false, skipped: false, reason: "bad-json", provider: drafter.provider, text: clip(raw, 400) };
+    if (!parsed) return passRules({ ok: false, skipped: false, reason: "bad-json", provider: drafter.provider, text: clip(raw, 400) });
     if (parsed.ask != null) {
       const n = Number(parsed.ask);
       parsed.ask = Number.isFinite(n) && n >= 0 ? n : 0;
@@ -329,9 +335,9 @@ async function studioDraft(brief, workspace, opts) {
     parsed.collect = "hold";
     if (Array.isArray(parsed.bots) && !parsed.ais) parsed.ais = parsed.bots;
     if (Array.isArray(parsed.ais) && !parsed.bots) parsed.bots = parsed.ais;
-    return { ok: true, pack: parsed, provider: drafter.provider, model: drafter.model, source: drafter.source || "included" };
+    return passRules({ ok: true, pack: parsed, provider: drafter.provider, model: drafter.model, source: drafter.source || "included" });
   } catch (e) {
-    return { ok: false, skipped: false, reason: "net", error: clip(e && e.message, 80) };
+    return passRules({ ok: false, skipped: false, reason: "net", error: clip(e && e.message, 80) });
   }
 }
 
