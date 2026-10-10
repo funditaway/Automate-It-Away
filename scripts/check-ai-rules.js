@@ -163,7 +163,7 @@ async function main() {
     does: "Draft on this desk",
     prompt: promptIn,
     rules: rules900,
-    steps: ["qualify", "follow"]
+    steps: "qualify, follow"
   });
   const saved = save.body && save.body.ai;
   const listed = ((save.body && save.body.ais) || []).find(function (a) { return a && a.name === "Rules AI"; });
@@ -201,7 +201,7 @@ async function main() {
       role: "Doer",
       does: "Draft on this desk",
       rules: requestBad[i][1],
-      steps: ["qualify"]
+      steps: "qualify"
     });
     const err = rejected.body && rejected.body.error;
     const names = (shop.ais || []).map(function (a) { return a && a.name; });
@@ -212,7 +212,7 @@ async function main() {
   }
   const nested = await call(packHandler, "POST", { "x-workspace": slug, "x-pin": pin }, {
     action: "save-ai",
-    ai: { name: "Nested Bad", role: "Doer", does: "Draft on this desk", rules: { nested: true }, steps: ["qualify"] }
+    ai: { name: "Nested Bad", role: "Doer", does: "Draft on this desk", rules: { nested: true }, steps: "qualify" }
   });
   if (nested.statusCode !== 400 || !nested.body || nested.body.error !== "Rules must be plain text.") {
     fail("save-ai nested object rules must 400, got " + nested.statusCode + " " + JSON.stringify(nested.body));
@@ -231,7 +231,7 @@ async function main() {
     role: "Doer",
     does: "Draft on this desk",
     rules: null,
-    steps: ["qualify"]
+    steps: "qualify"
   });
   const nullAi = nullSave.body && nullSave.body.ai;
   const nullStored = (shop.ais || []).find(function (a) { return a && a.name === "Null Rules"; });

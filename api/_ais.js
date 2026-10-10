@@ -23,64 +23,36 @@ function rulesText(v) {
   return v.slice(0, 1000);
 }
 
-// Desk AI steps are stored text only, in order. Cap at 50 steps and 300
-// characters each. Trim whitespace, drop empty steps, drop non-strings, and
+// Desk AI plan is stored text only, in order. Cap at 50 lines and 300
+// characters each. Trim whitespace, drop empty lines, drop non-strings, and
 // keep the first 50. Do not run, charge, or enforce them. A missing value or
-// anything that is not an array is [].
-const STEP_MAX = 50;
-const STEP_CHARS = 300;
+// anything that is not an array is []. This is not the draft allow-list.
+const PLAN_MAX = 50;
+const PLAN_CHARS = 300;
 
-function stepsText(v) {
-  if (!Array.isArray(v)) return { steps: [], cut: null };
-  const steps = [];
+function planText(v) {
+  if (!Array.isArray(v)) return { plan: [], cut: null };
+  const plan = [];
   let dropped = 0;
   let trimmed = 0;
   v.forEach(function (item) {
     if (typeof item !== "string") { dropped += 1; return; }
     const text = item.trim();
     if (!text) { dropped += 1; return; }
-    if (steps.length >= STEP_MAX) { dropped += 1; return; }
-    if (text.length > STEP_CHARS) {
+    if (plan.length >= PLAN_MAX) { dropped += 1; return; }
+    if (text.length > PLAN_CHARS) {
       trimmed += 1;
-      steps.push(text.slice(0, STEP_CHARS));
+      plan.push(text.slice(0, PLAN_CHARS));
     } else {
-      steps.push(text);
+      plan.push(text);
     }
   });
-  const cut = (dropped || trimmed) ? { kept: steps.length, dropped: dropped, trimmed: trimmed } : null;
-  return { steps: steps, cut: cut };
+  const cut = (dropped || trimmed) ? { kept: plan.length, dropped: dropped, trimmed: trimmed } : null;
+  return { plan: plan, cut: cut };
 }
 
-function stepsListOk(v) {
+function planListOk(v) {
   return Array.isArray(v) && v.every(function (item) { return typeof item === "string"; });
-}
-
-// The draft allow-list stays on allow. Plain-text steps are not that list.
-// A legacy value is still read when every entry is a pipeline token (or the
-// old comma string), so existing desks keep qualify / do / follow.
-function legacyPipeline(raw) {
-  if (!raw || typeof raw !== "object") return undefined;
-  if (raw.allow != null) return raw.allow;
-  if (typeof raw.steps === "string") return raw.steps;
-  if (Array.isArray(raw.steps) && raw.steps.length && raw.steps.every(function (s) {
-    if (typeof s !== "string") return false;
-    const t = s.trim().toLowerCase();
-    return STEPS_OK.indexOf(t) >= 0 || t === "collect" || t === "send" || t === "pay" || t === "money" || t === "mail";
-  })) return raw.steps;
-  return undefined;
-}
-
-function allowOf(ai) {
-  if (ai && Array.isArray(ai.allow) && ai.allow.length) {
-    return ai.allow.map(function (s) { return String(s).toLowerCase(); });
-  }
-  const steps = ai && ai.steps;
-  if (Array.isArray(steps) && steps.length && steps.every(function (s) {
-    return typeof s === "string" && STEPS_OK.indexOf(String(s).trim().toLowerCase()) >= 0;
-  })) {
-    return steps.map(function (s) { return String(s).trim().toLowerCase(); });
-  }
-  return STEPS_DEFAULT.slice();
 }
 
 function slugAi(name) {
@@ -126,10 +98,9 @@ function normalizeAi(raw, workspace) {
   const name = clip(raw.name, 40);
   if (!name) return null;
   const deny = neverOf(raw.deny || raw.never);
-  let pipeline = parseSteps(legacyPipeline(raw));
-  pipeline = pipeline.filter(function (s) { return deny.indexOf(s) < 0; });
-  if (!pipeline.length) pipeline = ["qualify"];
-  const textSteps = stepsText(raw.steps);
+  let steps = parseSteps(raw.steps || raw.allow);
+  steps = steps.filter(function (s) { return deny.indexOf(s) < 0; });
+  if (!steps.length) steps = ["qualify"];
   const aia = net.of(raw.aia || raw.aiaName || raw.host || raw.file || name, slugAi(name));
   return {
     id: clip(raw.id, 40) || slugAi(name),
@@ -143,8 +114,9 @@ function normalizeAi(raw, workspace) {
     does: clip(raw.does, 160) || DEFAULT_DOES,
     prompt: clip(raw.prompt, 400) || DEFAULT_PROMPT,
     rules: rulesText(raw.rules),
-    steps: textSteps.steps,
-    allow: pipeline,
+    plan: planText(raw.plan).plan,
+    steps: steps,
+    allow: steps.slice(),
     deny: deny,
     never: NEVER.slice(),
     draftOnly: true,
@@ -190,9 +162,10 @@ function publicAi(ai) {
     prompt: prompt,
     promptSummary: clip(prompt, 80),
     rules: rulesText(ai.rules),
+    plan: planText(ai.plan).plan,
     face: clip(ai.name, 40) + " · Then draft",
-    steps: stepsText(ai.steps).steps,
-    allow: allowOf(ai),
+    steps: ai.steps || [],
+    allow: ai.allow || ai.steps || [],
     deny: ai.deny || NEVER.slice(),
     never: NEVER.slice(),
     draftOnly: true,
@@ -216,7 +189,7 @@ function aiMayDraft(ai, step) {
   const deny = (ai.deny || NEVER).map(function (s) { return String(s).toLowerCase(); });
   if (deny.indexOf(st) >= 0) return false;
   if (deny.indexOf("send") < 0) deny.push("send");
-  const allow = allowOf(ai);
+  const allow = (ai.steps || ai.allow || STEPS_DEFAULT).map(function (s) { return String(s).toLowerCase(); });
   return allow.indexOf(st) >= 0;
 }
 
@@ -419,8 +392,8 @@ module.exports = {
   DEFAULT_PROMPT,
   clip,
   rulesText,
-  stepsText,
-  stepsListOk,
+  planText,
+  planListOk,
   slugAi,
   normalizeAi,
   normalizeAis,

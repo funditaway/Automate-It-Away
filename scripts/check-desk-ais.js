@@ -277,7 +277,7 @@ async function main() {
   if (!bare || (bare.prompt || "").indexOf("Draft ready") < 0 || (bare.does || "").indexOf("Nothing sent") < 0) {
     fail("empty does / prompt must fall back to AIA canon");
   } else pass("empty does / prompt fall back to AIA canon");
-  if (!made.allow || made.allow.indexOf("collect") >= 0) fail("AI must not draft collect");
+  if (made.steps.indexOf("collect") >= 0) fail("AI must not draft collect");
   else pass("collect is denied");
   if (made.never.indexOf("send") < 0 || made.never.indexOf("money") < 0 || made.never.indexOf("yes") < 0) fail("never missing send/money/yes");
   else pass("never send/stop/money/yes");
@@ -298,7 +298,7 @@ async function main() {
     name: "Project AI",
     role: "Worker",
     does: "Qualify cards on this desk",
-    steps: ["qualify", "follow"]
+    steps: "qualify, follow"
   });
   if (saveAi.statusCode !== 200 || !saveAi.body.ok || !(saveAi.body.ais || []).some(function (a) { return a.name === "Project AI"; })) {
     fail("save-ai " + saveAi.statusCode + " " + JSON.stringify(saveAi.body));
@@ -337,7 +337,7 @@ async function main() {
     name: "Session AI",
     role: "Doer",
     does: "Draft on leftover email session",
-    steps: ["qualify", "follow"]
+    steps: "qualify, follow"
   });
   if (leftoverBind.statusCode !== 200 || !leftoverBind.body || !leftoverBind.body.ok || !(leftoverBind.body.ais || []).some(function (a) { return a && a.name === "Session AI"; })) {
     fail("leftover email-session owner save-ai should 200, got " + leftoverBind.statusCode + " " + JSON.stringify(leftoverBind.body));
@@ -395,7 +395,7 @@ async function main() {
     name: "Fold AI",
     role: "Doer",
     does: "Draft on the folded desk",
-    steps: ["qualify", "follow"]
+    steps: "qualify, follow"
   }, { via: "desks" });
   if (foldSave.statusCode !== 200 || !foldSave.body || !foldSave.body.ok || !(foldSave.body.ais || []).some(function (a) { return a && a.name === "Fold AI"; })) {
     fail("folded save-ai must bind on the onboard desk " + foldSave.statusCode + " " + JSON.stringify(foldSave.body));
