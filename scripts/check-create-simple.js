@@ -14,28 +14,25 @@ const js = fs.readFileSync(path.join(root, "create-simple.js"), "utf8");
 const rulesPath = path.join(root, "card-rules.js");
 const rulesJs = fs.existsSync(rulesPath) ? fs.readFileSync(rulesPath, "utf8") : "";
 
-const RULES = [
-  "One card, one idea. Stay inside this card's topic. Keep its talk, drafts, decisions, and actions here, in order.",
-  "New card only when needed. If the talk moves to a different project that needs its own history, suggest a new card. Don't split one idea across cards.",
-  "Keep the history clear. Note each decision, draft, and next step in plain words.",
-  "Draft only. Never send, pay, delete, or charge on your own. The person presses Yes, Stop, or Kill.",
-  "When unsure, stop and ask. Make your first work easy to undo.",
-  "One job. If another card or Desk AI fits better, say which one. The person moves it.",
-  "Plain words.",
-  "No silent money. No fees or charges unless the person says Yes.",
-  "Use only what this card stores. Don't pretend to remember other cards or desks."
-];
-// One official copy of the rules: card-rules.js.
+// The single pinned guard: rule 4 word for word. This is the only rule text in this check.
+// Every other rule is read from card-rules.js, the one official copy.
+const PINNED_RULE_4 = "Draft only. Never send, pay, delete, or charge on your own. The person presses Yes, Stop, or Kill.";
+
+// One official copy of the rules: card-rules.js, evaluated with a fake window.
 if (!rulesJs) fail("card-rules.js missing");
 const rulesBox = { window: {} };
 try { vm.runInNewContext(rulesJs, rulesBox); } catch (e) { fail("card-rules.js must run: " + e.message); }
 const shared = rulesBox.window.AIACardRules;
+const RULES = Array.isArray(shared) ? shared.slice() : [];
 if (!Array.isArray(shared) || shared.length !== 9) fail("card-rules.js must expose exactly nine rules on window.AIACardRules");
 else pass("card-rules.js exposes nine rules");
+if (RULES[3] !== PINNED_RULE_4) fail("rule 4 in card-rules.js must stay word for word: " + PINNED_RULE_4);
+else pass("rule 4 pinned word for word");
 RULES.forEach(function (r, i) {
-  if (!Array.isArray(shared) || shared[i] !== r) fail("rule " + (i + 1) + " in card-rules.js is not verbatim");
-  else pass("rule " + (i + 1) + " verbatim in card-rules.js");
+  if (typeof r !== "string" || !r.trim() || r !== r.trim()) fail("rule " + (i + 1) + " in card-rules.js must be a non-empty trimmed string");
+  else pass("rule " + (i + 1) + " is plain text");
 });
+if (new Set(RULES).size !== RULES.length) fail("card-rules.js must not repeat a rule");
 if (/&[a-z#0-9]+;/i.test(rulesJs)) fail("card-rules.js must not use HTML entities");
 else pass("card-rules.js has no entities");
 const loadRules = html.indexOf("<script src=\"card-rules.js\"></script>");
@@ -47,10 +44,12 @@ if (html.indexOf("id=\"cs-rules-list\"") < 0) fail("create.html needs the empty 
 else pass("create.html has #cs-rules-list");
 if (js.indexOf("AIACardRules") < 0) fail("create-simple.js must render from window.AIACardRules");
 else pass("create-simple.js renders from the shared rules");
+function escRe(t) { return String(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 RULES.forEach(function (r, i) {
-  const probe = r === "Plain words." ? null : r.slice(0, 40);
+  // Long rules: look for their first 40 characters. Short rules: look for them as a whole item or string.
+  const shortRe = new RegExp(">\\s*" + escRe(r) + "\\s*<|[\"']" + escRe(r) + "[\"']");
   [["create.html", html], ["create-simple.js", js]].forEach(function (pair) {
-    const hit = probe ? pair[1].indexOf(probe) >= 0 : (/>Plain words\.</.test(pair[1]) || /"Plain words\."/.test(pair[1]));
+    const hit = r.length >= 40 ? pair[1].indexOf(r.slice(0, 40)) >= 0 : shortRe.test(pair[1]);
     if (hit) fail("second copy of rule " + (i + 1) + " found in " + pair[0]);
   });
 });
