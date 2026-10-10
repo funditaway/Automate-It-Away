@@ -110,7 +110,26 @@
     return Array.isArray(list) ? list.slice() : [];
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules };
+  /* The nine rules as one text, one rule per line, for the Desk AI rules field. Stored text only. */
+  function rulesText() {
+    return rules().join("\n");
+  }
+
+  function saveBody(d) {
+    return { action: "save-ai", id: "", name: d.name, does: d.job, prompt: promptOf(d), steps: (d.steps || []).slice(), rules: rulesText() };
+  }
+
+  /* Honest line after Yes: only say the desk stored the rules if the saved Desk AI came back with them. */
+  function rulesStored(out) {
+    return !!(out && out.ai && typeof out.ai.rules === "string" && out.ai.rules.trim());
+  }
+  function rulesLine(out) {
+    return rulesStored(out)
+      ? "The desk stored the nine rules with it, as text. Nothing enforces them."
+      : "The desk does not store the rules yet. Nothing enforces them.";
+  }
+
+  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -258,7 +277,7 @@
       var r = await fetch("/api/desks", {
         method: "POST",
         headers: hdr(),
-        body: JSON.stringify({ action: "save-ai", id: "", name: d.name, does: d.job, prompt: promptOf(d), steps: (d.steps || []).slice() })
+        body: JSON.stringify(saveBody(d))
       });
       var out = await r.json().catch(function () { return {}; });
       if (!r.ok || out.ok === false) {
@@ -270,7 +289,8 @@
       el("cs-test").hidden = true;
       el("cs-step").textContent = "Done";
       var done = el("cs-done");
-      done.textContent = d.name + " is named on this desk. It drafts only. Nothing was sent or charged.";
+      done.textContent = d.name + " is named on this desk. It drafts only. Nothing was sent or charged. " + rulesLine(out);
+      if (rulesStored(out) && el("cs-rules-note")) el("cs-rules-note").textContent = "Shown so you know how it should act. The desk stored these rules with your Desk AI, as text. Nothing enforces them.";
       done.hidden = false;
       el("cs-open-desk").hidden = false;
     } catch (e) {

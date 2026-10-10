@@ -165,5 +165,51 @@ else pass("save-ai does is the job line");
 if (/split\(\/\[,;\\n\]\+\/\)/.test(js)) fail("create-simple.js must not split edited text on commas");
 else pass("no comma split on edited text");
 
+// Yes sends the nine rules from card-rules.js in the save-ai body, one rule per line.
+const ruleSandbox = { window: { AIACardRules: Array.isArray(shared) ? shared : [] }, console: console };
+ruleSandbox.window.document = null;
+vm.runInNewContext(js, ruleSandbox);
+const rapi = ruleSandbox.window.AIACreateSimple;
+const joined = Array.isArray(shared) ? shared.join("\n") : "";
+if (!rapi || typeof rapi.saveBody !== "function") fail("create-simple.js must build the save-ai body with saveBody");
+else {
+  const body = rapi.saveBody({ name: "Pickup helper", job: "Drafts a reply, then a reminder", watches: ["Pickup changes"], drafts: ["The reply"], needs: ["Your Yes"], steps: ["qualify", "do"] });
+  if (body.action !== "save-ai") fail("saveBody must be a save-ai body");
+  else pass("saveBody is a save-ai body");
+  if (body.rules !== joined) fail("save-ai body must carry rules from card-rules.js, joined with line breaks");
+  else pass("save-ai body carries the nine rules from card-rules.js");
+  if (joined.length > 1000) fail("joined rules must fit the 1000 character Desk AI rules field");
+  else pass("joined rules fit under 1000 characters (" + joined.length + ")");
+  if (!Array.isArray(body.steps)) fail("save-ai steps must be a list");
+  else pass("save-ai steps are a list");
+  // The honest line follows the server's answer, and never claims enforcement.
+  const stored = rapi.rulesLine({ ok: true, ai: { rules: joined } });
+  const notStored = rapi.rulesLine({ ok: true, ai: { name: "Pickup helper" } });
+  const blank = rapi.rulesLine({ ok: true, ai: { rules: "" } });
+  if (!rapi.rulesStored({ ai: { rules: joined } }) || stored.indexOf("stored the nine rules") < 0) fail("when the saved Desk AI returns rules, say the desk stored them");
+  else pass("says the desk stored the rules only when they come back");
+  if (rapi.rulesStored({ ai: {} }) || notStored.indexOf("does not store the rules yet") < 0 || blank.indexOf("does not store the rules yet") < 0) fail("when rules do not come back, keep the not-stored line");
+  else pass("keeps the not-stored line when rules do not come back");
+  [stored, notStored, blank].forEach(function (line) {
+    if (line.indexOf("Nothing enforces them.") < 0) fail("rules line must say nothing enforces them: " + line);
+  });
+  pass("rules lines never claim enforcement");
+}
+if (/\b(enforces|enforced)\b/i.test(js.replace(/Nothing enforces them/g, ""))) fail("create-simple.js must not claim the rules are enforced");
+else pass("no enforcement claim in create-simple.js");
+
+// When the server has the Desk AI rules field, the joined rules must come back whole.
+try {
+  const aisApi = require(path.join(root, "api", "_ais.js"));
+  if (typeof aisApi.rulesText === "function" && rapi && typeof rapi.saveBody === "function") {
+    const made = aisApi.normalizeAi(rapi.saveBody({ name: "Pickup helper", job: "Drafts a reply", watches: [], drafts: [], needs: [], steps: ["qualify"] }), "sample-desk");
+    const back = made && aisApi.publicAi(made);
+    if (!back || back.rules !== joined) fail("server rules field must return the joined rules whole");
+    else pass("server rules field returns the joined rules whole");
+  } else {
+    pass("server has no Desk AI rules field yet; the extra rules field is ignored");
+  }
+} catch (e) { fail("api/_ais.js must load: " + e.message); }
+
 if (bad) { console.error(bad + " check(s) failed"); process.exit(1); }
 console.log("check-create-simple ok");
