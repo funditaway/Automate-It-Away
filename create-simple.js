@@ -25,13 +25,10 @@
     return String(v == null ? "" : v).split(/\r?\n/).map(function (x) { return clean(x); }).filter(Boolean);
   }
 
-  /* The person's own steps, taken from their words: one per sentence, line, or "then". Any number. */
+  /* The person's own steps: one per typed line, any number. Lines are split on line breaks only (same rule as edited lists),
+     so "then", "Ms. Lee" and commas stay inside their step. Blank lines are ignored. */
   function planFrom(words) {
-    var parts = String(words == null ? "" : words)
-      .split(/\r?\n|[.!?]+\s+|;\s*|,?\s+then\s+/i)
-      .map(function (x) { return clean(x).replace(/[.!?]+$/, ""); })
-      .filter(Boolean);
-    return parts.length ? parts : [];
+    return linesOf(words);
   }
 
   /* Only for the short comma lists the studio-draft reply itself uses (kinds, fields, steps). Never for edited text. */
@@ -98,11 +95,15 @@
     return [
       "Draft only. The person presses Yes, Stop, or Kill.",
       "Needs from the person: " + linesOf(d && d.needs).join("; ") + ".",
-      "Job: " + clean(d && d.job) + ".",
+      "Job: " + serverJob(d) + ".",
       "Watches: " + linesOf(d && d.watches).join("; ") + ".",
       "Drafts: " + linesOf(d && d.drafts).join("; ") + ".",
       plan.length ? "Steps: " + plan.map(function (x, i) { return (i + 1) + ") " + x; }).join("; ") + "." : ""
     ];
+  }
+  /* The job exactly as the server keeps it (trim, first 160 characters), so the summary matches what is saved. */
+  function serverJob(d) {
+    return clean(String((d && d.job) == null ? "" : d.job).trim().slice(0, LIMITS.does));
   }
   function promptOf(d) {
     return clean(promptFull(promptParts(d)), LIMITS.prompt);
@@ -171,20 +172,58 @@
     if (!v || t.length <= v.length || t.indexOf(v) !== 0) return "";
     return "AIA kept the first " + n + " characters of the " + what + ".";
   }
+  /* Which pieces of the summary survived the 400-character cut, read from the saved text. */
+  var PIECES = [
+    { label: "Needs from the person:", name: "what it needs from you" },
+    { label: "Job:", name: "the job" },
+    { label: "Watches:", name: "what it watches" },
+    { label: "Drafts:", name: "what it drafts" },
+    { label: "Steps:", name: "the steps" }
+  ];
+  function andList(xs) {
+    if (xs.length < 2) return xs.join("");
+    return xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
+  }
+  function trimNote(d, savedPrompt) {
+    var saved = clean(savedPrompt);
+    var parts = promptParts(d);
+    var lost = [], partly = [];
+    PIECES.forEach(function (piece, i) {
+      var text = clean(parts[i + 1]);
+      if (!text || saved.indexOf(text) >= 0) return;
+      if (saved.indexOf(piece.label) < 0) { lost.push(piece.name); return; }
+      if (piece.label === "Steps:") {
+        var plan = linesOf(d && d.plan), kept = 0;
+        plan.forEach(function (x, k) { if (saved.indexOf((k + 1) + ") " + x) >= 0) kept = k + 1; });
+        partly.push(kept ? "Only the first " + kept + " of " + plan.length + " steps fit." : "None of the " + plan.length + " steps fit.");
+        return;
+      }
+      partly.push("Only part of " + piece.name + " fit.");
+    });
+    if (!lost.length && !partly.length) return "";
+    var out = ["AIA kept the first " + LIMITS.prompt + " characters of the summary."];
+    partly.forEach(function (x) { out.push(x); });
+    if (lost.length) {
+      var list = andList(lost);
+      out.push(list.charAt(0).toUpperCase() + list.slice(1) + " didn't fit.");
+    }
+    return out.join(" ");
+  }
   function savedLine(d, out) {
     var ai = (out && out.ai) || {};
     var name = clean(ai.name) || clean(d && d.name);
     var does = clean(ai.does);
-    var parts = [name + " is named on this desk."];
-    if (does) parts.push("Its job, as saved: " + does + (/[.!?]$/.test(does) ? "" : "."));
-    parts.push("It drafts only. Nothing was sent or charged.");
-    parts.push(cutNote(d && d.name, ai.name, LIMITS.name, "name"));
-    parts.push(cutNote(d && d.job, ai.does, LIMITS.does, "job"));
-    if (typeof ai.prompt === "string" && ai.prompt && promptLength(d) > clean(ai.prompt).length) parts.push("AIA kept the first " + LIMITS.prompt + " characters of the summary" + (linesOf(d && d.plan).length ? ", so the last steps were trimmed." : "."));
-    return parts.filter(Boolean).join(" ");
+    var head = [name + " is named on this desk."];
+    /* The saved job is shown exactly as stored, on its own line, with nothing added. */
+    var jobLine = does ? "Its job, as saved: " + does : "";
+    var rest = ["It drafts only. Nothing was sent or charged."];
+    rest.push(cutNote(d && d.name, ai.name, LIMITS.name, "name"));
+    rest.push(cutNote(d && d.job, ai.does, LIMITS.does, "job"));
+    rest.push(trimNote(d, typeof ai.prompt === "string" && ai.prompt ? ai.prompt : promptOf(d)));
+    return [head.join(" "), jobLine, rest.filter(Boolean).join(" ")].filter(Boolean).join("\n");
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts };
+  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -350,6 +389,7 @@
       el("cs-test").hidden = true;
       el("cs-step").textContent = "Done";
       var done = el("cs-done");
+      done.style.whiteSpace = "pre-line";
       done.textContent = savedLine(d, out) + " " + rulesLine(out);
       if (rulesStored(out) && el("cs-rules-note")) el("cs-rules-note").textContent = "Shown so you know how it should act. The desk stored these rules with your Desk AI, as text. Nothing enforces them.";
       done.hidden = false;

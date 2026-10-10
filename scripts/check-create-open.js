@@ -86,9 +86,9 @@ if (api) {
   const longLine = "x".repeat(2000);
   if (api.linesOf(longLine)[0].length !== 2000) fail("a long line must not be clipped");
   else pass("a 2000-character line is kept whole on the page");
-  const plan = api.planFrom("Read the note. Then draft a reply; ask me first. Remind me Friday");
-  if (plan.length < 3) fail("planFrom must keep every step the person gave");
-  else pass("planFrom keeps " + plan.length + " steps");
+  const plan = api.planFrom("Read the note\nThen draft a reply; ask me first\nRemind me Friday");
+  if (plan.length !== 3) fail("planFrom must keep every typed line as a step");
+  else pass("planFrom keeps " + plan.length + " typed lines as steps");
   const d = { name: "N", job: "J", plan: many, watches: many, drafts: many, needs: many };
   const sample = api.sampleDraft(d, { title: "t" }).join(" ");
   if (sample.indexOf("60 steps") < 0) fail("sample card must count all 60 steps");
@@ -237,6 +237,71 @@ pass("Yes, Stop and Kill unchanged");
   const studioPlan = api.fromStudio(typed, { name: "x", kind: "ai" }).plan;
   if (!studioPlan || studioPlan.length !== 3) fail("an AIA draft must keep the three typed steps too, got " + JSON.stringify(studioPlan));
   else pass("AIA draft keeps the three typed steps");
+})();
+
+// 9. Honest trim note: built from what really survived the 400-character cut, naming every lost piece.
+(function honestTrim() {
+  if (typeof api.trimNote !== "function") { fail("create-simple.js must expose trimNote"); return; }
+  const ais = require(path.join(root, "api", "_ais.js"));
+  function save(d) { return ais.publicAi(ais.normalizeAi(api.saveBody(d), "check-ws")); }
+
+  // Steps split on line breaks only.
+  const kept = api.planFrom("Ask Ms. Lee about Friday\n\n  \nRead the note then draft a reply\nCall Dad, Mom, or Sam\r\n");
+  if (JSON.stringify(kept) !== JSON.stringify(["Ask Ms. Lee about Friday", "Read the note then draft a reply", "Call Dad, Mom, or Sam"])) fail("steps must split on line breaks only (Ms. Lee, then, commas stay whole; blank lines ignored): " + JSON.stringify(kept));
+  else pass("steps split on line breaks only; 'Ms. Lee', ' then ' and commas stay whole, blank lines ignored");
+  if (api.planFrom("Read it. Then reply, then remind me").length !== 1) fail("one typed line must stay one step");
+
+  // The summary carries the job exactly as the server keeps it (first 160 characters).
+  const longJob = "Reads every school and carpool message and works out who is picking up which child on which day and drafts a short reply for me to check before anything goes out to anyone at all ever";
+  const jobPart = api.promptParts({ job: longJob }).filter(function (x) { return /^Job: /.test(x); })[0] || "";
+  if (jobPart !== "Job: " + longJob.slice(0, server.does).trim() + ".") fail("the summary must carry the job cut at " + server.does + " like the server: " + jobPart.slice(0, 60));
+  else pass("summary carries the job cut at " + server.does + ", same as the server");
+
+  // Probe case 1: a 2,717-character request with AIA drafting off: 42 typed lines, starter draft.
+  const lines = [];
+  for (let i = 1; i <= 42; i++) lines.push("Step " + i + " check the calendar and the carpool chat, then note it");
+  let words = lines.join("\n");
+  while (words.length < 2717) words += " ok";
+  words = words.slice(0, 2717);
+  const d1 = api.starterDraft(words);
+  if (words.length !== 2717 || d1.plan.length !== 42) fail("case 1 setup must be 2,717 characters and 42 steps, got " + words.length + " / " + d1.plan.length);
+  const ai1 = save(d1);
+  const line1 = api.savedLine(d1, { ok: true, ai: ai1 });
+  const expect1 = "AIA kept the first 400 characters of the summary. Only part of what it watches fit. What it drafts and the steps didn't fit.";
+  if (ai1.prompt.indexOf("Needs from the person: ") < 0 || ai1.prompt.indexOf("Drafts:") >= 0 || ai1.prompt.indexOf("Steps:") >= 0) fail("case 1 must save the lead, needs and job and lose drafts and steps: " + ai1.prompt.slice(-60));
+  if (line1.indexOf(expect1) < 0) fail("case 1 (2,717 characters, 42 steps) must name every lost piece: " + line1.split("\n").pop());
+  else pass("case 1 (2,717 characters, 42 steps): " + expect1);
+  if (/so the last steps were trimmed/.test(line1)) fail("case 1 must not say only the last steps were trimmed");
+
+  // Probe case 2: a long job pushes the cut into what it watches.
+  const d2 = { name: "Pickup helper", job: longJob, needs: "Names, dates, or details only you know\nYour Yes before anything is used", watches: "New cards on this desk about pickups, school runs and carpool changes for the whole family every week of the school year including holidays", drafts: "A reply, short and kind", plan: ["Read the message", "Draft a reply", "Remind me"] };
+  const ai2 = save(d2);
+  const line2 = api.savedLine(d2, { ok: true, ai: ai2 });
+  const expect2 = "Only part of what it watches fit. What it drafts and the steps didn't fit.";
+  if (ai2.prompt.length > server.prompt || ai2.prompt.indexOf("Needs from the person: Names, dates, or details only you know; Your Yes before anything is used.") < 0) fail("case 2 must keep the needs whole within " + server.prompt);
+  if (line2.indexOf(expect2) < 0 || line2.indexOf("AIA kept the first " + server.does + " characters of the job.") < 0) fail("case 2 (long job) must name the lost pieces and the job cut: " + line2.split("\n").pop());
+  else pass("case 2 (long job): " + expect2);
+
+  // Steps that partly fit are counted.
+  const d4 = { name: "Helper", job: "Drafts replies", needs: "Who picks up", watches: "Texts", drafts: "A reply", plan: lines.slice(0, 20) };
+  const line4 = api.savedLine(d4, { ok: true, ai: save(d4) });
+  const m4 = line4.match(/Only the first (\d+) of 20 steps fit\./);
+  if (!m4 || /didn't fit/.test(line4)) fail("partly kept steps must be counted, and nothing else listed: " + line4.split("\n").pop());
+  else pass("partly kept steps are counted: Only the first " + m4[1] + " of 20 steps fit.");
+
+  // Nothing that fits gets a trim note.
+  const d3 = { name: "Pickup helper", job: "Drafts pickup replies", needs: "Who picks up", watches: "Texts", drafts: "A reply", plan: ["Read", "Draft"] };
+  const line3 = api.savedLine(d3, { ok: true, ai: save(d3) });
+  if (/AIA kept the first|didn't fit|Only part/.test(line3)) fail("nothing that fits gets a trim note: " + line3);
+  else pass("a request that fits gets no trim note");
+
+  // The saved job is shown exactly as stored: no added period.
+  const shown = line3.split("\n").filter(function (l) { return l.indexOf("Its job, as saved: ") === 0; })[0];
+  if (shown !== "Its job, as saved: Drafts pickup replies") fail("the saved job must be shown with nothing added: " + JSON.stringify(shown));
+  else pass("saved job shown exactly as stored, no added period");
+  const shown2 = line2.split("\n").filter(function (l) { return l.indexOf("Its job, as saved: ") === 0; })[0];
+  if (shown2 !== "Its job, as saved: " + ai2.does.trim()) fail("a cut job must be shown exactly as stored: " + JSON.stringify(shown2));
+  if (!/done\.style\.whiteSpace = "pre-line"/.test(js)) fail("the after-Yes box must keep the saved job on its own line");
 })();
 
 if (bad) { console.error(bad + " check(s) failed"); process.exit(1); }
