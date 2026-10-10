@@ -274,9 +274,15 @@ const lead = "Draft only. The person presses Yes, Stop, or Kill.";
   const r501 = yes(d501);
   if (r501.ai.plan[2].length !== 500 || r501.line.indexOf("Step 3 was shortened to 500 characters.") < 0 || /didn't fit/.test(r501.line)) fail("a 501-character step must be noted as shortened: " + r501.line.split("\n").pop());
   else pass("501-character step: 'Step 3 was shortened to 500 characters.'");
-  const two = api.planNote({ kept: 3, dropped: 0, trimmed: 2, droppedIndexes: [], trimmedIndexes: [0, 2] });
+  const cut2 = { kept: 3, dropped: 0, trimmed: 2, droppedIndexes: [], trimmedIndexes: [0, 2] };
+  const two = api.planNote(cut2, ["a".repeat(500), "b", "c".repeat(500)], 3);
   if (two !== "Steps 1 and 3 were shortened to 500 characters.") fail("plural shortened wording: " + two);
-  if (api.planNote({ kept: 1, dropped: 1, trimmed: 0, droppedIndexes: [1], trimmedIndexes: [] }) !== "AIA kept the first step. Step 2 didn't fit.") fail("singular kept wording");
+  const mixed = api.planNote(cut2, ["a".repeat(499), "b", "c".repeat(500)], 3);
+  if (mixed !== "Step 1 was shortened to 499 characters. Step 3 was shortened to 500 characters.") fail("each count comes from its own stored step: " + mixed);
+  const noText = api.planNote(cut2, null, 3);
+  if (noText !== "Steps 1 and 3 were shortened to fit.") fail("no stored steps: plain 'to fit' wording, no number: " + noText);
+  if (api.planNote({ kept: 0, dropped: 1, trimmed: 0, droppedIndexes: [0], trimmedIndexes: [] }, [], 1) !== "Step 1 didn't fit.") fail("never 'the first 0 steps'");
+  if (api.planNote({ kept: 1, dropped: 1, trimmed: 0, droppedIndexes: [1], trimmedIndexes: [] }, ["a"], 2) !== "AIA kept the first step. Step 2 didn't fit.") fail("singular kept wording");
   else pass("singular and plural step wording");
   // planCut null: the saved steps are listed, no steps note.
   const rn = yes({ name: "Fine", job: "J", needs: "N", watches: "W", drafts: "D", plan: ["Read", "Draft"] });
@@ -344,22 +350,62 @@ const lead = "Draft only. The person presses Yes, Stop, or Kill.";
   else pass("job echo keeps the trailing space the server stored at 160");
 })();
 
+// 12. Every "kept the first N" / "shortened to N" count comes from the stored text (Probe: a space at the cut).
+function cp(x) { return Array.from(String(x)).length; }
+(function storedCounts() {
+  // The note code holds no fixed limit numbers.
+  const a = js.indexOf("function cpLen"), b = js.indexOf("var api = {");
+  const noteCode = a >= 0 && b > a ? js.slice(a, b) : "";
+  if (!noteCode) fail("could not find the note code in create-simple.js");
+  else if (/\b(500|160|40)\b/.test(noteCode) || /LIMITS\.(name|does|planChars|planSteps)/.test(noteCode)) fail("note code must not hold a literal 500/160/40 or read a fixed limit for a count");
+  else pass("note code has no literal 500, 160 or 40 and reads no fixed limit for counts");
+  // A 640-character step whose 500th character is a space, through the real save code here.
+  const step = "s".repeat(499) + " " + "t".repeat(140);
+  const r = yes({ name: "Space", job: "J", needs: "N", watches: "W", drafts: "D", plan: [step] });
+  const stored = r.ai.plan[0];
+  const want = "Step 1 was shortened to " + cp(stored) + " characters.";
+  if (step.length !== 640 || step.charAt(499) !== " ") fail("space-at-the-cut setup");
+  if (r.line.indexOf(want) < 0) fail("after Yes the step note must give the stored length (" + cp(stored) + "): " + r.last);
+  else pass("640-character step, space at 500: after Yes says '" + want + "' (stored " + cp(stored) + " here)");
+  if (cp(stored) === 499 && /shortened to 500/.test(r.line)) fail("stored 499 must never say 500");
+  // Job with a space at character 160; name with a space at character 40.
+  const job = "j".repeat(159) + " more words after the cut";
+  const name = "n".repeat(39) + " and more of the name";
+  const jr = yes({ name: name, job: job, needs: "N", watches: "W", drafts: "D", plan: [] });
+  const jw = "AIA kept the first " + cp(jr.ai.does) + " characters of the job.";
+  const nw = "AIA kept the first " + cp(jr.ai.name) + " characters of the name.";
+  if (jr.line.indexOf(jw) < 0 || jr.line.indexOf(nw) < 0) fail("job and name notes must give the stored lengths: " + jr.last);
+  else pass("job (space at 160) and name (space at 40) notes give the stored lengths (" + cp(jr.ai.does) + ", " + cp(jr.ai.name) + ")");
+  // A server that trims the trailing space (stored shorter): the note follows the stored text.
+  const shortAi = Object.assign({}, jr.ai, { does: "j".repeat(159), name: "n".repeat(39) });
+  const sl = api.savedLine({ name: name, job: job, needs: "N", watches: "W", drafts: "D", plan: [] }, { ok: true, ai: shortAi, planCut: null });
+  if (sl.indexOf("AIA kept the first 159 characters of the job.") < 0 || sl.indexOf("AIA kept the first 39 characters of the name.") < 0 || /first 160|first 40 /.test(sl)) fail("trimmed stored job/name must give 159/39: " + sl);
+  else pass("stored job 159 / name 39 (trailing space trimmed): notes say 159 and 39");
+  // Losing only a closing period is not losing part of a piece.
+  const dp = { name: "P", job: "Drafts replies", needs: "Who picks up", watches: "Texts", drafts: "A reply.", plan: [] };
+  const full = api.summaryMap(dp).full;
+  const tn = api.trimNote(dp, full.replace(/\.+$/, ""));
+  if (tn !== "") fail("only the closing periods lost must give no trim note: " + tn);
+  else pass("only the closing periods lost: no 'Only part of' note");
+})();
+
 // 11. Before Yes: the studio-draft reply's planCut (servers with plan polish) gives a plain steps note; no planCut, no note.
 function beforeYes() {
   if (typeof api.planFitNote !== "function") { fail("create-simple.js must expose planFitNote"); return Promise.resolve(); }
-  const withCut = { ok: false, grok: "off", plan: Array.from({ length: 200 }, function (_, i) { return "s" + i; }), planCut: { kept: 200, dropped: 1, trimmed: 1, droppedIndexes: [200], trimmedIndexes: [2] } };
-  const n1 = api.planFitNote(withCut);
+  const withCut = { ok: false, grok: "off", plan: Array.from({ length: 200 }, function (_, i) { return i === 2 ? "x".repeat(500) : "s" + i; }), planCut: { kept: 200, dropped: 1, trimmed: 1, droppedIndexes: [200], trimmedIndexes: [2] } };
+  const n1 = api.planFitNote(withCut, 201);
   if (n1 !== "AIA will keep the first 200 steps. Step 201 won't fit. Step 3 will be shortened to 500 characters.") fail("draft reply with planCut must give the before-Yes note: " + n1);
   else pass("draft reply with planCut: '" + n1 + "'");
-  const n2 = api.planFitNote({ kept: 1 } && { planCut: { kept: 1, dropped: 2, trimmed: 2, droppedIndexes: [1, 2], trimmedIndexes: [0, 3] } });
-  if (n2 !== "AIA will keep the first step. Steps 2 to 3 won't fit. Steps 1 and 4 will be shortened to 500 characters.") fail("before-Yes singular/plural: " + n2);
+  const n2 = api.planFitNote({ plan: ["a".repeat(499)], planCut: { kept: 1, dropped: 2, trimmed: 1, droppedIndexes: [1, 2], trimmedIndexes: [0] } }, 3);
+  if (n2 !== "AIA will keep the first step. Steps 2 to 3 won't fit. Step 1 will be shortened to 499 characters.") fail("before-Yes singular/plural: " + n2);
+  if (api.planFitNote({ plan: [], planCut: { kept: 0, dropped: 1, trimmed: 0, droppedIndexes: [5], trimmedIndexes: [] } }, 2) !== "") fail("a planCut whose step numbers don't fit the steps sent must be ignored");
   else pass("before-Yes singular and plural wording");
   if (api.planFitNote({ ok: true, pack: {} }) !== "" || api.planFitNote({ ok: true, pack: {}, planCut: null }) !== "" || api.planFitNote(null) !== "") fail("draft reply without planCut must give no before-Yes note");
   else pass("draft reply without planCut: no before-Yes note");
   // The page: a hidden note line by the steps, filled from the draft reply, hidden again on any step edit.
   if (!/<p class="cs-cut" id="cs-plan-fit"[^>]*hidden><\/p>/.test(csBlock)) fail("create.html needs the hidden #cs-plan-fit line near the steps");
   const di = (js.match(/async function draftIt\(\) \{[\s\S]*?\n  \}\n/) || [""])[0];
-  if ((di.match(/showPlanFit\(d\)/g) || []).length !== 1 || (di.match(/showPlanFit\(null\)/g) || []).length !== 2) fail("draftIt must fill the note from the draft reply (and clear it when there is none)");
+  if ((di.match(/showPlanFit\(d, planFrom\(raw\)\.length\)/g) || []).length !== 1 || (di.match(/showPlanFit\(null\)/g) || []).length !== 2) fail("draftIt must fill the note from the draft reply (and clear it when there is none)");
   else if (!/addEventListener\("input", clearPlanFit\)/.test(js) || !/function paintPlan[\s\S]*?clearPlanFit\(\);[\s\S]*?\n  \}/.test(js)) fail("editing the steps must hide the before-Yes note");
   else pass("page fills the before-Yes note from the draft reply and hides it when steps change");
   // The real studio-draft code on this branch (no drafter key, so no network): 201 steps.
@@ -370,12 +416,23 @@ function beforeYes() {
   return g.studioDraft("Help with pickups", {}, { kind: "ai", plan: plan201 }).then(function (out) {
     // Shape the reply the way api/_packs.js does for the drafting-off path.
     const reply = { ok: false, grok: "off", saved: false, plan: out.plan, planCut: out.planCut };
-    const note = api.planFitNote(reply);
+    const note = api.planFitNote(reply, plan201.length);
     if (out && out.planCut) {
       if (note.indexOf("AIA will keep the first 200 steps. Step 201 won't fit.") !== 0) fail("real studio-draft (plan polish): 201 steps must name step 201: " + note);
       else pass("real studio-draft returns planCut: before-Yes note '" + note + "'");
     } else if (note !== "") fail("real studio-draft without planCut must give no note");
     else pass("real studio-draft on this base returns no planCut: no before-Yes note (needs plan polish, PR 313)");
+    // Probe's space at the cut, before Yes: the count comes from the reply's stored plan.
+    const step = "s".repeat(499) + " " + "t".repeat(140);
+    return g.studioDraft("Help with pickups", {}, { kind: "ai", plan: [step] }).then(function (o2) {
+      const n = api.planFitNote({ ok: false, grok: "off", plan: o2.plan, planCut: o2.planCut }, 1);
+      if (o2 && o2.planCut) {
+        const want = "Step 1 will be shortened to " + cp(o2.plan[0]) + " characters.";
+        if (n !== want || (cp(o2.plan[0]) === 499 && /500/.test(n))) fail("before Yes the count must come from the reply's stored step: " + n);
+        else pass("real studio-draft, 640-character step with a space at 500: before Yes says '" + n + "'");
+      } else if (n !== "") fail("no planCut in the draft reply must give no note");
+      else pass("real studio-draft here returns no planCut for the space case: no before-Yes note");
+    });
   }).catch(function (e) { fail("real studio-draft case threw: " + e.message); });
 }
 

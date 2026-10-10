@@ -165,10 +165,14 @@
   }
 
   /* After Yes: echo what the desk actually saved (out.ai), not what was typed, and say plainly where it cut. */
-  function cutNote(typed, saved, n, what) {
+  /* Length by code point (what the server counts when it cuts by code point). */
+  function cpLen(x) { return Array.from(String(x == null ? "" : x)).length; }
+  /* The count always comes from the stored text, never from a fixed limit. No stored text, no note. */
+  function cutNote(typed, saved, what) {
+    if (typeof saved !== "string" || !clean(saved)) return "";
     var t = clean(typed), v = clean(saved);
-    if (!v || t.length <= v.length || t.indexOf(v) !== 0) return "";
-    return "AIA kept the first " + n + " characters of the " + what + ".";
+    if (t.length <= v.length || t.indexOf(v) !== 0) return "";
+    return "AIA kept the first " + cpLen(saved) + " characters of the " + what + ".";
   }
   /* Where each piece sits in the full summary. Each piece's own text starts after its label (after "Watches: "),
      and that is what the note compares with the length really saved, so a saved label alone counts as lost. */
@@ -181,8 +185,10 @@
       var start = cursor, end = start + text.length;
       if (i > 0) {
         var label = text.indexOf(": ") + 2;
-        /* A piece's closing period is not content: the page's word trim may drop it. */
-        var textEnd = /\.$/.test(text) ? end - 1 : end;
+        /* Closing periods are not content: losing only those is not losing part of the piece. */
+        var rel = text.length;
+        while (rel > label && text.charAt(rel - 1) === ".") rel -= 1;
+        var textEnd = start + rel;
         pieces.push({ name: PIECE_NAMES[i - 1], labelStart: start, start: start + label, end: textEnd });
       }
       chunks.push(text);
@@ -233,35 +239,52 @@
     }
     return { count: nums.length, text: (nums.length === 1 ? "Step " : "Steps ") + andList(out) };
   }
-  /* The steps note comes only from the server's planCut. Nothing when it is null. */
-  function planNote(planCut) {
-    if (!planCut || typeof planCut !== "object") return "";
+  /* A planCut only counts if its step numbers fit the steps that were sent. */
+  function cutFits(cut, sent) {
+    if (!cut || typeof cut !== "object") return false;
+    var all = [].concat(cut.droppedIndexes || [], cut.trimmedIndexes || []);
+    return all.every(function (i) { return typeof i === "number" && i % 1 === 0 && i >= 0 && (sent == null || i < sent); });
+  }
+  /* The stored text for a sent step (input position), skipping the dropped ones before it. */
+  function storedStep(cut, stored, i) {
+    if (!Array.isArray(stored)) return null;
+    var before = (cut.droppedIndexes || []).filter(function (j) { return j < i; }).length;
+    var x = stored[i - before];
+    return typeof x === "string" ? x : null;
+  }
+  /* Steps note from planCut. Every number comes from the stored steps; with no stored text it says "to fit". */
+  function cutSentences(cut, stored, sent, ahead) {
+    if (!cutFits(cut, sent)) return "";
     var out = [];
-    var dropped = stepRanges(planCut.droppedIndexes), trimmed = stepRanges(planCut.trimmedIndexes);
-    var kept = Number(planCut.kept) || 0;
+    var dropped = stepRanges(cut.droppedIndexes);
+    var kept = Array.isArray(stored) ? stored.length : (Number(cut.kept) || 0);
     if (dropped.count) {
-      out.push(kept === 1 ? "AIA kept the first step." : "AIA kept the first " + kept + " steps.");
-      out.push(dropped.text + " didn't fit.");
+      if (kept > 0) out.push((ahead ? "AIA will keep the first " : "AIA kept the first ") + (kept === 1 ? "step." : kept + " steps."));
+      out.push(dropped.text + (ahead ? " won't fit." : " didn't fit."));
     }
-    if (trimmed.count) out.push(trimmed.text + (trimmed.count === 1 ? " was" : " were") + " shortened to " + LIMITS.planChars + " characters.");
+    var groups = {}, order = [];
+    (cut.trimmedIndexes || []).forEach(function (i) {
+      var x = storedStep(cut, stored, i);
+      var key = x == null ? "" : String(cpLen(x));
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(i);
+    });
+    order.forEach(function (key) {
+      var r = stepRanges(groups[key]);
+      var verb = ahead ? " will be shortened" : (r.count === 1 ? " was shortened" : " were shortened");
+      out.push(r.text + verb + (key ? " to " + key + " characters." : " to fit."));
+    });
     return out.join(" ");
   }
-  /* Before Yes: if the studio-draft reply carries planCut (servers with plan polish), say which steps won't fit.
-     No planCut in the reply means nothing is said. After Yes, planNote uses the save reply's planCut instead. */
-  function planFitNote(reply) {
-    var cut = reply && typeof reply === "object" ? reply.planCut : null;
-    if (!cut || typeof cut !== "object") return "";
-    var out = [];
-    var dropped = stepRanges(cut.droppedIndexes), trimmed = stepRanges(cut.trimmedIndexes);
-    var kept = Number(cut.kept);
-    if (!(kept >= 0) && Array.isArray(reply.plan)) kept = reply.plan.length;
-    kept = kept || 0;
-    if (dropped.count) {
-      out.push(kept === 1 ? "AIA will keep the first step." : "AIA will keep the first " + kept + " steps.");
-      out.push(dropped.text + " won't fit.");
-    }
-    if (trimmed.count) out.push(trimmed.text + " will be shortened to " + LIMITS.planChars + " characters.");
-    return out.join(" ");
+  /* After Yes: from the save reply's planCut and the steps it stored. Nothing when planCut is null. */
+  function planNote(planCut, stored, sent) {
+    return cutSentences(planCut, stored, sent, false);
+  }
+  /* Before Yes: if the studio-draft reply carries planCut (servers with plan polish), say which steps won't fit,
+     reading lengths from the reply's plan. No planCut in the reply means nothing is said. */
+  function planFitNote(reply, sent) {
+    if (!reply || typeof reply !== "object") return "";
+    return cutSentences(reply.planCut, Array.isArray(reply.plan) ? reply.plan : null, sent, true);
   }
   /* The steps as the desk stored them (out.ai.plan). If the desk sent none back, say so plainly. */
   function planLines(d, out) {
@@ -271,7 +294,7 @@
     if (!ai.plan.length) return typed.length ? ["The desk did not keep any of the steps."] : [];
     var lines = ["Its steps, as saved:"];
     ai.plan.forEach(function (x, i) { lines.push((i + 1) + ") " + x); });
-    var note = planNote(out && out.planCut);
+    var note = planNote(out && out.planCut, ai.plan, typed.length);
     if (note) lines.push(note);
     return lines;
   }
@@ -283,8 +306,8 @@
     /* The saved job is shown exactly as stored (a trailing space kept too), on its own line, with nothing added. */
     var jobLine = clean(does) ? "Its job, as saved: " + does : "";
     var rest = ["It drafts only. Nothing was sent or charged."];
-    rest.push(cutNote(d && d.name, ai.name, LIMITS.name, "name"));
-    rest.push(cutNote(d && d.job, ai.does, LIMITS.does, "job"));
+    rest.push(cutNote(d && d.name, ai.name, "name"));
+    rest.push(cutNote(d && d.job, ai.does, "job"));
     rest.push(trimNote(d, typeof ai.prompt === "string" ? ai.prompt : ""));
     return [head.join(" "), jobLine].concat(planLines(d, out)).concat([rest.filter(Boolean).join(" ")]).filter(Boolean).join("\n");
   }
@@ -396,7 +419,7 @@
       if (r.ok && d && d.ok && d.pack) showDraft(fromStudio(raw, d.pack));
       else if (d && d.grok === "off") showDraft(starterDraft(raw), "AIA drafting is not on for this desk yet, so this starter is made from your words. Change anything in plain words.");
       else showDraft(starterDraft(raw), (d && d.error ? d.error + " " : "AIA did not draft this time. ") + "This starter is made from your words.");
-      showPlanFit(d);
+      showPlanFit(d, planFrom(raw).length);
     } catch (e) {
       showDraft(starterDraft(raw), "Could not reach the desk. This starter is made from your words.");
       showPlanFit(null);
@@ -487,10 +510,10 @@
   }
 
   /* The before-Yes steps note. It describes the steps as drafted, so any edit to the steps hides it. */
-  function showPlanFit(reply) {
+  function showPlanFit(reply, sent) {
     var p = el("cs-plan-fit");
     if (!p) return;
-    var t = planFitNote(reply);
+    var t = planFitNote(reply, sent);
     p.textContent = t;
     p.hidden = !t;
   }
