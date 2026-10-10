@@ -312,7 +312,40 @@
     return [head.join(" "), jobLine].concat(planLines(d, out)).concat([rest.filter(Boolean).join(" ")]).filter(Boolean).join("\n");
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote, summaryMap: summaryMap, savedLength: savedLength, planNote: planNote, planLines: planLines, planFitNote: planFitNote };
+  /* A save counts only if the desk's own list (out.ais) holds a row with the saved AI's id. Match by id only;
+     no id means not saved. Both 310 and plan polish always send ais on a real save, so no list means not saved. */
+  function savedRow(out) {
+    var ai = out && out.ai;
+    if (!ai || typeof ai !== "object" || ai.id == null || ai.id === "") return null;
+    if (!Array.isArray(out.ais)) return null;
+    for (var i = 0; i < out.ais.length; i++) {
+      var row = out.ais[i];
+      if (row && typeof row === "object" && row.id === ai.id) return row;
+    }
+    return null;
+  }
+  /* The reply with ai replaced by the row the desk really keeps, so every count is read from that row. */
+  function savedReply(out) {
+    var row = savedRow(out);
+    if (!row) return null;
+    var copy = {};
+    for (var k in out) if (Object.prototype.hasOwnProperty.call(out, k)) copy[k] = out[k];
+    copy.ai = row;
+    return copy;
+  }
+  /* Not saved: the server's error exactly as sent, or a plain line. No saved, rules, steps or trim claims. */
+  function notSavedText(out) {
+    return out && typeof out.error === "string" && out.error ? out.error : "The desk did not save it. Nothing was saved.";
+  }
+  /* What the page says after Yes. httpOk is r.ok from the fetch. */
+  function yesResult(d, out, httpOk) {
+    if (!httpOk || !out || out.ok === false) return { saved: false, text: ((out && out.error) || "The desk did not save it.") + " Nothing was saved." };
+    var got = savedReply(out);
+    if (!got) return { saved: false, text: notSavedText(out) };
+    return { saved: true, text: savedLine(d, got) + " " + rulesLine(got), rulesStored: rulesStored(got) };
+  }
+
+  var api = { savedRow: savedRow, savedReply: savedReply, notSavedText: notSavedText, yesResult: yesResult, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote, summaryMap: summaryMap, savedLength: savedLength, planNote: planNote, planLines: planLines, planFitNote: planFitNote };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -472,8 +505,9 @@
         body: JSON.stringify(saveBody(d))
       });
       var out = await r.json().catch(function () { return {}; });
-      if (!r.ok || out.ok === false) {
-        note("cs-test-note", ((out && out.error) || "The desk did not save it.") + " Nothing was saved.", "err");
+      var res = yesResult(d, out, r.ok);
+      if (!res.saved) {
+        note("cs-test-note", res.text, "err");
         return;
       }
       el("cs-ask").hidden = true;
@@ -482,8 +516,8 @@
       el("cs-step").textContent = "Done";
       var done = el("cs-done");
       done.style.whiteSpace = "pre-line";
-      done.textContent = savedLine(d, out) + " " + rulesLine(out);
-      if (rulesStored(out) && el("cs-rules-note")) el("cs-rules-note").textContent = "Shown so you know how it should act. The desk stored these rules with your Desk AI, as text. Nothing enforces them.";
+      done.textContent = res.text;
+      if (res.rulesStored && el("cs-rules-note")) el("cs-rules-note").textContent = "Shown so you know how it should act. The desk stored these rules with your Desk AI, as text. Nothing enforces them.";
       done.hidden = false;
       el("cs-open-desk").hidden = false;
     } catch (e) {

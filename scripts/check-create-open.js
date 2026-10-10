@@ -33,6 +33,7 @@ pass("server limits: brief " + server.brief + ", name " + server.name + ", does 
 
 // The page's LIMITS must equal the server's.
 const box = { window: { document: null }, console: console };
+vm.runInNewContext(read("card-rules.js"), box);
 vm.runInNewContext(js, box);
 const api = box.window.AIACreateSimple;
 if (!api || !api.LIMITS) fail("create-simple.js must expose LIMITS");
@@ -158,19 +159,40 @@ const packsSrc = read("api/_packs.js");
 if (!/planCut: planPack\.cut/.test(packsSrc) || !/ais\.planText\(incoming && incoming\.plan\)/.test(packsSrc)) fail("api/_packs.js save-ai must return planCut from planText (310)");
 else pass("api/_packs.js save-ai stores plan and returns planCut");
 const ais = require(path.join(root, "api", "_ais.js"));
-function saveReal(body) {
+// The handler's glue around those calls, mirrored from this branch's api/_packs.js: attach to the desk, then reply
+// with ai (the made row on 310, the stored row on plan polish) and ais from railsOf(shop).
+const replyFromStored = /const stored = \(shop\.ais \|\| \[\]\)\.find/.test(packsSrc) && /ai: ais\.publicAi\(stored\)/.test(packsSrc);
+if (!/ais: rails\.ais/.test(packsSrc) || !(replyFromStored || /ai: ais\.publicAi\(made\)/.test(packsSrc))) fail("save-ai reply shape changed (ai / ais); update saveReal");
+else pass("save-ai replies with ai and ais (" + (replyFromStored ? "ai = stored row" : "ai = made row") + ")");
+function freshDesk() { return { slug: "check-ws", ais: [], people: [] }; }
+function saveReal(body, shop) {
+  shop = shop || freshDesk();
   const incoming = body.ai && typeof body.ai === "object" ? body.ai : body;
   if (incoming && incoming.plan != null && !ais.planListOk(incoming.plan)) return { ok: false, error: "(server error text)" };
   const planPack = ais.planText(incoming && incoming.plan);
   const made = ais.normalizeAi(body.ai || body, "check-ws");
-  return { ok: true, ai: ais.publicAi(made), planCut: planPack.cut };
+  if (!made) return { ok: false, error: "(server error text)" };
+  const added = ais.attachAisToDesk(shop, [made]);
+  let row = made;
+  if (replyFromStored) {
+    const want = String(made.name || "").trim().toLowerCase();
+    row = (shop.ais || []).find(function (x) { return x && made.id && x.id === made.id; }) || (shop.ais || []).find(function (x) { return x && String(x.name || "").trim().toLowerCase() === want; }) || made;
+  }
+  const rails = ais.railsOf(shop);
+  return { ok: true, ai: ais.publicAi(row), planCut: planPack.cut, ais: rails.ais, added: added, charged: false };
 }
-function yes(d) { const out = saveReal(api.saveBody(d)); const line = api.savedLine(d, out); return { out: out, ai: out.ai, line: line, last: line.split("\n").pop() }; }
+function yes(d, shop) {
+  const out = saveReal(api.saveBody(d), shop);
+  const res = api.yesResult(d, out, true);
+  if (!res.saved) fail("this save should count as saved: " + res.text);
+  const got = api.savedReply(out) || out;
+  return { out: got, ai: got.ai, line: res.text, last: res.text.split("\n").pop(), res: res };
+}
 const lead = "Draft only. The person presses Yes, Stop, or Kill.";
 
 (function savedValues() {
   if (!api || typeof api.savedLine !== "function" || typeof api.promptParts !== "function") { fail("create-simple.js must expose savedLine and promptParts"); return; }
-  if (!/done\.textContent = savedLine\(d, out\)/.test(js)) fail("the after-Yes line must come from savedLine(d, out)");
+  if (!/var res = yesResult\(d, out, r\.ok\);/.test(js) || !/done\.textContent = res\.text;/.test(js) || !/if \(res\.rulesStored && /.test(js)) fail("the after-Yes text must come from yesResult(d, out, r.ok)");
   else pass("after-Yes line is built from the server reply");
   if (/done\.textContent = d\.name/.test(js)) fail("the after-Yes line must not echo the typed name");
   const longName = "Pickup and carpool helper for the whole family, every week";
@@ -181,8 +203,8 @@ const lead = "Draft only. The person presses Yes, Stop, or Kill.";
   else pass("after-Yes line shows the saved name (" + r.ai.name.length + " characters)");
   if (r.line.indexOf("Its job, as saved: " + r.ai.does + "\n") < 0 || r.line.indexOf(longJob) >= 0) fail("after-Yes line must show the saved job exactly");
   else pass("after-Yes line shows the saved job exactly (" + r.ai.does.length + " characters)");
-  if (r.line.indexOf("AIA kept the first " + server.name + " characters of the name.") < 0 || r.line.indexOf("AIA kept the first " + server.does + " characters of the job.") < 0) fail("after-Yes line must say the name and job were cut");
-  else pass("after-Yes line says the name (40) and job (160) were cut");
+  if (r.line.indexOf("AIA kept the first " + cp(r.ai.name) + " characters of the name.") < 0 || r.line.indexOf("AIA kept the first " + cp(r.ai.does) + " characters of the job.") < 0) fail("after-Yes line must say the name and job were cut, with the stored lengths");
+  else pass("after-Yes line says the name and job were cut, with the stored lengths (" + cp(r.ai.name) + ", " + cp(r.ai.does) + ")");
   if (!/drafts only\. Nothing was sent or charged\./.test(r.line)) fail("after-Yes line must keep the draft-only, nothing-sent line");
   const p = api.promptOf(typed);
   if (p.length > server.prompt || p.indexOf(lead) !== 0 || p.indexOf("Needs from the person: Names, dates, or details only you know.") < 0) fail("summary must be at most 400 and keep the lead and the whole needs line");
@@ -346,8 +368,8 @@ const lead = "Draft only. The person presses Yes, Stop, or Kill.";
   // Job echo keeps the stored trailing space at 160.
   const e = yes({ name: "Space", job: "a".repeat(159) + " and more words after the cut", needs: "N", watches: "W", drafts: "D", plan: [] });
   const eShown = e.line.split("\n").filter(function (l) { return l.indexOf("Its job, as saved: ") === 0; })[0];
-  if (!/ $/.test(e.ai.does) || eShown !== "Its job, as saved: " + e.ai.does) fail("job echo must keep the stored trailing space");
-  else pass("job echo keeps the trailing space the server stored at 160");
+  if (eShown !== "Its job, as saved: " + e.ai.does) fail("job echo must be the stored row's job exactly");
+  else pass("job echo is the stored row's job exactly (" + cp(e.ai.does) + " characters)");
 })();
 
 // 12. Every "kept the first N" / "shortened to N" count comes from the stored text (Probe: a space at the cut).
@@ -387,6 +409,51 @@ function cp(x) { return Array.from(String(x)).length; }
   const tn = api.trimNote(dp, full.replace(/\.+$/, ""));
   if (tn !== "") fail("only the closing periods lost must give no trim note: " + tn);
   else pass("only the closing periods lost: no 'Only part of' note");
+})();
+
+// 13. Saved only if the desk's own list holds the AI (Probe: a 7th AI on a desk that keeps 6).
+(function savedOnlyIfListed() {
+  const claims = /is named on this desk|, as saved|stored the nine rules|does not store the rules|AIA kept the first|shortened|didn't fit|Only part/;
+  function sixDesk() {
+    const shop = freshDesk();
+    ["One", "Two", "Three", "Four", "Five", "Six"].forEach(function (n) { ais.attachAisToDesk(shop, [ais.normalizeAi({ name: n, does: "Drafts " + n }, "check-ws")]); });
+    return shop;
+  }
+  const shop = sixDesk();
+  const d7 = { name: "Seventh Helper", job: "Drafts pickup replies", needs: "Who picks up", watches: "Texts", drafts: "A reply", plan: ["Read", "Draft"] };
+  const out = saveReal(api.saveBody(d7), shop);
+  const names = (out.ais || []).map(function (x) { return x.name; }).join(",");
+  const res = api.yesResult(d7, out, true);
+  if (out.ok !== true || /Seventh/.test(names)) fail("setup: the server should reply ok with a list that leaves the 7th out: ok=" + out.ok + " ais=" + names);
+  if (res.saved || claims.test(res.text) || res.text !== "The desk did not save it. Nothing was saved.") fail("7th AI not in the desk's list must make no saved, rules or steps claims: " + res.text);
+  else pass("7th AI on a 6-AI desk (" + (replyFromStored ? "ai = stored row" : "ai = made row") + "): ok but not in ais -> '" + res.text + "'");
+  // In the list: the saved lines show, read from the listed row.
+  const shop5 = freshDesk();
+  ["One", "Two", "Three", "Four", "Five"].forEach(function (n) { ais.attachAisToDesk(shop5, [ais.normalizeAi({ name: n }, "check-ws")]); });
+  const ok = saveReal(api.saveBody(d7), shop5);
+  const okRes = api.yesResult(d7, ok, true);
+  if (!okRes.saved || okRes.text.indexOf("Seventh Helper is named on this desk.") !== 0 || okRes.text.indexOf("Its steps, as saved:\n1) Read\n2) Draft") < 0 || !/stored the nine rules/.test(okRes.text)) fail("an AI in the desk's list must show the saved lines: " + okRes.text);
+  else pass("AI in the desk's list: named, job, steps and rules lines show");
+  // Counts come from the listed row, not out.ai.
+  const listed = Object.assign({}, ok.ai, { name: "Seventh Helper (desk)" });
+  const viaRow = api.yesResult(d7, Object.assign({}, ok, { ai: Object.assign({}, ok.ai, { name: "Other" }), ais: ok.ais.map(function (x) { return x.id === ok.ai.id ? listed : x; }) }), true);
+  if (viaRow.text.indexOf("Seventh Helper (desk) is named on this desk.") !== 0) fail("saved lines must read the row from out.ais: " + viaRow.text.split("\n")[0]);
+  else pass("saved lines read the matching row in out.ais, not out.ai");
+  // No id, no list, or a different id: not saved.
+  const noId = api.yesResult(d7, Object.assign({}, ok, { ai: Object.assign({}, ok.ai, { id: "" }) }), true);
+  const noList = api.yesResult(d7, { ok: true, ai: ok.ai }, true);
+  const nameOnly = api.yesResult(d7, Object.assign({}, ok, { ais: ok.ais.map(function (x) { return x.id === ok.ai.id ? Object.assign({}, x, { id: "other" }) : x; }) }), true);
+  if (noId.saved || noList.saved || nameOnly.saved || claims.test(noId.text + noList.text + nameOnly.text)) fail("no id, no ais, or only a name match must not count as saved");
+  else pass("no id, no ais list, or a name-only match: not saved, no claims");
+  // ok:true with an error and not listed: the error exactly as sent.
+  const withErr = api.yesResult(d7, { ok: true, ai: out.ai, ais: out.ais, error: "This desk already has 6 Desk AIs." }, true);
+  if (withErr.saved || withErr.text !== "This desk already has 6 Desk AIs.") fail("not saved with out.error: show it exactly: " + withErr.text);
+  // Plan polish's refusal: ok:false with the error -> shown as sent.
+  const refused = api.yesResult(d7, { ok: false, error: "This desk already has 6 Desk AIs." }, false);
+  if (refused.saved || refused.text !== "This desk already has 6 Desk AIs. Nothing was saved." || claims.test(refused.text)) fail("ok:false must show out.error as sent: " + refused.text);
+  else pass("ok:false 'This desk already has 6 Desk AIs.' shown as sent (then 'Nothing was saved.'), no claims");
+  if (/already has 6 Desk AIs|6 Desk AIs/.test(js)) fail("create-simple.js must not match on the 6-AI error text");
+  else pass("create-simple.js never matches on the 6-AI error text");
 })();
 
 // 11. Before Yes: the studio-draft reply's planCut (servers with plan polish) gives a plain steps note; no planCut, no note.
