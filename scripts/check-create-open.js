@@ -5,6 +5,7 @@ const path = require("path");
 const vm = require("vm");
 
 const os = require("os");
+const crypto = require("crypto");
 
 // The save cases run through the real save-ai handler on a temp store (never the live one).
 const store = path.join(os.tmpdir(), "aia-create-open-check-" + process.pid + "-" + Date.now() + ".json");
@@ -437,7 +438,13 @@ async function storedCounts() {
 // 13. Saved only if the desk's own list holds the AI (Probe: a 7th AI on a desk that keeps 6), through the real save-ai handler.
 async function savedOnlyIfListed() {
   const claims = /is named on this desk|, as saved|stored the nine rules|does not store the rules|AIA kept the first|shortened|didn't fit|Only part/;
-  function snap(shop) { return JSON.stringify({ ais: shop.ais, people: shop.people, packAis: shop.packAis, packBots: shop.packBots }); }
+  /* What "unchanged" means: the desk's AIs, its seats (people), and a sha256 of the whole temp store file,
+     which covers every other field the desk keeps. */
+  function storeHash() {
+    if (!fs.existsSync(store)) return "";
+    return crypto.createHash("sha256").update(fs.readFileSync(store)).digest("hex");
+  }
+  function snap(shop) { return JSON.stringify({ ais: shop.ais, people: shop.people, store: storeHash() }); }
   async function deskWith(names) {
     const desk = await freshDesk();
     for (let i = 0; i < names.length; i++) {
@@ -452,6 +459,7 @@ async function savedOnlyIfListed() {
   const six = await deskWith(["One", "Two", "Three", "Four", "Five", "Six"]);
   if ((six.shop.ais || []).length !== 6) fail("setup: the desk must hold 6 Desk AIs, got " + (six.shop.ais || []).length);
   const before = snap(six.shop);
+  if (!storeHash()) fail("setup: the temp store file must exist before the 7th save, so its hash proves nothing changed");
   const r7 = await saveViaDesks(d7, six);
   const res7 = api.yesResult(d7, r7.out, r7.httpOk);
   const seats7 = (six.shop.people || []).filter(function (p) { return p && /Seventh/.test(String(p.name || "")); });
