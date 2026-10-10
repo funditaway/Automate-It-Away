@@ -19,7 +19,9 @@ function fail(m) { failed += 1; console.error("FAIL " + m); }
 function pass(m) { console.log("ok   " + m); }
 
 const BODY_MAX = 1048576;
+const HOOK_MAX = 4000000;
 const TOO_BIG = "That's too big to send. Keep it under 1 MB.";
+const HOOK_TOO_BIG = "That's too big to take in. Keep it under 4 MB.";
 const SLUG = "once-desk";
 const PIN = "4242";
 
@@ -46,11 +48,11 @@ else pass("allDeskAis resolves stored rows");
 if (libSrc.indexOf("That's too big to send. Keep it under 1 MB.") < 0 || libSrc.indexOf("1048576") < 0) {
   fail("readBody must cap at 1048576 and name the 413 error");
 } else pass("readBody names the 1 MB cap");
-if (uploadSrc.indexOf("await readBody(req)") < 0) fail("upload.js must keep calling readBody(req)");
-else pass("upload.js still calls readBody(req)");
-if (uploadSrc.indexOf("Each file must stay under 8MB.") < 0 || !/const MAX = 8_000_000;/.test(uploadSrc)) {
-  fail("upload.js 8 MB file cap changed");
-} else pass("upload.js 8 MB file cap stays");
+if (uploadSrc.indexOf("readBody(req") < 0) fail("upload.js must keep calling readBody");
+else pass("upload.js still calls readBody");
+if (uploadSrc.indexOf("Each file must stay under 3 MB.") < 0 || !/const MAX = 3_000_000;/.test(uploadSrc)) {
+  fail("upload.js file cap must be 3,000,000");
+} else pass("upload.js file cap is 3,000,000");
 
 function walk(dir, acc) {
   fs.readdirSync(dir, { withFileTypes: true }).forEach(function (ent) {
@@ -505,21 +507,25 @@ async function main() {
   else pass("content-length over the cap is not read");
 
   install("old");
-  const beforeHook = storeSnap();
-  const hookReq = countingStream([Buffer.alloc(BODY_MAX + 1, 0x68)]);
-  hookReq.headers["content-length"] = String(BODY_MAX + 1);
+  const hookRaw = jsonOfSize(BODY_MAX + 1, { title: "Over one meg", from: "pipe" });
+  const hookReq = countingStream([Buffer.from(hookRaw)]);
+  hookReq.headers["content-length"] = String(Buffer.byteLength(hookRaw));
   hookReq.headers["x-workspace"] = SLUG;
   hookReq.url = "/api/hook";
   const hookRes = mockRes();
   await hookHandler(hookReq, hookRes);
-  if (hookRes.statusCode !== 413 || !hookRes.body || hookRes.body.ok !== false || hookRes.body.error !== TOO_BIG) {
-    fail("POST /api/hook of 1 MB + 1 must 413, got " + hookRes.statusCode + " " + JSON.stringify(hookRes.body));
-  } else pass("POST /api/hook of 1048577 bytes returns 413");
-  if (storeSnap() !== beforeHook) fail("POST /api/hook of 1 MB + 1 must save nothing");
-  else pass("POST /api/hook of 1 MB + 1 saves nothing");
-  if (hookReq.sent() !== 0) fail("hook content-length over the cap must not be read, sent " + hookReq.sent());
-  else pass("hook content-length over the cap is not read");
+  if (hookRes.statusCode === 413) {
+    fail("POST /api/hook just over 1 MB must not use the 1 MB cap, got " + JSON.stringify(hookRes.body));
+  } else if (hookRes.statusCode !== 201 || !hookRes.body || hookRes.body.ok !== true) {
+    fail("POST /api/hook just over 1 MB must still be accepted, got " + hookRes.statusCode + " " + JSON.stringify(hookRes.body && hookRes.body.error));
+  } else pass("POST /api/hook just over 1 MB is accepted");
+  const hookTooBig = (mem.jobs || []).filter(function (j) { return j && j.title === "Too big to take in"; });
+  if (hookTooBig.length) fail("POST /api/hook just over 1 MB must not file a too-big card");
+  else pass("POST /api/hook just over 1 MB files no too-big card");
+  if (hookReq.sent() !== Buffer.byteLength(hookRaw)) fail("hook under 4 MB must be read, sent " + hookReq.sent());
+  else pass("hook under 4 MB is read");
 
+  const beforeChunk = storeSnap();
   const chunks = [Buffer.alloc(400000, 0x61), Buffer.alloc(400000, 0x62), Buffer.alloc(400000, 0x63), Buffer.alloc(400000, 0x64)];
   const chunkReq = countingStream(chunks);
   const chunkRes = mockRes();
@@ -527,7 +533,7 @@ async function main() {
   if (chunkRes.statusCode !== 413 || !chunkRes.body || chunkRes.body.error !== TOO_BIG) {
     fail("chunked body over 1 MB must 413, got " + chunkRes.statusCode + " " + JSON.stringify(chunkRes.body));
   } else pass("chunked body over 1 MB returns 413");
-  if (storeSnap() !== beforeOver) fail("chunked oversize must save nothing");
+  if (storeSnap() !== beforeChunk) fail("chunked oversize must save nothing");
   else pass("chunked oversize saves nothing");
   if (!(chunkReq.sent() < Buffer.concat(chunks).length)) fail("reader kept going after the cap, sent " + chunkReq.sent());
   else pass("reader stops once the cap is crossed (" + chunkReq.sent() + " of " + Buffer.concat(chunks).length + ")");
@@ -578,18 +584,43 @@ async function main() {
     fail("upload over 1 MB should still save a small file, got " + wideUp.statusCode + " " + JSON.stringify(wideUp.body));
   } else pass("upload over 1 MB is exempt from the body cap");
 
-  const bigFile = Buffer.alloc(8000001, 0x61);
+  const fitFile = Buffer.alloc(2900000, 0x61);
+  const fitUpload = countingStream([Buffer.from(JSON.stringify({
+    name: "fit.txt",
+    type: "text/plain",
+    data: fitFile.toString("base64")
+  }))]);
+  fitUpload.headers["x-workspace"] = SLUG;
+  fitUpload.url = "/api/upload";
+  const fitUp = mockRes();
+  await uploadHandler(fitUpload, fitUp);
+  if (fitUp.statusCode !== 201 || !fitUp.body || fitUp.body.ok !== true) {
+    fail("2.9 MB upload should pass, got " + fitUp.statusCode + " " + JSON.stringify(fitUp.body && fitUp.body.error));
+  } else pass("a 2.9 MB file passes");
+
+  const bigFile = Buffer.alloc(3000001, 0x61);
   const bigUpload = countingStream([Buffer.from(JSON.stringify({
     name: "big.txt",
     type: "text/plain",
     data: bigFile.toString("base64")
   }))]);
   bigUpload.headers["x-workspace"] = SLUG;
+  bigUpload.headers["content-length"] = "100";
+  bigUpload.url = "/api/upload";
   const bigUp = mockRes();
   await uploadHandler(bigUpload, bigUp);
-  if (bigUp.statusCode !== 413 || !bigUp.body || bigUp.body.error !== "Each file must stay under 8MB.") {
-    fail("upload 8 MB cap changed, got " + bigUp.statusCode + " " + JSON.stringify(bigUp.body && bigUp.body.error));
-  } else pass("upload still rejects a file over 8 MB");
+  if (bigUp.statusCode !== 413 || !bigUp.body || bigUp.body.error !== "Each file must stay under 3 MB.") {
+    fail("upload 3 MB cap changed, got " + bigUp.statusCode + " " + JSON.stringify(bigUp.body && bigUp.body.error));
+  } else pass("3,000,001 decoded bytes is rejected");
+
+  const three = Buffer.alloc(3000000, 0x61);
+  const encoded = Buffer.byteLength(JSON.stringify({
+    name: "three.txt",
+    type: "text/plain",
+    data: three.toString("base64")
+  }));
+  if (!(encoded < 4.5 * 1024 * 1024)) fail("encoded 3 MB file is " + encoded + " bytes");
+  else pass("encoded 3 MB file is " + encoded + " bytes, under 4.5 MB");
 
   function parsedReq(body, extra) {
     const headers = ownerHeaders();
@@ -614,13 +645,6 @@ async function main() {
   }
 
   const parsedTargets = [
-    {
-      name: "hook",
-      handler: hookHandler,
-      small: { event: "update", title: "Parsed" },
-      fields: { event: "update", title: "Parsed" },
-      accept: function (res) { return res.statusCode === 201 && res.body && res.body.ok === true; }
-    },
     {
       name: "save-ai",
       handler: packHandler,
@@ -672,22 +696,66 @@ async function main() {
     } else pass("pre-parsed " + target.name + " just under the cap is accepted");
   }
 
-  install("old");
-  const hookOverText = jsonOfSize(BODY_MAX + 1, { event: "update", title: "Parsed" });
-  const beforeString = storeSnap();
-  const stringRes = await postParsed(hookHandler, hookOverText, {});
-  assert413("pre-parsed hook string over the cap with no content-length", stringRes, beforeString);
-  const beforeBuf = storeSnap();
-  const bufRes = await postParsed(hookHandler, Buffer.from(hookOverText), {});
-  assert413("pre-parsed hook Buffer over the cap with no content-length", bufRes, beforeBuf);
+  function hookAccepted(label, res) {
+    const cards = (mem.jobs || []).filter(function (j) { return j && j.title === "Too big to take in"; });
+    if (res.statusCode === 413) fail(label + " used a cap, got " + JSON.stringify(res.body));
+    else if (res.statusCode !== 201 || !res.body || res.body.ok !== true) {
+      fail(label + " must be accepted, got " + res.statusCode + " " + JSON.stringify(res.body && res.body.error));
+    } else if (cards.length) fail(label + " filed a too-big card");
+    else pass(label + " is accepted");
+  }
+
+  function assertHookCapped(label, res) {
+    const cards = (mem.jobs || []).filter(function (j) { return j && j.title === "Too big to take in"; });
+    if (res.statusCode !== 413 || !res.body || res.body.ok !== false || res.body.error !== HOOK_TOO_BIG) {
+      fail(label + " must 413 with the 4 MB error, got " + res.statusCode + " " + JSON.stringify(res.body && res.body.error));
+    } else if (cards.length !== 1) fail(label + " must file one too-big card, got " + cards.length);
+    else pass(label + " returns 413 and files one card");
+  }
 
   install("old");
-  const beforeRaw = storeSnap();
-  const rawReq = parsedReq({ event: "update", title: "Parsed" }, {});
-  rawReq.rawBody = "{\n  \"event\": \"update\"\n}" + " ".repeat(BODY_MAX);
+  hookAccepted("pre-parsed hook over 1 MB with content-length", await postParsed(hookHandler, { event: "update", title: "Parsed" }, { "content-length": String(BODY_MAX + 1) }));
+  install("old");
+  hookAccepted("pre-parsed hook object over 1 MB with no content-length", await postParsed(hookHandler, JSON.parse(jsonOfSize(BODY_MAX + 1, { event: "update", title: "Parsed" })), {}));
+  const hookMidText = jsonOfSize(BODY_MAX + 1, { event: "update", title: "Parsed" });
+  install("old");
+  hookAccepted("pre-parsed hook string over 1 MB with no content-length", await postParsed(hookHandler, hookMidText, {}));
+  install("old");
+  hookAccepted("pre-parsed hook Buffer over 1 MB with no content-length", await postParsed(hookHandler, Buffer.from(hookMidText), {}));
+
+  install("old");
+  assertHookCapped("pre-parsed hook over 4 MB with content-length", await postParsed(hookHandler, { event: "update", title: "Parsed", from: "ada@example.com", subject: "Big" }, { "content-length": String(HOOK_MAX + 1) }));
+  install("old");
+  assertHookCapped("pre-parsed hook object over 4 MB with no content-length", await postParsed(hookHandler, JSON.parse(jsonOfSize(HOOK_MAX + 1, { event: "update", title: "Parsed", from: "ada@example.com", subject: "Big" })), {}));
+  const hookFatText = jsonOfSize(HOOK_MAX + 1, { event: "update", title: "Parsed", from: "ada@example.com", subject: "Big" });
+  install("old");
+  assertHookCapped("pre-parsed hook string over 4 MB with no content-length", await postParsed(hookHandler, hookFatText, {}));
+  install("old");
+  assertHookCapped("pre-parsed hook Buffer over 4 MB with no content-length", await postParsed(hookHandler, Buffer.from(hookFatText), {}));
+
+  install("old");
+  const rawSmall = parsedReq({ event: "update", title: "Parsed" }, {});
+  rawSmall.rawBody = "{\n  \"event\": \"update\"\n}" + " ".repeat(BODY_MAX);
+  hookAccepted("pre-parsed hook rawBody over 1 MB", await (async function () {
+    const res = mockRes();
+    await hookHandler(rawSmall, res);
+    return res;
+  })());
+
+  install("old");
+  const rawReq = parsedReq({ event: "update", title: "Parsed", from: "ada@example.com", subject: "Big" }, {});
+  rawReq.rawBody = "x".repeat(HOOK_MAX + 1);
   const rawRes = mockRes();
   await hookHandler(rawReq, rawRes);
-  assert413("pre-parsed hook uses req.rawBody when content-length is absent", rawRes, beforeRaw);
+  assertHookCapped("pre-parsed hook uses req.rawBody when content-length is absent", rawRes);
+
+  install("old");
+  const beforePackRaw = storeSnap();
+  const packRaw = parsedReq({ action: "packs" }, {});
+  packRaw.rawBody = " ".repeat(BODY_MAX + 1);
+  const packRawRes = mockRes();
+  await packHandler(packRaw, packRawRes);
+  assert413("pre-parsed packs uses req.rawBody when content-length is absent", packRawRes, beforePackRaw);
 
   install("old");
   const beforeUp = storeSnap();
