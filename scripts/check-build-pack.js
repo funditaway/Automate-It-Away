@@ -48,7 +48,7 @@ must(help, "Human in the loop is Yes / Stop / Kill", "help.html HITL");
 must(help, "Not a Router Node", "help.html no Router Node");
 must(help, "Not a mesh of Desk AIs", "help.html no mesh of Desk AIs");
 must(help, "Not a node canvas", "help.html no node canvas");
-if (help.includes("Workflow &amp; Agent Pack Creator") || help.includes("Workflow & Agent Pack Creator")) {
+if (help.includes("Workflow &amp;amp; Agent Pack Creator") || help.includes("Workflow & Agent Pack Creator")) {
   throw new Error("help.html still titles Workflow & Agent Pack Creator");
 }
 must(help, "<dt>On-desk Pack Creator</dt>", "help.html On-desk Pack Creator");
@@ -94,7 +94,7 @@ must(more, "First .aia pack", "more.html first-pack title");
 
 must(studio, 'id="first-pack"', "studio first-pack card");
 must(studio, "First .aia pack", "studio first-pack title");
-must(studio, "Webhook is the live pipe", "studio first-pack webhook");
+must(studio, "The webhook is the incoming connection", "studio first-pack webhook");
 must(studio, "Buyer binds their own keys on Pipes", "studio first-pack buyer keys");
 must(studio, "Not a bindings product", "studio first-pack no bindings product");
 must(studio, "Yes / Stop / Kill before anything leaves", "studio first-pack Yes before outbound");

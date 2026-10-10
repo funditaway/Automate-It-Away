@@ -28,6 +28,32 @@ const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
 const pkg = read("package.json");
 
+// Webhook wording guard (runs first, before older checks that may stop the script).
+// The webhook is the incoming connection. No page, root script, PACK.md or ACCOUNT-YES-NO.md may call it
+// a "live pipe" or "live", or tie it to paying, unless that same sentence says it does not.
+(function webhookWords() {
+  const files = fs.readdirSync(root).filter((f) => /\.(html|js)$/.test(f)).concat(["PACK.md", "ACCOUNT-YES-NO.md"]);
+  const texts = files.map((f) => [f, read(f)]);
+  texts.push(["developer.z64.txt (Studio)", studioPack()]);
+  const hook = /\b(web ?hook|www hook)/i;
+  const liveWords = /live pipe|webhook is live|webhook live|webhook is the live/i;
+  const payWords = /\b(pay|pays|paid|paying|payment|payments|charge|charges|charged|checkout|buy|money)\b/i;
+  const negation = /\b(not|never|no)\b|n't\b/i;
+  const bad = [];
+  texts.forEach(([name, text]) => {
+    const plain = text.replace(/<[^>]+>/g, " ").replace(/\\n/g, " ");
+    plain.split(/(?<=[.!?;])\s+|\n|"\s*[,+\]]\s*"/).forEach((sentence) => {
+      if (!hook.test(sentence)) return;
+      if (liveWords.test(sentence)) bad.push(name + ": live pipe: " + sentence.trim().slice(0, 140));
+      else if (payWords.test(sentence) && !negation.test(sentence)) bad.push(name + ": webhook + paying: " + sentence.trim().slice(0, 140));
+    });
+  });
+  if (bad.length) throw new Error("webhook wording:\n  " + bad.join("\n  "));
+  must(tip, "The webhook brings work in. It doesn't take payment.", "pipes tip webhook brings work in");
+  must(read("index.html"), "The webhook brings work in.", "home webhook brings work in");
+  must(read("how.html"), "The app / webhook is the incoming connection.", "how App/webhook incoming");
+})();
+
 must(tip, "Ask AIA", "shared Ask AIA");
 must(tip, "support.html?ask=", "Ask AIA opens Help chat");
 must(tip, "&tip=", "Ask AIA sends plain tip text");
@@ -84,7 +110,7 @@ must(tip, '"connect-wallet"', "connect-wallet tip");
 must(tip, "When → If → Then on this desk queue", "give-pack When-If-Then queue");
 must(tip, "Buyer binds their own keys and devices", "give-pack buyer keys");
 must(tip, "before outbound or hardware", "give-pack Yes before hardware");
-must(tip, "App / webhook is the live pipe", "give-pack App/webhook near lane");
+must(tip, "The app / webhook is the incoming connection", "give-pack App/webhook near lane");
 must(tip, "Not Wallet.AIA", "tip wallet honesty");
 must(tip, "Collect stays HOLD", "tip Collect HOLD");
 mustNot(tip, "Zendesk", "tip Zendesk");
@@ -183,7 +209,7 @@ must(read("help.html"), 'data-aia-tip="give-pack"', "help Give pack tip");
 must(read("help.html"), "A pack puts When → If → Then on this desk queue", "help pack When-If-Then");
 must(read("help.html"), "Buyer binds their own keys and devices", "help pack buyer keys");
 must(read("help.html"), "before outbound or hardware", "help Yes before hardware");
-must(read("help.html"), "App / webhook is the live pipe", "help App/webhook near lane");
+must(read("help.html"), "The app / webhook is the incoming connection", "help App/webhook near lane");
 mustNot(read("help.html"), "IoT", "help IoT marketplace");
 mustNot(read("help.html"), "robotics", "help robotics labor");
 mustNot(read("help.html"), "humanoid", "help humanoid labor");
@@ -192,7 +218,7 @@ must(read("support.html"), 'data-aia-tip="support-title"', "support Title tip");
 must(read("support.html"), 'data-aia-tip="support-broke"', "support What-broke tip");
 must(read("support.html"), 'data-aia-tip="support-page"', "support page tip");
 must(tip, '"pipes"', "pipes tip");
-must(tip, "Webhook is live", "pipes webhook live");
+must(tip, "The webhook brings work in. It doesn't take payment.", "pipes webhook brings work in");
 must(tip, "Log in opens the vendor", "pipes login opens the vendor");
 must(read("pipes.html"), 'data-aia-tip="pipes"', "pipes page pipes tip");
 must(read("pipes.html"), 'data-aia-tip="desk-name"', "pipes Desk name tip");
