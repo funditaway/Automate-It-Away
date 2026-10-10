@@ -657,19 +657,25 @@ async function packHandler(req, res) {
     const made = ais.normalizeAi(body.ai || body, workspace);
     if (!made) return res.status(400).json({ ok: false, error: "Name the AI first." });
     const added = ais.attachAisToDesk(shop, [made]);
+    const wantName = String(made.name || "").trim().toLowerCase();
+    const stored = (shop.ais || []).find(function (row) {
+      return row && made.id && row.id === made.id;
+    }) || (shop.ais || []).find(function (row) {
+      return row && String(row.name || "").trim().toLowerCase() === wantName;
+    }) || made;
     await save();
-    log("Desk AI", "Attach · " + made.name, "OK", workspace);
+    log("Desk AI", "Attach · " + stored.name, "OK", workspace);
     const rails = ais.railsOf(shop);
     return res.status(200).json({
       ok: true,
-      ai: ais.publicAi(made),
+      ai: ais.publicAi(stored),
       planCut: planPack.cut,
       ais: rails.ais,
       added: added,
       charged: false,
       never: ais.NEVER.slice(),
       rails: rails.rails,
-      note: made.name + " is bound to this desk. Drafts only. Yes / Stop / Kill stay human. No silent money or mail."
+      note: stored.name + " is bound to this desk. Drafts only. Yes / Stop / Kill stay human. No silent money or mail."
     });
   }
 
