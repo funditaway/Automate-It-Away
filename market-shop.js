@@ -58,7 +58,7 @@
     const creatorId = p.creatorId || p.family || p.id || "";
     const useBtn = p.wanted
       ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
-        : p.priced
+        : (p.priced && p.collectHold && p.collectHold.pipe)
         ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install .aia</button>"
         : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Install .aia on this desk</button>";
     const holdNote = p.pipeMissing
@@ -187,7 +187,7 @@
     const ownerBtns = hasDesk()
       ? (p.wanted
         ? "<a class=\"use\" href=\"/create?kind=pack&idea=" + encodeURIComponent(p.id) + "\">Make this pack</a>"
-        : p.priced
+        : (p.priced && p.collectHold && p.collectHold.pipe)
           ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install .aia</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>"
           : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Install .aia on this desk</button><button class=\"use ghost\" type=\"button\" data-preview=\"" + esc(p.id) + "\">Preview</button>")
       : "<a class=\"use\" href=\"/onboard\">Open a desk to use it</a>";
@@ -229,7 +229,7 @@
       "</div>" +
       "<h2>On a real desk</h2>" +
       "<p class=\"hint\">No demo chrome. Buy / install puts the thin JSON onto this desk. Fresh desks start empty until a pack or a rule lands.</p>" +
-      (p.pipeMissing || (p.collectHold && !p.collectHold.pipe)
+      (p.pipeMissing || (p.priced && p.collectHold && !p.collectHold.pipe)
         ? "<p class=\"aia-line off\">" + esc((p.collectHold && p.collectHold.note) || "Ask is listed. No money pipe. Collect stays HOLD. Orange until Square or a live webhook is connected.") + "</p>"
         : (p.collectHold && p.collectHold.note ? "<p class=\"hint\">" + esc(p.collectHold.note) + "</p>" : "<p class=\"hint\">Collect stays HOLD. Packs never send money.</p>")) +
       "<h2>Creator</h2>" +
