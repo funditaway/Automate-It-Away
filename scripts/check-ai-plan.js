@@ -32,7 +32,8 @@ if (aisSrc.indexOf("Collect stays HOLD") < 0) fail("_ais.js Collect HOLD wording
 else pass("_ais.js Collect HOLD wording stays");
 if (grokSrc.indexOf("Collect stays HOLD") < 0) fail("_grok.js Collect HOLD wording changed");
 else pass("_grok.js Collect HOLD wording stays");
-if (packsSrc.indexOf("Steps must be a list of plain text.") < 0) fail("save-ai must refuse a bad plan");
+if (packsSrc.indexOf("Plan must be a list of plain text.") < 0) fail("save-ai must refuse a bad plan");
+else if (packsSrc.indexOf("Steps must be a list of plain text.") >= 0) fail("old plan error must be gone");
 else pass("save-ai names the plan error");
 if (packsSrc.indexOf("planCut:") < 0) fail("save-ai must report planCut");
 else pass("save-ai reports planCut");
@@ -68,6 +69,21 @@ async function call(handler, method, headers, body, query) {
 
 function same(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function loneSurrogate(s) {
+  const text = String(s || "");
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (c >= 0xD800 && c <= 0xDBFF) {
+      const n = text.charCodeAt(i + 1);
+      if (!(n >= 0xDC00 && n <= 0xDFFF)) return true;
+      i += 1;
+    } else if (c >= 0xDC00 && c <= 0xDFFF) {
+      return true;
+    }
+  }
+  return false;
 }
 
 const KEYS = ["XAI_API_KEY", "GROK_API_KEY", "AIA_GROK_KEY"];
@@ -239,6 +255,89 @@ async function main() {
     fail("501-character cap must report planCut, got " + JSON.stringify(trimCut));
   } else pass("501-character cap reports the trimmed index");
 
+  const emoji = "\u{1F600}";
+  const keepEmoji = "x".repeat(499) + emoji;
+  const emojiKeep = await call(packHandler, "POST", owner, {
+    action: "save-ai",
+    name: "Emoji Keep",
+    role: "Doer",
+    does: "Draft on this desk",
+    plan: [keepEmoji]
+  });
+  const emojiKeepAi = emojiKeep.body && emojiKeep.body.ai;
+  const emojiKeepStored = (shop.ais || []).find(function (a) { return a && a.name === "Emoji Keep"; });
+  if (!emojiKeepAi || !emojiKeepStored || emojiKeepAi.plan[0] !== keepEmoji || emojiKeepStored.plan[0] !== keepEmoji || Array.from(emojiKeepAi.plan[0]).length !== 500 || loneSurrogate(emojiKeepAi.plan[0])) {
+    fail("499 x plus one emoji must store all 500 code points, got " + JSON.stringify(emojiKeepAi && emojiKeepAi.plan));
+  } else if (emojiKeep.body.planCut !== null) {
+    fail("intact 500 code points must not count as trimmed, got " + JSON.stringify(emojiKeep.body.planCut));
+  } else pass("499 x plus one emoji stores 500 code points");
+
+  const dropEmoji = "x".repeat(500) + emoji;
+  const emojiDrop = await call(packHandler, "POST", owner, {
+    action: "save-ai",
+    name: "Emoji Drop",
+    role: "Doer",
+    does: "Draft on this desk",
+    plan: [dropEmoji]
+  });
+  const emojiDropAi = emojiDrop.body && emojiDrop.body.ai;
+  const emojiDropStored = (shop.ais || []).find(function (a) { return a && a.name === "Emoji Drop"; });
+  const emojiWant = "x".repeat(500);
+  const emojiCut = emojiDrop.body && emojiDrop.body.planCut;
+  if (!emojiDropAi || !emojiDropStored || emojiDropAi.plan[0] !== emojiWant || emojiDropStored.plan[0] !== emojiWant || Array.from(emojiDropAi.plan[0]).length !== 500 || emojiDropAi.plan[0].indexOf("\uD83D") >= 0 || loneSurrogate(emojiDropAi.plan[0])) {
+    fail("500 x plus emoji must drop the emoji whole, got " + JSON.stringify(emojiDropAi && emojiDropAi.plan));
+  } else if (!emojiCut || emojiCut.kept !== 1 || emojiCut.dropped !== 0 || emojiCut.trimmed !== 1 || !same(emojiCut.droppedIndexes, []) || !same(emojiCut.trimmedIndexes, [0])) {
+    fail("emoji past 500 must count as trimmed, got " + JSON.stringify(emojiCut));
+  } else pass("500 x plus emoji drops the emoji whole");
+
+  const rulesKeep = "r".repeat(999) + emoji;
+  const rulesDrop = "r".repeat(1000) + emoji;
+  const rulesKept = ais.rulesText(rulesKeep);
+  const rulesCapped = ais.rulesText(rulesDrop);
+  if (rulesKept !== rulesKeep || Array.from(rulesKept).length !== 1000 || loneSurrogate(rulesKept)) {
+    fail("rules must keep 999 r plus one emoji");
+  } else if (rulesCapped !== "r".repeat(1000) || Array.from(rulesCapped).length !== 1000 || loneSurrogate(rulesCapped)) {
+    fail("rules must drop an emoji past 1000 code points whole");
+  } else pass("rules cap counts code points");
+
+  const spaceStep = "x".repeat(499) + " ";
+  const spaceHit = await call(packHandler, "POST", owner, {
+    action: "save-ai",
+    name: "Space 500",
+    role: "Doer",
+    does: "Draft on this desk",
+    plan: [spaceStep]
+  });
+  const spaceAi = spaceHit.body && spaceHit.body.ai;
+  const spaceWant = spaceStep.trim();
+  if (!spaceAi || spaceAi.plan[0] !== spaceWant || Array.from(spaceStep)[499] !== " ") {
+    fail("500th code point space must store the trimmed line, got " + JSON.stringify(spaceAi && spaceAi.plan));
+  } else if (spaceHit.body.planCut !== null) {
+    fail("500th code point space must not count as trimmed when stored text equals the trimmed input, got " + JSON.stringify(spaceHit.body.planCut));
+  } else pass("500th code point space is not trimmed when stored text equals the trimmed input");
+
+  const exposed = "x".repeat(499) + " " + "TAIL";
+  const exposedHit = await call(packHandler, "POST", owner, {
+    action: "save-ai",
+    name: "Space Cut",
+    role: "Doer",
+    does: "Draft on this desk",
+    plan: [exposed, "short"]
+  });
+  const exposedAi = exposedHit.body && exposedHit.body.ai;
+  const exposedCut = exposedHit.body && exposedHit.body.planCut;
+  const exposedWant = "x".repeat(499);
+  if (!exposedAi || !same(exposedAi.plan, [exposedWant, "short"])) {
+    fail("cut that lands on a space must store the line without that trailing space, got " + JSON.stringify(exposedAi && exposedAi.plan));
+  } else if (!exposedCut || exposedCut.kept !== 2 || exposedCut.dropped !== 0 || exposedCut.trimmed !== 1 || !same(exposedCut.droppedIndexes, []) || !same(exposedCut.trimmedIndexes, [0])) {
+    fail("cut that changes the stored line must count as trimmed, got " + JSON.stringify(exposedCut));
+  } else pass("cut that lands on a space counts as trimmed only because the stored text changed");
+
+  const blankPack = ais.planText([" ".repeat(600), "keep"]);
+  if (!same(blankPack.plan, ["keep"]) || !blankPack.cut || blankPack.cut.dropped !== 1 || blankPack.cut.trimmed !== 0 || !same(blankPack.cut.droppedIndexes, [0]) || !same(blankPack.cut.trimmedIndexes, [])) {
+    fail("a step that ends up empty must be dropped, not trimmed, got " + JSON.stringify(blankPack));
+  } else pass("a step that ends up empty is dropped");
+
   const emptied = await call(packHandler, "POST", owner, {
     action: "save-ai",
     name: "Empty AI",
@@ -279,7 +378,7 @@ async function main() {
     const err = rejected.body && rejected.body.error;
     const names = (shop.ais || []).map(function (a) { return a && a.name; });
     if (rejected.statusCode !== 400) fail("save-ai " + kind + " plan must 400, got " + rejected.statusCode);
-    else if (err !== "Steps must be a list of plain text.") fail("save-ai " + kind + " plan message, got " + JSON.stringify(rejected.body));
+    else if (err !== "Plan must be a list of plain text.") fail("save-ai " + kind + " plan message, got " + JSON.stringify(rejected.body));
     else if (names.indexOf("Bad " + kind) >= 0) fail("save-ai " + kind + " plan must not store an AI");
     else pass("save-ai rejects " + kind + " plan");
   }
@@ -295,13 +394,17 @@ async function main() {
     const token = ["PLAN-KEEP-9f3a draft the note", "Queue it"];
     const draft = await grok.studioDraft("Name a lane pack", slug, { kind: "pack", plan: token });
     if (!draft || !same(draft.plan, token)) fail("studioDraft must pass plan through, got " + JSON.stringify(draft && draft.plan));
+    else if (draft.planCut !== null) fail("uncut studioDraft plan must report planCut null, got " + JSON.stringify(draft.planCut));
     else pass("studioDraft passes plan through");
 
     const longPlan = [];
     for (let s = 0; s < 201; s++) longPlan.push(s === 0 ? "S".repeat(501) : "s" + s);
     const cappedDraft = await grok.studioDraft("Name a lane pack", slug, { plan: longPlan });
+    const cappedDraftCut = cappedDraft && cappedDraft.planCut;
     if (!cappedDraft || !cappedDraft.plan || cappedDraft.plan.length !== 200 || cappedDraft.plan[0] !== "S".repeat(500)) {
       fail("studioDraft must cap plan at 200 and 500");
+    } else if (!cappedDraftCut || cappedDraftCut.kept !== 200 || cappedDraftCut.dropped !== 1 || cappedDraftCut.trimmed !== 1 || !same(cappedDraftCut.droppedIndexes, [200]) || !same(cappedDraftCut.trimmedIndexes, [0])) {
+      fail("studioDraft must return planCut beside the capped plan, got " + JSON.stringify(cappedDraftCut));
     } else pass("studioDraft caps plan at 200 and 500");
 
     const missing = await grok.studioDraft("Name a lane pack", slug, { kind: "pack" });
@@ -332,6 +435,32 @@ async function main() {
       else pass("studioDraft success return passes plan through");
       if (String(sent).indexOf("PLAN-KEEP-9f3a") >= 0) fail("studioDraft must not send plan to the model");
       else pass("studioDraft does not send plan to the model");
+
+      const routePlanToken = "PLAN-ROUTE-9f3a";
+      const routeRulesToken = "RULES-ROUTE-9f3a";
+      const routeBrief = "BRIEF-ROUTE-9f3a name a lane pack";
+      const routePlan = [routePlanToken + "x".repeat(500), "  keep me  "];
+      const routeRules = routeRulesToken + "r".repeat(1000);
+      const routeWantPlan = [Array.from(routePlan[0]).slice(0, 500).join(""), "keep me"];
+      const routeWantCut = { kept: 2, dropped: 0, trimmed: 1, droppedIndexes: [], trimmedIndexes: [0] };
+      sent = "";
+      const routed = await call(packHandler, "POST", owner, {
+        action: "studio-draft",
+        brief: routeBrief,
+        kind: "pack",
+        plan: routePlan,
+        rules: routeRules
+      });
+      const routedBody = String(sent);
+      if (routed.statusCode !== 200 || !routed.body || !routed.body.ok) {
+        fail("studio-draft route " + routed.statusCode + " " + JSON.stringify(routed.body && (routed.body.note || routed.body.error || routed.body.grok)));
+      } else if (!same(routed.body.plan, routeWantPlan) || !same(routed.body.planCut, routeWantCut)) {
+        fail("studio-draft route must return planCut beside the capped plan, got " + JSON.stringify({ plan: routed.body.plan, planCut: routed.body.planCut }));
+      } else pass("studio-draft route returns planCut");
+      if (routedBody.indexOf("BRIEF-ROUTE-9f3a") < 0) fail("studio-draft route must call the model");
+      else if (routedBody.indexOf(routePlanToken) >= 0) fail("studio-draft route must not send plan to the model");
+      else if (routedBody.indexOf(routeRulesToken) >= 0) fail("studio-draft route must not send rules to the model");
+      else pass("studio-draft route does not send plan or rules to the model");
     } finally {
       global.fetch = prevFetch;
       delete process.env.XAI_API_KEY;
