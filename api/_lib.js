@@ -1856,7 +1856,9 @@ function parsedByteLength(body) {
 }
 
 // Original bytes, when a caller actually kept them. Vercel does not set
-// req.rawBody after it parses JSON, and it sends no body-size header.
+// req.rawBody after it parses JSON. Content-Length is normally present on
+// Vercel, including for chunked posts. JSON.stringify is only a fallback
+// when that header is absent.
 function rawBodyBytes(req) {
   if (!req || req.rawBody == null) return NaN;
   if (Buffer.isBuffer(req.rawBody)) return req.rawBody.length;
@@ -1891,11 +1893,12 @@ function rejectTooBig(res, route, extra) {
 
 // Raw JSON bodies over the route cap are refused with HTTP 413. Reading stops
 // at the cap: only the bytes up to the cap are kept, and the stream is destroyed.
-// A body that is already parsed uses content-length when that header is present.
-// With no content-length, req.rawBody is used when it is a string or Buffer.
-// Otherwise an object is measured with JSON.stringify, which drops the spaces
-// of a pretty-printed body and can undercount it. The body is not attached
-// to the error.
+// A body that is already parsed uses content-length. That header is normally
+// present on Vercel, including for chunked posts. When it is absent, req.rawBody
+// is used when it is a string or Buffer. Otherwise an object is measured with
+// JSON.stringify, which drops the spaces of a pretty-printed body and can
+// undercount it. That stringify measurement is only a fallback. The body is
+// not attached to the error.
 // Other routes cap at 1 MB. /api/hook caps at 4,000,000 bytes. /api/upload
 // rejects early when that size is over 4,300,000 bytes. The decoded file cap
 // is 3,000,000 in upload.js.
