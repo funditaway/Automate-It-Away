@@ -24,10 +24,14 @@ const ALLOW = {
   "video/webm": "webm",
   "video/3gpp": "3gp"
 };
-// The browser base64-encodes the file and posts it through this function.
-// Vercel rejects a request body over 4.5 MB before this code runs, so the
-// decoded file cap stays at 4,000,000 bytes, under that platform limit.
-const MAX = 4_000_000;
+// The browser base64-encodes the file into JSON and posts that through this
+// function. A 4,000,000-byte file becomes about 5.33 MB on the wire, which
+// Vercel rejects at 4.5 MB before this code runs. 3,000,000 decoded bytes
+// encodes to 4,000,000 base64 characters, and the JSON around it stays under
+// 4.5 MB. Requests whose content-length, or measured pre-parsed body, is
+// over 4,000,000 bytes are refused before the file is stored.
+const MAX = 3_000_000;
+const FILE_TOO_BIG = "Each file must stay under 3 MB.";
 const MAX_BATCH = 8;
 
 function dir() {
@@ -191,7 +195,9 @@ module.exports = async function handler(req, res) {
     }
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Use GET or POST" });
-  const body = await readBody(req);
+  let body;
+  try { body = await readBody(req, res); }
+  catch (err) { if (err && err.statusCode === 413) return; throw err; }
   const batch = Array.isArray(body.files) ? body.files.slice(0, MAX_BATCH) : null;
   const items = batch && batch.length ? batch : [{ name: body.name, type: body.type, data: body.data || body.file }];
   const saved = [];
@@ -202,7 +208,7 @@ module.exports = async function handler(req, res) {
     const ext = ALLOW[type] || extFromName(item.name);
     if (!ext) return res.status(415).json({ error: "Photos, documents, or short videos only.", allow: Object.keys(ALLOW) });
     if (!buf || !buf.length) return res.status(400).json({ error: "Missing file data" });
-    if (buf.length > MAX) return res.status(413).json({ error: "Each file must stay under 4 MB." });
+    if (buf.length > MAX) return res.status(413).json({ error: FILE_TOO_BIG });
     const id = "file_" + Date.now().toString(36) + i;
     const name = workspace + "/" + id + "." + ext;
     const rec = { id, workspace, name: item.name || name, type: type || mimeFromExt(ext), bytes: buf.length, kind: kindOf(ext), driver: driverOf(), createdAt: new Date().toISOString() };

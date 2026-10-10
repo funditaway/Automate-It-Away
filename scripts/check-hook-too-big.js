@@ -22,7 +22,8 @@ const HOOK_MAX = 4000000;
 const BODY_MAX = 1048576;
 const HOOK_ERR = "That's too big to take in. Keep it under 4 MB.";
 const MB_ERR = "That's too big to send. Keep it under 1 MB.";
-const UPLOAD_ERR = "Each file must stay under 4 MB.";
+const UPLOAD_ERR = "Each file must stay under 3 MB.";
+const UPLOAD_WIRE = 4000000;
 const SLUG = "once-desk";
 const OTHER = "other-desk";
 const SECRET = "BODYSECRET";
@@ -53,8 +54,10 @@ if (libSrc.indexOf("1048576") < 0 || libSrc.indexOf(MB_ERR) < 0) fail("1 MB cap 
 else pass("other routes still name the 1 MB cap");
 if (libSrc.indexOf("4000000") < 0 || libSrc.indexOf(HOOK_ERR) < 0) fail("hook cap missing");
 else pass("hook cap is 4,000,000");
-if (uploadSrc.indexOf(UPLOAD_ERR) < 0 || !/const MAX = 4_000_000;/.test(uploadSrc)) fail("upload cap is not 4,000,000");
-else pass("upload cap is 4,000,000");
+if (uploadSrc.indexOf(UPLOAD_ERR) < 0 || !/const MAX = 3_000_000;/.test(uploadSrc)) fail("upload cap is not 3,000,000");
+else pass("upload cap is 3,000,000");
+if (libSrc.indexOf("UPLOAD_WIRE_MAX = 4000000") < 0 || libSrc.indexOf(UPLOAD_ERR) < 0) fail("upload wire cap missing");
+else pass("upload wire cap is 4,000,000");
 if (hookSrc.indexOf("Too big to take in") < 0 || hookSrc.indexOf("more too-big posts this hour") < 0) {
   fail("hook card wording missing");
 } else pass("hook card wording is present");
@@ -711,21 +714,73 @@ async function main() {
   else if (wideUp.statusCode !== 201) fail("upload over 1 MB failed " + wideUp.statusCode + " " + JSON.stringify(wideUp.body && wideUp.body.error));
   else pass("upload stays exempt from the 1 MB body cap");
 
-  const bigUp = mockRes();
+  const fitFile = Buffer.alloc(2900000, 0x61);
+  const fitUp = mockRes();
+  await uploadHandler({
+    method: "POST",
+    url: "/api/upload",
+    headers: { "x-workspace": SLUG },
+    query: {},
+    body: { name: "fit.txt", type: "text/plain", data: fitFile.toString("base64") }
+  }, fitUp);
+  if (fitUp.statusCode !== 201 || !fitUp.body || fitUp.body.ok !== true) {
+    fail("2.9 MB file should pass, got " + fitUp.statusCode + " " + JSON.stringify(fitUp.body && fitUp.body.error));
+  } else pass("a 2.9 MB file passes");
+
+  const overFile = Buffer.alloc(3000001, 0x61);
+  const overUp = mockRes();
+  await uploadHandler({
+    method: "POST",
+    url: "/api/upload",
+    headers: { "x-workspace": SLUG, "content-length": "100" },
+    query: {},
+    body: { name: "over.txt", type: "text/plain", data: overFile.toString("base64") }
+  }, overUp);
+  if (overUp.statusCode !== 413 || !overUp.body || overUp.body.error !== UPLOAD_ERR) {
+    fail("3,000,001 decoded bytes " + overUp.statusCode + " " + JSON.stringify(overUp.body && overUp.body.error));
+  } else pass("3,000,001 decoded bytes is rejected");
+
+  const three = Buffer.alloc(3000000, 0x61);
+  const encoded = Buffer.byteLength(JSON.stringify({
+    name: "three.txt",
+    type: "text/plain",
+    data: three.toString("base64")
+  }));
+  if (!(encoded < 4.5 * 1024 * 1024)) fail("encoded 3 MB file is " + encoded + " bytes");
+  else pass("encoded 3 MB file is " + encoded + " bytes, under 4.5 MB");
+
+  const wireReq = countingStream([Buffer.from(JSON.stringify({
+    name: "note.txt",
+    type: "text/plain",
+    data: Buffer.from("hello").toString("base64")
+  }))]);
+  wireReq.method = "POST";
+  wireReq.url = "/api/upload";
+  wireReq.headers = { "x-workspace": SLUG, "content-length": String(UPLOAD_WIRE + 1) };
+  wireReq.query = {};
+  const wireUp = mockRes();
+  await uploadHandler(wireReq, wireUp);
+  if (wireUp.statusCode !== 413 || !wireUp.body || wireUp.body.error !== UPLOAD_ERR) {
+    fail("upload content-length over 4,000,000 " + wireUp.statusCode + " " + JSON.stringify(wireUp.body && wireUp.body.error));
+  } else if (wireReq.sent() !== 0) fail("upload content-length over 4,000,000 was read, sent " + wireReq.sent());
+  else pass("upload content-length over 4,000,000 is rejected before the body is read");
+
+  const fatUp = mockRes();
   await uploadHandler({
     method: "POST",
     url: "/api/upload",
     headers: { "x-workspace": SLUG },
     query: {},
     body: {
-      name: "big.txt",
+      name: "note.txt",
       type: "text/plain",
-      data: Buffer.alloc(4000001, 0x61).toString("base64")
+      data: Buffer.from("hello").toString("base64"),
+      pad: "u".repeat(UPLOAD_WIRE + 1)
     }
-  }, bigUp);
-  if (bigUp.statusCode !== 413 || !bigUp.body || bigUp.body.error !== UPLOAD_ERR) {
-    fail("upload 4,000,000 cap " + bigUp.statusCode + " " + JSON.stringify(bigUp.body && bigUp.body.error));
-  } else pass("upload rejects a decoded file over 4,000,000 bytes");
+  }, fatUp);
+  if (fatUp.statusCode !== 413 || !fatUp.body || fatUp.body.error !== UPLOAD_ERR) {
+    fail("pre-parsed upload over 4,000,000 " + fatUp.statusCode + " " + JSON.stringify(fatUp.body && fatUp.body.error));
+  } else pass("pre-parsed upload over 4,000,000 is rejected from its measured size");
 
   if (leaks.length) fail("console leaked body content");
   else pass("logs have no body content");

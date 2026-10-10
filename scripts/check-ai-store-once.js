@@ -48,11 +48,11 @@ else pass("allDeskAis resolves stored rows");
 if (libSrc.indexOf("That's too big to send. Keep it under 1 MB.") < 0 || libSrc.indexOf("1048576") < 0) {
   fail("readBody must cap at 1048576 and name the 413 error");
 } else pass("readBody names the 1 MB cap");
-if (uploadSrc.indexOf("await readBody(req)") < 0) fail("upload.js must keep calling readBody(req)");
-else pass("upload.js still calls readBody(req)");
-if (uploadSrc.indexOf("Each file must stay under 4 MB.") < 0 || !/const MAX = 4_000_000;/.test(uploadSrc)) {
-  fail("upload.js file cap must be 4,000,000");
-} else pass("upload.js file cap is 4,000,000");
+if (uploadSrc.indexOf("readBody(req") < 0) fail("upload.js must keep calling readBody");
+else pass("upload.js still calls readBody");
+if (uploadSrc.indexOf("Each file must stay under 3 MB.") < 0 || !/const MAX = 3_000_000;/.test(uploadSrc)) {
+  fail("upload.js file cap must be 3,000,000");
+} else pass("upload.js file cap is 3,000,000");
 
 function walk(dir, acc) {
   fs.readdirSync(dir, { withFileTypes: true }).forEach(function (ent) {
@@ -577,18 +577,43 @@ async function main() {
     fail("upload over 1 MB should still save a small file, got " + wideUp.statusCode + " " + JSON.stringify(wideUp.body));
   } else pass("upload over 1 MB is exempt from the body cap");
 
-  const bigFile = Buffer.alloc(4000001, 0x61);
+  const fitFile = Buffer.alloc(2900000, 0x61);
+  const fitUpload = countingStream([Buffer.from(JSON.stringify({
+    name: "fit.txt",
+    type: "text/plain",
+    data: fitFile.toString("base64")
+  }))]);
+  fitUpload.headers["x-workspace"] = SLUG;
+  fitUpload.url = "/api/upload";
+  const fitUp = mockRes();
+  await uploadHandler(fitUpload, fitUp);
+  if (fitUp.statusCode !== 201 || !fitUp.body || fitUp.body.ok !== true) {
+    fail("2.9 MB upload should pass, got " + fitUp.statusCode + " " + JSON.stringify(fitUp.body && fitUp.body.error));
+  } else pass("a 2.9 MB file passes");
+
+  const bigFile = Buffer.alloc(3000001, 0x61);
   const bigUpload = countingStream([Buffer.from(JSON.stringify({
     name: "big.txt",
     type: "text/plain",
     data: bigFile.toString("base64")
   }))]);
   bigUpload.headers["x-workspace"] = SLUG;
+  bigUpload.headers["content-length"] = "100";
+  bigUpload.url = "/api/upload";
   const bigUp = mockRes();
   await uploadHandler(bigUpload, bigUp);
-  if (bigUp.statusCode !== 413 || !bigUp.body || bigUp.body.error !== "Each file must stay under 4 MB.") {
-    fail("upload 4 MB cap changed, got " + bigUp.statusCode + " " + JSON.stringify(bigUp.body && bigUp.body.error));
-  } else pass("upload rejects a file over 4 MB");
+  if (bigUp.statusCode !== 413 || !bigUp.body || bigUp.body.error !== "Each file must stay under 3 MB.") {
+    fail("upload 3 MB cap changed, got " + bigUp.statusCode + " " + JSON.stringify(bigUp.body && bigUp.body.error));
+  } else pass("3,000,001 decoded bytes is rejected");
+
+  const three = Buffer.alloc(3000000, 0x61);
+  const encoded = Buffer.byteLength(JSON.stringify({
+    name: "three.txt",
+    type: "text/plain",
+    data: three.toString("base64")
+  }));
+  if (!(encoded < 4.5 * 1024 * 1024)) fail("encoded 3 MB file is " + encoded + " bytes");
+  else pass("encoded 3 MB file is " + encoded + " bytes, under 4.5 MB");
 
   function parsedReq(body, extra) {
     const headers = ownerHeaders();

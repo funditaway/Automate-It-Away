@@ -1801,12 +1801,15 @@ const BODY_MAX = 1048576;
 const BODY_TOO_BIG = "That's too big to send. Keep it under 1 MB.";
 const HOOK_MAX = 4000000;
 const HOOK_TOO_BIG = "That's too big to take in. Keep it under 4 MB.";
+const UPLOAD_WIRE_MAX = 4000000;
+const UPLOAD_TOO_BIG = "Each file must stay under 3 MB.";
 
 function tooBigBody(message) {
   return { ok: false, error: message || BODY_TOO_BIG };
 }
 
-// upload keeps its own decoded-file cap and does not use the 1 MB JSON cap.
+// upload refuses a request over 4,000,000 bytes here. The decoded file cap
+// lives in upload.js at 3,000,000 bytes, so the base64 JSON stays under 4.5 MB.
 // hook stops at 4,000,000 bytes, under the platform 4.5 MB body limit.
 function bodyRoute(req) {
   const url = String((req && (req.url || req.originalUrl || req.path)) || "");
@@ -1859,7 +1862,7 @@ function valueOfParsed(body) {
 }
 
 function rejectTooBig(res, route, extra) {
-  const tooBigMessage = route === "hook" ? HOOK_TOO_BIG : BODY_TOO_BIG;
+  const tooBigMessage = route === "hook" ? HOOK_TOO_BIG : (route === "upload" ? UPLOAD_TOO_BIG : BODY_TOO_BIG);
   const body = tooBigBody(tooBigMessage);
   if (res && typeof res.status === "function") {
     try { res.status(413).json(body); } catch (e) {}
@@ -1879,11 +1882,12 @@ function rejectTooBig(res, route, extra) {
 // A body that is already parsed uses content-length when that header is present,
 // and otherwise the byte size of the string, Buffer, or JSON.stringify of the
 // object. The body itself is not attached to the error.
-// Other routes cap at 1 MB. /api/hook caps at 4,000,000 bytes. /api/upload does
-// not use this limit; the file is posted through the function and capped in upload.js.
+// Other routes cap at 1 MB. /api/hook caps at 4,000,000 bytes. /api/upload
+// rejects early when content-length, or the measured pre-parsed body, is over
+// 4,000,000 bytes. The decoded file cap is 3,000,000 in upload.js.
 function readBody(req, res) {
   const route = bodyRoute(req);
-  const cap = route === "upload" ? 0 : (route === "hook" ? HOOK_MAX : BODY_MAX);
+  const cap = route === "upload" ? UPLOAD_WIRE_MAX : (route === "hook" ? HOOK_MAX : BODY_MAX);
   if (preParsed(req)) {
     if (cap) {
       const declared = declaredLength(req);
