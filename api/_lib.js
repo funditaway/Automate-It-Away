@@ -1852,6 +1852,15 @@ function parsedByteLength(body) {
   return Buffer.byteLength(JSON.stringify(body));
 }
 
+// Original bytes, when a caller actually kept them. Vercel does not set
+// req.rawBody after it parses JSON, and it sends no body-size header.
+function rawBodyBytes(req) {
+  if (!req || req.rawBody == null) return NaN;
+  if (Buffer.isBuffer(req.rawBody)) return req.rawBody.length;
+  if (typeof req.rawBody === "string") return Buffer.byteLength(req.rawBody);
+  return NaN;
+}
+
 function valueOfParsed(body) {
   if (Buffer.isBuffer(body)) body = body.toString("utf8");
   if (typeof body === "string") {
@@ -1879,12 +1888,14 @@ function rejectTooBig(res, route, extra) {
 
 // Raw JSON bodies over the route cap are refused with HTTP 413. Reading stops
 // at the cap: only the bytes up to the cap are kept, and the stream is destroyed.
-// A body that is already parsed uses content-length when that header is present,
-// and otherwise the byte size of the string, Buffer, or JSON.stringify of the
-// object. The body itself is not attached to the error.
+// A body that is already parsed uses content-length when that header is present.
+// With no content-length, req.rawBody is used when it is a string or Buffer.
+// Otherwise an object is measured with JSON.stringify, which drops the spaces
+// of a pretty-printed body and can undercount it. The body is not attached
+// to the error.
 // Other routes cap at 1 MB. /api/hook caps at 4,000,000 bytes. /api/upload
-// rejects early when content-length, or the measured pre-parsed body, is over
-// 4,000,000 bytes. The decoded file cap is 3,000,000 in upload.js.
+// rejects early when that size is over 4,000,000 bytes. The decoded file cap
+// is 3,000,000 in upload.js.
 function readBody(req, res) {
   const route = bodyRoute(req);
   const cap = route === "upload" ? UPLOAD_WIRE_MAX : (route === "hook" ? HOOK_MAX : BODY_MAX);
@@ -1896,8 +1907,12 @@ function readBody(req, res) {
       let measureFailed = false;
       if (fromLength) bytes = declared;
       else {
-        try { bytes = parsedByteLength(req.body); }
-        catch (e) { measureFailed = true; }
+        const rawN = rawBodyBytes(req);
+        if (Number.isFinite(rawN)) bytes = rawN;
+        else {
+          try { bytes = parsedByteLength(req.body); }
+          catch (e) { measureFailed = true; }
+        }
       }
       if (measureFailed || bytes > cap) {
         return Promise.reject(rejectTooBig(res, route, {

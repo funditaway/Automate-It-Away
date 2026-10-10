@@ -388,6 +388,67 @@ async function main() {
   if (!still || !same(still.plan, sentence) || !same(still.steps, allowWant)) fail("rejected save-ai must leave stored plan and steps alone");
   else pass("rejected save-ai leaves stored plan and steps alone");
 
+  const edgeSlug = "plan-edge";
+  const edge = {
+    slug: edgeSlug,
+    name: "Edge",
+    biz: edgeSlug,
+    pin: hashPin(pin),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: []
+  };
+  ensurePeople(edge);
+  mem.workspaces.unshift(edge);
+  const edgeOwner = { "x-workspace": edgeSlug, "x-pin": pin };
+  const edgeName = "Pickup Helper for the Tuesday and Thurs day afterschool club";
+  const edgeDoes = "J".repeat(159) + " " + "after the club";
+  const edgeStep = "P".repeat(499) + " " + "then walk home";
+  const edgeNameStored = edgeName.slice(0, 40).trim();
+  const edgeDoesStored = edgeDoes.slice(0, 160).trim();
+  const edgeStepStored = "P".repeat(499);
+  if (edgeName.charAt(39) !== " " || edgeNameStored.length !== 39) fail("name fixture must put a space at character 40");
+  else if (edgeDoes.charAt(159) !== " " || edgeDoesStored.length !== 159) fail("job fixture must put a space at character 160");
+  else if (Array.from(edgeStep)[499] !== " " || edgeStepStored.length !== 499) fail("plan fixture must put a space at code point 500");
+  else pass("edge fixtures put a space on the name, job, and plan caps");
+
+  async function assertStoredReply(action) {
+    const hit = await call(packHandler, "POST", edgeOwner, {
+      action: action,
+      name: edgeName,
+      role: "Doer",
+      does: edgeDoes,
+      plan: [edgeStep]
+    });
+    const reply = hit.body && hit.body.ai;
+    const stored = (edge.ais || []).find(function (a) { return a && a.name === edgeNameStored; });
+    const listed = ((hit.body && hit.body.ais) || []).find(function (a) { return a && a.name === edgeNameStored; });
+    const seat = (edge.people || []).find(function (p) { return p && p.deskAi && p.name === edgeNameStored; });
+    const packed = (edge.packAis || []).find(function (a) { return a && a.name === edgeNameStored; });
+    const cut = hit.body && hit.body.planCut;
+    if (hit.statusCode !== 200 || !hit.body || !hit.body.ok || !reply || !stored) {
+      fail(action + " edge " + hit.statusCode + " " + JSON.stringify(hit.body && (hit.body.error || hit.body.note)));
+      return;
+    }
+    if (stored.name !== edgeNameStored || stored.does !== edgeDoesStored || !stored.plan || stored.plan[0] !== edgeStepStored) {
+      fail(action + " store must keep the trimmed name, job, and plan, got " + JSON.stringify({ name: stored.name, doesLen: stored.does && stored.does.length, planLen: stored.plan && stored.plan[0] && stored.plan[0].length }));
+    } else if (reply.name !== stored.name || reply.does !== stored.does) {
+      fail(action + " reply ai must match the stored row byte for byte, got " + JSON.stringify({ replyName: reply.name, storedName: stored.name, replyDoes: reply.does, storedDoes: stored.does }));
+    } else if (!same(reply.plan, stored.plan)) {
+      fail(action + " plan step with a space at 500 must match the stored row, got " + JSON.stringify({ reply: reply.plan, stored: stored.plan }));
+    } else if (!listed || listed.name !== stored.name || listed.does !== stored.does || !same(listed.plan, stored.plan)) {
+      fail(action + " reply.ais must match the stored row");
+    } else if (!seat || seat.name !== stored.name || seat.does !== stored.does) {
+      fail(action + " seat must match the stored row, got " + JSON.stringify(seat && { name: seat.name, does: seat.does }));
+    } else if (!packed || packed.name !== stored.name || packed.does !== stored.does || !same(packed.plan, stored.plan)) {
+      fail(action + " packAis must match the stored row");
+    } else if (!cut || cut.kept !== 1 || cut.dropped !== 0 || cut.trimmed !== 1 || !same(cut.droppedIndexes, []) || !same(cut.trimmedIndexes, [0]) || stored.plan[0] === edgeStep.trim()) {
+      fail(action + " planCut must describe the stored plan, got " + JSON.stringify(cut));
+    } else pass(action + " reply matches the stored name, job, and plan");
+  }
+  await assertStoredReply("save-ai");
+  await assertStoredReply("attach-ai");
+
   const keys = stashKeys();
   mem.connections = [];
   try {

@@ -69,10 +69,10 @@ const mirrorHits = files.filter(function (file) {
   return text.indexOf("packAis") >= 0 || text.indexOf("packBots") >= 0;
 }).map(function (file) { return path.relative(root, file).split(path.sep).join("/"); });
 mirrorHits.sort();
-const mirrorWant = ["api/_ais.js", "api/_packs.js", "scripts/check-ai-store-once.js"];
+const mirrorWant = ["api/_ais.js", "api/_packs.js", "scripts/check-ai-plan.js", "scripts/check-ai-store-once.js"];
 if (JSON.stringify(mirrorHits) !== JSON.stringify(mirrorWant)) {
   fail("packAis/packBots readers changed: " + mirrorHits.join(", "));
-} else pass("packAis/packBots only in _ais.js, _packs.js, and this check");
+} else pass("packAis/packBots only in _ais.js, _packs.js, and the AI checks");
 
 const ais = require("../api/_ais");
 const lib = require("../api/_lib");
@@ -180,15 +180,15 @@ function shopOf(kind) {
   const full = JSON.parse(JSON.stringify(rows));
   if (kind === "old") {
     const bots = JSON.parse(JSON.stringify(full));
-    bots.push("Queue Helper", "helper");
+    bots.push("Queue Helper", "helper", "follow-up", "lead-catcher");
     return baseShop(rows, JSON.parse(JSON.stringify(full)), bots);
   }
   if (kind === "ids") {
-    return baseShop(rows, rows.map(function (a) { return a.id; }), rows.map(function (a) { return a.id; }).concat(["Queue Helper", "helper"]));
+    return baseShop(rows, rows.map(function (a) { return a.id; }), rows.map(function (a) { return a.id; }).concat(["Queue Helper", "helper", "follow-up", "lead-catcher"]));
   }
   if (kind === "id-objects") {
     const bots = rows.map(function (a) { return { id: a.id }; });
-    bots.push("Queue Helper", "helper");
+    bots.push("Queue Helper", "helper", "follow-up", "lead-catcher");
     return baseShop(rows, rows.map(function (a) { return { id: a.id }; }), bots);
   }
   if (kind === "mirrors-only") {
@@ -365,9 +365,9 @@ async function main() {
   if (mirrorOnly !== aisOnly) fail("full objects only in packAis/packBots must still load");
   else pass("full objects only in packAis/packBots still load");
   const oldNames = JSON.parse(oldRails).ais.map(function (a) { return a.name; });
-  if (oldNames.join(",") !== "Plan AI,Second AI,Queue Helper,helper") {
+  if (oldNames.join(",") !== "Plan AI,Second AI,Queue Helper,helper,follow-up,lead-catcher") {
     fail("old and new mirrors must keep the name-string bots, got " + oldNames.join(","));
-  } else pass("Queue Helper and helper still load beside id refs");
+  } else pass("Queue Helper, helper, follow-up, and lead-catcher still load beside id refs");
 
   const mixedRails = JSON.stringify(ais.railsOf(shopOf("mixed")));
   const fullPairRails = JSON.stringify(ais.railsOf(shopOf("full-pair")));
@@ -375,7 +375,7 @@ async function main() {
   else pass("one pack with a full copy and an id ref matches all full copies");
 
   const live = twoAis();
-  const deadShop = baseShop(live, [live[0].id, { id: "gone-ai" }, "gone-bot"], [{ id: "also-gone" }, "Queue Helper", "helper"]);
+  const deadShop = baseShop(live, [live[0].id, { id: "gone-ai" }, "gone-bot"], [{ id: "also-gone" }, "Queue Helper", "helper", "follow-up"]);
   let deadThrew = false;
   let deadRails = null;
   try { deadRails = ais.railsOf(deadShop); }
@@ -385,14 +385,12 @@ async function main() {
   const deadBlank = (deadRails && deadRails.ais || []).some(function (a) {
     return a == null || !a.name || !String(a.name).trim() || (a.id === "gone-ai" && !a.does);
   });
-  const deadPartial = /"id"\s*:\s*"gone-ai"|"id"\s*:\s*"also-gone"|"id"\s*:\s*"gone-bot"/.test(deadJson)
-    || deadJson.indexOf("gone-ai") >= 0
-    || deadJson.indexOf("also-gone") >= 0
-    || deadJson.indexOf("gone-bot") >= 0;
+  const deadPartial = deadJson.indexOf("gone-ai") >= 0 || deadJson.indexOf("also-gone") >= 0;
+  const nameStrings = ["gone-bot", "Queue Helper", "helper", "follow-up"];
   if (deadThrew) fail("a dead AI ref must not throw");
-  else if (deadNames.join(",") !== "Plan AI,Second AI,Queue Helper,helper") fail("a dead AI ref must be skipped, got " + deadNames.join(","));
-  else if (deadBlank || deadPartial) fail("a dead AI ref leaked into public JSON");
-  else pass("a dead AI ref is skipped with no blank or partial AI");
+  else if (deadNames.join(",") !== "Plan AI,Second AI," + nameStrings.join(",")) fail("a name string was dropped or a dead {id} leaked, got " + deadNames.join(","));
+  else if (deadBlank || deadPartial) fail("a dead {id} ref leaked into public JSON");
+  else pass("a dead {id} ref is skipped and hyphenated name strings still load");
   if (deadShop.packAis.some(function (row) { return row && row.id === "gone-ai"; }) && deadShop.packBots.some(function (row) { return row && row.id === "also-gone"; })) {
     pass("reading does not rewrite the stored dead refs");
   } else fail("reader rewrote packAis or packBots");
@@ -452,16 +450,24 @@ async function main() {
     steps: "qualify, follow"
   }, {});
   const shopOn = mem.workspaces[0];
-  const ids = shopOn.ais.map(function (a) { return a.id; });
-  const onIds = JSON.stringify(shopOn.packAis) === JSON.stringify(ids)
-    && JSON.stringify(shopOn.packBots) === JSON.stringify(ids)
-    && shopOn.packAis.every(function (row) { return typeof row === "string"; })
-    && shopOn.packBots.every(function (row) { return typeof row === "string"; })
+  const refs = shopOn.ais.map(function (a) { return { id: a.id }; });
+  function refOnly(row) {
+    return !!row && typeof row === "object" && !Array.isArray(row)
+      && typeof row.id === "string" && row.id.length > 0
+      && Object.keys(row).length === 1;
+  }
+  const onIds = JSON.stringify(shopOn.packAis) === JSON.stringify(refs)
+    && JSON.stringify(shopOn.packBots) === JSON.stringify(refs)
+    && shopOn.packAis.length > 0
+    && shopOn.packAis.every(refOnly)
+    && shopOn.packBots.every(refOnly)
+    && shopOn.packAis.every(function (row) { return typeof row !== "string"; })
+    && shopOn.packBots.every(function (row) { return typeof row !== "string"; })
     && JSON.stringify(shopOn.packAis).indexOf("\"plan\"") < 0;
   const getOn = await call(packHandler, "GET", ownerHeaders(), {}, { ais: "1" });
   if (savedOn.statusCode !== 200 || !savedOn.body || !savedOn.body.ok || !onIds) {
-    fail("flag true must write ids only");
-  } else pass("flag true writes ids only");
+    fail("flag true must write { id } objects only, no bare strings");
+  } else pass("flag true writes { id } objects only, no bare strings");
   if (JSON.stringify(savedOff.body) !== JSON.stringify(savedOn.body)) fail("save-ai response changed when the flag flipped");
   else pass("save-ai response stays identical with the flag on");
   if (JSON.stringify(getOff.body) !== JSON.stringify(getOn.body)) fail("GET ais changed after an id-only save");
@@ -480,9 +486,10 @@ async function main() {
   if (oldSize.shop.ais[0].plan.length !== 200 || oldSize.shop.ais[0].plan[0].length !== 500) {
     fail("fat plan was not stored at 200 x 500");
   } else pass("fat plan is 200 steps of 500 characters");
-  if (typeof oldSize.shop.packAis[0] === "string" || typeof newSize.shop.packAis[0] !== "string") {
+  const sizedRef = newSize.shop.packAis[0];
+  if (typeof oldSize.shop.packAis[0] === "string" || typeof sizedRef === "string" || !sizedRef || !sizedRef.id || sizedRef.name) {
     fail("size probe wrote the wrong mirror shape");
-  } else pass("size probe used full copies, then ids");
+  } else pass("size probe used full copies, then { id } refs");
 
   install("old");
   const beforeOver = storeSnap();
@@ -725,6 +732,30 @@ async function main() {
   assertHookCapped("pre-parsed hook string over 4 MB with no content-length", await postParsed(hookHandler, hookFatText, {}));
   install("old");
   assertHookCapped("pre-parsed hook Buffer over 4 MB with no content-length", await postParsed(hookHandler, Buffer.from(hookFatText), {}));
+
+  install("old");
+  const rawSmall = parsedReq({ event: "update", title: "Parsed" }, {});
+  rawSmall.rawBody = "{\n  \"event\": \"update\"\n}" + " ".repeat(BODY_MAX);
+  hookAccepted("pre-parsed hook rawBody over 1 MB", await (async function () {
+    const res = mockRes();
+    await hookHandler(rawSmall, res);
+    return res;
+  })());
+
+  install("old");
+  const rawReq = parsedReq({ event: "update", title: "Parsed", from: "ada@example.com", subject: "Big" }, {});
+  rawReq.rawBody = "x".repeat(HOOK_MAX + 1);
+  const rawRes = mockRes();
+  await hookHandler(rawReq, rawRes);
+  assertHookCapped("pre-parsed hook uses req.rawBody when content-length is absent", rawRes);
+
+  install("old");
+  const beforePackRaw = storeSnap();
+  const packRaw = parsedReq({ action: "packs" }, {});
+  packRaw.rawBody = " ".repeat(BODY_MAX + 1);
+  const packRawRes = mockRes();
+  await packHandler(packRaw, packRawRes);
+  assert413("pre-parsed packs uses req.rawBody when content-length is absent", packRawRes, beforePackRaw);
 
   install("old");
   const beforeUp = storeSnap();

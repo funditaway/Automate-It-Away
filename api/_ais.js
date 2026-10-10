@@ -12,8 +12,9 @@ const DEFAULT_PROMPT = FIRM + " " + TAGLINE + " Never send, pay, or bind. Collec
 
 // Full Desk AI objects live in shop.ais. packAis and packBots mirror that list.
 // This stays false in production: a save still writes full object copies, the
-// same shape as before. True writes AI id strings only. Readers accept both.
-// Flip the exported flag in-process for a check. Do not read an env var.
+// same shape as before. True writes { id } objects only, never bare strings.
+// Readers accept full objects, id strings, and { id }. Flip the exported
+// flag in-process for a check. Do not read an env var.
 // A ref has no per-pack fields. It is the AI id and nothing else.
 const STORE_AI_REFS = false;
 
@@ -215,27 +216,17 @@ function hasAiBody(row) {
   return !!(row.name || row.does || row.prompt || row.steps || row.allow || row.role || row.aia || row.rules || row.plan || row.deny || row.file || row.workspace);
 }
 
-// Real Desk AI ids are slugAi output from a name: lowercase, at most 40
-// characters, and at least one hyphen ("Plan AI" → "plan-ai"). A one-word
-// name string such as "helper" is not that shape. Skip a string only when it
-// is an id and no AI in ais has that id. Anything else stays a name.
-function aiIdShape(s) {
-  const t = String(s || "");
-  return t.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(t);
-}
-
-// Old mirrors are full AI objects. New mirrors are an id string or { id }
-// with no AI body. Anything with a name or other stored AI fields is the old
-// shape and is returned as-is. A string that is not an id stays a name.
-// An id that is no longer in ais is a dead ref: leave it out. No blank row
-// and no partial { id } object in the rows readers return.
+// Desk AI ids are not a separate generated shape. normalizeAi sets
+// id to clip(raw.id, 40) or slugAi(name): lowercase, non-alphanumerics
+// collapsed to hyphens, at most 40 characters ("follow-up" stays
+// "follow-up"). A packBots string is therefore a name unless it matches
+// an AI already in ais. Do not drop strings for looking like a slug.
+// An { id } with no AI body that is no longer in ais is left out. No blank
+// row and no partial { id } object in the rows readers return.
 function resolvePackRow(shop, row) {
   if (typeof row === "string") {
     if (!String(row).trim()) return null;
-    const hit = findStoredAi(shop, row);
-    if (hit) return hit;
-    if (aiIdShape(row)) return null;
-    return row;
+    return findStoredAi(shop, row) || row;
   }
   if (!row || typeof row !== "object" || Array.isArray(row)) return row;
   if (hasAiBody(row)) return row;
@@ -257,12 +248,12 @@ function storedAiRows(shop) {
 function writePackMirrors(shop) {
   const rows = (shop && shop.ais) || [];
   if (packRefsOn()) {
-    const ids = [];
+    const refs = [];
     rows.forEach(function (ai) {
-      if (ai && ai.id) ids.push(String(ai.id));
+      if (ai && ai.id) refs.push({ id: String(ai.id) });
     });
-    shop.packBots = ids.slice();
-    shop.packAis = ids.slice();
+    shop.packBots = refs.slice();
+    shop.packAis = refs.slice();
     return;
   }
   shop.packBots = rows.slice();
