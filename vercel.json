@@ -65,9 +65,5 @@
     { "source": "/api/intake", "destination": "/api/intake" },
     { "source": "/api/hook", "destination": "/api/hook" },
     { "source": "/api/rules", "destination": "/api/rules" }
-  ],
-  "routes": [
-    { "src": "/scripts", "status": 404 },
-    { "src": "/scripts/(.*)", "status": 404 }
   ]
 }
