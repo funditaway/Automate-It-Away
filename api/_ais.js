@@ -166,7 +166,7 @@ function publicAi(ai) {
   if (!ai) return null;
   const aia = net.of(ai.aia || ai.aiaName || ai.file || ai.name, ai.id || "desk-ai");
   const prompt = clip(ai.prompt, 400) || DEFAULT_PROMPT;
-  return {
+  const out = {
     id: ai.id,
     name: ai.name,
     aia: aia.name,
@@ -190,6 +190,16 @@ function publicAi(ai) {
     chain: false,
     owned: false
   };
+  // Present only after a Yes is stored. A save with no `allowed` stays byte-identical.
+  if (ai.automation && ai.automation.approvedAt) {
+    const view = require("./_automation").approvalView(ai);
+    out.approved = view.approved;
+    out.needsNewYes = view.needsNewYes;
+    out.needsNewYesWhy = view.needsNewYesWhy;
+    out.allowed = Array.isArray(ai.automation.allowed) ? ai.automation.allowed.slice() : [];
+    out.pauses = view.pauses;
+  }
+  return out;
 }
 
 function deskAisOf(shop) {
@@ -214,9 +224,10 @@ function allDeskAis(shop) {
   const rows = [].concat(shop.ais || [], shop.packAis || [], shop.packBots || []);
   const out = [];
   const seen = {};
-  rows.forEach(function (row) {
+    rows.forEach(function (row) {
     const ai = normalizeAi(row, shop.slug);
     if (!ai) return;
+    if (row && row.automation && typeof row.automation === "object") ai.automation = row.automation;
     const key = String(ai.id || ai.name).toLowerCase();
     if (seen[key]) return;
     seen[key] = true;
