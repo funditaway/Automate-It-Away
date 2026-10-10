@@ -397,7 +397,7 @@ First 3 clients: Audit (playbook step 1 · Find the leaks) → 60s proof → ris
 - Card fields: 12 on a desk.
 - 12 .aia emails per account.
 - No published Marketplace listing cap. Do not invent a free-tier listing quota.
-- No published `.aia` pack file-size cap. Desk card uploads cap at 8 MB (`api/upload.js`).
+- No published `.aia` pack file-size cap. Desk card uploads: each file must stay under 3 MB (`api/upload.js`).
 - External storefronts (Lemon Squeezy / Paddle / Shopify) are off-platform.
 - Third-party API quotas: buyers bring their own keys. AIA does not host per-run billing.
 - When APIs change, version the pack. An update pass is illustrative — not a live subscription engine.
