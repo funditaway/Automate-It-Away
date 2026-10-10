@@ -19,7 +19,9 @@ function fail(m) { failed += 1; console.error("FAIL " + m); }
 function pass(m) { console.log("ok   " + m); }
 
 const BODY_MAX = 1048576;
+const HOOK_MAX = 4000000;
 const TOO_BIG = "That's too big to send. Keep it under 1 MB.";
+const HOOK_TOO_BIG = "That's too big to take in. Keep it under 4 MB.";
 const SLUG = "once-desk";
 const PIN = "4242";
 
@@ -80,6 +82,8 @@ const healthHandler = require("../api/health");
 const jobsHandler = require("../api/jobs");
 const uploadHandler = require("../api/upload");
 const hookHandler = require("../api/hook");
+const rulesHandler = require("../api/rules");
+const intakeHandler = require("../api/intake");
 const { mem, hashPin, ready } = lib;
 
 if (ais.STORE_AI_REFS !== false) fail("exported STORE_AI_REFS must start false");
@@ -176,15 +180,15 @@ function shopOf(kind) {
   const full = JSON.parse(JSON.stringify(rows));
   if (kind === "old") {
     const bots = JSON.parse(JSON.stringify(full));
-    bots.push("Queue Helper");
+    bots.push("Queue Helper", "helper");
     return baseShop(rows, JSON.parse(JSON.stringify(full)), bots);
   }
   if (kind === "ids") {
-    return baseShop(rows, rows.map(function (a) { return a.id; }), rows.map(function (a) { return a.id; }).concat(["Queue Helper"]));
+    return baseShop(rows, rows.map(function (a) { return a.id; }), rows.map(function (a) { return a.id; }).concat(["Queue Helper", "helper"]));
   }
   if (kind === "id-objects") {
     const bots = rows.map(function (a) { return { id: a.id }; });
-    bots.push("Queue Helper");
+    bots.push("Queue Helper", "helper");
     return baseShop(rows, rows.map(function (a) { return { id: a.id }; }), bots);
   }
   if (kind === "mirrors-only") {
@@ -361,9 +365,9 @@ async function main() {
   if (mirrorOnly !== aisOnly) fail("full objects only in packAis/packBots must still load");
   else pass("full objects only in packAis/packBots still load");
   const oldNames = JSON.parse(oldRails).ais.map(function (a) { return a.name; });
-  if (oldNames.join(",") !== "Plan AI,Second AI,Queue Helper") {
-    fail("old and new mirrors must keep the name-string bot, got " + oldNames.join(","));
-  } else pass("a packBots name string still loads beside id refs");
+  if (oldNames.join(",") !== "Plan AI,Second AI,Queue Helper,helper") {
+    fail("old and new mirrors must keep the name-string bots, got " + oldNames.join(","));
+  } else pass("Queue Helper and helper still load beside id refs");
 
   const mixedRails = JSON.stringify(ais.railsOf(shopOf("mixed")));
   const fullPairRails = JSON.stringify(ais.railsOf(shopOf("full-pair")));
@@ -371,7 +375,7 @@ async function main() {
   else pass("one pack with a full copy and an id ref matches all full copies");
 
   const live = twoAis();
-  const deadShop = baseShop(live, [live[0].id, { id: "gone-ai" }, "gone-bot"], [{ id: "also-gone" }, "Queue Helper"]);
+  const deadShop = baseShop(live, [live[0].id, { id: "gone-ai" }, "gone-bot"], [{ id: "also-gone" }, "Queue Helper", "helper"]);
   let deadThrew = false;
   let deadRails = null;
   try { deadRails = ais.railsOf(deadShop); }
@@ -386,7 +390,7 @@ async function main() {
     || deadJson.indexOf("also-gone") >= 0
     || deadJson.indexOf("gone-bot") >= 0;
   if (deadThrew) fail("a dead AI ref must not throw");
-  else if (deadNames.join(",") !== "Plan AI,Second AI,Queue Helper") fail("a dead AI ref must be skipped, got " + deadNames.join(","));
+  else if (deadNames.join(",") !== "Plan AI,Second AI,Queue Helper,helper") fail("a dead AI ref must be skipped, got " + deadNames.join(","));
   else if (deadBlank || deadPartial) fail("a dead AI ref leaked into public JSON");
   else pass("a dead AI ref is skipped with no blank or partial AI");
   if (deadShop.packAis.some(function (row) { return row && row.id === "gone-ai"; }) && deadShop.packBots.some(function (row) { return row && row.id === "also-gone"; })) {
@@ -585,6 +589,139 @@ async function main() {
   if (bigUp.statusCode !== 413 || !bigUp.body || bigUp.body.error !== "Each file must stay under 4 MB.") {
     fail("upload 4 MB cap changed, got " + bigUp.statusCode + " " + JSON.stringify(bigUp.body && bigUp.body.error));
   } else pass("upload rejects a file over 4 MB");
+
+  function parsedReq(body, extra) {
+    const headers = ownerHeaders();
+    if (extra) Object.assign(headers, extra);
+    return { method: "POST", headers: headers, body: body, query: {} };
+  }
+
+  async function postParsed(handler, body, extra) {
+    const res = mockRes();
+    await handler(parsedReq(body, extra), res);
+    return res;
+  }
+
+  function assert413(label, res, before) {
+    if (res.statusCode !== 413 || !res.body || res.body.ok !== false || res.body.error !== TOO_BIG) {
+      fail(label + " must 413, got " + res.statusCode + " " + JSON.stringify(res.body && res.body.error));
+      return;
+    }
+    pass(label + " returns 413");
+    if (storeSnap() !== before) fail(label + " must save nothing");
+    else pass(label + " saves nothing");
+  }
+
+  const parsedTargets = [
+    {
+      name: "save-ai",
+      handler: packHandler,
+      small: { action: "save-ai", name: "Parsed AI", role: "Doer", does: "Drafts.", plan: ["One"], steps: "qualify" },
+      fields: { action: "save-ai", name: "Parsed AI", role: "Doer", does: "Drafts.", plan: ["One"], steps: "qualify" },
+      accept: function (res) { return res.statusCode === 200 && res.body && res.body.ok === true; }
+    },
+    {
+      name: "jobs",
+      handler: jobsHandler,
+      small: { action: "capture", title: "Parsed card" },
+      fields: { action: "capture", title: "Parsed card" },
+      accept: function (res) { return res.statusCode === 201 && res.body && res.body.ok === true; }
+    },
+    {
+      name: "rules",
+      handler: rulesHandler,
+      small: { text: "Wait for the owner." },
+      fields: { text: "Wait for the owner." },
+      accept: function (res) { return res.statusCode === 201 && res.body && res.body.ok === true; }
+    },
+    {
+      name: "intake",
+      handler: intakeHandler,
+      small: { action: "start" },
+      fields: { action: "start" },
+      accept: function (res) { return res.statusCode === 201 && res.body && res.body.ok === true; }
+    }
+  ];
+
+  for (let t = 0; t < parsedTargets.length; t++) {
+    const target = parsedTargets[t];
+    install("old");
+    const beforeHeader = storeSnap();
+    const headerRes = await postParsed(target.handler, target.small, { "content-length": String(BODY_MAX + 1) });
+    assert413("pre-parsed " + target.name + " over the cap with content-length", headerRes, beforeHeader);
+
+    install("old");
+    const beforeChunk = storeSnap();
+    const chunkedBody = JSON.parse(jsonOfSize(BODY_MAX + 1, target.fields));
+    const chunkedRes = await postParsed(target.handler, chunkedBody, {});
+    assert413("pre-parsed " + target.name + " over the cap with no content-length", chunkedRes, beforeChunk);
+
+    install("old");
+    const underBody = JSON.parse(jsonOfSize(BODY_MAX - 1, target.fields));
+    const underParsed = await postParsed(target.handler, underBody, {});
+    if (!target.accept(underParsed)) {
+      fail("pre-parsed " + target.name + " just under the cap must be accepted, got " + underParsed.statusCode + " " + JSON.stringify(underParsed.body && underParsed.body.error));
+    } else pass("pre-parsed " + target.name + " just under the cap is accepted");
+  }
+
+  function hookAccepted(label, res) {
+    const cards = (mem.jobs || []).filter(function (j) { return j && j.title === "Too big to take in"; });
+    if (res.statusCode === 413) fail(label + " used a cap, got " + JSON.stringify(res.body));
+    else if (res.statusCode !== 201 || !res.body || res.body.ok !== true) {
+      fail(label + " must be accepted, got " + res.statusCode + " " + JSON.stringify(res.body && res.body.error));
+    } else if (cards.length) fail(label + " filed a too-big card");
+    else pass(label + " is accepted");
+  }
+
+  function assertHookCapped(label, res) {
+    const cards = (mem.jobs || []).filter(function (j) { return j && j.title === "Too big to take in"; });
+    if (res.statusCode !== 413 || !res.body || res.body.ok !== false || res.body.error !== HOOK_TOO_BIG) {
+      fail(label + " must 413 with the 4 MB error, got " + res.statusCode + " " + JSON.stringify(res.body && res.body.error));
+    } else if (cards.length !== 1) fail(label + " must file one too-big card, got " + cards.length);
+    else pass(label + " returns 413 and files one card");
+  }
+
+  install("old");
+  hookAccepted("pre-parsed hook over 1 MB with content-length", await postParsed(hookHandler, { event: "update", title: "Parsed" }, { "content-length": String(BODY_MAX + 1) }));
+  install("old");
+  hookAccepted("pre-parsed hook object over 1 MB with no content-length", await postParsed(hookHandler, JSON.parse(jsonOfSize(BODY_MAX + 1, { event: "update", title: "Parsed" })), {}));
+  const hookMidText = jsonOfSize(BODY_MAX + 1, { event: "update", title: "Parsed" });
+  install("old");
+  hookAccepted("pre-parsed hook string over 1 MB with no content-length", await postParsed(hookHandler, hookMidText, {}));
+  install("old");
+  hookAccepted("pre-parsed hook Buffer over 1 MB with no content-length", await postParsed(hookHandler, Buffer.from(hookMidText), {}));
+
+  install("old");
+  assertHookCapped("pre-parsed hook over 4 MB with content-length", await postParsed(hookHandler, { event: "update", title: "Parsed", from: "ada@example.com", subject: "Big" }, { "content-length": String(HOOK_MAX + 1) }));
+  install("old");
+  assertHookCapped("pre-parsed hook object over 4 MB with no content-length", await postParsed(hookHandler, JSON.parse(jsonOfSize(HOOK_MAX + 1, { event: "update", title: "Parsed", from: "ada@example.com", subject: "Big" })), {}));
+  const hookFatText = jsonOfSize(HOOK_MAX + 1, { event: "update", title: "Parsed", from: "ada@example.com", subject: "Big" });
+  install("old");
+  assertHookCapped("pre-parsed hook string over 4 MB with no content-length", await postParsed(hookHandler, hookFatText, {}));
+  install("old");
+  assertHookCapped("pre-parsed hook Buffer over 4 MB with no content-length", await postParsed(hookHandler, Buffer.from(hookFatText), {}));
+
+  install("old");
+  const beforeUp = storeSnap();
+  const upParsed = mockRes();
+  await uploadHandler({
+    method: "POST",
+    headers: Object.assign(ownerHeaders(), { "content-length": String(BODY_MAX + 1) }),
+    body: {
+      name: "note.txt",
+      type: "text/plain",
+      data: Buffer.from("hello").toString("base64"),
+      pad: "u".repeat(BODY_MAX)
+    },
+    query: {},
+    url: "/api/upload"
+  }, upParsed);
+  if (upParsed.statusCode === 413 && upParsed.body && upParsed.body.error === TOO_BIG) {
+    fail("pre-parsed upload over 1 MB was caught by the body cap");
+  } else if (upParsed.statusCode !== 201 || !upParsed.body || upParsed.body.ok !== true) {
+    fail("pre-parsed upload over 1 MB should still save a small file, got " + upParsed.statusCode + " " + JSON.stringify(upParsed.body));
+  } else pass("pre-parsed upload over 1 MB stays exempt");
+  if (storeSnap() === beforeUp) fail("pre-parsed upload should still save the file");
 
   if (failed) {
     console.error(failed + " failed");

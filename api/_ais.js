@@ -215,9 +215,13 @@ function hasAiBody(row) {
   return !!(row.name || row.does || row.prompt || row.steps || row.allow || row.role || row.aia || row.rules || row.plan || row.deny || row.file || row.workspace);
 }
 
-// Writer ids are slugs. A name string such as "Queue Helper" is not.
-function slugId(s) {
-  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(s || ""));
+// Real Desk AI ids are slugAi output from a name: lowercase, at most 40
+// characters, and at least one hyphen ("Plan AI" → "plan-ai"). A one-word
+// name string such as "helper" is not that shape. Skip a string only when it
+// is an id and no AI in ais has that id. Anything else stays a name.
+function aiIdShape(s) {
+  const t = String(s || "");
+  return t.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(t);
 }
 
 // Old mirrors are full AI objects. New mirrors are an id string or { id }
@@ -230,7 +234,7 @@ function resolvePackRow(shop, row) {
     if (!String(row).trim()) return null;
     const hit = findStoredAi(shop, row);
     if (hit) return hit;
-    if (slugId(row)) return null;
+    if (aiIdShape(row)) return null;
     return row;
   }
   if (!row || typeof row !== "object" || Array.isArray(row)) return row;

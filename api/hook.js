@@ -140,8 +140,8 @@ function sizeText(err) {
 
 // Identity fields only. Text, notes, and pad stay off the card.
 function fieldsFromParsed(body) {
-  if (typeof body === "string") return completeStringFields(body);
-  if (!body || typeof body !== "object" || Array.isArray(body) || Buffer.isBuffer(body)) return {};
+  if (typeof body === "string" || Buffer.isBuffer(body)) return completeStringFields(body);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return {};
   const out = {};
   Object.keys(HOOK_FIELD_KEYS).forEach(function (key) {
     if (typeof body[key] !== "string") return;

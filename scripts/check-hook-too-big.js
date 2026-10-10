@@ -419,6 +419,24 @@ async function main() {
   assertClean("pre-parsed string");
 
   boot();
+  const parsedBuf = Buffer.from(jsonOfSize(HOOK_MAX + 1, {
+    from: "ada@example.com",
+    subject: "Buffer quote",
+    workspace: SLUG,
+    text: SECRET + "-PARSED-BUF"
+  }));
+  const parsedBufRes = await postParsed(parsedBuf, {});
+  assert413(parsedBufRes.res, HOOK_ERR, "pre-parsed buffer");
+  const parsedBufCard = tooBig()[0];
+  if (!parsedBufCard || parsedBufCard.custom.sender !== "ada@example.com" || parsedBufCard.custom.subject !== "Buffer quote") {
+    fail("pre-parsed buffer fields " + JSON.stringify(parsedBufCard && parsedBufCard.custom));
+  } else pass("pre-parsed Buffer yields sender and subject");
+  if (!parsedBufCard || parsedBufCard.custom.sizes[0] !== parsedBuf.length + " bytes") {
+    fail("buffer byte length " + JSON.stringify(parsedBufCard && parsedBufCard.custom.sizes));
+  } else pass("pre-parsed Buffer without content-length uses its byte length");
+  assertClean("pre-parsed buffer");
+
+  boot();
   const strLen = await postParsed(JSON.stringify({
     from: "body-sender@example.com",
     subject: "Body subject",
