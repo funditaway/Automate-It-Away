@@ -344,5 +344,42 @@ const lead = "Draft only. The person presses Yes, Stop, or Kill.";
   else pass("job echo keeps the trailing space the server stored at 160");
 })();
 
-if (bad) { console.error(bad + " check(s) failed"); process.exit(1); }
-console.log("check-create-open ok");
+// 11. Before Yes: the studio-draft reply's planCut (servers with plan polish) gives a plain steps note; no planCut, no note.
+function beforeYes() {
+  if (typeof api.planFitNote !== "function") { fail("create-simple.js must expose planFitNote"); return Promise.resolve(); }
+  const withCut = { ok: false, grok: "off", plan: Array.from({ length: 200 }, function (_, i) { return "s" + i; }), planCut: { kept: 200, dropped: 1, trimmed: 1, droppedIndexes: [200], trimmedIndexes: [2] } };
+  const n1 = api.planFitNote(withCut);
+  if (n1 !== "AIA will keep the first 200 steps. Step 201 won't fit. Step 3 will be shortened to 500 characters.") fail("draft reply with planCut must give the before-Yes note: " + n1);
+  else pass("draft reply with planCut: '" + n1 + "'");
+  const n2 = api.planFitNote({ kept: 1 } && { planCut: { kept: 1, dropped: 2, trimmed: 2, droppedIndexes: [1, 2], trimmedIndexes: [0, 3] } });
+  if (n2 !== "AIA will keep the first step. Steps 2 to 3 won't fit. Steps 1 and 4 will be shortened to 500 characters.") fail("before-Yes singular/plural: " + n2);
+  else pass("before-Yes singular and plural wording");
+  if (api.planFitNote({ ok: true, pack: {} }) !== "" || api.planFitNote({ ok: true, pack: {}, planCut: null }) !== "" || api.planFitNote(null) !== "") fail("draft reply without planCut must give no before-Yes note");
+  else pass("draft reply without planCut: no before-Yes note");
+  // The page: a hidden note line by the steps, filled from the draft reply, hidden again on any step edit.
+  if (!/<p class="cs-cut" id="cs-plan-fit"[^>]*hidden><\/p>/.test(csBlock)) fail("create.html needs the hidden #cs-plan-fit line near the steps");
+  const di = (js.match(/async function draftIt\(\) \{[\s\S]*?\n  \}\n/) || [""])[0];
+  if ((di.match(/showPlanFit\(d\)/g) || []).length !== 1 || (di.match(/showPlanFit\(null\)/g) || []).length !== 2) fail("draftIt must fill the note from the draft reply (and clear it when there is none)");
+  else if (!/addEventListener\("input", clearPlanFit\)/.test(js) || !/function paintPlan[\s\S]*?clearPlanFit\(\);[\s\S]*?\n  \}/.test(js)) fail("editing the steps must hide the before-Yes note");
+  else pass("page fills the before-Yes note from the draft reply and hides it when steps change");
+  // The real studio-draft code on this branch (no drafter key, so no network): 201 steps.
+  let g;
+  try { g = require(path.join(root, "api", "_grok.js")); } catch (e) { fail("could not load api/_grok.js: " + e.message); return Promise.resolve(); }
+  if (g.pickDrafter({})) { pass("a drafter key is set here; skipping the real studio-draft case to avoid a network call"); return Promise.resolve(); }
+  const plan201 = Array.from({ length: 201 }, function (_, i) { return "Do thing " + (i + 1); });
+  return g.studioDraft("Help with pickups", {}, { kind: "ai", plan: plan201 }).then(function (out) {
+    // Shape the reply the way api/_packs.js does for the drafting-off path.
+    const reply = { ok: false, grok: "off", saved: false, plan: out.plan, planCut: out.planCut };
+    const note = api.planFitNote(reply);
+    if (out && out.planCut) {
+      if (note.indexOf("AIA will keep the first 200 steps. Step 201 won't fit.") !== 0) fail("real studio-draft (plan polish): 201 steps must name step 201: " + note);
+      else pass("real studio-draft returns planCut: before-Yes note '" + note + "'");
+    } else if (note !== "") fail("real studio-draft without planCut must give no note");
+    else pass("real studio-draft on this base returns no planCut: no before-Yes note (needs plan polish, PR 313)");
+  }).catch(function (e) { fail("real studio-draft case threw: " + e.message); });
+}
+
+beforeYes().then(function () {
+  if (bad) { console.error(bad + " check(s) failed"); process.exit(1); }
+  console.log("check-create-open ok");
+});

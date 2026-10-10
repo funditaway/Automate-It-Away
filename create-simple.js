@@ -246,6 +246,23 @@
     if (trimmed.count) out.push(trimmed.text + (trimmed.count === 1 ? " was" : " were") + " shortened to " + LIMITS.planChars + " characters.");
     return out.join(" ");
   }
+  /* Before Yes: if the studio-draft reply carries planCut (servers with plan polish), say which steps won't fit.
+     No planCut in the reply means nothing is said. After Yes, planNote uses the save reply's planCut instead. */
+  function planFitNote(reply) {
+    var cut = reply && typeof reply === "object" ? reply.planCut : null;
+    if (!cut || typeof cut !== "object") return "";
+    var out = [];
+    var dropped = stepRanges(cut.droppedIndexes), trimmed = stepRanges(cut.trimmedIndexes);
+    var kept = Number(cut.kept);
+    if (!(kept >= 0) && Array.isArray(reply.plan)) kept = reply.plan.length;
+    kept = kept || 0;
+    if (dropped.count) {
+      out.push(kept === 1 ? "AIA will keep the first step." : "AIA will keep the first " + kept + " steps.");
+      out.push(dropped.text + " won't fit.");
+    }
+    if (trimmed.count) out.push(trimmed.text + " will be shortened to " + LIMITS.planChars + " characters.");
+    return out.join(" ");
+  }
   /* The steps as the desk stored them (out.ai.plan). If the desk sent none back, say so plainly. */
   function planLines(d, out) {
     var ai = (out && out.ai) || {};
@@ -272,7 +289,7 @@
     return [head.join(" "), jobLine].concat(planLines(d, out)).concat([rest.filter(Boolean).join(" ")]).filter(Boolean).join("\n");
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote, summaryMap: summaryMap, savedLength: savedLength, planNote: planNote, planLines: planLines };
+  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote, summaryMap: summaryMap, savedLength: savedLength, planNote: planNote, planLines: planLines, planFitNote: planFitNote };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -369,6 +386,7 @@
     if (!deskOpen()) {
       btn.disabled = false;
       showDraft(starterDraft(raw), "Your desk is not open, so AIA did not draft this. This starter is made from your words. Change anything in plain words.");
+      showPlanFit(null);
       el("cs-open").hidden = false;
       return;
     }
@@ -378,8 +396,10 @@
       if (r.ok && d && d.ok && d.pack) showDraft(fromStudio(raw, d.pack));
       else if (d && d.grok === "off") showDraft(starterDraft(raw), "AIA drafting is not on for this desk yet, so this starter is made from your words. Change anything in plain words.");
       else showDraft(starterDraft(raw), (d && d.error ? d.error + " " : "AIA did not draft this time. ") + "This starter is made from your words.");
+      showPlanFit(d);
     } catch (e) {
       showDraft(starterDraft(raw), "Could not reach the desk. This starter is made from your words.");
+      showPlanFit(null);
     } finally {
       btn.disabled = false;
     }
@@ -466,6 +486,16 @@
     note("cs-note", "Killed. Everything is thrown away. Nothing was saved or sent.", "ok");
   }
 
+  /* The before-Yes steps note. It describes the steps as drafted, so any edit to the steps hides it. */
+  function showPlanFit(reply) {
+    var p = el("cs-plan-fit");
+    if (!p) return;
+    var t = planFitNote(reply);
+    p.textContent = t;
+    p.hidden = !t;
+  }
+  function clearPlanFit() { showPlanFit(null); }
+
   /* Steps: any number, added and removed freely. */
   function planRow(text) {
     var li = doc.createElement("li");
@@ -482,8 +512,10 @@
       li.parentNode.removeChild(li);
       relabelPlan();
       saveCount();
+      clearPlanFit();
     });
     input.addEventListener("input", saveCount);
+    input.addEventListener("input", clearPlanFit);
     row.appendChild(input);
     row.appendChild(rm);
     li.appendChild(row);
@@ -498,6 +530,7 @@
     while (box.firstChild) box.removeChild(box.firstChild);
     (list || []).forEach(function (t) { box.appendChild(planRow(t)); });
     relabelPlan();
+    clearPlanFit();
   }
   function readPlan() {
     var rows = el("cs-plan").querySelectorAll("input.cs-plan-step");
@@ -509,6 +542,7 @@
     var li = planRow("");
     el("cs-plan").appendChild(li);
     relabelPlan();
+    clearPlanFit();
     var input = li.querySelector("input");
     if (input && input.focus) input.focus();
   }
