@@ -803,6 +803,227 @@ async function main() {
     fail("pre-parsed upload over 4,300,000 " + fatUp.statusCode + " " + JSON.stringify(fatUp.body && fatUp.body.error));
   } else pass("pre-parsed upload over 4,300,000 is rejected from its measured size");
 
+  function lateDeskRaw(slug) {
+    const head = "{\"pad\":\"";
+    const tail = "\",\"workspace\":" + JSON.stringify(slug) + ",\"text\":\"" + SECRET + "-LATE\"}";
+    const raw = head + "p".repeat(HOOK_MAX) + tail;
+    if (raw.indexOf("\"workspace\"") < HOOK_MAX) throw new Error("workspace sat inside the cap");
+    return raw;
+  }
+
+  boot();
+  const lateRawText = lateDeskRaw(SLUG);
+  const latePrefix = Buffer.from(lateRawText).subarray(0, HOOK_MAX);
+  const lateRest = Buffer.from(lateRawText).subarray(HOOK_MAX);
+  const lateRaw = await postStream([latePrefix, lateRest, Buffer.from(SECRET + "-UNREAD")], {});
+  assert413(lateRaw.res, HOOK_ERR, "raw desk after 4 MB");
+  if (lateRaw.req.sent() !== latePrefix.length + lateRest.length) {
+    fail("raw desk reader kept going, sent " + lateRaw.req.sent());
+  } else pass("raw reader stops once the cap is crossed");
+  if (tooBig().length) fail("a desk field after 4 MB on a raw stream filed a card");
+  else pass("a desk field after 4 MB on a raw stream writes no card");
+  if (mem.audit.length !== 1) fail("raw late desk log count " + mem.audit.length);
+  else if (mem.audit[0].action !== "Too big to take in" || mem.audit[0].result !== "No desk") {
+    fail("raw late desk log " + JSON.stringify(mem.audit[0]));
+  } else pass("raw late desk returns only the 413 and one log line");
+  assertClean("raw late desk");
+
+  boot();
+  const lateObj = JSON.parse(lateRawText);
+  const lateMeasured = Buffer.byteLength(JSON.stringify(lateObj));
+  if (lateMeasured <= HOOK_MAX) fail("pre-parsed late desk measured " + lateMeasured);
+  const lateParsed = await postParsed(lateObj, { "content-length": String(lateMeasured) });
+  assert413(lateParsed.res, HOOK_ERR, "pre-parsed desk after 4 MB");
+  if (tooBig().length !== 1 || tooBig()[0].workspace !== SLUG) {
+    fail("pre-parsed desk field after 4 MB did not resolve");
+  } else pass("a pre-parsed desk field after 4 MB is used");
+  assertClean("pre-parsed late desk");
+
+  const HOOK_SECRET = "desk-hook-secret-ok";
+  function withSecret() {
+    boot(function () { mem.workspaces[0].hookSecret = HOOK_SECRET; });
+  }
+
+  withSecret();
+  const noSecret = await postParsed({
+    from: "ada@example.com",
+    subject: "Missing secret",
+    workspace: SLUG,
+    text: SECRET + "-NOSECRET"
+  }, { "content-length": String(HOOK_MAX + 1) });
+  assert413(noSecret.res, HOOK_ERR, "missing hook secret");
+  if (tooBig().length) fail("missing hook secret filed a card");
+  else pass("a missing hook secret writes no card");
+  if (mem.audit.length) fail("missing hook secret wrote a log");
+  else pass("a missing hook secret returns only the 413");
+  assertClean("missing hook secret");
+
+  withSecret();
+  const wrongSecret = await postParsed({
+    from: "ada@example.com",
+    subject: "Wrong secret",
+    workspace: SLUG,
+    text: SECRET + "-WRONG"
+  }, { "content-length": String(HOOK_MAX + 1), "x-hook-secret": "not-the-secret" });
+  assert413(wrongSecret.res, HOOK_ERR, "wrong hook secret");
+  if (tooBig().length) fail("wrong hook secret filed a card");
+  else pass("a wrong hook secret writes no card");
+  if (mem.audit.length || storedBlob().indexOf("not-the-secret") >= 0 || storedBlob().indexOf(HOOK_SECRET) >= 0) {
+    fail("wrong hook secret was stored or logged");
+  } else pass("a wrong hook secret is not stored");
+  assertClean("wrong hook secret");
+
+  withSecret();
+  await postParsed({
+    from: "ada@example.com",
+    subject: "Open",
+    secret: HOOK_SECRET,
+    text: SECRET + "-OPEN"
+  }, { "content-length": String(HOOK_MAX + 1), "x-workspace": SLUG });
+  const beforeWrong = tooBig().length;
+  const beforeCount = beforeWrong && tooBig()[0].custom.count;
+  await postParsed({
+    from: "ada@example.com",
+    subject: "Should not fold",
+    text: SECRET + "-NOFOLD"
+  }, { "content-length": String(HOOK_MAX + 2), "x-workspace": SLUG, "x-hook-secret": "nope" });
+  if (tooBig().length !== 1 || tooBig()[0].custom.count !== beforeCount) fail("wrong secret still changed the open card");
+  else pass("a wrong secret does not fold into the open card");
+
+  withSecret();
+  const rightSecret = await postParsed({
+    from: "ada@example.com",
+    subject: "Right secret",
+    hookSecret: HOOK_SECRET,
+    text: SECRET + "-RIGHT"
+  }, { "content-length": String(HOOK_MAX + 1), "x-workspace": SLUG });
+  assert413(rightSecret.res, HOOK_ERR, "right hook secret");
+  if (tooBig().length !== 1 || tooBig()[0].custom.subject !== "Right secret") fail("valid hook secret did not file a card");
+  else if (JSON.stringify(tooBig()[0]).indexOf(HOOK_SECRET) >= 0) fail("hook secret was stored on the card");
+  else pass("a valid hook secret files the card and is not stored");
+
+  withSecret();
+  const secretTail = "{\"from\":\"ada@example.com\",\"subject\":\"Hidden secret\",\"pad\":\""
+    + "p".repeat(HOOK_MAX) + "\",\"secret\":\"" + HOOK_SECRET + "\"}";
+  const secretPrefix = Buffer.from(secretTail).subarray(0, HOOK_MAX);
+  const secretRest = Buffer.from(secretTail).subarray(HOOK_MAX);
+  const lateSecret = await postStream([secretPrefix, secretRest], { "x-workspace": SLUG });
+  assert413(lateSecret.res, HOOK_ERR, "secret after 4 MB");
+  if (tooBig().length) fail("a secret only past 4 MB on a raw stream counted");
+  else pass("a secret past the raw cut does not count");
+  assertClean("secret after 4 MB");
+
+  withSecret();
+  const quiet = await postParsed({ title: "Quiet", workspace: SLUG, from: "ada@example.com" }, {});
+  if (quiet.res.statusCode === 201 || (mem.jobs || []).length) fail("under-cap post with no secret still created a card");
+  else if (quiet.res.statusCode !== 403) fail("under-cap missing secret status " + quiet.res.statusCode);
+  else pass("an under-cap post with no secret creates no card");
+  const wrongUnder = await postParsed({
+    title: "Wrong under",
+    workspace: SLUG,
+    secret: "nope"
+  }, {});
+  if (wrongUnder.res.statusCode === 201 || (mem.jobs || []).some(function (j) { return j && j.title === "Wrong under"; })) {
+    fail("under-cap wrong secret still created a card");
+  } else pass("an under-cap post with the wrong secret creates no card");
+  const rightUnder = await postParsed({
+    title: "Right under",
+    workspace: SLUG,
+    secret: HOOK_SECRET
+  }, {});
+  if (rightUnder.res.statusCode !== 201 || !rightUnder.res.body || !rightUnder.res.body.job) {
+    fail("under-cap valid secret status " + rightUnder.res.statusCode);
+  } else if (JSON.stringify(rightUnder.res.body.job).indexOf(HOOK_SECRET) >= 0) fail("under-cap card stored the secret");
+  else pass("an under-cap post with the valid secret creates a card");
+
+  boot();
+  const ignored = await postParsed({
+    from: "ada@example.com",
+    subject: "No secret on desk",
+    text: SECRET + "-IGNORED"
+  }, { "content-length": String(HOOK_MAX + 1), "x-workspace": SLUG, "x-hook-secret": "anything" });
+  assert413(ignored.res, HOOK_ERR, "desk without a secret");
+  if (tooBig().length !== 1) fail("a desk with no hook secret refused the card");
+  else pass("a desk with no hook secret still needs nothing");
+
+  const SCRIPT = "<script>alert(1)</script>";
+  const ENTITIES = "&lt;script&gt;alert(1)&lt;/script&gt;";
+  const LONG = "Q".repeat(10000);
+  const CRLF = "Line\r\nOne\0";
+
+  boot();
+  const nasty = await postParsed({
+    from: CRLF,
+    subject: SCRIPT,
+    workspace: SLUG,
+    text: SECRET + "-NASTY"
+  }, { "content-length": String(HOOK_MAX + 1) });
+  assert413(nasty.res, HOOK_ERR, "stranger text");
+  const nastyCard = tooBig()[0];
+  if (!nastyCard || nastyCard.custom.subject !== SCRIPT) {
+    fail("script subject was not stored as plain text");
+  } else if (String(nastyCard.why || "").indexOf("&lt;script") >= 0) fail("script subject was HTML-encoded on the card");
+  else if (String(nastyCard.why || "").indexOf(SCRIPT) < 0 || nastyCard.from !== "LineOne") {
+    fail("stranger text did not land on the card");
+  } else pass("a script subject is stored as plain text");
+  if (!nastyCard || nastyCard.custom.sender !== "LineOne" || /[\u0000\r\n]/.test(JSON.stringify(nastyCard))) {
+    fail("CRLF sender was not cleaned");
+  } else pass("a sender with CRLF is cleaned");
+  const nastyAudit = JSON.stringify(mem.audit || []);
+  const nastyLog = JSON.stringify(nastyCard && nastyCard.log);
+  if (nastyAudit.indexOf(SCRIPT) >= 0 || nastyLog.indexOf(SCRIPT) >= 0 || nastyAudit.indexOf(CRLF) >= 0 || nastyLog.indexOf("\r") >= 0 || nastyLog.indexOf("\n") >= 0 || nastyLog.indexOf("\u0000") >= 0) {
+    fail("script or CRLF sender appeared in logs");
+  } else pass("script subject and CRLF sender are not in logs");
+  if (!nastyCard || !nastyCard.custom.sizes || nastyCard.custom.sizes[0] !== (HOOK_MAX + 1) + " bytes") {
+    fail("size was not left numeric");
+  } else pass("size stays numeric");
+  assertClean("stranger text");
+
+  boot();
+  const entity = await postParsed({
+    from: "ada@example.com",
+    subject: ENTITIES,
+    workspace: SLUG,
+    text: SECRET + "-ENTITY"
+  }, { "content-length": String(HOOK_MAX + 1) });
+  assert413(entity.res, HOOK_ERR, "html entities");
+  if (!tooBig()[0] || tooBig()[0].custom.subject !== ENTITIES) fail("HTML entities were decoded");
+  else pass("HTML entities are stored unchanged");
+
+  boot();
+  const huge = await postParsed({
+    from: "ada@example.com",
+    subject: LONG,
+    workspace: SLUG,
+    text: SECRET + "-LONG"
+  }, { "content-length": String(HOOK_MAX + 1) });
+  assert413(huge.res, HOOK_ERR, "long subject");
+  const hugeCard = tooBig()[0];
+  const hugeSubject = hugeCard && hugeCard.custom.subject;
+  if (!hugeSubject || Array.from(hugeSubject).length !== 160 || hugeSubject !== ("Q".repeat(159) + "…")) {
+    fail("10,000-character subject was not clipped to 160");
+  } else pass("a 10,000-character subject is clipped to 160");
+  const hugeAudit = JSON.stringify(mem.audit || []);
+  const hugeLog = JSON.stringify(hugeCard && hugeCard.log);
+  if (hugeAudit.indexOf(LONG) >= 0 || hugeLog.indexOf(LONG) >= 0 || JSON.stringify(hugeCard).indexOf(LONG) >= 0) {
+    fail("the full 10,000-character subject was stored or logged");
+  } else pass("the 10,000-character subject is not in logs");
+  assertClean("long subject");
+
+  boot();
+  const faces = "😀".repeat(180);
+  const faceRes = await postParsed({
+    from: "ada@example.com",
+    subject: faces,
+    workspace: SLUG,
+    text: SECRET + "-FACE"
+  }, { "content-length": String(HOOK_MAX + 1) });
+  assert413(faceRes.res, HOOK_ERR, "emoji subject");
+  const faceSubject = tooBig()[0] && tooBig()[0].custom.subject;
+  if (!faceSubject || Array.from(faceSubject).length !== 160 || !faceSubject.endsWith("…") || faceSubject.indexOf("\uFFFD") >= 0) {
+    fail("emoji subject was not clipped by code point");
+  } else pass("subject clip counts code points");
+
   if (leaks.length) fail("console leaked body content");
   else pass("logs have no body content");
 

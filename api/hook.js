@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { cors, mem, log, save, ready, slugify, readBody } = require("./_lib");
 const { deskClosed, deskClosedMessage } = require("./_desk");
 const { qualifyJob, applyRules } = require("./_engine");
@@ -7,24 +8,40 @@ const mail = require("./_aia-mail");
 
 const HOOK_HOUR_MS = 60 * 60 * 1000;
 const HOOK_NEW_CAP = 5;
+const SENDER_LIMIT = 120;
+const SUBJECT_LIMIT = 160;
 let tooBigSeq = 0;
 
-function clipMeta(value) {
-  const text = String(value == null ? "" : value).trim();
+// Stranger text only. Coerce, drop control characters (CR, LF, NUL, the
+// other C0/C1 controls), collapse whitespace, then clip by code point.
+// A cut keeps limit-1 code points and adds "…", so the stored string is
+// exactly that many code points. HTML entities are not decoded.
+function strangerText(value, limit) {
+  const text = String(value == null ? "" : value)
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!text) return "";
-  return text.slice(0, 160);
+  const points = Array.from(text);
+  if (points.length <= limit) return text;
+  return points.slice(0, limit - 1).join("") + "…";
 }
 
-function headerMeta(headers, names) {
+function headerBag(headers) {
   const bag = {};
   const src = headers || {};
   Object.keys(src).forEach(function (key) {
     bag[String(key).toLowerCase()] = src[key];
   });
+  return bag;
+}
+
+function headerMeta(headers, names, limit) {
+  const bag = headerBag(headers);
   for (let i = 0; i < names.length; i++) {
     const raw = bag[names[i]];
     const value = Array.isArray(raw) ? raw[0] : raw;
-    const text = clipMeta(value);
+    const text = strangerText(value, limit);
     if (text) return text;
   }
   return "";
@@ -74,7 +91,9 @@ const HOOK_FIELD_KEYS = {
   to: true,
   recipient: true,
   address: true,
-  workspace: true
+  workspace: true,
+  secret: true,
+  hookSecret: true
 };
 
 function completeStringFields(buf) {
@@ -118,11 +137,11 @@ function completeStringFields(buf) {
   return out;
 }
 
-function namedField(fields, names) {
+function namedField(fields, names, limit) {
   const src = fields || {};
   for (let i = 0; i < names.length; i++) {
     if (!Object.prototype.hasOwnProperty.call(src, names[i])) continue;
-    const text = clipMeta(src[names[i]]);
+    const text = strangerText(src[names[i]], limit);
     if (text) return text;
   }
   return "";
@@ -139,34 +158,97 @@ function sizeText(err) {
 }
 
 // Identity fields only. Text, notes, and pad stay off the card.
+// A pre-parsed body is the whole JSON Vercel already read, so a desk or
+// secret field counts wherever it sits in that value. Caller must not pass
+// a raw stream's unread tail.
 function fieldsFromParsed(body) {
   if (typeof body === "string" || Buffer.isBuffer(body)) return completeStringFields(body);
   if (!body || typeof body !== "object" || Array.isArray(body)) return {};
   const out = {};
   Object.keys(HOOK_FIELD_KEYS).forEach(function (key) {
-    if (typeof body[key] !== "string") return;
-    const text = body[key].trim().slice(0, 200);
+    const raw = body[key];
+    if (raw == null || typeof raw === "object") return;
+    const text = String(raw);
     if (text) out[key] = text;
   });
   return out;
 }
 
 function senderOf(req, fields) {
-  return headerMeta(req && req.headers, ["from", "x-from", "sender", "x-sender", "reply-to"])
-    || namedField(fields, ["from", "sender", "replyTo"])
+  return headerMeta(req && req.headers, ["from", "x-from", "sender", "x-sender", "reply-to"], SENDER_LIMIT)
+    || namedField(fields, ["from", "sender", "replyTo"], SENDER_LIMIT)
     || "unknown";
 }
 
 function subjectOf(req, fields) {
-  return headerMeta(req && req.headers, ["subject", "x-subject"])
-    || namedField(fields, ["subject"])
+  return headerMeta(req && req.headers, ["subject", "x-subject"], SUBJECT_LIMIT)
+    || namedField(fields, ["subject"], SUBJECT_LIMIT)
     || "unknown";
+}
+
+// A normal hook post needs no secret, no token, and no sign-in. Naming an
+// existing desk is enough. If that desk record has hookSecret or
+// inboundSecret, the post has to carry the same string or it does not
+// create a card. The too-big card uses this same check.
+function deskHookSecret(shop) {
+  if (!shop) return "";
+  const named = shop.hookSecret != null ? String(shop.hookSecret) : "";
+  const raw = named ? shop.hookSecret : shop.inboundSecret;
+  if (raw == null || typeof raw === "object") return "";
+  return String(raw);
+}
+
+function pushSecret(list, value) {
+  if (value == null || typeof value === "object") return;
+  const text = String(value);
+  if (!text) return;
+  list.push(text);
+}
+
+function hookCandidates(req, fields, body) {
+  const found = [];
+  const bag = headerBag(req && req.headers);
+  ["x-hook-secret", "x-aia-hook-secret"].forEach(function (name) {
+    const raw = bag[name];
+    pushSecret(found, Array.isArray(raw) ? raw[0] : raw);
+  });
+  const query = (req && req.query) || {};
+  pushSecret(found, query.secret);
+  pushSecret(found, query.hookSecret);
+  const src = fields || {};
+  pushSecret(found, src.secret);
+  pushSecret(found, src.hookSecret);
+  if (body && typeof body === "object" && !Buffer.isBuffer(body) && !Array.isArray(body)) {
+    pushSecret(found, body.secret);
+    pushSecret(found, body.hookSecret);
+  }
+  return found;
+}
+
+function secretEquals(want, got) {
+  const a = Buffer.from(String(want), "utf8");
+  const b = Buffer.from(String(got), "utf8");
+  if (!a.length || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+function hookAllows(shop, candidates) {
+  const want = deskHookSecret(shop);
+  if (!want) return true;
+  const list = candidates || [];
+  for (let i = 0; i < list.length; i++) {
+    if (secretEquals(want, list[i])) return true;
+  }
+  return false;
 }
 
 function deskFromHook(req, fields) {
   const query = (req && req.query) || {};
   const headers = (req && req.headers) || {};
-  const toAddr = namedField(fields, ["to", "recipient", "address"]) || query.to || "";
+  // Pre-parsed: fields already include a workspace / to / recipient / address
+  // from anywhere in the JSON. Raw cut: fields are only complete strings
+  // inside the kept prefix, so a desk past 4 MB is not here.
+  const toAddr = namedField(fields, ["to", "recipient", "address"], 200) || query.to || "";
   const identity = toAddr ? mail.findByAddress(toAddr) : null;
   const workspaceField = fields && fields.workspace != null ? String(fields.workspace) : "";
   const workspace = slugify(headers["x-workspace"] || query.workspace || workspaceField || (identity && identity.workspace) || "");
@@ -284,9 +366,12 @@ function bumpOverflow(job) {
 }
 
 async function noteHookTooBig(req, err) {
+  // Pre-parsed JSON: the desk field is wherever Vercel left it in req.body.
+  // Raw stream: only query, headers, and fields fully inside err.kept.
   const fields = err && err.parsed
     ? fieldsFromParsed(req && req.body)
     : completeStringFields(err && err.kept);
+  const candidates = hookCandidates(req, fields, err && err.parsed ? req && req.body : null);
   if (err && err.parsed && req) req.body = undefined;
   if (err) err.kept = null;
   const desk = deskFromHook(req, fields);
@@ -295,6 +380,7 @@ async function noteHookTooBig(req, err) {
     await save();
     return;
   }
+  if (!hookAllows(desk.shop, candidates)) return;
   const sender = senderOf(req, fields);
   const subject = subjectOf(req, fields);
   const sizeLabel = sizeText(err);
@@ -403,6 +489,13 @@ module.exports = async function handler(req, res) {
       error: "No desk with that name.",
       mx: mail.statusOf()
     });
+  }
+  if (!hookAllows(shop, hookCandidates(req, null, body))) {
+    return res.status(403).json({ ok: false, error: "Hook secret does not match this desk." });
+  }
+  if (deskHookSecret(shop) && body && typeof body === "object") {
+    delete body.secret;
+    delete body.hookSecret;
   }
   const event = identity ? "capture" : eventOf(body);
   const title = body.title || body.item || body.name || body.notes || "Pipe update";
