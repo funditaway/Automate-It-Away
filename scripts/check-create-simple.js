@@ -2,6 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
@@ -14,8 +15,12 @@ const js = fs.readFileSync(path.join(root, "create-simple.js"), "utf8");
 const rulesPath = path.join(root, "card-rules.js");
 const rulesJs = fs.existsSync(rulesPath) ? fs.readFileSync(rulesPath, "utf8") : "";
 
-// The single pinned guard: rule 4 word for word. This is the only rule text in this check.
-// Every other rule is read from card-rules.js, the one official copy.
+// The real guard: a SHA-256 pin of the official nine rules, so any wording edit to any rule is caught.
+// Canonical form: the window.AIACardRules entries exported by card-rules.js, in order, joined with "\n"
+// (no trailing newline), hashed as UTF-8, hex digest. Pinned from card-rules.js at 217e7e1 (747 characters).
+// If the rules are changed on purpose, update this pin in the same PR.
+const RULES_SHA256 = "11d39e69c44c55a2d873aebbaa970f743a7afc05d60538d47ec06da55db92c5c";
+// Readable extra: rule 4 word for word. This is the only rule text in this check.
 const PINNED_RULE_4 = "Draft only. Never send, pay, delete, or charge on your own. The person presses Yes, Stop, or Kill.";
 
 // One official copy of the rules: card-rules.js, evaluated with a fake window.
@@ -26,6 +31,9 @@ const shared = rulesBox.window.AIACardRules;
 const RULES = Array.isArray(shared) ? shared.slice() : [];
 if (!Array.isArray(shared) || shared.length !== 9) fail("card-rules.js must expose exactly nine rules on window.AIACardRules");
 else pass("card-rules.js exposes nine rules");
+const rulesHash = crypto.createHash("sha256").update(RULES.join("\n"), "utf8").digest("hex");
+if (rulesHash !== RULES_SHA256) fail("the nine rules in card-rules.js changed: sha256 " + rulesHash + " is not the pinned " + RULES_SHA256);
+else pass("the nine rules match the pinned sha256");
 if (RULES[3] !== PINNED_RULE_4) fail("rule 4 in card-rules.js must stay word for word: " + PINNED_RULE_4);
 else pass("rule 4 pinned word for word");
 RULES.forEach(function (r, i) {
