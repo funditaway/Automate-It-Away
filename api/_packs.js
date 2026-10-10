@@ -1,6 +1,7 @@
 const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow } = require("./_lib");
 const { grokOn, studioDraft } = require("./_grok");
 const ais = require("./_ais");
+const automation = require("./_automation");
 const net = require("./_aia-net");
 
 const OFFICIAL = [
@@ -562,7 +563,9 @@ async function packHandler(req, res) {
     const { workspace: shop, person } = personOf(req, workspace);
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can ask Grok in Creators Studio." });
-    const grok = await studioDraft(body.brief || body.text || body.does || body.name, workspace, { kind: body.kind || "pack", plan: body.plan, rules: body.rules });
+    const brief = body.brief || body.text || body.does || body.name;
+    const grok = await studioDraft(brief, workspace, { kind: body.kind || "pack", plan: body.plan, rules: body.rules });
+    const studioAi = { allowed: automation.suggestAllowed(brief, grok && grok.pack) };
     log("Grok", "Studio " + (body.kind || "pack") + " draft", grok && grok.ok ? "OK" : ((grok && grok.reason) || "Hold"), workspace);
     await save();
     if (grok && grok.reason === "no-key") {
@@ -570,6 +573,7 @@ async function packHandler(req, res) {
         ok: false,
         grok: "off",
         saved: false,
+        ai: studioAi,
         plan: grok.plan,
         planCut: grok.planCut,
         note: "Drafts are off until XAI_API_KEY is on. Orange copy only. You can still write the pack by hand."
@@ -580,6 +584,7 @@ async function packHandler(req, res) {
         ok: false,
         grok: (grok && grok.reason) || "off",
         saved: false,
+        ai: studioAi,
         plan: grok && grok.plan,
         planCut: grok && grok.planCut,
         note: "No draft this time. You can still write the pack by hand. AIA does not send."
@@ -589,6 +594,7 @@ async function packHandler(req, res) {
       ok: true,
       grok: "on",
       saved: false,
+      ai: studioAi,
       pack: grok.pack,
       plan: grok.plan,
       planCut: grok.planCut,
@@ -640,8 +646,12 @@ async function packHandler(req, res) {
   }
 
   if (action === "save-ai" || action === "attach-ai") {
-    if (!workspace) return res.status(400).json({ error: "Open a desk first." });
-    const { workspace: shop, person } = personOf(req, workspace);
+    const ws = workspace || (body && (body.ws || body.workspace || body.slug) ? String(body.ws || body.workspace || body.slug).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) : "");
+    if (!ws) return res.status(400).json({ error: "Open a desk first." });
+    const pin = String((req.headers && req.headers["x-pin"]) || (body && body.pin) || "");
+    const authHeaders = Object.assign({}, req.headers || {}, { "x-workspace": ws });
+    if (pin) authHeaders["x-pin"] = pin;
+    const { workspace: shop, person } = personOf({ headers: authHeaders, query: req.query || {} }, ws);
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can name a desk AI." });
     const incoming = body.ai && typeof body.ai === "object" ? body.ai : body;
@@ -651,8 +661,26 @@ async function packHandler(req, res) {
     if (incoming && incoming.plan != null && !ais.planListOk(incoming.plan)) {
       return res.status(400).json({ ok: false, error: "Plan must be a list of plain text." });
     }
+    const allowedOn = (obj) => !!(obj && Object.prototype.hasOwnProperty.call(obj, "allowed"));
+    const pausesOn = (obj) => !!(obj && Object.prototype.hasOwnProperty.call(obj, "pauses"));
+    const hasAllowed = allowedOn(incoming) || (body !== incoming && allowedOn(body));
+    let allowedList = null;
+    let approvalPauses = null;
+    if (hasAllowed) {
+      const allowedValue = allowedOn(incoming) ? incoming.allowed : body.allowed;
+      const checked = automation.validateAllowed(allowedValue);
+      if (!checked.ok) return res.status(400).json({ ok: false, error: checked.error });
+      const pausesValue = pausesOn(incoming) ? incoming.pauses : (body !== incoming && pausesOn(body) ? body.pauses : undefined);
+      if (pausesValue !== undefined) {
+        approvalPauses = automation.pausesOf(pausesValue);
+        if (!approvalPauses) return res.status(400).json({ ok: false, error: "Pauses must be yes or no for spending, deleting, and someone new." });
+      } else {
+        approvalPauses = automation.pausesOf(null);
+      }
+      allowedList = checked.allowed;
+    }
     const planPack = ais.planText(incoming && incoming.plan);
-    const made = ais.normalizeAi(body.ai || body, workspace);
+    const made = ais.normalizeAi(body.ai || body, ws);
     if (!made) return res.status(400).json({ ok: false, error: "Name the AI first." });
     const candidate = ais.normalizeAis([made], shop.slug)[0];
     if (!ais.liveDeskAi(shop, candidate) && (shop.ais || []).length >= 6) {
@@ -661,8 +689,9 @@ async function packHandler(req, res) {
     const touched = [];
     const added = ais.attachAisToDesk(shop, [made], touched);
     const stored = touched[0];
+    if (allowedList) automation.stampApproval(stored, allowedList, approvalPauses, person);
     await save();
-    log("Desk AI", "Attach · " + stored.name, "OK", workspace);
+    log("Desk AI", "Attach · " + stored.name, "OK", ws);
     const rails = ais.railsOf(shop);
     return res.status(200).json({
       ok: true,
