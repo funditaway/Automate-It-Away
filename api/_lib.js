@@ -1851,6 +1851,15 @@ function parsedByteLength(body) {
   return Buffer.byteLength(JSON.stringify(body));
 }
 
+// Original bytes, when a caller actually kept them. Vercel does not set
+// req.rawBody after it parses JSON, and it sends no body-size header.
+function rawBodyBytes(req) {
+  if (!req || req.rawBody == null) return NaN;
+  if (Buffer.isBuffer(req.rawBody)) return req.rawBody.length;
+  if (typeof req.rawBody === "string") return Buffer.byteLength(req.rawBody);
+  return NaN;
+}
+
 function valueOfParsed(body) {
   if (Buffer.isBuffer(body)) body = body.toString("utf8");
   if (typeof body === "string") {
@@ -1863,7 +1872,9 @@ function valueOfParsed(body) {
 // Raw JSON bodies over 1 MB are refused with HTTP 413. Reading stops at the
 // cap: the overflowing chunk is not kept, and the stream is destroyed.
 // A body that is already parsed uses content-length when that header is
-// present, and otherwise the byte size of the parsed value.
+// present. With no content-length, req.rawBody is used when it is a string
+// or Buffer. Otherwise an object is measured with JSON.stringify, which
+// drops the spaces of a pretty-printed body and can undercount it.
 // /api/upload keeps its own 8 MB file cap and does not use this limit.
 function readBody(req, res) {
   if (preParsed(req)) {
@@ -1871,8 +1882,10 @@ function readBody(req, res) {
       const declared = declaredLength(req);
       let over = Number.isFinite(declared) && declared > BODY_MAX;
       if (!Number.isFinite(declared)) {
-        try { over = parsedByteLength(req.body) > BODY_MAX; }
-        catch (e) { over = true; }
+        const rawN = rawBodyBytes(req);
+        try {
+          over = Number.isFinite(rawN) ? rawN > BODY_MAX : parsedByteLength(req.body) > BODY_MAX;
+        } catch (e) { over = true; }
       }
       if (over) return Promise.reject(answerTooBig(res));
     }

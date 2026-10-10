@@ -215,27 +215,17 @@ function hasAiBody(row) {
   return !!(row.name || row.does || row.prompt || row.steps || row.allow || row.role || row.aia || row.rules || row.plan || row.deny || row.file || row.workspace);
 }
 
-// Real Desk AI ids are slugAi output from a name: lowercase, at most 40
-// characters, and at least one hyphen ("Plan AI" → "plan-ai"). A one-word
-// name string such as "helper" is not that shape. Skip a string only when it
-// is an id and no AI in ais has that id. Anything else stays a name.
-function aiIdShape(s) {
-  const t = String(s || "");
-  return t.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(t);
-}
-
-// Old mirrors are full AI objects. New mirrors are an id string or { id }
-// with no AI body. Anything with a name or other stored AI fields is the old
-// shape and is returned as-is. A string that is not an id stays a name.
-// An id that is no longer in ais is a dead ref: leave it out. No blank row
-// and no partial { id } object in the rows readers return.
+// Desk AI ids are not a separate generated shape. normalizeAi sets
+// id to clip(raw.id, 40) or slugAi(name): lowercase, non-alphanumerics
+// collapsed to hyphens, at most 40 characters ("follow-up" stays
+// "follow-up"). A packBots string is therefore a name unless it matches
+// an AI already in ais. Do not drop strings for looking like a slug.
+// An { id } with no AI body that is no longer in ais is left out. No blank
+// row and no partial { id } object in the rows readers return.
 function resolvePackRow(shop, row) {
   if (typeof row === "string") {
     if (!String(row).trim()) return null;
-    const hit = findStoredAi(shop, row);
-    if (hit) return hit;
-    if (aiIdShape(row)) return null;
-    return row;
+    return findStoredAi(shop, row) || row;
   }
   if (!row || typeof row !== "object" || Array.isArray(row)) return row;
   if (hasAiBody(row)) return row;

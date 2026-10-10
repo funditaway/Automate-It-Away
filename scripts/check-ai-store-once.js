@@ -178,15 +178,15 @@ function shopOf(kind) {
   const full = JSON.parse(JSON.stringify(rows));
   if (kind === "old") {
     const bots = JSON.parse(JSON.stringify(full));
-    bots.push("Queue Helper", "helper");
+    bots.push("Queue Helper", "helper", "follow-up", "lead-catcher");
     return baseShop(rows, JSON.parse(JSON.stringify(full)), bots);
   }
   if (kind === "ids") {
-    return baseShop(rows, rows.map(function (a) { return a.id; }), rows.map(function (a) { return a.id; }).concat(["Queue Helper", "helper"]));
+    return baseShop(rows, rows.map(function (a) { return a.id; }), rows.map(function (a) { return a.id; }).concat(["Queue Helper", "helper", "follow-up", "lead-catcher"]));
   }
   if (kind === "id-objects") {
     const bots = rows.map(function (a) { return { id: a.id }; });
-    bots.push("Queue Helper", "helper");
+    bots.push("Queue Helper", "helper", "follow-up", "lead-catcher");
     return baseShop(rows, rows.map(function (a) { return { id: a.id }; }), bots);
   }
   if (kind === "mirrors-only") {
@@ -363,9 +363,9 @@ async function main() {
   if (mirrorOnly !== aisOnly) fail("full objects only in packAis/packBots must still load");
   else pass("full objects only in packAis/packBots still load");
   const oldNames = JSON.parse(oldRails).ais.map(function (a) { return a.name; });
-  if (oldNames.join(",") !== "Plan AI,Second AI,Queue Helper,helper") {
+  if (oldNames.join(",") !== "Plan AI,Second AI,Queue Helper,helper,follow-up,lead-catcher") {
     fail("old and new mirrors must keep the name-string bots, got " + oldNames.join(","));
-  } else pass("Queue Helper and helper still load beside id refs");
+  } else pass("Queue Helper, helper, follow-up, and lead-catcher still load beside id refs");
 
   const mixedRails = JSON.stringify(ais.railsOf(shopOf("mixed")));
   const fullPairRails = JSON.stringify(ais.railsOf(shopOf("full-pair")));
@@ -373,7 +373,7 @@ async function main() {
   else pass("one pack with a full copy and an id ref matches all full copies");
 
   const live = twoAis();
-  const deadShop = baseShop(live, [live[0].id, { id: "gone-ai" }, "gone-bot"], [{ id: "also-gone" }, "Queue Helper", "helper"]);
+  const deadShop = baseShop(live, [live[0].id, { id: "gone-ai" }, "gone-bot"], [{ id: "also-gone" }, "Queue Helper", "helper", "follow-up"]);
   let deadThrew = false;
   let deadRails = null;
   try { deadRails = ais.railsOf(deadShop); }
@@ -383,14 +383,12 @@ async function main() {
   const deadBlank = (deadRails && deadRails.ais || []).some(function (a) {
     return a == null || !a.name || !String(a.name).trim() || (a.id === "gone-ai" && !a.does);
   });
-  const deadPartial = /"id"\s*:\s*"gone-ai"|"id"\s*:\s*"also-gone"|"id"\s*:\s*"gone-bot"/.test(deadJson)
-    || deadJson.indexOf("gone-ai") >= 0
-    || deadJson.indexOf("also-gone") >= 0
-    || deadJson.indexOf("gone-bot") >= 0;
+  const deadPartial = deadJson.indexOf("gone-ai") >= 0 || deadJson.indexOf("also-gone") >= 0;
+  const nameStrings = ["gone-bot", "Queue Helper", "helper", "follow-up"];
   if (deadThrew) fail("a dead AI ref must not throw");
-  else if (deadNames.join(",") !== "Plan AI,Second AI,Queue Helper,helper") fail("a dead AI ref must be skipped, got " + deadNames.join(","));
-  else if (deadBlank || deadPartial) fail("a dead AI ref leaked into public JSON");
-  else pass("a dead AI ref is skipped with no blank or partial AI");
+  else if (deadNames.join(",") !== "Plan AI,Second AI," + nameStrings.join(",")) fail("a name string was dropped or a dead {id} leaked, got " + deadNames.join(","));
+  else if (deadBlank || deadPartial) fail("a dead {id} ref leaked into public JSON");
+  else pass("a dead {id} ref is skipped and hyphenated name strings still load");
   if (deadShop.packAis.some(function (row) { return row && row.id === "gone-ai"; }) && deadShop.packBots.some(function (row) { return row && row.id === "also-gone"; })) {
     pass("reading does not rewrite the stored dead refs");
   } else fail("reader rewrote packAis or packBots");
@@ -673,6 +671,14 @@ async function main() {
   const beforeBuf = storeSnap();
   const bufRes = await postParsed(hookHandler, Buffer.from(hookOverText), {});
   assert413("pre-parsed hook Buffer over the cap with no content-length", bufRes, beforeBuf);
+
+  install("old");
+  const beforeRaw = storeSnap();
+  const rawReq = parsedReq({ event: "update", title: "Parsed" }, {});
+  rawReq.rawBody = "{\n  \"event\": \"update\"\n}" + " ".repeat(BODY_MAX);
+  const rawRes = mockRes();
+  await hookHandler(rawReq, rawRes);
+  assert413("pre-parsed hook uses req.rawBody when content-length is absent", rawRes, beforeRaw);
 
   install("old");
   const beforeUp = storeSnap();
