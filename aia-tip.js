@@ -63,7 +63,7 @@
     },
     "give-pack": {
       title: "Give pack",
-      body: "Give is the file. They install with Yes. A pack puts When → If → Then on this desk queue. Buyer binds their own keys and devices. Yes / Stop / Kill before outbound or hardware. App / webhook is the live pipe. Recurring update HOLD. Collect stays HOLD.",
+      body: "Give is the file. They install with Yes. A pack puts When → If → Then on this desk queue. Buyer binds their own keys and devices. Yes / Stop / Kill before outbound or hardware. The app / webhook is the incoming connection. Recurring update HOLD. Collect stays HOLD.",
       ask: "How do I give a pack?"
     },
     "update-pack": {
@@ -98,7 +98,7 @@
     },
     "pipes": {
       title: "Pipes",
-      body: "Webhook is live. Search a site. Log in opens the vendor. Named vendors wait on keys + Yes. AIA does not send.",
+      body: "The webhook brings work in. It doesn't take payment. Search a site. Log in opens the vendor. Named vendors wait on keys + Yes. AIA does not send.",
       ask: "What is a pipe on this desk?"
     },
     "week-shop": {
