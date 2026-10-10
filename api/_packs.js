@@ -638,6 +638,10 @@ async function packHandler(req, res) {
     const { workspace: shop, person } = personOf(req, workspace);
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can name a desk AI." });
+    const incoming = body.ai && typeof body.ai === "object" ? body.ai : body;
+    if (incoming && incoming.rules != null && typeof incoming.rules !== "string") {
+      return res.status(400).json({ ok: false, error: "Rules must be plain text." });
+    }
     const made = ais.normalizeAi(body.ai || body, workspace);
     if (!made) return res.status(400).json({ ok: false, error: "Name the AI first." });
     const added = ais.attachAisToDesk(shop, [made]);

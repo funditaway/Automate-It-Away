@@ -116,6 +116,27 @@ async function main() {
   const nil = ais.normalizeAi({ name: "Nil", rules: null });
   if (!nil || nil.rules !== "") fail("null rules must return empty string");
   else pass("null rules return empty string");
+  const missingField = ais.normalizeAi({ name: "Undef", rules: undefined });
+  if (!missingField || missingField.rules !== "") fail("undefined rules must return empty string");
+  else pass("undefined rules return empty string");
+
+  const storedBad = [
+    ["object", { note: "old" }],
+    ["array", ["stay", "local"]],
+    ["number", 12],
+    ["boolean", false]
+  ];
+  storedBad.forEach(function (pair) {
+    const kind = pair[0];
+    const ai = ais.normalizeAi({ name: "Old " + kind, rules: pair[1] }, "rules-desk");
+    const shown = ais.publicAi(ai);
+    const dumped = JSON.stringify(ai && ai.rules);
+    if (!ai || ai.rules !== "" || dumped.indexOf("[object Object]") >= 0) {
+      fail("normalizeAi " + kind + " rules must be empty string, got " + dumped);
+    } else if (!shown || shown.rules !== "") {
+      fail("publicAi " + kind + " rules must be empty string, got " + JSON.stringify(shown && shown.rules));
+    } else pass("normalizeAi " + kind + " rules become empty string");
+  });
 
   await ready();
   const slug = "rules-desk";
@@ -165,6 +186,61 @@ async function main() {
   if (save.body && save.body.charged !== false) fail("save-ai must not charge");
   else pass("save-ai does not charge");
 
+  const beforeAis = JSON.stringify(shop.ais || []);
+  const requestBad = [
+    ["object", { keep: "off the desk" }],
+    ["array", ["no", "list"]],
+    ["number", 0],
+    ["boolean", true]
+  ];
+  for (let i = 0; i < requestBad.length; i++) {
+    const kind = requestBad[i][0];
+    const rejected = await call(packHandler, "POST", { "x-workspace": slug, "x-pin": pin }, {
+      action: "save-ai",
+      name: "Bad " + kind,
+      role: "Doer",
+      does: "Draft on this desk",
+      rules: requestBad[i][1],
+      steps: "qualify"
+    });
+    const err = rejected.body && rejected.body.error;
+    const names = (shop.ais || []).map(function (a) { return a && a.name; });
+    if (rejected.statusCode !== 400) fail("save-ai " + kind + " rules must 400, got " + rejected.statusCode);
+    else if (err !== "Rules must be plain text.") fail("save-ai " + kind + " rules message, got " + JSON.stringify(rejected.body));
+    else if (names.indexOf("Bad " + kind) >= 0) fail("save-ai " + kind + " rules must not store an AI");
+    else pass("save-ai rejects " + kind + " rules");
+  }
+  const nested = await call(packHandler, "POST", { "x-workspace": slug, "x-pin": pin }, {
+    action: "save-ai",
+    ai: { name: "Nested Bad", role: "Doer", does: "Draft on this desk", rules: { nested: true }, steps: "qualify" }
+  });
+  if (nested.statusCode !== 400 || !nested.body || nested.body.error !== "Rules must be plain text.") {
+    fail("save-ai nested object rules must 400, got " + nested.statusCode + " " + JSON.stringify(nested.body));
+  } else if ((shop.ais || []).some(function (a) { return a && a.name === "Nested Bad"; })) {
+    fail("save-ai nested object rules must not store an AI");
+  } else pass("save-ai rejects nested object rules");
+  if (JSON.stringify(shop.ais || []) !== beforeAis) fail("save-ai non-string rules must save nothing");
+  else pass("save-ai non-string rules save nothing");
+  const still = (shop.ais || []).find(function (a) { return a && a.name === "Rules AI"; });
+  if (!still || still.rules !== rules900) fail("rejected save-ai must leave stored rules alone");
+  else pass("rejected save-ai leaves stored rules alone");
+
+  const nullSave = await call(packHandler, "POST", { "x-workspace": slug, "x-pin": pin }, {
+    action: "save-ai",
+    name: "Null Rules",
+    role: "Doer",
+    does: "Draft on this desk",
+    rules: null,
+    steps: "qualify"
+  });
+  const nullAi = nullSave.body && nullSave.body.ai;
+  const nullStored = (shop.ais || []).find(function (a) { return a && a.name === "Null Rules"; });
+  if (nullSave.statusCode !== 200 || !nullSave.body || !nullSave.body.ok) {
+    fail("save-ai null rules must be allowed, got " + nullSave.statusCode + " " + JSON.stringify(nullSave.body && nullSave.body.error));
+  } else if (!nullAi || nullAi.rules !== "" || !nullStored || nullStored.rules !== "") {
+    fail("save-ai null rules must store empty string, got " + JSON.stringify(nullAi && nullAi.rules));
+  } else pass("save-ai null rules store empty string");
+
   const keys = stashKeys();
   mem.connections = [];
   try {
@@ -182,6 +258,20 @@ async function main() {
     const missing = await grok.studioDraft("Name a lane pack", slug, { kind: "pack" });
     if (!missing || missing.rules !== "") fail("studioDraft missing rules must return empty string");
     else pass("studioDraft missing rules return empty string");
+
+    const draftBad = [
+      ["object", { note: "skip" }],
+      ["array", ["skip"]],
+      ["number", 3],
+      ["boolean", false]
+    ];
+    for (let d = 0; d < draftBad.length; d++) {
+      const kind = draftBad[d][0];
+      const drafted = await grok.studioDraft("Name a lane pack", slug, { kind: "pack", rules: draftBad[d][1] });
+      if (!drafted || drafted.rules !== "" || String(drafted.rules).indexOf("[object Object]") >= 0) {
+        fail("studioDraft " + kind + " rules must be empty string, got " + JSON.stringify(drafted && drafted.rules));
+      } else pass("studioDraft " + kind + " rules become empty string");
+    }
 
     process.env.XAI_API_KEY = "rules-check-not-a-real-key";
     const prevFetch = global.fetch;

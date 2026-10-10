@@ -272,6 +272,7 @@ const STUDIO_SYSTEM = "You draft thin JSON packs and named Desk AIs for Automate
 
 async function studioDraft(brief, workspace, opts) {
   // Caller text only. Same 1000 cap as the Desk AI field. Not sent to the model.
+  // A non-string is empty text, same as normalizeAi.
   const rules = ais.rulesText(opts && opts.rules);
   function passRules(out) {
     if (out && typeof out === "object") out.rules = rules;
