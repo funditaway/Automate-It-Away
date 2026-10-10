@@ -656,13 +656,13 @@ async function packHandler(req, res) {
     const planPack = ais.planText(incoming && incoming.plan);
     const made = ais.normalizeAi(body.ai || body, workspace);
     if (!made) return res.status(400).json({ ok: false, error: "Name the AI first." });
-    const added = ais.attachAisToDesk(shop, [made]);
-    const wantName = String(made.name || "").trim().toLowerCase();
-    const stored = (shop.ais || []).find(function (row) {
-      return row && made.id && row.id === made.id;
-    }) || (shop.ais || []).find(function (row) {
-      return row && String(row.name || "").trim().toLowerCase() === wantName;
-    }) || made;
+    const candidate = ais.normalizeAis([made], shop.slug)[0];
+    if (!ais.liveDeskAi(shop, candidate) && (shop.ais || []).length >= 6) {
+      return res.status(400).json({ ok: false, error: "This desk already has 6 Desk AIs." });
+    }
+    const touched = [];
+    const added = ais.attachAisToDesk(shop, [made], touched);
+    const stored = touched[0];
     await save();
     log("Desk AI", "Attach · " + stored.name, "OK", workspace);
     const rails = ais.railsOf(shop);
