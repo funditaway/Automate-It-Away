@@ -1,5 +1,15 @@
 /* Queue cards: Yes/Stop on decide jobs. Off-desk done / needs a hand. */
 (function () {
+  /* Card fields come from strangers (hook senders, subjects, notes). Always escape them before they go into markup. */
+  function escText(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&" + "amp;", "<": "&" + "lt;", ">": "&" + "gt;", '"': "&" + "quot;", "'": "&" + "#39;" }[c];
+    });
+  }
+  /* A value inside an onclick='...' string: drop quotes, backslashes and line breaks, then escape for the attribute. */
+  function jsArg(s) {
+    return escText(String(s == null ? "" : s).replace(/['\\\r\n]/g, ""));
+  }
   function isDecideJob(j) {
     if (!j) return false;
     if (j.status === "killed" || j.status === "shipped" || j.carried || j.status === "out") return false;
@@ -54,7 +64,7 @@
     const rows = people.map(function (p) {
       const name = p.name || p.id;
       const on = j.assignee && String(j.assignee).toLowerCase() === String(name).toLowerCase();
-      return "<button class=\"edit\" type=\"button\" onclick=\"handOffTo('" + id + "', '" + String(name).replace(/'/g, "") + "')\">" + (typeof esc === "function" ? esc(name) : name) + (p.role === "owner" ? " · owner" : " · helper") + (on ? " · has it" : "") + "</button>";
+      return "<button class=\"edit\" type=\"button\" onclick=\"handOffTo('" + jsArg(id) + "', '" + jsArg(name) + "')\">" + escText(name) + (p.role === "owner" ? " · owner" : " · helper") + (on ? " · has it" : "") + "</button>";
     }).join("");
     sheet.innerHTML = "<h3>Hand off</h3><p class=\"meta\">A person already on this desk. Owner still owns No. AIA does not text them.</p>" + (rows ? "<div class=\"row actions\">" + rows + "</div>" : "<p class=\"meta\">No other people yet.</p><p class=\"meta\"><button class=\"edit\" type=\"button\" onclick=\"openInvite()\">Invite a helper</button></p>") + "<div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
     wrap.classList.add("on");
@@ -74,9 +84,9 @@
     if (!sheet || !wrap) return;
     const live = livePipes();
     const hold = (window.PIPES || []).filter(function (p) { return !p.live; });
-    const liveRows = live.map(function (p) { return "<p><b>" + p.label + "</b> · live" + (p.onDesk ? " · on this desk" : "") + "</p>"; }).join("") || "<p class=\"meta\">No named pipe is live. Webhook inbound still writes cards.</p>";
-    const holdRows = hold.map(function (p) { return "<p class=\"meta\">" + p.label + " · " + (p.status || "hold") + (p.note ? " · " + p.note : "") + "</p>"; }).join("");
-    sheet.innerHTML = "<h3>Pipes</h3><p class=\"meta\">Write back done or hand. AIA does not send money from this sheet.</p><p class=\"meta\">Live now</p>" + liveRows + (window.INBOUND ? "<p class=\"meta\">Inbound hook</p><div class=\"draft\">" + window.INBOUND + "</div>" : "") + "<p class=\"meta\">Orange until a real pipe answers</p>" + holdRows + "<div class=\"row actions\" style=\"margin-top:12px\"><a class=\"edit\" href=\"/connections\">Open Pipes wall</a></div><div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
+    const liveRows = live.map(function (p) { return "<p><b>" + escText(p.label) + "</b> · live" + (p.onDesk ? " · on this desk" : "") + "</p>"; }).join("") || "<p class=\"meta\">No named pipe is live. Webhook inbound still writes cards.</p>";
+    const holdRows = hold.map(function (p) { return "<p class=\"meta\">" + escText(p.label) + " · " + escText(p.status || "hold") + (p.note ? " · " + escText(p.note) : "") + "</p>"; }).join("");
+    sheet.innerHTML = "<h3>Pipes</h3><p class=\"meta\">Write back done or hand. AIA does not send money from this sheet.</p><p class=\"meta\">Live now</p>" + liveRows + (window.INBOUND ? "<p class=\"meta\">Inbound hook</p><div class=\"draft\">" + escText(window.INBOUND) + "</div>" : "") + "<p class=\"meta\">Orange until a real pipe answers</p>" + holdRows + "<div class=\"row actions\" style=\"margin-top:12px\"><a class=\"edit\" href=\"/connections\">Open Pipes wall</a></div><div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
     wrap.classList.add("on");
   };
   window.sendToPipe = function (id) { openPipesSheet(id); };
@@ -110,9 +120,10 @@
     const mail = typeof mailHref === "function" ? mailHref(j.title, draft) : "mailto:?subject=" + encodeURIComponent(j.title || "") + "&body=" + encodeURIComponent(draft);
     const live = livePipes().map(function (p) { return p.label; });
     const pipeLine = live.length ? "Live pipes: " + live.join(", ") : "Live pipe: inbound webhook. Named pipes on hold.";
-    const decideBtns = decide ? ("<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" + (staff ? "" : "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>")) : "";
-    const safe = typeof esc === "function" ? esc : function (s) { return String(s || ""); };
-    return "<article class=\"item q-card\" data-job=\"" + safe(j.id || "") + "\"><div class=\"meta\">" + (outDesk ? "Off the desk" : (typeof labelStatus === "function" ? labelStatus(j.status) : j.status)) + (j.assignee ? " · handed to " + safe(j.assignee) : "") + (decide ? " · Yes/Stop" : outDesk ? " · write-back" : "") + "</div><h3>" + safe(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + safe(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + safe(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + safe(j.draft) + "</div>" : "") + "<p class=\"meta\">" + safe(line) + "</p><p class=\"meta\">" + safe(pipeLine) + "</p><div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button><a class=\"edit\" href=\"" + sms + "\">Text</a><a class=\"edit\" href=\"" + mail + "\">Email</a><button class=\"edit\" type=\"button\" onclick=\"openHandOff('" + j.id + "')\">Hand off</button><button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button><button class=\"edit\" type=\"button\" onclick=\"helpWithAi('" + j.id + "')\">Ask the desk</button><button class=\"go\" type=\"button\" onclick=\"doneOffDesk('" + j.id + "')\">Done off desk</button><button class=\"edit\" type=\"button\" onclick=\"needsHand('" + j.id + "')\">Needs a hand</button>" + decideBtns + "</div></article>";
+    const decideBtns = decide ? ("<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + jsArg(j.id) + "', " + (Number.isFinite(money) ? money : 0) + ")\">Yes</button>" + (staff ? "" : "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + jsArg(j.id) + "', '" + jsArg(j.title || "") + "')\">Stop</button>")) : "";
+    /* Always escape, with this file's own escape (it also covers quotes inside attributes), whether or not the page has esc. */
+    const safe = escText;
+    return "<article class=\"item q-card\" data-job=\"" + safe(j.id || "") + "\"><div class=\"meta\">" + safe(outDesk ? "Off the desk" : (typeof labelStatus === "function" ? labelStatus(j.status) : j.status)) + (j.assignee ? " · handed to " + safe(j.assignee) : "") + (decide ? " · Yes/Stop" : outDesk ? " · write-back" : "") + "</div><h3>" + safe(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + safe(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + safe(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + safe(j.draft) + "</div>" : "") + "<p class=\"meta\">" + safe(line) + "</p><p class=\"meta\">" + safe(pipeLine) + "</p><div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + jsArg(j.id) + "')\">Open</button><a class=\"edit\" href=\"" + safe(sms) + "\">Text</a><a class=\"edit\" href=\"" + safe(mail) + "\">Email</a><button class=\"edit\" type=\"button\" onclick=\"openHandOff('" + jsArg(j.id) + "')\">Hand off</button><button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + jsArg(j.id) + "')\">Pipes</button><button class=\"edit\" type=\"button\" onclick=\"helpWithAi('" + jsArg(j.id) + "')\">Ask the desk</button><button class=\"go\" type=\"button\" onclick=\"doneOffDesk('" + jsArg(j.id) + "')\">Done off desk</button><button class=\"edit\" type=\"button\" onclick=\"needsHand('" + jsArg(j.id) + "')\">Needs a hand</button>" + decideBtns + "</div></article>";
   };
   function setCardBusy(id, on) {
     if (typeof window.setCardBusy === "function" && window.setCardBusy !== setCardBusy) {
