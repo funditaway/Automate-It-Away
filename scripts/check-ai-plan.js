@@ -131,14 +131,14 @@ async function main() {
   else pass("plan is not the draft allow-list");
 
   const exact = [];
-  for (let i = 0; i < 50; i++) exact.push("e" + i);
+  for (let i = 0; i < 200; i++) exact.push("e" + i);
   const exactAi = ais.normalizeAi({ name: "Exact", plan: exact });
-  if (!exactAi || !same(exactAi.plan, exact)) fail("50 plan lines must stay whole");
-  else pass("50 plan lines stay whole");
-  const chars = "C".repeat(300);
+  if (!exactAi || !same(exactAi.plan, exact)) fail("200 plan lines must stay whole");
+  else pass("200 plan lines stay whole");
+  const chars = "C".repeat(500);
   const charsAi = ais.normalizeAi({ name: "Chars", plan: [chars] });
-  if (!charsAi || charsAi.plan[0] !== chars) fail("300-character plan line must stay whole");
-  else pass("300-character plan line stays whole");
+  if (!charsAi || charsAi.plan[0] !== chars) fail("500-character plan line must stay whole");
+  else pass("500-character plan line stays whole");
 
   await ready();
   const slug = "plan-desk";
@@ -203,7 +203,7 @@ async function main() {
   } else pass("old-style steps string still saves the same allow-list");
 
   const many = [];
-  for (let n = 0; n < 55; n++) many.push("step " + n);
+  for (let n = 0; n < 201; n++) many.push("step " + n);
   const capped = await call(packHandler, "POST", owner, {
     action: "save-ai",
     name: "Capped AI",
@@ -214,15 +214,15 @@ async function main() {
   });
   const cappedAi = capped.body && capped.body.ai;
   const cappedCut = capped.body && capped.body.planCut;
-  const wantKept = many.slice(0, 50);
+  const wantKept = many.slice(0, 200);
   if (capped.statusCode !== 200 || !cappedAi || !same(cappedAi.plan, wantKept)) {
-    fail("save-ai must keep the first 50 plan lines, got " + (cappedAi && cappedAi.plan && cappedAi.plan.length));
-  } else pass("save-ai keeps the first 50 plan lines");
-  if (!cappedCut || cappedCut.kept !== 50 || cappedCut.dropped !== 5 || cappedCut.trimmed !== 0) {
-    fail("50-line cap must report planCut, got " + JSON.stringify(cappedCut));
-  } else pass("50-line cap reports planCut");
+    fail("save-ai must keep the first 200 of 201 plan lines, got " + (cappedAi && cappedAi.plan && cappedAi.plan.length));
+  } else pass("save-ai keeps the first 200 of 201 plan lines");
+  if (!cappedCut || cappedCut.kept !== 200 || cappedCut.dropped !== 1 || cappedCut.trimmed !== 0 || !same(cappedCut.droppedIndexes, [200]) || !same(cappedCut.trimmedIndexes, [])) {
+    fail("201-line cap must report planCut, got " + JSON.stringify(cappedCut));
+  } else pass("201-line cap reports the dropped index");
 
-  const long = "L".repeat(300) + "TAIL";
+  const long = "L".repeat(501);
   const trimmed = await call(packHandler, "POST", owner, {
     action: "save-ai",
     name: "Trim AI",
@@ -232,12 +232,12 @@ async function main() {
   });
   const trimAi = trimmed.body && trimmed.body.ai;
   const trimCut = trimmed.body && trimmed.body.planCut;
-  if (!trimAi || trimAi.plan.length !== 2 || trimAi.plan[0] !== long.slice(0, 300) || trimAi.plan[0].indexOf("TAIL") >= 0 || trimAi.plan[1] !== "short") {
-    fail("save-ai must cut a plan line to 300, got " + JSON.stringify(trimAi && trimAi.plan && trimAi.plan[0] && trimAi.plan[0].length));
-  } else pass("save-ai cuts a plan line to 300");
-  if (!trimCut || trimCut.kept !== 2 || trimCut.dropped !== 0 || trimCut.trimmed !== 1) {
-    fail("300-character cap must report planCut, got " + JSON.stringify(trimCut));
-  } else pass("300-character cap reports planCut");
+  if (!trimAi || trimAi.plan.length !== 2 || trimAi.plan[0] !== long.slice(0, 500) || trimAi.plan[0].length !== 500 || trimAi.plan[1] !== "short") {
+    fail("save-ai must cut a 501-character plan line to 500, got " + JSON.stringify(trimAi && trimAi.plan && trimAi.plan[0] && trimAi.plan[0].length));
+  } else pass("save-ai cuts a 501-character plan line to 500");
+  if (!trimCut || trimCut.kept !== 2 || trimCut.dropped !== 0 || trimCut.trimmed !== 1 || !same(trimCut.droppedIndexes, []) || !same(trimCut.trimmedIndexes, [0])) {
+    fail("501-character cap must report planCut, got " + JSON.stringify(trimCut));
+  } else pass("501-character cap reports the trimmed index");
 
   const emptied = await call(packHandler, "POST", owner, {
     action: "save-ai",
@@ -251,9 +251,13 @@ async function main() {
   if (!emptyAi || !same(emptyAi.plan, ["keep", "next"])) {
     fail("save-ai must drop empty plan lines, got " + JSON.stringify(emptyAi && emptyAi.plan));
   } else pass("save-ai drops empty plan lines");
-  if (!emptyCut || emptyCut.kept !== 2 || emptyCut.dropped !== 2 || emptyCut.trimmed !== 0) {
+  if (!emptyCut || emptyCut.kept !== 2 || emptyCut.dropped !== 2 || emptyCut.trimmed !== 0 || !same(emptyCut.droppedIndexes, [1, 2]) || !same(emptyCut.trimmedIndexes, [])) {
     fail("empty plan lines must count as dropped, got " + JSON.stringify(emptyCut));
   } else pass("empty plan lines count as dropped");
+  const mixedCut = ais.planText(["keep", 1, "", "  also  "]);
+  if (!mixedCut.cut || !same(mixedCut.plan, ["keep", "also"]) || !same(mixedCut.cut.droppedIndexes, [1, 2]) || mixedCut.cut.dropped !== 2) {
+    fail("non-string plan indexes must be dropped, got " + JSON.stringify(mixedCut.cut));
+  } else pass("non-string plan indexes are dropped");
 
   const beforeAis = JSON.stringify(shop.ais || []);
   const requestBad = [
@@ -294,11 +298,11 @@ async function main() {
     else pass("studioDraft passes plan through");
 
     const longPlan = [];
-    for (let s = 0; s < 60; s++) longPlan.push(s === 0 ? "S".repeat(340) : "s" + s);
+    for (let s = 0; s < 201; s++) longPlan.push(s === 0 ? "S".repeat(501) : "s" + s);
     const cappedDraft = await grok.studioDraft("Name a lane pack", slug, { plan: longPlan });
-    if (!cappedDraft || !cappedDraft.plan || cappedDraft.plan.length !== 50 || cappedDraft.plan[0] !== "S".repeat(300)) {
-      fail("studioDraft must cap plan at 50 and 300");
-    } else pass("studioDraft caps plan at 50 and 300");
+    if (!cappedDraft || !cappedDraft.plan || cappedDraft.plan.length !== 200 || cappedDraft.plan[0] !== "S".repeat(500)) {
+      fail("studioDraft must cap plan at 200 and 500");
+    } else pass("studioDraft caps plan at 200 and 500");
 
     const missing = await grok.studioDraft("Name a lane pack", slug, { kind: "pack" });
     if (!missing || !same(missing.plan, [])) fail("studioDraft missing plan must be [], got " + JSON.stringify(missing && missing.plan));

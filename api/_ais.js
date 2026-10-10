@@ -23,31 +23,39 @@ function rulesText(v) {
   return v.slice(0, 1000);
 }
 
-// Desk AI plan is stored text only, in order. Cap at 50 lines and 300
+// Desk AI plan is stored text only, in order. Cap at 200 lines and 500
 // characters each. Trim whitespace, drop empty lines, drop non-strings, and
-// keep the first 50. Do not run, charge, or enforce them. A missing value or
+// keep the first 200. Do not run, charge, or enforce them. A missing value or
 // anything that is not an array is []. This is not the draft allow-list.
-const PLAN_MAX = 50;
-const PLAN_CHARS = 300;
+const PLAN_MAX = 200;
+const PLAN_CHARS = 500;
 
 function planText(v) {
   if (!Array.isArray(v)) return { plan: [], cut: null };
   const plan = [];
-  let dropped = 0;
-  let trimmed = 0;
-  v.forEach(function (item) {
-    if (typeof item !== "string") { dropped += 1; return; }
+  const droppedIndexes = [];
+  const trimmedIndexes = [];
+  v.forEach(function (item, index) {
+    if (typeof item !== "string") { droppedIndexes.push(index); return; }
     const text = item.trim();
-    if (!text) { dropped += 1; return; }
-    if (plan.length >= PLAN_MAX) { dropped += 1; return; }
+    if (!text) { droppedIndexes.push(index); return; }
+    if (plan.length >= PLAN_MAX) { droppedIndexes.push(index); return; }
     if (text.length > PLAN_CHARS) {
-      trimmed += 1;
+      trimmedIndexes.push(index);
       plan.push(text.slice(0, PLAN_CHARS));
     } else {
       plan.push(text);
     }
   });
-  const cut = (dropped || trimmed) ? { kept: plan.length, dropped: dropped, trimmed: trimmed } : null;
+  const dropped = droppedIndexes.length;
+  const trimmed = trimmedIndexes.length;
+  const cut = (dropped || trimmed) ? {
+    kept: plan.length,
+    dropped: dropped,
+    trimmed: trimmed,
+    droppedIndexes: droppedIndexes,
+    trimmedIndexes: trimmedIndexes
+  } : null;
   return { plan: plan, cut: cut };
 }
 
