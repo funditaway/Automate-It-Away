@@ -94,7 +94,7 @@ must(more, "First .aia pack", "more.html first-pack title");
 
 must(studio, 'id="first-pack"', "studio first-pack card");
 must(studio, "First .aia pack", "studio first-pack title");
-must(studio, "Webhook is the live pipe", "studio first-pack webhook");
+must(studio, "The webhook is the incoming connection", "studio first-pack webhook");
 must(studio, "Buyer binds their own keys on Pipes", "studio first-pack buyer keys");
 must(studio, "Not a bindings product", "studio first-pack no bindings product");
 must(studio, "Yes / Stop / Kill before anything leaves", "studio first-pack Yes before outbound");
