@@ -44,6 +44,12 @@ async function main() {
  const res = mockRes();
  await health({ method: "GET", headers: {}, query: {} }, res);
  if (res.statusCode !== 200 || !res.body || !res.body.accounts) fail("health"); else pass("health");
+ const revSha = res.body.rev;
+ const revShort = res.body.revShort;
+ if (!Object.prototype.hasOwnProperty.call(res.body, "rev") || !Object.prototype.hasOwnProperty.call(res.body, "revShort")) fail("health rev keys");
+ else if (revSha == null && revShort === null) pass("health rev");
+ else if (typeof revSha === "string" && /^[0-9a-fA-F]{40}$/.test(revSha) && revShort === revSha.slice(0, 7)) pass("health rev");
+ else fail("health rev " + JSON.stringify({ rev: revSha, revShort: revShort }));
  if (res.headers["Access-Control-Allow-Headers"] !== "Content-Type, Authorization, X-Workspace, X-Pin, X-Session") fail("CORS"); else pass("CORS");
  if (res.body.accounts.login !== "desk name + desk code, or email + password") fail("accounts.login");
  else if (!/^HOLD/.test(res.body.accounts.mfa)) fail("accounts.mfa");
@@ -92,6 +98,8 @@ async function main() {
  const st = mockRes();
  await status({ method: "GET", headers: {}, query: {} }, st);
  if (st.statusCode !== 200 || !st.body || st.body.ok !== true) fail("status endpoint"); else pass("st");
+ if (Object.prototype.hasOwnProperty.call(st.body || {}, "rev") || Object.prototype.hasOwnProperty.call(st.body || {}, "revShort")) fail("status rev");
+ else pass("st.rev");
  if (st.body.workspace === "demo" || st.body.label === "demo") fail("status demo"); else pass("st.demo");
  if (st.body.status !== "hold" || st.body.answered !== false) fail("status hold"); else pass("st.hold");
  const statusJson = JSON.stringify(st.body);
