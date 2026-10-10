@@ -222,5 +222,22 @@ pass("Yes, Stop and Kill unchanged");
   else pass("long request: summary is " + p.length + " characters (of " + api.promptLength(typed) + "), keeps the lead and needs; steps trimmed");
 })();
 
+// 8. Three lines typed in the box give three steps (Draft it keeps the line breaks for the starter draft).
+(function typedLines() {
+  const fnSrc = (js.match(/async function draftIt\(\) \{[\s\S]*?\n  \}\n/) || [""])[0];
+  if (!fnSrc) { fail("could not find draftIt"); return; }
+  if (/starterDraft\(words\)|fromStudio\(words,/.test(fnSrc) || !/starterDraft\(raw\)/.test(fnSrc) || !/fromStudio\(raw, /.test(fnSrc)) fail("Draft it must pass the raw box text (with line breaks) to the starter draft");
+  else pass("Draft it passes the raw box text to the starter draft");
+  if (!/var raw = String\(el\("cs-words"\)\.value/.test(fnSrc) || !/var words = clean\(raw\)/.test(fnSrc) || !/brief: words/.test(fnSrc)) fail("only the studio-draft brief may squash the line breaks");
+  else pass("only the studio-draft brief squashes line breaks");
+  const typed = "Read the school email\nDraft a reply, short and kind\nRemind me Friday";
+  const plan = api.starterDraft(typed).plan;
+  if (!plan || plan.length !== 3 || plan[1] !== "Draft a reply, short and kind") fail("three typed lines must give three steps, got " + JSON.stringify(plan));
+  else pass("three typed lines give three steps: " + JSON.stringify(plan));
+  const studioPlan = api.fromStudio(typed, { name: "x", kind: "ai" }).plan;
+  if (!studioPlan || studioPlan.length !== 3) fail("an AIA draft must keep the three typed steps too, got " + JSON.stringify(studioPlan));
+  else pass("AIA draft keeps the three typed steps");
+})();
+
 if (bad) { console.error(bad + " check(s) failed"); process.exit(1); }
 console.log("check-create-open ok");

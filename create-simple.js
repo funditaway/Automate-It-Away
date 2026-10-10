@@ -270,7 +270,9 @@
   }
 
   async function draftIt() {
-    var words = clean(el("cs-words").value);
+    /* Keep the line breaks for the starter draft (one typed line = one step); squash them only for the studio-draft brief. */
+    var raw = String(el("cs-words").value || "");
+    var words = clean(raw);
     if (!words) return note("cs-note", "Say what you want automated first.", "ask");
     if (listening && rec) rec.stop();
     note("cs-note", "", "");
@@ -278,18 +280,18 @@
     btn.disabled = true;
     if (!deskOpen()) {
       btn.disabled = false;
-      showDraft(starterDraft(words), "Your desk is not open, so AIA did not draft this. This starter is made from your words. Change anything in plain words.");
+      showDraft(starterDraft(raw), "Your desk is not open, so AIA did not draft this. This starter is made from your words. Change anything in plain words.");
       el("cs-open").hidden = false;
       return;
     }
     try {
       var r = await fetch("/api/desks", { method: "POST", headers: hdr(), body: JSON.stringify({ action: "studio-draft", brief: words, kind: "ai" }) });
       var d = await r.json().catch(function () { return {}; });
-      if (r.ok && d && d.ok && d.pack) showDraft(fromStudio(words, d.pack));
-      else if (d && d.grok === "off") showDraft(starterDraft(words), "AIA drafting is not on for this desk yet, so this starter is made from your words. Change anything in plain words.");
-      else showDraft(starterDraft(words), (d && d.error ? d.error + " " : "AIA did not draft this time. ") + "This starter is made from your words.");
+      if (r.ok && d && d.ok && d.pack) showDraft(fromStudio(raw, d.pack));
+      else if (d && d.grok === "off") showDraft(starterDraft(raw), "AIA drafting is not on for this desk yet, so this starter is made from your words. Change anything in plain words.");
+      else showDraft(starterDraft(raw), (d && d.error ? d.error + " " : "AIA did not draft this time. ") + "This starter is made from your words.");
     } catch (e) {
-      showDraft(starterDraft(words), "Could not reach the desk. This starter is made from your words.");
+      showDraft(starterDraft(raw), "Could not reach the desk. This starter is made from your words.");
     } finally {
       btn.disabled = false;
     }
