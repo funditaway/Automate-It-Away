@@ -287,7 +287,7 @@ function findAiSeat(shop, ai) {
   }) || null;
 }
 
-function attachAisToDesk(shop, rows) {
+function attachAisToDesk(shop, rows, touched) {
   if (!shop) return 0;
   const incoming = normalizeAis(rows, shop.slug);
   if (!Array.isArray(shop.people)) shop.people = [];
@@ -306,6 +306,7 @@ function attachAisToDesk(shop, rows) {
       added += 1;
     }
     const row = have || ai;
+    if (Array.isArray(touched)) touched.push(have || ai);
     let seat = findAiSeat(shop, row);
     if (!seat) {
       seat = {
