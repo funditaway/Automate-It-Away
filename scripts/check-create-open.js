@@ -193,7 +193,7 @@ pass("Yes, Stop and Kill unchanged");
   if (line.indexOf(longJob) >= 0) fail("after-Yes line must not show the full typed job");
   if (line.indexOf("AIA kept the first " + server.name + " characters of the name.") < 0) fail("after-Yes line must say the name was cut");
   if (line.indexOf("AIA kept the first " + server.does + " characters of the job.") < 0) fail("after-Yes line must say the job was cut");
-  if (line.indexOf("AIA kept the first " + server.prompt + " characters of the summary") < 0) fail("after-Yes line must say the summary was cut");
+  if (line.indexOf("AIA kept the first " + ai.prompt.length + " characters of the summary.") < 0) fail("after-Yes line must say how much of the summary was really kept (" + ai.prompt.length + ")");
   else pass("after-Yes line says plainly what was cut (name, job, summary)");
   if (!/drafts only\. Nothing was sent or charged\./.test(line)) fail("after-Yes line must keep the draft-only, nothing-sent line");
 
@@ -267,7 +267,7 @@ pass("Yes, Stop and Kill unchanged");
   if (words.length !== 2717 || d1.plan.length !== 42) fail("case 1 setup must be 2,717 characters and 42 steps, got " + words.length + " / " + d1.plan.length);
   const ai1 = save(d1);
   const line1 = api.savedLine(d1, { ok: true, ai: ai1 });
-  const expect1 = "AIA kept the first 400 characters of the summary. Only part of what it watches fit. What it drafts and the steps didn't fit.";
+  const expect1 = "AIA kept the first " + ai1.prompt.length + " characters of the summary. Only part of what it watches fit. What it drafts and the steps didn't fit.";
   if (ai1.prompt.indexOf("Needs from the person: ") < 0 || ai1.prompt.indexOf("Drafts:") >= 0 || ai1.prompt.indexOf("Steps:") >= 0) fail("case 1 must save the lead, needs and job and lose drafts and steps: " + ai1.prompt.slice(-60));
   if (line1.indexOf(expect1) < 0) fail("case 1 (2,717 characters, 42 steps) must name every lost piece: " + line1.split("\n").pop());
   else pass("case 1 (2,717 characters, 42 steps): " + expect1);
@@ -285,9 +285,9 @@ pass("Yes, Stop and Kill unchanged");
   // Steps that partly fit are counted.
   const d4 = { name: "Helper", job: "Drafts replies", needs: "Who picks up", watches: "Texts", drafts: "A reply", plan: lines.slice(0, 20) };
   const line4 = api.savedLine(d4, { ok: true, ai: save(d4) });
-  const m4 = line4.match(/Only the first (\d+) of 20 steps fit\./);
+  const m4 = line4.match(/Only the first (\d+) of the 20 steps fit\./);
   if (!m4 || /didn't fit/.test(line4)) fail("partly kept steps must be counted, and nothing else listed: " + line4.split("\n").pop());
-  else pass("partly kept steps are counted: Only the first " + m4[1] + " of 20 steps fit.");
+  else pass("partly kept steps are counted: Only the first " + m4[1] + " of the 20 steps fit.");
 
   // Nothing that fits gets a trim note.
   const d3 = { name: "Pickup helper", job: "Drafts pickup replies", needs: "Who picks up", watches: "Texts", drafts: "A reply", plan: ["Read", "Draft"] };
@@ -300,8 +300,80 @@ pass("Yes, Stop and Kill unchanged");
   if (shown !== "Its job, as saved: Drafts pickup replies") fail("the saved job must be shown with nothing added: " + JSON.stringify(shown));
   else pass("saved job shown exactly as stored, no added period");
   const shown2 = line2.split("\n").filter(function (l) { return l.indexOf("Its job, as saved: ") === 0; })[0];
-  if (shown2 !== "Its job, as saved: " + ai2.does.trim()) fail("a cut job must be shown exactly as stored: " + JSON.stringify(shown2));
+  if (shown2 !== "Its job, as saved: " + ai2.does) fail("a cut job must be shown exactly as stored: " + JSON.stringify(shown2));
   if (!/done\.style\.whiteSpace = "pre-line"/.test(js)) fail("the after-Yes box must keep the saved job on its own line");
+})();
+
+// 10. The trim note uses piece positions and the length really saved (never label searches or a fixed 400).
+(function positionsAndRealLength() {
+  if (typeof api.summaryMap !== "function") { fail("create-simple.js must expose summaryMap (piece offsets)"); return; }
+  if (/indexOf\(piece\.label\)|label: "Watches:"/.test(js)) fail("the trim note must not search the saved text for labels");
+  const ais = require(path.join(root, "api", "_ais.js"));
+  function save(d) { return ais.publicAi(ais.normalizeAi(api.saveBody(d), "check-ws")); }
+  function note(d) { const ai = save(d); return { ai: ai, line: api.savedLine(d, { ok: true, ai: ai }), last: api.savedLine(d, { ok: true, ai: ai }).split("\n").pop() }; }
+  const longNeed = "Every name, date, time, address and phone number for each child, each driver and each school, plus who is allowed to pick up which child on which day and what to do when plans change at the last minute or someone is sick or late";
+  const job150 = "Reads every school and carpool message, works out who is picking up which child on which day, and drafts a short reply for me to check first";
+
+  // a) Needs typed as "Watches: the bus list", with the cut inside the job: watches are lost, not partly kept.
+  const a = note({ name: "Bus helper", job: job150, needs: "Watches: the bus list\n" + longNeed, watches: "School texts", drafts: "A reply", plan: ["Read", "Reply"] });
+  const aKept = a.ai.prompt.length;
+  const m = api.summaryMap({ job: job150, needs: "Watches: the bus list\n" + longNeed, watches: "School texts", drafts: "A reply", plan: ["Read", "Reply"] });
+  const jobPiece = m.pieces[1];
+  if (!(jobPiece.start < aKept && aKept < jobPiece.end)) fail("case a setup: the cut must land inside the job (" + jobPiece.start + "-" + jobPiece.end + ", kept " + aKept + ")");
+  if (/Only part of what it watches/.test(a.last) || a.last.indexOf("Only part of the job fit.") < 0 || a.last.indexOf("What it watches, what it drafts and the steps didn't fit.") < 0) fail("needs typed as 'Watches: ...' must not count as watches: " + a.last);
+  else pass("needs typed as 'Watches: the bus list': job partly kept, watches/drafts/steps lost");
+
+  // b) A job containing "Steps:" while the real steps are lost.
+  const b = note({ name: "Steps helper", job: "Steps: read the note, check the calendar, then draft the reply for me to look at", needs: "Who picks up", watches: longNeed, drafts: "A reply", plan: ["Read", "Reply"] });
+  if (/steps fit|step fit/.test(b.last) || b.last.indexOf("the steps didn't fit.") < 0) fail("a job containing 'Steps:' must not count as steps: " + b.last);
+  else pass("job containing 'Steps:': the real steps are reported lost");
+
+  // c) One 260-character word at about position 401: the page trims to the last whole word; the note says the real kept count.
+  const base = { name: "Word helper", job: "Drafts replies", needs: "Who picks up", watches: "Texts", drafts: "", plan: [] };
+  const lead = api.promptLength(base);
+  const filler = "pad ".repeat(Math.ceil((400 - lead - 12) / 4)).trim();
+  const c = { name: base.name, job: base.job, needs: base.needs, watches: base.watches, drafts: filler + "\n" + "w".repeat(260), plan: [] };
+  const cMap = api.summaryMap(c);
+  const wordAt = cMap.full.indexOf("w".repeat(260));
+  const cn = note(c);
+  const cKept = cn.ai.prompt.length;
+  if (wordAt > 400 || wordAt + 260 <= 400) fail("case c setup: the long word must span the 400 cut (starts at " + wordAt + ")");
+  if (cKept >= 400 || cn.last.indexOf("AIA kept the first " + cKept + " characters of the summary.") < 0 || /first 400 characters/.test(cn.last)) fail("the note must report the real kept length (" + cKept + "): " + cn.last);
+  else pass("260-character word across the cut: note says the real kept count (" + cKept + "), not 400");
+  if (cKept !== api.savedLength(c, cn.ai.prompt)) fail("savedLength must equal the saved prompt length");
+
+  // d) Singular: one step.
+  const d1 = note({ name: "One step", job: "Drafts replies", needs: "Who picks up", watches: longNeed + " " + longNeed, drafts: "A reply", plan: ["Read the note"] });
+  if (/\b1 steps\b|None of the 1\b/.test(d1.last) || d1.last.indexOf("the step didn't fit.") < 0) fail("one lost step must read 'the step': " + d1.last);
+  else pass("one lost step reads 'the step'");
+  const two = note({ name: "Two steps", job: "Drafts replies", needs: "Who picks up", watches: "Texts", drafts: "A reply", plan: ["Read the note", "w".repeat(380)] });
+  if (/\b1 of\b|\b1 steps\b/.test(two.last) || two.last.indexOf("Only the first of the 2 steps fit.") < 0) fail("one of two steps kept must read 'Only the first of the 2 steps fit.': " + two.last);
+  else pass("one of two steps kept reads 'Only the first of the 2 steps fit.'");
+
+  // e) Job echo keeps the trailing space the server stored at character 160.
+  const spaceJob = "a".repeat(159) + " and more words after the cut";
+  const e = note({ name: "Space job", job: spaceJob, needs: "Who picks up", watches: "Texts", drafts: "A reply", plan: ["Read"] });
+  const eShown = e.line.split("\n").filter(function (l) { return l.indexOf("Its job, as saved: ") === 0; })[0];
+  if (!/ $/.test(e.ai.does) || eShown !== "Its job, as saved: " + e.ai.does) fail("job echo must keep the stored trailing space: " + JSON.stringify(eShown && eShown.slice(-5)));
+  else pass("job echo keeps the trailing space the server stored at 160");
+
+  // f) Edges: job 160 / 161, summary 400 / 401.
+  const j160 = note({ name: "J", job: "b".repeat(160), needs: "N", watches: "W", drafts: "D", plan: [] });
+  const j161 = note({ name: "J", job: "b".repeat(161), needs: "N", watches: "W", drafts: "D", plan: [] });
+  if (/characters of the job/.test(j160.last) || j161.last.indexOf("AIA kept the first " + server.does + " characters of the job.") < 0) fail("job edges: 160 has no note, 161 has the note");
+  else pass("job edges: 160 no note, 161 note");
+  function sized(n) {
+    const d0 = { name: "S", job: "Drafts", needs: "N", watches: "W", drafts: "", plan: [] };
+    const room = n - api.promptLength(d0);
+    d0.drafts = "x".repeat(room);
+    return d0;
+  }
+  const s400 = sized(400), s401 = sized(401);
+  if (api.promptLength(s400) !== 400 || api.promptLength(s401) !== 401) fail("edge setup must give 400 and 401 characters");
+  const n400 = note(s400), n401 = note(s401);
+  if (/AIA kept the first \d+ characters of the summary/.test(n400.last)) fail("a 400-character summary fits: no trim note");
+  if (n401.last.indexOf("AIA kept the first " + n401.ai.prompt.length + " characters of the summary.") < 0) fail("a 401-character summary gets a note with the real kept count: " + n401.last);
+  else pass("summary edges: 400 no note, 401 note with the real kept count (" + n401.ai.prompt.length + ")");
 })();
 
 if (bad) { console.error(bad + " check(s) failed"); process.exit(1); }

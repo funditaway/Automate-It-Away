@@ -172,36 +172,67 @@
     if (!v || t.length <= v.length || t.indexOf(v) !== 0) return "";
     return "AIA kept the first " + n + " characters of the " + what + ".";
   }
-  /* Which pieces of the summary survived the 400-character cut, read from the saved text. */
-  var PIECES = [
-    { label: "Needs from the person:", name: "what it needs from you" },
-    { label: "Job:", name: "the job" },
-    { label: "Watches:", name: "what it watches" },
-    { label: "Drafts:", name: "what it drafts" },
-    { label: "Steps:", name: "the steps" }
-  ];
+  /* Where each piece sits in the full summary (start and end offsets). The note compares these to the length
+     actually saved, so text the person typed (say "Watches:" inside the needs) can never be mistaken for a piece. */
+  var PIECE_NAMES = ["what it needs from you", "the job", "what it watches", "what it drafts", "the steps"];
+  function summaryMap(d) {
+    var parts = promptParts(d).map(function (x) { return clean(x); });
+    var plan = linesOf(d && d.plan);
+    var pieces = [], steps = [], cursor = 0, chunks = [];
+    parts.forEach(function (text, i) {
+      if (!text) return;
+      var start = cursor, end = start + text.length;
+      /* A piece's closing period is not content: the page's word trim may drop it. */
+      var wholeEnd = /\.$/.test(text) ? end - 1 : end;
+      if (i > 0) pieces.push({ name: PIECE_NAMES[i - 1], start: start, end: wholeEnd, steps: i === 5 });
+      if (i === 5) {
+        var at = start + "Steps: ".length;
+        plan.forEach(function (x, k) {
+          var one = (k + 1) + ") " + x;
+          steps.push({ start: at, end: at + one.length });
+          at += one.length + 2;
+        });
+      }
+      chunks.push(text);
+      cursor = end + 1;
+    });
+    return { full: chunks.join(" "), pieces: pieces, steps: steps };
+  }
+  /* The length the desk really kept: the saved prompt when the server sent it back (and it is this summary),
+     otherwise what the page sends (the page trims to the last whole word within 400). */
+  function savedLength(d, savedPrompt) {
+    var full = summaryMap(d).full;
+    var saved = typeof savedPrompt === "string" ? savedPrompt : "";
+    if (saved && full.indexOf(saved) === 0) return saved.length;
+    return promptOf(d).length;
+  }
   function andList(xs) {
     if (xs.length < 2) return xs.join("");
     return xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
   }
+  function stepsNote(map, kept) {
+    var n = map.steps.length, whole = 0;
+    map.steps.forEach(function (st) { if (st.end <= kept) whole += 1; });
+    if (whole >= n) return "";
+    if (whole === 0) return n === 1 ? "Only part of the step fit." : "None of the " + n + " steps fit whole.";
+    if (whole === 1) return "Only the first of the " + n + " steps fit.";
+    return "Only the first " + whole + " of the " + n + " steps fit.";
+  }
   function trimNote(d, savedPrompt) {
-    var saved = clean(savedPrompt);
-    var parts = promptParts(d);
+    var map = summaryMap(d);
+    var kept = savedLength(d, savedPrompt);
     var lost = [], partly = [];
-    PIECES.forEach(function (piece, i) {
-      var text = clean(parts[i + 1]);
-      if (!text || saved.indexOf(text) >= 0) return;
-      if (saved.indexOf(piece.label) < 0) { lost.push(piece.name); return; }
-      if (piece.label === "Steps:") {
-        var plan = linesOf(d && d.plan), kept = 0;
-        plan.forEach(function (x, k) { if (saved.indexOf((k + 1) + ") " + x) >= 0) kept = k + 1; });
-        partly.push(kept ? "Only the first " + kept + " of " + plan.length + " steps fit." : "None of the " + plan.length + " steps fit.");
+    map.pieces.forEach(function (piece) {
+      if (piece.end <= kept) return;
+      if (piece.start >= kept) {
+        lost.push(piece.steps && map.steps.length === 1 ? "the step" : piece.name);
         return;
       }
-      partly.push("Only part of " + piece.name + " fit.");
+      partly.push(piece.steps ? stepsNote(map, kept) : "Only part of " + piece.name + " fit.");
     });
+    partly = partly.filter(Boolean);
     if (!lost.length && !partly.length) return "";
-    var out = ["AIA kept the first " + LIMITS.prompt + " characters of the summary."];
+    var out = ["AIA kept the first " + kept + " characters of the summary."];
     partly.forEach(function (x) { out.push(x); });
     if (lost.length) {
       var list = andList(lost);
@@ -212,18 +243,18 @@
   function savedLine(d, out) {
     var ai = (out && out.ai) || {};
     var name = clean(ai.name) || clean(d && d.name);
-    var does = clean(ai.does);
+    var does = typeof ai.does === "string" ? ai.does : "";
     var head = [name + " is named on this desk."];
-    /* The saved job is shown exactly as stored, on its own line, with nothing added. */
-    var jobLine = does ? "Its job, as saved: " + does : "";
+    /* The saved job is shown exactly as stored (a trailing space kept too), on its own line, with nothing added. */
+    var jobLine = clean(does) ? "Its job, as saved: " + does : "";
     var rest = ["It drafts only. Nothing was sent or charged."];
     rest.push(cutNote(d && d.name, ai.name, LIMITS.name, "name"));
     rest.push(cutNote(d && d.job, ai.does, LIMITS.does, "job"));
-    rest.push(trimNote(d, typeof ai.prompt === "string" && ai.prompt ? ai.prompt : promptOf(d)));
+    rest.push(trimNote(d, typeof ai.prompt === "string" ? ai.prompt : ""));
     return [head.join(" "), jobLine, rest.filter(Boolean).join(" ")].filter(Boolean).join("\n");
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote };
+  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, savedLine: savedLine, promptParts: promptParts, trimNote: trimNote, summaryMap: summaryMap, savedLength: savedLength };
   window.AIACreateSimple = api;
 
   var doc = window.document;
