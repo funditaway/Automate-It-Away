@@ -313,7 +313,8 @@ function normalizeCreatorPack(body, workspace, person) {
   if (!name) return { ok: false, error: "Name the pack first." };
   const id = clip(body.id, 40) || (slugPack(workspace) + "-" + slugPack(name));
   const ask = Number(body.ask || body.price || 0) || 0;
-  const deskAis = ais.normalizeAis([].concat(body.ais || [], body.bots || []), workspace);
+  const srcAis = [].concat(body.ais || [], body.bots || []);
+  const deskAis = ais.normalizeAis(srcAis, workspace, srcAis.length);
   const bots = deskAis.map(function (a) {
     return {
       name: a.name,
@@ -396,7 +397,13 @@ function normalizeCreatorPack(body, workspace, person) {
   };
 }
 
-function installPackOnDesk(shop, pack) {
+function fitNote(note, notFitted) {
+  const names = notFitted || [];
+  if (!names.length) return note;
+  return note + " This desk already has 6 Desk AIs. These didn't fit: " + names.join(", ") + ".";
+}
+
+function installPackOnDesk(shop, pack, skipped) {
   const file = pack.official ? loadOfficialFile(pack.packId || pack.id) : pack;
   shop.pack = pack.packId || pack.id;
   const q = (file && file.queue) || pack.queue || {};
@@ -405,8 +412,9 @@ function installPackOnDesk(shop, pack) {
   const face = clipPackFace((file && file.face) || pack.face);
   if (face) shop.packFace = face;
   else if (shop.packFace && shop.pack !== (pack.packId || pack.id)) delete shop.packFace;
-  const packAis = ais.normalizeAis([].concat((file && (file.ais || file.bots)) || [], pack.ais || [], pack.bots || []), shop.slug);
-  if (packAis.length) ais.attachAisToDesk(shop, packAis);
+  const srcAis = [].concat((file && (file.ais || file.bots)) || [], pack.ais || [], pack.bots || []);
+  const packAis = ais.normalizeAis(srcAis, shop.slug, srcAis.length);
+  if (packAis.length) ais.attachAisToDesk(shop, packAis, null, skipped);
   else if (Array.isArray(pack.bots) && pack.bots.length) shop.packBots = pack.bots.slice(0, 3);
   const incoming = safeRules([].concat((file && file.rules) || pack.rules || [], flattenWorkflows(file || pack)));
   const have = ensureRules(shop).map(function (r) { return String(r.text || ""); });
@@ -622,7 +630,8 @@ async function packHandler(req, res) {
     mem.packs = rows.slice(0, 80);
     const listed = row.status === "listed" || row.status === "published" || row.status === "submitted" || action === "publish-pack" || action === "submit-pack" || action === "test-pack" || action === "private-pack" || body.preview === false;
     let added = 0;
-    if (listed) added = installPackOnDesk(shop, row);
+    const notFitted = [];
+    if (listed) added = installPackOnDesk(shop, row, notFitted);
     await save();
     log("Desk", (action === "test-pack" ? "Test pack · " : (action === "private-pack" || row.visibility === "private" ? "Private pack · " : (listed ? "Publish pack · " : "List pack · "))) + row.name, "OK", workspace);
     const hold = collectHoldOf(row);
@@ -636,7 +645,7 @@ async function packHandler(req, res) {
             ? "Listed with ask $" + row.ask + ". Pack JSON and desk AIs land on this desk. World desks can Buy / install. Collect stays HOLD until Yes and a money pipe."
             : "Listed free. Pack JSON and desk AIs land on this desk. World desks can install it onto their queue. Packs never Send.")
           : "Draft saved. Off Market until you list it. Packs never Send."));
-    return res.status(200).json({ ok: true, pack: publicPack(row), added: added, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note });
+    return res.status(200).json({ ok: true, pack: publicPack(row), added: added, notFitted: notFitted, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: fitNote(note, notFitted) });
   }
 
   if (action === "save-ai" || action === "attach-ai") {
@@ -740,7 +749,8 @@ async function packHandler(req, res) {
     if (idx >= 0) rows[idx] = Object.assign({}, rows[idx], row);
     else rows.unshift(row);
     mem.packs = rows.slice(0, 80);
-    const added = installPackOnDesk(shop, row);
+    const notFitted = [];
+    const added = installPackOnDesk(shop, row, notFitted);
     await save();
     log("Desk", "Install .aia · " + row.name, "OK", workspace);
     const hold = collectHoldOf(row);
@@ -749,6 +759,7 @@ async function packHandler(req, res) {
       ok: true,
       pack: publicPack(row),
       added: added,
+      notFitted: notFitted,
       desk: shop.slug,
       ais: rails.ais,
       file: row.file,
@@ -759,7 +770,7 @@ async function packHandler(req, res) {
       collectHold: hold,
       never: ["send", "stop", "pay"],
       rails: rails.rails,
-      note: "Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim."
+      note: fitNote("Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim.", notFitted)
     });
   }
   if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
@@ -775,11 +786,15 @@ async function packHandler(req, res) {
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can Use a pack." });
     const already = shop.pack === (pack.packId || pack.id);
-    const added = installPackOnDesk(shop, pack);
+    const notFitted = [];
+    const added = installPackOnDesk(shop, pack, notFitted);
     await save();
     log("Desk", "Install pack · " + (pack.name || pack.id), "OK", workspace);
     const hold = collectHoldOf(pack);
     const rails = ais.railsOf(shop);
+    const useNote = already
+      ? "Already on this desk. " + hold.note
+      : "Pack JSON is on this desk. " + (rails.count ? rails.count + " desk AI" + (rails.count === 1 ? "" : "s") + " attached. " : "") + hold.note;
     return res.status(200).json({
       ok: true,
       pack: publicPack(pack),
@@ -788,14 +803,13 @@ async function packHandler(req, res) {
       already: already,
       added: added,
       rulesAdded: added,
+      notFitted: notFitted,
       ais: rails.ais,
       charged: false,
       collectHold: hold,
       never: ["send", "stop", "pay"],
       rails: rails.rails,
-      note: already
-        ? "Already on this desk. " + hold.note
-        : "Pack JSON is on this desk. " + (rails.count ? rails.count + " desk AI" + (rails.count === 1 ? "" : "s") + " attached. " : "") + hold.note
+      note: fitNote(useNote, notFitted)
     });
   }
   return res.status(400).json({ error: "Unknown pack action." });

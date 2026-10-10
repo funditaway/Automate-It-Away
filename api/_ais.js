@@ -143,11 +143,12 @@ function normalizeAi(raw, workspace) {
   };
 }
 
-function normalizeAis(rows, workspace) {
+function normalizeAis(rows, workspace, max) {
   const src = Array.isArray(rows) ? rows : [];
+  const cap = max == null ? 3 : max;
   const out = [];
   const seen = {};
-  src.slice(0, 3).forEach(function (row) {
+  src.slice(0, cap).forEach(function (row) {
     const ai = normalizeAi(row, workspace);
     if (!ai) return;
     const key = String(ai.name).toLowerCase();
@@ -287,14 +288,19 @@ function findAiSeat(shop, ai) {
   }) || null;
 }
 
-function attachAisToDesk(shop, rows, touched) {
+function attachAisToDesk(shop, rows, touched, skipped) {
   if (!shop) return 0;
-  const incoming = normalizeAis(rows, shop.slug);
+  const list = Array.isArray(rows) ? rows : [];
+  const incoming = normalizeAis(list, shop.slug, list.length);
   if (!Array.isArray(shop.people)) shop.people = [];
   if (!Array.isArray(shop.ais)) shop.ais = [];
   let added = 0;
   incoming.forEach(function (ai) {
     let have = liveDeskAi(shop, ai);
+    if (!have && shop.ais.length >= 6) {
+      if (Array.isArray(skipped)) skipped.push(ai.name);
+      return;
+    }
     if (have) {
       const keepId = have.id;
       const keepSeat = have.seatId;

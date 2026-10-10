@@ -584,6 +584,134 @@ async function main() {
   if (badFile.statusCode < 400) fail("non-.aia filename must 400");
   else pass("rejects non-.aia filename");
 
+  function deskAiSeats(desk) {
+    return (desk.people || []).filter(function (p) { return p && p.deskAi; });
+  }
+  function orphanSeats(desk) {
+    const names = {};
+    const ids = {};
+    (desk.ais || []).forEach(function (a) {
+      if (!a) return;
+      names[String(a.name || "").toLowerCase()] = true;
+      if (a.id) ids[String(a.id)] = true;
+    });
+    return deskAiSeats(desk).filter(function (p) {
+      const byName = names[String(p.name || "").toLowerCase()];
+      const byId = p.aiId && ids[String(p.aiId)];
+      return !byName && !byId;
+    });
+  }
+  async function openDesk(slug) {
+    const desk = {
+      slug: slug,
+      name: slug,
+      biz: slug,
+      pin: hashPin("4821"),
+      createdAt: new Date().toISOString(),
+      people: [],
+      rules: []
+    };
+    ensurePeople(desk);
+    mem.workspaces.unshift(desk);
+    return { desk: desk, headers: { "x-workspace": slug, "x-pin": "4821" } };
+  }
+  async function saveNamed(headers, name, does) {
+    return call(packHandler, "POST", headers, { action: "save-ai", name: name, does: does || "Drafts this desk", role: "Doer" });
+  }
+  async function installNamed(headers, file, rows) {
+    return call(packHandler, "POST", headers, {
+      action: "install-aia",
+      filename: file,
+      pack: { name: file.replace(/\.aia$/i, ""), aia: file, does: "Draft. Collect HOLD.", ais: rows }
+    });
+  }
+
+  const partial = await openDesk("fit-four");
+  let partialOk = true;
+  for (let i = 1; i <= 4; i += 1) {
+    const saved = await saveNamed(partial.headers, "Desk " + i);
+    if (saved.statusCode !== 200 || !saved.body.ok) partialOk = false;
+  }
+  const beforePartial = deskAiSeats(partial.desk).length;
+  const partialInstall = await installNamed(partial.headers, "fit-lane.aia", [
+    { name: "Pack A", does: "Fits first" },
+    { name: "Pack B", does: "Fits second" },
+    { name: "Pack C", does: "Does not fit" },
+    { name: "Pack D", does: "Does not fit" }
+  ]);
+  const partialNames = (partial.desk.ais || []).map(function (a) { return a && a.name; });
+  const partialSeats = deskAiSeats(partial.desk);
+  if (!partialOk || partialInstall.statusCode !== 200 || !partialInstall.body.ok) {
+    fail("pack of 4 on a desk of 4 " + partialInstall.statusCode + " " + JSON.stringify(partialInstall.body));
+  } else if (JSON.stringify(partialInstall.body.notFitted) !== JSON.stringify(["Pack C", "Pack D"])) {
+    fail("two that did not fit " + JSON.stringify(partialInstall.body.notFitted));
+  } else if ((partial.desk.ais || []).length !== 6 || partialNames.indexOf("Pack A") < 0 || partialNames.indexOf("Pack B") < 0 || partialNames.indexOf("Pack C") >= 0 || partialNames.indexOf("Pack D") >= 0) {
+    fail("desk of 4 should store exactly two more " + JSON.stringify(partialNames));
+  } else if (partialSeats.length !== beforePartial + 2) {
+    fail("exactly two new seats, had " + beforePartial + " now " + partialSeats.length);
+  } else if (orphanSeats(partial.desk).length || partialSeats.some(function (p) { return p.name === "Pack C" || p.name === "Pack D"; })) {
+    fail("orphan seats for AIs that did not fit " + JSON.stringify(partialSeats.map(function (p) { return p.name; })));
+  } else if (!/This desk already has 6 Desk AIs\. These didn't fit: Pack C, Pack D\./.test(partialInstall.body.note || "")) {
+    fail("partial fit note " + partialInstall.body.note);
+  } else if (partialInstall.body.charged !== false || !partialInstall.body.collectHold || partialInstall.body.collectHold.hold !== true) {
+    fail("partial fit must stay Collect HOLD");
+  } else pass("desk of 4 fits two of a pack of four and lists the rest");
+
+  const full = await openDesk("fit-full");
+  let fullOk = true;
+  for (let i = 1; i <= 6; i += 1) {
+    const saved = await saveNamed(full.headers, "Full " + i);
+    if (saved.statusCode !== 200 || !saved.body.ok) fullOk = false;
+  }
+  const beforeFull = deskAiSeats(full.desk).length;
+  const fullNamesBefore = (full.desk.ais || []).map(function (a) { return a && a.name; }).join("|");
+  const fullInstall = await installNamed(full.headers, "full-lane.aia", [
+    { name: "None A" },
+    { name: "None B" },
+    { name: "None C" },
+    { name: "None D" }
+  ]);
+  const fullSeats = deskAiSeats(full.desk);
+  if (!fullOk || fullInstall.statusCode !== 200 || !fullInstall.body.ok) {
+    fail("full desk install " + fullInstall.statusCode + " " + JSON.stringify(fullInstall.body));
+  } else if (JSON.stringify(fullInstall.body.notFitted) !== JSON.stringify(["None A", "None B", "None C", "None D"])) {
+    fail("full desk notFitted " + JSON.stringify(fullInstall.body.notFitted));
+  } else if ((full.desk.ais || []).map(function (a) { return a && a.name; }).join("|") !== fullNamesBefore || fullSeats.length !== beforeFull) {
+    fail("full desk must keep its six AIs and seats");
+  } else if (orphanSeats(full.desk).length || fullSeats.some(function (p) { return /^None /.test(p.name || ""); })) {
+    fail("full desk grew a seat for an AI that did not fit");
+  } else if (!/This desk already has 6 Desk AIs\. These didn't fit: None A, None B, None C, None D\./.test(fullInstall.body.note || "")) {
+    fail("full desk note " + fullInstall.body.note);
+  } else if (fullInstall.body.charged !== false || !fullInstall.body.collectHold || fullInstall.body.collectHold.hold !== true) {
+    fail("full desk install must stay Collect HOLD");
+  } else pass("full desk fits none and writes no seats");
+
+  const keep = await openDesk("fit-keep");
+  const keepNames = ["Keep One", "Keep Two", "Keep Three", "Keep Four", "Keep Five", "Keep Six"];
+  let keepOk = true;
+  for (let i = 0; i < keepNames.length; i += 1) {
+    const saved = await saveNamed(keep.headers, keepNames[i], "OLD-DOES");
+    if (saved.statusCode !== 200 || !saved.body.ok) keepOk = false;
+  }
+  const beforeKeep = deskAiSeats(keep.desk).length;
+  const keepInstall = await installNamed(keep.headers, "keep-lane.aia", keepNames.map(function (name) {
+    return { name: name, does: "UPDATED-DOES" };
+  }));
+  const keepDoes = (keep.desk.ais || []).map(function (a) { return a && a.does; });
+  if (!keepOk || keepInstall.statusCode !== 200 || !keepInstall.body.ok) {
+    fail("update install on a full desk " + keepInstall.statusCode + " " + JSON.stringify(keepInstall.body));
+  } else if (JSON.stringify(keepInstall.body.notFitted) !== "[]") {
+    fail("updates on a full desk must all fit " + JSON.stringify(keepInstall.body.notFitted));
+  } else if (keepDoes.length !== 6 || keepDoes.some(function (does) { return does !== "UPDATED-DOES"; })) {
+    fail("full desk updates must land on every stored AI " + JSON.stringify(keepDoes));
+  } else if (deskAiSeats(keep.desk).length !== beforeKeep || orphanSeats(keep.desk).length) {
+    fail("update install must not add seats");
+  } else if (/didn't fit/.test(keepInstall.body.note || "")) {
+    fail("update install note changed " + keepInstall.body.note);
+  } else if (keepInstall.body.charged !== false || !keepInstall.body.collectHold || keepInstall.body.collectHold.hold !== true) {
+    fail("update install must stay Collect HOLD");
+  } else pass("install that only updates existing AIs works on a full desk");
+
   const health = require("../api/health");
   const healthRes = await call(health, "GET", {}, {}, {});
   if (!healthRes.body || !healthRes.body.internet || healthRes.body.internet.chain) fail("health internet");
