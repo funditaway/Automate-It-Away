@@ -14,18 +14,28 @@ function clip(s, n) {
   return String(s == null ? "" : s).trim().slice(0, n || 160);
 }
 
-// Desk AI rules are stored text only. Cap at 1000 characters. Do not trim,
-// interpret, or run them. Over-long text is cut to 1000 with no error.
+// Cut to max Unicode code points. Array.from walks code points, so an emoji
+// or other astral character is never split into a lone surrogate.
+function cutCodePoints(str, max) {
+  const chars = Array.from(str);
+  if (chars.length <= max) return str;
+  return chars.slice(0, max).join("");
+}
+
+// Desk AI rules are stored text only. Cap at 1000 Unicode code points. Do not
+// trim, interpret, or run them. Over-long text is cut to 1000 with no error.
 // null and undefined are empty text. An object, array, number, or boolean
 // is empty text too — never "[object Object]" or any other coerced string.
 function rulesText(v) {
   if (typeof v !== "string") return "";
-  return v.slice(0, 1000);
+  return cutCodePoints(v, 1000);
 }
 
 // Desk AI plan is stored text only, in order. Cap at 200 lines and 500
-// characters each. Trim whitespace, drop empty lines, drop non-strings, and
-// keep the first 200. Do not run, charge, or enforce them. A missing value or
+// Unicode code points each. Trim whitespace, cut, then trim trailing
+// whitespace again. Drop a line that ends up empty. Count a line in trimmed
+// only when that 500 cut changes the stored text. Drop non-strings, and keep
+// the first 200. Do not run, charge, or enforce them. A missing value or
 // anything that is not an array is []. This is not the draft allow-list.
 const PLAN_MAX = 200;
 const PLAN_CHARS = 500;
@@ -37,15 +47,13 @@ function planText(v) {
   const trimmedIndexes = [];
   v.forEach(function (item, index) {
     if (typeof item !== "string") { droppedIndexes.push(index); return; }
-    const text = item.trim();
-    if (!text) { droppedIndexes.push(index); return; }
+    const trimmedInput = item.trim();
+    if (!trimmedInput) { droppedIndexes.push(index); return; }
     if (plan.length >= PLAN_MAX) { droppedIndexes.push(index); return; }
-    if (text.length > PLAN_CHARS) {
-      trimmedIndexes.push(index);
-      plan.push(text.slice(0, PLAN_CHARS));
-    } else {
-      plan.push(text);
-    }
+    const stored = cutCodePoints(trimmedInput, PLAN_CHARS).trimEnd();
+    if (!stored) { droppedIndexes.push(index); return; }
+    if (stored !== trimmedInput) trimmedIndexes.push(index);
+    plan.push(stored);
   });
   const dropped = droppedIndexes.length;
   const trimmed = trimmedIndexes.length;
@@ -279,7 +287,7 @@ function findAiSeat(shop, ai) {
   }) || null;
 }
 
-function attachAisToDesk(shop, rows) {
+function attachAisToDesk(shop, rows, touched) {
   if (!shop) return 0;
   const incoming = normalizeAis(rows, shop.slug);
   if (!Array.isArray(shop.people)) shop.people = [];
@@ -298,6 +306,7 @@ function attachAisToDesk(shop, rows) {
       added += 1;
     }
     const row = have || ai;
+    if (Array.isArray(touched)) touched.push(have || ai);
     let seat = findAiSeat(shop, row);
     if (!seat) {
       seat = {
