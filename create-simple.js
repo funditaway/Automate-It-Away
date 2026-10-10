@@ -1,4 +1,5 @@
-/* Simple Create: say it in everyday words, get a draft Desk AI, try it on made-up cards, then Yes, Stop or Kill.
+/* Simple Create: say it (or talk it out) in everyday words, get a draft Desk AI, try it on made-up cards, then Yes, Stop or Kill.
+   No template or action list: steps and lists can be as long as the person wants. Text is only cut where the server cuts it (LIMITS).
    Server calls: studio-draft (draft only) and save-ai (Yes) on /api/desks. Nothing here sends, pays or charges.
    Built with textContent only. */
 (function () {
@@ -8,37 +9,52 @@
     follow: "Drafts a follow-up when a card is waiting"
   };
 
+  /* Server limits on this branch's api/ (not UI caps): studio-draft reads the first 800 characters of the brief
+     (api/_grok.js studioDraft), save-ai keeps name 40, does 160 and prompt 400 (api/_ais.js normalizeAi). */
+  var LIMITS = { brief: 800, name: 40, does: 160, prompt: 400 };
+
   function clean(s, n) {
     var t = String(s == null ? "" : s).replace(/\s+/g, " ").trim();
     if (!n || t.length <= n) return t;
     return t.slice(0, n).replace(/\s+\S*$/, "").replace(/[.,;:]+$/, "");
   }
 
-  /* Edited lists: one item per line. Commas inside a line stay. */
+  /* Edited lists: one item per line, as many lines as the person writes. Commas inside a line stay. No length cap. */
   function linesOf(v) {
-    if (Array.isArray(v)) return v.map(function (x) { return clean(x, 120); }).filter(Boolean);
-    return String(v == null ? "" : v).split(/\r?\n/).map(function (x) { return clean(x, 120); }).filter(Boolean);
+    if (Array.isArray(v)) return v.map(function (x) { return clean(x); }).filter(Boolean);
+    return String(v == null ? "" : v).split(/\r?\n/).map(function (x) { return clean(x); }).filter(Boolean);
+  }
+
+  /* The person's own steps, taken from their words: one per sentence, line, or "then". Any number. */
+  function planFrom(words) {
+    var parts = String(words == null ? "" : words)
+      .split(/\r?\n|[.!?]+\s+|;\s*|,?\s+then\s+/i)
+      .map(function (x) { return clean(x).replace(/[.!?]+$/, ""); })
+      .filter(Boolean);
+    return parts.length ? parts : [];
   }
 
   /* Only for the short comma lists the studio-draft reply itself uses (kinds, fields, steps). Never for edited text. */
   function studioCsv(v) {
-    if (Array.isArray(v)) return v.map(function (x) { return clean(x, 60); }).filter(Boolean);
-    return String(v == null ? "" : v).split(",").map(function (x) { return clean(x, 60); }).filter(Boolean);
+    if (Array.isArray(v)) return v.map(function (x) { return clean(x); }).filter(Boolean);
+    return String(v == null ? "" : v).split(",").map(function (x) { return clean(x); }).filter(Boolean);
   }
 
   function nameFrom(words) {
-    var bits = clean(words, 200).replace(/[^A-Za-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean).slice(0, 3);
+    /* A short suggested name from the first three words. Only a suggestion; the person can type any name. */
+    var bits = clean(words).replace(/[^A-Za-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean).slice(0, 3);
     if (!bits.length) return "My Desk AI";
-    return clean("Helper: " + bits.join(" "), 40);
+    return clean("Helper: " + bits.join(" "));
   }
 
   function starterDraft(words) {
-    var w = clean(words, 160);
+    var w = clean(words);
     return {
       source: "words",
       name: nameFrom(w),
       job: w,
-      watches: ["New cards on this desk about: " + clean(w, 70)],
+      plan: planFrom(words),
+      watches: ["New cards on this desk about: " + w],
       drafts: [STEP_WORDS.do, STEP_WORDS.follow],
       needs: ["Your Yes before anything is used", "Names, dates, or details only you know"],
       steps: ["qualify", "do", "follow"]
@@ -53,7 +69,7 @@
     var watches = studioCsv(pack.kinds).map(function (k) { return "New " + k + " cards on this desk"; });
     (Array.isArray(pack.workflows) ? pack.workflows : []).forEach(function (wf) {
       (wf && Array.isArray(wf.rules) ? wf.rules : []).forEach(function (r) {
-        if (r && r.contains) watches.push("Cards that mention " + clean(r.contains, 40));
+        if (r && r.contains) watches.push("Cards that mention " + clean(r.contains));
       });
     });
     var steps = studioCsv(ai.steps).map(function (s) { return s.toLowerCase(); }).filter(function (s) { return STEP_WORDS[s]; });
@@ -65,24 +81,41 @@
     needs.unshift("Your Yes before anything is used");
     return {
       source: "aia",
-      name: clean(ai.name || pack.name, 40) || base.name,
-      job: clean(ai.does || pack.does, 160) || base.job,
-      watches: watches.length ? watches.slice(0, 5) : base.watches,
+      name: clean(ai.name || pack.name) || base.name,
+      job: clean(ai.does || pack.does) || base.job,
+      plan: base.plan,
+      watches: watches.length ? watches : base.watches,
       drafts: drafts.length ? drafts : base.drafts,
-      needs: needs.length > 1 ? needs.slice(0, 5) : base.needs,
+      needs: needs.length > 1 ? needs : base.needs,
       steps: steps.length ? steps : base.steps
     };
   }
 
   function promptOf(d) {
+    var plan = linesOf(d && d.plan);
+    /* Draft-only line first so the 400-character cut can never drop it. */
     var parts = [
-      "Job: " + clean(d && d.job, 160) + ".",
+      "Draft only. The person presses Yes, Stop, or Kill.",
+      "Job: " + clean(d && d.job) + ".",
+      plan.length ? "Steps: " + plan.map(function (x, i) { return (i + 1) + ") " + x; }).join("; ") + "." : "",
       "Watches: " + linesOf(d && d.watches).join("; ") + ".",
       "Drafts: " + linesOf(d && d.drafts).join("; ") + ".",
-      "Needs from the person: " + linesOf(d && d.needs).join("; ") + ".",
-      "Draft only. The person presses Yes, Stop, or Kill."
+      "Needs from the person: " + linesOf(d && d.needs).join("; ") + "."
     ];
-    return clean(parts.join(" "), 400);
+    return clean(promptFull(parts), LIMITS.prompt);
+  }
+  function promptFull(parts) { return clean(parts.filter(Boolean).join(" ")); }
+  /* Whole summary before the server's cut, so the page can say how much will be kept. */
+  function promptLength(d) {
+    var plan = linesOf(d && d.plan);
+    return promptFull([
+      "Draft only. The person presses Yes, Stop, or Kill.",
+      "Job: " + clean(d && d.job) + ".",
+      plan.length ? "Steps: " + plan.map(function (x, i) { return (i + 1) + ") " + x; }).join("; ") + "." : "",
+      "Watches: " + linesOf(d && d.watches).join("; ") + ".",
+      "Drafts: " + linesOf(d && d.drafts).join("; ") + ".",
+      "Needs from the person: " + linesOf(d && d.needs).join("; ") + "."
+    ]).length;
   }
 
   function sampleCards() {
@@ -98,11 +131,19 @@
     var needs = linesOf(d && d.needs);
     var main = drafts.filter(function (x) { return /^Drafts/.test(x); })[0] || drafts[0] || "the next step";
     var ask = needs[1] || needs[0] || "your Yes";
+    var plan = linesOf(d && d.plan);
     return [
+      plan.length ? "Would follow " + plan.length + (plan.length === 1 ? " step" : " steps") + ", starting with: " + plan[0].charAt(0).toLowerCase() + plan[0].slice(1) + "." : "",
       "Would draft: " + main.charAt(0).toLowerCase() + main.slice(1) + ".",
       "Would ask you for: " + ask.charAt(0).toLowerCase() + ask.slice(1) + ".",
       "Waits for you. Nothing is sent."
-    ];
+    ].filter(Boolean);
+  }
+
+  /* Browser speech-to-text, feature-detected. Returns null when the browser has none. */
+  function speechApi(w) {
+    var win = w || window;
+    return (win && (win.SpeechRecognition || win.webkitSpeechRecognition)) || null;
   }
 
   function rules() {
@@ -129,7 +170,7 @@
       : "The desk does not store the rules yet. Nothing enforces them.";
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
+  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, planFrom: planFrom, promptLength: promptLength, LIMITS: LIMITS, speechApi: speechApi, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -185,6 +226,7 @@
   function fill(d) {
     el("cs-name").value = d.name || "";
     el("cs-job").value = d.job || "";
+    paintPlan(d.plan || []);
     el("cs-watches").value = (d.watches || []).join("\n");
     el("cs-drafts").value = (d.drafts || []).join("\n");
     el("cs-needs").value = (d.needs || []).join("\n");
@@ -193,8 +235,9 @@
   function readForm() {
     return {
       source: current ? current.source : "words",
-      name: clean(el("cs-name").value, 40),
-      job: clean(el("cs-job").value, 160),
+      name: clean(el("cs-name").value),
+      job: clean(el("cs-job").value),
+      plan: readPlan(),
       watches: linesOf(el("cs-watches").value),
       drafts: linesOf(el("cs-drafts").value),
       needs: linesOf(el("cs-needs").value),
@@ -205,6 +248,7 @@
   function showDraft(d, why) {
     current = d;
     fill(d);
+    saveCount();
     el("cs-src").textContent = d.source === "aia"
       ? "AIA drafted this from your words. Change anything in plain words."
       : why || "This starter is made from your words. Change anything in plain words.";
@@ -212,8 +256,9 @@
   }
 
   async function draftIt() {
-    var words = clean(el("cs-words").value, 600);
+    var words = clean(el("cs-words").value);
     if (!words) return note("cs-note", "Say what you want automated first.", "ask");
+    if (listening && rec) rec.stop();
     note("cs-note", "", "");
     var btn = el("cs-draft");
     btn.disabled = true;
@@ -309,13 +354,132 @@
   function kill() {
     current = null;
     el("cs-words").value = "";
-    fill({ name: "", job: "", watches: [], drafts: [], needs: [] });
+    fill({ name: "", job: "", plan: [], watches: [], drafts: [], needs: [] });
     var box = el("cs-samples");
     while (box.firstChild) box.removeChild(box.firstChild);
     step(1);
     note("cs-note", "Killed. Everything is thrown away. Nothing was saved or sent.", "ok");
   }
 
+  /* Steps: any number, added and removed freely. */
+  function planRow(text) {
+    var li = doc.createElement("li");
+    var row = doc.createElement("div");
+    row.className = "cs-plan-row";
+    var input = doc.createElement("input");
+    input.className = "cs-plan-step";
+    input.value = text || "";
+    var rm = doc.createElement("button");
+    rm.type = "button";
+    rm.className = "link";
+    rm.textContent = "Remove";
+    rm.addEventListener("click", function () {
+      li.parentNode.removeChild(li);
+      relabelPlan();
+      saveCount();
+    });
+    input.addEventListener("input", saveCount);
+    row.appendChild(input);
+    row.appendChild(rm);
+    li.appendChild(row);
+    return li;
+  }
+  function relabelPlan() {
+    var rows = el("cs-plan").querySelectorAll("input.cs-plan-step");
+    for (var i = 0; i < rows.length; i++) rows[i].setAttribute("aria-label", "Step " + (i + 1));
+  }
+  function paintPlan(list) {
+    var box = el("cs-plan");
+    while (box.firstChild) box.removeChild(box.firstChild);
+    (list || []).forEach(function (t) { box.appendChild(planRow(t)); });
+    relabelPlan();
+  }
+  function readPlan() {
+    var rows = el("cs-plan").querySelectorAll("input.cs-plan-step");
+    var out = [];
+    for (var i = 0; i < rows.length; i++) { var t = clean(rows[i].value); if (t) out.push(t); }
+    return out;
+  }
+  function addStep() {
+    var li = planRow("");
+    el("cs-plan").appendChild(li);
+    relabelPlan();
+    var input = li.querySelector("input");
+    if (input && input.focus) input.focus();
+  }
+  function saveCount() {
+    var n = promptLength(readForm());
+    var out = el("cs-save-count");
+    if (!out) return;
+    out.textContent = n > LIMITS.prompt
+      ? "Right now it is " + n + " characters, so the last " + (n - LIMITS.prompt) + " will not be saved. They still shape this page and the sample test."
+      : "Right now it is " + n + " characters.";
+  }
+
+  /* Talk it out: the browser's own speech-to-text fills the same box. Hidden when the browser has none. */
+  var SR = speechApi(window);
+  var rec = null;
+  var listening = false;
+  function setListening(on, msg) {
+    listening = on;
+    var mic = el("cs-mic");
+    mic.setAttribute("aria-pressed", on ? "true" : "false");
+    mic.classList.toggle("is-listening", on);
+    mic.textContent = on ? "Stop listening" : "Talk";
+    var status = el("cs-listen");
+    status.textContent = msg || (on ? "Listening. Talk, then tap Stop listening." : "");
+    status.hidden = !status.textContent;
+  }
+  function micToggle() {
+    if (listening && rec) { rec.stop(); return; }
+    var box = el("cs-words");
+    var before = box.value ? box.value.replace(/\s+$/, "") + " " : "";
+    try {
+      rec = new SR();
+    } catch (e) {
+      setListening(false, "Talk did not start in this browser. You can type instead.");
+      return;
+    }
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = doc.documentElement.lang || "en-US";
+    rec.onresult = function (ev) {
+      var finals = "";
+      var interim = "";
+      for (var i = 0; i < ev.results.length; i++) {
+        var r = ev.results[i];
+        if (r.isFinal) finals += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      box.value = before + (finals + interim).replace(/^\s+/, "");
+    };
+    rec.onerror = function (ev) {
+      var why = ev && ev.error;
+      setListening(false, why === "not-allowed" || why === "service-not-allowed"
+        ? "The browser did not allow the mic. You can type instead."
+        : "Talk stopped. You can type or try again.");
+    };
+    rec.onend = function () {
+      /* Keep exactly what is in the box: everything heard, ready to edit. */
+      if (listening) setListening(false, "Done listening. Fix the words if you like, then press Draft it.");
+    };
+    try {
+      rec.start();
+      setListening(true);
+    } catch (e2) {
+      setListening(false, "Talk did not start in this browser. You can type instead.");
+    }
+  }
+  if (SR) {
+    el("cs-mic").hidden = false;
+    el("cs-mic-note").hidden = false;
+    el("cs-mic").addEventListener("click", micToggle);
+  }
+
+  el("cs-plan-add").addEventListener("click", addStep);
+  ["cs-name", "cs-job", "cs-watches", "cs-drafts", "cs-needs"].forEach(function (id) {
+    el(id).addEventListener("input", saveCount);
+  });
   el("cs-draft").addEventListener("click", draftIt);
   el("cs-try").addEventListener("click", tryIt);
   el("cs-edit").addEventListener("click", function () { step(2); });
