@@ -1801,16 +1801,19 @@ const BODY_MAX = 1048576;
 const BODY_TOO_BIG = "That's too big to send. Keep it under 1 MB.";
 const HOOK_MAX = 4000000;
 const HOOK_TOO_BIG = "That's too big to take in. Keep it under 4 MB.";
-const UPLOAD_WIRE_MAX = 4000000;
+const UPLOAD_WIRE_MAX = 4300000;
 const UPLOAD_TOO_BIG = "Each file must stay under 3 MB.";
 
 function tooBigBody(message) {
   return { ok: false, error: message || BODY_TOO_BIG };
 }
 
-// upload refuses a request over 4,000,000 bytes here. The decoded file cap
-// lives in upload.js at 3,000,000 bytes, so the base64 JSON stays under 4.5 MB.
-// hook stops at 4,000,000 bytes, under the platform 4.5 MB body limit.
+// upload refuses a request over 4,300,000 bytes here, still under the
+// platform 4.5 MB limit. The decoded file cap in upload.js is 3,000,000.
+// A file just under that encodes to about 4,000,000 base64 bytes, and the
+// JSON wrapper can push the request past 4,000,000 without crossing 4,300,000.
+// hook stops at 4,000,000 bytes.
+
 function bodyRoute(req) {
   const url = String((req && (req.url || req.originalUrl || req.path)) || "");
   const headers = (req && req.headers) || {};
@@ -1894,7 +1897,7 @@ function rejectTooBig(res, route, extra) {
 // of a pretty-printed body and can undercount it. The body is not attached
 // to the error.
 // Other routes cap at 1 MB. /api/hook caps at 4,000,000 bytes. /api/upload
-// rejects early when that size is over 4,000,000 bytes. The decoded file cap
+// rejects early when that size is over 4,300,000 bytes. The decoded file cap
 // is 3,000,000 in upload.js.
 function readBody(req, res) {
   const route = bodyRoute(req);

@@ -23,7 +23,7 @@ const BODY_MAX = 1048576;
 const HOOK_ERR = "That's too big to take in. Keep it under 4 MB.";
 const MB_ERR = "That's too big to send. Keep it under 1 MB.";
 const UPLOAD_ERR = "Each file must stay under 3 MB.";
-const UPLOAD_WIRE = 4000000;
+const UPLOAD_WIRE = 4300000;
 const SLUG = "once-desk";
 const OTHER = "other-desk";
 const SECRET = "BODYSECRET";
@@ -56,8 +56,10 @@ if (libSrc.indexOf("4000000") < 0 || libSrc.indexOf(HOOK_ERR) < 0) fail("hook ca
 else pass("hook cap is 4,000,000");
 if (uploadSrc.indexOf(UPLOAD_ERR) < 0 || !/const MAX = 3_000_000;/.test(uploadSrc)) fail("upload cap is not 3,000,000");
 else pass("upload cap is 3,000,000");
-if (libSrc.indexOf("UPLOAD_WIRE_MAX = 4000000") < 0 || libSrc.indexOf(UPLOAD_ERR) < 0) fail("upload wire cap missing");
-else pass("upload wire cap is 4,000,000");
+if (libSrc.indexOf("UPLOAD_WIRE_MAX = 4300000") < 0 || libSrc.indexOf(UPLOAD_ERR) < 0) fail("upload wire cap missing");
+else pass("upload wire cap is 4,300,000");
+if (!/const HOOK_MAX = 4000000;/.test(libSrc)) fail("hook cap is not 4,000,000");
+else pass("hook cap constant stays 4,000,000");
 if (hookSrc.indexOf("Too big to take in") < 0 || hookSrc.indexOf("more too-big posts this hour") < 0) {
   fail("hook card wording missing");
 } else pass("hook card wording is present");
@@ -740,6 +742,25 @@ async function main() {
     fail("3,000,001 decoded bytes " + overUp.statusCode + " " + JSON.stringify(overUp.body && overUp.body.error));
   } else pass("3,000,001 decoded bytes is rejected");
 
+  const longName = "n".repeat(100);
+  const edgeFile = Buffer.alloc(2999999, 0x61);
+  const edgeBody = { name: longName, type: "text/plain", data: edgeFile.toString("base64") };
+  const edgeBytes = Buffer.byteLength(JSON.stringify(edgeBody));
+  if (!(edgeBytes > 4000000 && edgeBytes <= 4300000)) {
+    fail("2,999,999-byte file with a 100-character name encodes to " + edgeBytes);
+  } else pass("2,999,999-byte file with a 100-character name encodes to " + edgeBytes + ", over 4,000,000 and within 4,300,000");
+  const edgeUp = mockRes();
+  await uploadHandler({
+    method: "POST",
+    url: "/api/upload",
+    headers: { "x-workspace": SLUG, "content-length": String(edgeBytes) },
+    query: {},
+    body: edgeBody
+  }, edgeUp);
+  if (edgeUp.statusCode !== 201 || !edgeUp.body || edgeUp.body.ok !== true) {
+    fail("2,999,999-byte file with a 100-character name was rejected " + edgeUp.statusCode + " " + JSON.stringify(edgeUp.body && edgeUp.body.error));
+  } else pass("a 2,999,999-byte file with a 100-character filename is accepted");
+
   const three = Buffer.alloc(3000000, 0x61);
   const encoded = Buffer.byteLength(JSON.stringify({
     name: "three.txt",
@@ -761,9 +782,9 @@ async function main() {
   const wireUp = mockRes();
   await uploadHandler(wireReq, wireUp);
   if (wireUp.statusCode !== 413 || !wireUp.body || wireUp.body.error !== UPLOAD_ERR) {
-    fail("upload content-length over 4,000,000 " + wireUp.statusCode + " " + JSON.stringify(wireUp.body && wireUp.body.error));
-  } else if (wireReq.sent() !== 0) fail("upload content-length over 4,000,000 was read, sent " + wireReq.sent());
-  else pass("upload content-length over 4,000,000 is rejected before the body is read");
+    fail("upload content-length over 4,300,000 " + wireUp.statusCode + " " + JSON.stringify(wireUp.body && wireUp.body.error));
+  } else if (wireReq.sent() !== 0) fail("upload content-length over 4,300,000 was read, sent " + wireReq.sent());
+  else pass("upload content-length over 4,300,000 is rejected before the body is read");
 
   const fatUp = mockRes();
   await uploadHandler({
@@ -779,8 +800,8 @@ async function main() {
     }
   }, fatUp);
   if (fatUp.statusCode !== 413 || !fatUp.body || fatUp.body.error !== UPLOAD_ERR) {
-    fail("pre-parsed upload over 4,000,000 " + fatUp.statusCode + " " + JSON.stringify(fatUp.body && fatUp.body.error));
-  } else pass("pre-parsed upload over 4,000,000 is rejected from its measured size");
+    fail("pre-parsed upload over 4,300,000 " + fatUp.statusCode + " " + JSON.stringify(fatUp.body && fatUp.body.error));
+  } else pass("pre-parsed upload over 4,300,000 is rejected from its measured size");
 
   if (leaks.length) fail("console leaked body content");
   else pass("logs have no body content");

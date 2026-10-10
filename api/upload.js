@@ -26,10 +26,11 @@ const ALLOW = {
 };
 // The browser base64-encodes the file into JSON and posts that through this
 // function. A 4,000,000-byte file becomes about 5.33 MB on the wire, which
-// Vercel rejects at 4.5 MB before this code runs. 3,000,000 decoded bytes
-// encodes to 4,000,000 base64 characters, and the JSON around it stays under
-// 4.5 MB. Requests whose content-length, or measured pre-parsed body, is
-// over 4,000,000 bytes are refused before the file is stored.
+// Vercel rejects at 4.5 MB before this code runs. The real rule is 3,000,000
+// decoded bytes. A file just under that encodes to about 4,000,000 base64
+// characters, and the JSON wrapper plus filename can pass 4,000,000 without
+// reaching 4.5 MB. Requests over 4,300,000 bytes are refused before the file
+// is stored.
 const MAX = 3_000_000;
 const FILE_TOO_BIG = "Each file must stay under 3 MB.";
 const MAX_BATCH = 8;
