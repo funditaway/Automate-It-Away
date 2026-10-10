@@ -14,6 +14,13 @@ function clip(s, n) {
   return String(s == null ? "" : s).trim().slice(0, n || 160);
 }
 
+// Desk AI rules are stored text only. Cap at 1000 characters. Do not trim,
+// interpret, or run them. Over-long text is cut to 1000 with no error.
+function rulesText(v) {
+  if (v == null) return "";
+  return String(v).slice(0, 1000);
+}
+
 function slugAi(name) {
   return String(name || "desk-ai").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "desk-ai";
 }
@@ -72,6 +79,7 @@ function normalizeAi(raw, workspace) {
     role: crewOf(raw.role || raw.crew || "Doer"),
     does: clip(raw.does, 160) || DEFAULT_DOES,
     prompt: clip(raw.prompt, 400) || DEFAULT_PROMPT,
+    rules: rulesText(raw.rules),
     steps: steps,
     allow: steps.slice(),
     deny: deny,
@@ -118,6 +126,7 @@ function publicAi(ai) {
     does: ai.does || DEFAULT_DOES,
     prompt: prompt,
     promptSummary: clip(prompt, 80),
+    rules: rulesText(ai.rules),
     face: clip(ai.name, 40) + " · Then draft",
     steps: ai.steps || [],
     allow: ai.allow || ai.steps || [],
@@ -346,6 +355,7 @@ module.exports = {
   DEFAULT_DOES,
   DEFAULT_PROMPT,
   clip,
+  rulesText,
   slugAi,
   normalizeAi,
   normalizeAis,
