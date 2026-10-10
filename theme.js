@@ -352,7 +352,7 @@
       brandHost.classList.add("brand");
       if (!brandHost.querySelector(".brand-mark")) {
         var img = document.createElement("img");
-        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "Automate It Away";
+        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "";
         brandHost.insertBefore(img, brandHost.firstChild);
       }
       if (!brandHost.querySelector(".brand-name")) {
