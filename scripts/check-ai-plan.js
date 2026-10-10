@@ -300,8 +300,21 @@ async function main() {
     fail("rules must drop an emoji past 1000 code points whole");
   } else pass("rules cap counts code points");
 
+  const more = {
+    slug: "plan-more",
+    name: "More",
+    biz: "plan-more",
+    pin: hashPin(pin),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: []
+  };
+  ensurePeople(more);
+  mem.workspaces.unshift(more);
+  const moreOwner = { "x-workspace": "plan-more", "x-pin": pin };
+
   const spaceStep = "x".repeat(499) + " ";
-  const spaceHit = await call(packHandler, "POST", owner, {
+  const spaceHit = await call(packHandler, "POST", moreOwner, {
     action: "save-ai",
     name: "Space 500",
     role: "Doer",
@@ -317,7 +330,7 @@ async function main() {
   } else pass("500th code point space is not trimmed when stored text equals the trimmed input");
 
   const exposed = "x".repeat(499) + " " + "TAIL";
-  const exposedHit = await call(packHandler, "POST", owner, {
+  const exposedHit = await call(packHandler, "POST", moreOwner, {
     action: "save-ai",
     name: "Space Cut",
     role: "Doer",
@@ -338,7 +351,7 @@ async function main() {
     fail("a step that ends up empty must be dropped, not trimmed, got " + JSON.stringify(blankPack));
   } else pass("a step that ends up empty is dropped");
 
-  const emptied = await call(packHandler, "POST", owner, {
+  const emptied = await call(packHandler, "POST", moreOwner, {
     action: "save-ai",
     name: "Empty AI",
     role: "Doer",
@@ -432,11 +445,9 @@ async function main() {
     }
     if (stored.name !== edgeNameStored || stored.does !== edgeDoesStored || !stored.plan || stored.plan[0] !== edgeStepStored) {
       fail(action + " store must keep the trimmed name, job, and plan, got " + JSON.stringify({ name: stored.name, doesLen: stored.does && stored.does.length, planLen: stored.plan && stored.plan[0] && stored.plan[0].length }));
-    } else if (reply.name !== stored.name || reply.does !== stored.does) {
-      fail(action + " reply ai must match the stored row byte for byte, got " + JSON.stringify({ replyName: reply.name, storedName: stored.name, replyDoes: reply.does, storedDoes: stored.does }));
-    } else if (!same(reply.plan, stored.plan)) {
-      fail(action + " plan step with a space at 500 must match the stored row, got " + JSON.stringify({ reply: reply.plan, stored: stored.plan }));
-    } else if (!listed || listed.name !== stored.name || listed.does !== stored.does || !same(listed.plan, stored.plan)) {
+    } else if (!same(reply, ais.publicAi(stored))) {
+      fail(action + " reply ai must deep-equal the stored row, got " + JSON.stringify(reply));
+    } else if (!listed || !same(listed, reply)) {
       fail(action + " reply.ais must match the stored row");
     } else if (!seat || seat.name !== stored.name || seat.does !== stored.does) {
       fail(action + " seat must match the stored row, got " + JSON.stringify(seat && { name: seat.name, does: seat.does }));
@@ -448,6 +459,95 @@ async function main() {
   }
   await assertStoredReply("save-ai");
   await assertStoredReply("attach-ai");
+
+  const full = {
+    slug: "plan-full",
+    name: "Full",
+    biz: "plan-full",
+    pin: hashPin(pin),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: []
+  };
+  ensurePeople(full);
+  mem.workspaces.unshift(full);
+  const fullOwner = { "x-workspace": "plan-full", "x-pin": pin };
+  for (let n = 1; n <= 6; n++) {
+    const filled = await call(packHandler, "POST", fullOwner, {
+      action: "save-ai",
+      name: "Helper " + n,
+      role: "Doer",
+      does: "Desk AI " + n
+    });
+    if (filled.statusCode !== 200 || !filled.body || !filled.body.ok) {
+      fail("Helper " + n + " must save, got " + filled.statusCode + " " + JSON.stringify(filled.body && filled.body.error));
+    }
+  }
+  if ((full.ais || []).length !== 6) fail("desk must hold 6 Desk AIs before the seventh, got " + (full.ais || []).length);
+  else pass("desk holds 6 Desk AIs");
+  const fullBefore = JSON.stringify({ ais: full.ais, people: full.people, packAis: full.packAis, packBots: full.packBots });
+  const seventhBodies = [
+    ["save-ai", { action: "save-ai", name: "Seventh Helper", role: "Doer", does: "No room" }],
+    ["save-ai nested", { action: "save-ai", ai: { name: "Seventh Helper", role: "Doer", does: "No room" } }],
+    ["attach-ai", { action: "attach-ai", name: "Seventh Helper", role: "Doer", does: "No room" }],
+    ["attach-ai nested", { action: "attach-ai", ai: { name: "Seventh Helper", role: "Doer", does: "No room" } }]
+  ];
+  for (let s = 0; s < seventhBodies.length; s++) {
+    const label = seventhBodies[s][0];
+    const blocked = await call(packHandler, "POST", fullOwner, seventhBodies[s][1]);
+    const after = JSON.stringify({ ais: full.ais, people: full.people, packAis: full.packAis, packBots: full.packBots });
+    const seats = (full.people || []).filter(function (p) { return p && p.name === "Seventh Helper"; });
+    if (blocked.statusCode !== 400 || !blocked.body || blocked.body.ok !== false || blocked.body.error !== "This desk already has 6 Desk AIs.") {
+      fail(label + " seventh must 400, got " + blocked.statusCode + " " + JSON.stringify(blocked.body));
+    } else if (Object.prototype.hasOwnProperty.call(blocked.body, "ai")) {
+      fail(label + " seventh must not send ai");
+    } else if (seats.length || after !== fullBefore) {
+      fail(label + " seventh must leave the store byte-identical and write no seat");
+    } else pass(label + " rejects a seventh Desk AI");
+  }
+  const kept = await call(packHandler, "POST", fullOwner, {
+    action: "save-ai",
+    name: "Helper 1",
+    role: "Doer",
+    does: "STILL-FITS"
+  });
+  const keptRow = (full.ais || []).find(function (a) { return a && a.name === "Helper 1"; });
+  if (kept.statusCode !== 200 || !kept.body || !kept.body.ok || (full.ais || []).length !== 6 || !keptRow || keptRow.does !== "STILL-FITS" || !same(kept.body.ai, ais.publicAi(keptRow))) {
+    fail("updating an AI on a full desk must still save, got " + kept.statusCode + " " + JSON.stringify(kept.body && kept.body.error));
+  } else pass("updating an AI on a full desk still saves");
+  const nestedKept = await call(packHandler, "POST", fullOwner, {
+    action: "attach-ai",
+    ai: { name: "Helper 2", role: "Doer", does: "NESTED-FITS" }
+  });
+  const nestedRow = (full.ais || []).find(function (a) { return a && a.name === "Helper 2"; });
+  if (nestedKept.statusCode !== 200 || !nestedKept.body || !nestedKept.body.ok || (full.ais || []).length !== 6 || !nestedRow || nestedRow.does !== "NESTED-FITS" || !same(nestedKept.body.ai, ais.publicAi(nestedRow))) {
+    fail("nested attach-ai on a full desk must update the existing AI, got " + nestedKept.statusCode + " " + JSON.stringify(nestedKept.body && nestedKept.body.error));
+  } else pass("nested attach-ai on a full desk updates the existing AI");
+
+  const swapDesk = {
+    slug: "plan-swap",
+    name: "Swap",
+    biz: "plan-swap",
+    pin: hashPin(pin),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: []
+  };
+  ensurePeople(swapDesk);
+  mem.workspaces.unshift(swapDesk);
+  const swapOwner = { "x-workspace": "plan-swap", "x-pin": pin };
+  const boSave = await call(packHandler, "POST", swapOwner, { action: "save-ai", name: "Bo", role: "Doer", does: "BO-D" });
+  const annSave = await call(packHandler, "POST", swapOwner, { action: "save-ai", name: "Ann", role: "Doer", does: "ANN-D" });
+  const swap = await call(packHandler, "POST", swapOwner, { action: "save-ai", name: "Bo", id: "ai_ann", does: "NEW-D" });
+  const written = (swapDesk.ais || []).filter(function (a) { return a && a.does === "NEW-D"; });
+  const other = (swapDesk.ais || []).filter(function (a) { return a && a.does !== "NEW-D"; });
+  if (boSave.statusCode !== 200 || annSave.statusCode !== 200 || swap.statusCode !== 200 || !swap.body || !swap.body.ok || written.length !== 1) {
+    fail("Bo/Ann swap must write one row, got " + swap.statusCode + " " + JSON.stringify(swap.body && (swap.body.error || swap.body.ai)));
+  } else if (!same(swap.body.ai, ais.publicAi(written[0]))) {
+    fail("Bo/Ann reply must deep-equal the row that was written, got " + JSON.stringify({ reply: swap.body.ai, written: ais.publicAi(written[0]) }));
+  } else if (other.length !== 1 || same(swap.body.ai, ais.publicAi(other[0]))) {
+    fail("Bo/Ann reply must not be the other Bo");
+  } else pass("Bo/Ann reply is the row that was written");
 
   const keys = stashKeys();
   mem.connections = [];
