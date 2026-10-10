@@ -280,6 +280,7 @@ async function openJob(id) {
     (typeof filesHtml === "function" ? filesHtml(j) : (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "")) +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
     threadSheetHtml(j) +
+    "<div id=\"card-timeline-sheet\"></div>" +
     (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
     custom +
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
@@ -309,6 +310,7 @@ async function openJob(id) {
         : "<button class=\"go q-yes\" type=\"button\" onclick=\"approveCard('" + j.id + "')\">Yes</button>") +
       (staff ? "<span></span>" : "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + j.id + "', '" + esc(j.title).replace(/'/g, "") + "')\">Stop</button>") +
     "</div>";
+  if (window.AIACardTimeline) window.AIACardTimeline.mount("card-timeline-sheet", j);
   document.getElementById("sheet").classList.add("on");
 }
 function localClockInput(iso) {
