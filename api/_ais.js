@@ -287,7 +287,7 @@ function findAiSeat(shop, ai) {
   }) || null;
 }
 
-function attachAisToDesk(shop, rows, touched) {
+function attachAisToDesk(shop, rows, touched, skipped) {
   if (!shop) return 0;
   const incoming = normalizeAis(rows, shop.slug);
   if (!Array.isArray(shop.people)) shop.people = [];
@@ -295,6 +295,10 @@ function attachAisToDesk(shop, rows, touched) {
   let added = 0;
   incoming.forEach(function (ai) {
     let have = liveDeskAi(shop, ai);
+    if (!have && shop.ais.length >= 6) {
+      if (Array.isArray(skipped)) skipped.push(ai.name);
+      return;
+    }
     if (have) {
       const keepId = have.id;
       const keepSeat = have.seatId;
