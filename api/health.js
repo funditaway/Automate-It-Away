@@ -39,6 +39,17 @@ function publicStoreDriver(driver) {
   return driver || "file";
 }
 
+// Deployed commit from Vercel. Local runs leave the env unset, so both
+// health fields stay null. Anything that is not a full 40-char SHA stays
+// null too — no other env value is published.
+function commitRev() {
+  const raw = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (typeof raw !== "string") return null;
+  const sha = raw.trim();
+  if (!/^[0-9a-fA-F]{40}$/.test(sha)) return null;
+  return sha;
+}
+
 function wantsStatus(req) {
   const url = String((req && req.url) || "");
   if (/\/api\/status(?:\?|$)/.test(url)) return true;
@@ -136,6 +147,7 @@ async function health(req, res) {
   // already blob left leftover write=fail + detail=null after a later read.
   if (blobReady()) await save();
   const driver = mem.driver || "file";
+  const rev = commitRev();
   res.status(200).json({
     ok: true,
     product: "Automate It Away",
@@ -197,6 +209,8 @@ async function health(req, res) {
       note: "One account per person. Session persists on the shared save. Authenticator stays HOLD — not live on /account."
     },
     domain: require("./_public-host").LIVE_DOMAIN,
+    rev,
+    revShort: rev ? rev.slice(0, 7) : null,
     dns: "pointed",
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
