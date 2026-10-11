@@ -1,5 +1,24 @@
 /* Queue cards: Yes/Stop on decide jobs. Off-desk done / needs a hand. */
 (function () {
+  function text(s) {
+    if (typeof escapeHtml === "function") return escapeHtml(s);
+    if (typeof esc === "function") return esc(s);
+    return String(s == null ? "" : s).replace(/[&<>"'`]/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;" }[ch];
+    });
+  }
+  function idOf(id) {
+    if (typeof safeId === "function") return safeId(id);
+    return String(id == null ? "" : id).replace(/[^a-zA-Z0-9_-]/g, "");
+  }
+  function urlOf(url) {
+    if (typeof safeUrl === "function") return safeUrl(url);
+    return "";
+  }
+  function jsArg(value) {
+    if (typeof jsAttr === "function") return jsAttr(value);
+    return text(JSON.stringify(String(value == null ? "" : value)));
+  }
   function isDecideJob(j) {
     if (!j) return false;
     if (j.status === "killed" || j.status === "shipped" || j.carried || j.status === "out") return false;
@@ -54,7 +73,7 @@
     const rows = people.map(function (p) {
       const name = p.name || p.id;
       const on = j.assignee && String(j.assignee).toLowerCase() === String(name).toLowerCase();
-      return "<button class=\"edit\" type=\"button\" onclick=\"handOffTo('" + id + "', '" + String(name).replace(/'/g, "") + "')\">" + (typeof esc === "function" ? esc(name) : name) + (p.role === "owner" ? " · owner" : " · helper") + (on ? " · has it" : "") + "</button>";
+      return "<button class=\"edit\" type=\"button\" onclick=\"handOffTo('" + idOf(id) + "', " + jsArg(name) + ")\">" + text(name) + (p.role === "owner" ? " · owner" : " · helper") + (on ? " · has it" : "") + "</button>";
     }).join("");
     sheet.innerHTML = "<h3>Hand off</h3><p class=\"meta\">A person already on this desk. Owner still owns No. AIA does not text them.</p>" + (rows ? "<div class=\"row actions\">" + rows + "</div>" : "<p class=\"meta\">No other people yet.</p><p class=\"meta\"><button class=\"edit\" type=\"button\" onclick=\"openInvite()\">Invite a helper</button></p>") + "<div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
     wrap.classList.add("on");
@@ -74,9 +93,9 @@
     if (!sheet || !wrap) return;
     const live = livePipes();
     const hold = (window.PIPES || []).filter(function (p) { return !p.live; });
-    const liveRows = live.map(function (p) { return "<p><b>" + p.label + "</b> · live" + (p.onDesk ? " · on this desk" : "") + "</p>"; }).join("") || "<p class=\"meta\">No named pipe is live. Webhook inbound still writes cards.</p>";
-    const holdRows = hold.map(function (p) { return "<p class=\"meta\">" + p.label + " · " + (p.status || "hold") + (p.note ? " · " + p.note : "") + "</p>"; }).join("");
-    sheet.innerHTML = "<h3>Pipes</h3><p class=\"meta\">Write back done or hand. AIA does not send money from this sheet.</p><p class=\"meta\">Live now</p>" + liveRows + (window.INBOUND ? "<p class=\"meta\">Inbound hook</p><div class=\"draft\">" + window.INBOUND + "</div>" : "") + "<p class=\"meta\">Orange until a real pipe answers</p>" + holdRows + "<div class=\"row actions\" style=\"margin-top:12px\"><a class=\"edit\" href=\"/connections\">Open Pipes wall</a></div><div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
+    const liveRows = live.map(function (p) { return "<p><b>" + text(p.label) + "</b> · live" + (p.onDesk ? " · on this desk" : "") + "</p>"; }).join("") || "<p class=\"meta\">No named pipe is live. Webhook inbound still writes cards.</p>";
+    const holdRows = hold.map(function (p) { return "<p class=\"meta\">" + text(p.label) + " · " + text(p.status || "hold") + (p.note ? " · " + text(p.note) : "") + "</p>"; }).join("");
+    sheet.innerHTML = "<h3>Pipes</h3><p class=\"meta\">Write back done or hand. AIA does not send money from this sheet.</p><p class=\"meta\">Live now</p>" + liveRows + (window.INBOUND ? "<p class=\"meta\">Inbound hook</p><div class=\"draft\">" + text(window.INBOUND) + "</div>" : "") + "<p class=\"meta\">Orange until a real pipe answers</p>" + holdRows + "<div class=\"row actions\" style=\"margin-top:12px\"><a class=\"edit\" href=\"/connections\">Open Pipes wall</a></div><div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
     wrap.classList.add("on");
   };
   window.sendToPipe = function (id) { openPipesSheet(id); };
@@ -110,9 +129,12 @@
     const mail = typeof mailHref === "function" ? mailHref(j.title, draft) : "mailto:?subject=" + encodeURIComponent(j.title || "") + "&body=" + encodeURIComponent(draft);
     const live = livePipes().map(function (p) { return p.label; });
     const pipeLine = live.length ? "Live pipes: " + live.join(", ") : "Live pipe: inbound webhook. Named pipes on hold.";
-    const decideBtns = decide ? ("<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" + (staff ? "" : "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + String(j.title || "").replace(/'/g, "") + "')\">Stop</button>")) : "";
-    const safe = typeof esc === "function" ? esc : function (s) { return String(s || ""); };
-    return "<article class=\"item q-card\" data-job=\"" + safe(j.id || "") + "\"><div class=\"meta\">" + (outDesk ? "Off the desk" : (typeof labelStatus === "function" ? labelStatus(j.status) : j.status)) + (j.assignee ? " · handed to " + safe(j.assignee) : "") + (decide ? " · Yes/Stop" : outDesk ? " · write-back" : "") + "</div><h3>" + safe(j.title) + "</h3>" + (j.photoUrl ? "<img class=\"thumb\" src=\"" + safe(j.photoUrl) + "\" alt=\"\">" : "") + (why ? "<p>" + safe(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + safe(j.draft) + "</div>" : "") + "<p class=\"meta\">" + safe(line) + "</p><p class=\"meta\">" + safe(pipeLine) + "</p><div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button><a class=\"edit\" href=\"" + sms + "\">Text</a><a class=\"edit\" href=\"" + mail + "\">Email</a><button class=\"edit\" type=\"button\" onclick=\"openHandOff('" + j.id + "')\">Hand off</button><button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + j.id + "')\">Pipes</button><button class=\"edit\" type=\"button\" onclick=\"helpWithAi('" + j.id + "')\">Ask the desk</button><button class=\"go\" type=\"button\" onclick=\"doneOffDesk('" + j.id + "')\">Done off desk</button><button class=\"edit\" type=\"button\" onclick=\"needsHand('" + j.id + "')\">Needs a hand</button>" + decideBtns + "</div></article>";
+    const hid = idOf(j.id);
+    const photo = urlOf(j.photoUrl);
+    const shown = Number.isFinite(money) ? money : 0;
+    const statusFace = outDesk ? "Off the desk" : (typeof labelStatus === "function" ? labelStatus(j.status) : j.status);
+    const decideBtns = decide ? ("<button class=\"go q-yes\" type=\"button\" onclick=\"ship('" + hid + "', " + shown + ")\">Yes</button>" + (staff ? "" : "<button class=\"kill q-kill\" type=\"button\" onclick=\"kill('" + hid + "')\">Stop</button>")) : "";
+    return "<article class=\"item q-card\" data-job=\"" + text(hid) + "\"><div class=\"meta\">" + text(statusFace) + (j.assignee ? " · handed to " + text(j.assignee) : "") + (decide ? " · Yes/Stop" : outDesk ? " · write-back" : "") + "</div><h3>" + text(j.title) + "</h3>" + (photo ? "<img class=\"thumb\" src=\"" + text(photo) + "\" alt=\"\">" : "") + (why ? "<p>" + text(why) + "</p>" : "") + (j.draft ? "<div class=\"draft\">" + text(j.draft) + "</div>" : "") + "<p class=\"meta\">" + text(line) + "</p><p class=\"meta\">" + text(pipeLine) + "</p><div class=\"row actions tap-opts\"><button class=\"edit\" type=\"button\" onclick=\"openJob('" + hid + "')\">Open</button><a class=\"edit\" href=\"" + text(sms) + "\">Text</a><a class=\"edit\" href=\"" + text(mail) + "\">Email</a><button class=\"edit\" type=\"button\" onclick=\"openHandOff('" + hid + "')\">Hand off</button><button class=\"edit\" type=\"button\" onclick=\"openPipesSheet('" + hid + "')\">Pipes</button><button class=\"edit\" type=\"button\" onclick=\"helpWithAi('" + hid + "')\">Ask the desk</button><button class=\"go\" type=\"button\" onclick=\"doneOffDesk('" + hid + "')\">Done off desk</button><button class=\"edit\" type=\"button\" onclick=\"needsHand('" + hid + "')\">Needs a hand</button>" + decideBtns + "</div></article>";
   };
   function setCardBusy(id, on) {
     if (typeof window.setCardBusy === "function" && window.setCardBusy !== setCardBusy) {
