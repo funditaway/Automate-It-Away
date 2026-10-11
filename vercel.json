@@ -3,13 +3,6 @@
   "trailingSlash": false,
   "functions": {
     "api/*.js": {
-      "includeFiles": "{api/data/**,packs/**}"
-    },
-    "api/auth.js": {
-      "maxDuration": 30,
-      "includeFiles": "{api/data/**,packs/**}"
-    },
-    "api/automation-cron.js": {
       "maxDuration": 30,
       "includeFiles": "{api/data/**,packs/**}"
     }

@@ -56,8 +56,9 @@ const cronPaths = (vercel.crons || []).map((row) => row && row.path).filter(Bool
 if (cronPaths.some((p) => /automation/.test(p))) fail("vercel.json must not schedule the automation cron");
 else pass("vercel.json has no automation cron entry");
 const fn = vercel.functions || {};
-if (!fn["api/automation-cron.js"] || !fn["api/auth.js"] || !(fn["api/automation-cron.js"].maxDuration > 0)) {
-  fail("maxDuration must be set on the automation functions");
+const fnMax = fn["api/*.js"] && fn["api/*.js"].maxDuration;
+if (!(fnMax > 12 && fnMax <= 60)) {
+  fail("maxDuration must sit on api/*.js, above a step and within the function max");
 } else pass("maxDuration is set under the function max");
 
 const ais = require("../api/_ais");
