@@ -406,26 +406,47 @@ function packAiSource(pack, file, rawRows) {
   return [].concat(pack.bots || []);
 }
 
-function fitAiSentence(fitted, notFitted, deskCount) {
-  const names = fitted || [];
+function sameText(rows) {
+  return (rows || []).map(function (row) {
+    return row.name + " is the same Desk AI as " + row.as + ".";
+  }).join(" ");
+}
+
+function fitAiSentence(newNames, notFitted, deskCount, sameAs) {
+  const names = newNames || [];
   const skipped = notFitted || [];
-  if (!skipped.length) {
+  const sameRows = sameAs || [];
+  const same = sameText(sameRows);
+  if (!skipped.length && !sameRows.length) {
     if (!names.length) return "";
     return names.length + " desk AI" + (names.length === 1 ? "" : "s") + " attached.";
   }
   if (!names.length) {
-    return "No Desk AIs from this pack were attached. This desk already has 6 Desk AIs. These didn't fit: " + skipped.join(", ") + ".";
+    let line = "No Desk AIs from this pack were attached. This desk already has 6 Desk AIs. These didn't fit: " + skipped.join(", ") + ".";
+    if (same) line += " " + same;
+    return line;
   }
-  let line = names.length + " of " + (names.length + skipped.length) + " Desk AIs attached: " + names.join(", ") + ".";
-  if (deskCount >= 6) line += " This desk already has 6 Desk AIs.";
-  line += " These didn't fit: " + skipped.join(", ") + ".";
+  const total = names.length + skipped.length;
+  const word = sameRows.length ? "new Desk AIs" : "Desk AIs";
+  let line = names.length + " of " + total + " " + word + " attached: " + names.join(", ") + ".";
+  if (same) line += " " + same;
+  if (skipped.length) {
+    if (deskCount >= 6) line += " This desk already has 6 Desk AIs.";
+    line += " These didn't fit: " + skipped.join(", ") + ".";
+  }
   return line;
 }
 
-function honestNote(note, aiSentence, fitted, notFitted, deskCount, keepPack) {
+function honestNote(note, aiSentence, newNames, notFitted, deskCount, keepPack, sameAs) {
   const skipped = notFitted || [];
-  if (!skipped.length) return note;
-  const line = fitAiSentence(fitted, skipped, deskCount);
+  const sameRows = sameAs || [];
+  const names = newNames || [];
+  if (!skipped.length && !sameRows.length) return note;
+  if (!skipped.length && !names.length) {
+    const extra = sameText(sameRows);
+    return extra ? note + " " + extra : note;
+  }
+  const line = fitAiSentence(names, skipped, deskCount, sameRows);
   const replacement = keepPack ? ("Pack JSON is on this desk. " + line) : line;
   if (aiSentence && note.indexOf(aiSentence) >= 0) return note.replace(aiSentence, replacement);
   return note + " " + line;
@@ -443,31 +464,47 @@ function installPackOnDesk(shop, pack, skipped, rawRows) {
   if (!Array.isArray(shop.ais)) shop.ais = [];
   const src = packAiSource(pack, file, rawRows);
   const seen = {};
-  const fitted = [];
-  const fittedNames = [];
+  const planned = [];
+  const samePending = [];
   let pendingNew = 0;
   let saw = false;
   src.slice(0, 3).forEach(function (row) {
     const ai = ais.normalizeAi(row, shop.slug);
     if (!ai) return;
     saw = true;
-    const key = String(ai.name).toLowerCase();
-    if (seen[key]) {
-      if (Array.isArray(skipped)) skipped.push(ai.name);
+    const id = String(ai.id || "").toLowerCase();
+    if (seen[id]) {
+      samePending.push({ name: ai.name, id: id, fallback: seen[id] });
       return;
     }
-    seen[key] = true;
     const have = ais.liveDeskAi(shop, ai);
     if (!have && shop.ais.length + pendingNew >= 6) {
+      seen[id] = ai.name;
       if (Array.isArray(skipped)) skipped.push(ai.name);
       return;
     }
-    fitted.push(ai);
-    fittedNames.push(ai.name);
+    seen[id] = have ? have.name : ai.name;
+    planned.push({ ai: ai, isNew: !have, id: id });
     if (!have) pendingNew += 1;
   });
-  if (fitted.length) ais.attachAisToDesk(shop, fitted);
+  const fittedRows = planned.map(function (row) { return row.ai; });
+  if (fittedRows.length) ais.attachAisToDesk(shop, fittedRows);
   else if (!saw && Array.isArray(pack.bots) && pack.bots.length) shop.packBots = pack.bots.slice(0, 3);
+  const storedById = {};
+  (shop.ais || []).forEach(function (a) {
+    if (a && a.id) storedById[String(a.id).toLowerCase()] = a.name;
+  });
+  const fittedNames = [];
+  const newNames = [];
+  planned.forEach(function (row) {
+    const stored = storedById[row.id];
+    if (!stored) return;
+    fittedNames.push(stored);
+    if (row.isNew) newNames.push(stored);
+  });
+  const sameAs = samePending.map(function (row) {
+    return { name: row.name, as: storedById[row.id] || row.fallback };
+  });
   const incoming = safeRules([].concat((file && file.rules) || pack.rules || [], flattenWorkflows(file || pack)));
   const have = ensureRules(shop).map(function (r) { return String(r.text || ""); });
   let added = 0;
@@ -476,7 +513,7 @@ function installPackOnDesk(shop, pack, skipped, rawRows) {
     shop.rules.push(r);
     added += 1;
   });
-  return { added: added, fitted: fittedNames };
+  return { added: added, fitted: fittedNames, newNames: newNames, sameAs: sameAs };
 }
 
 function aiaFilenameOk(name) {
@@ -683,11 +720,13 @@ async function packHandler(req, res) {
     const listed = row.status === "listed" || row.status === "published" || row.status === "submitted" || action === "publish-pack" || action === "submit-pack" || action === "test-pack" || action === "private-pack" || body.preview === false;
     let added = 0;
     const notFitted = [];
-    let fitted = [];
+    let newNames = [];
+    let sameAs = [];
     if (listed) {
       const installed = installPackOnDesk(shop, row, notFitted, [].concat(body.ais || [], body.bots || []));
       added = installed.added;
-      fitted = installed.fitted;
+      newNames = installed.newNames;
+      sameAs = installed.sameAs;
     }
     await save();
     log("Desk", (action === "test-pack" ? "Test pack · " : (action === "private-pack" || row.visibility === "private" ? "Private pack · " : (listed ? "Publish pack · " : "List pack · "))) + row.name, "OK", workspace);
@@ -703,7 +742,7 @@ async function packHandler(req, res) {
             ? { text: "Listed with ask $" + row.ask + ". " + land + " World desks can Buy / install. Collect stays HOLD until Yes and a money pipe.", ai: land, keepPack: true }
             : { text: "Listed free. " + land + " World desks can install it onto their queue. Packs never Send.", ai: land, keepPack: true })
           : { text: "Draft saved. Off Market until you list it. Packs never Send.", ai: "", keepPack: false }));
-    const note = listed ? honestNote(base.text, base.ai, fitted, notFitted, (shop.ais || []).length, base.keepPack) : base.text;
+    const note = listed ? honestNote(base.text, base.ai, newNames, notFitted, (shop.ais || []).length, base.keepPack, sameAs) : base.text;
     return res.status(200).json({ ok: true, pack: publicPack(row), added: added, notFitted: notFitted, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note });
   }
 
@@ -830,7 +869,7 @@ async function packHandler(req, res) {
       collectHold: hold,
       never: ["send", "stop", "pay"],
       rails: rails.rails,
-      note: honestNote("Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim.", "Named AIs attached.", installed.fitted, notFitted, (shop.ais || []).length, false)
+      note: honestNote("Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim.", "Named AIs attached.", installed.newNames, notFitted, (shop.ais || []).length, false, installed.sameAs)
     });
   }
   if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
@@ -852,12 +891,18 @@ async function packHandler(req, res) {
     log("Desk", "Install pack · " + (pack.name || pack.id), "OK", workspace);
     const hold = collectHoldOf(pack);
     const rails = ais.railsOf(shop);
-    const line = fitAiSentence(installed.fitted, notFitted, (shop.ais || []).length);
+    const sameRows = installed.sameAs || [];
+    const line = fitAiSentence(installed.newNames, notFitted, (shop.ais || []).length, sameRows);
     let useNote;
-    if (!notFitted.length) {
+    if (!notFitted.length && !sameRows.length) {
+      const countBit = installed.fitted.length ? (installed.fitted.length + " desk AI" + (installed.fitted.length === 1 ? "" : "s") + " attached. ") : "";
       useNote = already
         ? "Already on this desk. " + hold.note
-        : "Pack JSON is on this desk. " + (installed.fitted.length ? line + " " : "") + hold.note;
+        : "Pack JSON is on this desk. " + countBit + hold.note;
+    } else if (!notFitted.length && !(installed.newNames || []).length) {
+      const extra = sameText(sameRows);
+      const base = already ? "Already on this desk. " + hold.note : "Pack JSON is on this desk. " + hold.note;
+      useNote = extra ? base + " " + extra : base;
     } else if (already) {
       useNote = "Already on this desk. " + line + " " + hold.note;
     } else {

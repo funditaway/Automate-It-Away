@@ -173,28 +173,28 @@ async function main() {
   const dupSeats = deskAiSeats(dup.desk);
   if (dupInstall.statusCode !== 200 || !dupInstall.body.ok) {
     fail("duplicate install " + JSON.stringify(dupInstall.body));
-  } else if (JSON.stringify(dupInstall.body.notFitted) !== JSON.stringify(["Dup"])) {
-    fail("duplicate notFitted " + JSON.stringify(dupInstall.body.notFitted));
+  } else if (JSON.stringify(dupInstall.body.notFitted) !== "[]") {
+    fail("same-id duplicate must not be notFitted " + JSON.stringify(dupInstall.body.notFitted));
   } else if (namesOf(dup.desk).join("|") !== "Dup|Other" || dupSeats.length !== 2 || dupSeats.filter(function (p) { return p.name === "Dup"; }).length !== 1 || orphanSeats(dup.desk).length) {
     fail("duplicate must store one seat " + JSON.stringify(namesOf(dup.desk)) + " " + JSON.stringify(dupSeats.map(function (p) { return p.name; })));
-  } else if ((dupInstall.body.note || "").indexOf("2 of 3 Desk AIs attached: Dup, Other. These didn't fit: Dup.") < 0) {
+  } else if ((dupInstall.body.note || "").indexOf("2 of 2 new Desk AIs attached: Dup, Other. Dup is the same Desk AI as Dup.") < 0) {
     fail("duplicate note " + dupInstall.body.note);
-  } else if (/already has 6 Desk AIs/.test(dupInstall.body.note || "")) {
-    fail("duplicate on an open desk must not claim 6 " + dupInstall.body.note);
-  } else pass("duplicate names are listed in notFitted in pack order");
+  } else if (/didn't fit|already has 6 Desk AIs/.test(dupInstall.body.note || "")) {
+    fail("duplicate on an open desk must not claim a miss " + dupInstall.body.note);
+  } else pass("same-id names are named in the note, not notFitted");
 
   const mixed = await openDesk("cap-mixed");
   const mixedSaved = await fill(mixed.headers, 5, "Mixed");
   const mixedInstall = await installAia(mixed.headers, "install-aia", "mixed-lane.aia", rows(["New A", "New A", "New B"]));
   if (mixedSaved.some(function (r) { return r.statusCode !== 200 || !r.body.ok; }) || mixedInstall.statusCode !== 200 || !mixedInstall.body.ok) {
     fail("mixed duplicate " + JSON.stringify(mixedInstall.body));
-  } else if (JSON.stringify(mixedInstall.body.notFitted) !== JSON.stringify(["New A", "New B"])) {
+  } else if (JSON.stringify(mixedInstall.body.notFitted) !== JSON.stringify(["New B"])) {
     fail("mixed notFitted " + JSON.stringify(mixedInstall.body.notFitted));
-  } else if ((mixedInstall.body.note || "").indexOf("1 of 3 Desk AIs attached: New A. This desk already has 6 Desk AIs. These didn't fit: New A, New B.") < 0) {
+  } else if ((mixedInstall.body.note || "").indexOf("1 of 2 new Desk AIs attached: New A. New A is the same Desk AI as New A. This desk already has 6 Desk AIs. These didn't fit: New B.") < 0) {
     fail("mixed note " + mixedInstall.body.note);
   } else if (deskAiSeats(mixed.desk).filter(function (p) { return p.name === "New A"; }).length !== 1 || namesOf(mixed.desk).indexOf("New B") >= 0 || orphanSeats(mixed.desk).length) {
     fail("mixed seats");
-  } else pass("cap misses and duplicates share notFitted in pack order");
+  } else pass("same-id row is not listed as didn't fit");
 
   const keep = await openDesk("cap-keep");
   const keepNames = ["Keep 1", "Keep 2", "Keep 3", "Keep 4", "Keep 5", "Keep 6"];
@@ -370,6 +370,80 @@ async function main() {
   } else if (/desk AIs attached/i.test(secondUse.body.note || "") || (secondUse.body.note || "").indexOf("Already on this desk.") < 0) {
     fail("second use changed the already note " + secondUse.body.note);
   } else pass("use-pack that already fits keeps the existing note");
+
+  const laneIdA = ais.normalizeAi({ name: "Lane A" }, "id-check").id;
+  const laneIdB = ais.normalizeAi({ name: "Lane-A" }, "id-check").id;
+  if (laneIdA !== laneIdB) fail("Lane A and Lane-A must share a stored id, got " + laneIdA + " / " + laneIdB);
+  else pass("Lane A and Lane-A normalize to one id");
+
+  async function laneCase(slug, already, expectFitted, expectSkipped, expectNote) {
+    const desk = await openDesk(slug);
+    const saved = await fill(desk.headers, already, slug);
+    const before = deskAiSeats(desk.desk).length;
+    const res = await installAia(desk.headers, "install-aia", slug + ".aia", rows(["Lane A", "Lane-A", "Zed"]));
+    const names = namesOf(desk.desk);
+    const seats = deskAiSeats(desk.desk);
+    const laneSeats = seats.filter(function (p) { return p.name === "Lane A" || p.name === "Lane-A" || p.aiId === laneIdA; });
+    if (saved.some(function (r) { return r.statusCode !== 200 || !r.body.ok; }) || res.statusCode !== 200 || !res.body.ok) {
+      fail(slug + " install " + res.statusCode + " " + JSON.stringify(res.body));
+      return;
+    }
+    if (JSON.stringify(res.body.notFitted) !== JSON.stringify(expectSkipped)) {
+      fail(slug + " notFitted " + JSON.stringify(res.body.notFitted));
+      return;
+    }
+    if ((res.body.note || "").indexOf(expectNote) < 0) {
+      fail(slug + " note " + res.body.note);
+      return;
+    }
+    if ((res.body.note || "").indexOf("Lane-A is the same Desk AI as Lane A.") < 0) {
+      fail(slug + " missing same-id line " + res.body.note);
+      return;
+    }
+    if (/didn't fit:[^.] *Lane-A|Lane-A didn't fit/.test(res.body.note || "")) {
+      fail(slug + " listed Lane-A as didn't fit " + res.body.note);
+      return;
+    }
+    expectFitted.forEach(function (name) {
+      if (names.indexOf(name) < 0) fail(slug + " missing stored " + name + " " + JSON.stringify(names));
+    });
+    expectSkipped.forEach(function (name) {
+      if (names.indexOf(name) >= 0) fail(slug + " stored a refused AI " + name);
+    });
+    if (names.indexOf("Lane-A") >= 0) fail(slug + " stored the duplicate name");
+    if (laneSeats.length !== (expectFitted.indexOf("Lane A") >= 0 ? 1 : 0)) {
+      fail(slug + " lane seats " + JSON.stringify(laneSeats.map(function (p) { return p.name; })));
+    }
+    if (seats.length !== before + expectFitted.length || orphanSeats(desk.desk).length) {
+      fail(slug + " seat count " + before + " -> " + seats.length);
+    }
+    if (!holdOk(res) || (res.body.note || "").indexOf("Collect stays HOLD") < 0) fail(slug + " dropped Collect HOLD");
+    else pass(slug + " counts unique stored ids");
+  }
+
+  await laneCase("id-four", 4, ["Lane A", "Zed"], [], "2 of 2 new Desk AIs attached: Lane A, Zed. Lane-A is the same Desk AI as Lane A.");
+  await laneCase("id-five", 5, ["Lane A"], ["Zed"], "1 of 2 new Desk AIs attached: Lane A. Lane-A is the same Desk AI as Lane A. This desk already has 6 Desk AIs. These didn't fit: Zed.");
+  await laneCase("id-six", 6, [], ["Lane A", "Zed"], "No Desk AIs from this pack were attached. This desk already has 6 Desk AIs. These didn't fit: Lane A, Zed. Lane-A is the same Desk AI as Lane A.");
+
+  const rawName = "<img src=x onerror=alert(1)>";
+  const markup = await openDesk("cap-markup");
+  await fill(markup.headers, 5, "Mark");
+  const markupRes = await installAia(markup.headers, "install-aia", "markup-lane.aia", rows([rawName, "Tail"]));
+  const markupNote = (markupRes.body && markupRes.body.note) || "";
+  const markupJson = JSON.stringify(markupRes.body);
+  if (markupRes.statusCode !== 200 || !markupRes.body || typeof markupRes.body !== "object" || !markupRes.body.ok) {
+    fail("markup install " + markupRes.statusCode + " " + markupJson);
+  } else if (markupNote.indexOf(rawName) < 0 || markupNote.split(rawName).length !== 2) {
+    fail("note must contain the AI name once as typed " + markupNote);
+  } else if (markupNote.indexOf("&lt;") >= 0 || markupNote.indexOf("&gt;") >= 0 || markupNote.indexOf("&amp;") >= 0) {
+    fail("note escaped the AI name " + markupNote);
+  } else if (/<(p|div|span|b|script)\b/i.test(markupNote) || /text\/html/i.test(markupNote)) {
+    fail("server added markup around the note " + markupNote);
+  } else if (markupJson.indexOf(rawName) < 0 || /^</.test(markupJson) || String((markupRes.headers && markupRes.headers["Content-Type"]) || "").indexOf("text/html") >= 0) {
+    fail("reply must be JSON with the raw name " + markupJson);
+  } else if (JSON.stringify(markupRes.body.notFitted) !== JSON.stringify(["Tail"])) {
+    fail("markup notFitted " + JSON.stringify(markupRes.body.notFitted));
+  } else pass("install note keeps a raw name and returns JSON");
 
   await save();
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
