@@ -231,10 +231,22 @@
       if (!box) return;
       const cur = localStorage.getItem("aia_ws");
       const rows = AIADesks.list();
-      box.innerHTML = rows.map((d) =>
-        "<button class=\"edit\" type=\"button\" onclick=\"switchDesk('" + esc(d.slug) + "')\">" +
-        esc(d.name || d.slug) + (d.slug === cur ? " · this desk" : "") + "</button>"
-      ).join("") || "<p class=\"meta\">No other desks on this phone.</p>";
+      box.replaceChildren();
+      if (!rows.length) {
+        const empty = document.createElement("p");
+        empty.className = "meta";
+        empty.textContent = "No other desks on this phone.";
+        box.appendChild(empty);
+        return;
+      }
+      rows.forEach(function (d) {
+        const btn = document.createElement("button");
+        btn.className = "edit";
+        btn.type = "button";
+        btn.textContent = (d.name || d.slug || "") + (d.slug === cur ? " · this desk" : "");
+        btn.setAttribute("data-desk-slug", d.slug == null ? "" : String(d.slug));
+        box.appendChild(btn);
+      });
     }
     function paintGate() {
       const on = locked();
@@ -253,6 +265,12 @@
       paintSwitch();
       paintGate();
     }
+    const deskList = document.getElementById("desk-list");
+    if (deskList) deskList.addEventListener("click", function (e) {
+      const btn = e.target && e.target.closest ? e.target.closest("button[data-desk-slug]") : null;
+      if (!btn) return;
+      switchDesk(btn.getAttribute("data-desk-slug"));
+    });
     function switchDesk(slug) {
       if (!AIADesks.switchTo(slug)) return;
       wsEl.value = localStorage.getItem("aia_ws") || "";

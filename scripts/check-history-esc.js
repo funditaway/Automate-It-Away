@@ -35,7 +35,9 @@ if (!history.includes("esc(it.title)")) throw new Error("history must esc titles
 if (!history.includes("function threadHtml") || !history.includes("esc(row.text)")) {
   throw new Error("history must esc AI ↔ human thread text");
 }
-if (!rules.includes("esc(r.text)")) throw new Error("rules must esc rule text into innerHTML");
+if (!/textContent\s*=\s*r\.text/.test(rules) && !rules.includes("esc(r.text)")) {
+  throw new Error("rules must put rule text in textContent or escape it");
+}
 if (!rules.includes("esc(a.name") && !rules.includes("esc(a.name ||")) {
   throw new Error("rules must esc named desk AI options");
 }
