@@ -1,8 +1,13 @@
 (function () {
   function esc(s) {
-    return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c];
+    if (typeof escapeHtml === "function") return escapeHtml(s);
+    return String(s || "").replace(/[&<>"'`]/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;" })[c];
     });
+  }
+  function idOf(s) {
+    if (typeof safeId === "function") return safeId(s);
+    return String(s || "").replace(/[^a-zA-Z0-9_-]/g, "");
   }
   function workspace() {
     if (typeof workspaceSlug === "function") return workspaceSlug();
@@ -146,7 +151,7 @@
     var name = j.desk || (found && found.name) || slug;
     var tag = "<span class=\"desk-tag\">" + esc(name) + "</span>";
     var use = (slug && slug !== here)
-      ? "<div class=\"desk-use\"><button class=\"go\" type=\"button\" onclick=\"AIADeskView.useDesk('" + esc(slug) + "','" + esc(j.id) + "')\">Use " + esc(name) + "</button></div>"
+      ? "<div class=\"desk-use\"><button class=\"go\" type=\"button\" onclick=\"AIADeskView.useDesk('" + idOf(slug) + "','" + idOf(j.id) + "')\">Use " + esc(name) + "</button></div>"
       : "";
     if (!html) return "<article class=\"item\"><div class=\"meta\">" + tag + "</div><h3>" + esc(j.title) + "</h3>" + use + "</article>";
     return html.replace(">", ">" + tag) + use;

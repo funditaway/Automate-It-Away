@@ -188,6 +188,7 @@
     <a href="/history" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>History</span></a>
     <a href="/more" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>More</span></a>
   </nav>
+  <script src="escape-html.js"></script>
   <script src="desk-switch.js"></script>
   <script src="aia-wallet.js"></script>
   <script src="desk-card.js"></script>
@@ -320,13 +321,21 @@
       return s || "";
     }
     function esc(s) {
-      return String(s || "").replace(/[&<>"']/g, (c) => ({
+      if (typeof escapeHtml === "function") return escapeHtml(s);
+      return String(s || "").replace(/[&<>"'`]/g, (c) => ({
         "&": "&" + "amp;",
         "<": "&" + "lt;",
         ">": "&" + "gt;",
         '"': "&" + "quot;",
-        "'": "&#39;"
+        "'": "&#39;",
+        "`": "&#96;"
       })[c]);
+    }
+    function cardId(id) {
+      return typeof safeId === "function" ? safeId(id) : String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    }
+    function cardUrl(url) {
+      return typeof safeUrl === "function" ? safeUrl(url) : "";
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
@@ -339,15 +348,17 @@
       const money = Number(j.amount || j.ask || 0);
       const why = visitorLine(j.why);
       const next = visitorLine(j.next) || "Yes or Stop.";
+      const id = cardId(j.id);
+      const photo = cardUrl(j.photoUrl);
       const approved = typeof isCardApproved === "function" && isCardApproved(j.id);
       const hitl = (typeof approveCard === "function" && typeof startCard === "function")
         ? (approved
-          ? `<button class="go q-start" onclick="startCard('${j.id}', ${money})">Start</button>`
-          : `<button class="go q-yes" onclick="approveCard('${j.id}')">Yes</button>`)
+          ? `<button class="go q-start" onclick="startCard('${id}', ${money})">Start</button>`
+          : `<button class="go q-yes" onclick="approveCard('${id}')">Yes</button>`)
         : (typeof approveCard === "function"
-          ? `<button class="go q-yes" onclick="approveCard('${j.id}')">Yes</button>`
+          ? `<button class="go q-yes" onclick="approveCard('${id}')">Yes</button>`
           : `<button class="go q-yes" type="button">Yes</button>`);
-      return `<article class="item${approved ? " q-approved" : ""}" data-job="${esc(j.id || "")}"><div class="meta">${labelStatus(j.status)} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${j.photoUrl ? `<img class="thumb" src="${esc(j.photoUrl)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${j.id}')">Open</button>${hitl}${staff ? "" : `<button class="kill" onclick="kill('${j.id}', '${esc(j.title).replace(/'/g, "")}')">Stop</button>`}</div></article>`;
+      return `<article class="item${approved ? " q-approved" : ""}" data-job="${esc(id)}"><div class="meta">${esc(labelStatus(j.status))} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${photo ? `<img class="thumb" src="${esc(photo)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${id}')">Open</button>${hitl}${staff ? "" : `<button class="kill" onclick="kill('${id}')">Stop</button>`}</div></article>`;
     }
     async function load() {
       if (wsEl.value) {
@@ -422,9 +433,12 @@
       document.getElementById("recent").innerHTML = recent.map(j => `<article class="item sent"><div class="meta">Sent${j.followed ? " · follow queued" : ""}</div><h3>${esc(j.title)}</h3><p>${esc(j.followNote || j.draft || "")}</p></article>`).join("");
     }
     async function ship(id, amount) {
-      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: false, whoTapped: youName || role || "desk" }) });
+      const safe = cardId(id);
+      const amt = Number(amount);
+      const shown = Number.isFinite(amt) ? amt : 0;
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id: safe || id, amount, confirm: false, whoTapped: youName || role || "desk" }) });
       if (out.status === 409 || out.status === 403) {
-        document.getElementById("sheet-card").innerHTML = `<h3>Waiting on the owner</h3><p style="color:var(--muted);margin:8px 0">Waiting on the owner.</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${id}', ${amount})">Yes</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Stop</button></div>`;
+        document.getElementById("sheet-card").innerHTML = `<h3>Waiting on the owner</h3><p style="color:var(--muted);margin:8px 0">Waiting on the owner.</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${safe}', ${shown})">Yes</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Stop</button></div>`;
         document.getElementById("sheet").classList.add("on"); load(); return;
       }
       await load();
@@ -437,7 +451,14 @@
       document.getElementById("sheet").classList.remove("on"); load();
     }
     async function kill(id, title) {
-      document.getElementById("sheet-card").innerHTML = `<h3>Stop?</h3><p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p><div class="row"><button class="kill" onclick="confirmKill('${id}')">Stop</button><button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep the card</button></div>`;
+      const safe = cardId(id);
+      if (title == null || title === "") {
+        let found = null;
+        try { found = typeof jobBy === "function" ? jobBy(safe) : null; } catch (e) {}
+        if (!found && Array.isArray(JOBS)) found = JOBS.find(function (j) { return j && (j.id === id || j.id === safe); });
+        title = (found && found.title) || "";
+      }
+      document.getElementById("sheet-card").innerHTML = `<h3>Stop?</h3><p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p><div class="row"><button class="kill" onclick="confirmKill('${safe}')">Stop</button><button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep the card</button></div>`;
       document.getElementById("sheet").classList.add("on");
     }
     async function confirmKill(id) {
