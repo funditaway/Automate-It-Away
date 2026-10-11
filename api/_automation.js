@@ -1,35 +1,62 @@
-// Desk automation runner. One Yes approves the allowed actions and the plan.
-// Each later step is one short tick: lock, check halt, do one step, record, unlock.
-// Vercel previews keep the shared Blob store closed (api/_lib.js blobAllowed).
+// Desk automation runner.
+// One Yes approves the allowed actions and the plan. Each tick takes one step.
+// Locks, step results, stops, kills and run numbers are create-if-absent claims
+// (api/_runclaims.js). The desk store is updated by version compare-and-swap.
+// Nothing here charges. Collect stays HOLD.
 const crypto = require("crypto");
-const { mem, save, readBody, personOf, isOwner, slugify, workspaceOf } = require("./_lib");
+const fs = require("fs");
+const { mem, save, readBody, personOf, isOwner, slugify, workspaceOf, applyStore, payload } = require("./_lib");
+const claims = require("./_runclaims");
 
 const PAGE_NOTE = "Steps only move while this page is open.";
 const NOT_APPROVED = "Not on the approved list.";
+const NEEDS_YES = "This automation needs a new Yes.";
+const AI_GONE = "That Desk AI is gone.";
+const STEP_STOPPED = "This step stopped before finishing.";
+const CARD_GONE = "This card is gone.";
+const NO_MATCH = "No approved action matches this step.";
+const MANY_MATCH = "This step matches more than one action.";
+const KILL_MSG = "This card's automation was killed.";
+const HOLD_WHY = "Collect stays HOLD. Nothing charged.";
+const MODEL_MS = 8000;
+const STEP_MS = 12000;
+
 const ACTIONS = [
-  { id: "add_note", sentence: "Add a note on this card.", risk: { spend: false, delete: false, newContact: false }, held: false },
-  { id: "draft_reply", sentence: "Draft a reply on this card.", risk: { spend: false, delete: false, newContact: false }, held: false },
-  { id: "set_status", sentence: "Set the status on this card.", risk: { spend: false, delete: false, newContact: false }, held: false },
-  { id: "ask_desk_ai", sentence: "Ask the Desk AI about this step.", risk: { spend: false, delete: false, newContact: false }, held: false },
-  { id: "send_message", sentence: "Send a message to someone.", risk: { spend: false, delete: false, newContact: true }, held: true },
-  { id: "delete_card", sentence: "Delete this card.", risk: { spend: false, delete: true, newContact: false }, held: true },
-  { id: "pay", sentence: "Pay from this card.", risk: { spend: true, delete: false, newContact: false }, held: true }
+  { id: "add_note", sentence: "Add a note on this card.", risk: { spend: false, delete: false, newContact: false }, held: false, keys: ["note"] },
+  { id: "draft_reply", sentence: "Draft a reply on this card.", risk: { spend: false, delete: false, newContact: false }, held: false, keys: ["draft", "reply"] },
+  { id: "set_status", sentence: "Set the status on this card.", risk: { spend: false, delete: false, newContact: false }, held: false, keys: ["status"] },
+  { id: "ask_desk_ai", sentence: "Ask the Desk AI about this step.", risk: { spend: false, delete: false, newContact: false }, held: false, keys: ["ask"] }
 ];
 
-let leaseMsValue = 15000;
+let fixtures = [];
+let leaseMsValue = Number(process.env.AIA_LEASE_MS) > 0 ? Number(process.env.AIA_LEASE_MS) : 15000;
 let tickHold = null;
 let modelFns = null;
 
+function mutation(name) { return claims.mutation(name); }
+
 function catalog() {
-  return ACTIONS.map((row) => ({
+  return ACTIONS.map(publicAction);
+}
+
+function publicAction(row) {
+  return {
     id: row.id,
     sentence: row.sentence,
     risk: { spend: !!row.risk.spend, delete: !!row.risk.delete, newContact: !!row.risk.newContact },
     held: !!row.held
-  }));
+  };
+}
+
+function knownActions() {
+  return ACTIONS.concat(fixtures || []);
 }
 
 function actionById(id) {
+  return knownActions().find((row) => row.id === id) || null;
+}
+
+function catalogAction(id) {
   return ACTIONS.find((row) => row.id === id) || null;
 }
 
@@ -41,47 +68,110 @@ function modelKey() {
   return process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY || "";
 }
 
-function setLeaseMsForTests(ms) {
-  leaseMsValue = Number(ms) > 0 ? Number(ms) : 15000;
+function setLeaseMsForTests(ms) { leaseMsValue = Number(ms) > 0 ? Number(ms) : 15000; }
+function setTickHoldForTests(fn) { tickHold = typeof fn === "function" ? fn : null; }
+function setModelForTests(fns) { modelFns = fns || null; }
+function setFixtureActionsForTests(rows) { fixtures = Array.isArray(rows) ? rows.map((row) => Object.assign({ keys: [], held: false }, row)) : []; }
+function setMutationForTests(name, on) { return claims.setMutationForTests(name, on); }
+function leaseMs() { return leaseMsValue; }
+
+function safeId(id) {
+  return String(id || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80);
 }
 
-function setTickHoldForTests(fn) {
-  tickHold = typeof fn === "function" ? fn : null;
+function lockRel(cardId, runNo, n, attempt) {
+  return "locks/run-" + safeId(cardId) + "-" + runNo + "-" + n + "-" + attempt;
+}
+function doneRel(cardId, runNo, n) {
+  return "done/run-" + safeId(cardId) + "-" + runNo + "-" + n;
+}
+function answerRel(cardId, runNo, n) {
+  return "answer/run-" + safeId(cardId) + "-" + runNo + "-" + n;
+}
+function stopRel(cardId, runNo) {
+  return "stop/run-" + safeId(cardId) + "-" + runNo;
+}
+function killRel(cardId) {
+  return "kill/run-" + safeId(cardId);
+}
+function runRel(cardId, runNo) {
+  return "runs/" + safeId(cardId) + "-" + runNo;
+}
+function effectId(cardId, runNo, n) {
+  return "run-" + safeId(cardId) + "-" + runNo + "-" + n;
 }
 
-function setModelForTests(fns) {
-  modelFns = fns || null;
+function wait(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+function withTimeout(work, ms, why) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      const err = new Error(why || "This step timed out.");
+      err.code = "STEP_TIMEOUT";
+      reject(err);
+    }, ms);
+    Promise.resolve().then(work).then((value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(value);
+    }, (err) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
 }
 
-function leaseMs() {
-  return leaseMsValue;
+function plainError(err) {
+  const msg = err && err.message ? String(err.message) : "This step failed.";
+  if (err && err.code === "STEP_TIMEOUT" || /timed out/i.test(msg)) return "This step timed out.";
+  return msg.replace(/\s+/g, " ").slice(0, 180) || "This step failed.";
 }
 
-function findIds(text) {
+function word(text, key) {
+  return new RegExp("(^|[^a-z0-9_])" + key + "([^a-z0-9_]|$)", "i").test(String(text || ""));
+}
+
+function namedIds(text) {
+  const ids = signalsOf(text).slice();
+  const extra = String(text || "").match(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g) || [];
+  extra.forEach((id) => { if (ids.indexOf(id) < 0) ids.push(id); });
+  return ids;
+}
+
+function signalsOf(text) {
   const src = String(text || "");
   const found = [];
   ACTIONS.forEach((row) => {
-    const re = new RegExp("(^|[^a-z0-9_])" + row.id + "([^a-z0-9_]|$)", "i");
-    if (re.test(src) && found.indexOf(row.id) < 0) found.push(row.id);
+    const byId = word(src, row.id);
+    const byKey = (row.keys || []).some((key) => word(src, key));
+    if ((byId || byKey) && found.indexOf(row.id) < 0) found.push(row.id);
+  });
+  (fixtures || []).forEach((row) => {
+    if (row && row.id && word(src, row.id) && found.indexOf(row.id) < 0) found.push(row.id);
   });
   return found;
 }
 
-function keywordAction(text) {
-  const t = String(text || "").toLowerCase();
-  if (/\bpay\b/.test(t) || /\bcharge\b/.test(t) || /\bspend\b/.test(t)) return "pay";
-  if (/\bdelete\b/.test(t)) return "delete_card";
-  if (/\bsend\b/.test(t) || /\bmessage\b/.test(t)) return "send_message";
-  if (/\bask\b/.test(t)) return "ask_desk_ai";
-  if (/\bstatus\b/.test(t)) return "set_status";
-  if (/\breply\b/.test(t) || /\bdraft\b/.test(t)) return "draft_reply";
-  if (/\bnote\b/.test(t)) return "add_note";
-  return "";
-}
-
-function cardBlob(job) {
-  if (!job) return "";
-  return [job.title, job.notes, job.draft, job.why, job.tell].filter(Boolean).join("\n");
+function suggestAllowed(brief, pack, plan) {
+  const chunks = [];
+  if (brief) chunks.push(String(brief));
+  const lists = [plan, pack && pack.plan];
+  lists.forEach((list) => {
+    if (Array.isArray(list)) list.forEach((line) => chunks.push(String(line || "")));
+    else if (typeof list === "string" && list) chunks.push(list);
+  });
+  if (pack && pack.does) chunks.push(String(pack.does));
+  const ids = [];
+  chunks.forEach((chunk) => {
+    signalsOf(chunk).forEach((id) => { if (ids.indexOf(id) < 0) ids.push(id); });
+  });
+  return ids;
 }
 
 function validateAllowed(value) {
@@ -90,7 +180,7 @@ function validateAllowed(value) {
   for (let i = 0; i < value.length; i++) {
     const item = value[i];
     if (typeof item !== "string") return { ok: false, error: "Allowed actions must be action names." };
-    if (!actionById(item)) return { ok: false, error: "Unknown action." };
+    if (!catalogAction(item)) return { ok: false, error: "Unknown action." };
     if (ids.indexOf(item) >= 0) return { ok: false, error: "Allowed actions must not repeat." };
     ids.push(item);
   }
@@ -120,11 +210,8 @@ function approvalHash(allowed, plan) {
 }
 
 function planOf(ai) {
-  try {
-    return require("./_ais").planText(ai && ai.plan).plan;
-  } catch (e) {
-    return Array.isArray(ai && ai.plan) ? ai.plan.slice() : [];
-  }
+  try { return require("./_ais").planText(ai && ai.plan).plan; }
+  catch (e) { return Array.isArray(ai && ai.plan) ? ai.plan.slice() : []; }
 }
 
 function stampApproval(ai, allowed, pauses, person) {
@@ -137,8 +224,7 @@ function stampApproval(ai, allowed, pauses, person) {
     approvedAt: new Date().toISOString(),
     approvedHash: approvalHash(list, plan),
     approvedAllowed: list.slice(),
-    approvedPlan: plan.slice(),
-    stopped: false
+    approvedPlan: plan.slice()
   };
   return ai.automation;
 }
@@ -157,23 +243,13 @@ function approvalView(ai) {
   let why = null;
   if (JSON.stringify(allowed) !== JSON.stringify(approvedAllowed)) why = "allowed";
   else if (JSON.stringify(plan) !== JSON.stringify(approvedPlan) || hash !== auto.approvedHash) why = "plan";
-  else if (auto.stopped) why = "stopped";
-  return {
-    approved: !why,
-    needsNewYes: !!why,
-    needsNewYesWhy: why,
-    pauses: pauses
-  };
+  return { approved: !why, needsNewYes: !!why, needsNewYesWhy: why, pauses: pauses };
 }
 
-function suggestAllowed(brief, pack) {
-  const text = String(brief || "") + "\n" + (pack ? JSON.stringify(pack) : "");
-  const ids = findIds(text).filter((id) => {
-    const row = actionById(id);
-    return row && !row.held;
-  });
-  if (!ids.length) return ["add_note", "draft_reply"];
-  return ids;
+function yesAfter(ai, stop) {
+  const approvedAt = Date.parse(ai && ai.automation && ai.automation.approvedAt || "");
+  const stoppedAt = Date.parse(stop && stop.at || "");
+  return Number.isFinite(approvedAt) && Number.isFinite(stoppedAt) && approvedAt > stoppedAt;
 }
 
 function cronSecretValue() {
@@ -192,8 +268,6 @@ function bearerToken(req) {
   return { present: true, token: match[1] };
 }
 
-// Cron is closed when CRON_SECRET is unset or empty. Equal-length tokens are
-// compared with timingSafeEqual. A different length is refused without throwing.
 function cronAuthorized(req) {
   const secret = cronSecretValue();
   if (!secret) return false;
@@ -229,27 +303,7 @@ function ownerGate(req, body) {
 function liveAi(shop, aiId) {
   const want = String(aiId || "");
   if (!want || !shop) return null;
-  const rows = shop.ais || [];
-  return rows.find((row) => row && (row.id === want || String(row.name || "").toLowerCase() === want.toLowerCase())) || null;
-}
-
-function aiForCard(shop, job) {
-  const rows = (shop && shop.ais) || [];
-  const runId = job && job.run && job.run.aiId;
-  if (runId) {
-    const hit = liveAi(shop, runId);
-    if (hit) return hit;
-  }
-  const hint = job && job.deskAi;
-  if (hint) {
-    const key = String(hint.id || hint.name || hint || "");
-    const hit = liveAi(shop, key);
-    if (hit) return hit;
-  }
-  if (rows.length === 1) return rows[0];
-  const approved = rows.filter((row) => row && row.automation && row.automation.approvedAt);
-  approved.sort((a, b) => String(b.automation.approvedAt).localeCompare(String(a.automation.approvedAt)));
-  return approved[0] || null;
+  return (shop.ais || []).find((row) => row && (row.id === want || String(row.name || "").toLowerCase() === want.toLowerCase())) || null;
 }
 
 function cardOnDesk(shop, cardId) {
@@ -271,12 +325,12 @@ function aiOnDesk(shop, aiId) {
   return { error: { status: 404, body: { ok: false, error: "No Desk AI by that name." } } };
 }
 
-function nextN(run) {
-  let max = 0;
-  (run.steps || []).forEach((step) => {
-    if (step && typeof step.n === "number" && step.n > max) max = step.n;
-  });
-  return max + 1;
+function jobById(id) {
+  return (mem.jobs || []).find((row) => row && row.id === id) || null;
+}
+
+function shopBySlug(slug) {
+  return (mem.workspaces || []).find((row) => row && row.slug === slug) || null;
 }
 
 function lastStepNum(run) {
@@ -286,23 +340,8 @@ function lastStepNum(run) {
   return last && typeof last.n === "number" ? last.n : null;
 }
 
-function pushStep(run, n, fields) {
-  if (!Array.isArray(run.steps)) run.steps = [];
-  const step = {
-    n: n,
-    at: new Date().toISOString(),
-    action: fields.action,
-    said: fields.said || "",
-    result: fields.result,
-    why: fields.why || ""
-  };
-  if (fields.action === "pay" || fields.charged === false) step.charged = false;
-  run.steps.push(step);
-  return step;
-}
-
 function publicStep(step) {
-  const out = {
+  return {
     n: step.n,
     at: step.at,
     action: step.action,
@@ -310,8 +349,6 @@ function publicStep(step) {
     result: step.result,
     why: step.why || ""
   };
-  if (step.action === "pay") out.charged = false;
-  return out;
 }
 
 function publicRun(run) {
@@ -321,6 +358,7 @@ function publicRun(run) {
     state: run.state,
     ticksBy: ticksBy,
     aiId: run.aiId || "",
+    runNo: run.runNo || null,
     steps: (run.steps || []).map(publicStep),
     waiting: run.waiting ? { n: run.waiting.n, action: run.waiting.action, why: run.waiting.why } : null
   };
@@ -330,11 +368,7 @@ function publicRun(run) {
 
 function cardAiId(shop, job) {
   if (!job) return null;
-  if (job.run && job.run.aiId) {
-    const hit = liveAi(shop, job.run.aiId);
-    return hit ? hit.id : null;
-  }
-  const hint = job.deskAi != null && job.deskAi !== "" ? job.deskAi : job.aiId;
+  const hint = job.run && job.run.aiId ? job.run.aiId : (job.deskAi != null && job.deskAi !== "" ? job.deskAi : job.aiId);
   if (hint == null || hint === "") return null;
   const key = typeof hint === "object" ? (hint.id || hint.aiId || hint.name || "") : hint;
   if (!key) return null;
@@ -342,19 +376,105 @@ function cardAiId(shop, job) {
   return hit ? hit.id : null;
 }
 
-function readFields(job, shop) {
+async function highestRunNo(cardId) {
+  let k = 0;
+  for (let n = 1; n < 500; n++) {
+    const rec = await claims.readClaim(runRel(cardId, n));
+    if (!rec) return k;
+    k = n;
+  }
+  return k;
+}
+
+async function readKill(cardId) { return claims.readClaim(killRel(cardId)); }
+async function readStop(cardId, runNo) {
+  if (!runNo) return null;
+  return claims.readClaim(stopRel(cardId, runNo));
+}
+
+async function stepRecord(cardId, runNo, n) {
+  const answer = await claims.readClaim(answerRel(cardId, runNo, n));
+  if (answer) return answer;
+  return claims.readClaim(doneRel(cardId, runNo, n));
+}
+
+async function loadSteps(cardId, runNo) {
+  const steps = [];
+  for (let n = 1; n < 200; n++) {
+    const rec = await stepRecord(cardId, runNo, n);
+    if (!rec) break;
+    steps.push({
+      id: effectId(cardId, runNo, n),
+      n: n,
+      at: rec.at,
+      action: rec.action,
+      said: rec.said || "",
+      result: rec.result,
+      why: rec.why || ""
+    });
+  }
+  return steps;
+}
+
+async function flightOf(cardId, runNo, n) {
+  if (!cardId || !runNo || !n) return { inFlight: false, stepStartedAt: null };
+  const done = await claims.readClaim(doneRel(cardId, runNo, n));
+  if (done) return { inFlight: false, stepStartedAt: null };
+  let latest = null;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const rec = await claims.readClaim(lockRel(cardId, runNo, n, attempt));
+    if (!rec) break;
+    latest = rec;
+  }
+  if (!latest) return { inFlight: false, stepStartedAt: null };
+  if (Date.parse(latest.expiresAt) > Date.now()) return { inFlight: true, stepStartedAt: latest.at || null };
+  return { inFlight: false, stepStartedAt: null };
+}
+
+async function runView(ai, job) {
+  const base = ai ? approvalView(ai) : { approved: false, needsNewYes: false, needsNewYesWhy: null, pauses: pausesOf(null) };
+  const run = job && job.run;
+  if (!run || !run.runNo) return base;
+  const stop = await readStop(job.id, run.runNo);
+  if (stop && !yesAfter(ai, stop)) {
+    if (base.needsNewYes && (base.needsNewYesWhy === "allowed" || base.needsNewYesWhy === "plan")) return base;
+    return { approved: false, needsNewYes: true, needsNewYesWhy: "stopped", pauses: base.pauses };
+  }
+  if (stop && yesAfter(ai, stop)) return base;
+  if (run.state === "running" && run.approvedHash && ai && ai.automation && ai.automation.approvedHash && run.approvedHash !== ai.automation.approvedHash && !base.needsNewYes) {
+    return { approved: false, needsNewYes: true, needsNewYesWhy: "plan", pauses: base.pauses };
+  }
+  return base;
+}
+
+async function readFields(job, shop) {
   const aiId = cardAiId(shop, job);
   const ai = aiId ? liveAi(shop, aiId) : null;
-  const view = ai ? approvalView(ai) : { approved: false, needsNewYes: false, needsNewYesWhy: null, pauses: pausesOf(null) };
+  let view = await runView(ai, job);
   const allowed = ai && ai.automation && Array.isArray(ai.automation.allowed) ? ai.automation.allowed.slice() : [];
+  const run = job && job.run;
+  let runNo = run && run.runNo || null;
+  let steps = run && run.runNo ? await loadSteps(job.id, run.runNo) : [];
+  let state = run ? run.state : null;
+  const killed = job ? await readKill(job.id) : null;
+  const stopped = !killed && runNo ? await readStop(job.id, runNo) : null;
+  const n = run ? ((run.cursor || 0) + 1) : 0;
+  const flight = await flightOf(job && job.id, runNo, n);
+  if (killed) state = flight.inFlight ? "stopping" : "killed";
+  else if (stopped) state = flight.inFlight ? "stopping" : "stopped";
+  const shown = run ? Object.assign({}, run, { state: state || run.state, steps: steps.length ? steps : (run.steps || []) }) : null;
+  if (!ai && run && run.aiId) view = Object.assign({}, view);
   return {
-    run: publicRun(job && job.run),
+    run: publicRun(shown),
     aiId: aiId,
     allowed: allowed,
     approved: view.approved,
     needsNewYes: view.needsNewYes,
     needsNewYesWhy: view.needsNewYesWhy,
-    pauses: view.pauses
+    pauses: view.pauses,
+    inFlight: !!flight.inFlight,
+    stepStartedAt: flight.stepStartedAt || null,
+    runNo: runNo
   };
 }
 
@@ -372,30 +492,42 @@ function storedApprovalAi(row) {
   };
 }
 
+function addressKey(value) {
+  const key = String(value || "").trim().toLowerCase();
+  if (!key) return "";
+  if (key.indexOf("@") >= 0 && key.indexOf(" ") < 0) return key;
+  const digits = key.replace(/[^\d]/g, "");
+  if (digits.length >= 7 && /^[+\d\s().-]+$/.test(key)) return digits;
+  return "";
+}
+
 function recipientOf(job, line) {
   const parts = [line];
-  if (job) {
-    parts.push(job.email, job.phone, job.contactName, job.to);
-    if (job.from && String(job.from).indexOf("@") >= 0) parts.push(job.from);
-  }
+  if (job) parts.push(job.email, job.phone, job.to);
+  if (mutation("nameIsKnown") && job) parts.push(job.contactName);
   const blob = parts.filter(Boolean).join(" ");
   const email = blob.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  if (email) return email[0].toLowerCase();
-  if (job && job.phone) return String(job.phone).replace(/\s+/g, "");
-  if (job && job.contactName) return String(job.contactName).trim().toLowerCase();
+  if (email) return addressKey(email[0]);
+  if (job && job.phone) return addressKey(job.phone);
+  if (mutation("nameIsKnown") && job && job.contactName) return String(job.contactName).trim().toLowerCase();
   return "";
 }
 
 function contactKnown(shop, key) {
-  if (!key) return false;
-  return (shop.approvedContacts || []).some((row) => row && row.key === key);
+  const id = addressKey(key);
+  if (!id) return false;
+  if (mutation("contactsCrossDesk")) {
+    return (mem.workspaces || []).some((row) => (row && row.approvedContacts || []).some((item) => item && item.key === id));
+  }
+  return (shop && shop.approvedContacts || []).some((item) => item && item.key === id);
 }
 
 function rememberContact(shop, key, by) {
-  if (!key) return;
+  const id = addressKey(key);
+  if (!id || !shop) return;
   if (!Array.isArray(shop.approvedContacts)) shop.approvedContacts = [];
-  if (contactKnown(shop, key)) return;
-  shop.approvedContacts.push({ key: key, label: key, at: new Date().toISOString(), by: by || "" });
+  if (contactKnown(shop, id)) return;
+  shop.approvedContacts.push({ key: id, label: id, at: new Date().toISOString(), by: by || "" });
 }
 
 function pausePlain(why) {
@@ -405,6 +537,7 @@ function pausePlain(why) {
 }
 
 function pauseFor(spec, ai, shop, job, line) {
+  if (!spec || !spec.risk) return "";
   const pauses = pausesOf(ai && ai.automation && ai.automation.pauses) || pausesOf(null);
   if (spec.risk.spend && pauses.spend) return "spend";
   if (spec.risk.delete && pauses.delete) return "delete";
@@ -415,339 +548,507 @@ function pauseFor(spec, ai, shop, job, line) {
   return "";
 }
 
-function stubMap(line, card) {
-  const fromLine = findIds(line);
-  if (fromLine.length) return { action: fromLine[0], said: String(line || "") };
-  const word = keywordAction(line);
-  if (word) return { action: word, said: String(line || "") };
-  const fromCard = findIds(cardBlob(card));
-  if (fromCard.length) return { action: fromCard[0], said: "Card text named " + fromCard[0] + "." };
-  const wordCard = keywordAction(cardBlob(card));
-  if (wordCard) return { action: wordCard, said: "Card text named " + wordCard + "." };
-  return { action: "add_note", said: String(line || "") };
-}
-
-function stubAsk(line, card) {
-  const named = findIds(line).concat(findIds(cardBlob(card)));
-  const uniq = [];
-  named.forEach((id) => { if (uniq.indexOf(id) < 0) uniq.push(id); });
-  const tail = uniq.length ? (" Named " + uniq.join(" ") + ".") : "";
+function stubAsk(line) {
+  const named = signalsOf(line);
+  const tail = named.length ? (" Named " + named.join(" ") + ".") : "";
   return "Desk AI stub. Collect stays HOLD. Nothing sent." + tail;
 }
 
-function parseActionFromText(text) {
-  const raw = String(text || "");
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start >= 0 && end > start) {
-    try {
-      const obj = JSON.parse(raw.slice(start, end + 1));
-      if (obj && typeof obj.action === "string") {
-        return { action: obj.action, said: typeof obj.said === "string" ? obj.said : raw.slice(0, 400) };
-      }
-    } catch (e) {}
-  }
-  const ids = findIds(raw);
-  if (ids.length) return { action: ids[0], said: raw.slice(0, 400) };
-  return null;
-}
-
-async function callModel(kind, line, card) {
+async function callModel(kind, line, card, budget) {
+  if (budget.calls >= 1 && !mutation("twoModelCalls")) return "";
+  budget.calls += 1;
   const key = modelKey();
   if (!key) return "";
-  const payload = {
+  const payloadBody = {
     model: process.env.AIA_GROK_MODEL || "grok-4-fast-non-reasoning",
     temperature: 0,
     max_tokens: 180,
     messages: [
-      { role: "system", content: "Return JSON only. {\"action\":\"catalog id\",\"said\":\"plain sentence\"}. Do not invent actions." },
-      { role: "user", content: JSON.stringify({ kind: kind, step: String(line || "").slice(0, 500), card: cardBlob(card).slice(0, 500), actions: catalog().map((row) => row.id) }) }
+      { role: "system", content: "Return JSON only. {\"action\":\"catalog id\",\"said\":\"plain sentence\"}." },
+      { role: "user", content: JSON.stringify({ kind: kind, step: String(line || "").slice(0, 500), actions: catalog().map((row) => row.id) }) }
     ]
   };
-  const response = await fetch("https://api.x.ai/v1/chat/completions", {
+  const response = await withTimeout(() => fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
-    body: JSON.stringify(payload)
-  });
+    body: JSON.stringify(payloadBody)
+  }), MODEL_MS, "This step timed out.");
   const data = await response.json().catch(() => ({}));
   return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
 }
 
-async function mapStep(line, card) {
-  if (modelFns && typeof modelFns.map === "function") {
-    const out = await modelFns.map(line, card);
+async function mapStep(line, budget) {
+  const signals = signalsOf(line);
+  if (signals.length === 1 && !mutation("defaultAddNote") && !mutation("twoModelCalls")) {
+    return { action: signals[0], said: String(line || "") };
+  }
+  if (modelFns && typeof modelFns.map === "function" && (budget.calls < 1 || mutation("twoModelCalls"))) {
+    budget.calls += 1;
+    const out = await withTimeout(() => modelFns.map(line), MODEL_MS, "This step timed out.");
     if (out && typeof out === "object" && typeof out.action === "string") {
       return { action: out.action, said: typeof out.said === "string" ? out.said : String(line || "") };
     }
-    if (typeof out === "string") return { action: out, said: String(line || "") };
+    if (typeof out === "string" && out) return { action: out, said: String(line || "") };
+  } else if (modelKey() && signals.length !== 1) {
+    const text = await callModel("map", line, null, budget);
+    const ids = signalsOf(text);
+    if (ids.length === 1) return { action: ids[0], said: String(line || "") };
   }
-  if (!modelKey()) return stubMap(line, card);
-  try {
-    const text = await callModel("map", line, card);
-    return parseActionFromText(text) || stubMap(line, card);
-  } catch (e) {
-    return stubMap(line, card);
-  }
+  if (mutation("defaultAddNote")) return { action: "add_note", said: String(line || "") };
+  if (!signals.length) return { none: true };
+  return { many: true };
 }
 
-async function askModel(line, card) {
-  if (modelFns && typeof modelFns.ask === "function") {
-    const out = await modelFns.ask(line, card);
-    return typeof out === "string" ? out : stubAsk(line, card);
-  }
-  if (!modelKey()) return stubAsk(line, card);
-  try {
-    const text = await callModel("ask", line, card);
-    return text || stubAsk(line, card);
-  } catch (e) {
-    return stubAsk(line, card);
-  }
-}
-
-// Desk-only effects. pay never leaves this process and never sets charged true.
-function execute(action, job, step, line) {
-  if (action === "pay") job.charged = false;
-  if (action === "add_note") {
-    const note = String(line || "Note").slice(0, 500);
-    job.notes = job.notes ? (String(job.notes) + "\n" + note) : note;
-    step.said = note;
-    step.result = "ok";
-    step.why = "";
-    return;
-  }
-  if (action === "draft_reply") {
-    job.draft = String(line || "Draft").slice(0, 500);
-    job.charged = false;
-    step.said = job.draft;
-    step.result = "ok";
-    step.why = "Draft on the card. Nothing sent.";
-    return;
-  }
+function effectFor(action, line) {
+  if (action === "add_note") return { type: "add_note", text: String(line || "Note").slice(0, 500) };
+  if (action === "draft_reply") return { type: "draft_reply", text: String(line || "Draft").slice(0, 500) };
   if (action === "set_status") {
     const found = /\b(open|waiting|done|hold)\b/i.exec(String(line || ""));
-    job.status = found ? found[1].toLowerCase() : "open";
-    step.said = "Status is " + job.status + ".";
-    step.result = "ok";
-    step.why = "";
-    return;
+    return { type: "set_status", value: found ? found[1].toLowerCase() : "open" };
   }
-  if (action === "send_message") {
-    job.sent = false;
-    step.result = "held";
-    step.why = "held, not sent";
-    step.said = "Message held, not sent.";
-    return;
-  }
-  if (action === "delete_card") {
-    job.deleted = true;
-    job.deletedAt = new Date().toISOString();
-    step.result = "ok";
-    step.said = "Card marked deleted on this desk.";
-    step.why = "Soft delete only.";
-    return;
-  }
-  if (action === "pay") {
-    job.charged = false;
-    step.charged = false;
-    step.result = "held";
-    step.said = "Pay was not collected.";
-    step.why = "Collect stays HOLD. Nothing charged.";
-    return;
-  }
-  step.result = "failed";
-  step.why = "No such action.";
+  if (action === "ask_desk_ai") return { type: "ask", text: "" };
+  return { type: "none" };
 }
 
-function finishHalt(job, shop, ai, run) {
-  if (!run || run.state === "stopped" || run.state === "killed") {
-    if (run) run.halt = null;
-    return;
+function applyEffect(job, effect) {
+  if (!job || !effect || !effect.id) return false;
+  if (!Array.isArray(job.applied)) job.applied = [];
+  if (job.applied.indexOf(effect.id) >= 0) return false;
+  job.charged = false;
+  if (effect.type === "add_note") {
+    const text = String(effect.text || "");
+    job.notes = job.notes ? (String(job.notes) + "\n" + text) : text;
+  } else if (effect.type === "draft_reply") {
+    job.draft = String(effect.text || "");
+  } else if (effect.type === "set_status") {
+    job.status = effect.value || "open";
   }
-  const kind = run.halt === "kill" ? "kill" : "stop";
-  if (run.waiting) {
-    const waiting = (run.steps || []).find((step) => step && step.n === run.waiting.n);
-    if (waiting && waiting.result === "waiting") {
-      waiting.result = "skipped";
-      waiting.why = kind === "kill" ? "Killed." : "Stopped.";
-    }
-    run.waiting = null;
-  }
-  const n = nextN(run);
-  if (kind === "kill") {
-    const dropped = Math.max(0, (run.queue || []).length - (run.cursor || 0));
-    run.queue = (run.queue || []).slice(0, run.cursor || 0);
-    run.cardId = job.id;
-    pushStep(run, n, {
-      action: "kill",
-      said: dropped ? ("Dropped " + dropped + " queued steps.") : "Killed.",
-      result: "ok",
-      why: "Killed."
-    });
-    run.state = "killed";
-  } else {
-    run.cardId = job.id;
-    pushStep(run, n, { action: "stop", said: "Stopped.", result: "ok", why: "Stopped." });
-    run.state = "stopped";
-    if (ai && ai.automation) ai.automation.stopped = true;
-  }
-  run.halt = null;
-  run.lock = null;
-}
-
-function haltReply(run, inFlight) {
-  return {
-    ok: true,
-    state: run ? run.state : null,
-    lastStep: run ? lastStepNum(run) : null,
-    inFlight: !!inFlight
-  };
-}
-
-function requestHalt(job, shop, ai, kind) {
-  const run = job && job.run;
-  if (!run) return { ok: true, state: null, lastStep: null, inFlight: false };
-  if (run.state === "killed") return haltReply(run, false);
-  if (kind === "stop" && run.state === "stopped") return haltReply(run, false);
-  const inFlight = !!(run.lock && run.lock.until > Date.now());
-  if (inFlight) {
-    run.halt = kind;
-    run.state = "stopping";
-    return haltReply(run, true);
-  }
-  run.halt = kind;
-  finishHalt(job, shop, ai, run);
-  return haltReply(run, false);
-}
-
-async function performStep(job, shop, ai, run, n, key) {
-  const queue = run.queue || [];
-  const index = run.cursor || 0;
-  if (index >= queue.length) {
-    if (!(run.steps || []).some((step) => step && step.action === "plan")) {
-      run.cardId = job.id;
-      pushStep(run, n, { action: "plan", said: "No steps on this plan.", result: "skipped", why: "No plan steps." });
-    } else {
-      delete run.seen[key];
-    }
-    run.state = "done";
-    return true;
-  }
-  const line = String(queue[index] || "");
-  const mapped = await mapStep(line, job);
-  const actionId = mapped && mapped.action;
-  const spec = actionById(actionId);
-  const allowed = (ai.automation && ai.automation.allowed) || [];
-  run.cardId = job.id;
-  if (!spec) {
-    pushStep(run, n, { action: String(actionId || "unknown"), said: String(line || ""), result: "skipped", why: "No such action." });
-    run.seen[key] = "done";
-    run.cursor = index + 1;
-    if (run.cursor >= queue.length) run.state = "done";
-    return true;
-  }
-  if (spec.id === "pay") job.charged = false;
-  if (allowed.indexOf(spec.id) < 0) {
-    const step = pushStep(run, n, { action: spec.id, said: String(line || ""), result: "skipped", why: NOT_APPROVED });
-    if (spec.id === "pay") step.charged = false;
-    run.seen[key] = "done";
-    run.cursor = index + 1;
-    if (run.cursor >= queue.length) run.state = "done";
-    return true;
-  }
-  if (spec.id === "ask_desk_ai") {
-    const answer = await askModel(line, job);
-    const named = findIds(answer).filter((id) => id !== "ask_desk_ai");
-    const blocked = named.filter((id) => allowed.indexOf(id) < 0);
-    pushStep(run, n, {
-      action: "ask_desk_ai",
-      said: answer,
-      result: blocked.length ? "skipped" : "ok",
-      why: blocked.length ? NOT_APPROVED : ""
-    });
-    run.seen[key] = "done";
-    run.cursor = index + 1;
-    if (run.cursor >= queue.length) run.state = "done";
-    return true;
-  }
-  const why = pauseFor(spec, ai, shop, job, line);
-  if (why) {
-    const who = recipientOf(job, line);
-    pushStep(run, n, { action: spec.id, said: String(line || spec.sentence), result: "waiting", why: pausePlain(why) });
-    if (spec.id === "pay") {
-      const step = run.steps[run.steps.length - 1];
-      step.charged = false;
-      job.charged = false;
-    }
-    run.waiting = { n: n, action: spec.id, why: why, recipient: who };
-    run.state = "paused";
-    run.seen[key] = "done";
-    run.cursor = index + 1;
-    return true;
-  }
-  const step = {
-    n: n,
-    at: new Date().toISOString(),
-    action: spec.id,
-    said: "",
-    result: "ok",
-    why: ""
-  };
-  execute(spec.id, job, step, line);
-  if (spec.id === "pay") step.charged = false;
-  run.steps.push(step);
-  run.seen[key] = "done";
-  run.cursor = index + 1;
-  if (run.cursor >= queue.length) run.state = "done";
+  job.applied.push(effect.id);
   return true;
 }
 
-async function tickOne(job, shop, ai) {
-  const run = job && job.run;
-  if (!run) return { ok: true, state: null, lastStep: null, inFlight: false, moved: false };
-  if (run.state !== "running" || run.waiting) {
-    return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: false, moved: false };
+async function haltKind(cardId, runNo) {
+  if (await readKill(cardId)) return "kill";
+  if (!mutation("noStopCheck") && await readStop(cardId, runNo)) return "stop";
+  return "";
+}
+
+function currentEnough(runNo, current) {
+  return !!runNo && runNo === current;
+}
+
+async function publishBody(body) {
+  if (!body) return { ok: false };
+  applyStore(body);
+  try { await save(); } catch (e) {}
+  return { ok: true };
+}
+
+async function casApply(cardId, mutate, stale) {
+  const result = await claims.casDesk((body) => mutate(body, cardId), stale);
+  if (result && result.ok && result.body && !result.skipped) await publishBody(result.body);
+  return result || { ok: false };
+}
+
+function patchJob(body, cardId, patch) {
+  const job = (body.jobs || []).find((row) => row && row.id === cardId);
+  if (!job) return null;
+  if (!job.run) job.run = {};
+  if (patch.run) job.run = Object.assign({}, job.run, patch.run);
+  if (patch.effect) applyEffect(job, patch.effect);
+  if (patch.step && job.run) {
+    if (!Array.isArray(job.run.steps)) job.run.steps = [];
+    if (!job.run.steps.some((step) => step && step.id === patch.step.id)) job.run.steps.push(patch.step);
   }
-  const now = Date.now();
-  if (run.lock && run.lock.until > now) {
-    return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: true, moved: false };
+  if (patch.contact && patch.contact.key) {
+    const shop = (body.workspaces || []).find((row) => row && row.slug === job.workspace);
+    if (shop) rememberContact(shop, patch.contact.key, patch.contact.by);
   }
-  if (!run.seen) run.seen = {};
-  const n = nextN(run);
-  const key = String(job.id) + ":" + n;
-  if (run.seen[key] === "open") {
-    return { ok: true, state: run.halt ? "stopping" : run.state, lastStep: lastStepNum(run), inFlight: true, moved: false };
-  }
-  if (run.seen[key] === "done") {
-    return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: false, moved: false };
-  }
-  const token = crypto.randomBytes(8).toString("hex");
-  run.seen[key] = "open";
-  run.lock = { token: token, until: now + leaseMs() };
-  let moved = false;
-  try {
-    if (tickHold) await tickHold(job);
-    if (run.halt === "stop" || run.halt === "kill") {
-      delete run.seen[key];
-      finishHalt(job, shop, ai, run);
-      moved = true;
-    } else {
-      moved = await performStep(job, shop, ai, run, n, key);
-      if (run.halt === "stop" || run.halt === "kill") finishHalt(job, shop, ai, run);
+  if (patch.deleted) job.deleted = true;
+  return job;
+}
+
+async function commitRecord(rel, cardId, runNo, record, stale) {
+  const current = await highestRunNo(cardId);
+  if (!currentEnough(runNo, current)) return { dropped: true };
+  if (await haltKind(cardId, runNo)) return { halted: true };
+  const won = await claims.claim(rel, record);
+  if (!won.ok) return { lost: true, record: won.record };
+  if (process.env.AIA_DIE_AFTER_COMMIT === "1") process.exit(0);
+  const step = {
+    id: record.effect && record.effect.id || effectId(cardId, runNo, record.n),
+    n: record.n,
+    at: record.at,
+    action: record.action,
+    said: record.said || "",
+    result: record.result,
+    why: record.why || ""
+  };
+  const applied = await casApply(cardId, (body) => {
+    const job = patchJob(body, cardId, { effect: record.effect, step: step, run: record.run || null, contact: record.contact || null });
+    return !!job;
+  }, stale);
+  if (await haltKind(cardId, runNo)) await markHalt(cardId, runNo, await haltKind(cardId, runNo));
+  return { ok: true, won: true, applied: !!(applied && applied.ok), applyFailed: !(applied && applied.ok) };
+}
+
+async function finishHalted(job, run, kind, stale) {
+  const state = kind === "kill" ? "killed" : "stopped";
+  const n = (run.cursor || 0) + 1;
+  if (!(await stepRecord(job.id, run.runNo, n))) {
+    const why = kind === "kill" ? KILL_MSG : "Stopped.";
+    const at = new Date().toISOString();
+    const record = {
+      at: at,
+      runNo: run.runNo,
+      n: n,
+      action: kind === "kill" ? "kill" : "stop",
+      said: why,
+      result: "skipped",
+      why: why,
+      effect: { id: effectId(job.id, run.runNo, n), type: "none" },
+      run: { state: state, waiting: null, queue: kind === "kill" ? [] : (run.queue || []), cursor: run.cursor || 0 }
+    };
+    const won = await claims.claim(doneRel(job.id, run.runNo, n), record);
+    if (won.ok) {
+      const step = {
+        id: record.effect.id,
+        n: n,
+        at: at,
+        action: record.action,
+        said: why,
+        result: "skipped",
+        why: why
+      };
+      await casApply(job.id, (body, cardId) => {
+        const live = patchJob(body, cardId, { step: step, run: record.run });
+        return !!live;
+      }, stale);
     }
-  } finally {
-    if (run.lock && run.lock.token === token) run.lock = null;
   }
-  return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: false, moved: !!moved };
+  await markHalt(job.id, run.runNo, kind);
+}
+
+async function recordKillStep(cardId, runNo) {
+  const job = jobById(cardId);
+  const run = job && job.run;
+  if (!run || run.runNo !== runNo) return;
+  const n = (run.cursor || 0) + 1;
+  if (await stepRecord(cardId, runNo, n)) return;
+  const at = new Date().toISOString();
+  const record = {
+    at: at,
+    runNo: runNo,
+    n: n,
+    action: "kill",
+    said: KILL_MSG,
+    result: "skipped",
+    why: KILL_MSG,
+    effect: { id: effectId(cardId, runNo, n), type: "none" },
+    run: { state: "killed", waiting: null, queue: [], cursor: run.cursor || 0 }
+  };
+  const won = await claims.claim(doneRel(cardId, runNo, n), record);
+  if (!won.ok) return;
+  const step = {
+    id: record.effect.id,
+    n: n,
+    at: at,
+    action: "kill",
+    said: KILL_MSG,
+    result: "skipped",
+    why: KILL_MSG
+  };
+  await casApply(cardId, (body) => {
+    const live = (body.jobs || []).find((row) => row && row.id === cardId);
+    if (!live || !live.run || live.run.runNo !== runNo) return false;
+    live.run.state = "killed";
+    live.run.waiting = null;
+    live.run.queue = [];
+    if (!Array.isArray(live.run.steps)) live.run.steps = [];
+    if (!live.run.steps.some((row) => row && row.id === step.id)) live.run.steps.push(step);
+    return true;
+  }, null);
+}
+
+async function markHalt(cardId, runNo, kind) {
+  const state = kind === "kill" ? "killed" : "stopped";
+  if (kind === "kill") await recordKillStep(cardId, runNo);
+  await casApply(cardId, (body) => {
+    const job = (body.jobs || []).find((row) => row && row.id === cardId);
+    if (!job || !job.run) return false;
+    if (kind === "stop" && job.run.runNo && job.run.runNo !== runNo) return false;
+    job.run.state = state;
+    job.run.waiting = null;
+    if (kind === "kill") job.run.queue = [];
+    return true;
+  }, null);
+}
+
+async function noteNeedsYes(job, shop, ai, run, stale) {
+  const notedRel = "noted/run-" + safeId(job.id) + "-" + run.runNo + "-needs-yes";
+  const noted = await claims.claim(notedRel, { at: new Date().toISOString() });
+  if (!noted.ok) {
+    await markHalt(job.id, run.runNo, "stop");
+    const live = jobById(job.id);
+    if (live && live.run) live.run.state = "paused";
+    return { paused: true };
+  }
+  const n = (run.cursor || 0) + 1;
+  const at = new Date().toISOString();
+  const record = {
+    at: at,
+    runNo: run.runNo,
+    n: n,
+    action: "plan",
+    said: NEEDS_YES,
+    result: "skipped",
+    why: NEEDS_YES,
+    effect: { id: effectId(job.id, run.runNo, n), type: "none" },
+    run: { state: "paused", cursor: run.cursor || 0, waiting: null }
+  };
+  await commitRecord(doneRel(job.id, run.runNo, n), job.id, run.runNo, record, stale);
+  const live = jobById(job.id);
+  if (live && live.run) live.run.state = "paused";
+  return { paused: true };
+}
+
+async function buildOutcome(job, shop, ai, run, line) {
+  const budget = { calls: 0 };
+  if (!line && line !== "") {
+    return { action: "plan", said: "No steps on this plan.", result: "skipped", why: "No plan steps.", effect: { type: "none" } };
+  }
+  const mapped = await mapStep(line, budget);
+  if (mapped.none) return { action: "plan", said: String(line || ""), result: "skipped", why: NO_MATCH, effect: { type: "none" } };
+  if (mapped.many) return { action: "plan", said: String(line || ""), result: "skipped", why: MANY_MATCH, effect: { type: "none" } };
+  const spec = actionById(mapped.action);
+  if (!spec || (!catalogAction(spec.id) && !(fixtures || []).some((row) => row.id === spec.id))) {
+    return { action: String(mapped.action || "unknown"), said: String(line || ""), result: "skipped", why: "No such action.", effect: { type: "none" } };
+  }
+  const allowed = (ai && ai.automation && ai.automation.allowed) || [];
+  if (allowed.indexOf(spec.id) < 0) {
+    return { action: spec.id, said: String(line || ""), result: "skipped", why: NOT_APPROVED, effect: { type: "none" } };
+  }
+  const pause = pauseFor(spec, ai, shop, job, line);
+  if (pause) {
+    return {
+      action: spec.id,
+      said: String(line || spec.sentence || ""),
+      result: "waiting",
+      why: pausePlain(pause),
+      effect: { type: "none" },
+      waiting: { n: 0, action: spec.id, why: pause, recipient: recipientOf(job, line) }
+    };
+  }
+  if (spec.risk && spec.risk.spend && !pause) {
+    return { action: spec.id, said: "Pay was not collected.", result: "failed", why: HOLD_WHY, effect: { type: "none" } };
+  }
+  if (spec.id === "ask_desk_ai") {
+    let said = mapped.said || "";
+    if (budget.calls < 1 || mutation("twoModelCalls")) {
+      if (modelFns && typeof modelFns.ask === "function") {
+        budget.calls += 1;
+        const out = await withTimeout(() => modelFns.ask(line, job), MODEL_MS, "This step timed out.");
+        said = typeof out === "string" ? out : stubAsk(line);
+      } else if (!modelKey()) said = stubAsk(line);
+      else said = await callModel("ask", line, job, budget) || stubAsk(line);
+    }
+    const named = namedIds(said).filter((id) => id !== "ask_desk_ai");
+    const blocked = named.filter((id) => allowed.indexOf(id) < 0);
+    return {
+      action: "ask_desk_ai",
+      said: said,
+      result: blocked.length ? "skipped" : "ok",
+      why: blocked.length ? NOT_APPROVED : "",
+      effect: blocked.length ? { type: "none" } : { type: "ask", text: said }
+    };
+  }
+  const effect = effectFor(spec.id, line);
+  if (spec.id === "add_note") return { action: spec.id, said: effect.text, result: "ok", why: "", effect: effect };
+  if (spec.id === "draft_reply") return { action: spec.id, said: effect.text, result: "ok", why: "Draft on the card. Nothing sent.", effect: effect };
+  if (spec.id === "set_status") return { action: spec.id, said: "Status is " + effect.value + ".", result: "ok", why: "", effect: effect };
+  return { action: spec.id, said: String(line || ""), result: "failed", why: "No such action.", effect: { type: "none" } };
+}
+
+async function claimStep(cardId, runNo, n) {
+  if (mutation("noLock")) {
+    return { ok: true, attempt: 0, at: new Date().toISOString(), expiresAt: new Date(Date.now() + leaseMs()).toISOString(), bypass: true };
+  }
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const existing = await claims.readClaim(lockRel(cardId, runNo, n, attempt));
+    if (!existing) {
+      const at = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + leaseMs()).toISOString();
+      const won = await claims.claim(lockRel(cardId, runNo, n, attempt), { at: at, expiresAt: expiresAt });
+      if (!won.ok) continue;
+      return { ok: true, attempt: attempt, at: at, expiresAt: expiresAt, afterExpiry: attempt > 0 };
+    }
+    if (Date.parse(existing.expiresAt) > Date.now()) {
+      return { ok: false, inFlight: true, stepStartedAt: existing.at || null };
+    }
+  }
+  return { ok: false, inFlight: false, stepStartedAt: null };
+}
+
+async function tickOne(job, shop, aiOpt) {
+  const run = job && job.run;
+  if (!run || !run.runNo) return { ok: true, state: run ? run.state : null, lastStep: null, inFlight: false, moved: false, runNo: null };
+  const stale = JSON.parse(JSON.stringify(payload()));
+  const current = await highestRunNo(job.id);
+  if (!currentEnough(run.runNo, current)) return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: false, moved: false, dropped: true, runNo: run.runNo };
+  const earlyHalt = await haltKind(job.id, run.runNo);
+  if (earlyHalt) {
+    await markHalt(job.id, run.runNo, earlyHalt);
+    const live = jobById(job.id);
+    return { ok: true, state: earlyHalt === "kill" ? "killed" : "stopped", lastStep: lastStepNum(live && live.run), inFlight: false, moved: false, runNo: run.runNo };
+  }
+  const pausedBlocked = run.state === "paused" && !mutation("cronSkipState");
+  if (run.waiting || run.state === "stopped" || run.state === "killed" || run.state === "done" || pausedBlocked) {
+    const flight = await flightOf(job.id, run.runNo, (run.cursor || 0) + 1);
+    return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: !!flight.inFlight, moved: false, runNo: run.runNo, stepStartedAt: flight.stepStartedAt };
+  }
+  if (run.state !== "running" && !mutation("cronSkipState")) {
+    return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: false, moved: false, runNo: run.runNo };
+  }
+  const ai = mutation("fallbackOtherAi")
+    ? (liveAi(shop, run.aiId) || (shop && shop.ais || [])[0] || null)
+    : liveAi(shop, run.aiId);
+  if (!ai || (aiOpt && ai.id !== run.aiId && !mutation("fallbackOtherAi"))) {
+    return finishFailed(job, shop, null, run, AI_GONE, "stopped", stale);
+  }
+  if (job.deleted || !jobById(job.id)) return finishFailed(job, shop, ai, run, CARD_GONE, "stopped", stale);
+  const view = await runView(ai, job);
+  if ((view.needsNewYes || (run.approvedHash && ai.automation && run.approvedHash !== ai.automation.approvedHash)) && !mutation("noNeedsNewYesHalt") && !mutation("cronSkipApproval")) {
+    await noteNeedsYes(job, shop, ai, run, stale);
+    const live = jobById(job.id);
+    return { ok: true, state: "paused", lastStep: lastStepNum(live && live.run), inFlight: false, moved: true, runNo: run.runNo };
+  }
+  const n = (run.cursor || 0) + 1;
+  const existing = await stepRecord(job.id, run.runNo, n);
+  if (existing) {
+    await repairOne(job, existing, stale);
+    return { ok: true, state: jobById(job.id) && jobById(job.id).run.state, lastStep: n, inFlight: false, moved: false, runNo: run.runNo };
+  }
+  const slot = await claimStep(job.id, run.runNo, n);
+  if (!slot.ok) {
+    return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: !!slot.inFlight, moved: false, runNo: run.runNo, stepStartedAt: slot.stepStartedAt || null };
+  }
+  if (process.env.AIA_DIE_AFTER_CLAIM === "1") process.exit(0);
+  let outcome;
+  try {
+    outcome = await withTimeout(async () => {
+      if (slot.afterExpiry) {
+        return { action: "step", said: STEP_STOPPED, result: "failed", why: STEP_STOPPED, effect: { type: "none" } };
+      }
+      const queue = mutation("reuseOldPlan") ? (run.queue || []) : (run.queue || []);
+      if ((run.cursor || 0) >= queue.length) {
+        return { action: "plan", said: "No steps on this plan.", result: "skipped", why: "No plan steps.", effect: { type: "none" }, done: true };
+      }
+      const line = String(queue[run.cursor || 0] || "");
+      return buildOutcome(job, shop, ai, run, line);
+    }, STEP_MS, "This step timed out.");
+  } catch (err) {
+    outcome = { action: "step", said: "", result: "failed", why: plainError(err), effect: { type: "none" } };
+  }
+  const delay = Number(process.env.AIA_TICK_DELAY_MS || 0);
+  if (delay > 0 && slot.attempt === 0) await wait(delay);
+  if (tickHold && slot.attempt === 0) {
+    try { await tickHold(job); } catch (err) {
+      outcome = { action: "step", said: "", result: "failed", why: plainError(err), effect: { type: "none" } };
+    }
+  }
+  const nowNo = await highestRunNo(job.id);
+  if (!currentEnough(run.runNo, nowNo)) return { ok: true, state: run.state, lastStep: lastStepNum(run), inFlight: false, moved: false, dropped: true, runNo: run.runNo };
+  const lateHalt = await haltKind(job.id, run.runNo);
+  if (lateHalt) {
+    await finishHalted(job, run, lateHalt, stale);
+    return { ok: true, state: lateHalt === "kill" ? "killed" : "stopped", lastStep: lastStepNum(jobById(job.id) && jobById(job.id).run), inFlight: false, moved: false, runNo: run.runNo };
+  }
+  const at = new Date().toISOString();
+  const waiting = outcome.waiting ? { n: n, action: outcome.waiting.action, why: outcome.waiting.why, recipient: outcome.waiting.recipient || "" } : null;
+  const holdCursor = outcome.why === STEP_STOPPED;
+  const nextCursor = (waiting || holdCursor) ? (run.cursor || 0) : (run.cursor || 0) + 1;
+  const queueLen = (run.queue || []).length;
+  let state = "running";
+  if (waiting) state = "paused";
+  else if (outcome.done || nextCursor >= queueLen) state = "done";
+  const record = {
+    at: at,
+    runNo: run.runNo,
+    n: n,
+    action: outcome.action,
+    said: outcome.said || "",
+    result: outcome.result,
+    why: outcome.why || "",
+    effect: Object.assign({ id: effectId(job.id, run.runNo, n) }, outcome.effect || { type: "none" }),
+    run: { state: state, cursor: nextCursor, waiting: waiting, stepStartedAt: null }
+  };
+  const committed = await commitRecord(doneRel(job.id, run.runNo, n), job.id, run.runNo, record, stale);
+  if (committed.dropped || committed.halted || committed.lost) {
+    return { ok: true, state: jobById(job.id) && jobById(job.id).run ? jobById(job.id).run.state : run.state, lastStep: lastStepNum(jobById(job.id) && jobById(job.id).run), inFlight: false, moved: false, runNo: run.runNo };
+  }
+  return { ok: true, state: state, lastStep: n, inFlight: false, moved: true, runNo: run.runNo };
+}
+
+async function finishFailed(job, shop, ai, run, why, state, stale) {
+  const n = (run.cursor || 0) + 1;
+  const at = new Date().toISOString();
+  const record = {
+    at: at,
+    runNo: run.runNo,
+    n: n,
+    action: "plan",
+    said: why,
+    result: "failed",
+    why: why,
+    effect: { id: effectId(job.id, run.runNo, n), type: "none" },
+    run: { state: state, waiting: null, cursor: run.cursor || 0 }
+  };
+  await commitRecord(doneRel(job.id, run.runNo, n), job.id, run.runNo, record, stale);
+  return { ok: true, state: state, lastStep: n, inFlight: false, moved: true, runNo: run.runNo };
+}
+
+async function repairOne(job, record, stale) {
+  if (!record || !job || !job.run) return;
+  const current = await highestRunNo(job.id);
+  if (!currentEnough(job.run.runNo, current)) return;
+  const kind = await haltKind(job.id, job.run.runNo);
+  if (kind) {
+    await markHalt(job.id, job.run.runNo, kind);
+    return;
+  }
+  const applied = job.applied || [];
+  const id = record.effect && record.effect.id;
+  const effectPending = !!(record.effect && record.effect.type && record.effect.type !== "none" && (!id || applied.indexOf(id) < 0));
+  const runPending = record.run && job.run.cursor !== record.run.cursor;
+  if (!effectPending && !runPending) return;
+  await casApply(job.id, (body) => {
+    const live = (body.jobs || []).find((row) => row && row.id === job.id);
+    if (!live) return false;
+    if (effectPending) applyEffect(live, record.effect);
+    if (!live.run) live.run = {};
+    if (record.run) live.run = Object.assign({}, live.run, record.run);
+    const step = {
+      id: id,
+      n: record.n,
+      at: record.at,
+      action: record.action,
+      said: record.said || "",
+      result: record.result,
+      why: record.why || ""
+    };
+    if (!Array.isArray(live.run.steps)) live.run.steps = [];
+    if (!live.run.steps.some((row) => row && row.id === step.id)) live.run.steps.push(step);
+    return true;
+  }, stale);
 }
 
 function cronEligible(job) {
   const run = job && job.run;
   if (!run) return false;
-  if (run.state !== "running") return false;
-  if (!run.startedBy) return false;
+  if (!mutation("cronSkipState") && run.state !== "running") return false;
+  if (!mutation("cronSkipStartedBy") && !run.startedBy) return false;
   if (run.waiting) return false;
-  if (run.ticksBy !== "cron") return false;
-  if (run.lock && run.lock.until > Date.now()) return false;
+  if (!mutation("cronSkipTicksBy") && run.ticksBy !== "cron") return false;
   return true;
 }
 
@@ -756,38 +1057,81 @@ async function cronTickOne() {
   for (let i = 0; i < jobs.length; i++) {
     const job = jobs[i];
     if (!cronEligible(job)) continue;
-    const shop = (mem.workspaces || []).find((row) => row && row.slug === job.workspace) || null;
+    const flight = await flightOf(job.id, job.run.runNo, (job.run.cursor || 0) + 1);
+    if (flight.inFlight) continue;
+    const shop = shopBySlug(job.workspace);
     const ai = shop ? liveAi(shop, job.run.aiId) : null;
     if (!shop || !ai) continue;
-    const view = approvalView(ai);
-    if (!view.approved || view.needsNewYes) continue;
-    const before = (job.run.steps || []).length;
+    if (!mutation("cronSkipApproval")) {
+      const view = await runView(ai, job);
+      if (!view.approved || view.needsNewYes) continue;
+    }
+    const before = (await loadSteps(job.id, job.run.runNo)).length;
     await tickOne(job, shop, ai);
-    const after = (job.run.steps || []).length;
+    const afterJob = jobById(job.id) || job;
+    const after = (await loadSteps(job.id, afterJob.run.runNo)).length;
     return {
       ok: true,
       cron: true,
       ticked: after > before,
       cardId: job.id,
-      state: job.run.state,
-      lastStep: lastStepNum(job.run),
-      inFlight: false
+      state: afterJob.run.state,
+      lastStep: lastStepNum(afterJob.run),
+      inFlight: false,
+      runNo: afterJob.run.runNo || null
     };
   }
-  return { ok: true, cron: true, ticked: false, cardId: null, state: null, lastStep: null, inFlight: false };
+  return { ok: true, cron: true, ticked: false, cardId: null, state: null, lastStep: null, inFlight: false, runNo: null };
 }
 
 function deny(res) {
   return res.status(403).json({ ok: false, error: "Not allowed." });
 }
 
+async function reloadMem() {
+  const body = await claims.reloadBody();
+  if (body) applyStore(body);
+  return body;
+}
+
+async function claimNextRun(cardId) {
+  const k = await highestRunNo(cardId);
+  const runNo = k + 1;
+  const won = await claims.claim(runRel(cardId, runNo), { at: new Date().toISOString(), runNo: runNo });
+  return { won: won.ok, runNo: runNo };
+}
+
+function freshRun(ai, person, runNo, ticksBy, previous) {
+  const reuse = mutation("reuseOldPlan") && previous && Array.isArray(previous.queue) && previous.queue.length;
+  return {
+    state: "running",
+    ticksBy: ticksBy,
+    aiId: ai.id,
+    runNo: runNo,
+    steps: [],
+    waiting: null,
+    startedBy: person.id || person.name || "owner",
+    startedAt: new Date().toISOString(),
+    queue: reuse ? previous.queue.slice() : planOf(ai).slice(),
+    cursor: reuse ? (previous.cursor || 0) : 0,
+    approvedHash: (ai.automation && ai.automation.approvedHash) || ""
+  };
+}
+
 async function handle(req, res) {
+  try {
+    return await handleInner(req, res);
+  } catch (err) {
+    return res.status(200).json({ ok: false, error: plainError(err), inFlight: false });
+  }
+}
+
+async function handleInner(req, res) {
   const body = (req && req.body && typeof req.body === "object") ? req.body : await readBody(req);
   const action = String(body.action || "").toLowerCase();
   if (action === "run-tick" && !pinRaw(req, body)) {
     if (!cronAuthorized(req)) return deny(res);
     const out = await cronTickOne();
-    if (out.ticked) await save();
     return res.status(200).json(out);
   }
   const gate = ownerGate(req, body);
@@ -823,108 +1167,183 @@ async function handle(req, res) {
   const job = card.job;
 
   if (action === "run-read") {
-    return res.status(200).json(Object.assign({ ok: true }, readFields(job, shop)));
+    return res.status(200).json(Object.assign({ ok: true }, await readFields(job, shop)));
   }
 
   if (action === "run-stop" || action === "run-kill") {
-    const ai = aiForCard(shop, job);
-    const out = requestHalt(job, shop, ai, action === "run-kill" ? "kill" : "stop");
-    await save();
-    return res.status(200).json(out);
+    const killing = action === "run-kill";
+    const run = job.run;
+    if (killing) await claims.claim(killRel(job.id), { at: new Date().toISOString() });
+    if (!run) {
+      return res.status(200).json({
+        ok: true,
+        state: killing ? "killed" : null,
+        lastStep: null,
+        inFlight: false,
+        runNo: null
+      });
+    }
+    const flight = await flightOf(job.id, run.runNo, (run.cursor || 0) + 1);
+    if (!killing && (run.state === "done" || run.state === "stopped" || run.state === "killed" || await readKill(job.id))) {
+      const fields = await readFields(job, shop);
+      return res.status(200).json({ ok: true, state: fields.run && fields.run.state, lastStep: lastStepNum(fields.run), inFlight: !!fields.inFlight, runNo: fields.runNo });
+    }
+    if (!killing) await claims.claim(stopRel(job.id, run.runNo), { at: new Date().toISOString(), runNo: run.runNo });
+    if (flight.inFlight) {
+      await casApply(job.id, (body) => {
+        const live = (body.jobs || []).find((row) => row && row.id === job.id);
+        if (!live || !live.run || live.run.runNo !== run.runNo) return false;
+        live.run.state = "stopping";
+        return true;
+      }, null);
+    } else {
+      await markHalt(job.id, run.runNo, killing ? "kill" : "stop");
+    }
+    const fields = await readFields(jobById(job.id) || job, shop);
+    const halted = killing ? "killed" : "stopped";
+    return res.status(200).json({
+      ok: true,
+      state: flight.inFlight ? "stopping" : ((fields.run && fields.run.state) || halted),
+      lastStep: lastStepNum(fields.run),
+      inFlight: !!(flight.inFlight || fields.inFlight),
+      runNo: fields.runNo
+    });
   }
 
   if (action === "run-start") {
+    if (!mutation("noKillPrecheck") && await readKill(job.id)) {
+      return res.status(409).json({ ok: false, error: KILL_MSG });
+    }
     const found = aiOnDesk(shop, body.aiId || body.ai);
     if (found.error) return res.status(found.error.status).json(found.error.body);
     const ai = found.ai;
-    const view = approvalView(ai);
+    const view = await runView(ai, job);
     if (!view.approved || view.needsNewYes) {
       return res.status(409).json({
         ok: false,
-        error: view.needsNewYes ? "This automation needs a new Yes." : "This automation needs a Yes before it can run.",
+        error: view.needsNewYes ? NEEDS_YES : "This automation needs a Yes before it can run.",
         needsNewYes: !!view.needsNewYes,
         needsNewYesWhy: view.needsNewYesWhy
       });
     }
-    if (job.run && job.run.state === "killed") return res.status(409).json({ ok: false, error: "This run was killed." });
     if (job.run && job.run.state === "done") return res.status(409).json({ ok: false, error: "This run is already done." });
-    if (job.run && (job.run.state === "running" || job.run.state === "paused" || job.run.state === "stopping")) {
-      return res.status(200).json(Object.assign({ ok: true, state: job.run.state, lastStep: lastStepNum(job.run), inFlight: !!(job.run.lock && job.run.lock.until > Date.now()) }, readFields(job, shop)));
+    if (job.run && (job.run.state === "running" || (job.run.state === "paused" && job.run.waiting))) {
+      const fields = await readFields(job, shop);
+      return res.status(200).json(Object.assign({ ok: true, state: job.run.state, lastStep: lastStepNum(job.run), inFlight: fields.inFlight, runNo: fields.runNo }, fields));
     }
-    if (!job.run) {
+    const delay = Number(process.env.AIA_DELAY_BEFORE_RUN_CLAIM_MS || 0);
+    if (delay > 0) {
+      if (process.env.AIA_DELAY_FLAG) {
+        try { fs.writeFileSync(process.env.AIA_DELAY_FLAG, "1"); } catch (e) {}
+      }
+      await wait(delay);
+    }
+    const claimed = await claimNextRun(job.id);
+    if (!claimed.won) {
+      await reloadMem();
+      const live = jobById(job.id) || job;
+      const fields = await readFields(live, shopBySlug(shop.slug) || shop);
+      return res.status(200).json(Object.assign({ ok: true, state: live.run && live.run.state, lastStep: lastStepNum(live.run), started: false }, fields));
+    }
+    if (!mutation("noKillPostcheck") && await readKill(job.id)) {
       job.run = {
-        state: "running",
+        state: "killed",
         ticksBy: ticksMode(),
         aiId: ai.id,
+        runNo: claimed.runNo,
         steps: [],
         waiting: null,
         startedBy: person.id || person.name || "owner",
         startedAt: new Date().toISOString(),
-        queue: planOf(ai).slice(),
+        queue: [],
         cursor: 0,
-        lock: null,
-        halt: null,
-        seen: {}
+        approvedHash: ai.automation && ai.automation.approvedHash || ""
       };
-    } else {
-      job.run.state = "running";
-      job.run.halt = null;
-      job.run.aiId = ai.id;
-      job.run.startedBy = job.run.startedBy || person.id || person.name || "owner";
+      await save();
+      const fields = await readFields(jobById(job.id) || job, shop);
+      return res.status(200).json(Object.assign({ ok: true, state: "killed", lastStep: null, inFlight: false }, fields));
     }
-    await tickOne(job, shop, ai);
+    const started = freshRun(ai, person, claimed.runNo, ticksMode(), job.run);
+    job.run = started;
+    job.deskAi = ai.id;
     await save();
-    return res.status(200).json(Object.assign({ ok: true, state: job.run.state, lastStep: lastStepNum(job.run), inFlight: false }, readFields(job, shop)));
+    await tickOne(jobById(job.id) || job, shopBySlug(shop.slug) || shop, ai);
+    const live = jobById(job.id) || job;
+    const fields = await readFields(live, shopBySlug(shop.slug) || shop);
+    return res.status(200).json(Object.assign({ ok: true, state: live.run && live.run.state, lastStep: lastStepNum(live.run) }, fields));
   }
 
   if (action === "step-answer") {
-    const ai = aiForCard(shop, job);
     const run = job.run;
     const n = Number(body.n);
     if (!run || !run.waiting || run.waiting.n !== n || run.state !== "paused") {
       return res.status(409).json({ ok: false, error: "That is not the step waiting for an answer." });
     }
+    const ai = liveAi(shop, run.aiId);
+    const view = await runView(ai, job);
+    if ((view.needsNewYes || (ai && run.approvedHash && ai.automation && run.approvedHash !== ai.automation.approvedHash)) && !mutation("noNeedsNewYesHalt")) {
+      await noteNeedsYes(job, shop, ai, run, JSON.parse(JSON.stringify(payload())));
+      return res.status(409).json({ ok: false, error: NEEDS_YES, needsNewYes: true, needsNewYesWhy: view.needsNewYesWhy });
+    }
     const yes = body.yes === true || body.yes === "yes";
-    const step = (run.steps || []).find((row) => row && row.n === n);
     const spec = actionById(run.waiting.action);
     const allowed = (ai && ai.automation && ai.automation.allowed) || [];
-    if (!yes) {
-      if (step) {
-        step.result = "skipped";
-        step.why = "You said no.";
+    const permitted = !!(spec && allowed.indexOf(spec.id) >= 0);
+    let result = "skipped";
+    let why = "You said no.";
+    let effect = { type: "none" };
+    let contact = null;
+    if (yes && (permitted || mutation("stepAnswerSkipAllowed"))) {
+      if (spec && spec.risk && spec.risk.spend) {
+        result = "failed";
+        why = HOLD_WHY;
+        job.charged = false;
+      } else if (spec && spec.risk && spec.risk.newContact && run.waiting.why === "newContact") {
+        contact = { key: run.waiting.recipient, by: person && person.name };
+        result = "ok";
+        why = "Held, not sent. Nothing left this desk.";
+        effect = { type: "none" };
+      } else if (spec) {
+        effect = effectFor(spec.id, run.waiting.action);
+        result = "ok";
+        why = "";
       }
-      run.waiting = null;
-      run.state = run.cursor >= (run.queue || []).length ? "done" : "running";
-    } else if (!spec || allowed.indexOf(spec.id) < 0) {
-      if (step) {
-        step.result = "skipped";
-        step.why = NOT_APPROVED;
-      }
-      run.waiting = null;
-      run.state = run.cursor >= (run.queue || []).length ? "done" : "running";
-    } else {
-      if (spec.id === "send_message" && run.waiting.why === "newContact") {
-        rememberContact(shop, run.waiting.recipient, person && person.name);
-      }
-      if (step) execute(spec.id, job, step, step.said || "");
-      if (spec.id === "pay" && step) step.charged = false;
-      run.waiting = null;
-      run.state = run.cursor >= (run.queue || []).length ? "done" : "running";
+    } else if (yes && !permitted) {
+      why = NOT_APPROVED;
     }
-    await save();
-    return res.status(200).json(Object.assign({ ok: true, state: job.run.state, lastStep: lastStepNum(job.run), inFlight: false }, readFields(job, shop)));
+    const at = new Date().toISOString();
+    const nextCursor = (run.cursor || 0) + 1;
+    const state = nextCursor >= (run.queue || []).length ? "done" : "running";
+    const record = {
+      at: at,
+      runNo: run.runNo,
+      n: n,
+      action: run.waiting.action,
+      said: yes ? "Yes." : "No.",
+      result: result,
+      why: why,
+      effect: Object.assign({ id: effectId(job.id, run.runNo, n) + "-answer" }, effect),
+      contact: contact,
+      run: { state: state, cursor: nextCursor, waiting: null }
+    };
+    await commitRecord(answerRel(job.id, run.runNo, n), job.id, run.runNo, record, JSON.parse(JSON.stringify(payload())));
+    const live = jobById(job.id) || job;
+    const fields = await readFields(live, shop);
+    return res.status(200).json(Object.assign({ ok: true, state: live.run && live.run.state, lastStep: lastStepNum(live.run), inFlight: false }, fields));
   }
 
   if (action === "run-tick") {
-    const ai = aiForCard(shop, job);
+    const ai = liveAi(shop, job.run && job.run.aiId);
     const result = await tickOne(job, shop, ai);
-    if (result.moved) await save();
+    const live = jobById(job.id) || job;
+    const fields = await readFields(live, shopBySlug(shop.slug) || shop);
     return res.status(200).json(Object.assign({
       ok: true,
-      state: result.state,
+      state: (fields.run && fields.run.state) || result.state,
       lastStep: result.lastStep,
-      inFlight: !!result.inFlight
-    }, readFields(job, shop)));
+      inFlight: result.inFlight != null ? !!result.inFlight : !!fields.inFlight,
+      runNo: fields.runNo
+    }, fields));
   }
 
   return res.status(400).json({ ok: false, error: "Unknown desk action." });
@@ -933,13 +1352,20 @@ async function handle(req, res) {
 async function cronHandler(req, res) {
   if (!cronAuthorized(req)) return deny(res);
   const out = await cronTickOne();
-  if (out.ticked) await save();
   return res.status(200).json(out);
 }
 
 module.exports = {
   PAGE_NOTE,
   NOT_APPROVED,
+  NEEDS_YES,
+  AI_GONE,
+  STEP_STOPPED,
+  CARD_GONE,
+  NO_MATCH,
+  MANY_MATCH,
+  KILL_MSG,
+  HOLD_WHY,
   catalog,
   actionById,
   ticksMode,
@@ -949,12 +1375,24 @@ module.exports = {
   stampApproval,
   approvalView,
   suggestAllowed,
+  signalsOf,
   cronAuthorized,
   handle,
   cronHandler,
   setLeaseMsForTests,
   setTickHoldForTests,
   setModelForTests,
+  setFixtureActionsForTests,
+  setMutationForTests,
   publicRun,
-  readFields
+  readFields,
+  contactKnown,
+  rememberContact,
+  recipientOf,
+  pauseFor,
+  addressKey,
+  reloadMem,
+  highestRunNo,
+  readKill,
+  readStop
 };

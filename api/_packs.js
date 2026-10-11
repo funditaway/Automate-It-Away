@@ -565,7 +565,7 @@ async function packHandler(req, res) {
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can ask Grok in Creators Studio." });
     const brief = body.brief || body.text || body.does || body.name;
     const grok = await studioDraft(brief, workspace, { kind: body.kind || "pack", plan: body.plan, rules: body.rules });
-    const studioAi = { allowed: automation.suggestAllowed(brief, grok && grok.pack) };
+    const studioAi = { allowed: automation.suggestAllowed(brief, grok && grok.pack, body.plan) };
     log("Grok", "Studio " + (body.kind || "pack") + " draft", grok && grok.ok ? "OK" : ((grok && grok.reason) || "Hold"), workspace);
     await save();
     if (grok && grok.reason === "no-key") {

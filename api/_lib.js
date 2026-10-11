@@ -61,7 +61,8 @@ function shape(parsed) {
     files: Array.isArray(parsed.files) ? parsed.files : [],
     tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
     packs: Array.isArray(parsed.packs) ? parsed.packs : [],
-    mail: Array.isArray(parsed.mail) ? parsed.mail : []
+    mail: Array.isArray(parsed.mail) ? parsed.mail : [],
+    version: Number.isFinite(Number(parsed.version)) ? Number(parsed.version) : 0
   };
 }
 
@@ -81,7 +82,8 @@ function payload() {
     files: mem.files,
     tickets: mem.tickets,
     packs: mem.packs,
-    mail: mem.mail
+    mail: mem.mail,
+    version: Number.isFinite(Number(mem.version)) ? Number(mem.version) : 0
   };
 }
 
@@ -873,6 +875,7 @@ function applyStore(parsed) {
   mem.tickets = next.tickets;
   mem.packs = next.packs;
   mem.mail = next.mail;
+  mem.version = Number.isFinite(Number(next.version)) ? Number(next.version) : 0;
   return mem;
 }
 
@@ -895,6 +898,16 @@ async function save() {
   // with the pre-mutation snapshot before write.
   await globalThis.__aiaHydrate;
   dropPersistTests();
+  try {
+    const claims = require("./_runclaims");
+    if (!claims.mutation("noCas")) {
+      const published = await claims.publishMem(payload());
+      if (published && published.ok && published.body) {
+        if (published.merged) applyStore(published.body);
+        else mem.version = Number(published.body.version) || mem.version;
+      }
+    }
+  } catch (e) {}
   const disk = writeDisk();
   if (blobReady()) {
     if (!blobMayWrite()) {
@@ -1810,7 +1823,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath, payload,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
