@@ -173,6 +173,11 @@
     let groupOn = "";
     const GROUPS = ["mail", "calendar", "social", "shop", "pay", "crm", "files", "talk", "books", "search"];
     const GROUP_LABEL = { all: "All", mail: "Mail", calendar: "Calendar", social: "Social", shop: "Shop", pay: "Money", crm: "CRM", files: "Files", talk: "Talk", books: "Books", search: "Search" };
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"'`]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;" }[c];
+      });
+    }
     function qVal() { return ((document.getElementById("q") || {}).value || "").trim().toLowerCase(); }
     function matchPipe(p) {
       const q = qVal();
@@ -215,7 +220,7 @@
       const all = ["all"].concat(GROUPS);
       box.innerHTML = all.map(g => {
         const on = (g === "all" && !groupOn) || g === groupOn ? " go" : "";
-        return "<button class=\"" + on.trim() + "\" type=\"button\" onclick=\"setGroup('" + g + "')\">" + (GROUP_LABEL[g] || g) + "</button>";
+        return "<button class=\"" + on.trim() + "\" type=\"button\" data-pipe-act=\"group\" data-pipe-id=\"" + esc(g) + "\">" + esc(GROUP_LABEL[g] || g) + "</button>";
       }).join("");
     }
     function setGroup(g) {
@@ -235,26 +240,26 @@
         aiBox.innerHTML = (data.ai || []).filter(matchPipe).map(p => {
           const st = p.status || "hold";
           const tag = tagFor(st);
-          const drop = p.live && p.id ? "<button type=\"button\" onclick=\"dropPipe('" + p.id + "')\">Drop</button>" : "";
-          const go = "<button class=\"go\" type=\"button\" onclick=\"startAi('" + (p.provider || p.id) + "')\">Log in</button>";
-          const last = p.last4 ? " · key …" + p.last4 : "";
-          return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (p.live ? "Drafts on this desk" + last : "Not connected") + " · " + (p.note || "Drafts only") + "</div></div><div class=\"row\">" + go + drop + "</div></div>";
+          const drop = p.live && p.id ? "<button type=\"button\" data-pipe-act=\"drop\" data-pipe-id=\"" + esc(p.id) + "\">Drop</button>" : "";
+          const go = "<button class=\"go\" type=\"button\" data-pipe-act=\"ai\" data-pipe-id=\"" + esc(p.provider || p.id) + "\">Log in</button>";
+          const last = p.last4 ? " · key …" + esc(p.last4) : "";
+          return "<div class=\"item pipe\"><div><b>" + esc(p.label) + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (p.live ? "Drafts on this desk" + last : "Not connected") + " · " + esc(p.note || "Drafts only") + "</div></div><div class=\"row\">" + go + drop + "</div></div>";
         }).join("");
       }
       document.getElementById("pipes").innerHTML = catalog.filter(matchPipe).map(p => {
         const on = mine.find(c => c.provider === p.id);
         const st = on ? on.status : p.status;
         const tag = tagFor(st);
-        const drop = on ? "<button type=\"button\" onclick=\"dropPipe('" + on.id + "')\">Drop</button>" : "";
-        return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (on ? "On this desk · " : "Not added · ") + st + (p.note ? " · " + p.note : "") + "</div></div>" + drop + "</div>";
+        const drop = on ? "<button type=\"button\" data-pipe-act=\"drop\" data-pipe-id=\"" + esc(on.id) + "\">Drop</button>" : "";
+        return "<div class=\"item pipe\"><div><b>" + esc(p.label) + "</b><span class=\"tag " + tag[0] + "\">" + tag[1] + "</span><div class=\"meta " + clsFor(st) + "\">" + (on ? "On this desk · " : "Not added · ") + esc(st) + (p.note ? " · " + esc(p.note) : "") + "</div></div>" + drop + "</div>";
       }).join("");
       const soonBox = document.getElementById("soon");
       const soonRows = (data.soon || []).filter(matchPipe);
       if (soonBox) {
         soonBox.innerHTML = soonRows.map(p => {
-          const go = p.login ? "<button class=\"go\" type=\"button\" onclick=\"startSoon('" + p.id + "')\">Log in</button>" : "";
-          const grp = p.group ? (GROUP_LABEL[p.group] || p.group) + " · " : "";
-          return "<div class=\"item pipe\"><div><b>" + p.label + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + grp + (p.note || "Shown, not live.") + "</div></div><div class=\"row\">" + go + "</div></div>";
+          const go = p.login ? "<button class=\"go\" type=\"button\" data-pipe-act=\"soon\" data-pipe-id=\"" + esc(p.id) + "\">Log in</button>" : "";
+          const grp = p.group ? esc(GROUP_LABEL[p.group] || p.group) + " · " : "";
+          return "<div class=\"item pipe\"><div><b>" + esc(p.label) + "</b><span class=\"tag tag-soon\">Coming soon</span><div class=\"meta soon\">" + grp + esc(p.note || "Shown, not live.") + "</div></div><div class=\"row\">" + go + "</div></div>";
         }).join("");
         if (!soonRows.length) {
           soonBox.innerHTML = "<div class=\"item\"><b>Nothing matches.</b><div class=\"meta\">Name any site above, or <a href=\"/drop\">drop a card</a>. The inbound hook still takes work today.</div></div>";
@@ -276,7 +281,7 @@
         const slug = d.slug || d.biz || "";
         const name = d.name || d.biz || slug;
         const on = (wsEl.value || "") === slug ? " go" : "";
-        return "<button class=\"" + on.trim() + "\" type=\"button\" onclick=\"pickDesk('" + slug.replace(/'/g, "") + "')\">" + name + "</button>";
+        return "<button class=\"" + on.trim() + "\" type=\"button\" data-pipe-act=\"desk\" data-pipe-id=\"" + esc(slug) + "\">" + esc(name) + "</button>";
       }).join("");
     }
     function pickDesk(slug) {
@@ -401,6 +406,17 @@
         listPipes();
       }
     }
+    document.addEventListener("click", function (e) {
+      const btn = e.target && e.target.closest ? e.target.closest("[data-pipe-act]") : null;
+      if (!btn) return;
+      const act = btn.getAttribute("data-pipe-act");
+      const id = btn.getAttribute("data-pipe-id");
+      if (act === "group") setGroup(id);
+      else if (act === "drop") dropPipe(id);
+      else if (act === "ai") startAi(id);
+      else if (act === "soon") startSoon(id);
+      else if (act === "desk") pickDesk(id);
+    });
     listPipes();
   </script>
 <script src="/mark-fix.js"></script></body>
