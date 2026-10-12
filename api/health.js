@@ -167,7 +167,9 @@ async function health(req, res) {
       capture: true,
       qualify: "on capture + worker",
       do: "draft only — Yes and Stop stay on the desk",
-      collect: catalog().some((p) => p.live && p.id === "webhook") ? "webhook live — other paid pipes on hold" : "demo ship",
+      collect: require("./_packs").moneyPipeLive()
+        ? "Money pipe is set up. Collect stays HOLD until a person taps Yes."
+        : "No money pipe. Collect stays HOLD.",
       follow: "worker + cron",
       inbound: "/api/hook",
       mail: require("./_aia-mail").statusOf(),
