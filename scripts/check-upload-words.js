@@ -1,4 +1,5 @@
-// Upload limit words: every page and doc outside api/ says the real limit (3 MB per file), never 8 MB or 3.5 MB,
+// Upload limit words: every page, front-end script and doc outside api/ and scripts/ says the real limit (3 MB per
+// file), never 8 MB or 3.5 MB,
 // and the drop page and desk.html's Drop anything sheet refuse a file over 3,000,000 bytes (file.size) before upload,
 // same as api/upload.js.
 const fs = require("fs");
@@ -12,7 +13,10 @@ function pass(msg) { console.log("ok " + msg); }
 function read(rel) { return fs.readFileSync(path.join(root, rel), "utf8"); }
 
 // Build output (dist) and installed packages are not our pages; other checks build queue/dist and runtime/dist locally.
+// scripts/ holds checks, not pages: a check may quote the old limit to pin it (e.g. #313's check-ai-store-once.js reads
+// api/upload.js's "8MB"), so it is skipped entirely. The server limit in api/ is #314's to change.
 const SKIP_DIRS = { ".git": 1, "node_modules": 1, "dist": 1, "api": 1, "img": 1, ".vercel": 1 };
+const SKIP_TOP = { "api": 1, "scripts": 1 };
 const TEXT = /\.(html|js|mjs|md|txt|css|json)$/i;
 const SELF = path.join("scripts", "check-upload-words.js");
 const OLD = /\b8 ?MB\b|\b8 ?MiB\b|\b8 ?megabytes?\b|\b8,?000,?000\b|\b8_000_000\b|8388608|8 \* 1024 \* 1024/i;
@@ -40,7 +44,7 @@ pass("scanner flags 8 MB / 8 MiB / 8000000 / 8_000_000 / 3.5 MB / 3500000 / 3,50
 function walk(dir, out) {
   fs.readdirSync(path.join(root, dir), { withFileTypes: true }).forEach(function (e) {
     const rel = dir ? path.join(dir, e.name) : e.name;
-    if (e.isDirectory()) { if (!SKIP_DIRS[e.name] && !(dir === "" && e.name === "api")) walk(rel, out); return; }
+    if (e.isDirectory()) { if (!SKIP_DIRS[e.name] && !(dir === "" && SKIP_TOP[e.name])) walk(rel, out); return; }
     if (e.isFile() && TEXT.test(e.name) && rel !== SELF) out.push(rel);
   });
   return out;
@@ -68,7 +72,11 @@ files.forEach(function (rel) {
   });
 });
 if (!sawPacked) fail("developer.z64.txt must be there and unpack");
-pass("checked " + seen + " pages, scripts and docs outside api/ for the old 8 MB and 3.5 MB limits");
+if (files.some(function (rel) { return rel.split(path.sep)[0] === "scripts"; })) fail("scripts/ must not be scanned");
+["drop.html", "desk.html", "drop-app.js", "PACK.md", "ACCOUNT-YES-NO.md", "developer.z64.txt"].forEach(function (rel) {
+  if (files.indexOf(rel) < 0) fail("the scan must still cover " + rel);
+});
+pass("checked " + seen + " pages, front-end scripts and docs (not api/, not scripts/) for the old 8 MB and 3.5 MB limits");
 
 // 2. The drop page refuses over 3,000,000 bytes before upload, with the plain line.
 const app = read("drop-app.js");
