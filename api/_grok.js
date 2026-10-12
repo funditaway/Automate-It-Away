@@ -274,8 +274,13 @@ async function studioDraft(brief, workspace, opts) {
   // Caller text only. Same 1000 cap as the Desk AI field. Not sent to the model.
   // A non-string is empty text, same as normalizeAi.
   const rules = ais.rulesText(opts && opts.rules);
+  // Plan is caller text only. Same caps as the Desk AI field. Not sent to the model.
+  const planPack = ais.planText(opts && opts.plan);
   function passRules(out) {
-    if (out && typeof out === "object") out.rules = rules;
+    if (out && typeof out === "object") {
+      out.rules = rules;
+      out.plan = planPack.plan;
+    }
     return out;
   }
   const drafter = pickDrafter(workspace);
