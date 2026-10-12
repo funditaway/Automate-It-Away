@@ -219,6 +219,7 @@
   </nav>
   <script src="desk-switch.js"></script>
   <script src="desk-nav.js"></script>
+  <script src="escape-html.js"></script>
   <script>
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");
@@ -248,6 +249,7 @@
       return { status: r.status, data };
     }
     function esc(s) {
+      if (typeof escapeHtml === "function") return escapeHtml(s);
       return String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
     }
     function paintGate() {
@@ -298,26 +300,63 @@
       if (r.ifField) bits.push(r.ifField + (r.ifValue ? "=" + r.ifValue : ""));
       return bits;
     }
+    function ruleButton(className, label, act, id, widgetOn) {
+      const btn = document.createElement("button");
+      btn.className = className;
+      btn.type = "button";
+      btn.textContent = label;
+      btn.setAttribute("data-rule-act", act);
+      btn.setAttribute("data-rule-id", id == null ? "" : String(id));
+      if (widgetOn != null) btn.setAttribute("data-widget-on", widgetOn ? "true" : "false");
+      return btn;
+    }
     function paintRules(rules, canEdit) {
       const list = document.getElementById("rule-list");
       const rows = rules || [];
-      list.innerHTML = rows.map((r) => {
-        const on = !!(r.widget && r.widget.on);
-        const label = (r.widget && r.widget.label) || "";
-        const bits = ruleBits(r);
-        return "<li><span><b>" + esc(r.text) + "</b>" +
-          (bits.length ? "<br><span class=\"meta\">" + esc(bits.join(" \u00b7 ")) + "</span>" : "") +
-          (on ? "<br><span class=\"meta\">widget on" + (label ? " \u00b7 " + esc(label) : "") + "</span>" : "") +
-          "</span>" +
-          (canEdit
-            ? "<span class=\"row\">" +
-              "<button class=\"edit\" type=\"button\" onclick=\"editRule('" + esc(r.id) + "')\">Edit</button>" +
-              "<button class=\"edit\" type=\"button\" onclick=\"toggleWidget('" + esc(r.id) + "', " + (on ? "false" : "true") + ")\">" + (on ? "Widget off" : "Widget on") + "</button>" +
-              "<button class=\"kill\" type=\"button\" onclick=\"removeRule('" + esc(r.id) + "')\">Remove</button>" +
-              "</span>"
-            : "") +
-          "</li>";
-      }).join("") || "<li><span class=\"meta\">No rules yet. Add one if you need it.</span></li>";
+      list.replaceChildren();
+      if (!rows.length) {
+        const li = document.createElement("li");
+        const span = document.createElement("span");
+        span.className = "meta";
+        span.textContent = "No rules yet. Add one if you need it.";
+        li.appendChild(span);
+        list.appendChild(li);
+      } else {
+        rows.forEach(function (r) {
+          const on = !!(r.widget && r.widget.on);
+          const label = (r.widget && r.widget.label) || "";
+          const bits = ruleBits(r);
+          const li = document.createElement("li");
+          const text = document.createElement("span");
+          const title = document.createElement("b");
+          title.textContent = r.text || "";
+          text.appendChild(title);
+          if (bits.length) {
+            text.appendChild(document.createElement("br"));
+            const meta = document.createElement("span");
+            meta.className = "meta";
+            meta.textContent = bits.join(" \u00b7 ");
+            text.appendChild(meta);
+          }
+          if (on) {
+            text.appendChild(document.createElement("br"));
+            const meta = document.createElement("span");
+            meta.className = "meta";
+            meta.textContent = label ? ("widget on \u00b7 " + label) : "widget on";
+            text.appendChild(meta);
+          }
+          li.appendChild(text);
+          if (canEdit) {
+            const row = document.createElement("span");
+            row.className = "row";
+            row.appendChild(ruleButton("edit", "Edit", "edit", r.id));
+            row.appendChild(ruleButton("edit", on ? "Widget off" : "Widget on", "widget", r.id, !on));
+            row.appendChild(ruleButton("kill", "Remove", "remove", r.id));
+            li.appendChild(row);
+          }
+          list.appendChild(li);
+        });
+      }
       document.getElementById("rule-add").hidden = !canEdit;
       paintCount((rows.filter((r) => r.widget && r.widget.on)).length);
       paintAiPick();
@@ -525,6 +564,15 @@
         paintNouns(AIADesks.defaultNouns(), false);
       }
     }
+    document.getElementById("rule-list").addEventListener("click", function (e) {
+      const btn = e.target && e.target.closest ? e.target.closest("button[data-rule-act]") : null;
+      if (!btn) return;
+      const id = btn.getAttribute("data-rule-id");
+      const act = btn.getAttribute("data-rule-act");
+      if (act === "edit") editRule(id);
+      else if (act === "widget") toggleWidget(id, btn.getAttribute("data-widget-on") === "true");
+      else if (act === "remove") removeRule(id);
+    });
     if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
     if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
     paintGate(); load();

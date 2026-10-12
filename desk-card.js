@@ -261,6 +261,7 @@ async function openJob(id) {
   await loadPeople();
   const staff = role === "employee";
   const money = Number(j.amount || j.ask || 0);
+  const hid = typeof safeId === "function" ? safeId(j.id) : String(j.id || "").replace(/[^a-zA-Z0-9_-]/g, "");
   const custom = (FIELDS || []).map(f => {
     const val = (j.custom && j.custom[f.key]) || j[f.key] || "";
     return "<label>" + esc(f.label) + "</label><input data-field=\"" + esc(f.key) + "\" value=\"" + esc(val) + "\" placeholder=\"" + esc(f.label) + "\">";
@@ -271,13 +272,16 @@ async function openJob(id) {
   ).join("");
   document.getElementById("sheet-card").innerHTML =
     "<h3>" + esc(j.title) + "</h3>" +
-    "<p class=\"meta\">" + labelStatus(j.status) + (j.assignee ? " · " + esc(j.assignee) : "") + (j.carried ? " · done by hand" : "") + (j.kind ? " · " + esc(j.kind) : "") + "</p>" +
+    "<p class=\"meta\">" + esc(labelStatus(j.status)) + (j.assignee ? " · " + esc(j.assignee) : "") + (j.carried ? " · done by hand" : "") + (j.kind ? " · " + esc(j.kind) : "") + "</p>" +
     (j.outcome || (j.custom && j.custom.outcome)
       ? "<p class=\"meta\">They want: " + esc(j.outcome || j.custom.outcome) + (j.next ? " · " + esc(j.next) : "") + "</p>"
       : "") +
     clockSheet(j) +
     grokRecsBox(j) +
-    (typeof filesHtml === "function" ? filesHtml(j) : (j.photoUrl ? "<img class=\"thumb\" src=\"" + esc(j.photoUrl) + "\" alt=\"\">" : "")) +
+    (typeof filesHtml === "function" ? filesHtml(j) : (function () {
+      var photo = typeof safeUrl === "function" ? safeUrl(j.photoUrl) : "";
+      return photo ? "<img class=\"thumb\" src=\"" + esc(photo) + "\" alt=\"\">" : "";
+    })()) +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
     threadSheetHtml(j) +
     (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
@@ -285,29 +289,29 @@ async function openJob(id) {
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
     "<p class=\"meta\">Desk</p>" +
     "<div class=\"row actions\">" +
-      "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + j.id + "')\">Save info</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + j.id + "')\">Ask for more</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + j.id + "')\">Add note</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + j.id + "','sheet'))\">Talk · Reply on card</button>" +
-      (staff ? "" : "<button class=\"edit\" type=\"button\" onclick=\"addFieldPrompt('" + j.id + "')\">Add field</button>") +
+      "<button class=\"edit\" type=\"button\" onclick=\"saveJob('" + hid + "')\">Save info</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"askMore('" + hid + "')\">Ask for more</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"addNote('" + hid + "')\">Add note</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"(typeof replyOnCard==='function'&&replyOnCard('" + hid + "','sheet'))\">Talk · Reply on card</button>" +
+      (staff ? "" : "<button class=\"edit\" type=\"button\" onclick=\"addFieldPrompt('" + hid + "')\">Add field</button>") +
     "</div>" +
     (peopleOpts
-      ? "<label>Hand to</label><div class=\"row actions\"><select id=\"hand-to\">" + peopleOpts + "</select><button class=\"edit\" type=\"button\" onclick=\"handTo('" + j.id + "')\">Hand to</button></div>"
+      ? "<label>Hand to</label><div class=\"row actions\"><select id=\"hand-to\">" + peopleOpts + "</select><button class=\"edit\" type=\"button\" onclick=\"handTo('" + hid + "')\">Hand to</button></div>"
       : "<p class=\"meta\"><a href=\"/admin\">Add people</a> to hand work off.</p>") +
     "<p class=\"meta\">Send it yourself</p>" +
     "<div class=\"row actions\">" +
-      "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + j.id + "')\">Copy draft</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"copyDraft('" + hid + "')\">Copy draft</button>" +
       "<a class=\"edit\" href=\"" + smsHref(draft) + "\">Text it</a>" +
       "<a class=\"edit\" href=\"" + mailHref(j.title, draft) + "\">Email it</a>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"phoneCal('" + j.id + "')\">Save a file</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"phoneCal('" + hid + "')\">Save a file</button>" +
     "</div>" +
     "<div class=\"sheet-decide\">" +
-      "<button class=\"edit\" type=\"button\" onclick=\"carryJob('" + j.id + "')\">Done by hand</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"carryJob('" + hid + "')\">Done by hand</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button>" +
       (typeof isCardApproved === "function" && isCardApproved(j.id)
-        ? "<button class=\"go q-start\" type=\"button\" onclick=\"startCard('" + j.id + "', " + money + ")\">Start</button>"
-        : "<button class=\"go q-yes\" type=\"button\" onclick=\"approveCard('" + j.id + "')\">Yes</button>") +
-      (staff ? "<span></span>" : "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + j.id + "', '" + esc(j.title).replace(/'/g, "") + "')\">Stop</button>") +
+        ? "<button class=\"go q-start\" type=\"button\" onclick=\"startCard('" + hid + "', " + money + ")\">Start</button>"
+        : "<button class=\"go q-yes\" type=\"button\" onclick=\"approveCard('" + hid + "')\">Yes</button>") +
+      (staff ? "<span></span>" : "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + hid + "')\">Stop</button>") +
     "</div>";
   document.getElementById("sheet").classList.add("on");
 }
@@ -322,27 +326,28 @@ function clockSheet(j) {
   const c = (j && j.clock) || {};
   const dueVal = localClockInput(c.dueAt || j.dueAt || "");
   const expVal = localClockInput(c.expireAt || j.expireAt || "");
+  const hid = typeof safeId === "function" ? safeId(j && j.id) : String((j && j.id) || "").replace(/[^a-zA-Z0-9_-]/g, "");
   const status = c.expired || j.expired
     ? "Expired. Nothing sent. Open it or Stop it."
     : (c.late || j.late
       ? "Late · was due " + (c.dueLabel || "earlier") + "."
       : (c.dueLabel ? "Due " + c.dueLabel + "." : "No due time yet."));
   return "<div class=\"clock-sheet\">" +
-    "<p class=\"meta\">" + status + (c.ageLabel ? " · " + c.ageLabel : "") + "</p>" +
+    "<p class=\"meta\">" + esc(status) + (c.ageLabel ? " · " + esc(c.ageLabel) : "") + "</p>" +
     "<label>Due</label><input id=\"job-due\" type=\"datetime-local\" value=\"" + dueVal + "\">" +
     "<label>Expires</label><input id=\"job-expire\" type=\"datetime-local\" value=\"" + expVal + "\">" +
     "<p class=\"meta\">Due is when the work should happen. Expire is when the card goes stale. Expire does not Stop or send.</p>" +
     "<div class=\"row\" style=\"margin-top:8px\">" +
-      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {due:'today 5pm'})\">Today 5</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {due:'tonight'})\">Tonight</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {due:'tomorrow 9am'})\">Tomorrow</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {due:'friday 9am'})\">Friday</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"snoozeJob('" + j.id + "', 'in 2 hours')\">Snooze 2h</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + hid + "', {due:'today 5pm'})\">Today 5</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + hid + "', {due:'tonight'})\">Tonight</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + hid + "', {due:'tomorrow 9am'})\">Tomorrow</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + hid + "', {due:'friday 9am'})\">Friday</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"snoozeJob('" + hid + "', 'in 2 hours')\">Snooze 2h</button>" +
     "</div>" +
     "<div class=\"row\" style=\"margin-top:6px\">" +
-      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {expire:'end of day'})\">Expire tonight</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {expire:'tomorrow'})\">Expire tomorrow</button>" +
-      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + j.id + "', {clearExpire:true, expire:'clear'})\">No expire</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + hid + "', {expire:'end of day'})\">Expire tonight</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + hid + "', {expire:'tomorrow'})\">Expire tomorrow</button>" +
+      "<button class=\"edit\" type=\"button\" onclick=\"scheduleJob('" + hid + "', {clearExpire:true, expire:'clear'})\">No expire</button>" +
     "</div></div>";
 }
 async function scheduleJob(id, payload) {

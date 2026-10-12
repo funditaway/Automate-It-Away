@@ -563,6 +563,11 @@
                         this.closeMobileInspector();
                     }
                 });
+                const queueList = document.getElementById('queue-list');
+                if (queueList) queueList.addEventListener('click', (e) => {
+                    const row = e.target.closest('[data-card-id]');
+                    if (row) this.selectCard(row.getAttribute('data-card-id'));
+                });
                 this.applySimUi();
                 if (this.simulation) {
                     this.bootSimulation(true);
@@ -1015,7 +1020,7 @@
                             ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-teal-500/40 bg-teal-500/10 text-teal-300">REC</span>'
                             : '';
                         return `
-                            <div onclick="app.selectCard('${escapeHtml(c.cardId)}')" class="p-3.5 rounded-xl border transition cursor-pointer font-mono text-xs fade-up ${isSelected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/50' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'}">
+                            <div data-card-id="${escapeHtml(c.cardId)}" class="p-3.5 rounded-xl border transition cursor-pointer font-mono text-xs fade-up ${isSelected && window.innerWidth >= 768 ? 'bg-desk-700/80 border-indigo-500/50 shadow-md shadow-indigo-950/50' : 'bg-desk-800/40 border-desk-700/60 hover:bg-desk-700/40 hover:border-desk-600'}">
                                 <div class="flex items-center justify-between mb-2 gap-2">
                                     <div class="flex items-center gap-1.5 min-w-0">
                                         <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${riskColors}">${escapeHtml(c.payload.riskLevel)}</span>

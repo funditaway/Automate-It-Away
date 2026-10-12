@@ -190,14 +190,24 @@
       (j.draft ? "<div class=\"draft\">" + esc(j.draft) + "</div>" : "") +
       "<p class=\"meta\">" + esc(next) + "</p>" +
       "<div class=\"row actions tap-opts\">" +
-        "<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Open</button>" +
+        "<button class=\"edit\" type=\"button\" data-tap=\"open\" data-tap-id=\"" + esc(j.id) + "\">Open</button>" +
         "<a class=\"edit\" href=\"" + sms + "\">Text</a>" +
         "<a class=\"edit\" href=\"" + mail + "\">Email</a>" +
-        "<button class=\"edit\" type=\"button\" onclick=\"openJob('" + j.id + "')\">Hand to</button>" +
-        "<button class=\"go\" type=\"button\" onclick=\"ship('" + j.id + "', " + money + ")\">Yes</button>" +
-        (staff ? "" : "<button class=\"kill\" type=\"button\" onclick=\"kill('" + j.id + "', '" + esc(j.title).replace(/'/g, "") + "')\">Stop</button>") +
+        "<button class=\"edit\" type=\"button\" data-tap=\"open\" data-tap-id=\"" + esc(j.id) + "\">Hand to</button>" +
+        "<button class=\"go\" type=\"button\" data-tap=\"ship\" data-tap-id=\"" + esc(j.id) + "\" data-tap-money=\"" + esc(money) + "\">Yes</button>" +
+        (staff ? "" : "<button class=\"kill\" type=\"button\" data-tap=\"stop\" data-tap-id=\"" + esc(j.id) + "\" data-tap-title=\"" + esc(j.title) + "\">Stop</button>") +
       "</div></article>";
   };
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest("[data-tap]") : null;
+    if (!btn) return;
+    var act = btn.getAttribute("data-tap");
+    var id = btn.getAttribute("data-tap-id");
+    if (act === "open" && typeof openJob === "function") openJob(id);
+    else if (act === "ship" && typeof ship === "function") ship(id, Number(btn.getAttribute("data-tap-money")));
+    else if (act === "stop" && typeof kill === "function") kill(id, btn.getAttribute("data-tap-title"));
+  });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", wireTalkBar);
