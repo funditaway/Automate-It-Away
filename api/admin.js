@@ -238,7 +238,9 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Use GET or POST." });
-  const body = await readBody(req);
+  let body;
+  try { body = await readBody(req, res); }
+  catch (err) { if (err && err.statusCode === 413) return; throw err; }
   const action = String(body.action || "invite").toLowerCase();
   const slug = workspaceOf(req);
   const found = personOf(req, slug);

@@ -280,6 +280,7 @@ async function studioDraft(brief, workspace, opts) {
     if (out && typeof out === "object") {
       out.rules = rules;
       out.plan = planPack.plan;
+      out.planCut = planPack.cut;
     }
     return out;
   }

@@ -170,7 +170,9 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ ok: false, error: "Use GET or POST." });
   }
 
-  const body = await readBody(req);
+  let body;
+  try { body = await readBody(req, res); }
+  catch (err) { if (err && err.statusCode === 413) return; throw err; }
   const action = String(body.action || "login").toLowerCase();
 
   if (require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;

@@ -175,7 +175,9 @@ module.exports = async function handler(req, res) {
     if (!isOwner(person)) {
       return res.status(403).json({ ok: false, error: "Only the owner can change desk rules. Leftover email session or desk code." });
     }
-    const body = await readBody(req);
+    let body;
+    try { body = await readBody(req, res); }
+    catch (err) { if (err && err.statusCode === 413) return; throw err; }
     const action = body.action || (body.id && !body.text ? "remove" : "add");
 
     if (action === "talk" || action === "confirm") {
