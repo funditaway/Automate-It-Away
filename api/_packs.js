@@ -1,4 +1,4 @@
-const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow, PROVIDERS, configured } = require("./_lib");
+const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow, RULE_MAX, PROVIDERS, configured } = require("./_lib");
 const { grokOn, studioDraft } = require("./_grok");
 const ais = require("./_ais");
 const net = require("./_aia-net");
@@ -228,6 +228,41 @@ function safeRules(rows) {
   });
 }
 
+// Id, else name, else text. Raw text — pages paint the note with textContent.
+function ruleCarryId(rule) {
+  if (rule == null) return "";
+  if (typeof rule === "string") return rule;
+  if (rule.id != null && String(rule.id) !== "") return String(rule.id);
+  if (rule.name != null && String(rule.name) !== "") return String(rule.name);
+  return String(rule.text == null ? "" : rule.text);
+}
+
+function splitPackRules(rows) {
+  const list = rows || [];
+  return {
+    kept: list.slice(0, RULE_MAX),
+    notKept: list.slice(RULE_MAX).map(ruleCarryId)
+  };
+}
+
+function rulesNotKeptLine(ids) {
+  if (!ids || !ids.length) return "";
+  return "This desk keeps up to 8 rules from a pack. Not kept: " + ids.join(", ") + ".";
+}
+
+// Pack AIs stop at 3 and the save still succeeds (normalizeAis). Rules match that:
+// keep the first 8 and say which were left off, instead of refusing the pack.
+function rulesCarryWarning(ids) {
+  if (!ids || !ids.length) return "";
+  return "A pack can carry up to 8 rules. Not kept: " + ids.join(", ") + ".";
+}
+
+function withRulesNote(note, ids) {
+  const line = rulesNotKeptLine(ids);
+  if (!line) return note;
+  return note ? (note + " " + line) : line;
+}
+
 function safeWorkflows(rows) {
   return (rows || []).map(publicWorkflow).filter(Boolean).filter(function (wf) {
     const blob = JSON.stringify(wf || {});
@@ -340,7 +375,8 @@ function normalizeCreatorPack(body, workspace, person) {
   const vis = visRaw === "listed" || visRaw === "published" || visRaw === "submitted" || visRaw === "market"
     ? (visRaw === "market" ? "listed" : visRaw)
     : (visRaw === "private" ? "private" : "");
-  const rules = safeRules([].concat(body.rules || [], body.rule ? [{ text: String(body.rule) }] : [], flattenWorkflows(body))).slice(0, 8);
+  const splitRules = splitPackRules(safeRules([].concat(body.rules || [], body.rule ? [{ text: String(body.rule) }] : [], flattenWorkflows(body))));
+  const rules = splitRules.kept;
   const workflows = safeWorkflows([].concat(body.workflows || [], body.sequences || []));
   const queue = body.queue && typeof body.queue === "object" ? body.queue : {};
   const never = ["send", "stop", "pay", "bind"];
@@ -348,6 +384,7 @@ function normalizeCreatorPack(body, workspace, person) {
   if (!named.ok) return { ok: false, error: named.error };
   return {
     ok: true,
+    rulesNotKept: splitRules.notKept,
     pack: {
       id: id,
       workspace: workspace,
@@ -367,6 +404,7 @@ function normalizeCreatorPack(body, workspace, person) {
       fields: body.fields || [],
       kinds: body.kinds,
       rules: rules,
+      rulesNotKept: splitRules.notKept,
       workflows: workflows,
       sequences: workflows,
       ask: ask,
@@ -636,7 +674,11 @@ async function packHandler(req, res) {
             ? "Listed with ask $" + row.ask + ". Pack JSON and desk AIs land on this desk. World desks can Buy / install. Collect stays HOLD until Yes and a money pipe."
             : "Listed free. Pack JSON and desk AIs land on this desk. World desks can install it onto their queue. Packs never Send.")
           : "Draft saved. Off Market until you list it. Packs never Send."));
-    return res.status(200).json({ ok: true, pack: publicPack(row), added: added, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note });
+    const rulesNotKept = made.rulesNotKept || [];
+    const warning = rulesCarryWarning(rulesNotKept);
+    const saved = { ok: true, pack: publicPack(row), added: added, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note, rulesNotKept: rulesNotKept };
+    if (warning) saved.warning = warning;
+    return res.status(200).json(saved);
   }
 
   if (action === "save-ai" || action === "attach-ai") {
@@ -730,6 +772,7 @@ async function packHandler(req, res) {
     log("Desk", "Install .aia · " + row.name, "OK", workspace);
     const hold = collectHoldOf(row);
     const rails = ais.railsOf(shop);
+    const rulesNotKept = made.rulesNotKept || row.rulesNotKept || [];
     return res.status(200).json({
       ok: true,
       pack: publicPack(row),
@@ -744,7 +787,8 @@ async function packHandler(req, res) {
       collectHold: hold,
       never: ["send", "stop", "pay"],
       rails: rails.rails,
-      note: "Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim."
+      rulesNotKept: rulesNotKept,
+      note: withRulesNote("Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim.", rulesNotKept)
     });
   }
   if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
@@ -765,6 +809,7 @@ async function packHandler(req, res) {
     log("Desk", "Install pack · " + (pack.name || pack.id), "OK", workspace);
     const hold = collectHoldOf(pack);
     const rails = ais.railsOf(shop);
+    const rulesNotKept = Array.isArray(pack.rulesNotKept) ? pack.rulesNotKept : [];
     return res.status(200).json({
       ok: true,
       pack: publicPack(pack),
@@ -778,9 +823,10 @@ async function packHandler(req, res) {
       collectHold: hold,
       never: ["send", "stop", "pay"],
       rails: rails.rails,
-      note: already
+      rulesNotKept: rulesNotKept,
+      note: withRulesNote(already
         ? "Already on this desk. " + hold.note
-        : "Pack JSON is on this desk. " + (rails.count ? rails.count + " desk AI" + (rails.count === 1 ? "" : "s") + " attached. " : "") + hold.note
+        : "Pack JSON is on this desk. " + (rails.count ? rails.count + " desk AI" + (rails.count === 1 ? "" : "s") + " attached. " : "") + hold.note, rulesNotKept)
     });
   }
   return res.status(400).json({ error: "Unknown pack action." });
