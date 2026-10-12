@@ -79,7 +79,11 @@ function leaked(body, secret) {
 function publicShape(file) {
   if (!file || typeof file !== "object") return false;
   const keys = Object.keys(file).sort();
-  return keys.join(",") === ["bytes", "driver", "id", "kind", "name", "type", "url"].join(",");
+  const photo = file.kind === "photo";
+  const expect = photo
+    ? ["bytes", "driver", "id", "kind", "name", "photoUrl", "type", "url"]
+    : ["bytes", "driver", "id", "kind", "name", "type", "url"];
+  return keys.join(",") === expect.join(",");
 }
 
 async function child() {
@@ -160,6 +164,10 @@ async function child() {
     htmlPuts: html.added.length,
     pngUrl: png.res.body && png.res.body.photoUrl,
     pdfUrl: pdf.res.body && pdf.res.body.photoUrl,
+    pngKind: png.res.body && png.res.body.file && png.res.body.file.kind,
+    pdfKind: pdf.res.body && pdf.res.body.file && pdf.res.body.file.kind,
+    pngFileUrl: png.res.body && png.res.body.file && png.res.body.file.photoUrl,
+    pdfFileUrl: pdf.res.body && pdf.res.body.file && pdf.res.body.file.photoUrl,
     pngFiles: png.res.body && png.res.body.files,
     htmlBody: html.res.body
   }) + "\n");
@@ -198,8 +206,11 @@ function assertBlobChild() {
   if (out.pngPut.contentType !== "image/png") fail("png Blob contentType must be image/png, got " + out.pngPut.contentType);
   if (out.pdfPut.contentType !== "application/octet-stream") fail("pdf Blob contentType must be application/octet-stream, got " + out.pdfPut.contentType);
   if (out.pngPut.name === out.pdfPut.name) fail("blob names must differ");
-  if (!out.pngUrl || out.pngUrl.indexOf(out.pngPut.name) < 0) fail("POST photoUrl must be the Blob url just stored");
-  if (/springfield|porch-secret|quiet-ledger/i.test(out.pngUrl + out.pdfUrl)) fail("Blob url must not contain the desk or filename");
+  if (out.pngKind !== "photo" || !out.pngUrl || out.pngUrl.indexOf(out.pngPut.name) < 0 || out.pngFileUrl !== out.pngUrl) {
+    fail("a png must come back as photo with a photoUrl");
+  }
+  if (out.pdfKind !== "document" || out.pdfUrl || out.pdfFileUrl) fail("a pdf must come back as document with no photoUrl");
+  if (/springfield|porch-secret|quiet-ledger/i.test(String(out.pngUrl || ""))) fail("Blob url must not contain the desk or filename");
   const pngFile = out.pngFiles && out.pngFiles[0];
   if (!pngFile || pngFile.remoteUrl || JSON.stringify(out.pngFiles).indexOf("remoteUrl") >= 0) fail("POST must not return remoteUrl");
   pass("Blob put uses a random name, addRandomSuffix, no overwrite, and the sniffed type");
@@ -315,16 +326,18 @@ async function main() {
     type: "application/pdf",
     data: "data:application/pdf;base64," + pdfBytes().toString("base64")
   });
-  if (pub.statusCode !== 201 || !pub.body || !pub.body.file || !pub.body.photoUrl) fail("public POST into a real desk should save with only the desk name");
+  if (pub.statusCode !== 201 || !pub.body || !pub.body.file || !pub.body.file.url) fail("public POST into a real desk should save with only the desk name");
   if (!Array.isArray(pub.body.files) || pub.body.files.length !== 1 || pub.body.files[0].id !== pub.body.file.id) {
     fail("POST reply must contain only the new file");
   }
   if (!publicShape(pub.body.file) || pub.body.file.remoteUrl) fail("POST file must be publicFile shaped, without remoteUrl");
-  if (pub.body.file.type !== "application/octet-stream") fail("pdf must be stored as application/octet-stream, got " + pub.body.file.type);
+  if (pub.body.file.type !== "application/octet-stream" || pub.body.file.kind !== "document" || pub.body.photoUrl || pub.body.file.photoUrl) {
+    fail("a pdf must come back as document with no photoUrl");
+  }
   const fileId = pub.body.file.id;
   if (!/^file_[0-9a-f]{32}$/.test(fileId)) fail("new file id is not random: " + fileId);
   const stored = (lib.mem.files || []).find((f) => f && f.id === fileId);
-  if (!stored || !stored.path || path.basename(stored.path) !== fileId) fail("local file name must be the random id, not the upload name");
+  if (!stored || stored.kind !== "document" || !stored.path || path.basename(stored.path) !== fileId) fail("local file name must be the random id, not the upload name");
   if (/quiet-ledger|springfield/.test(stored.path)) fail("stored path must not include the desk or filename");
   pass("public POST with only the desk name stores one new file");
 
@@ -343,6 +356,9 @@ async function main() {
     data: jpegBytes().toString("base64")
   });
   if (wrongPin.statusCode !== 201 || wrongPin.body.file.type !== "image/jpeg") fail("a public drop must stay open even when a stale pin is sent");
+  if (wrongPin.body.file.kind !== "photo" || !wrongPin.body.photoUrl || wrongPin.body.file.photoUrl !== wrongPin.body.photoUrl) {
+    fail("a jpeg must come back as photo with a photoUrl");
+  }
   pass("public drop does not seat-check POST");
 
   const batch = await call(upload, "POST", stranger(), {
@@ -353,6 +369,10 @@ async function main() {
   });
   if (batch.statusCode !== 201 || !batch.body.files || batch.body.files.length !== 2) fail("a multi-file drop should save just that batch");
   if (batch.body.files[0].type !== "image/gif" || batch.body.files[1].type !== "image/webp") fail("gif and webp must keep their real types");
+  if (batch.body.files[0].kind !== "photo" || batch.body.files[1].kind !== "photo") fail("gif and webp must come back as photo");
+  if (!batch.body.photoUrl || batch.body.files[0].photoUrl !== batch.body.photoUrl || !batch.body.files[1].photoUrl) {
+    fail("gif and webp must come back with a photoUrl");
+  }
   if (batch.body.files.some((f) => f.id === fileId)) fail("batch reply must not include older files");
   pass("gif and webp keep their real type; the batch reply is only the new files");
 
@@ -361,10 +381,12 @@ async function main() {
     type: "image/heic",
     data: heicBytes().toString("base64")
   });
-  if (heic.statusCode !== 201 || heic.body.file.type !== "application/octet-stream" || heic.body.file.kind !== "photo") {
-    fail("HEIC phone drops must still save, as octet-stream");
+  if (heic.statusCode !== 201 || heic.body.file.type !== "application/octet-stream" || heic.body.file.kind !== "document" || heic.body.photoUrl || heic.body.file.photoUrl) {
+    fail("HEIC must still save as a document with no photoUrl");
   }
-  pass("HEIC still uploads and is stored as octet-stream");
+  const heicStored = (lib.mem.files || []).find((f) => f && heic.body && heic.body.file && f.id === heic.body.file.id);
+  if (!heicStored || heicStored.kind !== "document") fail("stored HEIC record must be kind document");
+  pass("HEIC still uploads as a document, with no photoUrl");
 
   const docx = await call(upload, "POST", stranger(), {
     name: "estimate.docx",
@@ -376,8 +398,12 @@ async function main() {
     type: "video/mp4",
     data: Buffer.from("not-really-mp4").toString("base64")
   });
-  if (docx.statusCode !== 201 || docx.body.file.type !== "application/octet-stream") fail("docx must stay accepted and be stored as octet-stream");
-  if (mp4.statusCode !== 201 || mp4.body.file.type !== "application/octet-stream") fail("video must stay accepted and be stored as octet-stream");
+  if (docx.statusCode !== 201 || docx.body.file.type !== "application/octet-stream" || docx.body.file.kind !== "document" || docx.body.photoUrl) {
+    fail("docx must stay accepted, as a document with no photoUrl");
+  }
+  if (mp4.statusCode !== 201 || mp4.body.file.type !== "application/octet-stream" || mp4.body.file.kind !== "document" || mp4.body.photoUrl) {
+    fail("video must stay accepted, as a document with no photoUrl");
+  }
   pass("office files and video still upload as octet-stream");
 
   const html = await call(upload, "POST", stranger(), {
@@ -448,7 +474,9 @@ async function main() {
     type: "application/octet-stream",
     data: pngBytes().toString("base64")
   });
-  if (png.statusCode !== 201 || png.body.file.type !== "image/png") fail("png bytes must be stored as image/png even when the client type is wrong");
+  if (png.statusCode !== 201 || png.body.file.type !== "image/png" || png.body.file.kind !== "photo" || !png.body.photoUrl || png.body.file.photoUrl !== png.body.photoUrl) {
+    fail("a png must come back as photo with a photoUrl");
+  }
   const pngFetch = await call(upload, "GET", ownerHeaders, {}, { id: png.body.file.id });
   if (pngFetch.statusCode !== 200 || pngFetch.headers["Content-Type"] !== "image/png" || pngFetch.headers["X-Content-Type-Options"] !== "nosniff") {
     fail("png fallback must be image/png with nosniff");

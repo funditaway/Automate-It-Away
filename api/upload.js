@@ -30,6 +30,8 @@ const MAX = 8_000_000;
 const MAX_BATCH = 8;
 const RATE_MAX = 30;
 const RATE_WINDOW_MS = 60 * 1000;
+// First guard only. The counts live in this process, so the limit is per warm
+// server instance, not a global cap across instances.
 const rateHits = new Map();
 
 function dir() {
@@ -197,18 +199,30 @@ function accepted(type, name, buf) {
   if (ALLOW[t]) return true;
   return !!extFromName(name);
 }
-function kindOf(ext, type) {
-  if (type === "image/jpeg" || type === "image/png" || type === "image/gif" || type === "image/webp") return "photo";
-  if (/jpg|png|webp|gif|heic|heif/.test(ext || "")) return "photo";
-  if (/mp4|mov|webm|3gp/.test(ext || "")) return "video";
-  return "document";
+function isPhotoType(type) {
+  const t = claimedType(type);
+  return t === "image/png" || t === "image/jpeg" || t === "image/gif" || t === "image/webp";
+}
+function kindOf(type) {
+  return isPhotoType(type) ? "photo" : "document";
 }
 function labelOf(name, id) {
   const base = String(name || "").replace(/[\r\n\0]/g, "").trim().slice(0, 180);
   return base || id;
 }
 function publicFile(rec) {
-  return { id: rec.id, name: rec.name, type: rec.type, kind: rec.kind, bytes: rec.bytes, url: rec.url, driver: rec.driver };
+  const photo = isPhotoType(rec && rec.type);
+  const out = {
+    id: rec.id,
+    name: rec.name,
+    type: rec.type,
+    kind: photo ? "photo" : "document",
+    bytes: rec.bytes,
+    url: rec.url,
+    driver: rec.driver
+  };
+  if (photo) out.photoUrl = rec.url;
+  return out;
 }
 function fallbackType(type) {
   const t = claimedType(type);
@@ -305,7 +319,6 @@ module.exports = async function handler(req, res) {
     if (!buf || !buf.length) return res.status(400).json({ error: "Missing file data" });
     if (buf.length > MAX) return res.status(413).json({ error: "Each file must stay under 8MB." });
     if (!accepted(type, item.name, buf)) return res.status(415).json({ error: "Photos, documents, or short videos only.", allow: Object.keys(ALLOW) });
-    const ext = extFromName(item.name);
     const mime = storedType(buf);
     const id = "file_" + crypto.randomBytes(16).toString("hex");
     const rec = {
@@ -314,7 +327,7 @@ module.exports = async function handler(req, res) {
       name: labelOf(item.name, id),
       type: mime,
       bytes: buf.length,
-      kind: kindOf(ext, mime),
+      kind: kindOf(mime),
       driver: driverOf(),
       createdAt: new Date().toISOString()
     };
@@ -339,11 +352,12 @@ module.exports = async function handler(req, res) {
   await save();
   const first = saved[0];
   const files = saved.map(publicFile);
-  return res.status(201).json({
+  const reply = {
     ok: true,
     file: files[0] || null,
     files: files,
-    photoUrl: first && first.url,
     driver: driverOf()
-  });
+  };
+  if (first && isPhotoType(first.type)) reply.photoUrl = first.url;
+  return res.status(201).json(reply);
 };
