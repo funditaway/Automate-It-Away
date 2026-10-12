@@ -59,6 +59,9 @@ function deny(res, msg) { return res.status(403).json({ ok: false, error: msg ||
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method === "GET" && req.query && String(req.query.actions) === "1") {
+    return res.status(200).json(require("./_automation").catalog());
+  }
   await ready();
   if (req.query && String(req.query.packs) === "1") return packHandler(req, res);
 
@@ -83,6 +86,11 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Use GET or POST." });
   const body = await readBody(req);
   const action = String(body.action || "list").toLowerCase();
+
+  if (["approve-automation", "automation-pauses", "run-start", "step-answer", "run-stop", "run-kill", "run-tick", "run-read"].indexOf(action) >= 0) {
+    req.body = body;
+    return require("./_automation").handle(req, res);
+  }
 
   if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "buy-pack", "preview-pack", "studio-draft", "grok-pack", "private-pack", "save-ai", "attach-ai", "remove-ai", "download-pack", "export-pack", "install-aia", "import-pack", "install-file"].indexOf(action) >= 0) {
     req.body = body;
