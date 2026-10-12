@@ -1,6 +1,7 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "ignoreCommand": "test \"$VERCEL_PROJECT_ID\" = \"prj_Wa5siCh1jPQH369XnK2X6GFDWbqB\"",
   "functions": {
     "api/*.js": {
       "includeFiles": "{api/data/**,packs/**}"
