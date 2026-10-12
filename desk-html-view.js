@@ -1,9 +1,14 @@
 /* HTML file face for queue cards: sandboxed iframe, never innerHTML of file bytes. */
 (function () {
   function esc(s) {
-    return String(s || "").replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&#38;", "<": "&#60;", ">": "&#62;", "\"": "&#34;", "'": "&#39;" })[c];
+    if (typeof escapeHtml === "function") return escapeHtml(s);
+    return String(s || "").replace(/[&<>"'`]/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;" })[c];
     });
+  }
+  function urlOf(raw) {
+    if (typeof safeUrl === "function") return safeUrl(raw);
+    return "";
   }
   function filesOf(j) {
     if (typeof window.filesOf === "function" && window.filesOf !== filesOf) {
@@ -29,19 +34,23 @@
   function filesHtml(j) {
     var files = filesOf(j);
     if (!files.length) return "";
-    return "<div class=\"q-files\">" + files.map(function (f) {
+    var bits = files.map(function (f) {
+      var href = urlOf(f.url);
+      if (!href) return "";
       var image = /image\//i.test(f.kind) || f.kind === "photo" || /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(f.url);
       var html = /text\/html/i.test(f.kind) || /\.html?$/i.test(String(f.name || "")) || /\.html?(\?|$)/i.test(f.url || "");
-      if (image && !html) return "<img class=\"thumb\" src=\"" + esc(f.url) + "\" alt=\"\">";
+      if (image && !html) return "<img class=\"thumb\" src=\"" + esc(href) + "\" alt=\"\">";
       if (html) {
         return "<div class=\"q-html pack-face\">" +
           "<div class=\"q-html-label\">" + esc(f.name || "HTML") + "</div>" +
-          "<iframe class=\"q-html-frame\" sandbox=\"\" src=\"" + esc(f.url) + "\" title=\"" + esc(f.name || "HTML") + "\"></iframe>" +
-          "<a class=\"q-file edit\" href=\"" + esc(f.url) + "\" target=\"_blank\" rel=\"noopener\">Open HTML</a>" +
+          "<iframe class=\"q-html-frame\" sandbox=\"\" src=\"" + esc(href) + "\" title=\"" + esc(f.name || "HTML") + "\"></iframe>" +
+          "<a class=\"q-file edit\" href=\"" + esc(href) + "\" target=\"_blank\" rel=\"noopener\">Open HTML</a>" +
           "</div>";
       }
-      return "<a class=\"q-file edit\" href=\"" + esc(f.url) + "\">" + esc(f.name || "File") + "</a>";
-    }).join("") + "</div>";
+      return "<a class=\"q-file edit\" href=\"" + esc(href) + "\">" + esc(f.name || "File") + "</a>";
+    }).filter(Boolean);
+    if (!bits.length) return "";
+    return "<div class=\"q-files\">" + bits.join("") + "</div>";
   }
   window.filesHtml = filesHtml;
   // Inject CSS once
