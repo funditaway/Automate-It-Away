@@ -1,4 +1,4 @@
-const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow } = require("./_lib");
+const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow, PROVIDERS, configured } = require("./_lib");
 const { grokOn, studioDraft } = require("./_grok");
 const ais = require("./_ais");
 const net = require("./_aia-net");
@@ -192,9 +192,15 @@ function loadOfficialFile(id) {
   try { return require("../packs/" + key + ".json"); } catch (e) { return null; }
 }
 
+// A money pipe can take a payment. Checkout, and every required setting present.
+// A webhook only receives messages. An empty env list never counts.
 function moneyPipeLive() {
   return (catalog() || []).some(function (p) {
-    return p && p.live && (p.id === "square" || p.id === "webhook");
+    if (!p || !p.id) return false;
+    const spec = PROVIDERS[p.id];
+    if (!spec || !Array.isArray(spec.env) || spec.env.length === 0) return false;
+    if ((spec.acts || []).indexOf("checkout") < 0) return false;
+    return configured(p.id);
   });
 }
 
@@ -787,6 +793,7 @@ module.exports.searchPacks = searchPacks;
 module.exports.listingOf = listingOf;
 module.exports.grokStudio = grokStudio;
 module.exports.collectHoldOf = collectHoldOf;
+module.exports.moneyPipeLive = moneyPipeLive;
 module.exports.readAiaPack = readAiaPack;
 module.exports.packFileOf = packFileOf;
 module.exports.ais = ais;
