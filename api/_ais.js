@@ -16,9 +16,51 @@ function clip(s, n) {
 
 // Desk AI rules are stored text only. Cap at 1000 characters. Do not trim,
 // interpret, or run them. Over-long text is cut to 1000 with no error.
+// null and undefined are empty text. An object, array, number, or boolean
+// is empty text too — never "[object Object]" or any other coerced string.
 function rulesText(v) {
-  if (v == null) return "";
-  return String(v).slice(0, 1000);
+  if (typeof v !== "string") return "";
+  return v.slice(0, 1000);
+}
+
+// Desk AI plan is stored text only, in order. Cap at 200 lines and 500
+// characters each. Trim whitespace, drop empty lines, drop non-strings, and
+// keep the first 200. Do not run, charge, or enforce them. A missing value or
+// anything that is not an array is []. This is not the draft allow-list.
+const PLAN_MAX = 200;
+const PLAN_CHARS = 500;
+
+function planText(v) {
+  if (!Array.isArray(v)) return { plan: [], cut: null };
+  const plan = [];
+  const droppedIndexes = [];
+  const trimmedIndexes = [];
+  v.forEach(function (item, index) {
+    if (typeof item !== "string") { droppedIndexes.push(index); return; }
+    const text = item.trim();
+    if (!text) { droppedIndexes.push(index); return; }
+    if (plan.length >= PLAN_MAX) { droppedIndexes.push(index); return; }
+    if (text.length > PLAN_CHARS) {
+      trimmedIndexes.push(index);
+      plan.push(text.slice(0, PLAN_CHARS));
+    } else {
+      plan.push(text);
+    }
+  });
+  const dropped = droppedIndexes.length;
+  const trimmed = trimmedIndexes.length;
+  const cut = (dropped || trimmed) ? {
+    kept: plan.length,
+    dropped: dropped,
+    trimmed: trimmed,
+    droppedIndexes: droppedIndexes,
+    trimmedIndexes: trimmedIndexes
+  } : null;
+  return { plan: plan, cut: cut };
+}
+
+function planListOk(v) {
+  return Array.isArray(v) && v.every(function (item) { return typeof item === "string"; });
 }
 
 function slugAi(name) {
@@ -80,6 +122,7 @@ function normalizeAi(raw, workspace) {
     does: clip(raw.does, 160) || DEFAULT_DOES,
     prompt: clip(raw.prompt, 400) || DEFAULT_PROMPT,
     rules: rulesText(raw.rules),
+    plan: planText(raw.plan).plan,
     steps: steps,
     allow: steps.slice(),
     deny: deny,
@@ -127,6 +170,7 @@ function publicAi(ai) {
     prompt: prompt,
     promptSummary: clip(prompt, 80),
     rules: rulesText(ai.rules),
+    plan: planText(ai.plan).plan,
     face: clip(ai.name, 40) + " · Then draft",
     steps: ai.steps || [],
     allow: ai.allow || ai.steps || [],
@@ -356,6 +400,8 @@ module.exports = {
   DEFAULT_PROMPT,
   clip,
   rulesText,
+  planText,
+  planListOk,
   slugAi,
   normalizeAi,
   normalizeAis,

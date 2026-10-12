@@ -123,7 +123,7 @@ async function deskStatus(req, res) {
     honesty: {
       rule: "hold until a real pipe answers",
       writeback: "dispatch.ok or dispatch.inbound",
-      catalog: "same as /api/health — webhook live; paid pipes hold until set up; whatnot down"
+      catalog: "same as /api/health — the webhook brings work in and does not take payment; payments are not connected; whatnot down"
     }
   });
 }
