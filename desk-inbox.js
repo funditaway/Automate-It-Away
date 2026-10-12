@@ -3,7 +3,10 @@
    AIA does not send. */
 (function () {
   function esc(s) {
-    return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    if (typeof escapeHtml === "function") return escapeHtml(s);
+    return String(s || "").replace(/[&<>"'`]/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;" })[c];
+    });
   }
   function headers() {
     var h = { "Content-Type": "application/json", "X-Workspace": localStorage.getItem("aia_ws") || "" };
