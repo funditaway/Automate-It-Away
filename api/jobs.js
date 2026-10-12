@@ -106,7 +106,9 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const body = await readBody(req);
+    let body;
+    try { body = await readBody(req, res); }
+    catch (err) { if (err && err.statusCode === 413) return; throw err; }
     const action = body.action || "capture";
     if (action === "suggest") {
       const job = makeCapturedJob(workspace, shop, body);
