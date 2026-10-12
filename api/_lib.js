@@ -1797,15 +1797,228 @@ function removeWorkspaceRule(ws, id) {
   return { ok: true, rules: ws.rules.map(publicRule).filter(Boolean) };
 }
 
-function readBody(req) {
+const BODY_MAX = 1048576;
+const BODY_TOO_BIG = "That's too big to send. Keep it under 1 MB.";
+const HOOK_MAX = 4000000;
+const HOOK_TOO_BIG = "That's too big to take in. Keep it under 4 MB.";
+const UPLOAD_WIRE_MAX = 4300000;
+const UPLOAD_TOO_BIG = "Each file must stay under 3 MB.";
+
+function tooBigBody(message) {
+  return { ok: false, error: message || BODY_TOO_BIG };
+}
+
+// upload refuses a request over 4,300,000 bytes here, still under the
+// platform 4.5 MB limit. The decoded file cap in upload.js is 3,000,000.
+// A file just under that encodes to about 4,000,000 base64 bytes, and the
+// JSON wrapper can push the request past 4,000,000 without crossing 4,300,000.
+// hook stops at 4,000,000 bytes.
+
+function bodyRoute(req) {
+  const url = String((req && (req.url || req.originalUrl || req.path)) || "");
+  const headers = (req && req.headers) || {};
+  const invoke = String(headers["x-invoke-path"] || headers["x-matched-path"] || "");
+  const blob = url + "\n" + invoke;
+  if (/\/api\/upload(?:\?|$)/.test(blob)) return "upload";
+  if (/\/api\/hook(?:\?|$)/.test(blob)) return "hook";
+  const stack = new Error().stack || "";
+  if (/[/\\]upload\.js:/.test(stack)) return "upload";
+  if (/[/\\]hook\.js:/.test(stack)) return "hook";
+  return "";
+}
+
+function chunkBytes(chunk) {
+  if (Buffer.isBuffer(chunk)) return chunk.length;
+  return Buffer.byteLength(String(chunk));
+}
+
+function declaredLength(req) {
+  const headers = (req && req.headers) || {};
+  const raw = headers["content-length"] != null ? headers["content-length"] : headers["Content-Length"];
+  if (raw == null || raw === "") return null;
+  const n = Number(Array.isArray(raw) ? raw[0] : raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+// Vercel may parse JSON before the function runs. An object, string, or
+// Buffer already on req.body still has to honor the route cap.
+function preParsed(req) {
+  if (!req || req.body == null) return false;
+  if (Buffer.isBuffer(req.body) || typeof req.body === "string") return true;
+  return typeof req.body === "object";
+}
+
+function parsedByteLength(body) {
+  if (Buffer.isBuffer(body)) return body.length;
+  if (typeof body === "string") return Buffer.byteLength(body);
+  return Buffer.byteLength(JSON.stringify(body));
+}
+
+// Original bytes, when a caller actually kept them. Vercel does not set
+// req.rawBody after it parses JSON. Content-Length is normally present on
+// Vercel, including for chunked posts. JSON.stringify is only a fallback
+// when that header is absent.
+function rawBodyBytes(req) {
+  if (!req || req.rawBody == null) return NaN;
+  if (Buffer.isBuffer(req.rawBody)) return req.rawBody.length;
+  if (typeof req.rawBody === "string") return Buffer.byteLength(req.rawBody);
+  return NaN;
+}
+
+function valueOfParsed(body) {
+  if (Buffer.isBuffer(body)) body = body.toString("utf8");
+  if (typeof body === "string") {
+    if (!body) return {};
+    return JSON.parse(body);
+  }
+  return body;
+}
+
+function rejectTooBig(res, route, extra) {
+  const tooBigMessage = route === "hook" ? HOOK_TOO_BIG : (route === "upload" ? UPLOAD_TOO_BIG : BODY_TOO_BIG);
+  const body = tooBigBody(tooBigMessage);
+  if (res && typeof res.status === "function") {
+    try { res.status(413).json(body); } catch (e) {}
+  }
+  const err = new Error(tooBigMessage);
+  err.statusCode = 413;
+  err.body = body;
+  err.hook = route === "hook";
+  if (extra) {
+    Object.keys(extra).forEach(function (key) { err[key] = extra[key]; });
+  }
+  return err;
+}
+
+// Raw JSON bodies over the route cap are refused with HTTP 413. Reading stops
+// at the cap: only the bytes up to the cap are kept, and the stream is destroyed.
+// A body that is already parsed uses content-length. That header is normally
+// present on Vercel, including for chunked posts. When it is absent, req.rawBody
+// is used when it is a string or Buffer. Otherwise an object is measured with
+// JSON.stringify, which drops the spaces of a pretty-printed body and can
+// undercount it. That stringify measurement is only a fallback. The body is
+// not attached to the error.
+// Other routes cap at 1 MB. /api/hook caps at 4,000,000 bytes. /api/upload
+// rejects early when that size is over 4,300,000 bytes. The decoded file cap
+// is 3,000,000 in upload.js.
+function readBody(req, res) {
+  const route = bodyRoute(req);
+  const cap = route === "upload" ? UPLOAD_WIRE_MAX : (route === "hook" ? HOOK_MAX : BODY_MAX);
+  if (preParsed(req)) {
+    if (cap) {
+      const declared = declaredLength(req);
+      const fromLength = declared != null;
+      let bytes = 0;
+      let measureFailed = false;
+      if (fromLength) bytes = declared;
+      else {
+        const rawN = rawBodyBytes(req);
+        if (Number.isFinite(rawN)) bytes = rawN;
+        else {
+          try { bytes = parsedByteLength(req.body); }
+          catch (e) { measureFailed = true; }
+        }
+      }
+      if (measureFailed || bytes > cap) {
+        return Promise.reject(rejectTooBig(res, route, {
+          kept: null,
+          parsed: true,
+          measured: !fromLength,
+          fromLength: fromLength,
+          declared: fromLength ? declared : null,
+          seen: fromLength || measureFailed ? 0 : bytes
+        }));
+      }
+    }
+    try { return Promise.resolve(valueOfParsed(req.body)); }
+    catch (e) { return Promise.reject(e); }
+  }
   return new Promise((resolve, reject) => {
-    if (req.body && typeof req.body === "object") return resolve(req.body);
-    let raw = "";
-    req.on("data", (c) => (raw += c));
-    req.on("end", () => {
+    if (!req || typeof req.on !== "function") return resolve({});
+    let size = 0;
+    let parts = [];
+    let stopped = false;
+    const declared = declaredLength(req);
+
+    function failTooBig(fromLength) {
+      if (stopped) return;
+      stopped = true;
+      const kept = route === "hook" && parts.length ? Buffer.concat(parts) : null;
+      const seen = size;
+      parts = [];
+      size = 0;
+      if (typeof req.removeListener === "function") {
+        req.removeListener("data", onData);
+        req.removeListener("readable", onReadable);
+        req.removeListener("end", onEnd);
+        req.removeListener("error", onError);
+      }
+      if (typeof req.pause === "function") req.pause();
+      if (typeof req.destroy === "function") {
+        try { req.destroy(); } catch (e) {}
+      }
+      reject(rejectTooBig(res, route, {
+        kept: kept,
+        seen: seen,
+        declared: fromLength ? declared : null,
+        fromLength: !!fromLength
+      }));
+    }
+
+    function take(chunk) {
+      if (stopped) return;
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+      const n = buf.length;
+      if (cap && size + n > cap) {
+        const room = cap - size;
+        if (room > 0) {
+          parts.push(Buffer.from(buf.subarray(0, room)));
+          size += room;
+        }
+        failTooBig(false);
+        return;
+      }
+      size += n;
+      parts.push(buf);
+    }
+
+    function onReadable() {
+      if (stopped || typeof req.read !== "function") return;
+      let chunk;
+      while ((chunk = req.read()) !== null) take(chunk);
+    }
+
+    function onData(chunk) {
+      take(chunk);
+    }
+
+    function onEnd() {
+      if (stopped) return;
+      stopped = true;
+      const raw = parts.length ? Buffer.concat(parts).toString("utf8") : "";
+      parts = [];
       if (!raw) return resolve({});
       try { resolve(JSON.parse(raw)); } catch (e) { reject(e); }
-    });
+    }
+
+    function onError(err) {
+      if (stopped) return;
+      stopped = true;
+      parts = [];
+      reject(err);
+    }
+
+    if (cap && Number.isFinite(declared) && declared > cap) {
+      failTooBig(true);
+      return;
+    }
+
+    // Paused reads so we can destroy before the rest of the body is pulled.
+    if (typeof req.read === "function") req.on("readable", onReadable);
+    else req.on("data", onData);
+    req.on("end", onEnd);
+    req.on("error", onError);
   });
 }
 
