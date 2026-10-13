@@ -91,6 +91,7 @@ module.exports = async function handler(req, res) {
     const rails = shop ? ais.railsOf(shop) : { ais: [], count: 0, rails: ais.RAILS, never: ais.NEVER.slice() };
     return res.status(200).json({
       workspace,
+      desk: shop ? { slug: shop.slug, name: shop.biz || shop.name || shop.slug, does: shop.does || "", instructions: String(shop.instructions || "").trim().slice(0, 400) } : null,
       you: person ? { name: person.name, role: person.role, kind: person.kind || person.role, deskAi: !!person.deskAi } : null,
       fields: ensureFields(shop),
       rules,

@@ -115,7 +115,8 @@ module.exports = async function handler(req, res) {
     if (!row || !person) return res.status(401).json({ ok: false, error: "Desk code does not match." });
     const { homeAccount, desksForPerson } = require("./_account");
     const acc = homeAccount(person, row);
-    const mine = desksForPerson({ id: person.id, name: person.name, email: person.email, pin: person.pin, accountId: person.accountId || (acc && acc.id) });
+    const accountId = person.accountId || (isOwner(person) && acc ? acc.id : "") || "";
+    const mine = desksForPerson({ id: person.id, name: person.name, email: person.email, pin: person.pin, accountId: accountId });
     const mail = require("./_aia-mail");
     const aia = (acc && (acc.aia || (acc.handle ? acc.handle + ".aia" : ""))) || (row.aia || "");
     return res.status(200).json({
@@ -296,6 +297,22 @@ module.exports = async function handler(req, res) {
     if (!canDesk(person, row, "explore")) return deny(res, "No explore on this seat.");
     return res.status(200).json({ ok: true, explore: exploreDesk(row, person) });
   }
+  if (action === "leave") {
+    const { leaveSeat } = require("./_account");
+    const left = leaveSeat(row, person);
+    if (!left.ok) return res.status(left.status || 400).json({ ok: false, error: left.error });
+    logDesk("leave", row, person, { kind: left.kind });
+    await save();
+    return res.status(200).json({ ok: true, left: left.left, name: left.name, hint: "You left. Account stays yours. AIA does not send." });
+  }
+  if (action === "ask" || action === "permission") {
+    const { requestPermission } = require("./_account");
+    const made = requestPermission(row, person, body.kind || body.want || body.permission || "member");
+    if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
+    logDesk("ask", row, person, { kind: body.kind || body.want || "member" });
+    await save();
+    return res.status(202).json(made);
+  }
   if (action === "update" || action === "edit") {
     if (!canDesk(person, row, "update")) return deny(res, "This seat cannot edit the shop.");
     if (body.listed != null || body.visibility != null) {
@@ -304,7 +321,7 @@ module.exports = async function handler(req, res) {
     }
     const saved = applyDeskEdit(row, body);
     if (!saved.ok) return res.status(400).json(saved);
-    logDesk("edit", row, person, { biz: row.biz, does: row.does, listed: deskListed(row) });
+    logDesk("edit", row, person, { biz: row.biz, does: row.does, instructions: row.instructions, listed: deskListed(row) });
     await save();
     return res.status(200).json({ ok: true, desk: publicDesk(row, person), listed: deskListed(row) });
   }
@@ -354,5 +371,5 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
   }
-  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "mine", "packs", "list-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "preview-pack", "studio-draft", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete", "mail", "mail-add", "mail-remove"] });
+  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "mine", "packs", "list-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "preview-pack", "studio-draft", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete", "mail", "mail-add", "mail-remove", "leave", "ask"] });
 };

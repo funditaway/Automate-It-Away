@@ -40,15 +40,29 @@ function cardHtml(d, lane) {
   var askBtns = (kind === "owner") ? "" : ASK.map(function (k) {
     return "<button class=\"edit\" type=\"button\" data-act=\"ask\" data-kind=\"" + k + "\">Ask " + k + "</button>";
   }).join("");
+  var instruct = d.instructions || "";
+  var instructLine = instruct
+    ? "<p class=\"meta\" data-instruct><b>Owner instructions</b> — " + esc(instruct) + "</p>"
+    : (lane === "sit" ? "<p class=\"meta\" data-instruct>No owner instructions yet. Drop and work the queue; owner still owns Stop.</p>" : "");
+  var ownerEdit = (lane === "own" || kind === "owner")
+    ? "<div class=\"edit-box on\" data-instruct-box>" +
+      "<label>Instructions for members</label>" +
+      "<input data-instruct-input maxlength=\"400\" placeholder=\"How members use, drop, and operate this desk\" value=\"" + esc(instruct) + "\">" +
+      "<div class=\"row\"><button class=\"edit\" type=\"button\" data-act=\"save-instruct\">Save instructions</button>" +
+      "<a class=\"edit\" href=\"" + esc(d.drop || ("/drop?ws=" + encodeURIComponent(d.slug || ""))) + "\" style=\"display:inline-flex;align-items:center\">Drop</a></div>" +
+      "</div>"
+    : "<div class=\"row\"><a class=\"edit\" href=\"" + esc(d.drop || ("/drop?ws=" + encodeURIComponent(d.slug || ""))) + "\" style=\"display:inline-flex;align-items:center\">Drop</a></div>";
   return "<div class=\"card\" data-slug=\"" + esc(d.slug) + "\" data-lane=\"" + esc(lane || "") + "\">" +
     "<h2>" + esc(d.name || d.slug) + "</h2>" +
     "<p class=\"meta\" data-meta>" + esc(perms) + (d.does ? " · " + esc(d.does) : "") + "</p>" +
+    instructLine +
     "<div>" + chips + "</div>" +
     "<div class=\"row\">" +
       "<button class=\"go\" type=\"button\" data-act=\"open\">Open queue</button>" +
       "<button class=\"edit\" type=\"button\" data-act=\"leave\">Leave</button>" +
       "<button class=\"edit\" type=\"button\" data-act=\"forget\">Forget phone</button>" +
     "</div>" +
+    ownerEdit +
     (askBtns ? "<div class=\"row ask-row\">" + askBtns + "</div>" : "") +
     "</div>";
 }
@@ -123,6 +137,15 @@ document.getElementById("list").addEventListener("click", async function (e) {
     var asked = await apiDesk("ask", slug, { kind: kind });
     if (asked.status >= 400) { banner(asked.data.error || "Could not ask."); return; }
     banner("Asked for " + kind + ". Owner sees it on their queue. AIA does not send.");
+    hydrate();
+    return;
+  }
+  if (act === "save-instruct") {
+    var input = card.querySelector("[data-instruct-input]");
+    var text = input ? String(input.value || "").trim() : "";
+    var saved = await apiDesk("update", slug, { instructions: text });
+    if (saved.status >= 400) { banner(saved.data.error || "Could not save instructions."); return; }
+    banner("Instructions saved. Members see them when they open this desk. AIA does not send.");
     hydrate();
   }
 });
