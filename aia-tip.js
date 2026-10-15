@@ -233,7 +233,7 @@
     },
     "more-queue": {
       title: "Queue",
-      body: "Real cards. Empty stays empty. Talk, Yes, or Stop. You can Reply on this desk. If a named desk AI is not on this desk, the card says so. Nothing sends from here.",
+      body: "Real cards. Empty stays empty. Talk, Yes, or Stop. Cap orange is do this first — not Collect. You can Reply on this desk. If a named desk AI is not on this desk, the card says so. Nothing sends from here.",
       ask: "How does the Queue work?"
     },
     "more-drop": {
@@ -338,7 +338,7 @@
     },
     "more-status": {
       title: "Status",
-      body: "What is live on this desk. Orange means wait.",
+      body: "What is live on this desk. Orange means wait — HOLD. Not Collect.",
       ask: "What does Status show?"
     }
   };
