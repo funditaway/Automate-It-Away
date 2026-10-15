@@ -410,6 +410,20 @@
         const store = (health.data && health.data.store) || {};
         banner.textContent = "This desk’s work.";
         const jobs = await api("/api/jobs");
+        if (!jobs.data || !Array.isArray(jobs.data.jobs)) {
+          JOBS = [];
+          RULES = [];
+          banner.textContent = (jobs.data && jobs.data.error) || "Open a desk to see the queue.";
+          paintNouns(AIADesks.defaultNouns());
+          paintRules([]);
+          document.getElementById("k-wait").textContent = "0";
+          document.getElementById("k-ship").textContent = "0";
+          document.getElementById("queue").innerHTML = "<div id=\"queue-empty\"><p>" + esc(banner.textContent) + "</p></div>";
+          document.getElementById("recent-label").hidden = true;
+          document.getElementById("recent").innerHTML = "";
+          showConsignNav();
+          return;
+        }
         JOBS = jobs.data.jobs || [];
         FIELDS = jobs.data.fields || FIELDS;
         if (jobs.data.you && jobs.data.you.role) { role = jobs.data.you.role; youName = jobs.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }

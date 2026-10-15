@@ -195,16 +195,18 @@ async function main() {
   if (getNone.statusCode !== 400) fail("GET missing workspace should 400, got " + getNone.statusCode);
   else pass("GET missing workspace rejected");
 
+  const queuePin = "2468";
   ["desk-alpha", "desk-beta"].forEach(function (slugName) {
-    const row = { slug: slugName, name: slugName, biz: slugName, people: [] };
+    const row = { slug: slugName, name: slugName, biz: slugName, pin: hashPin(queuePin), people: [] };
     ensurePeople(row);
     mem.workspaces.unshift(row);
   });
   const capA = await call(jobsHandler, "POST", { "x-workspace": "desk-alpha" }, { action: "capture", title: "Alpha only" });
   const capB = await call(jobsHandler, "POST", { "x-workspace": "desk-beta" }, { action: "capture", title: "Beta only" });
   if (capA.statusCode !== 201 || capB.statusCode !== 201) fail("capture A/B should 201");
-  const getA = await call(jobsHandler, "GET", { "x-workspace": "desk-alpha" });
-  const getB = await call(jobsHandler, "GET", { "x-workspace": "desk-beta" });
+  const getA = await call(jobsHandler, "GET", { "x-workspace": "desk-alpha", "x-pin": queuePin });
+  const getB = await call(jobsHandler, "GET", { "x-workspace": "desk-beta", "x-pin": queuePin });
+  if (getA.statusCode !== 200 || getB.statusCode !== 200) fail("seated GET A/B should 200, got " + getA.statusCode + "/" + getB.statusCode);
   const titlesA = (getA.body.jobs || []).map((j) => j.title);
   const titlesB = (getB.body.jobs || []).map((j) => j.title);
   if (titlesA.indexOf("Alpha only") < 0 || titlesA.indexOf("Beta only") >= 0) fail("desk A leaked or missed: " + titlesA.join(","));
