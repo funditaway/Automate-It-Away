@@ -1,5 +1,5 @@
 const { dropCannedSeeds } = require("./_drop-seed");
-const { cors, mem, log, save, ready, PROVIDERS, readBody, personOf, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack, hookUrl } = require("./_lib");
+const { cors, mem, log, save, ready, PROVIDERS, readBody, deskSeat, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack, hookUrl } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob, makeFanOutJobs, holdCapturedJob, applyImplement } = require("./_fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, markFlow, applyRules, thenAfterYes } = require("./_engine");
 const { grokRecommend, normalizeCites } = require("./_grok");
@@ -24,7 +24,7 @@ async function fireWebhook(hook, payload) {
 function actorName(person, body) {
   return (person && person.name) || (body && body.whoTapped) || "desk";
 }
-// Same seat check as GET /api/upload: personOf reads X-Pin, X-Session, and the aia_session cookie.
+// Same seat check as GET /api/upload: deskSeat is personOf. It reads X-Pin, X-Session, and the aia_session cookie.
 // A stranger and a missing desk get the same reply, so the desk name does not confirm the desk.
 // Upload (#324) still answers 401 for a real desk with no code and 404 for a missing desk.
 function refuseJobRead(res, found) {
@@ -75,7 +75,7 @@ module.exports = async function handler(req, res) {
   if (dropCannedSeeds(mem)) await save();
   const workspace = namedWorkspace(req);
   if (!workspace) return res.status(400).json({ error: "Open a desk first." });
-  const found = personOf(req, workspace);
+  const found = deskSeat(req, workspace);
   const shop = found.workspace;
   const person = found.person;
 

@@ -228,8 +228,8 @@
     });
     var d = await r.json().catch(function () { return {}; });
     if (!r.ok) return msg(d.error || "Inbound did not land.");
-    var job = d.job || {};
-    msg("Drop landed" + (job.id ? " · " + job.id : "") + ". Open Queue. Send stays HOLD.", true);
+    var id = d.id || (d.job && d.job.id) || "";
+    msg("Drop landed" + (id ? " · " + id : "") + ". Open Queue. Send stays HOLD.", true);
   }
   function boot() {
     if (!host()) return;
