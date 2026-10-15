@@ -361,3 +361,10 @@ module.exports = async function handler(req, res) {
   if (first && isPhotoType(first.type)) reply.photoUrl = first.url;
   return res.status(201).json(reply);
 };
+
+// Shared with the one-time old-upload move. POST behavior above is unchanged.
+module.exports.storedType = storedType;
+module.exports.looksLikeMarkup = looksLikeMarkup;
+module.exports.markupClaim = markupClaim;
+module.exports.blobPath = blobPath;
+module.exports.sniffImage = sniffImage;

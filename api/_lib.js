@@ -14,7 +14,8 @@ const PROVIDERS = {
 
 const EMPTY = {
   account: null, accounts: [], sessions: [], approvals: [], locks: [],
-  connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [], packs: [], mail: []
+  connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [], packs: [], mail: [],
+  migrations: {}
 };
 const SESSION_DAYS = 14;
 const SESSION_MAX = 8;
@@ -61,7 +62,8 @@ function shape(parsed) {
     files: Array.isArray(parsed.files) ? parsed.files : [],
     tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
     packs: Array.isArray(parsed.packs) ? parsed.packs : [],
-    mail: Array.isArray(parsed.mail) ? parsed.mail : []
+    mail: Array.isArray(parsed.mail) ? parsed.mail : [],
+    migrations: parsed.migrations && typeof parsed.migrations === "object" && !Array.isArray(parsed.migrations) ? parsed.migrations : {}
   };
 }
 
@@ -81,7 +83,8 @@ function payload() {
     files: mem.files,
     tickets: mem.tickets,
     packs: mem.packs,
-    mail: mem.mail
+    mail: mem.mail,
+    migrations: mem.migrations && typeof mem.migrations === "object" ? mem.migrations : {}
   };
 }
 
@@ -873,6 +876,7 @@ function applyStore(parsed) {
   mem.tickets = next.tickets;
   mem.packs = next.packs;
   mem.mail = next.mail;
+  mem.migrations = next.migrations;
   return mem;
 }
 
@@ -1804,6 +1808,251 @@ function removeWorkspaceRule(ws, id) {
   return { ok: true, rules: ws.rules.map(publicRule).filter(Boolean) };
 }
 
+function storeBody() {
+  return payload();
+}
+
+// File-blob copy / head / del. Credential order matches upload put():
+// SDK with storeId, then SDK with no extra auth, then SDK with the token, then REST.
+// save() and the store put() path are untouched.
+async function blobFileCall(run) {
+  if (!blobAllowed()) throw blobOffProd();
+  const attempts = [];
+  const storeId = blobStoreId();
+  const token = blobToken();
+  if (storeId) attempts.push({ storeId: storeId });
+  attempts.push({});
+  if (token) attempts.push({ token: token });
+  let last = "blob-fail";
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      const out = await run(attempts[i]);
+      blobProbe.auth = attempts[i].token ? "token" : "oidc";
+      return out;
+    } catch (e) {
+      last = blobErrText(e);
+    }
+  }
+  const err = new Error(last);
+  err.code = "AIA_BLOB_SDK";
+  throw err;
+}
+
+function blobMissingErr() {
+  const err = new Error("Vercel Blob: The requested blob does not exist");
+  err.code = "AIA_BLOB_MISSING";
+  return err;
+}
+
+async function blobRestJson(url, opts) {
+  const r = await fetch(url, opts);
+  const text = await r.text();
+  let json = {};
+  try { json = JSON.parse(text); } catch (e) { json = {}; }
+  return { ok: r.ok, status: r.status, json: json, text: text };
+}
+
+async function blobRestCopy(fromUrl, toPathname, options) {
+  if (!blobToken()) throw new Error("Vercel Blob: no token for copy fallback");
+  const headers = blobRestHeaders({
+    "x-content-type": options.contentType || "application/octet-stream",
+    "x-add-random-suffix": options.addRandomSuffix ? "1" : "0",
+    "x-allow-overwrite": "0",
+    "x-vercel-blob-access": "public"
+  });
+  const q = "pathname=" + encodeURIComponent(toPathname) + "&fromUrl=" + encodeURIComponent(fromUrl);
+  const urls = [
+    "https://vercel.com/api/blob/?" + q,
+    "https://blob.vercel-storage.com/" + toPathname + "?fromUrl=" + encodeURIComponent(fromUrl)
+  ];
+  let last = "copy failed";
+  for (let i = 0; i < urls.length; i++) {
+    const got = await blobRestJson(urls[i], { method: "PUT", headers: headers });
+    if (got.ok && got.json && got.json.url) return got.json;
+    last = blobRestErr(got.json, got.text, got.status);
+    if (blobMissing(last)) throw blobMissingErr();
+  }
+  throw new Error(last);
+}
+
+async function blobRestHead(url) {
+  if (!blobToken()) throw new Error("Vercel Blob: no token for head fallback");
+  const headers = blobRestHeaders();
+  const urls = [
+    "https://vercel.com/api/blob/?url=" + encodeURIComponent(url)
+  ];
+  let last = "head failed";
+  for (let i = 0; i < urls.length; i++) {
+    const got = await blobRestJson(urls[i], { method: "GET", headers: headers });
+    if (got.ok && got.json && (got.json.url || got.json.size != null || got.json.pathname)) return got.json;
+    last = blobRestErr(got.json, got.text, got.status);
+    if (got.status === 404 || blobMissing(last)) throw blobMissingErr();
+  }
+  throw new Error(last);
+}
+
+async function blobRestDel(url) {
+  if (!blobToken()) throw new Error("Vercel Blob: no token for del fallback");
+  const headers = blobRestHeaders({ "content-type": "application/json" });
+  const urls = [
+    "https://vercel.com/api/blob/delete",
+    "https://blob.vercel-storage.com/delete"
+  ];
+  let last = "del failed";
+  for (let i = 0; i < urls.length; i++) {
+    const got = await blobRestJson(urls[i], {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({ urls: [url] })
+    });
+    if (got.ok) return { ok: true };
+    last = blobRestErr(got.json, got.text, got.status);
+    if (got.status === 404 || blobMissing(last)) return { ok: true, missing: true };
+  }
+  throw new Error(last);
+}
+
+async function blobRestList() {
+  if (!blobToken()) throw new Error("Vercel Blob: no token for list fallback");
+  const headers = blobRestHeaders();
+  const out = [];
+  let cursor = "";
+  for (let page = 0; page < 40; page++) {
+    const q = "limit=1000" + (cursor ? "&cursor=" + encodeURIComponent(cursor) : "");
+    const got = await blobRestJson("https://vercel.com/api/blob?" + q, { method: "GET", headers: headers });
+    if (!got.ok) throw new Error(blobRestErr(got.json, got.text, got.status));
+    const blobs = (got.json && got.json.blobs) || [];
+    blobs.forEach((b) => out.push(b));
+    if (!got.json || !got.json.hasMore || !got.json.cursor) break;
+    cursor = got.json.cursor;
+  }
+  return out;
+}
+
+async function blobRestPutAt(pathname, body, options) {
+  if (!blobToken()) throw new Error("Vercel Blob: no token for put fallback");
+  const payload = Buffer.isBuffer(body) ? body : Buffer.from(String(body || ""), "utf8");
+  const headers = blobRestHeaders({
+    "x-content-type": (options && options.contentType) || "application/json",
+    "x-add-random-suffix": options && options.addRandomSuffix ? "1" : "0",
+    "x-allow-overwrite": options && options.allowOverwrite ? "1" : "0",
+    "x-vercel-blob-access": (options && options.access) || "public"
+  });
+  const urls = blobRestPutUrls(pathname);
+  let last = "put failed";
+  for (let i = 0; i < urls.length; i++) {
+    const r = await fetch(urls[i], { method: "PUT", headers: headers, body: payload });
+    const text = await r.text();
+    let json = {};
+    try { json = JSON.parse(text); } catch (e) { json = {}; }
+    if (r.ok && (json.url || r.ok)) {
+      return {
+        url: json.url || ("https://blob.vercel-storage.com/" + pathname),
+        pathname: json.pathname || pathname,
+        contentType: json.contentType || headers["x-content-type"]
+      };
+    }
+    last = blobRestErr(json, text, r.status);
+  }
+  throw new Error(last);
+}
+
+// copy: SDK copy(fromUrl, toPathname, {access, addRandomSuffix, contentType}), then REST.
+async function blobCopy(fromUrl, toPathname, opts) {
+  if (!blobAllowed()) throw blobOffProd();
+  const options = {
+    access: "public",
+    addRandomSuffix: !opts || opts.addRandomSuffix !== false,
+    allowOverwrite: false,
+    contentType: (opts && opts.contentType) || "application/octet-stream"
+  };
+  try {
+    const { copy } = require("@vercel/blob");
+    const blob = await blobFileCall((auth) => copy(fromUrl, toPathname, Object.assign({}, options, auth)));
+    if (blob && blob.url) return blob;
+    throw new Error("Vercel Blob: copy returned no url");
+  } catch (e) {
+    if (e && e.code === "AIA_BLOB_PROD_ONLY") throw e;
+    if (blobMissing(blobErrText(e))) throw blobMissingErr();
+    return blobRestCopy(fromUrl, toPathname, options);
+  }
+}
+
+// head: SDK head(url), then REST. Missing blobs throw AIA_BLOB_MISSING.
+async function blobHead(url) {
+  if (!blobAllowed()) throw blobOffProd();
+  try {
+    const { head } = require("@vercel/blob");
+    const meta = await blobFileCall((auth) => head(url, auth));
+    if (!meta) throw blobMissingErr();
+    return meta;
+  } catch (e) {
+    if (e && e.code === "AIA_BLOB_PROD_ONLY") throw e;
+    if (e && e.code === "AIA_BLOB_MISSING") throw e;
+    if (blobMissing(blobErrText(e))) throw blobMissingErr();
+    return blobRestHead(url);
+  }
+}
+
+// del: SDK del(url), then REST. One url at a time.
+async function blobDel(url) {
+  if (!blobAllowed()) throw blobOffProd();
+  try {
+    const { del } = require("@vercel/blob");
+    await blobFileCall((auth) => del(url, auth));
+    return { ok: true };
+  } catch (e) {
+    if (e && e.code === "AIA_BLOB_PROD_ONLY") throw e;
+    if (blobMissing(blobErrText(e))) return { ok: true, missing: true };
+    return blobRestDel(url);
+  }
+}
+
+async function blobListAll() {
+  if (!blobAllowed()) throw blobOffProd();
+  try {
+    const { list } = require("@vercel/blob");
+    const out = [];
+    let cursor;
+    for (let page = 0; page < 40; page++) {
+      const listed = await blobFileCall((auth) => list(Object.assign({ limit: 1000 }, cursor ? { cursor: cursor } : {}, auth)));
+      const blobs = (listed && listed.blobs) || [];
+      blobs.forEach((b) => out.push(b));
+      if (!listed || !listed.hasMore || !listed.cursor) break;
+      cursor = listed.cursor;
+    }
+    return out;
+  } catch (e) {
+    if (e && e.code === "AIA_BLOB_PROD_ONLY") throw e;
+    return blobRestList();
+  }
+}
+
+// Additive put to a pathname that is not the live store key. Does not call blobPut().
+async function blobPutAt(pathname, body, opts) {
+  if (!blobAllowed()) throw blobOffProd();
+  if (pathname === BLOB_KEY || pathname === BLOB_REST_KEY) {
+    throw new Error("Vercel Blob: backup put must not overwrite the live store");
+  }
+  const base = Object.assign({
+    addRandomSuffix: false,
+    allowOverwrite: false,
+    contentType: "application/json"
+  }, opts || {});
+  const { put } = require("@vercel/blob");
+  try {
+    return await blobFileCall((auth) => put(pathname, body, Object.assign({ access: "private" }, base, auth)));
+  } catch (e) {
+    if (e && e.code === "AIA_BLOB_PROD_ONLY") throw e;
+    try {
+      return await blobFileCall((auth) => put(pathname, body, Object.assign({ access: "public" }, base, auth)));
+    } catch (e2) {
+      if (e2 && e2.code === "AIA_BLOB_PROD_ONLY") throw e2;
+      return blobRestPutAt(pathname, body, Object.assign({ access: "public" }, base));
+    }
+  }
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     if (req.body && typeof req.body === "object") return resolve(req.body);
@@ -1820,6 +2069,7 @@ module.exports = {
   PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
+  blobCopy, blobHead, blobDel, blobListAll, blobPutAt, storeBody,
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
