@@ -207,6 +207,11 @@ const params = new URLSearchParams(location.search);
     bootDesk();
     const photoEl = document.getElementById("photo");
     if (photoEl) photoEl.addEventListener("change", paintFiles);
+    function isPictureFile(f) {
+      if (!f) return false;
+      if (f.type) return /^image\/(png|jpeg|gif|webp)$/i.test(String(f.type));
+      return /\.(jpe?g|png|gif|webp)$/i.test(String(f.name || ""));
+    }
     async function attachFiles(item, err) {
       const photo = document.getElementById("photo");
       const picked = photo && photo.files ? [].slice.call(photo.files, 0, 8) : [];
@@ -241,7 +246,8 @@ const params = new URLSearchParams(location.search);
         showNote(err, data.error || "File did not save.");
         return false;
       }
-      if (data.photoUrl) item.photoUrl = data.photoUrl;
+      // photoUrl is only for a real picture; a PDF or HEIC rides on files[] as a named link.
+      if (data.photoUrl && isPictureFile(data.file)) item.photoUrl = data.photoUrl;
       if (Array.isArray(data.files) && data.files.length) item.files = data.files;
       return true;
     }
