@@ -24,6 +24,15 @@ async function fireWebhook(hook, payload) {
 function actorName(person, body) {
   return (person && person.name) || (body && body.whoTapped) || "desk";
 }
+// Same seat check as GET /api/upload: personOf reads X-Pin, X-Session, and the aia_session cookie.
+// A stranger and a missing desk get the same reply, so the desk name does not confirm the desk.
+// Upload (#324) still answers 401 for a real desk with no code and 404 for a missing desk.
+function refuseJobRead(res, found) {
+  if (found && found.pending) {
+    return res.status(403).json({ ok: false, error: "That seat is waiting on the owner." });
+  }
+  return res.status(404).json({ ok: false, error: "No desk with that name." });
+}
 function actorBlocked(person) {
   return ais.actorIsDeskAi(person);
 }
@@ -66,9 +75,12 @@ module.exports = async function handler(req, res) {
   if (dropCannedSeeds(mem)) await save();
   const workspace = namedWorkspace(req);
   if (!workspace) return res.status(400).json({ error: "Open a desk first." });
-  const { workspace: shop, person } = personOf(req, workspace);
+  const found = personOf(req, workspace);
+  const shop = found.workspace;
+  const person = found.person;
 
   if (req.method === "GET") {
+    if (!shop || !person) return refuseJobRead(res, found);
     if (req.query.audit === "1") return res.status(200).json({ workspace, audit: mem.audit.filter((a) => !a.workspace || a.workspace === workspace).slice(0, 50) });
     if (req.query.money === "1") return res.status(200).json({ workspace, money: mem.money.filter((m) => m.workspace === workspace).slice(0, 50) });
     if (req.query.inbox === "1") return res.status(200).json({ workspace, inbox: mem.inbox.filter((i) => i.workspace === workspace) });
