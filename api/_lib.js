@@ -1375,6 +1375,13 @@ function personOf(req, workspaceSlug) {
   return { workspace: ws, person: person || null };
 }
 
+// Shared seat helper for GET /api/jobs and POST /api/hook.
+// personOf reads X-Pin, X-Session, and the aia_session cookie.
+// An open seat is an approved person. A waiting seat, a denied seat, a wrong code, and a stranger are not.
+function deskSeat(req, workspaceSlug) {
+  return personOf(req, workspaceSlug);
+}
+
 function isOwner(person) {
   return seatLooksOwner(person);
 }
@@ -1816,7 +1823,7 @@ module.exports = {
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
-  ensurePeople, publicPerson, personOf, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
+  ensurePeople, publicPerson, personOf, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
   matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy, whenMatches, ifMatches,

@@ -1,4 +1,4 @@
-const { cors, mem, log, save, ready, slugify, readBody } = require("./_lib");
+const { cors, mem, log, save, ready, slugify, readBody, deskSeat } = require("./_lib");
 const { deskClosed, deskClosedMessage } = require("./_desk");
 const { qualifyJob, applyRules } = require("./_engine");
 const { makeCapturedJob, addTalk } = require("./_fields");
@@ -37,6 +37,19 @@ function applyStatusRules(job, workspace) {
   const shop = (mem.workspaces || []).find((w) => w && w.slug === workspace) || null;
   if (shop) applyRules(job, shop, "status");
   return job;
+}
+
+// Same seat helper as GET /api/jobs. A waiting seat is not a seat.
+function hasSeat(req, workspace) {
+  const found = deskSeat(req, workspace);
+  return !!(found && found.person);
+}
+
+// No seat: ok, the job id, and the card status. The event name stays so a pipe can
+// tell a capture from an update. The card, photoUrl, files, and the file book stay off.
+function answer(res, code, req, workspace, event, job) {
+  if (hasSeat(req, workspace)) return res.status(code).json({ ok: true, event: event, job: job });
+  return res.status(code).json({ ok: true, id: job.id, status: job.status || "", event: event });
 }
 
 module.exports = async function handler(req, res) {
@@ -137,7 +150,7 @@ module.exports = async function handler(req, res) {
     });
     log("Pipe", "In · " + job.title, "Waiting", workspace);
     await save();
-    return res.status(201).json({ ok: true, event: "capture", job });
+    return answer(res, 201, req, workspace, "capture", job);
   }
 
   if (event === "kill") {
@@ -149,7 +162,7 @@ module.exports = async function handler(req, res) {
     job.log = (job.log || []).concat(["Pipe stop"]);
     log("Pipe", "Stop · " + job.title, "Stopped", workspace);
     await save();
-    return res.status(200).json({ ok: true, event: "kill", job });
+    return answer(res, 200, req, workspace, "kill", job);
   }
 
   if (event === "hand") {
@@ -167,7 +180,7 @@ module.exports = async function handler(req, res) {
     job.log = (job.log || []).concat(["Pipe · needs a hand"]);
     log("Pipe", "Hand · " + job.title, "Waiting", workspace);
     await save();
-    return res.status(200).json({ ok: true, event: "hand", job });
+    return answer(res, 200, req, workspace, "hand", job);
   }
 
   if (event === "done") {
@@ -176,7 +189,7 @@ module.exports = async function handler(req, res) {
     job.log = (job.log || []).concat(["Pipe wrote back · done"]);
     log("Pipe", "Done · " + job.title, "OK", workspace);
     await save();
-    return res.status(200).json({ ok: true, event: "done", job });
+    return answer(res, 200, req, workspace, "done", job);
   }
 
   if (event === "collect") {
@@ -195,7 +208,7 @@ module.exports = async function handler(req, res) {
     });
     log("Pipe", "Collect · " + job.title, "OK", workspace);
     await save();
-    return res.status(200).json({ ok: true, event: "collect", job });
+    return answer(res, 200, req, workspace, "collect", job);
   }
 
   job.notes = body.notes || job.notes;
@@ -210,5 +223,5 @@ module.exports = async function handler(req, res) {
   addTalk(job, body.who || body.provider || "webhook", body.notes || body.text || "Pipe update.", "note");
   log("Pipe", "Update · " + job.title, "OK", workspace);
   await save();
-  return res.status(200).json({ ok: true, event: "update", job });
+  return answer(res, 200, req, workspace, "update", job);
 };
