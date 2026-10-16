@@ -23,6 +23,16 @@ const LOCK_FAILS = 8;
 const LOCK_MINUTES = 15;
 const BLOB_KEY = "aia/store.json";
 const BLOB_STAMP = "write-v1";
+// How long this instance trusts mem before re-reading the sealed blob.
+// Another instance's put can stay invisible here for up to this long after
+// the last successful load or save. 2000ms is long enough that a warm burst
+// (blob round-trip well under a second) does not re-read on every request,
+// and short enough that a quiet instance sees the other lambda on the next
+// request after a brief pause. A successful local save restarts the window.
+// Unsaved or in-flight writes on this instance block the replace entirely,
+// so the other instance can stay invisible past the window until those
+// writes finish. This is not a cross-instance merge.
+const READY_MAX_AGE_MS = 2000;
 const blobProbe = { token: false, write: null, read: null, url: null, detail: null, status: null, access: null, auth: null, stamp: BLOB_STAMP, rev: null };
 const PERSIST_TEST_DROP = {
   "consign-it-away": ["job_mtegpvhk", "job_mtegkkap", "job_mtegezu8"],
@@ -684,6 +694,25 @@ async function blobWriteStick(blob, used) {
 
 async function blobWrite() {
   if (!blobAllowed()) return false;
+  // A store put is an in-flight write. Bump the epoch before the body is
+  // frozen so a reload that started earlier cannot apply a stale snapshot
+  // after this put lands.
+  epoch++;
+  saveDepth++;
+  try {
+    const ok = await blobWriteBody();
+    if (ok) {
+      loadedAt = Date.now();
+      captureBaseline();
+    }
+    return ok;
+  } finally {
+    saveDepth--;
+  }
+}
+
+async function blobWriteBody() {
+  if (!blobAllowed()) return false;
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   const body = JSON.stringify(payload());
@@ -822,7 +851,54 @@ async function persistScrub() {
   return true;
 }
 
+// Shared by this lambda only. loadedAt 0 means the blob has not been loaded
+// successfully yet (cold, or the last load failed). baseline is the last
+// payload() we loaded or saved; a difference is an unsaved local write.
+let loadedAt = 0;
+let baseline = "";
+let baselineReady = false;
+let epoch = 0;
+let saveDepth = 0;
+let reloadFlight = null;
+
+function touchEpoch() {
+  epoch++;
+}
+
+function captureBaseline() {
+  baseline = JSON.stringify(payload());
+  baselineReady = true;
+  touchEpoch();
+}
+
+function memDirty() {
+  if (!baselineReady) return false;
+  return JSON.stringify(payload()) !== baseline;
+}
+
+function noteHydrated() {
+  // Load failure stays cold so the next ready() retries the read.
+  // A null read still does not replace mem (same as today).
+  const failed = blobReady() && blobProbe.read === "error" && mem.driver !== "blob";
+  if (!failed) loadedAt = Date.now();
+  captureBaseline();
+}
+
+function needsReload() {
+  if (!blobReady()) return false;
+  if (!loadedAt) return true;
+  // ready-guard:warm-skip
+  if ((Date.now() - loadedAt) < READY_MAX_AGE_MS) return false;
+  // ready-guard:stale-reload
+  return true;
+}
+
 async function hydrate() {
+  await hydrateDriver();
+  noteHydrated();
+}
+
+async function hydrateDriver() {
   if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
@@ -880,23 +956,34 @@ function applyStore(parsed) {
   return mem;
 }
 
+async function reloadStore() {
+  const seen = epoch;
+  const remote = await blobRead();
+  // Load failure (null, empty, or error): leave mem exactly as it is.
+  if (!remote) return;
+  // ready-guard:write-hold
+  if (saveDepth > 0 || epoch !== seen || memDirty()) return;
+  applyStore(remote);
+  mem.driver = "blob";
+  mem.path = "blob:" + BLOB_KEY;
+  loadedAt = Date.now();
+  captureBaseline();
+}
+
 async function ready() {
+  // ready-guard:cold-shared
   await globalThis.__aiaHydrate;
-  if (blobReady()) {
-    const remote = await blobRead();
-    if (remote) {
-      applyStore(remote);
-      mem.driver = "blob";
-      mem.path = "blob:" + BLOB_KEY;
-    }
+  if (needsReload()) {
+    // ready-guard:single-flight
+    if (!reloadFlight) reloadFlight = reloadStore().finally(() => { reloadFlight = null; });
+    await reloadFlight;
   }
   await persistScrub();
 }
 
 async function save() {
-  // Wait for first hydrate only. Do not call ready() — that re-reads the blob
-  // and would replace in-request mutations (onboard, sessions, Studio Open login)
-  // with the pre-mutation snapshot before write.
+  // Wait for the shared hydrate only. Do not call ready(). A reload replaces
+  // mem, and that must not run over the write this save is about to persist.
   await globalThis.__aiaHydrate;
   dropPersistTests();
   const disk = writeDisk();
@@ -2067,6 +2154,7 @@ function readBody(req) {
 
 module.exports = {
   PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
+  READY_MAX_AGE_MS,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
   blobCopy, blobHead, blobDel, blobListAll, blobPutAt, storeBody,
