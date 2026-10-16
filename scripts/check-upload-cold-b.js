@@ -20,7 +20,9 @@ const LOCAL_NAME = "local-only.txt";
 const MARKER_SLUG = "marker-desk";
 const MARKER_NAME = "marker-from-other.txt";
 const GAPS = [30, 50, 100, 500];
+const OVERLAP_GAPS = [30, 50, 100];
 const STAGGER_N = 40;
+const READ_LATENCY_MS = 25;
 const PNG = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]);
 
 function fail(msg) {
@@ -129,17 +131,29 @@ function installMock(Module) {
     if (request === "@vercel/blob") {
       return {
         async get(key, opts) {
+          const store = isStore(key);
+          // A store read issued at head() time must answer with that snapshot
+          // after the latency, even if a later put landed while it was in flight.
+          // Write-verify gets (blobWriteStick) read the live bytes instead.
+          const stack = new Error().stack || "";
+          const verify = stack.indexOf("blobWriteStick") >= 0;
+          const queued = fake.snap && store && !verify && fake.snapQueue && fake.snapQueue.length ? fake.snapQueue.shift() : undefined;
           const done = track("get", key);
           try {
             if (fake.delayReadMs) await sleep(fake.delayReadMs);
             const pathname = pathFrom(key);
-            const raw = fake.files[pathname];
+            const raw = queued !== undefined ? queued : fake.files[pathname];
             if (!raw) throw new Error("Vercel Blob: The requested blob does not exist");
             const text = Buffer.isBuffer(raw) ? raw.toString("utf8") : String(raw);
             return { statusCode: 200, stream: { text: async () => text }, blob: { url: publicUrl(pathname) } };
           } finally { done(); }
         },
         async head(key, opts) {
+          if (fake.snap && isStore(key)) {
+            if (!fake.snapQueue) fake.snapQueue = [];
+            const cur = fake.files[pathFrom(key)];
+            fake.snapQueue.push(cur ? Buffer.from(cur) : null);
+          }
           const done = track("head", key);
           try {
             if (fake.delayReadMs) await sleep(fake.delayReadMs);
@@ -153,7 +167,9 @@ function installMock(Module) {
         async put(key, body, opts) {
           const suffix = opts && opts.addRandomSuffix ? "-" + crypto.randomBytes(4).toString("hex") : "";
           const pathname = String(key) + suffix;
-          if (isStore(key) || isStore(pathname)) fake.sawStorePut = true;
+          const storePut = isStore(key) || isStore(pathname);
+          fake.ops.push({ op: "put", store: storePut, beforePut: false });
+          if (storePut) fake.sawStorePut = true;
           const buf = Buffer.isBuffer(body) ? Buffer.from(body) : Buffer.from(String(body));
           fake.files[pathname] = buf;
           fake.types[pathname] = (opts && opts.contentType) || "application/octet-stream";
@@ -234,6 +250,22 @@ function reloadHeads(fake) {
 function userPuts(fake) {
   return fake.puts.filter((p) => p.pathname.indexOf("store.json") < 0);
 }
+// Snapshot reads are store head/get calls that start before this request's store put.
+// Write-verify gets after the put are not snapshot reads. Counting per request
+// matters: a global "before first put" flag hides every warm upload after the first.
+function snapshotReadsSince(fake, start) {
+  const ops = fake.ops.slice(start);
+  let n = 0;
+  for (let i = 0; i < ops.length; i++) {
+    const op = ops[i];
+    if (op.op === "put" && op.store) break;
+    if (op.store && (op.op === "get" || op.op === "head")) n += 1;
+  }
+  return n;
+}
+function storeHeads(fake) {
+  return fake.ops.filter((o) => o.op === "head" && o.store).length;
+}
 
 async function child(scenario, apiDir) {
   const checks = [];
@@ -300,6 +332,29 @@ async function child(scenario, apiDir) {
     t("warm upload blob snapshot GETs before save = 0", reloadGets(fake) === 0 && reloadHeads(fake) === 0, { gets: reloadGets(fake), heads: reloadHeads(fake), ops: fake.ops.length });
   }
 
+  if (scenario === "warm-two") {
+    await globalThis.__aiaHydrate;
+    fake.resetCounts();
+    const at1 = fake.ops.length;
+    const first = await post("warm-a.png", "198.51.100.41");
+    const reads1 = snapshotReadsSince(fake, at1);
+    const at2 = fake.ops.length;
+    const second = await post("warm-b.png", "198.51.100.42");
+    const reads2 = snapshotReadsSince(fake, at2);
+    const memNames = (lib.mem.files || []).map((f) => f && f.name);
+    const blobNames = (storeJson(fake).files || []).map((f) => f && f.name);
+    t("first warm POST -> 201", first.statusCode === 201, first.statusCode);
+    t("second warm POST -> 201", second.statusCode === 201, second.statusCode);
+    t("first warm POST snapshot reads = 0", reads1 === 0, { reads: reads1 });
+    t("second warm POST snapshot reads = 0", reads2 === 0, { reads: reads2 });
+    t("both warm POSTs keep both records in memory and in the blob",
+      memNames.indexOf("warm-a.png") >= 0 && memNames.indexOf("warm-b.png") >= 0 &&
+      memNames.indexOf(OLD_NAME) >= 0 &&
+      blobNames.indexOf("warm-a.png") >= 0 && blobNames.indexOf("warm-b.png") >= 0 &&
+      blobNames.indexOf(OLD_NAME) >= 0,
+      { mem: memNames, blob: blobNames });
+  }
+
   if (scenario === "concurrent") {
     const coldEmpty = !(lib.mem.workspaces || []).some((w) => w && w.slug === SLUG);
     t("concurrent: still cold when the burst starts", coldEmpty, "");
@@ -336,6 +391,40 @@ async function child(scenario, apiDir) {
     t("retry still does not replace ready()'s hydrate promise", globalThis.__aiaHydrate === hydratePromise, "");
   }
 
+  const overlap = [];
+  if (scenario === "overlap") {
+    await globalThis.__aiaHydrate;
+    fake.delayReadMs = READ_LATENCY_MS;
+    fake.snap = true;
+    fake.resetCounts();
+    for (let g = 0; g < OVERLAP_GAPS.length; g++) {
+      const gap = OVERLAP_GAPS[g];
+      const prefix = "o" + gap + "-";
+      const headsBefore = storeHeads(fake);
+      const pending = [];
+      for (let i = 0; i < STAGGER_N; i++) {
+        if (i) await sleep(gap);
+        const name = prefix + i + ".png";
+        pending.push(post(name, "198.51." + (gap % 200) + "." + (i + 1)).then((r) => r.statusCode).catch(() => 0));
+      }
+      const codes = await Promise.all(pending);
+      const ok201 = codes.filter((c) => c === 201).length;
+      const memNames = new Set((lib.mem.files || []).filter((f) => f && String(f.name || "").indexOf(prefix) === 0).map((f) => f.name));
+      const blobNames = new Set((storeJson(fake).files || []).filter((f) => f && String(f.name || "").indexOf(prefix) === 0).map((f) => f.name));
+      let lostMem = 0;
+      let lostDurable = 0;
+      for (let i = 0; i < STAGGER_N; i++) {
+        const name = prefix + i + ".png";
+        if (!memNames.has(name)) lostMem += 1;
+        if (!blobNames.has(name)) lostDurable += 1;
+      }
+      const heads = storeHeads(fake) - headsBefore;
+      overlap.push({ gap: gap, ok201: ok201, lostMem: lostMem, lostDurable: lostDurable, heads: heads, n: STAGGER_N });
+      t("overlap gap " + gap + "ms warm fire-and-forget lost 0", ok201 === STAGGER_N && lostMem === 0 && lostDurable === 0, overlap[overlap.length - 1]);
+      t("overlap gap " + gap + "ms snapshot reads after warm-up = 0", heads === 0, { heads: heads });
+    }
+  }
+
   const stagger = [];
   if (scenario === "stagger") {
     fake.delayReadMs = 0;
@@ -364,7 +453,7 @@ async function child(scenario, apiDir) {
     }
   }
 
-  process.stdout.write("RESULT " + JSON.stringify({ checks: checks, stagger: stagger }) + "\n");
+  process.stdout.write("RESULT " + JSON.stringify({ checks: checks, stagger: stagger, overlap: overlap }) + "\n");
   if (checks.some((c) => !c.ok)) process.exit(1);
 }
 
@@ -379,7 +468,7 @@ function run(scenario, apiDir) {
     BLOB_READ_WRITE_TOKEN: TOKEN,
     BLOB_STORE_ID: "store_FAKESTORE"
   };
-  const timeout = scenario === "stagger" ? 120000 : 30000;
+  const timeout = scenario === "stagger" || scenario === "overlap" ? 180000 : 30000;
   const r = spawnSync(process.execPath, [__filename, "--child", scenario, apiDir], {
     env: env,
     cwd: tmp,
@@ -391,7 +480,11 @@ function run(scenario, apiDir) {
   if (blob.indexOf(PIN) >= 0 || blob.indexOf(TOKEN) >= 0) return { error: "child output contained a pin or token", checks: [] };
   const line = String(r.stdout || "").split("\n").find((l) => l.indexOf("RESULT ") === 0);
   if (!line) return { error: "no result (exit " + r.status + "): " + scrub(String(r.stderr || r.stdout || "").slice(-500)), checks: [], status: r.status };
-  try { return JSON.parse(line.slice(7)); } catch (e) { return { error: "bad result json", checks: [] }; }
+  try {
+    const parsed = JSON.parse(line.slice(7));
+    parsed.status = r.status;
+    return parsed;
+  } catch (e) { return { error: "bad result json", checks: [], status: r.status }; }
 }
 
 function judge(out, label) {
@@ -479,6 +572,35 @@ const MUTANTS = [
       "  return job;",
       "}"
     ].join("\n")
+  },
+  {
+    id: "always reload on warm upload",
+    scenarios: ["warm-two", "overlap"],
+    body: [
+      "async function loadIfCold() {",
+      "  await globalThis.__aiaHydrate;",
+      "  if (globalThis.__aiaStoreLoaded && blobReady()) {",
+      "    const remote = await blobRead();",
+      "    if (remote) applyStore(remote);",
+      "  }",
+      "}"
+    ].join("\n")
+  },
+  {
+    id: "reload only on the second warm POST",
+    scenarios: ["warm-two", "overlap"],
+    body: [
+      "async function loadIfCold() {",
+      "  await globalThis.__aiaHydrate;",
+      "  if (!globalThis.__aiaStoreLoaded) return;",
+      "  globalThis.__aiaWarmPosts = (globalThis.__aiaWarmPosts || 0) + 1;",
+      "  if (globalThis.__aiaWarmPosts < 2) return;",
+      "  if (blobReady()) {",
+      "    const remote = await blobRead();",
+      "    if (remote) applyStore(remote);",
+      "  }",
+      "}"
+    ].join("\n")
   }
 ];
 
@@ -489,11 +611,15 @@ function runMutants() {
     if (!next || next === src) fail("mutant " + m.id + ": could not patch loadIfCold");
     const held = {};
     const api = materialize(held, { "_lib.js": next });
-    const out = run(m.scenario, api);
+    const scenarios = m.scenarios || [m.scenario];
+    scenarios.forEach((scenario) => {
+      const out = run(scenario, api);
+      const bad = (out.checks || []).filter((c) => !c.ok);
+      const exited = out.status !== 0;
+      if (!bad.length || !exited) fail("mutant '" + m.id + "' scenario " + scenario + " was NOT caught" + (out.error ? " (" + out.error + ")" : ""));
+      pass("mutant '" + m.id + "' fails " + scenario + " exit " + out.status + " (" + bad[0].name + ")");
+    });
     fs.rmSync(held.clean, { recursive: true, force: true });
-    const bad = (out.checks || []).filter((c) => !c.ok);
-    if (!bad.length) fail("mutant '" + m.id + "' was NOT caught" + (out.error ? " (" + out.error + ")" : ""));
-    pass("mutant '" + m.id + "' fails (" + bad[0].name + ")");
   });
 }
 
@@ -512,6 +638,12 @@ if (process.argv[2] === "--child") {
   const api = path.join(root, "api");
   judge(run("cold", api), "cold upload lands on the existing desk");
   judge(run("warm", api), "warm upload does not reload");
+  judge(run("warm-two", api), "two warm uploads in a row do not re-read");
+  const over = run("overlap", api);
+  judge(over, "overlapping warm uploads lose 0");
+  (over.overlap || []).forEach((row) => {
+    pass("overlap gap " + row.gap + "ms lost " + row.lostDurable + " mem " + row.lostMem + " snapshot heads " + row.heads + " (n=" + row.n + ", 201=" + row.ok201 + ")");
+  });
   judge(run("concurrent", api), "concurrent cold uploads share one load");
   judge(run("fail", api), "failed cold load does not wedge and retry works");
   const ours = run("stagger", api);
