@@ -2010,6 +2010,8 @@ async function blobDel(url) {
 
 async function blobListAll() {
   if (!blobAllowed()) throw blobOffProd();
+  // Read-only note for the migrate-uploads dry run: which path answered the last list.
+  blobListAll.via = "";
   try {
     const { list } = require("@vercel/blob");
     const out = [];
@@ -2021,10 +2023,13 @@ async function blobListAll() {
       if (!listed || !listed.hasMore || !listed.cursor) break;
       cursor = listed.cursor;
     }
+    blobListAll.via = "sdk";
     return out;
   } catch (e) {
     if (e && e.code === "AIA_BLOB_PROD_ONLY") throw e;
-    return blobRestList();
+    const rest = await blobRestList();
+    blobListAll.via = "rest";
+    return rest;
   }
 }
 
