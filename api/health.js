@@ -142,10 +142,13 @@ async function deskStatus(req, res) {
 async function health(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  await ready();
+  // This GET writes the whole store. Skip the age window so the save is a
+  // fresh read. A warm ready() would put this instance's mem over a newer
+  // kill or a revoked seat.
+  const fresh = await ready(true);
   // Probe the same persist path onboard uses. Skipping save() when driver is
   // already blob left leftover write=fail + detail=null after a later read.
-  if (blobReady()) await save();
+  if (blobReady() && fresh) await save();
   const driver = mem.driver || "file";
   const rev = commitRev();
   res.status(200).json({

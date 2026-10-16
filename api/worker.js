@@ -35,7 +35,7 @@ async function pingHooks(jobs) {
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  await ready();
+  const fresh = await ready(true);
   const workspace = workspaceOf(req);
   const now = Date.now();
   const scope = req.query.all === "1" ? mem.jobs : mem.jobs.filter((j) => j.workspace === workspace);
@@ -86,7 +86,7 @@ module.exports = async function handler(req, res) {
     job.next = "Off the desk. Waiting on write-back, or tap Done off desk / Needs a hand.";
     nudged += 1;
   });
-  if (qualified || followed || pinged.length || nudged || drafted || clocked) await save();
+  if ((qualified || followed || pinged.length || nudged || drafted || clocked) && fresh) await save();
   return res.status(200).json({
     ok: true, workspace, touched: qualified + followed + drafted + clocked, qualified, followed,
     pinged: pinged.length, drafted, nudged, clocked,
