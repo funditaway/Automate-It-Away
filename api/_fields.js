@@ -50,8 +50,13 @@ function defaultFields(model) {
 function sameKeys(a, b) { return (a || []).map((f) => f.key).join(",") === (b || []).map((f) => f.key).join(","); }
 function ensureFields(shop) {
   if (!shop) return [];
-  if (!Array.isArray(shop.fields)) shop.fields = [];
-  if (shop.fields.length && sameKeys(shop.fields, defaultFields(shop.model))) shop.fields = [];
+  const lib = require("./_lib");
+  const fill = function () {
+    if (!Array.isArray(shop.fields)) shop.fields = [];
+    if (shop.fields.length && sameKeys(shop.fields, defaultFields(shop.model))) shop.fields = [];
+  };
+  if (typeof lib.quietFill === "function") lib.quietFill(fill);
+  else fill();
   return shop.fields;
 }
 function publicField(f) {

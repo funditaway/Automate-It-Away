@@ -66,6 +66,7 @@ function seedStore(pin) {
 }
 
 function patchUpload(src) {
+  if (src.indexOf("await ready()") >= 0) return src;
   const before = 'const { cors, mem, log, save, workspaceOf, readBody, blobAllowed, personOf } = require("./_lib");';
   const after = 'const { cors, mem, log, save, ready, workspaceOf, readBody, blobAllowed, personOf } = require("./_lib");';
   if (src.indexOf(before) < 0) throw new Error("upload import anchor missing");
@@ -107,6 +108,51 @@ const MUTATIONS = {
   },
   "reload-replace": function (src) {
     return MUTATIONS["warm-skip"](MUTATIONS["write-hold"](src));
+  },
+  "never-loaded": function (src) {
+    const from = "  if (!loadedAt) return true;\n";
+    if (src.indexOf(from) < 0) throw new Error("never-loaded anchor missing");
+    return src.replace(from, "  if (!loadedAt) return false;\n");
+  },
+  "failed-read": function (src) {
+    const from = "  if (!remote) return;\n";
+    if (src.indexOf(from) < 0) throw new Error("failed-read anchor missing");
+    return src.replace(from, "");
+  },
+  "depth-stuck": function (src) {
+    const from = "    saveDepth--;\n";
+    if (src.indexOf(from) < 0) throw new Error("depth-stuck anchor missing");
+    return src.replace(from, "    \n");
+  },
+  "no-baseline-save": function (src) {
+    const from = "      loadedAt = Date.now();\n      captureBaseline();\n    }\n    return ok;\n";
+    if (src.indexOf(from) < 0) throw new Error("no-baseline-save anchor missing");
+    return src.replace(from, "      loadedAt = Date.now();\n    }\n    return ok;\n");
+  },
+  "no-loadedAt-save": function (src) {
+    const from = "      loadedAt = Date.now();\n      captureBaseline();\n";
+    if (src.indexOf(from) < 0) throw new Error("no-loadedAt-save anchor missing");
+    return src.replace(from, "      captureBaseline();\n");
+  },
+  "cold-marked": function (src) {
+    const from = "  if (!failed) loadedAt = Date.now();\n";
+    if (src.indexOf(from) < 0) throw new Error("cold-marked anchor missing");
+    return src.replace(from, "  loadedAt = Date.now();\n");
+  },
+  "epoch-late": function (src) {
+    const from = "  const seen = epoch;\n  const remote = await blobRead();\n";
+    if (src.indexOf(from) < 0) throw new Error("epoch-late anchor missing");
+    return src.replace(from, "  const remote = await blobRead();\n  const seen = epoch;\n");
+  },
+  "no-baseline-reload": function (src) {
+    const from = "  loadedAt = Date.now();\n  captureBaseline();\n}\n";
+    if (src.indexOf(from) < 0) throw new Error("no-baseline-reload anchor missing");
+    return src.replace(from, "  loadedAt = Date.now();\n}\n");
+  },
+  "flight-stuck": function (src) {
+    const from = "reloadStore().finally(() => { reloadFlight = null; })";
+    if (src.indexOf(from) < 0) throw new Error("flight-stuck anchor missing");
+    return src.replace(from, "reloadStore()");
   }
 };
 
@@ -124,6 +170,8 @@ function stage(opts) {
       fs.writeFileSync(to, src);
     } else if (name === "upload.js" && opts.patchUpload) {
       fs.writeFileSync(to, opts.patchUpload(fs.readFileSync(from, "utf8")));
+    } else if (opts.copy && opts.copy.indexOf(name) >= 0) {
+      fs.copyFileSync(from, to);
     } else {
       fs.symlinkSync(from, to);
     }
@@ -169,16 +217,21 @@ function main() {
   if (!process.exitCode) pass("ready guards are marked in the shared lib");
 
   const uploadSrc = fs.readFileSync(path.join(ROOT, "api/upload.js"), "utf8");
-  if (uploadSrc.indexOf("await ready()") >= 0) fail("this branch must not keep upload.js await ready()");
-  else pass("upload.js on this branch does not await ready()");
+  pass("upload.js await ready() allowed (stacked on 329)");
   if (uploadSrc.indexOf("8_000_000") < 0) fail("8 MB cap must stay");
   else pass("8 MB cap is unchanged");
   if (uploadSrc.indexOf("RATE_MAX = 30") < 0) fail("rate limit must stay");
   else pass("rate limit is unchanged");
 
-  const scenarios = ["warm", "cold", "stale", "write", "failure", "stagger", "cold-upload"];
+  const scenarios = ["warm", "cold", "stale", "write", "failure", "stagger", "cold-upload", "retry", "clean-fail", "after-save", "save-window", "late", "second", "quiet", "health"];
   scenarios.forEach(function (name) {
-    const root = stage({ patchUpload: name === "stagger" || name === "cold-upload" ? patchUpload : null });
+    const copy = [];
+    if (name === "quiet") copy.push("_fields.js");
+    if (name === "health") copy.push("health.js", "jobs.js");
+    const root = stage({
+      patchUpload: name === "stagger" || name === "cold-upload" ? patchUpload : null,
+      copy: copy
+    });
     const run = runChild(name, path.join(root, "api"));
     fs.rmSync(root, { recursive: true, force: true });
     const result = resultOf(run);
@@ -196,16 +249,29 @@ function main() {
     ["stale-reload", "stale"],
     ["single-flight", "stale"],
     ["write-hold", "write"],
-    ["reload-replace", "prove-loss"]
+    ["reload-replace", "prove-loss"],
+    ["never-loaded", "retry"],
+    ["cold-marked", "retry"],
+    ["failed-read", "clean-fail"],
+    ["depth-stuck", "after-save"],
+    ["no-baseline-save", "after-save"],
+    ["no-loadedAt-save", "save-window"],
+    ["epoch-late", "late"],
+    ["no-baseline-reload", "second"],
+    ["flight-stuck", "stale"]
   ];
   guards.forEach(function (pair) {
     const mutation = pair[0];
     const scenario = pair[1];
     let root;
     try {
+      const copy = [];
+      if (scenario === "quiet") copy.push("_fields.js");
+      if (scenario === "health") copy.push("health.js", "jobs.js");
       root = stage({
         mutate: MUTATIONS[mutation],
-        patchUpload: scenario === "stagger" || scenario === "prove-loss" ? patchUpload : null
+        patchUpload: scenario === "stagger" || scenario === "prove-loss" ? patchUpload : null,
+        copy: copy
       });
     } catch (e) {
       fail(mutation + " stage: " + (e && e.message || e));
@@ -427,6 +493,113 @@ function installColdHold() {
   };
 }
 
+function installFlakyBlob(files) {
+  const Module = require("module");
+  let attempt = 0;
+  const counts = { heads: 0 };
+  const BASE = "https://testhost.private.blob.vercel-storage.com/" + BLOB_KEY;
+  const orig = Module._load;
+  Module._load = function (request, parent, isMain) {
+    if (request === "@vercel/blob") {
+      return {
+        async head() {
+          counts.heads++;
+          attempt++;
+          if (attempt === 1) throw new Error("Vercel Blob: boom");
+          const snap = files[BLOB_KEY] || "";
+          if (!snap) throw new Error("Vercel Blob: The requested blob does not exist");
+          return { url: BASE, downloadUrl: BASE, pathname: BLOB_KEY };
+        },
+        async get() {
+          if (attempt < 2) throw new Error("Vercel Blob: boom");
+          const raw = files[BLOB_KEY] || "";
+          if (!raw) return null;
+          return { statusCode: 200, stream: { text: async function () { return raw; } }, blob: { url: BASE } };
+        },
+        async put() { throw new Error("retry put is not this check"); },
+        async list() { return { blobs: [] }; },
+        async del() {}
+      };
+    }
+    return orig.apply(this, arguments);
+  };
+  global.fetch = async function () {
+    if (attempt < 2) throw new Error("Vercel Blob: boom");
+    const raw = files[BLOB_KEY] || "";
+    if (!raw) return { ok: false, status: 404, statusText: "Not Found", text: async function () { return ""; } };
+    return { ok: true, status: 200, text: async function () { return raw; } };
+  };
+  return { counts: counts };
+}
+
+function installGateBlob(files) {
+  const Module = require("module");
+  const snaps = new Map();
+  let seq = 0;
+  let hold = null;
+  let releaseHold = null;
+  let entered = null;
+  const counts = { heads: 0 };
+  const BASE = "https://testhost.private.blob.vercel-storage.com/" + BLOB_KEY;
+  const orig = Module._load;
+  Module._load = function (request, parent, isMain) {
+    if (request === "@vercel/blob") {
+      return {
+        async head() {
+          counts.heads++;
+          const id = ++seq;
+          snaps.set(id, files[BLOB_KEY] || "");
+          if (hold) {
+            const notify = entered;
+            entered = null;
+            if (notify) notify();
+            await hold;
+            hold = null;
+          }
+          const snap = snaps.get(id);
+          if (!snap) throw new Error("Vercel Blob: The requested blob does not exist");
+          return { url: BASE + "?s=" + id, downloadUrl: BASE + "?s=" + id, pathname: BLOB_KEY };
+        },
+        async get(key) {
+          const m = String(key || "").match(/[?&]s=(\d+)/);
+          const raw = m && snaps.has(Number(m[1])) ? snaps.get(Number(m[1])) : (files[BLOB_KEY] || "");
+          if (!raw) return null;
+          return { statusCode: 200, stream: { text: async function () { return raw; } }, blob: { url: String(key || BASE) } };
+        },
+        async put(key, body) {
+          const name = String(key || "");
+          if (name !== BLOB_KEY && name !== "aia-store.json") {
+            return { url: "https://testhost.public.blob.vercel-storage.com/" + name };
+          }
+          const text = Buffer.isBuffer(body) ? body.toString("utf8") : String(body);
+          files[name] = text;
+          return { url: BASE, downloadUrl: BASE };
+        },
+        async del() {},
+        async list() { return { blobs: [] }; }
+      };
+    }
+    return orig.apply(this, arguments);
+  };
+  global.fetch = async function (url) {
+    const u = String(url || "");
+    const m = u.match(/[?&]s=(\d+)/);
+    const raw = m && snaps.has(Number(m[1])) ? snaps.get(Number(m[1])) : (files[BLOB_KEY] || "");
+    if (!raw) return { ok: false, status: 404, statusText: "Not Found", text: async function () { return ""; } };
+    return { ok: true, status: 200, text: async function () { return raw; } };
+  };
+  return {
+    counts: counts,
+    arm: function () {
+      hold = new Promise(function (resolve) { releaseHold = resolve; });
+      return new Promise(function (resolve) { entered = resolve; });
+    },
+    release: function () {
+      if (releaseHold) releaseHold();
+    }
+  };
+}
+
 function envProdBlob(storeFile, uploadDir) {
   process.env.AIA_STORE_PATH = storeFile;
   process.env.AIA_UPLOAD_DIR = uploadDir;
@@ -539,6 +712,96 @@ async function child(scenario, apiDir) {
     return;
   }
 
+  if (scenario === "retry") {
+    envProdBlob(storeFile, uploadDir);
+    const disk = writeSeed(storeFile, pin);
+    const remote = JSON.parse(JSON.stringify(disk));
+    remote.files.push({ id: "file_remote", workspace: DESK, name: "remote.png" });
+    const files = {};
+    files[BLOB_KEY] = JSON.stringify(remote);
+    const sim = installFlakyBlob(files);
+    const lib = bootLib(apiDir);
+    await lib.ready();
+    const ids = (lib.mem.files || []).map(function (f) { return f && f.id; });
+    if (ids.indexOf("file_remote") < 0) fail("cold failed load did not retry, ids " + ids.join(","));
+    else pass("cold failed load retried");
+    if (sim.counts.heads < 2) fail("cold failed load did not read again, heads " + sim.counts.heads);
+    finish(!process.exitCode, { heads: sim.counts.heads });
+    return;
+  }
+
+  if (scenario === "late") {
+    envProdBlob(storeFile, uploadDir);
+    const store = writeSeed(storeFile, pin);
+    const files = {};
+    files[BLOB_KEY] = JSON.stringify(store);
+    const sim = installGateBlob(files);
+    const lib = bootLib(apiDir);
+    await lib.ready();
+    const entered = sim.arm();
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    let done = false;
+    const pending = lib.ready().then(function () { done = true; });
+    await entered;
+    lib.mem.files.push({ id: "file_kept", workspace: DESK, name: "kept.png" });
+    await lib.save();
+    if (done) fail("reload finished before the overlapping save");
+    sim.release();
+    await pending;
+    const ids = (lib.mem.files || []).map(function (f) { return f && f.id; });
+    if (ids.indexOf("file_kept") < 0) fail("reload applied a snapshot taken before the save");
+    else pass("reload discarded the pre-save snapshot");
+    finish(!process.exitCode);
+    return;
+  }
+
+  if (scenario === "health") {
+    envProdBlob(storeFile, uploadDir);
+    const helperPin = "7391";
+    const store = writeSeed(storeFile, pin);
+    store.workspaces[0].people.push({
+      id: "p_helper",
+      name: "Helper",
+      role: "employee",
+      kind: "helper",
+      pin: hashPin(helperPin),
+      status: "approved"
+    });
+    store.jobs.push({ id: "job_card", workspace: DESK, title: "Open card", status: "waiting" });
+    fs.writeFileSync(storeFile, JSON.stringify(store));
+    const files = {};
+    files[BLOB_KEY] = JSON.stringify(store);
+    installLatencyBlob(files);
+    const lib = bootLib(apiDir);
+    await lib.ready();
+    const remote = JSON.parse(files[BLOB_KEY]);
+    const card = remote.jobs.find(function (j) { return j && j.id === "job_card"; });
+    card.status = "killed";
+    const helper = remote.workspaces[0].people.find(function (p) { return p && p.id === "p_helper"; });
+    helper.status = "denied";
+    remote.files.push({ id: "file_marker", workspace: DESK, name: "marker.png" });
+    files[BLOB_KEY] = JSON.stringify(remote);
+    const health = require(path.join(apiDir, "health.js"));
+    const res = await call(health, "GET", {});
+    if (res.statusCode !== 200) fail("health status " + res.statusCode);
+    const saved = JSON.parse(files[BLOB_KEY]);
+    const savedCard = (saved.jobs || []).find(function (j) { return j && j.id === "job_card"; });
+    const savedHelper = ((saved.workspaces[0] || {}).people || []).find(function (p) { return p && p.id === "p_helper"; });
+    const savedIds = (saved.files || []).map(function (f) { return f && f.id; });
+    if (!savedCard || savedCard.status !== "killed") fail("health resurrected the killed card");
+    else pass("killed card stays killed");
+    if (!savedHelper || savedHelper.status !== "denied") fail("health resurrected the helper");
+    else pass("revoked helper stays revoked in the store");
+    if (savedIds.indexOf("file_marker") < 0) fail("health dropped the other instance marker");
+    else pass("other instance marker survived health");
+    const jobs = require(path.join(apiDir, "jobs.js"));
+    const listed = await call(jobs, "GET", { "x-workspace": DESK, "x-pin": helperPin });
+    if (listed.statusCode !== 404) fail("revoked helper got " + listed.statusCode + " " + JSON.stringify(listed.body));
+    else pass("revoked helper gets 404");
+    finish(!process.exitCode);
+    return;
+  }
+
   envProdBlob(storeFile, uploadDir);
   const store = writeSeed(storeFile, pin);
   const files = {};
@@ -569,6 +832,10 @@ async function child(scenario, apiDir) {
     else pass("stale window triggered one reload");
     await lib.ready();
     if (sim.counts.heads !== startHeads + 1) fail("fresh reload must not read again, heads " + sim.counts.heads);
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.ready();
+    if (sim.counts.heads !== startHeads + 2) fail("second stale window should reload once, heads " + sim.counts.heads);
+    else pass("second stale window reloaded once");
     finish(!process.exitCode, { heads: extra });
     return;
   }
@@ -651,6 +918,103 @@ async function child(scenario, apiDir) {
     if (extra !== 0) fail("warm stagger re-read the blob (" + extra + " extra heads)");
     else pass("warm stagger did not re-read");
     finish(!process.exitCode, { lost: lost, heads: extra });
+    return;
+  }
+
+  if (scenario === "clean-fail") {
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    sim.failReads();
+    await lib.ready();
+    const ids = (lib.mem.files || []).map(function (f) { return f && f.id; });
+    const slugs = (lib.mem.workspaces || []).map(function (w) { return w && w.slug; });
+    if (ids.indexOf("file_seed") < 0 || slugs.indexOf(DESK) < 0) {
+      fail("failed read replaced a clean mem, ids " + ids.join(",") + " desks " + slugs.join(","));
+    } else pass("failed read left a clean mem in place");
+    finish(!process.exitCode);
+    return;
+  }
+
+  if (scenario === "after-save") {
+    lib.mem.files.push({ id: "file_saved", workspace: DESK, name: "saved.png" });
+    await lib.save();
+    const remote = JSON.parse(files[BLOB_KEY]);
+    remote.files.push({ id: "file_marker", workspace: DESK, name: "marker.png" });
+    files[BLOB_KEY] = JSON.stringify(remote);
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.ready();
+    const ids = (lib.mem.files || []).map(function (f) { return f && f.id; });
+    if (ids.indexOf("file_saved") < 0) fail("local save disappeared");
+    if (ids.indexOf("file_marker") < 0) fail("stale ready after a save did not apply the other instance");
+    else pass("save still accepts the next stale reload");
+    finish(!process.exitCode);
+    return;
+  }
+
+  if (scenario === "save-window") {
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.save();
+    const afterSave = sim.counts.heads;
+    await lib.ready();
+    if (sim.counts.heads !== afterSave) fail("save did not restart the window, extra heads " + (sim.counts.heads - afterSave));
+    else pass("save restarted the window");
+    finish(!process.exitCode);
+    return;
+  }
+
+  if (scenario === "second") {
+    const first = JSON.parse(files[BLOB_KEY]);
+    first.files.push({ id: "file_a", workspace: DESK, name: "a.png" });
+    files[BLOB_KEY] = JSON.stringify(first);
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.ready();
+    const ids1 = (lib.mem.files || []).map(function (f) { return f && f.id; });
+    if (ids1.indexOf("file_a") < 0) fail("first stale reload missed file_a");
+    const secondBody = JSON.parse(files[BLOB_KEY]);
+    secondBody.files.push({ id: "file_b", workspace: DESK, name: "b.png" });
+    files[BLOB_KEY] = JSON.stringify(secondBody);
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.ready();
+    const ids2 = (lib.mem.files || []).map(function (f) { return f && f.id; });
+    if (ids2.indexOf("file_b") < 0) fail("second stale reload missed file_b");
+    else pass("second stale reload applied");
+    finish(!process.exitCode);
+    return;
+  }
+
+  if (scenario === "quiet") {
+    const shop = (lib.mem.workspaces || []).find(function (w) { return w && w.slug === DESK; });
+    if (!shop) {
+      fail("quiet desk missing");
+      finish(false);
+      return;
+    }
+    lib.ensureRules(shop);
+    lib.ensureNouns(shop);
+    lib.ensurePeople(shop);
+    require(path.join(apiDir, "_fields.js")).ensureFields(shop);
+    if (!Array.isArray(shop.rules) || !shop.nouns || !Array.isArray(shop.fields)) {
+      fail("read did not fill rules, nouns, and fields");
+    } else pass("read filled rules, nouns, and fields");
+    const remote = JSON.parse(files[BLOB_KEY]);
+    remote.files.push({ id: "file_quiet", workspace: DESK, name: "quiet.png" });
+    files[BLOB_KEY] = JSON.stringify(remote);
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.ready();
+    const ids = (lib.mem.files || []).map(function (f) { return f && f.id; });
+    if (ids.indexOf("file_quiet") < 0) fail("read-time fill blocked the other instance");
+    else pass("read-time fill did not block reload");
+    lib.mem.files.push({ id: "file_real", workspace: DESK, name: "real.png" });
+    const blocked = JSON.parse(files[BLOB_KEY]);
+    blocked.files.push({ id: "file_blocked", workspace: DESK, name: "blocked.png" });
+    files[BLOB_KEY] = JSON.stringify(blocked);
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.ready();
+    const after = (lib.mem.files || []).map(function (f) { return f && f.id; });
+    if (after.indexOf("file_real") < 0) fail("unsaved write was replaced");
+    else pass("unsaved write was not replaced");
+    if (after.indexOf("file_blocked") >= 0) fail("unsaved write did not block the other instance");
+    else pass("unsaved write still blocks replacement");
+    finish(!process.exitCode);
     return;
   }
 

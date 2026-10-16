@@ -876,6 +876,21 @@ function memDirty() {
   return JSON.stringify(payload()) !== baseline;
 }
 
+// Missing rules, nouns, fields, or people are filled on read and not saved.
+// Accept that fill as the baseline when nothing else is unsaved, and do not
+// bump the epoch, so the fill does not block a later reload. A real unsaved
+// write stays dirty and still blocks replacement. The next read fills again
+// if a reload replaced the fill.
+function quietFill(fn) {
+  const dirty = memDirty();
+  const depth = saveDepth;
+  const out = fn();
+  if (!dirty && depth === 0 && saveDepth === 0 && baselineReady) {
+    baseline = JSON.stringify(payload());
+  }
+  return out;
+}
+
 function noteHydrated() {
   // Load failure stays cold so the next ready() retries the read.
   // A null read still does not replace mem (same as today).
@@ -884,8 +899,12 @@ function noteHydrated() {
   captureBaseline();
 }
 
-function needsReload() {
+function needsReload(force) {
   if (!blobReady()) return false;
+  // A handler that writes the whole store passes force so the age window
+  // cannot save this instance's mem over a newer put. The reload still
+  // refuses to replace unsaved or in-flight writes.
+  if (force) return true;
   if (!loadedAt) return true;
   // ready-guard:warm-skip
   if ((Date.now() - loadedAt) < READY_MAX_AGE_MS) return false;
@@ -970,10 +989,10 @@ async function reloadStore() {
   captureBaseline();
 }
 
-async function ready() {
+async function ready(force) {
   // ready-guard:cold-shared
   await globalThis.__aiaHydrate;
-  if (needsReload()) {
+  if (needsReload(force === true)) {
     // ready-guard:single-flight
     if (!reloadFlight) reloadFlight = reloadStore().finally(() => { reloadFlight = null; });
     await reloadFlight;
@@ -1358,19 +1377,21 @@ function noteOk(id) {
 
 function ensurePeople(ws) {
   if (!ws) return null;
-  if (!Array.isArray(ws.people) || !ws.people.length) {
-    ws.people = [{
-      id: "p_owner",
-      name: ws.name || "Owner",
-      role: "owner",
-      pin: ws.pin,
-      email: ws.email || "",
-      createdAt: ws.createdAt || new Date().toISOString()
-    }];
-  } else if (ws.pin) {
-    const owner = ws.people.find((p) => p && p.role === "owner");
-    if (owner && !owner.pin) owner.pin = ws.pin;
-  }
+  quietFill(function () {
+    if (!Array.isArray(ws.people) || !ws.people.length) {
+      ws.people = [{
+        id: "p_owner",
+        name: ws.name || "Owner",
+        role: "owner",
+        pin: ws.pin,
+        email: ws.email || "",
+        createdAt: ws.createdAt || new Date().toISOString()
+      }];
+    } else if (ws.pin) {
+      const owner = ws.people.find((p) => p && p.role === "owner");
+      if (owner && !owner.pin) owner.pin = ws.pin;
+    }
+  });
   return ws;
 }
 
@@ -1515,7 +1536,9 @@ function publicNouns(src) {
 
 function ensureNouns(ws) {
   if (!ws) return defaultNouns();
-  if (!ws.nouns || typeof ws.nouns !== "object") ws.nouns = defaultNouns();
+  quietFill(function () {
+    if (!ws.nouns || typeof ws.nouns !== "object") ws.nouns = defaultNouns();
+  });
   return publicNouns(ws.nouns);
 }
 
@@ -1749,7 +1772,9 @@ function forbiddenRule(text) {
 
 function ensureRules(ws) {
   if (!ws) return [];
-  if (!Array.isArray(ws.rules)) ws.rules = [];
+  quietFill(function () {
+    if (!Array.isArray(ws.rules)) ws.rules = [];
+  });
   return ws.rules.map(publicRule).filter(Boolean);
 }
 
@@ -2153,7 +2178,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, quietFill, applyStore, storePath,
   READY_MAX_AGE_MS,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
