@@ -22,4 +22,5 @@ function stripSeedRules(ws) {
   return ws.rules;
 }
 
-module.exports = { dropCannedSeeds, stripSeedRules };
+function hasCannedSeeds(mem) { return (mem && mem.workspaces || []).some(function (ws) { return ws && Array.isArray(ws.rules) && ws.rules.some(function (r) { return r && r.seed; }); }); }
+module.exports = { dropCannedSeeds, hasCannedSeeds, stripSeedRules };

@@ -1,4 +1,4 @@
-const { dropCannedSeeds } = require("./_drop-seed");
+const { dropCannedSeeds, hasCannedSeeds } = require("./_drop-seed");
 const ais = require("./_ais");
 const {
   cors, mem, log, save, ready, workspaceOf, readBody,
@@ -123,7 +123,8 @@ module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
-  if (dropCannedSeeds(mem)) await save();
+  if (req.method === "GET") { if (hasCannedSeeds(mem)) require("./_lib").quietFill(function () { dropCannedSeeds(mem); }); }
+  else if (dropCannedSeeds(mem)) await save();
 
   const workspace = workspaceOf(req);
   const { workspace: row, person } = personOf(req, workspace);
@@ -147,10 +148,9 @@ module.exports = async function handler(req, res) {
         canAdd: false
       });
     }
-    const first = !Array.isArray(row.rules) || !row.nouns || typeof row.nouns !== "object";
     const rules = ensureRules(row);
     const nouns = ensureNouns(row);
-    if (first) await save();
+
     return res.status(200).json({
       ok: true,
       workspace,

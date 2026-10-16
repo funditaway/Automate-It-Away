@@ -97,12 +97,12 @@ const MUTATIONS = {
     return src.replace(from, "  // ready-guard:stale-reload removed\n  return false;\n");
   },
   "single-flight": function (src) {
-    const from = "    // ready-guard:single-flight\n    if (!reloadFlight) reloadFlight = reloadStore().finally(() => { reloadFlight = null; });\n    await reloadFlight;\n";
+    const from = "    // ready-guard:single-flight\n    if (!reloadFlight) reloadFlight = reloadStore().finally(() => { reloadFlight = null; });\n    fresh = (await reloadFlight) !== false;\n";
     if (src.indexOf(from) < 0) throw new Error("single-flight anchor missing");
-    return src.replace(from, "    // ready-guard:single-flight removed\n    await reloadStore();\n");
+    return src.replace(from, "    // ready-guard:single-flight removed\n    fresh = (await reloadStore()) !== false;\n");
   },
   "write-hold": function (src) {
-    const from = "  // ready-guard:write-hold\n  if (saveDepth > 0 || epoch !== seen || memDirty()) return;\n";
+    const from = "  // ready-guard:write-hold\n  if (saveDepth > 0 || epoch !== seen || memDirty()) return false;\n";
     if (src.indexOf(from) < 0) throw new Error("write-hold anchor missing");
     return src.replace(from, "  // ready-guard:write-hold removed\n");
   },
@@ -115,7 +115,7 @@ const MUTATIONS = {
     return src.replace(from, "  if (!loadedAt) return false;\n");
   },
   "failed-read": function (src) {
-    const from = "  if (!remote) return;\n";
+    const from = "  if (!remote) return false;\n";
     if (src.indexOf(from) < 0) throw new Error("failed-read anchor missing");
     return src.replace(from, "");
   },
@@ -125,14 +125,14 @@ const MUTATIONS = {
     return src.replace(from, "    \n");
   },
   "no-baseline-save": function (src) {
-    const from = "      loadedAt = Date.now();\n      captureBaseline();\n    }\n    return ok;\n";
+    const from = "      loadedAt = Date.now();\n      settleWrittenBaseline();\n    }\n    return ok;\n";
     if (src.indexOf(from) < 0) throw new Error("no-baseline-save anchor missing");
     return src.replace(from, "      loadedAt = Date.now();\n    }\n    return ok;\n");
   },
   "no-loadedAt-save": function (src) {
-    const from = "      loadedAt = Date.now();\n      captureBaseline();\n";
+    const from = "      loadedAt = Date.now();\n      settleWrittenBaseline();\n";
     if (src.indexOf(from) < 0) throw new Error("no-loadedAt-save anchor missing");
-    return src.replace(from, "      captureBaseline();\n");
+    return src.replace(from, "      settleWrittenBaseline();\n");
   },
   "cold-marked": function (src) {
     const from = "  if (!failed) loadedAt = Date.now();\n";
@@ -145,14 +145,38 @@ const MUTATIONS = {
     return src.replace(from, "  const remote = await blobRead();\n  const seen = epoch;\n");
   },
   "no-baseline-reload": function (src) {
-    const from = "  loadedAt = Date.now();\n  captureBaseline();\n}\n";
+    const from = "  loadedAt = Date.now();\n  captureBaseline();\n  return true;\n}\n";
     if (src.indexOf(from) < 0) throw new Error("no-baseline-reload anchor missing");
-    return src.replace(from, "  loadedAt = Date.now();\n}\n");
+    return src.replace(from, "  loadedAt = Date.now();\n  return true;\n}\n");
   },
   "flight-stuck": function (src) {
     const from = "reloadStore().finally(() => { reloadFlight = null; })";
     if (src.indexOf(from) < 0) throw new Error("flight-stuck anchor missing");
     return src.replace(from, "reloadStore()");
+  },
+  "n03b": function (src) {
+    const dirty = "function memDirty() {\n  if (!baselineReady) return false;\n";
+    const ready = "  if (needsReload(force === true)) {\n    // ready-guard:single-flight\n";
+    if (src.indexOf(dirty) < 0) throw new Error("n03b memDirty anchor missing");
+    if (src.indexOf(ready) < 0) throw new Error("n03b ready anchor missing");
+    src = src.replace(dirty, "function memDirty() {\n  if (!baselineReady || globalThis.__aiaF) return false;\n");
+    src = src.replace(ready, "  if (needsReload(force === true)) {\n    globalThis.__aiaF = force === true;\n    // ready-guard:single-flight\n");
+    return src;
+  },
+  "n04": function (src) {
+    const from = "  if (!dirty && depth === 0 && saveDepth === 0 && baselineReady) {\n";
+    if (src.indexOf(from) < 0) throw new Error("n04 anchor missing");
+    return src.replace(from, "  if (depth === 0 && saveDepth === 0 && baselineReady) {\n");
+  },
+  "n08": function (src) {
+    const from = "  if (!dirty && depth === 0 && saveDepth === 0 && baselineReady) {\n";
+    if (src.indexOf(from) < 0) throw new Error("n08 anchor missing");
+    return src.replace(from, "  if (baselineReady) {\n");
+  },
+  "absorb-during": function (src) {
+    const from = "function settleWrittenBaseline() {\n  const now = JSON.stringify(payload());\n  if (sealedBody && now !== sealedBody) {\n    baseline = sealedBody;\n    baselineReady = true;\n    touchEpoch();\n    return;\n  }\n  captureBaseline();\n}";
+    if (src.indexOf(from) < 0) throw new Error("absorb-during anchor missing");
+    return src.replace(from, "function settleWrittenBaseline() {\n  captureBaseline();\n}");
   }
 };
 
@@ -223,11 +247,11 @@ function main() {
   if (uploadSrc.indexOf("RATE_MAX = 30") < 0) fail("rate limit must stay");
   else pass("rate limit is unchanged");
 
-  const scenarios = ["warm", "cold", "stale", "write", "failure", "stagger", "cold-upload", "retry", "clean-fail", "after-save", "save-window", "late", "second", "quiet", "health"];
+  const scenarios = ["warm", "cold", "stale", "write", "failure", "stagger", "cold-upload", "retry", "clean-fail", "after-save", "save-window", "late", "second", "quiet", "health", "unsaved-fill", "force-dirty", "during-put"];
   scenarios.forEach(function (name) {
     const copy = [];
-    if (name === "quiet") copy.push("_fields.js");
-    if (name === "health") copy.push("health.js", "jobs.js");
+    if (name === "quiet" || name === "unsaved-fill") copy.push("_fields.js");
+    if (name === "health" || name === "force-dirty") copy.push("health.js", "jobs.js");
     const root = stage({
       patchUpload: name === "stagger" || name === "cold-upload" ? patchUpload : null,
       copy: copy
@@ -258,7 +282,11 @@ function main() {
     ["no-loadedAt-save", "save-window"],
     ["epoch-late", "late"],
     ["no-baseline-reload", "second"],
-    ["flight-stuck", "stale"]
+    ["flight-stuck", "stale"],
+    ["n03b", "force-dirty"],
+    ["n04", "unsaved-fill"],
+    ["n08", "unsaved-fill"],
+    ["absorb-during", "during-put"]
   ];
   guards.forEach(function (pair) {
     const mutation = pair[0];
@@ -266,8 +294,8 @@ function main() {
     let root;
     try {
       const copy = [];
-      if (scenario === "quiet") copy.push("_fields.js");
-      if (scenario === "health") copy.push("health.js", "jobs.js");
+      if (scenario === "quiet" || scenario === "unsaved-fill") copy.push("_fields.js");
+      if (scenario === "health" || scenario === "force-dirty") copy.push("health.js", "jobs.js");
       root = stage({
         mutate: MUTATIONS[mutation],
         patchUpload: scenario === "stagger" || scenario === "prove-loss" ? patchUpload : null,
@@ -1014,6 +1042,85 @@ async function child(scenario, apiDir) {
     else pass("unsaved write was not replaced");
     if (after.indexOf("file_blocked") >= 0) fail("unsaved write did not block the other instance");
     else pass("unsaved write still blocks replacement");
+    finish(!process.exitCode);
+    return;
+  }
+
+  if (scenario === "unsaved-fill") {
+    const shop = (lib.mem.workspaces || []).find(function (w) { return w && w.slug === DESK; });
+    if (!shop) {
+      fail("unsaved-fill desk missing");
+      finish(false);
+      return;
+    }
+    lib.mem.jobs.push({ id: "job_UNSAVED", title: "unsaved-on-B", workspace: DESK, status: "waiting" });
+    lib.ensureRules(shop);
+    lib.ensureNouns(shop);
+    lib.ensurePeople(shop);
+    require(path.join(apiDir, "_fields.js")).ensureFields(shop);
+    const remote = JSON.parse(files[BLOB_KEY]);
+    remote.jobs.push({ id: "job_marker", title: "marker-from-A", workspace: DESK, status: "waiting" });
+    files[BLOB_KEY] = JSON.stringify(remote);
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.ready();
+    const titles = (lib.mem.jobs || []).map(function (j) { return j && j.title; });
+    if (titles.indexOf("unsaved-on-B") < 0) fail("fill let the reload drop the unsaved card");
+    else pass("unsaved card stayed after the fill");
+    if (titles.indexOf("marker-from-A") >= 0) fail("reload applied the other instance while a real write was unsaved");
+    else pass("reload stayed blocked");
+    lib.mem.jobs.push({ id: "job_after", title: "b-after", workspace: DESK, status: "waiting" });
+    await lib.save();
+    const durable = JSON.parse(files[BLOB_KEY]);
+    const kept = (durable.jobs || []).map(function (j) { return j && j.title; });
+    if (kept.indexOf("unsaved-on-B") < 0 || kept.indexOf("b-after") < 0) {
+      fail("B's next save dropped the unsaved card, titles " + kept.join(","));
+    } else pass("B's next save kept the unsaved card");
+    finish(!process.exitCode);
+    return;
+  }
+
+  if (scenario === "force-dirty") {
+    lib.mem.jobs.push({ id: "job_UNSAVED", title: "unsaved-on-B", workspace: DESK, status: "waiting" });
+    const remote = JSON.parse(files[BLOB_KEY]);
+    remote.jobs.push({ id: "job_marker", title: "marker-from-A", workspace: DESK, status: "waiting" });
+    files[BLOB_KEY] = JSON.stringify(remote);
+    const health = require(path.join(apiDir, "health.js"));
+    const res = await call(health, "GET", {});
+    if (!res || res.statusCode !== 200) fail("health status " + (res && res.statusCode));
+    const titles = (lib.mem.jobs || []).map(function (j) { return j && j.title; });
+    const durable = JSON.parse(files[BLOB_KEY]);
+    const kept = (durable.jobs || []).map(function (j) { return j && j.title; });
+    if (titles.indexOf("unsaved-on-B") < 0) fail("forced read replaced the unsaved card");
+    else pass("forced read left the unsaved card");
+    if (kept.indexOf("marker-from-A") < 0) fail("forced health dropped the other instance marker");
+    else pass("durable kept the other instance marker");
+    if (kept.indexOf("unsaved-on-B") >= 0) fail("forced health wrote the unsaved card over the store");
+    finish(!process.exitCode);
+    return;
+  }
+
+  if (scenario === "during-put") {
+    let hooked = false;
+    sim.setPutHook(async function () {
+      hooked = true;
+      lib.mem.jobs.push({ id: "job_DURING", title: "during-put", workspace: DESK, status: "waiting" });
+    });
+    lib.mem.jobs.push({ id: "job_SAVED", title: "saved-card", workspace: DESK, status: "waiting" });
+    await lib.save();
+    if (!hooked) fail("store put did not run the during-put hook");
+    const frozen = JSON.parse(files[BLOB_KEY]);
+    const frozenTitles = (frozen.jobs || []).map(function (j) { return j && j.title; });
+    if (frozenTitles.indexOf("saved-card") < 0) fail("saved card missing from the frozen body");
+    if (frozenTitles.indexOf("during-put") >= 0) fail("during-put was inside the frozen body");
+    frozen.jobs.push({ id: "job_marker", title: "marker-from-A", workspace: DESK, status: "waiting" });
+    files[BLOB_KEY] = JSON.stringify(frozen);
+    clock.skew += lib.READY_MAX_AGE_MS + 50;
+    await lib.ready();
+    const titles = (lib.mem.jobs || []).map(function (j) { return j && j.title; });
+    if (titles.indexOf("during-put") < 0) fail("reload dropped the write that arrived during the put");
+    else pass("write during the put was retained");
+    if (titles.indexOf("marker-from-A") >= 0) fail("reload applied over the write that arrived during the put");
+    else pass("reload stayed blocked after the in-flight write");
     finish(!process.exitCode);
     return;
   }

@@ -703,7 +703,7 @@ async function blobWrite() {
     const ok = await blobWriteBody();
     if (ok) {
       loadedAt = Date.now();
-      captureBaseline();
+      settleWrittenBaseline();
     }
     return ok;
   } finally {
@@ -716,6 +716,7 @@ async function blobWriteBody() {
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   const body = JSON.stringify(payload());
+  sealedBody = body;
   try {
     let blob;
     let used = "private";
@@ -857,6 +858,7 @@ async function persistScrub() {
 let loadedAt = 0;
 let baseline = "";
 let baselineReady = false;
+let sealedBody = "";
 let epoch = 0;
 let saveDepth = 0;
 let reloadFlight = null;
@@ -869,6 +871,20 @@ function captureBaseline() {
   baseline = JSON.stringify(payload());
   baselineReady = true;
   touchEpoch();
+}
+
+// The put freezes payload() before the bytes land. A write that arrives while
+// that put is in flight is not in those bytes. Keep the baseline on the frozen
+// body so the extra write stays dirty and the next reload does not drop it.
+function settleWrittenBaseline() {
+  const now = JSON.stringify(payload());
+  if (sealedBody && now !== sealedBody) {
+    baseline = sealedBody;
+    baselineReady = true;
+    touchEpoch();
+    return;
+  }
+  captureBaseline();
 }
 
 function memDirty() {
@@ -979,25 +995,28 @@ async function reloadStore() {
   const seen = epoch;
   const remote = await blobRead();
   // Load failure (null, empty, or error): leave mem exactly as it is.
-  if (!remote) return;
+  if (!remote) return false;
   // ready-guard:write-hold
-  if (saveDepth > 0 || epoch !== seen || memDirty()) return;
+  if (saveDepth > 0 || epoch !== seen || memDirty()) return false;
   applyStore(remote);
   mem.driver = "blob";
   mem.path = "blob:" + BLOB_KEY;
   loadedAt = Date.now();
   captureBaseline();
+  return true;
 }
 
 async function ready(force) {
   // ready-guard:cold-shared
   await globalThis.__aiaHydrate;
+  let fresh = true;
   if (needsReload(force === true)) {
     // ready-guard:single-flight
     if (!reloadFlight) reloadFlight = reloadStore().finally(() => { reloadFlight = null; });
-    await reloadFlight;
+    fresh = (await reloadFlight) !== false;
   }
   await persistScrub();
+  return fresh;
 }
 
 async function save() {
@@ -1212,6 +1231,10 @@ function sessionMatches(row, hint) {
 
 function touchSession(row, req) {
   if (!row) return row;
+  quietFill(function () { touchSessionRow(row, req); });
+  return row;
+}
+function touchSessionRow(row, req) {
   const now = Date.now();
   row.seenAt = new Date(now).toISOString();
   row.expiresAt = sessionExpiresAt(now);
@@ -1377,7 +1400,9 @@ function noteOk(id) {
 
 function ensurePeople(ws) {
   if (!ws) return null;
-  quietFill(function () {
+  const ownerRow = Array.isArray(ws.people) ? ws.people.find((p) => p && p.role === "owner") : null;
+  const needPeople = !Array.isArray(ws.people) || !ws.people.length || !!(ws.pin && ownerRow && !ownerRow.pin);
+  if (needPeople) quietFill(function () {
     if (!Array.isArray(ws.people) || !ws.people.length) {
       ws.people = [{
         id: "p_owner",
@@ -1536,8 +1561,8 @@ function publicNouns(src) {
 
 function ensureNouns(ws) {
   if (!ws) return defaultNouns();
-  quietFill(function () {
-    if (!ws.nouns || typeof ws.nouns !== "object") ws.nouns = defaultNouns();
+  if (!ws.nouns || typeof ws.nouns !== "object") quietFill(function () {
+    ws.nouns = defaultNouns();
   });
   return publicNouns(ws.nouns);
 }
@@ -1772,8 +1797,8 @@ function forbiddenRule(text) {
 
 function ensureRules(ws) {
   if (!ws) return [];
-  quietFill(function () {
-    if (!Array.isArray(ws.rules)) ws.rules = [];
+  if (!Array.isArray(ws.rules)) quietFill(function () {
+    ws.rules = [];
   });
   return ws.rules.map(publicRule).filter(Boolean);
 }
@@ -2178,6 +2203,7 @@ function readBody(req) {
 }
 
 module.exports = {
+  __dbg: { memDirty: () => memDirty(), baseline: () => baseline, payload: () => payload() },
   PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, quietFill, applyStore, storePath,
   READY_MAX_AGE_MS,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,

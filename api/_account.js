@@ -15,10 +15,17 @@ function defaultBilling() {
   return { plan: "free", status: "free", cadence: "monthly", amount: 0, charged: false, note: "Free for now." };
 }
 function ensureAccount() {
-  if (!Array.isArray(lib.mem.approvals)) lib.mem.approvals = [];
-  if (!Array.isArray(lib.mem.accounts)) lib.mem.accounts = [];
-  if (!lib.mem.account || typeof lib.mem.account !== "object") {
-    lib.mem.account = { id: "aia", name: "Automate It Away", heldBy: "admin", ownerName: "James Oddo", note: "One AIA account per person. Own desks and sit on others.", createdAt: new Date().toISOString() };
+  const need = !Array.isArray(lib.mem.approvals) || !Array.isArray(lib.mem.accounts) || !lib.mem.account || typeof lib.mem.account !== "object";
+  const fill = function () {
+    if (!Array.isArray(lib.mem.approvals)) lib.mem.approvals = [];
+    if (!Array.isArray(lib.mem.accounts)) lib.mem.accounts = [];
+    if (!lib.mem.account || typeof lib.mem.account !== "object") {
+      lib.mem.account = { id: "aia", name: "Automate It Away", heldBy: "admin", ownerName: "James Oddo", note: "One AIA account per person. Own desks and sit on others.", createdAt: new Date().toISOString() };
+    }
+  };
+  if (need) {
+    if (typeof lib.quietFill === "function") lib.quietFill(fill);
+    else fill();
   }
   return lib.mem.account;
 }
