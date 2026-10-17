@@ -28,15 +28,37 @@ function switchPlan(acc, id, actor) {
 }
 function desksForPerson(hint) {
   const owned = []; const member = [];
+  const roles = require("./_roles");
   const email = String((hint && hint.email) || "").trim().toLowerCase();
-  const pin = hint && hint.pin; const aid = hint && (hint.accountId || hint.id);
+  const pin = hint && hint.pin;
+  const personId = hint && hint.id;
+  const aid = hint && hint.accountId;
   (lib.mem.workspaces || []).forEach((w) => {
     if (!w) return;
-    const hit = (w.people || []).find((p) => p && ((aid && (p.accountId === aid || p.id === aid)) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && p.pin === pin)));
+    const people = w.people || [];
+    const hit = people.find((p) => p && personId && p.id === personId)
+      || people.find((p) => p && ((aid && p.accountId === aid) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && p.pin === pin)));
     if (!hit) return;
     const ownerHit = hit.role === "owner" || hit.kind === "owner";
+    const kind = ownerHit ? "owner" : (hit.kind || "member");
+    const status = hit.status || "approved";
+    const level = roles.levelOf(kind, status);
     const aia = require("./_aia-net").of(w.aia || w.slug, w.slug).name;
-    const card = { slug: w.slug, name: w.biz || w.name || w.slug, aia: aia, role: ownerHit ? "owner" : (hit.kind || "member"), kind: ownerHit ? "owner" : (hit.kind || "member"), status: hit.status || "approved", requestedKind: hit.requestedKind || "", personId: hit.id, yours: ownerHit ? "own" : "member" };
+    const card = {
+      slug: w.slug,
+      name: w.biz || w.name || w.slug,
+      aia: aia,
+      role: kind,
+      kind: kind,
+      status: status,
+      requestedKind: hit.requestedKind || "",
+      personId: hit.id,
+      yours: ownerHit ? "own" : "member",
+      does: w.does || "",
+      instructions: String(w.instructions || "").trim().slice(0, 400),
+      permsLine: (level && level.does) || kind,
+      drop: "/drop?ws=" + encodeURIComponent(w.slug)
+    };
     if (ownerHit) owned.push(card); else member.push(card);
   });
   return { owned, member };

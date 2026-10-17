@@ -1289,17 +1289,21 @@ function ensurePeople(ws) {
 
 function publicPerson(p) {
   if (!p) return null;
+  const kind = p.kind || (p.role === "owner" ? "owner" : "");
   return {
     id: p.id,
     name: p.name,
     role: p.role,
     email: p.email || "",
-    kind: p.kind || "",
+    kind: kind,
+    status: p.status || "approved",
     deskAi: !!p.deskAi,
     does: p.does || "",
     prompt: String(p.prompt || "").trim().slice(0, 160),
     aia: p.aia || "",
-    aiId: p.aiId || ""
+    aiId: p.aiId || "",
+    accountId: p.accountId || "",
+    requestedKind: p.requestedKind || ""
   };
 }
 

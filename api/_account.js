@@ -234,6 +234,27 @@ function connectDesk(acc, row, as) {
   } else if (acc.memberDesks.indexOf(row.slug) < 0) acc.memberDesks.push(row.slug);
   return acc;
 }
+function disconnectDesk(acc, slug) {
+  if (!acc || !slug) return acc;
+  const s = lib.slugify(slug);
+  acc.memberDesks = (acc.memberDesks || []).filter((d) => d && d !== s);
+  return acc;
+}
+function leaveSeat(row, person) {
+  if (!row || !person) return { ok: false, status: 404, error: "No desk." };
+  const owners = (row.people || []).filter((p) => p && (p.role === "owner" || p.kind === "owner"));
+  const isOwnerSeat = person.role === "owner" || person.kind === "owner";
+  if (isOwnerSeat && owners.length < 2) {
+    return { ok: false, status: 409, error: "Last owner keeps the seat or deletes the desk." };
+  }
+  const seatId = person.id;
+  const before = (row.people || []).length;
+  row.people = (row.people || []).filter((p) => p && p.id !== seatId);
+  if (row.people.length === before) return { ok: false, status: 404, error: "Seat not on this desk." };
+  const acc = homeAccount(person, row) || findAccount({ accountId: person.accountId, email: person.email, id: person.accountId });
+  if (acc) disconnectDesk(acc, row.slug);
+  return { ok: true, status: 200, left: row.slug, name: row.biz || row.name || row.slug, kind: person.kind || person.role || "member" };
+}
 function createOwnerAccount(body, row) {
   ensureAccount();
   const slug = row && row.slug ? row.slug : lib.slugify((body && (body.biz || body.account || body.name)) || "desk");
@@ -352,7 +373,9 @@ function inviteSeat(row, body, actor) {
   row.people.push(seat);
   noteApproval(row, seat, status, actor);
   if (home && kind !== "agent") connectDesk(home, row, "member");
-  return { ok: true, status: status === "approved" ? 201 : 202, person: lib.publicPerson(seat), pending: status === "pending" };
+  const instruct = String(body.instructions || body.instruct || body.memberInstructions || "").trim().slice(0, 400);
+  if (instruct && ownerInvited) row.instructions = instruct;
+  return { ok: true, status: status === "approved" ? 201 : 202, person: lib.publicPerson(seat), pending: status === "pending", instructions: row.instructions || "" };
 }
 function requestSeat(row, body) {
   if (!row) return { ok: false, status: 404, error: "No workspace" };
@@ -375,7 +398,7 @@ module.exports = {
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
-  findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
+  findAccount, findAccountByEmail, connectDesk, disconnectDesk, leaveSeat, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
   setAccountPassword, applyAccountDetails, emailTaken,
   planOf: plans.planOf, PLANS: plans.PLANS
 };

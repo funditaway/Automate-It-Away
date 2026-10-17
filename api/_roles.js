@@ -45,7 +45,7 @@ const LEVELS = {
     id: "member",
     label: "Member",
     who: "Desk member",
-    does: "On this desk at the permission the owner set. Queue and drop. No Stop. No money."
+    does: "Invited to this desk. Use the queue, drop work, and operate per the owner's instructions. No Stop. No money."
   },
   staff: {
     id: "staff",

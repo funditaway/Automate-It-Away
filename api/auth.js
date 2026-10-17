@@ -20,6 +20,7 @@ function publicWorkspace(row) {
     city: row.city,
     model: row.model,
     does: row.does || "",
+    instructions: String(row.instructions || "").trim().slice(0, 400),
     people: (row.people || []).map(publicPerson),
     nouns: ensureNouns(row),
     rules: ensureRules(row),

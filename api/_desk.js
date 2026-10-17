@@ -106,6 +106,7 @@ function publicDesk(row, person) {
     city: row.city || "",
     model: row.model || "",
     does: row.does || "",
+    instructions: String(row.instructions || "").trim().slice(0, 400),
     closed: deskClosed(row),
     createdAt: row.createdAt || null,
     people: (owner || explore) ? (row.people || []).map(perms.publicPerson) : (row.people || []).length,
@@ -150,6 +151,9 @@ function applyDeskEdit(row, body) {
   if (src.city != null) row.city = String(src.city).trim().slice(0, 80);
   if (src.model != null) row.model = String(src.model).trim().slice(0, 80);
   if (src.does != null) row.does = String(src.does).trim().slice(0, 160);
+  if (src.instructions != null || src.instruct != null || src.memberInstructions != null) {
+    row.instructions = String(src.instructions != null ? src.instructions : (src.instruct != null ? src.instruct : src.memberInstructions)).trim().slice(0, 400);
+  }
   if (src.aia != null || src.aiaName != null || src.host != null) {
     const named = net.parseName(src.aia || src.aiaName || src.host, row.slug);
     if (!named.ok) return { ok: false, error: named.error };
@@ -198,6 +202,7 @@ function exportDesk(row) {
     city: row.city || "",
     model: row.model || "",
     does: row.does || "",
+    instructions: String(row.instructions || "").trim().slice(0, 400),
     closed: deskClosed(row),
     createdAt: row.createdAt || null,
     perms: deskPerms(row),

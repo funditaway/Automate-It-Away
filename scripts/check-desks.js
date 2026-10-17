@@ -215,6 +215,94 @@ async function main() {
     fail("GET /api/desks?packs=1 via auth should share the onboard store " + packsGet.statusCode + " " + JSON.stringify(packsGet.body));
   } else pass("GET /api/desks?packs=1 via auth shares onboard store");
 
+  const memberPin = "1357";
+  const invited = await call(auth, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": strangerPin,
+    "x-session": onboardTok
+  }, {
+    action: "invite",
+    name: "Jordan",
+    kind: "member",
+    pin: memberPin,
+    instructions: "Run the morning queue. Drop school forms. Hand money cards to me."
+  });
+  if (invited.statusCode !== 201 && invited.statusCode !== 200) {
+    fail("owner invite member should work " + invited.statusCode + " " + JSON.stringify(invited.body));
+  } else pass("owner invites a member seat");
+
+  const instructed = await call(desks, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": strangerPin,
+    "x-session": onboardTok
+  }, {
+    action: "update",
+    instructions: "Run the morning queue. Drop school forms. Hand money cards to me."
+  });
+  if (instructed.statusCode !== 200 || !instructed.body || !instructed.body.desk ||
+      instructed.body.desk.instructions.indexOf("morning queue") < 0) {
+    fail("owner should save member instructions " + instructed.statusCode + " " + JSON.stringify(instructed.body));
+  } else pass("owner saves member instructions on the desk");
+
+  const memberLogin = await call(auth, "POST", { "x-workspace": "rivera-resale" }, {
+    action: "login",
+    slug: "rivera-resale",
+    pin: memberPin
+  });
+  const memberTok = memberLogin.body && memberLogin.body.session && memberLogin.body.session.token;
+  if (memberLogin.statusCode !== 200 || !memberLogin.body || !memberLogin.body.you) {
+    fail("member login should open the desk " + memberLogin.statusCode + " " + JSON.stringify(memberLogin.body));
+  } else pass("member login opens the desk");
+
+  const memberMine = await call(desks, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": memberPin,
+    "x-session": memberTok || ""
+  }, { action: "mine" });
+  const sit = ((memberMine.body && memberMine.body.member) || []).find((d) => d && d.slug === "rivera-resale");
+  if (memberMine.statusCode !== 200 || !sit || sit.kind !== "member" || String(sit.instructions || "").indexOf("morning queue") < 0) {
+    fail("member mine should show instructions " + memberMine.statusCode + " " + JSON.stringify(memberMine.body));
+  } else pass("member mine shows owner instructions");
+
+  const asked = await call(desks, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": memberPin,
+    "x-session": memberTok || ""
+  }, { action: "ask", kind: "helper" });
+  if (asked.statusCode !== 202 || !asked.body || !asked.body.pending) {
+    fail("member ask should queue for owner " + asked.statusCode + " " + JSON.stringify(asked.body));
+  } else pass("member ask queues for owner");
+
+  const left = await call(desks, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": memberPin,
+    "x-session": memberTok || ""
+  }, { action: "leave" });
+  if (left.statusCode !== 200 || !left.body || left.body.left !== "rivera-resale") {
+    fail("member leave should drop the seat " + left.statusCode + " " + JSON.stringify(left.body));
+  } else pass("member leave drops the seat");
+
+  const ownerLeave = await call(desks, "POST", {
+    "x-workspace": "rivera-resale",
+    "x-pin": strangerPin,
+    "x-session": onboardTok
+  }, { action: "leave" });
+  if (ownerLeave.statusCode !== 409) {
+    fail("last owner leave should 409 " + ownerLeave.statusCode + " " + JSON.stringify(ownerLeave.body));
+  } else pass("last owner cannot leave");
+
+  if (bookJs.indexOf("save-instruct") < 0 || bookJs.indexOf("Owner instructions") < 0) {
+    fail("desks-book must paint owner instructions and save");
+  } else pass("desks-book paints and saves owner instructions");
+  if (bookJs.indexOf('action: "leave"') < 0 && bookJs.indexOf('"leave"') < 0) {
+    fail("desks-book must still call leave");
+  } else pass("desks-book still calls leave");
+
+  if (yesNo.indexOf("Member desk leftover") < 0) fail("ACCOUNT-YES-NO must name Member desk leftover");
+  else pass("ACCOUNT-YES-NO names Member desk leftover");
+  if (packMd.indexOf("Member desk leftover") < 0) fail("PACK.md must name Member desk leftover");
+  else pass("PACK.md names Member desk leftover");
+
   if (process.exitCode) {
     console.error("check-desks failed");
     process.exit(1);

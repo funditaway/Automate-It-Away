@@ -684,7 +684,9 @@ async function load() {
   STATE.people = groupPeople(STATE.rawPeople);
 
   document.getElementById("add-box").hidden = !STATE.owner;
-  banner.textContent = STATE.owner ? "Owner desk. Approve seats. Hand to uses these names. You still send the draft." : "You can see who sits here. Owner adds people and taps Approve.";
+  banner.textContent = STATE.owner
+    ? "Owner desk. Invite members. Set instructions on Desks. They drop and operate this desk. You still own Stop."
+    : "Member seat. Use the desk, drop work, operate per the owner's instructions. Owner approves seats.";
   paintYou();
   paintLevels(d);
   var jobsOut = await api("/api/jobs");
