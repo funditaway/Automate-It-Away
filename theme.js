@@ -34,7 +34,6 @@
     var headerSrc = markSrc();
     var tile = tileSrc();
     document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
-      if (!img.getAttribute("alt")) img.setAttribute("alt", "Automate It Away");
       var kind = (img.getAttribute("data-mark") || "").toLowerCase();
       if (kind === "orange") { img.setAttribute("src", orangeSrc()); return; }
       if (kind === "teal") { img.setAttribute("src", tealSrc()); return; }

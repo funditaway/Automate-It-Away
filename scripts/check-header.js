@@ -21,11 +21,13 @@ files.forEach((file) => {
   }
   const hdr = m[0];
   if (!hdr.includes('class="brand"')) fail(file + " header missing class=brand");
-  if (!hdr.includes('class="brand-name">Automate It Away</span>')) {
-    fail(file + " header wordmark is not Automate It Away");
+  if (!hdr.includes('class="brand-name">AIA</span>')) {
+    fail(file + " header wordmark is not AIA");
   } else {
     pass(file + " wordmark");
   }
+  const mark = hdr.match(/<img class="brand-mark"[^>]*>/);
+  if (mark && !/\balt=""/.test(mark[0])) fail(file + " header logo alt must be empty so screen readers say only AIA");
   if (/AUTOMATE\s/.test(hdr) || /automateitaway\.com/.test(hdr)) {
     fail(file + " still uses old header text");
   }
@@ -37,6 +39,8 @@ if (!theme.includes("font: 700 16px/1.15")) fail("theme.css missing 16px wordmar
 else pass("theme.css locks 16px wordmark");
 
 const js = fs.readFileSync(path.join(root, "theme.js"), "utf8");
+if (js.includes('img.setAttribute("alt", "Automate It Away")')) fail("theme.js must not fill an empty logo alt");
+else pass("theme.js leaves an empty logo alt empty");
 if (!js.includes("aia-header-lock")) fail("theme.js missing header lock");
 else pass("theme.js injects header lock");
 if (!js.includes("paintWho") || !js.includes("who-chip")) fail("theme.js missing signed-in profile chip");
