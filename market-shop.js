@@ -62,7 +62,7 @@
         ? "<button class=\"use\" type=\"button\" data-buy=\"" + esc(p.id) + "\">Buy · install .aia</button>"
         : "<button class=\"use\" type=\"button\" data-use=\"" + esc(p.id) + "\">Install .aia on this desk</button>";
     const holdNote = p.pipeMissing
-      ? "<p class=\"aia-line off\">Ask is listed. No money pipe. Collect stays HOLD. Orange until Square or a live webhook is connected.</p>"
+      ? "<p class=\"aia-line off\">Ask is listed. No money pipe. Collect stays HOLD. Not for sale yet. No payment is connected.</p>"
       : (p.priced ? "<p class=\"hint\">Ask listed. Collect stays HOLD until Yes.</p>" : "");
     return "<article class=\"card shop\">" +
       "<b>" + esc(p.name) + "</b>" +
@@ -230,7 +230,7 @@
       "<h2>On a real desk</h2>" +
       "<p class=\"hint\">No demo chrome. Buy / install puts the thin JSON onto this desk. Fresh desks start empty until a pack or a rule lands.</p>" +
       (p.pipeMissing || (p.priced && p.collectHold && !p.collectHold.pipe)
-        ? "<p class=\"aia-line off\">" + esc((p.collectHold && p.collectHold.note) || "Ask is listed. No money pipe. Collect stays HOLD. Orange until Square or a live webhook is connected.") + "</p>"
+        ? "<p class=\"aia-line off\">" + esc((p.collectHold && p.collectHold.note) || "Ask is listed. No money pipe. Collect stays HOLD. Not for sale yet. No payment is connected.") + "</p>"
         : (p.collectHold && p.collectHold.note ? "<p class=\"hint\">" + esc(p.collectHold.note) + "</p>" : "<p class=\"hint\">Collect stays HOLD. Packs never send money.</p>")) +
       "<h2>Creator</h2>" +
       "<div class=\"card profile\">" +

@@ -33,7 +33,7 @@ function restoreEnv() {
   });
 }
 
-const NO_PIPE_NOTE = "Ask $49 is listed. No money pipe on this desk. Collect stays HOLD. Orange until Square or a live webhook is connected.";
+const NO_PIPE_NOTE = "Ask $49 is listed. No money pipe on this desk. Collect stays HOLD. Not for sale yet. No payment is connected.";
 const FREE_NOTE = "Packs never Collect on their own. Owner Yes still required.";
 const YES_NOTE = "Ask $49 is listed. Collect stays HOLD until a person taps Yes.";
 
@@ -191,7 +191,7 @@ async function main() {
   else pass("market keeps the no-pipe line");
 
   const packsSrc = fs.readFileSync(path.join(root, "api", "_packs.js"), "utf8");
-  if (packsSrc.indexOf("No money pipe on this desk. Collect stays HOLD. Orange until Square or a live webhook is connected.") < 0) fail("no-pipe note text changed");
+  if (packsSrc.indexOf("No money pipe on this desk. Collect stays HOLD. Not for sale yet. No payment is connected.") < 0) fail("no-pipe note text changed");
   else pass("no-pipe note text unchanged");
   if (packsSrc.indexOf("Collect stays HOLD") < 0) fail("_packs.js lost Collect stays HOLD");
   else pass("_packs.js Collect HOLD stays");
