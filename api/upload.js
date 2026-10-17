@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { cors, mem, log, save, workspaceOf, readBody, blobAllowed, personOf } = require("./_lib");
+const { cors, mem, log, save, ready, workspaceOf, readBody, blobAllowed, personOf } = require("./_lib");
 
 // Accepted uploads. HTML and SVG are intentionally absent: those types are
 // never stored, even when a client claims a safer type or a safe extension.
@@ -270,6 +270,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (!Array.isArray(mem.files)) mem.files = [];
   if (req.method === "GET") {
+    await ready();
     const gate = seatOf(req);
     if (!gate.row) return deny(res, 404, "No desk with that name.");
     if (gate.pending) return deny(res, 403, "That seat is waiting on the owner.");
@@ -305,6 +306,7 @@ module.exports = async function handler(req, res) {
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Use GET or POST" });
   if (overRate(req)) return res.status(429).json({ error: "Too many uploads. Wait a minute and try again." });
+  await ready();
   const row = deskOf(req);
   if (!row) return res.status(404).json({ error: "No desk with that name." });
   const body = await readBody(req);
