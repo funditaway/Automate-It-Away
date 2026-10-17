@@ -284,6 +284,7 @@ async function openJob(id) {
     })()) +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
     threadSheetHtml(j) +
+    "<div id=\"card-timeline-sheet\"></div>" +
     (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
     custom +
     "<label>Note or ask</label><textarea id=\"job-note\" rows=\"2\" placeholder=\"Need the due date / already texted her\"></textarea>" +
@@ -313,6 +314,7 @@ async function openJob(id) {
         : "<button class=\"go q-yes\" type=\"button\" onclick=\"approveCard('" + hid + "')\">Yes</button>") +
       (staff ? "<span></span>" : "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + hid + "')\">Stop</button>") +
     "</div>";
+  if (window.AIACardTimeline) window.AIACardTimeline.mount("card-timeline-sheet", j);
   document.getElementById("sheet").classList.add("on");
 }
 function localClockInput(iso) {
