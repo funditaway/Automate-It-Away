@@ -14,8 +14,8 @@ body.has-desk-nav .site-foot {
 body.has-desk-nav #desk-switch,
 body.has-desk-nav #session,
 body.has-desk-nav .item:last-of-type {
-  margin-bottom: 24px;
-  padding-bottom: 12px;
+  margin-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 16px;
 }
 #ws,
 #pin,
