@@ -198,7 +198,10 @@
     if (banner && banner.parentNode) banner.parentNode.insertBefore(rail, banner.nextSibling);
     var actions = rail.querySelector("#queue-desk-actions");
     var drop = document.getElementById("drop-go");
-    var refresh = document.querySelector("main .row button[onclick*=\"load\"]");
+    var refresh = document.getElementById("refresh");
+    if (!refresh) {
+      refresh = document.querySelector("#desk-actions button, main #desk-actions button[onclick*=\"load\"]");
+    }
     if (actions) {
       if (drop && drop.parentNode) actions.appendChild(drop);
       if (refresh && refresh.parentNode) actions.appendChild(refresh);

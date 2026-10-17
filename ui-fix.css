@@ -999,5 +999,78 @@ header, .site-header, main, .wrap, .card, img, pre, table {
 }
 pre, .file-list, #drop-link { overflow-x: auto; }
 @media (max-width: 430px) {
-  header a[href="/login"], header a[href="login.html"] { display: none !important; }
+  header nav a[href="/login"],
+  header .site-nav a[href="/login"],
+  header nav a[href="login.html"],
+  header .site-nav a[href="login.html"] {
+    display: none !important;
+  }
+  header a.who-chip,
+  a.who-chip[href="/login"],
+  a.who-chip[href="/account"],
+  a.who-chip[href="/onboard"] {
+    display: inline-flex !important;
+    max-width: none !important;
+    flex: 0 0 auto;
+  }
 }
+
+/* 2026-10-17: phone Sign in was display:none because the rule matched the
+   account chip (also href=/login), not just the extra nav link.
+   Queue Open stays with the name and code. Next on Drop stays orange.
+   Last line clears the phone tab bar. */
+header a.who-chip.signed-out {
+  display: inline-flex !important;
+}
+#gate {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+#gate input { flex: 1 1 160px; min-width: 0; }
+#gate button,
+#gate .edit {
+  flex: 0 0 auto;
+  min-height: 48px;
+}
+@media (max-width: 860px) {
+  #gate {
+    flex-direction: column !important;
+  }
+  #gate input,
+  #gate button,
+  #gate .edit {
+    width: 100% !important;
+  }
+  body.has-desk-nav {
+    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #drop-step-foot {
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+    background: var(--bg, #f4f7f8);
+  }
+}
+@media (min-width: 861px) {
+  #queue-desk-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    gap: 8px;
+  }
+  #queue-desk-actions #drop-go {
+    flex: 1 1 auto !important;
+    width: auto !important;
+  }
+  #queue-desk-actions #refresh,
+  #queue-desk-actions #queue-pipes-tap {
+    flex: 0 0 auto !important;
+    width: auto !important;
+  }
+}
+#drop-step-foot button#drop-step-next {
+  background: #f39c12 !important;
+  color: #0c1116 !important;
+  border-color: #f39c12 !important;
+}
+
