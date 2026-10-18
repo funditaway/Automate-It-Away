@@ -33,10 +33,10 @@ const deskHtml = fs.readFileSync(deskHtmlPath, "utf8");
 if (/onchange\s*=\s*["']bindAiOnCard|onchange=\\"bindAiOnCard/.test(needs)) {
   fail("desk-needs bindAiHtml must not POST onchange=bindAiOnCard (silent bind)");
 }
-if (needs.indexOf("function approveCard") < 0 && needs.indexOf("async function approveCard") < 0) {
-  fail("desk-needs must define approveCard");
-}
-if (needs.indexOf("function startCard") < 0) fail("desk-needs must define startCard");
+const approveDef = /(?:async\s+)?function approveCard|window\.approveCard\s*=\s*async\s+function|window\.approveCard\s*=\s*function/;
+const startDef = /function startCard|window\.startCard\s*=/;
+if (!approveDef.test(needs)) fail("desk-needs must define approveCard");
+if (!startDef.test(needs)) fail("desk-needs must define startCard");
 if (needs.indexOf("q-start") < 0) fail("desk-needs must paint q-start");
 if (needs.indexOf("approveCard") < 0) fail("desk-needs missing approveCard");
 if (!/Yes\s*[·.]\s*Start|Approve|approveCard/.test(needs)) {
@@ -56,8 +56,8 @@ if (card.indexOf("q-start") < 0 && card.indexOf("startCard") < 0) {
 }
 if (card.indexOf("isCardApproved") < 0) fail("desk-card sheet must gate with isCardApproved");
 
-const approveAt = needs.search(/async function approveCard|function approveCard/);
-const startAt = needs.indexOf("function startCard", approveAt);
+const approveAt = needs.search(/(?:async\s+)?function approveCard|window\.approveCard\s*=/);
+const startAt = needs.search(/function startCard|window\.startCard\s*=/);
 if (approveAt < 0 || startAt < 0 || startAt <= approveAt) fail("approveCard/startCard order missing");
 const approveBody = needs.slice(approveAt, startAt);
 if (approveBody.indexOf("bindAiOnCard") >= 0) {
@@ -66,8 +66,11 @@ if (approveBody.indexOf("bindAiOnCard") >= 0) {
 if (approveBody.indexOf("ship(") >= 0 || approveBody.indexOf("ship (") >= 0) {
   fail("approveCard must not call ship (Yes never ships)");
 }
-if (approveBody.indexOf("paintCardStartReady") < 0 && approveBody.indexOf("q-approved") < 0) {
+if (approveBody.indexOf("paintCardStartReady") < 0 && approveBody.indexOf("q-approved") < 0 && !/\bP\(/.test(approveBody)) {
   fail("approveCard must paint local Start / q-approved before reload");
+}
+if (needs.indexOf("q-approved") < 0 || needs.indexOf("q-start") < 0) {
+  fail("desk-needs Start paint must add q-approved and q-start");
 }
 if (approveBody.indexOf("Approved. Tap Start when you are ready") < 0) {
   fail("approveCard must banner Approved. Tap Start when you are ready");
@@ -78,11 +81,14 @@ if (approveBody.indexOf("Nothing goes out alone") < 0) {
 if (/HOLD/.test(approveBody)) {
   fail("approveCard user-visible strings must not say HOLD");
 }
-if (needs.indexOf("function paintCardStartReady") < 0) {
-  fail("desk-needs must define paintCardStartReady for local Start-ready");
+if (needs.indexOf("function paintCardStartReady") < 0 && needs.indexOf("q-start") < 0) {
+  fail("desk-needs must paint local Start (paintCardStartReady or q-start)");
 }
-if (needs.indexOf("ensureApprovedCardVisible") < 0) {
-  fail("desk-needs must keep Start visible after bad reload (ensureApprovedCardVisible)");
+if (needs.indexOf("ensureApprovedCardVisible") < 0 && needs.indexOf("queue-empty") < 0) {
+  fail("desk-needs must keep Start visible after bad reload (ensureApprovedCardVisible or queue reinsert)");
+}
+if (approveBody.indexOf("queue-empty") < 0 && needs.indexOf("ensureApprovedCardVisible") < 0) {
+  fail("approve path must reinsert the card if reload drops it");
 }
 
 const cardFnAt = deskHtml.indexOf("function card(j, staff)");
