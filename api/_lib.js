@@ -857,6 +857,14 @@ async function hydrate() {
 
 if (!globalThis.__aiaHydrate) {
   globalThis.__aiaHydrate = hydrate();
+  // Loaded means this process finished a hydrate. A rejection leaves the flag
+  // unset so a later loadIfCold() can try again. ready() still awaits this
+  // same promise.
+  globalThis.__aiaHydrate.then(function () {
+    globalThis.__aiaStoreLoaded = true;
+  }, function () {
+    globalThis.__aiaStoreLoaded = false;
+  });
 }
 
 function applyStore(parsed) {
@@ -893,11 +901,62 @@ async function ready() {
   await persistScrub();
 }
 
+function captureMem() {
+  return {
+    data: JSON.parse(JSON.stringify(payload())),
+    driver: mem.driver,
+    path: mem.path
+  };
+}
+
+function revertMem(shot) {
+  if (!shot) return;
+  applyStore(shot.data);
+  mem.driver = shot.driver;
+  mem.path = shot.path;
+}
+
+// Cold instance: mem is still the empty starter until the in-flight hydrate
+// finishes. Warm instance: that hydrate already resolved, so return without
+// reading the blob or replacing mem. Concurrent callers share one attempt.
+// A rejected attempt does not mark the store loaded and does not keep a
+// partial apply. ready() is unchanged and still re-reads for its own callers.
+async function loadIfCold() {
+  if (globalThis.__aiaStoreLoaded) return;
+  if (globalThis.__aiaColdInflight) return globalThis.__aiaColdInflight;
+  const joinModule = !globalThis.__aiaColdTried;
+  globalThis.__aiaColdTried = true;
+  const before = captureMem();
+  let job;
+  job = (async () => {
+    try {
+      if (joinModule) await globalThis.__aiaHydrate;
+      else await hydrate();
+      globalThis.__aiaStoreLoaded = true;
+    } catch (err) {
+      // The module promise stays rejected so ready() still observes it.
+      // save() must not wait on that rejection after a later successful load.
+      globalThis.__aiaHydrateRejected = true;
+      revertMem(before);
+      throw err;
+    } finally {
+      if (globalThis.__aiaColdInflight === job) globalThis.__aiaColdInflight = null;
+    }
+  })();
+  globalThis.__aiaColdInflight = job;
+  return job;
+}
+
 async function save() {
   // Wait for first hydrate only. Do not call ready() — that re-reads the blob
   // and would replace in-request mutations (onboard, sessions, Studio Open login)
   // with the pre-mutation snapshot before write.
-  await globalThis.__aiaHydrate;
+  // After a rejected cold load, a successful retry has already filled mem.
+  // Waiting on the original rejected promise would throw away that save.
+  // ready() still awaits the original promise.
+  if (!(globalThis.__aiaStoreLoaded && globalThis.__aiaHydrateRejected)) {
+    await globalThis.__aiaHydrate;
+  }
   dropPersistTests();
   const disk = writeDisk();
   if (blobReady()) {
@@ -2071,7 +2130,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, applyStore, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, loadIfCold, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
   blobCopy, blobHead, blobDel, blobListAll, blobPutAt, storeBody,
