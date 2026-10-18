@@ -81,6 +81,187 @@ function mappingByPath(pathname) {
   return null;
 }
 
+// Read-only link-shape counts. Counts only: no url, path, host, file id, file name,
+// or workspace name is ever put in the result. Never writes the store.
+const UUID_HEAD = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const HEX16_TAIL = /^-[0-9a-f]{16}/i;
+const SUFFIX_TAIL = /^-[0-9a-z]{6,}$/i;
+const EXT_IMAGE = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "heic", "heif", "ico", "tif", "tiff"];
+const EXT_VIDEO = ["mp4", "mov", "webm", "m4v", "avi", "mkv", "mpg", "mpeg"];
+const EXT_MARKUP = ["html", "htm", "xhtml", "svg"];
+
+function extClass(ext) {
+  const e = String(ext || "").toLowerCase();
+  if (!e) return "none";
+  if (EXT_IMAGE.indexOf(e) >= 0) return "image";
+  if (e === "pdf") return "pdf";
+  if (EXT_VIDEO.indexOf(e) >= 0) return "video";
+  if (EXT_MARKUP.indexOf(e) >= 0) return "htmlSvg";
+  return "other";
+}
+
+function shapeSlot() {
+  return {
+    total: 0,
+    notText: 0,
+    url: { absolute: 0, protocolRelative: 0, relative: 0, none: 0 },
+    relativeApiRoute: 0,
+    hasQuery: 0,
+    host: { vercelBlob: 0, other: 0, none: 0 },
+    depth: { "0": 0, "1": 0, "2": 0, "3plus": 0 },
+    filePrefix: 0,
+    uuidName: 0,
+    uuidHex16Name: 0,
+    randomSuffix: 0,
+    ext: { image: 0, pdf: 0, video: 0, htmlSvg: 0, other: 0, none: 0 },
+    upperExt: 0,
+    driver: { blob: 0, tmpFile: 0, other: 0, none: 0 },
+    matchesOldPath: 0,
+    looksOldPath: 0,
+    hasMapping: 0,
+    slugPresent: 0,
+    slugKnown: 0,
+    slugIsFirstSegment: 0
+  };
+}
+
+function shapePath(raw) {
+  const u = String(raw || "");
+  if (!u) return { kind: "none", host: "none", path: "", query: false };
+  const query = u.indexOf("?") >= 0;
+  let kind = "relative";
+  let host = "none";
+  let path = "";
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) || u.indexOf("//") === 0) {
+    kind = u.indexOf("//") === 0 ? "protocolRelative" : "absolute";
+    try {
+      const parsed = new URL(kind === "protocolRelative" ? "https:" + u : u);
+      const h = String(parsed.hostname || "").toLowerCase();
+      host = h === "blob.vercel-storage.com" || /\.blob\.vercel-storage\.com$/.test(h) ? "vercelBlob" : "other";
+      path = parsed.pathname.replace(/^\/+/, "");
+    } catch (e) {
+      host = "other";
+    }
+  } else {
+    path = u.split("#")[0].split("?")[0].replace(/^\/+/, "");
+  }
+  try { path = decodeURIComponent(path); } catch (e) { /* keep raw path */ }
+  return { kind: kind, host: host, path: path, query: query };
+}
+
+function shapeAdd(slot, raw, extra, slugs) {
+  slot.total += 1;
+  if (raw == null || typeof raw === "object" || typeof raw === "function") raw = "";
+  const info = shapePath(raw);
+  slot.url[info.kind] += 1;
+  slot.host[info.host] += 1;
+  if (info.query) slot.hasQuery += 1;
+  if (info.kind === "relative" && /^api\//i.test(info.path)) slot.relativeApiRoute += 1;
+  const path = info.path;
+  const parts = path ? path.split("/") : [];
+  const depth = parts.length ? parts.length - 1 : 0;
+  slot.depth[depth >= 3 ? "3plus" : String(depth)] += 1;
+  const base = parts.length ? parts[parts.length - 1] : "";
+  const dot = base.lastIndexOf(".");
+  const ext = dot > 0 ? base.slice(dot + 1) : "";
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  slot.ext[extClass(ext)] += 1;
+  if (ext && ext !== ext.toLowerCase()) slot.upperExt += 1;
+  if (/^file_/i.test(stem)) slot.filePrefix += 1;
+  let rest = stem;
+  if (UUID_HEAD.test(stem)) {
+    slot.uuidName += 1;
+    rest = stem.slice(36);
+    if (HEX16_TAIL.test(rest)) {
+      slot.uuidHex16Name += 1;
+      rest = rest.slice(17);
+    }
+    if (SUFFIX_TAIL.test(rest)) slot.randomSuffix += 1;
+  } else if (/.-(?=[0-9a-z]*[0-9])(?=[0-9a-z]*[a-z])[0-9a-z]{8,}$/i.test(stem)) {
+    slot.randomSuffix += 1;
+  }
+  // matchesOldPath is what the tool itself matches (toolPath). looksOldPath also counts
+  // relative links, which the tool cannot see, so a relative old-style name shows up here.
+  const toolPath = String((extra && extra.toolPath) || "");
+  if (toolPath && isOldPath(toolPath)) slot.matchesOldPath += 1;
+  if (path && isOldPath(path)) slot.looksOldPath += 1;
+  if ((toolPath && mappingByPath(toolPath)) || (path && mappingByPath(path))) slot.hasMapping += 1;
+  const first = parts.length > 1 ? parts[0] : "";
+  if (first && slugs.known[first]) slot.slugKnown += 1;
+  if (extra && extra.slug) {
+    slot.slugPresent += 1;
+    if (first && first === extra.slug) slot.slugIsFirstSegment += 1;
+  }
+  if (extra && Object.prototype.hasOwnProperty.call(extra, "driver")) {
+    const d = String(extra.driver || "");
+    slot.driver[d === "blob" ? "blob" : d === "tmp-file" ? "tmpFile" : d ? "other" : "none"] += 1;
+  }
+}
+
+function linkShapes(files, blobs, listedVia) {
+  const known = {};
+  (Array.isArray(mem.workspaces) ? mem.workspaces : []).forEach((w) => {
+    if (w && typeof w.slug === "string" && w.slug) known[w.slug] = true;
+  });
+  const slugs = { known: known };
+  const f = shapeSlot();
+  const b = shapeSlot();
+  delete b.driver;
+  delete b.slugPresent;
+  delete b.slugIsFirstSegment;
+  let filesMatchingOldPath = 0;
+  let blobsMatchingOldPath = 0;
+  let remotePresent = 0;
+  let remoteSame = 0;
+  let remoteMatchesOldPath = 0;
+  (Array.isArray(files) ? files : []).forEach((rec) => {
+    if (!rec || typeof rec !== "object") {
+      f.total += 1;
+      f.notText += 1;
+      return;
+    }
+    const raw = typeof rec.url === "string" && rec.url ? rec.url : (typeof rec.remoteUrl === "string" ? rec.remoteUrl : "");
+    const toolPath = pathnameOf(raw);
+    shapeAdd(f, raw, { slug: typeof rec.workspace === "string" ? rec.workspace : "", driver: rec.driver, toolPath: toolPath }, slugs);
+    if (isOldPath(toolPath)) filesMatchingOldPath += 1;
+    if (typeof rec.remoteUrl === "string" && rec.remoteUrl) {
+      remotePresent += 1;
+      if (rec.remoteUrl === rec.url) remoteSame += 1;
+      if (isOldPath(pathnameOf(rec.remoteUrl))) remoteMatchesOldPath += 1;
+    }
+  });
+  (Array.isArray(blobs) ? blobs : []).forEach((blob) => {
+    if (!blob || typeof blob !== "object") {
+      b.total += 1;
+      b.notText += 1;
+      return;
+    }
+    const raw = typeof blob.url === "string" && blob.url ? blob.url : (typeof blob.pathname === "string" ? blob.pathname : "");
+    const toolPath = String(blob.pathname || pathnameOf(blob.url) || "");
+    shapeAdd(b, raw, { toolPath: toolPath }, slugs);
+    if (isOldPath(toolPath)) blobsMatchingOldPath += 1;
+  });
+  delete b.driver;
+  f.remoteUrl = { present: remotePresent, sameAsUrl: remoteSame, matchesOldPath: remoteMatchesOldPath };
+  return {
+    listedVia: listedVia || "unknown",
+    filesTotal: f.total,
+    blobsTotal: b.total,
+    filesMatchingOldPath: filesMatchingOldPath,
+    blobsMatchingOldPath: blobsMatchingOldPath,
+    files: f,
+    blobs: b
+  };
+}
+
+function safeShapes(files, blobs, listedVia) {
+  try {
+    return linkShapes(files, blobs, listedVia);
+  } catch (e) {
+    return { error: "shape count failed", listedVia: listedVia || "unknown" };
+  }
+}
+
 function walkStore(visit) {
   const body = storeBody();
   function rec(node, parent, key, ctx) {
@@ -214,6 +395,7 @@ async function readOld(item) {
 
 async function buildPlan(keep) {
   const listed = await blobListAll();
+  const shapes = safeShapes(mem.files, listed, blobListAll.via || "unknown");
   const blobs = (listed || []).filter((b) => b && isOldPath(b.pathname || pathnameOf(b.url)));
   const items = [];
   const seen = {};
@@ -289,7 +471,7 @@ async function buildPlan(keep) {
   }
   items.forEach((item) => { delete item.bytesBuf; delete item.file; });
   const mismatch = items.length !== EXPECT || missing.length > 0 || orphans.length > 0;
-  return { items: items, missing: missing, orphans: orphans, count: items.length, expect: EXPECT, mismatch: mismatch };
+  return { items: items, missing: missing, orphans: orphans, count: items.length, expect: EXPECT, mismatch: mismatch, shapes: shapes };
 }
 
 function publicItem(item) {
@@ -375,7 +557,8 @@ async function moveOld(req, res, ctx, apply) {
     plan = await buildPlan(keep);
   } catch (e) {
     return send(res, 500, reportBody(ctx, {
-      apply: apply, ok: false, error: cleanText(blobErrText(e)), step: "inventory"
+      apply: apply, ok: false, error: cleanText(blobErrText(e)), step: "inventory",
+      shapes: safeShapes(mem.files, [], "failed")
     }));
   }
   const steps = [];
@@ -394,6 +577,7 @@ async function moveOld(req, res, ctx, apply) {
     orphans: plan.orphans,
     missing: plan.missing,
     items: plan.items.map(publicItem),
+    shapes: plan.shapes,
     steps: steps,
     cardId: progress.id,
     cardFound: progress.id ? !progress.missing : false
