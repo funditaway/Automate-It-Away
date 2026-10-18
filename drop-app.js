@@ -1,4 +1,6 @@
 const params = new URLSearchParams(location.search);
+    /* Same limit the upload server enforces: 3,000,000 bytes of file per file (file.size, before base64). */
+    const MAX_FILE_BYTES = 3000000;
     const embed = window !== window.parent || params.get("embed") === "1";
     if (embed) {
       document.documentElement.classList.add("embed");
@@ -128,14 +130,14 @@ const params = new URLSearchParams(location.search);
       if (!list) return;
       const files = photo && photo.files ? [].slice.call(photo.files, 0, 8) : [];
       if (!files.length) {
-        list.textContent = "Optional. Up to 8 files. Each under 8MB.";
+        list.textContent = "Optional. Up to 8 files. Each file must stay under 3 MB.";
         return;
       }
       const bits = files.map(function (f) {
-        return f.name + (f.size > 8000000 ? " · too big" : "");
+        return f.name + (f.size > MAX_FILE_BYTES ? " · too big" : "");
       });
-      const over = files.some(function (f) { return f.size > 8000000; });
-      list.textContent = files.length + (files.length === 1 ? " file rides on the card: " : " files ride on the card: ") + bits.join(", ") + (over ? ". Each file must stay under 8MB." : ".");
+      const over = files.some(function (f) { return f.size > MAX_FILE_BYTES; });
+      list.textContent = files.length + (files.length === 1 ? " file rides on the card: " : " files ride on the card: ") + bits.join(", ") + (over ? ". Each file must stay under 3 MB." : ".");
     }
     function paintShare() {
       const el = document.getElementById("drop-link");
@@ -212,8 +214,8 @@ const params = new URLSearchParams(location.search);
       const picked = photo && photo.files ? [].slice.call(photo.files, 0, 8) : [];
       if (!picked.length) return true;
       for (let i = 0; i < picked.length; i++) {
-        if (picked[i].size > 8000000) {
-          showNote(err, "Each file must stay under 8MB.");
+        if (picked[i].size > MAX_FILE_BYTES) {
+          showNote(err, "Each file must stay under 3 MB.");
           return false;
         }
       }
