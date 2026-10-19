@@ -1728,6 +1728,19 @@ function sessionOwnerPerson(session, ws) {
   };
 }
 
+// True when the seat this session was issued for is that account's own seat.
+// Only the account's own signed-in session may carry it to another desk: the seat holds that very
+// account, and a helper seat holding its desk's own (the owner's) account proves nothing.
+// This proves who the session is, not access: the seat's state on its own desk (denied, waiting)
+// stays on that desk. On another desk only that desk's own open seat for the account counts.
+function sessionSeatIsAccount(session) {
+  if (!session || !session.accountId) return false;
+  const home = (mem.workspaces || []).find((w) => w && w.slug === session.workspace) || null;
+  const seat = home && session.personId ? ((home.people || []).find((p) => p && p.id === session.personId) || null) : null;
+  if (seat) return seat.accountId === session.accountId && (!seatIsHelper(seat) || seat.accountId !== deskAccountIdOf(home));
+  return session.personId === session.accountId + "_owner";
+}
+
 function personOf(req, workspaceSlug) {
   req = req || {};
   const headers = req.headers || {};
@@ -1741,18 +1754,27 @@ function personOf(req, workspaceSlug) {
   if (fromSession && fromSession.session) {
     const session = fromSession.session;
     const people = ws.people || [];
-    let person = people.find((p) => seatOpen(p) && session.personId && p.id === session.personId) || null;
-    if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
-    if (!person && session.accountId) {
+    // A session is issued for one desk (session.workspace). On that desk every old match still holds.
+    // On any other desk it only counts where this session's account holds its own open seat
+    // (seat.accountId). Never by seat id, email, or "owner session" alone: those are not proof here.
+    const ownDesk = !!session.workspace && session.workspace === ws.slug;
+    let person = null;
+    if (ownDesk) {
+      person = people.find((p) => seatOpen(p) && session.personId && p.id === session.personId) || null;
+      if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
+    }
+    if (!person && session.accountId && (ownDesk || sessionSeatIsAccount(session))) {
       person = people.find((p) => seatOpen(p) && p.accountId && p.accountId === session.accountId && seatLooksOwner(p))
         || people.find((p) => seatOpen(p) && p.accountId && p.accountId === session.accountId) || null;
     }
-    if (!person && session.email) {
-      const e = String(session.email).trim().toLowerCase();
-      person = people.find((p) => seatOpen(p) && p.email && String(p.email).trim().toLowerCase() === e) || null;
+    if (ownDesk) {
+      if (!person && session.email) {
+        const e = String(session.email).trim().toLowerCase();
+        person = people.find((p) => seatOpen(p) && p.email && String(p.email).trim().toLowerCase() === e) || null;
+      }
+      if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
+      if (!person && sessionLooksOwner(session)) person = sessionOwnerPerson(session, ws);
     }
-    if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
-    if (!person && sessionLooksOwner(session)) person = sessionOwnerPerson(session, ws);
     if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
     if (person && person.status === "denied") return { workspace: ws, person: null, denied: true, session: sessionPublic(session) };
     if (person) return { workspace: ws, person, session: sessionPublic(session) };
