@@ -352,7 +352,7 @@ function inviteSeat(row, body, actor, opts) {
   let hashed = "";
   if (home && home.pin && pin.length < 4) hashed = home.pin;
   else if (pin.length >= 4) hashed = lib.hashPin(pin);
-  else return { ok: false, status: 400, error: "Their AIA account name, or a 4+ digit code." };
+  else return { ok: false, status: 400, error: "Give them a desk code, 4 or more digits." };
   const ownerInvited = lib.isOwner(actor);
   const status = ownerInvited && kind !== "agent" ? "approved" : "pending";
   const seat = {

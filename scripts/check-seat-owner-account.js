@@ -169,6 +169,10 @@ async function main() {
     await nothing("staff denied", staffTok, null);
   } else fail("[world-invite] no staff session to test with");
 
+  // Owner invite with a typed account and no desk code: refused, asks for a desk code.
+  const noPin = await call(auth, "POST", ownerHdr, { action: "invite", name: "Nopin", kind: "helper", account: annAcc.name, email: "ann@x.test" });
+  ok(noPin.statusCode === 400 && noPin.body && noPin.body.error === "Give them a desk code, 4 or more digits." && !wsA.people.some((p) => p && p.name === "Nopin"), "[owner-invite-no-pin] typed account without a desk code is refused: " + noPin.statusCode + " " + (noPin.body && noPin.body.error));
+
   // Owner invite typing her own email: helper seat, no owner account on it.
   await tick();
   const oi = await call(auth, "POST", ownerHdr, { action: "invite", name: "Olly", kind: "helper", pin: "7171", email: "ann@x.test" });
@@ -333,6 +337,21 @@ async function main() {
   ok(lib.mem.sessions[0].proof === "password", "[third legit] an email login is marked as proving its account");
   const ze2 = await call(acch, "POST", {}, { action: "login", email: "zed@x.test", password: "zed-pass-1234" }, {}, "/api/account");
   ok(ze2.statusCode === 200 && lib.mem.sessions[0].proof === "password", "[third legit] /api/account email login is marked as proving its account");
+  // By design: a world invite of Zed attaches Zed once Zed accepts signed in, and Zed's own
+  // signed-in session keeps full power over his account from that seat.
+  zAcc.handle = "zedsoa";
+  const wz = await call(admin, "POST", { "x-workspace": B, "x-session": beaTok }, { action: "invite-world", handle: "zedsoa", kind: "helper" }, {}, "/api/admin");
+  const zSeatB = wsB.people.find((p) => p && p.accountId === acctZ);
+  ok(wz.statusCode === 202 && zSeatB && zSeatB.status === "pending", "[third world] Bea's world invite of Zed waits on Zed (" + wz.statusCode + ")");
+  const za = await call(admin, "POST", { "x-workspace": Z, "x-session": zet }, { action: "accept-invite", slug: B }, {}, "/api/admin");
+  ok(za.statusCode === 200 && zSeatB && zSeatB.status === "approved" && zSeatB.accountId === acctZ, "[third world] Zed accepts signed in: his seat on B carries his account (" + za.statusCode + ")");
+  // (A cross-desk owner session on B is #340's door, so ask homeAccount directly for his B seat.)
+  const accMod = require(path.join(root, "api/_account"));
+  ok(accMod.homeAccount(zSeatB, wsB, { headers: { "x-session": zet, "x-workspace": B } }) === zAcc, "[third world] Zed's own signed-in session keeps his account on his B seat");
+  ok(accMod.homeAccount(zSeatB, wsB, { headers: { "x-workspace": B, "x-pin": "0000" } }) == null, "[third world] his B seat without his sign-in has no account powers");
+  const zbPin = lib.issueSession(zSeatB, wsB, zAcc).token;
+  ok(po(zbPin, Z).person == null || !ownerOn(zbPin, Z), "[third world] a session minted for his B seat without his sign-in is not owner on Z (got " + who(zbPin, Z) + ")");
+
   // A helper seat whose session came from that account's own sign-in keeps the account's powers.
   lib.mem.accounts.push({ id: "acct_soa_q", name: "Quinn", ownerName: "Quinn", email: "quinn@x.test", desks: [], memberDesks: [Y], plan: "pro" });
   const qAcc = lib.mem.accounts.find((a) => a.id === "acct_soa_q");
