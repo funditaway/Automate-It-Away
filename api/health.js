@@ -159,6 +159,9 @@ async function health(req, res) {
       audit: mem.audit.length,
       workspaces: mem.workspaces.length,
       live: driver === "blob" || driver === "file",
+      // Read-only trust state of this instance's store. No names or contents.
+      state: require("./_lib").storeState(),
+      saving: require("./_lib").storeState() === "not-ready" ? require("./_lib").STORE_PAUSED_LINE : "Saving is on.",
       note: driver === "blob"
         ? "A second phone can see the same queue"
         : driver === "tmp-file"
@@ -229,3 +232,6 @@ async function handler(req, res) {
 
 handler.status = deskStatus;
 module.exports = handler;
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);
