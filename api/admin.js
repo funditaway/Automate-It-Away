@@ -388,3 +388,6 @@ module.exports = async function handler(req, res) {
   }
   return res.status(400).json({ ok: false, error: "Unknown admin action.", actions: ["invite", "request", "ask", "say", "permit", "mine", "person", "world-who", "invite-world", "invites", "accept-invite", "decline-invite", "handle", "approve", "deny", "plan", "login"] });
 };
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);

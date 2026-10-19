@@ -225,3 +225,6 @@ module.exports = async function handler(req, res) {
   await save();
   return answer(res, 200, req, workspace, "update", job);
 };
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);
