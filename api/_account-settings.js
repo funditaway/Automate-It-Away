@@ -1,6 +1,9 @@
 // My account settings for one person: GET /api/account?settings=1 and
 // POST /api/account { action: "settings" | "secret-set" | "secret-remove" }.
 // Also DELETE /api/account?secret=NAME.
+// Connections and setup cards (connections, connect, connection-secret, disconnect,
+// setup-cards, setup-card, setup-step) live in _account-connect.js and use this
+// file's seat check, seal, and history.
 // The account comes only from the seat the request already proves
 // (X-Session / aia_session cookie, or X-Workspace + X-Pin). Any account id in
 // the body or the query is never used to pick the account.
@@ -316,6 +319,7 @@ function settingsReply(acc, person) {
       automations: automationSection(acc),
       look: { available: true, theme: THEMES.indexOf(s.look.theme) >= 0 ? s.look.theme : "system", themes: THEMES.slice() },
       secrets: { available: !!secretKey(), items: publicSecrets(acc), max: SECRET_MAX },
+      connections: { available: true, items: require("./_account-connect").publicConnections(acc), setupCards: Array.isArray(acc.setupCards) ? acc.setupCards.length : 0, note: "Saved here only. AIA does not sign in to these services." },
       history: historyOf(acc).slice(0, HISTORY_SHOW).map((h) => Object.assign({ at: h.at, who: h.who, section: h.section, what: h.what }, h.whoKind ? { whoKind: h.whoKind } : {}))
     }
   };
@@ -483,6 +487,9 @@ async function handle(req, res) {
     try { body = await lib.readBody(req); } catch (e) { return refuse(res, 400, "That request did not read."), true; }
     req.body = body;
   }
+  if (req.method === "POST" && require("./_account-connect").ACTIONS.indexOf(String((body && body.action) || "").toLowerCase()) >= 0) {
+    return (await require("./_account-connect").handle(req, res, body)), true;
+  }
   if (!wants(req, body)) return false;
   const seat = ownSeat(req);
   if (!seat.ok) return refuse(res, seat.status, seat.error, seat.pending ? { pending: true } : null), true;
@@ -604,4 +611,4 @@ async function handle(req, res) {
   return res.status(200).json(reply), true;
 }
 
-module.exports = { handle, ownSeat, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };
+module.exports = { handle, ownSeat, askedOther, ownedDesks, addHistory, seal, secretKey, SECRET_NAME, SECRET_VALUE_MAX, SELF_LOCK, ID_FIELDS, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };
