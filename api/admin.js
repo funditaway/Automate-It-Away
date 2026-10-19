@@ -263,6 +263,7 @@ module.exports = async function handler(req, res) {
     if (!text) return res.status(400).json({ ok: false, error: "Type the note." });
     const target = findSeat(row, body);
     if (!target) return res.status(404).json({ ok: false, error: "Person not found." });
+    if (require("./_lib").seatsById(row, target.id).length > 1) return res.status(409).json({ ok: false, error: require("./_lib").DUP_SEAT });
     const owner = isOwner(person);
     const self = person.id && target.id && person.id === target.id;
     if (!owner && !self) return res.status(403).json({ ok: false, error: "Talk on your seat or the owner desk." });
@@ -356,7 +357,7 @@ module.exports = async function handler(req, res) {
   }
   if (action === "seat") {
     const saved = setSeatCan(row, body.id || body.personId, body);
-    if (!saved.ok) return res.status(400).json(saved);
+    if (!saved.ok) return res.status(saved.duplicate ? 409 : 400).json(saved);
     await save();
     return res.status(200).json({ ok: true, person: saved.person });
   }

@@ -84,7 +84,9 @@ function tapsFrom(incoming) {
 
 function setSeatCan(row, id, incoming) {
   if (!row) return { ok: false, error: "No desk." };
-  const seat = (row.people || []).find((p) => p && p.id === id);
+  const hits = require("./_lib").seatsById(row, id);
+  if (hits.length > 1) return { ok: false, status: 409, duplicate: true, error: require("./_lib").DUP_SEAT };
+  const seat = hits[0];
   if (!seat) return { ok: false, error: "Person not found." };
   if (seat.role === "owner" || seat.kind === "owner") {
     return { ok: false, error: "Owner already has every desk tap." };
