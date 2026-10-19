@@ -1380,6 +1380,13 @@ function seatOpen(person) {
   return !!(person && person.status !== "pending" && person.status !== "denied");
 }
 
+// Every seat on this desk with exactly this id. More than one means AIA can't tell who is meant,
+// so callers refuse instead of taking the first match (same shape as #353's _account.seatsById).
+const DUP_SEAT = "Two seats on this desk share that id, so AIA can't tell who you mean. Nothing changed.";
+function seatsById(row, id) {
+  return ((row && row.people) || []).filter((p) => p && id && p.id === id);
+}
+
 function ownerSeatOf(ws) {
   return ((ws && ws.people) || []).find((p) => seatOpen(p) && seatLooksOwner(p)) || null;
 }
@@ -1411,19 +1418,22 @@ function personOf(req, workspaceSlug) {
   if (!ws) return { workspace: null, person: null };
   if (fromSession && fromSession.session) {
     const session = fromSession.session;
+    // Two seats here share this session's seat id: open neither (treated like no seat at all).
+    if (seatsById(ws, session.personId).length > 1) return { workspace: ws, person: null };
     const people = ws.people || [];
-    let person = people.find((p) => seatOpen(p) && session.personId && p.id === session.personId) || null;
+    // Seat id, email and "owner session" only count on the desk this session was issued for (ids like p_owner repeat across desks).
+    let person = people.find((p) => seatOpen(p) && session.personId && p.id === session.personId && session.workspace === ws.slug) || null;
     if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
     if (!person && session.accountId) {
       person = people.find((p) => seatOpen(p) && p.accountId && p.accountId === session.accountId && seatLooksOwner(p))
         || people.find((p) => seatOpen(p) && p.accountId && p.accountId === session.accountId) || null;
     }
-    if (!person && session.email) {
+    if (!person && session.email && session.workspace === ws.slug) {
       const e = String(session.email).trim().toLowerCase();
       person = people.find((p) => seatOpen(p) && p.email && String(p.email).trim().toLowerCase() === e) || null;
     }
     if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
-    if (!person && sessionLooksOwner(session)) person = sessionOwnerPerson(session, ws);
+    if (!person && sessionLooksOwner(session) && session.workspace === ws.slug) person = sessionOwnerPerson(session, ws);
     if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
     if (person && person.status === "denied") return { workspace: ws, person: null, denied: true, session: sessionPublic(session) };
     if (person) return { workspace: ws, person, session: sessionPublic(session) };
@@ -2137,7 +2147,7 @@ module.exports = {
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   isLocked, noteFail, noteOk,
-  ensurePeople, publicPerson, personOf, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
+  ensurePeople, publicPerson, personOf, seatsById, DUP_SEAT, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
   matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy, whenMatches, ifMatches,

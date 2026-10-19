@@ -340,7 +340,7 @@ module.exports = async function handler(req, res) {
   if (action === "seat") {
     if (!isOwner(person)) return deny(res, "Only the owner edits a helper seat.");
     const saved = setSeatCan(row, body.id || body.personId, body);
-    if (!saved.ok) return res.status(400).json(saved);
+    if (!saved.ok) return res.status(saved.duplicate ? 409 : 400).json(saved);
     logDesk("seat", row, person, { id: body.id, can: saved.person && saved.person.can });
     await save();
     return res.status(200).json({ ok: true, person: saved.person, desk: publicDesk(row, person) });
