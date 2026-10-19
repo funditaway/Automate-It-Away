@@ -113,6 +113,48 @@ async function main() {
   const again = await call(auth, "POST", atk, { action: "attach", desk: ATK }, {}, ACCOUNT_URL);
   if (again.statusCode !== 200) fail("re-attaching own current desk refused: " + again.statusCode);
   else pass("re-attaching own current desk ok (200)");
+
+  function unmoved(slug, accBefore, label) {
+    const moved = deskOf(slug).accountId !== accBefore;
+    const listed = (accountOf(atkAccId).desks || []).indexOf(slug) >= 0 || (accountOf(atkAccId).memberDesks || []).indexOf(slug) >= 0;
+    if (moved || listed) fail(label + ": wrote anyway (accountId moved: " + moved + ", in attacker list: " + listed + ")");
+    else pass(label + ": nothing written");
+  }
+  const FIELDS = ["pin", "code", "deskPin"];
+
+  // 6. An approved helper's code on the victim desk is not owner proof, in any field.
+  const vic = { "x-session": vicTok, "x-workspace": VIC };
+  const hal = await call(auth, "POST", vic, { action: "invite", name: "Hal", pin: "2323", kind: "helper" });
+  if (hal.statusCode !== 201 || !hal.body.person) { fail("victim owner could not add helper Hal: " + hal.statusCode); return; }
+  const halSeen = lib.personOf({ headers: { "x-workspace": VIC, "x-pin": "2323" } }, VIC);
+  if (!halSeen.person || lib.isOwner(halSeen.person)) fail("setup: Hal's code should open Hal's approved helper seat");
+  else pass("setup: Hal's code opens an approved helper seat (not owner)");
+  for (const f of FIELDS) {
+    const r = await call(auth, "POST", atk, { action: "attach", desk: VIC, [f]: "2323" }, {}, ACCOUNT_URL);
+    if (r.statusCode !== 403) fail("attach victim desk with approved helper's code in " + f + ": " + r.statusCode);
+    else pass("attach victim desk with approved helper's code in " + f + " refused (403)");
+    unmoved(VIC, vicAccId, "helper code in " + f);
+  }
+
+  // 7. Every proof field the attach accepts works with the right owner code; a wrong value in each gets 403.
+  const owned = [["aap-attacker-pin", "4444"], ["aap-attacker-code", "5555"], ["aap-attacker-deskpin", "6666"]];
+  for (let i = 0; i < FIELDS.length; i += 1) {
+    const f = FIELDS[i];
+    const [slug, code] = owned[i];
+    if (!(await openDesk(slug, "Ann", code, "", ""))) return;
+    const before = deskOf(slug).accountId;
+    for (const wrong of ["9999", "1111", "2323"]) {
+      const r = await call(auth, "POST", atk, { action: "attach", desk: slug, [f]: wrong }, {}, ACCOUNT_URL);
+      if (r.statusCode !== 403) fail("attach own desk with wrong " + f + " (" + wrong + "): " + r.statusCode);
+      else pass("attach own desk with wrong " + f + " (" + wrong + ") refused (403)");
+    }
+    unmoved(slug, before, "wrong " + f);
+    const ok = await call(auth, "POST", atk, { action: "attach", desk: slug, [f]: code }, {}, ACCOUNT_URL);
+    if (ok.statusCode !== 200) fail("attach own desk with its owner code in " + f + ": " + ok.statusCode + " " + JSON.stringify(ok.body && ok.body.error));
+    else pass("attach own desk with its owner code in " + f + " (200)");
+    if (deskOf(slug).accountId !== atkAccId || (accountOf(atkAccId).desks || []).indexOf(slug) < 0) fail(f + ": desk not on the owner's account after attach");
+    else pass(f + ": desk now on the owner's account");
+  }
 }
 
 main().then(() => {
