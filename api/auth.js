@@ -404,3 +404,6 @@ module.exports = async function handler(req, res) {
 
   return res.status(405).json({ error: "Use GET or POST" });
 };
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);
