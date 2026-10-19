@@ -217,6 +217,26 @@ function ownedDesks(acc) {
   return (lib.mem.workspaces || []).filter((w) => w && (slugs.indexOf(w.slug) >= 0 || (w.accountId && w.accountId === acc.id)));
 }
 
+// Desks where this account sits on a seat of its own (not the owner seat).
+function seatedDesks(acc) {
+  return (lib.mem.workspaces || []).filter((w) => w && (w.people || []).some((p) => p && p.accountId === acc.id && !lib.isOwner(p)));
+}
+
+// Automations an account can see and switch: its own desks; an AI or SI
+// account also gets the desks it sits on, so that desk's human owner can set them.
+function automationDesks(acc) {
+  const own = ownedDesks(acc);
+  if (kindOf(acc) === "human") return own;
+  return own.concat(seatedDesks(acc).filter((w) => own.indexOf(w) < 0));
+}
+
+// Safer default until James decides: an AI or SI account cannot change its own
+// kind or turn off its own pauses. Only the human owner of the desk it sits on can.
+const SELF_LOCK = "An AI or SI account can't change this itself. The human owner can.";
+function selfLocked(acc) {
+  return kindOf(acc) !== "human";
+}
+
 function automationsOf(row) {
   const ais = require("./_ais");
   const out = [];
@@ -264,7 +284,7 @@ function desksSection(acc, person) {
 
 function automationSection(acc) {
   const rows = [];
-  ownedDesks(acc).forEach((row) => {
+  automationDesks(acc).forEach((row) => {
     automationsOf(row).forEach((a) => {
       const key = autoKey(row.slug, a.kind, a.id);
       const saved = settingsOf(acc).automations[key] || {};
@@ -328,12 +348,15 @@ function touchesStopKill(set) {
   return top || nested;
 }
 
-function applyProfile(acc, set) {
+function applyProfile(acc, set, opts) {
   const bad = onlyKeys(set, Object.keys(PROFILE_LIMITS).concat(["kind"]));
   if (bad) return { ok: false, status: 400, error: "Not a profile field: " + plain(bad.join(", "), 80) };
   // kind: human, ai, or si. Checked before anything changes.
   const wantKind = set.kind == null ? null : accountKindFrom(set.kind === "" ? "?" : set.kind);
   if (set.kind != null && !wantKind) return { ok: false, status: 400, error: "Pick human, ai, or si." };
+  if (wantKind && wantKind !== kindOf(acc) && selfLocked(acc) && !(opts && opts.byHumanOwner)) {
+    return { ok: false, status: 403, error: SELF_LOCK, record: "Refused: this " + kindOf(acc) + " account tried to change its own kind to " + wantKind + ". Nothing changed." };
+  }
   const changed = [];
   const kindWas = kindOf(acc);
   Object.keys(set).forEach((k) => {
@@ -379,7 +402,7 @@ function findAutomation(acc, set) {
   const slug = lib.slugify(set.desk || "");
   const kind = String(set.kind || "").toLowerCase();
   const id = String(set.id || "").slice(0, 80);
-  const row = ownedDesks(acc).find((w) => w.slug === slug);
+  const row = automationDesks(acc).find((w) => w.slug === slug);
   if (!row) return { ok: false, status: 404, error: "Not one of your desks." };
   const hit = automationsOf(row).find((a) => a.kind === kind && a.id === id);
   if (!hit) return { ok: false, status: 404, error: "No automation like that on this desk." };
@@ -411,7 +434,7 @@ function automationStep(acc, body) {
     reply: "Not paused for " + label + ". Run on its own is not here yet, so a person still taps on the card." };
 }
 
-function applyAutomation(acc, set) {
+function applyAutomation(acc, set, opts) {
   if (touchesStopKill(set)) return { ok: false, status: 400, error: "Stop and Kill always work. They cannot be switched off." };
   if (set.runOnItsOwn != null || set.auto != null || set.autoRun != null) {
     return { ok: false, status: 409, error: "Run on its own is not here yet. Nothing was changed." };
@@ -438,14 +461,31 @@ function applyAutomation(acc, set) {
   const key = autoKey(row.slug, kind, id);
   const all = settingsOf(acc).automations;
   const now = stopBeforeOf(acc, key);
+  const label = (kind === "ai" ? "Desk AI " : "rule ") + "\"" + plain(hit.name, 60) + "\" on " + plain(row.biz || row.name || row.slug, 60);
+  const offs = flips.filter((k) => set[k] === false && now[k] !== false);
+  if (offs.length && selfLocked(acc) && !(opts && opts.byHumanOwner)) {
+    return { ok: false, status: 403, error: SELF_LOCK, record: "Refused: this " + kindOf(acc) + " account tried to turn off its own stop before " + offs.map((k) => STOP_WORDS[k]).join(", ") + " for " + label + ". Nothing changed." };
+  }
   const words = [];
   flips.forEach((k) => {
     if (now[k] !== set[k]) words.push((set[k] ? "Turned on" : "Turned off") + " stop before " + STOP_WORDS[k]);
     now[k] = set[k];
   });
   all[key] = { stopBefore: now, updatedAt: new Date().toISOString() };
-  const label = (kind === "ai" ? "Desk AI " : "rule ") + "\"" + plain(hit.name, 60) + "\" on " + plain(row.biz || row.name || row.slug, 60);
   return { ok: true, what: (words.length ? words.join("; ") : "Kept stop-before as it was") + " for " + label + "." };
+}
+
+// The human owner acting for an AI or SI seat on their own desk: the owner
+// seat (lib.isOwner) of the desk the seat sits on, whose own account is human.
+// forSeat names that seat's id on this desk. Only kind and stop-before.
+function humanOwnerTarget(seat, body) {
+  const no = { ok: false, status: 403, error: "Only the human owner of this desk can change this for an AI or SI seat." };
+  if (!lib.isOwner(seat.person) || kindOf(seat.account) !== "human") return no;
+  const id = String(body.forSeat || "").slice(0, 80);
+  const p = (seat.row.people || []).find((x) => x && x.id === id && !lib.isOwner(x) && x.accountId);
+  const target = p ? (lib.mem.accounts || []).find((a) => a && a.id === p.accountId) : null;
+  if (!target || target.id === seat.account.id || !selfLocked(target)) return { ok: false, status: 404, error: "No AI or SI seat like that on this desk." };
+  return { ok: true, account: target, seatId: id };
 }
 
 async function handle(req, res) {
@@ -519,6 +559,31 @@ async function handle(req, res) {
     return res.status(200).json({ ok: true, removed: name, secrets: publicSecrets(acc) }), true;
   }
 
+  if (body.forSeat != null && body.forSeat !== "") {
+    const extraF = onlyKeys(body, ["action", "section", "set", "forSeat"]);
+    if (extraF) return refuse(res, 400, "Not a settings field: " + plain(extraF.join(", "), 80)), true;
+    const tgt = humanOwnerTarget(seat, body);
+    if (!tgt.ok) return refuse(res, tgt.status, tgt.error), true;
+    const secF = String(body.section || "").toLowerCase();
+    const setF = body.set && typeof body.set === "object" && !Array.isArray(body.set) ? body.set : null;
+    if (!setF) return refuse(res, 400, "Send the changes in set."), true;
+    if (touchesStopKill(setF)) return refuse(res, 400, "Stop and Kill always work. They cannot be switched off."), true;
+    let madeF;
+    if (secF === "profile") {
+      const badF = onlyKeys(setF, ["kind"]);
+      madeF = badF || setF.kind == null ? { ok: false, status: 400, error: "For an AI or SI seat, only kind can change here." } : applyProfile(tgt.account, setF, { byHumanOwner: true });
+    } else if (secF === "automations" || secF === "automation") {
+      madeF = lib.slugify(setF.desk || "") !== seat.row.slug ? { ok: false, status: 403, error: "Only automations on your own desk." } : applyAutomation(tgt.account, setF, { byHumanOwner: true });
+    } else madeF = { ok: false, status: 400, error: "For an AI or SI seat, pick profile (kind) or automations." };
+    if (!madeF.ok) return refuse(res, madeF.status || 400, madeF.error), true;
+    const secW = secF === "automation" ? "automations" : secF;
+    const what = madeF.what.replace(/ on your profile\.$/, " on this account.");
+    addHistory(tgt.account, person, secW, what, whoKind);
+    lib.log("Account", "Owner set · " + secW, "OK", seat.row.slug);
+    await lib.save();
+    return res.status(200).json({ ok: true, hint: what, seat: { id: tgt.seatId, kind: kindOf(tgt.account) } }), true;
+  }
+
   // action === "settings"
   const extra = onlyKeys(body, ["action", "section", "set"].concat(ID_FIELDS));
   if (extra) return refuse(res, 400, "Not a settings field: " + plain(extra.join(", "), 80)), true;
@@ -533,8 +598,13 @@ async function handle(req, res) {
   else if (section === "automations" || section === "automation") made = applyAutomation(acc, set);
   else if (section === "desks" || section === "notify") made = { ok: false, status: 409, error: "That part is read-only here for now." };
   else made = { ok: false, status: 400, error: "Pick profile, talk, automations, or look." };
-  if (!made.ok) return refuse(res, made.status || 400, made.error), true;
   const sec = section === "automation" ? "automations" : section;
+  if (!made.ok && made.record) {
+    addHistory(acc, person, sec, made.record, whoKind);
+    lib.log("Account", "Refused · " + sec, "Hold", seat.row.slug);
+    await lib.save();
+  }
+  if (!made.ok) return refuse(res, made.status || 400, made.error), true;
   addHistory(acc, person, sec, made.what, whoKind);
   lib.log("Account", "Settings saved · " + sec, "OK", seat.row.slug);
   await lib.save();
