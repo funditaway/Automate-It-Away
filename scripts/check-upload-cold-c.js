@@ -198,8 +198,9 @@ async function child(scenario, apiDir) {
     // Reads keep failing during the request too: fail closed, write nothing, retry later.
     const g = await call(upload, "GET", seat);
     const gp = await call(upload, "POST", { "x-workspace": SLUG, "x-forwarded-for": "198.51.100.8" }, { name: "porch.png", type: "image/png", data: PNG.toString("base64") });
-    t("GET while the store cannot be read -> JSON 503", g.statusCode === 503 && g.body && g.body.ok === false && !!g.body.error, [g.statusCode, g.body && g.body.error]);
-    t("POST while the store cannot be read -> JSON 503, nothing stored", gp.statusCode === 503 && gp.body && gp.body.ok === false && fake.ops.every((o) => o.op !== "put"), [gp.statusCode, gp.body && gp.body.error]);
+    const wantErr = "The desk can't save right now. Try again in a moment.";
+    t("GET while the store cannot be read -> JSON 503 store_not_ready", g.statusCode === 503 && g.body && g.body.ok === false && g.body.error === wantErr && g.body.code === "store_not_ready", [g.statusCode, g.body]);
+    t("POST while the store cannot be read -> JSON 503 store_not_ready, nothing stored", gp.statusCode === 503 && gp.body && gp.body.ok === false && gp.body.error === wantErr && gp.body.code === "store_not_ready" && fake.ops.every((o) => o.op !== "put"), [gp.statusCode, gp.body]);
     t("store is not marked loaded after a request-time failure", globalThis.__aiaStoreLoaded !== true, globalThis.__aiaStoreLoaded);
     t("request-time failure writes nothing", fake.storePuts === 0 && storeText() === before, { puts: fake.storePuts });
     fake.failMode = null;

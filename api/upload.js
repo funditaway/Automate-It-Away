@@ -276,7 +276,7 @@ module.exports = async function handler(req, res) {
     await loadIfCold();
   } catch (e) {
     res.setHeader("Retry-After", "2");
-    return deny(res, 503, "Store not ready, try again.");
+    return res.status(503).json({ ok: false, error: "The desk can't save right now. Try again in a moment.", code: "store_not_ready" });
   }
   if (!Array.isArray(mem.files)) mem.files = [];
   if (req.method === "GET") {
