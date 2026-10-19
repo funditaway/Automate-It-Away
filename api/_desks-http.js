@@ -114,7 +114,7 @@ module.exports = async function handler(req, res) {
     if (pending) return res.status(403).json({ ok: false, pending: true, error: "That seat is waiting on the owner." });
     if (!row || !person) return res.status(401).json({ ok: false, error: "Desk code does not match." });
     const { homeAccount, desksForPerson } = require("./_account");
-    const acc = homeAccount(person, row);
+    const acc = homeAccount(person, row, req);
     const mine = desksForPerson({ id: person.id, name: person.name, email: person.email, pin: person.pin, accountId: person.accountId || (acc && acc.id) });
     const mail = require("./_aia-mail");
     const aia = (acc && (acc.aia || (acc.handle ? acc.handle + ".aia" : ""))) || (row.aia || "");
@@ -193,7 +193,7 @@ module.exports = async function handler(req, res) {
     const mail = require("./_aia-mail");
     if (mail.wantsSend(body)) return res.status(409).json(mail.sendHold());
     const { homeAccount } = require("./_account");
-    const acc = homeAccount(person, row);
+    const acc = homeAccount(person, row, req);
     return res.status(200).json({
       ok: true,
       mail: acc ? mail.listForAccount(acc) : mail.listForDesk(row.slug),
@@ -208,7 +208,7 @@ module.exports = async function handler(req, res) {
     const mail = require("./_aia-mail");
     if (mail.wantsSend(body)) return res.status(409).json(mail.sendHold());
     const { homeAccount } = require("./_account");
-    const acc = homeAccount(person, row);
+    const acc = homeAccount(person, row, req);
     const made = mail.createIdentity(acc, row, body);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error, mx: mail.statusOf() });
     logDesk("aia-mail", row, person, { address: made.identity && made.identity.address });
@@ -226,7 +226,7 @@ module.exports = async function handler(req, res) {
     if (!isOwner(person)) return deny(res, "Only the owner can remove a .aia email.");
     const mail = require("./_aia-mail");
     const { homeAccount } = require("./_account");
-    const acc = homeAccount(person, row);
+    const acc = homeAccount(person, row, req);
     const gone = mail.removeIdentity(acc, body.id || body.address || body.email || body.mail);
     if (!gone.ok) return res.status(gone.status || 400).json({ ok: false, error: gone.error });
     logDesk("aia-mail-remove", row, person, { address: gone.removed });
