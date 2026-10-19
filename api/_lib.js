@@ -822,7 +822,12 @@ async function persistScrub() {
   return true;
 }
 
+// hydrate() never rejects on a blob problem: blobRead() turns read errors into
+// null, and hydrate then applies the disk/empty starter and resolves. The flag
+// below is false after such a swallowed read error, so loadIfCold() does not
+// take "resolved" to mean "loaded".
 async function hydrate() {
+  globalThis.__aiaHydrateOk = true;
   if (blobReady()) {
     const remote = await blobRead();
     if (remote) {
@@ -833,6 +838,7 @@ async function hydrate() {
       return;
     }
     if (blobProbe.read === "error") {
+      globalThis.__aiaHydrateOk = false;
       applyStore(readDisk());
       dropPersistTests();
       mem.driver = writeDisk();
@@ -857,11 +863,12 @@ async function hydrate() {
 
 if (!globalThis.__aiaHydrate) {
   globalThis.__aiaHydrate = hydrate();
-  // Loaded means this process finished a hydrate. A rejection leaves the flag
-  // unset so a later loadIfCold() can try again. ready() still awaits this
-  // same promise.
+  // Loaded means this process finished a hydrate without a blob read error.
+  // A rejection, or a resolve after a swallowed blob read error, leaves
+  // the flag unset so a later loadIfCold() reads again. ready() still awaits
+  // this same promise.
   globalThis.__aiaHydrate.then(function () {
-    globalThis.__aiaStoreLoaded = true;
+    globalThis.__aiaStoreLoaded = globalThis.__aiaHydrateOk === true;
   }, function () {
     globalThis.__aiaStoreLoaded = false;
   });
@@ -931,7 +938,26 @@ async function loadIfCold() {
   job = (async () => {
     try {
       if (joinModule) await globalThis.__aiaHydrate;
-      else await hydrate();
+      if (!joinModule || globalThis.__aiaHydrateOk !== true) {
+        // The module hydrate failed or resolved on the starter store. Read the
+        // blob now, inside this request. Never run hydrate()'s write-back here:
+        // a failed load must not write anything.
+        if (blobReady()) {
+          const remote = await blobRead();
+          if (remote) {
+            applyStore(remote);
+            mem.driver = "blob";
+            mem.path = "blob:" + BLOB_KEY;
+          } else if (blobProbe.read !== "empty") {
+            // Read error: stay unloaded so the next request reads again.
+            throw new Error("Store did not load (" + (blobProbe.read || "no read") + ")");
+          }
+          // "empty": no store exists yet, so there is nothing to load.
+        } else {
+          await hydrate();
+          if (globalThis.__aiaHydrateOk !== true) throw new Error("Store did not load");
+        }
+      }
       globalThis.__aiaStoreLoaded = true;
     } catch (err) {
       // The module promise stays rejected so ready() still observes it.

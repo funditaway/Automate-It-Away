@@ -270,7 +270,14 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   // Wait only when this process has never loaded the store. ready() would
   // re-read the blob on a warm instance and replace mem under in-flight uploads.
-  await loadIfCold();
+  // A failed load throws with memory reverted and nothing written; answer 503
+  // so the client retries, and write nothing on this path.
+  try {
+    await loadIfCold();
+  } catch (e) {
+    res.setHeader("Retry-After", "2");
+    return res.status(503).json({ ok: false, error: "The desk can't save right now. Try again in a moment.", code: "store_not_ready" });
+  }
   if (!Array.isArray(mem.files)) mem.files = [];
   if (req.method === "GET") {
     const gate = seatOf(req);
