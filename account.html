@@ -16,6 +16,7 @@
     .wrap{width:min(760px,94vw);margin:0 auto;padding:18px 0 80px}
     .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
     .acct-field{display:block;margin:8px 0}.acct-field span{display:block;font-size:13px;color:var(--muted)}.acct-field input,.acct-field textarea,.acct-field select{width:100%;box-sizing:border-box}.acct-pick{display:flex;gap:8px;align-items:center;min-height:44px}.acct-always{font-weight:700}.acct-desk,.acct-auto{border-top:1px solid var(--line);padding:8px 0}
+    .acct-conn,.acct-setup-card{border-top:1px solid var(--line);padding:8px 0}.acct-group{margin:8px 0 8px 10px}.acct-steps{padding-left:18px}.acct-step{margin:6px 0}.acct-preview{font-weight:700}.acct-stopkill button{min-width:88px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
     .meta,.muted{font-size:13px;color:var(--muted)}
     .row{display:flex;gap:8px;flex-wrap:wrap}
@@ -159,6 +160,7 @@
         <p class="meta" id="mfa-hint">Page should say HOLD.</p>
       </div>
     </div>
+    <section id="acct-connections" aria-label="Connections and setup cards" hidden></section>
     <section id="acct-settings" aria-label="My account settings" hidden></section>
   </main>
   <nav id="desk-nav" aria-label="Desk">
@@ -177,6 +179,7 @@
   <script src="aia-tld.js"></script>
   <script src="aia-mail.js"></script>
   <script src="account-settings.js"></script>
+  <script src="account-connections.js"></script>
   <script>
     const slugEl=document.getElementById("slug");
     const pinEl=document.getElementById("pin");
