@@ -93,3 +93,6 @@ module.exports = async function handler(req, res) {
     note: "Worker qualifies, nudges, drafts for named desk AIs, and ticks due/expire. Never Send or Stop."
   });
 };
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);

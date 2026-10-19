@@ -239,3 +239,6 @@ module.exports = async function handler(req, res) {
   }
   return res.status(400).json({ error: "action must be start, say, do, setup, or request" });
 };
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);
