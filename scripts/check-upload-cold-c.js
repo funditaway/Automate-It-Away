@@ -9,6 +9,9 @@
 // module loads and work once a request runs (the same split /api/jobs sees,
 // because ready() reads again inside the request). No thrown promise is
 // injected. It must fail on 2eb7259 and pass on the fix. Mock Blob only.
+// The request-time load must never write the store back (no hydrate()
+// write-back, no persist scrub), a failed load must answer a JSON 503, and a
+// missing store must count as "nothing to load", not as a failure.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -55,7 +58,8 @@ async function call(h, method, headers, body) {
 }
 
 // failMode: null (reads work), "403" (auth refused, as with no request-scoped
-// OIDC token), or "net" (fetch failed). Writes are recorded, never refused.
+// OIDC token), "net" (fetch failed), or "missing" (every read says the blob
+// does not exist, even when it does). Writes are recorded, never refused.
 function installMock(Module) {
   const fake = { files: Object.create(null), failMode: null, ops: [], storePuts: 0 };
   function pathFrom(u) {
@@ -73,6 +77,7 @@ function installMock(Module) {
       throw e;
     }
     if (fake.failMode === "net") throw new Error("fetch failed: ECONNRESET");
+    if (fake.failMode === "missing") throw new Error("Vercel Blob: The requested blob does not exist");
   }
   const orig = Module._load;
   Module._load = function (request) {
@@ -103,7 +108,7 @@ function installMock(Module) {
         async del() {},
         async list() {
           fake.ops.push({ op: "list", store: true });
-          refuse();
+          if (fake.failMode !== "missing") refuse();
           return { blobs: [], hasMore: false };
         }
       };
@@ -119,6 +124,7 @@ function installMock(Module) {
       fake.ops.push({ op: "get", store: isStore(s) || /aia-store\.json/.test(s) });
       if (fake.failMode === "403") return { ok: false, status: 403, statusText: "Forbidden", url: s, text: async () => "Forbidden", headers: { get: () => null } };
       if (fake.failMode === "net") throw new Error("fetch failed: ECONNRESET");
+      if (fake.failMode === "missing") return no;
       const raw = fake.files[pathFrom(s)];
       if (!raw) return no;
       const text = raw.toString("utf8");
@@ -136,7 +142,9 @@ function installMock(Module) {
 function seed(fake) {
   const h = pinHash(PIN);
   const store = {
-    account: null, accounts: [], sessions: [], approvals: [], locks: [], connections: [], jobs: [], audit: [], money: [],
+    account: null, accounts: [], sessions: [], approvals: [], locks: [], connections: [],
+    // hydrate()'s persistScrub() drops this job and PUTs the store; the request-time load must not.
+    jobs: [{ id: "job_coldc_scrub", workspace: SLUG, title: "TEST lot cold-c" }], audit: [], money: [],
     workspaces: [{ slug: SLUG, name: "AIA", pin: h, people: [{ id: "p_owner", name: "Owner", role: "owner", pin: h, status: "approved" }] }],
     inbox: [],
     files: [{ id: OLD_ID, workspace: SLUG, name: "earlier.pdf", type: "application/octet-stream", bytes: 4, driver: "blob", url: "https://store_FAKESTORE.public.blob.vercel-storage.com/already" }],
@@ -149,10 +157,11 @@ async function child(scenario, apiDir) {
   const checks = [];
   const t = (name, ok, detail) => checks.push({ name: name, ok: !!ok, detail: detail == null ? "" : scrub(JSON.stringify(detail)) });
   const fake = installMock(require("module"));
-  seed(fake);
+  if (scenario !== "fresh") seed(fake);
   const mode = scenario === "net" || scenario === "net-stays" ? "net" : "403";
   fake.failMode = mode;
-  const before = fake.files["aia/store.json"].toString("utf8");
+  const storeText = () => fake.files["aia/store.json"] ? fake.files["aia/store.json"].toString("utf8") : null;
+  const before = storeText();
   const lib = require(path.join(apiDir, "_lib.js"));
   const upload = require(path.join(apiDir, "upload.js"));
   let rejected = false;
@@ -161,7 +170,7 @@ async function child(scenario, apiDir) {
   // This is the production shape: the module hydrate RESOLVES, it does not throw.
   t("module hydrate resolves (does not reject) on a blob read " + mode + " error", !rejected, { rejected: rejected });
   t("module hydrate left the starter store (desk not in memory)", !(lib.mem.workspaces || []).some((w) => w && w.slug === SLUG), "");
-  t("failed module load wrote nothing to the store", fake.storePuts === 0 && fake.files["aia/store.json"].toString("utf8") === before, { puts: fake.storePuts });
+  t("failed module load wrote nothing to the store", fake.storePuts === 0 && storeText() === before, { puts: fake.storePuts });
   const seat = { "x-workspace": SLUG, "x-pin": PIN };
 
   if (scenario === "403" || scenario === "net") {
@@ -174,6 +183,7 @@ async function child(scenario, apiDir) {
     t("cold GET /api/upload without seat -> 401 (desk found)", g2.statusCode === 401, [g2.statusCode, g2.body && g2.body.error]);
     t("concurrent cold requests share one read (1 head + 1 get)", coldReads <= 2 && coldReads >= 1, { reads: coldReads });
     t("store marked loaded only after the desk is really in memory", globalThis.__aiaStoreLoaded === true && (lib.mem.workspaces || []).some((w) => w && w.slug === SLUG), "");
+    t("request-time load wrote nothing back to the store", fake.storePuts === 0 && storeText() === before, { puts: fake.storePuts });
     fake.ops = [];
     const p = await call(upload, "POST", { "x-workspace": SLUG, "x-forwarded-for": "198.51.100.7" }, { name: "porch.png", type: "image/png", data: PNG.toString("base64") });
     const snap = [];
@@ -187,12 +197,30 @@ async function child(scenario, apiDir) {
   if (scenario === "net-stays") {
     // Reads keep failing during the request too: fail closed, write nothing, retry later.
     const g = await call(upload, "GET", seat);
-    t("GET while the store cannot be read is not a 200", g.statusCode !== 200, g.statusCode);
+    const gp = await call(upload, "POST", { "x-workspace": SLUG, "x-forwarded-for": "198.51.100.8" }, { name: "porch.png", type: "image/png", data: PNG.toString("base64") });
+    t("GET while the store cannot be read -> JSON 503", g.statusCode === 503 && g.body && g.body.ok === false && !!g.body.error, [g.statusCode, g.body && g.body.error]);
+    t("POST while the store cannot be read -> JSON 503, nothing stored", gp.statusCode === 503 && gp.body && gp.body.ok === false && fake.ops.every((o) => o.op !== "put"), [gp.statusCode, gp.body && gp.body.error]);
     t("store is not marked loaded after a request-time failure", globalThis.__aiaStoreLoaded !== true, globalThis.__aiaStoreLoaded);
-    t("request-time failure writes nothing", fake.storePuts === 0 && fake.files["aia/store.json"].toString("utf8") === before, { puts: fake.storePuts });
+    t("request-time failure writes nothing", fake.storePuts === 0 && storeText() === before, { puts: fake.storePuts });
     fake.failMode = null;
     const g2 = await call(upload, "GET", seat);
     t("next request after reads recover -> 200", g2.statusCode === 200, [g2.statusCode, g2.body && g2.body.error]);
+  }
+
+  if (scenario === "missing" || scenario === "fresh") {
+    // The request-time read finds no store ("missing": a spurious not-found
+    // while the store exists; "fresh": no store yet). That is "nothing to load":
+    // no 5xx, no retry loop, and above all no write-back of the starter store.
+    fake.failMode = "missing";
+    fake.ops = [];
+    const g = await call(upload, "GET", seat);
+    t("missing store in the request is not a 5xx", g.statusCode < 500, [g.statusCode, g.body && g.body.error]);
+    t("missing store in the request: nothing written back", fake.storePuts === 0 && storeText() === before, { puts: fake.storePuts });
+    t("missing store counts as loaded (not a failure forever)", globalThis.__aiaStoreLoaded === true, globalThis.__aiaStoreLoaded);
+    fake.ops = [];
+    const g2 = await call(upload, "GET", seat);
+    const again = fake.ops.filter((o) => o.store && (o.op === "head" || o.op === "get" || o.op === "list")).length;
+    t("next request is not a 5xx and does not read again", g2.statusCode < 500 && again === 0, [g2.statusCode, again]);
   }
 
   process.stdout.write("RESULT " + JSON.stringify({ checks: checks }) + "\n");
@@ -229,7 +257,9 @@ function materialize(files) {
 const SCENARIOS = [
   ["403", "module read refused (403), request read works"],
   ["net", "module read fails (network), request read works"],
-  ["net-stays", "reads fail in the request too: fail closed, retry later"]
+  ["net-stays", "reads fail in the request too: JSON 503, write nothing, retry later"],
+  ["missing", "module read refused, request read says not found: no 5xx, no write-back"],
+  ["fresh", "module read refused, no store yet: no 5xx, no write-back, no retry loop"]
 ];
 
 if (process.argv[2] === "--child") {
