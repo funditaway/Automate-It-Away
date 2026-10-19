@@ -39,6 +39,20 @@ function applyStatusRules(job, workspace) {
   return job;
 }
 
+// A capture spends a model call only for a seat or the desk's hook secret. The secret
+// is read from the X-Hook-Secret header only, never the query or body (same rule as
+// the existing-card gate). No hookSecretHash on the desk means no secret matches.
+function captureMayUseAi(req, workspace, shop) {
+  const found = deskSeat(req, workspace);
+  // A session counts here only on the desk it was issued for.
+  if (found && found.person && !(found.session && found.session.workspace !== workspace)) return true;
+  const want = String((shop && shop.hookSecretHash) || "").trim().toLowerCase();
+  const given = String(((req && req.headers) || {})["x-hook-secret"] || "").trim();
+  if (!/^[0-9a-f]{64}$/.test(want) || !given) return false;
+  const crypto = require("crypto");
+  return crypto.timingSafeEqual(crypto.createHash("sha256").update(given).digest(), Buffer.from(want, "hex"));
+}
+
 // Same seat helper as GET /api/jobs. A waiting seat is not a seat.
 function hasSeat(req, workspace) {
   const found = deskSeat(req, workspace);
@@ -129,11 +143,14 @@ module.exports = async function handler(req, res) {
       if (identity.bind === "ai" && identity.aiName) job.assignee = identity.aiName;
     }
     qualifyJob(job, shop);
+    // No seat and no hook secret: the card still comes in, but no model call on the desk's key.
+    const aiOk = captureMayUseAi(req, workspace, shop);
     try {
       const { grokRecommend } = require("./_grok");
-      const grok = await grokRecommend(job, shop, workspace);
+      const grok = aiOk ? await grokRecommend(job, shop, workspace) : null;
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
     } catch (e) {}
+    if (!aiOk) { job.aiWait = "person"; job.log.push("No AI draft · waiting for a person on this desk"); }
     applyDeskAiDraft(job, shop, "qualify");
     const tell = String(job.tell || "").trim();
     if (tell && !(job.thread || []).some((t) => t && t.kind === "tell" && String(t.text || "").trim() === tell)) {
