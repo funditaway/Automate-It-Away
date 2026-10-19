@@ -101,6 +101,18 @@ function accountExport(acc, current, currentToken) {
   };
 }
 
+// Attach moves a desk onto this account, so the request must prove it owns that desk:
+// the desk is already on this account, or the body carries that desk's owner code (pin).
+// Being an owner somewhere else is not proof. Only the code is checked: no session or body ids.
+function attachProven(row, acc, body) {
+  if (!row || !acc) return false;
+  if (row.accountId && row.accountId === acc.id) return true;
+  const code = String((body && (body.pin || body.code || body.deskPin)) || "");
+  if (!code) return false;
+  const via = personOf({ headers: { "x-workspace": row.slug, "x-pin": code } }, row.slug);
+  return !!(via.workspace && via.workspace.slug === row.slug && via.person && isOwner(via.person));
+}
+
 function authAccount(req) {
   const slug = workspaceOf(req);
   const found = personOf(req, slug);
@@ -208,6 +220,9 @@ module.exports = async function handler(req, res) {
     const want = lib.slugify(other);
     const row = (mem.workspaces || []).find((w) => w && w.slug === want);
     if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    if (!attachProven(row, acc, body)) {
+      return res.status(403).json({ ok: false, error: "Type that desk's owner code to attach it." });
+    }
     acc.desks = acc.desks || [];
     if (acc.desks.indexOf(row.slug) < 0) acc.desks.push(row.slug);
     row.accountId = acc.id;
