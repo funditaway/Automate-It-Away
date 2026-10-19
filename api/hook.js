@@ -4,6 +4,7 @@ const { qualifyJob, applyRules } = require("./_engine");
 const { makeCapturedJob, addTalk } = require("./_fields");
 const { applyDeskAiDraft } = require("./_handoff");
 const mail = require("./_aia-mail");
+const crypto = require("crypto");
 
 function eventOf(body) {
   const raw = String(body.event || body.action || body.status || "update").toLowerCase();
@@ -44,6 +45,27 @@ function hasSeat(req, workspace) {
   const found = deskSeat(req, workspace);
   return !!(found && found.person);
 }
+
+// Per-desk hook secret. Nothing here makes or sets one. A desk row may carry
+// hookSecretHash: the sha256 hex of a secret the owner mints and pastes into the
+// sender (shown to them once, stored like a pin, never echoed). The sender proves it
+// with the X-Hook-Secret header or ?hook_secret= on the hook URL. No hash on the
+// desk means no secret can match.
+function hookSecretOf(req) {
+  const headers = (req && req.headers) || {};
+  const query = (req && req.query) || {};
+  return String(headers["x-hook-secret"] || query.hook_secret || "").trim();
+}
+
+function hookSecretProven(req, shop) {
+  const want = String((shop && shop.hookSecretHash) || "").trim().toLowerCase();
+  const given = hookSecretOf(req);
+  if (!/^[0-9a-f]{64}$/.test(want) || !given) return false;
+  const got = crypto.createHash("sha256").update(given).digest();
+  return crypto.timingSafeEqual(got, Buffer.from(want, "hex"));
+}
+
+const EXISTING_CARD_LOCKED = "That card is already on this desk. Changing it from a hook needs a seat on this desk or this desk's hook secret. Nothing changed. New cards can still come in.";
 
 // No seat: ok, the job id, and the card status. The event name stays so a pipe can
 // tell a capture from an update. The card, photoUrl, files, and the file book stay off.
@@ -102,6 +124,13 @@ module.exports = async function handler(req, res) {
   }
   if (!job && body.externalId) {
     job = mem.jobs.find((j) => j.workspace === workspace && j.externalId === String(body.externalId));
+  }
+
+  // A card that is already on the desk only changes for a seat on this desk or a
+  // sender holding this desk's hook secret. New cards (capture, or no card found)
+  // still come in from anyone, as before.
+  if (job && event !== "capture" && !hasSeat(req, workspace) && !hookSecretProven(req, shop)) {
+    return res.status(401).json({ ok: false, error: EXISTING_CARD_LOCKED });
   }
 
   if (event === "capture" || !job) {
