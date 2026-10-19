@@ -53,7 +53,9 @@ function requestPermission(row, person, want) {
 }
 function setPermission(row, id, want, actor) {
   if (!row) return { ok: false, status: 404, error: "No desk." };
-  const seat = (row.people || []).find((p) => p && p.id === id);
+  const hits = (row.people || []).filter((p) => p && id && p.id === id);
+  if (hits.length > 1) return { ok: false, status: 409, error: "Two seats on this desk share that id, so AIA can't tell who you mean. Nothing changed." };
+  const seat = hits[0];
   if (!seat) return { ok: false, status: 404, error: "Person not found." };
   if (seat.role === "owner") return { ok: false, status: 409, error: "Owner seat stays owner." };
   const kind = String(want || seat.requestedKind || "member").toLowerCase();

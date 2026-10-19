@@ -328,6 +328,19 @@ function normalizeKind(kind, role) {
   if (role === "owner") return "owner";
   return raw === "staff" ? "staff" : "helper";
 }
+// Seat ids: "p_" + 128 random bits in base36 (same alphabet as the old
+// time-based ids, so pages still parse them). Re-roll on a clash with a seat
+// already on this desk. Old stored ids keep working; lookups go by exact id.
+const DUP_SEAT = "Two seats on this desk share that id, so AIA can't tell who you mean. Nothing changed.";
+function seatsById(row, id) {
+  return ((row && row.people) || []).filter((p) => p && id && p.id === id);
+}
+function newSeatId(row) {
+  let id = "";
+  do id = "p_" + BigInt("0x" + crypto.randomBytes(16).toString("hex")).toString(36);
+  while (seatsById(row, id).length || /\d{13}/.test(id));
+  return id;
+}
 function inviteSeat(row, body, actor) {
   if (!row) return { ok: false, status: 404, error: "No workspace" };
   const kind = normalizeKind(body.kind, body.role);
@@ -342,7 +355,7 @@ function inviteSeat(row, body, actor) {
   const ownerInvited = lib.isOwner(actor);
   const status = ownerInvited && kind !== "agent" ? "approved" : "pending";
   const seat = {
-    id: "p_" + Date.now().toString(36), name, role: kind === "owner" ? "owner" : "employee", kind,
+    id: newSeatId(row), name, role: kind === "owner" ? "owner" : "employee", kind,
     crew: kind === "agent" ? name : "", email: body.email || (home && home.email) || "",
     accountId: home ? home.id : "", pin: hashed, status,
     can: seatCan(kind, "", status), createdAt: new Date().toISOString(),
@@ -360,7 +373,9 @@ function requestSeat(row, body) {
 }
 function setSeatStatus(row, id, next, actor) {
   if (!row) return { ok: false, status: 404, error: "No desk." };
-  const seat = (row.people || []).find((p) => p && p.id === id);
+  const hits = seatsById(row, id);
+  if (hits.length > 1) return { ok: false, status: 409, error: DUP_SEAT, duplicate: true };
+  const seat = hits[0];
   if (!seat) return { ok: false, status: 404, error: "Person not found." };
   seat.status = String(next || "pending").toLowerCase();
   seat.approvedAt = seat.status === "approved" ? new Date().toISOString() : null;
@@ -374,6 +389,7 @@ function accountSnapshot(row, person) {
 module.exports = {
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
+  newSeatId, seatsById, DUP_SEAT,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
   findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
   setAccountPassword, applyAccountDetails, emailTaken,
