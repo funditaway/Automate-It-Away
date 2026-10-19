@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const fs = require("fs");
 const {
   cors, mem, log, save, ready, readBody, workspaceOf, deskSeat, isOwner, scrubLog,
   blobAllowed, blobSeal, blobCopy, blobHead, blobDel, blobListAll, blobPutAt, storeBody, applyStore, blobErrText
@@ -327,6 +328,113 @@ function replaceUrl(oldUrl, newUrl) {
   return was;
 }
 
+// Read-only link check, dry run only. For each file record: does its link still answer?
+// tmp-file records: stat the temp path on this instance (no read). Vercel Blob links: one
+// HEAD (blobHead, metadata only) with a short timeout. Counts only: no url, path, id, file
+// name, desk name, or error text is ever put in the result. Never writes the store.
+const LINK_TIMEOUT_MS = 4000;
+const LINK_CAP = 200;
+const LINK_NOTE = "Temp-file records live on the temporary disk of one server instance. missingFile on a different instance may mean the file is lost, or just not on this instance. Blob records are checked by HEAD from this instance.";
+
+function linkSlot() {
+  return { total: 0, answers: 0, missingFile: 0, sizeMismatch: 0, errored: 0, unchecked: 0 };
+}
+
+function linkKind(rec) {
+  if (!rec || typeof rec !== "object") return "other";
+  const raw = typeof rec.remoteUrl === "string" && rec.remoteUrl ? rec.remoteUrl : (typeof rec.url === "string" ? rec.url : "");
+  const info = shapePath(raw);
+  if (info.kind === "absolute" || info.kind === "protocolRelative") return info.host === "vercelBlob" ? "blob" : "other";
+  if (info.kind === "relative") return "tmpFile";
+  return "other";
+}
+
+function sizeOk(want, got) {
+  if (typeof want !== "number" || !isFinite(want)) return true;
+  if (typeof got !== "number" || !isFinite(got)) return true;
+  return want === got;
+}
+
+function checkTmpFile(rec) {
+  if (typeof rec.path !== "string" || !rec.path) return "errored";
+  let st;
+  try {
+    st = fs.statSync(rec.path);
+    fs.accessSync(rec.path, fs.constants.R_OK);
+  } catch (e) {
+    return e && e.code === "ENOENT" ? "missingFile" : "errored";
+  }
+  if (!st.isFile()) return "errored";
+  return sizeOk(rec.bytes, st.size) ? "answers" : "sizeMismatch";
+}
+
+async function checkBlob(rec, timeoutMs) {
+  const raw = typeof rec.remoteUrl === "string" && rec.remoteUrl ? rec.remoteUrl : rec.url;
+  const url = String(raw).indexOf("//") === 0 ? "https:" + raw : raw;
+  let timer = null;
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve({ timedOut: true }), timeoutMs); });
+  try {
+    const got = await Promise.race([blobHead(url).then((meta) => ({ meta: meta }), (err) => ({ err: err })), timeout]);
+    if (got.timedOut) return "errored";
+    if (got.err) return got.err && got.err.code === "AIA_BLOB_MISSING" ? "missingFile" : "errored";
+    const size = got.meta && got.meta.size != null ? Number(got.meta.size) : null;
+    return sizeOk(rec.bytes, size) ? "answers" : "sizeMismatch";
+  } catch (e) {
+    return "errored";
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function linkCheck(files, opts) {
+  const timeoutMs = (opts && opts.timeoutMs) || LINK_TIMEOUT_MS;
+  const list = Array.isArray(files) ? files : [];
+  const all = linkSlot();
+  const by = { blob: linkSlot(), tmpFile: linkSlot(), other: linkSlot() };
+  let checkedBlobs = 0;
+  const jobs = [];
+  list.forEach((rec) => {
+    const kind = linkKind(rec);
+    all.total += 1;
+    by[kind].total += 1;
+    const tally = (outcome) => { all[outcome] += 1; by[kind][outcome] += 1; };
+    if (kind === "other") return tally("unchecked");
+    if (kind === "tmpFile") return tally(checkTmpFile(rec));
+    if (checkedBlobs >= LINK_CAP) return tally("unchecked");
+    checkedBlobs += 1;
+    jobs.push(async () => tally(await checkBlob(rec, timeoutMs)));
+  });
+  let next = 0;
+  async function worker() {
+    while (next < jobs.length) {
+      const run = jobs[next];
+      next += 1;
+      await run();
+    }
+  }
+  const workers = [];
+  for (let i = 0; i < Math.min(4, jobs.length); i++) workers.push(worker());
+  await Promise.all(workers);
+  return {
+    total: all.total,
+    answers: all.answers,
+    missingFile: all.missingFile,
+    sizeMismatch: all.sizeMismatch,
+    errored: all.errored,
+    unchecked: all.unchecked,
+    byDriver: by,
+    note: LINK_NOTE
+  };
+}
+
+async function safeLinkCheck(files, opts) {
+  try {
+    return await linkCheck(files, opts);
+  } catch (e) {
+    return { error: "link check failed" };
+  }
+}
+
 async function publicGet(url) {
   const r = await fetch(url, { method: "GET", redirect: "follow" });
   const headers = r.headers;
@@ -584,7 +692,9 @@ async function moveOld(req, res, ctx, apply) {
   };
   if (!apply) {
     steps.unshift({ step: "preflight", dryRun: true, backup: false });
+    const linkCheckResult = await safeLinkCheck(mem.files);
     return send(res, 200, reportBody(ctx, Object.assign({ apply: false, noop: false }, base, {
+      linkCheck: linkCheckResult,
       note: "Dry run. Nothing was copied, relinked, or deleted."
     })));
   }
@@ -863,3 +973,4 @@ module.exports = async function handler(req, res) {
 module.exports.CONFIRM = CONFIRM;
 module.exports.CONFIRM_DELETE = CONFIRM_DELETE;
 module.exports.EXPECT = EXPECT;
+module.exports.linkCheck = linkCheck;
