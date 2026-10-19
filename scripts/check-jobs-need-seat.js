@@ -64,8 +64,11 @@ const STRANGER_ACTIONS = [
   ["done", { text: "stranger done" }],
   ["priority", {}],
   ["cap", {}],
+  ["uncap", {}],
   ["assign", { name: "Sam" }],
   ["schedule", { dueAt: "2030-01-01T00:00:00Z" }],
+  ["due", { dueAt: "2030-01-02T00:00:00Z" }],
+  ["expire", { expireAt: "2030-01-03T00:00:00Z" }],
   ["snooze", { until: "in 2 hours" }],
   ["qualify", { why: "stranger why" }],
   ["recommend", {}],
@@ -75,6 +78,8 @@ const STRANGER_ACTIONS = [
   ["reply", { text: "stranger reply" }],
   ["define-field", { label: "Stranger field" }],
   ["bind-ai", { aiId: "x" }],
+  ["set-ai", { ai: "ai_needseat" }],
+  ["assign-ai", { ai: "ai_needseat" }],
   ["no-such-action", {}]
 ];
 
@@ -99,6 +104,18 @@ async function main() {
   if (opened.statusCode !== 201) fail("could not open a desk, got " + opened.statusCode + " " + JSON.stringify(opened.body));
   const joined = await call(auth, "POST", { "x-workspace": slug }, { action: "join", name: "Sam", pin: "9191", kind: "helper" });
   if (joined.statusCode !== 202 || !joined.body || !joined.body.person) fail("could not add a waiting seat: " + JSON.stringify(joined.body));
+  // A second helper asks for a seat and the owner denies it: a denied seat is no seat.
+  // Seat ids are minted from the clock, so let a millisecond pass before the second join.
+  await new Promise((r) => setTimeout(r, 5));
+  const deniedJoin = await call(auth, "POST", { "x-workspace": slug }, { action: "join", name: "Dee", pin: "7272", kind: "helper" });
+  if (deniedJoin.statusCode !== 202 || !deniedJoin.body || !deniedJoin.body.person) fail("could not add a seat to deny: " + JSON.stringify(deniedJoin.body));
+  if (deniedJoin.body.person.id === joined.body.person.id) fail("the denied seat and the waiting seat need different ids");
+  const denied = await call(auth, "POST", { "x-workspace": slug, "x-pin": pin }, { action: "deny", id: deniedJoin.body.person.id });
+  if (denied.statusCode !== 200) fail("owner should deny the seat, got " + denied.statusCode + " " + JSON.stringify(denied.body));
+  const deniedRow = (lib.mem.workspaces.find((w) => w.slug === slug).people || []).find((p) => p.id === deniedJoin.body.person.id);
+  if (!deniedRow || deniedRow.status !== "denied") fail("the denied seat should be on the book as denied");
+  const waitingRow = (lib.mem.workspaces.find((w) => w.slug === slug).people || []).find((p) => p.id === joined.body.person.id);
+  if (!waitingRow || waitingRow.status !== "pending") fail("the waiting seat should still be waiting after the deny");
   lib.mem.connections.push({ id: "c_needseat", workspace: slug, provider: "webhook", label: "Zap", hook: HOOK, live: true });
   function seed(id) {
     lib.mem.jobs.unshift({
@@ -118,7 +135,8 @@ async function main() {
   const callers = [
     ["a desk name alone", OPEN],
     ["a wrong code", { "x-workspace": slug, "x-pin": "0000" }],
-    ["a waiting seat", { "x-workspace": slug, "x-pin": "9191" }]
+    ["a waiting seat", { "x-workspace": slug, "x-pin": "9191" }],
+    ["a denied seat", { "x-workspace": slug, "x-pin": "7272" }]
   ];
   for (let c = 0; c < callers.length; c++) {
     for (let i = 0; i < STRANGER_ACTIONS.length; i++) {
@@ -134,7 +152,7 @@ async function main() {
       if (JSON.stringify(lib.mem.jobs.find((j) => j.id === "job_needseat")) !== before) fail(label + " changed the card");
       if ([lib.mem.jobs.length, lib.mem.money.length, lib.mem.inbox.length].join(",") !== counts) fail(label + " added cards, money, or inbox rows");
       if (fetches.length !== f0) fail(label + " made an outbound call: " + JSON.stringify(fetches.slice(f0)));
-      if (c < 2 && (res.statusCode !== missingReply.statusCode || JSON.stringify(res.body) !== JSON.stringify(missingReply.body))) {
+      if (c !== 2 && (res.statusCode !== missingReply.statusCode || JSON.stringify(res.body) !== JSON.stringify(missingReply.body))) {
         fail(label + " should look like a missing desk: " + res.statusCode + " " + JSON.stringify(res.body));
       }
       if (c === 2 && (res.statusCode !== 403 || res.body.error !== "That seat is waiting on the owner.")) fail(label + " should be the waiting-seat 403");
