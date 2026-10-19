@@ -23,7 +23,7 @@
   var STOPS = [["money", "Stop and ask before spending money"], ["deletes", "Stop and ask before deleting anything"], ["messageNew", "Stop and ask before messaging someone new"]];
   var LOOKS = { system: "Match my phone or computer", light: "Light", dark: "Dark" };
   var REACH = { call: "Call me", text: "Text me", email: "Email me" };
-  var KINDS = { human: "Person", ai: "AI", si: "SI" };
+  var KINDS = { human: "Human", ai: "AI", si: "SI" };
 
   function ls(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
   function hdr() {

@@ -144,7 +144,7 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     ok(find(w.mount, (n) => n.tagName === "li").some((li) => /Hal: Saved profile\./.test(li.textContent)), "an unknown kind is left off, never shown raw");
     ok(find(w.mount, (n) => n.tagName === "li").some((li) => /Desk AI Rex \(SI\): Moved a card\./.test(li.textContent)), "desk events name who did it from by");
     const ksel = find(byId(w.mount, "acct-profile"), (n) => n.tagName === "select")[0];
-    ok(ksel && ksel.parts.length === 3 && ksel.parts.map((o) => o.textContent).join() === "Person,AI,SI", "profile: kind picker reads Person, AI, SI");
+    ok(ksel && ksel.parts.length === 3 && ksel.parts.map((o) => o.textContent).join() === "Human,AI,SI", "profile: kind picker reads Human, AI, SI");
     ok(ksel && ksel.parts.filter((o) => o.selected).map((o) => o.value).join() === "human", "profile: kind picker shows the saved kind");
 
     // profile save
@@ -224,7 +224,7 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     ok(/Stop and Kill always work\. They cannot be switched off\./.test(autos.textContent), kind + ": Stop and Kill line");
     const prof = byId(w.mount, "acct-profile");
     ok(find(prof, (n) => n.tagName === "select").length === 0, kind + ": no kind picker when the server offers no choices");
-    ok(prof.textContent.indexOf("This account is a " + { human: "Person", ai: "AI", si: "SI" }[kind] + ".") >= 0, kind + ": kind shown in plain words");
+    ok(prof.textContent.indexOf("This account is a " + { human: "Human", ai: "AI", si: "SI" }[kind] + ".") >= 0, kind + ": kind shown in plain words");
   }
   {
     const st = fullSettings(); st.profile.kind = EVIL; st.profile.kindChoices = [EVIL, "robot"];
