@@ -1,5 +1,5 @@
 const {
-  cors, catalog, mem, ready, save, storePath, blobToken, blobReady,
+  cors, catalog, mem, readyRead, blobToken,
   workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl
 } = require("./_lib");
 
@@ -85,7 +85,7 @@ async function deskStatus(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET") return res.status(405).json({ error: "Use GET" });
-  await ready();
+  await readyRead();
 
   const workspace = workspaceOf(req);
   const { workspace: row, person } = personOf(req, workspace);
@@ -142,10 +142,10 @@ async function deskStatus(req, res) {
 async function health(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  await ready();
-  // Probe the same persist path onboard uses. Skipping save() when driver is
-  // already blob left leftover write=fail + detail=null after a later read.
-  if (blobReady()) await save();
+  // GET /api/health is read-only. It re-reads the store but never saves or
+  // writes the blob. The old save() here was a write probe for store.blob,
+  // which health no longer shows (#236), so every read rewrote aia/store.json.
+  await readyRead();
   const driver = mem.driver || "file";
   const rev = commitRev();
   res.status(200).json({

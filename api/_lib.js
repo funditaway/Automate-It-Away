@@ -1149,6 +1149,22 @@ async function ready() {
   await persistScrub();
 }
 
+// Read-only twin of ready() for GET checks like /api/health. Same first-load
+// wait and same blob re-read, but it never writes: no persistScrub(), no
+// save(). Test rows are dropped from mem only, so counts match ready().
+async function readyRead() {
+  await globalThis.__aiaHydrate;
+  if (blobReady()) {
+    const remote = await blobRead();
+    if (remote) {
+      applyStore(remote);
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+    }
+  }
+  dropPersistTests();
+}
+
 function captureMem() {
   return {
     data: JSON.parse(JSON.stringify(payload())),
@@ -2385,7 +2401,7 @@ function readBody(req) {
 }
 
 module.exports = {
-  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, loadIfCold, applyStore, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, readyRead, loadIfCold, applyStore, storePath,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
   blobCopy, blobHead, blobDel, blobListAll, blobPutAt, storeBody,
