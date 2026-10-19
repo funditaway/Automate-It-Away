@@ -51,8 +51,8 @@ function leaked(body, bit) {
   return JSON.stringify(body == null ? "" : body).indexOf(bit) >= 0;
 }
 
-async function openDesk(auth, slug, name, pin, email) {
-  const r = await call(auth, "POST", { "x-workspace": slug }, {
+async function openDesk(auth, slug, name, pin, email, session) {
+  const r = await call(auth, "POST", Object.assign({ "x-workspace": slug }, session ? { "x-session": session } : {}), {
     action: "open", slug: slug, biz: slug.replace(/-/g, " "), name: name, pin: pin, email: email || ""
   });
   if (r.statusCode !== 201 || !r.body || !r.body.session || !r.body.session.token) {
@@ -190,7 +190,7 @@ async function main() {
   const D = "pod-desk-d";
   const caraTok = await openDesk(auth, C, "Cara", "5555", "cara@example.test");
   // Opening a second desk with the same account email files it under the same account (createOwnerAccount).
-  await openDesk(auth, D, "Cara", "6666", "cara@example.test");
+  await openDesk(auth, D, "Cara", "6666", "cara@example.test", caraTok);
   const rowC = lib.mem.workspaces.find((w) => w && w.slug === C);
   const rowD = lib.mem.workspaces.find((w) => w && w.slug === D);
   const accC = account.accountForDesk(rowC);
