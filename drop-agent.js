@@ -320,7 +320,7 @@
               var copy = res.clone();
               copy.json().then(function (out) {
                 var job = out && (out.job || out.data || out); var id = job && job.id;
-                var auto = window.__aiaPendingAuto || {}; var headers = (opts && opts.headers) || {};
+                var auto = window.__aiaPendingAuto || {}; var headers = Object.assign({}, (opts && opts.headers) || {}); try { var tok = localStorage.getItem("aia_session") || ""; if (tok && !headers["X-Session"]) headers["X-Session"] = tok; } catch (e3) {}
                 if (id && auto.draft) real.call(window, "/api/jobs", { method: "POST", headers: headers, body: JSON.stringify({ action: "recommend", id: id }) });
                 if (id && auto.handTo) real.call(window, "/api/jobs", { method: "POST", headers: headers, body: JSON.stringify({ action: "assign", id: id, name: auto.handTo }) });
               }).catch(function () {});
