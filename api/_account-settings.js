@@ -24,7 +24,12 @@ const REACH = ["call", "text", "email"];
 const STOP_KEYS = ["money", "deletes", "messageNew"];
 const STOP_WORDS = { money: "money", deletes: "deletes", messageNew: "messaging someone new" };
 const PROFILE_LIMITS = { name: 80, phone: 32, city: 60, state: 40, timezone: 60, hours: 80, note: 240, email: 120 };
-const ACTIONS = ["settings", "secret-set", "secret-remove"];
+const ACTIONS = ["settings", "secret-set", "secret-remove", "automation-step"];
+// Account kinds. A missing kind reads as human.
+const ACCOUNT_KINDS = ["human", "ai", "si"];
+// Steps an AI or SI account pauses before, and the stopBefore choice that turns each off.
+const PAUSE_STEPS = { spend: "money", delete: "deletes", "message-new": "messageNew" };
+const ALWAYS_STEPS = ["stop", "kill"];
 const ID_FIELDS = ["accountId", "account", "acct", "acctId", "account_id", "owner", "ownerId", "personId", "seatId"];
 
 // Plain text only: drop control characters and angle brackets, fold space, cap length.
@@ -108,15 +113,59 @@ function settingsOf(acc) {
   return s;
 }
 
+// accountKindFrom(value): "human" when missing, the kind when it is one of
+// human, ai, si, and null for anything else (the caller answers 400).
+function accountKindFrom(value) {
+  if (value == null || value === "") return "human";
+  const k = String(value).trim().toLowerCase();
+  return ACCOUNT_KINDS.indexOf(k) >= 0 ? k : null;
+}
+
+function kindOf(acc) {
+  const k = acc && acc.kind ? accountKindFrom(acc.kind) : "human";
+  return k || "human";
+}
+
+// Who did it, as a kind. Desk AI seats are "ai". Otherwise the kind of the
+// seat's own account, or the desk's account for an owner seat. Never creates an account.
+function actorKind(person, row, acc) {
+  if (acc) return kindOf(acc);
+  if (person && (person.deskAi || String(person.kind || "").toLowerCase() === "agent" || String(person.role || "").toLowerCase() === "agent")) return "ai";
+  const accounts = lib.mem.accounts || [];
+  let hit = person && person.accountId ? accounts.find((a) => a && a.id === person.accountId) : null;
+  if (!hit && row && (!person || lib.isOwner(person))) hit = accounts.find((a) => a && (a.id === row.accountId || (a.desks || []).indexOf(row.slug) >= 0));
+  return kindOf(hit);
+}
+
+// One stamp for every account and desk history entry: who did it and their kind.
+function stampWho(person, row, acc, fallback) {
+  return { who: plain((person && person.name) || fallback || "You", 80), whoKind: actorKind(person, row, acc) };
+}
+
+// needsPause(kind, automation, actionType): true when an AI or SI account is
+// about to spend, delete, or message someone new and the owner has not turned
+// that stop-before off for this one automation (stopBefore.money / deletes /
+// messageNew === false). Humans never pause here. Stop and Kill never pause.
+function needsPause(kind, automation, actionType) {
+  const k = accountKindFrom(kind) || "ai";
+  if (k !== "ai" && k !== "si") return false;
+  const key = PAUSE_STEPS[String(actionType || "").toLowerCase()];
+  if (!key) return false;
+  const sb = automation && automation.stopBefore;
+  return !(sb && sb[key] === false);
+}
+
 function historyOf(acc) {
   if (!Array.isArray(acc.history)) acc.history = [];
   return acc.history;
 }
 
-function addHistory(acc, person, section, what) {
+function addHistory(acc, person, section, what, whoKind) {
+  const stamp = stampWho(person, null, acc);
   const row = {
     at: new Date().toISOString(),
-    who: plain((person && person.name) || "You", 80),
+    who: stamp.who,
+    whoKind: whoKind || stamp.whoKind,
     section: section,
     what: plain(what, 200)
   };
@@ -239,6 +288,8 @@ function settingsReply(acc, person) {
       account: { id: acc.id },
       profile: {
         available: true,
+        kind: kindOf(acc),
+        kindChoices: ACCOUNT_KINDS.slice(),
         name: plain(acc.ownerName || "", 80),
         email: plain(acc.email || "", 120),
         phone: plain(acc.phone || "", 32),
@@ -258,7 +309,7 @@ function settingsReply(acc, person) {
       automations: automationSection(acc),
       look: { available: true, theme: THEMES.indexOf(s.look.theme) >= 0 ? s.look.theme : "system", themes: THEMES.slice() },
       secrets: { available: !!secretKey(), items: publicSecrets(acc), max: SECRET_MAX },
-      history: historyOf(acc).slice(0, HISTORY_SHOW).map((h) => ({ at: h.at, who: h.who, section: h.section, what: h.what }))
+      history: historyOf(acc).slice(0, HISTORY_SHOW).map((h) => Object.assign({ at: h.at, who: h.who, section: h.section, what: h.what }, h.whoKind ? { whoKind: h.whoKind } : {}))
     }
   };
 }
@@ -278,11 +329,15 @@ function touchesStopKill(set) {
 }
 
 function applyProfile(acc, set) {
-  const bad = onlyKeys(set, Object.keys(PROFILE_LIMITS));
+  const bad = onlyKeys(set, Object.keys(PROFILE_LIMITS).concat(["kind"]));
   if (bad) return { ok: false, status: 400, error: "Not a profile field: " + plain(bad.join(", "), 80) };
+  // kind: human, ai, or si. Checked before anything changes.
+  const wantKind = set.kind == null ? null : accountKindFrom(set.kind === "" ? "?" : set.kind);
+  if (set.kind != null && !wantKind) return { ok: false, status: 400, error: "Pick human, ai, or si." };
   const changed = [];
+  const kindWas = kindOf(acc);
   Object.keys(set).forEach((k) => {
-    if (k === "email") return;
+    if (k === "email" || k === "kind") return;
     if (typeof set[k] !== "string") return;
     const v = plain(set[k], PROFILE_LIMITS[k]);
     const field = k === "name" ? "ownerName" : k;
@@ -294,6 +349,10 @@ function applyProfile(acc, set) {
     if (e && !accMod.looksLikeEmail(e)) return { ok: false, status: 400, error: "That email does not look right." };
     if (e && accMod.emailTaken(e, acc.id)) return { ok: false, status: 409, error: "That email is already on another AIA account." };
     if ((acc.email || "") !== e) { acc.email = e; changed.push("email"); }
+  }
+  if (wantKind && (acc.kind !== wantKind)) {
+    acc.kind = wantKind;
+    if (kindWas !== wantKind) changed.push("kind from " + kindWas + " to " + wantKind);
   }
   return { ok: true, what: changed.length ? "Changed " + changed.join(", ") + " on your profile." : "Saved your profile. Nothing changed." };
 }
@@ -316,6 +375,42 @@ function applyLook(acc, set) {
   return { ok: true, what: "Look set to " + theme + "." };
 }
 
+function findAutomation(acc, set) {
+  const slug = lib.slugify(set.desk || "");
+  const kind = String(set.kind || "").toLowerCase();
+  const id = String(set.id || "").slice(0, 80);
+  const row = ownedDesks(acc).find((w) => w.slug === slug);
+  if (!row) return { ok: false, status: 404, error: "Not one of your desks." };
+  const hit = automationsOf(row).find((a) => a.kind === kind && a.id === id);
+  if (!hit) return { ok: false, status: 404, error: "No automation like that on this desk." };
+  return { ok: true, row, hit, kind, id, key: autoKey(row.slug, kind, id) };
+}
+
+// One step an automation wants to take. Never does the step: run-on-its-own is
+// not here yet. AI and SI accounts pause before spend, delete, message-new
+// unless this automation's stop-before is off. Spend is still held by Collect
+// HOLD for every kind. Stop and Kill always go through.
+function automationStep(acc, body) {
+  const step = String(body.step || "").toLowerCase();
+  if (ALWAYS_STEPS.indexOf(step) >= 0) return { ok: true, status: 200, step, paused: false, done: false, reply: "Stop and Kill always work." };
+  if (!PAUSE_STEPS[step]) return { ok: false, status: 400, error: "Pick spend, delete, or message-new." };
+  const found = findAutomation(acc, body);
+  if (!found.ok) return found;
+  const kind = kindOf(acc);
+  const label = (found.kind === "ai" ? "Desk AI " : "rule ") + "\"" + plain(found.hit.name, 60) + "\" on " + plain(found.row.biz || found.row.name || found.row.slug, 60);
+  const words = step === "spend" ? "spending money" : step === "delete" ? "deleting something" : "messaging someone new";
+  if (needsPause(kind, settingsOf(acc).automations[found.key], step)) {
+    return { ok: false, status: 409, step, paused: true, held: false, done: false, charged: false, record: true,
+      error: "Paused before " + words + " for " + label + ". This " + kind + " account waits for the owner. Nothing was done." };
+  }
+  if (step === "spend") {
+    return { ok: false, status: 409, step, paused: false, held: true, done: false, charged: false, record: true,
+      error: "Collect stays HOLD. Nothing was charged for " + label + "." };
+  }
+  return { ok: true, status: 200, step, paused: false, held: false, done: false, charged: false,
+    reply: "Not paused for " + label + ". Run on its own is not here yet, so a person still taps on the card." };
+}
+
 function applyAutomation(acc, set) {
   if (touchesStopKill(set)) return { ok: false, status: 400, error: "Stop and Kill always work. They cannot be switched off." };
   if (set.runOnItsOwn != null || set.auto != null || set.autoRun != null) {
@@ -332,13 +427,9 @@ function applyAutomation(acc, set) {
   }
   const bad = onlyKeys(set, ["desk", "kind", "id"].concat(STOP_KEYS));
   if (bad) return { ok: false, status: 400, error: "Not an automation field: " + plain(bad.join(", "), 80) };
-  const slug = lib.slugify(set.desk || "");
-  const kind = String(set.kind || "").toLowerCase();
-  const id = String(set.id || "").slice(0, 80);
-  const row = ownedDesks(acc).find((w) => w.slug === slug);
-  if (!row) return { ok: false, status: 404, error: "Not one of your desks." };
-  const hit = automationsOf(row).find((a) => a.kind === kind && a.id === id);
-  if (!hit) return { ok: false, status: 404, error: "No automation like that on this desk." };
+  const found = findAutomation(acc, set);
+  if (!found.ok) return found;
+  const { row, hit, kind, id } = found;
   const flips = STOP_KEYS.filter((k) => set[k] != null);
   if (!flips.length) return { ok: false, status: 400, error: "Say which stop to change: money, deletes, or messageNew." };
   for (let i = 0; i < flips.length; i++) {
@@ -369,12 +460,26 @@ async function handle(req, res) {
   const acc = seat.account;
   const person = seat.person;
   if (askedOther(req, body, acc)) return refuse(res, 403, "Settings only change your own account."), true;
+  const whoKind = kindOf(acc);
 
   if (req.method === "GET") {
     return res.status(200).json(settingsReply(acc, person)), true;
   }
 
   const action = req.method === "DELETE" ? "secret-remove" : String(body.action || "").toLowerCase();
+  if (action === "automation-step") {
+    const extra = onlyKeys(body, ["action", "desk", "kind", "id", "step"].concat(ID_FIELDS));
+    if (extra) return refuse(res, 400, "Not an automation step field: " + plain(extra.join(", "), 80)), true;
+    const out = automationStep(acc, body);
+    if (out.record) {
+      addHistory(acc, person, "automations", out.error, whoKind);
+      lib.log("Account", (out.paused ? "Paused · " : "Held · ") + out.step, "Hold", seat.row.slug);
+      await lib.save();
+    }
+    if (!out.ok && !out.record) return refuse(res, out.status || 400, out.error), true;
+    delete out.record;
+    return res.status(out.status).json(out), true;
+  }
   if (action === "secret-set") {
     const extra = onlyKeys(body, ["action", "name", "value"].concat(ID_FIELDS));
     if (extra) return refuse(res, 400, "Not a secret field: " + plain(extra.join(", "), 80)), true;
@@ -430,7 +535,7 @@ async function handle(req, res) {
   else made = { ok: false, status: 400, error: "Pick profile, talk, automations, or look." };
   if (!made.ok) return refuse(res, made.status || 400, made.error), true;
   const sec = section === "automation" ? "automations" : section;
-  addHistory(acc, person, sec, made.what);
+  addHistory(acc, person, sec, made.what, whoKind);
   lib.log("Account", "Settings saved · " + sec, "OK", seat.row.slug);
   await lib.save();
   const reply = settingsReply(acc, person);
@@ -438,4 +543,4 @@ async function handle(req, res) {
   return res.status(200).json(reply), true;
 }
 
-module.exports = { handle, ownSeat, plain, publicSecrets, openSecret, SECRET_ENV, STOP_KEYS, THEMES };
+module.exports = { handle, ownSeat, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };

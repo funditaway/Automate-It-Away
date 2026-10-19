@@ -255,7 +255,8 @@ function createOwnerAccount(body, row) {
     city: (body && body.city) || (row && row.city) || "",
     plan: "pro", billing: defaultBilling(), slug: slug,
     pin: body && body.pin ? lib.hashPin(body.pin) : (row && row.pin) || "",
-    desks: row && row.slug ? [row.slug] : [], memberDesks: [], createdAt: new Date().toISOString()
+    desks: row && row.slug ? [row.slug] : [], memberDesks: [], createdAt: new Date().toISOString(),
+    kind: require("./_account-settings").accountKindFrom(body && body.accountKind) || "human"
   };
   if (body && body.password) setAccountPassword(acc, body.password);
   lib.mem.accounts.unshift(acc);
