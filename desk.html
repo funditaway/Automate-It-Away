@@ -173,7 +173,7 @@
       <h2>Cap · orange · every desk on this account</h2>
       <div id="cap-list"></div>
     </div>
-    <div id="queue" class="q-desk" data-card-needs="cardNeeds"></div>
+    <div id="queue" class="q-desk" data-card-needs="cardNeeds" title="Taps match what the card needs"></div>
     <p class="meta" id="recent-label" hidden style="margin:16px 0 4px">Just sent</p>
     <div id="recent"></div>
     <p class="meta" id="rules-line"><a href="/rules">Rules</a> — no rules yet. Add one if you need it.</p>
@@ -357,9 +357,9 @@
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
-        return "<div id=\"queue-empty\"><p>Open a desk. The queue stays empty until you do.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
+        return "<div id=\"queue-empty\"><p>No desk on this phone yet. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
       }
-      return "<div id=\"queue-empty\"><p>Nothing here yet. Drop or Create a card.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+      return "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
     }
     window.queueEmptyHtml = queueEmptyHtml;
     function card(j, staff) {
