@@ -288,6 +288,9 @@ async function handle(req, res, body) {
   const acc = seat.account;
   const person = seat.person;
   if (s.askedOther(req, body, acc)) return refuse(res, 404, NO_ONE);
+  // The body itself must be plain too: a field inherited from a prototype
+  // would skip the own-field type check below.
+  if (!plainObj(body)) return refuse(res, 400, s.BODY_NOT_PLAIN);
   const typeErr = FIELD_TYPES[action] ? wrongType(body, FIELD_TYPES[action]) : null;
   if (typeErr) return refuse(res, 400, typeErr);
   if (action === "setup-card" && plainObj(body.from)) {
