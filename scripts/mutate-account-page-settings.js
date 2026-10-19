@@ -34,6 +34,7 @@ const MUTANTS = [
   ["raw kind shown in history", F, rep('(KINDS[h.whoKind] ? " (" + KINDS[h.whoKind] + ")" : "")', '(h.whoKind ? " (" + h.whoKind + ")" : "")')],
   ["read-only kind line dropped", F, rep('c.appendChild(el("p", "meta", "This account is a " + KINDS[s.kind] + "."));', "")],
   ["AI accounts lose stop choices", F, rep("    paintAutos(st.automations);", '    paintAutos(st.profile && st.profile.kind !== "human" ? null : st.automations);')],
+  ["desk events lose who did it", F, rep('var who = h.who || h.by || "";', 'var who = h.who || "";')],
   ["footer link dropped", "theme.js", rep('    { href: "/account", label: "My account" },\n', "")],
   ["mount removed from account.html", "account.html", rep('<section id="acct-settings" aria-label="My account settings" hidden></section>', "")],
   ["script tag removed from account.html", "account.html", rep('  <script src="account-settings.js"></script>\n', "")],

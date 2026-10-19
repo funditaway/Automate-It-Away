@@ -242,7 +242,8 @@
     rows.forEach(function (h) {
       var when = "";
       try { when = h.at ? new Date(h.at).toLocaleString() : ""; } catch (e) {}
-      ul.appendChild(el("li", null, (when ? when + " · " : "") + (h.who ? h.who + (KINDS[h.whoKind] ? " (" + KINDS[h.whoKind] + ")" : "") + ": " : "") + (h.what || "")));
+      var who = h.who || h.by || "";
+      ul.appendChild(el("li", null, (when ? when + " · " : "") + (who ? who + (KINDS[h.whoKind] ? " (" + KINDS[h.whoKind] + ")" : "") + ": " : "") + (h.what || "")));
     });
     histBox.appendChild(ul);
   }

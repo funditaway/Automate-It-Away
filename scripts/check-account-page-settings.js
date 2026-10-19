@@ -80,11 +80,11 @@ function fullSettings() {
     account: { id: "acc1" },
     profile: { available: true, kind: "human", kindChoices: ["human", "ai", "si"], name: EVIL, email: "pat@shop.test", phone: "4175550100", city: "Springfield", state: "MO", timezone: "America/Chicago", hours: "8-5", note: "<b>hi</b>" },
     talk: { available: true, reach: "text", reachChoices: ["call", "text", "email"], notify: { available: false } },
-    desks: { available: true, items: [{ slug: "aia", name: EVIL, yours: "own", pack: { id: "p1", name: "<script>x</script>" }, automations: [{ kind: "flow", id: "a1", name: "Lead <i>catcher</i>" }], allowList: { available: false } }] },
-    automations: { available: true, stopAndKill: { always: true, canTurnOff: false }, runOnItsOwn: { available: false }, note: "AIA still waits for a person on every card today.", items: [{ desk: "aia", kind: "flow", id: "a1", name: EVIL, stopBefore: { money: true, deletes: false, messageNew: true }, updatedAt: "" }] },
+    desks: { available: true, items: [{ slug: "aia", name: EVIL, yours: "own", pack: { id: "p1", name: "<script>x</script>" }, automations: [{ kind: "rule", id: "a1", name: "Lead <i>catcher</i>" }], allowList: { available: false } }] },
+    automations: { available: true, stopAndKill: { always: true, canTurnOff: false }, runOnItsOwn: { available: false }, note: "AIA still waits for a person on every card today.", items: [{ desk: "aia", kind: "rule", id: "a1", name: EVIL, stopBefore: { money: true, deletes: false, messageNew: true }, updatedAt: "" }] },
     look: { available: true, theme: "dark", themes: ["system", "light", "dark"] },
     secrets: { available: true, items: [{ name: "SECRET_NAME_SHOULD_NOT_SHOW", set: true, updatedAt: "" }], max: 20 },
-    history: [{ at: "2026-10-19T01:00:00Z", who: EVIL, whoKind: "ai", section: "look", what: "Changed look to dark." }, { at: "2026-10-19T01:05:00Z", who: "Hal", whoKind: EVIL, what: "Saved profile." }]
+    history: [{ at: "2026-10-19T01:00:00Z", who: EVIL, whoKind: "ai", section: "look", what: "Changed look to dark." }, { at: "2026-10-19T01:05:00Z", who: "Hal", whoKind: EVIL, what: "Saved profile." }, { at: "2026-10-19T01:06:00Z", by: "Desk AI Rex", whoKind: "si", what: "Moved a card." }]
   };
 }
 const SIGNED = { aia_ws: "aia", aia_session: "tok123" };
@@ -142,6 +142,7 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     ok(find(w.mount, (n) => n.tagName === "li").some((li) => /Changed look to dark\./.test(li.textContent)), "history line shown");
     ok(find(w.mount, (n) => n.tagName === "li").some((li) => li.textContent.indexOf(EVIL + " (AI): Changed look to dark.") >= 0), "history shows who did it and their kind");
     ok(find(w.mount, (n) => n.tagName === "li").some((li) => /Hal: Saved profile\./.test(li.textContent)), "an unknown kind is left off, never shown raw");
+    ok(find(w.mount, (n) => n.tagName === "li").some((li) => /Desk AI Rex \(SI\): Moved a card\./.test(li.textContent)), "desk events name who did it from by");
     const ksel = find(byId(w.mount, "acct-profile"), (n) => n.tagName === "select")[0];
     ok(ksel && ksel.parts.length === 3 && ksel.parts.map((o) => o.textContent).join() === "Person,AI,SI", "profile: kind picker reads Person, AI, SI");
     ok(ksel && ksel.parts.filter((o) => o.selected).map((o) => o.value).join() === "human", "profile: kind picker shows the saved kind");
@@ -175,7 +176,7 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     await settle();
     last = w.calls[w.calls.length - 1];
     ok(last.body.section === "automations", "autos: posts automations section");
-    ok(JSON.stringify(last.body.set) === JSON.stringify({ desk: "aia", kind: "flow", id: "a1", deletes: true }), "autos: sends desk/kind/id and one stop choice");
+    ok(JSON.stringify(last.body.set) === JSON.stringify({ desk: "aia", kind: "rule", id: "a1", deletes: true }), "autos: sends desk/kind/id and one stop choice");
     ok(!Object.keys(last.body.set).some((k) => /stop|kill/i.test(k)), "autos: never sends a Stop or Kill key");
 
     // look save
