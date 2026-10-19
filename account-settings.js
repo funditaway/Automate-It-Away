@@ -23,6 +23,7 @@
   var STOPS = [["money", "Stop and ask before spending money"], ["deletes", "Stop and ask before deleting anything"], ["messageNew", "Stop and ask before messaging someone new"]];
   var LOOKS = { system: "Match my phone or computer", light: "Light", dark: "Dark" };
   var REACH = { call: "Call me", text: "Text me", email: "Email me" };
+  var KINDS = { human: "Person", ai: "AI", si: "SI" };
 
   function ls(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
   function hdr() {
@@ -100,10 +101,30 @@
       hours: field(c, "Hours you work", s.hours, 80),
       note: field(c, "A note about you", s.note, 240, "note")
     };
+    var kinds = (Array.isArray(s.kindChoices) ? s.kindChoices : []).filter(function (k) { return KINDS[k]; });
+    var kindSel = null;
+    if (kinds.length) {
+      var kl = el("label", "acct-field");
+      kl.appendChild(el("span", null, "This account is a"));
+      kindSel = document.createElement("select");
+      kinds.forEach(function (k) {
+        var o = el("option", null, KINDS[k]);
+        o.value = k; o.selected = s.kind === k;
+        kindSel.appendChild(o);
+      });
+      kl.appendChild(kindSel);
+      c.appendChild(kl);
+    } else if (KINDS[s.kind]) {
+      c.appendChild(el("p", "meta", "This account is a " + KINDS[s.kind] + "."));
+    }
     saveRow(c, "Save profile", function (hint, btn) {
       var set = {};
       Object.keys(f).forEach(function (k) { set[k] = f[k].value; });
-      post({ action: "settings", section: "profile", set: set }, hint, btn);
+      if (kindSel && kindSel.value !== s.kind) set.kind = kindSel.value;
+      post({ action: "settings", section: "profile", set: set }, hint, btn).then(function (d) {
+        if (!kindSel || !("kind" in set)) return;
+        if (d) s.kind = set.kind; else kindSel.value = s.kind;
+      });
     });
   }
 
@@ -221,7 +242,7 @@
     rows.forEach(function (h) {
       var when = "";
       try { when = h.at ? new Date(h.at).toLocaleString() : ""; } catch (e) {}
-      ul.appendChild(el("li", null, (when ? when + " · " : "") + (h.who ? h.who + ": " : "") + (h.what || "")));
+      ul.appendChild(el("li", null, (when ? when + " · " : "") + (h.who ? h.who + (KINDS[h.whoKind] ? " (" + KINDS[h.whoKind] + ")" : "") + ": " : "") + (h.what || "")));
     });
     histBox.appendChild(ul);
   }

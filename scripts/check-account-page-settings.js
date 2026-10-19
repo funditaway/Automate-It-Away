@@ -34,6 +34,10 @@ function makeEl(tag) {
   };
   Object.defineProperty(el, "innerHTML", { set() { el.usedInnerHTML = true; throw new Error("innerHTML used"); }, get() { return serialize(el, true); } });
   el.insertAdjacentHTML = function () { el.usedInnerHTML = true; throw new Error("insertAdjacentHTML used"); };
+  if (el.tagName === "select") Object.defineProperty(el, "value", { // like a real <select>: value follows the selected option
+    get() { const o = el.parts.filter((x) => x.tagName === "option"); const hit = o.filter((x) => x.selected)[0] || o[0]; return hit ? hit.value : ""; },
+    set(v) { el.parts.forEach((x) => { if (x.tagName === "option") x.selected = x.value === String(v); }); }
+  });
   return el;
 }
 function serialize(el, inner) {
@@ -74,13 +78,13 @@ const EVIL = '<img src=x onerror="alert(1)">';
 function fullSettings() {
   return {
     account: { id: "acc1" },
-    profile: { available: true, name: EVIL, email: "pat@shop.test", phone: "4175550100", city: "Springfield", state: "MO", timezone: "America/Chicago", hours: "8-5", note: "<b>hi</b>" },
+    profile: { available: true, kind: "human", kindChoices: ["human", "ai", "si"], name: EVIL, email: "pat@shop.test", phone: "4175550100", city: "Springfield", state: "MO", timezone: "America/Chicago", hours: "8-5", note: "<b>hi</b>" },
     talk: { available: true, reach: "text", reachChoices: ["call", "text", "email"], notify: { available: false } },
     desks: { available: true, items: [{ slug: "aia", name: EVIL, yours: "own", pack: { id: "p1", name: "<script>x</script>" }, automations: [{ kind: "flow", id: "a1", name: "Lead <i>catcher</i>" }], allowList: { available: false } }] },
     automations: { available: true, stopAndKill: { always: true, canTurnOff: false }, runOnItsOwn: { available: false }, note: "AIA still waits for a person on every card today.", items: [{ desk: "aia", kind: "flow", id: "a1", name: EVIL, stopBefore: { money: true, deletes: false, messageNew: true }, updatedAt: "" }] },
     look: { available: true, theme: "dark", themes: ["system", "light", "dark"] },
     secrets: { available: true, items: [{ name: "SECRET_NAME_SHOULD_NOT_SHOW", set: true, updatedAt: "" }], max: 20 },
-    history: [{ at: "2026-10-19T01:00:00Z", who: EVIL, section: "look", what: "Changed look to dark." }]
+    history: [{ at: "2026-10-19T01:00:00Z", who: EVIL, whoKind: "ai", section: "look", what: "Changed look to dark." }, { at: "2026-10-19T01:05:00Z", who: "Hal", whoKind: EVIL, what: "Saved profile." }]
   };
 }
 const SIGNED = { aia_ws: "aia", aia_session: "tok123" };
@@ -136,6 +140,11 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     const radios = find(byId(w.mount, "acct-talk"), (n) => n.type === "radio");
     ok(radios.length === 3 && radios.filter((r) => r.checked).map((r) => r.value).join() === "text", "talk: reach radios reflect saved");
     ok(find(w.mount, (n) => n.tagName === "li").some((li) => /Changed look to dark\./.test(li.textContent)), "history line shown");
+    ok(find(w.mount, (n) => n.tagName === "li").some((li) => li.textContent.indexOf(EVIL + " (AI): Changed look to dark.") >= 0), "history shows who did it and their kind");
+    ok(find(w.mount, (n) => n.tagName === "li").some((li) => /Hal: Saved profile\./.test(li.textContent)), "an unknown kind is left off, never shown raw");
+    const ksel = find(byId(w.mount, "acct-profile"), (n) => n.tagName === "select")[0];
+    ok(ksel && ksel.parts.length === 3 && ksel.parts.map((o) => o.textContent).join() === "Person,AI,SI", "profile: kind picker reads Person, AI, SI");
+    ok(ksel && ksel.parts.filter((o) => o.selected).map((o) => o.value).join() === "human", "profile: kind picker shows the saved kind");
 
     // profile save
     const prof = byId(w.mount, "acct-profile");
@@ -146,7 +155,12 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     await settle();
     let last = w.calls[w.calls.length - 1];
     ok(last.init.method === "POST" && last.body.action === "settings" && last.body.section === "profile", "profile: posts settings/profile");
-    ok(Object.keys(last.body.set).sort().join() === "city,email,hours,name,note,phone,state,timezone", "profile: sends exactly the profile fields");
+    ok(Object.keys(last.body.set).sort().join() === "city,email,hours,name,note,phone,state,timezone", "profile: sends exactly the profile fields, no kind when unchanged");
+    ksel.value = "ai";
+    find(prof, (n) => n.tagName === "button")[0].fire("click");
+    await settle();
+    last = w.calls[w.calls.length - 1];
+    ok(last.body.section === "profile" && last.body.set.kind === "ai" && Object.keys(last.body.set).length === 9, "profile: a changed kind goes with the profile save");
     ok(find(w.mount, (n) => n.tagName === "li").some((li) => /Turned off stop before money\./.test(li.textContent)), "history refreshes from the reply");
 
     // talk save
@@ -189,6 +203,34 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     find(look, (n) => n.tagName === "button")[0].fire("click");
     await settle();
     ok(!w.store.aia_theme && w.applied() === 0, "refused look save changes nothing here");
+    const prof = byId(w.mount, "acct-profile");
+    const ks = find(prof, (n) => n.tagName === "select")[0];
+    ks.value = "si";
+    find(prof, (n) => n.tagName === "button")[0].fire("click");
+    await settle();
+    ok(ks.value === "human", "refused kind change flips back to the saved kind");
+    ok(/That seat is not open\./.test(prof.textContent), "refused kind change shows the server's plain reason");
+  }
+
+  // ---------- every kind sees the same account ----------
+  for (const kind of ["human", "ai", "si"]) {
+    const st = fullSettings(); st.profile.kind = kind; delete st.profile.kindChoices;
+    const w = world({ storage: SIGNED, reply: () => ({ status: 200, data: { ok: true, settings: st } }) });
+    await settle();
+    SIX.concat(["acct-history"]).forEach((id) => ok(!!byId(w.mount, id), kind + ": section " + id + " painted"));
+    const autos = byId(w.mount, "acct-autos");
+    ok(find(autos, (n) => n.type === "checkbox").length === 3, kind + ": three stop-and-ask choices per automation");
+    ok(/Stop and Kill always work\. They cannot be switched off\./.test(autos.textContent), kind + ": Stop and Kill line");
+    const prof = byId(w.mount, "acct-profile");
+    ok(find(prof, (n) => n.tagName === "select").length === 0, kind + ": no kind picker when the server offers no choices");
+    ok(prof.textContent.indexOf("This account is a " + { human: "Person", ai: "AI", si: "SI" }[kind] + ".") >= 0, kind + ": kind shown in plain words");
+  }
+  {
+    const st = fullSettings(); st.profile.kind = EVIL; st.profile.kindChoices = [EVIL, "robot"];
+    const w = world({ storage: SIGNED, reply: () => ({ status: 200, data: { ok: true, settings: st } }) });
+    await settle();
+    const prof = byId(w.mount, "acct-profile");
+    ok(find(prof, (n) => n.tagName === "select").length === 0 && !/This account is a/.test(prof.textContent) && prof.textContent.indexOf("robot") < 0, "unknown kinds are never offered or shown");
   }
 
   // ---------- nothing backed: every section says coming soon, no dead switches ----------
