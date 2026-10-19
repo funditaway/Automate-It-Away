@@ -3,7 +3,8 @@
 // A session whose seat id matches two seats opens nothing (jobs, desks, upload, admin GETs),
 // and the owner's "seat" edit (setSeatCan) on that id is a 409 that changes neither seat.
 // Unique seats keep working. Seat ids also repeat across desks (p_owner): a session's seat id,
-// email and owner flag only count on the desk the session was issued for. Runs the real handlers against a temp store. No network.
+// email and owner flag only count on the desk the session was issued for (an email-only session
+// from desk A is a stranger on desk B). Runs the real handlers against a temp store. No network.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -190,6 +191,31 @@ async function main() {
   const poAJobs = await call(jobs, "GET", { "x-session": piaTok, "x-workspace": PA }, null, {}, "/api/jobs");
   if (!poA.person || poA.person.name !== "Pia" || !lib.isOwner(poA.person) || poAJobs.statusCode !== 200) fail("desk A p_owner session should still open desk A as owner (" + poAJobs.statusCode + ")");
   else pass("desk A p_owner session still opens desk A as its owner");
+  // Email-only match: Eve has a unique seat id on each desk but the same email. Her desk A session
+  // must be a stranger on desk B (same as no session), not desk B's Eve found by email.
+  const eveCan = { queue: true, capture: true, qualify: true, draft: true, hand: true, send: true, invite: true, edit: true, explore: true, export: true };
+  const wa = lib.mem.workspaces.find((w) => w.slug === PA);
+  const wb = lib.mem.workspaces.find((w) => w.slug === PB);
+  wa.people.push({ id: "p_eve_a_unique", name: "EveA", role: "employee", kind: "staff", email: "eve@example.test", status: "approved", pin: lib.hashPin("8181"), can: eveCan, createdAt: now });
+  wb.people.push({ id: "p_eve_b_unique", name: "EveB", role: "employee", kind: "staff", email: "Eve@Example.test", status: "approved", pin: lib.hashPin("9191"), can: eveCan, createdAt: now });
+  await lib.save();
+  const eveTok = lib.issueSession(wa.people.find((p) => p.id === "p_eve_a_unique"), wa, null).token;
+  const eveB = lib.personOf({ headers: { "x-session": eveTok, "x-workspace": PB } }, PB);
+  if (eveB.person) fail("personOf: desk A email-only session opened desk B as " + (eveB.person.name || "a seat") + " (email match not scoped to the session's desk)");
+  else pass("personOf: desk A email-only session -> no person on desk B");
+  const eveBq = lib.personOf({ headers: { cookie: "aia_session=" + encodeURIComponent(eveTok) }, query: { workspace: PB } }, "");
+  if (eveBq.person) fail("personOf: desk A email-only cookie + ?workspace=B opened desk B as " + (eveBq.person.name || "a seat"));
+  else pass("personOf: desk A email-only cookie + ?workspace=B -> no person");
+  const strangerJobs = await call(jobs, "GET", { "x-workspace": PB }, null, {}, "/api/jobs");
+  const eveJobs = await call(jobs, "GET", { "x-session": eveTok, "x-workspace": PB }, null, {}, "/api/jobs");
+  if (eveJobs.statusCode === 200 || eveJobs.statusCode !== strangerJobs.statusCode || has(eveJobs.body, "Bo private card")) fail("GET /api/jobs: desk A email-only session on desk B got " + eveJobs.statusCode + " (stranger gets " + strangerJobs.statusCode + ")");
+  else pass("GET /api/jobs: desk A email-only session on desk B is a stranger (" + eveJobs.statusCode + ")");
+  const eveDesk = await call(auth, "GET", { "x-session": eveTok, "x-workspace": PB }, null, {}, "/api/desks");
+  if (eveDesk.statusCode === 200 || (eveDesk.body && eveDesk.body.desk)) fail("GET /api/desks: desk A email-only session read desk B (" + eveDesk.statusCode + ")");
+  else pass("GET /api/desks: desk A email-only session refused on desk B (" + eveDesk.statusCode + ")");
+  const eveA = lib.personOf({ headers: { "x-session": eveTok, "x-workspace": PA } }, PA);
+  if (!eveA.person || eveA.person.name !== "EveA") fail("desk A email-only session should still open desk A as EveA");
+  else pass("desk A email-only session still opens desk A as EveA");
   const poPin = lib.personOf({ headers: { "x-session": piaTok, "x-workspace": PB, "x-pin": "7171" } }, PB);
   if (!poPin.person || poPin.person.name !== "Bo") fail("desk B's own code should still open desk B");
   else pass("desk B's own code still opens desk B");
