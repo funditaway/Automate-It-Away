@@ -17,7 +17,9 @@
 // A separate child runs on the real put deadline (no override) with
 // setTimeout/clearTimeout spied: the deadline is exactly 15000 ms, it is
 // cleared after a good put and after a failed put, and a put that hangs is
-// answered 503 store_write_failed only when that 15000 ms timer fires.
+// answered 503 store_write_failed only when that 15000 ms timer fires. The
+// store read before it and the read-back after a good put each arm one
+// 5000 ms deadline (check-worker-deadline.js covers what those do).
 // `node scripts/check-blob-write-fail.js --mutate` breaks the fix in a copy of
 // api/ and proves this check catches each break (16 mutants).
 // On main 1f45d6a (api/ without the fix) this check fails 57 of its 94
@@ -35,6 +37,7 @@ const PIN = "4826";
 const TEXT = "The desk can't save right now. Try again in a moment.";
 const CODE = "store_write_failed";
 const DEADLINE_MS = 15000;
+const READ_MS = 5000;
 const REAL_DOOR = { provider: "google", subject: "bwf-real-google-sub", email: "real-google@example.test" };
 const realSetTimeout = setTimeout;
 const FAKE_ENV = {
@@ -291,7 +294,7 @@ async function timerChild(apiDir, spec) {
     if (holdIt) {
       await new Promise((ok) => realSetTimeout(ok, 250));
       const held = log.filter((r) => r.handle && r.handle.held);
-      out.beforeFire = { pending: state === pending, held: held.map((r) => r.ms) };
+      out.beforeFire = { pending: state === pending, held: held.map((r) => r.ms), heldCleared: held.map((r) => r.cleared) };
       held.forEach((r) => { if (!r.fired && r.ms === DEADLINE_MS) r.handle.fire(); });
     }
     await Promise.race([run, new Promise((ok) => realSetTimeout(ok, 5000))]);
@@ -371,14 +374,19 @@ function runAll(apiDir, quiet) {
   const d = runFault(apiDir, fx, null, "--timer");
   const q = "put deadline: ";
   if (d.error) { t(q + "child ran", false, d.error); return results; }
-  const one = (x) => x.timers.length === 1 && x.timers[0].ms === DEADLINE_MS;
-  t(q + "a good put arms exactly one " + DEADLINE_MS + " ms timer", one(d.ok), JSON.stringify(d.ok.timers));
+  // Long timers, in order: the store read in ready() (READ_MS), the put
+  // (exactly one DEADLINE_MS), then after a good put its read-back (READ_MS).
+  const one = (x, want) => x.timers.length === want.length && want.every((ms, i) => x.timers[i].ms === ms) && x.timers.filter((r) => r.ms === DEADLINE_MS).length === 1;
+  const OK_TIMERS = [READ_MS, DEADLINE_MS, READ_MS];
+  const FAIL_TIMERS = [READ_MS, DEADLINE_MS];
+  const allCleared = (x) => x.timers.every((r) => r.cleared && !r.fired);
+  t(q + "a good put arms exactly one " + DEADLINE_MS + " ms timer (read " + READ_MS + ", put, read-back " + READ_MS + ")", one(d.ok, OK_TIMERS), JSON.stringify(d.ok.timers));
   t(q + "a good put answers 2xx with a store put", d.ok.state === "done" && d.ok.status >= 200 && d.ok.status < 300 && d.ok.puts >= 1, JSON.stringify([d.ok.state, d.ok.status, d.ok.puts]));
-  t(q + "the timer is cleared after a good put", one(d.ok) && d.ok.timers[0].cleared && !d.ok.timers[0].fired, JSON.stringify(d.ok.timers));
-  t(q + "a failed put arms exactly one " + DEADLINE_MS + " ms timer", one(d.fail), JSON.stringify(d.fail.timers));
+  t(q + "the timer is cleared after a good put", one(d.ok, OK_TIMERS) && allCleared(d.ok), JSON.stringify(d.ok.timers));
+  t(q + "a failed put arms exactly one " + DEADLINE_MS + " ms timer (read " + READ_MS + ", put)", one(d.fail, FAIL_TIMERS), JSON.stringify(d.fail.timers));
   t(q + "a failed put answers 503 " + CODE, d.fail.state === "done" && d.fail.status === 503 && d.fail.code === CODE, JSON.stringify([d.fail.state, d.fail.status, d.fail.code]));
-  t(q + "the timer is cleared after a failed put", one(d.fail) && d.fail.timers[0].cleared && !d.fail.timers[0].fired, JSON.stringify(d.fail.timers));
-  t(q + "a hanging put waits on exactly one " + DEADLINE_MS + " ms timer", d.hang.beforeFire.pending && d.hang.beforeFire.held.length === 1 && d.hang.beforeFire.held[0] === DEADLINE_MS, JSON.stringify(d.hang.beforeFire));
+  t(q + "the timer is cleared after a failed put", one(d.fail, FAIL_TIMERS) && allCleared(d.fail), JSON.stringify(d.fail.timers));
+  t(q + "a hanging put waits on exactly one " + DEADLINE_MS + " ms timer (the read's " + READ_MS + " ms one already cleared)", d.hang.beforeFire.pending && d.hang.beforeFire.held.length === 2 && d.hang.beforeFire.held[0] === READ_MS && d.hang.beforeFire.heldCleared[0] === true && d.hang.beforeFire.held[1] === DEADLINE_MS && d.hang.beforeFire.heldCleared[1] === false, JSON.stringify(d.hang.beforeFire));
   t(q + "when it fires the answer is the exact 503 " + CODE + " + Retry-After", d.hang.state === "done" && d.hang.status === 503 && d.hang.code === CODE && d.hang.ok === false && d.hang.error && d.hang.keys === "code,error,ok" && d.hang.retry && d.hang.puts === 0, JSON.stringify(d.hang));
   return results;
 }

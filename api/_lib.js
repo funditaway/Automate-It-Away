@@ -920,14 +920,38 @@ async function blobWriteStick(blob, used) {
 
 // A store put that never answers is a failed put, not a hung request.
 const BLOB_PUT_MS = 15000;
-function blobPutDeadline(job) {
-  const ms = Number(globalThis.__aiaBlobPutMs) || BLOB_PUT_MS;
+function blobDeadline(job, ms, what) {
   let timer;
   job.catch(() => {});
   const late = new Promise((resolve, reject) => {
-    timer = setTimeout(() => reject(new Error("Vercel Blob: store write timed out after " + ms + "ms")), ms);
+    timer = setTimeout(() => { const e = new Error("Vercel Blob: " + what + " timed out after " + ms + "ms"); e.deadline = true; reject(e); }, ms);
   });
   return Promise.race([job, late]).finally(() => clearTimeout(timer));
+}
+function blobPutDeadline(job) {
+  return blobDeadline(job, Number(globalThis.__aiaBlobPutMs) || BLOB_PUT_MS, "store write");
+}
+
+// A store read or read-back that never answers is a failed read (5 s). A
+// timed-out read leaves the store untrusted: nothing is saved over it, and
+// if the read answers late it cannot make the store trusted either.
+const BLOB_READ_MS = 5000;
+const blobReadMs = () => Number(globalThis.__aiaBlobReadMs) || BLOB_READ_MS;
+function untrustStore() {
+  mem.storeSeen = false;
+  mem.storeAbsent = false;
+}
+function blobReadDeadline(job) {
+  let timedOut = false;
+  job.then(() => { if (timedOut) untrustStore(); }, () => {});
+  return blobDeadline(job, blobReadMs(), "store read").catch((e) => {
+    if (!e || !e.deadline) throw e;
+    timedOut = true;
+    untrustStore();
+    blobProbe.read = "error";
+    blobProbe.detail = e.message;
+    return null;
+  });
 }
 
 async function blobPutStore(body) {
@@ -962,7 +986,7 @@ async function blobWrite() {
     else blobProbe.detail = used === "public" ? "sealed-public" : "ok";
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
-    const stuck = await blobWriteStick(blob, used);
+    const stuck = await blobDeadline(blobWriteStick(blob, used), blobReadMs(), "read-back").catch(() => false);
     if (!stuck) {
       blobProbe.write = "no-stick";
       blobProbe.detail = (blobProbe.detail || "Blob write did not stick").slice(0, 180);
@@ -1075,7 +1099,7 @@ async function persistScrub() {
 
 async function hydrate() {
   if (blobReady()) {
-    const remote = await blobRead();
+    const remote = await blobReadDeadline(blobRead());
     if (remote) {
       applyStore(remote);
       mem.driver = "blob";
@@ -1086,7 +1110,7 @@ async function hydrate() {
     // Live name proven absent but the legacy copy is there: load it
     // read-only; the first save migrates it to aia/store.json.
     if (blobProbe.read !== "error") {
-      const legacy = await blobLegacyRead();
+      const legacy = await blobReadDeadline(blobLegacyRead());
       if (legacy) {
         applyStore(legacy);
         mem.driver = "blob";
@@ -1096,7 +1120,7 @@ async function hydrate() {
     }
     // No data and no error: an empty body or a false 404 lands here too, so
     // the starter goes up only when a listing proves the store absent.
-    if (blobProbe.read !== "error" && !(await blobAbsent())) {
+    if (blobProbe.read !== "error" && !(await blobReadDeadline(blobAbsent()))) {
       blobProbe.read = "error";
       blobProbe.detail = "store not proven absent — will not write starter";
     }
@@ -1159,7 +1183,7 @@ function applyStore(parsed) {
 async function ready() {
   await globalThis.__aiaHydrate;
   if (blobReady()) {
-    const remote = await blobRead();
+    const remote = await blobReadDeadline(blobRead());
     if (remote) {
       applyStore(remote);
       mem.driver = "blob";
