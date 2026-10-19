@@ -271,14 +271,20 @@ function accountForDesk(row) {
 }
 function homeAccount(person, row) {
   ensureAccount();
+  // A helper seat's home is its own account, never its desk's own account (a typed owner email,
+  // a stored owner accountId, or the desk fallback). Owners keep every match.
+  const helper = !!person && !lib.isOwner(person) && !/_owner$/.test(String(person.id || ""));
+  const deskId = helper && typeof lib.deskAccountIdOf === "function" ? lib.deskAccountIdOf(row) : "";
+  const ownOk = (a) => !!a && !(helper && (a.id === deskId || (row && (a.desks || []).indexOf(row.slug) >= 0)));
   if (person && person.accountId) {
     const mine = (lib.mem.accounts || []).find((a) => a && a.id === person.accountId);
-    if (mine) return mine;
+    if (ownOk(mine)) return mine;
   }
   if (person && emailOf(person)) {
     const byMail = findAccountByEmail(person.email);
-    if (byMail) return byMail;
+    if (ownOk(byMail)) return byMail;
   }
+  if (helper) return null;
   return row ? accountForDesk(row) : null;
 }
 function requestMonthly(acc, actor) {
@@ -328,10 +334,15 @@ function normalizeKind(kind, role) {
   if (role === "owner") return "owner";
   return raw === "staff" ? "staff" : "helper";
 }
-function inviteSeat(row, body, actor) {
+// Nothing typed in body (email, account name, accountId, seat id) attaches an account to a seat.
+// Only opts.account may: the account the request's own signed-in session proves (join), or the
+// world account a world invite waits on (it sits only once that account accepts).
+function inviteSeat(row, body, actor, opts) {
   if (!row) return { ok: false, status: 404, error: "No workspace" };
   const kind = normalizeKind(body.kind, body.role);
-  const home = findAccount(body);
+  let home = (opts && opts.account) || null;
+  // A non-owner seat never carries its desk's own account, on any door.
+  if (home && kind !== "owner" && typeof lib.deskAccountIdOf === "function" && home.id === lib.deskAccountIdOf(row)) home = null;
   const name = String(body.name || body.crew || (home && home.ownerName) || "").trim();
   const pin = String(body.pin || body.code || "");
   if (!name) return { ok: false, status: 400, error: "Name required." };
@@ -343,7 +354,7 @@ function inviteSeat(row, body, actor) {
   const status = ownerInvited && kind !== "agent" ? "approved" : "pending";
   const seat = {
     id: "p_" + Date.now().toString(36), name, role: kind === "owner" ? "owner" : "employee", kind,
-    crew: kind === "agent" ? name : "", email: body.email || (home && home.email) || "",
+    crew: kind === "agent" ? name : "", email: seatEmail(body, home),
     accountId: home ? home.id : "", pin: hashed, status,
     can: seatCan(kind, "", status), createdAt: new Date().toISOString(),
     approvedAt: status === "approved" ? new Date().toISOString() : null
@@ -354,9 +365,26 @@ function inviteSeat(row, body, actor) {
   if (home && kind !== "agent") connectDesk(home, row, "member");
   return { ok: true, status: status === "approved" ? 201 : 202, person: lib.publicPerson(seat), pending: status === "pending" };
 }
-function requestSeat(row, body) {
+// A typed email is contact text only. It is dropped when it is another account's.
+function seatEmail(body, home) {
+  const typed = String(body.email || "").trim();
+  if (typed && emailTaken(typed, home && home.id)) return (home && home.email) || "";
+  return typed || (home && home.email) || "";
+}
+// The account the request's own signed-in session proves (lib.sessionProofView), or null.
+function provenAccount(req) {
+  const found = req && typeof lib.sessionFromReq === "function" ? lib.sessionFromReq(req, { slide: false }) : null;
+  const id = found && found.session && found.session.accountId;
+  return id ? ((lib.mem.accounts || []).find((a) => a && a.id === id) || null) : null;
+}
+// Join / request: a seat asked for from outside. Never an owner seat; an account only from req's session.
+function requestSeat(row, body, req) {
   if (!row) return { ok: false, status: 404, error: "No workspace" };
-  return inviteSeat(row, Object.assign({}, body, { approve: false, status: "pending" }), { name: "request", role: "employee" });
+  if (normalizeKind(body && body.kind, body && body.role) === "owner") return { ok: false, status: 400, error: "Owner seats are not a join request." };
+  const typed = findAccount(Object.assign({}, body, { slug: "", biz: "" }));
+  const proven = provenAccount(req);
+  const account = proven && (!typed || typed.id === proven.id) ? proven : null;
+  return inviteSeat(row, Object.assign({}, body, { approve: false, status: "pending" }), { name: "request", role: "employee" }, { account });
 }
 function setSeatStatus(row, id, next, actor) {
   if (!row) return { ok: false, status: 404, error: "No desk." };

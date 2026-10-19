@@ -1497,11 +1497,11 @@ function issueSession(person, workspace, account, req) {
     id: "sess_" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
     tokenHash: hashSession(token),
     workspace: slugify((workspace && workspace.slug) || (account && account.slug) || (req && workspaceOf(req)) || ""),
-    accountId: (account && account.id) || (person && person.accountId) || (workspace && workspace.accountId) || "",
+    accountId: issuedAccountId(person, workspace, account),
     personId: (person && person.id) || "",
     name: (person && person.name) || "",
     role: (person && person.role) || "",
-    email: (person && person.email) || (account && account.email) || "",
+    email: issuedEmail(person, workspace, account),
     createdAt: new Date(now).toISOString(),
     seenAt: new Date(now).toISOString(),
     expiresAt: sessionExpiresAt(now)
@@ -1531,9 +1531,63 @@ function sessionFromReq(req, options) {
   if (!row) return null;
   if (req) {
     req.__aiaSessionToken = token;
-    req.__aiaSession = sessionPublic(row);
+    req.__aiaSession = sessionPublic(sessionProofView(row));
   }
-  return { token, session: row };
+  return { token, session: sessionProofView(row) };
+}
+
+// The account that owns a desk (the desk's own account), or "".
+function deskAccountIdOf(ws) {
+  if (!ws) return "";
+  if (ws.accountId) return ws.accountId;
+  const acc = (mem.accounts || []).find((a) => a && (a.desks || []).indexOf(ws.slug) >= 0) || null;
+  return (acc && acc.id) || "";
+}
+
+// An email a helper session may not carry: one that is another account's, or an owner seat's.
+function helperEmailClaimed(email, ownAccountId) {
+  const e = String(email || "").trim().toLowerCase();
+  if (!e) return false;
+  if ((mem.accounts || []).some((a) => a && a.id !== ownAccountId && String(a.email || "").trim().toLowerCase() === e)) return true;
+  return (mem.workspaces || []).some((w) => w && (w.people || []).some((p) => seatLooksOwner(p) && String(p.email || "").trim().toLowerCase() === e));
+}
+
+function seatIsHelper(person) {
+  return !!person && !seatLooksOwner(person) && !/_owner$/.test(String(person.id || ""));
+}
+
+// A helper session never carries its desk's own account (a pin login used to stamp it on every
+// session), so a helper seat holding the owner's account proves nothing. A desk-code login hands in the desk's account: a helper gets none. An email login hands in the
+// helper's own account: kept when it is her seat's own account (or her seat has none).
+function issuedAccountId(person, workspace, account) {
+  const id = (account && account.id) || (person && person.accountId) || (workspace && workspace.accountId) || "";
+  if (!seatIsHelper(person)) return id;
+  const given = (account && account.id) || "";
+  if (!given || given === deskAccountIdOf(workspace)) return "";
+  return !person.accountId || person.accountId === given ? given : "";
+}
+
+function issuedEmail(person, workspace, account) {
+  const email = (person && person.email) || (account && account.email) || "";
+  if (!seatIsHelper(person)) return email;
+  return helperEmailClaimed(email, issuedAccountId(person, workspace, account)) ? "" : email;
+}
+
+// What a stored session proves, read fresh on every request (covers sessions stored before this rule).
+// A helper session proves only its own seat's own account: never its desk's own account (so a seat
+// holding the owner's account proves nothing, on this desk or any other), never an account that is
+// not on its seat, never an owner's email. Owner sessions are unchanged.
+function sessionProofView(row) {
+  if (!row || (!row.accountId && !row.email)) return row;
+  if (row.accountId && row.personId === row.accountId + "_owner") return row;
+  const home = (mem.workspaces || []).find((w) => w && w.slug === row.workspace) || null;
+  const seat = home && row.personId ? ((home.people || []).find((p) => p && p.id === row.personId) || null) : null;
+  if (seat ? !seatIsHelper(seat) : sessionLooksOwner(row)) return row;
+  let accountId = row.accountId || "";
+  if (accountId && (accountId === deskAccountIdOf(home) || (seat && seat.accountId && seat.accountId !== accountId))) accountId = "";
+  const email = helperEmailClaimed(row.email, accountId) ? "" : (row.email || "");
+  if (accountId === (row.accountId || "") && email === (row.email || "")) return row;
+  return Object.assign({}, row, { accountId, email });
 }
 
 function pruneLocks() {
@@ -2407,6 +2461,7 @@ module.exports = {
   blobCopy, blobHead, blobDel, blobListAll, blobPutAt, storeBody,
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
+  deskAccountIdOf, sessionProofView,
   isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, personOf, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,

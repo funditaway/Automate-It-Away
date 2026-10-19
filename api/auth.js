@@ -150,7 +150,7 @@ module.exports = async function handler(req, res) {
       if (kind === "owner") {
         return res.status(400).json({ ok: false, error: "Owner seats are not a join request." });
       }
-      const made = requestSeat(row, Object.assign({}, body, { kind: kind === "employee" ? "helper" : kind }));
+      const made = requestSeat(row, Object.assign({}, body, { kind: kind === "employee" ? "helper" : kind }), req);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
       return res.status(202).json({
@@ -166,7 +166,7 @@ module.exports = async function handler(req, res) {
       const slug = slugify(body.workspace || body.slug || workspaceOf(req));
       const row = mem.workspaces.find((w) => w && w.slug === slug);
       if (!row) return res.status(404).json({ ok: false, error: "No workspace" });
-      const made = requestSeat(row, body);
+      const made = requestSeat(row, body, req);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
       return res.status(202).json({ ok: true, pending: true, person: made.person });

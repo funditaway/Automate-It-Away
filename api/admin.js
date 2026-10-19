@@ -248,7 +248,7 @@ module.exports = async function handler(req, res) {
   if (!person) return res.status(401).json({ ok: false, error: "Desk code required." });
 
   if (action === "request") {
-    const made = requestSeat(row, body);
+    const made = requestSeat(row, body, req);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     if (made.person && (body.note || body.text || body.say)) {
       pushTalk(made.person, body.name || made.person.name || "ask", body.note || body.text || body.say, "ask");
