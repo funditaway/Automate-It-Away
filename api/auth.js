@@ -4,7 +4,7 @@ const {
 } = require("./_lib");
 const { ensureFields, applyFieldList, ensureCreations, publicCreation, addCreation } = require("./_fields");
 const { qualifyJob } = require("./_engine");
-const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccount, publicPlan,
+const { inviteSeat, requestSeat, setSeatStatus, seatsById, DUP_SEAT, ensureAccount, createOwnerAccount, publicPlan,
   loginWithEmail, looksLikeEmail, emailTaken, emailOf, applyAccountDetails, setAccountPassword, passwordOk, homeAccount, accountForDesk, passwordMatches
 } = require("./_account");
 const libx = require("./_lib");
@@ -329,6 +329,7 @@ module.exports = async function handler(req, res) {
       const id = body.id;
       const target = (row.people || []).find((p) => p.id === id);
       if (!target) return res.status(404).json({ error: "Person not found" });
+      if (seatsById(row, id).length > 1) return res.status(409).json({ error: DUP_SEAT });
       if (target.role === "owner" && row.people.filter((p) => p.role === "owner").length < 2) {
         return res.status(409).json({ error: "Keep at least one owner." });
       }

@@ -4,7 +4,7 @@ const {
 const { adminPinOk, jobCounts } = require("./_desk");
 const {
   ensureAccount, publicAccount, accountSnapshot, inviteSeat, requestSeat,
-  setSeatStatus, approvalsOf, peopleAcross, accountForDesk, homeAccount, requestMonthly, publicPlan,
+  setSeatStatus, seatsById, DUP_SEAT, approvalsOf, peopleAcross, accountForDesk, homeAccount, requestMonthly, publicPlan,
   switchPlan, publicPlans, proHome, requestPermission, setPermission, desksForPerson
 } = require("./_account");
 const aiaAdmin = require("./_aia-admin");
@@ -381,6 +381,7 @@ module.exports = async function handler(req, res) {
     const id = body.id || body.personId;
     const target = (row.people || []).find((p) => p && p.id === id);
     if (!target) return res.status(404).json({ ok: false, error: "Person not found" });
+    if (seatsById(row, id).length > 1) return res.status(409).json({ ok: false, error: DUP_SEAT });
     if (target.role === "owner" && row.people.filter((p) => p.role === "owner").length < 2) return res.status(409).json({ ok: false, error: "Keep at least one owner." });
     row.people = row.people.filter((p) => p.id !== id);
     await save();

@@ -219,7 +219,7 @@ function inviteWorld(row, body, actor) {
   }, { name: (actor && actor.name) || "desk", role: "employee", kind: "staff" });
   if (!made.ok && /desk code|4\+ digit/i.test(made.error || "")) {
     const seat0 = {
-      id: "p_" + Date.now().toString(36),
+      id: account.newSeatId(row),
       name: displayName(home),
       role: "employee",
       kind: gate.kind,
