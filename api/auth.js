@@ -117,6 +117,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === "POST") {
+    if (libx.storeNotReady(res)) return;
     const body = await readBody(req);
     const action = body.action || "open";
 

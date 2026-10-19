@@ -467,6 +467,8 @@ function markBlobHit(access, url) {
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   blobProbe.url = url ? "set" : blobProbe.url;
   if (url) mem.blobUrl = url;
+  // Real store bytes were read; every caller applies them to mem.
+  mem.storeSeen = true;
 }
 
 function markBlobEmpty(access) {
@@ -495,6 +497,50 @@ async function blobListStore() {
   const listed = await blobTryAuth((auth) => list(Object.assign({ prefix: "aia/", limit: 20 }, auth)));
   const blobs = (listed && listed.blobs) || [];
   return blobs.find((b) => b && (b.pathname === BLOB_KEY || String(b.pathname || "").indexOf("store.json") >= 0)) || null;
+}
+
+// Fresh-install proof. Only a listing that succeeds and holds neither store
+// key proves the store is absent. An empty body, a "404" text, a 403, a 500,
+// a reset or bad JSON from get/head proves nothing. SDK list first, REST list
+// when the SDK is denied.
+async function blobListNames(name) {
+  try {
+    const { list } = require("@vercel/blob");
+    return await blobTryAuth((auth) => list(Object.assign({ prefix: name, limit: 10 }, auth)));
+  } catch (e) {
+    if (!blobToken()) throw e;
+    const r = await fetch("https://vercel.com/api/blob?prefix=" + encodeURIComponent(name) + "&limit=10", { headers: blobRestHeaders() });
+    if (!r.ok) throw new Error("rest-list-" + r.status);
+    return JSON.parse(await r.text());
+  }
+}
+
+async function blobAbsent() {
+  try {
+    const names = [BLOB_KEY, BLOB_REST_KEY];
+    for (let i = 0; i < names.length; i++) {
+      const listed = await blobListNames(names[i]);
+      if (!listed || !Array.isArray(listed.blobs) || listed.hasMore) return false;
+      if (listed.blobs.some((b) => b && b.pathname === names[i])) return false;
+    }
+    mem.storeAbsent = true;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// The store may be written only after this process really read it, or proved
+// it absent. File-store runs (no Blob) are always trusted.
+function storeTrusted() {
+  if (!blobReady()) return true;
+  return !!(mem.storeSeen || mem.storeAbsent);
+}
+
+function storeNotReady(res) {
+  if (storeTrusted()) return false;
+  res.status(503).json({ ok: false, error: "Store not ready, try again." });
+  return true;
 }
 
 async function blobFetchUrl(url, access) {
@@ -812,7 +858,7 @@ function dropPersistTests() {
 async function persistScrub() {
   if (!dropPersistTests()) return false;
   writeDisk();
-  if (blobReady()) {
+  if (blobReady() && storeTrusted()) {
     const ok = await blobWrite();
     if (ok) {
       mem.driver = "blob";
@@ -831,6 +877,12 @@ async function hydrate() {
       mem.path = "blob:" + BLOB_KEY;
       await persistScrub();
       return;
+    }
+    // No data and no error: an empty body or a false 404 lands here too, so
+    // the starter goes up only when a listing proves the store absent.
+    if (blobProbe.read !== "error" && !(await blobAbsent())) {
+      blobProbe.read = "error";
+      blobProbe.detail = "store not proven absent — will not write starter";
     }
     if (blobProbe.read === "error") {
       applyStore(readDisk());
@@ -956,6 +1008,12 @@ async function save() {
   // ready() still awaits the original promise.
   if (!(globalThis.__aiaStoreLoaded && globalThis.__aiaHydrateRejected)) {
     await globalThis.__aiaHydrate;
+  }
+  if (!storeTrusted()) {
+    // Never read and not proven absent: write nothing, not even the disk copy.
+    blobProbe.write = "fail";
+    blobProbe.detail = "store not loaded — will not overwrite store";
+    return false;
   }
   dropPersistTests();
   const disk = writeDisk();
@@ -2145,5 +2203,6 @@ module.exports = {
   jobOlderHours, jobTagsOf, isPipeJob, isInboundAia, parseDelayHours,
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
   publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
-  ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF
+  ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF,
+  storeTrusted, storeNotReady, blobAbsent
 };

@@ -169,6 +169,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Use GET or POST." });
   }
+  if (lib.storeNotReady(res)) return;
 
   const body = await readBody(req);
   const action = String(body.action || "login").toLowerCase();
