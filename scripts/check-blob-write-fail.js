@@ -1,0 +1,321 @@
+#!/usr/bin/env node
+// The store was read, then the durable Blob write (put) of aia/store.json
+// fails. No saving request may answer 2xx with only a local /tmp copy kept.
+// Stand-in @vercel/blob and fetch, fake tokens, no network, no production.
+// One child process per put fault: throw, non-200 (SDK 500 + REST 500),
+// 403 on every path, a put that never answers (timeout), a TimeoutError.
+// For each, across representative POST/DELETE handlers:
+//   - no 2xx; the exact 503 {ok:false, error, code} + Retry-After
+//   - the Blob store stays byte-identical
+//   - nothing of the failed work is left in memory or in the local copy, and
+//     nothing of it is served afterwards (GET with Blob reads also down)
+//   - save() called outside a handler also refuses and drops the work
+// Then the put recovers: the same handlers succeed with a store put, and the
+// final store has the real desk plus the recovered work, none of the failed.
+// `node scripts/check-blob-write-fail.js --mutate` breaks the fix in a copy of
+// api/ and proves this check catches each break.
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const { spawnSync } = require("child_process");
+
+const ROOT = path.join(__dirname, "..");
+const KEY = "aia/store.json";
+const PIN = "4826";
+const TEXT = "The desk can't save right now. Try again in a moment.";
+const CODES = ["store_write_failed", "store_not_ready"];
+const FAKE_ENV = {
+  VERCEL_ENV: "production",
+  BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
+  BLOB_STORE_ID: "store_FAKESTORE"
+};
+const FAULTS = ["throw", "non200", "403", "hang", "timeout-error"];
+const scrub = (s) => String(s || "").replace(/vercel_blob_rw_\w+/g, "[token]");
+
+function fakeRes() {
+  return {
+    statusCode: 200, headers: {}, body: null,
+    setHeader(k, v) { this.headers[k] = v; }, getHeader(k) { return this.headers[k]; },
+    status(c) { this.statusCode = c; return this; },
+    json(b) { this.body = b; return this; },
+    end(b) { if (b !== undefined && this.body == null) this.body = b; return this; },
+    send(b) { this.body = b; return this; }
+  };
+}
+
+// ---------- fixture: the real code on a plain file store ----------
+async function buildFixture(apiDir) {
+  require(path.join(apiDir, "_lib.js"));
+  await globalThis.__aiaHydrate;
+  const call = async (file, req) => {
+    const res = fakeRes();
+    await require(path.join(apiDir, file + ".js"))(Object.assign({ headers: {}, query: {}, url: "/api/" + file }, req), res);
+    return res;
+  };
+  const slug = "real-desk";
+  const owner = { "x-workspace": slug, "x-pin": PIN };
+  let r = await call("auth", { method: "POST", body: { slug, biz: "Real Shop", name: "Real Owner", pin: PIN } });
+  const fx = { slug, token: r.body && r.body.session && r.body.session.token, jobs: [] };
+  for (let i = 0; i < 3; i++) {
+    r = await call("jobs", { method: "POST", headers: owner, body: { action: "capture", title: "Real card " + i, notes: "real" } });
+    fx.jobs.push(r.body && r.body.job && r.body.job.id);
+  }
+  r = await call("connections", { method: "POST", headers: owner, body: { provider: "webhook", hook: "https://example.test/hook" } });
+  fx.conn = r.body && r.body.connection && r.body.connection.id;
+  fx.connStatus = r.statusCode;
+  fx.store = fs.readFileSync(process.env.AIA_STORE_PATH, "utf8");
+  process.stdout.write("FIXTURE " + JSON.stringify(fx) + "\n");
+}
+
+function rows(fx, tag) {
+  const owner = { "x-workspace": fx.slug, "x-pin": PIN, "x-session": fx.token, cookie: "aia_session=" + fx.token };
+  const R = [];
+  const add = (file, method, label, body, extra) => R.push(Object.assign({ file, method, label, body: body || {}, headers: owner, query: {}, url: "/api/" + file }, extra || {}));
+  add("jobs", "POST", "jobs capture", { action: "capture", title: tag + "-capture", notes: tag });
+  add("jobs", "POST", "jobs say", { action: "say", id: fx.jobs[0], text: tag + "-say" });
+  add("jobs", "POST", "jobs done", { action: "done", id: fx.jobs[1], how: "off-desk", notes: tag + "-done" });
+  add("hook", "POST", "hook capture", { event: "capture", title: tag + "-hook" }, { headers: { "x-workspace": fx.slug } });
+  add("intake", "POST", "intake start", { action: "start" });
+  add("rules", "POST", "rules add", { action: "add", text: "Hold anything over $" + (tag.length * 37) + " for me " + tag });
+  add("connections", "DELETE", "connections unbind", {}, { query: { id: fx.conn, workspace: fx.slug } });
+  add("admin", "POST", "admin invite", { action: "invite", name: tag + " Invitee", pin: "6161" });
+  add("auth", "POST", "auth open", { slug: tag + "-open", biz: tag + "-open", name: "New Owner", pin: PIN }, { headers: {} });
+  add("auth", "POST", "auth join", { action: "join", workspace: fx.slug, name: tag + " Joiner", pin: "5150" }, { headers: {} });
+  add("auth", "POST", "account details", { action: "details", account: fx.slug, pin: PIN, name: "Real Owner", email: tag.toLowerCase() + "@example.test" }, { query: { via: "account" }, url: "/api/account" });
+  add("auth", "POST", "account link-provider", { action: "link-provider", provider: "github", subject: tag + "-gh", email: tag.toLowerCase() + "-gh@example.test" }, { query: { via: "account" }, url: "/api/account" });
+  add("upload", "POST", "upload file", { name: tag + ".png", type: "image/png", data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" });
+  return R;
+}
+
+// ---------- child: one put fault ----------
+async function child(apiDir, spec) {
+  const Module = require("module");
+  const fx = spec.fx;
+  fs.writeFileSync(process.env.AIA_STORE_PATH, fx.store);
+  globalThis.__aiaBlobPutMs = 300;
+  const st = { files: { [KEY]: fx.store }, putFault: null, readFault: false, puts: 0, other: [] };
+  const host = "https://fakestore.private.blob.vercel-storage.com/";
+  const nameOf = (k) => String(k || "").replace(/^https?:\/\/[^/]+\//, "").split("?")[0];
+  const isStore = (n) => n === KEY || n === "aia-store.json";
+  function putFail() {
+    const f = st.putFault;
+    if (f === "throw") { const e = new Error("read ECONNRESET"); e.code = "ECONNRESET"; throw e; }
+    if (f === "non200") throw new Error("Vercel Blob: The blob service is currently not available. Please try again. 500 Internal Server Error");
+    if (f === "403") throw new Error("Vercel Blob: Access denied, please provide a valid token for this resource. 403 Forbidden");
+    if (f === "timeout-error") { const e = new Error("The operation was aborted due to timeout"); e.name = "TimeoutError"; throw e; }
+    if (f === "hang") return new Promise(() => {});
+    return null;
+  }
+  function readFail() {
+    if (st.readFault) { const e = new Error("read ECONNRESET"); e.code = "ECONNRESET"; throw e; }
+  }
+  Module._load = (function (orig) {
+    return function (request) {
+      if (request === "@vercel/blob") {
+        return {
+          async head(key) { readFail(); const n = nameOf(key); if (!st.files[n]) throw new Error("Vercel Blob: The requested blob does not exist"); return { pathname: n, url: host + n, downloadUrl: host + n + "?download=1" }; },
+          async get(key) { readFail(); const n = nameOf(key); if (!st.files[n]) return null; const raw = st.files[n]; return { statusCode: 200, stream: { text: async () => raw }, blob: { url: host + n } }; },
+          async list(opts) { readFail(); const prefix = (opts && opts.prefix) || ""; return { blobs: Object.keys(st.files).filter((n) => n.indexOf(prefix) === 0).map((n) => ({ pathname: n, url: host + n, size: String(st.files[n]).length, uploadedAt: new Date().toISOString() })), hasMore: false }; },
+          async put(key, body) {
+            const n = nameOf(key);
+            if (isStore(n)) { const p = putFail(); if (p) await p; st.puts++; }
+            st.files[n] = Buffer.isBuffer(body) ? body.toString("utf8") : String(body);
+            return { url: host + n, downloadUrl: host + n + "?download=1", pathname: n };
+          },
+          async del(key) { delete st.files[nameOf(key)]; },
+          async copy(a, b) { st.files[nameOf(b)] = st.files[nameOf(a)]; return { url: host + nameOf(b), pathname: nameOf(b) }; }
+        };
+      }
+      return orig.apply(this, arguments);
+    };
+  })(Module._load);
+  global.fetch = async function (url, opts) {
+    const u = String(url || "");
+    const method = String((opts && opts.method) || "GET").toUpperCase();
+    if (!/vercel-storage\.com|vercel\.com\/api\/blob/.test(u)) { st.other.push(u.slice(0, 80)); throw new Error("no network in this check"); }
+    if (method !== "GET") {
+      const m = u.match(/[?&]pathname=([^&]+)/);
+      const n = m ? decodeURIComponent(m[1]) : nameOf(u);
+      if (isStore(n) && st.putFault) {
+        if (st.putFault === "throw") throw new Error("fetch failed: ECONNRESET");
+        if (st.putFault === "hang") return new Promise(() => {});
+        if (st.putFault === "timeout-error") throw new Error("The operation was aborted due to timeout");
+        const code = st.putFault === "403" ? 403 : 500;
+        return { ok: false, status: code, statusText: "fail", url: u, text: async () => JSON.stringify({ error: { code: "fail", message: "put failed " + code } }) };
+      }
+      if (isStore(n)) st.puts++;
+      st.files[n] = Buffer.isBuffer(opts.body) ? opts.body.toString("utf8") : String(opts.body || "");
+      return { ok: true, status: 200, url: u, text: async () => JSON.stringify({ url: host + n }) };
+    }
+    if (st.readFault) throw new Error("fetch failed: ECONNRESET");
+    const pm = u.match(/[?&]prefix=([^&]+)/);
+    if (pm) {
+      const prefix = decodeURIComponent(pm[1]);
+      return { ok: true, status: 200, url: u, text: async () => JSON.stringify({ blobs: Object.keys(st.files).filter((n) => n.indexOf(prefix) === 0).map((n) => ({ pathname: n })), hasMore: false }) };
+    }
+    const n = nameOf(u);
+    if (!st.files[n]) return { ok: false, status: 404, statusText: "Not Found", url: u, text: async () => "" };
+    const raw = st.files[n];
+    return { ok: true, status: 200, url: u, text: async () => raw };
+  };
+
+  const lib = require(path.join(apiDir, "_lib.js"));
+  await globalThis.__aiaHydrate;
+  const out = { trustedAtLoad: lib.storeTrusted(), F: [], R: [] };
+  const disk = () => { try { return fs.readFileSync(process.env.AIA_STORE_PATH, "utf8"); } catch (e) { return ""; } };
+  async function hit(r) {
+    const res = fakeRes();
+    const before = st.puts;
+    let threw = null;
+    const run = require(path.join(apiDir, r.file + ".js"))({ method: r.method, headers: r.headers, query: r.query, url: r.url, body: r.body }, res);
+    const capped = await Promise.race([
+      Promise.resolve(run).then(() => "done", (e) => { threw = String(e && e.message || e).slice(0, 100); return "threw"; }),
+      new Promise((ok) => setTimeout(() => ok("hung"), 5000))
+    ]);
+    const b = (res.body && typeof res.body === "object" ? res.body : (() => { try { return JSON.parse(res.body); } catch (e) { return {}; } })()) || {};
+    return { label: r.label, method: r.method, status: capped === "hung" ? "hung" : res.statusCode, threw, body: b, keys: Object.keys(b || {}).sort().join(","), retry: res.headers["Retry-After"] || null, puts: st.puts - before };
+  }
+  const tagF = "bwfF" + spec.fault.replace(/\W/g, "");
+  const has = (s, needle) => String(s || "").toLowerCase().indexOf(String(needle).toLowerCase()) >= 0;
+  const memText = () => JSON.stringify(lib.mem);
+  const connIn = (text) => has(text, "\"" + fx.conn + "\"");
+  // A good save first: puts work.
+  out.pre = await hit(rows(fx, "bwfPre")[0]);
+  const blobBefore = st.files[KEY];
+  st.putFault = spec.fault;
+  for (const r of rows(fx, tagF)) {
+    const x = await hit(r);
+    x.blobSame = st.files[KEY] === blobBefore;
+    x.memClean = !has(memText(), tagF) && connIn(memText());
+    x.diskClean = !has(disk(), tagF) && connIn(disk());
+    delete x.body.session;
+    out.F.push(x);
+  }
+  // save() outside any handler, on a store just read again: refuses and
+  // drops the work.
+  await lib.ready();
+  out.direct0 = lib.storeTrusted();
+  lib.mem.jobs.unshift({ id: "job_bwfdirect", workspace: fx.slug, title: tagF + "-direct" });
+  let direct;
+  try { direct = await Promise.race([lib.save(), new Promise((ok) => setTimeout(() => ok("hung"), 5000))]); } catch (e) { direct = "threw"; }
+  out.direct = { saved: direct, memClean: !has(memText(), tagF), diskClean: !has(disk(), tagF), blobSame: st.files[KEY] === blobBefore };
+  // Afterwards, with Blob reads down too, nothing failed is served.
+  st.readFault = true;
+  const owner = rows(fx, "x")[0].headers;
+  const g = await hit({ file: "jobs", method: "GET", label: "jobs GET", headers: owner, query: {}, url: "/api/jobs", body: {} });
+  out.afterGet = { status: g.status, served: has(JSON.stringify(g.body), tagF), memClean: !has(memText(), tagF) };
+  const h = await hit({ file: "health", method: "GET", label: "health GET", headers: {}, query: {}, url: "/api/health", body: {} });
+  out.afterHealth = { status: h.status, state: h.body && h.body.store && h.body.store.state };
+  st.readFault = false;
+  // The put recovers.
+  st.putFault = null;
+  for (const r of rows(fx, "bwfR")) out.R.push(await hit(r));
+  const final = (() => { try { return lib.blobOpen(st.files[KEY]); } catch (e) { return ""; } })();
+  out.final = { real: has(final, "\"real-desk\"") && has(final, "Real card 2"), recovered: has(final, "bwfR-capture") && has(final, "bwfR-hook") && has(final, "bwfPre-capture"), failed: has(final, tagF), conn: connIn(final) };
+  out.diskFinal = { recovered: has(disk(), "bwfR-capture"), failed: has(disk(), tagF) };
+  out.other = st.other;
+  out.F.forEach((x) => { x.body = { ok: x.body.ok, error: x.body.error, code: x.body.code }; });
+  out.R.forEach((x) => { x.body = { ok: x.body.ok, error: x.body.error && String(x.body.error).slice(0, 80), code: x.body.code }; });
+  process.stdout.write("RESULT " + JSON.stringify(out) + "\n");
+  process.exit(0);
+}
+
+// ---------- parent ----------
+function fixture(apiDir) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-bwf-fx-"));
+  const env = { PATH: process.env.PATH, HOME: tmp, AIA_STORE_PATH: path.join(tmp, "store.json"), AIA_UPLOAD_DIR: path.join(tmp, "up") };
+  const b = spawnSync(process.execPath, [__filename, "--fixture", apiDir], { env, cwd: tmp, encoding: "utf8", timeout: 60000 });
+  fs.rmSync(tmp, { recursive: true, force: true });
+  const line = String(b.stdout || "").split("\n").find((l) => l.indexOf("FIXTURE ") === 0);
+  return line ? JSON.parse(line.slice(8)) : { error: scrub(b.stderr).slice(-300) };
+}
+
+function runFault(apiDir, fx, fault) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-bwf-"));
+  const env = Object.assign({ PATH: process.env.PATH, HOME: tmp, AIA_STORE_PATH: path.join(tmp, "store.json"), AIA_UPLOAD_DIR: path.join(tmp, "up") }, FAKE_ENV);
+  const r = spawnSync(process.execPath, [__filename, "--child", apiDir, JSON.stringify({ fault, fx })], { env, cwd: tmp, encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024 });
+  fs.rmSync(tmp, { recursive: true, force: true });
+  const line = String(r.stdout || "").split("\n").find((l) => l.indexOf("RESULT ") === 0);
+  return line ? JSON.parse(line.slice(7)) : { error: "child gave no result (exit " + r.status + "): " + scrub(r.stderr).slice(-300) };
+}
+
+function runAll(apiDir, quiet) {
+  const results = [];
+  const t = (name, ok, why) => { results.push({ name, ok: !!ok }); if (!quiet) console.log((ok ? "ok   " : "FAIL ") + name + (ok || !why ? "" : " — " + why)); };
+  const fx = fixture(apiDir);
+  if (fx.error) { t("fixture built", false, fx.error); return results; }
+  t("fixture has a session, cards and a pipe", !!(fx.token && fx.jobs.every(Boolean) && fx.conn), JSON.stringify({ token: !!fx.token, jobs: fx.jobs, conn: fx.conn, connStatus: fx.connStatus }));
+  FAULTS.forEach((fault) => {
+    const o = runFault(apiDir, fx, fault);
+    const p = "put " + fault + ": ";
+    if (o.error) return t(p + "child ran", false, o.error);
+    t(p + "store was read at load", o.trustedAtLoad === true);
+    t(p + "a save before the fault works (2xx with a put)", o.pre.status >= 200 && o.pre.status < 300 && o.pre.puts >= 1, JSON.stringify(o.pre));
+    const two = o.F.filter((x) => !(typeof x.status === "number" && (x.status < 200 || x.status >= 300)));
+    t(p + "no POST/DELETE answers 2xx (" + o.F.length + " handlers)", two.length === 0, JSON.stringify(two.slice(0, 4).map((x) => [x.label, x.status, x.threw])));
+    const shape = o.F.filter((x) => !(x.status === 503 && x.body.ok === false && x.body.error === TEXT && CODES.indexOf(x.body.code) >= 0 && x.keys === "code,error,ok" && x.retry));
+    t(p + "each is the exact 503 {ok:false, error, code} + Retry-After", shape.length === 0, JSON.stringify(shape.slice(0, 3).map((x) => [x.label, x.status, x.keys, x.body.code, x.retry])));
+    const moved = o.F.filter((x) => !x.blobSame);
+    t(p + "Blob store byte-identical through the failed writes", moved.length === 0, JSON.stringify(moved.map((x) => x.label)));
+    const memLeft = o.F.filter((x) => !x.memClean);
+    t(p + "no failed work left in memory after each request", memLeft.length === 0, JSON.stringify(memLeft.map((x) => x.label)));
+    const diskLeft = o.F.filter((x) => !x.diskClean);
+    t(p + "no failed work in the local /tmp copy", diskLeft.length === 0, JSON.stringify(diskLeft.map((x) => x.label)));
+    t(p + "save() outside a handler refuses and drops the work", o.direct0 === true && o.direct.saved === false && o.direct.memClean && o.direct.diskClean && o.direct.blobSame, JSON.stringify(o.direct));
+    t(p + "afterwards nothing failed is served (GET, Blob reads down)", !o.afterGet.served && o.afterGet.memClean, JSON.stringify(o.afterGet));
+    t(p + "health shows the store not ready after the failed write", o.afterHealth.state === "not-ready", JSON.stringify(o.afterHealth));
+    const broke = o.R.filter((x) => !(typeof x.status === "number" && x.status >= 200 && x.status < 300 && x.puts >= 1));
+    t(p + "after the put recovers every handler succeeds with a store put", broke.length === 0, JSON.stringify(broke.slice(0, 4).map((x) => [x.label, x.status, x.puts, x.body])));
+    t(p + "final store: real desk and recovered work, none of the failed", o.final.real && o.final.recovered && !o.final.failed && !o.final.conn, JSON.stringify(o.final));
+    t(p + "local copy follows Blob after recovery", o.diskFinal.recovered && !o.diskFinal.failed, JSON.stringify(o.diskFinal));
+    t(p + "no non-blob network", (o.other || []).length === 0, JSON.stringify(o.other));
+  });
+  return results;
+}
+
+const MUTANTS = [
+  { id: "M1 save ignores a failed blobWrite", file: "_lib.js", from: "if (!ok && blobProbe.write === \"fail\") return storeWriteFailed();", to: "" },
+  { id: "M2 failed write keeps the store trusted", file: "_lib.js", from: "function storeWriteFailed() {\n  mem.storeSeen = false;\n  mem.storeAbsent = false;\n", to: "function storeWriteFailed() {\n" },
+  { id: "M3 failed write not marked on the request", file: "_lib.js", from: "  noteSkipped(\"writeFailed\");\n  noteSkipped(\"skipped\");\n", to: "" },
+  { id: "M4 failed write keeps unsaved memory (save() itself)", file: "_lib.js", from: "  noteSkipped(\"skipped\");\n  forgetUnsaved();\n  return false;\n}", to: "  noteSkipped(\"skipped\");\n  return false;\n}" },
+  { id: "M5 local copy written before the Blob put", file: "_lib.js", from: "keep it either.\n    const ok = await blobWrite();\n", to: "keep it either.\n    writeDisk();\n    const ok = await blobWrite();\n" },
+  { id: "M6 refusal body keeps the handler's success body", file: "_lib.js", from: "const out = ctx.writeFailed\n", to: "const out = false\n" },
+  { id: "M7 refusal without Retry-After", file: "_lib.js", from: "        if (typeof res.setHeader === \"function\") res.setHeader(\"Retry-After\", \"5\");\n        const base", to: "        const base" },
+  { id: "M8 no deadline on the store put", file: "_lib.js", from: "await blobPutDeadline(blobPutStore(body));", to: "await blobPutStore(body);" },
+  { id: "M9 account doors do not await save", file: "_account-doors.js", from: "await hooks.save();", to: "hooks.save();", all: true },
+  { id: "M10 blobWrite reports a failed put as written", file: "_lib.js", from: "    blobProbe.detail = why && why !== \"[object Object]\" ? why : \"blob-fail\";\n    return false;", to: "    blobProbe.detail = why && why !== \"[object Object]\" ? why : \"blob-fail\";\n    return true;" },
+  { id: "M11 recovery never re-reads (stays not-ready)", file: "_lib.js", from: "  if (!globalThis.__aiaStoreLoaded) return false;\n  try {\n    const remote = await blobRead();", to: "  return false;\n  try {\n    const remote = await blobRead();" }
+];
+
+function mutate() {
+  let caught = 0;
+  MUTANTS.forEach((m) => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-bwf-mut-"));
+    const api = path.join(tmp, "api");
+    fs.cpSync(path.join(ROOT, "api"), api, { recursive: true });
+    const f = path.join(api, m.file);
+    const src = fs.readFileSync(f, "utf8");
+    if (src.indexOf(m.from) === -1) { console.log("FAIL mutant " + m.id + ": anchor not found"); fs.rmSync(tmp, { recursive: true, force: true }); return; }
+    fs.writeFileSync(f, m.all ? src.split(m.from).join(m.to) : src.replace(m.from, m.to));
+    const bad = runAll(api, true).filter((c) => !c.ok);
+    fs.rmSync(tmp, { recursive: true, force: true });
+    if (bad.length) { caught++; console.log("caught  " + m.id + " (" + bad.length + " checks fail, e.g. " + bad[0].name + ")"); }
+    else console.log("MISSED  " + m.id);
+  });
+  console.log(caught + "/" + MUTANTS.length + " mutants caught");
+  return caught === MUTANTS.length;
+}
+
+const childErr = (e) => { console.error(scrub(e && e.stack || e)); process.exit(2); };
+if (process.argv[2] === "--fixture") buildFixture(process.argv[3]).catch(childErr);
+else if (process.argv[2] === "--child") child(process.argv[3], JSON.parse(process.argv[4])).catch(childErr);
+else {
+  const apiDir = path.resolve(process.argv[2] && process.argv[2].indexOf("--") !== 0 ? process.argv[2] : path.join(ROOT, "api"));
+  const res = runAll(apiDir);
+  const failed = res.filter((c) => !c.ok).length;
+  console.log((res.length - failed) + " ok, " + failed + " FAIL");
+  let ok = failed === 0;
+  if (process.argv.includes("--mutate")) ok = mutate() && ok;
+  if (!ok) { console.error("check-blob-write-fail failed"); process.exit(1); }
+  console.log("check-blob-write-fail passed");
+}
