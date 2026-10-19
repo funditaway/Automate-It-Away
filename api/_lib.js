@@ -1384,6 +1384,31 @@ function ownerSeatOf(ws) {
   return ((ws && ws.people) || []).find((p) => seatOpen(p) && seatLooksOwner(p)) || null;
 }
 
+// True when this session was issued on this desk for a seat that is now denied, waiting, or removed.
+// A pin login stamps the desk's account (and its email) on a helper's session, so without this the
+// old session falls through to the owner seat by accountId or email. Not true when the session's own
+// account (the one on that seat) still holds another open seat here: that is an independent match.
+// The account-level owner id (<accountId>_owner) is never a seat, so it is left to the normal lookup.
+function sessionSeatClosed(session, ws) {
+  if (!session || !ws || !session.personId || session.workspace !== ws.slug) return false;
+  if (session.accountId && session.personId === session.accountId + "_owner") return false;
+  const people = ws.people || [];
+  const seat = people.find((p) => p && p.id === session.personId) || null;
+  if (seat && seatOpen(seat)) return false;
+  if (seat && seat.accountId && seat.accountId === session.accountId) {
+    if (people.some((p) => p && p !== seat && seatOpen(p) && p.accountId === session.accountId)) return false;
+  }
+  return true;
+}
+
+function withoutSession(req, slug) {
+  const headers = Object.assign({}, (req && req.headers) || {});
+  delete headers["x-session"];
+  delete headers.cookie;
+  headers["x-workspace"] = slug;
+  return { headers, query: {} };
+}
+
 function sessionOwnerPerson(session, ws) {
   const seated = ownerSeatOf(ws);
   if (seated) return seated;
@@ -1409,6 +1434,13 @@ function personOf(req, workspaceSlug) {
   const fallbackSlug = fromSession && fromSession.session ? fromSession.session.workspace : "";
   const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || mem.workspaces.find((w) => w && w.slug === fallbackSlug) || null);
   if (!ws) return { workspace: null, person: null };
+  // A closed seat's session is not a login here: only a desk code (X-Pin) can still open a seat.
+  if (fromSession && fromSession.session && sessionSeatClosed(fromSession.session, ws)) {
+    const seat = (ws.people || []).find((p) => p && p.id === fromSession.session.personId) || null;
+    const byPin = personOf(withoutSession(req, ws.slug), ws.slug);
+    if (byPin.person) return byPin;
+    return { workspace: ws, person: null, pending: !!(seat && seat.status === "pending"), denied: !(seat && seat.status === "pending") };
+  }
   if (fromSession && fromSession.session) {
     const session = fromSession.session;
     const people = ws.people || [];
