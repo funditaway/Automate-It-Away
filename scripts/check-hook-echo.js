@@ -323,6 +323,19 @@ async function main() {
   echoShop.hookSecretHash = require("crypto").createHash("sha256").update(hookTestSecret).digest("hex");
   for (let i = 0; i < events.length; i++) {
     const name = events[i][1];
+    if (name === "collect") {
+      // Collect HOLD: even with the desk hook secret, paid gets the HOLD reply and writes nothing.
+      const cardBefore = JSON.stringify(lib.mem.jobs.find(function (j) { return j && j.id === "job_hookecho"; }));
+      const moneyBefore = JSON.stringify(lib.mem.money || []);
+      const held = await call(hook, "POST", { "x-workspace": slug, "x-hook-secret": hookTestSecret }, Object.assign({ id: "job_hookecho" }, events[i][0]));
+      if (held.statusCode !== 409 || !held.body || held.body.ok !== false || held.body.hold !== true || held.body.charged !== false || held.body.job || held.body.id) {
+        fail("collect with the desk hook secret should be 409 Collect HOLD, got " + held.statusCode + " " + JSON.stringify(held.body));
+      }
+      if (secrets.concat([hookTestSecret, echoShop.hookSecretHash]).some(function (s) { return leaked(held.body, s); })) fail("collect HOLD reply leaked");
+      if (JSON.stringify(lib.mem.jobs.find(function (j) { return j && j.id === "job_hookecho"; })) !== cardBefore) fail("collect HOLD changed the card");
+      if (JSON.stringify(lib.mem.money || []) !== moneyBefore) fail("collect HOLD wrote a payment row: " + JSON.stringify((lib.mem.money || [])[0]));
+      continue;
+    }
     const hit = await call(hook, "POST", { "x-workspace": slug, "x-hook-secret": hookTestSecret }, Object.assign({ id: "job_hookecho" }, events[i][0]));
     const body = plain(hit, 200, name, secrets.concat([hookTestSecret, echoShop.hookSecretHash]));
     const stored = lib.mem.jobs.find(function (j) { return j && j.id === "job_hookecho"; });
@@ -332,12 +345,11 @@ async function main() {
     if (body.id !== stored.id || body.status !== stored.status) fail(name + " confirmation did not match the card");
     if (stored.charged) fail(name + " charged the card");
   }
-  const collectRow = (lib.mem.money || [])[0];
-  if (!collectRow || collectRow.what !== "Pipe collect" || collectRow.held !== false || collectRow.charged) {
-    fail("collect write-back changed: " + JSON.stringify(collectRow));
+  if ((lib.mem.money || []).some(function (m) { return m && /collect/i.test(String(m.what || "")); })) {
+    fail("a hook collect wrote a payment row: " + JSON.stringify(lib.mem.money));
   }
   delete echoShop.hookSecretHash;
-  pass("update, hand, done, collect, and stop with the desk hook secret do not echo the card");
+  pass("update, hand, done, and stop with the desk hook secret do not echo the card; collect stays HOLD with no payment row");
 
   const book = (lib.mem.files || []).find(function (f) { return f && f.id === "file_hookecho"; });
   if (!book || book.url !== memUrl || book.remoteUrl !== memRemote) fail("the file book was changed");

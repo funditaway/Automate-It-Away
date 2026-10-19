@@ -64,6 +64,9 @@ function hookSecretProven(req, shop) {
   return crypto.timingSafeEqual(got, Buffer.from(want, "hex"));
 }
 
+// Collect is on HOLD: a hook's paid/sold never charges, marks done, or writes money.
+const COLLECT_HOLD = "Collect stays HOLD until Yes + a real money pipe. Nothing was charged or written.";
+
 const EXISTING_CARD_LOCKED = "That card is already on this desk. Changing it from a hook needs a seat on this desk or this desk's hook secret. Nothing changed. New cards can still come in.";
 
 // No seat: ok, the job id, and the card status. The event name stays so a pipe can
@@ -130,6 +133,12 @@ module.exports = async function handler(req, res) {
   // still come in from anyone, as before.
   if (job && event !== "capture" && !hasSeat(req, workspace) && !hookSecretProven(req, shop)) {
     return res.status(401).json({ ok: false, error: EXISTING_CARD_LOCKED });
+  }
+
+  // Collect HOLD: paid/sold answers HOLD for everyone, a seat or the hook secret
+  // included. No card change, no money row, no log line, no save.
+  if (event === "collect") {
+    return res.status(409).json({ ok: false, hold: true, charged: false, event: "collect", error: COLLECT_HOLD });
   }
 
   if (event === "capture" || !job) {
@@ -218,25 +227,6 @@ module.exports = async function handler(req, res) {
     log("Pipe", "Done · " + job.title, "OK", workspace);
     await save();
     return answer(res, 200, req, workspace, "done", job);
-  }
-
-  if (event === "collect") {
-    const amount = Number(body.amount || job.amount || job.ask || 0);
-    finishDone(job, body, "pipe");
-    job.step = "Collect";
-    job.amount = amount || job.amount;
-    job.log = (job.log || []).concat(["Pipe wrote back · collect"]);
-    mem.money.unshift({
-      at: new Date().toISOString(),
-      workspace,
-      who: job.payoutTo || job.title,
-      what: "Pipe collect",
-      amt: amount ? "$" + amount : "—",
-      held: false
-    });
-    log("Pipe", "Collect · " + job.title, "OK", workspace);
-    await save();
-    return answer(res, 200, req, workspace, "collect", job);
   }
 
   job.notes = body.notes || job.notes;

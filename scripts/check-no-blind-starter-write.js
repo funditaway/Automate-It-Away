@@ -457,8 +457,9 @@ function routeTable(fx, phase) {
   // /api/hook (pipe write-backs). A new card needs no seat. A change to a card
   // already on the desk needs a seat on this desk or this desk's hook secret
   // (X-Hook-Secret header), so the write-backs send the desk's secret.
-  // Collect stays on HOLD here: the collect row sends no secret and must be
-  // refused with nothing charged or written. One more write-back with no
+  // Collect stays on HOLD: the collect row with no secret gets 401, and the
+  // collect row with the desk's valid secret gets the Collect HOLD reply (409);
+  // both with nothing charged or written. One more write-back with no
   // credentials at all must be refused (401) with zero writes.
   const hook = { "x-workspace": fx.slug };
   const hookSigned = { "x-workspace": fx.slug, "x-hook-secret": HOOK_SECRET };
@@ -468,6 +469,7 @@ function routeTable(fx, phase) {
   add("hook", "hook", "POST", "done", { event: "done", id: J("hook-done"), notes: tag + "-hook-done" }, { headers: hookSigned });
   add("hook", "hook", "POST", "hand", { event: "hand", id: J("hook-hand"), notes: tag + "-hook-hand" }, { headers: hookSigned });
   add("hook", "hook", "POST", "collect", { event: "paid", id: J("hook-collect"), amount: 12, notes: tag + "-hook-collect" }, { headers: hook });
+  add("hook", "hook", "POST", "collect (secret)", { event: "paid", id: J("hook-collect"), amount: 13, notes: tag + "-hook-collect-secret" }, { headers: hookSigned });
   add("hook", "hook", "POST", "kill", { event: "kill", id: J("hook-kill"), reason: tag + "-hook-kill" }, { headers: hookSigned });
   add("hook", "hook", "POST", "stop", { event: "stop", id: J("hook-stop"), reason: tag + "-hook-stop" }, { headers: hookSigned });
   add("hook", "hook", "POST", "update (no credentials)", { event: "update", id: J("hook-nocred"), notes: tag + "-hook-nocred" }, { headers: hook });
@@ -798,11 +800,13 @@ function routesMain(apiDir, t) {
     t(c.id + " routes: trusted after recovery", o.trustedAfterB === true);
     const broke = MUST_WORK.filter((k) => { const x = o.B.find((y) => y.key === k); return !x || !(x.status >= 200 && x.status < 300) || x.puts < 1; });
     t(c.id + " routes: key actions succeed after recovery with a store put", broke.length === 0, JSON.stringify(broke.map((k) => o.B.find((y) => y.key === k) || k).slice(0, 6)));
-    // Refused after recovery: hook collect (HOLD, no secret: no charge) and a hook
+    // Refused after recovery: hook collect (HOLD; no charge, with or without a secret) and a hook
     // write-back with no seat and no secret. 401, zero store puts, nothing kept.
     const MUST_REFUSE = ["hook collect", "hook update (no credentials)"];
     const leaked = MUST_REFUSE.filter((k) => { const x = o.B.find((y) => y.key === k); return !x || x.status !== 401 || x.puts !== 0; });
     t(c.id + " routes: hook collect (HOLD) and a no-credentials hook write-back get 401 with zero store puts", leaked.length === 0, JSON.stringify(leaked.map((k) => o.B.find((y) => y.key === k) || k)));
+    const heldSigned = o.B.find((y) => y.key === "hook collect (secret)");
+    t(c.id + " routes: hook collect with the desk's valid hook secret is still refused (409 Collect HOLD) with zero store puts", !!heldSigned && heldSigned.status === 409 && heldSigned.puts === 0, JSON.stringify(heldSigned || "missing"));
     t(c.id + " routes: nothing from the refused hook rows (no collect charge) reached the store", (o.final.refusedLeft || []).length === 0, JSON.stringify(o.final.refusedLeft));
     const twoNoPutB = o.B.filter((x) => x.method !== "GET" && x.status >= 200 && x.status < 300 && x.puts === 0 && readOnly.indexOf(x.key.replace(/ \(anon\)$/, "")) < 0);
     t(c.id + " routes: no POST/PUT/PATCH/DELETE answers 2xx without a store put after recovery (read-only list aside)", twoNoPutB.length === 0, JSON.stringify(twoNoPutB.slice(0, 8)));

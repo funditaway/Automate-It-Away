@@ -115,6 +115,26 @@ function mockRes() {
     return res;
   }
   const card = (id) => mem.jobs.find((j) => j && j.id === id);
+  const storeBytes = () => { try { return fs.readFileSync(store, "utf8"); } catch (e) { return ""; } };
+  // A paid/sold call with the card, money and store bytes before and after.
+  async function heldCall(headers, body, query) {
+    const id = body.id;
+    const b = { card: JSON.stringify(card(id) || null), money: JSON.stringify(mem.money || []), audit: (mem.audit || []).length, audit0: (mem.audit || [])[0], store: storeBytes() };
+    const r = await call(headers, body, query);
+    r.before = b;
+    return r;
+  }
+  function expectHold(r, id, label) {
+    let ok = true;
+    const no = (m) => { ok = false; fail(label + " " + m); };
+    if (r.statusCode !== 409 || !r.body || r.body.ok !== false || r.body.hold !== true || r.body.charged !== false || r.body.job || r.body.id) no("-> expected 409 Collect HOLD, got " + r.statusCode + " " + JSON.stringify(r.body).slice(0, 200));
+    else if (!/^Collect stays HOLD/.test(String(r.body.error || ""))) no("-> HOLD reply should say Collect stays HOLD, got " + JSON.stringify(r.body.error));
+    if (JSON.stringify(card(id) || null) !== r.before.card) no("changed the card (done/step/amount/log)");
+    if (JSON.stringify(mem.money || []) !== r.before.money) no("wrote a payment row: " + JSON.stringify((mem.money || [])[0]));
+    if ((mem.audit || []).length !== r.before.audit || (mem.audit || [])[0] !== r.before.audit0) no("wrote a log line: " + JSON.stringify((mem.audit || [])[0]));
+    if (storeBytes() !== r.before.store) no("wrote the store");
+    return ok;
+  }
   const snap = (id) => JSON.stringify(card(id) || null);
   const H = { "x-workspace": "victim" };
   watch(TEST_SECRET);
@@ -189,9 +209,9 @@ function mockRes() {
   r = await call(Object.assign({ "x-pin": "2222" }, H), { externalId: "crm-1", event: "done", notes: "Helper done" });
   if (r.statusCode !== 200 || card("job_victim1").status !== "shipped") fail("helper done by externalId -> " + r.statusCode);
   else pass("seated helper can mark done by externalId");
-  r = await call(owner, { id: "job_victim1", event: "paid", amount: 70 });
-  if (r.statusCode !== 200 || mem.money.length !== 1 || mem.money[0].amt !== "$70") fail("owner collect -> " + r.statusCode + " " + JSON.stringify(mem.money));
-  else pass("seated owner collect still writes one money row");
+  // Collect HOLD: even a seated owner's paid writes nothing.
+  const ownerPaid = expectHold(await heldCall(owner, { id: "job_victim1", event: "paid", amount: 70 }), "job_victim1", "seated owner paid");
+  if (ownerPaid) pass("seated owner paid gets Collect HOLD (409): no done, no money row, store byte-identical");
 
   // 4. With a hook secret on the desk (test value on a temp store), the secret opens
   // existing cards from the X-Hook-Secret header only. Query or body is no secret.
@@ -232,8 +252,11 @@ function mockRes() {
   const tseBeforeGood = tse;
   r = await call(Object.assign({}, H, { "x-hook-secret": TEST_SECRET }), { externalId: "crm-2", event: "update", notes: "Pipe notes" });
   if (r.statusCode !== 200 || card("job_victim2").notes !== "Pipe notes" || r.body.job) fail("secret header update -> " + r.statusCode + " " + JSON.stringify(r.body).slice(0, 200));
-  r = await call(Object.assign({}, H, { "x-hook-secret": TEST_SECRET }), { id: "job_victim2", event: "paid", amount: 30 });
-  if (r.statusCode !== 200 || mem.money.length !== moneyNow + 1) fail("secret header collect -> " + r.statusCode);
+  // Collect HOLD: the right secret's paid (and sold) gets the HOLD reply and writes nothing.
+  r = await heldCall(Object.assign({}, H, { "x-hook-secret": TEST_SECRET }), { id: "job_victim2", event: "paid", amount: 30 });
+  expectHold(r, "job_victim2", "secret header paid");
+  expectHold(await heldCall(Object.assign({}, H, { "x-hook-secret": TEST_SECRET }), { id: "job_victim2", event: "sold", amount: 31 }), "job_victim2", "secret header sold");
+  if (mem.money.length !== moneyNow) fail("secret header paid/sold changed money: " + JSON.stringify(mem.money));
   if (tse <= tseBeforeGood) fail("the right X-Hook-Secret was accepted without crypto.timingSafeEqual (compare must not be ==/===)");
   const tseBeforeWrong = tse;
   r = await call(Object.assign({}, H, { "x-hook-secret": "nope-wrong" }), { id: "job_victim2", event: "kill" });
@@ -241,7 +264,7 @@ function mockRes() {
   if (tse <= tseBeforeWrong) fail("a wrong X-Hook-Secret was refused without crypto.timingSafeEqual");
   r = await call(Object.assign({}, H, { "x-hook-secret": TEST_SECRET }), { id: "job_victim2", event: "kill" });
   if (r.statusCode !== 200 || card("job_victim2").status !== "killed") fail("secret kill -> " + r.statusCode);
-  if (!failed) pass("right X-Hook-Secret header still changes cards (update/collect/kill), reply stays plain; compare goes through crypto.timingSafeEqual");
+  if (!failed) pass("right X-Hook-Secret header still changes cards (update/kill), paid/sold stay Collect HOLD with zero writes, reply stays plain; compare goes through crypto.timingSafeEqual");
 
   // Static pin: the hook compare is crypto.timingSafeEqual, not ==/===, and the secret is
   // read from the header only (no query/body/url read of it, no logging of req.url/query).
