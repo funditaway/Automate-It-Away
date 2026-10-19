@@ -139,7 +139,7 @@
   </header>
   <main class="wrap">
     <h1 class="page-title">Queue</h1>
-    <div class="banner" id="banner">This desk’s work.</div>
+    <div class="banner" id="banner">This desk’s queue.</div>
     <div class="kpis" aria-hidden="true">
       <div class="kpi"><span>Waiting on a person.</span><b id="k-wait">—</b></div>
       <div class="kpi"><span>Sent</span><b id="k-ship">—</b></div>
@@ -408,7 +408,7 @@
         await api("/api/worker");
         const health = await api("/api/health");
         const store = (health.data && health.data.store) || {};
-        banner.textContent = "This desk’s work.";
+        banner.textContent = "This desk’s queue.";
         const jobs = await api("/api/jobs");
         if (!jobs.data || !Array.isArray(jobs.data.jobs)) {
           JOBS = [];
