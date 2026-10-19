@@ -266,6 +266,7 @@
     { href: "/how", label: "How" },
     { href: "/setup", label: "Setup" },
     { href: "/help", label: "Help" },
+    { href: "/account", label: "My account" },
     { href: "/pricing", label: "Pricing" },
     { href: "/legal", label: "Legal" },
     { href: "/status", label: "Status" }
