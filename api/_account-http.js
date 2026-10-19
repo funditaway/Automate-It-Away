@@ -272,6 +272,7 @@ module.exports = async function handler(req, res) {
     if (!found.workspace || !isOwner(found.person)) {
       return res.status(403).json({ ok: false, error: "Owner desk code required." });
     }
+    if (!require("./_account-settings").accountKindFrom(body.accountKind)) return res.status(400).json({ ok: false, error: "Account kind must be human, ai, or si." });
     const acc = createOwnerAccount(body, found.workspace);
     refreshSession(req, res);
     await save();
