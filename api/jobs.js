@@ -121,6 +121,10 @@ module.exports = async function handler(req, res) {
     const body = await readBody(req);
     const action = body.action || "capture";
     if (action === "suggest") {
+      // A draft calls the Desk AI on the desk's key, so it needs a seat on this desk first.
+      // A stranger and a missing desk get the same 401, and nothing is sent to the model.
+      if (found.pending) return res.status(403).json({ ok: false, error: "That seat is waiting on the owner." });
+      if (!shop || !person) return res.status(401).json({ ok: false, error: "Open this desk to ask for a draft." });
       const job = makeCapturedJob(workspace, shop, body);
       qualifyJob(job, shop);
       const grok = await grokRecommend(job, shop, workspace);
