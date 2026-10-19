@@ -199,6 +199,8 @@ function inviteWorld(row, body, actor) {
   }
   const you = homeOf(actor, row);
   if (you && you.id === home.id) return { ok: false, status: 409, error: "That is your account." };
+  // The desk's own account already owns this desk. It never sits on it as a helper seat.
+  if (typeof lib.deskAccountIdOf === "function" && home.id === lib.deskAccountIdOf(row)) return { ok: false, status: 409, error: "That account owns this desk." };
   const existing = seatOnDesk(row, home);
   if (existing && existing.status === "approved") {
     return { ok: false, status: 409, error: handleOf(home) + " is already on this desk as " + (existing.kind || "helper") + ".", alreadyOnDesk: true, person: lib.publicPerson(existing) };
@@ -216,7 +218,7 @@ function inviteWorld(row, body, actor) {
     pin: home.pin ? "x" : "world",
     approve: false,
     status: "pending"
-  }, { name: (actor && actor.name) || "desk", role: "employee", kind: "staff" });
+  }, { name: (actor && actor.name) || "desk", role: "employee", kind: "staff" }, { account: home });
   if (!made.ok && /desk code|4\+ digit/i.test(made.error || "")) {
     const seat0 = {
       id: "p_" + Date.now().toString(36),
