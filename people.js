@@ -719,7 +719,7 @@ async function invite() {
   var pin = document.getElementById("p").value.trim();
   var note = document.getElementById("inv");
   if (!name && !crew) { note.textContent = "Name the person or pick a crew seat."; return; }
-  var out = await api("/api/admin", { method: "POST", body: JSON.stringify({ action: "invite", name: name || crew, email: document.getElementById("e").value, phone: document.getElementById("ph").value, pin: pin, account: document.getElementById("acct").value, kind: kind, crew: crew, approve: document.getElementById("now").checked, role: "employee" }) });
+  var out = await api("/api/admin", { method: "POST", body: JSON.stringify({ action: "invite", name: name || crew, email: document.getElementById("e").value, phone: document.getElementById("ph").value, pin: pin, kind: kind, crew: crew, approve: document.getElementById("now").checked, role: "employee" }) });
   if (out.status >= 400) { note.textContent = (out.data && out.data.error) || "Could not add that person."; return; }
   var line = inviteLine({ name: name || crew }, out.data.pending);
   note.textContent = out.data.pending ? line : ("On the desk. Copy and send this yourself: " + line);

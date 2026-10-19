@@ -56,7 +56,7 @@
     <div id="list"></div>
     <div class="add" id="add-box" hidden>
       <h2 style="margin-top:0">Add someone</h2>
-      <p>One AIA account. Name them. Pick a seat. Give a code if they do not have an account yet.</p>
+      <p>Name them. Pick a seat. Give them a desk code.</p>
       <div class="grid">
         <input id="n" placeholder="Name" autocomplete="name">
         <select id="k">
@@ -79,9 +79,9 @@
         </select>
         <input id="ph" placeholder="Phone" inputmode="tel" autocomplete="tel">
         <input id="e" placeholder="Email" inputmode="email" autocomplete="email">
-        <input id="acct" placeholder="Their AIA account, if they have one">
-        <input id="p" placeholder="New desk code if no account yet" inputmode="numeric">
+        <input id="p" placeholder="Desk code, 4+ digits" inputmode="numeric">
       </div>
+      <p class="meta" id="add-link-line">They'll link their own account when they sign in.</p>
       <label><input id="now" type="checkbox" checked> Approve now — they can open the queue</label>
       <div class="acts">
         <button class="go" type="button" id="add-btn">Add to desk</button>
