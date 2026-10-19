@@ -368,6 +368,62 @@ async function main() {
   const qpw = qAcc.password;
   await call(auth, "POST", { "x-workspace": Y, "x-session": qPin }, { action: "password", password: "pin-pass-0000" });
   ok(qAcc.password === qpw && po(qPin, B).person == null, "[third] Quinn's desk-code session alone neither edits her account nor reaches B");
+
+  // ---- 8. Every proving sign-in keeps its powers; a desk code or an old unmarked session gets a
+  // plain "sign in again", and replies to people with no account (or strangers) stay as they were.
+  const MSG = "Sign in again to change your account.";
+  const plain = (r) => r.statusCode === 403 && r.body && r.body.ok === false && r.body.error === MSG && r.body.signIn === true;
+  for (const [tag, tk] of [["old unmarked session", carlOld], ["desk-code session", carlPin]]) {
+    const hA = { "x-workspace": A, "x-session": tk };
+    ok(plain(await call(auth, "POST", hA, { action: "password", password: "carl-pass-7777" })), "[sign-in-again " + tag + "] auth password says sign in again");
+    ok(plain(await call(auth, "POST", hA, { action: "details", city: "Nowhere" })), "[sign-in-again " + tag + "] auth details says sign in again");
+    ok(plain(await call(acch, "POST", hA, { action: "password", password: "carl-pass-7777" }, {}, "/api/account")), "[sign-in-again " + tag + "] /api/account password says sign in again");
+    ok(plain(await call(acch, "POST", hA, { action: "handle", handle: "carlzed" }, {}, "/api/account")), "[sign-in-again " + tag + "] /api/account handle says sign in again");
+    ok(plain(await call(acch, "POST", hA, { action: "link-provider", provider: "github", subject: "carl" }, {}, "/api/account")), "[sign-in-again " + tag + "] linking a door says sign in again");
+    ok(plain(await call(admin, "POST", hA, { action: "handle", handle: "carlzed" }, {}, "/api/admin")), "[sign-in-again " + tag + "] admin handle says sign in again");
+    ok(plain(await call(admin, "POST", hA, { action: "accept-invite", slug: B }, {}, "/api/admin")), "[sign-in-again " + tag + "] accept-invite says sign in again");
+  }
+  ok(zAcc.handle === "zedsoa" && (zAcc.password || "") !== "" && zAcc.city !== "Nowhere", "[sign-in-again] Zed's account untouched");
+  const ollyPw = await call(auth, "POST", { "x-workspace": A, "x-session": ollyTok }, { action: "password", password: "olly-pass-1234" });
+  ok(ollyPw.statusCode === 404 && ollyPw.body && ollyPw.body.error === "No AIA account on this login.", "[unchanged] a helper with no account still gets 404 No AIA account (" + ollyPw.statusCode + ")");
+  const strangerPw = await call(auth, "POST", { "x-workspace": A }, { action: "password", password: "x-pass-1234" });
+  ok(strangerPw.statusCode === 401 && strangerPw.body && strangerPw.body.error === "Sign in first.", "[unchanged] a stranger still gets 401 Sign in first (" + strangerPw.statusCode + ")");
+  const ollySes = await call(acch, "POST", { "x-workspace": A, "x-session": ollyTok }, { action: "sessions" }, {}, "/api/account");
+  ok(ollySes.statusCode === 401 && ollySes.body && ollySes.body.error === "Sign in first.", "[unchanged] a helper with no account still gets 401 Sign in first on /api/account sessions (" + ollySes.statusCode + ")");
+  for (const act of ["sessions", "export"]) {
+    ok(plain(await call(acch, "POST", { "x-workspace": A, "x-session": carlOld }, { action: act }, {}, "/api/account")), "[sign-in-again] /api/account " + act + " says sign in again");
+  }
+  // Proof is an allowlist ("password" only) and never comes from the request or a stored oddity.
+  const forged = lib.issueSession(carl, wsA, zAcc, null, "forged");
+  const fRow = lib.mem.sessions[0];
+  ok(fRow && fRow.proof === "" && !fRow.accountId, "[allowlist] issueSession with proof 'forged' stores no proof and no account");
+  if (fRow) { fRow.proof = "forged"; fRow.accountId = zAcc.id; }
+  ok(plain(await call(auth, "POST", { "x-workspace": A, "x-session": forged.token }, { action: "password", password: "carl-pass-7777" })), "[allowlist] a stored 'forged' mark is unproven: sign in again");
+  for (const [door, h] of [["/api/auth", auth], ["/api/account", acch]]) {
+    const bp = await call(h, "POST", { "x-proof": "password" }, { action: "login", workspace: A, slug: A, pin: "2626", proof: "password" }, {}, door === "/api/auth" ? undefined : door);
+    const r0 = lib.mem.sessions[0];
+    ok(bp.statusCode === 200 && r0 && r0.personId === carl.id && r0.proof === "" && !r0.accountId, "[allowlist] desk-code login on " + door + " with proof in body/header stores no proof (" + bp.statusCode + ")");
+  }
+  // The one proving path, email + password, on /api/auth and on /api/account.
+  const zPw = await call(auth, "POST", { "x-workspace": Z, "x-session": zet }, { action: "password", current: zAcc.password ? "zed-pass-1234" : "", password: "zed-pass-2468" });
+  ok(zPw.statusCode === 200 && ownerOn(zet, Z), "[proof password /api/auth] Zed's email session is owner on Z and changes his own password (" + zPw.statusCode + ")");
+  const ze3 = await call(acch, "POST", {}, { action: "login", email: "zed@x.test", password: "zed-pass-2468" }, {}, "/api/account");
+  const ze3t = ze3.body && ze3.body.session && ze3.body.session.token;
+  ok(ze3.statusCode === 200 && lib.mem.sessions[0].proof === "password" && ownerOn(ze3t, Z), "[proof password /api/account] marked, owner on Z");
+  const zDet = await call(acch, "POST", { "x-workspace": Z, "x-session": ze3t }, { action: "details", city: "Zedville" }, {}, "/api/account");
+  ok(zDet.statusCode === 200 && zAcc.city === "Zedville", "[proof password /api/account] changes his own details (" + zDet.statusCode + ")");
+  // Desk-PIN sessions never carry proof, owner or not: new desk (auth.js open) and existing desk by PIN.
+  const nu = await call(auth, "POST", { "x-workspace": "soa-new" }, { action: "open", slug: "soa-new", biz: "soa-new", name: "Nia", pin: "2929", email: "nia@x.test" });
+  const nut = nu.body && nu.body.session && nu.body.session.token;
+  const nuRow = lib.mem.sessions.find((x) => x && x.workspace === "soa-new");
+  ok(nu.statusCode === 201 && nuRow && nuRow.proof === "" && ownerOn(nut, "soa-new"), "[pin open-new] new desk session has no proof and is owner of its own desk");
+  const nuPw = await call(auth, "POST", { "x-workspace": "soa-new", "x-session": nut }, { action: "password", password: "nia-pass-1234" });
+  ok(nuPw.statusCode === 200, "[pin open-new] the owner still sets her own desk account's password (" + nuPw.statusCode + ")");
+  for (const [tag, slug, pin, owner] of [["owner", "soa-new", "2929", true], ["helper Carl", A, "2626", false]]) {
+    const op = await call(auth, "POST", { "x-proof": "password" }, { action: "open", slug, biz: slug, pin, proof: "password" });
+    const r0 = lib.mem.sessions[0];
+    ok(op.statusCode < 300 && r0 && r0.workspace === slug && r0.proof === "" && (owner || !r0.accountId), "[pin open-existing " + tag + "] opening an existing desk by PIN stores no proof (" + op.statusCode + ")");
+  }
 }
 
 main().then(() => {

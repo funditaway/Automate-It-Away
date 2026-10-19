@@ -287,6 +287,9 @@ module.exports = async function handler(req, res) {
   if (action === "invites" || action === "asks") {
     return res.status(200).json(worldPeople.invitesOf(row, person));
   }
+  if ((action === "accept-invite" || action === "decline-invite" || action === "handle" || action === "at") && require("./_account").needsSignIn(person, row, req)) {
+    return res.status(403).json(require("./_account").signInAgain());
+  }
   if (action === "accept-invite") {
     const acc = homeAccount(person, row, req);
     const made = worldPeople.acceptInvite(acc, body.slug || body.desk || body.workspace);
