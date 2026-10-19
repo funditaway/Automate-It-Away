@@ -505,6 +505,36 @@ async function main() {
         if (saves !== w0b || snapAll() !== s0b) { fail(label + " = " + shown + " must save and change nothing"); bad++; }
       }
     }
+    // The request body itself must be a plain object (prototype Object.prototype or
+    // null). A body whose prototype carries allow.money:true (or any field) is the
+    // same plain 400, nothing saved, and allowed.money never becomes true.
+    {
+      let pr = await rawPost(OWN, { action: "setup-card", from: { type: "addon", id: "proto-money", name: "Proto money", acts: ["read"] }, deskId: "own-desk" });
+      const pcard = pr.body && pr.body.card && pr.body.card.id;
+      if (pr.statusCode !== 200 || !pcard) fail("proto-body: setup card made: " + pr.statusCode);
+      const approvedMoney = () => (acc("acct_A").setupCards || []).filter((c) => c.id === pcard).some((c) => JSON.stringify(c).indexOf("\"money\":true") >= 0);
+      const protoBodies = [
+        ["prototype allow.money:true", Object.assign(Object.create({ allow: { money: true } }), { action: "setup-step", cardId: pcard, stepId: "g1.approve", do: "done" })],
+        ["prototype carries every field", Object.create({ action: "setup-step", cardId: pcard, stepId: "g1.approve", do: "done", allow: { money: true } })],
+        ["prototype connect secrets", Object.assign(Object.create({ secrets: { K: "v-9-never" } }), { action: "connect", service: "ProtoSvc" })],
+        ["class instance body", Object.assign(new (class Body {})(), { action: "setup-step", cardId: pcard, stepId: "g1.approve", do: "done", allow: { money: true } })],
+        ["prototype settings write", Object.assign(Object.create({ set: { theme: "dark" } }), { action: "settings", section: "look" })]
+      ];
+      for (const [label, pb] of protoBodies) {
+        const w0p = saves, s0p = snapAll();
+        let rp = null, threw = null;
+        try { rp = await rawPost(OWN, pb); } catch (e) { threw = e; }
+        if (threw) { fail("non-plain body (" + label + ") must not throw: " + threw.message); continue; }
+        if (rp.statusCode !== 400 || !rp.body || rp.body.ok !== false || rp.body.error !== "Send the request as a plain object. Nothing was saved.") fail("non-plain body (" + label + ") must be the plain 400: " + rp.statusCode + " " + JSON.stringify(rp.body));
+        if (saves !== w0p || snapAll() !== s0p) fail("non-plain body (" + label + ") must save and change nothing");
+      }
+      if (approvedMoney()) fail("a prototype allow.money:true must never store allowed.money:true");
+      const np = Object.assign(Object.create(null), { action: "setup-step", cardId: pcard, stepId: "g1.approve", do: "done" });
+      pr = await rawPost(OWN, np);
+      if (pr.statusCode !== 200) fail("a null-prototype body still works: " + pr.statusCode + " " + JSON.stringify(pr.body));
+      if (approvedMoney()) fail("approve {} after a refused prototype body keeps allowed.money false");
+      pass("a non-plain request body (prototype carrying allow.money:true, class instance) is the plain 400, nothing saved, allowed.money stays false; a null-prototype body works");
+    }
     // The right types still work.
     let r = await rawPost(OWN, { action: "setup-card", from: { type: "addon", id: "typed-ok", name: "Typed OK", acts: ["read"] }, deskId: "own-desk" });
     if (r.statusCode !== 200) fail("plain strings and string lists still work: " + r.statusCode + " " + JSON.stringify(r.body));

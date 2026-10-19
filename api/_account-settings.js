@@ -65,6 +65,16 @@ function refuse(res, status, error, extra) {
   return res.status(status).json(Object.assign({ ok: false, error: error }, extra || {}));
 }
 
+// A write body must be a plain object (prototype Object.prototype or null), so
+// no field is ever read from a prototype (Probe 355 note: a body whose
+// prototype carries allow.money:true). Same 400 as a field of the wrong type.
+const BODY_NOT_PLAIN = "Send the request as a plain object. Nothing was saved.";
+function plainBody(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const p = Object.getPrototypeOf(v);
+  return p === Object.prototype || p === null;
+}
+
 // Own seat only. Owners reach their own account. A helper, family, friend,
 // member, or staff seat reaches only an account of its own, never the desk
 // owner's. Waiting, denied, Desk AI, and unknown seats get nothing.
@@ -553,6 +563,7 @@ async function handle(req, res) {
   const acc = seat.account;
   const person = seat.person;
   if (askedOther(req, body, acc)) return refuse(res, 403, "Settings only change your own account."), true;
+  if (req.method === "POST" && !plainBody(body)) return refuse(res, 400, BODY_NOT_PLAIN), true;
   const whoKind = kindOf(acc);
 
   if (req.method === "GET") {
@@ -675,4 +686,4 @@ async function handle(req, res) {
   return res.status(200).json(reply), true;
 }
 
-module.exports = { handle, ownSeat, askedOther, ownedDesks, addHistory, seal, secretKey, SECRET_NAME, SECRET_VALUE_MAX, SELF_LOCK, ID_FIELDS, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };
+module.exports = { handle, ownSeat, plainBody, BODY_NOT_PLAIN, askedOther, ownedDesks, addHistory, seal, secretKey, SECRET_NAME, SECRET_VALUE_MAX, SELF_LOCK, ID_FIELDS, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };
