@@ -42,6 +42,8 @@
       const h = { "Content-Type": "application/json", "X-Workspace": slugOf() };
       const pin = localStorage.getItem(K.pin);
       if (pin) h["X-Pin"] = pin;
+      const tok = localStorage.getItem("aia_session");
+      if (tok) h["X-Session"] = tok;
       return h;
     },
     async api(path, opts) {
