@@ -187,7 +187,7 @@ module.exports = async function handler(req, res) {
       const slug = workspaceOf(req) || slugify(body.workspace || body.slug || body.biz || "");
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
-      const acc = homeAccount(found.person, found.workspace);
+      const acc = homeAccount(found.person, found.workspace, req);
       if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
       if (acc.password) {
         const current = String(body.current || body.old || "");
@@ -210,7 +210,7 @@ module.exports = async function handler(req, res) {
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
       if (body.name) found.person.name = String(body.name).trim().slice(0, 80);
-      const acc = homeAccount(found.person, found.workspace);
+      const acc = homeAccount(found.person, found.workspace, req);
       if (acc) {
         const applied = applyAccountDetails(acc, body);
         if (applied && applied.ok === false) return res.status(400).json({ ok: false, error: applied.error });
@@ -226,7 +226,7 @@ module.exports = async function handler(req, res) {
         const via = loginWithEmail(email, password);
         if (!via.ok) return res.status(via.status || 401).json({ ok: false, error: via.error });
         let session = null;
-        if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req);
+        if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req, "password");
         if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
         await save();
         return res.status(200).json({

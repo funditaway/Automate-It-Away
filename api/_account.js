@@ -269,13 +269,16 @@ function accountForDesk(row) {
   if (!acc) acc = createOwnerAccount({ name: row.name, biz: row.biz, email: row.email }, row);
   return acc;
 }
-function homeAccount(person, row) {
+// req: the request asking. A helper seat's home is only the account that req's own session proved
+// by that account's sign-in (lib.sessionProofView). Never its desk's own account, never an account
+// an old invite typed onto the seat, never by desk code alone. Owners keep every match.
+function homeAccount(person, row, req) {
   ensureAccount();
-  // A helper seat's home is its own account, never its desk's own account (a typed owner email,
-  // a stored owner accountId, or the desk fallback). Owners keep every match.
   const helper = !!person && !lib.isOwner(person) && !/_owner$/.test(String(person.id || ""));
   const deskId = helper && typeof lib.deskAccountIdOf === "function" ? lib.deskAccountIdOf(row) : "";
-  const ownOk = (a) => !!a && !(helper && (a.id === deskId || (row && (a.desks || []).indexOf(row.slug) >= 0)));
+  const found = helper && req && typeof lib.sessionFromReq === "function" ? lib.sessionFromReq(req, { slide: false }) : null;
+  const proven = (found && found.session && found.session.accountId) || "";
+  const ownOk = (a) => !!a && !(helper && (a.id === deskId || a.id !== proven || (row && (a.desks || []).indexOf(row.slug) >= 0)));
   if (person && person.accountId) {
     const mine = (lib.mem.accounts || []).find((a) => a && a.id === person.accountId);
     if (ownOk(mine)) return mine;

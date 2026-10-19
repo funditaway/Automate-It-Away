@@ -1488,7 +1488,8 @@ function revokeSession(tokenOrId, hint) {
   return removed;
 }
 
-function issueSession(person, workspace, account, req) {
+// proof: "password" only when this login itself proved the account (email + password).
+function issueSession(person, workspace, account, req, proof) {
   ensureAuthState();
   pruneSessions();
   const now = Date.now();
@@ -1497,11 +1498,12 @@ function issueSession(person, workspace, account, req) {
     id: "sess_" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
     tokenHash: hashSession(token),
     workspace: slugify((workspace && workspace.slug) || (account && account.slug) || (req && workspaceOf(req)) || ""),
-    accountId: issuedAccountId(person, workspace, account),
+    accountId: issuedAccountId(person, workspace, account, proof),
     personId: (person && person.id) || "",
     name: (person && person.name) || "",
     role: (person && person.role) || "",
-    email: issuedEmail(person, workspace, account),
+    email: issuedEmail(person, workspace, account, proof),
+    proof: proof === "password" ? "password" : "",
     createdAt: new Date(now).toISOString(),
     seenAt: new Date(now).toISOString(),
     expiresAt: sessionExpiresAt(now)
@@ -1556,34 +1558,36 @@ function seatIsHelper(person) {
   return !!person && !seatLooksOwner(person) && !/_owner$/.test(String(person.id || ""));
 }
 
-// A helper session never carries its desk's own account (a pin login used to stamp it on every
-// session), so a helper seat holding the owner's account proves nothing. A desk-code login hands in the desk's account: a helper gets none. An email login hands in the
-// helper's own account: kept when it is her seat's own account (or her seat has none).
-function issuedAccountId(person, workspace, account) {
+// A helper session carries an account only when its own login proved it (email + password).
+// A desk-code (PIN) login proves no account: not the desk's own (a pin login used to stamp it on
+// every session), and not one an old invite typed onto the seat. Owner sessions are unchanged.
+function issuedAccountId(person, workspace, account, proof) {
   const id = (account && account.id) || (person && person.accountId) || (workspace && workspace.accountId) || "";
   if (!seatIsHelper(person)) return id;
+  if (proof !== "password") return "";
   const given = (account && account.id) || "";
   if (!given || given === deskAccountIdOf(workspace)) return "";
   return !person.accountId || person.accountId === given ? given : "";
 }
 
-function issuedEmail(person, workspace, account) {
+function issuedEmail(person, workspace, account, proof) {
   const email = (person && person.email) || (account && account.email) || "";
   if (!seatIsHelper(person)) return email;
-  return helperEmailClaimed(email, issuedAccountId(person, workspace, account)) ? "" : email;
+  return helperEmailClaimed(email, issuedAccountId(person, workspace, account, proof)) ? "" : email;
 }
 
 // What a stored session proves, read fresh on every request (covers sessions stored before this rule).
 // A helper session proves only its own seat's own account: never its desk's own account (so a seat
 // holding the owner's account proves nothing, on this desk or any other), never an account that is
-// not on its seat, never an owner's email. Owner sessions are unchanged.
+// not on its seat, never an owner's email, and none at all unless its own login proved it
+// (proof "password"; sessions stored without that mark are unproven). Owner sessions are unchanged.
 function sessionProofView(row) {
   if (!row || (!row.accountId && !row.email)) return row;
   if (row.accountId && row.personId === row.accountId + "_owner") return row;
   const home = (mem.workspaces || []).find((w) => w && w.slug === row.workspace) || null;
   const seat = home && row.personId ? ((home.people || []).find((p) => p && p.id === row.personId) || null) : null;
   if (seat ? !seatIsHelper(seat) : sessionLooksOwner(row)) return row;
-  let accountId = row.accountId || "";
+  let accountId = row.proof === "password" ? (row.accountId || "") : "";
   if (accountId && (accountId === deskAccountIdOf(home) || (seat && seat.accountId && seat.accountId !== accountId))) accountId = "";
   const email = helperEmailClaimed(row.email, accountId) ? "" : (row.email || "");
   if (accountId === (row.accountId || "") && email === (row.email || "")) return row;
