@@ -290,6 +290,15 @@ function homeAccount(person, row, req) {
   if (helper) return null;
   return row ? accountForDesk(row) : null;
 }
+// The plain reply when a helper seat holds an account (not its desk's own) but this request's
+// session did not come from that account's own sign-in.
+function signInAgain() { return { ok: false, error: "Sign in again to change your account.", signIn: true }; }
+function needsSignIn(person, row, req) {
+  if (!person || lib.isOwner(person) || /_owner$/.test(String(person.id || "")) || homeAccount(person, row, req)) return false;
+  const deskId = typeof lib.deskAccountIdOf === "function" ? lib.deskAccountIdOf(row) : "";
+  const a = (person.accountId && (lib.mem.accounts || []).find((x) => x && x.id === person.accountId)) || (emailOf(person) ? findAccountByEmail(person.email) : null);
+  return !!a && a.id !== deskId && !(row && (a.desks || []).indexOf(row.slug) >= 0);
+}
 function requestMonthly(acc, actor) {
   if (!acc) return { ok: false, status: 404, error: "No account." };
   acc.billing = Object.assign(defaultBilling(), acc.billing || {}, { requested: "monthly", charged: false, status: "free" });
@@ -403,6 +412,7 @@ function accountSnapshot(row, person) {
   return { account: publicAccount(row), plan: shop ? publicPlan(shop) : publicPlan(null), shop: shop ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : null, you: lib.publicPerson(person), people: row ? (row.people || []).map(lib.publicPerson) : [], approvals: row ? approvalsOf(row.slug) : [], kinds: KINDS, agents: roles.catalog().agents, levels: roles.catalog().levels, hardOwner: roles.HARD_OWNER };
 }
 module.exports = {
+  needsSignIn, signInAgain,
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,

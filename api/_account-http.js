@@ -173,6 +173,13 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "login").toLowerCase();
 
+  // A helper seat holding an account, on a session that account's own sign-in did not make:
+  // every account change asks to sign in again. Sign-in, logout and the door list stay open.
+  if (["login", "open", "save", "logout", "providers", "oauth-start", "oauth-ask", "ask-other", "oauth-finish"].indexOf(action) < 0) {
+    const pre = personOf(req, workspaceOf(req));
+    const accountMod = require("./_account");
+    if (pre.person && accountMod.needsSignIn(pre.person, pre.workspace, req)) return res.status(403).json(accountMod.signInAgain());
+  }
   if (require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
 
   if (action === "login" || action === "open" || action === "save") {

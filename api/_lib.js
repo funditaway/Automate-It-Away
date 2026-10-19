@@ -1488,7 +1488,10 @@ function revokeSession(tokenOrId, hint) {
   return removed;
 }
 
-// proof: "password" only when this login itself proved the account (email + password).
+// proof: set only when this login itself proved the account. Allowlist: "password" is the one
+// value (email + password). A desk code / PIN never sets it, owner or not; any other value is unproven.
+const SESSION_PROOFS = ["password"];
+function sessionProof(proof) { return SESSION_PROOFS.indexOf(proof) >= 0 ? proof : ""; }
 function issueSession(person, workspace, account, req, proof) {
   ensureAuthState();
   pruneSessions();
@@ -1503,7 +1506,7 @@ function issueSession(person, workspace, account, req, proof) {
     name: (person && person.name) || "",
     role: (person && person.role) || "",
     email: issuedEmail(person, workspace, account, proof),
-    proof: proof === "password" ? "password" : "",
+    proof: sessionProof(proof),
     createdAt: new Date(now).toISOString(),
     seenAt: new Date(now).toISOString(),
     expiresAt: sessionExpiresAt(now)
@@ -1564,7 +1567,7 @@ function seatIsHelper(person) {
 function issuedAccountId(person, workspace, account, proof) {
   const id = (account && account.id) || (person && person.accountId) || (workspace && workspace.accountId) || "";
   if (!seatIsHelper(person)) return id;
-  if (proof !== "password") return "";
+  if (!sessionProof(proof)) return "";
   const given = (account && account.id) || "";
   if (!given || given === deskAccountIdOf(workspace)) return "";
   return !person.accountId || person.accountId === given ? given : "";
@@ -1580,14 +1583,14 @@ function issuedEmail(person, workspace, account, proof) {
 // A helper session proves only its own seat's own account: never its desk's own account (so a seat
 // holding the owner's account proves nothing, on this desk or any other), never an account that is
 // not on its seat, never an owner's email, and none at all unless its own login proved it
-// (proof "password"; sessions stored without that mark are unproven). Owner sessions are unchanged.
+// (an allowlisted proof mark; sessions stored without one are unproven). Owner sessions are unchanged.
 function sessionProofView(row) {
   if (!row || (!row.accountId && !row.email)) return row;
   if (row.accountId && row.personId === row.accountId + "_owner") return row;
   const home = (mem.workspaces || []).find((w) => w && w.slug === row.workspace) || null;
   const seat = home && row.personId ? ((home.people || []).find((p) => p && p.id === row.personId) || null) : null;
   if (seat ? !seatIsHelper(seat) : sessionLooksOwner(row)) return row;
-  let accountId = row.proof === "password" ? (row.accountId || "") : "";
+  let accountId = sessionProof(row.proof) ? (row.accountId || "") : "";
   if (accountId && (accountId === deskAccountIdOf(home) || (seat && seat.accountId && seat.accountId !== accountId))) accountId = "";
   const email = helperEmailClaimed(row.email, accountId) ? "" : (row.email || "");
   if (accountId === (row.accountId || "") && email === (row.email || "")) return row;

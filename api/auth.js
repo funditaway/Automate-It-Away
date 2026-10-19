@@ -188,6 +188,7 @@ module.exports = async function handler(req, res) {
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
       const acc = homeAccount(found.person, found.workspace, req);
+      if (!acc && require("./_account").needsSignIn(found.person, found.workspace, req)) return res.status(403).json(require("./_account").signInAgain());
       if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
       if (acc.password) {
         const current = String(body.current || body.old || "");
@@ -209,6 +210,7 @@ module.exports = async function handler(req, res) {
       const slug = workspaceOf(req) || slugify(body.workspace || body.slug || "");
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
+      if (require("./_account").needsSignIn(found.person, found.workspace, req)) return res.status(403).json(require("./_account").signInAgain());
       if (body.name) found.person.name = String(body.name).trim().slice(0, 80);
       const acc = homeAccount(found.person, found.workspace, req);
       if (acc) {
