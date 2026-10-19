@@ -306,10 +306,25 @@ async function main() {
     [{ event: "paid", notes: "Paid.", amount: 40 }, "collect"],
     [{ event: "kill", notes: "Stop." }, "kill"]
   ];
+  // A seatless sender may not change a card that is already on the desk (401, no echo).
+  // A sender with this desk's hook secret may, and still gets the short reply.
+  const hookTestSecret = "hook-echo-test-secret";
+  const echoShop = lib.mem.workspaces.find(function (w) { return w && w.slug === slug; });
+  for (let i = 0; i < events.length; i++) {
+    const before = JSON.stringify(lib.mem.jobs.find(function (j) { return j && j.id === "job_hookecho"; }));
+    const locked = await call(hook, "POST", { "x-workspace": slug }, Object.assign({ id: "job_hookecho" }, events[i][0]));
+    if (locked.statusCode !== 401 || !locked.body || locked.body.ok !== false || locked.body.job || locked.body.id) {
+      fail("seatless " + events[i][1] + " on an existing card should be 401, got " + locked.statusCode + " " + JSON.stringify(locked.body));
+    }
+    if (secrets.some(function (s) { return leaked(locked.body, s); })) fail("seatless " + events[i][1] + " 401 leaked");
+    if (JSON.stringify(lib.mem.jobs.find(function (j) { return j && j.id === "job_hookecho"; })) !== before) fail("seatless " + events[i][1] + " changed the card");
+  }
+  pass("seatless update, hand, done, collect, and stop on an existing card get 401 and change nothing");
+  echoShop.hookSecretHash = require("crypto").createHash("sha256").update(hookTestSecret).digest("hex");
   for (let i = 0; i < events.length; i++) {
     const name = events[i][1];
-    const hit = await call(hook, "POST", { "x-workspace": slug }, Object.assign({ id: "job_hookecho" }, events[i][0]));
-    const body = plain(hit, 200, name, secrets);
+    const hit = await call(hook, "POST", { "x-workspace": slug, "x-hook-secret": hookTestSecret }, Object.assign({ id: "job_hookecho" }, events[i][0]));
+    const body = plain(hit, 200, name, secrets.concat([hookTestSecret, echoShop.hookSecretHash]));
     const stored = lib.mem.jobs.find(function (j) { return j && j.id === "job_hookecho"; });
     if (!stored || stored.photoUrl !== photo || !stored.files || stored.files[0].url !== fileUrl || stored.files[0].remoteUrl !== jobRemote) {
       fail(name + " must leave the card file links stored");
@@ -321,7 +336,8 @@ async function main() {
   if (!collectRow || collectRow.what !== "Pipe collect" || collectRow.held !== false || collectRow.charged) {
     fail("collect write-back changed: " + JSON.stringify(collectRow));
   }
-  pass("update, hand, done, collect, and stop do not echo the card");
+  delete echoShop.hookSecretHash;
+  pass("update, hand, done, collect, and stop with the desk hook secret do not echo the card");
 
   const book = (lib.mem.files || []).find(function (f) { return f && f.id === "file_hookecho"; });
   if (!book || book.url !== memUrl || book.remoteUrl !== memRemote) fail("the file book was changed");
