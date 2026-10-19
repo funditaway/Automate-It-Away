@@ -270,12 +270,13 @@ async function openJob(id) {
   const peopleOpts = (PEOPLE || []).map(p =>
     "<option value=\"" + esc(p.name) + "\"" + (j.assignee === p.name ? " selected" : "") + ">" + esc(p.name) + (p.role === "owner" ? " · owner" : "") + "</option>"
   ).join("");
-  document.getElementById("sheet-card").innerHTML =
+  const sheetHead =
     "<h3>" + esc(j.title) + "</h3>" +
     "<p class=\"meta\">" + esc(labelStatus(j.status)) + (j.assignee ? " · " + esc(j.assignee) : "") + (j.carried ? " · done by hand" : "") + (j.kind ? " · " + esc(j.kind) : "") + "</p>" +
     (j.outcome || (j.custom && j.custom.outcome)
       ? "<p class=\"meta\">They want: " + esc(j.outcome || j.custom.outcome) + (j.next ? " · " + esc(j.next) : "") + "</p>"
-      : "") +
+      : "");
+  const sheetBody =
     clockSheet(j) +
     grokRecsBox(j) +
     (typeof filesHtml === "function" ? filesHtml(j) : (function () {
@@ -304,7 +305,8 @@ async function openJob(id) {
       "<a class=\"edit\" href=\"" + smsHref(draft) + "\">Text it</a>" +
       "<a class=\"edit\" href=\"" + mailHref(j.title, draft) + "\">Email it</a>" +
       "<button class=\"edit\" type=\"button\" onclick=\"phoneCal('" + hid + "')\">Save a file</button>" +
-    "</div>" +
+    "</div>";
+  const sheetDecide =
     "<div class=\"sheet-decide\">" +
       "<button class=\"edit\" type=\"button\" onclick=\"carryJob('" + hid + "')\">Done by hand</button>" +
       "<button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button>" +
@@ -313,7 +315,27 @@ async function openJob(id) {
         : "<button class=\"go q-yes\" type=\"button\" onclick=\"approveCard('" + hid + "')\">Yes</button>") +
       (staff ? "<span></span>" : "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + hid + "')\">Stop</button>") +
     "</div>";
+  const sheetCard = document.getElementById("sheet-card");
+  let typed = false;
+  try { typed = openTypedCard(j, sheetCard, sheetBody, sheetDecide); } catch (e) { typed = false; }
+  if (!typed) sheetCard.innerHTML = sheetHead + sheetBody + sheetDecide;
   document.getElementById("sheet").classList.add("on");
+}
+// A typed card (file, lead, needs your Yes, automation) gets the same frame; only its middle changes.
+// The Done / Close / Yes / Stop row below is the same string the generic card uses. Any trouble: the caller keeps the generic card.
+function openTypedCard(j, sheetCard, body, decide) {
+  if (typeof window === "undefined" || !window.CardMiddle || !window.CardType) return false;
+  const node = window.CardMiddle.frame(j, {
+    doc: document,
+    safeUrl: typeof safeUrl === "function" ? safeUrl : undefined,
+    recLine: recLine,
+    visitorLine: visitorLine
+  });
+  if (!node) return false;
+  sheetCard.innerHTML = "";
+  sheetCard.appendChild(node);
+  sheetCard.insertAdjacentHTML("beforeend", "<details class=\"card-more\"><summary>More on this card</summary>" + body + "</details>" + decide);
+  return true;
 }
 function localClockInput(iso) {
   if (!iso) return "";
