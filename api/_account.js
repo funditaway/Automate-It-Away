@@ -213,14 +213,17 @@ function proHome(acc, person, session) {
 
 function findAccount(hint) {
   ensureAccount();
+  return (lib.mem.accounts || []).find((a) => accountMatchesHint(a, hint)) || null;
+}
+function accountMatchesHint(a, hint) {
   const h = hint || {};
   const slug = lib.slugify(h.account || h.home || h.slug || h.biz || "");
   const email = emailOf(h);
-  return (lib.mem.accounts || []).find((a) => a && (
+  return !!(a && (
     (h.id && a.id === h.id) || (h.accountId && a.id === h.accountId) ||
     (slug && (a.slug === slug || lib.slugify(a.name) === slug)) ||
     (email && emailOf(a) === email)
-  )) || null;
+  ));
 }
 function connectDesk(acc, row, as) {
   if (!acc || !row) return acc;
@@ -234,23 +237,55 @@ function connectDesk(acc, row, as) {
   } else if (acc.memberDesks.indexOf(row.slug) < 0) acc.memberDesks.push(row.slug);
   return acc;
 }
-function createOwnerAccount(body, row) {
+// True only when this request proves it IS this account: a live session of that account
+// issued for that account's own open owner seat (or its email-login seat), or a matching
+// email + password on the account. An email or account name typed into a form is not proof.
+function requestProvesAccount(req, acc, body) {
+  if (!req || !acc || !acc.id) return false;
+  const found = typeof lib.sessionFromReq === "function" ? lib.sessionFromReq(req, { slide: false }) : null;
+  const session = found && found.session;
+  if (session && session.accountId === acc.id) {
+    if (session.personId && session.personId === acc.id + "_owner") return true;
+    const home = (lib.mem.workspaces || []).find((w) => w && w.slug === session.workspace) || null;
+    const seat = home && session.personId ? ((home.people || []).find((p) => p && p.id === session.personId) || null) : null;
+    const open = seat && seat.status !== "pending" && seat.status !== "denied";
+    const deskOfAccount = home && (home.accountId === acc.id || (acc.desks || []).indexOf(home.slug) >= 0);
+    if (open && lib.isOwner(seat) && seat.accountId === acc.id && deskOfAccount) return true;
+  }
+  const b = body || {};
+  const pw = b.password || b.pass || "";
+  if (pw && acc.password && looksLikeEmail(b.email) && emailOf(b) === emailOf(acc)) {
+    const login = loginWithEmail(b.email, pw);
+    if (login && login.ok && login.account && login.account.id === acc.id) return true;
+  }
+  return false;
+}
+// req: the request opening or minting the desk. Without it nothing typed in body can
+// attach this desk to an account that already exists.
+function createOwnerAccount(body, row, req) {
   ensureAccount();
   const slug = row && row.slug ? row.slug : lib.slugify((body && (body.biz || body.account || body.name)) || "desk");
-  const existing = findAccount(Object.assign({}, body || {}, { slug: row && row.slug, accountId: row && row.accountId }))
-    || (lib.mem.accounts || []).find((a) => a && ((row && a.id === row.accountId) || (a.desks || []).indexOf(slug) >= 0));
+  // Server-side facts: this desk is already filed under that account.
+  const held = (lib.mem.accounts || []).find((a) => a && row && ((row.accountId && a.id === row.accountId) || (a.desks || []).indexOf(row.slug) >= 0)) || null;
+  // Typed hints (email, account name, ids) only count when the request proves it is that account.
+  const hint = Object.assign({}, body || {}, { slug: row && row.slug, accountId: "" });
+  const proven = held || !req ? null
+    : (lib.mem.accounts || []).find((a) => accountMatchesHint(a, hint) && requestProvesAccount(req, a, body)) || null;
+  const existing = held || proven;
   if (existing) {
     if (row) connectDesk(existing, row, "owner");
     if (body && body.password && !existing.password) setAccountPassword(existing, body.password);
-    if (body && body.email && looksLikeEmail(body.email) && !existing.email) existing.email = emailOf(body);
+    if (body && body.email && looksLikeEmail(body.email) && !existing.email && !emailTaken(body.email, existing.id)) existing.email = emailOf(body);
     if (!existing.pin) existing.pin = (body && body.pin ? lib.hashPin(body.pin) : (row && row.pin)) || "";
     return existing;
   }
+  // New separate account. An email already on another account is not copied onto it.
+  const typed = (body && looksLikeEmail(body.email) ? emailOf(body) : "") || (row && looksLikeEmail(row.email) ? emailOf(row) : "");
   const acc = {
     id: "acct_" + Date.now().toString(36) + require("crypto").randomBytes(4).toString("hex"),
     name: String((body && (body.biz || body.account || body.name)) || (row && (row.biz || row.name)) || "Shop").trim().slice(0, 80),
     ownerName: String((body && body.name) || (row && row.name) || "Owner").trim().slice(0, 80),
-    email: (body && looksLikeEmail(body.email) ? emailOf(body) : "") || (row && row.email) || "",
+    email: typed && !emailTaken(typed) ? typed : "",
     phone: body && body.phone ? String(body.phone).trim().slice(0, 32) : "",
     city: (body && body.city) || (row && row.city) || "",
     plan: "pro", billing: defaultBilling(), slug: slug,
@@ -375,7 +410,7 @@ module.exports = {
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
-  findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
+  findAccount, findAccountByEmail, connectDesk, requestProvesAccount, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
   setAccountPassword, applyAccountDetails, emailTaken,
   planOf: plans.planOf, PLANS: plans.PLANS
 };
