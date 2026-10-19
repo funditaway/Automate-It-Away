@@ -145,6 +145,12 @@ global.fetch = async function (url, opts) {
       text: async () => JSON.stringify({ url: "https://testhost.public.blob.vercel-storage.com/" + pathname })
     };
   }
+  if (method === "GET" && /vercel\.com\/api\/blob\/?\?/.test(u) && /[?&]prefix=/.test(u)) {
+    // REST list (same API the SDK list() calls): lets the fresh-install proof run when the SDK is denied.
+    const prefix = new URL(u).searchParams.get("prefix") || "";
+    const blobs = Object.keys(fake.files).filter((p) => p.indexOf(prefix) === 0).map((p) => ({ pathname: p }));
+    return { ok: true, status: 200, url: u, text: async () => JSON.stringify({ blobs, hasMore: false }) };
+  }
   if (!fake.files[pathname]) {
     return { ok: false, status: 404, statusText: "Not Found", url: u, text: async () => "" };
   }

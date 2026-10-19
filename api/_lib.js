@@ -229,38 +229,89 @@ function blobRestPutUrls(name) {
   ];
 }
 
+// The live store is aia/store.json (the SDK name; production health shows the
+// SDK path). aia-store.json is a legacy leftover: it is read only when a
+// listing proves the live name absent, it is never written or deleted, and the
+// first save after loading it migrates the data to aia/store.json.
+async function blobRestGetName(name) {
+  const r = await fetch("https://blob.vercel-storage.com/" + name, {
+    headers: blobRestHeaders()
+  });
+  if (r.status === 404) return { empty: true, status: 404 };
+  if (!r.ok) {
+    const text = await r.text();
+    let json = {};
+    try { json = JSON.parse(text); } catch (e) { json = {}; }
+    const err = new Error(blobRestErr(json, text, r.status));
+    err.status = r.status;
+    throw err;
+  }
+  const raw = await r.text();
+  if (!raw) return { empty: true, status: 200, url: r.url || null };
+  return { data: shape(JSON.parse(blobOpen(raw))), url: r.url || null };
+}
+
 async function blobRestGet() {
   if (!blobToken()) return null;
-  const names = [BLOB_REST_KEY, BLOB_KEY];
-  let saw404 = false;
-  for (let i = 0; i < names.length; i++) {
-    const r = await fetch("https://blob.vercel-storage.com/" + names[i], {
-      headers: blobRestHeaders()
-    });
-    if (r.status === 404) {
-      saw404 = true;
-      continue;
-    }
-    if (!r.ok) {
-      const text = await r.text();
-      let json = {};
-      try { json = JSON.parse(text); } catch (e) { json = {}; }
-      const err = new Error(blobRestErr(json, text, r.status));
-      err.status = r.status;
-      throw err;
-    }
-    const raw = await r.text();
-    if (!raw) return { empty: true, status: 200, url: r.url || null };
-    return { data: shape(JSON.parse(blobOpen(raw))), url: r.url || null };
+  const live = await blobRestGetName(BLOB_KEY);
+  if (!live.empty || live.status !== 404) return live;
+  if (!(await blobLiveProvenAbsent())) return live;
+  const legacy = await blobRestGetName(BLOB_REST_KEY);
+  // Never point later reads or writes at the legacy name.
+  if (legacy.data) return { data: legacy.data, url: null, legacy: true };
+  return live;
+}
+
+// True only when a listing shows no aia/store.json at all.
+async function blobLiveProvenAbsent() {
+  try {
+    const listed = await blobListNames(BLOB_KEY);
+    if (!listed || !Array.isArray(listed.blobs) || listed.hasMore) return false;
+    return !listed.blobs.some((b) => b && b.pathname === BLOB_KEY);
+  } catch (e) {
+    return false;
   }
-  if (saw404) return { empty: true, status: 404 };
+}
+
+// Legacy-only store: live name proven absent, legacy present. Read it (SDK,
+// then REST), read-only. The caller applies it; the next save goes to
+// aia/store.json. Returns null when there is nothing to load.
+async function blobLegacyRead() {
+  if (!(await blobLiveProvenAbsent())) return null;
+  const modes = blobProbe.access === "public" ? ["public", "private"] : ["private", "public"];
+  let sdkAnswered = false;
+  for (let i = 0; i < modes.length; i++) {
+    try {
+      const got = await blobGetKey(modes[i], BLOB_REST_KEY);
+      if (got && got.data) {
+        markBlobHit(modes[i], null);
+        mem.storeLegacy = true;
+        return got.data;
+      }
+      if (got && got.empty) sdkAnswered = true;
+    } catch (e) {
+      if (blobMissing(blobErrText(e))) sdkAnswered = true;
+    }
+  }
+  // REST only when the SDK could not answer (denied or down).
+  if (!sdkAnswered && blobToken()) {
+    try {
+      const got = await blobRestGetName(BLOB_REST_KEY);
+      if (got && got.data) {
+        markBlobHit("public", null);
+        mem.storeLegacy = true;
+        return got.data;
+      }
+    } catch (e) {}
+  }
   return null;
 }
 
 async function blobRestPut(body) {
   if (!blobToken()) throw new Error("Vercel Blob: no BLOB_READ_WRITE_TOKEN");
   const payload = Buffer.from(blobSeal(body), "utf8");
-  const names = [BLOB_REST_KEY, BLOB_KEY];
+  // Only the live name. The legacy aia-store.json is never written.
+  const names = [BLOB_KEY];
   const variants = [
     {
       "x-content-type": "application/json",
@@ -316,6 +367,7 @@ async function blobRestRead() {
     const rest = await blobRestGet();
     if (rest && rest.data) {
       markBlobHit("public", rest.url);
+      if (rest.legacy) mem.storeLegacy = true;
       blobProbe.auth = "rest";
       blobProbe.detail = "rest";
       return rest.data;
@@ -467,6 +519,9 @@ function markBlobHit(access, url) {
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   blobProbe.url = url ? "set" : blobProbe.url;
   if (url) mem.blobUrl = url;
+  // Real store bytes were read; every caller applies them to mem.
+  mem.storeSeen = true;
+  if (!mem.storeBasis) mem.storeBasis = "read";
 }
 
 function markBlobEmpty(access) {
@@ -495,6 +550,181 @@ async function blobListStore() {
   const listed = await blobTryAuth((auth) => list(Object.assign({ prefix: "aia/", limit: 20 }, auth)));
   const blobs = (listed && listed.blobs) || [];
   return blobs.find((b) => b && (b.pathname === BLOB_KEY || String(b.pathname || "").indexOf("store.json") >= 0)) || null;
+}
+
+// Fresh-install proof. Only a listing that succeeds and holds neither store
+// key proves the store is absent. An empty body, a "404" text, a 403, a 500,
+// a reset or bad JSON from get/head proves nothing. SDK list first, REST list
+// when the SDK is denied.
+async function blobListNames(name) {
+  try {
+    const { list } = require("@vercel/blob");
+    return await blobTryAuth((auth) => list(Object.assign({ prefix: name, limit: 10 }, auth)));
+  } catch (e) {
+    if (!blobToken()) throw e;
+    const r = await fetch("https://vercel.com/api/blob?prefix=" + encodeURIComponent(name) + "&limit=10", { headers: blobRestHeaders() });
+    if (!r.ok) throw new Error("rest-list-" + r.status);
+    return JSON.parse(await r.text());
+  }
+}
+
+async function blobAbsent() {
+  try {
+    const names = [BLOB_KEY, BLOB_REST_KEY];
+    for (let i = 0; i < names.length; i++) {
+      const listed = await blobListNames(names[i]);
+      if (!listed || !Array.isArray(listed.blobs) || listed.hasMore) return false;
+      if (listed.blobs.some((b) => b && b.pathname === names[i])) return false;
+    }
+    mem.storeAbsent = true;
+    if (!mem.storeBasis) mem.storeBasis = "absent-proven";
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// The store may be written only after this process really read it, or proved
+// it absent. File-store runs (no Blob) are always trusted.
+function storeTrusted() {
+  if (!blobReady()) return true;
+  return !!(mem.storeSeen || mem.storeAbsent);
+}
+
+// One answer for every not-ready refusal. Pages show error as-is.
+const STORE_NOT_READY = "The desk can't save right now. Try again in a moment.";
+const STORE_NOT_READY_CODE = "store_not_ready";
+const STORE_PAUSED_LINE = "Saving is paused: this desk couldn't read its store.";
+
+// Read-only: how this instance came to trust its store. "read" (it really
+// read it), "absent-proven" (a listing proved a fresh install), or
+// "not-ready" (neither; every saving request answers 503).
+function storeState() {
+  if (!storeTrusted()) return "not-ready";
+  if (!blobReady()) return "read";
+  return mem.storeBasis || (mem.storeSeen ? "read" : "absent-proven");
+}
+
+function refuseNotReady(res) {
+  if (res && typeof res.setHeader === "function") res.setHeader("Retry-After", "5");
+  return res.status(503).json({ ok: false, error: STORE_NOT_READY, code: STORE_NOT_READY_CODE });
+}
+
+function storeNotReady(res) {
+  if (storeTrusted()) return false;
+  refuseNotReady(res);
+  return true;
+}
+
+// One store-call record per request (shared across module reloads). save()
+// and persistScrub() mark it when they refuse to write.
+const { AsyncLocalStorage } = require("async_hooks");
+const storeCalls = globalThis.__aiaStoreCalls || (globalThis.__aiaStoreCalls = new AsyncLocalStorage());
+const WRITE_METHODS = { POST: true, PUT: true, PATCH: true, DELETE: true };
+
+function noteSkipped(kind) {
+  const ctx = storeCalls.getStore();
+  if (ctx) ctx[kind] = true;
+}
+
+// Untrusted store: one more honest look before refusing. A good read replaces
+// memory (so nothing unsaved survives); a listing may still prove a fresh
+// install. Anything else stays untrusted.
+async function recoverStore() {
+  if (storeTrusted()) return true;
+  if (!globalThis.__aiaStoreLoaded) return false;
+  try {
+    const remote = await blobRead();
+    if (remote) {
+      applyStore(remote);
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+    } else if (blobProbe.read !== "error") {
+      const legacy = await blobLegacyRead();
+      if (legacy) {
+        applyStore(legacy);
+        mem.driver = "blob";
+        mem.path = "blob:" + BLOB_KEY;
+      } else {
+        await blobAbsent();
+      }
+    }
+  } catch (e) {}
+  return storeTrusted();
+}
+
+// While untrusted, memory is the local disk copy plus whatever this request
+// did. A skipped write must not leak to later requests as if saved.
+function forgetUnsaved() {
+  if (storeTrusted()) return;
+  const driver = mem.driver;
+  const where = mem.path;
+  applyStore(readDisk());
+  dropPersistTests();
+  mem.driver = driver;
+  mem.path = where;
+}
+
+// A 2xx never goes out for a request whose store write was refused.
+function holdSuccess(res, ctx) {
+  const blocked = () => {
+    if (ctx.sent) return false;
+    const code = Number(res.statusCode || 200);
+    if (code < 200 || code >= 300) return false;
+    return !!(ctx.skipped || (ctx.writes && ctx.scrubSkipped));
+  };
+  ["json", "send", "end"].forEach((name) => {
+    const orig = res && res[name];
+    if (typeof orig !== "function") return;
+    res[name] = function (body) {
+      if (blocked()) {
+        ctx.sent = true;
+        ctx.refused = true;
+        if (typeof res.status === "function") res.status(503); else res.statusCode = 503;
+        if (typeof res.setHeader === "function") res.setHeader("Retry-After", "5");
+        const base = body && typeof body === "object" && !Buffer.isBuffer(body) ? body : {};
+        const out = Object.assign({}, base, { ok: false, error: STORE_NOT_READY, code: STORE_NOT_READY_CODE, saved: false });
+        if (name === "json") return orig.call(this, out);
+        if (typeof res.setHeader === "function") res.setHeader("Content-Type", "application/json; charset=utf-8");
+        return orig.call(this, JSON.stringify(out));
+      }
+      ctx.sent = true;
+      return orig.apply(this, arguments);
+    };
+  });
+}
+
+// Every api/*.js handler is wrapped in this. POST/PUT/PATCH/DELETE are refused
+// with a JSON 503 + Retry-After up front while the store is not trusted. Any
+// request (GET included) whose save() was refused cannot answer 2xx, and its
+// unsaved memory is dropped.
+function guardStore(handler) {
+  if (typeof handler !== "function" || handler.__storeGuarded) return handler;
+  const wrapped = async function guardedHandler(req, res) {
+    if (storeCalls.getStore()) return handler.apply(this, arguments);
+    const method = String((req && req.method) || "GET").toUpperCase();
+    const writes = !!WRITE_METHODS[method];
+    if (writes && blobReady()) {
+      // Same shared cold load the handlers use. A cold load that failed in
+      // this request is this request's answer; a loaded but untrusted store
+      // gets one fresh read.
+      let loadFailed = false;
+      try { await loadIfCold(); } catch (e) { loadFailed = true; }
+      if (!storeTrusted() && (loadFailed || !(await recoverStore()))) return refuseNotReady(res);
+    }
+    const ctx = { writes, skipped: false, scrubSkipped: false, sent: false };
+    holdSuccess(res, ctx);
+    const self = this;
+    const args = arguments;
+    try {
+      return await storeCalls.run(ctx, () => handler.apply(self, args));
+    } finally {
+      if (ctx.skipped || ctx.scrubSkipped) forgetUnsaved();
+    }
+  };
+  Object.keys(handler).forEach((k) => { wrapped[k] = handler[k]; });
+  wrapped.__storeGuarded = true;
+  return wrapped;
 }
 
 async function blobFetchUrl(url, access) {
@@ -812,7 +1042,8 @@ function dropPersistTests() {
 async function persistScrub() {
   if (!dropPersistTests()) return false;
   writeDisk();
-  if (blobReady()) {
+  if (blobReady() && !storeTrusted()) noteSkipped("scrubSkipped");
+  if (blobReady() && storeTrusted()) {
     const ok = await blobWrite();
     if (ok) {
       mem.driver = "blob";
@@ -831,6 +1062,23 @@ async function hydrate() {
       mem.path = "blob:" + BLOB_KEY;
       await persistScrub();
       return;
+    }
+    // Live name proven absent but the legacy copy is there: load it
+    // read-only; the first save migrates it to aia/store.json.
+    if (blobProbe.read !== "error") {
+      const legacy = await blobLegacyRead();
+      if (legacy) {
+        applyStore(legacy);
+        mem.driver = "blob";
+        mem.path = "blob:" + BLOB_KEY;
+        return;
+      }
+    }
+    // No data and no error: an empty body or a false 404 lands here too, so
+    // the starter goes up only when a listing proves the store absent.
+    if (blobProbe.read !== "error" && !(await blobAbsent())) {
+      blobProbe.read = "error";
+      blobProbe.detail = "store not proven absent — will not write starter";
     }
     if (blobProbe.read === "error") {
       applyStore(readDisk());
@@ -972,6 +1220,13 @@ async function save() {
   // ready() still awaits the original promise.
   if (!(globalThis.__aiaStoreLoaded && globalThis.__aiaHydrateRejected)) {
     await globalThis.__aiaHydrate;
+  }
+  if (!storeTrusted()) {
+    // Never read and not proven absent: write nothing, not even the disk copy.
+    blobProbe.write = "fail";
+    blobProbe.detail = "store not loaded — will not overwrite store";
+    noteSkipped("skipped");
+    return false;
   }
   dropPersistTests();
   const disk = writeDisk();
@@ -2161,5 +2416,6 @@ module.exports = {
   jobOlderHours, jobTagsOf, isPipeJob, isInboundAia, parseDelayHours,
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
   publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
-  ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF
+  ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF,
+  storeTrusted, storeNotReady, blobAbsent, guardStore, persistScrub, storeState, STORE_NOT_READY, STORE_NOT_READY_CODE, STORE_PAUSED_LINE
 };
