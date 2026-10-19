@@ -235,6 +235,41 @@ async function main() {
   if (!annOnB.person || lib.isOwner(annOnB.person) || annOnB.person.name !== "Ann") fail("Ann's account seat on B should open as that helper seat, not owner: " + JSON.stringify(annOnB.person && { name: annOnB.person.name, role: annOnB.person.role }));
   else pass("Ann's account holds a helper seat on B: her A session opens B as that helper, not owner");
 
+  // 9. A seat's state stays on its own desk. Account X: denied seat on A, open seat on B.
+  const X = { id: "acct_pod_x", email: "" };
+  const wsA = lib.mem.workspaces.find((w) => w && w.slug === A);
+  const wsB = lib.mem.workspaces.find((w) => w && w.slug === B);
+  await new Promise((r) => setTimeout(r, 3));
+  const gusA = await call(auth, "POST", { "x-workspace": A, "x-session": annTok }, { action: "invite", name: "Gus", kind: "helper", pin: "9191" });
+  await new Promise((r) => setTimeout(r, 3));
+  const gusB = await call(auth, "POST", { "x-workspace": B, "x-session": beaTok }, { action: "invite", name: "Gus", kind: "helper", pin: "9292" });
+  const gusASeat = gusA.body && gusA.body.person && (wsA.people || []).find((p) => p && p.id === gusA.body.person.id);
+  const gusBSeat = gusB.body && gusB.body.person && (wsB.people || []).find((p) => p && p.id === gusB.body.person.id);
+  if (!gusASeat || !gusBSeat) fail("could not add Gus on A and B: " + gusA.statusCode + " / " + gusB.statusCode);
+  else {
+    gusASeat.accountId = X.id;
+    gusBSeat.accountId = X.id;
+    const gusTok = lib.issueSession(gusASeat, wsA, X).token;
+    const gusOn = (slug) => personOf({ headers: { "x-session": gusTok, "x-workspace": slug } }, slug);
+    const g1 = gusOn(B);
+    if (!g1.person || g1.person.id !== gusBSeat.id || lib.isOwner(g1.person)) fail("Gus's A session should open his own B seat while both are open");
+    else pass("account seat on A + own open seat on B: A session opens B as that seat");
+    await call(auth, "POST", { "x-workspace": A, "x-session": annTok }, { action: "deny", id: gusASeat.id });
+    const g2 = gusOn(A);
+    if (g2.person) fail("Gus denied on A: his A session still got " + (g2.person.role || "") + " " + (g2.person.name || "") + " on A");
+    else pass("denied on A: A session gets nothing on A");
+    const g3 = gusOn(B);
+    if (!g3.person || g3.person.id !== gusBSeat.id || lib.isOwner(g3.person)) fail("denied on A must not erase Gus's own open seat on B: " + JSON.stringify(g3.person && { id: g3.person.id, role: g3.person.role }));
+    else pass("denied on A: his own open seat on B still opens B as that seat, not owner");
+    const g4 = gusOn(C);
+    if (g4.person) fail("Gus's A session must get nothing on C (no seat there)");
+    else pass("denied on A: nothing on a desk where the account has no seat");
+    await call(auth, "POST", { "x-workspace": B, "x-session": beaTok }, { action: "deny", id: gusBSeat.id });
+    const g5 = gusOn(B);
+    if (g5.person) fail("Gus denied on B too: still got a seat on B");
+    else pass("denied on A and B: nothing on B");
+  }
+
   const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
   if (pkg.indexOf("scripts/check-personof-session-desk.js") < 0) fail("package.json test must run this check");
   else pass("package.json test runs this check");

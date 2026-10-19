@@ -1402,11 +1402,13 @@ function sessionOwnerPerson(session, ws) {
 // True when the seat this session was issued for is that account's own seat.
 // A pin login stamps the desk's account on every session, so a helper's session can carry
 // the owner's accountId. Only the account's own seat may carry it to another desk.
+// This proves who the session is, not access: the seat's state on its own desk (denied, waiting)
+// stays on that desk. On another desk only that desk's own open seat for the account counts.
 function sessionSeatIsAccount(session) {
   if (!session || !session.accountId) return false;
   const home = (mem.workspaces || []).find((w) => w && w.slug === session.workspace) || null;
   const seat = home && session.personId ? ((home.people || []).find((p) => p && p.id === session.personId) || null) : null;
-  if (seat) return seatOpen(seat) && seat.accountId === session.accountId;
+  if (seat) return !!seat.accountId && seat.accountId === session.accountId;
   return session.personId === session.accountId + "_owner";
 }
 
