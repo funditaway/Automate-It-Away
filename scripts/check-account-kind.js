@@ -9,7 +9,9 @@
 // for every kind and nothing is charged; Stop and Kill cannot be turned off for
 // any kind; humans never pause. Safer default pending James: an AI or SI
 // account cannot change its own kind or turn off its own pauses; only the
-// human owner of the desk its seat sits on can (forSeat). Turning a pause on stays allowed.
+// human owner of the desk its seat sits on can (forSeat, resolved on the owner's
+// own desk). Turning a pause on stays allowed. An AI or SI seat gets exactly the
+// scope a human on the same seat gets: its own desks only.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -94,6 +96,7 @@ async function main() {
     },
     {
       slug: "other-desk", biz: "Other Shop", name: "Cy", accountId: "acct_C", pin: H("1234"), createdAt: now,
+      rules: [{ id: "r7", text: "Refund a buyer when asked", when: "drop", then: "draft" }],
       people: [{ id: "p_owner", name: "Cy", role: "owner", kind: "owner", status: "approved", pin: H("1234"), accountId: "acct_C" }]
     },
     {
@@ -250,17 +253,53 @@ async function main() {
   else if (!X().history || !/tried to change its own kind to human/.test(X().history[0].what) || X().history[0].who !== "Xa" || X().history[0].whoKind !== "ai") fail("(a) refusal must be in the ai account's history");
   r = await acct("POST", XS, { action: "settings", section: "profile", set: { kind: "si" } });
   if (r.statusCode !== 403 || X().kind !== "ai") fail("(a) ai own seat setting kind si must be 403");
-  // (b) an SI turns off its own money pause.
-  const sKey = "human-desk:rule:r9";
-  before = sb(S(), sKey);
-  r = await acct("POST", SS, { action: "settings", section: "automations", set: { desk: "human-desk", kind: "rule", id: "r9", money: false } });
-  if (r.statusCode !== 403 || !LOCK.test(r.body.error || "") || sb(S(), sKey) !== before) fail("(b) si turning off its own money pause must be 403 with no change: " + r.statusCode + " " + JSON.stringify(r.body));
-  else if (!/tried to turn off its own stop before money/.test(S().history[0].what) || S().history[0].whoKind !== "si") fail("(b) refusal must be in the si account's history");
-  r = await acct("POST", SS, { action: "settings", section: "automations", set: { desk: "human-desk", kind: "rule", id: "r9", stopBefore: { deletes: true } } });
+  // (b) an SI turns off its own money pause (an SI desk owner, on its own desk).
+  const CY = seat("other-desk", "1234");
+  const Cy = () => lib.mem.accounts.find((a) => a.id === "acct_C");
+  const cKey = "other-desk:rule:r7";
+  before = sb(Cy(), cKey);
+  r = await acct("POST", CY, { action: "settings", section: "automations", set: { desk: "other-desk", kind: "rule", id: "r7", money: false } });
+  if (r.statusCode !== 403 || r.body.ok !== false || !LOCK.test(r.body.error || "") || sb(Cy(), cKey) !== before || Cy().kind !== "si") fail("(b) si turning off its own money pause must be 403 with no change: " + r.statusCode + " " + JSON.stringify(r.body));
+  else if (!/tried to turn off its own stop before money/.test(Cy().history[0].what) || Cy().history[0].whoKind !== "si" || Cy().history[0].who !== "Cy") fail("(b) refusal must be in the si account's history");
+  r = await acct("POST", CY, { action: "settings", section: "automations", set: { desk: "other-desk", kind: "rule", id: "r7", stopBefore: { deletes: true } } });
   if (r.statusCode !== 200) fail("(b) si turning a pause on stays allowed: " + r.statusCode);
-  r = await acct("POST", SS, { action: "settings", section: "automations", set: { desk: "human-desk", kind: "rule", id: "r9", stopBefore: { messageNew: false } } });
+  r = await acct("POST", CY, { action: "settings", section: "automations", set: { desk: "other-desk", kind: "rule", id: "r7", stopBefore: { messageNew: false } } });
   if (r.statusCode !== 403) fail("(b) nested stopBefore false from the si seat must be 403 too");
   if (!failed) pass("(a)(b) ai/si own seat cannot change its kind or turn off its pauses: 403, no change, recorded; turning on is allowed");
+
+  // Same seat, same scope: an AI helper seat and a human helper seat on human-desk see the same thing.
+  const HH = () => lib.mem.accounts.find((a) => a.id === "acct_HH");
+  const VALUE = "helper-secret-value-never-shown-77";
+  [X(), HH()].forEach((a) => { a.secrets = [{ name: "SHOP_KEY", createdAt: now, updatedAt: now, sealed: { aia: "aia-acct-secret-1", iv: "x", tag: "y", data: Buffer.from(VALUE).toString("base64") } }]; });
+  const HHS = seat("human-desk", "7373");
+  const viewOf = async (hd) => {
+    const g = await acct("GET", hd, null, { settings: "1" });
+    const v = JSON.parse(JSON.stringify(g.body.settings || {}));
+    delete v.account; delete v.history;
+    ["name", "email", "phone", "city", "state", "timezone", "hours", "note", "kind"].forEach((k) => { delete v.profile[k]; });
+    return { status: g.statusCode, raw: JSON.stringify(g.body), view: JSON.stringify(v) };
+  };
+  const vX = await viewOf(XS), vH = await viewOf(HHS);
+  if (vX.status !== 200 || vH.status !== 200) fail("both helper seats read their own settings: " + vX.status + " " + vH.status);
+  else if (vX.view !== vH.view) fail("ai helper and human helper on the same desk must get the same settings view:\n ai    " + vX.view + "\n human " + vH.view);
+  const autosX = JSON.parse(vX.raw).settings.automations.items, secX = JSON.parse(vX.raw).settings.secrets.items;
+  if (autosX.length !== 0) fail("an ai helper sees no automations on a desk it only sits on: " + JSON.stringify(autosX));
+  if (secX.length !== 1 || Object.keys(secX[0]).sort().join(",") !== "name,set,updatedAt" || secX[0].name !== "SHOP_KEY") fail("secrets view is names only: " + JSON.stringify(secX));
+  [vX.raw, vH.raw].forEach((raw) => { if (raw.indexOf(VALUE) >= 0 || raw.indexOf(Buffer.from(VALUE).toString("base64")) >= 0) fail("secret value must never show"); });
+  for (const body of [
+    { action: "automation-step", desk: "human-desk", kind: "rule", id: "r9", step: "spend" },
+    { action: "automation-step", desk: "human-desk", kind: "ai", id: "ai_h", step: "delete" },
+    { action: "automation-step", desk: "human-desk", kind: "rule", id: "r9", step: "stop" },
+    { action: "settings", section: "automations", set: { desk: "human-desk", kind: "rule", id: "r9", money: true } }
+  ]) {
+    const ha = (X().history || []).length, hh = (HH().history || []).length;
+    const a1 = await acct("POST", XS, body), a2 = await acct("POST", HHS, body);
+    if (a1.statusCode !== a2.statusCode || JSON.stringify(a1.body) !== JSON.stringify(a2.body)) fail("ai and human helper must get the same reply for " + JSON.stringify(body) + ": " + a1.statusCode + " " + JSON.stringify(a1.body) + " vs " + a2.statusCode + " " + JSON.stringify(a2.body));
+    if (body.step !== "stop" && a1.statusCode !== 404) fail("a desk the helper only sits on is not one of its desks: " + a1.statusCode);
+    if ((X().history || []).length !== ha || (HH().history || []).length !== hh) fail("out-of-scope tries write nothing");
+  }
+  if (!auditMoney()) fail("money rows changed");
+  if (!failed) pass("ai helper and human helper on the same desk: same settings, automations (none), secrets (names only) and automation-step replies");
 
   // (c) the human owner of the desk can do both, and history shows who and whoKind.
   r = await acct("POST", HO, { action: "settings", section: "profile", set: { kind: "si" }, forSeat: "p_x" });
@@ -268,11 +307,16 @@ async function main() {
   else if (X().history[0].who !== "Hana" || X().history[0].whoKind !== "human" || !/kind from ai to si/.test(X().history[0].what)) fail("(c) kind change by owner needs who Hana whoKind human: " + JSON.stringify(X().history[0]));
   r = await acct("POST", HO, { action: "settings", section: "profile", set: { kind: "ai" }, forSeat: "p_x" });
   if (r.statusCode !== 200 || X().kind !== "ai") fail("(c) owner sets it back to ai");
+  const sKey = "human-desk:rule:r9";
   r = await acct("POST", HO, { action: "settings", section: "automations", set: { desk: "human-desk", kind: "rule", id: "r9", money: false }, forSeat: "p_s" });
-  if (r.statusCode !== 200 || JSON.parse(sb(S(), sKey)).stopBefore.money !== false) fail("(c) human owner must turn off the si money pause: " + r.statusCode + " " + JSON.stringify(r.body));
+  if (r.statusCode !== 200 || JSON.parse(sb(S(), sKey)).stopBefore.money !== false) fail("(c) human owner must turn off the si money pause on the owner's desk: " + r.statusCode + " " + JSON.stringify(r.body));
   else if (S().history[0].who !== "Hana" || S().history[0].whoKind !== "human" || !/Turned off stop before money/.test(S().history[0].what)) fail("(c) pause-off by owner needs who Hana whoKind human: " + JSON.stringify(S().history[0]));
   if (r.body && (r.body.settings || r.body.secrets)) fail("(c) owner reply must not carry the si account's settings");
-  if (!failed) pass("(c) the human owner changes kind and turns off a pause; history shows who and whoKind");
+  const sView = (await acct("GET", SS, null, { settings: "1" })).body.settings.automations.items;
+  if (sView.length !== 0) fail("the owner's switch must not widen the si seat's automation list: " + JSON.stringify(sView));
+  const sStep = await acct("POST", SS, { action: "automation-step", desk: "human-desk", kind: "rule", id: "r9", step: "spend" });
+  if (sStep.statusCode !== 404) fail("automation-step from the si helper on the owner's desk stays out of scope: " + sStep.statusCode);
+  if (!failed) pass("(c) the human owner changes kind and turns off a pause on their own desk; history shows who and whoKind; the seat's scope stays the same");
   // Who is not the human owner.
   const notOwner = [
     ["the ai seat itself", XS, { forSeat: "p_s" }],
@@ -293,25 +337,30 @@ async function main() {
   if (r.statusCode !== 400 || S().ownerName === "Renamed") fail("owner may not change other profile fields of an ai/si seat");
   r = await acct("POST", HO, { action: "settings", section: "automations", set: { desk: "own-desk", kind: "rule", id: "r1", money: false }, forSeat: "p_s" });
   if (r.statusCode !== 403 && r.statusCode !== 404) fail("owner may only switch automations on their own desk");
+  r = await acct("POST", HO, { action: "settings", section: "automations", set: { desk: "human-desk", kind: "rule", id: "nope", money: false }, forSeat: "p_s" });
+  if (r.statusCode !== 404) fail("owner path resolves automations on the owner's desk only");
   r = await acct("POST", HO, { action: "settings", section: "automations", set: { desk: "human-desk", kind: "rule", id: "r9", stop: false }, forSeat: "p_s" });
   if (r.statusCode !== 400) fail("the human owner cannot turn off Stop either");
   if (!failed) pass("only the human owner of the desk the seat sits on can act for it");
 
-  // Past the pause (owner turned it off) spend is still held by Collect HOLD; nothing charged.
-  const sstep = (body) => acct("POST", SS, Object.assign({ action: "automation-step", desk: "human-desk" }, body));
-  h = (S().history || []).length;
-  s = await sstep({ kind: "rule", id: "r9", step: "spend" });
-  if (s.statusCode !== 409 || s.body.paused !== false || s.body.held !== true || s.body.charged !== false || !/Collect stays HOLD/.test(s.body.error || "")) fail("pause off by owner: spend must still be held by Collect HOLD: " + s.statusCode + " " + JSON.stringify(s.body));
-  else if (S().history.length !== h + 1 || !/Collect stays HOLD/.test(S().history[0].what)) fail("HOLD must be in history");
+  // Past the pause (a saved stop-before off on this ai account's own desk) spend is still
+  // Collect HOLD; nothing charged. Seeded: no seat can turn it off from here under the safer default.
+  const keep = JSON.stringify(A().settings.automations);
+  A().settings.automations["own-desk:rule:r1"] = { stopBefore: { money: false, deletes: true, messageNew: true } };
+  A().settings.automations["own-desk:ai:ai_doer"] = { stopBefore: { money: true, deletes: false, messageNew: true } };
+  h = hist();
+  s = await step({ kind: "rule", id: "r1", step: "spend" });
+  if (s.statusCode !== 409 || s.body.paused !== false || s.body.held !== true || s.body.charged !== false || !/Collect stays HOLD/.test(s.body.error || "")) fail("pause off: spend must still be held by Collect HOLD: " + s.statusCode + " " + JSON.stringify(s.body));
+  else if (hist() !== h + 1 || !/Collect stays HOLD/.test(A().history[0].what)) fail("HOLD must be in history");
   else if (!auditMoney()) fail("HOLD must charge nothing");
   else pass("pause off for one automation passes the pause, Collect HOLD still holds, nothing charged");
-  s = await sstep({ kind: "ai", id: "ai_h", step: "spend" });
-  if (s.statusCode !== 409 || !s.body.paused) fail("money off on r9 must not turn it off for ai_h");
-  await acct("POST", HO, { action: "settings", section: "automations", set: { desk: "human-desk", kind: "ai", id: "ai_h", stopBefore: { deletes: false } }, forSeat: "p_s" });
-  s = await sstep({ kind: "ai", id: "ai_h", step: "delete" });
-  if (s.statusCode !== 200 || s.body.paused !== false || s.body.done !== false) fail("deletes off on ai_h must go past the pause without doing it: " + JSON.stringify(s.body));
-  s = await sstep({ kind: "ai", id: "ai_h", step: "message-new" });
-  if (s.statusCode !== 409 || !s.body.paused) fail("message-new must still pause on ai_h");
+  s = await step({ kind: "ai", id: "ai_doer", step: "spend" });
+  if (s.statusCode !== 409 || !s.body.paused) fail("money off on r1 must not turn it off for ai_doer");
+  s = await step({ kind: "ai", id: "ai_doer", step: "delete" });
+  if (s.statusCode !== 200 || s.body.paused !== false || s.body.done !== false) fail("deletes off on ai_doer must go past the pause without doing it: " + JSON.stringify(s.body));
+  s = await step({ kind: "ai", id: "ai_doer", step: "message-new" });
+  if (s.statusCode !== 409 || !s.body.paused) fail("message-new must still pause on ai_doer");
+  A().settings.automations = JSON.parse(keep);
 
   // 8. Delete and message-new pause the same way.
   for (const st of ["delete", "message-new"]) {

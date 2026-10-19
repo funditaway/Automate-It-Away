@@ -217,19 +217,6 @@ function ownedDesks(acc) {
   return (lib.mem.workspaces || []).filter((w) => w && (slugs.indexOf(w.slug) >= 0 || (w.accountId && w.accountId === acc.id)));
 }
 
-// Desks where this account sits on a seat of its own (not the owner seat).
-function seatedDesks(acc) {
-  return (lib.mem.workspaces || []).filter((w) => w && (w.people || []).some((p) => p && p.accountId === acc.id && !lib.isOwner(p)));
-}
-
-// Automations an account can see and switch: its own desks; an AI or SI
-// account also gets the desks it sits on, so that desk's human owner can set them.
-function automationDesks(acc) {
-  const own = ownedDesks(acc);
-  if (kindOf(acc) === "human") return own;
-  return own.concat(seatedDesks(acc).filter((w) => own.indexOf(w) < 0));
-}
-
 // Safer default until James decides: an AI or SI account cannot change its own
 // kind or turn off its own pauses. Only the human owner of the desk it sits on can.
 const SELF_LOCK = "An AI or SI account can't change this itself. The human owner can.";
@@ -284,7 +271,7 @@ function desksSection(acc, person) {
 
 function automationSection(acc) {
   const rows = [];
-  automationDesks(acc).forEach((row) => {
+  ownedDesks(acc).forEach((row) => {
     automationsOf(row).forEach((a) => {
       const key = autoKey(row.slug, a.kind, a.id);
       const saved = settingsOf(acc).automations[key] || {};
@@ -398,11 +385,13 @@ function applyLook(acc, set) {
   return { ok: true, what: "Look set to " + theme + "." };
 }
 
-function findAutomation(acc, set) {
+// desks: where to look. The account's own desks unless the human owner's
+// forSeat path passes its own desk.
+function findAutomation(acc, set, desks) {
   const slug = lib.slugify(set.desk || "");
   const kind = String(set.kind || "").toLowerCase();
   const id = String(set.id || "").slice(0, 80);
-  const row = automationDesks(acc).find((w) => w.slug === slug);
+  const row = (desks || ownedDesks(acc)).find((w) => w.slug === slug);
   if (!row) return { ok: false, status: 404, error: "Not one of your desks." };
   const hit = automationsOf(row).find((a) => a.kind === kind && a.id === id);
   if (!hit) return { ok: false, status: 404, error: "No automation like that on this desk." };
@@ -450,7 +439,7 @@ function applyAutomation(acc, set, opts) {
   }
   const bad = onlyKeys(set, ["desk", "kind", "id"].concat(STOP_KEYS));
   if (bad) return { ok: false, status: 400, error: "Not an automation field: " + plain(bad.join(", "), 80) };
-  const found = findAutomation(acc, set);
+  const found = findAutomation(acc, set, opts && opts.desks);
   if (!found.ok) return found;
   const { row, hit, kind, id } = found;
   const flips = STOP_KEYS.filter((k) => set[k] != null);
@@ -573,7 +562,9 @@ async function handle(req, res) {
       const badF = onlyKeys(setF, ["kind"]);
       madeF = badF || setF.kind == null ? { ok: false, status: 400, error: "For an AI or SI seat, only kind can change here." } : applyProfile(tgt.account, setF, { byHumanOwner: true });
     } else if (secF === "automations" || secF === "automation") {
-      madeF = lib.slugify(setF.desk || "") !== seat.row.slug ? { ok: false, status: 403, error: "Only automations on your own desk." } : applyAutomation(tgt.account, setF, { byHumanOwner: true });
+      // Resolved on the human owner's own desk (the owner's scope), never the AI's list.
+      const ownerDesk = ownedDesks(seat.account).filter((w) => w.slug === seat.row.slug);
+      madeF = lib.slugify(setF.desk || "") !== seat.row.slug || !ownerDesk.length ? { ok: false, status: 403, error: "Only automations on your own desk." } : applyAutomation(tgt.account, setF, { byHumanOwner: true, desks: ownerDesk });
     } else madeF = { ok: false, status: 400, error: "For an AI or SI seat, pick profile (kind) or automations." };
     if (!madeF.ok) return refuse(res, madeF.status || 400, madeF.error), true;
     const secW = secF === "automation" ? "automations" : secF;
