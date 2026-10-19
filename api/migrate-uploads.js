@@ -863,3 +863,6 @@ module.exports = async function handler(req, res) {
 module.exports.CONFIRM = CONFIRM;
 module.exports.CONFIRM_DELETE = CONFIRM_DELETE;
 module.exports.EXPECT = EXPECT;
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);

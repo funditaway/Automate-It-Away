@@ -371,3 +371,6 @@ module.exports.looksLikeMarkup = looksLikeMarkup;
 module.exports.markupClaim = markupClaim;
 module.exports.blobPath = blobPath;
 module.exports.sniffImage = sniffImage;
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);
