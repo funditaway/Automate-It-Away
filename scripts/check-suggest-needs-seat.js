@@ -63,7 +63,20 @@ async function main() {
   if (opened.statusCode !== 201) fail("could not open a desk, got " + opened.statusCode + " " + JSON.stringify(opened.body));
   const joined = await call(auth, "POST", { "x-workspace": slug }, { action: "join", name: "Sam", pin: "9292", kind: "helper" });
   if (joined.statusCode !== 202 || !joined.body || !joined.body.person) fail("could not add a waiting seat: " + JSON.stringify(joined.body));
-  pass("opened a desk with an owner and a waiting helper");
+  // A second helper asks for a seat and the owner denies it: a denied seat is no seat.
+  // Seat ids are minted from the clock, so let a millisecond pass before the second join.
+  await new Promise((r) => setTimeout(r, 5));
+  const deniedJoin = await call(auth, "POST", { "x-workspace": slug }, { action: "join", name: "Dee", pin: "7373", kind: "helper" });
+  if (deniedJoin.statusCode !== 202 || !deniedJoin.body || !deniedJoin.body.person) fail("could not add a seat to deny: " + JSON.stringify(deniedJoin.body));
+  if (deniedJoin.body.person.id === joined.body.person.id) fail("the denied seat and the waiting seat need different ids");
+  const denied = await call(auth, "POST", { "x-workspace": slug, "x-pin": pin }, { action: "deny", id: deniedJoin.body.person.id });
+  if (denied.statusCode !== 200) fail("owner should deny the seat, got " + denied.statusCode + " " + JSON.stringify(denied.body));
+  const people = lib.mem.workspaces.find((w) => w.slug === slug).people || [];
+  const deniedRow = people.find((p) => p.id === deniedJoin.body.person.id);
+  if (!deniedRow || deniedRow.status !== "denied") fail("the denied seat should be on the book as denied");
+  const waitingRow = people.find((p) => p.id === joined.body.person.id);
+  if (!waitingRow || waitingRow.status !== "pending") fail("the waiting seat should still be waiting after the deny");
+  pass("opened a desk with an owner, a waiting helper, and a denied helper");
 
   const ask = { action: "suggest", title: "Draft a reply to the porch lead", notes: "price check" };
   const jobsBefore = lib.mem.jobs.length;
@@ -71,14 +84,15 @@ async function main() {
     ["a desk name alone", { "x-workspace": slug }, 401],
     ["a wrong code", { "x-workspace": slug, "x-pin": "0000" }, 401],
     ["a made-up desk", { "x-workspace": "no-such-suggest-desk" }, 401],
-    ["a waiting seat", { "x-workspace": slug, "x-pin": "9292" }, 403]
+    ["a waiting seat", { "x-workspace": slug, "x-pin": "9292" }, 403],
+    ["a denied seat", { "x-workspace": slug, "x-pin": "7373" }, [401, 403]]
   ];
   let strangerBody = null;
   for (let i = 0; i < refused.length; i++) {
     const r = refused[i];
     const f0 = fetches.length;
     const res = await call(jobs, "POST", r[1], ask);
-    if (res.statusCode !== r[2]) fail(r[0] + " suggest should be " + r[2] + ", got " + res.statusCode + " " + JSON.stringify(res.body).slice(0, 300));
+    if (Array.isArray(r[2]) ? r[2].indexOf(res.statusCode) < 0 : res.statusCode !== r[2]) fail(r[0] + " suggest should be " + r[2] + ", got " + res.statusCode + " " + JSON.stringify(res.body).slice(0, 300));
     if (!res.body || res.body.ok !== false || res.body.draft !== undefined || res.body.job !== undefined) fail(r[0] + " must get no draft back: " + JSON.stringify(res.body).slice(0, 300));
     if (fetches.length !== f0) fail(r[0] + " made " + (fetches.length - f0) + " outbound call(s), " + llmCalls(f0) + " to api.x.ai");
     if (r[2] === 401) {
@@ -87,7 +101,7 @@ async function main() {
     }
   }
   if (lib.mem.jobs.length !== jobsBefore) fail("a refused suggest must not save a card");
-  pass("a stranger, a wrong code, a made-up desk (401), and a waiting seat (403) get no draft and zero calls to api.x.ai");
+  pass("a stranger, a wrong code, a made-up desk (401), a waiting seat (403), and a denied seat (401 or 403) get no draft and zero calls to api.x.ai");
 
   const OWNER = { "x-workspace": slug, "x-pin": pin };
   const f1 = fetches.length;
