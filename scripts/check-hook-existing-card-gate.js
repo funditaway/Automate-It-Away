@@ -3,6 +3,10 @@
 // that desk or a sender holding that desk's hook secret. A stranger who knows a card
 // id or externalId gets 401: the card stays as it was and nothing lands in money.
 // New cards from a hook still come in from anyone (201).
+// The secret is header-only (X-Hook-Secret): one in the query string or the body is
+// ignored. The compare goes through crypto.timingSafeEqual, a malformed stored hash is
+// refused without throwing, and the secret and its hash never show up in a reply, in
+// console output, or in what hook.js / _lib.js log.
 // Runs the real handler on a temp store. Outbound fetch is blocked.
 const fs = require("fs");
 const os = require("os");
@@ -69,14 +73,52 @@ function mockRes() {
   const mem = lib.mem;
   if (!Array.isArray(mem.money)) mem.money = [];
 
+  // Every call runs with console and stdout/stderr captured. The secret strings and
+  // their hashes must appear in none of that, in the reply, or in new audit / inbox rows.
+  const watched = [];
+  function watch(secret) {
+    const hex = crypto.createHash("sha256").update(secret).digest("hex");
+    for (const w of [secret, hex, hex.toUpperCase()]) if (watched.indexOf(w) < 0) watched.push(w);
+    return hex;
+  }
+  let leaks = 0;
+  let calls = 0;
+  let captured = 0;
+  const CONSOLE = ["log", "info", "warn", "error", "debug", "trace"];
   async function call(headers, body, query) {
     const res = mockRes();
-    await hook({ method: "POST", headers: headers || {}, query: query || {}, body: body || {}, url: "/api/hook", on() {} }, res);
+    query = query || {};
+    const qs = Object.keys(query).map((k) => encodeURIComponent(k) + "=" + encodeURIComponent(query[k])).join("&");
+    const req = { method: "POST", headers: headers || {}, query: query, body: body || {}, url: "/api/hook" + (qs ? "?" + qs : ""), on() {} };
+    const out = [];
+    const saved = {};
+    for (const m of CONSOLE) { saved[m] = console[m]; console[m] = function () { out.push(Array.prototype.map.call(arguments, (a) => typeof a === "string" ? a : (() => { try { return JSON.stringify(a); } catch (e) { return String(a); } })()).join(" ")); }; }
+    const ow = process.stdout.write, ew = process.stderr.write;
+    process.stdout.write = function (c) { out.push(String(c)); return true; };
+    process.stderr.write = function (c) { out.push(String(c)); return true; };
+    const auditBefore = (mem.audit || []).slice();
+    const inboxBefore = (mem.inbox || []).slice();
+    let thrown = null;
+    try { await hook(req, res); } catch (e) { thrown = e; }
+    finally {
+      for (const m of CONSOLE) console[m] = saved[m];
+      process.stdout.write = ow; process.stderr.write = ew;
+    }
+    calls++;
+    captured += out.length;
+    const fresh = (mem.audit || []).filter((a) => auditBefore.indexOf(a) < 0).concat((mem.inbox || []).filter((a) => inboxBefore.indexOf(a) < 0));
+    const seen = out.join("\n") + "\n" + JSON.stringify(fresh) + "\n" + JSON.stringify(res.body) + "\n" + JSON.stringify(res.headers) + "\n" + (thrown ? String(thrown && thrown.stack || thrown) : "");
+    const hit = watched.filter((w) => seen.indexOf(w) >= 0);
+    if (hit.length) { leaks++; fail("call #" + calls + " leaked a hook secret or its hash (" + hit.length + " match" + (hit.length > 1 ? "es" : "") + ") into logs or the reply; output withheld"); }
+    else if (out.length) process.stdout.write(out.join(""));
+    if (thrown) throw thrown;
     return res;
   }
   const card = (id) => mem.jobs.find((j) => j && j.id === id);
   const snap = (id) => JSON.stringify(card(id) || null);
   const H = { "x-workspace": "victim" };
+  watch(TEST_SECRET);
+  watch("other-desk-secret");
 
   const events = [
     ["kill", { event: "kill", reason: "stranger stop" }],
@@ -151,22 +193,104 @@ function mockRes() {
   if (r.statusCode !== 200 || mem.money.length !== 1 || mem.money[0].amt !== "$70") fail("owner collect -> " + r.statusCode + " " + JSON.stringify(mem.money));
   else pass("seated owner collect still writes one money row");
 
-  // 4. With a hook secret on the desk (test value on a temp store), the secret opens existing cards; a wrong one does not.
+  // 4. With a hook secret on the desk (test value on a temp store), the secret opens
+  // existing cards from the X-Hook-Secret header only. Query or body is no secret.
   const shop = mem.workspaces.find((w) => w.slug === "victim");
-  shop.hookSecretHash = crypto.createHash("sha256").update(TEST_SECRET).digest("hex");
+  const goodHash = crypto.createHash("sha256").update(TEST_SECRET).digest("hex");
+  shop.hookSecretHash = goodHash;
+  const realTSE = crypto.timingSafeEqual;
+  let tse = 0;
+  crypto.timingSafeEqual = function () { tse++; return realTSE.apply(this, arguments); };
   const moneyNow = mem.money.length;
-  for (const bad of [["wrong header", { "x-hook-secret": "nope" }, {}], ["wrong query", {}, { hook_secret: "nope" }], ["secret in body only", {}, {}, { hook_secret: TEST_SECRET }]]) {
-    const before = snap("job_victim2");
-    const rr = await call(Object.assign({}, H, bad[1]), Object.assign({ id: "job_victim2", event: "kill" }, bad[3] || {}), bad[2]);
-    if (rr.statusCode !== 401 || snap("job_victim2") !== before) fail(bad[0] + " -> expected 401 and no change, got " + rr.statusCode);
+  const locked = [
+    ["wrong header", { "x-hook-secret": "nope" }, {}, {}],
+    ["wrong query", {}, { hook_secret: "nope" }, {}],
+    ["right secret in query only", {}, { hook_secret: TEST_SECRET }, {}],
+    ["right secret in body only", {}, {}, { hook_secret: TEST_SECRET }],
+    ["right secret in body as hookSecret", {}, {}, { hookSecret: TEST_SECRET, secret: TEST_SECRET }],
+    ["right secret in query and body, wrong header", { "x-hook-secret": "nope" }, { hook_secret: TEST_SECRET }, { hook_secret: TEST_SECRET }]
+  ];
+  for (const bad of locked) {
+    for (const ev of [["kill", { event: "kill" }], ["update", { event: "update", notes: "QUERY OVERWRITE" }], ["collect", { event: "paid", amount: 777 }]]) {
+      const before = snap("job_victim2");
+      const mb = mem.money.length;
+      const rr = await call(Object.assign({}, H, bad[1]), Object.assign({ id: "job_victim2" }, ev[1], bad[3]), bad[2]);
+      if (rr.statusCode !== 401 || !rr.body || rr.body.ok !== false || rr.body.job || rr.body.id) fail(bad[0] + " " + ev[0] + " -> expected plain 401, got " + rr.statusCode);
+      if (snap("job_victim2") !== before) fail(bad[0] + " " + ev[0] + " changed the card");
+      if (mem.money.length !== mb) fail(bad[0] + " " + ev[0] + " wrote a money row");
+    }
   }
+  if (!failed) pass("secret in the query string or the body is ignored: 401 on kill/update/collect of an existing card, card unchanged, no money row");
+  // New cards still come in with a secret in the query or body (ignored, not echoed).
+  for (const nc of [["query", {}, { hook_secret: TEST_SECRET }], ["body", { hook_secret: TEST_SECRET }, {}]]) {
+    const before = mem.jobs.length;
+    const rr = await call(H, Object.assign({ event: "capture", title: "Lead with " + nc[0] + " secret" }, nc[1]), nc[2]);
+    if (rr.statusCode !== 201 || !rr.body || rr.body.ok !== true || mem.jobs.length !== before + 1 || rr.body.job) fail("new card with " + nc[0] + " secret -> expected 201, got " + rr.statusCode);
+    else if (watched.some((w) => JSON.stringify(card(rr.body.id)).indexOf(w) >= 0)) fail("new card with " + nc[0] + " secret stored the secret on the card");
+  }
+  if (!failed) pass("new cards with a secret in the query or body still 201");
+  const tseBeforeGood = tse;
   r = await call(Object.assign({}, H, { "x-hook-secret": TEST_SECRET }), { externalId: "crm-2", event: "update", notes: "Pipe notes" });
   if (r.statusCode !== 200 || card("job_victim2").notes !== "Pipe notes" || r.body.job) fail("secret header update -> " + r.statusCode + " " + JSON.stringify(r.body).slice(0, 200));
-  r = await call(H, { id: "job_victim2", event: "paid", amount: 30 }, { hook_secret: TEST_SECRET });
-  if (r.statusCode !== 200 || mem.money.length !== moneyNow + 1) fail("secret query collect -> " + r.statusCode);
+  r = await call(Object.assign({}, H, { "x-hook-secret": TEST_SECRET }), { id: "job_victim2", event: "paid", amount: 30 });
+  if (r.statusCode !== 200 || mem.money.length !== moneyNow + 1) fail("secret header collect -> " + r.statusCode);
+  if (tse <= tseBeforeGood) fail("the right X-Hook-Secret was accepted without crypto.timingSafeEqual (compare must not be ==/===)");
+  const tseBeforeWrong = tse;
+  r = await call(Object.assign({}, H, { "x-hook-secret": "nope-wrong" }), { id: "job_victim2", event: "kill" });
+  if (r.statusCode !== 401) fail("wrong header after good -> " + r.statusCode);
+  if (tse <= tseBeforeWrong) fail("a wrong X-Hook-Secret was refused without crypto.timingSafeEqual");
   r = await call(Object.assign({}, H, { "x-hook-secret": TEST_SECRET }), { id: "job_victim2", event: "kill" });
   if (r.statusCode !== 200 || card("job_victim2").status !== "killed") fail("secret kill -> " + r.statusCode);
-  if (!failed) pass("valid desk hook secret (header or ?hook_secret=) can change cards; wrong secret gets 401; reply stays plain");
+  if (!failed) pass("right X-Hook-Secret header still changes cards (update/collect/kill), reply stays plain; compare goes through crypto.timingSafeEqual");
+
+  // Static pin: the hook compare is crypto.timingSafeEqual, not ==/===, and the secret is
+  // read from the header only (no query/body/url read of it, no logging of req.url/query).
+  const src = fs.readFileSync(path.join(root, "api/hook.js"), "utf8");
+  const fnOf = (name) => { const i = src.indexOf("function " + name + "("); if (i < 0) return ""; const j = src.indexOf("\n}\n", i); return src.slice(i, j < 0 ? undefined : j + 2); };
+  const proven = fnOf("hookSecretProven");
+  const secretOf = fnOf("hookSecretOf");
+  if (!/crypto\.timingSafeEqual\s*\(/.test(proven)) fail("hookSecretProven must compare with crypto.timingSafeEqual");
+  if (/[!=]==?/.test(proven.replace(/!\/\^\[0-9a-f\]\{64\}\$\/\.test/g, ""))) fail("hookSecretProven must not compare with ==, ===, != or !==");
+  if (!/\/\^\[0-9a-f\]\{64\}\$\/\.test\(want\)/.test(proven)) fail("hookSecretProven must keep the strict 64-hex guard on the stored hash");
+  if (!secretOf || /query|body|url|cookie/i.test(secretOf.replace(/^\s*\/\/.*$/mg, ""))) fail("hookSecretOf must read the X-Hook-Secret header only");
+  if (/hook_?secret/i.test(src.replace(/hookSecretHash|hookSecretOf|hookSecretProven/g, "").replace(/^\s*\/\/.*$/mg, "").replace(/"x-hook-secret"/g, ""))) fail("hook.js reads a hook secret from somewhere other than the X-Hook-Secret header");
+  if (/console\.|req\.url|log\([^)]*req\.query|log\([^)]*hookSecret/i.test(src)) fail("hook.js must not log req.url, the query, or the hook secret");
+  if (!failed) pass("static: compare is crypto.timingSafeEqual (no ==/===), strict 64-hex hash guard, secret read from X-Hook-Secret only, no req.url/query logging");
+
+  // Malformed stored hash: refused (401) without throwing, for the right secret and for
+  // wrong-length / non-hex secrets alike.
+  const malformed = [
+    ["short hex", goodHash.slice(0, 62)],
+    ["long hex", goodHash + "00"],
+    ["right hash plus junk", goodHash + "zz"],
+    ["non-hex 64", "g".repeat(64)],
+    ["hex with a space", goodHash.slice(0, 32) + " " + goodHash.slice(33)],
+    ["number", 12345],
+    ["object", { hex: goodHash }]
+  ];
+  const secretsToTry = [TEST_SECRET, "x", "zz-not-hex-zz", "a".repeat(5000), goodHash, "\u00e9\u00e8\u2603"];
+  watch("zz-not-hex-zz");
+  for (const m of malformed) {
+    shop.hookSecretHash = m[1];
+    for (const sec of secretsToTry) {
+      const before = snap("job_victim1");
+      let rr = null;
+      try { rr = await call(Object.assign({}, H, { "x-hook-secret": sec }), { id: "job_victim1", event: "update", notes: "MALFORMED OVERWRITE" }); }
+      catch (e) { fail("malformed hash (" + m[0] + ") threw: " + String(e && e.message || e).slice(0, 120)); continue; }
+      if (rr.statusCode !== 401) fail("malformed hash (" + m[0] + ") with a " + sec.length + "-char secret -> expected 401, got " + rr.statusCode);
+      if (snap("job_victim1") !== before) fail("malformed hash (" + m[0] + ") changed the card");
+    }
+  }
+  // With a good hash, a non-hex or wrong-length secret is just a wrong secret.
+  shop.hookSecretHash = goodHash;
+  for (const sec of ["x", "zz-not-hex-zz", "a".repeat(5000), goodHash, goodHash.toUpperCase(), "\u00e9\u00e8\u2603"]) {
+    let rr = null;
+    try { rr = await call(Object.assign({}, H, { "x-hook-secret": sec }), { id: "job_victim1", event: "kill" }); }
+    catch (e) { fail("odd secret threw: " + String(e && e.message || e).slice(0, 120)); continue; }
+    if (rr.statusCode !== 401) fail("odd " + sec.length + "-char secret -> expected 401, got " + rr.statusCode);
+  }
+  crypto.timingSafeEqual = realTSE;
+  if (!failed) pass("malformed stored hash and wrong-length / non-hex secrets are refused with 401, no throw");
 
   // 5. Another desk's secret does not open this desk.
   const other = mem.workspaces.find((w) => w.slug === "other");
@@ -174,6 +298,10 @@ function mockRes() {
   r = await call(Object.assign({}, H, { "x-hook-secret": "other-desk-secret" }), { id: "job_victim1", event: "kill" });
   if (r.statusCode !== 401) fail("other desk secret opened victim card -> " + r.statusCode);
   else pass("another desk's secret does not open this desk");
+
+  // 6. Nothing above leaked a secret or its hash into console output, logs, or replies.
+  if (!leaks && calls > 0) pass("no hook secret or hash in console/stdout/stderr, audit or inbox rows, or replies across " + calls + " calls (" + captured + " captured lines)");
+  else if (!calls) fail("no calls were made");
 
   done();
 })().catch((e) => { console.error("FAIL " + (e && e.stack || e)); try { fs.rmSync(store, { force: true }); } catch (x) {} process.exit(1); });

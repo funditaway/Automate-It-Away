@@ -48,13 +48,12 @@ function hasSeat(req, workspace) {
 
 // Per-desk hook secret. Nothing here makes or sets one. A desk row may carry
 // hookSecretHash: the sha256 hex of a secret the owner mints and pastes into the
-// sender (shown to them once, stored like a pin, never echoed). The sender proves it
-// with the X-Hook-Secret header or ?hook_secret= on the hook URL. No hash on the
-// desk means no secret can match.
+// sender (shown to them once, stored like a pin, never echoed or logged). The sender
+// proves it with the X-Hook-Secret header only. A secret in the query string or the
+// body is ignored (URLs end up in logs). No hash on the desk means no secret can match.
 function hookSecretOf(req) {
   const headers = (req && req.headers) || {};
-  const query = (req && req.query) || {};
-  return String(headers["x-hook-secret"] || query.hook_secret || "").trim();
+  return String(headers["x-hook-secret"] || "").trim();
 }
 
 function hookSecretProven(req, shop) {
