@@ -43,6 +43,49 @@ function badKeys(obj, allowed) {
 }
 function isObj(v) { return v && typeof v === "object" && !Array.isArray(v); }
 
+// Request fields take only their exact type, checked before anything is read
+// or saved: text is a plain string; allow flags are booleans; secrets is a
+// plain object of string values; acts and try are lists of strings; bundle
+// items are plain objects. {toString}, arrays, null, numbers and the like get
+// a plain 400. A field that is left out stays optional.
+function plainObj(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const p = Object.getPrototypeOf(v);
+  return p === Object.prototype || p === null;
+}
+const TYPES = {
+  text: [(v) => typeof v === "string", "plain text"],
+  bool: [(v) => typeof v === "boolean", "true or false"],
+  boolOrText: [(v) => typeof v === "boolean" || typeof v === "string", "true or false"],
+  obj: [plainObj, "an object"],
+  textMap: [(v) => plainObj(v) && Object.keys(v).every((k) => typeof v[k] === "string"), "names with text values"],
+  texts: [(v) => Array.isArray(v) && v.every((x) => typeof x === "string"), "a list of words"],
+  objs: [(v) => Array.isArray(v) && v.every(plainObj), "a list of objects"]
+};
+const FIELD_TYPES = {
+  connect: { service: "text", label: "text", secrets: "textMap", hook: "text", connectionId: "text", deskId: "text" },
+  "connection-secret": { connectionId: "text", name: "text", value: "text" },
+  disconnect: { connectionId: "text" },
+  "setup-cards": { deskId: "text" },
+  "setup-card": { from: "obj", deskId: "text" },
+  "setup-step": { cardId: "text", stepId: "text", do: "text", reason: "text", deskId: "text", connectionId: "text", secret: "obj", allow: "obj", try: "texts", live: "boolOrText" }
+};
+const FROM_TYPES = { type: "text", connectionId: "text", id: "text", name: "text", service: "text", acts: "texts", items: "objs" };
+const ITEM_TYPES = { type: "text", id: "text", name: "text", service: "text", acts: "texts" };
+const SECRET_TYPES = { name: "text", value: "text" };
+const ALLOW_TYPES = { money: "bool", deletes: "bool", messageNew: "bool" };
+// Returns the plain 400 words for the first field of the wrong type, or null.
+function wrongType(src, spec, where) {
+  const keys = Object.keys(spec);
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (!Object.prototype.hasOwnProperty.call(src, k)) continue;
+    const t = TYPES[spec[k]];
+    if (!t[0](src[k])) return "Send " + (where ? where + "." : "") + k + " as " + t[1] + ". Nothing was saved.";
+  }
+  return null;
+}
+
 // ---- connections ----------------------------------------------------------
 
 // Readers never create anything; only the push paths below add the arrays.
@@ -245,6 +288,25 @@ async function handle(req, res, body) {
   const acc = seat.account;
   const person = seat.person;
   if (s.askedOther(req, body, acc)) return refuse(res, 404, NO_ONE);
+  const typeErr = FIELD_TYPES[action] ? wrongType(body, FIELD_TYPES[action]) : null;
+  if (typeErr) return refuse(res, 400, typeErr);
+  if (action === "setup-card" && plainObj(body.from)) {
+    const fromErr = wrongType(body.from, FROM_TYPES, "from");
+    if (fromErr) return refuse(res, 400, fromErr);
+    const items = Array.isArray(body.from.items) ? body.from.items : [];
+    for (let i = 0; i < items.length; i++) {
+      const itemErr = wrongType(items[i], ITEM_TYPES, "from.items");
+      if (itemErr) return refuse(res, 400, itemErr);
+    }
+  }
+  if (action === "setup-step" && plainObj(body.secret)) {
+    const secErr = wrongType(body.secret, SECRET_TYPES, "secret");
+    if (secErr) return refuse(res, 400, secErr);
+  }
+  if (action === "setup-step" && plainObj(body.allow)) {
+    const allowErr = wrongType(body.allow, ALLOW_TYPES, "allow");
+    if (allowErr) return refuse(res, 400, allowErr);
+  }
   const stamp = s.stampWho(person, null, acc);
   const desks = s.ownedDesks(acc);
   const deskOf = (id) => { const slug = lib.slugify(String(id || "")); return slug ? desks.find((w) => w.slug === slug) || null : null; };

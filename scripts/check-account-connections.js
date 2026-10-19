@@ -14,7 +14,8 @@
 // approve allowed actions that turn off its own pauses (403, step unchanged,
 // recorded); the test run is a dry run (0 outside calls, 0 model calls), spend is
 // held and charged:false, 0 money rows; Stop and Kill always answer 200 mid-setup;
-// a failed save answers 503 and changes nothing.
+// a failed save answers 503 and changes nothing; every request field takes only
+// its exact type ({toString}, arrays, null, numbers: a plain 400, nothing saved).
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -416,6 +417,101 @@ async function main() {
   lib.save = async function () { saves++; return realSave.apply(this, arguments); };
   await post(OWN, { action: "setup-step", cardId: bc.id, do: "stop" });
   pass("a failed save answers 503 and changes nothing; Stop still answers 200");
+
+  // 11b. Every request field takes only its exact type. {toString}, arrays, null, numbers
+  //      and the like are a plain 400 that names the field; nothing is saved; nothing throws.
+  {
+    const rawPost = async (hd, body) => {
+      const res = mockRes();
+      const orig = { log: console.log, error: console.error, warn: console.warn, info: console.info };
+      ["log", "error", "warn", "info"].forEach((k) => { console[k] = function () {}; });
+      try { await handler({ method: "POST", headers: hd, body: body, query: { via: "account" }, url: "/api/auth?via=account" }, res); } finally { Object.assign(console, orig); }
+      return res;
+    };
+    const A0 = acc("acct_A");
+    const connId = ((A0.connections || [])[0] || {}).id || "conn_none";
+    const cardId = ((A0.setupCards || [])[0] || {}).id || "setup_none";
+    const TS = { toString: "x" };
+    const TF = { toString() { return "own-desk"; } };
+    const notText = [TS, TF, ["x"], null, 7, true, {}];
+    const notBool = ["true", 1, 0, null, {}, ["true"], TS];
+    const notObj = [["x"], "x", null, 7, true, TS.toString, function () {}, new Date(0), Object.create({ money: true, name: "K5", value: "v-8-never" })];
+    const notTextMap = [["x"], "x", null, 7, { KEY: TS }, { KEY: ["v"] }, { KEY: 7 }, { KEY: null }];
+    const notTexts = ["read", null, 7, [TS], [7], [null], [["read"]], {}];
+    const notObjs = ["x", null, 7, [7], ["x"], [null], [["a"]], {}];
+    const notBoolOrText = [null, 1, {}, ["true"], TS];
+    // [label, base body, field path, bad values]
+    const T = [
+      ["connect.service", { action: "connect", secrets: { K: "v-1-never" } }, ["service"], notText],
+      ["connect.label", { action: "connect", service: "Typed", secrets: { K: "v-2-never" } }, ["label"], notText],
+      ["connect.secrets", { action: "connect", service: "Typed" }, ["secrets"], notTextMap],
+      ["connect.hook", { action: "connect", service: "Typed" }, ["hook"], notText],
+      ["connect.connectionId", { action: "connect", secrets: { K: "v-3-never" } }, ["connectionId"], notText],
+      ["connect.deskId", { action: "connect", service: "Typed", secrets: { K: "v-4-never" } }, ["deskId"], notText],
+      ["connection-secret.connectionId", { action: "connection-secret", name: "K2", value: "v-5-never" }, ["connectionId"], notText],
+      ["connection-secret.name", { action: "connection-secret", connectionId: connId, value: "v-6-never" }, ["name"], notText],
+      ["connection-secret.value", { action: "connection-secret", connectionId: connId, name: "K3" }, ["value"], notText],
+      ["disconnect.connectionId", { action: "disconnect" }, ["connectionId"], notText],
+      ["setup-cards.deskId", { action: "setup-cards" }, ["deskId"], notText],
+      ["setup-card.from", { action: "setup-card" }, ["from"], notObj],
+      ["setup-card.deskId", { action: "setup-card", from: { type: "addon", id: "typed-a", name: "Typed A" } }, ["deskId"], notText],
+      ["setup-card.from.type", { action: "setup-card", from: { id: "typed-b", name: "Typed B" } }, ["from", "type"], notText],
+      ["setup-card.from.connectionId", { action: "setup-card", from: { type: "connection" } }, ["from", "connectionId"], notText],
+      ["setup-card.from.id", { action: "setup-card", from: { type: "addon", name: "Typed C" } }, ["from", "id"], notText],
+      ["setup-card.from.name", { action: "setup-card", from: { type: "addon", id: "typed-d" } }, ["from", "name"], notText],
+      ["setup-card.from.service", { action: "setup-card", from: { type: "addon", id: "typed-e", name: "Typed E" } }, ["from", "service"], notText],
+      ["setup-card.from.acts", { action: "setup-card", from: { type: "addon", id: "typed-f", name: "Typed F" } }, ["from", "acts"], notTexts],
+      ["setup-card.from.items", { action: "setup-card", from: { type: "bundle", id: "typed-g", name: "Typed G" } }, ["from", "items"], notObjs],
+      ["setup-card.from.items[].type", { action: "setup-card", from: { type: "bundle", id: "typed-h", name: "Typed H", items: [{ name: "I" }] } }, ["from", "items", 0, "type"], notText],
+      ["setup-card.from.items[].id", { action: "setup-card", from: { type: "bundle", id: "typed-i", name: "Typed I", items: [{ type: "addon", name: "I" }] } }, ["from", "items", 0, "id"], notText],
+      ["setup-card.from.items[].name", { action: "setup-card", from: { type: "bundle", id: "typed-j", name: "Typed J", items: [{ type: "addon", id: "i" }] } }, ["from", "items", 0, "name"], notText],
+      ["setup-card.from.items[].service", { action: "setup-card", from: { type: "bundle", id: "typed-k", name: "Typed K", items: [{ type: "addon", name: "I" }] } }, ["from", "items", 0, "service"], notText],
+      ["setup-card.from.items[].acts", { action: "setup-card", from: { type: "bundle", id: "typed-l", name: "Typed L", items: [{ type: "addon", name: "I" }] } }, ["from", "items", 0, "acts"], notTexts],
+      ["setup-step.cardId", { action: "setup-step", do: "stop" }, ["cardId"], notText],
+      ["setup-step.do", { action: "setup-step", cardId: cardId }, ["do"], notText],
+      ["setup-step.stepId", { action: "setup-step", cardId: cardId, do: "done" }, ["stepId"], notText],
+      ["setup-step.reason", { action: "setup-step", cardId: cardId, stepId: "g1.connect", do: "skip" }, ["reason"], notText],
+      ["setup-step.deskId", { action: "setup-step", cardId: cardId, stepId: "card.desk", do: "done" }, ["deskId"], notText],
+      ["setup-step.connectionId", { action: "setup-step", cardId: cardId, stepId: "g1.connect", do: "done" }, ["connectionId"], notText],
+      ["setup-step.secret", { action: "setup-step", cardId: cardId, stepId: "g1.secret", do: "done" }, ["secret"], notObj],
+      ["setup-step.secret.name", { action: "setup-step", cardId: cardId, stepId: "g1.secret", do: "done", secret: { value: "v-7-never" } }, ["secret", "name"], notText],
+      ["setup-step.secret.value", { action: "setup-step", cardId: cardId, stepId: "g1.secret", do: "done", secret: { name: "K4" } }, ["secret", "value"], notText],
+      ["setup-step.allow", { action: "setup-step", cardId: cardId, stepId: "g1.approve", do: "done" }, ["allow"], notObj],
+      ["setup-step.allow.money", { action: "setup-step", cardId: cardId, stepId: "g1.approve", do: "done", allow: {} }, ["allow", "money"], notBool],
+      ["setup-step.allow.deletes", { action: "setup-step", cardId: cardId, stepId: "g1.approve", do: "done", allow: {} }, ["allow", "deletes"], notBool],
+      ["setup-step.allow.messageNew", { action: "setup-step", cardId: cardId, stepId: "g1.approve", do: "done", allow: {} }, ["allow", "messageNew"], notBool],
+      ["setup-step.try", { action: "setup-step", cardId: cardId, stepId: "g1.test", do: "done" }, ["try"], notTexts],
+      ["setup-step.live", { action: "setup-step", cardId: cardId, stepId: "g1.test", do: "done" }, ["live"], notBoolOrText]
+    ];
+    const clone = (v) => {
+      if (Array.isArray(v)) return v.map(clone);
+      if (v && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype) { const o = {}; Object.keys(v).forEach((k) => { o[k] = clone(v[k]); }); return o; }
+      return v;
+    };
+    let bad = 0;
+    for (const [label, base, pathTo, values] of T) {
+      for (const v of values) {
+        const body = clone(base);
+        let at = body;
+        for (let i = 0; i < pathTo.length - 1; i++) at = at[pathTo[i]];
+        at[pathTo[pathTo.length - 1]] = v;
+        const w0b = saves, s0b = snapAll();
+        let r = null, threw = null;
+        try { r = await rawPost(OWN, body); } catch (e) { threw = e; }
+        const field = String(pathTo[pathTo.length - 1]);
+        const shown = (() => { try { return JSON.stringify(v); } catch (e) { return "?"; } })() || String(typeof v);
+        if (threw) { fail(label + " = " + shown + " must not throw: " + (threw && threw.message)); bad++; continue; }
+        if (r.statusCode !== 400 || !r.body || r.body.ok !== false || !new RegExp("^Send (\\S+\\.)?" + field + " as [a-z ]+\\. Nothing was saved\\.$").test(r.body.error || "")) { fail(label + " = " + shown + " must be a plain 400 naming " + field + ": " + r.statusCode + " " + JSON.stringify(r.body)); bad++; }
+        if (saves !== w0b || snapAll() !== s0b) { fail(label + " = " + shown + " must save and change nothing"); bad++; }
+      }
+    }
+    // The right types still work.
+    let r = await rawPost(OWN, { action: "setup-card", from: { type: "addon", id: "typed-ok", name: "Typed OK", acts: ["read"] }, deskId: "own-desk" });
+    if (r.statusCode !== 200) fail("plain strings and string lists still work: " + r.statusCode + " " + JSON.stringify(r.body));
+    r = await rawPost(OWN, { action: "setup-step", cardId: r.body.card && r.body.card.id, stepId: "g1.approve", do: "done", allow: { money: false } });
+    if (r.statusCode !== 200) fail("allow with a boolean still works: " + r.statusCode + " " + JSON.stringify(r.body));
+    if (!bad) pass("every connections / setup field takes only its exact type: {toString}, arrays, null, numbers are a plain 400 naming the field, nothing saved, never a throw");
+  }
 
   // 12. No secret value anywhere it can be read back.
   try {
