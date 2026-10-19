@@ -724,8 +724,26 @@ async function probeFixes(lib, ks, c) {
       const r = await acct("POST", hdr, { action: "automation-step", desk: "human-desk", kind: "rule", id: "r9", step: "kill" });
       if (r.statusCode !== 401 && r.statusCode !== 403) fail("(i) stranger / waiting seat kill must be refused: " + r.statusCode);
     }
+    // Probe N12: Stop/Kill reach EVERY desk the account owns, not only the seat's own desk.
+    // Nia (ai) sits on zed-desk as a helper and owns nia-desk; human-desk is neither.
+    lib.mem.accounts.push({ id: "acct_N", name: "Nia Shop", ownerName: "Nia", desks: ["nia-desk"], memberDesks: ["zed-desk"], createdAt: now, kind: "ai" });
+    lib.mem.workspaces.push({ slug: "nia-desk", biz: "Nia Shop", name: "Nia", accountId: "acct_N", pin: H("6161"), createdAt: now,
+      rules: [{ id: "rn", text: "Reorder when stock is low", when: "drop", then: "draft" }],
+      people: [{ id: "p_owner", name: "Nia", role: "owner", kind: "owner", status: "approved", pin: H("6161"), accountId: "acct_N" }] });
+    deskOf("zed-desk").people.push({ id: "p_nia", name: "Nia", role: "employee", kind: "helper", status: "approved", pin: H("3434"), accountId: "acct_N" });
+    const NS = seat("zed-desk", "3434");
+    for (const st of ["stop", "kill"]) {
+      for (const [n12, desk, want] of [["1 seat's own desk", "zed-desk", 200], ["2 another desk the account owns", "nia-desk", 200], ["3 desk not owned, no seat", "human-desk", 403]]) {
+        const snap = snapAll();
+        zero();
+        const r = await acct("POST", NS, { action: "automation-step", desk, kind: "rule", id: "r1", step: st });
+        if (want === 200 && (r.statusCode !== 200 || r.body.ok !== true || r.body.paused !== false)) fail("(i) N12 case " + n12 + ": " + st + " on " + desk + " must go through: " + r.statusCode + " " + JSON.stringify(r.body));
+        if (want === 403 && (r.statusCode !== 403 || r.body.ok !== false || !/own desk only/.test(r.body.error || ""))) fail("(i) N12 case " + n12 + ": " + st + " on " + desk + " must be 403 own desk only: " + r.statusCode + " " + JSON.stringify(r.body));
+        if (snapAll() !== snap || !quiet()) fail("(i) N12 case " + n12 + ": " + st + " on " + desk + " must write nothing");
+      }
+    }
   }
-  if (!failed) pass("(i) Stop and Kill: owner, human/ai/si helper and mid-setup owner on their own desk always go through (paused or not); off-desk and ghost desks are 403; nothing is written");
+  if (!failed) pass("(i) Stop and Kill: owner, human/ai/si helper and mid-setup owner on their own desk always go through (paused or not); a helper seat also reaches every other desk its account owns (N12); off-desk and ghost desks are 403; nothing is written");
 
   // (j) Store guard up (store not ready, #350): automation-step does nothing. Simulated by the
   //     guard's own hook, lib.storeNotReady, which _account-settings asks before any work.
