@@ -80,7 +80,7 @@ function start(oauth, body) {
   };
 }
 
-function handlePost(req, res, body, ctx) {
+async function handlePost(req, res, body, ctx) {
   body = body || {};
   const action = String(body.action || "").toLowerCase();
   if (["providers", "oauth-start", "oauth-ask", "ask-other", "link-provider", "unlink-provider", "oauth-finish"].indexOf(action) < 0) {
@@ -116,7 +116,7 @@ function handlePost(req, res, body, ctx) {
         rows.push({ provider: provider, subject: String(body.subject || body.email || provider), email: String(body.email || "").toLowerCase(), name: String(body.name || ""), linkedAt: new Date().toISOString(), verified: true });
       }
     }
-    if (typeof hooks.save === "function") hooks.save();
+    if (typeof hooks.save === "function") await hooks.save();
     res.status(200).json({ ok: true, identities: publicIdentities(acc), policy: policy, hint: "Linked. Identity only. Not a pipe." });
     return true;
   }
@@ -125,7 +125,7 @@ function handlePost(req, res, body, ctx) {
   if (oauth && typeof oauth.dropIdentity === "function") {
     const dropped = oauth.dropIdentity(acc, provider);
     if (!dropped.ok) { res.status(dropped.status || 400).json(dropped); return true; }
-    if (typeof hooks.save === "function") hooks.save();
+    if (typeof hooks.save === "function") await hooks.save();
     res.status(200).json({ ok: true, identities: dropped.identities || publicIdentities(acc), policy: policy });
     return true;
   }
@@ -141,7 +141,7 @@ function handlePost(req, res, body, ctx) {
     return true;
   }
   acc.identities = next;
-  if (typeof hooks.save === "function") hooks.save();
+  if (typeof hooks.save === "function") await hooks.save();
   res.status(200).json({ ok: true, identities: publicIdentities(acc), policy: policy });
   return true;
 }
