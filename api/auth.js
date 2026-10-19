@@ -150,7 +150,7 @@ module.exports = async function handler(req, res) {
       if (kind === "owner") {
         return res.status(400).json({ ok: false, error: "Owner seats are not a join request." });
       }
-      const made = requestSeat(row, Object.assign({}, body, { kind: kind === "employee" ? "helper" : kind }));
+      const made = requestSeat(row, Object.assign({}, body, { kind: kind === "employee" ? "helper" : kind }), req);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
       return res.status(202).json({
@@ -166,7 +166,7 @@ module.exports = async function handler(req, res) {
       const slug = slugify(body.workspace || body.slug || workspaceOf(req));
       const row = mem.workspaces.find((w) => w && w.slug === slug);
       if (!row) return res.status(404).json({ ok: false, error: "No workspace" });
-      const made = requestSeat(row, body);
+      const made = requestSeat(row, body, req);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
       return res.status(202).json({ ok: true, pending: true, person: made.person });
@@ -187,7 +187,8 @@ module.exports = async function handler(req, res) {
       const slug = workspaceOf(req) || slugify(body.workspace || body.slug || body.biz || "");
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
-      const acc = homeAccount(found.person, found.workspace);
+      const acc = homeAccount(found.person, found.workspace, req);
+      if (!acc && require("./_account").needsSignIn(found.person, found.workspace, req)) return res.status(403).json(require("./_account").signInAgain());
       if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
       if (acc.password) {
         const current = String(body.current || body.old || "");
@@ -209,8 +210,9 @@ module.exports = async function handler(req, res) {
       const slug = workspaceOf(req) || slugify(body.workspace || body.slug || "");
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
+      if (require("./_account").needsSignIn(found.person, found.workspace, req)) return res.status(403).json(require("./_account").signInAgain());
       if (body.name) found.person.name = String(body.name).trim().slice(0, 80);
-      const acc = homeAccount(found.person, found.workspace);
+      const acc = homeAccount(found.person, found.workspace, req);
       if (acc) {
         const applied = applyAccountDetails(acc, body);
         if (applied && applied.ok === false) return res.status(400).json({ ok: false, error: applied.error });
@@ -226,7 +228,7 @@ module.exports = async function handler(req, res) {
         const via = loginWithEmail(email, password);
         if (!via.ok) return res.status(via.status || 401).json({ ok: false, error: via.error });
         let session = null;
-        if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req);
+        if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req, "password");
         if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
         await save();
         return res.status(200).json({

@@ -219,7 +219,7 @@ module.exports = async function handler(req, res) {
       q = Object.assign({}, parsed, q);
     } catch (e) {}
     if (q.world || q.find || q.handle || q.at) {
-      const acc = homeAccount(person, row);
+      const acc = homeAccount(person, row, req);
       const foundWorld = worldPeople.searchWorldAccounts(q.q || q.handle || q.at || q.name || q.world || "", { desk: row, account: acc });
       return res.status(foundWorld.ok ? 200 : (foundWorld.status || 400)).json(Object.assign({ world: true }, foundWorld));
     }
@@ -248,7 +248,7 @@ module.exports = async function handler(req, res) {
   if (!person) return res.status(401).json({ ok: false, error: "Desk code required." });
 
   if (action === "request") {
-    const made = requestSeat(row, body);
+    const made = requestSeat(row, body, req);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     if (made.person && (body.note || body.text || body.say)) {
       pushTalk(made.person, body.name || made.person.name || "ask", body.note || body.text || body.say, "ask");
@@ -287,22 +287,25 @@ module.exports = async function handler(req, res) {
   if (action === "invites" || action === "asks") {
     return res.status(200).json(worldPeople.invitesOf(row, person));
   }
+  if ((action === "accept-invite" || action === "decline-invite" || action === "handle" || action === "at") && require("./_account").needsSignIn(person, row, req)) {
+    return res.status(403).json(require("./_account").signInAgain());
+  }
   if (action === "accept-invite") {
-    const acc = homeAccount(person, row);
+    const acc = homeAccount(person, row, req);
     const made = worldPeople.acceptInvite(acc, body.slug || body.desk || body.workspace);
     if (!made.ok) return res.status(made.status || 400).json(made);
     await save();
     return res.status(200).json(made);
   }
   if (action === "decline-invite") {
-    const acc = homeAccount(person, row);
+    const acc = homeAccount(person, row, req);
     const made = worldPeople.declineInvite(acc, body.slug || body.desk || body.workspace);
     if (!made.ok) return res.status(made.status || 400).json(made);
     await save();
     return res.status(200).json(made);
   }
   if (action === "handle" || action === "at") {
-    const acc = homeAccount(person, row);
+    const acc = homeAccount(person, row, req);
     if (!acc) return res.status(401).json({ ok: false, error: "Sign in first." });
     const ownBook = !!(person && person.accountId && person.accountId === acc.id);
     if (!isOwner(person) && !ownBook) return res.status(403).json({ ok: false, error: "Owner sets the world handle on Account." });
