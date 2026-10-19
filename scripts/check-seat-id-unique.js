@@ -151,6 +151,38 @@ async function main() {
     const src = fs.readFileSync(path.join(root, rel), "utf8");
     check(!/"p_"\s*\+\s*(String\()?Date\.now\(\)/.test(src) && !/"p_"\s*\+\s*new Date\(\)/.test(src), rel + " does not build a seat id from the clock");
   });
+  // Shape and size: newSeatId is "p_" + 16 random bytes (128 bits) as a BigInt in base36,
+  // so the random part is 1-25 lowercase base36 chars, no leading zero, value below 2^128.
+  const account = require(path.join(root, "api/_account"));
+  const MAX128 = BigInt(1) << BigInt(128);
+  function seatValue(id) {
+    const m = /^p_([1-9a-z][0-9a-z]{0,24})$/.exec(String(id || ""));
+    if (!m) return null;
+    let v = BigInt(0);
+    for (const ch of m[1]) v = v * BigInt(36) + BigInt(parseInt(ch, 36));
+    return v < MAX128 && v.toString(36) === m[1] ? v : null;
+  }
+  const joined = [a, b].concat(many, [c1, c2]);
+  check(joined.every((id) => seatValue(id) !== null), "every joined seat id is p_ + a 128-bit base36 number (" + joined.filter((id) => seatValue(id) === null).join(",") + ")");
+  if (typeof account.newSeatId !== "function") { fail("api/_account.js exports newSeatId"); return; }
+  const fresh = [];
+  for (let i = 0; i < 200; i++) fresh.push(account.newSeatId(row()));
+  const bad = fresh.filter((id) => seatValue(id) === null);
+  check(!bad.length, "200 new seat ids all match ^p_[1-9a-z][0-9a-z]{0,24}$ and decode below 2^128 (" + bad.slice(0, 3).join(",") + ")");
+  check(new Set(fresh).size === 200, "200 new seat ids are all distinct (" + new Set(fresh).size + " unique)");
+  const short = fresh.filter((id) => id.length - 2 < 18);
+  check(!short.length, "every new seat id has at least 18 random base36 chars, so far over 64 bits (" + short.slice(0, 3).join(",") + ")");
+  const top = fresh.reduce((m, id) => { const v = seatValue(id); return v !== null && v > m ? v : m; }, BigInt(0));
+  check(top >= (BigInt(1) << BigInt(120)), "the 200 ids use the top bits of 128 (largest is " + top.toString(2).length + " bits)");
+  const prefixes = new Map();
+  let shared = "";
+  for (const id of fresh) {
+    const p8 = id.slice(2, 10);
+    if (p8.length === 8 && prefixes.has(p8) && prefixes.get(p8) !== id) { shared = prefixes.get(p8) + " / " + id; break; }
+    prefixes.set(p8, id);
+  }
+  check(!shared, "no two of the 200 ids share an 8-char prefix after p_ (" + shared + ")");
+
   const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
   check(pkg.indexOf("scripts/check-seat-id-unique.js") >= 0, "package.json test runs this check");
 }
