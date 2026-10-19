@@ -6,7 +6,8 @@
 // the body or the query is never used to pick the account.
 // Secrets are write-only: sealed with AES-256-GCM under AIA_ACCOUNT_SECRETS_KEY,
 // never returned, never logged, never put in history. No key, no secrets.
-// Stop and Kill always work. No field here can turn them off.
+// Stop and Kill always work on the actor's own desk. No field here can turn
+// them off. Off-desk Stop/Kill is refused (403) and writes nothing.
 // This file does not touch Collect, charges, or any money path.
 const crypto = require("crypto");
 const lib = require("./_lib");
@@ -25,16 +26,23 @@ const STOP_KEYS = ["money", "deletes", "messageNew"];
 const STOP_WORDS = { money: "money", deletes: "deletes", messageNew: "messaging someone new" };
 const PROFILE_LIMITS = { name: 80, phone: 32, city: 60, state: 40, timezone: 60, hours: 80, note: 240, email: 120 };
 const ACTIONS = ["settings", "secret-set", "secret-remove", "automation-step"];
-// Account kinds. A missing kind reads as human.
+// Account kinds. A legacy account with no kind field reads as human; any
+// other stored value that is not human, ai, or si reads as ai (locked side).
 const ACCOUNT_KINDS = ["human", "ai", "si"];
 // Steps an AI or SI account pauses before, and the stopBefore choice that turns each off.
 const PAUSE_STEPS = { spend: "money", delete: "deletes", "message-new": "messageNew" };
 const ALWAYS_STEPS = ["stop", "kill"];
 const ID_FIELDS = ["accountId", "account", "acct", "acctId", "account_id", "owner", "ownerId", "personId", "seatId"];
 
+// Request text only: strings (and numbers) pass, anything else reads as "".
+// Never String() an object from a request: {toString:"x"} throws.
+function str(v) {
+  return typeof v === "string" ? v : typeof v === "number" && isFinite(v) ? String(v) : "";
+}
+
 // Plain text only: drop control characters and angle brackets, fold space, cap length.
 function plain(value, max) {
-  return String(value == null ? "" : value)
+  return str(value)
     .replace(/[\u0000-\u001f\u007f<>]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
@@ -46,7 +54,7 @@ function wants(req, body) {
   const url = String((req && req.url) || "");
   if (req.method === "GET") return q.settings === "1" || /[?&]settings=1(?:&|$)/.test(url);
   if (req.method === "DELETE") return true;
-  if (req.method === "POST") return ACTIONS.indexOf(String((body && body.action) || "").toLowerCase()) >= 0;
+  if (req.method === "POST") return ACTIONS.indexOf(str(body && body.action).toLowerCase()) >= 0;
   return false;
 }
 
@@ -99,6 +107,7 @@ function askedOther(req, body, acc) {
     for (let j = 0; j < ID_FIELDS.length; j++) {
       const k = ID_FIELDS[j];
       if (src[k] == null || src[k] === "") continue;
+      if (typeof src[k] !== "string" && typeof src[k] !== "number") return true;
       if (String(src[k]) !== String(acc.id)) return true;
     }
   }
@@ -113,17 +122,25 @@ function settingsOf(acc) {
   return s;
 }
 
-// accountKindFrom(value): "human" when missing, the kind when it is one of
-// human, ai, si, and null for anything else (the caller answers 400).
+// accountKindFrom(value), for sign-up: "human" when missing (undefined) or
+// blank, the kind when it is one of human, ai, si, and null for anything else,
+// null included (the caller answers 400). Only a real string counts: an
+// object, array, or number is null.
 function accountKindFrom(value) {
-  if (value == null || value === "") return "human";
-  const k = String(value).trim().toLowerCase();
+  if (value === undefined) return "human";
+  if (typeof value !== "string") return null;
+  const k = value.trim().toLowerCase();
+  if (!k) return "human";
   return ACCOUNT_KINDS.indexOf(k) >= 0 ? k : null;
 }
 
+// Stored kind. No account, or a legacy account with no kind field: human.
+// Any stored value that is not human, ai, or si ("agent", "", null, 7, an
+// object): ai, so the self-lock and the pauses apply.
 function kindOf(acc) {
-  const k = acc && acc.kind ? accountKindFrom(acc.kind) : "human";
-  return k || "human";
+  if (!acc || acc.kind === undefined) return "human";
+  const k = typeof acc.kind === "string" ? acc.kind.trim().toLowerCase() : "";
+  return ACCOUNT_KINDS.indexOf(k) >= 0 ? k : "ai";
 }
 
 // Who did it, as a kind. Desk AI seats are "ai". Otherwise the kind of the
@@ -149,15 +166,22 @@ function stampWho(person, row, acc, fallback) {
 function needsPause(kind, automation, actionType) {
   const k = accountKindFrom(kind) || "ai";
   if (k !== "ai" && k !== "si") return false;
-  const key = PAUSE_STEPS[String(actionType || "").toLowerCase()];
+  const key = PAUSE_STEPS[str(actionType).toLowerCase()];
   if (!key) return false;
   const sb = automation && automation.stopBefore;
   return !(sb && sb[key] === false);
 }
 
+// Only object entries count; null or other junk in stored history is skipped.
 function historyOf(acc) {
   if (!Array.isArray(acc.history)) acc.history = [];
+  acc.history = acc.history.filter((h) => h && typeof h === "object" && !Array.isArray(h));
   return acc.history;
+}
+
+// Read-only view of history for GET: never writes the account.
+function historyView(acc) {
+  return (Array.isArray(acc.history) ? acc.history : []).filter((h) => h && typeof h === "object" && !Array.isArray(h));
 }
 
 function addHistory(acc, person, section, what, whoKind) {
@@ -316,7 +340,7 @@ function settingsReply(acc, person) {
       automations: automationSection(acc),
       look: { available: true, theme: THEMES.indexOf(s.look.theme) >= 0 ? s.look.theme : "system", themes: THEMES.slice() },
       secrets: { available: !!secretKey(), items: publicSecrets(acc), max: SECRET_MAX },
-      history: historyOf(acc).slice(0, HISTORY_SHOW).map((h) => Object.assign({ at: h.at, who: h.who, section: h.section, what: h.what }, h.whoKind ? { whoKind: h.whoKind } : {}))
+      history: historyView(acc).slice(0, HISTORY_SHOW).map((h) => Object.assign({ at: h.at, who: h.who, section: h.section, what: h.what }, h.whoKind ? { whoKind: h.whoKind } : {}))
     }
   };
 }
@@ -335,12 +359,20 @@ function touchesStopKill(set) {
   return top || nested;
 }
 
+const KIND_CLEAR = "A kind can't be cleared. Pick human, ai, or si. Nothing changed.";
 function applyProfile(acc, set, opts) {
   const bad = onlyKeys(set, Object.keys(PROFILE_LIMITS).concat(["kind"]));
   if (bad) return { ok: false, status: 400, error: "Not a profile field: " + plain(bad.join(", "), 80) };
-  // kind: human, ai, or si. Checked before anything changes.
-  const wantKind = set.kind == null ? null : accountKindFrom(set.kind === "" ? "?" : set.kind);
-  if (set.kind != null && !wantKind) return { ok: false, status: 400, error: "Pick human, ai, or si." };
+  // kind: human, ai, or si. Checked before anything changes. A kind key that
+  // is null, undefined, or blank would clear the stored kind (and a cleared
+  // kind reads as human), so it is refused: nobody clears a kind.
+  let wantKind = null;
+  if (Object.prototype.hasOwnProperty.call(set, "kind")) {
+    const v = set.kind;
+    if (v === undefined || v === null || (typeof v === "string" && !v.trim())) return { ok: false, status: 400, error: KIND_CLEAR };
+    wantKind = typeof v === "string" ? accountKindFrom(v) : null;
+    if (!wantKind) return { ok: false, status: 400, error: "Pick human, ai, or si." };
+  }
   if (wantKind && wantKind !== kindOf(acc) && selfLocked(acc) && !(opts && opts.byHumanOwner)) {
     return { ok: false, status: 403, error: SELF_LOCK, record: "Refused: this " + kindOf(acc) + " account tried to change its own kind to " + wantKind + ". Nothing changed." };
   }
@@ -355,7 +387,8 @@ function applyProfile(acc, set, opts) {
   });
   if (set.email != null) {
     const accMod = require("./_account");
-    const e = String(set.email).trim().toLowerCase();
+    if (typeof set.email !== "string") return { ok: false, status: 400, error: "That email does not look right." };
+    const e = set.email.trim().toLowerCase();
     if (e && !accMod.looksLikeEmail(e)) return { ok: false, status: 400, error: "That email does not look right." };
     if (e && accMod.emailTaken(e, acc.id)) return { ok: false, status: 409, error: "That email is already on another AIA account." };
     if ((acc.email || "") !== e) { acc.email = e; changed.push("email"); }
@@ -370,7 +403,7 @@ function applyProfile(acc, set, opts) {
 function applyTalk(acc, set) {
   const bad = onlyKeys(set, ["reach"]);
   if (bad) return { ok: false, status: 400, error: "Not a talk field: " + plain(bad.join(", "), 80) };
-  const reach = String(set.reach || "").toLowerCase();
+  const reach = str(set.reach).toLowerCase();
   if (REACH.indexOf(reach) < 0) return { ok: false, status: 400, error: "Pick call, text, or email." };
   acc.reach = reach;
   return { ok: true, what: "AIA reaches you by " + reach + "." };
@@ -379,7 +412,7 @@ function applyTalk(acc, set) {
 function applyLook(acc, set) {
   const bad = onlyKeys(set, ["theme"]);
   if (bad) return { ok: false, status: 400, error: "Not a look field: " + plain(bad.join(", "), 80) };
-  const theme = String(set.theme || "").toLowerCase();
+  const theme = str(set.theme).toLowerCase();
   if (THEMES.indexOf(theme) < 0) return { ok: false, status: 400, error: "Pick system, light, or dark." };
   settingsOf(acc).look.theme = theme;
   return { ok: true, what: "Look set to " + theme + "." };
@@ -388,9 +421,9 @@ function applyLook(acc, set) {
 // desks: where to look. The account's own desks unless the human owner's
 // forSeat path passes its own desk.
 function findAutomation(acc, set, desks) {
-  const slug = lib.slugify(set.desk || "");
-  const kind = String(set.kind || "").toLowerCase();
-  const id = String(set.id || "").slice(0, 80);
+  const slug = lib.slugify(str(set.desk));
+  const kind = str(set.kind).toLowerCase();
+  const id = str(set.id).slice(0, 80);
   const row = (desks || ownedDesks(acc)).find((w) => w.slug === slug);
   if (!row) return { ok: false, status: 404, error: "Not one of your desks." };
   const hit = automationsOf(row).find((a) => a.kind === kind && a.id === id);
@@ -401,10 +434,23 @@ function findAutomation(acc, set, desks) {
 // One step an automation wants to take. Never does the step: run-on-its-own is
 // not here yet. AI and SI accounts pause before spend, delete, message-new
 // unless this automation's stop-before is off. Spend is still held by Collect
-// HOLD for every kind. Stop and Kill always go through.
-function automationStep(acc, body) {
-  const step = String(body.step || "").toLowerCase();
-  if (ALWAYS_STEPS.indexOf(step) >= 0) return { ok: true, status: 200, step, paused: false, done: false, reply: "Stop and Kill always work." };
+// HOLD for every kind. Stop and Kill always go through on the actor's own
+// desk: the desk its seat is on (the default when no desk is named) or a desk
+// its account owns. Any other desk is refused and nothing is written.
+function onOwnDesk(acc, body, seatRow) {
+  const named = body.desk != null && body.desk !== "";
+  const slug = named ? lib.slugify(str(body.desk)) : (seatRow && seatRow.slug) || "";
+  if (!slug) return false;
+  if (seatRow && slug === seatRow.slug) return true;
+  return ownedDesks(acc).some((w) => w.slug === slug);
+}
+
+function automationStep(acc, body, seatRow) {
+  const step = str(body.step).toLowerCase();
+  if (ALWAYS_STEPS.indexOf(step) >= 0) {
+    if (!onOwnDesk(acc, body, seatRow)) return { ok: false, status: 403, error: "Stop and Kill work on your own desk only. Nothing was done." };
+    return { ok: true, status: 200, step, paused: false, done: false, reply: "Stop and Kill always work." };
+  }
   if (!PAUSE_STEPS[step]) return { ok: false, status: 400, error: "Pick spend, delete, or message-new." };
   const found = findAutomation(acc, body);
   if (!found.ok) return found;
@@ -466,12 +512,19 @@ function applyAutomation(acc, set, opts) {
 
 // The human owner acting for an AI or SI seat on their own desk: the owner
 // seat (lib.isOwner) of the desk the seat sits on, whose own account is human.
-// forSeat names that seat's id on this desk. Only kind and stop-before.
+// forSeat names that seat's exact id on this desk, and the seat must be
+// accepted (status "approved"); a waiting or denied seat is refused. Only
+// stop-before, only on this desk. Kind is account-wide, so forSeat never
+// changes it.
+const FOR_SEAT_KIND = "Kind is account-wide, so it can't be changed for a seat from one desk. Nothing changed.";
 function humanOwnerTarget(seat, body) {
   const no = { ok: false, status: 403, error: "Only the human owner of this desk can change this for an AI or SI seat." };
   if (!lib.isOwner(seat.person) || kindOf(seat.account) !== "human") return no;
-  const id = String(body.forSeat || "").slice(0, 80);
-  const p = (seat.row.people || []).find((x) => x && x.id === id && !lib.isOwner(x) && x.accountId);
+  if (typeof body.forSeat !== "string") return { ok: false, status: 400, error: "Name the seat by its id." };
+  const id = body.forSeat.slice(0, 80);
+  const same = (seat.row.people || []).filter((x) => x && x.id === id && !lib.isOwner(x));
+  if (same.some((x) => x.status !== "approved")) return { ok: false, status: 403, error: "That seat is not accepted on your desk. Nothing changed." };
+  const p = same.find((x) => x.accountId);
   const target = p ? (lib.mem.accounts || []).find((a) => a && a.id === p.accountId) : null;
   if (!target || target.id === seat.account.id || !selfLocked(target)) return { ok: false, status: 404, error: "No AI or SI seat like that on this desk." };
   return { ok: true, account: target, seatId: id };
@@ -484,6 +537,10 @@ async function handle(req, res) {
     req.body = body;
   }
   if (!wants(req, body)) return false;
+  // Store guard (#350): while the store is not ready every saving request,
+  // automation-step and Stop/Kill included, is the same 503 store_not_ready,
+  // and nothing runs. No-op on a tree without lib.storeNotReady.
+  if (req.method !== "GET" && typeof lib.storeNotReady === "function" && lib.storeNotReady(res)) return true;
   const seat = ownSeat(req);
   if (!seat.ok) return refuse(res, seat.status, seat.error, seat.pending ? { pending: true } : null), true;
   const acc = seat.account;
@@ -495,11 +552,11 @@ async function handle(req, res) {
     return res.status(200).json(settingsReply(acc, person)), true;
   }
 
-  const action = req.method === "DELETE" ? "secret-remove" : String(body.action || "").toLowerCase();
+  const action = req.method === "DELETE" ? "secret-remove" : str(body.action).toLowerCase();
   if (action === "automation-step") {
     const extra = onlyKeys(body, ["action", "desk", "kind", "id", "step"].concat(ID_FIELDS));
     if (extra) return refuse(res, 400, "Not an automation step field: " + plain(extra.join(", "), 80)), true;
-    const out = automationStep(acc, body);
+    const out = automationStep(acc, body, seat.row);
     if (out.record) {
       addHistory(acc, person, "automations", out.error, whoKind);
       lib.log("Account", (out.paused ? "Paused · " : "Held · ") + out.step, "Hold", seat.row.slug);
@@ -512,7 +569,7 @@ async function handle(req, res) {
   if (action === "secret-set") {
     const extra = onlyKeys(body, ["action", "name", "value"].concat(ID_FIELDS));
     if (extra) return refuse(res, 400, "Not a secret field: " + plain(extra.join(", "), 80)), true;
-    const name = String(body.name || "").trim();
+    const name = str(body.name).trim();
     if (!SECRET_NAME.test(name)) return refuse(res, 400, "Name the secret with letters, numbers, dot, dash, or underscore (40 max)."), true;
     if (typeof body.value !== "string" || !body.value.length) return refuse(res, 400, "Paste the secret value."), true;
     if (body.value.length > SECRET_VALUE_MAX) return refuse(res, 400, "That secret is too long."), true;
@@ -537,7 +594,7 @@ async function handle(req, res) {
 
   if (action === "secret-remove") {
     const q = req.query || {};
-    const name = String((req.method === "DELETE" ? q.secret || q.name : body.name) || "").trim();
+    const name = str(req.method === "DELETE" ? q.secret || q.name : body.name).trim();
     if (!SECRET_NAME.test(name)) return refuse(res, 400, "Name the secret to remove."), true;
     const before = Array.isArray(acc.secrets) ? acc.secrets.length : 0;
     acc.secrets = (acc.secrets || []).filter((s) => s && s.name !== name);
@@ -553,19 +610,26 @@ async function handle(req, res) {
     if (extraF) return refuse(res, 400, "Not a settings field: " + plain(extraF.join(", "), 80)), true;
     const tgt = humanOwnerTarget(seat, body);
     if (!tgt.ok) return refuse(res, tgt.status, tgt.error), true;
-    const secF = String(body.section || "").toLowerCase();
+    const secF = str(body.section).toLowerCase();
     const setF = body.set && typeof body.set === "object" && !Array.isArray(body.set) ? body.set : null;
     if (!setF) return refuse(res, 400, "Send the changes in set."), true;
     if (touchesStopKill(setF)) return refuse(res, 400, "Stop and Kill always work. They cannot be switched off."), true;
     let madeF;
     if (secF === "profile") {
+      // Kind is account-wide: never through forSeat (locked default until AIA decides).
       const badF = onlyKeys(setF, ["kind"]);
-      madeF = badF || setF.kind == null ? { ok: false, status: 400, error: "For an AI or SI seat, only kind can change here." } : applyProfile(tgt.account, setF, { byHumanOwner: true });
+      if (badF || setF.kind == null) madeF = { ok: false, status: 400, error: "For an AI or SI seat, only stop-before can change here." };
+      else {
+        addHistory(tgt.account, person, "profile", "Refused: the owner of " + plain(seat.row.biz || seat.row.name || seat.row.slug, 60) + " tried to change this account's kind for seat " + plain(tgt.seatId, 40) + ". Kind is account-wide. Nothing changed.", whoKind);
+        lib.log("Account", "Refused · owner kind", "Hold", seat.row.slug);
+        await lib.save();
+        madeF = { ok: false, status: 403, error: FOR_SEAT_KIND };
+      }
     } else if (secF === "automations" || secF === "automation") {
       // Resolved on the human owner's own desk (the owner's scope), never the AI's list.
       const ownerDesk = ownedDesks(seat.account).filter((w) => w.slug === seat.row.slug);
-      madeF = lib.slugify(setF.desk || "") !== seat.row.slug || !ownerDesk.length ? { ok: false, status: 403, error: "Only automations on your own desk." } : applyAutomation(tgt.account, setF, { byHumanOwner: true, desks: ownerDesk });
-    } else madeF = { ok: false, status: 400, error: "For an AI or SI seat, pick profile (kind) or automations." };
+      madeF = lib.slugify(str(setF.desk)) !== seat.row.slug || !ownerDesk.length ? { ok: false, status: 403, error: "Only automations on your own desk." } : applyAutomation(tgt.account, setF, { byHumanOwner: true, desks: ownerDesk });
+    } else madeF = { ok: false, status: 400, error: "For an AI or SI seat, pick automations." };
     if (!madeF.ok) return refuse(res, madeF.status || 400, madeF.error), true;
     const secW = secF === "automation" ? "automations" : secF;
     const what = madeF.what.replace(/ on your profile\.$/, " on this account.");
@@ -578,7 +642,7 @@ async function handle(req, res) {
   // action === "settings"
   const extra = onlyKeys(body, ["action", "section", "set"].concat(ID_FIELDS));
   if (extra) return refuse(res, 400, "Not a settings field: " + plain(extra.join(", "), 80)), true;
-  const section = String(body.section || "").toLowerCase();
+  const section = str(body.section).toLowerCase();
   const set = body.set && typeof body.set === "object" && !Array.isArray(body.set) ? body.set : null;
   if (!set) return refuse(res, 400, "Send the changes in set."), true;
   if (touchesStopKill(set)) return refuse(res, 400, "Stop and Kill always work. They cannot be switched off."), true;
