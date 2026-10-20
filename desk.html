@@ -139,7 +139,7 @@
   </header>
   <main class="wrap">
     <h1 class="page-title">Queue</h1>
-    <div class="banner" id="banner">This desk’s work.</div>
+    <div class="banner" id="banner">Taps match what the card needs. Taps match what the card needs. This desk’s work.</div>
     <div class="kpis" aria-hidden="true">
       <div class="kpi"><span>Waiting on a person.</span><b id="k-wait">—</b></div>
       <div class="kpi"><span>Sent</span><b id="k-ship">—</b></div>
@@ -357,9 +357,9 @@
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
-        return "<div id=\"queue-empty\"><p>Open a desk. The queue stays empty until you do.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
+        return "<div id=\"queue-empty\"><p>No desk on this phone yet. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
       }
-      return "<div id=\"queue-empty\"><p>Nothing here yet. Drop or Create a card.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+      return "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
     }
     window.queueEmptyHtml = queueEmptyHtml;
     function card(j, staff) {
@@ -408,7 +408,7 @@
         await api("/api/worker");
         const health = await api("/api/health");
         const store = (health.data && health.data.store) || {};
-        banner.textContent = "This desk’s work.";
+        banner.textContent = "Taps match what the card needs. This desk’s work.";
         const jobs = await api("/api/jobs");
         if (!jobs.data || !Array.isArray(jobs.data.jobs)) {
           JOBS = [];
