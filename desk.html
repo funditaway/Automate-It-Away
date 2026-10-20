@@ -518,7 +518,10 @@
         const data = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file); });
         const up = await api("/api/upload", { method: "POST", body: JSON.stringify({ name: file.name, type: file.type, data }) });
         if (up.status >= 400) { document.getElementById("banner").textContent = (up.data && up.data.error) || "Photo did not save."; return; }
-        item.photoUrl = up.data.photoUrl;
+        const saved = (up.data && up.data.file) || {};
+        // photoUrl is only for a real picture; files[] keeps the name for a PDF or HEIC.
+        if (up.data && up.data.photoUrl && (saved.type ? /^image\/(png|jpeg|gif|webp)$/i.test(String(saved.type)) : /\.(jpe?g|png|gif|webp)$/i.test(String(saved.name || file.name || "")))) item.photoUrl = up.data.photoUrl;
+        if (up.data && Array.isArray(up.data.files) && up.data.files.length) item.files = up.data.files;
       }
       const out = await api("/api/jobs", { method: "POST", body: JSON.stringify(item) });
       document.getElementById("sheet").classList.remove("on");

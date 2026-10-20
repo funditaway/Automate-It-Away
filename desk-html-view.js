@@ -15,21 +15,39 @@
       try { return window.filesOf(j); } catch (e) {}
     }
     var out = [], seen = {};
-    function add(f) {
+    function add(f, legacy) {
       if (!f) return;
       var url = typeof f === "string" ? f : (f.url || "");
       if (!url || seen[url]) return;
       seen[url] = true;
-      var kind = (typeof f === "object" && (f.kind || f.type)) || "";
+      var obj = typeof f === "object";
       out.push({
         url: url,
-        name: (typeof f === "object" && f.name) || (url === (j && j.photoUrl) ? "Photo" : "File"),
-        kind: kind || (url === (j && j.photoUrl) ? "photo" : "file")
+        name: (obj && f.name) || (legacy ? legacyName(url) : "File"),
+        kind: (obj && f.kind) || "",
+        type: (obj && f.type) || ""
       });
     }
-    if (j && j.photoUrl) add({ url: j.photoUrl, name: "Photo", kind: "photo" });
-    (j && Array.isArray(j.files) ? j.files : []).forEach(add);
+    // The real upload record (name, stored type) wins; a bare photoUrl only fills in when no record has that url.
+    (j && Array.isArray(j.files) ? j.files : []).forEach(function (f) { add(f); });
+    if (j && j.photoUrl) {
+      var other = NOT_IMAGE.test(j.photoUrl);
+      add({ url: j.photoUrl, name: other ? "" : "Photo", kind: other ? "file" : "photo" }, true);
+    }
     return out;
+  }
+  // Clearly not a picture: a legacy photoUrl ending like this shows as a named link.
+  var NOT_IMAGE = /\.(pdf|heic|heif|mp4|mov|webm|docx?|txt|csv|xlsx?|pptx?|zip)(\?|#|$)/i;
+  function legacyName(url) {
+    var path = String(url).split(/[?#]/)[0];
+    var last = path.slice(path.lastIndexOf("/") + 1);
+    try { last = decodeURIComponent(last); } catch (e) {}
+    return last || "File";
+  }
+  // Image only for a stored png/jpeg/gif/webp; with no stored type, a photo kind or an image file ending.
+  function isImage(f) {
+    if (f.type) return /^image\/(png|jpeg|gif|webp)$/i.test(f.type);
+    return f.kind === "photo" || /\.(jpg|jpeg|png|gif|webp)(\?|#|$)/i.test(f.url);
   }
   function filesHtml(j) {
     var files = filesOf(j);
@@ -37,8 +55,8 @@
     var bits = files.map(function (f) {
       var href = urlOf(f.url);
       if (!href) return "";
-      var image = /image\//i.test(f.kind) || f.kind === "photo" || /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(f.url);
-      var html = /text\/html/i.test(f.kind) || /\.html?$/i.test(String(f.name || "")) || /\.html?(\?|$)/i.test(f.url || "");
+      var image = isImage(f);
+      var html = /text\/html/i.test(f.type || f.kind) || /\.html?$/i.test(String(f.name || "")) || /\.html?(\?|$)/i.test(f.url || "");
       if (image && !html) return "<img class=\"thumb\" src=\"" + esc(href) + "\" alt=\"\">";
       if (html) {
         return "<div class=\"q-html pack-face\">" +
