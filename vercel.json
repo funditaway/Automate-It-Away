@@ -61,6 +61,7 @@
     { "source": "/api/auth", "destination": "/api/auth" },
     { "source": "/api/worker", "destination": "/api/worker" },
     { "source": "/api/upload", "destination": "/api/upload" },
+    { "source": "/api/migrate-uploads", "destination": "/api/migrate-uploads" },
     { "source": "/api/admin", "destination": "/api/admin" },
     { "source": "/api/account", "destination": "/api/auth?via=account" },
     { "source": "/api/intake", "destination": "/api/intake" },

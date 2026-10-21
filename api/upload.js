@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { cors, mem, log, save, workspaceOf, readBody, blobAllowed, personOf } = require("./_lib");
+const { cors, mem, log, save, workspaceOf, readBody, blobAllowed, personOf, loadIfCold } = require("./_lib");
 
 // Accepted uploads. HTML and SVG are intentionally absent: those types are
 // never stored, even when a client claims a safer type or a safe extension.
@@ -268,6 +268,9 @@ function deny(res, status, error) {
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
+  // Wait only when this process has never loaded the store. ready() would
+  // re-read the blob on a warm instance and replace mem under in-flight uploads.
+  await loadIfCold();
   if (!Array.isArray(mem.files)) mem.files = [];
   if (req.method === "GET") {
     const gate = seatOf(req);
@@ -361,3 +364,13 @@ module.exports = async function handler(req, res) {
   if (first && isPhotoType(first.type)) reply.photoUrl = first.url;
   return res.status(201).json(reply);
 };
+
+// Shared with the one-time old-upload move. POST behavior above is unchanged.
+module.exports.storedType = storedType;
+module.exports.looksLikeMarkup = looksLikeMarkup;
+module.exports.markupClaim = markupClaim;
+module.exports.blobPath = blobPath;
+module.exports.sniffImage = sniffImage;
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);

@@ -361,9 +361,9 @@
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
-        return "<div id=\"queue-empty\"><p>No desk on this phone yet. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
+        return "<div id=\"queue-empty\"><p>Open a desk. The queue stays empty until you do.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
       }
-      return "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card. Queue does not invent Yes / Stop cards.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
+      return "<div id=\"queue-empty\"><p>Nothing here yet. Drop or Create a card.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
     }
     window.queueEmptyHtml = queueEmptyHtml;
     function card(j, staff) {
@@ -393,7 +393,7 @@
       const banner = document.getElementById("banner");
       const filters = document.getElementById("queue-filters");
       if (!workspaceSlug()) {
-        banner.textContent = "Open a desk to see the queue.";
+        banner.textContent = "Open a desk.";
         JOBS = [];
         RULES = [];
         paintNouns(AIADesks.defaultNouns());
@@ -414,6 +414,20 @@
         const store = (health.data && health.data.store) || {};
         banner.textContent = "This desk’s work.";
         const jobs = await api("/api/jobs");
+        if (!jobs.data || !Array.isArray(jobs.data.jobs)) {
+          JOBS = [];
+          RULES = [];
+          banner.textContent = (jobs.data && jobs.data.error) || "Open a desk to see the queue.";
+          paintNouns(AIADesks.defaultNouns());
+          paintRules([]);
+          document.getElementById("k-wait").textContent = "0";
+          document.getElementById("k-ship").textContent = "0";
+          document.getElementById("queue").innerHTML = "<div id=\"queue-empty\"><p>" + esc(banner.textContent) + "</p></div>";
+          document.getElementById("recent-label").hidden = true;
+          document.getElementById("recent").innerHTML = "";
+          showConsignNav();
+          return;
+        }
         JOBS = jobs.data.jobs || [];
         FIELDS = jobs.data.fields || FIELDS;
         if (jobs.data.you && jobs.data.you.role) {
@@ -550,3 +564,4 @@
   </script>
 <script src="/mark-fix.js"></script></body>
 </html>
+
