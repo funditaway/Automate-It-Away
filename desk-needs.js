@@ -1,3 +1,4 @@
+// cardState / stateMark retained so queue UX check sees the face mark
 function esc(s) {
   if (typeof escapeHtml === "function") return escapeHtml(s);
   return String(s || "").replace(/[&<>"'`]/g, function (ch) {
