@@ -223,6 +223,8 @@ Account leftover after that pass: API already had sessions / export / logout / l
 
 Desks book leftover: after Account / mail / Desk AIs send the saved pin with leftover session, `/desks` still skipped `X-Pin` when a leftover session token was present (`desks-book.js` sent X-Session and skipped X-Pin). Mine 401’d and stayed on Sign in to see every desk. Mail on the same page was already open. The book now sends the saved pin with the session. Wrong code still 401. Collect HOLD. No silent send.
 
+Member desk leftover: Desks Leave / Ask UI had no `/api/desks` handlers. Members now leave and ask, owners write instructions, members use / drop / operate per those instructions. Last owner cannot leave. Stop / money stay owner. Collect HOLD. No silent send.
+
 Desks book leftover after blob: pin-with-session mine 200 in curl did not paint `/desks` owned desks. Blob `get` used `access: "private"` and 403’d on a Public store, so hydrate never left Lambda `/tmp`. Get retries public on 403; `ready()` re-reads uncached. Wrong or empty pin still 401. Collect HOLD. No silent send. No new Lambda.
 
 Desks book leftover after blob 403 still: live REST GET 404’d (empty) but PUT failed `[object Object]` / missing store id. REST put matches the SDK (`vercel.com/api/blob/?pathname=` + `x-vercel-blob-store-id`), Buffer body, sealed. Health `blob.stamp=write-v1` + `blob.rev`. Wrong pin 401. Collect HOLD.

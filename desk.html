@@ -198,6 +198,8 @@
     const wsEl = document.getElementById("ws");
     const pinEl = document.getElementById("pin");
     let role = localStorage.getItem("aia_role") || "";
+    let seatKind = localStorage.getItem("aia_kind") || role || "";
+    let deskInstructions = "";
     let youName = localStorage.getItem("aia_name") || "";
     let JOBS = [];
     let FIELDS = [];
@@ -253,7 +255,9 @@
       document.getElementById("gate").hidden = on;
       document.getElementById("session").hidden = !on;
       const shop = deskLabel();
-      document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + shop + (role === "employee" ? " · helper" : role === "owner" ? " · owner" : "");
+      const seat = seatKind || role || "";
+      const seatLabel = seat === "owner" ? "owner" : seat === "employee" ? "helper" : (seat || "");
+      document.getElementById("who-line").textContent = (youName ? youName + " · " : "") + shop + (seatLabel ? " · " + seatLabel : "");
       document.getElementById("desk-switch").hidden = on;
       if (!on) paintSwitch();
       wireDrop();
@@ -426,19 +430,35 @@
         }
         JOBS = jobs.data.jobs || [];
         FIELDS = jobs.data.fields || FIELDS;
-        if (jobs.data.you && jobs.data.you.role) { role = jobs.data.you.role; youName = jobs.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
+        if (jobs.data.you && jobs.data.you.role) {
+          role = jobs.data.you.role;
+          seatKind = jobs.data.you.kind || jobs.data.you.role || seatKind;
+          youName = jobs.data.you.name || youName;
+          localStorage.setItem("aia_role", role);
+          if (seatKind) localStorage.setItem("aia_kind", seatKind);
+          if (youName) localStorage.setItem("aia_name", youName);
+        }
+        if (jobs.data.desk && jobs.data.desk.instructions != null) deskInstructions = String(jobs.data.desk.instructions || "").trim();
         if (window.AIADeskAis) {
           if (Array.isArray(jobs.data.ais) && jobs.data.ais.length) window.AIADeskAis.rows = jobs.data.ais.slice();
           const you = jobs.data.you || {};
           if (you.role === "owner" || you.kind === "owner" || role === "owner") window.AIADeskAis.owner = true;
         }
         const auth = await api("/api/auth");
-        if (auth.data && auth.data.you && auth.data.you.role) { role = auth.data.you.role; youName = auth.data.you.name || youName; localStorage.setItem("aia_role", role); if (youName) localStorage.setItem("aia_name", youName); }
+        if (auth.data && auth.data.you && auth.data.you.role) {
+          role = auth.data.you.role;
+          seatKind = auth.data.you.kind || auth.data.you.role || seatKind;
+          youName = auth.data.you.name || youName;
+          localStorage.setItem("aia_role", role);
+          if (seatKind) localStorage.setItem("aia_kind", seatKind);
+          if (youName) localStorage.setItem("aia_name", youName);
+        }
         if (jobs.data && jobs.data.nouns) NOUNS = AIADesks.nounsOf(jobs.data.nouns);
         if (auth.data && auth.data.workspace) {
           const w = auth.data.workspace;
           if (w.biz || w.name) localStorage.setItem("aia_desk_name", w.biz || w.name);
           if (w.model) localStorage.setItem("aia_model", w.model);
+          if (w.instructions != null) deskInstructions = String(w.instructions || "").trim();
           if (w.nouns) NOUNS = AIADesks.nounsOf(w.nouns);
           keepDesk(w);
           showConsignNav(w.model);
@@ -449,6 +469,13 @@
         paintNouns(NOUNS);
         paintRules(RULES);
         paintGate();
+        if (deskInstructions && role !== "owner" && seatKind !== "owner") {
+          banner.textContent = "Owner instructions — " + deskInstructions;
+        } else if (deskInstructions && (role === "owner" || seatKind === "owner")) {
+          banner.textContent = "This desk’s work. Members see your instructions.";
+        } else {
+          banner.textContent = "This desk’s work.";
+        }
       } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintNouns(AIADesks.defaultNouns()); paintRules([]); showConsignNav(); }
       const waiting = JOBS.filter(j => j.status === "exception");
       const ready = JOBS.filter(j => j.status === "waiting");
