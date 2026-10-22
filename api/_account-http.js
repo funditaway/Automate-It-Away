@@ -70,8 +70,10 @@ function safePerson(person) {
   };
 }
 
-function safeDesk(row) {
+// acc: the proven account exporting. A desk it does not own shows other seats as name and role only.
+function safeDesk(row, acc) {
   if (!row) return null;
+  const owns = !!(acc && (row.accountId === acc.id || (acc.desks || []).indexOf(row.slug) >= 0));
   return {
     slug: row.slug,
     name: row.name || "",
@@ -85,7 +87,8 @@ function safeDesk(row) {
     visibility: row.visibility || (row.listed ? "public" : "private"),
     nouns: lib.ensureNouns(row),
     rules: lib.ensureRules(row),
-    people: (row.people || []).map(safePerson).filter(Boolean)
+    people: owns ? (row.people || []).map(safePerson).filter(Boolean)
+      : lib.seatsFor((row.people || []).find((p) => p && acc && p.accountId && p.accountId === acc.id) || null, row.people, safePerson, acc && acc.id).filter(Boolean)
   };
 }
 
@@ -95,7 +98,7 @@ function accountExport(acc, current, currentToken) {
     format: "aia.account.v1",
     exportedAt: new Date().toISOString(),
     account: safeAccount(acc),
-    desks: slugs.map((slug) => safeDesk((mem.workspaces || []).find((w) => w && w.slug === slug))).filter(Boolean),
+    desks: slugs.map((slug) => safeDesk((mem.workspaces || []).find((w) => w && w.slug === slug), acc)).filter(Boolean),
     approvals: (mem.approvals || []).filter((a) => a && slugs.indexOf(a.slug) >= 0).map((a) => Object.assign({}, a)),
     sessions: typeof lib.listSessions === "function" ? lib.listSessions({ accountId: acc && acc.id, currentToken }) : []
   };

@@ -1,5 +1,5 @@
 const {
-  cors, mem, ready, save, workspaceOf, personOf, isOwner, ensureRules, readBody, slugify, publicPerson
+  cors, mem, ready, save, workspaceOf, personOf, isOwner, ensureRules, readBody, slugify, publicPerson, viewSeat
 } = require("./_lib");
 const { adminPinOk, jobCounts } = require("./_desk");
 const {
@@ -152,8 +152,9 @@ function personBook(hint, opts) {
   }).sort((a, b) => String(b.lastSeen || "").localeCompare(String(a.lastSeen || "")));
   return {
     ok: true,
-    person: Object.assign({}, publicPerson(first) || {}, { phone: first.phone || "", desks: seats.length }),
-    viewer: publicPerson(viewer),
+    // Not the owner and not their own seat: name and role only (no email, account, or phone).
+    person: Object.assign({}, viewSeat(publicPerson(first), first, viewer) || {}, { phone: isOwner(viewer) || (viewer && viewer.id === first.id) ? first.phone || "" : "", desks: seats.length }),
+    viewer: viewSeat(publicPerson(viewer), viewer, viewer),
     slugs,
     allowedSlugs: slugs,
     currentSlug,
@@ -233,7 +234,8 @@ module.exports = async function handler(req, res) {
       return res.status(book.ok ? 200 : (book.status || 404)).json(book);
     }
     const owner = isOwner(person);
-    const snap = accountSnapshot(row, person);
+    const ownAcc = homeAccount(person, row, req);
+    const snap = accountSnapshot(row, person, ownAcc && ownAcc.id);
     return res.status(200).json({ ok: true, you: snap.you, account: snap.account, plan: snap.plan, plans: publicPlans(), shop: snap.shop, counts: jobCounts(row.slug), people: snap.people, approvals: owner ? snap.approvals : [], perms: snap.perms, agents: snap.agents, kinds: snap.kinds, levels: snap.levels, hardOwner: snap.hardOwner, rules: ensureRules(row), tickets: ticketsOf(row.slug), audit: owner ? (mem.audit || []).filter((a) => !a.workspace || a.workspace === row.slug).slice(0, 40) : null, money: owner ? (mem.money || []).filter((m) => !m.workspace || m.workspace === row.slug).slice(0, 40) : null });
   }
 
@@ -326,7 +328,9 @@ module.exports = async function handler(req, res) {
   if (action === "mine") {
     const fn = mineFn();
     const mine = fn(plans.listHint(person, homeAccount(person, row, req), row.slug));
-    return res.status(200).json({ ok: true, plan: publicPlan(accountForDesk(row)), you: person, owned: mine.owned, member: mine.member });
+    const ownAcc = homeAccount(person, row, req);
+    // Never the raw seat row (pin hash, thread, a typed accountId): the public seat, trimmed for non-owners.
+    return res.status(200).json({ ok: true, plan: publicPlan(accountForDesk(row)), you: viewSeat(publicPerson(person), person, person, ownAcc && ownAcc.id), owned: mine.owned, member: mine.member });
   }
 
   if (!isOwner(person)) return res.status(403).json({ ok: false, error: "Owner desk code required." });

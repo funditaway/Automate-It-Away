@@ -108,7 +108,7 @@ module.exports = async function handler(req, res) {
       fields: ensureFields(shop),
       rules,
       nouns: shop ? ensureNouns(shop) : defaultNouns(),
-      people: shop ? (shop.people || []).map(publicPerson) : [],
+      people: shop ? require("./_lib").seatsFor(person, shop.people, publicPerson) : [],
       ais: rails.ais,
       aiRails: rails.rails,
       never: rails.never,
