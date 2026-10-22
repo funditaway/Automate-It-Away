@@ -237,6 +237,7 @@ function logDesk(action, row, person, extra) {
     slug: row && row.slug,
     name: row && (row.biz || row.name || row.slug),
     by: (person && person.name) || "desk",
+    whoKind: require("./_account-settings").actorKind(person, row),
     role: (person && person.role) || "",
     extra: extra && typeof extra === "object" ? extra : null
   };

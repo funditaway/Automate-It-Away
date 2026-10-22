@@ -341,6 +341,7 @@ module.exports = async function handler(req, res) {
 
     const slug = slugify(body.slug || body.biz || body.name || "");
     if (!slug) return res.status(400).json({ error: "Name your desk." });
+    if (!require("./_account-settings").accountKindFrom(body.accountKind)) return res.status(400).json({ error: "Account kind must be human, ai, or si." });
     if (!body.pin || String(body.pin).length < 4) {
       return res.status(400).json({ error: "Pick a desk code with at least 4 digits." });
     }
@@ -375,7 +376,7 @@ module.exports = async function handler(req, res) {
         ok: true,
         savedLogin: true,
         session,
-        account: { id: acc.id, name: acc.name, ownerName: acc.ownerName },
+        account: { id: acc.id, name: acc.name, ownerName: acc.ownerName, kind: require("./_account-settings").kindOf(acc) },
         plan: publicPlan(acc),
         workspace: publicWorkspace(row),
         you: publicPerson(owner),
