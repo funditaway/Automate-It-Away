@@ -465,6 +465,54 @@ async function main() {
   const lv = await call(auth, "POST", { "x-workspace": A, "x-session": lynTok }, { action: "leave" }, { action: "leave" }, "/api/desks?action=leave");
   ok(lv.statusCode === 200 && !wsA.people.some((p) => p && p.id === lyn.id), "[325 leave legacy-seat] Lyn leaves her own helper seat (" + lv.statusCode + ")");
   ok(JSON.stringify(annAcc.desks || []) === annDesksBefore && ownerOn(annTok, A) && ownerOn(annTok, D) && lib.isOwner(annSeat) && wsA.people.indexOf(annSeat) >= 0, "[325 leave legacy-seat] Ann's account, owner seat and desks are untouched");
+
+  // ---- 10. A desk code matches only on its own desk. One salt hashes every desk's codes, so two
+  // owners who picked the same code (Ann and Cal: 1111), or a helper whose code is another desk's
+  // owner code (Pat: 2222 = Bea's), share a hash. Neither lists the other desk.
+  const C = "soa-cal";
+  await tick();
+  const calTok = await open(C, "Cal", "1111", "cal@x.test");
+  await call(auth, "POST", ownerHdr, { action: "invite", name: "Pat", kind: "helper", pin: "2222" });
+  await tick();
+  const patTok = (await login(A, "2222")).tok;
+  const srt = (a) => JSON.stringify(a.slice().sort());
+  const cmn = await mine({ "x-workspace": C, "x-session": calTok });
+  ok(cmn.status === 200 && srt(cmn.owned) === srt([C]) && cmn.member.length === 0, "[pin-collision mine] Cal (same desk code as Ann) owns only his desk C (owned " + JSON.stringify(cmn.owned) + ", member " + JSON.stringify(cmn.member) + ")");
+  const amn = await mine({ "x-workspace": A, "x-session": annTok });
+  ok(amn.status === 200 && srt(amn.owned) === srt([A, D]) && amn.owned.indexOf(C) < 0, "[pin-collision mine] Ann still owns exactly A and D, not Cal's C (owned " + JSON.stringify(amn.owned) + ")");
+  const pmn = await mine({ "x-workspace": A, "x-session": patTok });
+  ok(pmn.status === 200 && pmn.owned.length === 0 && srt(pmn.member) === srt([A]), "[pin-collision mine] helper Pat (code = Bea's owner code) owns nothing, member of A only (owned " + JSON.stringify(pmn.owned) + ", member " + JSON.stringify(pmn.member) + ")");
+  const pmx = await mine({ "x-workspace": A, "x-pin": "2222" });
+  ok(pmx.status === 200 && pmx.owned.indexOf(B) < 0 && pmx.member.indexOf(B) < 0, "[pin-collision mine x-pin] Pat's code alone never lists Bea's desk B (owned " + JSON.stringify(pmx.owned) + ")");
+  const cmx = await mine({ "x-workspace": C, "x-pin": "1111" });
+  ok(cmx.status === 200 && srt(cmx.owned) === srt([C]), "[pin-collision mine x-pin] Cal's code on C lists only C (owned " + JSON.stringify(cmx.owned) + ")");
+  const ch = await homeOwned({ "x-workspace": C, "x-session": calTok });
+  ok(srt(ch) === srt([C]), "[pin-collision account home] Cal's /api/account desksOwned is only C (got " + JSON.stringify(ch) + ")");
+  const ah2 = await homeOwned({ "x-workspace": A, "x-session": annTok });
+  ok(srt(ah2) === srt([A, D]), "[pin-collision account home] Ann's /api/account desksOwned is still exactly A and D (got " + JSON.stringify(ah2) + ")");
+  const ownC = await homeOwned({ "x-workspace": A, "x-pin": "1111" });
+  ok(ownC.indexOf(C) < 0, "[pin-collision account home x-pin] Ann's code on A never lists Cal's C (got " + JSON.stringify(ownC) + ")");
+
+  // ---- 11. A seat holding one account while its sign-in proved a different one matches neither:
+  // not the seat's stored account, not the proven one (listHint's ownAcc needs them to agree).
+  const plans = require(path.join(root, "api/_plans"));
+  lib.mem.accounts.push({ id: "acct_soa_vy", name: "Vic", ownerName: "Vic", email: "vic@x.test", desks: [], memberDesks: [G], plan: "pro" });
+  const vy = lib.mem.accounts.find((a) => a.id === "acct_soa_vy");
+  wsG.people.push({ id: "p_soa_vic_g", name: "Vic", role: "employee", kind: "helper", accountId: "acct_soa_vy", email: "", pin: lib.hashPin("3838"), status: "approved" });
+  const vic = { id: "p_soa_vic", name: "Vic", role: "employee", kind: "helper", accountId: acctB, email: "vic@x.test", pin: lib.hashPin("3737"), status: "approved", createdAt: new Date().toISOString() };
+  wsA.people.push(vic);
+  const vh = plans.listHint(vic, vy, A);
+  ok(vh.accountId === "", "[mismatch hint] a seat holding Bea's account with a sign-in that proved Vic's account carries no account in its hint (got '" + vh.accountId + "')");
+  const vl = plans.desksForPerson(vh);
+  ok(vl.owned.length === 0 && vl.member.map((c) => c.slug).indexOf(G) < 0 && vl.member.map((c) => c.slug).indexOf(B) < 0, "[mismatch hint] it lists neither Vic's desk G nor Bea's B (owned " + JSON.stringify(vl.owned.map((c) => c.slug)) + ")");
+  const vicTok = lib.issueSession(vic, wsA, vy, null, "password").token;
+  const vm = await mine({ "x-workspace": A, "x-session": vicTok });
+  ok(vm.status === 200 && vm.owned.length === 0 && vm.member.indexOf(G) < 0 && vm.member.indexOf(B) < 0, "[mismatch mine] Vic's session lists neither G nor B (owned " + JSON.stringify(vm.owned) + ", member " + JSON.stringify(vm.member) + ")");
+  // A hint with no desk matches no seat id and no desk code anywhere (seat ids and codes are per desk).
+  const bare = plans.desksForPerson({ id: "p_owner", pin: lib.hashPin("1111") });
+  ok(bare.owned.length === 0 && bare.member.length === 0, "[no-desk hint] 'p_owner' plus a shared code with no desk lists nothing (owned " + JSON.stringify(bare.owned.map((c) => c.slug)) + ")");
+  const ma = plans.listHint(Object.assign({}, vic, { accountId: "" }), vy, A);
+  ok(ma.accountId === "acct_soa_vy", "[mismatch hint, positive] the same seat with no stored account keeps the account its sign-in proved");
 }
 
 main().then(() => {
