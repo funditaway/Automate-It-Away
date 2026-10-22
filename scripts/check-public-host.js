@@ -1,3 +1,4 @@
+require("./_env-guard");
 // G28 check: links, callbacks and notes AIA generates point at the live site
 // (www.automateitaway.com / automateitaway.com) on production only.
 // Off production (preview, development, unset, wrong-case "Production") they use
@@ -157,6 +158,7 @@ function e2e(envName) {
   const env = Object.assign({}, process.env, { AIA_STORE_PATH: store });
   ["VERCEL_ENV", "VERCEL_URL", "VERCEL_OIDC_TOKEN", "BLOB_READ_WRITE_TOKEN", "BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN", "BLOB_READ_WRITE_TOKEN_STORE_ID", "BLOB_STORE_ID", "AIA_BLOB_TOKEN"].forEach((k) => delete env[k]);
   if (envName) env.VERCEL_ENV = envName;
+  env.AIA_CHECK_PARENT = String(process.pid);
   if (envName === "preview") env.VERCEL_URL = DEPLOY_URL;
   const r = spawnSync(process.execPath, [__filename, "--e2e-child"], { env, encoding: "utf8", timeout: 60000 });
   try { fs.unlinkSync(store); } catch (e) {}
