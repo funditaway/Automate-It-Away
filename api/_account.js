@@ -421,6 +421,18 @@ function requestSeat(row, body, req) {
   const account = proven && (!typed || typed.id === proven.id) ? proven : null;
   return inviteSeat(row, Object.assign({}, body, { approve: false, status: "pending" }), { name: "request", role: "employee" }, { account });
 }
+// Deny and remove never turn off the desk's owner seat (p_owner or its first owner seat) or the
+// requester's own seat. Callers refuse before any write. Helper seats stay deniable.
+const OWNER_SEAT_OFF = "You can't turn off the owner seat.";
+function seatOffRefused(row, id, actor) {
+  const people = (row && row.people) || [];
+  const seat = people.find((p) => p && p.id === id);
+  if (!seat) return null;
+  const ownerSeat = people.find((p) => p && lib.isOwner(p));
+  const own = !!(actor && actor.id) && seat.id === actor.id;
+  if (seat.id === "p_owner" || seat === ownerSeat || own) return { ok: false, status: 409, error: OWNER_SEAT_OFF };
+  return null;
+}
 function setSeatStatus(row, id, next, actor) {
   if (!row) return { ok: false, status: 404, error: "No desk." };
   const seat = (row.people || []).find((p) => p && p.id === id);
@@ -437,7 +449,7 @@ function accountSnapshot(row, person) {
 module.exports = {
   needsSignIn, signInAgain,
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
-  requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
+  requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot, seatOffRefused,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
   findAccount, findAccountByEmail, connectDesk, disconnectDesk, leaveSeat, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
   setAccountPassword, applyAccountDetails, emailTaken,
