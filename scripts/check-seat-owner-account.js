@@ -466,6 +466,12 @@ async function main() {
     const hh = await homeOwned(hd);
     ok(hh.length === 0, "[325 account home helper " + tag + "] a helper's /api/account desksOwned lists none of Ann's desks (got " + JSON.stringify(hh) + ")");
   }
+  // Since #370's sign-in-again 403, GET /api/account stops Lyn's code and session before any desk list
+  // is built. POST /api/account login with her desk code still builds a home for her seat (a member
+  // login): it must list none of Ann's desks either.
+  const lynLogin = await call(acch, "POST", {}, { action: "login", slug: A, pin: "3535" }, {}, "/api/account");
+  const lynLoginOwned = ((lynLogin.body && lynLogin.body.desksOwned) || []).map((c) => c.slug);
+  ok(lynLogin.statusCode === 200 && lynLoginOwned.length === 0, "[325 account home helper Lyn login by desk code] the member login's home lists none of Ann's desks (" + lynLogin.statusCode + " owned " + JSON.stringify(lynLoginOwned) + ")");
   // POST /api/admin "mine" uses the same hint as /api/desks mine: the seat's own id on this desk,
   // and only the account its own sign-in proved. A helper with no proven account is still a member
   // of the desk she sits on; a seat holding Ann's account owns none of Ann's desks.
