@@ -1799,6 +1799,11 @@ function ownerSeatOf(ws) {
 }
 
 function sessionOwnerPerson(session, ws) {
+  // A denied or waiting owner seat proves nothing: its account's session is not the owner here.
+  const people = (ws && ws.people) || [];
+  const shut = session && session.accountId
+    ? people.find((p) => p && seatLooksOwner(p) && !seatOpen(p) && p.accountId === session.accountId) : null;
+  if (shut) return shut;
   const seated = ownerSeatOf(ws);
   if (seated) return seated;
   return {
@@ -1843,8 +1848,9 @@ function personOf(req, workspaceSlug) {
     // On any other desk it only counts where this session's account holds its own open seat
     // (seat.accountId). Never by seat id, email, or "owner session" alone: those are not proof here.
     const ownDesk = !!session.workspace && session.workspace === ws.slug;
-    let person = null;
-    if (ownDesk) {
+    // A denied or waiting seat proves nothing: its own session never falls through to another seat.
+    let person = ownDesk && session.personId ? (people.find((p) => p && p.id === session.personId && !seatOpen(p)) || null) : null;
+    if (ownDesk && !person) {
       person = people.find((p) => seatOpen(p) && session.personId && p.id === session.personId) || null;
       if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
     }
