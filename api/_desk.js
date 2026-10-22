@@ -109,9 +109,9 @@ function publicDesk(row, person) {
     instructions: String(row.instructions || "").trim().slice(0, 400),
     closed: deskClosed(row),
     createdAt: row.createdAt || null,
-    people: (owner || explore) ? (row.people || []).map(perms.publicPerson) : (row.people || []).length,
+    people: (owner || explore) ? lib.seatsFor(person, row.people, perms.publicPerson) : (row.people || []).length,
     peopleCount: (row.people || []).length,
-    you: perms.publicPerson(person),
+    you: lib.viewSeat(perms.publicPerson(person), person, person),
     role: person ? person.role : null,
     waiting: counts.waiting,
     held: counts.held,
@@ -189,7 +189,8 @@ function setDeskCode(row, nextPin) {
   return { ok: true };
 }
 
-function exportDesk(row) {
+// person: the seat exporting. Not the owner: other seats are name and role only.
+function exportDesk(row, person) {
   if (!row) return null;
   const slug = row.slug;
   const jobs = (mem().jobs || []).filter((j) => j && j.workspace === slug);
@@ -208,7 +209,7 @@ function exportDesk(row) {
     perms: deskPerms(row),
     nouns: lib.ensureNouns(row),
     rules: lib.ensureRules(row),
-    people: (row.people || []).map(perms.publicPerson),
+    people: lib.seatsFor(person, row.people, perms.publicPerson),
     counts: jobCounts(slug),
     jobs: jobs.map((j) => ({
       id: j.id,
@@ -263,7 +264,7 @@ function exploreDesk(row, person) {
     perms: deskPerms(row),
     nouns: lib.ensureNouns(row),
     rules: lib.ensureRules(row),
-    people: (row.people || []).map(perms.publicPerson),
+    people: lib.seatsFor(person, row.people, perms.publicPerson),
     events: deskEventsOf(slug, 25),
     audit: (mem().audit || []).filter((a) => a && (!a.workspace || a.workspace === slug)).slice(0, 25),
     recent: jobs.slice(0, 8).map((j) => ({

@@ -120,7 +120,7 @@ module.exports = async function handler(req, res) {
     const aia = (acc && (acc.aia || (acc.handle ? acc.handle + ".aia" : ""))) || (row.aia || "");
     return res.status(200).json({
       ok: true,
-      you: person,
+      you: lib.viewSeat(lib.publicPerson(person), person, person, acc && acc.id),
       account: acc ? { id: acc.id, name: acc.name, handle: acc.handle || "", aia: aia, internet: "AIA Internet" } : null,
       handle: acc && acc.handle || "",
       at: aia,
@@ -343,7 +343,7 @@ module.exports = async function handler(req, res) {
     if (!canDesk(person, row, "export") && !canDesk(person, row, "explore")) return deny(res, "This seat cannot export the desk.");
     logDesk("export", row, person);
     await save();
-    return res.status(200).json({ ok: true, pack: exportDesk(row) });
+    return res.status(200).json({ ok: true, pack: exportDesk(row, person) });
   }
   if (action === "perms") {
     if (!isOwner(person)) return deny(res, "Only the owner sets helper permissions.");
