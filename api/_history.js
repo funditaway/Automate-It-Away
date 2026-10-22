@@ -181,6 +181,8 @@ function historyItem(job, desk) {
     via,
     decide: !!needs.decide,
     who: whoOf(job),
+    // The seats this card credits, by seat id (assignee, tap, done, hand-off, personId). Names alone never pick a seat.
+    seatIds: [job.custom && typeof job.custom === "object" ? job.custom.personId : "", job.handedTo && job.handedTo.id, job.assigneeId, job.whoTappedId, job.doneById].map(function (v) { return String(v || ""); }).filter(function (v, i, a) { return v && a.indexOf(v) === i; }),
     hands,
     work: job.kind || job.pack || "",
     pack: job.pack || "",
