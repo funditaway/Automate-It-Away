@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves a seat never carries the desk owner's account, and a helper never becomes owner through it.
 // Hana joins desk A without signing in and types owner Ann's email (or account name, or accountId).
 // Ann approves her, Hana signs in by desk code, Ann denies her. At no point is Hana owner on A,

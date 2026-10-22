@@ -1,3 +1,4 @@
+require("./_env-guard");
 // Fix G check: the shared Blob store (aia/store.json) is production-only.
 // Loads api/_lib.js, api/health.js and api/upload.js in a clean child process
 // per environment with fake BLOB_* / OIDC values, a fake @vercel/blob and a
@@ -95,7 +96,7 @@ function fakeRes() {
 // ---------- parent ----------
 function runScenario(apiDir, sc) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-guard-"));
-  const env = { PATH: process.env.PATH, HOME: tmp, AIA_STORE_PATH: path.join(tmp, "store.json"), AIA_UPLOAD_DIR: path.join(tmp, "up") };
+  const env = { PATH: process.env.PATH, HOME: tmp, AIA_STORE_PATH: path.join(tmp, "store.json"), AIA_UPLOAD_DIR: path.join(tmp, "up"), AIA_CHECK_PARENT: String(process.pid) };
   const names = sc.only || Object.keys(FAKE);
   names.forEach((k) => { env[k] = FAKE[k]; });
   Object.assign(env, sc.env);
