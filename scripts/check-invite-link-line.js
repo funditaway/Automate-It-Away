@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Owner invite screen (people.html "Add someone"): one plain line says accounts join only by
 // signing in (PR 361: a typed account name or id no longer attaches an account).
 // The line is static HTML in the form, not built from typed text, not hidden, not rewritten by JS.
