@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves a session only opens the desk it was issued for, or a desk where that
 // session's own account holds an open seat (seat.accountId). An owner session for
 // desk A sent with X-Workspace: B (or ?workspace=B) must not come back as B's owner.
