@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Collect is on HOLD, so no door may write an unheld money row.
 // 1. POST /api/hook with paid/sold in event, action, or status (any case, "unpaid"
 //    too), with no creds, a wrong secret, an owner pin, or an owner session, by card
