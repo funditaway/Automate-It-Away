@@ -18,12 +18,37 @@
     var el = $("banner");
     if (el) el.textContent = text;
   }
-  function currentPerson() {
+  function personByName() {
     var name = ($("sheet-name") && $("sheet-name").textContent) || "";
     var list = (window.STATE && STATE.people) || [];
     return list.find(function (p) { return p && String(p.name || "") === name; }) || list.find(function (p) {
       return p && name && String(p.name || "").toLowerCase().indexOf(name.toLowerCase()) >= 0;
     }) || null;
+  }
+  // people.js openSheet puts the open seat on the sheet (data-seat, data-desk, data-key).
+  // Two people can share a name, so find that seat. The name is only a fallback when the
+  // sheet carries no seat at all.
+  function sheetAttr(k) {
+    var sheet = $("sheet");
+    return (sheet && sheet.getAttribute && sheet.getAttribute(k)) || "";
+  }
+  function holdsSeat(p, seat, desk) {
+    if (!p || !seat) return false;
+    var seats = (p.seats && p.seats.length) ? p.seats : [{ id: p.id, deskSlug: "" }];
+    return seats.some(function (s) {
+      return s && s.id === seat && (!desk || !s.deskSlug || s.deskSlug === desk);
+    });
+  }
+  function currentPerson() {
+    var list = (window.STATE && STATE.people) || [];
+    var seat = sheetAttr("data-seat");
+    var key = sheetAttr("data-key");
+    if (seat) return list.find(function (p) { return holdsSeat(p, seat, sheetAttr("data-desk")); }) || null;
+    if (key) return list.find(function (p) { return p && p.key === key; }) || null;
+    return personByName();
+  }
+  function openSeatId(person) {
+    return sheetAttr("data-seat") || (person && (person.id || person.personId)) || "";
   }
   function ensureActs() {
     if ($("sheet-approve")) return;
@@ -44,7 +69,7 @@
   }
   async function seatAct(action) {
     var person = currentPerson();
-    var id = person && (person.id || person.personId);
+    var id = person && openSeatId(person);
     if (!id) { banner("Open a waiting person first."); return; }
     var out = await api("/api/admin", { action: action, id: id });
     banner(out.status >= 400 ? ((out.data && out.data.error) || "Owner has to tap that.") : (action === "deny" ? "Denied. They stay off this desk." : "Accepted. They can open this desk."));
@@ -52,7 +77,7 @@
   }
   async function say() {
     var person = currentPerson();
-    var id = person && (person.id || person.personId);
+    var id = person && openSeatId(person);
     var text = (($("sheet-say") && $("sheet-say").value) || "").trim();
     if (!text) return;
     if (!id) { banner("Open a person first."); return; }

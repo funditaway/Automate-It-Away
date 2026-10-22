@@ -149,13 +149,41 @@ function inviteLine(p, pending) {
 }
 
 function smsHref(phone, text) {
-  if (!phone) return "#";
+  if (!phone) return "";
   return "sms:" + encodeURIComponent(phone) + "?body=" + encodeURIComponent(text);
 }
 
 function mailHref(email, text) {
-  if (!email) return "#";
+  if (!email) return "";
   return "mailto:" + encodeURIComponent(email) + "?subject=" + encodeURIComponent("Desk invite") + "&body=" + encodeURIComponent(text);
+}
+
+// Sheet link (Text it / Email it): no address means no link. Hide it instead of a bare "#" or "mailto:".
+function setSheetLink(id, href) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (href) {
+    el.href = href;
+    el.hidden = false;
+    el.style.display = "";
+  } else {
+    el.removeAttribute("href");
+    el.hidden = true;
+    el.style.display = "none";
+  }
+}
+
+// Which card a seat lands on. A proven account first, then an email. A seat with neither
+// (a helper's view after the trim, or a seat that never had them) stays its own card:
+// two people with the same name are never merged by name alone.
+function personKey(p, i) {
+  var acct = String((p && p.accountId) || "").trim();
+  if (acct) return "account:" + acct;
+  var mail = String((p && p.email) || "").trim().toLowerCase();
+  if (mail) return "email:" + mail;
+  var desk = String((p && (p.deskSlug || p.desk)) || "").trim();
+  var id = String((p && p.id) || "").trim();
+  return "seat:" + desk + ":" + (id || ("#" + i));
 }
 
 function paintDesks() {
@@ -182,14 +210,12 @@ function paintYou() {
 function groupPeople(list) {
   var by = {};
   var out = [];
-  (list || []).forEach(function (src) {
+  (list || []).forEach(function (src, i) {
     if (!src) return;
     var p = Object.assign({}, src);
     delete p.pin;
     delete p.code;
-    var key = "name:" + String(p.name || "").trim().toLowerCase();
-    if (p.email) key = "email:" + String(p.email).trim().toLowerCase();
-    if (p.accountId) key = "account:" + String(p.accountId).trim();
+    var key = personKey(p, i);
     if (!by[key]) {
       by[key] = {
         key: key,
@@ -268,7 +294,11 @@ function card(p) {
     return "<span class=\"chip\">" + esc(d.desk || d.slug || "Desk") + "</span>";
   }).join("");
   if (seatCount > 3) chips += "<span class=\"chip\">+" + (seatCount - 3) + " more</span>";
-  var sub = (p.phone ? esc(p.phone) : "") + (p.phone && p.email ? " · " : "") + (p.email ? esc(p.email) : "") + (seatCount >= 2 ? " · Several desks" : "");
+  var subBits = [];
+  if (p.phone) subBits.push(esc(p.phone));
+  if (p.email) subBits.push(esc(p.email));
+  if (seatCount >= 2) subBits.push("Several desks");
+  var sub = subBits.join(" · ");
   var bot = isBot(p);
   var does = clipFace(p.does || "", 120);
   var prompt = clipFace(p.prompt || p.promptSummary || "", 80);
@@ -288,7 +318,7 @@ function card(p) {
       "<p class=\"meta\">Updates name / does / prompt. Queue chips follow. Yes / Stop / Kill stay human.</p>" +
       "</form>"
     : "";
-  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindLabel(kindOf(p))) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
+  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindLabel(kindOf(p))) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div>" + (sub ? "<p class=\"meta\">" + sub + "</p>" : "") + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
 }
 
 function paintList() {
@@ -553,6 +583,11 @@ async function openSheet(person) {
   if (out.status >= 400 || !out.data || !out.data.ok) return;
   var data = out.data;
   var sheet = document.getElementById("sheet");
+  // Which seat this sheet is for, so Accept / Deny / Say (people-desk.js) act on this seat,
+  // not on another seat that happens to share the name.
+  sheet.setAttribute("data-seat", person.id || "");
+  sheet.setAttribute("data-desk", (person.seats && person.seats[0] && person.seats[0].deskSlug) || "");
+  sheet.setAttribute("data-key", person.key || "");
   document.getElementById("sheet-name").textContent = (data.person && data.person.name) || person.name || "Person";
   var seatCount = (data.seats || []).length;
   document.getElementById("sheet-meta").textContent = seatCount + " seat" + (seatCount === 1 ? "" : "s") + " · AIA does not send";
@@ -571,8 +606,8 @@ async function openSheet(person) {
   document.getElementById("sheet-copy-btn").onclick = async function () {
     try { await navigator.clipboard.writeText(line); } catch (e) {}
   };
-  document.getElementById("sheet-text").href = smsHref((data.person && data.person.phone) || person.phone || "", line);
-  document.getElementById("sheet-mail").href = mailHref((data.person && data.person.email) || person.email || "", line);
+  setSheetLink("sheet-text", smsHref((data.person && data.person.phone) || person.phone || "", line));
+  setSheetLink("sheet-mail", mailHref((data.person && data.person.email) || person.email || "", line));
   document.getElementById("sheet-hear").onclick = function () {
     if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak(line);
   };
