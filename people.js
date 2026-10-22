@@ -60,12 +60,42 @@ function namesOf(p) {
   (p && p.seats || []).forEach(function (s) { if (s && s.name && out.indexOf(s.name) < 0) out.push(s.name); });
   return out;
 }
+// Seats on one desk of this page (by desk slug).
+function seatsOnDesk(desk) {
+  var want = String(desk || "");
+  return (STATE.rawPeople || []).filter(function (s) { return s && String(s.deskSlug || "") === want; });
+}
+// The one seat on a desk with this name, or null when none or several have it.
+function onlySeatNamed(desk, name) {
+  var want = String(name || "").trim().toLowerCase();
+  if (!want) return null;
+  var named = seatsOnDesk(desk).filter(function (s) { return String(s.name || "").trim().toLowerCase() === want; });
+  return named.length === 1 ? named[0] : null;
+}
+// The seat a job credits in one spot. Jobs carry seat ids (personId, handedTo.id, assigneeId,
+// whoTappedId, doneById). Use the id on the job's own desk. Only a job with no id there falls back
+// to the name, and only when exactly one seat on that desk has it. Otherwise nobody.
+function jobSeat(j, id, name) {
+  if (!j) return null;
+  var desk = String(j._desk || j.workspace || "");
+  var seatId = String(id || "");
+  if (seatId) return seatsOnDesk(desk).find(function (s) { return String(s.id || "") === seatId; }) || null;
+  return onlySeatNamed(desk, name);
+}
+// Who holds a job: handed-to / assignee, by seat id first.
+function jobHolderSeat(j) {
+  if (!j) return null;
+  return jobSeat(j, (j.handedTo && j.handedTo.id) || j.assigneeId || "", (j.handedTo && j.handedTo.name) || j.assignee || "");
+}
+function sameSeat(a, b) {
+  return !!(a && b && a.id && String(a.id) === String(b.id) && String(a.deskSlug || "") === String(b.deskSlug || ""));
+}
 function jobsOfPerson(p) {
-  var names = namesOf(p).map(function (n) { return String(n).toLowerCase(); });
+  var mine = (p && p.seats) || [];
   return (STATE.jobs || []).filter(function (j) {
     if (!j || j.status === "shipped" || j.status === "killed") return false;
-    var who = String((j.handedTo && j.handedTo.name) || j.assignee || "").toLowerCase();
-    return who && names.indexOf(who) >= 0;
+    var holder = jobHolderSeat(j);
+    return !!holder && mine.some(function (s) { return sameSeat(s, holder); });
   });
 }
 function holdingOf(p) {
@@ -149,13 +179,41 @@ function inviteLine(p, pending) {
 }
 
 function smsHref(phone, text) {
-  if (!phone) return "#";
+  if (!phone) return "";
   return "sms:" + encodeURIComponent(phone) + "?body=" + encodeURIComponent(text);
 }
 
 function mailHref(email, text) {
-  if (!email) return "#";
+  if (!email) return "";
   return "mailto:" + encodeURIComponent(email) + "?subject=" + encodeURIComponent("Desk invite") + "&body=" + encodeURIComponent(text);
+}
+
+// Sheet link (Text it / Email it): no address means no link. Hide it instead of a bare "#" or "mailto:".
+function setSheetLink(id, href) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (href) {
+    el.href = href;
+    el.hidden = false;
+    el.style.display = "";
+  } else {
+    el.removeAttribute("href");
+    el.hidden = true;
+    el.style.display = "none";
+  }
+}
+
+// Which card a seat lands on. A proven account first, then an email. A seat with neither
+// (a helper's view after the trim, or a seat that never had them) stays its own card:
+// two people with the same name are never merged by name alone.
+function personKey(p, i) {
+  var acct = String((p && p.accountId) || "").trim();
+  if (acct) return "account:" + acct;
+  var mail = String((p && p.email) || "").trim().toLowerCase();
+  if (mail) return "email:" + mail;
+  var desk = String((p && (p.deskSlug || p.desk)) || "").trim();
+  var id = String((p && p.id) || "").trim();
+  return "seat:" + desk + ":" + (id || ("#" + i));
 }
 
 function paintDesks() {
@@ -182,14 +240,12 @@ function paintYou() {
 function groupPeople(list) {
   var by = {};
   var out = [];
-  (list || []).forEach(function (src) {
+  (list || []).forEach(function (src, i) {
     if (!src) return;
     var p = Object.assign({}, src);
     delete p.pin;
     delete p.code;
-    var key = "name:" + String(p.name || "").trim().toLowerCase();
-    if (p.email) key = "email:" + String(p.email).trim().toLowerCase();
-    if (p.accountId) key = "account:" + String(p.accountId).trim();
+    var key = personKey(p, i);
     if (!by[key]) {
       by[key] = {
         key: key,
@@ -268,7 +324,11 @@ function card(p) {
     return "<span class=\"chip\">" + esc(d.desk || d.slug || "Desk") + "</span>";
   }).join("");
   if (seatCount > 3) chips += "<span class=\"chip\">+" + (seatCount - 3) + " more</span>";
-  var sub = (p.phone ? esc(p.phone) : "") + (p.phone && p.email ? " · " : "") + (p.email ? esc(p.email) : "") + (seatCount >= 2 ? " · Several desks" : "");
+  var subBits = [];
+  if (p.phone) subBits.push(esc(p.phone));
+  if (p.email) subBits.push(esc(p.email));
+  if (seatCount >= 2) subBits.push("Several desks");
+  var sub = subBits.join(" · ");
   var bot = isBot(p);
   var does = clipFace(p.does || "", 120);
   var prompt = clipFace(p.prompt || p.promptSummary || "", 80);
@@ -288,7 +348,7 @@ function card(p) {
       "<p class=\"meta\">Updates name / does / prompt. Queue chips follow. Yes / Stop / Kill stay human.</p>" +
       "</form>"
     : "";
-  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindLabel(kindOf(p))) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div><p class=\"meta\">" + sub + "</p>" + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
+  return "<article class=\"person" + (p.status === "pending" ? " waiting" : "") + (isDeskAi(p) ? " desk-ai" : "") + "\" data-open=\"" + esc(p.key) + "\"><h3>" + esc(p.name || "Unnamed") + "</h3><div><span class=\"chip seat\">" + esc(kindLabel(kindOf(p))) + "</span><span class=\"chip\">" + esc(p.status || "approved") + "</span>" + chips + "</div>" + (sub ? "<p class=\"meta\">" + sub + "</p>" : "") + extra + edit + "<div class=\"acts\"><button class=\"edit\" type=\"button\" data-act=\"open\" data-key=\"" + esc(p.key) + "\">Open</button></div></article>";
 }
 
 function paintList() {
@@ -538,21 +598,115 @@ function accountRoadMini() {
   return "<div class=\"road-mini\"><b>This account</b><div class=\"meta\">Past / now / next on History. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. .aia identity HOLD until mint.</div><div class=\"acts\"><a class=\"go\" href=\"/history#account-road\">Account roadmap on History</a></div></div>";
 }
 
-async function openSheet(person) {
-  if (!person) return;
-  var desks = savedDesks().map(function (d) { return { slug: d.slug, pin: d.pin || "", token: d.token || "" }; });
-  var body = {
-    action: "person",
-    id: person.id || "",
-    name: person.name || "",
-    email: person.email || "",
-    accountId: person.accountId || "",
-    desks: desks
-  };
-  var out = await api("/api/admin", { method: "POST", body: JSON.stringify(body) });
-  if (out.status >= 400 || !out.data || !out.data.ok) return;
-  var data = out.data;
+var SAME_NAME_LINE = "Two people share that name. Open them from the People list.";
+
+// The seat a sheet opens: the one asked for, else the person's own seat (id + desk).
+function openSeatOf(person, pick) {
+  if (pick && pick.id) return { id: String(pick.id), desk: String(pick.desk || "") };
+  var seats = (person && person.seats) || [];
+  var seat = seats.find(function (s) { return s && person.id && s.id === person.id; }) || seats[0] || null;
+  return { id: String((seat && seat.id) || (person && person.id) || ""), desk: String((seat && seat.deskSlug) || "") };
+}
+// Headers for the seat's desk. desk= on the GET picks the desk (each desk has its own p_owner); when this
+// phone also holds that desk's own code, send it so a desk opened by code alone still opens. Otherwise the
+// working desk's headers, and the server decides from desk= whether this viewer may read that desk.
+function deskHeaders(slug) {
+  var cur = localStorage.getItem("aia_ws") || "";
+  if (!slug || slug === cur) return headers();
+  var d = savedDesks().filter(function (x) { return x.slug === slug; })[0];
+  if (!d || !(d.pin || d.token)) return headers();
+  var h = { "Content-Type": "application/json", "X-Workspace": slug };
+  if (d && d.pin) h["X-Pin"] = d.pin;
+  if (d && d.token) h["X-Session"] = d.token;
+  return h;
+}
+function seatBookPath(seat) {
+  return "/api/admin?seat=" + encodeURIComponent(seat.id) + (seat.desk ? "&desk=" + encodeURIComponent(seat.desk) : "");
+}
+function seatLink(base, seat) {
+  return base + "?seat=" + encodeURIComponent(seat.id) + (seat.desk ? "&desk=" + encodeURIComponent(seat.desk) : "");
+}
+// Show nobody: empty the sheet, close it, and forget its seat so Accept / Deny / Say land nowhere.
+function clearSheet(line) {
   var sheet = document.getElementById("sheet");
+  if (sheet) {
+    sheet.setAttribute("data-seat", "");
+    sheet.setAttribute("data-desk", "");
+    sheet.setAttribute("data-key", "");
+    sheet.hidden = true;
+  }
+  ["sheet-name", "sheet-meta", "sheet-copy", "sheet-last"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = "";
+  });
+  ["sheet-seats", "sheet-yours", "sheet-theirs", "sheet-history"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = "";
+  });
+  paintNotes(null);
+  setSheetLink("sheet-text", "");
+  setSheetLink("sheet-mail", "");
+  setSheetLink("sheet-history-link", "");
+  var banner = document.getElementById("banner");
+  if (banner && line) banner.textContent = line;
+}
+
+// The seat's notes thread. The server sends it only to the seat itself and the owner; anyone else gets
+// none, so the notes area stays hidden (no empty box, no stray label).
+function paintNotes(thread) {
+  var el = document.getElementById("sheet-notes");
+  if (!el) return;
+  var rows = (Array.isArray(thread) ? thread : []).filter(function (t) { return t && String(t.text || "").trim(); });
+  if (!rows.length) {
+    el.innerHTML = "";
+    el.hidden = true;
+    el.style.display = "none";
+    return;
+  }
+  el.innerHTML = "<p class=\"meta\">Notes on this seat</p>" + rows.slice(-20).map(function (t) {
+    return "<div class=\"sheet-row\"><b>" + esc(t.from || "Desk") + "</b><div class=\"meta\">" + esc(t.text) + (t.t ? " · " + esc(fmtTime(t.t)) : "") + "</div></div>";
+  }).join("");
+  el.hidden = false;
+  el.style.display = "";
+}
+
+async function openSheet(person, pick) {
+  if (!person) return;
+  var seat = openSeatOf(person, pick);
+  var desks = savedDesks().map(function (d) { return { slug: d.slug, pin: d.pin || "", token: d.token || "" }; });
+  var own = null;
+  if (seat.id) {
+    // By seat id on that seat's desk. Never by name when the seat is known.
+    var got = await api(seatBookPath(seat), { headers: deskHeaders(seat.desk) });
+    if (got.status === 409) { clearSheet(SAME_NAME_LINE); return; }
+    if (got.status < 400 && got.data && got.data.ok) own = got.data;
+  }
+  // Same seat, plus that person's seats on the other saved desks (server matches by account, never by name).
+  var body = { action: "person", id: seat.id, desk: seat.desk, desks: desks };
+  if (!seat.id) body.name = person.name || "";
+  var out = await api("/api/admin", { method: "POST", body: JSON.stringify(body) });
+  if (out.status === 409) { clearSheet(SAME_NAME_LINE); return; }
+  var wide = (out.status < 400 && out.data && out.data.ok) ? out.data : null;
+  if (!own && !wide) return;
+  // Private fields (contact, notes thread) come only from the seat's own GET, which the server trims for
+  // this viewer. The POST adds the other desks (seats, cards, history) and never overrides them; with no
+  // GET answer the sheet shows no contact and no notes.
+  var priv = own ? (own.person || {}) : {};
+  var data = {
+    person: { name: priv.name || (wide && wide.person && wide.person.name) || person.name || "", phone: priv.phone || "", email: priv.email || "" },
+    thread: own ? own.thread : null,
+    seats: (wide || own).seats,
+    cards: (wide || own).cards,
+    history: (wide || own).history,
+    lastCard: (wide || own).lastCard,
+    currentSlug: (wide || own).currentSlug
+  };
+  var sheet = document.getElementById("sheet");
+  // Which seat this sheet is for, so Accept / Deny / Say (people-desk.js) act on this seat,
+  // not on another seat that happens to share the name.
+  sheet.setAttribute("data-seat", seat.id);
+  sheet.setAttribute("data-desk", seat.desk);
+  sheet.setAttribute("data-key", person.key || "");
   document.getElementById("sheet-name").textContent = (data.person && data.person.name) || person.name || "Person";
   var seatCount = (data.seats || []).length;
   document.getElementById("sheet-meta").textContent = seatCount + " seat" + (seatCount === 1 ? "" : "s") + " · AIA does not send";
@@ -565,40 +719,60 @@ async function openSheet(person) {
   document.getElementById("sheet-theirs").innerHTML = theirs.length ? theirs.map(cardHtml).join("") : "<p class=\"meta\">No open cards on their other desks.</p>";
 
   document.getElementById("sheet-history").innerHTML = (data.history || []).length ? (data.history || []).slice(0, 20).map(historyHtml).join("") : "<p class=\"meta\">No shared history yet.</p>";
+  paintNotes(data.thread);
   document.getElementById("sheet-last").textContent = data.lastCard ? ("Last card: " + (data.lastCard.title || data.lastCard.what || "Card") + (data.lastCard.t ? (" · " + fmtTime(data.lastCard.t)) : "")) : "Last card: none yet.";
 
   var line = inviteLine(data.person || person, false);
   document.getElementById("sheet-copy-btn").onclick = async function () {
     try { await navigator.clipboard.writeText(line); } catch (e) {}
   };
-  document.getElementById("sheet-text").href = smsHref((data.person && data.person.phone) || person.phone || "", line);
-  document.getElementById("sheet-mail").href = mailHref((data.person && data.person.email) || person.email || "", line);
+  setSheetLink("sheet-text", smsHref(data.person.phone, line));
+  setSheetLink("sheet-mail", mailHref(data.person.email, line));
   document.getElementById("sheet-hear").onclick = function () {
     if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak(line);
   };
   var road = document.getElementById("sheet-road");
   if (road) road.innerHTML = accountRoadMini();
-  document.getElementById("sheet-history-link").href = "/history?who=" + encodeURIComponent((data.person && data.person.name) || person.name || "") + "#account-road";
+  setSheetLink("sheet-history-link", seat.id ? seatLink("/history", seat) + "#account-road" : "");
   document.getElementById("sheet-close").onclick = function () { sheet.hidden = true; };
 
   sheet.hidden = false;
 }
 
+// The card that holds one seat (seat id, on that desk when a desk is named).
+function personWithSeat(seatId, desk) {
+  var hits = [];
+  STATE.people.forEach(function (p) {
+    ((p && p.seats) || []).forEach(function (s) {
+      if (s && s.id === seatId && (!desk || String(s.deskSlug || "") === desk)) hits.push({ person: p, seat: { id: s.id, desk: String(s.deskSlug || "") } });
+    });
+  });
+  return hits;
+}
 function openFromQuery() {
   applyViewFromQuery();
   if (STATE.didQueryOpen) return;
-  var who = new URLSearchParams(location.search || "").get("who");
-  if (!who) return;
-  var want = String(who).trim().toLowerCase();
-  var found = STATE.people.find(function (p) {
-    if (!p) return false;
-    return String(p.name || "").trim().toLowerCase() === want;
-  }) || STATE.people.find(function (p) {
-    return p && String(p.name || "").toLowerCase().indexOf(want) >= 0;
-  });
-  if (!found) return;
+  var params = new URLSearchParams(location.search || "");
+  var seatId = String(params.get("seat") || params.get("id") || params.get("personId") || "").trim();
+  var desk = String(params.get("desk") || "").trim();
+  var who = String(params.get("who") || "").trim();
+  if (!seatId && !who) return;
   STATE.didQueryOpen = true;
-  openSheet(found);
+  var hits;
+  if (seatId) {
+    hits = personWithSeat(seatId, desk);
+  } else {
+    // An old ?who= link: open only when exactly one seat has that exact name. Never a partial match.
+    var want = who.toLowerCase();
+    var named = (STATE.rawPeople || []).filter(function (s) {
+      return s && String(s.name || "").trim().toLowerCase() === want && (!desk || String(s.deskSlug || "") === desk);
+    });
+    if (named.length > 1) { clearSheet(SAME_NAME_LINE); return; }
+    hits = named.length === 1 && named[0].id ? personWithSeat(named[0].id, String(named[0].deskSlug || "")) : [];
+  }
+  if (hits.length > 1) { clearSheet("That seat is on more than one desk. Open it from the People list."); return; }
+  if (!hits.length) return;
+  openSheet(hits[0].person, hits[0].seat);
 }
 
 async function fetchDesk(desk) {
