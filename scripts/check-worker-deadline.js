@@ -19,6 +19,17 @@
 //             re-sends it with the same delivery id; once saved, never again
 //   rotate    8 hooks, every hook hangs, every save fails (nothing is ever
 //             saved): over 12 cron runs (14:00 + 22:00 UTC) every job is tried
+//   lrt       saved followTriedAt: never-tried first (ties in rotation order),
+//             then least recently tried
+//   trust     warm and trusted, then a read times out: the store is untrusted
+//   POST /api/worker (guardStore -> recoverStore), each 503 + Retry-After 5
+//   within 10 s, store_not_ready, no store write:
+//   post-cold     cold start, every store read hangs (hydrate, then recovery)
+//   post-slow     cold start, every store read takes 45 s
+//   post-warm     warm, a save failed, then the recovery read hangs
+//   post-warmslow warm, a save failed, then the recovery read takes 45 s
+//   post-legacy   legacy-only store, the legacy read hangs
+//   post-absent   fresh install, the 'store absent' listing hangs
 // Then the worst case is computed from the constants and the measured runs.
 // `node scripts/check-worker-deadline.js --mutate` breaks the fix in a copy
 // of api/ and proves each break is caught.
@@ -26,6 +37,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const crypto = require("crypto");
 
 const ROOT = path.join(__dirname, "..");
 const KEY = "aia/store.json";
@@ -59,6 +71,7 @@ async function buildFixture(apiDir, spec) {
   mem.connections.push({ id: "conn_wd", workspace: SLUG, provider: "webhook", hook: HOOK_URL });
   for (let i = 0; i < spec.hooks; i++) {
     mem.jobs.push({ id: "job_wd_" + i, workspace: SLUG, title: "Done card " + i, status: "shipped", pack: "wd", followed: true, followNote: "Done " + i, doneAt: new Date(DAY0 - 86400000 + i * 1000).toISOString(), log: [] });
+    if (spec.triedAt && spec.triedAt[i]) mem.jobs[mem.jobs.length - 1].followTriedAt = spec.triedAt[i];
   }
   if (spec.out) {
     const r2 = fakeRes();
@@ -96,15 +109,19 @@ async function child(apiDir, spec) {
   };
   const storeRaw = JSON.stringify(spec.store);
   fs.writeFileSync(process.env.AIA_STORE_PATH, storeRaw);
-  const st = { files: { [KEY]: storeRaw }, putAttempts: [], hooks: [], other: [], putsOk: 0, dropLeft: spec.dropPuts || 0 };
+  const st = { files: spec.storeName === "none" ? {} : { [spec.storeName || KEY]: storeRaw }, putAttempts: [], hooks: [], other: [], putsOk: 0, dropLeft: spec.dropPuts || 0 };
   const host = "https://fakestore.private.blob.vercel-storage.com/";
   const nameOf = (k) => String(k || "").replace(/^https?:\/\/[^/]+\//, "").split("?")[0];
   const isStore = (n) => n === KEY || n === "aia-store.json";
   const never = () => new Promise(() => {});
-  async function readGate() {
-    if (spec.readHang || (spec.readBackHang && st.putsOk > 0)) return never();
+  // op: "key" (head/get/fetch of a name) or "list" (listing by prefix).
+  async function readGate(op, name) {
+    const from = (V.run || 0) >= (spec.readFrom || 0);
+    if (from && (spec.readHang || (spec.readBackHang && st.putsOk > 0))) return never();
+    if (op === "key" && (spec.hangKeys || []).indexOf(name) >= 0) return never();
+    if (op === "list" && (spec.hangLists || []).indexOf(name) >= 0) return never();
     if (spec.readLate) { await sleep(spec.readLate); return; }
-    if (spec.readDelay) await sleep(spec.readDelay);
+    if (from && spec.readDelay) await sleep(spec.readDelay);
   }
   async function storePut(n, body) {
     st.putAttempts.push(V.now);
@@ -119,9 +136,9 @@ async function child(apiDir, spec) {
     return function (request) {
       if (request === "@vercel/blob") {
         return {
-          async head(key) { await readGate(); const n = nameOf(key); if (!st.files[n]) throw new Error("Vercel Blob: The requested blob does not exist"); return { pathname: n, url: host + n, downloadUrl: host + n + "?download=1" }; },
-          async get(key) { await readGate(); const n = nameOf(key); if (!st.files[n]) return null; const raw = st.files[n]; return { statusCode: 200, stream: { text: async () => raw }, blob: { url: host + n } }; },
-          async list(opts) { await readGate(); const prefix = (opts && opts.prefix) || ""; return { blobs: Object.keys(st.files).filter((n) => n.indexOf(prefix) === 0).map((n) => ({ pathname: n, url: host + n })), hasMore: false }; },
+          async head(key) { const n = nameOf(key); await readGate("key", n); if (!st.files[n]) throw new Error("Vercel Blob: The requested blob does not exist"); return { pathname: n, url: host + n, downloadUrl: host + n + "?download=1" }; },
+          async get(key) { const n = nameOf(key); await readGate("key", n); if (!st.files[n]) return null; const raw = st.files[n]; return { statusCode: 200, stream: { text: async () => raw }, blob: { url: host + n } }; },
+          async list(opts) { const prefix = (opts && opts.prefix) || ""; await readGate("list", prefix); return { blobs: Object.keys(st.files).filter((n) => n.indexOf(prefix) === 0).map((n) => ({ pathname: n, url: host + n })), hasMore: false }; },
           async put(key, body) { const n = nameOf(key); const b = Buffer.isBuffer(body) ? body.toString("utf8") : String(body); if (isStore(n)) await storePut(n, b); else st.files[n] = b; return { url: host + n, downloadUrl: host + n + "?download=1", pathname: n }; },
           async del(key) { delete st.files[nameOf(key)]; },
           async copy(a, b) { st.files[nameOf(b)] = st.files[nameOf(a)]; return { url: host + nameOf(b), pathname: nameOf(b) }; }
@@ -152,8 +169,8 @@ async function child(apiDir, spec) {
       if (isStore(n)) await storePut(n, b); else st.files[n] = b;
       return { ok: true, status: 200, url: u, text: async () => JSON.stringify({ url: host + n }) };
     }
-    await readGate();
     const pm = u.match(/[?&]prefix=([^&]+)/);
+    await readGate(pm ? "list" : "key", pm ? decodeURIComponent(pm[1]) : nameOf(u));
     if (pm) { const prefix = decodeURIComponent(pm[1]); return { ok: true, status: 200, url: u, text: async () => JSON.stringify({ blobs: Object.keys(st.files).filter((n) => n.indexOf(prefix) === 0).map((n) => ({ pathname: n })), hasMore: false }) }; }
     const n = nameOf(u);
     if (!st.files[n]) return { ok: false, status: 404, statusText: "Not Found", url: u, text: async () => "" };
@@ -182,7 +199,9 @@ async function child(apiDir, spec) {
   const worker = require(path.join(apiDir, "worker.js"));
   const out = { budget: worker.WORKER_BUDGET || null, runs: [] };
   const coldStart = V.now;
-  const h = await drive(globalThis.__aiaHydrate);
+  // spec.cold: the first request arrives while the cold load is in flight,
+  // so its time includes the load.
+  const h = spec.cold ? { state: "in-request" } : await drive(globalThis.__aiaHydrate);
   out.hydrate = { state: h.state, ms: V.now - coldStart };
   const stored = () => { try { return JSON.parse(lib.blobOpen(st.files[KEY])); } catch (e) { return null; } };
   async function run(at) {
@@ -192,9 +211,10 @@ async function child(apiDir, spec) {
     const puts0 = st.putAttempts.length;
     const hooks0 = st.hooks.length;
     const res = fakeRes();
-    const d = await drive(worker({ method: "GET", headers: {}, query: { all: "1" }, url: "/api/worker?all=1" }, res));
+    const method = (spec.methods && spec.methods[out.runs.length]) || spec.method || "GET";
+    const d = await drive(worker({ method, headers: {}, query: { all: "1" }, url: "/api/worker?all=1" }, res));
     const b = res.body && typeof res.body === "object" ? res.body : {};
-    const r = { state: d.state, threw: d.state === "threw" ? d.value : null, ms: V.now - t0, cold: out.runs.length === 0 ? out.hydrate.ms : 0, status: res.statusCode, retry: res.headers["Retry-After"] || null, ok: b.ok, deferred: !!b.deferred, code: b.code || null, puts: st.putAttempts.slice(puts0).map((x) => x - t0), hooks: st.hooks.slice(hooks0).map((x) => Object.assign({}, x, { at: x.at - t0 })), trusted: lib.storeTrusted() };
+    const r = { state: d.state, threw: d.state === "threw" ? d.value : null, ms: V.now - t0, cold: out.runs.length === 0 ? out.hydrate.ms : 0, status: res.statusCode, retry: res.headers["Retry-After"] || null, ok: b.ok, deferred: !!b.deferred, code: b.code || null, puts: st.putAttempts.slice(puts0).map((x) => x - t0), hooks: st.hooks.slice(hooks0).map((x) => Object.assign({}, x, { at: x.at - t0 })), trusted: lib.storeTrusted(), driver: lib.mem.driver, write: lib.blobProbe && lib.blobProbe.write };
     out.runs.push(r);
     return r;
   }
@@ -202,7 +222,7 @@ async function child(apiDir, spec) {
   for (const at of runs) await run(at);
   if (spec.readLate) { await drive(sleep(spec.readLate * 2)); out.trustedAfterLate = lib.storeTrusted(); }
   const fin = stored();
-  out.final = fin && (fin.jobs || []).filter((j) => /^job_wd_/.test(j.id)).map((j) => ({ id: j.id, pinged: !!j.followPinged, delivery: worker.deliveryOf ? worker.deliveryOf(j) : null }));
+  out.final = fin && (fin.jobs || []).filter((j) => /^job_wd_/.test(j.id)).map((j) => ({ id: j.id, pinged: !!j.followPinged, doneAt: j.doneAt || null, delivery: worker.deliveryOf ? worker.deliveryOf(j) : null }));
   out.storeSame = st.files[KEY] === storeRaw;
   out.signals = signals;
   out.longTimers = V.log.map((x) => x.ms);
@@ -242,7 +262,10 @@ function runAll(apiDir, quiet) {
   const fxDefer = fixture(apiDir, { hooks: 4, testRows: 1, out: true });
   const fxOut = fixture(apiDir, { hooks: 0, out: true });
   const fxOutHook = fixture(apiDir, { hooks: 1, out: true });
-  for (const [n, fx] of [["6 hooks", fxHooks6], ["8 hooks", fxHooks8], ["1 hook", fxHook1], ["late", fxLate], ["defer", fxDefer], ["out", fxOut], ["out+hook", fxOutHook]]) {
+  // Saved tries: jobs 1 and 4 never tried, then 2 (01:00) < 5 < 3 < 0.
+  const TRIED = { 0: "2026-10-19T05:00:00.000Z", 2: "2026-10-19T01:00:00.000Z", 3: "2026-10-19T03:00:00.000Z", 5: "2026-10-19T02:00:00.000Z" };
+  const fxTried = fixture(apiDir, { hooks: 6, triedAt: TRIED });
+  for (const [n, fx] of [["6 hooks", fxHooks6], ["8 hooks", fxHooks8], ["1 hook", fxHook1], ["late", fxLate], ["defer", fxDefer], ["out", fxOut], ["out+hook", fxOutHook], ["tried", fxTried]]) {
     if (fx.error) { t("fixture " + n, false, fx.error); return results; }
   }
   const measured = [];
@@ -267,7 +290,25 @@ function runAll(apiDir, quiet) {
     const ids = {};
     (a.final || []).forEach((j) => { ids[j.id] = j.delivery; });
     t("hooks: delivery id in body and Idempotency-Key is the stored-field id", r.hooks.every((x) => x.delivery && x.delivery === x.key && x.delivery === ids[x.id]), J(r.hooks.map((x) => [x.id, x.delivery, x.key])));
+    // Independent of the worker's own deliveryOf: sha256(jobId|follow|doneAt).
+    const want = (j) => "follow_" + crypto.createHash("sha256").update(j.id + "|follow|" + (j.doneAt || "")).digest("hex").slice(0, 16);
+    const fx6 = {};
+    (fxHooks6.jobs || []).forEach((j) => { fx6[j.id] = j; });
+    t("hooks: delivery id is sha256(jobId|follow|doneAt), doneAt included", r.hooks.length > 0 && r.hooks.every((x) => fx6[x.id] && fx6[x.id].doneAt && x.delivery === want(fx6[x.id])), J(r.hooks.map((x) => [x.id, x.delivery])));
     t("hooks: no non-hook, non-blob network", a.other.length === 0, J(a.other));
+  }
+
+  // lrt: saved followTriedAt orders the tries. 1 and 4 (never tried) are 3
+  // apart, so no rotation window of 3 holds both: only the ordering can.
+  const lr = runCase(apiDir, { store: fxTried });
+  if (ran("lrt", lr)) {
+    const ids = lr.runs[0].hooks.map((x) => x.id);
+    t("lrt: never-tried jobs first (1 and 4)", ids.length === 3 && ids.slice(0, 2).sort().join() === "job_wd_1,job_wd_4", J(ids));
+    t("lrt: then the least recently tried (2, tried 01:00)", ids[2] === "job_wd_2", J(ids));
+    // Ties (both never tried) keep this run's rotation order.
+    const start = Math.floor((((Math.floor(DAY0 / 3600000)) * 0.6180339887498949) % 1) * 6);
+    const rot = [0, 1, 2, 3, 4, 5].map((i) => "job_wd_" + ((start + i) % 6)).filter((id) => id === "job_wd_1" || id === "job_wd_4");
+    t("lrt: ties keep the run's rotation order", ids.slice(0, 2).join() === rot.join(), J([ids, rot]));
   }
 
   // late: cold load + two slow scrub puts take 28 s before the hook phase.
@@ -318,6 +359,7 @@ function runAll(apiDir, quiet) {
     const r = bh.runs[0];
     t("backhang: the run finishes", r.state === "done", J([r.state, r.threw]));
     t("backhang: the read-back gives up at " + READ_MS + " ms after the put", r.puts.length === 1 && r.ms - r.puts[0] === READ_MS, J([r.ms, r.puts]));
+    t("backhang: a timed-out read-back is not a confirmed write (no-stick, not blob)", r.write === "no-stick" && r.driver !== "blob", J([r.write, r.driver]));
   }
 
   // puthang: the save's put hangs.
@@ -358,6 +400,32 @@ function runAll(apiDir, quiet) {
     t("rotate: one delivery id per job across every run", Object.keys(byId).every((id) => byId[id].size === 1), J(Object.keys(byId).map((id) => [id, Array.from(byId[id])])));
   }
 
+  // trust: warm and trusted, then a read times out: no longer trusted.
+  const tr = runCase(apiDir, { store: fxOut, readHang: true, readFrom: 1, runs: [DAY0, DAY0 + 8 * 3600000] });
+  if (ran("trust", tr)) {
+    const [r1, r2] = tr.runs;
+    t("trust: a read that timed out leaves the store untrusted (was trusted)", r1.trusted === true && r2.state === "done" && r2.trusted === false && r2.puts.length === 0, J([r1.trusted, r2.state, r2.trusted, r2.puts]));
+  }
+
+  // POST /api/worker: guardStore's recovery reads have the same 5 s deadline.
+  const POST_MS = 2 * READ_MS;
+  const post = (name, o, warm) => {
+    if (!ran(name, o)) return;
+    const r = o.runs[o.runs.length - 1];
+    if (warm) t(name + ": the warm GET's save failed first (store untrusted)", o.runs[0].status === 503 && o.runs[0].code === "store_write_failed" && o.runs[0].trusted === false, J([o.runs[0].status, o.runs[0].code]));
+    t(name + ": POST answers (does not hang)", r.state === "done", J([r.state, r.threw]));
+    t(name + ": within " + POST_MS + " ms", r.state === "done" && r.ms + r.cold <= POST_MS, J(r.ms + r.cold));
+    t(name + ": 503 store_not_ready + Retry-After 5, ok:false, never 2xx", r.status === 503 && r.retry === "5" && r.ok === false && r.code === "store_not_ready", J([r.status, r.retry, r.ok, r.code]));
+    t(name + ": no store write", r.puts.length === 0 && (warm || o.putTotal === 0), J([r.puts, o.putTotal]));
+    t(name + ": no hook", r.hooks.length === 0, J(r.hooks));
+  };
+  post("post-cold", runCase(apiDir, { store: fxOutHook, cold: true, method: "POST", readHang: true }));
+  post("post-slow", runCase(apiDir, { store: fxOutHook, cold: true, method: "POST", readDelay: 45000 }));
+  post("post-warm", runCase(apiDir, { store: fxOutHook, put: "throw", readHang: true, readFrom: 1, methods: ["GET", "POST"], runs: [DAY0, DAY0 + 8 * 3600000] }), true);
+  post("post-warmslow", runCase(apiDir, { store: fxOutHook, put: "throw", readDelay: 45000, readFrom: 1, methods: ["GET", "POST"], runs: [DAY0, DAY0 + 8 * 3600000] }), true);
+  post("post-legacy", runCase(apiDir, { store: fxOutHook, storeName: "aia-store.json", cold: true, method: "POST", hangKeys: ["aia-store.json"] }));
+  post("post-absent", runCase(apiDir, { store: fxOutHook, storeName: "none", cold: true, method: "POST", hangLists: ["aia-store.json"] }));
+
   // Worst case, from the constants and from the runs above.
   const b = (a && a.budget) || {};
   t("budget: worker constants are the reviewed ones", b.HOOK_MS === B.HOOK_MS && b.HOOK_CAP === B.HOOK_CAP && b.HOOK_END_MS === B.HOOK_END_MS && b.DEFER_MS === B.DEFER_MS, J(b));
@@ -385,12 +453,32 @@ const MUTANTS = [
   { id: "W8 delivery id minted per try", file: "worker.js", from: "update(job.id + \"|follow|\" + (job.doneAt || \"\"))", to: "update(job.id + \"|follow|\" + Date.now())" },
   { id: "W9 no rotation (always from the first job)", file: "worker.js", from: "const start = Math.floor(((slot * 0.6180339887498949) % 1) * list.length);", to: "const start = 0;" },
   { id: "W10 hooks while the store is untrusted", file: "worker.js", from: "const pinged = storeTrusted() ? await pingHooks(scope, t0) : [];", to: "const pinged = await pingHooks(scope, t0);" },
-  { id: "W11 late read answer trusts the store", file: "_lib.js", from: "job.then(() => { if (timedOut) untrustStore(); }, () => {});", to: "" }
+  { id: "W11 late read answer trusts the store", file: "_lib.js", from: "job.then(() => { if (timedOut) untrustStore(); }, () => {});", to: "" },
+  { id: "W12 doneAt dropped from the delivery id", file: "worker.js", from: "update(job.id + \"|follow|\" + (job.doneAt || \"\"))", to: "update(job.id + \"|follow|\")" },
+  { id: "W13 least-recently-tried reversed (most recent first)", file: "worker.js", from: "String(a[0].job.followTriedAt || \"\").localeCompare(String(b[0].job.followTriedAt || \"\"))", to: "String(b[0].job.followTriedAt || \"\").localeCompare(String(a[0].job.followTriedAt || \"\"))" },
+  { id: "W14 least-recently-tried key ignored (rotation only)", file: "worker.js", from: ".sort((a, b) => String(a[0].job.followTriedAt || \"\").localeCompare(String(b[0].job.followTriedAt || \"\")) || a[1] - b[1])", to: ".sort((a, b) => a[1] - b[1])" },
+  { id: "W15 never-tried jobs last, not first", file: "worker.js", from: "String(a[0].job.followTriedAt || \"\").localeCompare(String(b[0].job.followTriedAt || \"\"))", to: "String(a[0].job.followTriedAt || \"\\uffff\").localeCompare(String(b[0].job.followTriedAt || \"\\uffff\"))" },
+  { id: "W15b ties broken against the rotation order", file: "worker.js", from: " || a[1] - b[1])", to: " || b[1] - a[1])" },
+  { id: "W16 no deadline on hydrate's legacy read", file: "_lib.js", from: "\n    if (blobProbe.read !== \"error\") {\n      const legacy = await blobReadDeadline(blobLegacyRead());", to: "\n    if (blobProbe.read !== \"error\") {\n      const legacy = await blobLegacyRead();" },
+  { id: "W17 no deadline on hydrate's 'store absent' listing", file: "_lib.js", from: "!(await blobReadDeadline(blobAbsent()))", to: "!(await blobAbsent())" },
+  { id: "W18 a timed-out read leaves the store trusted", file: "_lib.js", from: "    timedOut = true;\n    untrustStore();\n", to: "    timedOut = true;\n" },
+  { id: "W19 read-back timeout counted as success", file: "_lib.js", from: "\"read-back\").catch(() => false);", to: "\"read-back\").catch(() => true);" },
+  { id: "R1 no deadline on recoverStore's store read", file: "_lib.js", from: "untrusted (503).\n    const remote = await blobReadDeadline(blobRead());", to: "untrusted (503).\n    const remote = await blobRead();" },
+  { id: "R2 no deadline on recoverStore's legacy read", file: "_lib.js", from: "} else if (blobProbe.read !== \"error\") {\n      const legacy = await blobReadDeadline(blobLegacyRead());", to: "} else if (blobProbe.read !== \"error\") {\n      const legacy = await blobLegacyRead();" },
+  { id: "R3 no deadline on recoverStore's 'store absent' listing", file: "_lib.js", from: "        await blobReadDeadline(blobAbsent());\n", to: "        await blobAbsent();\n" },
+  { id: "R4 no deadline on any recoverStore read", file: "_lib.js", from: "async function recoverStore() {\n", to: "async function recoverStore() {\n  const blobReadDeadline = (job) => job;\n" }
+];
+// Equivalent (cannot change behavior, not counted): Array.prototype.sort is
+// stable and the list is already in rotation order, so the index tie-break
+// is redundant.
+const EQUIVALENT = [
+  { id: "E1 index tie-break dropped from the try order", file: "worker.js", from: " || a[1] - b[1])", to: ")" }
 ];
 
 function mutate() {
   let caught = 0;
-  MUTANTS.forEach((m) => {
+  MUTANTS.concat(EQUIVALENT).forEach((m) => {
+    const eq = EQUIVALENT.indexOf(m) >= 0;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-wd-mut-"));
     const api = path.join(tmp, "api");
     fs.cpSync(path.join(ROOT, "api"), api, { recursive: true });
@@ -400,6 +488,7 @@ function mutate() {
     fs.writeFileSync(f, src.replace(m.from, m.to));
     const bad = runAll(api, true).filter((c) => !c.ok);
     fs.rmSync(tmp, { recursive: true, force: true });
+    if (eq) { console.log((bad.length ? "equivalent, yet " + bad.length + " checks fail: " : "equivalent (not counted), survives: ") + m.id); return; }
     if (bad.length) { caught++; console.log("caught  " + m.id + " (" + bad.length + " checks fail, e.g. " + bad[0].name + ")"); }
     else console.log("MISSED  " + m.id);
   });
