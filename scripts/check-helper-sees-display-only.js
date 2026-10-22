@@ -343,6 +343,54 @@ async function main() {
   ok(bNo.statusCode === 404, "[sams] unknown seat id: 404 (" + bNo.statusCode + ")");
   const bY = await call(admin, "POST", { "x-workspace": SD2, "x-pin": "6363" }, { action: "person", id: "p_sam_y" }, {}, "/api/admin");
   ok(bY.statusCode === 200 && ids(bY.body) === "SY1", "[sams] Ray's Sam Y: only her card; the legacy card on a desk with two Sams counts for neither (" + ids(bY.body) + ")");
+  // GET ?seat=&desk=: another desk only where the viewer holds a seat (own seat id there, or the
+  // account its own sign-in proved). Any other desk gets a reply byte-identical to an unknown seat.
+  lib.mem.accounts.push({ id: "acct_sam_a", name: "Sam A", ownerName: "Sam A", email: "sam.a.hsd@x.test", desks: [], memberDesks: [SD, SD2], plan: "free" });
+  const samAProven = { "x-workspace": SD, "x-session": lib.issueSession(sw.people.find((p) => p.id === "p_sam_a"), sw, lib.mem.accounts.find((a) => a.id === "acct_sam_a"), null, "password").token };
+  const gseat = (hd, seat, desk) => call(admin, "GET", hd, null, Object.assign({ seat }, desk ? { desk } : {}), "/api/admin?seat=" + seat + (desk ? "&desk=" + desk : ""));
+  const gRay = await gseat(samAProven, "p_owner", SD2);
+  ok(gRay.statusCode === 200 && seatIds(gRay.body) === SD2 + "/p_owner" && gRay.body.person && gRay.body.person.name === "Ray", "[desk=] Sam A (proven, seat on both desks) ?seat=p_owner&desk=" + SD2 + ": that desk's owner, Ray (" + gRay.statusCode + " " + seatIds(gRay.body) + ")");
+  ok(gRay.body.person && !gRay.body.person.email && !(gRay.body.thread || []).length && gRay.body.viewer && gRay.body.viewer.id === "p_sam_x", "[desk=] read as Sam A's own seat on " + SD2 + ": Ray shown as display only, no thread");
+  const gTess = await gseat(samAProven, "p_owner");
+  ok(gTess.statusCode === 200 && seatIds(gTess.body) === SD + "/p_owner" && gTess.body.person.name === "Tess", "[desk=] without desk=, p_owner is this desk's owner, Tess (" + seatIds(gTess.body) + ")");
+  const gY = await gseat(samAProven, "p_sam_y", SD2);
+  ok(gY.statusCode === 200 && seatIds(gY.body) === SD2 + "/p_sam_y" && JSON.stringify(gY.body).indexOf("sam.y.hsd@x.test") < 0, "[desk=] Sam A ?seat=p_sam_y&desk=" + SD2 + ": Sam Y by seat id, display only");
+  const samBPin = { "x-workspace": SD, "x-pin": "6262" };
+  const samAPin = { "x-workspace": SD, "x-pin": "6161" };
+  for (const [tag, hd] of [["Sam B (no seat there)", samBPin], ["Sam A by desk code (unproven)", samAPin], ["Tess (owner here, no seat there)", tess]]) {
+    const unknown = await gseat(hd, "p_nobody");
+    for (const [what, seat, desk] of [["p_owner on " + SD2, "p_owner", SD2], ["p_sam_y on " + SD2, "p_sam_y", SD2], ["p_owner on a desk that does not exist", "p_owner", "hsd-nowhere"], ["p_nobody on " + SD2, "p_nobody", SD2]]) {
+      const r = await gseat(hd, seat, desk);
+      ok(r.statusCode === unknown.statusCode && JSON.stringify(r.body) === JSON.stringify(unknown.body), "[desk= no access " + tag + "] " + what + ": byte-identical to an unknown seat (" + r.statusCode + " " + JSON.stringify(r.body).slice(0, 80) + ")");
+    }
+  }
+
+  // POST /api/desks history seat=&desk=: one seat's cards by seat id; a legacy name-only card only
+  // when exactly one seat on that desk has the name; never another same-name seat's cards.
+  const histFor = async (seat, desk) => {
+    const r = await call(desks, "POST", tess, Object.assign({ action: "history", desks: [{ slug: SD, pin: "6060" }], seat }, desk ? { desk } : {}), {}, "/api/desks");
+    return { status: r.statusCode, ids: ((r.body && r.body.items) || []).map((it) => it.id).sort().join(","), items: (r.body && r.body.items) || [] };
+  };
+  const hA = await histFor("p_sam_a", SD);
+  ok(hA.status === 200 && hA.ids === "SA1,SAD", "[history seat=] p_sam_a: only Sam A's cards by seat id (" + hA.ids + ")");
+  const hB = await histFor("p_sam_b", SD);
+  ok(hB.status === 200 && hB.ids === "SB1,SB2,SBC", "[history seat=] p_sam_b: only Sam B's cards, none of Sam A's, no ambiguous legacy card (" + hB.ids + ")");
+  const hU = await histFor("p_uma", SD);
+  ok(hU.ids === "ULEG", "[history seat=] p_uma: the legacy name-only card counts for the one seat with that name (" + hU.ids + ")");
+  const hNoDesk = await histFor("p_sam_a");
+  ok(hNoDesk.ids === "SA1,SAD", "[history seat=] one opened desk and no desk=: that desk (" + hNoDesk.ids + ")");
+  const hOther = await histFor("p_sam_x", SD2);
+  ok(hOther.status === 200 && hOther.ids === "", "[history seat=] a desk not opened in this request: no items (" + hOther.ids + ")");
+  const sa1 = hA.items.find((it) => it.id === "SA1");
+  ok(sa1 && JSON.stringify(sa1.seatIds) === JSON.stringify(["p_sam_a"]), "[history] items carry the seat ids they credit (" + JSON.stringify(sa1 && sa1.seatIds) + ")");
+  // A tap with no seat behind it that names a shared name is refused (never a guess, never a silent nobody).
+  lib.mem.jobs.push(sjob("SANON", SD, {}));
+  const anon = await call(jobs, "POST", { "x-workspace": SD }, { action: "snooze", id: "SANON", until: "in 2 hours", whoTapped: "Sam" }, {}, "/api/jobs");
+  const sanon = lib.mem.jobs.find((j) => j.id === "SANON");
+  ok(anon.statusCode === 409 && !sanon.whoTapped && !sanon.whoTappedId, "[whoTapped] a seatless tap naming Sam (two Sams): 409, nothing written (" + anon.statusCode + ")");
+  const named = await call(jobs, "POST", samBPin, { action: "snooze", id: "SANON", until: "in 2 hours", whoTapped: "Sam" }, {}, "/api/jobs");
+  ok(named.statusCode === 200 && sanon.whoTappedId === "p_sam_b", "[whoTapped] with a seat, the session's own seat is credited by id, whatever name the body sends (" + named.statusCode + " " + sanon.whoTappedId + ")");
+
   // New taps and hand-offs store the seat id; the sheet follows the id, not the name.
   lib.mem.jobs.push(sjob("SNEW", SD, {}));
   const tap = await call(jobs, "POST", samB, { action: "done", id: "SNEW" }, {}, "/api/jobs");
@@ -438,12 +486,12 @@ const MUTANTS = [
   ["P1 person sheet ignores the seat id (name lookup)", "api/admin.js", "  if (want.id) {\n    const order", "  if (false) {\n    const order"],
   ["P2 name lookup takes the first of two same-name seats", "api/admin.js", "if (named.length === 1) return { row, seat: named[0] };", "if (named.length >= 1) return { row, seat: named[0] };"],
   ["P3 other desks' seats by name, not account", "api/admin.js", "if (seat && String(seat.accountId || \"\") === acct) seats.push(", "if (seat && lower(seat.name) === lower(found.seat.name)) seats.push("],
-  ["P4 cards by name even when a seat id is stored", "api/admin.js", "  if (ids.length) return ids.indexOf(String(seat.id)) >= 0;\n", ""],
-  ["P5 legacy name-only card without the one-seat rule", "api/admin.js", "  if (named.length !== 1 || named[0] !== seat) return false;\n", ""],
-  ["P6 hand-off seat id not read", "api/admin.js", "[custom.personId, job && job.handedTo && job.handedTo.id]", "[custom.personId]"],
-  ["P7 whoTappedId not read", "api/admin.js", "  [\"whoTapped\", \"whoTappedId\"],\n", ""],
-  ["P8 doneById not read", "api/admin.js", "[\"doneBy\", \"doneById\"]", "[\"doneBy\", \"doneByX\"]"],
-  ["P9 custom.personId not read", "api/admin.js", "[custom.personId, job && job.handedTo", "[job && job.handedTo"],
+  ["P4 cards by name even when a seat id is stored", "api/_fields.js", "  if (ids.length) return ids.indexOf(String(seat.id)) >= 0;\n", ""],
+  ["P5 legacy name-only card without the one-seat rule", "api/_fields.js", "  if (named.length !== 1 || named[0] !== seat) return false;\n", ""],
+  ["P6 hand-off seat id not read", "api/_fields.js", "[custom.personId, job && job.handedTo && job.handedTo.id]", "[custom.personId]"],
+  ["P7 whoTappedId not read", "api/_fields.js", "  [\"whoTapped\", \"whoTappedId\"],\n", ""],
+  ["P8 doneById not read", "api/_fields.js", "[\"doneBy\", \"doneById\"]", "[\"doneBy\", \"doneByX\"]"],
+  ["P9 custom.personId not read", "api/_fields.js", "[custom.personId, job && job.handedTo", "[job && job.handedTo"],
   ["P10 taps do not store the seat id", "api/jobs.js", "return (person && person.id) ? String(person.id) : \"\";", "return \"\";"],
   ["P11 hand-off does not store assigneeId", "api/_handoff.js", "  job.assigneeId = who.id || \"\";\n", ""],
   ["P12 seatFor takes the first same-name seat", "api/_fields.js", "return named.length === 1 ? named[0] : null;", "return named[0] || null;"],
@@ -456,6 +504,17 @@ const MUTANTS = [
   ["A12 person book thread for nobody (own and owner lost)", "api/admin.js", "thread: isOwner(viewer) || (viewer && viewer.id === first.id) ? (first.thread || []).slice(-40) : [],", "thread: [],"],
   ["I1 desk talk hands the card to the first of two Sams", "api/intake.js", "return hit && !require(\"./_fields\").seatNameShared(people, hit) ? hit : null;", "return hit;"],
   ["I2 desk talk assign stores no seat id", "api/intake.js", "      job.assigneeId = whoPerson.id || \"\";\n", ""],
+  ["Q1 desk= ignored (current desk only)", "api/admin.js", "        desk: askDesk,\n        name: q.who", "        name: q.who"],
+  ["Q2 desk= opens any desk (no seat check)", "api/admin.js", "const card = mineCards.owned.concat(mineCards.member).find((c) => c && c.slug === askDesk && c.status !== \"pending\");", "const card = { slug: askDesk, personId: \"p_owner\" };"],
+  ["Q3 desk not open falls back to this desk", "api/admin.js", "  if (want.desk && !byDesk.length) return { status: 404, error: \"Person not found.\" };\n", ""],
+  ["Q4 desk= denial with its own reply (oracle)", "api/admin.js", "  if (want.desk && !byDesk.length) return { status: 404, error: \"Person not found.\" };", "  if (want.desk && !byDesk.length) return { status: 404, error: \"No seat on that desk.\" };"],
+  ["Q5 desk= read as the home viewer", "api/admin.js", "if (seatThere) { bookRow = there; bookViewer = seatThere; }", "if (seatThere) { bookRow = there; }"],
+  ["H1 history seat filter ignored", "api/_desks-http.js", "    if (seatWant) {\n      const deskWant", "    if (false) {\n      const deskWant"],
+  ["H2 history legacy name rule dropped (any name)", "api/_fields.js", "  if (named.length !== 1 || named[0] !== seat) return false;\n  const want = String(seat.name", "  const want = String(seat.name"],
+  ["H3 history by partial name", "api/_desks-http.js", "        return touch(job, seat, seatRow);", "        return String(it.who || \"\").toLowerCase().indexOf(String(seat.name || \"\").toLowerCase()) >= 0 || (it.hands || []).join(\" \").toLowerCase().indexOf(String(seat.name || \"\").toLowerCase()) >= 0;"],
+  ["H4 history seat on a desk not opened (equivalent: items only come from opened desks)", "api/_desks-http.js", "const seatRow = opened.find((r) => r.slug === deskWant);", "const seatRow = (mem.workspaces || []).find((r) => r && r.slug === deskWant);", true], // equivalent: items only come from desks opened in this request
+  ["H5 history items without seat ids", "api/_history.js", "    seatIds: [job.custom", "    seatIdsX: [job.custom"],
+  ["T1 seatless tap with a shared name is not refused", "api/jobs.js", "      return res.status(409).json({ ok: false, error: \"More than one seat has that name. Open your own seat to tap.\" });\n", ""],
   ["E3 account export: owned desks trimmed", "api/_account-http.js", "const owns = !!(acc && (row.accountId === acc.id || (acc.desks || []).indexOf(row.slug) >= 0));", "const owns = false;"]
 ];
 function runMutants() {

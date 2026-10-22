@@ -128,6 +128,11 @@ module.exports = async function handler(req, res) {
   if (req.method === "POST") {
     const body = await readBody(req);
     const action = body.action || "capture";
+    // A tap with no seat behind it names who tapped only as text. A name two seats on this desk share is
+    // refused: never a guessed seat, never a silent nobody. (With a seat, the session's own seat is credited.)
+    if (!person && shop && body.whoTapped && require("./_fields").seatNameShared(shop.people, { name: String(body.whoTapped).trim() })) {
+      return res.status(409).json({ ok: false, error: "More than one seat has that name. Open your own seat to tap." });
+    }
     if (action === "suggest") {
       const job = makeCapturedJob(workspace, shop, body);
       qualifyJob(job, shop);
