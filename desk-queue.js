@@ -57,7 +57,7 @@
   }
   window.helpWithAi = async function (id) {
     const banner = document.getElementById("banner");
-    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "recommend", id: id, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
+    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "recommend", id: id }) });
     const line = out.status >= 400 ? ((out.data && out.data.error) || "Could not draft help.") : "A Desk AI drafted on the card. Nothing sent.";
     if (typeof load === "function") await load();
     if (banner) banner.textContent = line;
@@ -78,12 +78,22 @@
     sheet.innerHTML = "<h3>Hand off</h3><p class=\"meta\">A person already on this desk. Owner still owns No. AIA does not text them.</p>" + (rows ? "<div class=\"row actions\">" + rows + "</div>" : "<p class=\"meta\">No other people yet.</p><p class=\"meta\"><button class=\"edit\" type=\"button\" onclick=\"openInvite()\">Invite a helper</button></p>") + "<div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
     wrap.classList.add("on");
   };
+  // Hand off by seat id. The buttons carry a name, so find the one seat with it; two seats with the
+  // name never guess.
   window.handOffTo = async function (id, name) {
     const banner = document.getElementById("banner");
-    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "assign", id: id, name: name, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
+    const want = String(name || "").trim();
+    const list = (PEOPLE || []).filter(function (p) { return p && p.id; });
+    const byId = list.find(function (p) { return String(p.id) === want; });
+    const named = byId ? [byId] : list.filter(function (p) { return String(p.name || "").trim().toLowerCase() === want.toLowerCase(); });
+    if (named.length > 1) { if (banner) banner.textContent = "Two people share that name. Open them from the People list."; return; }
+    if (!named.length) { if (banner) banner.textContent = "Pick the person from the list."; return; }
+    const seat = named[0];
+    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "assign", id: id, to: String(seat.id) }) });
+    if (out.status === 409) { if (banner) banner.textContent = "Two people share that name. Open them from the People list."; return; }
     if (out.status >= 400) { if (banner) banner.textContent = (out.data && out.data.error) || "Name someone already on People."; return; }
     document.getElementById("sheet").classList.remove("on");
-    if (banner) banner.textContent = "Handed to " + name + ".";
+    if (banner) banner.textContent = "Handed to " + (seat.name || want) + ".";
     if (typeof load === "function") await load();
   };
   window.openPipesSheet = async function (id) {
@@ -102,7 +112,7 @@
   window.doneOffDesk = async function (id) {
     const banner = document.getElementById("banner");
     const note = window.prompt("How did this get done?", "Done off the desk.") || "Done off the desk.";
-    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "done", id: id, text: note, how: "off-desk", whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
+    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "done", id: id, text: note, how: "off-desk" }) });
     if (banner) banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not mark done.") : "Done off the desk.";
     const sheet = document.getElementById("sheet");
     if (sheet) sheet.classList.remove("on");
@@ -111,7 +121,7 @@
   window.needsHand = async function (id) {
     const banner = document.getElementById("banner");
     const note = window.prompt("What still needs a hand?", "Needs a hand.") || "Needs a hand.";
-    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "hand", id: id, text: note, whoTapped: (typeof youName !== "undefined" && youName) || "desk" }) });
+    const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "hand", id: id, text: note }) });
     if (banner) banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not bounce this back.") : "Back on the queue. Needs a hand.";
     const sheet = document.getElementById("sheet");
     if (sheet) sheet.classList.remove("on");
