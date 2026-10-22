@@ -381,7 +381,7 @@ module.exports = async function handler(req, res) {
       job.step = "Collect";
       markFlow(job, "collect");
       job.log = (job.log || []).concat([moneyNeedsOwner(amount, holdAt) ? "Owner confirmed" : "Shipped"]);
-      mem.money.unshift({ at: new Date().toISOString(), workspace, who: job.payoutTo || job.title, what: "Ship", amt: amount ? "$" + amount : "—", held: false });
+      // Collect is on HOLD: Ship never writes a money row.
       log(pipe ? pipe.label : "Desk AI", "Shipped · " + job.title, "OK", workspace);
       await save();
       return res.status(200).json({ ok: true, job, nextJob: nextJob || undefined });

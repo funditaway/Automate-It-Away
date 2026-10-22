@@ -747,7 +747,7 @@ function routesMain(apiDir, t) {
   const fx = JSON.parse(line.slice(8));
   t("routes: fixture has a session, cards, seats and rules", !!(fx.token && Object.values(fx.jobs).every(Boolean) && fx.helperId && fx.helper2Id && fx.helper3Id && fx.ruleId && fx.ruleId2), JSON.stringify(Object.assign({}, fx, { store: undefined, token: !!fx.token })));
   const table = [];
-  const MUST_WORK = ["jobs capture", "jobs kill", "jobs say", "jobs ship", "jobs done", "jobs hand", "jobs qualify", "jobs priority", "hook capture", "hook update", "hook done", "hook hand", "hook kill", "hook stop", "hook collect", "intake start", "intake do", "intake setup", "intake request", "intake setup (anon)", "intake request (anon)", "hook capture (anon)", "upload file", "upload file (anon)", "rules add", "rules remove", "auth open", "auth register", "auth join", "account login", "account details", "desks update", "desks close", "admin say", "admin invite", "connections ai-bind", "connections unbind", "worker run"];
+  const MUST_WORK = ["jobs capture", "jobs kill", "jobs say", "jobs ship", "jobs done", "jobs hand", "jobs qualify", "jobs priority", "hook capture", "hook update", "hook done", "hook hand", "hook kill", "hook stop", "intake start", "intake do", "intake setup", "intake request", "intake setup (anon)", "intake request (anon)", "hook capture (anon)", "upload file", "upload file (anon)", "rules add", "rules remove", "auth open", "auth register", "auth join", "account login", "account details", "desks update", "desks close", "admin say", "admin invite", "connections ai-bind", "connections unbind", "worker run"];
   const RUNS = [];
   CASES.forEach((c) => {
     RUNS.push(Object.assign({}, c, { id: c.id + " stale-copy" }));
@@ -782,6 +782,9 @@ function routesMain(apiDir, t) {
     t(c.id + " routes: trusted after recovery", o.trustedAfterB === true);
     const broke = MUST_WORK.filter((k) => { const x = o.B.find((y) => y.key === k); return !x || !(x.status >= 200 && x.status < 300) || x.puts < 1; });
     t(c.id + " routes: key actions succeed after recovery with a store put", broke.length === 0, JSON.stringify(broke.map((k) => o.B.find((y) => y.key === k) || k).slice(0, 6)));
+    // Collect is on HOLD: hook collect (paid) answers 409 HOLD and puts nothing.
+    const hc = o.B.find((x) => x.key === "hook collect");
+    t(c.id + " routes: hook collect (paid) answers 409 Collect HOLD with no store put", !!hc && hc.status === 409 && hc.puts === 0, JSON.stringify(hc || null));
     const twoNoPutB = o.B.filter((x) => x.method !== "GET" && x.status >= 200 && x.status < 300 && x.puts === 0 && readOnly.indexOf(x.key.replace(/ \(anon\)$/, "")) < 0);
     t(c.id + " routes: no POST/PUT/PATCH/DELETE answers 2xx without a store put after recovery (read-only list aside)", twoNoPutB.length === 0, JSON.stringify(twoNoPutB.slice(0, 8)));
     const roPut = o.B.filter((x) => readOnly.indexOf(x.key.replace(/ \(anon\)$/, "")) >= 0 && x.puts > 0);

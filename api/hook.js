@@ -8,11 +8,18 @@ const mail = require("./_aia-mail");
 function eventOf(body) {
   const raw = String(body.event || body.action || body.status || "update").toLowerCase();
   if (/need[s]?\s*a?\s*hand|manual|by[\s-]?hand|retry|reopen/.test(raw)) return "hand";
-  if (/sold|paid/.test(raw)) return "collect";
+  if (/\b(sold|paid)\b/.test(raw)) return "collect";
   if (/booked|done|complete|shipped|confirmed/.test(raw)) return "done";
   if (/fail|error|cancel|kill|stop/.test(raw)) return "kill";
   if (/capture|new|create|intake/.test(raw)) return "capture";
   return "update";
+}
+
+// Collect is on HOLD. Any paid/sold word in event, action, or status (unpaid too)
+// gets the HOLD reply and writes nothing: no card change, no money row, no save.
+const COLLECT_HOLD = "Collect stays HOLD until Yes + a real money pipe. Nothing was charged or written.";
+function moneyWord(body) {
+  return [body.event, body.action, body.status].some((v) => /paid|sold/i.test(String(v == null ? "" : v)));
 }
 
 function finishDone(job, body, how) {
@@ -94,6 +101,9 @@ module.exports = async function handler(req, res) {
     });
   }
   const event = identity ? "capture" : eventOf(body);
+  if (event === "collect" || moneyWord(body)) {
+    return res.status(409).json({ ok: false, hold: true, collect: "hold", charged: false, event: "collect", error: COLLECT_HOLD });
+  }
   const title = body.title || body.item || body.name || body.notes || "Pipe update";
 
   let job = null;
@@ -190,25 +200,6 @@ module.exports = async function handler(req, res) {
     log("Pipe", "Done · " + job.title, "OK", workspace);
     await save();
     return answer(res, 200, req, workspace, "done", job);
-  }
-
-  if (event === "collect") {
-    const amount = Number(body.amount || job.amount || job.ask || 0);
-    finishDone(job, body, "pipe");
-    job.step = "Collect";
-    job.amount = amount || job.amount;
-    job.log = (job.log || []).concat(["Pipe wrote back · collect"]);
-    mem.money.unshift({
-      at: new Date().toISOString(),
-      workspace,
-      who: job.payoutTo || job.title,
-      what: "Pipe collect",
-      amt: amount ? "$" + amount : "—",
-      held: false
-    });
-    log("Pipe", "Collect · " + job.title, "OK", workspace);
-    await save();
-    return answer(res, 200, req, workspace, "collect", job);
   }
 
   job.notes = body.notes || job.notes;

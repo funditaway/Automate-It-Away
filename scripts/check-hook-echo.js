@@ -303,7 +303,6 @@ async function main() {
     [{ event: "update", notes: "Pipe update" }, "update"],
     [{ event: "needs a hand", notes: "Needs a hand." }, "hand"],
     [{ event: "done", notes: "Finished off the pipe." }, "done"],
-    [{ event: "paid", notes: "Paid.", amount: 40 }, "collect"],
     [{ event: "kill", notes: "Stop." }, "kill"]
   ];
   for (let i = 0; i < events.length; i++) {
@@ -317,11 +316,20 @@ async function main() {
     if (body.id !== stored.id || body.status !== stored.status) fail(name + " confirmation did not match the card");
     if (stored.charged) fail(name + " charged the card");
   }
-  const collectRow = (lib.mem.money || [])[0];
-  if (!collectRow || collectRow.what !== "Pipe collect" || collectRow.held !== false || collectRow.charged) {
-    fail("collect write-back changed: " + JSON.stringify(collectRow));
+  pass("update, hand, done, and stop do not echo the card");
+
+  // Collect is on HOLD: paid answers HOLD, keeps the card as it was, and writes no money row.
+  const moneyBefore2 = JSON.stringify(lib.mem.money || []);
+  const cardBefore = JSON.stringify(lib.mem.jobs.find(function (j) { return j && j.id === "job_hookecho"; }));
+  const paid = await call(hook, "POST", { "x-workspace": slug }, { id: "job_hookecho", event: "paid", notes: "Paid.", amount: 40 });
+  if (paid.statusCode !== 409 || !paid.body || paid.body.hold !== true || paid.body.collect !== "hold" || paid.body.charged !== false) {
+    fail("paid must answer Collect HOLD, got " + paid.statusCode + " " + JSON.stringify(paid.body));
   }
-  pass("update, hand, done, collect, and stop do not echo the card");
+  if (Object.prototype.hasOwnProperty.call(paid.body, "job")) fail("paid HOLD reply echoed the card");
+  secrets.forEach(function (bit) { if (bit && leaked(paid.body, bit)) fail("paid HOLD reply leaked " + bit); });
+  if (JSON.stringify(lib.mem.money || []) !== moneyBefore2) fail("paid wrote a money row: " + JSON.stringify((lib.mem.money || [])[0]));
+  if (JSON.stringify(lib.mem.jobs.find(function (j) { return j && j.id === "job_hookecho"; })) !== cardBefore) fail("paid changed the card");
+  pass("paid answers Collect HOLD, leaves the card, and writes no money row");
 
   const book = (lib.mem.files || []).find(function (f) { return f && f.id === "file_hookecho"; });
   if (!book || book.url !== memUrl || book.remoteUrl !== memRemote) fail("the file book was changed");
