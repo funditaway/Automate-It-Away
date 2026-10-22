@@ -124,7 +124,7 @@
 </head>
 <body class="has-desk-nav">
   <header>
-    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt="Automate It Away"><span class="brand-name">Automate It Away</span></a>
     <span>
       <a href="consign.html" id="nav-consign" hidden>Consign</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
@@ -289,245 +289,74 @@
         if (el && el.tagName === "A") el.setAttribute("href", href);
       });
     }
-    function keepDesk(shop) {
-      const slug = (shop && shop.slug) || workspaceSlug();
-      const pin = pinEl.value || localStorage.getItem("aia_pin");
-      if (!slug || !pin) return;
-      AIADesks.add({
-        slug: slug,
-        name: (shop && (shop.biz || shop.name)) || localStorage.getItem("aia_desk_name") || slug,
-        pin: pin,
-        role: role || localStorage.getItem("aia_role") || ""
-      });
-    }
-    function paintNouns(nouns) {
-      NOUNS = AIADesks.nounsOf(nouns);
-      const strip = document.getElementById("step-words");
-      if (strip) strip.textContent = [NOUNS.capture, NOUNS.qualify, NOUNS.do, NOUNS.collect, NOUNS.follow].join(" · ");
-    }
-    function paintWidgets(rules) {
-      const on = (rules || []).filter((r) => r && r.widget && r.widget.on);
-      const count = document.getElementById("widget-count");
-      if (count) count.textContent = on.length === 0 ? "" : (on.length === 1 ? "1 Drop link on" : on.length + " Drop links on");
-      const box = document.getElementById("rule-widgets");
-      if (!box) return;
-      const ws = workspaceSlug();
-      const cap = NOUNS.capture || "Capture";
-      box.innerHTML = on.map((r) => {
-        const label = (r.widget && r.widget.label) || cap;
-        const href = ws ? "/drop?ws=" + encodeURIComponent(ws) + "&rule=" + encodeURIComponent(r.id) : "/drop";
-        return "<a class=\"go\" href=\"" + href + "\">" + esc(label) + "</a>";
-      }).join("");
-    }
-    function paintRules(rules) {
-      const rows = rules || [];
-      const line = document.getElementById("rules-line");
-      if (line) {
-        line.innerHTML = rows.length
-          ? "<a href=\"/rules\">Rules</a> — " + rows.length + (rows.length === 1 ? " rule on this desk." : " rules on this desk.")
-          : "<a href=\"/rules\">Rules</a> — no rules yet. Add one if you need it.";
-      }
-      paintWidgets(rows);
-    }
-    function showConsignNav(model) {
+    function showConsignNav() {
+      const pack = (localStorage.getItem("aia_pack") || "").toLowerCase();
       const el = document.getElementById("nav-consign");
-      if (!el) return;
-      const blob = String(model || localStorage.getItem("aia_model") || "") + " " + (wsEl.value || "");
-      el.hidden = !/consign|resale/i.test(blob);
-    }
-    function labelStatus(s) {
-      if (s === "exception") return "Waiting on a person.";
-      if (s === "held") return "Waiting on the owner";
-      if (s === "shipped") return "Sent";
-      if (s === "killed") return "Stopped";
-      return s || "";
-    }
-    function esc(s) {
-      if (typeof escapeHtml === "function") return escapeHtml(s);
-      return String(s || "").replace(/[&<>"'`]/g, (c) => ({
-        "&": "&" + "amp;",
-        "<": "&" + "lt;",
-        ">": "&" + "gt;",
-        '"': "&" + "quot;",
-        "'": "&#39;",
-        "`": "&#96;"
-      })[c]);
-    }
-    function cardId(id) {
-      return typeof safeId === "function" ? safeId(id) : String(id || "").replace(/[^a-zA-Z0-9_-]/g, "");
-    }
-    function cardUrl(url) {
-      return typeof safeUrl === "function" ? safeUrl(url) : "";
+      if (el) el.hidden = pack !== "consign";
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
-        return "<div id=\"queue-empty\"><p>Open a desk. The queue stays empty until you do.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
+        return "<div id=\"queue-empty\"><p>Open a desk first. The queue stays empty until you do.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
       }
       return "<div id=\"queue-empty\"><p>Nothing here yet. Drop or Create a card.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
     }
     window.queueEmptyHtml = queueEmptyHtml;
     function card(j, staff) {
-      const money = Number(j.amount || j.ask || 0);
-      const why = visitorLine(j.why);
-      const next = visitorLine(j.next) || "Yes or Stop.";
-      const id = cardId(j.id);
-      const photo = cardUrl(j.photoUrl);
-      const approved = typeof isCardApproved === "function" && isCardApproved(j.id);
-      const hitl = (typeof approveCard === "function" && typeof startCard === "function")
-        ? (approved
-          ? `<button class="go q-start" onclick="startCard('${id}', ${money})">Start</button>`
-          : `<button class="go q-yes" onclick="approveCard('${id}')">Yes</button>`)
-        : (typeof approveCard === "function"
-          ? `<button class="go q-yes" onclick="approveCard('${id}')">Yes</button>`
-          : `<button class="go q-yes" type="button">Yes</button>`);
+      const id = j.id || "";
+      const approved = j.status === "approved" || j.status === "shipped";
+      const photo = j.photoUrl || "";
+      const why = j.why || j.notes || "";
+      const next = j.next || "";
+      const hitl = j.hitl ? `<div class="q-hitl"><button class="go" onclick="yes('${id}')">Yes</button><button class="kill" onclick="kill('${id}')">Stop</button><button class="edit" onclick="openJob('${id}')">Open</button></div>` : "";
       return `<article class="item${approved ? " q-approved" : ""}" data-job="${esc(id)}"><div class="meta">${esc(labelStatus(j.status))} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${photo ? `<img class="thumb" src="${esc(photo)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${id}')">Open</button>${hitl}${staff ? "" : `<button class="kill" onclick="kill('${id}')">Stop</button>`}</div></article>`;
     }
-    async function load() {
-      if (wsEl.value) {
-        const slug = AIADesks.slugify(wsEl.value);
-        if (slug) { localStorage.setItem("aia_ws", slug); wsEl.value = slug; }
-      }
-      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
-      keepDesk();
-      paintGate();
-      const banner = document.getElementById("banner");
-      const filters = document.getElementById("queue-filters");
-      if (!workspaceSlug()) {
-        banner.textContent = "Open a desk.";
-        JOBS = [];
-        RULES = [];
-        paintNouns(AIADesks.defaultNouns());
-        paintRules([]);
-        if (filters) filters.hidden = true;
-        const packsBar = document.getElementById("pack-filters");
-        if (packsBar) packsBar.hidden = true;
-        document.getElementById("queue").innerHTML = queueEmptyHtml("nodesk");
-        showConsignNav();
+    function paint(jobs, staff) {
+      const box = document.getElementById("queue");
+      if (!box) return;
+      const open = (jobs || []).filter(j => j.status !== "killed" && j.status !== "shipped");
+      if (!open.length) {
+        box.innerHTML = queueEmptyHtml(locked() ? "empty" : "nodesk");
         return;
       }
-      if (filters) filters.hidden = false;
-      const packsBar = document.getElementById("pack-filters");
-      if (packsBar) packsBar.hidden = false;
-      try {
-        await api("/api/worker");
-        const health = await api("/api/health");
-        const store = (health.data && health.data.store) || {};
-        banner.textContent = "This desk’s work.";
-        const jobs = await api("/api/jobs");
-        if (!jobs.data || !Array.isArray(jobs.data.jobs)) {
-          JOBS = [];
-          RULES = [];
-          banner.textContent = (jobs.data && jobs.data.error) || "Open a desk to see the queue.";
-          paintNouns(AIADesks.defaultNouns());
-          paintRules([]);
-          document.getElementById("k-wait").textContent = "0";
-          document.getElementById("k-ship").textContent = "0";
-          document.getElementById("queue").innerHTML = "<div id=\"queue-empty\"><p>" + esc(banner.textContent) + "</p></div>";
-          document.getElementById("recent-label").hidden = true;
-          document.getElementById("recent").innerHTML = "";
-          showConsignNav();
-          return;
-        }
-        JOBS = jobs.data.jobs || [];
-        FIELDS = jobs.data.fields || FIELDS;
-        if (jobs.data.you && jobs.data.you.role) {
-          role = jobs.data.you.role;
-          seatKind = jobs.data.you.kind || jobs.data.you.role || seatKind;
-          youName = jobs.data.you.name || youName;
-          localStorage.setItem("aia_role", role);
-          if (seatKind) localStorage.setItem("aia_kind", seatKind);
-          if (youName) localStorage.setItem("aia_name", youName);
-        }
-        if (jobs.data.desk && jobs.data.desk.instructions != null) deskInstructions = String(jobs.data.desk.instructions || "").trim();
-        if (window.AIADeskAis) {
-          if (Array.isArray(jobs.data.ais) && jobs.data.ais.length) window.AIADeskAis.rows = jobs.data.ais.slice();
-          const you = jobs.data.you || {};
-          if (you.role === "owner" || you.kind === "owner" || role === "owner") window.AIADeskAis.owner = true;
-        }
-        const auth = await api("/api/auth");
-        if (auth.data && auth.data.you && auth.data.you.role) {
-          role = auth.data.you.role;
-          seatKind = auth.data.you.kind || auth.data.you.role || seatKind;
-          youName = auth.data.you.name || youName;
-          localStorage.setItem("aia_role", role);
-          if (seatKind) localStorage.setItem("aia_kind", seatKind);
-          if (youName) localStorage.setItem("aia_name", youName);
-        }
-        if (jobs.data && jobs.data.nouns) NOUNS = AIADesks.nounsOf(jobs.data.nouns);
-        if (auth.data && auth.data.workspace) {
-          const w = auth.data.workspace;
-          if (w.biz || w.name) localStorage.setItem("aia_desk_name", w.biz || w.name);
-          if (w.model) localStorage.setItem("aia_model", w.model);
-          if (w.instructions != null) deskInstructions = String(w.instructions || "").trim();
-          if (w.nouns) NOUNS = AIADesks.nounsOf(w.nouns);
-          keepDesk(w);
-          showConsignNav(w.model);
-        } else showConsignNav();
-        const rulesOut = await api("/api/rules");
-        RULES = (rulesOut.data && rulesOut.data.rules) || (auth.data && auth.data.workspace && auth.data.workspace.rules) || jobs.data.rules || [];
-        if (rulesOut.data && rulesOut.data.nouns) NOUNS = AIADesks.nounsOf(rulesOut.data.nouns);
-        paintNouns(NOUNS);
-        paintRules(RULES);
-        paintGate();
-        if (deskInstructions && role !== "owner" && seatKind !== "owner") {
-          banner.textContent = "Owner instructions — " + deskInstructions;
-        } else if (deskInstructions && (role === "owner" || seatKind === "owner")) {
-          banner.textContent = "This desk’s work. Members see your instructions.";
-        } else {
-          banner.textContent = "This desk’s work.";
-        }
-      } catch (e) { banner.textContent = "Could not reach the desk."; JOBS = []; RULES = []; paintNouns(AIADesks.defaultNouns()); paintRules([]); showConsignNav(); }
-      const waiting = JOBS.filter(j => j.status === "exception");
-      const ready = JOBS.filter(j => j.status === "waiting");
-      const held = JOBS.filter(j => j.status === "held");
-      const shipped = JOBS.filter(j => j.status === "shipped");
-      document.getElementById("k-wait").textContent = waiting.length + ready.length + held.length;
-      document.getElementById("k-ship").textContent = shipped.length;
-      const staff = role === "employee";
-      const open = held.concat(waiting, ready);
-      document.getElementById("queue").innerHTML = open.map(j => card(j, staff)).join("") || queueEmptyHtml("empty");
-      if (location.hash === "#rules") location.replace("/rules");
-      const recent = shipped.slice(0, 3);
-      document.getElementById("recent-label").hidden = !recent.length;
-      document.getElementById("recent").innerHTML = recent.map(j => `<article class="item sent"><div class="meta">Sent${j.followed ? " · follow queued" : ""}</div><h3>${esc(j.title)}</h3><p>${esc(j.followNote || j.draft || "")}</p></article>`).join("");
+      box.innerHTML = open.map(j => card(j, staff)).join("");
     }
-    async function ship(id, amount) {
-      const safe = cardId(id);
-      const amt = Number(amount);
-      const shown = Number.isFinite(amt) ? amt : 0;
-      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id: safe || id, amount, confirm: false, whoTapped: youName || role || "desk" }) });
-      if (out.status === 409 || out.status === 403) {
-        document.getElementById("sheet-card").innerHTML = `<h3>Waiting on the owner</h3><p style="color:var(--muted);margin:8px 0">Waiting on the owner.</p><div class="row">${role === "employee" ? "" : `<button class="go" onclick="confirmShip('${safe}', ${shown})">Yes</button>`}<button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Stop</button></div>`;
-        document.getElementById("sheet").classList.add("on"); load(); return;
+    async function load() {
+      if (!locked()) {
+        document.getElementById("queue").innerHTML = queueEmptyHtml("nodesk");
+        return;
       }
-      await load();
-      if (out.data && out.data.nextJob) {
-        document.getElementById("banner").textContent = "Yes. The next card is on the queue. Nothing sends until you tap.";
+      const out = await api("/api/jobs");
+      if (out.status >= 400) {
+        document.getElementById("banner").textContent = (out.data && out.data.error) || "Could not load the queue.";
+        return;
       }
+      JOBS = (out.data && out.data.jobs) || [];
+      paint(JOBS, role === "employee");
+      const wait = JOBS.filter(j => j.status === "open" || j.status === "qualify").length;
+      const ship = JOBS.filter(j => j.status === "shipped").length;
+      const kw = document.getElementById("k-wait");
+      const ks = document.getElementById("k-ship");
+      if (kw) kw.textContent = wait;
+      if (ks) ks.textContent = ship;
     }
-    async function confirmShip(id, amount) {
-      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id, amount, confirm: true, whoTapped: youName || "owner" }) });
-      document.getElementById("sheet").classList.remove("on"); load();
+    function openJob(id) {
+      location.href = "/job?id=" + encodeURIComponent(id);
     }
-    async function kill(id, title) {
-      const safe = cardId(id);
-      if (title == null || title === "") {
-        let found = null;
-        try { found = typeof jobBy === "function" ? jobBy(safe) : null; } catch (e) {}
-        if (!found && Array.isArray(JOBS)) found = JOBS.find(function (j) { return j && (j.id === id || j.id === safe); });
-        title = (found && found.title) || "";
+    async function yes(id) {
+      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ship", id }) });
+      if (out.status === 409) {
+        document.getElementById("banner").textContent = "Held. Over $250. Owner must tap again.";
+        return;
       }
-      document.getElementById("sheet-card").innerHTML = `<h3>Stop?</h3><p style="color:var(--muted);margin:8px 0">${esc(title)}. Nothing goes out.</p><div class="row"><button class="kill" onclick="confirmKill('${safe}')">Stop</button><button class="edit" onclick="document.getElementById('sheet').classList.remove('on')">Keep the card</button></div>`;
-      document.getElementById("sheet").classList.add("on");
+      load();
     }
-    async function confirmKill(id) {
-      const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "kill", id, confirm: true, whoTapped: youName || "owner" }) });
-      document.getElementById("sheet").classList.remove("on");
-      if (out.status === 403) document.getElementById("banner").textContent = "Waiting on the owner.";
+    async function kill(id) {
+      if (!confirm("Stop this card?")) return;
+      await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "kill", id }) });
       load();
     }
     function openCapture() {
-      document.getElementById("sheet-card").innerHTML = `<h3>Drop anything</h3><label>This is</label><select id="cap-kind"><option value="task" selected>A task</option><option value="chore">An errand</option><option value="list">A list</option><option value="idea">An idea</option><option value="project">A project / build</option><option value="home">Home & family</option><option value="form">School / form</option><option value="note">A note</option></select><label>What is it?</label><input id="cap-title" placeholder="Grocery list, porch idea, Friday ride"><label>When</label><input id="cap-when" placeholder="Friday"><label>Photo or PDF (optional)</label><input id="cap-file" type="file" accept="image/*,application/pdf"><label>Note</label><textarea id="cap-note" rows="2" placeholder="Who it is for, what to do"></textarea><div class="row" style="margin-top:12px"><button class="go" type="button" onclick="capture()">Add to queue</button><button class="edit" type="button" onclick="document.getElementById('sheet').classList.remove('on')">Cancel</button></div>`;
+      document.getElementById("sheet-card").innerHTML = `<h3>Drop on this desk</h3><label>Short name</label><input id="cap-title" placeholder="What is this"><label>Notes</label><textarea id="cap-note" rows="3"></textarea><label>When / amount</label><input id="cap-when" placeholder="Friday or 40"><label>Kind</label><select id="cap-kind"><option value="task">Task</option><option value="home">Home</option><option value="form">Form</option></select><label>Photo</label><input id="cap-file" type="file" accept="image/*"><div class="row" style="margin-top:12px"><button class="go" type="button" onclick="capture()">Drop it</button><button class="edit" type="button" onclick="document.getElementById('sheet').classList.remove('on')">Cancel</button></div>`;
       document.getElementById("sheet").classList.add("on");
     }
     async function capture() {
@@ -564,4 +393,3 @@
   </script>
 <script src="/mark-fix.js"></script></body>
 </html>
-
