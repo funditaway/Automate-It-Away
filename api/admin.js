@@ -57,16 +57,20 @@ function findBookSeat(want, rows, currentSlug) {
   if (named.length > 1) return { status: 409, error: "More than one seat has that name. Open the person by seat (?seat=<seat id>)." };
   return { status: 404, error: "Person not found." };
 }
-function allowedSlugs(currentSlug, extras) {
+// The desks this request opened, and per desk the seat that opened it: the signed-in seat on currentSlug,
+// and on each extra desk the seat its own saved code or session opens there. Never one desk's seat for another.
+function allowedSlugs(currentSlug, extras, viewer) {
   const out = [];
   const seen = {};
-  function add(slug) {
+  const seatBy = {};
+  function add(slug, seat) {
     const use = slugify(slug || "");
     if (!use || seen[use]) return;
     seen[use] = true;
     out.push(use);
+    seatBy[use] = seat || null;
   }
-  add(currentSlug);
+  add(currentSlug, viewer);
   const list = Array.isArray(extras) ? extras : [];
   list.slice(0, 32).forEach((item) => {
     const slug = slugify(item && (item.slug || item.workspace || item.biz || item.name) || "");
@@ -76,9 +80,9 @@ function allowedSlugs(currentSlug, extras) {
     if (item && item.token != null) headers["x-session"] = String(item.token);
     const found = personOf({ headers }, slug);
     if (!found.workspace || !found.person || (found.person && found.person.status === "pending")) return;
-    add(slug);
+    add(slug, found.person);
   });
-  return out;
+  return { slugs: out, seatBy };
 }
 function touchTime(job) {
   return String((job && (job.doneAt || job.updatedAt || job.createdAt || job.t)) || "");
@@ -97,12 +101,15 @@ function historyCard(job, row) {
 }
 function personBook(hint, opts) {
   const want = personHint(hint);
-  const viewer = opts && opts.viewer ? opts.viewer : null;
+  const signedIn = opts && opts.viewer ? opts.viewer : null;
   const currentSlug = slugify((opts && opts.currentSlug) || "");
-  const slugs = allowedSlugs(currentSlug, opts && opts.slugs);
+  const opened = allowedSlugs(currentSlug, opts && opts.slugs, signedIn);
+  const slugs = opened.slugs;
   const rows = slugs.map((slug) => (mem.workspaces || []).find((w) => w && w.slug === slug)).filter(Boolean);
   const found = findBookSeat(want, rows, currentSlug);
   if (!found.seat) return { ok: false, status: found.status || 404, error: found.error || "Person not found.", slugs };
+  // The viewer is the requester's own seat on the found seat's desk (owner views need the owner of THAT desk).
+  const viewer = opened.seatBy[found.row.slug] || null;
   // This seat, plus the same person's seats on the other open desks: same account id only, never by name.
   const acct = String(found.seat.accountId || "");
   const seats = [Object.assign({ slug: found.row.slug, desk: deskName(found.row) }, found.seat)];
@@ -151,7 +158,7 @@ function personBook(hint, opts) {
     ok: true,
     // Not the owner and not their own seat: name and role only (no email, account, or phone).
     person: Object.assign({}, viewSeat(publicPerson(first), first, viewer) || {}, { phone: isOwner(viewer) || (viewer && viewer.id === first.id) ? first.phone || "" : "", desks: seats.length }),
-    viewer: viewSeat(publicPerson(viewer), viewer, viewer),
+    viewer: viewSeat(publicPerson(signedIn), signedIn, signedIn),
     slugs,
     allowedSlugs: slugs,
     currentSlug,

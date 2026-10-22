@@ -158,7 +158,11 @@ module.exports = async function handler(req, res) {
     }
     if (action === "capture") {
       if (!shop) return res.status(404).json({ ok: false, error: "No desk with that name. Open one first." });
-      const jobs = makeFanOutJobs(workspace, shop, body);
+      // A signed-in seat captures as itself: who tapped is the session's seat, never the name in the body.
+      // A stranger's drop (no seat) keeps the name it sent, as before.
+      const capBody = person ? Object.assign({}, body, { whoTapped: actorName(person, {}) }) : body;
+      const jobs = makeFanOutJobs(workspace, shop, capBody);
+      if (person) jobs.forEach((j) => { j.whoTapped = actorName(person, {}); j.whoTappedId = actorId(person); });
       const incomingCites = normalizeCites(body.citations || []);
       let grok = null;
       for (let i = 0; i < jobs.length; i++) {

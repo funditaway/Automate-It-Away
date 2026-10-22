@@ -432,6 +432,68 @@ async function main() {
   const sin2 = lib.mem.jobs.find((j) => j.id === "SIN2");
   ok(iuma.statusCode === 200 && sin2.assignee === "Uma" && sin2.assigneeId === "p_uma", "[sams intake] \"Assign this to Uma\" (one seat): handed to Uma by seat id (" + JSON.stringify(sin2.assigneeId || "") + ")");
 
+  // Cross-desk: Xan owns desk XA and holds a helper seat on desk XB. On every path that reads XB's seats,
+  // the viewer is Xan's own seat on XB (a helper there), never his owner seat on XA: no thread, phone,
+  // email or accountId for XB's other seats, with XA's credentials or with XB's. XB's owner still gets them,
+  // the seat itself gets its own thread, and a desk with no seat answers like an unknown seat.
+  const XA = "hsd-xa", XB = "hsd-xb";
+  const xaOpen = await call(auth, "POST", {}, { action: "open", slug: XA, biz: XA, name: "Xan", pin: "3131", email: "xan.hsd@x.test" });
+  const xbOpen = await call(auth, "POST", {}, { action: "open", slug: XB, biz: XB, name: "Xbo", pin: "3232", email: "xbo.hsd@x.test" });
+  ok(xaOpen.statusCode === 201 && xbOpen.statusCode === 201, "[cross-desk setup] Xan opens " + XA + ", Xbo opens " + XB);
+  const xaw = lib.mem.workspaces.find((w) => w && w.slug === XA);
+  const xbw = lib.mem.workspaces.find((w) => w && w.slug === XB);
+  const xanAcc = lib.mem.accounts.find((a) => a.id === xaw.accountId);
+  account.setAccountPassword(xanAcc, "xan-pass-hsd-1234");
+  xanAcc.memberDesks = (xanAcc.memberDesks || []).concat([XB]);
+  xbw.people.push(seat("p_xb_xan", "Xan", "helper", "3333", "xan.hsd@x.test", xanAcc.id));
+  xbw.people.push(seat("p_xb_zed", "Zed", "helper", "3434", "zed.xb.hsd@x.test", "acct_zed_xb_secret", { phone: "4175550199", thread: [{ t: now, from: "Xbo", kind: "owner", text: "SECRET-ZED-XB-THREAD" }] }));
+  const xbOwnerSeat = xbw.people.find((p) => p && p.role === "owner");
+  const xanLogin = await call(auth, "POST", {}, { action: "login", email: "xan.hsd@x.test", password: "xan-pass-hsd-1234" });
+  ok(xanLogin.statusCode === 200 && xanLogin.body.session, "[cross-desk setup] Xan signs in by email + password (" + xanLogin.statusCode + ")");
+  const xanTok = xanLogin.body.session.token;
+  const XA_PIN = { "x-workspace": XA, "x-pin": "3131" };
+  const XA_SESS = { "x-workspace": XA, "x-session": xanTok };
+  const XB_PIN = { "x-workspace": XB, "x-pin": "3333" };
+  const XB_SESS = { "x-workspace": XB, "x-session": xanTok };
+  const ZSECRETS = ["SECRET-ZED-XB-THREAD", "4175550199", "zed.xb.hsd@x.test", "acct_zed_xb_secret"];
+  const zleaks = (r) => ZSECRETS.filter((x) => JSON.stringify((r && r.body) || {}).indexOf(x) >= 0);
+  const xcreds = [["XA desk code", XA_PIN, [{ slug: XB, pin: "3333" }]], ["XA proven session", XA_SESS, [{ slug: XB, token: xanTok }]], ["XB desk code", XB_PIN, [{ slug: XA, pin: "3131" }]], ["XB session", XB_SESS, [{ slug: XA, token: xanTok }]]];
+  for (const [tag, hd, extra] of xcreds) {
+    const viaPost = await call(admin, "POST", hd, { action: "person", id: "p_xb_zed", desk: XB, desks: extra }, {}, "/api/admin");
+    ok(viaPost.statusCode === 200 && seatIds(viaPost.body) === XB + "/p_xb_zed" && !zleaks(viaPost).length && !viaPost.body.ownerHere, "[cross-desk POST person, " + tag + "] Zed on " + XB + ": name and role only, no thread/phone/email/accountId (" + viaPost.statusCode + " leaks " + JSON.stringify(zleaks(viaPost)) + ")");
+    const viaGet = await call(admin, "GET", hd, null, { seat: "p_xb_zed", desk: XB }, "/api/admin?seat=p_xb_zed&desk=" + XB);
+    const unknownG = await call(admin, "GET", hd, null, { seat: "p_nobody" }, "/api/admin?seat=p_nobody");
+    ok(!zleaks(viaGet).length && (viaGet.statusCode === 200 ? seatIds(viaGet.body) === XB + "/p_xb_zed" : JSON.stringify(viaGet.body) === JSON.stringify(unknownG.body)), "[cross-desk GET ?seat=&desk=, " + tag + "] Zed on " + XB + ": display only, or the unknown-seat reply (" + viaGet.statusCode + " leaks " + JSON.stringify(zleaks(viaGet)) + ")");
+    const hist2 = await call(desks, "POST", hd, { action: "history", desks: [{ slug: XB, pin: "3333" }], seat: "p_xb_zed", desk: XB }, {}, "/api/desks");
+    ok(hist2.statusCode === 200 && !zleaks(hist2).length, "[cross-desk history seat=&desk=, " + tag + "] no thread/phone/email/accountId for Zed (" + JSON.stringify(zleaks(hist2)) + ")");
+    const mine2 = await call(admin, "GET", hd, null, {}, "/api/admin");
+    ok(!zleaks(mine2).length, "[cross-desk GET /api/admin, " + tag + "] no Zed secrets in the desk reply (" + mine2.statusCode + " " + JSON.stringify(zleaks(mine2)) + ")");
+    const mine3 = await call(admin, "POST", hd, { action: "mine" }, {}, "/api/admin");
+    ok(!zleaks(mine3).length, "[cross-desk admin mine, " + tag + "] no Zed secrets (" + mine3.statusCode + ")");
+    const nowhere = await call(admin, "POST", hd, { action: "person", id: "p_xb_zed", desk: "hsd-x-nowhere", desks: extra }, {}, "/api/admin");
+    const unknownP = await call(admin, "POST", hd, { action: "person", id: "p_nobody", desks: extra }, {}, "/api/admin");
+    ok(nowhere.statusCode === unknownP.statusCode && JSON.stringify(nowhere.body) === JSON.stringify(unknownP.body), "[cross-desk POST person, " + tag + "] a desk with no seat: byte-identical to an unknown seat (" + nowhere.statusCode + ")");
+  }
+  const xbOwnerHd = { "x-workspace": XB, "x-pin": "3232" };
+  const ownPost = await call(admin, "POST", xbOwnerHd, { action: "person", id: "p_xb_zed" }, {}, "/api/admin");
+  const ownGet = await call(admin, "GET", xbOwnerHd, null, { seat: "p_xb_zed", desk: XB }, "/api/admin?seat=p_xb_zed&desk=" + XB);
+  ok(ownPost.statusCode === 200 && zleaks(ownPost).length === 4 && ownGet.statusCode === 200 && (ownGet.body.thread || []).length === 1 && ownGet.body.person.phone === "4175550199", "[cross-desk] " + XB + "'s owner still reads Zed's thread, phone, email and accountId (POST " + JSON.stringify(zleaks(ownPost)) + ")");
+  const zedSelf = await call(admin, "POST", { "x-workspace": XB, "x-pin": "3434" }, { action: "person", id: "p_xb_zed" }, {}, "/api/admin");
+  ok(zedSelf.statusCode === 200 && JSON.stringify(zedSelf.body.thread || []).indexOf("SECRET-ZED-XB-THREAD") >= 0 && zedSelf.body.person.phone === "4175550199", "[cross-desk] Zed's own sheet keeps his own thread and phone");
+  const xanOnA = await call(admin, "POST", XA_PIN, { action: "person", id: xaw.people.find((p) => p.role === "owner").id }, {}, "/api/admin");
+  ok(xanOnA.statusCode === 200 && xanOnA.body.ownerHere === true, "[cross-desk] on his own desk " + XA + " Xan is still the owner (ownerHere)");
+
+  // Capture with a signed-in seat: who tapped is the session's seat, never the body's name.
+  // A stranger's drop (no seat) keeps the name it sent.
+  const capZ = await call(jobs, "POST", { "x-workspace": XB, "x-pin": "3434" }, { action: "capture", title: "cap-by-zed", notes: "x", kind: "task", from: "create", whoTapped: "Xbo" }, {}, "/api/jobs");
+  const capJob = lib.mem.jobs.find((j) => j && j.workspace === XB && j.title === "cap-by-zed");
+  ok(capZ.statusCode === 201 && capJob && capJob.whoTapped === "Zed" && capJob.whoTappedId === "p_xb_zed", "[capture] Zed signed in, body says whoTapped Xbo: the card credits Zed by seat id (" + JSON.stringify(capJob && [capJob.whoTapped, capJob.whoTappedId]) + ")");
+  const xboHist = await call(desks, "POST", xbOwnerHd, { action: "history", desks: [{ slug: XB, pin: "3232" }], seat: xbOwnerSeat.id, desk: XB }, {}, "/api/desks");
+  ok(xboHist.statusCode === 200 && !((xboHist.body && xboHist.body.items) || []).some((it) => it.title === "cap-by-zed"), "[capture] the card is not in Xbo's History");
+  const capS = await call(jobs, "POST", { "x-workspace": XB }, { action: "capture", title: "cap-by-stranger", notes: "x", kind: "task", from: "widget", whoTapped: "Walk-in Wes" }, {}, "/api/jobs");
+  const capSJob = lib.mem.jobs.find((j) => j && j.workspace === XB && j.title === "cap-by-stranger");
+  ok(capS.statusCode === 201 && capSJob && capSJob.whoTapped === "Walk-in Wes" && !capSJob.whoTappedId, "[capture] a stranger's drop (no seat) keeps the name it sent, no seat id (" + capS.statusCode + ")");
+
   const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
   ok(pkg.indexOf("node scripts/check-helper-sees-display-only.js") >= 0, "package.json test runs this check");
   try { fs.rmSync(process.env.AIA_STORE_PATH, { force: true }); } catch (e) {}
@@ -469,7 +531,7 @@ const MUTANTS = [
   ["A5 /api/admin without the proven own account", "api/admin.js", "const snap = accountSnapshot(row, person, ownAcc && ownAcc.id);", "const snap = accountSnapshot(row, person);"],
   ["A6 person book untrimmed", "api/admin.js", "person: Object.assign({}, viewSeat(publicPerson(first), first, viewer) || {},", "person: Object.assign({}, publicPerson(first) || {},"],
   ["A7 person book phone for everyone", "api/admin.js", "{ phone: isOwner(viewer) || (viewer && viewer.id === first.id) ? first.phone || \"\" : \"\",", "{ phone: first.phone || \"\","],
-  ["A8 person book viewer full", "api/admin.js", "viewer: viewSeat(publicPerson(viewer), viewer, viewer),", "viewer: publicPerson(viewer),"],
+  ["A8 person book viewer full", "api/admin.js", "viewer: viewSeat(publicPerson(signedIn), signedIn, signedIn),", "viewer: publicPerson(signedIn),"],
   ["A9 admin mine you is the raw row", "api/admin.js", "you: viewSeat(publicPerson(person), person, person, ownAcc && ownAcc.id), owned", "you: person, owned"],
   ["A10 admin mine without the proven own account", "api/admin.js", "you: viewSeat(publicPerson(person), person, person, ownAcc && ownAcc.id), owned", "you: viewSeat(publicPerson(person), person, person), owned"],
   ["J1 /api/jobs people full", "api/jobs.js", "people: shop ? require(\"./_lib\").seatsFor(person, shop.people, publicPerson) : [],", "people: shop ? (shop.people || []).map(publicPerson) : [],"],
@@ -510,6 +572,13 @@ const MUTANTS = [
   ["Q4 desk= denial with its own reply (oracle)", "api/admin.js", "  if (want.desk && !byDesk.length) return { status: 404, error: \"Person not found.\" };", "  if (want.desk && !byDesk.length) return { status: 404, error: \"No seat on that desk.\" };"],
   ["Q5 desk= read as the home viewer", "api/admin.js", "if (seatThere) { bookRow = there; bookViewer = seatThere; }", "if (seatThere) { bookRow = there; }"],
   ["Q6 desk= lookup without the request (a proven helper loses the desks its account holds)", "api/admin.js", "const mineCards = mineFn()(plans.listHint(person, homeAccount(person, row, req), row.slug));", "const mineCards = mineFn()(plans.listHint(person, homeAccount(person, row), row.slug));"],
+  ["C1 cross-desk: person sheet viewer resolved on the signed-in desk", "api/admin.js", "const viewer = opened.seatBy[found.row.slug] || null;", "const viewer = signedIn;"],
+  ["C2 cross-desk: thread: owner of any desk", "api/admin.js", "thread: isOwner(viewer) ||", "thread: isOwner(viewer) || isOwner(signedIn) ||"],
+  ["C3 cross-desk: phone: owner of any desk", "api/admin.js", "{ phone: isOwner(viewer) ||", "{ phone: isOwner(viewer) || isOwner(signedIn) ||"],
+  ["C4 cross-desk: owner view of the seat (email, accountId): owner of any desk", "api/admin.js", "viewSeat(publicPerson(first), first, viewer)", "viewSeat(publicPerson(first), first, isOwner(signedIn) ? signedIn : viewer)"],
+  ["C5 cross-desk: every opened desk remembers the signed-in seat", "api/admin.js", "    add(slug, found.person);", "    add(slug, viewer);"],
+  ["C6 capture trusts the body whoTapped", "api/jobs.js", "      const capBody = person ? Object.assign({}, body, { whoTapped: actorName(person, {}) }) : body;\n      const jobs = makeFanOutJobs(workspace, shop, capBody);\n      if (person) jobs.forEach((j) => { j.whoTapped = actorName(person, {}); j.whoTappedId = actorId(person); });", "      const jobs = makeFanOutJobs(workspace, shop, body);"],
+  ["C7 capture keeps the body name, adds only the seat id", "api/jobs.js", "if (person) jobs.forEach((j) => { j.whoTapped = actorName(person, {}); j.whoTappedId = actorId(person); });", "if (person) jobs.forEach((j) => { j.whoTapped = body.whoTapped || j.whoTapped; j.whoTappedId = actorId(person); });"],
   ["H1 history seat filter ignored", "api/_desks-http.js", "    if (seatWant) {\n      const deskWant", "    if (false) {\n      const deskWant"],
   ["H2 history legacy name rule dropped (any name)", "api/_fields.js", "  if (named.length !== 1 || named[0] !== seat) return false;\n  const want = String(seat.name", "  const want = String(seat.name"],
   ["H3 history by partial name", "api/_desks-http.js", "        return touch(job, seat, seatRow);", "        return String(it.who || \"\").toLowerCase().indexOf(String(seat.name || \"\").toLowerCase()) >= 0 || (it.hands || []).join(\" \").toLowerCase().indexOf(String(seat.name || \"\").toLowerCase()) >= 0;"],
