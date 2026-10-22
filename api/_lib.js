@@ -2491,7 +2491,7 @@ module.exports = {
   blobCopy, blobHead, blobDel, blobListAll, blobPutAt, storeBody,
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
-  deskAccountIdOf, sessionProofView, helperEmailClaimed,
+  deskAccountIdOf, sessionProof, sessionProofView, helperEmailClaimed,
   isLocked, noteFail, noteOk,
   ensurePeople, publicPerson, viewSeat, seatsFor, personOf, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
