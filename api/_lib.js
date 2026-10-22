@@ -702,6 +702,12 @@ function holdSuccess(res, ctx) {
   });
 }
 
+// When guardStore() took this request (null outside a guarded request).
+function requestStartedAt() {
+  const ctx = storeCalls.getStore();
+  return ctx && ctx.at ? ctx.at : null;
+}
+
 // Every api/*.js handler is wrapped in this. POST/PUT/PATCH/DELETE are refused
 // with a JSON 503 + Retry-After up front while the store is not trusted. Any
 // request (GET included) whose save() was refused cannot answer 2xx, and its
@@ -710,6 +716,9 @@ function guardStore(handler) {
   if (typeof handler !== "function" || handler.__storeGuarded) return handler;
   const wrapped = async function guardedHandler(req, res) {
     if (storeCalls.getStore()) return handler.apply(this, arguments);
+    // Request arrival: the recovery reads below count against the
+    // handler's time budget (see requestStartedAt).
+    const at = Date.now();
     const method = String((req && req.method) || "GET").toUpperCase();
     const writes = !!WRITE_METHODS[method];
     if (writes && blobReady()) {
@@ -720,7 +729,7 @@ function guardStore(handler) {
       try { await loadIfCold(); } catch (e) { loadFailed = true; }
       if (!storeTrusted() && (loadFailed || !(await recoverStore()))) return refuseNotReady(res);
     }
-    const ctx = { writes, skipped: false, scrubSkipped: false, writeFailed: false, sent: false };
+    const ctx = { at, writes, skipped: false, scrubSkipped: false, writeFailed: false, sent: false };
     holdSuccess(res, ctx);
     const self = this;
     const args = arguments;
@@ -2486,5 +2495,5 @@ module.exports = {
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
   publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
   ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF,
-  storeTrusted, storeNotReady, blobAbsent, guardStore, persistScrub, storeState, STORE_NOT_READY, STORE_NOT_READY_CODE, STORE_WRITE_FAILED_CODE, STORE_PAUSED_LINE
+  storeTrusted, storeNotReady, blobAbsent, guardStore, requestStartedAt, persistScrub, storeState, STORE_NOT_READY, STORE_NOT_READY_CODE, STORE_WRITE_FAILED_CODE, STORE_PAUSED_LINE
 };

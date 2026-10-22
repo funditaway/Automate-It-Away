@@ -22,6 +22,13 @@
 //   lrt       saved followTriedAt: never-tried first (ties in rotation order),
 //             then least recently tried
 //   trust     warm and trusted, then a read times out: the store is untrusted
+//   fair      10 hooks, all hang, saves land: no job tried twice before every
+//             job was tried once (followTriedAt saved and used)
+//   post-budget  warm POST after a failed save (Probe WP1): recovery reads
+//             4.9 + 4.9 s, ready 4.9 s, scrub put 8 s + hung read-back, hooks
+//             hang, save put 14.9 s + hung read-back: the clock starts when
+//             guardStore takes the request, so it answers < 58 s, hooks end by
+//             30 s and a save past 35 s is deferred
 //   POST /api/worker (guardStore -> recoverStore), each 503 + Retry-After 5
 //   within 10 s, store_not_ready, no store write:
 //   post-cold     cold start, every store read hangs (hydrate, then recovery)
@@ -120,11 +127,24 @@ async function child(apiDir, spec) {
     if (from && (spec.readHang || (spec.readBackHang && st.putsOk > 0))) return never();
     if (op === "key" && (spec.hangKeys || []).indexOf(name) >= 0) return never();
     if (op === "list" && (spec.hangLists || []).indexOf(name) >= 0) return never();
+    if (from && op === "key" && spec.delayKeys && spec.delayKeys[name]) await sleep(spec.delayKeys[name]);
     if (spec.readLate) { await sleep(spec.readLate); return; }
     if (from && spec.readDelay) await sleep(spec.readDelay);
   }
   async function storePut(n, body) {
     st.putAttempts.push(V.now);
+    // putPlan[run]: one entry per put in that run ("throw" or a delay in ms).
+    const plan = spec.putPlan && spec.putPlan[V.run || 0];
+    if (plan) {
+      const k = st.putAttempts.length - 1 - (st.runPuts0 || 0);
+      const step = plan[Math.min(k, plan.length - 1)];
+      if (step === "throw") { const e = new Error("read ECONNRESET"); e.code = "ECONNRESET"; throw e; }
+      await sleep(step);
+      if (st.dropLeft > 0) { st.dropLeft--; st.putsOk++; return; }
+      st.files[n] = body;
+      st.putsOk++;
+      return;
+    }
     if (spec.put === "hang") return never();
     if (spec.put === "throw") { const e = new Error("read ECONNRESET"); e.code = "ECONNRESET"; throw e; }
     if (spec.putDelay) await sleep(spec.putDelay);
@@ -209,6 +229,7 @@ async function child(apiDir, spec) {
     V.run = out.runs.length;
     const t0 = V.now;
     const puts0 = st.putAttempts.length;
+    st.runPuts0 = puts0;
     const hooks0 = st.hooks.length;
     const res = fakeRes();
     const method = (spec.methods && spec.methods[out.runs.length]) || spec.method || "GET";
@@ -265,7 +286,9 @@ function runAll(apiDir, quiet) {
   // Saved tries: jobs 1 and 4 never tried, then 2 (01:00) < 5 < 3 < 0.
   const TRIED = { 0: "2026-10-19T05:00:00.000Z", 2: "2026-10-19T01:00:00.000Z", 3: "2026-10-19T03:00:00.000Z", 5: "2026-10-19T02:00:00.000Z" };
   const fxTried = fixture(apiDir, { hooks: 6, triedAt: TRIED });
-  for (const [n, fx] of [["6 hooks", fxHooks6], ["8 hooks", fxHooks8], ["1 hook", fxHook1], ["late", fxLate], ["defer", fxDefer], ["out", fxOut], ["out+hook", fxOutHook], ["tried", fxTried]]) {
+  const fxHooks10 = fixture(apiDir, { hooks: 10 });
+  const fxBudget = fixture(apiDir, { hooks: 6, testRows: 2 });
+  for (const [n, fx] of [["6 hooks", fxHooks6], ["8 hooks", fxHooks8], ["1 hook", fxHook1], ["late", fxLate], ["defer", fxDefer], ["out", fxOut], ["out+hook", fxOutHook], ["tried", fxTried], ["10 hooks", fxHooks10], ["budget", fxBudget]]) {
     if (fx.error) { t("fixture " + n, false, fx.error); return results; }
   }
   const measured = [];
@@ -407,6 +430,28 @@ function runAll(apiDir, quiet) {
     t("trust: a read that timed out leaves the store untrusted (was trusted)", r1.trusted === true && r2.state === "done" && r2.trusted === false && r2.puts.length === 0, J([r1.trusted, r2.state, r2.trusted, r2.puts]));
   }
 
+  // fair: 10 jobs, every hook hangs, every save lands (followTriedAt saved).
+  const fa = runCase(apiDir, { store: fxHooks10, hangHooks: "all", runs: [DAY0, DAY0 + 8 * 3600000, DAY0 + 86400000, DAY0 + 86400000 + 8 * 3600000] });
+  if (ran("fair", fa)) {
+    const seq = [];
+    fa.runs.forEach((r) => r.hooks.forEach((x) => seq.push(x.id)));
+    const firstTen = seq.slice(0, 10);
+    t("fair: the saves land (2xx) and each run tries " + B.HOOK_CAP, fa.runs.every((r) => r.status === 200 && r.hooks.length === B.HOOK_CAP), J(fa.runs.map((r) => [r.status, r.hooks.length])));
+    t("fair: no job tried twice before all 10 were tried once (4 runs)", seq.length === 12 && new Set(firstTen).size === 10, J(seq));
+  }
+
+  // post-budget: Probe WP1, warm POST after a failed save, every step slow.
+  const pb = runCase(apiDir, { store: fxBudget, storeName: "aia-store.json", hangHooks: "all", readFrom: 1, readBackHang: true, dropPuts: 99, delayKeys: { "aia/store.json": 4900, "aia-store.json": 4900 }, putPlan: [["throw"], [8000, 14900]], methods: ["GET", "POST"], runs: [DAY0, DAY0 + 8 * 3600000] });
+  if (ran("post-budget", pb)) {
+    const [r1, r2] = pb.runs;
+    const S = PUT_MS + READ_MS;
+    t("post-budget: the warm GET's save failed first (store untrusted)", r1.status === 503 && r1.code === "store_write_failed" && r1.trusted === false, J([r1.status, r1.code, r1.trusted]));
+    t("post-budget: POST answers in < 58000 ms from arrival", r2.state === "done" && r2.ms < 58000, J([r2.state, r2.ms]));
+    t("post-budget: 200, or a deferred 503 + Retry-After 5", r2.status === 200 || (r2.status === 503 && r2.retry === "5" && r2.deferred), J([r2.status, r2.retry, r2.deferred, r2.code]));
+    t("post-budget: every hook ends by " + B.HOOK_END_MS + " ms from arrival", r2.hooks.every((x) => x.at + B.HOOK_MS <= B.HOOK_END_MS), J(r2.hooks.map((x) => x.at)));
+    t("post-budget: every put starts while it can end by " + (B.DEFER_MS + S) + " ms from arrival", r2.puts.every((x) => x <= B.DEFER_MS), J(r2.puts));
+  }
+
   // POST /api/worker: guardStore's recovery reads have the same 5 s deadline.
   const POST_MS = 2 * READ_MS;
   const post = (name, o, warm) => {
@@ -466,6 +511,9 @@ const MUTANTS = [
   { id: "R1 no deadline on recoverStore's store read", file: "_lib.js", from: "untrusted (503).\n    const remote = await blobReadDeadline(blobRead());", to: "untrusted (503).\n    const remote = await blobRead();" },
   { id: "R2 no deadline on recoverStore's legacy read", file: "_lib.js", from: "} else if (blobProbe.read !== \"error\") {\n      const legacy = await blobReadDeadline(blobLegacyRead());", to: "} else if (blobProbe.read !== \"error\") {\n      const legacy = await blobLegacyRead();" },
   { id: "R3 no deadline on recoverStore's 'store absent' listing", file: "_lib.js", from: "        await blobReadDeadline(blobAbsent());\n", to: "        await blobAbsent();\n" },
+  { id: "C1 warm clock starts after guardStore (reverted origin)", file: "worker.js", from: "coldRun ? loadedAt : (requestStartedAt() || Date.now());", to: "coldRun ? loadedAt : Date.now();" },
+  { id: "C2 guardStore stamps the request after recovery", file: "_lib.js", from: "const ctx = { at, writes,", to: "const ctx = { at: Date.now(), writes," },
+  { id: "D3 followTriedAt never set", file: "worker.js", from: "    job.followTriedAt = new Date(Date.now()).toISOString();\n", to: "" },
   { id: "R4 no deadline on any recoverStore read", file: "_lib.js", from: "async function recoverStore() {\n", to: "async function recoverStore() {\n  const blobReadDeadline = (job) => job;\n" }
 ];
 // Equivalent (cannot change behavior, not counted): Array.prototype.sort is
