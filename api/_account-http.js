@@ -187,7 +187,8 @@ module.exports = async function handler(req, res) {
     const pin = body.pin || (req.headers && req.headers["x-pin"]) || "";
     const extra = {
       email: body.email || (looksLikeEmail(name) ? name : ""),
-      password: body.password || body.pass || ""
+      password: body.password || body.pass || "",
+      desk: body.slug || body.biz || workspaceOf(req)
     };
     const via = loginAccount(name, pin, extra);
     if (!via.ok) return res.status(via.status || 401).json({ ok: false, pending: !!via.pending, locked: !!via.locked, error: via.error });
