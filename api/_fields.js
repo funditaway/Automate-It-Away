@@ -260,13 +260,29 @@ function applyImplement(job, shop, body) {
   job.implementedAt = new Date().toISOString();
   return job;
 }
+// A seat by id, or by name only when exactly one seat has that name. Two same-name seats never
+// share a card: an ambiguous name picks nobody.
+function seatFor(people, want) {
+  const w = String(want || "").trim();
+  if (!w) return null;
+  const list = Array.isArray(people) ? people.filter(Boolean) : [];
+  const byId = list.find((p) => p.id === w);
+  if (byId) return byId;
+  const named = list.filter((p) => String(p.name || "").toLowerCase() === w.toLowerCase());
+  return named.length === 1 ? named[0] : null;
+}
+function seatNameShared(people, seat) {
+  const n = String(seat && seat.name || "").toLowerCase();
+  return !!n && (Array.isArray(people) ? people : []).filter((p) => p && String(p.name || "").toLowerCase() === n).length > 1;
+}
 function assignIfKnown(job, shop, body) {
   const want = String((body && (body.assignee || body.handTo || body.ai)) || job.assignee || "").trim();
   const people = shop && Array.isArray(shop.people) ? shop.people : [];
-  if (!want) { delete job.assignee; return job; }
-  const whoPerson = people.find((p) => p && (p.id === want || String(p.name || "").toLowerCase() === want.toLowerCase()));
-  if (!whoPerson) { delete job.assignee; return job; }
+  if (!want) { delete job.assignee; delete job.assigneeId; return job; }
+  const whoPerson = seatFor(people, want);
+  if (!whoPerson) { delete job.assignee; delete job.assigneeId; return job; }
   job.assignee = whoPerson.name;
+  job.assigneeId = whoPerson.id || "";
   job.waitingOn = whoPerson.role === "owner" ? "owner" : "helper";
   job.next = "Waiting on " + whoPerson.name + ".";
   return job;
@@ -319,4 +335,4 @@ function addTalk(job, from, text, kind) {
   job.thread = job.thread.slice(-40);
   return job;
 }
-module.exports = { pickFields, mergeFields, PACKS, KINDS, RISKS, DROP_WHO, FAN_OUT_MAX, slugField, defaultFields, ensureFields, addTalk, assignIfKnown, makeCapturedJob, publicField, parseFieldList, addShopField, applyFieldList, ensureCreations, publicCreation, addCreation, customFromText, implementFromText, applyImplement, firstWorkLine, stripListBullet, looksLikeFormBlob, dropListBlob, fanOutItems, fanOutKind, holdCapturedJob, makeFanOutJobs };
+module.exports = { seatFor, seatNameShared, pickFields, mergeFields, PACKS, KINDS, RISKS, DROP_WHO, FAN_OUT_MAX, slugField, defaultFields, ensureFields, addTalk, assignIfKnown, makeCapturedJob, publicField, parseFieldList, addShopField, applyFieldList, ensureCreations, publicCreation, addCreation, customFromText, implementFromText, applyImplement, firstWorkLine, stripListBullet, looksLikeFormBlob, dropListBlob, fanOutItems, fanOutKind, holdCapturedJob, makeFanOutJobs };
