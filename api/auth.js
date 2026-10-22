@@ -4,7 +4,7 @@ const {
 } = require("./_lib");
 const { ensureFields, applyFieldList, ensureCreations, publicCreation, addCreation } = require("./_fields");
 const { qualifyJob } = require("./_engine");
-const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccount, publicPlan,
+const { inviteSeat, requestSeat, setSeatStatus, seatOffRefused, ensureAccount, createOwnerAccount, publicPlan,
   loginWithEmail, looksLikeEmail, emailTaken, emailOf, applyAccountDetails, setAccountPassword, passwordOk, homeAccount, accountForDesk, passwordMatches
 } = require("./_account");
 const libx = require("./_lib");
@@ -178,6 +178,8 @@ module.exports = async function handler(req, res) {
       const { workspace: row, person } = personOf(req, slug);
       if (!row) return res.status(404).json({ ok: false, error: "No workspace" });
       if (!isOwner(person)) return res.status(403).json({ ok: false, error: "Owner desk code required." });
+      const off = action === "deny" && seatOffRefused(row, body.id || body.personId, person);
+      if (off) return res.status(off.status).json({ ok: false, error: off.error });
       const made = setSeatStatus(row, body.id || body.personId, action === "deny" ? "denied" : "approved", person);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
@@ -332,6 +334,8 @@ module.exports = async function handler(req, res) {
       const id = body.id;
       const target = (row.people || []).find((p) => p.id === id);
       if (!target) return res.status(404).json({ error: "Person not found" });
+      const off = seatOffRefused(row, id, person);
+      if (off) return res.status(off.status).json({ ok: false, error: off.error });
       if (target.role === "owner" && row.people.filter((p) => p.role === "owner").length < 2) {
         return res.status(409).json({ error: "Keep at least one owner." });
       }
