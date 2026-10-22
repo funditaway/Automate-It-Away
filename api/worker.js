@@ -3,7 +3,7 @@
 const loadedAt = Date.now();
 let coldRun = true;
 const crypto = require("crypto");
-const { cors, mem, log, save, ready, workspaceOf, storeTrusted } = require("./_lib");
+const { cors, mem, log, save, ready, workspaceOf, storeTrusted, requestStartedAt } = require("./_lib");
 const { runWorkspace } = require("./_engine");
 const { personNamed, isApprovedAgent, agentDraft, applyDeskAiDraft } = require("./_handoff");
 const ais = require("./_ais");
@@ -73,7 +73,8 @@ async function pingHooks(jobs, t0) {
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  const t0 = coldRun ? loadedAt : Date.now();
+  // Warm: from when guardStore took the request, so its recovery reads count.
+  const t0 = coldRun ? loadedAt : (requestStartedAt() || Date.now());
   coldRun = false;
   await ready();
   const workspace = workspaceOf(req);
