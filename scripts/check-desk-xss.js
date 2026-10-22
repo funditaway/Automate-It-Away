@@ -61,9 +61,11 @@ if (/<script/i.test(helpers.jsAttr(SCRIPT))) fail("jsAttr must not emit a script
 
 function sandbox() {
   const nodes = {};
-  function make(id) {
+  function make(id, tag) {
     return {
       id: id || "",
+      tagName: String(tag || "div").toUpperCase(),
+      children: [],
       hidden: false,
       className: "",
       classList: { add: function () {}, remove: function () {}, toggle: function () {}, contains: function () { return false; } },
@@ -73,7 +75,7 @@ function sandbox() {
       style: {},
       setAttribute: function () {},
       getAttribute: function () { return ""; },
-      appendChild: function () {},
+      appendChild: function (c) { this.children.push(c); return c; },
       insertBefore: function () {},
       remove: function () {},
       querySelector: function () { return null; },
@@ -99,7 +101,7 @@ function sandbox() {
       if (!nodes[id]) nodes[id] = make(id);
       return nodes[id];
     },
-    createElement: function () { return make(""); },
+    createElement: function (tag) { return make("", tag); },
     querySelector: function () { return null; },
     head: { appendChild: function () {} },
     body: { appendChild: function () {} }
@@ -113,6 +115,16 @@ function sandbox() {
   ctx.esc = helpers.escapeHtml;
   ctx.nodes = nodes;
   return ctx;
+}
+
+// What a browser would show for a node built with createElement/textContent/appendChild:
+// textContent is escaped, innerHTML is taken as written, then the children.
+function serialize(node) {
+  const inner = node.innerHTML ? node.innerHTML : helpers.escapeHtml(node.textContent || "");
+  return inner + (node.children || []).map(function (c) {
+    const t = String(c.tagName || "div").toLowerCase();
+    return "<" + t + ">" + serialize(c) + "</" + t + ">";
+  }).join("");
 }
 
 function assertInert(html, where) {
@@ -218,7 +230,7 @@ async function sheets() {
   if (pipes.indexOf("Owner still owns No") >= 0) fail("pipes sheet picked up hand-off copy");
 
   await queueCtx.openHandOff("job_xss");
-  const hand = queueCtx.nodes["sheet-card"].innerHTML;
+  const hand = serialize(queueCtx.nodes["sheet-card"]);
   assertInert(hand, "hand-off sheet");
   assertEscapedText(hand, SCRIPT, "hand-off name");
   if (hand.indexOf("Owner still owns No") < 0) fail("hand-off sheet must keep Owner still owns No");
