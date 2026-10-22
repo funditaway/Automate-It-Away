@@ -105,7 +105,7 @@ function authAccount(req) {
   const slug = workspaceOf(req);
   const found = personOf(req, slug);
   if (!found.workspace || !found.person) return { found, account: null };
-  return { found, account: homeAccount(found.person, found.workspace) };
+  return { found, account: homeAccount(found.person, found.workspace, req) };
 }
 
 function accountHome(acc, person, req) {
@@ -148,7 +148,7 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ ok: false, pending: true, error: "That seat is waiting on the owner." });
     }
     if (found.person) {
-      const acc = homeAccount(found.person, found.workspace);
+      const acc = homeAccount(found.person, found.workspace, req);
       if (acc) {
         refreshSession(req, res);
         return res.status(200).json(await accountHomeJson(acc, found.person, req));
@@ -173,6 +173,13 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "login").toLowerCase();
 
+  // A helper seat holding an account, on a session that account's own sign-in did not make:
+  // every account change asks to sign in again. Sign-in, logout and the door list stay open.
+  if (["login", "open", "save", "logout", "providers", "oauth-start", "oauth-ask", "ask-other", "oauth-finish"].indexOf(action) < 0) {
+    const pre = personOf(req, workspaceOf(req));
+    const accountMod = require("./_account");
+    if (pre.person && accountMod.needsSignIn(pre.person, pre.workspace, req)) return res.status(403).json(accountMod.signInAgain());
+  }
   if (require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
 
   if (action === "login" || action === "open" || action === "save") {
@@ -187,7 +194,7 @@ module.exports = async function handler(req, res) {
     const who = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || {
       name: via.account.ownerName, role: "owner", kind: "owner"
     };
-    const session = typeof lib.issueSession === "function" ? lib.issueSession(who, via.desk, via.account, req) : null;
+    const session = typeof lib.issueSession === "function" ? lib.issueSession(who, via.desk, via.account, req, via.emailLogin ? "password" : "") : null;
     if (session && typeof lib.sessionCookie === "function") res.setHeader("Set-Cookie", lib.sessionCookie(session.token));
     if (via.account && (aiaAdmin.isReviewerDesk(via.desk) || aiaAdmin.isPlatformAccount(via.account))) {
       aiaAdmin.stampAdminAccount(via.account);
