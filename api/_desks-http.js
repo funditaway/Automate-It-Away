@@ -142,6 +142,7 @@ module.exports = async function handler(req, res) {
     const advanced = body.advanced === true || body.advanced === "1" || body.audit === true || body.audit === "1";
     const items = [];
     const desks = [];
+    const opened = [];
     asked.slice(0, 32).forEach((item) => {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
       const pin = item && item.pin != null ? String(item.pin) : "";
@@ -149,11 +150,29 @@ module.exports = async function handler(req, res) {
       const { workspace: row, person } = personOf(authReq(req, slug, pin), slug);
       if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
+      opened.push(row);
       const jobs = (mem.jobs || []).filter((j) => j && j.workspace === slug);
       const audit = advanced ? (mem.audit || []).filter((a) => a && (!a.workspace || a.workspace === slug)).slice(0, 40) : [];
       historyOf(row, jobs, deskEventsOf(slug, advanced ? 40 : 20), { audit }).items.forEach((it) => items.push(it));
     });
     items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
+    // seat=<id>&desk=<slug>: one seat's cards on one opened desk, by seat id; a legacy name-only card only
+    // when exactly one seat on that desk has the name (exact, never partial). Desk events and audit rows
+    // carry names only, so they are left out. A seat or desk not opened here: no items.
+    const seatWant = String(body.seat || body.seatId || "").trim();
+    if (seatWant) {
+      const deskWant = slugify(body.desk || body.seatDesk || (opened.length === 1 ? opened[0].slug : ""));
+      const seatRow = opened.find((r) => r.slug === deskWant);
+      const seat = seatRow && (seatRow.people || []).find((p) => p && p.id === seatWant);
+      const touch = require("./_fields").jobTouchesSeat;
+      const kept = items.filter((it) => {
+        if (!seat || it.kind !== "job" || it.slug !== deskWant) return false;
+        const job = (mem.jobs || []).find((j) => j && j.id === it.id && j.workspace === deskWant);
+        return touch(job, seat, seatRow);
+      });
+      items.length = 0;
+      kept.forEach((it) => items.push(it));
+    }
     const shown = filterHistory(items, body);
     const counts = { need: 0, doing: 0, wait: 0, ext: 0, done: 0, stopped: 0, past: 0, now: 0, next: 0, all: items.length };
     items.forEach((it) => { if (counts[it.lane] != null) counts[it.lane] += 1; if (it.when && counts[it.when] != null) counts[it.when] += 1; });

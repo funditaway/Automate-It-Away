@@ -31,16 +31,13 @@ function personHint(src) {
     name: String(hint.name || hint.who || hint.person || "").trim()
   };
 }
-// Seats on one desk that carry this name (case-insensitive). Used only to tell whether a name is unique.
-function seatsNamed(row, name) {
-  const want = lower(name);
-  if (!want) return [];
-  return (row && row.people || []).filter((p) => p && lower(p.name) === want);
-}
+const { seatsNamed, jobTouchesSeat } = require("./_fields");
 // The one seat this sheet is about: by seat id on the asked desk (default: the request's desk), or,
 // with no id, the only seat on the request's desk with that name. Never a merge of same-name seats.
 function findBookSeat(want, rows, currentSlug) {
   const byDesk = want.desk ? rows.filter((r) => r.slug === want.desk) : [];
+  // An asked desk that is not open to this viewer: the same reply as an unknown seat (no oracle).
+  if (want.desk && !byDesk.length) return { status: 404, error: "Person not found." };
   if (want.id) {
     const order = byDesk.length ? byDesk : [rows.find((r) => r.slug === currentSlug)].filter(Boolean);
     for (const row of order) {
@@ -59,29 +56,6 @@ function findBookSeat(want, rows, currentSlug) {
   if (named.length === 1) return { row, seat: named[0] };
   if (named.length > 1) return { status: 409, error: "More than one seat has that name. Open the person by seat (?seat=<seat id>)." };
   return { status: 404, error: "Person not found." };
-}
-// Job fields that credit a seat, each with the field that stores that seat's id.
-const JOB_CREDIT = [
-  ["assignee", "assigneeId"],
-  ["whoTapped", "whoTappedId"],
-  ["doneBy", "doneById"]
-];
-function jobSeatIds(job) {
-  const custom = job && job.custom && typeof job.custom === "object" ? job.custom : {};
-  return [custom.personId, job && job.handedTo && job.handedTo.id].concat(JOB_CREDIT.map((f) => job && job[f[1]]))
-    .map((v) => String(v || "")).filter(Boolean);
-}
-// A job counts for this seat by seat id. A legacy job that stores no seat id at all counts by name
-// only when the name is on exactly one seat of that job's desk, and that seat is this one.
-function jobTouchesSeat(job, seat, row) {
-  if (!job || !seat || !seat.id) return false;
-  const ids = jobSeatIds(job);
-  if (ids.length) return ids.indexOf(String(seat.id)) >= 0;
-  const named = seatsNamed(row, seat.name);
-  if (named.length !== 1 || named[0] !== seat) return false;
-  const want = lower(seat.name);
-  return [job.assignee, job.handedTo && job.handedTo.name, job.whoTapped, job.doneBy, job.from, job.sentByAgent, job.contactName]
-    .map(lower).some((v) => v && v === want);
 }
 function allowedSlugs(currentSlug, extras) {
   const out = [];
@@ -249,10 +223,23 @@ module.exports = async function handler(req, res) {
       return res.status(foundWorld.ok ? 200 : (foundWorld.status || 400)).json(Object.assign({ world: true }, foundWorld));
     }
     if (q.seat || q.who || q.person || q.name) {
+      // desk=<slug>: another desk only when this viewer holds a seat there by this desk's own hint
+      // (#367: own seat id here, or the account its own sign-in proved). The sheet is then read as
+      // that seat on that desk. Any other desk (no seat, pending, unknown) gets the unknown-seat reply.
+      const askDesk = slugify(typeof q.desk === "string" ? q.desk : (typeof q.seatDesk === "string" ? q.seatDesk : ""));
+      let bookRow = row, bookViewer = person;
+      if (askDesk) {
+        const mineCards = mineFn()(plans.listHint(person, homeAccount(person, row, req), row.slug));
+        const card = mineCards.owned.concat(mineCards.member).find((c) => c && c.slug === askDesk && c.status !== "pending");
+        const there = card && askDesk !== row.slug ? (mem.workspaces || []).find((w) => w && w.slug === askDesk) : null;
+        const seatThere = there && (there.people || []).find((p) => p && p.id === card.personId);
+        if (seatThere) { bookRow = there; bookViewer = seatThere; }
+      }
       const book = personBook({
         seat: q.seat || q.id || q.personId || "",
+        desk: askDesk,
         name: q.who || q.person || q.name
-      }, { slugs: [row.slug], viewer: person, currentSlug: row.slug });
+      }, { slugs: [bookRow.slug], viewer: bookViewer, currentSlug: bookRow.slug });
       return res.status(book.ok ? 200 : (book.status || 404)).json(book);
     }
     const owner = isOwner(person);
