@@ -461,6 +461,22 @@ async function main() {
     const hh = await homeOwned(hd);
     ok(hh.length === 0, "[325 account home helper " + tag + "] a helper's /api/account desksOwned lists none of Ann's desks (got " + JSON.stringify(hh) + ")");
   }
+  // POST /api/admin "mine" uses the same hint as /api/desks mine: the seat's own id on this desk,
+  // and only the account its own sign-in proved. A helper with no proven account is still a member
+  // of the desk she sits on; a seat holding Ann's account owns none of Ann's desks.
+  const adminMine = async (hd) => {
+    const r = await call(admin, "POST", hd, { action: "mine" }, {}, "/api/admin");
+    const b = r.body || {};
+    return { status: r.statusCode, owned: (b.owned || []).map((c) => c.slug), member: (b.member || []).map((c) => c.slug) };
+  };
+  for (const [tag, hd] of [["Olly session", { "x-workspace": A, "x-session": ollyTok }], ["Olly x-pin", { "x-workspace": A, "x-pin": "7171" }], ["Lyn session", { "x-workspace": A, "x-session": lynTok }], ["Lyn x-pin", { "x-workspace": A, "x-pin": "3535" }]]) {
+    const am2 = await adminMine(hd);
+    ok(am2.status === 200 && am2.owned.length === 0 && JSON.stringify(am2.member) === JSON.stringify([A]), "[admin mine helper " + tag + "] a helper is a member of A only and owns nothing (owned " + JSON.stringify(am2.owned) + ", member " + JSON.stringify(am2.member) + ")");
+  }
+  const amQ = await adminMine({ "x-workspace": Y, "x-session": qt });
+  ok(amQ.status === 200 && amQ.owned.length === 0 && amQ.member.indexOf(Y) >= 0 && amQ.member.indexOf(B) >= 0, "[admin mine helper Quinn signed in] her proven account lists her seats on Y and B (member " + JSON.stringify(amQ.member) + ")");
+  const amAnn = await adminMine({ "x-workspace": A, "x-session": annTok });
+  ok(amAnn.status === 200 && JSON.stringify(amAnn.owned.slice().sort()) === JSON.stringify([A, D].sort()), "[admin mine owner] Ann's own session still owns exactly A and D (owned " + JSON.stringify(amAnn.owned) + ")");
   const annDesksBefore = JSON.stringify(annAcc.desks || []);
   const lv = await call(auth, "POST", { "x-workspace": A, "x-session": lynTok }, { action: "leave" }, { action: "leave" }, "/api/desks?action=leave");
   ok(lv.statusCode === 200 && !wsA.people.some((p) => p && p.id === lyn.id), "[325 leave legacy-seat] Lyn leaves her own helper seat (" + lv.statusCode + ")");

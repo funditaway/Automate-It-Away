@@ -325,7 +325,7 @@ module.exports = async function handler(req, res) {
 
   if (action === "mine") {
     const fn = mineFn();
-    const mine = fn({ id: person.id, name: person.name, email: person.email, pin: person.pin, accountId: person.accountId });
+    const mine = fn(plans.listHint(person, homeAccount(person, row, req), row.slug));
     return res.status(200).json({ ok: true, plan: publicPlan(accountForDesk(row)), you: person, owned: mine.owned, member: mine.member });
   }
 
