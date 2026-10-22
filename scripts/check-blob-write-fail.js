@@ -402,7 +402,7 @@ const MUTANTS = [
   { id: "M8 no deadline on the store put", file: "_lib.js", from: "await blobPutDeadline(blobPutStore(body));", to: "await blobPutStore(body);" },
   { id: "M9 account doors do not await save", file: "_account-doors.js", from: "await hooks.save();", to: "hooks.save();", all: true },
   { id: "M10 blobWrite reports a failed put as written", file: "_lib.js", from: "    blobProbe.detail = why && why !== \"[object Object]\" ? why : \"blob-fail\";\n    return false;", to: "    blobProbe.detail = why && why !== \"[object Object]\" ? why : \"blob-fail\";\n    return true;" },
-  { id: "M11 recovery never re-reads (stays not-ready)", file: "_lib.js", from: "  if (!globalThis.__aiaStoreLoaded) return false;\n  try {\n    const remote = await blobRead();", to: "  return false;\n  try {\n    const remote = await blobRead();" },
+  { id: "M11 recovery never re-reads (stays not-ready)", file: "_lib.js", from: "  if (!globalThis.__aiaStoreLoaded) return false;\n  try {\n", to: "  return false;\n  try {\n" },
   { id: "M12 put deadline 30 s", file: "_lib.js", from: "const BLOB_PUT_MS = 15000;", to: "const BLOB_PUT_MS = 30000;" },
   { id: "M13 refusal code store_not_ready", file: "_lib.js", from: "const STORE_WRITE_FAILED_CODE = \"store_write_failed\";", to: "const STORE_WRITE_FAILED_CODE = \"store_not_ready\";" },
   { id: "M14 unlink-provider does not await save", file: "_account-doors.js", from: "  acc.identities = next;\n  if (typeof hooks.save === \"function\") await hooks.save();", to: "  acc.identities = next;\n  if (typeof hooks.save === \"function\") hooks.save();" },

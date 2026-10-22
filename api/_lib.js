@@ -636,19 +636,21 @@ async function recoverStore() {
   if (storeTrusted()) return true;
   if (!globalThis.__aiaStoreLoaded) return false;
   try {
-    const remote = await blobRead();
+    // Same 5 s read deadline as hydrate/ready: a POST never waits out a slow
+    // or hung recovery read; a timed-out read stays untrusted (503).
+    const remote = await blobReadDeadline(blobRead());
     if (remote) {
       applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
     } else if (blobProbe.read !== "error") {
-      const legacy = await blobLegacyRead();
+      const legacy = await blobReadDeadline(blobLegacyRead());
       if (legacy) {
         applyStore(legacy);
         mem.driver = "blob";
         mem.path = "blob:" + BLOB_KEY;
       } else {
-        await blobAbsent();
+        await blobReadDeadline(blobAbsent());
       }
     }
   } catch (e) {}
