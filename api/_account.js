@@ -107,6 +107,12 @@ function applyAccountDetails(acc, body) {
   }
   return acc;
 }
+// The desk's own owner seat (p_owner, else its first owner seat) when it carries no account (legacy).
+function ownerHeadOf(desk) {
+  const people = (desk && desk.people) || [];
+  const head = people.find((p) => p && p.id === "p_owner") || people.find((p) => p && (p.role === "owner" || p.kind === "owner"));
+  return head && !head.accountId ? head : null;
+}
 function loginWithEmail(email, password) {
   ensureAccount();
   const e = emailOf({ email: email });
@@ -128,9 +134,17 @@ function loginWithEmail(email, password) {
     if (fail && fail.locked) return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
     return { ok: false, status: 401, error: "Email or password does not match." };
   }
-  if (typeof lib.noteOk === "function") lib.noteOk(lockId);
   const desks = (typeof plans.desksOfAccount === "function" ? plans.desksOfAccount(acc) : []) || [];
   const desk = desks[0] || (lib.mem.workspaces || []).find((w) => w && w.accountId === acc.id) || null;
+  // This account's own seat on its desk (its accountId, else the desk's own owner seat when the desk is this
+  // account's) denied or waiting: the password proves nothing there and never maps to another seat. No write.
+  const shut = (p) => !!p && (p.status === "pending" || p.status === "denied");
+  const mine = desk ? (desk.people || []).filter((p) => p && p.accountId === acc.id) : [];
+  const own = mine.find((p) => !shut(p)) || mine[0] || (desk && lib.deskAccountIdOf(desk) === acc.id ? ownerHeadOf(desk) : null);
+  if (shut(own)) {
+    return { ok: false, status: 403, pending: own.status === "pending", denied: own.status === "denied", error: own.status === "pending" ? "That seat is waiting on the owner." : "That seat is turned off on this desk." };
+  }
+  if (typeof lib.noteOk === "function") lib.noteOk(lockId);
   let person = null;
   if (desk) {
     const people = desk.people || [];

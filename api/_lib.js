@@ -1804,6 +1804,10 @@ function sessionOwnerPerson(session, ws) {
   const shut = session && session.accountId
     ? people.find((p) => p && seatLooksOwner(p) && !seatOpen(p) && p.accountId === session.accountId) : null;
   if (shut) return shut;
+  // The desk's own owner seat is closed and does not carry this session's account (legacy data):
+  // nothing ties the session to an open seat of its account, so it is nobody (no other seat, no made-up owner).
+  const head = people.find((p) => p && p.id === "p_owner") || people.find((p) => p && seatLooksOwner(p));
+  if (head && !seatOpen(head)) return null;
   const seated = ownerSeatOf(ws);
   if (seated) return seated;
   return {
@@ -1831,6 +1835,15 @@ function sessionSeatIsAccount(session) {
   return session.personId === session.accountId + "_owner";
 }
 
+// True when a session names a seat (its personId) that is no longer on its own desk: a removed seat.
+// Such a session is nobody there; it never falls back to an account or email match onto another seat.
+// Account-level owner ids ("owner", <account>_owner) name no seat.
+function sessionSeatGone(session, ws) {
+  const id = String((session && session.personId) || "");
+  if (!id || !ws || session.workspace !== ws.slug || id === "owner" || (id !== "p_owner" && /_owner$/.test(id))) return false;
+  return !(ws.people || []).some((p) => p && p.id === id);
+}
+
 function personOf(req, workspaceSlug) {
   req = req || {};
   const headers = req.headers || {};
@@ -1841,7 +1854,7 @@ function personOf(req, workspaceSlug) {
   const fallbackSlug = fromSession && fromSession.session ? fromSession.session.workspace : "";
   const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || mem.workspaces.find((w) => w && w.slug === fallbackSlug) || null);
   if (!ws) return { workspace: null, person: null };
-  if (fromSession && fromSession.session) {
+  if (fromSession && fromSession.session && !sessionSeatGone(fromSession.session, ws)) {
     const session = fromSession.session;
     const people = ws.people || [];
     // A session is issued for one desk (session.workspace). On that desk every old match still holds.
