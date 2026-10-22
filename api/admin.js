@@ -1,5 +1,5 @@
 const {
-  cors, mem, ready, save, workspaceOf, personOf, isOwner, ensureRules, readBody, slugify, publicPerson
+  cors, mem, ready, save, workspaceOf, personOf, isOwner, ensureRules, readBody, slugify, publicPerson, viewSeat
 } = require("./_lib");
 const { adminPinOk, jobCounts } = require("./_desk");
 const {
@@ -24,20 +24,38 @@ function deskName(row) { return (row && (row.biz || row.name || row.slug)) || ""
 function personHint(src) {
   const hint = typeof src === "string" ? { name: src } : (src && typeof src === "object" ? src : {});
   return {
-    id: String(hint.id || hint.personId || "").trim(),
-    name: String(hint.name || hint.who || hint.person || "").trim(),
-    email: lower(hint.email),
-    accountId: String(hint.accountId || hint.account || "").trim()
+    // The seat is looked up by seat id (?seat=<id>, or id/personId/seatId). A name is only a fallback
+    // when no id is sent, and only when exactly one seat on the desk has that name.
+    id: String(hint.seat || hint.seatId || hint.id || hint.personId || "").trim(),
+    desk: slugify(typeof hint.desk === "string" ? hint.desk : (typeof hint.seatDesk === "string" ? hint.seatDesk : "")),
+    name: String(hint.name || hint.who || hint.person || "").trim()
   };
 }
-function seatMatchesPerson(seat, hint) {
-  if (!seat) return false;
-  if (hint.id && seat.id === hint.id) return true;
-  if (hint.accountId && String(seat.accountId || "") === hint.accountId) return true;
-  if (hint.email && lower(seat.email) === hint.email) return true;
-  if (hint.name && hint.email && lower(seat.name) === lower(hint.name) && lower(seat.email) === hint.email) return true;
-  if (!hint.id && !hint.accountId && !hint.email && hint.name) return lower(seat.name) === lower(hint.name);
-  return false;
+const { seatsNamed, jobTouchesSeat } = require("./_fields");
+// The one seat this sheet is about: by seat id on the asked desk (default: the request's desk), or,
+// with no id, the only seat on the request's desk with that name. Never a merge of same-name seats.
+function findBookSeat(want, rows, currentSlug) {
+  const byDesk = want.desk ? rows.filter((r) => r.slug === want.desk) : [];
+  // An asked desk that is not open to this viewer: the same reply as an unknown seat (no oracle).
+  if (want.desk && !byDesk.length) return { status: 404, error: "Person not found." };
+  if (want.id) {
+    const order = byDesk.length ? byDesk : [rows.find((r) => r.slug === currentSlug)].filter(Boolean);
+    for (const row of order) {
+      const seat = (row.people || []).find((p) => p && p.id === want.id);
+      if (seat) return { row, seat };
+    }
+    if (want.desk) return { status: 404, error: "Person not found." };
+    const hits = [];
+    rows.forEach((row) => (row.people || []).forEach((p) => { if (p && p.id === want.id) hits.push({ row, seat: p }); }));
+    if (hits.length === 1) return hits[0];
+    if (hits.length > 1) return { status: 409, error: "That seat id is on more than one desk. Send desk=<slug> with seat=<id>." };
+    return { status: 404, error: "Person not found." };
+  }
+  const row = byDesk[0] || rows.find((r) => r.slug === currentSlug);
+  const named = seatsNamed(row, want.name);
+  if (named.length === 1) return { row, seat: named[0] };
+  if (named.length > 1) return { status: 409, error: "More than one seat has that name. Open the person by seat (?seat=<seat id>)." };
+  return { status: 404, error: "Person not found." };
 }
 function allowedSlugs(currentSlug, extras) {
   const out = [];
@@ -77,58 +95,37 @@ function historyCard(job, row) {
     done: job.status === "shipped" || job.status === "killed"
   });
 }
-function jobTouchesPerson(job, match) {
-  if (!job) return false;
-  const custom = job.custom && typeof job.custom === "object" ? job.custom : {};
-  if (custom.personId && match.ids[custom.personId]) return true;
-  if (job.handedTo && job.handedTo.id && match.ids[job.handedTo.id]) return true;
-  const values = [
-    job.assignee,
-    job.handedTo && job.handedTo.name,
-    job.from,
-    job.whoTapped,
-    job.doneBy,
-    job.sentByAgent,
-    job.contactName
-  ].map(lower).filter(Boolean);
-  return values.some((val) => match.names[val] || match.emails[val] || match.ids[val] || match.accountIds[val]);
-}
 function personBook(hint, opts) {
   const want = personHint(hint);
   const viewer = opts && opts.viewer ? opts.viewer : null;
   const currentSlug = slugify((opts && opts.currentSlug) || "");
   const slugs = allowedSlugs(currentSlug, opts && opts.slugs);
   const rows = slugs.map((slug) => (mem.workspaces || []).find((w) => w && w.slug === slug)).filter(Boolean);
-  const seats = [];
-  rows.forEach((row) => {
-    (row.people || []).forEach((seat) => {
-      if (seatMatchesPerson(seat, want)) seats.push(Object.assign({ slug: row.slug, desk: deskName(row) }, seat));
+  const found = findBookSeat(want, rows, currentSlug);
+  if (!found.seat) return { ok: false, status: found.status || 404, error: found.error || "Person not found.", slugs };
+  // This seat, plus the same person's seats on the other open desks: same account id only, never by name.
+  const acct = String(found.seat.accountId || "");
+  const seats = [Object.assign({ slug: found.row.slug, desk: deskName(found.row) }, found.seat)];
+  if (acct) {
+    rows.forEach((row) => {
+      if (row === found.row) return;
+      (row.people || []).forEach((seat) => {
+        if (seat && String(seat.accountId || "") === acct) seats.push(Object.assign({ slug: row.slug, desk: deskName(row) }, seat));
+      });
     });
-  });
-  if (!seats.length) return { ok: false, status: 404, error: "Person not found.", slugs };
-  const match = { ids: {}, names: {}, emails: {}, accountIds: {} };
-  seats.forEach((seat) => {
-    if (seat.id) match.ids[seat.id] = true;
-    if (seat.name) match.names[lower(seat.name)] = true;
-    if (seat.email) match.emails[lower(seat.email)] = true;
-    if (seat.accountId) match.accountIds[String(seat.accountId)] = true;
-  });
+  }
   const first = seats[0];
   const historyItems = [];
   const cards = [];
   rows.forEach((row) => {
-    const jobs = (mem.jobs || []).filter((job) => job && job.workspace === row.slug);
-    const openJobs = jobs.filter((job) => jobTouchesPerson(job, match));
-    openJobs.forEach((job) => {
+    const mine = seats.filter((s) => s.slug === row.slug).map((s) => (row.people || []).find((p) => p && p.id === s.id)).filter(Boolean);
+    if (!mine.length) return;
+    const jobs = (mem.jobs || []).filter((job) => job && job.workspace === row.slug && mine.some((seat) => jobTouchesSeat(job, seat, row)));
+    jobs.forEach((job) => {
       const card = historyCard(job, row);
       if (card) cards.push(card);
     });
-    historyItems.push.apply(historyItems, filterHistory(historyOf(row, jobs, [], {}).items, { who: first.name }).filter((item) => (
-      item && (
-        match.names[lower(item.who)] ||
-        (item.hands || []).some((name) => match.names[lower(name)])
-      )
-    )));
+    historyItems.push.apply(historyItems, historyOf(row, jobs, [], {}).items);
   });
   cards.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
   historyItems.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
@@ -152,8 +149,9 @@ function personBook(hint, opts) {
   }).sort((a, b) => String(b.lastSeen || "").localeCompare(String(a.lastSeen || "")));
   return {
     ok: true,
-    person: Object.assign({}, publicPerson(first) || {}, { phone: first.phone || "", desks: seats.length }),
-    viewer: publicPerson(viewer),
+    // Not the owner and not their own seat: name and role only (no email, account, or phone).
+    person: Object.assign({}, viewSeat(publicPerson(first), first, viewer) || {}, { phone: isOwner(viewer) || (viewer && viewer.id === first.id) ? first.phone || "" : "", desks: seats.length }),
+    viewer: viewSeat(publicPerson(viewer), viewer, viewer),
     slugs,
     allowedSlugs: slugs,
     currentSlug,
@@ -161,7 +159,8 @@ function personBook(hint, opts) {
     cards: cards.filter((card) => !card.done).slice(0, 24),
     history: historyItems.slice(0, 40),
     lastCard: cards[0] || historyItems[0] || null,
-    thread: (first.thread || []).slice(-40),
+    // The notes thread: only the seat itself and the owner (a helper opening another seat's sheet gets none).
+    thread: isOwner(viewer) || (viewer && viewer.id === first.id) ? (first.thread || []).slice(-40) : [],
     ownerHere: !!(viewer && (viewer.role === "owner" || viewer.kind === "owner"))
   };
 }
@@ -223,17 +222,29 @@ module.exports = async function handler(req, res) {
       const foundWorld = worldPeople.searchWorldAccounts(q.q || q.handle || q.at || q.name || q.world || "", { desk: row, account: acc });
       return res.status(foundWorld.ok ? 200 : (foundWorld.status || 400)).json(Object.assign({ world: true }, foundWorld));
     }
-    if (q.who || q.person || q.name) {
+    if (q.seat || q.who || q.person || q.name) {
+      // desk=<slug>: another desk only when this viewer holds a seat there by this desk's own hint
+      // (#367: own seat id here, or the account its own sign-in proved). The sheet is then read as
+      // that seat on that desk. Any other desk (no seat, pending, unknown) gets the unknown-seat reply.
+      const askDesk = slugify(typeof q.desk === "string" ? q.desk : (typeof q.seatDesk === "string" ? q.seatDesk : ""));
+      let bookRow = row, bookViewer = person;
+      if (askDesk) {
+        const mineCards = mineFn()(plans.listHint(person, homeAccount(person, row, req), row.slug));
+        const card = mineCards.owned.concat(mineCards.member).find((c) => c && c.slug === askDesk && c.status !== "pending");
+        const there = card && askDesk !== row.slug ? (mem.workspaces || []).find((w) => w && w.slug === askDesk) : null;
+        const seatThere = there && (there.people || []).find((p) => p && p.id === card.personId);
+        if (seatThere) { bookRow = there; bookViewer = seatThere; }
+      }
       const book = personBook({
-        name: q.who || q.person || q.name,
-        id: q.id || q.personId || "",
-        email: q.email || "",
-        accountId: q.account || q.accountId || ""
-      }, { slugs: [row.slug], viewer: person, currentSlug: row.slug });
+        seat: q.seat || q.id || q.personId || "",
+        desk: askDesk,
+        name: q.who || q.person || q.name
+      }, { slugs: [bookRow.slug], viewer: bookViewer, currentSlug: bookRow.slug });
       return res.status(book.ok ? 200 : (book.status || 404)).json(book);
     }
     const owner = isOwner(person);
-    const snap = accountSnapshot(row, person);
+    const ownAcc = homeAccount(person, row, req);
+    const snap = accountSnapshot(row, person, ownAcc && ownAcc.id);
     return res.status(200).json({ ok: true, you: snap.you, account: snap.account, plan: snap.plan, plans: publicPlans(), shop: snap.shop, counts: jobCounts(row.slug), people: snap.people, approvals: owner ? snap.approvals : [], perms: snap.perms, agents: snap.agents, kinds: snap.kinds, levels: snap.levels, hardOwner: snap.hardOwner, rules: ensureRules(row), tickets: ticketsOf(row.slug), audit: owner ? (mem.audit || []).filter((a) => !a.workspace || a.workspace === row.slug).slice(0, 40) : null, money: owner ? (mem.money || []).filter((m) => !m.workspace || m.workspace === row.slug).slice(0, 40) : null });
   }
 
@@ -332,7 +343,9 @@ module.exports = async function handler(req, res) {
   if (action === "mine") {
     const fn = mineFn();
     const mine = fn(plans.listHint(person, homeAccount(person, row, req), row.slug));
-    return res.status(200).json({ ok: true, plan: publicPlan(accountForDesk(row)), you: person, owned: mine.owned, member: mine.member });
+    const ownAcc = homeAccount(person, row, req);
+    // Never the raw seat row (pin hash, thread, a typed accountId): the public seat, trimmed for non-owners.
+    return res.status(200).json({ ok: true, plan: publicPlan(accountForDesk(row)), you: viewSeat(publicPerson(person), person, person, ownAcc && ownAcc.id), owned: mine.owned, member: mine.member });
   }
 
   if (!isOwner(person)) return res.status(403).json({ ok: false, error: "Owner desk code required." });
