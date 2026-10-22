@@ -267,8 +267,9 @@ async function openJob(id) {
     return "<label>" + esc(f.label) + "</label><input data-field=\"" + esc(f.key) + "\" value=\"" + esc(val) + "\" placeholder=\"" + esc(f.label) + "\">";
   }).join("");
   const draft = j.draft || j.title || "";
+  const heldId = (j.handedTo && j.handedTo.id) || j.assigneeId || "";
   const peopleOpts = (PEOPLE || []).map(p =>
-    "<option value=\"" + esc(p.name) + "\"" + (j.assignee === p.name ? " selected" : "") + ">" + esc(p.name) + (p.role === "owner" ? " · owner" : "") + "</option>"
+    "<option value=\"" + esc(p.id || "") + "\"" + (p.id && heldId && String(heldId) === String(p.id) ? " selected" : "") + ">" + esc(p.name) + (p.role === "owner" ? " · owner" : "") + "</option>"
   ).join("");
   document.getElementById("sheet-card").innerHTML =
     "<h3>" + esc(j.title) + "</h3>" +
@@ -354,7 +355,7 @@ async function scheduleJob(id, payload) {
   const banner = document.getElementById("banner");
   const dueEl = document.getElementById("job-due");
   const expEl = document.getElementById("job-expire");
-  const body = Object.assign({ action: "schedule", id: id, whoTapped: youName || "desk" }, payload || {});
+  const body = Object.assign({ action: "schedule", id: id }, payload || {});
   if (!payload && dueEl && dueEl.value) body.dueAt = dueEl.value;
   if (!payload && expEl && expEl.value) body.expireAt = expEl.value;
   const out = await api("/api/jobs", { method: "POST", body: JSON.stringify(body) });
@@ -366,7 +367,7 @@ async function scheduleJob(id, payload) {
 }
 async function snoozeJob(id, until) {
   const banner = document.getElementById("banner");
-  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "snooze", id: id, until: until || "in 2 hours", whoTapped: youName || "desk" }) });
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "snooze", id: id, until: until || "in 2 hours" }) });
   if (banner) banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not snooze.") : ("Snoozed" + (out.data && out.data.job && out.data.job.due ? " to " + out.data.job.due : "") + ".");
   if (typeof load === "function") await load();
   if (typeof openJob === "function") openJob(id);
@@ -382,33 +383,48 @@ async function saveJob(id) {
   const timing = custom.when || undefined;
   const dueAt = ((document.getElementById("job-due") || {}).value) || undefined;
   const expireAt = ((document.getElementById("job-expire") || {}).value) || undefined;
-  await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "fill", id, custom, timing, dueAt, expireAt, whoTapped: youName || role || "desk" }) });
+  await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "fill", id, custom, timing, dueAt, expireAt }) });
   if (dueAt || expireAt) {
-    await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "schedule", id, dueAt, expireAt, whoTapped: youName || "desk" }) });
+    await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "schedule", id, dueAt, expireAt }) });
   }
-  if (note) await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "say", id, text: note, whoTapped: youName || "desk" }) });
+  if (note) await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "say", id, text: note }) });
   await load();
   openJob(id);
 }
 async function addNote(id) {
   const text = (document.getElementById("job-note") || {}).value || "";
   if (!text) return;
-  await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "say", id, text, whoTapped: youName || "desk" }) });
+  await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "say", id, text }) });
   await load();
   openJob(id);
 }
 async function askMore(id) {
   const text = (document.getElementById("job-note") || {}).value || "Need a bit more before this can go.";
-  await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ask", id, text, whoTapped: youName || "desk" }) });
+  await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "ask", id, text }) });
   await load();
   openJob(id);
 }
+// The seat a hand-off picker value means: a seat id on this desk, or the one seat with that exact name.
+// Two seats with the name: "many". Nothing that matches: null.
+function handSeatOfPick(value) {
+  const v = String(value || "").trim();
+  if (!v) return null;
+  const list = (PEOPLE || []).filter(function (p) { return p && p.id; });
+  const byId = list.find(function (p) { return String(p.id) === v; });
+  if (byId) return byId;
+  const named = list.filter(function (p) { return String(p.name || "").trim().toLowerCase() === v.toLowerCase(); });
+  if (named.length > 1) return "many";
+  return named[0] || null;
+}
+const HAND_SAME_NAME_LINE = "Two people share that name. Open them from the People list.";
 async function handTo(id) {
-  const name = (document.getElementById("hand-to") || {}).value || "";
-  if (!name) return;
-  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "assign", id, name, whoTapped: youName || "desk" }) });
+  const banner = document.getElementById("banner");
+  const seat = handSeatOfPick((document.getElementById("hand-to") || {}).value || "");
+  if (seat === "many") { banner.textContent = HAND_SAME_NAME_LINE; return; }
+  if (!seat) { banner.textContent = "Pick the person from the list."; return; }
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "assign", id, to: String(seat.id) }) });
   if (out.status >= 400) {
-    document.getElementById("banner").textContent = (out.data && out.data.error) || "Could not hand that off.";
+    banner.textContent = out.status === 409 ? HAND_SAME_NAME_LINE : ((out.data && out.data.error) || "Could not hand that off.");
     return;
   }
   await load();
@@ -426,7 +442,7 @@ async function copyDraft(id) {
 }
 async function carryJob(id) {
   const note = ((document.getElementById("job-note") || {}).value || "Done by hand.").trim();
-  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "carry", id, text: note, whoTapped: youName || role || "desk" }) });
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "carry", id, text: note }) });
   document.getElementById("sheet").classList.remove("on");
   if (out.status === 403) {
     document.getElementById("banner").textContent = (out.data && out.data.error) || "Waiting on the owner.";
@@ -457,7 +473,7 @@ function addFieldPrompt(id) {
 async function addField(label, id) {
   const name = label || (document.getElementById("new-field") || {}).value || "";
   if (!name) return;
-  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "define-field", label: name, whoTapped: youName || "owner" }) });
+  const out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "define-field", label: name }) });
   if (out.status >= 400) {
     document.getElementById("banner").textContent = (out.data && out.data.error) || "Could not add field.";
     return;
