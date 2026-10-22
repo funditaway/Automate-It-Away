@@ -191,6 +191,14 @@ module.exports = async function handler(req, res) {
       const acc = homeAccount(found.person, found.workspace, req);
       if (!acc && require("./_account").needsSignIn(found.person, found.workspace, req)) return res.status(403).json(require("./_account").signInAgain());
       if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
+      const refusedPw = require("./_account").writeRefused(req, acc, "password", body);
+      if (refusedPw) return res.status(403).json(refusedPw);
+      if (!require("./_account").provenFor(req, acc)) {
+        const made = require("./_account").claimFirst(acc, body);
+        if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
+        await save();
+        return res.status(200).json({ ok: true, hasPassword: true, email: acc.email || "", hint: "Email and password can now open this account." });
+      }
       if (acc.password) {
         const current = String(body.current || body.old || "");
         const viaEmail = current && passwordMatches(acc.password, current);
@@ -212,8 +220,10 @@ module.exports = async function handler(req, res) {
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
       if (require("./_account").needsSignIn(found.person, found.workspace, req)) return res.status(403).json(require("./_account").signInAgain());
-      if (body.name) found.person.name = String(body.name).trim().slice(0, 80);
       const acc = homeAccount(found.person, found.workspace, req);
+      const refusedDt = require("./_account").writeRefused(req, acc, "details", body);
+      if (refusedDt) return res.status(403).json(refusedDt);
+      if (body.name) found.person.name = String(body.name).trim().slice(0, 80);
       if (acc) {
         const applied = applyAccountDetails(acc, body);
         if (applied && applied.ok === false) return res.status(400).json({ ok: false, error: applied.error });

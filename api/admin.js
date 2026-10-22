@@ -290,6 +290,10 @@ module.exports = async function handler(req, res) {
   if ((action === "accept-invite" || action === "decline-invite" || action === "handle" || action === "at") && require("./_account").needsSignIn(person, row, req)) {
     return res.status(403).json(require("./_account").signInAgain());
   }
+  if (action === "accept-invite" || action === "decline-invite") {
+    const refusedI = require("./_account").writeRefused(req, homeAccount(person, row, req), action, body);
+    if (refusedI) return res.status(403).json(refusedI);
+  }
   if (action === "accept-invite") {
     const acc = homeAccount(person, row, req);
     const made = worldPeople.acceptInvite(acc, body.slug || body.desk || body.workspace);
@@ -307,6 +311,8 @@ module.exports = async function handler(req, res) {
   if (action === "handle" || action === "at") {
     const acc = homeAccount(person, row, req);
     if (!acc) return res.status(401).json({ ok: false, error: "Sign in first." });
+    const refusedH = require("./_account").writeRefused(req, acc, "handle", body);
+    if (refusedH) return res.status(403).json(refusedH);
     const ownBook = !!(person && person.accountId && person.accountId === acc.id);
     if (!isOwner(person) && !ownBook) return res.status(403).json({ ok: false, error: "Owner sets the world handle on Account." });
     const set = aiaAdmin.setAccountHandle(acc, body.handle || body.at || body.name, { allowReserved: aiaAdmin.isPlatformAccount(acc) });
@@ -325,7 +331,7 @@ module.exports = async function handler(req, res) {
 
   if (action === "mine") {
     const fn = mineFn();
-    const mine = fn({ id: person.id, name: person.name, email: person.email, pin: person.pin, accountId: person.accountId });
+    const mine = fn(plans.listHint(person, homeAccount(person, row, req), row.slug));
     return res.status(200).json({ ok: true, plan: publicPlan(accountForDesk(row)), you: person, owned: mine.owned, member: mine.member });
   }
 
@@ -365,6 +371,8 @@ module.exports = async function handler(req, res) {
   }
   if (action === "plan" || action === "subscribe") {
     const acc = accountForDesk(row);
+    const refusedP = require("./_account").writeRefused(req, acc, "plan", body);
+    if (refusedP) return res.status(403).json(refusedP);
     const made = switchPlan(acc, body.plan || body.id || body.name, person);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     await save();
@@ -375,6 +383,8 @@ module.exports = async function handler(req, res) {
   }
   if (action === "monthly" || action === "billing") {
     const acc = accountForDesk(row);
+    const refusedM = require("./_account").writeRefused(req, acc, "monthly", body);
+    if (refusedM) return res.status(403).json(refusedM);
     const made = requestMonthly(acc, person);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     await save();

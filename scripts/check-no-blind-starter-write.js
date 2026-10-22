@@ -564,7 +564,10 @@ async function buildFixture(apiDir) {
   const rules = require(path.join(apiDir, "rules.js"));
   const slug = "real-desk";
   let r = R();
-  await auth({ method: "POST", headers: {}, query: {}, url: "/api/auth", body: { slug, biz: "Real Shop", name: "Real Owner", pin: OWNER_PIN } }, r);
+  await auth({ method: "POST", headers: {}, query: {}, url: "/api/auth", body: { slug, biz: "Real Shop", name: "Real Owner", pin: OWNER_PIN, email: "owner@example.test", password: "Longer-pass-1234" } }, r);
+  // The owner session is her email + password sign-in: account changes need a proven sign-in (#370).
+  r = R();
+  await auth({ method: "POST", headers: {}, query: {}, url: "/api/auth", body: { action: "login", email: "owner@example.test", password: "Longer-pass-1234" } }, r);
   const token = r.body && r.body.session && r.body.session.token;
   const owner = { "x-workspace": slug, "x-pin": OWNER_PIN };
   const fx = { slug, token, jobs: {} };
