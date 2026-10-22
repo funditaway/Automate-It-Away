@@ -10,10 +10,20 @@
 //   - nothing of the failed work is left in memory or in the local copy, and
 //     nothing of it is served afterwards (GET with Blob reads also down)
 //   - save() called outside a handler also refuses and drops the work
+//   - account unlink-provider (like link-provider) answers 503 and the
+//     linked door stays linked in memory, Blob and the local copy
 // Then the put recovers: the same handlers succeed with a store put, and the
 // final store has the real desk plus the recovered work, none of the failed.
+// A separate child runs on the real put deadline (no override) with
+// setTimeout/clearTimeout spied: the deadline is exactly 15000 ms, it is
+// cleared after a good put and after a failed put, and a put that hangs is
+// answered 503 store_write_failed only when that 15000 ms timer fires.
 // `node scripts/check-blob-write-fail.js --mutate` breaks the fix in a copy of
-// api/ and proves this check catches each break.
+// api/ and proves this check catches each break (16 mutants).
+// On main 1f45d6a (api/ without the fix) this check fails 57 of its 94
+// checks (`node scripts/check-blob-write-fail.js <main>/api`). As first
+// written, before the unlink-provider, exact-code and deadline checks, it
+// failed 35 of 71 there, not 29.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -23,7 +33,10 @@ const ROOT = path.join(__dirname, "..");
 const KEY = "aia/store.json";
 const PIN = "4826";
 const TEXT = "The desk can't save right now. Try again in a moment.";
-const CODES = ["store_write_failed", "store_not_ready"];
+const CODE = "store_write_failed";
+const DEADLINE_MS = 15000;
+const REAL_DOOR = { provider: "google", subject: "bwf-real-google-sub", email: "real-google@example.test" };
+const realSetTimeout = setTimeout;
 const FAKE_ENV = {
   VERCEL_ENV: "production",
   BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
@@ -63,6 +76,8 @@ async function buildFixture(apiDir) {
   r = await call("connections", { method: "POST", headers: owner, body: { provider: "webhook", hook: "https://example.test/hook" } });
   fx.conn = r.body && r.body.connection && r.body.connection.id;
   fx.connStatus = r.statusCode;
+  r = await call("auth", { method: "POST", headers: { "x-workspace": slug, "x-pin": PIN, "x-session": fx.token, cookie: "aia_session=" + fx.token }, query: { via: "account" }, url: "/api/account", body: Object.assign({ action: "link-provider" }, REAL_DOOR) });
+  fx.doorStatus = r.statusCode;
   fx.store = fs.readFileSync(process.env.AIA_STORE_PATH, "utf8");
   process.stdout.write("FIXTURE " + JSON.stringify(fx) + "\n");
 }
@@ -83,16 +98,15 @@ function rows(fx, tag) {
   add("auth", "POST", "auth join", { action: "join", workspace: fx.slug, name: tag + " Joiner", pin: "5150" }, { headers: {} });
   add("auth", "POST", "account details", { action: "details", account: fx.slug, pin: PIN, name: "Real Owner", email: tag.toLowerCase() + "@example.test" }, { query: { via: "account" }, url: "/api/account" });
   add("auth", "POST", "account link-provider", { action: "link-provider", provider: "github", subject: tag + "-gh", email: tag.toLowerCase() + "-gh@example.test" }, { query: { via: "account" }, url: "/api/account" });
+  add("auth", "POST", "account unlink-provider", { action: "unlink-provider", provider: REAL_DOOR.provider }, { query: { via: "account" }, url: "/api/account" });
   add("upload", "POST", "upload file", { name: tag + ".png", type: "image/png", data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" });
   return R;
 }
 
 // ---------- child: one put fault ----------
-async function child(apiDir, spec) {
+function mockBlob(fx) {
   const Module = require("module");
-  const fx = spec.fx;
   fs.writeFileSync(process.env.AIA_STORE_PATH, fx.store);
-  globalThis.__aiaBlobPutMs = 300;
   const st = { files: { [KEY]: fx.store }, putFault: null, readFault: false, puts: 0, other: [] };
   const host = "https://fakestore.private.blob.vercel-storage.com/";
   const nameOf = (k) => String(k || "").replace(/^https?:\/\/[^/]+\//, "").split("?")[0];
@@ -158,7 +172,13 @@ async function child(apiDir, spec) {
     const raw = st.files[n];
     return { ok: true, status: 200, url: u, text: async () => raw };
   };
+  return st;
+}
 
+async function child(apiDir, spec) {
+  const fx = spec.fx;
+  globalThis.__aiaBlobPutMs = 300;
+  const st = mockBlob(fx);
   const lib = require(path.join(apiDir, "_lib.js"));
   await globalThis.__aiaHydrate;
   const out = { trustedAtLoad: lib.storeTrusted(), F: [], R: [] };
@@ -170,7 +190,7 @@ async function child(apiDir, spec) {
     const run = require(path.join(apiDir, r.file + ".js"))({ method: r.method, headers: r.headers, query: r.query, url: r.url, body: r.body }, res);
     const capped = await Promise.race([
       Promise.resolve(run).then(() => "done", (e) => { threw = String(e && e.message || e).slice(0, 100); return "threw"; }),
-      new Promise((ok) => setTimeout(() => ok("hung"), 5000))
+      new Promise((ok) => realSetTimeout(() => ok("hung"), 5000))
     ]);
     const b = (res.body && typeof res.body === "object" ? res.body : (() => { try { return JSON.parse(res.body); } catch (e) { return {}; } })()) || {};
     return { label: r.label, method: r.method, status: capped === "hung" ? "hung" : res.statusCode, threw, body: b, keys: Object.keys(b || {}).sort().join(","), retry: res.headers["Retry-After"] || null, puts: st.puts - before };
@@ -179,6 +199,9 @@ async function child(apiDir, spec) {
   const has = (s, needle) => String(s || "").toLowerCase().indexOf(String(needle).toLowerCase()) >= 0;
   const memText = () => JSON.stringify(lib.mem);
   const connIn = (text) => has(text, "\"" + fx.conn + "\"");
+  const blobText = () => { try { return lib.blobOpen(st.files[KEY]); } catch (e) { return ""; } };
+  const doorIn = (text) => has(text, REAL_DOOR.subject);
+  out.doorAtStart = { mem: doorIn(memText()), blob: doorIn(blobText()), disk: doorIn(disk()) };
   // A good save first: puts work.
   out.pre = await hit(rows(fx, "bwfPre")[0]);
   const blobBefore = st.files[KEY];
@@ -188,6 +211,7 @@ async function child(apiDir, spec) {
     x.blobSame = st.files[KEY] === blobBefore;
     x.memClean = !has(memText(), tagF) && connIn(memText());
     x.diskClean = !has(disk(), tagF) && connIn(disk());
+    x.door = { mem: doorIn(memText()), blob: doorIn(blobText()), disk: doorIn(disk()) };
     delete x.body.session;
     out.F.push(x);
   }
@@ -211,12 +235,80 @@ async function child(apiDir, spec) {
   st.putFault = null;
   for (const r of rows(fx, "bwfR")) out.R.push(await hit(r));
   const final = (() => { try { return lib.blobOpen(st.files[KEY]); } catch (e) { return ""; } })();
+  out.finalDoor = doorIn(final);
   out.final = { real: has(final, "\"real-desk\"") && has(final, "Real card 2"), recovered: has(final, "bwfR-capture") && has(final, "bwfR-hook") && has(final, "bwfPre-capture"), failed: has(final, tagF), conn: connIn(final) };
   out.diskFinal = { recovered: has(disk(), "bwfR-capture"), failed: has(disk(), tagF) };
   out.other = st.other;
   out.F.forEach((x) => { x.body = { ok: x.body.ok, error: x.body.error, code: x.body.code }; });
   out.R.forEach((x) => { x.body = { ok: x.body.ok, error: x.body.error && String(x.body.error).slice(0, 80), code: x.body.code }; });
   process.stdout.write("RESULT " + JSON.stringify(out) + "\n");
+  process.exit(0);
+}
+
+// ---------- child: the real put deadline, timers spied ----------
+// No __aiaBlobPutMs override. Every setTimeout made while a save is in flight
+// is recorded; one of 1 s or more is the put deadline. In "hold" mode that
+// timer is not scheduled at all: the check fires it by hand, so a hanging put
+// can be shown to wait exactly for the 15000 ms timer and then refuse.
+async function timerChild(apiDir, spec) {
+  const fx = spec.fx;
+  const st = mockBlob(fx);
+  const lib = require(path.join(apiDir, "_lib.js"));
+  await globalThis.__aiaHydrate;
+  const realClear = clearTimeout;
+  let log = null;
+  let hold = false;
+  global.setTimeout = function (fn, ms) {
+    if (!log) return realSetTimeout.apply(this, arguments);
+    const rec = { ms: Number(ms) || 0, cleared: false, fired: false };
+    log.push(rec);
+    if (hold && rec.ms >= 1000) {
+      const h = { held: true, rec, fire() { rec.fired = true; fn(); }, unref() { return h; }, ref() { return h; }, hasRef() { return false; } };
+      rec.handle = h;
+      return h;
+    }
+    const args = Array.prototype.slice.call(arguments, 2);
+    const t = realSetTimeout(function () { rec.fired = true; return fn.apply(this, args); }, ms);
+    rec.handle = t;
+    return t;
+  };
+  global.clearTimeout = function (t) {
+    if (log) log.forEach((r) => { if (t && r.handle === t) r.cleared = true; });
+    if (t && t.held) return undefined;
+    return realClear.apply(this, arguments);
+  };
+  const owner = rows(fx, "x")[0].headers;
+  const pending = Symbol("pending");
+  async function capture(tag, fault, holdIt) {
+    st.putFault = fault;
+    hold = !!holdIt;
+    log = [];
+    const res = fakeRes();
+    const before = st.puts;
+    let state = pending;
+    const run = Promise.resolve(require(path.join(apiDir, "jobs.js"))({ method: "POST", headers: owner, query: {}, url: "/api/jobs", body: { action: "capture", title: tag, notes: tag } }, res)).then(() => { state = "done"; }, () => { state = "threw"; });
+    const out = { fault };
+    if (holdIt) {
+      await new Promise((ok) => realSetTimeout(ok, 250));
+      const held = log.filter((r) => r.handle && r.handle.held);
+      out.beforeFire = { pending: state === pending, held: held.map((r) => r.ms) };
+      held.forEach((r) => { if (!r.fired && r.ms === DEADLINE_MS) r.handle.fire(); });
+    }
+    await Promise.race([run, new Promise((ok) => realSetTimeout(ok, 5000))]);
+    const long = log.filter((r) => r.ms >= 1000);
+    const b = (res.body && typeof res.body === "object" ? res.body : {}) || {};
+    Object.assign(out, { state: state === pending ? "hung" : state, status: res.statusCode, code: b.code || null, ok: b.ok, error: b.error === TEXT, keys: Object.keys(b).sort().join(","), retry: res.headers["Retry-After"] || null, puts: st.puts - before, timers: long.map((r) => ({ ms: r.ms, cleared: r.cleared, fired: r.fired })) });
+    log = null;
+    hold = false;
+    st.putFault = null;
+    if (state !== pending) await lib.ready();
+    return out;
+  }
+  const o = {};
+  o.ok = await capture("bwfT-ok", null, false);
+  o.fail = await capture("bwfT-throw", "throw", false);
+  o.hang = await capture("bwfT-hang", "hang", true);
+  process.stdout.write("RESULT " + JSON.stringify(o) + "\n");
   process.exit(0);
 }
 
@@ -230,10 +322,10 @@ function fixture(apiDir) {
   return line ? JSON.parse(line.slice(8)) : { error: scrub(b.stderr).slice(-300) };
 }
 
-function runFault(apiDir, fx, fault) {
+function runFault(apiDir, fx, fault, mode) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-bwf-"));
   const env = Object.assign({ PATH: process.env.PATH, HOME: tmp, AIA_STORE_PATH: path.join(tmp, "store.json"), AIA_UPLOAD_DIR: path.join(tmp, "up") }, FAKE_ENV);
-  const r = spawnSync(process.execPath, [__filename, "--child", apiDir, JSON.stringify({ fault, fx })], { env, cwd: tmp, encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(process.execPath, [__filename, mode || "--child", apiDir, JSON.stringify({ fault, fx })], { env, cwd: tmp, encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024 });
   fs.rmSync(tmp, { recursive: true, force: true });
   const line = String(r.stdout || "").split("\n").find((l) => l.indexOf("RESULT ") === 0);
   return line ? JSON.parse(line.slice(7)) : { error: "child gave no result (exit " + r.status + "): " + scrub(r.stderr).slice(-300) };
@@ -244,7 +336,7 @@ function runAll(apiDir, quiet) {
   const t = (name, ok, why) => { results.push({ name, ok: !!ok }); if (!quiet) console.log((ok ? "ok   " : "FAIL ") + name + (ok || !why ? "" : " — " + why)); };
   const fx = fixture(apiDir);
   if (fx.error) { t("fixture built", false, fx.error); return results; }
-  t("fixture has a session, cards and a pipe", !!(fx.token && fx.jobs.every(Boolean) && fx.conn), JSON.stringify({ token: !!fx.token, jobs: fx.jobs, conn: fx.conn, connStatus: fx.connStatus }));
+  t("fixture has a session, cards, a pipe and a linked door", !!(fx.token && fx.jobs.every(Boolean) && fx.conn && fx.doorStatus === 200), JSON.stringify({ token: !!fx.token, jobs: fx.jobs, conn: fx.conn, connStatus: fx.connStatus, doorStatus: fx.doorStatus }));
   FAULTS.forEach((fault) => {
     const o = runFault(apiDir, fx, fault);
     const p = "put " + fault + ": ";
@@ -253,8 +345,14 @@ function runAll(apiDir, quiet) {
     t(p + "a save before the fault works (2xx with a put)", o.pre.status >= 200 && o.pre.status < 300 && o.pre.puts >= 1, JSON.stringify(o.pre));
     const two = o.F.filter((x) => !(typeof x.status === "number" && (x.status < 200 || x.status >= 300)));
     t(p + "no POST/DELETE answers 2xx (" + o.F.length + " handlers)", two.length === 0, JSON.stringify(two.slice(0, 4).map((x) => [x.label, x.status, x.threw])));
-    const shape = o.F.filter((x) => !(x.status === 503 && x.body.ok === false && x.body.error === TEXT && CODES.indexOf(x.body.code) >= 0 && x.keys === "code,error,ok" && x.retry));
+    const shape = o.F.filter((x) => !(x.status === 503 && x.body.ok === false && x.body.error === TEXT && x.body.code === CODE && x.keys === "code,error,ok" && x.retry));
     t(p + "each is the exact 503 {ok:false, error, code} + Retry-After", shape.length === 0, JSON.stringify(shape.slice(0, 3).map((x) => [x.label, x.status, x.keys, x.body.code, x.retry])));
+    const notCode = o.F.filter((x) => x.body.code !== CODE);
+    t(p + "every refusal has code exactly " + CODE, notCode.length === 0, JSON.stringify(notCode.slice(0, 3).map((x) => [x.label, x.status, x.body.code])));
+    const ul = o.F.find((x) => x.label === "account unlink-provider");
+    t(p + "account unlink-provider: 503 " + CODE + ", door still linked in memory, Blob and local copy", o.doorAtStart.mem && o.doorAtStart.blob && o.doorAtStart.disk && ul && ul.status === 503 && ul.body.code === CODE && ul.blobSame && ul.door.mem && ul.door.blob && ul.door.disk, JSON.stringify({ start: o.doorAtStart, row: ul && [ul.status, ul.body.code, ul.blobSame, ul.door] }));
+    const doorLost = o.F.filter((x) => !(x.door.mem && x.door.blob && x.door.disk));
+    t(p + "the linked door survives every failed write", doorLost.length === 0, JSON.stringify(doorLost.map((x) => [x.label, x.door])));
     const moved = o.F.filter((x) => !x.blobSame);
     t(p + "Blob store byte-identical through the failed writes", moved.length === 0, JSON.stringify(moved.map((x) => x.label)));
     const memLeft = o.F.filter((x) => !x.memClean);
@@ -266,10 +364,22 @@ function runAll(apiDir, quiet) {
     t(p + "health shows the store not ready after the failed write", o.afterHealth.state === "not-ready", JSON.stringify(o.afterHealth));
     const broke = o.R.filter((x) => !(typeof x.status === "number" && x.status >= 200 && x.status < 300 && x.puts >= 1));
     t(p + "after the put recovers every handler succeeds with a store put", broke.length === 0, JSON.stringify(broke.slice(0, 4).map((x) => [x.label, x.status, x.puts, x.body])));
-    t(p + "final store: real desk and recovered work, none of the failed", o.final.real && o.final.recovered && !o.final.failed && !o.final.conn, JSON.stringify(o.final));
+    t(p + "final store: real desk and recovered work, none of the failed", o.final.real && o.final.recovered && !o.final.failed && !o.final.conn && !o.finalDoor, JSON.stringify(Object.assign({ door: o.finalDoor }, o.final)));
     t(p + "local copy follows Blob after recovery", o.diskFinal.recovered && !o.diskFinal.failed, JSON.stringify(o.diskFinal));
     t(p + "no non-blob network", (o.other || []).length === 0, JSON.stringify(o.other));
   });
+  const d = runFault(apiDir, fx, null, "--timer");
+  const q = "put deadline: ";
+  if (d.error) { t(q + "child ran", false, d.error); return results; }
+  const one = (x) => x.timers.length === 1 && x.timers[0].ms === DEADLINE_MS;
+  t(q + "a good put arms exactly one " + DEADLINE_MS + " ms timer", one(d.ok), JSON.stringify(d.ok.timers));
+  t(q + "a good put answers 2xx with a store put", d.ok.state === "done" && d.ok.status >= 200 && d.ok.status < 300 && d.ok.puts >= 1, JSON.stringify([d.ok.state, d.ok.status, d.ok.puts]));
+  t(q + "the timer is cleared after a good put", one(d.ok) && d.ok.timers[0].cleared && !d.ok.timers[0].fired, JSON.stringify(d.ok.timers));
+  t(q + "a failed put arms exactly one " + DEADLINE_MS + " ms timer", one(d.fail), JSON.stringify(d.fail.timers));
+  t(q + "a failed put answers 503 " + CODE, d.fail.state === "done" && d.fail.status === 503 && d.fail.code === CODE, JSON.stringify([d.fail.state, d.fail.status, d.fail.code]));
+  t(q + "the timer is cleared after a failed put", one(d.fail) && d.fail.timers[0].cleared && !d.fail.timers[0].fired, JSON.stringify(d.fail.timers));
+  t(q + "a hanging put waits on exactly one " + DEADLINE_MS + " ms timer", d.hang.beforeFire.pending && d.hang.beforeFire.held.length === 1 && d.hang.beforeFire.held[0] === DEADLINE_MS, JSON.stringify(d.hang.beforeFire));
+  t(q + "when it fires the answer is the exact 503 " + CODE + " + Retry-After", d.hang.state === "done" && d.hang.status === 503 && d.hang.code === CODE && d.hang.ok === false && d.hang.error && d.hang.keys === "code,error,ok" && d.hang.retry && d.hang.puts === 0, JSON.stringify(d.hang));
   return results;
 }
 
@@ -284,7 +394,12 @@ const MUTANTS = [
   { id: "M8 no deadline on the store put", file: "_lib.js", from: "await blobPutDeadline(blobPutStore(body));", to: "await blobPutStore(body);" },
   { id: "M9 account doors do not await save", file: "_account-doors.js", from: "await hooks.save();", to: "hooks.save();", all: true },
   { id: "M10 blobWrite reports a failed put as written", file: "_lib.js", from: "    blobProbe.detail = why && why !== \"[object Object]\" ? why : \"blob-fail\";\n    return false;", to: "    blobProbe.detail = why && why !== \"[object Object]\" ? why : \"blob-fail\";\n    return true;" },
-  { id: "M11 recovery never re-reads (stays not-ready)", file: "_lib.js", from: "  if (!globalThis.__aiaStoreLoaded) return false;\n  try {\n    const remote = await blobRead();", to: "  return false;\n  try {\n    const remote = await blobRead();" }
+  { id: "M11 recovery never re-reads (stays not-ready)", file: "_lib.js", from: "  if (!globalThis.__aiaStoreLoaded) return false;\n  try {\n    const remote = await blobRead();", to: "  return false;\n  try {\n    const remote = await blobRead();" },
+  { id: "M12 put deadline 30 s", file: "_lib.js", from: "const BLOB_PUT_MS = 15000;", to: "const BLOB_PUT_MS = 30000;" },
+  { id: "M13 refusal code store_not_ready", file: "_lib.js", from: "const STORE_WRITE_FAILED_CODE = \"store_write_failed\";", to: "const STORE_WRITE_FAILED_CODE = \"store_not_ready\";" },
+  { id: "M14 unlink-provider does not await save", file: "_account-doors.js", from: "  acc.identities = next;\n  if (typeof hooks.save === \"function\") await hooks.save();", to: "  acc.identities = next;\n  if (typeof hooks.save === \"function\") hooks.save();" },
+  { id: "M15 put deadline timer never cleared", file: "_lib.js", from: "  return Promise.race([job, late]).finally(() => clearTimeout(timer));", to: "  return Promise.race([job, late]);" },
+  { id: "M16 put deadline 1 s", file: "_lib.js", from: "const BLOB_PUT_MS = 15000;", to: "const BLOB_PUT_MS = 1000;" }
 ];
 
 function mutate() {
@@ -295,7 +410,7 @@ function mutate() {
     fs.cpSync(path.join(ROOT, "api"), api, { recursive: true });
     const f = path.join(api, m.file);
     const src = fs.readFileSync(f, "utf8");
-    if (src.indexOf(m.from) === -1) { console.log("FAIL mutant " + m.id + ": anchor not found"); fs.rmSync(tmp, { recursive: true, force: true }); return; }
+    if (src.split(m.from).length !== 2 && !m.all) { console.log("FAIL mutant " + m.id + ": anchor not found exactly once"); fs.rmSync(tmp, { recursive: true, force: true }); return; }
     fs.writeFileSync(f, m.all ? src.split(m.from).join(m.to) : src.replace(m.from, m.to));
     const bad = runAll(api, true).filter((c) => !c.ok);
     fs.rmSync(tmp, { recursive: true, force: true });
@@ -309,6 +424,7 @@ function mutate() {
 const childErr = (e) => { console.error(scrub(e && e.stack || e)); process.exit(2); };
 if (process.argv[2] === "--fixture") buildFixture(process.argv[3]).catch(childErr);
 else if (process.argv[2] === "--child") child(process.argv[3], JSON.parse(process.argv[4])).catch(childErr);
+else if (process.argv[2] === "--timer") timerChild(process.argv[3], JSON.parse(process.argv[4])).catch(childErr);
 else {
   const apiDir = path.resolve(process.argv[2] && process.argv[2].indexOf("--") !== 0 ? process.argv[2] : path.join(ROOT, "api"));
   const res = runAll(apiDir);
