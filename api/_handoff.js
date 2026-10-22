@@ -65,6 +65,7 @@ function crewOf(job, shop) {
 function applyHandoff(job, who, shop) {
   if (!job || !who) return job;
   job.assignee = who.name;
+  job.assigneeId = who.id || "";
   job.handedTo = { id: who.id, name: who.name, kind: who.kind || who.role || "member", crew: who.crew || "" };
   if (isApprovedAgent(who)) {
     job.waitingOn = "agent";
