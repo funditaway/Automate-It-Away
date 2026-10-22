@@ -101,6 +101,10 @@ function accountExport(acc, current, currentToken) {
   };
 }
 
+const ACCOUNT_WRITES = ["attach", "plan", "subscribe", "password", "details", "profile", "mint", "logout-all", "mfa", "handle", "at",
+  "mail-add", "add-mail", "save-mail", "mail-remove", "remove-mail", "wallet", "connect-wallet", "disconnect-wallet",
+  "reviewer", "aia-reviewer", "link-provider", "unlink-provider"];
+
 function authAccount(req) {
   const slug = workspaceOf(req);
   const found = personOf(req, slug);
@@ -114,7 +118,8 @@ function accountHome(acc, person, req) {
 
 async function accountHomeJson(acc, person, req, opts) {
   const home = accountHome(acc, person, req);
-  home.sessions = typeof lib.listSessions === "function"
+  // No account id, no session list (an unfiltered listSessions would be every account's sessions).
+  home.sessions = typeof lib.listSessions === "function" && acc && acc.id
     ? lib.listSessions({
       accountId: acc && acc.id,
       currentToken: (opts && opts.currentToken) || sessionTokenOf(req)
@@ -156,6 +161,10 @@ module.exports = async function handler(req, res) {
     }
     const pin = (req.headers && req.headers["x-pin"]) || "";
     const via = loginAccount(slug, pin);
+    // A helper seat (or a desk-code member login) with no account its own sign-in proved never reads
+    // an account home: never the desk owner's (the old fallback below), never a stub. Sign in again.
+    const helperSeat = (p) => !!p && !isOwner(p) && !/_owner$/.test(String(p.id || ""));
+    if ((via.ok && via.memberLogin) || (!(via.ok) && helperSeat(found.person))) return res.status(403).json(require("./_account").signInAgain());
     if (via.ok) {
       const owner = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || { name: via.account.ownerName, role: "owner", kind: "owner" };
       return res.status(200).json(await accountHomeJson(via.account, owner, req));
@@ -179,6 +188,13 @@ module.exports = async function handler(req, res) {
     const pre = personOf(req, workspaceOf(req));
     const accountMod = require("./_account");
     if (pre.person && accountMod.needsSignIn(pre.person, pre.workspace, req)) return res.status(403).json(accountMod.signInAgain());
+  }
+  // Every account change needs this account's own password sign-in; a desk code or a desk-code
+  // session alone gets signInAgain() before anything is written (accountMod.writeRefused).
+  if (ACCOUNT_WRITES.indexOf(action) >= 0) {
+    const w = authAccount(req);
+    const refused = w.found.person ? require("./_account").writeRefused(req, w.account, action, body) : null;
+    if (refused) return res.status(403).json(refused);
   }
   if (require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
 
@@ -247,6 +263,14 @@ module.exports = async function handler(req, res) {
     const acc = account;
     if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
     if (action === "password") {
+      // Unproven here only as the first claim (no password, no email yet): both in one write.
+      if (!require("./_account").provenFor(req, acc)) {
+        const made = require("./_account").claimFirst(acc, body);
+        if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
+        refreshSession(req, res);
+        await save();
+        return res.status(200).json({ ok: true, hasPassword: true, email: acc.email || "", hint: "Email and password can now open this account." });
+      }
       if (acc.password) {
         const current = String(body.current || body.old || "");
         const viaPw = current && passwordMatches(acc.password, current);
