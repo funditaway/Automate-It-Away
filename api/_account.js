@@ -386,6 +386,16 @@ function normalizeKind(kind, role) {
 // Nothing typed in body (email, account name, accountId, seat id) attaches an account to a seat.
 // Only opts.account may: the account the request's own signed-in session proves (join), or the
 // world account a world invite waits on (it sits only once that account accepts).
+// Seat ids: "p_" + base36 time + 12 hex chars (crypto.randomBytes(6)), so two invites in the same ms
+// differ. A clash with any seat id already on this desk (p_owner included) re-rolls. Stored ids stay.
+function newSeatId(row) {
+  const taken = new Set(((row && row.people) || []).map((p) => p && p.id).filter(Boolean));
+  for (let i = 0; i < 32; i += 1) {
+    const id = "p_" + Date.now().toString(36) + crypto.randomBytes(6).toString("hex");
+    if (!taken.has(id)) return id;
+  }
+  throw new Error("No free seat id on this desk.");
+}
 function inviteSeat(row, body, actor, opts) {
   if (!row) return { ok: false, status: 404, error: "No workspace" };
   const kind = normalizeKind(body.kind, body.role);
@@ -402,7 +412,7 @@ function inviteSeat(row, body, actor, opts) {
   const ownerInvited = lib.isOwner(actor);
   const status = ownerInvited && kind !== "agent" ? "approved" : "pending";
   const seat = {
-    id: "p_" + Date.now().toString(36), name, role: kind === "owner" ? "owner" : "employee", kind,
+    id: newSeatId(row), name, role: kind === "owner" ? "owner" : "employee", kind,
     crew: kind === "agent" ? name : "", email: seatEmail(body, home),
     accountId: home ? home.id : "", pin: hashed, status,
     can: seatCan(kind, "", status), createdAt: new Date().toISOString(),
@@ -468,6 +478,6 @@ module.exports = {
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot, seatOffRefused,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
   findAccount, findAccountByEmail, connectDesk, disconnectDesk, leaveSeat, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
-  setAccountPassword, applyAccountDetails, emailTaken,
+  setAccountPassword, applyAccountDetails, emailTaken, newSeatId,
   planOf: plans.planOf, PLANS: plans.PLANS
 };
