@@ -128,6 +128,45 @@ async function main() {
   seed("job_needseat");
   pass("opened a desk with a private card and a webhook pipe");
 
+  // Probe's bar. With no seat (no desk code, no session), every action except capture gets the exact
+  // reply for a desk that does not exist, on a real desk or a made-up one, with a real or a fake card id;
+  // nothing is written and no pipe fires. These asserts all run (no stop at the first), then fail together.
+  let barFails = 0;
+  function bar(cond, msg) { if (cond) console.log("ok  " + msg); else { console.error("FAIL " + msg); barFails += 1; } }
+  const NO_DESK = JSON.stringify({ status: 404, body: { ok: false, error: "No desk with that name." } });
+  const shape = (r) => JSON.stringify({ status: r.statusCode, body: r.body });
+  const BAR_ACTIONS = [
+    ["done", { text: "bar done" }],
+    ["snooze", { until: "in 2 hours" }],
+    ["fill", { custom: { price: "3" } }],
+    ["schedule", { dueAt: "2031-01-01T00:00:00Z" }],
+    ["assign", { name: "James", to: "James" }],
+    ["no-such-bar-action", {}]
+  ];
+  const DESKS = [["real desk", { "x-workspace": slug }], ["made-up desk", { "x-workspace": "no-such-bar-desk" }]];
+  for (const [act, extra] of BAR_ACTIONS) {
+    const seen = {};
+    for (const [deskTag, hd] of DESKS) {
+      for (const [cardTag, id] of [["real card", "job_needseat"], ["fake card", "job_bar_fake_0001"]]) {
+        const before = JSON.stringify(lib.mem.jobs);
+        const counts = [lib.mem.money.length, lib.mem.inbox.length, (lib.mem.audit || []).length].join(",");
+        const f0 = fetches.length;
+        const r = await call(jobs, "POST", hd, Object.assign({ action: act, id: id, whoTapped: "James" }, extra));
+        seen[deskTag + "/" + cardTag] = shape(r);
+        bar(shape(r) === NO_DESK && JSON.stringify(lib.mem.jobs) === before && [lib.mem.money.length, lib.mem.inbox.length, (lib.mem.audit || []).length].join(",") === counts && fetches.length === f0,
+          "[no seat] " + act + " on a " + deskTag + " with a " + cardTag + ": exactly the missing-desk reply, nothing written, no pipe (" + shape(r).slice(0, 120) + ")");
+      }
+    }
+    bar(seen["real desk/real card"] === seen["real desk/fake card"] && seen["real desk/real card"] === seen["made-up desk/fake card"],
+      "[no seat] " + act + ": a real card id takes the same path as a fake one and a made-up desk (" + seen["real desk/real card"].slice(0, 60) + " vs " + seen["real desk/fake card"].slice(0, 60) + ")");
+  }
+  const replyBefore = JSON.stringify(lib.mem.jobs);
+  const rep = await call(jobs, "POST", { "x-workspace": slug }, { action: "reply", id: "job_needseat", text: "bar reply", whoTapped: "James" });
+  bar([403, 404].indexOf(rep.statusCode) >= 0 && rep.body && rep.body.ok === false && !rep.body.job && JSON.stringify(rep.body).indexOf(CARD.notes) < 0 && JSON.stringify(lib.mem.jobs) === replyBefore,
+    "[no seat] reply is refused without the card in the reply and nothing written (" + shape(rep).slice(0, 100) + ")");
+  if (barFails) fail(barFails + " no-seat bar asserts failed");
+  pass("no seat: done, snooze, fill, schedule, assign and an unknown action get the missing-desk reply on any desk and any card id, nothing written");
+
   const OPEN = { "x-workspace": slug };
   const MISSING = { "x-workspace": "no-such-need-seat-desk" };
   const missingReply = await call(jobs, "POST", MISSING, { action: "say", id: "job_needseat", text: "x" });
