@@ -1698,6 +1698,25 @@ function publicPerson(p) {
   };
 }
 
+// A seat as a viewer who is not the desk owner sees it (helper, AI seat, desk-code login, no seat):
+// other seats are display fields only. No email, no account, no phone, no wallet, no permission map,
+// no prompt, nothing else of the row. The viewer's own seat keeps its own email, and its accountId
+// only when ownAccountId (the account the viewer's own sign-in proved) is that id. Owners see `out`.
+const SEAT_DISPLAY = ["id", "name", "role", "kind", "status", "crew", "deskAi", "does", "aia", "handle", "at"];
+function viewSeat(out, raw, viewer, ownAccountId) {
+  if (!out || typeof out !== "object") return out;
+  if (viewer && isOwner(viewer)) return out;
+  const self = !!(viewer && raw && viewer.id && raw.id === viewer.id);
+  const shown = {};
+  SEAT_DISPLAY.forEach((k) => { if (Object.prototype.hasOwnProperty.call(out, k)) shown[k] = out[k]; });
+  if (Object.prototype.hasOwnProperty.call(out, "email")) shown.email = self ? out.email : "";
+  if (Object.prototype.hasOwnProperty.call(out, "accountId")) shown.accountId = self && ownAccountId && out.accountId === ownAccountId ? out.accountId : "";
+  return shown;
+}
+function seatsFor(viewer, people, serialize, ownAccountId) {
+  return (people || []).map((p) => viewSeat((serialize || publicPerson)(p), p, viewer, ownAccountId));
+}
+
 function sessionLooksOwner(session) {
   if (!session) return false;
   const role = String(session.role || session.kind || "").toLowerCase();
@@ -2496,7 +2515,7 @@ module.exports = {
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   deskAccountIdOf, sessionProof, sessionProofView, helperEmailClaimed,
   isLocked, noteFail, noteOk,
-  ensurePeople, publicPerson, personOf, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
+  ensurePeople, publicPerson, viewSeat, seatsFor, personOf, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
   matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy, whenMatches, ifMatches,
