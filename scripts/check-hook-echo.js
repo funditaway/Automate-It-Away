@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves POST /api/hook: a caller with no seat still posts and gets ok, the job id,
 // and the card status. The reply does not include the card or blob file links
 // (mem.files[].url / remoteUrl, jobs[].photoUrl, jobs[].files[]).
