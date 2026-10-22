@@ -33,10 +33,12 @@ function desksForPerson(hint) {
   const pin = hint && hint.pin;
   const personId = hint && hint.id;
   const aid = hint && hint.accountId;
+  const homeSlug = (hint && hint.slug) || "";
   (lib.mem.workspaces || []).forEach((w) => {
     if (!w) return;
     const people = w.people || [];
-    const hit = people.find((p) => p && personId && p.id === personId)
+    // A seat id matches only on its own desk: seat ids are per desk (every owner seat is "p_owner").
+    const hit = people.find((p) => p && personId && homeSlug && w.slug === homeSlug && p.id === personId)
       || people.find((p) => p && ((aid && p.accountId === aid) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && p.pin === pin)));
     if (!hit) return;
     const ownerHit = hit.role === "owner" || hit.kind === "owner";
@@ -129,10 +131,24 @@ function loginAccount(name, pin) {
   if (found && found.person) return { ok: true, account: { name: found.person.name, slug, desks: [], plan: "desk" }, desk: found.workspace, person: found.person, memberLogin: true };
   return { ok: false, status: 401, error: "Account name or code does not match." };
 }
+// What a desk list may match for this seat: its own id on its own desk; for a helper seat only the
+// account its own sign-in proved (acc, from homeAccount with the request), never a seat-stored account
+// (the desk owner's or a third person's) nor an email that account or an owner seat claims.
+function listHint(person, acc, slug) {
+  if (!person) return {};
+  const helper = !(person.role === "owner" || person.kind === "owner") && !/_owner$/.test(String(person.id || ""));
+  const row = (lib.mem.workspaces || []).find((w) => w && (slug ? w.slug === slug : (w.people || []).indexOf(person) >= 0)) || null;
+  const home = slug || (row && row.slug) || "";
+  const given = (acc && acc.id) || "";
+  const ownAcc = !!given && given !== lib.deskAccountIdOf(row) && (!person.accountId || person.accountId === given);
+  const accountId = helper ? (ownAcc ? given : "") : (person.accountId || given);
+  const email = helper && !ownAcc && lib.helperEmailClaimed(person.email, "") ? "" : person.email;
+  return { id: person.id, name: person.name, email: email, pin: person.pin, accountId: accountId, slug: home };
+}
 function proHome(acc, person) {
   const plan = decoratePlan(acc);
   const feat = plan.features || {};
-  const hint = { id: person && person.id, name: person && person.name, email: person && person.email, pin: person && person.pin, accountId: person && person.accountId };
+  const hint = listHint(person, acc);
   const mine = desksForPerson(hint);
   const desks = desksOfAccount(acc).map((w) => ({ slug: w.slug, name: w.biz || w.name || w.slug, people: (w.people || []).length }));
   return { ok: true, product: "aia", savedLogin: true, account: acc ? { id: acc.id, name: acc.name, slug: acc.slug, desks: acc.desks || [], plan: plan.plan, creator: !!(acc.creator || plan.plan === "dev") } : null, plan, plans: publicPlans(), active: plan.plan, you: typeof lib.publicPerson === "function" ? lib.publicPerson(person) : person, mine, desksOwned: mine.owned, desksMember: mine.member, desks, teams: feat.teamQueues ? [] : [], timeline: [], scheduled: [], pipes: [], locked: { teamQueues: !feat.teamQueues, timeline: !feat.timeline, pipes: !feat.pipes } };
@@ -140,4 +156,4 @@ function proHome(acc, person) {
 function seatBill() { return { people: 0, extra: 0, extraPrice: 0, charged: false }; }
 function teamQueues() { return []; }
 function accountTimeline() { return { items: [], scheduled: [] }; }
-module.exports = { PLANS, planOf, publicPlans, decoratePlan, switchPlan, seatBill, desksOfAccount, teamQueues, accountTimeline, loginAccount, proHome, desksForPerson, requestPermission, setPermission };
+module.exports = { PLANS, planOf, publicPlans, decoratePlan, switchPlan, seatBill, desksOfAccount, teamQueues, accountTimeline, loginAccount, proHome, desksForPerson, listHint, requestPermission, setPermission };
