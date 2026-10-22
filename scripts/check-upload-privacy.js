@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves /api/upload: strangers cannot list or fetch, public POST only lands
 // in a real desk, seated owners can list and fetch, blob names are random,
 // and stored types follow the byte sniff (png/jpeg/gif/webp, else octet-stream).
@@ -182,7 +183,8 @@ function assertBlobChild() {
     AIA_UPLOAD_DIR: path.join(tmp, "up"),
     VERCEL_ENV: "production",
     BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
-    BLOB_STORE_ID: "store_FAKESTORE"
+    BLOB_STORE_ID: "store_FAKESTORE",
+    AIA_CHECK_PARENT: String(process.pid)
   };
   const r = spawnSync(process.execPath, [__filename, "--child"], { env, cwd: tmp, encoding: "utf8", timeout: 60000 });
   fs.rmSync(tmp, { recursive: true, force: true });
