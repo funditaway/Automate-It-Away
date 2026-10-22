@@ -83,7 +83,10 @@ function whoFor(job, shop, person) {
 }
 function matchPerson(shop, text) {
   const t = String(text || "").toLowerCase();
-  return ((shop && shop.people) || []).find((p) => p && p.name && t.indexOf(String(p.name).toLowerCase()) !== -1) || null;
+  const people = (shop && shop.people) || [];
+  const hit = people.find((p) => p && p.name && t.indexOf(String(p.name).toLowerCase()) !== -1) || null;
+  // Two seats with that name: nobody (a name never picks between same-name seats).
+  return hit && !require("./_fields").seatNameShared(people, hit) ? hit : null;
 }
 function replyFor(job, who) {
   return "On the queue as \u201c" + job.title + "\u201d. " + (who && who.line ? who.line : "You tap Yes or Stop.") + (job.draft ? " Draft: " + job.draft : "");
@@ -145,6 +148,7 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ ok: true, intake: publicIntake(row), job });
       }
       job.assignee = whoPerson.name;
+      job.assigneeId = whoPerson.id || "";
       job.waitingOn = whoPerson.role === "owner" ? "owner" : "helper";
       job.next = "Waiting on " + whoPerson.name + ".";
       job.log = (job.log || []).concat(["Assigned \u00b7 " + whoPerson.name]);
@@ -170,6 +174,8 @@ module.exports = async function handler(req, res) {
       whoTapped: (person && person.name) || "desk",
       why: "From desk talk. Human before Yes."
     });
+    // From desk talk: credit the seat that talked by id (pickFields never takes a seat id from a body).
+    createdList.forEach((made) => { if (made && person && person.id) made.whoTappedId = String(person.id); });
     createdList.forEach(function (created) {
       qualifyJob(created, shop);
       holdCapturedJob(created);
