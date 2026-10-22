@@ -365,7 +365,7 @@ module.exports = async function handler(req, res) {
       if (row.pin && row.people[0] && !row.people[0].pin) row.people[0].pin = row.pin;
       applyCustomOpen(row, body);
       mem.workspaces.unshift(row);
-      const acc = createOwnerAccount(body, row);
+      const acc = createOwnerAccount(body, row, req);
       const owner = (row.people || []).find((p) => p && p.role === "owner") || row.people[0];
       const first = firstJobFrom(row, body, slug);
       let session = null;

@@ -278,7 +278,7 @@ module.exports = async function handler(req, res) {
     if (!found.workspace || !isOwner(found.person)) {
       return res.status(403).json({ ok: false, error: "Owner desk code required." });
     }
-    const acc = createOwnerAccount(body, found.workspace);
+    const acc = createOwnerAccount(body, found.workspace, req);
     refreshSession(req, res);
     await save();
     return res.status(200).json({ ok: true, plan: publicPlan(acc), account: { id: acc.id, name: acc.name } });
