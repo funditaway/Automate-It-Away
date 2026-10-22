@@ -7,7 +7,9 @@
 // - helpers: no empty meta line, no bare " · " label, no empty "Prompt ·", no "#" / bare mailto: / sms: link
 // - owners: grouping by accountId / email and the card lines read exactly as before
 // - stranger-typed names stay escaped; no inline handlers in people.js
-// PEOPLE_HELPER_VIEW_JS may point at another people.js (used by mutate-people-helper-view.js).
+// - Accept / Deny / Say (people-desk.js) act on the seat the sheet opened, not on a same-name seat
+// PEOPLE_HELPER_VIEW_JS / PEOPLE_HELPER_VIEW_DESK_JS may point at another people.js / people-desk.js
+// (used by mutate-people-helper-view.js).
 
 const fs = require("fs");
 const path = require("path");
@@ -18,6 +20,8 @@ const root = path.join(__dirname, "..");
 const jsFile = process.env.PEOPLE_HELPER_VIEW_JS || path.join(root, "people.js");
 const htmlSrc = fs.readFileSync(path.join(root, "people.html"), "utf8");
 const src = fs.readFileSync(jsFile, "utf8");
+const deskFile = process.env.PEOPLE_HELPER_VIEW_DESK_JS || path.join(root, "people-desk.js");
+const deskSrc = fs.readFileSync(deskFile, "utf8");
 
 let failed = 0;
 function fail(m) { failed += 1; console.error("FAIL " + m); }
@@ -26,6 +30,8 @@ function check(cond, m) { if (cond) pass(m); else fail(m); }
 
 const syntax = spawnSync(process.execPath, ["--check", jsFile], { encoding: "utf8" });
 if (syntax.status !== 0) { console.error("FAIL people.js must parse: " + (syntax.stderr || syntax.stdout)); process.exit(1); }
+const deskSyntax = spawnSync(process.execPath, ["--check", deskFile], { encoding: "utf8" });
+if (deskSyntax.status !== 0) { console.error("FAIL people-desk.js must parse: " + (deskSyntax.stderr || deskSyntax.stdout)); process.exit(1); }
 
 // Helper fixtures must only carry what 372's trim lets through (api/_lib.js SEAT_DISPLAY + email + accountId).
 let display = null;
@@ -48,6 +54,9 @@ function makeDom() {
     while ((a = ar.exec(attrsText))) attrs[a[1]] = a[2] === undefined ? "" : a[2];
     els[m[3]] = makeEl(m[1].toLowerCase(), m[3], attrs);
   }
+  // people-desk.js builds these from a string; the fake DOM has them up front so its wire() finds them.
+  ["sheet-approve", "sheet-deny", "sheet-say-btn"].forEach((id) => { els[id] = makeEl("button", id, {}); });
+  els["sheet-say"] = makeEl("input", "sheet-say", {});
   return els;
 }
 function makeEl(tag, id, attrs) {
@@ -113,7 +122,21 @@ async function render(opts) {
   vm.runInContext(src, ctx, { filename: "people.js" });
   if (opts.all) ctx.STATE.all = true;
   await ctx.load();
+  if (opts.withDesk) {
+    document.readyState = "complete";
+    vm.runInContext(deskSrc, ctx, { filename: "people-desk.js" });
+  }
   return { ctx, els, calls };
+}
+
+const tick = () => new Promise((r) => setTimeout(r, 15));
+async function tap(r, id, action, sayText) {
+  const before = r.calls.length;
+  if (sayText !== undefined) r.els["sheet-say"].value = sayText;
+  (r.els[id].listeners.click || []).forEach((f) => f({ target: r.els[id] }));
+  for (let i = 0; i < 6; i++) await tick();
+  const hit = r.calls.slice(before).filter((c) => c.path === "/api/admin" && c.body.action === action);
+  return hit.length ? hit[0].body.id : null;
 }
 
 function cardsOf(html) {
@@ -185,7 +208,9 @@ const ownerA = {
     { id: "s_sam2", name: "Sam", role: "employee", kind: "family", status: "approved", email: "sam2@x.test", accountId: "" },
     { id: "s_bo", name: "Bo", role: "employee", kind: "staff", status: "approved", email: "bo@x.test", accountId: "acct_bo", phone: "555-0102" },
     { id: "s_ai", name: "Worker", role: "agent", kind: "agent", status: "approved", deskAi: true, does: "Drafts replies", prompt: "Draft a short polite reply.", aiId: "ai_1", email: "ai@x.test", accountId: "" },
-    { id: "s_kit", name: "Kit", role: "employee", kind: "helper", status: "approved", email: "", accountId: "acct_kit" }
+    { id: "s_kit", name: "Kit", role: "employee", kind: "helper", status: "approved", email: "", accountId: "acct_kit" },
+    { id: "s_pat1", name: "Pat", role: "employee", kind: "helper", status: "pending", email: "", accountId: "" },
+    { id: "s_pat2", name: "Pat", role: "employee", kind: "family", status: "pending", email: "", accountId: "" }
   ],
   levels: []
 };
@@ -262,7 +287,7 @@ const ownerBook = (body) => ({
   // ---- owner, one desk ----
   const o1 = await render({ current: "shop-a", desks: { "shop-a": ownerA }, person: ownerBook });
   const oKeys = o1.ctx.STATE.people.map((p) => p.key);
-  check(JSON.stringify(oKeys) === JSON.stringify(["account:acct_ann", "email:sam1@x.test", "email:sam2@x.test", "account:acct_bo", "email:ai@x.test", "account:acct_kit"]), "owner, one desk: grouping keys as before (got " + JSON.stringify(oKeys) + ")");
+  check(JSON.stringify(oKeys) === JSON.stringify(["account:acct_ann", "email:sam1@x.test", "email:sam2@x.test", "account:acct_bo", "email:ai@x.test", "account:acct_kit", "seat:shop-a:s_pat1", "seat:shop-a:s_pat2"]), "owner, one desk: grouping keys as before (got " + JSON.stringify(oKeys) + ")");
   const oCards = cardsOf(o1.els.list.innerHTML);
   const metaOf = (n) => oCards.filter((c) => c.name === n).map((c) => c.metas[0]);
   check(JSON.stringify(metaOf("Ann")) === JSON.stringify(["555-0100 · ann@x.test"]), "owner: Ann line reads phone · email (got " + JSON.stringify(metaOf("Ann")) + ")");
@@ -281,12 +306,59 @@ const ownerBook = (body) => ({
   // ---- owner, All desks ----
   const o2 = await render({ current: "shop-a", all: true, desksList: deskList, desks: { "shop-a": ownerA, "shop-b": ownerB }, person: ownerBook });
   const o2Keys = o2.ctx.STATE.people.map((p) => p.key + "=" + p.seats.length);
-  check(JSON.stringify(o2Keys) === JSON.stringify(["account:acct_ann=1", "email:sam1@x.test=2", "email:sam2@x.test=1", "account:acct_bo=2", "email:ai@x.test=1", "account:acct_kit=2"]), "owner, All desks: same account / same email still merge (got " + JSON.stringify(o2Keys) + ")");
+  check(JSON.stringify(o2Keys) === JSON.stringify(["account:acct_ann=1", "email:sam1@x.test=2", "email:sam2@x.test=1", "account:acct_bo=2", "email:ai@x.test=1", "account:acct_kit=2", "seat:shop-a:s_pat1=1", "seat:shop-a:s_pat2=1"]), "owner, All desks: same account / same email still merge (got " + JSON.stringify(o2Keys) + ")");
   const o2Cards = cardsOf(o2.els.list.innerHTML);
   check(JSON.stringify(o2Cards.filter((c) => c.name === "Sam").map((c) => c.metas[0])) === JSON.stringify(["555-0101 · sam1@x.test · Several desks", "sam2@x.test"]), "owner, All desks: Sam lines read as before");
   check(JSON.stringify(o2Cards.filter((c) => c.name === "Kit").map((c) => c.metas[0])) === JSON.stringify(["Several desks"]), "owner, All desks: no phone or email reads just 'Several desks', no leading ' · ' (got " + JSON.stringify(o2Cards.filter((c) => c.name === "Kit").map((c) => c.metas[0])) + ")");
   blankBits(o2.els.list.innerHTML, "owner, All desks: card list");
   check(JSON.stringify(o2Cards.filter((c) => c.name === "Bo").map((c) => c.metas[0])) === JSON.stringify(["555-0102 · bo@x.test · Several desks"]), "owner, All desks: Bo line reads as before");
+
+  // ---- Accept / Deny / Say hit the seat the sheet opened (people-desk.js) ----
+  const od = await render({ current: "shop-a", withDesk: true, desks: { "shop-a": ownerA }, person: ownerBook });
+  const pats = od.ctx.STATE.people.filter((p) => p.name === "Pat");
+  check(pats.length === 2, "owner: two pending Pat seats are two cards (got " + pats.length + ")");
+  const pat1 = pats.find((p) => p.id === "s_pat1");
+  const pat2 = pats.find((p) => p.id === "s_pat2");
+  await od.ctx.openSheet(pat2);
+  let got = await tap(od, "sheet-approve", "approve");
+  check(got === "s_pat2", "owner opens the second Pat: Accept targets s_pat2 (got " + got + ")");
+  await od.ctx.openSheet(pat2);
+  got = await tap(od, "sheet-deny", "deny");
+  check(got === "s_pat2", "owner opens the second Pat: Deny targets s_pat2 (got " + got + ")");
+  await od.ctx.openSheet(pat2);
+  got = await tap(od, "sheet-say-btn", "say", "hello second Pat");
+  check(got === "s_pat2", "owner opens the second Pat: Say targets s_pat2 (got " + got + ")");
+  await od.ctx.openSheet(pat1);
+  got = await tap(od, "sheet-approve", "approve");
+  check(got === "s_pat1", "owner opens the first Pat: Accept targets s_pat1 (got " + got + ")");
+  await od.ctx.openSheet(od.ctx.STATE.people.find((p) => p.name === "Bo"));
+  got = await tap(od, "sheet-approve", "approve");
+  check(got === "s_bo", "owner: Accept on a one-of-a-kind name still targets that seat (got " + got + ")");
+  // a seat that is gone from the list: no tap lands on a same-name stranger
+  od.els.sheet.setAttribute("data-seat", "s_gone");
+  od.els.sheet.setAttribute("data-key", "seat:shop-a:s_gone");
+  od.els["sheet-name"].textContent = "Pat";
+  got = await tap(od, "sheet-approve", "approve");
+  check(got === null, "owner: a seat no longer on the list does not fall back to a same-name seat (got " + got + ")");
+  got = await tap(od, "sheet-say-btn", "say", "anyone there");
+  check(got === null, "owner: Say on a seat no longer on the list does not land anywhere (got " + got + ")");
+  // no seat on the sheet at all: the old name match still works
+  od.els.sheet.removeAttribute("data-seat");
+  od.els.sheet.removeAttribute("data-key");
+  od.els.sheet.removeAttribute("data-desk");
+  od.els["sheet-name"].textContent = "Bo";
+  got = await tap(od, "sheet-approve", "approve");
+  check(got === "s_bo", "owner: with no seat on the sheet, the name is still the fallback (got " + got + ")");
+
+  const hd = await render({ current: "shop-a", withDesk: true, desks: { "shop-a": helperA }, person: helperBook });
+  const hSam2 = hd.ctx.STATE.people.find((p) => p.id === "s_sam2");
+  await hd.ctx.openSheet(hSam2);
+  got = await tap(hd, "sheet-say-btn", "say", "hi Sam");
+  check(got === "s_sam2", "helper opens the second Sam: Say targets s_sam2 (got " + got + ")");
+  const hSam1 = hd.ctx.STATE.people.find((p) => p.id === "s_sam1");
+  await hd.ctx.openSheet(hSam1);
+  got = await tap(hd, "sheet-say-btn", "say", "hi other Sam");
+  check(got === "s_sam1", "helper opens the first Sam: Say targets s_sam1 (got " + got + ")");
 
   // ---- source rules ----
   check(!/key\s*=\s*"name:"/.test(src), "people.js has no name-only grouping key");

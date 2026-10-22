@@ -583,6 +583,11 @@ async function openSheet(person) {
   if (out.status >= 400 || !out.data || !out.data.ok) return;
   var data = out.data;
   var sheet = document.getElementById("sheet");
+  // Which seat this sheet is for, so Accept / Deny / Say (people-desk.js) act on this seat,
+  // not on another seat that happens to share the name.
+  sheet.setAttribute("data-seat", person.id || "");
+  sheet.setAttribute("data-desk", (person.seats && person.seats[0] && person.seats[0].deskSlug) || "");
+  sheet.setAttribute("data-key", person.key || "");
   document.getElementById("sheet-name").textContent = (data.person && data.person.name) || person.name || "Person";
   var seatCount = (data.seats || []).length;
   document.getElementById("sheet-meta").textContent = seatCount + " seat" + (seatCount === 1 ? "" : "s") + " · AIA does not send";
