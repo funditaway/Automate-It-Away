@@ -53,22 +53,22 @@ async function main() {
   const lib = require(path.join(root, "api/_lib"));
   await lib.ready();
   const getHome = (hd) => call(acch, "GET", hd, null, {}, "/api/account");
-  const open = async (slug, name, pin, email, tok) => {
-    const r = await call(auth, "POST", Object.assign({ "x-workspace": slug }, tok ? { "x-session": tok } : {}), { action: "open", slug, biz: slug, name, pin, email });
+  const open = async (slug, name, pin, email, tok, password) => {
+    const r = await call(auth, "POST", Object.assign({ "x-workspace": slug }, tok ? { "x-session": tok } : {}), Object.assign({ action: "open", slug, biz: slug, name, pin, email }, password ? { password } : {}));
     if (r.statusCode !== 201) throw new Error("open " + slug + " " + r.statusCode + " " + JSON.stringify(r.body));
     return r.body.session.token;
   };
   const login = async (slug, pin) => { const r = await call(auth, "POST", {}, { action: "login", workspace: slug, pin }); return r.body && r.body.session && r.body.session.token; };
   const A = "ahp-ann", D = "ahp-ann-two", B = "ahp-bea", Z = "ahp-zed";
-  const annPinTok = await open(A, "Ann", "1111", "ann@ahp.test");
+  const annPinTok = await open(A, "Ann", "1111", "ann@ahp.test", null, "ann-pass-1234");
   await open(D, "Ann", "4444", "ann@ahp.test", annPinTok);
   const beaTok = await open(B, "Bea", "2222", "bea@ahp.test");
   const zedTok = await open(Z, "Zed", "2323", "zed@ahp.test");
   const W = (s) => lib.mem.workspaces.find((w) => w && w.slug === s);
   const wsA = W(A), wsB = W(B), acctA = wsA.accountId, acctB = wsB.accountId, acctZ = W(Z).accountId;
   const annAcc = lib.mem.accounts.find((a) => a.id === acctA);
-  const pw = await call(auth, "POST", { "x-workspace": A, "x-session": annPinTok }, { action: "password", password: "ann-pass-1234" });
-  ok(pw.statusCode === 200, "[setup] Ann sets her account password from her desk session (" + pw.statusCode + ")");
+  // Ann set her password when she opened A (a desk-code session cannot set it later: #370 writes).
+  ok(!!annAcc.password, "[setup] Ann's account has the password she set when she opened A");
   const annEmail = await call(acch, "POST", {}, { action: "login", email: "ann@ahp.test", password: "ann-pass-1234" }, {}, "/api/account");
   const annPwTok = annEmail.body && annEmail.body.session && annEmail.body.session.token;
   ok(annEmail.statusCode === 200 && lib.mem.sessions[0].proof === "password", "[setup] Ann's email + password login is proven");

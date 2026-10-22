@@ -205,17 +205,24 @@ async function main() {
     biz: "Register Desk",
     name: "James",
     email: "james-reg@example.com",
+    password: "james-reg-pass-1234",
     pin: pin
   });
   if (opened.statusCode !== 201 && opened.statusCode !== 200) fail("open desk " + opened.statusCode);
   else pass("open desk");
+  // A wallet change needs the owner's password sign-in (#370); the desk code alone gets sign in again.
+  const signedIn = await call(account, "POST", {}, { action: "login", email: "james-reg@example.com", password: "james-reg-pass-1234" });
+  const provenHdr = { "x-workspace": slug, "x-session": signedIn.body && signedIn.body.session && signedIn.body.session.token };
 
   const ownerHdr = { "x-workspace": slug, "x-pin": pin };
   const noWallet = await call(account, "POST", ownerHdr, { action: "aia-quote", owner: owner });
   if (noWallet.statusCode < 400) fail("quote without wallet must 400 " + noWallet.statusCode);
   else pass("quote without wallet is rejected");
 
-  const bound = await call(account, "POST", ownerHdr, {
+  const pinBind = await call(account, "POST", ownerHdr, { action: "wallet", walletAddress: owner, walletChainId: 1 });
+  if (pinBind.statusCode !== 403 || !pinBind.body || pinBind.body.signIn !== true) fail("desk code alone must not bind a wallet " + pinBind.statusCode);
+  else pass("desk code alone gets sign in again for a wallet");
+  const bound = await call(account, "POST", provenHdr, {
     action: "wallet",
     walletAddress: owner,
     walletChainId: 1
