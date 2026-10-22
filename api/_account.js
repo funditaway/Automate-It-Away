@@ -459,9 +459,14 @@ function setSeatStatus(row, id, next, actor) {
   noteApproval(row, seat, seat.status, actor);
   return { ok: true, status: 200, person: lib.publicPerson(seat) };
 }
-function accountSnapshot(row, person) {
+// person: the seat asking; ownAccountId: the account its own sign-in proved. Not the owner: other
+// seats are name and role only, and the desk account shows its name only (no id, no desk list).
+function accountSnapshot(row, person, ownAccountId) {
   const shop = row ? accountForDesk(row) : null;
-  return { account: publicAccount(row), plan: shop ? publicPlan(shop) : publicPlan(null), shop: shop ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : null, you: lib.publicPerson(person), people: row ? (row.people || []).map(lib.publicPerson) : [], approvals: row ? approvalsOf(row.slug) : [], kinds: KINDS, agents: roles.catalog().agents, levels: roles.catalog().levels, hardOwner: roles.HARD_OWNER };
+  const owner = lib.isOwner(person);
+  const account = publicAccount(row);
+  if (!owner && account && account.shop) account.shop = { name: account.shop.name };
+  return { account, plan: shop ? publicPlan(shop) : publicPlan(null), shop: shop ? (owner ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : { name: shop.name }) : null, you: lib.viewSeat(lib.publicPerson(person), person, person, ownAccountId), people: row ? lib.seatsFor(person, row.people, lib.publicPerson, ownAccountId) : [], approvals: row ? approvalsOf(row.slug) : [], kinds: KINDS, agents: roles.catalog().agents, levels: roles.catalog().levels, hardOwner: roles.HARD_OWNER };
 }
 module.exports = {
   needsSignIn, signInAgain,
