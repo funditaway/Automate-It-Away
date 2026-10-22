@@ -114,7 +114,8 @@ function accountHome(acc, person, req) {
 
 async function accountHomeJson(acc, person, req, opts) {
   const home = accountHome(acc, person, req);
-  home.sessions = typeof lib.listSessions === "function"
+  // No account id, no session list (an unfiltered listSessions would be every account's sessions).
+  home.sessions = typeof lib.listSessions === "function" && acc && acc.id
     ? lib.listSessions({
       accountId: acc && acc.id,
       currentToken: (opts && opts.currentToken) || sessionTokenOf(req)
@@ -156,6 +157,10 @@ module.exports = async function handler(req, res) {
     }
     const pin = (req.headers && req.headers["x-pin"]) || "";
     const via = loginAccount(slug, pin);
+    // A helper seat (or a desk-code member login) with no account its own sign-in proved never reads
+    // an account home: never the desk owner's (the old fallback below), never a stub. Sign in again.
+    const helperSeat = (p) => !!p && !isOwner(p) && !/_owner$/.test(String(p.id || ""));
+    if ((via.ok && via.memberLogin) || (!(via.ok) && helperSeat(found.person))) return res.status(403).json(require("./_account").signInAgain());
     if (via.ok) {
       const owner = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || { name: via.account.ownerName, role: "owner", kind: "owner" };
       return res.status(200).json(await accountHomeJson(via.account, owner, req));
