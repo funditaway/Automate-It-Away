@@ -180,7 +180,7 @@ module.exports = async function handler(req, res) {
     const accountMod = require("./_account");
     if (pre.person && accountMod.needsSignIn(pre.person, pre.workspace, req)) return res.status(403).json(accountMod.signInAgain());
   }
-  if (require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
+  if (await require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
 
   if (action === "login" || action === "open" || action === "save") {
     const name = body.account || body.slug || body.biz || body.name || workspaceOf(req);

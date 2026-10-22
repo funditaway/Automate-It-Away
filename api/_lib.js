@@ -594,6 +594,8 @@ function storeTrusted() {
 // One answer for every not-ready refusal. Pages show error as-is.
 const STORE_NOT_READY = "The desk can't save right now. Try again in a moment.";
 const STORE_NOT_READY_CODE = "store_not_ready";
+// Same words when the store was read but the durable Blob write failed.
+const STORE_WRITE_FAILED_CODE = "store_write_failed";
 const STORE_PAUSED_LINE = "Saving is paused: this desk couldn't read its store.";
 
 // Read-only: how this instance came to trust its store. "read" (it really
@@ -634,19 +636,21 @@ async function recoverStore() {
   if (storeTrusted()) return true;
   if (!globalThis.__aiaStoreLoaded) return false;
   try {
-    const remote = await blobRead();
+    // Same 5 s read deadline as hydrate/ready: a POST never waits out a slow
+    // or hung recovery read; a timed-out read stays untrusted (503).
+    const remote = await blobReadDeadline(blobRead());
     if (remote) {
       applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
     } else if (blobProbe.read !== "error") {
-      const legacy = await blobLegacyRead();
+      const legacy = await blobReadDeadline(blobLegacyRead());
       if (legacy) {
         applyStore(legacy);
         mem.driver = "blob";
         mem.path = "blob:" + BLOB_KEY;
       } else {
-        await blobAbsent();
+        await blobReadDeadline(blobAbsent());
       }
     }
   } catch (e) {}
@@ -683,7 +687,11 @@ function holdSuccess(res, ctx) {
         if (typeof res.status === "function") res.status(503); else res.statusCode = 503;
         if (typeof res.setHeader === "function") res.setHeader("Retry-After", "5");
         const base = body && typeof body === "object" && !Buffer.isBuffer(body) ? body : {};
-        const out = Object.assign({}, base, { ok: false, error: STORE_NOT_READY, code: STORE_NOT_READY_CODE, saved: false });
+        // A failed durable write answers the bare refusal: nothing from the
+        // unsaved work (sessions, ids, cards) goes back to the caller.
+        const out = ctx.writeFailed
+          ? { ok: false, error: STORE_NOT_READY, code: STORE_WRITE_FAILED_CODE }
+          : Object.assign({}, base, { ok: false, error: STORE_NOT_READY, code: STORE_NOT_READY_CODE, saved: false });
         if (name === "json") return orig.call(this, out);
         if (typeof res.setHeader === "function") res.setHeader("Content-Type", "application/json; charset=utf-8");
         return orig.call(this, JSON.stringify(out));
@@ -694,6 +702,12 @@ function holdSuccess(res, ctx) {
   });
 }
 
+// When guardStore() took this request (null outside a guarded request).
+function requestStartedAt() {
+  const ctx = storeCalls.getStore();
+  return ctx && ctx.at ? ctx.at : null;
+}
+
 // Every api/*.js handler is wrapped in this. POST/PUT/PATCH/DELETE are refused
 // with a JSON 503 + Retry-After up front while the store is not trusted. Any
 // request (GET included) whose save() was refused cannot answer 2xx, and its
@@ -702,6 +716,9 @@ function guardStore(handler) {
   if (typeof handler !== "function" || handler.__storeGuarded) return handler;
   const wrapped = async function guardedHandler(req, res) {
     if (storeCalls.getStore()) return handler.apply(this, arguments);
+    // Request arrival: the recovery reads below count against the
+    // handler's time budget (see requestStartedAt).
+    const at = Date.now();
     const method = String((req && req.method) || "GET").toUpperCase();
     const writes = !!WRITE_METHODS[method];
     if (writes && blobReady()) {
@@ -712,7 +729,7 @@ function guardStore(handler) {
       try { await loadIfCold(); } catch (e) { loadFailed = true; }
       if (!storeTrusted() && (loadFailed || !(await recoverStore()))) return refuseNotReady(res);
     }
-    const ctx = { writes, skipped: false, scrubSkipped: false, sent: false };
+    const ctx = { at, writes, skipped: false, scrubSkipped: false, writeFailed: false, sent: false };
     holdSuccess(res, ctx);
     const self = this;
     const args = arguments;
@@ -912,29 +929,67 @@ async function blobWriteStick(blob, used) {
   }
 }
 
+// A store put that never answers is a failed put, not a hung request.
+const BLOB_PUT_MS = 15000;
+function blobDeadline(job, ms, what) {
+  let timer;
+  job.catch(() => {});
+  const late = new Promise((resolve, reject) => {
+    timer = setTimeout(() => { const e = new Error("Vercel Blob: " + what + " timed out after " + ms + "ms"); e.deadline = true; reject(e); }, ms);
+  });
+  return Promise.race([job, late]).finally(() => clearTimeout(timer));
+}
+function blobPutDeadline(job) {
+  return blobDeadline(job, Number(globalThis.__aiaBlobPutMs) || BLOB_PUT_MS, "store write");
+}
+
+// A store read or read-back that never answers is a failed read (5 s). A
+// timed-out read leaves the store untrusted: nothing is saved over it, and
+// if the read answers late it cannot make the store trusted either.
+const BLOB_READ_MS = 5000;
+const blobReadMs = () => Number(globalThis.__aiaBlobReadMs) || BLOB_READ_MS;
+function untrustStore() {
+  mem.storeSeen = false;
+  mem.storeAbsent = false;
+}
+function blobReadDeadline(job) {
+  let timedOut = false;
+  job.then(() => { if (timedOut) untrustStore(); }, () => {});
+  return blobDeadline(job, blobReadMs(), "store read").catch((e) => {
+    if (!e || !e.deadline) throw e;
+    timedOut = true;
+    untrustStore();
+    blobProbe.read = "error";
+    blobProbe.detail = e.message;
+    return null;
+  });
+}
+
+async function blobPutStore(body) {
+  try {
+    return { blob: await blobPut(body, "private"), used: "private" };
+  } catch (first) {
+    const msg = blobErrText(first);
+    try {
+      if (!blobToken() || !(blobWantsPublic(msg) || blobNeedsRetry(msg))) throw first;
+      const blob = await blobPut(blobSeal(body), "public");
+      blobProbe.detail = "sealed-public";
+      return { blob, used: "public" };
+    } catch (second) {
+      const blob = await blobRestPut(body);
+      blobProbe.detail = "rest";
+      return { blob, used: "public" };
+    }
+  }
+}
+
 async function blobWrite() {
   if (!blobAllowed()) return false;
   blobProbe.token = !!(blobToken() || blobStoreId() || process.env.VERCEL_OIDC_TOKEN);
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   const body = JSON.stringify(payload());
   try {
-    let blob;
-    let used = "private";
-    try {
-      blob = await blobPut(body, "private");
-    } catch (first) {
-      const msg = blobErrText(first);
-      try {
-        if (!blobToken() || !(blobWantsPublic(msg) || blobNeedsRetry(msg))) throw first;
-        blob = await blobPut(blobSeal(body), "public");
-        used = "public";
-        blobProbe.detail = "sealed-public";
-      } catch (second) {
-        blob = await blobRestPut(body);
-        used = "public";
-        blobProbe.detail = "rest";
-      }
-    }
+    const { blob, used } = await blobPutDeadline(blobPutStore(body));
     blobProbe.access = used;
     blobProbe.write = "ok";
     blobProbe.status = 200;
@@ -942,7 +997,7 @@ async function blobWrite() {
     else blobProbe.detail = used === "public" ? "sealed-public" : "ok";
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
-    const stuck = await blobWriteStick(blob, used);
+    const stuck = await blobDeadline(blobWriteStick(blob, used), blobReadMs(), "read-back").catch(() => false);
     if (!stuck) {
       blobProbe.write = "no-stick";
       blobProbe.detail = (blobProbe.detail || "Blob write did not stick").slice(0, 180);
@@ -1055,7 +1110,7 @@ async function persistScrub() {
 
 async function hydrate() {
   if (blobReady()) {
-    const remote = await blobRead();
+    const remote = await blobReadDeadline(blobRead());
     if (remote) {
       applyStore(remote);
       mem.driver = "blob";
@@ -1066,7 +1121,7 @@ async function hydrate() {
     // Live name proven absent but the legacy copy is there: load it
     // read-only; the first save migrates it to aia/store.json.
     if (blobProbe.read !== "error") {
-      const legacy = await blobLegacyRead();
+      const legacy = await blobReadDeadline(blobLegacyRead());
       if (legacy) {
         applyStore(legacy);
         mem.driver = "blob";
@@ -1076,7 +1131,7 @@ async function hydrate() {
     }
     // No data and no error: an empty body or a false 404 lands here too, so
     // the starter goes up only when a listing proves the store absent.
-    if (blobProbe.read !== "error" && !(await blobAbsent())) {
+    if (blobProbe.read !== "error" && !(await blobReadDeadline(blobAbsent()))) {
       blobProbe.read = "error";
       blobProbe.detail = "store not proven absent — will not write starter";
     }
@@ -1139,7 +1194,7 @@ function applyStore(parsed) {
 async function ready() {
   await globalThis.__aiaHydrate;
   if (blobReady()) {
-    const remote = await blobRead();
+    const remote = await blobReadDeadline(blobRead());
     if (remote) {
       applyStore(remote);
       mem.driver = "blob";
@@ -1229,6 +1284,21 @@ async function save() {
     return false;
   }
   dropPersistTests();
+  if (blobReady() && blobMayWrite()) {
+    // Blob first: a put that failed (threw, non-2xx, timed out) kept
+    // nothing, so the local copy must not keep it either.
+    const ok = await blobWrite();
+    if (!ok && blobProbe.write === "fail") return storeWriteFailed();
+    const written = writeDisk();
+    if (ok) {
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+      return true;
+    }
+    // Put accepted but the read-back could not confirm it: unchanged.
+    mem.driver = written;
+    return written !== "memory-fallback";
+  }
   const disk = writeDisk();
   if (blobReady()) {
     if (!blobMayWrite()) {
@@ -1242,15 +1312,23 @@ async function save() {
       }
       return disk !== "memory-fallback";
     }
-    const ok = await blobWrite();
-    if (ok) {
-      mem.driver = "blob";
-      mem.path = "blob:" + BLOB_KEY;
-      return true;
-    }
   }
   mem.driver = disk;
   return disk !== "memory-fallback";
+}
+
+// The store was read but the durable Blob put failed (threw, non-2xx, or
+// timed out). Nothing past the last good save may be served or
+// saved again as truth: the store goes back to not-ready (the next write
+// request, or any ready(), re-reads it from Blob), memory drops back to the
+// last good local copy, and guardStore() turns this request into the 503.
+function storeWriteFailed() {
+  mem.storeSeen = false;
+  mem.storeAbsent = false;
+  noteSkipped("writeFailed");
+  noteSkipped("skipped");
+  forgetUnsaved();
+  return false;
 }
 
 function cors(res) {
@@ -2505,5 +2583,5 @@ module.exports = {
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
   publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
   ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF,
-  storeTrusted, storeNotReady, blobAbsent, guardStore, persistScrub, storeState, STORE_NOT_READY, STORE_NOT_READY_CODE, STORE_PAUSED_LINE
+  storeTrusted, storeNotReady, blobAbsent, guardStore, requestStartedAt, persistScrub, storeState, STORE_NOT_READY, STORE_NOT_READY_CODE, STORE_WRITE_FAILED_CODE, STORE_PAUSED_LINE
 };
