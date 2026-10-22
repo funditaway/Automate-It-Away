@@ -115,7 +115,19 @@ const mutants = [
   ["notes: area shown even with no thread", "    el.innerHTML = \"\";\n    el.hidden = true;\n    el.style.display = \"none\";\n    return;", "    el.innerHTML = \"<p class=\\\"meta\\\">Notes on this seat</p>\";\n    el.hidden = false;\n    return;"],
   ["notes: thread text not escaped", "esc(t.text) + (t.t ?", "t.text + (t.t ?"],
   ["notes: thread never painted", "  paintNotes(data.thread);\n", ""],
-  ["notes: a 409 keeps the old notes", "  paintNotes(null);\n", ""]
+  ["notes: a 409 keeps the old notes", "  paintNotes(null);\n", ""],
+  // Probe FAIL on #384: POST must not override the GET's private fields; exact hand-off keys; queue sheet
+  ["sheet: POST person overrides the GET's contact (old override)", "var priv = own ? (own.person || {}) : {};", "var priv = (wide && wide.person) || (own ? (own.person || {}) : {});"],
+  ["sheet: POST thread overrides the GET's (old override)", "thread: own ? own.thread : null,", "thread: (wide || own).thread,"],
+  ["sheet: no GET answer falls back to the POST's contact", "var priv = own ? (own.person || {}) : {};", "var priv = own ? (own.person || {}) : ((wide && wide.person) || {});"],
+  ["sheet: contact falls back to the list row", "setSheetLink(\"sheet-mail\", mailHref(data.person.email, line));", "setSheetLink(\"sheet-mail\", mailHref(data.person.email || person.email || \"\", line));"],
+  ["handoff: body carries assignee too", 'JSON.stringify({ action: "assign", id: id, to: String(seat.id) })', 'JSON.stringify({ action: "assign", id: id, to: String(seat.id), assignee: seat.name })', "handoff"],
+  ["card: handTo body carries assignee too", 'JSON.stringify({ action: "assign", id, to: String(seat.id) })', 'JSON.stringify({ action: "assign", id, to: String(seat.id), assignee: seat.name })', "card"],
+  ["queue: handOffTo body carries assignee too", 'JSON.stringify({ action: "assign", id: id, to: String(seat.id) })', 'JSON.stringify({ action: "assign", id: id, to: String(seat.id), assignee: seat.name })', "queue"],
+  ["queue sheet: buttons pass the name again", "function () { window.handOffTo(id, String(p.id)); }", "function () { window.handOffTo(id, p.name); }", "queue"],
+  ["queue sheet: back to inline onclick markup", '    sheet.innerHTML = "";\n', '    sheet.innerHTML = "<button class=\\"edit\\" type=\\"button\\" onclick=\\"openInvite()\\">Invite</button>";\n', "queue"],
+  ["queue sheet: labels through innerHTML", "if (label != null) node.textContent = label;", "if (label != null) node.innerHTML = label;", "queue"],
+  ["queue sheet: 'has it' by name", "const has = heldId && String(heldId) === String(p.id);", "const has = j.assignee && String(j.assignee) === String(p.name);", "queue"]
 ];
 
 let caught = 0;

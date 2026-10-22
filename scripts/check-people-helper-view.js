@@ -20,6 +20,9 @@
 // - hand-off (desk-handoff.js, desk-card.js handTo, desk-queue.js handOffTo) sends assign {to:<seat id>};
 //   a shared name or no seat sends nothing and shows a plain line; a 409 shows the plain line
 // - the person sheet's notes area shows only when the server sent a thread (seat itself / owner)
+// - private sheet fields (contact, notes) come only from the seat's own GET, never from the POST
+// - hand-off bodies are exactly {action, id, to}; the queue's Hand off sheet is built without inline
+//   handlers and each button sends its own seat id
 // PEOPLE_HELPER_VIEW_JS / _DESK_JS / _INBOX_JS / _HISTORY / _HANDOFF_JS / _CARD_JS / _QUEUE_JS may point at
 // other copies (used by mutate-people-helper-view.js).
 
@@ -313,6 +316,42 @@ async function runHandoff(peopleList, job) {
     }
   };
 }
+function exactKeys(body) { return !!body && JSON.stringify(Object.keys(body).sort()) === JSON.stringify(["action", "id", "to"]); }
+// desk-queue.js openHandOff (+ handOffTo) on a tiny tree DOM; returns its buttons and a tap().
+async function runHandOffSheet(code, peopleList, job) {
+  const all = [];
+  function node(tag) {
+    const n = { tagName: String(tag).toUpperCase(), children: [], attrs: {}, listeners: {}, className: "", textContent: "", innerHTML: "", type: "",
+      appendChild(c) { this.children.push(c); return c; },
+      setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k] == null ? null : this.attrs[k]; },
+      addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); },
+      classList: { add() {}, remove() {} } };
+    all.push(n);
+    return n;
+  }
+  const sheetCard = node("div"), wrapEl = node("div"), banner = node("div");
+  const calls = [];
+  const ctx = {
+    document: { createElement: node, getElementById(id) { return id === "sheet-card" ? sheetCard : id === "sheet" ? wrapEl : id === "banner" ? banner : null; } },
+    PEOPLE: peopleList, JOBS: [job], JSON, Promise, String, console,
+    loadPeople: async () => {}, load: async () => {}, openInvite() {},
+    api: async (p, o) => { calls.push({ path: p, body: o && o.body ? JSON.parse(o.body) : {} }); return { status: 200, data: { ok: true } }; }
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(code, ctx);
+  await ctx.openHandOff(job.id);
+  const buttons = all.filter((n) => n.tagName === "BUTTON");
+  return {
+    all, buttons,
+    async tap(b) {
+      const before = calls.length;
+      for (const f of (b.listeners.click || [])) await f({ target: b });
+      const c = calls.slice(before).find((x) => x.path === "/api/jobs" && x.body.action === "assign");
+      return c ? c.body : null;
+    }
+  };
+}
 // Cut a piece of source from `start` (or `start`..`after`) to the first `end` after it.
 function lift(text, start, after, end) {
   const i = text.indexOf(start);
@@ -404,9 +443,10 @@ const helperBook = (body) => ({
   seats: [{ id: body.id, desk: "Shop A", slug: "shop-a", kind: "helper", status: "approved", holding: 0, ext: 0, done: 0, lastSeen: null }],
   cards: [], history: [], lastCard: null, currentSlug: "shop-a"
 });
+const ownerSeat = (id) => ownerA.people.find((p) => p.id === id) || {};
 const ownerBook = (body) => ({
   ok: true,
-  person: { id: body.id, name: body.name, email: body.email || "", accountId: body.accountId || "", phone: body.id === "s_sam1" ? "555-0101" : "", desks: 1 },
+  person: { id: body.id, name: body.name || ownerSeat(body.id).name || "", email: ownerSeat(body.id).email || "", accountId: ownerSeat(body.id).accountId || "", phone: ownerSeat(body.id).phone || "", desks: 1 },
   seats: [{ id: body.id, desk: "Shop A", slug: "shop-a", kind: "helper", status: "approved", holding: 1, ext: 2, done: 0, lastSeen: null }],
   cards: [], history: [], lastCard: null, currentSlug: "shop-a"
 });
@@ -645,6 +685,7 @@ const ownerBook = (body) => ({
   check(/<option value="s_sam2" selected>/.test(ho.rowHtml) && !/<option value="s_sam1" selected>/.test(ho.rowHtml), "desk-handoff.js picker selects the holder by seat id, not the name");
   let hr = await ho.pick("s_sam2");
   check(!!hr.body && hr.body.action === "assign" && hr.body.to === "s_sam2" && !("name" in hr.body) && !("whoTapped" in hr.body), "desk-handoff.js: hand-off sends assign {to:<seat id>} (got " + JSON.stringify(hr.body) + ")");
+  check(exactKeys(hr.body), "desk-handoff.js: hand-off body is exactly {action, id, to} (got " + JSON.stringify(hr.body) + ")");
   hr = await ho.pick("Sam");
   check(!hr.body && hr.banner === SAME_NAME, "desk-handoff.js: a shared name sends nothing and shows the plain line (got " + JSON.stringify(hr) + ")");
   hr = await ho.pick("Bo");
@@ -660,6 +701,7 @@ const ownerBook = (body) => ({
   if (ch) {
     let r = await runHandTo(ch, "handTo", deskPeople, ["s_sam1"], 200);
     check(!!r.body && r.body.to === "s_sam1" && !("name" in r.body), "desk-card.js handTo sends assign {to:<seat id>} (got " + JSON.stringify(r.body) + ")");
+    check(exactKeys(r.body), "desk-card.js handTo body is exactly {action, id, to} (got " + JSON.stringify(r.body) + ")");
     r = await runHandTo(ch, "handTo", deskPeople, ["Sam"], 200);
     check(!r.body && r.banner === SAME_NAME, "desk-card.js handTo: shared name sends nothing, plain line (got " + JSON.stringify(r) + ")");
     r = await runHandTo(ch, "handTo", deskPeople, [""], 200);
@@ -672,6 +714,7 @@ const ownerBook = (body) => ({
   if (qh) {
     let r = await runHandTo(qh, "handOffTo", deskPeople, ["j1", "Bo"], 200);
     check(!!r.body && r.body.to === "s_bo" && !("name" in r.body), "desk-queue.js handOffTo sends assign {to:<seat id>} (got " + JSON.stringify(r.body) + ")");
+    check(exactKeys(r.body), "desk-queue.js handOffTo body is exactly {action, id, to} (got " + JSON.stringify(r.body) + ")");
     r = await runHandTo(qh, "handOffTo", deskPeople, ["j1", "Sam"], 200);
     check(!r.body && r.banner === SAME_NAME, "desk-queue.js handOffTo: a shared name sends nothing, plain line (got " + JSON.stringify(r) + ")");
     r = await runHandTo(qh, "handOffTo", deskPeople, ["j1", "Zed"], 200);
@@ -679,6 +722,41 @@ const ownerBook = (body) => ({
     r = await runHandTo(qh, "handOffTo", deskPeople, ["j1", "Bo"], 409);
     check(r.banner === SAME_NAME, "desk-queue.js handOffTo: a 409 shows the plain line (got " + JSON.stringify(r.banner) + ")");
   } else fail("desk-queue.js handOffTo not found");
+
+  // ---- the queue's Hand off sheet: no inline handlers, one seat id per button ----
+  const sheetCode = lift(queueSrc, "  window.openHandOff = async function (id) {", null, "\n  };\n");
+  if (sheetCode && qh) {
+    check(!/onclick/i.test(sheetCode) && !/innerHTML\s*=\s*[^;]*\bp\.name/.test(sheetCode) && !/innerHTML\s*=\s*"[^"]+/.test(sheetCode), "desk-queue.js Hand off sheet: no inline onclick, no names through innerHTML");
+    const qPeople = deskPeople.concat([{ id: "s_x", name: "<img src=x onerror=alert(1)>Xi", role: "employee", status: "approved" }]);
+    const qs = await runHandOffSheet(sheetCode + qh, qPeople, { id: "j9", assigneeId: "s_sam2" });
+    const seatBtns = qs.buttons.filter((b) => b.attrs["data-seat"]);
+    check(JSON.stringify(seatBtns.map((b) => b.attrs["data-seat"])) === JSON.stringify(["s_sam1", "s_sam2", "s_bo", "s_new", "s_x"]), "desk-queue.js Hand off sheet: one button per seat, carrying its seat id (got " + JSON.stringify(seatBtns.map((b) => b.attrs["data-seat"])) + ")");
+    const sent = [];
+    for (const b of seatBtns) sent.push(await qs.tap(b));
+    check(JSON.stringify(sent.map((x) => x && x.to)) === JSON.stringify(["s_sam1", "s_sam2", "s_bo", "s_new", "s_x"]), "desk-queue.js Hand off sheet: each button (both Sams too) sends its own seat id (got " + JSON.stringify(sent.map((x) => x && x.to)) + ")");
+    check(sent.every((x) => exactKeys(x)), "desk-queue.js Hand off sheet: every tap sends exactly {action, id, to}");
+    const xi = seatBtns.find((b) => b.attrs["data-seat"] === "s_x");
+    check(!!xi && xi.textContent.indexOf("<img src=x onerror=alert(1)>Xi") === 0 && !qs.all.some((n) => /<img/.test(n.innerHTML || "")), "desk-queue.js Hand off sheet: a stranger-typed name is text, never markup");
+    check(/Sam · helper · has it/.test(seatBtns[1].textContent) && !/has it/.test(seatBtns[0].textContent), "desk-queue.js Hand off sheet: 'has it' follows the holder's seat id");
+    check(qs.all.filter((n) => n.tagName === "BUTTON").every((n) => (n.listeners.click || []).length === 1), "desk-queue.js Hand off sheet: every button is wired with addEventListener");
+  } else fail("desk-queue.js openHandOff / handOffTo not found");
+
+  // ---- private fields only from the seat's own GET ----
+  const leakPost = (b) => Object.assign(ownerBook(b), { person: { id: b.id, name: "Bo", phone: "555-9999", email: "leak@x.test", accountId: "acct_leak" }, thread: [{ from: "Ann", text: "SECRET-NOTE" }] });
+  const leakGet = (q) => ({ ok: true, person: { id: q.get("seat"), name: "Bo", phone: "", email: "", accountId: "" }, seats: [{ id: q.get("seat"), desk: "Shop A", slug: "shop-a" }], cards: [], history: [], lastCard: null, currentSlug: "shop-a" });
+  const lk1 = await render({ current: "shop-a", desks: { "shop-a": helperA }, person: leakPost, seatBook: leakGet });
+  await lk1.ctx.openSheet(lk1.ctx.STATE.people.find((p) => p.id === "s_sam1"));
+  const leakHtml = [lk1.els["sheet-notes"].innerHTML, lk1.els["sheet-copy"].textContent, lk1.els["sheet-seats"].innerHTML, lk1.els["sheet-mail"].getAttribute("href") || "", lk1.els["sheet-text"].getAttribute("href") || ""].join(" ");
+  check(lk1.els["sheet-notes"].hidden && lk1.els["sheet-notes"].innerHTML === "", "GET has no thread, POST has one: the sheet shows no notes (got " + JSON.stringify(lk1.els["sheet-notes"].innerHTML) + ")");
+  check(!linkState(lk1.els["sheet-mail"]).shown && !linkState(lk1.els["sheet-text"]).shown, "GET has blank contact, POST has it: no Email it / Text it");
+  check(!/SECRET-NOTE|555-9999|leak@x\.test|acct_leak|leak%40x/.test(leakHtml), "GET-withheld contact / notes never reach the sheet from the POST");
+  check(lk1.els["sheet-name"].textContent === "Bo", "sheet name still comes through (got " + JSON.stringify(lk1.els["sheet-name"].textContent) + ")");
+  const lk3 = await render({ current: "shop-a", desks: { "shop-a": helperA }, person: leakPost, seatBook: leakGet });
+  await lk3.ctx.openSheet(lk3.ctx.STATE.people.find((p) => p.id === "s_hal"));
+  check(!linkState(lk3.els["sheet-mail"]).shown, "GET has blank email: no Email it from the list row either");
+  const lk2 = await render({ current: "shop-a", desks: { "shop-a": helperA }, person: leakPost, seatBook: () => ({ __status: 404, ok: false, error: "Person not found." }) });
+  await lk2.ctx.openSheet(lk2.ctx.STATE.people.find((p) => p.id === "s_sam1"));
+  check(lk2.els["sheet-notes"].hidden && !linkState(lk2.els["sheet-mail"]).shown && !linkState(lk2.els["sheet-text"]).shown, "no GET answer: the POST alone shows no notes and no contact");
 
   // ---- notes thread: only when the server sent one ----
   const nt = await render({ current: "shop-a", desks: { "shop-a": ownerA }, person: (b) => Object.assign(ownerBook(b), b.id === "s_bo" ? { thread: [{ t: "2026-10-01T10:00:00Z", from: "<b>Ann</b>", kind: "note", text: "<img src=x onerror=alert(1)>call back" }] } : {}) });

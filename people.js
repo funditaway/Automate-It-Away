@@ -674,20 +674,33 @@ async function openSheet(person, pick) {
   if (!person) return;
   var seat = openSeatOf(person, pick);
   var desks = savedDesks().map(function (d) { return { slug: d.slug, pin: d.pin || "", token: d.token || "" }; });
-  var data = null;
+  var own = null;
   if (seat.id) {
     // By seat id on that seat's desk. Never by name when the seat is known.
     var got = await api(seatBookPath(seat), { headers: deskHeaders(seat.desk) });
     if (got.status === 409) { clearSheet(SAME_NAME_LINE); return; }
-    if (got.status < 400 && got.data && got.data.ok) data = got.data;
+    if (got.status < 400 && got.data && got.data.ok) own = got.data;
   }
   // Same seat, plus that person's seats on the other saved desks (server matches by account, never by name).
   var body = { action: "person", id: seat.id, desk: seat.desk, desks: desks };
   if (!seat.id) body.name = person.name || "";
   var out = await api("/api/admin", { method: "POST", body: JSON.stringify(body) });
   if (out.status === 409) { clearSheet(SAME_NAME_LINE); return; }
-  if (out.status < 400 && out.data && out.data.ok) data = out.data;
-  if (!data) return;
+  var wide = (out.status < 400 && out.data && out.data.ok) ? out.data : null;
+  if (!own && !wide) return;
+  // Private fields (contact, notes thread) come only from the seat's own GET, which the server trims for
+  // this viewer. The POST adds the other desks (seats, cards, history) and never overrides them; with no
+  // GET answer the sheet shows no contact and no notes.
+  var priv = own ? (own.person || {}) : {};
+  var data = {
+    person: { name: priv.name || (wide && wide.person && wide.person.name) || person.name || "", phone: priv.phone || "", email: priv.email || "" },
+    thread: own ? own.thread : null,
+    seats: (wide || own).seats,
+    cards: (wide || own).cards,
+    history: (wide || own).history,
+    lastCard: (wide || own).lastCard,
+    currentSlug: (wide || own).currentSlug
+  };
   var sheet = document.getElementById("sheet");
   // Which seat this sheet is for, so Accept / Deny / Say (people-desk.js) act on this seat,
   // not on another seat that happens to share the name.
@@ -713,8 +726,8 @@ async function openSheet(person, pick) {
   document.getElementById("sheet-copy-btn").onclick = async function () {
     try { await navigator.clipboard.writeText(line); } catch (e) {}
   };
-  setSheetLink("sheet-text", smsHref((data.person && data.person.phone) || person.phone || "", line));
-  setSheetLink("sheet-mail", mailHref((data.person && data.person.email) || person.email || "", line));
+  setSheetLink("sheet-text", smsHref(data.person.phone, line));
+  setSheetLink("sheet-mail", mailHref(data.person.email, line));
   document.getElementById("sheet-hear").onclick = function () {
     if (window.AIASpeech && AIASpeech.speak) AIASpeech.speak(line);
   };

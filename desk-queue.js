@@ -70,16 +70,47 @@
     if (!sheet || !wrap) return;
     const people = PEOPLE || [];
     const j = (typeof jobBy === "function" ? jobBy(id) : (JOBS || []).find(function (x) { return x.id === id; })) || {};
-    const rows = people.map(function (p) {
-      const name = p.name || p.id;
-      const on = j.assignee && String(j.assignee).toLowerCase() === String(name).toLowerCase();
-      return "<button class=\"edit\" type=\"button\" onclick=\"handOffTo('" + idOf(id) + "', " + jsArg(name) + ")\">" + text(name) + (p.role === "owner" ? " · owner" : " · helper") + (on ? " · has it" : "") + "</button>";
-    }).join("");
-    sheet.innerHTML = "<h3>Hand off</h3><p class=\"meta\">A person already on this desk. Owner still owns No. AIA does not text them.</p>" + (rows ? "<div class=\"row actions\">" + rows + "</div>" : "<p class=\"meta\">No other people yet.</p><p class=\"meta\"><button class=\"edit\" type=\"button\" onclick=\"openInvite()\">Invite a helper</button></p>") + "<div class=\"sheet-decide\"><button class=\"edit\" type=\"button\" onclick=\"document.getElementById('sheet').classList.remove('on')\">Close</button></div>";
+    // Built with createElement / textContent / addEventListener: each button carries its own seat id,
+    // so two people with the same name can each be picked, and no name is ever parsed as markup.
+    const heldId = (j.handedTo && j.handedTo.id) || j.assigneeId || "";
+    function el(tag, cls, label) {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (label != null) node.textContent = label;
+      return node;
+    }
+    function button(label, onTap) {
+      const b = el("button", "edit", label);
+      b.type = "button";
+      b.addEventListener("click", onTap);
+      return b;
+    }
+    sheet.innerHTML = "";
+    sheet.appendChild(el("h3", "", "Hand off"));
+    sheet.appendChild(el("p", "meta", "A person already on this desk. Owner still owns No. AIA does not text them."));
+    const pickable = people.filter(function (p) { return p && p.id; });
+    if (pickable.length) {
+      const row = el("div", "row actions");
+      pickable.forEach(function (p) {
+        const has = heldId && String(heldId) === String(p.id);
+        const b = button((p.name || p.id) + (p.role === "owner" ? " · owner" : " · helper") + (has ? " · has it" : ""), function () { window.handOffTo(id, String(p.id)); });
+        b.setAttribute("data-seat", String(p.id));
+        row.appendChild(b);
+      });
+      sheet.appendChild(row);
+    } else {
+      sheet.appendChild(el("p", "meta", "No other people yet."));
+      const inviteRow = el("p", "meta");
+      inviteRow.appendChild(button("Invite a helper", function () { if (typeof openInvite === "function") openInvite(); }));
+      sheet.appendChild(inviteRow);
+    }
+    const decide = el("div", "sheet-decide");
+    decide.appendChild(button("Close", function () { wrap.classList.remove("on"); }));
+    sheet.appendChild(decide);
     wrap.classList.add("on");
   };
-  // Hand off by seat id. The buttons carry a name, so find the one seat with it; two seats with the
-  // name never guess.
+  // Hand off by seat id. The Hand off sheet's buttons pass the seat id; an older caller that passes a
+  // name gets the one seat with it, and two seats with the name never guess.
   window.handOffTo = async function (id, name) {
     const banner = document.getElementById("banner");
     const want = String(name || "").trim();
