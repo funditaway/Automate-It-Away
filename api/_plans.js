@@ -38,8 +38,10 @@ function desksForPerson(hint) {
     if (!w) return;
     const people = w.people || [];
     // A seat id matches only on its own desk: seat ids are per desk (every owner seat is "p_owner").
+    // So does a desk code: one salt hashes every desk's codes, so two desks that picked the same code
+    // (or a helper code equal to another desk's owner code) share a hash. Never match it elsewhere.
     const hit = people.find((p) => p && personId && homeSlug && w.slug === homeSlug && p.id === personId)
-      || people.find((p) => p && ((aid && p.accountId === aid) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && p.pin === pin)));
+      || people.find((p) => p && ((aid && p.accountId === aid) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && homeSlug && w.slug === homeSlug && p.pin === pin)));
     if (!hit) return;
     const ownerHit = hit.role === "owner" || hit.kind === "owner";
     const kind = ownerHit ? "owner" : (hit.kind || "member");
