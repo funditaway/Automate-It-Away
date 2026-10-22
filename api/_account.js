@@ -313,6 +313,35 @@ function homeAccount(person, row, req) {
 }
 // The plain reply when a helper seat holds an account (not its desk's own) but this request's
 // session did not come from that account's own sign-in.
+// Every change to an account needs that account's own password sign-in (#361 proof "password") on
+// this request's session. A desk code (X-Pin), a desk-code session, or any session its own sign-in
+// did not prove gets signInAgain(). The one way in for a new owner: an account with no password AND
+// no email on file may set both together, in one write (firstClaim, POST action "password").
+function provenFor(req, acc) {
+  if (!acc || !req || typeof lib.sessionFromReq !== "function") return false;
+  const found = lib.sessionFromReq(req, { slide: false });
+  const s = found && found.session;
+  return !!(s && typeof lib.sessionProof === "function" && lib.sessionProof(s.proof) && s.accountId === acc.id);
+}
+function firstClaim(acc, body) {
+  return !!acc && !acc.password && !emailOf(acc) && !!body && looksLikeEmail(body.email) && !!String(body.password || body.next || "");
+}
+// The account write as one step: both checked before either is saved, so no half-claimed account.
+function claimFirst(acc, body) {
+  const check = passwordOk(body.password || body.next);
+  if (!check.ok) return { ok: false, status: 400, error: check.error };
+  const e = emailOf(body);
+  if (emailTaken(e, acc.id)) return { ok: false, status: 409, error: "That email is already on another AIA account." };
+  setAccountPassword(acc, body.password || body.next);
+  acc.email = e;
+  return { ok: true };
+}
+// What a write must clear: proven, or (action "password") the first claim. null when it may go on.
+function writeRefused(req, acc, action, body) {
+  if (!acc || provenFor(req, acc)) return null;
+  if (action === "password" && firstClaim(acc, body)) return null;
+  return signInAgain();
+}
 function signInAgain() { return { ok: false, error: "Sign in again to change your account.", signIn: true }; }
 function needsSignIn(person, row, req) {
   if (!person || lib.isOwner(person) || /_owner$/.test(String(person.id || "")) || homeAccount(person, row, req)) return false;
@@ -439,6 +468,7 @@ module.exports = {
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
   normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
+  provenFor, firstClaim, claimFirst, writeRefused,
   findAccount, findAccountByEmail, connectDesk, disconnectDesk, leaveSeat, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
   setAccountPassword, applyAccountDetails, emailTaken,
   planOf: plans.planOf, PLANS: plans.PLANS
