@@ -1,3 +1,4 @@
+require("./_env-guard");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -162,6 +163,7 @@ global.fetch = async function (url, opts) {
   };
 };
 
+process.env.VERCEL_ENV = "production";
 process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_testhost_secret";
 process.env.BLOB_STORE_ID = "testhost";
 delete process.env.VERCEL_OIDC_TOKEN;
