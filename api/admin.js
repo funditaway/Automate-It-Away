@@ -24,20 +24,64 @@ function deskName(row) { return (row && (row.biz || row.name || row.slug)) || ""
 function personHint(src) {
   const hint = typeof src === "string" ? { name: src } : (src && typeof src === "object" ? src : {});
   return {
-    id: String(hint.id || hint.personId || "").trim(),
-    name: String(hint.name || hint.who || hint.person || "").trim(),
-    email: lower(hint.email),
-    accountId: String(hint.accountId || hint.account || "").trim()
+    // The seat is looked up by seat id (?seat=<id>, or id/personId/seatId). A name is only a fallback
+    // when no id is sent, and only when exactly one seat on the desk has that name.
+    id: String(hint.seat || hint.seatId || hint.id || hint.personId || "").trim(),
+    desk: slugify(typeof hint.desk === "string" ? hint.desk : (typeof hint.seatDesk === "string" ? hint.seatDesk : "")),
+    name: String(hint.name || hint.who || hint.person || "").trim()
   };
 }
-function seatMatchesPerson(seat, hint) {
-  if (!seat) return false;
-  if (hint.id && seat.id === hint.id) return true;
-  if (hint.accountId && String(seat.accountId || "") === hint.accountId) return true;
-  if (hint.email && lower(seat.email) === hint.email) return true;
-  if (hint.name && hint.email && lower(seat.name) === lower(hint.name) && lower(seat.email) === hint.email) return true;
-  if (!hint.id && !hint.accountId && !hint.email && hint.name) return lower(seat.name) === lower(hint.name);
-  return false;
+// Seats on one desk that carry this name (case-insensitive). Used only to tell whether a name is unique.
+function seatsNamed(row, name) {
+  const want = lower(name);
+  if (!want) return [];
+  return (row && row.people || []).filter((p) => p && lower(p.name) === want);
+}
+// The one seat this sheet is about: by seat id on the asked desk (default: the request's desk), or,
+// with no id, the only seat on the request's desk with that name. Never a merge of same-name seats.
+function findBookSeat(want, rows, currentSlug) {
+  const byDesk = want.desk ? rows.filter((r) => r.slug === want.desk) : [];
+  if (want.id) {
+    const order = byDesk.length ? byDesk : [rows.find((r) => r.slug === currentSlug)].filter(Boolean);
+    for (const row of order) {
+      const seat = (row.people || []).find((p) => p && p.id === want.id);
+      if (seat) return { row, seat };
+    }
+    if (want.desk) return { status: 404, error: "Person not found." };
+    const hits = [];
+    rows.forEach((row) => (row.people || []).forEach((p) => { if (p && p.id === want.id) hits.push({ row, seat: p }); }));
+    if (hits.length === 1) return hits[0];
+    if (hits.length > 1) return { status: 409, error: "That seat id is on more than one desk. Send desk=<slug> with seat=<id>." };
+    return { status: 404, error: "Person not found." };
+  }
+  const row = byDesk[0] || rows.find((r) => r.slug === currentSlug);
+  const named = seatsNamed(row, want.name);
+  if (named.length === 1) return { row, seat: named[0] };
+  if (named.length > 1) return { status: 409, error: "More than one seat has that name. Open the person by seat (?seat=<seat id>)." };
+  return { status: 404, error: "Person not found." };
+}
+// Job fields that credit a seat, each with the field that stores that seat's id.
+const JOB_CREDIT = [
+  ["assignee", "assigneeId"],
+  ["whoTapped", "whoTappedId"],
+  ["doneBy", "doneById"]
+];
+function jobSeatIds(job) {
+  const custom = job && job.custom && typeof job.custom === "object" ? job.custom : {};
+  return [custom.personId, job && job.handedTo && job.handedTo.id].concat(JOB_CREDIT.map((f) => job && job[f[1]]))
+    .map((v) => String(v || "")).filter(Boolean);
+}
+// A job counts for this seat by seat id. A legacy job that stores no seat id at all counts by name
+// only when the name is on exactly one seat of that job's desk, and that seat is this one.
+function jobTouchesSeat(job, seat, row) {
+  if (!job || !seat || !seat.id) return false;
+  const ids = jobSeatIds(job);
+  if (ids.length) return ids.indexOf(String(seat.id)) >= 0;
+  const named = seatsNamed(row, seat.name);
+  if (named.length !== 1 || named[0] !== seat) return false;
+  const want = lower(seat.name);
+  return [job.assignee, job.handedTo && job.handedTo.name, job.whoTapped, job.doneBy, job.from, job.sentByAgent, job.contactName]
+    .map(lower).some((v) => v && v === want);
 }
 function allowedSlugs(currentSlug, extras) {
   const out = [];
@@ -77,58 +121,37 @@ function historyCard(job, row) {
     done: job.status === "shipped" || job.status === "killed"
   });
 }
-function jobTouchesPerson(job, match) {
-  if (!job) return false;
-  const custom = job.custom && typeof job.custom === "object" ? job.custom : {};
-  if (custom.personId && match.ids[custom.personId]) return true;
-  if (job.handedTo && job.handedTo.id && match.ids[job.handedTo.id]) return true;
-  const values = [
-    job.assignee,
-    job.handedTo && job.handedTo.name,
-    job.from,
-    job.whoTapped,
-    job.doneBy,
-    job.sentByAgent,
-    job.contactName
-  ].map(lower).filter(Boolean);
-  return values.some((val) => match.names[val] || match.emails[val] || match.ids[val] || match.accountIds[val]);
-}
 function personBook(hint, opts) {
   const want = personHint(hint);
   const viewer = opts && opts.viewer ? opts.viewer : null;
   const currentSlug = slugify((opts && opts.currentSlug) || "");
   const slugs = allowedSlugs(currentSlug, opts && opts.slugs);
   const rows = slugs.map((slug) => (mem.workspaces || []).find((w) => w && w.slug === slug)).filter(Boolean);
-  const seats = [];
-  rows.forEach((row) => {
-    (row.people || []).forEach((seat) => {
-      if (seatMatchesPerson(seat, want)) seats.push(Object.assign({ slug: row.slug, desk: deskName(row) }, seat));
+  const found = findBookSeat(want, rows, currentSlug);
+  if (!found.seat) return { ok: false, status: found.status || 404, error: found.error || "Person not found.", slugs };
+  // This seat, plus the same person's seats on the other open desks: same account id only, never by name.
+  const acct = String(found.seat.accountId || "");
+  const seats = [Object.assign({ slug: found.row.slug, desk: deskName(found.row) }, found.seat)];
+  if (acct) {
+    rows.forEach((row) => {
+      if (row === found.row) return;
+      (row.people || []).forEach((seat) => {
+        if (seat && String(seat.accountId || "") === acct) seats.push(Object.assign({ slug: row.slug, desk: deskName(row) }, seat));
+      });
     });
-  });
-  if (!seats.length) return { ok: false, status: 404, error: "Person not found.", slugs };
-  const match = { ids: {}, names: {}, emails: {}, accountIds: {} };
-  seats.forEach((seat) => {
-    if (seat.id) match.ids[seat.id] = true;
-    if (seat.name) match.names[lower(seat.name)] = true;
-    if (seat.email) match.emails[lower(seat.email)] = true;
-    if (seat.accountId) match.accountIds[String(seat.accountId)] = true;
-  });
+  }
   const first = seats[0];
   const historyItems = [];
   const cards = [];
   rows.forEach((row) => {
-    const jobs = (mem.jobs || []).filter((job) => job && job.workspace === row.slug);
-    const openJobs = jobs.filter((job) => jobTouchesPerson(job, match));
-    openJobs.forEach((job) => {
+    const mine = seats.filter((s) => s.slug === row.slug).map((s) => (row.people || []).find((p) => p && p.id === s.id)).filter(Boolean);
+    if (!mine.length) return;
+    const jobs = (mem.jobs || []).filter((job) => job && job.workspace === row.slug && mine.some((seat) => jobTouchesSeat(job, seat, row)));
+    jobs.forEach((job) => {
       const card = historyCard(job, row);
       if (card) cards.push(card);
     });
-    historyItems.push.apply(historyItems, filterHistory(historyOf(row, jobs, [], {}).items, { who: first.name }).filter((item) => (
-      item && (
-        match.names[lower(item.who)] ||
-        (item.hands || []).some((name) => match.names[lower(name)])
-      )
-    )));
+    historyItems.push.apply(historyItems, historyOf(row, jobs, [], {}).items);
   });
   cards.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
   historyItems.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
@@ -224,12 +247,10 @@ module.exports = async function handler(req, res) {
       const foundWorld = worldPeople.searchWorldAccounts(q.q || q.handle || q.at || q.name || q.world || "", { desk: row, account: acc });
       return res.status(foundWorld.ok ? 200 : (foundWorld.status || 400)).json(Object.assign({ world: true }, foundWorld));
     }
-    if (q.who || q.person || q.name) {
+    if (q.seat || q.who || q.person || q.name) {
       const book = personBook({
-        name: q.who || q.person || q.name,
-        id: q.id || q.personId || "",
-        email: q.email || "",
-        accountId: q.account || q.accountId || ""
+        seat: q.seat || q.id || q.personId || "",
+        name: q.who || q.person || q.name
       }, { slugs: [row.slug], viewer: person, currentSlug: row.slug });
       return res.status(book.ok ? 200 : (book.status || 404)).json(book);
     }
@@ -292,6 +313,10 @@ module.exports = async function handler(req, res) {
   if ((action === "accept-invite" || action === "decline-invite" || action === "handle" || action === "at") && require("./_account").needsSignIn(person, row, req)) {
     return res.status(403).json(require("./_account").signInAgain());
   }
+  if (action === "accept-invite" || action === "decline-invite") {
+    const refusedI = require("./_account").writeRefused(req, homeAccount(person, row, req), action, body);
+    if (refusedI) return res.status(403).json(refusedI);
+  }
   if (action === "accept-invite") {
     const acc = homeAccount(person, row, req);
     const made = worldPeople.acceptInvite(acc, body.slug || body.desk || body.workspace);
@@ -309,6 +334,8 @@ module.exports = async function handler(req, res) {
   if (action === "handle" || action === "at") {
     const acc = homeAccount(person, row, req);
     if (!acc) return res.status(401).json({ ok: false, error: "Sign in first." });
+    const refusedH = require("./_account").writeRefused(req, acc, "handle", body);
+    if (refusedH) return res.status(403).json(refusedH);
     const ownBook = !!(person && person.accountId && person.accountId === acc.id);
     if (!isOwner(person) && !ownBook) return res.status(403).json({ ok: false, error: "Owner sets the world handle on Account." });
     const set = aiaAdmin.setAccountHandle(acc, body.handle || body.at || body.name, { allowReserved: aiaAdmin.isPlatformAccount(acc) });
@@ -369,6 +396,8 @@ module.exports = async function handler(req, res) {
   }
   if (action === "plan" || action === "subscribe") {
     const acc = accountForDesk(row);
+    const refusedP = require("./_account").writeRefused(req, acc, "plan", body);
+    if (refusedP) return res.status(403).json(refusedP);
     const made = switchPlan(acc, body.plan || body.id || body.name, person);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     await save();
@@ -379,6 +408,8 @@ module.exports = async function handler(req, res) {
   }
   if (action === "monthly" || action === "billing") {
     const acc = accountForDesk(row);
+    const refusedM = require("./_account").writeRefused(req, acc, "monthly", body);
+    if (refusedM) return res.status(403).json(refusedM);
     const made = requestMonthly(acc, person);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     await save();
