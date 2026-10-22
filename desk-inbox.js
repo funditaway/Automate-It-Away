@@ -54,6 +54,22 @@
     var t = item && item.t ? new Date(item.t).toLocaleString() : "";
     return "<div class=\"sheet-row inbox-say\"><b>" + esc(who) + "</b><div class=\"meta\">" + esc(text) + (t ? " · " + esc(t) : "") + "</div></div>";
   }
+  var seatsHere = [];
+  // "Open on People" by seat id on this desk. A row with no seat id links only when exactly one
+  // seat here has that name; anything else (a pipe, an ask, a shared name) gets no link.
+  function peopleLink(p) {
+    var desk = localStorage.getItem("aia_ws") || "";
+    var seats = seatsHere.filter(function (s) { return s && s.id; });
+    var seat = null;
+    if (p && p.id) seat = seats.filter(function (s) { return s.id === p.id; })[0] || null;
+    else if (p && p.name) {
+      var want = String(p.name).trim().toLowerCase();
+      var named = seats.filter(function (s) { return String(s.name || "").trim().toLowerCase() === want; });
+      if (named.length === 1) seat = named[0];
+    }
+    if (!seat) return "";
+    return "<a class=\"edit\" href=\"/people?seat=" + encodeURIComponent(seat.id) + "&desk=" + encodeURIComponent(desk) + "&f=waiting\">Open on People</a>";
+  }
   function card(p) {
     var lane = laneOf(p);
     var thread = (p.thread || p.talk || []).slice(-6).map(talkLine).join("");
@@ -69,7 +85,7 @@
         "<button class=\"go\" type=\"button\" data-act=\"accept\" data-id=\"" + id + "\">Accept</button>" +
         "<button class=\"kill\" type=\"button\" data-act=\"deny\" data-id=\"" + id + "\">Deny</button>" +
         "<button class=\"edit\" type=\"button\" data-act=\"say\" data-id=\"" + id + "\">Say</button>" +
-        "<a class=\"edit\" href=\"/people?who=" + encodeURIComponent(p.name || "") + "&f=waiting\">Open on People</a>" +
+        peopleLink(p) +
       "</div></article>";
   }
   async function act(kind, id, extra) {
@@ -96,6 +112,7 @@
     var you = d.you || {};
     var owner = you.role === "owner" || you.kind === "owner";
     var people = d.people || [];
+    seatsHere = people.slice();
     var waiting = people.filter(function (p) { return p && (p.status === "pending" || p.status === "waiting"); });
     var asks = (d.asks || d.approvals || []).filter(function (a) { return a && (a.status === "pending" || !a.status); });
     var pipes = ((d.connections || d.pipes) || []).filter(function (c) { return c && (c.status === "pending" || c.status === "ask"); });

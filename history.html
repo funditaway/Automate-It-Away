@@ -468,6 +468,14 @@ function logicLine(){
  if(!bits.length)return "No extra filters. Every card this phone can open, newest first.";
  return "Showing cards that match: "+bits.join(" · ")+".";
 }
+var seatId="",seatDesk="",seatName="",seatNote="";
+var SAME_NAME="Two people share that name. Open them from the People list.";
+function seatHdr(s){var cur=localStorage.getItem("aia_ws")||"";s=s||cur;if(!s)return null;var d=phone().filter(function(x){return x&&x.slug===s&&(x.pin||x.token);})[0]||null;if(!d){if(!cur)return null;s=cur;d={slug:cur,pin:localStorage.getItem("aia_pin")||"",token:localStorage.getItem("aia_session")||""};}var h={"Content-Type":"application/json","X-Workspace":s};if(d.token)h["X-Session"]=d.token;if(d.pin)h["X-Pin"]=d.pin;return h;}
+async function openSeat(id,desk){seatId="";seatDesk="";seatName="";seatNote="";who="";desk=desk||localStorage.getItem("aia_ws")||"";var h=seatHdr(desk);if(!id||!h)return false;try{var r=await fetch("/api/admin?seat="+encodeURIComponent(id)+(desk?"&desk="+encodeURIComponent(desk):""),{headers:h});var d=await r.json().catch(function(){return {};});if(r.status===409){seatNote=SAME_NAME;return false;}var p=r.status<400&&d&&d.ok&&d.person;if(!p||!p.name)return false;seatId=String(id);seatDesk=String(desk||"");seatName=String(p.name);who=seatName;return true;}catch(e){return false;}}
+function historyAsk(rows){if(seatId&&seatDesk)return rows.filter(function(d){return d.slug===seatDesk;});return slug?rows.filter(function(d){return d.slug===slug;}):rows;}
+function historyBody(asked){var b={action:"history",lane:lane,when:when,q:q,kind:work,pipe:pipe,since:since,advanced:advanced,desks:asked.map(function(d){return {slug:d.slug,pin:d.pin};})};if(seatId){b.seat=seatId;b.desk=seatDesk;}else if(who)b.who=who;Object.keys(flags).forEach(function(k){if(flags[k])b[k]=true;});return b;}
+function whoPeopleHref(){return (seatId&&who&&who===seatName)?"/people?seat="+encodeURIComponent(seatId)+(seatDesk?"&desk="+encodeURIComponent(seatDesk):""):"";}
+function paintWhoPeople(){var a=document.getElementById("who-people"),href=whoPeopleHref();if(!a)return;if(href){a.href=href;a.hidden=false;a.style.display="";}else{a.removeAttribute("href");a.hidden=true;a.style.display="none";}}
 function paint(){
  document.getElementById("adv-box").hidden=!advanced;
  var n=filterCount();
@@ -479,7 +487,7 @@ function paint(){
  document.querySelectorAll("#whens button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-when")===when);});
  document.getElementById("who-chip").hidden=!who;
  document.getElementById("who-label").textContent=who?("Person · "+who):"Person";
- document.getElementById("who-people").href="/people?who="+encodeURIComponent(who||"");
+ paintWhoPeople();
  document.getElementById("logic").textContent=logicLine();
  var clr=document.getElementById("clear-view");
  if(clr)clr.hidden=n<1;
@@ -606,11 +614,10 @@ function paintCards(){
 }
 async function load(){
  saveView();paint();
- var rows=phone(),asked=slug?rows.filter(function(d){return d.slug===slug;}):rows;
+ var rows=phone(),asked=historyAsk(rows);
  var banner=document.getElementById("banner"),list=document.getElementById("list");
   if(!asked.length){paintRoad({});banner.textContent="Open a desk to see History.";list.innerHTML="<div class=\"empty\"><p>Open a desk to see History.</p><div class=\"acts\"><a href=\"/onboard\">Open a desk</a></div></div>";return;}
- var body={action:"history",lane:lane,when:when,q:q,who:who,kind:work,pipe:pipe,since:since,advanced:advanced,desks:asked.map(function(d){return {slug:d.slug,pin:d.pin};})};
- Object.keys(flags).forEach(function(k){if(flags[k])body[k]=true;});
+ var body=historyBody(asked);
  try{
   var r=await fetch("/api/desks",{method:"POST",headers:packHdr(),body:JSON.stringify(body)});
   var data=await r.json().catch(function(){return {};});
@@ -618,7 +625,7 @@ async function load(){
   function metric(label,n,cls){return "<span class=\"q-metric"+(cls?" "+cls:"")+"\"><span class=\"dot\"></span><b>"+esc(String(n||0))+"</b> "+esc(label)+"</span>";}
   document.getElementById("counts").innerHTML=metric("Need you",c.need,"is-wait")+metric("In progress",c.doing)+metric("Waiting",c.wait,"is-wait")+metric("Off desk",c.ext)+metric("Done",c.done)+(c.stopped?metric("Stopped",c.stopped):"");
   paintRoad(roadFrom(data));
-  banner.textContent=slug?"This desk. Real cards only.":"Every desk on this phone. Pick one to narrow.";
+  banner.textContent=(seatNote?seatNote+" ":"")+(slug?"This desk. Real cards only.":"Every desk on this phone. Pick one to narrow.");
   var f=data.facets||{};
   function sel(id,rows,blank){var el=document.getElementById(id),cur=el.value;el.innerHTML="<option value=\"\">"+blank+"</option>"+(rows||[]).map(function(n){return "<option>"+esc(n)+"</option>";}).join("");if(cur)el.value=cur;}
   sel("who",f.who,"Anyone");sel("work",f.work,"Any kind");sel("pipe",f.pipes,"Any pipe");if(who)document.getElementById("who").value=who;
@@ -642,8 +649,8 @@ document.getElementById("flags").onclick=function(e){var b=e.target.closest("[da
 document.getElementById("examples").onclick=function(e){var b=e.target.closest("[data-ex]");if(!b)return;applyEx(b.getAttribute("data-ex"));load();};
 document.getElementById("adv-btn").onclick=function(){advanced=!advanced;load();};
 document.getElementById("desk-pick").onchange=function(){slug=this.value||"";load();};
-document.getElementById("who").onchange=function(){who=this.value||"";load();};
-document.getElementById("who-clear").onclick=function(){who="";document.getElementById("who").value="";load();};
+document.getElementById("who").onchange=function(){who=this.value||"";seatId="";load();};
+document.getElementById("who-clear").onclick=function(){who="";seatId="";document.getElementById("who").value="";load();};
 document.getElementById("work").onchange=function(){work=this.value||"";load();};
 document.getElementById("pipe").onchange=function(){pipe=this.value||"";load();};
 document.getElementById("since").onchange=function(){since=this.value||"";load();};
@@ -710,7 +717,7 @@ document.getElementById("road-file").onchange=function(){
  if(file)postAia(file);
 };
 paintRoad({});
-loadView();var params=new URLSearchParams(location.search||"");if(params.get("who"))who=params.get("who");fillPick();paintAia();load();
+loadView();var params=new URLSearchParams(location.search||"");var askSeat=params.get("seat")||params.get("id")||params.get("personId")||"";if(askSeat)who="";else if(params.get("who"))who=params.get("who");fillPick();paintAia();if(askSeat)openSeat(askSeat,params.get("desk")||"").then(load);else load();
 </script>
 <script src="/mark-fix.js"></script></body>
 </html>
