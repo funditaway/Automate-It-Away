@@ -509,6 +509,7 @@ const MUTANTS = [
   ["Q3 desk not open falls back to this desk", "api/admin.js", "  if (want.desk && !byDesk.length) return { status: 404, error: \"Person not found.\" };\n", ""],
   ["Q4 desk= denial with its own reply (oracle)", "api/admin.js", "  if (want.desk && !byDesk.length) return { status: 404, error: \"Person not found.\" };", "  if (want.desk && !byDesk.length) return { status: 404, error: \"No seat on that desk.\" };"],
   ["Q5 desk= read as the home viewer", "api/admin.js", "if (seatThere) { bookRow = there; bookViewer = seatThere; }", "if (seatThere) { bookRow = there; }"],
+  ["Q6 desk= lookup without the request (a proven helper loses the desks its account holds)", "api/admin.js", "const mineCards = mineFn()(plans.listHint(person, homeAccount(person, row, req), row.slug));", "const mineCards = mineFn()(plans.listHint(person, homeAccount(person, row), row.slug));"],
   ["H1 history seat filter ignored", "api/_desks-http.js", "    if (seatWant) {\n      const deskWant", "    if (false) {\n      const deskWant"],
   ["H2 history legacy name rule dropped (any name)", "api/_fields.js", "  if (named.length !== 1 || named[0] !== seat) return false;\n  const want = String(seat.name", "  const want = String(seat.name"],
   ["H3 history by partial name", "api/_desks-http.js", "        return touch(job, seat, seatRow);", "        return String(it.who || \"\").toLowerCase().indexOf(String(seat.name || \"\").toLowerCase()) >= 0 || (it.hands || []).join(\" \").toLowerCase().indexOf(String(seat.name || \"\").toLowerCase()) >= 0;"],
