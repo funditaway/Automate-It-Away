@@ -20,6 +20,7 @@
   }
   function personByName() {
     var name = ($("sheet-name") && $("sheet-name").textContent) || "";
+    if (!name) return null;
     var list = (window.STATE && STATE.people) || [];
     return list.find(function (p) { return p && String(p.name || "") === name; }) || list.find(function (p) {
       return p && name && String(p.name || "").toLowerCase().indexOf(name.toLowerCase()) >= 0;
