@@ -32,8 +32,9 @@ if (peopleJs.indexOf("function openSheet") < 0) fail("people openSheet");
 else pass("people openSheet");
 if (peopleJs.indexOf("action: \"person\"") < 0) fail("people POSTs person");
 else pass("people POSTs person");
-if (peopleJs.indexOf("/history?who=") < 0) fail("people history who link");
-else pass("people history who link");
+// The Full history link carries the seat id + desk (372), never the name.
+if (peopleJs.indexOf("seatLink(\"/history\", seat)") < 0 || peopleJs.indexOf("/history?who=") >= 0) fail("people history seat link");
+else pass("people history seat link");
 if (peopleJs.indexOf("openFromQuery") < 0) fail("people ?who= open");
 else pass("people ?who= open");
 if (peopleJs.indexOf("function kindLabel") < 0 || peopleJs.indexOf('if (k === "agent") return "Desk AI"') < 0) {
@@ -62,5 +63,6 @@ if (historyHtml.indexOf("params.get(\"who\")") < 0) fail("history reads ?who=");
 else pass("history reads ?who=");
 if (historyHtml.indexOf("who-chip") < 0) fail("history who chip");
 else pass("history who chip");
-if (historyHtml.indexOf("/people?who=") < 0) fail("history back to people");
+// History links back to People by seat id + desk (372), never by name.
+if (historyHtml.indexOf("\"/people?seat=\"") < 0 || historyHtml.indexOf("/people?who=") >= 0) fail("history back to people");
 else pass("history back to people");
