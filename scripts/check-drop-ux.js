@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+require("./_env-guard");
 
 const { spawnSync } = require("child_process");
 const fs = require("fs");
