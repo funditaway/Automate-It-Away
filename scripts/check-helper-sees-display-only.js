@@ -199,6 +199,7 @@ async function main() {
   ok(Array.isArray(ollyDesk.body.desk.people) && ollyDesk.body.desk.people.length === ws.people.length && ollyDesk.body.desk.you.email === EMAIL.olly, "[helper Olly] /api/desks: every seat listed, own email on `you`");
   const adm = await call(admin, "GET", { "x-workspace": A, "x-session": ollyTok }, null, {}, "/api/admin");
   ok(adm.statusCode === 200 && adm.body.people.length === ws.people.length && adm.body.shop && adm.body.shop.name && !adm.body.shop.id, "[helper Olly] /api/admin people are all listed; the desk account shows its name, not its id");
+  ok(JSON.stringify(Object.keys(adm.body.shop)) === '["name"]' && !(adm.body.account && adm.body.account.shop && (adm.body.account.shop.id || adm.body.account.shop.desks)), "[helper Olly] /api/admin accountSnapshot shop is name only: no shop.id, no shop.desks (" + JSON.stringify(Object.keys(adm.body.shop)) + ")");
 
   const everyEmail = Object.keys(EMAIL).map((k) => EMAIL[k]);
   const ownerSites = [
@@ -241,6 +242,102 @@ async function main() {
   ok(ownMine.statusCode === 200 && ownMine.body.you && ownMine.body.you.email === EMAIL.owner && !ownMine.body.you.pin, "[owner] admin mine: her seat with her email, never the raw row");
   const newDesk = await call(auth, "POST", {}, { action: "open", slug: "hsd-new", biz: "hsd-new", name: "Nia", pin: "2424", email: "nia.plant.hsd@x.test" });
   ok(newDesk.statusCode === 201 && newDesk.body.workspace.people[0].email === "nia.plant.hsd@x.test" && newDesk.body.you.email === "nia.plant.hsd@x.test", "[owner] opening a new desk still shows her own seat in full");
+
+  // Two seats both named Sam (#372 person sheet): looked up by seat id, cards credited by seat id.
+  // Same-name seats never see each other's seats or cards. A legacy card that stores no seat id
+  // counts by name only when that name is on exactly one seat of its desk.
+  const SD = "hsd-sams", SD2 = "hsd-sams2";
+  const so = await call(auth, "POST", {}, { action: "open", slug: SD, biz: SD, name: "Tess", pin: "6060" });
+  const so2 = await call(auth, "POST", {}, { action: "open", slug: SD2, biz: SD2, name: "Ray", pin: "6363" });
+  ok(so.statusCode === 201 && so2.statusCode === 201, "[sams setup] two desks open (" + so.statusCode + "/" + so2.statusCode + ")");
+  const sw = lib.mem.workspaces.find((w) => w && w.slug === SD);
+  const sw2 = lib.mem.workspaces.find((w) => w && w.slug === SD2);
+  sw.people.push(seat("p_sam_a", "Sam", "helper", "6161", "sam.a.hsd@x.test", "acct_sam_a"));
+  sw.people.push(seat("p_sam_b", "sam", "helper", "6262", "sam.b.hsd@x.test", "acct_sam_b"));
+  sw.people.push(seat("p_uma", "Uma", "helper", "6464", "uma.hsd@x.test", ""));
+  sw2.people.push(seat("p_sam_x", "Sam", "helper", "6565", "sam.a.hsd@x.test", "acct_sam_a"));
+  sw2.people.push(seat("p_sam_y", "Sam", "helper", "6666", "sam.y.hsd@x.test", "acct_sam_y"));
+  const sjob = (id, ws2, extra) => Object.assign({ id, workspace: ws2, title: id + " card", status: "exception", step: "Do", createdAt: now, log: ["Captured"] }, extra);
+  lib.mem.jobs.push(sjob("SA1", SD, { assignee: "Sam", assigneeId: "p_sam_a" }));
+  lib.mem.jobs.push(sjob("SB1", SD, { whoTapped: "Sam", whoTappedId: "p_sam_b" }));
+  lib.mem.jobs.push(sjob("SB2", SD, { assignee: "Sam", handedTo: { id: "p_sam_b", name: "Sam", kind: "helper" } }));
+  lib.mem.jobs.push(sjob("SBC", SD, { assignee: "Sam", custom: { personId: "p_sam_b" } }));
+  lib.mem.jobs.push(sjob("SAD", SD, { status: "shipped", doneAt: now, doneBy: "Sam", doneById: "p_sam_a", whoTapped: "Sam" }));
+  lib.mem.jobs.push(sjob("SLEG", SD, { assignee: "Sam" }));
+  lib.mem.jobs.push(sjob("SLEGT", SD, { whoTapped: "Sam", contactName: "Sam" }));
+  lib.mem.jobs.push(sjob("ULEG", SD, { assignee: "Uma" }));
+  lib.mem.jobs.push(sjob("SX1", SD2, { assignee: "Sam", assigneeId: "p_sam_x" }));
+  lib.mem.jobs.push(sjob("SY1", SD2, { assignee: "Sam", assigneeId: "p_sam_y" }));
+  lib.mem.jobs.push(sjob("SXLEG", SD2, { assignee: "Sam" }));
+  const tess = { "x-workspace": SD, "x-pin": "6060" };
+  const ids = (b) => ((b && b.cards) || []).map((c) => c.id).sort().join(",");
+  const hist = (b) => ((b && b.history) || []).map((h) => h.title || "").join("|");
+  const seatIds = (b) => ((b && b.seats) || []).map((s) => s.slug + "/" + s.id).sort().join(",");
+  const bA = await call(admin, "GET", tess, null, { seat: "p_sam_a" }, "/api/admin?seat=p_sam_a");
+  ok(bA.statusCode === 200 && seatIds(bA.body) === SD + "/p_sam_a", "[sams] owner ?seat=p_sam_a: only Sam A's seat (" + bA.statusCode + " " + seatIds(bA.body) + ")");
+  ok(ids(bA.body) === "SA1", "[sams] owner ?seat=p_sam_a: only Sam A's open card by seat id, none of Sam B's and no ambiguous legacy card (" + ids(bA.body) + ")");
+  ok(hist(bA.body).indexOf("SAD card") >= 0 && !/SB1|SB2|SBC|SLEG/.test(hist(bA.body)), "[sams] owner ?seat=p_sam_a: history has Sam A's done card and nothing of Sam B's (" + hist(bA.body).slice(0, 120) + ")");
+  ok(bA.body.person && bA.body.person.email === "sam.a.hsd@x.test", "[sams] owner ?seat=p_sam_a: the person is Sam A");
+  const bB = await call(admin, "GET", tess, null, { seat: "p_sam_b" }, "/api/admin?seat=p_sam_b");
+  ok(bB.statusCode === 200 && seatIds(bB.body) === SD + "/p_sam_b" && ids(bB.body) === "SB1,SB2,SBC", "[sams] owner ?seat=p_sam_b: Sam B's seat and her cards by tap, hand-off and personId, none of Sam A's (" + seatIds(bB.body) + " " + ids(bB.body) + ")");
+  ok(!/SA1|SAD/.test(hist(bB.body)) && bB.body.person && bB.body.person.email === "sam.b.hsd@x.test", "[sams] owner ?seat=p_sam_b: no Sam A history, the person is Sam B");
+  const bAid = await call(admin, "GET", tess, null, { who: "Sam", id: "p_sam_a" }, "/api/admin?who=Sam&id=p_sam_a");
+  ok(bAid.statusCode === 200 && seatIds(bAid.body) === SD + "/p_sam_a" && ids(bAid.body) === "SA1", "[sams] owner ?who=Sam&id=p_sam_a: the id wins (" + seatIds(bAid.body) + ")");
+  const bName = await call(admin, "GET", tess, null, { who: "Sam" }, "/api/admin?who=Sam");
+  ok(bName.statusCode === 409 && !bName.body.cards && !bName.body.seats && !bName.body.person, "[sams] owner ?who=Sam with two Sams: 409, no seat and no cards (" + bName.statusCode + ")");
+  const pA = await call(admin, "POST", tess, { action: "person", id: "p_sam_a", name: "Sam", email: "sam.b.hsd@x.test", accountId: "acct_sam_b", desks: [{ slug: SD2, pin: "6363" }] }, {}, "/api/admin");
+  ok(pA.statusCode === 200 && seatIds(pA.body) === [SD + "/p_sam_a", SD2 + "/p_sam_x"].sort().join(","), "[sams] POST person id=p_sam_a across two desks: Sam A's seats only (same account), not Sam B's by email/account hint, not Ray's other Sam (" + seatIds(pA.body) + ")");
+  ok(ids(pA.body) === "SA1,SX1", "[sams] POST person id=p_sam_a across two desks: Sam A's cards on both desks; no Sam Y card and no legacy name-only card where two Sams sit (" + ids(pA.body) + ")");
+  const pB = await call(admin, "POST", tess, { action: "person", id: "p_sam_b", name: "Sam", desks: [{ slug: SD2, pin: "6363" }] }, {}, "/api/admin");
+  ok(pB.statusCode === 200 && seatIds(pB.body) === SD + "/p_sam_b" && ids(pB.body) === "SB1,SB2,SBC", "[sams] POST person id=p_sam_b across two desks: no other Sam's seat on the second desk (" + seatIds(pB.body) + " " + ids(pB.body) + ")");
+  const pName = await call(admin, "POST", tess, { action: "person", name: "Sam", desks: [] }, {}, "/api/admin");
+  ok(pName.statusCode === 409 && !pName.body.seats, "[sams] POST person by name only with two Sams: 409 (" + pName.statusCode + ")");
+  const pDesk = await call(admin, "POST", tess, { action: "person", seat: "p_sam_x", desk: SD2, desks: [{ slug: SD2, pin: "6363" }] }, {}, "/api/admin");
+  ok(pDesk.statusCode === 200 && seatIds(pDesk.body) === [SD + "/p_sam_a", SD2 + "/p_sam_x"].sort().join(","), "[sams] POST person seat=p_sam_x desk=" + SD2 + ": that seat, plus the same account's seat here (" + seatIds(pDesk.body) + ")");
+  const pRay = await call(admin, "POST", tess, { action: "person", seat: "p_owner", desk: SD2, desks: [{ slug: SD2, pin: "6363" }] }, {}, "/api/admin");
+  ok(pRay.statusCode === 200 && seatIds(pRay.body) === SD2 + "/p_owner" && pRay.body.person && pRay.body.person.name === "Ray", "[sams] POST person seat=p_owner desk=" + SD2 + ": the desk param picks Ray's owner seat (" + seatIds(pRay.body) + ")");
+  const pOwn = await call(admin, "POST", tess, { action: "person", id: "p_owner", desks: [{ slug: SD2, pin: "6363" }] }, {}, "/api/admin");
+  ok(pOwn.statusCode === 200 && seatIds(pOwn.body) === SD + "/p_owner", "[sams] POST person id=p_owner (every owner seat's id): this desk's owner only, not Ray's owner seat (" + seatIds(pOwn.body) + ")");
+  // Sam A on his own seat never gets Sam B's cards; a name-only ask is refused for him too.
+  const samA = { "x-workspace": SD, "x-pin": "6161" };
+  const selfA = await call(admin, "GET", samA, null, { seat: "p_sam_a" }, "/api/admin?seat=p_sam_a");
+  ok(selfA.statusCode === 200 && seatIds(selfA.body) === SD + "/p_sam_a" && ids(selfA.body) === "SA1" && JSON.stringify(selfA.body).indexOf("sam.b.hsd@x.test") < 0, "[sams] Sam A on his own seat: his seat and card only, nothing of Sam B (" + ids(selfA.body) + ")");
+  const nameA = await call(admin, "GET", samA, null, { who: "Sam" }, "/api/admin?who=Sam");
+  ok(nameA.statusCode === 409 && JSON.stringify(nameA.body).indexOf("SB1") < 0, "[sams] Sam A asking ?who=Sam: 409, no card (" + nameA.statusCode + ")");
+  const samB = { "x-workspace": SD, "x-pin": "6262" };
+  const selfB = await call(admin, "POST", samB, { action: "person", id: "p_sam_b", name: "Sam" }, {}, "/api/admin");
+  ok(selfB.statusCode === 200 && ids(selfB.body) === "SB1,SB2,SBC" && JSON.stringify(selfB.body).indexOf("sam.a.hsd@x.test") < 0, "[sams] Sam B on her own seat: her cards only, nothing of Sam A (" + ids(selfB.body) + ")");
+  // Legacy, name only: a unique name still counts; a missing seat id is 404.
+  const bU = await call(admin, "GET", tess, null, { seat: "p_uma" }, "/api/admin?seat=p_uma");
+  ok(bU.statusCode === 200 && ids(bU.body) === "ULEG", "[sams] legacy name-only card for a unique name (Uma) still counts by name (" + ids(bU.body) + ")");
+  const bUn = await call(admin, "GET", tess, null, { who: "uma" }, "/api/admin?who=uma");
+  ok(bUn.statusCode === 200 && seatIds(bUn.body) === SD + "/p_uma", "[sams] ?who=uma (one seat with that name) still opens her sheet (" + bUn.statusCode + ")");
+  const bNo = await call(admin, "GET", tess, null, { seat: "p_nobody" }, "/api/admin?seat=p_nobody");
+  ok(bNo.statusCode === 404, "[sams] unknown seat id: 404 (" + bNo.statusCode + ")");
+  const bY = await call(admin, "POST", { "x-workspace": SD2, "x-pin": "6363" }, { action: "person", id: "p_sam_y" }, {}, "/api/admin");
+  ok(bY.statusCode === 200 && ids(bY.body) === "SY1", "[sams] Ray's Sam Y: only her card; the legacy card on a desk with two Sams counts for neither (" + ids(bY.body) + ")");
+  // New taps and hand-offs store the seat id; the sheet follows the id, not the name.
+  lib.mem.jobs.push(sjob("SNEW", SD, {}));
+  const tap = await call(jobs, "POST", samB, { action: "done", id: "SNEW" }, {}, "/api/jobs");
+  const snew = lib.mem.jobs.find((j) => j.id === "SNEW");
+  ok(tap.statusCode === 200 && snew.whoTappedId === "p_sam_b" && snew.doneById === "p_sam_b", "[sams] Sam B taps Done: the card stores her seat id (whoTappedId/doneById) (" + tap.statusCode + ")");
+  const afterA = await call(admin, "GET", tess, null, { seat: "p_sam_a" }, "/api/admin?seat=p_sam_a");
+  const afterB = await call(admin, "GET", tess, null, { seat: "p_sam_b" }, "/api/admin?seat=p_sam_b");
+  ok(hist(afterB.body).indexOf("SNEW card") >= 0 && hist(afterA.body).indexOf("SNEW card") < 0, "[sams] Sam B's Done shows on her sheet only, not on Sam A's");
+  lib.mem.jobs.push(sjob("SHAND", SD, {}));
+  const hand = await call(jobs, "POST", tess, { action: "assign", id: "SHAND", to: "p_sam_a" }, {}, "/api/jobs");
+  const shand = lib.mem.jobs.find((j) => j.id === "SHAND");
+  ok(hand.statusCode === 200 && shand.assigneeId === "p_sam_a" && shand.handedTo && shand.handedTo.id === "p_sam_a", "[sams] owner hands a card to seat p_sam_a: the card stores that seat id (" + hand.statusCode + ")");
+  const handName = await call(jobs, "POST", tess, { action: "assign", id: "SHAND", to: "Sam" }, {}, "/api/jobs");
+  ok(handName.statusCode === 409 && shand.assigneeId === "p_sam_a", "[sams] handing by the name Sam with two Sams: 409, the card stays on Sam A (" + handName.statusCode + ")");
+  const fields = require(path.join(root, "api/_fields"));
+  const fj = { id: "FJ" };
+  fields.assignIfKnown(fj, sw, { assignee: "Sam" });
+  ok(!fj.assignee && !fj.assigneeId, "[sams] capture with assignee Sam (two Sams): nobody is assigned");
+  fields.assignIfKnown(fj, sw, { assignee: "p_sam_b" });
+  ok(fj.assignee === "sam" && fj.assigneeId === "p_sam_b", "[sams] capture with assignee p_sam_b: Sam B by seat id");
+  fields.assignIfKnown(fj, sw, { assignee: "Uma" });
+  ok(fj.assigneeId === "p_uma", "[sams] capture with a unique name (Uma): her seat id is stored");
 
   const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
   ok(pkg.indexOf("node scripts/check-helper-sees-display-only.js") >= 0, "package.json test runs this check");
@@ -293,6 +390,23 @@ const MUTANTS = [
   ["X2 world invite (already asked) full seat", "api/_world-people.js", "pending: true, person: lib.viewSeat(lib.publicPerson(existing), existing, actor) };", "pending: true, person: lib.publicPerson(existing) };"],
   ["E1 account export: every desk counted as owned", "api/_account-http.js", "const owns = !!(acc && (row.accountId === acc.id || (acc.desks || []).indexOf(row.slug) >= 0));", "const owns = true;"],
   ["E2 account export: own seat not found (own email lost)", "api/_account-http.js", "find((p) => p && acc && p.accountId && p.accountId === acc.id) || null", "find(() => false) || null"],
+  ["P1 person sheet ignores the seat id (name lookup)", "api/admin.js", "  if (want.id) {\n    const order", "  if (false) {\n    const order"],
+  ["P2 name lookup takes the first of two same-name seats", "api/admin.js", "if (named.length === 1) return { row, seat: named[0] };", "if (named.length >= 1) return { row, seat: named[0] };"],
+  ["P3 other desks' seats by name, not account", "api/admin.js", "if (seat && String(seat.accountId || \"\") === acct) seats.push(", "if (seat && lower(seat.name) === lower(found.seat.name)) seats.push("],
+  ["P4 cards by name even when a seat id is stored", "api/admin.js", "  if (ids.length) return ids.indexOf(String(seat.id)) >= 0;\n", ""],
+  ["P5 legacy name-only card without the one-seat rule", "api/admin.js", "  if (named.length !== 1 || named[0] !== seat) return false;\n", ""],
+  ["P6 hand-off seat id not read", "api/admin.js", "[custom.personId, job && job.handedTo && job.handedTo.id]", "[custom.personId]"],
+  ["P7 whoTappedId not read", "api/admin.js", "  [\"whoTapped\", \"whoTappedId\"],\n", ""],
+  ["P8 doneById not read", "api/admin.js", "[\"doneBy\", \"doneById\"]", "[\"doneBy\", \"doneByX\"]"],
+  ["P9 custom.personId not read", "api/admin.js", "[custom.personId, job && job.handedTo", "[job && job.handedTo"],
+  ["P10 taps do not store the seat id", "api/jobs.js", "return (person && person.id) ? String(person.id) : \"\";", "return \"\";"],
+  ["P11 hand-off does not store assigneeId", "api/_handoff.js", "  job.assigneeId = who.id || \"\";\n", ""],
+  ["P12 seatFor takes the first same-name seat", "api/_fields.js", "return named.length === 1 ? named[0] : null;", "return named[0] || null;"],
+  ["P13 assign by a shared name is not refused", "api/jobs.js", "        return res.status(409).json({ error: \"More than one seat has that name. Hand it by seat id.\", job });\n", ""],
+  ["P14 a seat id is looked up on every desk at once (p_owner)", "api/admin.js", "const order = byDesk.length ? byDesk : [rows.find((r) => r.slug === currentSlug)].filter(Boolean);", "const order = byDesk.length ? byDesk : [];"],
+  ["P15 GET ignores ?seat", "api/admin.js", "seat: q.seat || q.id || q.personId || \"\",", "seat: q.id || q.personId || \"\","],
+  ["P16 desk param ignored", "api/admin.js", "desk: slugify(typeof hint.desk === \"string\" ? hint.desk : (typeof hint.seatDesk === \"string\" ? hint.seatDesk : \"\")),", "desk: \"\","],
+  ["P17 assignIfKnown stores no assigneeId", "api/_fields.js", "  job.assigneeId = whoPerson.id || \"\";\n", ""],
   ["E3 account export: owned desks trimmed", "api/_account-http.js", "const owns = !!(acc && (row.accountId === acc.id || (acc.desks || []).indexOf(row.slug) >= 0));", "const owns = false;"]
 ];
 function runMutants() {
