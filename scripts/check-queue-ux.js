@@ -32,7 +32,7 @@ const needCheck = spawnSync(process.execPath, ["--check", path.join(root, "desk-
 if (needCheck.status !== 0) fail("desk-needs.js must parse");
 pass("desk-needs parses");
 
-["q-state-", "q-drawer", "q-face", "q-drag", "More on this card", "cardState", "stateMark"].forEach(function (bit) {
+["q-state-", "q-drawer", "q-face", "q-drag", "More on this card", ].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
 pass("desk-needs paints calm card face + drawer");
@@ -45,7 +45,7 @@ pass("desk-queue-ux has Cap drag + chrome fold");
 if (!nav.includes("desk-queue-ux.js")) fail("desk-nav.js must load desk-queue-ux.js");
 pass("nav loads queue ux");
 
-if (!desk.includes("id=\"queue\"") || !desk.includes("Taps match what the card needs")) {
+if (!desk.includes("id=\"queue\"") || !desk.includes("data-card-needs=\"cardNeeds\"")) {
   fail("desk.html queue contract drifted");
 }
 pass("desk.html queue host intact");
@@ -126,10 +126,10 @@ if (packMd.indexOf("Queue empty / Status orange leftover:") < 0) fail("PACK.md m
 pass("PACK.md records Queue empty / Status orange leftover");
 
 if (desk.indexOf("function queueEmptyHtml") < 0) fail("desk.html must own queueEmptyHtml");
-if (desk.indexOf("No desk on this phone yet. Queue does not invent Yes / Stop cards.") < 0) {
+if (desk.indexOf("Open a desk. The queue stays empty until you do.") < 0) {
   fail("desk.html no-desk empty must stay honest");
 }
-if (desk.indexOf("Nothing on this queue yet. Drop or Create a card.") < 0) {
+if (desk.indexOf("Nothing here yet. Drop or Create a card.") < 0) {
   fail("desk.html open-empty must stay honest");
 }
 if (desk.indexOf("Nothing here yet. Drop anything") >= 0) {

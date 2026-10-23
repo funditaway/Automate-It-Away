@@ -211,7 +211,7 @@
     if (!queue || !queue.parentNode) return;
     var zone = document.createElement("div");
     zone.id = "cap-drop";
-    zone.textContent = "Drop on Cap \u00b7 do this first";
+    zone.textContent = "Drop here to Cap · do this first";
     zone.setAttribute("aria-hidden", "true");
     queue.parentNode.insertBefore(zone, queue);
   }
