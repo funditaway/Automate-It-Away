@@ -53,10 +53,10 @@ async function main() {
     slug: "session-desk",
     biz: "Session Desk",
     name: "James",
-    email,
     pin: ownerPin
   });
   if (opened.statusCode !== 201) fail("desk open failed");
+  // No email at open: the desk code's one first claim sets email + password together (#370).
 
   const pw = await call(account, "POST", { "x-workspace": "session-desk", "x-pin": ownerPin }, {
     action: "password",

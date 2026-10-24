@@ -80,12 +80,18 @@ async function main() {
   account.setAccountPassword(halAcc, "hal-pass-at-1234");
   account.setAccountPassword(cydAcc, "cyd-pass-at-1234");
   account.setAccountPassword(beaAcc, "bea-pass-at-1234");
-  const halLogin = await call(acch, "POST", {}, { action: "login", email: "hal@at.test", password: "hal-pass-at-1234" }, {}, "/api/account");
-  const halTok = halLogin.body && halLogin.body.session && halLogin.body.session.token;
+  account.setAccountPassword(accOf("at-lex"), "lex-pass-at-1234");
+  const emailTok = async (email, password) => {
+    const r = await call(acch, "POST", {}, { action: "login", email, password }, {}, "/api/account");
+    return r.body && r.body.session && r.body.session.token;
+  };
+  const halTok = await emailTok("hal@at.test", "hal-pass-at-1234");
+  const cydProven = await emailTok("cyd@at.test", "cyd-pass-at-1234");
+  const lexProven = await emailTok("lex@at.test", "lex-pass-at-1234");
   const cydTok = await codeLogin("at-cyd", "7474");
   const lexHelperTok = await codeLogin("at-bea", "7575");
   const beaTok = await codeLogin("at-bea", "7272");
-  ok(!!halTok && !!cydTok && !!lexHelperTok && !!beaTok, "[setup] sessions issued");
+  ok(!!halTok && !!cydProven && !!lexProven && !!cydTok && !!lexHelperTok && !!beaTok, "[setup] sessions issued");
   // Bea's stale sessions: one expired, one revoked by her own logout.
   const beaExpiredTok = await codeLogin("at-bea", "7272");
   await tick();
@@ -108,9 +114,34 @@ async function main() {
   const beaPeople0 = JSON.stringify(B.people);
 
   // ---- refusals
-  const fake = await attach({ "x-workspace": "at-hal", "x-pin": "7171" }, { desk: "at-nobody-here" });
+  // A desk code (or a desk-code session) is not a password sign-in, so attach is refused before any
+  // desk is looked up: the same sign-in-again reply for a made-up name and for Bea's real desk.
+  const signInAgain = (r) => r.statusCode === 403 && r.body && r.body.ok === false && r.body.signIn === true && r.body.error === "Sign in again to change your account.";
+  const hal = { "x-workspace": "at-hal", "x-pin": "7171" };
+  const halP = { "x-workspace": "at-hal", "x-session": halTok };
+  async function held(label, headers, body) {
+    const r = await attach(headers, body);
+    ok(signInAgain(r), label + ": sign in again (" + r.statusCode + " " + JSON.stringify(r.body) + ")");
+    ok(Buffer.compare(snapFile(), file0) === 0, label + ": store file byte-unchanged");
+    ok(snapMem() === mem0, label + ": desks and accounts unchanged in memory");
+    ok(B.accountId === beaAcc.id && (halAcc.desks || []).indexOf("at-bea") < 0 && (cydAcc.desks || []).indexOf("at-bea") < 0, label + ": Bea's desk still Bea's");
+  }
+  const pinFake = await attach(hal, { desk: "at-nobody-here" });
+  const pinReal = await attach(hal, { desk: "at-bea" });
+  ok(signInAgain(pinFake) && JSON.stringify(pinFake.body) === JSON.stringify(pinReal.body), "[Hal desk code] same sign-in-again reply for a made-up desk and Bea's (" + pinFake.statusCode + ")");
+  await held("[Hal desk code, Bea's desk]", hal, { desk: "at-bea" });
+  await held("[Hal + Bea's expired session]", Object.assign({ "x-session": beaExpiredTok }, hal), { desk: "at-bea" });
+  await held("[Hal + Bea's revoked session]", Object.assign({ "x-session": beaRevokedTok }, hal), { desk: "at-bea" });
+  await held("[Hal + Lex's helper session on Bea]", Object.assign({ "x-session": lexHelperTok }, hal), { desk: "at-bea" });
+  await held("[Cyd other-desk owner, code]", { "x-workspace": "at-cyd", "x-pin": "7474" }, { desk: "at-bea" });
+  await held("[Cyd other-desk owner, code session]", { "x-workspace": "at-cyd", "x-session": cydTok }, { desk: " At Bea " });
+  const lex = { "x-workspace": "at-lex", "x-pin": "7676" };
+  await held("[Lex own desk code]", lex, { desk: "at-bea" });
+  await held("[Lex helper session is not his password sign-in]", Object.assign({ "x-session": lexHelperTok }, lex), { desk: "AT-BEA" });
+  // A password sign-in still has to prove the named desk. A miss is the same 404 as a made-up name.
+  const fake = await attach(halP, { desk: "at-nobody-here" });
   const want = JSON.stringify({ s: fake.statusCode, b: fake.body });
-  ok(fake.statusCode === 404 && fake.body && fake.body.ok === false && fake.body.error === "No desk with that name.", "[made-up desk] 404 No desk with that name. (" + want + ")");
+  ok(fake.statusCode === 404 && fake.body && fake.body.ok === false && fake.body.error === "No desk with that name.", "[made-up desk, password session] 404 No desk with that name. (" + want + ")");
   async function refused(label, headers, body) {
     const r = await attach(headers, body);
     const got = JSON.stringify({ s: r.statusCode, b: r.body });
@@ -119,29 +150,20 @@ async function main() {
     ok(snapMem() === mem0, label + ": desks and accounts unchanged in memory");
     ok(B.accountId === beaAcc.id && (halAcc.desks || []).indexOf("at-bea") < 0 && (cydAcc.desks || []).indexOf("at-bea") < 0, label + ": Bea's desk still Bea's");
   }
-  const hal = { "x-workspace": "at-hal", "x-pin": "7171" };
-  await refused("[Hal non-seat, desk code]", hal, { desk: "at-bea" });
-  await refused("[Hal non-seat, email session]", { "x-workspace": "at-hal", "x-session": halTok }, { desk: "at-bea" });
-  await refused("[Hal non-seat, slug field]", hal, { slug: "at-bea" });
-  await refused("[Hal wrong Bea code]", hal, { desk: "at-bea", pin: "0000" });
-  await refused("[Hal his own code as Bea's]", hal, { desk: "at-bea", pin: "7171", code: "7171" });
-  await refused("[Hal Lex's helper code for Bea]", hal, { desk: "at-bea", pin: "7575" });
-  await refused("[Hal his own password]", hal, { desk: "at-bea", password: "hal-pass-at-1234" });
-  await refused("[Hal wrong Bea password]", hal, { desk: "at-bea", password: "bea-pass-at-9999" });
+  await refused("[Hal non-seat, email session]", halP, { desk: "at-bea" });
+  await refused("[Hal non-seat, slug field]", halP, { slug: "at-bea" });
+  await refused("[Hal wrong Bea code]", halP, { desk: "at-bea", pin: "0000" });
+  await refused("[Hal his own code as Bea's]", halP, { desk: "at-bea", pin: "7171", code: "7171" });
+  await refused("[Hal Lex's helper code for Bea]", halP, { desk: "at-bea", pin: "7575" });
+  await refused("[Hal his own password]", halP, { desk: "at-bea", password: "hal-pass-at-1234" });
+  await refused("[Hal wrong Bea password]", halP, { desk: "at-bea", password: "bea-pass-at-9999" });
   for (const name of ["AT-BEA", " at-bea ", "at bea", "At  Bea", "\tat-bea\n", "AT_BEA", "  At - Bea  "]) {
-    await refused("[Hal name variant " + JSON.stringify(name) + "]", hal, { desk: name });
+    await refused("[Hal name variant " + JSON.stringify(name) + "]", halP, { desk: name });
   }
   ok(lib.slugify("  At - Bea  ") === "at-bea" && lib.slugify("AT_BEA") === "at-bea", "[name variants] resolve to Bea's desk slug");
-  await refused("[Hal + Bea's expired session]", Object.assign({ "x-session": beaExpiredTok }, hal), { desk: "at-bea" });
-  await refused("[Hal + Bea's revoked session]", Object.assign({ "x-session": beaRevokedTok }, hal), { desk: "at-bea" });
-  await refused("[Hal + Lex's helper session on Bea]", Object.assign({ "x-session": lexHelperTok }, hal), { desk: "at-bea" });
-  const lex = { "x-workspace": "at-lex", "x-pin": "7676" };
-  await refused("[Lex helper on Bea, own desk code]", lex, { desk: "at-bea" });
-  await refused("[Lex helper on Bea, helper code as proof]", lex, { desk: "at-bea", pin: "7575" });
-  await refused("[Lex helper on Bea, helper session]", Object.assign({ "x-session": lexHelperTok }, lex), { desk: "AT-BEA" });
-  await refused("[Cyd other-desk owner, code]", { "x-workspace": "at-cyd", "x-pin": "7474" }, { desk: "at-bea" });
-  await refused("[Cyd other-desk owner, session]", { "x-workspace": "at-cyd", "x-session": cydTok }, { desk: " At Bea " });
-  await refused("[Cyd own password]", { "x-workspace": "at-cyd", "x-pin": "7474" }, { desk: "at-bea", password: "cyd-pass-at-1234" });
+  await refused("[Lex password session, helper code as proof]", { "x-workspace": "at-lex", "x-session": lexProven }, { desk: "at-bea", pin: "7575" });
+  await refused("[Cyd other-desk owner, password session]", { "x-workspace": "at-cyd", "x-session": cydProven }, { desk: " At Bea " });
+  await refused("[Cyd own password]", { "x-workspace": "at-cyd", "x-session": cydProven }, { desk: "at-bea", password: "cyd-pass-at-1234" });
   // A helper signed into Bea's desk fails the owner gate before any desk is named: same reply for
   // Bea's desk and a made-up one, and nothing written.
   const lx1 = await attach({ "x-workspace": "at-bea", "x-pin": "7575" }, { desk: "at-bea" });
@@ -171,10 +193,17 @@ async function main() {
   await open("at-ann-three", "Ann", "8383", "ann3@at.test");
   await open("at-ann-four", "Ann", "8484", "ann4@at.test");
   const annAcc = accOf("at-ann");
+  account.setAccountPassword(annAcc, "ann-pass-at-1234");
   account.setAccountPassword(accOf("at-ann-three"), "ann3-pass-at-1234");
+  const annTok = await emailTok("ann@at.test", "ann-pass-at-1234");
   const ann4Tok = await codeLogin("at-ann-four", "8484");
-  const annH = { "x-workspace": "at-ann", "x-pin": "8181" };
+  ok(!!annTok && !!ann4Tok, "[Ann] password sign-in and the fourth desk's code session");
+  const annH = { "x-workspace": "at-ann", "x-session": annTok };
+  const annPin = { "x-workspace": "at-ann", "x-pin": "8181" };
   const mine = (slug) => W(slug).accountId === annAcc.id && (annAcc.desks || []).indexOf(slug) >= 0;
+  const desksBefore = (annAcc.desks || []).slice().join(",");
+  const lCode = await attach(annPin, { desk: "at-ann" });
+  ok(signInAgain(lCode) && (annAcc.desks || []).join(",") === desksBefore, "[Ann desk code] attaching the desk she opened needs a password sign-in (" + lCode.statusCode + ")");
   const l0 = await attach(annH, { desk: "at-ann" });
   ok(l0.statusCode === 200 && mine("at-ann"), "[Ann] attach the desk she is signed into (" + l0.statusCode + ")");
   const ln = await attach(annH, { desk: "at-ann-two" });
@@ -183,8 +212,10 @@ async function main() {
   ok(l1.statusCode === 200 && mine("at-ann-two"), "[Ann] attach second desk with its owner code (" + l1.statusCode + ")");
   const l2 = await attach(annH, { desk: " AT  Ann Three ", password: "ann3-pass-at-1234" });
   ok(l2.statusCode === 200 && mine("at-ann-three"), "[Ann] attach third desk (name in odd case/spacing) with its owner password (" + l2.statusCode + ")");
-  const l3 = await attach(Object.assign({ "x-session": ann4Tok }, annH), { desk: "at-ann-four" });
-  ok(l3.statusCode === 200 && mine("at-ann-four"), "[Ann] attach fourth desk with its own owner session (" + l3.statusCode + ")");
+  const l3code = await attach({ "x-workspace": "at-ann", "x-session": ann4Tok, "x-pin": "8181" }, { desk: "at-ann-four" });
+  ok(signInAgain(l3code) && !mine("at-ann-four"), "[Ann] the fourth desk's code session is not a password sign-in (" + l3code.statusCode + ")");
+  const l3 = await attach(annH, { desk: "at-ann-four", pin: "8484" });
+  ok(l3.statusCode === 200 && mine("at-ann-four"), "[Ann] attach fourth desk with its owner code (" + l3.statusCode + ")");
   const l4 = await attach(annH, { desk: "at-ann-two" });
   ok(l4.statusCode === 200 && mine("at-ann-two"), "[Ann] re-attach a desk already hers needs no new proof (" + l4.statusCode + ")");
   const al = await call(acch, "POST", {}, { action: "login", account: "at-ann", pin: "8181" }, {}, "/api/account");
@@ -193,7 +224,9 @@ async function main() {
   // The desk she is signed into needs no second proof, even with a stray wrong code in the body
   // and a login whose account is not the desk's own (at-ann-two's owner seat holds its first account).
   const two0 = lib.mem.accounts.find((a) => a && a.id === (W("at-ann-two").people || []).find((p) => p && lib.isOwner(p)).accountId);
-  const l5 = await attach({ "x-workspace": "at-ann-two", "x-pin": "8282" }, { desk: "at-ann-two", pin: "0000" });
+  account.setAccountPassword(two0, "ann2-pass-at-1234");
+  const ann2Tok = await emailTok("ann2@at.test", "ann2-pass-at-1234");
+  const l5 = await attach({ "x-workspace": "at-ann-two", "x-session": ann2Tok }, { desk: "at-ann-two", pin: "0000" });
   ok(l5.statusCode === 200 && two0 && two0.id !== annAcc.id && W("at-ann-two").accountId === two0.id, "[at-ann-two owner code] attach the desk signed into, stray body code ignored (" + l5.statusCode + ")");
   ok(W("at-bea").accountId === beaAcc.id, "[end] Bea's desk still Bea's");
 

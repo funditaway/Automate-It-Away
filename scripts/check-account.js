@@ -62,9 +62,9 @@ async function main() {
     slug: "oddo-books",
     biz: "Oddo Books",
     name: "James",
-    email,
     pin: ownerPin
   });
+  // No email at open: the desk code's one first claim below sets email + password together (#370).
   if (opened.statusCode !== 201 || !opened.body.account || !/^acct_[0-9a-z]+[0-9a-f]{8}$/.test(opened.body.account.id)) {
     fail("open should mint a unique acct_* id");
   } else pass("open mints a unique acct id");

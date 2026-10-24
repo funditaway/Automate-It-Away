@@ -169,7 +169,7 @@ async function main() {
 
   // 3. Email + password for an account whose own seat is closed.
   const N = "css-wen";
-  const wenTok = await open(N, "Wen", "7171", "wen@css.test");
+  const wenTok = await open(N, "Wen", "7171", "");
   const wn = W(N);
   const kimId = await inv(N, "7171", "Kim", "7272", "owner");
   const pw = await call(auth, "POST", { "x-workspace": N, "x-session": wenTok }, { action: "password", password: "wen-pass-123456", email: "wen@css.test" }, "/api/auth");
