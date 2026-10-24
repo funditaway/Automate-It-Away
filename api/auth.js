@@ -228,7 +228,7 @@ module.exports = async function handler(req, res) {
       const email = String(body.email || "").trim();
       const password = String(body.password || body.pass || "");
       if (looksLikeEmail(email) && password) {
-        const via = loginWithEmail(email, password);
+        const via = loginWithEmail(email, password, body.workspace || body.slug || body.biz || workspaceOf(req));
         if (!via.ok) return res.status(via.status || 401).json({ ok: false, error: via.error });
         let session = null;
         if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req, "password");

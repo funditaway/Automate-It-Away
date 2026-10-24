@@ -113,7 +113,14 @@ function ownerHeadOf(desk) {
   const head = people.find((p) => p && p.id === "p_owner") || people.find((p) => p && (p.role === "owner" || p.kind === "owner"));
   return head && !head.accountId ? head : null;
 }
-function loginWithEmail(email, password) {
+const seatShut = (p) => !!p && (p.status === "pending" || p.status === "denied");
+// This account's own seat on a desk: its open (owner first) seat carrying this account, else its first seat carrying it,
+// else the desk's accountless owner seat only when the desk is this account's own. Never another person's seat.
+function ownSeatOn(desk, acc) {
+  const mine = ((desk && desk.people) || []).filter((p) => p && p.accountId === acc.id);
+  return mine.find((p) => !seatShut(p) && (p.role === "owner" || p.kind === "owner")) || mine.find((p) => !seatShut(p)) || mine[0] || (desk && lib.deskAccountIdOf(desk) === acc.id ? ownerHeadOf(desk) : null);
+}
+function loginWithEmail(email, password, want) {
   ensureAccount();
   const e = emailOf({ email: email });
   const lockId = "email:" + e;
@@ -135,23 +142,18 @@ function loginWithEmail(email, password) {
     return { ok: false, status: 401, error: "Email or password does not match." };
   }
   const desks = (typeof plans.desksOfAccount === "function" ? plans.desksOfAccount(acc) : []) || [];
-  const desk = desks[0] || (lib.mem.workspaces || []).find((w) => w && w.accountId === acc.id) || null;
-  // This account's own seat on its desk (its accountId, else the desk's own owner seat when the desk is this
-  // account's) denied or waiting: the password proves nothing there and never maps to another seat. No write.
-  const shut = (p) => !!p && (p.status === "pending" || p.status === "denied");
-  const mine = desk ? (desk.people || []).filter((p) => p && p.accountId === acc.id) : [];
-  const own = mine.find((p) => !shut(p)) || mine[0] || (desk && lib.deskAccountIdOf(desk) === acc.id ? ownerHeadOf(desk) : null);
-  if (shut(own)) {
+  const pool = desks.length ? desks : [(lib.mem.workspaces || []).find((w) => w && w.accountId === acc.id)].filter(Boolean);
+  // The desk the request names (when it is this account's), else one where this account has an open seat, else the first.
+  const named = want ? pool.find((w) => w.slug === lib.slugify(want)) || null : null;
+  const desk = named || pool.find((w) => { const s = ownSeatOn(w, acc); return !!s && !seatShut(s); }) || pool[0] || null;
+  // Its own seat there denied or waiting, or no seat of its own: the password proves nothing there. No write.
+  const own = desk ? ownSeatOn(desk, acc) : null;
+  if (seatShut(own)) {
     return { ok: false, status: 403, pending: own.status === "pending", denied: own.status === "denied", error: own.status === "pending" ? "That seat is waiting on the owner." : "That seat is turned off on this desk." };
   }
+  if (desk && !own) return { ok: false, status: 403, error: "This account has no seat on that desk." };
   if (typeof lib.noteOk === "function") lib.noteOk(lockId);
-  let person = null;
-  if (desk) {
-    const people = desk.people || [];
-    person = people.find((p) => p && (p.role === "owner" || p.kind === "owner") && p.status !== "pending" && p.status !== "denied")
-      || people.find((p) => p && (p.accountId === acc.id || emailOf(p) === e) && p.status !== "pending" && p.status !== "denied")
-      || null;
-  }
+  let person = own;
   if (!person) {
     person = { id: acc.id + "_owner", name: acc.ownerName || acc.name || "Owner", role: "owner", kind: "owner", status: "approved", accountId: acc.id, email: acc.email };
   }
@@ -161,7 +163,7 @@ function loginAccount(name, pin, extra) {
   extra = extra || {};
   const rawEmail = extra.email || (looksLikeEmail(name) ? name : "");
   const password = extra.password || extra.pass || "";
-  if (looksLikeEmail(rawEmail) && password) return loginWithEmail(rawEmail, password);
+  if (looksLikeEmail(rawEmail) && password) return loginWithEmail(rawEmail, password, extra.desk);
   const via = plans.loginAccount(name, pin);
   if (!via || !via.ok) return via;
   if (via.memberLogin) {
