@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict'
+require("./_env-guard");
 
 const fs = require('fs')
 const path = require('path')

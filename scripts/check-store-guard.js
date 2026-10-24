@@ -1,3 +1,4 @@
+require("./_env-guard");
 // Fix G check: the shared Blob store (aia/store.json) is production-only.
 // Loads api/_lib.js, api/health.js and api/upload.js in a clean child process
 // per environment with fake BLOB_* / OIDC values, a fake @vercel/blob and a
@@ -30,6 +31,13 @@ const SCENARIOS = [
 
 // ---------- child: runs one scenario against a given api dir ----------
 async function child(apiDir, prod) {
+  // AIA_BLOB_TOKEN and VERCEL_OIDC_TOKEN are refused if they are set when the guard runs.
+  // Apply the scenario's copies after the guard, before any api module loads.
+  if (process.env.AIA_CHECK_APPLY) {
+    const apply = JSON.parse(process.env.AIA_CHECK_APPLY);
+    Object.keys(apply).forEach((k) => { process.env[k] = apply[k]; });
+    delete process.env.AIA_CHECK_APPLY;
+  }
   const Module = require("module");
   const calls = { sdk: [], fetchBlob: [], fetchOther: [] };
   const origLoad = Module._load;
@@ -95,10 +103,18 @@ function fakeRes() {
 // ---------- parent ----------
 function runScenario(apiDir, sc) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-guard-"));
-  const env = { PATH: process.env.PATH, HOME: tmp, AIA_STORE_PATH: path.join(tmp, "store.json"), AIA_UPLOAD_DIR: path.join(tmp, "up") };
+  const env = { PATH: process.env.PATH, HOME: tmp, AIA_STORE_PATH: path.join(tmp, "store.json"), AIA_UPLOAD_DIR: path.join(tmp, "up"), AIA_CHECK_PARENT: String(process.pid) };
   const names = sc.only || Object.keys(FAKE);
   names.forEach((k) => { env[k] = FAKE[k]; });
   Object.assign(env, sc.env);
+  const deferred = {};
+  ["AIA_BLOB_TOKEN", "VERCEL_OIDC_TOKEN"].forEach((k) => {
+    if (Object.prototype.hasOwnProperty.call(env, k)) {
+      deferred[k] = env[k];
+      delete env[k];
+    }
+  });
+  if (Object.keys(deferred).length) env.AIA_CHECK_APPLY = JSON.stringify(deferred);
   const r = spawnSync(process.execPath, [__filename, "--child", apiDir, sc.prod ? "1" : "0"], { env, cwd: tmp, encoding: "utf8", timeout: 60000 });
   fs.rmSync(tmp, { recursive: true, force: true });
   const line = String(r.stdout || "").split("\n").find((l) => l.indexOf("RESULT ") === 0);

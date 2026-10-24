@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves GET /api/jobs: a desk name alone returns no cards, a seated person
 // still gets them, a waiting seat is refused, a real desk and a made-up desk
 // look the same, and a pin is never taken from the URL.

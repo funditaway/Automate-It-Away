@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves seat ids stay unique on a desk even when many invites land in the same millisecond.
 // Seat ids are "p_" + base36 time + 12 hex chars from crypto.randomBytes(6). A clash with any seat
 // already on the desk re-rolls. Stored seats (p_owner, old time-only ids) are never rewritten.

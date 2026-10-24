@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // The store was read, then the durable Blob write (put) of aia/store.json
 // fails. No saving request may answer 2xx with only a local /tmp copy kept.
 // Stand-in @vercel/blob and fetch, fake tokens, no network, no production.
@@ -43,7 +44,8 @@ const realSetTimeout = setTimeout;
 const FAKE_ENV = {
   VERCEL_ENV: "production",
   BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
-  BLOB_STORE_ID: "store_FAKESTORE"
+  BLOB_STORE_ID: "store_FAKESTORE",
+  AIA_CHECK_PARENT: String(process.pid)
 };
 const FAULTS = ["throw", "non200", "403", "hang", "timeout-error"];
 const scrub = (s) => String(s || "").replace(/vercel_blob_rw_\w+/g, "[token]");

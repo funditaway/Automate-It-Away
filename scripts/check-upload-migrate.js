@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves the one-time old-upload move: owner seat + confirm, dry-run default,
 // copy/head/del against the mock Blob store, verify-before-relink, HTML flagged,
 // delete only after James's Yes. No token or pin in output or in a URL.
@@ -71,7 +72,8 @@ function spawnChild(scenario, apiDir, envExtra) {
     AIA_UPLOAD_DIR: path.join(tmp, "up"),
     VERCEL_ENV: "production",
     BLOB_READ_WRITE_TOKEN: TOKEN,
-    BLOB_STORE_ID: "store_FAKESTORE"
+    BLOB_STORE_ID: "store_FAKESTORE",
+    AIA_CHECK_PARENT: String(process.pid)
   }, envExtra || {});
   const r = spawnSync(process.execPath, [__filename, "--child", scenario, apiDir || path.join(root, "api")], {
     env: env,

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves deny and remove (on /api/admin and /api/auth) never turn off the desk's owner seat or the
 // requester's own seat. The refusal is a plain 409 and writes nothing: the store file and the
 // in-memory store are byte-for-byte the same after. The owner's desk code still logs in after.

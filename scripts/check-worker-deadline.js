@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // One cron run of GET /api/worker?all=1 must fit maxDuration 60 s.
 // Stand-in @vercel/blob, fetch, AbortSignal.timeout and a virtual clock
 // (Date.now/setTimeout), fake tokens, no network, no production.
@@ -53,7 +54,7 @@ const HOOK_URL = "https://example.test/wd-hook";
 const LIMIT_MS = 60000;
 const PUT_MS = 15000;
 const READ_MS = 5000;
-const FAKE_ENV = { VERCEL_ENV: "production", BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake", BLOB_STORE_ID: "store_FAKESTORE" };
+const FAKE_ENV = { VERCEL_ENV: "production", BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake", BLOB_STORE_ID: "store_FAKESTORE", AIA_CHECK_PARENT: String(process.pid) };
 const DAY0 = Date.UTC(2026, 9, 20, 14, 0, 0);
 const scrub = (s) => String(s || "").replace(/vercel_blob_rw_\w+/g, "[token]");
 

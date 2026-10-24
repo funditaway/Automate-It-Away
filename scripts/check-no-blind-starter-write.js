@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Module load and auth open/register must never write the empty starter store
 // over a store they did not really read. Stand-in @vercel/blob and fetch, fake
 // tokens, no network, no production. One child process per case so each one
@@ -28,7 +29,8 @@ const PAUSED_LINE = "Saving is paused: this desk couldn't read its store.";
 const FAKE_ENV = {
   VERCEL_ENV: "production",
   BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
-  BLOB_STORE_ID: "store_FAKESTORE"
+  BLOB_STORE_ID: "store_FAKESTORE",
+  AIA_CHECK_PARENT: String(process.pid)
 };
 const REAL = JSON.stringify({
   account: { id: "aia", name: "Automate It Away" },

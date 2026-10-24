@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // A webhook receives messages. It is not a money pipe.
 const fs = require("fs");
 const os = require("os");

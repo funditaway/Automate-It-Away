@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // 329b: POST /api/upload loads the store only when this process has never loaded
 // it. A warm process must not re-read the blob (that is what ready() does, and
 // it can drop in-flight uploads). Mock Blob only — not Vercel, not a real cold
@@ -466,7 +467,8 @@ function run(scenario, apiDir) {
     AIA_UPLOAD_DIR: path.join(tmp, "up"),
     VERCEL_ENV: "production",
     BLOB_READ_WRITE_TOKEN: TOKEN,
-    BLOB_STORE_ID: "store_FAKESTORE"
+    BLOB_STORE_ID: "store_FAKESTORE",
+    AIA_CHECK_PARENT: String(process.pid)
   };
   const timeout = scenario === "stagger" || scenario === "overlap" ? 180000 : 30000;
   const r = spawnSync(process.execPath, [__filename, "--child", scenario, apiDir], {

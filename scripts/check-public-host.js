@@ -1,3 +1,4 @@
+require("./_env-guard");
 // G28 check: links, callbacks and notes AIA generates point at the live site
 // (www.automateitaway.com / automateitaway.com) on production only.
 // Off production (preview, development, unset, wrong-case "Production") they use
@@ -122,6 +123,13 @@ function readApi(dir) {
 
 // ---------- end to end in a child: real handlers, temp store, mocked env ----------
 function e2eChild() {
+  // The guard refuses VERCEL_ENV=production unless the child also carries a fake BLOB_*.
+  // This proof needs production host rules and no blob credentials, so the value is applied
+  // after the guard and before any api module loads.
+  if (process.env.AIA_CHECK_SET_VERCEL_ENV) {
+    process.env.VERCEL_ENV = process.env.AIA_CHECK_SET_VERCEL_ENV;
+    delete process.env.AIA_CHECK_SET_VERCEL_ENV;
+  }
   const env = process.env.VERCEL_ENV || "";
   let netCalls = 0;
   global.fetch = async () => { netCalls++; throw new Error("network blocked in check-public-host"); };
@@ -157,6 +165,11 @@ function e2e(envName) {
   const env = Object.assign({}, process.env, { AIA_STORE_PATH: store });
   ["VERCEL_ENV", "VERCEL_URL", "VERCEL_OIDC_TOKEN", "BLOB_READ_WRITE_TOKEN", "BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN", "BLOB_READ_WRITE_TOKEN_STORE_ID", "BLOB_STORE_ID", "AIA_BLOB_TOKEN"].forEach((k) => delete env[k]);
   if (envName) env.VERCEL_ENV = envName;
+  env.AIA_CHECK_PARENT = String(process.pid);
+  if (String(envName || "").trim().toLowerCase() === "production") {
+    delete env.VERCEL_ENV;
+    env.AIA_CHECK_SET_VERCEL_ENV = "production";
+  }
   if (envName === "preview") env.VERCEL_URL = DEPLOY_URL;
   const r = spawnSync(process.execPath, [__filename, "--e2e-child"], { env, encoding: "utf8", timeout: 60000 });
   try { fs.unlinkSync(store); } catch (e) {}
