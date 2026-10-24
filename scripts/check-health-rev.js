@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // GET /api/health publishes the deployed commit.
 // VERCEL_GIT_COMMIT_SHA set to a 40-char sha → rev is that sha, revShort is
 // the first 7. Unset → both null. No other health key changes.

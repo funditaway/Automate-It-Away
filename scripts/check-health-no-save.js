@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // GET /api/health must be read-only. QA uses it as a GET-only check, so a
 // health read must never call save() and never write the shared store
 // (aia/store.json): no put, no del, no copy, no REST PUT/DELETE.

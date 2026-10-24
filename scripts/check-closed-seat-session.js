@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves a closed or removed seat's session is nobody on its desk, and a closed seat's password proves nothing:
 // 1. A removed co-owner's live desk-code session (it carries the desk's account) never lands on the owner seat
 //    by account or email: nobody, and it cannot invite (store unchanged). A removed helper stays nobody.

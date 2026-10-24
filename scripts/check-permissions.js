@@ -1,3 +1,4 @@
+require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
 const perms = require("../api/_permissions");

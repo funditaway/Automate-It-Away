@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves email + password sign-in lands on this account's own seat, never another person's:
 // A. An open co-owner (or helper) whose own account lists the owner's desk gets her own seat, not p_owner.
 //    An account that lists a desk where it holds no seat, and is not that desk's own account, is refused (403, no write).

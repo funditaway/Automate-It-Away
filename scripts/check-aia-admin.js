@@ -1,3 +1,4 @@
+require("./_env-guard");
 const admin = require("../api/_aia-admin");
 
 function fail(msg) { console.error("FAIL " + msg); process.exitCode = 1; }

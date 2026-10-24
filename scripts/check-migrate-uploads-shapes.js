@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves the read-only link-shape counts on POST /api/migrate-uploads (dry run and apply):
 // every shape category counts right, nothing but numbers and listedVia comes back (no url,
 // host, path, file id, file name, or desk name), the dry run copies, deletes, and saves
@@ -56,7 +57,8 @@ function spawnChild(scenario) {
     AIA_UPLOAD_DIR: path.join(tmp, "up"),
     VERCEL_ENV: "production",
     BLOB_READ_WRITE_TOKEN: TOKEN,
-    BLOB_STORE_ID: "store_FAKESTORE"
+    BLOB_STORE_ID: "store_FAKESTORE",
+    AIA_CHECK_PARENT: String(process.pid)
   };
   const r = spawnSync(process.execPath, [__filename, "--child", scenario], { env: env, cwd: tmp, encoding: "utf8", timeout: 60000 });
   fs.rmSync(tmp, { recursive: true, force: true });

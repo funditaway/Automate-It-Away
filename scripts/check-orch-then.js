@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // POST /api/account action "attach" only attaches a desk the request proves it owns: the desk it is
 // signed into, a desk already its account's, or the named desk's own owner code, owner session, or
 // owner password. Hal (no seat on Bea's desk), Lex (a helper on Bea's desk), and Cyd (owner of a
