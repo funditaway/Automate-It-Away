@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 "use strict";
 // People page after the helper trim (PR 372): a helper gets other seats back as display fields
 // only (email and accountId empty; no phone, prompt, wallet, permissions, thread).
