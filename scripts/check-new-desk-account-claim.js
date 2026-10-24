@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Opening a new desk must not file it under an account that already exists unless the
 // request proves it IS that account (a live owner session of that account, or that
 // account's email + password). Typing a victim's email, account name, or account id into
