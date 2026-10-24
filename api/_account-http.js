@@ -134,6 +134,27 @@ async function accountHomeJson(acc, person, req, opts) {
   return home;
 }
 
+// Attach: does this request prove it owns the named desk `row`? Only by that desk's own proof:
+// it is the desk this owner is signed into, or it is already this account's own desk, or that
+// desk's owner seat opens for this request's session or owner code (body pin/code or X-Pin, read
+// as that desk's code by personOf), or its own account's password. A helper seat proves nothing.
+function provesTargetOwner(req, body, found, account, row) {
+  if (!row || !found || !found.workspace) return false;
+  if (row.slug === found.workspace.slug) return true;
+  const deskId = lib.deskAccountIdOf(row);
+  const mineId = (account && account.id) || lib.deskAccountIdOf(found.workspace);
+  if (deskId && mineId && deskId === mineId) return true;
+  const headers = Object.assign({}, req.headers || {}, {
+    "x-workspace": row.slug,
+    "x-pin": String(body.pin || body.code || (req.headers && req.headers["x-pin"]) || "")
+  });
+  const there = personOf(Object.assign({}, req, { headers, query: {} }), row.slug);
+  if (there.workspace === row && there.person && isOwner(there.person)) return true;
+  const pw = String(body.password || body.pass || "");
+  const deskAcc = pw && deskId ? (mem.accounts || []).find((a) => a && a.id === deskId) : null;
+  return !!(deskAcc && deskAcc.password && passwordMatches(deskAcc.password, pw));
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -209,12 +230,14 @@ module.exports = async function handler(req, res) {
     if (!found.workspace || !isOwner(found.person)) {
       return res.status(403).json({ ok: false, error: "Owner desk code required to attach a desk." });
     }
-    const acc = account || accountForDesk(found.workspace);
     const other = String(body.desk || body.slug || "").trim();
     if (!other) return res.status(400).json({ ok: false, error: "Name the desk to attach." });
     const want = lib.slugify(other);
     const row = (mem.workspaces || []).find((w) => w && w.slug === want);
-    if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    // Only a proven owner of the named desk may attach it. A missing desk and an unproven one get
+    // the same reply (so it never says the desk exists), and nothing is written.
+    if (!row || !provesTargetOwner(req, body, found, account, row)) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    const acc = account || accountForDesk(found.workspace);
     acc.desks = acc.desks || [];
     if (acc.desks.indexOf(row.slug) < 0) acc.desks.push(row.slug);
     row.accountId = acc.id;
