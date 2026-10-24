@@ -28,6 +28,7 @@ function finishDone(job, body, how) {
   job.doneHow = how;
   job.doneAt = new Date().toISOString();
   job.doneBy = body.who || body.provider || "webhook";
+  job.doneById = "";
   job.awaiting = null;
   job.offDesk = false;
   job.followed = true;
@@ -35,6 +36,7 @@ function finishDone(job, body, how) {
   job.step = "Follow";
   job.rail = "done";
   job.whoTapped = job.doneBy;
+  job.whoTappedId = "";
   job.dispatch = { provider: body.provider || "webhook", inbound: true, demo: false, done: true, how: how };
   addTalk(job, job.doneBy, note, "follow");
   return note;
@@ -135,8 +137,8 @@ module.exports = async function handler(req, res) {
       job.kind = job.kind || "email";
       job.custom = Object.assign({}, job.custom || {}, inbound.custom || {});
       const box = String(identity.address || "").toLowerCase();
-      if (job.assignee && String(job.assignee).toLowerCase() === box) delete job.assignee;
-      if (identity.bind === "ai" && identity.aiName) job.assignee = identity.aiName;
+      if (job.assignee && String(job.assignee).toLowerCase() === box) { delete job.assignee; delete job.assigneeId; }
+      if (identity.bind === "ai" && identity.aiName) { job.assignee = identity.aiName; delete job.assigneeId; }
     }
     qualifyJob(job, shop);
     try {
@@ -169,6 +171,7 @@ module.exports = async function handler(req, res) {
     job.offDesk = false;
     job.killReason = body.reason || body.killReason || "Pipe said stop";
     job.whoTapped = body.who || body.provider || "webhook";
+    job.whoTappedId = "";
     job.log = (job.log || []).concat(["Pipe stop"]);
     log("Pipe", "Stop · " + job.title, "Stopped", workspace);
     await save();
@@ -186,6 +189,7 @@ module.exports = async function handler(req, res) {
     job.rail = "hand";
     job.step = "Do";
     job.whoTapped = body.who || body.provider || "webhook";
+    job.whoTappedId = "";
     addTalk(job, job.whoTapped, note, "ask");
     job.log = (job.log || []).concat(["Pipe · needs a hand"]);
     log("Pipe", "Hand · " + job.title, "Waiting", workspace);

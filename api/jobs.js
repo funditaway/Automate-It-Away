@@ -24,6 +24,10 @@ async function fireWebhook(hook, payload) {
 function actorName(person, body) {
   return (person && person.name) || (body && body.whoTapped) || "desk";
 }
+// The seat that tapped: jobs credit a seat by id (the person sheet reads these), never by name.
+function actorId(person) {
+  return (person && person.id) ? String(person.id) : "";
+}
 // Same seat check as GET /api/upload: deskSeat is personOf. It reads X-Pin, X-Session, and the aia_session cookie.
 // A stranger and a missing desk get the same reply, so the desk name does not confirm the desk.
 // Upload (#324) still answers 401 for a real desk with no code and 404 for a missing desk.
@@ -42,6 +46,7 @@ function markDone(job, person, body, how, shop) {
   job.doneHow = how || (body && body.how) || "off-desk";
   job.doneAt = new Date().toISOString();
   job.doneBy = actorName(person, body || {});
+  job.doneById = actorId(person);
   job.awaiting = null;
   job.offDesk = false;
   job.followed = true;
@@ -49,6 +54,7 @@ function markDone(job, person, body, how, shop) {
   job.step = "Follow";
   job.rail = job.doneHow === "hand" ? "carried" : "done";
   job.whoTapped = actorName(person, body || {});
+  job.whoTappedId = actorId(person);
   job.dispatch = job.dispatch || { demo: false, done: true, how: job.doneHow };
   if (shop) applyRules(job, shop, "status");
   return note;
@@ -63,6 +69,7 @@ function markHand(job, person, body) {
   job.next = "Do this by hand. Then tap Done off desk.";
   job.doneHow = null;
   job.whoTapped = actorName(person, body || {});
+  job.whoTappedId = actorId(person);
   job.rail = "hand";
   job.step = "Do";
   return note;
@@ -108,7 +115,7 @@ module.exports = async function handler(req, res) {
       fields: ensureFields(shop),
       rules,
       nouns: shop ? ensureNouns(shop) : defaultNouns(),
-      people: shop ? (shop.people || []).map(publicPerson) : [],
+      people: shop ? require("./_lib").seatsFor(person, shop.people, publicPerson) : [],
       ais: rails.ais,
       aiRails: rails.rails,
       never: rails.never,
@@ -121,6 +128,11 @@ module.exports = async function handler(req, res) {
   if (req.method === "POST") {
     const body = await readBody(req);
     const action = body.action || "capture";
+    // A tap with no seat behind it names who tapped only as text. A name two seats on this desk share is
+    // refused: never a guessed seat, never a silent nobody. (With a seat, the session's own seat is credited.)
+    if (!person && shop && body.whoTapped && require("./_fields").seatNameShared(shop.people, { name: String(body.whoTapped).trim() })) {
+      return res.status(409).json({ ok: false, error: "More than one seat has that name. Open your own seat to tap." });
+    }
     if (action === "suggest") {
       const job = makeCapturedJob(workspace, shop, body);
       qualifyJob(job, shop);
@@ -146,7 +158,11 @@ module.exports = async function handler(req, res) {
     }
     if (action === "capture") {
       if (!shop) return res.status(404).json({ ok: false, error: "No desk with that name. Open one first." });
-      const jobs = makeFanOutJobs(workspace, shop, body);
+      // A signed-in seat captures as itself: who tapped is the session's seat, never the name in the body.
+      // A stranger's drop (no seat) keeps the name it sent, as before.
+      const capBody = person ? Object.assign({}, body, { whoTapped: actorName(person, {}) }) : body;
+      const jobs = makeFanOutJobs(workspace, shop, capBody);
+      if (person) jobs.forEach((j) => { j.whoTapped = actorName(person, {}); j.whoTappedId = actorId(person); });
       const incomingCites = normalizeCites(body.citations || []);
       let grok = null;
       for (let i = 0; i < jobs.length; i++) {
@@ -202,6 +218,7 @@ module.exports = async function handler(req, res) {
       markFlow(job, "kill");
       job.killReason = body.killReason || job.killReason || "Owner kill";
       job.whoTapped = actorName(person, body);
+      job.whoTappedId = actorId(person);
       job.log = (job.log || []).concat(["Killed · " + job.killReason]);
       log("Desk AI", "Killed · " + job.title, "Stopped", workspace);
       await save();
@@ -261,6 +278,7 @@ module.exports = async function handler(req, res) {
       if (job.status === "shipped" || job.status === "killed") job.status = "waiting";
       job.charged = false;
       job.whoTapped = actorName(person, body);
+      job.whoTappedId = actorId(person);
       job.log = (job.log || []).concat(["Reply on the card"]);
       job.next = job.next || "Reply is on the card. Yes / Stop / Kill stay human. Nothing sent alone.";
       if (!/nothing sent/i.test(String(job.next))) {
@@ -302,6 +320,7 @@ module.exports = async function handler(req, res) {
       addTalk(job, actorName(person, body), line, "note");
       job.log = (job.log || []).concat(["Clock"]);
       job.whoTapped = actorName(person, body);
+      job.whoTappedId = actorId(person);
       qualifyJob(job, shop);
       log("Desk", "Clock · " + job.title, "OK", workspace);
       await save();
@@ -365,6 +384,7 @@ module.exports = async function handler(req, res) {
         job.awaiting = "writeback";
         job.amount = amount || job.amount;
         job.whoTapped = actorName(person, body);
+        job.whoTappedId = actorId(person);
         job.rail = "out";
         job.step = "Do";
         job.next = "Off the desk. Waiting on write-back, or tap Done off desk / Needs a hand.";
@@ -377,6 +397,7 @@ module.exports = async function handler(req, res) {
       job.status = "shipped";
       job.amount = amount || job.amount;
       job.whoTapped = actorName(person, body);
+      job.whoTappedId = actorId(person);
       job.rail = moneyNeedsOwner(amount, holdAt) ? "owner-confirmed" : "sent";
       job.step = "Collect";
       markFlow(job, "collect");
@@ -411,6 +432,7 @@ module.exports = async function handler(req, res) {
         agentDraft(job, who);
       }
       job.whoTapped = actorName(person, body);
+      job.whoTappedId = actorId(person);
       job.next = picked.name + " owns Then / Ask Grok / Needs you on this card. HOLD. Nothing sent alone.";
       addTalk(job, actorName(person, body), "Desk AI on this card · " + picked.name + ".", "note");
       job.log = (job.log || []).concat(["Desk AI · " + picked.name]);
@@ -423,10 +445,14 @@ module.exports = async function handler(req, res) {
       if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never hand work. A person taps.", never: ais.NEVER.slice(), job });
       const people = shop.people || [];
       const want = String(body.name || body.assignee || body.to || "").trim();
-      const whoPerson = people.find((p) => p && (p.id === want || String(p.name || "").toLowerCase() === want.toLowerCase()));
+      const whoPerson = require("./_fields").seatFor(people, want);
+      if (!whoPerson && want && people.filter((p) => p && String(p.name || "").toLowerCase() === want.toLowerCase()).length > 1) {
+        return res.status(409).json({ error: "More than one seat has that name. Hand it by seat id.", job });
+      }
       if (!whoPerson) return res.status(404).json({ error: "Name someone already on People.", job });
       applyHandoff(job, whoPerson, shop);
       job.whoTapped = actorName(person, body);
+      job.whoTappedId = actorId(person);
       addTalk(job, actorName(person, body), "Handed to " + whoPerson.name + ".", "note");
       markFlow(job, "handoff");
       job.log = (job.log || []).concat(["Assigned · " + whoPerson.name]);
@@ -493,6 +519,7 @@ module.exports = async function handler(req, res) {
         log("Desk", "Off cap · " + job.title, "OK", workspace);
       }
       job.whoTapped = actorName(person, body);
+      job.whoTappedId = actorId(person);
       await save();
       return res.status(200).json({ ok: true, job, needs: needsOf(job, { staff: person && person.role === "employee" }) });
     }

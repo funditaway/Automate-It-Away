@@ -11,7 +11,8 @@ const libx = require("./_lib");
 const ais = require("./_ais");
 const net = require("./_aia-net");
 
-function publicWorkspace(row) {
+// viewer: the seat asking. Not the owner: other seats are name and role only (libx.viewSeat).
+function publicWorkspace(row, viewer, ownAccountId) {
   const rails = ais.railsOf(row);
   return {
     slug: row.slug,
@@ -21,7 +22,7 @@ function publicWorkspace(row) {
     model: row.model,
     does: row.does || "",
     instructions: String(row.instructions || "").trim().slice(0, 400),
-    people: (row.people || []).map(publicPerson),
+    people: libx.seatsFor(viewer, row.people, publicPerson, ownAccountId),
     nouns: ensureNouns(row),
     rules: ensureRules(row),
     fields: ensureFields(row),
@@ -35,6 +36,9 @@ function publicWorkspace(row) {
     net: rails.net
   };
 }
+
+function youOf(person, ownAccountId) { return libx.viewSeat(publicPerson(person), person, person, ownAccountId); }
+function ownIdOf(person, row, req) { const acc = person && row ? homeAccount(person, row, req) : null; return acc ? acc.id : ""; }
 
 function applyCustomOpen(row, body) {
   const modelPick = String(body.model || "").trim();
@@ -112,8 +116,8 @@ module.exports = async function handler(req, res) {
     }
     return res.status(200).json({
       ok: true,
-      workspace: publicWorkspace(row),
-      you: publicPerson(person)
+      workspace: publicWorkspace(row, person, ownIdOf(person, row, req)),
+      you: youOf(person, ownIdOf(person, row, req))
     });
   }
 
@@ -183,7 +187,7 @@ module.exports = async function handler(req, res) {
       const made = setSeatStatus(row, body.id || body.personId, action === "deny" ? "denied" : "approved", person);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
-      return res.status(200).json({ ok: true, person: made.person, workspace: publicWorkspace(row) });
+      return res.status(200).json({ ok: true, person: made.person, workspace: publicWorkspace(row, person) });
     }
 
     if (action === "password" || action === "set-password") {
@@ -231,7 +235,7 @@ module.exports = async function handler(req, res) {
         if (applied && applied.ok === false) return res.status(400).json({ ok: false, error: applied.error });
       }
       await save();
-      return res.status(200).json({ ok: true, you: publicPerson(found.person), account: acc ? { id: acc.id, name: acc.name, email: acc.email || "", phone: acc.phone || "", city: acc.city || "", state: acc.state || "", reach: acc.reach || "", hours: acc.hours || "", hasPassword: !!acc.password } : null });
+      return res.status(200).json({ ok: true, you: youOf(found.person, acc && acc.id), account: acc ? { id: acc.id, name: acc.name, email: acc.email || "", phone: acc.phone || "", city: acc.city || "", state: acc.state || "", reach: acc.reach || "", hours: acc.hours || "", hasPassword: !!acc.password } : null });
     }
 
     if (action === "login") {
@@ -248,8 +252,8 @@ module.exports = async function handler(req, res) {
           ok: true, savedLogin: true, emailLogin: true, session,
           account: via.account ? { id: via.account.id, name: via.account.name, ownerName: via.account.ownerName, email: via.account.email || "", hasPassword: true, plan: via.account.plan || "pro" } : null,
           plan: via.account ? publicPlan(via.account) : null,
-          workspace: via.desk ? publicWorkspace(via.desk) : null,
-          you: publicPerson(via.person),
+          workspace: via.desk ? publicWorkspace(via.desk, via.person, via.account && via.account.id) : null,
+          you: youOf(via.person, via.account && via.account.id),
           hint: "Signed in with email and password."
         });
       }
@@ -278,8 +282,8 @@ module.exports = async function handler(req, res) {
         ok: true,
         savedLogin: true,
         session,
-        workspace: publicWorkspace(row),
-        you: publicPerson(person),
+        workspace: publicWorkspace(row, person),
+        you: youOf(person),
         hint: "Desk name + code opened this phone."
       });
     }
@@ -299,7 +303,7 @@ module.exports = async function handler(req, res) {
         ok: true,
         person: made.person,
         pending: !!made.pending,
-        workspace: publicWorkspace(row)
+        workspace: publicWorkspace(row, person)
       });
     }
 
@@ -314,7 +318,7 @@ module.exports = async function handler(req, res) {
       if (!saved.ok) return res.status(400).json(saved);
       log("Desk", "Nouns saved", "OK", slug);
       await save();
-      return res.status(200).json({ ok: true, nouns: saved.nouns, workspace: publicWorkspace(row) });
+      return res.status(200).json({ ok: true, nouns: saved.nouns, workspace: publicWorkspace(row, person) });
     }
 
     if (action === "create") {
@@ -333,7 +337,7 @@ module.exports = async function handler(req, res) {
         creation: made.creation,
         creations: made.creations,
         fields: made.fields,
-        workspace: publicWorkspace(row)
+        workspace: publicWorkspace(row, person)
       });
     }
 
@@ -352,7 +356,7 @@ module.exports = async function handler(req, res) {
       row.people = row.people.filter((p) => p.id !== id);
       log("Auth", "Removed · " + target.name, "OK", slug);
       await save();
-      return res.status(200).json({ ok: true, workspace: publicWorkspace(row) });
+      return res.status(200).json({ ok: true, workspace: publicWorkspace(row, person) });
     }
 
     const slug = slugify(body.slug || body.biz || body.name || "");
@@ -393,7 +397,7 @@ module.exports = async function handler(req, res) {
         session,
         account: { id: acc.id, name: acc.name, ownerName: acc.ownerName },
         plan: publicPlan(acc),
-        workspace: publicWorkspace(row),
+        workspace: publicWorkspace(row, owner),
         you: publicPerson(owner),
         job: first,
         hint: "Full owner account. Free for now. Monthly later. Shop name + desk code opens this queue."
@@ -412,8 +416,8 @@ module.exports = async function handler(req, res) {
         ok: true,
         savedLogin: true,
         session,
-        workspace: publicWorkspace(row),
-        you: publicPerson(match),
+        workspace: publicWorkspace(row, match),
+        you: youOf(match),
         hint: "Shop name + desk code opens this queue on any phone."
       });
     }
