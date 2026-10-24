@@ -4,7 +4,7 @@ const {
 const { adminPinOk, jobCounts } = require("./_desk");
 const {
   ensureAccount, publicAccount, accountSnapshot, inviteSeat, requestSeat,
-  setSeatStatus, approvalsOf, peopleAcross, accountForDesk, homeAccount, requestMonthly, publicPlan,
+  setSeatStatus, seatOffRefused, approvalsOf, peopleAcross, accountForDesk, homeAccount, requestMonthly, publicPlan,
   switchPlan, publicPlans, proHome, requestPermission, setPermission, desksForPerson
 } = require("./_account");
 const aiaAdmin = require("./_aia-admin");
@@ -338,6 +338,8 @@ module.exports = async function handler(req, res) {
     return res.status(made.status || 201).json({ ok: true, person: made.person, pending: !!made.pending, account: publicAccount() });
   }
   if (action === "approve" || action === "deny") {
+    const off = action === "deny" && seatOffRefused(row, body.id || body.personId, person);
+    if (off) return res.status(off.status).json({ ok: false, error: off.error });
     const made = setSeatStatus(row, body.id || body.personId, action === "deny" ? "denied" : "approved", person);
     if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
     if (made.person) pushTalk(made.person, person.name || "owner", action === "deny" ? "Denied this seat." : "Approved. They can open the queue.", action);
@@ -384,6 +386,8 @@ module.exports = async function handler(req, res) {
     const id = body.id || body.personId;
     const target = (row.people || []).find((p) => p && p.id === id);
     if (!target) return res.status(404).json({ ok: false, error: "Person not found" });
+    const off = seatOffRefused(row, id, person);
+    if (off) return res.status(off.status).json({ ok: false, error: off.error });
     if (target.role === "owner" && row.people.filter((p) => p.role === "owner").length < 2) return res.status(409).json({ ok: false, error: "Keep at least one owner." });
     row.people = row.people.filter((p) => p.id !== id);
     await save();
