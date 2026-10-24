@@ -207,6 +207,12 @@ module.exports = async function handler(req, res) {
           : undefined
       });
     }
+    // Every action below reads or changes a card, so it needs a seat on this desk.
+    // A desk name and a card id alone get the same reply as a missing desk, before the card is looked up.
+    // Capture above stays open for the public drop.
+    // A shared name with no seat already answered 409 above, and only when that name is actually shared.
+    // A stranger who names one seat, or names nobody, still gets the missing-desk reply here (reply included).
+    if (!shop || !person) return refuseJobRead(res, found);
     const job = mem.jobs.find((j) => j.id === body.id && j.workspace === workspace);
     if (!job) return res.status(404).json({ error: "Job not found" });
     if (action === "kill") {
