@@ -507,14 +507,14 @@ function routeTable(fx, phase) {
   add("auth", "auth", "POST", "login", { action: "login", slug: fx.slug, pin: OWNER_PIN }, { headers: {} });
   add("auth", "auth", "POST", "approve", { action: "approve", id: fx.helperId });
   add("auth", "auth", "POST", "deny", { action: "deny", id: fx.helper2Id });
-  add("auth", "auth", "POST", "password", { action: "password", password: "Longer-pass-1234", email: "owner@example.test" });
+  add("auth", "auth", "POST", "password", { action: "password", current: "Longer-pass-1234", password: "Longer-pass-1234", email: "owner@example.test" });
   add("auth", "auth", "POST", "details", { action: "details", name: "Real Owner", email: "owner@example.test" });
   add("auth", "auth", "POST", "invite", { action: "invite", name: tag + " Invitee", pin: "6161" });
   add("auth", "auth", "POST", "nouns", { action: "nouns", nouns: { capture: "Intake" } });
   add("auth", "auth", "POST", "create", { action: "create", slug: tag + "-create", biz: tag + "-create", name: "Real Owner", pin: OWNER_PIN });
   const acct = { via: "account" };
   ["login", "attach", "plan", "password", "details", "mint", "sessions", "export", "mfa", "handle", "mail", "mail-add", "mail-remove", "mail-send", "wallet", "disconnect-wallet", "aia-quote", "reviewer"].forEach((a) => {
-    add("account", "auth", "POST", a, { action: a, account: fx.slug, pin: OWNER_PIN, name: "Real Owner", email: "owner@example.test", password: "Longer-pass-1234", handle: "realown" + (phase === "A" ? "a" : "b"), local: "real" + (phase === "A" ? "a" : "b"), address: "0x0000000000000000000000000000000000000001", chainId: 8453 }, { query: acct, url: "/api/account" });
+    add("account", "auth", "POST", a, { action: a, account: fx.slug, pin: OWNER_PIN, name: "Real Owner", email: "owner@example.test", password: "Longer-pass-1234", current: "Longer-pass-1234", handle: "realown" + (phase === "A" ? "a" : "b"), local: "real" + (phase === "A" ? "a" : "b"), address: "0x0000000000000000000000000000000000000001", chainId: 8453 }, { query: acct, url: "/api/account" });
   });
   const desks = { via: "desks" };
   ["search", "list", "mine", "history", "priority", "mail", "mail-add", "mail-remove", "mail-send", "listed", "handle", "explore", "gone", "update", "close", "open", "code", "export", "perms", "seat"].forEach((a) => {
@@ -566,7 +566,10 @@ async function buildFixture(apiDir) {
   const rules = require(path.join(apiDir, "rules.js"));
   const slug = "real-desk";
   let r = R();
-  await auth({ method: "POST", headers: {}, query: {}, url: "/api/auth", body: { slug, biz: "Real Shop", name: "Real Owner", pin: OWNER_PIN } }, r);
+  await auth({ method: "POST", headers: {}, query: {}, url: "/api/auth", body: { slug, biz: "Real Shop", name: "Real Owner", pin: OWNER_PIN, email: "owner@example.test", password: "Longer-pass-1234" } }, r);
+  // The owner session is her email + password sign-in: account changes need a proven sign-in (#370).
+  r = R();
+  await auth({ method: "POST", headers: {}, query: {}, url: "/api/auth", body: { action: "login", email: "owner@example.test", password: "Longer-pass-1234" } }, r);
   const token = r.body && r.body.session && r.body.session.token;
   const owner = { "x-workspace": slug, "x-pin": OWNER_PIN };
   const fx = { slug, token, jobs: {} };

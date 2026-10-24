@@ -72,7 +72,8 @@ async function buildFixture(apiDir) {
   };
   const slug = "real-desk";
   const owner = { "x-workspace": slug, "x-pin": PIN };
-  let r = await call("auth", { method: "POST", body: { slug, biz: "Real Shop", name: "Real Owner", pin: PIN } });
+  let r = await call("auth", { method: "POST", body: { slug, biz: "Real Shop", name: "Real Owner", pin: PIN, email: "owner@example.test", password: "Longer-pass-1234" } });
+  r = await call("auth", { method: "POST", body: { action: "login", email: "owner@example.test", password: "Longer-pass-1234" } });
   const fx = { slug, token: r.body && r.body.session && r.body.session.token, jobs: [] };
   for (let i = 0; i < 3; i++) {
     r = await call("jobs", { method: "POST", headers: owner, body: { action: "capture", title: "Real card " + i, notes: "real" } });

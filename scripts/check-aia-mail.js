@@ -121,10 +121,14 @@ async function main() {
     biz: "James Desk",
     name: "James",
     email: "james@example.com",
+    password: "james-mail-pass-1234",
     pin: pin
   });
   if (opened.statusCode !== 201 && opened.statusCode !== 200) fail("open desk " + opened.statusCode);
   else pass("open desk");
+  const signed = await call(account, "POST", {}, { action: "login", email: "james@example.com", password: "james-mail-pass-1234" });
+  const ownerTok = signed.body && signed.body.session && signed.body.session.token;
+  if (signed.statusCode !== 200 || !ownerTok) fail("owner email sign-in " + signed.statusCode);
 
   const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
   const mailGate = await call(account, "GET", { "x-workspace": slug, "x-session": leftover }, {});
@@ -135,7 +139,7 @@ async function main() {
     fail("leftover session + matching pin must open mail GET");
   } else pass("leftover session + pin opens mail GET");
 
-  const owner = { "x-workspace": slug, "x-pin": pin };
+  const owner = { "x-workspace": slug, "x-pin": pin, "x-session": ownerTok };
   const handle = await call(account, "POST", owner, { action: "handle", handle: "funditaway.aia" });
   if (handle.statusCode !== 200 || !handle.body || handle.body.aia !== "funditaway.aia") {
     fail("set handle " + handle.statusCode + " " + JSON.stringify(handle.body));

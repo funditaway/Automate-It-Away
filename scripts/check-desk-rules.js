@@ -442,10 +442,10 @@ async function main() {
     slug: "email-rules",
     biz: "Email Rules",
     name: "Pat",
-    email: mail,
     pin: ownerPin
   });
   if (opened.statusCode !== 201) fail("email-rules open should 201, got " + opened.statusCode);
+  // No email at open: the desk code's one first claim sets email + password together (#370).
   const pw = await call(authHandler, "POST", { "x-workspace": "email-rules", "x-pin": ownerPin }, {
     action: "password",
     email: mail,

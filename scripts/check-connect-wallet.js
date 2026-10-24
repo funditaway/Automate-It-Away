@@ -140,12 +140,22 @@ async function main() {
     biz: "Wallet Desk",
     name: "James",
     email: "james-wallet@example.com",
+    password: "wallet-pass-1234",
     pin: pin
   });
   if (opened.statusCode !== 201 && opened.statusCode !== 200) fail("open desk " + opened.statusCode);
   else pass("open desk");
 
-  const owner = { "x-workspace": slug, "x-pin": pin };
+  // Wallet changes need the owner's password sign-in (#370). The desk code alone gets sign in again.
+  const pinOnly = { "x-workspace": slug, "x-pin": pin };
+  const pinWallet = await call(account, "POST", pinOnly, { action: "wallet", walletAddress: "0x1234567890AbCdEf1234567890aBcDeF12345678", walletChainId: "0x1" });
+  if (pinWallet.statusCode !== 403 || !pinWallet.body || pinWallet.body.signIn !== true || pinWallet.body.error !== "Sign in again to change your account.") {
+    fail("desk code alone must not bind a wallet " + pinWallet.statusCode + " " + JSON.stringify(pinWallet.body));
+  } else pass("desk code alone gets sign in again for a wallet");
+  const signedIn = await call(account, "POST", {}, { action: "login", email: "james-wallet@example.com", password: "wallet-pass-1234" });
+  const ownerTok = signedIn.body && signedIn.body.session && signedIn.body.session.token;
+  if (signedIn.statusCode !== 200 || !ownerTok) fail("owner email sign-in " + signedIn.statusCode);
+  const owner = { "x-workspace": slug, "x-pin": pin, "x-session": ownerTok };
   const empty = await call(account, "GET", owner, {}, {});
   const emptyWallet = empty.body && (empty.body.wallet || (empty.body.account && empty.body.account.wallet));
   if (!emptyWallet || emptyWallet.connected) fail("fresh account must not fake connected " + JSON.stringify(emptyWallet));
@@ -239,10 +249,10 @@ async function main() {
     "x-session": leftover,
     "x-pin": pin
   }, { action: "wallet", walletAddress: addr, walletChainId: "0x1" });
-  const leftoverW = leftoverWalletPin.body && leftoverWalletPin.body.wallet;
-  if (leftoverWalletPin.statusCode !== 200 || !leftoverW || !leftoverW.connected || leftoverW.short !== "0x1234…5678") {
-    fail("leftover session + matching pin must still bind wallet " + leftoverWalletPin.statusCode + " " + JSON.stringify(leftoverWalletPin.body));
-  } else pass("leftover session + pin binds wallet");
+  // A stale session plus the desk code is still the desk code alone: a wallet change needs a password sign-in (#370).
+  if (leftoverWalletPin.statusCode !== 403 || !leftoverWalletPin.body || leftoverWalletPin.body.signIn !== true) {
+    fail("leftover session + matching pin must get sign in again " + leftoverWalletPin.statusCode + " " + JSON.stringify(leftoverWalletPin.body));
+  } else pass("leftover session + pin gets sign in again for a wallet");
 
   const leftoverWrong = await call(account, "POST", {
     "x-workspace": slug,

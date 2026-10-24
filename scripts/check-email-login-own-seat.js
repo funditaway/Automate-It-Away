@@ -88,7 +88,7 @@ async function main() {
 
   // A. Open co-owner Zoe: her seat carries her account; her account lists Ola's desk.
   const S = "eos-ola";
-  const olaTok = await open(S, "Ola", "1111", "ola@eos.test");
+  const olaTok = await open(S, "Ola", "1111", "");
   await setPw(S, olaTok, "ola@eos.test", "ola-pass-123456");
   const ws = W(S);
   const zoeId = await inv(S, "1111", "Zoe", "4444", "owner");
@@ -128,7 +128,7 @@ async function main() {
   await refused("[A no seat, not the desk's account]", "xena@eos.test", "xena-pass-123456");
   // Legacy desk L (owner seat carries no account) owned by Lee's account; Xia lists L, no seat: refused, not L's owner seat.
   const L = "eos-lee";
-  const leeTok = await open(L, "Lee", "5151", "lee@eos.test");
+  const leeTok = await open(L, "Lee", "5151", "");
   await setPw(L, leeTok, "lee@eos.test", "lee-pass-123456");
   const wl = W(L);
   wl.people.find((p) => p.id === "p_owner").accountId = "";
@@ -139,7 +139,7 @@ async function main() {
 
   // B. Mia owns two desks; Lu owns a third, where Mia is a helper.
   const M1 = "eos-mia-one";
-  const miaTok = await open(M1, "Mia", "3131", "mia@eos.test");
+  const miaTok = await open(M1, "Mia", "3131", "");
   await setPw(M1, miaTok, "mia@eos.test", "mia-pass-123456");
   const mia = acctBy("mia@eos.test");
   const M2 = "eos-mia-two";

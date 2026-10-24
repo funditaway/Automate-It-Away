@@ -47,8 +47,8 @@ async function main() {
   await lib.ready();
 
   const A = "soa-ann", D = "soa-ann-two", B = "soa-bea", G = "soa-gus";
-  async function open(slug, name, pin, email, tok) {
-    const r = await call(auth, "POST", Object.assign({ "x-workspace": slug }, tok ? { "x-session": tok } : {}), { action: "open", slug, biz: slug, name, pin, email });
+  async function open(slug, name, pin, email, tok, password) {
+    const r = await call(auth, "POST", Object.assign({ "x-workspace": slug }, tok ? { "x-session": tok } : {}), Object.assign({ action: "open", slug, biz: slug, name, pin, email }, password ? { password } : {}));
     const t = r.body && r.body.session && r.body.session.token;
     if (r.statusCode !== 201 || !t) throw new Error("open " + slug + " " + r.statusCode + " " + JSON.stringify(r.body));
     return t;
@@ -297,7 +297,7 @@ async function main() {
   // may let his session act as Zed. Only a session from Zed's own sign-in proves Zed.
   const acch = require(path.join(root, "api/_account-http"));
   const Z = "soa-zed", Y = "soa-yan";
-  const zedTok = await open(Z, "Zed", "2323", "zed@x.test");
+  const zedTok = await open(Z, "Zed", "2323", "zed@x.test", null, "zed-pass-1234");
   const yanTok = await open(Y, "Yan", "2424", "yan@x.test");
   const wsZ = W(Z), wsY = W(Y), acctZ = wsZ.accountId;
   const zAcc = lib.mem.accounts.find((a) => a.id === acctZ);
@@ -330,8 +330,10 @@ async function main() {
   const asZed = await call(auth, "POST", {}, { action: "login", email: "zed@x.test", password: "carl-pass-9999" });
   ok(asZed.statusCode !== 200, "[third] no email login as Zed (" + asZed.statusCode + ")");
   // Zed himself: his own sign-in still works and still proves him.
-  const zp = await call(auth, "POST", { "x-workspace": Z, "x-session": zedTok }, { action: "password", password: "zed-pass-1234" });
-  ok(zp.statusCode === 200 && !!zAcc.password, "[third legit] Zed sets his own password from his own session");
+  // Zed set his password when he opened Z. His desk-open session is a desk-code session: it cannot
+  // change the password now that one is on file (#370: every account write needs a password sign-in).
+  const zp = await call(auth, "POST", { "x-workspace": Z, "x-session": zedTok }, { action: "password", password: "zed-pass-0000" });
+  ok(zp.statusCode === 403 && zp.body && zp.body.signIn === true && require(path.join(root, "api/_account")).passwordMatches(zAcc.password, "zed-pass-1234"), "[third legit] Zed's desk-code session cannot change his password: sign in again, password unchanged (" + zp.statusCode + ")");
   const ze = await call(auth, "POST", {}, { action: "login", email: "zed@x.test", password: "zed-pass-1234" });
   const zet = ze.body && ze.body.session && ze.body.session.token;
   ok(ze.statusCode === 200 && ownerOn(zet, Z), "[third legit] Zed's email login is owner on Z");
@@ -418,8 +420,11 @@ async function main() {
   const nut = nu.body && nu.body.session && nu.body.session.token;
   const nuRow = lib.mem.sessions.find((x) => x && x.workspace === "soa-new");
   ok(nu.statusCode === 201 && nuRow && nuRow.proof === "" && ownerOn(nut, "soa-new"), "[pin open-new] new desk session has no proof and is owner of its own desk");
+  // Nia opened with an email and no password: her desk code cannot set a first password (only an
+  // account with neither may claim both at once). Documents the email-but-no-password state (#370).
+  const nuAcc = lib.mem.accounts.find((a) => a && a.id === (lib.mem.workspaces.find((w) => w && w.slug === "soa-new") || {}).accountId);
   const nuPw = await call(auth, "POST", { "x-workspace": "soa-new", "x-session": nut }, { action: "password", password: "nia-pass-1234" });
-  ok(nuPw.statusCode === 200, "[pin open-new] the owner still sets her own desk account's password (" + nuPw.statusCode + ")");
+  ok(nuPw.statusCode === 403 && nuPw.body && nuPw.body.signIn === true && nuPw.body.error === "Sign in again to change your account." && nuAcc && !nuAcc.password && nuAcc.email === "nia@x.test", "[pin open-new] email on file, no password: the desk code's password set is exactly 403 sign in again, nothing written (" + nuPw.statusCode + ")");
   for (const [tag, slug, pin, owner] of [["owner", "soa-new", "2929", true], ["helper Carl", A, "2626", false]]) {
     const op = await call(auth, "POST", { "x-proof": "password" }, { action: "open", slug, biz: slug, pin, proof: "password" });
     const r0 = lib.mem.sessions[0];
@@ -462,6 +467,12 @@ async function main() {
     const hh = await homeOwned(hd);
     ok(hh.length === 0, "[325 account home helper " + tag + "] a helper's /api/account desksOwned lists none of Ann's desks (got " + JSON.stringify(hh) + ")");
   }
+  // Since #370's sign-in-again 403, GET /api/account stops Lyn's code and session before any desk list
+  // is built. POST /api/account login with her desk code still builds a home for her seat (a member
+  // login): it must list none of Ann's desks either.
+  const lynLogin = await call(acch, "POST", {}, { action: "login", slug: A, pin: "3535" }, {}, "/api/account");
+  const lynLoginOwned = ((lynLogin.body && lynLogin.body.desksOwned) || []).map((c) => c.slug);
+  ok(lynLogin.statusCode === 200 && lynLoginOwned.length === 0, "[325 account home helper Lyn login by desk code] the member login's home lists none of Ann's desks (" + lynLogin.statusCode + " owned " + JSON.stringify(lynLoginOwned) + ")");
   // POST /api/admin "mine" uses the same hint as /api/desks mine: the seat's own id on this desk,
   // and only the account its own sign-in proved. A helper with no proven account is still a member
   // of the desk she sits on; a seat holding Ann's account owns none of Ann's desks.
