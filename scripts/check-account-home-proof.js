@@ -210,9 +210,9 @@ const MUTANTS = [
   ["S1 unfiltered session list without an account id", "api/_account-http.js", "typeof lib.listSessions === \"function\" && acc && acc.id\n", "typeof lib.listSessions === \"function\"\n"],
   ["S2 session list for an account object with no id", "api/_account-http.js", "typeof lib.listSessions === \"function\" && acc && acc.id\n", "typeof lib.listSessions === \"function\" && acc\n"],
   ["A1 admin mine back to the raw seat hint", "api/admin.js", "fn(plans.listHint(person, homeAccount(person, row, req), row.slug))", "fn({ id: person.id, name: person.name, email: person.email, pin: person.pin, accountId: person.accountId })"],
-  ["A2 admin mine without the request (no proven account)", "api/admin.js", "homeAccount(person, row, req), row.slug))", "homeAccount(person, row), row.slug))"],
+  ["A2 admin mine without the request (no proven account)", "api/admin.js", "const mine = fn(plans.listHint(person, homeAccount(person, row, req), row.slug))", "const mine = fn(plans.listHint(person, homeAccount(person, row), row.slug))"],
   ["A3 admin mine with the desk owner's account", "api/admin.js", "fn(plans.listHint(person, homeAccount(person, row, req), row.slug))", "fn(plans.listHint(person, accountForDesk(row), row.slug))"],
-  ["A4 admin mine without the slug (equivalent: listHint finds the seat's own desk by reference)", "api/admin.js", "homeAccount(person, row, req), row.slug))", "homeAccount(person, row, req)))", true]
+  ["A4 admin mine without the slug (equivalent: listHint finds the seat's own desk by reference)", "api/admin.js", "const mine = fn(plans.listHint(person, homeAccount(person, row, req), row.slug))", "const mine = fn(plans.listHint(person, homeAccount(person, row, req)))", true]
 ];
 function runMutants() {
   const { spawnSync } = require("child_process");
@@ -228,6 +228,7 @@ function runMutants() {
   for (const [name, file, find, repl, equivalent] of MUTANTS) {
     const p = path.join(dir, file); const orig = fs.readFileSync(p, "utf8");
     if (orig.indexOf(find) < 0) { console.log(name + " | ANCHOR GONE"); bad += 1; continue; }
+    if (orig.indexOf(find) !== orig.lastIndexOf(find)) { console.log(name + " | ANCHOR NOT UNIQUE (would mutate the first match only)"); bad += 1; continue; }
     fs.writeFileSync(p, orig.replace(find, repl));
     const r = run(); fs.writeFileSync(p, orig);
     const first = ((r.stdout || "") + (r.stderr || "")).split("\n").find((l) => l.indexOf("FAIL") === 0) || "";

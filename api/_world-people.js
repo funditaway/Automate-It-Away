@@ -203,10 +203,10 @@ function inviteWorld(row, body, actor) {
   if (typeof lib.deskAccountIdOf === "function" && home.id === lib.deskAccountIdOf(row)) return { ok: false, status: 409, error: "That account owns this desk." };
   const existing = seatOnDesk(row, home);
   if (existing && existing.status === "approved") {
-    return { ok: false, status: 409, error: handleOf(home) + " is already on this desk as " + (existing.kind || "helper") + ".", alreadyOnDesk: true, person: lib.publicPerson(existing) };
+    return { ok: false, status: 409, error: handleOf(home) + " is already on this desk as " + (existing.kind || "helper") + ".", alreadyOnDesk: true, person: lib.viewSeat(lib.publicPerson(existing), existing, actor) };
   }
   if (existing && existing.status === "pending") {
-    return { ok: false, status: 409, error: "Already asked. Waiting on them.", pending: true, person: lib.publicPerson(existing) };
+    return { ok: false, status: 409, error: "Already asked. Waiting on them.", pending: true, person: lib.viewSeat(lib.publicPerson(existing), existing, actor) };
   }
   let made = account.inviteSeat(row, {
     name: displayName(home),

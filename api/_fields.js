@@ -260,13 +260,58 @@ function applyImplement(job, shop, body) {
   job.implementedAt = new Date().toISOString();
   return job;
 }
+// A seat by id, or by name only when exactly one seat has that name. Two same-name seats never
+// share a card: an ambiguous name picks nobody.
+function seatFor(people, want) {
+  const w = String(want || "").trim();
+  if (!w) return null;
+  const list = Array.isArray(people) ? people.filter(Boolean) : [];
+  const byId = list.find((p) => p.id === w);
+  if (byId) return byId;
+  const named = list.filter((p) => String(p.name || "").toLowerCase() === w.toLowerCase());
+  return named.length === 1 ? named[0] : null;
+}
+function seatNameShared(people, seat) {
+  const n = String(seat && seat.name || "").toLowerCase();
+  return !!n && (Array.isArray(people) ? people : []).filter((p) => p && String(p.name || "").toLowerCase() === n).length > 1;
+}
+// Seats on one desk that carry this name (case-insensitive). Used only to tell whether a name is unique.
+function seatsNamed(row, name) {
+  const want = String(name || "").trim().toLowerCase();
+  if (!want) return [];
+  return ((row && row.people) || []).filter((p) => p && String(p.name || "").trim().toLowerCase() === want);
+}
+// Job fields that credit a seat, each with the field that stores that seat's id.
+const JOB_CREDIT = [
+  ["assignee", "assigneeId"],
+  ["whoTapped", "whoTappedId"],
+  ["doneBy", "doneById"]
+];
+function jobSeatIds(job) {
+  const custom = job && job.custom && typeof job.custom === "object" ? job.custom : {};
+  return [custom.personId, job && job.handedTo && job.handedTo.id].concat(JOB_CREDIT.map((f) => job && job[f[1]]))
+    .map((v) => String(v || "")).filter(Boolean);
+}
+// A job counts for this seat by seat id. A legacy job that stores no seat id at all counts by name
+// only when the name is on exactly one seat of that job's desk, and that seat is this one. Exact name, never partial.
+function jobTouchesSeat(job, seat, row) {
+  if (!job || !seat || !seat.id) return false;
+  const ids = jobSeatIds(job);
+  if (ids.length) return ids.indexOf(String(seat.id)) >= 0;
+  const named = seatsNamed(row, seat.name);
+  if (named.length !== 1 || named[0] !== seat) return false;
+  const want = String(seat.name || "").trim().toLowerCase();
+  return [job.assignee, job.handedTo && job.handedTo.name, job.whoTapped, job.doneBy, job.from, job.sentByAgent, job.contactName]
+    .map((v) => String(v || "").trim().toLowerCase()).some((v) => v && v === want);
+}
 function assignIfKnown(job, shop, body) {
   const want = String((body && (body.assignee || body.handTo || body.ai)) || job.assignee || "").trim();
   const people = shop && Array.isArray(shop.people) ? shop.people : [];
-  if (!want) { delete job.assignee; return job; }
-  const whoPerson = people.find((p) => p && (p.id === want || String(p.name || "").toLowerCase() === want.toLowerCase()));
-  if (!whoPerson) { delete job.assignee; return job; }
+  if (!want) { delete job.assignee; delete job.assigneeId; return job; }
+  const whoPerson = seatFor(people, want);
+  if (!whoPerson) { delete job.assignee; delete job.assigneeId; return job; }
   job.assignee = whoPerson.name;
+  job.assigneeId = whoPerson.id || "";
   job.waitingOn = whoPerson.role === "owner" ? "owner" : "helper";
   job.next = "Waiting on " + whoPerson.name + ".";
   return job;
@@ -319,4 +364,4 @@ function addTalk(job, from, text, kind) {
   job.thread = job.thread.slice(-40);
   return job;
 }
-module.exports = { pickFields, mergeFields, PACKS, KINDS, RISKS, DROP_WHO, FAN_OUT_MAX, slugField, defaultFields, ensureFields, addTalk, assignIfKnown, makeCapturedJob, publicField, parseFieldList, addShopField, applyFieldList, ensureCreations, publicCreation, addCreation, customFromText, implementFromText, applyImplement, firstWorkLine, stripListBullet, looksLikeFormBlob, dropListBlob, fanOutItems, fanOutKind, holdCapturedJob, makeFanOutJobs };
+module.exports = { seatFor, seatNameShared, seatsNamed, jobSeatIds, jobTouchesSeat, pickFields, mergeFields, PACKS, KINDS, RISKS, DROP_WHO, FAN_OUT_MAX, slugField, defaultFields, ensureFields, addTalk, assignIfKnown, makeCapturedJob, publicField, parseFieldList, addShopField, applyFieldList, ensureCreations, publicCreation, addCreation, customFromText, implementFromText, applyImplement, firstWorkLine, stripListBullet, looksLikeFormBlob, dropListBlob, fanOutItems, fanOutKind, holdCapturedJob, makeFanOutJobs };
