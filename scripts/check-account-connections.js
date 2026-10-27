@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves My account connections and setup cards on POST /api/account (no network):
 // any kind of account (human, ai, si) lists, connects, and disconnects its own
 // services; "connect" only saves a masked secret or a hook address, status reads

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Mutant runner for scripts/check-account-connections.js (not in the npm test line).
 // Copies the repo (no .git, no node_modules) to a temp dir, applies each mutant
 // below to the api/ files there, runs check-account-connections.js with a
