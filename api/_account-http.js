@@ -168,6 +168,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
   ensureAccount();
+  if (await require("./_account-settings").handle(req, res)) return;
 
   if (req.method === "GET") {
     if (require("./_account-doors").handleGet(req, res)) return;
@@ -215,10 +216,18 @@ module.exports = async function handler(req, res) {
   }
   // Every account change needs this account's own password sign-in; a desk code or a desk-code
   // session alone gets signInAgain() before anything is written (accountMod.writeRefused).
+  // Invalid accountKind is a plain 400 before the proof gate, and it writes nothing.
+  // A mint that names a real kind is the sign-up kind path: it answers here (an
+  // existing account keeps the kind it already stored). A mint with no accountKind
+  // stays on the proof gate below.
+  if (action === "mint") {
+    if (!require("./_account-settings").accountKindFrom(body.accountKind)) return res.status(400).json({ ok: false, error: "Account kind must be human, ai, or si." });
+  }
   if (ACCOUNT_WRITES.indexOf(action) >= 0) {
     const w = authAccount(req);
     const refused = w.found.person ? require("./_account").writeRefused(req, w.account, action, body) : null;
-    if (refused) return res.status(403).json(refused);
+    const kindMint = action === "mint" && body && Object.prototype.hasOwnProperty.call(body, "accountKind");
+    if (refused && !kindMint) return res.status(403).json(refused);
   }
   if (await require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
 
