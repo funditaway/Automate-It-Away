@@ -186,11 +186,16 @@ function writeStop(acc, key, sb) {
   settings.automations[key] = next;
 }
 
+// The frame hangs off the history line for that step (not a new account field).
+// A stop-before change then still touches only that one automation. The line's
+// public view never includes the frame, so a desk code kept for "you left" stays
+// on the server. Non-enumerable pending so a compare of the account cannot see it
+// before the history line is written.
+const PENDING = Symbol.for("aia.undoPending");
 function noteUndo(acc, frame) {
-  if (!acc || !frame) return;
-  if (!Array.isArray(acc.undo)) acc.undo = [];
+  if (!acc || !frame) return null;
   const s = S();
-  acc.undo.unshift({
+  const row = {
     id: "undo_" + crypto.randomBytes(4).toString("hex"),
     at: nowIso(),
     kind: frame.kind,
@@ -205,8 +210,22 @@ function noteUndo(acc, frame) {
     before: frame.before || null,
     person: frame.person || null,
     memberDesk: frame.memberDesk || ""
-  });
-  acc.undo = acc.undo.slice(0, 20);
+  };
+  Object.defineProperty(acc, PENDING, { value: row, writable: true, enumerable: false, configurable: true });
+  return row;
+}
+function takePending(acc) {
+  if (!acc) return null;
+  const row = acc[PENDING] || null;
+  if (row) delete acc[PENDING];
+  return row;
+}
+function topUndo(acc) {
+  const rows = historyRows(acc);
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].undo && !rows[i].undo.done) return rows[i];
+  }
+  return null;
 }
 
 function snap(acc, row) {
@@ -825,7 +844,8 @@ function readActivityOf(res, acc, seat, byHuman, picked) {
 
 async function doUndo(res, acc, person, whoKind, byHuman, seat, preview) {
   const s = S();
-  const frame = Array.isArray(acc.undo) ? acc.undo[0] : null;
+  const host = topUndo(acc);
+  const frame = host && host.undo;
   if (preview) {
     const view = frame
       ? { available: true, kind: frame.kind, label: frame.label }
@@ -876,12 +896,12 @@ async function doUndo(res, acc, person, whoKind, byHuman, seat, preview) {
     }
     what = "Undid leaving " + s.plain(leaveDesk.biz || leaveDesk.name || leaveDesk.slug, 60) + ". Your seat is back. Nothing was deleted.";
   } else {
-    acc.undo = acc.undo.slice(1);
+    host.undo = null;
     s.addHistory(acc, person, "undo", "That step can't be undone. Nothing changed.", whoKind);
     if (!(await commit(acc, shot))) return refuse(res, 503, NOT_SAVED);
     return refuse(res, 409, "That step can't be undone. Nothing changed.");
   }
-  acc.undo = (acc.undo || []).slice(1);
+  host.undo = null;
   s.addHistory(acc, person, "undo", what, whoKind, frame.key || (frame.desk ? "desk:" + frame.desk : ""));
   lib.log("Account", "Undo", "OK", frame.desk || (seat && seat.row && seat.row.slug) || "");
   if (!(await commit(acc, shot))) return refuse(res, 503, NOT_SAVED);
@@ -890,7 +910,7 @@ async function doUndo(res, acc, person, whoKind, byHuman, seat, preview) {
     wrote: true,
     undid: true,
     hint: what,
-    undo: { available: !!(acc.undo && acc.undo.length), kind: acc.undo && acc.undo[0] ? acc.undo[0].kind : "", label: acc.undo && acc.undo[0] ? acc.undo[0].label : "" }
+    undo: { available: !!topUndo(acc), kind: topUndo(acc) ? topUndo(acc).undo.kind : "", label: topUndo(acc) ? topUndo(acc).undo.label : "" }
   }));
 }
 
@@ -976,4 +996,4 @@ async function doExport(req, res, acc, person, whoKind, seat, picked, preview) {
   }));
 }
 
-module.exports = { wants, handle, noteUndo, ACTIONS, NO_ONE, CLOSE_HOLD, RUN_HOLD };
+module.exports = { wants, handle, noteUndo, takePending, ACTIONS, NO_ONE, CLOSE_HOLD, RUN_HOLD };

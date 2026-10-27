@@ -209,6 +209,8 @@ function addHistory(acc, person, section, what, whoKind, ref) {
     what: plain(what, 200)
   };
   if (ref) row.ref = plain(ref, 120);
+  const pending = require("./_account-follow").takePending(acc);
+  if (pending) row.undo = pending;
   const list = historyOf(acc);
   list.unshift(row);
   acc.history = list.slice(0, HISTORY_MAX);
