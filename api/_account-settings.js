@@ -4,8 +4,10 @@
 // Connections and setup cards (connections, connect, connection-secret, disconnect,
 // setup-cards, setup-card, setup-step) live in _account-connect.js and use this
 // file's seat check, seal, and history.
-// Pause, what-this-can-do, activity, undo, and export+close live in
-// _account-follow.js and use the same seat check and history.
+// Pause, what-this-can-do, activity, undo, export+close, and run-on-its-own
+// live in _account-follow.js and use the same seat check and history.
+// Run on its own stays off until AIA_ACCOUNT_SECRETS_KEY is set. The key's
+// value is never returned.
 // The account comes only from the seat the request already proves
 // (X-Session / aia_session cookie, or X-Workspace + X-Pin). Any account id in
 // the body or the query is never used to pick the account.
@@ -318,6 +320,7 @@ function automationSection(acc) {
       const key = autoKey(row.slug, a.kind, a.id);
       const saved = settingsOf(acc).automations[key] || {};
       const run = settingsOf(acc).runs && settingsOf(acc).runs[row.slug];
+      const follow = require("./_account-follow");
       rows.push({
         desk: row.slug,
         kind: a.kind,
@@ -326,15 +329,19 @@ function automationSection(acc) {
         stopBefore: stopBeforeOf(acc, key),
         paused: saved.paused === true,
         deskPaused: !!(run && run.paused === true),
+        runOnItsOwn: follow.liveRun(acc, key, row.slug),
         updatedAt: saved.updatedAt || ""
       });
     });
   });
+  const ready = require("./_account-follow").runReady();
   return {
     available: true,
     stopAndKill: { always: true, canTurnOff: false, note: "Stop and Kill always work. They cannot be switched off." },
-    runOnItsOwn: { available: false },
-    note: "AIA still waits for a person on every card today. These stop-before choices are saved for when run-on-its-own ships.",
+    runOnItsOwn: ready ? { available: true, held: false } : { available: false, held: true },
+    note: ready
+      ? "You can turn run on its own on or off for a desk or one automation. It may run its steps. It still stops before money, deletes, and messaging someone new unless you turned that off for this one. Collect stays HOLD. You still tap Yes, Stop, or Kill. Desk AIs stay drafts."
+      : "AIA still waits for a person on every card today. These stop-before choices are saved for when run-on-its-own ships.",
     items: rows
   };
 }
@@ -460,10 +467,12 @@ function findAutomation(acc, set, desks) {
   return { ok: true, row, hit, kind, id, key: autoKey(row.slug, kind, id) };
 }
 
-// One step an automation wants to take. Never does the step: run-on-its-own is
-// not here yet. AI and SI accounts pause before spend, delete, message-new
-// unless this automation's stop-before is off. Spend is still held by Collect
-// HOLD for every kind. Stop and Kill always go through on the actor's own
+// One step an automation wants to take. This does not send, pay, delete, or
+// charge. AI and SI accounts pause before spend, delete, message-new unless
+// this automation's stop-before is off. Spend is still held by Collect HOLD
+// for every kind. When run on its own is on for this automation, a step that
+// is not paused may run under those rules, and still nothing is sent, deleted,
+// or charged from here. Stop and Kill always go through on the actor's own
 // desk: the desk its seat is on (the default when no desk is named) or a desk
 // its account owns. Any other desk is refused and nothing is written.
 // True when this account has paused that automation, or paused the desk run it sits on.
@@ -508,14 +517,44 @@ function automationStep(acc, body, seatRow) {
     return { ok: false, status: 409, step, paused: false, held: true, done: false, charged: false, record: true,
       error: "Collect stays HOLD. Nothing was charged for " + label + "." };
   }
-  return { ok: true, status: 200, step, paused: false, held: false, done: false, charged: false,
+  const running = require("./_account-follow").liveRun(acc, found.key, found.row.slug);
+  const savedStop = acc.settings && acc.settings.automations && acc.settings.automations[found.key];
+  const stopOn = !(savedStop && savedStop.stopBefore && savedStop.stopBefore[PAUSE_STEPS[step]] === false);
+  if (running && stopOn) {
+    return { ok: false, status: 409, step, paused: true, held: false, done: false, charged: false, record: true,
+      error: "It stops before " + words + " for " + label + ". Nothing was sent, deleted, or charged." };
+  }
+  const out = { ok: true, status: 200, step, paused: false, held: false, done: false, charged: false,
     reply: "Not paused for " + label + ". Run on its own is not here yet, so a person still taps on the card." };
+  if (running) {
+    out.runOnItsOwn = true;
+    out.reply = "This step may run for " + label + ". Nothing was sent, deleted, or charged. Collect stays HOLD. You still tap Yes, Stop, or Kill.";
+  }
+  return out;
 }
 
 function applyAutomation(acc, set, opts) {
   if (touchesStopKill(set)) return { ok: false, status: 400, error: "Stop and Kill always work. They cannot be switched off." };
   if (set.runOnItsOwn != null || set.auto != null || set.autoRun != null) {
-    return { ok: false, status: 409, error: "Run on its own is not here yet. Nothing was changed." };
+    const follow = require("./_account-follow");
+    const names = ["runOnItsOwn", "auto", "autoRun"].filter((k) => set[k] != null);
+    const odd = Object.keys(set).filter((k) => ["desk", "kind", "id", "runOnItsOwn", "auto", "autoRun"].indexOf(k) < 0);
+    const shapeOk = names.length === 1 && typeof set[names[0]] === "boolean" && !odd.length;
+    if (!shapeOk) {
+      if (!follow.runReady()) return { ok: false, status: 409, error: "Run on its own is not here yet. Nothing was changed." };
+      if (names.length !== 1 || typeof set[names[0]] !== "boolean") return { ok: false, status: 400, error: "Use true or false. Nothing was changed." };
+      return { ok: false, status: 400, error: "Turn run on its own on or off by itself. Nothing else was changed." };
+    }
+    const scope = (set.kind || set.id) ? "automation" : "desk";
+    return follow.stageRun(acc, {
+      desk: set.desk,
+      kind: str(set.kind).toLowerCase(),
+      id: str(set.id).slice(0, 80),
+      on: set[names[0]],
+      scope: scope,
+      byHuman: !!(opts && opts.byHumanOwner),
+      desks: opts && opts.desks
+    });
   }
   if (set.stopBefore != null) {
     if (typeof set.stopBefore !== "object" || Array.isArray(set.stopBefore)) return { ok: false, status: 400, error: "stopBefore must list money, deletes, or messageNew." };
@@ -557,6 +596,8 @@ function applyAutomation(acc, set, opts) {
     nextAuto.paused = true;
     if (prev.pausedAt) nextAuto.pausedAt = prev.pausedAt;
   }
+  if (prev.runOnItsOwn === true) nextAuto.runOnItsOwn = true;
+  else if (prev.runOnItsOwn === false) nextAuto.runOnItsOwn = false;
   all[key] = nextAuto;
   if (words.length) {
     require("./_account-follow").noteUndo(acc, {

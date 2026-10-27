@@ -5,15 +5,25 @@
 // The account is always the proved seat (same ownSeat as settings and connections).
 // A stranger, a waiting seat, a Desk AI seat, or another account id gets the
 // same "Nothing like that for this sign-in." Create Desk AIs stay drafts.
-// Run on its own stays off. Collect stays HOLD. Nothing here charges, sends,
-// deletes an account, or turns Stop and Kill off.
+// Run on its own is a switch for one desk or one automation. It stays off, and
+// a write that would turn it on is refused, until AIA_ACCOUNT_SECRETS_KEY is
+// set. With that key, the proved account can turn it on or off. It may then
+// run its steps. It still stops before money, deletes, and messaging someone
+// new unless that stop was turned off for this one. Collect stays HOLD.
+// Nothing here charges, sends, or messages someone new. Stop and Kill stay on.
 const crypto = require("crypto");
 const lib = require("./_lib");
 
-const ACTIONS = ["pause", "unpause", "can-do", "activity", "undo", "export-close"];
-const GET_FLAGS = ["pause", "can", "activity", "undo", "exportClose"];
+const ACTIONS = ["pause", "unpause", "can-do", "activity", "undo", "export-close", "run"];
+const GET_FLAGS = ["pause", "can", "activity", "undo", "exportClose", "run"];
 const NO_ONE = "Nothing like that for this sign-in.";
 const RUN_HOLD = "Run on its own is not here yet. Nothing was changed.";
+const RUN_ALONE = "Turn run on its own on or off by itself. Nothing else was changed.";
+const RUN_LIVE_LINE = "It may run its steps. It still stops before money, deletes, and messaging someone new unless you turned that off for this one.";
+const RUN_ON_HINT = "On. It may run its steps. It still stops before money, deletes, and messaging someone new unless you turned that off for this one. Collect stays HOLD. Nothing is charged. You still tap Yes, Stop, or Kill. Desk AIs stay drafts.";
+const RUN_OFF_HINT = "Off. It does not run on its own. You still tap Yes, Stop, or Kill. Desk AIs stay drafts. Collect stays HOLD. Nothing is charged.";
+const RUN_HELD_NOTE = "Run on its own is not here yet. Nothing runs on its own.";
+const RUN_READY_NOTE = "You can turn this on or off for a desk or one automation. It may run its steps. It still stops before money, deletes, and messaging someone new unless you turned that off for this one. Collect stays HOLD. Nothing is charged. You still tap Yes, Stop, or Kill. Desk AIs stay drafts.";
 const NOT_SAVED = "That did not save. Nothing changed. Try again.";
 const CLOSE_HOLD = "Closing the account stays on hold. Nothing was deleted. Export your book, leave this phone, or leave the desk.";
 const STOP_LINE = "You still tap Yes, Stop, or Kill. Those cannot be switched off.";
@@ -169,9 +179,19 @@ function setItemPaused(acc, key, on) {
 function setDeskPaused(acc, slug, on) {
   const settings = ensureSettings(acc);
   if (!settings.runs || typeof settings.runs !== "object" || Array.isArray(settings.runs)) settings.runs = {};
-  const was = !!(settings.runs[slug] && settings.runs[slug].paused === true);
-  if (on) settings.runs[slug] = { paused: true, pausedAt: nowIso(), updatedAt: nowIso() };
-  else delete settings.runs[slug];
+  const prev = settings.runs[slug] && typeof settings.runs[slug] === "object" && !Array.isArray(settings.runs[slug]) ? settings.runs[slug] : {};
+  const was = prev.paused === true;
+  if (on) {
+    settings.runs[slug] = Object.assign({}, prev, { paused: true, pausedAt: nowIso(), updatedAt: nowIso() });
+  } else {
+    const next = Object.assign({}, prev);
+    delete next.paused;
+    delete next.pausedAt;
+    if (next.runOnItsOwn === true) {
+      next.updatedAt = nowIso();
+      settings.runs[slug] = next;
+    } else delete settings.runs[slug];
+  }
   return was;
 }
 function writeStop(acc, key, sb) {
@@ -183,7 +203,160 @@ function writeStop(acc, key, sb) {
     next.paused = true;
     if (prev.pausedAt) next.pausedAt = prev.pausedAt;
   }
+  if (prev.runOnItsOwn === true) next.runOnItsOwn = true;
+  else if (prev.runOnItsOwn === false) next.runOnItsOwn = false;
   settings.automations[key] = next;
+}
+
+// Live only when the server has AIA_ACCOUNT_SECRETS_KEY (same bar as sealed secrets).
+// The value is never read here and never returned.
+function runReady() {
+  return !!S().secretKey();
+}
+function runFlags(on) {
+  const ready = runReady();
+  return {
+    charged: false,
+    collect: "hold",
+    deleted: false,
+    runOnItsOwn: on === true && ready,
+    available: ready,
+    held: !ready
+  };
+}
+function storedItemRun(acc, key) {
+  const saved = acc && acc.settings && acc.settings.automations && acc.settings.automations[key];
+  if (!saved || typeof saved !== "object") return null;
+  if (saved.runOnItsOwn === true) return true;
+  if (saved.runOnItsOwn === false) return false;
+  return null;
+}
+function readDeskRun(acc, slug) {
+  const run = acc && acc.settings && acc.settings.runs && acc.settings.runs[slug];
+  return !!(run && run.runOnItsOwn === true);
+}
+// The switch the person set. False while the key is missing, even if a value is saved.
+// An automation set off stays off when the desk is on. An automation left unset follows the desk.
+function liveRun(acc, key, slug) {
+  if (!runReady()) return false;
+  if (key) {
+    const item = storedItemRun(acc, key);
+    if (item === true) return true;
+    if (item === false) return false;
+  }
+  return !!(slug && readDeskRun(acc, slug));
+}
+function setItemRun(acc, key, stored) {
+  const settings = ensureSettings(acc);
+  if (!settings.automations || typeof settings.automations !== "object" || Array.isArray(settings.automations)) settings.automations = {};
+  const prev = settings.automations[key] && typeof settings.automations[key] === "object" && !Array.isArray(settings.automations[key]) ? settings.automations[key] : {};
+  const next = Object.assign({}, prev);
+  if (stored === true) next.runOnItsOwn = true;
+  else if (stored === false) next.runOnItsOwn = false;
+  else delete next.runOnItsOwn;
+  next.updatedAt = nowIso();
+  settings.automations[key] = next;
+}
+function setDeskRun(acc, slug, on) {
+  const settings = ensureSettings(acc);
+  if (!settings.runs || typeof settings.runs !== "object" || Array.isArray(settings.runs)) settings.runs = {};
+  const prev = settings.runs[slug] && typeof settings.runs[slug] === "object" && !Array.isArray(settings.runs[slug]) ? settings.runs[slug] : {};
+  const next = Object.assign({}, prev);
+  if (on) next.runOnItsOwn = true;
+  else delete next.runOnItsOwn;
+  next.updatedAt = nowIso();
+  if (next.runOnItsOwn === true || next.paused === true) settings.runs[slug] = next;
+  else delete settings.runs[slug];
+}
+function mayRunOf(hit) {
+  const banned = { send: 1, stop: 1, money: 1, mail: 1, yes: 1, kill: 1, pay: 1, delete: 1, deletes: 1, charge: 1, "message-new": 1, messageNew: 1 };
+  if (!hit) return [];
+  if (hit.kind === "ai" && hit.ai) {
+    const never = {};
+    (Array.isArray(hit.ai.never) ? hit.ai.never : []).forEach((k) => { never[k] = 1; });
+    return (Array.isArray(hit.ai.steps) ? hit.ai.steps : []).filter((step) => STEP_WORDS[step] && !banned[step] && !never[step]);
+  }
+  if (hit.kind === "rule" && hit.rule) {
+    const then = String(hit.rule.then || "").toLowerCase();
+    if (THEN_WORDS[then] && !banned[then]) return [then];
+  }
+  return [];
+}
+function runViewOf(acc, row, hit) {
+  const key = hit ? row.slug + ":" + hit.kind + ":" + hit.id : "";
+  const paused = readPaused(acc, key, row.slug);
+  const on = hit ? liveRun(acc, key, row.slug) : liveRun(acc, "", row.slug);
+  const view = {
+    desk: row.slug,
+    runOnItsOwn: on,
+    paused: hit ? (paused.item || paused.desk) : paused.desk,
+    draftOnly: hit ? hit.kind === "ai" : true
+  };
+  if (hit) {
+    view.kind = hit.kind;
+    view.id = hit.id;
+    view.name = hit.name;
+    view.stops = readStop(acc, key);
+    view.mayRun = on ? mayRunOf(hit) : [];
+  } else view.name = S().plain(row.biz || row.name || row.slug, 80);
+  return view;
+}
+// Saves the switch only. Caller writes history. Refuses while the key is missing.
+function stageRun(acc, spec) {
+  const s = S();
+  spec = spec || {};
+  if (typeof spec.on !== "boolean") return { ok: false, status: 400, error: "Use true or false. Nothing was changed." };
+  const scope = spec.scope === "automation" || spec.scope === "desk" ? spec.scope : ((spec.kind || spec.id) ? "automation" : "desk");
+  const desks = spec.desks || owned(acc);
+  if (!runReady()) {
+    if (scope === "desk") {
+      const slug = lib.slugify(str(spec.desk));
+      if (!desks.find((w) => w && w.slug === slug)) return { ok: false, status: 404, error: NO_ONE };
+    } else if (spec.kind === "rule" || spec.kind === "ai") {
+      const found = findAuto(acc, spec.desk, spec.kind, spec.id, desks);
+      if (!found.ok) return { ok: false, status: found.status, error: found.error };
+    }
+    return { ok: false, status: 409, error: RUN_HOLD, available: false, held: true };
+  }
+  if (scope === "desk") {
+    const slug = lib.slugify(str(spec.desk));
+    const row = desks.find((w) => w && w.slug === slug);
+    if (!row) return { ok: false, status: 404, error: NO_ONE };
+    const was = readDeskRun(acc, row.slug);
+    const name = s.plain(row.biz || row.name || row.slug, 60);
+    if (spec.on && !was && locked(acc) && !spec.byHuman) {
+      return { ok: false, status: 403, error: s.SELF_LOCK, record: "Refused: this " + s.kindOf(acc) + " account tried to turn on run on its own for " + name + ". Nothing changed." };
+    }
+    if (was === spec.on) {
+      return { ok: true, changed: false, on: was && runReady(), scope: "desk", desk: row.slug, draftOnly: true, paused: readPaused(acc, "", row.slug).desk, what: (was ? "Run on its own stays on for " : "Run on its own stays off for ") + name + "." };
+    }
+    setDeskRun(acc, row.slug, spec.on);
+    const what = (spec.on ? "Turned on run on its own for " : "Turned off run on its own for ") + name + ".";
+    noteUndo(acc, { kind: "run", scope: "desk", label: what, desk: row.slug, beforeRun: was });
+    return { ok: true, changed: true, on: spec.on === true, scope: "desk", desk: row.slug, draftOnly: true, paused: readPaused(acc, "", row.slug).desk, what: what, ref: "desk:" + row.slug, hint: spec.on ? RUN_ON_HINT : RUN_OFF_HINT };
+  }
+  if (spec.kind !== "rule" && spec.kind !== "ai") return { ok: false, status: 400, error: "Pick a rule or a Desk AI." };
+  const found = findAuto(acc, spec.desk, spec.kind, spec.id, desks);
+  if (!found.ok) return { ok: false, status: found.status, error: found.error };
+  const stored = storedItemRun(acc, found.key);
+  const deskOn = readDeskRun(acc, found.row.slug);
+  const name = (found.hit.kind === "ai" ? "Desk AI " : "Rule ") + "\"" + found.hit.name + "\" on " + s.plain(found.row.biz || found.row.name || found.row.slug, 60);
+  const turningOn = spec.on === true;
+  const already = turningOn ? stored === true : (stored === false || (stored == null && !deskOn));
+  if (turningOn && stored !== true && locked(acc) && !spec.byHuman) {
+    return { ok: false, status: 403, error: s.SELF_LOCK, record: "Refused: this " + s.kindOf(acc) + " account tried to turn on run on its own for " + name + ". Nothing changed.", ref: found.key };
+  }
+  const paused = readPaused(acc, found.key, found.row.slug);
+  const base = { scope: "automation", desk: found.row.slug, kind: found.hit.kind, id: found.hit.id, name: found.hit.name, draftOnly: found.hit.kind === "ai", paused: paused.item || paused.desk, stops: readStop(acc, found.key), ref: found.key };
+  if (already) {
+    const onNow = liveRun(acc, found.key, found.row.slug);
+    return Object.assign({ ok: true, changed: false, on: onNow, what: (onNow ? "Run on its own stays on for " : "Run on its own stays off for ") + name + ".", mayRun: onNow ? mayRunOf(found.hit) : [] }, base);
+  }
+  setItemRun(acc, found.key, turningOn);
+  const onNow = liveRun(acc, found.key, found.row.slug);
+  const what = (turningOn ? "Turned on run on its own for " : "Turned off run on its own for ") + name + ".";
+  noteUndo(acc, { kind: "run", scope: "item", label: what, desk: found.row.slug, key: found.key, autoKind: found.hit.kind, autoId: found.hit.id, beforeRun: stored });
+  return Object.assign({ ok: true, changed: true, on: onNow, what: what, hint: turningOn ? RUN_ON_HINT : RUN_OFF_HINT, mayRun: onNow ? mayRunOf(found.hit) : [] }, base);
 }
 
 // The frame hangs off the history line for that step (not a new account field).
@@ -211,6 +384,7 @@ function noteUndo(acc, frame) {
     person: frame.person || null,
     memberDesk: frame.memberDesk || ""
   };
+  if (frame.kind === "run") row.beforeRun = frame.beforeRun === true ? true : frame.beforeRun === false ? false : null;
   Object.defineProperty(acc, PENDING, { value: row, writable: true, enumerable: false, configurable: true });
   return row;
 }
@@ -265,15 +439,16 @@ async function commit(acc, shot) {
 function draftOnlyFor(kind, scope) {
   return scope === "desk" || kind === "ai";
 }
-function pauseHint(on, kind, scope) {
+function pauseHint(on, kind, scope, running) {
+  const own = running ? "The run on its own switch stays as you set it. Nothing starts while this is paused." : OWN_LINE;
   const stay = draftOnlyFor(kind, scope) ? " Desk AIs stay drafts." : "";
   if (scope === "desk") {
-    return (on ? "Paused." : "Unpaused.") + stay + " You still tap Yes, Stop, or Kill. " + OWN_LINE;
+    return (on ? "Paused." : "Unpaused.") + stay + " You still tap Yes, Stop, or Kill. " + own;
   }
   if (kind === "ai") {
-    return (on ? "Paused." : "Unpaused.") + " This Desk AI stays a draft. You still tap Yes, Stop, or Kill. " + OWN_LINE;
+    return (on ? "Paused." : "Unpaused.") + " This Desk AI stays a draft. You still tap Yes, Stop, or Kill. " + own;
   }
-  return (on ? "Paused." : "Unpaused.") + " You still tap Yes, Stop, or Kill on each card. " + OWN_LINE;
+  return (on ? "Paused." : "Unpaused.") + " You still tap Yes, Stop, or Kill on each card. " + own;
 }
 function baseFlags(extra) {
   return Object.assign({
@@ -284,13 +459,13 @@ function baseFlags(extra) {
   }, extra || {});
 }
 
-function stopLines(sb) {
+function stopLines(sb, running) {
   const on = [];
   const off = [];
   Object.keys(STOP_WORDS).forEach((k) => { (sb[k] === false ? off : on).push(STOP_WORDS[k]); });
   const lines = [];
   if (on.length) lines.push("It stops before " + on.join(", ") + ".");
-  if (off.length) lines.push("Stop before " + off.join(", ") + " is off for this one. " + COLLECT_LINE + " " + OWN_LINE);
+  if (off.length) lines.push("Stop before " + off.join(", ") + " is off for this one. " + COLLECT_LINE + " " + (running ? RUN_LIVE_LINE : OWN_LINE));
   return lines;
 }
 
@@ -319,11 +494,12 @@ function canAutomation(acc, found) {
     lines.push(then ? "When it matches, it can " + then + "." : "It waits for a person.");
     lines.push("It cannot send, pay, or delete on its own.");
   }
-  stopLines(sb).forEach((line) => lines.push(line));
+  const running = liveRun(acc, found.key, found.row.slug);
+  stopLines(sb, running).forEach((line) => lines.push(line));
   if (paused.item) lines.push("It is paused. Nothing starts from it until you unpause it.");
   else if (paused.desk) lines.push("The desk is paused. Nothing starts from it until you unpause the desk.");
   lines.push(STOP_LINE);
-  lines.push(OWN_LINE);
+  lines.push(running ? RUN_LIVE_LINE : OWN_LINE);
   lines.push(COLLECT_LINE);
   return {
     kind: hit.kind === "ai" ? "automation" : "rule",
@@ -333,7 +509,7 @@ function canAutomation(acc, found) {
     paused: paused.item || paused.desk,
     deskPaused: paused.desk,
     draftOnly: hit.kind === "ai",
-    runOnItsOwn: false,
+    runOnItsOwn: running,
     stopAndKill: STOP_LINE,
     allowed: allowed,
     lines: lines
@@ -530,6 +706,7 @@ function exportMenu() {
 function undoOpens(acc, frame) {
   if (!frame) return false;
   if (frame.kind === "pause") return frame.beforePaused !== true;
+  if (frame.kind === "run") return frame.beforeRun === true;
   if (frame.kind === "close-desk") return frame.beforeClosed !== true;
   if (frame.kind === "stop-before") {
     const cur = readStop(acc, frame.key);
@@ -568,7 +745,10 @@ async function handle(req, res, body) {
   if (!seat.ok) return refuse(res, 404, NO_ONE);
   if (s.askedOther(req, post ? body : q, seat.account)) return refuse(res, 404, NO_ONE);
   if (post && !s.plainBody(body)) return refuse(res, 400, s.BODY_NOT_PLAIN);
-  if (post && holdsRun(body)) return refuse(res, 409, RUN_HOLD);
+  if (post && holdsRun(body) && action !== "run") {
+    if (!runReady()) return refuse(res, 409, RUN_HOLD, runFlags(false));
+    return refuse(res, 400, RUN_ALONE, runFlags(false));
+  }
 
   let acc = seat.account;
   let byHuman = false;
@@ -605,7 +785,8 @@ async function handle(req, res, body) {
       "can-do": ["action", "desk", "kind", "id", "connectionId", "cardId", "jobId", "forSeat"].concat(idOk),
       activity: ["action", "desk", "kind", "id", "connectionId", "cardId", "jobId", "forSeat"].concat(idOk),
       undo: ["action", "forSeat"].concat(idOk),
-      "export-close": ["action", "do", "desk"].concat(idOk)
+      "export-close": ["action", "do", "desk"].concat(idOk),
+      run: ["action", "target", "desk", "kind", "id", "on", "runOnItsOwn", "auto", "autoRun", "forSeat"].concat(idOk)
     }[action] || ["action"];
     const extra = badKeys(body, allowed);
     if (extra) return refuse(res, 400, "Not a field here: " + s.plain(extra.join(", "), 80) + ". Nothing was saved.");
@@ -619,7 +800,8 @@ async function handle(req, res, body) {
   const readActivity = !post && flagOn(req, "activity");
   const readUndo = !post && flagOn(req, "undo");
   const readExport = !post && flagOn(req, "exportClose");
-  const reads = [readPause, readCan, readActivity, readUndo, readExport].filter(Boolean).length;
+  const readRun = !post && flagOn(req, "run");
+  const reads = [readPause, readCan, readActivity, readUndo, readExport, readRun].filter(Boolean).length;
   if (!post && reads !== 1) return refuse(res, 400, "Ask for one thing.");
 
   if (readPause) return readPauseView(res, acc, seat, byHuman, picked);
@@ -631,7 +813,110 @@ async function handle(req, res, body) {
   if (action === "activity" || readActivity) return readActivityOf(res, acc, seat, byHuman, picked);
   if (action === "undo" || readUndo) return doUndo(res, acc, person, whoKind, byHuman, seat, !post);
   if (action === "export-close" || readExport) return doExport(req, res, acc, person, whoKind, seat, picked, !post);
-  return refuse(res, 400, "Ask for pause, what this can do, activity, undo, or export and close.");
+  if (action === "run" || readRun) return doRun(res, acc, person, whoKind, byHuman, seat, body, picked, post);
+  return refuse(res, 400, "Ask for pause, what this can do, activity, undo, export and close, or run on its own.");
+}
+
+function parseOn(body) {
+  const names = ["on", "runOnItsOwn", "auto", "autoRun"].filter((k) => Object.prototype.hasOwnProperty.call(body || {}, k));
+  if (!names.length) return { bad: "Say on true or false. Nothing was changed." };
+  if (names.some((k) => typeof body[k] !== "boolean")) return { bad: "Use true or false. Nothing was changed." };
+  if (names.some((k) => body[k] !== body[names[0]])) return { bad: "Say run on its own once, as true or false. Nothing was changed." };
+  return { on: body[names[0]] === true };
+}
+function runReply(made, wrote) {
+  const on = made.on === true && runReady();
+  const body = Object.assign({
+    ok: true,
+    wrote: wrote === true,
+    changed: made.changed === true,
+    draftOnly: made.draftOnly === true,
+    target: made.scope === "desk" ? "desk" : "automation",
+    desk: made.desk || "",
+    paused: made.paused === true,
+    stopAndKill: STOP_LINE,
+    hint: made.changed ? (made.hint || (on ? RUN_ON_HINT : RUN_OFF_HINT)) : (made.what || ""),
+    note: runReady() ? RUN_READY_NOTE : RUN_HELD_NOTE,
+    mayRun: on ? (made.mayRun || []) : []
+  }, runFlags(on));
+  if (made.kind) body.kind = made.kind;
+  if (made.id) body.id = made.id;
+  if (made.name) body.name = made.name;
+  if (made.stops) body.stops = made.stops;
+  return body;
+}
+function readRunView(res, acc, seat, byHuman, picked) {
+  const ready = runReady();
+  const note = ready ? RUN_READY_NOTE : RUN_HELD_NOTE;
+  const shell = { available: ready, held: !ready, note: note, stopAndKill: STOP_LINE, collect: "hold" };
+  if (picked.kind || picked.id) {
+    if (picked.kind !== "rule" && picked.kind !== "ai") return refuse(res, 400, "Pick a rule or a Desk AI.");
+    const row = deskFor(acc, seat, byHuman, picked.desk);
+    if (!row) return refuse(res, 404, NO_ONE);
+    const found = findAuto(acc, picked.desk, picked.kind, picked.id, [row]);
+    if (!found.ok) return refuse(res, found.status, found.error);
+    const item = runViewOf(acc, found.row, found.hit);
+    return res.status(200).json(Object.assign({ ok: true, wrote: false, run: Object.assign({ draftOnly: item.draftOnly, item: item }, shell) }, runFlags(item.runOnItsOwn)));
+  }
+  if (picked.desk) {
+    const row = deskFor(acc, seat, byHuman, picked.desk);
+    if (!row) return refuse(res, 404, NO_ONE);
+    const desk = runViewOf(acc, row, null);
+    const items = listAutos(row).map((hit) => runViewOf(acc, row, hit));
+    return res.status(200).json(Object.assign({ ok: true, wrote: false, run: Object.assign({ desk: desk, items: items }, shell) }, runFlags(desk.runOnItsOwn)));
+  }
+  const desks = scopeDesks(acc, seat, byHuman);
+  const deskViews = desks.map((row) => runViewOf(acc, row, null));
+  const items = [];
+  desks.forEach((row) => listAutos(row).forEach((hit) => items.push(runViewOf(acc, row, hit))));
+  return res.status(200).json(Object.assign({ ok: true, wrote: false, run: Object.assign({ desks: deskViews, items: items }, shell) }, runFlags(false)));
+}
+async function writeRun(res, acc, person, whoKind, spec) {
+  const s = S();
+  const shot = snap(acc, null);
+  const made = stageRun(acc, spec);
+  if (!made.ok && made.record) {
+    s.addHistory(acc, person, "automations", made.record, whoKind, made.ref || "");
+    if (!(await commit(acc, shot))) return refuse(res, 503, NOT_SAVED);
+    return refuse(res, made.status || 403, made.error, runFlags(false));
+  }
+  if (!made.ok) {
+    restore(acc, shot);
+    if ((made.status || 400) === 404) return refuse(res, 404, made.error || NO_ONE);
+    return refuse(res, made.status || 400, made.error || RUN_HOLD, runFlags(false));
+  }
+  if (!made.changed) {
+    restore(acc, shot);
+    return res.status(200).json(runReply(made, false));
+  }
+  s.addHistory(acc, person, "automations", made.what, whoKind, made.ref || "");
+  lib.log("Account", made.on ? "Run on its own on" : "Run on its own off", "OK", made.desk || "");
+  if (!(await commit(acc, shot))) return refuse(res, 503, NOT_SAVED);
+  return res.status(200).json(runReply(made, true));
+}
+async function doRun(res, acc, person, whoKind, byHuman, seat, body, picked, post) {
+  if (!post) return readRunView(res, acc, seat, byHuman, picked);
+  const parsed = parseOn(body);
+  if (parsed.bad) {
+    if (!runReady()) return refuse(res, 409, RUN_HOLD, runFlags(false));
+    return refuse(res, 400, parsed.bad, runFlags(false));
+  }
+  const scope = (picked.target || (picked.kind || picked.id ? "automation" : "")).toLowerCase();
+  if (scope !== "automation" && scope !== "desk") {
+    if (!runReady()) return refuse(res, 409, RUN_HOLD, runFlags(false));
+    return refuse(res, 400, "Say what to set: an automation, or the desk.");
+  }
+  const row = deskFor(acc, seat, byHuman, picked.desk);
+  if (!row) return refuse(res, 404, NO_ONE);
+  if (scope === "automation") {
+    if (picked.kind !== "rule" && picked.kind !== "ai") {
+      if (!runReady()) return refuse(res, 409, RUN_HOLD, runFlags(false));
+      return refuse(res, 400, "Pick a rule or a Desk AI.");
+    }
+    const found = findAuto(acc, picked.desk, picked.kind, picked.id, [row]);
+    if (!found.ok) return refuse(res, found.status, found.error);
+  }
+  return writeRun(res, acc, person, whoKind, { desk: picked.desk, kind: picked.kind, id: picked.id, on: parsed.on, scope: scope, byHuman: byHuman, desks: [row] });
 }
 
 function readPauseView(res, acc, seat, byHuman, picked) {
@@ -651,7 +936,7 @@ function readPauseView(res, acc, seat, byHuman, picked) {
         items.push({
           desk: row.slug, kind: hit.kind, id: hit.id, name: hit.name,
           paused: paused.item || paused.desk, deskPaused: paused.desk,
-          draftOnly: hit.kind === "ai", runOnItsOwn: false
+          draftOnly: hit.kind === "ai", runOnItsOwn: liveRun(acc, key, row.slug)
         });
       });
     });
@@ -664,7 +949,7 @@ function readPauseView(res, acc, seat, byHuman, picked) {
     return res.status(200).json(baseFlags({
       ok: true, wrote: false, pause: {
         target: "desk", desk: deskRow.slug, paused: paused, draftOnly: true,
-        runOnItsOwn: false, stopAndKill: STOP_LINE, hint: pauseHint(paused, "ai", "desk")
+        runOnItsOwn: liveRun(acc, "", deskRow.slug), stopAndKill: STOP_LINE, hint: pauseHint(paused, "ai", "desk", liveRun(acc, "", deskRow.slug))
       }
     }));
   }
@@ -676,8 +961,8 @@ function readPauseView(res, acc, seat, byHuman, picked) {
     ok: true, wrote: false, pause: {
       target: "automation", desk: found.row.slug, kind: found.hit.kind, id: found.hit.id, name: found.hit.name,
       paused: paused.item || paused.desk, itemPaused: paused.item, deskPaused: paused.desk,
-      draftOnly: found.hit.kind === "ai", runOnItsOwn: false, stopAndKill: STOP_LINE,
-      hint: pauseHint(paused.item || paused.desk, found.hit.kind, "automation")
+      draftOnly: found.hit.kind === "ai", runOnItsOwn: liveRun(acc, found.key, found.row.slug), stopAndKill: STOP_LINE,
+      hint: pauseHint(paused.item || paused.desk, found.hit.kind, "automation", liveRun(acc, found.key, found.row.slug))
     }
   }));
 }
@@ -694,7 +979,7 @@ async function writePause(res, acc, person, whoKind, byHuman, seat, picked, turn
     if (was === turningOn) {
       return res.status(200).json(baseFlags({
         ok: true, wrote: false, changed: false, paused: was, target: "desk", desk: deskRow.slug,
-        draftOnly: true, stopAndKill: STOP_LINE, hint: pauseHint(was, "ai", "desk")
+        draftOnly: true, stopAndKill: STOP_LINE, hint: pauseHint(was, "ai", "desk", liveRun(acc, "", deskRow.slug))
       }));
     }
     if (!turningOn && locked(acc) && !byHuman) {
@@ -710,7 +995,7 @@ async function writePause(res, acc, person, whoKind, byHuman, seat, picked, turn
     if (!(await commit(acc, shot))) return refuse(res, 503, NOT_SAVED);
     return res.status(200).json(baseFlags({
       ok: true, wrote: true, changed: true, paused: turningOn, target: "desk", desk: deskRow.slug,
-      draftOnly: true, stopAndKill: STOP_LINE, hint: pauseHint(turningOn, "ai", "desk")
+      draftOnly: true, stopAndKill: STOP_LINE, hint: pauseHint(turningOn, "ai", "desk", liveRun(acc, "", deskRow.slug))
     }));
   }
   if (picked.kind !== "rule" && picked.kind !== "ai") return refuse(res, 400, "Pick a rule or a Desk AI.");
@@ -723,7 +1008,7 @@ async function writePause(res, acc, person, whoKind, byHuman, seat, picked, turn
     return res.status(200).json(baseFlags({
       ok: true, wrote: false, changed: false, paused: was || readPaused(acc, found.key, found.row.slug).desk,
       target: "automation", desk: found.row.slug, kind: found.hit.kind, id: found.hit.id,
-      draftOnly: found.hit.kind === "ai", stopAndKill: STOP_LINE, hint: pauseHint(was, found.hit.kind, "automation")
+      draftOnly: found.hit.kind === "ai", stopAndKill: STOP_LINE, hint: pauseHint(was, found.hit.kind, "automation", liveRun(acc, found.key, found.row.slug))
     }));
   }
   if (!turningOn && locked(acc) && !byHuman) {
@@ -744,7 +1029,7 @@ async function writePause(res, acc, person, whoKind, byHuman, seat, picked, turn
   return res.status(200).json(baseFlags({
     ok: true, wrote: true, changed: true, paused: still.item || still.desk, itemPaused: still.item, deskPaused: still.desk,
     target: "automation", desk: found.row.slug, kind: found.hit.kind, id: found.hit.id,
-    draftOnly: found.hit.kind === "ai", stopAndKill: STOP_LINE, hint: pauseHint(turningOn, found.hit.kind, "automation")
+    draftOnly: found.hit.kind === "ai", stopAndKill: STOP_LINE, hint: pauseHint(turningOn, found.hit.kind, "automation", liveRun(acc, found.key, found.row.slug))
   }));
 }
 
@@ -881,6 +1166,19 @@ async function doUndo(res, acc, person, whoKind, byHuman, seat, preview) {
     if (!found.ok) return refuse(res, 409, "That step can't be undone. Nothing changed.");
     writeStop(acc, found.key, frame.before);
     what = "Undid: " + frame.label;
+  } else if (frame.kind === "run") {
+    if (frame.scope === "desk") {
+      if (!ownedDesk) return refuse(res, 409, "That step can't be undone. Nothing changed.");
+      setDeskRun(acc, ownedDesk.slug, frame.beforeRun === true);
+      what = "Undid: " + frame.label;
+    } else {
+      if (!ownedDesk) return refuse(res, 409, "That step can't be undone. Nothing changed.");
+      const found = findAuto(acc, frame.desk, frame.autoKind, frame.autoId, [ownedDesk]);
+      if (!found.ok) return refuse(res, 409, "That step can't be undone. Nothing changed.");
+      const back = frame.beforeRun === true ? true : frame.beforeRun === false ? false : null;
+      setItemRun(acc, found.key, back);
+      what = "Undid: " + frame.label;
+    }
   } else if (frame.kind === "close-desk") {
     if (!ownedDesk) return refuse(res, 409, "That step can't be undone. Nothing changed.");
     require("./_desk").setDeskClosed(ownedDesk, frame.beforeClosed === true);
@@ -996,4 +1294,4 @@ async function doExport(req, res, acc, person, whoKind, seat, picked, preview) {
   }));
 }
 
-module.exports = { wants, handle, noteUndo, takePending, ACTIONS, NO_ONE, CLOSE_HOLD, RUN_HOLD };
+module.exports = { wants, handle, noteUndo, takePending, stageRun, runReady, liveRun, ACTIONS, NO_ONE, CLOSE_HOLD, RUN_HOLD };
