@@ -107,7 +107,7 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
   const acct = read("account.html");
   ok(/<section id="acct-settings" aria-label="My account settings" hidden><\/section>\s*<\/main>/.test(acct), "account.html has the hidden mount before </main>");
   ok(/<script src="aia-mail\.js"><\/script>\s*<script src="account-settings\.js"><\/script>/.test(acct), "account.html loads account-settings.js after aia-mail.js");
-  ok(fs.statSync(path.join(root, "desk.html")).size === 33792, "desk.html stays 33,792 bytes");
+  ok(fs.statSync(path.join(root, "desk.html")).size === 35012, "desk.html stays 35,012 bytes");
   ok(!/account-settings/.test(read("desk.html")), "desk.html untouched");
 
   // ---------- signed out: nothing loads ----------

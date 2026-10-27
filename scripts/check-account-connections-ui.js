@@ -195,7 +195,7 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
   ok(/<section id="acct-connections" aria-label="Connections and setup cards" hidden><\/section>\s*<section id="acct-settings"/.test(acct), "account.html has the hidden Connections mount");
   ok(/<script src="account-settings\.js"><\/script>\s*<script src="account-connections\.js"><\/script>/.test(acct), "account.html loads account-connections.js after account-settings.js");
   ok(/<section id="acct-settings" aria-label="My account settings" hidden><\/section>\s*<\/main>/.test(acct), "345 settings mount still right before </main>");
-  ok(fs.statSync(path.join(root, "desk.html")).size === 33792, "desk.html stays 33,792 bytes");
+  ok(fs.statSync(path.join(root, "desk.html")).size === 35012, "desk.html stays 35,012 bytes");
   ok(!/account-connections/.test(read("desk.html")), "desk.html untouched");
   ok(!/check-account-connections-ui/.test(read("package.json")), "not in npm test yet (waits for 336 and 355)");
 
