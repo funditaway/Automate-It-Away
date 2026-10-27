@@ -4,6 +4,8 @@
 // Connections and setup cards (connections, connect, connection-secret, disconnect,
 // setup-cards, setup-card, setup-step) live in _account-connect.js and use this
 // file's seat check, seal, and history.
+// Pause, what-this-can-do, activity, undo, and export+close live in
+// _account-follow.js and use the same seat check and history.
 // The account comes only from the seat the request already proves
 // (X-Session / aia_session cookie, or X-Workspace + X-Pin). Any account id in
 // the body or the query is never used to pick the account.
@@ -197,7 +199,7 @@ function historyView(acc) {
   return (Array.isArray(acc.history) ? acc.history : []).filter((h) => h && typeof h === "object" && !Array.isArray(h));
 }
 
-function addHistory(acc, person, section, what, whoKind) {
+function addHistory(acc, person, section, what, whoKind, ref) {
   const stamp = stampWho(person, null, acc);
   const row = {
     at: new Date().toISOString(),
@@ -206,6 +208,9 @@ function addHistory(acc, person, section, what, whoKind) {
     section: section,
     what: plain(what, 200)
   };
+  if (ref) row.ref = plain(ref, 120);
+  const pending = require("./_account-follow").takePending(acc);
+  if (pending) row.undo = pending;
   const list = historyOf(acc);
   list.unshift(row);
   acc.history = list.slice(0, HISTORY_MAX);
@@ -312,7 +317,17 @@ function automationSection(acc) {
     automationsOf(row).forEach((a) => {
       const key = autoKey(row.slug, a.kind, a.id);
       const saved = settingsOf(acc).automations[key] || {};
-      rows.push({ desk: row.slug, kind: a.kind, id: a.id, name: a.name, stopBefore: stopBeforeOf(acc, key), updatedAt: saved.updatedAt || "" });
+      const run = settingsOf(acc).runs && settingsOf(acc).runs[row.slug];
+      rows.push({
+        desk: row.slug,
+        kind: a.kind,
+        id: a.id,
+        name: a.name,
+        stopBefore: stopBeforeOf(acc, key),
+        paused: saved.paused === true,
+        deskPaused: !!(run && run.paused === true),
+        updatedAt: saved.updatedAt || ""
+      });
     });
   });
   return {
@@ -354,7 +369,7 @@ function settingsReply(acc, person) {
       look: { available: true, theme: THEMES.indexOf(s.look.theme) >= 0 ? s.look.theme : "system", themes: THEMES.slice() },
       secrets: { available: !!secretKey(), items: publicSecrets(acc), max: SECRET_MAX },
       connections: { available: true, items: require("./_account-connect").publicConnections(acc), setupCards: Array.isArray(acc.setupCards) ? acc.setupCards.length : 0, note: "Saved here only. AIA does not sign in to these services." },
-      history: historyView(acc).slice(0, HISTORY_SHOW).map((h) => Object.assign({ at: h.at, who: h.who, section: h.section, what: h.what }, h.whoKind ? { whoKind: h.whoKind } : {}))
+      history: historyView(acc).slice(0, HISTORY_SHOW).map((h) => Object.assign({ at: h.at, who: h.who, section: h.section, what: h.what }, h.whoKind ? { whoKind: h.whoKind } : {}, h.ref ? { ref: h.ref } : {}))
     }
   };
 }
@@ -451,6 +466,15 @@ function findAutomation(acc, set, desks) {
 // HOLD for every kind. Stop and Kill always go through on the actor's own
 // desk: the desk its seat is on (the default when no desk is named) or a desk
 // its account owns. Any other desk is refused and nothing is written.
+// True when this account has paused that automation, or paused the desk run it sits on.
+// Reads only. Does not create settings.
+function heldByPerson(acc, found) {
+  const settings = acc && acc.settings;
+  const saved = settings && settings.automations && found && settings.automations[found.key];
+  const run = settings && settings.runs && found && found.row && settings.runs[found.row.slug];
+  return !!((saved && saved.paused === true) || (run && run.paused === true));
+}
+
 function onOwnDesk(acc, body, seatRow) {
   const named = body.desk != null && body.desk !== "";
   const slug = named ? lib.slugify(str(body.desk)) : (seatRow && seatRow.slug) || "";
@@ -471,6 +495,11 @@ function automationStep(acc, body, seatRow) {
   const kind = kindOf(acc);
   const label = (found.kind === "ai" ? "Desk AI " : "rule ") + "\"" + plain(found.hit.name, 60) + "\" on " + plain(found.row.biz || found.row.name || found.row.slug, 60);
   const words = step === "spend" ? "spending money" : step === "delete" ? "deleting something" : "messaging someone new";
+  // A person paused this automation or the desk run. Stop and Kill already returned above.
+  if (heldByPerson(acc, found)) {
+    return { ok: false, status: 409, step, paused: true, held: false, done: false, charged: false, record: true,
+      error: "Paused. " + label + " is paused. Nothing was done. You still tap Yes, Stop, or Kill." };
+  }
   if (needsPause(kind, settingsOf(acc).automations[found.key], step)) {
     return { ok: false, status: 409, step, paused: true, held: false, done: false, charged: false, record: true,
       error: "Paused before " + words + " for " + label + ". This " + kind + " account waits for the owner. Nothing was done." };
@@ -515,12 +544,32 @@ function applyAutomation(acc, set, opts) {
   if (offs.length && selfLocked(acc) && !(opts && opts.byHumanOwner)) {
     return { ok: false, status: 403, error: SELF_LOCK, record: "Refused: this " + kindOf(acc) + " account tried to turn off its own stop before " + offs.map((k) => STOP_WORDS[k]).join(", ") + " for " + label + ". Nothing changed." };
   }
+  const beforeSb = {};
+  STOP_KEYS.forEach((k) => { beforeSb[k] = now[k]; });
   const words = [];
   flips.forEach((k) => {
     if (now[k] !== set[k]) words.push((set[k] ? "Turned on" : "Turned off") + " stop before " + STOP_WORDS[k]);
     now[k] = set[k];
   });
-  all[key] = { stopBefore: now, updatedAt: new Date().toISOString() };
+  const prev = all[key] && typeof all[key] === "object" ? all[key] : {};
+  const nextAuto = { stopBefore: now, updatedAt: new Date().toISOString() };
+  if (prev.paused === true) {
+    nextAuto.paused = true;
+    if (prev.pausedAt) nextAuto.pausedAt = prev.pausedAt;
+  }
+  all[key] = nextAuto;
+  if (words.length) {
+    require("./_account-follow").noteUndo(acc, {
+      kind: "stop-before",
+      label: words.join("; ") + " for " + label,
+      key: key,
+      desk: row.slug,
+      autoKind: kind,
+      autoId: id,
+      before: beforeSb,
+      after: { money: now.money, deletes: now.deletes, messageNew: now.messageNew }
+    });
+  }
   return { ok: true, what: (words.length ? words.join("; ") : "Kept stop-before as it was") + " for " + label + "." };
 }
 
@@ -551,12 +600,14 @@ async function handle(req, res) {
     req.body = body;
   }
   const connectAction = req.method === "POST" && require("./_account-connect").ACTIONS.indexOf(str(body && body.action).toLowerCase()) >= 0;
-  if (!connectAction && !wants(req, body)) return false;
+  const followWant = require("./_account-follow").wants(req, body);
+  if (!connectAction && !followWant && !wants(req, body)) return false;
   // Store guard (#350): while the store is not ready every saving request,
-  // automation-step, Stop/Kill and the connection actions included, is the
-  // same 503 store_not_ready, and nothing runs. No-op on a tree without
-  // lib.storeNotReady.
+  // automation-step, Stop/Kill, the connection actions, and the follow actions
+  // included, is the same 503 store_not_ready, and nothing runs. No-op on a
+  // tree without lib.storeNotReady.
   if (req.method !== "GET" && typeof lib.storeNotReady === "function" && lib.storeNotReady(res)) return true;
+  if (followWant) return (await require("./_account-follow").handle(req, res, body)), true;
   if (connectAction) return (await require("./_account-connect").handle(req, res, body)), true;
   const seat = ownSeat(req);
   if (!seat.ok) return refuse(res, seat.status, seat.error, seat.pending ? { pending: true } : null), true;
@@ -686,4 +737,4 @@ async function handle(req, res) {
   return res.status(200).json(reply), true;
 }
 
-module.exports = { handle, ownSeat, plainBody, BODY_NOT_PLAIN, askedOther, ownedDesks, addHistory, seal, secretKey, SECRET_NAME, SECRET_VALUE_MAX, SELF_LOCK, ID_FIELDS, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };
+module.exports = { handle, ownSeat, plainBody, BODY_NOT_PLAIN, askedOther, ownedDesks, addHistory, seal, secretKey, SECRET_NAME, SECRET_VALUE_MAX, SELF_LOCK, selfLocked, humanOwnerTarget, ID_FIELDS, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };
