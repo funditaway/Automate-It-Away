@@ -1,10 +1,11 @@
 /* Simple Create: say it in everyday words, start from a pack, show an example,
-   or pick what it watches and what it drafts.
+   pick what it watches and what it drafts, or say it also talks to an AI or a site.
    Then Draft it, try it on made-up cards, and tap Yes, Stop, or Kill.
    A pack only fills the words box. An example shows one walkthrough on this phone.
    A when and a then only build the words in the box. The person can still edit them.
+   A name and an address can be added to those words. A secret stays in its hidden field.
    It does not draft, save, or buy. Draft it still posts studio-draft. Yes still posts save-ai.
-   Both go only to /api/desks. Nothing here sends, pays, or charges.
+   Both go only to /api/desks. Nothing here sends, pays, or charges. Nothing calls that address.
    Built with textContent only. */
 (function () {
   var STEP_WORDS = {
@@ -72,6 +73,44 @@
     { id: "later", label: "A note I can check later", phrase: "a note I can check later" }
   ];
   var WHEN_NOTE = "These words come from what it watches and what it drafts. Change them if you want, then tap Draft it.";
+
+  /* An AI, an agent, a site, or a hook only adds a sentence to #cs-words.
+     The secret stays in the hidden field. It is not added to the words, the draft, or any post. */
+  var LINKS = [
+    { id: "ai", label: "An AI", phrase: "an AI" },
+    { id: "agent", label: "An agent", phrase: "an agent" },
+    { id: "site", label: "A site", phrase: "a site" },
+    { id: "hook", label: "A hook a site can call", phrase: "a hook" }
+  ];
+  var LINK_NOTE = "These words now say where it talks. A secret stays on this phone and is not saved. Change the words if you want, then tap Draft it.";
+  var LINK_ADDRESS_NOTE = "Use a full address that starts with https://. Put a secret in the secret field, not in the address.";
+
+  function safeAddress(raw) {
+    var t = String(raw == null ? "" : raw).trim();
+    if (!t || t.length > 200) return "";
+    var m = /^https:\/\/([^\/?#\s]+)(\/[^?#\s]*)?/.exec(t);
+    if (!m) return "";
+    var host = m[1];
+    if (!host || host.length > 80 || host.indexOf("@") >= 0) return "";
+    if (!/^[A-Za-z0-9.-]+(?::\d+)?$/.test(host)) return "";
+    var path = m[2] || "";
+    path = path.replace(/\.+$/, "");
+    if (path.length > 80) path = path.slice(0, 80).replace(/\.+$/, "");
+    if (path && !/^\/[A-Za-z0-9._~!$&'()*+,;=%/-]*$/.test(path)) return "";
+    return "https://" + host + path;
+  }
+
+  function linkChoices() {
+    return LINKS.map(copyChoice);
+  }
+
+  function linkSentence(kindId, name, address) {
+    var kind = choiceById(LINKS, kindId);
+    var who = clean(name, 40);
+    var site = safeAddress(address);
+    if (!kind || !who || !site) return "";
+    return "It also talks to " + kind.phrase + " named " + who + " at " + site + ".";
+  }
 
   function copyChoice(item) {
     return { id: item.id, label: item.label, phrase: item.phrase };
@@ -203,7 +242,7 @@
       : "The desk does not store the rules yet. Nothing enforces them.";
   }
 
-  var api = { starterPacks: starterPacks, workedExample: workedExample, whenChoices: whenChoices, thenChoices: thenChoices, whenThenWords: whenThenWords, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
+  var api = { starterPacks: starterPacks, workedExample: workedExample, whenChoices: whenChoices, thenChoices: thenChoices, whenThenWords: whenThenWords, linkChoices: linkChoices, safeAddress: safeAddress, linkSentence: linkSentence, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -227,6 +266,7 @@
   }
 
   var current = null;
+  var appliedLink = "";
 
   function paintRules() {
     var list = el("cs-rules-list");
@@ -286,6 +326,7 @@
     el("cs-src").textContent = d.source === "aia"
       ? "AIA drafted this from your words. Change anything in plain words."
       : why || "This starter is made from your words. Change anything in plain words.";
+    paintLinkReview();
     step(2);
   }
 
@@ -413,6 +454,13 @@
       h.textContent = c.title;
       card.appendChild(tag);
       card.appendChild(h);
+      var wordsEl = el("cs-words");
+      var info = linkShown(wordsEl ? wordsEl.value : "");
+      if (info) {
+        var extra = doc.createElement("p");
+        extra.textContent = "Would talk to " + info.label + " named " + info.name + " at " + info.address + ". Nothing is called.";
+        card.appendChild(extra);
+      }
       sampleDraft(d, c).forEach(function (line) {
         var p = doc.createElement("p");
         p.textContent = line;
@@ -506,6 +554,7 @@
     setExampleOpen(false);
     closeWhenPick(true);
     fill({ name: "", job: "", watches: [], drafts: [], needs: [] });
+    clearLink();
     var box = el("cs-samples");
     while (box.firstChild) box.removeChild(box.firstChild);
     step(1);
@@ -671,6 +720,124 @@
     sel.value = "";
   }
 
+  function secretFilled() {
+    var box = el("cs-webhook-secret");
+    return !!(box && String(box.value || "").replace(/\s+/g, "").length);
+  }
+
+  function linkPublic() {
+    var kindEl = el("cs-webhook-kind");
+    var nameEl = el("cs-webhook-name");
+    var urlEl = el("cs-webhook-url");
+    if (!kindEl || !nameEl || !urlEl) return null;
+    var kind = choiceById(LINKS, kindEl.value);
+    var name = clean(nameEl.value, 40);
+    var address = safeAddress(urlEl.value);
+    if (!kind || !name || !address) return null;
+    return { id: kind.id, label: kind.phrase, name: name, address: address, secret: secretFilled() };
+  }
+
+  function linkShown(words) {
+    var info = linkPublic();
+    if (!info) return null;
+    var sentence = linkSentence(info.id, info.name, info.address);
+    if (!sentence || String(words || "").indexOf(sentence) < 0) return null;
+    return info;
+  }
+
+  function paintLinkReview() {
+    var line = el("cs-webhook-review");
+    if (!line) return;
+    var words = el("cs-words");
+    var info = linkShown(words ? words.value : "");
+    if (!info) {
+      line.textContent = "";
+      line.hidden = true;
+      return;
+    }
+    var secretBit = info.secret
+      ? "A secret is filled in on this phone. It is not shown or saved."
+      : "No secret was added.";
+    line.textContent = "It would talk to " + info.label + " named " + info.name + " at " + info.address + ". " + secretBit + " This page does not call that address.";
+    line.hidden = false;
+  }
+
+  function hideUnsafeAddress() {
+    var urlEl = el("cs-webhook-url");
+    if (!urlEl) return;
+    var raw = String(urlEl.value || "");
+    var safe = safeAddress(raw);
+    if (safe && raw.trim() !== safe) urlEl.value = safe;
+    else if (!safe && /[@?#]/.test(raw)) urlEl.value = "";
+  }
+
+  function withoutApplied(words) {
+    var base = String(words || "");
+    if (appliedLink && base.indexOf(appliedLink) >= 0) base = base.split(appliedLink).join(" ");
+    return clean(base, 600);
+  }
+
+  function clearLink() {
+    appliedLink = "";
+    ["cs-webhook-kind", "cs-webhook-name", "cs-webhook-url", "cs-webhook-secret"].forEach(function (id) {
+      var node = el(id);
+      if (node) node.value = "";
+    });
+    var box = el("cs-webhook");
+    if (box) box.open = false;
+    var line = el("cs-webhook-review");
+    if (line) {
+      line.textContent = "";
+      line.hidden = true;
+    }
+  }
+
+  function addLink() {
+    var kindEl = el("cs-webhook-kind");
+    var nameEl = el("cs-webhook-name");
+    var urlEl = el("cs-webhook-url");
+    var box = el("cs-words");
+    if (!kindEl || !nameEl || !urlEl || !box) return;
+    var talkBtn = el("cs-talk");
+    var talking = !!(talkBtn && String(talkBtn.className || "").indexOf("on") >= 0);
+    stopVoice();
+    hideUnsafeAddress();
+    if (!kindEl.value) {
+      if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+      return note("cs-note", "Choose what it talks to.", "ask");
+    }
+    if (!clean(nameEl.value, 40)) {
+      if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+      return note("cs-note", "Give it a name.", "ask");
+    }
+    var address = safeAddress(urlEl.value);
+    if (!address) {
+      if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+      return note("cs-note", LINK_ADDRESS_NOTE, "ask");
+    }
+    var sentence = linkSentence(kindEl.value, nameEl.value, address);
+    var next = withoutApplied(box.value);
+    next = next ? next.replace(/[.\s]+$/, "") + ". " + sentence : sentence;
+    if (!sentence || next.length > 600) {
+      if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+      return note("cs-note", "Shorten your words a little so this line can fit.", "ask");
+    }
+    appliedLink = sentence;
+    box.value = next;
+    syncPack();
+    note("cs-note", LINK_NOTE, "ask");
+    if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+    focusWords();
+  }
+
+  function paintLink() {
+    fillSelect("cs-webhook-kind", "Choose what it talks to", linkChoices());
+    var box = el("cs-webhook");
+    if (box) box.open = false;
+    var line = el("cs-webhook-review");
+    if (line) line.hidden = true;
+  }
+
   function paintWhenThen() {
     fillSelect("cs-when", "Choose what it watches", whenChoices());
     fillSelect("cs-then", "Choose what it drafts", thenChoices());
@@ -717,6 +884,8 @@
   if (wordsBox) wordsBox.addEventListener("input", syncPack);
   paintPacks();
   paintWhenThen();
+  paintLink();
+  if (el("cs-webhook-add")) el("cs-webhook-add").addEventListener("click", addLink);
   if (el("cs-when")) el("cs-when").addEventListener("change", chooseWhenThen);
   if (el("cs-then")) el("cs-then").addEventListener("change", chooseWhenThen);
 

@@ -95,6 +95,10 @@
     #cs-when-pick{margin:8px 0 4px;border:1px solid var(--line);border-radius:12px;padding:4px 12px 10px}
     #cs-when-pick summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center;line-height:1.3}
     #cs-when-pick select{min-height:44px}
+    #cs-webhook{margin:8px 0 4px;border:1px solid var(--line);border-radius:12px;padding:4px 12px 10px}
+    #cs-webhook summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center;line-height:1.3}
+    #cs-webhook select,#cs-webhook input{min-height:44px}
+    #cs-webhook-add{margin-top:10px;width:100%;min-height:48px;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;cursor:pointer}
     #cs-example-walk{margin:8px 0 0;border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
     #cs-example-walk p{margin:4px 0}
     #cs-example-draft b,#cs-example-samples b{color:var(--heading)}
@@ -149,6 +153,19 @@
           <div id="cs-example-samples"></div>
           <p class="hint" id="cs-example-next">These words are in the box. Change them if you want, then tap Draft it.</p>
         </div>
+        <details id="cs-webhook">
+          <summary>Also talk to an AI or a site</summary>
+          <p class="hint" id="cs-webhook-hint">Name it and give its address. A secret stays hidden on this phone. Nothing is called.</p>
+          <label for="cs-webhook-kind">What it talks to</label>
+          <select id="cs-webhook-kind"></select>
+          <label for="cs-webhook-name">Name</label>
+          <input id="cs-webhook-name" maxlength="40" autocomplete="off" placeholder="School notes">
+          <label for="cs-webhook-url">Address</label>
+          <input id="cs-webhook-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200" placeholder="https://school.example/notes">
+          <label for="cs-webhook-secret">Secret, if it has one</label>
+          <input id="cs-webhook-secret" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200" placeholder="Optional. Stays hidden.">
+          <button type="button" class="stop" id="cs-webhook-add">Add this to my words</button>
+        </details>
         <div class="row-btns" id="cs-voice">
           <button type="button" class="ghost" id="cs-talk" aria-pressed="false">Talk</button>
           <button type="button" class="stop" id="cs-quiet">Quiet</button>
@@ -160,6 +177,7 @@
       <div id="cs-review" hidden>
         <h2>Your draft Desk AI</h2>
         <p class="cs-src" id="cs-src"></p>
+        <p class="cs-note" id="cs-webhook-review" hidden></p>
         <label for="cs-name">Name</label>
         <input id="cs-name" maxlength="40">
         <label for="cs-job">One job</label>

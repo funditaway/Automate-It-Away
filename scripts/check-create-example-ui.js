@@ -56,7 +56,8 @@ ok(starters.indexOf("cs-example") < 0 && starters.indexOf("Show an example") < 0
 ok(/id="cs-starters"/.test(cs) && /id="cs-words"/.test(cs) && /id="cs-draft">Draft it<\/button>/.test(cs), "packs, the words box, and Draft it stay");
 ok(/id="cs-talk"[^>]*>Talk<\/button>/.test(cs) && /id="cs-quiet"[^>]*>Quiet<\/button>/.test(cs), "Talk and Quiet stay on the card");
 ok(/id="cs-yes">Yes<\/button>/.test(cs) && /id="cs-stop">Stop<\/button>/.test(cs) && /id="cs-kill">Kill<\/button>/.test(cs), "Yes, Stop, and Kill stay their own buttons");
-["webhook", "import", "export", "pack"].forEach(function (name) {
+// cs-webhook is the AI / site control. import, export, and pack stay reserved.
+["import", "export", "pack"].forEach(function (name) {
   ok(cs.indexOf('id="cs-' + name + '"') < 0, "path id cs-" + name + " stays off this card");
 });
 ok(!/when this then that|if this then that|type="file"|<input[^>]*type="file"/i.test(cs), "no when-this-then-that picker and no file import on this card");
