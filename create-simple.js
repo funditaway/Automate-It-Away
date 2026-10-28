@@ -1,6 +1,8 @@
-/* Simple Create: say it in everyday words, start from a pack, or show an example.
+/* Simple Create: say it in everyday words, start from a pack, show an example,
+   or pick what it watches and what it drafts.
    Then Draft it, try it on made-up cards, and tap Yes, Stop, or Kill.
    A pack only fills the words box. An example shows one walkthrough on this phone.
+   A when and a then only build the words in the box. The person can still edit them.
    It does not draft, save, or buy. Draft it still posts studio-draft. Yes still posts save-ai.
    Both go only to /api/desks. Nothing here sends, pays, or charges.
    Built with textContent only. */
@@ -53,6 +55,55 @@
       { id: "neighbor", name: "Neighbor help", words: "When a neighbor asks for help, draft a short reply and a time that works." },
       { id: "plants", name: "Water the plants", words: "Remind me to water the plants every Tuesday, and draft a note if a day gets missed." }
     ];
+  }
+
+  /* A when (what it watches) and a then (what it drafts) only build #cs-words.
+     Choosing does not draft, save, or buy. The sentence is not a pack and not the example. */
+  var WHENS = [
+    { id: "note", label: "A school note arrives", phrase: "a school note arrives" },
+    { id: "meeting", label: "A meeting time moves", phrase: "a meeting time moves" },
+    { id: "favor", label: "A friend asks for a favor", phrase: "a friend asks for a favor" },
+    { id: "trash", label: "Trash day changes", phrase: "trash day changes" }
+  ];
+  var THENS = [
+    { id: "reply", label: "A short reply for me", phrase: "a short reply for me" },
+    { id: "reminder", label: "A reminder with the date", phrase: "a reminder with the date" },
+    { id: "list", label: "A list of what to bring", phrase: "a list of what to bring" },
+    { id: "later", label: "A note I can check later", phrase: "a note I can check later" }
+  ];
+  var WHEN_NOTE = "These words come from what it watches and what it drafts. Change them if you want, then tap Draft it.";
+
+  function copyChoice(item) {
+    return { id: item.id, label: item.label, phrase: item.phrase };
+  }
+
+  function whenChoices() {
+    return WHENS.map(copyChoice);
+  }
+
+  function thenChoices() {
+    return THENS.map(copyChoice);
+  }
+
+  function choiceById(list, id) {
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  function whenThenWords(whenId, thenId) {
+    var w = choiceById(WHENS, whenId);
+    var t = choiceById(THENS, thenId);
+    if (!w || !t) return "";
+    return "When " + w.phrase + ", draft " + t.phrase + ".";
+  }
+
+  function pairFromWords(words) {
+    for (var i = 0; i < WHENS.length; i++) {
+      for (var j = 0; j < THENS.length; j++) {
+        if (whenThenWords(WHENS[i].id, THENS[j].id) === words) return { when: WHENS[i].id, then: THENS[j].id };
+      }
+    }
+    return null;
   }
 
   function starterDraft(words) {
@@ -152,7 +203,7 @@
       : "The desk does not store the rules yet. Nothing enforces them.";
   }
 
-  var api = { starterPacks: starterPacks, workedExample: workedExample, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
+  var api = { starterPacks: starterPacks, workedExample: workedExample, whenChoices: whenChoices, thenChoices: thenChoices, whenThenWords: whenThenWords, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -203,6 +254,10 @@
     el("cs-test").hidden = n !== 3;
     el("cs-done").hidden = true;
     el("cs-open").hidden = true;
+    var shown = n === 1 ? el("cs-ask") : n === 2 ? el("cs-review") : el("cs-test");
+    if (shown && typeof shown.scrollIntoView === "function") {
+      try { shown.scrollIntoView({ block: "start" }); } catch (e) { /* the card still shows */ }
+    }
   }
 
   function fill(d) {
@@ -449,6 +504,7 @@
     el("cs-words").value = "";
     markPack("");
     setExampleOpen(false);
+    closeWhenPick(true);
     fill({ name: "", job: "", watches: [], drafts: [], needs: [] });
     var box = el("cs-samples");
     while (box.firstChild) box.removeChild(box.firstChild);
@@ -491,6 +547,7 @@
     starterPacks().forEach(function (s) { if (s.words === words) hit = s; });
     markPack(hit ? hit.id : "");
     syncExample();
+    syncWhenThen();
   }
 
   function choosePack(id) {
@@ -503,6 +560,7 @@
     box.value = s.words;
     markPack(s.id);
     setExampleOpen(false);
+    closeWhenPick(true);
     note("cs-note", "Change any words you want. Then tap Draft it.", "ask");
     if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
     focusWords();
@@ -534,6 +592,7 @@
       return;
     }
     stopVoice();
+    closeWhenPick(true);
     box.value = words;
     syncPack();
     var d = starterDraft(words);
@@ -544,6 +603,79 @@
     setExampleOpen(true);
     note("cs-note", EXAMPLE_NOTE, "ask");
     if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+  }
+
+  function closeWhenPick(close) {
+    var whenSel = el("cs-when");
+    var thenSel = el("cs-then");
+    if (whenSel) whenSel.value = "";
+    if (thenSel) thenSel.value = "";
+    if (close) {
+      var pick = el("cs-when-pick");
+      if (pick) pick.open = false;
+    }
+    var n = el("cs-note");
+    if (n && String(n.textContent || "").indexOf("These words come from what it watches") === 0) note("cs-note", "", "");
+  }
+
+  function syncWhenThen() {
+    var box = el("cs-words");
+    var whenSel = el("cs-when");
+    var thenSel = el("cs-then");
+    if (!box || !whenSel || !thenSel) return;
+    var hit = pairFromWords(String(box.value || ""));
+    if (hit) {
+      whenSel.value = hit.when;
+      thenSel.value = hit.then;
+      return;
+    }
+    closeWhenPick(false);
+  }
+
+  function chooseWhenThen() {
+    var whenSel = el("cs-when");
+    var thenSel = el("cs-then");
+    var box = el("cs-words");
+    if (!whenSel || !thenSel || !box) return;
+    var sentence = whenThenWords(whenSel.value, thenSel.value);
+    if (!sentence) {
+      if (pairFromWords(String(box.value || ""))) closeWhenPick(false);
+      return;
+    }
+    var talkBtn = el("cs-talk");
+    var talking = !!(talkBtn && String(talkBtn.className || "").indexOf("on") >= 0);
+    stopVoice();
+    box.value = sentence;
+    syncPack();
+    note("cs-note", WHEN_NOTE, "ask");
+    if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+    focusWords();
+  }
+
+  function fillSelect(id, blankLabel, list) {
+    var sel = el(id);
+    if (!sel) return;
+    while (sel.firstChild) sel.removeChild(sel.firstChild);
+    var blank = doc.createElement("option");
+    blank.value = "";
+    if (blank.setAttribute) blank.setAttribute("value", "");
+    blank.textContent = blankLabel;
+    sel.appendChild(blank);
+    list.forEach(function (item) {
+      var opt = doc.createElement("option");
+      opt.value = item.id;
+      if (opt.setAttribute) opt.setAttribute("value", item.id);
+      opt.textContent = item.label;
+      sel.appendChild(opt);
+    });
+    sel.value = "";
+  }
+
+  function paintWhenThen() {
+    fillSelect("cs-when", "Choose what it watches", whenChoices());
+    fillSelect("cs-then", "Choose what it drafts", thenChoices());
+    var pick = el("cs-when-pick");
+    if (pick) pick.open = false;
   }
 
   function paintPacks() {
@@ -584,6 +716,9 @@
   var wordsBox = el("cs-words");
   if (wordsBox) wordsBox.addEventListener("input", syncPack);
   paintPacks();
+  paintWhenThen();
+  if (el("cs-when")) el("cs-when").addEventListener("change", chooseWhenThen);
+  if (el("cs-then")) el("cs-then").addEventListener("change", chooseWhenThen);
 
   var params = new URLSearchParams(location.search);
   if (params.get("kind") || params.get("idea") || location.hash) {

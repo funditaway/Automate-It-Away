@@ -92,6 +92,9 @@
     #cs-talk.on{outline:3px solid var(--teal)}
     #cs-starters{margin:8px 0 4px}
     #cs-starters button{min-height:44px;font-size:14px}
+    #cs-when-pick{margin:8px 0 4px;border:1px solid var(--line);border-radius:12px;padding:4px 12px 10px}
+    #cs-when-pick summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center;line-height:1.3}
+    #cs-when-pick select{min-height:44px}
     #cs-example-walk{margin:8px 0 0;border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
     #cs-example-walk p{margin:4px 0}
     #cs-example-draft b,#cs-example-samples b{color:var(--heading)}
@@ -128,6 +131,14 @@
         <h2>What do you want automated?</h2>
         <p class="hint" id="cs-starter-hint">Start from a pack. Nothing is bought. Change the words, then tap Draft it.</p>
         <div class="chips" id="cs-starters" role="group" aria-label="Start from a pack"></div>
+        <details id="cs-when-pick">
+          <summary>Pick when this happens and what to draft</summary>
+          <p class="hint" id="cs-when-hint">Choose what it watches and what it drafts. Nothing is saved yet. You can change the words after.</p>
+          <label for="cs-when">When this happens</label>
+          <select id="cs-when"></select>
+          <label for="cs-then">Then draft this</label>
+          <select id="cs-then"></select>
+        </details>
         <label for="cs-words">Say it in everyday words</label>
         <textarea id="cs-words" rows="3" maxlength="600" placeholder="When a parent asks to change pickup, draft a reply and a reminder for me."></textarea>
         <button type="button" class="link" id="cs-example" aria-expanded="false" aria-controls="cs-example-walk">Show an example</button>
