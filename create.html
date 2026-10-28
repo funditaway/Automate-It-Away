@@ -92,6 +92,12 @@
     #cs-talk.on{outline:3px solid var(--teal)}
     #cs-starters{margin:8px 0 4px}
     #cs-starters button{min-height:44px;font-size:14px}
+    #cs-library{margin:8px 0 4px;border:1px solid var(--line);border-radius:12px;padding:4px 12px 10px}
+    #cs-library summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center;line-height:1.3}
+    #cs-library .area{font-size:13px;font-weight:700;color:var(--heading);margin:10px 0 0}
+    #cs-library .chips{margin:4px 0 2px}
+    #cs-library .chips button{min-height:44px;font-size:14px}
+    @media(max-width:420px){#cs-library .chips{flex-direction:column}#cs-library .chips button{width:100%;text-align:left}}
     #cs-when-pick{margin:8px 0 4px;border:1px solid var(--line);border-radius:12px;padding:4px 12px 10px}
     #cs-when-pick summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center;line-height:1.3}
     #cs-when-pick select{min-height:44px}
@@ -139,6 +145,11 @@
         <h2>What do you want automated?</h2>
         <p class="hint" id="cs-starter-hint">Start from a pack. Nothing is bought. Change the words, then tap Draft it.</p>
         <div class="chips" id="cs-starters" role="group" aria-label="Start from a pack"></div>
+        <details id="cs-library">
+          <summary>Browse starter packs</summary>
+          <p class="hint" id="cs-library-hint">These are previews. Nothing is bought. Tap one to fill the words. Change them if you want, then tap Draft it.</p>
+          <div id="cs-library-list"></div>
+        </details>
         <details id="cs-when-pick">
           <summary>Pick when this happens and what to draft</summary>
           <p class="hint" id="cs-when-hint">Choose what it watches and what it drafts. Nothing is saved yet. You can change the words after.</p>
