@@ -52,7 +52,7 @@ ok(cs.indexOf('id="cs-starter-hint"') < cs.indexOf('id="cs-words"') && cs.indexO
 ok(/id="cs-words"/.test(cs) && /id="cs-draft">Draft it<\/button>/.test(cs), "same words box and Draft it button");
 ok(/id="cs-talk"[^>]*>Talk<\/button>/.test(cs) && /id="cs-quiet"[^>]*>Quiet<\/button>/.test(cs), "Talk and Quiet stay on the card");
 ok(/id="cs-yes">Yes<\/button>/.test(cs) && /id="cs-stop">Stop<\/button>/.test(cs) && /id="cs-kill">Kill<\/button>/.test(cs), "Yes, Stop, and Kill stay their own buttons");
-["example", "when", "webhook", "import", "export", "pack"].forEach(function (name) {
+["when", "webhook", "import", "export", "pack"].forEach(function (name) {
   ok(cs.indexOf('id="cs-' + name + '"') < 0, "path id cs-" + name + " stays off this card");
 });
 ok(!/when this then that|if this then that|type="file"|<input[^>]*type="file"/i.test(cs), "no when-this-then-that picker and no file import on this card");

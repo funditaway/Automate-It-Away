@@ -1,6 +1,7 @@
-/* Simple Create: say it in everyday words, or start from a pack and change the words.
+/* Simple Create: say it in everyday words, start from a pack, or show an example.
    Then Draft it, try it on made-up cards, and tap Yes, Stop, or Kill.
-   A pack only fills the words box. Draft it still posts studio-draft. Yes still posts save-ai.
+   A pack only fills the words box. An example shows one walkthrough on this phone.
+   It does not draft, save, or buy. Draft it still posts studio-draft. Yes still posts save-ai.
    Both go only to /api/desks. Nothing here sends, pays, or charges.
    Built with textContent only. */
 (function () {
@@ -32,6 +33,16 @@
     var bits = clean(words, 200).replace(/[^A-Za-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean).slice(0, 3);
     if (!bits.length) return "My Desk AI";
     return clean("Helper: " + bits.join(" "), 40);
+  }
+
+  /* One worked example. Showing it fills #cs-words and paints a walkthrough on this phone.
+     It does not draft, save, or buy. The words are not one of the pack chips. */
+  var EXAMPLE_WORDS = "When the school says pickup moved to 3:30, draft a note for me and a reply I can check.";
+  var EXAMPLE_LEAD = "Here is one example. It stays on this phone. Nothing is saved or sent.";
+  var EXAMPLE_NOTE = "This is an example. Change any words you want. Then tap Draft it.";
+
+  function workedExample() {
+    return { words: EXAMPLE_WORDS };
   }
 
   /* A few everyday packs. Choosing one fills #cs-words. It does not draft, save, or buy. */
@@ -141,7 +152,7 @@
       : "The desk does not store the rules yet. Nothing enforces them.";
   }
 
-  var api = { starterPacks: starterPacks, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
+  var api = { starterPacks: starterPacks, workedExample: workedExample, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -334,12 +345,8 @@
     }
   }
 
-  function tryIt() {
-    var d = readForm();
-    if (!d.name || !d.job) return note("cs-review-note", "Give it a name and one job first.", "ask");
-    note("cs-review-note", "", "");
-    current = d;
-    var box = el("cs-samples");
+  function paintSamples(box, d) {
+    if (!box) return;
     while (box.firstChild) box.removeChild(box.firstChild);
     sampleCards().forEach(function (c) {
       var card = doc.createElement("article");
@@ -358,6 +365,37 @@
       });
       box.appendChild(card);
     });
+  }
+
+  function paintExampleDraft(box, d, words) {
+    if (!box) return;
+    while (box.firstChild) box.removeChild(box.firstChild);
+    function group(label, items) {
+      var h = doc.createElement("p");
+      var b = doc.createElement("b");
+      b.textContent = label;
+      h.appendChild(b);
+      box.appendChild(h);
+      items.forEach(function (item) {
+        var line = doc.createElement("p");
+        line.textContent = item;
+        box.appendChild(line);
+      });
+    }
+    group("The words", [words]);
+    group("Name", [d.name || ""]);
+    group("One job", [d.job || ""]);
+    group("What it watches", linesOf(d.watches));
+    group("What it drafts", linesOf(d.drafts));
+    group("What it needs from you", linesOf(d.needs));
+  }
+
+  function tryIt() {
+    var d = readForm();
+    if (!d.name || !d.job) return note("cs-review-note", "Give it a name and one job first.", "ask");
+    note("cs-review-note", "", "");
+    current = d;
+    paintSamples(el("cs-samples"), d);
     note("cs-test-note", "", "");
     step(3);
   }
@@ -410,6 +448,7 @@
     current = null;
     el("cs-words").value = "";
     markPack("");
+    setExampleOpen(false);
     fill({ name: "", job: "", watches: [], drafts: [], needs: [] });
     var box = el("cs-samples");
     while (box.firstChild) box.removeChild(box.firstChild);
@@ -433,6 +472,17 @@
     });
   }
 
+  function syncExample() {
+    var box = el("cs-words");
+    var walk = el("cs-example-walk");
+    if (!box || !walk || walk.hidden) return;
+    if (String(box.value || "") !== workedExample().words) {
+      setExampleOpen(false);
+      var n = el("cs-note");
+      if (n && String(n.textContent || "").indexOf("This is an example.") === 0) note("cs-note", "", "");
+    }
+  }
+
   function syncPack() {
     var box = el("cs-words");
     if (!box) return;
@@ -440,6 +490,7 @@
     var hit = null;
     starterPacks().forEach(function (s) { if (s.words === words) hit = s; });
     markPack(hit ? hit.id : "");
+    syncExample();
   }
 
   function choosePack(id) {
@@ -451,9 +502,48 @@
     stopVoice();
     box.value = s.words;
     markPack(s.id);
+    setExampleOpen(false);
     note("cs-note", "Change any words you want. Then tap Draft it.", "ask");
     if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
     focusWords();
+  }
+
+  function setExampleOpen(open) {
+    var walk = el("cs-example-walk");
+    var btn = el("cs-example");
+    if (walk) walk.hidden = !open;
+    if (!btn) return;
+    btn.textContent = open ? "Hide the example" : "Show an example";
+    if (btn.setAttribute) btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function showExample() {
+    var box = el("cs-words");
+    var walk = el("cs-example-walk");
+    var btn = el("cs-example");
+    if (!box || !walk || !btn) return;
+    var words = workedExample().words;
+    var talkBtn = el("cs-talk");
+    var talking = !!(talkBtn && String(talkBtn.className || "").indexOf("on") >= 0);
+    if (walk.hidden === false && String(box.value || "") === words) {
+      stopVoice();
+      setExampleOpen(false);
+      if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+      var n = el("cs-note");
+      if (n && String(n.textContent || "").indexOf("This is an example.") === 0) note("cs-note", "", "");
+      return;
+    }
+    stopVoice();
+    box.value = words;
+    syncPack();
+    var d = starterDraft(words);
+    var lead = el("cs-example-lead");
+    if (lead) lead.textContent = EXAMPLE_LEAD;
+    paintExampleDraft(el("cs-example-draft"), d, words);
+    paintSamples(el("cs-example-samples"), d);
+    setExampleOpen(true);
+    note("cs-note", EXAMPLE_NOTE, "ask");
+    if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
   }
 
   function paintPacks() {
@@ -482,6 +572,14 @@
   el("cs-kill").addEventListener("click", kill);
   if (el("cs-talk")) el("cs-talk").addEventListener("click", talk);
   if (el("cs-quiet")) el("cs-quiet").addEventListener("click", quiet);
+  if (el("cs-example")) {
+    var exampleWalk = el("cs-example-walk");
+    var exampleBtn = el("cs-example");
+    if (exampleWalk) exampleWalk.hidden = true;
+    if (!String(exampleBtn.textContent || "").trim()) exampleBtn.textContent = "Show an example";
+    if (exampleBtn.getAttribute && exampleBtn.getAttribute("aria-expanded") == null) exampleBtn.setAttribute("aria-expanded", "false");
+    exampleBtn.addEventListener("click", showExample);
+  }
   heardNote(voiceOn() ? "Talk, or type in the box. Then tap Draft it." : TYPE_INSTEAD);
   var wordsBox = el("cs-words");
   if (wordsBox) wordsBox.addEventListener("input", syncPack);
