@@ -1,8 +1,10 @@
-/* Simple Create: say it in everyday words, start from a pack, show an example,
-   pick what it watches and what it drafts, say it also talks to an AI or a site,
-   or bring in a text or JSON file. Save a file keeps a copy on this phone.
+/* Simple Create: say it in everyday words, start from a pack, browse starter packs,
+   show an example, pick what it watches and what it drafts, say it also talks to an AI
+   or a site, or bring in a text or JSON file. Save a file keeps a copy on this phone.
    Then Draft it, try it on made-up cards, and tap Yes, Stop, or Kill.
-   A pack only fills the words box. An example shows one walkthrough on this phone.
+   A pack chip only fills the words box. A starter pack in the library fills the words,
+   and draft fields when that pack has them. Both are previews on this phone.
+   An example shows one walkthrough on this phone.
    A when and a then only build the words in the box. The person can still edit them.
    A name and an address can be added to those words. A secret stays in its hidden field.
    A file only fills the words, and draft fields when the file has them. It is not uploaded.
@@ -52,14 +54,56 @@
     return { words: EXAMPLE_WORDS };
   }
 
-  /* A few everyday packs. Choosing one fills #cs-words. It does not draft, save, or buy. */
+  /* Everyday starter packs. The four chips are a short list in a fixed order.
+     The library is those four plus more, grouped so a person can browse.
+     A chip fills #cs-words only. A library pick fills #cs-words and, when the pack
+     has them, the draft fields. Picking does not draft, save, or buy. */
+  var CHIP_IDS = ["pickup", "bill", "neighbor", "plants"];
+  var LIBRARY = [
+    { id: "pickup", area: "Home and school", name: "Pickup changes", words: "When a parent asks to change pickup, draft a reply and a reminder for me.", draft: { name: "Pickup notes", job: "Draft a reply and a reminder when pickup changes.", watches: ["Notes about a pickup change"], drafts: ["A reply for me", "A reminder"], needs: ["Your Yes before anything is used", "The new pickup time"] } },
+    { id: "bill", area: "Home and school", name: "A bill due", words: "When a bill is due, draft a reminder with the date and what it is for.", draft: { name: "Bill reminder", job: "Draft a reminder when a bill is due.", watches: ["Bills that are coming due"], drafts: ["A reminder with the date and what it is for"], needs: ["Your Yes before anything is used", "The date and what the bill is for"] } },
+    { id: "plants", area: "Home and school", name: "Water the plants", words: "Remind me to water the plants every Tuesday, and draft a note if a day gets missed.", draft: { name: "Plant reminder", job: "Remind me to water the plants, and note a missed day.", watches: ["Tuesday plant watering"], drafts: ["A watering reminder", "A note if a day gets missed"], needs: ["Your Yes before anything is used"] } },
+    { id: "homework", area: "Home and school", name: "Homework night", words: "When homework is due tomorrow, draft a reminder and a short list of what is left.", draft: { name: "Homework reminder", job: "Draft a reminder and a short list when homework is due tomorrow.", watches: ["Homework due tomorrow"], drafts: ["A reminder", "A short list of what is left"], needs: ["Your Yes before anything is used", "What is still left"] } },
+    { id: "shift", area: "Work", name: "A shift change", words: "When my shift time changes, draft a note with the new time and who to tell.", draft: { name: "Shift note", job: "Draft a note when a shift time changes.", watches: ["Shift time changes"], drafts: ["A note with the new time and who to tell"], needs: ["Your Yes before anything is used", "The new time"] } },
+    { id: "follow", area: "Work", name: "After a call", words: "After a work call, draft a short follow-up of what we agreed and what is next.", draft: { name: "Call follow-up", job: "Draft a short follow-up after a work call.", watches: ["Notes from a work call"], drafts: ["A short follow-up of what we agreed"], needs: ["Your Yes before anything is used", "What you agreed"] } },
+    { id: "week", area: "Work", name: "The week in review", words: "On Friday, draft a short note of what got done this week and what is still open.", draft: { name: "Week note", job: "On Friday, draft a short note of the week.", watches: ["Friday week notes"], drafts: ["What got done", "What is still open"], needs: ["Your Yes before anything is used"] } },
+    { id: "neighbor", area: "Around town", name: "Neighbor help", words: "When a neighbor asks for help, draft a short reply and a time that works.", draft: { name: "Neighbor reply", job: "Draft a short reply and a time when a neighbor asks for help.", watches: ["A neighbor asking for help"], drafts: ["A short reply", "A time that works"], needs: ["Your Yes before anything is used", "A time that works for you"] } },
+    { id: "repair", area: "Around town", name: "A repair visit", words: "When a repair visit is booked, draft a reminder with the day and what they are coming to fix.", draft: { name: "Repair reminder", job: "Draft a reminder when a repair visit is booked.", watches: ["Booked repair visits"], drafts: ["A reminder with the day and what they will fix"], needs: ["Your Yes before anything is used", "The day of the visit"] } },
+    { id: "clinic", area: "Around town", name: "A visit moved", words: "When a clinic visit moves, draft a reply and a reminder with the new day and time.", draft: { name: "Visit reminder", job: "Draft a reply and a reminder when a clinic visit moves.", watches: ["Clinic visits that move"], drafts: ["A reply", "A reminder with the new day and time"], needs: ["Your Yes before anything is used", "The new day and time"] } },
+    { id: "inbox", area: "Inbox and calendar", name: "A message to answer", words: "When a message needs an answer, draft a short reply I can check first.", draft: { name: "Message reply", job: "Draft a short reply when a message needs an answer.", watches: ["Messages that need an answer"], drafts: ["A short reply I can check first"], needs: ["Your Yes before anything is used"] } },
+    { id: "calendar", area: "Inbox and calendar", name: "Calendar moved", words: "When something on my calendar moves, draft a reminder with the new day and time.", draft: { name: "Calendar reminder", job: "Draft a reminder when something on the calendar moves.", watches: ["Calendar items that move"], drafts: ["A reminder with the new day and time"], needs: ["Your Yes before anything is used", "The new day and time"] } }
+  ];
+
+  function copyDraft(d) {
+    if (!d || typeof d !== "object") return null;
+    return {
+      name: d.name || "",
+      job: d.job || "",
+      watches: (d.watches || []).slice(),
+      drafts: (d.drafts || []).slice(),
+      needs: (d.needs || []).slice()
+    };
+  }
+
+  function libraryById(id) {
+    for (var i = 0; i < LIBRARY.length; i++) if (LIBRARY[i].id === id) return LIBRARY[i];
+    return null;
+  }
+
   function starterPacks() {
-    return [
-      { id: "pickup", name: "Pickup changes", words: "When a parent asks to change pickup, draft a reply and a reminder for me." },
-      { id: "bill", name: "A bill due", words: "When a bill is due, draft a reminder with the date and what it is for." },
-      { id: "neighbor", name: "Neighbor help", words: "When a neighbor asks for help, draft a short reply and a time that works." },
-      { id: "plants", name: "Water the plants", words: "Remind me to water the plants every Tuesday, and draft a note if a day gets missed." }
-    ];
+    return CHIP_IDS.map(function (id) {
+      var p = libraryById(id);
+      return { id: p.id, name: p.name, words: p.words };
+    });
+  }
+
+  function starterLibrary() {
+    return LIBRARY.map(function (p) {
+      var out = { id: p.id, area: p.area, name: p.name, words: p.words };
+      var draft = copyDraft(p.draft);
+      if (draft) out.draft = draft;
+      return out;
+    });
   }
 
   /* A when (what it watches) and a then (what it drafts) only build #cs-words.
@@ -368,7 +412,7 @@
       : "The desk does not store the rules yet. Nothing enforces them.";
   }
 
-  var api = { starterPacks: starterPacks, workedExample: workedExample, whenChoices: whenChoices, thenChoices: thenChoices, whenThenWords: whenThenWords, linkChoices: linkChoices, safeAddress: safeAddress, linkSentence: linkSentence, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, allowedFile: allowedFile, readImportText: readImportText, exportText: exportText };
+  var api = { starterPacks: starterPacks, starterLibrary: starterLibrary, workedExample: workedExample, whenChoices: whenChoices, thenChoices: thenChoices, whenThenWords: whenThenWords, linkChoices: linkChoices, safeAddress: safeAddress, linkSentence: linkSentence, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, allowedFile: allowedFile, readImportText: readImportText, exportText: exportText };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -722,8 +766,11 @@
   var packButtons = [];
 
   function packById(id) {
-    var list = starterPacks();
-    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    var chips = starterPacks();
+    var i;
+    for (i = 0; i < chips.length; i++) if (chips[i].id === id) return chips[i];
+    var list = starterLibrary();
+    for (i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
     return null;
   }
 
@@ -751,7 +798,7 @@
     if (!box) return;
     var words = String(box.value || "");
     var hit = null;
-    starterPacks().forEach(function (s) { if (s.words === words) hit = s; });
+    starterLibrary().forEach(function (s) { if (s.words === words) hit = s; });
     markPack(hit ? hit.id : "");
     syncExample();
     syncWhenThen();
@@ -764,13 +811,42 @@
     var talkBtn = el("cs-talk");
     var talking = !!(talkBtn && String(talkBtn.className || "").indexOf("on") >= 0);
     stopVoice();
+    forgetBrought();
     box.value = s.words;
+    fill({ name: "", job: "", watches: [], drafts: [], needs: [] });
     markPack(s.id);
     setExampleOpen(false);
     closeWhenPick(true);
     note("cs-note", "Change any words you want. Then tap Draft it.", "ask");
     if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
     focusWords();
+  }
+
+  /* A library pick uses the same words path as a chip, then keeps draft fields
+     for the review when this pack has them. Still no post. */
+  function applyLibraryDraft(s) {
+    if (!s || !s.draft) return;
+    var base = starterDraft(s.words);
+    var watches = linesOf(s.draft.watches);
+    var drafts = linesOf(s.draft.drafts);
+    var needs = linesOf(s.draft.needs);
+    broughtWords = s.words;
+    broughtDraft = {
+      name: clean(s.draft.name, 40) || base.name,
+      job: clean(s.draft.job, 160) || base.job,
+      watches: watches.length ? watches : base.watches,
+      drafts: drafts.length ? drafts : base.drafts,
+      needs: needs.length ? needs : base.needs
+    };
+    fill(broughtDraft);
+  }
+
+  function chooseLibrary(id) {
+    var s = null;
+    starterLibrary().forEach(function (item) { if (item.id === id) s = item; });
+    if (!s) return;
+    choosePack(s.id);
+    applyLibraryDraft(s);
   }
 
   function setExampleOpen(open) {
@@ -1020,6 +1096,40 @@
     });
   }
 
+  function paintLibrary() {
+    var panel = el("cs-library");
+    if (panel) panel.open = false;
+    var box = el("cs-library-list");
+    if (!box) return;
+    while (box.firstChild) box.removeChild(box.firstChild);
+    var areas = [];
+    starterLibrary().forEach(function (s) {
+      if (areas.indexOf(s.area) < 0) areas.push(s.area);
+    });
+    areas.forEach(function (area) {
+      var heading = doc.createElement("p");
+      heading.className = "area";
+      heading.textContent = area;
+      box.appendChild(heading);
+      var row = doc.createElement("div");
+      row.className = "chips";
+      row.setAttribute("role", "group");
+      row.setAttribute("aria-label", area);
+      starterLibrary().forEach(function (s) {
+        if (s.area !== area) return;
+        var b = doc.createElement("button");
+        b.setAttribute("type", "button");
+        b.setAttribute("data-starter", s.id);
+        b.setAttribute("aria-pressed", "false");
+        b.textContent = s.name;
+        b.addEventListener("click", function () { chooseLibrary(s.id); });
+        row.appendChild(b);
+        packButtons.push(b);
+      });
+      box.appendChild(row);
+    });
+  }
+
   function exportDraft() {
     var review = el("cs-review");
     var test = el("cs-test");
@@ -1168,6 +1278,7 @@
   var wordsBox = el("cs-words");
   if (wordsBox) wordsBox.addEventListener("input", syncPack);
   paintPacks();
+  paintLibrary();
   paintWhenThen();
   paintLink();
   armFileInput();
