@@ -211,7 +211,91 @@
     step(2);
   }
 
+  /* Voice stays in the browser. Heard words are text in #cs-words. No audio is posted.
+     Draft it still posts studio-draft. Yes still posts save-ai. This page adds no server route. */
+  var TYPE_INSTEAD = "This phone will not take speech here. Type what you want automated.";
+
+  function voiceOn() {
+    var speech = window.AIASpeech;
+    return !!(speech && typeof speech.canListen === "function" && speech.canListen());
+  }
+
+  function heardNote(text) {
+    var n = el("cs-heard");
+    if (!n) return;
+    n.textContent = text || "";
+  }
+
+  function stopVoice() {
+    talkGen += 1;
+    var speech = window.AIASpeech;
+    if (speech && typeof speech.stopTalk === "function") speech.stopTalk();
+    var btn = el("cs-talk");
+    if (!btn) return;
+    btn.className = "ghost";
+    if (btn.setAttribute) btn.setAttribute("aria-pressed", "false");
+  }
+
+  function focusWords() {
+    var box = el("cs-words");
+    if (box && typeof box.focus === "function") box.focus();
+  }
+
+  var talkGen = 0;
+
+  function putHeard(text) {
+    var box = el("cs-words");
+    if (!box) return "";
+    var heard = clean(text, 600);
+    var cur = String(box.value || "").replace(/\s+$/, "");
+    if (!heard) return cur;
+    if (!cur) {
+      box.value = heard;
+      return heard;
+    }
+    var room = 600 - cur.length - 1;
+    if (room <= 0) return cur;
+    var extra = heard.length <= room ? heard : heard.slice(0, room).replace(/\s+\S*$/, "").replace(/[.,;:]+$/, "");
+    if (!extra) return cur;
+    var next = cur + " " + extra;
+    box.value = next;
+    return next;
+  }
+
+  function talk() {
+    if (!voiceOn()) {
+      stopVoice();
+      heardNote(TYPE_INSTEAD);
+      focusWords();
+      return;
+    }
+    var mine = ++talkGen;
+    var btn = el("cs-talk");
+    if (btn) {
+      btn.className = "ghost on";
+      if (btn.setAttribute) btn.setAttribute("aria-pressed", "true");
+    }
+    heardNote("Listening. Say what you want automated.");
+    window.AIASpeech.listen(function (text) {
+      if (mine !== talkGen) return;
+      stopVoice();
+      var next = putHeard(text);
+      heardNote(next ? "Heard. Tap Draft it, or talk again to add more." : "Did not catch that. Tap Talk and say it again, or type it.");
+    }, function (msg) {
+      if (mine !== talkGen) return;
+      stopVoice();
+      heardNote(msg || "Could not hear that. Type it.");
+      focusWords();
+    });
+  }
+
+  function quiet() {
+    stopVoice();
+    heardNote("Quiet. Type what you want automated, or tap Talk.");
+  }
+
   async function draftIt() {
+    stopVoice();
     var words = clean(el("cs-words").value, 600);
     if (!words) return note("cs-note", "Say what you want automated first.", "ask");
     note("cs-note", "", "");
@@ -301,12 +385,14 @@
   }
 
   function stop() {
+    stopVoice();
     current = null;
     step(1);
     note("cs-note", "Stopped. The draft is cleared. Your words are still here.", "ok");
   }
 
   function kill() {
+    stopVoice();
     current = null;
     el("cs-words").value = "";
     fill({ name: "", job: "", watches: [], drafts: [], needs: [] });
@@ -323,6 +409,9 @@
   el("cs-yes").addEventListener("click", yes);
   el("cs-stop").addEventListener("click", stop);
   el("cs-kill").addEventListener("click", kill);
+  if (el("cs-talk")) el("cs-talk").addEventListener("click", talk);
+  if (el("cs-quiet")) el("cs-quiet").addEventListener("click", quiet);
+  heardNote(voiceOn() ? "Talk, or type in the box. Then tap Draft it." : TYPE_INSTEAD);
 
   var params = new URLSearchParams(location.search);
   if (params.get("kind") || params.get("idea") || location.hash) {
