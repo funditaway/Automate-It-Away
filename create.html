@@ -90,6 +90,8 @@
     .cs .kill{background:transparent;color:var(--kill-ink);border:1px solid var(--kill-ink)}
     #cs-talk{background:var(--orange);color:#0c1116;border-color:var(--orange)}
     #cs-talk.on{outline:3px solid var(--teal)}
+    #cs-starters{margin:8px 0 4px}
+    #cs-starters button{min-height:44px;font-size:14px}
     .cs .link{background:none;border:0;color:var(--teal);font-weight:700;cursor:pointer;padding:10px 0;min-height:44px}
     .cs-done{margin:4px 0 0;color:var(--heading);font-weight:700}
     .more-ways{margin-top:14px}
@@ -121,6 +123,8 @@
       <p class="cs-step" id="cs-step">Step 1 of 3</p>
       <div id="cs-ask">
         <h2>What do you want automated?</h2>
+        <p class="hint" id="cs-starter-hint">Start from a pack. Nothing is bought. Change the words, then tap Draft it.</p>
+        <div class="chips" id="cs-starters" role="group" aria-label="Start from a pack"></div>
         <label for="cs-words">Say it in everyday words</label>
         <textarea id="cs-words" rows="3" maxlength="600" placeholder="When a parent asks to change pickup, draft a reply and a reminder for me."></textarea>
         <div class="row-btns" id="cs-voice">
