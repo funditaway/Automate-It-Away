@@ -1,9 +1,13 @@
 /* Simple Create: say it in everyday words, start from a pack, show an example,
-   pick what it watches and what it drafts, or say it also talks to an AI or a site.
+   pick what it watches and what it drafts, say it also talks to an AI or a site,
+   or bring in a text or JSON file. Save a file keeps a copy on this phone.
    Then Draft it, try it on made-up cards, and tap Yes, Stop, or Kill.
    A pack only fills the words box. An example shows one walkthrough on this phone.
    A when and a then only build the words in the box. The person can still edit them.
    A name and an address can be added to those words. A secret stays in its hidden field.
+   A file only fills the words, and draft fields when the file has them. It is not uploaded.
+   Saving a file downloads on this phone. It does not post. A secret is left out unless
+   the person already put it in the words or the draft.
    It does not draft, save, or buy. Draft it still posts studio-draft. Yes still posts save-ai.
    Both go only to /api/desks. Nothing here sends, pays, or charges. Nothing calls that address.
    Built with textContent only. */
@@ -218,6 +222,128 @@
     ];
   }
 
+  /* A text or JSON file can fill the words. Known draft fields can fill the draft.
+     Anything else in the file, including a secret, is left out. Nothing is uploaded. */
+  var FILE_MAX = 8000;
+  var BROUGHT = "Brought in from your file. Change any words you want. Then tap Draft it.";
+  var BROUGHT_SHORT = "Brought in from your file. Long text was shortened so it fits. Change any words you want. Then tap Draft it.";
+  var FILE_KIND = "Use a plain text or JSON file.";
+  var FILE_BIG = "That file is too big. Use a short text or JSON file.";
+  var FILE_EMPTY = "That file had no words to use.";
+  var FILE_JSON = "That JSON file could not be read. Use plain text, or a file with words in it.";
+
+  function allowedFile(name, mime) {
+    var n = String(name || "").toLowerCase().trim();
+    var m = String(mime || "").toLowerCase().split(";")[0].trim();
+    if (/\.(html?|xhtml|svg|js|mjs|cjs|exe|dll|bat|cmd|ps1|sh|php|pdf|zip|png|jpe?g|gif|webp|mp3|mp4|wav|bin)$/.test(n)) return false;
+    if (/\.(txt|text|md|markdown|json|csv)$/.test(n)) return true;
+    if (m === "text/plain" || m === "text/markdown" || m === "text/csv" || m === "application/json" || m === "text/json" || m === "application/ld+json") return true;
+    if (m.indexOf("text/") === 0) return true;
+    if (/^image\/|^audio\/|^video\/|javascript|html|pdf|zip|octet-stream/.test(m)) return false;
+    if (!m && (!n || n.indexOf(".") < 0)) return true;
+    return false;
+  }
+
+  function fileKind(name, mime, raw) {
+    if (!allowedFile(name, mime)) return "no";
+    var n = String(name || "").toLowerCase();
+    var m = String(mime || "").toLowerCase();
+    if (/\.json$/.test(n) || m.indexOf("json") >= 0) return "json";
+    var lead = String(raw || "").trim();
+    if (lead.charAt(0) === "{" || lead.charAt(0) === "[") return "json";
+    return "text";
+  }
+
+  function pickDraft(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+    var name = clean(data.name, 40);
+    var job = clean(data.job || data.does, 160);
+    var watches = linesOf(data.watches);
+    var drafts = linesOf(data.drafts);
+    var needs = linesOf(data.needs);
+    if (!name && !job && !watches.length && !drafts.length && !needs.length) return null;
+    return { source: "words", name: name, job: job, watches: watches, drafts: drafts, needs: needs, steps: ["qualify", "do", "follow"] };
+  }
+
+  function flatFile(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+    if (!data.draft || typeof data.draft !== "object" || Array.isArray(data.draft)) return data;
+    var src = {};
+    ["words", "text", "brief", "name", "job", "does", "watches", "drafts", "needs"].forEach(function (key) {
+      if (data[key] != null) src[key] = data[key];
+      else if (data.draft[key] != null) src[key] = data.draft[key];
+    });
+    return src;
+  }
+
+  function wordsFromFile(data) {
+    if (!data || typeof data !== "object") return "";
+    if (typeof data.words === "string") return data.words;
+    if (typeof data.text === "string") return data.text;
+    if (typeof data.brief === "string") return data.brief;
+    if (typeof data.job === "string") return data.job;
+    if (typeof data.does === "string") return data.does;
+    return "";
+  }
+
+  function textImport(raw) {
+    var full = clean(raw, 0);
+    var words = clean(raw, 600);
+    if (!words) return { ok: false, note: FILE_EMPTY };
+    return { ok: true, words: words, draft: null, shortened: full.length > words.length };
+  }
+
+  function readJsonImport(raw) {
+    var data;
+    try { data = JSON.parse(raw); } catch (e) { return { ok: false, note: FILE_JSON }; }
+    if (typeof data === "string") return textImport(data);
+    if (Array.isArray(data)) {
+      var lines = [];
+      data.forEach(function (item) { if (typeof item === "string" && clean(item, 600)) lines.push(clean(item, 600)); });
+      return textImport(lines.join(" "));
+    }
+    data = flatFile(data);
+    if (!data || typeof data !== "object") return { ok: false, note: FILE_EMPTY };
+    var draft = pickDraft(data);
+    var rawWords = wordsFromFile(data);
+    var words = clean(rawWords, 600);
+    if (!words && draft && draft.job) words = clean(draft.job, 600);
+    if (!words) return { ok: false, note: FILE_EMPTY };
+    return { ok: true, words: words, draft: draft, shortened: clean(rawWords || words, 0).length > words.length };
+  }
+
+  function readImportText(text, name, mime) {
+    var raw = String(text == null ? "" : text).replace(/^\uFEFF/, "");
+    if (raw.indexOf("\0") >= 0) return { ok: false, note: FILE_KIND };
+    if (raw.length > FILE_MAX) return { ok: false, note: FILE_BIG };
+    if (/^\s*<(?:!doctype|html|script|svg)\b/i.test(raw)) return { ok: false, note: FILE_KIND };
+    var kind = fileKind(name, mime, raw);
+    if (kind === "no") return { ok: false, note: FILE_KIND };
+    if (kind === "json") return readJsonImport(raw);
+    return textImport(raw);
+  }
+
+  /* Download text for the words and, when present, the draft fields only.
+     A secret field is never copied. Keys other than these are left out. */
+  function exportText(words, draft) {
+    var out = {};
+    var said = clean(words, 600);
+    if (said) out.words = said;
+    if (draft && typeof draft === "object") {
+      var name = clean(draft.name, 40);
+      var job = clean(draft.job, 160);
+      var watches = linesOf(draft.watches);
+      var drafts = linesOf(draft.drafts);
+      var needs = linesOf(draft.needs);
+      if (name) out.name = name;
+      if (job) out.job = job;
+      if (watches.length) out.watches = watches;
+      if (drafts.length) out.drafts = drafts;
+      if (needs.length) out.needs = needs;
+    }
+    return JSON.stringify(out, null, 2) + "\n";
+  }
+
   function rules() {
     var list = window.AIACardRules;
     return Array.isArray(list) ? list.slice() : [];
@@ -242,7 +368,7 @@
       : "The desk does not store the rules yet. Nothing enforces them.";
   }
 
-  var api = { starterPacks: starterPacks, workedExample: workedExample, whenChoices: whenChoices, thenChoices: thenChoices, whenThenWords: whenThenWords, linkChoices: linkChoices, safeAddress: safeAddress, linkSentence: linkSentence, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
+  var api = { starterPacks: starterPacks, workedExample: workedExample, whenChoices: whenChoices, thenChoices: thenChoices, whenThenWords: whenThenWords, linkChoices: linkChoices, safeAddress: safeAddress, linkSentence: linkSentence, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine, allowedFile: allowedFile, readImportText: readImportText, exportText: exportText };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -267,6 +393,14 @@
 
   var current = null;
   var appliedLink = "";
+  var broughtWords = "";
+  var broughtDraft = null;
+  var draftedWords = "";
+
+  function forgetBrought() {
+    broughtWords = "";
+    broughtDraft = null;
+  }
 
   function paintRules() {
     var list = el("cs-rules-list");
@@ -320,8 +454,26 @@
     };
   }
 
+  function showFromWords(words, why) {
+    if (broughtDraft && words === broughtWords) {
+      var base = starterDraft(words);
+      showDraft({
+        source: "words",
+        name: broughtDraft.name || base.name,
+        job: broughtDraft.job || base.job,
+        watches: linesOf(broughtDraft.watches).length ? linesOf(broughtDraft.watches) : base.watches,
+        drafts: linesOf(broughtDraft.drafts).length ? linesOf(broughtDraft.drafts) : base.drafts,
+        needs: linesOf(broughtDraft.needs).length ? linesOf(broughtDraft.needs) : base.needs,
+        steps: base.steps
+      }, why);
+      return;
+    }
+    showDraft(starterDraft(words), why);
+  }
+
   function showDraft(d, why) {
     current = d;
+    draftedWords = clean(el("cs-words") ? el("cs-words").value : "", 600);
     fill(d);
     el("cs-src").textContent = d.source === "aia"
       ? "AIA drafted this from your words. Change anything in plain words."
@@ -424,7 +576,7 @@
     btn.disabled = true;
     if (!deskOpen()) {
       btn.disabled = false;
-      showDraft(starterDraft(words), "Your desk is not open, so AIA did not draft this. This starter is made from your words. Change anything in plain words.");
+      showFromWords(words, "Your desk is not open, so AIA did not draft this. This starter is made from your words. Change anything in plain words.");
       el("cs-open").hidden = false;
       return;
     }
@@ -432,10 +584,10 @@
       var r = await fetch("/api/desks", { method: "POST", headers: hdr(), body: JSON.stringify({ action: "studio-draft", brief: words, kind: "ai" }) });
       var d = await r.json().catch(function () { return {}; });
       if (r.ok && d && d.ok && d.pack) showDraft(fromStudio(words, d.pack));
-      else if (d && d.grok === "off") showDraft(starterDraft(words), "AIA drafting is not on for this desk yet, so this starter is made from your words. Change anything in plain words.");
-      else showDraft(starterDraft(words), (d && d.error ? d.error + " " : "AIA did not draft this time. ") + "This starter is made from your words.");
+      else if (d && d.grok === "off") showFromWords(words, "AIA drafting is not on for this desk yet, so this starter is made from your words. Change anything in plain words.");
+      else showFromWords(words, (d && d.error ? d.error + " " : "AIA did not draft this time. ") + "This starter is made from your words.");
     } catch (e) {
-      showDraft(starterDraft(words), "Could not reach the desk. This starter is made from your words.");
+      showFromWords(words, "Could not reach the desk. This starter is made from your words.");
     } finally {
       btn.disabled = false;
     }
@@ -542,6 +694,8 @@
   function stop() {
     stopVoice();
     current = null;
+    draftedWords = "";
+    forgetBrought();
     step(1);
     note("cs-note", "Stopped. The draft is cleared. Your words are still here.", "ok");
   }
@@ -549,12 +703,16 @@
   function kill() {
     stopVoice();
     current = null;
+    draftedWords = "";
+    forgetBrought();
     el("cs-words").value = "";
     markPack("");
     setExampleOpen(false);
     closeWhenPick(true);
     fill({ name: "", job: "", watches: [], drafts: [], needs: [] });
     clearLink();
+    var file = el("cs-import-file");
+    if (file) file.value = "";
     var box = el("cs-samples");
     while (box.firstChild) box.removeChild(box.firstChild);
     step(1);
@@ -862,6 +1020,133 @@
     });
   }
 
+  function exportDraft() {
+    var review = el("cs-review");
+    var test = el("cs-test");
+    var words = clean(el("cs-words") ? el("cs-words").value : "", 600);
+    if ((review && review.hidden === false) || (test && test.hidden === false)) return readForm();
+    if (current && words && words === draftedWords) return readForm();
+    if (broughtDraft && words === broughtWords) return broughtDraft;
+    return null;
+  }
+
+  function putFile(got) {
+    var box = el("cs-words");
+    if (!box || !got) return;
+    var talkBtn = el("cs-talk");
+    var talking = !!(talkBtn && String(talkBtn.className || "").indexOf("on") >= 0);
+    stopVoice();
+    box.value = got.words || "";
+    broughtWords = got.words || "";
+    if (got.draft) {
+      broughtDraft = got.draft;
+      current = got.draft;
+      fill(got.draft);
+    } else {
+      broughtDraft = null;
+      current = null;
+    }
+    draftedWords = "";
+    syncPack();
+    if (el("cs-ask") && el("cs-ask").hidden) step(1);
+    note("cs-note", got.shortened ? BROUGHT_SHORT : BROUGHT, "ask");
+    if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+    focusWords();
+  }
+
+  function takeFile(file) {
+    if (!file) return;
+    var name = file.name || "";
+    var mime = file.type || "";
+    if (!allowedFile(name, mime)) return note("cs-note", FILE_KIND, "ask");
+    if (typeof file.size === "number" && file.size > 20000) return note("cs-note", FILE_BIG, "ask");
+    if (typeof FileReader !== "function") return note("cs-note", "This phone cannot read a file here. Type the words instead.", "err");
+    var reader = new FileReader();
+    reader.onload = function () {
+      var text = reader.result == null ? "" : String(reader.result);
+      var got = readImportText(text, name, mime);
+      if (!got.ok) return note("cs-note", got.note || FILE_EMPTY, "ask");
+      putFile(got);
+    };
+    reader.onerror = function () {
+      note("cs-note", "That file could not be read. Try a text or JSON file.", "err");
+    };
+    reader.readAsText(file);
+  }
+
+  function armFileInput() {
+    var node = el("cs-import-file");
+    if (!node || (node.getAttribute && node.getAttribute("data-ready") === "yes")) return node;
+    node.type = "file";
+    if (node.setAttribute) {
+      node.setAttribute("type", "file");
+      node.setAttribute("data-ready", "yes");
+    }
+    if (node.addEventListener) node.addEventListener("change", function () {
+      var list = node.files;
+      var file = list && list[0];
+      if (!file) return;
+      takeFile(file);
+      try { node.value = ""; } catch (e) { /* the same file can be chosen again next time */ }
+    });
+    return node;
+  }
+
+  function pickFile() {
+    stopVoice();
+    var node = armFileInput();
+    if (!node || typeof node.click !== "function") return note("cs-note", "This phone cannot bring in a file here. Type the words instead.", "err");
+    node.click();
+  }
+
+  function saveFile() {
+    stopVoice();
+    var words = clean(el("cs-words") ? el("cs-words").value : "", 600);
+    var draft = exportDraft();
+    var text = exportText(words, draft);
+    if (text === "{}\n") return note("cs-note", "Nothing to save yet. Type some words, or bring in a file.", "ask");
+    var urlApi = typeof URL !== "undefined" && URL && typeof URL.createObjectURL === "function" ? URL : null;
+    if (typeof Blob !== "function" || !urlApi) return note("cs-note", "This phone could not save a file. Your words are still here.", "err");
+    var blob = new Blob([text], { type: "application/json" });
+    var url = urlApi.createObjectURL(blob);
+    var a = doc.createElement("a");
+    a.href = url;
+    a.download = "aia-words.json";
+    if (a.setAttribute) {
+      a.setAttribute("href", url);
+      a.setAttribute("download", "aia-words.json");
+    }
+    var body = doc.body;
+    if (body && typeof body.appendChild === "function") body.appendChild(a);
+    if (typeof a.click === "function") a.click();
+    if (body && a.parentNode && typeof body.removeChild === "function") body.removeChild(a);
+    if (typeof urlApi.revokeObjectURL === "function") urlApi.revokeObjectURL(url);
+    note("cs-note", "Saved a file on this phone. Nothing was uploaded.", "ok");
+  }
+
+  function armDrop(node) {
+    if (!node || !node.addEventListener) return;
+    node.addEventListener("dragover", function (e) {
+      if (e && e.preventDefault) e.preventDefault();
+      if (e && e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      var box = el("cs-words");
+      if (box) box.className = "dropping";
+    });
+    node.addEventListener("dragleave", function () {
+      var box = el("cs-words");
+      if (box && box.className === "dropping") box.className = "";
+    });
+    node.addEventListener("drop", function (e) {
+      if (e && e.preventDefault) e.preventDefault();
+      var box = el("cs-words");
+      if (box) box.className = "";
+      var dt = e && e.dataTransfer;
+      var files = dt && dt.files;
+      var file = files && (files[0] || files.item && files.item(0));
+      if (file) takeFile(file);
+    });
+  }
+
   el("cs-draft").addEventListener("click", draftIt);
   el("cs-try").addEventListener("click", tryIt);
   el("cs-edit").addEventListener("click", function () { step(2); });
@@ -885,6 +1170,10 @@
   paintPacks();
   paintWhenThen();
   paintLink();
+  armFileInput();
+  armDrop(el("cs-ask"));
+  if (el("cs-import")) el("cs-import").addEventListener("click", pickFile);
+  if (el("cs-export")) el("cs-export").addEventListener("click", saveFile);
   if (el("cs-webhook-add")) el("cs-webhook-add").addEventListener("click", addLink);
   if (el("cs-when")) el("cs-when").addEventListener("change", chooseWhenThen);
   if (el("cs-then")) el("cs-then").addEventListener("change", chooseWhenThen);

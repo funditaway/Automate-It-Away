@@ -35,8 +35,8 @@ ok(/id="cs-words"/.test(cs) && /id="cs-draft">Draft it<\/button>/.test(cs), "sam
 ok(/id="cs-talk"[^>]*>Talk<\/button>/.test(cs) && /id="cs-quiet"[^>]*>Quiet<\/button>/.test(cs), "Talk and Quiet are plain buttons");
 ok(/id="cs-heard"/.test(cs), "spoken status line is on the Create card");
 ok(/id="cs-yes">Yes<\/button>/.test(cs) && /id="cs-stop">Stop<\/button>/.test(cs) && /id="cs-kill">Kill<\/button>/.test(cs), "Yes, Stop, and Kill stay their own buttons");
-// cs-webhook is the AI / site control. pack, import, and export stay reserved.
-ok(!/id="cs-(pack|import|export)"/.test(cs), "later reserved path ids stay off this card");
+// cs-import and cs-export bring in and save a file. pack stays reserved.
+ok(!/id="cs-pack"/.test(cs), "later reserved path ids stay off this card");
 ok(!/\b(PASS|FAIL|HOLD)\b/.test(cs) && !/\b(PASS|FAIL|HOLD)\b/.test(code), "public Create voice has no PASS, FAIL, or HOLD");
 ok(!/\b(Foreman|Mapper|Packer|Doer|Rail|Builder|Worker)\b/.test(cs + "\n" + code), "public Create voice has no crew names");
 ok(!/9e21597/.test(cs + "\n" + js) && !/\b[0-9a-f]{40}\b/i.test(cs), "public Create voice has no tip");

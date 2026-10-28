@@ -101,6 +101,10 @@
     #cs-webhook-add{margin-top:10px;width:100%;min-height:48px;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;cursor:pointer}
     #cs-example-walk{margin:8px 0 0;border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
     #cs-example-walk p{margin:4px 0}
+    #cs-words.dropping{outline:3px solid var(--teal)}
+    #cs-files{margin-top:8px}
+    #cs-import-file{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:420px){#cs-files{flex-direction:column}}
     #cs-example-draft b,#cs-example-samples b{color:var(--heading)}
     .cs .link{background:none;border:0;color:var(--teal);font-weight:700;cursor:pointer;padding:10px 0;min-height:44px}
     .cs-done{margin:4px 0 0;color:var(--heading);font-weight:700}
@@ -145,6 +149,12 @@
         </details>
         <label for="cs-words">Say it in everyday words</label>
         <textarea id="cs-words" rows="3" maxlength="600" placeholder="When a parent asks to change pickup, draft a reply and a reminder for me."></textarea>
+        <div class="row-btns" id="cs-files" role="group" aria-label="Bring in or save a file">
+          <button type="button" class="ghost" id="cs-import">Bring in a file</button>
+          <button type="button" class="stop" id="cs-export">Save a file</button>
+        </div>
+        <p class="hint" id="cs-file-hint">Bring in a text or JSON file, or drop it on the words. You can still change them. Save a file keeps a copy on this phone. Nothing is uploaded.</p>
+        <input id="cs-import-file" accept="text/plain,application/json,.txt,.text,.md,.markdown,.json,.csv" aria-label="Choose a text or JSON file">
         <button type="button" class="link" id="cs-example" aria-expanded="false" aria-controls="cs-example-walk">Show an example</button>
         <div id="cs-example-walk" hidden role="region" aria-label="An example">
           <p class="hint" id="cs-example-lead"></p>

@@ -70,7 +70,8 @@ ok(/id="cs-starters"/.test(cs) && /<details id="cs-when-pick">/.test(cs) && /id=
 ok(/id="cs-example"[^>]*>Show an example<\/button>/.test(cs), "Show an example stays");
 ok(/id="cs-talk"[^>]*>Talk<\/button>/.test(cs) && /id="cs-quiet"[^>]*>Quiet<\/button>/.test(cs), "Talk and Quiet stay on the card");
 ok(/id="cs-yes">Yes<\/button>/.test(cs) && /id="cs-stop">Stop<\/button>/.test(cs) && /id="cs-kill">Kill<\/button>/.test(cs), "Yes, Stop, and Kill stay their own buttons");
-["import", "export", "pack"].forEach(function (name) {
+// cs-import and cs-export bring in and save a file. pack stays reserved.
+["pack"].forEach(function (name) {
   ok(cs.indexOf('id="cs-' + name + '"') < 0, "path id cs-" + name + " stays off this card");
 });
 ok(!/type="file"|<input[^>]*type="file"/i.test(cs), "no file import on this card");
