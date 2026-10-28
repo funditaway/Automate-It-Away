@@ -1,5 +1,7 @@
-/* Simple Create: say it in everyday words, get a draft Desk AI, try it on made-up cards, then Yes, Stop or Kill.
-   Server calls: studio-draft (draft only) and save-ai (Yes) on /api/desks. Nothing here sends, pays or charges.
+/* Simple Create: say it in everyday words, or start from a pack and change the words.
+   Then Draft it, try it on made-up cards, and tap Yes, Stop, or Kill.
+   A pack only fills the words box. Draft it still posts studio-draft. Yes still posts save-ai.
+   Both go only to /api/desks. Nothing here sends, pays, or charges.
    Built with textContent only. */
 (function () {
   var STEP_WORDS = {
@@ -30,6 +32,16 @@
     var bits = clean(words, 200).replace(/[^A-Za-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean).slice(0, 3);
     if (!bits.length) return "My Desk AI";
     return clean("Helper: " + bits.join(" "), 40);
+  }
+
+  /* A few everyday packs. Choosing one fills #cs-words. It does not draft, save, or buy. */
+  function starterPacks() {
+    return [
+      { id: "pickup", name: "Pickup changes", words: "When a parent asks to change pickup, draft a reply and a reminder for me." },
+      { id: "bill", name: "A bill due", words: "When a bill is due, draft a reminder with the date and what it is for." },
+      { id: "neighbor", name: "Neighbor help", words: "When a neighbor asks for help, draft a short reply and a time that works." },
+      { id: "plants", name: "Water the plants", words: "Remind me to water the plants every Tuesday, and draft a note if a day gets missed." }
+    ];
   }
 
   function starterDraft(words) {
@@ -129,7 +141,7 @@
       : "The desk does not store the rules yet. Nothing enforces them.";
   }
 
-  var api = { starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
+  var api = { starterPacks: starterPacks, starterDraft: starterDraft, fromStudio: fromStudio, promptOf: promptOf, sampleCards: sampleCards, sampleDraft: sampleDraft, linesOf: linesOf, rules: rules, rulesText: rulesText, saveBody: saveBody, rulesStored: rulesStored, rulesLine: rulesLine };
   window.AIACreateSimple = api;
 
   var doc = window.document;
@@ -251,6 +263,7 @@
     if (!heard) return cur;
     if (!cur) {
       box.value = heard;
+      syncPack();
       return heard;
     }
     var room = 600 - cur.length - 1;
@@ -259,6 +272,7 @@
     if (!extra) return cur;
     var next = cur + " " + extra;
     box.value = next;
+    syncPack();
     return next;
   }
 
@@ -395,11 +409,68 @@
     stopVoice();
     current = null;
     el("cs-words").value = "";
+    markPack("");
     fill({ name: "", job: "", watches: [], drafts: [], needs: [] });
     var box = el("cs-samples");
     while (box.firstChild) box.removeChild(box.firstChild);
     step(1);
     note("cs-note", "Killed. Everything is thrown away. Nothing was saved or sent.", "ok");
+  }
+
+  var packButtons = [];
+
+  function packById(id) {
+    var list = starterPacks();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  function markPack(id) {
+    (packButtons || []).forEach(function (b) {
+      var on = !!(id && b.getAttribute("data-starter") === id);
+      b.className = on ? "on" : "";
+      if (b.setAttribute) b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  function syncPack() {
+    var box = el("cs-words");
+    if (!box) return;
+    var words = String(box.value || "");
+    var hit = null;
+    starterPacks().forEach(function (s) { if (s.words === words) hit = s; });
+    markPack(hit ? hit.id : "");
+  }
+
+  function choosePack(id) {
+    var s = packById(id);
+    var box = el("cs-words");
+    if (!s || !box) return;
+    var talkBtn = el("cs-talk");
+    var talking = !!(talkBtn && String(talkBtn.className || "").indexOf("on") >= 0);
+    stopVoice();
+    box.value = s.words;
+    markPack(s.id);
+    note("cs-note", "Change any words you want. Then tap Draft it.", "ask");
+    if (talking) heardNote("Quiet. Type what you want automated, or tap Talk.");
+    focusWords();
+  }
+
+  function paintPacks() {
+    var box = el("cs-starters");
+    if (!box) return;
+    packButtons = [];
+    while (box.firstChild) box.removeChild(box.firstChild);
+    starterPacks().forEach(function (s) {
+      var b = doc.createElement("button");
+      b.setAttribute("type", "button");
+      b.setAttribute("data-starter", s.id);
+      b.setAttribute("aria-pressed", "false");
+      b.textContent = s.name;
+      b.addEventListener("click", function () { choosePack(s.id); });
+      box.appendChild(b);
+      packButtons.push(b);
+    });
   }
 
   el("cs-draft").addEventListener("click", draftIt);
@@ -412,6 +483,9 @@
   if (el("cs-talk")) el("cs-talk").addEventListener("click", talk);
   if (el("cs-quiet")) el("cs-quiet").addEventListener("click", quiet);
   heardNote(voiceOn() ? "Talk, or type in the box. Then tap Draft it." : TYPE_INSTEAD);
+  var wordsBox = el("cs-words");
+  if (wordsBox) wordsBox.addEventListener("input", syncPack);
+  paintPacks();
 
   var params = new URLSearchParams(location.search);
   if (params.get("kind") || params.get("idea") || location.hash) {
