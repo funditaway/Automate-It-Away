@@ -88,6 +88,8 @@
     .cs-sample p{font-size:13px;color:var(--muted);margin:2px 0}
     .cs-tag{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading)}
     .cs .kill{background:transparent;color:var(--kill-ink);border:1px solid var(--kill-ink)}
+    #cs-talk{background:var(--orange);color:#0c1116;border-color:var(--orange)}
+    #cs-talk.on{outline:3px solid var(--teal)}
     .cs .link{background:none;border:0;color:var(--teal);font-weight:700;cursor:pointer;padding:10px 0;min-height:44px}
     .cs-done{margin:4px 0 0;color:var(--heading);font-weight:700}
     .more-ways{margin-top:14px}
@@ -121,6 +123,11 @@
         <h2>What do you want automated?</h2>
         <label for="cs-words">Say it in everyday words</label>
         <textarea id="cs-words" rows="3" maxlength="600" placeholder="When a parent asks to change pickup, draft a reply and a reminder for me."></textarea>
+        <div class="row-btns" id="cs-voice">
+          <button type="button" class="ghost" id="cs-talk" aria-pressed="false">Talk</button>
+          <button type="button" class="stop" id="cs-quiet">Quiet</button>
+        </div>
+        <p class="hint" id="cs-heard" aria-live="polite">Talk, or type in the box. Then tap Draft it.</p>
         <button type="button" class="go" id="cs-draft">Draft it</button>
         <p class="cs-note" id="cs-note" hidden></p>
       </div>
@@ -226,6 +233,7 @@
   <script src="create-pack-download.js"></script>
   <script src="create-queue.js"></script>
   <script src="card-rules.js"></script>
+  <script src="speech.js"></script>
   <script src="create-simple.js"></script>
 <script src="/mark-fix.js"></script></body>
 </html>
