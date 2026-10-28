@@ -37,7 +37,7 @@
 
   /* One worked example. Showing it fills #cs-words and paints a walkthrough on this phone.
      It does not draft, save, or buy. The words are not one of the pack chips. */
-  var EXAMPLE_WORDS = "When the school says pickup moved to 3:30, draft a note for me and a reply I can check.";
+  var EXAMPLE_WORDS = "When the school moves pickup to 3:30, draft a note and a reply for me.";
   var EXAMPLE_LEAD = "Here is one example. It stays on this phone. Nothing is saved or sent.";
   var EXAMPLE_NOTE = "This is an example. Change any words you want. Then tap Draft it.";
 

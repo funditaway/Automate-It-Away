@@ -14,7 +14,7 @@ function fail(msg) { failures += 1; console.error("FAIL " + msg); }
 function ok(cond, msg) { if (cond) passes += 1; else fail(msg); }
 function read(rel) { return fs.readFileSync(path.join(root, rel), "utf8"); }
 
-const WORDS = "When the school says pickup moved to 3:30, draft a note for me and a reply I can check.";
+const WORDS = "When the school moves pickup to 3:30, draft a note and a reply for me.";
 const LEAD = "Here is one example. It stays on this phone. Nothing is saved or sent.";
 const NOTE = "This is an example. Change any words you want. Then tap Draft it.";
 const NEXT = "These words are in the box. Change them if you want, then tap Draft it.";
