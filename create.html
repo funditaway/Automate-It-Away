@@ -92,6 +92,9 @@
     #cs-talk.on{outline:3px solid var(--teal)}
     #cs-starters{margin:8px 0 4px}
     #cs-starters button{min-height:44px;font-size:14px}
+    #cs-example-walk{margin:8px 0 0;border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
+    #cs-example-walk p{margin:4px 0}
+    #cs-example-draft b,#cs-example-samples b{color:var(--heading)}
     .cs .link{background:none;border:0;color:var(--teal);font-weight:700;cursor:pointer;padding:10px 0;min-height:44px}
     .cs-done{margin:4px 0 0;color:var(--heading);font-weight:700}
     .more-ways{margin-top:14px}
@@ -127,6 +130,14 @@
         <div class="chips" id="cs-starters" role="group" aria-label="Start from a pack"></div>
         <label for="cs-words">Say it in everyday words</label>
         <textarea id="cs-words" rows="3" maxlength="600" placeholder="When a parent asks to change pickup, draft a reply and a reminder for me."></textarea>
+        <button type="button" class="link" id="cs-example" aria-expanded="false" aria-controls="cs-example-walk">Show an example</button>
+        <div id="cs-example-walk" hidden role="region" aria-label="An example">
+          <p class="hint" id="cs-example-lead"></p>
+          <div id="cs-example-draft"></div>
+          <p class="hint" id="cs-example-samples-label">Sample cards</p>
+          <div id="cs-example-samples"></div>
+          <p class="hint" id="cs-example-next">These words are in the box. Change them if you want, then tap Draft it.</p>
+        </div>
         <div class="row-btns" id="cs-voice">
           <button type="button" class="ghost" id="cs-talk" aria-pressed="false">Talk</button>
           <button type="button" class="stop" id="cs-quiet">Quiet</button>
