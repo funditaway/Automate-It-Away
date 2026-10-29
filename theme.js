@@ -246,15 +246,42 @@
     }
     chip.classList.remove("out");
     chip.classList.add("signed-out");
-    if (/^(login|onboard)$/.test(page)) {
-      chip.innerHTML = '<span class="who-copy"><strong>New desk</strong></span>';
-      chip.href = page === "login" ? "/onboard" : "/login";
-      chip.title = "Desk name + code. Open a desk you already have, or start a new one.";
+    if (page === "login") {
+      chip.innerHTML = '<span class="who-copy"><strong>Open a Queue</strong></span>';
+      chip.href = "/onboard";
+      chip.title = "New desk. Desk name + code.";
       return;
     }
-    chip.innerHTML = '<span class="who-copy"><strong>Sign in</strong></span>';
+    if (page === "onboard") {
+      chip.innerHTML = '<span class="who-copy"><strong>Sign in to your Queue</strong></span>';
+      chip.href = "/login";
+      chip.title = "Desk name + code. Sign in to your Queue.";
+      return;
+    }
+    chip.innerHTML = '<span class="who-copy"><strong>Sign in to your Queue</strong></span>';
     chip.href = "/login";
     chip.title = "Desk name + code";
+  }
+  function queueHome() {
+    var on = !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_pin") || localStorage.getItem("aia_session")));
+    return on
+      ? { href: "/desk", label: "Open my Queue" }
+      : { href: "/login", label: "Sign in to your Queue" };
+  }
+  function paintQueueHome() {
+    if (isEmbed()) return;
+    var header = document.querySelector("header, .site-header");
+    if (!header) return;
+    var link = document.getElementById("queue-home-link");
+    if (!link) {
+      link = document.createElement("a");
+      link.id = "queue-home-link";
+      link.className = "queue-home-link";
+      header.appendChild(link);
+    }
+    var home = queueHome();
+    link.href = home.href;
+    link.textContent = home.label;
   }
   var SITE_LINKS = [
     { id: "how", href: "/how", label: "How" },
@@ -296,7 +323,9 @@
     var foot = document.querySelector("footer");
     if (!foot) { foot = document.createElement("footer"); foot.className = "site-foot"; document.body.appendChild(foot); }
     foot.classList.add("site-foot");
+    var home = queueHome();
     var links = FOOT_LINKS.map(function (l) { return "<a href=\"" + l.href + "\">" + l.label + "</a>"; }).join("<span aria-hidden=\"true\">·</span>");
+    links += "<span aria-hidden=\"true\">·</span><a href=\"" + home.href + "\">" + home.label + "</a>";
     foot.innerHTML = "<p>© 2026 Automate It Away</p><nav>" + links + "</nav>";
   }
   function rewriteHtmlHrefs() {
@@ -347,7 +376,7 @@
     document.head.appendChild(l);
   }
   function mark() {
-    ensurePhoneMeta(); ensureIcons(); lockHeader(); ensureFixCss(); ensureBtn(); paintSiteNav(); paintWho(); paintFooter(); rewriteHtmlHrefs();
+    ensurePhoneMeta(); ensureIcons(); lockHeader(); ensureFixCss(); ensureBtn(); paintSiteNav(); paintWho(); paintQueueHome(); paintFooter(); rewriteHtmlHrefs();
     liftChrome(document.querySelector("header, .site-header"));
     var brandHost = document.querySelector(".site-header > a, header > a.brand, header > a, header .logo, header .brand");
     if (brandHost && brandHost.tagName === "A") {

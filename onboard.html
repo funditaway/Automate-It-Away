@@ -4,7 +4,7 @@
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Open your account · Automate It Away</title>
+  <title>Open your Queue · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
@@ -27,13 +27,13 @@
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
       <a href="setup.html">Setup</a>
-      <a href="login.html">Have a desk</a>
+      <a href="login.html">Sign in to your Queue</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <form class="gate-card" id="form">
-    <h1>Open your account</h1>
-    <p class="sub">Three doors. Same AIA Account. Owner opens a free account and a desk. Member asks to join. Continue-with is identity only — never Send, Stop, pay, or draft. Monthly later — we tell you before we charge.</p>
+    <h1>Open your Queue</h1>
+    <p class="sub">One account is one Queue. The Queue holds every desk you open. Owner opens a free account and the first desk. Member asks to join. Continue-with is identity only — never send, stop, pay, or draft. Monthly later — we tell you before we charge.</p>
     <div id="oauth-wall"></div>
     <label>Your name <button type="button" class="aia-tip" data-aia-tip="your-name" aria-label="More about Your name">?</button></label>
     <input name="name" required placeholder="Alex Rivera" autocomplete="name">
@@ -74,8 +74,8 @@
     <input type="email" name="email" placeholder="you@shop.com">
     <label>Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
     <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
-    <button class="btn" type="submit" id="go">Open the account</button>
-    <p class="hint" id="hint">Owner: full admin, free now. Member: join an existing desk. Desk name + your code is the login. World doors stay Hold until they are lit.</p>
+    <button class="btn" type="submit" id="go">Open my Queue</button>
+    <p class="hint" id="hint">Owner: full admin, free now. Member: join an existing desk. Shop name and code open this Queue. You do not sign in again to switch desks.</p>
     <p class="err" id="err"></p>
   </form>
   <section class="gate-card" id="playbook-card" style="margin-top:0">
@@ -100,10 +100,10 @@
     function showRole() {
       const member = roleEl.value === "member";
       memberBox.hidden = !member;
-      goBtn.textContent = member ? "Ask to join" : "Open the account";
+      goBtn.textContent = member ? "Ask to join" : "Open my Queue";
       hintEl.textContent = member
-        ? "Desk name is the shop you are joining. Pick your own code. Owner approves and sets the permission."
-        : "Owner: full admin, free now. Desk name + this code opens the queue on any phone.";
+        ? "Shop name is the desk you are joining. Pick your own code. Owner approves and sets the permission."
+        : "Owner: full admin, free now. Shop name and this code open your Queue on any phone.";
     }
     roleEl.addEventListener("change", showRole);
     showRole();
@@ -111,7 +111,7 @@
       e.preventDefault();
       const f = new FormData(e.target);
       const pin = String(f.get("pin") || "");
-      if (pin.length < 4) { err.textContent = "Pick a desk code with at least 4 digits."; err.style.display = "block"; return; }
+        if (pin.length < 4) { err.textContent = "Pick a code with at least 4 digits."; err.style.display = "block"; return; }
       const isMember = String(f.get("role") || "") === "member";
       const slug = String(f.get("biz") || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
       try {
@@ -133,7 +133,7 @@
           })
         });
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) { err.textContent = data.error || "Could not open the shop."; err.style.display = "block"; return; }
+        if (!r.ok) { err.textContent = data.error || "Could not open your Queue."; err.style.display = "block"; return; }
         if (data.pending) {
           err.style.display = "block";
           err.textContent = data.hint || "On the book. Owner approves your member seat on People, then you sign in.";
@@ -157,7 +157,7 @@
         }
         location.href = "desk.html";
       } catch (ex) {
-        err.textContent = "Could not reach the desk.";
+        err.textContent = "Could not reach your Queue.";
         err.style.display = "block";
       }
     };

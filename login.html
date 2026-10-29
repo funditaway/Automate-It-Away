@@ -4,7 +4,7 @@
   <meta name="theme-color" content="#0d6b6b">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Open this desk · Automate It Away</title>
+  <title>Sign in to your Queue · Automate It Away</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
@@ -30,27 +30,27 @@
   <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
-      <a href="onboard.html">New desk</a>
+      <a href="onboard.html">Open a Queue</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <form class="gate-card" id="form">
-    <h1>Open this desk</h1>
-    <p class="sub">One AIA account. Three doors: desk name + code, email + password, or continue with. Continue-with is identity only — never Send, Stop, pay, or draft. <a href="account.html">Your account</a></p>
+    <h1>Sign in to your Queue</h1>
+    <p class="sub">One account is one Queue. That Queue holds every desk. Sign in with email and password, or with a shop name and code. Continue-with is identity only — never send, stop, pay, or draft. <a href="account.html">Your account</a></p>
     <div class="door-row" role="tablist">
-      <button type="button" class="on" id="door-desk">Desk name + code</button>
+      <button type="button" class="on" id="door-desk">Shop name + code</button>
       <button type="button" id="door-email">Email + password</button>
     </div>
     <div class="talk-bar" id="talkBar" hidden>
-      <p class="talk-status" id="talkStatus">Say the desk name. Code and password stay typed — not read back.</p>
+      <p class="talk-status" id="talkStatus">Say the shop name. Code and password stay typed — not read back.</p>
       <button type="button" id="hearBtn">Hear this</button>
       <button type="button" id="talkBtn">Talk</button>
       <button type="button" id="quietBtn">Quiet</button>
     </div>
     <div id="desk-door">
-      <label>Desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
+      <label>Shop name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Shop name">?</button></label>
       <input name="slug" placeholder="Desk name" autocomplete="username">
-      <label>Your desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
+      <label>Code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Code">?</button></label>
       <input name="pin" inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="current-password">
     </div>
     <div id="email-door" hidden>
@@ -64,9 +64,9 @@
       <input name="code" inputmode="numeric" maxlength="8" placeholder="Six digits" autocomplete="one-time-code">
       <p class="hint">This account has the app factor on. We do not text or email a code.</p>
     </div>
-    <button class="btn" type="submit">Open</button>
+    <button class="btn" type="submit" id="open-queue">Open my Queue</button>
     <div id="oauth-wall"></div>
-    <p class="hint">No password yet? Open with the desk code, then set email and password on Your account. World doors stay Hold until they are lit.</p>
+    <p class="hint">No password yet? Open with your shop name and code, then set email and password on your account. One account is one Queue. Switching desks does not ask you to sign in again.</p>
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js?v=20261008b"></script>
@@ -108,7 +108,7 @@
       talkBar.hidden = false;
     }
     document.getElementById("hearBtn").onclick = function () {
-      AIASpeech.speak(door === "email" ? "Type your email and password." : "Say the desk name. Then type your desk code.");
+      AIASpeech.speak(door === "email" ? "Type your email and password." : "Say the shop name. Then type your code.");
     };
     talkBtn.onclick = function () {
       if (door === "email") {
@@ -116,7 +116,7 @@
         return;
       }
       talkBtn.classList.add("on");
-      talkStatus.textContent = "Listening for the desk name…";
+      talkStatus.textContent = "Listening for the shop name…";
       form.elements.slug.classList.add("on-talk");
       AIASpeech.listen(function (heard) {
         talkBtn.classList.remove("on");
@@ -173,9 +173,11 @@
             who: (data.you && data.you.name) || ""
           });
         }
-        location.href = data.workspace ? "desk.html" : "account.html";
+        if (door === "email") location.href = "desk.html";
+        else if (data.workspace) location.href = "desk.html?workspace=" + encodeURIComponent(data.workspace.slug || slug);
+        else location.href = "account.html";
       } catch (ex) {
-        err.textContent = "Could not reach the desk.";
+        err.textContent = "Could not reach your Queue.";
         err.style.display = "block";
       }
     };
