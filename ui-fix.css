@@ -1001,3 +1001,207 @@ pre, .file-list, #drop-link { overflow-x: auto; }
 @media (max-width: 430px) {
   header a[href="/login"], header a[href="login.html"] { display: none !important; }
 }
+
+/* 2026-10-29 phone + desktop: one header grid, Sign in stays, desk tabs span the bar,
+   Create no longer opens with the header scrolled away. */
+header,
+.site-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-areas:
+    "brand tools"
+    "nav nav"
+    "tabs tabs" !important;
+  align-items: center !important;
+  row-gap: 0 !important;
+}
+header > .brand,
+header > a.brand,
+.site-header > .brand,
+.site-header > a.brand,
+.site-header > a:first-child {
+  grid-area: brand !important;
+  min-width: 0 !important;
+  max-width: 100%;
+}
+header .hdr-tools,
+.site-header .hdr-tools {
+  grid-area: tools !important;
+  justify-self: end !important;
+  position: relative;
+  z-index: 6;
+}
+header nav.site-nav,
+header .nav.site-nav,
+.site-header > nav.site-nav {
+  grid-area: nav !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  overflow: visible !important;
+  gap: 2px 4px !important;
+}
+header nav.desk-tabs {
+  grid-area: tabs !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  gap: 2px 14px !important;
+  padding: 0 0 6px !important;
+  margin: 0 !important;
+}
+header .brand-page,
+.site-header .brand-page {
+  display: none !important;
+}
+header nav.desk-tabs a,
+header .site-nav a,
+header nav.site-nav a {
+  color: #fff !important;
+  min-height: 44px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 6px 10px !important;
+}
+header nav.desk-tabs a.on,
+header nav.site-nav a.on,
+header .site-nav a.on,
+header nav a.on {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 -3px 0 #f39c12 !important;
+  border-radius: 8px;
+}
+a.who-chip,
+a.who-chip[href="/login"],
+a.who-chip[href="/onboard"],
+a.who-chip[href="login.html"],
+a.who-chip[href="onboard.html"] {
+  display: inline-flex !important;
+}
+header .brand-name,
+.site-header .brand-name {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: min(46vw, 15rem) !important;
+}
+@media (min-width: 900px) {
+  header .brand-name,
+  .site-header .brand-name {
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}
+@media (max-width: 859px) {
+  header nav.desk-tabs,
+  body.has-desk-nav .desk-tabs {
+    display: none !important;
+  }
+  header nav.site-nav,
+  header .nav.site-nav {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none;
+  }
+  body.has-desk-nav {
+    padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #desk-nav {
+    z-index: 70 !important;
+  }
+  #desk-nav a,
+  #desk-nav button {
+    color: #f4fffe !important;
+    min-height: 48px !important;
+    font-size: 12px !important;
+  }
+  #desk-nav a.on,
+  #desk-nav button.on {
+    color: #fff !important;
+    box-shadow: inset 0 3px 0 #f39c12 !important;
+  }
+}
+@media (max-width: 430px) {
+  header .brand-name,
+  .site-header .brand-name {
+    display: none !important;
+  }
+  header .brand-short,
+  .site-header .brand-short {
+    display: inline !important;
+    color: #fff !important;
+    font-weight: 800 !important;
+    font-size: 16px !important;
+  }
+  header nav.site-nav a[href="/login"],
+  header nav.site-nav a[href="/onboard"],
+  header nav.site-nav a[href="login.html"],
+  header nav.site-nav a[href="onboard.html"],
+  header .nav.site-nav a[href="/login"],
+  header .nav.site-nav a[href="/onboard"] {
+    display: none !important;
+  }
+  a.who-chip,
+  a.who-chip.signed-out,
+  .hdr-tools a.who-chip {
+    display: inline-flex !important;
+    max-width: none !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 10px !important;
+    font-size: 13px !important;
+  }
+}
+@media (min-width: 860px) {
+  header nav.desk-tabs {
+    display: flex !important;
+  }
+  body.has-desk-nav {
+    padding-bottom: 28px !important;
+  }
+  body.has-desk-nav #desk-nav {
+    display: none !important;
+  }
+}
+.site-foot a,
+footer.site-foot a,
+a.edit,
+.edit {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+main .card a,
+main p a,
+.hint a,
+.meta a {
+  text-underline-offset: 3px;
+}
+html.dark header,
+html.dark .site-header {
+  background: #0a4f4f !important;
+}
+html.dark .card,
+html.dark .item,
+html.dark main {
+  color: #f3f7f8;
+}
+header > .nav:not(.site-nav) > a,
+.site-header > .nav:not(.site-nav) > a {
+  /* Create's old Desk link sat beside the theme button and fought the grid. */
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+}
+
+

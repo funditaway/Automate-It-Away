@@ -282,13 +282,24 @@
     if (/^(consign|dashboard|chat)$/.test(pageName())) return;
     var header = document.querySelector("header, .site-header");
     if (!header) return;
-    var nav = header.querySelector("nav:not(.desk-tabs), .nav");
-    if (!nav) { nav = document.createElement("nav"); nav.className = "site-nav"; header.appendChild(nav); }
+    /* Never reuse a .nav div. Create's .nav holds the theme button; replacing
+       its HTML deleted Auto and left desk tabs off the grid. */
+    var nav = header.querySelector("nav.site-nav");
+    if (!nav) {
+      nav = document.createElement("nav");
+      nav.className = "site-nav";
+      nav.setAttribute("aria-label", "Site");
+      var tabs = header.querySelector("nav.desk-tabs");
+      if (tabs && tabs.parentNode === header) header.insertBefore(nav, tabs);
+      else header.appendChild(nav);
+    }
     nav.classList.add("site-nav");
     var page = pageName();
-    nav.innerHTML = SITE_LINKS.map(function (l) {
-      return "<a href=\"" + l.href + "\"" + (l.id === page ? " class=\"on\"" : "") + ">" + l.label + "</a>";
+    var html = SITE_LINKS.map(function (l) {
+      var on = l.id === page || (l.id === "desk" && isDeskFamily() && page !== "help" && page !== "setup" && page !== "how");
+      return "<a href=\"" + l.href + "\"" + (on ? " class=\"on\" aria-current=\"page\"" : "") + ">" + l.label + "</a>";
     }).join("");
+    if (nav.innerHTML !== html) nav.innerHTML = html;
   }
   function paintFooter() {
     if (isEmbed()) return;
@@ -338,7 +349,7 @@
   function ensureFixCss() {
     if (!document.getElementById("aia-ui-fix-link")) {
       var l = document.createElement("link");
-      l.id = "aia-ui-fix-link"; l.rel = "stylesheet"; l.href = "/ui-fix.css?v=20261008";
+      l.id = "aia-ui-fix-link"; l.rel = "stylesheet"; l.href = "/ui-fix.css?v=20261029a";
       document.head.appendChild(l);
     }
     return;

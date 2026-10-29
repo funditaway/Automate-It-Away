@@ -54,7 +54,9 @@
       note.textContent = "Make this pack: " + name + ". List it, then Use on this desk. You still tap Yes, then Start. Packs do not send money.";
       list.parentNode.insertBefore(note, list);
     }
-    if (nameEl && nameEl.focus) nameEl.focus();
+    if (nameEl && nameEl.focus) {
+      try { nameEl.focus({ preventScroll: true }); } catch (e) { nameEl.focus(); }
+    }
     return true;
   }
   function boot() {

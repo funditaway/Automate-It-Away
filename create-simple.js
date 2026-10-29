@@ -473,8 +473,13 @@
     el("cs-done").hidden = true;
     el("cs-open").hidden = true;
     var shown = n === 1 ? el("cs-ask") : n === 2 ? el("cs-review") : el("cs-test");
-    if (shown && typeof shown.scrollIntoView === "function") {
-      try { shown.scrollIntoView({ block: "start" }); } catch (e) { /* the card still shows */ }
+    /* Step 1 runs on load. scrollIntoView({block:start}) shoved the header
+       above the viewport on phone and desktop, so Create opened with no nav. */
+    if (n > 1 && shown && typeof shown.scrollIntoView === "function") {
+      try {
+        shown.style.scrollMarginTop = "150px";
+        shown.scrollIntoView({ block: "start" });
+      } catch (e) { /* the card still shows */ }
     }
   }
 

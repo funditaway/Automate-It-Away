@@ -71,7 +71,11 @@
     });
     box.innerHTML = html;
   }
+  function deskOpen() {
+    return !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
+  }
   async function loadAsks() {
+    if (!deskOpen()) return;
     var out = await admin({ action: "invites" });
     if (out.status < 400 && out.data && out.data.ok) paintAsks(out.data);
   }
