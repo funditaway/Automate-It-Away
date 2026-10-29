@@ -1,5 +1,5 @@
 const { dropCannedSeeds } = require("./_drop-seed");
-const { cors, mem, log, save, ready, PROVIDERS, readBody, deskSeat, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack, hookUrl } = require("./_lib");
+const { cors, mem, log, save, ready, readyRead, slugify, queueSession, PROVIDERS, readBody, deskSeat, isOwner, ensureRules, defaultRules, ensureNouns, defaultNouns, widgetCount, moneyWaitOf, moneyNeedsOwner, ensurePeople, publicPerson, ruleWantsOwner, ruleWantsStop, ruleWhy, pipeWroteBack, hookUrl } = require("./_lib");
 const { pickFields, mergeFields, slugField, ensureFields, addTalk, makeCapturedJob, makeFanOutJobs, holdCapturedJob, applyImplement } = require("./_fields");
 const { qualifyJob, recommend, icsOf, runWorkspace, markFlow, applyRules, thenAfterYes } = require("./_engine");
 const { grokRecommend, normalizeCites } = require("./_grok");
@@ -59,6 +59,92 @@ function markDone(job, person, body, how, shop) {
   if (shop) applyRules(job, shop, "status");
   return note;
 }
+// Same card the single-desk GET returns for this seat: staff seats do not see Stop / Kill.
+function presentJob(j, person) {
+  const staff = person && person.role === "employee";
+  const needs = needsOf(j, { staff });
+  const tick = clock.clockOf(j);
+  return Object.assign({}, j, { needs: needs.actions, needLine: needs.line, missing: needs.missing, decide: needs.decide, priority: isPriorityJob(j), clock: tick, late: tick.late, expired: tick.expired });
+}
+function tagQueueJob(card, slug) {
+  return Object.assign({}, card, { slug: slug, desk: slug });
+}
+// Opt-in only. Absent, or any other value, leaves the single-desk GET alone.
+function queueReadWanted(req) {
+  const q = (req && req.query) || {};
+  const queue = String(q.queue == null ? "" : q.queue).trim().toLowerCase();
+  if (queue === "1" || queue === "all") return { mode: "all" };
+  const raw = String(q.desks == null ? "" : q.desks).trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === "all") return { mode: "all" };
+  const slugs = [];
+  raw.split(",").forEach((part) => {
+    const slug = slugify(part);
+    if (slug && slugs.indexOf(slug) < 0) slugs.push(slug);
+  });
+  if (!slugs.length) return null;
+  return { mode: "list", slugs: slugs };
+}
+function queueReq(req, slug) {
+  const headers = Object.assign({}, (req && req.headers) || {});
+  delete headers["x-pin"];
+  headers["x-workspace"] = slug;
+  const query = Object.assign({}, (req && req.query) || {});
+  query.workspace = slug;
+  return { headers: headers, query: query, method: "GET" };
+}
+// Open seat on this account. personOf already applied the cross-desk rule; this rejects a
+// closed seat and a desk the account does not sit on. The home desk keeps the session's own seat.
+function queueSeatOk(found, session) {
+  const person = found && found.person;
+  const ws = found && found.workspace;
+  if (!person || !ws || !session) return false;
+  if (person.status === "pending" || person.status === "denied") return false;
+  if (person.accountId && person.accountId === session.accountId) return true;
+  if (ws.slug === session.workspace && person.id && person.id === session.personId) return true;
+  return false;
+}
+function refuseQueue(res) {
+  return res.status(403).json({ ok: false, error: "No desk with that name." });
+}
+// Read-only. Does not save. PIN and stranger share refuseQueue, before any desk is opened.
+async function readAccountQueue(req, res, want) {
+  const session = queueSession(req);
+  if (!session) return refuseQueue(res);
+  const slugs = want.mode === "list" ? want.slugs : (mem.workspaces || []).map((w) => w && w.slug).filter(Boolean);
+  const rows = [];
+  for (let i = 0; i < slugs.length; i++) {
+    const found = deskSeat(queueReq(req, slugs[i]), slugs[i]);
+    // personOf falls back to the session's own desk when the name is not a desk.
+    // An explicit list must not silently swap in that desk.
+    const asked = found && found.workspace && found.workspace.slug === slugs[i];
+    if (!asked || !queueSeatOk(found, session)) {
+      if (want.mode === "list") return refuseQueue(res);
+      continue;
+    }
+    rows.push(found);
+  }
+  const jobs = [];
+  rows.forEach((found) => {
+    const slug = found.workspace.slug;
+    (mem.jobs || []).filter((j) => j && j.workspace === slug).forEach((j) => {
+      jobs.push(tagQueueJob(presentJob(j, found.person), slug));
+    });
+  });
+  const home = rows.find((f) => f.workspace.slug === session.workspace) || rows[0] || null;
+  const acc = (mem.accounts || []).find((a) => a && a.id === session.accountId) || null;
+  const built = home ? require("./_account").queueForPerson(home.person, acc, home.workspace.slug) : { accountId: session.accountId || "", name: (acc && (acc.name || acc.ownerName)) || "", desks: [] };
+  const open = {};
+  rows.forEach((f) => { open[f.workspace.slug] = true; });
+  const desks = (built.desks || []).filter((d) => d && open[d.slug] && d.status !== "pending" && d.status !== "denied");
+  return res.status(200).json({
+    ok: true,
+    queue: { accountId: built.accountId || session.accountId || "", name: built.name || "", desks: desks },
+    desks: desks,
+    jobs: jobs,
+    cap: jobs.filter((j) => j.priority)
+  });
+}
 function markHand(job, person, body) {
   const note = String((body && (body.text || body.notes || body.reason)) || "Needs a hand.").trim();
   job.status = "exception";
@@ -78,6 +164,11 @@ function markHand(job, person, body) {
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
+  const queueWant = req.method === "GET" ? queueReadWanted(req) : null;
+  if (queueWant) {
+    await readyRead();
+    return readAccountQueue(req, res, queueWant);
+  }
   await ready();
   if (dropCannedSeeds(mem)) await save();
   const workspace = namedWorkspace(req);
@@ -100,12 +191,7 @@ module.exports = async function handler(req, res) {
     }
     if (shop) { ensureRules(shop); ensureNouns(shop); ensurePeople(shop); }
     const rules = shop ? ensureRules(shop) : defaultRules();
-    const staff = person && person.role === "employee";
-    const rows = mem.jobs.filter((j) => j.workspace === workspace).map((j) => {
-      const needs = needsOf(j, { staff });
-      const tick = clock.clockOf(j);
-      return Object.assign({}, j, { needs: needs.actions, needLine: needs.line, missing: needs.missing, decide: needs.decide, priority: isPriorityJob(j), clock: tick, late: tick.late, expired: tick.expired });
-    });
+    const rows = mem.jobs.filter((j) => j.workspace === workspace).map((j) => presentJob(j, person));
     const cap = rows.filter((j) => j.priority);
     const rails = shop ? ais.railsOf(shop) : { ais: [], count: 0, rails: ais.RAILS, never: ais.NEVER.slice() };
     return res.status(200).json({

@@ -113,9 +113,9 @@ module.exports = async function handler(req, res) {
     const { workspace: row, person, pending } = personOf(authReq(req, slug, pin), slug);
     if (pending) return res.status(403).json({ ok: false, pending: true, error: "That seat is waiting on the owner." });
     if (!row || !person) return res.status(401).json({ ok: false, error: "Desk code does not match." });
-    const { homeAccount, desksForPerson } = require("./_account");
+    const { homeAccount, queueForPerson } = require("./_account");
     const acc = homeAccount(person, row, req);
-    const mine = desksForPerson(require("./_plans").listHint(person, acc, row.slug));
+    const mine = queueForPerson(person, acc, row.slug);
     const mail = require("./_aia-mail");
     const aia = (acc && (acc.aia || (acc.handle ? acc.handle + ".aia" : ""))) || (row.aia || "");
     return res.status(200).json({
@@ -127,7 +127,7 @@ module.exports = async function handler(req, res) {
       aia: aia,
       owned: mine.owned,
       member: mine.member,
-      desks: (mine.owned || []).concat(mine.member || []),
+      desks: mine.desks,
       kinds: ["family", "friend", "helper", "member", "staff"],
       mail: acc ? mail.listForAccount(acc) : mail.listForDesk(row.slug),
       mx: mail.statusOf(),

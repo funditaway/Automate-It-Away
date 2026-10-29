@@ -1854,6 +1854,19 @@ function sessionSeatIsAccount(session) {
   return session.personId === session.accountId + "_owner";
 }
 
+// A password session personOf will carry onto another desk: account id present, and the
+// seat this session was issued for is that account's own seat. A desk-code session is
+// not this, even when the owner row still carries an account id.
+function queueSession(req) {
+  const token = sessionTokenOf(req);
+  if (!token) return null;
+  const raw = findSession(token, { slide: false, req: req });
+  if (!raw || sessionProof(raw.proof) !== "password") return null;
+  const view = sessionProofView(raw);
+  if (!view || !view.accountId || !sessionSeatIsAccount(view)) return null;
+  return view;
+}
+
 // True when a session names a seat (its personId) that is no longer on its own desk: a removed seat.
 // Such a session is nobody there; it never falls back to an account or email match onto another seat.
 // Account-level owner ids ("owner", <account>_owner) name no seat.
@@ -2612,7 +2625,7 @@ module.exports = {
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
   deskAccountIdOf, sessionProof, sessionProofView, helperEmailClaimed,
   isLocked, noteFail, noteOk,
-  ensurePeople, publicPerson, viewSeat, seatsFor, personOf, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
+  ensurePeople, publicPerson, viewSeat, seatsFor, personOf, deskSeat, queueSession, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
   matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy, whenMatches, ifMatches,
