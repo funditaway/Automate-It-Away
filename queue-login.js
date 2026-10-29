@@ -1,13 +1,18 @@
 /* Queue sign-in lands here. One account, one Queue, many desks.
-   The desk list is POST /api/desks { action: "mine" }.
-   A desk filter is the ?workspace= query on this same page.
-   All desks reads each desk from that list. A future all-desks read is
-   detected and used only when the response says it is one. */
+   Email sign-in stores the desk list from the login reply (desks, or queue.desks).
+   The Queue picker uses that list and skips an extra call.
+   When the reply lacks a desk list (an old session, or a reload after that list was used),
+   POST /api/desks { action: "mine" } fills the picker.
+   All desks calls GET /api/jobs?desks=all. That counts only when the response is ok
+   and every card has a slug. An empty list counts. Otherwise each desk is read with
+   GET /api/jobs?workspace=<slug>. One desk uses that same workspace read on this session. */
 (function () {
   var ALL_BANNER = "Every desk in this Queue.";
+  var LOGIN_REPLY_KEY = "aia_queue_login_reply";
   var desks = [];
   var cards = [];
   var mode = "all";
+  var loadGen = 0;
 
   function slugify(s) {
     if (window.AIADesks && AIADesks.slugify) return AIADesks.slugify(s);
@@ -83,6 +88,7 @@
       "#queue-all-cards .item{background:var(--card,#fff);border:1px solid var(--line,#d5e0e0);border-radius:14px;padding:14px;margin:10px 0}" +
       "#queue-all-cards h3{margin:4px 0;font-size:1.05rem}" +
       "#queue-all-cards .meta{font-size:13px;color:var(--muted,#5c6b73);margin:0 0 8px}" +
+      "#queue-all-cards .queue-desk-label{display:block;font-size:12px;font-weight:700;color:var(--muted,#5c6b73);margin:0 0 4px}" +
       "@media (max-width:640px){" +
       "#queue-desk-picker .queue-picker-row,#queue-desk-buttons{flex-direction:column;align-items:stretch;width:100%}" +
       "#queue-desk-picker button,#queue-desk-picker a{width:100%}" +
@@ -177,6 +183,13 @@
     });
   }
 
+  function deskLabelText(j) {
+    var slug = slugify((j && (j.slug || j.desk)) || "");
+    var known = slug ? deskBySlug(slug) : null;
+    if (known && known.name) return known.name;
+    return String((j && (j.desk || j.slug)) || "Desk");
+  }
+
   function paintCards(rows) {
     var box = document.getElementById("queue-all-cards");
     if (!box) return;
@@ -202,10 +215,15 @@
     open.forEach(function (j) {
       var card = document.createElement("article");
       card.className = "item";
+      if (mode === "all") {
+        var lab = document.createElement("p");
+        lab.className = "queue-desk-label";
+        lab.textContent = deskLabelText(j);
+        card.appendChild(lab);
+      }
       var meta = document.createElement("p");
       meta.className = "meta";
-      var deskName = j.deskName || j.workspace || "Desk";
-      meta.textContent = deskName + " · " + plainStatus(j.status);
+      meta.textContent = plainStatus(j.status);
       var title = document.createElement("h3");
       title.textContent = j.title || "Card";
       var next = document.createElement("p");
@@ -213,7 +231,7 @@
       next.textContent = j.needLine || j.next || "Pick this desk in the Queue to decide.";
       var go = document.createElement("button");
       go.type = "button";
-      go.setAttribute("data-queue-desk", j.deskSlug || j.workspace || "");
+      go.setAttribute("data-queue-desk", j.deskSlug || j.slug || j.desk || j.workspace || "");
       go.textContent = "Show this desk";
       card.appendChild(meta);
       card.appendChild(title);
@@ -242,6 +260,28 @@
     return list;
   }
 
+  function desksFromLoginReply(data) {
+    if (!data || typeof data !== "object") return null;
+    var rows = Array.isArray(data.desks) ? data.desks : null;
+    if (!rows && data.queue && Array.isArray(data.queue.desks)) rows = data.queue.desks;
+    if (!rows) return null;
+    return fromMine({ desks: rows });
+  }
+
+  function takeLoginDesks() {
+    var data = null;
+    try {
+      var raw = sessionStorage.getItem(LOGIN_REPLY_KEY);
+      if (!raw) return null;
+      data = JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+    var rows = desksFromLoginReply(data);
+    try { sessionStorage.removeItem(LOGIN_REPLY_KEY); } catch (e2) {}
+    return rows;
+  }
+
   function fromPhone() {
     var list = [];
     var seen = {};
@@ -266,20 +306,46 @@
     }
   }
 
-  // Future all-desks read. Ignored unless the body says it covers the account.
+  function everyCardHasSlug(rows) {
+    if (!Array.isArray(rows)) return false;
+    for (var i = 0; i < rows.length; i++) {
+      var card = rows[i];
+      if (!card || !Object.prototype.hasOwnProperty.call(card, "slug")) return false;
+      if (String(card.slug || "").trim() === "") return false;
+    }
+    return true;
+  }
+
+  function mapCard(j, desk) {
+    var slug = slugify((j && (j.slug || j.desk || j.workspace)) || (desk && desk.slug) || "");
+    var known = deskBySlug(slug);
+    return {
+      id: j.id,
+      title: j.title || "Card",
+      status: j.status || "",
+      next: j.next || "",
+      needLine: j.needLine || "",
+      workspace: (j && j.workspace) || slug,
+      deskSlug: slug,
+      slug: (j && j.slug) || slug,
+      desk: (j && j.desk) || slug,
+      deskName: (known && known.name) || (desk && desk.name) || slug || "Desk"
+    };
+  }
+
+  // Real all-desks read: ok response, and every card has a slug. Empty list counts.
   async function readAllDesks() {
     var tok = "";
     try { tok = localStorage.getItem("aia_session") || ""; } catch (e) {}
     if (!tok) return null;
     try {
-      var r = await fetch("/api/jobs?scope=account", {
+      var r = await fetch("/api/jobs?desks=all", {
         headers: { "Accept": "application/json", "X-Session": tok }
       });
-      if (!r.ok) return null;
       var data = await r.json().catch(function () { return null; });
-      if (!data) return null;
-      if (data.allDesks !== true && data.scope !== "account" && data.queue !== "all") return null;
-      var rows = Array.isArray(data.jobs) ? data.jobs : (Array.isArray(data.items) ? data.items : null);
+      if (!r.ok || !data || data.ok !== true || data.error) return null;
+      var rows = Array.isArray(data.jobs) ? data.jobs : null;
+      if (!rows || !everyCardHasSlug(rows)) return null;
       return rows;
     } catch (e) {
       return null;
@@ -293,53 +359,39 @@
       });
       var data = await r.json().catch(function () { return {}; });
       if (!r.ok || !data || !Array.isArray(data.jobs)) return [];
-      return data.jobs.map(function (j) {
-        return {
-          id: j.id,
-          title: j.title || "Card",
-          status: j.status || "",
-          next: j.next || "",
-          needLine: j.needLine || "",
-          workspace: j.workspace || desk.slug,
-          deskSlug: j.workspace || desk.slug,
-          deskName: desk.name || desk.slug
-        };
-      });
+      return data.jobs.map(function (j) { return mapCard(j, desk); });
     } catch (e) {
       return [];
     }
   }
 
   async function refreshCards() {
-    var future = await readAllDesks();
-    if (future) {
-      cards = future.map(function (j) {
-        var slug = slugify(j.workspace || j.desk || j.slug || "");
-        var known = deskBySlug(slug);
-        return {
-          id: j.id,
-          title: j.title || "Card",
-          status: j.status || "",
-          next: j.next || "",
-          needLine: j.needLine || "",
-          workspace: slug,
-          deskSlug: slug,
-          deskName: j.deskName || (known && known.name) || slug || "Desk"
-        };
-      });
-    } else {
-      cards = [];
-      for (var i = 0; i < desks.length; i++) {
-        var rows = await jobsForDesk(desks[i]);
-        rows.forEach(function (row) { cards.push(row); });
+    var gen = ++loadGen;
+    var next = [];
+    if (mode === "all") {
+      var all = await readAllDesks();
+      if (gen !== loadGen) return;
+      if (all) {
+        next = all.map(function (j) { return mapCard(j, null); });
+      } else {
+        for (var i = 0; i < desks.length; i++) {
+          var part = await jobsForDesk(desks[i]);
+          if (gen !== loadGen) return;
+          part.forEach(function (row) { next.push(row); });
+        }
       }
+    } else {
+      var desk = deskBySlug(mode) || { slug: mode, name: mode };
+      next = await jobsForDesk(desk);
+      if (gen !== loadGen) return;
     }
+    cards = next;
     paintCards(visibleCards());
   }
 
   function visibleCards() {
     if (mode === "all") return cards;
-    return cards.filter(function (j) { return (j.deskSlug || j.workspace) === mode; });
+    return cards.filter(function (j) { return (j.deskSlug || j.slug || j.desk || j.workspace) === mode; });
   }
 
   function selectDesk(slug, fromPop) {
@@ -353,6 +405,7 @@
     quietPhoneView();
     if (slug) rememberDesk(slug);
     paintCards(visibleCards());
+    refreshCards();
     if (slug && typeof window.load === "function") window.load();
   }
 
@@ -431,9 +484,14 @@
   async function boot() {
     mount();
     if (!document.getElementById("queue-desk-picker")) return;
-    var mine = await loadMine();
-    desks = mine ? fromMine(mine) : fromPhone();
-    if (!desks.length) desks = fromPhone();
+    var fromReply = takeLoginDesks();
+    if (fromReply) {
+      desks = fromReply;
+    } else {
+      var mine = await loadMine();
+      desks = mine ? fromMine(mine) : fromPhone();
+      if (!desks.length) desks = fromPhone();
+    }
     var asked = readWorkspace();
     if (asked && !deskBySlug(asked)) desks.push({ slug: asked, name: asked });
     mode = asked || "all";
