@@ -1,4 +1,5 @@
 const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow, RULE_MAX, PROVIDERS, configured } = require("./_lib");
+const cards = require("./_account-connect");
 const { grokOn, studioDraft } = require("./_grok");
 const ais = require("./_ais");
 const net = require("./_aia-net");
@@ -539,6 +540,67 @@ function sendPackFile(res, listing) {
   return res.status(200).send(JSON.stringify(packFileOf(listing), null, 2));
 }
 
+function installerAccount(shop, person, session) {
+  if (!shop || !person || !isOwner(person)) return null;
+  const accounts = mem.accounts || [];
+  let acc = null;
+  if (person.accountId) acc = accounts.find(function (a) { return a && a.id === person.accountId; }) || null;
+  if (!acc && shop.accountId) acc = accounts.find(function (a) { return a && a.id === shop.accountId; }) || null;
+  if (!acc) acc = accounts.find(function (a) { return a && Array.isArray(a.desks) && a.desks.indexOf(shop.slug) >= 0; }) || null;
+  if (!acc || !acc.id) return null;
+  if (session && session.accountId && session.accountId !== acc.id) return null;
+  if (session && !session.accountId && session.workspace && session.workspace !== shop.slug) return null;
+  return acc;
+}
+
+function packForCard(pack, source) {
+  const base = Object.assign({}, pack || {});
+  const src = source || pack || {};
+  ["services", "connections", "needed", "service", "connectionId"].forEach(function (k) {
+    if (src[k] != null && base[k] == null) base[k] = src[k];
+  });
+  return base;
+}
+
+function startSetupCard(shop, person, session, pack) {
+  const acc = installerAccount(shop, person, session);
+  if (!acc) return { acc: null, was: null, result: null };
+  const was = cards.snap(acc);
+  const stamp = require("./_account-settings").stampWho(person, shop, acc);
+  const result = cards.attachPackCard(acc, pack, shop, stamp);
+  return { acc: acc, was: was, result: result };
+}
+
+async function saveKept(acc, was) {
+  let saved = false;
+  try {
+    saved = (await save()) !== false;
+  } catch (e) {
+    if (was) cards.putBack(acc, was);
+    throw e;
+  }
+  if (!saved && was) cards.putBack(acc, was);
+  return saved;
+}
+
+function writeSetupFields(body, started, saved) {
+  body.setupCard = null;
+  body.setupCardCreated = false;
+  if (!started || !started.acc) return body;
+  if (!saved) {
+    body.hint = "That did not save. No setup card was kept.";
+    return body;
+  }
+  const result = started.result;
+  if (!result || !result.card) {
+    if (result && result.hint) body.hint = result.hint;
+    return body;
+  }
+  body.setupCard = cards.publicCard(result.card);
+  body.setupCardCreated = result.created === true;
+  return body;
+}
+
 async function packHandler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -753,7 +815,9 @@ async function packHandler(req, res) {
   }
   if (action === "install-aia" || action === "import-pack" || action === "install-file") {
     if (!workspace) return res.status(400).json({ error: "Open a desk first." });
-    const { workspace: shop, person } = personOf(req, workspace);
+    const found = personOf(req, workspace);
+    const shop = found.workspace;
+    const person = found.person;
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can install a .aia pack." });
     const fname = body.filename || body.fileName || body.file || "";
@@ -777,12 +841,13 @@ async function packHandler(req, res) {
     else rows.unshift(row);
     mem.packs = rows.slice(0, 80);
     const added = installPackOnDesk(shop, row);
-    await save();
+    const started = startSetupCard(shop, person, found.session, packForCard(row, parsed.pack));
+    const saved = await saveKept(started.acc, started.was);
     log("Desk", "Install .aia · " + row.name, "OK", workspace);
     const hold = collectHoldOf(row);
     const rails = ais.railsOf(shop);
     const rulesNotKept = made.rulesNotKept || row.rulesNotKept || [];
-    return res.status(200).json({
+    return res.status(200).json(writeSetupFields({
       ok: true,
       pack: publicPack(row),
       added: added,
@@ -798,7 +863,7 @@ async function packHandler(req, res) {
       rails: rails.rails,
       rulesNotKept: rulesNotKept,
       note: withRulesNote("Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim.", rulesNotKept)
-    });
+    }, started, saved));
   }
   if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
@@ -809,17 +874,20 @@ async function packHandler(req, res) {
       return res.status(200).json({ ok: true, tryOn: pack.id, pack: publicPack(pack), note: "Color on this phone. No rules added." });
     }
     if (!workspace) return res.status(400).json({ error: "Open a desk first." });
-    const { workspace: shop, person } = personOf(req, workspace);
+    const found = personOf(req, workspace);
+    const shop = found.workspace;
+    const person = found.person;
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can Use a pack." });
     const already = shop.pack === (pack.packId || pack.id);
     const added = installPackOnDesk(shop, pack);
-    await save();
+    const started = startSetupCard(shop, person, found.session, packForCard(pack));
+    const saved = await saveKept(started.acc, started.was);
     log("Desk", "Install pack · " + (pack.name || pack.id), "OK", workspace);
     const hold = collectHoldOf(pack);
     const rails = ais.railsOf(shop);
     const rulesNotKept = Array.isArray(pack.rulesNotKept) ? pack.rulesNotKept : [];
-    return res.status(200).json({
+    return res.status(200).json(writeSetupFields({
       ok: true,
       pack: publicPack(pack),
       shop: shop.slug,
@@ -836,7 +904,7 @@ async function packHandler(req, res) {
       note: withRulesNote(already
         ? "Already on this desk. " + hold.note
         : "Pack JSON is on this desk. " + (rails.count ? rails.count + " desk AI" + (rails.count === 1 ? "" : "s") + " attached. " : "") + hold.note, rulesNotKept)
-    });
+    }, started, saved));
   }
   return res.status(400).json({ error: "Unknown pack action." });
 }

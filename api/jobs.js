@@ -69,6 +69,33 @@ function presentJob(j, person) {
 function tagQueueJob(card, slug) {
   return Object.assign({}, card, { slug: slug, desk: slug });
 }
+// The account's own password session only. A helper seat, a desk-code session,
+// and a stranger get no cards from here. This does not save.
+function accountForSetupRead(req, shop) {
+  const session = queueSession(req);
+  if (!session || !session.accountId) return null;
+  if (!shop || !shop.slug) return null;
+  return (mem.accounts || []).find((a) => a && a.id === session.accountId) || null;
+}
+function listSetupCards(acc, deskSlug, tag) {
+  if (!acc || !deskSlug) return [];
+  const cards = Array.isArray(acc.setupCards) ? acc.setupCards : [];
+  const out = [];
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    if (!card || card.deskId !== deskSlug) continue;
+    if (card.status !== "open" && card.status !== "stopped" && card.status !== "done") continue;
+    const pub = require("./_account-connect").publicCard(card);
+    pub.href = "/account#setup-" + card.id;
+    if (tag) pub.slug = deskSlug;
+    out.push(pub);
+  }
+  return out;
+}
+async function setupCardsPayload(req, shop, tag) {
+  const acc = accountForSetupRead(req, shop);
+  return listSetupCards(acc, shop && shop.slug, tag);
+}
 // Opt-in only. Absent, or any other value, leaves the single-desk GET alone.
 function queueReadWanted(req) {
   const q = (req && req.query) || {};
@@ -125,12 +152,16 @@ async function readAccountQueue(req, res, want) {
     rows.push(found);
   }
   const jobs = [];
-  rows.forEach((found) => {
+  const setupCards = [];
+  for (let i = 0; i < rows.length; i++) {
+    const found = rows[i];
     const slug = found.workspace.slug;
     (mem.jobs || []).filter((j) => j && j.workspace === slug).forEach((j) => {
       jobs.push(tagQueueJob(presentJob(j, found.person), slug));
     });
-  });
+    const part = await setupCardsPayload(req, found.workspace, true);
+    for (let j = 0; j < part.length; j++) setupCards.push(part[j]);
+  }
   const home = rows.find((f) => f.workspace.slug === session.workspace) || rows[0] || null;
   const acc = (mem.accounts || []).find((a) => a && a.id === session.accountId) || null;
   const built = home ? require("./_account").queueForPerson(home.person, acc, home.workspace.slug) : { accountId: session.accountId || "", name: (acc && (acc.name || acc.ownerName)) || "", desks: [] };
@@ -142,7 +173,8 @@ async function readAccountQueue(req, res, want) {
     queue: { accountId: built.accountId || session.accountId || "", name: built.name || "", desks: desks },
     desks: desks,
     jobs: jobs,
-    cap: jobs.filter((j) => j.priority)
+    cap: jobs.filter((j) => j.priority),
+    setupCards: setupCards
   });
 }
 function markHand(job, person, body) {
@@ -193,6 +225,7 @@ module.exports = async function handler(req, res) {
     const rules = shop ? ensureRules(shop) : defaultRules();
     const rows = mem.jobs.filter((j) => j.workspace === workspace).map((j) => presentJob(j, person));
     const cap = rows.filter((j) => j.priority);
+    const setupCards = await setupCardsPayload(req, shop, false);
     const rails = shop ? ais.railsOf(shop) : { ais: [], count: 0, rails: ais.RAILS, never: ais.NEVER.slice() };
     return res.status(200).json({
       workspace,
@@ -207,7 +240,8 @@ module.exports = async function handler(req, res) {
       never: rails.never,
       widgetsOn: widgetCount(rules),
       cap,
-      jobs: rows
+      jobs: rows,
+      setupCards: setupCards
     });
   }
 

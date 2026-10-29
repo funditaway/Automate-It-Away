@@ -234,6 +234,73 @@ function publicCard(card) {
   return out;
 }
 
+// A desk-code session is not the account's own sign-in. Same words as a missing card.
+function setupStepClosed(req) {
+  const token = lib.sessionTokenOf(req);
+  if (!token) return false;
+  return !lib.queueSession(req);
+}
+
+function declaredGroups(pack) {
+  const lists = ["services", "connections", "needed"];
+  for (let i = 0; i < lists.length; i++) {
+    const list = pack && pack[lists[i]];
+    if (!Array.isArray(list) || !list.length) continue;
+    const groups = [];
+    list.forEach((item) => {
+      if (typeof item === "string") {
+        const service = plain(item, 40);
+        if (service) groups.push({ type: "pack", name: service, service: service });
+        return;
+      }
+      if (!isObj(item)) return;
+      let serviceName = typeof item.service === "string" ? plain(item.service, 40) : "";
+      if (!serviceName && lists[i] !== "connections" && typeof item.name === "string") serviceName = plain(item.name, 40);
+      const connectionId = typeof item.connectionId === "string" ? item.connectionId : (typeof item.connection === "string" ? item.connection : "");
+      if (!serviceName && !connectionId) return;
+      groups.push({
+        type: "pack",
+        name: plain(item.name || serviceName || "Connection", 60) || "Connection",
+        service: serviceName || null,
+        connectionId: connectionId || null,
+        acts: item.acts
+      });
+    });
+    if (groups.length) return groups.slice(0, BUNDLE_MAX);
+  }
+  if (pack && (typeof pack.service === "string" || typeof pack.connectionId === "string")) {
+    const service = typeof pack.service === "string" ? plain(pack.service, 40) : "";
+    const connectionId = typeof pack.connectionId === "string" ? pack.connectionId : "";
+    if (service || connectionId) {
+      return [{ type: "pack", name: plain(pack.name || service || "Pack", 60) || "Pack", service: service || null, connectionId: connectionId || null, acts: pack.acts }];
+    }
+  }
+  return [{ type: "pack", name: plain((pack && (pack.name || pack.id)) || "Pack", 60) || "Pack" }];
+}
+
+function packCardKey(pack, desk) {
+  const id = String((pack && (pack.packId || pack.id)) || "").trim();
+  const slug = desk && desk.slug ? String(desk.slug) : "";
+  return "pack:" + id + ":" + slug;
+}
+
+// One setup card for this pack on this desk. A killed card does not count.
+// At the cap the caller still installs; no card is added.
+function attachPackCard(acc, pack, desk, stamp) {
+  const key = packCardKey(pack, desk);
+  const have = cardsOf(acc).find((c) => c && c.key === key && c.status !== "killed");
+  if (have) return { card: have, created: false, capped: false };
+  if (cardsOf(acc).length >= CARD_MAX) {
+    return { card: null, created: false, capped: true, hint: "This account already has " + CARD_MAX + " setup cards. The pack is on the desk. No setup card was added." };
+  }
+  const id = String((pack && (pack.packId || pack.id)) || "").trim();
+  const name = plain((pack && (pack.name || pack.id)) || "Pack", 60) || id || "Pack";
+  const groups = declaredGroups(pack).map((item, i) => groupFrom(item, i));
+  const card = newCard(acc, { key: key, type: "pack", id: id, name: name }, groups, desk, stamp);
+  addCard(acc, card);
+  return { card: card, created: true, capped: false };
+}
+
 // ---- dry run --------------------------------------------------------------
 
 function dryRun(acc, card, group, tryActs) {
@@ -284,6 +351,9 @@ async function handle(req, res, body) {
   const s = S();
   const action = String(body.action || "").toLowerCase();
   const seat = s.ownSeat(req);
+  // A helper seat and a desk-code session get the same reply as a card that
+  // is not there, before any lookup, so the answer never says the card exists.
+  if (action === "setup-step" && (!seat.ok || setupStepClosed(req))) return refuse(res, 404, "No setup card like that.");
   if (!seat.ok) return refuse(res, 404, NO_ONE);
   const acc = seat.account;
   const person = seat.person;
@@ -636,4 +706,4 @@ async function handle(req, res, body) {
   return false;
 }
 
-module.exports = { ACTIONS, handle, publicConnections, publicConnection, STATUS_TEXT };
+module.exports = { ACTIONS, handle, publicConnections, publicConnection, STATUS_TEXT, newCard, addCard, publicCard, snap, putBack, cardsOf, attachPackCard, CARD_MAX };
