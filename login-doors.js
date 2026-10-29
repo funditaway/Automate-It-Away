@@ -51,7 +51,7 @@
   function paint() {
     if (!box) return;
     box.innerHTML =
-      "<p class=\"oauth-lead\">Or continue with. Identity only \u2014 never Send, Stop, pay, or draft.</p>" +
+      "<p class=\"oauth-lead\">Or continue with, then open your Queue. Identity only \u2014 never send, stop, pay, or draft.</p>" +
       "<div class=\"oauth-row\" data-group=\"live\">" + btns("live") + "</div>" +
       "<details class=\"oauth-more\"><summary>More doors</summary><div class=\"oauth-row\">" + btns("more") + "</div></details>" +
       "<details class=\"oauth-more\"><summary>Ask \u00b7 Grok, ChatGPT, Claude</summary><div class=\"oauth-row\">" + btns("ask") + "</div><p class=\"hint\">Those vendors have not admitted AIA as a website login yet. Tap files Ask.</p></details>" +
