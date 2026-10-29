@@ -248,13 +248,16 @@ module.exports = async function handler(req, res) {
         if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req, "password");
         if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
         await save();
+        const queue = require("./_account").queueForPerson(via.person, via.account, via.desk && via.desk.slug);
         return res.status(200).json({
           ok: true, savedLogin: true, emailLogin: true, session,
           account: via.account ? { id: via.account.id, name: via.account.name, ownerName: via.account.ownerName, email: via.account.email || "", hasPassword: true, plan: via.account.plan || "pro" } : null,
           plan: via.account ? publicPlan(via.account) : null,
           workspace: via.desk ? publicWorkspace(via.desk, via.person, via.account && via.account.id) : null,
           you: youOf(via.person, via.account && via.account.id),
-          hint: "Signed in with email and password."
+          hint: "Signed in with email and password.",
+          queue: { accountId: queue.accountId, name: queue.name, desks: queue.desks },
+          desks: queue.desks
         });
       }
 

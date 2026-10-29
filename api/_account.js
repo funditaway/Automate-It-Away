@@ -29,6 +29,18 @@ function publicPlan(acc) {
 function switchPlan(acc, id, actor) { return plans.switchPlan(acc, id, actor); }
 function publicPlans() { return plans.publicPlans(); }
 function desksForPerson(hint) { return plans.desksForPerson(hint); }
+// The desk list action "mine" already builds. Login and the queue read call this
+// so a Queue is the same public cards, not a second copy of the match rules.
+function queueForPerson(person, acc, slug) {
+  const mine = desksForPerson(plans.listHint(person, acc, slug));
+  return {
+    accountId: (acc && acc.id) || "",
+    name: (acc && (acc.name || acc.ownerName)) || "",
+    desks: (mine.owned || []).concat(mine.member || []),
+    owned: mine.owned || [],
+    member: mine.member || []
+  };
+}
 function requestPermission(row, person, want) { return plans.requestPermission(row, person, want); }
 function setPermission(row, id, want, actor) { return plans.setPermission(row, id, want, actor); }
 
@@ -547,7 +559,7 @@ module.exports = {
   provenFor, firstClaim, claimFirst, writeRefused,
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
   requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot, seatOffRefused,
-  normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
+  normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, queueForPerson, requestPermission, setPermission,
   findAccount, findAccountByEmail, connectDesk, disconnectDesk, leaveSeat, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
   setAccountPassword, applyAccountDetails, emailTaken, requestProvesAccount, newSeatId,
   planOf: plans.planOf, PLANS: plans.PLANS
