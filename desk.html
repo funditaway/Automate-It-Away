@@ -361,7 +361,7 @@
     }
     function queueEmptyHtml(kind) {
       if (kind === "nodesk") {
-        return "<div id=\"queue-empty\"><p>Open a desk. The queue stays empty until you do.</p><div class=\"row\"><a class=\"go\" href=\"/onboard\">Open a desk</a></div></div>";
+        return "<div id=\"queue-empty\"><p>Sign in to your Queue. Cards stay empty until you do.</p><div class=\"row\"><a class=\"go\" href=\"/login\">Sign in</a><a class=\"edit\" href=\"/onboard\">Open a desk</a></div></div>";
       }
       return "<div id=\"queue-empty\"><p>Nothing here yet. Drop or Create a card.</p><div class=\"row\"><a class=\"go\" href=\"/drop\">Drop</a><a class=\"edit\" href=\"/create\">Create</a></div></div>";
     }
@@ -393,7 +393,7 @@
       const banner = document.getElementById("banner");
       const filters = document.getElementById("queue-filters");
       if (!workspaceSlug()) {
-        banner.textContent = "Open a desk.";
+        banner.textContent = "Sign in to your Queue.";
         JOBS = [];
         RULES = [];
         paintNouns(AIADesks.defaultNouns());
