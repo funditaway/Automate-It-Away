@@ -532,7 +532,79 @@ async function behaviorFaults(src) {
     const found = result.threw ? [result.threw.split("\n")[0]] : item.check(result);
     found.forEach(function (msg) { faults.push(item.name + ": " + msg); });
   }
+  (await staleLoadFaults(src)).forEach(function (msg) { faults.push(msg); });
   return faults;
+}
+
+// Two overlapping loads: All desks starts first and answers last; a newer pick of one desk
+// answers first. The late All desks answer must not overwrite the newer desk's cards.
+async function staleLoadFaults(src) {
+  const calls = [];
+  const document = makeDocument();
+  const local = memStore({ aia_session: "sess-test", aia_ws: "north" });
+  const session = memStore({ [REPLY_KEY]: replyJson([NORTH, SOUTH], null) });
+  const location = { href: "http://127.0.0.1/desk.html", pathname: "/desk.html", search: "", hash: "" };
+  const winListeners = {};
+  let releaseAll = null;
+  function MutationObserver() {}
+  MutationObserver.prototype.observe = function () {};
+  MutationObserver.prototype.disconnect = function () {};
+  function reply(status, body) {
+    return { ok: status >= 200 && status < 300, status: status, json: function () { return Promise.resolve(body); } };
+  }
+  const sandbox = {
+    URL: URL, URLSearchParams: URLSearchParams, JSON: JSON, Object: Object, Array: Array, String: String,
+    Number: Number, Promise: Promise, Error: Error, Math: Math, Date: Date,
+    encodeURIComponent: encodeURIComponent, decodeURIComponent: decodeURIComponent, console: console,
+    document: document, location: location, history: { pushState: function () {} },
+    localStorage: local, sessionStorage: session, MutationObserver: MutationObserver,
+    fetch: function (url, init) {
+      const u = String(url);
+      calls.push({ url: u, method: (init && init.method) || "GET", body: init && init.body ? String(init.body) : "" });
+      if (u.indexOf("/api/jobs?desks=all") >= 0) {
+        return new Promise(function (resolve) {
+          releaseAll = function () { resolve(reply(200, { ok: true, jobs: [job(NORTH, { title: "Stale north card" }), job(SOUTH, { title: "Stale south card" })] })); };
+        });
+      }
+      return Promise.resolve(reply(route({ all: http(200, { ok: true, jobs: [] }) }, url).status, route({ all: http(200, { ok: true, jobs: [] }) }, url).body));
+    },
+    addEventListener: function (ev, fn) { (winListeners[ev] = winListeners[ev] || []).push(fn); },
+    AIADesks: {
+      slugify: function (s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40); },
+      add: function () {}, list: function () { return []; },
+      open: function (row) { if (row && row.slug) local.setItem("aia_ws", row.slug); }
+    }
+  };
+  sandbox.window = sandbox;
+  vm.createContext(sandbox);
+  const tick = async function () { for (let i = 0; i < 20; i++) await new Promise(function (r) { setImmediate(r); }); };
+  function titles() {
+    const out = [];
+    walk(document.documentElement, function (el) { if (el.tagName === "H3") out.push(el.textContent); });
+    return out;
+  }
+  try {
+    vm.runInContext(src, sandbox, { filename: "queue-login.js" });
+    const fns = document.listeners.DOMContentLoaded || [];
+    fns.forEach(function (fn) { fn(); });
+    await tick();
+    if (!releaseAll) return ["stale load: All desks read never started (" + calls.map(function (c) { return c.url; }).join(" | ") + ")"];
+    location.search = "?workspace=south";
+    location.href = "http://127.0.0.1/desk.html?workspace=south";
+    (winListeners.popstate || []).forEach(function (fn) { fn({}); });
+    await tick();
+    const newer = titles();
+    if (newer.indexOf("South Shop card") < 0) return ["stale load: the newer desk pick did not paint (" + newer.join(", ") + ")"];
+    releaseAll();
+    await tick();
+    const after = titles();
+    const f = [];
+    if (after.some(function (t) { return /^Stale /.test(t); })) f.push("stale load: an older All desks answer overwrote the newer desk pick (" + after.join(", ") + ")");
+    if (after.indexOf("South Shop card") < 0) f.push("stale load: the newer desk's card is gone (" + after.join(", ") + ")");
+    return f;
+  } catch (e) {
+    return ["stale load threw " + ((e && e.message) || e)];
+  }
 }
 
 function loginBehavior(html) {
@@ -597,8 +669,15 @@ const MUTANTS = [
     "    if (fromReply && false) {\n"],
   ["login reply queue.desks ignored", "queue-login.js",
     "    if (!rows && data.queue && Array.isArray(data.queue.desks)) rows = data.queue.desks;\n",
-    "    if (false && data.queue && Array.isArray(data.queue.desks)) rows = data.queue.desks;\n"]
+    "    if (false && data.queue && Array.isArray(data.queue.desks)) rows = data.queue.desks;\n"],
+  ["stale-load guard removed (every gen !== loadGen check)", "queue-login.js",
+    "if (gen !== loadGen) return;",
+    "/* no stale-load guard */",
+    "all"]
 ];
+function applyMutant(orig, row) {
+  return row[4] === "all" ? orig.split(row[2]).join(row[3]) : orig.replace(row[2], row[3]);
+}
 
 function finish() {
   if (bad) {
@@ -626,8 +705,8 @@ async function behaviors() {
     const repl = row[3];
     const orig = file === "login.html" ? html : src;
     if (orig.indexOf(find) < 0) { fail(name + " ANCHOR GONE"); return; }
-    if (orig.indexOf(find) !== orig.lastIndexOf(find)) { fail(name + " ANCHOR NOT UNIQUE"); return; }
-    const next = orig.replace(find, repl);
+    if (row[4] !== "all" && orig.indexOf(find) !== orig.lastIndexOf(find)) { fail(name + " ANCHOR NOT UNIQUE"); return; }
+    const next = applyMutant(orig, row);
     if (next === orig) { fail(name + " NO-OP"); return; }
   });
   if (bad) return;
@@ -638,8 +717,8 @@ async function behaviors() {
     const find = MUTANTS[i][2];
     const repl = MUTANTS[i][3];
     const faults = file === "login.html"
-      ? loginBehavior(html.replace(find, repl))
-      : await behaviorFaults(src.replace(find, repl));
+      ? loginBehavior(applyMutant(html, MUTANTS[i]))
+      : await behaviorFaults(applyMutant(src, MUTANTS[i]));
     if (faults.length) {
       caught += 1;
       ok("caught " + name + " (" + faults[0] + ")");
