@@ -162,6 +162,16 @@
         }
         if (!r.ok) { err.textContent = data.error || "Login does not match."; err.style.display = "block"; return; }
         if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data, pin);
+        try {
+          if (door === "email") {
+            sessionStorage.setItem("aia_queue_login_reply", JSON.stringify({
+              desks: data.desks,
+              queue: data.queue && Array.isArray(data.queue.desks) ? { desks: data.queue.desks } : null
+            }));
+          } else {
+            sessionStorage.removeItem("aia_queue_login_reply");
+          }
+        } catch (e2) {}
         if (email) localStorage.setItem("aia_email", email);
         if (window.AIADesks && AIADesks.open && data.workspace) {
           AIADesks.open({
