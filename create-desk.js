@@ -249,6 +249,7 @@
       if (!r.ok) return fail(data.error || "Could not put that pack on this desk.");
       const hold = data.collectHold && data.collectHold.note ? " " + data.collectHold.note : "";
       done((data.note || "Pack is on this desk.") + " Rules added: " + (data.added || 0) + "." + hold);
+      if (window.AIASetupCards) window.AIASetupCards.fromInstall(data, ok);
     }
     async function installAiaFile() {
       const input = document.getElementById("aia-file");
@@ -261,6 +262,7 @@
       const data = await r.json().catch(() => ({}));
       if (!r.ok) return fail(data.error || "Could not install that .aia pack.");
       done((data.note || "Installed .aia onto this desk.") + " Rules added: " + (data.added || 0) + ".");
+      if (window.AIASetupCards) window.AIASetupCards.fromInstall(data, ok);
     }
     form.addEventListener("submit", async (e) => {
       e.preventDefault();

@@ -303,6 +303,7 @@
     const n = data.rulesAdded || data.added || 0;
     const hold = data.collectHold && data.collectHold.note ? " " + data.collectHold.note : "";
     done((data.note || (data.already ? "Already on this desk." : (preview ? "Preview added. This desk only." : "Pack is on this desk."))) + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : "") + hold);
+    if (window.AIASetupCards) window.AIASetupCards.fromInstall(data, ok);
   }
   async function installAiaFile() {
     if (!hasDesk()) return fail("Open a desk first. Browse stays public. Install needs the desk code.");
@@ -321,6 +322,7 @@
     if (!r.ok) return fail(data.error || "Could not install that .aia pack.");
     const n = data.added || 0;
     done((data.note || "Installed .aia onto this desk.") + (n ? " " + n + " rule" + (n === 1 ? "" : "s") + " landed." : ""));
+    if (window.AIASetupCards) window.AIASetupCards.fromInstall(data, ok);
   }
   document.getElementById("main").addEventListener("submit", function (e) {
     const form = e.target.closest("#find");
