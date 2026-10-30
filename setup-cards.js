@@ -55,9 +55,9 @@
     if (pin && (!slug || slug === home)) h["X-Pin"] = pin;
     return h;
   }
+  // Built here, with the card id encoded, so an odd id can't break the link.
   function hrefOf(card) {
-    var want = "/account#setup-" + String(card && card.id || "");
-    return card && card.href === want ? card.href : want;
+    return "/account#setup-" + encodeURIComponent(String(card && card.id || ""));
   }
   function deskName(slug) {
     if (!slug) return "";
@@ -171,7 +171,12 @@
     if (held) why = "Waiting until secrets can be saved.";
     if (why) li.appendChild(el("p", "setup-why", why));
     if (card.status === "open" && st.state === "todo" && !held) {
-      li.appendChild(button(st.kind === "test" ? "Done (dry run)" : "Done", "setup-go setup-done", function (b) { act(card, st, "done", b); }));
+      // A connect step needs a saved service picked, which only My account offers.
+      if (st.kind === "connect") {
+        var fin = el("a", "setup-open setup-finish-acct", "Finish in My account");
+        fin.href = hrefOf(card);
+        li.appendChild(fin);
+      } else li.appendChild(button(st.kind === "test" ? "Done (dry run)" : "Done", "setup-go setup-done", function (b) { act(card, st, "done", b); }));
       if (SKIPS[st.kind]) li.appendChild(button("Skip", "setup-skip", function (b) { act(card, st, "skip", b); }));
     }
     return li;
@@ -294,8 +299,9 @@
   var opened = {};
   var scrolled = {};
   function wantedId() {
-    var m = /^#setup-([A-Za-z0-9_.:-]+)$/.exec(String((location && location.hash) || ""));
-    return m ? m[1] : "";
+    var m = /^#setup-(.+)$/.exec(String((location && location.hash) || ""));
+    if (!m) return "";
+    try { return decodeURIComponent(m[1]); } catch (e) { return ""; }
   }
   function markAccount() {
     var id = wantedId();
