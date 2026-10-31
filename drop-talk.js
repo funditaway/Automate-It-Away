@@ -198,6 +198,35 @@
   }
   function talkToTop(bar) {
     try { bar.scrollIntoView({ block: "start" }); } catch (e) { bar.scrollIntoView(true); }
+    fitType(bar);
+  }
+  // The top of the screen's bottom cover: the fixed bottom nav or the sticky Back / Next, whichever is higher.
+  function floorY() {
+    var h = window.innerHeight || 0; var top = h;
+    ["desk-nav", "drop-step-foot"].forEach(function (id) {
+      var n = document.getElementById(id); if (!n || !n.getBoundingClientRect) return;
+      var cs = window.getComputedStyle ? window.getComputedStyle(n) : null;
+      if (!cs || cs.display === "none" || (cs.position !== "fixed" && cs.position !== "sticky")) return;
+      var r = n.getBoundingClientRect();
+      if (r.height > 0 && r.top < top && r.bottom > 0) top = r.top;
+    });
+    return top;
+  }
+  // The type box must end up above the bottom nav and Back / Next, or a tap on it lands on the nav.
+  // On a short screen it cannot fit with them: make room (talk-roomy, then talk-tight) and bring the bar up again.
+  function fitType(bar) {
+    var t = document.getElementById("talkType"); if (!t || !t.getBoundingClientRect) return;
+    var fits = function () { return t.getBoundingClientRect().bottom + 8 <= floorY(); };
+    if (fits()) return;
+    var room = ["talk-roomy", "talk-tight"];
+    for (var i = 0; i < room.length; i++) {
+      if (document.body && document.body.classList) document.body.classList.add(room[i]);
+      try { bar.scrollIntoView({ block: "start" }); } catch (e) { bar.scrollIntoView(true); }
+      if (fits()) return;
+    }
+    // Still too short: the type box wins over the top of the bar.
+    var gap = t.getBoundingClientRect().bottom + 8 - floorY();
+    if (gap > 0 && window.scrollBy) window.scrollBy(0, gap);
   }
   // Back from #talk (the hash is gone) returns to the step the page was on before Talk opened.
   function leaveTalk() {

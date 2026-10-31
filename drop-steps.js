@@ -100,6 +100,11 @@
       "#drop-steps{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0 6px;margin:0 0 10px}" +
       // A jump to Talk stops below the sticky rail, so its buttons are not under it.
       "body.drop-steps #talkBar,body.drop-steps #talkType{scroll-margin-top:calc(var(--drop-rail-h,140px) + 8px)}" +
+      // A short screen (phone on its side) cannot fit the rail, the bar, the type box, Back / Next and the
+      // bottom nav at once. On Tell, Talk first hides the nav and lets Back / Next scroll with the page
+      // (talk-roomy); if the type box still does not fit, the rail scrolls with the page too (talk-tight).
+      "body.drop-at-tell.talk-roomy #desk-nav{display:none!important}body.drop-at-tell.talk-roomy #drop-step-foot{position:static}" +
+      "body.drop-at-tell.talk-tight #drop-steps{position:static}body.drop-at-tell.talk-tight #talkBar{scroll-margin-top:8px}" +
       "#drop-step-tabs{display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch}" +
       "#drop-step-tabs button{flex:1 1 auto;min-height:44px;min-width:0;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:700 12px system-ui,sans-serif;cursor:pointer;white-space:nowrap}" +
       "#drop-step-tabs button.done{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}" +
@@ -177,6 +182,8 @@
     });
     var keep = el("drop-on");
     if (keep) keep.classList.remove("step-off");
+    // drop-talk.js keys the short-screen room for the type box (talk-roomy) off the Tell step.
+    if (document.body && document.body.classList) document.body.classList.toggle("drop-at-tell", active === "tell");
     setHtml(el("drop-step-tabs"), rows.map(function (step, i) {
       var cls = step.id === active ? "on" : i < at ? "done" : "";
       return "<button type=\"button\" role=\"tab\" aria-selected=\"" + (step.id === active) +
