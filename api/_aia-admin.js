@@ -59,7 +59,7 @@ function setAccountHandle(acc, value, opts) {
     return { ok: false, status: 400, error: parsed.error };
   }
   const handle = parsed.ok ? parsed.label : normalizeHandle(value);
-  if (!handle) return { ok: false, status: 400, error: "Use a .aia name like james.aia." };
+  if (!handle) return { ok: false, status: 400, error: "Use a .aia name, like your-account.aia." };
   if (handle.length < 2) return { ok: false, status: 400, error: "Handle needs at least two letters." };
   if (isReservedHandle(handle) && !isPlatformAccount(acc) && opts.allowReserved !== true) {
     return handleTakenError();

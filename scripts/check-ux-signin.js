@@ -10,15 +10,12 @@ require("./_env-guard");
 // desks.html, aia-mail.js: no hardcoded james / funditaway addresses.
 // /onboard: login-doors.js shows sign-in doors that are not ready as disabled "Coming soon"
 //   buttons in a closed group; only live doors start a login; no HOLD/ASK words.
-// Also: desk.html is 35012 bytes and no api/ file differs from 32145675.
+// Also: desk.html is 35012 bytes and api/ is frozen vs main 782cbc0 (scripts/_api-freeze.js).
 // Usage: node scripts/check-ux-signin.js
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { execSync } = require("child_process");
-
 const root = path.join(__dirname, "..");
-const BASE = "321456750dd03210f98b06e3d6f454d54fbcbe72";
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
@@ -324,10 +321,8 @@ function mutate(S, file, reps) {
 function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
   ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
-  let apiDiff = "";
-  try { apiDiff = execSync("git diff --name-only " + BASE + " -- api", { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
-  catch (e) { apiDiff = ""; }
-  ok(apiDiff === "", "no api/ file differs from " + BASE.slice(0, 8) + (apiDiff ? " (" + apiDiff + ")" : ""));
+  const apiFreeze = require("./_api-freeze").check(root);
+  ok(apiFreeze.ok, "api/ frozen vs " + String(apiFreeze.base || "").slice(0, 8) + " (string-only allowlist)" + (apiFreeze.ok ? "" : ": " + apiFreeze.problems.join("; ")));
   const pkg = read("package.json");
   ok(/check-ux-signin\.js/.test(pkg), "npm test runs check-ux-signin.js");
   ["login-doors.js", "login.html", "account.html"].forEach((f) => {
