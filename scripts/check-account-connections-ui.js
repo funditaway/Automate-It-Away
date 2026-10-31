@@ -207,7 +207,10 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
   ok(!/account-connections/.test(read("desk.html")), "desk.html untouched");
   ok(!/check-account-connections-ui/.test(read("package.json")), "not in npm test yet (waits for 336 and 355)");
   ok(KILLED_FROM_API.status === KILLED_PLAIN && KILLED_FROM_API.reason === KILLED_PLAIN, "api waiting text is Stopped for good, not Killed");
-  ok(CONNECT_SRC.indexOf("Killed. Nothing more happens on this card.") < 0, "api does not return the old Killed waiting text");
+  ok(CONNECT_SRC.split(KILLED_PLAIN).length - 1 === 4, "status, reason, card history, and the final reply use the plain sentence");
+  ok(CONNECT_SRC.indexOf('"Stopped for good. Nothing more happens on") + " the setup card for "') >= 0, "account history says stopped for good");
+  ok(CONNECT_SRC.indexOf('"Stopped for good") + " here, but it did not save. Tap "') >= 0, "unsaved hint says stopped for good");
+  ok(CONNECT_SRC.indexOf("Killed. Nothing more happens on this card.") < 0 && CONNECT_SRC.indexOf("Killed this setup card") < 0 && CONNECT_SRC.indexOf("This card was killed") < 0, "api does not return the old Killed text");
   ok(CONNECT_SRC.indexOf('card.status === "killed"') >= 0, "killed stays the status value");
 
   // ---------- signed out: nothing loads ----------
@@ -518,7 +521,7 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     const file = path.join(dir, "api/_account-connect.js");
     const src = fs.readFileSync(file, "utf8");
     const next = src.split(KILLED_PLAIN).join("Killed. Nothing more happens on this card.");
-    if (next === src || src.split(KILLED_PLAIN).length !== 3) {
+    if (next === src || src.split(KILLED_PLAIN).length !== 5) {
       fail("old Killed waiting text mutant did not apply");
     } else {
       fs.writeFileSync(file, next);

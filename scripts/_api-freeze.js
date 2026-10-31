@@ -40,7 +40,7 @@ const PIN = {
   "api/_aia-net.js": "b592bc6615323a570a1e20b27c1a79219094a58e",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
   "api/_aia-tld.js": "df9267c5b7607b31bedec801189ad2cbb7ae1b3d",
-  "api/_account-connect.js": "731ef01970797df0611bce42af41b1d2b5723bb3",
+  "api/_account-connect.js": "9ce819df6b92e20f72d47c2cf2877a2bc67fcbb8",
   "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
   "api/migrate-uploads.js": "2b5e13d819268bdae2688c3d29e2f755929fcaa7"
 };
