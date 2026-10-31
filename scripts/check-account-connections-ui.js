@@ -55,6 +55,8 @@ function makeEl(tag) {
     insertBefore(c, ref) { if (!c || !c.tagName) throw new TypeError("insertBefore needs a node"); const i = this.parts.indexOf(ref); c.parentNode = this; if (i < 0) this.parts.push(c); else this.parts.splice(i, 0, c); return c; },
     // #447 view: a focus without preventScroll jumps the page; the focused node is document.activeElement.
     focus(o) { if (!this.__view) return; if (!(o && o.preventScroll === true)) this.__view.y = 4242; this.__view.focus = this; },
+    // Any scroll moves the view: scrollIntoView lands the node at 7000 + its depth.
+    scrollIntoView() { if (!this.__view) return; let d = 0, n = this; while (n.parentNode) { d += 1; n = n.parentNode; } this.__view.y = 7000 + d; },
     addEventListener(ev, fn) { (this.handlers[ev] = this.handlers[ev] || []).push(fn); },
     fire(ev) { (this.handlers[ev] || []).forEach((fn) => fn({ target: this })); },
     querySelector() { return null; },
@@ -141,6 +143,8 @@ function world(opts) {
   innerHTMLUsed = 0;
   // #447: a tiny page view. y is the scroll; a repaint that empties the card list collapses the page for a
   // moment, so the browser clamps the scroll (y back to 0), as Probe saw. focus is document.activeElement.
+  // Every other way to scroll moves y too: window.scrollTo / scroll / scrollBy, scrollY, documentElement or
+  // body scrollTop and scrollIntoView, so "scroll kept" sees any scroll.
   const view = { y: 0, focus: null };
   const mk = (t) => { const e = makeEl(t); e.__view = view; return e; };
   const mount = mk("section"); mount.id = "acct-connections"; mount.hidden = true;
@@ -170,6 +174,12 @@ function world(opts) {
   };
   ctx.window = ctx;
   Object.defineProperty(ctx, "pageYOffset", { get: () => view.y });
+  Object.defineProperty(ctx, "scrollY", { get: () => view.y });
+  const yOf = (a, b) => (a && typeof a === "object" ? (a.top == null ? view.y : Number(a.top) || 0) : Number(b) || 0);
+  ctx.scrollTo = ctx.scroll = function (a, b) { view.y = yOf(a, b); };
+  ctx.scrollBy = function (a, b) { view.y += a && typeof a === "object" ? Number(a.top) || 0 : Number(b) || 0; };
+  document.documentElement = mk("html"); document.body = mk("body");
+  [document.documentElement, document.body].forEach((n) => Object.defineProperty(n, "scrollTop", { get: () => view.y, set: (v) => { view.y = Number(v) || 0; } }));
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx, { filename: "account-connections.js" });
   return { ctx, mount, view,
@@ -596,6 +606,45 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     const sent = w.posts().filter((c) => c.body.action === "setup-step").map((c) => c.body);
     ok(sent.length === 1 && sent[0].cardId === "setup_stp" && sent[0].do === "kill", "#447 a double-tap sends one Kill for its own card, nothing for another card (" + JSON.stringify(sent) + ")");
   }
+  {
+    // The fake page sees every way to scroll (else "scroll kept" would miss a scrollTo on arm).
+    const w = world({ storage: SIGNED, reply: happy() });
+    await settle();
+    const seen = [];
+    w.view.y = 500; w.ctx.scrollTo(0, 0); seen.push(w.view.y);
+    w.view.y = 500; w.ctx.scrollBy(0, -200); seen.push(w.view.y);
+    w.view.y = 500; w.ctx.document.documentElement.scrollTop = 0; seen.push(w.view.y);
+    w.view.y = 500; w.ctx.document.body.scrollTop = 10; seen.push(w.view.y);
+    w.view.y = 500; cardBox(w, "setup_mid").scrollIntoView(); seen.push(w.view.y);
+    ok(seen[0] === 0 && seen[1] === 300 && seen[2] === 0 && seen[3] === 10 && seen[4] > 7000, "#447 the fake page tracks scrollTo, scrollBy, scrollTop and scrollIntoView (" + seen.join(", ") + ")");
+  }
+  {
+    // Two cards armed at once: each Yes kills only its own card. Arm A, arm B, Yes on A: one post, A's id.
+    // Then Yes on B: B's id. Nothing is sent for the card that was armed last.
+    const w = world({ storage: SIGNED, reply: happy() });
+    await settle();
+    const A1 = "setup_stp", B1 = "setup_mid";
+    buttons(cardBox(w, A1), "Kill")[0].fire("click"); await settle();
+    buttons(cardBox(w, B1), "Kill")[0].fire("click"); await settle();
+    const yesA = buttons(cardBox(w, A1), KILL_YES)[0];
+    if (yesA) { yesA.fire("click"); await settle(); }
+    const one = w.posts().filter((c) => c.body.action === "setup-step").map((c) => c.body);
+    ok(!!yesA && one.length === 1 && one[0].cardId === A1 && one[0].do === "kill" && one[0].confirm === true, "#447 two armed: arm A, arm B, Yes on A: exactly one post, with A's id (" + JSON.stringify(one) + ")");
+    const yesB = cardBox(w, B1) && buttons(cardBox(w, B1), KILL_YES)[0];
+    if (yesB) { yesB.fire("click"); await settle(); }
+    const two = w.posts().filter((c) => c.body.action === "setup-step").map((c) => c.body);
+    ok(!!yesB && two.length === 2 && two[1].cardId === B1 && two[1].do === "kill" && two[1].confirm === true, "#447 two armed: then Yes on B: B's id (" + JSON.stringify(two.slice(1)) + ")");
+  }
+  {
+    // The confirming tap redraws the list; the page stays where it was.
+    const w = world({ storage: SIGNED, reply: happy() });
+    await settle();
+    w.view.y = 1000;
+    buttons(cardBox(w, "setup_mid"), "Kill")[0].fire("click"); await settle();
+    buttons(cardBox(w, "setup_mid"), KILL_YES)[0].fire("click"); await settle();
+    const ks = w.posts().filter((c) => c.body.do === "kill").map((c) => c.body);
+    ok(ks.length === 1 && ks[0].cardId === "setup_mid" && w.view.y === 1000, "#447 the confirming Yes keeps the scroll across the redraw (1000 -> " + w.view.y + ")");
+  }
   for (const key of ["Enter", " "]) {
     const name = key === " " ? "Space" : key;
     const w = world({ storage: SIGNED, reply: happy() });
@@ -654,6 +703,15 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     ok(n === 2 && w.last().body.confirm === true && find(b, (n2) => n2.getAttribute("role") === "status")[0].textContent === KILLED_PLAIN, "409 Kill needs a second tap: the next Yes kills");
   }
   ok(GONE_ALREADY === "Already stopped for good. Nothing changed." && SRC.indexOf('var GONE_ALREADY = "' + GONE_ALREADY + '";') >= 0, "the page's already-killed line is the api's own hint, byte for byte: " + GONE_ALREADY);
+  {
+    // Whatever words the api sends on an already-killed card are what the page shows (not only the fallback).
+    const OTHER = "Stopped for good on another phone. Nothing changed.";
+    const w = world({ storage: SIGNED, reply: happy({ "setup-step": (b) => { if (b.do !== "kill") return null; const c = cardBlocked(); c.id = b.cardId; return { status: 200, data: { ok: true, changed: false, card: c, hint: OTHER } }; } }) });
+    await settle();
+    await killTwice(w, "setup_mid");
+    const st = find(cardBox(w, "setup_mid"), (n) => n.getAttribute("role") === "status")[0];
+    ok(st && st.textContent === OTHER, "kill on a killed card shows the api's own hint word for word, even when it is not the page's fallback (" + (st && st.textContent) + ")");
+  }
   for (const [verb, withHint] of [["stop", true], ["kill", true], ["stop", false], ["kill", false]]) {
     // The page still shows a live card, but it was killed elsewhere: the server answers 200 changed:false,
     // with its real hint (and, to test the page's own fallback, once without it).
@@ -700,11 +758,18 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     ["no Keep the card", A, swap("    if (on && !p.keep) {", "    if (false) {"), /Keep the card/],
     ["Keep the card lost on a repaint", A, swap("      if (armed[card.id]) keepB = always.appendChild(keepButton(card));", "      if (false) keepB = always.appendChild(keepButton(card));"), /keeps this card armed/],
     ["Keep the card does not cancel", A, swap('function () { if (armed[card.id]) arm(card, false, ""); }', "function () {}"), /Keep the card cancels/],
-    ["#447 arming repaints the whole list", A, swap("    if (!p) { paintCards(); return; }", "    paintCards(); return;"), /#447 arming Kill keeps the scroll/],
+    ["#447 arming repaints the whole list", A, swap("    if (!p) { paintCards(); return; }", "    paintCards(); return;"), /#447 arming Kill keeps the scroll|#447 focus is on Yes/],
     ["#447 arming leaves focus where it was", A, swap("    if (p.kill.focus) p.kill.focus({ preventScroll: true });\n", ""), /#447 focus is on Yes/],
     ["#447 arming focus scrolls the page", A, swap("p.kill.focus({ preventScroll: true })", "p.kill.focus()"), /#447 arming Kill keeps the scroll/],
     ["#447 Keep the card repaints the list", A, swap('function () { if (armed[card.id]) arm(card, false, ""); }', 'function () { delete armed[card.id]; said[card.id] = ""; paintCards(); }'), /#447 Keep the card gives focus back to Kill/],
     ["#447 Keep and Yes lose their card id", A, swap('    k.setAttribute("data-card-id", card.id);\n', ""), /#447 Yes and Keep carry their own card id/],
+    ["#447 Kill posts the last-armed card's id", A, (t) => { const a = "    if (on) armed[card.id] = true; else delete armed[card.id];", b = '      var body = { action: "setup-step", cardId: card.id, do: verb };'; if (t.indexOf(a) < 0 || t.indexOf(b) < 0) return null; return t.replace(a, "    if (on) { armed[card.id] = true; window.__lastArmed = card.id; } else delete armed[card.id];").replace(b, '      var body = { action: "setup-step", cardId: (verb === "kill" && window.__lastArmed) || card.id, do: verb };'); }, /#447 two armed/],
+    ["#447 arming scrolls to the top (scrollTo)", A, swap("    if (hints[card.id]) hints[card.id].textContent = line;", "    if (hints[card.id]) hints[card.id].textContent = line; try { window.scrollTo(0, 0); } catch (e) {}"), /#447 arming Kill keeps the scroll/],
+    ["#447 arming nudges the page (scrollBy)", A, swap("    if (hints[card.id]) hints[card.id].textContent = line;", "    if (hints[card.id]) hints[card.id].textContent = line; try { window.scrollBy(0, -200); } catch (e) {}"), /#447 arming Kill keeps the scroll/],
+    ["#447 arming scrolls the card into view", A, swap("    if (hints[card.id]) hints[card.id].textContent = line;", "    if (hints[card.id]) hints[card.id].textContent = line; if (p.row.scrollIntoView) p.row.scrollIntoView();"), /#447 arming Kill keeps the scroll/],
+    ["#447 arming sets scrollTop", A, swap("    if (hints[card.id]) hints[card.id].textContent = line;", "    if (hints[card.id]) hints[card.id].textContent = line; try { document.documentElement.scrollTop = 0; } catch (e) {}"), /#447 arming Kill keeps the scroll/],
+    ["#447 the confirm redraw loses the scroll", A, swap("    if ((window.pageYOffset || 0) !== y && window.scrollTo) window.scrollTo(0, y);\n", ""), /#447 the confirming Yes keeps the scroll/],
+    ["already-killed hint from the api ignored", A, swap('say(typeof x.d.hint === "string" && x.d.hint ? x.d.hint : line);', "say(line);"), /api's own hint word for word/],
     ["#447 409 asks again by repainting the list", A, swap("{ arm(card, true, KILL_REARM); return; }", "{ armed[card.id] = true; said[card.id] = KILL_REARM; paintCards(); return; }"), /#447 409 Kill needs a second tap: focus/],
     ["already-killed fallback not the api's words", A, swap('var GONE_ALREADY = "Already stopped for good. Nothing changed.";', 'var GONE_ALREADY = "This card was already stopped for good. Nothing changed.";'), /api's own hint|on a killed card says/],
     ["Stop leaves Kill armed", A, swap('      if (armed[card.id]) { delete armed[card.id]; said[card.id] = ""; paintCards(); }\n', ""), /disarms|stay live to try again/],

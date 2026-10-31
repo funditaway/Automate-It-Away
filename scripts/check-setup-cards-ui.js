@@ -32,7 +32,9 @@ function makeDom() {
   const doc = { listeners: {}, readyState: "complete" };
   // #447: a tiny page view. y is the scroll; a repaint that empties the card list collapses the page for a
   // moment, so the browser clamps the scroll (y back to 0), as Probe saw (1139 -> 511). A focus without
-  // preventScroll jumps the page too. focus is the focused node (document.activeElement).
+  // preventScroll jumps the page too. focus is the focused node (document.activeElement). Every other way a
+  // page scrolls moves y as well: window.scrollTo / scroll / scrollBy, scrollY, documentElement or body scrollTop,
+  // and scrollIntoView on any node (it lands the node at 7000 + its depth), so "scroll kept" sees any scroll.
   const view = { y: 0, focus: null };
   doc.__view = view;
   function El(tag) {
@@ -83,7 +85,7 @@ function makeDom() {
     closest(sel) { let n = this; while (n) { if (matches(n, sel)) return n; n = n.parentNode; } return null; },
     querySelectorAll(sel) { const out = []; walk(this, (n) => { if (n !== this && matches(n, sel)) out.push(n); }); return out; },
     querySelector(sel) { return this.querySelectorAll(sel)[0] || null; },
-    scrollIntoView() { this.scrolled += 1; },
+    scrollIntoView() { this.scrolled += 1; let d = 0, n = this; while (n.parentNode) { d += 1; n = n.parentNode; } view.y = 7000 + d; },
     focus(o) { if (!(o && o.preventScroll === true)) view.y = 4242; view.focus = this; }
   };
   function matches(n, sel) {
@@ -107,6 +109,7 @@ function makeDom() {
   doc.documentElement = html;
   doc.head = head;
   doc.body = body;
+  [html, body].forEach((n) => Object.defineProperty(n, "scrollTop", { get: () => view.y, set: (v) => { view.y = Number(v) || 0; } }));
   doc.createElement = (t) => new El(t);
   doc.getElementById = (id) => { let hit = null; walk(html, (n) => { if (!hit && n.id === id) hit = n; }); return hit; };
   doc.querySelectorAll = (s) => html.querySelectorAll(s);
@@ -156,6 +159,11 @@ function runPage(src, opts) {
     JSON, Object, Array, String, Promise, RegExp, Error, Math, Date
   };
   Object.defineProperty(win, "pageYOffset", { get: () => dom.view.y });
+  Object.defineProperty(win, "scrollY", { get: () => dom.view.y });
+  const yOf = (a, b) => (a && typeof a === "object" ? (a.top == null ? dom.view.y : Number(a.top) || 0) : Number(b) || 0);
+  win.scrollTo = win.scroll = function (a, b) { dom.view.y = yOf(a, b); };
+  win.scrollBy = function (a, b) { dom.view.y += a && typeof a === "object" ? Number(a.top) || 0 : Number(b) || 0; };
+  ctx.scrollTo = win.scrollTo; ctx.scroll = win.scroll; ctx.scrollBy = win.scrollBy;
   win.window = win;
   win.document = doc;
   win.location = loc;
@@ -450,6 +458,37 @@ async function suite(src, say) {
     const sent = acctCalls(P).map(bodyOf);
     t(sent.length === 1 && sent.every((x) => x.cardId === "setup_done3") && sent[0].do === "kill", "[double-tap] sends one Kill for its own card, nothing for another card (" + JSON.stringify(sent) + ")");
   }
+  {
+    // The fake page sees every way to scroll (else "scroll kept" would miss a scrollTo on arm).
+    const P = await deskAt();
+    const w = P.ctx.window, seen = [];
+    P.view.y = 500; w.scrollTo(0, 0); seen.push(P.view.y);
+    P.view.y = 500; w.scrollBy(0, -200); seen.push(P.view.y);
+    P.view.y = 500; P.doc.documentElement.scrollTop = 0; seen.push(P.view.y);
+    P.view.y = 500; P.doc.body.scrollTop = 10; seen.push(P.view.y);
+    P.view.y = 500; cardEl(P.doc, "setup_done3").scrollIntoView(); seen.push(P.view.y);
+    t(seen[0] === 0 && seen[1] === 300 && seen[2] === 0 && seen[3] === 10 && seen[4] > 7000, "[scroll] the fake page tracks scrollTo, scrollBy, scrollTop and scrollIntoView (" + seen.join(", ") + ")");
+  }
+  {
+    // Two cards armed at once: each Yes kills only its own card. Arm A, arm B, Yes on A: one post, A's id.
+    // Then Yes on B: B's id. Nothing is sent for the card that was armed last.
+    const P = await deskAt();
+    const A = "setup_stop2", B = "setup_done3";
+    if (btn(cardEl(P.doc, A), "Kill")) btn(cardEl(P.doc, A), "Kill").click();
+    await flush();
+    if (btn(cardEl(P.doc, B), "Kill")) btn(cardEl(P.doc, B), "Kill").click();
+    await flush();
+    const yesA = cardEl(P.doc, A) && btn(cardEl(P.doc, A), "Yes, stop for good");
+    if (yesA) yesA.click();
+    await flush();
+    const one = acctCalls(P).map(bodyOf);
+    t(!!yesA && one.length === 1 && one[0].cardId === A && one[0].do === "kill" && one[0].confirm === true, "[two armed] arm A, arm B, Yes on A: exactly one post, with A's id (" + JSON.stringify(one) + ")");
+    const yesB = cardEl(P.doc, B) && btn(cardEl(P.doc, B), "Yes, stop for good");
+    if (yesB) yesB.click();
+    await flush();
+    const two = acctCalls(P).map(bodyOf);
+    t(!!yesB && two.length === 2 && two[1].cardId === B && two[1].do === "kill" && two[1].confirm === true, "[two armed] then Yes on B: B's id (" + JSON.stringify(two.slice(1)) + ")");
+  }
   for (const key of ["Enter", " "]) {
     const P = await deskAt();
     P.view.y = 600;
@@ -704,6 +743,11 @@ const MUTANTS = [
   ["#447 arming focus scrolls the page", [["p.kill.focus({ preventScroll: true })", "p.kill.focus()"]]],
   ["#447 Keep the card repaints the list", [["function () { if (armed[card.id]) arm(card, false, \"\"); }", "function () { delete armed[card.id]; said[card.id] = \"\"; paint(); }"]]],
   ["#447 Keep and Yes lose their card id", [["    k.setAttribute(\"data-card-id\", card.id);\n", ""], ["    killB.setAttribute(\"data-card-id\", card.id);\n", ""]]],
+  ["#447 Kill posts the last-armed card's id", [["    if (on) armed[card.id] = true; else delete armed[card.id];", "    if (on) { armed[card.id] = true; window.__lastArmed = card.id; } else delete armed[card.id];"], ["    var body = { action: \"setup-step\", cardId: card.id };", "    var body = { action: \"setup-step\", cardId: (verb === \"kill\" && window.__lastArmed) || card.id };"]]],
+  ["#447 arming scrolls to the top (scrollTo)", [["    p.say.textContent = line;", "    p.say.textContent = line; try { window.scrollTo(0, 0); } catch (e) {}"]]],
+  ["#447 arming nudges the page (scrollBy)", [["    p.say.textContent = line;", "    p.say.textContent = line; try { window.scrollBy(0, -200); } catch (e) {}"]]],
+  ["#447 arming scrolls the card into view", [["    p.say.textContent = line;", "    p.say.textContent = line; if (p.row.scrollIntoView) p.row.scrollIntoView();"]]],
+  ["#447 arming sets scrollTop", [["    p.say.textContent = line;", "    p.say.textContent = line; try { document.documentElement.scrollTop = 0; } catch (e) {}"]]],
   ["#447 409 asks again by repainting the list", [["{ arm(card, true, KILL_REARM); return x; }", "{ armed[card.id] = true; said[card.id] = KILL_REARM; paint(); return x; }"]]],
   ["desk ignores the api's hint", [["if (next.status === \"killed\") said.__top = hint || GONE;", "if (next.status === \"killed\") said.__top = GONE;"]]],
   ["Stop leaves Kill armed", [["    if (armed[card.id]) { delete armed[card.id]; if (said[card.id] === KILL_ASK) said[card.id] = \"\"; }\n", ""]]],

@@ -429,10 +429,13 @@
   }
   function paintCards() {
     if (!cardBox) return;
+    // #447: a repaint empties the list for a moment; keep the page where it was (no jump after a Kill).
+    var y = window.pageYOffset || 0;
     clear(cardBox);
     parts = {};
     if (!cards.length) cardBox.appendChild(el("p", "meta", "No setup cards yet. Saving a service above makes one."));
     cards.forEach(function (c) { if (c && c.id) cardBox.appendChild(paintCard(c)); });
+    if ((window.pageYOffset || 0) !== y && window.scrollTo) window.scrollTo(0, y);
   }
 
   function loadCards() {
