@@ -33,15 +33,29 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "c30a659e524787c23d318a24acaa570ca7f46af5";
+const BASE = "295b168252c3dc8f5b011d5d4b73b76bfbd5a866";
 const PIN = {
-  "api/_aia-admin.js": "5908102a838edc62e63c7e3cfbd59380435a5764",
-  "api/_aia-mail.js": "95c0615905927e29f2dbd752fb53fe95bd6f0e80",
-  "api/_aia-net.js": "b592bc6615323a570a1e20b27c1a79219094a58e",
+  "api/_account.js": "b2606240c7c7e4a322cc4e0dff08537470d4bac5",
+  "api/_account-connect.js": "39dde85d863c3de15b05571d35dcc4e87e6f5b7b",
+  "api/_account-doors.js": "e210c079926b0efbb22cb5b9512649c81f43c6b9",
+  "api/_account-http.js": "977fe25361e6eec276c25673af7c2dd525353482",
+  "api/_aia-admin.js": "b2036f064e85dfe1a93b7dda686d368f4fe7e233",
+  "api/_ais.js": "1a59bc118231afb4d03631bc60ed4453fd1ad646",
+  "api/_aia-mail.js": "5796afa6e22f62f3a9e433b0c1d0eb00c6094599",
+  "api/_aia-net.js": "5df23c55f9e189fcbb5aa710ab30672ef4279fd8",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
-  "api/_aia-tld.js": "df9267c5b7607b31bedec801189ad2cbb7ae1b3d",
-  "api/_account-connect.js": "9ce819df6b92e20f72d47c2cf2877a2bc67fcbb8",
+  "api/_aia-tld.js": "3274f05868ac08c48bd41fe124599bda28558c3a",
+  "api/_connect-wallet.js": "16f6efe4a25721f0d463e10853c22b854c430cee",
+  "api/_desks-http.js": "54d36ae4eb8842b75f1847bc72fa5c2b8c514adb",
   "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
+  "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
+  "api/_lib.js": "d0562ebb769a42bff8daa613d77148ac85fcdfd8",
+  "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
+  "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
+  "api/connections.js": "e567ff5bbe563123144f0654576f337da3fe4170",
+  "api/health.js": "1840366fe0cddc31ae513da0ac2464ec02b1dcc4",
+  "api/hook.js": "d9027a640d48d59ea20363e0b2dd18a3772d185f",
+  "api/jobs.js": "40c283de861b5fb48087bc8987f836238b1535ee",
   "api/migrate-uploads.js": "2b5e13d819268bdae2688c3d29e2f755929fcaa7"
 };
 

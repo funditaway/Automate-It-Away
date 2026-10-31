@@ -125,7 +125,7 @@ const AGENTS = {
   Rail: {
     crew: "Rail",
     title: "Hold the line",
-    does: "Writes SHIP / HOLD / KILL on the card. Does not tap Stop. Does not pass its own HOLD.",
+    does: "Writes the next state on the card. Does not tap Stop. Does not allow this on its own.",
     artifact: "rail note",
     can: withCan({ queue: true, explore: true, draft: true }),
     never: ["send", "stop", "money", "pipes", "delete", "approve"]
@@ -133,7 +133,7 @@ const AGENTS = {
   Builder: {
     crew: "Builder",
     title: "Fix the desk",
-    does: "Notes API and page fixes. Does not deploy. Does not flip a pipe live.",
+    does: "Notes API and page fixes. Does not deploy. Does not turn a connection on.",
     artifact: "build note",
     can: withCan({ queue: true, explore: true, draft: true }),
     never: ["send", "stop", "money", "pipes", "delete", "approve"]

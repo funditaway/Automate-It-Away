@@ -13,7 +13,7 @@ function strangerTld(row) {
       collect: "hold",
       mint: false,
       live: false,
-      note: "Name register stays HOLD. Collect stays HOLD.",
+      note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
       wallet: { connected: false, short: "" }
     };
   }
@@ -25,7 +25,7 @@ function strangerTld(row) {
     collect: "hold",
     mint: false,
     live: !!row.live,
-    note: "Name register stays HOLD. Collect stays HOLD.",
+    note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
     wallet: {
       connected: !!w.connected,
       short: w.short || ""
@@ -67,7 +67,7 @@ function honestConnection(row, answered) {
       label: row.label || "Whatnot",
       live: false,
       status: "down",
-      note: "Not a launch pipe"
+      note: "Off for now."
     };
   }
   const wrote = answered.indexOf(id) >= 0;
@@ -77,7 +77,7 @@ function honestConnection(row, answered) {
     label: row.label || id,
     live: wrote,
     status: wrote ? "live" : "hold",
-    note: wrote ? "Pipe wrote back." : "Hold until this pipe answers."
+    note: wrote ? "This connection answered." : "Off until this connection answers."
   };
 }
 
@@ -114,8 +114,8 @@ async function deskStatus(req, res) {
     answered: wrote,
     answeredPipes: answered,
     note: wrote
-      ? "A pipe wrote back on this desk."
-      : "Orange until a real pipe answers. Catalog matches /api/health.",
+      ? "A connection answered on this desk."
+      : "Off until a real connection answers. The list matches /api/health.",
     pipes,
     connections: mine.map((c) => honestConnection(c, answered)).filter(Boolean),
     inbound: workspace ? hookUrl(workspace) : "",
@@ -132,7 +132,7 @@ async function deskStatus(req, res) {
       }
     },
     honesty: {
-      rule: "hold until a real pipe answers",
+      rule: "off until a real connection answers",
       writeback: "dispatch.ok or dispatch.inbound",
       catalog: "same as /api/health — the webhook brings work in and does not take payment; payments are not connected; whatnot down"
     }
@@ -183,8 +183,8 @@ async function health(req, res) {
       qualify: "on capture + worker",
       do: "draft only — Yes and Stop stay on the desk",
       collect: require("./_packs").moneyPipeLive()
-        ? "Money pipe is set up. Collect stays HOLD until a person taps Yes."
-        : "No money pipe. Collect stays HOLD.",
+        ? "A payment connection is set up. Payments stay off until you tap Yes. Nothing is charged."
+        : "Payments are off for now. Nothing is charged.",
       follow: "worker + cron",
       inbound: "/api/hook",
       mail: require("./_aia-mail").statusOf(),
@@ -205,13 +205,13 @@ async function health(req, res) {
     accounts: {
       login: "desk name + desk code, or email + password",
       session: "hashed token, 14 days, slides on use, cookie + X-Session, max 8 phones",
-      mfa: "HOLD — authenticator is not live. No email codes. No SMS codes.",
+      mfa: "Two-step sign-in is off for now. No email codes. No SMS codes.",
       create: "Pro AIA account on open",
       plan: "pro",
       status: "free",
       monthly: "later per extra member or staff login",
       charged: false,
-      note: "One account per person. Session persists on the shared save. Authenticator stays HOLD — not live on /account."
+      note: "One account per person. Session persists on the shared save. Two-step sign-in is off for now."
     },
     domain: require("./_public-host").LIVE_DOMAIN,
     rev,
@@ -220,8 +220,7 @@ async function health(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet: require("./_connect-wallet").healthBlock(),
-    aiaTld: strangerTld(require("./_aia-tld").healthBlock()),
-    repo: "funditaway/Automate-It-Away"
+    aiaTld: strangerTld(require("./_aia-tld").healthBlock())
   });
 }
 

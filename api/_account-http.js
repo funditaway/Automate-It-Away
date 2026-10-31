@@ -388,12 +388,12 @@ module.exports = async function handler(req, res) {
     }
     const on = body.on !== false && body.on !== "false" && body.enabled !== false && body.enabled !== "false";
     if (on) {
-      return res.status(409).json({ ok: false, hold: true, error: "HOLD. Authenticator is not live on this account." });
+      return res.status(409).json({ ok: false, hold: true, error: "Two-step sign-in is off for now." });
     }
     account.mfaOn = false;
     refreshSession(req, res);
     await save();
-    return res.status(200).json({ ok: true, hold: true, mfaOn: false, hint: "Authenticator stays on HOLD." });
+    return res.status(200).json({ ok: true, hold: true, mfaOn: false, hint: "Two-step sign-in stays off for now." });
   }
 
   if (action === "handle" || action === "at") {
@@ -413,7 +413,7 @@ module.exports = async function handler(req, res) {
     }
     refreshSession(req, res);
     await save();
-    return res.status(200).json(Object.assign(accountHome(account, found.person, req), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Connect a browser wallet on Account for identity. Mint / Bridge stay HOLD." }));
+    return res.status(200).json(Object.assign(accountHome(account, found.person, req), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Connect a browser wallet on Account for identity. Minting and Bridge are off for now." }));
   }
 
   if (action === "mail" || action === "aia-mail" || action === "mail-identity" || action === "create-mail" || action === "mail-create" || action === "mail-list") {
@@ -454,7 +454,7 @@ module.exports = async function handler(req, res) {
       identity: made.identity,
       mail: made.mail,
       mx: mail.statusOf(),
-      hint: (made.identity && made.identity.address) + " is on this account. Identities work on the desk now. Internet mail when the MX pipe is connected."
+      hint: (made.identity && made.identity.address) + " is on this account. Identities work on the desk now. Internet mail is off until mail delivery is connected."
     }));
   }
 

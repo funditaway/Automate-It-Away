@@ -92,8 +92,8 @@ function agentDraft(job, who) {
     Mapper: "Shop map for " + title + ". Capture what arrived. Qualify fit. Do the work. Collect off this desk if money. Follow until it is done.",
     Packer: "Pack notes for " + title + ". Fields, nouns, and what this desk already knows. Packer does not fork the desk.",
     Doer: title + ". " + (notes || "Draft the listing, packet, or message.") + " Draft only — nothing sent.",
-    Rail: "Rail on " + title + ": " + (job.risk && job.risk !== "none" ? "HOLD · " + job.risk : "SHIP ready if a person taps Yes") + ". Rail does not tap Stop.",
-    Builder: "Build note for " + title + ". What the desk still needs. Builder does not deploy and does not flip a pipe live.",
+    Rail: "Rail on " + title + ": " + (job.risk && job.risk !== "none" ? "Needs a look · " + job.risk : "Ready if a person taps Yes") + ". Rail does not tap Stop.",
+    Builder: "Build note for " + title + ". What the desk still needs. Builder does not deploy and does not turn a connection on.",
     Worker: "Qualify " + title + ". " + (notes || "Need the missing fact before Yes.") + " Worker nudges. Never Send."
   };
   const text = namedLine || bits[spec.crew] || (spec.crew + " draft for " + title + ". A person taps Yes.");

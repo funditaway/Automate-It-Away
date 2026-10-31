@@ -238,7 +238,7 @@ module.exports = async function handler(req, res) {
       mail: made.mail,
       mx: mail.statusOf(),
       desk: publicDesk(row, person),
-      hint: (made.identity && made.identity.address) + " is bound to this desk. Identities work on the desk now. Internet mail when the MX pipe is connected."
+      hint: (made.identity && made.identity.address) + " is bound to this desk. Identities work on the desk now. Internet mail is off until mail delivery is connected."
     });
   }
   if (action === "mail-remove" || action === "remove-mail") {
