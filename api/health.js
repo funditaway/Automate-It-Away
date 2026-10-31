@@ -34,12 +34,15 @@ function strangerTld(row) {
 }
 
 // Status only. Health stays on strangerTld, with no probe and no extra keys.
-// bridgeLocked is the probe boolean. ownedByConnected stays false: status has
-// no wallet session.
+// bridgeLocked is false only when the row explicitly says so. A null row, or a
+// row whose flag is missing, stays locked. ownedByConnected stays false: status
+// has no wallet session. reason is the machine field "unreachable" when the
+// lock check did not reach the bridge. No other copy is added.
 function statusTld(row) {
   const face = strangerTld(row);
-  face.bridgeLocked = !!(row && row.bridgeLocked === true);
+  face.bridgeLocked = !(row && row.bridgeLocked === false);
   face.ownedByConnected = false;
+  if (row && row.reason === "unreachable") face.reason = "unreachable";
   return face;
 }
 
