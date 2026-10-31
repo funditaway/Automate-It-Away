@@ -11,6 +11,8 @@ require("./_env-guard");
 // except exact sentences other checks still pin (PINNED, each capped at its count today). /account has no
 // owner names and fewer HOLD lines, /history says "Any connection", /status paints Whatnot as a grey held
 // state, grey text reaches 4.5:1 on light and dark, and every in-site #anchor on /help lands on a real id.
+// D3: /help, /pipes, /connections and /history also read plain in what their scripts draw (checkD3): page code runs in a
+// vm and its draw functions run on fixtures, other scripts' strings are read; no HOLD, no pipe, and Pack is a name on /history.
 // Every file is read up front; a missing or unreadable file is a FAIL (fail closed), never a skip.
 // Each rule runs once on the real files, then against mutants that each must be caught.
 const fs = require("fs");
@@ -28,7 +30,8 @@ function read(rel) { return fs.readFileSync(path.join(root, rel), "utf8"); }
 function readOrNull(rel) { try { const t = fs.readFileSync(path.join(root, rel), "utf8"); return typeof t === "string" ? t : null; } catch (e) { return null; } }
 const PAGES = ["index.html", "how.html", "setup.html", "pricing.html", "status.html", "examples.html"];
 const FILES = PAGES.concat(["aia-tip.js", "desk-playbook.js", "setup-demo.js", "queue-login.js", "account-connections.js", "setup-cards.js", "desk-card.js", "history.html", "PACK.md", "pipes.html", "connections.html", "help.html", "desks-book.js", "create-desk.js", "ACCOUNT-YES-NO.md",
-  "login.html", "login-doors.js", "account.html", "aia-tld.js", "aia-register-abi.js", "theme.css", "vercel.json", "drop.html", "developer.html", "more.html"]);
+  "login.html", "login-doors.js", "account.html", "aia-tld.js", "aia-register-abi.js", "theme.css", "vercel.json", "drop.html", "developer.html", "more.html",
+  "theme.js", "desk-nav.js", "mark-fix.js", "analytics.js", "speech.js", "desk-switch.js", "signin-first.js", "market-shop.js", "desk-ais.js", "aia-wallet.js"]);
 const PAGES2 = ["help.html", "pipes.html", "connections.html", "login.html"];
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = readOrNull(f); });
@@ -236,50 +239,33 @@ function checkOwnerNames(S, bad) {
 // Sentences other checks pin word for word (check name in brackets). They stay, and only up to today's count.
 const PINNED = {
   "help.html": [
-    ["Collect stays HOLD until a person taps Yes and a real money pipe is live.", 1, "check-collect-hold"],
-    ["Collect stays HOLD until a person taps Yes and a real Collect money pipe", 1, "check-studio-earnings"],
-    ["Collect and pack pay stay HOLD until Yes + real pipe", 2, "check-pack-sell, check-connect-wallet"],
     ["A pack puts When → If → Then on this desk queue", 1, "check-aia-tip"],
-    ["Buyer binds their own keys and devices on Pipes", 1, "check-build-pack"],
-    ["Drop → Qualify → Do → Collect HOLD → Follow", 2, "check-desk-switch"],
-    ["Naming the pipe does not turn them green.", 1, "check-pipes-switch"],
-    ["Calendar, SMS, Square, and eBay stay HOLD", 1, "check-world-people"],
     ["How do I install, give, or update a pack?", 1, "check-help-faq"],
     ["do not map shared OpenAI keys into packs", 1, "check-world-people"],
     ["you do not pick a pack on every Drop", 1, "check-pack-queue-shape"],
     ["You do not pick a pack on every Drop", 2, "check-help-faq, check-pack-queue-shape"],
     ["desk account and you install a pack", 1, "check-build-pack"],
     ["Your first pack in Creators Studio", 1, "check-ux-simplify"],
-    ["App / webhook is the live pipe", 2, "check-aia-tip"],
-    ["Pipes → Rules When · If · Then", 1, "check-queue-help"],
     ["Selling packs — risk honesty", 1, "check-pack-sell"],
     ["Installed packs auto-shape", 2, "check-pack-queue-shape"],
     ["When for packs and rules", 1, "check-aia-inbound"],
-    ["Collect and payouts HOLD", 3, "check-build-pack, check-pack-sell"],
-    ["Authenticator stays HOLD", 1, "check-account-page"],
     ["Thin App / webhook pack", 1, "check-build-pack"],
     ["When a pack is worth it", 4, "check-pack-sell"],
     ["stands behind the pack", 1, "check-pack-sell"],
     ["Build a pack / desk AI", 2, "check-build-pack"],
     ["Build automation packs", 1, "check-studio-earnings"],
-    ["Recurring update HOLD", 4, "check-help-faq, check-history-roadmap"],
     ["On-desk Pack Creator", 1, "check-build-pack"],
-    ["Collect stays HOLD", 3, "check-help-faq, check-queue-help, check-desk-cards"],
     ["3–5 strong packs", 1, "check-studio-earnings"],
     ["First pack suite", 1, "check-studio-earnings"],
-    ["pipes and keys", 1, "check-build-pack"],
     ["Selling packs", 3, "check-pack-sell, check-ux-simplify"],
     ["Learn packs", 1, "check-studio-earnings"],
     ["Import Pack", 1, "check-world-people"],
     ["Update pack", 3, "check-aia-tip, check-history-roadmap, check-world-home"],
-    ["still HOLD", 1, "check-aia-inbound, check-aia-register, check-money-pipe"],
     ["Open packs", 2, "check-aia-adoption, check-queue-packs"],
-    ["Give pack", 3, "check-aia-tip, check-history-roadmap, check-packs-download-assert"],
-    ["HOLD ask", 1, "check-ask-grok-gone"],
-    ["gone HOLD", 1, "check-help-faq (First day People)"]
+    ["Give pack", 3, "check-aia-tip, check-history-roadmap, check-packs-download-assert"]
   ],
-  "pipes.html": [["Orange until a real pipe answers. Naming the pipe does not turn it green.", 1, "check-pipes-switch"]],
-  "connections.html": [["Orange until a real pipe answers. Naming the pipe does not turn it green.", 1, "check-pipes-switch"]],
+  "pipes.html": [],
+  "connections.html": [],
   "login.html": []
 };
 const JARGON2 = [[/\bHOLD\b/, "HOLD"], [/\bpipes?\b/i, "pipe"], [/\bExt\b/, "Ext"], [/\bKilled\b/, "Killed"], [/\bSHA\b/, "SHA"]];
@@ -329,8 +315,8 @@ function checkAccount(S, bad) {
   });
   let acct = strangerText(S["account.html"] || "");
   // Pinned word for word elsewhere: check-history-roadmap (Recurring update HOLD. Collect HOLD.),
-  // check-connect-wallet / check-pack-sell (Collect and pack pay ...), check-account-page (Authenticator stays HOLD).
-  [["Recurring update HOLD. Collect HOLD.", 1], ["Collect and pack pay stay HOLD until Yes + real pipe.", 1], ["Authenticator stays HOLD.", 1]].forEach(([t, max]) => {
+  // check-account-page (Authenticator stays HOLD). D3: the Collect and pack pay line is gone (see checkOldLines).
+  [["Recurring update HOLD. Collect HOLD.", 1], ["Authenticator stays HOLD.", 1]].forEach(([t, max]) => {
     const n = acct.split(t).length - 1;
     if (n > max) bad("account.html repeats pinned line " + n + " times: " + t);
     acct = acct.split(t).join(" ");
@@ -345,6 +331,169 @@ function checkHistory(S, bad) {
   if (/Any pipe/.test(h)) bad("History filter still says Any pipe");
   if (h.indexOf('<option value="">Any connection</option>') < 0 || h.indexOf('sel("pipe",f.pipes,"Any connection")') < 0) bad("History filter must say Any connection");
   if (/\["Pipe",it\.pipe/.test(h)) bad("History card sheet still labels a row Pipe");
+}
+// ---------- D3 ----------
+// /help, /pipes, /connections and /history: what the page scripts draw reads plain too. Every local script a page
+// loads is scanned: page code runs in a node vm on a hollow DOM, and the draw functions it defines (History's
+// roadHtml and talk labels, the Help playbook, the info tips the page links) run on fixtures; every other script's
+// prose and markup strings are read. A script that is missing, unreadable, not on the list, or draws nothing is a
+// FAIL (fail closed). No HOLD and no pipe anywhere in that text; on /history, Pack is a name and never lower case.
+const D3_PAGES = ["help.html", "pipes.html", "connections.html", "history.html"];
+const D3_SCRIPTS = ["theme.js", "aia-tip.js", "desk-playbook.js", "desk-nav.js", "mark-fix.js", "analytics.js", "speech.js", "desk-switch.js", "signin-first.js"];
+const D3_WORDS = [[/\bHOLD\b/, "HOLD"], [/\bpipes?\b/i, "pipe"]];
+const D3_LOWER_PACK = [/\bpacks?\b/, "pack (lower case; the name is Pack)"];
+// Labels drawn as (x || "word") + " · ..." have no space inside the fallback word, so prose scans miss them.
+function fallbackWords(code) {
+  const out = [];
+  code.replace(/\|\|\s*"([^"\\\n]{1,40})"\)\s*\+\s*"\s*·/g, (m, w) => { out.push(w); return m; });
+  code.replace(/\|\|\s*'([^'\\\n]{1,40})'\)\s*\+\s*'\s*·/g, (m, w) => { out.push(w); return m; });
+  return out;
+}
+// Html built in JS strings, tags dropped. A string can hold half a tag (concatenation splits '<b class="' + x + '">Name');
+// the tail of a tag at the start and an unclosed tag at the end are markup, not words.
+function d3Markup(code) {
+  const strs = [];
+  const clean = code.replace(/\/\/[^\n]*/g, " ").replace(/\/\*[\s\S]*?\*\//g, " ");
+  clean.replace(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'/g, (m, a, b) => {
+    let s = (a !== undefined ? a : b).replace(/\\u([0-9a-f]{4})/gi, (x, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\(.)/g, "$1");
+    if (!/[<>]/.test(s)) return m;
+    s = s.replace(/^[^<]*?>/, " ").replace(/<[^>]*$/, " ");
+    strs.push(strangerText(s));
+    return m;
+  });
+  return strs;
+}
+function hollow() {
+  const fn = function () { return hollow(); };
+  return new Proxy(fn, {
+    get(t, k) {
+      if (k === Symbol.toPrimitive) return () => "";
+      if (k === Symbol.iterator) return function* () {};
+      if (k === "then") return undefined;
+      if (k === "length") return 0;
+      return hollow();
+    },
+    set() { return true; },
+    apply() { return hollow(); },
+    construct() { return hollow(); }
+  });
+}
+function host(own) {
+  return new Proxy(own, { get(t, k) { return k in t ? t[k] : (k === Symbol.toPrimitive ? () => "" : hollow()); }, set(t, k, v) { t[k] = v; return true; }, has() { return true; } });
+}
+// Run page code on a hollow DOM. Function declarations are hoisted, so they exist even when boot code throws.
+function runPage(code) {
+  const win = {}; const doc = { readyState: "complete" };
+  const g = { console: { log() {}, warn() {}, error() {} }, JSON, Math, Date, String, Number, Object, Array, RegExp, Promise, Error, parseInt, parseFloat, encodeURIComponent, decodeURIComponent, isNaN, URLSearchParams, URL,
+    setTimeout() { return 0; }, clearTimeout() {}, setInterval() { return 0; }, clearInterval() {}, requestAnimationFrame() { return 0; },
+    fetch() { return new Promise(() => {}); }, localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+    location: { href: "https://automateitaway.com/", search: "", hash: "", pathname: "/", origin: "https://automateitaway.com" }, navigator: { userAgent: "node" } };
+  const ctx = host(g);
+  g.window = host(win); g.self = g.window; g.document = host(doc); g.globalThis = ctx;
+  let threw = null;
+  try { vm.runInNewContext(code, ctx, { timeout: 2000 }); } catch (e) { threw = e; }
+  return { ctx: g, win, threw };
+}
+const D3_DRAW = {
+  "history.html": [
+    ["roadHtml", [{}]],
+    ["roadHtml", [{ desk: "Sample desk", pack: "Sample Pack", packId: "sample", owner: true, desks: 1 }]],
+    ["wipTalkLabel", [{ kind: "follow" }]],
+    ["wipTalkLabel", [{ kind: "tell" }]],
+    ["wipTalkLabel", [{ kind: "note" }]],
+    ["wipTalkLabel", [{ kind: "note", from: "webhook" }]],
+    ["wipTalkLabel", [{ kind: "follow", from: "webhook" }]]
+  ]
+};
+function d3Text(S, p, bad) {
+  const html = S[p];
+  const parts = [];
+  if (typeof html !== "string") { bad(p + " is missing or unreadable (fail closed)"); return null; }
+  const page = p === "help.html" ? html.replace(/<code\b[\s\S]*?<\/code>/gi, " ") : html;
+  parts.push(["html", unpinned(p, strangerText(page), bad)]);
+  const inline = [];
+  html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, (m, attrs, code) => { if (!/\bsrc=/.test(attrs) && !/type="application\/(ld\+)?json"/.test(attrs)) inline.push(code); return m; });
+  inline.forEach((code, i) => {
+    parts.push(["inline script " + (i + 1), proseStrings(code).concat(d3Markup(code), fallbackWords(code)).join(" \n ")]);
+    (D3_DRAW[p] || []).forEach(([fn, args]) => {
+      if (code.indexOf("function " + fn + "(") < 0) return;
+      const run = runPage(code);
+      const f = run.ctx[fn];
+      if (typeof f !== "function") { bad(p + " " + fn + "() did not load in the vm (fail closed)"); return; }
+      let out = "";
+      try { out = String(f.apply(null, args)); } catch (e) { bad(p + " " + fn + "() threw on its fixture: " + e.message); return; }
+      if (!out.trim()) bad(p + " " + fn + "() drew nothing (fail closed)");
+      parts.push(["drawn " + fn + "(" + JSON.stringify(args[0]) + ")", /</.test(out) ? strangerText(out) : out]);
+      args.__seen = true;
+    });
+  });
+  (D3_DRAW[p] || []).forEach(([fn]) => { if (!inline.some((c) => c.indexOf("function " + fn + "(") >= 0)) bad(p + " no longer defines " + fn + "() for the drawn-text scan (fail closed)"); });
+  const srcs = [];
+  html.replace(/<script\b[^>]*\ssrc="([^"]+)"[^>]*>/gi, (m, src) => { srcs.push(src); return m; });
+  if (!srcs.length) bad(p + " loads no scripts (scan found nothing, fail closed)");
+  srcs.forEach((src) => {
+    if (/^(https?:)?\/\//.test(src)) return;
+    const f = src.replace(/^\//, "").split("?")[0];
+    if (D3_SCRIPTS.indexOf(f) < 0) { bad(p + " loads " + f + ", which the drawn-text scan does not cover (fail closed)"); return; }
+    const code = S[f];
+    if (typeof code !== "string") { bad(p + " script " + f + " is missing or unreadable (fail closed)"); return; }
+    if (f === "aia-tip.js") {
+      const run = runPage(code); const tips = run.win.AIATip && run.win.AIATip.tips;
+      if (!tips || typeof tips !== "object") { bad(p + " aia-tip.js did not expose its tips in the vm (fail closed)"); return; }
+      const keys = [];
+      html.replace(/data-aia-tip="([^"]+)"/g, (m, key) => { if (keys.indexOf(key) < 0) keys.push(key); return m; });
+      if (!keys.length) bad(p + " loads aia-tip.js but links no tip (scan found nothing, fail closed)");
+      keys.forEach((key) => {
+        const t = tips[key];
+        if (!t) bad(p + " links tip " + key + ", which aia-tip.js does not define");
+        else parts.push(["tip " + key, [t.title, t.body, t.ask].join(" \n ")]);
+      });
+      return;
+    }
+    if (f === "desk-playbook.js") {
+      const run = runPage(code); const pb = run.win.AIAPlaybook;
+      const modes = []; html.replace(/data-aia-playbook="([^"]*)"/g, (m, mode) => { modes.push(mode); return m; });
+      if (!modes.length) return; // loaded but nothing to mount: the playbook draws nothing here
+      if (!pb || typeof pb.html !== "function") { bad(p + " desk-playbook.js did not expose AIAPlaybook.html in the vm (fail closed)"); return; }
+      modes.forEach((mode) => {
+        const out = String(pb.html({ compact: mode === "compact", embed: mode === "embed" }));
+        if (!out.trim()) bad(p + " playbook drew nothing (fail closed)");
+        parts.push(["playbook " + mode, strangerText(out)]);
+      });
+      return;
+    }
+    parts.push(["script " + f, proseStrings(code).concat(d3Markup(code), fallbackWords(code)).join(" \n ")]);
+  });
+  return parts;
+}
+function checkD3(S, bad) {
+  D3_PAGES.forEach((p) => {
+    const parts = d3Text(S, p, bad);
+    if (!parts) return;
+    const words = D3_WORDS.concat(p === "history.html" ? [D3_LOWER_PACK] : []);
+    parts.forEach(([where, text]) => {
+      words.forEach(([re, word]) => {
+        const g = new RegExp(re.source, re.flags.replace("g", "") + "g"); let m;
+        while ((m = g.exec(text))) bad("D3 " + p + " " + where + " shows " + word + " ('" + text.slice(Math.max(0, m.index - 30), m.index + 30).replace(/\s+/g, " ").trim() + "')");
+      });
+    });
+    if (parts.filter(([w]) => w !== "html").length < 2) bad("D3 " + p + " drawn-text scan read under two scripts (fail closed)");
+  });
+}
+// D3: two old lines reuse the landed API wording (#448). Old line anywhere in these files is a FAIL; the new line must be there.
+const OLD_LINES = [
+  ["Wallet / registry connect later as a Pipe HOLD", "Wallet and name registry connections come later.", ["market-shop.js", "desks-book.js", "desk-ais.js"]],
+  ["Collect and pack pay stay HOLD", "Payments are off for now. Nothing is charged.", ["help.html", "account.html", "aia-wallet.js"]]
+];
+function checkOldLines(S, bad) {
+  OLD_LINES.forEach(([old, now, files]) => {
+    files.forEach((f) => {
+      const t = S[f];
+      if (typeof t !== "string") { bad(f + " is missing or unreadable (fail closed)"); return; }
+      if (t.indexOf(old) >= 0) bad("old line back in " + f + ": " + old);
+      if (t.indexOf(now) < 0) bad(f + " must say: " + now);
+    });
+  });
 }
 function hex(c) { const m = String(c || "").trim().match(/^#([0-9a-f]{6})$/i); return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : null; }
 function lumOf(rgb) { const a = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; }
@@ -441,7 +590,7 @@ async function suite(S, okFn) {
     ["playbook and demo read plain", () => checkPlaybook(S, b)], ["status grey for held states", () => checkStatus(S, b)],
     ["same words for Queue, desk, account", () => checkWords(S, b)], ["no owner names in examples", () => checkOwnerNames(S, b)],
     ["help, connections and login read plain", () => checkPages2(S, b)], ["account has no owner names", () => checkAccount(S, b)],
-    ["history says connection", () => checkHistory(S, b)], ["status held states grey with 4.5:1", () => checkStatus2(S, b)],
+    ["history says connection", () => checkHistory(S, b)], ["pages draw plain words (D3)", () => checkD3(S, b)], ["old wallet lines gone (D3)", () => checkOldLines(S, b)], ["status held states grey with 4.5:1", () => checkStatus2(S, b)],
     ["help anchors resolve", () => checkHelpAnchors(S, b)]];
   for (const [name, fn] of steps) {
     const n = bad.length;
@@ -530,6 +679,57 @@ const MUTANTS = [
   ["login Ext back", "login-doors.js", [["Other ways to sign in \\u00b7 coming soon", "Ext \\u00b7 coming soon"]]],
   ["login owner name", "login.html", [["</body>", "<p>Ask james.aia</p></body>"]]],
   ["login mint", "login.html", [["</body>", "<p>Mint your name after you sign in.</p></body>"]]],
+  // D3: each jargon string put back, in page html and in script-drawn text; each must be caught by the D3 scan (4th field).
+  ["D3 help spine HOLD back", "help.html", [["Yes / Stop / Kill stay human. Payments are off for now. Nothing is charged.</p>", "Yes / Stop / Kill stay human. Collect stays HOLD until a person taps Yes and a real Collect money pipe is live.</p>"]], "D3 help.html html shows HOLD"],
+  ["D3 help Recurring update HOLD back", "help.html", [["Recurring updates are off for now.", "Recurring update HOLD."]], "D3 help.html html shows HOLD"],
+  ["D3 help live pipe back", "help.html", [["App / webhook is the live connection.", "App / webhook is the live pipe."]], "D3 help.html html shows pipe"],
+  ["D3 help Collect HOLD spine back", "help.html", [["Drop → Qualify → Do → Collect → Follow + Yes", "Drop → Qualify → Do → Collect HOLD → Follow + Yes"]], "D3 help.html html shows HOLD"],
+  ["D3 help eBay stay HOLD back", "help.html", [["and eBay stay off until keys land", "and eBay stay HOLD until keys land"]], "D3 help.html html shows HOLD"],
+  ["D3 help pipes and keys back", "help.html", [["own connections and keys", "own pipes and keys"]], "D3 help.html html shows pipe"],
+  ["D3 help devices on Pipes back", "help.html", [["devices on Connections.", "devices on Pipes."]], "D3 help.html html shows pipe"],
+  ["D3 help Collect and payouts HOLD back", "help.html", [["you install a pack. Payments are off for now. Nothing is charged.", "you install a pack. Collect and payouts HOLD."]], "D3 help.html html shows HOLD"],
+  ["D3 help Collect stays HOLD back", "help.html", [["No SaaS codegen. Payments are off for now. Nothing is charged.", "No SaaS codegen. Collect stays HOLD."]], "D3 help.html html shows HOLD"],
+  ["D3 help pack pay HOLD back", "help.html", [["Not Wallet.AIA. Payments are off for now. Nothing is charged.", "Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + real pipe."]], "D3 help.html html shows HOLD"],
+  ["D3 help Pipes → Rules back", "help.html", [["Connections → Rules When", "Pipes → Rules When"]], "D3 help.html html shows pipe"],
+  ["D3 help HOLD ask back", "help.html", [["/ the ask waits)", "/ HOLD ask)"]], "D3 help.html html shows HOLD"],
+  ["D3 help MX still HOLD back", "help.html", [["still off for now. AIA AI home", "still HOLD. AIA AI home"]], "D3 help.html html shows HOLD"],
+  ["D3 help gone HOLD back (People)", "help.html", [["named desk AI or the not-on-this-desk note,", "named desk AI or gone HOLD,"]], "D3 help.html html shows HOLD"],
+  ["D3 help Naming the pipe back", "help.html", [["Naming the connection does not turn them green.", "Naming the pipe does not turn them green."]], "D3 help.html html shows pipe"],
+  ["D3 help Collect dd HOLD back", "help.html", [["<dd>Payments are off for now. Nothing is charged. Helper can prep", "<dd>Collect stays HOLD until a person taps Yes and a real money pipe is live. Helper can prep"]], "D3 help.html html shows HOLD"],
+  ["D3 help Authenticator HOLD back", "help.html", [["Authenticator is off for now.", "Authenticator stays HOLD."]], "D3 help.html html shows HOLD"],
+  ["D3 pipes Orange pipe back", "pipes.html", [["Orange until a real connection answers. Naming the connection does not turn it green.", "Orange until a real pipe answers. Naming the pipe does not turn it green."]], "D3 pipes.html html shows pipe"],
+  ["D3 connections Orange pipe back", "connections.html", [["Orange until a real connection answers. Naming the connection does not turn it green.", "Orange until a real pipe answers. Naming the pipe does not turn it green."]], "D3 connections.html html shows pipe"],
+  ["D3 history html Pipe HOLD added", "history.html", [['<option value="">Any connection</option>', '<option value="">Any connection</option><option value="x">Pipe HOLD</option>']], "D3 history.html html shows HOLD"],
+  ["D3 history Install pack button back", "history.html", [[">Install a Pack</button>", ">Install pack</button>"]], "D3 history.html drawn roadHtml"],
+  ["D3 history Give pack button back", "history.html", [[">Give a Pack · .aia</button>", ">Give pack · .aia</button>"]], "D3 history.html drawn roadHtml"],
+  ["D3 history Update pack button back", "history.html", [[">Update a Pack · Yes</button>", ">Update pack · Yes</button>"]], "D3 history.html drawn roadHtml"],
+  ["D3 history No pack yet back (roadmap)", "history.html", [['" No Pack on this desk yet."', '" No pack on this desk yet."']], "D3 history.html drawn roadHtml({})"],
+  ["D3 history No pack yet back (hint)", "history.html", [['"No Pack on this desk yet. Install a Pack first."', '"No pack on this desk yet. Install a pack first."']], "D3 history.html inline script"],
+  ["D3 history Install a pack with Yes back", "history.html", [["Install a Pack with Yes.", "Install a pack with Yes."]], "D3 history.html drawn roadHtml"],
+  ["D3 history Give pack downloads back", "history.html", [["Give a Pack downloads the file", "Give pack downloads the file"]], "D3 history.html drawn roadHtml"],
+  ["D3 history give a pack back", "history.html", [[">Open a desk to install or give a Pack.</p>", ">Open a desk to install or give a pack.</p>"]], "D3 history.html inline script"],
+  ["D3 history pack file error back", "history.html", [['"Could not install that .aia Pack."', '"Could not install that .aia pack."']], "D3 history.html inline script"],
+  ["D3 history follow falls back to pipe", "history.html", [['(from||"connection")+" · follow"', '(from||"pipe")+" · follow"']], "D3 history.html drawn wipTalkLabel({\"kind\":\"follow\"}) shows pipe"],
+  ["D3 history pipe WIP label back", "history.html", [['return from+" · connection WIP"', 'return from+" · pipe WIP"']], "D3 history.html drawn wipTalkLabel({\"kind\":\"note\",\"from\":\"webhook\"}) shows pipe"],
+  ["D3 history pipe filter chip back", "history.html", [['bits.push("connection "+pipe)', 'bits.push("pipe "+pipe)']], "D3 history.html inline script"],
+  ["D3 help playbook step HOLD back", "desk-playbook.js", [["Odd cases go to a person. Yes, Stop, or Kill. Payments are off for now.", "Odd cases go to a person. Yes, Stop, or Kill. Collect stays HOLD."]], "D3 help.html playbook embed shows HOLD"],
+  ["D3 help tip give-pack live pipe back", "aia-tip.js", [["The app or webhook is the live connection.", "The app or webhook is the live pipe."]], "D3 help.html tip give-pack shows pipe"],
+  ["D3 pipes tip body pipe back", "aia-tip.js", [['body: "Webhook is live.', 'body: "Webhook is a live pipe.']], "D3 pipes.html tip pipes shows pipe"],
+  ["D3 help theme.js string HOLD", "theme.js", [['"Theme: Auto follows your device. Tap to change."', '"Theme: Auto follows your device. Collect HOLD."']], "D3 help.html script theme.js shows HOLD"],
+  ["D3 history sign-in line pipe", "signin-first.js", [["Sign in first. History shows what your desks did.", "Sign in first. History shows what your pipes did."]], "D3 history.html script signin-first.js shows pipe"],
+  ["D3 history loads an unscanned script", "history.html", [['<script src="signin-first.js"', '<script src="zz-unscanned.js"></script><script src="signin-first.js"']], "does not cover (fail closed)"],
+  ["D3 history roadHtml renamed", "history.html", [["function roadHtml(road)", "function roadHtmlX(road)"]], "no longer defines roadHtml()"],
+  ["D3 desk-nav.js unreadable", "desk-nav.js", null, "desk-nav.js is missing or unreadable"],
+  ["D3 aia-tip.js exposes no tips", "aia-tip.js", [["window.AIATip = {", "window.AIATipGone = {"]], "did not expose its tips in the vm (fail closed)"],
+  ["D3 help links a missing tip", "help.html", [['data-aia-tip="give-pack"', 'data-aia-tip="give-pakk"']], "which aia-tip.js does not define"],
+  ["D3 market-shop old registry line back", "market-shop.js", [["Wallet and name registry connections come later.", "Wallet / registry connect later as a Pipe HOLD."]], "old line back in market-shop.js"],
+  ["D3 desks-book old registry line back", "desks-book.js", [["Wallet and name registry connections come later.", "Wallet / registry connect later as a Pipe HOLD."]], "old line back in desks-book.js"],
+  ["D3 desk-ais old registry line back", "desk-ais.js", [["Wallet and name registry connections come later.", "Wallet / registry connect later as a Pipe HOLD."]], "old line back in desk-ais.js"],
+  ["D3 help old pack pay line back", "help.html", [["AIA does not hold keys. Payments are off for now. Nothing is charged.", "AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe."]], "old line back in help.html"],
+  ["D3 account old pack pay line back", "account.html", [["AIA does not hold keys. Payments are off for now. Nothing is charged.", "AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe."]], "old line back in account.html"],
+  ["D3 wallet UI old pack pay line back", "aia-wallet.js", [["AIA does not hold keys. Payments are off for now. Nothing is charged.", "AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe."]], "old line back in aia-wallet.js"],
+  ["D3 desk-ais new registry line dropped", "desk-ais.js", [["Wallet and name registry connections come later.", "Wallets later."]], "desk-ais.js must say: Wallet and name registry connections come later."],
+  ["D3 account payments line dropped", "account.html", [["AIA does not hold keys. Payments are off for now. Nothing is charged.", "AIA does not hold keys."]], "account.html must say: Payments are off for now. Nothing is charged."],
   ["help.html unreadable", "help.html", null],
   ["pipes.html unreadable", "pipes.html", null]
 ];
@@ -562,13 +762,21 @@ async function main() {
   const base = await suite(SRC, (m) => ok(true, m));
   base.forEach((m) => fail(m));
   let caught = 0;
-  for (const [name, file, reps] of MUTANTS) {
+  for (const [name, file, reps, want] of MUTANTS) {
     const S = mutate(SRC, file, reps);
     if (S === null) { fail("mutant does not apply: " + name); continue; }
     let bad;
     try { bad = await suite(S, null); } catch (e) { bad = ["threw " + e.message]; }
-    if (bad.length) { caught += 1; console.log("ok  mutant caught: " + name + " (" + bad[0] + ")"); }
-    else fail("mutant NOT caught: " + name);
+    // A D3 mutant counts only when the D3 scan itself names it (want), not when some other rule trips.
+    const hit = want ? bad.filter((m) => m.indexOf(want) >= 0) : bad;
+    if (hit.length) { caught += 1; console.log("ok  mutant caught: " + name + " (" + hit[0] + ")"); }
+    else fail("mutant NOT caught: " + name + (want ? " (wanted: " + want + "; got: " + (bad[0] || "nothing") + ")" : ""));
+  }
+  // Control: the playbook lead is not drawn in /help's embed, so jargon there must not count (the scan reads what is drawn).
+  {
+    const S = mutate(SRC, "desk-playbook.js", [["Walk them in order.", "Walk the pipes in order."]]);
+    const bad = []; if (S) checkD3(S, (m) => bad.push(m));
+    ok(S !== null && bad.length === 0, "D3 scan reads what the playbook draws: its lead is not in the /help embed" + (bad.length ? " (" + bad[0] + ")" : ""));
   }
   console.log("mutants caught " + caught + "/" + MUTANTS.length);
   if (caught !== MUTANTS.length || MUTANTS.length < 10) fail("every mutant must be caught (" + caught + "/" + MUTANTS.length + ")");
