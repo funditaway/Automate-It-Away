@@ -178,8 +178,10 @@
     if (slimChrome()) { hushTalk(); return; }
     var bar = document.getElementById("talkBar"); if (!bar) return;
     bar.hidden = false;
+    // The step rail may have painted Desk before the bar showed; open Tell so the bar is not display:none.
+    if (window.AIADropSteps && AIADropSteps.go && AIADropSteps.current() !== "tell") AIADropSteps.go("tell", true);
     try { bar.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) { bar.scrollIntoView(true); }
-    var typeEl = document.getElementById("talkType"); if (typeEl) typeEl.focus();
+    var typeEl = document.getElementById("talkType") || document.getElementById("talkBtn"); if (typeEl) typeEl.focus();
   }
   function boot() {
     if (slimChrome()) { markSlim(); hushTalk(); return; }

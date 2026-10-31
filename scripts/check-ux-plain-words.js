@@ -284,6 +284,7 @@ const PINNED = {
 };
 const JARGON2 = [[/\bHOLD\b/, "HOLD"], [/\bpipes?\b/i, "pipe"], [/\bExt\b/, "Ext"], [/\bKilled\b/, "Killed"], [/\bSHA\b/, "SHA"]];
 const PACKWORD = [/\bpacks?\b/i, "pack"];
+const MINTWORD = [/\bmint(s|ed|ing)?\b/i, "mint"]; // login.html: a stranger signing in never reads mint
 function unpinned(f, text, bad) {
   let t = text;
   (PINNED[f] || []).forEach(([s, max, who]) => {
@@ -303,7 +304,7 @@ function checkPages2(S, bad) {
     let text = strangerText(p === "help.html" ? S[p].replace(/<code\b[\s\S]*?<\/code>/gi, " ") : S[p]);
     if (p === "login.html" && typeof S["login-doors.js"] === "string") text += " \n " + proseStrings(S["login-doors.js"]).concat(markupStrings(S["login-doors.js"])).join(" \n ");
     text = unpinned(p, text, bad);
-    const words = JARGON2.concat(p === "help.html" ? [PACKWORD] : []).concat(p === "login.html" ? JARGON : []);
+    const words = JARGON2.concat(p === "help.html" ? [PACKWORD] : []).concat(p === "login.html" ? JARGON.concat([MINTWORD]) : []);
     words.forEach(([re, word]) => { const m = text.match(re); if (m) bad(p + " shows jargon: " + word + " ('" + text.slice(Math.max(0, m.index - 30), m.index + 30).replace(/\s+/g, " ").trim() + "')"); });
     const own = OWNER.exec(text) || /\bJames\b|springfield/i.exec(text);
     if (own) bad(p + " shows an owner name (" + own[0] + ")");
@@ -511,6 +512,7 @@ const MUTANTS = [
   ["status legend grey back", "status.html", [['<p style="color:var(--muted);margin-top:18px">', '<p style="color:#8b9aab;margin-top:18px">']]],
   ["login Ext back", "login-doors.js", [["Other ways to sign in \\u00b7 coming soon", "Ext \\u00b7 coming soon"]]],
   ["login owner name", "login.html", [["</body>", "<p>Ask james.aia</p></body>"]]],
+  ["login mint", "login.html", [["</body>", "<p>Mint your name after you sign in.</p></body>"]]],
   ["help.html unreadable", "help.html", null],
   ["pipes.html unreadable", "pipes.html", null]
 ];

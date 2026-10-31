@@ -499,4 +499,148 @@ if (moreSrc.indexOf("Quick drops") >= 0) {
   }
 });
 
+
+// ---------- Talk links open Talk (/drop?talk=1, /drop#talk, and drop.html#talk from other pages) ----------
+// Runs the real drop-steps.js and drop-talk.js in a fake signed-in Drop page. drop-steps boots first (as on the
+// live page), while the Talk bar is still hidden, so its first paint falls back to Desk; drop-talk then has to
+// open Tell so the bar is shown and the type box gets focus. Plain /drop must still start at step 1 (Desk).
+const talkSrc = read("drop-talk.js");
+function fakeDrop(opts) {
+  const byId = {};
+  let focused = null;
+  const timers = [];
+  const winListeners = {};
+  function mk(tag, id) {
+    const n = {
+      tagName: String(tag).toUpperCase(), id: id || "", children: [], parentNode: null, hidden: false, text: "", value: "", _html: "", listeners: {},
+      cls: new Set(),
+      appendChild(c) { if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = n; n.children.push(c); reg(c); return c; },
+      insertBefore(c, ref) { if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = n; const i = ref ? n.children.indexOf(ref) : -1; if (i < 0) n.children.push(c); else n.children.splice(i, 0, c); reg(c); return c; },
+      removeChild(c) { const i = n.children.indexOf(c); if (i >= 0) n.children.splice(i, 1); c.parentNode = null; unreg(c); return c; },
+      contains(o) { for (let x = o; x; x = x.parentNode) if (x === n) return true; return false; },
+      hasAttribute(k) { return k === "hidden" ? !!n.hidden : false; },
+      setAttribute() {}, getAttribute() { return null; },
+      addEventListener(ev, fn) { (n.listeners[ev] = n.listeners[ev] || []).push(fn); },
+      focus() { focused = n; },
+      scrollIntoView() {},
+      closest() { return null; }
+    };
+    n.classList = { add: (c) => n.cls.add(c), remove: (c) => n.cls.delete(c), contains: (c) => n.cls.has(c), toggle: (c, on) => { const v = on === undefined ? !n.cls.has(c) : !!on; if (v) n.cls.add(c); else n.cls.delete(c); return v; } };
+    Object.defineProperty(n, "firstChild", { get: () => n.children[0] || null });
+    Object.defineProperty(n, "lastChild", { get: () => n.children[n.children.length - 1] || null });
+    Object.defineProperty(n, "nextSibling", { get: () => { if (!n.parentNode) return null; const k = n.parentNode.children; return k[k.indexOf(n) + 1] || null; } });
+    Object.defineProperty(n, "textContent", { get: () => n.text + n.children.map((c) => c.textContent).join(""), set: (v) => { n.text = String(v); } });
+    Object.defineProperty(n, "innerHTML", {
+      get: () => n._html,
+      set: (v) => {
+        n._html = String(v);
+        n.children.slice().forEach((c) => n.removeChild(c));
+        String(v).replace(/<([a-z]+)\b[^>]*\bid="([^"]+)"[^>]*>([^<]*)/gi, (m, t, cid, txt) => { const c = mk(t, cid); c.text = txt; n.appendChild(c); return m; });
+      }
+    });
+    return n;
+  }
+  function reg(n) { if (n.id) byId[n.id] = n; n.children.forEach(reg); }
+  function unreg(n) { if (n.id && byId[n.id] === n) delete byId[n.id]; n.children.forEach(unreg); }
+  const html = mk("html"), head = mk("head"), body = mk("body"), main = mk("main");
+  main.cls.add("wrap");
+  html.appendChild(head); html.appendChild(body); body.appendChild(main);
+  [["h1", "drop-title"], ["p", "drop-sub"], ["div", "desk-pick"], ["p", "desk-err"], ["div", "talkBar"], ["div", "drop-ways"], ["div", "modes"], ["div", "drop-form-card"], ["div", "embed-card"]].forEach(([t, id]) => main.appendChild(mk(t, id)));
+  byId.talkBar.hidden = true;
+  ["talkStatus", "hearBtn", "talkBtn", "quietBtn"].forEach((id) => byId.talkBar.appendChild(mk(id === "talkStatus" ? "p" : "button", id)));
+  byId["drop-form-card"].appendChild(mk("button", "drop-send"));
+  ["title", "note"].forEach((id) => byId["drop-form-card"].appendChild(mk("input", id)));
+  const document = {
+    documentElement: html, head, body, readyState: "complete",
+    getElementById: (id) => byId[id] || null,
+    createElement: (t) => mk(t),
+    querySelector: (sel) => (sel === "main.wrap" ? main : null),
+    querySelectorAll: () => [],
+    addEventListener() {}
+  };
+  const store = (seed) => { const m = Object.assign({}, seed); return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } }; };
+  const location = { pathname: "/drop", search: opts.search || "", hash: opts.hash || "", href: "http://127.0.0.1/drop" + (opts.search || "") + (opts.hash || "") };
+  const win = {
+    document, location, URLSearchParams, JSON, Object, Array, String, Math, RegExp,
+    localStorage: store({ aia_ws: "north", aia_session: "sess-test" }), sessionStorage: store({}),
+    setTimeout: (fn, ms) => { timers.push(fn); return timers.length; }, clearTimeout() {},
+    setInterval: () => 0, clearInterval() {},
+    scrollTo() {},
+    addEventListener: (ev, fn) => { (winListeners[ev] = winListeners[ev] || []).push(fn); },
+    console
+  };
+  win.window = win; win.parent = win; win.self = win;
+  vm.createContext(win);
+  return {
+    win, byId,
+    run(src, name) { vm.runInContext(src, win, { filename: name, timeout: 2000 }); },
+    flush() { for (let i = 0; i < 5 && timers.length; i++) timers.splice(0).forEach((fn) => fn()); },
+    // drop-chat.js mounts the Tell box (with the type input) later, after drop-preview loads.
+    mountChat() {
+      if (byId["drop-chat-wrap"]) return;
+      const wrap = mk("div", "drop-chat-wrap");
+      wrap.appendChild(mk("input", "talkType"));
+      main.insertBefore(wrap, byId["desk-pick"].nextSibling);
+    },
+    hashTo(h) { location.hash = h; (winListeners.hashchange || []).forEach((fn) => fn({})); },
+    focused: () => focused
+  };
+}
+function talkFaults(stepsText, talkText) {
+  const faults = [];
+  const shown = (page) => !page.byId.talkBar.hidden && !page.byId.talkBar.cls.has("step-off");
+  function talkOpen(page, label) {
+    const cur = page.win.AIADropSteps && page.win.AIADropSteps.current();
+    if (cur !== "tell") faults.push(label + ": lands on step '" + cur + "', not Tell");
+    if (!shown(page)) faults.push(label + ": the Talk bar is hidden");
+    const f = page.focused();
+    if (!f || (f.id !== "talkType" && f.id !== "talkBtn")) faults.push(label + ": Talk does not get focus (" + (f ? f.id || f.tagName : "nothing") + ")");
+  }
+  function boot(opts, talkFirst) {
+    const page = fakeDrop(opts);
+    if (talkFirst) { page.run(talkText, "drop-talk.js"); page.run(stepsText, "drop-steps.js"); }
+    else { page.run(stepsText, "drop-steps.js"); page.run(talkText, "drop-talk.js"); }
+    page.flush();
+    page.mountChat();
+    page.win.AIADropSteps.refresh();
+    return page;
+  }
+  try {
+    talkOpen(boot({ search: "?talk=1" }), "/drop?talk=1");
+    talkOpen(boot({ hash: "#talk" }), "/drop#talk");
+    talkOpen(boot({ search: "?mode=talk" }), "/drop?mode=talk");
+    talkOpen(boot({ search: "?talk=1" }, true), "/drop?talk=1 with drop-talk first");
+    const plain = boot({});
+    const cur = plain.win.AIADropSteps && plain.win.AIADropSteps.current();
+    if (cur !== "desk") faults.push("plain /drop: starts on '" + cur + "', not step 1 Desk");
+    if (!/^Step 1 of /.test(plain.byId["drop-step-hint"] ? plain.byId["drop-step-hint"].textContent : "")) faults.push("plain /drop: hint must say Step 1");
+    if (shown(plain)) faults.push("plain /drop: the Talk bar must stay on its own step");
+    if (plain.focused()) faults.push("plain /drop: focus must not move");
+    plain.hashTo("#talk"); plain.flush();
+    talkOpen(plain, "plain /drop, then #talk");
+  } catch (e) {
+    faults.push("threw " + ((e && e.message) || e));
+  }
+  return faults;
+}
+const liveTalk = talkFaults(steps, talkSrc);
+if (liveTalk.length) fail("Talk links: " + liveTalk.join("; "));
+const TALK_MUTANTS = [
+  ["focusTalk no longer opens Tell (fix removed)", "talk", '    if (window.AIADropSteps && AIADropSteps.go && AIADropSteps.current() !== "tell") AIADropSteps.go("tell", true);\n', ""],
+  ["focusTalk falls back to the Desk step", "talk", 'AIADropSteps.go("tell", true);', 'AIADropSteps.go("desk", true);'],
+  ["paint always falls back to the first open step", "steps", "    if (rows.indexOf(stepOf(active)) < 0) active = rows[0].id;\n", "    active = rows[0].id;\n"],
+  ["Talk gets no focus", "talk", 'var typeEl = document.getElementById("talkType") || document.getElementById("talkBtn"); if (typeEl) typeEl.focus();', 'var typeEl = null;'],
+  ["plain /drop no longer starts at step 1", "steps", 'active = deskFromLink() ? "card" : STEPS[0].id;', 'active = deskFromLink() ? "card" : "card";'],
+  ["plain /drop opens Talk", "talk", "    if (wantTalk()) setTimeout(focusTalk, 50);\n", "    setTimeout(focusTalk, 50);\n"],
+  ["#talk no longer counts", "talk", 'return location.hash === "#talk" || params.get("talk") === "1"', 'return params.get("talk") === "1"']
+];
+TALK_MUTANTS.forEach(function (m) {
+  const src = m[1] === "talk" ? talkSrc : steps;
+  if (src.indexOf(m[2]) < 0 || src.indexOf(m[2]) !== src.lastIndexOf(m[2])) fail("Talk mutant anchor missing or not unique: " + m[0]);
+  const next = src.replace(m[2], m[3]);
+  const faults = m[1] === "talk" ? talkFaults(steps, next) : talkFaults(next, talkSrc);
+  if (!faults.length) fail("Talk mutant NOT caught: " + m[0]);
+  console.log("check-drop-steps: Talk mutant caught: " + m[0] + " (" + faults[0] + ")");
+});
+console.log("check-drop-steps: Talk links open Talk; " + TALK_MUTANTS.length + "/" + TALK_MUTANTS.length + " Talk mutants caught");
 console.log("check-drop-steps: ok");
