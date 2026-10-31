@@ -53,9 +53,9 @@ async function main() {
  else fail("health rev " + JSON.stringify({ rev: revSha, revShort: revShort }));
  if (res.headers["Access-Control-Allow-Headers"] !== "Content-Type, Authorization, X-Workspace, X-Pin, X-Session") fail("CORS"); else pass("CORS");
  if (res.body.accounts.login !== "desk name + desk code, or email + password") fail("accounts.login");
- else if (!/^HOLD/.test(res.body.accounts.mfa)) fail("accounts.mfa");
+ else if (!/^Two-step sign-in is off for now/.test(res.body.accounts.mfa)) fail("accounts.mfa");
  else if (/opt-in/i.test(res.body.accounts.note || "")) fail("accounts.note opt-in");
- else if (!/HOLD/.test(res.body.accounts.note || "")) fail("accounts.note HOLD");
+ else if (!/Two-step sign-in is off for now/.test(res.body.accounts.note || "")) fail("accounts.note off");
  else pass("acct");
  const healthJson = JSON.stringify(res.body);
  const deskAi = ((res.body.automation || {}).deskAi || (res.body.automation || {}).grok || {});
