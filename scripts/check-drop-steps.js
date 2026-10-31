@@ -630,14 +630,14 @@ function fakeDrop(opts) {
   }
   // A link with a page position (the desk step's links, Sign in) sits at docY, moved by slide.
   function topOf(n) { return n.docY != null ? n.docY + slide : docTop(n.id); }
-  function hOf(n) { return n.docY != null ? 44 : docH(n.id); }
+  function hOf(n) { return n.docY != null ? n.docH || 44 : docH(n.id); }
   function docH(id) { return id === "talkBar" ? L.barH : id === "talkType" ? L.typeH : id === "talkTypeBtn" ? L.btnH : 0; }
   const box = (top, h) => ({ top: top, bottom: top + h, height: h, left: 0, right: 100, width: 100 });
   function rectOf(n) {
     if (!n.parentNode || !shownNode(n)) return box(0, 0);
     const cs = computed(n);
     if (cs.display === "none") return box(0, 0);
-    if (n.docY != null) return box(topOf(n) - scrollY, 44);
+    if (n.docY != null) return box(topOf(n) - scrollY, hOf(n));
     if (n.id === "talkBar" || n.id === "talkType" || n.id === "talkTypeBtn") return box(docTop(n.id) - scrollY, docH(n.id));
     if (n.id === "desk-nav") return L.navH ? box(L.ih - L.navH, L.navH) : box(0, 0);
     if (n.id === "drop-step-foot") return cs.position === "sticky" ? box(L.ih - 84 - L.footH, L.footH) : box(docTop("talkTypeBtn") + L.btnH + 200 - scrollY, L.footH);
@@ -654,6 +654,8 @@ function fakeDrop(opts) {
   // The desk step's own links (drop.html): Create a new desk, Have a code.
   [["/onboard", "Create a new desk", 700], ["/login", "Have a code", 752]].forEach(([href, text, y]) => { const a = mk("a"); a.attrs.href = href; a.text = text; a.docY = y; byId["desk-pick"].appendChild(a); });
   byId["desk-err"].style.display = "none";
+  // drop-steps' "Pick a desk first" line sits under Have a code (one 19px line, as in Chrome).
+  byId["desk-err"].docY = 804; byId["desk-err"].docH = 19;
   // Signed out (#433): signin-first.js paints its box with the Sign in link and hides the rest of main.
   if (opts.signedOut) {
     html.cls.add("signin-first");
@@ -938,6 +940,7 @@ function talkFaults(stepsText, talkText) {
       const nh = boot({ hash: "#talk", noDesk: true });
       const fh = nh.focused();
       if (!fh || fh.attrs.href !== "/onboard") faults.push("no desk #talk: focus is not on Create a new desk");
+      { const nb = boot({ hash: "#talk", noDesk: true }); nb.win.localStorage.setItem("aia_ws", "north"); nb.tapTab("tell"); nb.flush(); nb.hashTo(""); nb.flush(); if (nb.win.AIADropSteps.current() !== "tell") faults.push("no desk #talk, desk added elsewhere, Tell tapped, then Back: pulled off Tell to " + nb.win.AIADropSteps.current()); }
       // Signed out (#433 box): focus the Sign in link.
       const out = boot({ search: "?talk=1", noDesk: true, signedOut: true });
       const fo = out.focused();
@@ -954,17 +957,21 @@ function talkFaults(stepsText, talkText) {
           if (cs && cs.display !== "none" && (cs.position === "fixed" || cs.position === "sticky") && r.height > 0 && r.top < floor && r.bottom > 0) floor = r.top;
         });
         const r = node.getBoundingClientRect();
-        if (!(r.height > 0) || r.top < rail || r.bottom > floor) faults.push(label + ": the link " + r.top + "-" + r.bottom + " is not between the rail (" + rail + ") and the bottom cover (" + floor + ")");
+        if (!(r.height > 0) || r.top < rail || r.bottom > floor) faults.push(label + ": the " + (node.id === "desk-err" ? "Pick a desk first line" : "link") + " " + r.top + "-" + r.bottom + " is not between the rail (" + rail + ") and the bottom cover (" + floor + ")");
       };
+      // The line that says why (Pick a desk first) is in the band too, not under Back / Next.
+      const both = (page, label) => { band(page, link(page), label); band(page, page.byId["desk-err"], label); };
       const link = (page) => page.byId["desk-pick"].querySelector('a[href="/onboard"]');
       const moves = (page) => page.scrolls.length + page.byCalls.length;
-      band(none, link(none), "no desk ?talk=1");
+      both(none, "no desk ?talk=1");
+      // Room only where the line would be covered: at 390x844 Back / Next stays stuck.
+      if (none.bodyHas("desk-roomy") || none.computed("drop-step-foot").position !== "sticky") faults.push("no desk ?talk=1 at 390x844: Back / Next unstuck though the line fits");
       none.collapse(400);
-      band(none, link(none), "no desk ?talk=1, then the content above shrank 400px");
+      both(none, "no desk ?talk=1, then the content above shrank 400px");
       const n0 = moves(none); none.win.AIADropSteps.refresh(); none.flush();
       if (moves(none) !== n0) faults.push("no desk ?talk=1: a repaint that left the link in view still jumped the page");
       const grow = boot({ search: "?talk=1", noDesk: true }); grow.collapse(-500);
-      band(grow, link(grow), "no desk ?talk=1, then the content above grew 500px");
+      both(grow, "no desk ?talk=1, then the content above grew 500px");
       for (const ev of ["pointerdown", "touchstart", "keydown", "wheel"]) {
         const tap = boot({ search: "?talk=1", noDesk: true }); tap.visitor(ev);
         const t0 = moves(tap); tap.collapse(400);
@@ -979,7 +986,21 @@ function talkFaults(stepsText, talkText) {
       for (const [lw, lh, lr] of [[640, 320, 120], [844, 390, 190]]) {
         const lay = { ih: lh, iw: lw, rail: lr };
         const sh = boot({ search: "?talk=1", noDesk: true }, false, false, lay);
-        band(sh, link(sh), lw + "x" + lh + " no desk ?talk=1 (rail " + lr + ")");
+        both(sh, lw + "x" + lh + " no desk ?talk=1 (rail " + lr + ")");
+        // As in Chrome: no repaint before the Talk jump, so drop-steps' first paint seen here comes after the point.
+        const late = boot({ search: "?talk=1", noDesk: true }, false, true, Object.assign({}, lay));
+        both(late, lw + "x" + lh + " no desk ?talk=1, first paint after the point (rail " + lr + ")");
+        const shh = boot({ hash: "#talk", noDesk: true }, false, false, Object.assign({}, lay));
+        both(shh, lw + "x" + lh + " no desk #talk (rail " + lr + ")");
+        // The room is for this screen and this step only: a turn to portrait gives Back / Next back its stick
+        // (the pair fits there) and keeps both in the band; a turn back makes room again.
+        shh.turn(390, 844, RAIL_H, ["orientationchange", "resize"]);
+        if (shh.bodyHas("desk-roomy") || shh.computed("drop-step-foot").position !== "sticky") faults.push(lw + "x" + lh + " no desk #talk, turned to 390x844: Back / Next stays unstuck");
+        both(shh, lw + "x" + lh + " no desk #talk, turned to 390x844");
+        shh.turn(lw, lh, lr, ["orientationchange", "resize"]);
+        both(shh, lw + "x" + lh + " no desk #talk, turned to 390x844 and back");
+        shh.win.localStorage.setItem("aia_ws", "north"); shh.tapTab("tell"); shh.flush();
+        if (shh.bodyHas("desk-roomy")) faults.push(lw + "x" + lh + " no desk #talk, desk added, Tell tapped: desk-roomy leaks onto Tell");
         const so = boot({ search: "?talk=1", noDesk: true, signedOut: true }, false, false, lay);
         band(so, so.byId["signin-first-go"], lw + "x" + lh + " signed out ?talk=1 (rail " + lr + ")");
       }
@@ -1100,6 +1121,16 @@ const GO_BLOCK_START = '    if (window.AIADropSteps && AIADropSteps.go && AIADro
 const once = (a, b) => (src) => (src.indexOf(a) < 0 || src.indexOf(a) !== src.lastIndexOf(a) ? null : src.replace(a, b));
 const chain = (...fns) => (src) => fns.reduce((s, fn) => (s === null ? null : fn(s)), src);
 const TALK_MUTANTS = [
+  ["no desk: room made even when the line fits", "talk", once("if (!(l.height > 0) || (l.top >= railBottom() && l.bottom <= floorY())) return false;", "if (!(l.height > 0)) return false;")],
+  ["no desk: no second point after making room", "talk", once("    if (heldLine && roomFor(heldLine)) intoBand(node);\n", "    if (heldLine) roomFor(heldLine);\n")],
+  ["no desk: the Pick a desk first line is not kept in the band (link only)", "talk", once("pointAt(link, line);", "pointAt(link);")],
+  ["no desk: no room on a short screen (Back / Next covers the line)", "talk", once('document.body.classList.add("desk-roomy");', "void 0;")],
+  ["no desk: the room rule does not unstick Back / Next", "steps", once("body.desk-roomy #drop-step-foot{position:static}", "body.desk-roomy #drop-step-footX{position:static}")],
+  ["no desk: the room is not cleared on a turn", "talk", once("    if (onTell()) refit();\n    clearDeskRoom();\n", "    if (onTell()) refit();\n")],
+  ["no desk: any first paint clears the room (Chrome paints Desk after the point)", "talk", once('    if (step !== "desk") clearDeskRoom();\n', "    clearDeskRoom();\n")],
+  ["no desk: the room is not cleared on a step change", "talk", once("    if (step !== \"desk\") clearDeskRoom();\n", "")],
+  ["no desk: a turn does not re-point the link and its line", "talk", once("    if (held && heldLine) pointAt(held, heldLine);\n", "")],
+  ["no desk: the step to go back to is kept (Back after a Tell tap leaves Tell)", "talk", once('{ beforeTalk = ""; pointDesk(); return; }', "{ pointDesk(); return; }")],
   ["focusTalk no longer opens Tell (fix removed)", "talk", once('      AIADropSteps.go("tell", true);\n', "")],
   ["focusTalk falls back to the Desk step", "talk", once('AIADropSteps.go("tell", true);', 'AIADropSteps.go("desk", true);')],
   ["paint always falls back to the first open step", "steps", once("    if (rows.indexOf(stepOf(active)) < 0) active = rows[0].id;\n", "    active = rows[0].id;\n")],
@@ -1137,7 +1168,7 @@ const TALK_MUTANTS = [
   ["quiet step changes focus the type box too", "steps", chain(once('    if (id === "tell" && window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();\n', ""), once("    sync();\n    if (quiet) return;\n", '    sync();\n    if (id === "tell" && window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();\n    if (quiet) return;\n'))],
   ["no desk: nothing pointed at", "talk", once('      if (AIADropSteps.current() !== "tell") { beforeTalk = ""; pointDesk(); return; }\n', "")],
   ["no desk: desk line left hidden", "talk", once('    if (err && err.textContent) err.style.display = "block";\n', "")],
-  ["no desk: focus the desk card, not Create a new desk", "talk", once("pointAt((pick && pick.querySelector('a[href=\"/onboard\"]')) || pick);", "pointAt(pick);")],
+  ["no desk: focus the desk card, not Create a new desk", "talk", once("var link = (pick && pick.querySelector('a[href=\"/onboard\"]')) || pick,", "var link = pick,")],
   ["no desk: focus Have a code instead", "talk", once("pick.querySelector('a[href=\"/onboard\"]')", "pick.querySelector('a[href=\"/login\"]')")],
   ["no desk: link not scrolled into view", "talk", once('    try { node.scrollIntoView({ block: "center" }); } catch (e) { if (node.scrollIntoView) node.scrollIntoView(); }\n', "")],
   ["signed out: Sign in not focused", "talk", once("    if (signedOutBox()) { pointSignIn(); return; }\n", "")],
@@ -1147,7 +1178,7 @@ const TALK_MUTANTS = [
   ["no desk: the hold re-points while in view", "talk", once("    if (outOfView(held)) intoBand(held);", "    intoBand(held);")],
   ["no desk: the hold outlives focus moving on", "talk", once("    if (document.activeElement !== held) { held = null; return; }\n", "")],
   ["no desk: never held", "talk", once("    held = node;\n", "")],
-  ["no desk: centre ignores the rail", "talk", once("    if (!outOfView(node) || !window.scrollBy) return;\n    var r = node.getBoundingClientRect(), top = railBottom();\n    window.scrollBy(0, Math.round(r.top - (top + (floorY() - top - r.height) / 2)));\n", "")],
+  ["no desk: centre ignores the rail", "talk", once("    if (!outOfView(node) || !window.scrollBy) return;\n    var r = span(node), top = railBottom();\n    window.scrollBy(0, Math.round(r.top - (top + (floorY() - top - r.height) / 2)));\n", "")],
   ["no desk: band ignores the bottom cover", "talk", once("return r.top < railBottom() || r.bottom > floorY();", "return r.top < railBottom();")],
   ["no desk: band ignores the rail", "talk", once("return r.top < railBottom() || r.bottom > floorY();", "return r.bottom > floorY();")],
   ["signed out: Sign in check keyed wrong", "talk", once('root.classList.contains("signin-first") && document.getElementById("signin-first-go")', 'root.classList.contains("signin-first-x") && document.getElementById("signin-first-go")')],

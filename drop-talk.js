@@ -182,9 +182,11 @@
     var root = document.documentElement;
     return !!(root && root.classList && root.classList.contains("signin-first") && document.getElementById("signin-first-go"));
   }
-  function pointAt(node) {
+  function pointAt(node, line) {
     if (!node) return;
+    heldLine = line || null;
     intoBand(node);
+    if (heldLine && roomFor(heldLine)) intoBand(node);
     if (node.focus) node.focus({ preventScroll: true });
     held = node;
   }
@@ -193,20 +195,28 @@
   function intoBand(node) {
     try { node.scrollIntoView({ block: "center" }); } catch (e) { if (node.scrollIntoView) node.scrollIntoView(); }
     if (!outOfView(node) || !window.scrollBy) return;
-    var r = node.getBoundingClientRect(), top = railBottom();
+    var r = span(node), top = railBottom();
     window.scrollBy(0, Math.round(r.top - (top + (floorY() - top - r.height) / 2)));
   }
   // The page keeps laying out for a few seconds after load (drop-steps repaints as the other cards arrive
   // and hides them), which can slide the pointed-at link up under the sticky step rail. Until the visitor
   // does something, a repaint that left it out of view brings it back.
-  var held = null;
-  function letGo() { held = null; }
+  var held = null, heldLine = null;
+  function letGo() { held = null; heldLine = null; }
   function railBottom() {
     var rail = document.getElementById("drop-steps");
     return rail && rail.getBoundingClientRect ? Math.max(0, rail.getBoundingClientRect().bottom) : 0;
   }
+  // The link plus the line that says why (the "Pick a desk first" line under it), when both fit the band.
+  function span(node) {
+    var r = node.getBoundingClientRect(), l = heldLine && heldLine.getBoundingClientRect ? heldLine.getBoundingClientRect() : null;
+    if (!l || !(l.height > 0)) return r;
+    var t = Math.min(r.top, l.top), b = Math.max(r.bottom, l.bottom);
+    if (b - t > floorY() - railBottom()) return r;
+    return { top: t, bottom: b, height: b - t };
+  }
   function outOfView(node) {
-    var r = node.getBoundingClientRect();
+    var r = span(node);
     return r.top < railBottom() || r.bottom > floorY();
   }
   function keepHeld() {
@@ -220,8 +230,19 @@
     var err = document.getElementById("desk-err");
     if (err && err.textContent) err.style.display = "block";
     var pick = document.getElementById("desk-pick");
-    pointAt((pick && pick.querySelector('a[href="/onboard"]')) || pick);
+    var link = (pick && pick.querySelector('a[href="/onboard"]')) || pick, line = err && err.textContent ? err : null;
+    pointAt(link, line);
   }
+  // A short screen: once the link is in the band, its line is still under the sticky Back / Next, so
+  // Back / Next scrolls with the page instead (desk-roomy; cleared off the Desk step or on a turn).
+  function roomFor(line) {
+    if (!line.getBoundingClientRect || !document.body || !document.body.classList) return false;
+    var l = line.getBoundingClientRect();
+    if (!(l.height > 0) || (l.top >= railBottom() && l.bottom <= floorY())) return false;
+    document.body.classList.add("desk-roomy");
+    return true;
+  }
+  function clearDeskRoom() { if (document.body && document.body.classList) document.body.classList.remove("desk-roomy"); }
   function focusType() {
     var box = document.getElementById("talkType");
     if (!box) box = document.getElementById("talkBtn");
@@ -321,6 +342,8 @@
     if (held) (window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); })(keepHeld);
     if (step === lastStep) return;
     lastStep = step;
+    // The desk room is for the Desk step only (its first paint can come after the point: keep it there).
+    if (step !== "desk") clearDeskRoom();
     if (step !== "tell") { clearRoom(); return; }
     refit();
   }
@@ -330,6 +353,8 @@
     lastW = w;
     clearRoom();
     if (onTell()) refit();
+    clearDeskRoom();
+    if (held && heldLine) pointAt(held, heldLine);
   }
   // Back from #talk (the hash is gone) returns to the step the page was on before Talk opened.
   function leaveTalk() {
