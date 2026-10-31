@@ -25,7 +25,9 @@
     dt{font-weight:700;margin-top:8px;color:var(--heading)}
     dd{color:var(--muted);margin:0 0 8px}
     .pack-ex{display:block;white-space:pre-wrap;word-break:break-word;font-size:12px;margin-top:4px}
-  </style>
+    .help-toc .toc-group h3{margin:12px 0 2px;font-size:15px}.help-toc .toc-group p{margin:0;line-height:1.6}.help-toc .toc-lead{margin:0;color:var(--muted)}
+  .card[id]{scroll-margin-top:84px}
+</style>
 </head>
 <body class="has-desk-nav">
   <header>
@@ -36,6 +38,14 @@
     <p>Name a desk. Drop anything. Try first — real cards on the queue, not a demo. A person taps Yes — or Stops it — before it goes out. You send the draft yourself. ai.aia is the AIA Internet brand. The desk runs on automateitaway.com. Packs and named desk AIs travel as .aia files.</p>
     <p id="queue-sign-in">Sign in to your Queue. One account is one Queue. That Queue holds every desk, and each desk keeps its own packs and automations. Open my Queue to see every desk. Pick a desk in the Queue to see only that desk. Add a desk from the same Queue. You do not sign in again to switch desks.</p>
     <p><a href="history.html">Give pack</a> <button type="button" class="aia-tip" data-aia-tip="give-pack" aria-label="More about Give pack">?</button> · <a href="history.html">Update pack</a> <button type="button" class="aia-tip" data-aia-tip="update-pack" aria-label="More about Update pack">?</button> · <a href="/support">Talk to AIA</a></p>
+    <nav class="card help-toc" id="help-toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <p class="toc-lead">Short answers, grouped. Tap a topic to jump to it.</p>
+      <div class="toc-group"><h3>Start here</h3><p><a href="#first-day">Your first day</a> · <a href="#playbook-card">Four steps on a desk</a> · <a href="#login-help">Signing in</a> · <a href="#broke">When something breaks</a></p></div>
+      <div class="toc-group"><h3>Running your desk</h3><p><a href="#desk-runs">How a desk runs</a> · <a href="#queue-runs">How the Queue runs</a> · <a href="#desk-cards">Cards on the desk</a> · <a href="#words">What the buttons mean</a> · <a href="#owner-helper">Owner or helper</a> · <a href="#people-desk">Add people</a></p></div>
+      <div class="toc-group"><h3>Rules and add-ons</h3><p><a href="#desk-orch">When, If, Then rules</a> · <a href="#rule-example">A rule, start to finish</a> · <a href="#build-pack">Build an add-on or desk AI</a> · <a href="#sell-packs">Selling add-ons</a> · <a href="#pack-worth">When an add-on is worth it</a></p></div>
+      <div class="toc-group"><h3>More</h3><p><a href="#pipes-web">Connecting other sites</a> · <a href="#aia-inbound">Mail into a desk</a> · <a href="#world">Running a business on AIA</a> · <a href="#faq">Questions people ask</a> · <a href="#pages">Every page</a></p></div>
+    </nav>
     <div class="card" id="playbook-card">
       <h2>Four steps on this desk</h2>
       <p>One AIA account. Find the leaks. Hook up connections. Name a desk AI. You still tap. Collect stays HOLD. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Live desk is automateitaway.com.</p>
@@ -81,7 +91,7 @@
         <dt>Paid ads (off-platform)</dt>
         <dd>If you buy Meta, Google, TikTok, or YouTube ads off-platform to market a pack, take-home depends on ROAS, CAC, and the funnel — lead magnet → tripwire → pack → upsell — not raw sales volume. Example thinking only. AIA does not run ads and does not guarantee ROAS.</dd>
       </dl>
-      <p>Selling packs: thin JSON, buyer keys, Collect HOLD. Not 100% safe. Help is not legal advice. <a href="#sell-packs">#sell-packs</a>. When a pack is worth it: <a href="#pack-worth">#pack-worth</a>. Build a pack / desk AI: <a href="#build-pack">#build-pack</a>. How the queue runs: <a href="#queue-runs">#queue-runs</a>. Desk cards: <a href="#desk-cards">#desk-cards</a>. .aia inbound: <a href="#aia-inbound">#aia-inbound</a>.</p>
+      <p>Selling packs: thin JSON, buyer keys, Collect HOLD. Not 100% safe. Help is not legal advice. Read more: <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#build-pack">Build a pack or desk AI</a> · <a href="#queue-runs">How the queue runs</a> · <a href="#desk-cards">Desk cards</a> · <a href="#aia-inbound">Mail into a desk</a>.</p>
       <p><a href="/onboard">Open a desk</a> · <a href="/dev">Creators Studio</a> · <a href="/dev#earnings">Creators / earnings</a></p>
     </div>
     <div class="card" id="people-desk">
@@ -105,7 +115,7 @@
       <ol>
         <li><strong>Pipes.</strong> Copy the inbound hook: <code>www.automateitaway.com/api/hook</code>. Zapier or Make can post there today. Search a site / Log in opens the vendor console — draft only, not a live login pipe. Calendar, SMS, Square, and eBay stay HOLD until keys land and a human taps Yes.</li>
         <li><strong>Account / desk identity.</strong> The desk is a desk name plus a desk code. Set a <code>yourname.aia</code>-style name on Account. There is no live Business Details or brand-kit settings page.</li>
-        <li><strong>People.</strong> Owner vs Helper — already at <a href="#people-desk">#people-desk</a>. Search a world <code>@handle</code>. AIA does not send Team email seats.</li>
+        <li><strong>People.</strong> Owner vs Helper — see <a href="#people-desk">Add people to this desk</a>. Search a world <code>@handle</code>. AIA does not send Team email seats.</li>
         <li><strong>Packs.</strong> Write in Creators Studio (<code>/dev</code>) or install a <code>.aia</code>. Browse Marketplace. A fresh desk is empty until you drop or install. Collect money stays HOLD — no silent charge, and we do not map shared OpenAI keys into packs.</li>
       </ol>
       <p>Not on this desk: Settings → Integrations LLM/CRM “Connect Tool.” AIA Studios Connected Accounts OAuth (TikTok / Instagram / Threads / X / YouTube). Team email invites with Admin / Creator / Viewer roles. Import Pack that writes workspace API keys or User Groups.</p>
@@ -154,7 +164,7 @@
         <li><strong>You still tap.</strong> Yes / Stop / Kill stay human. Yes is not a collect charge. Collect stays HOLD.</li>
       </ol>
       <p>Fallbacks: Needs you, or <a href="/support">Talk to AIA</a>.</p>
-      <p>Write a thin <code>.aia</code> in Creators Studio (<code>/dev</code>). Buyers bring their own pipes and keys. First .aia pack docs: <a href="/dev#first-pack">/dev#first-pack</a>.</p>
+      <p>Write a thin <code>.aia</code> in Creators Studio (<code>/dev</code>). Buyers bring their own pipes and keys. First .aia pack docs: <a href="/dev#first-pack">Your first pack in Creators Studio</a>.</p>
       <p>Sample JSON is illustrative only — desk words, not a bindings product: <code>{ "when": "pipe", "if": "tag Lead", "then": "draft" }</code></p>
       <p>Thin App / webhook pack — copy, do not seed. Not a listed SKU. Not a bindings product. Buyer binds their own keys and devices on Pipes. Yes / Stop / Kill before outbound or hardware. App / webhook is the live pipe. Collect stays HOLD.</p>
       <p><code class="pack-ex">{ "name": "Lead from the site", "pipes": ["webhook"], "rules": [{ "text": "Hook + Lead → draft. Yes before outbound.", "when": "pipe", "ifTag": "Lead", "then": "draft" }] }</code></p>
@@ -210,12 +220,12 @@
       <p>MX and DNS for <code>*.aia</code> still HOLD. AIA AI home is <code>ai.aia</code> — orange until DNS answers.</p>
       <p>No live Gmail forward wizard. No email vault. No voice or SMS receptionist.</p>
     </div>
-    <div class="card">
+    <div class="card" id="broke">
       <h2>Something broke?</h2>
       <p>Talk to AIA. Help, tickets, and messages move as cards between your desk and the AIA Admin desk. A person looks. Nothing sends itself. Not a ticket portal. Desk AIs, guardrails, and job cards stay this desk.</p>
       <p><a href="/support">Talk to AIA</a></p>
     </div>
-    <div class="card">
+    <div class="card" id="first-day">
       <h2>First day</h2>
       <dl>
         <dt>Open</dt>
@@ -238,11 +248,11 @@
         <dd>A named AI bound to this desk — project, company, or family. Addressed on AIA Internet as a .aia name. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Live desk is automateitaway.com. Drafts under this desk’s rules. Yes / Stop / Kill stay human. Never money or mail. Pack it in Creators Studio to list or keep private.</dd>
       </dl>
     </div>
-    <div class="card">
+    <div class="card" id="pages">
       <h2>Pages that exist</h2>
       <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#creator-takeaways">Creator takeaways</a> · <a href="#build-pack">Build a pack / desk AI</a> · <a href="#desk-orch">Desk orchestration</a> · <a href="#ideas-queue">Ideas → queue</a> · <a href="#queue-runs">How the queue runs</a> · <a href="#desk-cards">Desk cards</a> · <a href="#aia-inbound">.aia inbound</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="onboard.html">Open a Queue</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Packs</a> · <a href="history.html">Give pack</a> · <a href="history.html">Update pack</a> · <a href="login.html">Sign in to your Queue</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Pipes</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop#talk">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
     </div>
-    <div class="card">
+    <div class="card" id="owner-helper">
       <h2>Owner vs helper</h2>
       <dl>
         <dt>Owner</dt>
@@ -256,10 +266,10 @@
         <dt>Creators Studio</dt>
         <dd>Same login on /dev. Write a thin JSON pack on AIA Internet. ai.aia is the brand. Download, share, or install it as a .aia file. Test it on this desk. AIA lists it. World desks install it onto an empty starting queue. You earn by pricing a pack — AIA has no public payout baseline. Agency consulting is off-platform. Collect stays HOLD until a person taps Yes. Wallet / registry connect later as a Pipe HOLD.</dd>
         <dt>Packs</dt>
-        <dd>Browse on /market. Open packs on AIA Internet (ai.aia): thin JSON a world desk can install, named like your-shop.aia. Download or share as a .aia file. Install a .aia onto this desk. Use a pack on this desk. A listed ask still installs — Collect stays HOLD. No silent charge. No public payout table. Fresh desks start empty until you add or install a pack. Packs do not send money, bind coverage, or pay out. When a pack is worth it: <a href="#pack-worth">#pack-worth</a>.</dd>
+        <dd>Browse on /market. Open packs on AIA Internet (ai.aia): thin JSON a world desk can install, named like your-shop.aia. Download or share as a .aia file. Install a .aia onto this desk. Use a pack on this desk. A listed ask still installs — Collect stays HOLD. No silent charge. No public payout table. Fresh desks start empty until you add or install a pack. Packs do not send money, bind coverage, or pay out. See <a href="#pack-worth">When a pack is worth it</a>.</dd>
       </dl>
     </div>
-    <div class="card">
+    <div class="card" id="desk-runs">
       <h2>How this desk runs</h2>
       <dl>
         <dt>Try first</dt>
@@ -289,7 +299,7 @@
         <dd>A pack that strings rules. Optional delay or branch. Still thin JSON. No dashboard fork. Write it in Creators Studio.</dd>
       </dl>
     </div>
-    <div class="card">
+    <div class="card" id="rule-example">
       <h2>Example When → If → Then</h2>
       <dl>
         <dt>Lead click</dt>
@@ -303,7 +313,7 @@
       </dl>
       <p>These are copy, not seed rules. No live eBay. No live mail. Collect stays HOLD.</p>
     </div>
-    <div class="card">
+    <div class="card" id="pipes-web">
       <h2>Pipes across the internet</h2>
       <dl>
         <dt>Now</dt>
@@ -320,7 +330,7 @@
         <dd>Some marketplaces are not a launch pipe.</dd>
       </dl>
     </div>
-    <div class="card">
+    <div class="card" id="words">
       <h2>Words on the buttons</h2>
       <dl>
         <dt>Needs you</dt>
@@ -351,7 +361,7 @@
         <dd>Vendor console or draft-account key page. Chat login alone cannot draft. Owner still taps Yes and Stop.</dd>
       </dl>
     </div>
-    <div class="card">
+    <div class="card" id="login-help">
       <h2>Login</h2>
       <p>Desk name + desk code, or email + password on Account. Not social SSO. Set an AIA Internet name like yourname.aia on Account so people can find you. ai.aia is the brand. The desk runs on automateitaway.com. Email is not a world name. .aia names on this desk now. Account lists phones on this account, export the book (no pin, no password hash), and leave this phone or every phone. Authenticator stays HOLD. Connect MetaMask or WalletConnect. Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks. Not Wallet.AIA. Not compute credits or a creator payout ledger. Collect and payouts HOLD.</p>
     </div>
