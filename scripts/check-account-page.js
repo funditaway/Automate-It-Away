@@ -87,8 +87,8 @@ if (http.indexOf("home.sessions") < 0 || http.indexOf("listSessions") < 0) {
 if (help.indexOf("Account lists phones on this account") < 0 || help.indexOf("leave this phone or every phone") < 0) {
   fail("help Login must name phones / export / leave every phone");
 } else pass("help Login names the account trail");
-if (help.indexOf("Authenticator stays HOLD") < 0) fail("help Login must keep authenticator HOLD");
-else pass("help Login keeps authenticator HOLD");
+if (help.indexOf("Authenticator is off for now.") < 0) fail("help Login must keep authenticator off for now");
+else pass("help Login keeps authenticator off for now");
 
 if (moreTips.indexOf("phones on this account") < 0 || moreTips.indexOf("export the book") < 0 || moreTips.indexOf("leave this phone or every phone") < 0) {
   fail("more Account tip must name phones / export / leave every phone");
