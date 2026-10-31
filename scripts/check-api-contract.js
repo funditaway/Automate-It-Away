@@ -2,6 +2,7 @@ require("./_env-guard");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
+const root = path.join(__dirname, "..");
 const store = path.join(os.tmpdir(), "aia-api-contract-" + Date.now() + ".json");
 process.env.AIA_STORE_PATH = store;
 process.env.AIA_TLD_PROBE = "0";
@@ -159,8 +160,94 @@ async function main() {
  if (conn.statusCode !== 200) fail("connections");
  else if (conn.body.workspace === "demo") fail("connections demo");
  else pass("conn");
+ const OLD_CONN = "Wallet / registry connect later as a Pipe HOLD.";
+ const NEW_CONN = "Wallet and name registry connections come later.";
+ const OLD_NOTE = "Collect and pack pay stay HOLD.";
+ const NEW_NOTE = "Payments are off for now. Nothing is charged.";
+ const connJson = JSON.stringify(conn.body || {});
+ const healthPlain = JSON.stringify(res.body || {});
+ const walletNote = (res.body && res.body.wallet && res.body.wallet.note) || "";
+ const dot = ((conn.body && conn.body.soon) || []).find((p) => p && p.id === "dotaia") || {};
+ const wallet = (res.body && res.body.wallet) || {};
+ if (connJson.indexOf(OLD_CONN) >= 0) fail("connections still has the old wallet line");
+ else if (connJson.indexOf(NEW_CONN) < 0) fail("connections missing the plain wallet line");
+ else if (connJson.indexOf(OLD_NOTE) >= 0) fail("connections still has the old wallet note");
+ else if (dot.live !== false || dot.status !== "soon" || dot.connectable !== false) fail("dotaia machine fields");
+ else pass("connections plain words");
+ if (healthPlain.indexOf(OLD_NOTE) >= 0) fail("health still has the old wallet note");
+ else if (healthPlain.indexOf(OLD_CONN) >= 0) fail("health still has the old connections line");
+ else if (walletNote.indexOf(NEW_NOTE) < 0) fail("health wallet note missing payments off");
+ else if (walletNote.indexOf(OLD_NOTE) >= 0) fail("health wallet note still has the old line");
+ else if (wallet.collect !== "hold" || wallet.mint !== false || wallet.charged !== false || wallet.custodial !== false || wallet.hosted !== false || wallet.token !== false || wallet.deposit !== false || Object.prototype.hasOwnProperty.call(wallet, "live")) fail("health wallet machine fields");
+ else if (String((res.body.automation || {}).do || "").indexOf("Yes and Stop stay on the desk") < 0) fail("health Yes/Stop");
+ else pass("health wallet note");
  if (process.exitCode) { console.error("check-api-contract failed"); process.exit(1); }
+ if (process.env.AIA_API_CONTRACT_CHILD !== "1") {
+  const mutantsOk = mutate();
+  if (!mutantsOk) { console.error("check-api-contract failed"); process.exit(1); }
+ }
  console.log("check-api-contract passed");
+}
+
+// Restores the old reply lines in a copy of the tree. The child runs this
+// check with a stripped env (PATH and a temp HOME only) and must fail.
+const MUTANTS = [
+ ["old connections string restored", "api/connections.js",
+  "Wallet and name registry connections come later.",
+  "Wallet / registry connect later as a Pipe HOLD."],
+ ["old wallet note restored", "api/_connect-wallet.js",
+  "Not Wallet.AIA. Payments are off for now. Nothing is charged. .aia Register when Bridge unlocks.",
+  "Not Wallet.AIA. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."]
+];
+
+function mutate() {
+ const { spawnSync } = require("child_process");
+ const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-contract-mut-"));
+ fs.cpSync(root, dir, { recursive: true, filter: function (src) { return !/[\\/](\.git|node_modules)$/.test(src); } });
+ if (fs.existsSync(path.join(root, "node_modules"))) {
+  fs.symlinkSync(path.join(root, "node_modules"), path.join(dir, "node_modules"));
+ }
+ const run = function () {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-contract-home-"));
+  return spawnSync(process.execPath, [path.join(dir, "scripts/check-api-contract.js")], {
+   cwd: dir,
+   env: { PATH: process.env.PATH || "", HOME: home, TMPDIR: home, AIA_API_CONTRACT_CHILD: "1" },
+   encoding: "utf8",
+   timeout: 120000
+  });
+ };
+ let caught = 0;
+ let total = 0;
+ let bad = 0;
+ try {
+  const base = run();
+  if (base.status !== 0) {
+   console.error("unmutated check fails in the copy:\n" + ((base.stdout || "") + (base.stderr || "")).slice(-2500));
+   return false;
+  }
+  console.log("UNMUTATED | PASS");
+  MUTANTS.forEach(function (row) {
+   const name = row[0];
+   const file = row[1];
+   const find = row[2];
+   const repl = row[3];
+   const p = path.join(dir, file);
+   const orig = fs.readFileSync(p, "utf8");
+   if (orig.indexOf(find) < 0) { console.log(name + " | ANCHOR GONE"); bad += 1; return; }
+   if (orig.indexOf(find) !== orig.lastIndexOf(find)) { console.log(name + " | ANCHOR NOT UNIQUE"); bad += 1; return; }
+   fs.writeFileSync(p, orig.replace(find, repl));
+   const r = run();
+   fs.writeFileSync(p, orig);
+   const first = ((r.stdout || "") + "\n" + (r.stderr || "")).split("\n").find(function (l) { return l.indexOf("FAIL") === 0; }) || "";
+   total += 1;
+   if (r.status) { caught += 1; console.log(name + " | CAUGHT | " + first.slice(0, 180)); }
+   else console.log(name + " | SURVIVED");
+  });
+ } finally {
+  fs.rmSync(dir, { recursive: true, force: true });
+ }
+ console.log("SCORE " + caught + "/" + total + " caught" + (bad ? " (" + bad + " anchors bad)" : ""));
+ return caught === total && !bad && total === MUTANTS.length;
 }
 main().catch((err) => {
  fail(err && err.stack || String(err));
