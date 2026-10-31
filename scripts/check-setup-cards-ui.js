@@ -21,6 +21,11 @@ function fail(msg) { failed += 1; console.error("FAIL " + msg); }
 function ok(cond, msg) { if (cond) { passed += 1; console.log("ok  " + msg); } else fail(msg); }
 function read(rel) { return fs.readFileSync(path.join(root, rel), "utf8"); }
 const SRC = read("setup-cards.js");
+// U2: the killed-card line is the api's own sentence, byte for byte.
+const GONE_API = (read("api/_account-connect.js").match(/if \(card\.status === "killed"\) return "([^"]+)";/) || [])[1] || "";
+const KILL_ASK = "Stop for good? Nothing more happens on this card.";
+const KILL_AGAIN = "Kill needs a second tap.";
+const KILL_REARM = "Kill needs a second tap. Tap Yes, stop for good, or Keep the card.";
 
 // ---------- small DOM ----------
 function makeDom() {
@@ -186,7 +191,7 @@ function doneCard() {
     steps: [step("card.desk", "desk", "Pick a desk", "done"), step("g1.test", "test", "Test run (dry run)", "done")] };
 }
 function killedCard() {
-  return { id: "setup_kill4", source: { name: "Killed Thing" }, status: "killed", statusText: "Killed. Nothing more happens on this card.", href: "/account#setup-setup_kill4",
+  return { id: "setup_kill4", source: { name: "Killed Thing" }, status: "killed", statusText: GONE_API, href: "/account#setup-setup_kill4",
     steps: [step("g1.test", "test", "Test run (dry run)", "blocked", { reason: "Killed." })] };
 }
 function secretCard() {
@@ -290,17 +295,113 @@ async function suite(src, say) {
   const b3 = ac[2] && bodyOf(ac[2]);
   t(b3 && keys(b3) === "action,cardId,do" && b3.cardId === "setup_stop2" && b3.do === "start", "[desk] Start again sends do:'start'");
 
-  // Kill
+  // Kill takes two taps, like Stop on the Queue: the first only asks.
   const killB = btn(cardEl(A.doc, "setup_done3"), "Kill");
   if (killB) killB.click();
   await flush();
+  const armedBox = cardEl(A.doc, "setup_done3");
+  t(acctCalls(A).length === 3, "[kill] one tap on Kill sends nothing");
+  t(!!armedBox && armedBox.textContent.indexOf(KILL_ASK) >= 0, "[kill] the first tap asks: " + KILL_ASK);
+  t(!!armedBox && !!btn(armedBox, "Yes, stop for good") && !btn(armedBox, "Kill") && !!btn(armedBox, "Keep the card"), "[kill] the first tap arms it: Yes, stop for good and Keep the card");
+  const yesB = armedBox && btn(armedBox, "Yes, stop for good");
+  if (yesB) yesB.click();
+  await flush();
   ac = acctCalls(A);
   const b4 = ac[3] && bodyOf(ac[3]);
-  t(b4 && keys(b4) === "action,cardId,do" && b4.cardId === "setup_done3" && b4.do === "kill", "[desk] Kill sends do:'kill'");
+  t(b4 && keys(b4) === "action,cardId,confirm,do" && b4.cardId === "setup_done3" && b4.do === "kill" && b4.confirm === true, "[desk] the second Kill tap sends do:'kill' with confirm:true (" + JSON.stringify(b4) + ")");
   t(!cardEl(A.doc, "setup_done3"), "[desk] a killed card leaves the desk");
+  t(GONE_API === "Stopped for good. Nothing more happens on this card." && A.doc.body.textContent.indexOf(GONE_API) >= 0, "[kill] the desk says the api's words: " + GONE_API);
+  t(A.doc.body.textContent.indexOf("Killed.") < 0 && !/\bStopped\.(?! Nothing runs)/.test(A.doc.body.textContent.replace(GONE_API, "")), "[kill] no Killed or bare Stopped. after a kill");
   await drainTimers(A);
   t(acctCalls(A).length === 4, "[desk] one request per tap, nothing extra");
   t(A.errors.length === 0, "[desk] no errors after taps (" + A.errors.join("; ") + ")");
+
+  // K: Keep the card cancels the armed Kill, and Stop disarms it; neither kills.
+  const K = runPage(src, {
+    location: { pathname: "/desk.html", search: "?workspace=ann-bakery" }, storage: SESSION, build: deskPage,
+    route(url, init) {
+      if (/^\/api\/jobs\?workspace=ann-bakery$/.test(url)) return { status: 200, body: { jobs: [], setupCards: [openCard(), doneCard()] } };
+      if (url === "/api/account") {
+        const b = JSON.parse(init.body);
+        if (b.do === "stop") { const c = doneCard(); c.status = "stopped"; c.statusText = "Stopped. Nothing runs from this card."; return { status: 200, body: { ok: true, changed: true, saved: true, card: c } }; }
+        if (b.do === "kill") { const c = doneCard(); c.status = "killed"; return { status: 200, body: { ok: true, changed: true, saved: true, card: c } }; }
+      }
+      return { status: 404, body: {} };
+    }
+  });
+  await flush();
+  pages.push(K);
+  const kc = () => cardEl(K.doc, "setup_done3");
+  if (btn(kc(), "Kill")) btn(kc(), "Kill").click();
+  await flush();
+  const keepB = kc() && btn(kc(), "Keep the card");
+  if (keepB) keepB.click();
+  await flush();
+  t(acctCalls(K).length === 0 && !!kc() && !!btn(kc(), "Kill") && !btn(kc(), "Yes, stop for good") && !btn(kc(), "Keep the card") && kc().textContent.indexOf(KILL_ASK) < 0, "[kill] Keep the card cancels: nothing sent, Kill is back, the ask is gone");
+  if (btn(kc(), "Kill")) btn(kc(), "Kill").click();
+  await flush();
+  if (btn(kc(), "Stop")) btn(kc(), "Stop").click();
+  await flush();
+  const kb = acctCalls(K).map((c) => bodyOf(c).do);
+  t(kb.join() === "stop" && !!kc() && !!btn(kc(), "Kill") && !btn(kc(), "Yes, stop for good"), "[kill] Stop while Kill is armed stops the card and disarms Kill (" + kb.join() + ")");
+  if (btn(kc(), "Kill")) btn(kc(), "Kill").click();
+  await flush();
+  t(acctCalls(K).length === 1, "[kill] after Stop, one tap on Kill again sends nothing");
+  if (btn(kc(), "Yes, stop for good")) btn(kc(), "Yes, stop for good").click();
+  await flush();
+  t(acctCalls(K).map((c) => bodyOf(c).do).join() === "stop,kill" && !kc(), "[kill] the second tap kills");
+
+  // L: enforcing fake api (U2 needs Switch's allowlist PR first; nothing here hits the real api):
+  // a Kill without confirm:true gets 409; the second tap carries it, so it kills.
+  const L = runPage(src, {
+    location: { pathname: "/desk.html", search: "?workspace=ann-bakery" }, storage: SESSION, build: deskPage,
+    route(url, init) {
+      if (/^\/api\/jobs\?workspace=ann-bakery$/.test(url)) return { status: 200, body: { jobs: [], setupCards: [doneCard()] } };
+      if (url === "/api/account") {
+        const b = JSON.parse(init.body);
+        if (b.do === "kill" && b.confirm !== true) return { status: 409, body: { ok: false, error: KILL_AGAIN } };
+        if (b.do === "kill") { const c = doneCard(); c.status = "killed"; return { status: 200, body: { ok: true, changed: true, saved: true, card: c } }; }
+      }
+      return { status: 404, body: {} };
+    }
+  });
+  await flush();
+  pages.push(L);
+  if (btn(cardEl(L.doc, "setup_done3"), "Kill")) btn(cardEl(L.doc, "setup_done3"), "Kill").click();
+  await flush();
+  t(acctCalls(L).length === 0, "[enforcing api] the first tap sends no request");
+  if (cardEl(L.doc, "setup_done3") && btn(cardEl(L.doc, "setup_done3"), "Yes, stop for good")) btn(cardEl(L.doc, "setup_done3"), "Yes, stop for good").click();
+  await flush();
+  const lb = acctCalls(L).map(bodyOf);
+  t(lb.length === 1 && keys(lb[0]) === "action,cardId,confirm,do" && lb[0].confirm === true, "[enforcing api] the second tap sends one Kill with confirm:true (" + JSON.stringify(lb) + ")");
+  t(!cardEl(L.doc, "setup_done3") && L.doc.body.textContent.indexOf(GONE_API) >= 0, "[enforcing api] the card is stopped for good and leaves the desk");
+
+  // M: the api answers 409 Kill needs a second tap: ask again, not a dead error.
+  let mKills = 0;
+  const M = runPage(src, {
+    location: { pathname: "/desk.html", search: "?workspace=ann-bakery" }, storage: SESSION, build: deskPage,
+    route(url, init) {
+      if (/^\/api\/jobs\?workspace=ann-bakery$/.test(url)) return { status: 200, body: { jobs: [], setupCards: [doneCard()] } };
+      if (url === "/api/account") {
+        const b = JSON.parse(init.body);
+        if (b.do === "kill" && ++mKills === 1) return { status: 409, body: { ok: false, error: KILL_AGAIN } };
+        if (b.do === "kill") { const c = doneCard(); c.status = "killed"; return { status: 200, body: { ok: true, changed: true, saved: true, card: c } }; }
+      }
+      return { status: 404, body: {} };
+    }
+  });
+  await flush();
+  pages.push(M);
+  const mc = () => cardEl(M.doc, "setup_done3");
+  if (btn(mc(), "Kill")) btn(mc(), "Kill").click();
+  await flush();
+  if (mc() && btn(mc(), "Yes, stop for good")) btn(mc(), "Yes, stop for good").click();
+  await flush();
+  t(!!mc() && mc().textContent.indexOf(KILL_REARM) >= 0 && !!btn(mc(), "Yes, stop for good") && !btn(mc(), "Yes, stop for good").disabled && !!btn(mc(), "Keep the card"), "[409 second tap] asks again with Yes, stop for good and Keep the card");
+  t(!!mc() && mc().textContent.indexOf("didn't go through") < 0, "[409 second tap] not a dead error");
+  if (mc() && btn(mc(), "Yes, stop for good")) btn(mc(), "Yes, stop for good").click();
+  await flush();
+  t(mKills === 2 && !mc() && bodyOf(acctCalls(M).slice(-1)[0]).confirm === true, "[409 second tap] the next Yes kills, with confirm:true");
 
   // B: 409 on a secret step
   const B = runPage(src, {
@@ -500,7 +601,16 @@ const MUTANTS = [
   ]],
   ["ignore setupCard", [["    var card = data && data.setupCard;", "    var card = null;"]]],
   ["no Stop button", [["    row.appendChild(button(\"Stop\", \"setup-stop\", function (b) { act(card, null, \"stop\", b); }));\n", ""]]],
-  ["no Kill button", [["    row.appendChild(button(\"Kill\", \"setup-kill\", function (b) { act(card, null, \"kill\", b); }));\n", ""]]],
+  ["no Kill button", [["    row.appendChild(button(armed[card.id] ? KILL_YES : \"Kill\", \"setup-kill\", function (b) { act(card, null, \"kill\", b); }));\n", ""]]],
+  ["Kill in one tap", [["    if (verb === \"kill\" && !armed[card.id]) { armed[card.id] = true; said[card.id] = KILL_ASK; paint(); return Promise.resolve(null); }\n", ""]]],
+  ["armed Kill has no confirm label", [["button(armed[card.id] ? KILL_YES : \"Kill\",", "button(\"Kill\","]]],
+  ["Keep the card does not cancel", [["function () { delete armed[card.id]; said[card.id] = \"\"; paint(); }", "function () {}"]]],
+  ["no Keep the card", [["    if (armed[card.id]) row.appendChild(button(KILL_KEEP,", "    if (false) row.appendChild(button(KILL_KEEP,"]]],
+  ["Stop leaves Kill armed", [["    if (armed[card.id]) { delete armed[card.id]; if (said[card.id] === KILL_ASK) said[card.id] = \"\"; }\n", ""]]],
+  ["second tap sends no confirm", [["    if (verb === \"kill\") body.confirm = true;\n", ""]]],
+  ["confirm sent as a string", [["    if (verb === \"kill\") body.confirm = true;", "    if (verb === \"kill\") body.confirm = \"yes\";"]]],
+  ["409 second tap shown as a dead error", [["      if (verb === \"kill\" && x.status === 409 && x.d && x.d.error === KILL_AGAIN) { armed[card.id] = true; said[card.id] = KILL_REARM; paint(); return x; }\n", ""]]],
+  ["killed line back to Killed", [["  var GONE = \"Stopped for good. Nothing more happens on this card.\";", "  var GONE = \"Killed. Nothing more happens on that card.\";"]]],
   ["Stop and Kill only on open cards", [["    // Stop and Kill: on every card", "    if (card.status !== \"open\") { box.appendChild(row); return box; }\n    // Stop and Kill: on every card"]]],
   ["409 crashes", [["    if (x.status === 409 && st && (st.kind === \"secret\" || (x.d && x.d.secretsReady === false))) {", "    if (x.status === 409 && st && (st.kind === \"secret\" || (x.d && x.d.secretsReady === false))) {\n      throw new Error(x.d.error);"]]],
   ["409 shows the server words", [["      said[card.id] = WAIT_SECRET;", "      said[card.id] = x.d.error;"]]],
