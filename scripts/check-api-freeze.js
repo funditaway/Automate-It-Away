@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 require("./_env-guard");
 // Proves scripts/_api-freeze.js. The live tree must pass. Each mutant is
-// applied on a local clone (base 782cbc07 is on main) and the three UI checks
+// applied on a local clone (BASE is api/ on main) and the three UI checks
 // must exit non-zero for that reason:
-//   a non-string edit in api/_aia-mail.js
+//   a non-string edit in a pinned api file
+//   a string-only edit in a pinned api file (blob pin; not a literal mask)
+//   a template literal / backtick in a pinned api file (no silent mask)
+//   the platform handle swapped inside isPlatformAccount
 //   any edit in another api/ file
-//   a missing base SHA and a bogus base SHA (check-ux-signin included)
-// A string-only edit in an allowlisted file must still pass.
+//   a missing base (real shallow clone of the tip) and a bogus base SHA
+//     (check-ux-signin included)
+// A missing base must fail closed. Never pass by default.
 // Usage: node scripts/check-api-freeze.js
 const fs = require("fs");
 const os = require("os");
@@ -26,6 +30,7 @@ const OVERLAY = [
   "scripts/check-setup-cards-ui.js",
   "scripts/check-ux-signin.js"
 ];
+const LANDED = ["api/_aia-admin.js", "api/_aia-mail.js", "api/_aia-net.js"];
 
 let failed = 0;
 let passed = 0;
@@ -39,18 +44,48 @@ function runCheck(dir, rel) {
     cwd: dir,
     env: { PATH: process.env.PATH || "", HOME: dir, TMPDIR: os.tmpdir() },
     encoding: "utf8",
-    timeout: 180000
+    timeout: 300000
   });
 }
 
 function textOf(r) { return (r.stdout || "") + "\n" + (r.stderr || ""); }
 
+function git(cwd, args) {
+  return execFileSync("git", args, { cwd: cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
 const live = freeze.check(root);
 ok(live.ok === true && live.problems.length === 0 && live.base === freeze.BASE, "live api/ freeze passes vs " + freeze.BASE.slice(0, 8) + (live.ok ? "" : " (" + live.problems.join("; ") + ")"));
+ok(typeof freeze.codeShape !== "function", "freeze has no string mask");
+LANDED.forEach(function (rel) {
+  let at = "";
+  try { at = git(root, ["rev-parse", freeze.BASE + ":" + rel]).trim(); } catch (e) { at = ""; }
+  ok(freeze.PIN[rel] === at && at.length === 40, rel + " pin is its blob at the freeze base");
+});
+let grokBase = "";
+let grokNow = "";
+try { grokBase = git(root, ["rev-parse", freeze.BASE + ":api/_grok.js"]).trim(); } catch (e) { grokBase = ""; }
+try { grokNow = git(root, ["hash-object", "--", "api/_grok.js"]).trim(); } catch (e) { grokNow = ""; }
+ok(freeze.PIN["api/_grok.js"] === grokNow && grokNow !== grokBase && grokNow.length === 40, "api/_grok.js pin is the neutral-example blob");
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-freeze-"));
 let caught = 0;
 let total = 0;
+function score(name, rel, r, needle) {
+  total += 1;
+  const out = textOf(r);
+  const hit = r.status !== 0 && out.indexOf(needle) >= 0;
+  if (hit) {
+    caught += 1;
+    console.log("ok   " + name + " | " + path.basename(rel) + " | CAUGHT");
+  } else {
+    failed += 1;
+    process.exitCode = 1;
+    const first = out.split("\n").filter(function (l) { return l.indexOf("FAIL") === 0; })[0] || ("exit " + r.status);
+    console.error("FAIL " + name + " | " + path.basename(rel) + " | SURVIVED | " + first.slice(0, 180));
+  }
+}
+
 try {
   execFileSync("git", ["clone", "--local", root, dir], { stdio: ["ignore", "pipe", "pipe"] });
   OVERLAY.forEach(function (rel) {
@@ -59,7 +94,7 @@ try {
   const snap = {};
   function read(rel) { return fs.readFileSync(path.join(dir, rel), "utf8"); }
   function write(rel, text) { fs.writeFileSync(path.join(dir, rel), text); }
-  ["api/_aia-mail.js", "api/health.js", "scripts/_api-freeze.js"].forEach(function (rel) { snap[rel] = read(rel); });
+  ["api/_aia-mail.js", "api/_aia-admin.js", "api/health.js", "scripts/_api-freeze.js"].forEach(function (rel) { snap[rel] = read(rel); });
   function restore() {
     Object.keys(snap).forEach(function (rel) { write(rel, snap[rel]); });
   }
@@ -76,21 +111,42 @@ try {
   ok(swapped !== mail, "string-only control edits a literal");
   write("api/_aia-mail.js", swapped);
   const stringOnly = freeze.check(dir);
-  ok(stringOnly.ok === true, "string-only edit stays inside the allowlist" + (stringOnly.ok ? "" : " (" + stringOnly.problems.join("; ") + ")"));
+  ok(stringOnly.ok === false && stringOnly.problems.join(" ").indexOf("pinned blob") >= 0, "string-only edit fails the blob pin" + (stringOnly.ok ? "" : " (" + stringOnly.problems.join("; ") + ")"));
+  restore();
+
+  const quote = '"Type an AIA email, like name@your-account.aia."';
+  const template = '`Type an AIA email, like name@your-account.aia.${""}`';
+  ok(mail.indexOf(quote) >= 0, "template control finds a plain string");
+  write("api/_aia-mail.js", mail.replace(quote, template));
+  const templated = freeze.check(dir);
+  ok(templated.ok === false && templated.problems.join(" ").indexOf("pinned blob") >= 0, "template literal fails closed (no silent mask)");
+  ok(read("api/_aia-mail.js").indexOf("`") >= 0, "template control wrote a backtick");
+  restore();
+
+  const admin = read("api/_aia-admin.js");
+  const handleFrom = '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "aia";';
+  const handleTo = '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "springfield-shop";';
+  ok(admin.indexOf(handleFrom) === admin.lastIndexOf(handleFrom) && admin.indexOf(handleFrom) >= 0, "platform-handle anchor is unique");
+  write("api/_aia-admin.js", admin.replace(handleFrom, handleTo));
+  const handleSwap = freeze.check(dir);
+  ok(handleSwap.ok === false && handleSwap.problems.join(" ").indexOf("pinned blob") >= 0, "platform handle swap fails the blob pin");
   restore();
 
   const mutants = [
     ["mail non-string", function () {
       write("api/_aia-mail.js", snap["api/_aia-mail.js"] + "\nfunction freezeMutantProbe(){return 1;}\n");
-    }, "changed outside string literals"],
+    }, "pinned blob"],
+    ["mail template literal", function () {
+      write("api/_aia-mail.js", snap["api/_aia-mail.js"].replace(quote, template));
+    }, "pinned blob"],
+    ["platform handle swap", function () {
+      write("api/_aia-admin.js", snap["api/_aia-admin.js"].replace(handleFrom, handleTo));
+    }, "pinned blob"],
     ["other api file", function () {
       write("api/health.js", snap["api/health.js"] + "\nfunction freezeMutantProbe(){return 1;}\n");
-    }, "outside the allowlist"],
-    ["missing base", function () {
-      write("scripts/_api-freeze.js", snap["scripts/_api-freeze.js"].replace(freeze.BASE, "0123456789abcdef0123456789abcdef01234567"));
-    }, "is not in this clone"],
+    }, "outside the pin"],
     ["bogus base", function () {
-      write("scripts/_api-freeze.js", snap["scripts/_api-freeze.js"].replace(freeze.BASE, "not-a-real-sha"));
+      write("scripts/_api-freeze.js", snap["scripts/_api-freeze.js"].split(freeze.BASE).join("not-a-real-sha"));
     }, "is not in this clone"]
   ];
 
@@ -101,22 +157,53 @@ try {
     restore();
     apply();
     CHECKS.forEach(function (rel) {
-      total += 1;
       const r = runCheck(dir, rel);
-      const out = textOf(r);
-      const hit = r.status !== 0 && out.indexOf(needle) >= 0;
-      if (hit) {
-        caught += 1;
-        console.log("ok   " + name + " | " + path.basename(rel) + " | CAUGHT");
-      } else {
-        failed += 1;
-        process.exitCode = 1;
-        const first = out.split("\n").filter(function (l) { return l.indexOf("FAIL") === 0; })[0] || ("exit " + r.status);
-        console.error("FAIL " + name + " | " + path.basename(rel) + " | SURVIVED | " + first.slice(0, 180));
-      }
+      score(name, rel, r, needle);
     });
     restore();
   });
+
+  restore();
+  const prep = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-freeze-tip-"));
+  const shallow = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-freeze-shallow-"));
+  try {
+    execFileSync("git", ["clone", "--local", dir, prep], { stdio: ["ignore", "pipe", "pipe"] });
+    OVERLAY.forEach(function (rel) {
+      fs.copyFileSync(path.join(root, rel), path.join(prep, rel));
+    });
+    execFileSync("git", ["checkout", "-B", "freeze-tip"], { cwd: prep, stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", ["add", "-A"], { cwd: prep, stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", ["-c", "user.email=freeze@example.com", "-c", "user.name=Freeze", "commit", "--allow-empty", "-m", "freeze tip"], { cwd: prep, stdio: ["ignore", "pipe", "pipe"] });
+    const prepHasBase = spawnSync("git", ["cat-file", "-e", freeze.BASE + "^{commit}"], { cwd: prep, encoding: "utf8" });
+    ok(prepHasBase.status === 0, "full clone still has the freeze base before the shallow copy");
+    execFileSync("git", ["clone", "--depth", "1", "--branch", "freeze-tip", "--no-local", "file://" + prep, shallow], { stdio: ["ignore", "pipe", "pipe"] });
+    const shallowHasBase = spawnSync("git", ["cat-file", "-e", freeze.BASE + "^{commit}"], { cwd: shallow, encoding: "utf8" });
+    ok(shallowHasBase.status !== 0, "shallow clone (depth 1 of the tip) does not contain the freeze base");
+    if (shallowHasBase.status === 0) {
+      failed += 1;
+      process.exitCode = 1;
+      console.error("FAIL missing base | shallow clone still has the base; not a real mutant");
+    } else {
+      const shallowFreeze = freeze.check(shallow);
+      const freezeHit = shallowFreeze.ok === false && shallowFreeze.problems.join(" ").indexOf("is not in this clone") >= 0;
+      total += 1;
+      if (freezeHit) {
+        caught += 1;
+        console.log("ok   missing base | freeze | CAUGHT");
+      } else {
+        failed += 1;
+        process.exitCode = 1;
+        console.error("FAIL missing base | freeze | SURVIVED | " + shallowFreeze.problems.join("; ").slice(0, 180));
+      }
+      CHECKS.forEach(function (rel) {
+        const r = runCheck(shallow, rel);
+        score("missing base", rel, r, "is not in this clone");
+      });
+    }
+  } finally {
+    fs.rmSync(prep, { recursive: true, force: true });
+    fs.rmSync(shallow, { recursive: true, force: true });
+  }
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 }

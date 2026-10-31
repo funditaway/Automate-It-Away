@@ -18,6 +18,17 @@ function main() {
   if (!admin.isPlatformAccount(platform) || !admin.isAiaReviewer(platform, null, null) || platform.handle !== "aia") fail("platform stamp");
   else pass("platform admin stamps handle aia + reviewer");
 
+  const byHandle = { handle: "aia" };
+  if (!admin.isPlatformAccount(byHandle) || !admin.isAiaReviewer(byHandle, null, null)) fail("only the real platform handle is admin");
+  else pass("only the real platform handle is admin");
+  if (!admin.isPlatformAccount({ handle: "AIA" }) || !admin.isPlatformAccount({ handle: "aia.aia" }) || !admin.isPlatformAccount({ xHandle: "@AIA" })) fail("real platform handle normalizes to admin");
+  else pass("real platform handle normalizes to admin");
+  ["springfield-shop", "aia-shop", "aia2", "james", "funditaway"].forEach(function (h) {
+    const look = { handle: h };
+    if (admin.isPlatformAccount(look) || admin.isAiaReviewer(look, null, null)) fail("lookalike handle is not platform admin: " + h);
+    else pass("lookalike " + h + " is not platform admin");
+  });
+
   const shop = { id: "acct_demo", name: "Oddo Books", slug: "oddo-books" };
   const blocked = admin.setAccountHandle(shop, "@AIA");
   if (!blocked || blocked.ok || blocked.status !== 409) fail("shop cannot take @AIA");
@@ -51,4 +62,62 @@ function main() {
   console.log("check-aia-admin passed");
 }
 
-main();
+const MUTANTS = [
+  ["platform handle swapped", "api/_aia-admin.js",
+    '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "aia";',
+    '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "springfield-shop";']
+];
+
+function mutate() {
+  const fs = require("fs");
+  const os = require("os");
+  const path = require("path");
+  const { spawnSync } = require("child_process");
+  const root = path.join(__dirname, "..");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-admin-mut-"));
+  fs.cpSync(root, dir, { recursive: true, filter: function (src) { return !/[\\/](\.git|node_modules)$/.test(src); } });
+  const run = function () {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "aia-admin-home-"));
+    return spawnSync(process.execPath, [path.join(dir, "scripts/check-aia-admin.js")], {
+      cwd: dir,
+      env: { PATH: process.env.PATH || "", HOME: home, TMPDIR: home },
+      encoding: "utf8",
+      timeout: 120000
+    });
+  };
+  let caught = 0;
+  let total = 0;
+  let bad = 0;
+  try {
+    const base = run();
+    if (base.status !== 0) {
+      console.error("unmutated check fails in the copy:\n" + ((base.stdout || "") + (base.stderr || "")).slice(-2500));
+      process.exit(1);
+    }
+    console.log("UNMUTATED | PASS");
+    MUTANTS.forEach(function (row) {
+      const name = row[0];
+      const file = row[1];
+      const find = row[2];
+      const repl = row[3];
+      const p = path.join(dir, file);
+      const orig = fs.readFileSync(p, "utf8");
+      if (orig.indexOf(find) < 0) { console.log(name + " | ANCHOR GONE"); bad += 1; return; }
+      if (orig.indexOf(find) !== orig.lastIndexOf(find)) { console.log(name + " | ANCHOR NOT UNIQUE"); bad += 1; return; }
+      fs.writeFileSync(p, orig.replace(find, repl));
+      const r = run();
+      fs.writeFileSync(p, orig);
+      const first = ((r.stdout || "") + "\n" + (r.stderr || "")).split("\n").find(function (l) { return l.indexOf("FAIL") === 0; }) || "";
+      total += 1;
+      if (r.status) { caught += 1; console.log(name + " | CAUGHT | " + first.slice(0, 180)); }
+      else console.log(name + " | SURVIVED");
+    });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  console.log("SCORE " + caught + "/" + total + " caught" + (bad ? " (" + bad + " anchors bad)" : ""));
+  process.exit(caught === total && !bad ? 0 : 1);
+}
+
+if (process.argv.indexOf("--mutate") >= 0) mutate();
+else main();
