@@ -33,7 +33,7 @@ const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const histSrc = read("api/_history.js");
 
-["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function wipTalkLabel", "function talkLabel", "function talkHtml", "function threadHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "pipe WIP", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
+["function thenHtml", "function thenGone", "function thenLabel", "function thenTagHtml", "function deskAiLine", "function wipTalkLabel", "function talkLabel", "function talkHtml", "function threadHtml", "function promptHtml", "function namedNeedsWho", "function goneHoldLabel", "function chipsHtml", "h-thread", "h-talk", "h-turn-ai", "h-turn-you", "Then draft", "connection WIP", "not on this desk", "Nothing sent alone", "sheet-thread"].forEach(function (bit) {
   if (history.indexOf(bit) < 0) fail("history.html missing " + bit);
 });
 if (!/HOLD|Nothing sent alone/.test(history)) fail("History must stay HOLD / nothing sent");
@@ -234,7 +234,7 @@ if (stacked.indexOf("Sam at the shop") < 0) fail("History must show the human re
 if (stacked.indexOf("Dropped by neighbor") < 0) fail("History must show the desk note");
 if (stacked.indexOf("desk · note") < 0) fail("History must label a desk note as note");
 if (stacked.indexOf("Pipe update.") < 0) fail("History must show pipe WIP");
-if (stacked.indexOf("pipe · pipe WIP") < 0) fail("History must label pipe notes as pipe WIP");
+if (stacked.indexOf("pipe · connection WIP") < 0) fail("History must label pipe notes as connection WIP");
 if (stacked.indexOf("Pipe confirmed done.") < 0) fail("History must show follow");
 if (stacked.indexOf("webhook · follow") < 0) fail("History must label follow");
 if (stacked.indexOf("Not shipped. Qualify first.") < 0) fail("History must show Tell AIA");
@@ -359,8 +359,8 @@ if (ctx.talkLabel({ kind: "ask" }, { draft: "hi" }).indexOf("Desk AI") < 0) {
   fail("live anonymous ask may still say Desk AI");
 }
 if (typeof ctx.wipTalkLabel !== "function") fail("History must expose wipTalkLabel");
-if (ctx.talkLabel({ kind: "note", from: "pipe" }, item).indexOf("pipe WIP") < 0) {
-  fail("pipe note must label pipe WIP");
+if (ctx.talkLabel({ kind: "note", from: "pipe" }, item).indexOf("connection WIP") < 0) {
+  fail("pipe note must label connection WIP");
 }
 if (ctx.talkLabel({ kind: "note", from: "desk" }, item).indexOf("desk · note") < 0) {
   fail("desk note must label note");

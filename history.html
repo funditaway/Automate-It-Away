@@ -259,7 +259,7 @@ function chipsHtml(it){var bits=[],who=thenWho(it),gone=thenGone(it);if(who)bits
 function thenLabel(it){var who=thenWho(it);return who?(who+" · Then draft"):(goneHoldLabel(thenGone(it))||"Draft");}
 function thenTagHtml(it){var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(who)return "<span class=\"tag aia\">"+esc(who+" · Then draft")+"</span>";if(hold)return "<span class=\"tag gone\">"+esc(hold)+"</span>";return "";}
 function deskAiLine(it){return thenWho(it)||goneHoldLabel(thenGone(it))||"—";}
-function wipTalkLabel(row){var from=String((row&&row.from)||"").trim();var kind=String((row&&row.kind)||"note");if(kind==="follow")return (from||"connection")+" · follow";if(kind==="tell")return (from||"drop")+" · tell";if(/^(pipe|webhook|worker|capture)$/i.test(from))return from+" · pipe WIP";return (from||"desk")+" · note";}
+function wipTalkLabel(row){var from=String((row&&row.from)||"").trim();var kind=String((row&&row.kind)||"note");if(kind==="follow")return (from||"connection")+" · follow";if(kind==="tell")return (from||"drop")+" · tell";if(/^(pipe|webhook|worker|capture)$/i.test(from))return from+" · connection WIP";return (from||"desk")+" · note";}
 function talkRows(it){return ((it&&it.thread)||[]).filter(function(t){var k=String((t&&t.kind)||"note");return t&&t.text&&(k==="ask"||k==="reply"||k==="rec"||k==="note"||k==="follow"||k==="tell");});}
 function talkLabel(row,it){if(row.kind==="reply")return (row.from||"You")+" · you";if(row.kind==="note"||row.kind==="follow"||row.kind==="tell")return wipTalkLabel(row);var who=thenWho(it),hold=goneHoldLabel(thenGone(it));if(who)return row.kind==="ask"?(who+" · asks"):(who+" · Then draft");if(hold)return hold;var name=row.from||"Desk AI";return row.kind==="ask"?(name+" · asks"):(name+" · Then draft");}
 function thenHtml(it){
@@ -456,7 +456,7 @@ function logicLine(){
  if(q)bits.push('search "'+q+'"');
  if(who)bits.push("who includes "+who);
  if(work)bits.push("kind "+work);
- if(pipe)bits.push("pipe "+pipe);
+ if(pipe)bits.push("connection "+pipe);
  if(flags.money)bits.push("has an amount");
  if(flags.grok)bits.push("has a Desk AI draft");
  if(flags.files)bits.push("has a file or photo");
