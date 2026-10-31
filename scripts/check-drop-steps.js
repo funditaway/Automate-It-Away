@@ -504,30 +504,40 @@ if (moreSrc.indexOf("Quick drops") >= 0) {
 // Runs the real drop-steps.js and drop-talk.js in a fake signed-in Drop page. drop-steps boots first (as on the
 // live page), while the Talk bar is still hidden, so its first paint falls back to Desk; drop-talk then has to
 // open Tell so the bar is shown and the type box gets focus. Plain /drop must still start at step 1 (Desk).
+// focus() is a no-op on a node that is hidden or display:none (hidden, or step-off on it or an ancestor),
+// as in a real browser, so code that focuses before it shows the step is caught.
+// At 390 the step rail is sticky, so the Talk bar needs a top scroll margin of the rail height plus 8px.
 const talkSrc = read("drop-talk.js");
+const RAIL_H = 135;
 function fakeDrop(opts) {
   const byId = {};
   let focused = null;
   const timers = [];
   const winListeners = {};
+  const rootVars = {};
+  const styles = [];
+  const shownNode = (n) => { for (let x = n; x; x = x.parentNode) if (x.hidden || x.cls.has("step-off")) return false; return true; };
   function mk(tag, id) {
     const n = {
       tagName: String(tag).toUpperCase(), id: id || "", children: [], parentNode: null, hidden: false, text: "", value: "", _html: "", listeners: {},
       cls: new Set(),
-      appendChild(c) { if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = n; n.children.push(c); reg(c); return c; },
+      appendChild(c) { if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = n; n.children.push(c); reg(c); if (c.tagName === "STYLE") styles.push(c); return c; },
       insertBefore(c, ref) { if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = n; const i = ref ? n.children.indexOf(ref) : -1; if (i < 0) n.children.push(c); else n.children.splice(i, 0, c); reg(c); return c; },
       removeChild(c) { const i = n.children.indexOf(c); if (i >= 0) n.children.splice(i, 1); c.parentNode = null; unreg(c); return c; },
       contains(o) { for (let x = o; x; x = x.parentNode) if (x === n) return true; return false; },
       hasAttribute(k) { return k === "hidden" ? !!n.hidden : false; },
       setAttribute() {}, getAttribute() { return null; },
       addEventListener(ev, fn) { (n.listeners[ev] = n.listeners[ev] || []).push(fn); },
-      focus() { focused = n; },
+      // Like a browser: a hidden or display:none node does not take focus.
+      focus() { if (shownNode(n) && n.parentNode) focused = n; },
       scrollIntoView() {},
-      closest() { return null; }
+      closest() { return null; },
+      style: { setProperty: (k, v) => { if (n.tagName === "HTML") rootVars[k] = String(v); } }
     };
     n.classList = { add: (c) => n.cls.add(c), remove: (c) => n.cls.delete(c), contains: (c) => n.cls.has(c), toggle: (c, on) => { const v = on === undefined ? !n.cls.has(c) : !!on; if (v) n.cls.add(c); else n.cls.delete(c); return v; } };
     Object.defineProperty(n, "firstChild", { get: () => n.children[0] || null });
     Object.defineProperty(n, "lastChild", { get: () => n.children[n.children.length - 1] || null });
+    Object.defineProperty(n, "offsetHeight", { get: () => (n.id === "drop-steps" && shownNode(n) ? RAIL_H : 0) });
     Object.defineProperty(n, "nextSibling", { get: () => { if (!n.parentNode) return null; const k = n.parentNode.children; return k[k.indexOf(n) + 1] || null; } });
     Object.defineProperty(n, "textContent", { get: () => n.text + n.children.map((c) => c.textContent).join(""), set: (v) => { n.text = String(v); } });
     Object.defineProperty(n, "innerHTML", {
@@ -558,12 +568,14 @@ function fakeDrop(opts) {
     querySelectorAll: () => [],
     addEventListener() {}
   };
+  Object.defineProperty(document, "activeElement", { get: () => focused || body });
   const store = (seed) => { const m = Object.assign({}, seed); return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } }; };
   const location = { pathname: "/drop", search: opts.search || "", hash: opts.hash || "", href: "http://127.0.0.1/drop" + (opts.search || "") + (opts.hash || "") };
   const win = {
     document, location, URLSearchParams, JSON, Object, Array, String, Math, RegExp,
-    localStorage: store({ aia_ws: "north", aia_session: "sess-test" }), sessionStorage: store({}),
+    localStorage: store({ aia_ws: "north", aia_session: "sess-test" }), sessionStorage: store(opts.session || {}),
     setTimeout: (fn, ms) => { timers.push(fn); return timers.length; }, clearTimeout() {},
+    requestAnimationFrame: (fn) => { timers.push(fn); return timers.length; },
     setInterval: () => 0, clearInterval() {},
     scrollTo() {},
     addEventListener: (ev, fn) => { (winListeners[ev] = winListeners[ev] || []).push(fn); },
@@ -572,15 +584,18 @@ function fakeDrop(opts) {
   win.window = win; win.parent = win; win.self = win;
   vm.createContext(win);
   return {
-    win, byId,
+    win, byId, rootVars,
+    css: () => styles.map((t) => t.textContent).join("\n"),
     run(src, name) { vm.runInContext(src, win, { filename: name, timeout: 2000 }); },
     flush() { for (let i = 0; i < 5 && timers.length; i++) timers.splice(0).forEach((fn) => fn()); },
-    // drop-chat.js mounts the Tell box (with the type input) later, after drop-preview loads.
+    // drop-chat.js / drop-preview.js mount the Tell box with the type input.
     mountChat() {
       if (byId["drop-chat-wrap"]) return;
       const wrap = mk("div", "drop-chat-wrap");
       wrap.appendChild(mk("input", "talkType"));
       main.insertBefore(wrap, byId["desk-pick"].nextSibling);
+      // The live page's MutationObserver re-syncs the rail, which hides the new box off its step.
+      if (win.AIADropSteps) win.AIADropSteps.refresh();
     },
     hashTo(h) { location.hash = h; (winListeners.hashchange || []).forEach((fn) => fn({})); },
     focused: () => focused
@@ -589,27 +604,37 @@ function fakeDrop(opts) {
 function talkFaults(stepsText, talkText) {
   const faults = [];
   const shown = (page) => !page.byId.talkBar.hidden && !page.byId.talkBar.cls.has("step-off");
-  function talkOpen(page, label) {
+  function talkOpen(page, label, want) {
     const cur = page.win.AIADropSteps && page.win.AIADropSteps.current();
     if (cur !== "tell") faults.push(label + ": lands on step '" + cur + "', not Tell");
     if (!shown(page)) faults.push(label + ": the Talk bar is hidden");
     const f = page.focused();
-    if (!f || (f.id !== "talkType" && f.id !== "talkBtn")) faults.push(label + ": Talk does not get focus (" + (f ? f.id || f.tagName : "nothing") + ")");
+    if (!f || f.id !== (want || "talkType")) faults.push(label + ": focus is on " + (f ? f.id || f.tagName : "body") + ", not " + (want || "talkType"));
   }
-  function boot(opts, talkFirst) {
+  // Boot as the live page does: the Tell box is mounted before drop-talk's 50ms focus runs, unless noBox.
+  function boot(opts, talkFirst, noBox) {
     const page = fakeDrop(opts);
     if (talkFirst) { page.run(talkText, "drop-talk.js"); page.run(stepsText, "drop-steps.js"); }
     else { page.run(stepsText, "drop-steps.js"); page.run(talkText, "drop-talk.js"); }
+    if (!noBox) page.mountChat();
     page.flush();
-    page.mountChat();
     page.win.AIADropSteps.refresh();
     return page;
   }
   try {
     talkOpen(boot({ search: "?talk=1" }), "/drop?talk=1");
-    talkOpen(boot({ hash: "#talk" }), "/drop#talk");
+    const hashPage = boot({ hash: "#talk" });
+    talkOpen(hashPage, "/drop#talk");
     talkOpen(boot({ search: "?mode=talk" }), "/drop?mode=talk");
     talkOpen(boot({ search: "?talk=1" }, true), "/drop?talk=1 with drop-talk first");
+    // The Talk button is the fallback only while the type box is not on the page yet.
+    talkOpen(boot({ hash: "#talk" }, false, true), "/drop#talk before the type box exists", "talkBtn");
+    // The sticky rail must not cover the bar after the jump: scroll margin = rail height + 8px.
+    const css = hashPage.css();
+    if (!/#talkBar[^{}]*\{[^}]*scroll-margin-top:\s*calc\(\s*var\(--drop-rail-h[^)]*\)\s*\+\s*8px\s*\)/.test(css)) faults.push("#talkBar has no scroll-margin-top of the rail height + 8px");
+    if (hashPage.rootVars["--drop-rail-h"] !== RAIL_H + "px") faults.push("--drop-rail-h is not the measured rail height (" + (hashPage.rootVars["--drop-rail-h"] || "unset") + ")");
+    // A Talk link opens Tell for this visit; it must not become the remembered step.
+    if (hashPage.win.sessionStorage.getItem("aia_drop_step") === "tell") faults.push("a Talk link saved 'tell' as the remembered step");
     const plain = boot({});
     const cur = plain.win.AIADropSteps && plain.win.AIADropSteps.current();
     if (cur !== "desk") faults.push("plain /drop: starts on '" + cur + "', not step 1 Desk");
@@ -618,6 +643,9 @@ function talkFaults(stepsText, talkText) {
     if (plain.focused()) faults.push("plain /drop: focus must not move");
     plain.hashTo("#talk"); plain.flush();
     talkOpen(plain, "plain /drop, then #talk");
+    plain.hashTo(""); plain.flush();
+    const back = plain.win.AIADropSteps.current();
+    if (back !== "desk") faults.push("Back from #talk stays on '" + back + "', not the step before (desk)");
   } catch (e) {
     faults.push("threw " + ((e && e.message) || e));
   }
@@ -625,22 +653,36 @@ function talkFaults(stepsText, talkText) {
 }
 const liveTalk = talkFaults(steps, talkSrc);
 if (liveTalk.length) fail("Talk links: " + liveTalk.join("; "));
+const FOCUS_LINE = '    var typeEl = document.getElementById("talkType") || document.getElementById("talkBtn"); if (typeEl) typeEl.focus({ preventScroll: true });\n';
+const SHOW_LINE = "    bar.hidden = false;\n";
+const GO_BLOCK_START = '    if (window.AIADropSteps && AIADropSteps.go && AIADropSteps.current() !== "tell") {\n';
+const once = (a, b) => (src) => (src.indexOf(a) < 0 || src.indexOf(a) !== src.lastIndexOf(a) ? null : src.replace(a, b));
+const chain = (...fns) => (src) => fns.reduce((s, fn) => (s === null ? null : fn(s)), src);
 const TALK_MUTANTS = [
-  ["focusTalk no longer opens Tell (fix removed)", "talk", '    if (window.AIADropSteps && AIADropSteps.go && AIADropSteps.current() !== "tell") AIADropSteps.go("tell", true);\n', ""],
-  ["focusTalk falls back to the Desk step", "talk", 'AIADropSteps.go("tell", true);', 'AIADropSteps.go("desk", true);'],
-  ["paint always falls back to the first open step", "steps", "    if (rows.indexOf(stepOf(active)) < 0) active = rows[0].id;\n", "    active = rows[0].id;\n"],
-  ["Talk gets no focus", "talk", 'var typeEl = document.getElementById("talkType") || document.getElementById("talkBtn"); if (typeEl) typeEl.focus();', 'var typeEl = null;'],
-  ["plain /drop no longer starts at step 1", "steps", 'active = deskFromLink() ? "card" : STEPS[0].id;', 'active = deskFromLink() ? "card" : "card";'],
-  ["plain /drop opens Talk", "talk", "    if (wantTalk()) setTimeout(focusTalk, 50);\n", "    setTimeout(focusTalk, 50);\n"],
-  ["#talk no longer counts", "talk", 'return location.hash === "#talk" || params.get("talk") === "1"', 'return params.get("talk") === "1"']
+  ["focusTalk no longer opens Tell (fix removed)", "talk", once('      AIADropSteps.go("tell", true);\n', "")],
+  ["focusTalk falls back to the Desk step", "talk", once('AIADropSteps.go("tell", true);', 'AIADropSteps.go("desk", true);')],
+  ["paint always falls back to the first open step", "steps", once("    if (rows.indexOf(stepOf(active)) < 0) active = rows[0].id;\n", "    active = rows[0].id;\n")],
+  ["Talk gets no focus", "talk", once(FOCUS_LINE, "")],
+  ["plain /drop no longer starts at step 1", "steps", once('active = deskFromLink() ? "card" : STEPS[0].id;', 'active = deskFromLink() ? "card" : "card";')],
+  ["plain /drop opens Talk", "talk", once("    if (wantTalk()) setTimeout(focusTalk, 50);\n", "    setTimeout(focusTalk, 50);\n")],
+  ["#talk no longer counts", "talk", once('return location.hash === "#talk" || params.get("talk") === "1"', 'return params.get("talk") === "1"')],
+  ["TM2 focus before the bar is shown and Tell is open", "talk", chain(once(FOCUS_LINE, ""), once(SHOW_LINE, FOCUS_LINE + SHOW_LINE))],
+  ["TM2b focus before Tell is open (bar shown)", "talk", chain(once(FOCUS_LINE, ""), once(GO_BLOCK_START, FOCUS_LINE + GO_BLOCK_START))],
+  ["TM7 focus the Talk button, not the type box", "talk", once('document.getElementById("talkType") || document.getElementById("talkBtn")', 'document.getElementById("talkBtn")')],
+  ["no Talk button fallback while the type box is missing", "talk", once('document.getElementById("talkType") || document.getElementById("talkBtn")', 'document.getElementById("talkType")')],
+  ["#talkBar scroll margin removed", "steps", once('"body.drop-steps #talkBar,body.drop-steps #talkType{scroll-margin-top:calc(var(--drop-rail-h,140px) + 8px)}" +\n', "")],
+  ["scroll margin loses the 8px", "steps", once("var(--drop-rail-h,140px) + 8px)", "var(--drop-rail-h,140px))")],
+  ["rail height never measured", "steps", once("paint(); railHeight(); }", "paint(); }")],
+  ["Talk link saves 'tell' as the remembered step", "talk", once("      try { if (kept === null) sessionStorage.removeItem(STEP_KEY); else sessionStorage.setItem(STEP_KEY, kept); } catch (e) {}\n", "")],
+  ["Back from #talk stays on Tell", "talk", once("if (wantTalk()) focusTalk(); else leaveTalk();", "if (wantTalk()) focusTalk();")]
 ];
 TALK_MUTANTS.forEach(function (m) {
   const src = m[1] === "talk" ? talkSrc : steps;
-  if (src.indexOf(m[2]) < 0 || src.indexOf(m[2]) !== src.lastIndexOf(m[2])) fail("Talk mutant anchor missing or not unique: " + m[0]);
-  const next = src.replace(m[2], m[3]);
+  const next = m[2](src);
+  if (next === null) { fail("Talk mutant anchor missing or not unique: " + m[0]); return; }
   const faults = m[1] === "talk" ? talkFaults(steps, next) : talkFaults(next, talkSrc);
   if (!faults.length) fail("Talk mutant NOT caught: " + m[0]);
-  console.log("check-drop-steps: Talk mutant caught: " + m[0] + " (" + faults[0] + ")");
+  else console.log("check-drop-steps: Talk mutant caught: " + m[0] + " (" + faults[0] + ")");
 });
-console.log("check-drop-steps: Talk links open Talk; " + TALK_MUTANTS.length + "/" + TALK_MUTANTS.length + " Talk mutants caught");
+console.log("check-drop-steps: Talk links open Talk; " + TALK_MUTANTS.length + " Talk mutants");
 console.log("check-drop-steps: ok");

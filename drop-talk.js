@@ -174,14 +174,36 @@
     var params = new URLSearchParams(location.search);
     return location.hash === "#talk" || params.get("talk") === "1" || params.get("mode") === "talk";
   }
+  var STEP_KEY = "aia_drop_step";
+  var beforeTalk = "";
   function focusTalk() {
     if (slimChrome()) { hushTalk(); return; }
     var bar = document.getElementById("talkBar"); if (!bar) return;
+    // Show first, focus last: a node that is hidden or display:none can't take focus.
     bar.hidden = false;
     // The step rail may have painted Desk before the bar showed; open Tell so the bar is not display:none.
-    if (window.AIADropSteps && AIADropSteps.go && AIADropSteps.current() !== "tell") AIADropSteps.go("tell", true);
-    try { bar.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) { bar.scrollIntoView(true); }
-    var typeEl = document.getElementById("talkType") || document.getElementById("talkBtn"); if (typeEl) typeEl.focus();
+    if (window.AIADropSteps && AIADropSteps.go && AIADropSteps.current() !== "tell") {
+      beforeTalk = location.hash === "#talk" ? AIADropSteps.current() || "" : "";
+      // A Talk link opens Tell for this visit only; it must not become the step plain /drop remembers.
+      var kept = null; try { kept = sessionStorage.getItem(STEP_KEY); } catch (e) {}
+      AIADropSteps.go("tell", true);
+      try { if (kept === null) sessionStorage.removeItem(STEP_KEY); else sessionStorage.setItem(STEP_KEY, kept); } catch (e) {}
+    }
+    // The type box is the target; the Talk button only when the type box is not on the page yet.
+    var typeEl = document.getElementById("talkType") || document.getElementById("talkBtn"); if (typeEl) typeEl.focus({ preventScroll: true });
+    // Then bring the bar to the top, below the sticky step rail (its scroll-margin-top). Again after a frame,
+    // once the step change has laid out, so a late layout shift can't leave the bar under the rail.
+    talkToTop(bar);
+    (window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); })(function () { talkToTop(bar); });
+  }
+  function talkToTop(bar) {
+    try { bar.scrollIntoView({ block: "start" }); } catch (e) { bar.scrollIntoView(true); }
+  }
+  // Back from #talk (the hash is gone) returns to the step the page was on before Talk opened.
+  function leaveTalk() {
+    if (!beforeTalk || !window.AIADropSteps || !AIADropSteps.go) return;
+    var to = beforeTalk; beforeTalk = "";
+    if (AIADropSteps.current() === "tell") AIADropSteps.go(to, true);
   }
   function boot() {
     if (slimChrome()) { markSlim(); hushTalk(); return; }
@@ -208,7 +230,7 @@
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendTyped(); }
     });
     if (wantTalk()) setTimeout(focusTalk, 50);
-    window.addEventListener("hashchange", function () { if (wantTalk()) focusTalk(); });
+    window.addEventListener("hashchange", function () { if (wantTalk()) focusTalk(); else leaveTalk(); });
     window.AIADropTalk = { parseTalk: parseTalk, fill: fill, dropLine: dropLine, focusTalk: focusTalk };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
