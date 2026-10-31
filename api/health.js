@@ -4,36 +4,43 @@ const {
 } = require("./_lib");
 
 
-// bridgeLocked is the probe boolean. A row that already carries it (status, or
-// health after the same probe) wins. Otherwise use the cached probe. Never a
-// hardcoded false while that probe says the bridge is locked. ownedByConnected
-// stays false: these replies have no wallet session.
-function bridgeLockedOf(row) {
-  if (row && typeof row === "object" && Object.prototype.hasOwnProperty.call(row, "bridgeLocked")) {
-    return row.bridgeLocked === true;
-  }
-  const peeked = require("./_aia-tld").peek(require("./_connect-wallet").emptyPublic());
-  return peeked.bridgeLocked === true;
-}
-
 function strangerTld(row) {
-  const source = (row && typeof row === "object") ? row : {};
-  const w = source.wallet || {};
+  if (!row || typeof row !== "object") {
+    return {
+      tld: ".aia",
+      status: "watching",
+      label: "Watching",
+      collect: "hold",
+      mint: false,
+      live: false,
+      note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
+      wallet: { connected: false, short: "" }
+    };
+  }
+  const w = row.wallet || {};
   return {
-    tld: source.tld || ".aia",
-    status: source.status || "watching",
-    label: source.label || "Watching",
+    tld: row.tld || ".aia",
+    status: row.status || "watching",
+    label: row.label || "Watching",
     collect: "hold",
     mint: false,
-    live: !!source.live,
-    bridgeLocked: bridgeLockedOf(row),
-    ownedByConnected: false,
+    live: !!row.live,
     note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
-    wallet: (row && typeof row === "object" && row.wallet) ? {
+    wallet: {
       connected: !!w.connected,
       short: w.short || ""
-    } : { connected: false, short: "" }
+    }
   };
+}
+
+// Status only. Health stays on strangerTld, with no probe and no extra keys.
+// bridgeLocked is the probe boolean. ownedByConnected stays false: status has
+// no wallet session.
+function statusTld(row) {
+  const face = strangerTld(row);
+  face.bridgeLocked = !!(row && row.bridgeLocked === true);
+  face.ownedByConnected = false;
+  return face;
 }
 
 function publicStoreDriver(driver) {
@@ -125,7 +132,7 @@ async function deskStatus(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet,
-    aiaTld: strangerTld(aiaTld),
+    aiaTld: statusTld(aiaTld),
     automation: {
       deskAi: {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
@@ -151,12 +158,6 @@ async function health(req, res) {
   await readyRead();
   const driver = mem.driver || "file";
   const rev = commitRev();
-  const tld = require("./_aia-tld");
-  const connect = require("./_connect-wallet");
-  let probed = tld.peek(connect.emptyPublic());
-  try { probed = await tld.forWallet(connect.emptyPublic()); } catch (e) { probed = tld.emptyPublic(connect.emptyPublic()); }
-  const block = tld.healthBlock();
-  block.bridgeLocked = probed.bridgeLocked === true;
   res.status(200).json({
     ok: true,
     product: "Automate It Away",
@@ -229,7 +230,7 @@ async function health(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet: require("./_connect-wallet").healthBlock(),
-    aiaTld: strangerTld(block)
+    aiaTld: strangerTld(require("./_aia-tld").healthBlock())
   });
 }
 

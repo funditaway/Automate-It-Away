@@ -17,24 +17,28 @@ const root = path.join(__dirname, "..");
 // occurrence is replaced.
 const MUTANTS = [
   ["bridgeLocked dropped from status", "api/health.js", [[
-    "    bridgeLocked: bridgeLockedOf(row),\n",
+    "  face.bridgeLocked = !!(row && row.bridgeLocked === true);\n",
     ""
   ]]],
   ["bridgeLocked forced to false", "api/health.js", [[
-    "return row.bridgeLocked === true;",
-    "return false;"
+    "row.bridgeLocked === true",
+    "false"
   ]]],
   ["ownedByConnected true on status", "api/health.js", [[
-    "    bridgeLocked: bridgeLockedOf(row),\n    ownedByConnected: false,\n",
-    "    bridgeLocked: bridgeLockedOf(row),\n    ownedByConnected: true,\n"
+    "  face.ownedByConnected = false;\n",
+    "  face.ownedByConnected = true;\n"
   ]]],
   ["owner-only bridgeLocked on status", "api/health.js", [[
-    "    aiaTld: strangerTld(aiaTld),",
-    "    aiaTld: strangerTld(Object.assign({}, aiaTld, { bridgeLocked: !!(person && require(\"./_lib\").isOwner(person)) && aiaTld.bridgeLocked === true })),"
+    "    aiaTld: statusTld(aiaTld),",
+    "    aiaTld: statusTld(Object.assign({}, aiaTld, { bridgeLocked: !!(person && require(\"./_lib\").isOwner(person)) && aiaTld.bridgeLocked === true })),"
   ]]],
-  ["plain health hardcodes bridgeLocked false", "api/health.js", [[
-    "block.bridgeLocked = probed.bridgeLocked === true;",
-    "block.bridgeLocked = false;"
+  ["health gains bridgeLocked", "api/health.js", [[
+    "    aiaTld: strangerTld(require(\"./_aia-tld\").healthBlock())",
+    "    aiaTld: Object.assign(strangerTld(require(\"./_aia-tld\").healthBlock()), { bridgeLocked: true })"
+  ]]],
+  ["status drops bridgeLocked for a no-session caller", "api/health.js", [[
+    "    aiaTld: statusTld(aiaTld),",
+    "    aiaTld: person ? statusTld(aiaTld) : strangerTld(aiaTld),"
   ]]]
 ];
 

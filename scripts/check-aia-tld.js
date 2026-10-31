@@ -227,7 +227,8 @@ async function main() {
   for (let i = 0; i < states.length; i++) {
     const label = states[i][0];
     const want = states[i][1];
-    tld.setFetch(mockFetch(states[i][2]));
+    const probe = mockFetch(states[i][2]);
+    tld.setFetch(probe);
     const home = await call(account, "GET", ownerHdr, {}, {});
     const acc = home.body && home.body.aiaTld;
     if (!acc || acc.bridgeLocked !== want || acc.owned) {
@@ -238,19 +239,29 @@ async function main() {
       const who = seats[s][0];
       const hdr = seats[s][1];
       const st = await call(health.status, "GET", hdr, {}, {});
+      let healthNet = 0;
+      tld.setFetch(function (url, opts) {
+        healthNet += 1;
+        return probe(url, opts);
+      });
       const hh = await call(health, "GET", hdr, {}, {});
-      const statusTld = st.body && st.body.aiaTld;
-      const healthTld = hh.body && hh.body.aiaTld;
-      if (!statusTld || statusTld.bridgeLocked !== want || statusTld.ownedByConnected !== false || statusTld.collect !== "hold" || !acc || statusTld.bridgeLocked !== acc.bridgeLocked) {
-        fail(label + " " + who + " status " + JSON.stringify(statusTld));
+      tld.setFetch(probe);
+      const statusRow = st.body && st.body.aiaTld;
+      const healthRow = hh.body && hh.body.aiaTld;
+      if (!statusRow || statusRow.bridgeLocked !== want || statusRow.ownedByConnected !== false || statusRow.collect !== "hold" || !acc || statusRow.bridgeLocked !== acc.bridgeLocked) {
+        fail(label + " " + who + " status " + JSON.stringify(statusRow));
         seatBad = true;
       }
-      if (!healthTld || healthTld.bridgeLocked !== want || healthTld.ownedByConnected !== false || healthTld.collect !== "hold" || healthTld.mint || healthTld.note !== note || !acc || healthTld.bridgeLocked !== acc.bridgeLocked) {
-        fail(label + " " + who + " health " + JSON.stringify(healthTld));
+      if (!healthRow || Object.prototype.hasOwnProperty.call(healthRow, "bridgeLocked") || Object.prototype.hasOwnProperty.call(healthRow, "ownedByConnected") || healthRow.collect !== "hold" || healthRow.mint || healthRow.note !== note) {
+        fail(label + " " + who + " health " + JSON.stringify(healthRow));
+        seatBad = true;
+      }
+      if (healthNet !== 0) {
+        fail(label + " " + who + " health made " + healthNet + " network calls");
         seatBad = true;
       }
     }
-    if (!seatBad) pass(label + " health, status, and account agree on bridgeLocked");
+    if (!seatBad) pass(label + " status and account agree on bridgeLocked; health stays offline");
   }
 
   const src = helper + ui + html;
