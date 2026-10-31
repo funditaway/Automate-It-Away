@@ -6,6 +6,7 @@ require("./_env-guard");
 // /status shows expected held states in neutral grey, not orange or red. One word each for
 // Desk, Queue and account. A waiting card never says "Ready"; Blocked and Waiting match
 // between /account and the desk. History says one account has one Queue holding many desks.
+// Examples never use owner names (james.aia, james-ai@, springfield-shop): yourname.aia, your-shop.aia.
 // Each rule runs once on the real files, then against mutants that each must be caught.
 const fs = require("fs");
 const path = require("path");
@@ -20,7 +21,7 @@ function fail(msg) { failed += 1; console.error("FAIL " + msg); }
 function ok(cond, msg) { if (cond) { passed += 1; console.log("ok  " + msg); } else fail(msg); }
 function read(rel) { return fs.readFileSync(path.join(root, rel), "utf8"); }
 const PAGES = ["index.html", "how.html", "setup.html", "pricing.html", "status.html", "examples.html"];
-const FILES = PAGES.concat(["aia-tip.js", "desk-playbook.js", "setup-demo.js", "queue-login.js", "account-connections.js", "setup-cards.js", "desk-card.js", "history.html", "PACK.md", "pipes.html", "connections.html"]);
+const FILES = PAGES.concat(["aia-tip.js", "desk-playbook.js", "setup-demo.js", "queue-login.js", "account-connections.js", "setup-cards.js", "desk-card.js", "history.html", "PACK.md", "pipes.html", "connections.html", "help.html", "desks-book.js", "create-desk.js", "ACCOUNT-YES-NO.md"]);
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 
@@ -183,12 +184,39 @@ function checkWords(S, bad) {
   if (!/helper-ai@yourname\.aia/.test(S["PACK.md"])) bad("PACK.md must show an example address");
 }
 
+// Owner names never show as examples: neutral yourname.aia / your-shop.aia instead.
+const OWNER = /james\.aia|james-ai@|springfield-shop|James(?:’|'|&#39;|&rsquo;)s AI/i;
+function checkOwnerNames(S, bad) {
+  PAGES.concat(["help.html", "desks-book.js", "create-desk.js", "PACK.md"]).forEach((f) => {
+    const m = OWNER.exec(S[f]);
+    if (m) bad(f + " still shows an owner name as an example (" + m[0] + ")");
+  });
+  const yes = S["ACCOUNT-YES-NO.md"].split("\n").filter((l) => /Onboard this desk \(`\/help#onboard-desk`\)/.test(l));
+  if (yes.length !== 1) bad("ACCOUNT-YES-NO.md Onboard this desk line missing");
+  else {
+    if (OWNER.test(yes[0])) bad("ACCOUNT-YES-NO.md Onboard line still shows an owner name");
+    if (yes[0].indexOf("`yourname.aia`-style name on Account") < 0) bad("ACCOUNT-YES-NO.md Onboard line must use yourname.aia");
+  }
+  const help = S["help.html"];
+  [["<code>yourname.aia</code>-style name on Account", "help desk identity example"],
+   ["named like your-shop.aia.", "help packs example"],
+   ["Set an AIA Internet name like yourname.aia on Account", "help sign-in example"],
+   ["Find the leaks. Hook up connections. Name a desk AI.", "help playbook lead in plain words"],
+   ["2 Hook up connections — Connections.", "help playbook steps in plain words"]].forEach(([t, l]) => { if (help.indexOf(t) < 0) bad(l + " missing: " + t); });
+  if (/Hook the pipes/.test(help)) bad("help.html still says Hook the pipes");
+  if (S["desks-book.js"].indexOf('"AIA Internet uses the .aia TLD — e.g. yourname.aia"') < 0) bad("desks-book.js must show an example name");
+  const cd = S["create-desk.js"];
+  if (cd.indexOf('<input name="name" required placeholder="e.g. Helper AI">') < 0 || cd.indexOf('<input name="aia" placeholder="e.g. yourname.aia">') < 0) bad("create-desk.js desk AI placeholders must be examples");
+  const pk = S["PACK.md"];
+  if (!/`queue@your-shop\.aia`/.test(pk) || !/`yourname\.aia`, `your-shop\.aia`/.test(pk) || !/"ais": \[\{ "name": "Helper AI", "aia": "yourname\.aia" \}\]/.test(pk)) bad("PACK.md must use neutral example names");
+}
+
 async function suite(S, okFn) {
   const bad = [];
   const b = (m) => bad.push(m);
   const steps = [["public pages read plain", () => checkPages(S, b)], ["info tips read plain", () => checkTips(S, b)],
     ["playbook and demo read plain", () => checkPlaybook(S, b)], ["status grey for held states", () => checkStatus(S, b)],
-    ["same words for Queue, desk, account", () => checkWords(S, b)]];
+    ["same words for Queue, desk, account", () => checkWords(S, b)], ["no owner names in examples", () => checkOwnerNames(S, b)]];
   for (const [name, fn] of steps) {
     const n = bad.length;
     try { await fn(); } catch (e) { bad.push(name + " threw " + e.message); }
@@ -221,6 +249,20 @@ const MUTANTS = [
   ["History one desk", "history.html", [["One account has one Queue, and your Queue holds all your desks.", "One account, one desk."]]],
   ["PACK.md real address", "PACK.md", [["`helper-ai@yourname.aia`", "`james-ai@funditaway.aia`"]]],
   ["Pipes page title", "pipes.html", [["<title>Connections · Automate It Away</title>", "<title>Pipes · Automate It Away</title>"]]],
+  ["help james.aia back", "help.html", [["<code>yourname.aia</code>-style name", "<code>james.aia</code>-style name"]]],
+  ["help springfield-shop back", "help.html", [["named like your-shop.aia.", "named like springfield-shop.aia."]]],
+  ["help sign-in james.aia back", "help.html", [["name like yourname.aia on Account", "name like james.aia on Account"]]],
+  ["help james-ai@ address added", "help.html", [["named like your-shop.aia.", "named like your-shop.aia, mail james-ai@funditaway.aia."]]],
+  ["help Hook the pipes back", "help.html", [["Find the leaks. Hook up connections.", "Find the leaks. Hook the pipes."]]],
+  ["help steps Hook the pipes back", "help.html", [["2 Hook up connections — Connections.", "2 Hook the pipes — Pipes."]]],
+  ["desks-book james.aia back", "desks-book.js", [["— e.g. yourname.aia", "— james.aia"]]],
+  ["create-desk AI name placeholder back", "create-desk.js", [['placeholder="e.g. Helper AI"', 'placeholder="James’s AI"']]],
+  ["create-desk aia placeholder back", "create-desk.js", [['<input name="aia" placeholder="e.g. yourname.aia">', '<input name="aia" placeholder="james.aia">']]],
+  ["PACK.md springfield-shop back", "PACK.md", [["`queue@your-shop.aia`", "`queue@springfield-shop.aia`"]]],
+  ["PACK.md james.aia back", "PACK.md", [['"ais": [{ "name": "Helper AI", "aia": "yourname.aia" }]', '"ais": [{ "name": "Helper AI", "aia": "james.aia" }]']]],
+  ["PACK.md James's AI back", "PACK.md", [['      "name": "Helper AI",', '      "name": "James’s AI",']]],
+  ["ACCOUNT-YES-NO james.aia back", "ACCOUNT-YES-NO.md", [["`yourname.aia`-style name on Account", "`james.aia`-style name on Account"]]],
+  ["index springfield-shop added", "index.html", [["One nudge. Then it stops. Payments are off for now.", "One nudge. Then it stops. Payments are off for now. See springfield-shop."]]],
   ["demo HOLD", "setup-demo.js", [['mean: "Photo to comps to listing draft. Payments are off for now." }', 'mean: "Photo to comps to listing draft. Collect HOLD until Yes + a real money pipe." }']]]
 ];
 function mutate(S, file, reps) {

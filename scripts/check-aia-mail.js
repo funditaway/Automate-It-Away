@@ -58,7 +58,7 @@ else pass("connections.html Copy hook fallback uses www");
 
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
-if (!/helper-ai@yourname\.aia/.test(packMd) || !/queue@springfield-shop\.aia/.test(packMd) || /james-ai@/.test(packMd)) fail("PACK.md missing examples");
+if (!/helper-ai@yourname\.aia/.test(packMd) || !/queue@your-shop\.aia/.test(packMd) || /james-ai@|james\.aia|springfield-shop/i.test(packMd)) fail("PACK.md missing examples");
 else pass("PACK.md examples");
 if (!/Outbound Send stays HOLD/.test(packMd) || !/does not resolve yet/.test(packMd)) fail("PACK.md missing honest MX copy");
 else pass("PACK.md honest MX");

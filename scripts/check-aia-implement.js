@@ -157,8 +157,16 @@ else pass("Studio links aia-implement");
   });
   if (/White House|Action Plan/i.test(pages[name])) fail(name + " reprinted policy");
   else pass(name + " is desk language");
-  // how.html is a public page in plain words: no .aia door, and no mint at all.
+  // how.html is a public page in plain words: no .aia door, and no mint at all. In place of the
+  // old "ai.aia is the door, not a mint lesson" pin, the lead must still say where desk AI names
+  // live and where the live desk is, word for word, in the same four-steps lead.
   if (name === "how.html") {
+    const lead = (pages[name].match(/<p class="lead">One AIA account\.[^<]*<\/p>/) || [""])[0];
+    if (!lead) fail(name + " missing the One AIA account lead");
+    else if (!lead.includes("Desk AI names stay on this desk.")) fail(name + " lead must say Desk AI names stay on this desk.");
+    else pass(name + " lead says Desk AI names stay on this desk");
+    if (!lead.includes("Live desk is automateitaway.com.")) fail(name + " lead must name the live desk");
+    else pass(name + " lead names the live desk");
     if (/ai\.aia|\.aia\b/.test(pages[name])) fail(name + " must not show .aia jargon to strangers");
     else pass(name + " keeps .aia jargon off the public page");
     if (/\bmint/i.test(pages[name])) fail(name + " must not teach mint");
