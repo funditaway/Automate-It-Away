@@ -214,7 +214,7 @@ async function main() {
   } else pass("account GET shows bridge locked, not owned");
 
   const st = await call(health.status, "GET", ownerHdr, {}, {});
-  if (!st.body || !st.body.aiaTld || !st.body.aiaTld.bridgeLocked || st.body.aiaTld.ownedByConnected || st.body.aiaTld.collect !== "hold") {
+  if (!st.body || !st.body.aiaTld || st.body.aiaTld.bridgeLocked !== true || st.body.aiaTld.ownedByConnected !== false || st.body.aiaTld.collect !== "hold") {
     fail("status aiaTld " + JSON.stringify(st.body && st.body.aiaTld));
   } else pass("status exposes honest aiaTld");
 
