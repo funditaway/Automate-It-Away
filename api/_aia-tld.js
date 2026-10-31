@@ -204,9 +204,11 @@ async function http(method, path, body) {
 }
 
 // bridgeLocked is false only for a real 2xx whose body explicitly says open
-// (locked / isLocked / bridgeLocked === false). Every other lockDomain result
-// stays locked. 500, 530, abort, and any other miss that never reached the
-// bridge also set reason "unreachable". Text heuristics can lock, never unlock.
+// (locked / isLocked / bridgeLocked === false, and none of those is true).
+// Every other lockDomain result stays locked. 500, 530, abort, and any other
+// miss that never reached the bridge also set reason "unreachable". Only an
+// explicit false flag in a 2xx lockDomain body unlocks. Text heuristics alone
+// never unlock.
 function lockVerdict(hit) {
   const status = hit && Number(hit.status) || 0;
   if (hit && hit.aborted) return { bridgeLocked: true, reason: "unreachable" };
