@@ -105,6 +105,9 @@
       // (talk-roomy); if the type box still does not fit, the rail scrolls with the page too (talk-tight).
       "body.drop-at-tell.talk-roomy #desk-nav{display:none!important}body.drop-at-tell.talk-roomy #drop-step-foot{position:static}" +
       "body.drop-at-tell.talk-tight #drop-steps{position:static}body.drop-at-tell.talk-tight #talkBar{scroll-margin-top:8px}" +
+      // No desk on a short screen: Create a new desk and the line under it saying why both need the band above
+      // Back / Next. drop-talk.js adds desk-roomy only when they do not fit; any step change or turn clears it.
+      "body.desk-roomy #drop-step-foot{position:static}" +
       "#drop-step-tabs{display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch}" +
       "#drop-step-tabs button{flex:1 1 auto;min-height:44px;min-width:0;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:700 12px system-ui,sans-serif;cursor:pointer;white-space:nowrap}" +
       "#drop-step-tabs button.done{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}" +
@@ -226,6 +229,8 @@
     remember(id);
     sync();
     if (quiet) return;
+    // A tap on the Tell tab (or Next into Tell) lands in the type box, like a Talk link does.
+    if (id === "tell" && window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();
     try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
   }
 
