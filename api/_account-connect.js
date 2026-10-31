@@ -155,7 +155,7 @@ function groupFrom(item, idx) {
 
 function cardStatusText(card) {
   if (card.status === "stopped") return "Stopped. Nothing runs from this card. Start it again to go on.";
-  if (card.status === "killed") return "Killed. Nothing more happens on this card.";
+  if (card.status === "killed") return "Stopped for good. Nothing more happens on this card.";
   if (card.status === "done") return "Set up as a dry run. Nothing runs on its own yet.";
   const done = card.steps.filter((s) => s.state === "done" || s.state === "skipped").length;
   return "Open. " + done + " of " + card.steps.length + " steps done.";
@@ -594,18 +594,18 @@ async function handle(req, res, body) {
       const from = card.status;
       card.status = to;
       if (verb === "kill") {
-        card.steps.forEach((st) => { if (st.state === "todo") { st.state = "blocked"; st.reason = "Killed. Nothing more happens on this card."; } });
+        card.steps.forEach((st) => { if (st.state === "todo") { st.state = "blocked"; st.reason = "Stopped for good. Nothing more happens on this card."; } });
       }
       refresh(card);
-      const entry = cardEntry(card, null, verb, from, to, stamp, verb === "stop" ? "Stopped this setup card." : "Killed this setup card.");
-      s.addHistory(acc, person, "setup", (verb === "stop" ? "Stopped" : "Killed") + " the setup card for " + card.source.name + ".", stamp.whoKind);
+      const entry = cardEntry(card, null, verb, from, to, stamp, verb === "stop" ? "Stopped this setup card." : "Stopped for good. Nothing more happens on this card.");
+      s.addHistory(acc, person, "setup", (verb === "stop" ? "Stopped" : "Stopped for good. Nothing more happens on") + " the setup card for " + card.source.name + ".", stamp.whoKind);
       let saved = false;
       try { saved = (await lib.save()) !== false; } catch (e) { saved = false; }
       const out = { ok: true, changed: true, saved: saved, card: publicCard(card), entry: entry };
-      if (!saved) out.hint = (verb === "stop" ? "Stopped" : "Killed") + " here, but it did not save. Tap " + (verb === "stop" ? "Stop" : "Kill") + " again.";
+      if (!saved) out.hint = (verb === "stop" ? "Stopped" : "Stopped for good") + " here, but it did not save. Tap " + (verb === "stop" ? "Stop" : "Kill") + " again.";
       return res.status(200).json(out);
     }
-    if (card.status === "killed") return refuse(res, 409, "This card was killed. Nothing more happens on it.");
+    if (card.status === "killed") return refuse(res, 409, "Stopped for good. Nothing more happens on this card.");
     if (verb === "start") {
       if (card.status !== "stopped") return refuse(res, 409, "This card is not stopped.");
       card.status = "open";

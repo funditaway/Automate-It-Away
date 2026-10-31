@@ -3,10 +3,16 @@
 // match that blob id instead. There is no string mask: a backtick, a template
 // literal, or any other byte change is a different blob and fails closed.
 // Modes come from `git ls-files -s` and the base `git ls-tree -r`. A symlink
-// (120000), an executable (100755), or any other non-100644 mode fails.
-// hash-object follows a symlink, so a link to the same bytes still matches
-// the blob; the worktree is lstat'd and any symlink or non-regular file
-// under api/ fails closed. A missing BASE fails closed. Never pass by default.
+// (120000), an executable index mode (100755), or any other non-100644 index
+// mode fails. The worktree exec bit fails too, except when
+// `git config core.fileMode` is false (vfat, WSL): that checkout cannot store
+// the bit, so the worktree exec-bit check is skipped. Index mode comparison
+// still applies. hash-object follows a symlink, so a link to the same bytes
+// still matches the blob; the worktree is lstat'd and any symlink or
+// non-regular file under api/ fails closed. Worktree bytes are hashed with
+// `git hash-object` of that path. Git applies the clean and eol filters, so
+// a CRLF checkout of the same content matches the blob. A real content
+// change still fails. A missing BASE fails closed. Never pass by default.
 //
 // How a later API PR updates the pin (one constant plus blob ids):
 //   1. Set BASE to the full 40-character SHA of api/ on main — the main
@@ -27,12 +33,16 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "27287b6174419c1e57781a512d759a08c2e20601";
+const BASE = "c30a659e524787c23d318a24acaa570ca7f46af5";
 const PIN = {
-  "api/_aia-admin.js": "88c9303aee9b120e1b7962c2b0f337c1fced0c56",
+  "api/_aia-admin.js": "5908102a838edc62e63c7e3cfbd59380435a5764",
   "api/_aia-mail.js": "95c0615905927e29f2dbd752fb53fe95bd6f0e80",
   "api/_aia-net.js": "b592bc6615323a570a1e20b27c1a79219094a58e",
-  "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807"
+  "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
+  "api/_aia-tld.js": "df9267c5b7607b31bedec801189ad2cbb7ae1b3d",
+  "api/_account-connect.js": "9ce819df6b92e20f72d47c2cf2877a2bc67fcbb8",
+  "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
+  "api/migrate-uploads.js": "2b5e13d819268bdae2688c3d29e2f755929fcaa7"
 };
 
 function lines(text) {
@@ -80,7 +90,20 @@ function parseIndex(text, problems) {
   return out;
 }
 
-function rejectOddFiles(root, problems) {
+function honorWorktreeExec(root) {
+  let v = "";
+  try {
+    v = execFileSync("git", ["config", "--get", "core.fileMode"], {
+      cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"]
+    }).trim().toLowerCase();
+  } catch (e) {
+    return true;
+  }
+  if (v === "false" || v === "0" || v === "no" || v === "off") return false;
+  return true;
+}
+
+function rejectOddFiles(root, problems, honorExec) {
   const apiRoot = path.join(root, "api");
   let apiSt;
   try { apiSt = fs.lstatSync(apiRoot); }
@@ -100,7 +123,7 @@ function rejectOddFiles(root, problems) {
       if (st.isSymbolicLink()) { problems.push("api symlink " + rel); return; }
       if (st.isDirectory()) { walk(full); return; }
       if (!st.isFile()) { problems.push("api non-regular file " + rel); return; }
-      if ((st.mode & 0o111) !== 0) problems.push(rel + " is executable");
+      if (honorExec && (st.mode & 0o111) !== 0) problems.push(rel + " is executable");
       if (st.nlink > 1) problems.push(rel + " has extra links");
     });
   }
@@ -134,7 +157,10 @@ function check(root) {
   baseFiles.forEach(function (f) {
     if (!trackedSet[f]) problems.push(f + " was deleted");
   });
-  try { rejectOddFiles(root, problems); }
+  let honorExec = true;
+  try { honorExec = honorWorktreeExec(root); }
+  catch (e) { honorExec = true; }
+  try { rejectOddFiles(root, problems, honorExec); }
   catch (e) { problems.push("could not read api"); }
   const seen = {};
   baseFiles.concat(tracked).forEach(function (f) {
@@ -171,7 +197,7 @@ function check(root) {
       problems.push(f + " is not a regular file");
       return;
     }
-    if ((lst.mode & 0o111) !== 0) problems.push(f + " is executable");
+    if (honorExec && (lst.mode & 0o111) !== 0) problems.push(f + " is executable");
     if (lst.nlink > 1) problems.push(f + " has extra links");
     let expected;
     try { expected = pinned ? PIN[f] : git(["rev-parse", BASE + ":" + f]).trim(); }
@@ -179,6 +205,7 @@ function check(root) {
     let actual;
     // Worktree bytes, not the index blob. A tracked file edited but not
     // committed fails closed, including when the index bit is assume-unchanged.
+    // hash-object of the worktree path applies clean and eol filters.
     // hash-object follows symlinks; those are already rejected above.
     try { actual = git(["hash-object", "--", f]).trim(); }
     catch (e) { problems.push("could not read " + f); return; }

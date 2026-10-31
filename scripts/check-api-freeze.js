@@ -36,7 +36,8 @@ const OVERLAY = [
   "scripts/check-setup-cards-ui.js",
   "scripts/check-ux-signin.js"
 ];
-const LANDED = ["api/_aia-admin.js", "api/_aia-mail.js", "api/_aia-net.js"];
+const LANDED = ["api/_aia-mail.js", "api/_aia-net.js", "api/_grok.js"];
+const MOVED = ["api/_aia-admin.js", "api/_aia-register.js", "api/_aia-tld.js", "api/_account-connect.js", "api/migrate-uploads.js"];
 
 let failed = 0;
 let passed = 0;
@@ -68,11 +69,13 @@ LANDED.forEach(function (rel) {
   try { at = git(root, ["rev-parse", freeze.BASE + ":" + rel]).trim(); } catch (e) { at = ""; }
   ok(freeze.PIN[rel] === at && at.length === 40, rel + " pin is its blob at the freeze base");
 });
-let grokBase = "";
-let grokNow = "";
-try { grokBase = git(root, ["rev-parse", freeze.BASE + ":api/_grok.js"]).trim(); } catch (e) { grokBase = ""; }
-try { grokNow = git(root, ["hash-object", "--", "api/_grok.js"]).trim(); } catch (e) { grokNow = ""; }
-ok(freeze.PIN["api/_grok.js"] === grokNow && grokNow !== grokBase && grokNow.length === 40, "api/_grok.js pin is the neutral-example blob");
+MOVED.forEach(function (rel) {
+  let at = "";
+  let now = "";
+  try { at = git(root, ["rev-parse", freeze.BASE + ":" + rel]).trim(); } catch (e) { at = ""; }
+  try { now = git(root, ["hash-object", "--", rel]).trim(); } catch (e) { now = ""; }
+  ok(freeze.PIN[rel] === now && now !== at && now.length === 40, rel + " pin is its new blob");
+});
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-freeze-"));
 let caught = 0;
@@ -144,8 +147,8 @@ try {
   restore();
 
   const admin = read("api/_aia-admin.js");
-  const handleFrom = '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "aia";';
-  const handleTo = '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "springfield-shop";';
+  const handleFrom = '  const handle = normalizeHandle(String(value || "").normalize("NFKC"));\n  return handle === "aia";';
+  const handleTo = '  const handle = normalizeHandle(String(value || "").normalize("NFKC"));\n  return handle === "springfield-shop";';
   ok(admin.indexOf(handleFrom) === admin.lastIndexOf(handleFrom) && admin.indexOf(handleFrom) >= 0, "platform-handle anchor is unique");
   write("api/_aia-admin.js", admin.replace(handleFrom, handleTo));
   const handleSwap = freeze.check(dir);
@@ -344,6 +347,54 @@ try {
   });
 
   restore();
+  cleanupShape();
+  try { execFileSync("git", ["config", "--unset", "core.fileMode"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+  execFileSync("git", ["config", "core.fileMode", "false"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  fs.chmodSync(path.join(dir, "api/health.js"), 0o755);
+  const modeOff = freeze.check(dir);
+  const idxOff = git(dir, ["ls-files", "-s", "--", "api/health.js"]);
+  ok(modeOff.ok === true && idxOff.indexOf("100644") === 0 && (fs.lstatSync(path.join(dir, "api/health.js")).mode & 0o111) !== 0, "core.fileMode false ignores a worktree exec bit" + (modeOff.ok ? "" : " (" + modeOff.problems.join("; ") + ")"));
+  fs.chmodSync(path.join(dir, "api/health.js"), 0o644);
+  execFileSync("git", ["config", "core.fileMode", "true"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  fs.chmodSync(path.join(dir, "api/health.js"), 0o755);
+  const modeOn = freeze.check(dir);
+  ok(modeOn.ok === false && (modeOn.problems || []).join(" ").indexOf("is executable") >= 0, "core.fileMode true rejects a worktree exec bit" + (modeOn.ok ? "" : " (" + (modeOn.problems || []).join("; ") + ")"));
+  fs.chmodSync(path.join(dir, "api/health.js"), 0o644);
+  execFileSync("git", ["config", "core.fileMode", "false"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  execFileSync("git", ["update-index", "--chmod=+x", "--", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const idxKill = freeze.check(dir);
+  scoreFreeze("fileMode false index 100755", idxKill, "100755");
+  CHECKS.forEach(function (rel) {
+    score("fileMode false index 100755", rel, runCheck(dir, rel), "100755");
+  });
+  try { execFileSync("git", ["update-index", "--chmod=-x", "--", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+  try { execFileSync("git", ["config", "--unset", "core.fileMode"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+  fs.chmodSync(path.join(dir, "api/health.js"), 0o644);
+  restore();
+
+  const crlf = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-freeze-crlf-"));
+  try {
+    execFileSync("git", ["clone", "--local", root, crlf], { stdio: ["ignore", "pipe", "pipe"] });
+    OVERLAY.forEach(function (rel) {
+      fs.copyFileSync(path.join(root, rel), path.join(crlf, rel));
+    });
+    execFileSync("git", ["config", "core.autocrlf", "true"], { cwd: crlf, stdio: ["ignore", "pipe", "pipe"] });
+    fs.rmSync(path.join(crlf, "api"), { recursive: true, force: true });
+    execFileSync("git", ["checkout", "HEAD", "--", "api"], { cwd: crlf, stdio: ["ignore", "pipe", "pipe"] });
+    const healthBytes = fs.readFileSync(path.join(crlf, "api/health.js"));
+    const rawHash = git(crlf, ["hash-object", "--no-filters", "--", "api/health.js"]).trim();
+    const plainHash = git(crlf, ["hash-object", "--", "api/health.js"]).trim();
+    const blob = git(crlf, ["rev-parse", "HEAD:api/health.js"]).trim();
+    ok(healthBytes.indexOf(Buffer.from("\r\n")) >= 0 && rawHash !== blob && plainHash === blob, "autocrlf checkout is CRLF and hash-object matches the blob");
+    const crlfFreeze = freeze.check(crlf);
+    ok(crlfFreeze.ok === true, "autocrlf true clone passes the freeze" + (crlfFreeze.ok ? "" : " (" + crlfFreeze.problems.join("; ") + ")"));
+    fs.appendFileSync(path.join(crlf, "api/health.js"), "\n// freeze-crlf-probe\n");
+    const changed = freeze.check(crlf);
+    ok(changed.ok === false && changed.problems.join(" ").indexOf("api/health.js") >= 0, "a real content change still fails under autocrlf" + (changed.ok ? "" : " (" + changed.problems.slice(0, 3).join("; ") + ")"));
+  } finally {
+    fs.rmSync(crlf, { recursive: true, force: true });
+  }
+
   const prep = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-freeze-tip-"));
   const shallow = fs.mkdtempSync(path.join(os.tmpdir(), "aia-api-freeze-shallow-"));
   try {

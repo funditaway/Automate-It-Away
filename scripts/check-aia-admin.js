@@ -13,14 +13,30 @@ function oracleNormalize(value) {
   return String(value || "").trim().replace(/^@+/, "").replace(/\.aia$/i, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "").slice(0, 40);
 }
 
+// Platform/reviewer handles: after NFKC, any non-ASCII is refused, and a
+// string NFKC rewrites (fullwidth, NBSP) is refused. Then the ASCII
+// normalize above must be exactly "aia". Written here, not imported.
+function oracleHasNonAscii(value) {
+  const raw = String(value || "");
+  const nfkc = raw.normalize("NFKC");
+  if (/[^\u0000-\u007F]/.test(nfkc)) return true;
+  if (nfkc !== raw) return true;
+  return false;
+}
+function oraclePlatformHandle(value) {
+  if (oracleHasNonAscii(value)) return "";
+  return oracleNormalize(String(value || "").normalize("NFKC"));
+}
+
 // Same decision as isPlatformAccount: id "aia", heldBy "admin", aiaReviewer
-// strictly true, or the first of handle / xHandle / slug normalizing to "aia".
+// strictly true, or the first of handle / xHandle / slug that is an ASCII
+// platform handle. Explicit flags are not lookalikes.
 function oracle(acc) {
   if (!acc) return false;
   if (acc.id === "aia") return true;
   if (acc.heldBy === "admin") return true;
   if (acc.aiaReviewer === true) return true;
-  return oracleNormalize(acc.handle || acc.xHandle || acc.slug) === "aia";
+  return oraclePlatformHandle(acc.handle || acc.xHandle || acc.slug) === "aia";
 }
 
 function mulberry32(seed) {
@@ -33,13 +49,69 @@ function mulberry32(seed) {
   };
 }
 
-// Hand-checked forms. True means the normalized handle is exactly "aia".
+// Hand-checked forms. True means an ASCII platform handle, exactly "aia"
+// after the existing normalize. Lookalikes are false.
+function lookalikeSamples() {
+  const out = [];
+  function push(s) { out.push(s); }
+  const marks = [];
+  for (let cp = 0x0300; cp <= 0x036F; cp++) marks.push(String.fromCharCode(cp));
+  marks.forEach(function (m) {
+    push("a" + m + "ia");
+    push("ai" + m + "a");
+    push("aia" + m);
+    push(m + "aia");
+    push("funditaway" + m);
+  });
+  ["\u00C4", "\u00E4", "\u00C1", "\u00E1", "\u00C0", "\u00E0", "\u00C2", "\u00E2", "\u00C3", "\u00E3", "\u00C5", "\u00E5", "\u00C9", "\u00E9"].forEach(function (ch) {
+    push(ch + "IA");
+    push(ch + "ia");
+    push("aia" + ch);
+    push(ch + "utomateitaway");
+  });
+  ["\uFF21\uFF29\uFF21", "\uFF41\uFF49\uFF41", "\uFF21IA", "\uFF41ia", "\uFF26unditaway"].forEach(push);
+  ["\u0430ia", "a\u0456a", "ai\u0430", "aia\u0430", "\u0391IA", "\u03B1ia", "\u03BFi\u03B1", "\u0430utomateitaway"].forEach(push);
+  ["\u200B", "\u200C", "\u200D", "\uFEFF", "\u00A0", "\u2060"].forEach(function (z) {
+    push(z + "aia");
+    push("a" + z + "ia");
+    push("aia" + z);
+    push("@AIA" + z);
+    push("funditaway" + z);
+  });
+  return out;
+}
+
+// Every non-ASCII scalar, in front of, inside, and after "aia" and "AIA".
+// isAiaReviewer(account, desk) runs isPlatformAccount on the handle and
+// isReviewerDesk on the slug and the name, so one call covers all three.
+// Lone surrogates are skipped. Kept to one call per form so the sweep stays
+// under a couple of seconds.
+function assertEveryNonAscii(admin) {
+  const acc = { handle: "" };
+  const row = { slug: "", name: "" };
+  for (let cp = 0x80; cp <= 0x10FFFF; cp++) {
+    if (cp >= 0xD800 && cp <= 0xDFFF) continue;
+    const ch = String.fromCodePoint(cp);
+    const forms = [ch + "aia", "a" + ch + "ia", "aia" + ch, ch + "AIA", "A" + ch + "IA", "AIA" + ch];
+    for (let i = 0; i < 6; i++) {
+      const s = forms[i];
+      acc.handle = s;
+      row.slug = s;
+      row.name = s;
+      // isPlatformAccount(handle), then isReviewerDesk(slug and name).
+      if (admin.isAiaReviewer(acc, row, null) === true) {
+        return "U+" + cp.toString(16).toUpperCase() + " form " + i + " counts";
+      }
+    }
+  }
+  return "";
+}
 const KNOWN = [
   ["aia", true], ["AIA", true], ["Aia", true], ["aIa", true], ["aiA", true],
   ["aia.aia", true], ["AIA.aia", true], ["aia.AIA", true], ["@AIA", true], ["@aia", true],
   ["@@AIA", true], ["  aia  ", true], ["  @AIA", true], ["\t@AiA\n", true],
-  ["a.i.a", true], ["A I A", true], ["aia!!!", true], ["\u200baia", true],
-  ["@aia.aia", true], ["  @@aia.aia  ", true], ["aia\u0430", true],
+  ["a.i.a", true], ["A I A", true],   ["aia!!!", true],
+  ["@aia.aia", true], ["  @@aia.aia  ", true],
   ["", false], [" ", false], ["@", false], [".aia", false], ["ai", false], ["a", false],
   ["aia2", false], ["aiaa", false], ["aaia", false], ["xaia", false], ["aia-shop", false],
   ["aia_", false], ["aia.aia.aia", false], ["zz-probe", false], ["q7-probe", false],
@@ -47,7 +119,9 @@ const KNOWN = [
   ["not-aia", false], ["AIA2", false], ["aia.com", false], ["a_ia", false], ["a-ia", false],
   ["AIA.AIA.AIA", false], ["x.aia", false], ["@.aia", false], ["aia.aiax", false],
   ["\u0430ia", false], ["\uFF21IA", false], ["\uFF41\uFF49\uFF41", false],
-  ["\uFF21\uFF29\uFF21", false], ["a\u0301ia", true], ["ai\u0301a", true], ["aia\u0301", true],
+  ["\uFF21\uFF29\uFF21", false], ["a\u0301ia", false], ["ai\u0301a", false], ["aia\u0301", false],
+  ["\u200baia", false], ["aia\u0430", false], ["\u00C4IA", false], ["\u00E4ia", false],
+  ["\u00A0aia", false], ["aia\u00A0", false], ["\u0391IA", false], ["\u03B1ia", false],
   ["a".repeat(31), false], ["b".repeat(31), false],
   ["b".repeat(30), false], ["c".repeat(40), false], ["c".repeat(41), false],
   ["Q8-PROBE", false], ["q8-probe.aia", false], ["@q8-probe", false]
@@ -63,6 +137,7 @@ function buildCorpus() {
     out.push(s);
   }
   KNOWN.forEach(function (row) { add(row[0]); });
+  lookalikeSamples().forEach(add);
   const gap = ["", ".", " ", "!", "\u200b"];
   const letter = [["a", "A"], ["i", "I"], ["a", "A"]];
   for (let i = 0; i < letter[0].length; i++) {
@@ -105,7 +180,7 @@ function buildCorpus() {
 function fuzz(admin) {
   const mismatches = [];
   KNOWN.forEach(function (row) {
-    const got = oracleNormalize(row[0]) === "aia";
+    const got = oraclePlatformHandle(row[0]) === "aia";
     if (got !== row[1]) mismatches.push("oracle spec " + JSON.stringify(row[0]) + " got " + got + " want " + row[1]);
   });
   const corpus = buildCorpus();
@@ -187,17 +262,50 @@ const MUTANTS = [
     '  return handle === "aia";',
     '  return handle === "aia" || handle === "q8-probe";'],
   ["length>30 accept",
-    "  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === \"aia\";",
-    "  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  if (handle.length > 30) return true;\n  return handle === \"aia\";"],
+    "  const handle = normalizeHandle(String(value || \"\").normalize(\"NFKC\"));\n  return handle === \"aia\";",
+    "  const handle = normalizeHandle(String(value || \"\").normalize(\"NFKC\"));\n  if (handle.length > 30) return true;\n  return handle === \"aia\";"],
   ["case-folding",
     "return String(value || \"\").trim().replace(/^@+/, \"\").replace(/\\.aia$/i, \"\").toLowerCase().replace(/[^a-z0-9_-]+/g, \"\").slice(0, 40);",
     "return String(value || \"\").trim().replace(/^@+/, \"\").replace(/\\.aia$/i, \"\").replace(/[^a-z0-9_-]+/g, \"\").slice(0, 40);"],
   ["isAiaReviewer zz-probe",
     "  if (isPlatformAccount(acc)) return true;\n  if (isReviewerDesk(row)) return true;",
     "  if (isPlatformAccount(acc)) return true;\n  if (acc && normalizeHandle(acc.handle) === \"zz-probe\") return true;\n  if (isReviewerDesk(row)) return true;"],
-  ["fullwidth fold",
-    "return String(value || \"\").trim()",
-    "return String(value || \"\").normalize(\"NFKC\").trim()"]
+  ["drop lookalike reject",
+    "  if (/[^\\u0000-\\u007F]/.test(nfkc)) return true;\n  if (nfkc !== raw) return true;\n",
+    "  return false;\n"],
+  ["drop nfkc non-ascii test",
+    "  if (/[^\\u0000-\\u007F]/.test(nfkc)) return true;\n",
+    ""],
+  ["drop nfkc fold test",
+    "  if (nfkc !== raw) return true;\n",
+    ""],
+  ["drop platform guard",
+    "  if (hasNonAsciiHandle(value)) return false;\n",
+    ""],
+  ["min handle length 1",
+    "if (handle.length < 2)",
+    "if (handle.length < 1)"],
+  ["strip all bidi",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]/g, "");'],
+  ["strip lrm rlm",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u200E\\u200F]/g, "");'],
+  ["strip bidi embeddings",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u202A-\\u202E]/g, "");'],
+  ["strip wide spaces",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u2000-\\u200A\\u3000]/g, "");'],
+  ["strip variation selectors",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\uFE00-\\uFE0F]/g, "").replace(/[\\u{E0100}-\\u{E01EF}]/gu, "");'],
+  ["strip soft hyphen",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/\\u00AD/g, "");'],
+  ["strip mongolian and invisibles",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u180E\\u2061-\\u2064]/g, "");']
 ];
 
 function runModule(modulePath) {
@@ -217,11 +325,56 @@ function runModule(modulePath) {
   return r;
 }
 
+function stageAdmin(text) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-admin-mod-"));
+  const apiDir = path.join(dir, "api");
+  fs.mkdirSync(apiDir);
+  const realApi = path.join(__dirname, "..", "api");
+  fs.readdirSync(realApi).forEach(function (name) {
+    if (name === "_aia-admin.js") return;
+    fs.symlinkSync(path.join(realApi, name), path.join(apiDir, name));
+  });
+  const copy = path.join(apiDir, "_aia-admin.js");
+  fs.writeFileSync(copy, text);
+  return { dir: dir, copy: copy };
+}
+
+function assertHandleLength(admin) {
+  const one = admin.setAccountHandle({ id: "acct_len1" }, "q");
+  if (!one || one.ok !== false || one.status !== 400) return "one-letter handle was accepted";
+  const two = admin.setAccountHandle({ id: "acct_len2" }, "qq");
+  if (!two || two.ok !== true || two.handle !== "qq") return "two-letter handle was rejected";
+  return "";
+}
+
+function assertLookalikes(admin) {
+  const bad = [];
+  lookalikeSamples().forEach(function (h) {
+    const acc = { handle: h };
+    if (admin.isPlatformAccount(acc) === true) bad.push("admin " + JSON.stringify(h));
+    if (admin.isAiaReviewer(acc, null, null) === true) bad.push("reviewer " + JSON.stringify(h));
+    if (admin.isAiaReviewer(null, { slug: h }, null) === true) bad.push("slug " + JSON.stringify(h));
+    if (admin.isAiaReviewer(null, { biz: h }, null) === true) bad.push("biz " + JSON.stringify(h));
+    if (admin.isAiaReviewer(null, { name: h }, null) === true) bad.push("name " + JSON.stringify(h));
+    if (admin.isAiaReviewer(null, null, { handle: h }) === true) bad.push("person " + JSON.stringify(h));
+    if (oracle(acc) === true) bad.push("oracle " + JSON.stringify(h));
+  });
+  if (admin.isPlatformAccount({ handle: "aia" }) !== true) bad.push("ascii aia");
+  if (admin.isPlatformAccount({ handle: "AIA" }) !== true) bad.push("ascii AIA");
+  if (admin.isPlatformAccount({ handle: "aia.aia" }) !== true) bad.push("aia.aia");
+  if (admin.isPlatformAccount({ xHandle: "@AIA" }) !== true) bad.push("@AIA");
+  if (admin.isAiaReviewer(null, { slug: "aia" }, null) !== true) bad.push("desk aia");
+  if (admin.isAiaReviewer(null, { slug: "funditaway" }, null) !== true) bad.push("desk funditaway");
+  if (admin.isAiaReviewer(null, { name: "Fund It Away" }, null) !== true) bad.push("ascii fund it away");
+  return bad;
+}
+
 function runMutants() {
   const raw = fs.readFileSync(SOURCE, "utf8");
   const orig = raw.replace(/\r\n/g, "\n");
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-admin-mod-"));
-  const copy = path.join(dir, "_aia-admin.js");
+  const staged = stageAdmin(orig);
+  const dir = staged.dir;
+  const copy = staged.copy;
   let caught = 0;
   let total = 0;
   let bad = 0;
@@ -280,7 +433,19 @@ function main() {
 
   const result = fuzz(admin);
   if (!result.ok) fail("platform oracle " + result.mismatches.slice(0, 8).join("; "));
-  else pass("isPlatformAccount and isAiaReviewer match the oracle on " + result.corpus + " handles; accepting set is exactly the forms that normalize to aia (" + result.accepted + ")");
+  else pass("isPlatformAccount and isAiaReviewer match the oracle on " + result.corpus + " handles; accepting set is exactly the ASCII forms that normalize to aia (" + result.accepted + ")");
+
+  const sweep = assertEveryNonAscii(admin);
+  if (sweep) fail("non-ascii sweep " + sweep);
+  else pass("every non-ASCII scalar in, before, or after aia/AIA is not admin or reviewer");
+
+  const look = assertLookalikes(admin);
+  if (look.length) fail("lookalike " + look.slice(0, 6).join("; "));
+  else pass("combining marks, accents, fullwidth, homoglyphs, zero-width, and NBSP are not admin or reviewer");
+
+  const lenMsg = assertHandleLength(admin);
+  if (lenMsg) fail(lenMsg);
+  else pass("handle minimum stays two letters");
 
   const shop = { id: "acct_demo", name: "Oddo Books", slug: "oddo-books" };
   const blocked = admin.setAccountHandle(shop, "@AIA");
@@ -321,7 +486,23 @@ function main() {
 }
 
 if (process.env.AIA_ADMIN_MODULE) {
-  const result = fuzz(require(process.env.AIA_ADMIN_MODULE));
+  const admin = require(process.env.AIA_ADMIN_MODULE);
+  const sweep = assertEveryNonAscii(admin);
+  if (sweep) {
+    console.error("FAIL non-ascii sweep " + sweep);
+    process.exit(1);
+  }
+  const look = assertLookalikes(admin);
+  if (look.length) {
+    console.error("FAIL lookalike " + look.slice(0, 4).join("; "));
+    process.exit(1);
+  }
+  const lenMsg = assertHandleLength(admin);
+  if (lenMsg) {
+    console.error("FAIL " + lenMsg);
+    process.exit(1);
+  }
+  const result = fuzz(admin);
   if (!result.ok) {
     console.error("FAIL oracle " + result.mismatches.slice(0, 4).join("; "));
     process.exit(1);
