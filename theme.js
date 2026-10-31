@@ -54,9 +54,9 @@
     var meta = document.querySelector("meta[name='theme-color']");
     if (meta) meta.setAttribute("content", dark ? "#0c1116" : "#0d6b6b");
     document.querySelectorAll("[data-theme-btn], .theme-btn").forEach(function (b) {
-      b.textContent = label();
-      b.setAttribute("aria-label", "Theme " + label());
-      b.title = "Theme: " + label() + ". Tap to change.";
+      b.textContent = "Theme: " + label();
+      b.setAttribute("aria-label", "Theme: " + label() + ". Tap to switch between Auto, Dark and Light.");
+      b.title = label() === "Auto" ? "Theme: Auto follows your device. Tap to change." : "Theme: " + label() + ". Tap to change.";
     });
     paintMarks();
   }
@@ -247,6 +247,12 @@
     chip.classList.remove("out");
     chip.classList.add("signed-out");
     if (page === "login") {
+      // The /login header may already carry its own "Open a Queue" link. Say it once, not twice.
+      var own = header.querySelector('a[data-nav-keep][href="onboard.html"], a[data-nav-keep][href="/onboard"]');
+      if (own && own !== chip && /Open a Queue/.test(own.textContent || "")) {
+        if (chip.parentNode) chip.parentNode.removeChild(chip);
+        return;
+      }
       chip.innerHTML = '<span class="who-copy"><strong>Open a Queue</strong></span>';
       chip.href = "/onboard";
       chip.title = "New desk. Desk name + code.";
@@ -273,13 +279,18 @@
     var header = document.querySelector("header, .site-header");
     if (!header) return;
     var link = document.getElementById("queue-home-link");
+    var home = queueHome();
+    if (home.href === "/login") {
+      // Signed out: the account chip already says "Sign in to your Queue". One sign-in in the header, not two.
+      if (link && link.parentNode) link.parentNode.removeChild(link);
+      return;
+    }
     if (!link) {
       link = document.createElement("a");
       link.id = "queue-home-link";
       link.className = "queue-home-link";
       header.appendChild(link);
     }
-    var home = queueHome();
     link.href = home.href;
     link.textContent = home.label;
   }
