@@ -54,6 +54,14 @@
     box.appendChild(h);
     box.appendChild(p);
     box.appendChild(go);
+    if (page === "drop") {
+      // Strangers can still drop work on a desk its owner listed in public. The search sits right under this box.
+      var or = document.createElement("p");
+      or.id = "signin-first-public";
+      or.className = "sub";
+      or.textContent = "No account? Find a public desk below and drop your work there.";
+      box.appendChild(or);
+    }
     main.insertBefore(box, main.firstChild);
   }
   function start() {
@@ -65,6 +73,7 @@
       css.id = "signin-first-css";
       css.textContent =
         "html.signin-first main > :not(#signin-first){display:none!important}" +
+        "html.signin-first body main > #public-desk-search{display:block!important}" +
         "#signin-first{margin:16px 0;padding:18px}" +
         "#signin-first .sub{font-size:16px;margin:8px 0 16px}" +
         "#signin-first a.go{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 22px;border-radius:999px;font-weight:800;text-decoration:none}";
