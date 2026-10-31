@@ -34,7 +34,7 @@ must(help, "illustrative only", "help.html sample JSON illustrative");
 must(help, "not a bindings product", "help.html no bindings product");
 must(help, '"when": "pipe"', "help.html sample when");
 must(help, "Yes is not a collect charge", "help.html Yes ≠ collect");
-must(help, "Collect stays HOLD", "help.html Collect HOLD");
+must(help, "Payments are off for now. Nothing is charged.", "help.html payments are off (D3: replaces Collect stays HOLD)");
 must(help, "Thin App / webhook pack", "help.html app/webhook pack example");
 must(help, '"pipes": ["webhook"]', "help.html webhook pipes");
 must(help, "Yes before outbound", "help.html Yes before outbound");

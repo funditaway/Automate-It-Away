@@ -26,7 +26,7 @@ must(help, "Not legal advice", "help.html not legal advice");
 must(help, "thin JSON", "help.html thin JSON");
 must(help, "buyer", "help.html buyer desk");
 must(help, "Yes / Stop / Kill", "help.html Yes/Stop/Kill");
-must(help, "Collect stays HOLD", "help.html Collect HOLD");
+must(help, "Payments are off for now. Nothing is charged.", "help.html payments are off (D3: replaces Collect stays HOLD)");
 must(help, "Never hardcode yours", "help.html never hardcode");
 must(help, "100% safe", "help.html no 100% safe");
 must(help, "never banned", "help.html never banned");
