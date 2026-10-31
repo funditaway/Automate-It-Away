@@ -18,16 +18,37 @@ function main() {
   if (!admin.isPlatformAccount(platform) || !admin.isAiaReviewer(platform, null, null) || platform.handle !== "aia") fail("platform stamp");
   else pass("platform admin stamps handle aia + reviewer");
 
-  const byHandle = { handle: "aia" };
-  if (!admin.isPlatformAccount(byHandle) || !admin.isAiaReviewer(byHandle, null, null)) fail("only the real platform handle is admin");
-  else pass("only the real platform handle is admin");
-  if (!admin.isPlatformAccount({ handle: "AIA" }) || !admin.isPlatformAccount({ handle: "aia.aia" }) || !admin.isPlatformAccount({ xHandle: "@AIA" })) fail("real platform handle normalizes to admin");
-  else pass("real platform handle normalizes to admin");
-  ["springfield-shop", "aia-shop", "aia2", "james", "funditaway"].forEach(function (h) {
-    const look = { handle: h };
-    if (admin.isPlatformAccount(look) || admin.isAiaReviewer(look, null, null)) fail("lookalike handle is not platform admin: " + h);
-    else pass("lookalike " + h + " is not platform admin");
+  // Forms normalizeHandle() maps to "aia", which is the only handle
+  // isPlatformAccount treats as the platform account.
+  const REAL = ["aia", "AIA", "Aia", "aia.aia", "AIA.aia", "@AIA", "@aia", "@@AIA", "  aia  ", "  @AIA"];
+  const OTHERS = ["", " ", "@", ".aia", "ai", "a", "aia2", "aiaa", "aaia", "xaia", "aia-shop", "aia_", "aia.aia.aia", "zz-probe", "springfield-shop", "james", "funditaway", "not-aia", "AIA2", "aia.com", "q7-probe"];
+  for (let n = 0; n < 32; n++) OTHERS.push("zz" + n);
+  const FIELDS = ["handle", "xHandle", "slug"];
+  function accountOf(field, value) {
+    const acc = {};
+    acc[field] = value;
+    return acc;
+  }
+  function isAdmin(acc) {
+    return admin.isPlatformAccount(acc) === true && admin.isAiaReviewer(acc, null, null) === true;
+  }
+  const missing = [];
+  const extra = [];
+  REAL.forEach(function (h) {
+    if (admin.normalizeHandle(h) !== "aia") missing.push("normalize " + JSON.stringify(h));
+    FIELDS.forEach(function (field) {
+      if (!isAdmin(accountOf(field, h))) missing.push(field + "=" + JSON.stringify(h));
+    });
   });
+  OTHERS.forEach(function (h) {
+    if (admin.normalizeHandle(h) === "aia") missing.push("generated collapsed to aia " + JSON.stringify(h));
+    FIELDS.forEach(function (field) {
+      const acc = accountOf(field, h);
+      if (admin.isPlatformAccount(acc) || admin.isAiaReviewer(acc, null, null)) extra.push(field + "=" + JSON.stringify(h));
+    });
+  });
+  if (missing.length || extra.length) fail("platform handle set extra [" + extra.join(", ") + "] missing [" + missing.join(", ") + "]");
+  else pass("platform handles are exactly the forms that normalize to aia (" + REAL.length + ")");
 
   const shop = { id: "acct_demo", name: "Oddo Books", slug: "oddo-books" };
   const blocked = admin.setAccountHandle(shop, "@AIA");
@@ -63,9 +84,9 @@ function main() {
 }
 
 const MUTANTS = [
-  ["platform handle swapped", "api/_aia-admin.js",
+  ["platform handle zz-probe", "api/_aia-admin.js",
     '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "aia";',
-    '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "springfield-shop";']
+    '  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  return handle === "zz-probe";']
 ];
 
 function mutate() {

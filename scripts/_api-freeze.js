@@ -45,8 +45,12 @@ function check(root) {
   let baseFiles, tracked, untracked;
   try {
     baseFiles = lines(git(["ls-tree", "-r", "--name-only", BASE, "--", "api"]));
-    tracked = lines(git(["ls-files", "--", "api"]));
-    untracked = lines(git(["ls-files", "--others", "--exclude-standard", "--", "api"]));
+    // -c is the tracked index. Gitignore, info/exclude, and assume-unchanged
+    // do not drop a tracked path from this list.
+    tracked = lines(git(["ls-files", "-c", "--full-name", "--", "api"]));
+    // Ignored files count too. --exclude-standard would hide an untracked
+    // api/ file matched by api/.gitignore, a root .gitignore, or info/exclude.
+    untracked = lines(git(["ls-files", "--others", "--", "api"]));
   } catch (e) { return { ok: false, problems: ["could not diff api/ vs " + BASE.slice(0, 8)], base: BASE }; }
   const baseSet = {};
   baseFiles.forEach(function (f) { baseSet[f] = true; });
@@ -69,6 +73,8 @@ function check(root) {
     try { expected = pinned ? PIN[f] : git(["rev-parse", BASE + ":" + f]).trim(); }
     catch (e) { problems.push("could not read " + f + " at base"); return; }
     let actual;
+    // Worktree bytes, not the index blob. A tracked file edited but not
+    // committed fails closed, including when the index bit is assume-unchanged.
     try { actual = git(["hash-object", "--", f]).trim(); }
     catch (e) { problems.push("could not read " + f); return; }
     if (actual !== expected) {

@@ -10,6 +10,9 @@ require("./_env-guard");
 //   any edit in another api/ file
 //   a missing base (real shallow clone of the tip) and a bogus base SHA
 //     (check-ux-signin included)
+//   an untracked api/_zz-hidden.js, including when api/.gitignore, a root
+//     .gitignore, or .git/info/exclude would have hidden it
+//   a tracked api file edited in the worktree and not committed
 // A missing base must fail closed. Never pass by default.
 // Usage: node scripts/check-api-freeze.js
 const fs = require("fs");
@@ -83,6 +86,20 @@ function score(name, rel, r, needle) {
     process.exitCode = 1;
     const first = out.split("\n").filter(function (l) { return l.indexOf("FAIL") === 0; })[0] || ("exit " + r.status);
     console.error("FAIL " + name + " | " + path.basename(rel) + " | SURVIVED | " + first.slice(0, 180));
+  }
+}
+
+function scoreFreeze(name, result, needle) {
+  total += 1;
+  const text = (result.problems || []).join(" ");
+  const hit = result.ok === false && text.indexOf(needle) >= 0;
+  if (hit) {
+    caught += 1;
+    console.log("ok   " + name + " | freeze | CAUGHT");
+  } else {
+    failed += 1;
+    process.exitCode = 1;
+    console.error("FAIL " + name + " | freeze | SURVIVED | " + text.slice(0, 180));
   }
 }
 
@@ -161,6 +178,75 @@ try {
       score(name, rel, r, needle);
     });
     restore();
+  });
+
+  restore();
+  try { execFileSync("git", ["update-index", "--no-assume-unchanged", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+  write("api/health.js", snap["api/health.js"] + "\nfunction freezeMutantProbe(){return 1;}\n");
+  execFileSync("git", ["update-index", "--assume-unchanged", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const dirty = freeze.check(dir);
+  scoreFreeze("tracked worktree edit", dirty, "outside the pin");
+  CHECKS.forEach(function (rel) {
+    score("tracked worktree edit", rel, runCheck(dir, rel), "outside the pin");
+  });
+  try { execFileSync("git", ["update-index", "--no-assume-unchanged", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+  restore();
+
+  const hiddenJs = "module.exports = function () { return 1; };\n";
+  function readOpt(rel) {
+    const p = path.join(dir, rel);
+    return fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null;
+  }
+  const ignoreSnap = {
+    ".gitignore": readOpt(".gitignore"),
+    ".git/info/exclude": readOpt(".git/info/exclude"),
+    "api/.gitignore": readOpt("api/.gitignore")
+  };
+  function writeOpt(rel, text) {
+    const p = path.join(dir, rel);
+    if (text === null) { if (fs.existsSync(p)) fs.unlinkSync(p); return; }
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, text);
+  }
+  function cleanupHidden() {
+    const hiddenPath = path.join(dir, "api/_zz-hidden.js");
+    if (fs.existsSync(hiddenPath)) fs.unlinkSync(hiddenPath);
+    writeOpt("api/.gitignore", ignoreSnap["api/.gitignore"]);
+    writeOpt(".gitignore", ignoreSnap[".gitignore"]);
+    writeOpt(".git/info/exclude", ignoreSnap[".git/info/exclude"]);
+    restore();
+  }
+  const hidden = [
+    ["api gitignore star", function () {
+      fs.writeFileSync(path.join(dir, "api/.gitignore"), "*\n");
+      fs.writeFileSync(path.join(dir, "api/_zz-hidden.js"), hiddenJs);
+    }],
+    ["root gitignore", function () {
+      const prev = ignoreSnap[".gitignore"] || "";
+      fs.writeFileSync(path.join(dir, ".gitignore"), prev + (prev && !/\n$/.test(prev) ? "\n" : "") + "api/_zz-hidden.js\n");
+      fs.writeFileSync(path.join(dir, "api/_zz-hidden.js"), hiddenJs);
+    }],
+    ["info exclude", function () {
+      const prev = ignoreSnap[".git/info/exclude"] || "";
+      fs.writeFileSync(path.join(dir, ".git/info/exclude"), prev + (prev && !/\n$/.test(prev) ? "\n" : "") + "api/_zz-hidden.js\n");
+      fs.writeFileSync(path.join(dir, "api/_zz-hidden.js"), hiddenJs);
+    }],
+    ["plain untracked", function () {
+      fs.writeFileSync(path.join(dir, "api/_zz-hidden.js"), hiddenJs);
+    }]
+  ];
+  hidden.forEach(function (row) {
+    cleanupHidden();
+    try {
+      row[1]();
+      const seen = freeze.check(dir);
+      scoreFreeze(row[0], seen, "api/_zz-hidden.js");
+      CHECKS.forEach(function (rel) {
+        score(row[0], rel, runCheck(dir, rel), "api/_zz-hidden.js");
+      });
+    } finally {
+      cleanupHidden();
+    }
   });
 
   restore();
