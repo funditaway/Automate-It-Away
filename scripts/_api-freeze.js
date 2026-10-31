@@ -44,7 +44,7 @@ const PIN = {
   "api/_aia-mail.js": "5796afa6e22f62f3a9e433b0c1d0eb00c6094599",
   "api/_aia-net.js": "5df23c55f9e189fcbb5aa710ab30672ef4279fd8",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
-  "api/_aia-tld.js": "0dee0f3d82af4ca5c65fa2429c3d1d9470b27ea1",
+  "api/_aia-tld.js": "1429cd6442ca12f364062e09bbabb2f6c48a5e67",
   "api/_connect-wallet.js": "90f310ed4a7f8831249115681e0b75b18939ad97",
   "api/_desks-http.js": "54d36ae4eb8842b75f1847bc72fa5c2b8c514adb",
   "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
