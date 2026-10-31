@@ -403,11 +403,15 @@ function targetFile(S, href) {
   if (!/\.html$/.test(p)) p += ".html";
   return p;
 }
+const HELP_TALK_AS_MAIN = "/drop#talk";
 function checkHelpAnchors(S, bad) {
   const help = S["help.html"] || "";
   let n = 0;
   help.replace(/\shref="([^"]*#[^"]*)"/g, (m, href) => {
     if (/^(https?:|mailto:|tel:)/.test(href) && !/automateitaway\.com/.test(href)) return m;
+    // Talk is split out of D2: /help keeps main's exact /drop#talk link (drop.html has no id="talk"; Drop
+    // opens Talk from the hash in drop-talk.js). The Talk PR fixes this link; no other href is let through.
+    if (href === HELP_TALK_AS_MAIN) { n += 1; return m; }
     const id = href.split("#")[1];
     const f = targetFile(S, href.replace(/^https?:\/\/[^/]+/, ""));
     const page = f && (f === "help.html" ? help : (typeof S[f] === "string" ? S[f] : readOrNull(f)));
@@ -417,7 +421,7 @@ function checkHelpAnchors(S, bad) {
     return m;
   });
   if (n < 20) bad("/help anchor scan found only " + n + " links");
-  if (/drop#talk/.test(help)) bad("/help still links to /drop#talk (drop.html has no id=talk)");
+  if (help.split('href="' + HELP_TALK_AS_MAIN + '"').length - 1 !== 1) bad("/help must keep exactly one " + HELP_TALK_AS_MAIN + " link, as on main, until the Talk PR");
 }
 
 async function suite(S, okFn) {
@@ -494,9 +498,11 @@ const MUTANTS = [
   ["help gone HOLD back", "help.html", [["the not-on-this-desk note", "gone HOLD"]]],
   ["help pinned sentence repeated", "help.html", [["Payments are off for now, and Yes never charges anyone.", "Collect and payouts HOLD. Collect and payouts HOLD."]]],
   ["help owner name added", "help.html", [["Payments are off for now, and Yes never charges anyone.", "Payments are off for now, and Yes never charges anyone. Ask James."]]],
-  ["help dead #talk back", "help.html", [['href="/drop?talk=1"', 'href="/drop#talk"']]],
+  ["help Talk link near-miss (/drop#tallk)", "help.html", [['href="/drop#talk"', 'href="/drop#tallk"']]],
+  ["help Talk link near-miss (/drop.html#talk)", "help.html", [['href="/drop#talk"', 'href="/drop.html#talk"']]],
+  ["help second /drop#talk link", "help.html", [['<a href="/drop#talk">Drop · Talk</a>', '<a href="/drop#talk">Drop · Talk</a> · <a href="/drop#talk">Talk</a>']]],
   ["help anchor typo", "help.html", [['href="#pack-worth"', 'href="#pack-wurth"']]],
-  ["help link to a missing page", "help.html", [['href="/drop?talk=1"', 'href="/nowhere#talk"']]],
+  ["help link to a missing page", "help.html", [['href="/drop#talk"', 'href="/nowhere#talk"']]],
   ["pipes Show pipes back", "pipes.html", [[">Show connections</button>", ">Show pipes</button>"]]],
   ["pipes lead pipe back", "pipes.html", [["You do not need a connection to start.", "You do not need a pipe to start."]]],
   ["pipes Send HOLD back", "pipes.html", [["Sending stays off for now.", "Send stays HOLD."]]],
