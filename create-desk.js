@@ -378,7 +378,7 @@
     function draftsOffNote(note) {
       const n = String(note || "");
       if (!n || /XAI_|API_KEY|this\s+box|Vercel|console\.x\.ai|draft\s+key/i.test(n)) {
-        return "A Desk AI can't draft on this phone yet. You can still put work on the queue.";
+        return "A Desk AI can't draft on this phone yet. You can still type the work below and put it in your Queue.";
       }
       return n;
     }
@@ -392,24 +392,37 @@
         : "A Desk AI can't draft on this phone yet. You can still put work on the queue.");
       return { on: on, note: note };
     }
+    // The health check always ends in a plain next step: on, off, failed, or no answer within 7 seconds.
+    const AIA_WAIT_MS = 7000;
+    const AIA_NO_ANSWER = "Could not reach the desk. A Desk AI can't draft yet. You can still type the work below and put it in your Queue.";
+    function healthWithin(ms) {
+      return new Promise(function (resolve, reject) {
+        const ctl = typeof AbortController === "function" ? new AbortController() : null;
+        const timer = setTimeout(function () {
+          if (ctl) { try { ctl.abort(); } catch (e) {} }
+          reject(new Error("timeout"));
+        }, ms);
+        Promise.resolve()
+          .then(function () { return fetch("/api/health", ctl ? { signal: ctl.signal } : undefined); })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (h) { clearTimeout(timer); resolve(h); }, function (e) { clearTimeout(timer); reject(e); });
+      });
+    }
     async function paintAia() {
       const el = document.getElementById("aia-line");
       if (!el) return;
       try {
-        const r = await fetch("/api/health");
-        const h = await r.json().catch(function () { return {}; });
+        const h = await healthWithin(AIA_WAIT_MS);
         const face = deskAiFromHealth(h);
         grokOn = !!face.on;
         el.classList.toggle("off", !grokOn);
         el.textContent = face.on
-          ? (face.note && /can draft/i.test(face.note)
-            ? "A Desk AI can draft. You still tap Yes or Stop."
-            : face.note)
+          ? "A Desk AI can draft. You still tap Yes or Stop."
           : draftsOffNote(face.note);
       } catch (e) {
         grokOn = false;
         el.classList.add("off");
-        el.textContent = "Could not reach the desk. A Desk AI can't draft yet. You can still put work on the queue.";
+        el.textContent = AIA_NO_ANSWER;
       }
     }
     function startNote(msg, kind, open) {
@@ -561,17 +574,44 @@
       if (yes) yes.addEventListener("click", function () { queueStart(true); });
       if (stop) stop.addEventListener("click", function () { clearStartDraft(); startNote("", "", false); paintStartDesk(); });
     }
+    // One clear first choice: say it in everyday words, then Draft it. Every other way to start
+    // (starters, library, When/Then pickers, files, example, a site, Talk) waits under "More ways to start".
+    const MORE_WAYS = ["cs-starter-hint", "cs-starters", "cs-library", "cs-when-pick", "cs-files", "cs-file-hint", "cs-example", "cs-example-walk", "cs-webhook", "cs-voice", "cs-heard"];
+    function trimCreate(openIt) {
+      try {
+        const ask = document.getElementById("cs-ask");
+        const draft = document.getElementById("cs-draft");
+        if (!ask || !draft || typeof document.createElement !== "function" || document.getElementById("cs-more")) return;
+        const more = document.createElement("details");
+        more.id = "cs-more";
+        more.className = "cs-more";
+        const sum = document.createElement("summary");
+        sum.textContent = "More ways to start";
+        more.appendChild(sum);
+        const hint = document.createElement("p");
+        hint.className = "hint";
+        hint.textContent = "Start from a ready-made example, pick when it runs, bring in a file, connect a site, or talk instead of typing.";
+        more.appendChild(hint);
+        MORE_WAYS.forEach(function (id) {
+          const node = document.getElementById(id);
+          if (node && node.parentNode) more.appendChild(node);
+        });
+        if (openIt) more.open = true;
+        ask.appendChild(more);
+      } catch (e) {}
+    }
     (function boot() {
+      paintAia();
       const params = new URLSearchParams(location.search);
       const want = params.get("kind") || (location.hash || "").replace("#", "");
       if (want === "pack" || want === "packs" || want === "market") kind = "pack";
       if (want === "ai" || want === "desk-ai") kind = "ai";
       if (want === "automation" || want === "model") kind = "model";
+      trimCreate(kind !== "job");
       renderPicks();
       setMode(false);
       if (kind === "pack") loadPacks();
       wireStart();
-      paintAia();
       paintStartDesk();
       window.addEventListener("pageshow", function () { paintStartDesk(); });
     })();
