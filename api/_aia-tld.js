@@ -13,7 +13,7 @@ const FETCH_MS = 3500;
 const FEE = "~0.041–0.045 ETH/yr + gas, or DWEB";
 const LOCKED_NOTE = "Bridge locked on Decentraweb — watching. When unlocked, Connect wallet then Register.";
 const READY_NOTE = "Ready to mint when Bridge clears.";
-const AVAILABLE_NOTE = "Bridge is clear. Connect wallet, then Register .aia on this desk. James signs commit, waits ~60s, then signs register. AIA holds no keys.";
+const AVAILABLE_NOTE = "Bridge is clear. Connect wallet, then Register .aia on this desk. You sign the commit, wait about 60 seconds, then sign the register. AIA holds no keys.";
 const OWNED_NOTE = "This connected wallet matches the on-chain .aia owner.";
 const WATCH_NOTE = "Watching Decentraweb for .aia. Collect stays HOLD. AIA does not mint from this server.";
 const DUMMY_OWNER = "0x1111111111111111111111111111111111111111";
@@ -145,7 +145,7 @@ function publicOf(probe, wallet) {
       approveRegistration: null
     },
     register: require("./_aia-register").publicFlow(w),
-    followUp: "On-desk Register uses the connected wallet. Browser calls approve-registration with that owner, then James signs commit and register. Server never signs."
+    followUp: "On-desk Register uses the connected wallet. Browser calls approve-registration with that owner, then you sign the commit and the register. Server never signs."
   };
 }
 

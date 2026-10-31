@@ -18,6 +18,14 @@ function ok(cond, msg) { if (cond) passes += 1; else fail(msg); }
 function read(rel) { return fs.readFileSync(path.join(root, rel), "utf8"); }
 const SRC = read("account-connections.js");
 const CODE = SRC.replace(/^\s*\/\/.*$/gm, "");
+const KILLED_PLAIN = "Stopped for good. Nothing more happens on this card.";
+const CONNECT_SRC = read("api/_account-connect.js");
+function killedBits(src) {
+  const status = (String(src).match(/if \(card\.status === "killed"\) return "([^"]+)";/) || [])[1] || "";
+  const reason = (String(src).match(/st\.reason = "([^"]*Nothing more happens on this card\.)";/) || [])[1] || "";
+  return { status: status, reason: reason };
+}
+const KILLED_FROM_API = killedBits(CONNECT_SRC);
 
 // ---------- small DOM (same idea as check-account-page-settings.js) ----------
 const VOID = { input: 1, br: 1, img: 1 };
@@ -98,8 +106,8 @@ function cardBundle() {
 }
 function cardBlocked() {
   const c = cardMid();
-  c.id = "setup_blk"; c.status = "killed"; c.statusText = "Killed. Nothing more happens on this card.";
-  c.steps.forEach((s) => { s.state = "blocked"; s.reason = "Killed. Nothing more happens on this card."; });
+  c.id = "setup_blk"; c.status = "killed"; c.statusText = KILLED_FROM_API.status;
+  c.steps.forEach((s) => { s.state = "blocked"; s.reason = KILLED_FROM_API.reason; });
   c.history = [];
   return c;
 }
@@ -157,7 +165,7 @@ function happy(over) {
     if (a === "setup-step") {
       const c = cardMid();
       if (body.do === "stop") { c.status = "stopped"; c.statusText = "Stopped. Nothing runs from this card. Start it again to go on."; }
-      if (body.do === "kill") { c.status = "killed"; c.steps.forEach((s) => { s.state = "blocked"; s.reason = "Killed. Nothing more happens on this card."; }); }
+      if (body.do === "kill") { c.status = "killed"; c.statusText = KILLED_FROM_API.status; c.steps.forEach((s) => { s.state = "blocked"; s.reason = KILLED_FROM_API.reason; }); }
       if (body.do === "done" && body.stepId === "card.desk") c.steps[0].state = "done";
       c.id = body.cardId;
       return { status: 200, data: { ok: true, changed: true, saved: true, card: c, entry: { what: "Server says: step moved." } } };
@@ -198,6 +206,9 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
   ok(fs.statSync(path.join(root, "desk.html")).size === 35012, "desk.html stays 35,012 bytes");
   ok(!/account-connections/.test(read("desk.html")), "desk.html untouched");
   ok(!/check-account-connections-ui/.test(read("package.json")), "not in npm test yet (waits for 336 and 355)");
+  ok(KILLED_FROM_API.status === KILLED_PLAIN && KILLED_FROM_API.reason === KILLED_PLAIN, "api waiting text is Stopped for good, not Killed");
+  ok(CONNECT_SRC.indexOf("Killed. Nothing more happens on this card.") < 0, "api does not return the old Killed waiting text");
+  ok(CONNECT_SRC.indexOf('card.status === "killed"') >= 0, "killed stays the status value");
 
   // ---------- signed out: nothing loads ----------
   { const w = world({ reply: happy() }); await settle(); ok(w.calls.length === 0 && w.mount.hidden === true, "signed out: no fetch, stays hidden"); }
@@ -246,7 +257,7 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
 
     // blocked + killed card open: reasons shown, still Stop and Kill, no step actions
     const blk = await openCard(w, "setup_blk");
-    ok(/Waiting: Killed\. Nothing more happens on this card\./.test(blk.textContent), "blocked shows its reason");
+    ok(blk.textContent.indexOf("Waiting: " + KILLED_PLAIN) >= 0, "blocked shows its reason");
     ok(buttons(blk, "Done").length === 0 && buttons(blk, "Stop").length === 1 && buttons(blk, "Kill").length === 1, "killed card: no step actions, Stop and Kill stay");
     const stp = await openCard(w, "setup_stp");
     ok(/Waiting: The connection was removed\. Connect again to go on\./.test(stp.textContent), "mid-setup blocked step shows reason");
@@ -413,7 +424,7 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
   // ---------- Stop and Kill that do not save (store guard 503, any failure, saved:false) ----------
   {
     const G503 = { status: 503, data: { ok: false, error: "The desk can't save right now. Try again in a moment.", code: "store_not_ready" } };
-    const shapes = [["503", () => G503], ["409", () => ({ status: 409, data: { ok: false, error: "Something else." } })], ["offline", null], ["saved:false", (b) => { const c = cardMid(); c.id = b.cardId; c.status = b.do === "stop" ? "stopped" : "killed"; c.statusText = b.do === "stop" ? "Stopped. Nothing runs from this card. Start it again to go on." : "Killed. Nothing more happens on this card."; return { status: 200, data: { ok: true, changed: true, saved: false, card: c, hint: "Stopped here, but it did not save. Tap Stop again." } }; }]];
+    const shapes = [["503", () => G503], ["409", () => ({ status: 409, data: { ok: false, error: "Something else." } })], ["offline", null], ["saved:false", (b) => { const c = cardMid(); c.id = b.cardId; c.status = b.do === "stop" ? "stopped" : "killed"; c.statusText = b.do === "stop" ? "Stopped. Nothing runs from this card. Start it again to go on." : KILLED_FROM_API.status; return { status: 200, data: { ok: true, changed: true, saved: false, card: c, hint: "Stopped here, but it did not save. Tap Stop again." } }; }]];
     for (const [label, fn] of shapes) {
       for (const verb of ["stop", "kill"]) {
         const w = world({ storage: SIGNED, reply: happy({ "setup-step": (b) => (b.do === "stop" || b.do === "kill") && fn ? fn(b) : null }) });
@@ -497,5 +508,34 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
   }
 
   console.log("check-account-connections-ui: " + passes + " pass, " + failures + " fail");
-  process.exit(failures ? 1 : 0);
+  if (failures) process.exit(1);
+  if (process.env.AIA_CONN_UI_MUTANT === "1") process.exit(0);
+  const { execFileSync, spawnSync } = require("child_process");
+  const os = require("os");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-conn-ui-mut-"));
+  try {
+    execFileSync("git", ["clone", "--local", root, dir], { stdio: ["ignore", "pipe", "pipe"] });
+    const file = path.join(dir, "api/_account-connect.js");
+    const src = fs.readFileSync(file, "utf8");
+    const next = src.split(KILLED_PLAIN).join("Killed. Nothing more happens on this card.");
+    if (next === src || src.split(KILLED_PLAIN).length !== 3) {
+      fail("old Killed waiting text mutant did not apply");
+    } else {
+      fs.writeFileSync(file, next);
+      const r = spawnSync(process.execPath, [__filename, dir], {
+        cwd: root,
+        env: { PATH: process.env.PATH || "", HOME: dir, TMPDIR: dir, AIA_CONN_UI_MUTANT: "1" },
+        encoding: "utf8",
+        timeout: 120000
+      });
+      const out = (r.stdout || "") + "\n" + (r.stderr || "");
+      const first = out.split("\n").find((l) => l.indexOf("FAIL") >= 0) || "";
+      if (r.status && /Killed/.test(out)) console.log("old Killed waiting text | CAUGHT | " + first.slice(0, 180));
+      else fail("old Killed waiting text | SURVIVED | " + (first || ("exit " + r.status)).slice(0, 180));
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  if (failures) process.exit(1);
+  console.log("check-account-connections-ui mutants: 1/1 caught");
 })().catch((e) => { console.error("check-account-connections-ui: FAIL crashed " + (e && e.stack || e)); process.exit(1); });

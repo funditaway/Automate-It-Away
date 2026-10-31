@@ -8,7 +8,10 @@ require("./_env-guard");
 // every other string literal under api/ (including prompts). No literal may
 // contain a james / funditaway / springfield .aia name. The repo slug
 // funditaway/Automate-It-Away in api/health.js is the only exclusion, and
-// only when the literal is exactly that slug.
+// only when the literal is exactly that slug. Reply strings (every api
+// string literal) also may not name an owner. The only leftovers are the
+// account ownerName field, the reviewer desk slug, that repo slug, and the
+// upload delete confirmation, each matched exactly.
 // node scripts/check-aia-mail-no-owner-address.js
 // node scripts/check-aia-mail-no-owner-address.js --mutate
 const fs = require("fs");
@@ -19,6 +22,18 @@ const root = path.join(__dirname, "..");
 const OWNER = /james|funditaway|springfield/i;
 const AIA_NAME = /(?:james|funditaway|springfield)[a-z0-9-]*\.aia/i;
 const REPO_SLUG = "funditaway/Automate-It-Away";
+const OWNER_LITERAL_OK = {};
+[
+  ["api/health.js", REPO_SLUG],
+  ["api/_aia-admin.js", "funditaway"],
+  ["api/_aia-admin.js", "James Oddo"],
+  ["api/_account.js", "James Oddo"],
+  ["api/migrate-uploads.js", "Delete needs James's Yes."]
+].forEach(function (row) { OWNER_LITERAL_OK[row[0] + "\0" + row[1]] = true; });
+function ownerLiteralAllowed(file, text) {
+  return OWNER_LITERAL_OK[file + "\0" + text] === true;
+}
+const REGISTER_NOTE = "You sign the commit, wait about 60 seconds, then sign the register. AIA holds no keys. Collect stays on hold.";
 const EMPTY = "Type an AIA email, like name@your-account.aia.";
 const NO_AT = "Use name@your-account.aia.";
 const TWO_AT = "Use local@account.aia.";
@@ -208,9 +223,19 @@ function staticScan() {
   ok(all.length > literals.length, "static scan read " + all.length + " string literals");
   ok(sawSlug, "health.js repo slug is present");
   ok(allowedLiteral("api/health.js", REPO_SLUG) && !allowedLiteral("api/health.js", REPO_SLUG + " james.aia") && !allowedLiteral("api/_grok.js", REPO_SLUG) && !allowedLiteral("api/health.js", "funditaway.aia"), "repo slug exclusion is exact and only api/health.js");
-  ok(!AIA_NAME.test("Register .aia from this desk. James signs in MetaMask."), "plain James prose next to .aia is not a .aia name");
+  ok(!AIA_NAME.test("Register .aia from this desk when Bridge is clear. You sign in your wallet."), "plain register prose next to .aia is not a .aia name");
+  ok(!AIA_NAME.test("Register .aia from this desk. James signs in MetaMask.") && OWNER.test("James signs in MetaMask."), "owner-name prose is not a .aia name; the name scan still ignores it");
   ok(AIA_NAME.test("james.aia") && AIA_NAME.test("springfield-shop.aia") && AIA_NAME.test("funditaway.aia") && !AIA_NAME.test("yourname.aia") && !AIA_NAME.test("your-shop.aia"), "owner .aia names match; neutral examples do not");
   ok(nameHits.length === 0, "no api string literal has a james/funditaway/springfield .aia name" + (nameHits.length ? " (" + nameHits.join(" | ") + ")" : ""));
+  const ownerHits = [];
+  let sawRegisterNote = false;
+  all.forEach(function (row) {
+    if (row.file === "api/_aia-register.js" && row.text === REGISTER_NOTE) sawRegisterNote = true;
+    if (!OWNER.test(row.text) || ownerLiteralAllowed(row.file, row.text)) return;
+    ownerHits.push(row.file + ": " + row.text.slice(0, 140));
+  });
+  ok(sawRegisterNote, "register note is second person");
+  ok(ownerHits.length === 0, "no api reply string names an owner" + (ownerHits.length ? " (" + ownerHits.join(" | ") + ")" : ""));
 }
 
 function mockRes() {
@@ -392,7 +417,10 @@ const MUTANTS = [
     "AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia)."],
   ["health slug is not a blanket exclusion", "api/health.js",
     'repo: "funditaway/Automate-It-Away"',
-    'repo: "funditaway.aia"']
+    'repo: "funditaway.aia"'],
+  ["register note names the owner", "api/_aia-register.js",
+    'const HOLD_NOTE = "You sign the commit, wait about 60 seconds, then sign the register. AIA holds no keys. Collect stays on hold.";',
+    'const HOLD_NOTE = "James signs the commit, waits about 60 seconds, then signs the register. AIA holds no keys. Collect stays on hold.";']
 ];
 
 function mutate() {

@@ -210,6 +210,44 @@ async function child() {
     process.stdout.write("RESULT " + JSON.stringify({ error: "open failed", status: opened.statusCode, body: opened.body }) + "\n");
     return;
   }
+  if (process.argv[2] === "--child-fixed") {
+    const crypto = require("crypto");
+    const fixedNow = Date.now();
+    const fixedUuid = "11111111-1111-4111-8111-111111111111";
+    const fixedHex = "0011223344556677";
+    crypto.randomUUID = function () { return fixedUuid; };
+    crypto.randomBytes = function (n, cb) {
+      const buf = Buffer.alloc(n);
+      if (n === 8) Buffer.from(fixedHex, "hex").copy(buf);
+      else for (let i = 0; i < n; i++) buf[i] = (i * 17 + 3) & 255;
+      if (typeof cb === "function") { cb(null, buf); return; }
+      return buf;
+    };
+    Date.now = function () { return fixedNow; };
+    Math.random = function () { return 0.25; };
+    process.hrtime = function () { return [Math.floor(fixedNow / 1000), 0]; };
+    process.hrtime.bigint = function () { return BigInt(fixedNow) * 1000000n; };
+    try {
+      const perf = require("perf_hooks").performance;
+      if (perf) perf.now = function () { return 12345.5; };
+    } catch (e) {}
+    if (typeof performance !== "undefined" && performance && performance.now) {
+      performance.now = function () { return 12345.5; };
+    }
+    const one = await post({
+      name: "porch-secret.png",
+      type: "image/png",
+      data: pngBytes().toString("base64")
+    }, "203.0.113.21");
+    const put = one.added[0] || null;
+    process.stdout.write("RESULT " + JSON.stringify({
+      error: one.res.statusCode === 201 && put ? "" : "fixed post failed",
+      status: one.res.statusCode,
+      name: put ? put.name : "",
+      expect: fixedUuid + "-" + fixedHex
+    }) + "\n");
+    return;
+  }
   function uploads() {
     return puts.filter((p) => p.name.indexOf("store.json") < 0);
   }
@@ -297,6 +335,29 @@ function assertBlobChild() {
   const pngFile = out.pngFiles && out.pngFiles[0];
   if (!pngFile || pngFile.remoteUrl || JSON.stringify(out.pngFiles).indexOf("remoteUrl") >= 0) fail("POST must not return remoteUrl");
   pass("Blob put uses a random name, addRandomSuffix, no overwrite, and the sniffed type");
+}
+
+function assertFixedBlob() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-upload-privacy-fixed-"));
+  const env = {
+    PATH: process.env.PATH,
+    HOME: tmp,
+    AIA_STORE_PATH: path.join(tmp, "store.json"),
+    AIA_UPLOAD_DIR: path.join(tmp, "up"),
+    VERCEL_ENV: "production",
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
+    BLOB_STORE_ID: "store_FAKESTORE",
+    AIA_CHECK_PARENT: String(process.pid)
+  };
+  if (process.env.AIA_UPLOAD_MODULE) env.AIA_UPLOAD_MODULE = process.env.AIA_UPLOAD_MODULE;
+  const r = spawnSync(process.execPath, [__filename, "--child-fixed"], { env, cwd: tmp, encoding: "utf8", timeout: 60000 });
+  fs.rmSync(tmp, { recursive: true, force: true });
+  const line = String(r.stdout || "").split("\n").find((l) => l.indexOf("RESULT ") === 0);
+  if (!line) fail("fixed blob child produced no result (exit " + r.status + "): " + String(r.stderr || "").slice(-500));
+  const out = JSON.parse(line.slice(7));
+  if (out.error) fail("fixed blob child " + out.error + " status " + out.status + " name " + out.name);
+  if (out.name !== out.expect) fail("blob name is not the crypto-derived form: " + out.name + " want " + out.expect);
+  pass("blob name matches the stubbed crypto.randomUUID and crypto.randomBytes form");
 }
 
 function assertSources() {
@@ -637,6 +698,7 @@ async function main() {
   pass("a sender is rate limited and extra POSTs store nothing");
 
   assertBlobChild();
+  assertFixedBlob();
   try { fs.rmSync(scratch, { recursive: true, force: true }); } catch (e) {}
 }
 
@@ -691,7 +753,7 @@ function runMutants() {
       const out = (r.stdout || "") + "\n" + (r.stderr || "");
       const first = out.split("\n").find(function (l) { return l.indexOf("FAIL ") === 0; }) || "";
       total += 1;
-      if (r.status && (first.indexOf("derived from desk, file, or time") >= 0 || first.indexOf("blob naming must use only crypto") >= 0)) {
+      if (r.status && (first.indexOf("derived from desk, file, or time") >= 0 || first.indexOf("blob naming must use only crypto") >= 0 || first.indexOf("not the crypto-derived form") >= 0)) {
         caught += 1;
         console.log(row[0] + " | CAUGHT | " + first.slice(0, 200));
       } else {
@@ -708,7 +770,7 @@ function runMutants() {
 }
 
 if (require.main === module) {
-  if (process.argv[2] === "--child") {
+  if (process.argv[2] === "--child" || process.argv[2] === "--child-fixed") {
     child().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
   } else if (process.argv[2] === "--mutate") {
     runMutants();

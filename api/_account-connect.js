@@ -155,7 +155,7 @@ function groupFrom(item, idx) {
 
 function cardStatusText(card) {
   if (card.status === "stopped") return "Stopped. Nothing runs from this card. Start it again to go on.";
-  if (card.status === "killed") return "Killed. Nothing more happens on this card.";
+  if (card.status === "killed") return "Stopped for good. Nothing more happens on this card.";
   if (card.status === "done") return "Set up as a dry run. Nothing runs on its own yet.";
   const done = card.steps.filter((s) => s.state === "done" || s.state === "skipped").length;
   return "Open. " + done + " of " + card.steps.length + " steps done.";
@@ -594,7 +594,7 @@ async function handle(req, res, body) {
       const from = card.status;
       card.status = to;
       if (verb === "kill") {
-        card.steps.forEach((st) => { if (st.state === "todo") { st.state = "blocked"; st.reason = "Killed. Nothing more happens on this card."; } });
+        card.steps.forEach((st) => { if (st.state === "todo") { st.state = "blocked"; st.reason = "Stopped for good. Nothing more happens on this card."; } });
       }
       refresh(card);
       const entry = cardEntry(card, null, verb, from, to, stamp, verb === "stop" ? "Stopped this setup card." : "Killed this setup card.");

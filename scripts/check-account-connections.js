@@ -380,7 +380,7 @@ async function main() {
     r = await post(hd, { action: "setup-step", cardId: id, do: "start" });
     if (r.statusCode !== 200 || r.body.card.status !== "open") fail(kind + ": start again");
     r = await post(hd, { action: "setup-step", cardId: id, do: "kill" });
-    if (r.statusCode !== 200 || r.body.card.status !== "killed" || r.body.card.steps.filter((s) => s.state === "todo").length !== 0 || !r.body.card.steps.some((s) => s.state === "blocked" && /Killed/.test(s.reason))) fail(kind + ": Kill mid-setup is 200 and blocks the rest: " + JSON.stringify(r.body).slice(0, 300));
+    if (r.statusCode !== 200 || r.body.card.status !== "killed" || r.body.card.statusText !== "Stopped for good. Nothing more happens on this card." || r.body.card.steps.filter((s) => s.state === "todo").length !== 0 || !r.body.card.steps.some((s) => s.state === "blocked" && s.reason === "Stopped for good. Nothing more happens on this card.")) fail(kind + ": Kill mid-setup is 200 and blocks the rest: " + JSON.stringify(r.body).slice(0, 300));
     for (const v of ["kill", "stop"]) {
       r = await post(hd, { action: "setup-step", cardId: id, do: v });
       if (r.statusCode !== 200) fail(kind + ": " + v + " on a killed card still 200");

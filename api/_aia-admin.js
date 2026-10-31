@@ -6,6 +6,27 @@ function normalizeHandle(value) {
   return String(value || "").trim().replace(/^@+/, "").replace(/\.aia$/i, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "").slice(0, 40);
 }
 
+// Lookalike gate for the platform and reviewer tests only. normalizeHandle
+// itself is unchanged: reserved handles, setAccountHandle, publicAdmin, and
+// world-people still strip non-ASCII the way they do today. A combining mark
+// such as "a\u0301ia" therefore stays reserved (it still collapses to "aia")
+// and still cannot be stored as a shop handle. It is not the platform account.
+// After NFKC, any remaining non-ASCII is refused. A string NFKC rewrites
+// (fullwidth letters, NBSP) is refused too, so the fold cannot become "aia".
+function hasNonAsciiHandle(value) {
+  const raw = String(value || "");
+  const nfkc = raw.normalize("NFKC");
+  if (/[^\u0000-\u007F]/.test(nfkc)) return true;
+  if (nfkc !== raw) return true;
+  return false;
+}
+
+function matchesPlatformHandle(value) {
+  if (hasNonAsciiHandle(value)) return false;
+  const handle = normalizeHandle(String(value || "").normalize("NFKC"));
+  return handle === "aia";
+}
+
 function handleTakenError() {
   return { ok: false, status: 409, error: "That handle is reserved for the AIA admin account." };
 }
@@ -20,21 +41,22 @@ function isPlatformAccount(acc) {
   if (acc.id === PLATFORM_ACCOUNT_ID) return true;
   if (acc.heldBy === "admin") return true;
   if (acc.aiaReviewer === true) return true;
-  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);
-  return handle === "aia";
+  return matchesPlatformHandle(acc.handle || acc.xHandle || acc.slug);
 }
 
 function isReviewerDesk(row) {
   if (!row) return false;
-  const slug = String(row.slug || "").toLowerCase();
-  const name = normalizeHandle(row.biz || row.name || "");
+  const slugRaw = String(row.slug || "");
+  const slug = hasNonAsciiHandle(slugRaw) ? "" : slugRaw.toLowerCase();
+  const nameRaw = row.biz || row.name || "";
+  const name = hasNonAsciiHandle(nameRaw) ? "" : normalizeHandle(String(nameRaw).normalize("NFKC"));
   return REVIEWER_DESKS.indexOf(slug) >= 0 || REVIEWER_DESKS.indexOf(name) >= 0;
 }
 
 function isAiaReviewer(acc, row, person) {
   if (isPlatformAccount(acc)) return true;
   if (isReviewerDesk(row)) return true;
-  if (person && (person.aiaReviewer === true || normalizeHandle(person.handle || person.xHandle) === "aia")) return true;
+  if (person && (person.aiaReviewer === true || matchesPlatformHandle(person.handle || person.xHandle))) return true;
   return false;
 }
 
