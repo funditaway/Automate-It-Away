@@ -154,7 +154,8 @@ function startPage(src, spec) {
     calls, timers,
     text: () => (box() ? box().textContent : ""),
     retry: () => { let b = null; walk(box(), (el) => { if (!b && el.tagName === "BUTTON" && el.getAttribute("data-queue-retry") !== null) b = el; }); return b; },
-    click(el) { const list = box(); (list.listeners.click || []).forEach((fn) => fn({ target: el })); },
+    // Like a browser: a disabled button fires no click.
+    click(el) { if (el && (el.disabled || el.getAttribute("disabled") !== null)) return; const list = box(); (list.listeners.click || []).forEach((fn) => fn({ target: el })); },
     pick(slug) {
       const nav = document.getElementById("queue-desk-picker");
       let b = null; walk(nav, (el) => { if (!b && el.getAttribute && el.getAttribute("data-queue-desk") === slug) b = el; });
@@ -181,6 +182,8 @@ function showsError(p, bad, label) {
   if (EMPTY.test(t) || /No desks in this Queue yet/.test(t)) bad(label + ": the error reads as empty (" + t.trim().slice(0, 80) + ")");
   const box = p.find("data-queue-error", "1");
   if (!box || box.getAttribute("role") !== "alert") bad(label + ": the error box must have role=alert so a screen reader says it");
+  const again = p.retry();
+  if (again && (again.disabled || again.getAttribute("disabled") !== null || again.getAttribute("aria-disabled") === "true")) bad(label + ": Try again must not be disabled");
 }
 
 async function suite(S, okFn) {
@@ -225,6 +228,21 @@ async function suite(S, okFn) {
     await settle(); p.fireTimers(); await settle();
     showsError(p, b, "desk list and cards hang");
   });
+  await run("first load keeps focus", async () => {
+    // A normal first load (and a desk pick) must not move focus: only Try again does.
+    const p = startPage(src, { routes: { mine: MINE, all: ok200([job(NORTH), job(SOUTH)]), north: ok200([job(NORTH)]), south: ok200([job(SOUTH)]) } });
+    await settle();
+    if (!/North Shop card/.test(p.text())) b("first load: the cards did not paint (" + p.text().trim().slice(0, 80) + ")");
+    if (p.focused()) b("first load: focus moved to " + p.focused().tagName + " (must stay on the page body)");
+    if (!p.pick("north")) { b("first load: no North desk button"); return; }
+    await settle();
+    if (p.focused()) b("desk pick: focus moved to " + p.focused().tagName + " (must stay where the tap left it)");
+  });
+  await run("first load error keeps focus", async () => {
+    const p = startPage(src, { routes: { mine: MINE, all: { status: 500, body: {} }, north: { status: 500, body: {} }, south: { status: 500, body: {} } } });
+    await settle();
+    if (p.focused()) b("first load error: focus moved to " + p.focused().tagName + " before any Try again");
+  });
   await run("empty 200", async () => {
     const p = startPage(src, { routes: { mine: MINE, all: ok200([]) } });
     await settle();
@@ -242,6 +260,12 @@ async function suite(S, okFn) {
     await settle();
     if (!/No desks in this Queue yet/.test(p.text()) || p.retry()) b("a real 200 with no desks must show No desks yet, not the error");
   });
+  await run("no desks, all-desks network error", async () => {
+    // A network error on the all-desks read counts like a 500: with no desk list to fall back on it is the
+    // error, never "No desks yet".
+    const p = startPage(src, { routes: { mine: { status: 200, body: { ok: true, desks: [] } }, all: "network" } });
+    await settle(); showsError(p, b, "no desks, all-desks network error");
+  });
   await run("desk list 500", async () => {
     const p = startPage(src, { routes: { mine: { status: 500, body: {} }, all: { status: 500, body: {} } } });
     await settle(); showsError(p, b, "desk list and cards 500");
@@ -254,8 +278,9 @@ async function suite(S, okFn) {
     if (!btn) { b("retry: no Try again button"); return; }
     const before = p.calls.length;
     state.all = ok200([job(NORTH)]);
+    if (btn.disabled || btn.getAttribute("disabled") !== null) b("retry: Try again is disabled");
     p.click(btn); await settle();
-    if (p.calls.length <= before) b("Try again must run the load again");
+    if (p.calls.length <= before) b("Try again must run the load again (a click fired no new request)");
     if (!/North Shop card/.test(p.text())) b("after Try again the loaded card must show (" + p.text().trim().slice(0, 80) + ")");
     if (LOAD_FAILED.test(p.text()) || p.retry()) b("after a good Try again the error must be gone");
     const f = p.focused();
@@ -281,6 +306,47 @@ async function suite(S, okFn) {
     p.click(btn); await settle();
     if (p.calls.filter((c) => c === "mine").length < 2) b("Try again must read the desk list again when that read failed");
     if (!/North Shop card/.test(p.text())) b("after Try again the desk list and its cards must show");
+  });
+  for (const oldFail of [{ status: 500, body: {} }, "network"]) await run("overlap: old read fails first (" + (oldFail === "network" ? "network" : "500") + ")", async () => {
+    // Two North loads overlap; the old one fails while the newer one is still out. The failure is the old
+    // load's: the newer load answers with cards and no "Couldn't load every desk" note may show.
+    let releaseOld, releaseNew;
+    const oldRead = new Promise((r) => { releaseOld = r; });
+    const newRead = new Promise((r) => { releaseNew = r; });
+    let northReads = 0;
+    const p = startPage(src, { routes: { mine: MINE, all: ok200([]), north: () => (++northReads === 1 ? oldRead : northReads === 2 ? newRead : ok200([])), south: ok200([]) } });
+    await settle();
+    if (!p.pick("north")) { b("overlap: no North desk button"); return; }
+    await settle();
+    if (!p.pick("north")) { b("overlap: no North desk button (second tap)"); return; }
+    await settle();
+    if (northReads < 2) { b("overlap: the second North tap did not start a new read"); return; }
+    releaseOld(oldFail);
+    await settle();
+    releaseNew(ok200([job(NORTH)]));
+    await settle();
+    const t = p.text();
+    if (!/North Shop card/.test(t)) b("overlap: the newer North load must paint its card (" + t.trim().slice(0, 80) + ")");
+    if (/Couldn't load/.test(t) || p.retry()) b("overlap (" + (oldFail === "network" ? "network" : "500") + "): an old failed read flagged the newer load (" + t.trim().slice(0, 80) + ")");
+  });
+  await run("stale retry keeps focus", async () => {
+    // Try again goes out, then the user picks North before it answers. The retry's answer is stale: focus
+    // must not move when it lands.
+    const state = { all: { status: 500, body: {} } };
+    let release;
+    const slow = new Promise((r) => { release = r; });
+    const p = startPage(src, { routes: { mine: MINE, all: () => state.all, north: ok200([job(NORTH)]), south: { status: 500, body: {} } } });
+    await settle();
+    const btn = p.retry();
+    if (!btn) { b("stale retry: no Try again button"); return; }
+    state.all = slow;
+    p.click(btn); await settle();
+    if (!p.pick("north")) { b("stale retry: no North desk button"); return; }
+    await settle();
+    release(ok200([job(NORTH)]));
+    await settle();
+    if (!/North Shop card/.test(p.text())) b("stale retry: the newer North load must stay painted");
+    if (p.focused()) b("stale retry: focus moved to " + p.focused().tagName + " after a Try again that went stale");
   });
   await run("partial", async () => {
     const p = startPage(src, { routes: { mine: MINE, all: { status: 500, body: {} }, north: ok200([job(NORTH)]), south: { status: 500, body: {} } } });
@@ -385,6 +451,14 @@ const MUTANTS = [
   ["no focus after Try again", [["    if (await refreshCards()) focusAfterRetry();\n", "    await refreshCards();\n"]]],
   ["heading not focusable", [['target.setAttribute("tabindex", "-1");', "void 0;"]]],
   ["focus on the heading even when Try again fails", [["    if (loadError) {\n      var box", "    if (false) {\n      var box"]]],
+  // QA probe 443b at 530828c0.
+  ["P2d old load marks the newest load failed", [["if (!r.ok || !data || !Array.isArray(data.jobs)) { if (mine) mine.failed = true; return []; }", "if (!r.ok || !data || !Array.isArray(data.jobs)) { if (load) load.failed = true; return []; }"]]],
+  ["P2d network error marks the newest load failed", [["    } catch (e) {\n      if (mine) mine.failed = true;\n      return [];", "    } catch (e) {\n      if (load) load.failed = true;\n      return [];"]]],
+  ["P9 Try again disabled", [["again.type = \"button\";\n    again.setAttribute(\"data-queue-retry\", \"1\");", "again.type = \"button\";\n    again.setAttribute(\"data-queue-retry\", \"1\"); again.disabled = true;"]]],
+  ["P9b Try again disabled by attribute", [["again.type = \"button\";\n    again.setAttribute(\"data-queue-retry\", \"1\");", "again.type = \"button\";\n    again.setAttribute(\"data-queue-retry\", \"1\"); again.setAttribute(\"disabled\", \"\");"]]],
+  ["P8 network error on the all-desks read not counted", [["    } catch (e) {\n      if (mine) mine.allFailed = true;\n      return null;", "    } catch (e) {\n      return null;"]]],
+  ["F5 focus moves on every load", [["    paintCards(visibleCards());\n    return true;\n", "    paintCards(visibleCards());\n    focusAfterRetry();\n    return true;\n"]]],
+  ["F6 focus even when the retry load went stale", [["    if (await refreshCards()) focusAfterRetry();\n", "    await refreshCards(); focusAfterRetry();\n"]]],
   ["queue-login.js unreadable", null]
 ];
 function mutate(S, reps) {
