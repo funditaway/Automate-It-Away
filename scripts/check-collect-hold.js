@@ -30,11 +30,12 @@ const nav = read("desk-nav.js");
 
 const follow = sliceBetween(index, "<b>Keep the follow-up</b>", "</div>", "index.html follow-up");
 must(follow, "One nudge. Then it stops.", "follow-up one nudge");
-must(follow, "Collect stays HOLD until Yes + a real money pipe.", "follow-up Collect HOLD");
+must(follow, "Payments are off for now.", "follow-up payments off");
+mustNot(follow, "Collect stays HOLD", "follow-up Collect jargon");
 mustNot(follow, "Money waits only if you wrote that rule", "follow-up rule-gated live money");
 
 const bills = sliceBetween(index, "<b>Bills</b>", "</div>", "index.html Bills");
-must(bills, "Bill due on the card. Collect HOLD until Yes + a real money pipe.", "Bills Collect HOLD");
+must(bills, "Bill due on the card. Payments are off for now.", "Bills payments off");
 mustNot(bills, "lets the money move", "Bills owner lets money move");
 mustNot(bills, "money-wait rule", "Bills money-wait as live pipe");
 
@@ -98,15 +99,18 @@ Object.keys(leftover).forEach(function (name) {
   mustNot(hay, "compute credits", name + " compute credits");
   mustNot(hay, "drop-pack.js", name + " loads drop-pack.js");
 });
-must(leftover["setup.html"], "Collect HOLD until Yes + a real money pipe.", "setup.html Consign HOLD");
-must(leftover["examples.html"], "Collect HOLD until Yes + a real money pipe.", "examples.html Consign HOLD");
-must(leftover["setup-demo.js"], "Collect HOLD until Yes + a real money pipe.", "setup-demo estate HOLD");
+must(leftover["setup.html"], "Photo to listing draft. Payments are off for now.", "setup.html Consign payments off");
+mustNot(leftover["setup.html"], "Collect HOLD", "setup.html Collect jargon");
+must(leftover["examples.html"], "Photo to listing draft. Payments are off for now.", "examples.html Consign payments off");
+mustNot(leftover["examples.html"], "Collect HOLD", "examples.html Collect jargon");
+must(leftover["setup-demo.js"], "Photo to comps to listing draft. Payments are off for now.", "setup-demo estate payments off");
 must(leftover["api/_packs.js"], "Photo in. Listing draft. Collect HOLD until Yes + a real money pipe.", "marketplace consign HOLD");
 must(leftover["pack-card.js"], "Draft a listing. Collect HOLD until Yes + a real money pipe.", "pack-card consign HOLD");
 must(leftover["desk-queue-packs.js"], "Collect HOLD until Yes + a real money pipe.", "queue consign empty HOLD");
 must(leftover["packs/consign.json"], "Collect HOLD until Yes + a real money pipe.", "consign.json HOLD");
 must(leftover["api/_engine.js"], "Collect stays HOLD until Yes + a real money pipe.", "engine consign hold rec HOLD");
-must(leftover["pricing.html"], "Collect stays HOLD until Yes + a real money pipe.", "pricing note HOLD");
+must(leftover["pricing.html"], "Payments are off for now.", "pricing note payments off");
+mustNot(leftover["pricing.html"], "Collect stays HOLD", "pricing Collect jargon");
 mustNot(leftover["pricing.html"], "Per shipped job", "pricing live per-job bill");
 must(leftover["legal.html"], "Collect stays HOLD until a person taps Yes and a real money pipe is live.", "legal lead HOLD");
 mustNot(leftover["legal.html"], "We bill shipped jobs", "legal live shipped-job bill");

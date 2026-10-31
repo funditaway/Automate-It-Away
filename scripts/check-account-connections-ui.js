@@ -246,10 +246,10 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
 
     // blocked + killed card open: reasons shown, still Stop and Kill, no step actions
     const blk = await openCard(w, "setup_blk");
-    ok(/Blocked: Killed\. Nothing more happens on this card\./.test(blk.textContent), "blocked shows its reason");
+    ok(/Waiting: Killed\. Nothing more happens on this card\./.test(blk.textContent), "blocked shows its reason");
     ok(buttons(blk, "Done").length === 0 && buttons(blk, "Stop").length === 1 && buttons(blk, "Kill").length === 1, "killed card: no step actions, Stop and Kill stay");
     const stp = await openCard(w, "setup_stp");
-    ok(/Blocked: The connection was removed\. Connect again to go on\./.test(stp.textContent), "mid-setup blocked step shows reason");
+    ok(/Waiting: The connection was removed\. Connect again to go on\./.test(stp.textContent), "mid-setup blocked step shows reason");
 
     // bundle checklist
     const bun = await openCard(w, "setup_bun");
@@ -427,7 +427,7 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
         const st = find(b, (n) => n.getAttribute("role") === "status")[0];
         ok(st && st.textContent === Verb + " didn't save. Try again in a moment.", label + " " + verb + ": says exactly " + Verb + " didn't save");
         ok(b.textContent.indexOf("Open. 0 of 5 steps done.") >= 0 && !/Stopped\.|Killed\./.test(b.textContent) && buttons(b, "Start again").length === 0, label + " " + verb + ": card never shown stopped or killed");
-        ok(/Pick a desk · To do/.test(b.textContent) && !/Blocked/.test(b.textContent), label + " " + verb + ": steps unchanged");
+        ok(/Pick a desk · To do/.test(b.textContent) && !/Blocked| · Waiting/.test(b.textContent), label + " " + verb + ": steps unchanged");
         ok(buttons(b, "Stop").length === 1 && buttons(b, "Kill").length === 1 && !buttons(b, "Stop")[0].disabled && !buttons(b, "Kill")[0].disabled, label + " " + verb + ": Stop and Kill stay live to try again");
         const n = w.posts().filter((c) => c.body.do === verb).length + lost;
         buttons(b, Verb)[0].fire("click"); await settle();
