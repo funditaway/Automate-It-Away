@@ -313,9 +313,11 @@
     if (!nav) { nav = document.createElement("nav"); nav.className = "site-nav"; header.appendChild(nav); }
     nav.classList.add("site-nav");
     var page = pageName();
+    var keep = Array.prototype.slice.call(nav.querySelectorAll("[data-nav-keep]"));
     nav.innerHTML = SITE_LINKS.map(function (l) {
       return "<a href=\"" + l.href + "\"" + (l.id === page ? " class=\"on\"" : "") + ">" + l.label + "</a>";
     }).join("");
+    keep.forEach(function (el) { nav.insertBefore(el, nav.firstChild); });
   }
   function paintFooter() {
     if (isEmbed()) return;
