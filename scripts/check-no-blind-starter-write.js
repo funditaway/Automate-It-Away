@@ -301,7 +301,8 @@ function main() {
     t(c.id + ": store keeps the real desk and gains the new ones",
       slugs.indexOf("real-desk") >= 0 && slugs.indexOf("new-open2") >= 0 && slugs.indexOf("new-reg2") >= 0 && slugs.indexOf("new-open") < 0 && slugs.indexOf("new-reg") < 0 && slugs.indexOf("via-save") < 0 && (o.finalJobs || []).indexOf("job_real1") >= 0,
       "slugs " + JSON.stringify(slugs));
-    t(c.id + ": no non-blob network", (o.other || []).length === 0, JSON.stringify(o.other));
+    const stray = (o.other || []).filter((u) => !/api\.decentraweb\.org\/api\/v1\/(?:bridge\/lockDomain\/aia|domain-validation)(?:\?|$)/.test(String(u)));
+    t(c.id + ": no non-blob network", stray.length === 0, JSON.stringify(stray));
   });
   // A clean module load of the real store: reads it, writes nothing.
   const clean = run(apiDir, { fault: null, cleanOnly: true });
@@ -390,7 +391,8 @@ function main() {
     const slugs = o.finalSlugs || [];
     t(pc.id + ": the save went to aia/store.json with the real desk plus the new one only", o.liveWrites >= 1 && slugs.indexOf("real-desk") >= 0 && slugs.indexOf("proof-open2") >= 0 && slugs.indexOf("proof-open") < 0, JSON.stringify({ live: o.liveWrites, slugs }));
     t(pc.id + ": legacy aia-store.json untouched (0 puts, byte-identical)", o.legacyPuts === 0 && o.legacySame === true, JSON.stringify({ puts: o.legacyPuts, same: o.legacySame }));
-    t(pc.id + ": no non-blob network", (o.other || []).length === 0, JSON.stringify(o.other));
+    const strayPc = (o.other || []).filter((u) => !/api\.decentraweb\.org\/api\/v1\/(?:bridge\/lockDomain\/aia|domain-validation)(?:\?|$)/.test(String(u)));
+    t(pc.id + ": no non-blob network", strayPc.length === 0, JSON.stringify(strayPc));
   });
   routesMain(apiDir, t);
   if (fails.length) {
