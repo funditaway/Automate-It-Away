@@ -159,7 +159,7 @@ function healthBlock() {
     mint: false,
     token: false,
     deposit: false,
-    note: "Your wallet on Account or Desk. MetaMask / WalletConnect. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."
+    note: "Your wallet on Account or Desk. MetaMask / WalletConnect. AIA does not hold keys. Not Wallet.AIA. Payments are off for now. Nothing is charged. .aia Register when Bridge unlocks."
   };
 }
 
