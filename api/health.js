@@ -4,36 +4,35 @@ const {
 } = require("./_lib");
 
 
-function strangerTld(row) {
-  if (!row || typeof row !== "object") {
-    return {
-      tld: ".aia",
-      status: "watching",
-      label: "Watching",
-      collect: "hold",
-      mint: false,
-      live: false,
-      bridgeLocked: false,
-      ownedByConnected: false,
-      note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
-      wallet: { connected: false, short: "" }
-    };
+// bridgeLocked is the probe boolean. A row that already carries it (status, or
+// health after the same probe) wins. Otherwise use the cached probe. Never a
+// hardcoded false while that probe says the bridge is locked. ownedByConnected
+// stays false: these replies have no wallet session.
+function bridgeLockedOf(row) {
+  if (row && typeof row === "object" && Object.prototype.hasOwnProperty.call(row, "bridgeLocked")) {
+    return row.bridgeLocked === true;
   }
-  const w = row.wallet || {};
+  const peeked = require("./_aia-tld").peek(require("./_connect-wallet").emptyPublic());
+  return peeked.bridgeLocked === true;
+}
+
+function strangerTld(row) {
+  const source = (row && typeof row === "object") ? row : {};
+  const w = source.wallet || {};
   return {
-    tld: row.tld || ".aia",
-    status: row.status || "watching",
-    label: row.label || "Watching",
+    tld: source.tld || ".aia",
+    status: source.status || "watching",
+    label: source.label || "Watching",
     collect: "hold",
     mint: false,
-    live: !!row.live,
-    bridgeLocked: row.bridgeLocked === true,
+    live: !!source.live,
+    bridgeLocked: bridgeLockedOf(row),
     ownedByConnected: false,
     note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
-    wallet: {
+    wallet: (row && typeof row === "object" && row.wallet) ? {
       connected: !!w.connected,
       short: w.short || ""
-    }
+    } : { connected: false, short: "" }
   };
 }
 
@@ -152,6 +151,12 @@ async function health(req, res) {
   await readyRead();
   const driver = mem.driver || "file";
   const rev = commitRev();
+  const tld = require("./_aia-tld");
+  const connect = require("./_connect-wallet");
+  let probed = tld.peek(connect.emptyPublic());
+  try { probed = await tld.forWallet(connect.emptyPublic()); } catch (e) { probed = tld.emptyPublic(connect.emptyPublic()); }
+  const block = tld.healthBlock();
+  block.bridgeLocked = probed.bridgeLocked === true;
   res.status(200).json({
     ok: true,
     product: "Automate It Away",
@@ -224,7 +229,7 @@ async function health(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet: require("./_connect-wallet").healthBlock(),
-    aiaTld: strangerTld(require("./_aia-tld").healthBlock())
+    aiaTld: strangerTld(block)
   });
 }
 

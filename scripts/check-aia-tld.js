@@ -202,26 +202,56 @@ async function main() {
   if (opened.statusCode !== 201 && opened.statusCode !== 200) fail("open desk " + opened.statusCode);
   else pass("open desk");
 
-  tld.setFetch(mockFetch({
-    "GET /bridge/lockDomain/aia": { status: 500, body: { error: "Failed to get bridge lock domain" } },
-    "POST /domain-validation": { status: 400, body: { error: "Failed to check domain is bridge lock or not" } }
-  }));
-
   const ownerHdr = { "x-workspace": slug, "x-pin": pin };
-  const home = await call(account, "GET", ownerHdr, {}, {});
-  if (!home.body || !home.body.aiaTld || !home.body.aiaTld.bridgeLocked || home.body.aiaTld.owned) {
-    fail("account GET aiaTld " + JSON.stringify(home.body && home.body.aiaTld));
-  } else pass("account GET shows bridge locked, not owned");
-
-  const st = await call(health.status, "GET", ownerHdr, {}, {});
-  if (!st.body || !st.body.aiaTld || st.body.aiaTld.bridgeLocked !== true || st.body.aiaTld.ownedByConnected !== false || st.body.aiaTld.collect !== "hold") {
-    fail("status aiaTld " + JSON.stringify(st.body && st.body.aiaTld));
-  } else pass("status exposes honest aiaTld");
-
-  const hh = await call(health, "GET", {}, {}, {});
-  if (!hh.body || !hh.body.aiaTld || hh.body.aiaTld.mint || hh.body.aiaTld.collect !== "hold") {
-    fail("health aiaTld block " + JSON.stringify(hh.body && hh.body.aiaTld));
-  } else pass("health aiaTld block is honest");
+  const helperPin = "7171";
+  const invited = await call(auth, "POST", ownerHdr, { action: "invite", name: "Pat", pin: helperPin, kind: "helper" });
+  if (invited.statusCode !== 201 && invited.statusCode !== 202) fail("invite helper " + invited.statusCode);
+  else pass("helper seat");
+  const helperHdr = { "x-workspace": slug, "x-pin": helperPin };
+  const note = "Name registration is off for now. Payments are off for now. Nothing is charged.";
+  const states = [
+    ["locked", true, {
+      "GET /bridge/lockDomain/aia": { status: 500, body: { error: "Failed to get bridge lock domain" } },
+      "POST /domain-validation": { status: 400, body: { errorCode: -2, errorMessage: "Failed to check domain is bridge lock or not" } }
+    }],
+    ["unlocked", false, {
+      "GET /bridge/lockDomain/aia": { status: 200, body: { locked: false, available: true } },
+      "POST /domain-validation": { status: 200, body: { available: true, locked: false } }
+    }],
+    ["no-row", false, {
+      "GET /bridge/lockDomain/aia": { status: 404, body: {} },
+      "POST /domain-validation": { status: 404, body: {} }
+    }]
+  ];
+  const seats = [["no-session", {}], ["helper", helperHdr], ["owner", ownerHdr]];
+  for (let i = 0; i < states.length; i++) {
+    const label = states[i][0];
+    const want = states[i][1];
+    tld.setFetch(mockFetch(states[i][2]));
+    const home = await call(account, "GET", ownerHdr, {}, {});
+    const acc = home.body && home.body.aiaTld;
+    if (!acc || acc.bridgeLocked !== want || acc.owned) {
+      fail(label + " account GET " + JSON.stringify(acc));
+    }
+    let seatBad = !acc || acc.bridgeLocked !== want;
+    for (let s = 0; s < seats.length; s++) {
+      const who = seats[s][0];
+      const hdr = seats[s][1];
+      const st = await call(health.status, "GET", hdr, {}, {});
+      const hh = await call(health, "GET", hdr, {}, {});
+      const statusTld = st.body && st.body.aiaTld;
+      const healthTld = hh.body && hh.body.aiaTld;
+      if (!statusTld || statusTld.bridgeLocked !== want || statusTld.ownedByConnected !== false || statusTld.collect !== "hold" || !acc || statusTld.bridgeLocked !== acc.bridgeLocked) {
+        fail(label + " " + who + " status " + JSON.stringify(statusTld));
+        seatBad = true;
+      }
+      if (!healthTld || healthTld.bridgeLocked !== want || healthTld.ownedByConnected !== false || healthTld.collect !== "hold" || healthTld.mint || healthTld.note !== note || !acc || healthTld.bridgeLocked !== acc.bridgeLocked) {
+        fail(label + " " + who + " health " + JSON.stringify(healthTld));
+        seatBad = true;
+      }
+    }
+    if (!seatBad) pass(label + " health, status, and account agree on bridgeLocked");
+  }
 
   const src = helper + ui + html;
   if (/\$250|demo seed|fake ETH|silent Collect/i.test(src)) fail("hard-line leak");
