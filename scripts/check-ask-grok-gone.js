@@ -52,7 +52,7 @@ if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge|silent send/i.tes
 } else pass("no OAuth / wallet / Collect charge");
 if (help.indexOf("Grok") >= 0) fail("help.html must not lecture Grok");
 else pass("help.html does not lecture Grok");
-if (help.indexOf("HOLD ask") < 0 || help.indexOf("does not name another live desk AI") < 0) {
+if (help.indexOf("/ the ask waits)") < 0 || help.indexOf("does not name another live desk AI") < 0) {
   fail("help#desk-cards must name gone Ask HOLD");
 } else pass("help names gone Ask HOLD");
 if (help.indexOf("does not first-select another live desk AI") < 0) {

@@ -38,7 +38,7 @@ must(faq, "How do I install, give, or update a pack?", "FAQ give-update question
 must(faq, "Install / give / update a .aia with Yes", "FAQ install / give / update");
 must(faq, "Give is the file", "FAQ Give is the file");
 must(faq, "Update is install again", "FAQ Update is install again");
-must(faq, "Recurring update HOLD", "FAQ recurring HOLD");
+must(faq, "Recurring updates are off for now.", "FAQ recurring off for now");
 must(faq, "You do not pick a pack on every Drop", "FAQ no pack pick");
 must(faq, "No silent charge", "FAQ no silent charge");
 must(faq, "How do I Connect a wallet?", "FAQ Connect question");
@@ -60,7 +60,7 @@ if (peopleStart < 0 || peopleEnd < 0 || peopleEnd <= peopleStart) throw new Erro
 const peopleDd = help.slice(peopleStart, peopleEnd);
 must(peopleDd, "Needs you / prompt ask-who", "First day People dd Needs you / prompt ask-who");
 must(peopleDd, "Then draft", "First day People dd Then draft");
-must(peopleDd, "gone HOLD", "First day People dd gone HOLD");
+must(peopleDd, "named desk AI or the not-on-this-desk note", "First day People dd gone note");
 
 must(help, "People lives under More", "people-desk card");
 const peopleDesk = help.slice(help.indexOf('id="people-desk"'), help.indexOf('id="onboard-desk"'));
