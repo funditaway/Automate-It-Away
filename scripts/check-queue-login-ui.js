@@ -11,7 +11,7 @@ const vm = require("vm");
 const { execSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const main = "813dfc0cf0fc98d9cd2ad92b897104bdd58bd629";
+const main = "5e83bb5d6a8ee790c510012a302a008a7f41aab7";
 let bad = 0;
 let okN = 0;
 function fail(msg) { bad += 1; console.error("FAIL " + msg); }

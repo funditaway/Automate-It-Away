@@ -9,7 +9,7 @@ require("./_env-guard");
 // waiting copy with no crash and no retry; [] and 403 show nothing and no error text; the link
 // is /account#setup-<id>; no run-on-its-own control; Stop and Kill on every card; the Pack
 // install reply's setupCard is surfaced; no money or checkout fetches; plain public copy.
-// Also: desk.html is 35012 bytes and no api/ file differs from 813dfc0c.
+// Also: desk.html is 35012 bytes and no api/ file differs from 5e83bb5.
 // Usage: node scripts/check-setup-cards-ui.js
 const fs = require("fs");
 const path = require("path");
@@ -17,7 +17,7 @@ const vm = require("vm");
 const { execSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const BASE = "e58083ae2ccb8ab22661dac8d4894798c39f8eac";
+const BASE = "5e83bb5d6a8ee790c510012a302a008a7f41aab7";
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }

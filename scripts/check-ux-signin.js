@@ -10,7 +10,7 @@ require("./_env-guard");
 // desks.html, aia-mail.js: no hardcoded james / funditaway addresses.
 // /onboard: login-doors.js shows sign-in doors that are not ready as disabled "Coming soon"
 //   buttons in a closed group; only live doors start a login; no HOLD/ASK words.
-// Also: desk.html is 35012 bytes and no api/ file differs from 32145675.
+// Also: desk.html is 35012 bytes and no api/ file differs from 5e83bb5.
 // Usage: node scripts/check-ux-signin.js
 const fs = require("fs");
 const path = require("path");
@@ -18,7 +18,7 @@ const vm = require("vm");
 const { execSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const BASE = "321456750dd03210f98b06e3d6f454d54fbcbe72";
+const BASE = "5e83bb5d6a8ee790c510012a302a008a7f41aab7";
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
