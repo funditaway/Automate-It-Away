@@ -311,6 +311,34 @@ async function runtimeReplies() {
   ok(otherAdmin.statusCode === 200 && otherAdmin.body && otherAdmin.body.account, "other owner admin is signed in " + otherAdmin.statusCode);
   ok(!OWNER.test(JSON.stringify(otherAdmin.body || "")), "another queue hides a set ownerName");
   platform.ownerName = "";
+  await railDraftReplies(lib);
+}
+async function railDraftReplies(lib) {
+  const jobs = require("../api/jobs");
+  const worker = require("../api/worker");
+  const ownerH = { "x-workspace": "owner-a", "x-pin": "4821" };
+  const helperH = { "x-workspace": "owner-a", "x-pin": "5555" };
+  const shop = (lib.mem.workspaces || []).find(function (w) { return w && w.slug === "owner-a"; });
+  ok(!!shop, "rail desk is still in memory");
+  if (!shop) return;
+  shop.people.push({ id: "p_rail_runtime", name: "Lane", crew: "Rail", role: "agent", kind: "agent", status: "approved" });
+  const captured = await call(jobs, "POST", ownerH, { action: "capture", title: "Ada rail card", notes: "A card for the rail." }, {}, "/api/jobs");
+  noOwner("owner capture", captured.body);
+  const jobId = captured.body && captured.body.job && captured.body.job.id;
+  ok(captured.statusCode === 201 && !!jobId, "owner capture wrote a card " + captured.statusCode);
+  const assigned = await call(jobs, "POST", ownerH, { action: "assign", id: jobId, name: "Lane" }, {}, "/api/jobs");
+  noOwner("owner assign", assigned.body);
+  ok(assigned.statusCode === 200 && assigned.body && assigned.body.job && assigned.body.job.assignee === "Lane", "owner assign handed the card to the Rail agent " + assigned.statusCode);
+  const drafted = await call(worker, "POST", ownerH, {}, {}, "/api/worker");
+  noOwner("worker draft", drafted.body);
+  ok(drafted.statusCode === 200 && drafted.body && drafted.body.drafted >= 1, "worker wrote a draft through the agent seat " + drafted.statusCode + " " + JSON.stringify(drafted.body && drafted.body.drafted));
+  const ownerJobs = await call(jobs, "GET", ownerH, {}, {}, "/api/jobs");
+  const helperJobs = await call(jobs, "GET", helperH, {}, {}, "/api/jobs");
+  noOwner("owner GET jobs", ownerJobs.body);
+  noOwner("helper GET jobs", helperJobs.body);
+  const railLine = "Rail on Ada rail card: Ready if a person taps Yes. Rail does not tap Stop.";
+  ok(ownerJobs.statusCode === 200 && JSON.stringify(ownerJobs.body || "").indexOf(railLine) >= 0, "owner GET has the Rail draft");
+  ok(helperJobs.statusCode === 200 && JSON.stringify(helperJobs.body || "").indexOf(railLine) >= 0, "helper GET has the Rail draft");
 }
 function noOwner(label, body) {
   const raw = typeof body === "string" ? body : JSON.stringify(body);
@@ -482,6 +510,9 @@ const MUTANTS = [
   ["helper is sent ownerName", "api/_account.js",
     "if (opts && opts.showOwnerName) out.ownerName = account.ownerName || \"\";",
     "if (true) out.ownerName = account.ownerName || \"\";"],
+  ["Rail draft names the owner", "api/_handoff.js",
+    'Rail: "Rail on " + title + ": " + (job.risk && job.risk !== "none" ? "Needs a look · " + job.risk : "Ready if a person taps Yes") + ". Rail does not tap Stop.",',
+    'Rail: "Rail on " + title + ": " + (job.risk && job.risk !== "none" ? "Needs a look · " + job.risk : "Ready if a person taps Yes") + ". Rail does not tap Stop." + " " + "Jam" + "es",'],
   ["register note names the owner", "api/_aia-register.js",
     'const HOLD_NOTE = "You sign the commit, wait about 60 seconds, then sign the register. AIA holds no keys. Collect stays on hold.";',
     'const HOLD_NOTE = "James signs the commit, waits about 60 seconds, then signs the register. AIA holds no keys. Collect stays on hold.";'],
