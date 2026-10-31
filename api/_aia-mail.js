@@ -1,8 +1,8 @@
 const net = require("./_aia-net");
 const lib = require("./_lib");
 
-const HOLD_NOTE = "Identities work on the desk now. Internet mail when the MX pipe is connected. DNS for ai.aia / *.aia does not resolve yet.";
-const SEND_HOLD = "Outbound Send stays HOLD. No silent mail. Rail / Yes. Status orange until a real MX pipe.";
+const HOLD_NOTE = "Identities work on the desk now. Internet mail is off until mail delivery is connected. DNS for ai.aia / *.aia does not resolve yet.";
+const SEND_HOLD = "Sending mail is off for now. Nothing goes out without your Yes.";
 const MAX = 12;
 
 function ensureMail() {

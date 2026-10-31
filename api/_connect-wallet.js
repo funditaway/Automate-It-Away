@@ -62,7 +62,7 @@ function emptyPublic(extra) {
     collect: "hold",
     mint: false,
     live: false,
-    note: "No wallet connected on this open desk. Connect MetaMask or WalletConnect on Account or Desk. AIA does not hold keys. Collect stays HOLD."
+    note: "No wallet connected on this open desk. Connect MetaMask or WalletConnect on Account or Desk. AIA does not hold keys. Payments are off for now. Nothing is charged."
   }, extra || {});
 }
 

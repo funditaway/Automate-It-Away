@@ -153,8 +153,8 @@ async function main() {
   counted("GET /api/health?view=status", m, status);
 
   const collect = warm.body && warm.body.automation && warm.body.automation.collect;
-  if (!/Collect stays HOLD/.test(String(collect || ""))) fail("collect line must still say Collect stays HOLD, got " + JSON.stringify(collect));
-  else pass("collect still says Collect stays HOLD");
+  if (collect !== "Payments are off for now. Nothing is charged.") fail("collect line must still say payments are off and nothing is charged, got " + JSON.stringify(collect));
+  else pass("collect still says payments are off and nothing is charged");
 
   const pkg = require("../package.json");
   if (String((pkg.scripts && pkg.scripts.test) || "").indexOf("check-health-no-save.js") < 0) {

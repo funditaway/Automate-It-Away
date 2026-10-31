@@ -578,7 +578,7 @@ async function handle(req, res, body) {
   }
 
   if (action === "setup-step") {
-    const extra = badKeys(body, ["action", "cardId", "stepId", "do", "reason", "deskId", "connectionId", "secret", "allow", "try", "live"].concat(idOk));
+    const extra = badKeys(body, ["action", "cardId", "stepId", "do", "reason", "deskId", "connectionId", "secret", "allow", "try", "live", "confirm"].concat(idOk));
     if (extra) return refuse(res, 400, "Not a setup step field: " + plain(extra.join(", "), 80));
     const card = cardsOf(acc).find((c) => c.id === String(body.cardId || ""));
     if (!card) return refuse(res, 404, "No setup card like that.");
@@ -587,14 +587,18 @@ async function handle(req, res, body) {
 
     if (verb === "stop" || verb === "kill") {
       // Always 200 for the card's own account, in any state.
+      // confirm is accepted and ignored. Enforcement waits until the desk sends it.
       const to = verb === "stop" ? "stopped" : "killed";
-      if (card.status === to || (verb === "stop" && card.status === "killed")) {
+      if (card.status === "killed") {
+        return res.status(200).json({ ok: true, changed: false, card: publicCard(card), hint: "Already stopped for good. Nothing changed." });
+      }
+      if (card.status === to) {
         return res.status(200).json({ ok: true, changed: false, card: publicCard(card) });
       }
       const from = card.status;
       card.status = to;
       if (verb === "kill") {
-        card.steps.forEach((st) => { if (st.state === "todo") { st.state = "blocked"; st.reason = "Stopped for good. Nothing more happens on this card."; } });
+        card.steps.forEach((st) => { if (st.state === "todo") { st.state = "blocked"; st.reason = "Stopped for good. Nothing more happens on this card."; st.reasonCode = "killed"; } });
       }
       refresh(card);
       const entry = cardEntry(card, null, verb, from, to, stamp, verb === "stop" ? "Stopped this setup card." : "Stopped for good. Nothing more happens on this card.");

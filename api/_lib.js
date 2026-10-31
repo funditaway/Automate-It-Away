@@ -1353,8 +1353,8 @@ function catalog() {
     live: configured(id),
     status: id === "whatnot" ? "down" : configured(id) ? "live" : "hold",
     note: id === "whatnot"
-      ? "Not a launch pipe"
-      : configured(id) ? "This pipe is set up." : "Hold until this pipe is set up."
+      ? "Off for now."
+      : configured(id) ? "This connection is set up." : "Off until this connection is set up."
   }));
 }
 

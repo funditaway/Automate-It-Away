@@ -74,7 +74,7 @@ module.exports = async function handler(req, res) {
       inbound: "POST to /api/hook with to: local@account.aia — Drop / Capture on that desk. Automations can trigger from inbound.",
       send: "hold",
       mx: mail.statusOf(),
-      note: "Write back done when the work finished off the desk. Write back hand when a person still has to finish it. Owner still owns Stop. .aia identities work on the desk now. Internet mail when the MX pipe is connected."
+      note: "Write back done when the work finished off the desk. Write back hand when a person still has to finish it. Owner still owns Stop. .aia identities work on the desk now. Internet mail is off until mail delivery is connected."
     });
   }
 
@@ -123,7 +123,7 @@ module.exports = async function handler(req, res) {
     const inbound = identity ? mail.inboundPayload(body, identity) : {};
     job = makeCapturedJob(workspace, shop, Object.assign({}, body, inbound, {
       title: inbound.title || title,
-      why: inbound.why || body.why || "In from a pipe.",
+      why: inbound.why || body.why || "In from a connection.",
       from: inbound.from || body.from || body.provider || "webhook",
       notes: inbound.notes || body.notes || body.text || "",
       lane: inbound.lane || body.lane || (identity ? "in" : "ext"),

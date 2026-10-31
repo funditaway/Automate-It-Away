@@ -36,8 +36,24 @@ const OVERLAY = [
   "scripts/check-setup-cards-ui.js",
   "scripts/check-ux-signin.js"
 ];
-const LANDED = ["api/_aia-mail.js", "api/_aia-net.js", "api/_grok.js"];
-const MOVED = ["api/_aia-admin.js", "api/_aia-register.js", "api/_aia-tld.js", "api/_account-connect.js", "api/migrate-uploads.js"];
+const LANDED = ["api/_aia-admin.js", "api/_aia-register.js", "api/_grok.js", "api/migrate-uploads.js"];
+const MOVED = [
+  "api/_account-connect.js",
+  "api/_account-doors.js",
+  "api/_account-http.js",
+  "api/_aia-mail.js",
+  "api/_aia-net.js",
+  "api/_aia-tld.js",
+  "api/_connect-wallet.js",
+  "api/_desks-http.js",
+  "api/_handoff.js",
+  "api/_lib.js",
+  "api/_roles.js",
+  "api/connections.js",
+  "api/health.js",
+  "api/hook.js",
+  "api/jobs.js"
+];
 
 let failed = 0;
 let passed = 0;
@@ -117,7 +133,7 @@ try {
   const snap = {};
   function read(rel) { return fs.readFileSync(path.join(dir, rel), "utf8"); }
   function write(rel, text) { fs.writeFileSync(path.join(dir, rel), text); }
-  ["api/_aia-mail.js", "api/_aia-admin.js", "api/health.js", "api/hook.js", "scripts/_api-freeze.js"].forEach(function (rel) { snap[rel] = read(rel); });
+  ["api/_aia-mail.js", "api/_aia-admin.js", "api/health.js", "api/hook.js", "api/_oauth.js", "scripts/_api-freeze.js"].forEach(function (rel) { snap[rel] = read(rel); });
   function restore() {
     Object.keys(snap).forEach(function (rel) { write(rel, snap[rel]); });
   }
@@ -166,7 +182,7 @@ try {
       write("api/_aia-admin.js", snap["api/_aia-admin.js"].replace(handleFrom, handleTo));
     }, "pinned blob"],
     ["other api file", function () {
-      write("api/health.js", snap["api/health.js"] + "\nfunction freezeMutantProbe(){return 1;}\n");
+      write("api/_oauth.js", snap["api/_oauth.js"] + "\nfunction freezeMutantProbe(){return 1;}\n");
     }, "outside the pin"],
     ["bogus base", function () {
       write("scripts/_api-freeze.js", snap["scripts/_api-freeze.js"].split(freeze.BASE).join("not-a-real-sha"));
@@ -187,15 +203,15 @@ try {
   });
 
   restore();
-  try { execFileSync("git", ["update-index", "--no-assume-unchanged", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
-  write("api/health.js", snap["api/health.js"] + "\nfunction freezeMutantProbe(){return 1;}\n");
-  execFileSync("git", ["update-index", "--assume-unchanged", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  try { execFileSync("git", ["update-index", "--no-assume-unchanged", "api/_oauth.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+  write("api/_oauth.js", snap["api/_oauth.js"] + "\nfunction freezeMutantProbe(){return 1;}\n");
+  execFileSync("git", ["update-index", "--assume-unchanged", "api/_oauth.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const dirty = freeze.check(dir);
   scoreFreeze("tracked worktree edit", dirty, "outside the pin");
   CHECKS.forEach(function (rel) {
     score("tracked worktree edit", rel, runCheck(dir, rel), "outside the pin");
   });
-  try { execFileSync("git", ["update-index", "--no-assume-unchanged", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+  try { execFileSync("git", ["update-index", "--no-assume-unchanged", "api/_oauth.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
   restore();
 
   const hiddenJs = "module.exports = function () { return 1; };\n";

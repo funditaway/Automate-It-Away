@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const AI_PROVIDERS = {
   grok: { label: "Grok", vendor: "xAI", acts: ["draft"], login: "https://console.x.ai/team/default/api-keys", model: "grok-4-fast-non-reasoning", note: "Log in at console.x.ai. Paste the API key. Drafts only." },
   openai: { label: "ChatGPT", vendor: "OpenAI", acts: ["draft"], login: "https://platform.openai.com/api-keys", model: "gpt-4o-mini", note: "Log in at platform.openai.com. Paste the API key. Sign in with ChatGPT does not give drafts." },
-  anthropic: { label: "Claude", vendor: "Anthropic", acts: ["draft"], login: "https://console.anthropic.com/settings/keys", model: "claude-sonnet-4-20250514", note: "Log in at console.anthropic.com. Paste the API key. claude.ai chat login is not a draft pipe." }
+  anthropic: { label: "Claude", vendor: "Anthropic", acts: ["draft"], login: "https://console.anthropic.com/settings/keys", model: "claude-sonnet-4-20250514", note: "Log in at console.anthropic.com. Paste the API key. claude.ai chat login is not a draft connection." }
 };
 function isAiProvider(id) { return !!AI_PROVIDERS[String(id || "").toLowerCase()]; }
 function aiCatalog() {
@@ -36,26 +36,26 @@ const SOON = {
   facebook: { label: "Facebook Page", group: "social", acts: ["capture", "list"], login: "https://developers.facebook.com/apps/", note: "Comments as cards. No auto-post." },
   instagram: { label: "Instagram", group: "social", acts: ["capture", "list"], login: "https://developers.facebook.com/apps/", note: "Same Meta app. Owner taps Yes to publish." },
   snapchat: { label: "Snapchat", group: "social", acts: ["notify"], login: "https://kit.snapchat.com/", note: "Not a live story post." },
-  tiktok: { label: "TikTok", group: "social", acts: ["list"], login: "https://developers.tiktok.com/", note: "Not a live publish pipe." },
+  tiktok: { label: "TikTok", group: "social", acts: ["list"], login: "https://developers.tiktok.com/", note: "Publishing is off for now." },
   youtube: { label: "YouTube", group: "social", acts: ["list"], login: "https://console.cloud.google.com/apis/library/youtube.googleapis.com", note: "Studio later. No auto-upload." },
   pinterest: { label: "Pinterest", group: "social", acts: ["list"], login: "https://developers.pinterest.com/apps/", note: "No auto-pin." },
   reddit: { label: "Reddit", group: "social", acts: ["capture"], login: "https://www.reddit.com/prefs/apps", note: "Thread in as a card. No auto-comment." },
   linkedin: { label: "LinkedIn", group: "social", acts: ["list", "notify"], login: "https://www.linkedin.com/developers/apps", note: "No auto-post." },
   nextdoor: { label: "Nextdoor", group: "social", acts: ["notify"], login: "https://nextdoor.com/", note: "Local board later. No auto-post." },
-  gmail: { label: "Gmail inbound", group: "mail", acts: ["capture"], login: "https://console.cloud.google.com/apis/credentials", note: "Mail in becomes a card. Not a send pipe." },
+  gmail: { label: "Gmail inbound", group: "mail", acts: ["capture"], login: "https://console.cloud.google.com/apis/credentials", note: "Mail in becomes a card. Sending is off for now." },
   outlook: { label: "Outlook / Microsoft 365 mail", group: "mail", acts: ["capture"], login: "https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade", note: "Inbox in. Desk does not send the mail." },
-  yahoo: { label: "Yahoo Mail", group: "mail", acts: ["capture"], login: "https://developer.yahoo.com/", note: "Inbox later. Not a send pipe." },
+  yahoo: { label: "Yahoo Mail", group: "mail", acts: ["capture"], login: "https://developer.yahoo.com/", note: "Inbox later. Sending is off for now." },
   icloudmail: { label: "iCloud Mail", group: "mail", acts: ["capture"], login: "https://appleid.apple.com/", note: "No public iCloud mail key. Use the inbound hook." },
   mailchimp: { label: "Mailchimp", group: "mail", acts: ["notify"], login: "https://login.mailchimp.com/", note: "List later. AIA does not blast the list." },
   klaviyo: { label: "Klaviyo", group: "mail", acts: ["notify"], login: "https://www.klaviyo.com/login", note: "Same. No blast from the desk." },
-  microsoft: { label: "Microsoft 365", group: "calendar", acts: ["capture", "book"], login: "https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade", note: "Graph later. Orange until a real Microsoft pipe answers." },
+  microsoft: { label: "Microsoft 365", group: "calendar", acts: ["capture", "book"], login: "https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade", note: "Graph later. Off until a real Microsoft connection answers." },
   apple: { label: "Apple Calendar / iCloud", group: "calendar", acts: ["book"], login: "https://appleid.apple.com/", note: "Phone .ics already works. Apple login is not a send key." },
   calendly: { label: "Calendly", group: "calendar", acts: ["book"], login: "https://calendly.com/app", note: "Booking link later. Desk still owns Yes." },
   shopify: { label: "Shopify", group: "shop", acts: ["list", "sync"], login: "https://admin.shopify.com/", note: "Inventory in. Queue owns Yes." },
   etsy: { label: "Etsy", group: "shop", acts: ["list"], login: "https://www.etsy.com/developers/", note: "List later. Owner taps Yes." },
-  amazon: { label: "Amazon seller", group: "shop", acts: ["list", "sync"], login: "https://sellercentral.amazon.com/", note: "Not a live list pipe." },
+  amazon: { label: "Amazon seller", group: "shop", acts: ["list", "sync"], login: "https://sellercentral.amazon.com/", note: "Listing is off for now." },
   marketplace: { label: "Facebook / Instagram shop", group: "shop", acts: ["list"], login: "https://developers.facebook.com/apps/", note: "Owner tap required to post." },
-  poshmark: { label: "Poshmark", group: "shop", acts: ["list"], login: "https://poshmark.com/", note: "After Consign pipe is honest." },
+  poshmark: { label: "Poshmark", group: "shop", acts: ["list"], login: "https://poshmark.com/", note: "After the consignment connection is honest." },
   mercari: { label: "Mercari", group: "shop", acts: ["list"], login: "https://www.mercari.com/", note: "Shown, not live." },
   offerup: { label: "OfferUp", group: "shop", acts: ["list"], login: "https://offerup.com/", note: "Shown, not live." },
   craigslist: { label: "Craigslist", group: "shop", acts: ["list"], login: "https://www.craigslist.org/", note: "No public list API. Hand-post." },
@@ -89,7 +89,7 @@ const SOON = {
   quickbooks: { label: "QuickBooks", group: "books", acts: ["invoice"], login: "https://developer.intuit.com/app/developer/dashboard", note: "Books after Collect. Not a payout." },
   xero: { label: "Xero", group: "books", acts: ["invoice"], login: "https://developer.xero.com/", note: "Books later." },
   docusign: { label: "DocuSign", group: "books", acts: ["file"], login: "https://account.docusign.com/", note: "Packet later. Owner still signs." },
-  google: { label: "Google search / Cloud", group: "search", acts: ["capture"], login: "https://console.cloud.google.com/", note: "Search the catalog here. Google login is Cloud credentials, not a web-search pipe." },
+  google: { label: "Google search / Cloud", group: "search", acts: ["capture"], login: "https://console.cloud.google.com/", note: "Search the catalog here. Google login is Cloud credentials, not a web-search connection." },
   maps: { label: "Google Maps", group: "search", acts: ["capture"], login: "https://console.cloud.google.com/google/maps-apis", note: "Place later." },
   zapier: { label: "Zapier", group: "search", acts: ["post"], login: "https://zapier.com/app/login", note: "Send Zaps to the inbound hook today." },
   make: { label: "Make", group: "search", acts: ["post"], login: "https://www.make.com/", note: "Same. Hook is live." },
@@ -159,7 +159,7 @@ module.exports = async function handler(req, res) {
       groups: ["mail", "calendar", "social", "shop", "pay", "crm", "files", "talk", "books", "search"],
       helpers: {
         owner: "Connect, drop, Stop, money rules. Draft accounts are owner-only.",
-        helper: "Work the queue. Yes when the rule allows. Cannot connect a pipe or tap Stop."
+        helper: "Work the queue. Yes when the rule allows. Cannot connect a service or tap Stop."
       },
       note: "Webhook is the cross-internet pipe today. Search the wall. Log in opens that vendor. Name any other site — inbound hook still takes the card. Nothing here sends, posts, or pays by itself.",
       connections: mine.filter((c) => c.lane !== "draft").map((c) => {
@@ -174,7 +174,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "POST") {
     const { person } = personOf(req, workspace);
     if (person && !isOwner(person)) {
-      return res.status(403).json({ error: "Only the owner can bind a pipe. Leftover email session or desk code." });
+      return res.status(403).json({ error: "Only the owner can connect this. Leftover email session or desk code." });
     }
     const body = await readBody(req);
     const action = String(body.action || "").toLowerCase();
@@ -187,8 +187,8 @@ module.exports = async function handler(req, res) {
         inbound: inboundOf(workspace),
         login: found.missed ? searchLogin(body.q || body.name) : "",
         next: found.missed
-          ? "No named pipe for that yet. Log in searches the vendor. Use the inbound hook today."
-          : "Matches on the wall. Log in opens the vendor. Not a live send pipe.",
+          ? "No named connection for that yet. Log in searches the vendor. Use the inbound hook today."
+          : "Matches on the wall. Log in opens the vendor. Sending is off for now.",
         q: found.q,
         soon: found.soon,
         ai: found.ai,
@@ -219,7 +219,7 @@ module.exports = async function handler(req, res) {
         asked: { id, label: name.slice(0, 80), group: "search", login, status: "soon", live: false },
         inbound: inboundOf(workspace),
         login,
-        next: "No live pipe for " + name + " yet. Inbound hook can take the card today. Log in searches that vendor."
+        next: "No live connection for " + name + " yet. Inbound hook can take the card today. Log in searches that vendor."
       });
     }
 
@@ -245,7 +245,7 @@ module.exports = async function handler(req, res) {
         });
       }
       if (!isOwner(person)) {
-        return res.status(403).json({ error: "Only the owner can bind a pipe. Leftover email session or desk code." });
+        return res.status(403).json({ error: "Only the owner can connect this. Leftover email session or desk code." });
       }
       mem.connections = mem.connections.filter((c) => !(c.workspace === workspace && c.lane === "draft" && c.provider === provider));
       const row = {
@@ -283,11 +283,11 @@ module.exports = async function handler(req, res) {
           provider: slugSite(label),
           login: searchLogin(label),
           status: "soon",
-          next: "No named pipe for " + label + " yet. Search opens vendor docs. Use the inbound hook today."
+          next: "No named connection for " + label + " yet. Search opens vendor docs. Use the inbound hook today."
         });
       }
       if (!spec) {
-        return res.status(400).json({ error: "Pick a named pipe.", soon: soonCatalog() });
+        return res.status(400).json({ error: "Pick a named connection.", soon: soonCatalog() });
       }
       if (action === "pipe-start") {
         return res.status(200).json({
@@ -296,12 +296,12 @@ module.exports = async function handler(req, res) {
           login: spec.login || searchLogin(spec.label),
           status: "soon",
           next: spec.login
-            ? "Log in at " + spec.label + ". That console does not turn this pipe live. Inbound can use the webhook today."
+            ? "Log in at " + spec.label + ". That console does not turn this connection on. Inbound can use the webhook today."
             : spec.note
         });
       }
       return res.status(409).json({
-        error: "Coming soon. Log in to see the vendor console. It is not a live pipe.",
+        error: "Coming soon. Log in to see the vendor console. It is off for now.",
         status: "soon",
         login: spec.login || "",
         catalog: catalog(),
@@ -312,10 +312,10 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "Unknown provider", catalog: catalog(), soon: soonCatalog() });
     }
     if (!isOwner(person)) {
-      return res.status(403).json({ error: "Only the owner can bind a pipe. Leftover email session or desk code." });
+      return res.status(403).json({ error: "Only the owner can connect this. Leftover email session or desk code." });
     }
     if (provider === "whatnot") {
-      return res.status(409).json({ error: "Whatnot stays down. Not a launch pipe.", status: "down" });
+      return res.status(409).json({ error: "Whatnot stays down. Off for now.", status: "down" });
     }
     const row = {
       id: "pipe_" + Date.now().toString(36),
@@ -344,7 +344,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "DELETE") {
     const { person } = personOf(req, workspace);
     if (!isOwner(person)) {
-      return res.status(403).json({ error: "Only the owner can drop a pipe. Leftover email session or desk code." });
+      return res.status(403).json({ error: "Only the owner can remove a connection. Leftover email session or desk code." });
     }
     const id = req.query.id;
     const before = mem.connections.length;

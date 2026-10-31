@@ -107,6 +107,9 @@ const MUTANTS = [
   ["connection plain-body gate accepts any prototype", "api/_account-connect.js", [["  if (!plainObj(body)) return refuse(res, 400, s.BODY_NOT_PLAIN);\n", "  if (!isObj(body)) return refuse(res, 400, s.BODY_NOT_PLAIN);\n"]]],
   ["plain-body gate dropped on the settings writes", "api/_account-settings.js", [["  if (req.method === \"POST\" && !plainBody(body)) return refuse(res, 400, BODY_NOT_PLAIN), true;\n", ""]]],
   ["settings plainBody accepts any prototype", "api/_account-settings.js", [["  return p === Object.prototype || p === null;\n}\n", "  return !!p || p === null;\n}\n"]]],
+  ["kill confirm dropped from the allowlist", "api/_account-connect.js", [["\"try\", \"live\", \"confirm\"]", "\"try\", \"live\""]]],
+  ["killed-card hint dropped", "api/_account-connect.js", [["hint: \"Already stopped for good. Nothing changed.\"", "hint: \"\""]]],
+  ["kill reasonCode dropped", "api/_account-connect.js", [[" st.reasonCode = \"killed\";", ""]]],
 ];
 
 const hasUnshare = spawnSync("unshare", ["-rn", "true"]).status === 0;
