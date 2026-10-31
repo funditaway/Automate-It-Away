@@ -694,6 +694,9 @@ function fakeDrop(opts) {
       (events || ["orientationchange", "resize"]).forEach((ev) => (winListeners[ev] || []).forEach((fn) => fn({})));
       this.flush();
     },
+    // The visitor scrolls the page themselves (wheel / thumb): a scroll event, no scrollIntoView.
+    userScroll(y) { scrollY = Math.max(0, y); (winListeners.scroll || []).forEach((fn) => fn({})); },
+    scrollTop: () => scrollY,
     // Run only the queued timers (the Talk jump), not the next frame.
     flushTimers() { for (let i = 0; i < 5 && timers.length; i++) timers.splice(0).forEach((fn) => fn()); },
     // Run only the queued frame callbacks (no timers).
@@ -821,6 +824,23 @@ function talkFaults(stepsText, talkText) {
     if (quick.win.AIADropSteps.current() !== "card") faults.push("844x390 quick Card: not on Card");
     if (roomOf(quick) !== "none") faults.push("844x390 Talk jump then Card within a frame: " + roomOf(quick) + " is on Card");
     if (quick.computed("desk-nav").display === "none") faults.push("844x390 Talk jump then Card within a frame: the bottom nav is hidden on Card");
+    // A scroll the visitor makes on Tell stays theirs: a later repaint of the same step (drop-steps' tick,
+    // a hash or DOM change, refresh) or another onStep("tell") must not pull the page back to the Talk bar.
+    for (const [lbl, opts, lay] of [["844x390 ?talk=1", { search: "?talk=1" }, { ih: 390, iw: 844, rail: 100 }], ["844x390 Next into Tell", {}, { ih: 390, iw: 844, rail: 100 }], ["390x844 #talk", { hash: "#talk" }, {}]]) {
+      const up = boot(opts, false, false, lay);
+      if (!opts.search && !opts.hash) { up.win.AIADropSteps.go("tell"); up.flush(); }
+      if (up.win.AIADropSteps.current() !== "tell") { faults.push(lbl + " scroll-up: not on Tell"); continue; }
+      const settled = up.scrollTop();
+      if (!(settled > 0)) { faults.push(lbl + " scroll-up: the Talk fit never scrolled (" + settled + "), so this case proves nothing"); continue; }
+      const room = roomOf(up), nScroll = up.scrolls.length, nBy = up.byCalls.length;
+      up.userScroll(0); up.flush();
+      up.win.AIADropSteps.refresh(); up.flush();
+      up.win.AIADropTalk.onStep("tell"); up.flush();
+      up.win.AIADropSteps.refresh(); up.flush();
+      if (up.scrollTop() !== 0) faults.push(lbl + ": the visitor scrolled " + settled + " to 0 on Tell, a repaint of Tell put it back to " + up.scrollTop());
+      if (up.scrolls.length !== nScroll || up.byCalls.length !== nBy) faults.push(lbl + ": a repaint of Tell after the visitor's scroll jumped the page (" + (up.scrolls.length - nScroll) + " scrollIntoView, " + (up.byCalls.length - nBy) + " scrollBy)");
+      if (roomOf(up) !== room) faults.push(lbl + ": a repaint of Tell changed the room from " + room + " to " + roomOf(up));
+    }
     // Next into Tell in portrait with the type box below the fold: bringing the bar up is enough,
     // so the nav stays and no room class is added.
     const deep = boot({}, false, false, { gap: 300 });
@@ -987,6 +1007,7 @@ const TALK_MUTANTS = [
   ["N2b room rules keyed on talk-roomy only", "steps", chain(once("body.drop-at-tell.talk-roomy #desk-nav{", "body.talk-roomy #desk-nav{"), once("body.drop-at-tell.talk-roomy #drop-step-foot{", "body.talk-roomy #drop-step-foot{"))],
   ["N2c foot rule not keyed to Tell", "steps", once("body.drop-at-tell.talk-roomy #drop-step-foot{", "body.talk-roomy #drop-step-foot{")],
   ["tight rail rule not keyed to Tell", "steps", once("body.drop-at-tell.talk-tight #drop-steps{", "body.talk-tight #drop-steps{")],
+  ["N22 onStep dedupe removed (every repaint of Tell refits)", "talk", once("    if (step === lastStep) return;\n", "")],
   ["landscape: nav rule not keyed to Tell", "steps", once('document.body.classList.toggle("drop-at-tell", active === "tell");', 'document.body.classList.add("drop-at-tell");')]
 ];
 TALK_MUTANTS.forEach(function (m) {
