@@ -59,11 +59,11 @@ must(help, "No merchant-of-record money desk", "help.html takeaways no MoR");
 must(help, "No social OAuth auto-post", "help.html takeaways no social OAuth");
 
 must(help, "Your wallet. AIA does not hold keys", "help.html wallet honesty");
-must(help, "Collect and pack pay stay HOLD", "help.html pack pay HOLD");
+must(help, "Not Wallet.AIA. Payments are off for now. Nothing is charged.", "help.html wallet: payments are off");
 must(help, ".aia Register when Bridge unlocks", "help.html Register when Bridge");
 must(help, "not compute credits", "help.html not compute credits");
 must(help, "creator payout ledger", "help.html not payout ledger");
-must(help, "Collect and payouts HOLD", "help.html collect payouts HOLD");
+must(help, "you install a pack. Payments are off for now. Nothing is charged.", "help.html license: payments are off");
 must(help, "Not Wallet.AIA", "help.html not Wallet.AIA");
 
 must(studio, "Selling packs.", "studio sell-packs one-liner");

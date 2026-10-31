@@ -46,7 +46,7 @@ must(faq, "Connect existing wallet", "FAQ Connect existing wallet");
 must(faq, "Connect MetaMask or WalletConnect", "FAQ MetaMask / WalletConnect");
 must(faq, "Your wallet. AIA does not hold keys", "FAQ wallet honesty");
 must(faq, "Not Wallet.AIA", "FAQ not Wallet.AIA");
-must(faq, "Collect and pack pay stay HOLD", "FAQ Collect / pack pay HOLD");
+must(faq, "Not Wallet.AIA. Payments are off for now. Nothing is charged.", "FAQ wallet: payments are off");
 must(faq, "not compute credits", "FAQ not compute credits");
 must(faq, "creator payout ledger", "FAQ not payout ledger");
 must(faq, "Create or Drop a goal → a draft card → you tap Yes", "FAQ goal path");
