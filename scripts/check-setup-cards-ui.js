@@ -17,7 +17,7 @@ const vm = require("vm");
 const { execSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const BASE = "a09246bbfbdac75c4cf303baae7f914660e42958";
+const BASE = "e58083ae2ccb8ab22661dac8d4894798c39f8eac";
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
@@ -399,6 +399,46 @@ async function suite(src, say) {
   await flush();
   t(!!releaseAll && !cardEl(G.doc, "setup_stop2") && !!cardEl(G.doc, "setup_sec5"), "[stale] a late, older All desks answer does not overwrite the newer desk");
 
+  // H: a connect step to do, on a card whose id has odd characters
+  const ODD = "setup_x#1&y z";
+  const ODD_HREF = "/account#setup-setup_x%231%26y%20z";
+  const H = runPage(src, {
+    location: { pathname: "/desk.html", search: "?workspace=ann-bakery" }, storage: SESSION, build: deskPage,
+    route(url, init) {
+      if (/^\/api\/jobs\?workspace=/.test(url)) {
+        return { status: 200, body: { setupCards: [{ id: ODD, href: "/account#setup-" + ODD, source: { name: "Calendar Thing" }, status: "open", statusText: "Open. 1 of 4 steps done.",
+          steps: [step("card.desk", "desk", "Pick a desk", "done"), step("g1.connect", "connect", "Connect Calendar", "todo"), step("g1.secret", "secret", "Enter the secret", "todo"), step("g1.test", "test", "Test run (dry run)", "todo")] }] } };
+      }
+      if (url === "/api/account") return { status: 200, body: { ok: true, entry: { what: "Skipped." } } };
+      return { status: 404, body: {} };
+    }
+  });
+  await flush();
+  pages.push(H);
+  const hc = cardEl(H.doc, ODD);
+  const hconn = stepEl(hc, "g1.connect");
+  t(!!hconn && !btn(hconn, "Done"), "[connect] a connect step has no Done button");
+  const hfin = hconn ? hconn.querySelectorAll("a").find((a) => a.textContent === "Finish in My account") : null;
+  t(!!hfin && hfin.href === ODD_HREF, "[connect] a connect step links to Finish in My account at the card's href (" + (hfin && hfin.href) + ")");
+  t(!!btn(hc, "Stop") && !!btn(hc, "Kill") && !!btn(hconn, "Skip"), "[connect] Skip, Stop and Kill stay");
+  const hopen = hc ? hc.querySelectorAll("a").find((a) => a.textContent === "Open in My account") : null;
+  t(!!hopen && hopen.href === ODD_HREF, "[id] an id with # & and space is encoded in the My account link (" + (hopen && hopen.href) + ")");
+  const skipB = btn(hconn, "Skip");
+  if (skipB) skipB.click();
+  await flush();
+  const hb = acctCalls(H)[0] && bodyOf(acctCalls(H)[0]);
+  t(!!hb && hb.do === "skip" && hb.cardId === ODD && hb.stepId === "g1.connect" && typeof hb.reason === "string" && hb.reason.trim().length > 0 && keys(hb) === "action,cardId,do,reason,stepId", "[skip] Skip POSTs a non-empty reason (" + JSON.stringify(hb) + ")");
+
+  // H2: My account finds an encoded #setup-<id>
+  const H2 = runPage(src, {
+    location: { pathname: "/account.html", search: "", hash: "#setup-" + encodeURIComponent(ODD) }, storage: SESSION,
+    build(doc) { const host = doc.createElement("section"); host.id = "acct-connections"; const box = doc.createElement("div"); box.id = "acct-card-" + ODD; host.appendChild(box); doc.body.appendChild(host); },
+    route() { return { status: 404, body: {} }; }
+  });
+  await flush();
+  pages.push(H2);
+  t(H2.doc.getElementById("acct-card-" + ODD).classList.contains("setup-hl"), "[id] My account decodes an encoded #setup-<id> and highlights that card");
+
   // E: Pack install reply
   const E = runPage(src, {
     location: { pathname: "/market.html", search: "" }, storage: SESSION,
@@ -473,7 +513,13 @@ const MUTANTS = [
   ["all desks not used", [["if (queueAll) p = read(\"/api/jobs?desks=all\", \"\")", "if (false) p = read(\"/api/jobs?desks=all\", \"\")"]]],
   ["no account highlight", [["    if (box.classList) box.classList.add(\"setup-hl\");", ""]]],
   ["stale read guard removed", [["if (gen === readGen) show(got.l, got.all);", "show(got.l, got.all);"]]],
-  ["href to wrong page", [["    var want = \"/account#setup-\" + String(card && card.id || \"\");", "    var want = \"/my-account#\" + String(card && card.id || \"\");"]]]
+  ["href to wrong page", [["    return \"/account#setup-\" + encodeURIComponent(", "    return \"/my-account#\" + encodeURIComponent("]]],
+  ["skip drops the reason", [["    if (verb === \"skip\") body.reason = SKIP_WHY;\n", ""]]],
+  ["skip sends an empty reason", [["    if (verb === \"skip\") body.reason = SKIP_WHY;", "    if (verb === \"skip\") body.reason = \"\";"]]],
+  ["connect step shows Done again", [["      if (st.kind === \"connect\") {", "      if (false) {"]]],
+  ["connect step loses the My account link", [["        fin.href = hrefOf(card);\n        li.appendChild(fin);\n", ""]]],
+  ["card id not encoded in href", [["    return \"/account#setup-\" + encodeURIComponent(String(card && card.id || \"\"));", "    return \"/account#setup-\" + String(card && card.id || \"\");"]]],
+  ["My account does not decode the id", [["    try { return decodeURIComponent(m[1]); } catch (e) { return \"\"; }", "    return m[1];"]]]
 ];
 
 function mutate(src, reps) {
