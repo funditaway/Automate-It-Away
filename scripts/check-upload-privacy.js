@@ -13,24 +13,75 @@ const runStarted = Date.now();
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DESK_OR_FILE = /springfield|porch|secret|ledger|quiet/i;
 
-// A clock is a maximal digit run, bounded by a non-digit or either end.
-// 13 digits are epoch milliseconds and 10 digits are epoch seconds, and the
-// value has to sit within a day of this run. The run's start and the check
-// itself both count, so a clock read while the run is going still matches.
+// Inside any digit run, every 13-digit window is epoch milliseconds and every
+// 10-digit window is epoch seconds. A window counts when it is within a day
+// of this run. Padding and a longer run no longer hide the clock. The run's
+// start and the check itself both count.
 function leaksClock(name, refs) {
   const list = refs && refs.length ? refs : [runStarted, Date.now()];
-  const runs = String(name).match(/\d+/g) || [];
+  const runs = String(name).match(/\d{10,}/g) || [];
   for (let i = 0; i < runs.length; i++) {
-    const digits = runs[i];
-    let ms = null;
-    if (digits.length === 13) ms = Number(digits);
-    else if (digits.length === 10) ms = Number(digits) * 1000;
-    else continue;
-    for (let r = 0; r < list.length; r++) {
-      if (Math.abs(ms - list[r]) <= DAY_MS) return true;
+    const run = runs[i];
+    for (let L = 13; L >= 10; L -= 3) {
+      if (run.length < L) continue;
+      for (let j = 0; j + L <= run.length; j++) {
+        const ms = Number(run.substr(j, L)) * (L === 10 ? 1000 : 1);
+        for (let r = 0; r < list.length; r++) {
+          if (Math.abs(ms - list[r]) <= DAY_MS) return true;
+        }
+      }
     }
   }
   return false;
+}
+
+function blobPathBody(text) {
+  const lf = String(text).replace(/\r\n/g, "\n");
+  const at = lf.indexOf("function blobPath()");
+  if (at < 0) return "";
+  let cut = lf.length;
+  ["\nfunction ", "\nasync function "].forEach(function (mark) {
+    const i = lf.indexOf(mark, at + 10);
+    if (i >= 0 && i < cut) cut = i;
+  });
+  return lf.slice(at, cut).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
+function assertBlobNaming(text, label) {
+  const body = blobPathBody(text);
+  if (!body) fail(label + " blobPath is missing");
+  const banned = [
+    [/\bDate\b/, "Date"],
+    [/performance/, "performance.now"],
+    [/hrtime/, "process.hrtime"],
+    [/Math\.random\b/, "Math.random"],
+    [/\+\+|--/, "a counter"]
+  ];
+  banned.forEach(function (pair) {
+    if (pair[0].test(body)) fail(label + " blob naming must use only crypto.randomUUID and crypto.randomBytes, not " + pair[1]);
+  });
+  if (body.indexOf("crypto.randomUUID(") < 0 || body.indexOf("crypto.randomBytes(") < 0) {
+    fail(label + " blob naming must use crypto.randomUUID and crypto.randomBytes");
+  }
+}
+
+function assertClockWindows() {
+  const now = Date.now();
+  const refs = [runStarted, now];
+  const near = [
+    ["padded ms", String(now).padStart(16, "0")],
+    ["ms times 1000", String(now * 1000).slice(0, 16)],
+    ["padded seconds", String(Math.floor(now / 1000)).padStart(16, "0")],
+    ["embedded seconds", "abc" + Math.floor(now / 1000) + "abc"],
+    ["ms then letters", String(now) + "abc"]
+  ];
+  near.forEach(function (row) {
+    if (!leaksClock(row[1], refs)) fail("clock window missed " + row[0]);
+  });
+  [String(now - 2 * DAY_MS), "1000000000000", "1234567890"].forEach(function (s) {
+    if (leaksClock("x" + s + "y", refs)) fail("clock window flagged a far time " + s);
+  });
+  pass("clock windows catch a padded or embedded time near now");
 }
 
 function clockRefs() {
@@ -264,6 +315,9 @@ function assertSources() {
   if (uploadSrc.indexOf("personOf") < 0) fail("GET must reuse personOf, the desk seat check");
   if (uploadSrc.indexOf('blobAllowed() && process.env.BLOB_READ_WRITE_TOKEN') < 0) fail("upload driver must stay behind blobAllowed()");
   if (/workspace \+ "\/"/.test(uploadSrc)) fail("stored name must not be derived from the desk");
+  assertBlobNaming(uploadSrc, "api/upload.js");
+  if (process.env.AIA_UPLOAD_MODULE) assertBlobNaming(fs.readFileSync(process.env.AIA_UPLOAD_MODULE, "utf8"), "loaded upload");
+  assertClockWindows();
   pass("upload source keeps the seat check, the type rules, and the blob guard");
 
   const drop = read("drop-app.js");
@@ -607,7 +661,14 @@ function runMutants() {
   const mutants = [
     ["Date.now()", 'const ms = String(Date.now());\n  return crypto.randomUUID() + "-a" + ms + "bb";'],
     ["epoch seconds", 'const sec = String(Math.floor(Date.now() / 1000));\n  return crypto.randomUUID() + "-a" + sec + "bbbbb";'],
-    ["desk and file name", 'return "springfield-quiet-ledger-" + crypto.randomUUID() + "-" + crypto.randomBytes(8).toString("hex");']
+    ["desk and file name", 'return "springfield-quiet-ledger-" + crypto.randomUUID() + "-" + crypto.randomBytes(8).toString("hex");'],
+    ["padded Date.now()", 'return crypto.randomUUID() + "-" + String(Date.now()).padStart(16, "0");'],
+    ["Date.now() times 1000", 'return crypto.randomUUID() + "-" + String(Date.now() * 1000).slice(0, 16);'],
+    ["padded seconds", 'return crypto.randomUUID() + "-" + String(Math.floor(Date.now() / 1000)).padStart(16, "0");'],
+    ["performance.now", 'return crypto.randomUUID() + "-" + String(Math.floor(require("perf_hooks").performance.now() * 1e6)).padStart(16, "0").slice(-16);'],
+    ["hrtime", 'return crypto.randomUUID() + "-" + String(process.hrtime.bigint()).padStart(16, "0").slice(-16);'],
+    ["Math.random", 'return crypto.randomUUID() + "-" + Math.random().toString(16).slice(2).padEnd(16, "0").slice(0, 16);'],
+    ["counter", 'seq = (seq || 0);\n  return crypto.randomUUID() + "-" + String(++seq).padStart(16, "0");']
   ];
   let caught = 0;
   let total = 0;
@@ -630,7 +691,7 @@ function runMutants() {
       const out = (r.stdout || "") + "\n" + (r.stderr || "");
       const first = out.split("\n").find(function (l) { return l.indexOf("FAIL ") === 0; }) || "";
       total += 1;
-      if (r.status && first.indexOf("derived from desk, file, or time") >= 0) {
+      if (r.status && (first.indexOf("derived from desk, file, or time") >= 0 || first.indexOf("blob naming must use only crypto") >= 0)) {
         caught += 1;
         console.log(row[0] + " | CAUGHT | " + first.slice(0, 200));
       } else {

@@ -99,7 +99,9 @@ function rejectOddFiles(root, problems) {
       const rel = relOf(root, full);
       if (st.isSymbolicLink()) { problems.push("api symlink " + rel); return; }
       if (st.isDirectory()) { walk(full); return; }
-      if (!st.isFile()) problems.push("api non-regular file " + rel);
+      if (!st.isFile()) { problems.push("api non-regular file " + rel); return; }
+      if ((st.mode & 0o111) !== 0) problems.push(rel + " is executable");
+      if (st.nlink > 1) problems.push(rel + " has extra links");
     });
   }
   walk(apiRoot);
@@ -161,8 +163,16 @@ function check(root) {
     let lst;
     try { lst = fs.lstatSync(filePath); }
     catch (e) { problems.push(f + " was deleted"); return; }
-    if (lst.isSymbolicLink()) return;
-    if (!lst.isFile()) return;
+    if (lst.isSymbolicLink()) {
+      problems.push("api symlink " + f);
+      return;
+    }
+    if (!lst.isFile()) {
+      problems.push(f + " is not a regular file");
+      return;
+    }
+    if ((lst.mode & 0o111) !== 0) problems.push(f + " is executable");
+    if (lst.nlink > 1) problems.push(f + " has extra links");
     let expected;
     try { expected = pinned ? PIN[f] : git(["rev-parse", BASE + ":" + f]).trim(); }
     catch (e) { problems.push("could not read " + f + " at base"); return; }

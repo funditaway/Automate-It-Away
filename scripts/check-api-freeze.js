@@ -114,7 +114,7 @@ try {
   const snap = {};
   function read(rel) { return fs.readFileSync(path.join(dir, rel), "utf8"); }
   function write(rel, text) { fs.writeFileSync(path.join(dir, rel), text); }
-  ["api/_aia-mail.js", "api/_aia-admin.js", "api/health.js", "scripts/_api-freeze.js"].forEach(function (rel) { snap[rel] = read(rel); });
+  ["api/_aia-mail.js", "api/_aia-admin.js", "api/health.js", "api/hook.js", "scripts/_api-freeze.js"].forEach(function (rel) { snap[rel] = read(rel); });
   function restore() {
     Object.keys(snap).forEach(function (rel) { write(rel, snap[rel]); });
   }
@@ -259,12 +259,33 @@ try {
       if (fs.lstatSync(full).isSymbolicLink()) fs.unlinkSync(full);
     } catch (e) {}
   }
+  function removeIfDir(rel) {
+    const full = path.join(dir, rel);
+    try {
+      if (fs.lstatSync(full).isDirectory() && !fs.lstatSync(full).isSymbolicLink()) fs.rmSync(full, { recursive: true, force: true });
+    } catch (e) {}
+  }
+  function unlinkIfHard(rel) {
+    const full = path.join(dir, rel);
+    try {
+      const st = fs.lstatSync(full);
+      if (st.isFile() && st.nlink > 1) fs.unlinkSync(full);
+    } catch (e) {}
+  }
   function cleanupShape() {
     unlinkIfLink("api/health.js");
+    unlinkIfLink("api/hook.js");
     unlinkIfLink("api/_zz-symlink.js");
+    removeIfDir("api/hook.js");
+    removeIfDir("api/health.js");
+    unlinkIfHard("api/health.js");
+    try { fs.unlinkSync(path.join(dir, "api/health-link.js")); } catch (e) {}
     try { if (fs.existsSync(linkOutside)) fs.unlinkSync(linkOutside); } catch (e) {}
+    try { fs.chmodSync(path.join(dir, "api/health.js"), 0o644); } catch (e) {}
+    try { fs.chmodSync(path.join(dir, "api/hook.js"), 0o644); } catch (e) {}
     restore();
     try { execFileSync("git", ["update-index", "--chmod=-x", "--", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+    try { execFileSync("git", ["update-index", "--chmod=-x", "--", "api/hook.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
   }
   const shape = [
     ["tracked symlink", function () {
@@ -283,7 +304,30 @@ try {
       execFileSync("git", ["update-index", "--chmod=+x", "--", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
       const line = git(dir, ["ls-files", "-s", "--", "api/health.js"]);
       ok(line.indexOf("100755") === 0, "mode mutant staged 100755");
-    }, "100755"]
+    }, "100755"],
+    ["empty dir", function () {
+      const full = path.join(dir, "api/hook.js");
+      fs.rmSync(full, { force: true });
+      fs.mkdirSync(full);
+      ok(fs.lstatSync(full).isDirectory(), "empty dir replaced api/hook.js");
+    }, "is not a regular file"],
+    ["unstaged chmod", function () {
+      execFileSync("git", ["config", "core.fileMode", "true"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+      fs.chmodSync(path.join(dir, "api/health.js"), 0o755);
+      const mode = fs.lstatSync(path.join(dir, "api/health.js")).mode;
+      const line = git(dir, ["ls-files", "-s", "--", "api/health.js"]);
+      ok((mode & 0o111) !== 0 && line.indexOf("100644") === 0, "unstaged chmod set an exec bit and left the index at 100644");
+    }, "is executable"],
+    ["hardlink", function () {
+      const full = path.join(dir, "api/health.js");
+      fs.copyFileSync(full, linkOutside);
+      fs.unlinkSync(full);
+      fs.linkSync(linkOutside, full);
+      const st = fs.lstatSync(full);
+      const orig = git(dir, ["rev-parse", "HEAD:api/health.js"]).trim();
+      const hashed = git(dir, ["hash-object", "--", "api/health.js"]).trim();
+      ok(st.isFile() && st.nlink > 1 && orig === hashed, "hardlink to identical bytes still hashes as the file");
+    }, "extra links"]
   ];
   shape.forEach(function (row) {
     cleanupShape();

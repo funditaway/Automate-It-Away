@@ -46,7 +46,9 @@ const KNOWN = [
   ["q8-probe", false], ["springfield-shop", false], ["james", false], ["funditaway", false],
   ["not-aia", false], ["AIA2", false], ["aia.com", false], ["a_ia", false], ["a-ia", false],
   ["AIA.AIA.AIA", false], ["x.aia", false], ["@.aia", false], ["aia.aiax", false],
-  ["\u0430ia", false], ["a".repeat(31), false], ["b".repeat(31), false],
+  ["\u0430ia", false], ["\uFF21IA", false], ["\uFF41\uFF49\uFF41", false],
+  ["\uFF21\uFF29\uFF21", false], ["a\u0301ia", true], ["ai\u0301a", true], ["aia\u0301", true],
+  ["a".repeat(31), false], ["b".repeat(31), false],
   ["b".repeat(30), false], ["c".repeat(40), false], ["c".repeat(41), false],
   ["Q8-PROBE", false], ["q8-probe.aia", false], ["@q8-probe", false]
 ];
@@ -117,8 +119,10 @@ function fuzz(admin) {
       const acc = {};
       acc[field] = h;
       const g = admin.isPlatformAccount(acc) === true;
+      const rev = admin.isAiaReviewer(acc, null, null) === true;
       const w = oracle(acc) === true;
       if (g !== w) mismatches.push(field + " " + JSON.stringify(h) + " module " + g + " oracle " + w);
+      if (rev !== w) mismatches.push("reviewer " + field + " " + JSON.stringify(h) + " module " + rev + " oracle " + w);
       if (g) accepted[field].push(h);
       if (w) expected[field].push(h);
     });
@@ -159,9 +163,12 @@ function fuzz(admin) {
   accounts.forEach(function (acc, i) {
     let g = false;
     let w = false;
+    let rev = false;
     try { g = admin.isPlatformAccount(acc) === true; } catch (e) { mismatches.push("module threw on account " + i); return; }
+    try { rev = admin.isAiaReviewer(acc, null, null) === true; } catch (e) { mismatches.push("reviewer threw on account " + i); return; }
     try { w = oracle(acc) === true; } catch (e) { mismatches.push("oracle threw on account " + i); return; }
     if (g !== w) mismatches.push("account " + i + " " + JSON.stringify(acc) + " module " + g + " oracle " + w);
+    if (rev !== w) mismatches.push("reviewer account " + i + " " + JSON.stringify(acc) + " module " + rev + " oracle " + w);
     if (g) accGot.push(i);
     if (w) accWant.push(i);
   });
@@ -184,7 +191,13 @@ const MUTANTS = [
     "  const handle = normalizeHandle(acc.handle || acc.xHandle || acc.slug);\n  if (handle.length > 30) return true;\n  return handle === \"aia\";"],
   ["case-folding",
     "return String(value || \"\").trim().replace(/^@+/, \"\").replace(/\\.aia$/i, \"\").toLowerCase().replace(/[^a-z0-9_-]+/g, \"\").slice(0, 40);",
-    "return String(value || \"\").trim().replace(/^@+/, \"\").replace(/\\.aia$/i, \"\").replace(/[^a-z0-9_-]+/g, \"\").slice(0, 40);"]
+    "return String(value || \"\").trim().replace(/^@+/, \"\").replace(/\\.aia$/i, \"\").replace(/[^a-z0-9_-]+/g, \"\").slice(0, 40);"],
+  ["isAiaReviewer zz-probe",
+    "  if (isPlatformAccount(acc)) return true;\n  if (isReviewerDesk(row)) return true;",
+    "  if (isPlatformAccount(acc)) return true;\n  if (acc && normalizeHandle(acc.handle) === \"zz-probe\") return true;\n  if (isReviewerDesk(row)) return true;"],
+  ["fullwidth fold",
+    "return String(value || \"\").trim()",
+    "return String(value || \"\").normalize(\"NFKC\").trim()"]
 ];
 
 function runModule(modulePath) {
@@ -205,7 +218,8 @@ function runModule(modulePath) {
 }
 
 function runMutants() {
-  const orig = fs.readFileSync(SOURCE, "utf8");
+  const raw = fs.readFileSync(SOURCE, "utf8");
+  const orig = raw.replace(/\r\n/g, "\n");
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-admin-mod-"));
   const copy = path.join(dir, "_aia-admin.js");
   let caught = 0;
@@ -266,7 +280,7 @@ function main() {
 
   const result = fuzz(admin);
   if (!result.ok) fail("platform oracle " + result.mismatches.slice(0, 8).join("; "));
-  else pass("isPlatformAccount matches the oracle on " + result.corpus + " handles; accepting set is exactly the forms that normalize to aia (" + result.accepted + ")");
+  else pass("isPlatformAccount and isAiaReviewer match the oracle on " + result.corpus + " handles; accepting set is exactly the forms that normalize to aia (" + result.accepted + ")");
 
   const shop = { id: "acct_demo", name: "Oddo Books", slug: "oddo-books" };
   const blocked = admin.setAccountHandle(shop, "@AIA");
