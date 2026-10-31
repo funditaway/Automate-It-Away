@@ -63,7 +63,7 @@ body.has-desk-nav .item:last-of-type {
   header .theme-btn,
   .theme-btn {
     min-width: 3.6em !important;
-    min-height: 40px !important;
+    min-height: 44px !important;
     overflow: visible !important;
   }
   #desk-actions,
