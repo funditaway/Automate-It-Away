@@ -227,7 +227,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <a href="/more" data-tab="more"><span>More</span></a>
 </nav>
 <script src="speech.js"></script>
-<script src="desk-switch.js"></script>
+<script src="desk-switch.js"></script><script src="signin-first.js"></script>
 <script src="desk-nav.js"></script>
 <script>
 var lane="all",when="all",slug="",q="",who="",work="",pipe="",since="",advanced=false,last=[],openItem=null;
@@ -616,7 +616,7 @@ async function load(){
  saveView();paint();
  var rows=phone(),asked=historyAsk(rows);
  var banner=document.getElementById("banner"),list=document.getElementById("list");
-  if(!asked.length){paintRoad({});banner.textContent="Open a desk to see History.";list.innerHTML="<div class=\"empty\"><p>Open a desk to see History.</p><div class=\"acts\"><a href=\"/onboard\">Open a desk</a></div></div>";return;}
+  if(!asked.length){paintRoad({});banner.textContent="Sign in to see History.";list.innerHTML="<div class=\"empty\"><p>Sign in to see History.</p><div class=\"acts\"><a href=\"/login\">Sign in</a></div></div>";return;}
  var body=historyBody(asked);
  try{
   var r=await fetch("/api/desks",{method:"POST",headers:packHdr(),body:JSON.stringify(body)});

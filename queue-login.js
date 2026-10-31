@@ -89,6 +89,11 @@
       "#queue-all-cards h3{margin:4px 0;font-size:1.05rem}" +
       "#queue-all-cards .meta{font-size:13px;color:var(--muted,#5c6b73);margin:0 0 8px}" +
       "#queue-all-cards .queue-desk-label{display:block;font-size:12px;font-weight:700;color:var(--muted,#5c6b73);margin:0 0 4px}" +
+      "#queue-empty-next{background:var(--card,#fff);border:1px solid var(--line,#d5e0e0);border-radius:14px;padding:16px;margin:10px 0}" +
+      "#queue-empty-next .meta{font-size:15px;margin:0 0 12px}" +
+      "#queue-empty-next a.go{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border-radius:999px;font-weight:800;text-decoration:none}" +
+      "#queue-desk-picker[hidden]{display:none!important}" +
+      "html.queue-signed-out main > :not(h1):not(#queue-all-cards){display:none!important}" +
       "@media (max-width:640px){" +
       "#queue-desk-picker .queue-picker-row,#queue-desk-buttons{flex-direction:column;align-items:stretch;width:100%}" +
       "#queue-desk-picker button,#queue-desk-picker a{width:100%}" +
@@ -190,26 +195,46 @@
     return String((j && (j.desk || j.slug)) || "Desk");
   }
 
+  // Empty or signed-out Queue: one line and exactly one next step.
+  function emptyState(box, text, href, label) {
+    var wrap = document.createElement("div");
+    wrap.id = "queue-empty-next";
+    var p = document.createElement("p");
+    p.className = "meta";
+    p.textContent = text;
+    var go = document.createElement("a");
+    go.className = "go";
+    go.id = "queue-next-step";
+    go.href = href;
+    go.textContent = label;
+    wrap.appendChild(p);
+    wrap.appendChild(go);
+    box.appendChild(wrap);
+  }
+
+  // Signed out, the Queue shows only the sign-in step; desk tools stay out of the way.
+  function markSignedOut(on) {
+    var root = document.documentElement;
+    if (root && root.classList) root.classList.toggle("queue-signed-out", !!on);
+    var picker = document.getElementById("queue-desk-picker");
+    if (picker) picker.hidden = !!on;
+  }
+
   function paintCards(rows) {
     var box = document.getElementById("queue-all-cards");
     if (!box) return;
     box.replaceChildren();
-    if (!signedIn()) {
-      var need = document.createElement("p");
-      need.className = "meta";
-      need.textContent = "Sign in to your Queue to see cards from every desk.";
-      box.appendChild(need);
+    var out = !signedIn();
+    markSignedOut(out);
+    if (out) {
+      emptyState(box, "Sign in to see your Queue. It keeps every desk and card in one place.", "/login", "Sign in");
       return;
     }
     var open = (rows || []).filter(openCard);
     if (!open.length) {
-      var empty = document.createElement("p");
-      empty.className = "meta";
       var named = mode !== "all" ? deskBySlug(mode) : null;
-      empty.textContent = !desks.length
-        ? "No desks in this Queue yet. Add a desk to start."
-        : (named ? ("Nothing waiting on " + named.name + ".") : "Nothing waiting in this Queue.");
-      box.appendChild(empty);
+      if (!desks.length) emptyState(box, "No desks in this Queue yet. Create a desk to start.", "/onboard", "Create a desk");
+      else emptyState(box, named ? ("Nothing waiting on " + named.name + ". Drop a card to start.") : "Nothing waiting in this Queue. Drop a card to start.", "/drop", "Drop a card");
       return;
     }
     open.forEach(function (j) {
