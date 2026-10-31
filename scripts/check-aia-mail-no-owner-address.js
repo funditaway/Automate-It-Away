@@ -3,15 +3,13 @@ require("./_env-guard");
 // Address-format errors must not name a real account. Calls parseAddress,
 // validateAddress, createIdentity, and the account HTTP handler (mail-add and
 // handle) against a fresh temp store. Same ok:false and the same status as
-// before the wording change. No reply body may match /james|funditaway|springfield/i.
+// before the wording change. No reply body may match /james|oddo|funditaway|springfield/i.
 // A static scan reads string literals used as error: values under api/, and
 // every other string literal under api/ (including prompts). No literal may
-// contain a james / funditaway / springfield .aia name. The repo slug
-// funditaway/Automate-It-Away in api/health.js is the only exclusion, and
-// only when the literal is exactly that slug. Reply strings (every api
-// string literal) also may not name an owner. The only leftovers are the
-// account ownerName field, the reviewer desk slug, and that repo slug,
-// each matched exactly.
+// contain a james / funditaway / springfield .aia name. Reply strings (every api
+// string literal) also may not name an owner. The only leftover is the reviewer
+// desk slug, matched exactly. ownerName stays empty unless that account set one,
+// and a reply sends it only to that account's owner. Health does not publish a repo slug.
 // node scripts/check-aia-mail-no-owner-address.js
 // node scripts/check-aia-mail-no-owner-address.js --mutate
 const fs = require("fs");
@@ -19,15 +17,12 @@ const os = require("os");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
-const OWNER = /james|funditaway|springfield/i;
+const OWNER = /james|oddo|funditaway|springfield/i;
 const AIA_NAME = /(?:james|funditaway|springfield)[a-z0-9-]*\.aia/i;
 const REPO_SLUG = "funditaway/Automate-It-Away";
 const OWNER_LITERAL_OK = {};
 [
-  ["api/health.js", REPO_SLUG],
-  ["api/_aia-admin.js", "funditaway"],
-  ["api/_aia-admin.js", "James Oddo"],
-  ["api/_account.js", "James Oddo"]
+  ["api/_aia-admin.js", "funditaway"]
 ].forEach(function (row) { OWNER_LITERAL_OK[row[0] + "\0" + row[1]] = true; });
 function ownerLiteralAllowed(file, text) {
   return OWNER_LITERAL_OK[file + "\0" + text] === true;
@@ -220,7 +215,8 @@ function staticScan() {
   ok(setNameCount === 2, "both unset-name errors are generic (" + setNameCount + ")");
   ok(hits.length === 0, "no error literal names an owner account" + (hits.length ? " (" + hits.join(" | ") + ")" : ""));
   ok(all.length > literals.length, "static scan read " + all.length + " string literals");
-  ok(sawSlug, "health.js repo slug is present");
+  ok(!sawSlug, "health.js does not publish the repo slug");
+  ok(OWNER.test("Oddo") && OWNER.test("oddo") && !OWNER.test("Ada"), "owner regex includes oddo");
   ok(allowedLiteral("api/health.js", REPO_SLUG) && !allowedLiteral("api/health.js", REPO_SLUG + " james.aia") && !allowedLiteral("api/_grok.js", REPO_SLUG) && !allowedLiteral("api/health.js", "funditaway.aia"), "repo slug exclusion is exact and only api/health.js");
   ok(!AIA_NAME.test("Register .aia from this desk when Bridge is clear. You sign in your wallet."), "plain register prose next to .aia is not a .aia name");
   ok(!AIA_NAME.test("Register .aia from this desk. James signs in MetaMask.") && OWNER.test("James signs in MetaMask."), "owner-name prose is not a .aia name; the name scan still ignores it");
@@ -252,10 +248,69 @@ function mockRes() {
 function reqOf(method, headers, body, query) {
   return { method: method, headers: headers || {}, body: body || {}, query: query || {} };
 }
-async function call(handler, method, headers, body, query) {
+async function call(handler, method, headers, body, query, url) {
   const res = mockRes();
-  await handler(reqOf(method, headers, body, query), res);
+  const req = reqOf(method, headers, body, query);
+  if (url) req.url = url;
+  try { await handler(req, res); }
+  catch (e) { if (res.body == null) res.body = { error: String(e && e.message || e) }; }
   return res;
+}
+async function runtimeReplies() {
+  const auth = require("../api/auth");
+  const admin = require("../api/admin");
+  const lib = require("../api/_lib");
+  const accountApi = require("../api/_account");
+  await lib.ready();
+  const platform = accountApi.ensureAccount();
+  ok(!OWNER.test(String(platform.ownerName || "")), "fresh platform ownerName is empty");
+  const openedA = await call(auth, "POST", {}, { action: "open", slug: "owner-a", biz: "Ada Desk", name: "Ada", pin: "4821" });
+  ok(openedA.statusCode === 201 || openedA.statusCode === 200, "runtime open owner-a " + openedA.statusCode);
+  const openedB = await call(auth, "POST", {}, { action: "open", slug: "owner-b", biz: "Bea Desk", name: "Bea", pin: "4822" });
+  ok(openedB.statusCode === 201 || openedB.statusCode === 200, "runtime open owner-b " + openedB.statusCode);
+  const shop = (lib.mem.workspaces || []).find(function (w) { return w && w.slug === "owner-a"; });
+  ok(!!shop, "runtime desk owner-a is in memory");
+  if (shop) {
+    shop.people.push({ id: "p_helper_runtime", name: "Hal", role: "helper", kind: "helper", status: "approved", pin: lib.hashPin("5555") });
+  }
+  const seats = [
+    ["stranger", { "x-workspace": "owner-a" }],
+    ["helper", { "x-workspace": "owner-a", "x-pin": "5555" }],
+    ["other owner", { "x-workspace": "owner-b", "x-pin": "4822" }]
+  ];
+  const routes = [
+    ["admin", admin, "/api/admin"],
+    ["auth", auth, "/api/auth"],
+    ["desks", auth, "/api/desks"],
+    ["account", auth, "/api/account"],
+    ["connections", require("../api/connections"), "/api/connections"],
+    ["health", require("../api/health"), "/api/health"],
+    ["status", require("../api/health"), "/api/status"],
+    ["hook", require("../api/hook"), "/api/hook"],
+    ["intake", require("../api/intake"), "/api/intake"],
+    ["jobs", require("../api/jobs"), "/api/jobs"],
+    ["migrate-uploads", require("../api/migrate-uploads"), "/api/migrate-uploads"],
+    ["rules", require("../api/rules"), "/api/rules"],
+    ["upload", require("../api/upload"), "/api/upload"],
+    ["worker", require("../api/worker"), "/api/worker"]
+  ];
+  for (let s = 0; s < seats.length; s += 1) {
+    for (let r = 0; r < routes.length; r += 1) {
+      for (let m = 0; m < 2; m += 1) {
+        const method = m === 0 ? "GET" : "POST";
+        const res = await call(routes[r][1], method, seats[s][1], method === "POST" ? {} : {}, {}, routes[r][2]);
+        noOwner(seats[s][0] + " " + method + " " + routes[r][0], res.body);
+      }
+    }
+  }
+  platform.ownerName = "James Oddo";
+  const helperAdmin = await call(admin, "GET", { "x-workspace": "owner-a", "x-pin": "5555" }, {}, {}, "/api/admin");
+  ok(helperAdmin.statusCode === 200 && helperAdmin.body && helperAdmin.body.account, "helper admin is signed in " + helperAdmin.statusCode);
+  ok(!OWNER.test(JSON.stringify(helperAdmin.body || "")), "helper admin hides a set ownerName");
+  const otherAdmin = await call(admin, "GET", { "x-workspace": "owner-b", "x-pin": "4822" }, {}, {}, "/api/admin");
+  ok(otherAdmin.statusCode === 200 && otherAdmin.body && otherAdmin.body.account, "other owner admin is signed in " + otherAdmin.statusCode);
+  ok(!OWNER.test(JSON.stringify(otherAdmin.body || "")), "another queue hides a set ownerName");
+  platform.ownerName = "";
 }
 function noOwner(label, body) {
   const raw = typeof body === "string" ? body : JSON.stringify(body);
@@ -274,6 +329,7 @@ async function main() {
   delete global.__aiaHydrate;
 
   staticScan();
+  await runtimeReplies();
 
   const mail = require("../api/_aia-mail");
   const admin = require("../api/_aia-admin");
@@ -414,9 +470,18 @@ const MUTANTS = [
   ["grok prompt owner .aia name", "api/_grok.js",
     "AIA Internet uses the .aia TLD (yourname.aia, your-shop.aia).",
     "AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia)."],
-  ["health slug is not a blanket exclusion", "api/health.js",
-    'repo: "funditaway/Automate-It-Away"',
-    'repo: "funditaway.aia"'],
+  ["health repo slug restored", "api/health.js",
+    'revShort: rev ? rev.slice(0, 7) : null,\n    dns: "pointed",',
+    'revShort: rev ? rev.slice(0, 7) : null,\n    repo: "funditaway/Automate-It-Away",\n    dns: "pointed",'],
+  ["reply names Oddo", "api/health.js",
+    'mfa: "Two-step sign-in is off for now. No email codes. No SMS codes."',
+    'mfa: "Two-step sign-in is off for now, Oddo. No email codes. No SMS codes."'],
+  ["platform ownerName default restored", "api/_account.js",
+    'heldBy: "admin", ownerName: ""',
+    'heldBy: "admin", ownerName: "James Oddo"'],
+  ["helper is sent ownerName", "api/_account.js",
+    "if (opts && opts.showOwnerName) out.ownerName = account.ownerName || \"\";",
+    "if (true) out.ownerName = account.ownerName || \"\";"],
   ["register note names the owner", "api/_aia-register.js",
     'const HOLD_NOTE = "You sign the commit, wait about 60 seconds, then sign the register. AIA holds no keys. Collect stays on hold.";',
     'const HOLD_NOTE = "James signs the commit, waits about 60 seconds, then signs the register. AIA holds no keys. Collect stays on hold.";'],

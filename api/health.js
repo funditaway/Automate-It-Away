@@ -220,8 +220,7 @@ async function health(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet: require("./_connect-wallet").healthBlock(),
-    aiaTld: strangerTld(require("./_aia-tld").healthBlock()),
-    repo: "funditaway/Automate-It-Away"
+    aiaTld: strangerTld(require("./_aia-tld").healthBlock())
   });
 }
 

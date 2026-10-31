@@ -129,7 +129,7 @@ module.exports = async function handler(req, res) {
       lane: inbound.lane || body.lane || (identity ? "in" : "ext"),
       kind: inbound.kind || body.kind
     }));
-    job.log = [identity ? ("Mail · " + identity.address) : "Pipe capture"];
+    job.log = [identity ? ("Mail · " + identity.address) : "Captured from a hook"];
     job.provider = (identity && "aia-mail") || body.provider || job.provider || "webhook";
     if (identity) {
       job.aiaMail = identity.address;

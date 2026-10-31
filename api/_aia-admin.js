@@ -67,7 +67,6 @@ function stampAdminAccount(acc) {
   acc.xHandle = "AIA";
   acc.aiaReviewer = true;
   if (!acc.heldBy) acc.heldBy = "admin";
-  if (!acc.ownerName) acc.ownerName = "James Oddo";
   if (!acc.name) acc.name = "Automate It Away";
   return acc;
 }

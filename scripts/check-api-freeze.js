@@ -36,11 +36,14 @@ const OVERLAY = [
   "scripts/check-setup-cards-ui.js",
   "scripts/check-ux-signin.js"
 ];
-const LANDED = ["api/_aia-admin.js", "api/_aia-register.js", "api/_grok.js", "api/migrate-uploads.js"];
+const LANDED = ["api/_aia-register.js", "api/_grok.js", "api/migrate-uploads.js"];
 const MOVED = [
+  "api/_account.js",
   "api/_account-connect.js",
   "api/_account-doors.js",
   "api/_account-http.js",
+  "api/_aia-admin.js",
+  "api/_ais.js",
   "api/_aia-mail.js",
   "api/_aia-net.js",
   "api/_aia-tld.js",
@@ -48,6 +51,7 @@ const MOVED = [
   "api/_desks-http.js",
   "api/_handoff.js",
   "api/_lib.js",
+  "api/_plans.js",
   "api/_roles.js",
   "api/connections.js",
   "api/health.js",

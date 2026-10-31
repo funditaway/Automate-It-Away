@@ -35,10 +35,12 @@ const path = require("path");
 
 const BASE = "295b168252c3dc8f5b011d5d4b73b76bfbd5a866";
 const PIN = {
+  "api/_account.js": "b2606240c7c7e4a322cc4e0dff08537470d4bac5",
   "api/_account-connect.js": "39dde85d863c3de15b05571d35dcc4e87e6f5b7b",
   "api/_account-doors.js": "e210c079926b0efbb22cb5b9512649c81f43c6b9",
   "api/_account-http.js": "977fe25361e6eec276c25673af7c2dd525353482",
-  "api/_aia-admin.js": "5908102a838edc62e63c7e3cfbd59380435a5764",
+  "api/_aia-admin.js": "b2036f064e85dfe1a93b7dda686d368f4fe7e233",
+  "api/_ais.js": "1a59bc118231afb4d03631bc60ed4453fd1ad646",
   "api/_aia-mail.js": "5796afa6e22f62f3a9e433b0c1d0eb00c6094599",
   "api/_aia-net.js": "5df23c55f9e189fcbb5aa710ab30672ef4279fd8",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
@@ -48,10 +50,11 @@ const PIN = {
   "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
   "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
   "api/_lib.js": "d0562ebb769a42bff8daa613d77148ac85fcdfd8",
+  "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
   "api/connections.js": "e567ff5bbe563123144f0654576f337da3fe4170",
-  "api/health.js": "cc751de14e7d799622d80febdd10449fcf0f7aa3",
-  "api/hook.js": "f17edb45a864be7b8d7796107b3e0f9768ff851b",
+  "api/health.js": "1840366fe0cddc31ae513da0ac2464ec02b1dcc4",
+  "api/hook.js": "d9027a640d48d59ea20363e0b2dd18a3772d185f",
   "api/jobs.js": "40c283de861b5fb48087bc8987f836238b1535ee",
   "api/migrate-uploads.js": "2b5e13d819268bdae2688c3d29e2f755929fcaa7"
 };
