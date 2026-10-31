@@ -11,7 +11,7 @@ const vm = require("vm");
 const { execSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const main = "813dfc0cf0fc98d9cd2ad92b897104bdd58bd629";
+const main = require("./_api-freeze").BASE; // on main; survives squash-land
 let bad = 0;
 let okN = 0;
 function fail(msg) { bad += 1; console.error("FAIL " + msg); }
@@ -119,15 +119,9 @@ const pkg = read("package.json");
 if (pkg.indexOf("node scripts/check-queue-login-ui.js") < 0) fail("npm test must run check-queue-login-ui");
 else ok("npm test runs check-queue-login-ui");
 
-let apiDiff = "";
-try {
-  apiDiff = execSync("git diff --name-only " + main + " -- api", { cwd: root, encoding: "utf8" }).trim();
-} catch (e) {
-  fail("could not diff api vs main");
-  apiDiff = "error";
-}
-if (apiDiff && apiDiff !== "error") fail("api files changed vs main: " + apiDiff.replace(/\n/g, ", "));
-else if (!apiDiff) ok("no api file changes vs main " + main.slice(0, 7));
+const apiFreeze = require("./_api-freeze").check(root);
+if (apiFreeze.ok) ok("api/ frozen vs " + apiFreeze.base.slice(0, 7) + " (string-only allowlist)");
+else apiFreeze.problems.forEach(function (p) { fail(p); });
 
 let before = [];
 try {
