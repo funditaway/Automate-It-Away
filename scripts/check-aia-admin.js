@@ -80,6 +80,32 @@ function lookalikeSamples() {
   });
   return out;
 }
+
+// Every non-ASCII scalar, in front of, inside, and after "aia" and "AIA".
+// isAiaReviewer(account, desk) runs isPlatformAccount on the handle and
+// isReviewerDesk on the slug and the name, so one call covers all three.
+// Lone surrogates are skipped. Kept to one call per form so the sweep stays
+// under a couple of seconds.
+function assertEveryNonAscii(admin) {
+  const acc = { handle: "" };
+  const row = { slug: "", name: "" };
+  for (let cp = 0x80; cp <= 0x10FFFF; cp++) {
+    if (cp >= 0xD800 && cp <= 0xDFFF) continue;
+    const ch = String.fromCodePoint(cp);
+    const forms = [ch + "aia", "a" + ch + "ia", "aia" + ch, ch + "AIA", "A" + ch + "IA", "AIA" + ch];
+    for (let i = 0; i < 6; i++) {
+      const s = forms[i];
+      acc.handle = s;
+      row.slug = s;
+      row.name = s;
+      // isPlatformAccount(handle), then isReviewerDesk(slug and name).
+      if (admin.isAiaReviewer(acc, row, null) === true) {
+        return "U+" + cp.toString(16).toUpperCase() + " form " + i + " counts";
+      }
+    }
+  }
+  return "";
+}
 const KNOWN = [
   ["aia", true], ["AIA", true], ["Aia", true], ["aIa", true], ["aiA", true],
   ["aia.aia", true], ["AIA.aia", true], ["aia.AIA", true], ["@AIA", true], ["@aia", true],
@@ -258,7 +284,28 @@ const MUTANTS = [
     ""],
   ["min handle length 1",
     "if (handle.length < 2)",
-    "if (handle.length < 1)"]
+    "if (handle.length < 1)"],
+  ["strip all bidi",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]/g, "");'],
+  ["strip lrm rlm",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u200E\\u200F]/g, "");'],
+  ["strip bidi embeddings",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u202A-\\u202E]/g, "");'],
+  ["strip wide spaces",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u2000-\\u200A\\u3000]/g, "");'],
+  ["strip variation selectors",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\uFE00-\\uFE0F]/g, "").replace(/[\\u{E0100}-\\u{E01EF}]/gu, "");'],
+  ["strip soft hyphen",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/\\u00AD/g, "");'],
+  ["strip mongolian and invisibles",
+    'const raw = String(value || "");',
+    'const raw = String(value || "").replace(/[\\u180E\\u2061-\\u2064]/g, "");']
 ];
 
 function runModule(modulePath) {
@@ -388,6 +435,10 @@ function main() {
   if (!result.ok) fail("platform oracle " + result.mismatches.slice(0, 8).join("; "));
   else pass("isPlatformAccount and isAiaReviewer match the oracle on " + result.corpus + " handles; accepting set is exactly the ASCII forms that normalize to aia (" + result.accepted + ")");
 
+  const sweep = assertEveryNonAscii(admin);
+  if (sweep) fail("non-ascii sweep " + sweep);
+  else pass("every non-ASCII scalar in, before, or after aia/AIA is not admin or reviewer");
+
   const look = assertLookalikes(admin);
   if (look.length) fail("lookalike " + look.slice(0, 6).join("; "));
   else pass("combining marks, accents, fullwidth, homoglyphs, zero-width, and NBSP are not admin or reviewer");
@@ -436,6 +487,11 @@ function main() {
 
 if (process.env.AIA_ADMIN_MODULE) {
   const admin = require(process.env.AIA_ADMIN_MODULE);
+  const sweep = assertEveryNonAscii(admin);
+  if (sweep) {
+    console.error("FAIL non-ascii sweep " + sweep);
+    process.exit(1);
+  }
   const look = assertLookalikes(admin);
   if (look.length) {
     console.error("FAIL lookalike " + look.slice(0, 4).join("; "));
