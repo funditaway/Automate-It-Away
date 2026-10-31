@@ -19,11 +19,11 @@
       n: 2,
       id: "stack",
       tag: "Stack",
-      name: "Hook the pipes",
-      surface: "Pipes",
+      name: "Hook up connections",
+      surface: "Connections",
       what: "Webhook in. Search a site. Copy the hook. Info lands as a card. eBay and mail stay off.",
       href: "/pipes",
-      go: "Open Pipes"
+      go: "Open Connections"
     },
     {
       n: 3,
@@ -43,7 +43,7 @@
       tag: "Guardrails",
       name: "You still tap",
       surface: "Rules · Yes / Stop / Kill",
-      what: "Bind the named desk AI on Then. Edge cases go to a person. Yes, Stop, or Kill. Collect stays HOLD.",
+      what: "Put the named desk AI on the Then step. Odd cases go to a person. Yes, Stop, or Kill. Payments are off for now.",
       href: "/rules",
       go: "Open Rules"
     }
@@ -88,7 +88,7 @@
 
   function stepWhat(p, embed) {
     if (embed && p.id === "agent") {
-      return "Create the work. Name a desk AI as a .aia. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Drafts the next step and the words. Nothing sent.";
+      return "Create the work. Name a desk AI. Desk AI names stay on this desk. It drafts the next step and the words. Nothing is sent.";
     }
     return p.what;
   }

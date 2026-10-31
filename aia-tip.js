@@ -62,14 +62,14 @@
       ask: "How does Talk put work on the desk?"
     },
     "give-pack": {
-      title: "Give pack",
-      body: "Give is the file. They install with Yes. A pack puts When → If → Then on this desk queue. Buyer binds their own keys and devices. Yes / Stop / Kill before outbound or hardware. App / webhook is the live pipe. Recurring update HOLD. Collect stays HOLD.",
-      ask: "How do I give a pack?"
+      title: "Share an add-on",
+      body: "An add-on is a small file of When → If → Then rules for a desk. Sharing sends the file; the other person installs it with Yes. They connect their own accounts and devices. Yes / Stop / Kill still come before anything goes out or a device moves. The app or webhook is the live connection. Automatic updates are off for now. Payments are off for now.",
+      ask: "How do I share an add-on?"
     },
     "update-pack": {
-      title: "Update pack",
-      body: "Update is install this .aia again with Yes. Same When → If → Then on this queue. Recurring update HOLD. No silent refresh. Collect stays HOLD.",
-      ask: "How do I update a pack?"
+      title: "Update an add-on",
+      body: "To update an add-on, install the new file again and tap Yes. Same When → If → Then rules on your Queue. Automatic updates are off for now, so nothing changes without you. Payments are off for now.",
+      ask: "How do I update an add-on?"
     },
     "yes-stop-kill": {
       title: "Yes / Stop / Kill",
@@ -82,14 +82,14 @@
       ask: "What does Needs you mean?"
     },
     "collect-hold": {
-      title: "Collect HOLD",
-      body: "Collect stays HOLD until a person taps Yes and a real money pipe is live. Yes is not a collect charge. No silent send.",
-      ask: "When does Collect run?"
+      title: "Payments are off for now",
+      body: "AIA does not charge or collect money yet. When payments turn on, a person still taps Yes first, and Yes alone never charges anyone. Nothing is sent without you.",
+      ask: "When will payments turn on?"
     },
     "connect-wallet": {
-      title: "Connect existing wallet",
-      body: "Your MetaMask or WalletConnect. AIA does not hold keys. Not Wallet.AIA. Collect and pack pay stay HOLD until Yes + a real pipe.",
-      ask: "How do I Connect a wallet?"
+      title: "Crypto wallet (optional)",
+      body: "Use your own MetaMask or WalletConnect if you want one. AIA never holds your keys and does not run a wallet for you. Payments are off for now.",
+      ask: "How do I connect a crypto wallet?"
     },
     "desk-ai": {
       title: "Desk AI",
