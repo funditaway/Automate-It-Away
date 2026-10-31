@@ -97,9 +97,9 @@
       ask: "What does a desk AI do?"
     },
     "pipes": {
-      title: "Pipes",
+      title: "Connections",
       body: "Webhook is live. Search a site. Log in opens the vendor. Named vendors wait on keys + Yes. AIA does not send.",
-      ask: "What is a pipe on this desk?"
+      ask: "What is a connection on this desk?"
     },
     "week-shop": {
       title: "Home, shop, or both",

@@ -7,6 +7,11 @@ require("./_env-guard");
 // Desk, Queue and account. A waiting card never says "Ready"; Blocked and Waiting match
 // between /account and the desk. History says one account has one Queue holding many desks.
 // Examples never use owner names (james.aia, james-ai@, springfield-shop): yourname.aia, your-shop.aia.
+// D2: /help, /pipes (/connections) and /login read plain too (no HOLD, pipe, pack, Ext, owner names),
+// except exact sentences other checks still pin (PINNED, each capped at its count today). /account has no
+// owner names and fewer HOLD lines, /history says "Any connection", /status paints Whatnot as a grey held
+// state, grey text reaches 4.5:1 on light and dark, and every in-site #anchor on /help lands on a real id.
+// Every file is read up front; a missing or unreadable file is a FAIL (fail closed), never a skip.
 // Each rule runs once on the real files, then against mutants that each must be caught.
 const fs = require("fs");
 const path = require("path");
@@ -20,10 +25,13 @@ let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
 function ok(cond, msg) { if (cond) { passed += 1; console.log("ok  " + msg); } else fail(msg); }
 function read(rel) { return fs.readFileSync(path.join(root, rel), "utf8"); }
+function readOrNull(rel) { try { const t = fs.readFileSync(path.join(root, rel), "utf8"); return typeof t === "string" ? t : null; } catch (e) { return null; } }
 const PAGES = ["index.html", "how.html", "setup.html", "pricing.html", "status.html", "examples.html"];
-const FILES = PAGES.concat(["aia-tip.js", "desk-playbook.js", "setup-demo.js", "queue-login.js", "account-connections.js", "setup-cards.js", "desk-card.js", "history.html", "PACK.md", "pipes.html", "connections.html", "help.html", "desks-book.js", "create-desk.js", "ACCOUNT-YES-NO.md"]);
+const FILES = PAGES.concat(["aia-tip.js", "desk-playbook.js", "setup-demo.js", "queue-login.js", "account-connections.js", "setup-cards.js", "desk-card.js", "history.html", "PACK.md", "pipes.html", "connections.html", "help.html", "desks-book.js", "create-desk.js", "ACCOUNT-YES-NO.md",
+  "login.html", "login-doors.js", "account.html", "aia-tld.js", "aia-register-abi.js", "theme.css", "vercel.json", "drop.html", "developer.html", "more.html"]);
+const PAGES2 = ["help.html", "pipes.html", "connections.html", "login.html"];
 const SRC = {};
-FILES.forEach((f) => { SRC[f] = read(f); });
+FILES.forEach((f) => { SRC[f] = readOrNull(f); });
 
 const JARGON = [
   [/\bHOLD\b/, "HOLD"], [/\bCollect\b/, "Collect"], [/\bpacks?\b/i, "pack"], [/\bpipes?\b/i, "pipe"],
@@ -53,6 +61,17 @@ function proseStrings(code) {
   clean.replace(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'/g, (m, a, b) => {
     const s = a !== undefined ? a : b;
     if (/\s/.test(s) && /[A-Za-z]{3}/.test(s) && !/[<>{};=]/.test(s)) strs.push(s);
+    return m;
+  });
+  return strs;
+}
+// Words inside html built in JS strings ("<summary>Other ways to sign in</summary>"), tags dropped.
+function markupStrings(code) {
+  const strs = [];
+  const clean = code.replace(/\/\/[^\n]*/g, " ").replace(/\/\*[\s\S]*?\*\//g, " ");
+  clean.replace(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'/g, (m, a, b) => {
+    const s = (a !== undefined ? a : b).replace(/\\u([0-9a-f]{4})/gi, (x, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\(.)/g, "$1");
+    if (/</.test(s)) strs.push(strangerText(s));
     return m;
   });
   return strs;
@@ -213,12 +232,207 @@ function checkOwnerNames(S, bad) {
   if (!/`queue@your-shop\.aia`/.test(pk) || !/`yourname\.aia`, `your-shop\.aia`/.test(pk) || !/"ais": \[\{ "name": "Helper AI", "aia": "yourname\.aia" \}\]/.test(pk)) bad("PACK.md must use neutral example names");
 }
 
+// ---------- D2 ----------
+// Sentences other checks pin word for word (check name in brackets). They stay, and only up to today's count.
+const PINNED = {
+  "help.html": [
+    ["Collect stays HOLD until a person taps Yes and a real money pipe is live.", 1, "check-collect-hold"],
+    ["Collect stays HOLD until a person taps Yes and a real Collect money pipe", 1, "check-studio-earnings"],
+    ["Collect and pack pay stay HOLD until Yes + real pipe", 2, "check-pack-sell, check-connect-wallet"],
+    ["A pack puts When → If → Then on this desk queue", 1, "check-aia-tip"],
+    ["Buyer binds their own keys and devices on Pipes", 1, "check-build-pack"],
+    ["Drop → Qualify → Do → Collect HOLD → Follow", 2, "check-desk-switch"],
+    ["Naming the pipe does not turn them green.", 1, "check-pipes-switch"],
+    ["Calendar, SMS, Square, and eBay stay HOLD", 1, "check-world-people"],
+    ["How do I install, give, or update a pack?", 1, "check-help-faq"],
+    ["do not map shared OpenAI keys into packs", 1, "check-world-people"],
+    ["you do not pick a pack on every Drop", 1, "check-pack-queue-shape"],
+    ["You do not pick a pack on every Drop", 2, "check-help-faq, check-pack-queue-shape"],
+    ["desk account and you install a pack", 1, "check-build-pack"],
+    ["Your first pack in Creators Studio", 1, "check-ux-simplify"],
+    ["App / webhook is the live pipe", 2, "check-aia-tip"],
+    ["Pipes → Rules When · If · Then", 1, "check-queue-help"],
+    ["Selling packs — risk honesty", 1, "check-pack-sell"],
+    ["Installed packs auto-shape", 2, "check-pack-queue-shape"],
+    ["When for packs and rules", 1, "check-aia-inbound"],
+    ["Collect and payouts HOLD", 3, "check-build-pack, check-pack-sell"],
+    ["Authenticator stays HOLD", 1, "check-account-page"],
+    ["Thin App / webhook pack", 1, "check-build-pack"],
+    ["When a pack is worth it", 4, "check-pack-sell"],
+    ["stands behind the pack", 1, "check-pack-sell"],
+    ["Build a pack / desk AI", 2, "check-build-pack"],
+    ["Build automation packs", 1, "check-studio-earnings"],
+    ["Recurring update HOLD", 4, "check-help-faq, check-history-roadmap"],
+    ["On-desk Pack Creator", 1, "check-build-pack"],
+    ["Collect stays HOLD", 3, "check-help-faq, check-queue-help, check-desk-cards"],
+    ["3–5 strong packs", 1, "check-studio-earnings"],
+    ["First pack suite", 1, "check-studio-earnings"],
+    ["pipes and keys", 1, "check-build-pack"],
+    ["Selling packs", 3, "check-pack-sell, check-ux-simplify"],
+    ["Learn packs", 1, "check-studio-earnings"],
+    ["Import Pack", 1, "check-world-people"],
+    ["Update pack", 3, "check-aia-tip, check-history-roadmap, check-world-home"],
+    ["still HOLD", 1, "check-aia-inbound, check-aia-register, check-money-pipe"],
+    ["Open packs", 2, "check-aia-adoption, check-queue-packs"],
+    ["Give pack", 3, "check-aia-tip, check-history-roadmap, check-packs-download-assert"],
+    ["HOLD ask", 1, "check-ask-grok-gone"],
+    ["gone HOLD", 1, "check-help-faq (First day People)"]
+  ],
+  "pipes.html": [["Orange until a real pipe answers. Naming the pipe does not turn it green.", 1, "check-pipes-switch"]],
+  "connections.html": [["Orange until a real pipe answers. Naming the pipe does not turn it green.", 1, "check-pipes-switch"]],
+  "login.html": []
+};
+const JARGON2 = [[/\bHOLD\b/, "HOLD"], [/\bpipes?\b/i, "pipe"], [/\bExt\b/, "Ext"], [/\bKilled\b/, "Killed"], [/\bSHA\b/, "SHA"]];
+const PACKWORD = [/\bpacks?\b/i, "pack"];
+const MINTWORD = [/\bmint(s|ed|ing)?\b/i, "mint"]; // login.html: a stranger signing in never reads mint
+function unpinned(f, text, bad) {
+  let t = text;
+  (PINNED[f] || []).forEach(([s, max, who]) => {
+    const n = t.split(s).length - 1;
+    if (n > max) bad(f + " repeats a pinned sentence " + n + " times (pinned " + max + ", " + who + "): " + s);
+    t = t.split(s).join(" ");
+  });
+  return t;
+}
+function checkFilesRead(S, bad) {
+  FILES.forEach((f) => { if (typeof S[f] !== "string") bad(f + " is missing or unreadable (fail closed)"); });
+}
+function checkPages2(S, bad) {
+  PAGES2.forEach((p) => {
+    if (typeof S[p] !== "string") return;
+    // Code samples show real JSON keys ("when": "pipe"); they are data, not words to read.
+    let text = strangerText(p === "help.html" ? S[p].replace(/<code\b[\s\S]*?<\/code>/gi, " ") : S[p]);
+    if (p === "login.html" && typeof S["login-doors.js"] === "string") text += " \n " + proseStrings(S["login-doors.js"]).concat(markupStrings(S["login-doors.js"])).join(" \n ");
+    text = unpinned(p, text, bad);
+    const words = JARGON2.concat(p === "help.html" ? [PACKWORD] : []).concat(p === "login.html" ? JARGON.concat([MINTWORD]) : []);
+    words.forEach(([re, word]) => { const m = text.match(re); if (m) bad(p + " shows jargon: " + word + " ('" + text.slice(Math.max(0, m.index - 30), m.index + 30).replace(/\s+/g, " ").trim() + "')"); });
+    const own = OWNER.exec(text) || /\bJames\b|springfield/i.exec(text);
+    if (own) bad(p + " shows an owner name (" + own[0] + ")");
+  });
+  const help = S["help.html"] || "";
+  ["Payments are off for now", "Connections across the internet", "the not-on-this-desk note", "Selling packs"].forEach((t) => { if (help.indexOf(t) < 0) bad("help.html must say: " + t); });
+  ["pipes.html", "connections.html"].forEach((p) => {
+    const h = S[p] || "";
+    if (h.indexOf(">Show connections</button>") < 0) bad(p + " button must say Show connections");
+    if (h.indexOf("You do not need a connection to start.") < 0) bad(p + " lead must say connection");
+  });
+  if ((S["pipes.html"] || "").indexOf("Sending stays off for now.") < 0) bad("pipes.html inbound note must say sending stays off");
+  const tip = (S["aia-tip.js"] || "").match(/"pipes": \{\s*title: "([^"]*)",[\s\S]*?ask: "([^"]*)"/);
+  if (!tip || tip[1] !== "Connections" || /\bpipe/i.test(tip[2])) bad("the pipes info tip must be titled Connections and ask about a connection");
+}
+function checkAccount(S, bad) {
+  const files = ["account.html", "aia-tld.js", "aia-register-abi.js"];
+  files.forEach((f) => {
+    const code = f.endsWith(".js") ? proseStrings(S[f] || "").join(" \n ") : strangerText(S[f] || "");
+    const m = /\bJames\b|james\.aia|james-ai@|springfield/i.exec(code);
+    if (m) bad(f + " shows an owner name on /account (" + m[0] + ")");
+  });
+  let acct = strangerText(S["account.html"] || "");
+  // Pinned word for word elsewhere: check-history-roadmap (Recurring update HOLD. Collect HOLD.),
+  // check-connect-wallet / check-pack-sell (Collect and pack pay ...), check-account-page (Authenticator stays HOLD).
+  [["Recurring update HOLD. Collect HOLD.", 1], ["Collect and pack pay stay HOLD until Yes + real pipe.", 1], ["Authenticator stays HOLD.", 1]].forEach(([t, max]) => {
+    const n = acct.split(t).length - 1;
+    if (n > max) bad("account.html repeats pinned line " + n + " times: " + t);
+    acct = acct.split(t).join(" ");
+  });
+  const holds = (acct.match(/\bHOLD\b/g) || []).length;
+  if (holds) bad("account.html shows HOLD outside the pinned lines (" + holds + ")");
+  if (/identity HOLD until mint|Page should say HOLD|HOLD\. Not live\./.test(acct)) bad("account.html still shows an unpinned HOLD line");
+  if ((S["aia-tld.js"] || "").indexOf("You sign the commit in your own wallet (MetaMask). AIA does not send it.") < 0) bad("aia-tld.js checklist must say you sign in your own wallet");
+}
+function checkHistory(S, bad) {
+  const h = S["history.html"] || "";
+  if (/Any pipe/.test(h)) bad("History filter still says Any pipe");
+  if (h.indexOf('<option value="">Any connection</option>') < 0 || h.indexOf('sel("pipe",f.pipes,"Any connection")') < 0) bad("History filter must say Any connection");
+  if (/\["Pipe",it\.pipe/.test(h)) bad("History card sheet still labels a row Pipe");
+}
+function hex(c) { const m = String(c || "").trim().match(/^#([0-9a-f]{6})$/i); return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : null; }
+function lumOf(rgb) { const a = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; }
+function contrast(a, b) { if (!a || !b) return 0; const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+function cssVars(css, block) {
+  const body = (css.match(new RegExp(block.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{([^}]*)\\}")) || [])[1] || "";
+  const out = {}; body.replace(/(--[\w-]+)\s*:\s*([^;]+);/g, (m, k, v) => { out[k] = v.trim(); return m; });
+  return out;
+}
+function resolveColor(v, vars, depth) {
+  if ((depth || 0) > 6 || !v) return null;
+  v = v.trim();
+  if (hex(v)) return hex(v);
+  const ref = v.match(/^var\((--[\w-]+)\)$/); if (ref) return resolveColor(vars[ref[1]], vars, (depth || 0) + 1);
+  const mix = v.match(/^color-mix\(in srgb,\s*(.+?)\s+(\d+)%,\s*(.+)\)$/);
+  if (mix) { const a = resolveColor(mix[1], vars, (depth || 0) + 1), b = resolveColor(mix[3], vars, (depth || 0) + 1), w = +mix[2] / 100; return a && b ? a.map((x, i) => Math.round(x * w + b[i] * (1 - w))) : null; }
+  return null;
+}
+function checkStatus2(S, bad) {
+  const html = S["status.html"] || "";
+  const row = html.match(/<div class="row"><span>Whatnot<\/span><span class="([^"]*)">([^<]*)<\/span><\/div>/);
+  if (!row) bad("status Whatnot row missing");
+  else {
+    if (row[1] !== "hold") bad("status Whatnot must be a grey held state, not '" + row[1] + "'");
+    if (/live/i.test(row[2]) && !/not/i.test(row[2])) bad("status Whatnot must not say it is live");
+  }
+  html.replace(/<span class="down">([^<]*)<\/span>/g, (m, t) => { bad("status paints a fixed row red: " + t); return m; });
+  const light = S["theme.css"] ? cssVars(S["theme.css"], ":root") : {};
+  const dark = Object.assign({}, light, S["theme.css"] ? cssVars(S["theme.css"], "html.dark") : {});
+  const lightBg = resolveColor("var(--bg)", light), darkBg = resolveColor("var(--bg)", dark), darkCard = resolveColor("var(--card)", dark), lightCard = resolveColor("var(--card)", light);
+  const holdDark = hex(((html.match(/\.hold\{color:([^}]+)\}/) || [])[1]));
+  const holdLight = hex(((html.match(/html:not\(\.dark\) \.hold\{color:([^}]+)\}/) || [])[1]));
+  if (!(contrast(holdLight, lightBg) >= 4.5)) bad("status grey on the light theme is " + contrast(holdLight, lightBg).toFixed(2) + ":1 (needs 4.5)");
+  if (!(contrast(holdDark, [7, 9, 12]) >= 4.5) || !(contrast(holdDark, darkBg) >= 4.5)) bad("status grey on the dark theme is under 4.5:1");
+  const legend = (html.match(/<p style="color:([^;"]+);margin-top:18px">Green is on\./) || [])[1];
+  if (!legend) bad("status legend colour missing");
+  else {
+    const l = resolveColor(legend, light), d = resolveColor(legend, dark);
+    if (!(contrast(l, lightBg) >= 4.5) || !(contrast(d, darkBg) >= 4.5)) bad("status legend grey is under 4.5:1 (" + legend + ")");
+  }
+  ["pipes.html", "connections.html"].forEach((p) => {
+    const h = S[p] || "";
+    const sl = hex(((h.match(/\.soon\{color:([^}]+)\}/) || [])[1]));
+    const sd = hex(((h.match(/html\.dark \.soon\{color:([^}]+)\}/) || [])[1]));
+    if (!(contrast(sl, lightCard) >= 4.5) || !(contrast(sl, lightBg) >= 4.5)) bad(p + " Coming soon grey on light is under 4.5:1");
+    if (!(contrast(sd, darkCard) >= 4.5) || !(contrast(sd, darkBg) >= 4.5)) bad(p + " Coming soon grey on dark is under 4.5:1");
+  });
+}
+function targetFile(S, href) {
+  let p = href.split("#")[0].split("?")[0];
+  if (!p) return "help.html";
+  let v = {}; try { v = JSON.parse(S["vercel.json"] || "{}"); } catch (e) { return null; }
+  (v.redirects || []).forEach((r) => { if (r.source === p) p = r.destination; });
+  (v.rewrites || []).forEach((r) => { if (r.source === p) p = r.destination; });
+  p = p.replace(/^\//, "");
+  if (!/\.html$/.test(p)) p += ".html";
+  return p;
+}
+const HELP_TALK_AS_MAIN = "/drop#talk";
+function checkHelpAnchors(S, bad) {
+  const help = S["help.html"] || "";
+  let n = 0;
+  help.replace(/\shref="([^"]*#[^"]*)"/g, (m, href) => {
+    if (/^(https?:|mailto:|tel:)/.test(href) && !/automateitaway\.com/.test(href)) return m;
+    // Talk is split out of D2: /help keeps main's exact /drop#talk link (drop.html has no id="talk"; Drop
+    // opens Talk from the hash in drop-talk.js). The Talk PR fixes this link; no other href is let through.
+    if (href === HELP_TALK_AS_MAIN) { n += 1; return m; }
+    const id = href.split("#")[1];
+    const f = targetFile(S, href.replace(/^https?:\/\/[^/]+/, ""));
+    const page = f && (f === "help.html" ? help : (typeof S[f] === "string" ? S[f] : readOrNull(f)));
+    n += 1;
+    if (typeof page !== "string") { bad("/help link " + href + " points at a page that is missing (" + f + ")"); return m; }
+    if (!id || page.indexOf(' id="' + id + '"') < 0) bad("/help link " + href + " has no id=\"" + id + "\" on " + f);
+    return m;
+  });
+  if (n < 20) bad("/help anchor scan found only " + n + " links");
+  if (help.split('href="' + HELP_TALK_AS_MAIN + '"').length - 1 !== 1) bad("/help must keep exactly one " + HELP_TALK_AS_MAIN + " link, as on main, until the Talk PR");
+}
+
 async function suite(S, okFn) {
   const bad = [];
   const b = (m) => bad.push(m);
-  const steps = [["public pages read plain", () => checkPages(S, b)], ["info tips read plain", () => checkTips(S, b)],
+  const steps = [["every file read (fail closed)", () => checkFilesRead(S, b)], ["public pages read plain", () => checkPages(S, b)], ["info tips read plain", () => checkTips(S, b)],
     ["playbook and demo read plain", () => checkPlaybook(S, b)], ["status grey for held states", () => checkStatus(S, b)],
-    ["same words for Queue, desk, account", () => checkWords(S, b)], ["no owner names in examples", () => checkOwnerNames(S, b)]];
+    ["same words for Queue, desk, account", () => checkWords(S, b)], ["no owner names in examples", () => checkOwnerNames(S, b)],
+    ["help, connections and login read plain", () => checkPages2(S, b)], ["account has no owner names", () => checkAccount(S, b)],
+    ["history says connection", () => checkHistory(S, b)], ["status held states grey with 4.5:1", () => checkStatus2(S, b)],
+    ["help anchors resolve", () => checkHelpAnchors(S, b)]];
   for (const [name, fn] of steps) {
     const n = bad.length;
     try { await fn(); } catch (e) { bad.push(name + " threw " + e.message); }
@@ -267,9 +481,49 @@ const MUTANTS = [
   ["index springfield-shop added", "index.html", [["One nudge. Then it stops. Payments are off for now.", "One nudge. Then it stops. Payments are off for now. See springfield-shop."]]],
   ["help Springfield checklist back", "help.html", [["Sample shop checklist.", "Springfield checklist."]]],
   ["help Springfield named elsewhere", "help.html", [["named like your-shop.aia.", "named like your-shop.aia. Springfield shops use this."]]],
-  ["demo HOLD", "setup-demo.js", [['mean: "Photo to comps to listing draft. Payments are off for now." }', 'mean: "Photo to comps to listing draft. Collect HOLD until Yes + a real money pipe." }']]]
+  ["demo HOLD", "setup-demo.js", [['mean: "Photo to comps to listing draft. Payments are off for now." }', 'mean: "Photo to comps to listing draft. Collect HOLD until Yes + a real money pipe." }']]],
+  // D2
+  ["account identity HOLD back", "account.html", [["Collect HOLD. Your AIA name waits until it is registered.", "Collect HOLD. .aia identity HOLD until mint."]]],
+  ["account Not live HOLD back", "account.html", [["<p class=\"meta\">Off for now. No email codes.", "<p class=\"meta\">HOLD. Not live. No email codes."]]],
+  ["account mfa hint HOLD back", "account.html", [['id="mfa-hint">Authenticator is off for now.</p>', 'id="mfa-hint">Page should say HOLD.</p>']]],
+  ["account export Collect HOLD back", "account.html", [["No password hash. Payments are off for now.\";", "No password hash. Collect HOLD.\";"]]],
+  ["account pinned line doubled", "account.html", [["Recurring update HOLD. Collect HOLD.", "Recurring update HOLD. Collect HOLD. Recurring update HOLD. Collect HOLD."]]],
+  ["tld checklist James back", "aia-tld.js", [["<li>You sign the commit in your own wallet (MetaMask). AIA does not send it.</li>", "<li>James signs commit in MetaMask. AIA does not send the tx.</li>"]]],
+  ["tld mint James back", "aia-tld.js", [["You sign the mint in your own wallet (MetaMask) when the bridge clears.", "James signs mint in MetaMask when Bridge clears."]]],
+  ["tld Sign commit James back", "aia-tld.js", [["Tap Sign commit — you sign in your wallet.", "Tap Sign commit — James signs."]]],
+  ["register note James back", "aia-register-abi.js", [["You sign the commit, wait about 60 seconds, then sign the registration.", "James signs commit, waits ~60s, then signs register."]]],
+  ["help Collect HOLD back", "help.html", [["Payments are off for now, and Yes never charges anyone.", "Collect stays HOLD until Yes."]]],
+  ["help Connections across back", "help.html", [["Connections across the internet", "Pipes across the internet"]]],
+  ["help add-on back to pack", "help.html", [["DFY is mostly an off-platform service wrapping the add-on.", "DFY is mostly an off-platform service wrapping the pack."]]],
+  ["help gone HOLD back", "help.html", [["the not-on-this-desk note", "gone HOLD"]]],
+  ["help pinned sentence repeated", "help.html", [["Payments are off for now, and Yes never charges anyone.", "Collect and payouts HOLD. Collect and payouts HOLD."]]],
+  ["help owner name added", "help.html", [["Payments are off for now, and Yes never charges anyone.", "Payments are off for now, and Yes never charges anyone. Ask James."]]],
+  ["help Talk link near-miss (/drop#tallk)", "help.html", [['href="/drop#talk"', 'href="/drop#tallk"']]],
+  ["help Talk link near-miss (/drop.html#talk)", "help.html", [['href="/drop#talk"', 'href="/drop.html#talk"']]],
+  ["help second /drop#talk link", "help.html", [['<a href="/drop#talk">Drop · Talk</a>', '<a href="/drop#talk">Drop · Talk</a> · <a href="/drop#talk">Talk</a>']]],
+  ["help anchor typo", "help.html", [['href="#pack-worth"', 'href="#pack-wurth"']]],
+  ["help link to a missing page", "help.html", [['href="/drop#talk"', 'href="/nowhere#talk"']]],
+  ["pipes Show pipes back", "pipes.html", [[">Show connections</button>", ">Show pipes</button>"]]],
+  ["pipes lead pipe back", "pipes.html", [["You do not need a connection to start.", "You do not need a pipe to start."]]],
+  ["pipes Send HOLD back", "pipes.html", [["Sending stays off for now.", "Send stays HOLD."]]],
+  ["connections lead pipe back", "connections.html", [["You do not need a connection to start.", "You do not need a pipe to start."]]],
+  ["pipes soon grey back", "pipes.html", [[".soon{color:#56636f}", ".soon{color:#6b7c8f}"]]],
+  ["connections dark soon grey back", "connections.html", [["html.dark .soon{color:#9aa8b6}", "html.dark .soon{color:#6b7c8f}"]]],
+  ["tip title Pipes back", "aia-tip.js", [['title: "Connections",\n      body: "Webhook is live.', 'title: "Pipes",\n      body: "Webhook is live.']]],
+  ["tip ask pipe back", "aia-tip.js", [['ask: "What is a connection on this desk?"', 'ask: "What is a pipe on this desk?"']]],
+  ["history Any pipe back", "history.html", [['<option value="">Any connection</option>', '<option value="">Any pipe</option>']]],
+  ["history sheet Pipe row back", "history.html", [['["Connection",it.pipe', '["Pipe",it.pipe']]],
+  ["status Whatnot red back", "status.html", [['<span>Whatnot</span><span class="hold">Not available yet</span>', '<span>Whatnot</span><span class="down">Not live</span>']]],
+  ["status light grey rule gone", "status.html", [["html:not(.dark) .hold{color:#56636f}", ""]]],
+  ["status legend grey back", "status.html", [['<p style="color:var(--muted);margin-top:18px">', '<p style="color:#8b9aab;margin-top:18px">']]],
+  ["login Ext back", "login-doors.js", [["Other ways to sign in \\u00b7 coming soon", "Ext \\u00b7 coming soon"]]],
+  ["login owner name", "login.html", [["</body>", "<p>Ask james.aia</p></body>"]]],
+  ["login mint", "login.html", [["</body>", "<p>Mint your name after you sign in.</p></body>"]]],
+  ["help.html unreadable", "help.html", null],
+  ["pipes.html unreadable", "pipes.html", null]
 ];
 function mutate(S, file, reps) {
+  if (reps === null) return Object.assign({}, S, { [file]: null });
   let s = S[file];
   for (const [find, repl] of reps) { if (s.indexOf(find) < 0) return null; s = s.split(find).join(repl); }
   return Object.assign({}, S, { [file]: s });

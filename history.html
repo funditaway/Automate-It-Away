@@ -175,7 +175,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <p class="meta">Filters stack. A card has to match every one you turn on.</p>
 <select id="who"><option value="">Anyone</option></select>
 <select id="work"><option value="">Any kind</option></select>
-<select id="pipe"><option value="">Any pipe</option></select>
+<select id="pipe"><option value="">Any connection</option></select>
 <select id="since"><option value="">Any day</option><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option></select>
 <div class="chips" id="flags">
 <button type="button" data-flag="money">Money</button>
@@ -561,7 +561,7 @@ function explore(it){
  document.getElementById("sheet-how").textContent=it.how||it.result||it.past||"";
  var rows=[
   ["Kind",it.kind||"job"],["Work",it.work||it.pack||"—"],["Who",it.who||"—"],
-  ["Hands",(it.hands||[]).join(", ")||"—"],["Pipe",it.pipe||"—"],
+  ["Hands",(it.hands||[]).join(", ")||"—"],["Connection",it.pipe||"—"],
   ["Via",viaLabel(it)||"—"],
   ["Ready",it.decide?"Yes / Stop / Kill stay human":"—"],
   ["AIA",it.aiaStatus||(it.grok?"Desk AI drafted":"No draft")],
@@ -628,7 +628,7 @@ async function load(){
   banner.textContent=(seatNote?seatNote+" ":"")+(slug?"This desk. Real cards only.":"Every desk on this phone. Pick one to narrow.");
   var f=data.facets||{};
   function sel(id,rows,blank){var el=document.getElementById(id),cur=el.value;el.innerHTML="<option value=\"\">"+blank+"</option>"+(rows||[]).map(function(n){return "<option>"+esc(n)+"</option>";}).join("");if(cur)el.value=cur;}
-  sel("who",f.who,"Anyone");sel("work",f.work,"Any kind");sel("pipe",f.pipes,"Any pipe");if(who)document.getElementById("who").value=who;
+  sel("who",f.who,"Anyone");sel("work",f.work,"Any kind");sel("pipe",f.pipes,"Any connection");if(who)document.getElementById("who").value=who;
   var items=data.items||[];last=items;
   var text=encodeURIComponent((logicLine()+"\n"+story()).slice(0,900));
   document.getElementById("text-view").href="sms:?&body="+text;
