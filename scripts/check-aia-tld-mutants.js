@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 require("./_env-guard");
-// Mutant runner for scripts/check-aia-tld.js (not in the npm test line).
+// Mutant runner for scripts/check-aia-tld.js. npm test runs this last.
 // Copies the repo (no .git, no node_modules) to a temp dir, applies each mutant
 // below to api/health.js, runs check-aia-tld.js with a stripped env (PATH and a
 // temp HOME only; no keys), and reports caught/total. The real tree is never
