@@ -33,6 +33,16 @@ function strangerTld(row) {
   };
 }
 
+// Status only. Health stays on strangerTld, with no probe and no extra keys.
+// bridgeLocked is the probe boolean. ownedByConnected stays false: status has
+// no wallet session.
+function statusTld(row) {
+  const face = strangerTld(row);
+  face.bridgeLocked = !!(row && row.bridgeLocked === true);
+  face.ownedByConnected = false;
+  return face;
+}
+
 function publicStoreDriver(driver) {
   if (driver === "blob") return "shared";
   if (driver === "tmp-file") return "tmp";
@@ -122,7 +132,7 @@ async function deskStatus(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet,
-    aiaTld: strangerTld(aiaTld),
+    aiaTld: statusTld(aiaTld),
     automation: {
       deskAi: {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),

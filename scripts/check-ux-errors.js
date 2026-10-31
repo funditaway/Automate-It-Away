@@ -516,7 +516,7 @@ function staticChecks() {
   ok(!!(freeze && freeze.ok === true), "api/ frozen (scripts/_api-freeze.js)" + (freeze && freeze.ok ? "" : ": " + ((freeze && freeze.problems) || []).join("; ")));
   let line = "";
   try { line = JSON.parse(SRC["package.json"] || "").scripts.test || ""; } catch (e) { line = ""; }
-  ok(/node scripts\/check-ux-errors\.js$/.test(line.trim()), "npm test ends with check-ux-errors.js");
+  ok(/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js$/.test(line.trim()), "npm test ends with the .aia TLD mutant check after check-ux-errors.js");
   let legal = null;
   try {
     const base = require("./_api-freeze").BASE;
