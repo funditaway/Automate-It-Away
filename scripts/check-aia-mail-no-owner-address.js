@@ -10,8 +10,8 @@ require("./_env-guard");
 // funditaway/Automate-It-Away in api/health.js is the only exclusion, and
 // only when the literal is exactly that slug. Reply strings (every api
 // string literal) also may not name an owner. The only leftovers are the
-// account ownerName field, the reviewer desk slug, that repo slug, and the
-// upload delete confirmation, each matched exactly.
+// account ownerName field, the reviewer desk slug, and that repo slug,
+// each matched exactly.
 // node scripts/check-aia-mail-no-owner-address.js
 // node scripts/check-aia-mail-no-owner-address.js --mutate
 const fs = require("fs");
@@ -27,8 +27,7 @@ const OWNER_LITERAL_OK = {};
   ["api/health.js", REPO_SLUG],
   ["api/_aia-admin.js", "funditaway"],
   ["api/_aia-admin.js", "James Oddo"],
-  ["api/_account.js", "James Oddo"],
-  ["api/migrate-uploads.js", "Delete needs James's Yes."]
+  ["api/_account.js", "James Oddo"]
 ].forEach(function (row) { OWNER_LITERAL_OK[row[0] + "\0" + row[1]] = true; });
 function ownerLiteralAllowed(file, text) {
   return OWNER_LITERAL_OK[file + "\0" + text] === true;
@@ -420,7 +419,10 @@ const MUTANTS = [
     'repo: "funditaway.aia"'],
   ["register note names the owner", "api/_aia-register.js",
     'const HOLD_NOTE = "You sign the commit, wait about 60 seconds, then sign the register. AIA holds no keys. Collect stays on hold.";',
-    'const HOLD_NOTE = "James signs the commit, waits about 60 seconds, then signs the register. AIA holds no keys. Collect stays on hold.";']
+    'const HOLD_NOTE = "James signs the commit, waits about 60 seconds, then signs the register. AIA holds no keys. Collect stays on hold.";'],
+  ["migrate delete names the owner", "api/migrate-uploads.js",
+    'return deny(res, 403, "Delete needs your Yes.");',
+    'return deny(res, 403, "Delete needs James\'s Yes.");']
 ];
 
 function mutate() {

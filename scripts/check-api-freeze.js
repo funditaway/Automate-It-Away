@@ -37,7 +37,7 @@ const OVERLAY = [
   "scripts/check-ux-signin.js"
 ];
 const LANDED = ["api/_aia-mail.js", "api/_aia-net.js", "api/_grok.js"];
-const MOVED = ["api/_aia-admin.js", "api/_aia-register.js", "api/_aia-tld.js", "api/_account-connect.js"];
+const MOVED = ["api/_aia-admin.js", "api/_aia-register.js", "api/_aia-tld.js", "api/_account-connect.js", "api/migrate-uploads.js"];
 
 let failed = 0;
 let passed = 0;
