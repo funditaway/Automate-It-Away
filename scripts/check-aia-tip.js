@@ -82,12 +82,12 @@ must(tip, "Why does this kind ask for a callback number?", "drop-kind-callback a
 must(tip, '"support-title"', "support-title tip");
 must(tip, '"support-broke"', "support-broke tip");
 must(tip, '"connect-wallet"', "connect-wallet tip");
-must(tip, "When → If → Then on this desk queue", "give-pack When-If-Then queue");
-must(tip, "Buyer binds their own keys and devices", "give-pack buyer keys");
-must(tip, "before outbound or hardware", "give-pack Yes before hardware");
-must(tip, "App / webhook is the live pipe", "give-pack App/webhook near lane");
-must(tip, "Not Wallet.AIA", "tip wallet honesty");
-must(tip, "Collect stays HOLD", "tip Collect HOLD");
+must(tip, "small file of When → If → Then rules for a desk", "give-pack When-If-Then desk");
+must(tip, "They connect their own accounts and devices", "give-pack buyer keys");
+must(tip, "Yes / Stop / Kill still come before anything goes out or a device moves", "give-pack Yes before hardware");
+must(tip, "The app or webhook is the live connection", "give-pack App/webhook near lane");
+must(tip, "AIA never holds your keys and does not run a wallet for you", "tip wallet honesty");
+must(tip, "AIA does not charge or collect money yet", "tip payments off");
 mustNot(tip, "Zendesk", "tip Zendesk");
 mustNot(tip, "drop-pack.js", "tip loads drop-pack.js");
 mustNot(tip, "AIA coin", "tip AIA coin");

@@ -417,7 +417,7 @@ Validate `label.aia`. Names live on this desk now. Wallet / registry connect lat
 
 World users create `{ai-or-desk-name}@{accountname}.aia` to operate Automations and named desk AIs.
 
-Examples: `james-ai@funditaway.aia`, `queue@springfield-shop.aia`.
+Examples: `helper-ai@yourname.aia`, `queue@springfield-shop.aia`.
 
 Validate `local@account.aia`. The account label must match this AIA Internet account / `.aia` name (or the bound desk’s `.aia` name). Create and manage on Account, Studio, and Desks. Bind each identity to a desk or a named desk AI.
 

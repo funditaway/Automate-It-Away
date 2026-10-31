@@ -65,7 +65,7 @@
   function plainStatus(s) {
     if (s === "exception") return "Waiting on a person";
     if (s === "held") return "Waiting on the owner";
-    if (s === "waiting") return "Ready";
+    if (s === "waiting") return "Needs you";
     if (s === "shipped") return "Sent";
     if (s === "killed") return "Stopped";
     return "Open";

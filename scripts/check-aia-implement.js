@@ -71,7 +71,7 @@ const never = (pack.queue && pack.queue.never) || [];
 });
 
 const playbook = read("desk-playbook.js");
-["Find the leaks", "Hook the pipes", "Name a desk AI", "You still tap"].forEach(function (bit) {
+["Find the leaks", "Hook up connections", "Name a desk AI", "You still tap"].forEach(function (bit) {
   if (!playbook.includes(bit)) fail("desk-playbook.js missing " + bit);
   else pass("playbook " + bit);
 });
@@ -157,6 +157,14 @@ else pass("Studio links aia-implement");
   });
   if (/White House|Action Plan/i.test(pages[name])) fail(name + " reprinted policy");
   else pass(name + " is desk language");
+  // how.html is a public page in plain words: no .aia door, and no mint at all.
+  if (name === "how.html") {
+    if (/ai\.aia|\.aia\b/.test(pages[name])) fail(name + " must not show .aia jargon to strangers");
+    else pass(name + " keeps .aia jargon off the public page");
+    if (/\bmint/i.test(pages[name])) fail(name + " must not teach mint");
+    else pass(name + " does not teach mint");
+    return;
+  }
   if (!pages[name].includes("ai.aia")) fail(name + " missing ai.aia door");
   else pass(name + " names ai.aia");
   if (!pages[name].includes("not a mint lesson")) fail(name + " must not teach mint");

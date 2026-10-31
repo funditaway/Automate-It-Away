@@ -88,13 +88,13 @@ async function main() {
  const statusHtml = fs.readFileSync(path.join(__dirname, "..", "status.html"), "utf8");
  if (/Pin workspace/.test(statusHtml) || !/id="accounts"/.test(statusHtml) || !/accounts\.login/.test(statusHtml) || /authenticator is opt-in/i.test(statusHtml)) fail("status accounts");
  else pass("st.acct");
- if (/Orange is P1/.test(statusHtml) || !/Orange is HOLD/.test(statusHtml)) fail("status orange");
+ if (/Orange is P1/.test(statusHtml) || /Orange is HOLD/.test(statusHtml) || !/Grey is off for now on purpose; nothing is broken\./.test(statusHtml) || /\.hold\{color:#f39c12\}/.test(statusHtml)) fail("status orange");
  else if (!/id="grok"/.test(statusHtml) || !/automation\.(deskAi|grok)/.test(statusHtml)) fail("status deskAi paint");
  else if (/API key not set/.test(statusHtml) || /Drafts are off — no XAI_API_KEY/.test(statusHtml) || /no XAI_API_KEY on this box/.test(statusHtml)) fail("status XAI");
  else if (/id="raw"|deskPublicDump|JSON\.stringify/.test(statusHtml)) fail("status raw dump");
  else if (/\bblob\b|Decentraweb|BLOB_|XAI_API_KEY|AIA_GROK_|GROK_API_KEY|env present/i.test(statusHtml)) fail("status stranger");
  else if (!/A Desk AI can't draft on this phone yet/.test(statusHtml)) fail("status drafts-off voice");
- else if (!/Name register stays HOLD/.test(statusHtml) || !/Saved on this desk/.test(statusHtml) || !/Photos and files are saved/.test(statusHtml)) fail("status desk voice");
+ else if (!/AIA name sign-up is off for now/.test(statusHtml) || !/Saved on this desk/.test(statusHtml) || !/Photos and files are saved/.test(statusHtml)) fail("status desk voice");
  else pass("st.html");
  const st = mockRes();
  await status({ method: "GET", headers: {}, query: {} }, st);
