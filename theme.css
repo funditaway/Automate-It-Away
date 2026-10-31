@@ -341,3 +341,15 @@ header > span > a:not([class]), header nav > a:not([class]) { margin-block: 0; }
     margin-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+/* 2026-10-31 width floor: short links and chips are at least 44px wide too. */
+header .site-nav a, header nav.site-nav a, .site-header .site-nav a, .site-foot a, .site-foot nav a, footer nav a,
+button, [role="button"], summary, .who-chip, .queue-home-link, .more-go,
+.aia-playbook .pb-go, .aia-playbook .pb-also,
+main li > a:not([class]), .wrap li > a:not([class]), main dd > a:not([class]),
+body :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) {
+  min-width: 44px;
+  box-sizing: border-box;
+}
+header .site-nav a, .site-foot a, .site-foot nav a, footer nav a, .aia-playbook .pb-go, .aia-playbook .pb-also { justify-content: center; }
+main li > a:not([class]), .wrap li > a:not([class]), main dd > a:not([class]),
+body :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) { text-align: center; }

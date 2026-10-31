@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 require("./_env-guard");
 // Tap targets + header, UI only.
-// Every tappable thing is at least 44px tall (header nav, footer links with padding, the 'i' info
+// Every tappable thing is at least 44px tall and 44px wide (header nav, footer links with padding, the 'i' info
 // buttons, the theme toggle, summaries, chips, /help links), the phone tab bar never covers the
 // footer, the header says "Sign in to your Queue" once (and "Open a Queue" once on /login), the
 // stray bold full-width line on home is gone, and the theme toggle has a plain label.
@@ -9,10 +9,10 @@ require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const BASE = "782cbc0730d55498dde14b3cac8e39f34cb68ae3";
+const BASE = require("./_api-freeze").BASE; // on main; survives a squash-land
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
@@ -47,9 +47,19 @@ function decl(body, prop) {
   return m ? m[1].trim() : null;
 }
 function px(v) { const m = String(v || "").match(/^(-?\d+(?:\.\d+)?)px/); return m ? +m[1] : null; }
-function sels(r) { return r.sel.split(",").map((s) => s.trim()); }
+function sels(r) {
+  const out = []; let depth = 0, cur = "";
+  for (const c of r.sel) { if (c === "(") depth++; if (c === ")") depth--; if (c === "," && !depth) { out.push(cur.trim()); cur = ""; } else cur += c; }
+  out.push(cur.trim());
+  return out;
+}
 function findRule(css, wanted, prop, test) {
   return rules(css).some((r) => sels(r).indexOf(wanted) >= 0 && test(decl(r.body, prop), r));
+}
+function lastDecl(css, wanted, prop) {
+  let v = null;
+  rules(css).forEach((r) => { if (!r.media && sels(r).indexOf(wanted) >= 0) { const d = decl(r.body, prop); if (d !== null) v = d; } });
+  return v;
 }
 function atLeast44(v) { return px(v) !== null && px(v) >= 44 && /!important/.test(v); }
 
@@ -76,6 +86,19 @@ function checkCss(S, bad) {
     if (px(decl(inl.body, "margin-block")) !== -11) bad("sentence links must cancel the padding with -11px margin-block so lines do not move");
     if (px(decl(inl.body, "min-height")) < 44) bad("sentence links need min-height 44px for small text");
   }
+  // The last word on display wins: a sentence or list link that goes back to display:inline loses its 44px box.
+  const SENT = "body :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class])";
+  [[SENT, "links inside sentences"], ["main li > a:not([class])", "links in lists"]].forEach(([sel, what]) => {
+    const last = lastDecl(css, sel, "display");
+    if (last !== "inline-block") bad(what + " must stay display:inline-block (last rule says " + last + ")");
+  });
+  // Width floor: short links and chips are at least 44px wide as well as tall.
+  [["header .site-nav a", "header nav"], [".site-foot a", "footer links"], ["button", "buttons and chips"], ["summary", "summaries"],
+   [".who-chip", "account chip"], [".more-go", "/more tiles"], [".aia-playbook .pb-go", "playbook links"], [".aia-playbook .pb-also", "playbook side links"],
+   ["main li > a:not([class])", "links in lists"], ["main dd > a:not([class])", "links in definition lists"], [SENT, "links inside sentences"]].forEach(([sel, what]) => {
+    const w = lastDecl(css, sel, "min-width");
+    if (!(px(w) >= 44)) bad(what + " (" + sel + ") need min-width 44px (got " + w + ")");
+  });
   // phone tab bar vs footer
   const foot = rules(css).find((r) => /max-width:\s*859px/.test(r.media) && sels(r).indexOf("body.has-desk-nav .site-foot") >= 0);
   if (!foot) bad("phone rule for .site-foot above #desk-nav missing");
@@ -254,6 +277,13 @@ const MUTANTS = [
   ["signed-in Queue link dropped", "theme.js", [["    link.textContent = home.label;", "    link.textContent = \"\";"]]],
   ["theme label bare Auto", "theme.js", [["      b.textContent = \"Theme: \" + label();", "      b.textContent = label();"]]],
   ["Auto not explained", "theme.js", [["\"Theme: Auto follows your device. Tap to change.\"", "\"Theme: Auto. Tap to change.\""]]],
+  ["sentence links back to inline", "theme.css", [["  display: inline-block;\n  box-sizing: border-box;\n  min-height: 44px;\n  padding-block: 11px;\n  margin-block: -11px;", "  display: inline;\n  box-sizing: border-box;\n  min-height: 44px;\n  padding-block: 11px;\n  margin-block: -11px;"]]],
+  ["later rule makes sentence links inline", "theme.css", [["/* 2026-10-31 width floor:", "body :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) { display: inline; }\n/* 2026-10-31 width floor:"]]],
+  ["no width floor", "theme.css", [["header .site-nav a, header nav.site-nav a, .site-header .site-nav a, .site-foot a, .site-foot nav a, footer nav a,\nbutton, [role=\"button\"], summary, .who-chip, .queue-home-link, .more-go,\n.aia-playbook .pb-go, .aia-playbook .pb-also,\nmain li > a:not([class]), .wrap li > a:not([class]), main dd > a:not([class]),\nbody :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) {\n  min-width: 44px;", "header .site-nav a, header nav.site-nav a, .site-header .site-nav a, .site-foot a, .site-foot nav a, footer nav a,\nbutton, [role=\"button\"], summary, .who-chip, .queue-home-link, .more-go,\n.aia-playbook .pb-go, .aia-playbook .pb-also,\nmain li > a:not([class]), .wrap li > a:not([class]), main dd > a:not([class]),\nbody :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) {\n  min-width: 0;"]]],
+  ["width floor 30px", "theme.css", [["  min-width: 44px;\n  box-sizing: border-box;\n}\nheader .site-nav a, .site-foot a,", "  min-width: 30px;\n  box-sizing: border-box;\n}\nheader .site-nav a, .site-foot a,"]]],
+  ["width floor skips chips", "theme.css", [["button, [role=\"button\"], summary, .who-chip, .queue-home-link, .more-go,\n.aia-playbook", "[role=\"button\"], summary, .who-chip, .queue-home-link, .more-go,\n.aia-playbook"]]],
+  ["width floor skips sentence links", "theme.css", [["main dd > a:not([class]),\nbody :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) {\n  min-width: 44px;", "main dd > a:not([class]) {\n  min-width: 44px;"]]],
+  ["width floor skips footer", "theme.css", [["header .site-nav a, header nav.site-nav a, .site-header .site-nav a, .site-foot a, .site-foot nav a, footer nav a,\nbutton,", "header .site-nav a, header nav.site-nav a, .site-header .site-nav a,\nbutton,"]]],
   ["ui-fix pill back to 40px", "ui-fix.css", [["    height: 44px !important;\n    min-height: 44px !important;\n    padding: 0 12px !important;\n    font-size: 13px !important;", "    height: 40px !important;\n    min-height: 40px !important;\n    padding: 0 12px !important;\n    font-size: 13px !important;"]]],
   ["ui-fix chip back to 40px", "ui-fix.css", [["    min-height: 44px !important;\n    height: 44px;\n    padding: 0 12px !important;", "    min-height: 40px !important;\n    height: 40px;\n    padding: 0 12px !important;"]]],
   ["login header link lost", "login.html", [["<a href=\"onboard.html\" data-nav-keep>Open a Queue</a>", "<a href=\"onboard.html\">Open a Queue</a>"]]]
@@ -269,10 +299,12 @@ function mutate(S, file, reps) {
 function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
   ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
-  let apiDiff = "";
-  try { apiDiff = execSync("git diff --name-only " + BASE + " -- api", { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
-  catch (e) { apiDiff = ""; }
-  ok(apiDiff === "", "no api/ file differs from " + BASE.slice(0, 8) + (apiDiff ? " (" + apiDiff + ")" : ""));
+  // api/ freeze from #434: any git or helper error is a FAIL, never a pass.
+  let freeze;
+  try { freeze = require("./_api-freeze").check(root); }
+  catch (e) { freeze = { ok: false, problems: ["api freeze helper failed: " + ((e && e.message) || e)] }; }
+  if (!freeze || freeze.ok !== true) freeze = { ok: false, base: (freeze && freeze.base) || BASE, problems: (freeze && freeze.problems && freeze.problems.length) ? freeze.problems : ["api freeze gave no answer"] };
+  ok(freeze.ok, "api/ frozen vs " + String(freeze.base || BASE).slice(0, 8) + " (scripts/_api-freeze.js)" + (freeze.ok ? "" : ": " + freeze.problems.join("; ")));
   ok(/check-ux-tap-header\.js/.test(read("package.json")), "npm test runs check-ux-tap-header.js");
 }
 async function main() {
