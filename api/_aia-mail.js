@@ -29,20 +29,20 @@ function localOf(raw, fallback) {
 
 function parseAddress(raw) {
   const text = String(raw == null ? "" : raw).trim().toLowerCase().replace(/^mailto:/i, "");
-  if (!text) return { ok: false, error: "Name a .aia email like james-ai@funditaway.aia." };
+  if (!text) return { ok: false, error: "Type an AIA email, like name@your-account.aia." };
   if (text.indexOf("@") < 0) {
-    return { ok: false, error: "Use local@account.aia — like james-ai@funditaway.aia or queue@springfield-shop.aia." };
+    return { ok: false, error: "Use name@your-account.aia." };
   }
   const bits = text.split("@");
   if (bits.length !== 2) return { ok: false, error: "Use local@account.aia." };
   const local = localOf(bits[0], "");
   const host = String(bits[1] || "").trim();
   if (host && /\./.test(host) && !/\.aia$/i.test(host)) {
-    return { ok: false, error: "AIA Internet mail ends in .aia — like james-ai@funditaway.aia." };
+    return { ok: false, error: "AIA mail ends in .aia, like name@your-account.aia." };
   }
   const account = net.labelOf(host, "");
-  if (!local) return { ok: false, error: "Local part looks like james-ai or queue." };
-  if (!account) return { ok: false, error: "Account label must be a .aia name — funditaway.aia or springfield-shop.aia." };
+  if (!local) return { ok: false, error: "Add a name before the @, like name@your-account.aia." };
+  if (!account) return { ok: false, error: "The part after the @ must be a .aia name, like your-account.aia." };
   return {
     ok: true,
     local: local,
@@ -76,7 +76,7 @@ function validateAddress(raw, acc, desk) {
   if (!parsed.ok) return parsed;
   const allowed = labelsFor(acc, desk);
   if (!allowed.length) {
-    return { ok: false, error: "Set the AIA Internet name first — funditaway.aia or springfield-shop.aia." };
+    return { ok: false, error: "Set your AIA Internet name first, like your-account.aia." };
   }
   if (allowed.indexOf(parsed.account) < 0) {
     return { ok: false, error: "Use local@" + allowed[0] + ".aia — the account label must match this AIA Internet name." };
@@ -169,7 +169,7 @@ function createIdentity(acc, desk, body) {
   if (bind === "ai" && !ai) return { ok: false, status: 400, error: "Name the desk AI this email binds to." };
   const localHint = (body && (body.local || body.name || body.part)) || (ai && (ai.aiaLabel || ai.id || ai.name)) || "queue";
   const labels = labelsFor(acc, desk);
-  if (!labels.length) return { ok: false, status: 400, error: "Set the AIA Internet name first — funditaway.aia or springfield-shop.aia." };
+  if (!labels.length) return { ok: false, status: 400, error: "Set your AIA Internet name first, like your-account.aia." };
   const wantDomain = net.labelOf((body && (body.account || body.domain || body.host)) || "", labels[0]) || labels[0];
   if (labels.indexOf(wantDomain) < 0) {
     return { ok: false, status: 400, error: "Use local@" + labels[0] + ".aia — the account label must match this AIA Internet name." };
