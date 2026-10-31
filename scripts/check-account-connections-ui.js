@@ -229,7 +229,7 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
   ok(!/account-connections/.test(read("desk.html")), "desk.html untouched");
   const TEST_LINE = (() => { try { return JSON.parse(read("package.json")).scripts.test || ""; } catch (e) { return ""; } })();
   // U1's check-ux-errors pins itself as the last check; U2 sits right before it, once.
-  ok(/&& node scripts\/check-account-connections-ui\.js && node scripts\/check-ux-errors\.js$/.test(TEST_LINE.trim()) && TEST_LINE.split("check-account-connections-ui.js").length === 2, "npm test runs check-account-connections-ui once, right before check-ux-errors at the end (U2)");
+  ok(/&& node scripts\/check-account-connections-ui\.js && node scripts\/check-ux-errors\.js(?: && node scripts\/check-aia-tld-mutants\.js)?$/.test(TEST_LINE.trim()) && TEST_LINE.split("check-account-connections-ui.js").length === 2, "npm test runs check-account-connections-ui once, right before check-ux-errors at the end (U2)");
   ok(SRC.indexOf('var GONE = "' + KILLED_PLAIN + '";') >= 0 && SRC.indexOf("Killed. Nothing more happens") < 0, "the page's killed line is the api's sentence, byte for byte");
   ok(KILLED_FROM_API.status === KILLED_PLAIN && KILLED_FROM_API.reason === KILLED_PLAIN, "api waiting text is Stopped for good, not Killed");
   ok(CONNECT_SRC.split(KILLED_PLAIN).length - 1 === 4, "status, reason, card history, and the final reply use the plain sentence");
@@ -636,9 +636,9 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     ["confirm sent as a string", A, swap("      if (verb === \"kill\") body.confirm = true;", "      if (verb === \"kill\") body.confirm = \"yes\";"), /confirm:true/],
     ["409 second tap shown as a dead error", A, swap("        if (verb === \"kill\" && !x.ok && x.d && x.d.error === KILL_AGAIN) { armed[card.id] = true; said[card.id] = KILL_REARM; paintCards(); return; }\n", ""), /Kill needs a second tap/],
     ["the first tap does not ask", A, swap("armed[card.id] = true; said[card.id] = KILL_ASK;", "armed[card.id] = true;"), /asks/],
-    ["not in npm test", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js\"", " && node scripts/check-ux-errors.js\""), /npm test runs check-account-connections-ui/],
-    ["in npm test but after check-ux-errors", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js\"", " && node scripts/check-ux-errors.js && node scripts/check-account-connections-ui.js\""), /npm test runs check-account-connections-ui/],
-    ["in npm test twice", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js\"", " && node scripts/check-account-connections-ui.js && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js\""), /npm test runs check-account-connections-ui/]
+    ["not in npm test", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js", " && node scripts/check-ux-errors.js"), /npm test runs check-account-connections-ui/],
+    ["in npm test but after check-ux-errors", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js", " && node scripts/check-ux-errors.js && node scripts/check-account-connections-ui.js"), /npm test runs check-account-connections-ui/],
+    ["in npm test twice", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js", " && node scripts/check-account-connections-ui.js && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js"), /npm test runs check-account-connections-ui/]
   ];
   let caught = 0;
   for (const [name, file, fn, want] of MUTANTS) {
