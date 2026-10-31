@@ -88,7 +88,7 @@
     <div class="banner" id="plan">AIA plan · free</div>
     <div class="card" id="account-road">
       <h2>Past / now / next</h2>
-      <p class="meta">This account on History. One desk. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. .aia identity HOLD until mint.</p>
+      <p class="meta">This account on History. One desk. Install / give / update a .aia with Yes. Give is the file. Update is install again. Recurring update HOLD. Collect HOLD. Your AIA name waits until it is registered.</p>
       <div class="links">
         <a href="/history#account-road">Give pack</a>
         <button type="button" class="aia-tip" data-aia-tip="give-pack" aria-label="More about Give pack">?</button>
@@ -153,15 +153,15 @@
       </div>
       <div class="card" id="export-card">
         <h2>Export the book</h2>
-        <p class="meta">Copy of this account. No desk code. No password hash. Nothing sends from here. Collect HOLD.</p>
+        <p class="meta">Copy of this account. No desk code. No password hash. Nothing sends from here. Payments are off for now.</p>
         <p><button class="edit" type="button" id="export-book">Export account book</button></p>
         <p class="meta" id="export-hint"></p>
       </div>
       <div class="card" id="mfa-card">
         <h2>Authenticator</h2>
-        <p class="meta">HOLD. Not live. No email codes. No SMS codes.</p>
+        <p class="meta">Off for now. No email codes. No SMS codes.</p>
         <p><button class="edit" type="button" id="mfa-on">Turn on authenticator</button></p>
-        <p class="meta" id="mfa-hint">Page should say HOLD.</p>
+        <p class="meta" id="mfa-hint">Authenticator is off for now.</p>
       </div>
     </div>
     <section id="acct-follow" aria-label="Pause, activity, undo, and export" hidden></section>
@@ -346,7 +346,7 @@
         a.download=file;
         a.click();
         setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
-        hint.textContent="Exported. No desk code. No password hash. Collect HOLD.";
+        hint.textContent="Exported. No desk code. No password hash. Payments are off for now.";
       }catch(e){hint.textContent="Could not reach the desk.";}
     };
     document.getElementById("mfa-on").onclick=async function(){
@@ -356,7 +356,7 @@
       try{
         const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"mfa",on:true})});
         const d=await r.json().catch(function(){return {};});
-        hint.textContent=(d.error||d.hint||"HOLD. Authenticator is not live on this account.")+(d.hold||r.status===409?" Authenticator stays HOLD.":"");
+        hint.textContent=(d.error||d.hint||"Authenticator is off for now on this account.")+(d.hold||r.status===409?" Authenticator stays HOLD.":"");
       }catch(e){hint.textContent="Could not reach the desk.";}
     };
     async function act(action, extra){

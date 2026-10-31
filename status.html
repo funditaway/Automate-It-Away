@@ -19,7 +19,7 @@
     header{padding:14px 5vw;border-bottom:1px solid #243040}
     .wrap{width:min(640px,92vw);margin:0 auto;padding:28px 0}
     .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #243040;gap:12px}
-    .up{color:#3dd68c}.down{color:#ff6b4a}.hold{color:#8b9aab}
+    .up{color:#3dd68c}.down{color:#ff6b4a}.hold{color:#8b9aab}html:not(.dark) .hold{color:#56636f}
   </style>
 </head>
 <body>
@@ -41,10 +41,10 @@
     <div class="row"><span>Desk AI drafts</span><span id="grok" class="hold">Checking…</span></div>
     <div class="row"><span>Other AIs</span><span class="up">Not required</span></div>
     <div class="row"><span>More connections</span><span class="hold">Coming later</span></div>
-    <div class="row"><span>Whatnot</span><span class="down">Not live</span></div>
+    <div class="row"><span>Whatnot</span><span class="hold">Not available yet</span></div>
     <div class="row"><span>Crypto wallet (optional)</span><span id="wallet" class="hold">Checking…</span></div>
     <div class="row"><span>AIA names</span><span id="aia-tld-row" class="hold">Checking…</span></div>
-    <p style="color:#8b9aab;margin-top:18px">Green is on. Grey is off for now on purpose; nothing is broken. Red means something is down. Payments are off for now.</p>
+    <p style="color:var(--muted);margin-top:18px">Green is on. Grey is off for now on purpose; nothing is broken. Red means something is down. Payments are off for now.</p>
   </main>
   <script>
     // Server notes can carry internal words (HOLD, Collect, pipe). Strangers get plain ones.
