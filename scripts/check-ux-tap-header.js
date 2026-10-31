@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 require("./_env-guard");
 // Tap targets + header, UI only.
-// Every tappable thing is at least 44px tall and 44px wide (header nav, footer links with padding, the 'i' info
+// Every tappable thing is at least 44px tall and 44px wide (header nav, footer links with padding, short .btn links, the 'i' info
 // buttons, the theme toggle, summaries, chips, /help links), the phone tab bar never covers the
 // footer, the header says "Sign in to your Queue" once (and "Open a Queue" once on /login), the
 // stray bold full-width line on home is gone, and the theme toggle has a plain label.
@@ -99,6 +99,9 @@ function checkCss(S, bad) {
     const w = lastDecl(css, sel, "min-width");
     if (!(px(w) >= 44)) bad(what + " (" + sel + ") need min-width 44px (got " + w + ")");
   });
+  // Button links with a short label ("Talk" on /examples is a.btn.quiet) get the width floor too.
+  const btnW = lastDecl(css, "a.btn", "min-width");
+  if (!(px(btnW) >= 44)) bad("button links with a short label (a.btn, like 'Talk' on /examples) need min-width 44px (got " + btnW + ")");
   // phone tab bar vs footer
   const foot = rules(css).find((r) => /max-width:\s*859px/.test(r.media) && sels(r).indexOf("body.has-desk-nav .site-foot") >= 0);
   if (!foot) bad("phone rule for .site-foot above #desk-nav missing");
@@ -283,6 +286,8 @@ const MUTANTS = [
   ["width floor 30px", "theme.css", [["  min-width: 44px;\n  box-sizing: border-box;\n}\nheader .site-nav a, .site-foot a,", "  min-width: 30px;\n  box-sizing: border-box;\n}\nheader .site-nav a, .site-foot a,"]]],
   ["width floor skips chips", "theme.css", [["button, [role=\"button\"], summary, .who-chip, .queue-home-link, .more-go,\n.aia-playbook", "[role=\"button\"], summary, .who-chip, .queue-home-link, .more-go,\n.aia-playbook"]]],
   ["width floor skips sentence links", "theme.css", [["main dd > a:not([class]),\nbody :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) {\n  min-width: 44px;", "main dd > a:not([class]) {\n  min-width: 44px;"]]],
+  ["short .btn label under 44 wide", "theme.css", [["a.btn {\n  min-width: 44px;", "a.btn {\n  min-width: 32px;"]]],
+  ["short .btn label not floored", "theme.css", [["a.btn {\n  min-width: 44px;\n  box-sizing: border-box;\n", "a.btn {\n  box-sizing: border-box;\n"]]],
   ["width floor skips footer", "theme.css", [["header .site-nav a, header nav.site-nav a, .site-header .site-nav a, .site-foot a, .site-foot nav a, footer nav a,\nbutton,", "header .site-nav a, header nav.site-nav a, .site-header .site-nav a,\nbutton,"]]],
   ["ui-fix pill back to 40px", "ui-fix.css", [["    height: 44px !important;\n    min-height: 44px !important;\n    padding: 0 12px !important;\n    font-size: 13px !important;", "    height: 40px !important;\n    min-height: 40px !important;\n    padding: 0 12px !important;\n    font-size: 13px !important;"]]],
   ["ui-fix chip back to 40px", "ui-fix.css", [["    min-height: 44px !important;\n    height: 44px;\n    padding: 0 12px !important;", "    min-height: 40px !important;\n    height: 40px;\n    padding: 0 12px !important;"]]],

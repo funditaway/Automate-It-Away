@@ -353,3 +353,10 @@ body :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) {
 header .site-nav a, .site-foot a, .site-foot nav a, footer nav a, .aia-playbook .pb-go, .aia-playbook .pb-also { justify-content: center; }
 main li > a:not([class]), .wrap li > a:not([class]), main dd > a:not([class]),
 body :is(p, small, td, label, span, div, h2, h3, nav) > a:not([class]) { text-align: center; }
+/* Button links with a short label (like "Talk" on /examples) are at least 44px wide too. */
+a.btn {
+  min-width: 44px;
+  box-sizing: border-box;
+  justify-content: center;
+  text-align: center;
+}
