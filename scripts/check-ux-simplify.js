@@ -9,10 +9,10 @@ require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const BASE = "782cbc0730d55498dde14b3cac8e39f34cb68ae3";
+const BASE = require("./_api-freeze").BASE; // on main; survives a squash-land
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
@@ -54,6 +54,7 @@ function fetchFor(mode) {
     if (mode === "hang") return new Promise(() => {});
     if (mode === "fail") return Promise.reject(new Error("offline"));
     if (mode === "on") return Promise.resolve({ json: () => Promise.resolve({ automation: { deskAi: { on: true, note: "" } } }) });
+    if (mode === "500") return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ automation: { deskAi: { on: false } }, error: "boom" }) });
     if (mode === "odd") return Promise.resolve({ json: () => Promise.resolve({ automation: { deskAi: { on: true, note: "Grok crew ready on this box" } } }) });
     return Promise.resolve({ json: () => Promise.resolve({ automation: { deskAi: { on: false } } }) });
   };
@@ -84,12 +85,14 @@ async function runHistory(S, mode) {
 }
 async function checkHealth(S, bad) {
   for (const [page, run] of [["/create", runCreate], ["/history", runHistory]]) {
-    for (const mode of ["hang", "fail", "on", "off", "odd"]) {
+    for (const mode of ["hang", "fail", "on", "off", "odd", "500"]) {
       let r;
       try { r = await run(S, mode); } catch (e) { bad(page + " " + mode + " threw " + e.message); continue; }
       if (r.text === CHECKING || !r.text) bad(page + " health " + mode + ": still says Checking (or nothing)");
       else if (!nextStep(r.text)) bad(page + " health " + mode + ": no plain next step ('" + r.text + "')");
-      if ((mode === "hang" || mode === "fail" || mode === "off") && !r.off) bad(page + " health " + mode + ": must show the off style");
+      if (/put work on the queue/i.test(r.text)) bad(page + " health " + mode + ": still shows the old 'put work on the queue' line");
+      if (page === "/create" && mode === "500" && r.text.indexOf("Could not reach the desk.") !== 0) bad("/create health 500: must say it could not reach the desk ('" + r.text + "')");
+      if ((mode === "hang" || mode === "fail" || mode === "off" || mode === "500") && !r.off) bad(page + " health " + mode + ": must show the off style");
       if (mode === "on" && (r.off || !/A Desk AI can draft\./.test(r.text))) bad(page + " health on: must say a Desk AI can draft");
       if (mode === "odd" && /Grok|box/.test(r.text)) bad(page + " health on: must not paint raw server notes");
       const t = r.timers[0];
@@ -171,6 +174,13 @@ function checkMore(S, bad) {
   const help = html.slice(html.indexOf('data-more-section="help">'), html.indexOf('data-more-section="build">'));
   ["/help#faq", "/support", "/status"].forEach((h) => { if (help.indexOf('href="' + h + '"') < 0) bad("Get help must hold " + h); });
   if (/Tap <b>\?<\/b>/.test(html)) bad("/more still says Tap ? (the button shows an i)");
+  // Every /more link into /help#anchor lands on a real id in help.html.
+  const helpIds = {};
+  S["help.html"].replace(/\sid="([^"]+)"/g, (m, id) => { helpIds[id] = 1; return m; });
+  const anchors = [];
+  html.replace(/href="\/help(?:\.html)?#([^"]+)"/g, (m, a) => { anchors.push(a); return m; });
+  if (anchors.length < 5) bad("/more lost its /help links (" + anchors.length + ")");
+  anchors.forEach((a) => { if (!helpIds[a]) bad("/more links to /help#" + a + ", which does not exist"); });
 }
 
 // ---------- /help ----------
@@ -211,6 +221,10 @@ async function suite(S, okFn) {
 }
 
 const MUTANTS = [
+  ["create 500 reads as drafts off", "create-desk.js", [['            if (r && r.ok === false) throw new Error("health " + r.status);\n', ""]]],
+  ["create old queue line back", "create-desk.js", [["        : \"A Desk AI can't draft on this phone yet. You can still type the work below and put it in your Queue.\");", "        : \"A Desk AI can't draft on this phone yet. You can still put work on the queue.\");"]]],
+  ["more links to missing #playbook", "more.html", [['href="/help#playbook-card"', 'href="/help#playbook"']]],
+  ["help drops an id /more uses", "help.html", [['id="aia-inbound"', 'id="aia-inbound-x"']]],
   ["create no timeout", "create-desk.js", [["        const timer = setTimeout(function () {\n          if (ctl) { try { ctl.abort(); } catch (e) {} }\n          reject(new Error(\"timeout\"));\n        }, ms);", "        const timer = 0;"]]],
   ["create 30s timeout", "create-desk.js", [["const AIA_WAIT_MS = 7000;", "const AIA_WAIT_MS = 30000;"]]],
   ["create fail leaves Checking", "create-desk.js", [["        el.textContent = AIA_NO_ANSWER;", ""]]],
@@ -241,9 +255,12 @@ function mutate(S, file, reps) {
 function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
   ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
-  let apiDiff = "";
-  try { apiDiff = execSync("git diff --name-only " + BASE + " -- api", { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) { apiDiff = ""; }
-  ok(apiDiff === "", "no api/ file differs from " + BASE.slice(0, 8) + (apiDiff ? " (" + apiDiff + ")" : ""));
+  // api/ freeze from #434: any git or helper error is a FAIL, never a pass.
+  let freeze;
+  try { freeze = require("./_api-freeze").check(root); }
+  catch (e) { freeze = { ok: false, problems: ["api freeze helper failed: " + ((e && e.message) || e)] }; }
+  if (!freeze || freeze.ok !== true) freeze = { ok: false, base: (freeze && freeze.base) || BASE, problems: (freeze && freeze.problems && freeze.problems.length) ? freeze.problems : ["api freeze gave no answer"] };
+  ok(freeze.ok, "api/ frozen vs " + String(freeze.base || BASE).slice(0, 8) + " (scripts/_api-freeze.js)" + (freeze.ok ? "" : ": " + freeze.problems.join("; ")));
   ok(/check-ux-simplify\.js/.test(read("package.json")), "npm test runs check-ux-simplify.js");
 }
 async function main() {

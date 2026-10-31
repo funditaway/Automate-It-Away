@@ -389,7 +389,7 @@
       const on = !!(g && g.on) || !!drafts.included;
       const note = (g && g.note) || (on
         ? "A Desk AI can draft. You still tap Yes or Stop."
-        : "A Desk AI can't draft on this phone yet. You can still put work on the queue.");
+        : "A Desk AI can't draft on this phone yet. You can still type the work below and put it in your Queue.");
       return { on: on, note: note };
     }
     // The health check always ends in a plain next step: on, off, failed, or no answer within 7 seconds.
@@ -404,7 +404,11 @@
         }, ms);
         Promise.resolve()
           .then(function () { return fetch("/api/health", ctl ? { signal: ctl.signal } : undefined); })
-          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (r) {
+            // A 500 or other error status is "no answer", not a desk that says drafts are off.
+            if (r && r.ok === false) throw new Error("health " + r.status);
+            return r.json().catch(function () { return {}; });
+          })
           .then(function (h) { clearTimeout(timer); resolve(h); }, function (e) { clearTimeout(timer); reject(e); });
       });
     }
