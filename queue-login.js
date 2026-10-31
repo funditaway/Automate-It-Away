@@ -5,7 +5,10 @@
    POST /api/desks { action: "mine" } fills the picker.
    All desks calls GET /api/jobs?desks=all. That counts only when the response is ok
    and every card has a slug. An empty list counts. Otherwise each desk is read with
-   GET /api/jobs?workspace=<slug>. One desk uses that same workspace read on this session. */
+   GET /api/jobs?workspace=<slug>. One desk uses that same workspace read on this session.
+   A failed read never looks empty: a 500, a network error, or no answer within QUEUE_WAIT_MS
+   shows "Couldn't load your Queue. Try again." with a Try again button that runs the load again.
+   "Nothing waiting" shows only after every read answered 200 with zero open cards. */
 (function () {
   var ALL_BANNER = "Every desk in this Queue.";
   var LOGIN_REPLY_KEY = "aia_queue_login_reply";
@@ -13,6 +16,23 @@
   var cards = [];
   var mode = "all";
   var loadGen = 0;
+  // About 8 seconds, in line with the 7-second health wait on /create and /history.
+  var QUEUE_WAIT_MS = 8000;
+  var LOAD_FAILED = "Couldn't load your Queue. Try again.";
+  var SOME_FAILED = "Couldn't load every desk, so some cards may be missing. Try again.";
+  var load = null;        // the current load: { failed, allFailed, signal }; an old load only marks its own object
+  var loading = false;
+  var loadError = false;
+  var mineFailed = false;
+  var firstSignal = null;  // the first page load shares one deadline across the desk list and the cards
+
+  // Abort a read that has not answered in time. Without timers or AbortController (old browsers) it is a no-op.
+  function waitSignal() {
+    var ctl = typeof AbortController === "function" ? new AbortController() : null;
+    if (ctl && typeof setTimeout === "function") setTimeout(function () { try { ctl.abort(); } catch (e) {} }, QUEUE_WAIT_MS);
+    return ctl ? ctl.signal : undefined;
+  }
+
 
   function slugify(s) {
     if (window.AIADesks && AIADesks.slugify) return AIADesks.slugify(s);
@@ -92,6 +112,9 @@
       "#queue-empty-next{background:var(--card,#fff);border:1px solid var(--line,#d5e0e0);border-radius:14px;padding:16px;margin:10px 0}" +
       "#queue-empty-next .meta{font-size:15px;margin:0 0 12px}" +
       "#queue-empty-next a.go{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border-radius:999px;font-weight:800;text-decoration:none}" +
+      "#queue-all-cards [data-queue-error]{background:var(--card,#fff);border:1px solid var(--line,#d5e0e0);border-radius:14px;padding:16px;margin:10px 0}" +
+      "#queue-all-cards [data-queue-error] p{font-size:15px;margin:0 0 12px}" +
+      "#queue-all-cards [data-queue-retry]{min-height:44px;padding:10px 18px;border-radius:999px;font-weight:800;cursor:pointer}" +
       "#queue-desk-picker[hidden]{display:none!important}" +
       "html.queue-signed-out main > :not(h1):not(#queue-all-cards){display:none!important}" +
       "@media (max-width:640px){" +
@@ -212,6 +235,30 @@
     box.appendChild(wrap);
   }
 
+  // A read failed or timed out: say so, with one Try again button. Never the empty state.
+  function errorState(box, text) {
+    var wrap = document.createElement("div");
+    wrap.setAttribute("data-queue-error", "1");
+    wrap.setAttribute("role", "alert");
+    var p = document.createElement("p");
+    p.textContent = text;
+    var again = document.createElement("button");
+    again.type = "button";
+    again.setAttribute("data-queue-retry", "1");
+    again.textContent = "Try again";
+    wrap.appendChild(p);
+    wrap.appendChild(again);
+    box.appendChild(wrap);
+  }
+
+  function loadingState(box) {
+    var p = document.createElement("p");
+    p.className = "meta";
+    p.setAttribute("role", "status");
+    p.textContent = "Loading your Queue…";
+    box.appendChild(p);
+  }
+
   // Signed out, the Queue shows only the sign-in step; desk tools stay out of the way.
   function markSignedOut(on) {
     var root = document.documentElement;
@@ -231,6 +278,9 @@
       return;
     }
     var open = (rows || []).filter(openCard);
+    if (!open.length && loading) { loadingState(box); return; }
+    if (!open.length && loadError) { errorState(box, LOAD_FAILED); return; }
+    if (loadError) errorState(box, SOME_FAILED);
     if (!open.length) {
       var named = mode !== "all" ? deskBySlug(mode) : null;
       if (!desks.length) emptyState(box, "No desks in this Queue yet. Create a desk to start.", "/onboard", "Create a desk");
@@ -321,12 +371,16 @@
       var r = await fetch("/api/desks", {
         method: "POST",
         headers: headersFor(""),
-        body: JSON.stringify({ action: "mine" })
+        body: JSON.stringify({ action: "mine" }),
+        signal: firstSignal || waitSignal()
       });
       var data = await r.json().catch(function () { return {}; });
+      if (!r.ok) mineFailed = true;
       if (!r.ok || !data || data.ok === false) return null;
+      mineFailed = false;
       return data;
     } catch (e) {
+      mineFailed = true;
       return null;
     }
   }
@@ -360,32 +414,40 @@
 
   // Real all-desks read: ok response, and every card has a slug. Empty list counts.
   async function readAllDesks() {
+    var mine = load;
     var tok = "";
     try { tok = localStorage.getItem("aia_session") || ""; } catch (e) {}
     if (!tok) return null;
     try {
       var r = await fetch("/api/jobs?desks=all", {
-        headers: { "Accept": "application/json", "X-Session": tok }
+        headers: { "Accept": "application/json", "X-Session": tok },
+        signal: mine ? mine.signal : waitSignal()
       });
       var data = await r.json().catch(function () { return null; });
+      if ((!r.ok || !data) && mine) mine.allFailed = true;
       if (!r.ok || !data || data.ok !== true || data.error) return null;
       var rows = Array.isArray(data.jobs) ? data.jobs : null;
       if (!rows || !everyCardHasSlug(rows)) return null;
       return rows;
     } catch (e) {
+      if (mine) mine.allFailed = true;
       return null;
     }
   }
 
+  // A failed desk read still returns [] so the other desks show, but it marks this load as failed.
   async function jobsForDesk(desk) {
+    var mine = load;
     try {
       var r = await fetch("/api/jobs?workspace=" + encodeURIComponent(desk.slug), {
-        headers: headersFor(desk.slug)
+        headers: headersFor(desk.slug),
+        signal: mine ? mine.signal : waitSignal()
       });
       var data = await r.json().catch(function () { return {}; });
-      if (!r.ok || !data || !Array.isArray(data.jobs)) return [];
+      if (!r.ok || !data || !Array.isArray(data.jobs)) { if (mine) mine.failed = true; return []; }
       return data.jobs.map(function (j) { return mapCard(j, desk); });
     } catch (e) {
+      if (mine) mine.failed = true;
       return [];
     }
   }
@@ -393,12 +455,20 @@
   async function refreshCards() {
     var gen = ++loadGen;
     var next = [];
+    // One deadline for the whole load, so a hang shows the error after QUEUE_WAIT_MS, not once per desk.
+    var me = load = { failed: false, allFailed: false, signal: firstSignal || waitSignal() };
+    firstSignal = null;
+    loading = true;
+    loadError = false;
+    if (!visibleCards().filter(openCard).length) paintCards(visibleCards());
     if (mode === "all") {
       var all = await readAllDesks();
       if (gen !== loadGen) return;
       if (all) {
         next = all.map(function (j) { return mapCard(j, null); });
       } else {
+        // No desk list to fall back on: a failed all-desks read is an error, not an empty Queue.
+        if (!desks.length && (me.allFailed || mineFailed)) me.failed = true;
         for (var i = 0; i < desks.length; i++) {
           var part = await jobsForDesk(desks[i]);
           if (gen !== loadGen) return;
@@ -411,7 +481,45 @@
       if (gen !== loadGen) return;
     }
     cards = next;
+    loading = false;
+    loadError = !!me.failed;
     paintCards(visibleCards());
+    return true;
+  }
+
+  // After Try again, put focus somewhere useful instead of on the page body: the Queue heading
+  // when the load worked, or the new Try again button when it failed again.
+  function focusAfterRetry() {
+    var target = null;
+    if (loadError) {
+      var box = document.getElementById("queue-all-cards");
+      target = box && box.querySelector ? box.querySelector("[data-queue-retry]") : null;
+    } else {
+      target = document.querySelector("main h1, h1.page-title");
+      if (target && target.getAttribute && target.getAttribute("tabindex") === null) target.setAttribute("tabindex", "-1");
+    }
+    if (target && typeof target.focus === "function") {
+      try { target.focus(); } catch (e) {}
+    }
+  }
+
+  // Try again: read the desk list again if that read failed, then the cards.
+  async function retryLoad() {
+    if (mineFailed && !desks.length) {
+      var gen = loadGen;
+      loading = true;
+      loadError = false;
+      paintCards([]);
+      firstSignal = waitSignal();
+      var mine = await loadMine();
+      // Keep a fresh desk list even if the user moved on while it was out: it fills the picker and names
+      // the cards. Only the Queue read below is dropped when this retry has gone stale.
+      if (mine) desks = fromMine(mine);
+      if (mine && gen !== loadGen) { paintPicker(); paintCards(visibleCards()); }
+      if (gen !== loadGen) { firstSignal = null; return; }
+      paintPicker();
+    }
+    if (await refreshCards()) focusAfterRetry();
   }
 
   function visibleCards() {
@@ -429,6 +537,8 @@
     paintBanner();
     quietPhoneView();
     if (slug) rememberDesk(slug);
+    loading = true;
+    loadError = false;
     paintCards(visibleCards());
     refreshCards();
     if (slug && typeof window.load === "function") window.load();
@@ -496,6 +606,8 @@
       selectDesk(btn.getAttribute("data-queue-desk") || "");
     });
     list.addEventListener("click", function (e) {
+      var again = e.target && e.target.closest ? e.target.closest("[data-queue-retry]") : null;
+      if (again) { retryLoad(); return; }
       var btn = e.target && e.target.closest ? e.target.closest("[data-queue-desk]") : null;
       if (!btn) return;
       selectDesk(btn.getAttribute("data-queue-desk") || "");
@@ -509,6 +621,7 @@
   async function boot() {
     mount();
     if (!document.getElementById("queue-desk-picker")) return;
+    firstSignal = waitSignal();
     var fromReply = takeLoginDesks();
     if (fromReply) {
       desks = fromReply;
