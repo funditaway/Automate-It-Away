@@ -11,10 +11,10 @@ require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const BASE = "782cbc0730d55498dde14b3cac8e39f34cb68ae3";
+const BASE = require("./_api-freeze").BASE; // on main; survives a squash-land
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
@@ -204,6 +204,8 @@ function checkOwnerNames(S, bad) {
    ["Find the leaks. Hook up connections. Name a desk AI.", "help playbook lead in plain words"],
    ["2 Hook up connections — Connections.", "help playbook steps in plain words"]].forEach(([t, l]) => { if (help.indexOf(t) < 0) bad(l + " missing: " + t); });
   if (/Hook the pipes/.test(help)) bad("help.html still says Hook the pipes");
+  if (/springfield/i.test(help)) bad("help.html still names Springfield as an example");
+  if (help.indexOf("<p>Not legal advice. Sample shop checklist.") < 0) bad("help.html checklist must use a neutral example (Sample shop checklist)");
   if (S["desks-book.js"].indexOf('"AIA Internet uses the .aia TLD — e.g. yourname.aia"') < 0) bad("desks-book.js must show an example name");
   const cd = S["create-desk.js"];
   if (cd.indexOf('<input name="name" required placeholder="e.g. Helper AI">') < 0 || cd.indexOf('<input name="aia" placeholder="e.g. yourname.aia">') < 0) bad("create-desk.js desk AI placeholders must be examples");
@@ -263,6 +265,8 @@ const MUTANTS = [
   ["PACK.md James's AI back", "PACK.md", [['      "name": "Helper AI",', '      "name": "James’s AI",']]],
   ["ACCOUNT-YES-NO james.aia back", "ACCOUNT-YES-NO.md", [["`yourname.aia`-style name on Account", "`james.aia`-style name on Account"]]],
   ["index springfield-shop added", "index.html", [["One nudge. Then it stops. Payments are off for now.", "One nudge. Then it stops. Payments are off for now. See springfield-shop."]]],
+  ["help Springfield checklist back", "help.html", [["Sample shop checklist.", "Springfield checklist."]]],
+  ["help Springfield named elsewhere", "help.html", [["named like your-shop.aia.", "named like your-shop.aia. Springfield shops use this."]]],
   ["demo HOLD", "setup-demo.js", [['mean: "Photo to comps to listing draft. Payments are off for now." }', 'mean: "Photo to comps to listing draft. Collect HOLD until Yes + a real money pipe." }']]]
 ];
 function mutate(S, file, reps) {
@@ -273,13 +277,20 @@ function mutate(S, file, reps) {
 function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
   ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
-  let apiDiff = "";
-  try { apiDiff = execSync("git diff --name-only " + BASE + " -- api", { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) { apiDiff = ""; }
-  ok(apiDiff === "", "no api/ file differs from " + BASE.slice(0, 8) + (apiDiff ? " (" + apiDiff + ")" : ""));
+  // api/ freeze from #434: any git or helper error is a FAIL, never a pass.
+  let freeze;
+  try { freeze = require("./_api-freeze").check(root); }
+  catch (e) { freeze = { ok: false, problems: ["api freeze helper failed: " + ((e && e.message) || e)] }; }
+  if (!freeze || freeze.ok !== true) freeze = { ok: false, base: (freeze && freeze.base) || BASE, problems: (freeze && freeze.problems && freeze.problems.length) ? freeze.problems : ["api freeze gave no answer"] };
+  ok(freeze.ok, "api/ frozen vs " + String(freeze.base || BASE).slice(0, 8) + " (scripts/_api-freeze.js)" + (freeze.ok ? "" : ": " + freeze.problems.join("; ")));
   ok(/check-ux-plain-words\.js/.test(read("package.json")), "npm test runs check-ux-plain-words.js");
-  let legal = "";
-  try { legal = execSync("git diff --name-only " + BASE + " -- legal.html", { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) { legal = ""; }
-  ok(legal === "", "legal.html is untouched");
+  // legal.html must match main; a git error is a FAIL, never a pass.
+  let legal = null;
+  try {
+    execFileSync("git", ["cat-file", "-e", BASE + "^{commit}"], { cwd: root, stdio: ["ignore", "ignore", "ignore"] });
+    legal = execFileSync("git", ["diff", "--name-only", BASE, "--", "legal.html"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch (e) { legal = null; }
+  ok(legal === "", "legal.html is untouched vs " + BASE.slice(0, 8) + (legal === null ? " (git error, failing closed)" : legal ? " (" + legal + ")" : ""));
 }
 async function main() {
   staticChecks();
