@@ -128,7 +128,11 @@ function mockFetch(routes) {
     const hit = routes[method + " " + path] || routes[path] || routes["*"];
     if (!hit) return jsonRes(404, { error: "unexpected " + method + " " + path });
     if (hit.abort) return abortRes();
-    if (hit.raw) return rawRes(hit.status, hit.text);
+    if (hit.refuse) return Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } }));
+    if (hit.raw) {
+      if (hit.follow && (!opts || opts.redirect !== "manual")) return jsonRes(200, { locked: false, available: true });
+      return rawRes(hit.status, hit.text);
+    }
     return jsonRes(hit.status, hit.body);
   };
 }
@@ -254,6 +258,21 @@ async function main() {
       "GET /bridge/lockDomain/aia": { status: 200, body: { locked: false, available: true } },
       "POST /domain-validation": { status: 200, body: { available: true, locked: false } }
     }, ""],
+    ["http-503", true, {
+      "GET /bridge/lockDomain/aia": { status: 503, body: { error: "unavailable" } },
+      "POST /domain-validation": { status: 503, body: { error: "unavailable" } }
+    }, "unreachable"],
+    ["conn-refused", true, {
+      "*": { refuse: true }
+    }, "unreachable"],
+    ["redirect-302", true, {
+      "GET /bridge/lockDomain/aia": { status: 302, raw: true, text: "", follow: true },
+      "POST /domain-validation": { status: 200, body: { locked: false, available: true } }
+    }, ""],
+    ["string-flag", true, {
+      "GET /bridge/lockDomain/aia": { status: 200, body: { locked: "false", open: "yes" } },
+      "POST /domain-validation": { status: 200, body: { locked: false, available: true } }
+    }, ""],
     ["no-row", true, {
       "GET /bridge/lockDomain/aia": { status: 404, body: {} },
       "POST /domain-validation": { status: 404, body: {} }
@@ -354,7 +373,19 @@ async function main() {
   tld.forWallet = async function () { return { tld: ".aia", bridgeLocked: undefined }; };
   const undefHit = await call(health.status, "GET", {}, {}, {});
   const undefRow = undefHit.body && undefHit.body.aiaTld;
+  tld.forWallet = async function () { throw new Error("probe row failed"); };
+  const throwHit = await call(health.status, "GET", {}, {}, {});
+  const throwRow = throwHit.body && throwHit.body.aiaTld;
+  if (!throwRow || throwRow.bridgeLocked !== true) fail("status fallback row " + JSON.stringify(throwRow));
+  else pass("status fallback row stays locked");
   tld.forWallet = realForWallet;
+  tld.setFetch(mockFetch({ "*": { status: 500, body: {} } }));
+  if (tld.peek(connect.emptyPublic()).bridgeLocked !== true) fail("cold peek reads unlocked");
+  else pass("cold peek stays locked");
+  const loginPeek = await call(account, "POST", { "x-workspace": slug }, { action: "login", slug: slug, pin: pin });
+  const loginTld = loginPeek.body && loginPeek.body.aiaTld;
+  if (!loginTld || loginTld.bridgeLocked !== true || loginTld.ownedByConnected) fail("login peek " + JSON.stringify(loginTld));
+  else pass("login peek on an empty cache stays locked");
   if (!noProbeRow || noProbeRow.bridgeLocked !== true || noProbeRow.ownedByConnected !== false) {
     fail("no probe row status " + JSON.stringify(noProbeRow));
   } else if (!undefRow || undefRow.bridgeLocked !== true || undefRow.ownedByConnected !== false) {
@@ -371,8 +402,14 @@ async function main() {
     console.error(failed + " failed");
     process.exit(1);
   }
+  finished = true;
   console.log("check-aia-tld ok");
 }
+
+let finished = false;
+process.on("beforeExit", function () {
+  if (!finished) { console.error("FAIL check-aia-tld stopped before it finished (a probe never settled)"); process.exit(1); }
+});
 
 main().catch(function (e) {
   console.error(e);

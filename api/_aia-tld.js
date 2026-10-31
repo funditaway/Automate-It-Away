@@ -124,7 +124,7 @@ function publicOf(probe, wallet) {
     internet: INTERNET,
     available: row.available === true ? true : row.available === false ? false : null,
     availableKnown: row.available === true || row.available === false,
-    bridgeLocked: row.bridgeLocked === true,
+    bridgeLocked: row.bridgeLocked !== false,
     owned: ownedByConnected,
     ownedByConnected,
     owner: ownedByConnected ? owner : "",
@@ -180,6 +180,7 @@ async function http(method, path, body) {
   try {
     const res = await fn(API_BASE + path, {
       method: method,
+      redirect: "manual",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: method === "GET" ? undefined : JSON.stringify(body || {}),
       signal: ctrl ? ctrl.signal : undefined

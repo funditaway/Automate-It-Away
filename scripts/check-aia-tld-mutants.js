@@ -71,6 +71,58 @@ const MUTANTS = [
   ["drop the unreachable cache", "api/_aia-tld.js", [[
     "cache = Object.assign({}, row, { bridgeLocked: true, reason: \"unreachable\" });",
     "cache = null;"
+  ]]],
+  ["remove the timeout", "api/_aia-tld.js", [[
+    "const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, FETCH_MS) : null;",
+    "const timer = null;"
+  ]]],
+  ["publicOf missing row reads unlocked", "api/_aia-tld.js", [[
+    "bridgeLocked: row.bridgeLocked !== false,",
+    "bridgeLocked: row.bridgeLocked === true,"
+  ]]],
+  ["503 loses unreachable", "api/_aia-tld.js", [[
+    "if (!status || status >= 500) return { bridgeLocked: true, reason: \"unreachable\" };",
+    "if (!status || (status >= 500 && status !== 503)) return { bridgeLocked: true, reason: \"unreachable\" };"
+  ]]],
+  ["503 reads unlocked", "api/_aia-tld.js", [[
+    "if (!status || status >= 500) return { bridgeLocked: true, reason: \"unreachable\" };",
+    "if (!status || (status >= 500 && status !== 503)) return { bridgeLocked: true, reason: \"unreachable\" };\n  if (status === 503) return { bridgeLocked: false };"
+  ]]],
+  ["network error reads unlocked", "api/_aia-tld.js", [[
+    "if (!status || status >= 500) return { bridgeLocked: true, reason: \"unreachable\" };",
+    "if (!status) return { bridgeLocked: false };\n  if (status >= 500) return { bridgeLocked: true, reason: \"unreachable\" };"
+  ]]],
+  ["network error loses unreachable", "api/_aia-tld.js", [[
+    "if (!status || status >= 500) return { bridgeLocked: true, reason: \"unreachable\" };",
+    "if (status >= 500) return { bridgeLocked: true, reason: \"unreachable\" };"
+  ]]],
+  ["redirect reads unlocked", "api/_aia-tld.js", [[
+    "if (status < 200 || status >= 300) return { bridgeLocked: true };",
+    "if (status >= 300 && status < 400) return { bridgeLocked: false };\n  if (status < 200 || status >= 300) return { bridgeLocked: true };"
+  ]]],
+  ["locked string false reads unlocked", "api/_aia-tld.js", [[
+    "if (body.locked === false || body.isLocked === false || body.bridgeLocked === false) return false;",
+    "if (body.locked === false || body.isLocked === false || body.bridgeLocked === false || body.locked === \"false\") return false;"
+  ]]],
+  ["open yes reads unlocked", "api/_aia-tld.js", [[
+    "if (lockedFlag(hit && hit.body) === false) return { bridgeLocked: false };",
+    "if (lockedFlag(hit && hit.body) === false || (hit && hit.body && hit.body.open === \"yes\")) return { bridgeLocked: false };"
+  ]]],
+  ["drop redirect manual", "api/_aia-tld.js", [[
+    "      redirect: \"manual\",\n",
+    ""
+  ]]],
+  ["no-row reads unlocked", "api/_aia-tld.js", [[
+    "if (status < 200 || status >= 300) return { bridgeLocked: true };",
+    "if (status === 404) return { bridgeLocked: false };\n  if (status < 200 || status >= 300) return { bridgeLocked: true };"
+  ]]],
+  ["missing open field reads unlocked", "api/_aia-tld.js", [[
+    "if (lockedFlag(hit && hit.body) === false) return { bridgeLocked: false };",
+    "if (lockedFlag(hit && hit.body) !== true) return { bridgeLocked: false };"
+  ]]],
+  ["validation unlocks the lock", "api/_aia-tld.js", [[
+    "probe.bridgeLocked = verdict.bridgeLocked === false ? false : true;",
+    "probe.bridgeLocked = verdict.bridgeLocked === false || lockedFlag(hits[1] && hits[1].body) === false ? false : true;"
   ]]]
 ];
 
