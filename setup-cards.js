@@ -4,7 +4,9 @@
    - Reads GET /api/jobs?workspace=<desk> (setupCards), or ?desks=all on the Queue's
      All desks view (each card then carries its desk slug).
    - Acts with POST /api/account { action: "setup-step", cardId, stepId, do }.
-   - One tap sends one request. Nothing is retried on its own.
+   - One tap sends one request. Nothing is retried on its own. Kill takes two taps, like Stop
+     on the Queue: the first asks (Yes, stop for good / Keep the card), the second sends with
+     confirm:true. A 409 "Kill needs a second tap." asks again.
    - An empty list or a refused read shows nothing at all.
    - Every card links to My account (/account#setup-<id>).
    - Stop and Kill show on every card. Nothing here buys or charges anything.
@@ -19,10 +21,18 @@
   var OOPS = "That didn't go through. Nothing changed.";
   var OFFLINE = "Couldn't reach Automate It Away. Nothing changed.";
   var SKIP_WHY = "Skipped from the desk card.";
+  // Word for word what api/_account-connect.js says about a killed card.
+  var GONE = "Stopped for good. Nothing more happens on this card.";
+  var KILL_ASK = "Stop for good? Nothing more happens on this card.";
+  var KILL_YES = "Yes, stop for good";
+  var KILL_KEEP = "Keep the card";
+  var KILL_AGAIN = "Kill needs a second tap.";
+  var KILL_REARM = "Kill needs a second tap. Tap Yes, stop for good, or Keep the card.";
 
   var cards = [];
   var said = {};
   var waiting = {};
+  var armed = {};
   var shownAll = false;
   var root = null;
   var readGen = 0;
@@ -124,7 +134,7 @@
       var line = (x.d && x.d.entry && typeof x.d.entry.what === "string" && x.d.entry.what) || "Saved.";
       if (next && next.id) {
         said[next.id] = next.status === "killed" ? "" : line;
-        if (next.status === "killed") said.__top = "Killed. Nothing more happens on that card.";
+        if (next.status === "killed") said.__top = GONE;
         upsert(next);
       } else { said[card.id] = line; paint(); }
       return;
@@ -141,13 +151,21 @@
   }
 
   function act(card, st, verb, btn) {
+    // The first Kill tap only asks; nothing is sent until the second.
+    if (verb === "kill" && !armed[card.id]) { armed[card.id] = true; said[card.id] = KILL_ASK; paint(); return Promise.resolve(null); }
+    if (armed[card.id]) { delete armed[card.id]; if (said[card.id] === KILL_ASK) said[card.id] = ""; }
     var body = { action: "setup-step", cardId: card.id };
     if (st) body.stepId = st.id;
     body.do = verb;
+    if (verb === "kill") body.confirm = true;
     if (verb === "skip") body.reason = SKIP_WHY;
     if (st && st.kind === "desk" && verb === "done" && (card.slug || card.deskId)) body.deskId = card.slug || card.deskId;
     if (btn) btn.disabled = true;
-    return post(body).then(function (x) { reply(card, st, x); return x; });
+    return post(body).then(function (x) {
+      if (verb === "kill" && x.status === 409 && x.d && x.d.error === KILL_AGAIN) { armed[card.id] = true; said[card.id] = KILL_REARM; paint(); return x; }
+      reply(card, st, x);
+      return x;
+    });
   }
 
   // ---------- painting ----------
@@ -204,7 +222,8 @@
     if (card.status === "stopped") row.appendChild(button("Start again", "setup-go setup-start", function (b) { act(card, null, "start", b); }));
     // Stop and Kill: on every card, in every state, never greyed out ahead of time.
     row.appendChild(button("Stop", "setup-stop", function (b) { act(card, null, "stop", b); }));
-    row.appendChild(button("Kill", "setup-kill", function (b) { act(card, null, "kill", b); }));
+    row.appendChild(button(armed[card.id] ? KILL_YES : "Kill", "setup-kill", function (b) { act(card, null, "kill", b); }));
+    if (armed[card.id]) row.appendChild(button(KILL_KEEP, "setup-keep", function () { delete armed[card.id]; said[card.id] = ""; paint(); }));
     var a = el("a", "setup-open", "Open in My account");
     a.href = hrefOf(card);
     row.appendChild(a);

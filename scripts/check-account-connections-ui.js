@@ -4,7 +4,8 @@ require("./_env-guard");
 // Runs the REAL account-connections.js in a small DOM stub with a fake fetch. Checks: the
 // server's statusText word for word, never the word "connected"; secrets cleared after every
 // send and never kept, logged or shown; only "NAME: set" after a save; 409/403/503 show the
-// server's words; Stop and Kill on every card; no buy/pay/price; text only via textContent;
+// server's words; Stop and Kill on every card until it is killed (then neither shows); Kill takes
+// two taps (Yes, stop for good / Keep the card), like Stop on the Queue; no buy/pay/price; text only via textContent;
 // history kinds; bundle checklists; exact 355 action names and params.
 // usage: node scripts/check-account-connections-ui.js [repoRoot]
 const fs = require("fs");
@@ -26,6 +27,17 @@ function killedBits(src) {
   return { status: status, reason: reason };
 }
 const KILLED_FROM_API = killedBits(CONNECT_SRC);
+const KILL_ASK = "Stop for good? Nothing more happens on this card.";
+const KILL_YES = "Yes, stop for good";
+const GONE_ALREADY = "This card was already stopped for good. Nothing changed.";
+const KILL_AGAIN = "Kill needs a second tap.";
+const KILL_REARM = "Kill needs a second tap. Tap Yes, stop for good, or Keep the card.";
+// Fake apis for Kill (U2 needs Switch's allowlist PR on main first; nothing here hits the real api):
+// - allowlist: confirm is taken and ignored, so a Kill with or without it kills;
+// - enforcing: a Kill without confirm:true gets 409 "Kill needs a second tap.".
+function enforcingApi(over) {
+  return happy(Object.assign({ "setup-step": (b) => (b.do === "kill" && b.confirm !== true ? { status: 409, data: { ok: false, error: KILL_AGAIN } } : null) }, over || {}));
+}
 
 // ---------- small DOM (same idea as check-account-page-settings.js) ----------
 const VOID = { input: 1, br: 1, img: 1 };
@@ -176,6 +188,16 @@ function happy(over) {
 function cardBox(w, id) { return byId(w.mount, "acct-card-" + id); }
 async function openCard(w, id) { const b = buttons(cardBox(w, id), "Open")[0]; if (b) { b.fire("click"); await settle(); } return cardBox(w, id); }
 function allText(w) { return w.mount.textContent; }
+// Kill takes two taps: Kill arms it, Yes, stop for good sends it.
+async function killTwice(w, id) {
+  const k = buttons(cardBox(w, id), "Kill")[0];
+  if (!k) return false;
+  k.fire("click"); await settle();
+  const y = buttons(cardBox(w, id), KILL_YES)[0];
+  if (!y) return false;
+  y.fire("click"); await settle();
+  return true;
+}
 function deepKeys(o, out) { out = out || []; if (o && typeof o === "object") Object.keys(o).forEach((k) => { out.push(k); deepKeys(o[k], out); }); return out; }
 function noSecretAnywhere(w, label) {
   const html = w.mount.innerHTML;
@@ -205,7 +227,9 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
   ok(/<section id="acct-settings" aria-label="My account settings" hidden><\/section>\s*<\/main>/.test(acct), "345 settings mount still right before </main>");
   ok(fs.statSync(path.join(root, "desk.html")).size === 35012, "desk.html stays 35,012 bytes");
   ok(!/account-connections/.test(read("desk.html")), "desk.html untouched");
-  ok(!/check-account-connections-ui/.test(read("package.json")), "not in npm test yet (waits for 336 and 355)");
+  const TEST_LINE = (() => { try { return JSON.parse(read("package.json")).scripts.test || ""; } catch (e) { return ""; } })();
+  ok(/&& node scripts\/check-account-connections-ui\.js$/.test(TEST_LINE.trim()) && TEST_LINE.split("check-account-connections-ui.js").length === 2, "npm test runs check-account-connections-ui once, at the end (U2)");
+  ok(SRC.indexOf('var GONE = "' + KILLED_PLAIN + '";') >= 0 && SRC.indexOf("Killed. Nothing more happens") < 0, "the page's killed line is the api's sentence, byte for byte");
   ok(KILLED_FROM_API.status === KILLED_PLAIN && KILLED_FROM_API.reason === KILLED_PLAIN, "api waiting text is Stopped for good, not Killed");
   ok(CONNECT_SRC.split(KILLED_PLAIN).length - 1 === 4, "status, reason, card history, and the final reply use the plain sentence");
   ok(CONNECT_SRC.indexOf('"Stopped for good. Nothing more happens on") + " the setup card for "') >= 0, "account history says stopped for good");
@@ -236,13 +260,19 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     ok(!/connected/i.test(allText(w)), "page text never says connected");
     const secretInputs = inputsOf(w.mount).filter((i) => i.type === "password");
     ok(secretInputs.length >= 2 && secretInputs.every((i) => i.getAttribute("autocomplete") === "off"), "every secret field is type=password with autocomplete off");
-    // Stop and Kill on every card, in every state
-    ["setup_mid", "setup_bun", "setup_blk", "setup_stp"].forEach((id) => {
+    // Stop and Kill on every card until it is killed; a killed card shows neither
+    ["setup_mid", "setup_bun", "setup_stp"].forEach((id) => {
       const b = cardBox(w, id);
       ok(!!b, "card " + id + " painted");
       const s = buttons(b, "Stop"), k = buttons(b, "Kill");
       ok(s.length === 1 && k.length === 1 && !s[0].disabled && !k[0].disabled, "card " + id + ": Stop and Kill shown and live");
     });
+    {
+      const b = cardBox(w, "setup_blk");
+      ok(!!b, "card setup_blk painted");
+      ok(buttons(b, "Stop").length === 0 && buttons(b, "Kill").length === 0 && buttons(b, KILL_YES).length === 0 && buttons(b, "Start again").length === 0, "killed card: no live Stop or Kill");
+      ok(b.textContent.indexOf(KILLED_PLAIN) >= 0 && b.textContent.indexOf("Killed") < 0, "killed card says " + KILLED_PLAIN);
+    }
     ok(buttons(cardBox(w, "setup_stp"), "Start again").length === 1, "a stopped card offers Start again");
     ok(cardBox(w, "setup_bun").textContent.indexOf("Preview, nothing is charged.") >= 0, "a preview card says nothing is charged");
     ok(cardBox(w, "setup_mid").textContent.indexOf("Preview, nothing is charged.") >= 0, "bought:false / charged:false says nothing is charged");
@@ -258,10 +288,10 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     ok(lis.some((t) => /Desk AI Rex \(SI\): Started this setup card again\./.test(t)), "who || by names desk events");
     ok(buttons(mid, "Stop").length === 1 && buttons(mid, "Kill").length === 1, "opened card keeps Stop and Kill");
 
-    // blocked + killed card open: reasons shown, still Stop and Kill, no step actions
+    // blocked + killed card open: reasons shown, no step actions, no Stop or Kill
     const blk = await openCard(w, "setup_blk");
     ok(blk.textContent.indexOf("Waiting: " + KILLED_PLAIN) >= 0, "blocked shows its reason");
-    ok(buttons(blk, "Done").length === 0 && buttons(blk, "Stop").length === 1 && buttons(blk, "Kill").length === 1, "killed card: no step actions, Stop and Kill stay");
+    ok(buttons(blk, "Done").length === 0 && buttons(blk, "Stop").length === 0 && buttons(blk, "Kill").length === 0 && buttons(blk, "Close").length === 1, "killed card opened: no step actions, no Stop or Kill, Close still there");
     const stp = await openCard(w, "setup_stp");
     ok(/Waiting: The connection was removed\. Connect again to go on\./.test(stp.textContent), "mid-setup blocked step shows reason");
 
@@ -320,9 +350,12 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     buttons(find(cardBox(w, "setup_mid"), (n) => n.className === "acct-step")[4], "Run the dry run")[0].fire("click"); await settle();
     ok(JSON.stringify(w.last().body) === JSON.stringify({ action: "setup-step", cardId: "setup_mid", stepId: "g1.test", do: "done" }), "test is a dry run: no live, no extras");
     for (const verb of ["stop", "kill"]) {
-      buttons(cardBox(w, "setup_bun"), verb === "stop" ? "Stop" : "Kill")[0].fire("click"); await settle();
-      ok(JSON.stringify(w.last().body) === JSON.stringify({ action: "setup-step", cardId: "setup_bun", do: verb }), verb + " sends {action, cardId, do}");
+      if (verb === "stop") { buttons(cardBox(w, "setup_bun"), "Stop")[0].fire("click"); await settle(); }
+      else ok(await killTwice(w, "setup_bun"), "kill: Kill, then Yes, stop for good");
+      ok(JSON.stringify(w.last().body) === JSON.stringify(verb === "kill" ? { action: "setup-step", cardId: "setup_bun", do: verb, confirm: true } : { action: "setup-step", cardId: "setup_bun", do: verb }), verb + (verb === "kill" ? " sends {action, cardId, do, confirm:true}" : " sends {action, cardId, do}"));
     }
+    ok(find(cardBox(w, "setup_bun"), (n) => n.getAttribute("role") === "status")[0].textContent === KILLED_PLAIN, "after Kill the card says " + KILLED_PLAIN + " word for word");
+    ok(buttons(cardBox(w, "setup_bun"), "Stop").length === 0 && buttons(cardBox(w, "setup_bun"), "Kill").length === 0, "after Kill: no live Stop or Kill");
     buttons(cardBox(w, "setup_stp"), "Start again")[0].fire("click"); await settle();
     ok(JSON.stringify(w.last().body) === JSON.stringify({ action: "setup-step", cardId: "setup_stp", do: "start" }), "start sends do:start");
 
@@ -419,8 +452,9 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     await settle();
     ok(fIn[3].value === "" && form.textContent.indexOf(ERR[code]) >= 0, code + ": connect refusal clears the field and shows the reason");
     // Stop and Kill still answer and still show
-    buttons(cardBox(w, "setup_mid"), "Kill")[0].fire("click"); await settle();
-    ok(buttons(cardBox(w, "setup_mid"), "Stop").length === 1 && buttons(cardBox(w, "setup_mid"), "Kill").length === 1 && !buttons(cardBox(w, "setup_mid"), "Kill")[0].disabled, code + ": after Kill, Stop and Kill still show");
+    await killTwice(w, "setup_mid");
+    ok(w.last().body.do === "kill" && w.last().body.cardId === "setup_mid", code + ": Kill still answers after a step refusal");
+    ok(cardBox(w, "setup_mid").textContent.indexOf(KILLED_PLAIN) >= 0 && buttons(cardBox(w, "setup_mid"), "Stop").length === 0 && buttons(cardBox(w, "setup_mid"), "Kill").length === 0, code + ": after Kill the card is stopped for good, with no live Stop or Kill");
     noSecretAnywhere(w, code);
   }
 
@@ -436,7 +470,8 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
         await settle();
         await openCard(w, "setup_mid");
         const Verb = verb === "stop" ? "Stop" : "Kill";
-        buttons(cardBox(w, "setup_mid"), Verb)[0].fire("click"); await settle();
+        if (verb === "kill") await killTwice(w, "setup_mid");
+        else { buttons(cardBox(w, "setup_mid"), Verb)[0].fire("click"); await settle(); }
         const b = cardBox(w, "setup_mid");
         const st = find(b, (n) => n.getAttribute("role") === "status")[0];
         ok(st && st.textContent === Verb + " didn't save. Try again in a moment.", label + " " + verb + ": says exactly " + Verb + " didn't save");
@@ -444,7 +479,8 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
         ok(/Pick a desk · To do/.test(b.textContent) && !/Blocked| · Waiting/.test(b.textContent), label + " " + verb + ": steps unchanged");
         ok(buttons(b, "Stop").length === 1 && buttons(b, "Kill").length === 1 && !buttons(b, "Stop")[0].disabled && !buttons(b, "Kill")[0].disabled, label + " " + verb + ": Stop and Kill stay live to try again");
         const n = w.posts().filter((c) => c.body.do === verb).length + lost;
-        buttons(b, Verb)[0].fire("click"); await settle();
+        if (verb === "kill") await killTwice(w, "setup_mid");
+        else { buttons(b, Verb)[0].fire("click"); await settle(); }
         ok(w.posts().filter((c) => c.body.do === verb).length + lost === n + 1, label + " " + verb + ": tapping again sends again");
       }
     }
@@ -492,7 +528,7 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     const w = world({ storage: SIGNED, reply: happy(), hold: (b) => b.action === "setup-step" });
     await settle();
     for (const id of ["setup_mid", "setup_stp"]) {
-      buttons(cardBox(w, id), "Kill")[0].fire("click"); await settle();
+      await killTwice(w, id);
       const b = cardBox(w, id);
       ok(!buttons(b, "Stop")[0].disabled && !buttons(b, "Kill")[0].disabled, id + ": Stop and Kill never greyed out while Kill is sending");
       buttons(b, "Stop")[0].fire("click"); await settle();
@@ -500,6 +536,68 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     }
     ok(w.held.length === 4, "every Stop and Kill tap went out, even with one still on its way");
     w.held.forEach((r) => r()); await settle();
+  }
+
+  // ---------- U2: Kill takes two taps; Stop or Kill on a card that is already killed ----------
+  {
+    const w = world({ storage: SIGNED, reply: happy() });
+    await settle();
+    const kills = () => w.posts().filter((c) => c.body.do === "kill").length;
+    buttons(cardBox(w, "setup_mid"), "Kill")[0].fire("click"); await settle();
+    let b = cardBox(w, "setup_mid");
+    ok(kills() === 0, "one tap on Kill sends nothing");
+    ok(buttons(b, KILL_YES).length === 1 && buttons(b, "Kill").length === 0 && buttons(b, "Keep the card").length === 1, "the first tap arms Kill: Yes, stop for good and Keep the card");
+    ok(find(b, (n) => n.getAttribute("role") === "status")[0].textContent === KILL_ASK, "the first tap asks: " + KILL_ASK);
+    ok(!buttons(b, KILL_YES)[0].disabled && !buttons(b, "Stop")[0].disabled, "armed: Yes and Stop stay live");
+    buttons(b, "Keep the card")[0].fire("click"); await settle();
+    b = cardBox(w, "setup_mid");
+    ok(kills() === 0 && buttons(b, "Kill").length === 1 && buttons(b, KILL_YES).length === 0 && buttons(b, "Keep the card").length === 0 && b.textContent.indexOf(KILL_ASK) < 0, "Keep the card cancels: nothing sent, Kill is back, the ask is gone");
+    buttons(b, "Kill")[0].fire("click"); await settle();
+    buttons(cardBox(w, "setup_mid"), "Stop")[0].fire("click"); await settle();
+    ok(kills() === 0 && buttons(cardBox(w, "setup_mid"), KILL_YES).length === 0, "Stop while Kill is armed disarms it and does not kill");
+    buttons(cardBox(w, "setup_bun"), "Kill")[0].fire("click"); await settle();
+    buttons(cardBox(w, "setup_bun"), KILL_YES)[0].fire("click"); await settle();
+    ok(kills() === 1 && w.last().body.cardId === "setup_bun" && w.last().body.confirm === true, "the second tap kills, with confirm:true");
+  }
+  // Enforcing api: the second tap carries confirm:true, so it kills; nothing goes out on the first.
+  {
+    const w = world({ storage: SIGNED, reply: enforcingApi() });
+    await settle();
+    buttons(cardBox(w, "setup_mid"), "Kill")[0].fire("click"); await settle();
+    ok(w.posts().filter((c) => c.body.do === "kill").length === 0, "enforcing api: the first tap sends no request");
+    buttons(cardBox(w, "setup_mid"), KILL_YES)[0].fire("click"); await settle();
+    const ks = w.posts().filter((c) => c.body.do === "kill").map((c) => c.body);
+    const b = cardBox(w, "setup_mid");
+    const st = find(b, (n) => n.getAttribute("role") === "status")[0];
+    ok(ks.length === 1 && JSON.stringify(ks[0]) === JSON.stringify({ action: "setup-step", cardId: "setup_mid", do: "kill", confirm: true }), "enforcing api: the second tap sends one Kill with confirm:true");
+    ok(st && st.textContent === KILLED_PLAIN && buttons(b, "Stop").length === 0 && buttons(b, "Kill").length === 0, "enforcing api: the card is stopped for good and says " + KILLED_PLAIN);
+  }
+  // Enforcing api answers 409 "Kill needs a second tap." (say, a Kill that lost its confirm): ask again, not a dead error.
+  {
+    let n = 0;
+    const w = world({ storage: SIGNED, reply: happy({ "setup-step": (b) => (b.do === "kill" && ++n === 1 ? { status: 409, data: { ok: false, error: KILL_AGAIN } } : null) }) });
+    await settle();
+    await killTwice(w, "setup_mid");
+    let b = cardBox(w, "setup_mid");
+    const st = find(b, (n2) => n2.getAttribute("role") === "status")[0];
+    ok(st && st.textContent === KILL_REARM, "409 Kill needs a second tap: asks again (" + (st && st.textContent) + ")");
+    ok(buttons(b, KILL_YES).length === 1 && !buttons(b, KILL_YES)[0].disabled && buttons(b, "Keep the card").length === 1 && b.textContent.indexOf("Kill didn't save") < 0, "409 Kill needs a second tap: Yes, stop for good and Keep the card, not a dead error");
+    buttons(b, KILL_YES)[0].fire("click"); await settle();
+    b = cardBox(w, "setup_mid");
+    ok(n === 2 && w.last().body.confirm === true && find(b, (n2) => n2.getAttribute("role") === "status")[0].textContent === KILLED_PLAIN, "409 Kill needs a second tap: the next Yes kills");
+  }
+  for (const verb of ["stop", "kill"]) {
+    // The page still shows a live card, but it was killed elsewhere: the server answers 200 changed:false.
+    const already = (b) => { if (b.do !== verb) return null; const c = cardBlocked(); c.id = b.cardId; return { status: 200, data: { ok: true, changed: false, card: c } }; };
+    const w = world({ storage: SIGNED, reply: happy({ "setup-step": already }) });
+    await settle();
+    if (verb === "kill") await killTwice(w, "setup_mid");
+    else { buttons(cardBox(w, "setup_mid"), "Stop")[0].fire("click"); await settle(); }
+    const b = cardBox(w, "setup_mid");
+    const st = find(b, (n) => n.getAttribute("role") === "status")[0];
+    ok(st && st.textContent === GONE_ALREADY, verb + " on a killed card says " + GONE_ALREADY + " (" + (st && st.textContent) + ")");
+    ok(!/\bStopped\.(?! Nothing runs)/.test(b.textContent) && b.textContent.indexOf("Killed") < 0, verb + " on a killed card never says Stopped. or Killed");
+    ok(buttons(b, "Stop").length === 0 && buttons(b, "Kill").length === 0, verb + " on a killed card: no live Stop or Kill after");
   }
 
   // ---------- disconnect needs a yes ----------
@@ -513,18 +611,41 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
   console.log("check-account-connections-ui: " + passes + " pass, " + failures + " fail");
   if (failures) process.exit(1);
   if (process.env.AIA_CONN_UI_MUTANT === "1") process.exit(0);
-  const { execFileSync, spawnSync } = require("child_process");
+  // Mutants: copy the files this check reads (as they are on disk now) into a temp dir, break ONE
+  // thing, run this check on the copy, and demand red with the expected words in the output.
+  const { spawnSync } = require("child_process");
   const os = require("os");
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-conn-ui-mut-"));
-  try {
-    execFileSync("git", ["clone", "--local", root, dir], { stdio: ["ignore", "pipe", "pipe"] });
-    const file = path.join(dir, "api/_account-connect.js");
-    const src = fs.readFileSync(file, "utf8");
-    const next = src.split(KILLED_PLAIN).join("Killed. Nothing more happens on this card.");
-    if (next === src || src.split(KILLED_PLAIN).length !== 5) {
-      fail("old Killed waiting text mutant did not apply");
-    } else {
-      fs.writeFileSync(file, next);
+  const COPY = ["account-connections.js", "account.html", "desk.html", "package.json", "api/_account-connect.js"];
+  const A = "account-connections.js";
+  const swap = (a, b) => (t) => (t.indexOf(a) < 0 ? null : t.split(a).join(b));
+  const MUTANTS = [
+    ["old Killed waiting text", "api/_account-connect.js", (t) => (t.split(KILLED_PLAIN).length !== 5 ? null : t.split(KILLED_PLAIN).join("Killed. Nothing more happens on this card.")), /Killed/],
+    ["page's killed line back to Killed", A, swap('var GONE = "' + KILLED_PLAIN + '";', 'var GONE = "Killed. Nothing more happens on this card.";'), /Killed|byte for byte/],
+    ["Stop and Kill on a killed card", A, swap("    if (!gone) {\n      always.appendChild(stopB);", "    if (true) {\n      always.appendChild(stopB);"), /no live Stop or Kill/],
+    ["Stop shown on a killed card", A, swap("    if (!gone) {\n      always.appendChild(stopB);", "    always.appendChild(stopB);\n    if (!gone) {"), /no live Stop or Kill/],
+    ["Stop on a killed card says Stopped.", A, swap("        if (dead) line = x.d.changed === false ? GONE_ALREADY : GONE;\n", ""), /on a killed card/],
+    ["already killed reads as a fresh kill", A, swap("x.d.changed === false ? GONE_ALREADY : GONE", "GONE"), /on a killed card says/],
+    ["Kill in one tap", A, swap("      if (verb === \"kill\" && !armed[card.id]) { armed[card.id] = true; said[card.id] = KILL_ASK; paintCards(); return; }\n", ""), /one tap on Kill sends nothing|Yes, stop for good/],
+    ["armed Kill has no confirm label", A, swap('armed[card.id] ? KILL_YES : "Kill"', '"Kill"'), /Yes, stop for good/],
+    ["no Keep the card", A, swap("      if (armed[card.id]) always.appendChild(button(KILL_KEEP,", "      if (false) always.appendChild(button(KILL_KEEP,"), /Keep the card/],
+    ["Keep the card does not cancel", A, swap('button(KILL_KEEP, "edit", function () { delete armed[card.id]; said[card.id] = ""; paintCards(); })', 'button(KILL_KEEP, "edit", function () {})'), /Keep the card cancels/],
+    ["Stop leaves Kill armed", A, swap('      if (armed[card.id]) { delete armed[card.id]; said[card.id] = ""; paintCards(); }\n', ""), /disarms|stay live to try again/],
+    ["second tap sends no confirm", A, swap('      if (verb === "kill") body.confirm = true;\n', ""), /confirm:true/],
+    ["confirm sent on the first tap", A, swap("armed[card.id] = true; said[card.id] = KILL_ASK; paintCards(); return; }", "armed[card.id] = true; said[card.id] = KILL_ASK; paintCards(); post({ action: \"setup-step\", cardId: card.id, do: \"kill\", confirm: true }, null, null); return; }"), /first tap sends|one tap on Kill sends nothing/],
+    ["confirm sent as a string", A, swap("      if (verb === \"kill\") body.confirm = true;", "      if (verb === \"kill\") body.confirm = \"yes\";"), /confirm:true/],
+    ["409 second tap shown as a dead error", A, swap("        if (verb === \"kill\" && !x.ok && x.d && x.d.error === KILL_AGAIN) { armed[card.id] = true; said[card.id] = KILL_REARM; paintCards(); return; }\n", ""), /Kill needs a second tap/],
+    ["the first tap does not ask", A, swap("armed[card.id] = true; said[card.id] = KILL_ASK;", "armed[card.id] = true;"), /asks/],
+    ["not in npm test", "package.json", swap(" && node scripts/check-account-connections-ui.js\"", "\""), /npm test runs check-account-connections-ui/]
+  ];
+  let caught = 0;
+  for (const [name, file, fn, want] of MUTANTS) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-conn-ui-mut-"));
+    try {
+      COPY.forEach((f) => { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.copyFileSync(path.join(root, f), path.join(dir, f)); });
+      const target = path.join(dir, file);
+      const next = fn(fs.readFileSync(target, "utf8"));
+      if (next === null) { fail(name + " | mutant did not apply"); continue; }
+      fs.writeFileSync(target, next);
       const r = spawnSync(process.execPath, [__filename, dir], {
         cwd: root,
         env: { PATH: process.env.PATH || "", HOME: dir, TMPDIR: dir, AIA_CONN_UI_MUTANT: "1" },
@@ -533,12 +654,12 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
       });
       const out = (r.stdout || "") + "\n" + (r.stderr || "");
       const first = out.split("\n").find((l) => l.indexOf("FAIL") >= 0) || "";
-      if (r.status && /Killed/.test(out)) console.log("old Killed waiting text | CAUGHT | " + first.slice(0, 180));
-      else fail("old Killed waiting text | SURVIVED | " + (first || ("exit " + r.status)).slice(0, 180));
+      if (r.status && want.test(out)) { caught += 1; console.log(name + " | CAUGHT | " + first.slice(0, 180)); }
+      else fail(name + " | SURVIVED | " + (first || ("exit " + r.status)).slice(0, 180));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
   }
   if (failures) process.exit(1);
-  console.log("check-account-connections-ui mutants: 1/1 caught");
+  console.log("check-account-connections-ui mutants: " + caught + "/" + MUTANTS.length + " caught");
 })().catch((e) => { console.error("check-account-connections-ui: FAIL crashed " + (e && e.stack || e)); process.exit(1); });
