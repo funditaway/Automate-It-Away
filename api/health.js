@@ -13,6 +13,8 @@ function strangerTld(row) {
       collect: "hold",
       mint: false,
       live: false,
+      bridgeLocked: false,
+      ownedByConnected: false,
       note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
       wallet: { connected: false, short: "" }
     };
@@ -25,6 +27,8 @@ function strangerTld(row) {
     collect: "hold",
     mint: false,
     live: !!row.live,
+    bridgeLocked: row.bridgeLocked === true,
+    ownedByConnected: false,
     note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
     wallet: {
       connected: !!w.connected,
