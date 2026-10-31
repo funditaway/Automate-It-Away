@@ -21,12 +21,12 @@ const yesNo = read("ACCOUNT-YES-NO.md");
 
 must(help, 'id="queue-runs"', "help.html queue-runs card");
 must(help, "How the queue runs", "help.html queue-runs title");
-must(help, "Pipes → Rules When · If · Then", "help.html pipes to rules");
+must(help, "Connections → Rules When · If · Then", "help.html connections to rules");
 must(help, "Yes / Stop / Kill", "help.html Yes/Stop/Kill");
 must(help, "Needs you", "help.html Needs you");
 must(help, "Talk to AIA", "help.html Talk to AIA");
 must(help, "does not codegen, deploy, or auto-patch GitHub", "help.html no codegen");
-must(help, "Collect stays HOLD", "help.html Collect HOLD");
+must(help, "Payments are off for now. Nothing is charged.", "help.html payments are off");
 
 must(help, "What plan tiers exist?", "help.html plan tiers FAQ");
 must(help, "No public Free / Pro / Team / Enterprise SKUs", "help.html no public SKUs");

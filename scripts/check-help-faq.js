@@ -52,7 +52,7 @@ must(faq, "creator payout ledger", "FAQ not payout ledger");
 must(faq, "Create or Drop a goal → a draft card → you tap Yes", "FAQ goal path");
 must(faq, "Needs you / prompt ask-who when a Desk AI asks", "FAQ Create/Drop names Needs you");
 mustNot(faq, "when the desk asks", "FAQ Create/Drop still says when the desk asks");
-must(faq, "Collect stays HOLD", "FAQ Collect HOLD");
+must(faq, "Payments are off for now. Nothing is charged.", "FAQ payments are off");
 
 const peopleStart = help.indexOf("<dt>People</dt>");
 const peopleEnd = help.indexOf("<dt>Send</dt>");

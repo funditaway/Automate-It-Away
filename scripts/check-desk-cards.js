@@ -27,7 +27,7 @@ must(help, "Yes / Stop / Kill stay human", "help.html human rail");
 must(help, "auto-send mail", "help.html not auto mail");
 must(help, "push git", "help.html not push git");
 must(help, "Collect charge", "help.html not collect charge");
-must(help, "Collect stays HOLD", "help.html Collect HOLD");
+must(help, "Payments are off for now. Nothing is charged.", "help.html payments are off");
 must(help, "12 card fields", "help.html 12 fields cap");
 must(help, "illustrative only", "help.html sample illustrative");
 must(help, '"when": "drop"', "help.html sample when drop");
