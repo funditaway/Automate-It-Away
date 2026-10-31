@@ -10,10 +10,9 @@
 // still applies. hash-object follows a symlink, so a link to the same bytes
 // still matches the blob; the worktree is lstat'd and any symlink or
 // non-regular file under api/ fails closed. Worktree bytes are hashed with
-// `git hash-object --path=<file> <file>`, which applies the clean and eol
-// filters. A CRLF checkout of the same content under core.autocrlf=true
-// matches the blob. A real content change still fails. A missing BASE fails
-// closed. Never pass by default.
+// `git hash-object` of that path. Git applies the clean and eol filters, so
+// a CRLF checkout of the same content matches the blob. A real content
+// change still fails. A missing BASE fails closed. Never pass by default.
 //
 // How a later API PR updates the pin (one constant plus blob ids):
 //   1. Set BASE to the full 40-character SHA of api/ on main — the main
@@ -206,10 +205,9 @@ function check(root) {
     let actual;
     // Worktree bytes, not the index blob. A tracked file edited but not
     // committed fails closed, including when the index bit is assume-unchanged.
-    // --path applies the clean and eol filters, so a CRLF checkout of the same
-    // content matches the blob. hash-object follows symlinks; those are already
-    // rejected above.
-    try { actual = git(["hash-object", "--path=" + f, "--", f]).trim(); }
+    // hash-object of the worktree path applies clean and eol filters.
+    // hash-object follows symlinks; those are already rejected above.
+    try { actual = git(["hash-object", "--", f]).trim(); }
     catch (e) { problems.push("could not read " + f); return; }
     if (actual !== expected) {
       problems.push(pinned ? (f + " does not match its pinned blob") : ("api file changed outside the pin: " + f));

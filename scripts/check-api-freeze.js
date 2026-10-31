@@ -73,7 +73,7 @@ MOVED.forEach(function (rel) {
   let at = "";
   let now = "";
   try { at = git(root, ["rev-parse", freeze.BASE + ":" + rel]).trim(); } catch (e) { at = ""; }
-  try { now = git(root, ["hash-object", "--path=" + rel, "--", rel]).trim(); } catch (e) { now = ""; }
+  try { now = git(root, ["hash-object", "--", rel]).trim(); } catch (e) { now = ""; }
   ok(freeze.PIN[rel] === now && now !== at && now.length === 40, rel + " pin is its new blob");
 });
 
@@ -383,9 +383,9 @@ try {
     execFileSync("git", ["checkout", "HEAD", "--", "api"], { cwd: crlf, stdio: ["ignore", "pipe", "pipe"] });
     const healthBytes = fs.readFileSync(path.join(crlf, "api/health.js"));
     const rawHash = git(crlf, ["hash-object", "--no-filters", "--", "api/health.js"]).trim();
-    const pathHash = git(crlf, ["hash-object", "--path=api/health.js", "--", "api/health.js"]).trim();
+    const plainHash = git(crlf, ["hash-object", "--", "api/health.js"]).trim();
     const blob = git(crlf, ["rev-parse", "HEAD:api/health.js"]).trim();
-    ok(healthBytes.indexOf(Buffer.from("\r\n")) >= 0 && rawHash !== blob && pathHash === blob, "autocrlf checkout is CRLF and --path hashes like the blob");
+    ok(healthBytes.indexOf(Buffer.from("\r\n")) >= 0 && rawHash !== blob && plainHash === blob, "autocrlf checkout is CRLF and hash-object matches the blob");
     const crlfFreeze = freeze.check(crlf);
     ok(crlfFreeze.ok === true, "autocrlf true clone passes the freeze" + (crlfFreeze.ok ? "" : " (" + crlfFreeze.problems.join("; ") + ")"));
     fs.appendFileSync(path.join(crlf, "api/health.js"), "\n// freeze-crlf-probe\n");
