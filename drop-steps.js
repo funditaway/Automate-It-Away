@@ -226,6 +226,8 @@
     remember(id);
     sync();
     if (quiet) return;
+    // A tap on the Tell tab (or Next into Tell) lands in the type box, like a Talk link does.
+    if (id === "tell" && window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();
     try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
   }
 

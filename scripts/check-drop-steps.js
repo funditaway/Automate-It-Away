@@ -532,12 +532,14 @@ function fakeDrop(opts) {
   let focused = null;
   const timers = [];
   const rafs = [];
-  const L = Object.assign({ ih: 844, iw: 390, rail: RAIL_H, barTop: 420, barH: 108, gap: 111, typeH: 44, navH: 70, footH: 56, shift: 60, grow: 0 }, opts.layout || {});
+  const L = Object.assign({ ih: 844, iw: 390, rail: RAIL_H, barTop: 420, barH: 108, gap: 111, typeH: 44, btnH: 48, navH: 70, footH: 56, shift: 60, grow: 0 }, opts.layout || {});
   let scrollY = 0;
   let shift = 0;
   let inRaf = false;
   let grow = 0;
   let seq = 0;
+  // Content above the desk step's links grows or shrinks as the page keeps laying out (see collapse()).
+  let slide = 0;
   const byCalls = [];
   const scrolls = [];
   const focusCalls = [];
@@ -547,14 +549,20 @@ function fakeDrop(opts) {
   const shownNode = (n) => { for (let x = n; x; x = x.parentNode) if (x.hidden || x.cls.has("step-off")) return false; return true; };
   function mk(tag, id) {
     const n = {
-      tagName: String(tag).toUpperCase(), id: id || "", children: [], parentNode: null, hidden: false, text: "", value: "", _html: "", listeners: {},
+      tagName: String(tag).toUpperCase(), id: id || "", children: [], parentNode: null, hidden: false, text: "", value: "", _html: "", listeners: {}, attrs: {},
       cls: new Set(),
       appendChild(c) { if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = n; n.children.push(c); reg(c); if (c.tagName === "STYLE") styles.push(c); return c; },
       insertBefore(c, ref) { if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = n; const i = ref ? n.children.indexOf(ref) : -1; if (i < 0) n.children.push(c); else n.children.splice(i, 0, c); reg(c); return c; },
       removeChild(c) { const i = n.children.indexOf(c); if (i >= 0) n.children.splice(i, 1); c.parentNode = null; unreg(c); return c; },
       contains(o) { for (let x = o; x; x = x.parentNode) if (x === n) return true; return false; },
       hasAttribute(k) { return k === "hidden" ? !!n.hidden : false; },
-      setAttribute() {}, getAttribute() { return null; },
+      setAttribute(k, v) { n.attrs[k] = String(v); }, getAttribute(k) { return k in n.attrs ? n.attrs[k] : null; },
+      // Only the a[href="…"] form drop-talk uses to find the desk step's link.
+      querySelector(sel) {
+        const m = /^a\[href="([^"]+)"\]$/.exec(sel); if (!m) return null;
+        const walk = (x) => { for (const c of x.children) { if (c.tagName === "A" && c.attrs.href === m[1]) return c; const d = walk(c); if (d) return d; } return null; };
+        return walk(n);
+      },
       addEventListener(ev, fn) { (n.listeners[ev] = n.listeners[ev] || []).push(fn); },
       // Like a browser: a hidden or display:none node does not take focus.
       focus(o) { focusCalls.push({ id: n.id, preventScroll: !!(o && o.preventScroll === true) }); if (shownNode(n) && n.parentNode) focused = n; },
@@ -562,7 +570,7 @@ function fakeDrop(opts) {
       scrollIntoView(arg) {
         const block = arg === true || arg === undefined ? "start" : (arg && arg.block) || "start";
         scrolls.push({ id: n.id, block: block, raw: arg, raf: inRaf, seq: ++seq });
-        const top = docTop(n.id), h = docH(n.id);
+        const top = topOf(n), h = hOf(n);
         if (top === null) return;
         if (block === "start") scrollY = top - marginTop(n);
         else if (block === "center") scrollY = top + h / 2 - L.ih / 2;
@@ -616,17 +624,23 @@ function fakeDrop(opts) {
   function docTop(id) {
     if (id === "talkBar") return L.barTop + shift;
     if (id === "talkType") return L.barTop + shift + L.barH + L.gap + grow;
+    // The send button ("Tell the desk") sits 8px under the type box, as on the live page.
+    if (id === "talkTypeBtn") return L.barTop + shift + L.barH + L.gap + grow + L.typeH + 8;
     return null;
   }
-  function docH(id) { return id === "talkBar" ? L.barH : id === "talkType" ? L.typeH : 0; }
+  // A link with a page position (the desk step's links, Sign in) sits at docY, moved by slide.
+  function topOf(n) { return n.docY != null ? n.docY + slide : docTop(n.id); }
+  function hOf(n) { return n.docY != null ? 44 : docH(n.id); }
+  function docH(id) { return id === "talkBar" ? L.barH : id === "talkType" ? L.typeH : id === "talkTypeBtn" ? L.btnH : 0; }
   const box = (top, h) => ({ top: top, bottom: top + h, height: h, left: 0, right: 100, width: 100 });
   function rectOf(n) {
     if (!n.parentNode || !shownNode(n)) return box(0, 0);
     const cs = computed(n);
     if (cs.display === "none") return box(0, 0);
-    if (n.id === "talkBar" || n.id === "talkType") return box(docTop(n.id) - scrollY, docH(n.id));
+    if (n.docY != null) return box(topOf(n) - scrollY, 44);
+    if (n.id === "talkBar" || n.id === "talkType" || n.id === "talkTypeBtn") return box(docTop(n.id) - scrollY, docH(n.id));
     if (n.id === "desk-nav") return L.navH ? box(L.ih - L.navH, L.navH) : box(0, 0);
-    if (n.id === "drop-step-foot") return cs.position === "sticky" ? box(L.ih - 84 - L.footH, L.footH) : box(docTop("talkType") + L.typeH + 200 - scrollY, L.footH);
+    if (n.id === "drop-step-foot") return cs.position === "sticky" ? box(L.ih - 84 - L.footH, L.footH) : box(docTop("talkTypeBtn") + L.btnH + 200 - scrollY, L.footH);
     if (n.id === "drop-steps") return cs.position === "sticky" ? box(0, L.rail) : box(-scrollY, L.rail);
     return box(0, 0);
   }
@@ -637,6 +651,15 @@ function fakeDrop(opts) {
   body.appendChild(mk("nav", "desk-nav"));
   [["h1", "drop-title"], ["p", "drop-sub"], ["div", "desk-pick"], ["p", "desk-err"], ["div", "talkBar"], ["div", "drop-ways"], ["div", "modes"], ["div", "drop-form-card"], ["div", "embed-card"]].forEach(([t, id]) => main.appendChild(mk(t, id)));
   byId.talkBar.hidden = true;
+  // The desk step's own links (drop.html): Create a new desk, Have a code.
+  [["/onboard", "Create a new desk", 700], ["/login", "Have a code", 752]].forEach(([href, text, y]) => { const a = mk("a"); a.attrs.href = href; a.text = text; a.docY = y; byId["desk-pick"].appendChild(a); });
+  byId["desk-err"].style.display = "none";
+  // Signed out (#433): signin-first.js paints its box with the Sign in link and hides the rest of main.
+  if (opts.signedOut) {
+    html.cls.add("signin-first");
+    const sf = mk("section", "signin-first"); const go = mk("a", "signin-first-go"); go.attrs.href = "/login"; go.text = "Sign in"; go.docY = 600;
+    sf.appendChild(go); main.insertBefore(sf, main.firstChild);
+  }
   ["talkStatus", "hearBtn", "talkBtn", "quietBtn"].forEach((id) => byId.talkBar.appendChild(mk(id === "talkStatus" ? "p" : "button", id)));
   byId["drop-form-card"].appendChild(mk("button", "drop-send"));
   ["title", "note"].forEach((id) => byId["drop-form-card"].appendChild(mk("input", id)));
@@ -653,7 +676,7 @@ function fakeDrop(opts) {
   const location = { pathname: "/drop", search: opts.search || "", hash: opts.hash || "", href: "http://127.0.0.1/drop" + (opts.search || "") + (opts.hash || "") };
   const win = {
     document, location, URLSearchParams, JSON, Object, Array, String, Math, RegExp,
-    localStorage: store({ aia_ws: "north", aia_session: "sess-test" }), sessionStorage: store(opts.session || {}),
+    localStorage: store(opts.noDesk ? (opts.signedOut ? {} : { aia_session: "sess-test" }) : { aia_ws: "north", aia_session: "sess-test" }), sessionStorage: store(opts.session || {}),
     setTimeout: (fn, ms) => { timers.push(fn); return timers.length; }, clearTimeout() {},
     requestAnimationFrame: (fn) => { rafs.push(fn); return rafs.length; },
     setInterval: () => 0, clearInterval() {},
@@ -707,10 +730,20 @@ function fakeDrop(opts) {
       if (byId["drop-chat-wrap"]) return;
       const wrap = mk("div", "drop-chat-wrap");
       wrap.appendChild(mk("input", "talkType"));
+      if (!L.noSend) wrap.appendChild(mk("button", "talkTypeBtn"));
       main.insertBefore(wrap, byId["desk-pick"].nextSibling);
       // The live page's MutationObserver re-syncs the rail, which hides the new box off its step.
       if (win.AIADropSteps) win.AIADropSteps.refresh();
     },
+    // A tap on one of the rail's step tabs (drop-steps listens on #drop-step-tabs).
+    tapTab(step) { const tabs = byId["drop-step-tabs"]; (tabs.listeners.click || []).forEach((fn) => fn({ target: { closest: () => ({ getAttribute: () => step }) } })); },
+    // The page lays out again after load: content above the links shrinks (px > 0) or grows (px < 0),
+    // then drop-steps repaints (its MutationObserver / tick) and the next frame runs.
+    collapse(px) { slide -= px; if (win.AIADropSteps) win.AIADropSteps.refresh(); this.flush(); },
+    // A tap, key or wheel from the visitor (window capture listeners).
+    visitor(ev) { (winListeners[ev] || []).forEach((fn) => fn({ type: ev })); },
+    // Focus moves somewhere else (another link, the search box).
+    focusElse() { const x = mk("input", "elsewhere"); main.appendChild(x); x.focus(); },
     hashTo(h) { location.hash = h; (winListeners.hashchange || []).forEach((fn) => fn({})); },
     focused: () => focused
   };
@@ -785,6 +818,11 @@ function talkFaults(stepsText, talkText) {
       if (!typeWins && bar.top < rail) faults.push(label + ": the Talk bar top " + bar.top + " is under the rail (" + rail + ")");
       if (!typeWins && bar.top > rail + 8 + 1) faults.push(label + ": the Talk bar top " + bar.top + " is not at the top (rail " + rail + " + 8)");
       if (type.top < rail || type.bottom + 8 > floor) faults.push(label + ": the type box " + type.top + "-" + type.bottom + " is not between the rail (" + rail + ") and 8px above the bottom cover (" + floor + ")");
+      // The send button ("Tell the desk") must be on screen together with the type box.
+      if (page.byId.talkTypeBtn) {
+        const send = page.rect("talkTypeBtn");
+        if (!(send.height > 0) || send.top < rail || send.bottom + 8 > floor) faults.push(label + ": the send button " + send.top + "-" + send.bottom + " is not between the rail (" + rail + ") and 8px above the bottom cover (" + floor + ")");
+      }
     }
     geom(hashPage, "390x844 #talk");
     if (hashPage.bodyHas("talk-roomy") || hashPage.computed("desk-nav").display === "none") faults.push("390x844: the bottom nav must stay when the type box fits");
@@ -801,7 +839,8 @@ function talkFaults(stepsText, talkText) {
     if (nextIn.win.AIADropSteps.current() !== "tell") faults.push("844x390 Next into Tell: did not open Tell");
     else {
       geom(nextIn, "844x390 Next into Tell");
-      if (roomOf(nextIn) !== "talk-roomy") faults.push("844x390 Next into Tell: room is " + roomOf(nextIn) + ", not talk-roomy");
+      // At 844x390 the type box and its send button only fit with the rail scrolling too (talk-tight).
+      if (roomOf(nextIn) !== "talk-roomy+talk-tight") faults.push("844x390 Next into Tell: room is " + roomOf(nextIn) + ", not talk-roomy+talk-tight");
       nextIn.win.AIADropSteps.go("card", true);
       if (roomOf(nextIn) !== "none") faults.push("844x390 Next into Tell, then Card: " + roomOf(nextIn) + " leaks");
     }
@@ -853,15 +892,115 @@ function talkFaults(stepsText, talkText) {
     const still = boot({}, false, false, { barTop: 200 });
     still.win.AIADropSteps.go("tell"); still.flush();
     if (still.scrolls.length) faults.push("390x844 Next into Tell: the type box already fits, yet the page jumped " + JSON.stringify(still.scrolls));
+    // Ramp (#445 live): at 844x390, 740x360 and 640x320 the type box AND its send button are both on screen
+    // after the Tell fit, by every way into Tell (Talk link, Next, the Tell tab).
+    // (At 640x320 even talk-tight is too short: the type box and send button win over the top of the bar.)
+    for (const [fw, fh, wins] of [[844, 390, false], [740, 360, false], [640, 320, true]]) {
+      const lay = { ih: fh, iw: fw, rail: 100 };
+      geom(boot({ search: "?talk=1" }, false, false, lay), fw + "x" + fh + " ?talk=1", wins);
+      const viaNext = boot({}, false, false, lay); viaNext.win.AIADropSteps.go("tell"); viaNext.flush();
+      geom(viaNext, fw + "x" + fh + " Next into Tell", wins);
+      const viaTab = boot({}, false, false, lay); viaTab.tapTab("tell"); viaTab.flush();
+      geom(viaTab, fw + "x" + fh + " Tell tab", wins);
+      if (!viaTab.byId.talkTypeBtn) faults.push("the fake page has no send button");
+    }
+    // The Tell tab (and Next into Tell) land in the type box like a Talk link, without a focus scroll.
+    for (const [lbl, lay] of [["390x844", {}], ["844x390", { ih: 390, iw: 844, rail: 100 }]]) {
+      const tab = boot({}, false, false, lay);
+      if (tab.win.AIADropSteps.current() !== "desk") faults.push(lbl + " plain /drop: starts on " + tab.win.AIADropSteps.current() + ", not Desk");
+      tab.tapTab("tell"); tab.flush();
+      if (tab.win.AIADropSteps.current() !== "tell") faults.push(lbl + " Tell tab: did not open Tell");
+      const f = tab.focused();
+      if (!f || f.id !== "talkType") faults.push(lbl + " Tell tab: focus is on " + (f ? f.id || f.tagName : "body") + ", not talkType");
+      if (!tab.focusCalls.some((c) => c.id === "talkType" && c.preventScroll)) faults.push(lbl + " Tell tab: talkType focus is not preventScroll:true");
+      const nx = boot({}, false, false, lay); nx.win.AIADropSteps.go("tell"); nx.flush();
+      const g = nx.focused();
+      if (!g || g.id !== "talkType") faults.push(lbl + " Next into Tell: focus is on " + (g ? g.id || g.tagName : "body") + ", not talkType");
+      // A quiet step change (another script revealing Tell) must not grab focus.
+      const q = boot({}, false, false, lay); q.win.AIADropSteps.go("tell", true); q.flush();
+      if (q.focused() && q.focused().id === "talkType") faults.push(lbl + " quiet go('tell'): took focus into the type box");
+      // Other tabs do not focus the type box.
+      const card = boot({}, false, false, lay); card.tapTab("card"); card.flush();
+      if (card.focusCalls.some((c) => c.id === "talkType" || c.id === "talkBtn")) faults.push(lbl + " Card tab: reached for the Tell type box");
+    }
+    // No desk behind a Talk link (/help's /drop?talk=1): one clear next step, not a hidden bar and no focus.
+    {
+      // Signed in, zero desks: Tell cannot open; the desk step shows drop-steps' own line and focuses Create a new desk.
+      const none = boot({ search: "?talk=1", noDesk: true });
+      if (none.win.AIADropSteps.current() === "tell") faults.push("no desk ?talk=1: Tell opened without a desk");
+      const f = none.focused();
+      if (!f || f.tagName !== "A" || f.attrs.href !== "/onboard") faults.push("no desk ?talk=1: focus is on " + (f ? (f.id || f.tagName) + (f.attrs && f.attrs.href ? " " + f.attrs.href : "") : "body") + ", not the Create a new desk link");
+      const err = none.byId["desk-err"];
+      if (err.textContent !== "Pick a desk first. Every drop rides to that queue.") faults.push("no desk ?talk=1: the desk line reads '" + err.textContent + "'");
+      if (err.style.display !== "block") faults.push("no desk ?talk=1: the desk line stays hidden (display " + err.style.display + ")");
+      if (none.byId["desk-pick"].cls.has("step-off")) faults.push("no desk ?talk=1: the desk step is not on screen");
+      if (!none.scrolls.some((c) => c.id === "" && c.block === "center")) faults.push("no desk ?talk=1: the Create a new desk link is not scrolled into view");
+      const nh = boot({ hash: "#talk", noDesk: true });
+      const fh = nh.focused();
+      if (!fh || fh.attrs.href !== "/onboard") faults.push("no desk #talk: focus is not on Create a new desk");
+      // Signed out (#433 box): focus the Sign in link.
+      const out = boot({ search: "?talk=1", noDesk: true, signedOut: true });
+      const fo = out.focused();
+      if (!fo || fo.id !== "signin-first-go") faults.push("signed out ?talk=1: focus is on " + (fo ? fo.id || fo.tagName : "body") + ", not Sign in");
+      if (!out.scrolls.some((c) => c.id === "signin-first-go")) faults.push("signed out ?talk=1: Sign in is not scrolled into view");
+      if (out.focusCalls.some((c) => c.id === "talkType")) faults.push("signed out ?talk=1: tried to focus the hidden type box");
+      // The page keeps laying out after the point: the link stays in the open band between the sticky rail
+      // and the bottom cover until the visitor does something, and only a repaint that moved it re-points it.
+      const band = (page, node, label) => {
+        const rail = page.computed("drop-steps").position === "sticky" ? Math.max(0, page.rect("drop-steps").bottom) : 0;
+        let floor = page.L.ih;
+        ["desk-nav", "drop-step-foot"].forEach(function (id) {
+          const cs = page.computed(id); const r = page.rect(id);
+          if (cs && cs.display !== "none" && (cs.position === "fixed" || cs.position === "sticky") && r.height > 0 && r.top < floor && r.bottom > 0) floor = r.top;
+        });
+        const r = node.getBoundingClientRect();
+        if (!(r.height > 0) || r.top < rail || r.bottom > floor) faults.push(label + ": the link " + r.top + "-" + r.bottom + " is not between the rail (" + rail + ") and the bottom cover (" + floor + ")");
+      };
+      const link = (page) => page.byId["desk-pick"].querySelector('a[href="/onboard"]');
+      const moves = (page) => page.scrolls.length + page.byCalls.length;
+      band(none, link(none), "no desk ?talk=1");
+      none.collapse(400);
+      band(none, link(none), "no desk ?talk=1, then the content above shrank 400px");
+      const n0 = moves(none); none.win.AIADropSteps.refresh(); none.flush();
+      if (moves(none) !== n0) faults.push("no desk ?talk=1: a repaint that left the link in view still jumped the page");
+      const grow = boot({ search: "?talk=1", noDesk: true }); grow.collapse(-500);
+      band(grow, link(grow), "no desk ?talk=1, then the content above grew 500px");
+      for (const ev of ["pointerdown", "touchstart", "keydown", "wheel"]) {
+        const tap = boot({ search: "?talk=1", noDesk: true }); tap.visitor(ev);
+        const t0 = moves(tap); tap.collapse(400);
+        if (moves(tap) !== t0) faults.push("no desk ?talk=1: after the visitor's " + ev + " a repaint still pulled the page to the link");
+      }
+      const away = boot({ search: "?talk=1", noDesk: true }); away.focusElse();
+      const a0 = moves(away); away.collapse(400);
+      if (moves(away) !== a0) faults.push("no desk ?talk=1: focus moved on, yet a repaint pulled the page back to the link");
+      out.collapse(300);
+      band(out, out.byId["signin-first-go"], "signed out ?talk=1, then the content above shrank 300px");
+      // A short landscape screen with a tall rail: a plain centre leaves the link under the rail.
+      for (const [lw, lh, lr] of [[640, 320, 120], [844, 390, 190]]) {
+        const lay = { ih: lh, iw: lw, rail: lr };
+        const sh = boot({ search: "?talk=1", noDesk: true }, false, false, lay);
+        band(sh, link(sh), lw + "x" + lh + " no desk ?talk=1 (rail " + lr + ")");
+        const so = boot({ search: "?talk=1", noDesk: true, signedOut: true }, false, false, lay);
+        band(so, so.byId["signin-first-go"], lw + "x" + lh + " signed out ?talk=1 (rail " + lr + ")");
+      }
+      // A desk on the phone keeps the Talk jump.
+      talkOpen(boot({ search: "?talk=1" }), "?talk=1 with a desk (after the no-desk path)");
+    }
+    // A taller landscape (932x450): hiding the nav is enough, the rail stays (talk-roomy only).
+    const nextTall = boot({}, false, false, { ih: 450, iw: 932, rail: 100 });
+    nextTall.win.AIADropSteps.go("tell"); nextTall.flush();
+    geom(nextTall, "932x450 Next into Tell");
+    if (roomOf(nextTall) !== "talk-roomy") faults.push("932x450 Next into Tell: room is " + roomOf(nextTall) + ", not talk-roomy");
     // Rotation on Tell: portrait fits with the nav; landscape makes room; back to portrait clears it again.
-    for (const events of [["orientationchange", "resize"], ["resize"], ["orientationchange"]]) {
+    for (const [lw, lh, want] of [[844, 390, "talk-roomy+talk-tight"], [932, 450, "talk-roomy"]]) for (const events of [["orientationchange", "resize"], ["resize"], ["orientationchange"]]) {
       const tag = "rotate (" + events.join("+") + ")";
+      const to = lw + "x" + lh;
       const rot = boot({ hash: "#talk" });
       if (roomOf(rot) !== "none") faults.push(tag + ": portrait starts with " + roomOf(rot));
-      rot.turn(844, 390, 100, events);
-      geom(rot, tag + " to 844x390");
-      if (roomOf(rot) !== "talk-roomy") faults.push(tag + " to 844x390: room is " + roomOf(rot) + ", not talk-roomy");
-      if (rot.computed("desk-nav").display !== "none") faults.push(tag + " to 844x390: the bottom nav still covers Talk");
+      rot.turn(lw, lh, 100, events);
+      geom(rot, tag + " to " + to);
+      if (roomOf(rot) !== want) faults.push(tag + " to " + to + ": room is " + roomOf(rot) + ", not " + want);
+      if (rot.computed("desk-nav").display !== "none") faults.push(tag + " to " + to + ": the bottom nav still covers Talk");
       rot.turn(390, 844, RAIL_H, events);
       if (roomOf(rot) !== "none") faults.push(tag + " back to 390x844: " + roomOf(rot) + " leaks into portrait");
       if (rot.computed("desk-nav").display === "none") faults.push(tag + " back to 390x844: the bottom nav stays hidden");
@@ -874,13 +1013,15 @@ function talkFaults(stepsText, talkText) {
     grown.turn(1280, 900, 100, ["resize"]);
     if (roomOf(grown) !== "none") faults.push("844x390 then 1280x900: " + roomOf(grown) + " leaks");
     // Height-only resize (the phone's address bar) on Tell keeps the fit.
-    const bar = boot({ hash: "#talk" }, false, false, { ih: 390, iw: 844, rail: 100 });
-    const scrollsBefore = bar.scrolls.length;
-    bar.turn(844, 380, 100, ["resize"]);
-    geom(bar, "844x390 then a 10px address-bar resize");
-    if (roomOf(bar) !== "talk-roomy") faults.push("844x390 then a 10px address-bar resize: room is " + roomOf(bar) + ", not talk-roomy");
-    // The address bar comes and goes as the user scrolls: that must not yank the page back to the bar.
-    if (bar.scrolls.length !== scrollsBefore) faults.push("844x390: a height-only (address-bar) resize jumped the page " + (bar.scrolls.length - scrollsBefore) + " time(s)");
+    for (const [aw, ah, want] of [[844, 390, "talk-roomy+talk-tight"], [932, 450, "talk-roomy"]]) {
+      const bar = boot({ hash: "#talk" }, false, false, { ih: ah, iw: aw, rail: 100 });
+      const scrollsBefore = bar.scrolls.length;
+      bar.turn(aw, ah - 10, 100, ["resize"]);
+      geom(bar, aw + "x" + ah + " then a 10px address-bar resize");
+      if (roomOf(bar) !== want) faults.push(aw + "x" + ah + " then a 10px address-bar resize: room is " + roomOf(bar) + ", not " + want);
+      // The address bar comes and goes as the user scrolls: that must not yank the page back to the bar.
+      if (bar.scrolls.length !== scrollsBefore) faults.push(aw + "x" + ah + ": a height-only (address-bar) resize jumped the page " + (bar.scrolls.length - scrollsBefore) + " time(s)");
+    }
     // The Tell box grows in the frame after the jump: the fit must run again then (talk-tight here).
     const growPage = boot({ hash: "#talk" }, false, false, { ih: 390, iw: 844, rail: 100, grow: 60 });
     geom(growPage, "844x390 #talk, Tell box grows a frame later");
@@ -909,8 +1050,16 @@ function talkFaults(stepsText, talkText) {
     geom(boot({ hash: "#talk" }, false, false, { ih: 390, rail: 100, gap: 40 }), "844x390 #talk, under Back / Next");
     geom(boot({ hash: "#talk" }, false, false, { ih: 390, iw: 844, rail: 100, gap: 40 }, true), "844x390 #talk, under Back / Next, type box mounted late");
     geom(boot({ hash: "#talk" }, false, false, { ih: 390, iw: 844, rail: 100, footH: 0, gap: 55 }, true), "844x390 #talk, 5px above the nav, type box mounted late");
+    // Type box and send button clear the nav but sit under the stuck Back / Next (932x450): still moved.
+    geom(boot({ hash: "#talk" }, false, false, { ih: 450, iw: 932, rail: 100, gap: 40 }), "932x450 #talk, send button under Back / Next");
+    geom(boot({ hash: "#talk" }, false, false, { ih: 450, iw: 932, rail: 100, gap: 40 }, true), "932x450 #talk, send button under Back / Next, type box mounted late");
     // 5px above the nav is still too close for a thumb: the 8px clearance counts.
     geom(boot({ hash: "#talk" }, false, false, { ih: 390, rail: 100, footH: 0, gap: 55 }), "844x390 #talk, 5px above the nav");
+    // Without a send button on the page the type box alone keeps its 8px.
+    geom(boot({ hash: "#talk" }, false, false, { ih: 390, rail: 100, footH: 0, gap: 55, noSend: true }), "844x390 #talk, no send button, 5px above the nav");
+    geom(boot({ hash: "#talk" }, false, false, { ih: 390, iw: 844, rail: 100, footH: 0, gap: 55, noSend: true }, true), "844x390 #talk, no send button, 5px above the nav, type box mounted late");
+    // The send button 5px above the nav (932x450, nav only) is too close too: its 8px counts.
+    geom(boot({ hash: "#talk" }, false, false, { ih: 450, iw: 932, rail: 100, footH: 0, gap: 59 }), "932x450 #talk, send button 5px above the nav");
     // A ?talk=1 visit has no #talk to go back from: another hash change keeps Tell.
     const query = boot({ search: "?talk=1" });
     query.hashTo("#elsewhere"); query.flush();
@@ -979,6 +1128,29 @@ const TALK_MUTANTS = [
   ["landscape: type box never fitted by the Talk jump", "talk", once("    fitType(bar);\n  }\n  // The top of the screen", "  }\n  // The top of the screen")],
   ["landscape: floor ignores the bottom nav", "talk", once('["desk-nav", "drop-step-foot"].forEach', '["drop-step-foot"].forEach')],
   ["landscape: floor ignores Back / Next", "talk", once('["desk-nav", "drop-step-foot"].forEach', '["desk-nav"].forEach')],
+  ["fit ignores the send button", "talk", once("if (!sendFits()) return false; ", "")],
+  ["send button fit ignores the 8px", "talk", once("var sendFits = function () { return sendBottom() + 8 <= floorY(); };", "var sendFits = function () { return sendBottom() <= floorY(); };")],
+  ["type-box-wins scroll ignores the send button", "talk", once("    if (sendBottom() + 8 - floorY() > gap) gap = sendBottom() + 8 - floorY();\n", "")],
+  ["Tell tab does not focus the type box", "steps", once('    if (id === "tell" && window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();\n', "")],
+  ["Tell tab focus scrolls by itself", "talk", once("if (box && box.focus) box.focus({ preventScroll: true });", "if (box && box.focus) box.focus();")],
+  ["every step change focuses the type box", "steps", once('    if (id === "tell" && window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();', '    if (window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();')],
+  ["quiet step changes focus the type box too", "steps", chain(once('    if (id === "tell" && window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();\n', ""), once("    sync();\n    if (quiet) return;\n", '    sync();\n    if (id === "tell" && window.AIADropTalk && AIADropTalk.focusType) AIADropTalk.focusType();\n    if (quiet) return;\n'))],
+  ["no desk: nothing pointed at", "talk", once('      if (AIADropSteps.current() !== "tell") { beforeTalk = ""; pointDesk(); return; }\n', "")],
+  ["no desk: desk line left hidden", "talk", once('    if (err && err.textContent) err.style.display = "block";\n', "")],
+  ["no desk: focus the desk card, not Create a new desk", "talk", once("pointAt((pick && pick.querySelector('a[href=\"/onboard\"]')) || pick);", "pointAt(pick);")],
+  ["no desk: focus Have a code instead", "talk", once("pick.querySelector('a[href=\"/onboard\"]')", "pick.querySelector('a[href=\"/login\"]')")],
+  ["no desk: link not scrolled into view", "talk", once('    try { node.scrollIntoView({ block: "center" }); } catch (e) { if (node.scrollIntoView) node.scrollIntoView(); }\n', "")],
+  ["signed out: Sign in not focused", "talk", once("    if (signedOutBox()) { pointSignIn(); return; }\n", "")],
+  ["no desk: a later repaint leaves the link under the rail", "talk", once("    if (held) (window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); })(keepHeld);\n", "")],
+  ["no desk: the hold ignores the visitor", "talk", once('    ["pointerdown", "touchstart", "keydown", "wheel"].forEach(function (ev) { window.addEventListener(ev, letGo, true); });\n', "")],
+  ["no desk: the hold ignores a wheel", "talk", once('["pointerdown", "touchstart", "keydown", "wheel"]', '["pointerdown", "touchstart", "keydown"]')],
+  ["no desk: the hold re-points while in view", "talk", once("    if (outOfView(held)) intoBand(held);", "    intoBand(held);")],
+  ["no desk: the hold outlives focus moving on", "talk", once("    if (document.activeElement !== held) { held = null; return; }\n", "")],
+  ["no desk: never held", "talk", once("    held = node;\n", "")],
+  ["no desk: centre ignores the rail", "talk", once("    if (!outOfView(node) || !window.scrollBy) return;\n    var r = node.getBoundingClientRect(), top = railBottom();\n    window.scrollBy(0, Math.round(r.top - (top + (floorY() - top - r.height) / 2)));\n", "")],
+  ["no desk: band ignores the bottom cover", "talk", once("return r.top < railBottom() || r.bottom > floorY();", "return r.top < railBottom();")],
+  ["no desk: band ignores the rail", "talk", once("return r.top < railBottom() || r.bottom > floorY();", "return r.bottom > floorY();")],
+  ["signed out: Sign in check keyed wrong", "talk", once('root.classList.contains("signin-first") && document.getElementById("signin-first-go")', 'root.classList.contains("signin-first-x") && document.getElementById("signin-first-go")')],
   ["landscape: fit ignores the 8px", "talk", once("return t.getBoundingClientRect().bottom + 8 <= floorY();", "return t.getBoundingClientRect().bottom <= floorY();")],
   ["landscape: room is made even when it fits", "talk", once("    if (fits()) return;\n    var room", "    var room")],
   ["fit jumps even when the type box already fits", "talk", once("    if (fits()) return;\n    // First just bring", "    // First just bring")],
