@@ -92,7 +92,7 @@ async function hydrate() {
       if (!html) html = "<div class=\"card empty\"><p>No desks on this account yet. Add one below or create a new desk.</p></div>";
       box.innerHTML = html;
       banner((atOf(data.at || data.handle || data.aia) ? ("AIA Internet name is " + atOf(data.at || data.handle || data.aia) + ". ") : "") +
-        "Leave drops your seat. Last owner keeps the seat or deletes the desk. AIA does not send. Wallet / registry connect later as a Pipe HOLD.");
+        "Leave drops your seat. Last owner keeps the seat or deletes the desk. AIA does not send. Wallet and name registry connections come later.");
       return;
     }
   } catch (e) {}

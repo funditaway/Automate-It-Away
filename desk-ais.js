@@ -121,7 +121,7 @@
     var mail = (data && (data.mail || (data.desk && data.desk.mail))) || [];
     var rails = (data && (data.aiRails || data.rails || (data.desk && data.desk.aiRails))) || "Yes / Stop / Kill stay human. Desk AIs never Yes themselves. Collect stays HOLD. No silent money or mail.";
     var inet = (data && (data.net || data.internet || (data.desk && data.desk.net))) || null;
-    var netNote = (inet && inet.note) || ".aia names on this desk now. Wallet / registry connect later as a Pipe HOLD.";
+    var netNote = (inet && inet.note) || ".aia names on this desk now. Wallet and name registry connections come later.";
     var aiaName = (data && (data.aia || (data.desk && data.desk.aia))) || "";
     box.className = (box.className || "").indexOf("desk-ais-box") >= 0 ? box.className : ((box.className || "item") + " desk-ais-box");
     if (!rows.length) {
