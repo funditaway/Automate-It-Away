@@ -42,7 +42,7 @@
     .go{background:#119494;color:#fff}
     .pipe{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
     .meta{font-size:12px;color:var(--muted)}
-    .up{color:#119494}.hold{color:#c27b0e}.down{color:#b33}.soon{color:#6b7c8f}
+    .up{color:#119494}.hold{color:#c27b0e}.down{color:#b33}.soon{color:#56636f}html.dark .soon{color:#9aa8b6}
     h2{color:var(--heading);font-size:1rem;margin:18px 0 8px}
     .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;margin-left:6px}
     .tag-now{background:#e6f7f7;color:#0a4f4f}
@@ -69,7 +69,7 @@
   </header>
   <main class="wrap">
     <h1>This desk’s connections.</h1>
-    <p>You do not need a pipe to start. Search any site. Talk it if your hands are full. Log in opens that vendor. If we do not have a name yet, the inbound hook still takes the card. None of them send, post, or pay by themselves.</p>
+    <p>You do not need a connection to start. Search any site. Talk it if your hands are full. Log in opens that vendor. If we do not have a name yet, the inbound hook still takes the card. None of them send, post, or pay by themselves.</p>
     <div class="item">
       <div class="row desk-in">
         <div class="field grow">
@@ -80,13 +80,13 @@
           <label for="pin">Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
           <input id="pin" placeholder="Desk code" inputmode="numeric">
         </div>
-        <button class="go" type="button" onclick="listPipes()">Show pipes</button>
+        <button class="go" type="button" onclick="listPipes()">Show connections</button>
       </div>
       <div class="row" id="saved" style="margin-top:8px"></div>
-      <p class="meta" style="margin-top:8px">Owner connects or drops a pipe. Helpers work the queue only.</p>
+      <p class="meta" style="margin-top:8px">The owner adds or removes connections. Helpers work the Queue only.</p>
     </div>
     <div class="item">
-      <label for="q">Search a site <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about Pipes">?</button></label>
+      <label for="q">Search a site <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about connections">?</button></label>
       <div class="row">
         <input id="q" class="full" placeholder="Search Gmail, X, Shopify, any site…">
         <button class="go" type="button" onclick="searchPipes()">Search</button>
@@ -95,7 +95,7 @@
         <button type="button" onclick="quietPipes()">Quiet</button>
       </div>
       <div class="row" id="chips" style="margin-top:8px"></div>
-      <label for="ask" style="margin-top:8px">Name a site we do not list <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about Pipes">?</button></label>
+      <label for="ask" style="margin-top:8px">Name a site we do not list <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about connections">?</button></label>
       <div class="row">
         <input id="ask" placeholder="Any site on the internet">
         <button type="button" onclick="askSite()">Log in + hook</button>
@@ -104,10 +104,10 @@
     </div>
     <h2>Cross the internet now</h2>
     <div class="item">
-      <b>Inbound hook</b> <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about Pipes">?</button><span class="tag tag-now">Live</span>
+      <b>Inbound hook</b> <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about connections">?</button><span class="tag tag-now">Live</span>
       <div class="meta">Anything on the internet can write a card here. Zapier and Make can post here today.</div>
       <div class="url" id="inbound">Open your desk to see the write-back URL.</div>
-      <p class="meta">.aia identities work on this desk now. POST that hook with a created local@account.aia and it Drops a Queue card. Internet mail when the MX pipe connects. Send stays HOLD.</p>
+      <p class="meta">.aia identities work on this desk now. POST that hook with a created local@account.aia and it Drops a Queue card. Mail from the internet arrives once mail delivery is connected. Sending stays off for now.</p>
       <pre class="url" id="inbound-recipe">{
   "event": "mail",
   "to": "queue@account.aia",
@@ -147,7 +147,7 @@
           <option value="ebay">eBay</option>
         </select>
       </div>
-      <label for="hook" style="margin-top:8px">Webhook URL <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about Pipes">?</button></label>
+      <label for="hook" style="margin-top:8px">Webhook URL <button type="button" class="aia-tip" data-aia-tip="pipes" aria-label="More about connections">?</button></label>
       <div class="row">
         <input id="hook" class="full" placeholder="Webhook URL if you picked that">
         <button class="go" type="button" onclick="connect()">Connect</button>
@@ -156,7 +156,7 @@
       <p class="meta" id="flash"></p>
     </div>
     <h2>Coming soon · beta wall</h2>
-    <p class="meta" id="soon-count">Search the wall. Log in opens that vendor. It does not turn the pipe live. Owner still taps Yes.</p>
+    <p class="meta" id="soon-count">Search the wall. Log in opens that vendor. It does not turn the connection on. The owner still taps Yes.</p>
     <div id="soon"></div>
     <p class="meta"><a href="desk.html">Back to the queue</a></p>
   </main>
@@ -275,7 +275,7 @@
         }
       }
       const count = document.getElementById("soon-count");
-      if (count) count.textContent = soonRows.length + " on the wall" + (qVal() || groupOn ? " for this search" : "") + ". Log in opens the vendor. Not a live send pipe.";
+      if (count) count.textContent = soonRows.length + " on the wall" + (qVal() || groupOn ? " for this search" : "") + ". Log in opens the vendor. It does not send anything.";
     }
     function paintSaved() {
       const box = document.getElementById("saved");
@@ -385,7 +385,7 @@
       const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "pipe-start", provider }) });
       const data = await r.json().catch(() => ({}));
       const flash = document.getElementById("flash");
-      if (flash) flash.textContent = data.next || data.error || "Coming soon. Not a live pipe.";
+      if (flash) flash.textContent = data.next || data.error || "Coming soon. Not connected yet.";
       if (data.login) window.open(data.login, "_blank", "noopener");
     }
     async function startAi(provider) {
