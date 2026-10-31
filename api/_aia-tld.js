@@ -1,7 +1,8 @@
 /* Honest .aia TLD reclaim status. Probe Decentraweb lock/validation only.
    Never approve-registration (that can reserve a name). Never invent owned.
    bridgeLocked is false only for a 2xx lockDomain body that explicitly says open.
-   Anything else stays locked. Unreachable is not cached as unlocked.
+   Anything else stays locked. An unreachable result is cached as locked for
+   CACHE_MS and is never cached as unlocked.
    No keys. No mint broadcast. Collect stays HOLD. */
 const connect = require("./_connect-wallet");
 
@@ -260,10 +261,11 @@ async function probeNow() {
   return probe;
 }
 
-// An unreachable lock check is not stored. Caching it as unlocked would keep
-// /api/status open for CACHE_MS after the bridge had already failed.
+// Cache an unreachable lock check as locked for CACHE_MS (the same window as a
+// reached result). The next status read must not open a new 3500ms probe while
+// the bridge is down, and must not store the miss as unlocked.
 function remember(row) {
-  if (row && row.reason === "unreachable") cache = null;
+  if (row && row.reason === "unreachable") cache = Object.assign({}, row, { bridgeLocked: true, reason: "unreachable" });
   else cache = row;
   return row;
 }

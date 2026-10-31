@@ -307,13 +307,21 @@ async function main() {
         seatBad = true;
       }
     }
-    tld.setFetch(probe);
+    let lockFetches = 0;
+    tld.setFetch(function (url, opts) {
+      if (String(url || "").indexOf("/bridge/lockDomain/") >= 0) lockFetches += 1;
+      return probe(url, opts);
+    });
     const again = await call(health.status, "GET", {}, {}, {});
     const again2 = await call(health.status, "GET", {}, {}, {});
     const a1 = again.body && again.body.aiaTld;
     const a2 = again2.body && again2.body.aiaTld;
     if (!a1 || !a2 || a1.bridgeLocked !== want || a2.bridgeLocked !== want || !reasonOk(a1, reason) || !reasonOk(a2, reason) || a1.ownedByConnected !== false || a2.ownedByConnected !== false) {
       fail(label + " repeat status " + JSON.stringify({ a1: a1, a2: a2 }));
+      seatBad = true;
+    }
+    if (reason === "unreachable" && lockFetches !== 1) {
+      fail(label + " two status calls fetched lockDomain " + lockFetches + " times");
       seatBad = true;
     }
     if (!seatBad) pass(label + " status and account agree on bridgeLocked; health stays offline");
@@ -338,6 +346,20 @@ async function main() {
   if (!timedAcc || timedAcc.bridgeLocked !== true || timedAcc.reason !== "unreachable" || timedAcc.owned || !timedRow || timedRow.bridgeLocked !== true || timedRow.reason !== "unreachable" || timedRow.ownedByConnected !== false || timedRow.bridgeLocked !== timedAcc.bridgeLocked) {
     fail("timer abort status " + JSON.stringify({ acc: timedAcc, status: timedRow }));
   } else pass("timer abort status and account agree on bridgeLocked");
+
+  const realForWallet = tld.forWallet;
+  tld.forWallet = async function () { return null; };
+  const noProbe = await call(health.status, "GET", {}, {}, {});
+  const noProbeRow = noProbe.body && noProbe.body.aiaTld;
+  tld.forWallet = async function () { return { tld: ".aia", bridgeLocked: undefined }; };
+  const undefHit = await call(health.status, "GET", {}, {}, {});
+  const undefRow = undefHit.body && undefHit.body.aiaTld;
+  tld.forWallet = realForWallet;
+  if (!noProbeRow || noProbeRow.bridgeLocked !== true || noProbeRow.ownedByConnected !== false) {
+    fail("no probe row status " + JSON.stringify(noProbeRow));
+  } else if (!undefRow || undefRow.bridgeLocked !== true || undefRow.ownedByConnected !== false) {
+    fail("undefined bridgeLocked status " + JSON.stringify(undefRow));
+  } else pass("missing probe row stays locked");
 
   const src = helper + ui + html;
   if (/\$250|demo seed|fake ETH|silent Collect/i.test(src)) fail("hard-line leak");

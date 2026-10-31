@@ -17,12 +17,16 @@ const root = path.join(__dirname, "..");
 // occurrence is replaced.
 const MUTANTS = [
   ["bridgeLocked dropped from status", "api/health.js", [[
-    "  face.bridgeLocked = !!(row && row.bridgeLocked === true);\n",
+    "  face.bridgeLocked = !(row && row.bridgeLocked === false);\n",
     ""
   ]]],
   ["bridgeLocked forced to false", "api/health.js", [[
-    "row.bridgeLocked === true",
-    "false"
+    "  face.bridgeLocked = !(row && row.bridgeLocked === false);\n",
+    "  face.bridgeLocked = false;\n"
+  ]]],
+  ["missing row reads unlocked", "api/health.js", [[
+    "  face.bridgeLocked = !(row && row.bridgeLocked === false);\n",
+    "  face.bridgeLocked = !!(row && row.bridgeLocked === true);\n"
   ]]],
   ["ownedByConnected true on status", "api/health.js", [[
     "  face.ownedByConnected = false;\n",
@@ -61,8 +65,12 @@ const MUTANTS = [
     ""
   ]]],
   ["cache an unreachable result as unlocked", "api/_aia-tld.js", [[
-    "if (row && row.reason === \"unreachable\") cache = null;",
-    "if (row && row.reason === \"unreachable\") cache = Object.assign({}, row, { bridgeLocked: false, reason: \"\" });"
+    "cache = Object.assign({}, row, { bridgeLocked: true, reason: \"unreachable\" });",
+    "cache = Object.assign({}, row, { bridgeLocked: false, reason: \"\" });"
+  ]]],
+  ["drop the unreachable cache", "api/_aia-tld.js", [[
+    "cache = Object.assign({}, row, { bridgeLocked: true, reason: \"unreachable\" });",
+    "cache = null;"
   ]]]
 ];
 
