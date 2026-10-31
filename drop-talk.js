@@ -176,9 +176,34 @@
   }
   var STEP_KEY = "aia_drop_step";
   var beforeTalk = "";
+  // A Talk link with no desk behind it (signed out, or signed in with no desk yet) cannot open Tell.
+  // Point at the one next step the page already offers instead of leaving nothing focused.
+  function signedOutBox() {
+    var root = document.documentElement;
+    return !!(root && root.classList && root.classList.contains("signin-first") && document.getElementById("signin-first-go"));
+  }
+  function pointAt(node) {
+    if (!node) return;
+    try { node.scrollIntoView({ block: "center" }); } catch (e) { if (node.scrollIntoView) node.scrollIntoView(); }
+    if (node.focus) node.focus({ preventScroll: true });
+  }
+  function pointSignIn() { pointAt(document.getElementById("signin-first-go")); }
+  function pointDesk() {
+    // drop-steps already wrote its "Pick a desk first" line into #desk-err; that line is hidden until shown.
+    var err = document.getElementById("desk-err");
+    if (err && err.textContent) err.style.display = "block";
+    var pick = document.getElementById("desk-pick");
+    pointAt((pick && pick.querySelector('a[href="/onboard"]')) || pick);
+  }
+  function focusType() {
+    var box = document.getElementById("talkType");
+    if (!box) box = document.getElementById("talkBtn");
+    if (box && box.focus) box.focus({ preventScroll: true });
+  }
   function focusTalk() {
     if (slimChrome()) { hushTalk(); return; }
     var bar = document.getElementById("talkBar"); if (!bar) return;
+    if (signedOutBox()) { pointSignIn(); return; }
     // Show first, focus last: a node that is hidden or display:none can't take focus.
     bar.hidden = false;
     // The step rail may have painted Desk before the bar showed; open Tell so the bar is not display:none.
@@ -188,6 +213,8 @@
       var kept = null; try { kept = sessionStorage.getItem(STEP_KEY); } catch (e) {}
       AIADropSteps.go("tell", true);
       try { if (kept === null) sessionStorage.removeItem(STEP_KEY); else sessionStorage.setItem(STEP_KEY, kept); } catch (e) {}
+      // Tell did not open: no desk yet. Show the desk step's next move, not a hidden Talk bar.
+      if (AIADropSteps.current() !== "tell") { beforeTalk = ""; pointDesk(); return; }
     }
     // The type box is the target; the Talk button only when the type box is not on the page yet.
     var typeEl = document.getElementById("talkType") || document.getElementById("talkBtn"); if (typeEl) typeEl.focus({ preventScroll: true });
@@ -218,7 +245,14 @@
   // On a short screen it cannot fit with them: make room (talk-roomy, then talk-tight) and bring the bar up again.
   function fitType(bar) {
     var t = document.getElementById("talkType"); if (!t || !t.getBoundingClientRect) return;
-    var fits = function () { return t.getBoundingClientRect().bottom + 8 <= floorY(); };
+    // The send button ("Tell the desk") sits right under the type box: both must be on screen at once.
+    var send = document.getElementById("talkTypeBtn");
+    var sendBottom = function () {
+      if (!send || !send.getBoundingClientRect) return -Infinity;
+      var r = send.getBoundingClientRect(); return r.height > 0 ? r.bottom : -Infinity;
+    };
+    var sendFits = function () { return sendBottom() + 8 <= floorY(); };
+    var fits = function () { if (!sendFits()) return false; return t.getBoundingClientRect().bottom + 8 <= floorY(); };
     if (fits()) return;
     // First just bring the bar to the top (a refit on Next starts from wherever the page was); make room
     // only if the type box still does not fit there.
@@ -232,6 +266,7 @@
     }
     // Still too short: the type box wins over the top of the bar.
     var gap = t.getBoundingClientRect().bottom + 8 - floorY();
+    if (sendBottom() + 8 - floorY() > gap) gap = sendBottom() + 8 - floorY();
     if (gap > 0 && window.scrollBy) window.scrollBy(0, gap);
   }
   // The room classes belong to one fit on Tell. Leaving Tell, or turning / resizing the screen, clears them
@@ -302,7 +337,7 @@
     lastW = window.innerWidth || 0;
     window.addEventListener("resize", onTurn);
     window.addEventListener("orientationchange", onTurn);
-    window.AIADropTalk = { parseTalk: parseTalk, fill: fill, dropLine: dropLine, focusTalk: focusTalk, onStep: onStep };
+    window.AIADropTalk = { parseTalk: parseTalk, fill: fill, dropLine: dropLine, focusTalk: focusTalk, focusType: focusType, onStep: onStep };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();
