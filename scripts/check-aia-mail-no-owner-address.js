@@ -4,7 +4,11 @@ require("./_env-guard");
 // validateAddress, createIdentity, and the account HTTP handler (mail-add and
 // handle) against a fresh temp store. Same ok:false and the same status as
 // before the wording change. No reply body may match /james|funditaway|springfield/i.
-// A static scan reads string literals used as error: values under api/.
+// A static scan reads string literals used as error: values under api/, and
+// every other string literal under api/ (including prompts). No literal may
+// contain a james / funditaway / springfield .aia name. The repo slug
+// funditaway/Automate-It-Away in api/health.js is the only exclusion, and
+// only when the literal is exactly that slug.
 // node scripts/check-aia-mail-no-owner-address.js
 // node scripts/check-aia-mail-no-owner-address.js --mutate
 const fs = require("fs");
@@ -13,6 +17,8 @@ const path = require("path");
 
 const root = path.join(__dirname, "..");
 const OWNER = /james|funditaway|springfield/i;
+const AIA_NAME = /(?:james|funditaway|springfield)[a-z0-9-]*\.aia/i;
+const REPO_SLUG = "funditaway/Automate-It-Away";
 const EMPTY = "Type an AIA email, like name@your-account.aia.";
 const NO_AT = "Use name@your-account.aia.";
 const TWO_AT = "Use local@account.aia.";
@@ -73,16 +79,123 @@ function errorLiterals(src) {
   return out;
 }
 
+function allowedLiteral(file, text) {
+  return file === "api/health.js" && text === REPO_SLUG;
+}
+
+function skipRegex(src, i) {
+  let j = i + 1;
+  let cls = false;
+  while (j < src.length && src[j] !== "\n") {
+    if (src[j] === "\\") { j += 2; continue; }
+    if (src[j] === "[") cls = true;
+    else if (src[j] === "]") cls = false;
+    else if (src[j] === "/" && !cls) {
+      j += 1;
+      while (j < src.length && /[a-z]/i.test(src[j])) j += 1;
+      return j;
+    }
+    j += 1;
+  }
+  return -1;
+}
+
+const REGEX_KEYWORD = /^(return|throw|case|delete|void|typeof|in|of|instanceof|else|do|yield|await)$/;
+
+function wordBefore(src, i) {
+  let j = i - 1;
+  while (j >= 0 && /\s/.test(src[j])) j -= 1;
+  const end = j;
+  if (j < 0 || !/[A-Za-z0-9_$]/.test(src[j])) return "";
+  while (j >= 0 && /[A-Za-z0-9_$]/.test(src[j])) j -= 1;
+  return src.slice(j + 1, end + 1);
+}
+
+function stringLiterals(src, start, stopOnBrace) {
+  const out = [];
+  let i = start || 0;
+  let prev = "";
+  let depth = 0;
+  while (i < src.length) {
+    const c = src[i];
+    const n = src[i + 1];
+    if (c === "/" && n === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
+    if (c === "/" && n === "*") {
+      const end = src.indexOf("*/", i + 2);
+      if (end < 0) return { ok: false, reason: "unterminated comment" };
+      i = end + 2;
+      continue;
+    }
+    if (c === "/" && (/[(,=:[!&|?{};]|^$/.test(prev) || REGEX_KEYWORD.test(wordBefore(src, i)))) {
+      const next = skipRegex(src, i);
+      if (next < 0) return { ok: false, reason: "unterminated regex" };
+      i = next;
+      prev = "/";
+      continue;
+    }
+    if (c === "\"" || c === "'" || c === "`") {
+      const q = c;
+      let j = i + 1;
+      let s = "";
+      let closed = false;
+      while (j < src.length) {
+        if (q === "`" && src[j] === "$" && src[j + 1] === "{") {
+          out.push(s);
+          s = "";
+          const inner = stringLiterals(src, j + 2, true);
+          if (!inner.ok) return { ok: false, reason: "template literal" };
+          inner.literals.forEach(function (text) { out.push(text); });
+          j = inner.i;
+          continue;
+        }
+        if (src[j] === "\\") { s += src[j + 1] || ""; j += 2; continue; }
+        if (src[j] === q) { out.push(s); i = j + 1; prev = q; closed = true; break; }
+        s += src[j];
+        j += 1;
+      }
+      if (!closed) return { ok: false, reason: q === "`" ? "template literal" : "unterminated string" };
+      continue;
+    }
+    if (stopOnBrace && c === "{") { depth += 1; i += 1; prev = c; continue; }
+    if (stopOnBrace && c === "}") {
+      if (depth === 0) return { ok: true, literals: out, i: i + 1 };
+      depth -= 1;
+      i += 1;
+      prev = c;
+      continue;
+    }
+    if (!/\s/.test(c)) prev = c;
+    i += 1;
+  }
+  if (stopOnBrace) return { ok: false, reason: "template literal" };
+  return { ok: true, literals: out };
+}
+
 function staticScan() {
   const files = walkJs(path.join(root, "api"), []);
   const hits = [];
   const literals = [];
+  const all = [];
+  const nameHits = [];
+  let sawSlug = false;
+  let scanFailed = "";
   files.forEach(function (file) {
-    errorLiterals(fs.readFileSync(file, "utf8")).forEach(function (text) {
-      literals.push({ file: path.relative(root, file), text: text });
-      if (OWNER.test(text)) hits.push(path.relative(root, file) + ": " + text);
+    const rel = path.relative(root, file);
+    const src = fs.readFileSync(file, "utf8");
+    errorLiterals(src).forEach(function (text) {
+      literals.push({ file: rel, text: text });
+      if (OWNER.test(text)) hits.push(rel + ": " + text);
+    });
+    const parsed = stringLiterals(src);
+    if (!parsed.ok) { scanFailed = rel + " " + parsed.reason; return; }
+    parsed.literals.forEach(function (text) {
+      all.push({ file: rel, text: text });
+      if (rel === "api/health.js" && text === REPO_SLUG) sawSlug = true;
+      if (allowedLiteral(rel, text)) return;
+      if (AIA_NAME.test(text)) nameHits.push(rel + ": " + text.slice(0, 120));
     });
   });
+  ok(!scanFailed, "string literals scanned" + (scanFailed ? " fail closed (" + scanFailed + ")" : ""));
   ok(literals.length > 0, "static scan read " + literals.length + " error literals in " + files.length + " api files");
   [EMPTY, NO_AT, COM, LOCAL, LABEL, SET_NAME, NET_END, NET_USE, ADMIN_USE].forEach(function (text) {
     ok(literals.some(function (row) { return row.text === text; }), "static scan sees error literal: " + text);
@@ -92,6 +205,12 @@ function staticScan() {
   }).length;
   ok(setNameCount === 2, "both unset-name errors are generic (" + setNameCount + ")");
   ok(hits.length === 0, "no error literal names an owner account" + (hits.length ? " (" + hits.join(" | ") + ")" : ""));
+  ok(all.length > literals.length, "static scan read " + all.length + " string literals");
+  ok(sawSlug, "health.js repo slug is present");
+  ok(allowedLiteral("api/health.js", REPO_SLUG) && !allowedLiteral("api/health.js", REPO_SLUG + " james.aia") && !allowedLiteral("api/_grok.js", REPO_SLUG) && !allowedLiteral("api/health.js", "funditaway.aia"), "repo slug exclusion is exact and only api/health.js");
+  ok(!AIA_NAME.test("Register .aia from this desk. James signs in MetaMask."), "plain James prose next to .aia is not a .aia name");
+  ok(AIA_NAME.test("james.aia") && AIA_NAME.test("springfield-shop.aia") && AIA_NAME.test("funditaway.aia") && !AIA_NAME.test("yourname.aia") && !AIA_NAME.test("your-shop.aia"), "owner .aia names match; neutral examples do not");
+  ok(nameHits.length === 0, "no api string literal has a james/funditaway/springfield .aia name" + (nameHits.length ? " (" + nameHits.join(" | ") + ")" : ""));
 }
 
 function mockRes() {
@@ -267,7 +386,13 @@ const MUTANTS = [
     'if (!label) return { ok: false, error: "Use a .aia name like james.aia or springfield-shop.aia." };'],
   ["admin bad name", "api/_aia-admin.js",
     'if (!handle) return { ok: false, status: 400, error: "Use a .aia name, like your-account.aia." };',
-    'if (!handle) return { ok: false, status: 400, error: "Use a .aia name like james.aia." };']
+    'if (!handle) return { ok: false, status: 400, error: "Use a .aia name like james.aia." };'],
+  ["grok prompt owner .aia name", "api/_grok.js",
+    "AIA Internet uses the .aia TLD (yourname.aia, your-shop.aia).",
+    "AIA Internet uses the .aia TLD (james.aia, springfield-shop.aia)."],
+  ["health slug is not a blanket exclusion", "api/health.js",
+    'repo: "funditaway/Automate-It-Away"',
+    'repo: "funditaway.aia"']
 ];
 
 function mutate() {
