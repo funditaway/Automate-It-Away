@@ -25,8 +25,8 @@ function pickDesk(src, label) {
   if (src.indexOf("a Desk AI can draft when drafts are on.") < 0) {
     throw new Error(file + " draft-accounts must say Desk AI drafts when drafts are on");
   }
-  if (src.indexOf("Orange until a real pipe answers. Naming the pipe does not turn it green.") < 0) {
-    throw new Error(file + " connect hold must stay orange until a real pipe");
+  if (src.indexOf("Orange until a real connection answers. Naming the connection does not turn it green.") < 0) {
+    throw new Error(file + " connect hold must stay orange until a real connection");
   }
   ["our key", "No keys on the box", "included Grok", "Grok liking"].forEach(function (bad) {
     if (src.indexOf(bad) >= 0) throw new Error(file + " still paints " + JSON.stringify(bad));
@@ -90,8 +90,8 @@ if (packMd.indexOf("Open Stop leftover:") < 0) throw new Error("PACK.md must nam
 // Help FAQ: same naming≠green honesty as pipes (no "draft liking the name")
 (function () {
   const help = read("help.html");
-  if (help.indexOf("Naming the pipe does not turn them green.") < 0) {
-    throw new Error("help FAQ must say Naming the pipe does not turn them green");
+  if (help.indexOf("Naming the connection does not turn them green.") < 0) {
+    throw new Error("help FAQ must say Naming the connection does not turn them green");
   }
   if (help.indexOf("draft liking the name") >= 0) {
     throw new Error("help FAQ still paints draft liking the name");

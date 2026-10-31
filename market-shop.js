@@ -125,7 +125,7 @@
     view.innerHTML =
       "<h1>Find a pack. Install the .aia on this desk.</h1>" +
       "<p class=\"sub\">ai.aia is the AIA Internet brand. The desk runs on automateitaway.com. Official packs are free. Download or share as a .aia file. Install a .aia onto this desk. A listed ask still installs. Collect stays HOLD until Yes and a money pipe. Packs never send money.</p>" +
-      "<p class=\"aia-line off\">ai.aia is the brand. .aia names on this desk now. Wallet / registry connect later as a Pipe HOLD. No on-chain claim.</p>" +
+      "<p class=\"aia-line off\">ai.aia is the brand. .aia names on this desk now. Wallet and name registry connections come later. No on-chain claim.</p>" +
       deskBanner() +
       "<div class=\"strip\">" +
         "<div><b>1. Find</b><span>Search a niche or tap an aisle.</span></div>" +

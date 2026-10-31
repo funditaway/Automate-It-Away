@@ -3,7 +3,7 @@
 (function () {
   var ADDR_KEY = "aia_wallet_address";
   var CHAIN_KEY = "aia_wallet_chain";
-  var HELP = "Your wallet. AIA does not hold keys. Collect and pack pay stay HOLD until Yes + real pipe. .aia Register when Bridge unlocks.";
+  var HELP = "Your wallet. AIA does not hold keys. Payments are off for now. Nothing is charged. .aia Register when Bridge unlocks.";
   var DENY = "Not Wallet.AIA — not compute credits or a creator payout ledger. No AIA token or gas currency.";
   var MISSING_MM = "No MetaMask on this phone. Install MetaMask or open this page in its browser. AIA does not hold keys.";
   var MISSING_WC = "No WalletConnect wallet on this phone. Open this page in your WalletConnect app’s browser. AIA does not host Wallet.AIA or keys.";

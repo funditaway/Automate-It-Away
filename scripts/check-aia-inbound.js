@@ -33,7 +33,7 @@ must(card, "unknown", "inbound unknown .aia");
 must(card, "400", "inbound unknown 400");
 must(card, "MX and DNS", "inbound MX/DNS");
 must(card, "*.aia", "inbound wildcard");
-must(card, "still HOLD", "inbound MX HOLD");
+must(card, "still off for now", "inbound MX off for now");
 must(card, "ai.aia", "inbound ai.aia");
 must(card, "orange until DNS", "inbound ai.aia orange");
 must(card, "No live Gmail forward wizard", "inbound no Gmail wizard");

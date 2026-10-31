@@ -40,7 +40,7 @@ mustNot(bills, "lets the money move", "Bills owner lets money move");
 mustNot(bills, "money-wait rule", "Bills money-wait as live pipe");
 
 const collectDd = sliceBetween(help, "<dt>Collect</dt>", "<dt>Open</dt>", "help.html Collect dd");
-must(collectDd, "Collect stays HOLD until a person taps Yes and a real money pipe is live.", "Collect dd HOLD");
+must(collectDd, "Payments are off for now. Nothing is charged.", "Collect dd payments are off");
 must(collectDd, "Helper can prep the draft", "Collect dd helper preps");
 must(collectDd, "Yes is not a collect charge", "Collect dd Yes is not a collect charge");
 mustNot(collectDd, "Owner lets the money move", "Collect dd owner lets money move");

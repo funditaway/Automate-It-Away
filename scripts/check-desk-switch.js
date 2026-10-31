@@ -384,7 +384,7 @@ if (!login.includes("placeholder=\"Desk name\"")) fail("login still names a slug
 else pass("login placeholder is generic");
 const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
 if (help.includes("Capture → Qualify")) fail("help.html still shows Capture → Qualify");
-else if (!help.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail("help.html missing desk-true Drop spine");
+else if (!help.includes("Drop → Qualify → Do → Collect → Follow") || !help.includes("→ Follow — not dead templates. Payments are off for now. Nothing is charged.")) fail("help.html missing desk-true Drop spine (with payments off)");
 else pass("help.html Drop spine matches the desk");
 ["developer.html", "developer.js"].forEach((file) => {
   const src = fs.readFileSync(path.join(root, file), "utf8");

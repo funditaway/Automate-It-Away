@@ -63,7 +63,7 @@ must(help, "www.automateitaway.com/api/hook", "help.html inbound hook");
 must(help, "Zapier or Make", "help.html Zapier/Make today");
 must(help, "Search a site / Log in", "help.html vendor console");
 must(help, "draft only", "help.html login is draft");
-must(help, "Calendar, SMS, Square, and eBay stay HOLD", "help.html hold pipes");
+must(help, "Calendar, SMS, Square, and eBay stay off until keys land", "help.html held connections");
 must(help, "desk name plus a desk code", "help.html desk identity");
 must(help, "<code>yourname.aia</code>-style name", "help.html yourname.aia-style name");
 if (help.includes("james.aia")) throw new Error("help.html must not show the owner name james.aia");

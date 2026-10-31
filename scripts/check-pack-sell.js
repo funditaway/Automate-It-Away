@@ -26,7 +26,7 @@ must(help, "Not legal advice", "help.html not legal advice");
 must(help, "thin JSON", "help.html thin JSON");
 must(help, "buyer", "help.html buyer desk");
 must(help, "Yes / Stop / Kill", "help.html Yes/Stop/Kill");
-must(help, "Collect stays HOLD", "help.html Collect HOLD");
+must(help, "Payments are off for now. Nothing is charged.", "help.html payments are off (D3: replaces Collect stays HOLD)");
 must(help, "Never hardcode yours", "help.html never hardcode");
 must(help, "100% safe", "help.html no 100% safe");
 must(help, "never banned", "help.html never banned");
@@ -59,11 +59,11 @@ must(help, "No merchant-of-record money desk", "help.html takeaways no MoR");
 must(help, "No social OAuth auto-post", "help.html takeaways no social OAuth");
 
 must(help, "Your wallet. AIA does not hold keys", "help.html wallet honesty");
-must(help, "Collect and pack pay stay HOLD", "help.html pack pay HOLD");
+must(help, "Not Wallet.AIA. Payments are off for now. Nothing is charged.", "help.html wallet: payments are off");
 must(help, ".aia Register when Bridge unlocks", "help.html Register when Bridge");
 must(help, "not compute credits", "help.html not compute credits");
 must(help, "creator payout ledger", "help.html not payout ledger");
-must(help, "Collect and payouts HOLD", "help.html collect payouts HOLD");
+must(help, "you install a pack. Payments are off for now. Nothing is charged.", "help.html license: payments are off");
 must(help, "Not Wallet.AIA", "help.html not Wallet.AIA");
 
 must(studio, "Selling packs.", "studio sell-packs one-liner");
@@ -75,14 +75,14 @@ must(more, "/help#sell-packs", "more.html sell-packs link");
 must(more, "/help#pack-worth", "more.html pack-worth link");
 
 must(account, "Your wallet. AIA does not hold keys", "account.html wallet honesty");
-must(account, "Collect and pack pay stay HOLD", "account.html pack pay HOLD");
+must(account, "AIA does not hold keys. Payments are off for now. Nothing is charged.", "account.html wallet: payments are off");
 must(account, ".aia Register when Bridge unlocks", "account.html Register when Bridge");
 must(account, "not compute credits", "account.html not compute credits");
 must(account, "creator payout ledger", "account.html not payout ledger");
 must(walletUi, "Your wallet. AIA does not hold keys", "aia-wallet.js honesty");
 must(walletUi, "not compute credits", "aia-wallet.js not compute credits");
 must(walletUi, "creator payout ledger", "aia-wallet.js not payout ledger");
-must(walletUi, "Collect and pack pay stay HOLD", "aia-wallet.js Collect HOLD");
+must(walletUi, "AIA does not hold keys. Payments are off for now. Nothing is charged.", "aia-wallet.js wallet: payments are off");
 must(walletUi, ".aia Register when Bridge unlocks", "aia-wallet.js Register when Bridge");
 
 must(packMd, "Selling packs — risk honesty", "PACK.md risk honesty");

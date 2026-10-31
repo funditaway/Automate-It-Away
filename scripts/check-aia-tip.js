@@ -185,7 +185,7 @@ must(read("help.html"), 'data-aia-tip="give-pack"', "help Give pack tip");
 must(read("help.html"), "A pack puts When → If → Then on this desk queue", "help pack When-If-Then");
 must(read("help.html"), "Buyer binds their own keys and devices", "help pack buyer keys");
 must(read("help.html"), "before outbound or hardware", "help Yes before hardware");
-must(read("help.html"), "App / webhook is the live pipe", "help App/webhook near lane");
+must(read("help.html"), "App / webhook is the live connection", "help App/webhook near lane");
 mustNot(read("help.html"), "IoT", "help IoT marketplace");
 mustNot(read("help.html"), "robotics", "help robotics labor");
 mustNot(read("help.html"), "humanoid", "help humanoid labor");
