@@ -52,8 +52,9 @@ if (!/eth_requestAccounts/.test(ui) || !/eip6963:requestProvider/.test(ui)) fail
 else pass("EIP-1193 / EIP-6963");
 if (!/Your wallet\. AIA does not hold keys/.test(ui)) fail("UI missing honesty copy");
 else pass("honesty copy");
-if (!/Collect and pack pay stay HOLD until Yes \+ real pipe/.test(ui)) fail("UI must keep Collect and pack pay HOLD");
-else pass("Collect and pack pay HOLD");
+if (ui.indexOf("Your wallet. AIA does not hold keys. Payments are off for now. Nothing is charged.") < 0) fail("UI must say payments are off next to the wallet line");
+else if (/Collect and pack pay stay HOLD/.test(ui)) fail("UI still says Collect and pack pay stay HOLD");
+else pass("wallet UI says payments are off");
 if (!/\.aia Register when Bridge unlocks/.test(ui)) fail("UI missing Register-when-Bridge copy");
 else pass("Register when Bridge unlocks");
 if (!/not compute credits/.test(ui) || !/creator payout ledger/.test(ui)) fail("UI must deny compute credits / payout ledger");

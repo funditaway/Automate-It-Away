@@ -75,14 +75,14 @@ must(more, "/help#sell-packs", "more.html sell-packs link");
 must(more, "/help#pack-worth", "more.html pack-worth link");
 
 must(account, "Your wallet. AIA does not hold keys", "account.html wallet honesty");
-must(account, "Collect and pack pay stay HOLD", "account.html pack pay HOLD");
+must(account, "AIA does not hold keys. Payments are off for now. Nothing is charged.", "account.html wallet: payments are off");
 must(account, ".aia Register when Bridge unlocks", "account.html Register when Bridge");
 must(account, "not compute credits", "account.html not compute credits");
 must(account, "creator payout ledger", "account.html not payout ledger");
 must(walletUi, "Your wallet. AIA does not hold keys", "aia-wallet.js honesty");
 must(walletUi, "not compute credits", "aia-wallet.js not compute credits");
 must(walletUi, "creator payout ledger", "aia-wallet.js not payout ledger");
-must(walletUi, "Collect and pack pay stay HOLD", "aia-wallet.js Collect HOLD");
+must(walletUi, "AIA does not hold keys. Payments are off for now. Nothing is charged.", "aia-wallet.js wallet: payments are off");
 must(walletUi, ".aia Register when Bridge unlocks", "aia-wallet.js Register when Bridge");
 
 must(packMd, "Selling packs — risk honesty", "PACK.md risk honesty");
