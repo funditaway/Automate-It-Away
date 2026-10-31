@@ -14,20 +14,27 @@ const { spawnSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
 // [name, file, [[find, replace], ...]]. Every find must occur in file; every
-// occurrence is replaced. These three are the status aiaTld trim:
-// bridgeLocked dropped, bridgeLocked forced false, ownedByConnected true.
+// occurrence is replaced.
 const MUTANTS = [
   ["bridgeLocked dropped from status", "api/health.js", [[
-    "    bridgeLocked: row.bridgeLocked === true,\n",
+    "    bridgeLocked: bridgeLockedOf(row),\n",
     ""
   ]]],
   ["bridgeLocked forced to false", "api/health.js", [[
-    "bridgeLocked: row.bridgeLocked === true",
-    "bridgeLocked: false"
+    "return row.bridgeLocked === true;",
+    "return false;"
   ]]],
   ["ownedByConnected true on status", "api/health.js", [[
-    "    bridgeLocked: row.bridgeLocked === true,\n    ownedByConnected: false,\n",
-    "    bridgeLocked: row.bridgeLocked === true,\n    ownedByConnected: true,\n"
+    "    bridgeLocked: bridgeLockedOf(row),\n    ownedByConnected: false,\n",
+    "    bridgeLocked: bridgeLockedOf(row),\n    ownedByConnected: true,\n"
+  ]]],
+  ["owner-only bridgeLocked on status", "api/health.js", [[
+    "    aiaTld: strangerTld(aiaTld),",
+    "    aiaTld: strangerTld(Object.assign({}, aiaTld, { bridgeLocked: !!(person && require(\"./_lib\").isOwner(person)) && aiaTld.bridgeLocked === true })),"
+  ]]],
+  ["plain health hardcodes bridgeLocked false", "api/health.js", [[
+    "block.bridgeLocked = probed.bridgeLocked === true;",
+    "block.bridgeLocked = false;"
   ]]]
 ];
 
