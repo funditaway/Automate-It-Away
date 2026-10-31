@@ -484,6 +484,23 @@
     loading = false;
     loadError = !!me.failed;
     paintCards(visibleCards());
+    return true;
+  }
+
+  // After Try again, put focus somewhere useful instead of on the page body: the Queue heading
+  // when the load worked, or the new Try again button when it failed again.
+  function focusAfterRetry() {
+    var target = null;
+    if (loadError) {
+      var box = document.getElementById("queue-all-cards");
+      target = box && box.querySelector ? box.querySelector("[data-queue-retry]") : null;
+    } else {
+      target = document.querySelector("main h1, h1.page-title");
+      if (target && target.getAttribute && target.getAttribute("tabindex") === null) target.setAttribute("tabindex", "-1");
+    }
+    if (target && typeof target.focus === "function") {
+      try { target.focus(); } catch (e) {}
+    }
   }
 
   // Try again: read the desk list again if that read failed, then the cards.
@@ -499,7 +516,7 @@
       if (mine) desks = fromMine(mine);
       paintPicker();
     }
-    await refreshCards();
+    if (await refreshCards()) focusAfterRetry();
   }
 
   function visibleCards() {

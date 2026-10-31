@@ -59,8 +59,16 @@ function makeEl(tag) {
     return null;
   };
   el.addEventListener = (ev, fn) => { (el.listeners[ev] = el.listeners[ev] || []).push(fn); };
+  el.focus = () => { FOCUS.at = el; };
+  el.querySelector = (sel) => {
+    const m = String(sel).match(/^\[([a-z-]+)\]$/);
+    let f = null;
+    if (m) walk(el, (n) => { if (!f && n !== el && n.getAttribute(m[1]) !== null) f = n; });
+    return f;
+  };
   return el;
 }
+const FOCUS = { at: null }; // the element that last got focus in the current fake page
 function walk(el, fn) { if (!el || !el.tagName) return; fn(el); (el.children || []).forEach((c) => walk(c, fn)); }
 function makeDocument() {
   const documentElement = makeEl("html"), head = makeEl("head"), body = makeEl("body"), main = makeEl("main"), h1 = makeEl("h1");
@@ -95,6 +103,7 @@ async function settle(n) { for (let i = 0; i < (n || 30); i++) await tick(); }
 
 // spec.routes: { mine, all, north, south } -> { status, body } | "network" | "hang" | function returning one of those
 function startPage(src, spec) {
+  FOCUS.at = null;
   const calls = [];
   const timers = [];
   const document = makeDocument();
@@ -152,7 +161,11 @@ function startPage(src, spec) {
       if (b) (nav.listeners.click || []).forEach((fn) => fn({ target: b }));
       return !!b;
     },
-    fireTimers() { timers.splice(0).forEach((t) => t.fn()); }
+    fireTimers() { timers.splice(0).forEach((t) => t.fn()); },
+    focused: () => FOCUS.at,
+    heading: () => document.querySelector("main h1"),
+    find(attr, val) { let f = null; walk(box(), (el) => { if (!f && el.getAttribute(attr) === val) f = el; }); return f; },
+    findText(re) { let f = null; walk(box(), (el) => { if (!f && !el.children.length && re.test(el.text)) f = el; }); return f; }
   };
 }
 const ok200 = (jobs) => ({ status: 200, body: { ok: true, jobs } });
@@ -166,6 +179,8 @@ function showsError(p, bad, label) {
   if (!LOAD_FAILED.test(t)) bad(label + ": no plain error (" + t.trim().slice(0, 80) + ")");
   if (!p.retry() || !/^Try again$/.test(p.retry().textContent)) bad(label + ": no Try again button");
   if (EMPTY.test(t) || /No desks in this Queue yet/.test(t)) bad(label + ": the error reads as empty (" + t.trim().slice(0, 80) + ")");
+  const box = p.find("data-queue-error", "1");
+  if (!box || box.getAttribute("role") !== "alert") bad(label + ": the error box must have role=alert so a screen reader says it");
 }
 
 async function suite(S, okFn) {
@@ -194,6 +209,9 @@ async function suite(S, okFn) {
     const t = p.text();
     if (EMPTY.test(t)) b("hang: shows Nothing waiting while the read is still out");
     if (LOAD_FAILED.test(t)) b("hang: shows the error before the wait is over");
+    const wait = p.findText(/^Loading your Queue/);
+    if (!wait) b("hang: no Loading line while the read is still out");
+    else if (wait.getAttribute("role") !== "status") b("hang: the Loading line must have role=status");
     const waits = p.timers.map((x) => x.ms);
     if (!waits.length) b("hang: no timeout is set on the Queue reads");
     if (waits.some((ms) => !(ms >= WAIT_MIN && ms <= WAIT_MAX))) b("hang: the wait must be " + WAIT_MIN + "–" + WAIT_MAX + " ms, got " + waits.join(","));
@@ -240,6 +258,18 @@ async function suite(S, okFn) {
     if (p.calls.length <= before) b("Try again must run the load again");
     if (!/North Shop card/.test(p.text())) b("after Try again the loaded card must show (" + p.text().trim().slice(0, 80) + ")");
     if (LOAD_FAILED.test(p.text()) || p.retry()) b("after a good Try again the error must be gone");
+    const f = p.focused();
+    if (!f || f !== p.heading()) b("after a good Try again focus must move to the Queue heading (got " + (f ? f.tagName : "nothing / body") + ")");
+    else if (f.getAttribute("tabindex") !== "-1") b("the Queue heading needs tabindex=-1 to take focus");
+  });
+  await run("retry fails again", async () => {
+    const p = startPage(src, { routes: { mine: MINE, all: { status: 500, body: {} }, north: { status: 500, body: {} }, south: { status: 500, body: {} } } });
+    await settle();
+    const btn = p.retry();
+    if (!btn) { b("retry fails again: no Try again button"); return; }
+    p.click(btn); await settle();
+    showsError(p, b, "Try again that fails again");
+    if (!p.focused() || p.focused() !== p.retry()) b("after a Try again that fails again, focus must land on the new Try again button");
   });
   await run("retry desk list", async () => {
     const state = { mine: { status: 500, body: {} } };
@@ -274,6 +304,58 @@ async function suite(S, okFn) {
     if (!/North Shop card/.test(t)) b("stale: the newer North load must stay painted");
     if (/Couldn't load/.test(t)) b("stale: an old failed load painted its error over a newer good one");
   });
+  await run("stale all-desks answer", async () => {
+    // The old All desks read answers 200 after a newer North load: it must not replace North's card.
+    let release;
+    const slow = new Promise((r) => { release = r; });
+    const p = startPage(src, { routes: { mine: MINE, all: () => slow, north: ok200([job(NORTH)]), south: ok200([]) } });
+    await settle();
+    if (!p.pick("north")) { b("stale all-desks answer: no North desk button"); return; }
+    await settle();
+    release(ok200([]));
+    await settle();
+    if (!/North Shop card/.test(p.text())) b("stale all-desks answer: an old 200 replaced the newer North cards (" + p.text().trim().slice(0, 80) + ")");
+  });
+  await run("stale desk-code read", async () => {
+    // Desk-code path: desks=all fails fast with a 403, so the old load reads desk by desk. Its first read
+    // (North) is slow and fails after a newer South load has painted. It must not replace South's card
+    // or paint its error over it.
+    let release;
+    const slow = new Promise((r) => { release = r; });
+    let northReads = 0;
+    let southReads = 0;
+    const p = startPage(src, { routes: {
+      mine: MINE,
+      all: { status: 403, body: { ok: false, error: "Sign in with your account to see every desk." } },
+      north: () => (++northReads === 1 ? slow : ok200([])),
+      south: () => (++southReads === 1 ? ok200([job(SOUTH)]) : ok200([]))
+    } });
+    await settle();
+    if (!p.pick("south")) { b("stale desk-code read: no South desk button"); return; }
+    await settle();
+    if (!/South Shop card/.test(p.text())) { b("stale desk-code read: the newer South load did not paint"); return; }
+    release({ status: 500, body: {} });
+    await settle();
+    const t = p.text();
+    if (!/South Shop card/.test(t)) b("stale desk-code read: an old desk read replaced the newer South cards (" + t.trim().slice(0, 80) + ")");
+    if (/Couldn't load/.test(t)) b("stale desk-code read: an old desk read painted its error over the newer South cards");
+  });
+  await run("stale one-desk read", async () => {
+    // A slow North read finishes (with an error) after the user moved on to South: South's card stays.
+    let release;
+    const slow = new Promise((r) => { release = r; });
+    let northReads = 0;
+    const p = startPage(src, { routes: { mine: MINE, all: ok200([]), north: () => (++northReads === 1 ? slow : ok200([])), south: ok200([job(SOUTH)]) } });
+    await settle();
+    if (!p.pick("north")) { b("stale one-desk read: no North desk button"); return; }
+    await settle();
+    if (!p.pick("south")) { b("stale one-desk read: no South desk button"); return; }
+    await settle();
+    release({ status: 500, body: {} });
+    await settle();
+    const t = p.text();
+    if (!/South Shop card/.test(t) || /Couldn't load/.test(t)) b("stale one-desk read: an old North read painted over the newer South cards (" + t.trim().slice(0, 80) + ")");
+  });
   return bad;
 }
 
@@ -295,6 +377,14 @@ const MUTANTS = [
   ["partial failure hidden", [["    if (loadError) errorState(box, SOME_FAILED);\n", ""]]],
   ["a new deadline after the desk list, so a hang waits twice", [["    var me = load = { failed: false, allFailed: false, signal: firstSignal || waitSignal() };", "    var me = load = { failed: false, allFailed: false, signal: waitSignal() };"]]],
   ["stale-load guard removed", [["if (gen !== loadGen) return;", "/* no guard */"]]],
+  ["stale guard after the all-desks read removed", [["      var all = await readAllDesks();\n      if (gen !== loadGen) return;\n", "      var all = await readAllDesks();\n"]]],
+  ["stale guard after each desk read removed", [["          var part = await jobsForDesk(desks[i]);\n          if (gen !== loadGen) return;\n", "          var part = await jobsForDesk(desks[i]);\n"]]],
+  ["stale guard after the one-desk read removed", [["      next = await jobsForDesk(desk);\n      if (gen !== loadGen) return;\n", "      next = await jobsForDesk(desk);\n"]]],
+  ["error box loses role=alert", [['    wrap.setAttribute("role", "alert");\n', ""]]],
+  ["Loading line loses role=status", [['    p.setAttribute("role", "status");\n', ""]]],
+  ["no focus after Try again", [["    if (await refreshCards()) focusAfterRetry();\n", "    await refreshCards();\n"]]],
+  ["heading not focusable", [['target.setAttribute("tabindex", "-1");', "void 0;"]]],
+  ["focus on the heading even when Try again fails", [["    if (loadError) {\n      var box", "    if (false) {\n      var box"]]],
   ["queue-login.js unreadable", null]
 ];
 function mutate(S, reps) {
