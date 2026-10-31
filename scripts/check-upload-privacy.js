@@ -88,6 +88,29 @@ function publicShape(file) {
 }
 
 async function child() {
+  // blobPath() is crypto.randomUUID() + "-" + 8 random bytes. The name check
+  // below still rejects a 13-digit clock and any desk or file word. Eight
+  // random bytes are 16 hex chars, and about 1 in 200 of those contain 13
+  // decimal digits in a row, so a real clock and a fair roll look the same.
+  // Inject the ids (still UUID v4 + 16 hex, still unique) so that roll cannot
+  // fail a correct name. A clock, a desk, or a filename still fails the same
+  // assertions, because those names never come from these functions.
+  const crypto = require("crypto");
+  let n = 0;
+  crypto.randomUUID = function () {
+    n += 1;
+    const tail = n.toString(16).padStart(12, "b");
+    return "abcdefab-cdef-4abc-8def-" + tail.slice(-12);
+  };
+  crypto.randomBytes = function (size, cb) {
+    n += 1;
+    const buf = Buffer.alloc(size, 0xfa);
+    if (size > 0) buf[0] = 0xb0 + (n & 0x0f);
+    if (size > 1) buf[1] = 0xa0 + ((n >>> 4) & 0x0f);
+    if (typeof cb === "function") { cb(null, buf); return; }
+    return buf;
+  };
+
   const Module = require("module");
   const puts = [];
   const origLoad = Module._load;
@@ -270,8 +293,14 @@ function assertSources() {
 
 async function main() {
   assertSources();
-  const store = path.join(os.tmpdir(), "aia-upload-privacy-" + Date.now() + ".json");
-  const uploadDir = path.join(os.tmpdir(), "aia-upload-privacy-files-" + Date.now());
+  // One private directory per run. A Date.now() name collides when two runs
+  // start in the same millisecond and then share a store.
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "aia-upload-privacy-"));
+  const store = path.join(scratch, "store.json");
+  const uploadDir = path.join(scratch, "files");
+  process.on("exit", function () {
+    try { fs.rmSync(scratch, { recursive: true, force: true }); } catch (e) {}
+  });
   process.env.AIA_STORE_PATH = store;
   process.env.AIA_UPLOAD_DIR = uploadDir;
   delete process.env.VERCEL_ENV;
@@ -547,8 +576,7 @@ async function main() {
   pass("a sender is rate limited and extra POSTs store nothing");
 
   assertBlobChild();
-  try { fs.rmSync(store, { force: true }); } catch (e) {}
-  try { fs.rmSync(uploadDir, { recursive: true, force: true }); } catch (e) {}
+  try { fs.rmSync(scratch, { recursive: true, force: true }); } catch (e) {}
   console.log("check-upload-privacy: ok");
 }
 

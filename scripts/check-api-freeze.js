@@ -13,6 +13,9 @@ require("./_env-guard");
 //   an untracked api/_zz-hidden.js, including when api/.gitignore, a root
 //     .gitignore, or .git/info/exclude would have hidden it
 //   a tracked api file edited in the worktree and not committed
+//   a tracked api file replaced by a symlink to the same bytes
+//   an untracked symlink under api/
+//   a tracked api file whose index mode is 100755
 // A missing base must fail closed. Never pass by default.
 // Usage: node scripts/check-api-freeze.js
 const fs = require("fs");
@@ -246,6 +249,53 @@ try {
       });
     } finally {
       cleanupHidden();
+    }
+  });
+
+  const linkOutside = path.join(os.tmpdir(), "aia-freeze-link-target-" + process.pid);
+  function unlinkIfLink(rel) {
+    const full = path.join(dir, rel);
+    try {
+      if (fs.lstatSync(full).isSymbolicLink()) fs.unlinkSync(full);
+    } catch (e) {}
+  }
+  function cleanupShape() {
+    unlinkIfLink("api/health.js");
+    unlinkIfLink("api/_zz-symlink.js");
+    try { if (fs.existsSync(linkOutside)) fs.unlinkSync(linkOutside); } catch (e) {}
+    restore();
+    try { execFileSync("git", ["update-index", "--chmod=-x", "--", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] }); } catch (e) {}
+  }
+  const shape = [
+    ["tracked symlink", function () {
+      fs.writeFileSync(linkOutside, snap["api/health.js"]);
+      unlinkIfLink("api/health.js");
+      try { fs.unlinkSync(path.join(dir, "api/health.js")); } catch (e) {}
+      fs.symlinkSync(linkOutside, path.join(dir, "api/health.js"));
+      const orig = git(dir, ["rev-parse", "HEAD:api/health.js"]).trim();
+      const hashed = git(dir, ["hash-object", "--", "api/health.js"]).trim();
+      ok(orig === hashed && orig.length === 40, "symlink to identical bytes still hashes as the file");
+    }, "api symlink"],
+    ["untracked symlink", function () {
+      fs.symlinkSync(path.join(dir, "api/health.js"), path.join(dir, "api/_zz-symlink.js"));
+    }, "api symlink"],
+    ["mode 100755", function () {
+      execFileSync("git", ["update-index", "--chmod=+x", "--", "api/health.js"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+      const line = git(dir, ["ls-files", "-s", "--", "api/health.js"]);
+      ok(line.indexOf("100755") === 0, "mode mutant staged 100755");
+    }, "100755"]
+  ];
+  shape.forEach(function (row) {
+    cleanupShape();
+    try {
+      row[1]();
+      const seen = freeze.check(dir);
+      scoreFreeze(row[0], seen, row[2]);
+      CHECKS.forEach(function (rel) {
+        score(row[0], rel, runCheck(dir, rel), row[2]);
+      });
+    } finally {
+      cleanupShape();
     }
   });
 
