@@ -11,10 +11,10 @@ require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
-const BASE = "782cbc0730d55498dde14b3cac8e39f34cb68ae3";
+const BASE = require("./_api-freeze").BASE; // on main; survives a squash-land
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
@@ -184,10 +184,12 @@ function mutate(S, file, reps) {
 function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
   ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
-  let apiDiff = "";
-  try { apiDiff = execSync("git diff --name-only " + BASE + " -- api", { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
-  catch (e) { apiDiff = ""; }
-  ok(apiDiff === "", "no api/ file differs from " + BASE.slice(0, 8) + (apiDiff ? " (" + apiDiff + ")" : ""));
+  // api/ freeze from #434: any git or helper error is a FAIL, never a pass.
+  let freeze;
+  try { freeze = require("./_api-freeze").check(root); }
+  catch (e) { freeze = { ok: false, problems: ["api freeze helper failed: " + ((e && e.message) || e)] }; }
+  if (!freeze || freeze.ok !== true) freeze = { ok: false, base: (freeze && freeze.base) || BASE, problems: (freeze && freeze.problems && freeze.problems.length) ? freeze.problems : ["api freeze gave no answer"] };
+  ok(freeze.ok, "api/ frozen vs " + String(freeze.base || BASE).slice(0, 8) + " (scripts/_api-freeze.js)" + (freeze.ok ? "" : ": " + freeze.problems.join("; ")));
   ok(/check-ux-ab-followup\.js/.test(read("package.json")), "npm test runs check-ux-ab-followup.js");
   ok(!/checkout|charge\(|\/api\/pay|process\.env/i.test(SRC["signin-first.js"] + SRC["desk-nav.css"]), "no pay or checkout wiring");
 }
