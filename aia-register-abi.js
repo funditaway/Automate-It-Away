@@ -364,7 +364,7 @@
       custodial: false,
       charged: false,
       collect: "hold",
-      note: "James signs commit, waits ~60s, then signs register. AIA holds no keys. Collect stays HOLD."
+      note: "You sign the commit, wait about 60 seconds, then sign the registration. AIA holds no keys. Collect stays HOLD."
     };
   }
 

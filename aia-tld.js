@@ -1,10 +1,10 @@
 /* AIA Internet / .aia TLD on Account. Honest lock status + on-desk Register when unlocked.
-   Browser calls approve-registration with the connected owner. James signs every tx. Collect HOLD. */
+   Browser calls approve-registration with the connected owner. The wallet owner signs every tx. Collect HOLD. */
 (function () {
   var REGISTER = "https://dns.decentraweb.org/name/aia";
   var LOCKED = "Bridge locked on Decentraweb — watching. When unlocked, Connect wallet then Register.";
   var READY = "Ready to mint when Bridge clears.";
-  var HOLD = "Collect stays HOLD. AIA holds no keys. James signs mint in MetaMask when Bridge clears.";
+  var HOLD = "Collect stays HOLD. AIA holds no keys. You sign the mint in your own wallet (MetaMask) when the bridge clears.";
   var SAVE_KEY = "aia_tld_register";
   var last = null;
   var busy = false;
@@ -60,7 +60,7 @@
     return "<ol class=\"aia-tld-steps\">" +
       "<li>" + (connected ? "Wallet is connected on Ethereum mainnet." : "Connect a browser wallet on this Account (Ethereum mainnet).") + "</li>" +
       "<li>" + (unlocked ? "Tap Register .aia on this desk." : "When Bridge clears, tap Register .aia on this desk.") + "</li>" +
-      "<li>James signs commit in MetaMask. AIA does not send the tx.</li>" +
+      "<li>You sign the commit in your own wallet (MetaMask). AIA does not send it.</li>" +
       "<li>Wait 60 seconds, then sign register — " + esc("~0.041–0.045 ETH/yr + 10% buffer + gas, or DWEB") + ".</li>" +
       "</ol>";
   }
@@ -160,7 +160,7 @@
     var row = saved() || { status: "idle" };
     row.dweb = !!dweb;
     persist(row);
-    paint({ aiaTld: last }, dweb ? "DWEB path. James still signs every tx." : "ETH path. James still signs every tx.");
+    paint({ aiaTld: last }, dweb ? "DWEB path. You still sign every step in your wallet." : "ETH path. You still sign every step in your wallet.");
     if (row.status === "quoted" || row.status === "idle") startQuote(!!dweb);
   }
 
@@ -244,7 +244,7 @@
         quote: quote,
         at: Date.now()
       });
-      paint({ aiaTld: last }, "Fee before send: " + quote.estimate + ". Tap Sign commit — James signs. AIA does not send.");
+      paint({ aiaTld: last }, "Fee before send: " + quote.estimate + ". Tap Sign commit — you sign in your wallet. AIA does not send.");
     } catch (err) {
       msg((err && err.message) || "Could not quote .aia.");
     } finally {
