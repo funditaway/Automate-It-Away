@@ -120,7 +120,7 @@ if (pkg.indexOf("node scripts/check-queue-login-ui.js") < 0) fail("npm test must
 else ok("npm test runs check-queue-login-ui");
 
 const apiFreeze = require("./_api-freeze").check(root);
-if (apiFreeze.ok) ok("api/ frozen vs " + apiFreeze.base.slice(0, 7) + " (string-only allowlist)");
+if (apiFreeze.ok) ok("api/ frozen vs " + apiFreeze.base.slice(0, 7) + " (blob pin)");
 else apiFreeze.problems.forEach(function (p) { fail(p); });
 
 let before = [];
