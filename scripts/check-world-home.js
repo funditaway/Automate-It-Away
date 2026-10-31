@@ -49,15 +49,17 @@ pages.forEach(function (row) {
   mustNot(hdr, "grandma", name + " header grandma");
   must(html, ">Open desk<", name + " Open desk CTA");
   must(html, ">Talk<", name + " Talk CTA");
-  must(html, ">Give pack<", name + " Give pack CTA");
-  must(html, ">Update pack<", name + " Update pack CTA");
+  must(html, ">Share an add-on<", name + " Share an add-on CTA");
+  must(html, ">Update an add-on<", name + " Update an add-on CTA");
+  mustNot(html, ">Give pack<", name + " Give pack jargon");
   must(html, "drop.html#talk", name + " Talk href");
   must(html, "history.html", name + " Give/Update pack rail");
   must(html, "One AIA account", name + " one-account line");
-  must(html, "Give is the file", name + " Give is the file");
-  must(html, "Update is install again", name + " Update is install again");
-  must(html, "Connect existing wallet", name + " Connect existing wallet");
-  must(html, "Not Wallet.AIA", name + " not Wallet.AIA");
+  must(html, "Sharing sends a file", name + " Sharing sends a file");
+  must(html, "Updating is installing it again", name + " Updating is installing it again");
+  must(html, "crypto wallet", name + " optional crypto wallet");
+  must(html, "AIA never holds your keys", name + " wallet honesty");
+  mustNot(html, "Collect stays HOLD", name + " Collect jargon");
   must(html, "Creators Studio", name + " Creators Studio");
   mustNot(html, "grandma", name + " grandma brand");
   mustNot(html, "Decentraweb", name + " Decentraweb mint lesson");
@@ -79,8 +81,8 @@ pages.forEach(function (row) {
 
 must(index, "On one AIA account", "index one-account section");
 must(index, "More desks", "index more desks");
-must(index, "Collect stays HOLD until Yes + a real money pipe.", "index follow-up Collect HOLD");
-must(index, "Bill due on the card. Collect HOLD until Yes + a real money pipe.", "index Bills Collect HOLD");
+must(index, "One nudge. Then it stops. Payments are off for now.", "index follow-up payments off");
+must(index, "Bill due on the card. Payments are off for now.", "index Bills payments off");
 must(index, "Name your desk", "index doer copy");
 mustNot(index, "Desk AI / bots", "index Desk AI / bots title");
 mustNot(index, "A bot cannot send or pay", "index MVP bot send/pay line");
@@ -102,14 +104,15 @@ must(yesNo, "How lead / Talk / public Drop leftover", "ACCOUNT-YES-NO names How 
 must(packMd, "How lead / Talk / public Drop leftover", "PACK.md names How Yes-or-No leftover");
 must(yesNo, "Create / market / engine / grok leftover", "ACCOUNT-YES-NO names Create Yes-or-No leftover");
 must(packMd, "Create / market / engine / grok leftover", "PACK.md names Create Yes-or-No leftover");
-must(how, "ai.aia", "how names ai.aia door");
-must(how, "not a mint lesson", "how does not teach mint");
+must(how, "Desk AI names stay on this desk.", "how names stay on this desk");
+mustNot(how, "ai.aia is the door", "how ai.aia jargon");
+mustNot(how, "mint", "how does not teach mint");
 mustNot(how, "Send or Stop", "how Send as rail");
 mustNot(how, "until Send", "how until Send");
 
 must(setup, "Add a rule if you need one", "setup doer copy");
-must(setup, "Collect HOLD until Yes + a real money pipe.", "setup Consign HOLD");
-must(setup, "Your MetaMask or WalletConnect", "setup wallet honesty");
+must(setup, "Photo to listing draft. Payments are off for now.", "setup Consign payments off");
+must(setup, "use your own MetaMask or WalletConnect", "setup wallet honesty");
 mustNot(setup, "I will send this once", "setup practice draft assistant-that-sends");
 must(setup, "Draft ready. Copy, text, or email it. AIA does not send.", "setup practice draft Desk AI voice");
 mustNot(setup, "Bots stay crew", "setup MVP bots stay crew");
@@ -182,7 +185,8 @@ mustNot(demoJs, 'label: "AI agent"', "setup-demo AI agent chip");
 must(demoJs, 'label: "Desk AI"', "setup-demo Desk AI chip");
 
 must(playbook, "compact || embed", "playbook hides DNS hold on world embed");
-must(playbook, "not a mint lesson", "playbook world embed does not teach mint");
+must(playbook, "Desk AI names stay on this desk.", "playbook world embed does not teach mint");
+mustNot(playbook.slice(playbook.indexOf("function stepWhat"), playbook.indexOf("function stepWhat") + 400), "mint", "playbook world embed mint word");
 must(playbook, "orange until DNS", "playbook Studio still names ai.aia orange HOLD");
 must(playbook, "www.ai.aia", "playbook Studio still names www.ai.aia");
 

@@ -25,7 +25,7 @@ function paintYou(book) {
   var line = document.getElementById("you-line");
   var input = document.getElementById("you-handle");
   if (title) title.textContent = (book && book.account && book.account.name) || (book && book.you && book.you.name) || "Your account";
-  if (line) line.textContent = handle ? ("AIA Internet name is " + handle) : "AIA Internet uses the .aia TLD — james.aia";
+  if (line) line.textContent = handle ? ("AIA Internet name is " + handle) : "AIA Internet uses the .aia TLD — e.g. yourname.aia";
   if (input && handle) input.value = handle;
 }
 function cardHtml(d, lane) {
