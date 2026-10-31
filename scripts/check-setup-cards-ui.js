@@ -30,6 +30,11 @@ const KILL_REARM = "Kill needs a second tap. Tap Yes, stop for good, or Keep the
 // ---------- small DOM ----------
 function makeDom() {
   const doc = { listeners: {}, readyState: "complete" };
+  // #447: a tiny page view. y is the scroll; a repaint that empties the card list collapses the page for a
+  // moment, so the browser clamps the scroll (y back to 0), as Probe saw (1139 -> 511). A focus without
+  // preventScroll jumps the page too. focus is the focused node (document.activeElement).
+  const view = { y: 0, focus: null };
+  doc.__view = view;
   function El(tag) {
     this.tagName = String(tag).toUpperCase();
     this.attrs = {};
@@ -59,7 +64,7 @@ function makeDom() {
     setAttribute(k, v) { this.attrs[k] = String(v); },
     getAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; },
     appendChild(c) { if (!(c instanceof El)) throw new TypeError("appendChild needs a node"); if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = this; this.childNodes.push(c); return c; },
-    removeChild(c) { this.childNodes = this.childNodes.filter((x) => x !== c); c.parentNode = null; return c; },
+    removeChild(c) { this.childNodes = this.childNodes.filter((x) => x !== c); c.parentNode = null; if (c.classList.contains("setup-card")) view.y = 0; return c; },
     insertBefore(c, ref) { if (c.parentNode) c.parentNode.removeChild(c); const i = this.childNodes.indexOf(ref); c.parentNode = this; if (i < 0) this.childNodes.push(c); else this.childNodes.splice(i, 0, c); return c; },
     replaceChildren() { this.childNodes.forEach((c) => { c.parentNode = null; }); this.childNodes = []; },
     get firstChild() { return this.childNodes[0] || null; },
@@ -78,7 +83,8 @@ function makeDom() {
     closest(sel) { let n = this; while (n) { if (matches(n, sel)) return n; n = n.parentNode; } return null; },
     querySelectorAll(sel) { const out = []; walk(this, (n) => { if (n !== this && matches(n, sel)) out.push(n); }); return out; },
     querySelector(sel) { return this.querySelectorAll(sel)[0] || null; },
-    scrollIntoView() { this.scrolled += 1; }
+    scrollIntoView() { this.scrolled += 1; },
+    focus(o) { if (!(o && o.preventScroll === true)) view.y = 4242; view.focus = this; }
   };
   function matches(n, sel) {
     sel = String(sel).trim();
@@ -106,7 +112,9 @@ function makeDom() {
   doc.querySelectorAll = (s) => html.querySelectorAll(s);
   doc.querySelector = (s) => html.querySelector(s);
   doc.addEventListener = (t, fn) => { (doc.listeners[t] = doc.listeners[t] || []).push(fn); };
-  return { doc, El, walk };
+  Object.defineProperty(doc, "activeElement", { get: () => (view.focus && connected(view.focus) ? view.focus : body) });
+  function connected(n) { while (n) { if (n === html) return true; n = n.parentNode; } return false; }
+  return { doc, El, walk, view, connected };
 }
 
 // ---------- one sandboxed page ----------
@@ -147,6 +155,7 @@ function runPage(src, opts) {
     console: { log() {}, warn() {}, error(e) { errors.push(String(e)); }, info() {} },
     JSON, Object, Array, String, Promise, RegExp, Error, Math, Date
   };
+  Object.defineProperty(win, "pageYOffset", { get: () => dom.view.y });
   win.window = win;
   win.document = doc;
   win.location = loc;
@@ -154,7 +163,12 @@ function runPage(src, opts) {
   ctx.window.setTimeout = ctx.setTimeout;
   vm.createContext(ctx);
   try { vm.runInContext(src, ctx, { filename: "setup-cards.js" }); } catch (e) { errors.push("boot: " + e.message); }
-  return { dom, doc, calls, timers, errors, ctx, api: () => win.AIASetupCards };
+  return { dom, doc, calls, timers, errors, ctx, view: dom.view, api: () => win.AIASetupCards,
+    // Enter or Space on the focused button clicks it, like a browser.
+    press(key) { const f = doc.activeElement; if (f && f.tagName === "BUTTON" && (key === "Enter" || key === " ")) f.click(); },
+    // Every button on a setup card with its spot on screen (cards 400px apart, buttons 50px apart, minus the scroll).
+    spots() { const out = []; articles(doc).forEach((a, i) => buttons(a).forEach((b, j) => out.push({ b, card: a.getAttribute("data-card-id"), y: i * 400 + j * 50 - dom.view.y }))); return out; },
+    isOn: (n) => dom.connected(n) };
 }
 async function flush(n) { for (let i = 0; i < (n || 8); i++) await new Promise((r) => setImmediate(r)); }
 async function drainTimers(page, rounds) {
@@ -399,9 +413,86 @@ async function suite(src, say) {
   await flush();
   t(!!mc() && mc().textContent.indexOf(KILL_REARM) >= 0 && !!btn(mc(), "Yes, stop for good") && !btn(mc(), "Yes, stop for good").disabled && !!btn(mc(), "Keep the card"), "[409 second tap] asks again with Yes, stop for good and Keep the card");
   t(!!mc() && mc().textContent.indexOf("didn't go through") < 0, "[409 second tap] not a dead error");
+  t(!!mc() && M.doc.activeElement === btn(mc(), "Yes, stop for good"), "[409 second tap] focus is back on Yes, stop for good");
   if (mc() && btn(mc(), "Yes, stop for good")) btn(mc(), "Yes, stop for good").click();
   await flush();
   t(mKills === 2 && !mc() && bodyOf(acctCalls(M).slice(-1)[0]).confirm === true, "[409 second tap] the next Yes kills, with confirm:true");
+
+  // #447: arming swaps only this card's buttons in place (no list repaint): the scroll stays, focus goes to
+  // Yes, a double-tap's second tap lands on the same card's Yes, and Keep the card gives focus back to Kill.
+  const killRoute = (hint) => function (url, init) {
+    if (/^\/api\/jobs\?workspace=ann-bakery$/.test(url)) return { status: 200, body: { jobs: [], setupCards: [openCard(), stoppedCard(), doneCard()] } };
+    if (url === "/api/account") {
+      const b = JSON.parse(init.body);
+      if (b.do === "done" && b.stepId === "g1.approve") { const c = openCard(); c.steps[3].state = "done"; return { status: 200, body: { ok: true, card: c, entry: { what: "Approved allowed actions once." } } }; }
+      if (b.do === "kill" && hint) { const c = doneCard(); c.id = b.cardId; c.status = "killed"; return { status: 200, body: { ok: true, changed: false, card: c, hint: hint } }; }
+      if (b.do === "kill") { const c = doneCard(); c.id = b.cardId; c.status = "killed"; return { status: 200, body: { ok: true, changed: true, saved: true, card: c } }; }
+    }
+    return { status: 404, body: {} };
+  };
+  const deskAt = async (hint) => { const P = runPage(src, { location: { pathname: "/desk.html", search: "?workspace=ann-bakery" }, storage: SESSION, build: deskPage, route: killRoute(hint) }); await flush(); pages.push(P); return P; };
+  {
+    const P = await deskAt();
+    P.view.y = 1000;
+    const k0 = btn(cardEl(P.doc, "setup_done3"), "Kill");
+    const at = P.spots().find((x) => x.b === k0);
+    if (k0) k0.click();
+    await flush();
+    const yes = btn(cardEl(P.doc, "setup_done3"), "Yes, stop for good");
+    t(P.view.y === 1000, "[kill tap] arming Kill keeps the scroll (1000 -> " + P.view.y + ")");
+    t(!!yes && P.doc.activeElement === yes, "[kill tap] focus is on Yes, stop for good after the first tap (" + (P.doc.activeElement.textContent || P.doc.activeElement.tagName) + ")");
+    const keepN = btn(cardEl(P.doc, "setup_done3"), "Keep the card");
+    t(!!yes && yes.getAttribute("data-card-id") === "setup_done3" && !!keepN && keepN.getAttribute("data-card-id") === "setup_done3", "[kill tap] Yes and Keep carry their own card id");
+    const hit = at && P.spots().find((x) => x.y === at.y);
+    t(!!hit && hit.b === yes, "[double-tap] the second tap lands on the same card's Yes, stop for good (" + (hit ? hit.card + " " + hit.b.textContent : "nothing") + ")");
+    if (hit) hit.b.click();
+    await flush();
+    const sent = acctCalls(P).map(bodyOf);
+    t(sent.length === 1 && sent.every((x) => x.cardId === "setup_done3") && sent[0].do === "kill", "[double-tap] sends one Kill for its own card, nothing for another card (" + JSON.stringify(sent) + ")");
+  }
+  for (const key of ["Enter", " "]) {
+    const P = await deskAt();
+    P.view.y = 600;
+    const k0 = btn(cardEl(P.doc, "setup_done3"), "Kill");
+    if (k0) k0.focus({ preventScroll: true });
+    P.press(key);
+    await flush();
+    const yes = btn(cardEl(P.doc, "setup_done3"), "Yes, stop for good");
+    const name = key === " " ? "Space" : key;
+    t(!!yes && P.doc.activeElement === yes && P.view.y === 600, "[keys] " + name + " on Kill arms it with focus on Yes, stop for good and the scroll kept (" + (P.doc.activeElement.textContent || P.doc.activeElement.tagName) + ", " + P.view.y + ")");
+    P.press(key);
+    await flush();
+    const sent = acctCalls(P).map(bodyOf);
+    t(sent.length === 1 && sent[0].cardId === "setup_done3" && sent[0].do === "kill" && sent[0].confirm === true, "[keys] " + name + " then " + name + " kills this card (" + JSON.stringify(sent) + ")");
+  }
+  {
+    const P = await deskAt();
+    P.view.y = 800;
+    if (btn(cardEl(P.doc, "setup_stop2"), "Kill")) btn(cardEl(P.doc, "setup_stop2"), "Kill").click();
+    await flush();
+    if (btn(cardEl(P.doc, "setup_stop2"), "Keep the card")) btn(cardEl(P.doc, "setup_stop2"), "Keep the card").click();
+    await flush();
+    const k1 = btn(cardEl(P.doc, "setup_stop2"), "Kill");
+    t(!!k1 && P.doc.activeElement === k1 && P.view.y === 800 && acctCalls(P).length === 0, "[keep] Keep the card gives focus back to Kill, keeps the scroll, sends nothing (" + (P.doc.activeElement.textContent || P.doc.activeElement.tagName) + ", " + P.view.y + ")");
+    // Armed, then another card repaints the list: the armed card still asks.
+    if (k1) k1.click();
+    await flush();
+    const ap = stepEl(cardEl(P.doc, "setup_open1"), "g1.approve");
+    if (ap && btn(ap, "Done")) btn(ap, "Done").click();
+    await flush();
+    const sc = cardEl(P.doc, "setup_stop2");
+    t(!!sc && !!btn(sc, "Yes, stop for good") && !!btn(sc, "Keep the card") && !btn(sc, "Kill") && acctCalls(P).length === 1, "[kill tap] a repaint from another card keeps this card armed (Yes, stop for good and Keep the card)");
+  }
+  {
+    // The api's own words: a card that was already killed elsewhere.
+    const ALREADY = "Already stopped for good. Nothing changed.";
+    const P = await deskAt(ALREADY);
+    if (btn(cardEl(P.doc, "setup_done3"), "Kill")) btn(cardEl(P.doc, "setup_done3"), "Kill").click();
+    await flush();
+    if (btn(cardEl(P.doc, "setup_done3"), "Yes, stop for good")) btn(cardEl(P.doc, "setup_done3"), "Yes, stop for good").click();
+    await flush();
+    t(read("api/_account-connect.js").indexOf('hint: "' + ALREADY + '"') >= 0 && P.doc.body.textContent.indexOf(ALREADY) >= 0 && P.doc.body.textContent.indexOf(GONE_API) < 0, "[hint] the desk shows the api's hint word for word: " + ALREADY);
+  }
 
   // B: 409 on a secret step
   const B = runPage(src, {
@@ -593,23 +684,32 @@ const MUTANTS = [
   ["render killed cards", [["function liveCard(c) { return c && c.id && c.status !== \"killed\"; }", "function liveCard(c) { return c && c.id; }"]]],
   ["missing href", [["    a.href = hrefOf(card);\n    row.appendChild(a);", "    row.appendChild(a);"]]],
   ["retry loop on 409", [["      waiting[card.id + \"|\" + st.id] = true;", "      setTimeout(function () { act(card, st, \"done\"); }, 2000);\n      waiting[card.id + \"|\" + st.id] = true;"]]],
-  ["show run-on-its-own", [["    row.appendChild(button(\"Stop\",", "    row.appendChild(button(\"Let it run on its own\", \"setup-auto\", function () {}));\n    row.appendChild(button(\"Stop\","]]],
+  ["show run-on-its-own", [["    var stopB = row.appendChild(button(\"Stop\",", "    row.appendChild(button(\"Let it run on its own\", \"setup-auto\", function () {}));\n    var stopB = row.appendChild(button(\"Stop\","]]],
   ["leak 403 error", [
     ["  var root = null;", "  var root = null;\n  var leak = \"\";"],
     ["      if (!r.ok) return [];", "      if (!r.ok) return r.json().then(function (d) { leak = d.error || \"Something went wrong.\"; return []; });"],
     ["    if (!live.length && !said.__top) { box.hidden = true; return; }", "    if (leak) { box.hidden = false; box.appendChild(el(\"p\", \"setup-say\", leak)); return; }\n    if (!live.length && !said.__top) { box.hidden = true; return; }"]
   ]],
   ["ignore setupCard", [["    var card = data && data.setupCard;", "    var card = null;"]]],
-  ["no Stop button", [["    row.appendChild(button(\"Stop\", \"setup-stop\", function (b) { act(card, null, \"stop\", b); }));\n", ""]]],
-  ["no Kill button", [["    row.appendChild(button(armed[card.id] ? KILL_YES : \"Kill\", \"setup-kill\", function (b) { act(card, null, \"kill\", b); }));\n", ""]]],
-  ["Kill in one tap", [["    if (verb === \"kill\" && !armed[card.id]) { armed[card.id] = true; said[card.id] = KILL_ASK; paint(); return Promise.resolve(null); }\n", ""]]],
-  ["armed Kill has no confirm label", [["button(armed[card.id] ? KILL_YES : \"Kill\",", "button(\"Kill\","]]],
-  ["Keep the card does not cancel", [["function () { delete armed[card.id]; said[card.id] = \"\"; paint(); }", "function () {}"]]],
-  ["no Keep the card", [["    if (armed[card.id]) row.appendChild(button(KILL_KEEP,", "    if (false) row.appendChild(button(KILL_KEEP,"]]],
+  ["no Stop button", [["var stopB = row.appendChild(button(\"Stop\", \"setup-stop\", function (b) { act(card, null, \"stop\", b); }));", "var stopB = button(\"Stop\", \"setup-stop\", function (b) { act(card, null, \"stop\", b); });"]]],
+  ["no Kill button", [["var killB = row.appendChild(button(armed[card.id] ? KILL_YES : \"Kill\", \"setup-kill\", function (b) { act(card, null, \"kill\", b); }));", "var killB = button(armed[card.id] ? KILL_YES : \"Kill\", \"setup-kill\", function (b) { act(card, null, \"kill\", b); });"]]],
+  ["Kill in one tap", [["    if (verb === \"kill\" && !armed[card.id]) { arm(card, true, KILL_ASK); return Promise.resolve(null); }\n", ""]]],
+  ["armed Kill has no confirm label", [["    p.kill.textContent = on ? KILL_YES : \"Kill\";", "    p.kill.textContent = \"Kill\";"]]],
+  ["armed Kill loses its label on a repaint", [["button(armed[card.id] ? KILL_YES : \"Kill\",", "button(\"Kill\","]]],
+  ["Keep the card does not cancel", [["function () { if (armed[card.id]) arm(card, false, \"\"); }", "function () {}"]]],
+  ["no Keep the card", [["    if (on && !p.keep) {", "    if (false) {"]]],
+  ["Keep the card lost on a repaint", [["var keepB = armed[card.id] ? row.appendChild(keepButton(card)) : null;", "var keepB = null;"]]],
+  ["#447 arming repaints the whole list", [["    if (!p || !p.kill || !p.kill.parentNode) { paint(); return; }", "    paint(); return;"]]],
+  ["#447 arming leaves focus where it was", [["    if (p.kill.focus) p.kill.focus({ preventScroll: true });\n", ""]]],
+  ["#447 arming focus scrolls the page", [["p.kill.focus({ preventScroll: true })", "p.kill.focus()"]]],
+  ["#447 Keep the card repaints the list", [["function () { if (armed[card.id]) arm(card, false, \"\"); }", "function () { delete armed[card.id]; said[card.id] = \"\"; paint(); }"]]],
+  ["#447 Keep and Yes lose their card id", [["    k.setAttribute(\"data-card-id\", card.id);\n", ""], ["    killB.setAttribute(\"data-card-id\", card.id);\n", ""]]],
+  ["#447 409 asks again by repainting the list", [["{ arm(card, true, KILL_REARM); return x; }", "{ armed[card.id] = true; said[card.id] = KILL_REARM; paint(); return x; }"]]],
+  ["desk ignores the api's hint", [["if (next.status === \"killed\") said.__top = hint || GONE;", "if (next.status === \"killed\") said.__top = GONE;"]]],
   ["Stop leaves Kill armed", [["    if (armed[card.id]) { delete armed[card.id]; if (said[card.id] === KILL_ASK) said[card.id] = \"\"; }\n", ""]]],
   ["second tap sends no confirm", [["    if (verb === \"kill\") body.confirm = true;\n", ""]]],
   ["confirm sent as a string", [["    if (verb === \"kill\") body.confirm = true;", "    if (verb === \"kill\") body.confirm = \"yes\";"]]],
-  ["409 second tap shown as a dead error", [["      if (verb === \"kill\" && x.status === 409 && x.d && x.d.error === KILL_AGAIN) { armed[card.id] = true; said[card.id] = KILL_REARM; paint(); return x; }\n", ""]]],
+  ["409 second tap shown as a dead error", [["      if (verb === \"kill\" && x.status === 409 && x.d && x.d.error === KILL_AGAIN) { arm(card, true, KILL_REARM); return x; }\n", ""]]],
   ["killed line back to Killed", [["  var GONE = \"Stopped for good. Nothing more happens on this card.\";", "  var GONE = \"Killed. Nothing more happens on that card.\";"]]],
   ["Stop and Kill only on open cards", [["    // Stop and Kill: on every card", "    if (card.status !== \"open\") { box.appendChild(row); return box; }\n    // Stop and Kill: on every card"]]],
   ["409 crashes", [["    if (x.status === 409 && st && (st.kind === \"secret\" || (x.d && x.d.secretsReady === false))) {", "    if (x.status === 409 && st && (st.kind === \"secret\" || (x.d && x.d.secretsReady === false))) {\n      throw new Error(x.d.error);"]]],

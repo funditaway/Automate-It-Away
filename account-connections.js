@@ -21,7 +21,7 @@
   var PREVIEW = "Preview, nothing is charged.";
   // Word for word what api/_account-connect.js says about a killed card.
   var GONE = "Stopped for good. Nothing more happens on this card.";
-  var GONE_ALREADY = "This card was already stopped for good. Nothing changed.";
+  var GONE_ALREADY = "Already stopped for good. Nothing changed.";
   var KILL_ASK = "Stop for good? Nothing more happens on this card.";
   var KILL_YES = "Yes, stop for good";
   var KILL_KEEP = "Keep the card";
@@ -29,7 +29,7 @@
   var KILL_AGAIN = "Kill needs a second tap.";
   var KILL_REARM = "Kill needs a second tap. Tap Yes, stop for good, or Keep the card.";
 
-  var conns = [], cards = [], desks = [], note = "", open = {}, said = {}, hints = {}, armed = {};
+  var conns = [], cards = [], desks = [], note = "", open = {}, said = {}, hints = {}, armed = {}, parts = {};
   var connBox = null, connHint = null, cardBox = null, cardHint = null;
 
   function ls(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
@@ -333,16 +333,19 @@
     stopB.type = "button";
     var killB = el("button", "edit acct-kill", armed[card.id] ? KILL_YES : "Kill");
     killB.type = "button";
+    stopB.setAttribute("data-card-id", card.id);
+    killB.setAttribute("data-card-id", card.id);
+    var keepB = null, openB = null;
     var halt = function (verb) {
       // Kill asks first, like Stop on the Queue: the first tap only arms it.
-      if (verb === "kill" && !armed[card.id]) { armed[card.id] = true; said[card.id] = KILL_ASK; paintCards(); return; }
+      if (verb === "kill" && !armed[card.id]) { arm(card, true, KILL_ASK); return; }
       if (armed[card.id]) { delete armed[card.id]; said[card.id] = ""; paintCards(); }
       // A Stop or Kill that did not save (503 while the store guard is up, any refusal, or
       // saved:false) never paints the card as stopped or killed; the buttons stay live to try again.
       var body = { action: "setup-step", cardId: card.id, do: verb };
       if (verb === "kill") body.confirm = true;
       post(body, say, null).then(function (x) {
-        if (verb === "kill" && !x.ok && x.d && x.d.error === KILL_AGAIN) { armed[card.id] = true; said[card.id] = KILL_REARM; paintCards(); return; }
+        if (verb === "kill" && !x.ok && x.d && x.d.error === KILL_AGAIN) { arm(card, true, KILL_REARM); return; }
         if (!x.ok || x.d.saved === false) { say(verb === "stop" ? "Stop didn't save. Try again in a moment." : "Kill didn't save. Try again in a moment."); return; }
         var dead = !!(x.d.card && x.d.card.status === "killed");
         var line = verb === "stop" ? "Stopped." : GONE;
@@ -356,10 +359,11 @@
     if (!gone) {
       always.appendChild(stopB);
       always.appendChild(killB);
-      if (armed[card.id]) always.appendChild(button(KILL_KEEP, "edit", function () { delete armed[card.id]; said[card.id] = ""; paintCards(); }));
+      if (armed[card.id]) keepB = always.appendChild(keepButton(card));
     }
+    var startB = null;
     if (card.status === "stopped") {
-      var startB = button("Start again", "edit", function () {
+      startB = button("Start again", "edit", function () {
         post({ action: "setup-step", cardId: card.id, do: "start" }, say, startB).then(function (x) {
           if (!x.ok) return;
           say("Started again.");
@@ -369,9 +373,10 @@
       always.appendChild(startB);
     }
     var isOpen = !!open[card.id];
-    always.appendChild(button(isOpen ? "Close" : "Open", "edit", function () { open[card.id] = !isOpen; paintCards(); }));
+    openB = always.appendChild(button(isOpen ? "Close" : "Open", "edit", function () { open[card.id] = !isOpen; paintCards(); }));
     box.appendChild(always);
     box.appendChild(hint);
+    if (!gone) parts[card.id] = { row: always, kill: killB, keep: keepB, next: startB || openB };
     if (!isOpen) return box;
 
     var steps = Array.isArray(card.steps) ? card.steps : [];
@@ -402,9 +407,30 @@
     return box;
   }
 
+  // Arming (and Keep the card) swaps only this card's Kill / Keep buttons and its line, in place: no list
+  // repaint, so the page does not move and no other card's button slides under the finger. Focus goes to
+  // the button the next tap or Enter should hit: Yes, stop for good when armed, Kill again after Keep.
+  function arm(card, on, line) {
+    var p = parts[card.id];
+    if (on) armed[card.id] = true; else delete armed[card.id];
+    said[card.id] = line;
+    if (!p) { paintCards(); return; }
+    p.kill.textContent = on ? KILL_YES : "Kill";
+    p.kill.disabled = false;
+    if (on && !p.keep) { p.keep = keepButton(card); p.row.insertBefore(p.keep, p.next); }
+    if (!on && p.keep) { p.row.removeChild(p.keep); p.keep = null; }
+    if (hints[card.id]) hints[card.id].textContent = line;
+    if (p.kill.focus) p.kill.focus({ preventScroll: true });
+  }
+  function keepButton(card) {
+    var k = button(KILL_KEEP, "edit acct-keep", function () { if (armed[card.id]) arm(card, false, ""); });
+    k.setAttribute("data-card-id", card.id);
+    return k;
+  }
   function paintCards() {
     if (!cardBox) return;
     clear(cardBox);
+    parts = {};
     if (!cards.length) cardBox.appendChild(el("p", "meta", "No setup cards yet. Saving a service above makes one."));
     cards.forEach(function (c) { if (c && c.id) cardBox.appendChild(paintCard(c)); });
   }

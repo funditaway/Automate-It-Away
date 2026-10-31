@@ -29,7 +29,8 @@ function killedBits(src) {
 const KILLED_FROM_API = killedBits(CONNECT_SRC);
 const KILL_ASK = "Stop for good? Nothing more happens on this card.";
 const KILL_YES = "Yes, stop for good";
-const GONE_ALREADY = "This card was already stopped for good. Nothing changed.";
+// The api's own words for a card that was already stopped for good (api/_account-connect.js), byte for byte.
+const GONE_ALREADY = (CONNECT_SRC.match(/changed: false, card: publicCard\(card\), hint: "([^"]+)"/) || [])[1] || "";
 const KILL_AGAIN = "Kill needs a second tap.";
 const KILL_REARM = "Kill needs a second tap. Tap Yes, stop for good, or Keep the card.";
 // Fake apis for Kill (U2 needs Switch's allowlist PR on main first; nothing here hits the real api):
@@ -50,7 +51,10 @@ function makeEl(tag) {
     type: "", name: "", value: "", checked: false, selected: false, maxLength: -1, handlers: {},
     setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
     appendChild(c) { if (!c || !c.tagName) throw new TypeError("appendChild needs a node"); c.parentNode = this; this.parts.push(c); return c; },
-    removeChild(c) { this.parts = this.parts.filter((p) => p !== c); return c; },
+    removeChild(c) { this.parts = this.parts.filter((p) => p !== c); c.parentNode = null; if (c.className === "acct-setup-card" && this.__view) this.__view.y = 0; return c; },
+    insertBefore(c, ref) { if (!c || !c.tagName) throw new TypeError("insertBefore needs a node"); const i = this.parts.indexOf(ref); c.parentNode = this; if (i < 0) this.parts.push(c); else this.parts.splice(i, 0, c); return c; },
+    // #447 view: a focus without preventScroll jumps the page; the focused node is document.activeElement.
+    focus(o) { if (!this.__view) return; if (!(o && o.preventScroll === true)) this.__view.y = 4242; this.__view.focus = this; },
     addEventListener(ev, fn) { (this.handlers[ev] = this.handlers[ev] || []).push(fn); },
     fire(ev) { (this.handlers[ev] || []).forEach((fn) => fn({ target: this })); },
     querySelector() { return null; },
@@ -135,11 +139,17 @@ function settings() { return { ok: true, settings: { desks: { available: true, i
 function world(opts) {
   opts = opts || {};
   innerHTMLUsed = 0;
-  const mount = makeEl("section"); mount.id = "acct-connections"; mount.hidden = true;
+  // #447: a tiny page view. y is the scroll; a repaint that empties the card list collapses the page for a
+  // moment, so the browser clamps the scroll (y back to 0), as Probe saw. focus is document.activeElement.
+  const view = { y: 0, focus: null };
+  const mk = (t) => { const e = makeEl(t); e.__view = view; return e; };
+  const mount = mk("section"); mount.id = "acct-connections"; mount.hidden = true;
   const store = Object.assign({}, opts.storage || {});
   const sess = {};
   const calls = [], logs = [], held = [];
-  const document = { getElementById(id) { return id === "acct-connections" ? mount : null; }, createElement: makeEl };
+  const document = { getElementById(id) { return id === "acct-connections" ? mount : null; }, createElement: mk };
+  const onPage = (n) => { while (n) { if (n === mount) return true; n = n.parentNode; } return false; };
+  Object.defineProperty(document, "activeElement", { get: () => (view.focus && onPage(view.focus) ? view.focus : { tagName: "body", textContent: "" }) });
   const logger = {};
   ["log", "info", "warn", "error", "debug"].forEach((k) => { logger[k] = function () { logs.push(Array.prototype.join.call(arguments, " ")); }; });
   const ctx = {
@@ -159,9 +169,14 @@ function world(opts) {
     }
   };
   ctx.window = ctx;
+  Object.defineProperty(ctx, "pageYOffset", { get: () => view.y });
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx, { filename: "account-connections.js" });
-  return { ctx, mount, calls, store, sess, logs, held, posts: () => calls.filter((c) => c.body), last: () => calls.filter((c) => c.body).slice(-1)[0] };
+  return { ctx, mount, view,
+    // Enter or Space on the focused button clicks it, like a browser.
+    press(key) { const f = document.activeElement; if (f.tagName === "button" && (key === "Enter" || key === " ")) f.fire("click"); },
+    // Every button on a setup card with its spot on screen (cards 400px apart, buttons 50px apart, minus the scroll).
+    spots() { const out = []; find(mount, (n) => n.className === "acct-setup-card").forEach((c, i) => find(c, (n) => n.tagName === "button").forEach((b, j) => out.push({ b, card: c.id, y: i * 400 + j * 50 - view.y }))); return out; }, calls, store, sess, logs, held, posts: () => calls.filter((c) => c.body), last: () => calls.filter((c) => c.body).slice(-1)[0] };
 }
 const SIGNED = { aia_ws: "aia", aia_session: "tok123" };
 function happy(over) {
@@ -560,6 +575,56 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     buttons(cardBox(w, "setup_bun"), KILL_YES)[0].fire("click"); await settle();
     ok(kills() === 1 && w.last().body.cardId === "setup_bun" && w.last().body.confirm === true, "the second tap kills, with confirm:true");
   }
+  // #447: arming swaps only this card's buttons in place (no list repaint): the scroll stays, focus goes to
+  // Yes, a double-tap's second tap lands on the same card's Yes, and Keep the card gives focus back to Kill.
+  {
+    const w = world({ storage: SIGNED, reply: happy() });
+    await settle();
+    w.view.y = 1000;
+    const k0 = buttons(cardBox(w, "setup_stp"), "Kill")[0];
+    const at = w.spots().find((x) => x.b === k0);
+    k0.fire("click"); await settle();
+    const b = cardBox(w, "setup_stp");
+    const yes = buttons(b, KILL_YES)[0], keep = buttons(b, "Keep the card")[0];
+    const f = w.ctx.document.activeElement;
+    ok(w.view.y === 1000, "#447 arming Kill keeps the scroll (1000 -> " + w.view.y + ")");
+    ok(!!yes && f === yes, "#447 focus is on Yes, stop for good after the first tap (" + f.textContent + ")");
+    ok(!!yes && !!keep && yes.getAttribute("data-card-id") === "setup_stp" && keep.getAttribute("data-card-id") === "setup_stp", "#447 Yes and Keep carry their own card id");
+    const hit = at && w.spots().find((x) => x.y === at.y);
+    ok(!!hit && hit.b === yes, "#447 a double-tap's second tap lands on the same card's Yes (" + (hit ? hit.card + " " + hit.b.textContent : "nothing") + ")");
+    if (hit) { hit.b.fire("click"); await settle(); }
+    const sent = w.posts().filter((c) => c.body.action === "setup-step").map((c) => c.body);
+    ok(sent.length === 1 && sent[0].cardId === "setup_stp" && sent[0].do === "kill", "#447 a double-tap sends one Kill for its own card, nothing for another card (" + JSON.stringify(sent) + ")");
+  }
+  for (const key of ["Enter", " "]) {
+    const name = key === " " ? "Space" : key;
+    const w = world({ storage: SIGNED, reply: happy() });
+    await settle();
+    w.view.y = 600;
+    buttons(cardBox(w, "setup_mid"), "Kill")[0].focus({ preventScroll: true });
+    w.press(key); await settle();
+    const yes = buttons(cardBox(w, "setup_mid"), KILL_YES)[0];
+    const f = w.ctx.document.activeElement;
+    ok(!!yes && f === yes && w.view.y === 600, "#447 " + name + " on Kill arms it with focus on Yes, stop for good and the scroll kept (" + f.textContent + ", " + w.view.y + ")");
+    w.press(key); await settle();
+    const ks = w.posts().filter((c) => c.body.action === "setup-step").map((c) => c.body);
+    ok(ks.length === 1 && ks[0].cardId === "setup_mid" && ks[0].do === "kill" && ks[0].confirm === true, "#447 " + name + " then " + name + " kills this card (" + JSON.stringify(ks) + ")");
+  }
+  {
+    const w = world({ storage: SIGNED, reply: happy() });
+    await settle();
+    w.view.y = 800;
+    buttons(cardBox(w, "setup_bun"), "Kill")[0].fire("click"); await settle();
+    buttons(cardBox(w, "setup_bun"), "Keep the card")[0].fire("click"); await settle();
+    const k1 = buttons(cardBox(w, "setup_bun"), "Kill")[0];
+    const f = w.ctx.document.activeElement;
+    ok(!!k1 && f === k1 && w.view.y === 800 && w.posts().filter((c) => c.body.action === "setup-step").length === 0, "#447 Keep the card gives focus back to Kill, keeps the scroll, sends nothing (" + f.textContent + ", " + w.view.y + ")");
+    // Armed, then another card repaints the list (Open): the armed card still asks.
+    k1.fire("click"); await settle();
+    await openCard(w, "setup_mid");
+    const b = cardBox(w, "setup_bun");
+    ok(buttons(b, KILL_YES).length === 1 && buttons(b, "Keep the card").length === 1 && buttons(b, "Kill").length === 0, "#447 a repaint from another card keeps this card armed (Yes, stop for good and Keep the card)");
+  }
   // Enforcing api: the second tap carries confirm:true, so it kills; nothing goes out on the first.
   {
     const w = world({ storage: SIGNED, reply: enforcingApi() });
@@ -583,13 +648,16 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     const st = find(b, (n2) => n2.getAttribute("role") === "status")[0];
     ok(st && st.textContent === KILL_REARM, "409 Kill needs a second tap: asks again (" + (st && st.textContent) + ")");
     ok(buttons(b, KILL_YES).length === 1 && !buttons(b, KILL_YES)[0].disabled && buttons(b, "Keep the card").length === 1 && b.textContent.indexOf("Kill didn't save") < 0, "409 Kill needs a second tap: Yes, stop for good and Keep the card, not a dead error");
+    ok(w.ctx.document.activeElement === buttons(b, KILL_YES)[0], "#447 409 Kill needs a second tap: focus is back on Yes, stop for good");
     buttons(b, KILL_YES)[0].fire("click"); await settle();
     b = cardBox(w, "setup_mid");
     ok(n === 2 && w.last().body.confirm === true && find(b, (n2) => n2.getAttribute("role") === "status")[0].textContent === KILLED_PLAIN, "409 Kill needs a second tap: the next Yes kills");
   }
-  for (const verb of ["stop", "kill"]) {
-    // The page still shows a live card, but it was killed elsewhere: the server answers 200 changed:false.
-    const already = (b) => { if (b.do !== verb) return null; const c = cardBlocked(); c.id = b.cardId; return { status: 200, data: { ok: true, changed: false, card: c } }; };
+  ok(GONE_ALREADY === "Already stopped for good. Nothing changed." && SRC.indexOf('var GONE_ALREADY = "' + GONE_ALREADY + '";') >= 0, "the page's already-killed line is the api's own hint, byte for byte: " + GONE_ALREADY);
+  for (const [verb, withHint] of [["stop", true], ["kill", true], ["stop", false], ["kill", false]]) {
+    // The page still shows a live card, but it was killed elsewhere: the server answers 200 changed:false,
+    // with its real hint (and, to test the page's own fallback, once without it).
+    const already = (b) => { if (b.do !== verb) return null; const c = cardBlocked(); c.id = b.cardId; return { status: 200, data: Object.assign({ ok: true, changed: false, card: c }, withHint ? { hint: GONE_ALREADY } : {}) }; };
     const w = world({ storage: SIGNED, reply: happy({ "setup-step": already }) });
     await settle();
     if (verb === "kill") await killTwice(w, "setup_mid");
@@ -626,16 +694,25 @@ const MONEY = /^(buy|pay|price|checkout|charge|purchase|payment|amount|cost)$/i;
     ["Stop shown on a killed card", A, swap("    if (!gone) {\n      always.appendChild(stopB);", "    always.appendChild(stopB);\n    if (!gone) {"), /no live Stop or Kill/],
     ["Stop on a killed card says Stopped.", A, swap("        if (dead) line = x.d.changed === false ? GONE_ALREADY : GONE;\n", ""), /on a killed card/],
     ["already killed reads as a fresh kill", A, swap("x.d.changed === false ? GONE_ALREADY : GONE", "GONE"), /on a killed card says/],
-    ["Kill in one tap", A, swap("      if (verb === \"kill\" && !armed[card.id]) { armed[card.id] = true; said[card.id] = KILL_ASK; paintCards(); return; }\n", ""), /one tap on Kill sends nothing|Yes, stop for good/],
-    ["armed Kill has no confirm label", A, swap('armed[card.id] ? KILL_YES : "Kill"', '"Kill"'), /Yes, stop for good/],
-    ["no Keep the card", A, swap("      if (armed[card.id]) always.appendChild(button(KILL_KEEP,", "      if (false) always.appendChild(button(KILL_KEEP,"), /Keep the card/],
-    ["Keep the card does not cancel", A, swap('button(KILL_KEEP, "edit", function () { delete armed[card.id]; said[card.id] = ""; paintCards(); })', 'button(KILL_KEEP, "edit", function () {})'), /Keep the card cancels/],
+    ["Kill in one tap", A, swap("      if (verb === \"kill\" && !armed[card.id]) { arm(card, true, KILL_ASK); return; }\n", ""), /one tap on Kill sends nothing|Yes, stop for good/],
+    ["armed Kill has no confirm label", A, swap('    p.kill.textContent = on ? KILL_YES : "Kill";', '    p.kill.textContent = "Kill";'), /Yes, stop for good/],
+    ["armed Kill loses its label on a repaint", A, swap('armed[card.id] ? KILL_YES : "Kill"', '"Kill"'), /keeps this card armed/],
+    ["no Keep the card", A, swap("    if (on && !p.keep) {", "    if (false) {"), /Keep the card/],
+    ["Keep the card lost on a repaint", A, swap("      if (armed[card.id]) keepB = always.appendChild(keepButton(card));", "      if (false) keepB = always.appendChild(keepButton(card));"), /keeps this card armed/],
+    ["Keep the card does not cancel", A, swap('function () { if (armed[card.id]) arm(card, false, ""); }', "function () {}"), /Keep the card cancels/],
+    ["#447 arming repaints the whole list", A, swap("    if (!p) { paintCards(); return; }", "    paintCards(); return;"), /#447 arming Kill keeps the scroll/],
+    ["#447 arming leaves focus where it was", A, swap("    if (p.kill.focus) p.kill.focus({ preventScroll: true });\n", ""), /#447 focus is on Yes/],
+    ["#447 arming focus scrolls the page", A, swap("p.kill.focus({ preventScroll: true })", "p.kill.focus()"), /#447 arming Kill keeps the scroll/],
+    ["#447 Keep the card repaints the list", A, swap('function () { if (armed[card.id]) arm(card, false, ""); }', 'function () { delete armed[card.id]; said[card.id] = ""; paintCards(); }'), /#447 Keep the card gives focus back to Kill/],
+    ["#447 Keep and Yes lose their card id", A, swap('    k.setAttribute("data-card-id", card.id);\n', ""), /#447 Yes and Keep carry their own card id/],
+    ["#447 409 asks again by repainting the list", A, swap("{ arm(card, true, KILL_REARM); return; }", "{ armed[card.id] = true; said[card.id] = KILL_REARM; paintCards(); return; }"), /#447 409 Kill needs a second tap: focus/],
+    ["already-killed fallback not the api's words", A, swap('var GONE_ALREADY = "Already stopped for good. Nothing changed.";', 'var GONE_ALREADY = "This card was already stopped for good. Nothing changed.";'), /api's own hint|on a killed card says/],
     ["Stop leaves Kill armed", A, swap('      if (armed[card.id]) { delete armed[card.id]; said[card.id] = ""; paintCards(); }\n', ""), /disarms|stay live to try again/],
     ["second tap sends no confirm", A, swap('      if (verb === "kill") body.confirm = true;\n', ""), /confirm:true/],
-    ["confirm sent on the first tap", A, swap("armed[card.id] = true; said[card.id] = KILL_ASK; paintCards(); return; }", "armed[card.id] = true; said[card.id] = KILL_ASK; paintCards(); post({ action: \"setup-step\", cardId: card.id, do: \"kill\", confirm: true }, null, null); return; }"), /first tap sends|one tap on Kill sends nothing/],
+    ["confirm sent on the first tap", A, swap("{ arm(card, true, KILL_ASK); return; }", "{ arm(card, true, KILL_ASK); post({ action: \"setup-step\", cardId: card.id, do: \"kill\", confirm: true }, null, null); return; }"), /first tap sends|one tap on Kill sends nothing/],
     ["confirm sent as a string", A, swap("      if (verb === \"kill\") body.confirm = true;", "      if (verb === \"kill\") body.confirm = \"yes\";"), /confirm:true/],
-    ["409 second tap shown as a dead error", A, swap("        if (verb === \"kill\" && !x.ok && x.d && x.d.error === KILL_AGAIN) { armed[card.id] = true; said[card.id] = KILL_REARM; paintCards(); return; }\n", ""), /Kill needs a second tap/],
-    ["the first tap does not ask", A, swap("armed[card.id] = true; said[card.id] = KILL_ASK;", "armed[card.id] = true;"), /asks/],
+    ["409 second tap shown as a dead error", A, swap("        if (verb === \"kill\" && !x.ok && x.d && x.d.error === KILL_AGAIN) { arm(card, true, KILL_REARM); return; }\n", ""), /Kill needs a second tap/],
+    ["the first tap does not ask", A, swap("arm(card, true, KILL_ASK); return; }", "arm(card, true, \"\"); return; }"), /asks/],
     ["not in npm test", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js", " && node scripts/check-ux-errors.js"), /npm test runs check-account-connections-ui/],
     ["in npm test but after check-ux-errors", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js", " && node scripts/check-ux-errors.js && node scripts/check-account-connections-ui.js"), /npm test runs check-account-connections-ui/],
     ["in npm test twice", "package.json", swap(" && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js", " && node scripts/check-account-connections-ui.js && node scripts/check-account-connections-ui.js && node scripts/check-ux-errors.js"), /npm test runs check-account-connections-ui/]
