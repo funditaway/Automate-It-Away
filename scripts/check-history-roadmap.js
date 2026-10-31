@@ -59,14 +59,14 @@ const packsSrc = read("api/_packs.js");
   "function paintRoad",
   "function givePack",
   "function postAia",
-  "Give pack",
-  "Update pack",
-  "Install pack",
+  "Give a Pack",
+  "Update a Pack",
+  "Install a Pack",
   "install-aia",
   "download-pack",
-  "Give pack downloads the file",
+  "Give a Pack downloads the file",
   "They install with Yes",
-  "Update pack installs it again with Yes",
+  "Update a Pack installs it again with Yes",
   "Give is the file",
   "Update is install again",
   "Nothing sends until you tap Yes"
@@ -209,7 +209,7 @@ if (!paintSrc) {
   } else if (html.indexOf("Shop &lt;desk&gt;") < 0 || html.indexOf("Insurance &lt;pack&gt;") < 0) {
     fail("roadHtml desk / pack must stay text, got " + html);
   } else pass("roadHtml desk / pack stay text");
-  if (html.indexOf("Give pack") < 0 || html.indexOf("Update pack") < 0) fail("roadHtml must name give / update");
+  if (html.indexOf("Give a Pack") < 0 || html.indexOf("Update a Pack") < 0) fail("roadHtml must name give / update");
   else pass("roadHtml names give / update");
   if (html.indexOf("data-road=\"install\"") < 0 || html.indexOf("data-road=\"give\"") < 0 || html.indexOf("data-road=\"update\"") < 0) {
     fail("roadHtml must keep install / give / update taps");
@@ -220,7 +220,7 @@ if (!paintSrc) {
   if (/Collect|\bmint\b|wallet|\$|price|charge/i.test(html)) fail("roadHtml must stay quiet on Collect, mint, wallet, and price");
   else pass("roadHtml stays quiet on Collect");
   const bare = ctx.roadHtml({});
-  if (bare.indexOf("No pack on this desk yet") < 0) fail("empty roadmap must not invent a pack");
+  if (bare.indexOf("No Pack on this desk yet") < 0) fail("empty roadmap must not invent a pack");
   else pass("empty roadmap does not invent a pack");
   if (/vita\.json|demo pack|placeholder pack/i.test(bare)) fail("empty roadmap invented a placeholder pack");
   else pass("empty roadmap has no placeholder pack");
