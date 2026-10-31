@@ -512,8 +512,11 @@
       paintCards([]);
       firstSignal = waitSignal();
       var mine = await loadMine();
-      if (gen !== loadGen) { firstSignal = null; return; }
+      // Keep a fresh desk list even if the user moved on while it was out: it fills the picker and names
+      // the cards. Only the Queue read below is dropped when this retry has gone stale.
       if (mine) desks = fromMine(mine);
+      if (mine && gen !== loadGen) { paintPicker(); paintCards(visibleCards()); }
+      if (gen !== loadGen) { firstSignal = null; return; }
       paintPicker();
     }
     if (await refreshCards()) focusAfterRetry();

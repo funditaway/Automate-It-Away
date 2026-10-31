@@ -164,6 +164,8 @@ function startPage(src, spec) {
     },
     fireTimers() { timers.splice(0).forEach((t) => t.fn()); },
     focused: () => FOCUS.at,
+    pickerDesks() { const out = []; walk(document.getElementById("queue-desk-buttons"), (el) => { if (el.tagName === "BUTTON" && el.getAttribute("data-queue-desk")) out.push(el.getAttribute("data-queue-desk") + "=" + el.textContent); }); return out; },
+    labels() { const out = []; walk(box(), (el) => { if (el.classList.contains("queue-desk-label")) out.push(el.textContent); }); return out; },
     heading: () => document.querySelector("main h1"),
     find(attr, val) { let f = null; walk(box(), (el) => { if (!f && el.getAttribute(attr) === val) f = el; }); return f; },
     findText(re) { let f = null; walk(box(), (el) => { if (!f && !el.children.length && re.test(el.text)) f = el; }); return f; }
@@ -348,6 +350,38 @@ async function suite(S, okFn) {
     if (!/North Shop card/.test(p.text())) b("stale retry: the newer North load must stay painted");
     if (p.focused()) b("stale retry: focus moved to " + p.focused().tagName + " after a Try again that went stale");
   });
+  for (const listAnswer of ["200", "500"]) await run("stale desk-list retry (" + listAnswer + ")", async () => {
+    // The desk list read fails, Try again re-reads it, and the user taps All desks while that read is out.
+    // When the list answers, the retry is stale: no second Queue read, no focus move, no error over the
+    // newer cards. A fresh desk list (200) is kept: the picker fills and the card says North Shop.
+    let release;
+    const slow = new Promise((r) => { release = r; });
+    const st = { mine: { status: 500, body: {} }, all: { status: 500, body: {} } };
+    const p = startPage(src, { routes: { mine: () => st.mine, all: () => st.all, north: ok200([job(NORTH)]), south: ok200([]) } });
+    await settle();
+    const btn = p.retry();
+    if (!btn) { b("stale desk-list retry: no Try again button"); return; }
+    st.mine = slow; st.all = ok200([job(NORTH)]);
+    const c0 = p.calls.length;
+    p.click(btn); await settle();
+    if (!p.pick("")) { b("stale desk-list retry: no All desks button"); return; }
+    await settle();
+    release(listAnswer === "200" ? MINE : { status: 500, body: {} });
+    await settle();
+    const label = "stale desk-list retry (" + listAnswer + ")";
+    const reads = p.calls.slice(c0).join(",");
+    if (reads !== "mine,all") b(label + ": reads must be exactly mine,all, got " + reads);
+    if (p.focused()) b(label + ": focus moved to " + p.focused().tagName + " after a Try again that went stale");
+    const t = p.text();
+    if (!/North Shop card/.test(t)) b(label + ": the newer All desks cards must stay painted (" + t.trim().slice(0, 80) + ")");
+    if (/Couldn't load/.test(t) || p.retry()) b(label + ": the stale retry's error painted over the newer cards");
+    if (listAnswer === "200") {
+      const desksNow = p.pickerDesks().join(",");
+      if (desksNow !== "north=North Shop,south=South Shop") b(label + ": the fresh desk list was thrown away (picker: " + (desksNow || "empty") + ")");
+      const labs = p.labels().join(",");
+      if (labs !== "North Shop") b(label + ": the card must say North Shop, got " + (labs || "no label"));
+    }
+  });
   await run("partial", async () => {
     const p = startPage(src, { routes: { mine: MINE, all: { status: 500, body: {} }, north: ok200([job(NORTH)]), south: { status: 500, body: {} } } });
     await settle();
@@ -457,6 +491,11 @@ const MUTANTS = [
   ["P9 Try again disabled", [["again.type = \"button\";\n    again.setAttribute(\"data-queue-retry\", \"1\");", "again.type = \"button\";\n    again.setAttribute(\"data-queue-retry\", \"1\"); again.disabled = true;"]]],
   ["P9b Try again disabled by attribute", [["again.type = \"button\";\n    again.setAttribute(\"data-queue-retry\", \"1\");", "again.type = \"button\";\n    again.setAttribute(\"data-queue-retry\", \"1\"); again.setAttribute(\"disabled\", \"\");"]]],
   ["P8 network error on the all-desks read not counted", [["    } catch (e) {\n      if (mine) mine.allFailed = true;\n      return null;", "    } catch (e) {\n      return null;"]]],
+  ["P2e stale guard after the retry desk-list read removed", [["      if (gen !== loadGen) { firstSignal = null; return; }\n", ""]]],
+  ["stale retry back to the old order (guard before the desk list)", [["      if (mine) desks = fromMine(mine);\n      if (mine && gen !== loadGen) { paintPicker(); paintCards(visibleCards()); }\n      if (gen !== loadGen) { firstSignal = null; return; }\n", "      if (gen !== loadGen) { firstSignal = null; return; }\n      if (mine) desks = fromMine(mine);\n"]]],
+  ["stale retry throws away the fresh desk list", [["      if (mine && gen !== loadGen) { paintPicker(); paintCards(visibleCards()); }\n", ""]]],
+  ["stale retry keeps the list but never repaints the picker", [["      if (mine && gen !== loadGen) { paintPicker(); paintCards(visibleCards()); }\n", "      if (mine && gen !== loadGen) { paintCards(visibleCards()); }\n"]]],
+  ["stale retry keeps the list but never repaints the cards", [["      if (mine && gen !== loadGen) { paintPicker(); paintCards(visibleCards()); }\n", "      if (mine && gen !== loadGen) { paintPicker(); }\n"]]],
   ["F5 focus moves on every load", [["    paintCards(visibleCards());\n    return true;\n", "    paintCards(visibleCards());\n    focusAfterRetry();\n    return true;\n"]]],
   ["F6 focus even when the retry load went stale", [["    if (await refreshCards()) focusAfterRetry();\n", "    await refreshCards(); focusAfterRetry();\n"]]],
   ["queue-login.js unreadable", null]
