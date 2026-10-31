@@ -10,7 +10,7 @@ require("./_env-guard");
 // desks.html, aia-mail.js: no hardcoded james / funditaway addresses.
 // /onboard: login-doors.js shows sign-in doors that are not ready as disabled "Coming soon"
 //   buttons in a closed group; only live doors start a login; no HOLD/ASK words.
-// Also: desk.html is 35012 bytes and api/ is frozen vs main 782cbc0 (scripts/_api-freeze.js).
+// Also: desk.html is 35012 bytes and api/ is frozen to blob pins vs main (scripts/_api-freeze.js).
 // Usage: node scripts/check-ux-signin.js
 const fs = require("fs");
 const path = require("path");
@@ -312,7 +312,7 @@ function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
   ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
   const apiFreeze = require("./_api-freeze").check(root);
-  ok(apiFreeze.ok, "api/ frozen vs " + String(apiFreeze.base || "").slice(0, 8) + " (string-only allowlist)" + (apiFreeze.ok ? "" : ": " + apiFreeze.problems.join("; ")));
+  ok(apiFreeze.ok, "api/ frozen vs " + String(apiFreeze.base || "").slice(0, 8) + " (blob pin)" + (apiFreeze.ok ? "" : ": " + apiFreeze.problems.join("; ")));
   const pkg = read("package.json");
   ok(/check-ux-signin\.js/.test(pkg), "npm test runs check-ux-signin.js");
   ["login-doors.js", "login.html", "account.html"].forEach((f) => {
