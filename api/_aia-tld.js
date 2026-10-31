@@ -1,5 +1,7 @@
 /* Honest .aia TLD reclaim status. Probe Decentraweb lock/validation only.
    Never approve-registration (that can reserve a name). Never invent owned.
+   bridgeLocked is false only for a 2xx lockDomain body that explicitly says open.
+   Anything else stays locked. Unreachable is not cached as unlocked.
    No keys. No mint broadcast. Collect stays HOLD. */
 const connect = require("./_connect-wallet");
 
@@ -115,7 +117,7 @@ function publicOf(probe, wallet) {
   const walletAddr = connect.normalizeAddress(w.address || "");
   const ownedByConnected = !!(walletAddr && owner && walletAddr === owner);
   const status = statusOf(row, w);
-  return {
+  const face = {
     tld: TLD,
     name: LABEL,
     internet: INTERNET,
@@ -147,6 +149,8 @@ function publicOf(probe, wallet) {
     register: require("./_aia-register").publicFlow(w),
     followUp: "On-desk Register uses the connected wallet. Browser calls approve-registration with that owner, then you sign the commit and the register. Server never signs."
   };
+  if (row.reason === "unreachable") face.reason = "unreachable";
+  return face;
 }
 
 function emptyPublic(wallet) {
@@ -181,21 +185,41 @@ async function http(method, path, body) {
     });
     const text = await res.text();
     let parsed = null;
-    try { parsed = text ? JSON.parse(text) : null; } catch (e) { parsed = null; }
-    return { ok: res.ok, status: res.status, body: parsed, text: text };
+    let parseError = false;
+    try {
+      if (text) parsed = JSON.parse(text);
+    } catch (e) {
+      parsed = null;
+      parseError = true;
+    }
+    return { ok: res.ok, status: res.status, body: parsed, text: text, aborted: false, parseError: parseError };
   } catch (err) {
-    return { ok: false, status: 0, body: null, text: (err && err.message) || "probe failed" };
+    const aborted = !!(err && err.name === "AbortError") || !!(ctrl && ctrl.signal && ctrl.signal.aborted);
+    return { ok: false, status: 0, body: null, text: (err && err.message) || "probe failed", aborted: aborted, parseError: false };
   } finally {
     if (timer) clearTimeout(timer);
   }
 }
 
+// bridgeLocked is false only for a real 2xx whose body explicitly says open
+// (locked / isLocked / bridgeLocked === false). Every other lockDomain result
+// stays locked. 500, 530, abort, and any other miss that never reached the
+// bridge also set reason "unreachable". Text heuristics can lock, never unlock.
+function lockVerdict(hit) {
+  const status = hit && Number(hit.status) || 0;
+  if (hit && hit.aborted) return { bridgeLocked: true, reason: "unreachable" };
+  if (status === 500) return { bridgeLocked: true, reason: "unreachable" };
+  if (status === 530) return { bridgeLocked: true, reason: "unreachable" };
+  if (!status || status >= 500) return { bridgeLocked: true, reason: "unreachable" };
+  if (status < 200 || status >= 300) return { bridgeLocked: true };
+  if (hit && hit.parseError) return { bridgeLocked: true };
+  if (lockedFlag(hit && hit.body) === false) return { bridgeLocked: false };
+  if (looksBridgeLock(status, hit && hit.body, hit && hit.text)) return { bridgeLocked: true };
+  return { bridgeLocked: true };
+}
+
 function applyLock(probe, hit) {
   probe.lockDomain = hit.status || 0;
-  if (looksBridgeLock(hit.status, hit.body, hit.text)) probe.bridgeLocked = true;
-  const flag = lockedFlag(hit.body);
-  if (flag === true) probe.bridgeLocked = true;
-  if (flag === false && probe.bridgeLocked !== true) probe.bridgeLocked = false;
   const avail = availableFlag(hit.body);
   if (avail === true || avail === false) probe.available = avail;
   if (looksTaken(hit.status, hit.body, hit.text)) probe.available = false;
@@ -205,10 +229,6 @@ function applyLock(probe, hit) {
 
 function applyValidation(probe, hit) {
   probe.domainValidation = hit.status || 0;
-  if (looksBridgeLock(hit.status, hit.body, hit.text)) probe.bridgeLocked = true;
-  const flag = lockedFlag(hit.body);
-  if (flag === true) probe.bridgeLocked = true;
-  if (flag === false && probe.bridgeLocked !== true) probe.bridgeLocked = false;
   const avail = availableFlag(hit.body);
   if (avail === true || avail === false) probe.available = avail;
   if (looksTaken(hit.status, hit.body, hit.text)) probe.available = false;
@@ -231,23 +251,38 @@ async function probeNow() {
   const hits = await Promise.all([lock, validation]);
   applyLock(probe, hits[0]);
   applyValidation(probe, hits[1]);
-  if (probe.bridgeLocked == null && !hits[0].status && !hits[1].status) {
+  const verdict = lockVerdict(hits[0]);
+  probe.bridgeLocked = verdict.bridgeLocked === false ? false : true;
+  if (verdict.reason === "unreachable") {
+    probe.reason = "unreachable";
     probe.error = hits[0].text || hits[1].text || "Decentraweb did not answer.";
   }
   return probe;
+}
+
+// An unreachable lock check is not stored. Caching it as unlocked would keep
+// /api/status open for CACHE_MS after the bridge had already failed.
+function remember(row) {
+  if (row && row.reason === "unreachable") cache = null;
+  else cache = row;
+  return row;
 }
 
 async function ensure(fresh) {
   if (!fresh && cache && cache.at && (Date.now() - cache.at) < CACHE_MS) return cache;
   if (!fresh && inflight) return inflight;
   inflight = probeNow().then(function (row) {
-    cache = row;
     inflight = null;
-    return row;
+    return remember(row);
   }, function (err) {
     inflight = null;
-    cache = emptyProbe({ at: Date.now(), checkedAt: nowIso(), error: (err && err.message) || "probe failed" });
-    return cache;
+    return remember(emptyProbe({
+      at: Date.now(),
+      checkedAt: nowIso(),
+      bridgeLocked: true,
+      reason: "unreachable",
+      error: (err && err.message) || "probe failed"
+    }));
   });
   return inflight;
 }

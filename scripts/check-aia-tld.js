@@ -104,6 +104,18 @@ function jsonRes(status, obj) {
     text: function () { return Promise.resolve(JSON.stringify(obj)); }
   });
 }
+function rawRes(status, text) {
+  return Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status: status,
+    text: function () { return Promise.resolve(String(text == null ? "" : text)); }
+  });
+}
+function abortRes() {
+  const err = new Error("This operation was aborted");
+  err.name = "AbortError";
+  return Promise.reject(err);
+}
 
 function mockFetch(routes) {
   return function (url, opts) {
@@ -113,8 +125,10 @@ function mockFetch(routes) {
       fail("probe called approve-registration");
       return jsonRes(400, { error: "should not call approve-registration" });
     }
-    const hit = routes[method + " " + path] || routes[path];
+    const hit = routes[method + " " + path] || routes[path] || routes["*"];
     if (!hit) return jsonRes(404, { error: "unexpected " + method + " " + path });
+    if (hit.abort) return abortRes();
+    if (hit.raw) return rawRes(hit.status, hit.text);
     return jsonRes(hit.status, hit.body);
   };
 }
@@ -209,32 +223,60 @@ async function main() {
   else pass("helper seat");
   const helperHdr = { "x-workspace": slug, "x-pin": helperPin };
   const note = "Name registration is off for now. Payments are off for now. Nothing is charged.";
+  // bridgeLocked false only for a 2xx lock body that explicitly says open.
+  // 500, 530, and abort are locked with reason unreachable. Bad JSON, a 2xx
+  // without that open field, and a missing row stay locked with no reason.
   const states = [
     ["locked", true, {
       "GET /bridge/lockDomain/aia": { status: 500, body: { error: "Failed to get bridge lock domain" } },
       "POST /domain-validation": { status: 400, body: { errorCode: -2, errorMessage: "Failed to check domain is bridge lock or not" } }
-    }],
+    }, "unreachable"],
+    ["http-500", true, {
+      "GET /bridge/lockDomain/aia": { status: 500, body: { error: "upstream" } },
+      "POST /domain-validation": { status: 500, body: { error: "upstream" } }
+    }, "unreachable"],
+    ["http-530", true, {
+      "GET /bridge/lockDomain/aia": { status: 530, raw: true, text: "error code: 1016" },
+      "POST /domain-validation": { status: 530, raw: true, text: "error code: 1016" }
+    }, "unreachable"],
+    ["timeout", true, {
+      "*": { abort: true }
+    }, "unreachable"],
+    ["bad-json", true, {
+      "GET /bridge/lockDomain/aia": { status: 200, raw: true, text: "<html>not json" },
+      "POST /domain-validation": { status: 200, raw: true, text: "<html>not json" }
+    }, ""],
+    ["no-open-field", true, {
+      "GET /bridge/lockDomain/aia": { status: 200, body: { available: true } },
+      "POST /domain-validation": { status: 200, body: { available: true } }
+    }, ""],
     ["unlocked", false, {
       "GET /bridge/lockDomain/aia": { status: 200, body: { locked: false, available: true } },
       "POST /domain-validation": { status: 200, body: { available: true, locked: false } }
-    }],
-    ["no-row", false, {
+    }, ""],
+    ["no-row", true, {
       "GET /bridge/lockDomain/aia": { status: 404, body: {} },
       "POST /domain-validation": { status: 404, body: {} }
-    }]
+    }, ""]
   ];
   const seats = [["no-session", {}], ["helper", helperHdr], ["owner", ownerHdr]];
+  function reasonOk(row, reason) {
+    if (!row) return false;
+    if (reason) return row.reason === reason;
+    return !Object.prototype.hasOwnProperty.call(row, "reason");
+  }
   for (let i = 0; i < states.length; i++) {
     const label = states[i][0];
     const want = states[i][1];
+    const reason = states[i][3] || "";
     const probe = mockFetch(states[i][2]);
     tld.setFetch(probe);
     const home = await call(account, "GET", ownerHdr, {}, {});
     const acc = home.body && home.body.aiaTld;
-    if (!acc || acc.bridgeLocked !== want || acc.owned) {
+    if (!acc || acc.bridgeLocked !== want || !reasonOk(acc, reason) || acc.owned) {
       fail(label + " account GET " + JSON.stringify(acc));
     }
-    let seatBad = !acc || acc.bridgeLocked !== want;
+    let seatBad = !acc || acc.bridgeLocked !== want || !reasonOk(acc, reason);
     for (let s = 0; s < seats.length; s++) {
       const who = seats[s][0];
       const hdr = seats[s][1];
@@ -248,11 +290,11 @@ async function main() {
       tld.setFetch(probe);
       const statusRow = st.body && st.body.aiaTld;
       const healthRow = hh.body && hh.body.aiaTld;
-      if (!statusRow || statusRow.bridgeLocked !== want || statusRow.ownedByConnected !== false || statusRow.collect !== "hold" || !acc || statusRow.bridgeLocked !== acc.bridgeLocked) {
+      if (!statusRow || statusRow.bridgeLocked !== want || !reasonOk(statusRow, reason) || statusRow.ownedByConnected !== false || statusRow.collect !== "hold" || !acc || statusRow.bridgeLocked !== acc.bridgeLocked || statusRow.reason !== acc.reason) {
         fail(label + " " + who + " status " + JSON.stringify(statusRow));
         seatBad = true;
       }
-      if (!healthRow || Object.prototype.hasOwnProperty.call(healthRow, "bridgeLocked") || Object.prototype.hasOwnProperty.call(healthRow, "ownedByConnected") || healthRow.collect !== "hold" || healthRow.mint || healthRow.note !== note) {
+      if (!healthRow || Object.prototype.hasOwnProperty.call(healthRow, "bridgeLocked") || Object.prototype.hasOwnProperty.call(healthRow, "ownedByConnected") || Object.prototype.hasOwnProperty.call(healthRow, "reason") || healthRow.collect !== "hold" || healthRow.mint || healthRow.note !== note) {
         fail(label + " " + who + " health " + JSON.stringify(healthRow));
         seatBad = true;
       }
@@ -260,9 +302,42 @@ async function main() {
         fail(label + " " + who + " health made " + healthNet + " network calls");
         seatBad = true;
       }
+      if (JSON.stringify(hh.body || {}).indexOf("unreachable") >= 0) {
+        fail(label + " " + who + " health JSON changed");
+        seatBad = true;
+      }
+    }
+    tld.setFetch(probe);
+    const again = await call(health.status, "GET", {}, {}, {});
+    const again2 = await call(health.status, "GET", {}, {}, {});
+    const a1 = again.body && again.body.aiaTld;
+    const a2 = again2.body && again2.body.aiaTld;
+    if (!a1 || !a2 || a1.bridgeLocked !== want || a2.bridgeLocked !== want || !reasonOk(a1, reason) || !reasonOk(a2, reason) || a1.ownedByConnected !== false || a2.ownedByConnected !== false) {
+      fail(label + " repeat status " + JSON.stringify({ a1: a1, a2: a2 }));
+      seatBad = true;
     }
     if (!seatBad) pass(label + " status and account agree on bridgeLocked; health stays offline");
   }
+
+  tld.setFetch(function (url, opts) {
+    return new Promise(function (resolve, reject) {
+      const signal = opts && opts.signal;
+      const abort = function () {
+        const err = new Error("This operation was aborted");
+        err.name = "AbortError";
+        reject(err);
+      };
+      if (!signal || signal.aborted) return abort();
+      signal.addEventListener("abort", abort, { once: true });
+    });
+  });
+  const timedHome = await call(account, "GET", ownerHdr, {}, {});
+  const timedAcc = timedHome.body && timedHome.body.aiaTld;
+  const timedStatus = await call(health.status, "GET", {}, {}, {});
+  const timedRow = timedStatus.body && timedStatus.body.aiaTld;
+  if (!timedAcc || timedAcc.bridgeLocked !== true || timedAcc.reason !== "unreachable" || timedAcc.owned || !timedRow || timedRow.bridgeLocked !== true || timedRow.reason !== "unreachable" || timedRow.ownedByConnected !== false || timedRow.bridgeLocked !== timedAcc.bridgeLocked) {
+    fail("timer abort status " + JSON.stringify({ acc: timedAcc, status: timedRow }));
+  } else pass("timer abort status and account agree on bridgeLocked");
 
   const src = helper + ui + html;
   if (/\$250|demo seed|fake ETH|silent Collect/i.test(src)) fail("hard-line leak");

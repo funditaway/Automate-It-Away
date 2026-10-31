@@ -2,10 +2,10 @@
 require("./_env-guard");
 // Mutant runner for scripts/check-aia-tld.js. npm test runs this last.
 // Copies the repo (no .git, no node_modules) to a temp dir, applies each mutant
-// below to api/health.js, runs check-aia-tld.js with a stripped env (PATH and a
-// temp HOME only; no keys), and reports caught/total. The real tree is never
-// written. Exit 1 if any mutant survives or no longer applies, or if the
-// unmutated check fails.
+// below to api/health.js or api/_aia-tld.js, runs check-aia-tld.js with a
+// stripped env (PATH and a temp HOME only; no keys), and reports caught/total.
+// The real tree is never written. Exit 1 if any mutant survives or no longer
+// applies, or if the unmutated check fails.
 // Usage: node scripts/check-aia-tld-mutants.js [name-filter]
 const fs = require("fs");
 const os = require("os");
@@ -39,6 +39,30 @@ const MUTANTS = [
   ["status drops bridgeLocked for a no-session caller", "api/health.js", [[
     "    aiaTld: statusTld(aiaTld),",
     "    aiaTld: person ? statusTld(aiaTld) : strangerTld(aiaTld),"
+  ]]],
+  ["treat 500 as unlocked", "api/_aia-tld.js", [[
+    "if (status === 500) return { bridgeLocked: true, reason: \"unreachable\" };",
+    "if (status === 500) return { bridgeLocked: false };"
+  ]]],
+  ["treat 530 as unlocked", "api/_aia-tld.js", [[
+    "if (status === 530) return { bridgeLocked: true, reason: \"unreachable\" };",
+    "if (status === 530) return { bridgeLocked: false };"
+  ]]],
+  ["treat a timeout as unlocked", "api/_aia-tld.js", [[
+    "if (hit && hit.aborted) return { bridgeLocked: true, reason: \"unreachable\" };",
+    "if (hit && hit.aborted) return { bridgeLocked: false };"
+  ]]],
+  ["treat bad JSON as unlocked", "api/_aia-tld.js", [[
+    "if (hit && hit.parseError) return { bridgeLocked: true };",
+    "if (hit && hit.parseError) return { bridgeLocked: false };"
+  ]]],
+  ["drop the reason", "api/health.js", [[
+    "  if (row && row.reason === \"unreachable\") face.reason = \"unreachable\";\n",
+    ""
+  ]]],
+  ["cache an unreachable result as unlocked", "api/_aia-tld.js", [[
+    "if (row && row.reason === \"unreachable\") cache = null;",
+    "if (row && row.reason === \"unreachable\") cache = Object.assign({}, row, { bridgeLocked: false, reason: \"\" });"
   ]]]
 ];
 

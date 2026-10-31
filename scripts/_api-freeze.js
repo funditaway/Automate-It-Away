@@ -44,7 +44,7 @@ const PIN = {
   "api/_aia-mail.js": "5796afa6e22f62f3a9e433b0c1d0eb00c6094599",
   "api/_aia-net.js": "5df23c55f9e189fcbb5aa710ab30672ef4279fd8",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
-  "api/_aia-tld.js": "3274f05868ac08c48bd41fe124599bda28558c3a",
+  "api/_aia-tld.js": "ae93de95143a34a215bb556281ee06bbcdca3567",
   "api/_connect-wallet.js": "16f6efe4a25721f0d463e10853c22b854c430cee",
   "api/_desks-http.js": "54d36ae4eb8842b75f1847bc72fa5c2b8c514adb",
   "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
@@ -53,7 +53,7 @@ const PIN = {
   "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
   "api/connections.js": "e567ff5bbe563123144f0654576f337da3fe4170",
-  "api/health.js": "e702e25017064817ff63766e01f377fff3ce806a",
+  "api/health.js": "9e97025ca22d5088e086e113375f6b87c9be784a",
   "api/hook.js": "d9027a640d48d59ea20363e0b2dd18a3772d185f",
   "api/jobs.js": "40c283de861b5fb48087bc8987f836238b1535ee",
   "api/migrate-uploads.js": "2b5e13d819268bdae2688c3d29e2f755929fcaa7"
