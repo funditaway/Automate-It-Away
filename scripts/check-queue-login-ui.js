@@ -1,6 +1,10 @@
 require("./_env-guard");
 // Queue sign-in is an account login. The Queue page lists every desk.
 // Shop name + code still opens that one desk with ?workspace= on the same Queue.
+// Empty and signed-out states give exactly one next step: signed out -> Sign in (/login);
+// signed in with desks -> Drop (/drop); no desks yet -> Create a desk (/onboard).
+// signin-first.js: signed-out Drop, Create and History show Sign in first -> /login; a shared
+// drop link, the widget, a saved desk or a session keeps the page. History empty -> /login.
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
@@ -319,7 +323,7 @@ function route(spec, url) {
 async function bootPage(src, spec) {
   const calls = [];
   const document = makeDocument();
-  const local = memStore(Object.assign({ aia_session: "sess-test", aia_ws: "north" }, spec.local || {}));
+  const local = memStore(spec.signedOut ? {} : Object.assign({ aia_session: "sess-test", aia_ws: "north" }, spec.local || {}));
   const session = memStore(spec.session || {});
   const location = {
     href: "http://127.0.0.1/desk.html" + (spec.search || ""),
@@ -381,17 +385,29 @@ async function bootPage(src, spec) {
     const fns = document.listeners.DOMContentLoaded || [];
     for (let i = 0; i < fns.length; i++) await fns[i]();
   } catch (e) {
-    return { threw: (e && e.stack) || String(e), calls: calls, labels: [], buttons: [], titles: [] };
+    return { threw: (e && e.stack) || String(e), calls: calls, labels: [], buttons: [], titles: [], nexts: [], texts: [], signedOutClass: false, pickerHidden: false };
   }
   const labels = [];
   const buttons = [];
   const titles = [];
+  const nexts = [];
+  const texts = [];
   walk(document.documentElement, function (el) {
     if (String(el.className).split(/\s+/).indexOf("queue-desk-label") >= 0) labels.push(el.textContent);
     if (el.tagName === "BUTTON") buttons.push(el.textContent);
     if (el.tagName === "H3") titles.push(el.textContent);
   });
-  return { threw: "", calls: calls, labels: labels, buttons: buttons, titles: titles };
+  const cardsBox = document.getElementById("queue-all-cards");
+  walk(cardsBox, function (el) {
+    if (el.tagName === "A") nexts.push({ href: el.href || el.getAttribute("href") || "", text: el.textContent });
+    if (el.tagName === "P") texts.push(el.textContent);
+  });
+  const pickerEl = document.getElementById("queue-desk-picker");
+  return {
+    threw: "", calls: calls, labels: labels, buttons: buttons, titles: titles, nexts: nexts, texts: texts,
+    signedOutClass: document.documentElement.classList.contains("queue-signed-out"),
+    pickerHidden: !!(pickerEl && pickerEl.hidden)
+  };
 }
 
 function desksAll(calls) { return calls.filter(function (c) { return c.url.indexOf("/api/jobs?desks=all") >= 0; }); }
@@ -506,6 +522,51 @@ async function behaviorFaults(src) {
         const f = [];
         if (mines(r.calls).length) f.push("queue.desks was ignored and mine ran");
         if (r.buttons.indexOf("North Shop") < 0 || r.buttons.indexOf("South Shop") < 0) f.push("queue.desks did not fill the picker");
+        return f;
+      }
+    },
+    {
+      name: "signed out",
+      spec: { signedOut: true, session: {}, all: http(200, { ok: true, jobs: [job(NORTH)] }) },
+      check: function (r) {
+        const f = [];
+        if (r.nexts.length !== 1) f.push("signed out must show exactly one next step (" + r.nexts.map(function (n) { return n.text + " " + n.href; }).join(", ") + ")");
+        else if (r.nexts[0].href !== "/login" || r.nexts[0].text !== "Sign in") f.push("signed out next step must be Sign in -> /login (" + r.nexts[0].text + " " + r.nexts[0].href + ")");
+        if (!r.signedOutClass) f.push("signed out must hide the desk tools (queue-signed-out)");
+        if (!r.pickerHidden) f.push("signed out must hide the desk picker");
+        if (r.calls.some(function (c) { return c.url.indexOf("/api/jobs") >= 0; })) f.push("signed out must not read cards");
+        return f;
+      }
+    },
+    {
+      name: "empty all desks",
+      spec: { session: { [REPLY_KEY]: stored }, all: http(200, { ok: true, jobs: [] }) },
+      check: function (r) {
+        const f = [];
+        if (r.nexts.length !== 1) f.push("empty All desks must show exactly one next step (" + r.nexts.map(function (n) { return n.text + " " + n.href; }).join(", ") + ")");
+        else if (r.nexts[0].href !== "/drop" || !/^Drop/.test(r.nexts[0].text)) f.push("empty All desks next step must be Drop -> /drop (" + r.nexts[0].text + " " + r.nexts[0].href + ")");
+        if (r.signedOutClass || r.pickerHidden) f.push("signed in must keep the desk tools and picker");
+        if (!r.texts.some(function (t) { return /Nothing waiting in this Queue/.test(t); })) f.push("empty All desks must say nothing is waiting");
+        return f;
+      }
+    },
+    {
+      name: "no desks yet",
+      spec: { session: { [REPLY_KEY]: replyJson([], null) }, all: http(200, { ok: true, jobs: [] }) },
+      check: function (r) {
+        const f = [];
+        if (r.nexts.length !== 1) f.push("no desks must show exactly one next step (" + r.nexts.map(function (n) { return n.text + " " + n.href; }).join(", ") + ")");
+        else if (r.nexts[0].href !== "/onboard" || !/^Create/.test(r.nexts[0].text)) f.push("no desks next step must be Create a desk -> /onboard (" + r.nexts[0].text + " " + r.nexts[0].href + ")");
+        return f;
+      }
+    },
+    {
+      name: "cards waiting",
+      spec: { session: { [REPLY_KEY]: stored }, all: http(200, { ok: true, jobs: [job(NORTH)] }) },
+      check: function (r) {
+        const f = [];
+        if (r.nexts.length) f.push("cards waiting must not show an empty-state step");
+        if (r.signedOutClass) f.push("signed in must not hide desk tools");
         return f;
       }
     },
@@ -630,6 +691,80 @@ function loginBehavior(html) {
   return faults;
 }
 
+// Signed-out Drop, Create and History: signin-first.js runs in a tiny DOM per page.
+function signinPage(src, spec) {
+  const documentElement = makeEl("html");
+  const head = makeEl("head");
+  const body = makeEl("body");
+  const main = makeEl("main");
+  const tool = makeEl("div");
+  tool.id = "tool";
+  main.appendChild(tool);
+  body.appendChild(main);
+  documentElement.appendChild(head);
+  documentElement.appendChild(body);
+  const rootClasses = (spec.rootClass || "").split(/\s+/).filter(Boolean);
+  documentElement.classList.add = function (c) { if (rootClasses.indexOf(c) < 0) rootClasses.push(c); };
+  documentElement.classList.contains = function (c) { return rootClasses.indexOf(c) >= 0; };
+  Object.defineProperty(main, "firstChild", { get: function () { return main.children[0] || null; } });
+  const document = {
+    documentElement: documentElement, head: head, body: body, readyState: "complete", createElement: makeEl,
+    addEventListener: function () {},
+    getElementById: function (id) { let found = null; walk(documentElement, function (el) { if (!found && el.id === id) found = el; }); return found; },
+    querySelector: function (sel) { return sel === "main" ? main : null; }
+  };
+  const sandbox = {
+    document: document, console: console, JSON: JSON, String: String, Object: Object,
+    location: { pathname: spec.path, search: spec.search || "", href: "http://127.0.0.1" + spec.path + (spec.search || "") },
+    localStorage: memStore(spec.local || {}),
+    AIADesks: { list: function () { return spec.saved || []; } }
+  };
+  sandbox.window = sandbox;
+  try { vm.runInNewContext(src, sandbox, { filename: "signin-first.js" }); }
+  catch (e) { return { threw: (e && e.message) || String(e) }; }
+  const box = document.getElementById("signin-first");
+  const links = [];
+  walk(box, function (el) { if (el.tagName === "A") links.push({ href: el.href || el.getAttribute("href") || "", text: el.textContent }); });
+  const css = document.getElementById("signin-first-css");
+  return { threw: "", box: box, first: main.children[0] === box, links: links, hides: rootClasses.indexOf("signin-first") >= 0, css: css ? css.textContent : "" };
+}
+function signinFaults(src) {
+  const f = [];
+  [["/drop", "Drop"], ["/create.html", "Create"], ["/history", "History"]].forEach(function (pg) {
+    const r = signinPage(src, { path: pg[0] });
+    if (r.threw) { f.push(pg[0] + " threw " + r.threw); return; }
+    if (!r.box || !r.first) { f.push(pg[1] + " signed out must lead with Sign in first"); return; }
+    if (r.links.length !== 1 || r.links[0].href !== "/login" || r.links[0].text !== "Sign in") f.push(pg[1] + " signed out must have one Sign in link to /login (" + r.links.map(function (l) { return l.text + " " + l.href; }).join(", ") + ")");
+    if (!/Sign in first/.test(r.box.textContent)) f.push(pg[1] + " must say Sign in first");
+    if (!r.hides || !/html\.signin-first main > :not\(#signin-first\)\{display:none!important\}/.test(r.css)) f.push(pg[1] + " signed out must hide the working-looking tools");
+  });
+  [
+    ["signed in", { path: "/drop", local: { aia_session: "s" } }],
+    ["desk code", { path: "/create", local: { aia_pin: "4821" } }],
+    ["shared drop link", { path: "/drop", search: "?ws=north" }],
+    ["shared workspace link", { path: "/drop", search: "?workspace=north" }],
+    ["saved desk", { path: "/drop", saved: [{ slug: "north" }] }],
+    ["widget", { path: "/drop", rootClass: "widget" }],
+    ["other page", { path: "/desk" }]
+  ].forEach(function (c) {
+    const r = signinPage(src, c[1]);
+    if (r.threw) f.push(c[0] + " threw " + r.threw);
+    else if (r.box || r.hides) f.push(c[0] + " must keep the normal page");
+  });
+  return f;
+}
+function historyFaults(html) {
+  const f = [];
+  const line = (String(html).match(/if\(!asked\.length\)\{[^\n]*/) || [""])[0];
+  if (!line) return ["history.html empty state missing"];
+  if (line.indexOf('href=\\"/login\\"') < 0) f.push("History empty state must link to /login");
+  if (line.indexOf("/onboard") >= 0) f.push("History empty state must not send strangers to /onboard");
+  return f;
+}
+function pagesLoadSigninFirst() {
+  return ["drop.html", "create.html", "history.html"].filter(function (p) { return read(p).indexOf('<script src="signin-first.js"></script>') < 0; });
+}
+
 const MUTANTS = [
   ["V1 drop the everyCardHasSlug gate from readAllDesks", "queue-login.js",
     "      if (!rows || !everyCardHasSlug(rows)) return null;\n",
@@ -673,7 +808,55 @@ const MUTANTS = [
   ["stale-load guard removed (every gen !== loadGen check)", "queue-login.js",
     "if (gen !== loadGen) return;",
     "/* no stale-load guard */",
-    "all"]
+    "all"],
+  ["signed-out step goes to sign-up", "queue-login.js",
+    "It keeps every desk and card in one place.\", \"/login\", \"Sign in\");",
+    "It keeps every desk and card in one place.\", \"/onboard\", \"Start free\");"],
+  ["signed-out step dropped to plain text", "queue-login.js",
+    "    if (out) {\n      emptyState(box,",
+    "    if (out) {\n      return; emptyState(box,"],
+  ["signed-out keeps desk tools and picker", "queue-login.js",
+    "    markSignedOut(out);\n",
+    ""],
+  ["signed-out class never set", "queue-login.js",
+    "root.classList.toggle(\"queue-signed-out\", !!on);",
+    "root.classList.toggle(\"queue-signed-out\", false);"],
+  ["empty All desks goes to Create", "queue-login.js",
+    "Drop a card to start.\", \"/drop\", \"Drop a card\");",
+    "Drop a card to start.\", \"/create\", \"Create\");"],
+  ["no-desk step goes to Drop", "queue-login.js",
+    "Create a desk to start.\", \"/onboard\", \"Create a desk\");",
+    "Create a desk to start.\", \"/drop\", \"Drop a card\");"],
+  ["empty state shows two steps", "queue-login.js",
+    "    wrap.appendChild(go);\n",
+    "    wrap.appendChild(go);\n    var go2 = document.createElement(\"a\"); go2.className = \"edit\"; go2.href = \"/create\"; go2.textContent = \"Create\"; wrap.appendChild(go2);\n"],
+  ["empty state has no step", "queue-login.js",
+    "    wrap.appendChild(go);\n",
+    ""],
+  ["sign-in-first link goes to sign-up", "signin-first.js",
+    "go.href = \"/login\";",
+    "go.href = \"/onboard\";"],
+  ["sign-in-first ignores the session", "signin-first.js",
+    "if (signedIn() || widget()) return false;",
+    "if (widget()) return false;"],
+  ["sign-in-first blocks the widget", "signin-first.js",
+    "if (signedIn() || widget()) return false;",
+    "if (signedIn()) return false;"],
+  ["sign-in-first blocks shared drop links", "signin-first.js",
+    "if (page === \"drop\" && (sharedLink() || savedDesks())) return false;",
+    "if (page === \"drop\" && savedDesks()) return false;"],
+  ["sign-in-first blocks saved desks", "signin-first.js",
+    "if (page === \"drop\" && (sharedLink() || savedDesks())) return false;",
+    "if (page === \"drop\" && sharedLink()) return false;"],
+  ["sign-in-first leaves tools showing", "signin-first.js",
+    "\"html.signin-first main > :not(#signin-first){display:none!important}\" +",
+    "\"\" +"],
+  ["sign-in-first skips Create", "signin-first.js",
+    "create: \"Create\", ",
+    ""],
+  ["History empty state back to /onboard", "history.html",
+    "<a href=\\\"/login\\\">Sign in</a>",
+    "<a href=\\\"/onboard\\\">Open a desk</a>"]
 ];
 function applyMutant(orig, row) {
   return row[4] === "all" ? orig.split(row[2]).join(row[3]) : orig.replace(row[2], row[3]);
@@ -696,6 +879,24 @@ async function behaviors() {
   const stored = loginBehavior(html);
   if (stored.length) stored.forEach(function (msg) { fail(msg); });
   else ok("login.html stores reply.desks and reply.queue.desks");
+  const signin = read("signin-first.js");
+  const historyHtml = read("history.html");
+  const sf = signinFaults(signin);
+  if (sf.length) sf.forEach(function (msg) { fail("unmutated " + msg); });
+  else ok("signed-out Drop, Create and History show Sign in first with one /login link; shared links, widget, saved desks and signed-in keep the page");
+  const hf = historyFaults(historyHtml);
+  if (hf.length) hf.forEach(function (msg) { fail(msg); });
+  else ok("History empty state links to /login");
+  const missing = pagesLoadSigninFirst();
+  if (missing.length) fail("pages must load signin-first.js: " + missing.join(", "));
+  else ok("drop.html, create.html and history.html load signin-first.js");
+  const SRCS = { "queue-login.js": src, "login.html": html, "signin-first.js": signin, "history.html": historyHtml };
+  async function faultsFor(file, text) {
+    if (file === "login.html") return loginBehavior(text);
+    if (file === "signin-first.js") return signinFaults(text);
+    if (file === "history.html") return historyFaults(text);
+    return behaviorFaults(text);
+  }
 
   let caught = 0;
   MUTANTS.forEach(function (row) {
@@ -703,7 +904,7 @@ async function behaviors() {
     const file = row[1];
     const find = row[2];
     const repl = row[3];
-    const orig = file === "login.html" ? html : src;
+    const orig = SRCS[file];
     if (orig.indexOf(find) < 0) { fail(name + " ANCHOR GONE"); return; }
     if (row[4] !== "all" && orig.indexOf(find) !== orig.lastIndexOf(find)) { fail(name + " ANCHOR NOT UNIQUE"); return; }
     const next = applyMutant(orig, row);
@@ -716,9 +917,7 @@ async function behaviors() {
     const file = MUTANTS[i][1];
     const find = MUTANTS[i][2];
     const repl = MUTANTS[i][3];
-    const faults = file === "login.html"
-      ? loginBehavior(applyMutant(html, MUTANTS[i]))
-      : await behaviorFaults(applyMutant(src, MUTANTS[i]));
+    const faults = await faultsFor(file, applyMutant(SRCS[file], MUTANTS[i]));
     if (faults.length) {
       caught += 1;
       ok("caught " + name + " (" + faults[0] + ")");
