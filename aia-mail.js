@@ -78,7 +78,7 @@
       return "<option value=\"" + esc(d) + "\">" + esc(d + ".aia") + "</option>";
     }).join("");
     return "<label for=\"aia-mail-local\">Local part</label>" +
-      "<input id=\"aia-mail-local\" maxlength=\"63\" placeholder=\"james-ai or queue\" autocomplete=\"off\">" +
+      "<input id=\"aia-mail-local\" maxlength=\"63\" placeholder=\"e.g. helper-ai or queue\" autocomplete=\"off\">" +
       "<label for=\"aia-mail-domain\">Account .aia name</label>" +
       "<select id=\"aia-mail-domain\">" + domainOpts + "</select>" +
       "<label for=\"aia-mail-desk\">Bound desk</label>" +
@@ -115,7 +115,7 @@
     var mx = (state && state.mx) || {};
     box.innerHTML =
       "<h2>Create .aia email for automations</h2>" +
-      "<p class=\"meta\">Pattern: {ai-or-desk-name}@{accountname}.aia — james-ai@funditaway.aia, queue@springfield-shop.aia. World users create their own and additional emails to operate Automations and desk AIs.</p>" +
+      "<p class=\"meta\">Pattern: {ai-or-desk-name}@{accountname}.aia, like helper-ai@yourname.aia or queue@yourshop.aia. World users create their own and additional emails to operate Automations and desk AIs.</p>" +
       "<p class=\"meta\" id=\"aia-mail-hold\">" + esc(mx.note || "Identities work on the desk now. Internet mail when the MX pipe is connected. DNS for ai.aia / *.aia does not resolve yet.") + " Outbound Send stays HOLD. Status orange until a real MX pipe.</p>" +
       formHtml(state) +
       "<div id=\"aia-mail-list\">" + listHtml(rows) + "</div>" +
@@ -128,7 +128,7 @@
     if (!box) return;
     box.innerHTML =
       "<h2>Create .aia email for automations</h2>" +
-      "<p class=\"meta\">Open this account to create james-ai@funditaway.aia or queue@springfield-shop.aia. Identities work on the desk now. Internet mail when the MX pipe is connected. DNS for ai.aia / *.aia does not resolve yet. Outbound Send stays HOLD.</p>";
+      "<p class=\"meta\">Sign in to create addresses like helper-ai@yourname.aia or queue@yourshop.aia. Identities work on the desk now. Internet mail when the MX pipe is connected. DNS for ai.aia / *.aia does not resolve yet. Outbound Send stays HOLD.</p>";
   }
   async function loadDeskAis(state) {
     try {

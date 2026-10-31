@@ -24,19 +24,22 @@
     .oauth-lead,.oauth-more summary{font-size:13px;color:var(--muted)}
     .oauth-more{margin:8px 0}
     .oauth-ext input{min-height:44px;border-radius:10px;border:1px solid var(--line);padding:8px 10px;flex:1;min-width:140px;font:inherit;background:var(--card);color:inherit}
+    .new-here{margin:0 0 14px;font-size:15px}
+    .new-here a{font-weight:700;color:#0d6b6b}
   </style>
 </head>
 <body class="page-bg">
   <header class="site-header">
     <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
     <div class="nav">
-      <a href="onboard.html">Open a Queue</a>
+      <a href="onboard.html" data-nav-keep>Open a Queue</a>
       <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
     </div>
   </header>
   <form class="gate-card" id="form">
     <h1>Sign in to your Queue</h1>
     <p class="sub">One account is one Queue. That Queue holds every desk. Sign in with email and password, or with a shop name and code. Continue-with is identity only — never send, stop, pay, or draft. <a href="account.html">Your account</a></p>
+    <p class="new-here" id="new-here">New here? <a href="onboard.html" id="open-a-queue">Open a free Queue</a></p>
     <div class="door-row" role="tablist">
       <button type="button" class="on" id="door-desk">Shop name + code</button>
       <button type="button" id="door-email">Email + password</button>
@@ -66,7 +69,7 @@
     </div>
     <button class="btn" type="submit" id="open-queue">Open my Queue</button>
     <div id="oauth-wall"></div>
-    <p class="hint">No password yet? Open with your shop name and code, then set email and password on your account. One account is one Queue. Switching desks does not ask you to sign in again.</p>
+    <p class="hint">Already have a shop name and code? Sign in with them, then add an email and password on your account. One account is one Queue. Switching desks does not ask you to sign in again.</p>
     <p class="err" id="err"></p>
   </form>
   <script src="theme.js?v=20261008b"></script>

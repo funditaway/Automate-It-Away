@@ -24,11 +24,6 @@
     });
   }
   function nameOf(p) { return p.label || p.name || p.id; }
-  function tag(st) {
-    if (st === "live") return ["now", "Live"];
-    if (st === "ask") return ["ask", "Ask"];
-    return ["hold", "Hold"];
-  }
   function hdr() {
     var h = { "Content-Type": "application/json" };
     var tok = "";
@@ -42,26 +37,32 @@
     flash.className = ok ? "ok" : "err";
     flash.style.display = msg ? "block" : "none";
   }
-  function btns(group) {
-    return rows.filter(function (p) { return p.group === group && p.id !== "other"; }).map(function (p) {
-      var t = tag(p.status);
-      return "<button type=\"button\" class=\"oauth-btn\" data-id=\"" + esc(p.id) + "\">Continue with " + esc(nameOf(p)) + " <span class=\"oauth-tag " + t[0] + "\">" + t[1] + "</span></button>";
+  function isLive(p) { return p.status === "live"; }
+  function liveBtns() {
+    return rows.filter(function (p) { return isLive(p) && p.id !== "other"; }).map(function (p) {
+      return "<button type=\"button\" class=\"oauth-btn\" data-id=\"" + esc(p.id) + "\">Continue with " + esc(nameOf(p)) + "</button>";
+    }).join("");
+  }
+  function soonBtns() {
+    return rows.filter(function (p) { return !isLive(p) && p.id !== "other"; }).map(function (p) {
+      return "<button type=\"button\" class=\"oauth-btn oauth-soon\" disabled aria-disabled=\"true\" data-soon=\"" + esc(p.id) + "\">" + esc(nameOf(p)) + " <span class=\"oauth-tag hold\">Coming soon</span></button>";
     }).join("");
   }
   function paint() {
     if (!box) return;
+    var live = liveBtns();
+    var soon = soonBtns();
     box.innerHTML =
-      "<p class=\"oauth-lead\">Or continue with, then open your Queue. Identity only \u2014 never send, stop, pay, or draft.</p>" +
-      "<div class=\"oauth-row\" data-group=\"live\">" + btns("live") + "</div>" +
-      "<details class=\"oauth-more\"><summary>More doors</summary><div class=\"oauth-row\">" + btns("more") + "</div></details>" +
-      "<details class=\"oauth-more\"><summary>Ask \u00b7 Grok, ChatGPT, Claude</summary><div class=\"oauth-row\">" + btns("ask") + "</div><p class=\"hint\">Those vendors have not admitted AIA as a website login yet. Tap files Ask.</p></details>" +
-      "<details class=\"oauth-more\" open><summary>Ext</summary><div class=\"oauth-row\">" + btns("ext") + "</div>" +
-      "<div class=\"oauth-ext\"><label>Another site</label><div class=\"oauth-row\"><input id=\"oauth-site\" placeholder=\"any site on the internet\"><button type=\"button\" class=\"oauth-btn\" data-id=\"other\">Ask AIA</button></div></div></details>" +
+      (live ? "<p class=\"oauth-lead\">Or continue with</p><div class=\"oauth-row\" data-group=\"live\">" + live + "</div>" : "") +
+      (soon ? "<details class=\"oauth-more\" data-group=\"soon\"><summary>Other ways to sign in \u00b7 coming soon</summary><p class=\"hint\">These are not ready yet. Use your desk name and code for now.</p><div class=\"oauth-row\">" + soon + "</div></details>" : "") +
       "<p class=\"err\" id=\"oauth-flash\" style=\"display:none\"></p>";
     flash = box.querySelector("#oauth-flash");
     box.onclick = function (e) {
       var btn = e.target.closest("[data-id]");
-      if (btn) start(btn.getAttribute("data-id"));
+      if (!btn || btn.disabled) return;
+      var id = btn.getAttribute("data-id");
+      var row = rows.filter(function (p) { return p.id === id; })[0];
+      if (row && isLive(row)) start(id);
     };
   }
   async function start(id) {
@@ -97,14 +98,22 @@
       }
       var d = await r.json().catch(function () { return {}; });
       if (d && d.url) { location.href = d.url; return; }
-      say(d.error || d.hint || (r.status === 409 ? "Hold. That door is on the wall until the key or the vendor admits AIA." : "Could not start that door."));
+      say(d.error || d.hint || (r.status === 409 ? "That sign-in is not ready yet. Use your desk name and code for now." : "Could not start that sign-in."));
     } catch (e) {
       say("Could not reach the account.");
     }
   }
+  function soonCss() {
+    if (!document.head || document.getElementById("oauth-soon-css")) return;
+    var css = document.createElement("style");
+    css.id = "oauth-soon-css";
+    css.textContent = ".oauth-btn[disabled]{opacity:.6;cursor:not-allowed;border-style:dashed}";
+    document.head.appendChild(css);
+  }
   async function load() {
     box = document.getElementById("oauth-wall");
     if (!box) return;
+    soonCss();
     paint();
     try {
       var r = await fetch("/api/account?providers=1");
@@ -126,7 +135,7 @@
       say("Account opened with that login. Name your desk. Give the work a home.", true);
     }
     if (/oauth=err/.test(location.search)) {
-      say("That login did not finish. Try another door.");
+      say("That login did not finish. Use your desk name and code for now.");
     }
   }
   w.AIALoginDoors = { load: load, start: start, catalog: function () { return rows; } };
