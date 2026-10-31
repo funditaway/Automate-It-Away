@@ -5,7 +5,8 @@
 // - The status line of a connection is the server's statusText, word for word.
 // - A secret goes in through a hidden field, is cleared right after it is sent (good or bad),
 //   and is never kept, logged, put in the address, or shown. Only "NAME: set" comes back.
-// - Stop and Kill show on every setup card and are never switched off or greyed out.
+// - Stop and Kill show on every setup card until it is stopped for good, and are never switched off
+//   or greyed out. Kill takes two taps, like Stop on the Queue: the first asks, the second sends.
 // - Preview only: nothing here buys or charges anything (Collect stays on HOLD).
 (function () {
   "use strict";
@@ -18,8 +19,17 @@
   var OOPS = "That did not work. Nothing changed. Try again.";
   var OFFLINE = "Could not reach AIA. Nothing changed.";
   var PREVIEW = "Preview, nothing is charged.";
+  // Word for word what api/_account-connect.js says about a killed card.
+  var GONE = "Stopped for good. Nothing more happens on this card.";
+  var GONE_ALREADY = "Already stopped for good. Nothing changed.";
+  var KILL_ASK = "Stop for good? Nothing more happens on this card.";
+  var KILL_YES = "Yes, stop for good";
+  var KILL_KEEP = "Keep the card";
+  // The second tap sends confirm:true. The api's answer when a Kill comes without it:
+  var KILL_AGAIN = "Kill needs a second tap.";
+  var KILL_REARM = "Kill needs a second tap. Tap Yes, stop for good, or Keep the card.";
 
-  var conns = [], cards = [], desks = [], note = "", open = {}, said = {}, hints = {};
+  var conns = [], cards = [], desks = [], note = "", open = {}, said = {}, hints = {}, armed = {}, parts = {};
   var connBox = null, connHint = null, cardBox = null, cardHint = null;
 
   function ls(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
@@ -316,27 +326,44 @@
     hints[card.id] = hint;
     var say = cardSay(card.id);
 
-    // Stop and Kill: on every card, in every state, never greyed out.
+    // Stop and Kill: on every card until it is stopped for good, never greyed out.
+    var gone = card.status === "killed";
     var always = el("div", "row acct-stopkill");
     var stopB = el("button", "edit acct-stop", "Stop");
     stopB.type = "button";
-    var killB = el("button", "edit acct-kill", "Kill");
+    var killB = el("button", "edit acct-kill", armed[card.id] ? KILL_YES : "Kill");
     killB.type = "button";
+    stopB.setAttribute("data-card-id", card.id);
+    killB.setAttribute("data-card-id", card.id);
+    var keepB = null, openB = null;
     var halt = function (verb) {
+      // Kill asks first, like Stop on the Queue: the first tap only arms it.
+      if (verb === "kill" && !armed[card.id]) { arm(card, true, KILL_ASK); return; }
+      if (armed[card.id]) { delete armed[card.id]; said[card.id] = ""; paintCards(); }
       // A Stop or Kill that did not save (503 while the store guard is up, any refusal, or
       // saved:false) never paints the card as stopped or killed; the buttons stay live to try again.
-      post({ action: "setup-step", cardId: card.id, do: verb }, say, null).then(function (x) {
+      var body = { action: "setup-step", cardId: card.id, do: verb };
+      if (verb === "kill") body.confirm = true;
+      post(body, say, null).then(function (x) {
+        if (verb === "kill" && !x.ok && x.d && x.d.error === KILL_AGAIN) { arm(card, true, KILL_REARM); return; }
         if (!x.ok || x.d.saved === false) { say(verb === "stop" ? "Stop didn't save. Try again in a moment." : "Kill didn't save. Try again in a moment."); return; }
-        say(typeof x.d.hint === "string" && x.d.hint ? x.d.hint : verb === "stop" ? "Stopped." : "Killed. Nothing more happens on this card.");
+        var dead = !!(x.d.card && x.d.card.status === "killed");
+        var line = verb === "stop" ? "Stopped." : GONE;
+        if (dead) line = x.d.changed === false ? GONE_ALREADY : GONE;
+        say(typeof x.d.hint === "string" && x.d.hint ? x.d.hint : line);
         if (x.d.card && x.d.card.id) upsertCard(x.d.card);
       });
     };
     stopB.addEventListener("click", function () { halt("stop"); });
     killB.addEventListener("click", function () { halt("kill"); });
-    always.appendChild(stopB);
-    always.appendChild(killB);
+    if (!gone) {
+      always.appendChild(stopB);
+      always.appendChild(killB);
+      if (armed[card.id]) keepB = always.appendChild(keepButton(card));
+    }
+    var startB = null;
     if (card.status === "stopped") {
-      var startB = button("Start again", "edit", function () {
+      startB = button("Start again", "edit", function () {
         post({ action: "setup-step", cardId: card.id, do: "start" }, say, startB).then(function (x) {
           if (!x.ok) return;
           say("Started again.");
@@ -346,9 +373,10 @@
       always.appendChild(startB);
     }
     var isOpen = !!open[card.id];
-    always.appendChild(button(isOpen ? "Close" : "Open", "edit", function () { open[card.id] = !isOpen; paintCards(); }));
+    openB = always.appendChild(button(isOpen ? "Close" : "Open", "edit", function () { open[card.id] = !isOpen; paintCards(); }));
     box.appendChild(always);
     box.appendChild(hint);
+    if (!gone) parts[card.id] = { row: always, kill: killB, keep: keepB, next: startB || openB };
     if (!isOpen) return box;
 
     var steps = Array.isArray(card.steps) ? card.steps : [];
@@ -379,11 +407,35 @@
     return box;
   }
 
+  // Arming (and Keep the card) swaps only this card's Kill / Keep buttons and its line, in place: no list
+  // repaint, so the page does not move and no other card's button slides under the finger. Focus goes to
+  // the button the next tap or Enter should hit: Yes, stop for good when armed, Kill again after Keep.
+  function arm(card, on, line) {
+    var p = parts[card.id];
+    if (on) armed[card.id] = true; else delete armed[card.id];
+    said[card.id] = line;
+    if (!p) { paintCards(); return; }
+    p.kill.textContent = on ? KILL_YES : "Kill";
+    p.kill.disabled = false;
+    if (on && !p.keep) { p.keep = keepButton(card); p.row.insertBefore(p.keep, p.next); }
+    if (!on && p.keep) { p.row.removeChild(p.keep); p.keep = null; }
+    if (hints[card.id]) hints[card.id].textContent = line;
+    if (p.kill.focus) p.kill.focus({ preventScroll: true });
+  }
+  function keepButton(card) {
+    var k = button(KILL_KEEP, "edit acct-keep", function () { if (armed[card.id]) arm(card, false, ""); });
+    k.setAttribute("data-card-id", card.id);
+    return k;
+  }
   function paintCards() {
     if (!cardBox) return;
+    // #447: a repaint empties the list for a moment; keep the page where it was (no jump after a Kill).
+    var y = window.pageYOffset || 0;
     clear(cardBox);
+    parts = {};
     if (!cards.length) cardBox.appendChild(el("p", "meta", "No setup cards yet. Saving a service above makes one."));
     cards.forEach(function (c) { if (c && c.id) cardBox.appendChild(paintCard(c)); });
+    if ((window.pageYOffset || 0) !== y && window.scrollTo) window.scrollTo(0, y);
   }
 
   function loadCards() {
@@ -410,7 +462,7 @@
     var s = el("div", "card");
     s.id = "acct-setup";
     s.appendChild(el("h2", null, "Setup cards"));
-    s.appendChild(el("p", "acct-always", "Stop and Kill always work on every card."));
+    s.appendChild(el("p", "acct-always", "Stop and Kill work on every card until it is stopped for good."));
     cardHint = el("p", "meta");
     cardHint.setAttribute("role", "status");
     s.appendChild(cardHint);

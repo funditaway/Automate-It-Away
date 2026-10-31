@@ -4,7 +4,9 @@
    - Reads GET /api/jobs?workspace=<desk> (setupCards), or ?desks=all on the Queue's
      All desks view (each card then carries its desk slug).
    - Acts with POST /api/account { action: "setup-step", cardId, stepId, do }.
-   - One tap sends one request. Nothing is retried on its own.
+   - One tap sends one request. Nothing is retried on its own. Kill takes two taps, like Stop
+     on the Queue: the first asks (Yes, stop for good / Keep the card), the second sends with
+     confirm:true. A 409 "Kill needs a second tap." asks again.
    - An empty list or a refused read shows nothing at all.
    - Every card links to My account (/account#setup-<id>).
    - Stop and Kill show on every card. Nothing here buys or charges anything.
@@ -19,10 +21,20 @@
   var OOPS = "That didn't go through. Nothing changed.";
   var OFFLINE = "Couldn't reach Automate It Away. Nothing changed.";
   var SKIP_WHY = "Skipped from the desk card.";
+  // Word for word what api/_account-connect.js says about a killed card.
+  var GONE = "Stopped for good. Nothing more happens on this card.";
+  var KILL_ASK = "Stop for good? Nothing more happens on this card.";
+  var KILL_YES = "Yes, stop for good";
+  var KILL_KEEP = "Keep the card";
+  var KILL_AGAIN = "Kill needs a second tap.";
+  var KILL_REARM = "Kill needs a second tap. Tap Yes, stop for good, or Keep the card.";
 
   var cards = [];
   var said = {};
   var waiting = {};
+  var armed = {};
+  // Each painted card's own Kill / Keep / say nodes, so arming swaps them in place (see arm()).
+  var parts = {};
   var shownAll = false;
   var root = null;
   var readGen = 0;
@@ -121,10 +133,12 @@
     if (x.ok) {
       delete waiting[card.id + "|" + (st ? st.id : "")];
       var next = x.d && x.d.card;
-      var line = (x.d && x.d.entry && typeof x.d.entry.what === "string" && x.d.entry.what) || "Saved.";
+      // The api's own words whenever it sends them (an already-killed card, a save that did not stick).
+      var hint = x.d && typeof x.d.hint === "string" && x.d.hint ? x.d.hint : "";
+      var line = hint || (x.d && x.d.entry && typeof x.d.entry.what === "string" && x.d.entry.what) || "Saved.";
       if (next && next.id) {
         said[next.id] = next.status === "killed" ? "" : line;
-        if (next.status === "killed") said.__top = "Killed. Nothing more happens on that card.";
+        if (next.status === "killed") said.__top = hint || GONE;
         upsert(next);
       } else { said[card.id] = line; paint(); }
       return;
@@ -140,14 +154,43 @@
     paint();
   }
 
+  // Arming (and Keep the card) swaps only this card's Kill / Keep buttons and its line, in place: no list
+  // repaint, so the page does not move and no other card's button slides under the finger. Focus goes to
+  // the button the next tap or Enter should hit: Yes, stop for good when armed, Kill again after Keep.
+  function arm(card, on, line) {
+    var p = parts[card.id];
+    if (on) armed[card.id] = true; else delete armed[card.id];
+    said[card.id] = line;
+    if (!p || !p.kill || !p.kill.parentNode) { paint(); return; }
+    p.kill.textContent = on ? KILL_YES : "Kill";
+    p.kill.disabled = false;
+    if (on && !p.keep) { p.keep = keepButton(card); p.row.insertBefore(p.keep, p.open); }
+    if (!on && p.keep) { p.row.removeChild(p.keep); p.keep = null; }
+    p.say.textContent = line;
+    if (p.kill.focus) p.kill.focus({ preventScroll: true });
+  }
+  function keepButton(card) {
+    var k = button(KILL_KEEP, "setup-keep", function () { if (armed[card.id]) arm(card, false, ""); });
+    k.setAttribute("data-card-id", card.id);
+    return k;
+  }
+
   function act(card, st, verb, btn) {
+    // The first Kill tap only asks; nothing is sent until the second.
+    if (verb === "kill" && !armed[card.id]) { arm(card, true, KILL_ASK); return Promise.resolve(null); }
+    if (armed[card.id]) { delete armed[card.id]; if (said[card.id] === KILL_ASK) said[card.id] = ""; }
     var body = { action: "setup-step", cardId: card.id };
     if (st) body.stepId = st.id;
     body.do = verb;
+    if (verb === "kill") body.confirm = true;
     if (verb === "skip") body.reason = SKIP_WHY;
     if (st && st.kind === "desk" && verb === "done" && (card.slug || card.deskId)) body.deskId = card.slug || card.deskId;
     if (btn) btn.disabled = true;
-    return post(body).then(function (x) { reply(card, st, x); return x; });
+    return post(body).then(function (x) {
+      if (verb === "kill" && x.status === 409 && x.d && x.d.error === KILL_AGAIN) { arm(card, true, KILL_REARM); return x; }
+      reply(card, st, x);
+      return x;
+    });
   }
 
   // ---------- painting ----------
@@ -203,8 +246,11 @@
     var row = el("div", "setup-row");
     if (card.status === "stopped") row.appendChild(button("Start again", "setup-go setup-start", function (b) { act(card, null, "start", b); }));
     // Stop and Kill: on every card, in every state, never greyed out ahead of time.
-    row.appendChild(button("Stop", "setup-stop", function (b) { act(card, null, "stop", b); }));
-    row.appendChild(button("Kill", "setup-kill", function (b) { act(card, null, "kill", b); }));
+    var stopB = row.appendChild(button("Stop", "setup-stop", function (b) { act(card, null, "stop", b); }));
+    stopB.setAttribute("data-card-id", card.id);
+    var killB = row.appendChild(button(armed[card.id] ? KILL_YES : "Kill", "setup-kill", function (b) { act(card, null, "kill", b); }));
+    killB.setAttribute("data-card-id", card.id);
+    var keepB = armed[card.id] ? row.appendChild(keepButton(card)) : null;
     var a = el("a", "setup-open", "Open in My account");
     a.href = hrefOf(card);
     row.appendChild(a);
@@ -212,6 +258,7 @@
     var say = el("p", "setup-say", said[card.id] || "");
     say.setAttribute("role", "status");
     box.appendChild(say);
+    parts[card.id] = { row: row, kill: killB, keep: keepB, open: a, say: say };
     return box;
   }
 
@@ -234,6 +281,7 @@
     if (!box) return;
     ensureCss();
     clear(box);
+    parts = {};
     var live = cards.filter(liveCard);
     if (!live.length && !said.__top) { box.hidden = true; return; }
     box.hidden = false;
