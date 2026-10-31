@@ -172,6 +172,13 @@ async function checkAccount(S, bad) {
   }
   if (!(saveAt > youAt && saveAt < youEnd)) bad("Save profile must sit inside the You card");
   if (!/#you-card\[hidden\]\{display:none!important\}/.test(html)) bad("#you-card must honor hidden");
+  // Probe A18: the /account headings say what the page is and what to do, never "Open the account".
+  const h1 = (html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/) || ["", ""])[1].replace(/<[^>]+>/g, "").trim();
+  if (h1 !== "Your account") bad("/account heading must be Your account (" + h1 + ")");
+  const gateHtml = gateAt >= 0 ? html.slice(gateAt, html.indexOf("</form>", gateAt)) : "";
+  const gateH = (gateHtml.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/) || ["", ""])[1].replace(/<[^>]+>/g, "").trim();
+  if (gateH !== "Sign in first") bad("/account sign-in box heading must be Sign in first (" + gateH + ")");
+  if (/Open the account/i.test(html)) bad("/account must not say Open the account");
 
   const out = await runAccount(html, {}, bad, "stranger");
   if (out) {
@@ -290,6 +297,9 @@ const MUTANTS = [
   ["You card shows to strangers", "account.html", [['<div class="card" id="you-card" hidden>', '<div class="card" id="you-card">']]],
   ["You card never opens", "account.html", [['      document.getElementById("you-card").hidden=false;\n', ""]]],
   ["Save profile outside You card", "account.html", [['      <p style="margin:10px 0 0"><button class="go" type="button" id="save-you">Save profile</button></p>\n', ""], ['    <div class="card" id="aia-wallet"></div>', '    <p><button class="go" type="button" id="save-you">Save profile</button></p>\n    <div class="card" id="aia-wallet"></div>']]],
+  ["A18 account heading back to Open the account", "account.html", [["<h1>Your account</h1>", "<h1>Open the account</h1>"]]],
+  ["A18 sign-in box heading back to Open the account", "account.html", [["<h2>Sign in first</h2>", "<h2>Open the account</h2>"]]],
+  ["A18 sign-in button back to Open the account", "account.html", [['<button class="go" type="submit">Sign in</button>', '<button class="go" type="submit">Open the account</button>']]],
   ["email placeholder shop", "account.html", [['placeholder="you@example.com"', 'placeholder="you@shop.com"']]],
   ["phone placeholder real", "account.html", [['placeholder="e.g. 555-123-4567"', 'placeholder="417-555-0100"']]],
   ["city placeholder real", "account.html", [['placeholder="e.g. Your town"', 'placeholder="Springfield"']]],
