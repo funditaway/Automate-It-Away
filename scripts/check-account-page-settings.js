@@ -50,6 +50,7 @@ function serialize(el, inner) {
 function walk(el, fn) { fn(el); (el.parts || []).forEach((p) => { if (p.tagName) walk(p, fn); }); }
 function find(el, pred) { const out = []; walk(el, (n) => { if (pred(n)) out.push(n); }); return out; }
 function byId(el, id) { return find(el, (n) => n.id === id)[0] || null; }
+function saveBtn(el) { return find(el, (n) => n.tagName === "button" && /Save/.test(n.textContent))[0]; }
 const tick = () => new Promise((r) => setImmediate(r));
 async function settle() { for (let i = 0; i < 8; i++) await tick(); }
 
@@ -147,19 +148,22 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     const ksel = find(byId(w.mount, "acct-profile"), (n) => n.tagName === "select")[0];
     ok(ksel && ksel.parts.length === 3 && ksel.parts.map((o) => o.textContent).join() === "Human,AI,SI", "profile: kind picker reads Human, AI, SI");
     ok(ksel && ksel.parts.filter((o) => o.selected).map((o) => o.value).join() === "human", "profile: kind picker shows the saved kind");
+    const kindTips = find(byId(w.mount, "acct-profile"), (n) => n.tagName === "button" && n.getAttribute("data-aia-tip") === "si-aia");
+    ok(kindTips.length === 1, "profile: si-aia tip next to the kind picker");
+    ok(/SI · si\.aia hooks pipes/.test(byId(w.mount, "acct-profile").textContent), "profile: Human / Desk AI / SI hint under the picker");
 
     // profile save
     const prof = byId(w.mount, "acct-profile");
     const inputs = find(prof, (n) => n.tagName === "input" || n.tagName === "textarea");
     ok(inputs.length === 8, "profile: eight fields");
     ok(inputs[0].value === EVIL, "profile: name goes in as value");
-    find(prof, (n) => n.tagName === "button")[0].fire("click");
+    saveBtn(prof).fire("click");
     await settle();
     let last = w.calls[w.calls.length - 1];
     ok(last.init.method === "POST" && last.body.action === "settings" && last.body.section === "profile", "profile: posts settings/profile");
     ok(Object.keys(last.body.set).sort().join() === "city,email,hours,name,note,phone,state,timezone", "profile: sends exactly the profile fields, no kind when unchanged");
     ksel.value = "ai";
-    find(prof, (n) => n.tagName === "button")[0].fire("click");
+    saveBtn(prof).fire("click");
     await settle();
     last = w.calls[w.calls.length - 1];
     ok(last.body.section === "profile" && last.body.set.kind === "ai" && Object.keys(last.body.set).length === 9, "profile: a changed kind goes with the profile save");
@@ -167,7 +171,7 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
 
     // talk save
     radios[2].checked = true; radios[1].checked = false;
-    find(byId(w.mount, "acct-talk"), (n) => n.tagName === "button")[0].fire("click");
+    saveBtn(byId(w.mount, "acct-talk")).fire("click");
     await settle();
     last = w.calls[w.calls.length - 1];
     ok(last.body.section === "talk" && last.body.set.reach === "email" && Object.keys(last.body.set).length === 1, "talk: posts reach only");
@@ -184,7 +188,7 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     const sel = find(byId(w.mount, "acct-look"), (n) => n.tagName === "select")[0];
     ok(sel && sel.parts.length === 3, "look: three choices");
     sel.value = "light";
-    find(byId(w.mount, "acct-look"), (n) => n.tagName === "button")[0].fire("click");
+    saveBtn(byId(w.mount, "acct-look")).fire("click");
     await settle();
     last = w.calls[w.calls.length - 1];
     ok(last.body.section === "look" && last.body.set.theme === "light", "look: posts theme");
@@ -202,13 +206,13 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     ok(box.checked === true, "refused change flips the choice back");
     ok(/That seat is not open\./.test(autos.textContent), "refused change shows the server's plain reason");
     const look = byId(w.mount, "acct-look");
-    find(look, (n) => n.tagName === "button")[0].fire("click");
+    saveBtn(look).fire("click");
     await settle();
     ok(!w.store.aia_theme && w.applied() === 0, "refused look save changes nothing here");
     const prof = byId(w.mount, "acct-profile");
     const ks = find(prof, (n) => n.tagName === "select")[0];
     ks.value = "si";
-    find(prof, (n) => n.tagName === "button")[0].fire("click");
+    saveBtn(prof).fire("click");
     await settle();
     ok(ks.value === "human", "refused kind change flips back to the saved kind");
     ok(/That seat is not open\./.test(prof.textContent), "refused kind change shows the server's plain reason");
@@ -226,6 +230,8 @@ const SIX = ["acct-profile", "acct-talk", "acct-desks", "acct-autos", "acct-look
     const prof = byId(w.mount, "acct-profile");
     ok(find(prof, (n) => n.tagName === "select").length === 0, kind + ": no kind picker when the server offers no choices");
     ok(prof.textContent.indexOf("This account is a " + { human: "Human", ai: "AI", si: "SI" }[kind] + ".") >= 0, kind + ": kind shown in plain words");
+    ok(find(prof, (n) => n.tagName === "button" && n.getAttribute("data-aia-tip") === "si-aia").length === 1, kind + ": si-aia tip on read-only kind");
+    ok(/SI · si\.aia hooks pipes/.test(prof.textContent), kind + ": Human / Desk AI / SI hint");
   }
   {
     const st = fullSettings(); st.profile.kind = EVIL; st.profile.kindChoices = [EVIL, "robot"];

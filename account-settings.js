@@ -24,6 +24,7 @@
   var LOOKS = { system: "Match my phone or computer", light: "Light", dark: "Dark" };
   var REACH = { call: "Call me", text: "Text me", email: "Email me" };
   var KINDS = { human: "Human", ai: "AI", si: "SI" };
+  var KIND_HINT = "Human decides. Desk AI drafts. SI · si.aia hooks pipes and automations with pauses a human owner unlocks.";
 
   function ls(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
   function hdr() {
@@ -106,6 +107,13 @@
     if (kinds.length) {
       var kl = el("label", "acct-field");
       kl.appendChild(el("span", null, "This account is a"));
+      var kindTip = document.createElement("button");
+      kindTip.type = "button";
+      kindTip.className = "aia-tip";
+      kindTip.setAttribute("data-aia-tip", "si-aia");
+      kindTip.setAttribute("aria-label", "More about Human, AI, and SI accounts");
+      kindTip.textContent = "?";
+      kl.appendChild(kindTip);
       kindSel = document.createElement("select");
       kinds.forEach(function (k) {
         var o = el("option", null, KINDS[k]);
@@ -114,8 +122,19 @@
       });
       kl.appendChild(kindSel);
       c.appendChild(kl);
+      c.appendChild(el("p", "meta", KIND_HINT));
     } else if (KINDS[s.kind]) {
-      c.appendChild(el("p", "meta", "This account is a " + KINDS[s.kind] + "."));
+      var kindLine = el("p", "meta");
+      kindLine.appendChild(el("span", null, "This account is a " + KINDS[s.kind] + "."));
+      var kindTipRo = document.createElement("button");
+      kindTipRo.type = "button";
+      kindTipRo.className = "aia-tip";
+      kindTipRo.setAttribute("data-aia-tip", "si-aia");
+      kindTipRo.setAttribute("aria-label", "More about Human, AI, and SI accounts");
+      kindTipRo.textContent = "?";
+      kindLine.appendChild(kindTipRo);
+      c.appendChild(kindLine);
+      c.appendChild(el("p", "meta", KIND_HINT));
     }
     saveRow(c, "Save profile", function (hint, btn) {
       var set = {};
