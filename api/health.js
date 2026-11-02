@@ -155,10 +155,11 @@ async function deskStatus(req, res) {
 async function health(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  // GET /api/health is read-only. It re-reads the store but never saves or
-  // writes the blob. The old save() here was a write probe for store.blob,
-  // which health no longer shows (#236), so every read rewrote aia/store.json.
-  await readyRead();
+  // GET /api/health is read-only. It skips the age window for live counts but
+  // never saves or writes the blob. Write-hold still applies: a dirty instance
+  // does not replace unsaved mem. The old save() here was a write probe for
+  // store.blob, which health no longer shows (#236).
+  await readyRead(true);
   const driver = mem.driver || "file";
   const rev = commitRev();
   res.status(200).json({

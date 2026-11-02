@@ -48,13 +48,16 @@ function assertSources() {
   if (upload.indexOf("loadIfCold") < 0) fail("upload.js must call loadIfCold");
   const uploadCode = upload.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
   if (/ready\s*\(/.test(uploadCode)) fail("upload.js must not call ready()");
-  const readyAt = lib.indexOf("async function ready()");
+  const readyAt = lib.indexOf("async function ready(");
   const coldAt = lib.indexOf("async function loadIfCold()");
   const saveAt = lib.indexOf("async function save()");
   if (readyAt < 0 || coldAt < 0 || saveAt < 0 || !(readyAt < coldAt && coldAt < saveAt)) fail("loadIfCold must sit beside ready() without replacing it");
   const readySrc = lib.slice(readyAt, coldAt);
   const coldSrc = lib.slice(coldAt, saveAt);
-  if (readySrc.indexOf("await blobRead()") < 0 || readySrc.indexOf("applyStore(remote)") < 0) fail("ready() must still re-read for its own callers");
+  // ready() re-reads through reloadStore (age window + write-hold), not an
+  // inline blobRead in the ready() body.
+  if (lib.indexOf("async function reloadStore()") < 0) fail("ready() must still re-read for its own callers");
+  if (lib.indexOf("applyStore(remote)") < 0) fail("ready() must still apply a remote store");
   if (readySrc.indexOf("loadIfCold") >= 0) fail("ready() must not call loadIfCold");
   if (coldSrc.indexOf("globalThis.__aiaStoreLoaded") < 0) fail("loadIfCold must return when the store is already loaded");
   if (coldSrc.indexOf("globalThis.__aiaColdInflight") < 0) fail("loadIfCold must share one in-flight load");

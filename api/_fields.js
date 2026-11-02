@@ -50,8 +50,13 @@ function defaultFields(model) {
 function sameKeys(a, b) { return (a || []).map((f) => f.key).join(",") === (b || []).map((f) => f.key).join(","); }
 function ensureFields(shop) {
   if (!shop) return [];
-  if (!Array.isArray(shop.fields)) shop.fields = [];
-  if (shop.fields.length && sameKeys(shop.fields, defaultFields(shop.model))) shop.fields = [];
+  const lib = require("./_lib");
+  const fill = function () {
+    if (!Array.isArray(shop.fields)) shop.fields = [];
+    if (shop.fields.length && sameKeys(shop.fields, defaultFields(shop.model))) shop.fields = [];
+  };
+  const needs = !Array.isArray(shop.fields) || (shop.fields.length && sameKeys(shop.fields, defaultFields(shop.model)));
+  if (needs) { if (typeof lib.quietFill === "function") lib.quietFill(fill); else fill(); }
   return shop.fields;
 }
 function publicField(f) {
@@ -89,7 +94,7 @@ function applyFieldList(shop, raw) {
   incoming.slice(0, 12).forEach((f) => { const out = addShopField(shop, f.label, f.type); if (out.ok) added.push(out.field); });
   return { fields: ensureFields(shop), added };
 }
-function ensureCreations(shop) { if (!shop) return []; if (!Array.isArray(shop.creations)) shop.creations = []; return shop.creations; }
+function ensureCreations(shop) { if (!shop) return []; if (!Array.isArray(shop.creations)) { const lib = require("./_lib"); const f = function () { shop.creations = []; }; if (typeof lib.quietFill === "function") lib.quietFill(f); else f(); } return shop.creations; }
 function publicCreation(c) {
   if (!c) return null;
   return { id: c.id, kind: c.kind || "model", name: c.name, does: c.does || "", fields: Array.isArray(c.fields) ? c.fields.map(publicField).filter(Boolean) : [] };

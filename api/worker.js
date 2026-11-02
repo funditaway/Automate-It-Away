@@ -76,7 +76,9 @@ module.exports = async function handler(req, res) {
   // Warm: from when guardStore took the request, so its recovery reads count.
   const t0 = coldRun ? loadedAt : (requestStartedAt() || Date.now());
   coldRun = false;
-  await ready();
+  // Skip the age window so a worker save is not a stale put, but still honor
+  // write-hold. save()/guardStore refuse an untrusted store.
+  await ready(true);
   const workspace = workspaceOf(req);
   const now = Date.now();
   const scope = req.query.all === "1" ? mem.jobs : mem.jobs.filter((j) => j.workspace === workspace);
