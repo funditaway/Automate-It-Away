@@ -55,6 +55,13 @@ export function inferSandboxRisk(url: string, method: string): RiskLevel {
   const u = url.toLowerCase()
   const m = method.toUpperCase()
   if (/delete|purge|destroy|wipe/.test(u) || m === 'DELETE') return 'critical'
+  // Physical / local appliance actuators (MQTT, SmartHQ, LAN) — at least medium/high
+  if (/unlock|open[_/-]?door|arm|disarm|power[_/-]?off/.test(u)) return 'high'
+  if (
+    /smarthq:|mqtt:|start[_/-]?cycle|adjust[_/-]?flow|actuate|relay|set[_/-]?(temp|flow)/.test(u)
+  ) {
+    return 'medium'
+  }
   if (/contacts|opportunities|conversations|campaigns|workflows|calendars/.test(u)) return 'high'
   if (m === 'POST' || m === 'PUT' || m === 'PATCH') return 'medium'
   return 'low'

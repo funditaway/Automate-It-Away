@@ -25,6 +25,13 @@ import { createApp } from '../src/server.js'
 import { SandboxManager } from '../src/sandboxManager.js'
 import { cardFromGhlWebhook, dispatchToGhl } from '../src/ghl.js'
 import {
+  DeviceConnectionManager,
+  cardFromApplianceEvent,
+  normalizeApplianceTelemetry,
+  preferLocalEndpoint,
+  riskForPhysicalAction,
+} from '../src/appliance.js'
+import {
   compileTemplate,
   selectTemplate,
   synthesizeMetaPrompt,
@@ -584,6 +591,84 @@ describe('sandbox interceptor', () => {
     assert.equal(result.cards[0].status, 'signed')
     assert.ok(result.result && (result.result as { authorized: boolean }).authorized)
 
+    vault.close()
+    rmSync(ws.root, { recursive: true, force: true })
+  })
+})
+
+describe('appliance standards', () => {
+  it('normalizes cycle telemetry into AIA before/after diffs', () => {
+    const n = normalizeApplianceTelemetry({
+      event: 'cycle_complete',
+      deviceId: 'washer-1',
+      mqttTopic: 'home/laundry/washer',
+      cloudUrl: 'https://api.example.com/cloud',
+    })
+    assert.equal(n.diffData.before.status, 'running')
+    assert.equal(n.diffData.before.energyRate, 'high')
+    assert.equal(n.diffData.after.status, 'complete')
+    assert.equal(n.diffData.after.energyRate, 'low')
+    assert.equal(n.diffData.after.savingsEstimated, '$0.12')
+    assert.equal(n.targetEndpoint, 'home/laundry/washer')
+    assert.equal(preferLocalEndpoint('https://cloud/x', 'mqtt://local/t'), 'mqtt://local/t')
+    assert.equal(riskForPhysicalAction('unlock'), 'high')
+    assert.equal(riskForPhysicalAction('start_cycle'), 'medium')
+  })
+
+  it('queues graceful retry on connection drop without locking the queue', async () => {
+    const ws = tempWorkspace()
+    const { app, vault } = createApp({
+      dataDir: ws.dataDir,
+      dbPath: ws.dbPath,
+      keyDir: ws.keyDir,
+      dryRun: true,
+    })
+    const server = app.listen(0, '127.0.0.1')
+    await new Promise<void>((r) => server.once('listening', () => r()))
+    const { port } = server.address() as { port: number }
+    const base = `http://127.0.0.1:${port}`
+
+    const action = await fetch(`${base}/api/appliance/action`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        event: 'start_cycle',
+        deviceId: 'dryer-1',
+        mqttTopic: 'home/laundry/dryer',
+      }),
+    })
+    assert.equal(action.status, 202)
+    const actionBody = (await action.json()) as {
+      requiresEnter: boolean
+      riskLevel: string
+      executed: boolean
+    }
+    assert.equal(actionBody.requiresEnter, true)
+    assert.equal(actionBody.executed, false)
+    assert.ok(['medium', 'high', 'critical'].includes(actionBody.riskLevel))
+
+    const drop = await fetch(`${base}/api/appliance/connection-drop`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceId: 'dryer-1', notifyQueue: true }),
+    })
+    assert.equal(drop.status, 202)
+    const dropBody = (await drop.json()) as {
+      uiLocked: boolean
+      retry: { status: string }
+      queuedNotice: { cardId: string } | null
+    }
+    assert.equal(dropBody.uiLocked, false)
+    assert.equal(dropBody.retry.status, 'retry_scheduled')
+    assert.ok(dropBody.queuedNotice?.cardId)
+
+    const mgr = new DeviceConnectionManager({ baseDelayMs: 1 })
+    mgr.discover({ deviceId: 'x', mqttTopic: 'a/b' })
+    const retry = mgr.enqueueDeviceRetry('x')
+    assert.equal(cardFromApplianceEvent({ event: 'cycle_complete', deviceId: 'x' }).source, 'appliance')
+    assert.equal(retry.status, 'retry_scheduled')
+
+    server.close()
     vault.close()
     rmSync(ws.root, { recursive: true, force: true })
   })

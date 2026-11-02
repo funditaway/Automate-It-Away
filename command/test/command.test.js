@@ -264,6 +264,82 @@ test('bridge proposals never broadcast and do not call fetch', async () => {
   )
 })
 
+test('appliance telemetry normalizes to AIA before/after diffs with energyRate', async () => {
+  const {
+    normalizeApplianceTelemetry,
+    preferLocalEndpoint,
+    riskForPhysicalAction,
+    DeviceConnectionManager,
+  } = await import('../lib/appliance.js')
+
+  const cycle = normalizeApplianceTelemetry({
+    event: 'cycle_complete',
+    deviceId: 'washer-1',
+    mqttTopic: 'home/laundry/washer',
+    cloudUrl: 'https://api.example.com/smarthq/washer-1',
+    watts: 40,
+  })
+  assert.equal(cycle.diffData.before.status, 'running')
+  assert.equal(cycle.diffData.before.energyRate, 'high')
+  assert.equal(cycle.diffData.after.status, 'complete')
+  assert.equal(cycle.diffData.after.energyRate, 'low')
+  assert.equal(cycle.diffData.after.savingsEstimated, '$0.12')
+  assert.equal(cycle.targetEndpoint, 'home/laundry/washer')
+  assert.equal(preferLocalEndpoint('https://cloud.example/x', 'mqtt://broker/home'), 'mqtt://broker/home')
+  assert.equal(riskForPhysicalAction('unlock door'), 'high')
+  assert.equal(riskForPhysicalAction('start_cycle'), 'medium')
+  assert.equal(riskForPhysicalAction('cycle_complete'), 'low')
+
+  const mgr = new DeviceConnectionManager({ baseDelayMs: 10 })
+  mgr.discover({ deviceId: 'dryer-9', mqttTopic: 'home/laundry/dryer' })
+  const retry = mgr.enqueueDeviceRetry('dryer-9', { reason: 'link_lost' })
+  assert.equal(retry.status, 'retry_scheduled')
+  assert.equal(mgr.getDevice('dryer-9').online, false)
+  assert.equal(mgr.listDueRetries(Date.now() + 50).length, 1)
+})
+
+test('smarthq webhook uses appliance diffs; physical action requires medium+ and ENTER gate', async () => {
+  await withCenter(async ({ base, queue }) => {
+    const telemetry = await request(base, '/webhook/smarthq', {
+      method: 'POST',
+      body: {
+        event: 'cycle_complete',
+        deviceId: 'dryer-1',
+        packId: 'home',
+        mqttTopic: 'home/laundry/dryer',
+        cloudUrl: 'https://api.geappliances.com/v1/dryer-1',
+      },
+    })
+    assert.equal(telemetry.status, 202)
+    const telCard = queue.get(telemetry.body.cardId)
+    assert.equal(telCard.payload.diffData.before.status, 'running')
+    assert.equal(telCard.payload.diffData.before.energyRate, 'high')
+    assert.equal(telCard.payload.diffData.after.status, 'complete')
+    assert.ok(telCard.payload.diffData.after.energyRate)
+    assert.match(telCard.payload.targetEndpoint, /home\/laundry\/dryer|smarthq:/)
+
+    const action = await request(base, '/api/appliance/action', {
+      method: 'POST',
+      body: { event: 'unlock', deviceId: 'door-1', mqttTopic: 'home/doors/front' },
+    })
+    assert.equal(action.status, 202)
+    assert.equal(action.body.requiresEnter, true)
+    assert.equal(action.body.executed, false)
+    assert.ok(['medium', 'high', 'critical'].includes(action.body.riskLevel))
+    const actCard = queue.get(action.body.cardId)
+    assert.ok(['medium', 'high', 'critical'].includes(actCard.payload.riskLevel))
+
+    const drop = await request(base, '/api/appliance/connection-drop', {
+      method: 'POST',
+      body: { deviceId: 'dryer-1', reason: 'mqtt_timeout', notifyQueue: true },
+    })
+    assert.equal(drop.status, 202)
+    assert.equal(drop.body.uiLocked, false)
+    assert.equal(drop.body.retry.status, 'retry_scheduled')
+    assert.ok(drop.body.queuedNotice?.cardId)
+  })
+})
+
 test('pack adapter events normalize to the universal Active Decision Card schema', async () => {
   await withCenter(async ({ base }) => {
     const queued = await request(base, '/api/pack/home/event', {

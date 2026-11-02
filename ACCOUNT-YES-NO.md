@@ -362,3 +362,12 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Clearer taps: Already done / On the desk / Coming up, Off desk (was Ext), Cap priority, More filters with a count badge, Quick finds fold, Show talk / Hide talk on cards, Refresh, copy toast, Esc closes Explore, `/` focuses search.
 - Empty states point at Open a desk / Drop / Create. Give is the file. Update is install again. Nothing silent. Collect HOLD.
 - `scripts/check-history-ux.js` covers that face. Existing History thread / prompt / roadmap checks still own honesty.
+
+## YES (Local appliance / SmartHQ standards — 2026-11-02)
+
+- Local-first appliance adapters in `command/lib/appliance.js` and `runtime/src/appliance.ts`. Prefer MQTT / LAN / `smarthq://` over cloud webhooks (`preferLocalEndpoint`).
+- Raw appliance events normalize to AIA `diffData.before` / `after` (`status`, `energyRate`, optional `savingsEstimated`) via `normalizeApplianceTelemetry`. SmartHQ ingest never enqueues a raw body.
+- Physical actions (start cycle, unlock, adjust flow) are at least `medium` / `high` (`riskForPhysicalAction`) and require human `[ENTER]` / Yes before the device bridge. No auto-actuate.
+- Connection drops enqueue a graceful retry (`DeviceConnectionManager` / `enqueueDeviceRetry`) — decision UI stays free (`uiLocked: false`).
+- Home pack rails/rules name the same local-first + HITL physical holds. Standards live in `.cursorrules` under Local IoT & Appliance Automation Standards.
+- Not an IoT marketplace product. Buyer still binds their own keys and devices. Collect HOLD. `scripts/check-aia-command.js` + `scripts/check-aia-runtime.js` cover the contract.
