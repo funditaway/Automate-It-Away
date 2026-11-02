@@ -96,6 +96,11 @@
       body: "Name a desk AI — not a free-roaming bot. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Drafts the next step and the words. Nothing sent. Review then Copy / Text / Email / Hand to, or Stop. Yes / Stop / Kill stay human. Collect stays HOLD.",
       ask: "What does a desk AI do?"
     },
+    "together": {
+      title: "Together on one card",
+      body: "One card, one idea. Talk, drafts, decisions, and actions stay on the card, in order. Humans verify. Desk AIs and SIs prepare. AI prepares the work. The human verifies. Yes / Stop / Kill stay human. Open a card to see what happened.",
+      ask: "How do humans, AIs, and SIs work together on a card?"
+    },
     "si-aia": {
       title: "SI · si.aia",
       body: "si.aia is the SI seat on AIA. An SI account hooks pipes and automations. It pauses before money, deletes, or messaging someone new. It cannot change its own kind or turn those pauses off — a human owner must. Desk AIs draft. Humans Yes / Stop / Kill. SI prepares the work. A person still verifies. Collect stays HOLD.",

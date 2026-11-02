@@ -111,10 +111,17 @@ must(packMd, "How lead / Talk / public Drop leftover", "PACK.md names How Yes-or
 must(yesNo, "Create / market / engine / grok leftover", "ACCOUNT-YES-NO names Create Yes-or-No leftover");
 must(packMd, "Create / market / engine / grok leftover", "PACK.md names Create Yes-or-No leftover");
 must(how, "Desk AI names stay on this desk.", "how names stay on this desk");
+must(how, 'id="together"', "how together section");
+must(how, "Together on one card", "how together heading");
+must(how, "AI prepares the work. The human verifies", "how AI prepares human verifies");
+must(how, "An SI account hooks pipes and automations", "how SI prepares");
+must(how, "SI · si.aia", "how SI · si.aia");
 mustNot(how, "ai.aia is the door", "how ai.aia jargon");
 mustNot(how, "mint", "how does not teach mint");
 mustNot(how, "Send or Stop", "how Send as rail");
 mustNot(how, "until Send", "how until Send");
+must(yesNo, "Together on one card leftover", "ACCOUNT-YES-NO names Together leftover");
+must(packMd, "Together on one card leftover", "PACK.md names Together leftover");
 
 must(setup, "Add a rule if you need one", "setup doer copy");
 must(setup, "Photo to listing draft. Payments are off for now.", "setup Consign payments off");
