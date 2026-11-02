@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves the one-time old-upload move: owner seat + confirm, dry-run default,
 // copy/head/del against the mock Blob store, verify-before-relink, HTML flagged,
 // delete only after James's Yes. No token or pin in output or in a URL.
@@ -71,7 +72,8 @@ function spawnChild(scenario, apiDir, envExtra) {
     AIA_UPLOAD_DIR: path.join(tmp, "up"),
     VERCEL_ENV: "production",
     BLOB_READ_WRITE_TOKEN: TOKEN,
-    BLOB_STORE_ID: "store_FAKESTORE"
+    BLOB_STORE_ID: "store_FAKESTORE",
+    AIA_CHECK_PARENT: String(process.pid)
   }, envExtra || {});
   const r = spawnSync(process.execPath, [__filename, "--child", scenario, apiDir || path.join(root, "api")], {
     env: env,
@@ -489,7 +491,7 @@ async function childFlow(apiDir) {
 
   const delsBefore = fake.dels.length;
   const noYes = await call(mig, "POST", owner, { confirm: CONFIRM, action: "delete", cardId: "job_mig" });
-  check("delete without confirm refused", noYes.statusCode === 403 && noYes.body && noYes.body.error === "Delete needs James's Yes.", String(noYes.statusCode) + " " + (noYes.body && noYes.body.error));
+  check("delete without confirm refused", noYes.statusCode === 403 && noYes.body && noYes.body.error === "Delete needs your Yes.", String(noYes.statusCode) + " " + (noYes.body && noYes.body.error));
   check("refused delete leaves old blobs", fake.dels.length === delsBefore && fake.files[slug + "/file_" + stamp + "0.png"], "dels changed");
   const removed = await call(mig, "POST", owner, { confirm: CONFIRM, action: "delete", confirmDelete: "yes", cardId: "job_mig" });
   check("delete with yes", removed.statusCode === 200 && removed.body && removed.body.deleted === true && removed.body.removed === 8, String(removed.statusCode) + " removed " + (removed.body && removed.body.removed));

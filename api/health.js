@@ -1,5 +1,5 @@
 const {
-  cors, catalog, mem, ready, save, storePath, blobToken, blobReady,
+  cors, catalog, mem, readyRead, blobToken,
   workspaceOf, personOf, pipesAnswered, answeredProviders, hookUrl
 } = require("./_lib");
 
@@ -13,7 +13,7 @@ function strangerTld(row) {
       collect: "hold",
       mint: false,
       live: false,
-      note: "Name register stays HOLD. Collect stays HOLD.",
+      note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
       wallet: { connected: false, short: "" }
     };
   }
@@ -25,12 +25,25 @@ function strangerTld(row) {
     collect: "hold",
     mint: false,
     live: !!row.live,
-    note: "Name register stays HOLD. Collect stays HOLD.",
+    note: "Name registration is off for now. Payments are off for now. Nothing is charged.",
     wallet: {
       connected: !!w.connected,
       short: w.short || ""
     }
   };
+}
+
+// Status only. Health stays on strangerTld, with no probe and no extra keys.
+// bridgeLocked is false only when the row explicitly says so. A null row, or a
+// row whose flag is missing, stays locked. ownedByConnected stays false: status
+// has no wallet session. reason is the machine field "unreachable" when the
+// lock check did not reach the bridge. No other copy is added.
+function statusTld(row) {
+  const face = strangerTld(row);
+  face.bridgeLocked = !(row && row.bridgeLocked === false);
+  face.ownedByConnected = false;
+  if (row && row.reason === "unreachable") face.reason = "unreachable";
+  return face;
 }
 
 function publicStoreDriver(driver) {
@@ -67,7 +80,7 @@ function honestConnection(row, answered) {
       label: row.label || "Whatnot",
       live: false,
       status: "down",
-      note: "Not a launch pipe"
+      note: "Off for now."
     };
   }
   const wrote = answered.indexOf(id) >= 0;
@@ -77,7 +90,7 @@ function honestConnection(row, answered) {
     label: row.label || id,
     live: wrote,
     status: wrote ? "live" : "hold",
-    note: wrote ? "Pipe wrote back." : "Hold until this pipe answers."
+    note: wrote ? "This connection answered." : "Off until this connection answers."
   };
 }
 
@@ -85,7 +98,7 @@ async function deskStatus(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET") return res.status(405).json({ error: "Use GET" });
-  await ready();
+  await readyRead();
 
   const workspace = workspaceOf(req);
   const { workspace: row, person } = personOf(req, workspace);
@@ -114,15 +127,15 @@ async function deskStatus(req, res) {
     answered: wrote,
     answeredPipes: answered,
     note: wrote
-      ? "A pipe wrote back on this desk."
-      : "Orange until a real pipe answers. Catalog matches /api/health.",
+      ? "A connection answered on this desk."
+      : "Off until a real connection answers. The list matches /api/health.",
     pipes,
     connections: mine.map((c) => honestConnection(c, answered)).filter(Boolean),
     inbound: workspace ? hookUrl(workspace) : "",
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet,
-    aiaTld: strangerTld(aiaTld),
+    aiaTld: statusTld(aiaTld),
     automation: {
       deskAi: {
         on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
@@ -132,7 +145,7 @@ async function deskStatus(req, res) {
       }
     },
     honesty: {
-      rule: "hold until a real pipe answers",
+      rule: "off until a real connection answers",
       writeback: "dispatch.ok or dispatch.inbound",
       catalog: "same as /api/health — the webhook brings work in and does not take payment; payments are not connected; whatnot down"
     }
@@ -142,13 +155,11 @@ async function deskStatus(req, res) {
 async function health(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  // This GET writes the whole store. Skip the age window so the save is a
-  // fresh read. A warm ready() would put this instance's mem over a newer
-  // kill or a revoked seat.
-  const fresh = await ready(true);
-  // Probe the same persist path onboard uses. Skipping save() when driver is
-  // already blob left leftover write=fail + detail=null after a later read.
-  if (blobReady() && fresh) await save();
+  // GET /api/health is read-only. It skips the age window for live counts but
+  // never saves or writes the blob. Write-hold still applies: a dirty instance
+  // does not replace unsaved mem. The old save() here was a write probe for
+  // store.blob, which health no longer shows (#236).
+  await readyRead(true);
   const driver = mem.driver || "file";
   const rev = commitRev();
   res.status(200).json({
@@ -162,6 +173,9 @@ async function health(req, res) {
       audit: mem.audit.length,
       workspaces: mem.workspaces.length,
       live: driver === "blob" || driver === "file",
+      // Read-only trust state of this instance's store. No names or contents.
+      state: require("./_lib").storeState(),
+      saving: require("./_lib").storeState() === "not-ready" ? require("./_lib").STORE_PAUSED_LINE : "Saving is on.",
       note: driver === "blob"
         ? "A second phone can see the same queue"
         : driver === "tmp-file"
@@ -183,8 +197,8 @@ async function health(req, res) {
       qualify: "on capture + worker",
       do: "draft only — Yes and Stop stay on the desk",
       collect: require("./_packs").moneyPipeLive()
-        ? "Money pipe is set up. Collect stays HOLD until a person taps Yes."
-        : "No money pipe. Collect stays HOLD.",
+        ? "A payment connection is set up. Payments stay off until you tap Yes. Nothing is charged."
+        : "Payments are off for now. Nothing is charged.",
       follow: "worker + cron",
       inbound: "/api/hook",
       mail: require("./_aia-mail").statusOf(),
@@ -205,13 +219,13 @@ async function health(req, res) {
     accounts: {
       login: "desk name + desk code, or email + password",
       session: "hashed token, 14 days, slides on use, cookie + X-Session, max 8 phones",
-      mfa: "HOLD — authenticator is not live. No email codes. No SMS codes.",
+      mfa: "Two-step sign-in is off for now. No email codes. No SMS codes.",
       create: "Pro AIA account on open",
       plan: "pro",
       status: "free",
       monthly: "later per extra member or staff login",
       charged: false,
-      note: "One account per person. Session persists on the shared save. Authenticator stays HOLD — not live on /account."
+      note: "One account per person. Session persists on the shared save. Two-step sign-in is off for now."
     },
     domain: require("./_public-host").LIVE_DOMAIN,
     rev,
@@ -220,8 +234,7 @@ async function health(req, res) {
     internet: require("./_aia-net").statusOf(),
     mail: require("./_aia-mail").statusOf(),
     wallet: require("./_connect-wallet").healthBlock(),
-    aiaTld: strangerTld(require("./_aia-tld").healthBlock()),
-    repo: "funditaway/Automate-It-Away"
+    aiaTld: strangerTld(require("./_aia-tld").healthBlock())
   });
 }
 
@@ -232,3 +245,6 @@ async function handler(req, res) {
 
 handler.status = deskStatus;
 module.exports = handler;
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);

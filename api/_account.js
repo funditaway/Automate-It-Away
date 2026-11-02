@@ -20,7 +20,7 @@ function ensureAccount() {
     if (!Array.isArray(lib.mem.approvals)) lib.mem.approvals = [];
     if (!Array.isArray(lib.mem.accounts)) lib.mem.accounts = [];
     if (!lib.mem.account || typeof lib.mem.account !== "object") {
-      lib.mem.account = { id: "aia", name: "Automate It Away", heldBy: "admin", ownerName: "James Oddo", note: "One AIA account per person. Own desks and sit on others.", createdAt: new Date().toISOString() };
+      lib.mem.account = { id: "aia", name: "Automate It Away", heldBy: "admin", ownerName: "", note: "One AIA account per person. Own desks and sit on others.", createdAt: new Date().toISOString() };
     }
   };
   if (need) {
@@ -36,6 +36,18 @@ function publicPlan(acc) {
 function switchPlan(acc, id, actor) { return plans.switchPlan(acc, id, actor); }
 function publicPlans() { return plans.publicPlans(); }
 function desksForPerson(hint) { return plans.desksForPerson(hint); }
+// The desk list action "mine" already builds. Login and the queue read call this
+// so a Queue is the same public cards, not a second copy of the match rules.
+function queueForPerson(person, acc, slug) {
+  const mine = desksForPerson(plans.listHint(person, acc, slug));
+  return {
+    accountId: (acc && acc.id) || "",
+    name: (acc && (acc.name || acc.ownerName)) || "",
+    desks: (mine.owned || []).concat(mine.member || []),
+    owned: mine.owned || [],
+    member: mine.member || []
+  };
+}
 function requestPermission(row, person, want) { return plans.requestPermission(row, person, want); }
 function setPermission(row, id, want, actor) { return plans.setPermission(row, id, want, actor); }
 
@@ -114,7 +126,20 @@ function applyAccountDetails(acc, body) {
   }
   return acc;
 }
-function loginWithEmail(email, password) {
+// The desk's own owner seat (p_owner, else its first owner seat) when it carries no account (legacy).
+function ownerHeadOf(desk) {
+  const people = (desk && desk.people) || [];
+  const head = people.find((p) => p && p.id === "p_owner") || people.find((p) => p && (p.role === "owner" || p.kind === "owner"));
+  return head && !head.accountId ? head : null;
+}
+const seatShut = (p) => !!p && (p.status === "pending" || p.status === "denied");
+// This account's own seat on a desk: its open (owner first) seat carrying this account, else its first seat carrying it,
+// else the desk's accountless owner seat only when the desk is this account's own. Never another person's seat.
+function ownSeatOn(desk, acc) {
+  const mine = ((desk && desk.people) || []).filter((p) => p && p.accountId === acc.id);
+  return mine.find((p) => !seatShut(p) && (p.role === "owner" || p.kind === "owner")) || mine.find((p) => !seatShut(p)) || mine[0] || (desk && lib.deskAccountIdOf(desk) === acc.id ? ownerHeadOf(desk) : null);
+}
+function loginWithEmail(email, password, want) {
   ensureAccount();
   const e = emailOf({ email: email });
   const lockId = "email:" + e;
@@ -135,16 +160,19 @@ function loginWithEmail(email, password) {
     if (fail && fail.locked) return { ok: false, status: 429, locked: true, error: "Too many tries. Wait 15 minutes." };
     return { ok: false, status: 401, error: "Email or password does not match." };
   }
-  if (typeof lib.noteOk === "function") lib.noteOk(lockId);
   const desks = (typeof plans.desksOfAccount === "function" ? plans.desksOfAccount(acc) : []) || [];
-  const desk = desks[0] || (lib.mem.workspaces || []).find((w) => w && w.accountId === acc.id) || null;
-  let person = null;
-  if (desk) {
-    const people = desk.people || [];
-    person = people.find((p) => p && (p.role === "owner" || p.kind === "owner") && p.status !== "pending" && p.status !== "denied")
-      || people.find((p) => p && (p.accountId === acc.id || emailOf(p) === e) && p.status !== "pending" && p.status !== "denied")
-      || null;
+  const pool = desks.length ? desks : [(lib.mem.workspaces || []).find((w) => w && w.accountId === acc.id)].filter(Boolean);
+  // The desk the request names (when it is this account's), else one where this account has an open seat, else the first.
+  const named = want ? pool.find((w) => w.slug === lib.slugify(want)) || null : null;
+  const desk = named || pool.find((w) => { const s = ownSeatOn(w, acc); return !!s && !seatShut(s); }) || pool[0] || null;
+  // Its own seat there denied or waiting, or no seat of its own: the password proves nothing there. No write.
+  const own = desk ? ownSeatOn(desk, acc) : null;
+  if (seatShut(own)) {
+    return { ok: false, status: 403, pending: own.status === "pending", denied: own.status === "denied", error: own.status === "pending" ? "That seat is waiting on the owner." : "That seat is turned off on this desk." };
   }
+  if (desk && !own) return { ok: false, status: 403, error: "This account has no seat on that desk." };
+  if (typeof lib.noteOk === "function") lib.noteOk(lockId);
+  let person = own;
   if (!person) {
     person = { id: acc.id + "_owner", name: acc.ownerName || acc.name || "Owner", role: "owner", kind: "owner", status: "approved", accountId: acc.id, email: acc.email };
   }
@@ -154,7 +182,7 @@ function loginAccount(name, pin, extra) {
   extra = extra || {};
   const rawEmail = extra.email || (looksLikeEmail(name) ? name : "");
   const password = extra.password || extra.pass || "";
-  if (looksLikeEmail(rawEmail) && password) return loginWithEmail(rawEmail, password);
+  if (looksLikeEmail(rawEmail) && password) return loginWithEmail(rawEmail, password, extra.desk);
   const via = plans.loginAccount(name, pin);
   if (!via || !via.ok) return via;
   if (via.memberLogin) {
@@ -220,14 +248,17 @@ function proHome(acc, person, session) {
 
 function findAccount(hint) {
   ensureAccount();
+  return (lib.mem.accounts || []).find((a) => accountMatchesHint(a, hint)) || null;
+}
+function accountMatchesHint(a, hint) {
   const h = hint || {};
   const slug = lib.slugify(h.account || h.home || h.slug || h.biz || "");
   const email = emailOf(h);
-  return (lib.mem.accounts || []).find((a) => a && (
+  return !!(a && (
     (h.id && a.id === h.id) || (h.accountId && a.id === h.accountId) ||
     (slug && (a.slug === slug || lib.slugify(a.name) === slug)) ||
     (email && emailOf(a) === email)
-  )) || null;
+  ));
 }
 function connectDesk(acc, row, as) {
   if (!acc || !row) return acc;
@@ -241,28 +272,82 @@ function connectDesk(acc, row, as) {
   } else if (acc.memberDesks.indexOf(row.slug) < 0) acc.memberDesks.push(row.slug);
   return acc;
 }
-function createOwnerAccount(body, row) {
+function disconnectDesk(acc, slug) {
+  if (!acc || !slug) return acc;
+  const s = lib.slugify(slug);
+  acc.memberDesks = (acc.memberDesks || []).filter((d) => d && d !== s);
+  return acc;
+}
+function leaveSeat(row, person) {
+  if (!row || !person) return { ok: false, status: 404, error: "No desk." };
+  const owners = (row.people || []).filter((p) => p && (p.role === "owner" || p.kind === "owner"));
+  const isOwnerSeat = person.role === "owner" || person.kind === "owner";
+  if (isOwnerSeat && owners.length < 2) {
+    return { ok: false, status: 409, error: "Last owner keeps the seat or deletes the desk." };
+  }
+  const seatId = person.id;
+  const before = (row.people || []).length;
+  row.people = (row.people || []).filter((p) => p && p.id !== seatId);
+  if (row.people.length === before) return { ok: false, status: 404, error: "Seat not on this desk." };
+  const acc = homeAccount(person, row) || findAccount({ accountId: person.accountId, email: person.email, id: person.accountId });
+  if (acc) disconnectDesk(acc, row.slug);
+  return { ok: true, status: 200, left: row.slug, name: row.biz || row.name || row.slug, kind: person.kind || person.role || "member" };
+}
+// True only when this request proves it IS this account: a live session of that account
+// issued for that account's own open owner seat (or its email-login seat), or a matching
+// email + password on the account. An email or account name typed into a form is not proof.
+function requestProvesAccount(req, acc, body) {
+  if (!req || !acc || !acc.id) return false;
+  const found = typeof lib.sessionFromReq === "function" ? lib.sessionFromReq(req, { slide: false }) : null;
+  const session = found && found.session;
+  if (session && session.accountId === acc.id) {
+    if (session.personId && session.personId === acc.id + "_owner") return true;
+    const home = (lib.mem.workspaces || []).find((w) => w && w.slug === session.workspace) || null;
+    const seat = home && session.personId ? ((home.people || []).find((p) => p && p.id === session.personId) || null) : null;
+    const open = seat && seat.status !== "pending" && seat.status !== "denied";
+    const deskOfAccount = home && (home.accountId === acc.id || (acc.desks || []).indexOf(home.slug) >= 0);
+    if (open && lib.isOwner(seat) && seat.accountId === acc.id && deskOfAccount) return true;
+  }
+  const b = body || {};
+  const pw = b.password || b.pass || "";
+  if (pw && acc.password && looksLikeEmail(b.email) && emailOf(b) === emailOf(acc)) {
+    const login = loginWithEmail(b.email, pw);
+    if (login && login.ok && login.account && login.account.id === acc.id) return true;
+  }
+  return false;
+}
+// req: the request opening or minting the desk. Without it nothing typed in body can
+// attach this desk to an account that already exists.
+function createOwnerAccount(body, row, req) {
   ensureAccount();
   const slug = row && row.slug ? row.slug : lib.slugify((body && (body.biz || body.account || body.name)) || "desk");
-  const existing = findAccount(Object.assign({}, body || {}, { slug: row && row.slug, accountId: row && row.accountId }))
-    || (lib.mem.accounts || []).find((a) => a && ((row && a.id === row.accountId) || (a.desks || []).indexOf(slug) >= 0));
+  // Server-side facts: this desk is already filed under that account.
+  const held = (lib.mem.accounts || []).find((a) => a && row && ((row.accountId && a.id === row.accountId) || (a.desks || []).indexOf(row.slug) >= 0)) || null;
+  // Typed hints (email, account name, ids) only count when the request proves it is that account.
+  const hint = Object.assign({}, body || {}, { slug: row && row.slug, accountId: "" });
+  const proven = held || !req ? null
+    : (lib.mem.accounts || []).find((a) => accountMatchesHint(a, hint) && requestProvesAccount(req, a, body)) || null;
+  const existing = held || proven;
   if (existing) {
     if (row) connectDesk(existing, row, "owner");
     if (body && body.password && !existing.password) setAccountPassword(existing, body.password);
-    if (body && body.email && looksLikeEmail(body.email) && !existing.email) existing.email = emailOf(body);
+    if (body && body.email && looksLikeEmail(body.email) && !existing.email && !emailTaken(body.email, existing.id)) existing.email = emailOf(body);
     if (!existing.pin) existing.pin = (body && body.pin ? lib.hashPin(body.pin) : (row && row.pin)) || "";
     return existing;
   }
+  // New separate account. An email already on another account is not copied onto it.
+  const typed = (body && looksLikeEmail(body.email) ? emailOf(body) : "") || (row && looksLikeEmail(row.email) ? emailOf(row) : "");
   const acc = {
     id: "acct_" + Date.now().toString(36) + require("crypto").randomBytes(4).toString("hex"),
     name: String((body && (body.biz || body.account || body.name)) || (row && (row.biz || row.name)) || "Shop").trim().slice(0, 80),
     ownerName: String((body && body.name) || (row && row.name) || "Owner").trim().slice(0, 80),
-    email: (body && looksLikeEmail(body.email) ? emailOf(body) : "") || (row && row.email) || "",
+    email: typed && !emailTaken(typed) ? typed : "",
     phone: body && body.phone ? String(body.phone).trim().slice(0, 32) : "",
     city: (body && body.city) || (row && row.city) || "",
     plan: "pro", billing: defaultBilling(), slug: slug,
     pin: body && body.pin ? lib.hashPin(body.pin) : (row && row.pin) || "",
-    desks: row && row.slug ? [row.slug] : [], memberDesks: [], createdAt: new Date().toISOString()
+    desks: row && row.slug ? [row.slug] : [], memberDesks: [], createdAt: new Date().toISOString(),
+    kind: require("./_account-settings").accountKindFrom(body && body.accountKind) || "human"
   };
   if (body && body.password) setAccountPassword(acc, body.password);
   lib.mem.accounts.unshift(acc);
@@ -276,17 +361,64 @@ function accountForDesk(row) {
   if (!acc) acc = createOwnerAccount({ name: row.name, biz: row.biz, email: row.email }, row);
   return acc;
 }
-function homeAccount(person, row) {
+// req: the request asking. A helper seat's home is only the account that req's own session proved
+// by that account's sign-in (lib.sessionProofView). Never its desk's own account, never an account
+// an old invite typed onto the seat, never by desk code alone. Owners keep every match.
+function homeAccount(person, row, req) {
   ensureAccount();
+  const helper = !!person && !lib.isOwner(person) && !/_owner$/.test(String(person.id || ""));
+  const deskId = helper && typeof lib.deskAccountIdOf === "function" ? lib.deskAccountIdOf(row) : "";
+  const found = helper && req && typeof lib.sessionFromReq === "function" ? lib.sessionFromReq(req, { slide: false }) : null;
+  const proven = (found && found.session && found.session.accountId) || "";
+  const ownOk = (a) => !!a && !(helper && (a.id === deskId || a.id !== proven || (row && (a.desks || []).indexOf(row.slug) >= 0)));
   if (person && person.accountId) {
     const mine = (lib.mem.accounts || []).find((a) => a && a.id === person.accountId);
-    if (mine) return mine;
+    if (ownOk(mine)) return mine;
   }
   if (person && emailOf(person)) {
     const byMail = findAccountByEmail(person.email);
-    if (byMail) return byMail;
+    if (ownOk(byMail)) return byMail;
   }
+  if (helper) return null;
   return row ? accountForDesk(row) : null;
+}
+// The plain reply when a helper seat holds an account (not its desk's own) but this request's
+// session did not come from that account's own sign-in.
+// Every change to an account needs that account's own password sign-in (#361 proof "password") on
+// this request's session. A desk code (X-Pin), a desk-code session, or any session its own sign-in
+// did not prove gets signInAgain(). The one way in for a new owner: an account with no password AND
+// no email on file may set both together, in one write (firstClaim, POST action "password").
+function provenFor(req, acc) {
+  if (!acc || !req || typeof lib.sessionFromReq !== "function") return false;
+  const found = lib.sessionFromReq(req, { slide: false });
+  const s = found && found.session;
+  return !!(s && typeof lib.sessionProof === "function" && lib.sessionProof(s.proof) && s.accountId === acc.id);
+}
+function firstClaim(acc, body) {
+  return !!acc && !acc.password && !emailOf(acc) && !!body && looksLikeEmail(body.email) && !!String(body.password || body.next || "");
+}
+// The account write as one step: both checked before either is saved, so no half-claimed account.
+function claimFirst(acc, body) {
+  const check = passwordOk(body.password || body.next);
+  if (!check.ok) return { ok: false, status: 400, error: check.error };
+  const e = emailOf(body);
+  if (emailTaken(e, acc.id)) return { ok: false, status: 409, error: "That email is already on another AIA account." };
+  setAccountPassword(acc, body.password || body.next);
+  acc.email = e;
+  return { ok: true };
+}
+// What a write must clear: proven, or (action "password") the first claim. null when it may go on.
+function writeRefused(req, acc, action, body) {
+  if (!acc || provenFor(req, acc)) return null;
+  if (action === "password" && firstClaim(acc, body)) return null;
+  return signInAgain();
+}
+function signInAgain() { return { ok: false, error: "Sign in again to change your account.", signIn: true }; }
+function needsSignIn(person, row, req) {
+  if (!person || lib.isOwner(person) || /_owner$/.test(String(person.id || "")) || homeAccount(person, row, req)) return false;
+  const deskId = typeof lib.deskAccountIdOf === "function" ? lib.deskAccountIdOf(row) : "";
+  const a = (person.accountId && (lib.mem.accounts || []).find((x) => x && x.id === person.accountId)) || (emailOf(person) ? findAccountByEmail(person.email) : null);
+  return !!a && a.id !== deskId && !(row && (a.desks || []).indexOf(row.slug) >= 0);
 }
 function requestMonthly(acc, actor) {
   if (!acc) return { ok: false, status: 404, error: "No account." };
@@ -301,11 +433,13 @@ function peopleAcross() {
   });
   return rows;
 }
-function publicAccount(row) {
+function publicAccount(row, opts) {
   const account = ensureAccount();
   const people = peopleAcross();
   const shop = row ? accountForDesk(row) : null;
-  return { id: account.id, name: account.name, heldBy: account.heldBy, ownerName: account.ownerName, note: account.note, createdAt: account.createdAt, desks: (lib.mem.workspaces || []).length, people: people.length, pending: people.filter((p) => p.status === "pending").length, shop: shop ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : null, plan: shop ? publicPlan(shop) : publicPlan({ plan: "pro" }) };
+  const out = { id: account.id, name: account.name, heldBy: account.heldBy, note: account.note, createdAt: account.createdAt, desks: (lib.mem.workspaces || []).length, people: people.length, pending: people.filter((p) => p.status === "pending").length, shop: shop ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : null, plan: shop ? publicPlan(shop) : publicPlan({ plan: "pro" }) };
+  if (opts && opts.showOwnerName) out.ownerName = account.ownerName || "";
+  return out;
 }
 function approvalsOf(slug) {
   ensureAccount();
@@ -335,22 +469,37 @@ function normalizeKind(kind, role) {
   if (role === "owner") return "owner";
   return raw === "staff" ? "staff" : "helper";
 }
-function inviteSeat(row, body, actor) {
+// Nothing typed in body (email, account name, accountId, seat id) attaches an account to a seat.
+// Only opts.account may: the account the request's own signed-in session proves (join), or the
+// world account a world invite waits on (it sits only once that account accepts).
+// Seat ids: "p_" + base36 time + 12 hex chars (crypto.randomBytes(6)), so two invites in the same ms
+// differ. A clash with any seat id already on this desk (p_owner included) re-rolls. Stored ids stay.
+function newSeatId(row) {
+  const taken = new Set(((row && row.people) || []).map((p) => p && p.id).filter(Boolean));
+  for (let i = 0; i < 32; i += 1) {
+    const id = "p_" + Date.now().toString(36) + crypto.randomBytes(6).toString("hex");
+    if (!taken.has(id)) return id;
+  }
+  throw new Error("No free seat id on this desk.");
+}
+function inviteSeat(row, body, actor, opts) {
   if (!row) return { ok: false, status: 404, error: "No workspace" };
   const kind = normalizeKind(body.kind, body.role);
-  const home = findAccount(body);
+  let home = (opts && opts.account) || null;
+  // A non-owner seat never carries its desk's own account, on any door.
+  if (home && kind !== "owner" && typeof lib.deskAccountIdOf === "function" && home.id === lib.deskAccountIdOf(row)) home = null;
   const name = String(body.name || body.crew || (home && home.ownerName) || "").trim();
   const pin = String(body.pin || body.code || "");
   if (!name) return { ok: false, status: 400, error: "Name required." };
   let hashed = "";
   if (home && home.pin && pin.length < 4) hashed = home.pin;
   else if (pin.length >= 4) hashed = lib.hashPin(pin);
-  else return { ok: false, status: 400, error: "Their AIA account name, or a 4+ digit code." };
+  else return { ok: false, status: 400, error: "Give them a desk code, 4 or more digits." };
   const ownerInvited = lib.isOwner(actor);
   const status = ownerInvited && kind !== "agent" ? "approved" : "pending";
   const seat = {
-    id: "p_" + Date.now().toString(36), name, role: kind === "owner" ? "owner" : "employee", kind,
-    crew: kind === "agent" ? name : "", email: body.email || (home && home.email) || "",
+    id: newSeatId(row), name, role: kind === "owner" ? "owner" : "employee", kind,
+    crew: kind === "agent" ? name : "", email: seatEmail(body, home),
     accountId: home ? home.id : "", pin: hashed, status,
     can: seatCan(kind, "", status), createdAt: new Date().toISOString(),
     approvedAt: status === "approved" ? new Date().toISOString() : null
@@ -359,11 +508,42 @@ function inviteSeat(row, body, actor) {
   row.people.push(seat);
   noteApproval(row, seat, status, actor);
   if (home && kind !== "agent") connectDesk(home, row, "member");
-  return { ok: true, status: status === "approved" ? 201 : 202, person: lib.publicPerson(seat), pending: status === "pending" };
+  const instruct = String(body.instructions || body.instruct || body.memberInstructions || "").trim().slice(0, 400);
+  if (instruct && ownerInvited) row.instructions = instruct;
+  return { ok: true, status: status === "approved" ? 201 : 202, person: lib.publicPerson(seat), pending: status === "pending", instructions: row.instructions || "" };
 }
-function requestSeat(row, body) {
+// A typed email is contact text only. It is dropped when it is another account's.
+function seatEmail(body, home) {
+  const typed = String(body.email || "").trim();
+  if (typed && emailTaken(typed, home && home.id)) return (home && home.email) || "";
+  return typed || (home && home.email) || "";
+}
+// The account the request's own signed-in session proves (lib.sessionProofView), or null.
+function provenAccount(req) {
+  const found = req && typeof lib.sessionFromReq === "function" ? lib.sessionFromReq(req, { slide: false }) : null;
+  const id = found && found.session && found.session.accountId;
+  return id ? ((lib.mem.accounts || []).find((a) => a && a.id === id) || null) : null;
+}
+// Join / request: a seat asked for from outside. Never an owner seat; an account only from req's session.
+function requestSeat(row, body, req) {
   if (!row) return { ok: false, status: 404, error: "No workspace" };
-  return inviteSeat(row, Object.assign({}, body, { approve: false, status: "pending" }), { name: "request", role: "employee" });
+  if (normalizeKind(body && body.kind, body && body.role) === "owner") return { ok: false, status: 400, error: "Owner seats are not a join request." };
+  const typed = findAccount(Object.assign({}, body, { slug: "", biz: "" }));
+  const proven = provenAccount(req);
+  const account = proven && (!typed || typed.id === proven.id) ? proven : null;
+  return inviteSeat(row, Object.assign({}, body, { approve: false, status: "pending" }), { name: "request", role: "employee" }, { account });
+}
+// Deny and remove never turn off the desk's owner seat (p_owner or its first owner seat) or the
+// requester's own seat. Callers refuse before any write. Helper seats stay deniable.
+const OWNER_SEAT_OFF = "You can't turn off the owner seat.";
+function seatOffRefused(row, id, actor) {
+  const people = (row && row.people) || [];
+  const seat = people.find((p) => p && p.id === id);
+  if (!seat) return null;
+  const ownerSeat = people.find((p) => p && lib.isOwner(p));
+  const own = !!(actor && actor.id) && seat.id === actor.id;
+  if (seat.id === "p_owner" || seat === ownerSeat || own) return { ok: false, status: 409, error: OWNER_SEAT_OFF };
+  return null;
 }
 function setSeatStatus(row, id, next, actor) {
   if (!row) return { ok: false, status: 404, error: "No desk." };
@@ -374,15 +554,23 @@ function setSeatStatus(row, id, next, actor) {
   noteApproval(row, seat, seat.status, actor);
   return { ok: true, status: 200, person: lib.publicPerson(seat) };
 }
-function accountSnapshot(row, person) {
+// person: the seat asking; ownAccountId: the account its own sign-in proved. Not the owner: other
+// seats are name and role only, and the desk account shows its name only (no id, no desk list).
+function accountSnapshot(row, person, ownAccountId) {
   const shop = row ? accountForDesk(row) : null;
-  return { account: publicAccount(row), plan: shop ? publicPlan(shop) : publicPlan(null), shop: shop ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : null, you: lib.publicPerson(person), people: row ? (row.people || []).map(lib.publicPerson) : [], approvals: row ? approvalsOf(row.slug) : [], kinds: KINDS, agents: roles.catalog().agents, levels: roles.catalog().levels, hardOwner: roles.HARD_OWNER };
+  const owner = lib.isOwner(person);
+  const viewerOwnsPlatform = !!(owner && ownAccountId && ownAccountId === ensureAccount().id);
+  const account = publicAccount(row, { showOwnerName: viewerOwnsPlatform });
+  if (!owner && account && account.shop) account.shop = { name: account.shop.name };
+  return { account, plan: shop ? publicPlan(shop) : publicPlan(null), shop: shop ? (owner ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : { name: shop.name }) : null, you: lib.viewSeat(lib.publicPerson(person), person, person, ownAccountId), people: row ? lib.seatsFor(person, row.people, lib.publicPerson, ownAccountId) : [], approvals: row ? approvalsOf(row.slug) : [], kinds: KINDS, agents: roles.catalog().agents, levels: roles.catalog().levels, hardOwner: roles.HARD_OWNER };
 }
 module.exports = {
+  needsSignIn, signInAgain,
+  provenFor, firstClaim, claimFirst, writeRefused,
   ensureAccount, publicAccount, publicPlan, defaultBilling, createOwnerAccount, accountForDesk, homeAccount,
-  requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot,
-  normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, requestPermission, setPermission,
-  findAccount, findAccountByEmail, connectDesk, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
-  setAccountPassword, applyAccountDetails, emailTaken,
+  requestMonthly, peopleAcross, approvalsOf, inviteSeat, requestSeat, setSeatStatus, accountSnapshot, seatOffRefused,
+  normalizeKind, switchPlan, publicPlans, proHome, loginAccount, loginWithEmail, desksForPerson, queueForPerson, requestPermission, setPermission,
+  findAccount, findAccountByEmail, connectDesk, disconnectDesk, leaveSeat, emailOf, looksLikeEmail, hashPassword, passwordMatches, passwordOk,
+  setAccountPassword, applyAccountDetails, emailTaken, requestProvesAccount, newSeatId,
   planOf: plans.planOf, PLANS: plans.PLANS
 };

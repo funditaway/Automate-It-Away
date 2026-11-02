@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -57,7 +58,7 @@ else pass("connections.html Copy hook fallback uses www");
 
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
-if (!/james-ai@funditaway\.aia/.test(packMd) || !/queue@springfield-shop\.aia/.test(packMd)) fail("PACK.md missing examples");
+if (!/helper-ai@yourname\.aia/.test(packMd) || !/queue@your-shop\.aia/.test(packMd) || /james-ai@|james\.aia|springfield-shop/i.test(packMd)) fail("PACK.md missing examples");
 else pass("PACK.md examples");
 if (!/Outbound Send stays HOLD/.test(packMd) || !/does not resolve yet/.test(packMd)) fail("PACK.md missing honest MX copy");
 else pass("PACK.md honest MX");
@@ -120,10 +121,14 @@ async function main() {
     biz: "James Desk",
     name: "James",
     email: "james@example.com",
+    password: "james-mail-pass-1234",
     pin: pin
   });
   if (opened.statusCode !== 201 && opened.statusCode !== 200) fail("open desk " + opened.statusCode);
   else pass("open desk");
+  const signed = await call(account, "POST", {}, { action: "login", email: "james@example.com", password: "james-mail-pass-1234" });
+  const ownerTok = signed.body && signed.body.session && signed.body.session.token;
+  if (signed.statusCode !== 200 || !ownerTok) fail("owner email sign-in " + signed.statusCode);
 
   const leftover = "deadbeefdeadbeefdeadbeefdeadbeef";
   const mailGate = await call(account, "GET", { "x-workspace": slug, "x-session": leftover }, {});
@@ -134,7 +139,7 @@ async function main() {
     fail("leftover session + matching pin must open mail GET");
   } else pass("leftover session + pin opens mail GET");
 
-  const owner = { "x-workspace": slug, "x-pin": pin };
+  const owner = { "x-workspace": slug, "x-pin": pin, "x-session": ownerTok };
   const handle = await call(account, "POST", owner, { action: "handle", handle: "funditaway.aia" });
   if (handle.statusCode !== 200 || !handle.body || handle.body.aia !== "funditaway.aia") {
     fail("set handle " + handle.statusCode + " " + JSON.stringify(handle.body));

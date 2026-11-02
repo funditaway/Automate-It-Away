@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Proves /api/upload: strangers cannot list or fetch, public POST only lands
 // in a real desk, seated owners can list and fetch, blob names are random,
 // and stored types follow the byte sniff (png/jpeg/gif/webp, else octet-stream).
@@ -8,6 +9,85 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const root = path.join(__dirname, "..");
+const runStarted = Date.now();
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DESK_OR_FILE = /springfield|porch|secret|ledger|quiet/i;
+
+// Inside any digit run, every 13-digit window is epoch milliseconds and every
+// 10-digit window is epoch seconds. A window counts when it is within a day
+// of this run. Padding and a longer run no longer hide the clock. The run's
+// start and the check itself both count.
+function leaksClock(name, refs) {
+  const list = refs && refs.length ? refs : [runStarted, Date.now()];
+  const runs = String(name).match(/\d{10,}/g) || [];
+  for (let i = 0; i < runs.length; i++) {
+    const run = runs[i];
+    for (let L = 13; L >= 10; L -= 3) {
+      if (run.length < L) continue;
+      for (let j = 0; j + L <= run.length; j++) {
+        const ms = Number(run.substr(j, L)) * (L === 10 ? 1000 : 1);
+        for (let r = 0; r < list.length; r++) {
+          if (Math.abs(ms - list[r]) <= DAY_MS) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function blobPathBody(text) {
+  const lf = String(text).replace(/\r\n/g, "\n");
+  const at = lf.indexOf("function blobPath()");
+  if (at < 0) return "";
+  let cut = lf.length;
+  ["\nfunction ", "\nasync function "].forEach(function (mark) {
+    const i = lf.indexOf(mark, at + 10);
+    if (i >= 0 && i < cut) cut = i;
+  });
+  return lf.slice(at, cut).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
+function assertBlobNaming(text, label) {
+  const body = blobPathBody(text);
+  if (!body) fail(label + " blobPath is missing");
+  const banned = [
+    [/\bDate\b/, "Date"],
+    [/performance/, "performance.now"],
+    [/hrtime/, "process.hrtime"],
+    [/Math\.random\b/, "Math.random"],
+    [/\+\+|--/, "a counter"]
+  ];
+  banned.forEach(function (pair) {
+    if (pair[0].test(body)) fail(label + " blob naming must use only crypto.randomUUID and crypto.randomBytes, not " + pair[1]);
+  });
+  if (body.indexOf("crypto.randomUUID(") < 0 || body.indexOf("crypto.randomBytes(") < 0) {
+    fail(label + " blob naming must use crypto.randomUUID and crypto.randomBytes");
+  }
+}
+
+function assertClockWindows() {
+  const now = Date.now();
+  const refs = [runStarted, now];
+  const near = [
+    ["padded ms", String(now).padStart(16, "0")],
+    ["ms times 1000", String(now * 1000).slice(0, 16)],
+    ["padded seconds", String(Math.floor(now / 1000)).padStart(16, "0")],
+    ["embedded seconds", "abc" + Math.floor(now / 1000) + "abc"],
+    ["ms then letters", String(now) + "abc"]
+  ];
+  near.forEach(function (row) {
+    if (!leaksClock(row[1], refs)) fail("clock window missed " + row[0]);
+  });
+  [String(now - 2 * DAY_MS), "1000000000000", "1234567890"].forEach(function (s) {
+    if (leaksClock("x" + s + "y", refs)) fail("clock window flagged a far time " + s);
+  });
+  pass("clock windows catch a padded or embedded time near now");
+}
+
+function clockRefs() {
+  const now = Date.now();
+  return now === runStarted ? [now] : [runStarted, now];
+}
 
 function fail(msg) {
   console.error("FAIL " + msg);
@@ -119,7 +199,7 @@ async function child() {
   });
 
   const auth = require(path.join(root, "api/auth"));
-  const upload = require(path.join(root, "api/upload"));
+  const upload = require(process.env.AIA_UPLOAD_MODULE || path.join(root, "api/upload"));
   const lib = require(path.join(root, "api/_lib"));
   await lib.ready();
   const slug = "springfield-shop";
@@ -128,6 +208,44 @@ async function child() {
   });
   if (opened.statusCode !== 201) {
     process.stdout.write("RESULT " + JSON.stringify({ error: "open failed", status: opened.statusCode, body: opened.body }) + "\n");
+    return;
+  }
+  if (process.argv[2] === "--child-fixed") {
+    const crypto = require("crypto");
+    const fixedNow = Date.now();
+    const fixedUuid = "11111111-1111-4111-8111-111111111111";
+    const fixedHex = "0011223344556677";
+    crypto.randomUUID = function () { return fixedUuid; };
+    crypto.randomBytes = function (n, cb) {
+      const buf = Buffer.alloc(n);
+      if (n === 8) Buffer.from(fixedHex, "hex").copy(buf);
+      else for (let i = 0; i < n; i++) buf[i] = (i * 17 + 3) & 255;
+      if (typeof cb === "function") { cb(null, buf); return; }
+      return buf;
+    };
+    Date.now = function () { return fixedNow; };
+    Math.random = function () { return 0.25; };
+    process.hrtime = function () { return [Math.floor(fixedNow / 1000), 0]; };
+    process.hrtime.bigint = function () { return BigInt(fixedNow) * 1000000n; };
+    try {
+      const perf = require("perf_hooks").performance;
+      if (perf) perf.now = function () { return 12345.5; };
+    } catch (e) {}
+    if (typeof performance !== "undefined" && performance && performance.now) {
+      performance.now = function () { return 12345.5; };
+    }
+    const one = await post({
+      name: "porch-secret.png",
+      type: "image/png",
+      data: pngBytes().toString("base64")
+    }, "203.0.113.21");
+    const put = one.added[0] || null;
+    process.stdout.write("RESULT " + JSON.stringify({
+      error: one.res.statusCode === 201 && put ? "" : "fixed post failed",
+      status: one.res.statusCode,
+      name: put ? put.name : "",
+      expect: fixedUuid + "-" + fixedHex
+    }) + "\n");
     return;
   }
   function uploads() {
@@ -182,13 +300,16 @@ function assertBlobChild() {
     AIA_UPLOAD_DIR: path.join(tmp, "up"),
     VERCEL_ENV: "production",
     BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
-    BLOB_STORE_ID: "store_FAKESTORE"
+    BLOB_STORE_ID: "store_FAKESTORE",
+    AIA_CHECK_PARENT: String(process.pid)
   };
+  if (process.env.AIA_UPLOAD_MODULE) env.AIA_UPLOAD_MODULE = process.env.AIA_UPLOAD_MODULE;
   const r = spawnSync(process.execPath, [__filename, "--child"], { env, cwd: tmp, encoding: "utf8", timeout: 60000 });
   fs.rmSync(tmp, { recursive: true, force: true });
   const line = String(r.stdout || "").split("\n").find((l) => l.indexOf("RESULT ") === 0);
   if (!line) fail("blob child produced no result (exit " + r.status + "): " + String(r.stderr || "").slice(-500));
   const out = JSON.parse(line.slice(7));
+  const refs = clockRefs();
   if (out.error) fail("blob child " + out.error + " " + JSON.stringify(out.body));
   if (out.pngStatus !== 201 || out.pdfStatus !== 201) fail("production POST into a real desk should save, got png " + out.pngStatus + " pdf " + out.pdfStatus);
   if (out.htmlStatus !== 415 || out.htmlPuts !== 0) fail("html must be refused before Blob put, got " + out.htmlStatus + " puts " + out.htmlPuts);
@@ -198,10 +319,10 @@ function assertBlobChild() {
     if (put.addRandomSuffix !== true) fail(key + " addRandomSuffix must be true");
     if (put.allowOverwrite !== false) fail(key + " allowOverwrite must be false");
     if (!put.bodyIsBuffer) fail(key + " Blob put must send a Buffer");
+    if (DESK_OR_FILE.test(put.name) || leaksClock(put.name, refs)) fail(key + " blob name is derived from desk, file, or time: " + put.name);
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-[0-9a-f]{16}$/i.test(put.name)) {
       fail(key + " blob name is not random: " + put.name);
     }
-    if (/springfield|porch|secret|ledger|quiet|\d{13}/i.test(put.name)) fail(key + " blob name is derived from desk, file, or time: " + put.name);
   });
   if (out.pngPut.contentType !== "image/png") fail("png Blob contentType must be image/png, got " + out.pngPut.contentType);
   if (out.pdfPut.contentType !== "application/octet-stream") fail("pdf Blob contentType must be application/octet-stream, got " + out.pdfPut.contentType);
@@ -214,6 +335,29 @@ function assertBlobChild() {
   const pngFile = out.pngFiles && out.pngFiles[0];
   if (!pngFile || pngFile.remoteUrl || JSON.stringify(out.pngFiles).indexOf("remoteUrl") >= 0) fail("POST must not return remoteUrl");
   pass("Blob put uses a random name, addRandomSuffix, no overwrite, and the sniffed type");
+}
+
+function assertFixedBlob() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aia-upload-privacy-fixed-"));
+  const env = {
+    PATH: process.env.PATH,
+    HOME: tmp,
+    AIA_STORE_PATH: path.join(tmp, "store.json"),
+    AIA_UPLOAD_DIR: path.join(tmp, "up"),
+    VERCEL_ENV: "production",
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
+    BLOB_STORE_ID: "store_FAKESTORE",
+    AIA_CHECK_PARENT: String(process.pid)
+  };
+  if (process.env.AIA_UPLOAD_MODULE) env.AIA_UPLOAD_MODULE = process.env.AIA_UPLOAD_MODULE;
+  const r = spawnSync(process.execPath, [__filename, "--child-fixed"], { env, cwd: tmp, encoding: "utf8", timeout: 60000 });
+  fs.rmSync(tmp, { recursive: true, force: true });
+  const line = String(r.stdout || "").split("\n").find((l) => l.indexOf("RESULT ") === 0);
+  if (!line) fail("fixed blob child produced no result (exit " + r.status + "): " + String(r.stderr || "").slice(-500));
+  const out = JSON.parse(line.slice(7));
+  if (out.error) fail("fixed blob child " + out.error + " status " + out.status + " name " + out.name);
+  if (out.name !== out.expect) fail("blob name is not the crypto-derived form: " + out.name + " want " + out.expect);
+  pass("blob name matches the stubbed crypto.randomUUID and crypto.randomBytes form");
 }
 
 function assertSources() {
@@ -232,6 +376,9 @@ function assertSources() {
   if (uploadSrc.indexOf("personOf") < 0) fail("GET must reuse personOf, the desk seat check");
   if (uploadSrc.indexOf('blobAllowed() && process.env.BLOB_READ_WRITE_TOKEN') < 0) fail("upload driver must stay behind blobAllowed()");
   if (/workspace \+ "\/"/.test(uploadSrc)) fail("stored name must not be derived from the desk");
+  assertBlobNaming(uploadSrc, "api/upload.js");
+  if (process.env.AIA_UPLOAD_MODULE) assertBlobNaming(fs.readFileSync(process.env.AIA_UPLOAD_MODULE, "utf8"), "loaded upload");
+  assertClockWindows();
   pass("upload source keeps the seat check, the type rules, and the blob guard");
 
   const drop = read("drop-app.js");
@@ -268,8 +415,14 @@ function assertSources() {
 
 async function main() {
   assertSources();
-  const store = path.join(os.tmpdir(), "aia-upload-privacy-" + Date.now() + ".json");
-  const uploadDir = path.join(os.tmpdir(), "aia-upload-privacy-files-" + Date.now());
+  // One private directory per run. A Date.now() name collides when two runs
+  // start in the same millisecond and then share a store.
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "aia-upload-privacy-"));
+  const store = path.join(scratch, "store.json");
+  const uploadDir = path.join(scratch, "files");
+  process.on("exit", function () {
+    try { fs.rmSync(scratch, { recursive: true, force: true }); } catch (e) {}
+  });
   process.env.AIA_STORE_PATH = store;
   process.env.AIA_UPLOAD_DIR = uploadDir;
   delete process.env.VERCEL_ENV;
@@ -545,13 +698,92 @@ async function main() {
   pass("a sender is rate limited and extra POSTs store nothing");
 
   assertBlobChild();
-  try { fs.rmSync(store, { force: true }); } catch (e) {}
-  try { fs.rmSync(uploadDir, { recursive: true, force: true }); } catch (e) {}
-  console.log("check-upload-privacy: ok");
+  assertFixedBlob();
+  try { fs.rmSync(scratch, { recursive: true, force: true }); } catch (e) {}
 }
 
-if (process.argv[2] === "--child") {
-  child().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
-} else {
-  main().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+function stageUpload(source) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-upload-mut-"));
+  const api = path.join(root, "api");
+  fs.readdirSync(api).forEach(function (name) {
+    if (name === "upload.js") return;
+    fs.symlinkSync(path.join(api, name), path.join(dir, name));
+  });
+  fs.writeFileSync(path.join(dir, "upload.js"), source);
+  return dir;
 }
+
+function runMutants() {
+  const orig = fs.readFileSync(path.join(root, "api", "upload.js"), "utf8");
+  const ret = 'return crypto.randomUUID() + "-" + crypto.randomBytes(8).toString("hex");';
+  if (orig.split(ret).length !== 2) {
+    console.error("FAIL blobPath anchor missing or not unique");
+    process.exit(1);
+  }
+  const mutants = [
+    ["Date.now()", 'const ms = String(Date.now());\n  return crypto.randomUUID() + "-a" + ms + "bb";'],
+    ["epoch seconds", 'const sec = String(Math.floor(Date.now() / 1000));\n  return crypto.randomUUID() + "-a" + sec + "bbbbb";'],
+    ["desk and file name", 'return "springfield-quiet-ledger-" + crypto.randomUUID() + "-" + crypto.randomBytes(8).toString("hex");'],
+    ["padded Date.now()", 'return crypto.randomUUID() + "-" + String(Date.now()).padStart(16, "0");'],
+    ["Date.now() times 1000", 'return crypto.randomUUID() + "-" + String(Date.now() * 1000).slice(0, 16);'],
+    ["padded seconds", 'return crypto.randomUUID() + "-" + String(Math.floor(Date.now() / 1000)).padStart(16, "0");'],
+    ["performance.now", 'return crypto.randomUUID() + "-" + String(Math.floor(require("perf_hooks").performance.now() * 1e6)).padStart(16, "0").slice(-16);'],
+    ["hrtime", 'return crypto.randomUUID() + "-" + String(process.hrtime.bigint()).padStart(16, "0").slice(-16);'],
+    ["Math.random", 'return crypto.randomUUID() + "-" + Math.random().toString(16).slice(2).padEnd(16, "0").slice(0, 16);'],
+    ["counter", 'seq = (seq || 0);\n  return crypto.randomUUID() + "-" + String(++seq).padStart(16, "0");']
+  ];
+  let caught = 0;
+  let total = 0;
+  mutants.forEach(function (row) {
+    const dir = stageUpload(orig.replace(ret, row[1]));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "aia-upload-mut-home-"));
+    try {
+      const r = spawnSync(process.execPath, [__filename], {
+        cwd: root,
+        env: {
+          PATH: process.env.PATH || "",
+          HOME: home,
+          TMPDIR: home,
+          AIA_UPLOAD_PRIVACY_SKIP_MUTANTS: "1",
+          AIA_UPLOAD_MODULE: path.join(dir, "upload.js")
+        },
+        encoding: "utf8",
+        timeout: 120000
+      });
+      const out = (r.stdout || "") + "\n" + (r.stderr || "");
+      const first = out.split("\n").find(function (l) { return l.indexOf("FAIL ") === 0; }) || "";
+      total += 1;
+      if (r.status && (first.indexOf("derived from desk, file, or time") >= 0 || first.indexOf("blob naming must use only crypto") >= 0 || first.indexOf("not the crypto-derived form") >= 0)) {
+        caught += 1;
+        console.log(row[0] + " | CAUGHT | " + first.slice(0, 200));
+      } else {
+        console.error("FAIL " + row[0] + " | SURVIVED | " + (first || ("exit " + r.status)).slice(0, 200));
+        process.exitCode = 1;
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+  console.log("SCORE " + caught + "/" + total + " caught");
+  if (caught !== total) process.exit(1);
+}
+
+if (require.main === module) {
+  if (process.argv[2] === "--child" || process.argv[2] === "--child-fixed") {
+    child().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+  } else if (process.argv[2] === "--mutate") {
+    runMutants();
+  } else {
+    main().then(function () {
+      if (process.env.AIA_UPLOAD_PRIVACY_SKIP_MUTANTS === "1") {
+        console.log("check-upload-privacy: ok");
+        return;
+      }
+      runMutants();
+      console.log("check-upload-privacy: ok");
+    }).catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+  }
+}
+
+module.exports = { leaksClock, DAY_MS, clockRefs };

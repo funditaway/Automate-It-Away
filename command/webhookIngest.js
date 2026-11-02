@@ -6,6 +6,11 @@
  * line. A human still has to press YES.
  */
 import { synthesizeDecision } from './grokBotPrompt.js'
+import {
+  normalizeApplianceTelemetry,
+  preferLocalEndpoint,
+  riskForPhysicalAction,
+} from './lib/appliance.js'
 import { metaPromptToString, normalizeDecisionPayload } from './lib/decisionCard.js'
 
 function asObject(body) {
@@ -73,31 +78,37 @@ export function normalizeInbound(channel, body) {
   }
 
   if (channel === 'smarthq') {
-    const event = String(b.event || b.type || 'telemetry')
-    const deviceId = String(b.deviceId || b.applianceId || 'device')
-    const topic = b.mqttTopic
-      ? String(b.mqttTopic)
-      : `smarthq://devices/${encodeURIComponent(deviceId)}`
+    const normalized = normalizeApplianceTelemetry(b)
+    const topic = preferLocalEndpoint(
+      b.mqttTopic,
+      b.localUrl,
+      b.lanEndpoint,
+      normalized.targetEndpoint,
+      b.cloudUrl,
+      b.webhookUrl,
+    )
+    const actionType = b.actionType
+      ? String(b.actionType)
+      : `SMARTHQ_${normalized.event.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}`
+    const riskLevel = normalized.physical
+      ? riskForPhysicalAction(`${actionType} ${normalized.event}`, normalized.riskLevel)
+      : normalized.riskLevel
     return {
       channel,
-      event,
+      event: normalized.event,
       packId: b.packId ? String(b.packId) : 'home',
       packName: b.packName ? String(b.packName) : 'Home & family',
-      actionType: b.actionType ? String(b.actionType) : `SMARTHQ_${event.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}`,
-      summary: b.summary
-        ? String(b.summary)
-        : `SmartHQ ${event} on ${deviceId}. Queue a review; do not change the appliance.`,
-      targetEndpoint: topic,
-      method: 'POST',
+      actionType,
+      riskLevel,
+      summary: b.summary ? String(b.summary) : normalized.summary,
+      targetEndpoint: topic || normalized.targetEndpoint,
+      method: normalized.physical ? 'POST' : 'GET',
       source: 'smarthq',
-      diffData: {
-        before: { deviceId, event, state: b.state || 'reported' },
-        after: { deviceId, state: 'pending_human_yes' },
-      },
+      diffData: normalized.diffData,
       resourceCost: b.resourceCost || { amount: '0', token: 'none' },
       nextRecommendation: b.nextRecommendation
         ? String(b.nextRecommendation)
-        : defaultNextRecommendation('smarthq', event),
+        : defaultNextRecommendation('smarthq', normalized.event),
       metaPrompt: b.metaPrompt || null,
     }
   }
@@ -135,17 +146,29 @@ export function normalizeInbound(channel, body) {
  * the same Active Decision Card shape.
  */
 export function buildDecisionPayload({ inbound, pack, synth, timestamp }) {
+  // Appliance / SmartHQ normalization owns the physical-action risk floor.
+  const riskLevel =
+    inbound.channel === 'smarthq' && inbound.riskLevel
+      ? inbound.riskLevel
+      : synth.decision.riskLevel || inbound.riskLevel
   return normalizeDecisionPayload({
     agentId: pack?.agentId || inbound.agentId || 'agent_unassigned',
     packName: pack?.name || inbound.packName || 'Unassigned Pack',
     packId: pack?.id || inbound.packId || undefined,
     actionType: synth.decision.actionType || inbound.actionType || 'INBOUND_REVIEW',
-    riskLevel: synth.decision.riskLevel,
-    targetEndpoint: synth.decision.targetEndpoint || inbound.targetEndpoint,
+    riskLevel,
+    targetEndpoint:
+      preferLocalEndpoint(inbound.targetEndpoint, synth.decision.targetEndpoint) ||
+      synth.decision.targetEndpoint ||
+      inbound.targetEndpoint,
     method: synth.decision.method || inbound.method || 'POST',
     summary: synth.decision.summary || inbound.summary,
     metaPrompt: metaPromptToString(synth.metaPrompt || inbound.metaPrompt),
-    diffData: synth.decision.diffData || inbound.diffData,
+    // Prefer appliance-normalized before/after diffs (status, energyRate, savings)
+    diffData:
+      inbound.channel === 'smarthq' && inbound.diffData
+        ? inbound.diffData
+        : synth.decision.diffData || inbound.diffData,
     resourceCost: inbound.resourceCost,
     source: inbound.source,
     webhookEvent: inbound.event,

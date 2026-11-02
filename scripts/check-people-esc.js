@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");

@@ -104,7 +104,7 @@ Pack JSON may declare one or more desk AIs. Installing the pack attaches them to
 {
   "ais": [
     {
-      "name": "James’s AI",
+      "name": "Helper AI",
       "role": "Doer",
       "does": "Drafts the next step and the words. Nothing sent.",
       "prompt": "Draft ready. I cannot send, pay, or bind anything. You stay in control.",
@@ -187,6 +187,8 @@ Desk AI canon leftover: Grok SYSTEM, Studio SYSTEM, default does / prompt, and e
 
 World-home Desk AI leftover: `/` and `/how` no longer title Desk AI / bots or say “A bot cannot send or pay.” World cards use Desk AI + the firm draft-only line. Setup / Examples runtime cards say Desk AIs stay crew. Collect HOLD. No silent send.
 
+Si.aia component: `si.aia` is the SI seat. Account kinds human / ai / si. SI pauses before money, deletes, messaging someone new; human owner unlocks. Tip `si-aia` on Account + `/` + `/how` + Help `#si-aia`. Human · Desk AI · SI. One card, one idea. AI prepares, human verifies. Not Wallet.AIA. Collect HOLD. No silent send.
+
 Examples / Setup Desk AI leftover: `/examples` no longer titles AI agent or says “Approve an AI agent.” Setup niche and demo chip say Desk AI. World cards use the firm draft-only line. Demo fixture id `agent` stays. Collect HOLD. No silent send.
 
 People / header Desk AI leftover: after People chrome said Desk AIs, card chips, open-sheet seats, the who-chip, queue handoff, Help Rules Then bind, and inbox Needs you still painted agent / an agent / which bot. Those faces now say Desk AI. Seat id `agent` stays. Collect HOLD. No silent send.
@@ -222,6 +224,8 @@ Account leftover: after Studio / mail / Desk AIs send the saved pin with leftove
 Account leftover after that pass: API already had sessions / export / logout / logout-all / mfa HOLD, and YES already said the Account page lists phones, export, leave every phone — but `/account` only cleared localStorage on Leave this phone. Signed-in world users now see phones on this account, export the book (no pin / no password hash), leave this phone or every phone, and Authenticator HOLD. GET `/api/account` includes the existing session list. Help Login + More name the same trail. No new billing. Mint / Collect stay HOLD.
 
 Desks book leftover: after Account / mail / Desk AIs send the saved pin with leftover session, `/desks` still skipped `X-Pin` when a leftover session token was present (`desks-book.js` sent X-Session and skipped X-Pin). Mine 401’d and stayed on Sign in to see every desk. Mail on the same page was already open. The book now sends the saved pin with the session. Wrong code still 401. Collect HOLD. No silent send.
+
+Member desk leftover: Desks Leave / Ask UI had no `/api/desks` handlers. Members now leave and ask, owners write instructions, members use / drop / operate per those instructions. Last owner cannot leave. Stop / money stay owner. Collect HOLD. No silent send.
 
 Desks book leftover after blob: pin-with-session mine 200 in curl did not paint `/desks` owned desks. Blob `get` used `access: "private"` and 403’d on a Public store, so hydrate never left Lambda `/tmp`. Get retries public on 403; `ready()` re-reads uncached. Wrong or empty pin still 401. Collect HOLD. No silent send. No new Lambda.
 
@@ -407,7 +411,7 @@ First 3 clients: Audit (playbook step 1 · Find the leaks) → 60s proof → ris
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks. Public brand: **ai.aia**. Live desk host: **automateitaway.com**. Do not invent www.aia.aia.
 
-**`.aia`** is the pack + desk-AI artifact format (and the TLD for identity: `james.aia`, `springfield-shop.aia`). Download, share, or install a pack as a `name.aia` file. JSON inside is fine. MIME/extension is `.aia`. Named desk AIs and guardrails travel with the file. Marketplace listings and private desk installs use `.aia`.
+**`.aia`** is the pack + desk-AI artifact format (and the TLD for identity: `yourname.aia`, `your-shop.aia`). Download, share, or install a pack as a `name.aia` file. JSON inside is fine. MIME/extension is `.aia`. Named desk AIs and guardrails travel with the file. Marketplace listings and private desk installs use `.aia`.
 
 Validate `label.aia`. Names live on this desk now. Wallet / registry connect later as a Pipe HOLD. Do not invent on-chain ownership. Collect stays HOLD.
 
@@ -415,7 +419,7 @@ Validate `label.aia`. Names live on this desk now. Wallet / registry connect lat
 
 World users create `{ai-or-desk-name}@{accountname}.aia` to operate Automations and named desk AIs.
 
-Examples: `james-ai@funditaway.aia`, `queue@springfield-shop.aia`.
+Examples: `helper-ai@yourname.aia`, `queue@your-shop.aia`.
 
 Validate `local@account.aia`. The account label must match this AIA Internet account / `.aia` name (or the bound desk’s `.aia` name). Create and manage on Account, Studio, and Desks. Bind each identity to a desk or a named desk AI.
 
@@ -429,9 +433,9 @@ Outbound Send stays HOLD. No silent mail. Rail / Yes. Status orange until a real
 {
   "format": "aia.pack.v1",
   "name": "Family lane",
-  "aia": "springfield-shop.aia",
-  "file": "springfield-shop.aia",
-  "ais": [{ "name": "James’s AI", "aia": "james.aia" }],
+  "aia": "your-shop.aia",
+  "file": "your-shop.aia",
+  "ais": [{ "name": "Helper AI", "aia": "yourname.aia" }],
   "chain": false,
   "owned": false,
   "collect": "hold"

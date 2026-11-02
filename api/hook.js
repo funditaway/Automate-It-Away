@@ -8,11 +8,18 @@ const mail = require("./_aia-mail");
 function eventOf(body) {
   const raw = String(body.event || body.action || body.status || "update").toLowerCase();
   if (/need[s]?\s*a?\s*hand|manual|by[\s-]?hand|retry|reopen/.test(raw)) return "hand";
-  if (/sold|paid/.test(raw)) return "collect";
+  if (/\b(sold|paid)\b/.test(raw)) return "collect";
   if (/booked|done|complete|shipped|confirmed/.test(raw)) return "done";
   if (/fail|error|cancel|kill|stop/.test(raw)) return "kill";
   if (/capture|new|create|intake/.test(raw)) return "capture";
   return "update";
+}
+
+// Collect is on HOLD. Any paid/sold word in event, action, or status (unpaid too)
+// gets the HOLD reply and writes nothing: no card change, no money row, no save.
+const COLLECT_HOLD = "Collect stays HOLD until Yes + a real money pipe. Nothing was charged or written.";
+function moneyWord(body) {
+  return [body.event, body.action, body.status].some((v) => /paid|sold/i.test(String(v == null ? "" : v)));
 }
 
 function finishDone(job, body, how) {
@@ -21,6 +28,7 @@ function finishDone(job, body, how) {
   job.doneHow = how;
   job.doneAt = new Date().toISOString();
   job.doneBy = body.who || body.provider || "webhook";
+  job.doneById = "";
   job.awaiting = null;
   job.offDesk = false;
   job.followed = true;
@@ -28,6 +36,7 @@ function finishDone(job, body, how) {
   job.step = "Follow";
   job.rail = "done";
   job.whoTapped = job.doneBy;
+  job.whoTappedId = "";
   job.dispatch = { provider: body.provider || "webhook", inbound: true, demo: false, done: true, how: how };
   addTalk(job, job.doneBy, note, "follow");
   return note;
@@ -65,7 +74,7 @@ module.exports = async function handler(req, res) {
       inbound: "POST to /api/hook with to: local@account.aia — Drop / Capture on that desk. Automations can trigger from inbound.",
       send: "hold",
       mx: mail.statusOf(),
-      note: "Write back done when the work finished off the desk. Write back hand when a person still has to finish it. Owner still owns Stop. .aia identities work on the desk now. Internet mail when the MX pipe is connected."
+      note: "Write back done when the work finished off the desk. Write back hand when a person still has to finish it. Owner still owns Stop. .aia identities work on the desk now. Internet mail is off until mail delivery is connected."
     });
   }
 
@@ -94,6 +103,9 @@ module.exports = async function handler(req, res) {
     });
   }
   const event = identity ? "capture" : eventOf(body);
+  if (event === "collect" || moneyWord(body)) {
+    return res.status(409).json({ ok: false, hold: true, collect: "hold", charged: false, event: "collect", error: COLLECT_HOLD });
+  }
   const title = body.title || body.item || body.name || body.notes || "Pipe update";
 
   let job = null;
@@ -111,13 +123,13 @@ module.exports = async function handler(req, res) {
     const inbound = identity ? mail.inboundPayload(body, identity) : {};
     job = makeCapturedJob(workspace, shop, Object.assign({}, body, inbound, {
       title: inbound.title || title,
-      why: inbound.why || body.why || "In from a pipe.",
+      why: inbound.why || body.why || "In from a connection.",
       from: inbound.from || body.from || body.provider || "webhook",
       notes: inbound.notes || body.notes || body.text || "",
       lane: inbound.lane || body.lane || (identity ? "in" : "ext"),
       kind: inbound.kind || body.kind
     }));
-    job.log = [identity ? ("Mail · " + identity.address) : "Pipe capture"];
+    job.log = [identity ? ("Mail · " + identity.address) : "Captured from a hook"];
     job.provider = (identity && "aia-mail") || body.provider || job.provider || "webhook";
     if (identity) {
       job.aiaMail = identity.address;
@@ -125,8 +137,8 @@ module.exports = async function handler(req, res) {
       job.kind = job.kind || "email";
       job.custom = Object.assign({}, job.custom || {}, inbound.custom || {});
       const box = String(identity.address || "").toLowerCase();
-      if (job.assignee && String(job.assignee).toLowerCase() === box) delete job.assignee;
-      if (identity.bind === "ai" && identity.aiName) job.assignee = identity.aiName;
+      if (job.assignee && String(job.assignee).toLowerCase() === box) { delete job.assignee; delete job.assigneeId; }
+      if (identity.bind === "ai" && identity.aiName) { job.assignee = identity.aiName; delete job.assigneeId; }
     }
     qualifyJob(job, shop);
     try {
@@ -159,6 +171,7 @@ module.exports = async function handler(req, res) {
     job.offDesk = false;
     job.killReason = body.reason || body.killReason || "Pipe said stop";
     job.whoTapped = body.who || body.provider || "webhook";
+    job.whoTappedId = "";
     job.log = (job.log || []).concat(["Pipe stop"]);
     log("Pipe", "Stop · " + job.title, "Stopped", workspace);
     await save();
@@ -176,6 +189,7 @@ module.exports = async function handler(req, res) {
     job.rail = "hand";
     job.step = "Do";
     job.whoTapped = body.who || body.provider || "webhook";
+    job.whoTappedId = "";
     addTalk(job, job.whoTapped, note, "ask");
     job.log = (job.log || []).concat(["Pipe · needs a hand"]);
     log("Pipe", "Hand · " + job.title, "Waiting", workspace);
@@ -192,25 +206,6 @@ module.exports = async function handler(req, res) {
     return answer(res, 200, req, workspace, "done", job);
   }
 
-  if (event === "collect") {
-    const amount = Number(body.amount || job.amount || job.ask || 0);
-    finishDone(job, body, "pipe");
-    job.step = "Collect";
-    job.amount = amount || job.amount;
-    job.log = (job.log || []).concat(["Pipe wrote back · collect"]);
-    mem.money.unshift({
-      at: new Date().toISOString(),
-      workspace,
-      who: job.payoutTo || job.title,
-      what: "Pipe collect",
-      amt: amount ? "$" + amount : "—",
-      held: false
-    });
-    log("Pipe", "Collect · " + job.title, "OK", workspace);
-    await save();
-    return answer(res, 200, req, workspace, "collect", job);
-  }
-
   job.notes = body.notes || job.notes;
   if (body.status) job.pipeStatus = String(body.status).slice(0, 80);
   if (String(body.event || "").toLowerCase() === "do") {
@@ -225,3 +220,6 @@ module.exports = async function handler(req, res) {
   await save();
   return answer(res, 200, req, workspace, "update", job);
 };
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);

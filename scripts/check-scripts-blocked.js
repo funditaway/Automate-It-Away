@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+require("./_env-guard");
 
 // scripts/ stays in git for this suite. .vercelignore keeps it out of the
 // Vercel upload, so the site cannot serve those files. A routes 404 still

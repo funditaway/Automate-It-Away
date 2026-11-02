@@ -21,6 +21,7 @@ import { DEFAULT_CARD_UI } from './lib/cardUi.js'
 import { mountWebhooks } from './webhookIngest.js'
 import { createSwarm, mountSwarm } from './deploySwarm.js'
 import { mountBridge } from './bridgeModule.js'
+import { DeviceConnectionManager, mountAppliance } from './lib/appliance.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const DEFAULT_PORT = 3000
@@ -137,12 +138,14 @@ export function createCommandCenter(opts = {}) {
   const publicDir = join(here, 'public')
   if (existsSync(publicDir)) app.use(express.static(publicDir))
 
+  const appliance = opts.appliance || new DeviceConnectionManager({ now })
   const ctx = {
     app,
     queue,
     ledger,
     keypair,
     swarm,
+    appliance,
     dryRun,
     fetchImpl: opts.fetchImpl,
     grok: opts.grok || {},
@@ -186,6 +189,7 @@ export function createCommandCenter(opts = {}) {
   mountWebhooks(ctx)
   mountSwarm(ctx)
   mountBridge(ctx)
+  mountAppliance(ctx)
 
   app.post('/api/sign', (req, res) => {
     if (!requireHitl(req, res)) return

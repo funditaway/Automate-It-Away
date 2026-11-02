@@ -106,11 +106,12 @@ function publicDesk(row, person) {
     city: row.city || "",
     model: row.model || "",
     does: row.does || "",
+    instructions: String(row.instructions || "").trim().slice(0, 400),
     closed: deskClosed(row),
     createdAt: row.createdAt || null,
-    people: (owner || explore) ? (row.people || []).map(perms.publicPerson) : (row.people || []).length,
+    people: (owner || explore) ? lib.seatsFor(person, row.people, perms.publicPerson) : (row.people || []).length,
     peopleCount: (row.people || []).length,
-    you: perms.publicPerson(person),
+    you: lib.viewSeat(perms.publicPerson(person), person, person),
     role: person ? person.role : null,
     waiting: counts.waiting,
     held: counts.held,
@@ -150,6 +151,9 @@ function applyDeskEdit(row, body) {
   if (src.city != null) row.city = String(src.city).trim().slice(0, 80);
   if (src.model != null) row.model = String(src.model).trim().slice(0, 80);
   if (src.does != null) row.does = String(src.does).trim().slice(0, 160);
+  if (src.instructions != null || src.instruct != null || src.memberInstructions != null) {
+    row.instructions = String(src.instructions != null ? src.instructions : (src.instruct != null ? src.instruct : src.memberInstructions)).trim().slice(0, 400);
+  }
   if (src.aia != null || src.aiaName != null || src.host != null) {
     const named = net.parseName(src.aia || src.aiaName || src.host, row.slug);
     if (!named.ok) return { ok: false, error: named.error };
@@ -185,7 +189,8 @@ function setDeskCode(row, nextPin) {
   return { ok: true };
 }
 
-function exportDesk(row) {
+// person: the seat exporting. Not the owner: other seats are name and role only.
+function exportDesk(row, person) {
   if (!row) return null;
   const slug = row.slug;
   const jobs = (mem().jobs || []).filter((j) => j && j.workspace === slug);
@@ -198,12 +203,13 @@ function exportDesk(row) {
     city: row.city || "",
     model: row.model || "",
     does: row.does || "",
+    instructions: String(row.instructions || "").trim().slice(0, 400),
     closed: deskClosed(row),
     createdAt: row.createdAt || null,
     perms: deskPerms(row),
     nouns: lib.ensureNouns(row),
     rules: lib.ensureRules(row),
-    people: (row.people || []).map(perms.publicPerson),
+    people: lib.seatsFor(person, row.people, perms.publicPerson),
     counts: jobCounts(slug),
     jobs: jobs.map((j) => ({
       id: j.id,
@@ -232,6 +238,7 @@ function logDesk(action, row, person, extra) {
     slug: row && row.slug,
     name: row && (row.biz || row.name || row.slug),
     by: (person && person.name) || "desk",
+    whoKind: require("./_account-settings").actorKind(person, row),
     role: (person && person.role) || "",
     extra: extra && typeof extra === "object" ? extra : null
   };
@@ -258,7 +265,7 @@ function exploreDesk(row, person) {
     perms: deskPerms(row),
     nouns: lib.ensureNouns(row),
     rules: lib.ensureRules(row),
-    people: (row.people || []).map(perms.publicPerson),
+    people: lib.seatsFor(person, row.people, perms.publicPerson),
     events: deskEventsOf(slug, 25),
     audit: (mem().audit || []).filter((a) => a && (!a.workspace || a.workspace === slug)).slice(0, 25),
     recent: jobs.slice(0, 8).map((j) => ({

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
 const root = path.join(__dirname, "..");
@@ -53,6 +54,9 @@ must(help, "Add people to this desk", "help.html add-people title");
 must(help, "AIA does not send invite mail", "help.html no invite mail");
 must(help, "own seat", "help.html own seat");
 must(help, "Cannot Stop", "help.html helper cannot Stop");
+must(help, "<dt>Member</dt>", "help.html Member seat");
+must(help, "operate the queue per the owner's instructions", "help.html member operate per owner");
+must(help, "They use the desk, drop work into it", "help.html member use and drop");
 must(help, 'id="onboard-desk"', "help.html onboard-desk card");
 must(help, "Onboard this desk", "help.html onboard title");
 must(help, "www.automateitaway.com/api/hook", "help.html inbound hook");
@@ -61,7 +65,8 @@ must(help, "Search a site / Log in", "help.html vendor console");
 must(help, "draft only", "help.html login is draft");
 must(help, "Calendar, SMS, Square, and eBay stay HOLD", "help.html hold pipes");
 must(help, "desk name plus a desk code", "help.html desk identity");
-must(help, "james.aia", "help.html james.aia-style name");
+must(help, "<code>yourname.aia</code>-style name", "help.html yourname.aia-style name");
+if (help.includes("james.aia")) throw new Error("help.html must not show the owner name james.aia");
 must(help, "no live Business Details or brand-kit", "help.html no brand-kit page");
 must(help, 'href="#people-desk"', "help.html people-desk link");
 must(help, "Owner vs Helper", "help.html owner vs helper");

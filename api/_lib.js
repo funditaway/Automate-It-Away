@@ -239,38 +239,89 @@ function blobRestPutUrls(name) {
   ];
 }
 
+// The live store is aia/store.json (the SDK name; production health shows the
+// SDK path). aia-store.json is a legacy leftover: it is read only when a
+// listing proves the live name absent, it is never written or deleted, and the
+// first save after loading it migrates the data to aia/store.json.
+async function blobRestGetName(name) {
+  const r = await fetch("https://blob.vercel-storage.com/" + name, {
+    headers: blobRestHeaders()
+  });
+  if (r.status === 404) return { empty: true, status: 404 };
+  if (!r.ok) {
+    const text = await r.text();
+    let json = {};
+    try { json = JSON.parse(text); } catch (e) { json = {}; }
+    const err = new Error(blobRestErr(json, text, r.status));
+    err.status = r.status;
+    throw err;
+  }
+  const raw = await r.text();
+  if (!raw) return { empty: true, status: 200, url: r.url || null };
+  return { data: shape(JSON.parse(blobOpen(raw))), url: r.url || null };
+}
+
 async function blobRestGet() {
   if (!blobToken()) return null;
-  const names = [BLOB_REST_KEY, BLOB_KEY];
-  let saw404 = false;
-  for (let i = 0; i < names.length; i++) {
-    const r = await fetch("https://blob.vercel-storage.com/" + names[i], {
-      headers: blobRestHeaders()
-    });
-    if (r.status === 404) {
-      saw404 = true;
-      continue;
-    }
-    if (!r.ok) {
-      const text = await r.text();
-      let json = {};
-      try { json = JSON.parse(text); } catch (e) { json = {}; }
-      const err = new Error(blobRestErr(json, text, r.status));
-      err.status = r.status;
-      throw err;
-    }
-    const raw = await r.text();
-    if (!raw) return { empty: true, status: 200, url: r.url || null };
-    return { data: shape(JSON.parse(blobOpen(raw))), url: r.url || null };
+  const live = await blobRestGetName(BLOB_KEY);
+  if (!live.empty || live.status !== 404) return live;
+  if (!(await blobLiveProvenAbsent())) return live;
+  const legacy = await blobRestGetName(BLOB_REST_KEY);
+  // Never point later reads or writes at the legacy name.
+  if (legacy.data) return { data: legacy.data, url: null, legacy: true };
+  return live;
+}
+
+// True only when a listing shows no aia/store.json at all.
+async function blobLiveProvenAbsent() {
+  try {
+    const listed = await blobListNames(BLOB_KEY);
+    if (!listed || !Array.isArray(listed.blobs) || listed.hasMore) return false;
+    return !listed.blobs.some((b) => b && b.pathname === BLOB_KEY);
+  } catch (e) {
+    return false;
   }
-  if (saw404) return { empty: true, status: 404 };
+}
+
+// Legacy-only store: live name proven absent, legacy present. Read it (SDK,
+// then REST), read-only. The caller applies it; the next save goes to
+// aia/store.json. Returns null when there is nothing to load.
+async function blobLegacyRead() {
+  if (!(await blobLiveProvenAbsent())) return null;
+  const modes = blobProbe.access === "public" ? ["public", "private"] : ["private", "public"];
+  let sdkAnswered = false;
+  for (let i = 0; i < modes.length; i++) {
+    try {
+      const got = await blobGetKey(modes[i], BLOB_REST_KEY);
+      if (got && got.data) {
+        markBlobHit(modes[i], null);
+        mem.storeLegacy = true;
+        return got.data;
+      }
+      if (got && got.empty) sdkAnswered = true;
+    } catch (e) {
+      if (blobMissing(blobErrText(e))) sdkAnswered = true;
+    }
+  }
+  // REST only when the SDK could not answer (denied or down).
+  if (!sdkAnswered && blobToken()) {
+    try {
+      const got = await blobRestGetName(BLOB_REST_KEY);
+      if (got && got.data) {
+        markBlobHit("public", null);
+        mem.storeLegacy = true;
+        return got.data;
+      }
+    } catch (e) {}
+  }
   return null;
 }
 
 async function blobRestPut(body) {
   if (!blobToken()) throw new Error("Vercel Blob: no BLOB_READ_WRITE_TOKEN");
   const payload = Buffer.from(blobSeal(body), "utf8");
-  const names = [BLOB_REST_KEY, BLOB_KEY];
+  // Only the live name. The legacy aia-store.json is never written.
+  const names = [BLOB_KEY];
   const variants = [
     {
       "x-content-type": "application/json",
@@ -326,6 +377,7 @@ async function blobRestRead() {
     const rest = await blobRestGet();
     if (rest && rest.data) {
       markBlobHit("public", rest.url);
+      if (rest.legacy) mem.storeLegacy = true;
       blobProbe.auth = "rest";
       blobProbe.detail = "rest";
       return rest.data;
@@ -477,6 +529,9 @@ function markBlobHit(access, url) {
   if (blobProbe.auth !== "token") blobProbe.auth = blobAuthKind();
   blobProbe.url = url ? "set" : blobProbe.url;
   if (url) mem.blobUrl = url;
+  // Real store bytes were read; every caller applies them to mem.
+  mem.storeSeen = true;
+  if (!mem.storeBasis) mem.storeBasis = "read";
 }
 
 function markBlobEmpty(access) {
@@ -505,6 +560,198 @@ async function blobListStore() {
   const listed = await blobTryAuth((auth) => list(Object.assign({ prefix: "aia/", limit: 20 }, auth)));
   const blobs = (listed && listed.blobs) || [];
   return blobs.find((b) => b && (b.pathname === BLOB_KEY || String(b.pathname || "").indexOf("store.json") >= 0)) || null;
+}
+
+// Fresh-install proof. Only a listing that succeeds and holds neither store
+// key proves the store is absent. An empty body, a "404" text, a 403, a 500,
+// a reset or bad JSON from get/head proves nothing. SDK list first, REST list
+// when the SDK is denied.
+async function blobListNames(name) {
+  try {
+    const { list } = require("@vercel/blob");
+    return await blobTryAuth((auth) => list(Object.assign({ prefix: name, limit: 10 }, auth)));
+  } catch (e) {
+    if (!blobToken()) throw e;
+    const r = await fetch("https://vercel.com/api/blob?prefix=" + encodeURIComponent(name) + "&limit=10", { headers: blobRestHeaders() });
+    if (!r.ok) throw new Error("rest-list-" + r.status);
+    return JSON.parse(await r.text());
+  }
+}
+
+async function blobAbsent() {
+  try {
+    const names = [BLOB_KEY, BLOB_REST_KEY];
+    for (let i = 0; i < names.length; i++) {
+      const listed = await blobListNames(names[i]);
+      if (!listed || !Array.isArray(listed.blobs) || listed.hasMore) return false;
+      if (listed.blobs.some((b) => b && b.pathname === names[i])) return false;
+    }
+    mem.storeAbsent = true;
+    if (!mem.storeBasis) mem.storeBasis = "absent-proven";
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// The store may be written only after this process really read it, or proved
+// it absent. File-store runs (no Blob) are always trusted.
+function storeTrusted() {
+  if (!blobReady()) return true;
+  return !!(mem.storeSeen || mem.storeAbsent);
+}
+
+// One answer for every not-ready refusal. Pages show error as-is.
+const STORE_NOT_READY = "The desk can't save right now. Try again in a moment.";
+const STORE_NOT_READY_CODE = "store_not_ready";
+// Same words when the store was read but the durable Blob write failed.
+const STORE_WRITE_FAILED_CODE = "store_write_failed";
+const STORE_PAUSED_LINE = "Saving is paused: this desk couldn't read its store.";
+
+// Read-only: how this instance came to trust its store. "read" (it really
+// read it), "absent-proven" (a listing proved a fresh install), or
+// "not-ready" (neither; every saving request answers 503).
+function storeState() {
+  if (!storeTrusted()) return "not-ready";
+  if (!blobReady()) return "read";
+  return mem.storeBasis || (mem.storeSeen ? "read" : "absent-proven");
+}
+
+function refuseNotReady(res) {
+  if (res && typeof res.setHeader === "function") res.setHeader("Retry-After", "5");
+  return res.status(503).json({ ok: false, error: STORE_NOT_READY, code: STORE_NOT_READY_CODE });
+}
+
+function storeNotReady(res) {
+  if (storeTrusted()) return false;
+  refuseNotReady(res);
+  return true;
+}
+
+// One store-call record per request (shared across module reloads). save()
+// and persistScrub() mark it when they refuse to write.
+const { AsyncLocalStorage } = require("async_hooks");
+const storeCalls = globalThis.__aiaStoreCalls || (globalThis.__aiaStoreCalls = new AsyncLocalStorage());
+const WRITE_METHODS = { POST: true, PUT: true, PATCH: true, DELETE: true };
+
+function noteSkipped(kind) {
+  const ctx = storeCalls.getStore();
+  if (ctx) ctx[kind] = true;
+}
+
+// Untrusted store: one more honest look before refusing. A good read replaces
+// memory (so nothing unsaved survives); a listing may still prove a fresh
+// install. Anything else stays untrusted.
+async function recoverStore() {
+  if (storeTrusted()) return true;
+  if (!globalThis.__aiaStoreLoaded) return false;
+  try {
+    // Same 5 s read deadline as hydrate/ready: a POST never waits out a slow
+    // or hung recovery read; a timed-out read stays untrusted (503).
+    const remote = await blobReadDeadline(blobRead());
+    if (remote) {
+      applyStore(remote);
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+    } else if (blobProbe.read !== "error") {
+      const legacy = await blobReadDeadline(blobLegacyRead());
+      if (legacy) {
+        applyStore(legacy);
+        mem.driver = "blob";
+        mem.path = "blob:" + BLOB_KEY;
+      } else {
+        await blobReadDeadline(blobAbsent());
+      }
+    }
+  } catch (e) {}
+  return storeTrusted();
+}
+
+// While untrusted, memory is the local disk copy plus whatever this request
+// did. A skipped write must not leak to later requests as if saved.
+function forgetUnsaved() {
+  if (storeTrusted()) return;
+  const driver = mem.driver;
+  const where = mem.path;
+  applyStore(readDisk());
+  dropPersistTests();
+  mem.driver = driver;
+  mem.path = where;
+}
+
+// A 2xx never goes out for a request whose store write was refused.
+function holdSuccess(res, ctx) {
+  const blocked = () => {
+    if (ctx.sent) return false;
+    const code = Number(res.statusCode || 200);
+    if (code < 200 || code >= 300) return false;
+    return !!(ctx.skipped || (ctx.writes && ctx.scrubSkipped));
+  };
+  ["json", "send", "end"].forEach((name) => {
+    const orig = res && res[name];
+    if (typeof orig !== "function") return;
+    res[name] = function (body) {
+      if (blocked()) {
+        ctx.sent = true;
+        ctx.refused = true;
+        if (typeof res.status === "function") res.status(503); else res.statusCode = 503;
+        if (typeof res.setHeader === "function") res.setHeader("Retry-After", "5");
+        const base = body && typeof body === "object" && !Buffer.isBuffer(body) ? body : {};
+        // A failed durable write answers the bare refusal: nothing from the
+        // unsaved work (sessions, ids, cards) goes back to the caller.
+        const out = ctx.writeFailed
+          ? { ok: false, error: STORE_NOT_READY, code: STORE_WRITE_FAILED_CODE }
+          : Object.assign({}, base, { ok: false, error: STORE_NOT_READY, code: STORE_NOT_READY_CODE, saved: false });
+        if (name === "json") return orig.call(this, out);
+        if (typeof res.setHeader === "function") res.setHeader("Content-Type", "application/json; charset=utf-8");
+        return orig.call(this, JSON.stringify(out));
+      }
+      ctx.sent = true;
+      return orig.apply(this, arguments);
+    };
+  });
+}
+
+// When guardStore() took this request (null outside a guarded request).
+function requestStartedAt() {
+  const ctx = storeCalls.getStore();
+  return ctx && ctx.at ? ctx.at : null;
+}
+
+// Every api/*.js handler is wrapped in this. POST/PUT/PATCH/DELETE are refused
+// with a JSON 503 + Retry-After up front while the store is not trusted. Any
+// request (GET included) whose save() was refused cannot answer 2xx, and its
+// unsaved memory is dropped.
+function guardStore(handler) {
+  if (typeof handler !== "function" || handler.__storeGuarded) return handler;
+  const wrapped = async function guardedHandler(req, res) {
+    if (storeCalls.getStore()) return handler.apply(this, arguments);
+    // Request arrival: the recovery reads below count against the
+    // handler's time budget (see requestStartedAt).
+    const at = Date.now();
+    const method = String((req && req.method) || "GET").toUpperCase();
+    const writes = !!WRITE_METHODS[method];
+    if (writes && blobReady()) {
+      // Same shared cold load the handlers use. A cold load that failed in
+      // this request is this request's answer; a loaded but untrusted store
+      // gets one fresh read.
+      let loadFailed = false;
+      try { await loadIfCold(); } catch (e) { loadFailed = true; }
+      if (!storeTrusted() && (loadFailed || !(await recoverStore()))) return refuseNotReady(res);
+    }
+    const ctx = { at, writes, skipped: false, scrubSkipped: false, writeFailed: false, sent: false };
+    holdSuccess(res, ctx);
+    const self = this;
+    const args = arguments;
+    try {
+      return await storeCalls.run(ctx, () => handler.apply(self, args));
+    } finally {
+      if (ctx.skipped || ctx.scrubSkipped) forgetUnsaved();
+    }
+  };
+  Object.keys(handler).forEach((k) => { wrapped[k] = handler[k]; });
+  wrapped.__storeGuarded = true;
+  return wrapped;
 }
 
 async function blobFetchUrl(url, access) {
@@ -692,6 +939,60 @@ async function blobWriteStick(blob, used) {
   }
 }
 
+// A store put that never answers is a failed put, not a hung request.
+const BLOB_PUT_MS = 15000;
+function blobDeadline(job, ms, what) {
+  let timer;
+  job.catch(() => {});
+  const late = new Promise((resolve, reject) => {
+    timer = setTimeout(() => { const e = new Error("Vercel Blob: " + what + " timed out after " + ms + "ms"); e.deadline = true; reject(e); }, ms);
+  });
+  return Promise.race([job, late]).finally(() => clearTimeout(timer));
+}
+function blobPutDeadline(job) {
+  return blobDeadline(job, Number(globalThis.__aiaBlobPutMs) || BLOB_PUT_MS, "store write");
+}
+
+// A store read or read-back that never answers is a failed read (5 s). A
+// timed-out read leaves the store untrusted: nothing is saved over it, and
+// if the read answers late it cannot make the store trusted either.
+const BLOB_READ_MS = 5000;
+const blobReadMs = () => Number(globalThis.__aiaBlobReadMs) || BLOB_READ_MS;
+function untrustStore() {
+  mem.storeSeen = false;
+  mem.storeAbsent = false;
+}
+function blobReadDeadline(job) {
+  let timedOut = false;
+  job.then(() => { if (timedOut) untrustStore(); }, () => {});
+  return blobDeadline(job, blobReadMs(), "store read").catch((e) => {
+    if (!e || !e.deadline) throw e;
+    timedOut = true;
+    untrustStore();
+    blobProbe.read = "error";
+    blobProbe.detail = e.message;
+    return null;
+  });
+}
+
+async function blobPutStore(body) {
+  try {
+    return { blob: await blobPut(body, "private"), used: "private" };
+  } catch (first) {
+    const msg = blobErrText(first);
+    try {
+      if (!blobToken() || !(blobWantsPublic(msg) || blobNeedsRetry(msg))) throw first;
+      const blob = await blobPut(blobSeal(body), "public");
+      blobProbe.detail = "sealed-public";
+      return { blob, used: "public" };
+    } catch (second) {
+      const blob = await blobRestPut(body);
+      blobProbe.detail = "rest";
+      return { blob, used: "public" };
+    }
+  }
+}
+
 async function blobWrite() {
   if (!blobAllowed()) return false;
   // A store put is an in-flight write. Bump the epoch before the body is
@@ -718,23 +1019,7 @@ async function blobWriteBody() {
   const body = JSON.stringify(payload());
   sealedBody = body;
   try {
-    let blob;
-    let used = "private";
-    try {
-      blob = await blobPut(body, "private");
-    } catch (first) {
-      const msg = blobErrText(first);
-      try {
-        if (!blobToken() || !(blobWantsPublic(msg) || blobNeedsRetry(msg))) throw first;
-        blob = await blobPut(blobSeal(body), "public");
-        used = "public";
-        blobProbe.detail = "sealed-public";
-      } catch (second) {
-        blob = await blobRestPut(body);
-        used = "public";
-        blobProbe.detail = "rest";
-      }
-    }
+    const { blob, used } = await blobPutDeadline(blobPutStore(body));
     blobProbe.access = used;
     blobProbe.write = "ok";
     blobProbe.status = 200;
@@ -742,7 +1027,7 @@ async function blobWriteBody() {
     else blobProbe.detail = used === "public" ? "sealed-public" : "ok";
     blobProbe.url = blob && (blob.url || blob.downloadUrl) ? "set" : blobProbe.url;
     if (blob && blob.url) mem.blobUrl = blob.url;
-    const stuck = await blobWriteStick(blob, used);
+    const stuck = await blobDeadline(blobWriteStick(blob, used), blobReadMs(), "read-back").catch(() => false);
     if (!stuck) {
       blobProbe.write = "no-stick";
       blobProbe.detail = (blobProbe.detail || "Blob write did not stick").slice(0, 180);
@@ -842,7 +1127,8 @@ function dropPersistTests() {
 async function persistScrub() {
   if (!dropPersistTests()) return false;
   writeDisk();
-  if (blobReady()) {
+  if (blobReady() && !storeTrusted()) noteSkipped("scrubSkipped");
+  if (blobReady() && storeTrusted()) {
     const ok = await blobWrite();
     if (ok) {
       mem.driver = "blob";
@@ -935,13 +1221,30 @@ async function hydrate() {
 
 async function hydrateDriver() {
   if (blobReady()) {
-    const remote = await blobRead();
+    const remote = await blobReadDeadline(blobRead());
     if (remote) {
       applyStore(remote);
       mem.driver = "blob";
       mem.path = "blob:" + BLOB_KEY;
       await persistScrub();
       return;
+    }
+    // Live name proven absent but the legacy copy is there: load it
+    // read-only; the first save migrates it to aia/store.json.
+    if (blobProbe.read !== "error") {
+      const legacy = await blobReadDeadline(blobLegacyRead());
+      if (legacy) {
+        applyStore(legacy);
+        mem.driver = "blob";
+        mem.path = "blob:" + BLOB_KEY;
+        return;
+      }
+    }
+    // No data and no error: an empty body or a false 404 lands here too, so
+    // the starter goes up only when a listing proves the store absent.
+    if (blobProbe.read !== "error" && !(await blobReadDeadline(blobAbsent()))) {
+      blobProbe.read = "error";
+      blobProbe.detail = "store not proven absent — will not write starter";
     }
     if (blobProbe.read === "error") {
       applyStore(readDisk());
@@ -968,6 +1271,14 @@ async function hydrateDriver() {
 
 if (!globalThis.__aiaHydrate) {
   globalThis.__aiaHydrate = hydrate();
+  // Loaded means this process finished a hydrate. A rejection leaves the flag
+  // unset so a later loadIfCold() can try again. ready() still awaits this
+  // same promise.
+  globalThis.__aiaHydrate.then(function () {
+    globalThis.__aiaStoreLoaded = true;
+  }, function () {
+    globalThis.__aiaStoreLoaded = false;
+  });
 }
 
 function applyStore(parsed) {
@@ -993,7 +1304,7 @@ function applyStore(parsed) {
 
 async function reloadStore() {
   const seen = epoch;
-  const remote = await blobRead();
+  const remote = await blobReadDeadline(blobRead());
   // Load failure (null, empty, or error): leave mem exactly as it is.
   if (!remote) return false;
   // ready-guard:write-hold
@@ -1006,24 +1317,115 @@ async function reloadStore() {
   return true;
 }
 
-async function ready(force) {
-  // ready-guard:cold-shared
-  await globalThis.__aiaHydrate;
+async function reloadIfNeeded(force) {
   let fresh = true;
   if (needsReload(force === true)) {
     // ready-guard:single-flight
     if (!reloadFlight) reloadFlight = reloadStore().finally(() => { reloadFlight = null; });
     fresh = (await reloadFlight) !== false;
   }
+  return fresh;
+}
+
+async function ready(force) {
+  // ready-guard:cold-shared
+  await globalThis.__aiaHydrate;
+  const fresh = await reloadIfNeeded(force);
   await persistScrub();
   return fresh;
 }
 
-async function save() {
-  // Wait for the shared hydrate only. Do not call ready(). A reload replaces
-  // mem, and that must not run over the write this save is about to persist.
+// Read-only twin of ready() for GET checks like /api/health. Same first-load
+// wait and same reload guards (age window when force is false; write-hold
+// always), but it never writes: no persistScrub(), no save(). Default force
+// is true so health still gets live counts. Test rows are dropped from mem
+// only, so counts match ready().
+async function readyRead(force) {
   await globalThis.__aiaHydrate;
+  const fresh = await reloadIfNeeded(force !== false);
   dropPersistTests();
+  return fresh;
+}
+
+function captureMem() {
+  return {
+    data: JSON.parse(JSON.stringify(payload())),
+    driver: mem.driver,
+    path: mem.path
+  };
+}
+
+function revertMem(shot) {
+  if (!shot) return;
+  applyStore(shot.data);
+  mem.driver = shot.driver;
+  mem.path = shot.path;
+}
+
+// Cold instance: mem is still the empty starter until the in-flight hydrate
+// finishes. Warm instance: that hydrate already resolved, so return without
+// reading the blob or replacing mem. Concurrent callers share one attempt.
+// A rejected attempt does not mark the store loaded and does not keep a
+// partial apply. ready() is unchanged and still re-reads for its own callers.
+async function loadIfCold() {
+  if (globalThis.__aiaStoreLoaded) return;
+  if (globalThis.__aiaColdInflight) return globalThis.__aiaColdInflight;
+  const joinModule = !globalThis.__aiaColdTried;
+  globalThis.__aiaColdTried = true;
+  const before = captureMem();
+  let job;
+  job = (async () => {
+    try {
+      if (joinModule) await globalThis.__aiaHydrate;
+      else await hydrate();
+      globalThis.__aiaStoreLoaded = true;
+    } catch (err) {
+      // The module promise stays rejected so ready() still observes it.
+      // save() must not wait on that rejection after a later successful load.
+      globalThis.__aiaHydrateRejected = true;
+      revertMem(before);
+      throw err;
+    } finally {
+      if (globalThis.__aiaColdInflight === job) globalThis.__aiaColdInflight = null;
+    }
+  })();
+  globalThis.__aiaColdInflight = job;
+  return job;
+}
+
+async function save() {
+  // Wait for first hydrate only. Do not call ready() — that reloads the blob
+  // and would replace in-request mutations (onboard, sessions, Studio Open login)
+  // with the pre-mutation snapshot before write.
+  // After a rejected cold load, a successful retry has already filled mem.
+  // Waiting on the original rejected promise would throw away that save.
+  // ready() still awaits the original promise.
+  if (!(globalThis.__aiaStoreLoaded && globalThis.__aiaHydrateRejected)) {
+    await globalThis.__aiaHydrate;
+  }
+  if (!storeTrusted()) {
+    // Never read and not proven absent: write nothing, not even the disk copy.
+    blobProbe.write = "fail";
+    blobProbe.detail = "store not loaded — will not overwrite store";
+    noteSkipped("skipped");
+    return false;
+  }
+  dropPersistTests();
+  if (blobReady() && blobMayWrite()) {
+    // Blob first: a put that failed (threw, non-2xx, timed out) kept
+    // nothing, so the local copy must not keep it either.
+    const ok = await blobWrite();
+    if (!ok && blobProbe.write === "fail") return storeWriteFailed();
+    const written = writeDisk();
+    if (ok) {
+      mem.driver = "blob";
+      mem.path = "blob:" + BLOB_KEY;
+      return true;
+    }
+    // Put accepted but the read-back could not confirm it: unchanged.
+    mem.driver = written;
+    return written !== "memory-fallback";
+  }
   const disk = writeDisk();
   if (blobReady()) {
     if (!blobMayWrite()) {
@@ -1037,15 +1439,23 @@ async function save() {
       }
       return disk !== "memory-fallback";
     }
-    const ok = await blobWrite();
-    if (ok) {
-      mem.driver = "blob";
-      mem.path = "blob:" + BLOB_KEY;
-      return true;
-    }
   }
   mem.driver = disk;
   return disk !== "memory-fallback";
+}
+
+// The store was read but the durable Blob put failed (threw, non-2xx, or
+// timed out). Nothing past the last good save may be served or
+// saved again as truth: the store goes back to not-ready (the next write
+// request, or any ready(), re-reads it from Blob), memory drops back to the
+// last good local copy, and guardStore() turns this request into the 503.
+function storeWriteFailed() {
+  mem.storeSeen = false;
+  mem.storeAbsent = false;
+  noteSkipped("writeFailed");
+  noteSkipped("skipped");
+  forgetUnsaved();
+  return false;
 }
 
 function cors(res) {
@@ -1070,8 +1480,8 @@ function catalog() {
     live: configured(id),
     status: id === "whatnot" ? "down" : configured(id) ? "live" : "hold",
     note: id === "whatnot"
-      ? "Not a launch pipe"
-      : configured(id) ? "This pipe is set up." : "Hold until this pipe is set up."
+      ? "Off for now."
+      : configured(id) ? "This connection is set up." : "Off until this connection is set up."
   }));
 }
 
@@ -1287,7 +1697,11 @@ function revokeSession(tokenOrId, hint) {
   return removed;
 }
 
-function issueSession(person, workspace, account, req) {
+// proof: set only when this login itself proved the account. Allowlist: "password" is the one
+// value (email + password). A desk code / PIN never sets it, owner or not; any other value is unproven.
+const SESSION_PROOFS = ["password"];
+function sessionProof(proof) { return SESSION_PROOFS.indexOf(proof) >= 0 ? proof : ""; }
+function issueSession(person, workspace, account, req, proof) {
   ensureAuthState();
   pruneSessions();
   const now = Date.now();
@@ -1296,11 +1710,12 @@ function issueSession(person, workspace, account, req) {
     id: "sess_" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
     tokenHash: hashSession(token),
     workspace: slugify((workspace && workspace.slug) || (account && account.slug) || (req && workspaceOf(req)) || ""),
-    accountId: (account && account.id) || (person && person.accountId) || (workspace && workspace.accountId) || "",
+    accountId: issuedAccountId(person, workspace, account, proof),
     personId: (person && person.id) || "",
     name: (person && person.name) || "",
     role: (person && person.role) || "",
-    email: (person && person.email) || (account && account.email) || "",
+    email: issuedEmail(person, workspace, account, proof),
+    proof: sessionProof(proof),
     createdAt: new Date(now).toISOString(),
     seenAt: new Date(now).toISOString(),
     expiresAt: sessionExpiresAt(now)
@@ -1330,9 +1745,65 @@ function sessionFromReq(req, options) {
   if (!row) return null;
   if (req) {
     req.__aiaSessionToken = token;
-    req.__aiaSession = sessionPublic(row);
+    req.__aiaSession = sessionPublic(sessionProofView(row));
   }
-  return { token, session: row };
+  return { token, session: sessionProofView(row) };
+}
+
+// The account that owns a desk (the desk's own account), or "".
+function deskAccountIdOf(ws) {
+  if (!ws) return "";
+  if (ws.accountId) return ws.accountId;
+  const acc = (mem.accounts || []).find((a) => a && (a.desks || []).indexOf(ws.slug) >= 0) || null;
+  return (acc && acc.id) || "";
+}
+
+// An email a helper session may not carry: one that is another account's, or an owner seat's.
+function helperEmailClaimed(email, ownAccountId) {
+  const e = String(email || "").trim().toLowerCase();
+  if (!e) return false;
+  if ((mem.accounts || []).some((a) => a && a.id !== ownAccountId && String(a.email || "").trim().toLowerCase() === e)) return true;
+  return (mem.workspaces || []).some((w) => w && (w.people || []).some((p) => seatLooksOwner(p) && String(p.email || "").trim().toLowerCase() === e));
+}
+
+function seatIsHelper(person) {
+  return !!person && !seatLooksOwner(person) && !/_owner$/.test(String(person.id || ""));
+}
+
+// A helper session carries an account only when its own login proved it (email + password).
+// A desk-code (PIN) login proves no account: not the desk's own (a pin login used to stamp it on
+// every session), and not one an old invite typed onto the seat. Owner sessions are unchanged.
+function issuedAccountId(person, workspace, account, proof) {
+  const id = (account && account.id) || (person && person.accountId) || (workspace && workspace.accountId) || "";
+  if (!seatIsHelper(person)) return id;
+  if (!sessionProof(proof)) return "";
+  const given = (account && account.id) || "";
+  if (!given || given === deskAccountIdOf(workspace)) return "";
+  return !person.accountId || person.accountId === given ? given : "";
+}
+
+function issuedEmail(person, workspace, account, proof) {
+  const email = (person && person.email) || (account && account.email) || "";
+  if (!seatIsHelper(person)) return email;
+  return helperEmailClaimed(email, issuedAccountId(person, workspace, account, proof)) ? "" : email;
+}
+
+// What a stored session proves, read fresh on every request (covers sessions stored before this rule).
+// A helper session proves only its own seat's own account: never its desk's own account (so a seat
+// holding the owner's account proves nothing, on this desk or any other), never an account that is
+// not on its seat, never an owner's email, and none at all unless its own login proved it
+// (an allowlisted proof mark; sessions stored without one are unproven). Owner sessions are unchanged.
+function sessionProofView(row) {
+  if (!row || (!row.accountId && !row.email)) return row;
+  if (row.accountId && row.personId === row.accountId + "_owner") return row;
+  const home = (mem.workspaces || []).find((w) => w && w.slug === row.workspace) || null;
+  const seat = home && row.personId ? ((home.people || []).find((p) => p && p.id === row.personId) || null) : null;
+  if (seat ? !seatIsHelper(seat) : sessionLooksOwner(row)) return row;
+  let accountId = sessionProof(row.proof) ? (row.accountId || "") : "";
+  if (accountId && (accountId === deskAccountIdOf(home) || (seat && seat.accountId && seat.accountId !== accountId))) accountId = "";
+  const email = helperEmailClaimed(row.email, accountId) ? "" : (row.email || "");
+  if (accountId === (row.accountId || "") && email === (row.email || "")) return row;
+  return Object.assign({}, row, { accountId, email });
 }
 
 function pruneLocks() {
@@ -1422,18 +1893,41 @@ function ensurePeople(ws) {
 
 function publicPerson(p) {
   if (!p) return null;
+  const kind = p.kind || (p.role === "owner" ? "owner" : "");
   return {
     id: p.id,
     name: p.name,
     role: p.role,
     email: p.email || "",
-    kind: p.kind || "",
+    kind: kind,
+    status: p.status || "approved",
     deskAi: !!p.deskAi,
     does: p.does || "",
     prompt: String(p.prompt || "").trim().slice(0, 160),
     aia: p.aia || "",
-    aiId: p.aiId || ""
+    aiId: p.aiId || "",
+    accountId: p.accountId || "",
+    requestedKind: p.requestedKind || ""
   };
+}
+
+// A seat as a viewer who is not the desk owner sees it (helper, AI seat, desk-code login, no seat):
+// other seats are display fields only. No email, no account, no phone, no wallet, no permission map,
+// no prompt, nothing else of the row. The viewer's own seat keeps its own email, and its accountId
+// only when ownAccountId (the account the viewer's own sign-in proved) is that id. Owners see `out`.
+const SEAT_DISPLAY = ["id", "name", "role", "kind", "status", "crew", "deskAi", "does", "aia", "handle", "at"];
+function viewSeat(out, raw, viewer, ownAccountId) {
+  if (!out || typeof out !== "object") return out;
+  if (viewer && isOwner(viewer)) return out;
+  const self = !!(viewer && raw && viewer.id && raw.id === viewer.id);
+  const shown = {};
+  SEAT_DISPLAY.forEach((k) => { if (Object.prototype.hasOwnProperty.call(out, k)) shown[k] = out[k]; });
+  if (Object.prototype.hasOwnProperty.call(out, "email")) shown.email = self ? out.email : "";
+  if (Object.prototype.hasOwnProperty.call(out, "accountId")) shown.accountId = self && ownAccountId && out.accountId === ownAccountId ? out.accountId : "";
+  return shown;
+}
+function seatsFor(viewer, people, serialize, ownAccountId) {
+  return (people || []).map((p) => viewSeat((serialize || publicPerson)(p), p, viewer, ownAccountId));
 }
 
 function sessionLooksOwner(session) {
@@ -1459,6 +1953,15 @@ function ownerSeatOf(ws) {
 }
 
 function sessionOwnerPerson(session, ws) {
+  // A denied or waiting owner seat proves nothing: its account's session is not the owner here.
+  const people = (ws && ws.people) || [];
+  const shut = session && session.accountId
+    ? people.find((p) => p && seatLooksOwner(p) && !seatOpen(p) && p.accountId === session.accountId) : null;
+  if (shut) return shut;
+  // The desk's own owner seat is closed and does not carry this session's account (legacy data):
+  // nothing ties the session to an open seat of its account, so it is nobody (no other seat, no made-up owner).
+  const head = people.find((p) => p && p.id === "p_owner") || people.find((p) => p && seatLooksOwner(p));
+  if (head && !seatOpen(head)) return null;
   const seated = ownerSeatOf(ws);
   if (seated) return seated;
   return {
@@ -1473,6 +1976,41 @@ function sessionOwnerPerson(session, ws) {
   };
 }
 
+// True when the seat this session was issued for is that account's own seat.
+// Only the account's own signed-in session may carry it to another desk: the seat holds that very
+// account, and a helper seat holding its desk's own (the owner's) account proves nothing.
+// This proves who the session is, not access: the seat's state on its own desk (denied, waiting)
+// stays on that desk. On another desk only that desk's own open seat for the account counts.
+function sessionSeatIsAccount(session) {
+  if (!session || !session.accountId) return false;
+  const home = (mem.workspaces || []).find((w) => w && w.slug === session.workspace) || null;
+  const seat = home && session.personId ? ((home.people || []).find((p) => p && p.id === session.personId) || null) : null;
+  if (seat) return seat.accountId === session.accountId && (!seatIsHelper(seat) || seat.accountId !== deskAccountIdOf(home));
+  return session.personId === session.accountId + "_owner";
+}
+
+// A password session personOf will carry onto another desk: account id present, and the
+// seat this session was issued for is that account's own seat. A desk-code session is
+// not this, even when the owner row still carries an account id.
+function queueSession(req) {
+  const token = sessionTokenOf(req);
+  if (!token) return null;
+  const raw = findSession(token, { slide: false, req: req });
+  if (!raw || sessionProof(raw.proof) !== "password") return null;
+  const view = sessionProofView(raw);
+  if (!view || !view.accountId || !sessionSeatIsAccount(view)) return null;
+  return view;
+}
+
+// True when a session names a seat (its personId) that is no longer on its own desk: a removed seat.
+// Such a session is nobody there; it never falls back to an account or email match onto another seat.
+// Account-level owner ids ("owner", <account>_owner) name no seat.
+function sessionSeatGone(session, ws) {
+  const id = String((session && session.personId) || "");
+  if (!id || !ws || session.workspace !== ws.slug || id === "owner" || (id !== "p_owner" && /_owner$/.test(id))) return false;
+  return !(ws.people || []).some((p) => p && p.id === id);
+}
+
 function personOf(req, workspaceSlug) {
   req = req || {};
   const headers = req.headers || {};
@@ -1483,21 +2021,31 @@ function personOf(req, workspaceSlug) {
   const fallbackSlug = fromSession && fromSession.session ? fromSession.session.workspace : "";
   const ws = ensurePeople(mem.workspaces.find((w) => w.slug === slug) || mem.workspaces.find((w) => w && w.slug === fallbackSlug) || null);
   if (!ws) return { workspace: null, person: null };
-  if (fromSession && fromSession.session) {
+  if (fromSession && fromSession.session && !sessionSeatGone(fromSession.session, ws)) {
     const session = fromSession.session;
     const people = ws.people || [];
-    let person = people.find((p) => seatOpen(p) && session.personId && p.id === session.personId) || null;
-    if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
-    if (!person && session.accountId) {
+    // A session is issued for one desk (session.workspace). On that desk every old match still holds.
+    // On any other desk it only counts where this session's account holds its own open seat
+    // (seat.accountId). Never by seat id, email, or "owner session" alone: those are not proof here.
+    const ownDesk = !!session.workspace && session.workspace === ws.slug;
+    // A denied or waiting seat proves nothing: its own session never falls through to another seat.
+    let person = ownDesk && session.personId ? (people.find((p) => p && p.id === session.personId && !seatOpen(p)) || null) : null;
+    if (ownDesk && !person) {
+      person = people.find((p) => seatOpen(p) && session.personId && p.id === session.personId) || null;
+      if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
+    }
+    if (!person && session.accountId && (ownDesk || sessionSeatIsAccount(session))) {
       person = people.find((p) => seatOpen(p) && p.accountId && p.accountId === session.accountId && seatLooksOwner(p))
         || people.find((p) => seatOpen(p) && p.accountId && p.accountId === session.accountId) || null;
     }
-    if (!person && session.email) {
-      const e = String(session.email).trim().toLowerCase();
-      person = people.find((p) => seatOpen(p) && p.email && String(p.email).trim().toLowerCase() === e) || null;
+    if (ownDesk) {
+      if (!person && session.email) {
+        const e = String(session.email).trim().toLowerCase();
+        person = people.find((p) => seatOpen(p) && p.email && String(p.email).trim().toLowerCase() === e) || null;
+      }
+      if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
+      if (!person && sessionLooksOwner(session)) person = sessionOwnerPerson(session, ws);
     }
-    if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
-    if (!person && sessionLooksOwner(session)) person = sessionOwnerPerson(session, ws);
     if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
     if (person && person.status === "denied") return { workspace: ws, person: null, denied: true, session: sessionPublic(session) };
     if (person) return { workspace: ws, person, session: sessionPublic(session) };
@@ -2147,6 +2695,8 @@ async function blobDel(url) {
 
 async function blobListAll() {
   if (!blobAllowed()) throw blobOffProd();
+  // Read-only note for the migrate-uploads dry run: which path answered the last list.
+  blobListAll.via = "";
   try {
     const { list } = require("@vercel/blob");
     const out = [];
@@ -2158,10 +2708,13 @@ async function blobListAll() {
       if (!listed || !listed.hasMore || !listed.cursor) break;
       cursor = listed.cursor;
     }
+    blobListAll.via = "sdk";
     return out;
   } catch (e) {
     if (e && e.code === "AIA_BLOB_PROD_ONLY") throw e;
-    return blobRestList();
+    const rest = await blobRestList();
+    blobListAll.via = "rest";
+    return rest;
   }
 }
 
@@ -2204,15 +2757,16 @@ function readBody(req) {
 
 module.exports = {
   __dbg: { memDirty: () => memDirty(), baseline: () => baseline, payload: () => payload() },
-  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, quietFill, applyStore, storePath,
+  PROVIDERS, cors, configured, catalog, PUBLIC_HOST, hookUrl, publicUrl, pipeWroteBack, pipesAnswered, answeredProviders, mem, log, save, ready, readyRead, loadIfCold, quietFill, applyStore, storePath,
   READY_MAX_AGE_MS,
   slugify, hashPin, workspaceOf, readBody, blobAllowed, blobToken, blobStoreId, blobProbe, blobWrite, blobRead,
   blobOidcReady, blobReady, blobAuthOpts, blobHeadMeta, blobWriteStick, blobMayWrite, blobSeal, blobOpen,
   blobCopy, blobHead, blobDel, blobListAll, blobPutAt, storeBody,
   BLOB_STAMP, blobRev, blobErrText, publicBlobProbe, publicBlobDetail,
   ensureAuthState, parseCookies, sessionTokenOf, issueSession, findSession, listSessions, revokeSession, sessionCookie, clearSessionCookie, sessionFromReq,
+  deskAccountIdOf, sessionProof, sessionProofView, helperEmailClaimed,
   isLocked, noteFail, noteOk,
-  ensurePeople, publicPerson, personOf, deskSeat, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
+  ensurePeople, publicPerson, viewSeat, seatsFor, personOf, deskSeat, queueSession, isOwner, dropPersistTests, isPersistTestJob, PERSIST_TEST_DROP,
   RULE_TEXT_MAX, RULE_MAX, RULE_FORBID_MSG, publicRule, defaultRules, ensureRules,
   addWorkspaceRule, updateWorkspaceRule, removeWorkspaceRule, forbiddenRule, moneyWaitOf, moneyNeedsOwner, scrubLog,
   matchingRules, ruleWantsOwner, ruleWantsStop, ruleWhy, whenMatches, ifMatches,
@@ -2220,5 +2774,6 @@ module.exports = {
   jobOlderHours, jobTagsOf, isPipeJob, isInboundAia, parseDelayHours,
   NOUN_KEYS, NOUN_MAX, DEFAULT_NOUNS, defaultNouns, publicNouns, ensureNouns, setWorkspaceNouns,
   publicRuleWidget, setRuleWidget, widgetsOn, widgetCount,
-  ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF
+  ruleStarters, RULE_WHEN, RULE_THEN, RULE_IF,
+  storeTrusted, storeNotReady, blobAbsent, guardStore, requestStartedAt, persistScrub, storeState, STORE_NOT_READY, STORE_NOT_READY_CODE, STORE_WRITE_FAILED_CODE, STORE_PAUSED_LINE
 };

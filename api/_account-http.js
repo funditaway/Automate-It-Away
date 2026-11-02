@@ -70,8 +70,10 @@ function safePerson(person) {
   };
 }
 
-function safeDesk(row) {
+// acc: the proven account exporting. A desk it does not own shows other seats as name and role only.
+function safeDesk(row, acc) {
   if (!row) return null;
+  const owns = !!(acc && (row.accountId === acc.id || (acc.desks || []).indexOf(row.slug) >= 0));
   return {
     slug: row.slug,
     name: row.name || "",
@@ -85,7 +87,8 @@ function safeDesk(row) {
     visibility: row.visibility || (row.listed ? "public" : "private"),
     nouns: lib.ensureNouns(row),
     rules: lib.ensureRules(row),
-    people: (row.people || []).map(safePerson).filter(Boolean)
+    people: owns ? (row.people || []).map(safePerson).filter(Boolean)
+      : lib.seatsFor((row.people || []).find((p) => p && acc && p.accountId && p.accountId === acc.id) || null, row.people, safePerson, acc && acc.id).filter(Boolean)
   };
 }
 
@@ -95,17 +98,21 @@ function accountExport(acc, current, currentToken) {
     format: "aia.account.v1",
     exportedAt: new Date().toISOString(),
     account: safeAccount(acc),
-    desks: slugs.map((slug) => safeDesk((mem.workspaces || []).find((w) => w && w.slug === slug))).filter(Boolean),
+    desks: slugs.map((slug) => safeDesk((mem.workspaces || []).find((w) => w && w.slug === slug), acc)).filter(Boolean),
     approvals: (mem.approvals || []).filter((a) => a && slugs.indexOf(a.slug) >= 0).map((a) => Object.assign({}, a)),
     sessions: typeof lib.listSessions === "function" ? lib.listSessions({ accountId: acc && acc.id, currentToken }) : []
   };
 }
 
+const ACCOUNT_WRITES = ["attach", "plan", "subscribe", "password", "details", "profile", "mint", "logout-all", "mfa", "handle", "at",
+  "mail-add", "add-mail", "save-mail", "mail-remove", "remove-mail", "wallet", "connect-wallet", "disconnect-wallet",
+  "reviewer", "aia-reviewer", "link-provider", "unlink-provider"];
+
 function authAccount(req) {
   const slug = workspaceOf(req);
   const found = personOf(req, slug);
   if (!found.workspace || !found.person) return { found, account: null };
-  return { found, account: homeAccount(found.person, found.workspace) };
+  return { found, account: homeAccount(found.person, found.workspace, req) };
 }
 
 function accountHome(acc, person, req) {
@@ -114,7 +121,8 @@ function accountHome(acc, person, req) {
 
 async function accountHomeJson(acc, person, req, opts) {
   const home = accountHome(acc, person, req);
-  home.sessions = typeof lib.listSessions === "function"
+  // No account id, no session list (an unfiltered listSessions would be every account's sessions).
+  home.sessions = typeof lib.listSessions === "function" && acc && acc.id
     ? lib.listSessions({
       accountId: acc && acc.id,
       currentToken: (opts && opts.currentToken) || sessionTokenOf(req)
@@ -134,11 +142,33 @@ async function accountHomeJson(acc, person, req, opts) {
   return home;
 }
 
+// Attach: does this request prove it owns the named desk `row`? Only by that desk's own proof:
+// it is the desk this owner is signed into, or it is already this account's own desk, or that
+// desk's owner seat opens for this request's session or owner code (body pin/code or X-Pin, read
+// as that desk's code by personOf), or its own account's password. A helper seat proves nothing.
+function provesTargetOwner(req, body, found, account, row) {
+  if (!row || !found || !found.workspace) return false;
+  if (row.slug === found.workspace.slug) return true;
+  const deskId = lib.deskAccountIdOf(row);
+  const mineId = (account && account.id) || lib.deskAccountIdOf(found.workspace);
+  if (deskId && mineId && deskId === mineId) return true;
+  const headers = Object.assign({}, req.headers || {}, {
+    "x-workspace": row.slug,
+    "x-pin": String(body.pin || body.code || (req.headers && req.headers["x-pin"]) || "")
+  });
+  const there = personOf(Object.assign({}, req, { headers, query: {} }), row.slug);
+  if (there.workspace === row && there.person && isOwner(there.person)) return true;
+  const pw = String(body.password || body.pass || "");
+  const deskAcc = pw && deskId ? (mem.accounts || []).find((a) => a && a.id === deskId) : null;
+  return !!(deskAcc && deskAcc.password && passwordMatches(deskAcc.password, pw));
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   await ready();
   ensureAccount();
+  if (await require("./_account-settings").handle(req, res)) return;
 
   if (req.method === "GET") {
     if (require("./_account-doors").handleGet(req, res)) return;
@@ -148,7 +178,7 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ ok: false, pending: true, error: "That seat is waiting on the owner." });
     }
     if (found.person) {
-      const acc = homeAccount(found.person, found.workspace);
+      const acc = homeAccount(found.person, found.workspace, req);
       if (acc) {
         refreshSession(req, res);
         return res.status(200).json(await accountHomeJson(acc, found.person, req));
@@ -156,6 +186,10 @@ module.exports = async function handler(req, res) {
     }
     const pin = (req.headers && req.headers["x-pin"]) || "";
     const via = loginAccount(slug, pin);
+    // A helper seat (or a desk-code member login) with no account its own sign-in proved never reads
+    // an account home: never the desk owner's (the old fallback below), never a stub. Sign in again.
+    const helperSeat = (p) => !!p && !isOwner(p) && !/_owner$/.test(String(p.id || ""));
+    if ((via.ok && via.memberLogin) || (!(via.ok) && helperSeat(found.person))) return res.status(403).json(require("./_account").signInAgain());
     if (via.ok) {
       const owner = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || { name: via.account.ownerName, role: "owner", kind: "owner" };
       return res.status(200).json(await accountHomeJson(via.account, owner, req));
@@ -173,21 +207,44 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "login").toLowerCase();
 
-  if (require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
+  // A helper seat holding an account, on a session that account's own sign-in did not make:
+  // every account change asks to sign in again. Sign-in, logout and the door list stay open.
+  if (["login", "open", "save", "logout", "providers", "oauth-start", "oauth-ask", "ask-other", "oauth-finish"].indexOf(action) < 0) {
+    const pre = personOf(req, workspaceOf(req));
+    const accountMod = require("./_account");
+    if (pre.person && accountMod.needsSignIn(pre.person, pre.workspace, req)) return res.status(403).json(accountMod.signInAgain());
+  }
+  // Every account change needs this account's own password sign-in; a desk code or a desk-code
+  // session alone gets signInAgain() before anything is written (accountMod.writeRefused).
+  // Invalid accountKind is a plain 400 before the proof gate, and it writes nothing.
+  // A mint that names a real kind is the sign-up kind path: it answers here (an
+  // existing account keeps the kind it already stored). A mint with no accountKind
+  // stays on the proof gate below.
+  if (action === "mint") {
+    if (!require("./_account-settings").accountKindFrom(body.accountKind)) return res.status(400).json({ ok: false, error: "Account kind must be human, ai, or si." });
+  }
+  if (ACCOUNT_WRITES.indexOf(action) >= 0) {
+    const w = authAccount(req);
+    const refused = w.found.person ? require("./_account").writeRefused(req, w.account, action, body) : null;
+    const kindMint = action === "mint" && body && Object.prototype.hasOwnProperty.call(body, "accountKind");
+    if (refused && !kindMint) return res.status(403).json(refused);
+  }
+  if (await require("./_account-doors").handlePost(req, res, body, { authAccount, save })) return;
 
   if (action === "login" || action === "open" || action === "save") {
     const name = body.account || body.slug || body.biz || body.name || workspaceOf(req);
     const pin = body.pin || (req.headers && req.headers["x-pin"]) || "";
     const extra = {
       email: body.email || (looksLikeEmail(name) ? name : ""),
-      password: body.password || body.pass || ""
+      password: body.password || body.pass || "",
+      desk: body.slug || body.biz || workspaceOf(req)
     };
     const via = loginAccount(name, pin, extra);
     if (!via.ok) return res.status(via.status || 401).json({ ok: false, pending: !!via.pending, locked: !!via.locked, error: via.error });
     const who = via.person || (via.desk && via.desk.people || []).find((p) => p && p.role === "owner") || {
       name: via.account.ownerName, role: "owner", kind: "owner"
     };
-    const session = typeof lib.issueSession === "function" ? lib.issueSession(who, via.desk, via.account, req) : null;
+    const session = typeof lib.issueSession === "function" ? lib.issueSession(who, via.desk, via.account, req, via.emailLogin ? "password" : "") : null;
     if (session && typeof lib.sessionCookie === "function") res.setHeader("Set-Cookie", lib.sessionCookie(session.token));
     if (via.account && (aiaAdmin.isReviewerDesk(via.desk) || aiaAdmin.isPlatformAccount(via.account))) {
       aiaAdmin.stampAdminAccount(via.account);
@@ -202,12 +259,14 @@ module.exports = async function handler(req, res) {
     if (!found.workspace || !isOwner(found.person)) {
       return res.status(403).json({ ok: false, error: "Owner desk code required to attach a desk." });
     }
-    const acc = account || accountForDesk(found.workspace);
     const other = String(body.desk || body.slug || "").trim();
     if (!other) return res.status(400).json({ ok: false, error: "Name the desk to attach." });
     const want = lib.slugify(other);
     const row = (mem.workspaces || []).find((w) => w && w.slug === want);
-    if (!row) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    // Only a proven owner of the named desk may attach it. A missing desk and an unproven one get
+    // the same reply (so it never says the desk exists), and nothing is written.
+    if (!row || !provesTargetOwner(req, body, found, account, row)) return res.status(404).json({ ok: false, error: "No desk with that name." });
+    const acc = account || accountForDesk(found.workspace);
     acc.desks = acc.desks || [];
     if (acc.desks.indexOf(row.slug) < 0) acc.desks.push(row.slug);
     row.accountId = acc.id;
@@ -240,6 +299,14 @@ module.exports = async function handler(req, res) {
     const acc = account;
     if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
     if (action === "password") {
+      // Unproven here only as the first claim (no password, no email yet): both in one write.
+      if (!require("./_account").provenFor(req, acc)) {
+        const made = require("./_account").claimFirst(acc, body);
+        if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
+        refreshSession(req, res);
+        await save();
+        return res.status(200).json({ ok: true, hasPassword: true, email: acc.email || "", hint: "Email and password can now open this account." });
+      }
       if (acc.password) {
         const current = String(body.current || body.old || "");
         const viaPw = current && passwordMatches(acc.password, current);
@@ -271,7 +338,7 @@ module.exports = async function handler(req, res) {
     if (!found.workspace || !isOwner(found.person)) {
       return res.status(403).json({ ok: false, error: "Owner desk code required." });
     }
-    const acc = createOwnerAccount(body, found.workspace);
+    const acc = createOwnerAccount(body, found.workspace, req);
     refreshSession(req, res);
     await save();
     return res.status(200).json({ ok: true, plan: publicPlan(acc), account: { id: acc.id, name: acc.name } });
@@ -321,12 +388,12 @@ module.exports = async function handler(req, res) {
     }
     const on = body.on !== false && body.on !== "false" && body.enabled !== false && body.enabled !== "false";
     if (on) {
-      return res.status(409).json({ ok: false, hold: true, error: "HOLD. Authenticator is not live on this account." });
+      return res.status(409).json({ ok: false, hold: true, error: "Two-step sign-in is off for now." });
     }
     account.mfaOn = false;
     refreshSession(req, res);
     await save();
-    return res.status(200).json({ ok: true, hold: true, mfaOn: false, hint: "Authenticator stays on HOLD." });
+    return res.status(200).json({ ok: true, hold: true, mfaOn: false, hint: "Two-step sign-in stays off for now." });
   }
 
   if (action === "handle" || action === "at") {
@@ -346,7 +413,7 @@ module.exports = async function handler(req, res) {
     }
     refreshSession(req, res);
     await save();
-    return res.status(200).json(Object.assign(accountHome(account, found.person, req), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Connect a browser wallet on Account for identity. Mint / Bridge stay HOLD." }));
+    return res.status(200).json(Object.assign(accountHome(account, found.person, req), { handle: set.handle, at: (set.handle || "") + ".aia", aia: (set.handle || "") + ".aia", internet: "AIA Internet", chain: false, owned: false, reviewer: !!set.aiaReviewer, hint: "AIA Internet name is " + (set.handle === "aia" ? "aia.aia" : (set.handle + ".aia")) + ". Names on this desk now. Connect a browser wallet on Account for identity. Minting and Bridge are off for now." }));
   }
 
   if (action === "mail" || action === "aia-mail" || action === "mail-identity" || action === "create-mail" || action === "mail-create" || action === "mail-list") {
@@ -387,7 +454,7 @@ module.exports = async function handler(req, res) {
       identity: made.identity,
       mail: made.mail,
       mx: mail.statusOf(),
-      hint: (made.identity && made.identity.address) + " is on this account. Identities work on the desk now. Internet mail when the MX pipe is connected."
+      hint: (made.identity && made.identity.address) + " is on this account. Identities work on the desk now. Internet mail is off until mail delivery is connected."
     }));
   }
 

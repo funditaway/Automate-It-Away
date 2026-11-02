@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict'
+require("./_env-guard");
 
 const fs = require('fs')
 const path = require('path')
@@ -30,6 +31,7 @@ function mustExist(rel) {
   'src/sandboxWorkerEntry.js',
   'src/server.ts',
   'src/ghl.ts',
+  'src/appliance.ts',
   'src/types.ts',
   'src/data/card_ui.json',
   'public/index.html',
@@ -107,6 +109,9 @@ const sandbox = fs.readFileSync(path.join(runtime, 'src/sandboxManager.ts'), 'ut
 const server = fs.readFileSync(path.join(runtime, 'src/server.ts'), 'utf8')
 ;[
   '/webhook/ghl',
+  '/webhook/smarthq',
+  '/api/appliance/action',
+  '/api/appliance/connection-drop',
   '3847',
   'authorize',
   'leadconnectorhq',
@@ -119,8 +124,23 @@ const server = fs.readFileSync(path.join(runtime, 'src/server.ts'), 'utf8')
   '/ws',
   'WebSocketServer',
   'broadcast',
+  'cardFromApplianceEvent',
+  'DeviceConnectionManager',
 ].forEach((bit) => {
   if (server.indexOf(bit) < 0) fail('server.ts missing ' + bit)
+})
+
+const applianceSrc = fs.readFileSync(path.join(runtime, 'src/appliance.ts'), 'utf8')
+;[
+  'normalizeApplianceTelemetry',
+  'preferLocalEndpoint',
+  'riskForPhysicalAction',
+  'DeviceConnectionManager',
+  'enqueueDeviceRetry',
+  'energyRate',
+  'savingsEstimated',
+].forEach((bit) => {
+  if (applianceSrc.indexOf(bit) < 0) fail('appliance.ts missing ' + bit)
 })
 
 const pkg = JSON.parse(fs.readFileSync(path.join(runtime, 'package.json'), 'utf8'))

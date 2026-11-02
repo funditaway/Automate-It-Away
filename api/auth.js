@@ -4,14 +4,15 @@ const {
 } = require("./_lib");
 const { ensureFields, applyFieldList, ensureCreations, publicCreation, addCreation } = require("./_fields");
 const { qualifyJob } = require("./_engine");
-const { inviteSeat, requestSeat, setSeatStatus, ensureAccount, createOwnerAccount, publicPlan,
+const { inviteSeat, requestSeat, setSeatStatus, seatOffRefused, ensureAccount, createOwnerAccount, publicPlan,
   loginWithEmail, looksLikeEmail, emailTaken, emailOf, applyAccountDetails, setAccountPassword, passwordOk, homeAccount, accountForDesk, passwordMatches
 } = require("./_account");
 const libx = require("./_lib");
 const ais = require("./_ais");
 const net = require("./_aia-net");
 
-function publicWorkspace(row) {
+// viewer: the seat asking. Not the owner: other seats are name and role only (libx.viewSeat).
+function publicWorkspace(row, viewer, ownAccountId) {
   const rails = ais.railsOf(row);
   return {
     slug: row.slug,
@@ -20,7 +21,8 @@ function publicWorkspace(row) {
     city: row.city,
     model: row.model,
     does: row.does || "",
-    people: (row.people || []).map(publicPerson),
+    instructions: String(row.instructions || "").trim().slice(0, 400),
+    people: libx.seatsFor(viewer, row.people, publicPerson, ownAccountId),
     nouns: ensureNouns(row),
     rules: ensureRules(row),
     fields: ensureFields(row),
@@ -34,6 +36,9 @@ function publicWorkspace(row) {
     net: rails.net
   };
 }
+
+function youOf(person, ownAccountId) { return libx.viewSeat(publicPerson(person), person, person, ownAccountId); }
+function ownIdOf(person, row, req) { const acc = person && row ? homeAccount(person, row, req) : null; return acc ? acc.id : ""; }
 
 function applyCustomOpen(row, body) {
   const modelPick = String(body.model || "").trim();
@@ -111,8 +116,8 @@ module.exports = async function handler(req, res) {
     }
     return res.status(200).json({
       ok: true,
-      workspace: publicWorkspace(row),
-      you: publicPerson(person)
+      workspace: publicWorkspace(row, person, ownIdOf(person, row, req)),
+      you: youOf(person, ownIdOf(person, row, req))
     });
   }
 
@@ -150,7 +155,7 @@ module.exports = async function handler(req, res) {
       if (kind === "owner") {
         return res.status(400).json({ ok: false, error: "Owner seats are not a join request." });
       }
-      const made = requestSeat(row, Object.assign({}, body, { kind: kind === "employee" ? "helper" : kind }));
+      const made = requestSeat(row, Object.assign({}, body, { kind: kind === "employee" ? "helper" : kind }), req);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
       return res.status(202).json({
@@ -166,7 +171,7 @@ module.exports = async function handler(req, res) {
       const slug = slugify(body.workspace || body.slug || workspaceOf(req));
       const row = mem.workspaces.find((w) => w && w.slug === slug);
       if (!row) return res.status(404).json({ ok: false, error: "No workspace" });
-      const made = requestSeat(row, body);
+      const made = requestSeat(row, body, req);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
       return res.status(202).json({ ok: true, pending: true, person: made.person });
@@ -177,18 +182,29 @@ module.exports = async function handler(req, res) {
       const { workspace: row, person } = personOf(req, slug);
       if (!row) return res.status(404).json({ ok: false, error: "No workspace" });
       if (!isOwner(person)) return res.status(403).json({ ok: false, error: "Owner desk code required." });
+      const off = action === "deny" && seatOffRefused(row, body.id || body.personId, person);
+      if (off) return res.status(off.status).json({ ok: false, error: off.error });
       const made = setSeatStatus(row, body.id || body.personId, action === "deny" ? "denied" : "approved", person);
       if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
       await save();
-      return res.status(200).json({ ok: true, person: made.person, workspace: publicWorkspace(row) });
+      return res.status(200).json({ ok: true, person: made.person, workspace: publicWorkspace(row, person) });
     }
 
     if (action === "password" || action === "set-password") {
       const slug = workspaceOf(req) || slugify(body.workspace || body.slug || body.biz || "");
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
-      const acc = homeAccount(found.person, found.workspace);
+      const acc = homeAccount(found.person, found.workspace, req);
+      if (!acc && require("./_account").needsSignIn(found.person, found.workspace, req)) return res.status(403).json(require("./_account").signInAgain());
       if (!acc) return res.status(404).json({ ok: false, error: "No AIA account on this login." });
+      const refusedPw = require("./_account").writeRefused(req, acc, "password", body);
+      if (refusedPw) return res.status(403).json(refusedPw);
+      if (!require("./_account").provenFor(req, acc)) {
+        const made = require("./_account").claimFirst(acc, body);
+        if (!made.ok) return res.status(made.status || 400).json({ ok: false, error: made.error });
+        await save();
+        return res.status(200).json({ ok: true, hasPassword: true, email: acc.email || "", hint: "Email and password can now open this account." });
+      }
       if (acc.password) {
         const current = String(body.current || body.old || "");
         const viaEmail = current && passwordMatches(acc.password, current);
@@ -209,33 +225,39 @@ module.exports = async function handler(req, res) {
       const slug = workspaceOf(req) || slugify(body.workspace || body.slug || "");
       const found = personOf(req, slug);
       if (!found.workspace || !found.person) return res.status(401).json({ ok: false, error: "Sign in first." });
+      if (require("./_account").needsSignIn(found.person, found.workspace, req)) return res.status(403).json(require("./_account").signInAgain());
+      const acc = homeAccount(found.person, found.workspace, req);
+      const refusedDt = require("./_account").writeRefused(req, acc, "details", body);
+      if (refusedDt) return res.status(403).json(refusedDt);
       if (body.name) found.person.name = String(body.name).trim().slice(0, 80);
-      const acc = homeAccount(found.person, found.workspace);
       if (acc) {
         const applied = applyAccountDetails(acc, body);
         if (applied && applied.ok === false) return res.status(400).json({ ok: false, error: applied.error });
       }
       await save();
-      return res.status(200).json({ ok: true, you: publicPerson(found.person), account: acc ? { id: acc.id, name: acc.name, email: acc.email || "", phone: acc.phone || "", city: acc.city || "", state: acc.state || "", reach: acc.reach || "", hours: acc.hours || "", hasPassword: !!acc.password } : null });
+      return res.status(200).json({ ok: true, you: youOf(found.person, acc && acc.id), account: acc ? { id: acc.id, name: acc.name, email: acc.email || "", phone: acc.phone || "", city: acc.city || "", state: acc.state || "", reach: acc.reach || "", hours: acc.hours || "", hasPassword: !!acc.password } : null });
     }
 
     if (action === "login") {
       const email = String(body.email || "").trim();
       const password = String(body.password || body.pass || "");
       if (looksLikeEmail(email) && password) {
-        const via = loginWithEmail(email, password);
+        const via = loginWithEmail(email, password, body.workspace || body.slug || body.biz || workspaceOf(req));
         if (!via.ok) return res.status(via.status || 401).json({ ok: false, error: via.error });
         let session = null;
-        if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req);
+        if (typeof libx.issueSession === "function") session = libx.issueSession(via.person, via.desk, via.account, req, "password");
         if (session && typeof libx.sessionCookie === "function") res.setHeader("Set-Cookie", libx.sessionCookie(session.token));
         await save();
+        const queue = require("./_account").queueForPerson(via.person, via.account, via.desk && via.desk.slug);
         return res.status(200).json({
           ok: true, savedLogin: true, emailLogin: true, session,
           account: via.account ? { id: via.account.id, name: via.account.name, ownerName: via.account.ownerName, email: via.account.email || "", hasPassword: true, plan: via.account.plan || "pro" } : null,
           plan: via.account ? publicPlan(via.account) : null,
-          workspace: via.desk ? publicWorkspace(via.desk) : null,
-          you: publicPerson(via.person),
-          hint: "Signed in with email and password."
+          workspace: via.desk ? publicWorkspace(via.desk, via.person, via.account && via.account.id) : null,
+          you: youOf(via.person, via.account && via.account.id),
+          hint: "Signed in with email and password.",
+          queue: { accountId: queue.accountId, name: queue.name, desks: queue.desks },
+          desks: queue.desks
         });
       }
 
@@ -263,8 +285,8 @@ module.exports = async function handler(req, res) {
         ok: true,
         savedLogin: true,
         session,
-        workspace: publicWorkspace(row),
-        you: publicPerson(person),
+        workspace: publicWorkspace(row, person),
+        you: youOf(person),
         hint: "Desk name + code opened this phone."
       });
     }
@@ -284,7 +306,7 @@ module.exports = async function handler(req, res) {
         ok: true,
         person: made.person,
         pending: !!made.pending,
-        workspace: publicWorkspace(row)
+        workspace: publicWorkspace(row, person)
       });
     }
 
@@ -299,7 +321,7 @@ module.exports = async function handler(req, res) {
       if (!saved.ok) return res.status(400).json(saved);
       log("Desk", "Nouns saved", "OK", slug);
       await save();
-      return res.status(200).json({ ok: true, nouns: saved.nouns, workspace: publicWorkspace(row) });
+      return res.status(200).json({ ok: true, nouns: saved.nouns, workspace: publicWorkspace(row, person) });
     }
 
     if (action === "create") {
@@ -318,7 +340,7 @@ module.exports = async function handler(req, res) {
         creation: made.creation,
         creations: made.creations,
         fields: made.fields,
-        workspace: publicWorkspace(row)
+        workspace: publicWorkspace(row, person)
       });
     }
 
@@ -329,17 +351,20 @@ module.exports = async function handler(req, res) {
       const id = body.id;
       const target = (row.people || []).find((p) => p.id === id);
       if (!target) return res.status(404).json({ error: "Person not found" });
+      const off = seatOffRefused(row, id, person);
+      if (off) return res.status(off.status).json({ ok: false, error: off.error });
       if (target.role === "owner" && row.people.filter((p) => p.role === "owner").length < 2) {
         return res.status(409).json({ error: "Keep at least one owner." });
       }
       row.people = row.people.filter((p) => p.id !== id);
       log("Auth", "Removed · " + target.name, "OK", slug);
       await save();
-      return res.status(200).json({ ok: true, workspace: publicWorkspace(row) });
+      return res.status(200).json({ ok: true, workspace: publicWorkspace(row, person) });
     }
 
     const slug = slugify(body.slug || body.biz || body.name || "");
     if (!slug) return res.status(400).json({ error: "Name your desk." });
+    if (!require("./_account-settings").accountKindFrom(body.accountKind)) return res.status(400).json({ error: "Account kind must be human, ai, or si." });
     if (!body.pin || String(body.pin).length < 4) {
       return res.status(400).json({ error: "Pick a desk code with at least 4 digits." });
     }
@@ -362,7 +387,7 @@ module.exports = async function handler(req, res) {
       if (row.pin && row.people[0] && !row.people[0].pin) row.people[0].pin = row.pin;
       applyCustomOpen(row, body);
       mem.workspaces.unshift(row);
-      const acc = createOwnerAccount(body, row);
+      const acc = createOwnerAccount(body, row, req);
       const owner = (row.people || []).find((p) => p && p.role === "owner") || row.people[0];
       const first = firstJobFrom(row, body, slug);
       let session = null;
@@ -374,9 +399,9 @@ module.exports = async function handler(req, res) {
         ok: true,
         savedLogin: true,
         session,
-        account: { id: acc.id, name: acc.name, ownerName: acc.ownerName },
+        account: { id: acc.id, name: acc.name, ownerName: acc.ownerName, kind: require("./_account-settings").kindOf(acc) },
         plan: publicPlan(acc),
-        workspace: publicWorkspace(row),
+        workspace: publicWorkspace(row, owner),
         you: publicPerson(owner),
         job: first,
         hint: "Full owner account. Free for now. Monthly later. Shop name + desk code opens this queue."
@@ -395,8 +420,8 @@ module.exports = async function handler(req, res) {
         ok: true,
         savedLogin: true,
         session,
-        workspace: publicWorkspace(row),
-        you: publicPerson(match),
+        workspace: publicWorkspace(row, match),
+        you: youOf(match),
         hint: "Shop name + desk code opens this queue on any phone."
       });
     }
@@ -404,3 +429,6 @@ module.exports = async function handler(req, res) {
 
   return res.status(405).json({ error: "Use GET or POST" });
 };
+
+// Store guard: no saving request answers 2xx while its write was refused.
+module.exports = require("./_lib").guardStore(module.exports);

@@ -21,19 +21,38 @@
     if (j.status === "out") return "Off the desk. Confirm done or Needs a hand.";
     return "On this desk. Hand to a person or a Desk AI.";
   };
+  var SAME_NAME = "Two people share that name. Open them from the People list.";
+  // The seat a picker value means: a seat id from the people list, or (an older picker that holds names)
+  // the one seat with that exact name. Two seats with the name: "many". No match: null.
+  function seatOfPick(value) {
+    var v = String(value || "").trim();
+    if (!v) return null;
+    var list = people().filter(function (p) { return p && p.id; });
+    var byId = list.filter(function (p) { return String(p.id) === v; })[0];
+    if (byId) return byId;
+    var want = v.toLowerCase();
+    var named = list.filter(function (p) { return String(p.name || "").trim().toLowerCase() === want; });
+    if (named.length > 1) return "many";
+    return named[0] || null;
+  }
   window.handCardTo = window.handCardTo || async function (id) {
     var sel = document.getElementById("hand-to-" + id) || document.getElementById("hand-to");
-    var name = sel && sel.value;
     var banner = document.getElementById("banner");
-    if (!name || typeof api !== "function") return;
-    var out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "assign", id: id, name: name, whoTapped: (window.youName || "desk") }) });
-    if (banner) banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not hand that off.") : ("Handed to " + name + ".");
+    if (!sel || typeof api !== "function") return;
+    var seat = seatOfPick(sel.value);
+    if (seat === "many") { if (banner) banner.textContent = SAME_NAME; return; }
+    if (!seat) { if (banner) banner.textContent = "Pick the person from the list."; return; }
+    var out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "assign", id: id, to: String(seat.id) }) });
+    if (banner) {
+      if (out.status === 409) banner.textContent = SAME_NAME;
+      else banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not hand that off.") : ("Handed to " + (seat.name || "them") + ".");
+    }
     if (typeof load === "function") load();
   };
   window.needHand = window.needHand || async function (id) {
     var banner = document.getElementById("banner");
     if (typeof api !== "function") return;
-    var out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "hand", id: id, whoTapped: (window.youName || "desk") }) });
+    var out = await api("/api/jobs", { method: "POST", body: JSON.stringify({ action: "hand", id: id }) });
     if (banner) banner.textContent = out.status >= 400 ? ((out.data && out.data.error) || "Could not bring it back.") : "Needs a hand. Back on the queue.";
     if (typeof load === "function") load();
   };
@@ -41,8 +60,9 @@
   function opts(j) {
     return people().filter(function (p) { return p && p.status !== "pending" && p.status !== "denied"; }).map(function (p) {
       var tag = (p.deskAi || p.kind === "agent" || p.role === "agent") ? "Desk AI" : (p.kind || p.role || "");
-      var sel = j && j.assignee === p.name ? " selected" : "";
-      return "<option value=\"" + esc(p.name) + "\"" + sel + ">" + esc(p.name) + (tag ? " · " + esc(tag) : "") + "</option>";
+      var heldId = j && ((j.handedTo && j.handedTo.id) || j.assigneeId);
+      var sel = (p.id && heldId && String(heldId) === String(p.id)) ? " selected" : "";
+      return "<option value=\"" + esc(p.id || "") + "\"" + sel + ">" + esc(p.name) + (tag ? " · " + esc(tag) : "") + "</option>";
     }).join("");
   }
   function decorate(article, j) {

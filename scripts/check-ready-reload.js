@@ -67,6 +67,21 @@ function seedStore(pin) {
 
 function patchUpload(src) {
   if (src.indexOf("await ready()") >= 0) return src;
+  // Main (329b) already waits with loadIfCold. The reload-loss model still
+  // needs warm ready() so a throwaway copy swaps that call for the check.
+  if (src.indexOf("await loadIfCold();") >= 0) {
+    if (src.indexOf("loadIfCold }") < 0 && src.indexOf("loadIfCold,") < 0) {
+      throw new Error("upload loadIfCold import anchor missing");
+    }
+    src = src.replace(
+      'personOf, loadIfCold } = require("./_lib");',
+      'personOf, ready, loadIfCold } = require("./_lib");'
+    );
+    if (src.indexOf(", ready, loadIfCold }") < 0) {
+      throw new Error("upload ready import patch failed");
+    }
+    return src.replace("await loadIfCold();", "await ready();");
+  }
   const before = 'const { cors, mem, log, save, workspaceOf, readBody, blobAllowed, personOf } = require("./_lib");';
   const after = 'const { cors, mem, log, save, ready, workspaceOf, readBody, blobAllowed, personOf } = require("./_lib");';
   if (src.indexOf(before) < 0) throw new Error("upload import anchor missing");
@@ -140,9 +155,9 @@ const MUTATIONS = {
     return src.replace(from, "  loadedAt = Date.now();\n");
   },
   "epoch-late": function (src) {
-    const from = "  const seen = epoch;\n  const remote = await blobRead();\n";
+    const from = "  const seen = epoch;\n  const remote = await blobReadDeadline(blobRead());\n";
     if (src.indexOf(from) < 0) throw new Error("epoch-late anchor missing");
-    return src.replace(from, "  const remote = await blobRead();\n  const seen = epoch;\n");
+    return src.replace(from, "  const remote = await blobReadDeadline(blobRead());\n  const seen = epoch;\n");
   },
   "no-baseline-reload": function (src) {
     const from = "  loadedAt = Date.now();\n  captureBaseline();\n  return true;\n}\n";
@@ -253,7 +268,9 @@ function main() {
     if (name === "quiet" || name === "unsaved-fill") copy.push("_fields.js");
     if (name === "health" || name === "force-dirty") copy.push("health.js", "jobs.js");
     const root = stage({
-      patchUpload: name === "stagger" || name === "cold-upload" ? patchUpload : null,
+      // cold-upload uses main's loadIfCold as-is. stagger/prove-loss still
+      // inject ready() so the reload-loss model can fire.
+      patchUpload: name === "stagger" ? patchUpload : null,
       copy: copy
     });
     const run = runChild(name, path.join(root, "api"));
@@ -485,12 +502,18 @@ function installHoldBlob(files) {
   };
 }
 
-function installColdHold() {
+function installColdHold(storeFile) {
   const Module = require("module");
   let released = false;
   let releaseHold;
   const hold = new Promise(function (resolve) { releaseHold = resolve; });
   const counts = { heads: 0 };
+  const BASE = "https://testhost.private.blob.vercel-storage.com/" + BLOB_KEY;
+  const files = Object.create(null);
+  function body() {
+    if (files[BLOB_KEY]) return files[BLOB_KEY];
+    try { return fs.readFileSync(storeFile, "utf8"); } catch (e) { return ""; }
+  }
   const orig = Module._load;
   Module._load = function (request, parent, isMain) {
     if (request === "@vercel/blob") {
@@ -498,18 +521,39 @@ function installColdHold() {
         async head() {
           counts.heads++;
           if (!released) await hold;
-          throw new Error("Vercel Blob: The requested blob does not exist");
+          const raw = body();
+          if (!raw) throw new Error("Vercel Blob: The requested blob does not exist");
+          return { url: BASE, downloadUrl: BASE, pathname: BLOB_KEY };
         },
-        async get() { throw new Error("Vercel Blob: The requested blob does not exist"); },
-        async put() { throw new Error("cold blob put is not this check"); },
-        async list() { return { blobs: [] }; },
+        async get() {
+          if (!released) await hold;
+          const raw = body();
+          if (!raw) return null;
+          return { statusCode: 200, stream: { text: async function () { return raw; } }, blob: { url: BASE } };
+        },
+        async put(key, text) {
+          if (!released) await hold;
+          files[String(key)] = String(text);
+          try { fs.writeFileSync(storeFile, String(text)); } catch (e) {}
+          return { url: BASE };
+        },
+        async list() { return { blobs: Object.keys(files).map(function (p) { return { pathname: p, url: BASE }; }), hasMore: false }; },
         async del() {}
       };
     }
     return orig.apply(this, arguments);
   };
-  global.fetch = async function () {
-    return { ok: false, status: 404, statusText: "Not Found", text: async function () { return ""; }, json: async function () { return {}; }, headers: { get: function () { return ""; } } };
+  global.fetch = async function (url, opts) {
+    const method = String((opts && opts.method) || "GET").toUpperCase();
+    if (!released) await hold;
+    if (method === "PUT" || method === "POST") {
+      files[BLOB_KEY] = String((opts && opts.body) || "");
+      try { fs.writeFileSync(storeFile, files[BLOB_KEY]); } catch (e) {}
+      return { ok: true, status: 200, text: async function () { return ""; }, json: async function () { return {}; }, headers: { get: function () { return ""; } } };
+    }
+    const raw = body();
+    if (!raw) return { ok: false, status: 404, statusText: "Not Found", text: async function () { return ""; }, json: async function () { return {}; }, headers: { get: function () { return ""; } } };
+    return { ok: true, status: 200, text: async function () { return raw; }, json: async function () { return JSON.parse(raw); }, headers: { get: function () { return ""; } } };
   };
   return {
     counts: counts,
@@ -692,16 +736,16 @@ async function child(scenario, apiDir) {
     process.env.AIA_UPLOAD_DIR = uploadDir;
     process.env.VERCEL_ENV = "production";
     process.env.BLOB_STORE_ID = "store_cold";
-    delete process.env.BLOB_READ_WRITE_TOKEN;
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_storecold_fake";
     delete process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN;
     delete process.env.AIA_BLOB_TOKEN;
     delete process.env.VERCEL_OIDC_TOKEN;
     writeSeed(storeFile, pin);
-    const hold = installColdHold();
+    const hold = installColdHold(storeFile);
     const upload = require(path.join(apiDir, "upload.js"));
     const lib = require(path.join(apiDir, "_lib.js"));
     if ((lib.mem.workspaces || []).some(function (w) { return w && w.slug === DESK; })) {
-      fail("cold require loaded the desk before ready()");
+      fail("cold require loaded the desk before the store");
     } else pass("throwaway upload required with the desk still unloaded");
     let getDone = false;
     let postDone = false;
@@ -726,7 +770,7 @@ async function child(scenario, apiDir) {
       finish(false);
       return;
     }
-    pass("cold GET and POST wait for ready()");
+    pass("cold GET and POST wait for the store");
     hold.release();
     const listed = await listedP;
     const dropped = await droppedP;

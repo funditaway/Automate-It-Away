@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 /** Static checks for the Automate It Away Grok plugin package. */
 const fs = require("fs");
 const path = require("path");

@@ -1,6 +1,6 @@
 const TLD = "aia";
 const INTERNET = "AIA Internet";
-const HOLD_NOTE = ".aia names on this desk now. Connect a browser wallet on Account for identity. Mint / Bridge / registry stay HOLD. AIA AI home is ai.aia. DNS stays orange until it answers.";
+const HOLD_NOTE = ".aia names on this desk now. Connect a browser wallet on Account for identity. Minting, Bridge, and the name list are off for now. AIA AI home is ai.aia. The name service stays off until it answers.";
 const KEY_NOTE = "Registry key is on this box. Names still HOLD until a wallet pipe answers. No on-chain claim. AIA AI home is ai.aia.";
 const RESERVED = ["www", "localhost", "invalid", "ai"];
 
@@ -28,10 +28,10 @@ function parseName(raw, fallback) {
   const text = String(raw == null ? "" : raw).trim();
   const stripped = text.replace(/^@+/, "");
   if (stripped && /\./.test(stripped) && !/\.aia$/i.test(stripped)) {
-    return { ok: false, error: "AIA Internet names end in .aia — like james.aia or springfield-shop.aia." };
+    return { ok: false, error: "AIA Internet names end in .aia, like your-account.aia." };
   }
   const label = labelOf(text, fallback);
-  if (!label) return { ok: false, error: "Use a .aia name like james.aia or springfield-shop.aia." };
+  if (!label) return { ok: false, error: "Use a .aia name, like your-account.aia." };
   if (RESERVED.indexOf(label) >= 0) return { ok: false, error: "That .aia label is reserved." };
   return {
     ok: true,

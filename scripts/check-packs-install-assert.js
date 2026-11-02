@@ -1,3 +1,4 @@
+require("./_env-guard");
 // Asserts for create-pack-install.js (loaded from scripts/check-packs.js)
 const fs = require("fs");
 const path = require("path");

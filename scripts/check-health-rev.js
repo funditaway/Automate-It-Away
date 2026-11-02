@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // GET /api/health publishes the deployed commit.
 // VERCEL_GIT_COMMIT_SHA set to a 40-char sha → rev is that sha, revShort is
 // the first 7. Unset → both null. No other health key changes.
@@ -93,11 +94,11 @@ async function main() {
   const accounts = hold.accounts || {};
   const collect = (hold.automation || {}).collect || "";
   if (wallet.collect !== "hold" || tld.collect !== "hold") fail("collect hold");
-  else if (String(tld.note || "").indexOf("Collect stays HOLD") < 0) fail("tld Collect HOLD");
+  else if (String(tld.note || "").indexOf("Payments are off for now. Nothing is charged.") < 0) fail("tld payments off");
   else if (accounts.charged !== false) fail("charged");
-  else if (!/^HOLD/.test(accounts.mfa || "")) fail("mfa HOLD");
-  else if (collect.indexOf("hold") < 0 && collect.indexOf("HOLD") < 0) fail("automation collect");
-  else pass("Collect HOLD");
+  else if (String(accounts.mfa || "").indexOf("Two-step sign-in is off for now") !== 0) fail("mfa off");
+  else if (collect.indexOf("Nothing is charged") < 0 || (collect.indexOf("Payments are off") < 0 && collect.indexOf("Payments stay off") < 0)) fail("automation collect");
+  else pass("payments stay off and nothing is charged");
 
   delete process.env.VERCEL_GIT_COMMIT_SHA;
   const statusBare = await call("/api/status", { view: "status" });

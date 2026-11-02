@@ -1,9 +1,9 @@
 /* On-desk .aia register quotes + calldata. No keys. No approve-registration.
-   Browser calls Decentraweb with the connected owner. James signs every tx. Collect HOLD. */
+   Browser calls Decentraweb with the connected owner. You sign every transaction. Collect stays on hold. */
 const abi = require("../aia-register-abi");
 const connect = require("./_connect-wallet");
 
-const HOLD_NOTE = "James signs commit, waits ~60s, then signs register. AIA holds no keys. Collect stays HOLD.";
+const HOLD_NOTE = "You sign the commit, wait about 60 seconds, then sign the register. AIA holds no keys. Collect stays on hold.";
 
 function ownerOf(raw) {
   return abi.checksumAddress(raw) || abi.normalizeAddress(raw);
@@ -100,7 +100,7 @@ function publicFlow(wallet) {
     mint: false,
     approveRegistration: false,
     note: owner
-      ? "Register .aia from this desk when Bridge is clear. James signs in MetaMask. Collect stays HOLD."
+      ? "Register .aia from this desk when Bridge is clear. You sign in your wallet."
       : "Connect a browser wallet first. Register uses that address as owner."
   };
 }

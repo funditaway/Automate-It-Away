@@ -1,9 +1,9 @@
 const lib = require("./_lib");
 const PLANS = {
-  desk: { id: "desk", name: "Desk", tag: "One desk", features: { desksMax: 1, extraSeats: 0, teamQueues: false, timeline: false, scheduled: false, pipes: false, agents: false, staffLogins: false, savedLogin: true, packs: false, marketplace: false, automation: "Queue and drop" }, includes: ["One desk", "Your own account", "Desks you own and sit on", "Ask or change permission", "Queue and drop"], hides: ["Account-wide team queues", "Live pipes"] },
+  desk: { id: "desk", name: "Desk", tag: "One desk", features: { desksMax: 1, extraSeats: 0, teamQueues: false, timeline: false, scheduled: false, pipes: false, agents: false, staffLogins: false, savedLogin: true, packs: false, marketplace: false, automation: "Queue and drop" }, includes: ["One desk", "Your own account", "Desks you own and sit on", "Ask or change permission", "Queue and drop"], hides: ["Account-wide team queues", "Connected services"] },
   pro: { id: "pro", name: "Pro", tag: "Every desk", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, automation: "Full" }, includes: ["Every desk", "Your own account", "Member desks", "Ask or change permission", "Team queues", "Pipes"], hides: [] },
   crew: { id: "crew", name: "Crew", tag: "Shops and staff", features: { desksMax: 40, extraSeats: 40, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, automation: "Full + staff" }, includes: ["Many desks", "Your own account", "Member desks", "Ask or change permission", "Staff logins", "Pipes"], hides: [] },
-  dev: { id: "dev", name: "Dev", tag: "Pack creator", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, creator: true, automation: "Packs + desks" }, includes: ["Every desk", "Creators Studio on this same account", "List packs on the marketplace", "Buy / install onto this desk", "Ask listed · Collect HOLD"], hides: ["Silent pack checkout"] }
+  dev: { id: "dev", name: "Dev", tag: "Pack creator", features: { desksMax: 12, extraSeats: 8, teamQueues: true, timeline: true, scheduled: true, pipes: true, agents: true, staffLogins: true, savedLogin: true, packs: true, marketplace: true, creator: true, automation: "Packs + desks" }, includes: ["Every desk", "Creators Studio on this same account", "List packs on the marketplace", "Buy / install onto this desk", "Ask listed. Payments are off for now."], hides: ["Silent pack checkout"] }
 };
 function planOf(id) { return PLANS[String(id || "pro").toLowerCase()] || PLANS.pro; }
 function publicPlans() {
@@ -28,15 +28,41 @@ function switchPlan(acc, id, actor) {
 }
 function desksForPerson(hint) {
   const owned = []; const member = [];
+  const roles = require("./_roles");
   const email = String((hint && hint.email) || "").trim().toLowerCase();
-  const pin = hint && hint.pin; const aid = hint && (hint.accountId || hint.id);
+  const pin = hint && hint.pin;
+  const personId = hint && hint.id;
+  const aid = hint && hint.accountId;
+  const homeSlug = (hint && hint.slug) || "";
   (lib.mem.workspaces || []).forEach((w) => {
     if (!w) return;
-    const hit = (w.people || []).find((p) => p && ((aid && (p.accountId === aid || p.id === aid)) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && p.pin === pin)));
+    const people = w.people || [];
+    // A seat id matches only on its own desk: seat ids are per desk (every owner seat is "p_owner").
+    // So does a desk code: one salt hashes every desk's codes, so two desks that picked the same code
+    // (or a helper code equal to another desk's owner code) share a hash. Never match it elsewhere.
+    const hit = people.find((p) => p && personId && homeSlug && w.slug === homeSlug && p.id === personId)
+      || people.find((p) => p && ((aid && p.accountId === aid) || (email && String(p.email || "").trim().toLowerCase() === email) || (pin && homeSlug && w.slug === homeSlug && p.pin === pin)));
     if (!hit) return;
     const ownerHit = hit.role === "owner" || hit.kind === "owner";
+    const kind = ownerHit ? "owner" : (hit.kind || "member");
+    const status = hit.status || "approved";
+    const level = roles.levelOf(kind, status);
     const aia = require("./_aia-net").of(w.aia || w.slug, w.slug).name;
-    const card = { slug: w.slug, name: w.biz || w.name || w.slug, aia: aia, role: ownerHit ? "owner" : (hit.kind || "member"), kind: ownerHit ? "owner" : (hit.kind || "member"), status: hit.status || "approved", requestedKind: hit.requestedKind || "", personId: hit.id, yours: ownerHit ? "own" : "member" };
+    const card = {
+      slug: w.slug,
+      name: w.biz || w.name || w.slug,
+      aia: aia,
+      role: kind,
+      kind: kind,
+      status: status,
+      requestedKind: hit.requestedKind || "",
+      personId: hit.id,
+      yours: ownerHit ? "own" : "member",
+      does: w.does || "",
+      instructions: String(w.instructions || "").trim().slice(0, 400),
+      permsLine: (level && level.does) || kind,
+      drop: "/drop?ws=" + encodeURIComponent(w.slug)
+    };
     if (ownerHit) owned.push(card); else member.push(card);
   });
   return { owned, member };
@@ -107,10 +133,24 @@ function loginAccount(name, pin) {
   if (found && found.person) return { ok: true, account: { name: found.person.name, slug, desks: [], plan: "desk" }, desk: found.workspace, person: found.person, memberLogin: true };
   return { ok: false, status: 401, error: "Account name or code does not match." };
 }
+// What a desk list may match for this seat: its own id on its own desk; for a helper seat only the
+// account its own sign-in proved (acc, from homeAccount with the request), never a seat-stored account
+// (the desk owner's or a third person's) nor an email that account or an owner seat claims.
+function listHint(person, acc, slug) {
+  if (!person) return {};
+  const helper = !(person.role === "owner" || person.kind === "owner") && !/_owner$/.test(String(person.id || ""));
+  const row = (lib.mem.workspaces || []).find((w) => w && (slug ? w.slug === slug : (w.people || []).indexOf(person) >= 0)) || null;
+  const home = slug || (row && row.slug) || "";
+  const given = (acc && acc.id) || "";
+  const ownAcc = !!given && given !== lib.deskAccountIdOf(row) && (!person.accountId || person.accountId === given);
+  const accountId = helper ? (ownAcc ? given : "") : (person.accountId || given);
+  const email = helper && !ownAcc && lib.helperEmailClaimed(person.email, "") ? "" : person.email;
+  return { id: person.id, name: person.name, email: email, pin: person.pin, accountId: accountId, slug: home };
+}
 function proHome(acc, person) {
   const plan = decoratePlan(acc);
   const feat = plan.features || {};
-  const hint = { id: person && person.id, name: person && person.name, email: person && person.email, pin: person && person.pin, accountId: person && person.accountId };
+  const hint = listHint(person, acc);
   const mine = desksForPerson(hint);
   const desks = desksOfAccount(acc).map((w) => ({ slug: w.slug, name: w.biz || w.name || w.slug, people: (w.people || []).length }));
   return { ok: true, product: "aia", savedLogin: true, account: acc ? { id: acc.id, name: acc.name, slug: acc.slug, desks: acc.desks || [], plan: plan.plan, creator: !!(acc.creator || plan.plan === "dev") } : null, plan, plans: publicPlans(), active: plan.plan, you: typeof lib.publicPerson === "function" ? lib.publicPerson(person) : person, mine, desksOwned: mine.owned, desksMember: mine.member, desks, teams: feat.teamQueues ? [] : [], timeline: [], scheduled: [], pipes: [], locked: { teamQueues: !feat.teamQueues, timeline: !feat.timeline, pipes: !feat.pipes } };
@@ -118,4 +158,4 @@ function proHome(acc, person) {
 function seatBill() { return { people: 0, extra: 0, extraPrice: 0, charged: false }; }
 function teamQueues() { return []; }
 function accountTimeline() { return { items: [], scheduled: [] }; }
-module.exports = { PLANS, planOf, publicPlans, decoratePlan, switchPlan, seatBill, desksOfAccount, teamQueues, accountTimeline, loginAccount, proHome, desksForPerson, requestPermission, setPermission };
+module.exports = { PLANS, planOf, publicPlans, decoratePlan, switchPlan, seatBill, desksOfAccount, teamQueues, accountTimeline, loginAccount, proHome, desksForPerson, listHint, requestPermission, setPermission };

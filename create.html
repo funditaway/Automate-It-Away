@@ -72,6 +72,50 @@
     .cites{display:none;margin-top:8px}
     .cites.on{display:block}
     .cites a{display:block;color:var(--teal);font-weight:700;font-size:13px;margin:4px 0}
+    .cs h2{font-size:1.05rem;color:var(--heading);margin:0 0 6px}
+    .cs-step{font-size:12px;font-weight:700;color:var(--muted);margin:0 0 6px}
+    .cs-src{font-size:13px;color:var(--muted);margin:0 0 4px}
+    .cs-note{margin:10px 0 0;font-size:13px;border-radius:12px;padding:10px 12px;background:var(--card);color:var(--heading);border:1px solid var(--line)}
+    .cs-note.is-err{background:color-mix(in srgb, var(--orange) 18%, var(--card));border-color:var(--orange)}
+    .cs-note.is-ok{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}
+    .cs [hidden]{display:none!important}
+    .cs-rules{margin:12px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+    .cs-rules summary{font-weight:700;color:var(--heading);cursor:pointer}
+    .cs-rules ol{margin:8px 0 0 20px;font-size:13px;color:var(--ink)}
+    .cs-rules li{margin:4px 0}
+    .cs-sample{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+    .cs-sample b{display:block;color:var(--heading);margin:4px 0}
+    .cs-sample p{font-size:13px;color:var(--muted);margin:2px 0}
+    .cs-tag{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;background:color-mix(in srgb, var(--orange) 18%, var(--card));color:var(--heading)}
+    .cs .kill{background:transparent;color:var(--kill-ink);border:1px solid var(--kill-ink)}
+    #cs-talk{background:var(--orange);color:#0c1116;border-color:var(--orange)}
+    #cs-talk.on{outline:3px solid var(--teal)}
+    #cs-starters{margin:8px 0 4px}
+    #cs-starters button{min-height:44px;font-size:14px}
+    #cs-library{margin:8px 0 4px;border:1px solid var(--line);border-radius:12px;padding:4px 12px 10px}
+    #cs-library summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center;line-height:1.3}
+    #cs-library .area{font-size:13px;font-weight:700;color:var(--heading);margin:10px 0 0}
+    #cs-library .chips{margin:4px 0 2px}
+    #cs-library .chips button{min-height:44px;font-size:14px}
+    @media(max-width:420px){#cs-library .chips{flex-direction:column}#cs-library .chips button{width:100%;text-align:left}}
+    #cs-when-pick{margin:8px 0 4px;border:1px solid var(--line);border-radius:12px;padding:4px 12px 10px}
+    #cs-when-pick summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center;line-height:1.3}
+    #cs-when-pick select{min-height:44px}
+    #cs-webhook{margin:8px 0 4px;border:1px solid var(--line);border-radius:12px;padding:4px 12px 10px}
+    #cs-webhook summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center;line-height:1.3}
+    #cs-webhook select,#cs-webhook input{min-height:44px}
+    #cs-webhook-add{margin-top:10px;width:100%;min-height:48px;border-radius:10px;padding:10px 12px;font:700 14px system-ui,sans-serif;cursor:pointer}
+    #cs-example-walk{margin:8px 0 0;border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
+    #cs-example-walk p{margin:4px 0}
+    #cs-words.dropping{outline:3px solid var(--teal)}
+    #cs-files{margin-top:8px}
+    #cs-import-file{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:420px){#cs-files{flex-direction:column}}
+    #cs-example-draft b,#cs-example-samples b{color:var(--heading)}
+    .cs .link{background:none;border:0;color:var(--teal);font-weight:700;cursor:pointer;padding:10px 0;min-height:44px}
+    .cs-done{margin:4px 0 0;color:var(--heading);font-weight:700}
+    .more-ways{margin-top:14px}
+    .more-ways > summary{font-weight:700;color:var(--heading);cursor:pointer;min-height:44px;display:flex;align-items:center}
     @media(max-width:420px){.picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
@@ -92,9 +136,107 @@
     </nav>
   </header>
   <main class="wrap">
-    <h1>Start the work. It lands on this desk.</h1>
+    <h1>Tell AIA what to automate.</h1>
     <p class="sub">Desk AIs that draft. Humans that decide. You tap Yes or Stop.</p>
     <p class="aia-line" id="aia-line">Checking whether a Desk AI can draft on this phone…</p>
+    <section class="card cs" id="cs">
+      <p class="cs-step" id="cs-step">Step 1 of 3</p>
+      <div id="cs-ask">
+        <h2>What do you want automated?</h2>
+        <p class="hint" id="cs-starter-hint">Start from a pack. Nothing is bought. Change the words, then tap Draft it.</p>
+        <div class="chips" id="cs-starters" role="group" aria-label="Start from a pack"></div>
+        <details id="cs-library">
+          <summary>Browse starter packs</summary>
+          <p class="hint" id="cs-library-hint">These are previews. Nothing is bought. Tap one to fill the words. Change them if you want, then tap Draft it.</p>
+          <div id="cs-library-list"></div>
+        </details>
+        <details id="cs-when-pick">
+          <summary>Pick when this happens and what to draft</summary>
+          <p class="hint" id="cs-when-hint">Choose what it watches and what it drafts. Nothing is saved yet. You can change the words after.</p>
+          <label for="cs-when">When this happens</label>
+          <select id="cs-when"></select>
+          <label for="cs-then">Then draft this</label>
+          <select id="cs-then"></select>
+        </details>
+        <label for="cs-words">Say it in everyday words</label>
+        <textarea id="cs-words" rows="3" maxlength="600" placeholder="When a parent asks to change pickup, draft a reply and a reminder for me."></textarea>
+        <div class="row-btns" id="cs-files" role="group" aria-label="Bring in or save a file">
+          <button type="button" class="ghost" id="cs-import">Bring in a file</button>
+          <button type="button" class="stop" id="cs-export">Save a file</button>
+        </div>
+        <p class="hint" id="cs-file-hint">Bring in a text or JSON file, or drop it on the words. You can still change them. Save a file keeps a copy on this phone. Nothing is uploaded.</p>
+        <input id="cs-import-file" accept="text/plain,application/json,.txt,.text,.md,.markdown,.json,.csv" aria-label="Choose a text or JSON file">
+        <button type="button" class="link" id="cs-example" aria-expanded="false" aria-controls="cs-example-walk">Show an example</button>
+        <div id="cs-example-walk" hidden role="region" aria-label="An example">
+          <p class="hint" id="cs-example-lead"></p>
+          <div id="cs-example-draft"></div>
+          <p class="hint" id="cs-example-samples-label">Sample cards</p>
+          <div id="cs-example-samples"></div>
+          <p class="hint" id="cs-example-next">These words are in the box. Change them if you want, then tap Draft it.</p>
+        </div>
+        <details id="cs-webhook">
+          <summary>Also talk to an AI or a site</summary>
+          <p class="hint" id="cs-webhook-hint">Name it and give its address. A secret stays hidden on this phone. Nothing is called.</p>
+          <label for="cs-webhook-kind">What it talks to</label>
+          <select id="cs-webhook-kind"></select>
+          <label for="cs-webhook-name">Name</label>
+          <input id="cs-webhook-name" maxlength="40" autocomplete="off" placeholder="School notes">
+          <label for="cs-webhook-url">Address</label>
+          <input id="cs-webhook-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200" placeholder="https://school.example/notes">
+          <label for="cs-webhook-secret">Secret, if it has one</label>
+          <input id="cs-webhook-secret" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200" placeholder="Optional. Stays hidden.">
+          <button type="button" class="stop" id="cs-webhook-add">Add this to my words</button>
+        </details>
+        <div class="row-btns" id="cs-voice">
+          <button type="button" class="ghost" id="cs-talk" aria-pressed="false">Talk</button>
+          <button type="button" class="stop" id="cs-quiet">Quiet</button>
+        </div>
+        <p class="hint" id="cs-heard" aria-live="polite">Talk, or type in the box. Then tap Draft it.</p>
+        <button type="button" class="go" id="cs-draft">Draft it</button>
+        <p class="cs-note" id="cs-note" hidden></p>
+      </div>
+      <div id="cs-review" hidden>
+        <h2>Your draft Desk AI</h2>
+        <p class="cs-src" id="cs-src"></p>
+        <p class="cs-note" id="cs-webhook-review" hidden></p>
+        <label for="cs-name">Name</label>
+        <input id="cs-name" maxlength="40">
+        <label for="cs-job">One job</label>
+        <input id="cs-job" maxlength="160">
+        <label for="cs-watches">What it watches (one per line)</label>
+        <textarea id="cs-watches" rows="3"></textarea>
+        <label for="cs-drafts">What it drafts (one per line)</label>
+        <textarea id="cs-drafts" rows="3"></textarea>
+        <label for="cs-needs">What it needs from you (one per line)</label>
+        <textarea id="cs-needs" rows="3"></textarea>
+        <details class="cs-rules" id="cs-rules">
+          <summary>The rules it follows</summary>
+          <ol id="cs-rules-list"></ol>
+          <p class="hint" id="cs-rules-note">Shown so you know how it should act. This page does not enforce these rules, and the desk does not store them yet.</p>
+        </details>
+        <button type="button" class="go" id="cs-try">Try it on sample cards</button>
+        <button type="button" class="link" id="cs-back">Change my words</button>
+        <p class="cs-note" id="cs-review-note" hidden></p>
+      </div>
+      <div id="cs-test" hidden>
+        <h2>Try it on a sample desk</h2>
+        <p class="hint">Made-up cards on this phone only. Not real people. Nothing is saved or sent.</p>
+        <div id="cs-samples"></div>
+        <p class="hint">Yes names this Desk AI on your desk. It drafts only. Stop clears the draft and keeps your words. Kill throws it all away.</p>
+        <div class="row-btns" id="cs-decide">
+          <button type="button" class="yes" id="cs-yes">Yes</button>
+          <button type="button" class="stop" id="cs-stop">Stop</button>
+          <button type="button" class="kill" id="cs-kill">Kill</button>
+        </div>
+        <button type="button" class="link" id="cs-edit">Change the draft</button>
+        <p class="cs-note" id="cs-test-note" hidden></p>
+      </div>
+      <p class="cs-done" id="cs-done" hidden></p>
+      <p class="cta" id="cs-open" hidden><a class="use" href="/onboard">Open your desk</a></p>
+      <p class="cta" id="cs-open-desk" hidden><a class="use" href="/desk">Open this desk</a></p>
+    </section>
+    <details class="more-ways" id="more-ways">
+    <summary>Other ways to make something</summary>
     <section class="card start" id="start">
       <h2>What should a Desk AI draft?</h2>
       <p class="start-note" id="start-note" hidden></p>
@@ -136,6 +278,7 @@
     <p class="ok" id="ok"></p>
     <p class="err" id="err"></p>
     <div id="mine" class="card" style="margin-top:12px;display:none"></div>
+    </details>
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
@@ -146,7 +289,7 @@
   </nav>
   <script src="theme.js?v=20261008b"></script>
   <script src="aia-tip.js"></script>
-  <script src="desk-switch.js"></script>
+  <script src="desk-switch.js"></script><script src="signin-first.js"></script>
   <script src="desk-nav.js"></script>
   <script src="create-desk.js"></script>
   <script src="create-pack-idea.js"></script>
@@ -154,5 +297,8 @@
   <script src="create-pack-install.js"></script>
   <script src="create-pack-download.js"></script>
   <script src="create-queue.js"></script>
+  <script src="card-rules.js"></script>
+  <script src="speech.js"></script>
+  <script src="create-simple.js"></script>
 <script src="/mark-fix.js"></script></body>
 </html>

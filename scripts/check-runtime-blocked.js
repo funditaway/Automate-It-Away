@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+require("./_env-guard");
 
 // runtime/ stays in git. .vercelignore keeps it off the main site upload.
 const fs = require("fs");

@@ -53,14 +53,22 @@ The sovereign desk UI (`public/index.html`) is a **single-file** HTML/CSS/JS cli
 | `src/sandboxWorkerEntry.js` | Worker-thread entry that runs `logic.js` with HITL pause |
 | `src/sandboxManager.ts` | Host-side worker manager; queues Active Decision Cards |
 | `src/recommendationEngine.ts` | Closed-loop next-action recommendations into the local queue |
-| `src/server.ts` | GHL webhook ingest + authorize/dispatch API |
+| `src/server.ts` | GHL + SmartHQ webhook ingest + authorize/dispatch API |
 | `src/ghl.ts` | Webhook helpers and outbound GHL dispatch |
+| `src/appliance.ts` | Local appliance / SmartHQ telemetry diffs, physical-action risk, connection retry |
 
 ## API
 
 | Method | Path | Purpose |
 |--------|------|---------|
 | `POST` | `/webhook/ghl` | Inbound GHL event → meta-prompt synthesis → Decision Card in queue |
+| `POST` | `/webhook/smarthq` | Appliance telemetry → normalized AIA diffs → HITL queue |
+| `POST` | `/api/appliance/telemetry` | Same normalization path without channel prefix |
+| `POST` | `/api/appliance/action` | Physical actuator proposal (≥ medium risk; `[ENTER]` before bridge) |
+| `POST` | `/api/appliance/discover` | Register a local MQTT / LAN device |
+| `POST` | `/api/appliance/connection-drop` | Graceful retry state — UI queue stays free |
+| `GET` | `/api/appliance/devices` | List discovered local devices |
+| `GET` | `/api/appliance/retries` | List / due connection retries |
 | `GET` | `/queue` | List cards (`?status=pending`) |
 | `POST` | `/queue/:cardId/authorize` | Sign with local Ed25519, append ledger, dispatch GHL, queue next-action recs |
 | `POST` | `/api/sign` | Same as authorize; body `{ cardId }` for the terminal client |

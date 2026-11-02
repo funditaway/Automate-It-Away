@@ -28,7 +28,7 @@ export interface DecisionCardPayload {
     amount: string
     token: string
   }
-  source?: 'ghl_webhook' | 'sandbox' | 'manual' | 'recommendation'
+  source?: 'ghl_webhook' | 'sandbox' | 'manual' | 'recommendation' | 'appliance' | 'smarthq'
   webhookEvent?: string
   /** Attached when the meta-prompt synthesizer compiled this card */
   metaPrompt?: MetaPromptAttachment
