@@ -40,4 +40,13 @@ export {
 } from './recommendationEngine.js'
 export { createApp, startServer, DEFAULT_PORT } from './server.js'
 export { cardFromGhlWebhook, dispatchToGhl, GHL_API_BASE } from './ghl.js'
+export {
+  DeviceConnectionManager,
+  cardFromApplianceEvent,
+  enqueueDeviceRetryInVault,
+  isPhysicalAction,
+  normalizeApplianceTelemetry,
+  preferLocalEndpoint,
+  riskForPhysicalAction,
+} from './appliance.js'
 export type * from './types.js'

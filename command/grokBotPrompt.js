@@ -34,7 +34,11 @@ export function grokConfig(overrides = {}) {
 export function inferRisk(text) {
   const e = String(text || '').toLowerCase()
   if (/delete|purge|destroy|broadcast|transfer|drain|pay|wire|kill/.test(e)) return 'critical'
-  if (/contact|opportunity|sms|domain|unlock|arm|stage|appointment|register/.test(e)) return 'high'
+  // Physical / hardware actuators — at least high when unlocking, arming, or opening
+  if (/unlock|open[_ ]?door|arm|disarm|power[_ ]?off/.test(e)) return 'high'
+  if (/start[_ ]?cycle|adjust[_ ]?flow|set[_ ]?(temp|temperature|spin|flow)|actuate|command/.test(e))
+    return 'medium'
+  if (/contact|opportunity|sms|domain|stage|appointment|register/.test(e)) return 'high'
   if (/tag|note|telemetry|cycle|task|status/.test(e)) return 'medium'
   return 'low'
 }

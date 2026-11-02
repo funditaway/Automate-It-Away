@@ -31,6 +31,7 @@ function mustExist(rel) {
   'start.sh',
   'public/index.html',
   'lib/decisionCard.js',
+  'lib/appliance.js',
 ].forEach(mustExist)
 
 const server = fs.readFileSync(path.join(command, 'server.js'), 'utf8')
@@ -76,7 +77,12 @@ const decisionCard = fs.readFileSync(path.join(command, 'lib', 'decisionCard.js'
 })
 
 const webhook = fs.readFileSync(path.join(command, 'webhookIngest.js'), 'utf8')
-;['buildDecisionPayload', 'normalizeDecisionPayload', 'nextRecommendation'].forEach((bit) => {
+;[
+  'buildDecisionPayload',
+  'normalizeDecisionPayload',
+  'nextRecommendation',
+  'normalizeApplianceTelemetry',
+].forEach((bit) => {
   if (webhook.indexOf(bit) < 0) fail('webhookIngest.js missing ' + bit)
 })
 
@@ -89,6 +95,33 @@ const rules = fs.readFileSync(path.join(root, '.cursorrules'), 'utf8')
 if (rules.indexOf('Standardized Decision Payload Format') < 0) {
   fail('.cursorrules missing Integration Pack & Webhook Standards')
 }
+if (rules.indexOf('Local IoT & Appliance Automation Standards') < 0) {
+  fail('.cursorrules missing Local IoT & Appliance Automation Standards')
+}
+;[
+  'Local-First & Offline Resilience',
+  'Appliance Telemetry Normalization',
+  'Human-in-the-Loop Oversight for Physical Actions',
+  'normalizeApplianceTelemetry',
+  'riskForPhysicalAction',
+  'enqueueDeviceRetry',
+].forEach((bit) => {
+  if (rules.indexOf(bit) < 0) fail('.cursorrules appliance standards missing ' + bit)
+})
+
+const appliance = fs.readFileSync(path.join(command, 'lib', 'appliance.js'), 'utf8')
+;[
+  'normalizeApplianceTelemetry',
+  'preferLocalEndpoint',
+  'riskForPhysicalAction',
+  'DeviceConnectionManager',
+  'enqueueDeviceRetry',
+  'energyRate',
+  'savingsEstimated',
+  'mountAppliance',
+].forEach((bit) => {
+  if (appliance.indexOf(bit) < 0) fail('lib/appliance.js missing ' + bit)
+})
 
 const start = fs.readFileSync(path.join(command, 'start.sh'), 'utf8')
 if (start.indexOf('doctor.js') < 0 || start.indexOf('server.js') < 0) fail('start.sh must run doctor and the daemon')
