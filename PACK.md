@@ -189,6 +189,8 @@ World-home Desk AI leftover: `/` and `/how` no longer title Desk AI / bots or sa
 
 Si.aia component: `si.aia` is the SI seat. Account kinds human / ai / si. SI pauses before money, deletes, messaging someone new; human owner unlocks. Tip `si-aia` on Account + `/` + `/how` + Help `#si-aia`. Human · Desk AI · SI. One card, one idea. AI prepares, human verifies. Not Wallet.AIA. Collect HOLD. No silent send.
 
+Together on one card leftover: `/how#together` and Help `#together` name humans, Desk AIs, and SIs on one card — one card, one idea; talk / drafts / decisions / actions in order; AI prepares; human verifies. SI seat is Si.aia (`si-aia` tip + Help `#si-aia`). Card timeline on Queue Open and History Explore. Tip `together` on the card face. Collect HOLD. No silent send.
+
 Examples / Setup Desk AI leftover: `/examples` no longer titles AI agent or says “Approve an AI agent.” Setup niche and demo chip say Desk AI. World cards use the firm draft-only line. Demo fixture id `agent` stays. Collect HOLD. No silent send.
 
 People / header Desk AI leftover: after People chrome said Desk AIs, card chips, open-sheet seats, the who-chip, queue handoff, Help Rules Then bind, and inbox Needs you still painted agent / an agent / which bot. Those faces now say Desk AI. Seat id `agent` stays. Collect HOLD. No silent send.

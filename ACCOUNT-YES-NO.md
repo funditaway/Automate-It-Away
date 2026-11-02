@@ -372,6 +372,13 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Empty states point at Open a desk / Drop / Create. Give is the file. Update is install again. Nothing silent. Collect HOLD.
 - `scripts/check-history-ux.js` covers that face. Existing History thread / prompt / roadmap checks still own honesty.
 
+## Together on one card leftover (2026-11-01)
+
+- How / Help / More had no one place for how humans, Desk AIs, and SIs work together after account kinds shipped Human / AI / SI and `card-rules.js` already said one card, one idea.
+- Public face: `/how#together` and Help `#together` — one card, one idea; talk, drafts, decisions, and actions stay on the card, in order; AI prepares the work; the human verifies. SI seat is Si.aia (`si-aia` tip + Help `#si-aia`). Human still taps Yes / Stop / Kill. Not a mesh of Desk AIs. Not a node canvas.
+- Card timeline (`card-timeline.js`) mounts on Queue Open and History Explore — read-only, oldest first, fields the card already stores. Nothing sent alone.
+- Tips: `together` on the card face; `si-aia` on Account / How SI / Help SI. More Everyday work links `/how#together`. Retired tip ids `account-si` / `account-kind` in favor of `si-aia`.
+- Collect HOLD. No silent send. `scripts/check-together.js` and `scripts/check-card-timeline.js` cover that leftover.
 ## YES (Local appliance / SmartHQ standards — 2026-11-02)
 
 - Local-first appliance adapters in `command/lib/appliance.js` and `runtime/src/appliance.ts`. Prefer MQTT / LAN / `smarthq://` over cloud webhooks (`preferLocalEndpoint`).

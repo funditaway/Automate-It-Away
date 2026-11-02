@@ -211,6 +211,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <p class="meta" id="sheet-how"></p>
 <div id="sheet-road" class="road road-sheet"></div>
 <div id="sheet-thread"></div>
+<div id="sheet-timeline"></div>
 <div class="kv" id="sheet-kv"></div>
 <p class="meta" id="sheet-why"></p>
 <div class="acts">
@@ -227,6 +228,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <a href="/more" data-tab="more"><span>More</span></a>
 </nav>
 <script src="speech.js"></script>
+<script src="card-timeline.js"></script>
 <script src="desk-switch.js"></script><script src="signin-first.js"></script>
 <script src="desk-nav.js"></script>
 <script>
@@ -579,6 +581,7 @@ function explore(it){
  ];
  document.getElementById("sheet-kv").innerHTML=rows.map(function(r){return "<b>"+esc(r[0])+"</b><span>"+esc(r[1])+"</span>";}).join("");
  document.getElementById("sheet-thread").innerHTML=threadHtml(it);
+ if(window.AIACardTimeline)window.AIACardTimeline.mount("sheet-timeline",it);
  document.getElementById("sheet-why").textContent=whyCard(it);
  document.getElementById("sheet-open").onclick=function(){if(window.AIADesks&&it.slug)AIADesks.switchTo(it.slug);};
  document.getElementById("sheet").hidden=false;

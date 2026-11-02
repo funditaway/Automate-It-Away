@@ -216,6 +216,17 @@ must(tip, "Draft ready. I cannot send, pay, or bind anything. You stay in contro
 must(tip, "Yes / Stop / Kill stay human", "desk-ai Yes Stop Kill human");
 must(tip, "not a free-roaming bot", "desk-ai not MVP bot");
 must(tip, "Drafts the next step and the words", "desk-ai next step");
+must(tip, '"together"', "together tip");
+must(tip, "One card, one idea", "together tip one card");
+must(tip, "AI prepares the work. The human verifies", "together tip prepares");
+mustNot(tip, '"account-si"', "retired account-si tip");
+mustNot(tip, '"account-kind"', "retired account-kind tip");
+must(read("how.html"), 'data-aia-tip="together"', "how together tip");
+must(read("how.html"), 'data-aia-tip="si-aia"', "how SI tip uses si-aia");
+must(read("more.html"), 'data-aia-tip="together"', "more together tip");
+must(read("account-settings.js"), 'data-aia-tip", "si-aia"', "account settings wires si-aia tip");
+must(yesNo, "Together on one card leftover", "ACCOUNT-YES-NO names Together leftover");
+must(packMd, "Together on one card leftover", "PACK.md names Together leftover");
 must(yesNo, "Desk AI canon leftover", "ACCOUNT-YES-NO names Desk AI canon leftover");
 must(packMd, "Desk AI canon leftover", "PACK.md names Desk AI canon leftover");
 must(yesNo, "Desk AI voice leftover", "ACCOUNT-YES-NO names Desk AI voice leftover");
