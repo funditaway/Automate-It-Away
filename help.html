@@ -42,7 +42,7 @@
       <h2>On this page</h2>
       <p class="toc-lead">Short answers, grouped. Tap a topic to jump to it.</p>
       <div class="toc-group"><h3>Start here</h3><p><a href="#first-day">Your first day</a> · <a href="#playbook-card">Four steps on a desk</a> · <a href="#login-help">Signing in</a> · <a href="#broke">When something breaks</a></p></div>
-      <div class="toc-group"><h3>Running your desk</h3><p><a href="#desk-runs">How a desk runs</a> · <a href="#queue-runs">How the Queue runs</a> · <a href="#together">Humans, AIs, and SIs</a> · <a href="#desk-cards">Cards on the desk</a> · <a href="#words">What the buttons mean</a> · <a href="#owner-helper">Owner or helper</a> · <a href="#people-desk">Add people</a></p></div>
+      <div class="toc-group"><h3>Running your desk</h3><p><a href="#desk-runs">How a desk runs</a> · <a href="#queue-runs">How the Queue runs</a> · <a href="#together">Humans, AIs, and SIs</a> · <a href="#si-aia">SI · si.aia</a> · <a href="#desk-cards">Cards on the desk</a> · <a href="#words">What the buttons mean</a> · <a href="#owner-helper">Owner or helper</a> · <a href="#people-desk">Add people</a></p></div>
       <div class="toc-group"><h3>Rules and add-ons</h3><p><a href="#desk-orch">When, If, Then rules</a> · <a href="#rule-example">A rule, start to finish</a> · <a href="#build-pack">Build an add-on or desk AI</a> · <a href="#sell-packs">Selling add-ons</a> · <a href="#pack-worth">When an add-on is worth it</a></p></div>
       <div class="toc-group"><h3>More</h3><p><a href="#pipes-web">Connecting other sites</a> · <a href="#aia-inbound">Mail into a desk</a> · <a href="#world">Running a business on AIA</a> · <a href="#faq">Questions people ask</a> · <a href="#pages">Every page</a></p></div>
     </nav>
@@ -207,14 +207,14 @@
         <dd>Verifies. Taps Yes / Stop / Kill. Sends the draft yourself. Owns review, handoff, and Stop.</dd>
         <dt>Desk AI</dt>
         <dd>Prepares. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control.</dd>
-        <dt>SI</dt>
-        <dd>An SI seat prepares connections and automation the same careful way. It pauses before spend, delete, or messaging someone new. It cannot change its own kind or turn those pauses off — the human desk owner can. A human still taps Yes.</dd>
+        <dt>SI · si.aia</dt>
+        <dd>Account kind <code>si</code>. Hooks pipes and automations. Pauses before money, deletes, or messaging someone new. Cannot change its own kind or turn those pauses off — a human owner must. Prepares the work. A person still verifies. See <a href="#si-aia">SI · si.aia</a>.</dd>
         <dt>On the card</dt>
         <dd>Open a Queue or History card to see what happened, oldest first. Nothing sent alone. Yes / Stop / Kill stay human. Payments are off for now.</dd>
         <dt>Orchestration</dt>
         <dd>When · If · Then. Not a mesh of Desk AIs. Not a node canvas. See <a href="#desk-orch">When, If, Then rules</a>.</dd>
       </dl>
-      <p>Short face: <a href="how.html#together">How · Together on one card</a>.</p>
+      <p>Short face: <a href="how.html#together">How · Together on one card</a>. SI seat: <a href="#si-aia">SI · si.aia</a>.</p>
     </div>
     <div class="card" id="desk-cards">
       <h2>Desk cards</h2>
@@ -229,6 +229,19 @@
       <p>After Yes, When=do Then can open a new card or the next Then. HITL stays. Yes / Stop / Kill stay human. Yes is not auto-send mail, push git, or a Collect charge. Payments are off for now.</p>
       <p>Write a thin <code>.aia</code> in Creators Studio. Test it via Drop or the www hook. A desk holds up to 12 card fields — that is the real cap.</p>
       <p>Sample JSON is illustrative only — desk words: <code>{ "when": "drop", "if": "tag Lead", "then": "draft", "fields": ["who", "what", "when"] }</code></p>
+    </div>
+    <div class="card" id="si-aia">
+      <h2>SI · si.aia</h2>
+      <p>One place for how humans, Desk AIs, and SIs share a desk. One card, one idea. Talk, drafts, decisions, and actions stay in order on the card. AI prepares the work. The human verifies.</p>
+      <dl>
+        <dt>Human</dt>
+        <dd>Owns Yes / Stop / Kill. Verifies drafts. Unlocks SI pauses. Never silent send. Collect stays HOLD.</dd>
+        <dt>Desk AI</dt>
+        <dd>Named on this desk as a .aia. Drafts the next step and the words. Never Yes, Stop, Kill, money, or mail.</dd>
+        <dt>SI · si.aia</dt>
+        <dd>Account kind <code>si</code>. Hooks pipes and automations. Pauses before money, deletes, or messaging someone new. Cannot change its own kind or turn those pauses off — a human owner must. Prepares the work. A person still verifies.</dd>
+      </dl>
+      <p>Pick Human / AI / SI on Account. Tap the <b>?</b> next to the kind for the same tip. Yes / Stop / Kill stay human. Collect stays HOLD.</p>
     </div>
     <div class="card" id="aia-inbound">
       <h2>.aia inbound</h2>
@@ -263,11 +276,13 @@
         <dd>Copy, text, email, or hand the draft off. Stop is the owner cancel. AIA does not send the text or the money.</dd>
         <dt>Desk AI</dt>
         <dd>A named AI bound to this desk — project, company, or family. Addressed on AIA Internet as a .aia name. AIA AI names stay on this desk — ai.aia is the door, not a mint lesson. Live desk is automateitaway.com. Drafts under this desk’s rules. Yes / Stop / Kill stay human. Never money or mail. Add-on it in Creators Studio to list or keep private.</dd>
+        <dt>SI · si.aia</dt>
+        <dd>An SI account hooks pipes and automations. It pauses before money, deletes, or messaging someone new. It cannot change its own kind or turn those pauses off — a human owner must. Desk AIs draft. Humans Yes / Stop / Kill. SI prepares the work. A person still verifies. Collect stays HOLD. See <a href="#si-aia">SI · si.aia</a>.</dd>
       </dl>
     </div>
     <div class="card" id="pages">
       <h2>Pages that exist</h2>
-      <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#creator-takeaways">Creator takeaways</a> · <a href="#build-pack">Build a pack / desk AI</a> · <a href="#desk-orch">Desk orchestration</a> · <a href="#ideas-queue">Ideas → queue</a> · <a href="#queue-runs">How the queue runs</a> · <a href="#together">Humans, AIs, and SIs</a> · <a href="#desk-cards">Desk cards</a> · <a href="#aia-inbound">.aia inbound</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="how.html#together">How · Together</a> · <a href="onboard.html">Open a Queue</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Add-ons</a> · <a href="history.html">Give pack</a> · <a href="history.html">Update pack</a> · <a href="login.html">Sign in to your Queue</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Connections</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop?talk=1">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
+      <p><a href="#world">World users</a> · <a href="#people-desk">Add people</a> · <a href="#onboard-desk">Onboard this desk</a> · <a href="#sell-packs">Selling packs</a> · <a href="#pack-worth">When a pack is worth it</a> · <a href="#creator-takeaways">Creator takeaways</a> · <a href="#build-pack">Build a pack / desk AI</a> · <a href="#desk-orch">Desk orchestration</a> · <a href="#ideas-queue">Ideas → queue</a> · <a href="#queue-runs">How the queue runs</a> · <a href="#together">Humans, AIs, and SIs</a> · <a href="#desk-cards">Desk cards</a> · <a href="#si-aia">SI · si.aia</a> · <a href="#aia-inbound">.aia inbound</a> · <a href="#faq">FAQ</a> · <a href="setup.html">Setup</a> · <a href="how.html">How</a> · <a href="how.html#together">How · Together</a> · <a href="onboard.html">Open a Queue</a> · <a href="create.html">Create</a> · <a href="/dev">Creators Studio</a> · <a href="market.html">Add-ons</a> · <a href="history.html">Give pack</a> · <a href="history.html">Update pack</a> · <a href="login.html">Sign in to your Queue</a> · <a href="desk.html">Queue</a> · <a href="desks.html">Desks</a> · <a href="/drop">Drop</a> · <a href="rules.html">Rules</a> · <a href="/pipes">Connections</a> · <a href="people.html">People</a> · <a href="history.html">History</a> · <a href="admin.html">Account book</a> · <a href="/more">More</a> · <a href="/drop?talk=1">Drop · Talk</a> · <a href="/support">Talk to AIA</a></p>
     </div>
     <div class="card" id="owner-helper">
       <h2>Owner vs helper</h2>
@@ -278,6 +293,8 @@
         <dd>Works the queue. Needs you, Open, Yes when the rule allows, hand the card, phone file. Cannot connect a connection. Cannot Stop. Cannot delete a desk or change the owner code. May edit desk details only if the owner turns that on.</dd>
         <dt>We type it in</dt>
         <dd>A helper can still take a note. A Desk AI drafts the card. A person still taps Yes or Stop.</dd>
+        <dt>SI · si.aia</dt>
+        <dd>Safer automation seat on this account. Hooks pipes and automations. Pauses before money, deletes, or messaging someone new. Cannot unlock itself — the human owner unlocks. Not a Desk AI that drafts. Not a human Yes / Stop / Kill seat. Collect stays HOLD.</dd>
         <dt>Kind of work</dt>
         <dd>Owner names the work on open, or later on Create. Fields stay on the card. Drop still takes free text if you skip fields.</dd>
         <dt>Creators Studio</dt>

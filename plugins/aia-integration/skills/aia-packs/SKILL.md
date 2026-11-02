@@ -52,3 +52,12 @@ Fetch with `aia_list_packs` (`id` = `consign`, `vita`, `aia`, `fund`, `home`, `l
 - Rails are hard stops the desk must honor.
 - Prefer thin packs; do not duplicate the global card state machine.
 - Using a pack copies `rules` onto the desk.
+
+## Local appliances / sensors
+
+When a pack talks to SmartHQ, MQTT, or local sensors:
+
+- Prefer local discovery / MQTT / LAN over cloud webhooks (`preferLocalEndpoint`).
+- Normalize telemetry with `normalizeApplianceTelemetry` so cards show `diffData.before` / `after` (`status`, `energyRate`, optional `savingsEstimated`).
+- Physical actions (start cycle, unlock, adjust flow) are at least `medium` / `high` — human `[ENTER]` before the device bridge.
+- Connection drops enqueue a graceful retry; never lock the HITL queue.

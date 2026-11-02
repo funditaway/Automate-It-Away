@@ -101,15 +101,10 @@
       body: "One card, one idea. Talk, drafts, decisions, and actions stay on the card, in order. Humans verify. Desk AIs and SIs prepare. AI prepares the work. The human verifies. Yes / Stop / Kill stay human. Open a card to see what happened.",
       ask: "How do humans, AIs, and SIs work together on a card?"
     },
-    "account-si": {
-      title: "SI",
-      body: "An SI seat prepares connections and automation the same careful way as a Desk AI. It pauses before spend, delete, or messaging someone new. It cannot change its own kind or turn those pauses off — the human desk owner can. A human still taps Yes / Stop / Kill. Nothing posts or pays alone.",
-      ask: "What is an SI account?"
-    },
-    "account-kind": {
-      title: "This account is a",
-      body: "Human verifies. AI prepares drafts. SI prepares connections and automation. AI and SI seats pause before spend, delete, or messaging someone new. They cannot change their own kind or turn those pauses off — the human desk owner can. Yes / Stop / Kill stay human.",
-      ask: "What do Human, AI, and SI mean on my account?"
+    "si-aia": {
+      title: "SI · si.aia",
+      body: "si.aia is the SI seat on AIA. An SI account hooks pipes and automations. It pauses before money, deletes, or messaging someone new. It cannot change its own kind or turn those pauses off — a human owner must. Desk AIs draft. Humans Yes / Stop / Kill. SI prepares the work. A person still verifies. Collect stays HOLD.",
+      ask: "What is an SI account on AIA?"
     },
     "pipes": {
       title: "Connections",

@@ -2,6 +2,7 @@
 // Together on one card: How / Help / More name Human · Desk AI · SI;
 // AI prepares, human verifies; one card holds talk / drafts / decisions / actions
 // in order; card timeline is the ordered face on Queue and History.
+// SI seat canon is tip si-aia (Si.aia component). Tip together owns the card face.
 require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
@@ -34,20 +35,23 @@ must(how, "One card, one idea", "how one card one idea");
 must(how, "Talk, drafts, decisions, and actions stay on the card, in order", "how ordered on card");
 must(how, "AI prepares the work. The human verifies", "how AI prepares human verifies");
 must(how, 'data-aia-tip="together"', "how together tip");
-must(how, 'data-aia-tip="account-si"', "how SI tip");
-must(how, "An SI seat prepares connections and automation", "how SI prepares");
+must(how, 'data-aia-tip="si-aia"', "how SI tip uses si-aia");
+must(how, "SI · si.aia", "how SI · si.aia label");
 must(how, "Yes / Stop / Kill stay human", "how Yes Stop Kill human");
 mustNot(how, "sub-agent mesh", "how mesh");
 mustNot(how, "system integrator", "how expanded SI jargon");
+mustNot(how, "account-si", "how retired account-si tip");
+mustNot(how, "account-kind", "how retired account-kind tip");
 
 must(help, 'id="together"', "help together anchor");
 must(help, "Humans, AIs, and SIs on one card", "help together title");
 must(help, "AI prepares the work. The human verifies", "help AI prepares");
 must(help, "One card, one idea", "help one card");
 must(help, "Talk, drafts, decisions, and actions stay on the card, in order", "help ordered");
-must(help, "An SI seat prepares connections and automation", "help SI");
 must(help, "how.html#together", "help links How together");
 must(help, 'href="#together"', "help toc together");
+must(help, 'href="#si-aia"', "help links si-aia");
+must(help, "SI · si.aia", "help SI · si.aia");
 mustNot(help, "sub-agent mesh", "help mesh");
 
 must(more, 'href="/how#together"', "more Together link");
@@ -55,14 +59,14 @@ must(more, "Together on one card", "more Together title");
 must(more, 'data-aia-tip="together"', "more together tip");
 
 must(tip, '"together"', "together tip");
-must(tip, '"account-si"', "account-si tip");
-must(tip, '"account-kind"', "account-kind tip");
+must(tip, '"si-aia"', "si-aia tip");
 must(tip, "AI prepares the work. The human verifies", "together tip AI prepares");
-must(tip, "An SI seat prepares connections and automation", "SI tip body");
-must(tip, "Human verifies. AI prepares drafts. SI prepares connections", "account-kind tip triad");
+must(tip, "si.aia is the SI seat on AIA", "si-aia tip body");
+mustNot(tip, '"account-si"', "retired account-si tip");
+mustNot(tip, '"account-kind"', "retired account-kind tip");
 
-must(acct, 'data-aia-tip", "account-kind"', "account settings kind tip");
-must(acct, 'data-aia-tip", s.kind === "si" ? "account-si" : "account-kind"', "account settings SI tip");
+must(acct, 'data-aia-tip", "si-aia"', "account settings wires si-aia tip");
+must(acct, "KIND_HINT", "account settings KIND_HINT");
 
 must(rules, "One card, one idea. Stay inside this card's topic. Keep its talk, drafts, decisions, and actions here, in order.", "card-rules rule 1");
 

@@ -346,6 +346,15 @@ Owner: James Oddo. Product: one AIA account, many desks.
 8. Turn on authenticator — page should say HOLD.
 9. Ship $251 on the desk — still 409 held if that desk has the money-wait rule.
 
+## YES (Si.aia component — 2026-11-01)
+
+- `si.aia` is the SI seat on AIA. Account kinds stay `human` / `ai` / `si` in `api/_account-settings.js`. SI pauses before money, deletes, and messaging someone new. SI cannot change its own kind or turn those pauses off — a human owner must.
+- Shared tip `"si-aia"` in `aia-tip.js`. Account kind picker (and read-only kind line) wires that tip. Plain hint: Human decides. Desk AI drafts. SI · si.aia hooks pipes and automations with pauses a human owner unlocks.
+- World home `/` and `/how` “On one AIA account” name SI · si.aia next to Desk AI. Payments are off for now. No Collect jargon on those pages. No mint / DNS lesson.
+- Help `#si-aia`: Human · Desk AI · SI triad. One card, one idea. AI prepares the work. The human verifies. Words + Owner vs helper name SI. Pages TOC links `#si-aia`.
+- Not Wallet.AIA. Not a new top-level product surface. Desk AIs still draft only. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
+- `scripts/check-si-aia.js`. Account page settings check clicks Save (not the tip `?`). While touching `check-aia-tip.js`, the Ask AIA pin now matches `/support?ask=` (was stale `support.html?ask=`).
+
 ## Queue desk simplify (2026-09-13)
 
 - `/desk` (also `/queue`) is the queue. The queue *is* the page. Public `/queue` redirects to `/desk` so `queue/index.html` cannot win.
@@ -366,7 +375,15 @@ Owner: James Oddo. Product: one AIA account, many desks.
 ## Together on one card leftover (2026-11-01)
 
 - How / Help / More had no one place for how humans, Desk AIs, and SIs work together after account kinds shipped Human / AI / SI and `card-rules.js` already said one card, one idea.
-- Public face: `/how#together` and Help `#together` — one card, one idea; talk, drafts, decisions, and actions stay on the card, in order; AI prepares the work; the human verifies. SI seat prepares connections and automation, pauses before spend / delete / message-new; human still taps Yes / Stop / Kill. Not a mesh of Desk AIs. Not a node canvas.
+- Public face: `/how#together` and Help `#together` — one card, one idea; talk, drafts, decisions, and actions stay on the card, in order; AI prepares the work; the human verifies. SI seat is Si.aia (`si-aia` tip + Help `#si-aia`). Human still taps Yes / Stop / Kill. Not a mesh of Desk AIs. Not a node canvas.
 - Card timeline (`card-timeline.js`) mounts on Queue Open and History Explore — read-only, oldest first, fields the card already stores. Nothing sent alone.
-- Tips: `together`, `account-si`, `account-kind` on How / More / Account kind picker. More Everyday work links `/how#together`.
+- Tips: `together` on the card face; `si-aia` on Account / How SI / Help SI. More Everyday work links `/how#together`. Retired tip ids `account-si` / `account-kind` in favor of `si-aia`.
 - Collect HOLD. No silent send. `scripts/check-together.js` and `scripts/check-card-timeline.js` cover that leftover.
+## YES (Local appliance / SmartHQ standards — 2026-11-02)
+
+- Local-first appliance adapters in `command/lib/appliance.js` and `runtime/src/appliance.ts`. Prefer MQTT / LAN / `smarthq://` over cloud webhooks (`preferLocalEndpoint`).
+- Raw appliance events normalize to AIA `diffData.before` / `after` (`status`, `energyRate`, optional `savingsEstimated`) via `normalizeApplianceTelemetry`. SmartHQ ingest never enqueues a raw body.
+- Physical actions (start cycle, unlock, adjust flow) are at least `medium` / `high` (`riskForPhysicalAction`) and require human `[ENTER]` / Yes before the device bridge. No auto-actuate.
+- Connection drops enqueue a graceful retry (`DeviceConnectionManager` / `enqueueDeviceRetry`) — decision UI stays free (`uiLocked: false`).
+- Home pack rails/rules name the same local-first + HITL physical holds. Standards live in `.cursorrules` under Local IoT & Appliance Automation Standards.
+- Not an IoT marketplace product. Buyer still binds their own keys and devices. Collect HOLD. `scripts/check-aia-command.js` + `scripts/check-aia-runtime.js` cover the contract.
