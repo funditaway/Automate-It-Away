@@ -105,7 +105,15 @@
     var kindSel = null;
     if (kinds.length) {
       var kl = el("label", "acct-field");
-      kl.appendChild(el("span", null, "This account is a"));
+      var kindLabel = el("span", null, "This account is a");
+      var kindTip = el("button", "aia-tip");
+      kindTip.type = "button";
+      kindTip.setAttribute("data-aia-tip", "account-kind");
+      kindTip.setAttribute("aria-label", "More about Human, AI, and SI");
+      kindTip.textContent = "?";
+      kindLabel.appendChild(document.createTextNode(" "));
+      kindLabel.appendChild(kindTip);
+      kl.appendChild(kindLabel);
       kindSel = document.createElement("select");
       kinds.forEach(function (k) {
         var o = el("option", null, KINDS[k]);
@@ -115,7 +123,14 @@
       kl.appendChild(kindSel);
       c.appendChild(kl);
     } else if (KINDS[s.kind]) {
-      c.appendChild(el("p", "meta", "This account is a " + KINDS[s.kind] + "."));
+      var kindLine = el("p", "meta", "This account is a " + KINDS[s.kind] + ". ");
+      var kindTipOnly = el("button", "aia-tip");
+      kindTipOnly.type = "button";
+      kindTipOnly.setAttribute("data-aia-tip", s.kind === "si" ? "account-si" : "account-kind");
+      kindTipOnly.setAttribute("aria-label", "More about account kind");
+      kindTipOnly.textContent = "?";
+      kindLine.appendChild(kindTipOnly);
+      c.appendChild(kindLine);
     }
     saveRow(c, "Save profile", function (hint, btn) {
       var set = {};

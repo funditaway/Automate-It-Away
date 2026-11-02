@@ -95,6 +95,13 @@ must(help, "A person still taps Yes or Stop.", "Help We type it in Yes or Stop")
 must(help, "you still tap Yes or Stop. You send the draft yourself.", "Help Talk tap Yes or Stop");
 must(help, "Yes puts a card on the queue. Open this card.", "First day Create Open this card");
 must(help, "A Desk AI drafts the card", "Help Desk AI drafts");
+must(help, 'id="together"', "Help together section");
+must(help, "Humans, AIs, and SIs on one card", "Help together title");
+must(help, "AI prepares the work. The human verifies", "Help AI prepares human verifies");
+must(help, "An SI seat prepares connections and automation", "Help SI prepares");
+must(help, "how.html#together", "Help links How together");
+must(yesNo, "Together on one card leftover", "ACCOUNT-YES-NO names Together leftover");
+must(packMd, "Together on one card leftover", "PACK.md names Together leftover");
 mustNot(help, "The desk asks what’s missing", "Help First day Drop still says The desk asks");
 mustNot(help, "AIA writes the card", "Help We type it in still says AIA writes");
 mustNot(help, "We write the card on your queue", "Help Talk still says We write the card");

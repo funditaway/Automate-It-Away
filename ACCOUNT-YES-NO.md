@@ -362,3 +362,11 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Clearer taps: Already done / On the desk / Coming up, Off desk (was Ext), Cap priority, More filters with a count badge, Quick finds fold, Show talk / Hide talk on cards, Refresh, copy toast, Esc closes Explore, `/` focuses search.
 - Empty states point at Open a desk / Drop / Create. Give is the file. Update is install again. Nothing silent. Collect HOLD.
 - `scripts/check-history-ux.js` covers that face. Existing History thread / prompt / roadmap checks still own honesty.
+
+## Together on one card leftover (2026-11-01)
+
+- How / Help / More had no one place for how humans, Desk AIs, and SIs work together after account kinds shipped Human / AI / SI and `card-rules.js` already said one card, one idea.
+- Public face: `/how#together` and Help `#together` — one card, one idea; talk, drafts, decisions, and actions stay on the card, in order; AI prepares the work; the human verifies. SI seat prepares connections and automation, pauses before spend / delete / message-new; human still taps Yes / Stop / Kill. Not a mesh of Desk AIs. Not a node canvas.
+- Card timeline (`card-timeline.js`) mounts on Queue Open and History Explore — read-only, oldest first, fields the card already stores. Nothing sent alone.
+- Tips: `together`, `account-si`, `account-kind` on How / More / Account kind picker. More Everyday work links `/how#together`.
+- Collect HOLD. No silent send. `scripts/check-together.js` and `scripts/check-card-timeline.js` cover that leftover.
