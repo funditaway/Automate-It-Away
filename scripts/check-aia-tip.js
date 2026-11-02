@@ -30,7 +30,7 @@ const packMd = read("PACK.md");
 const pkg = read("package.json");
 
 must(tip, "Ask AIA", "shared Ask AIA");
-must(tip, "support.html?ask=", "Ask AIA opens Help chat");
+must(tip, "/support?ask=", "Ask AIA opens Help chat");
 must(tip, "&tip=", "Ask AIA sends plain tip text");
 must(tip, "&field=", "Ask AIA sends field id");
 must(tip, "&from=", "Ask AIA sends page");
@@ -203,6 +203,12 @@ must(read("connections.html"), 'data-aia-tip="pipes"', "connections page pipes t
 must(read("connections.html"), 'data-aia-tip="desk-name"', "connections Desk name tip");
 must(read("connections.html"), 'data-aia-tip="desk-code"', "connections Desk code tip");
 must(tip, '"desk-ai"', "desk-ai tip");
+must(tip, '"si-aia"', "si-aia tip");
+must(tip, "si.aia is the SI seat on AIA", "si-aia tip body");
+must(read("account-settings.js"), 'data-aia-tip", "si-aia"', "account settings wires si-aia tip");
+must(read("index.html"), 'data-aia-tip="si-aia"', "index si-aia tip");
+must(read("how.html"), 'data-aia-tip="si-aia"', "how si-aia tip");
+must(read("help.html"), 'id="si-aia"', "help si-aia card");
 must(tip, "Name a desk AI", "desk-ai names a desk AI");
 must(tip, "Desk AIs that draft", "desk-ai tagline drafts");
 must(tip, "Humans that decide", "desk-ai tagline humans");

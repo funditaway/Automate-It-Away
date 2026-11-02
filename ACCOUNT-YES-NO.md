@@ -346,6 +346,15 @@ Owner: James Oddo. Product: one AIA account, many desks.
 8. Turn on authenticator — page should say HOLD.
 9. Ship $251 on the desk — still 409 held if that desk has the money-wait rule.
 
+## YES (Si.aia component — 2026-11-01)
+
+- `si.aia` is the SI seat on AIA. Account kinds stay `human` / `ai` / `si` in `api/_account-settings.js`. SI pauses before money, deletes, and messaging someone new. SI cannot change its own kind or turn those pauses off — a human owner must.
+- Shared tip `"si-aia"` in `aia-tip.js`. Account kind picker (and read-only kind line) wires that tip. Plain hint: Human decides. Desk AI drafts. SI · si.aia hooks pipes and automations with pauses a human owner unlocks.
+- World home `/` and `/how` “On one AIA account” name SI · si.aia next to Desk AI. Payments are off for now. No Collect jargon on those pages. No mint / DNS lesson.
+- Help `#si-aia`: Human · Desk AI · SI triad. One card, one idea. AI prepares the work. The human verifies. Words + Owner vs helper name SI. Pages TOC links `#si-aia`.
+- Not Wallet.AIA. Not a new top-level product surface. Desk AIs still draft only. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
+- `scripts/check-si-aia.js`. Account page settings check clicks Save (not the tip `?`). While touching `check-aia-tip.js`, the Ask AIA pin now matches `/support?ask=` (was stale `support.html?ask=`).
+
 ## Queue desk simplify (2026-09-13)
 
 - `/desk` (also `/queue`) is the queue. The queue *is* the page. Public `/queue` redirects to `/desk` so `queue/index.html` cannot win.
