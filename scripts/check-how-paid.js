@@ -24,14 +24,14 @@ const paidEnd = how.indexOf('n:5, id:"follow"');
 if (paidStart < 0 || paidEnd < 0 || paidEnd <= paidStart) throw new Error("how.html Paid step missing");
 const paid = how.slice(paidStart, paidEnd);
 
-must(how, "Collect stays HOLD until a person taps Yes and a real money pipe is live.", "Paid film HOLD line");
-must(paid, "Collect stays HOLD until a person taps Yes and a real Collect money pipe is live.", "Paid what HOLD");
-must(paid, "Yes is not a collect charge", "Paid Yes is not a collect charge");
+must(how, "Payments are off for now. When they turn on, a person still taps Yes first.", "Paid film payments-off line");
+must(paid, "Payments are off for now. When they turn on, a person still taps Yes first.", "Paid what payments off");
+must(paid, "Yes never charges anyone.", "Paid Yes is not a charge");
 must(paid, "Helper can prep the draft", "Paid helper preps draft");
-must(paid, "real money pipe", "Paid real money pipe");
-must(paid, "name:\"Collect HOLD\"", "Paid step name Collect HOLD");
-must(paid, "Bill due on the card. Collect HOLD until Yes + a real money pipe.", "Paid life mean HOLD");
-must(how, 'name: "4 Collect HOLD"', "film reel Collect HOLD");
+mustNot(paid, "Collect HOLD", "Paid Collect jargon");
+must(paid, "name:\"Get paid (off for now)\"", "Paid step name payments off");
+must(paid, "Bill due on the card. Payments are off for now.", "Paid life mean payments off");
+must(how, 'name: "4 Get paid (off for now)"', "film reel payments off");
 mustNot(how, 'name: "4 Paid"', "film reel live Paid");
 
 mustNot(how, "Collect when due", "live Collect when due");

@@ -368,6 +368,10 @@ async function main() {
   pass("ai / si approve that turns off own pauses: 403 same reason, no change, recorded; keeping pauses on is allowed; dry run pauses and holds");
 
   // 9. Stop and Kill mid-setup, every kind.
+  const connectSrc = fs.readFileSync(path.join(__dirname, "..", "api", "_account-connect.js"), "utf8");
+  if (connectSrc.indexOf('"Stopped for good. Nothing more happens on") + " the setup card for "') < 0) fail("kill history text drifted");
+  if (connectSrc.indexOf('"Stopped for good") + " here, but it did not save. Tap "') < 0) fail("kill unsaved hint drifted");
+  if (connectSrc.indexOf("Killed this setup card") >= 0 || connectSrc.indexOf("This card was killed") >= 0 || connectSrc.indexOf('"Killed") + " here') >= 0 || connectSrc.indexOf('"Killed") + " the setup') >= 0) fail("old Killed history or hint text is back");
   for (const [kind, hd] of [["human", OWN], ["ai", AI], ["si", SI]]) {
     r = await post(hd, { action: "setup-card", from: { type: "automation", id: "mid-" + kind, name: "Mid " + kind, service: "Shopify" } });
     const id = r.body.card.id;
@@ -380,17 +384,29 @@ async function main() {
     r = await post(hd, { action: "setup-step", cardId: id, do: "start" });
     if (r.statusCode !== 200 || r.body.card.status !== "open") fail(kind + ": start again");
     r = await post(hd, { action: "setup-step", cardId: id, do: "kill" });
-    if (r.statusCode !== 200 || r.body.card.status !== "killed" || r.body.card.steps.filter((s) => s.state === "todo").length !== 0 || !r.body.card.steps.some((s) => s.state === "blocked" && /Killed/.test(s.reason))) fail(kind + ": Kill mid-setup is 200 and blocks the rest: " + JSON.stringify(r.body).slice(0, 300));
+    if (r.statusCode !== 200 || r.body.card.status !== "killed" || r.body.card.statusText !== "Stopped for good. Nothing more happens on this card." || r.body.entry.what !== "Stopped for good. Nothing more happens on this card." || r.body.card.steps.filter((s) => s.state === "todo").length !== 0 || !r.body.card.steps.some((s) => s.state === "blocked" && s.reason === "Stopped for good. Nothing more happens on this card." && s.reasonCode === "killed")) fail(kind + ": Kill mid-setup is 200 and blocks the rest: " + JSON.stringify(r.body).slice(0, 400));
     for (const v of ["kill", "stop"]) {
       r = await post(hd, { action: "setup-step", cardId: id, do: v });
-      if (r.statusCode !== 200) fail(kind + ": " + v + " on a killed card still 200");
+      if (r.statusCode !== 200 || r.body.changed !== false || r.body.hint !== "Already stopped for good. Nothing changed." || (r.body.card && r.body.card.status) !== "killed") fail(kind + ": " + v + " on a killed card still 200 with the already-stopped hint: " + JSON.stringify(r.body && { status: r.statusCode, changed: r.body.changed, hint: r.body.hint, card: r.body.card && r.body.card.status }));
     }
     r = await post(hd, { action: "setup-step", cardId: id, do: "start" });
-    if (r.statusCode !== 409) fail(kind + ": a killed card does not start again");
+    if (r.statusCode !== 409 || (r.body && r.body.error) !== "Stopped for good. Nothing more happens on this card.") fail(kind + ": a killed card does not start again: " + JSON.stringify(r.body && r.body.error));
     r = await post(hd, { action: "setup-step", cardId: id, stepId: "card.desk", do: "done", deskId: kinds.find((k) => k[0] === kind)[3] });
     if (r.statusCode !== 409) fail(kind + ": nothing more on a killed card");
   }
   pass("Stop and Kill answer 200 mid-setup for human, ai, and si; killed is final");
+
+  // confirm is accepted and ignored. Kill still ends the card with or without it.
+  r = await post(OWN, { action: "setup-card", from: { type: "automation", id: "kill-confirm", name: "Kill confirm", service: "Shopify" } });
+  const confirmId = r.body && r.body.card && r.body.card.id;
+  r = await post(OWN, { action: "setup-step", cardId: confirmId, do: "kill", confirm: true });
+  if (r.statusCode !== 200 || !r.body || r.body.ok !== true || r.body.changed !== true || !r.body.card || r.body.card.status !== "killed" || !r.body.card.steps.some((s) => s.state === "blocked" && s.reason === "Stopped for good. Nothing more happens on this card." && s.reasonCode === "killed")) fail("Kill with confirm:true must 200 and end the card killed: " + JSON.stringify(r.body).slice(0, 400));
+  else pass("Kill with confirm:true returns 200 and the card ends killed");
+  r = await post(OWN, { action: "setup-card", from: { type: "automation", id: "kill-plain", name: "Kill plain", service: "Shopify" } });
+  const plainId = r.body && r.body.card && r.body.card.id;
+  r = await post(OWN, { action: "setup-step", cardId: plainId, do: "kill" });
+  if (r.statusCode !== 200 || !r.body || r.body.ok !== true || r.body.changed !== true || !r.body.card || r.body.card.status !== "killed") fail("Kill without confirm must still 200 and end the card killed: " + r.statusCode + " " + JSON.stringify(r.body).slice(0, 300));
+  else pass("Kill without confirm still returns 200 and the card ends killed");
 
   // 10. No money: no buy fields, no charges, no money rows, no outside or model calls.
   w0 = saves; s0 = snapAll();

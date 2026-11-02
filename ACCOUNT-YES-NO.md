@@ -83,7 +83,7 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Limits on create / sell (real only): 6 named AIs per desk (Studio draft 3), 8 Rules, 12 fields, 12 `.aia` emails per account. No published Marketplace listing cap. No published `.aia` file-size cap. Desk uploads 8 MB. External storefronts off-platform. Buyers bring their own keys.
 - Stock FAQ: AIA / automateitaway.com is privately held, not listed. Retail cannot buy shares on brokers. Not investment advice. Do not invent founder/VC splits, secondary markets, or IPO plans.
 - Add people: search a world @handle on People under More; they Accept there. Email is not a world name. AIA does not send invite mail. Owner vs Helper as on Help. Do not share the owner desk code. Each person their own seat.
-- Onboard this desk (`/help#onboard-desk`): four beats — Pipes (copy `www.automateitaway.com/api/hook`; Zapier/Make can post today; Search a site / Log in = vendor console, draft only; Calendar, SMS, Square, eBay HOLD until keys + Yes) · Account / desk identity (desk name + desk code; `james.aia`-style name on Account; no live Business Details / brand-kit page) · People (link `#people-desk`; Owner vs Helper; no Team email seats) · Packs (Studio `/dev` write or install `.aia`; Marketplace browse; fresh desks empty until drop or install; Collect HOLD; no silent charge; no mapping shared OpenAI keys into packs).
+- Onboard this desk (`/help#onboard-desk`): four beats — Pipes (copy `www.automateitaway.com/api/hook`; Zapier/Make can post today; Search a site / Log in = vendor console, draft only; Calendar, SMS, Square, eBay HOLD until keys + Yes) · Account / desk identity (desk name + desk code; `yourname.aia`-style name on Account; no live Business Details / brand-kit page) · People (link `#people-desk`; Owner vs Helper; no Team email seats) · Packs (Studio `/dev` write or install `.aia`; Marketplace browse; fresh desks empty until drop or install; Collect HOLD; no silent charge; no mapping shared OpenAI keys into packs).
 - `scripts/check-studio-earnings.js` covers World users launch help + no fake $ ranges as AIA guarantees.
 - `scripts/check-world-people.js` covers Add people + Onboard this desk honesty (no invented Integrations Connect Tool, Connected Accounts OAuth, Team email seats, or Import Pack workspace keys).
 - Selling packs — risk honesty (`/help#sell-packs` + Studio one-liner): thin JSON; drafts on buyer desk; Yes/Stop/Kill human; Collect HOLD; buyer keys; never hardcode yours; no 100% safe / never banned; creator stands behind pack; Help is not legal advice; bad packs → Talk to AIA / Admin desk; Marketplace can unlist; AS IS note in creator’s own pack docs, not an AIA attach flow.
@@ -346,6 +346,15 @@ Owner: James Oddo. Product: one AIA account, many desks.
 8. Turn on authenticator — page should say HOLD.
 9. Ship $251 on the desk — still 409 held if that desk has the money-wait rule.
 
+## YES (Si.aia component — 2026-11-01)
+
+- `si.aia` is the SI seat on AIA. Account kinds stay `human` / `ai` / `si` in `api/_account-settings.js`. SI pauses before money, deletes, and messaging someone new. SI cannot change its own kind or turn those pauses off — a human owner must.
+- Shared tip `"si-aia"` in `aia-tip.js`. Account kind picker (and read-only kind line) wires that tip. Plain hint: Human decides. Desk AI drafts. SI · si.aia hooks pipes and automations with pauses a human owner unlocks.
+- World home `/` and `/how` “On one AIA account” name SI · si.aia next to Desk AI. Payments are off for now. No Collect jargon on those pages. No mint / DNS lesson.
+- Help `#si-aia`: Human · Desk AI · SI triad. One card, one idea. AI prepares the work. The human verifies. Words + Owner vs helper name SI. Pages TOC links `#si-aia`.
+- Not Wallet.AIA. Not a new top-level product surface. Desk AIs still draft only. Yes / Stop / Kill stay human. Collect HOLD. No silent send.
+- `scripts/check-si-aia.js`. Account page settings check clicks Save (not the tip `?`). While touching `check-aia-tip.js`, the Ask AIA pin now matches `/support?ask=` (was stale `support.html?ask=`).
+
 ## Queue desk simplify (2026-09-13)
 
 - `/desk` (also `/queue`) is the queue. The queue *is* the page. Public `/queue` redirects to `/desk` so `queue/index.html` cannot win.
@@ -362,3 +371,12 @@ Owner: James Oddo. Product: one AIA account, many desks.
 - Clearer taps: Already done / On the desk / Coming up, Off desk (was Ext), Cap priority, More filters with a count badge, Quick finds fold, Show talk / Hide talk on cards, Refresh, copy toast, Esc closes Explore, `/` focuses search.
 - Empty states point at Open a desk / Drop / Create. Give is the file. Update is install again. Nothing silent. Collect HOLD.
 - `scripts/check-history-ux.js` covers that face. Existing History thread / prompt / roadmap checks still own honesty.
+
+## YES (Local appliance / SmartHQ standards — 2026-11-02)
+
+- Local-first appliance adapters in `command/lib/appliance.js` and `runtime/src/appliance.ts`. Prefer MQTT / LAN / `smarthq://` over cloud webhooks (`preferLocalEndpoint`).
+- Raw appliance events normalize to AIA `diffData.before` / `after` (`status`, `energyRate`, optional `savingsEstimated`) via `normalizeApplianceTelemetry`. SmartHQ ingest never enqueues a raw body.
+- Physical actions (start cycle, unlock, adjust flow) are at least `medium` / `high` (`riskForPhysicalAction`) and require human `[ENTER]` / Yes before the device bridge. No auto-actuate.
+- Connection drops enqueue a graceful retry (`DeviceConnectionManager` / `enqueueDeviceRetry`) — decision UI stays free (`uiLocked: false`).
+- Home pack rails/rules name the same local-first + HITL physical holds. Standards live in `.cursorrules` under Local IoT & Appliance Automation Standards.
+- Not an IoT marketplace product. Buyer still binds their own keys and devices. Collect HOLD. `scripts/check-aia-command.js` + `scripts/check-aia-runtime.js` cover the contract.

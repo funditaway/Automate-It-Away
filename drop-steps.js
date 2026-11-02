@@ -98,6 +98,13 @@
       ".step-off{display:none!important}" +
       "body.drop-steps .grid{grid-template-columns:1fr}" +
       "#drop-steps{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0 6px;margin:0 0 10px}" +
+      // A jump to Talk stops below the sticky rail, so its buttons are not under it.
+      "body.drop-steps #talkBar,body.drop-steps #talkType{scroll-margin-top:calc(var(--drop-rail-h,140px) + 8px)}" +
+      // A short screen (phone on its side) cannot fit the rail, the bar, the type box, Back / Next and the
+      // bottom nav at once. On Tell, Talk first hides the nav and lets Back / Next scroll with the page
+      // (talk-roomy); if the type box still does not fit, the rail scrolls with the page too (talk-tight).
+      "body.drop-at-tell.talk-roomy #desk-nav{display:none!important}body.drop-at-tell.talk-roomy #drop-step-foot{position:static}" +
+      "body.drop-at-tell.talk-tight #drop-steps{position:static}body.drop-at-tell.talk-tight #talkBar{scroll-margin-top:8px}" +
       "#drop-step-tabs{display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch}" +
       "#drop-step-tabs button{flex:1 1 auto;min-height:44px;min-width:0;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:700 12px system-ui,sans-serif;cursor:pointer;white-space:nowrap}" +
       "#drop-step-tabs button.done{background:var(--edit);color:var(--edit-ink);border-color:var(--teal)}" +
@@ -175,6 +182,10 @@
     });
     var keep = el("drop-on");
     if (keep) keep.classList.remove("step-off");
+    // drop-talk.js keys the short-screen room for the type box (talk-roomy) off the Tell step.
+    if (document.body && document.body.classList) document.body.classList.toggle("drop-at-tell", active === "tell");
+    // drop-talk.js clears its room classes off Tell and refits the type box when Tell opens.
+    if (window.AIADropTalk && AIADropTalk.onStep) AIADropTalk.onStep(active);
     setHtml(el("drop-step-tabs"), rows.map(function (step, i) {
       var cls = step.id === active ? "on" : i < at ? "done" : "";
       return "<button type=\"button\" role=\"tab\" aria-selected=\"" + (step.id === active) +
@@ -193,10 +204,19 @@
     }
   }
 
+  // The rail is sticky and its height changes with the hint, so keep its height in a CSS var for scroll-margin.
+  function railHeight() {
+    var rail = el("drop-steps");
+    var root = document.documentElement;
+    if (!rail || !root || !root.style || !root.style.setProperty) return;
+    var h = Math.ceil(rail.offsetHeight || 0);
+    if (h > 0) root.style.setProperty("--drop-rail-h", h + "px");
+  }
+
   function sync() {
     if (busy) return;
     busy = true;
-    try { build(); order(); paint(); } finally { busy = false; }
+    try { build(); order(); paint(); railHeight(); } finally { busy = false; }
   }
 
   function go(id, quiet) {
@@ -272,6 +292,7 @@
     else if (!stepOf(active)) active = deskFromLink() ? "card" : STEPS[0].id;
     sync();
     watch();
+    window.addEventListener("resize", railHeight);
     var ticks = 0;
     var tick = setInterval(function () { sync(); if (++ticks > 20) clearInterval(tick); }, 250);
     window.AIADropSteps = {

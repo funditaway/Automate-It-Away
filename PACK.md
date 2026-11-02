@@ -104,7 +104,7 @@ Pack JSON may declare one or more desk AIs. Installing the pack attaches them to
 {
   "ais": [
     {
-      "name": "James’s AI",
+      "name": "Helper AI",
       "role": "Doer",
       "does": "Drafts the next step and the words. Nothing sent.",
       "prompt": "Draft ready. I cannot send, pay, or bind anything. You stay in control.",
@@ -186,6 +186,8 @@ Desk AI voice leftover: Create **Name this desk AI** and Studio **AI 1 name** / 
 Desk AI canon leftover: Grok SYSTEM, Studio SYSTEM, default does / prompt, and empty named-AI instructions now use Desk AI canon — not an MVP demo bot. Firm: Draft ready. I cannot send, pay, or bind anything. You stay in control. Tagline: Desk AIs that draft. Humans that decide. Named AI prompt rides in the Grok brief. Collect HOLD. No silent send.
 
 World-home Desk AI leftover: `/` and `/how` no longer title Desk AI / bots or say “A bot cannot send or pay.” World cards use Desk AI + the firm draft-only line. Setup / Examples runtime cards say Desk AIs stay crew. Collect HOLD. No silent send.
+
+Si.aia component: `si.aia` is the SI seat. Account kinds human / ai / si. SI pauses before money, deletes, messaging someone new; human owner unlocks. Tip `si-aia` on Account + `/` + `/how` + Help `#si-aia`. Human · Desk AI · SI. One card, one idea. AI prepares, human verifies. Not Wallet.AIA. Collect HOLD. No silent send.
 
 Examples / Setup Desk AI leftover: `/examples` no longer titles AI agent or says “Approve an AI agent.” Setup niche and demo chip say Desk AI. World cards use the firm draft-only line. Demo fixture id `agent` stays. Collect HOLD. No silent send.
 
@@ -409,7 +411,7 @@ First 3 clients: Audit (playbook step 1 · Find the leaks) → 60s proof → ris
 
 **AIA Internet** is the network/layer for world users, Studio, Marketplace, and connected desks. Public brand: **ai.aia**. Live desk host: **automateitaway.com**. Do not invent www.aia.aia.
 
-**`.aia`** is the pack + desk-AI artifact format (and the TLD for identity: `james.aia`, `springfield-shop.aia`). Download, share, or install a pack as a `name.aia` file. JSON inside is fine. MIME/extension is `.aia`. Named desk AIs and guardrails travel with the file. Marketplace listings and private desk installs use `.aia`.
+**`.aia`** is the pack + desk-AI artifact format (and the TLD for identity: `yourname.aia`, `your-shop.aia`). Download, share, or install a pack as a `name.aia` file. JSON inside is fine. MIME/extension is `.aia`. Named desk AIs and guardrails travel with the file. Marketplace listings and private desk installs use `.aia`.
 
 Validate `label.aia`. Names live on this desk now. Wallet / registry connect later as a Pipe HOLD. Do not invent on-chain ownership. Collect stays HOLD.
 
@@ -417,7 +419,7 @@ Validate `label.aia`. Names live on this desk now. Wallet / registry connect lat
 
 World users create `{ai-or-desk-name}@{accountname}.aia` to operate Automations and named desk AIs.
 
-Examples: `james-ai@funditaway.aia`, `queue@springfield-shop.aia`.
+Examples: `helper-ai@yourname.aia`, `queue@your-shop.aia`.
 
 Validate `local@account.aia`. The account label must match this AIA Internet account / `.aia` name (or the bound desk’s `.aia` name). Create and manage on Account, Studio, and Desks. Bind each identity to a desk or a named desk AI.
 
@@ -431,9 +433,9 @@ Outbound Send stays HOLD. No silent mail. Rail / Yes. Status orange until a real
 {
   "format": "aia.pack.v1",
   "name": "Family lane",
-  "aia": "springfield-shop.aia",
-  "file": "springfield-shop.aia",
-  "ais": [{ "name": "James’s AI", "aia": "james.aia" }],
+  "aia": "your-shop.aia",
+  "file": "your-shop.aia",
+  "ais": [{ "name": "Helper AI", "aia": "yourname.aia" }],
   "chain": false,
   "owned": false,
   "collect": "hold"

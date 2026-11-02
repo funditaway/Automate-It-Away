@@ -20,6 +20,12 @@ import {
 } from './ledger.js'
 import { SandboxManager, loadCardUiSchema } from './sandboxManager.js'
 import { dispatchToGhl } from './ghl.js'
+import {
+  DeviceConnectionManager,
+  cardFromApplianceEvent,
+  isPhysicalAction,
+  riskForPhysicalAction,
+} from './appliance.js'
 import { synthesizeMetaPrompt } from './promptSynthesizer.js'
 import {
   enqueueRecommendations,
@@ -74,6 +80,7 @@ export function createApp(opts: CreateServerOptions = {}): {
   const vault = new VaultDb({ dbPath, keyDir })
   const keypair = loadOrCreateKeypair(keyDir)
   const sandbox = new SandboxManager(vault)
+  const appliance = new DeviceConnectionManager()
   const dryRun = opts.dryRun ?? process.env.AIA_GHL_DRY_RUN !== '0'
   const cardUi = loadCardUiSchema()
 
@@ -283,6 +290,129 @@ export function createApp(opts: CreateServerOptions = {}): {
     })
   })
 
+  /** Local appliance / SmartHQ telemetry → normalized AIA diffs → HITL queue */
+  app.post('/webhook/smarthq', (req, res) => {
+    const body = (req.body || {}) as Record<string, unknown>
+    const payload = cardFromApplianceEvent(body, {
+      agentId: String(body.agentId || req.headers['x-aia-agent'] || 'agent_appliance'),
+      packName: String(body.packName || 'Home & family'),
+    })
+    payload.source = 'smarthq'
+    const card = vault.enqueueCard(payload)
+    broadcast({ type: 'card.enqueued', at: Date.now(), card, ledgerTip: vault.ledgerTipHash() })
+    res.status(202).json({
+      ok: true,
+      queued: true,
+      cardId: card.cardId,
+      status: card.status,
+      riskLevel: payload.riskLevel,
+      physical: isPhysicalAction(`${payload.actionType} ${payload.webhookEvent || ''}`),
+      message: 'Paused for human authorization — appliance bridge does not auto-actuate',
+    })
+  })
+
+  app.get('/api/appliance/devices', (_req, res) => {
+    res.json({ ok: true, devices: appliance.listDevices(), localFirst: true })
+  })
+
+  app.post('/api/appliance/discover', (req, res) => {
+    try {
+      const record = appliance.discover((req.body || {}) as Record<string, unknown>)
+      res.status(201).json({ ok: true, device: record })
+    } catch (err) {
+      res.status(400).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'discover failed',
+      })
+    }
+  })
+
+  app.post('/api/appliance/telemetry', (req, res) => {
+    const payload = cardFromApplianceEvent((req.body || {}) as Record<string, unknown>)
+    const card = vault.enqueueCard(payload)
+    broadcast({ type: 'card.enqueued', at: Date.now(), card, ledgerTip: vault.ledgerTipHash() })
+    res.status(202).json({
+      ok: true,
+      cardId: card.cardId,
+      status: card.status,
+      executed: false,
+      riskLevel: payload.riskLevel,
+      diffData: payload.diffData,
+    })
+  })
+
+  app.post('/api/appliance/action', (req, res) => {
+    const body = {
+      ...((req.body || {}) as Record<string, unknown>),
+      event: String(
+        (req.body as { event?: string; action?: string } | undefined)?.event ||
+          (req.body as { action?: string } | undefined)?.action ||
+          'command',
+      ),
+      actionType: String(
+        (req.body as { actionType?: string } | undefined)?.actionType ||
+          `APPLIANCE_${String(
+            (req.body as { event?: string; action?: string } | undefined)?.event ||
+              (req.body as { action?: string } | undefined)?.action ||
+              'COMMAND',
+          )
+            .replace(/[^A-Za-z0-9]+/g, '_')
+            .toUpperCase()}_COMMAND`,
+      ),
+    }
+    const payload = cardFromApplianceEvent(body)
+    const floored = riskForPhysicalAction(
+      `${payload.actionType} ${body.event} actuate`,
+      payload.riskLevel,
+    )
+    payload.riskLevel = floored === 'low' ? 'medium' : floored
+    const card = vault.enqueueCard(payload)
+    broadcast({ type: 'card.enqueued', at: Date.now(), card, ledgerTip: vault.ledgerTipHash() })
+    res.status(202).json({
+      ok: true,
+      cardId: card.cardId,
+      status: 'pending',
+      executed: false,
+      requiresEnter: true,
+      riskLevel: card.payload.riskLevel,
+      message: 'Paused for human [ENTER] before device bridge transmission',
+    })
+  })
+
+  app.post('/api/appliance/connection-drop', (req, res) => {
+    const deviceId = String((req.body as { deviceId?: string } | undefined)?.deviceId || '')
+    if (!deviceId) return res.status(400).json({ ok: false, error: 'deviceId required' })
+    const retry = appliance.enqueueDeviceRetry(deviceId, {
+      reason: String((req.body as { reason?: string } | undefined)?.reason || 'connection_dropped'),
+    })
+    let notice = null
+    if ((req.body as { notifyQueue?: boolean } | undefined)?.notifyQueue === true) {
+      notice = vault.enqueueCard(appliance.retryNoticeCard(retry))
+      broadcast({
+        type: 'card.enqueued',
+        at: Date.now(),
+        card: notice,
+        ledgerTip: vault.ledgerTipHash(),
+      })
+    }
+    res.status(202).json({
+      ok: true,
+      retry,
+      queuedNotice: notice ? { cardId: notice.cardId, status: notice.status } : null,
+      uiLocked: false,
+      message: 'Graceful retry scheduled — decision queue remains usable',
+    })
+  })
+
+  app.get('/api/appliance/retries', (req, res) => {
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined
+    res.json({
+      ok: true,
+      retries: appliance.listRetries(status),
+      due: appliance.listDueRetries(),
+    })
+  })
+
   /** Authorize & sign a pending card, append provenance, dispatch to GHL when applicable */
   async function authorizeCard(cardId: string, res: Response) {
     const card = vault.getCard(cardId)
@@ -318,12 +448,31 @@ export function createApp(opts: CreateServerOptions = {}): {
       /leadconnectorhq\.com|gohighlevel/i.test(card.payload.targetEndpoint) ||
       card.payload.source === 'ghl_webhook' ||
       /^GHL_/i.test(card.payload.actionType)
+    const isAppliance =
+      card.payload.source === 'appliance' ||
+      card.payload.source === 'smarthq' ||
+      /^APPLIANCE_|^SMARTHQ_/i.test(card.payload.actionType) ||
+      /^(mqtt|smarthq|lan|mdns):/i.test(card.payload.targetEndpoint)
 
     let finalCard = vault.getCard(card.cardId)!
     if (isGhl) {
       dispatch = await dispatchToGhl(vault, card.payload, { dryRun })
       finalCard =
         vault.updateCardStatus(card.cardId, dispatch.ok ? 'dispatched' : 'failed', {
+          dispatchResult: JSON.stringify(dispatch),
+        }) || finalCard
+    } else if (isAppliance) {
+      // Local device bridge stays dry-run unless explicitly live; HITL already signed.
+      dispatch = {
+        ok: true,
+        dryRun: true,
+        executed: false,
+        status: 202,
+        url: card.payload.targetEndpoint,
+        reason: 'appliance bridge dry-run — signed proposal only',
+      }
+      finalCard =
+        vault.updateCardStatus(card.cardId, 'dispatched', {
           dispatchResult: JSON.stringify(dispatch),
         }) || finalCard
     }

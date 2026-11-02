@@ -67,7 +67,7 @@ const conn = read("api/connections.js");
 if (conn.indexOf("You still tap Yes or Stop.") < 0) throw new Error("connections next must keep Yes or Stop");
 if (conn.indexOf("tap Send and Stop") >= 0) throw new Error("connections next still paints Send as the HITL rail");
 if (conn.indexOf("tap No") >= 0) throw new Error("connections helper still paints tap No");
-if (conn.indexOf("Cannot connect a pipe or tap Stop.") < 0) throw new Error("connections helper must name Stop");
+if (conn.indexOf("Cannot connect a service or tap Stop.") < 0) throw new Error("connections helper must name Stop");
 
 const health = read("api/health.js");
 if (health.indexOf("Yes and Stop stay on the desk") < 0) throw new Error("health Do must keep Yes and Stop");

@@ -59,6 +59,24 @@ When generating or updating webhook handlers (`webhookIngest.js`) or integration
    Pack adapters use `adaptPackEvent` / `buildBridgePayload` in `bridgeModule.js`.
    Never enqueue a raw channel body. Never auto-execute from ingest.
 
+## Local IoT & Appliance Automation Standards
+
+When generating or expanding integration adapters for smart home devices, local appliances (e.g., SmartHQ washing/drying appliances), or local sensor networks:
+
+1. **Local-First & Offline Resilience:**
+   - Prioritize local network discovery, MQTT broker communication, or direct local API integrations over cloud webhooks wherever possible.
+   - If a smart appliance connection drops, the AIA pack must queue a graceful retry state rather than failing silently or locking up the UI queue.
+   - Prefer `mqtt://`, `smarthq://`, or LAN endpoints over cloud URLs when both exist.
+   - Use `command/lib/appliance.js` / `runtime/src/appliance.ts` (`preferLocalEndpoint`, `DeviceConnectionManager`, `enqueueDeviceRetry`).
+
+2. **Appliance Telemetry Normalization:**
+   - Translate raw appliance event strings (e.g., cycle complete, error codes, power consumption metrics) into standardized AIA state diffs showing `before` (e.g., status: running, energyRate: high) and `after` (e.g., status: paused, energyRate: low, savingsEstimated: $0.12).
+   - Never enqueue a raw SmartHQ / MQTT / sensor body — always run `normalizeApplianceTelemetry` (or equivalent) so `diffData.before` / `diffData.after` are present before HITL.
+
+3. **Human-in-the-Loop Oversight for Physical Actions:**
+   - Any physical action that alters hardware states (e.g., starting a cycle, unlocking a door, adjusting flow rates) must be classified as at least `medium` or `high` risk via `riskForPhysicalAction`, ensuring it requires explicit human key-signing (`[ENTER]`) before transmission to the device bridge.
+   - Telemetry-only review cards may stay `low` / `medium`; actuators never auto-dispatch.
+
 ## Code Generation Guidelines
 - Keep code modular, well-commented, and robust.
 - When modifying frontend logic in `index.html`, preserve reactive queue updating, keyboard listeners, and risk badge coloring.

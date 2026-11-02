@@ -241,3 +241,10 @@ button[data-jump] {
   justify-content: center;
   text-align: left;
 }
+
+/* 2026-10-31: an empty Queue already shows its one next step inside the empty box.
+   Do not show a second "Drop anything" bar outside it. */
+body:has(#queue-empty-next) #drop-go,
+body:has(#queue-empty-next) a#drop-go {
+  display: none !important;
+}

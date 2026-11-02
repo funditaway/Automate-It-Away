@@ -739,7 +739,7 @@ async function moveOld(req, res, ctx, apply) {
 
 async function deleteOld(req, res, ctx) {
   if (!ctx.body || ctx.body.confirmDelete !== CONFIRM_DELETE) {
-    return deny(res, 403, "Delete needs James's Yes.");
+    return deny(res, 403, "Delete needs your Yes.");
   }
   const progress = progressCard(ctx);
   if (progress.missing) return deny(res, 404, "Job not found.");

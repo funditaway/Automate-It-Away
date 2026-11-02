@@ -13,7 +13,7 @@
   if (!root) return;
 
   var KINDS = { human: "Human", ai: "AI", si: "SI" };
-  var STATE = { todo: "To do", done: "Done", skipped: "Skipped", blocked: "Blocked" };
+  var STATE = { todo: "To do", done: "Done", skipped: "Skipped", blocked: "Waiting" };
   var SKIPS = { connect: 1, secret: 1 };
   var OOPS = "That did not work. Nothing changed. Try again.";
   var OFFLINE = "Could not reach AIA. Nothing changed.";

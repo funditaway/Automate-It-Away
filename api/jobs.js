@@ -323,7 +323,7 @@ module.exports = async function handler(req, res) {
         crew: lead.crew || null,
         grok: grok && grok.ok ? "on" : (grok && grok.reason) || (lead.draft ? "on" : "off"),
         note: jobs.length > 1
-          ? ("On the queue as " + jobs.length + " cards. You still tap Yes or Stop on each. Collect HOLD.")
+          ? ("On the queue as " + jobs.length + " cards. You still tap Yes or Stop on each. Payments are off for now. Nothing is charged.")
           : undefined
       });
     }
@@ -496,13 +496,13 @@ module.exports = async function handler(req, res) {
       if (provider === "calendar") {
         job.dispatch = { demo: true, provider: "calendar", note: "Calendar file ready on the card. Google write stays off until GOOGLE_CLIENT_ID is on the box." };
       } else if (pipe && pipe.provider === "whatnot") {
-        job.dispatch = { demo: true, note: "Whatnot is not a launch pipe." };
+        job.dispatch = { demo: true, note: "Whatnot is off for now." };
       } else if (pipe && pipe.provider === "webhook") {
         job.dispatch = await fireWebhook(pipe.hook, { event: "do", action: "ship", job: { id: job.id, title: job.title, draft: job.draft, amount: job.amount }, writeback: hookUrl(workspace) });
       } else if (pipe && pipe.live) {
         job.dispatch = { queued: true, provider: pipe.provider, acts: PROVIDERS[pipe.provider].acts };
       } else {
-        job.dispatch = { demo: true, note: "No live pipe. Stays on the desk." };
+        job.dispatch = { demo: true, note: "No live connection. It stays on the desk." };
       }
       if (!pipeWroteBack(job.dispatch)) {
         job.status = "out";
@@ -559,7 +559,7 @@ module.exports = async function handler(req, res) {
       }
       job.whoTapped = actorName(person, body);
       job.whoTappedId = actorId(person);
-      job.next = picked.name + " owns Then / Ask Grok / Needs you on this card. HOLD. Nothing sent alone.";
+      job.next = picked.name + " owns the next step on this card. Nothing goes out without your Yes.";
       addTalk(job, actorName(person, body), "Desk AI on this card · " + picked.name + ".", "note");
       job.log = (job.log || []).concat(["Desk AI · " + picked.name]);
       log("Desk", "Desk AI · " + job.title + " · " + picked.name, "OK", workspace);

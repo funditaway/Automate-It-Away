@@ -18,7 +18,7 @@ function ensureAccount() {
   if (!Array.isArray(lib.mem.approvals)) lib.mem.approvals = [];
   if (!Array.isArray(lib.mem.accounts)) lib.mem.accounts = [];
   if (!lib.mem.account || typeof lib.mem.account !== "object") {
-    lib.mem.account = { id: "aia", name: "Automate It Away", heldBy: "admin", ownerName: "James Oddo", note: "One AIA account per person. Own desks and sit on others.", createdAt: new Date().toISOString() };
+    lib.mem.account = { id: "aia", name: "Automate It Away", heldBy: "admin", ownerName: "", note: "One AIA account per person. Own desks and sit on others.", createdAt: new Date().toISOString() };
   }
   return lib.mem.account;
 }
@@ -426,11 +426,13 @@ function peopleAcross() {
   });
   return rows;
 }
-function publicAccount(row) {
+function publicAccount(row, opts) {
   const account = ensureAccount();
   const people = peopleAcross();
   const shop = row ? accountForDesk(row) : null;
-  return { id: account.id, name: account.name, heldBy: account.heldBy, ownerName: account.ownerName, note: account.note, createdAt: account.createdAt, desks: (lib.mem.workspaces || []).length, people: people.length, pending: people.filter((p) => p.status === "pending").length, shop: shop ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : null, plan: shop ? publicPlan(shop) : publicPlan({ plan: "pro" }) };
+  const out = { id: account.id, name: account.name, heldBy: account.heldBy, note: account.note, createdAt: account.createdAt, desks: (lib.mem.workspaces || []).length, people: people.length, pending: people.filter((p) => p.status === "pending").length, shop: shop ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : null, plan: shop ? publicPlan(shop) : publicPlan({ plan: "pro" }) };
+  if (opts && opts.showOwnerName) out.ownerName = account.ownerName || "";
+  return out;
 }
 function approvalsOf(slug) {
   ensureAccount();
@@ -550,7 +552,8 @@ function setSeatStatus(row, id, next, actor) {
 function accountSnapshot(row, person, ownAccountId) {
   const shop = row ? accountForDesk(row) : null;
   const owner = lib.isOwner(person);
-  const account = publicAccount(row);
+  const viewerOwnsPlatform = !!(owner && ownAccountId && ownAccountId === ensureAccount().id);
+  const account = publicAccount(row, { showOwnerName: viewerOwnsPlatform });
   if (!owner && account && account.shop) account.shop = { name: account.shop.name };
   return { account, plan: shop ? publicPlan(shop) : publicPlan(null), shop: shop ? (owner ? { id: shop.id, name: shop.name, desks: shop.desks || [], memberDesks: shop.memberDesks || [] } : { name: shop.name }) : null, you: lib.viewSeat(lib.publicPerson(person), person, person, ownAccountId), people: row ? lib.seatsFor(person, row.people, lib.publicPerson, ownAccountId) : [], approvals: row ? approvalsOf(row.slug) : [], kinds: KINDS, agents: roles.catalog().agents, levels: roles.catalog().levels, hardOwner: roles.HARD_OWNER };
 }

@@ -9,15 +9,12 @@ require("./_env-guard");
 // waiting copy with no crash and no retry; [] and 403 show nothing and no error text; the link
 // is /account#setup-<id>; no run-on-its-own control; Stop and Kill on every card; the Pack
 // install reply's setupCard is surfaced; no money or checkout fetches; plain public copy.
-// Also: desk.html is 35012 bytes and no api/ file differs from 813dfc0c.
+// Also: desk.html is 35012 bytes and api/ is frozen to blob pins vs main (scripts/_api-freeze.js).
 // Usage: node scripts/check-setup-cards-ui.js
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { execSync } = require("child_process");
-
 const root = path.join(__dirname, "..");
-const BASE = "813dfc0cf0fc98d9cd2ad92b897104bdd58bd629";
 let failed = 0;
 let passed = 0;
 function fail(msg) { failed += 1; console.error("FAIL " + msg); }
@@ -535,14 +532,8 @@ function mutate(src, reps) {
 function staticChecks() {
   const deskBytes = fs.statSync(path.join(root, "desk.html")).size;
   ok(deskBytes === 35012, "desk.html is 35012 bytes (" + deskBytes + ")");
-  let apiDiff = "";
-  let gitOk = true;
-  try {
-    apiDiff = execSync("git diff --name-only " + BASE + " -- api", { cwd: root, encoding: "utf8" }).trim();
-    const untracked = execSync("git ls-files --others --exclude-standard -- api", { cwd: root, encoding: "utf8" }).trim();
-    if (untracked) apiDiff = (apiDiff ? apiDiff + "\n" : "") + untracked;
-  } catch (e) { gitOk = false; }
-  ok(gitOk && apiDiff === "", "no api/ diff vs " + BASE.slice(0, 8) + (apiDiff ? " (" + apiDiff.replace(/\n/g, ", ") + ")" : ""));
+  const apiFreeze = require("./_api-freeze").check(root);
+  ok(apiFreeze.ok, "api/ frozen vs " + apiFreeze.base + " (blob pin)" + (apiFreeze.ok ? "" : ": " + apiFreeze.problems.join("; ")));
   const pkg = JSON.parse(read("package.json"));
   ok(/node scripts\/check-setup-cards-ui\.js/.test(pkg.scripts.test), "npm test runs check-setup-cards-ui");
   ok(/node scripts\/check-setup-cards-desk\.js/.test(pkg.scripts.test) && /node scripts\/check-queue-login\.js/.test(pkg.scripts.test), "npm test still runs the desk and Queue checks");

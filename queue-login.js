@@ -1,13 +1,38 @@
 /* Queue sign-in lands here. One account, one Queue, many desks.
-   The desk list is POST /api/desks { action: "mine" }.
-   A desk filter is the ?workspace= query on this same page.
-   All desks reads each desk from that list. A future all-desks read is
-   detected and used only when the response says it is one. */
+   Email sign-in stores the desk list from the login reply (desks, or queue.desks).
+   The Queue picker uses that list and skips an extra call.
+   When the reply lacks a desk list (an old session, or a reload after that list was used),
+   POST /api/desks { action: "mine" } fills the picker.
+   All desks calls GET /api/jobs?desks=all. That counts only when the response is ok
+   and every card has a slug. An empty list counts. Otherwise each desk is read with
+   GET /api/jobs?workspace=<slug>. One desk uses that same workspace read on this session.
+   A failed read never looks empty: a 500, a network error, or no answer within QUEUE_WAIT_MS
+   shows "Couldn't load your Queue. Try again." with a Try again button that runs the load again.
+   "Nothing waiting" shows only after every read answered 200 with zero open cards. */
 (function () {
   var ALL_BANNER = "Every desk in this Queue.";
+  var LOGIN_REPLY_KEY = "aia_queue_login_reply";
   var desks = [];
   var cards = [];
   var mode = "all";
+  var loadGen = 0;
+  // About 8 seconds, in line with the 7-second health wait on /create and /history.
+  var QUEUE_WAIT_MS = 8000;
+  var LOAD_FAILED = "Couldn't load your Queue. Try again.";
+  var SOME_FAILED = "Couldn't load every desk, so some cards may be missing. Try again.";
+  var load = null;        // the current load: { failed, allFailed, signal }; an old load only marks its own object
+  var loading = false;
+  var loadError = false;
+  var mineFailed = false;
+  var firstSignal = null;  // the first page load shares one deadline across the desk list and the cards
+
+  // Abort a read that has not answered in time. Without timers or AbortController (old browsers) it is a no-op.
+  function waitSignal() {
+    var ctl = typeof AbortController === "function" ? new AbortController() : null;
+    if (ctl && typeof setTimeout === "function") setTimeout(function () { try { ctl.abort(); } catch (e) {} }, QUEUE_WAIT_MS);
+    return ctl ? ctl.signal : undefined;
+  }
+
 
   function slugify(s) {
     if (window.AIADesks && AIADesks.slugify) return AIADesks.slugify(s);
@@ -60,7 +85,7 @@
   function plainStatus(s) {
     if (s === "exception") return "Waiting on a person";
     if (s === "held") return "Waiting on the owner";
-    if (s === "waiting") return "Ready";
+    if (s === "waiting") return "Needs you";
     if (s === "shipped") return "Sent";
     if (s === "killed") return "Stopped";
     return "Open";
@@ -83,6 +108,15 @@
       "#queue-all-cards .item{background:var(--card,#fff);border:1px solid var(--line,#d5e0e0);border-radius:14px;padding:14px;margin:10px 0}" +
       "#queue-all-cards h3{margin:4px 0;font-size:1.05rem}" +
       "#queue-all-cards .meta{font-size:13px;color:var(--muted,#5c6b73);margin:0 0 8px}" +
+      "#queue-all-cards .queue-desk-label{display:block;font-size:12px;font-weight:700;color:var(--muted,#5c6b73);margin:0 0 4px}" +
+      "#queue-empty-next{background:var(--card,#fff);border:1px solid var(--line,#d5e0e0);border-radius:14px;padding:16px;margin:10px 0}" +
+      "#queue-empty-next .meta{font-size:15px;margin:0 0 12px}" +
+      "#queue-empty-next a.go{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border-radius:999px;font-weight:800;text-decoration:none}" +
+      "#queue-all-cards [data-queue-error]{background:var(--card,#fff);border:1px solid var(--line,#d5e0e0);border-radius:14px;padding:16px;margin:10px 0}" +
+      "#queue-all-cards [data-queue-error] p{font-size:15px;margin:0 0 12px}" +
+      "#queue-all-cards [data-queue-retry]{min-height:44px;padding:10px 18px;border-radius:999px;font-weight:800;cursor:pointer}" +
+      "#queue-desk-picker[hidden]{display:none!important}" +
+      "html.queue-signed-out main > :not(h1):not(#queue-all-cards){display:none!important}" +
       "@media (max-width:640px){" +
       "#queue-desk-picker .queue-picker-row,#queue-desk-buttons{flex-direction:column;align-items:stretch;width:100%}" +
       "#queue-desk-picker button,#queue-desk-picker a{width:100%}" +
@@ -177,35 +211,94 @@
     });
   }
 
+  function deskLabelText(j) {
+    var slug = slugify((j && (j.slug || j.desk)) || "");
+    var known = slug ? deskBySlug(slug) : null;
+    if (known && known.name) return known.name;
+    return String((j && (j.desk || j.slug)) || "Desk");
+  }
+
+  // Empty or signed-out Queue: one line and exactly one next step.
+  function emptyState(box, text, href, label) {
+    var wrap = document.createElement("div");
+    wrap.id = "queue-empty-next";
+    var p = document.createElement("p");
+    p.className = "meta";
+    p.textContent = text;
+    var go = document.createElement("a");
+    go.className = "go";
+    go.id = "queue-next-step";
+    go.href = href;
+    go.textContent = label;
+    wrap.appendChild(p);
+    wrap.appendChild(go);
+    box.appendChild(wrap);
+  }
+
+  // A read failed or timed out: say so, with one Try again button. Never the empty state.
+  function errorState(box, text) {
+    var wrap = document.createElement("div");
+    wrap.setAttribute("data-queue-error", "1");
+    wrap.setAttribute("role", "alert");
+    var p = document.createElement("p");
+    p.textContent = text;
+    var again = document.createElement("button");
+    again.type = "button";
+    again.setAttribute("data-queue-retry", "1");
+    again.textContent = "Try again";
+    wrap.appendChild(p);
+    wrap.appendChild(again);
+    box.appendChild(wrap);
+  }
+
+  function loadingState(box) {
+    var p = document.createElement("p");
+    p.className = "meta";
+    p.setAttribute("role", "status");
+    p.textContent = "Loading your Queue…";
+    box.appendChild(p);
+  }
+
+  // Signed out, the Queue shows only the sign-in step; desk tools stay out of the way.
+  function markSignedOut(on) {
+    var root = document.documentElement;
+    if (root && root.classList) root.classList.toggle("queue-signed-out", !!on);
+    var picker = document.getElementById("queue-desk-picker");
+    if (picker) picker.hidden = !!on;
+  }
+
   function paintCards(rows) {
     var box = document.getElementById("queue-all-cards");
     if (!box) return;
     box.replaceChildren();
-    if (!signedIn()) {
-      var need = document.createElement("p");
-      need.className = "meta";
-      need.textContent = "Sign in to your Queue to see cards from every desk.";
-      box.appendChild(need);
+    var out = !signedIn();
+    markSignedOut(out);
+    if (out) {
+      emptyState(box, "Sign in to see your Queue. It keeps every desk and card in one place.", "/login", "Sign in");
       return;
     }
     var open = (rows || []).filter(openCard);
+    if (!open.length && loading) { loadingState(box); return; }
+    if (!open.length && loadError) { errorState(box, LOAD_FAILED); return; }
+    if (loadError) errorState(box, SOME_FAILED);
     if (!open.length) {
-      var empty = document.createElement("p");
-      empty.className = "meta";
       var named = mode !== "all" ? deskBySlug(mode) : null;
-      empty.textContent = !desks.length
-        ? "No desks in this Queue yet. Add a desk to start."
-        : (named ? ("Nothing waiting on " + named.name + ".") : "Nothing waiting in this Queue.");
-      box.appendChild(empty);
+      if (!desks.length) emptyState(box, "No desks in this Queue yet. Create a desk to start.", "/onboard", "Create a desk");
+      else emptyState(box, named ? ("Nothing waiting on " + named.name + ". Drop a card to start.") : "Nothing waiting in this Queue. Drop a card to start.", "/drop", "Drop a card");
       return;
     }
     open.forEach(function (j) {
       var card = document.createElement("article");
       card.className = "item";
+      if (mode === "all") {
+        var lab = document.createElement("p");
+        lab.className = "queue-desk-label";
+        lab.textContent = deskLabelText(j);
+        card.appendChild(lab);
+      }
       var meta = document.createElement("p");
       meta.className = "meta";
-      var deskName = j.deskName || j.workspace || "Desk";
-      meta.textContent = deskName + " · " + plainStatus(j.status);
+      meta.textContent = plainStatus(j.status);
       var title = document.createElement("h3");
       title.textContent = j.title || "Card";
       var next = document.createElement("p");
@@ -213,7 +306,7 @@
       next.textContent = j.needLine || j.next || "Pick this desk in the Queue to decide.";
       var go = document.createElement("button");
       go.type = "button";
-      go.setAttribute("data-queue-desk", j.deskSlug || j.workspace || "");
+      go.setAttribute("data-queue-desk", j.deskSlug || j.slug || j.desk || j.workspace || "");
       go.textContent = "Show this desk";
       card.appendChild(meta);
       card.appendChild(title);
@@ -242,6 +335,28 @@
     return list;
   }
 
+  function desksFromLoginReply(data) {
+    if (!data || typeof data !== "object") return null;
+    var rows = Array.isArray(data.desks) ? data.desks : null;
+    if (!rows && data.queue && Array.isArray(data.queue.desks)) rows = data.queue.desks;
+    if (!rows) return null;
+    return fromMine({ desks: rows });
+  }
+
+  function takeLoginDesks() {
+    var data = null;
+    try {
+      var raw = sessionStorage.getItem(LOGIN_REPLY_KEY);
+      if (!raw) return null;
+      data = JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+    var rows = desksFromLoginReply(data);
+    try { sessionStorage.removeItem(LOGIN_REPLY_KEY); } catch (e2) {}
+    return rows;
+  }
+
   function fromPhone() {
     var list = [];
     var seen = {};
@@ -256,90 +371,160 @@
       var r = await fetch("/api/desks", {
         method: "POST",
         headers: headersFor(""),
-        body: JSON.stringify({ action: "mine" })
+        body: JSON.stringify({ action: "mine" }),
+        signal: firstSignal || waitSignal()
       });
       var data = await r.json().catch(function () { return {}; });
+      if (!r.ok) mineFailed = true;
       if (!r.ok || !data || data.ok === false) return null;
+      mineFailed = false;
       return data;
     } catch (e) {
+      mineFailed = true;
       return null;
     }
   }
 
-  // Future all-desks read. Ignored unless the body says it covers the account.
+  function everyCardHasSlug(rows) {
+    if (!Array.isArray(rows)) return false;
+    for (var i = 0; i < rows.length; i++) {
+      var card = rows[i];
+      if (!card || !Object.prototype.hasOwnProperty.call(card, "slug")) return false;
+      if (String(card.slug || "").trim() === "") return false;
+    }
+    return true;
+  }
+
+  function mapCard(j, desk) {
+    var slug = slugify((j && (j.slug || j.desk || j.workspace)) || (desk && desk.slug) || "");
+    var known = deskBySlug(slug);
+    return {
+      id: j.id,
+      title: j.title || "Card",
+      status: j.status || "",
+      next: j.next || "",
+      needLine: j.needLine || "",
+      workspace: (j && j.workspace) || slug,
+      deskSlug: slug,
+      slug: (j && j.slug) || slug,
+      desk: (j && j.desk) || slug,
+      deskName: (known && known.name) || (desk && desk.name) || slug || "Desk"
+    };
+  }
+
+  // Real all-desks read: ok response, and every card has a slug. Empty list counts.
   async function readAllDesks() {
+    var mine = load;
     var tok = "";
     try { tok = localStorage.getItem("aia_session") || ""; } catch (e) {}
     if (!tok) return null;
     try {
-      var r = await fetch("/api/jobs?scope=account", {
-        headers: { "Accept": "application/json", "X-Session": tok }
+      var r = await fetch("/api/jobs?desks=all", {
+        headers: { "Accept": "application/json", "X-Session": tok },
+        signal: mine ? mine.signal : waitSignal()
       });
-      if (!r.ok) return null;
       var data = await r.json().catch(function () { return null; });
-      if (!data) return null;
-      if (data.allDesks !== true && data.scope !== "account" && data.queue !== "all") return null;
-      var rows = Array.isArray(data.jobs) ? data.jobs : (Array.isArray(data.items) ? data.items : null);
+      if ((!r.ok || !data) && mine) mine.allFailed = true;
+      if (!r.ok || !data || data.ok !== true || data.error) return null;
+      var rows = Array.isArray(data.jobs) ? data.jobs : null;
+      if (!rows || !everyCardHasSlug(rows)) return null;
       return rows;
     } catch (e) {
+      if (mine) mine.allFailed = true;
       return null;
     }
   }
 
+  // A failed desk read still returns [] so the other desks show, but it marks this load as failed.
   async function jobsForDesk(desk) {
+    var mine = load;
     try {
       var r = await fetch("/api/jobs?workspace=" + encodeURIComponent(desk.slug), {
-        headers: headersFor(desk.slug)
+        headers: headersFor(desk.slug),
+        signal: mine ? mine.signal : waitSignal()
       });
       var data = await r.json().catch(function () { return {}; });
-      if (!r.ok || !data || !Array.isArray(data.jobs)) return [];
-      return data.jobs.map(function (j) {
-        return {
-          id: j.id,
-          title: j.title || "Card",
-          status: j.status || "",
-          next: j.next || "",
-          needLine: j.needLine || "",
-          workspace: j.workspace || desk.slug,
-          deskSlug: j.workspace || desk.slug,
-          deskName: desk.name || desk.slug
-        };
-      });
+      if (!r.ok || !data || !Array.isArray(data.jobs)) { if (mine) mine.failed = true; return []; }
+      return data.jobs.map(function (j) { return mapCard(j, desk); });
     } catch (e) {
+      if (mine) mine.failed = true;
       return [];
     }
   }
 
   async function refreshCards() {
-    var future = await readAllDesks();
-    if (future) {
-      cards = future.map(function (j) {
-        var slug = slugify(j.workspace || j.desk || j.slug || "");
-        var known = deskBySlug(slug);
-        return {
-          id: j.id,
-          title: j.title || "Card",
-          status: j.status || "",
-          next: j.next || "",
-          needLine: j.needLine || "",
-          workspace: slug,
-          deskSlug: slug,
-          deskName: j.deskName || (known && known.name) || slug || "Desk"
-        };
-      });
-    } else {
-      cards = [];
-      for (var i = 0; i < desks.length; i++) {
-        var rows = await jobsForDesk(desks[i]);
-        rows.forEach(function (row) { cards.push(row); });
+    var gen = ++loadGen;
+    var next = [];
+    // One deadline for the whole load, so a hang shows the error after QUEUE_WAIT_MS, not once per desk.
+    var me = load = { failed: false, allFailed: false, signal: firstSignal || waitSignal() };
+    firstSignal = null;
+    loading = true;
+    loadError = false;
+    if (!visibleCards().filter(openCard).length) paintCards(visibleCards());
+    if (mode === "all") {
+      var all = await readAllDesks();
+      if (gen !== loadGen) return;
+      if (all) {
+        next = all.map(function (j) { return mapCard(j, null); });
+      } else {
+        // No desk list to fall back on: a failed all-desks read is an error, not an empty Queue.
+        if (!desks.length && (me.allFailed || mineFailed)) me.failed = true;
+        for (var i = 0; i < desks.length; i++) {
+          var part = await jobsForDesk(desks[i]);
+          if (gen !== loadGen) return;
+          part.forEach(function (row) { next.push(row); });
+        }
       }
+    } else {
+      var desk = deskBySlug(mode) || { slug: mode, name: mode };
+      next = await jobsForDesk(desk);
+      if (gen !== loadGen) return;
     }
+    cards = next;
+    loading = false;
+    loadError = !!me.failed;
     paintCards(visibleCards());
+    return true;
+  }
+
+  // After Try again, put focus somewhere useful instead of on the page body: the Queue heading
+  // when the load worked, or the new Try again button when it failed again.
+  function focusAfterRetry() {
+    var target = null;
+    if (loadError) {
+      var box = document.getElementById("queue-all-cards");
+      target = box && box.querySelector ? box.querySelector("[data-queue-retry]") : null;
+    } else {
+      target = document.querySelector("main h1, h1.page-title");
+      if (target && target.getAttribute && target.getAttribute("tabindex") === null) target.setAttribute("tabindex", "-1");
+    }
+    if (target && typeof target.focus === "function") {
+      try { target.focus(); } catch (e) {}
+    }
+  }
+
+  // Try again: read the desk list again if that read failed, then the cards.
+  async function retryLoad() {
+    if (mineFailed && !desks.length) {
+      var gen = loadGen;
+      loading = true;
+      loadError = false;
+      paintCards([]);
+      firstSignal = waitSignal();
+      var mine = await loadMine();
+      // Keep a fresh desk list even if the user moved on while it was out: it fills the picker and names
+      // the cards. Only the Queue read below is dropped when this retry has gone stale.
+      if (mine) desks = fromMine(mine);
+      if (mine && gen !== loadGen) { paintPicker(); paintCards(visibleCards()); }
+      if (gen !== loadGen) { firstSignal = null; return; }
+      paintPicker();
+    }
+    if (await refreshCards()) focusAfterRetry();
   }
 
   function visibleCards() {
     if (mode === "all") return cards;
-    return cards.filter(function (j) { return (j.deskSlug || j.workspace) === mode; });
+    return cards.filter(function (j) { return (j.deskSlug || j.slug || j.desk || j.workspace) === mode; });
   }
 
   function selectDesk(slug, fromPop) {
@@ -352,7 +537,10 @@
     paintBanner();
     quietPhoneView();
     if (slug) rememberDesk(slug);
+    loading = true;
+    loadError = false;
     paintCards(visibleCards());
+    refreshCards();
     if (slug && typeof window.load === "function") window.load();
   }
 
@@ -418,6 +606,8 @@
       selectDesk(btn.getAttribute("data-queue-desk") || "");
     });
     list.addEventListener("click", function (e) {
+      var again = e.target && e.target.closest ? e.target.closest("[data-queue-retry]") : null;
+      if (again) { retryLoad(); return; }
       var btn = e.target && e.target.closest ? e.target.closest("[data-queue-desk]") : null;
       if (!btn) return;
       selectDesk(btn.getAttribute("data-queue-desk") || "");
@@ -431,9 +621,15 @@
   async function boot() {
     mount();
     if (!document.getElementById("queue-desk-picker")) return;
-    var mine = await loadMine();
-    desks = mine ? fromMine(mine) : fromPhone();
-    if (!desks.length) desks = fromPhone();
+    firstSignal = waitSignal();
+    var fromReply = takeLoginDesks();
+    if (fromReply) {
+      desks = fromReply;
+    } else {
+      var mine = await loadMine();
+      desks = mine ? fromMine(mine) : fromPhone();
+      if (!desks.length) desks = fromPhone();
+    }
     var asked = readWorkspace();
     if (asked && !deskBySlug(asked)) desks.push({ slug: asked, name: asked });
     mode = asked || "all";

@@ -143,8 +143,8 @@ async function main() {
   const healthRes = mockRes();
   await health({ method: "GET", headers: {}, query: {} }, healthRes);
   const collect = healthRes.body && healthRes.body.automation && healthRes.body.automation.collect;
-  if (collect !== "No money pipe. Collect stays HOLD.") fail("health collect " + JSON.stringify(collect));
-  else pass("health collect does not call the webhook a money pipe");
+  if (collect !== "Payments are off for now. Nothing is charged.") fail("health collect " + JSON.stringify(collect));
+  else pass("health collect says payments are off and nothing is charged");
   const healthHook = ((healthRes.body && healthRes.body.pipes) || []).find(function (p) { return p && p.id === "webhook"; });
   if (!healthHook || healthHook.live !== true || healthHook.status !== "live") fail("health webhook catalog");
   else pass("health still lists the webhook as up");

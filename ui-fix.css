@@ -135,7 +135,7 @@ header nav:not(.desk-tabs),
     min-width: 3.6em !important;
     width: auto !important;
     padding: 0 12px !important;
-    height: 40px !important;
+    height: 44px !important;
     font-size: 13px !important;
     overflow: visible !important;
     flex: 0 0 auto !important;
@@ -177,8 +177,8 @@ header nav:not(.desk-tabs),
   }
   .who-chip,
   .who-chip.signed-out {
-    min-height: 40px !important;
-    height: 40px;
+    min-height: 44px !important;
+    height: 44px;
     padding: 0 12px !important;
     font-size: 14px !important;
   }
@@ -188,8 +188,8 @@ header nav:not(.desk-tabs),
   .theme-btn {
     min-width: 3.6em !important;
     width: auto !important;
-    height: 40px !important;
-    min-height: 40px !important;
+    height: 44px !important;
+    min-height: 44px !important;
     padding: 0 12px !important;
     font-size: 13px !important;
     line-height: 1 !important;
@@ -1001,8 +1001,5 @@ pre, .file-list, #drop-link { overflow-x: auto; }
 @media (max-width: 430px) {
   header a[href="/login"], header a[href="login.html"] { display: none !important; }
 }
-.queue-home-link{font-weight:800;text-decoration:none}
-@media (max-width: 640px) {
-  header, .site-header { align-items: flex-start; }
-  .queue-home-link { flex: 1 1 100%; }
-}
+/* 2026-10-31: no stray full-width bold line under the header. The Queue link sits in the row like the other links. */
+.queue-home-link{font-weight:700;text-decoration:none;display:inline-flex;align-items:center;min-height:44px;padding:0 8px;flex:0 0 auto}

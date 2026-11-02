@@ -117,7 +117,7 @@ async function handlePost(req, res, body, ctx) {
       }
     }
     if (typeof hooks.save === "function") await hooks.save();
-    res.status(200).json({ ok: true, identities: publicIdentities(acc), policy: policy, hint: "Linked. Identity only. Not a pipe." });
+    res.status(200).json({ ok: true, identities: publicIdentities(acc), policy: policy, hint: "Linked. Identity only. Not a connection." });
     return true;
   }
   const provider = String(body.provider || body.id || body.door || "").toLowerCase();

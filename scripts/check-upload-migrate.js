@@ -491,7 +491,7 @@ async function childFlow(apiDir) {
 
   const delsBefore = fake.dels.length;
   const noYes = await call(mig, "POST", owner, { confirm: CONFIRM, action: "delete", cardId: "job_mig" });
-  check("delete without confirm refused", noYes.statusCode === 403 && noYes.body && noYes.body.error === "Delete needs James's Yes.", String(noYes.statusCode) + " " + (noYes.body && noYes.body.error));
+  check("delete without confirm refused", noYes.statusCode === 403 && noYes.body && noYes.body.error === "Delete needs your Yes.", String(noYes.statusCode) + " " + (noYes.body && noYes.body.error));
   check("refused delete leaves old blobs", fake.dels.length === delsBefore && fake.files[slug + "/file_" + stamp + "0.png"], "dels changed");
   const removed = await call(mig, "POST", owner, { confirm: CONFIRM, action: "delete", confirmDelete: "yes", cardId: "job_mig" });
   check("delete with yes", removed.statusCode === 200 && removed.body && removed.body.deleted === true && removed.body.removed === 8, String(removed.statusCode) + " removed " + (removed.body && removed.body.removed));
