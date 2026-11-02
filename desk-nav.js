@@ -213,6 +213,12 @@
     loadQueue("desk-inbox.js", "data-aia-desk-inbox");
     loadQueue("desk-queue-packs.js", "data-aia-queue-packs");
     loadQueue("queue-login.js", "data-aia-queue-login");
+    if ((tabOf() === "queue" || file() === "account" || file() === "market" || file() === "create") && !document.querySelector("script[data-aia-setup-cards]")) {
+      var sc = document.createElement("script");
+      sc.src = "/setup-cards.js";
+      sc.setAttribute("data-aia-setup-cards", "1");
+      document.body.appendChild(sc);
+    }
     loadPeople("people-desk.js", "data-aia-people-desk");
     loadPeople("people-world.js", "data-aia-people-world");
     if (file() === "rules" || file() === "create" || file() === "more") {
