@@ -34,7 +34,11 @@
     var headerSrc = markSrc();
     var tile = tileSrc();
     document.querySelectorAll("img.brand-mark, img.aia-mark").forEach(function (img) {
-      if (!img.getAttribute("alt")) img.setAttribute("alt", "Automate It Away");
+      if (!img.getAttribute("alt")) {
+        var brand = img.closest("a.brand, .brand");
+        var named = brand && brand.querySelector(".brand-name");
+        img.setAttribute("alt", named ? "" : "Automate It Away");
+      }
       var kind = (img.getAttribute("data-mark") || "").toLowerCase();
       if (kind === "orange") { img.setAttribute("src", orangeSrc()); return; }
       if (kind === "teal") { img.setAttribute("src", tealSrc()); return; }
