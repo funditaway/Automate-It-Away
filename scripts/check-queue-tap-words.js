@@ -60,8 +60,9 @@ let bad = 0;
 const base = suite(SRC);
 base.forEach((m) => { console.log("FAIL " + m); bad++; });
 let same = "";
-try { same = execFileSync("git", ["diff", "--name-only", "83a951a91e195d5cf501a6b25283d709480dc467", "--", "desk.html", "api", "legal.html"], { cwd: root, encoding: "utf8" }).trim(); } catch (e) { same = "git error"; }
-if (same) { console.log("FAIL desk.html, api/ and legal.html stay as main (" + same + ")"); bad++; }
+try { same = execFileSync("git", ["diff", "--name-only", "83a951a91e195d5cf501a6b25283d709480dc467", "--", "api", "legal.html"], { cwd: root, encoding: "utf8" }).trim(); } catch (e) { same = "git error"; }
+if (same) { console.log("FAIL api/ and legal.html stay as main (" + same + ")"); bad++; }
+if (!require("./_desk-html-pin").check(root)) { console.log("FAIL desk.html does not match its byte/SHA-256 pin"); bad++; }
 let caught = 0;
 MUTANTS.forEach(([name, make]) => { const S = make(SRC); if (!S) { console.log("FAIL mutant does not apply: " + name); bad++; return; } const r = suite(S); if (r.length) { caught++; console.log("ok mutant caught: " + name + " (" + r[0] + ")"); } else { console.log("FAIL mutant NOT caught: " + name); bad++; } });
 console.log("check-queue-tap-words mutants: " + caught + "/" + MUTANTS.length + " caught");
