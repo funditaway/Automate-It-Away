@@ -33,9 +33,12 @@ const PAGES2 = ["help.html", "pipes.html", "connections.html", "login.html"];
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = readOrNull(f); });
 
+// Exempt from ".aia" only: the exact token si.aia. It is a product name ("SI · si.aia") and the si-aia
+// tip key. Nothing broader: my-si.aia, si.aia.com, yourname.aia and ai.aia still count as jargon.
+const SI_AIA = /(?<![\w.@-])si\.aia(?![\w.-])/g;
 const JARGON = [
   [/\bHOLD\b/, "HOLD"], [/\bCollect\b/, "Collect"], [/\bpacks?\b/i, "pack"], [/\bpipes?\b/i, "pipe"],
-  [/\bCap\b/, "Cap"], [/\bBYOK\b/, "BYOK"], [/\.aia\b/, ".aia"], [/Wallet\.AIA/, "Wallet.AIA"], [/\bExt\b/, "Ext"],
+  [/\bCap\b/, "Cap"], [/\bBYOK\b/, "BYOK"], [/\.aia\b/, ".aia", SI_AIA], [/Wallet\.AIA/, "Wallet.AIA"], [/\bExt\b/, "Ext"],
   [/\bRecurring update\b/, "Recurring update"], [/real money pipe/, "real money pipe"]
 ];
 // What a stranger can read: text between tags, aria-label/title/alt/placeholder, and prose strings in inline scripts.
@@ -78,7 +81,7 @@ function markupStrings(code) {
 }
 function jargonIn(text) {
   const hits = [];
-  JARGON.forEach(([re, word]) => { const m = text.match(re); if (m) hits.push(word + " ('" + text.slice(Math.max(0, m.index - 30), m.index + 30).replace(/\s+/g, " ").trim() + "')"); });
+  JARGON.forEach(([re, word, skip]) => { const m = (skip ? text.replace(skip, " ") : text).match(re); if (m) hits.push(word + " ('" + text.slice(Math.max(0, m.index - 30), m.index + 30).replace(/\s+/g, " ").trim() + "')"); });
   return hits;
 }
 
@@ -452,6 +455,13 @@ async function suite(S, okFn) {
 }
 
 const MUTANTS = [
+  ["index hooks pipes back", "index.html", [["An SI account hooks up connections and automations", "An SI account hooks pipes and automations"]]],
+  ["how hooks pipes back", "how.html", [["An SI account hooks up connections and automations", "An SI account hooks pipes and automations"]]],
+  ["help Hooks pipes back", "help.html", [["Hooks up connections and automations.", "Hooks pipes and automations."]]],
+  ["help extra Collect stays HOLD back", "help.html", [["Not a human Yes / Stop / Kill seat.</dd>", "Not a human Yes / Stop / Kill seat. Collect stays HOLD.</dd>"]]],
+  ["index other .aia name beside si.aia", "index.html", [["More about SI · si.aia", "More about SI · helper.aia"]]],
+  ["index si.aia with a prefix", "index.html", [["More about SI · si.aia", "More about SI · my-si.aia"]]],
+  ["how si.aia with a suffix", "how.html", [["More about SI · si.aia", "More about SI · si.aia.com"]]],
   ["index Collect HOLD back", "index.html", [["One nudge. Then it stops. Payments are off for now.", "One nudge. Then it stops. Collect stays HOLD until Yes + a real money pipe."]]],
   ["pricing BYOK back", "pricing.html", [["unless you choose to use your own AI key.", "unless you choose BYOK."]]],
   ["how Give pack back", "how.html", [[">Share an add-on<", ">Give pack<"]]],
@@ -540,6 +550,9 @@ function mutate(S, file, reps) {
   return Object.assign({}, S, { [file]: s });
 }
 function staticChecks() {
+  // The si.aia exemption is the exact token only.
+  ok(jargonIn("SI · si.aia ?").length === 0 && jargonIn("(si.aia)").length === 0, "si.aia (exact token) is exempt");
+  ok(["ai.aia", "yourname.aia", "my-si.aia", "x.si.aia", "si.aia.com", "SI.AIA x.aia"].every((t) => jargonIn(t).length > 0), "only the exact si.aia token is exempt");
   const desk = fs.statSync(path.join(root, "desk.html")).size;
   ok(desk === 35055, "desk.html is 35055 bytes (" + desk + ")");
   // api/ freeze from #434: any git or helper error is a FAIL, never a pass.
