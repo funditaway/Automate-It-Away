@@ -27,6 +27,8 @@ function suite(S) {
   ok(!/textContent="Pipes"|"aria-label","Pipes"/.test(d), "the Queue button never reads Pipes");
   ok(/,t\.onclick=function\(\)\{openPipesSheet\(\)\}/.test(d), "the Queue Connections button onclick is bound to openPipesSheet");
   ok(/<h3>Connections<\/h3>/.test(d) && !/<h3>Pipes<\/h3>/.test(d), "openPipesSheet sheet heading reads Connections");
+  ok(/q\("pipes","Connections"\)/.test(d) && /\{id:"pipes",label:"Connections"\}/.test(d) && !/"pipes","Pipes"|label:"Pipes"/.test(d), "per-card action reads Connections (id stays pipes)");
+  ok((d.match(/openPipesSheet\(\\''\+safeId\([te]\.id\)\+"'\)\\">Connections<\/button>/g) || []).length === 2 && !/\\">Pipes<\/button>/.test(d), "per-card Connections buttons (cap card and drawer) open openPipesSheet");
   ok(/Orange until a real pipe answers/.test(d), "sheet keeps the live orange-line wording");
   ok(/If we do not have a name yet, the inbound hook still takes the card\./.test(d), "sheet empty state uses live connections.html wording");
   ok(/Open Connections/.test(d) && /href="\/connections"/.test(d) && !/Open Pipes wall/.test(d), "sheet link reads Open Connections and stays on /connections");
@@ -48,6 +50,10 @@ const MUTANTS = [
   ["sheet heading Pipes back", rep("desk-needs.js", "<h3>Connections</h3>", "<h3>Pipes</h3>")],
   ["Open Pipes wall back", rep("desk-needs.js", "Open Connections", "Open Pipes wall")],
   ["old empty pipe wording back", rep("desk-needs.js", "If we do not have a name yet, the inbound hook still takes the card.", "No named pipe is live. Webhook inbound still writes cards.")],
+  ["per-card action Pipes back", rep("desk-needs.js", 'q("pipes","Connections")', 'q("pipes","Pipes")')],
+  ["decide-card action Pipes back", rep("desk-needs.js", '{id:"pipes",label:"Connections"}', '{id:"pipes",label:"Pipes"}')],
+  ["cap-card button Pipes back", rep("desk-needs.js", "safeId(t.id)+\"')\\\">Connections</button>", "safeId(t.id)+\"')\\\">Pipes</button>")],
+  ["drawer button Pipes back", rep("desk-needs.js", "safeId(e.id)+\"')\\\">Connections</button>", "safeId(e.id)+\"')\\\">Pipes</button>")],
   ["not in npm test", rep("package.json", " && node scripts/check-queue-tap-words.js", "")]
 ];
 let bad = 0;
