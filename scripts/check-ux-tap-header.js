@@ -303,7 +303,7 @@ function mutate(S, file, reps) {
 }
 function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
-  ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
+  ok(desk === 35055, "desk.html is 35055 bytes (" + desk + ")");
   // api/ freeze from #434: any git or helper error is a FAIL, never a pass.
   let freeze;
   try { freeze = require("./_api-freeze").check(root); }

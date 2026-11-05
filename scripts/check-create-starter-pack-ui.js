@@ -33,7 +33,7 @@ const code = js.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 const moreAt = html.indexOf('id="more-ways"');
 const more = moreAt >= 0 ? html.slice(moreAt) : "";
 
-ok(fs.existsSync(deskPath) && fs.statSync(deskPath).size === 35012, "desk.html stays 35012 bytes");
+ok(fs.existsSync(deskPath) && fs.statSync(deskPath).size === 35055, "desk.html stays 35055 bytes");
 ok(!/cs-starters|cs-starter-hint|starterPacks/.test(read("desk.html")), "desk.html does not mention starter packs");
 ok(!/check-create-starter-pack-ui/.test(pkg), "starter check stays out of npm test");
 ok(!/check-create-voice-ui/.test(pkg), "voice check stays out of npm test");

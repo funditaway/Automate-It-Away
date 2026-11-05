@@ -69,7 +69,7 @@ vm.createContext(ctx);
 })();
 
 function finish() {
-ok(fs.statSync(path.join(root, "desk.html")).size === 35012, "desk.html stays 35,012 bytes (main cd3dea6 size)");
+ok(fs.statSync(path.join(root, "desk.html")).size === 35055, "desk.html stays 35,055 bytes (main bc4bd99 size)");
 ok(!/link their own account/.test(read("desk.html")), "desk.html untouched");
 ok(!/check-invite-link-line/.test(read("package.json")), "not in npm test yet (lands after 361)");
 
