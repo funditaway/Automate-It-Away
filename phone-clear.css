@@ -167,14 +167,16 @@ body.has-desk-nav .item:last-of-type {
   }
 }
 
-/* Q1a(c): reserve the Queue desk-picker under the title (10 title + 74 picker + 12 margin
-   desktop; 10 + 134 + 12 phone) until queue-login.js mounts #queue-desk-picker, so the
-   panel does not push the page. Phone stack matches queue-login.js at 640px. */
-main.wrap > h1.page-title:not(:has(~ #queue-desk-picker)) {
+/* Q1a(c): reserve the desk-picker under the title ONLY when signed-in
+   (html.queue-may-pick from theme.js). Strangers get no empty box — the prior
+   always-on 96/156px reserve flipped signed-out LCP to #queue-empty-next and
+   blew the ~2.52s phone band. Sizes stay the real picker chrome (title gap +
+   label/row + margin); phone stack matches queue-login.js at 640px. */
+html.queue-may-pick main.wrap > h1.page-title:not(:has(~ #queue-desk-picker)) {
   margin-bottom: 96px;
 }
 @media (max-width: 640px) {
-  main.wrap > h1.page-title:not(:has(~ #queue-desk-picker)) {
+  html.queue-may-pick main.wrap > h1.page-title:not(:has(~ #queue-desk-picker)) {
     margin-bottom: 156px;
   }
 }

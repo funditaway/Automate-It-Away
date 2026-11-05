@@ -1,3 +1,12 @@
+/* Q1a(c): mark signed-in before first paint so phone-clear can reserve the
+   desk-picker only when a session/pin exists (strangers keep LCP). */
+(function () {
+  try {
+    if (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin"))
+      document.documentElement.classList.add("queue-may-pick");
+  } catch (e) {}
+})();
+
 (function () {
   function systemDark() {
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
