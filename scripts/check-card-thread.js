@@ -141,7 +141,7 @@ function suite(S) {
   ok(st.textContent.indexOf("Plumber Co") < 0 && st.textContent.indexOf("Sam") < 0, "a stranger's view shows no other names either");
   const tags = all(st, "ct-tag").map((n) => n.textContent);
   ok(tags.length && tags.every((t) => ["SI", "AI", "You", "Helper", "Family", "Employee", "Outside"].indexOf(t) >= 0), "a stranger's view shows only the seven tags (" + tags.join(",") + ")");
-  ok(/stranger:\s*!!role && role !== "owner"/.test(S["desk-card.js"]), "desk-card.js passes stranger for anyone who is not the owner");
+  ok(/stranger:\s*sheetHidesNames\(\),/.test(S["desk-card.js"]) && /function sheetHidesNames\(\) \{ return typeof role === "undefined" \|\| role !== "owner"; \}/.test(S["desk-card.js"]), "desk-card.js passes stranger for anyone who is not the owner (blank role too)");
   // 4b. message text and tags are rendered as text, never as HTML (owner and helper views)
   const EVIL = "<img src=x onerror=window.__pwn=1><script>window.__pwn=1</script>";
   const HOSTILE = { title: EVIL, from: "drop", createdAt: "2026-11-01T10:00:00Z", thread: [
@@ -247,7 +247,7 @@ const MUTANTS = [
   ["no fallback (unknown -> empty)", rep(CT, "    return labelOf(row, from, opts);\n  }\n  function isOutput", "    return \"\";\n  }\n  function isOutput")],
   ["last entry dropped", rep(CT, "    rows.forEach(function (e) {\n      var li", "    rows.slice(0, -1).forEach(function (e) {\n      var li")],
   ["newest first", rep(CT, "    out.sort(function (a, b) { return (a.at - b.at) || (a.n - b.n); });", "    out.sort(function (a, b) { return (b.at - a.at) || (b.n - a.n); });")],
-  ["helper role only marked stranger", rep(DC, 'const opts = { stranger: !!role && role !== "owner",', 'const opts = { stranger: role === "helper",')],
+  ["helper role only marked stranger", rep(DC, 'const opts = { stranger: sheetHidesNames(),', 'const opts = { stranger: role === "helper",')],
   ["si shown as AI", rep(CT, 'si: "SI"', 'si: "AI"')],
   ["ai tag dropped", rep(CT, ' ai: "AI",', "")],
   ["human never You", rep(CT, 'return ownRow(row, from, opts) ? "You" : labelOf(row, from, opts);', 'return labelOf(row, from, opts);')],
@@ -272,7 +272,7 @@ const MUTANTS = [
   ["fallback: shows Helper even to the owner", rep(CT, "    return (lab || from).slice(0, 40);", "    return \"Helper\";")],
   ["unknown actorKind shown raw", rep(CT, "  function actorTag(k) {\n    return TAGS[k] || \"\";", "  function actorTag(k) {\n    return TAGS[k] || k;")],
   ["stranger sees names", rep(CT, '    if (opts && opts.stranger) return lab !== "You" && SHOWN.indexOf(lab) >= 0 ? lab : "Helper";\n', "")],
-  ["desk-card never marks strangers", rep(DC, 'const opts = { stranger: !!role && role !== "owner",', "const opts = { stranger: false,")],
+  ["desk-card never marks strangers", rep(DC, 'const opts = { stranger: sheetHidesNames(),', "const opts = { stranger: false,")],
   ["replies keep their name for strangers", rep(CT, 'actorKind: r.actorKind || "ext" }', "actorKind: r.actorKind }")],
   ["second output overwrites the first", rep(CT, "} else if (cur && !cur.output) {", "} else if (cur) {")],
   ["output-only rows dropped", rep(CT, "      } else {\n        cur = { input: null, output: { tag: tag, text: r.text } };\n        entries.push(cur);\n      }", "      }")],

@@ -360,3 +360,5 @@ a.btn {
   justify-content: center;
   text-align: center;
 }
+/* Queue: the Talk · Say · Reply label is a 44px tap target (beats desk.html's .q-prompt-lab rule). */
+div.q-prompt > label.q-prompt-lab{min-height:44px;display:flex;align-items:center;cursor:pointer}
