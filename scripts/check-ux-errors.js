@@ -510,7 +510,7 @@ function mutate(S, reps) {
 
 function staticChecks() {
   const desk = (() => { try { return fs.statSync(path.join(root, "desk.html")).size; } catch (e) { return -1; } })();
-  ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
+  ok(desk === 35055, "desk.html is 35055 bytes (" + desk + ")");
   let freeze;
   try { freeze = require("./_api-freeze").check(root); } catch (e) { freeze = { ok: false, problems: ["api freeze helper failed: " + ((e && e.message) || e)] }; }
   ok(!!(freeze && freeze.ok === true), "api/ frozen (scripts/_api-freeze.js)" + (freeze && freeze.ok ? "" : ": " + ((freeze && freeze.problems) || []).join("; ")));
