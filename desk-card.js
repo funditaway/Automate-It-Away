@@ -255,8 +255,43 @@ function wrapLoadWanted() {
 window.wantJobId = wantJobId;
 window.openWantedJob = openWantedJob;
 wrapLoadWanted();
+// Names on the card sheet are for the desk's owner. Anyone else (an employee, a helper, family) sees a
+// plain tag in the old talk block, the timeline, the assignee line and Hand to. UI only: GET /api/jobs
+// still carries names (Switch owns that side). Desk labels and Desk AI names are not people, so they stay.
+const SHEET_KEEP_FROM = /^(|you|desk|drop|desk-chat|onboard|member|then|pipe|webhook|worker|capture|grok|desk ai|desk-ai|engine|agent|assistant)$/i;
+const HAND_TAG = { owner: "Owner", employee: "Employee", staff: "Employee", helper: "Helper", family: "Family", friend: "Helper" };
+function sheetHidesNames() { return typeof role === "string" && !!role && role !== "owner"; }
+function sheetAiNames(j) {
+  const out = [];
+  [j && j.deskAi && j.deskAi.name, j && j.agentDraft && j.agentDraft.name, j && j.agentDraft && j.agentDraft.crew, typeof thenWhoOf === "function" ? thenWhoOf(j) : ""].forEach(function (n) { if (n) out.push(String(n).trim().toLowerCase()); });
+  return out;
+}
+function sheetFrom(j, from, ais) {
+  const f = String(from == null ? "" : from).trim();
+  if (SHEET_KEEP_FROM.test(f) || ais.indexOf(f.toLowerCase()) >= 0) return from;
+  return "Helper";
+}
+function sheetCardOf(j) {
+  if (!j || !sheetHidesNames()) return j;
+  const ais = sheetAiNames(j);
+  const c = Object.assign({}, j);
+  c.from = sheetFrom(j, j.from, ais);
+  if (Array.isArray(j.thread)) c.thread = j.thread.map(function (t) { return t ? Object.assign({}, t, { from: sheetFrom(j, t.from, ais) }) : t; });
+  if (Array.isArray(j.replies)) c.replies = j.replies.map(function (t) { return t ? Object.assign({}, t, { from: sheetFrom(j, t.from || "You", ais) }) : t; });
+  if (j.assignee) c.assignee = "Helper";
+  return c;
+}
+function handLabelOf(p, i) {
+  if (!sheetHidesNames()) return String((p && p.name) || "");
+  const tagOf = function (x) { return HAND_TAG[String((x && x.role) || "").toLowerCase()] || "Helper"; };
+  const tag = tagOf(p);
+  const list = Array.isArray(PEOPLE) ? PEOPLE : [];
+  const same = list.filter(function (x) { return tagOf(x) === tag; }).length;
+  if (same <= 1) return tag;
+  return tag + " " + (list.slice(0, i + 1).filter(function (x) { return tagOf(x) === tag; }).length);
+}
 async function openJob(id) {
-  const j = jobBy(id);
+  const j = sheetCardOf(jobBy(id));
   if (!j) return;
   await loadPeople();
   const staff = role === "employee";
@@ -268,8 +303,8 @@ async function openJob(id) {
   }).join("");
   const draft = j.draft || j.title || "";
   const heldId = (j.handedTo && j.handedTo.id) || j.assigneeId || "";
-  const peopleOpts = (PEOPLE || []).map(p =>
-    "<option value=\"" + esc(p.id || "") + "\"" + (p.id && heldId && String(heldId) === String(p.id) ? " selected" : "") + ">" + esc(p.name) + (p.role === "owner" ? " · owner" : "") + "</option>"
+  const peopleOpts = (PEOPLE || []).map((p, i) =>
+    "<option value=\"" + esc(p.id || "") + "\"" + (p.id && heldId && String(heldId) === String(p.id) ? " selected" : "") + ">" + esc(handLabelOf(p, i)) + (p.role === "owner" && !sheetHidesNames() ? " · owner" : "") + "</option>"
   ).join("");
   document.getElementById("sheet-card").innerHTML =
     "<h3>" + esc(j.title) + "</h3>" +
