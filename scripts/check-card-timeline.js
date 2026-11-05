@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./_env-guard");
 // Card timeline: read-only, oldest first, only fields the card already stores.
 const fs = require("fs");
 const path = require("path");
