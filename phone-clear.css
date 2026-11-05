@@ -166,3 +166,15 @@ body.has-desk-nav .item:last-of-type {
     padding: 8px 2px;
   }
 }
+
+/* Q1a(c): reserve the Queue desk-picker under the title (10 title + 74 picker + 12 margin
+   desktop; 10 + 134 + 12 phone) until queue-login.js mounts #queue-desk-picker, so the
+   panel does not push the page. Phone stack matches queue-login.js at 640px. */
+main.wrap > h1.page-title:not(:has(~ #queue-desk-picker)) {
+  margin-bottom: 96px;
+}
+@media (max-width: 640px) {
+  main.wrap > h1.page-title:not(:has(~ #queue-desk-picker)) {
+    margin-bottom: 156px;
+  }
+}
