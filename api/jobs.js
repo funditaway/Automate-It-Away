@@ -7,6 +7,7 @@ const { needsOf, isPriorityJob, missingOf } = require("./_history");
 const clock = require("./_clock");
 const ais = require("./_ais");
 const { applyHandoff, applyDeskAiDraft, stampDeskAi, agentDraft } = require("./_handoff");
+const jobMask = require("./_job-mask");
 
 function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
@@ -59,12 +60,29 @@ function markDone(job, person, body, how, shop) {
   if (shop) applyRules(job, shop, "status");
   return note;
 }
+function peopleOf(job) {
+  const slug = job && job.workspace;
+  const row = (mem.workspaces || []).find(function (w) { return w && w.slug === slug; });
+  return (row && row.people) || [];
+}
 // Same card the single-desk GET returns for this seat: staff seats do not see Stop / Kill.
+// Non-owner seats get this card with people's names masked. The stored row is not written.
 function presentJob(j, person) {
   const staff = person && person.role === "employee";
   const needs = needsOf(j, { staff });
   const tick = clock.clockOf(j);
-  return Object.assign({}, j, { needs: needs.actions, needLine: needs.line, missing: needs.missing, decide: needs.decide, priority: isPriorityJob(j), clock: tick, late: tick.late, expired: tick.expired });
+  const people = peopleOf(j);
+  const src = jobMask.maskJob(j, person, people);
+  return Object.assign({}, src, {
+    needs: jobMask.maskNeeds(needs.actions, person, people, j),
+    needLine: jobMask.maskText(needs.line, person, people, j),
+    missing: needs.missing,
+    decide: needs.decide,
+    priority: isPriorityJob(j),
+    clock: tick,
+    late: tick.late,
+    expired: tick.expired
+  });
 }
 function tagQueueJob(card, slug) {
   return Object.assign({}, card, { slug: slug, desk: slug });
@@ -208,6 +226,12 @@ module.exports = async function handler(req, res) {
   const found = deskSeat(req, workspace);
   const shop = found.workspace;
   const person = found.person;
+  // Every JSON answer on this desk, including a write that echoes the card.
+  // Owner seats and strangers are unchanged. The stored row is not written.
+  const sendJson = res.json.bind(res);
+  res.json = function (body) {
+    return sendJson(jobMask.maskJobsResponse(body, person, shop && shop.people));
+  };
 
   if (req.method === "GET") {
     if (!shop || !person) return refuseJobRead(res, found);
