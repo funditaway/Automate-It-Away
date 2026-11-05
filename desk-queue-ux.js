@@ -32,14 +32,14 @@
       "#how-in{display:none}" +
       "#queue-taps,#step-words,#widget-count,#rules-line{font-size:12px}" +
       "#queue.q-desk{display:flex;flex-direction:column;gap:0;min-height:120px}" +
-      "#queue .q-card,#cap-list .q-card{position:relative;border:1px solid var(--line);border-radius:16px;padding:14px 14px 14px 18px;margin:0 0 12px;background:var(--card);box-shadow:0 10px 28px color-mix(in srgb,var(--teal-deep) 8%,transparent);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,opacity .18s ease}" +
+      "#queue .q-card,#cap-list .q-card{position:relative;border:1px solid var(--line);border-radius:16px;padding:14px 14px 14px 18px;margin:0 0 12px;background:var(--card);box-shadow:0 10px 28px color-mix(in srgb,var(--teal) 8%,transparent);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,opacity .18s ease}" +
       "#queue .q-card::before,#cap-list .q-card::before{content:\"\";position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:4px;background:var(--line)}" +
       "#queue .q-state-pending::before{background:var(--teal)}" +
       "#queue .q-state-running::before,.q-pending.q-card::before{background:color-mix(in srgb,var(--teal) 55%,white)}" +
       "#queue .q-state-flagged::before,#cap-list .q-state-flagged::before{background:var(--aia-alert,#c0392b)}" +
       "#queue .q-state-cap::before,#cap-list .q-card::before,#queue .cap-card::before{background:var(--orange)}" +
       "#queue .q-state-done::before{background:color-mix(in srgb,var(--teal) 40%,var(--muted))}" +
-      "#queue .q-card:hover{transform:translateY(-1px);box-shadow:0 14px 32px color-mix(in srgb,var(--teal-deep) 12%,transparent)}" +
+      "#queue .q-card:hover{transform:translateY(-1px);box-shadow:0 14px 32px color-mix(in srgb,var(--teal) 12%,transparent)}" +
       "#queue .q-card.q-dragging{opacity:.55;transform:scale(.98)}" +
       "#queue .q-card.q-drop-over{border-color:var(--orange);box-shadow:0 0 0 2px color-mix(in srgb,var(--orange) 35%,transparent)}" +
       ".q-drag{position:absolute;right:6px;top:8px;z-index:3;width:36px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;user-select:none;font-size:16px;letter-spacing:-2px;opacity:.85;border-radius:8px}" +
@@ -253,7 +253,8 @@
       window.pinCap(id, on);
     });
     document.addEventListener("dragstart", function (e) {
-      var card = e.target && e.target.closest && e.target.closest("#queue .q-card[data-job]");
+      if (!e.target || !e.target.closest) return;
+      var card = e.target.closest(".q-card[data-job]");
       if (!card) return;
       dragId = card.getAttribute("data-job") || "";
       dragged = true;
@@ -265,9 +266,9 @@
       var zone = document.getElementById("cap-drop");
       if (zone) zone.classList.add("on");
     });
-    document.addEventListener("dragend", function (e) {
-      document.querySelectorAll(".q-dragging,.q-drop-over").forEach(function (el) {
-        el.classList.remove("q-dragging", "q-drop-over");
+    document.addEventListener("dragend", function () {
+      document.querySelectorAll(".q-dragging").forEach(function (el) {
+        el.classList.remove("q-dragging");
       });
       document.querySelectorAll("#queue .q-card[draggable]").forEach(function (el) {
         el.removeAttribute("draggable");
@@ -278,8 +279,8 @@
       setTimeout(function () { dragged = false; }, 0);
     });
     document.addEventListener("dragover", function (e) {
-      var zone = e.target && e.target.closest && e.target.closest("#cap-drop");
-      var card = e.target && e.target.closest && e.target.closest("#queue .q-card[data-job]");
+      var zone = document.getElementById("cap-drop");
+      var card = e.target && e.target.closest && e.target.closest(".q-card[data-job]");
       if (zone || card) {
         e.preventDefault();
         if (zone) zone.classList.add("hot");
@@ -287,14 +288,12 @@
       }
     });
     document.addEventListener("dragleave", function (e) {
-      var zone = e.target && e.target.closest && e.target.closest("#cap-drop");
-      if (zone) zone.classList.remove("hot");
-      var card = e.target && e.target.closest && e.target.closest("#queue .q-card");
-      if (card) card.classList.remove("q-drop-over");
+      var zone = document.getElementById("cap-drop");
+      if (zone && zone.contains && !zone.contains(e.relatedTarget)) zone.classList.remove("hot");
     });
     document.addEventListener("drop", function (e) {
-      var zone = e.target && e.target.closest && e.target.closest("#cap-drop");
-      var card = e.target && e.target.closest && e.target.closest("#queue .q-card[data-job]");
+      var zone = document.getElementById("cap-drop");
+      var card = e.target && e.target.closest && e.target.closest(".q-card[data-job]");
       var id = dragId || (e.dataTransfer && e.dataTransfer.getData("text/plain")) || "";
       if (!id) return;
       e.preventDefault();
