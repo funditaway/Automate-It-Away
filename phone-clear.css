@@ -166,3 +166,55 @@ body.has-desk-nav .item:last-of-type {
     padding: 8px 2px;
   }
 }
+
+/* Q1a(c): desk-picker shell is in desk.html (byte-neutral). Strangers keep it
+   display:none — no empty title margin (that reserve blew signed-out and
+   signed-in desktop LCP). Signed-in first paint shows the shell via
+   html.queue-may-pick (theme.js); queue-login.js fills buttons in place.
+   Phone stack matches ensureCss at 640px. */
+#queue-desk-picker {
+  display: none;
+  margin: 0 0 12px;
+}
+html.queue-may-pick #queue-desk-picker {
+  display: block;
+}
+html.queue-may-pick #queue-desk-picker .queue-picker-label {
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: var(--heading, #0a4f4f);
+}
+html.queue-may-pick #queue-desk-picker .queue-picker-row,
+html.queue-may-pick #queue-desk-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+html.queue-may-pick #queue-desk-picker button,
+html.queue-may-pick #queue-desk-picker a {
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #d5e0e0);
+  background: var(--card, #fff);
+  color: inherit;
+  font: 700 14px/1.2 inherit;
+  padding: 8px 14px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 640px) {
+  html.queue-may-pick #queue-desk-picker .queue-picker-row,
+  html.queue-may-pick #queue-desk-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  html.queue-may-pick #queue-desk-picker button,
+  html.queue-may-pick #queue-desk-picker a {
+    width: 100%;
+  }
+}
