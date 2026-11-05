@@ -8,14 +8,17 @@ const AI_PROVIDERS = {
   anthropic: { vendor: "Anthropic", model: "claude-sonnet-4-20250514" }
 };
 function connectSecret() {
-  const s = process.env.AIA_CONNECT_SECRET || process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN || process.env.XAI_API_KEY || "aia-draft-pilot";
+  const s = process.env.AIA_CONNECT_SECRET;
+  if (!s) return null;
   return crypto.createHash("sha256").update(String(s)).digest();
 }
 function unwrapSecret(packed) {
+  const key = connectSecret();
+  if (!key) return "";
   try {
     const buf = Buffer.from(String(packed || ""), "base64");
     if (buf.length < 29) return "";
-    const d = crypto.createDecipheriv("aes-256-gcm", connectSecret(), buf.subarray(0, 12));
+    const d = crypto.createDecipheriv("aes-256-gcm", key, buf.subarray(0, 12));
     d.setAuthTag(buf.subarray(12, 28));
     return Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString("utf8");
   } catch (e) {
@@ -54,9 +57,6 @@ function pickDrafter(workspace) {
         source: "desk"
       };
     }
-  }
-  if (grokKey()) {
-    return { provider: "grok", vendor: "xAI", model: grokModel(), key: grokKey(), source: "included" };
   }
   return null;
 }
@@ -250,7 +250,7 @@ async function grokRecommend(job, shop, workspace) {
   if (!job) return { ok: false, skipped: true, reason: "no-job" };
   const ws = workspace || (shop && (shop.slug || shop.workspace || shop.id)) || job.workspace;
   const drafter = pickDrafter(ws);
-  if (!drafter) return { ok: false, skipped: true, reason: "no-key" };
+  if (!drafter) return { ok: false, skipped: true, reason: "needsKey" };
   try {
     let out;
     if (drafter.provider === "openai") out = await callOpenAI(drafter, job, shop);
@@ -284,7 +284,7 @@ async function studioDraft(brief, workspace, opts) {
     return out;
   }
   const drafter = pickDrafter(workspace);
-  if (!drafter) return passRules({ ok: false, skipped: true, reason: "no-key" });
+  if (!drafter) return passRules({ ok: false, skipped: true, reason: "needsKey" });
   const text = String(brief || "").trim().slice(0, 800);
   if (!text) return passRules({ ok: false, skipped: true, reason: "no-brief" });
   const kind = String((opts && opts.kind) || "pack").toLowerCase();
@@ -341,7 +341,7 @@ async function studioDraft(brief, workspace, opts) {
     parsed.collect = "hold";
     if (Array.isArray(parsed.bots) && !parsed.ais) parsed.ais = parsed.bots;
     if (Array.isArray(parsed.ais) && !parsed.bots) parsed.bots = parsed.ais;
-    return passRules({ ok: true, pack: parsed, provider: drafter.provider, model: drafter.model, source: drafter.source || "included" });
+    return passRules({ ok: true, pack: parsed, provider: drafter.provider, model: drafter.model, source: drafter.source || "desk" });
   } catch (e) {
     return passRules({ ok: false, skipped: false, reason: "net", error: clip(e && e.message, 80) });
   }
