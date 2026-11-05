@@ -259,8 +259,8 @@ wrapLoadWanted();
 // plain tag in the old talk block, the timeline, the assignee line and Hand to. UI only: GET /api/jobs
 // still carries names (Switch owns that side). Desk labels and Desk AI names are not people, so they stay.
 const SHEET_KEEP_FROM = /^(|you|desk|drop|desk-chat|onboard|member|then|pipe|webhook|worker|capture|grok|desk ai|desk-ai|engine|agent|assistant)$/i;
-const HAND_TAG = { owner: "Owner", employee: "Employee", staff: "Employee", helper: "Helper", family: "Family", friend: "Helper" };
-function sheetHidesNames() { return typeof role === "string" && !!role && role !== "owner"; }
+// Fail closed: only the owner sees names; a blank or unknown role hides them.
+function sheetHidesNames() { return typeof role === "undefined" || role !== "owner"; }
 function sheetAiNames(j) {
   const out = [];
   [j && j.deskAi && j.deskAi.name, j && j.agentDraft && j.agentDraft.name, j && j.agentDraft && j.agentDraft.crew, typeof thenWhoOf === "function" ? thenWhoOf(j) : ""].forEach(function (n) { if (n) out.push(String(n).trim().toLowerCase()); });
@@ -283,7 +283,12 @@ function sheetCardOf(j) {
 }
 function handLabelOf(p, i) {
   if (!sheetHidesNames()) return String((p && p.name) || "");
-  const tagOf = function (x) { return HAND_TAG[String((x && x.role) || "").toLowerCase()] || "Helper"; };
+  // By seat kind, not role (every seat but the owner's has role employee): helper seats read Helper,
+  // every other seat (family, friend, staff, member, ...) reads Employee; numbered when there are several.
+  const tagOf = function (x) {
+    if (String((x && x.role) || "").toLowerCase() === "owner") return "Owner";
+    return String((x && x.kind) || "").toLowerCase() === "helper" ? "Helper" : "Employee";
+  };
   const tag = tagOf(p);
   const list = Array.isArray(PEOPLE) ? PEOPLE : [];
   const same = list.filter(function (x) { return tagOf(x) === tag; }).length;
