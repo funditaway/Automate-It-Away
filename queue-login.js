@@ -609,6 +609,9 @@
     }
     if (picker.__queueLoginBound) return;
     picker.__queueLoginBound = true;
+    // Reveal only at mount, matching main's former insertion timing. Pre-paint visibility
+    // pushes #aia-wallet out of the desktop LCP window and promotes later card text.
+    picker.hidden = false;
     picker.addEventListener("click", function (e) {
       var btn = e.target && e.target.closest ? e.target.closest("[data-queue-desk]") : null;
       if (!btn || btn.id === "queue-add-desk") return;

@@ -1,11 +1,3 @@
-/* Q1a(c): show the in-place desk-picker before first paint only when signed in. */
-(function () {
-  try {
-    if (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin"))
-      document.documentElement.classList.add("queue-may-pick");
-  } catch (e) {}
-})();
-
 (function () {
   function systemDark() {
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
