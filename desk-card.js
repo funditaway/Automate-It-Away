@@ -255,6 +255,16 @@ function wrapLoadWanted() {
 window.wantJobId = wantJobId;
 window.openWantedJob = openWantedJob;
 wrapLoadWanted();
+// The card as one chat thread (card-thread.js, loaded once on first open; desk.html stays as it is).
+// Anyone who is not the desk's owner sees tags only, never a person's name.
+function mountCardThread(j) {
+  const opts = { stranger: !!role && role !== "owner" };
+  const go = function () { if (window.AIACardThread) window.AIACardThread.mount("card-thread-sheet", j, opts); };
+  if (window.AIACardThread) return go();
+  let s = document.getElementById("card-thread-js");
+  if (!s) { s = document.createElement("script"); s.id = "card-thread-js"; s.src = "card-thread.js"; document.head.appendChild(s); }
+  s.addEventListener("load", go);
+}
 async function openJob(id) {
   const j = jobBy(id);
   if (!j) return;
@@ -285,6 +295,7 @@ async function openJob(id) {
     })()) +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
     threadSheetHtml(j) +
+    "<div id=\"card-thread-sheet\"></div>" +
     "<div id=\"card-timeline-sheet\"></div>" +
     (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
     custom +
@@ -316,6 +327,7 @@ async function openJob(id) {
       (staff ? "<span></span>" : "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + hid + "')\">Stop</button>") +
     "</div>";
   if (window.AIACardTimeline) window.AIACardTimeline.mount("card-timeline-sheet", j);
+  mountCardThread(j);
   document.getElementById("sheet").classList.add("on");
 }
 function localClockInput(iso) {
