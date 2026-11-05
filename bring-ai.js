@@ -262,13 +262,15 @@
       "#acct-bring-ai .bring-ai-step{margin:0 0 14px}" +
       "#acct-bring-ai .bring-ai-step h3{margin:0 0 6px;font-size:15px}" +
       "#acct-bring-ai .bring-ai-picks{display:flex;flex-wrap:wrap;gap:8px}" +
-      "#acct-bring-ai button,#acct-bring-ai .bring-ai-link,#acct-bring-ai .bring-ai-file,#acct-bring-ai .bring-ai-row{min-height:44px;min-width:44px;box-sizing:border-box}" +
+      "#acct-bring-ai button,#acct-bring-ai .bring-ai-link,#acct-bring-ai .bring-ai-file,#acct-bring-ai .bring-ai-row,#acct-bring-ai .bring-ai-thread summary{min-height:44px;min-width:44px;box-sizing:border-box}" +
       "#acct-bring-ai .bring-ai-link,#acct-bring-ai .bring-ai-file{display:inline-flex;align-items:center;padding:10px 12px}" +
       "#acct-bring-ai .bring-ai-row{display:flex;align-items:center;gap:10px;padding:6px 0}" +
       "#acct-bring-ai .bring-ai-row input{width:22px;height:22px;flex:0 0 auto}" +
       "#acct-bring-ai .bring-ai-drop{border:2px dashed var(--line,#999);border-radius:10px;padding:14px;margin-top:8px}" +
       "#acct-bring-ai .bring-ai-desk{border:1px solid var(--line,#999);border-radius:10px;padding:8px 12px;margin:0 0 10px}" +
       "#acct-bring-ai .bring-ai-chats{margin:0 0 0 18px}" +
+      "#acct-bring-ai .bring-ai-thread summary{display:flex;align-items:center;cursor:pointer}" +
+      "#acct-bring-ai .bring-ai-thread{margin:0 0 8px 32px;max-width:100%;min-width:0}" +
       "#acct-bring-ai button[aria-pressed=true]{outline:3px solid var(--orange,#f59e0b)}";
     document.head.appendChild(s);
   }
@@ -303,6 +305,30 @@
     if (parts.sum) parts.sum.textContent = plural(c.chats, "chat", "chats") + " on " + plural(c.desks, "desk", "desks") + " will come in. Each chat becomes one card.";
     if (parts.yes) { parts.yes.textContent = "Yes, bring in " + plural(c.chats, "chat", "chats"); parts.yes.disabled = !c.chats || sending; }
   }
+  // One chat as the card thread it will become (card-thread.js): your words, then the AI's answer.
+  function pairsOf(c) {
+    var out = [], cur = null;
+    c.messages.forEach(function (m) {
+      var side = m.role === "user" ? { actorKind: "human", own: true, text: m.text } : { actorKind: "ai", text: m.text };
+      if (m.role === "user") { cur = { input: side, output: null }; out.push(cur); }
+      else if (cur && !cur.output) cur.output = side;
+      else { cur = null; out.push({ input: null, output: side }); }
+    });
+    return out;
+  }
+  function chatView(c) {
+    var d = el("details", "bring-ai-thread");
+    var sm = el("summary", null, "See this chat");
+    d.appendChild(sm);
+    var done = false;
+    d.addEventListener("toggle", function () {
+      if (done || !d.open) return;
+      done = true;
+      if (window.AIACardThread) d.appendChild(window.AIACardThread.build({ entries: pairsOf(c) }, { stranger: true }));
+      else d.appendChild(el("p", "meta", plural(c.messages.length, "message", "messages")));
+    });
+    return d;
+  }
   function box(label, on, run) {
     var row = el("label", "bring-ai-row");
     var i = document.createElement("input");
@@ -331,6 +357,7 @@
           if (on) delete off[key(d.name, c.id)]; else off[key(d.name, c.id)] = 1;
           paintPreview();
         }));
+        ul.appendChild(chatView(c));
       });
       desk.appendChild(ul);
       host.appendChild(desk);
@@ -405,7 +432,7 @@
     root.hidden = false;
     paint();
   }
-  window.AIABringAI = { parse: parseChatGPT, read: readFile, payload: function () { return chunks(ticked()); } };
+  window.AIABringAI = { parse: parseChatGPT, read: readFile, pairs: pairsOf, payload: function () { return chunks(ticked()); } };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();

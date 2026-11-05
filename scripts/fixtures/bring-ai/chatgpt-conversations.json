@@ -1,0 +1,270 @@
+[
+ {
+  "id": "c-1",
+  "conversation_id": "c-1",
+  "title": "Water the plants",
+  "create_time": 1761998400,
+  "update_time": 1761998402,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": []
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "c-1-m1"
+    ],
+    "message": {
+     "author": {
+      "role": "system"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "hidden system"
+      ]
+     },
+     "create_time": 1761998400
+    }
+   },
+   "c-1-m1": {
+    "id": "c-1-m1",
+    "parent": "sys",
+    "children": [
+     "c-1-m2"
+    ],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "How often should I water a fern?"
+      ]
+     },
+     "create_time": 1761998401
+    }
+   },
+   "c-1-m2": {
+    "id": "c-1-m2",
+    "parent": "c-1-m1",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "assistant"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "About once a week, when the top soil is dry."
+      ]
+     },
+     "create_time": 1761998402
+    }
+   },
+   "dead": {
+    "id": "dead",
+    "parent": "sys",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "abandoned edit"
+      ]
+     },
+     "create_time": 1761998409
+    }
+   }
+  },
+  "current_node": "c-1-m2"
+ },
+ {
+  "id": "c-2",
+  "conversation_id": "c-2",
+  "title": "Bike tune-up",
+  "create_time": 1762084800,
+  "update_time": 1762084804,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": []
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "c-2-m1"
+    ],
+    "message": {
+     "author": {
+      "role": "system"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "hidden system"
+      ]
+     },
+     "create_time": 1762084800
+    }
+   },
+   "c-2-m1": {
+    "id": "c-2-m1",
+    "parent": "sys",
+    "children": [
+     "c-2-m2"
+    ],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "My chain skips."
+      ]
+     },
+     "create_time": 1762084801
+    }
+   },
+   "c-2-m2": {
+    "id": "c-2-m2",
+    "parent": "c-2-m1",
+    "children": [
+     "c-2-m3"
+    ],
+    "message": {
+     "author": {
+      "role": "assistant"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Check the chain stretch first."
+      ]
+     },
+     "create_time": 1762084802
+    }
+   },
+   "c-2-m3": {
+    "id": "c-2-m3",
+    "parent": "c-2-m2",
+    "children": [
+     "c-2-m4"
+    ],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "How?"
+      ]
+     },
+     "create_time": 1762084803
+    }
+   },
+   "c-2-m4": {
+    "id": "c-2-m4",
+    "parent": "c-2-m3",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "assistant"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Use a chain checker tool."
+      ]
+     },
+     "create_time": 1762084804
+    }
+   }
+  },
+  "current_node": "c-2-m4"
+ },
+ {
+  "id": "c-3",
+  "conversation_id": "c-3",
+  "title": "",
+  "create_time": 1762171200,
+  "update_time": 1762171202,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": []
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "c-3-m1"
+    ],
+    "message": {
+     "author": {
+      "role": "system"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "hidden system"
+      ]
+     },
+     "create_time": 1762171200
+    }
+   },
+   "c-3-m1": {
+    "id": "c-3-m1",
+    "parent": "sys",
+    "children": [
+     "c-3-m2"
+    ],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Plan a weekend trip to Galena"
+      ]
+     },
+     "create_time": 1762171201
+    }
+   },
+   "c-3-m2": {
+    "id": "c-3-m2",
+    "parent": "c-3-m1",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "assistant"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Day 1: Main Street. Day 2: river walk."
+      ]
+     },
+     "create_time": 1762171202
+    }
+   }
+  },
+  "current_node": "c-3-m2"
+ }
+]
