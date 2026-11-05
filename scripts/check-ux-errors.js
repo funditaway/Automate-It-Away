@@ -510,7 +510,7 @@ function mutate(S, reps) {
 
 function staticChecks() {
   const desk = (() => { try { return fs.statSync(path.join(root, "desk.html")).size; } catch (e) { return -1; } })();
-  ok(desk === 35112, "desk.html is 35112 bytes (" + desk + ")");
+  ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   let freeze;
   try { freeze = require("./_api-freeze").check(root); } catch (e) { freeze = { ok: false, problems: ["api freeze helper failed: " + ((e && e.message) || e)] }; }

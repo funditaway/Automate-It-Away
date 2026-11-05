@@ -183,7 +183,7 @@ function mutate(S, file, reps) {
 }
 function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
-  ok(desk === 35112, "desk.html is 35112 bytes (" + desk + ")");
+  ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   // api/ freeze from #434: any git or helper error is a FAIL, never a pass.
   let freeze;

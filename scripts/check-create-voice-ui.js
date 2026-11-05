@@ -22,7 +22,7 @@ const code = js.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 const TYPE_INSTEAD = "This phone will not take speech here. Type what you want automated.";
 const HEARD_LINE = "When a parent asks to change pickup, draft a reply";
 
-ok(fs.existsSync(deskPath) && fs.statSync(deskPath).size === 35112, "desk.html stays 35112 bytes");
+ok(fs.existsSync(deskPath) && require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(!/cs-talk|cs-voice|create-voice/.test(read("desk.html")), "desk.html does not mention Create voice");
 ok(!/check-create-voice-ui/.test(pkg), "voice check stays out of npm test");
