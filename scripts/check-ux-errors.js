@@ -516,7 +516,7 @@ function staticChecks() {
   ok(!!(freeze && freeze.ok === true), "api/ frozen (scripts/_api-freeze.js)" + (freeze && freeze.ok ? "" : ": " + ((freeze && freeze.problems) || []).join("; ")));
   let line = "";
   try { line = JSON.parse(SRC["package.json"] || "").scripts.test || ""; } catch (e) { line = ""; }
-  ok(/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js && node scripts\/check-api-machine-values\.js && node scripts\/check-api-machine-values-mutants\.js$/.test(line.trim()), "npm test ends with the machine-value checks after the .aia TLD mutant check");
+  ok(/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js && node scripts\/check-api-machine-values\.js && node scripts\/check-api-machine-values-mutants\.js && node scripts\/check-ready-reload\.js && node scripts\/check-owner-key-only\.js && node scripts\/check-owner-key-only-mutants\.js$/.test(line.trim()), "npm test ends with the machine-value checks after the .aia TLD mutant check");
   let legal = null;
   try {
     const base = require("./_api-freeze").BASE;

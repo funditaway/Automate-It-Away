@@ -271,7 +271,7 @@ module.exports = async function handler(req, res) {
         job: { title: job.title, kind: job.kind, notes: job.notes || "" },
         note: grok && grok.ok
           ? "Draft only. Yes puts it on the queue. Stop discards it. AIA does not send."
-          : (grok && grok.reason === "no-key"
+          : (grok && grok.reason === "needsKey"
             ? "A Desk AI can't draft on this phone yet. You can still put the work on the queue."
             : "No draft this time. You can still put the work on the queue.")
       });

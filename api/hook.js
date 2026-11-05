@@ -145,6 +145,7 @@ module.exports = async function handler(req, res) {
       const { grokRecommend } = require("./_grok");
       const grok = await grokRecommend(job, shop, workspace);
       if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+      else if (grok && grok.reason === "needsKey") job.draftReason = "needsKey";
     } catch (e) {}
     applyDeskAiDraft(job, shop, "qualify");
     const tell = String(job.tell || "").trim();

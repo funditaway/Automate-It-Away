@@ -11,19 +11,25 @@ function aiCatalog() {
   return Object.entries(AI_PROVIDERS).map(([id, spec]) => ({ id, label: spec.label, vendor: spec.vendor, acts: spec.acts, login: spec.login, model: spec.model, live: false, connectable: true, lane: "draft", status: "hold", note: spec.note }));
 }
 function connectSecret() {
-  const s = process.env.AIA_CONNECT_SECRET || process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN || process.env.XAI_API_KEY || "aia-draft-pilot";
+  const s = process.env.AIA_CONNECT_SECRET;
+  if (!s) return null;
   return crypto.createHash("sha256").update(String(s)).digest();
 }
+function refuse(res, status, error, extra) {
+  return res.status(status).json(Object.assign({ ok: false, error: error }, extra || {}));
+}
 function wrapSecret(plain) {
+  const key = connectSecret();
+  if (!key) return "";
   const iv = crypto.randomBytes(12);
-  const c = crypto.createCipheriv("aes-256-gcm", connectSecret(), iv);
+  const c = crypto.createCipheriv("aes-256-gcm", key, iv);
   const enc = Buffer.concat([c.update(String(plain || ""), "utf8"), c.final()]);
   return Buffer.concat([iv, c.getAuthTag(), enc]).toString("base64");
 }
 function last4Of(key) { const s = String(key || "").trim(); return s ? s.slice(-4) : ""; }
 function publicAi(row) {
   if (!row) return null;
-  return { id: row.id, workspace: row.workspace, provider: row.provider, label: row.label, vendor: row.vendor, lane: "draft", acts: ["draft"], live: !!row.keyPacked, status: row.keyPacked ? "live" : "hold", last4: row.last4 || "", model: row.model, login: row.login, createdAt: row.createdAt, note: "Drafts only. Never Send. If this key dies, included drafts or engine recs still run." };
+  return { id: row.id, workspace: row.workspace, provider: row.provider, label: row.label, vendor: row.vendor, lane: "draft", acts: ["draft"], live: !!row.keyPacked, status: row.keyPacked ? "live" : "hold", last4: row.last4 || "", model: row.model, login: row.login, createdAt: row.createdAt, note: "Drafts only. Never Send." };
 }
 
 function searchLogin(q) {
@@ -247,6 +253,8 @@ module.exports = async function handler(req, res) {
       if (!isOwner(person)) {
         return res.status(403).json({ error: "Only the owner can connect this. Leftover email session or desk code." });
       }
+      const keyPacked = wrapSecret(key);
+      if (!keyPacked) return refuse(res, 409, "keyLocked", { reason: "needsConnectSecret" });
       mem.connections = mem.connections.filter((c) => !(c.workspace === workspace && c.lane === "draft" && c.provider === provider));
       const row = {
         id: "ai_" + Date.now().toString(36),
@@ -258,7 +266,7 @@ module.exports = async function handler(req, res) {
         acts: ["draft"],
         model: spec.model,
         login: spec.login,
-        keyPacked: wrapSecret(key),
+        keyPacked: keyPacked,
         last4: last4Of(key),
         live: true,
         status: "live",
