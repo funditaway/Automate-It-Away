@@ -1,6 +1,6 @@
 require("./_env-guard");
 // Queue pass Q1e: AA contrast on the Queue from theme.css alone. Each override must beat the page's own
-// inline rule by specificity and pass 4.5:1. desk.html, rules.html, api/ and legal.html stay as main.
+// inline rule by specificity and pass 4.5:1. desk.html matches its byte/SHA-256 pin; rules.html, api/ and legal.html stay as main.
 const fs = require("fs"), path = require("path"), { execFileSync } = require("child_process");
 const root = path.join(__dirname, "..");
 const SRC = { "theme.css": fs.readFileSync(path.join(root, "theme.css"), "utf8"), "package.json": fs.readFileSync(path.join(root, "package.json"), "utf8") };
@@ -40,8 +40,9 @@ const MUTANTS = [
 let bad = 0;
 suite(SRC).forEach((m) => { console.log("FAIL " + m); bad++; });
 let same = "";
-try { same = execFileSync("git", ["diff", "--name-only", "83a951a91e195d5cf501a6b25283d709480dc467", "--", "desk.html", "rules.html", "api", "legal.html"], { cwd: root, encoding: "utf8" }).trim(); } catch (e) { same = "git error"; }
-if (same) { console.log("FAIL desk.html, rules.html, api/ and legal.html stay as main (" + same + ")"); bad++; }
+try { same = execFileSync("git", ["diff", "--name-only", "83a951a91e195d5cf501a6b25283d709480dc467", "--", "rules.html", "api", "legal.html"], { cwd: root, encoding: "utf8" }).trim(); } catch (e) { same = "git error"; }
+if (same) { console.log("FAIL rules.html, api/ and legal.html stay as main (" + same + ")"); bad++; }
+if (!require("./_desk-html-pin").check(root)) { console.log("FAIL desk.html does not match its byte/SHA-256 pin"); bad++; }
 let caught = 0;
 MUTANTS.forEach(([n, mk]) => { const S = mk(SRC); if (!S) { console.log("FAIL mutant does not apply: " + n); bad++; return; } const r = suite(S); if (r.length) { caught++; console.log("ok mutant caught: " + n + " (" + r[0] + ")"); } else { console.log("FAIL mutant NOT caught: " + n); bad++; } });
 console.log("check-queue-contrast mutants: " + caught + "/" + MUTANTS.length + " caught");
