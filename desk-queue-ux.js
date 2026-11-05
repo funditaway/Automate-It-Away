@@ -190,12 +190,15 @@
   }
 
   function ensureRail() {
-    if (document.getElementById("queue-desk-rail")) return;
-    var banner = document.getElementById("banner");
-    var rail = document.createElement("div");
-    rail.id = "queue-desk-rail";
-    rail.innerHTML = "<div class=\"q-metrics\"></div><div class=\"row\" id=\"queue-desk-actions\"></div>";
-    if (banner && banner.parentNode) banner.parentNode.insertBefore(rail, banner.nextSibling);
+    // Reuse the desk.html shell. Only older HTML needs the one-time fallback.
+    var rail = document.getElementById("queue-desk-rail");
+    if (!rail) {
+      var banner = document.getElementById("banner");
+      rail = document.createElement("div");
+      rail.id = "queue-desk-rail";
+      rail.innerHTML = "<div class=\"q-metrics\"></div><div class=\"row\" id=\"queue-desk-actions\"></div>";
+      if (banner && banner.parentNode) banner.parentNode.insertBefore(rail, banner.nextSibling);
+    }
     var actions = rail.querySelector("#queue-desk-actions");
     var drop = document.getElementById("drop-go");
     var refresh = document.querySelector("main .row button[onclick*=\"load\"]");

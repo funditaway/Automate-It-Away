@@ -1,11 +1,11 @@
 "use strict";
-// Queue Q1a pins the current desk.html content (header + in-place picker shell) for
+// Queue Q1a pins the current desk.html content (header + picker + single-rail shells) for
 // all former size/freeze checks, including squash-landed trees.
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const BYTES = 35485;
-const SHA256 = "d84ad086270c2abf2e20e101488976b1db7abf82db0bef5d14747c83a749f8db";
+const BYTES = 35598;
+const SHA256 = "c3af6ab645233a3248dfe038f6823a80efa7522779af1496d484abe485c592f1";
 function check(root) {
   try {
     const b = fs.readFileSync(path.join(root, "desk.html"));
