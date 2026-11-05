@@ -69,7 +69,7 @@ vm.createContext(ctx);
 })();
 
 function finish() {
-ok(fs.statSync(path.join(root, "desk.html")).size === 35112, "desk.html stays 35,112 bytes (main bc4bd99 size)");
+ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(!/link their own account/.test(read("desk.html")), "desk.html untouched");
 ok(!/check-invite-link-line/.test(read("package.json")), "not in npm test yet (lands after 361)");

@@ -46,7 +46,7 @@ const moreAt = html.indexOf('id="more-ways"');
 const more = moreAt >= 0 ? html.slice(moreAt) : "";
 const hook = (cs.match(/<details id="cs-webhook">[\s\S]*?<\/details>/) || [""])[0];
 
-ok(fs.existsSync(deskPath) && fs.statSync(deskPath).size === 35112, "desk.html stays 35112 bytes");
+ok(fs.existsSync(deskPath) && require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(!/cs-webhook|cs-webhook-secret|safeAddress/.test(read("desk.html")), "desk.html does not mention the AI or site control");
 ok(!/check-create-webhook-ui/.test(pkg), "webhook check stays out of npm test");
