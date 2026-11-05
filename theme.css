@@ -360,3 +360,9 @@ a.btn {
   justify-content: center;
   text-align: center;
 }
+/* Queue pass Q1e: AA contrast on the Queue. These beat the pages' own inline rules by specificity;
+   desk.html and rules.html stay as they are. */
+html body .q-ai{background:#0d6b6b;color:#fff}
+html body main .meta{opacity:1}
+html body .q-drag{opacity:1}
+html.dark .q-state-flagged .q-state-mark{color:var(--kill-ink)}
