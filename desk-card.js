@@ -256,7 +256,8 @@ window.wantJobId = wantJobId;
 window.openWantedJob = openWantedJob;
 wrapLoadWanted();
 // The card as one chat thread (card-thread.js, loaded once on first open; desk.html stays as it is).
-// Anyone who is not the desk's owner sees tags only, never a person's name.
+// In this thread, anyone who is not the desk's owner sees tags, not names. Other blocks on the
+// sheet (the old talk block, the timeline, Hand to) still show names; hiding those is still to do.
 function mountCardThread(j) {
   const opts = { stranger: !!role && role !== "owner" };
   const go = function () { if (window.AIACardThread) window.AIACardThread.mount("card-thread-sheet", j, opts); };

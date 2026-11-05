@@ -3,7 +3,8 @@
 // - The tag comes from Switch's actorKind on the row (api/_talk.js, #460): si, ai, human, helper, family,
 //   employee, ext. human is You on the viewer's own row; otherwise its actorLabel or the current label.
 //   A friend comes through as human. Unknown or missing actorKind falls back to the current label.
-// - For a stranger's view (opts.stranger) no person name is ever shown: a name falls back to Helper.
+// - For a stranger's view (opts.stranger) this thread shows no person name: a name falls back to Helper.
+//   It covers this thread only; other blocks on the page are not changed here.
 // - Rows may carry { input, output } (Switch's shape): that row is one entry, input then output.
 // - Read-only. Uses only fields the card already stores; never makes up a row. textContent only.
 // - Reusable: AIACardThread.build(card) for a stored card, or build({ entries: [...] }) for rows that
