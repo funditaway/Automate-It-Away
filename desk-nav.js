@@ -107,6 +107,24 @@
     if (!root) return;
     var on = tabOf();
     var hrefDrop = dropHref();
+    var existing = root.querySelectorAll("a[data-tab]");
+    if (!withIcons && existing.length === TABS.length) {
+      var same = true;
+      for (var i = 0; i < TABS.length; i++) {
+        if (!existing[i] || existing[i].getAttribute("data-tab") !== TABS[i].id) { same = false; break; }
+      }
+      if (same) {
+        for (var j = 0; j < TABS.length; j++) {
+          var t = TABS[j];
+          var a = existing[j];
+          var href = t.id === "drop" ? hrefDrop : t.href;
+          a.setAttribute("href", href);
+          if (t.id === "drop") a.id = "head-drop";
+          a.className = on === t.id ? "on" : "";
+        }
+        return;
+      }
+    }
     root.innerHTML = TABS.map(function (t) {
       var href = t.id === "drop" ? hrefDrop : t.href;
       var extra = "";
