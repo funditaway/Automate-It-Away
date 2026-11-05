@@ -33,30 +33,19 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "295b168252c3dc8f5b011d5d4b73b76bfbd5a866";
+const BASE = "bc4bd9933976e55b9a4198ac09bd5a448685179e";
 const PIN = {
-  "api/_account.js": "b2606240c7c7e4a322cc4e0dff08537470d4bac5",
-  "api/_account-connect.js": "39dde85d863c3de15b05571d35dcc4e87e6f5b7b",
-  "api/_account-doors.js": "e210c079926b0efbb22cb5b9512649c81f43c6b9",
-  "api/_account-http.js": "977fe25361e6eec276c25673af7c2dd525353482",
   "api/_aia-admin.js": "b2036f064e85dfe1a93b7dda686d368f4fe7e233",
-  "api/_ais.js": "1a59bc118231afb4d03631bc60ed4453fd1ad646",
   "api/_aia-mail.js": "5796afa6e22f62f3a9e433b0c1d0eb00c6094599",
-  "api/_aia-net.js": "5df23c55f9e189fcbb5aa710ab30672ef4279fd8",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
-  "api/_aia-tld.js": "1429cd6442ca12f364062e09bbabb2f6c48a5e67",
-  "api/_connect-wallet.js": "90f310ed4a7f8831249115681e0b75b18939ad97",
-  "api/_desks-http.js": "54d36ae4eb8842b75f1847bc72fa5c2b8c514adb",
+  "api/_fields.js": "b1c4a4c36e909a88ddf68a6ee2f0ec415fc681ed",
   "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
-  "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
-  "api/_lib.js": "d0562ebb769a42bff8daa613d77148ac85fcdfd8",
-  "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
-  "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
-  "api/connections.js": "277fd0dbb8b0c4ef92619128f84df01511566312",
-  "api/health.js": "b4d361026360c83f25cd9c7a7cd7fa143598a41b",
-  "api/hook.js": "d9027a640d48d59ea20363e0b2dd18a3772d185f",
-  "api/jobs.js": "40c283de861b5fb48087bc8987f836238b1535ee",
-  "api/migrate-uploads.js": "2b5e13d819268bdae2688c3d29e2f755929fcaa7"
+  "api/_history.js": "23faa6f0ce8141a15f92f811bc8a0da0b50fd118",
+  "api/_talk.js": "47d94de2d659ff9b3d78dfa17bb807ab1fd73982",
+  "api/hook.js": "7c70c92291e22311e33ee9c703c726393282a1b0",
+  "api/jobs.js": "f0653aa1e1c8d74c3bd6956ba500efb893e65b2f",
+  "api/migrate-uploads.js": "a9a47cd366c5b5cf8afcb934c027f1dfe1edf3dc",
+  "api/worker.js": "5bedd2627f66fb6372c628d25a65940b8a85c2b6"
 };
 
 function lines(text) {

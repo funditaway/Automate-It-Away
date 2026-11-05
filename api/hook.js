@@ -2,6 +2,7 @@ const { cors, mem, log, save, ready, slugify, readBody, deskSeat } = require("./
 const { deskClosed, deskClosedMessage } = require("./_desk");
 const { qualifyJob, applyRules } = require("./_engine");
 const { makeCapturedJob, addTalk } = require("./_fields");
+const talk = require("./_talk");
 const { applyDeskAiDraft } = require("./_handoff");
 const mail = require("./_aia-mail");
 
@@ -38,7 +39,7 @@ function finishDone(job, body, how) {
   job.whoTapped = job.doneBy;
   job.whoTappedId = "";
   job.dispatch = { provider: body.provider || "webhook", inbound: true, demo: false, done: true, how: how };
-  addTalk(job, job.doneBy, note, "follow");
+  addTalk(job, job.doneBy, note, "follow", talk.extActor(job.doneBy || "webhook"));
   return note;
 }
 
@@ -121,6 +122,7 @@ module.exports = async function handler(req, res) {
       return res.status(409).json({ ok: false, error: deskClosedMessage(shop), closed: true });
     }
     const inbound = identity ? mail.inboundPayload(body, identity) : {};
+    const pipeActor = talk.extActor((identity && "aia-mail") || body.provider || body.from || "webhook");
     job = makeCapturedJob(workspace, shop, Object.assign({}, body, inbound, {
       title: inbound.title || title,
       why: inbound.why || body.why || "In from a connection.",
@@ -128,7 +130,7 @@ module.exports = async function handler(req, res) {
       notes: inbound.notes || body.notes || body.text || "",
       lane: inbound.lane || body.lane || (identity ? "in" : "ext"),
       kind: inbound.kind || body.kind
-    }));
+    }), pipeActor);
     job.log = [identity ? ("Mail · " + identity.address) : "Captured from a hook"];
     job.provider = (identity && "aia-mail") || body.provider || job.provider || "webhook";
     if (identity) {
@@ -144,14 +146,14 @@ module.exports = async function handler(req, res) {
     try {
       const { grokRecommend } = require("./_grok");
       const grok = await grokRecommend(job, shop, workspace);
-      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec", talk.aiActor("grok"));
     } catch (e) {}
     applyDeskAiDraft(job, shop, "qualify");
     const tell = String(job.tell || "").trim();
     if (tell && !(job.thread || []).some((t) => t && t.kind === "tell" && String(t.text || "").trim() === tell)) {
-      addTalk(job, job.whoTapped || job.contactName || "drop", tell, "tell");
+      addTalk(job, job.whoTapped || job.contactName || "drop", tell, "tell", pipeActor);
     }
-    if (job.notes && String(job.notes).trim() !== tell) addTalk(job, job.from || "pipe", job.notes, "note");
+    if (job.notes && String(job.notes).trim() !== tell) addTalk(job, job.from || "pipe", job.notes, "note", pipeActor);
     mem.jobs.unshift(job);
     mem.inbox.unshift({
       id: "in_" + Date.now().toString(36),
@@ -190,7 +192,7 @@ module.exports = async function handler(req, res) {
     job.step = "Do";
     job.whoTapped = body.who || body.provider || "webhook";
     job.whoTappedId = "";
-    addTalk(job, job.whoTapped, note, "ask");
+    addTalk(job, job.whoTapped, note, "ask", talk.extActor(job.whoTapped || "webhook"));
     job.log = (job.log || []).concat(["Pipe · needs a hand"]);
     log("Pipe", "Hand · " + job.title, "Waiting", workspace);
     await save();
@@ -215,7 +217,7 @@ module.exports = async function handler(req, res) {
     job.next = "Off the desk. Waiting on write-back.";
   }
   job.log = (job.log || []).concat(["Pipe update"]);
-  addTalk(job, body.who || body.provider || "webhook", body.notes || body.text || "Pipe update.", "note");
+  addTalk(job, body.who || body.provider || "webhook", body.notes || body.text || "Pipe update.", "note", talk.extActor(body.who || body.provider || "webhook"));
   log("Pipe", "Update · " + job.title, "OK", workspace);
   await save();
   return answer(res, 200, req, workspace, "update", job);

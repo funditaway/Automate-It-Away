@@ -192,13 +192,13 @@ function holdCapturedJob(job) {
   }
   return job;
 }
-function makeFanOutJobs(workspace, shop, body) {
+function makeFanOutJobs(workspace, shop, body, actor) {
   const src = body && typeof body === "object" ? body : {};
   const blob = dropListBlob(src);
   const items = fanOutItems(blob, { kind: src.kind, photoUrl: src.photoUrl, files: src.files });
   const dropId = "drop_" + Date.now().toString(36);
   if (items.length <= 1) {
-    return [makeCapturedJob(workspace, shop, src)];
+    return [makeCapturedJob(workspace, shop, src, actor)];
   }
   const heading = String(src.title || "").trim();
   const headingIsItem = items.some((item) => item === heading);
@@ -216,7 +216,7 @@ function makeFanOutJobs(workspace, shop, body) {
       delete bodyI.photoUrl;
       delete bodyI.files;
     }
-    const job = makeCapturedJob(workspace, shop, bodyI);
+    const job = makeCapturedJob(workspace, shop, bodyI, actor);
     job.id = "job_" + Date.now().toString(36) + "f" + String(i);
     job.parentId = dropId;
     job.custom = Object.assign({}, job.custom || {}, {
@@ -321,8 +321,10 @@ function assignIfKnown(job, shop, body) {
   job.next = "Waiting on " + whoPerson.name + ".";
   return job;
 }
-function makeCapturedJob(workspace, shop, body) {
+function makeCapturedJob(workspace, shop, body, actor) {
   const src = body && typeof body === "object" ? body : {};
+  const talk = require("./_talk");
+  const who = actor && actor.actorKind ? actor : null;
   const fields = pickFields(src);
   const job = { id: "job_" + Date.now().toString(36), workspace, title: String(src.title || fields.notes || "Untitled").slice(0, 160), why: src.why || "Captured.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured"], ...fields, from: fields.from || src.from || "widget", externalId: src.externalId ? String(src.externalId).slice(0, 80) : null };
   if (fields.custom) job.custom = fields.custom;
@@ -330,14 +332,19 @@ function makeCapturedJob(workspace, shop, body) {
   const tell = String(job.tell || src.tell || src.tellAia || "").trim().slice(0, 800);
   if (tell) {
     job.tell = tell.slice(0, 400);
-    addTalk(job, src.whoTapped || src.contactName || "drop", tell, "tell");
+    addTalk(job, src.whoTapped || src.contactName || "drop", tell, "tell", who);
   }
   const mode = String(src.mode || (src.custom && src.custom.mode) || src.lane || "").toLowerCase();
   if (src.implement || src.data || mode === "agent" || mode === "ops") applyImplement(job, shop, src);
-  if (job.droppedByKind) addTalk(job, job.contactName || "drop", "Dropped by " + job.droppedByKind + ".", "note");
+  if (job.droppedByKind) addTalk(job, job.contactName || "drop", "Dropped by " + job.droppedByKind + ".", "note", talk.actorForDrop({ droppedByKind: job.droppedByKind, contactName: job.contactName }));
   if (Array.isArray(src.thread)) {
     src.thread.slice(-16).forEach(function (line) {
-      if (line && line.text) addTalk(job, line.from || "drop", line.text, line.kind || "note");
+      if (!line || !line.text) return;
+      if (line.actorKind != null && String(line.actorKind).trim() !== "" && talk.ACTOR_KINDS.indexOf(String(line.actorKind).trim().toLowerCase()) < 0) return;
+      const lineActor = line.actorKind
+        ? { actorKind: String(line.actorKind).trim().toLowerCase(), actorLabel: line.actorLabel || line.from || (who && who.actorLabel) || "desk" }
+        : who;
+      addTalk(job, line.from || "drop", line.text, line.kind || "note", lineActor);
     });
   }
   if (src.previewReady) {
@@ -362,10 +369,23 @@ function makeCapturedJob(workspace, shop, body) {
   }
   return job;
 }
-function addTalk(job, from, text, kind) {
+function addTalk(job, from, text, kind, actor) {
   if (!job || !text) return job;
+  const talk = require("./_talk");
+  const who = actor && actor.actorKind ? actor : talk.actorForLabel(from, kind);
+  const row = talk.talkEntry({
+    actorKind: who.actorKind,
+    actorLabel: who.actorLabel || from,
+    from: from || who.actorLabel || "desk",
+    text: text,
+    kind: kind || "note",
+    input: who.input,
+    output: who.output,
+    at: who.at
+  });
+  if (!row) return job;
   if (!Array.isArray(job.thread)) job.thread = [];
-  job.thread.push({ at: new Date().toISOString(), from: from || "desk", text: String(text).slice(0, 500), kind: kind || "note" });
+  job.thread.push({ at: row.at, from: row.from, text: row.text, kind: row.kind, actorKind: row.actorKind, actorLabel: row.actorLabel, input: row.input, output: row.output });
   job.thread = job.thread.slice(-40);
   return job;
 }
