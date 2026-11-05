@@ -26,7 +26,7 @@ body.has-desk-nav .item:last-of-type {
   min-height: 48px !important;
   max-height: 52px !important;
   flex: 0 0 auto !important;
-  align-self: stretch;
+  align-self: stretch !important;
 }
 #gate,
 .desk-open-row,
@@ -126,7 +126,7 @@ body.has-desk-nav .item:last-of-type {
   }
   header .hdr-tools,
   .site-header .hdr-tools {
-    padding-right: 2px;
+    padding-right: 2px !important;
     flex-shrink: 0;
   }
   .theme-btn {
@@ -164,5 +164,16 @@ body.has-desk-nav .item:last-of-type {
     align-items: center;
     min-height: 44px;
     padding: 8px 2px;
+  }
+}
+
+/* Q1a: reserve the 44px Queue Pipes tap under the banner until mount.
+   Its remaining 10px bottom margin replaces the banner's usual 8px gap. */
+main.wrap:has(> #queue.q-desk) > #banner:not(:has(~ #queue-pipes-row)) {
+  margin-bottom: 52px;
+}
+@media (max-width: 859px) {
+  main.wrap:has(> #queue.q-desk) > #banner:not(:has(~ #queue-pipes-row)) {
+    margin-bottom: 54px;
   }
 }
