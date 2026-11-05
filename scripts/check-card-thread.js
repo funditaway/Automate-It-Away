@@ -218,9 +218,10 @@ function staticChecks() {
   let base = "";
   try { base = execFileSync("git", ["merge-base", "HEAD", "origin/main"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {}
   let changed = null;
-  if (base) { try { changed = execFileSync("git", ["diff", "--name-only", base, "--", "desk.html", "legal.html"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) { changed = null; } }
+  if (base) { try { changed = execFileSync("git", ["diff", "--name-only", base, "--", "legal.html"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) { changed = null; } }
   if (changed === null) f.push("could not diff against main (failing closed)");
-  else if (changed) f.push("desk.html and legal.html stay as on main; api/ is pinned by check-api-freeze (" + changed.replace(/\n/g, ", ") + ")");
+  else if (changed) f.push("desk.html matches its byte/SHA-256 pin and legal.html stays as on main; api/ is pinned by check-api-freeze (" + changed.replace(/\n/g, ", ") + ")");
+  if (!require("./_desk-html-pin").check(root)) f.push("desk.html does not match its byte/SHA-256 pin");
   return f;
 }
 

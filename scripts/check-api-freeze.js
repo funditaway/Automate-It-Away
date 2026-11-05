@@ -31,6 +31,8 @@ const CHECKS = [
   "scripts/check-ux-signin.js"
 ];
 const OVERLAY = [
+  "desk.html",
+  "scripts/_desk-html-pin.js",
   "scripts/_api-freeze.js",
   "scripts/check-queue-login-ui.js",
   "scripts/check-setup-cards-ui.js",

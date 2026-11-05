@@ -91,10 +91,10 @@
     var css = document.createElement("style");
     css.id = "desk-nav-css";
     css.textContent =
-      "body.has-desk-nav{padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))}" +
+      "body.has-desk-nav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}" +
       "header, .site-header{display:flex;flex-wrap:wrap;align-items:center}" +
       ".desk-tabs{width:100%;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px 18px;padding-top:8px;font:700 15px/1.2 Segoe UI,system-ui,sans-serif}" +
-      ".desk-tabs a{color:#fff;text-decoration:none}.desk-tabs a.on{color:#f39c12}" +
+      ".desk-tabs a{color:#fff;text-decoration:none}.desk-tabs a.on{color:#fff!important;box-shadow:inset 0 -3px 0 #f39c12!important}" +
       "#desk-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:#0d6b6b;color:#fff;padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(10,79,79,.22)}" +
       "#desk-nav a{flex:1;width:auto;margin:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:rgba(255,255,255,.92);font:700 12px/1.1 system-ui,Segoe UI,sans-serif;letter-spacing:.02em;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}" +
       "#desk-nav a.on{color:#f39c12}" +
@@ -107,6 +107,24 @@
     if (!root) return;
     var on = tabOf();
     var hrefDrop = dropHref();
+    var existing = root.querySelectorAll("a[data-tab]");
+    if (!withIcons && existing.length === TABS.length) {
+      var same = true;
+      for (var i = 0; i < TABS.length; i++) {
+        if (!existing[i] || existing[i].getAttribute("data-tab") !== TABS[i].id) { same = false; break; }
+      }
+      if (same) {
+        for (var j = 0; j < TABS.length; j++) {
+          var t = TABS[j];
+          var a = existing[j];
+          var href = t.id === "drop" ? hrefDrop : t.href;
+          a.setAttribute("href", href);
+          if (t.id === "drop") a.id = "head-drop";
+          a.className = on === t.id ? "on" : "";
+        }
+        return;
+      }
+    }
     root.innerHTML = TABS.map(function (t) {
       var href = t.id === "drop" ? hrefDrop : t.href;
       var extra = "";

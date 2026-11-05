@@ -107,9 +107,10 @@ function staticChecks() {
   const f = [];
   let base = "", changed = null;
   try { base = execFileSync("git", ["merge-base", "HEAD", "origin/main"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {}
-  if (base) { try { changed = execFileSync("git", ["diff", "--name-only", base, "--", "desk.html", "api", "legal.html", "card-timeline.js"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {} }
+  if (base) { try { changed = execFileSync("git", ["diff", "--name-only", base, "--", "api", "legal.html", "card-timeline.js"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {} }
   if (changed === null) f.push("could not diff against main (failing closed)");
-  else if (changed) f.push("desk.html, api/, legal.html and card-timeline.js stay as on main (" + changed.replace(/\n/g, ", ") + ")");
+  else if (changed) f.push("desk.html matches its byte/SHA-256 pin; api/, legal.html and card-timeline.js stay as on main (" + changed.replace(/\n/g, ", ") + ")");
+  if (!require("./_desk-html-pin").check(root)) f.push("desk.html does not match its byte/SHA-256 pin");
   return f;
 }
 function rep(file, a, b) { return (S) => { const s = S[file]; if (s.indexOf(a) < 0 || s.indexOf(a) !== s.lastIndexOf(a)) return null; const o = Object.assign({}, S); o[file] = s.replace(a, b); return o; }; }

@@ -1003,3 +1003,9 @@ pre, .file-list, #drop-link { overflow-x: auto; }
 }
 /* 2026-10-31: no stray full-width bold line under the header. The Queue link sits in the row like the other links. */
 .queue-home-link{font-weight:700;text-decoration:none;display:inline-flex;align-items:center;min-height:44px;padding:0 8px;flex:0 0 auto}
+
+/* Queue Q1a: keep the header tab in place. White text meets AA; the orange bar marks it active. */
+.desk-tabs a.on {
+  color: #fff !important;
+  box-shadow: inset 0 -3px 0 #f39c12 !important;
+}
