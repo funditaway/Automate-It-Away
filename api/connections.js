@@ -2,7 +2,7 @@ const { cors, catalog, PROVIDERS, configured, mem, log, save, ready, workspaceOf
 const crypto = require("crypto");
 
 const AI_PROVIDERS = {
-  grok: { label: "Grok", vendor: "xAI", acts: ["draft"], login: "https://console.x.ai/team/default/api-keys", model: "grok-4-fast-non-reasoning", note: "Log in at console.x.ai. Paste the API key. Drafts only." },
+  grok: { label: "Grok", vendor: "xAI", acts: ["draft"], login: "https://console.x.ai/team/default/api-keys", model: "grok-4-fast-non-reasoning", note: "Log in at console.x.ai. Paste the API key. Drafts only. Your key, your xAI bill. AIA charges nothing." },
   openai: { label: "ChatGPT", vendor: "OpenAI", acts: ["draft"], login: "https://platform.openai.com/api-keys", model: "gpt-4o-mini", note: "Log in at platform.openai.com. Paste the API key. Sign in with ChatGPT does not give drafts." },
   anthropic: { label: "Claude", vendor: "Anthropic", acts: ["draft"], login: "https://console.anthropic.com/settings/keys", model: "claude-sonnet-4-20250514", note: "Log in at console.anthropic.com. Paste the API key. claude.ai chat login is not a draft connection." }
 };
@@ -254,7 +254,7 @@ module.exports = async function handler(req, res) {
         return res.status(403).json({ error: "Only the owner can connect this. Leftover email session or desk code." });
       }
       const keyPacked = wrapSecret(key);
-      if (!keyPacked) return refuse(res, 409, "keyLocked", { reason: "needsConnectSecret" });
+      if (!keyPacked) return refuse(res, 409, "keyLocked", { reason: "needsConnectSecret", note: "This desk can't save a key yet. Nothing was saved." });
       mem.connections = mem.connections.filter((c) => !(c.workspace === workspace && c.lane === "draft" && c.provider === provider));
       const row = {
         id: "ai_" + Date.now().toString(36),

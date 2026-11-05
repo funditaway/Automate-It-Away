@@ -6,6 +6,10 @@ require("./_env-guard");
 //   pickDrafter env fallback restored
 //   connectSecret fallbacks restored in both copies
 //   save allowed without AIA_CONNECT_SECRET
+//   health claims drafting from an env key again
+//   keyLocked reply drops the plain words
+//   suggest drops the add-your-key step
+//   connections Grok note drops the bill line
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -44,8 +48,14 @@ const DRAFT_OLD = [
   "  return null;",
   "}"
 ].join("\n");
-const SAVE_NOW = "      const keyPacked = wrapSecret(key);\n      if (!keyPacked) return refuse(res, 409, \"keyLocked\", { reason: \"needsConnectSecret\" });\n";
+const SAVE_NOW = "      const keyPacked = wrapSecret(key);\n      if (!keyPacked) return refuse(res, 409, \"keyLocked\", { reason: \"needsConnectSecret\", note: \"This desk can't save a key yet. Nothing was saved.\" });\n";
 const SAVE_OLD = "      const keyPacked = wrapSecret(key);\n";
+const LOCK_NOW = "{ reason: \"needsConnectSecret\", note: \"This desk can't save a key yet. Nothing was saved.\" }";
+const LOCK_OLD = "{ reason: \"needsConnectSecret\" }";
+const STEP_NOW = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const STEP_OLD = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const BILL_NOW = " Drafts only. Your key, your xAI bill. AIA charges nothing.";
+const BILL_OLD = " Drafts only.";
 
 const MUTANTS = [
   ["pickDrafter-env-fallback", [
@@ -57,6 +67,20 @@ const MUTANTS = [
   ]],
   ["save-without-connect-secret", [
     ["api/connections.js", SAVE_NOW, SAVE_OLD]
+  ]],
+  ["health-env-draft-claim", [
+    ["api/health.js",
+      "  const on = ownerDraftOn();",
+      "  const on = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY);"]
+  ]],
+  ["keylocked-drops-plain-words", [
+    ["api/connections.js", LOCK_NOW, LOCK_OLD]
+  ]],
+  ["suggest-drops-add-key", [
+    ["api/jobs.js", STEP_NOW, STEP_OLD]
+  ]],
+  ["grok-note-drops-bill-line", [
+    ["api/connections.js", BILL_NOW, BILL_OLD]
   ]]
 ];
 
@@ -82,7 +106,7 @@ function main() {
     filter: function (src) { return !/[\\/]node_modules$/.test(src) && !/[\\/]\.git$/.test(src); }
   });
   const orig = {};
-  ["api/_grok.js", "api/connections.js"].forEach(function (rel) {
+  ["api/_grok.js", "api/connections.js", "api/health.js", "api/jobs.js"].forEach(function (rel) {
     orig[rel] = fs.readFileSync(path.join(dir, rel), "utf8");
   });
   function restore() {

@@ -33,7 +33,7 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "bc4bd9933976e55b9a4198ac09bd5a448685179e";
+const BASE = "95267db2a8778cbfdb6ac144588e84c876abb6ca";
 const PIN = {
   "api/_account.js": "734c606bef3c17cb14cb6330adce5677fa964112",
   "api/_account-connect.js": "39dde85d863c3de15b05571d35dcc4e87e6f5b7b",
@@ -53,10 +53,10 @@ const PIN = {
   "api/_packs.js": "217e7d873bb8210f5dfed6304c7b5dd3e34b85da",
   "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
-  "api/connections.js": "31b88cef775d46513a329ef11a3aba9e41c9c56e",
-  "api/health.js": "f20187b139e60fa6129a23ec7347a628a7e4a3c1",
+  "api/connections.js": "49d0f57a7398c2a45df38b8bc08677e2b8679f3f",
+  "api/health.js": "b1ece6a217fc90db35bc1a65b4d0329671ba8cda",
   "api/hook.js": "f9add37b0c15afd1f89ee2ddb71d0cf4ee07a9af",
-  "api/jobs.js": "50fd35b8fc5b752b60186a3efed992ec494f3602",
+  "api/jobs.js": "40ee24b591b34406ecd2bd0b3373a70d5db64b69",
   "api/migrate-uploads.js": "2b5e13d819268bdae2688c3d29e2f755929fcaa7"
 };
 

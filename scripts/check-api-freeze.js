@@ -49,18 +49,18 @@ const LANDED = [
   "api/_aia-tld.js",
   "api/_connect-wallet.js",
   "api/_desks-http.js",
+  "api/_grok.js",
   "api/_handoff.js",
   "api/_lib.js",
+  "api/_packs.js",
   "api/_plans.js",
   "api/_roles.js",
-  "api/health.js",
+  "api/hook.js",
   "api/migrate-uploads.js"
 ];
 const MOVED = [
-  "api/_grok.js",
-  "api/_packs.js",
   "api/connections.js",
-  "api/hook.js",
+  "api/health.js",
   "api/jobs.js"
 ];
 
