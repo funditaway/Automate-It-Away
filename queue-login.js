@@ -565,41 +565,50 @@
   }
 
   function mount() {
-    if (document.getElementById("queue-desk-picker")) return;
     var queue = document.getElementById("queue");
     if (!queue || !queue.parentNode) return;
     ensureCss();
-    var picker = document.createElement("nav");
-    picker.id = "queue-desk-picker";
-    picker.setAttribute("aria-label", "Desks in this Queue");
-    var label = document.createElement("p");
-    label.className = "queue-picker-label";
-    label.textContent = "Desks in this Queue";
-    var row = document.createElement("div");
-    row.className = "queue-picker-row";
-    var allBtn = document.createElement("button");
-    allBtn.type = "button";
-    allBtn.id = "queue-all-desks";
-    allBtn.setAttribute("data-queue-desk", "");
-    allBtn.textContent = "All desks";
-    var buttons = document.createElement("div");
-    buttons.id = "queue-desk-buttons";
-    var add = document.createElement("a");
-    add.id = "queue-add-desk";
-    add.href = "/onboard";
-    add.textContent = "Add a desk";
-    row.appendChild(allBtn);
-    row.appendChild(buttons);
-    row.appendChild(add);
-    picker.appendChild(label);
-    picker.appendChild(row);
-    var h1 = document.querySelector("main h1, h1.page-title");
-    if (h1 && h1.parentNode) h1.parentNode.insertBefore(picker, h1.nextSibling);
-    else queue.parentNode.insertBefore(picker, queue);
-    var list = document.createElement("div");
-    list.id = "queue-all-cards";
-    if (picker.parentNode) picker.parentNode.insertBefore(list, picker.nextSibling);
-    else queue.parentNode.insertBefore(list, queue);
+    // Q1a(c): prefer the desk.html shell so signed-in first paint already has the panel;
+    // only build + insert when the shell is missing (older HTML).
+    var picker = document.getElementById("queue-desk-picker");
+    var list = document.getElementById("queue-all-cards");
+    if (!picker) {
+      picker = document.createElement("nav");
+      picker.id = "queue-desk-picker";
+      picker.setAttribute("aria-label", "Desks in this Queue");
+      var label = document.createElement("p");
+      label.className = "queue-picker-label";
+      label.textContent = "Desks in this Queue";
+      var row = document.createElement("div");
+      row.className = "queue-picker-row";
+      var allBtn = document.createElement("button");
+      allBtn.type = "button";
+      allBtn.id = "queue-all-desks";
+      allBtn.setAttribute("data-queue-desk", "");
+      allBtn.textContent = "All desks";
+      var buttons = document.createElement("div");
+      buttons.id = "queue-desk-buttons";
+      var add = document.createElement("a");
+      add.id = "queue-add-desk";
+      add.href = "/onboard";
+      add.textContent = "Add a desk";
+      row.appendChild(allBtn);
+      row.appendChild(buttons);
+      row.appendChild(add);
+      picker.appendChild(label);
+      picker.appendChild(row);
+      var h1 = document.querySelector("main h1, h1.page-title");
+      if (h1 && h1.parentNode) h1.parentNode.insertBefore(picker, h1.nextSibling);
+      else queue.parentNode.insertBefore(picker, queue);
+    }
+    if (!list) {
+      list = document.createElement("div");
+      list.id = "queue-all-cards";
+      if (picker.parentNode) picker.parentNode.insertBefore(list, picker.nextSibling);
+      else queue.parentNode.insertBefore(list, queue);
+    }
+    if (picker.__queueLoginBound) return;
+    picker.__queueLoginBound = true;
     picker.addEventListener("click", function (e) {
       var btn = e.target && e.target.closest ? e.target.closest("[data-queue-desk]") : null;
       if (!btn || btn.id === "queue-add-desk") return;
