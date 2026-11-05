@@ -18,8 +18,24 @@ const MUTANTS = [
     "  if (true) return \"\";\n  return KIND_ERROR;"
   ]]],
   ["rewriting stored legacy rows", "api/_talk.js", [[
-    "  const actorKind = knownKind(entry.actorKind) ? normKind(entry.actorKind) : inferActorKind(entry);\n  return Object.assign({}, entry, {",
-    "  const actorKind = knownKind(entry.actorKind) ? normKind(entry.actorKind) : inferActorKind(entry);\n  entry.actorKind = actorKind;\n  return Object.assign({}, entry, {"
+    "  const actorKind = safeKind(entry);\n  let actorLabel = entry.actorLabel || entry.from || entry.who || \"\";\n",
+    "  const actorKind = safeKind(entry);\n  entry.actorKind = actorKind;\n  let actorLabel = entry.actorLabel || entry.from || entry.who || \"\";\n"
+  ]]],
+  ["unknown kind passes raw", "api/_talk.js", [[
+    "  const raw = normKind(entry && entry.actorKind);\n  if (ACTOR_KINDS.indexOf(raw) >= 0) return raw;\n  const guessed = inferActorKind(entry);\n  if (ACTOR_KINDS.indexOf(guessed) >= 0) return guessed;\n  return \"human\";",
+    "  const raw = normKind(entry && entry.actorKind);\n  if (raw) return raw;\n  const guessed = inferActorKind(entry);\n  if (ACTOR_KINDS.indexOf(guessed) >= 0) return guessed;\n  return \"human\";"
+  ]]],
+  ["friend mapped to ext", "api/_talk.js", [[
+    "  if (kind === \"friend\" || role === \"friend\") return { actorKind: \"human\", actorLabel: label };",
+    "  if (kind === \"friend\" || role === \"friend\") return { actorKind: \"ext\", actorLabel: label };"
+  ]]],
+  ["ACTOR_KINDS widened", "api/_talk.js", [[
+    "const ACTOR_KINDS = [\"si\", \"ai\", \"human\", \"helper\", \"family\", \"employee\", \"ext\"];",
+    "const ACTOR_KINDS = [\"si\", \"ai\", \"human\", \"helper\", \"family\", \"employee\", \"ext\", \"robot\"];"
+  ]]],
+  ["names not redacted", "api/_talk.js", [[
+    "  if (opts && opts.redact) actorLabel = redactedLabel(actorKind);\n",
+    ""
   ]]]
 ];
 

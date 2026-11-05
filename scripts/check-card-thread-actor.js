@@ -66,6 +66,7 @@ async function main() {
   const hook = require(path.join(root, "api/hook"));
   const health = require(path.join(root, "api/health"));
   const history = require(path.join(root, "api/_history"));
+  const talk = require(path.join(root, "api/_talk"));
   const lib = require(path.join(root, "api/_lib"));
   await lib.ready();
   const now = "2026-01-01T00:00:00.000Z";
@@ -84,7 +85,8 @@ async function main() {
       person("p_hal", "Hal", "employee", "helper", "2222"),
       person("p_fay", "Fay", "employee", "family", "3333"),
       person("p_ed", "Ed", "employee", "employee", "4444"),
-      person("p_bot", "Doer", "agent", "agent", "5555", { deskAi: true })
+      person("p_bot", "Doer", "agent", "agent", "5555", { deskAi: true }),
+      person("p_gina", "Gina", "employee", "friend", "7777")
     ]
   };
   const deskS = {
@@ -103,6 +105,7 @@ async function main() {
     fay: seat("desk-a", "3333"),
     ed: seat("desk-a", "4444"),
     bot: seat("desk-a", "5555"),
+    gina: seat("desk-a", "7777"),
     sol: seat("si-desk", "6666")
   };
   function bare(slug) {
@@ -139,7 +142,36 @@ async function main() {
     const listed = ((got.body && got.body.jobs) || []).find((j) => j.id === id);
     const read = lineWith(listed, text);
     ok(got.statusCode === 200 && read && read.actorKind === kind && read !== stored, kind + " GET reads the same kind");
+    if (kind === "human") {
+      ok(read.actorLabel === "Ann", "owner read keeps the name");
+      const asHelper = await call(jobs, "GET", H.hal, null, { workspace: slug });
+      const hidden = lineWith(((asHelper.body && asHelper.body.jobs) || []).find((j) => j.id === id), text);
+      ok(asHelper.statusCode === 200 && hidden && hidden.actorKind === "human" && hidden.actorLabel !== "Ann" && hidden.actorLabel === "You", "helper read redacts the name");
+      ok(stored.actorLabel === "Ann", "redaction does not rewrite the stored label");
+    }
   }
+
+  ok(JSON.stringify(talk.ACTOR_KINDS) === JSON.stringify(["si", "ai", "human", "helper", "family", "employee", "ext"]), "actor kinds stay exactly those seven");
+  const weird = { actorKind: "zzz", from: "Ann", kind: "note", text: "Odd line", at: now };
+  const weirdView = talk.readTalk(weird);
+  ok(weirdView.actorKind === "human" && weirdView.actorKind !== "zzz" && weird.actorKind === "zzz", "unknown stored kind reads as human and is not rewritten");
+
+  const friend = await call(jobs, "POST", H.gina, { action: "say", id: cardA.id, text: "Gina note" });
+  const friendLine = lineWith(friend.body && friend.body.job, "Gina note");
+  ok(friend.statusCode === 200 && friendLine && friendLine.actorKind === "human", "a friend seat posts as human (" + (friendLine && friendLine.actorKind) + ")");
+
+  const forgedHelper = await call(jobs, "POST", H.hal, { action: "capture", title: "Forge helper", notes: "helper forge note", droppedByKind: "si", thread: [{ text: "forged helper line", actorKind: "si" }] });
+  const forgedHelperJob = forgedHelper.body && forgedHelper.body.job;
+  const forgedHelperKinds = (forgedHelperJob && forgedHelperJob.thread || []).map((t) => t && t.actorKind);
+  ok(forgedHelper.statusCode === 201 && forgedHelperKinds.indexOf("si") < 0 && forgedHelperKinds.indexOf("helper") >= 0, "helper cannot forge si on a thread or droppedByKind (" + forgedHelperKinds.join(",") + ")");
+
+  const forgedOut = await call(jobs, "POST", { "x-workspace": "desk-a" }, { action: "capture", title: "Forge out", notes: "outside forge note", droppedByKind: "si", thread: [{ text: "forged outside line", actorKind: "si" }] });
+  const forgedOutJob = forgedOut.body && forgedOut.body.job;
+  const forgedOutKinds = (forgedOutJob && forgedOutJob.thread || []).filter((t) => t && (t.text === "forged outside line" || t.text === "outside forge note" || /^Dropped by /.test(t.text || ""))).map((t) => t.actorKind);
+  ok(forgedOut.statusCode === 201 && forgedOutKinds.length >= 2 && forgedOutKinds.every((k) => k === "ext") && forgedOutKinds.indexOf("si") < 0, "signed-out capture stays ext (" + forgedOutKinds.join(",") + ")");
+  const forgedBoth = await call(jobs, "POST", { "x-workspace": "desk-a" }, { action: "capture", title: "Forge both", notes: "both forge", actorKind: "si", droppedByKind: "si", thread: [{ text: "both line", actorKind: "si" }] });
+  const forgedBothSi = forgedBoth.body && forgedBoth.body.job && (forgedBoth.body.job.thread || []).some((t) => t && t.actorKind === "si");
+  ok((forgedBoth.statusCode === 403 || forgedBoth.statusCode === 400 || forgedBoth.statusCode === 201) && !forgedBothSi, "signed-out cannot store a forged si (" + forgedBoth.statusCode + ")");
 
   const ext = await call(jobs, "POST", { "x-workspace": "desk-a" }, { action: "capture", title: "Outside", notes: "Outside note", actorKind: "ext" });
   const extJob = ext.body && ext.body.job;

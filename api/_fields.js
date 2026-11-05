@@ -323,8 +323,7 @@ function assignIfKnown(job, shop, body) {
 }
 function makeCapturedJob(workspace, shop, body, actor) {
   const src = body && typeof body === "object" ? body : {};
-  const talk = require("./_talk");
-  const who = actor && actor.actorKind ? actor : null;
+  const who = actor && actor.actorKind ? actor : { actorKind: "ext", actorLabel: "ext" };
   const fields = pickFields(src);
   const job = { id: "job_" + Date.now().toString(36), workspace, title: String(src.title || fields.notes || "Untitled").slice(0, 160), why: src.why || "Captured.", status: "exception", step: "Qualify", createdAt: new Date().toISOString(), log: ["Captured"], ...fields, from: fields.from || src.from || "widget", externalId: src.externalId ? String(src.externalId).slice(0, 80) : null };
   if (fields.custom) job.custom = fields.custom;
@@ -336,15 +335,11 @@ function makeCapturedJob(workspace, shop, body, actor) {
   }
   const mode = String(src.mode || (src.custom && src.custom.mode) || src.lane || "").toLowerCase();
   if (src.implement || src.data || mode === "agent" || mode === "ops") applyImplement(job, shop, src);
-  if (job.droppedByKind) addTalk(job, job.contactName || "drop", "Dropped by " + job.droppedByKind + ".", "note", talk.actorForDrop({ droppedByKind: job.droppedByKind, contactName: job.contactName }));
+  if (job.droppedByKind) addTalk(job, job.contactName || "drop", "Dropped by " + job.droppedByKind + ".", "note", who);
   if (Array.isArray(src.thread)) {
     src.thread.slice(-16).forEach(function (line) {
       if (!line || !line.text) return;
-      if (line.actorKind != null && String(line.actorKind).trim() !== "" && talk.ACTOR_KINDS.indexOf(String(line.actorKind).trim().toLowerCase()) < 0) return;
-      const lineActor = line.actorKind
-        ? { actorKind: String(line.actorKind).trim().toLowerCase(), actorLabel: line.actorLabel || line.from || (who && who.actorLabel) || "desk" }
-        : who;
-      addTalk(job, line.from || "drop", line.text, line.kind || "note", lineActor);
+      addTalk(job, line.from || who.actorLabel || "drop", line.text, line.kind || "note", who);
     });
   }
   if (src.previewReady) {

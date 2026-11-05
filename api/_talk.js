@@ -36,12 +36,28 @@ function inferActorKind(entry) {
   return "human";
 }
 
-function readTalk(entry) {
+// A stored kind outside the seven is not shown as-is. Fall back to a known kind.
+function safeKind(entry) {
+  const raw = normKind(entry && entry.actorKind);
+  if (ACTOR_KINDS.indexOf(raw) >= 0) return raw;
+  const guessed = inferActorKind(entry);
+  if (ACTOR_KINDS.indexOf(guessed) >= 0) return guessed;
+  return "human";
+}
+function redactedLabel(kind) {
+  if (kind === "human") return "You";
+  if (kind === "ai") return "AI";
+  if (kind === "si") return "SI";
+  return kind || "You";
+}
+function readTalk(entry, opts) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
-  const actorKind = knownKind(entry.actorKind) ? normKind(entry.actorKind) : inferActorKind(entry);
+  const actorKind = safeKind(entry);
+  let actorLabel = entry.actorLabel || entry.from || entry.who || "";
+  if (opts && opts.redact) actorLabel = redactedLabel(actorKind);
   return Object.assign({}, entry, {
     actorKind: actorKind,
-    actorLabel: entry.actorLabel || entry.from || entry.who || "",
+    actorLabel: actorLabel,
     input: entry.input != null ? entry.input : "",
     output: entry.output != null ? entry.output : ""
   });
@@ -64,21 +80,14 @@ function actorForSeat(person, account) {
   const owner = role === "owner" || kind === "owner";
   const accKind = normKind(account && account.kind);
   if (owner && accKind === "si") return { actorKind: "si", actorLabel: label };
+  if (kind === "friend" || role === "friend") return { actorKind: "human", actorLabel: label };
   if (role === "employee" && !kind) return { actorKind: "employee", actorLabel: label };
   return { actorKind: "human", actorLabel: label };
 }
 
-// A public drop has no seat. droppedByKind is the role the desk already stores.
-function actorForDrop(body) {
-  const b = body && typeof body === "object" ? body : {};
-  const d = normKind(b.droppedByKind || b.whoKind);
-  const label = b.whoTapped || b.contactName || b.name || d || "drop";
-  if (d === "family") return { actorKind: "family", actorLabel: label };
-  if (d === "helper") return { actorKind: "helper", actorLabel: label };
-  if (d === "staff" || d === "employee") return { actorKind: "employee", actorLabel: label };
-  if (d === "owner" || d === "friend") return { actorKind: "human", actorLabel: label };
-  if (knownKind(d)) return { actorKind: d, actorLabel: label };
-  return { actorKind: "ext", actorLabel: label };
+// A public drop has no seat. The client does not choose the kind: signed-out is ext.
+function actorForDrop() {
+  return { actorKind: "ext", actorLabel: "ext" };
 }
 
 // From-label used when a writer has no seat (grok, pipe, desk, worker).
