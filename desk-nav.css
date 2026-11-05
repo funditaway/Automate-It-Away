@@ -36,7 +36,8 @@ header {
   text-decoration: none;
 }
 .desk-tabs a.on {
-  color: #f39c12;
+  color: #f39c12 !important;
+  box-shadow: none !important;
 }
 #desk-nav {
   position: fixed;
