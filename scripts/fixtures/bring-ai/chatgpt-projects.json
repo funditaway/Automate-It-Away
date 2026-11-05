@@ -1,0 +1,329 @@
+[
+ {
+  "id": "p-1",
+  "conversation_id": "p-1",
+  "title": "Cabinet colors",
+  "create_time": 1762000000,
+  "update_time": 1762000002,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": []
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "p-1-m1"
+    ],
+    "message": {
+     "author": {
+      "role": "system"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "hidden system"
+      ]
+     },
+     "create_time": 1762000000
+    }
+   },
+   "p-1-m1": {
+    "id": "p-1-m1",
+    "parent": "sys",
+    "children": [
+     "p-1-m2"
+    ],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Sage or navy cabinets?"
+      ]
+     },
+     "create_time": 1762000001
+    }
+   },
+   "p-1-m2": {
+    "id": "p-1-m2",
+    "parent": "p-1-m1",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "assistant"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Sage feels lighter in a small kitchen."
+      ]
+     },
+     "create_time": 1762000002
+    }
+   }
+  },
+  "current_node": "p-1-m2",
+  "project": {
+   "name": "Kitchen remodel"
+  }
+ },
+ {
+  "id": "p-2",
+  "conversation_id": "p-2",
+  "title": "Counter quotes",
+  "create_time": 1762000100,
+  "update_time": 1762000102,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": []
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "p-2-m1"
+    ],
+    "message": {
+     "author": {
+      "role": "system"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "hidden system"
+      ]
+     },
+     "create_time": 1762000100
+    }
+   },
+   "p-2-m1": {
+    "id": "p-2-m1",
+    "parent": "sys",
+    "children": [
+     "p-2-m2"
+    ],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Compare two quotes"
+      ]
+     },
+     "create_time": 1762000101
+    }
+   },
+   "p-2-m2": {
+    "id": "p-2-m2",
+    "parent": "p-2-m1",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "assistant"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Quote B includes the sink."
+      ]
+     },
+     "create_time": 1762000102
+    }
+   }
+  },
+  "current_node": "p-2-m2",
+  "project": "Kitchen remodel"
+ },
+ {
+  "id": "p-3",
+  "conversation_id": "p-3",
+  "title": "Past tense drills",
+  "create_time": 1762000200,
+  "update_time": 1762000202,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": []
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "p-3-m1"
+    ],
+    "message": {
+     "author": {
+      "role": "system"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "hidden system"
+      ]
+     },
+     "create_time": 1762000200
+    }
+   },
+   "p-3-m1": {
+    "id": "p-3-m1",
+    "parent": "sys",
+    "children": [
+     "p-3-m2"
+    ],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Give me 3 preterite drills"
+      ]
+     },
+     "create_time": 1762000201
+    }
+   },
+   "p-3-m2": {
+    "id": "p-3-m2",
+    "parent": "p-3-m1",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "assistant"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "1. Yo com\u00ed. 2. T\u00fa fuiste. 3. Ella habl\u00f3."
+      ]
+     },
+     "create_time": 1762000202
+    }
+   }
+  },
+  "current_node": "p-3-m2",
+  "project": {
+   "name": "Spanish practice"
+  }
+ },
+ {
+  "id": "p-4",
+  "conversation_id": "p-4",
+  "title": "Grocery list",
+  "create_time": 1762000300,
+  "update_time": 1762000301,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": []
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "p-4-m1"
+    ],
+    "message": {
+     "author": {
+      "role": "system"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "hidden system"
+      ]
+     },
+     "create_time": 1762000300
+    }
+   },
+   "p-4-m1": {
+    "id": "p-4-m1",
+    "parent": "sys",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Milk, eggs, bread"
+      ]
+     },
+     "create_time": 1762000301
+    }
+   }
+  },
+  "current_node": "p-4-m1"
+ },
+ {
+  "id": "p-1",
+  "conversation_id": "p-1",
+  "title": "Cabinet colors",
+  "create_time": 1762000000,
+  "update_time": 1762000001,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": []
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "p-1-m1"
+    ],
+    "message": {
+     "author": {
+      "role": "system"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "hidden system"
+      ]
+     },
+     "create_time": 1762000000
+    }
+   },
+   "p-1-m1": {
+    "id": "p-1-m1",
+    "parent": "sys",
+    "children": [],
+    "message": {
+     "author": {
+      "role": "user"
+     },
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "duplicate"
+      ]
+     },
+     "create_time": 1762000001
+    }
+   }
+  },
+  "current_node": "p-1-m1",
+  "project": {
+   "name": "Kitchen remodel"
+  }
+ }
+]
