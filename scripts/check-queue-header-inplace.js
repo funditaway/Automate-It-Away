@@ -12,15 +12,16 @@ function check(css, js, html, fix) {
   if (!/\.desk-tabs\s*\{[^}]*justify-content:\s*flex-start/.test(css)) fails.push("desk-nav.css desk-tabs not flex-start");
   if (!/\.desk-tabs\s*\{[^}]*gap:\s*8px 18px/.test(css)) fails.push("desk-nav.css desk-tabs gap not 8px 18px");
   if (!/\.desk-tabs\s*\{[^}]*font:\s*700 15px/.test(css)) fails.push("desk-nav.css desk-tabs font not 15px");
-  if (!/\.desk-tabs a\.on\s*\{[^}]*color:\s*#f39c12/.test(css)) fails.push("desk-nav.css a.on not #f39c12");
-  if (/box-shadow:\s*inset 0 -3px 0 #f39c12/.test(css.match(/\.desk-tabs a\.on\s*\{[^}]*\}/) || [""])[0]) fails.push("desk-nav.css a.on still underline shift");
+  if (!/\.desk-tabs a\.on\s*\{[^}]*color:\s*#fff\s*!important/.test(css)) fails.push("desk-nav.css a.on not AA white");
+  if (!/box-shadow:\s*inset 0 -3px 0 #f39c12\s*!important/.test((css.match(/\.desk-tabs a\.on\s*\{[^}]*\}/) || [""])[0])) fails.push("desk-nav.css a.on lost its orange active marker");
   if (!/justify-content:flex-start/.test(js) || !/gap:8px 18px/.test(js) || !/font:700 15px/.test(js)) fails.push("desk-nav.js ensureCss final layout drifted");
+  if (!js.includes(".desk-tabs a.on{color:#fff!important;box-shadow:inset 0 -3px 0 #f39c12!important}")) fails.push("desk-nav.js injected active tab lost AA white text or orange underline");
   if (!/existing\.length === TABS\.length/.test(js)) fails.push("desk-nav.js missing in-place header tab update");
   if (!/querySelectorAll\("a\[data-tab\]"\)/.test(js)) fails.push("desk-nav.js missing data-tab probe");
   if (!/justify-content:flex-start/.test(html) || !/gap:8px 18px/.test(html) || !/font:700 15px/.test(html)) fails.push("desk.html inline desk-tabs not final layout");
   if (!/desk-tabs a\.on\{color:#f39c12\}/.test(html)) fails.push("desk.html inline a.on not final");
-  if (!/\.desk-tabs a\.on\s*\{[^}]*color:\s*#f39c12\s*!important;[^}]*box-shadow:\s*none\s*!important/.test(fix)) fails.push("ui-fix.css does not override white active text and underline");
-  if (fix.lastIndexOf(".desk-tabs a.on {\n  color: #f39c12 !important;\n  box-shadow: none !important;\n}") < fix.indexOf("box-shadow: inset 0 -3px 0 #f39c12 !important")) fails.push("winning active-tab rule must come after the old underline");
+  if (!/\.desk-tabs a\.on\s*\{[^}]*color:\s*#fff\s*!important;[^}]*box-shadow:\s*inset 0 -3px 0 #f39c12\s*!important/.test(fix)) fails.push("ui-fix.css does not keep AA white active text and its orange underline");
+  if (fix.lastIndexOf(".desk-tabs a.on {\n  color: #fff !important;\n  box-shadow: inset 0 -3px 0 #f39c12 !important;\n}") < fix.indexOf("color: #f39c12 !important")) fails.push("winning AA active-tab rule must come after the old orange-text rule");
   return fails;
 }
 
@@ -40,13 +41,14 @@ if (process.argv.includes("--mutants")) {
     ["css flex space-between", css.replace("justify-content: flex-start", "justify-content: space-between"), js, html],
     ["css gap 10", css.replace("gap: 8px 18px", "gap: 8px 10px"), js, html],
     ["css font 13", css.replace("font: 700 15px", "font: 700 13px"), js, html],
-    ["css on underline", css.replace(/\.desk-tabs a\.on\s*\{[^}]*\}/, ".desk-tabs a.on { color: #fff; box-shadow: inset 0 -3px 0 #f39c12; }"), js, html],
+    ["css on no underline", css.replace(/\.desk-tabs a\.on\s*\{[^}]*\}/, ".desk-tabs a.on { color: #fff !important; box-shadow: none !important; }"), js, html],
     ["js no in-place", js.replace("existing.length === TABS.length", "existing.length === 999"), css, html],
     ["js ensureCss gap", js.replace("gap:8px 18px", "gap:8px 10px"), css, html],
+    ["js active tab orange", js.replace(".desk-tabs a.on{color:#fff!important;box-shadow:inset 0 -3px 0 #f39c12!important}", ".desk-tabs a.on{color:#f39c12!important;box-shadow:none!important}"), css, html],
     ["html inline gap", html.replace("gap:8px 18px", "gap:8px 10px"), css, js],
     ["html no on color", html.replace(".desk-tabs a.on{color:#f39c12}", ".desk-tabs a.on{color:#fff}"), css, js],
-    ["override loses important", css, js, html, fix.replace("color: #f39c12 !important;\n  box-shadow: none !important;\n}", "color: #f39c12;\n  box-shadow: none;\n}")],
-    ["override white underline", css, js, html, fix.replace(/\.desk-tabs a\.on \{\n  color: #f39c12 !important;\n  box-shadow: none !important;\n\}\n$/, "")],
+    ["override loses important", css, js, html, fix.replace("color: #fff !important;\n  box-shadow: inset 0 -3px 0 #f39c12 !important;\n}", "color: #fff;\n  box-shadow: inset 0 -3px 0 #f39c12;\n}")],
+    ["override drops AA rule", css, js, html, fix.replace(/\.desk-tabs a\.on \{\n  color: #fff !important;\n  box-shadow: inset 0 -3px 0 #f39c12 !important;\n\}\n$/, "")],
   ];
   let hit = 0;
   for (const [name, a, b, c] of mutants) {
