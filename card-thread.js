@@ -27,7 +27,9 @@
   function actorTag(k) {
     return TAGS[k] || "";
   }
+  // A stranger never sees You: the server masks other people's rows to "You" for them.
   function ownRow(row, from, opts) {
+    if (opts && opts.stranger) return false;
     if (row.own === true) return true;
     if (YOU_FROM.test(from)) return true;
     var v = clean(opts && opts.viewer).toLowerCase();
@@ -36,7 +38,7 @@
   // A person's own label, or the safe tag when the viewer is not the owner.
   function labelOf(row, from, opts) {
     var lab = clean(row.actorLabel);
-    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";
+    if (opts && opts.stranger) return lab !== "You" && SHOWN.indexOf(lab) >= 0 ? lab : "Helper";
     return (lab || from).slice(0, 40);
   }
   // The tag for one row: actorKind first; then the label the card already uses.
@@ -48,7 +50,8 @@
     var t = actorTag(ak);
     if (t) return t;
     if (AI_FROM.test(from) || row.ai === true) return "AI";
-    if (YOU_FROM.test(from)) return "You";
+    if (ownRow(row, from, opts)) return "You";
+    if (YOU_FROM.test(from)) return opts && opts.stranger ? "Helper" : "You";
     var k = kindTag(row.whoKind) || kindTag(row.droppedByKind) || kindTag(from);
     if (k && k !== "You") return k;
     return labelOf(row, from, opts);
@@ -77,9 +80,10 @@
     if (card.text || card.title) add({ at: card.createdAt, text: card.text || card.title, from: card.from, actorKind: card.actorKind, whoKind: card.droppedByKind || card.whoKind }, "in");
     (Array.isArray(card.thread) ? card.thread : []).forEach(function (t) {
       if (!t) return;
-      if (t.input != null || t.output != null) {
-        if (t.input != null) add(Object.assign({}, t, { text: t.input }), "in");
-        if (t.output != null) add(Object.assign({}, t, { text: t.output }), "out");
+      // readTalk sends input:"" and output:"" on plain rows; only a non-empty one is an {input, output} row.
+      if (clean(t.input) || clean(t.output)) {
+        if (clean(t.input)) add(Object.assign({}, t, { text: t.input }), "in");
+        if (clean(t.output)) add(Object.assign({}, t, { text: t.output }), "out");
         return;
       }
       add(t, isOutput(t) ? "out" : "in");

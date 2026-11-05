@@ -259,7 +259,8 @@ wrapLoadWanted();
 // In this thread, anyone who is not the desk's owner sees tags, not names. Other blocks on the
 // sheet (the old talk block, the timeline, Hand to) still show names; hiding those is still to do.
 function mountCardThread(j) {
-  const opts = { stranger: !!role && role !== "owner" };
+  // viewer = the signed-in name, so the owner sees You on their own rows only. Strangers never see You.
+  const opts = { stranger: !!role && role !== "owner", viewer: typeof youName === "string" ? youName : "" };
   const go = function () { if (window.AIACardThread) window.AIACardThread.mount("card-thread-sheet", j, opts); };
   if (window.AIACardThread) return go();
   let s = document.getElementById("card-thread-js");

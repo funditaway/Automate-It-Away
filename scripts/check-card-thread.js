@@ -64,6 +64,9 @@ const CARD = {
   replies: [{ at: "2026-11-01T10:06:00Z", from: "Plumber Co", text: "Tuesday at 9 works." }]
 };
 
+// Real GET /api/jobs (readTalk) rows from Probe #466 (726dbfce): every row has input:"" and output:"".
+// The helper copy is server-masked: human rows come as from/actorLabel "You".
+const READTALK = {"owner":{"text":"Fix the kitchen sink","title":"Fix the kitchen sink","from":"Zelda Ownerperson","createdAt":"2026-11-01T10:00:00Z","thread":[{"at":"2026-11-01T10:00:30Z","from":"Zelda Ownerperson","actorKind":"human","actorLabel":"Zelda Ownerperson","kind":"tell","text":"T-OWNOWN owner wrote this <img src=x onerror=window.__pwn=1>","input":"","output":""},{"at":"2026-11-01T10:01:00Z","from":"Grok","kind":"rec","actorKind":"ai","actorLabel":"Grok","text":"T-AI Call a plumber this week.","input":"","output":""},{"at":"2026-11-01T10:02:00Z","from":"Quincy Helperman","actorKind":"helper","actorLabel":"Quincy Helperman","kind":"tell","text":"T-HELPER I can call at noon. <script>window.__pwn=1</script>","input":"","output":""},{"at":"2026-11-01T10:03:00Z","from":"Switchy","actorKind":"si","actorLabel":"Switchy","kind":"rec","text":"T-SI SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidocious and a long message that should wrap nicely on a phone screen without pushing sideways.","input":"","output":""},{"at":"2026-11-01T10:04:00Z","from":"Wendy Familyname","actorKind":"family","actorLabel":"Wendy Familyname","kind":"note","text":"T-FAMILY Home Tuesday.","input":"","output":""},{"at":"2026-11-01T10:05:00Z","from":"Eddie Staffer","actorKind":"employee","actorLabel":"Eddie Staffer","kind":"note","text":"T-EMPLOYEE Parts ordered.","input":"","output":""},{"at":"2026-11-01T10:06:00Z","from":"Harriet Humanfriend","actorKind":"human","actorLabel":"Harriet Humanfriend","kind":"note","text":"T-HUMANFRIEND Need a hand?","input":"","output":""},{"at":"2026-11-01T10:06:30Z","from":"Widget Dropper","actorKind":"ext","actorLabel":"Widget Dropper","kind":"note","text":"T-EXT outside drop came in","input":"","output":""},{"at":"2026-11-01T10:07:00Z","from":"drop","kind":"note","text":"T-LEGACY-DROP legacy drop row","actorKind":"ext","actorLabel":"drop","input":"","output":""},{"at":"2026-11-01T10:07:30Z","from":"grok","kind":"rec","text":"T-LEGACY-GROK legacy ai row","actorKind":"ai","actorLabel":"grok","input":"","output":""},{"at":"2026-11-01T10:08:00Z","from":"Nora Nullkind","kind":"note","text":"T-LEGACY-NAME legacy named row","actorKind":"human","actorLabel":"Nora Nullkind","input":"","output":""}],"replies":[{"at":"2026-11-01T10:09:00Z","from":"Plumber Co","text":"T-REPLY Tuesday at 9 works.","actorKind":"human","actorLabel":"Plumber Co","input":"","output":""}]},"helper":{"text":"Fix the kitchen sink","title":"Fix the kitchen sink","from":"Zelda Ownerperson","createdAt":"2026-11-01T10:00:00Z","thread":[{"at":"2026-11-01T10:00:30Z","from":"You","actorKind":"human","actorLabel":"You","kind":"tell","text":"T-OWNOWN owner wrote this <img src=x onerror=window.__pwn=1>","input":"","output":""},{"at":"2026-11-01T10:01:00Z","from":"AI","kind":"rec","actorKind":"ai","actorLabel":"AI","text":"T-AI Call a plumber this week.","input":"","output":""},{"at":"2026-11-01T10:02:00Z","from":"helper","actorKind":"helper","actorLabel":"helper","kind":"tell","text":"T-HELPER I can call at noon. <script>window.__pwn=1</script>","input":"","output":""},{"at":"2026-11-01T10:03:00Z","from":"SI","actorKind":"si","actorLabel":"SI","kind":"rec","text":"T-SI SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidocious and a long message that should wrap nicely on a phone screen without pushing sideways.","input":"","output":""},{"at":"2026-11-01T10:04:00Z","from":"family","actorKind":"family","actorLabel":"family","kind":"note","text":"T-FAMILY Home Tuesday.","input":"","output":""},{"at":"2026-11-01T10:05:00Z","from":"employee","actorKind":"employee","actorLabel":"employee","kind":"note","text":"T-EMPLOYEE Parts ordered.","input":"","output":""},{"at":"2026-11-01T10:06:00Z","from":"You","actorKind":"human","actorLabel":"You","kind":"note","text":"T-HUMANFRIEND Need a hand?","input":"","output":""},{"at":"2026-11-01T10:06:30Z","from":"ext","actorKind":"ext","actorLabel":"ext","kind":"note","text":"T-EXT outside drop came in","input":"","output":""},{"at":"2026-11-01T10:07:00Z","from":"ext","kind":"note","text":"T-LEGACY-DROP legacy drop row","actorKind":"ext","actorLabel":"ext","input":"","output":""},{"at":"2026-11-01T10:07:30Z","from":"AI","kind":"rec","text":"T-LEGACY-GROK legacy ai row","actorKind":"ai","actorLabel":"AI","input":"","output":""},{"at":"2026-11-01T10:08:00Z","from":"You","kind":"note","text":"T-LEGACY-NAME legacy named row","actorKind":"human","actorLabel":"You","input":"","output":""}],"replies":[{"at":"2026-11-01T10:09:00Z","from":"You","text":"T-REPLY Tuesday at 9 works.","actorKind":"human","actorLabel":"You","input":"","output":""}]},"viewer":"Zelda Ownerperson"};
 function suite(S) {
   const f = [];
   PWN = { hit: false };
@@ -185,6 +188,26 @@ function suite(S) {
   ok(/s\.src = "card-thread\.js"/.test(S["desk-card.js"]), "desk-card.js loads card-thread.js itself (desk.html stays as it is)");
   const shown = (S["card-thread.js"].match(/textContent = "([^"]*)"/g) || []).join(" ");
   ok(!/grok|pay|charge|collect|money|\$/i.test(shown), "no payment or Grok wording on screen (" + shown + ")");
+  // Real readTalk rows: 11 thread rows + 1 reply all render (input:"" / output:"" is not an {input,output} row).
+  const seeded = READTALK.owner.thread.concat(READTALK.owner.replies).map((r) => String(r.text).replace(/\s+/g, " ").trim());
+  [["owner", READTALK.owner, { viewer: READTALK.viewer }], ["helper", READTALK.helper, { stranger: true, viewer: "Quincy Helperman" }]].forEach(([who, card, o]) => {
+    const es = T.entries(card, o) || [];
+    const sides = [].concat.apply([], es.map((e) => [e.input, e.output].filter(Boolean)));
+    const texts = sides.map((x) => x.text);
+    ok(seeded.length === 12 && seeded.every((t) => texts.indexOf(t) >= 0) && sides.length === 13, who + ": all 12 readTalk rows render (got " + sides.length + " sides, 13 with the card text)");
+    const tagOfText = (t) => (sides.find((x) => x.text === t) || {}).tag;
+    if (who === "helper") {
+      ok(sides.every((x) => x.tag !== "You"), "helper: no row reads You (" + sides.map((x) => x.tag).join(",") + ")");
+      ok(READTALK.helper.thread.concat(READTALK.helper.replies).filter((r) => r.actorKind === "human").every((r) => tagOfText(String(r.text).trim()) === "Helper"), "helper: masked human rows read Helper");
+      ok(T.tagOf({ actorKind: "human", from: "drop", actorLabel: "You" }, { stranger: true }) === "Helper" && T.tagOf({ from: "drop" }, { stranger: true }) === "Helper" && T.tagOf({ from: "You" }, { stranger: true }) === "Helper", "helper: masked You / from=drop never read You");
+    } else {
+      const rows = READTALK.owner.thread.concat(READTALK.owner.replies);
+      const mine = rows.filter((r) => r.actorKind === "human" && r.from === READTALK.viewer), others = rows.filter((r) => r.actorKind === "human" && r.from !== READTALK.viewer);
+      ok(mine.length > 0 && mine.every((r) => tagOfText(String(r.text).trim()) === "You") && tagOfText(READTALK.owner.text) === "You", "owner: own rows (and their own card text) read You");
+      ok(others.length > 0 && others.every((r) => { const t = tagOfText(String(r.text).trim()); return t !== "You" && t === r.actorLabel; }), "owner: other people's rows keep their label, never You");
+    }
+  });
+  ok(/viewer: typeof youName === "string" \? youName : ""/.test(S["desk-card.js"]), "desk-card.js passes the signed-in name as viewer");
   let pkg = ""; try { pkg = JSON.parse(S["package.json"]).scripts.test; } catch (e) {}
   ok(/node scripts\/check-owner-key-only\.js && node scripts\/check-owner-key-only-mutants\.js && node scripts\/check-card-thread-actor\.js && node scripts\/check-card-thread-actor-mutants\.js && node scripts\/check-card-thread\.js$/.test(pkg.trim()) && (pkg.match(/check-card-thread\.js/g) || []).length === 1, "npm test runs check-card-thread once, last, after the owner-key and #460 card-thread checks");
   return f;
@@ -206,8 +229,8 @@ const CT = "card-thread.js", DC = "desk-card.js", PK = "package.json";
 const MUTANTS = [
   ["ext reads You on own rows", rep(CT, "    var t = actorTag(ak);\n    if (t) return t;\n", "    if (ak === \"ext\" && ownRow(row, from, opts)) return \"You\";\n    var t = actorTag(ak);\n    if (t) return t;\n")],
   ["ext falls through to the label", rep(CT, ' ext: "Outside" }', " }")],
-  ["friend name leaks to non-owners", rep(CT, '    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";', '    if (opts && opts.stranger && /friend/i.test(String(row.whoKind || row.droppedByKind || lab))) return (lab || from).slice(0, 40);\n    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";')],
-  ["human from leaks when no label", rep(CT, '    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";', '    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : (lab ? "Helper" : from);')],
+  ["friend name leaks to non-owners", rep(CT, '    if (opts && opts.stranger) return lab !== "You" && SHOWN.indexOf(lab) >= 0 ? lab : "Helper";', '    if (opts && opts.stranger && /friend/i.test(String(row.whoKind || row.droppedByKind || lab))) return (lab || from).slice(0, 40);\n    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";')],
+  ["human from leaks when no label", rep(CT, '    if (opts && opts.stranger) return lab !== "You" && SHOWN.indexOf(lab) >= 0 ? lab : "Helper";', '    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : (lab ? "Helper" : from);')],
   ["unescaped HTML in message text", rep(CT, "    p.textContent = part.text;", "    p.innerHTML = part.text;")],
   ["unescaped HTML in tag", rep(CT, "    tag.textContent = part.tag;", "    tag.innerHTML = part.tag;")],
   ["text via insertAdjacentHTML", rep(CT, "    p.textContent = part.text;", "    p.insertAdjacentHTML(\"beforeend\", part.text);")],
@@ -224,7 +247,7 @@ const MUTANTS = [
   ["no fallback (unknown -> empty)", rep(CT, "    return labelOf(row, from, opts);\n  }\n  function isOutput", "    return \"\";\n  }\n  function isOutput")],
   ["last entry dropped", rep(CT, "    rows.forEach(function (e) {\n      var li", "    rows.slice(0, -1).forEach(function (e) {\n      var li")],
   ["newest first", rep(CT, "    out.sort(function (a, b) { return (a.at - b.at) || (a.n - b.n); });", "    out.sort(function (a, b) { return (b.at - a.at) || (b.n - a.n); });")],
-  ["helper role only marked stranger", rep(DC, 'const opts = { stranger: !!role && role !== "owner" };', 'const opts = { stranger: role === "helper" };')],
+  ["helper role only marked stranger", rep(DC, 'const opts = { stranger: !!role && role !== "owner",', 'const opts = { stranger: role === "helper",')],
   ["si shown as AI", rep(CT, 'si: "SI"', 'si: "AI"')],
   ["ai tag dropped", rep(CT, ' ai: "AI",', "")],
   ["human never You", rep(CT, 'return ownRow(row, from, opts) ? "You" : labelOf(row, from, opts);', 'return labelOf(row, from, opts);')],
@@ -232,10 +255,10 @@ const MUTANTS = [
   ["own flag ignored", rep(CT, "    if (row.own === true) return true;\n", "")],
   ["viewer ignored", rep(CT, "    return !!v && v === from.toLowerCase();", "    return false;")],
   ["actorLabel ignored", rep(CT, "    return (lab || from).slice(0, 40);", "    return from.slice(0, 40);")],
-  ["stranger sees actorLabel", rep(CT, '    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";', '    if (opts && opts.stranger) return lab || "Helper";')],
-  ["old you/outside values accepted", rep(CT, "    return TAGS[k] || \"\";\n  }\n  function ownRow", "    return TAGS[KIND_ALIAS[k] || k] || (k === \"you\" ? \"You\" : \"\");\n  }\n  function ownRow")],
-  ["input/output row split wrong", rep(CT, '        if (t.output != null) add(Object.assign({}, t, { text: t.output }), "out");', '        if (t.output != null) add(Object.assign({}, t, { text: t.output }), "in");')],
-  ["input/output row ignored", rep(CT, "      if (t.input != null || t.output != null) {", "      if (false) {")],
+  ["stranger sees actorLabel", rep(CT, '    if (opts && opts.stranger) return lab !== "You" && SHOWN.indexOf(lab) >= 0 ? lab : "Helper";', '    if (opts && opts.stranger) return lab || "Helper";')],
+  ["old you/outside values accepted", rep(CT, "    return TAGS[k] || \"\";\n  }\n  // A stranger", "    return TAGS[KIND_ALIAS[k] || k] || (k === \"you\" ? \"You\" : \"\");\n  }\n  // A stranger")],
+  ["input/output row split wrong", rep(CT, '        if (clean(t.output)) add(Object.assign({}, t, { text: t.output }), "out");', '        if (clean(t.output)) add(Object.assign({}, t, { text: t.output }), "in");')],
+  ["input/output row ignored", rep(CT, "      if (clean(t.input) || clean(t.output)) {", "      if (false) {")],
   ["human row seen as output", rep(CT, '    if (TAGS[k] || k === "human") return false;', '    if (TAGS[k]) return false;')],
   ["helper shown as Employee", rep(CT, 'helper: "Helper"', 'helper: "Employee"')],
   ["family shown as Helper", rep(CT, 'family: "Family"', 'family: "Helper"')],
@@ -244,12 +267,12 @@ const MUTANTS = [
   ["actorKind is case-sensitive", rep(CT, "    var ak = clean(row.actorKind).toLowerCase();", "    var ak = clean(row.actorKind);")],
   ["actorKind ignored (fallback always)", rep(CT, "    var t = actorTag(ak);\n    if (t) return t;\n", "")],
   ["fallback: AI from not seen", rep(CT, "if (AI_FROM.test(from) || row.ai === true) return \"AI\";", "")],
-  ["fallback: desk itself not You", rep(CT, "if (YOU_FROM.test(from)) return \"You\";", "")],
+  ["fallback: desk itself not You", rep(CT, "    if (ownRow(row, from, opts)) return \"You\";\n    if (YOU_FROM.test(from)) return opts && opts.stranger ? \"Helper\" : \"You\";\n", "")],
   ["fallback: whoKind ignored", rep(CT, "kindTag(row.whoKind) || ", "")],
   ["fallback: shows Helper even to the owner", rep(CT, "    return (lab || from).slice(0, 40);", "    return \"Helper\";")],
   ["unknown actorKind shown raw", rep(CT, "  function actorTag(k) {\n    return TAGS[k] || \"\";", "  function actorTag(k) {\n    return TAGS[k] || k;")],
-  ["stranger sees names", rep(CT, '    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";\n', "")],
-  ["desk-card never marks strangers", rep(DC, 'const opts = { stranger: !!role && role !== "owner" };', "const opts = { stranger: false };")],
+  ["stranger sees names", rep(CT, '    if (opts && opts.stranger) return lab !== "You" && SHOWN.indexOf(lab) >= 0 ? lab : "Helper";\n', "")],
+  ["desk-card never marks strangers", rep(DC, 'const opts = { stranger: !!role && role !== "owner",', "const opts = { stranger: false,")],
   ["replies keep their name for strangers", rep(CT, 'actorKind: r.actorKind || "ext" }', "actorKind: r.actorKind }")],
   ["second output overwrites the first", rep(CT, "} else if (cur && !cur.output) {", "} else if (cur) {")],
   ["output-only rows dropped", rep(CT, "      } else {\n        cur = { input: null, output: { tag: tag, text: r.text } };\n        entries.push(cur);\n      }", "      }")],
@@ -266,6 +289,12 @@ const MUTANTS = [
   ["sheet never mounts the thread", rep(DC, "  mountCardThread(j);\n", "")],
   ["Grok wording on screen", rep(CT, 'none.textContent = "Nothing yet.";', 'none.textContent = "Grok has nothing yet.";')],
   ["payment wording on screen", rep(CT, 'w.textContent = "No reply yet.";', 'w.textContent = "No reply yet. Nothing is charged.";')],
+  ["readTalk blank input/output rows dropped", rep(CT, "      if (clean(t.input) || clean(t.output)) {", "      if (t.input != null || t.output != null) {")],
+  ["stranger can see You (own row)", rep(CT, "    if (opts && opts.stranger) return false;\n", "")],
+  ["stranger sees the masked You label", rep(CT, 'return lab !== "You" && SHOWN.indexOf(lab) >= 0 ? lab : "Helper";', 'return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";')],
+  ["stranger reads from=drop as You", rep(CT, 'if (YOU_FROM.test(from)) return opts && opts.stranger ? "Helper" : "You";', 'if (YOU_FROM.test(from)) return "You";')],
+  ["owner's own card text not You", rep(CT, "    if (ownRow(row, from, opts)) return \"You\";\n    if (YOU_FROM", "    if (YOU_FROM")],
+  ["desk-card passes no viewer", rep(DC, ', viewer: typeof youName === "string" ? youName : "" };', " };")],
   ["not in npm test", rep(PK, " && node scripts/check-card-thread.js", "")]
 ];
 
