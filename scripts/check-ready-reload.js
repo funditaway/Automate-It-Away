@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+require("./_env-guard");
 
 // ready() must not re-read the sealed blob on every request. A warm instance
 // reloads only when mem is cold or older than READY_MAX_AGE_MS, concurrent
