@@ -55,12 +55,14 @@ function readTalk(entry, opts) {
   const actorKind = safeKind(entry);
   let actorLabel = entry.actorLabel || entry.from || entry.who || "";
   if (opts && opts.redact) actorLabel = redactedLabel(actorKind);
-  return Object.assign({}, entry, {
+  const out = Object.assign({}, entry, {
     actorKind: actorKind,
     actorLabel: actorLabel,
     input: entry.input != null ? entry.input : "",
     output: entry.output != null ? entry.output : ""
   });
+  if (opts && opts.redact) out.from = actorLabel;
+  return out;
 }
 
 // Seat → actor. Owner / person / user → human. Desk AI → ai. Helper, family,
@@ -85,8 +87,9 @@ function actorForSeat(person, account) {
   return { actorKind: "human", actorLabel: label };
 }
 
-// A public drop has no seat. The client does not choose the kind: signed-out is ext.
-function actorForDrop() {
+// Seat first. A signed-out drop is ext. body.droppedByKind is not a seat.
+function actorForDrop(person, account, body) {
+  if (person) return actorForSeat(person, account);
   return { actorKind: "ext", actorLabel: "ext" };
 }
 

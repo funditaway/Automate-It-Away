@@ -335,7 +335,7 @@ function makeCapturedJob(workspace, shop, body, actor) {
   }
   const mode = String(src.mode || (src.custom && src.custom.mode) || src.lane || "").toLowerCase();
   if (src.implement || src.data || mode === "agent" || mode === "ops") applyImplement(job, shop, src);
-  if (job.droppedByKind) addTalk(job, job.contactName || "drop", "Dropped by " + job.droppedByKind + ".", "note", who);
+  if (job.droppedByKind) addTalk(job, who.actorLabel || "drop", "Dropped by " + job.droppedByKind + ".", "note", who);
   if (Array.isArray(src.thread)) {
     src.thread.slice(-16).forEach(function (line) {
       if (!line || !line.text) return;

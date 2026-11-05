@@ -65,9 +65,8 @@ function accountOf(shop) {
   if (!shop || !shop.accountId) return null;
   return (mem.accounts || []).find((a) => a && a.id === shop.accountId) || null;
 }
-function seatActor(person, shop) {
-  if (person) return talk.actorForSeat(person, accountOf(shop));
-  return talk.extActor("ext");
+function seatActor(person, shop, body) {
+  return talk.actorForDrop(person, accountOf(shop), body);
 }
 // Unknown actorKind is a plain 400. A known kind that is not this seat is a 403.
 // Returns true when the response is already sent.
@@ -312,7 +311,7 @@ module.exports = async function handler(req, res) {
       // A signed-in seat captures as itself: who tapped is the session's seat, never the name in the body.
       // A stranger's drop (no seat) keeps the name it sent, as before.
       const capBody = person ? Object.assign({}, body, { whoTapped: actorName(person, {}) }) : body;
-      const capActor = seatActor(person, shop);
+      const capActor = seatActor(person, shop, capBody);
       if (refuseActor(res, body, capActor)) return;
       const jobs = makeFanOutJobs(workspace, shop, capBody, capActor);
       if (person) jobs.forEach((j) => { j.whoTapped = actorName(person, {}); j.whoTappedId = actorId(person); });

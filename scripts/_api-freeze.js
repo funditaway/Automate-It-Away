@@ -38,12 +38,12 @@ const PIN = {
   "api/_aia-admin.js": "b2036f064e85dfe1a93b7dda686d368f4fe7e233",
   "api/_aia-mail.js": "5796afa6e22f62f3a9e433b0c1d0eb00c6094599",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
-  "api/_fields.js": "8659811105833108b4c3149adf2db3918ab9bbd1",
+  "api/_fields.js": "960ec9cc4aad17d81a7e1c86c481d9335eec7158",
   "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
   "api/_history.js": "23faa6f0ce8141a15f92f811bc8a0da0b50fd118",
-  "api/_talk.js": "685926d3fb845271117509ff148b9ceec1f93eca",
+  "api/_talk.js": "093135971ca96c367a6725316d72d38302bccd8a",
   "api/hook.js": "7c70c92291e22311e33ee9c703c726393282a1b0",
-  "api/jobs.js": "a8779562d5ae43f60334a85cd27834f252efe9c7",
+  "api/jobs.js": "9837939dc02e588f6d0b9fda6a9174931fa13bfb",
   "api/migrate-uploads.js": "a9a47cd366c5b5cf8afcb934c027f1dfe1edf3dc",
   "api/worker.js": "5bedd2627f66fb6372c628d25a65940b8a85c2b6"
 };

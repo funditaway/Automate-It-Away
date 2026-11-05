@@ -36,6 +36,22 @@ const MUTANTS = [
   ["names not redacted", "api/_talk.js", [[
     "  if (opts && opts.redact) actorLabel = redactedLabel(actorKind);\n",
     ""
+  ]]],
+  ["F2 droppedByKind trusted", "api/_fields.js", [[
+    "\"Dropped by \" + job.droppedByKind + \".\", \"note\", who);",
+    "\"Dropped by \" + job.droppedByKind + \".\", \"note\", { actorKind: job.droppedByKind, actorLabel: job.droppedByKind });"
+  ]]],
+  ["F4 capture refuse skipped", "api/jobs.js", [[
+    "      const capActor = seatActor(person, shop, capBody);\n      if (refuseActor(res, body, capActor)) return;\n",
+    "      const capActor = seatActor(person, shop, capBody);\n"
+  ]]],
+  ["O4 actorForDrop always human", "api/_talk.js", [[
+    "  if (person) return actorForSeat(person, account);\n  return { actorKind: \"ext\", actorLabel: \"ext\" };",
+    "  return { actorKind: \"human\", actorLabel: \"human\" };"
+  ]]],
+  ["O7 drop fallback uses client kind", "api/_talk.js", [[
+    "  if (person) return actorForSeat(person, account);\n  return { actorKind: \"ext\", actorLabel: \"ext\" };",
+    "  if (person) return actorForSeat(person, account);\n  const d = normKind(body && (body.droppedByKind || body.whoKind));\n  if (d) return { actorKind: d, actorLabel: d };\n  return { actorKind: \"ext\", actorLabel: \"ext\" };"
   ]]]
 ];
 

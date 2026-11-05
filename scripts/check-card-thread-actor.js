@@ -146,7 +146,7 @@ async function main() {
       ok(read.actorLabel === "Ann", "owner read keeps the name");
       const asHelper = await call(jobs, "GET", H.hal, null, { workspace: slug });
       const hidden = lineWith(((asHelper.body && asHelper.body.jobs) || []).find((j) => j.id === id), text);
-      ok(asHelper.statusCode === 200 && hidden && hidden.actorKind === "human" && hidden.actorLabel !== "Ann" && hidden.actorLabel === "You", "helper read redacts the name");
+      ok(asHelper.statusCode === 200 && hidden && hidden.actorKind === "human" && hidden.actorLabel === "You" && hidden.from === "You" && hidden.from !== "Ann", "helper read redacts the name and from");
       ok(stored.actorLabel === "Ann", "redaction does not rewrite the stored label");
     }
   }
@@ -160,18 +160,25 @@ async function main() {
   const friendLine = lineWith(friend.body && friend.body.job, "Gina note");
   ok(friend.statusCode === 200 && friendLine && friendLine.actorKind === "human", "a friend seat posts as human (" + (friendLine && friendLine.actorKind) + ")");
 
-  const forgedHelper = await call(jobs, "POST", H.hal, { action: "capture", title: "Forge helper", notes: "helper forge note", droppedByKind: "si", thread: [{ text: "forged helper line", actorKind: "si" }] });
-  const forgedHelperJob = forgedHelper.body && forgedHelper.body.job;
-  const forgedHelperKinds = (forgedHelperJob && forgedHelperJob.thread || []).map((t) => t && t.actorKind);
-  ok(forgedHelper.statusCode === 201 && forgedHelperKinds.indexOf("si") < 0 && forgedHelperKinds.indexOf("helper") >= 0, "helper cannot forge si on a thread or droppedByKind (" + forgedHelperKinds.join(",") + ")");
-
-  const forgedOut = await call(jobs, "POST", { "x-workspace": "desk-a" }, { action: "capture", title: "Forge out", notes: "outside forge note", droppedByKind: "si", thread: [{ text: "forged outside line", actorKind: "si" }] });
-  const forgedOutJob = forgedOut.body && forgedOut.body.job;
-  const forgedOutKinds = (forgedOutJob && forgedOutJob.thread || []).filter((t) => t && (t.text === "forged outside line" || t.text === "outside forge note" || /^Dropped by /.test(t.text || ""))).map((t) => t.actorKind);
-  ok(forgedOut.statusCode === 201 && forgedOutKinds.length >= 2 && forgedOutKinds.every((k) => k === "ext") && forgedOutKinds.indexOf("si") < 0, "signed-out capture stays ext (" + forgedOutKinds.join(",") + ")");
+  async function dropped(headers, who, kind) {
+    const title = who + " drop " + kind;
+    const r = await call(jobs, "POST", headers, { action: "capture", title: title, notes: title + " note", droppedByKind: kind, thread: [{ text: title + " line", actorKind: kind }] });
+    const thread = (r.body && r.body.job && r.body.job.thread) || [];
+    const line = thread.find((t) => t && t.text === "Dropped by " + kind + ".");
+    const kinds = thread.filter((t) => t && t.actorKind !== "ai").map((t) => t.actorKind);
+    return { status: r.statusCode, line: line, kinds: kinds };
+  }
+  const helperFamily = await dropped(H.hal, "helper", "family");
+  const helperHelper = await dropped(H.hal, "helper", "helper");
+  ok(helperFamily.status === 201 && helperFamily.line && helperFamily.line.actorKind === "helper" && helperFamily.kinds.length && helperFamily.kinds.every((k) => k === "helper"), "helper droppedByKind family stores helper (" + helperFamily.kinds.join(",") + ")");
+  ok(helperHelper.status === 201 && helperHelper.line && helperHelper.line.actorKind === "helper" && helperHelper.kinds.every((k) => k === "helper"), "helper droppedByKind helper stores helper (" + helperHelper.kinds.join(",") + ")");
+  const outFamily = await dropped({ "x-workspace": "desk-a" }, "signed-out", "family");
+  const outHelper = await dropped({ "x-workspace": "desk-a" }, "signed-out", "helper");
+  ok(outFamily.status === 201 && outFamily.line && outFamily.line.actorKind === "ext" && outFamily.kinds.length && outFamily.kinds.every((k) => k === "ext"), "signed-out droppedByKind family stores ext (" + outFamily.kinds.join(",") + ")");
+  ok(outHelper.status === 201 && outHelper.line && outHelper.line.actorKind === "ext" && outHelper.kinds.every((k) => k === "ext"), "signed-out droppedByKind helper stores ext (" + outHelper.kinds.join(",") + ")");
   const forgedBoth = await call(jobs, "POST", { "x-workspace": "desk-a" }, { action: "capture", title: "Forge both", notes: "both forge", actorKind: "si", droppedByKind: "si", thread: [{ text: "both line", actorKind: "si" }] });
-  const forgedBothSi = forgedBoth.body && forgedBoth.body.job && (forgedBoth.body.job.thread || []).some((t) => t && t.actorKind === "si");
-  ok((forgedBoth.statusCode === 403 || forgedBoth.statusCode === 400 || forgedBoth.statusCode === 201) && !forgedBothSi, "signed-out cannot store a forged si (" + forgedBoth.statusCode + ")");
+  const forgedBothSi = !!(forgedBoth.body && forgedBoth.body.job && (forgedBoth.body.job.thread || []).some((t) => t && t.actorKind === "si"));
+  ok(forgedBoth.statusCode === 403 && !forgedBothSi, "signed-out forged si is 403 (" + forgedBoth.statusCode + ")");
 
   const ext = await call(jobs, "POST", { "x-workspace": "desk-a" }, { action: "capture", title: "Outside", notes: "Outside note", actorKind: "ext" });
   const extJob = ext.body && ext.body.job;
