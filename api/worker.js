@@ -8,6 +8,7 @@ const { runWorkspace } = require("./_engine");
 const { personNamed, isApprovedAgent, agentDraft, applyDeskAiDraft } = require("./_handoff");
 const ais = require("./_ais");
 const { addTalk } = require("./_fields");
+const talk = require("./_talk");
 
 function shopOf(slug) {
   return (mem.workspaces || []).find((w) => w && w.slug === slug) || null;
@@ -116,14 +117,14 @@ module.exports = async function handler(req, res) {
     if (job.agentDrafted && !who.deskAi) return;
     if (who.deskAi) applyDeskAiDraft(job, shop, step);
     else agentDraft(job, who);
-    addTalk(job, (job.agentDraft && (job.agentDraft.name || job.agentDraft.crew)) || who.name, (job.agentDraft && job.agentDraft.text) || job.draft, "rec");
+    addTalk(job, (job.agentDraft && (job.agentDraft.name || job.agentDraft.crew)) || who.name, (job.agentDraft && job.agentDraft.text) || job.draft, "rec", talk.aiActor((job.agentDraft && (job.agentDraft.name || job.agentDraft.crew)) || who.name || "Desk AI"));
     drafted += 1;
     log(who.deskAi ? (who.name || "Desk AI") : (who.crew || "Agent"), "Draft · " + job.title, "OK", job.workspace);
   });
   let nudged = 0;
   scope.forEach((job) => {
     if (!job || job.status !== "out" || job.nudgeOut) return;
-    addTalk(job, "worker", "Still off the desk. Confirm done, or tap Needs a hand.", "note");
+    addTalk(job, "worker", "Still off the desk. Confirm done, or tap Needs a hand.", "note", talk.aiActor("worker"));
     job.nudgeOut = true;
     job.next = "Off the desk. Waiting on write-back, or tap Done off desk / Needs a hand.";
     nudged += 1;

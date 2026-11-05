@@ -1,4 +1,5 @@
 const DESK_FORMAT = "aia.desk.v1";
+const talk = require("./_talk");
 
 function laneOf(job) {
   if (!job) return "doing";
@@ -74,28 +75,33 @@ function thenAiGoneOf(job) {
 function talkTurns(job) {
   const rows = [];
   const seen = {};
-  function add(kind, from, text, at) {
+  function add(kind, from, text, at, src) {
     const t = String(text || "").replace(/\s+/g, " ").trim();
     if (!t) return;
     const key = String(kind || "") + "|" + t;
     if (seen[key]) return;
     seen[key] = true;
+    const view = talk.readTalk(src || { kind: kind, from: from, text: t, at: at || "" });
     rows.push({
       kind: String(kind || "note").slice(0, 16),
       from: String(from || "").slice(0, 40),
       text: t.slice(0, 500),
-      at: at || ""
+      at: at || "",
+      actorKind: view.actorKind,
+      actorLabel: view.actorLabel || "",
+      input: view.input != null ? view.input : "",
+      output: view.output != null ? view.output : ""
     });
   }
   (job && Array.isArray(job.thread) ? job.thread : []).forEach(function (t) {
     if (!t || !t.text) return;
     const k = String(t.kind || "note");
     if (k !== "ask" && k !== "reply" && k !== "rec" && k !== "note" && k !== "follow" && k !== "tell") return;
-    add(k, t.from, t.text, t.at);
+    add(k, t.from, t.text, t.at, t);
   });
   (job && Array.isArray(job.replies) ? job.replies : []).forEach(function (r) {
     if (!r) return;
-    add("reply", r.from || "You", r.text, r.at);
+    add("reply", r.from || "You", r.text, r.at, r);
   });
   const draft = String((job && (job.draft || (job.agentDraft && job.agentDraft.text))) || "").replace(/\s+/g, " ").trim();
   return rows.filter(function (row) {
@@ -210,7 +216,8 @@ function historyItem(job, desk) {
     thread: thread,
     replies: (Array.isArray(job.replies) ? job.replies : []).slice(-12).map(function (r) {
       if (!r) return null;
-      return { from: String(r.from || "You").slice(0, 40), text: String(r.text || "").slice(0, 500), at: r.at || "" };
+      const view = talk.readTalk(r);
+      return { from: String(r.from || "You").slice(0, 40), text: String(r.text || "").slice(0, 500), at: r.at || "", actorKind: view.actorKind, actorLabel: view.actorLabel || "", input: view.input != null ? view.input : "", output: view.output != null ? view.output : "" };
     }).filter(function (r) { return r && r.text; }),
     href: "/desk"
   };
@@ -382,7 +389,8 @@ function capCard(job, desk) {
     thread: talkTurns(job),
     replies: (Array.isArray(job.replies) ? job.replies : []).slice(-12).map(function (r) {
       if (!r) return null;
-      return { from: String(r.from || "You").slice(0, 40), text: String(r.text || "").slice(0, 500), at: r.at || "" };
+      const view = talk.readTalk(r);
+      return { from: String(r.from || "You").slice(0, 40), text: String(r.text || "").slice(0, 500), at: r.at || "", actorKind: view.actorKind, actorLabel: view.actorLabel || "", input: view.input != null ? view.input : "", output: view.output != null ? view.output : "" };
     }).filter(function (r) { return r && r.text; }),
     href: "/desk"
   };
