@@ -40,6 +40,7 @@ else pass("save-ai reports planCut");
 
 const ais = require("../api/_ais");
 const grok = require("../api/_grok");
+const connections = require("../api/connections");
 const lib = require("../api/_lib");
 const packHandler = require("../api/_packs");
 const { mem, hashPin, ensurePeople, ready } = lib;
@@ -313,7 +314,15 @@ async function main() {
     if (!notArray || !same(notArray.plan, [])) fail("studioDraft non-array plan must be []");
     else pass("studioDraft non-array plan is []");
 
-    process.env.XAI_API_KEY = "plan-check-not-a-real-key";
+    const prevSecret = process.env.AIA_CONNECT_SECRET;
+    process.env.AIA_CONNECT_SECRET = "plan-check-connect-secret";
+    const bound = await call(connections, "POST", owner, {
+      action: "ai",
+      provider: "grok",
+      key: "xai-plan-check-desk-key"
+    });
+    if (!bound || bound.statusCode !== 201) fail("studioDraft setup must connect a desk key, got " + (bound && bound.statusCode));
+    else pass("studioDraft setup connected a desk key");
     const prevFetch = global.fetch;
     let sent = "";
     global.fetch = async function (_url, init) {
@@ -335,7 +344,8 @@ async function main() {
       else pass("studioDraft does not send plan to the model");
     } finally {
       global.fetch = prevFetch;
-      delete process.env.XAI_API_KEY;
+      if (prevSecret == null) delete process.env.AIA_CONNECT_SECRET;
+      else process.env.AIA_CONNECT_SECRET = prevSecret;
     }
   } finally {
     restoreKeys(keys);

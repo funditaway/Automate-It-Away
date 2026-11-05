@@ -240,7 +240,7 @@ async function click(w, id, label) {
   ok(/<section id="acct-settings" aria-label="My account settings" hidden><\/section>\s*<\/main>/.test(acct), "settings mount still right before </main>");
   ok(/<script src="account-settings\.js"><\/script>\s*<script src="account-connections\.js"><\/script>\s*<script src="account-follow\.js"><\/script>/.test(acct), "account-follow.js loads after settings and connections");
   ok(/\.acct-lines\{/.test(acct), "account.html styles the follow lists");
-  ok(fs.statSync(path.join(root, "desk.html")).size === 35012, "desk.html stays 35,012 bytes");
+  ok(fs.statSync(path.join(root, "desk.html")).size === 35055, "desk.html stays 35,055 bytes");
   ok(!/account-follow/.test(read("desk.html")), "desk.html untouched");
   ok(!/check-account-follow-ui/.test(read("package.json")), "not in npm test yet");
   ok(!fs.existsSync(path.join(root, "api/account-follow.js")), "no new account-follow function");

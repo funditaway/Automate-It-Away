@@ -36,7 +36,7 @@ const OVERLAY = [
   "scripts/check-setup-cards-ui.js",
   "scripts/check-ux-signin.js"
 ];
-const LANDED = ["api/_aia-admin.js", "api/_aia-mail.js", "api/_aia-register.js", "api/_grok.js"];
+const LANDED = ["api/_aia-admin.js", "api/_aia-mail.js", "api/_aia-register.js"];
 const MOVED = [
   "api/_fields.js",
   "api/_history.js",

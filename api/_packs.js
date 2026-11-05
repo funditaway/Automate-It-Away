@@ -1,6 +1,6 @@
 const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow, RULE_MAX, PROVIDERS, configured } = require("./_lib");
 const cards = require("./_account-connect");
-const { grokOn, studioDraft } = require("./_grok");
+const { studioDraft, pickDrafter } = require("./_grok");
 const ais = require("./_ais");
 const net = require("./_aia-net");
 
@@ -640,6 +640,7 @@ async function packHandler(req, res) {
       return res.status(200).json({ ok: true, desk: shop.slug, ais: rails.ais, count: rails.count, rails: rails.rails, never: rails.never, aia: rails.aia, internet: rails.net });
     }
     const rows = searchPacks(q.q || q.search || "", { mine: mine, workspace: workspace });
+    const deskDraft = !!pickDrafter(workspace);
     return res.status(200).json({
       ok: true,
       q: String(q.q || q.search || "").slice(0, 80),
@@ -648,7 +649,7 @@ async function packHandler(req, res) {
       wanted: rows.filter(function (p) { return p.wanted; }),
       color: rows.filter(function (p) { return p.type === "cosmetic"; }),
       creator: rows.filter(function (p) { return !p.official && !p.wanted && p.type !== "cosmetic"; }),
-      grok: { on: grokOn(), note: grokOn() ? "Grok drafts in Creators Studio. Never Send." : "Set XAI_API_KEY for Studio drafts." },
+      grok: { on: deskDraft, note: deskDraft ? "Grok drafts in Creators Studio. Never Send." : "A Desk AI can't draft on this phone yet." },
       studio: grokStudio(),
       never: ["send", "stop", "pay"],
       internet: net.statusOf()
@@ -671,14 +672,6 @@ async function packHandler(req, res) {
     const grok = await studioDraft(body.brief || body.text || body.does || body.name, workspace, { kind: body.kind || "pack" });
     log("Grok", "Studio " + (body.kind || "pack") + " draft", grok && grok.ok ? "OK" : ((grok && grok.reason) || "Hold"), workspace);
     await save();
-    if (grok && grok.reason === "no-key") {
-      return res.status(200).json({
-        ok: false,
-        grok: "off",
-        saved: false,
-        note: "Drafts are off until XAI_API_KEY is on. Orange copy only. You can still write the pack by hand."
-      });
-    }
     if (!grok || !grok.ok) {
       return res.status(200).json({
         ok: false,
