@@ -1,3 +1,4 @@
+require("./_env-guard");
 // check-card-thread: card-thread.js renders one card as one chat thread.
 // - every actorKind maps to its plain tag (SI, AI, You, Helper, Family, Employee, Outside)
 // - with no actorKind the tag falls back to the label the card already uses
@@ -15,14 +16,19 @@ const root = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
 const SRC = { "card-thread.js": read("card-thread.js"), "desk-card.js": read("desk-card.js"), "package.json": read("package.json") };
 
+let PWN = null; // what a browser would run if HTML were parsed
 function fakeDoc() {
   const byId = {};
+  const parse = (html) => { if (/<script|on\w+\s*=|javascript:/i.test(String(html))) PWN.hit = true; };
   function mk(tag) {
     const n = {
       tagName: String(tag).toUpperCase(), children: [], attrs: {}, className: "", _t: "", id: "",
       appendChild(c) { n.children.push(c); if (c.id) byId[c.id] = c; return c; },
-      setAttribute(k, v) { n.attrs[k] = String(v); }
+      setAttribute(k, v) { n.attrs[k] = String(v); if (/^on/i.test(k)) PWN.hit = true; },
+      insertAdjacentHTML(_, h) { parse(h); }
     };
+    Object.defineProperty(n, "innerHTML", { get: () => "", set: (v) => { parse(v); n._t = String(v).replace(/<[^>]*>/g, ""); n.children = []; } });
+    Object.defineProperty(n, "outerHTML", { get: () => "", set: (v) => parse(v) });
     Object.defineProperty(n, "textContent", {
       get: () => n._t + n.children.map((c) => c.textContent).join(" "),
       set: (v) => { n._t = String(v); n.children = []; }
@@ -33,7 +39,7 @@ function fakeDoc() {
   return { head, body, createElement: mk, getElementById: (id) => byId[id] || null, _byId: byId };
 }
 function load(src) {
-  const win = { console };
+  const win = { console, document: { write: (h) => PWN && (PWN.hit = true) } };
   win.window = win;
   vm.createContext(win);
   vm.runInContext(src, win, { filename: "card-thread.js", timeout: 2000 });
@@ -60,6 +66,7 @@ const CARD = {
 
 function suite(S) {
   const f = [];
+  PWN = { hit: false };
   const ok = (c, m) => { if (!c) f.push(m); };
   let T;
   try { T = load(S["card-thread.js"]); } catch (e) { return ["card-thread.js does not run: " + e.message]; }
@@ -123,6 +130,24 @@ function suite(S) {
   const tags = all(st, "ct-tag").map((n) => n.textContent);
   ok(tags.length && tags.every((t) => ["SI", "AI", "You", "Helper", "Family", "Employee", "Outside"].indexOf(t) >= 0), "a stranger's view shows only the seven tags (" + tags.join(",") + ")");
   ok(/stranger:\s*!!role && role !== "owner"/.test(S["desk-card.js"]), "desk-card.js passes stranger for anyone who is not the owner");
+  // 4b. message text and tags are rendered as text, never as HTML (owner and helper views)
+  const EVIL = "<img src=x onerror=window.__pwn=1><script>window.__pwn=1</script>";
+  const HOSTILE = { title: EVIL, from: "drop", createdAt: "2026-11-01T10:00:00Z", thread: [
+    { at: "2026-11-01T10:01:00Z", actorKind: "ai", from: "Grok", kind: "rec", text: EVIL },
+    { at: "2026-11-01T10:02:00Z", actorKind: "human", actorLabel: EVIL, from: EVIL, kind: "tell", text: "hi" },
+    { at: "2026-11-01T10:03:00Z", actorKind: "ext", input: EVIL, output: EVIL }] };
+  [false, true].forEach((stranger) => {
+    PWN.hit = false;
+    const hd = fakeDoc();
+    const out = T.build(HOSTILE, { document: hd, stranger });
+    const who = stranger ? "helper" : "owner";
+    ok(!PWN.hit, "the " + who + " view never parses card text as HTML (window.__pwn stays unset)");
+    const texts = all(out, "ct-text").map((x) => x._t);
+    ok(texts.length >= 4 && texts.filter((t) => t === EVIL).length >= 3, "the " + who + " view shows hostile text literally, escaped (" + texts.length + ")");
+    const tg = all(out, "ct-tag").map((x) => x._t);
+    ok(stranger ? tg.indexOf(EVIL.slice(0, 40)) < 0 : tg.indexOf(EVIL.slice(0, 40)) >= 0, "a hostile label is " + (stranger ? "hidden" : "shown as plain text") + " in the " + who + " view");
+  });
+  ok(!/\.(innerHTML|outerHTML)\s*=|insertAdjacentHTML|document\.write|\beval\(|new Function/.test(S["card-thread.js"]), "card-thread.js has no HTML-parsing path (textContent only)");
   // 5. layout at 390
   const cssNode = doc.getElementById("card-thread-css");
   const css = cssNode ? cssNode._t : "";
@@ -131,6 +156,19 @@ function suite(S) {
   ok(/\.ct-in,\.card-thread \.ct-out\{[^}]*max-width:min\(100%,640px\)/.test(css), "each bubble is at most the screen wide (max-width:min(100%,640px))");
   ok(/\.card-thread\{[^}]*flex-direction:column/.test(css) && /\.ct-entry\{[^}]*flex-direction:column/.test(css), "one column: input above output");
   ok(/\.ct-entry\{[^}]*min-width:0/.test(css) && /\.ct-out\{[^}]*min-width:0|\.ct-in,\.card-thread \.ct-out\{[^}]*min-width:0/.test(css), "flex children may shrink below their text (min-width:0)");
+  ok(!/\.ct-tag\{[^}]*(display:none|visibility:hidden|opacity:0|font-size:0|width:0)/.test(css), "the who-did-it tag is visible");
+  ok(/\.ct-text\{[^}]*white-space:pre-wrap/.test(css) && !/white-space:(pre|nowrap)(;|\})/.test(css), "text wraps (pre-wrap, never pre or nowrap)");
+  ok(!/position:(absolute|fixed)/.test(css), "nothing is pulled out of the flow (no absolute or fixed)");
+  // every margin, padding, offset, indent or shift stays small, so text never pushes past a 390 screen
+  const OFF = /(?:^|[;{])\s*(margin(?:-left|-right)?|padding(?:-left|-right)?|left|right|text-indent|inset|translate|transform|gap|border(?:-left|-right)?-width)\s*:([^;}]*)/g;
+  const big = [];
+  let mm;
+  while ((mm = OFF.exec(css))) { (mm[2].match(/-?\d+(?:\.\d+)?(px|em|rem|vw|ch|%)/g) || []).forEach((v) => { const n = parseFloat(v), u = v.replace(/[-\d.]/g, ""); const px = u === "px" ? n : u === "em" || u === "rem" ? n * 16 : u === "ch" ? n * 8 : u === "vw" ? n * 3.9 : n * 3.9; if (Math.abs(px) > 24) big.push(mm[1] + ":" + v); }); }
+  ok(!big.length, "no margin, padding or offset over 24px on the thread (" + big.join(",") + ")");
+  const tx = (/\.ct-text\{([^}]*)\}/.exec(css) || ["", ""])[1];
+  ok(/(^|;)margin:0(;|$)/.test(tx) && !/margin-|padding|left|right|text-indent|transform|width/.test(tx), ".ct-text has no margin, offset or width of its own (" + tx + ")");
+  const allpx = (css.match(/(?:width|min-width|max-width|flex-basis|flex):[^;}]*/g) || []).filter((d) => (d.match(/(\d+)px/g) || []).some((v) => parseInt(v, 10) > 358) && !/max-width:min\(100%,640px\)/.test(d));
+  ok(!allpx.length, "no width, min-width or flex-basis wider than a 390 screen (" + allpx.join(",") + ")");
   const wide = (css.match(/(?:^|[;{])(?:width|min-width):\s*(\d+)px/g) || []).map((m) => +m.replace(/\D/g, "")).filter((n) => n > 358);
   ok(!wide.length, "no fixed width wider than a 390 screen (" + wide.join(",") + ")");
   // 6. wiring and words
@@ -157,6 +195,23 @@ function staticChecks() {
 function rep(file, a, b) { return (S) => { const s = S[file]; if (s.indexOf(a) < 0 || s.indexOf(a) !== s.lastIndexOf(a)) return null; const o = Object.assign({}, S); o[file] = s.replace(a, b); return o; }; }
 const CT = "card-thread.js", DC = "desk-card.js", PK = "package.json";
 const MUTANTS = [
+  ["unescaped HTML in message text", rep(CT, "    p.textContent = part.text;", "    p.innerHTML = part.text;")],
+  ["unescaped HTML in tag", rep(CT, "    tag.textContent = part.tag;", "    tag.innerHTML = part.tag;")],
+  ["text via insertAdjacentHTML", rep(CT, "    p.textContent = part.text;", "    p.insertAdjacentHTML(\"beforeend\", part.text);")],
+  ["tag hidden (display:none)", rep(CT, ".card-thread .ct-tag{display:inline-block;", ".card-thread .ct-tag{display:none;")],
+  ["text margin 420px", rep(CT, ".card-thread .ct-text{margin:0;", ".card-thread .ct-text{margin:0 0 0 420px;")],
+  ["text offset 420px", rep(CT, ".card-thread .ct-text{margin:0;", ".card-thread .ct-text{margin:0;position:relative;left:420px;")],
+  ["text indent 420px", rep(CT, ".card-thread .ct-text{margin:0;", ".card-thread .ct-text{margin:0;text-indent:420px;")],
+  ["text transform 420px", rep(CT, ".card-thread .ct-text{margin:0;", ".card-thread .ct-text{margin:0;transform:translateX(420px);")],
+  ["text width 420px", rep(CT, ".card-thread .ct-text{margin:0;", ".card-thread .ct-text{margin:0;width:420px;")],
+  ["bubble padding 420px", rep(CT, "box-sizing:border-box;padding:8px 10px;", "box-sizing:border-box;padding:8px 420px;")],
+  ["layout: no wrap (pre)", rep(CT, "overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap", "white-space:pre")],
+  ["layout: fixed 600px bubble via min-width", rep(CT, ".card-thread .ct-in,.card-thread .ct-out{max-width:min(100%,640px);min-width:0;", ".card-thread .ct-in,.card-thread .ct-out{max-width:min(100%,640px);min-width:600px;")],
+  ["layout: flex-basis 500px", rep(CT, ".card-thread .ct-entry{display:flex;flex-direction:column;", ".card-thread .ct-entry{display:flex;flex-direction:column;flex:0 0 500px;width:fit-content;padding-right:400px;")],
+  ["no fallback (unknown -> empty)", rep(CT, "    return labelOf(row, from, opts);\n  }\n  function isOutput", "    return \"\";\n  }\n  function isOutput")],
+  ["last entry dropped", rep(CT, "    rows.forEach(function (e) {\n      var li", "    rows.slice(0, -1).forEach(function (e) {\n      var li")],
+  ["newest first", rep(CT, "    out.sort(function (a, b) { return (a.at - b.at) || (a.n - b.n); });", "    out.sort(function (a, b) { return (b.at - a.at) || (b.n - a.n); });")],
+  ["helper role only marked stranger", rep(DC, 'const opts = { stranger: !!role && role !== "owner" };', 'const opts = { stranger: role === "helper" };')],
   ["si shown as AI", rep(CT, 'si: "SI"', 'si: "AI"')],
   ["ai tag dropped", rep(CT, ' ai: "AI",', "")],
   ["human never You", rep(CT, 'return ownRow(row, from, opts) ? "You" : labelOf(row, from, opts);', 'return labelOf(row, from, opts);')],
