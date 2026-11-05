@@ -65,13 +65,22 @@ function suite(S) {
   try { T = load(S["card-thread.js"]); } catch (e) { return ["card-thread.js does not run: " + e.message]; }
   if (!T) return ["card-thread.js must expose window.AIACardThread"];
   // 1. actorKind -> tag
-  const WANT = { si: "SI", ai: "AI", you: "You", helper: "Helper", family: "Family", employee: "Employee", outside: "Outside" };
+  // Switch's exact actorKind values (api/_talk.js, draft #460); human is handled below
+  const WANT = { si: "SI", ai: "AI", helper: "Helper", family: "Family", employee: "Employee", ext: "Outside" };
   Object.keys(WANT).forEach((k) => {
     ok(T.tagOf({ actorKind: k, from: "Someone Else" }) === WANT[k], "actorKind " + k + " -> " + WANT[k] + " (got " + T.tagOf({ actorKind: k, from: "Someone Else" }) + ")");
     ok(T.tagOf({ actorKind: k.toUpperCase(), from: "x" }, { stranger: true }) === WANT[k], "actorKind " + k + " in capitals still -> " + WANT[k]);
   });
   ok(T.tagOf({ actorKind: "ai", from: "Grok" }) === "AI" && T.tagOf({ actorKind: "si", from: "Grok" }) === "SI", "actorKind wins over the from label");
   ok(T.tagOf({ actorKind: "employee", from: "drop" }) === "Employee", "actorKind wins over the desk's own You");
+  // human: You on the viewer's own row; else actorLabel / current label; never a name for non-owners
+  ok(T.tagOf({ actorKind: "human", from: "drop" }) === "You" && T.tagOf({ actorKind: "human", from: "Pat", own: true }) === "You", "human on the viewer's own row -> You");
+  ok(T.tagOf({ actorKind: "human", from: "Pat" }, { viewer: "pat" }) === "You", "human whose from is the viewer -> You");
+  ok(T.tagOf({ actorKind: "human", from: "Sam", actorLabel: "Sam (friend)" }) === "Sam (friend)", "human, not own, owner's view -> actorLabel");
+  ok(T.tagOf({ actorKind: "human", from: "Sam" }) === "Sam", "human with no actorLabel -> the current label");
+  ok(T.tagOf({ actorKind: "human", from: "Sam", actorLabel: "Sam (friend)" }, { stranger: true }) === "Helper", "human, not own, stranger's view -> no name (Helper)");
+  ok(T.tagOf({ actorKind: "HUMAN", from: "drop" }) === "You", "human in capitals still works");
+  ok(T.tagOf({ actorKind: "you", from: "Pat" }) === "Pat" && T.tagOf({ actorKind: "outside", from: "Pat" }) === "Pat", "values Switch does not send (you, outside) fall back");
   // 2. fallback when actorKind is missing: the card's current label
   ok(T.tagOf({ from: "Grok" }) === "AI", "fallback: an AI from -> AI");
   ok(T.tagOf({ from: "drop" }) === "You" && T.tagOf({ from: "" }) === "You", "fallback: the desk itself -> You");
@@ -90,10 +99,13 @@ function suite(S) {
     "Outside:Tuesday at 9 works. => -"
   ];
   ok(JSON.stringify(flat) === JSON.stringify(WANTP), "input and output pair up in order:\n    got  " + JSON.stringify(flat) + "\n    want " + JSON.stringify(WANTP));
+  const io = T.entries({ thread: [{ at: "2026-11-01T10:00:00Z", actorKind: "ai", actorLabel: "AI", input: "What is due?", output: "Rent on Friday.", from: "Grok", kind: "rec" }, { at: "2026-11-01T10:00:05Z", actorKind: "employee", input: "Paid it.", from: "Lee" }] });
+  ok(io.length === 2 && io[0].input && io[0].input.text === "What is due?" && io[0].output && io[0].output.text === "Rent on Friday." && io[1].input && io[1].input.text === "Paid it." && !io[1].output, "Switch's {input, output} row is one entry, input then output");
+  ok(T.entries({ thread: [{ at: "2026-11-01T10:00:01Z", from: "drop", kind: "tell", text: "q" }, { at: "2026-11-01T10:00:02Z", actorKind: "human", from: "Sam", kind: "rec", text: "me too" }] }).length === 2, "a human row is an input, not an answer");
   ok(T.entries({ thread: [{ at: "2026-11-01T10:00:02Z", from: "Grok", kind: "rec", text: "late" }, { at: "2026-11-01T10:00:01Z", from: "drop", kind: "tell", text: "early" }] }).length === 1, "rows pair by time, not by array order");
   const rec = T.entries({ thread: [{ at: "2026-11-01T10:00:01Z", from: "drop", kind: "tell", text: "q" }, { at: "2026-11-01T10:00:02Z", from: "Planner", kind: "rec", text: "a" }] });
   ok(rec.length === 1 && rec[0].output && rec[0].output.text === "a", "a rec row is an output, whoever wrote it");
-  const reuse = T.entries({ entries: [{ input: { actorKind: "you", text: "Plan a trip" }, output: { actorKind: "ai", text: "Here is a plan." } }] });
+  const reuse = T.entries({ entries: [{ input: { actorKind: "human", own: true, text: "Plan a trip" }, output: { actorKind: "ai", text: "Here is a plan." } }] });
   ok(reuse.length === 1 && reuse[0].input.tag === "You" && reuse[0].output.tag === "AI", "rows not yet saved (Bring your AI preview) render through the same path");
   // build: one li per entry, input then output, wait line when no output
   const doc = fakeDoc();
@@ -147,21 +159,30 @@ const CT = "card-thread.js", DC = "desk-card.js", PK = "package.json";
 const MUTANTS = [
   ["si shown as AI", rep(CT, 'si: "SI"', 'si: "AI"')],
   ["ai tag dropped", rep(CT, ' ai: "AI",', "")],
-  ["you shown as Helper", rep(CT, 'you: "You"', 'you: "Helper"')],
+  ["human never You", rep(CT, 'return ownRow(row, from, opts) ? "You" : labelOf(row, from, opts);', 'return labelOf(row, from, opts);')],
+  ["human always You", rep(CT, 'return ownRow(row, from, opts) ? "You" : labelOf(row, from, opts);', 'return "You";')],
+  ["own flag ignored", rep(CT, "    if (row.own === true) return true;\n", "")],
+  ["viewer ignored", rep(CT, "    return !!v && v === from.toLowerCase();", "    return false;")],
+  ["actorLabel ignored", rep(CT, "    return (lab || from).slice(0, 40);", "    return from.slice(0, 40);")],
+  ["stranger sees actorLabel", rep(CT, '    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";', '    if (opts && opts.stranger) return lab || "Helper";')],
+  ["old you/outside values accepted", rep(CT, "    return TAGS[k] || \"\";\n  }\n  function ownRow", "    return TAGS[KIND_ALIAS[k] || k] || (k === \"you\" ? \"You\" : \"\");\n  }\n  function ownRow")],
+  ["input/output row split wrong", rep(CT, '        if (t.output != null) add(Object.assign({}, t, { text: t.output }), "out");', '        if (t.output != null) add(Object.assign({}, t, { text: t.output }), "in");')],
+  ["input/output row ignored", rep(CT, "      if (t.input != null || t.output != null) {", "      if (false) {")],
+  ["human row seen as output", rep(CT, '    if (TAGS[k] || k === "human") return false;', '    if (TAGS[k]) return false;')],
   ["helper shown as Employee", rep(CT, 'helper: "Helper"', 'helper: "Employee"')],
   ["family shown as Helper", rep(CT, 'family: "Family"', 'family: "Helper"')],
   ["employee tag dropped", rep(CT, ' employee: "Employee",', "")],
-  ["outside shown as Helper", rep(CT, 'outside: "Outside"', 'outside: "Helper"')],
-  ["actorKind is case-sensitive", rep(CT, "k = clean(k).toLowerCase();", "k = clean(k);")],
-  ["actorKind ignored (fallback always)", rep(CT, "    var t = kindTag(row.actorKind);\n    if (t) return t;\n", "")],
+  ["ext shown as Helper", rep(CT, 'ext: "Outside" }', 'ext: "Helper" }')],
+  ["actorKind is case-sensitive", rep(CT, "    var ak = clean(row.actorKind).toLowerCase();", "    var ak = clean(row.actorKind);")],
+  ["actorKind ignored (fallback always)", rep(CT, "    var t = actorTag(ak);\n    if (t) return t;\n", "")],
   ["fallback: AI from not seen", rep(CT, "if (AI_FROM.test(from) || row.ai === true) return \"AI\";", "")],
   ["fallback: desk itself not You", rep(CT, "if (YOU_FROM.test(from)) return \"You\";", "")],
   ["fallback: whoKind ignored", rep(CT, "kindTag(row.whoKind) || ", "")],
-  ["fallback: shows Helper even to the owner", rep(CT, "    if (opts && opts.stranger) return \"Helper\";\n    return from.slice(0, 40);", "    return \"Helper\";")],
-  ["unknown actorKind shown raw", rep(CT, "    return TAGS[k] || \"\";", "    return TAGS[k] || k;")],
-  ["stranger sees names", rep(CT, "    if (opts && opts.stranger) return \"Helper\";\n", "")],
+  ["fallback: shows Helper even to the owner", rep(CT, "    return (lab || from).slice(0, 40);", "    return \"Helper\";")],
+  ["unknown actorKind shown raw", rep(CT, "  function actorTag(k) {\n    return TAGS[k] || \"\";", "  function actorTag(k) {\n    return TAGS[k] || k;")],
+  ["stranger sees names", rep(CT, '    if (opts && opts.stranger) return SHOWN.indexOf(lab) >= 0 ? lab : "Helper";\n', "")],
   ["desk-card never marks strangers", rep(DC, 'const opts = { stranger: !!role && role !== "owner" };', "const opts = { stranger: false };")],
-  ["replies keep their name for strangers", rep(CT, 'actorKind: r.actorKind || "outside" }', "actorKind: r.actorKind }")],
+  ["replies keep their name for strangers", rep(CT, 'actorKind: r.actorKind || "ext" }', "actorKind: r.actorKind }")],
   ["second output overwrites the first", rep(CT, "} else if (cur && !cur.output) {", "} else if (cur) {")],
   ["output-only rows dropped", rep(CT, "      } else {\n        cur = { input: null, output: { tag: tag, text: r.text } };\n        entries.push(cur);\n      }", "      }")],
   ["rows not sorted by time", rep(CT, "    out.sort(function (a, b) { return (a.at - b.at) || (a.n - b.n); });\n", "")],
