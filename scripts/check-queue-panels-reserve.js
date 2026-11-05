@@ -1,6 +1,6 @@
 require("./_env-guard");
-// Q1a(c): desk-picker shell stays in place — desk.html carries the main 35112-byte header;
-// phone-clear shows it only under html.queue-may-pick; queue-login.js reuses the shell.
+// Q1a(c): hidden in-place shell; queue-login.js reveals it at mount, matching main
+// insertion timing so later card/filter text does not become desktop LCP.
 // Usage: node scripts/check-queue-panels-reserve.js [--mutants]
 const fs = require("fs");
 const path = require("path");
@@ -12,14 +12,9 @@ function check(css, login, theme, html) {
   if (/margin-bottom:\s*\d+px/.test((css.match(/h1\.page-title:not\(:has[^}]+\}/) || [""])[0])) {
     fails.push("phone-clear.css must not use empty h1 margin-bottom reserve (LCP regressor)");
   }
-  if (!/#queue-desk-picker\s*\{[^}]*display:\s*none/.test(css)) fails.push("phone-clear.css must hide #queue-desk-picker by default");
-  if (!/html\.queue-may-pick\s+#queue-desk-picker\s*\{[^}]*display:\s*block/.test(css)) fails.push("phone-clear.css must show picker only under html.queue-may-pick");
-  if (!/html\.queue-may-pick\s+#queue-desk-picker\s+\.queue-picker-label/.test(css)) fails.push("phone-clear.css missing signed-in picker label chrome");
-  if (!/@media\s*\(max-width:\s*640px\)/.test(css)) fails.push("phone-clear.css missing 640px phone stack");
-  if (!/queue-may-pick/.test(theme) || !/aia_session/.test(theme) || !/aia_pin/.test(theme)) {
-    fails.push("theme.js must set html.queue-may-pick from aia_session or aia_pin before paint");
-  }
-  if (!/id="queue-desk-picker"/.test(html)) fails.push("desk.html missing #queue-desk-picker shell");
+  if (!/id="queue-desk-picker" aria-label="Desks in this Queue" hidden/.test(html)) fails.push("desk.html shell must stay hidden until mount");
+  if (/queue-may-pick/.test(theme)) fails.push("theme.js must not reveal the shell before first paint");
+  if (!/picker\.hidden = false/.test(login)) fails.push("queue-login.js must reveal the reused shell at mount");
   if (!/id="queue-all-desks"/.test(html) || !/id="queue-desk-buttons"/.test(html) || !/id="queue-add-desk"/.test(html)) {
     fails.push("desk.html picker shell missing All / buttons / Add controls");
   }
@@ -46,17 +41,18 @@ const fails = check(css, login, theme, html);
 if (process.argv.includes("--mutants")) {
   const M = [
     ["empty margin reserve back", css + "\nmain.wrap > h1.page-title:not(:has(~ #queue-desk-picker)){margin-bottom:96px}\n", login, theme, html],
-    ["no default hide", css.replace(/#queue-desk-picker\s*\{[^}]*display:\s*none/, "#queue-desk-picker { display: block"), login, theme, html],
-    ["no may-pick show", css.replace(/html\.queue-may-pick\s+#queue-desk-picker\s*\{[^}]*display:\s*block/, "html.queue-may-pick #queue-desk-picker { display: none"), login, theme, html],
-    ["no theme may-pick", css, login, theme.replace(/queue-may-pick/g, "queue-nope"), html],
+    ["shell visible before mount", css, login, theme, html.replace('aria-label="Desks in this Queue" hidden', 'aria-label="Desks in this Queue"')],
+    ["pre-paint theme reveal back", css, login, 'document.documentElement.classList.add("queue-may-pick");' + theme, html],
+    ["mount reveal dropped", css, login.replace('picker.hidden = false', 'picker.hidden = true'), theme, html],
     ["shell id renamed", css, login, theme, html.replace('id="queue-desk-picker"', 'id="q-picker"')],
     ["shell after banner", css, login, theme, html.replace(
       /(<h1 class="page-title">Queue<\/h1>)([\s\S]*?)(<div class="banner" id="banner">[\s\S]*?<\/div>)/,
-      "$1\n    $3\n    <nav id=\"queue-desk-picker\" aria-label=\"Desks in this Queue\"><p class=\"queue-picker-label\">Desks in this Queue</p><div class=\"queue-picker-row\"><button type=\"button\" id=\"queue-all-desks\" data-queue-desk=\"\">All desks</button><div id=\"queue-desk-buttons\"></div><a id=\"queue-add-desk\" href=\"/onboard\">Add a desk</a></div></nav>\n    <div id=\"queue-all-cards\"></div>"
+      "$1\n    $3\n    <nav id=\"queue-desk-picker\" aria-label=\"Desks in this Queue\" hidden><p class=\"queue-picker-label\">Desks in this Queue</p><div class=\"queue-picker-row\"><button type=\"button\" id=\"queue-all-desks\" data-queue-desk=\"\">All desks</button><div id=\"queue-desk-buttons\"></div><a id=\"queue-add-desk\" href=\"/onboard\">Add a desk</a></div></nav>\n    <div id=\"queue-all-cards\"></div>"
     )],
     ["no bind once", css, login.replace(/picker\.__queueLoginBound/g, "picker.__nope"), theme, html],
-    ["phone breakpoint 859", css.replace("@media (max-width: 640px)", "@media (max-width: 859px)"), login, theme, html],
+    ["phone breakpoint 859", css, login.replace("max-width:640px", "max-width:859px"), theme, html],
   ];
+
   let caught = 0;
   for (const [n, c, lg, th, h] of M) {
     const f = check(c, lg, th, h);

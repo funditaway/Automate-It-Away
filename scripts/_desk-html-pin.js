@@ -4,8 +4,8 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const BYTES = 35478;
-const SHA256 = "a5c2f3361070f927a2978f9ca9a8b0c19fdcc0474f3a6b75d3a1667cbbec79f1";
+const BYTES = 35485;
+const SHA256 = "d84ad086270c2abf2e20e101488976b1db7abf82db0bef5d14747c83a749f8db";
 function check(root) {
   try {
     const b = fs.readFileSync(path.join(root, "desk.html"));
