@@ -320,7 +320,7 @@ function mutate(S, file, reps) {
 }
 function staticChecks() {
   const desk = fs.statSync(path.join(root, "desk.html")).size;
-  ok(desk === 35112, "desk.html is 35112 bytes (" + desk + ")");
+  ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   const apiFreeze = require("./_api-freeze").check(root);
   ok(apiFreeze.ok, "api/ frozen vs " + String(apiFreeze.base || "").slice(0, 8) + " (blob pin)" + (apiFreeze.ok ? "" : ": " + apiFreeze.problems.join("; ")));
