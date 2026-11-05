@@ -166,3 +166,14 @@ body.has-desk-nav .item:last-of-type {
     padding: 8px 2px;
   }
 }
+
+/* Q1a: reserve the Queue Pipes row (44px tap + its margin) under the banner
+   until desk-needs.js inserts #queue-pipes-row, so the row does not push the page. */
+main.wrap:has(> #queue.q-desk) > #banner:not(:has(~ #queue-pipes-row)) {
+  margin-bottom: 60px;
+}
+@media (max-width: 859px) {
+  main.wrap:has(> #queue.q-desk) > #banner:not(:has(~ #queue-pipes-row)) {
+    margin-bottom: 62px;
+  }
+}
