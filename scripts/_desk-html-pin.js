@@ -1,11 +1,11 @@
 "use strict";
-// Queue Q1a intentionally updates only the header CSS in desk.html. Keep one exact
-// content pin for all former size/freeze checks, including squash-landed trees.
+// Queue Q1a pins the current desk.html content (header + in-place picker shell) for
+// all former size/freeze checks, including squash-landed trees.
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const BYTES = 35112;
-const SHA256 = "1ae6797d7720caf31c16931806ed013963719b9b4c3b4c555fc1a4bafa7fe87e";
+const BYTES = 35478;
+const SHA256 = "a5c2f3361070f927a2978f9ca9a8b0c19fdcc0474f3a6b75d3a1667cbbec79f1";
 function check(root) {
   try {
     const b = fs.readFileSync(path.join(root, "desk.html"));

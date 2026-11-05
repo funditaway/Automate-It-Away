@@ -240,7 +240,7 @@ async function click(w, id, label) {
   ok(/<section id="acct-settings" aria-label="My account settings" hidden><\/section>\s*<\/main>/.test(acct), "settings mount still right before </main>");
   ok(/<script src="account-settings\.js"><\/script>\s*<script src="account-connections\.js"><\/script>\s*<script src="account-follow\.js"><\/script>/.test(acct), "account-follow.js loads after settings and connections");
   ok(/\.acct-lines\{/.test(acct), "account.html styles the follow lists");
-  ok(fs.statSync(path.join(root, "desk.html")).size === 35112, "desk.html stays 35,112 bytes");
+  ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   ok(!/account-follow/.test(read("desk.html")), "desk.html untouched");
   ok(!/check-account-follow-ui/.test(read("package.json")), "not in npm test yet");
