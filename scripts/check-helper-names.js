@@ -100,7 +100,7 @@ async function suite(S) {
   }
   ok(!/api\//.test(""), "");
   let pkg = ""; try { pkg = JSON.parse(S["package.json"]).scripts.test; } catch (e) {}
-  ok(/ && node scripts\/check-helper-names\.js( &&|")/.test(pkg), "npm test runs check-helper-names");
+  ok(/node scripts\/check-setup-cards-ui\.js && node scripts\/check-helper-names\.js && /.test(pkg), "npm test runs check-helper-names");
   return f;
 }
 function staticChecks() {
@@ -136,7 +136,7 @@ const MUTANTS = [
   ["Hand to owner suffix for helpers", rep(DC, '(p.role === "owner" && !sheetHidesNames() ? " · owner" : "")', '(p.role === "owner" ? " · owner" : "")')],
   ["Hand to loses seats", rep(DC, "\"<option value=\\\"\" + esc(p.id || \"\") + \"\\\"\"", "\"<option value=\\\"\" + esc(\"\") + \"\\\"\"")],
   ["hidden name not Helper", rep(DC, '  return "Helper";\n}\nfunction sheetCardOf', '  return "Someone";\n}\nfunction sheetCardOf')],
-  ["not in npm test", rep("package.json", " && node scripts/check-helper-names.js", "")]
+  ["not in npm test", rep("package.json", "node scripts/check-helper-names.js && ", "")]
 ];
 (async () => {
   const base = (await suite(SRC)).concat(staticChecks());
