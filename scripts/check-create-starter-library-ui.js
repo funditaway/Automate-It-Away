@@ -57,7 +57,7 @@ const more = moreAt >= 0 ? html.slice(moreAt) : "";
 const reqs = self.match(/require\([^)]+\)/g) || [];
 
 ok(reqs[0] === 'require("./_env-guard")', "first require is ./_env-guard");
-ok(fs.existsSync(deskPath) && fs.statSync(deskPath).size === 35112, "desk.html stays 35112 bytes");
+ok(fs.existsSync(deskPath) && require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(!/cs-library|starterLibrary|Browse starter packs/.test(read("desk.html")), "desk.html does not mention the library");
 ok(!/check-create-starter-library-ui/.test(pkg), "library check stays out of npm test");
