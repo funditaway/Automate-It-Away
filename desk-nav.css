@@ -26,10 +26,10 @@ header {
   width: 100%;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: 8px 18px;
+  justify-content: space-between;
+  gap: 8px 10px;
   padding-top: 8px;
-  font: 700 15px/1.2 "Segoe UI", system-ui, sans-serif;
+  font: 700 13px/1.2 system-ui, sans-serif;
 }
 .desk-tabs a {
   color: #fff;
