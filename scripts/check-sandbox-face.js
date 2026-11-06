@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 require("./_env-guard");
-// S1 sandbox face (desk-html-view.js): an owner's own HTML card runs its JS in an iframe with
+// S1/S1m sandbox face (desk-html-view.js): an owner's own HTML card runs its JS in an iframe with
 // sandbox="allow-scripts" only (no allow-same-origin: opaque origin, so no AIA cookies, session,
 // parent DOM or other cards), a CSP with connect-src 'none' (no network), inline/data/blob media only,
-// an author tag, and Stop outside the frame. Anyone else, or any other card, keeps the inert sandbox="".
+// an author tag, and Stop+Kill outside the frame (S1m: ≥44px touch chrome, single-column, capped height).
+// Anyone else, or any other card, keeps the inert sandbox="".
 // Read-only: loads the file into a vm with a tiny DOM stub. AIA_SBX_FILE overrides the file (mutants).
 const fs = require("fs");
 const path = require("path");
@@ -75,8 +76,10 @@ function cspOk(csp, where) {
   if (/allow-same-origin|allow-top-navigation|allow-popups|allow-forms|allow-modals/.test(src)) fail("file grants an escape sandbox token");
   if (/addEventListener\(\s*["']message["']|postMessage\(/.test(src)) fail("parent must not open a message channel to card faces");
   if (/innerHTML\s*=/.test(src)) fail("face bytes must never go through innerHTML");
+  // S1m: Kill must not invent job-kill from the face (no confirmKill / window["kill"] wiring).
+  if (/\bconfirmKill\s*\(|window\s*\.\s*kill\s*\(|window\s*\[\s*["']kill["']\s*\]/.test(src)) fail("face Kill must not wire to job-kill");
 
-  // Owner's own card: script face, author tag, Stop outside frame.
+  // Owner's own card: script face, author tag, Stop+Kill outside frame.
   const ctx = makeCtx("owner", ESCAPE);
   const api = ctx.AIASandboxFace;
   if (!api) fail("AIASandboxFace missing");
@@ -86,19 +89,41 @@ function cspOk(csp, where) {
   if (!/class="q-html pack-face q-sbx"/.test(html)) fail("owner's own HTML card must use the sandbox face (same pack-face pipeline)");
   if (/<iframe/.test(html)) fail("script face must not be a string iframe; it mounts via DOM srcdoc");
   if (!/data-sbx-stop/.test(html)) fail("Stop chrome missing");
+  if (!/data-sbx-kill/.test(html)) fail("Kill chrome missing");
+  if (!/class="q-sbx-chrome"/.test(html)) fail("S1m chrome bar missing");
+  // Stop+Kill must appear before the slot in the HTML string (outside iframe/slot).
+  const stopAt = html.indexOf("data-sbx-stop");
+  const killAt = html.indexOf("data-sbx-kill");
+  const slotAt = html.indexOf("q-sbx-slot");
+  if (stopAt < 0 || killAt < 0 || slotAt < 0 || !(stopAt < slotAt && killAt < slotAt)) fail("Stop+Kill must sit outside the slot/iframe");
+
+  // Injected CSS: touch ≥44px, no float-right Stop, single-column sheet, height cap.
+  const style = ctx.document.head.children[0];
+  const css = style && style.textContent || "";
+  if (!css) fail("face CSS not injected");
+  if (/float\s*:\s*right/.test(css)) fail("S1m: Stop must not float:right (single-column chrome)");
+  if (!/\.q-sbx\{[^}]*flex-direction:\s*column/.test(css) && css.indexOf(".q-sbx{display:flex;flex-direction:column}") < 0) fail("S1m: .q-sbx must be single-column flex");
+  if (!/\.q-sbx-stop,\.q-sbx-kill\{[^}]*min-height:44px/.test(css) && css.indexOf("min-height:44px") < 0) fail("S1m: Stop+Kill need min-height:44px");
+  if (css.indexOf("min-width:44px") < 0) fail("S1m: Stop+Kill need min-width:44px");
+  if (css.indexOf(".q-sbx-slot{min-height:160px}") < 0 && !/\.q-sbx-slot\{[^}]*min-height:\s*160px/.test(css)) fail("S1m: .q-sbx-slot needs min-height:160px");
+  if (css.indexOf("max-height:min(36vh,280px)") < 0 && !/max-height:\s*min\(\s*36vh\s*,\s*280px\s*\)/.test(css)) fail("S1m: script face iframe needs max-height:min(36vh,280px)");
+
   const box = node("div"); box.className = "q-html pack-face q-sbx";
   const m = /data-sbx-src="([^"]*)" data-sbx-from="([^"]*)" data-sbx-ak="([^"]*)" data-sbx-who="([^"]*)"/.exec(html);
   if (!m) fail("face box attrs missing");
   box.setAttribute("data-sbx-src", m[1]); box.setAttribute("data-sbx-from", m[2]); box.setAttribute("data-sbx-ak", m[3]); box.setAttribute("data-sbx-who", m[4]);
   const label = node("span"); label.className = "q-sbx-by"; box.appendChild(label);
-  const stopB = node("button"); stopB.className = "q-sbx-stop"; box.appendChild(stopB);
+  const chrome = node("div"); chrome.className = "q-sbx-chrome"; box.appendChild(chrome);
+  const stopB = node("button"); stopB.className = "q-sbx-stop"; stopB.setAttribute("data-sbx-stop", "1"); chrome.appendChild(stopB);
+  const killB = node("button"); killB.className = "q-sbx-kill"; killB.setAttribute("data-sbx-kill", "1"); chrome.appendChild(killB);
   const slot = node("div"); slot.className = "q-sbx-slot"; box.appendChild(slot);
   api.mountOne(box);
   await new Promise(function (r) { setImmediate(r); });
   if (label.textContent !== "by You") fail("author tag missing on face: " + JSON.stringify(label.textContent));
   const fr = slot.children[0];
   if (!fr || fr.tagName !== "IFRAME") fail("owner face did not mount an iframe");
-  if (fr.parent === stopB || stopB.parent !== box || slot.children.indexOf(stopB) >= 0) fail("Stop must sit outside the iframe");
+  if (fr.parent === stopB || stopB.parent === slot || killB.parent === slot) fail("Stop/Kill must sit outside the iframe");
+  if (chrome.parent !== box) fail("chrome bar must stay on the face box");
   sandboxOk(fr.getAttribute("sandbox"), "mounted iframe");
   cspOk(fr.getAttribute("csp") || "", "iframe csp attr");
   if (fr.getAttribute("src")) fail("script face must use srcdoc, not a network src");

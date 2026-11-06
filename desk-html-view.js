@@ -41,11 +41,14 @@
       var html = /text\/html/i.test(f.kind) || /\.html?$/i.test(String(f.name || "")) || /\.html?(\?|$)/i.test(f.url || "");
       if (image && !html) return "<img class=\"thumb\" src=\"" + esc(href) + "\" alt=\"\">";
       if (html && sbxOn(j)) {
-        // S1: owner's own card runs its JS in an opaque-origin iframe; Stop lives outside the frame.
+        // S1/S1m: owner's own card runs its JS in an opaque-origin iframe; Stop+Kill live outside the frame.
         return "<div class=\"q-html pack-face q-sbx\" data-sbx-src=\"" + esc(href) + "\"" +
           " data-sbx-from=\"" + esc(j.from || "") + "\" data-sbx-ak=\"" + esc(j.actorKind || "") + "\" data-sbx-who=\"" + esc(j.droppedByKind || j.whoKind || "") + "\">" +
           "<div class=\"q-html-label\">" + esc(f.name || "HTML") + " <span class=\"q-sbx-by\"></span></div>" +
+          "<div class=\"q-sbx-chrome\">" +
           "<button type=\"button\" class=\"q-sbx-stop\" data-sbx-stop=\"1\">Stop</button>" +
+          "<button type=\"button\" class=\"q-sbx-kill\" data-sbx-kill=\"1\">Kill</button>" +
+          "</div>" +
           "<div class=\"q-sbx-slot\"></div>" +
           "</div>";
       }
@@ -62,6 +65,7 @@
     return "<div class=\"q-files\">" + bits.join("") + "</div>";
   }
   // ---- S1 sandbox face: owner-only, scripts on, no same-origin, CSP connect-src 'none'. ----
+  // S1m: mobile chrome — Stop+Kill outside iframe (≥44px), single-column sheet, capped iframe height.
   var SBX = "allow-scripts";
   var CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'";
   var MAX = 512 * 1024;
@@ -104,6 +108,14 @@
     fr.srcdoc = srcdocOf(text);
     return fr;
   }
+  function dropChrome(box) {
+    var ch = box.querySelector(".q-sbx-chrome");
+    if (ch) { ch.remove(); return; }
+    var sb = box.querySelector(".q-sbx-stop");
+    if (sb) sb.remove();
+    var kb = box.querySelector(".q-sbx-kill");
+    if (kb) kb.remove();
+  }
   function mountOne(box, n) {
     if (!box || box.getAttribute("data-sbx-done")) return;
     if (!window.AIACardThread && (n || 0) < 40) { setTimeout(function () { mountOne(box, (n || 0) + 1); }, 50); return; }
@@ -115,8 +127,7 @@
     var tag = authorTag({ from: box.getAttribute("data-sbx-from"), actorKind: box.getAttribute("data-sbx-ak"), droppedByKind: box.getAttribute("data-sbx-who") });
     if (by) by.textContent = "by " + tag;
     if (!ownCard(box) || typeof fetch !== "function") {
-      var sb = box.querySelector(".q-sbx-stop");
-      if (sb) sb.remove();
+      dropChrome(box);
       slot.appendChild(inertFrame(src));
       return;
     }
@@ -133,7 +144,8 @@
     var list = document.querySelectorAll ? document.querySelectorAll(".q-sbx[data-sbx-src]:not([data-sbx-done])") : [];
     for (var i = 0; i < list.length; i++) mountOne(list[i]);
   }
-  // Stop: drop the frame (its JS dies with it) and hide the face. Chrome is in the parent, never in the frame.
+  // Stop/Kill: drop the frame (its JS dies with it) and hide the face. Chrome is in the parent, never in the frame.
+  // Kill on the face is the same stop — not the job-kill path (that stays on the card sheet).
   function stop(box) {
     if (!box) return;
     box.setAttribute("data-sbx-stopped", "1");
@@ -141,12 +153,14 @@
     if (slot) slot.textContent = "Stopped.";
     var b = box.querySelector(".q-sbx-stop");
     if (b) b.disabled = true;
+    var k = box.querySelector(".q-sbx-kill");
+    if (k) k.disabled = true;
   }
   if (document.addEventListener) {
     document.addEventListener("click", function (e) {
       var t = e.target;
       if (!t || !t.closest) return;
-      var b = t.closest("[data-sbx-stop]");
+      var b = t.closest("[data-sbx-stop],[data-sbx-kill]");
       if (b) stop(b.closest(".q-sbx"));
     });
   }
@@ -163,8 +177,13 @@
     s.textContent =
       ".q-html{width:100%;border:1px solid color-mix(in srgb,var(--teal,#0d6b6b) 35%,transparent);border-radius:12px;padding:8px;background:color-mix(in srgb,var(--teal,#0d6b6b) 8%,transparent)}" +
       ".q-html-label{font-size:12px;font-weight:700;color:var(--teal,#0d6b6b);margin:0 0 6px}" +
-      ".q-sbx-by{font-weight:600;opacity:.8}.q-sbx-stop{float:right;margin:-2px 0 6px}" +
-      ".q-html-frame{display:block;width:100%;min-height:160px;max-height:42vh;border:0;border-radius:8px;background:#0c1116}";
+      ".q-sbx{display:flex;flex-direction:column}" +
+      ".q-sbx-by{font-weight:600;opacity:.8}" +
+      ".q-sbx-chrome{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px;width:100%}" +
+      ".q-sbx-stop,.q-sbx-kill{min-height:44px;min-width:44px;padding:10px 16px;flex:1 1 120px;margin:0}" +
+      ".q-sbx-slot{min-height:160px}" +
+      ".q-html-frame{display:block;width:100%;min-height:160px;max-height:42vh;border:0;border-radius:8px;background:#0c1116}" +
+      ".q-sbx .q-html-frame{max-height:min(36vh,280px)}";
     document.head.appendChild(s);
   }
 })();
