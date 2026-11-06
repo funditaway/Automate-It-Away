@@ -142,9 +142,12 @@ async function main() {
  const onRes = mockRes();
  await health({ method: "GET", headers: {}, query: {} }, onRes);
  const onDesk = (onRes.body.automation && (onRes.body.automation.deskAi || onRes.body.automation.grok)) || {};
+ const onDrafts = (onRes.body.automation && onRes.body.automation.drafts) || {};
  const onJson = JSON.stringify(onRes.body);
- if (!onRes.body.automation || !onDesk.on) fail("drafts on");
- else if ((onDesk.note || "") !== "A Desk AI can draft.") fail("drafts on note");
+ if (!onRes.body.automation || onDesk.on) fail("drafts on without an owner key");
+ else if ((onDesk.note || "") !== "A Desk AI can't draft on this phone yet.") fail("drafts off note");
+ else if (onDrafts.included) fail("drafts.included without an owner key");
+ else if (onJson.indexOf("A Desk AI can draft.") >= 0) fail("drafts claim");
  else if (envJargon.test(onJson) || strangerJargon.test(onJson) || (onRes.body.store && onRes.body.store.blob)) fail("drafts on dump");
  else if (onRes.body.automation.grok && !onRes.body.automation.deskAi) fail("drafts on deskAi");
  else pass("drafts");

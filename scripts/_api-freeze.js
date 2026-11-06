@@ -33,18 +33,14 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "95267db2a8778cbfdb6ac144588e84c876abb6ca";
+const BASE = "7ec9137a458e8195e303307e94ad7239c694cdf6";
 const PIN = {
   "api/_aia-admin.js": "b2036f064e85dfe1a93b7dda686d368f4fe7e233",
   "api/_aia-mail.js": "5796afa6e22f62f3a9e433b0c1d0eb00c6094599",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
-  "api/_fields.js": "960ec9cc4aad17d81a7e1c86c481d9335eec7158",
-  "api/_history.js": "23faa6f0ce8141a15f92f811bc8a0da0b50fd118",
-  "api/_talk.js": "093135971ca96c367a6725316d72d38302bccd8a",
-  "api/hook.js": "df27aad7e56930f9eefcdf706f3f58c7fa5c1756",
-  "api/jobs.js": "e8b9cb98fa4fe5951c8cd62faf1f5b531ce05309",
-  "api/migrate-uploads.js": "a9a47cd366c5b5cf8afcb934c027f1dfe1edf3dc",
-  "api/worker.js": "5bedd2627f66fb6372c628d25a65940b8a85c2b6"
+  "api/connections.js": "49d0f57a7398c2a45df38b8bc08677e2b8679f3f",
+  "api/health.js": "b1ece6a217fc90db35bc1a65b4d0329671ba8cda",
+  "api/jobs.js": "ca182fa6a45d7f3c1b3c1c51ff0c07da342aea6f"
 };
 
 function lines(text) {

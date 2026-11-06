@@ -2,10 +2,15 @@
 require("./_env-guard");
 // Owner key only. A desk with no connected key skips pickDrafter, grokRecommend,
 // and studioDraft as needsKey and does not call fetch, even when an env key is
-// set. A packed desk key drafts when AIA_CONNECT_SECRET is set. With that secret
-// unset, saving a key is refused and unwrap does not decrypt. XAI_API_KEY,
-// BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN, and the old pilot string are not the
-// cipher. No production env. Values are never printed.
+// set. Health and status follow owner keys, not an env key: with no desk that
+// can draft, deskAi.on and drafts.included stay false and the notes do not say
+// a Desk AI can draft. A refused key save stays keyLocked and includes plain
+// words. Suggest tells the owner to add a key. The connections Grok note carries
+// the bill line. A packed desk key drafts when
+// AIA_CONNECT_SECRET is set. With that secret unset, saving a key is refused
+// and unwrap does not decrypt. XAI_API_KEY, BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN,
+// and the old pilot string are not the cipher. No production env. Values are
+// never printed.
 const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
@@ -27,6 +32,7 @@ const connections = require("../api/connections");
 const jobs = require("../api/jobs");
 const hook = require("../api/hook");
 const packs = require("../api/_packs");
+const health = require("../api/health");
 const { mem, hashPin, ensurePeople, ready } = require("../api/_lib");
 
 const SLUG = "owner-key";
@@ -34,7 +40,9 @@ const PIN = "4821";
 const DESK_KEY = "xai-owner-desk-key-0001";
 const SECRET = "owner-key-check-secret";
 const NOTE = "A Desk AI can't draft on this phone yet.";
-const SUGGEST_NOTE = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const LOCK_NOTE = "This desk can't save a key yet. Nothing was saved.";
+const BILL_LINE = "Your key, your xAI bill. AIA charges nothing.";
 
 let failed = 0;
 function fail(m) { failed += 1; console.error("FAIL " + m); process.exitCode = 1; }
@@ -121,6 +129,35 @@ function envKeys(on) {
   }
 }
 
+function assertDraftsOff(body, label) {
+  const auto = (body && body.automation) || {};
+  const desk = auto.deskAi || {};
+  eq(desk.on, false, label + ": deskAi.on is false");
+  if (auto.drafts && Object.prototype.hasOwnProperty.call(auto.drafts, "included")) {
+    eq(auto.drafts.included, false, label + ": drafts.included is false");
+  }
+  eq(desk.note, NOTE, label + ": deskAi note does not claim drafting");
+  if (JSON.stringify(auto).indexOf("A Desk AI can draft.") >= 0) fail(label + ": note says a Desk AI can draft");
+  else pass(label + ": notes do not say a Desk AI can draft");
+}
+
+function assertDraftsOn(body, label) {
+  const auto = (body && body.automation) || {};
+  const desk = auto.deskAi || {};
+  eq(desk.on, true, label + ": deskAi.on is true");
+  if (auto.drafts && Object.prototype.hasOwnProperty.call(auto.drafts, "included")) {
+    eq(auto.drafts.included, true, label + ": drafts.included is true");
+  }
+  eq(desk.note, "A Desk AI can draft.", label + ": deskAi note says drafting");
+}
+
+async function readDraftFaces(headers) {
+  return {
+    health: await call(health, "GET", headers, {}, {}),
+    status: await call(health.status, "GET", headers, {}, {})
+  };
+}
+
 async function main() {
   await ready();
   const shop = {
@@ -138,6 +175,10 @@ async function main() {
   if (!Array.isArray(mem.connections)) mem.connections = [];
   if (!Array.isArray(mem.jobs)) mem.jobs = [];
   const owner = { "x-workspace": SLUG, "x-pin": PIN };
+  const wall = await call(connections, "GET", owner, {}, {});
+  const grokRow = ((wall.body && wall.body.ai) || []).filter(function (p) { return p && p.id === "grok"; })[0] || {};
+  if (String(grokRow.note || "").indexOf(BILL_LINE) < 0) fail("connections Grok note missing the bill line");
+  else pass("connections Grok note has the bill line");
 
   mem.connections = mem.connections.filter(function (c) { return !c || c.workspace !== SLUG; });
   envKeys(false);
@@ -156,6 +197,15 @@ async function main() {
   fetches = 0;
   eq(grok.grokOn(), true, "env key still reports on for ops status");
   eq(drafterState(grok.pickDrafter(SLUG)), "null", "env key is not a desk drafter");
+  const offFaces = await readDraftFaces(owner);
+  eq(offFaces.health.statusCode, 200, "env key, no owner key: health answers");
+  eq(offFaces.status.statusCode, 200, "env key, no owner key: status answers");
+  assertDraftsOff(offFaces.health.body, "env key, no owner key, health");
+  assertDraftsOff(offFaces.status.body, "env key, no owner key, status");
+  const publicOff = await readDraftFaces({});
+  assertDraftsOff(publicOff.health.body, "env key, no owner key, public health");
+  assertDraftsOff(publicOff.status.body, "env key, no owner key, public status");
+  fetches = 0;
   const envRec = await grok.grokRecommend({ id: "job_env", title: "Porch", workspace: SLUG }, shop, SLUG);
   eq(envRec && envRec.reason, "needsKey", "env key: grokRecommend needsKey");
   const envStudio = await grok.studioDraft("Name a lane pack", SLUG, { kind: "pack" });
@@ -165,7 +215,9 @@ async function main() {
   const suggest = await call(jobs, "POST", owner, { action: "suggest", title: "Porch photos" });
   eq(suggest.statusCode, 200, "suggest answers");
   eq(suggest.body && suggest.body.grok, "needsKey", "suggest surfaces needsKey");
-  eq(suggest.body && suggest.body.note, SUGGEST_NOTE, "suggest keeps the drafts-off note");
+  eq(suggest.body && suggest.body.note, SUGGEST_NOTE, "suggest tells the owner to add a key");
+  if (!suggest.body || String(suggest.body.note || "").indexOf("Add your key") < 0) fail("suggest note has no add-your-key step");
+  else pass("suggest note is a step to add your key");
   eq(fetches, 0, "suggest did not fetch");
 
   const captured = await call(jobs, "POST", owner, { action: "capture", title: "Capture porch" });
@@ -211,6 +263,9 @@ async function main() {
   const drafter = grok.pickDrafter(SLUG);
   if (!drafter || drafter.key !== DESK_KEY || drafter.source !== "desk") fail("packed desk key did not unwrap for this desk (" + drafterState(drafter) + ")");
   else pass("packed desk key unwraps for this desk");
+  const onFaces = await readDraftFaces({});
+  assertDraftsOn(onFaces.health.body, "desk key, health");
+  assertDraftsOn(onFaces.status.body, "desk key, status");
 
   fetchMode = "ok";
   fetches = 0;
@@ -237,12 +292,19 @@ async function main() {
   fetches = 0;
   fetchMode = "block";
   eq(drafterState(grok.pickDrafter(SLUG)), "null", "unset connect secret does not unwrap the desk key");
+  const lockedFaces = await readDraftFaces(owner);
+  assertDraftsOff(lockedFaces.health.body, "env key, owner key does not unwrap, health");
+  assertDraftsOff(lockedFaces.status.body, "env key, owner key does not unwrap, status");
   const before = (mem.connections || []).filter(function (c) { return c && c.workspace === SLUG && c.provider === "openai"; }).length;
   const refused = await call(connections, "POST", owner, { action: "ai", provider: "openai", key: "sk-openai-owner-check-key" });
   eq(refused.statusCode, 409, "save without the connect secret is refused");
   eq(refused.body && refused.body.ok, false, "refused save is not ok");
   eq(refused.body && refused.body.error, "keyLocked", "refused save error is keyLocked");
   eq(refused.body && refused.body.reason, "needsConnectSecret", "refused save reason is needsConnectSecret");
+  eq(refused.body && refused.body.note, LOCK_NOTE, "keyLocked includes plain words");
+  if (/AIA_CONNECT_SECRET|XAI_API_KEY|needsConnectSecret/.test(String((refused.body && refused.body.note) || ""))) {
+    fail("keyLocked plain words name a machine code");
+  } else pass("keyLocked plain words do not name a machine code");
   const after = (mem.connections || []).filter(function (c) { return c && c.workspace === SLUG && c.provider === "openai"; }).length;
   eq(after, before, "refused save did not store a key");
   const packedAfter = (mem.connections.find(function (c) { return c && c.workspace === SLUG && c.provider === "grok"; }) || {}).keyPacked || "";

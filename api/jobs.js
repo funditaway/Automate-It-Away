@@ -302,7 +302,7 @@ module.exports = async function handler(req, res) {
         note: grok && grok.ok
           ? "Draft only. Yes puts it on the queue. Stop discards it. AIA does not send."
           : (grok && grok.reason === "needsKey"
-            ? "A Desk AI can't draft on this phone yet. You can still put the work on the queue."
+            ? "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue."
             : "No draft this time. You can still put the work on the queue.")
       });
     }

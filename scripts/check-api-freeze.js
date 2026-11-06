@@ -40,13 +40,9 @@ const OVERLAY = [
 ];
 const LANDED = ["api/_aia-admin.js", "api/_aia-mail.js", "api/_aia-register.js"];
 const MOVED = [
-  "api/_fields.js",
-  "api/_history.js",
-  "api/_talk.js",
-  "api/hook.js",
-  "api/jobs.js",
-  "api/migrate-uploads.js",
-  "api/worker.js"
+  "api/connections.js",
+  "api/health.js",
+  "api/jobs.js"
 ];
 
 let failed = 0;
