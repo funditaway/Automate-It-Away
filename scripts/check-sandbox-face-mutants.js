@@ -10,22 +10,106 @@ const root = path.join(__dirname, "..");
 const file = path.join(root, "desk-html-view.js");
 const src = fs.readFileSync(file, "utf8");
 const MUTANTS = [
-  ["parent DOM: allow-same-origin", 'var SBX = "allow-scripts";', 'var SBX = "allow-scripts allow-same-origin";'],
-  ["cookies: same-origin on mounted frame", 'fr.setAttribute("sandbox", SBX);', 'fr.setAttribute("sandbox", SBX + " allow-same-origin");'],
-  ["top nav escape", 'var SBX = "allow-scripts";', 'var SBX = "allow-scripts allow-top-navigation";'],
-  ["network: connect-src open", "font-src data:; connect-src 'none'", "font-src data:; connect-src *"],
-  ["network: default-src open", "default-src 'none'", "default-src *"],
-  ["network: remote images", "img-src data: blob:", "img-src https: data: blob:"],
-  ["CSP meta dropped", 'return "<meta http-equiv=\\"Content-Security-Policy\\" content=\\"" + CSP + "\\">" + String(text || "");', 'return String(text || "");'],
-  ["src instead of srcdoc", "fr.srcdoc = srcdocOf(text);", 'fr.srcdoc = srcdocOf(text); fr.setAttribute("src", "/api/upload");'],
-  ["other cards: owner gate off", 'if (r !== "owner") return false;', "if (false) return false;"],
-  ["other cards: own-card check off at mount", "if (!ownCard(box) || typeof fetch !== \"function\") {", "if (typeof fetch !== \"function\") {"],
-  ["author tag dropped", 'if (by) by.textContent = "by " + tag;', ""],
-  ["Stop chrome removed", '"<button type=\\"button\\" class=\\"q-sbx-stop\\" data-sbx-stop=\\"1\\">Stop</button>" +', ""],
-  ["Stop leaves face", 'if (slot) slot.textContent = "Stopped.";', ""],
-  ["parent message channel", "  scan();\n", '  scan();\n  window.addEventListener("message", function () {});\n'],
-  ["navigate-away not stopped", "if (++loads > 1) stop(box);", "++loads;"],
-  ["permissions granted", 'fr.setAttribute("allow", "");', 'fr.setAttribute("allow", "camera");']
+  [
+    "parent DOM: allow-same-origin",
+    "var SBX = \"allow-scripts\";",
+    "var SBX = \"allow-scripts allow-same-origin\";"
+  ],
+  [
+    "cookies: same-origin on mounted frame",
+    "fr.setAttribute(\"sandbox\", SBX);",
+    "fr.setAttribute(\"sandbox\", SBX + \" allow-same-origin\");"
+  ],
+  [
+    "top nav escape",
+    "var SBX = \"allow-scripts\";",
+    "var SBX = \"allow-scripts allow-top-navigation\";"
+  ],
+  [
+    "network: connect-src open",
+    "font-src data:; connect-src 'none'",
+    "font-src data:; connect-src *"
+  ],
+  [
+    "network: default-src open",
+    "default-src 'none'",
+    "default-src *"
+  ],
+  [
+    "network: remote images",
+    "img-src data: blob:",
+    "img-src https: data: blob:"
+  ],
+  [
+    "CSP meta dropped",
+    "return \"<meta http-equiv=\\\"Content-Security-Policy\\\" content=\\\"\" + CSP + \"\\\">\" + String(text || \"\");",
+    "return String(text || \"\");"
+  ],
+  [
+    "src instead of srcdoc",
+    "fr.srcdoc = srcdocOf(text);",
+    "fr.srcdoc = srcdocOf(text); fr.setAttribute(\"src\", \"/api/upload\");"
+  ],
+  [
+    "other cards: owner gate off",
+    "if (r !== \"owner\") return false;",
+    "if (false) return false;"
+  ],
+  [
+    "other cards: own-card check off at mount",
+    "if (!ownCard(box) || typeof fetch !== \"function\") {",
+    "if (typeof fetch !== \"function\") {"
+  ],
+  [
+    "author tag dropped",
+    "if (by) by.textContent = \"by \" + tag;",
+    ""
+  ],
+  [
+    "Stop chrome removed",
+    "\"<button type=\\\"button\\\" class=\\\"q-sbx-stop\\\" data-sbx-stop=\\\"1\\\">Stop</button>\" +",
+    ""
+  ],
+  [
+    "Kill chrome removed",
+    "\"<button type=\\\"button\\\" class=\\\"q-sbx-kill\\\" data-sbx-kill=\\\"1\\\">Kill</button>\" +",
+    ""
+  ],
+  [
+    "Stop leaves face",
+    "if (slot) slot.textContent = \"Stopped.\";",
+    ""
+  ],
+  [
+    "parent message channel",
+    "  scan();\n",
+    "  scan();\n  window.addEventListener(\"message\", function () {});\n"
+  ],
+  [
+    "navigate-away not stopped",
+    "if (++loads > 1) stop(box);",
+    "++loads;"
+  ],
+  [
+    "permissions granted",
+    "fr.setAttribute(\"allow\", \"\");",
+    "fr.setAttribute(\"allow\", \"camera\");"
+  ],
+  [
+    "float-right Stop restored",
+    ".q-sbx-stop,.q-sbx-kill{min-height:44px;min-width:44px;padding:10px 16px;flex:1 1 120px;margin:0}",
+    ".q-sbx-stop{float:right;margin:-2px 0 6px}.q-sbx-kill{min-height:44px;min-width:44px}"
+  ],
+  [
+    "44px touch removed",
+    ".q-sbx-stop,.q-sbx-kill{min-height:44px;min-width:44px;padding:10px 16px;flex:1 1 120px;margin:0}",
+    ".q-sbx-stop,.q-sbx-kill{padding:4px 8px;margin:0}"
+  ],
+  [
+    "height cap removed",
+    ".q-sbx .q-html-frame{max-height:min(36vh,280px)}",
+    ".q-sbx .q-html-frame{max-height:42vh}"
+  ]
 ];
 function run(f) {
   const env = Object.assign({}, process.env); if (f) env.AIA_SBX_FILE = f; else delete env.AIA_SBX_FILE;
