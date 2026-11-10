@@ -27,9 +27,24 @@ const dropAgent = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "desk-needs.js")], { encoding: "utf8" });
 if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
 
-["function isPromptReply", "function promptHtml", "function replyOnCard", "function setCardBusy", "q-prompt", "q-reply-box", "Nothing sent alone", "action: \"reply\"", "Working. Nothing sent yet."].forEach(function (bit) {
+["q-prompt", "q-reply-box", "Nothing sent alone", "Working. Nothing sent yet."].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
+// a2ad8c4 minified isPromptReply / promptHtml / replyOnCard / setCardBusy.
+// window.promptHtml, window.replyOnCard, and window.setCardBusy still paint
+// the reply box; the client still posts action:"reply".
+function promptReplyFnsFaults(src) {
+  const bad = [];
+  if (src.indexOf("window.promptHtml") < 0) bad.push("missing window.promptHtml");
+  if (src.indexOf("window.replyOnCard") < 0) bad.push("missing window.replyOnCard");
+  if (src.indexOf("window.setCardBusy") < 0) bad.push("missing window.setCardBusy");
+  if (src.indexOf('action:"reply"') < 0) bad.push("missing action:reply");
+  return bad;
+}
+(function () {
+  const bad = promptReplyFnsFaults(needs);
+  if (bad.length) fail("desk-needs.js prompt reply drifted: " + bad.join("; "));
+})();
 ["desk-card.js", "desk-queue.js", "desk-home.js"].forEach(function (name) {
   const src = fs.readFileSync(path.join(root, name), "utf8");
   if (src.indexOf("Working. Nothing sent yet.") < 0) fail(name + " missing Working busy-face");
@@ -39,6 +54,19 @@ if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || s
 if (!/function thenAfterYes/.test(engineSrc)) fail("_engine.js must export thenAfterYes");
 if (!/action === \"reply\"/.test(jobsSrc)) fail("jobs.js must handle reply");
 if (!/thenAfterYes/.test(jobsSrc)) fail("jobs.js must call thenAfterYes after Yes");
+// 6af0633 / #406: a stranger's reply (desk name + card id, no seat) gets the
+// same missing-desk 404 as a missing desk, before the card is looked up.
+function unauthReplyFaults(src) {
+  const bad = [];
+  if (src.indexOf("function refuseJobRead") < 0) bad.push("missing refuseJobRead");
+  if (src.indexOf("if (!shop || !person) return refuseJobRead") < 0) bad.push("missing seat gate");
+  if (src.indexOf("No desk with that name.") < 0) bad.push("missing missing-desk reply");
+  return bad;
+}
+(function () {
+  const bad = unauthReplyFaults(jobsSrc);
+  if (bad.length) fail("jobs.js unauth reply must look like a missing desk: " + bad.join("; "));
+})();
 if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge/i.test(needs)) {
   fail("prompt reply invented Grok OAuth / wallet / Collect charge");
 }
@@ -48,9 +76,19 @@ if (help.indexOf("prompt reply") < 0 && help.indexOf("Reply on the card") < 0) {
 }
 if (help.indexOf("When=do Then") < 0) fail("help must name When=do Then after Yes");
 if (yesNo.indexOf("check-desk-prompt-reply.js") < 0) fail("ACCOUNT-YES-NO must record prompt reply");
-if (drop.indexOf("Public drop never sees money, Stop, or People") < 0) {
-  fail("public Drop copy drifted");
+// fff3b47 ("Drop: simpler desk page") rewrote public Drop copy. The honesty
+// is the same: they never see money, Stop, or People.
+function publicDropFaults(src) {
+  const bad = [];
+  if (src.indexOf("They never see money, Stop, or People") < 0) {
+    bad.push("missing They never see money, Stop, or People");
+  }
+  return bad;
 }
+(function () {
+  const bad = publicDropFaults(drop);
+  if (bad.length) fail("public Drop copy drifted: " + bad.join("; "));
+})();
 if (dropAgent.indexOf("deskIsOpen") < 0 || dropAgent.indexOf("!deskIsOpen()") < 0) {
   fail("Drop People honesty must stay behind deskIsOpen()");
 }
@@ -71,6 +109,8 @@ ctx.window = ctx;
 vm.runInNewContext(needs, ctx);
 if (typeof ctx.card !== "function") fail("desk-needs.js must set window.card");
 if (typeof ctx.replyOnCard !== "function") fail("desk-needs.js must set window.replyOnCard");
+if (typeof ctx.setCardBusy !== "function") fail("desk-needs.js must set window.setCardBusy");
+if (typeof ctx.promptHtml !== "function") fail("desk-needs.js must set window.promptHtml");
 
 const askCard = ctx.card({
   id: "j-ask",
@@ -295,7 +335,15 @@ async function apiPath() {
     text: "Token-only note",
     whoTapped: "Pat"
   });
-  if (closed.statusCode !== 403) fail("reply without pin or session must 403, got " + closed.statusCode);
+  if (closed.statusCode !== 404) {
+    fail("reply without pin or session must 404 as a missing desk, got " + closed.statusCode);
+  }
+  if (!closed.body || closed.body.error !== "No desk with that name.") {
+    fail("unauth reply must look like a missing desk, got " + JSON.stringify(closed.body));
+  }
+  if (closed.body && (closed.body.ok === true || closed.body.sent === true || closed.body.shipped === true || closed.body.job)) {
+    fail("unauth reply must not return the card");
+  }
   const leftoverOut = await call(jobsHandler, "POST", { "x-workspace": slug, "x-session": leftover.token }, {
     action: "reply",
     id: id,
@@ -311,6 +359,28 @@ async function apiPath() {
 
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
 }
+
+// Mutants for the replaced assertions. In-memory only.
+function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
+const MUTANTS = [
+  ["isPromptReply / promptHtml loses window.promptHtml", function () { const n = swap(needs, "window.promptHtml", "window.promptOff"); return n && promptReplyFnsFaults(n); }],
+  ["replyOnCard loses window.replyOnCard", function () { const n = swap(needs, "window.replyOnCard", "window.replyOff"); return n && promptReplyFnsFaults(n); }],
+  ["setCardBusy loses window.setCardBusy", function () { const n = swap(needs, "window.setCardBusy", "window.busyOff"); return n && promptReplyFnsFaults(n); }],
+  ["client reply action dropped", function () { const n = swap(needs, 'action:"reply"', 'action:"note"'); return n && promptReplyFnsFaults(n); }],
+  ["public Drop honesty dropped", function () { const d = swap(drop, "They never see money, Stop, or People", "They can see money, Stop, or People"); return d && publicDropFaults(d); }],
+  ["unauth reply loses refuseJobRead", function () { const j = swap(jobsSrc, "function refuseJobRead", "function refuseJobOff"); return j && unauthReplyFaults(j); }],
+  ["unauth reply loses the seat gate", function () { const j = swap(jobsSrc, "if (!shop || !person) return refuseJobRead", "if (false) return refuseJobRead"); return j && unauthReplyFaults(j); }],
+  ["unauth reply loses missing-desk copy", function () { const j = swap(jobsSrc, "No desk with that name.", "Open this desk to reply."); return j && unauthReplyFaults(j); }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught += 1; console.log("ok  mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+console.log("check-desk-prompt-reply mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 
 apiPath().then(function () {
   console.log("check-desk-prompt-reply: ok");
