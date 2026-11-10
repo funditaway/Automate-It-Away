@@ -24,23 +24,113 @@ const dropAgent = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "desk-needs.js")], { encoding: "utf8" });
 if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
 
-["function thenWho", "function filesOf", "function isNeedsYou", "function isAskHuman", "function isPromptReply", "function promptHtml", "function honestNext", "function thenDraftHtml", "q-card", "q-then", "q-hitl", "Then draft", "q-prompt", "Nothing sent alone"].forEach(function (bit) {
+// a2ad8c4 (#265) minified desk-needs.js. Names like thenWho / filesOf /
+// isNeedsYou were shortened; window.card still paints the same face.
+["q-card", "q-then", "q-then-who", "q-hitl", "Then draft", "q-prompt", "q-files", "q-need", "q-ask", "Needs you", "Ask the human", "Nothing sent alone"].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
-if (!/HOLD\. Nothing sent alone/.test(needs)) fail("next-line must say HOLD. Nothing sent alone.");
+function thenWhoFaults(src) {
+  const bad = [];
+  if (src.indexOf("function thenDraftName") < 0) bad.push("missing thenDraftName");
+  if (src.indexOf("q-then-who") < 0) bad.push("missing q-then-who");
+  if (src.indexOf(" · Then draft") < 0) bad.push("missing Then draft label");
+  return bad;
+}
+(function () {
+  const bad = thenWhoFaults(needs);
+  if (bad.length) fail("queue card must name who the Then draft is for: " + bad.join("; "));
+})();
+function filesOfFaults(src) {
+  const bad = [];
+  if (src.indexOf("q-files") < 0) bad.push("missing q-files");
+  if (src.indexOf("function fileNameHtml") < 0) bad.push("missing fileNameHtml");
+  return bad;
+}
+(function () {
+  const bad = filesOfFaults(needs);
+  if (bad.length) fail("queue card must still paint files: " + bad.join("; "));
+})();
+function needsYouFaults(src) {
+  const bad = [];
+  if (src.indexOf("Needs you") < 0) bad.push("missing Needs you");
+  if (src.indexOf("q-need") < 0) bad.push("missing q-need");
+  return bad;
+}
+(function () {
+  const bad = needsYouFaults(needs);
+  if (bad.length) fail("queue card must still mark Needs you: " + bad.join("; "));
+})();
+function askHumanFaults(src) {
+  const bad = [];
+  if (src.indexOf("Ask the human") < 0) bad.push("missing Ask the human");
+  if (src.indexOf("q-ask") < 0) bad.push("missing q-ask");
+  return bad;
+}
+(function () {
+  const bad = askHumanFaults(needs);
+  if (bad.length) fail("queue card must still mark Ask the human: " + bad.join("; "));
+})();
+function promptReplyFaults(src) {
+  const bad = [];
+  if (src.indexOf("window.promptHtml") < 0) bad.push("missing window.promptHtml");
+  if (src.indexOf("q-prompt") < 0) bad.push("missing q-prompt");
+  return bad;
+}
+(function () {
+  const bad = promptReplyFaults(needs);
+  if (bad.length) fail("queue card must still paint promptHtml: " + bad.join("; "));
+})();
+// 9b6ba98 (#495): next-line suffix is ". Nothing sent alone.", not bare HOLD.
+function honestNextFaults(src) {
+  const bad = [];
+  if (src.indexOf(". Nothing sent alone.") < 0) bad.push("missing . Nothing sent alone.");
+  if (src.indexOf(". HOLD. Nothing sent alone.") >= 0) bad.push("bare HOLD suffix came back");
+  return bad;
+}
+(function () {
+  const bad = honestNextFaults(needs);
+  if (bad.length) fail("next-line must stay Nothing sent alone, no bare HOLD: " + bad.join("; "));
+})();
+function thenDraftHtmlFaults(src) {
+  const bad = [];
+  if (src.indexOf("q-then") < 0) bad.push("missing q-then");
+  if (src.indexOf("q-then-who") < 0) bad.push("missing q-then-who");
+  if (src.indexOf("thenDraftName") < 0) bad.push("missing thenDraftName");
+  return bad;
+}
+(function () {
+  const bad = thenDraftHtmlFaults(needs);
+  if (bad.length) fail("queue card must still paint then draft HTML: " + bad.join("; "));
+})();
 if (needs.indexOf("On the Home desk") >= 0) fail("queue card must not paint pack boilerplate");
 if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge/i.test(needs)) {
   fail("queue card invented Grok OAuth / wallet / Collect charge");
 }
-if (desk.indexOf("Taps match what the card needs") < 0) fail("desk.html missing taps line");
+// d234a7e simplified the Queue page; the taps line is now "You still tap Yes or Stop."
+function deskTapsFaults(src) {
+  const bad = [];
+  if (src.indexOf("You still tap Yes or Stop") < 0) bad.push("missing You still tap Yes or Stop");
+  return bad;
+}
+(function () {
+  const bad = deskTapsFaults(desk);
+  if (bad.length) fail("desk.html must still say you tap Yes or Stop: " + bad.join("; "));
+})();
 if (desk.indexOf("id=\"cap-band\"") < 0) fail("desk.html missing cap-band");
 if (help.indexOf("named Then draft") < 0) fail("help#desk-cards must name the Then draft on /desk");
 if (help.indexOf("Grok") >= 0) fail("help.html must not lecture Grok");
 if (yesNo.indexOf("check-desk-queue-cards.js") < 0) fail("ACCOUNT-YES-NO must record the queue card face");
 
-if (drop.indexOf("Public drop never sees money, Stop, or People") < 0) {
-  fail("public Drop copy drifted");
+// fff3b47 simplified Drop copy; public share still hides money / Stop / People.
+function publicDropFaults(src) {
+  const bad = [];
+  if (src.indexOf("They never see money, Stop, or People") < 0) bad.push("missing they never see money / Stop / People");
+  return bad;
 }
+(function () {
+  const bad = publicDropFaults(drop);
+  if (bad.length) fail("public Drop copy must still hide money, Stop, and People: " + bad.join("; "));
+})();
 if (dropAgent.indexOf("deskIsOpen") < 0 || dropAgent.indexOf("!deskIsOpen()") < 0) {
   fail("Drop People honesty must stay behind deskIsOpen()");
 }
@@ -160,7 +250,8 @@ const fanCard = ctx.card({
 if (fanCard.indexOf("2 of 3 from this Drop") < 0) fail("fanned card must show Drop index");
 if (fanCard.indexOf("Needs you") < 0) fail("fanned card must show Needs you");
 if (fanCard.indexOf(">Yes<") < 0 || fanCard.indexOf(">Stop<") < 0) fail("fanned card must keep Yes / Stop human");
-if (!/HOLD/i.test(fanCard) || fanCard.indexOf("Nothing sent alone") < 0) fail("fanned card must stay HOLD");
+// #495 dropped bare HOLD from the next-line; the fanned card still stays nothing sent alone.
+if (fanCard.indexOf("Nothing sent alone") < 0) fail("fanned card must stay nothing sent alone");
 
 const capNeed = ctx.cardNeeds({
   id: "j-cap",
@@ -171,4 +262,35 @@ const capNeed = ctx.cardNeeds({
 }, false);
 if (!capNeed.priority) fail("cap card must stay priority");
 
+// Mutants for the replaced assertions. In-memory only.
+function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
+const MUTANTS = [
+  ["thenWho loses thenDraftName", function () { const n = swap(needs, "function thenDraftName", "function thenDraftOff"); return n && thenWhoFaults(n); }],
+  ["thenWho loses q-then-who", function () { const n = swap(needs, "q-then-who", "q-then-off"); return n && thenWhoFaults(n); }],
+  ["filesOf loses q-files", function () { const n = swap(needs, "q-files", "q-atts"); return n && filesOfFaults(n); }],
+  ["filesOf loses fileNameHtml", function () { const n = swap(needs, "function fileNameHtml", "function fileNameOff"); return n && filesOfFaults(n); }],
+  ["isNeedsYou loses Needs you", function () { const n = swap(needs, "Needs you", "Needs a look"); return n && needsYouFaults(n); }],
+  ["isNeedsYou loses q-need", function () { const n = swap(needs, "q-need", "q-wait"); return n && needsYouFaults(n); }],
+  ["isAskHuman loses Ask the human", function () { const n = swap(needs, "Ask the human", "Ask someone"); return n && askHumanFaults(n); }],
+  ["isAskHuman loses q-ask", function () { const n = swap(needs, "q-ask", "q-query"); return n && askHumanFaults(n); }],
+  ["isPromptReply / promptHtml loses window.promptHtml", function () { const n = swap(needs, "window.promptHtml", "window.promptOff"); return n && promptReplyFaults(n); }],
+  ["isPromptReply / promptHtml loses q-prompt", function () { const n = swap(needs, "q-prompt", "q-box"); return n && promptReplyFaults(n); }],
+  ["honestNext loses Nothing sent alone suffix", function () { const n = swap(needs, ". Nothing sent alone.", ". Do the next thing."); return n && honestNextFaults(n); }],
+  ["honestNext brings back bare HOLD suffix", function () {
+    const n = swap(needs, ". Nothing sent alone.", ". HOLD. Nothing sent alone.");
+    return n && honestNextFaults(n);
+  }],
+  ["thenDraftHtml loses q-then", function () { const n = swap(needs, "q-then", "q-draft"); return n && thenDraftHtmlFaults(n); }],
+  ["desk taps line dropped", function () { const d = swap(desk, "You still tap Yes or Stop", "The queue runs itself"); return d && deskTapsFaults(d); }],
+  ["public Drop honesty dropped", function () { const d = swap(drop, "They never see money, Stop, or People", "They can see money, Stop, or People"); return d && publicDropFaults(d); }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught += 1; console.log("ok  mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+console.log("check-desk-queue-cards mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 console.log("check-desk-queue-cards: ok");
