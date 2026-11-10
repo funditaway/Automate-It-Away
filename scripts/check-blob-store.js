@@ -231,12 +231,95 @@ async function main() {
     fail("_lib must expose publicBlobProbe and blobReady so health can re-probe write");
   } else pass("_lib exposes publicBlobProbe and blobReady");
   const healthSrc = fs.readFileSync(path.join(__dirname, "..", "api/health.js"), "utf8");
-  if (healthSrc.indexOf('mem.driver !== "blob"') >= 0) {
-    fail("health must not skip the write probe when driver is already blob");
-  } else pass("health re-probes write even when driver is already blob");
-  if (src.indexOf('Buffer.from(blobSeal(body), "utf8")') < 0 || src.indexOf('"content-type": "application/json"') >= 0) {
-    fail("_lib REST put must send a Buffer like upload.js, not a JSON content-type string");
-  } else pass("_lib REST put sends a Buffer body like upload.js");
+  function stripComments(text) {
+    return String(text || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  }
+  function healthHandlerFn(healthSrc) {
+    const healthFnAt = healthSrc.indexOf("async function health");
+    const healthFnEnd = healthSrc.indexOf("async function handler", healthFnAt);
+    return healthFnAt >= 0 ? healthSrc.slice(healthFnAt, healthFnEnd > healthFnAt ? healthFnEnd : healthFnAt + 4000) : "";
+  }
+  const healthFn = stripComments(healthHandlerFn(healthSrc));
+  if (healthFn.indexOf("readyRead") < 0 || /\bsave\s*\(/.test(healthFn) || /blobWrite\s*\(/.test(healthFn)) {
+    fail("GET /api/health must stay read-only (readyRead, no save or blob write)");
+  } else pass("GET /api/health stays read-only even when the store driver is already blob");
+  if (/store\s*:\s*\{[\s\S]*\bblob\s*:/.test(healthFn) || healthFn.indexOf("store.blob") >= 0) {
+    fail("GET /api/health must not publish store.blob on the stranger face");
+  } else pass("GET /api/health does not publish store.blob");
+
+  function restPutFn(libSrc) {
+    const start = libSrc.indexOf("async function blobRestPut");
+    if (start < 0) return "";
+    const end = libSrc.indexOf("async function blobRestRead", start);
+    return libSrc.slice(start, end > start ? end : start + 4000);
+  }
+  function authAttemptsFn(libSrc) {
+    const start = libSrc.indexOf("function blobAuthAttempts");
+    if (start < 0) return "";
+    const end = libSrc.indexOf("function blobAuthOpts", start);
+    return libSrc.slice(start, end > start ? end : start + 800);
+  }
+  function blobStoreFaults(libSrc, healthSrc) {
+    const bad = [];
+    const put = restPutFn(libSrc);
+    if (!put || put.indexOf('Buffer.from(blobSeal(body), "utf8")') < 0) bad.push("REST put not Buffer");
+    if (/(^|[^x-])"content-type":\s*"application\/json"/.test(put)) bad.push("REST put JSON content-type");
+    const att = authAttemptsFn(libSrc);
+    const storeAt = att.indexOf("storeId");
+    const tokenAt = att.indexOf("token: blobToken()");
+    if (storeAt < 0 || (tokenAt >= 0 && tokenAt < storeAt)) bad.push("first auth passes token");
+    const hFn = stripComments(healthHandlerFn(healthSrc));
+    if (hFn.indexOf("readyRead") < 0 || /\bsave\s*\(/.test(hFn) || /blobWrite\s*\(/.test(hFn)) bad.push("health writes on GET");
+    if (/store\s*:\s*\{[\s\S]*\bblob\s*:/.test(hFn) || hFn.indexOf("store.blob") >= 0) bad.push("health publishes store.blob");
+    return bad;
+  }
+  const live = blobStoreFaults(src, healthSrc);
+  if (live.length) fail("blob store / health behaviour drifted: " + live.join("; "));
+  else pass("REST put sends a Buffer with x-content-type, and OIDC/storeId is tried before a static token");
+
+  function applyMutant(libSrc, healthSrc, kind) {
+    let nextLib = libSrc, nextHealth = healthSrc;
+    if (kind === "REST put not Buffer") {
+      nextLib = nextLib.replace('const payload = Buffer.from(blobSeal(body), "utf8");', 'const payload = blobSeal(body);');
+    } else if (kind === "REST put JSON content-type") {
+      nextLib = nextLib.replace(
+        '      "x-content-type": "application/json",\n      "x-add-random-suffix": "0"\n    }',
+        '      "content-type": "application/json",\n      "x-content-type": "application/json",\n      "x-add-random-suffix": "0"\n    }'
+      );
+    } else if (kind === "first auth passes token") {
+      nextLib = nextLib.replace(
+        "  if (blobStoreId()) attempts.push({ storeId: blobStoreId() });\n  attempts.push({});\n  if (blobToken()) attempts.push({ token: blobToken() });",
+        "  if (blobToken()) attempts.push({ token: blobToken() });\n  if (blobStoreId()) attempts.push({ storeId: blobStoreId() });\n  attempts.push({});"
+      );
+    } else if (kind === "health writes on GET") {
+      nextHealth = nextHealth.replace("  await readyRead(true);", "  await readyRead(true);\n  if (typeof save === 'function') save();\n  if (typeof blobWrite === 'function') blobWrite();");
+    } else if (kind === "health publishes store.blob") {
+      nextHealth = nextHealth.replace("    store: {", "    store: { blob: { stamp: \"write-v1\" },");
+    }
+    return { lib: nextLib, health: nextHealth };
+  }
+  const mutants = [
+    "REST put not Buffer",
+    "REST put JSON content-type",
+    "first auth passes token",
+    "health writes on GET",
+    "health publishes store.blob"
+  ];
+  let caught = 0;
+  mutants.forEach(function (kind) {
+    const next = applyMutant(src, healthSrc, kind);
+    const faults = blobStoreFaults(next.lib, next.health);
+    if (faults.indexOf(kind) < 0) {
+      console.error("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+      process.exitCode = 1;
+    } else {
+      caught++;
+      pass("mutant caught: " + kind + " (" + kind + ")");
+    }
+  });
+  if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+  console.log("ok  mutants: " + caught + "/" + mutants.length + " caught");
+  console.log("check-blob-store mutants: " + caught + "/" + mutants.length + " caught");
   if (src.indexOf("x-vercel-blob-store-id") < 0 || src.indexOf("vercel.com/api/blob/?pathname=") < 0) {
     fail("_lib REST put must send store id and use the blob control-plane pathname URL");
   } else pass("_lib REST put sends store id on the blob control-plane pathname URL");
@@ -254,9 +337,10 @@ async function main() {
   const storeA = path.join(os.tmpdir(), "aia-blob-a-" + Date.now() + ".json");
   const { lib, auth } = boot(storeA);
   await lib.ready();
-  if (fake.tokens.some((t) => t)) {
-    fail("OIDC+storeId must not pass an explicit token, got " + JSON.stringify(fake.tokens.filter(Boolean)));
-  } else pass("OIDC+storeId does not pass an explicit blob token");
+  const firstTok = fake.tokens.findIndex(function (t) { return t; });
+  if (firstTok === 0) {
+    fail("first SDK auth must not pass an explicit token when storeId is set, got " + JSON.stringify(fake.tokens));
+  } else pass("OIDC+storeId is tried before a static token fallback");
   if (lib.blobProbe.read === "error" || lib.blobProbe.status === 403 || lib.blobProbe.auth !== "oidc") {
     fail("head 404 must not be CDN get 403 under OIDC, probe " + JSON.stringify(lib.blobProbe));
   } else pass("head 404 is empty-or-seeded under OIDC, not CDN get 403");
@@ -301,24 +385,36 @@ async function main() {
   if (replica.lib.mem.driver !== "blob" || replica.lib.blobProbe.read !== "ok") {
     fail("replica health must be blob read ok, driver " + replica.lib.mem.driver + " " + JSON.stringify(replica.lib.blobProbe));
   } else pass("replica store driver is blob and read ok");
-  process.env.VERCEL_GIT_COMMIT_SHA = "putv2testsha0001deadbeef";
+  const shortSha = "putv2testsha0001deadbeef";
+  const fullSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  process.env.VERCEL_GIT_COMMIT_SHA = shortSha;
   replica.lib.blobProbe.write = "fail";
   replica.lib.blobProbe.detail = null;
+  const writeBefore = replica.lib.blobProbe.write;
   const health = require("../api/health");
   const probed = await call(health, "GET");
-  const finger = probed.body && probed.body.store && probed.body.store.blob;
-  if (!finger || finger.stamp !== "write-v1") {
-    fail("health must fingerprint stamp write-v1, got " + JSON.stringify(finger));
-  } else pass("health fingerprints stamp write-v1");
-  if (!finger || finger.rev !== "putv2testsha0001deadbeef") {
-    fail("health must fingerprint rev from VERCEL_GIT_COMMIT_SHA, got " + JSON.stringify(finger));
-  } else pass("health fingerprints rev from VERCEL_GIT_COMMIT_SHA");
-  if (!finger || finger.write !== "ok" || !finger.detail || finger.detail === "[object Object]") {
-    fail("health must re-probe write after leftover fail+null, got " + JSON.stringify(finger));
-  } else pass("health re-probes write=ok with a string detail after leftover fail+null");
-  if (finger.detail == null || String(finger.detail) === "null") {
-    fail("health write detail must never be null, got " + JSON.stringify(finger));
-  } else pass("health write detail is a real string");
+  const store = probed.body && probed.body.store;
+  if (store && store.blob) {
+    fail("GET /api/health must not publish store.blob, got " + JSON.stringify(store.blob));
+  } else pass("GET /api/health stranger face has no store.blob");
+  if (!store || store.driver !== "shared" || store.note !== "A second phone can see the same queue") {
+    fail("health store must name the shared queue plainly, got " + JSON.stringify(store));
+  } else pass("health store names a shared queue, not an internal driver");
+  if (probed.body.rev != null || probed.body.revShort != null) {
+    fail("health rev must stay null unless the env is a full 40-char SHA, got " + JSON.stringify({ rev: probed.body.rev, revShort: probed.body.revShort }));
+  } else pass("health rev stays null on a short SHA");
+  process.env.VERCEL_GIT_COMMIT_SHA = fullSha;
+  const probedRev = await call(health, "GET");
+  if (!probedRev.body || probedRev.body.rev !== fullSha || probedRev.body.revShort !== fullSha.slice(0, 7)) {
+    fail("health rev must publish a full 40-char SHA, got " + JSON.stringify({ rev: probedRev.body && probedRev.body.rev, revShort: probedRev.body && probedRev.body.revShort }));
+  } else pass("health rev publishes a full 40-char SHA");
+  if (replica.lib.blobProbe.write !== writeBefore) {
+    fail("GET /api/health must not write-probe or change leftover write state, got " + JSON.stringify(replica.lib.blobProbe));
+  } else pass("GET /api/health does not write-probe leftover write state");
+  const auto = probed.body && probed.body.automation;
+  if (!auto || !/Nothing is charged/i.test(String(auto.collect || ""))) {
+    fail("health must still say nothing is charged, got " + JSON.stringify(auto && auto.collect));
+  } else pass("health collect still says nothing is charged");
 
   const mineB = await call(replica.auth, "POST", {
     "x-workspace": "probe-desk",
@@ -542,13 +638,18 @@ async function main() {
   boot(storeHealthFail);
   const healthFail = require("../api/health");
   const probedFail = await call(healthFail, "GET");
-  const failFinger = probedFail.body && probedFail.body.store && probedFail.body.store.blob;
-  if (!failFinger || failFinger.write !== "fail") {
-    fail("health must report write=fail when PUT does not stick, got " + JSON.stringify(failFinger));
-  } else pass("health reports write=fail when PUT does not stick");
-  if (!failFinger || !failFinger.detail || failFinger.detail === "[object Object]" || failFinger.detail === "null") {
-    fail("health fail detail must be a real string, got " + JSON.stringify(failFinger));
-  } else pass("health fail detail is a real string, not null or [object Object]");
+  const failStore = probedFail.body && probedFail.body.store;
+  if (failStore && failStore.blob) {
+    fail("GET /api/health must not publish store.blob after a failed put, got " + JSON.stringify(failStore.blob));
+  } else pass("GET /api/health still hides store.blob after a failed put");
+  const failProbe = require("../api/_lib").blobProbe || require("../api/_lib").publicBlobProbe();
+  const failPublic = require("../api/_lib").publicBlobProbe();
+  if (!failPublic || failPublic.write !== "fail") {
+    fail("publicBlobProbe must still report write=fail when PUT does not stick, got " + JSON.stringify(failPublic));
+  } else pass("publicBlobProbe reports write=fail when PUT does not stick");
+  if (!failPublic || !failPublic.detail || failPublic.detail === "[object Object]" || failPublic.detail === "null") {
+    fail("publicBlobProbe fail detail must be a real string, got " + JSON.stringify(failPublic));
+  } else pass("publicBlobProbe fail detail is a real string, not null or [object Object]");
 
   if (process.exitCode) {
     console.error("check-blob-store failed");
