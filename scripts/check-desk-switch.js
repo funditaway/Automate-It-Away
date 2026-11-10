@@ -109,15 +109,33 @@ if (/localStorage\.getItem\("aia_ws"\)\s*\|\|/.test(widget) || /\|{2}\s*"demo"/.
 if (widget.includes("location.replace(\"/onboard\")")) {
   fail("widget.html still bounces to /onboard before they can pick");
 } else pass("widget.html stays on /drop");
-if (!widget.includes("AIADesks.captureDesk") || !pickJs.includes("AIADesks.list") || !pickJs.includes("switchTo")) {
-  fail("widget.html must list and switch saved desks");
-} else pass("widget.html lists saved desks");
+// #253 (1ec1382) moved the Drop page script out of widget.html into /drop-app.js.
+// widget.html still loads it, so the desk switch and owner nouns are checked there.
+const dropApp = fs.readFileSync(path.join(root, "drop-app.js"), "utf8");
+function widgetSwitchFaults(w, pick, app) {
+  const bad = [];
+  ["desk-switch.js", "drop-pick.js", "/drop-app.js"].forEach(function (src) {
+    if (w.indexOf("<script src=\"" + src + "\"") < 0) bad.push("widget.html must load " + src);
+  });
+  if (!app.includes("AIADesks.captureDesk")) bad.push("drop-app.js must capture the open desk");
+  if (!pick.includes("AIADesks.list") || !pick.includes("switchTo")) bad.push("drop-pick.js must list and switch saved desks");
+  return bad;
+}
+function widgetNounFaults(w, app) {
+  const bad = [];
+  if (w.indexOf("<script src=\"/drop-app.js\"") < 0) bad.push("widget.html must load /drop-app.js");
+  if (!app.includes("AIADesks.nounsOf(shop.nouns)") || !app.includes("nouns.capture")) bad.push("drop-app.js must speak owner nouns");
+  return bad;
+}
+const switchBad = widgetSwitchFaults(widget, pickJs, dropApp);
+if (switchBad.length) fail("widget.html must list and switch saved desks: " + switchBad.join("; "));
+else pass("widget.html lists saved desks");
 if (!widget.includes("Which desk gets this") || !widget.includes("Desks saved on this phone") || !widget.includes("Create a new desk") || !widget.includes("Add a saved desk")) {
   fail("widget.html missing doer picker copy");
 } else pass("widget copy is desk picker");
-if (!widget.includes("nouns") && !widget.includes("NOUNS.capture") && !widget.includes("nouns.capture")) {
-  fail("widget.html must speak owner nouns");
-} else pass("widget.html uses owner nouns");
+const nounBad = widgetNounFaults(widget, dropApp);
+if (nounBad.length) fail("widget.html must speak owner nouns: " + nounBad.join("; "));
+else pass("widget.html uses owner nouns");
 
 const onboard = fs.readFileSync(path.join(root, "onboard.html"), "utf8");
 if (!onboard.includes("Desk name") || !onboard.includes("AIADesks.open")) {
@@ -143,9 +161,24 @@ else pass("desk.html has no demo fallback");
 });
 if (!desk.includes("Drop anything") || !desk.includes("This desk") || !desk.includes("no rules yet")) fail("desk copy missing");
 else pass("desk queue/rules copy");
-if (!desk.includes("Queue does not invent Yes / Stop cards") || desk.includes("Nothing here yet. Drop anything")) {
-  fail("desk empty must stay honest");
-} else pass("desk empty stays honest");
+// 7ad92b5 "Tighten empty queue copy" replaced the "Queue does not invent Yes / Stop cards"
+// sentence; #333 and #334 restored desk.html with that copy kept. The guard is now
+// on the empty states themselves: honest words and no Yes / Stop taps.
+function emptyQueueFaults(d) {
+  const bad = [];
+  const at = d.indexOf("function queueEmptyHtml");
+  const end = at < 0 ? -1 : d.indexOf("window.queueEmptyHtml", at);
+  if (at < 0 || end < 0) return ["desk.html must own queueEmptyHtml"];
+  const fn = d.slice(at, end);
+  if (fn.indexOf("Open a desk. The queue stays empty until you do.") < 0) bad.push("no-desk empty must say the queue stays empty");
+  if (fn.indexOf("Nothing here yet. Drop or Create a card.") < 0) bad.push("open empty must say Drop or Create a card");
+  if (d.includes("Nothing here yet. Drop anything")) bad.push("empty must not lump stranger + empty as Drop anything");
+  if (/approveCard|startCard|q-yes|q-stop|>Yes<|>Stop<|>Kill</.test(fn)) bad.push("empty queue must not paint Yes / Stop taps");
+  return bad;
+}
+const emptyBad = emptyQueueFaults(desk);
+if (emptyBad.length) fail("desk empty must stay honest: " + emptyBad.join("; "));
+else pass("desk empty stays honest");
 if (!desk.includes("widget-count") || !desk.includes("rule-widgets") || !desk.includes("/rules")) {
   fail("desk.html missing widget count or /rules link");
 } else pass("desk.html shows widget count and /rules");
@@ -386,12 +419,37 @@ const help = fs.readFileSync(path.join(root, "help.html"), "utf8");
 if (help.includes("Capture → Qualify")) fail("help.html still shows Capture → Qualify");
 else if (!help.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail("help.html missing desk-true Drop spine");
 else pass("help.html Drop spine matches the desk");
-["developer.html", "developer.js"].forEach((file) => {
-  const src = fs.readFileSync(path.join(root, file), "utf8");
-  if (src.includes("Capture → Qualify")) fail(file + " still shows Capture → Qualify");
-  else if (!src.includes("Drop → Qualify → Do → Collect HOLD → Follow")) fail(file + " missing desk-true Drop spine");
-  else pass(file + " Drop spine matches the desk");
-});
+const SPINE = "Drop → Qualify → Do → Collect HOLD → Follow";
+const devHtml = fs.readFileSync(path.join(root, "developer.html"), "utf8");
+if (devHtml.includes("Capture → Qualify")) fail("developer.html still shows Capture → Qualify");
+else if (!devHtml.includes(SPINE)) fail("developer.html missing desk-true Drop spine");
+else pass("developer.html Drop spine matches the desk");
+// #235 (30ec2ec) made developer.js a loader. It fetches /developer.z64.txt (gzip,
+// base64) and runs it, so the Studio spine is checked in the decoded pack.
+const devJs = fs.readFileSync(path.join(root, "developer.js"), "utf8");
+const devPackRaw = fs.readFileSync(path.join(root, "developer.z64.txt"), "utf8");
+function decodeStudio(raw) {
+  try { return require("zlib").gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+function studioSpineFaults(loader, pack) {
+  const bad = [];
+  if (loader.indexOf("fetch(\"/developer.z64.txt\"") < 0 || loader.indexOf("DecompressionStream(\"gzip\")") < 0) {
+    bad.push("developer.js must load the Studio pack from /developer.z64.txt");
+  }
+  if (loader.includes("Capture → Qualify")) bad.push("developer.js still shows Capture → Qualify");
+  if (!pack) bad.push("developer.z64.txt must decode");
+  else {
+    if (pack.indexOf("Creators Studio") < 0) bad.push("Studio pack must be Creators Studio");
+    if (pack.includes("Capture → Qualify")) bad.push("Studio pack still shows Capture → Qualify");
+    if (!pack.includes(SPINE)) bad.push("Studio pack missing desk-true Drop spine");
+  }
+  return bad;
+}
+const studioPack = decodeStudio(devPackRaw);
+const spineBad = studioSpineFaults(devJs, studioPack);
+if (spineBad.length) fail("developer.js missing desk-true Drop spine: " + spineBad.join("; "));
+else pass("developer.js Studio pack Drop spine matches the desk");
 if (!help.includes("Waiting on a person.") || !help.includes("Owner, twice.") || !help.includes("The job.") || !help.includes("Save a file")) {
   fail("help.html missing doer button labels");
 } else pass("help.html uses doer button labels");
@@ -409,15 +467,86 @@ if (jobs.includes("amount >= MONEY_HOLD && !body.confirm")) {
 } else pass("jobs.js 409s only on an owner money-wait rule");
 
 const themed = ["index.html", "how.html", "setup.html", "onboard.html", "login.html", "desk.html", "drop.html", "widget.html", "create.html", "history.html", "rules.html", "pipes.html", "connections.html", "help.html", "more.html", "admin.html", "chat.html", "support.html", "legal.html", "pricing.html", "status.html"];
+// f1c9f5a removed Help's own header span (stray Desk link + theme button) so the shared
+// header wins. theme.js ensureBtn() adds the data-theme-btn toggle to that header on boot.
+// Only help.html relies on that; every other page must still carry the button in markup.
+const INJECTED_TOGGLE = ["help.html"];
+const themeSrc = fs.readFileSync(path.join(root, "theme.js"), "utf8");
+function injectedToggleFaults(t) {
+  const bad = [];
+  const at = t.indexOf("function ensureBtn()");
+  const end = at < 0 ? -1 : t.indexOf("function ensurePhoneMeta", at);
+  if (at < 0 || end < 0) return ["theme.js must define ensureBtn()"];
+  const fn = t.slice(at, end);
+  if (fn.indexOf("document.createElement(\"button\")") < 0 || fn.indexOf("btn.setAttribute(\"data-theme-btn\", \"\")") < 0) {
+    bad.push("theme.js ensureBtn must add a data-theme-btn button");
+  }
+  if (fn.indexOf("btn.addEventListener(\"click\", cycle)") < 0) bad.push("theme.js ensureBtn must bind the toggle");
+  if ((t.match(/ensureBtn\(\);/g) || []).length < 1) bad.push("theme.js must call ensureBtn() on boot");
+  return bad;
+}
+function themeFaults(file, html, t) {
+  const bad = [];
+  if (!html.includes("theme.js") || !html.includes("theme.css")) bad.push(file + " missing theme.js / theme.css / toggle");
+  else if (!html.includes("data-theme-btn")) {
+    if (INJECTED_TOGGLE.indexOf(file) < 0) bad.push(file + " missing theme.js / theme.css / toggle");
+    else {
+      if (!/<header[\s>]/.test(html)) bad.push(file + " needs a header for the theme toggle");
+      injectedToggleFaults(t).forEach(function (m) { bad.push(file + ": " + m); });
+    }
+  }
+  return bad;
+}
 let themeMiss = "";
 themed.forEach((file) => {
   const html = fs.readFileSync(path.join(root, file), "utf8");
-  if (!html.includes("theme.js") || !html.includes("theme.css") || !html.includes("data-theme-btn")) {
-    themeMiss = file + " missing theme.js / theme.css / toggle";
-  }
+  const bad = themeFaults(file, html, themeSrc);
+  if (bad.length) themeMiss = bad.join("; ");
 });
 if (themeMiss) fail(themeMiss);
 else pass("public pages carry aia_theme");
+
+// Mutants for the five updated assertions. They change the source text in memory only.
+const helpHtml = fs.readFileSync(path.join(root, "help.html"), "utf8");
+function swap(src, from, to) { return src.indexOf(from) < 0 ? null : src.split(from).join(to); }
+const MUTANTS = [
+  ["widget stops loading drop-app.js", function () { const w = swap(widget, "<script src=\"/drop-app.js\"", "<script src=\"/drop-gone.js\""); return w && widgetSwitchFaults(w, pickJs, dropApp); }],
+  ["drop-app.js stops capturing the desk", function () { const a = swap(dropApp, "AIADesks.captureDesk", "AIADesks.noDesk"); return a && widgetSwitchFaults(widget, pickJs, a); }],
+  ["drop-pick.js loses switchTo", function () { const k = swap(pickJs, "switchTo", "switchOff"); return k && widgetSwitchFaults(widget, k, dropApp); }],
+  ["widget stops loading desk-switch.js", function () { const w = swap(widget, "<script src=\"desk-switch.js\"", "<script src=\"desk-off.js\""); return w && widgetSwitchFaults(w, pickJs, dropApp); }],
+  ["drop-app.js drops owner nouns", function () { const a = swap(dropApp, "AIADesks.nounsOf(shop.nouns)", "null"); return a && widgetNounFaults(widget, a); }],
+  ["widget nouns: drop-app.js not loaded", function () { const w = swap(widget, "<script src=\"/drop-app.js\"", "<script src=\"/drop-gone.js\""); return w && widgetNounFaults(w, dropApp); }],
+  ["no-desk empty copy gone", function () { const d = swap(desk, "Open a desk. The queue stays empty until you do.", "Welcome."); return d && emptyQueueFaults(d); }],
+  ["open empty copy gone", function () { const d = swap(desk, "Nothing here yet. Drop or Create a card.", "All set."); return d && emptyQueueFaults(d); }],
+  ["empty lumps stranger as Drop anything", function () { const d = swap(desk, "Nothing here yet. Drop or Create a card.", "Nothing here yet. Drop anything or Create a card."); return d && emptyQueueFaults(d); }],
+  ["empty queue paints a Yes tap", function () { const d = swap(desk, "<a class=\\\"go\\\" href=\\\"/drop\\\">Drop</a>", "<button class=\\\"go q-yes\\\">Yes</button>"); return d && emptyQueueFaults(d); }],
+  ["Studio pack loses the Drop spine", function () { return studioSpineFaults(devJs, studioPack.split(SPINE).join("Drop → Do")); }],
+  ["Studio pack back to Capture → Qualify", function () { return studioSpineFaults(devJs, studioPack.split(SPINE).join("Capture → Qualify → Do → Collect HOLD → Follow")); }],
+  ["Studio pack will not decode", function () { return studioSpineFaults(devJs, decodeStudio("not-a-pack")); }],
+  ["developer.js stops fetching the pack", function () { const j = swap(devJs, "fetch(\"/developer.z64.txt\"", "fetch(\"/developer.txt\""); return j && studioSpineFaults(j, studioPack); }],
+  ["theme.js ensureBtn stops adding data-theme-btn", function () {
+    const at = themeSrc.indexOf("function ensureBtn()");
+    const end = themeSrc.indexOf("function ensurePhoneMeta", at);
+    if (at < 0 || end < 0) return null;
+    const fn = themeSrc.slice(at, end).split("btn.setAttribute(\"data-theme-btn\", \"\");").join("/* no toggle attr */");
+    if (fn === themeSrc.slice(at, end)) return null;
+    return themeFaults("help.html", helpHtml, themeSrc.slice(0, at) + fn + themeSrc.slice(end));
+  }],
+  ["theme.js never calls ensureBtn", function () { const t = themeSrc.replace(/ensureBtn\(\);/g, ""); return t !== themeSrc && themeFaults("help.html", helpHtml, t); }],
+  ["theme.js toggle not bound", function () { const t = swap(themeSrc, "btn.addEventListener(\"click\", cycle);", ""); return t && themeFaults("help.html", helpHtml, t); }],
+  ["help.html loses its header", function () { const h = swap(swap(helpHtml, "<header>", "<div>") || "", "</header>", "</div>"); return h && themeFaults("help.html", h, themeSrc); }],
+  ["help.html drops theme.js", function () { const h = swap(helpHtml, "theme.js", "theme-off.js"); return h && themeFaults("help.html", h, themeSrc); }],
+  ["another page loses its toggle (no injection exemption)", function () { const src = fs.readFileSync(path.join(root, "how.html"), "utf8"); const h = src.split("data-theme-btn").join("data-x-btn"); return h !== src && themeFaults("how.html", h, themeSrc); }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught++; console.log("ok  mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+console.log("check-desk-switch mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 
 if (process.exitCode) {
   console.error("check-desk-switch failed");
