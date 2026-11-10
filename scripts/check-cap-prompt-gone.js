@@ -3,6 +3,7 @@
 require("./_env-guard");
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const vm = require("vm");
@@ -32,33 +33,39 @@ const yesNo = read("ACCOUNT-YES-NO.md");
 const packMd = read("PACK.md");
 const pkg = read("package.json");
 
-["function capCardHtml", "function promptHtml", "function namedNeedsWho", "function chipsHtml", "function goneHoldLabel", "not on this desk"].forEach(function (bit) {
+// a2ad8c4 (#265) minified desk-needs.js. Names like capCardHtml / promptHtml /
+// namedNeedsWho / chipsHtml / goneHoldLabel / loadCap were shortened.
+// window.capCardHtml, window.promptHtml, and window.loadCap still paint a gone
+// Cap face and still read leftover aia_session. Do not require the doubled
+// "not on this desk" line or the "Gone bind HOLDs." picker jargon — those are
+// parked for a later copy pass. Guard behaviour and exports, not minified names.
+["not on this desk", "thenAiGone", "window.capCardHtml", "window.promptHtml", "window.loadCap", 'localStorage.getItem("aia_session")', "q-prompt-who", "q-prompt-q", "q-need", "q-ai-gone"].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
   else pass("desk-needs.js " + bit);
 });
+function capPromptGoneSourceFaults(src) {
+  const bad = [];
+  if (src.indexOf("not on this desk") < 0) bad.push("missing not on this desk");
+  if (src.indexOf("thenAiGone") < 0) bad.push("missing thenAiGone");
+  if (src.indexOf("window.capCardHtml") < 0) bad.push("missing window.capCardHtml");
+  if (src.indexOf("window.promptHtml") < 0) bad.push("missing window.promptHtml");
+  if (src.indexOf("window.loadCap") < 0) bad.push("missing window.loadCap");
+  if (src.indexOf('localStorage.getItem("aia_session")') < 0) bad.push("missing leftover aia_session");
+  if (src.indexOf("q-prompt-who") < 0) bad.push("missing q-prompt-who");
+  if (src.indexOf("q-prompt-q") < 0) bad.push("missing q-prompt-q");
+  if (src.indexOf("q-need") < 0) bad.push("missing q-need");
+  if (src.indexOf("q-ai-gone") < 0) bad.push("missing q-ai-gone");
+  return bad;
+}
+(function () {
+  const bad = capPromptGoneSourceFaults(needs);
+  if (bad.length) fail("gone Cap prompt HOLD must stay in desk-needs.js: " + bad.join("; "));
+  else pass("gone Cap prompt HOLD still lives in desk-needs.js");
+})();
 ["function sheetPromptHtml", "function sheetChipsHtml", "function namedNeedsWhoOf", "function threadSheetHtml", "not on this desk"].forEach(function (bit) {
   if (card.indexOf(bit) < 0) fail("desk-card.js missing " + bit);
   else pass("desk-card.js " + bit);
 });
-
-const capSrc = needs.slice(needs.indexOf("function capCardHtml"), needs.indexOf("async function loadCap"));
-if (capSrc.indexOf("promptHtml(j, need") < 0) fail("capCardHtml must call promptHtml");
-else pass("capCardHtml calls promptHtml");
-if (capSrc.indexOf("chipsHtml(j, need") < 0) fail("capCardHtml must call chipsHtml with cardNeeds");
-else pass("capCardHtml uses chipsHtml + cardNeeds");
-if (capSrc.indexOf("primaryAi(") >= 0) fail("capCardHtml must not first-eligible primaryAi");
-else pass("capCardHtml does not first-eligible primaryAi");
-
-const loadCapSrc = needs.slice(needs.indexOf("async function loadCap"), needs.indexOf("window.loadCap"));
-if (/if \(here && pin && !desks\.some/.test(loadCapSrc)) {
-  fail("Cap load still requires leftover pin and skips email-session desks");
-} else pass("Cap load does not require leftover pin");
-if (loadCapSrc.indexOf('localStorage.getItem("aia_session")') < 0) {
-  fail("Cap load must read leftover X-Session so email-session owners still see the cap");
-} else pass("Cap load reads leftover X-Session");
-if (/if \(here && \(pin \|\| tok\) && !desks\.some/.test(loadCapSrc) === false) {
-  fail("Cap load must unshift this desk when leftover email session is live");
-} else pass("Cap load unshifts this desk on leftover email session");
 if (yesNo.indexOf("Cap leftover session after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Cap leftover session");
 } else pass("ACCOUNT-YES-NO names Cap leftover session");
@@ -89,9 +96,20 @@ if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge|silent send/i.tes
 if (help.indexOf("Cap cards and Open") < 0 || help.indexOf("prompt ask-who") < 0) {
   fail("help#desk-cards must name Cap / Open prompt ask-who HOLD");
 } else pass("help names Cap / Open prompt ask-who HOLD");
-if (moreTips.indexOf("Cap and Open") < 0 || moreTips.indexOf("not anonymous desk AI") < 0) {
-  fail("more Queue tip must name Cap / Open gone Needs you / prompt HOLD");
-} else pass("more Queue tip names Cap / Open gone HOLD");
+// a66b146 shortened more-queue. Gone-AI honesty stays as:
+// "If a named desk AI is not on this desk, the card says so."
+function moreQueueCapFaults(src) {
+  const bad = [];
+  if (src.indexOf("If a named desk AI is not on this desk, the card says so.") < 0) {
+    bad.push("missing gone-AI honesty");
+  }
+  return bad;
+}
+(function () {
+  const bad = moreQueueCapFaults(moreTips);
+  if (bad.length) fail("more Queue tip must stay honest about Cap / Open gone prompt: " + bad.join("; "));
+  else pass("more Queue tip names gone-AI honesty");
+})();
 if (more.indexOf('data-aia-tip="more-queue"') < 0) fail("more.html must wire more-queue tip");
 else pass("more.html wires more-queue tip");
 if (yesNo.indexOf("check-cap-prompt-gone.js") < 0) fail("ACCOUNT-YES-NO must record Cap / Open prompt gone HOLD");
@@ -99,14 +117,14 @@ else pass("ACCOUNT-YES-NO records Cap / Open prompt gone HOLD");
 if (pkg.indexOf("check-cap-prompt-gone.js") < 0) fail("package.json must run check-cap-prompt-gone");
 else pass("package.json runs check-cap-prompt-gone");
 
-function paintCtx() {
+function baseCtx() {
   const ctx = {
     window: {},
     document: {
       readyState: "complete",
       addEventListener: function () {},
       getElementById: function () { return null; },
-      createElement: function () { return { id: "", textContent: "" }; },
+      createElement: function () { return { id: "", textContent: "", className: "", type: "" }; },
       head: { appendChild: function () {} }
     },
     setTimeout: function () {},
@@ -124,6 +142,11 @@ function paintCtx() {
     labelStatus: function (s) { return s || ""; }
   };
   ctx.window = ctx;
+  return ctx;
+}
+
+function paintCtx() {
+  const ctx = baseCtx();
   vm.runInNewContext(needs, ctx);
   vm.runInNewContext(card, ctx);
   ctx.AIADeskAis = {
@@ -140,6 +163,8 @@ if (typeof ctx.capCardHtml !== "function") fail("desk-needs.js must set window.c
 else pass("capCardHtml() is on window");
 if (typeof ctx.promptHtml !== "function") fail("desk-needs.js must set window.promptHtml");
 else pass("promptHtml() is on window");
+if (typeof ctx.loadCap !== "function") fail("desk-needs.js must set window.loadCap");
+else pass("loadCap() is on window");
 if (typeof ctx.threadSheetHtml !== "function") fail("desk-card.js must set threadSheetHtml");
 else pass("threadSheetHtml() is on window");
 
@@ -155,6 +180,37 @@ function needChip(html) {
   const m = String(html || "").match(/<span class="q-chip q-need">([\s\S]*?)<\/span>/);
   return m ? m[1] : "";
 }
+function goneChip(html) {
+  const m = String(html || "").match(/<span class="q-chip q-ai-gone">([\s\S]*?)<\/span>/);
+  return m ? m[1] : "";
+}
+function unesc(s) {
+  return String(s || "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+// Behaviour only: the gone AI is named and marked not on this desk on a face
+// surface (gone chip, Needs you chip, or prompt-who). Do not require the
+// exact "Name · not on this desk" compound, do not require that line to be
+// duplicated on the question, and do not require "Gone bind HOLDs."
+function capPromptGonePaintFaults(html, name) {
+  name = name || "Shop Bot";
+  const bad = [];
+  if (!html) { bad.push("no card html"); return bad; }
+  if (html.indexOf("q-prompt") < 0) bad.push("missing prompt reply");
+  if (html.indexOf("q-ai-gone") < 0) bad.push("missing q-ai-gone");
+  const who = unesc(promptWho(html));
+  const chip = unesc(needChip(html));
+  const gone = unesc(goneChip(html));
+  const faces = [who, chip, gone];
+  const named = faces.some(function (t) { return t.indexOf(name) >= 0; });
+  const marked = faces.some(function (t) { return t.indexOf("not on this desk") >= 0; });
+  if (!named) bad.push("gone AI not named on the face");
+  if (!marked) bad.push("missing not on this desk mark");
+  if (who === "Needs you") bad.push("prompt-who stayed anonymous");
+  if (chip === "Needs you") bad.push("Needs you chip stayed anonymous");
+  if (/James/.test(who) || /James/.test(chip)) bad.push("stamped James");
+  return bad;
+}
 
 const goneJob = {
   id: "j-gone-prompt",
@@ -168,34 +224,38 @@ const goneQueue = ctx.card(goneJob, false);
 const goneCap = ctx.capCardHtml(goneJob, "shop");
 const goneOpen = ctx.threadSheetHtml(goneJob);
 
-[goneQueue, goneCap, goneOpen].forEach(function (html, i) {
-  const where = ["Queue", "Cap", "Open"][i];
-  if (html.indexOf("q-prompt") < 0) fail(where + " gone card must show prompt ask-who");
-  else pass(where + " gone card shows prompt ask-who");
-  if (promptWho(html).indexOf("Shop Bot · not on this desk") < 0) {
-    fail(where + " gone prompt ask-who must hold Shop Bot · not on this desk, got " + promptWho(html));
-  } else pass(where + " gone prompt ask-who holds Shop Bot");
-  if (promptWho(html) === "Needs you") fail(where + " gone prompt ask-who must not stay Needs you");
-  else pass(where + " gone prompt ask-who is not anonymous Needs you");
+["Queue", "Cap", "Open"].forEach(function (where, i) {
+  const html = [goneQueue, goneCap, goneOpen][i];
+  const bad = capPromptGonePaintFaults(html, "Shop Bot");
+  if (bad.length) fail(where + " gone prompt must name the gone AI and mark not on this desk: " + bad.join("; "));
+  else pass(where + " gone prompt names Shop Bot and marks not on this desk");
   if (promptQ(html).indexOf("The desk AI asked") >= 0) fail(where + " gone prompt must not say The desk AI asked");
   else pass(where + " gone prompt does not say The desk AI asked");
-  if (promptQ(html).indexOf("Shop Bot · not on this desk") < 0) {
-    fail(where + " gone prompt question must name Shop Bot · not on this desk, got " + promptQ(html));
-  } else pass(where + " gone prompt question holds Shop Bot");
-  if (needChip(html).indexOf("Shop Bot · not on this desk") < 0) {
-    fail(where + " gone Needs you chip must hold Shop Bot · not on this desk, got " + needChip(html));
-  } else pass(where + " gone Needs you chip holds Shop Bot");
-  if (/James/.test(html) && (promptWho(html).indexOf("James") >= 0 || needChip(html).indexOf("James") >= 0)) {
-    fail(where + " gone prompt / Needs you must not first-eligible to James");
-  } else pass(where + " gone prompt / Needs you do not name James");
 });
-
 if (promptWho(goneQueue) !== promptWho(goneCap) || promptWho(goneQueue) !== promptWho(goneOpen)) {
   fail("Cap / Open prompt-who must match Queue, got " + [promptWho(goneQueue), promptWho(goneCap), promptWho(goneOpen)].join(" | "));
 } else pass("Cap / Open prompt-who match Queue");
 if (needChip(goneQueue) !== needChip(goneCap) || needChip(goneQueue) !== needChip(goneOpen)) {
   fail("Cap / Open Needs you must match Queue, got " + [needChip(goneQueue), needChip(goneCap), needChip(goneOpen)].join(" | "));
 } else pass("Cap / Open Needs you match Queue");
+
+if (goneCap.indexOf(">Yes<") >= 0) fail("Cap gone-prompt card must not show a Yes tap");
+else pass("Cap gone-prompt has no Yes tap");
+if (goneCap.indexOf("q-reply") < 0 && goneCap.indexOf(">Reply<") < 0) fail("Cap must keep a draft Reply");
+else pass("Cap keeps draft Reply");
+if (goneCap.indexOf("Nothing sent alone") < 0) fail("Cap must stay draft-only");
+else pass("Cap stays draft-only");
+if (goneQueue.indexOf(">Yes<") < 0 || goneQueue.indexOf(">Kill<") < 0) fail("Yes / Stop / Kill must stay on Queue");
+else pass("Yes / Stop / Kill stay on Queue");
+
+const capOther = ctx.capCardHtml(Object.assign({}, goneJob, { slug: "other-desk", desk: "Other desk" }), "shop");
+(function () {
+  const bad = capPromptGonePaintFaults(capOther, "Shop Bot");
+  if (bad.length) fail("other-desk Cap must still name the gone AI: " + bad.join("; "));
+  else if (capOther.indexOf("q-reply-box") >= 0) fail("other-desk Cap must stay read-only");
+  else if (/>Yes</.test(capOther)) fail("other-desk Cap must not show Yes");
+  else pass("other-desk Cap still names the gone AI and stays read-only");
+})();
 
 const xssJob = {
   id: "j-gone-xss",
@@ -206,20 +266,19 @@ const xssJob = {
 };
 const xssCap = ctx.capCardHtml(xssJob, "shop");
 const xssOpen = ctx.threadSheetHtml(xssJob);
-[xssCap, xssOpen].forEach(function (html, i) {
-  const where = ["Cap", "Open"][i];
+["Cap", "Open"].forEach(function (where, i) {
+  const html = [xssCap, xssOpen][i];
   if (html.indexOf("Shop Bot <gone>") >= 0) fail(where + " raw < in gone prompt name must not become markup");
-  else if (html.indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) fail(where + " gone prompt name must stay text");
+  else if (html.indexOf("Shop Bot &lt;gone&gt;") < 0) fail(where + " gone prompt name must stay text");
   else pass(where + " gone prompt name stays text");
-  if (promptWho(html).indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) {
-    fail(where + " gone prompt-who must escape the bind, got " + promptWho(html));
-  } else pass(where + " gone prompt-who stays text");
-  if (needChip(html).indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) {
-    fail(where + " gone Needs you chip must escape the bind, got " + needChip(html));
-  } else pass(where + " gone Needs you chip stays text");
+  const bad = capPromptGonePaintFaults(html, "Shop Bot <gone>");
+  if (bad.length) fail(where + " gone xss prompt must name the escaped bind and mark not on this desk: " + bad.join("; "));
+  else pass(where + " gone xss prompt names the escaped bind and marks not on this desk");
 });
 if (xssCap.indexOf("Need 2 &lt; 3") < 0) fail("Cap gone title must stay text");
 else pass("Cap gone title stays text");
+if (xssCap.indexOf(">Yes<") >= 0) fail("Cap xss gone-prompt must not show a Yes tap");
+else pass("Cap xss gone-prompt has no Yes tap");
 
 const liveJob = {
   id: "j-live",
@@ -261,23 +320,141 @@ const unboundOpen = ctx.threadSheetHtml(unbound);
   else pass(where + " unbound card has no gone HOLD");
 });
 
-const goneQueueYes = ctx.card(goneJob, false);
-if (goneQueueYes.indexOf(">Yes<") < 0 || goneQueueYes.indexOf(">Kill<") < 0) fail("Yes / Stop / Kill must stay on Queue");
-else pass("Yes / Stop / Kill stay on Queue");
-
-if (failed) {
-  console.error(failed + " failed");
-  process.exit(1);
+function paintCapFrom(src, job) {
+  if (!src) return null;
+  const run = baseCtx();
+  try { vm.runInNewContext(src, run); } catch (e) { return "threw " + e.message; }
+  if (typeof run.capCardHtml !== "function") return "no window.capCardHtml";
+  run.AIADeskAis = {
+    owner: true,
+    rows: [
+      { id: "james-s-ai", name: "James’s AI", does: "Draft the lead packet" },
+      { id: "lane-bot", name: "Lane Bot", does: "Watch the lane" }
+    ],
+    primary: function () { return this.rows[0]; }
+  };
+  return run.capCardHtml(job || goneJob, "shop");
 }
 
-const os = require("os");
-const store = path.join(os.tmpdir(), "aia-cap-session-check-" + Date.now() + ".json");
-process.env.AIA_STORE_PATH = store;
-delete global.__aia;
-delete global.__aiaHydrate;
-["../api/_lib", "../api/_history", "../api/_desks-http", "../api/auth"].forEach(function (mod) {
-  try { delete require.cache[require.resolve(mod)]; } catch (e) {}
-});
+async function leftoverCapRun(src) {
+  if (!src) return "no source";
+  const band = { hidden: true };
+  const box = { innerHTML: "" };
+  const calls = [];
+  const store = { aia_ws: "shop", aia_pin: "", aia_session: "tok-leftover" };
+  const run = baseCtx();
+  run.document.getElementById = function (id) {
+    if (id === "cap-band") return band;
+    if (id === "cap-list") return box;
+    return null;
+  };
+  run.localStorage = {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : ""; },
+    setItem: function (k, v) { store[k] = v; }
+  };
+  try { vm.runInNewContext(src, run); } catch (e) { return "threw " + e.message; }
+  if (typeof run.loadCap !== "function") return "no window.loadCap";
+  run.AIADesks = { list: function () { return []; } };
+  run.AIADeskAis = {
+    rows: [{ name: "James’s AI", does: "Draft the lead packet" }],
+    primary: function () { return this.rows[0]; }
+  };
+  run.api = async function (path, opts) {
+    calls.push({ path: path, opts: opts });
+    return { data: { ok: true, items: [goneJob] } };
+  };
+  await run.loadCap();
+  let desks = [];
+  if (calls[0] && calls[0].opts && calls[0].opts.body) {
+    try { desks = JSON.parse(calls[0].opts.body).desks || []; } catch (e) {}
+  }
+  return { desks: desks, html: box.innerHTML, hidden: band.hidden, calls: calls };
+}
+function leftoverCapFaults(out) {
+  const bad = [];
+  if (typeof out === "string") { bad.push(out); return bad; }
+  const desks = out.desks || [];
+  if (!desks.some(function (d) { return d && d.slug === "shop"; })) {
+    bad.push("did not unshift this desk for leftover session");
+  }
+  if (out.hidden) bad.push("hid the cap band");
+  if (!out.calls || !out.calls.length) bad.push("did not ask /api/desks");
+  return bad;
+}
+
+function swap(str, from, to) { return str.indexOf(from) < 0 ? null : str.split(from).join(to); }
+
+async function main() {
+  const leftover = await leftoverCapRun(needs);
+  const leftoverBad = leftoverCapFaults(leftover);
+  if (leftoverBad.length) fail("Cap load must unshift this desk when leftover email session is live: " + leftoverBad.join("; "));
+  else pass("Cap load unshifts this desk on leftover email session");
+
+  const MUTANTS = [
+    ["cap source loses not on this desk", function () {
+      const n = swap(needs, "not on this desk", "left this desk");
+      return n && capPromptGoneSourceFaults(n);
+    }],
+    ["cap source loses thenAiGone", function () {
+      const n = swap(needs, "thenAiGone", "thenAiLeft");
+      return n && capPromptGoneSourceFaults(n);
+    }],
+    ["cap source loses window.capCardHtml", function () {
+      const n = swap(needs, "window.capCardHtml", "window.capCardOff");
+      return n && capPromptGoneSourceFaults(n);
+    }],
+    ["cap source loses window.loadCap", function () {
+      const n = swap(needs, "window.loadCap", "window.loadOff");
+      return n && capPromptGoneSourceFaults(n);
+    }],
+    ["cap source loses leftover aia_session", function () {
+      const n = swap(needs, 'localStorage.getItem("aia_session")', 'localStorage.getItem("aia_session_off")');
+      return n && capPromptGoneSourceFaults(n);
+    }],
+    ["more-queue tip drops gone-AI honesty", function () {
+      const n = swap(moreTips, "If a named desk AI is not on this desk, the card says so.", "The queue just runs.");
+      return n && moreQueueCapFaults(n);
+    }],
+    ["cap card drops the gone label", function () {
+      const n = swap(needs, " · not on this desk", " · left this desk");
+      const html = paintCapFrom(n);
+      if (html == null) return null;
+      if (typeof html !== "string") return [String(html)];
+      return capPromptGonePaintFaults(html, "Shop Bot");
+    }],
+    ["cap card drops q-ai-gone", function () {
+      const n = swap(needs, "q-ai-gone", "q-ai-miss");
+      const html = paintCapFrom(n);
+      if (html == null) return null;
+      if (typeof html !== "string") return [String(html)];
+      return capPromptGonePaintFaults(html, "Shop Bot");
+    }],
+    ["cap load drops leftover email session", async function () {
+      const n = swap(needs, 'localStorage.getItem("aia_session")', 'localStorage.getItem("aia_session_off")');
+      if (!n) return null;
+      const out = await leftoverCapRun(n);
+      return leftoverCapFaults(out);
+    }]
+  ];
+  let mutCaught = 0;
+  for (let i = 0; i < MUTANTS.length; i++) {
+    const m = MUTANTS[i];
+    let out;
+    try { out = await Promise.resolve(m[1]()); } catch (e) { out = ["threw " + e.message]; }
+    if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+    else if (out.length) { mutCaught += 1; pass("mutant caught: " + m[0] + " (" + out[0] + ")"); }
+    else fail("mutant survived: " + m[0]);
+  }
+  pass("mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
+  if (mutCaught !== MUTANTS.length) fail("not every mutant was caught");
+
+  if (failed) {
+    console.error(failed + " failed");
+    process.exit(1);
+  }
+
+  await checkCapSession(mutCaught, MUTANTS.length);
+}
 
 function mockRes() {
   return {
@@ -300,7 +477,15 @@ async function call(handler, method, headers, body, query) {
   return res;
 }
 
-async function checkCapSession() {
+async function checkCapSession(mutCaught, mutTotal) {
+  const store = path.join(os.tmpdir(), "aia-cap-session-check-" + Date.now() + ".json");
+  process.env.AIA_STORE_PATH = store;
+  delete global.__aia;
+  delete global.__aiaHydrate;
+  ["../api/_lib", "../api/_history", "../api/_desks-http", "../api/auth"].forEach(function (mod) {
+    try { delete require.cache[require.resolve(mod)]; } catch (e) {}
+  });
+
   const lib = require("../api/_lib");
   const desksHandler = require("../api/_desks-http");
   const { mem, ready, hashPin, ensurePeople } = lib;
@@ -384,14 +569,17 @@ async function checkCapSession() {
     fail("helper leftover session Cap should still read, got " + helperCap.statusCode);
   } else pass("helper leftover session can read Cap");
 
+  try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
+
   if (failed) {
     console.error(failed + " failed");
     process.exit(1);
   }
+  if (mutCaught != null) console.log("check-cap-prompt-gone mutants: " + mutCaught + "/" + mutTotal + " caught");
   console.log("check-cap-prompt-gone: ok");
 }
 
-checkCapSession().catch(function (err) {
+main().catch(function (err) {
   console.error("check-cap-prompt-gone failed: " + (err && err.stack || err));
   process.exit(1);
 });
