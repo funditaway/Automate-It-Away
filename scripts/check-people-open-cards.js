@@ -57,6 +57,7 @@ const adminSrc = read("api/admin.js");
 const histSrc = read("api/_history.js");
 const help = read("help.html");
 const more = read("more.html");
+const moreTips = more + "\n" + read("aia-tip.js");
 const peopleHtml = read("people.html");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
@@ -100,9 +101,33 @@ if (peopleHtml.indexOf("Needs you / prompt ask-who") < 0) {
 if (help.indexOf("People open cards on the shared trail") < 0) {
   fail("help#desk-cards must name People open cards");
 } else pass("help names People open cards");
-if (more.indexOf("Open cards show the Then draft") < 0) {
-  fail("more.html People must name open-card Then draft");
-} else pass("more.html names open-card Then draft");
+// a66b146 shortened More People copy; cd3dea6 (#325) set the current sub.
+// Open-card Then draft honesty stays on people.html / help (assertions above).
+function morePeopleSlice(src) {
+  var out = "";
+  var art = src.match(/<article class="more-item"[^>]*data-more-keys="people[^"]*"[\s\S]*?<\/article>/);
+  if (art) out += art[0];
+  var tip = src.match(/"more-people"\s*:\s*\{[\s\S]*?\n\s*\}/);
+  if (tip) out += "\n" + tip[0];
+  return out;
+}
+function morePeopleFaults(src) {
+  const slice = morePeopleSlice(src);
+  const bad = [];
+  if (slice.indexOf("more-people") < 0) bad.push("missing more-people tip");
+  if (slice.indexOf('href="/people"') < 0) bad.push("missing /people link");
+  if (slice.indexOf("Invite members with @handle") < 0) bad.push("missing invite @handle");
+  if (slice.indexOf("They Accept") < 0) bad.push("missing Accept");
+  if (slice.indexOf("work the desk") < 0) bad.push("missing work the desk");
+  if (slice.indexOf("Invite them to this desk") < 0) bad.push("missing tip invite");
+  if (slice.indexOf("Nothing sends from here") < 0) bad.push("missing nothing sends");
+  return bad;
+}
+(function () {
+  const bad = morePeopleFaults(moreTips);
+  if (bad.length) fail("more.html People must name invite / Accept / work the desk: " + bad.join("; "));
+  else pass("more.html names People invite / Accept / work the desk");
+})();
 if (yesNo.indexOf("check-people-open-cards.js") < 0) fail("ACCOUNT-YES-NO must record People open cards");
 else pass("ACCOUNT-YES-NO records People open cards");
 if (pkg.indexOf("check-people-open-cards.js") < 0) fail("package.json must run check-people-open-cards");
@@ -364,6 +389,44 @@ async function main() {
   if (live && (livePaint.indexOf("James") < 0 || livePaint.indexOf("Sam at the shop") < 0 || livePaint.indexOf("On the card. Nothing sent alone.") < 0)) {
     fail("person-book open card must paint Then / thread / HOLD");
   } else if (live) pass("person-book open card paints Then / thread / HOLD");
+
+  // Mutants for the updated More People assertion. In-memory only.
+  function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
+  const MUTANTS = [
+    ["more People tip id gone", function () {
+      const t = swap(moreTips, "more-people", "more-crew");
+      return t && morePeopleFaults(t);
+    }],
+    ["more People sub drops invite @handle", function () {
+      const t = swap(moreTips, "Invite members with @handle", "Invite a helper");
+      return t && morePeopleFaults(t);
+    }],
+    ["more People sub drops work the desk", function () {
+      const t = swap(moreTips, "work the desk", "watch the desk");
+      return t && morePeopleFaults(t);
+    }],
+    ["more People drops They Accept", function () {
+      const t = swap(moreTips, "They Accept", "They wait");
+      return t && morePeopleFaults(t);
+    }],
+    ["more People tip drops invite them", function () {
+      const t = swap(moreTips, "Invite them to this desk", "Mention them on this desk");
+      return t && morePeopleFaults(t);
+    }],
+    ["more People tip drops nothing sends", function () {
+      const t = swap(moreTips, "They Accept. Nothing sends from here.", "They Accept. The desk may send.");
+      return t && morePeopleFaults(t);
+    }]
+  ];
+  let mutCaught = 0;
+  MUTANTS.forEach(function (m) {
+    let out;
+    try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+    if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+    else if (out.length) { mutCaught += 1; console.log("ok   mutant caught: " + m[0] + " (" + out[0] + ")"); }
+    else fail("mutant survived: " + m[0]);
+  });
+  if (!failed) console.log("check-people-open-cards mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
   if (failed) {
