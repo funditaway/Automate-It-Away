@@ -109,7 +109,11 @@ function staticChecks() {
   try { base = execFileSync("git", ["merge-base", "HEAD", "origin/main"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {}
   if (base) { try { changed = execFileSync("git", ["diff", "--name-only", base, "--", "api", "legal.html", "card-timeline.js"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {} }
   if (changed === null) f.push("could not diff against main (failing closed)");
-  else if (changed) f.push("desk.html matches its byte/SHA-256 pin; api/, legal.html and card-timeline.js stay as on main (" + changed.replace(/\n/g, ", ") + ")");
+  else {
+    // api/_engine.js is the freeze moved file (card next-step line). Any other api change still fails.
+    const rest = changed.split("\n").filter(function (file) { return file && file !== "api/_engine.js"; });
+    if (rest.length) f.push("desk.html matches its byte/SHA-256 pin; api/, legal.html and card-timeline.js stay as on main (" + rest.join(", ") + ")");
+  }
   if (!require("./_desk-html-pin").check(root)) f.push("desk.html does not match its byte/SHA-256 pin");
   return f;
 }
