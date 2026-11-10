@@ -25,6 +25,22 @@
   var loadError = false;
   var mineFailed = false;
   var firstSignal = null;  // the first page load shares one deadline across the desk list and the cards
+  // After a good signed-in load, reread the Queue while the tab is visible. Timers start only then
+  // so the 8-second load wait stays the only timeout during a hang.
+  var LIVE_IDLE_MS = 15000;
+  var LIVE_BACKOFF_MAX_MS = 120000;
+  var LIVE_FOCUS_MS = 50;
+  var LIVE_OK = "Up to date";
+  var LIVE_NOW = "Updated just now";
+  var LIVE_FAIL = "Couldn't refresh. Trying again soon.";
+  var liveArmed = false;
+  var liveTimer = null;
+  var liveDebounce = null;
+  var liveBackoff = LIVE_IDLE_MS;
+  var liveInFlight = false;
+  var liveWanted = false;
+  var liveWatchBound = false;
+  var livePaintWaiting = false;
 
   // Abort a read that has not answered in time. Without timers or AbortController (old browsers) it is a no-op.
   function waitSignal() {
@@ -116,6 +132,8 @@
       "#queue-all-cards [data-queue-error] p{font-size:15px;margin:0 0 12px}" +
       "#queue-all-cards [data-queue-retry]{min-height:44px;padding:10px 18px;border-radius:999px;font-weight:800;cursor:pointer}" +
       "#queue-desk-picker[hidden]{display:none!important}" +
+      "#queue-live-status{font-size:13px;color:var(--muted,#5c6b73);margin:0 0 8px}" +
+      "#queue-live-status[hidden]{display:none!important}" +
       "html.queue-signed-out main > :not(h1):not(#queue-all-cards){display:none!important}" +
       "@media (max-width:640px){" +
       "#queue-desk-picker .queue-picker-row,#queue-desk-buttons{flex-direction:column;align-items:stretch;width:100%}" +
@@ -267,6 +285,288 @@
     if (picker) picker.hidden = !!on;
   }
 
+
+  function cardKey(j) {
+    var id = j && j.id != null ? String(j.id) : "";
+    var desk = slugify((j && (j.deskSlug || j.slug || j.desk || j.workspace)) || "");
+    return id ? id + "@" + desk : "";
+  }
+
+  function buildCard(j) {
+    var card = document.createElement("article");
+    card.className = "item";
+    var key = cardKey(j);
+    if (key) card.setAttribute("data-queue-card", key);
+      if (mode === "all") {
+        var lab = document.createElement("p");
+        lab.className = "queue-desk-label";
+        lab.textContent = deskLabelText(j);
+        card.appendChild(lab);
+      }
+    var meta = document.createElement("p");
+    meta.className = "meta";
+    meta.setAttribute("data-queue-status", "1");
+    meta.textContent = plainStatus(j.status);
+    var title = document.createElement("h3");
+    title.textContent = j.title || "Card";
+    var next = document.createElement("p");
+    next.className = "meta";
+    next.setAttribute("data-queue-next", "1");
+    next.textContent = j.needLine || j.next || "Pick this desk in the Queue to decide.";
+    var go = document.createElement("button");
+    go.type = "button";
+    go.setAttribute("data-queue-desk", j.deskSlug || j.slug || j.desk || j.workspace || "");
+    go.textContent = "Show this desk";
+    card.appendChild(meta);
+    card.appendChild(title);
+    card.appendChild(next);
+    if (go.getAttribute("data-queue-desk")) card.appendChild(go);
+    return card;
+  }
+
+  function cardMatches(el, j) {
+    if (!el) return false;
+    var lab = null, status = null, title = null, next = null;
+    var kids = el.children || [];
+    for (var i = 0; i < kids.length; i++) {
+      var n = kids[i];
+      if (!lab && n.className === "queue-desk-label") lab = n;
+      else if (!status && n.getAttribute && n.getAttribute("data-queue-status") === "1") status = n;
+      else if (!title && n.tagName === "H3") title = n;
+      else if (!next && n.getAttribute && n.getAttribute("data-queue-next") === "1") next = n;
+    }
+    var wantLab = mode === "all" ? deskLabelText(j) : "";
+    var haveLab = lab ? lab.textContent : "";
+    if (wantLab && haveLab !== wantLab) return false;
+    if ((status ? status.textContent : "") !== plainStatus(j.status)) return false;
+    if ((title ? title.textContent : "") !== (j.title || "Card")) return false;
+    var wantNext = j.needLine || j.next || "Pick this desk in the Queue to decide.";
+    if ((next ? next.textContent : "") !== wantNext) return false;
+    return true;
+  }
+
+  function updateCard(el, j) {
+    var kids = el.children || [];
+    for (var i = 0; i < kids.length; i++) {
+      var n = kids[i];
+      if (n.className === "queue-desk-label") n.textContent = deskLabelText(j);
+      else if (n.getAttribute && n.getAttribute("data-queue-status") === "1") n.textContent = plainStatus(j.status);
+      else if (n.tagName === "H3") n.textContent = j.title || "Card";
+      else if (n.getAttribute && n.getAttribute("data-queue-next") === "1") n.textContent = j.needLine || j.next || "Pick this desk in the Queue to decide.";
+    }
+  }
+
+  function fieldLike(el) {
+    if (!el || !el.tagName) return false;
+    var t = String(el.tagName).toUpperCase();
+    return t === "INPUT" || t === "TEXTAREA" || t === "SELECT";
+  }
+
+  function underQueue(el) {
+    for (var n = el; n; n = n.parentNode) {
+      var id = n.id || (n.getAttribute && n.getAttribute("id")) || "";
+      if (id === "queue-all-cards" || id === "queue-desk-picker" || id === "queue" || id === "sheet" || id === "sheet-card") return true;
+    }
+    return false;
+  }
+
+  function walkEls(el, fn) {
+    if (!el) return;
+    fn(el);
+    var kids = el.children || [];
+    for (var i = 0; i < kids.length; i++) walkEls(kids[i], fn);
+  }
+
+  function sheetIsOpen() {
+    var sheet = document.getElementById("sheet");
+    if (!sheet) return false;
+    if (sheet.classList && sheet.classList.contains("on")) return true;
+    return (" " + (sheet.className || "") + " ").indexOf(" on ") >= 0;
+  }
+
+  function queueBusy() {
+    if (sheetIsOpen()) return true;
+    var ae = null;
+    try { ae = document.activeElement; } catch (e) { ae = null; }
+    if (fieldLike(ae) && underQueue(ae)) return true;
+    var dirty = false;
+    function check(el) {
+      if (dirty) return;
+      if (fieldLike(el) && String(el.value || "") !== "") dirty = true;
+    }
+    walkEls(document.getElementById("queue-all-cards"), check);
+    walkEls(document.getElementById("sheet"), check);
+    walkEls(document.getElementById("sheet-card"), check);
+    return dirty;
+  }
+
+  function readScroll() {
+    var x = 0, y = 0;
+    try {
+      x = window.scrollX || (window.pageXOffset || 0);
+      y = window.scrollY || (window.pageYOffset || 0);
+    } catch (e) {}
+    return { x: x, y: y };
+  }
+
+  function writeScroll(pos) {
+    if (!pos) return;
+    try {
+      if (typeof window.scrollTo === "function") window.scrollTo(pos.x, pos.y);
+    } catch (e) {}
+  }
+
+  function liveStatusEl() {
+    var el = document.getElementById("queue-live-status");
+    if (el) return el;
+    if (!signedIn()) return null;
+    el = document.createElement("p");
+    el.id = "queue-live-status";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    var picker = document.getElementById("queue-desk-picker");
+    var list = document.getElementById("queue-all-cards");
+    if (picker && picker.parentNode && list) picker.parentNode.insertBefore(el, list);
+    else if (list && list.parentNode) list.parentNode.insertBefore(el, list);
+    else return null;
+    return el;
+  }
+
+  function setLiveStatus(text) {
+    if (!signedIn()) {
+      var gone = document.getElementById("queue-live-status");
+      if (gone) { gone.hidden = true; gone.textContent = ""; }
+      return;
+    }
+    var el = liveStatusEl();
+    if (!el) return;
+    el.hidden = !text;
+    if (el.textContent !== text) el.textContent = text || "";
+  }
+
+  function stopLiveTimer() {
+    if (liveTimer && typeof clearTimeout === "function") clearTimeout(liveTimer);
+    liveTimer = null;
+    if (liveDebounce && typeof clearTimeout === "function") clearTimeout(liveDebounce);
+    liveDebounce = null;
+  }
+
+  function armLiveTimer(ms) {
+    stopLiveTimer();
+    if (!liveArmed || !signedIn()) return;
+    if (typeof document !== "undefined" && document.hidden) return;
+    if (typeof setTimeout !== "function") return;
+    var wait = ms == null ? liveBackoff : ms;
+    if (wait < LIVE_IDLE_MS) wait = LIVE_IDLE_MS;
+    liveTimer = setTimeout(function () {
+      liveTimer = null;
+      liveTick();
+    }, wait);
+  }
+
+  function bindLiveWatch() {
+    if (liveWatchBound) return;
+    liveWatchBound = true;
+    function onHideOrShow() {
+      if (!liveArmed || !signedIn()) return;
+      if (typeof document !== "undefined" && document.hidden) { stopLiveTimer(); return; }
+      if (typeof setTimeout !== "function") { kickLiveNow(); return; }
+      if (liveDebounce && typeof clearTimeout === "function") clearTimeout(liveDebounce);
+      liveDebounce = setTimeout(function () {
+        liveDebounce = null;
+        kickLiveNow();
+      }, LIVE_FOCUS_MS);
+    }
+    if (document && document.addEventListener) document.addEventListener("visibilitychange", onHideOrShow);
+    if (window && typeof window.addEventListener === "function") window.addEventListener("focus", onHideOrShow);
+    watchBusyRelease();
+  }
+
+  function kickLiveNow() {
+    if (!liveArmed || !signedIn()) return;
+    if (typeof document !== "undefined" && document.hidden) { stopLiveTimer(); return; }
+    liveTick();
+  }
+
+  function liveTick() {
+    if (!liveArmed || !signedIn()) return;
+    if (typeof document !== "undefined" && document.hidden) { stopLiveTimer(); return; }
+    if (liveInFlight || loading) { liveWanted = true; return; }
+    refreshCards({ live: true });
+  }
+
+  function bumpBackoff() {
+    liveBackoff = Math.min(LIVE_BACKOFF_MAX_MS, Math.max(LIVE_IDLE_MS, liveBackoff) * 2);
+  }
+
+  function mergeCards(rows) {
+    var box = document.getElementById("queue-all-cards");
+    if (!box) return;
+    if (queueBusy()) { livePaintWaiting = true; return; }
+    livePaintWaiting = false;
+    var open = (rows || []).filter(openCard);
+    var hasItem = false;
+    var kids = [];
+    var rawKids = box.children || [];
+    for (var i = 0; i < rawKids.length; i++) {
+      kids.push(rawKids[i]);
+      if (rawKids[i] && (rawKids[i].className === "item" || (rawKids[i].classList && rawKids[i].classList.contains("item")))) hasItem = true;
+    }
+    if (!open.length || !hasItem) { paintCards(rows); return true; }
+    var pos = readScroll();
+    var byKey = {};
+    for (var k = 0; k < kids.length; k++) {
+      var node = kids[k];
+      var id = node && node.getAttribute ? node.getAttribute("data-queue-card") : "";
+      if (id) byKey[id] = node;
+    }
+    var nextEls = [];
+    var used = {};
+    open.forEach(function (j) {
+      var key = cardKey(j);
+      var el = key && byKey[key];
+      if (el) {
+        if (!cardMatches(el, j)) updateCard(el, j);
+        nextEls.push(el);
+        used[key] = true;
+      } else {
+        nextEls.push(buildCard(j));
+      }
+    });
+    Object.keys(byKey).forEach(function (key) {
+      if (used[key]) return;
+      var dead = byKey[key];
+      if (dead && dead.parentNode && typeof dead.parentNode.removeChild === "function") dead.parentNode.removeChild(dead);
+    });
+    for (var n = 0; n < nextEls.length; n++) {
+      if (box.children[n] !== nextEls[n]) {
+        box.insertBefore(nextEls[n], box.children[n] || null);
+      }
+    }
+    writeScroll(pos);
+    return true;
+  }
+
+  function retryLivePaint() {
+    if (!livePaintWaiting || queueBusy()) return;
+    if (mergeCards(visibleCards())) setLiveStatus(LIVE_NOW);
+  }
+
+  function watchBusyRelease() {
+    if (watchBusyRelease.bound) return;
+    watchBusyRelease.bound = true;
+    function maybe() { if (livePaintWaiting) retryLivePaint(); }
+    if (document && document.addEventListener) {
+      document.addEventListener("click", maybe);
+      document.addEventListener("focusout", maybe);
+      document.addEventListener("input", maybe);
+    }
+    var sheet = document.getElementById("sheet");
+    if (sheet && typeof MutationObserver === "function") {
+      try { new MutationObserver(maybe).observe(sheet, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
+    }
+  }
+
   function paintCards(rows) {
     var box = document.getElementById("queue-all-cards");
     if (!box) return;
@@ -275,6 +575,7 @@
     markSignedOut(out);
     if (out) {
       emptyState(box, "Sign in to see your Queue. It keeps every desk and card in one place.", "/login", "Sign in");
+      armAfterGoodPaint();
       return;
     }
     var open = (rows || []).filter(openCard);
@@ -285,35 +586,26 @@
       var named = mode !== "all" ? deskBySlug(mode) : null;
       if (!desks.length) emptyState(box, "No desks in this Queue yet. Create a desk to start.", "/onboard", "Create a desk");
       else emptyState(box, named ? ("Nothing waiting on " + named.name + ". Drop a card to start.") : "Nothing waiting in this Queue. Drop a card to start.", "/drop", "Drop a card");
+      armAfterGoodPaint();
       return;
     }
-    open.forEach(function (j) {
-      var card = document.createElement("article");
-      card.className = "item";
-      if (mode === "all") {
-        var lab = document.createElement("p");
-        lab.className = "queue-desk-label";
-        lab.textContent = deskLabelText(j);
-        card.appendChild(lab);
+    open.forEach(function (j) { box.appendChild(buildCard(j)); });
+    armAfterGoodPaint();
+  }
+
+  function armAfterGoodPaint() {
+    if (!signedIn() || loading || loadError) {
+      if (!signedIn()) {
+        stopLiveTimer();
+        liveArmed = false;
+        setLiveStatus("");
       }
-      var meta = document.createElement("p");
-      meta.className = "meta";
-      meta.textContent = plainStatus(j.status);
-      var title = document.createElement("h3");
-      title.textContent = j.title || "Card";
-      var next = document.createElement("p");
-      next.className = "meta";
-      next.textContent = j.needLine || j.next || "Pick this desk in the Queue to decide.";
-      var go = document.createElement("button");
-      go.type = "button";
-      go.setAttribute("data-queue-desk", j.deskSlug || j.slug || j.desk || j.workspace || "");
-      go.textContent = "Show this desk";
-      card.appendChild(meta);
-      card.appendChild(title);
-      card.appendChild(next);
-      if (go.getAttribute("data-queue-desk")) card.appendChild(go);
-      box.appendChild(card);
-    });
+      return;
+    }
+    liveArmed = true;
+    bindLiveWatch();
+    setLiveStatus(document.getElementById("queue-live-status") && document.getElementById("queue-live-status").textContent ? document.getElementById("queue-live-status").textContent : LIVE_OK);
+    if (!liveInFlight) armLiveTimer(LIVE_IDLE_MS);
   }
 
   function addDesk(list, seen, row) {
@@ -452,15 +744,56 @@
     }
   }
 
-  async function refreshCards() {
+  async function refreshCards(opts) {
+    var live = !!(opts && opts.live);
+    if (live) {
+      if (!signedIn()) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (liveInFlight || loading) { liveWanted = true; return; }
+      liveInFlight = true;
+      liveWanted = false;
+    }
     var gen = ++loadGen;
     var next = [];
     // One deadline for the whole load, so a hang shows the error after QUEUE_WAIT_MS, not once per desk.
     var me = load = { failed: false, allFailed: false, signal: firstSignal || waitSignal() };
     firstSignal = null;
-    loading = true;
-    loadError = false;
-    if (!visibleCards().filter(openCard).length) paintCards(visibleCards());
+    if (!live) {
+      loading = true;
+      loadError = false;
+      if (!visibleCards().filter(openCard).length) paintCards(visibleCards());
+    }
+    try {
+    function finishLive(ok, painted) {
+      liveInFlight = false;
+      if (gen !== loadGen) return;
+      if (ok) {
+        liveBackoff = LIVE_IDLE_MS;
+        if (painted) setLiveStatus(liveArmed ? LIVE_NOW : LIVE_OK);
+        else setLiveStatus(LIVE_OK);
+        liveArmed = true;
+        bindLiveWatch();
+        armLiveTimer(LIVE_IDLE_MS);
+      } else {
+        if (liveArmed) {
+          setLiveStatus(LIVE_FAIL);
+          armLiveTimer(liveBackoff);
+          bumpBackoff();
+        }
+      }
+      if (liveWanted && !loading) {
+        liveWanted = false;
+        kickLiveNow();
+      }
+    }
+    if (live && signedIn()) {
+      var listed = await loadMine();
+      if (gen !== loadGen) return;
+      if (listed) {
+        desks = fromMine(listed);
+        if (!queueBusy()) paintPicker();
+      }
+    }
     if (mode === "all") {
       var all = await readAllDesks();
       if (gen !== loadGen) return;
@@ -480,11 +813,21 @@
       next = await jobsForDesk(desk);
       if (gen !== loadGen) return;
     }
+    if (live) {
+      if (me.failed) { finishLive(false); return; }
+      cards = next;
+      var painted = mergeCards(visibleCards());
+      finishLive(true, painted);
+      return true;
+    }
     cards = next;
     loading = false;
     loadError = !!me.failed;
     paintCards(visibleCards());
     return true;
+    } finally {
+      if (live && gen !== loadGen) liveInFlight = false;
+    }
   }
 
   // After Try again, put focus somewhere useful instead of on the page body: the Queue heading
@@ -565,41 +908,53 @@
   }
 
   function mount() {
-    if (document.getElementById("queue-desk-picker")) return;
     var queue = document.getElementById("queue");
     if (!queue || !queue.parentNode) return;
     ensureCss();
-    var picker = document.createElement("nav");
-    picker.id = "queue-desk-picker";
-    picker.setAttribute("aria-label", "Desks in this Queue");
-    var label = document.createElement("p");
-    label.className = "queue-picker-label";
-    label.textContent = "Desks in this Queue";
-    var row = document.createElement("div");
-    row.className = "queue-picker-row";
-    var allBtn = document.createElement("button");
-    allBtn.type = "button";
-    allBtn.id = "queue-all-desks";
-    allBtn.setAttribute("data-queue-desk", "");
-    allBtn.textContent = "All desks";
-    var buttons = document.createElement("div");
-    buttons.id = "queue-desk-buttons";
-    var add = document.createElement("a");
-    add.id = "queue-add-desk";
-    add.href = "/onboard";
-    add.textContent = "Add a desk";
-    row.appendChild(allBtn);
-    row.appendChild(buttons);
-    row.appendChild(add);
-    picker.appendChild(label);
-    picker.appendChild(row);
-    var h1 = document.querySelector("main h1, h1.page-title");
-    if (h1 && h1.parentNode) h1.parentNode.insertBefore(picker, h1.nextSibling);
-    else queue.parentNode.insertBefore(picker, queue);
-    var list = document.createElement("div");
-    list.id = "queue-all-cards";
-    if (picker.parentNode) picker.parentNode.insertBefore(list, picker.nextSibling);
-    else queue.parentNode.insertBefore(list, queue);
+    // Q1a(c): prefer the desk.html shell so signed-in first paint already has the panel;
+    // only build + insert when the shell is missing (older HTML).
+    var picker = document.getElementById("queue-desk-picker");
+    var list = document.getElementById("queue-all-cards");
+    if (!picker) {
+      picker = document.createElement("nav");
+      picker.id = "queue-desk-picker";
+      picker.setAttribute("aria-label", "Desks in this Queue");
+      var label = document.createElement("p");
+      label.className = "queue-picker-label";
+      label.textContent = "Desks in this Queue";
+      var row = document.createElement("div");
+      row.className = "queue-picker-row";
+      var allBtn = document.createElement("button");
+      allBtn.type = "button";
+      allBtn.id = "queue-all-desks";
+      allBtn.setAttribute("data-queue-desk", "");
+      allBtn.textContent = "All desks";
+      var buttons = document.createElement("div");
+      buttons.id = "queue-desk-buttons";
+      var add = document.createElement("a");
+      add.id = "queue-add-desk";
+      add.href = "/onboard";
+      add.textContent = "Add a desk";
+      row.appendChild(allBtn);
+      row.appendChild(buttons);
+      row.appendChild(add);
+      picker.appendChild(label);
+      picker.appendChild(row);
+      var h1 = document.querySelector("main h1, h1.page-title");
+      if (h1 && h1.parentNode) h1.parentNode.insertBefore(picker, h1.nextSibling);
+      else queue.parentNode.insertBefore(picker, queue);
+    }
+    if (!list) {
+      list = document.createElement("div");
+      list.id = "queue-all-cards";
+      if (picker.parentNode) picker.parentNode.insertBefore(list, picker.nextSibling);
+      else queue.parentNode.insertBefore(list, queue);
+    }
+    if (picker.__queueLoginBound) return;
+    picker.__queueLoginBound = true;
+    // Reveal only at mount, matching main's former insertion timing. Pre-paint visibility
+    // pushes #aia-wallet out of the desktop LCP window and promotes later card text.
+    picker.hidden = false;
     picker.addEventListener("click", function (e) {
       var btn = e.target && e.target.closest ? e.target.closest("[data-queue-desk]") : null;
       if (!btn || btn.id === "queue-add-desk") return;

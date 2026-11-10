@@ -31,13 +31,36 @@ const CHECKS = [
   "scripts/check-ux-signin.js"
 ];
 const OVERLAY = [
+  "desk.html",
+  "scripts/_desk-html-pin.js",
   "scripts/_api-freeze.js",
   "scripts/check-queue-login-ui.js",
   "scripts/check-setup-cards-ui.js",
   "scripts/check-ux-signin.js"
 ];
-const LANDED = ["api/_aia-admin.js", "api/_aia-mail.js", "api/_aia-register.js"];
+const LANDED = [
+  "api/_account.js",
+  "api/_account-connect.js",
+  "api/_account-doors.js",
+  "api/_account-http.js",
+  "api/_aia-admin.js",
+  "api/_ais.js",
+  "api/_aia-mail.js",
+  "api/_aia-net.js",
+  "api/_aia-register.js",
+  "api/_aia-tld.js",
+  "api/_connect-wallet.js",
+  "api/_desks-http.js",
+  "api/_grok.js",
+  "api/_handoff.js",
+  "api/_lib.js",
+  "api/_plans.js",
+  "api/_roles.js",
+  "api/hook.js",
+  "api/migrate-uploads.js"
+];
 const MOVED = [
+  "api/_job-mask.js",
   "api/connections.js",
   "api/health.js",
   "api/jobs.js"
@@ -443,7 +466,7 @@ try {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-ok(total > 0 && caught === total, "SCORE " + caught + "/" + total + " caught");
+ok(total >= 49 && caught === total, "SCORE " + caught + "/" + total + " caught");
 if (failed) {
   console.error("check-api-freeze: " + failed + " failed, " + passed + " passed, mutants " + caught + "/" + total);
   process.exit(1);

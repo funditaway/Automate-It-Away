@@ -33,14 +33,31 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "7ec9137a458e8195e303307e94ad7239c694cdf6";
+const BASE = "e13364c7195fd4c03cae6144b05a0dba378357c1";
 const PIN = {
+  "api/_account.js": "734c606bef3c17cb14cb6330adce5677fa964112",
+  "api/_account-connect.js": "39dde85d863c3de15b05571d35dcc4e87e6f5b7b",
+  "api/_account-doors.js": "e210c079926b0efbb22cb5b9512649c81f43c6b9",
+  "api/_account-http.js": "977fe25361e6eec276c25673af7c2dd525353482",
   "api/_aia-admin.js": "b2036f064e85dfe1a93b7dda686d368f4fe7e233",
+  "api/_ais.js": "1a59bc118231afb4d03631bc60ed4453fd1ad646",
   "api/_aia-mail.js": "5796afa6e22f62f3a9e433b0c1d0eb00c6094599",
+  "api/_aia-net.js": "5df23c55f9e189fcbb5aa710ab30672ef4279fd8",
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
+  "api/_aia-tld.js": "1429cd6442ca12f364062e09bbabb2f6c48a5e67",
+  "api/_connect-wallet.js": "90f310ed4a7f8831249115681e0b75b18939ad97",
+  "api/_desks-http.js": "54d36ae4eb8842b75f1847bc72fa5c2b8c514adb",
+  "api/_grok.js": "9bfc353d37edf476dd6145965c569dccd6e4a141",
+  "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
+  "api/_job-mask.js": "11263d1d5397e29bda390e78a12b443a7789284e",
+  "api/_lib.js": "1eed18d8529134a94ad1a1eae02bbf28272e1dd2",
+  "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
+  "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
   "api/connections.js": "49d0f57a7398c2a45df38b8bc08677e2b8679f3f",
   "api/health.js": "b1ece6a217fc90db35bc1a65b4d0329671ba8cda",
-  "api/jobs.js": "ca182fa6a45d7f3c1b3c1c51ff0c07da342aea6f"
+  "api/hook.js": "df27aad7e56930f9eefcdf706f3f58c7fa5c1756",
+  "api/jobs.js": "cda9f262d00b5119126a378d96d78e78f2d754b8",
+  "api/migrate-uploads.js": "a9a47cd366c5b5cf8afcb934c027f1dfe1edf3dc"
 };
 
 function lines(text) {
