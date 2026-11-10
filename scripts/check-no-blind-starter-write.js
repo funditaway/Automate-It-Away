@@ -30,7 +30,8 @@ const FAKE_ENV = {
   VERCEL_ENV: "production",
   BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_FAKESTORE_fakefakefake",
   BLOB_STORE_ID: "store_FAKESTORE",
-  AIA_CHECK_PARENT: String(process.pid)
+  AIA_CHECK_PARENT: String(process.pid),
+  AIA_CONNECT_SECRET: "fake-connect-secret-for-checks"
 };
 const REAL = JSON.stringify({
   account: { id: "aia", name: "Automate It Away" },

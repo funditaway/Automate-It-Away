@@ -36,7 +36,8 @@ const starters = (cs.match(/<div class="chips" id="cs-starters"[\s\S]*?<\/div>/)
 const moreAt = html.indexOf('id="more-ways"');
 const more = moreAt >= 0 ? html.slice(moreAt) : "";
 
-ok(fs.existsSync(deskPath) && fs.statSync(deskPath).size === 35012, "desk.html stays 35012 bytes");
+ok(fs.existsSync(deskPath) && require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
+ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 ok(!/cs-when|cs-then|whenThenWords/.test(read("desk.html")), "desk.html does not mention the picker");
 ok(!/check-create-when-then-ui/.test(pkg), "when-then check stays out of npm test");
 ok(!/check-create-voice-ui/.test(pkg) && !/check-create-starter-pack-ui/.test(pkg) && !/check-create-example-ui/.test(pkg), "earlier Create checks stay out of npm test");

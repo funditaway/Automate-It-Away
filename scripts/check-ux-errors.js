@@ -510,13 +510,14 @@ function mutate(S, reps) {
 
 function staticChecks() {
   const desk = (() => { try { return fs.statSync(path.join(root, "desk.html")).size; } catch (e) { return -1; } })();
-  ok(desk === 35012, "desk.html is 35012 bytes (" + desk + ")");
+  ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
+  ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   let freeze;
   try { freeze = require("./_api-freeze").check(root); } catch (e) { freeze = { ok: false, problems: ["api freeze helper failed: " + ((e && e.message) || e)] }; }
   ok(!!(freeze && freeze.ok === true), "api/ frozen (scripts/_api-freeze.js)" + (freeze && freeze.ok ? "" : ": " + ((freeze && freeze.problems) || []).join("; ")));
   let line = "";
   try { line = JSON.parse(SRC["package.json"] || "").scripts.test || ""; } catch (e) { line = ""; }
-  ok(/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js && node scripts\/check-api-machine-values\.js && node scripts\/check-api-machine-values-mutants\.js$/.test(line.trim()), "npm test ends with the machine-value checks after the .aia TLD mutant check");
+  ok(/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js && node scripts\/check-api-machine-values\.js && node scripts\/check-api-machine-values-mutants\.js && node scripts\/check-ready-reload\.js && node scripts\/check-owner-key-only\.js && node scripts\/check-owner-key-only-mutants\.js && node scripts\/check-card-thread-actor\.js && node scripts\/check-card-thread-actor-mutants\.js && node scripts\/check-card-thread\.js && node scripts\/check-sandbox-face\.js && node scripts\/check-sandbox-face-mutants\.js && node scripts\/check-queue-live-sync\.js$/.test(line.trim()), "npm test ends with the owner-key and card-thread checks, then check-card-thread, then sandbox-face, then queue live refresh");
   let legal = null;
   try {
     const base = require("./_api-freeze").BASE;

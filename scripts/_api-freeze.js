@@ -33,7 +33,7 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "bc4bd9933976e55b9a4198ac09bd5a448685179e";
+const BASE = "e13364c7195fd4c03cae6144b05a0dba378357c1";
 const PIN = {
   "api/_account.js": "734c606bef3c17cb14cb6330adce5677fa964112",
   "api/_account-connect.js": "39dde85d863c3de15b05571d35dcc4e87e6f5b7b",
@@ -47,17 +47,17 @@ const PIN = {
   "api/_aia-tld.js": "1429cd6442ca12f364062e09bbabb2f6c48a5e67",
   "api/_connect-wallet.js": "90f310ed4a7f8831249115681e0b75b18939ad97",
   "api/_desks-http.js": "54d36ae4eb8842b75f1847bc72fa5c2b8c514adb",
-  "api/_grok.js": "8d3ed7cfe9449a0ea72601bcc9f2cd927f318807",
+  "api/_grok.js": "9bfc353d37edf476dd6145965c569dccd6e4a141",
   "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
-  "api/_job-mask.js": "fab0ffc8578872a9e7c7df50b78012f95dc5ed3e",
+  "api/_job-mask.js": "11263d1d5397e29bda390e78a12b443a7789284e",
   "api/_lib.js": "1eed18d8529134a94ad1a1eae02bbf28272e1dd2",
   "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
-  "api/connections.js": "277fd0dbb8b0c4ef92619128f84df01511566312",
+  "api/connections.js": "31b88cef775d46513a329ef11a3aba9e41c9c56e",
   "api/health.js": "f20187b139e60fa6129a23ec7347a628a7e4a3c1",
-  "api/hook.js": "d9027a640d48d59ea20363e0b2dd18a3772d185f",
-  "api/jobs.js": "5f54e4d32183ea374aba12fdddc3b0028fc3571d",
-  "api/migrate-uploads.js": "2b5e13d819268bdae2688c3d29e2f755929fcaa7"
+  "api/hook.js": "df27aad7e56930f9eefcdf706f3f58c7fa5c1756",
+  "api/jobs.js": "4ef1e23ce916eb8a327f61caa255077a15c4d934",
+  "api/migrate-uploads.js": "a9a47cd366c5b5cf8afcb934c027f1dfe1edf3dc"
 };
 
 function lines(text) {

@@ -9,7 +9,7 @@ require("./_env-guard");
 // waiting copy with no crash and no retry; [] and 403 show nothing and no error text; the link
 // is /account#setup-<id>; no run-on-its-own control; Stop and Kill on every card; the Pack
 // install reply's setupCard is surfaced; no money or checkout fetches; plain public copy.
-// Also: desk.html is 35012 bytes and api/ is frozen to blob pins vs main (scripts/_api-freeze.js).
+// Also: desk.html is 35112 bytes and api/ is frozen to blob pins vs main (scripts/_api-freeze.js).
 // Usage: node scripts/check-setup-cards-ui.js
 const fs = require("fs");
 const path = require("path");
@@ -531,7 +531,8 @@ function mutate(src, reps) {
 // ---------- static checks ----------
 function staticChecks() {
   const deskBytes = fs.statSync(path.join(root, "desk.html")).size;
-  ok(deskBytes === 35012, "desk.html is 35012 bytes (" + deskBytes + ")");
+  ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
+  ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
   const apiFreeze = require("./_api-freeze").check(root);
   ok(apiFreeze.ok, "api/ frozen vs " + apiFreeze.base + " (blob pin)" + (apiFreeze.ok ? "" : ": " + apiFreeze.problems.join("; ")));
   const pkg = JSON.parse(read("package.json"));

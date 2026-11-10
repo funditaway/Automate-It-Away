@@ -360,3 +360,11 @@ a.btn {
   justify-content: center;
   text-align: center;
 }
+/* Queue: the Talk · Say · Reply label is a 44px tap target (beats desk.html's .q-prompt-lab rule). */
+div.q-prompt > label.q-prompt-lab{min-height:44px;display:flex;align-items:center;cursor:pointer}
+/* Queue pass Q1e: AA contrast on the Queue. These beat the pages' own inline rules by specificity;
+   desk.html and rules.html stay as they are. */
+html body .q-ai{background:#0d6b6b;color:#fff}
+html body main .meta{opacity:1}
+html body .q-drag{opacity:1}
+html.dark .q-state-flagged .q-state-mark{color:var(--kill-ink)}

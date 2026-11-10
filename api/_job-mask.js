@@ -101,6 +101,7 @@ function collectFrom(node, found) {
   Object.keys(node).forEach(function (k) {
     const v = node[k];
     if (typeof v === "string") {
+      if (k === "actorLabel" && (redactedHuman(v) || roleWord(v))) return;
       if (BLANK[k] || k === "actorLabel" || (k === "name" && personish(node))) addName(found, v);
       else if (k === "label" && (node.does || node.crew || node.deskAi)) addName(found, v);
       return;
@@ -117,11 +118,18 @@ function namesFor(node, people) {
   return found;
 }
 
+// readTalk's human label. It is not a channel tag (the tag test is lowercase)
+// and not a seat name. A later mask pass must leave it so the card-thread
+// read stays the writer of that label.
+function redactedHuman(value) {
+  return value === "You";
+}
+
 function shouldBlank(key, value, node) {
   if (typeof value !== "string") return false;
   if (key === "name") return personish(node);
   if (!BLANK[key]) return false;
-  if (key === "from" && channelFrom(value)) return false;
+  if (key === "from" && (channelFrom(value) || redactedHuman(value))) return false;
   if (key === "who" && roleWord(value)) return false;
   return true;
 }

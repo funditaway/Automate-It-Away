@@ -45,13 +45,13 @@ mustNot(acct.replace(/^\s*\/\/.*$/gm, ""), "Collect", "account settings page mus
 
 must(index, "SI · si.aia", "index SI card");
 must(index, 'data-aia-tip="si-aia"', "index si-aia tip");
-must(index, "An SI account hooks pipes and automations", "index SI copy");
+must(index, "An SI account hooks up connections and automations", "index SI copy");
 must(index, "Payments are off for now", "index SI payments off");
 mustNot(index, "Collect stays HOLD", "index SI Collect jargon");
 
 must(how, "SI · si.aia", "how SI part");
 must(how, 'data-aia-tip="si-aia"', "how si-aia tip");
-must(how, "An SI account hooks pipes and automations", "how SI copy");
+must(how, "An SI account hooks up connections and automations", "how SI copy");
 must(how, "Payments are off for now", "how SI payments off");
 mustNot(how, "Collect stays HOLD", "how SI Collect jargon");
 mustNot(how, "ai.aia is the door", "how still no ai.aia door lesson");

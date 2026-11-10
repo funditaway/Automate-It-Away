@@ -8,6 +8,7 @@ const clock = require("./_clock");
 const ais = require("./_ais");
 const { applyHandoff, applyDeskAiDraft, stampDeskAi, agentDraft } = require("./_handoff");
 const jobMask = require("./_job-mask");
+const talk = require("./_talk");
 
 function namedWorkspace(req) {
   const raw = req.headers["x-workspace"] || (req.query && req.query.workspace);
@@ -65,15 +66,38 @@ function peopleOf(job) {
   const row = (mem.workspaces || []).find(function (w) { return w && w.slug === slug; });
   return (row && row.people) || [];
 }
+function accountOf(shop) {
+  if (!shop || !shop.accountId) return null;
+  return (mem.accounts || []).find((a) => a && a.id === shop.accountId) || null;
+}
+function seatActor(person, shop, body) {
+  return talk.actorForDrop(person, accountOf(shop), body);
+}
+// Unknown actorKind is a plain 400. A known kind that is not this seat is a 403.
+// Returns true when the response is already sent.
+function refuseActor(res, body, actor) {
+  if (!body || body.actorKind == null || String(body.actorKind).trim() === "") return false;
+  const why = talk.rejectActorKind(body.actorKind);
+  if (why) {
+    res.status(400).json({ error: why });
+    return true;
+  }
+  if (talk.normKind(body.actorKind) !== actor.actorKind) {
+    res.status(403).json({ ok: false, error: "That seat can't post as that." });
+    return true;
+  }
+  return false;
+}
 // Same card the single-desk GET returns for this seat: staff seats do not see Stop / Kill.
 // Non-owner seats get this card with people's names masked. The stored row is not written.
+// readTalk then writes actorLabel (and from, when redacted). The mask does not.
 function presentJob(j, person) {
   const staff = person && person.role === "employee";
   const needs = needsOf(j, { staff });
   const tick = clock.clockOf(j);
   const people = peopleOf(j);
   const src = jobMask.maskJob(j, person, people);
-  return Object.assign({}, src, {
+  const out = Object.assign({}, src, {
     needs: jobMask.maskNeeds(needs.actions, person, people, j),
     needLine: jobMask.maskText(needs.line, person, people, j),
     missing: needs.missing,
@@ -83,6 +107,11 @@ function presentJob(j, person) {
     late: tick.late,
     expired: tick.expired
   });
+  const redact = !isOwner(person);
+  const view = function (entry) { return talk.readTalk(entry, { redact: redact }); };
+  if (Array.isArray(out.thread)) out.thread = out.thread.map(view);
+  if (Array.isArray(out.replies)) out.replies = out.replies.map(view);
+  return out;
 }
 function tagQueueJob(card, slug) {
   return Object.assign({}, card, { slug: slug, desk: slug });
@@ -278,10 +307,12 @@ module.exports = async function handler(req, res) {
       return res.status(409).json({ ok: false, error: "More than one seat has that name. Open your own seat to tap." });
     }
     if (action === "suggest") {
-      const job = makeCapturedJob(workspace, shop, body);
+      const sugActor = seatActor(person, shop, body);
+      if (refuseActor(res, body, sugActor)) return;
+      const job = makeCapturedJob(workspace, shop, body, sugActor);
       qualifyJob(job, shop);
       const grok = await grokRecommend(job, shop, workspace);
-      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec", talk.aiActor("grok"));
       const cites = normalizeCites([].concat(body.citations || [], job.citations || []));
       if (cites.length) job.citations = cites;
       return res.status(200).json({
@@ -295,7 +326,7 @@ module.exports = async function handler(req, res) {
         job: { title: job.title, kind: job.kind, notes: job.notes || "" },
         note: grok && grok.ok
           ? "Draft only. Yes puts it on the queue. Stop discards it. AIA does not send."
-          : (grok && grok.reason === "no-key"
+          : (grok && grok.reason === "needsKey"
             ? "A Desk AI can't draft on this phone yet. You can still put the work on the queue."
             : "No draft this time. You can still put the work on the queue.")
       });
@@ -305,7 +336,9 @@ module.exports = async function handler(req, res) {
       // A signed-in seat captures as itself: who tapped is the session's seat, never the name in the body.
       // A stranger's drop (no seat) keeps the name it sent, as before.
       const capBody = person ? Object.assign({}, body, { whoTapped: actorName(person, {}) }) : body;
-      const jobs = makeFanOutJobs(workspace, shop, capBody);
+      const capActor = seatActor(person, shop, capBody);
+      if (refuseActor(res, body, capActor)) return;
+      const jobs = makeFanOutJobs(workspace, shop, capBody, capActor);
       if (person) jobs.forEach((j) => { j.whoTapped = actorName(person, {}); j.whoTappedId = actorId(person); });
       const incomingCites = normalizeCites(body.citations || []);
       let grok = null;
@@ -316,18 +349,18 @@ module.exports = async function handler(req, res) {
         if (Array.isArray(body.recs) && body.recs.length && !job.recs) job.recs = body.recs.slice(0, 8);
         if (jobs.length === 1 && !job.draft) {
           grok = await grokRecommend(job, shop, workspace);
-          if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+          if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec", talk.aiActor("grok"));
         } else if (job.draft) {
-          addTalk(job, "grok", job.draft, "rec");
+          addTalk(job, "grok", job.draft, "rec", talk.aiActor("grok"));
         }
         applyDeskAiDraft(job, shop, "qualify");
         holdCapturedJob(job);
         const tell = String(job.tell || "").trim();
         if (tell && !(job.thread || []).some((t) => t && t.kind === "tell" && String(t.text || "").trim() === tell)) {
-          addTalk(job, job.whoTapped || job.contactName || "drop", tell, "tell");
+          addTalk(job, job.whoTapped || job.contactName || "drop", tell, "tell", capActor);
         }
-        if (job.notes && String(job.notes).trim() !== tell) addTalk(job, job.from || "capture", job.notes, "note");
-        addTalk(job, "desk", job.why || "In the queue.", "rec");
+        if (job.notes && String(job.notes).trim() !== tell) addTalk(job, job.from || "capture", job.notes, "note", capActor);
+        addTalk(job, "desk", job.why || "In the queue.", "rec", talk.aiActor("desk"));
       }
       const lead = jobs[0];
       for (let i = jobs.length - 1; i >= 0; i--) mem.jobs.unshift(jobs[i]);
@@ -357,6 +390,8 @@ module.exports = async function handler(req, res) {
     // A shared name with no seat already answered 409 above, and only when that name is actually shared.
     // A stranger who names one seat, or names nobody, still gets the missing-desk reply here (reply included).
     if (!shop || !person) return refuseJobRead(res, found);
+    const actor = seatActor(person, shop, body);
+    if (refuseActor(res, body, actor)) return;
     const job = mem.jobs.find((j) => j.id === body.id && j.workspace === workspace);
     if (!job) return res.status(404).json({ error: "Job not found" });
     if (action === "kill") {
@@ -379,7 +414,7 @@ module.exports = async function handler(req, res) {
       qualifyJob(job, shop);
       if (body.why) job.why = body.why;
       const grok = await grokRecommend(job, shop, workspace);
-      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec", talk.aiActor("grok"));
       applyDeskAiDraft(job, shop, "qualify");
       log("Qualify", job.title, "Waiting", workspace);
       await save();
@@ -388,7 +423,7 @@ module.exports = async function handler(req, res) {
     if (action === "recommend") {
       qualifyJob(job, shop);
       const grok = await grokRecommend(job, shop, workspace);
-      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec");
+      if (grok && grok.ok) addTalk(job, "grok", job.draft || "Draft on the card.", "rec", talk.aiActor("grok"));
       else recommend(job, [], shop);
       applyDeskAiDraft(job, shop, "qualify");
       stampDeskAi(job, shop);
@@ -399,7 +434,7 @@ module.exports = async function handler(req, res) {
     if (action === "say") {
       const text = String(body.text || body.notes || "").trim();
       if (!text) return res.status(400).json({ error: "Type the note." });
-      addTalk(job, actorName(person, body), text, body.kind || "note");
+      addTalk(job, actorName(person, body), text, body.kind || "note", actor);
       job.log = (job.log || []).concat(["Note"]);
       log("Desk", "Note · " + job.title, "OK", workspace);
       await save();
@@ -410,11 +445,22 @@ module.exports = async function handler(req, res) {
       if (!person) return res.status(403).json({ ok: false, error: "Open this desk to reply.", job });
       const text = String(body.text || body.notes || body.reply || "").trim();
       if (!text) return res.status(400).json({ error: "Type a reply on the card." });
-      addTalk(job, actorName(person, body), text, "reply");
-      job.replies = (job.replies || []).concat([{
+      const said = talk.talkEntry({
+        actorKind: actor.actorKind,
+        actorLabel: actor.actorLabel,
         from: actorName(person, body),
         text: text,
-        at: new Date().toISOString()
+        kind: "reply"
+      });
+      addTalk(job, actorName(person, body), text, "reply", actor);
+      job.replies = (job.replies || []).concat([said || {
+        from: actorName(person, body),
+        text: text,
+        at: new Date().toISOString(),
+        actorKind: actor.actorKind,
+        actorLabel: actor.actorLabel,
+        input: text,
+        output: ""
       }]).slice(-20);
       applyImplement(job, shop, { implement: text, notes: text });
       if (body.custom && typeof body.custom === "object") mergeFields(job, body);
@@ -440,7 +486,7 @@ module.exports = async function handler(req, res) {
     }
     if (action === "ask") {
       const text = String(body.text || "").trim() || "Need a bit more before this can go.";
-      addTalk(job, actorName(person, body), text, "ask");
+      addTalk(job, actorName(person, body), text, "ask", actor);
       job.waitingOn = "info";
       job.why = text;
       job.next = "Waiting on an answer. Then Yes or Stop.";
@@ -454,7 +500,7 @@ module.exports = async function handler(req, res) {
       clock.applyClock(job, body);
       if (!job.custom) job.custom = {};
       if (body.key) job.custom[slugField(body.key)] = body.value == null ? "" : String(body.value).slice(0, 200);
-      addTalk(job, actorName(person, body), "Updated " + (body.key || "fields"), "note");
+      addTalk(job, actorName(person, body), "Updated " + (body.key || "fields"), "note", actor);
       qualifyJob(job, shop);
       log("Desk", "Fill · " + job.title, "OK", workspace);
       await save();
@@ -467,7 +513,7 @@ module.exports = async function handler(req, res) {
       const line = action === "snooze"
         ? "Snoozed to " + (job.due || "later") + "."
         : (clock.clockLine(job) || "Times saved on the card.");
-      addTalk(job, actorName(person, body), line, "note");
+      addTalk(job, actorName(person, body), line, "note", actor);
       job.log = (job.log || []).concat(["Clock"]);
       job.whoTapped = actorName(person, body);
       job.whoTappedId = actorId(person);
@@ -539,7 +585,7 @@ module.exports = async function handler(req, res) {
         job.step = "Do";
         job.next = "Off the desk. Waiting on write-back, or tap Done off desk / Needs a hand.";
         job.log = (job.log || []).concat(["Out · waiting on write-back"]);
-        addTalk(job, actorName(person, body), "Sent off the desk. Confirm when it is done.", "note");
+        addTalk(job, actorName(person, body), "Sent off the desk. Confirm when it is done.", "note", actor);
         log(pipe ? pipe.label : "Desk", "Out · " + job.title, "Waiting", workspace);
         await save();
         return res.status(200).json({ ok: true, job, nextJob: nextJob || undefined, awaiting: "writeback" });
@@ -584,7 +630,7 @@ module.exports = async function handler(req, res) {
       job.whoTapped = actorName(person, body);
       job.whoTappedId = actorId(person);
       job.next = picked.name + " owns the next step on this card. Nothing goes out without your Yes.";
-      addTalk(job, actorName(person, body), "Desk AI on this card · " + picked.name + ".", "note");
+      addTalk(job, actorName(person, body), "Desk AI on this card · " + picked.name + ".", "note", actor);
       job.log = (job.log || []).concat(["Desk AI · " + picked.name]);
       log("Desk", "Desk AI · " + job.title + " · " + picked.name, "OK", workspace);
       await save();
@@ -603,7 +649,7 @@ module.exports = async function handler(req, res) {
       applyHandoff(job, whoPerson, shop);
       job.whoTapped = actorName(person, body);
       job.whoTappedId = actorId(person);
-      addTalk(job, actorName(person, body), "Handed to " + whoPerson.name + ".", "note");
+      addTalk(job, actorName(person, body), "Handed to " + whoPerson.name + ".", "note", actor);
       markFlow(job, "handoff");
       job.log = (job.log || []).concat(["Assigned · " + whoPerson.name]);
       log("Desk", "Assigned · " + job.title + " · " + whoPerson.name, "Waiting", workspace);
@@ -623,7 +669,7 @@ module.exports = async function handler(req, res) {
       job.followNote = note;
       job.dispatch = { demo: false, carried: true, how: "hand", note: "Done by hand on this desk." };
       markFlow(job, "follow");
-      addTalk(job, actorName(person, body), note, "follow");
+      addTalk(job, actorName(person, body), note, "follow", actor);
       job.log = (job.log || []).concat(["Carried · " + note]);
       log("Desk", "Carried · " + job.title, "OK", workspace);
       await save();
@@ -633,7 +679,7 @@ module.exports = async function handler(req, res) {
       if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never Yes. A person taps Done.", never: ais.NEVER.slice(), job });
       const note = markDone(job, person, body, body.how || "off-desk", shop);
       markFlow(job, "follow");
-      addTalk(job, actorName(person, body), note, "follow");
+      addTalk(job, actorName(person, body), note, "follow", actor);
       job.log = (job.log || []).concat(["Done · " + (job.doneHow || "off-desk")]);
       log("Desk", "Done · " + job.title, "OK", workspace);
       await save();
@@ -642,7 +688,7 @@ module.exports = async function handler(req, res) {
     if (action === "hand") {
       const note = markHand(job, person, body);
       markFlow(job, "handoff");
-      addTalk(job, actorName(person, body), note, "ask");
+      addTalk(job, actorName(person, body), note, "ask", actor);
       job.log = (job.log || []).concat(["Needs a hand"]);
       log("Desk", "Hand · " + job.title, "Waiting", workspace);
       await save();
@@ -657,14 +703,14 @@ module.exports = async function handler(req, res) {
         job.cap = true;
         job.priorityAt = new Date().toISOString();
         job.priorityBy = actorName(person, body);
-        addTalk(job, actorName(person, body), "On the cap. Orange. Do this first.", "note");
+        addTalk(job, actorName(person, body), "On the cap. Orange. Do this first.", "note", actor);
         job.log = (job.log || []).concat(["Cap"]);
         log("Desk", "Cap · " + job.title, "OK", workspace);
       } else {
         job.priority = false;
         job.cap = false;
         job.priorityAt = null;
-        addTalk(job, actorName(person, body), "Off the cap.", "note");
+        addTalk(job, actorName(person, body), "Off the cap.", "note", actor);
         job.log = (job.log || []).concat(["Off cap"]);
         log("Desk", "Off cap · " + job.title, "OK", workspace);
       }

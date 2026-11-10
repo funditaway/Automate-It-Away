@@ -360,7 +360,7 @@ function sayOnCard(job, person, text) {
   if (!job || !note) return;
   // Same writes as POST /api/jobs { action: "say" }: addTalk, a Note log line, lib.log.
   // Done in this request so the relink stays one save. jobs.js ready() would reload the store.
-  addTalk(job, (person && person.name) || "desk", note.slice(0, 500), "note");
+  addTalk(job, (person && person.name) || "desk", note.slice(0, 500), "note", require("./_talk").actorForSeat(person, null));
   job.log = (job.log || []).concat(["Note"]);
   log("Desk", "Note · " + (job.title || job.id || "card"), "OK", job.workspace || null);
 }

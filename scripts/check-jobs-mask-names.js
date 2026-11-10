@@ -2,7 +2,8 @@
 require("./_env-guard");
 // GET /api/jobs masks people's names for a helper and for another non-owner
 // seat. The owner still sees the names. actorKind and role tags stay.
-// actorLabel is left as stored (the card-thread read path owns that label).
+// The card-thread read (readTalk) is what writes actorLabel on that copy:
+// a non-owner sees the redacted label, the owner sees the name.
 // The stored job is the same after the read.
 const fs = require("fs");
 const os = require("os");
@@ -92,7 +93,7 @@ async function main() {
     fail("package.json should run this check after the jobs seat check");
   }
   const testLine = JSON.parse(pkg).scripts.test || "";
-  if (!/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js && node scripts\/check-api-machine-values\.js && node scripts\/check-api-machine-values-mutants\.js && node scripts\/check-ready-reload\.js$/.test(testLine.trim())) {
+  if (!/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js && node scripts\/check-api-machine-values\.js && node scripts\/check-api-machine-values-mutants\.js && node scripts\/check-ready-reload\.js && node scripts\/check-owner-key-only\.js && node scripts\/check-owner-key-only-mutants\.js && node scripts\/check-card-thread-actor\.js && node scripts\/check-card-thread-actor-mutants\.js && node scripts\/check-card-thread\.js && node scripts\/check-sandbox-face\.js && node scripts\/check-sandbox-face-mutants\.js && node scripts\/check-queue-live-sync\.js$/.test(testLine.trim())) {
     fail("npm test must keep the same ending as main");
   }
   pass("package.json keeps the old ending and adds this check");
@@ -206,10 +207,9 @@ async function main() {
   assertMasked(helper.body, "helper");
   if (helperCard.thread[0].actorKind !== "human") fail("helper lost actorKind on the thread");
   if (helperCard.thread[0].role !== "owner") fail("helper lost the thread role");
-  if (helperCard.thread[0].actorLabel !== "Nia Quill") fail("helper actorLabel should stay for the card-thread path");
-  if (helperCard.thread[0].from) fail("helper still sees thread from");
-  if (helperCard.thread[1].from !== "widget") fail("helper lost the widget channel tag");
-  if (helperCard.thread[1].actorKind !== "ext") fail("helper lost ext actorKind");
+  if (helperCard.thread[0].actorLabel !== "You" || helperCard.thread[0].from !== "You") fail("helper thread label should be the card-thread redaction");
+  if (stored.thread[1].from !== "widget") fail("stored widget channel tag was rewritten");
+  if (helperCard.thread[1].from !== "ext" || helperCard.thread[1].actorKind !== "ext") fail("helper lost ext actorKind on the widget line");
   if (helperCard.replies[0].actorKind !== "human" || helperCard.replies[0].role !== "friend") fail("helper lost reply role tags");
   if (helperCard.handedTo.kind !== "family" || helperCard.handedTo.role !== "employee") fail("helper lost handed-to kind");
   if (helperCard.handedTo.name) fail("helper still sees handed-to name");
@@ -229,7 +229,7 @@ async function main() {
   const familyCard = cardOf(family.body);
   if (!familyCard) fail("family did not get the card");
   assertMasked(family.body, "family");
-  if (familyCard.thread[0].actorKind !== "human" || familyCard.thread[0].actorLabel !== "Nia Quill") fail("family lost actorKind or actorLabel");
+  if (familyCard.thread[0].actorKind !== "human" || familyCard.thread[0].actorLabel !== "You" || familyCard.thread[0].from !== "You") fail("family lost actorKind or the redacted label");
   if (!family.body.you || family.body.you.name !== "Ada Family" || family.body.you.kind !== "family") fail("family should still see their own seat on you");
   pass("family GET hides names and keeps kind tags");
 

@@ -31,6 +31,8 @@ const CHECKS = [
   "scripts/check-ux-signin.js"
 ];
 const OVERLAY = [
+  "desk.html",
+  "scripts/_desk-html-pin.js",
   "scripts/_api-freeze.js",
   "scripts/check-queue-login-ui.js",
   "scripts/check-setup-cards-ui.js",
@@ -464,7 +466,7 @@ try {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-ok(total > 0 && caught === total, "SCORE " + caught + "/" + total + " caught");
+ok(total >= 49 && caught === total, "SCORE " + caught + "/" + total + " caught");
 if (failed) {
   console.error("check-api-freeze: " + failed + " failed, " + passed + " passed, mutants " + caught + "/" + total);
   process.exit(1);

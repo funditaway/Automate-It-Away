@@ -111,9 +111,8 @@ else ok("Queue page loads the picker");
   else ok("queue-login.js has no " + bit);
 });
 
-const deskBytes = fs.statSync(path.join(root, "desk.html")).size;
-if (deskBytes !== 35012) fail("desk.html is " + deskBytes + " bytes, want 35012");
-else ok("desk.html is 35012 bytes");
+ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
+ok(require("./_desk-html-pin").check(root), "desk.html matches its byte and SHA-256 pin");
 
 const pkg = read("package.json");
 if (pkg.indexOf("node scripts/check-queue-login-ui.js") < 0) fail("npm test must run check-queue-login-ui");

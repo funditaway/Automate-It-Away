@@ -255,8 +255,60 @@ function wrapLoadWanted() {
 window.wantJobId = wantJobId;
 window.openWantedJob = openWantedJob;
 wrapLoadWanted();
+// Names on the card sheet are for the desk's owner. Anyone else (an employee, a helper, family) sees a
+// plain tag in the old talk block, the timeline, the assignee line and Hand to. UI only: GET /api/jobs
+// still carries names (Switch owns that side). Desk labels and Desk AI names are not people, so they stay.
+const SHEET_KEEP_FROM = /^(|you|desk|drop|desk-chat|onboard|member|then|pipe|webhook|worker|capture|grok|desk ai|desk-ai|engine|agent|assistant)$/i;
+// Fail closed: only the owner sees names; a blank or unknown role hides them.
+function sheetHidesNames() { return typeof role === "undefined" || role !== "owner"; }
+function sheetAiNames(j) {
+  const out = [];
+  [j && j.deskAi && j.deskAi.name, j && j.agentDraft && j.agentDraft.name, j && j.agentDraft && j.agentDraft.crew, typeof thenWhoOf === "function" ? thenWhoOf(j) : ""].forEach(function (n) { if (n) out.push(String(n).trim().toLowerCase()); });
+  return out;
+}
+function sheetFrom(j, from, ais) {
+  const f = String(from == null ? "" : from).trim();
+  if (SHEET_KEEP_FROM.test(f) || ais.indexOf(f.toLowerCase()) >= 0) return from;
+  return "Helper";
+}
+function sheetCardOf(j) {
+  if (!j || !sheetHidesNames()) return j;
+  const ais = sheetAiNames(j);
+  const c = Object.assign({}, j);
+  c.from = sheetFrom(j, j.from, ais);
+  if (Array.isArray(j.thread)) c.thread = j.thread.map(function (t) { return t ? Object.assign({}, t, { from: sheetFrom(j, t.from, ais) }) : t; });
+  if (Array.isArray(j.replies)) c.replies = j.replies.map(function (t) { return t ? Object.assign({}, t, { from: sheetFrom(j, t.from || "You", ais) }) : t; });
+  if (j.assignee) c.assignee = "Helper";
+  return c;
+}
+function handLabelOf(p, i) {
+  if (!sheetHidesNames()) return String((p && p.name) || "");
+  // By seat kind, not role (every seat but the owner's has role employee): helper seats read Helper,
+  // every other seat (family, friend, staff, member, ...) reads Employee; numbered when there are several.
+  const tagOf = function (x) {
+    if (String((x && x.role) || "").toLowerCase() === "owner") return "Owner";
+    return String((x && x.kind) || "").toLowerCase() === "helper" ? "Helper" : "Employee";
+  };
+  const tag = tagOf(p);
+  const list = Array.isArray(PEOPLE) ? PEOPLE : [];
+  const same = list.filter(function (x) { return tagOf(x) === tag; }).length;
+  if (same <= 1) return tag;
+  return tag + " " + (list.slice(0, i + 1).filter(function (x) { return tagOf(x) === tag; }).length);
+}
+// The card as one chat thread (card-thread.js, loaded once on first open; desk.html stays as it is).
+// In this thread, anyone who is not the desk's owner sees tags, not names (the rest of the sheet goes
+// through sheetCardOf above). Same fail-closed rule: a blank or unknown role counts as a stranger.
+function mountCardThread(j) {
+  // viewer = the signed-in name, so the owner sees You on their own rows only. Strangers never see You.
+  const opts = { stranger: sheetHidesNames(), viewer: typeof youName === "string" ? youName : "" };
+  const go = function () { if (window.AIACardThread) window.AIACardThread.mount("card-thread-sheet", j, opts); };
+  if (window.AIACardThread) return go();
+  let s = document.getElementById("card-thread-js");
+  if (!s) { s = document.createElement("script"); s.id = "card-thread-js"; s.src = "card-thread.js"; document.head.appendChild(s); }
+  s.addEventListener("load", go);
+}
 async function openJob(id) {
-  const j = jobBy(id);
+  const j = sheetCardOf(jobBy(id));
   if (!j) return;
   await loadPeople();
   const staff = role === "employee";
@@ -268,8 +320,8 @@ async function openJob(id) {
   }).join("");
   const draft = j.draft || j.title || "";
   const heldId = (j.handedTo && j.handedTo.id) || j.assigneeId || "";
-  const peopleOpts = (PEOPLE || []).map(p =>
-    "<option value=\"" + esc(p.id || "") + "\"" + (p.id && heldId && String(heldId) === String(p.id) ? " selected" : "") + ">" + esc(p.name) + (p.role === "owner" ? " · owner" : "") + "</option>"
+  const peopleOpts = (PEOPLE || []).map((p, i) =>
+    "<option value=\"" + esc(p.id || "") + "\"" + (p.id && heldId && String(heldId) === String(p.id) ? " selected" : "") + ">" + esc(handLabelOf(p, i)) + (p.role === "owner" && !sheetHidesNames() ? " · owner" : "") + "</option>"
   ).join("");
   document.getElementById("sheet-card").innerHTML =
     "<h3>" + esc(j.title) + "</h3>" +
@@ -285,6 +337,7 @@ async function openJob(id) {
     })()) +
     (visitorLine(j.why) ? "<p>" + esc(visitorLine(j.why)) + "</p>" : "") +
     threadSheetHtml(j) +
+    "<div id=\"card-thread-sheet\"></div>" +
     "<div id=\"card-timeline-sheet\"></div>" +
     (staff || typeof bindAiHtml !== "function" ? "" : bindAiHtml(j, "sheet")) +
     custom +
@@ -316,6 +369,7 @@ async function openJob(id) {
       (staff ? "<span></span>" : "<button class=\"kill q-stop\" type=\"button\" onclick=\"kill('" + hid + "')\">Stop</button>") +
     "</div>";
   if (window.AIACardTimeline) window.AIACardTimeline.mount("card-timeline-sheet", j);
+  mountCardThread(j);
   document.getElementById("sheet").classList.add("on");
 }
 function localClockInput(iso) {
