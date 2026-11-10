@@ -244,7 +244,7 @@ var EXAMPLES={
  "audit-month":{since:"month",flags:{audit:1},advanced:true},
  "stopped":{lane:"stopped",when:"past"}
 };
-function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&"+"amp;","<":"&"+"lt;",">":"&"+"gt;","\"":"&"+"quot;","'":"&#39;"})[c];});}
+function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];});}
 function phone(){return (window.AIADesks&&AIADesks.list())||[];}
 function thenWho(it){return (it&&it.deskAi&&it.deskAi.name)||(it&&it.thenWho)||"";}
 function thenGone(it){var g=it&&it.thenAiGone;return String((g&&(g.name||g.id))||"").trim();}
