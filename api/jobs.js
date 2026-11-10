@@ -88,6 +88,18 @@ function refuseActor(res, body, actor) {
   }
   return false;
 }
+// A card may already carry needs actions (label / href). Those join the
+// generated ones. maskNeeds is what clears a person's name inside a label.
+function needsActions(j, generated) {
+  const out = Array.isArray(generated) ? generated.slice() : [];
+  const extra = j && Array.isArray(j.needs) ? j.needs : [];
+  extra.forEach(function (action) {
+    if (!action || typeof action !== "object" || typeof action.label !== "string") return;
+    if (action.id && out.some(function (row) { return row && row.id === action.id; })) return;
+    out.push({ id: action.id || "need", label: action.label, href: action.href });
+  });
+  return out;
+}
 // Same card the single-desk GET returns for this seat: staff seats do not see Stop / Kill.
 // Non-owner seats get this card with people's names masked. The stored row is not written.
 // readTalk then writes actorLabel (and from, when redacted). The mask does not.
@@ -98,7 +110,7 @@ function presentJob(j, person) {
   const people = peopleOf(j);
   const src = jobMask.maskJob(j, person, people);
   const out = Object.assign({}, src, {
-    needs: jobMask.maskNeeds(needs.actions, person, people, j),
+    needs: jobMask.maskNeeds(needsActions(j, needs.actions), person, people, j),
     needLine: jobMask.maskText(needs.line, person, people, j),
     missing: needs.missing,
     decide: needs.decide,

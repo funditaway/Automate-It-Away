@@ -6,6 +6,9 @@ require("./_env-guard");
 //   M1 forgets to mask for a seated helper
 //   M2 strips actorKind while masking
 //   M3 mutates the stored row on read
+//   O11 maskNeeds is a no-op, so a needs-action label keeps the name
+//   O7 replaceNames keeps only the longest name
+//   O3 maskJobsResponse restores other people's names on you and the seat list
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -23,6 +26,18 @@ const MUTANTS = [
   ]],
   ["M3", "mutates the stored row on read", [
     ["  return JSON.parse(JSON.stringify(value));", "  return value;"]
+  ]],
+  ["O11", "maskNeeds is a no-op", [
+    ["  const names = namesFor(job, people);\n  return actions.map(function (action) {",
+      "  const names = namesFor(job, people);\n  return actions;\n  return actions.map(function (action) {"]
+  ]],
+  ["O7", "strips only the longest name", [
+    ["  for (let i = 0; i < names.length; i++) {",
+      "  for (let i = 0; i < 1 && i < names.length; i++) {"]
+  ]],
+  ["O3", "restores other people's names", [
+    ["  if (hadYou) copy.you = maskYouBlock(body.you, person);\n  if (hadPeople) copy.people = maskSeatList(body.people, person);",
+      "  if (hadYou) copy.you = body.you;\n  if (hadPeople) copy.people = body.people;"]
   ]]
 ];
 

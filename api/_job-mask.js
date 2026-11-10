@@ -152,6 +152,7 @@ function blankNames(node) {
 
 function replaceNames(text, names) {
   let out = String(text);
+  // Longest first, then the rest. One field can hold two names ("Dana told Lee").
   for (let i = 0; i < names.length; i++) {
     const re = new RegExp("(^|[^A-Za-z0-9])" + escapeReg(names[i]) + "([^A-Za-z0-9]|$)", "gi");
     out = out.replace(re, function (_m, before, after) { return (before || "") + (after || ""); });
@@ -246,22 +247,67 @@ function maskNeeds(actions, person, people, job) {
   });
 }
 
-// The caller's own `you` block stays. The desk seat list stays too: helpers
-// already see other seats as name and role only. Names on the card, the
-// thread, and the other read rows are masked.
+function callerName(person) {
+  return person && person.name ? String(person.name) : "";
+}
+
+// Id when both sides have one. A nameless row is not the caller.
+function isCallerSeat(row, person) {
+  if (!row || !person) return false;
+  if (person.id && row.id) return String(row.id) === String(person.id);
+  const mine = callerName(person);
+  return !!mine && row.name === mine;
+}
+
+// Non-owners keep their own seat name. Every other seat name is cleared.
+// Role, kind, and the other display fields stay.
+function maskSeatList(list, person) {
+  return (list || []).map(function (row) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+    const copy = Object.assign({}, row);
+    if (!isCallerSeat(copy, person) && typeof copy.name === "string") copy.name = "";
+    return copy;
+  });
+}
+
+// you.name is the caller's own name. Another person's name does not stay.
+function maskYouBlock(you, person) {
+  if (!you || typeof you !== "object" || Array.isArray(you)) return you;
+  const copy = Object.assign({}, you);
+  copy.name = callerName(person);
+  return copy;
+}
+
+function maskCardNeeds(card, person, people) {
+  if (!card || typeof card !== "object" || Array.isArray(card)) return;
+  if (Array.isArray(card.needs)) card.needs = maskNeeds(card.needs, person, people, card);
+}
+
+// Say and the other echoes return the stored card. maskNeeds has to run
+// while the name fields are still on that copy, before they are blanked.
+function maskResponseNeeds(body, person, people) {
+  maskCardNeeds(body.job, person, people);
+  ["jobs", "cap"].forEach(function (key) {
+    if (!Array.isArray(body[key])) return;
+    body[key].forEach(function (card) { maskCardNeeds(card, person, people); });
+  });
+}
+
+// Card, thread, and the other read rows are masked. For a non-owner, the
+// people list keeps only that caller's name, and you.name is only theirs.
+// Title, notes, draft, and thread reply text stay. Those are free text.
 function maskJobsResponse(body, person, people) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return body;
   if (seatSeesNames(person)) return body;
   const hadYou = Object.prototype.hasOwnProperty.call(body, "you");
   const hadPeople = Object.prototype.hasOwnProperty.call(body, "people");
-  const you = hadYou ? body.you : undefined;
-  const seatList = hadPeople ? body.people : undefined;
   const copy = clone(body);
   if (hadYou) delete copy.you;
   if (hadPeople) delete copy.people;
+  maskResponseNeeds(copy, person, people);
   applyMask(copy, people);
-  if (hadYou) copy.you = you;
-  if (hadPeople) copy.people = seatList;
+  if (hadYou) copy.you = maskYouBlock(body.you, person);
+  if (hadPeople) copy.people = maskSeatList(body.people, person);
   return copy;
 }
 
