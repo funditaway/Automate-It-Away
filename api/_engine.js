@@ -562,7 +562,7 @@ function thenAfterYes(job, shop) {
   next.charged = false;
   if (next.waitingOn !== "owner") next.waitingOn = next.waitingOn || "person";
   if (!/HOLD/i.test(String(next.next || "")) && !/nothing sent/i.test(String(next.next || ""))) {
-    next.next = String(next.next || "Next Then.").replace(/\.\s*$/, "") + ". HOLD. Nothing sent alone.";
+    next.next = String(next.next || "Next Then.").replace(/\.\s*$/, "") + ". Nothing sent alone.";
   } else if (!/nothing sent/i.test(String(next.next || ""))) {
     next.next = String(next.next).replace(/\.\s*$/, "") + ". Nothing sent alone.";
   }
