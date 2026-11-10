@@ -47,18 +47,53 @@ if (/who\|\|row\.from\|\|"Desk AI"/.test(history.replace(/\s+/g, ""))) {
   fail("History talkHtml must not fall back to Desk AI when the Then AI is gone");
 }
 
-if (needs.indexOf("const talks = talkHtml(j)") < 0 || needs.indexOf("q-thread") < 0) {
-  fail("Cap cards must paint talkHtml / q-thread");
+// a2ad8c4 (#265) minified desk-needs.js. Cap still paints talk into q-thread via
+// window.capCardHtml / window.card; names like talkHtml(j) were shortened.
+function capTalkSourceFaults(src) {
+  const bad = [];
+  if (src.indexOf("q-thread") < 0) bad.push("missing q-thread");
+  if (src.indexOf("q-talk") < 0 || src.indexOf("q-turn-ai") < 0 || src.indexOf("q-turn-you") < 0) {
+    bad.push("missing talk turns");
+  }
+  if (src.indexOf("window.capCardHtml") < 0 || src.indexOf("window.card=") < 0) {
+    bad.push("missing capCardHtml / card");
+  }
+  return bad;
 }
-if (needs.indexOf("function capCardHtml") < 0 || needs.indexOf("promptHtml(j, need") < 0) {
-  fail("Cap cards must paint promptHtml via capCardHtml");
+(function () {
+  const bad = capTalkSourceFaults(needs);
+  if (bad.length) fail("Cap cards must paint talkHtml / q-thread: " + bad.join("; "));
+})();
+function capPromptSourceFaults(src) {
+  const bad = [];
+  if (src.indexOf("window.capCardHtml") < 0) bad.push("missing capCardHtml");
+  if (src.indexOf("window.promptHtml") < 0) bad.push("missing promptHtml");
+  if (src.indexOf("q-prompt") < 0) bad.push("missing q-prompt");
+  return bad;
 }
+(function () {
+  const bad = capPromptSourceFaults(needs);
+  if (bad.length) fail("Cap cards must paint promptHtml via capCardHtml: " + bad.join("; "));
+})();
 if (card.indexOf("function sheetPromptHtml") < 0 || card.indexOf("sheetPromptHtml(j)") < 0) {
   fail("Open-job must paint sheetPromptHtml");
 }
-if (needs.indexOf("function talkLabel") < 0 || /who \|\| row\.from \|\| "Desk AI"/.test(needs)) {
-  fail("Cap talkHtml must not fall back to Desk AI when the Then AI is gone");
+// Minified talkLabel still returns gone HOLD ("not on this desk") before any
+// from||"Desk AI" fallback. The old who || row.from || "Desk AI" form stays forbidden.
+function capGoneTalkFaults(src) {
+  const bad = [];
+  if (/who \|\| row\.from \|\| "Desk AI"/.test(src)) bad.push("old who||from||Desk AI fallback");
+  if (src.indexOf("not on this desk") < 0) bad.push("missing gone HOLD");
+  // talkLabel calls goneHoldLabel, returns that name, then may fall back to from||"Desk AI".
+  const behind = /if\(\w+\)return \w+;\s*const \w+=\w+\.from\s*\|\|\s*"Desk AI"/.test(src);
+  const fallback = /from\s*\|\|\s*"Desk AI"/.test(src);
+  if (fallback && !behind) bad.push("Desk AI fallback is not behind gone HOLD");
+  return bad;
 }
+(function () {
+  const bad = capGoneTalkFaults(needs);
+  if (bad.length) fail("Cap talkHtml must not fall back to Desk AI when the Then AI is gone: " + bad.join("; "));
+})();
 ["function threadSheetHtml", "function talkTurnsOf", "function talkLabelOf", "Then draft", "q-thread", "Nothing sent alone"].forEach(function (bit) {
   if (card.indexOf(bit) < 0) fail("desk-card.js missing " + bit);
 });
@@ -74,7 +109,18 @@ if (people.indexOf("function talkLabelOf") < 0 || /who \|\| row\.from \|\| "Desk
 if (help.indexOf("History, Explore, Cap, and Open") < 0) fail("help#desk-cards must name History / Explore / Cap / Open thread");
 if (help.indexOf("not on this desk") < 0) fail("help#desk-cards must name gone HOLD on History");
 if (help.indexOf("History shows the Then draft") < 0) fail("help#ideas-queue must name History Then draft");
-if (moreTips.indexOf("AI ↔ human thread") < 0) fail("more History tip must name the thread");
+// a66b146 "More: simpler and still useful" replaced "AI ↔ human thread" with
+// plain "back-and-forth on the card". The tip still names the talk thread.
+function historyTipThreadFaults(tips) {
+  const bad = [];
+  if (tips.indexOf('"more-history"') < 0) bad.push("missing more-history tip");
+  if (tips.indexOf("back-and-forth on the card") < 0) bad.push("tip no longer names the back-and-forth on the card");
+  return bad;
+}
+(function () {
+  const bad = historyTipThreadFaults(moreTips);
+  if (bad.length) fail("more History tip must name the thread: " + bad.join("; "));
+})();
 if (moreTips.indexOf("not on this desk") < 0) fail("more History tip must name gone HOLD");
 if (more.indexOf('data-aia-tip="more-history"') < 0) fail("more.html must wire more-history tip");
 if (history.indexOf("not on this desk") < 0) {
@@ -94,9 +140,18 @@ if (yesNo.indexOf("not on this desk") < 0) fail("ACCOUNT-YES-NO must record Hist
   if (histSrc.indexOf(bit) < 0) fail("api/_history.js missing " + bit);
 });
 if (history.indexOf('k==="tell"') < 0) fail("History talkRows must keep tell");
-if (needs.indexOf("function wipTalkLabel") < 0 || needs.indexOf("pipe WIP") < 0) {
-  fail("Cap talkHtml must label pipe WIP / note / follow");
+function capWipLabelFaults(src) {
+  const bad = [];
+  if (src.indexOf("pipe WIP") < 0) bad.push("missing pipe WIP");
+  if (src.indexOf(" · follow") < 0) bad.push("missing follow label");
+  if (src.indexOf(" · note") < 0) bad.push("missing note label");
+  if (src.indexOf(" · tell") < 0) bad.push("missing tell label");
+  return bad;
 }
+(function () {
+  const bad = capWipLabelFaults(needs);
+  if (bad.length) fail("Cap talkHtml must label pipe WIP / note / follow: " + bad.join("; "));
+})();
 if (card.indexOf("function wipTalkLabelOf") < 0 || card.indexOf("pipe WIP") < 0) {
   fail("Open talkHtml must label pipe WIP / note / follow");
 }
@@ -421,7 +476,22 @@ if (qPaint.indexOf("Not shipped. Qualify first.") < 0) fail("queue card must sho
 if (qPaint.indexOf("drop · tell") < 0) fail("queue card must label Tell AIA as tell");
 if (qPaint.indexOf("q-turn-you") < 0) fail("queue card must mark Tell AIA as a human turn");
 if (qPaint.indexOf(">Yes<") < 0 && qPaint.indexOf("Yes") < 0) fail("queue card must keep Yes human");
-if (needs.indexOf("filesHtml(j) + thread") < 0) fail("Cap loadCap must insert the thread, not only Then draft");
+// loadCap still maps each cap item through capCardHtml, which wraps Then + talk
+// + prompt in q-thread (minified names: window.loadCap / window.capCardHtml).
+function capLoadThreadFaults(src) {
+  const bad = [];
+  if (src.indexOf("window.loadCap") < 0) bad.push("missing loadCap");
+  if (src.indexOf("window.capCardHtml") < 0) bad.push("missing capCardHtml");
+  if (src.indexOf("q-card cap-card") < 0) bad.push("missing cap-card markup");
+  const art = src.indexOf("q-card cap-card");
+  const around = art < 0 ? "" : src.slice(Math.max(0, art - 500), art + 400);
+  if (around.indexOf("q-thread") < 0) bad.push("cap-card markup missing q-thread");
+  return bad;
+}
+(function () {
+  const bad = capLoadThreadFaults(needs);
+  if (bad.length) fail("Cap loadCap must insert the thread, not only Then draft: " + bad.join("; "));
+})();
 const qGone = capCtx.card(goneJob, false);
 if (qGone.indexOf("James") >= 0) fail("Cap gone card must not name James");
 if (qGone.indexOf("not on this desk") < 0) fail("Cap must paint gone HOLD");
@@ -545,5 +615,50 @@ if (putOpen.indexOf("PROBE · tell") < 0 && putOpen.indexOf("drop · tell") < 0)
 if (putOpen.indexOf("PROBE · note") >= 0 && putOpen.indexOf("Qualify first") >= 0 && putOpen.indexOf("PROBE · tell") < 0) {
   fail("open-job captured Tell AIA painted as NOTE");
 }
+
+// Mutants for the six updated assertions. They change source text in memory only.
+function swap(src, from, to) { return src.indexOf(from) < 0 ? null : src.split(from).join(to); }
+const MUTANTS = [
+  ["Cap talk loses q-thread", function () { const n = swap(needs, "q-thread", "q-no-thread"); return n && capTalkSourceFaults(n); }],
+  ["Cap talk loses q-talk turns", function () { const n = swap(needs, "q-talk", "q-mute"); return n && capTalkSourceFaults(n); }],
+  ["Cap talk loses capCardHtml", function () { const n = swap(needs, "window.capCardHtml", "window.capOffHtml"); return n && capTalkSourceFaults(n); }],
+  ["Cap prompt loses promptHtml", function () { const n = swap(needs, "window.promptHtml", "window.promptOff"); return n && capPromptSourceFaults(n); }],
+  ["Cap prompt loses q-prompt", function () { const n = swap(needs, "q-prompt", "q-quiet"); return n && capPromptSourceFaults(n); }],
+  ["Cap gone talk drops HOLD before Desk AI", function () {
+    const n = swap(needs, "not on this desk", "gone from desk");
+    return n && capGoneTalkFaults(n);
+  }],
+  ["Cap gone talk restores who||from||Desk AI", function () {
+    const n = needs + '\nconst name = who || row.from || "Desk AI";\n';
+    return capGoneTalkFaults(n);
+  }],
+  ["more History tip drops the back-and-forth", function () {
+    const t = swap(moreTips, "back-and-forth on the card", "the list of finished work");
+    return t && historyTipThreadFaults(t);
+  }],
+  ["more History tip id gone", function () {
+    const t = swap(moreTips, '"more-history"', '"more-past"');
+    return t && historyTipThreadFaults(t);
+  }],
+  ["Cap WIP loses pipe WIP label", function () { const n = swap(needs, "pipe WIP", "pipe note"); return n && capWipLabelFaults(n); }],
+  ["Cap WIP loses follow label", function () { const n = swap(needs, " · follow", " · after"); return n && capWipLabelFaults(n); }],
+  ["Cap loadCap missing", function () { const n = swap(needs, "window.loadCap", "window.loadOff"); return n && capLoadThreadFaults(n); }],
+  ["Cap card markup drops q-thread", function () {
+    const art = needs.indexOf("q-card cap-card");
+    if (art < 0) return null;
+    const lo = Math.max(0, art - 500), hi = art + 400;
+    const n = needs.slice(0, lo) + needs.slice(lo, hi).split("q-thread").join("q-then-only") + needs.slice(hi);
+    return n !== needs && capLoadThreadFaults(n);
+  }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught++; console.log("ok  mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+console.log("check-history-thread mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 
 console.log("check-history-thread: ok");
