@@ -70,27 +70,19 @@ function wantsStatus(req) {
   return q.view === "status" || q.status === "1";
 }
 
-// Drafting follows owner keys. A desk can draft only when pickDrafter unwraps
-// that desk's key. An env key never counts. The note says a Desk AI can draft
-// only when at least one desk can.
-function ownerDraftOn() {
-  const seen = {};
-  const rows = mem.connections || [];
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const workspace = row && row.workspace;
-    if (!row || row.lane !== "draft" || !row.keyPacked || !workspace || seen[workspace]) continue;
-    seen[workspace] = true;
-    if (require("./_grok").pickDrafter(workspace)) return true;
-  }
-  return false;
+// Drafting follows the requesting desk's own owner key. pickDrafter unwraps
+// that desk only. An env key never counts, and another desk's key never counts.
+// No workspace means there is no requesting desk, so the answer stays off.
+function requestingDeskCanDraft(workspace) {
+  if (!workspace) return false;
+  return !!require("./_grok").pickDrafter(workspace);
 }
 
-function deskAiFace() {
-  const on = ownerDraftOn();
+function deskAiFace(on) {
+  const drafting = !!on;
   return {
-    on: on,
-    note: on
+    on: drafting,
+    note: drafting
       ? "A Desk AI can draft."
       : "A Desk AI can't draft on this phone yet."
   };
@@ -163,7 +155,7 @@ async function deskStatus(req, res) {
     wallet,
     aiaTld: statusTld(aiaTld),
     automation: {
-      deskAi: deskAiFace()
+      deskAi: deskAiFace(requestingDeskCanDraft(workspace))
     },
     honesty: {
       rule: "off until a real connection answers",
@@ -183,7 +175,10 @@ async function health(req, res) {
   await readyRead(true);
   const driver = mem.driver || "file";
   const rev = commitRev();
-  const draftFace = deskAiFace();
+  // Public /api/health has no requesting desk. It stays off and does not
+  // look through saved keys, so one desk's key is not visible here.
+  const publicDraftOn = false;
+  const draftFace = deskAiFace(publicDraftOn);
   res.status(200).json({
     ok: true,
     product: "Automate It Away",
@@ -229,7 +224,7 @@ async function health(req, res) {
       deskAi: draftFace,
       drafts: {
         included: draftFace.on,
-        deskAccounts: (mem.connections || []).filter((c) => c && c.lane === "draft" && c.keyPacked).length,
+        deskAccounts: 0,
         note: "Owner connects a draft account on Connections. A chat login is not enough. Drafts only."
       }
     },

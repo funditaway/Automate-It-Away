@@ -2,10 +2,13 @@
 require("./_env-guard");
 // Owner key only. A desk with no connected key skips pickDrafter, grokRecommend,
 // and studioDraft as needsKey and does not call fetch, even when an env key is
-// set. Health and status follow owner keys, not an env key: with no desk that
-// can draft, deskAi.on and drafts.included stay false and the notes do not say
-// a Desk AI can draft. A refused key save stays keyLocked and includes plain
-// words. Suggest tells the owner to add a key. The connections Grok note carries
+// set. Status follows the requesting desk's owner key, not an env key and not
+// another desk's key. Public /api/health has no desk: deskAi.on and
+// drafts.included stay false, deskAccounts stays 0, and the body does not
+// reveal that some other desk has a key. A desk with no key stays off on
+// status while suggest says needsKey. A desk with its own key can draft.
+// A refused key save stays keyLocked and includes plain words. Suggest tells
+// the owner to add a key. The connections Grok note carries
 // the bill line. A packed desk key drafts when
 // AIA_CONNECT_SECRET is set. With that secret unset, saving a key is refused
 // and unwrap does not decrypt. XAI_API_KEY, BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN,
@@ -36,6 +39,7 @@ const health = require("../api/health");
 const { mem, hashPin, ensurePeople, ready } = require("../api/_lib");
 
 const SLUG = "owner-key";
+const SLUG_B = "owner-key-b";
 const PIN = "4821";
 const DESK_KEY = "xai-owner-desk-key-0001";
 const SECRET = "owner-key-check-secret";
@@ -151,6 +155,19 @@ function assertDraftsOn(body, label) {
   eq(desk.note, "A Desk AI can draft.", label + ": deskAi note says drafting");
 }
 
+function assertNoPublicKeyLeak(body, label) {
+  assertDraftsOff(body, label);
+  const drafts = (body && body.automation && body.automation.drafts) || {};
+  const count = drafts.deskAccounts;
+  if (count) fail(label + ": deskAccounts reveals a packed key");
+  else pass(label + ": deskAccounts does not reveal a packed key");
+  const json = JSON.stringify(body || {});
+  if (json.indexOf(DESK_KEY) >= 0) fail(label + ": body contains the desk key");
+  else pass(label + ": body does not contain the desk key");
+  if (json.indexOf("A Desk AI can draft.") >= 0) fail(label + ": body says a Desk AI can draft");
+  else pass(label + ": body does not say a Desk AI can draft");
+}
+
 async function readDraftFaces(headers) {
   return {
     health: await call(health, "GET", headers, {}, {}),
@@ -170,11 +187,23 @@ async function main() {
     rules: []
   };
   ensurePeople(shop);
+  const shopB = {
+    slug: SLUG_B,
+    name: "Bea",
+    biz: SLUG_B,
+    pin: hashPin(PIN),
+    createdAt: new Date().toISOString(),
+    people: [],
+    rules: []
+  };
+  ensurePeople(shopB);
   if (!Array.isArray(mem.workspaces)) mem.workspaces = [];
+  mem.workspaces.unshift(shopB);
   mem.workspaces.unshift(shop);
   if (!Array.isArray(mem.connections)) mem.connections = [];
   if (!Array.isArray(mem.jobs)) mem.jobs = [];
   const owner = { "x-workspace": SLUG, "x-pin": PIN };
+  const ownerB = { "x-workspace": SLUG_B, "x-pin": PIN };
   const wall = await call(connections, "GET", owner, {}, {});
   const grokRow = ((wall.body && wall.body.ai) || []).filter(function (p) { return p && p.id === "grok"; })[0] || {};
   if (String(grokRow.note || "").indexOf(BILL_LINE) < 0) fail("connections Grok note missing the bill line");
@@ -263,9 +292,15 @@ async function main() {
   const drafter = grok.pickDrafter(SLUG);
   if (!drafter || drafter.key !== DESK_KEY || drafter.source !== "desk") fail("packed desk key did not unwrap for this desk (" + drafterState(drafter) + ")");
   else pass("packed desk key unwraps for this desk");
-  const onFaces = await readDraftFaces({});
-  assertDraftsOn(onFaces.health.body, "desk key, health");
-  assertDraftsOn(onFaces.status.body, "desk key, status");
+  const facesA = await readDraftFaces(owner);
+  assertNoPublicKeyLeak(facesA.health.body, "desk A key, health");
+  assertDraftsOn(facesA.status.body, "desk A status can draft");
+  const facesB = await readDraftFaces(ownerB);
+  assertNoPublicKeyLeak(facesB.health.body, "desk B, health");
+  assertDraftsOff(facesB.status.body, "desk B status needs a key");
+  const publicFaces = await readDraftFaces({});
+  assertNoPublicKeyLeak(publicFaces.health.body, "public health");
+  assertDraftsOff(publicFaces.status.body, "public status hides desk A");
 
   fetchMode = "ok";
   fetches = 0;
@@ -285,6 +320,18 @@ async function main() {
   else pass("studioDraft used the desk key");
   const listedOn = await call(packs, "GET", owner, {}, {});
   eq(listedOn.body && listedOn.body.grok && listedOn.body.grok.on, true, "packs list is on with a desk key");
+
+  const sugA = await call(jobs, "POST", owner, { action: "suggest", title: "Desk A porch" });
+  eq(sugA.statusCode, 200, "desk A suggest answers");
+  eq(sugA.body && sugA.body.grok, "on", "desk A suggest can draft");
+  if (!sugA.body || String(sugA.body.note || "").indexOf("Draft only.") !== 0) fail("desk A suggest does not say it can draft");
+  else pass("desk A suggest says it can draft");
+  const beforeB = fetches;
+  const sugB = await call(jobs, "POST", ownerB, { action: "suggest", title: "Desk B porch" });
+  eq(sugB.statusCode, 200, "desk B suggest answers");
+  eq(sugB.body && sugB.body.grok, "needsKey", "desk B suggest needs a key");
+  eq(sugB.body && sugB.body.note, SUGGEST_NOTE, "desk B suggest tells them to add a key");
+  eq(fetches, beforeB, "desk B suggest did not fetch");
 
   delete process.env.AIA_CONNECT_SECRET;
   process.env.XAI_API_KEY = "xai-env-not-a-desk-key";
