@@ -33,9 +33,26 @@ const needCheck = spawnSync(process.execPath, ["--check", path.join(root, "desk-
 if (needCheck.status !== 0) fail("desk-needs.js must parse");
 pass("desk-needs parses");
 
-["q-state-", "q-drawer", "q-face", "q-drag", "More on this card", "cardState", "stateMark"].forEach(function (bit) {
+["q-state-", "q-drawer", "q-face", "q-drag", "More on this card", "q-state-mark"].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
+// a2ad8c4 minified cardState / stateMark. The map still paints Waiting /
+// Working / Needs you / Cap / Done on q-state-mark, with q-state- classes.
+function cardStateFaults(src) {
+  const bad = [];
+  if (src.indexOf("q-state-") < 0) bad.push("missing q-state-");
+  if (src.indexOf("q-state-mark") < 0) bad.push("missing q-state-mark");
+  if (src.indexOf('pending:"Waiting"') < 0) bad.push("missing Waiting");
+  if (src.indexOf('running:"Working"') < 0) bad.push("missing Working");
+  if (src.indexOf('flagged:"Needs you"') < 0) bad.push("missing Needs you");
+  if (src.indexOf('cap:"Cap"') < 0) bad.push("missing Cap");
+  if (src.indexOf('done:"Done"') < 0) bad.push("missing Done");
+  return bad;
+}
+(function () {
+  const bad = cardStateFaults(needs);
+  if (bad.length) fail("desk-needs.js card state labels drifted: " + bad.join("; "));
+})();
 pass("desk-needs paints calm card face + drawer");
 
 ["cap-drop", "pinCap", "q-state-pending", "q-state-flagged", "desk-tools", "queue-desk-rail", "Tap or drag to Cap", "closest(\"#queue .q-drag\")"].forEach(function (bit) {
@@ -46,9 +63,18 @@ pass("desk-queue-ux has Cap drag + chrome fold");
 if (!nav.includes("desk-queue-ux.js")) fail("desk-nav.js must load desk-queue-ux.js");
 pass("nav loads queue ux");
 
-if (!desk.includes("id=\"queue\"") || !desk.includes("Taps match what the card needs")) {
-  fail("desk.html queue contract drifted");
+// d234a7e dropped "Taps match what the card needs"; the desk still says
+// you tap Yes or Stop, and id="queue" stays the host.
+function deskContractFaults(src) {
+  const bad = [];
+  if (src.indexOf('id="queue"') < 0) bad.push("missing id=queue");
+  if (src.indexOf("You still tap Yes or Stop") < 0) bad.push("missing You still tap Yes or Stop");
+  return bad;
 }
+(function () {
+  const bad = deskContractFaults(desk);
+  if (bad.length) fail("desk.html queue contract drifted: " + bad.join("; "));
+})();
 pass("desk.html queue host intact");
 if (desk.includes("<h3>No?</h3>") || desk.includes(">No</button>") || desk.includes("return \"No\"")) {
   fail("desk.html Stop / Kill confirm still paints No");
@@ -127,12 +153,23 @@ if (packMd.indexOf("Queue empty / Status orange leftover:") < 0) fail("PACK.md m
 pass("PACK.md records Queue empty / Status orange leftover");
 
 if (desk.indexOf("function queueEmptyHtml") < 0) fail("desk.html must own queueEmptyHtml");
-if (desk.indexOf("No desk on this phone yet. Queue does not invent Yes / Stop cards.") < 0) {
-  fail("desk.html no-desk empty must stay honest");
+// d234a7e / 642a5fd / 2c6c719 / bc1d7fe (#334) tightened empty-queue copy.
+// No-desk stays empty until you open a desk; an open desk still says
+// Drop or Create a card. help.html keeps "Queue does not invent Yes / Stop cards."
+function deskEmptyFaults(src) {
+  const bad = [];
+  if (src.indexOf("Open a desk. The queue stays empty until you do.") < 0) {
+    bad.push("no-desk empty drifted");
+  }
+  if (src.indexOf("Nothing here yet. Drop or Create a card.") < 0) {
+    bad.push("open-empty drifted");
+  }
+  return bad;
 }
-if (desk.indexOf("Nothing on this queue yet. Drop or Create a card.") < 0) {
-  fail("desk.html open-empty must stay honest");
-}
+(function () {
+  const bad = deskEmptyFaults(desk);
+  if (bad.length) fail("desk.html empty must stay honest: " + bad.join("; "));
+})();
 if (desk.indexOf("Nothing here yet. Drop anything") >= 0) {
   fail("desk.html must not lump stranger + empty as Drop anything / Add a rule");
 }
@@ -174,10 +211,22 @@ if (help.indexOf("Queue does not invent Yes / Stop cards") < 0) {
 }
 pass("help.html First day Queue empty is honest");
 const tips = fs.readFileSync(path.join(root, "aia-tip.js"), "utf8");
-if (tips.indexOf("Cap orange is do this first — not Collect") < 0) {
-  fail("more-queue tip must name Cap orange honesty");
+// a66b146 shortened more-queue. Cap orange honesty stays on the Cap empty
+// face in desk-needs. The tip still names empty stays empty, Talk / Yes / Stop,
+// and that nothing sends from here.
+function moreQueueTipFaults(src) {
+  const slice = src.slice(src.indexOf('"more-queue"'), src.indexOf('"more-drop"') < 0 ? src.length : src.indexOf('"more-drop"'));
+  const bad = [];
+  if (slice.indexOf("Empty stays empty") < 0) bad.push("missing Empty stays empty");
+  if (slice.indexOf("Talk, Yes, or Stop") < 0) bad.push("missing Talk, Yes, or Stop");
+  if (slice.indexOf("Nothing sends from here.") < 0) bad.push("missing Nothing sends from here");
+  return bad;
 }
-pass("more-queue tip names Cap orange honesty");
+(function () {
+  const bad = moreQueueTipFaults(tips);
+  if (bad.length) fail("more-queue tip must stay honest: " + bad.join("; "));
+})();
+pass("more-queue tip names empty honesty and nothing sends");
 
 const card = fs.readFileSync(path.join(root, "desk-card.js"), "utf8");
 if (card.indexOf("function wantJobId") < 0 || card.indexOf("function openWantedJob") < 0 || card.indexOf("get(\"job\")") < 0) {
@@ -215,9 +264,16 @@ if (more.indexOf("A Desk AI can't draft on this phone yet.") < 0) {
 }
 pass("more.html drafts-off uses Desk AI voice");
 if (tips.indexOf("not P1") >= 0) fail("more-status tip must not name P1");
-if (tips.indexOf("Orange means wait — HOLD. Not Collect.") < 0) {
-  fail("more-status tip must say Orange means wait — HOLD");
+// a66b146 dropped HOLD / Collect jargon from more-status; orange still means wait.
+function moreStatusTipFaults(src) {
+  const bad = [];
+  if (src.indexOf("Orange means wait.") < 0) bad.push("missing Orange means wait");
+  return bad;
 }
+(function () {
+  const bad = moreStatusTipFaults(tips);
+  if (bad.length) fail("more-status tip must say Orange means wait: " + bad.join("; "));
+})();
 pass("more-status tip drops P1");
 if (needs.indexOf("Grok drafted on the card") >= 0 || queueJs.indexOf("Grok drafted on the card") >= 0) {
   fail("Queue Ask must not say Grok drafted on the card");
@@ -278,5 +334,65 @@ const flagCard = ctx.card({
 if (flagCard.indexOf("q-state-flagged") < 0) fail("missing-info card must be flagged state");
 if (flagCard.indexOf("q-prompt") < 0 || flagCard.indexOf(">Reply<") < 0) fail("prompt reply must stay on face");
 pass("flagged state + prompt on face");
+
+function stateClass(html) {
+  const m = String(html || "").match(/q-state-(pending|running|flagged|cap|done)/);
+  return m ? m[1] : "";
+}
+function stateLabel(html) {
+  const m = String(html || "").match(/q-state-mark[\s\S]*?<span>([^<]+)<\/span>/);
+  return m ? m[1].trim() : "";
+}
+if (stateClass(thenCard) !== "flagged" || stateLabel(thenCard) !== "Needs you" || thenCard.indexOf("Needs you") < 0) {
+  fail("waiting Then card must paint Needs you");
+}
+if (stateClass(flagCard) !== "flagged" || stateLabel(flagCard) !== "Needs you") {
+  fail("missing-info card must paint Needs you");
+}
+const doneCard = ctx.card({ id: "j-done", status: "shipped", title: "Sent it" }, false);
+if (stateClass(doneCard) !== "done" || stateLabel(doneCard) !== "Done") {
+  fail("shipped card must paint Done");
+}
+const workCard = ctx.card({ id: "j-out", status: "out", title: "Off desk" }, false);
+if (stateClass(workCard) !== "running" || stateLabel(workCard) !== "Working") {
+  fail("off-desk card must paint Working");
+}
+const capCard = ctx.card({ id: "j-cap", status: "waiting", title: "Owner call", priority: true, cap: true, draft: "Hold this." }, false);
+if (stateClass(capCard) !== "cap" || stateLabel(capCard) !== "Cap") {
+  fail("cap card must paint Cap");
+}
+const waitCard = ctx.card({ id: "j-pend", status: "new", title: "Queued" }, false);
+if (stateClass(waitCard) !== "pending" || stateLabel(waitCard) !== "Waiting") {
+  fail("plain card must paint Waiting");
+}
+pass("card state labels still paint Waiting / Working / Needs you / Cap / Done");
+
+// Mutants for the replaced assertions. In-memory only.
+function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
+const MUTANTS = [
+  ["cardState loses q-state- prefix", function () { const n = swap(needs, "q-state-", "q-st-"); return n && cardStateFaults(n); }],
+  ["stateMark loses q-state-mark", function () { const n = swap(needs, "q-state-mark", "q-st-mark"); return n && cardStateFaults(n); }],
+  ["cardState loses Waiting", function () { const n = swap(needs, 'pending:"Waiting"', 'pending:"Idle"'); return n && cardStateFaults(n); }],
+  ["cardState loses Working", function () { const n = swap(needs, 'running:"Working"', 'running:"Busy"'); return n && cardStateFaults(n); }],
+  ["cardState loses Needs you", function () { const n = swap(needs, 'flagged:"Needs you"', 'flagged:"Needs a look"'); return n && cardStateFaults(n); }],
+  ["cardState loses Cap label", function () { const n = swap(needs, 'cap:"Cap"', 'cap:"Pin"'); return n && cardStateFaults(n); }],
+  ["cardState loses Done", function () { const n = swap(needs, 'done:"Done"', 'done:"Finished"'); return n && cardStateFaults(n); }],
+  ["desk taps line dropped", function () { const d = swap(desk, "You still tap Yes or Stop", "The queue runs itself"); return d && deskContractFaults(d); }],
+  ["no-desk empty dropped", function () { const d = swap(desk, "Open a desk. The queue stays empty until you do.", "Open a desk to invent cards."); return d && deskEmptyFaults(d); }],
+  ["open-empty dropped", function () { const d = swap(desk, "Nothing here yet. Drop or Create a card.", "Nothing here yet. Drop anything."); return d && deskEmptyFaults(d); }],
+  ["more-queue tip drops Empty stays empty", function () { const t = swap(tips, "Empty stays empty", "Empty can fill itself"); return t && moreQueueTipFaults(t); }],
+  ["more-queue tip drops Talk / Yes / Stop", function () { const t = swap(tips, "Talk, Yes, or Stop", "Talk, or send"); return t && moreQueueTipFaults(t); }],
+  ["more-queue tip drops nothing sends", function () { const t = swap(tips, "Nothing sends from here.", "The queue may send from here."); return t && moreQueueTipFaults(t); }],
+  ["more-status tip drops Orange means wait", function () { const t = swap(tips, "Orange means wait.", "Orange means go."); return t && moreStatusTipFaults(t); }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught += 1; console.log("ok  mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+console.log("check-queue-ux mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 
 console.log("check-queue-ux: ok");
