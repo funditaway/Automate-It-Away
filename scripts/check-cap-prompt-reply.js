@@ -32,13 +32,52 @@ const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
-["function promptSurface", "function promptHtml", "function capCardHtml", "q-reply-\" + surface"].forEach(function (bit) {
-  if (needs.indexOf(bit) < 0 && card.indexOf(bit) < 0) fail("missing " + bit);
-  else pass("has " + bit);
-});
-if (needs.indexOf("other ? \"read\" : \"cap\"") < 0 && needs.indexOf("other ? 'read' : 'cap'") < 0) {
-  fail("capCardHtml must send on this desk and stay read-only on another desk");
-} else pass("Cap send vs read-only follows this desk");
+// a2ad8c4 minified promptSurface / promptHtml / capCardHtml. Surfaces still
+// allow queue / cap / sheet / read; ids are still q-reply-{surface}-{id};
+// this-desk Cap uses cap, other-desk Cap uses read.
+function promptSurfaceFaults(src) {
+  const bad = [];
+  if (src.indexOf('return"cap"===t||"sheet"===t||"read"===t||"queue"===t?t:"queue"') < 0) {
+    bad.push("missing prompt surface allowlist");
+  }
+  return bad;
+}
+function promptFnsFaults(src) {
+  const bad = [];
+  if (src.indexOf("window.promptHtml") < 0) bad.push("missing window.promptHtml");
+  if (src.indexOf("window.capCardHtml") < 0) bad.push("missing window.capCardHtml");
+  return bad;
+}
+function promptIdFaults(src) {
+  const bad = [];
+  if (src.indexOf('"q-reply-"+') < 0) bad.push("missing q-reply-{surface}-{id}");
+  return bad;
+}
+function capReadFaults(src) {
+  const bad = [];
+  if (src.indexOf('?"read":"cap"') < 0) bad.push("missing this-desk cap / other-desk read");
+  return bad;
+}
+(function () {
+  const bad = promptSurfaceFaults(needs);
+  if (bad.length) fail("prompt surfaces drifted: " + bad.join("; "));
+  else pass("prompt surfaces allow queue / cap / sheet / read");
+})();
+(function () {
+  const bad = promptFnsFaults(needs);
+  if (bad.length) fail("desk-needs.js prompt reply drifted: " + bad.join("; "));
+  else pass("window.promptHtml and window.capCardHtml stay exported");
+})();
+(function () {
+  const bad = promptIdFaults(needs);
+  if (bad.length) fail("reply field id drifted: " + bad.join("; "));
+  else pass("reply ids are q-reply-{surface}-{id}");
+})();
+(function () {
+  const bad = capReadFaults(needs);
+  if (bad.length) fail("capCardHtml must send on this desk and stay read-only on another desk: " + bad.join("; "));
+  else pass("Cap send vs read-only follows this desk");
+})();
 if (card.indexOf("promptHtml(j, sheetNeedOf(j), \"sheet\")") < 0) {
   fail("Open sheet must use the sheet reply surface");
 } else pass("Open sheet uses sheet reply surface");
@@ -52,8 +91,24 @@ if (help.indexOf("Cap on this desk") < 0) fail("help must name Cap on this desk 
 else pass("help names Cap on this desk reply");
 if (help.indexOf("Other-desk Cap") < 0) fail("help must name other-desk Cap read-only");
 else pass("help names other-desk Cap read-only");
-if (moreTips.indexOf("Cap on this desk can Reply") < 0) fail("more Queue tip must name Cap this-desk Reply");
-else pass("more Queue tip names Cap this-desk Reply");
+// a66b146 shortened more-queue. This-desk Reply and gone-AI honesty stay;
+// other-desk Cap read-only stays in help and in capCardHtml runtime.
+function moreQueueCapFaults(src) {
+  const start = src.indexOf('"more-queue":');
+  const end = src.indexOf('"more-drop":');
+  const slice = src.slice(start, end < 0 ? src.length : end);
+  const bad = [];
+  if (slice.indexOf("You can Reply on this desk") < 0) bad.push("missing You can Reply on this desk");
+  if (slice.indexOf("If a named desk AI is not on this desk, the card says so.") < 0) {
+    bad.push("missing gone-AI honesty");
+  }
+  return bad;
+}
+(function () {
+  const bad = moreQueueCapFaults(moreTips);
+  if (bad.length) fail("more Queue tip must stay honest about Reply and gone AI: " + bad.join("; "));
+  else pass("more Queue tip names Reply on this desk and gone AI");
+})();
 if (more.indexOf('data-aia-tip="more-queue"') < 0) fail("more.html must wire more-queue tip");
 else pass("more.html wires more-queue tip");
 if (yesNo.indexOf("check-cap-prompt-reply.js") < 0) fail("ACCOUNT-YES-NO must record Cap prompt reply leftover");
@@ -146,6 +201,75 @@ const ids = [
 if (ids[0] && ids[1] && ids[2] && (ids[0] === ids[1] || ids[0] === ids[2] || ids[1] === ids[2])) {
   fail("Queue / Cap / Open reply ids must differ, got " + ids.join(" | "));
 } else pass("Queue / Cap / Open reply ids differ");
+
+const goneJob = {
+  id: "j-gone",
+  status: "waiting",
+  title: "Who is this for",
+  waitingOn: "person",
+  why: "Need a name before this can go.",
+  thenAiGone: { name: "Shop Bot <gone>", id: "ai_gone" },
+  draft: "Ask who it is for."
+};
+const goneHere = ctx.capCardHtml(goneJob, "shop");
+const goneOther = ctx.capCardHtml(Object.assign({}, goneJob, { slug: "other-desk", desk: "Other desk" }), "shop");
+if (goneHere.indexOf("not on this desk") < 0 || goneHere.indexOf("Shop Bot") < 0) {
+  fail("Cap on this desk must name a gone desk AI");
+} else pass("Cap on this desk names a gone desk AI");
+if (goneHere.indexOf("q-reply-cap-j-gone") < 0 || goneHere.indexOf("replyOnCard('j-gone','cap')") < 0) {
+  fail("Cap on this desk must still let a person Reply when the Then bind is gone");
+} else pass("Cap on this desk still Replies when the Then bind is gone");
+if (/>Yes</.test(goneHere)) fail("gone-AI Cap reply must not show Yes");
+else pass("gone-AI Cap reply does not show Yes");
+if (goneHere.indexOf("Nothing sent alone") < 0) fail("gone-AI Cap must say nothing sent alone");
+else pass("gone-AI Cap says nothing sent alone");
+if (/q-reply-box|replyOnCard/.test(goneOther)) fail("other-desk gone-AI Cap must stay read-only");
+else pass("other-desk gone-AI Cap stays read-only");
+if (goneOther.indexOf("not on this desk") < 0 || goneOther.indexOf("Shop Bot") < 0) {
+  fail("other-desk Cap must still name a gone desk AI");
+} else pass("other-desk Cap names a gone desk AI");
+
+// Mutants for the replaced assertions. In-memory only.
+function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
+const MUTANTS = [
+  ["promptSurface allowlist dropped", function () {
+    const n = swap(needs, 'return"cap"===t||"sheet"===t||"read"===t||"queue"===t?t:"queue"', 'return t||"queue"');
+    return n && promptSurfaceFaults(n);
+  }],
+  ["promptHtml loses window.promptHtml", function () {
+    const n = swap(needs, "window.promptHtml", "window.promptOff");
+    return n && promptFnsFaults(n);
+  }],
+  ["capCardHtml loses window.capCardHtml", function () {
+    const n = swap(needs, "window.capCardHtml", "window.capOff");
+    return n && promptFnsFaults(n);
+  }],
+  ["q-reply surface id dropped", function () {
+    const n = swap(needs, '"q-reply-"+', '"q-box-"+');
+    return n && promptIdFaults(n);
+  }],
+  ["this-desk cap / other-desk read flipped", function () {
+    const n = swap(needs, '?"read":"cap"', '?"cap":"read"');
+    return n && capReadFaults(n);
+  }],
+  ["more-queue tip drops Reply on this desk", function () {
+    const t = swap(moreTips, "You can Reply on this desk", "You can send from this desk");
+    return t && moreQueueCapFaults(t);
+  }],
+  ["more-queue tip drops gone-AI honesty", function () {
+    const t = swap(moreTips, "If a named desk AI is not on this desk, the card says so.", "A named desk AI always drafts here.");
+    return t && moreQueueCapFaults(t);
+  }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught += 1; console.log("ok   mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+if (!failed) console.log("check-cap-prompt-reply mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 
 if (failed) {
   console.error(failed + " failed");
