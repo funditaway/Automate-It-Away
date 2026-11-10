@@ -12,6 +12,7 @@ function fail(msg) {
   console.error("check-drop-people: " + msg);
   process.exit(1);
 }
+function pass(msg) { console.log("ok  " + msg); }
 
 function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -298,20 +299,24 @@ if (packMd.indexOf("Drop tab full Drop leftover:") < 0) {
   fail("PACK.md must name Drop tab full Drop leftover");
 }
 
+// 1ec1382 moved window.ws = ws, shopOpen, and the leftover-desk
+// isolation (ws !== authWs) from drop.html / widget.html into drop-app.js.
+// Preview deskSlug and destSlug follow window.ws (after ?ws=), so a public
+// link cannot point People / preview at a leftover desk while capture
+// uses the link dest. Live Put-data-on copy was shortened to Yes, then Start.
+const app = read("drop-app.js");
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
-  if (src.indexOf("window.ws = ws") < 0) fail(file + " must share ws with preview");
+  if (src.indexOf("drop-app.js") < 0) fail(file + " must load drop-app.js");
+  else pass(file + " loads drop-app.js");
   if (src.indexOf("The desk writes the card") >= 0) fail(file + " Put data on still says The desk writes the card");
-  if (src.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
-    fail(file + " Put data on must say A Desk AI drafts the card");
-  }
   if (src.indexOf("What should the desk do with it?") >= 0) fail(file + " Put data on Tell still says What should the desk do with it");
   if (src.indexOf("What should a Desk AI draft?") < 0) fail(file + " Put data on Tell must say What should a Desk AI draft");
   if (src.indexOf("Talk the work in your words") >= 0) fail(file + " Talk bar still says Talk the work in your words");
-  if (src.indexOf("id=\"talkStatus\">Talk or type the work. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
-    fail(file + " Talk bar empty must say A Desk AI drafts the card");
-  }
 });
+if (app.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes, then Start.") < 0) {
+  fail("Put data on must still say A Desk AI drafts the card and hold for Yes, then Start");
+}
 const tipSrc = read("aia-tip.js");
 if (tipSrc.indexOf("What should the desk do with it?") >= 0) fail("aia-tip.js drop-tell still says What should the desk do with it");
 if (tipSrc.indexOf("Tell the desk the next draft") >= 0) fail("aia-tip.js drop-tell still says Tell the desk the next draft");
@@ -329,13 +334,78 @@ if (pick.indexOf("AIADesks.authHeaders") < 0) fail("List this desk must use AIAD
 if (/var ws = cur\.slug \|\| q/.test(pick)) fail("drop-pick.js must not prefer a leftover desk over ?ws=");
 if (pick.indexOf("q || cur.slug") < 0) fail("drop-pick.js must highlight the link desk first");
 
-["drop.html", "widget.html"].forEach(function (file) {
-  const src = read(file);
-  if (src.indexOf("AIADesks.shopOpen") < 0) fail(file + " deskOpen must still follow shopOpen()");
-  if (src.indexOf("authWs") < 0 || src.indexOf("ws !== authWs") < 0) {
-    fail(file + " must not mark desk-open when the link desk is not the saved desk");
+if (app.indexOf("AIADesks.shopOpen") < 0) fail("deskOpen must still follow shopOpen()");
+if (app.indexOf("authWs") < 0 || app.indexOf("ws !== authWs") < 0) {
+  fail("must not mark desk-open when the link desk is not the saved desk");
+}
+
+function bootFn(src) {
+  const at = src.indexOf("if (ws) window.ws");
+  const alt = src.indexOf("let desk =");
+  const start = at >= 0 ? Math.min(at, alt >= 0 ? alt : at) : alt;
+  if (start < 0) return "";
+  const stop = src.indexOf("function headers", start);
+  return src.slice(start, stop > start ? stop : start + 1200);
+}
+
+function dropPeopleFaults(appSrc) {
+  const bad = [];
+  const boot = bootFn(appSrc) || appSrc.slice(0, 2500);
+  const shares = /if\s*\(\s*ws\s*\)\s*window\.ws\s*=\s*ws/.test(boot);
+  const stale = /window\.ws\s*=\s*localStorage\.getItem\(\s*["']aia_ws["']\s*\)/.test(boot)
+    || /if\s*\(\s*!\s*window\.ws/.test(boot);
+  if (!shares) {
+    if (stale) bad.push("stale ws after switch");
+    else bad.push("preview uses different ws");
+  }
+  if (!/ws\s*!==\s*authWs/.test(boot)) bad.push("cross-desk public link");
+  const sendAt = appSrc.indexOf("async function send()");
+  const beforeSend = sendAt >= 0 ? appSrc.slice(0, sendAt) : boot;
+  if (/fetch\(\s*["']\/api\/jobs["']/.test(beforeSend)) bad.push("capture on boot");
+  return bad;
+}
+
+const liveShare = dropPeopleFaults(app);
+if (liveShare.length) fail("drop-app.js must share ws with preview: " + liveShare.join("; "));
+pass("preview and capture share the dest desk; a public link cannot use a leftover desk");
+
+function applyMutant(src, kind) {
+  let next = src;
+  if (kind === "preview uses different ws") {
+    next = next.replace("if (ws) window.ws = ws;", "");
+  } else if (kind === "stale ws after switch") {
+    next = next.replace("if (ws) window.ws = ws;", "window.ws = localStorage.getItem(\"aia_ws\") || ws;");
+  } else if (kind === "capture on boot") {
+    next = next.replace(
+      "if (deskOpen) document.body.classList.add(\"desk-open\");",
+      "if (deskOpen) document.body.classList.add(\"desk-open\"); fetch(\"/api/jobs\", { method: \"POST\", body: JSON.stringify({ action: \"capture\" }) });"
+    );
+  } else if (kind === "cross-desk public link") {
+    next = next.replace("if (deskOpen && ws && authWs && ws !== authWs) deskOpen = false;", "");
+  }
+  return next;
+}
+
+const mutants = [
+  "preview uses different ws",
+  "stale ws after switch",
+  "capture on boot",
+  "cross-desk public link"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const faults = dropPeopleFaults(applyMutant(app, kind));
+  if (faults.indexOf(kind) < 0) {
+    console.error("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+    process.exitCode = 1;
+  } else {
+    caught++;
+    pass("mutant caught: " + kind + " (" + kind + ")");
   }
 });
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+console.log("ok  mutants: " + caught + "/" + mutants.length + " caught");
+console.log("check-drop-people mutants: " + caught + "/" + mutants.length + " caught");
 
 function runOpen(opts) {
   const store = opts.store || {};
