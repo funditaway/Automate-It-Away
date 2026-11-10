@@ -116,15 +116,48 @@ function undeclared(names) {
     return now !== pin[rel];
   });
 }
-function staticChecks() {
+function gitText(args) {
+  return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+}
+// null = git itself failed (missing, non-zero). "" = git succeeded and listed no files.
+function changedAgainstMain(git) {
+  let base = "";
+  try { base = String(git(["merge-base", "HEAD", "origin/main"]) || "").trim(); } catch (e) { return null; }
+  if (!base) return null;
+  try { return String(git(["diff", "--name-only", base, "--", "api", "legal.html", "card-timeline.js"]) || "").trim(); }
+  catch (e) { return null; }
+}
+function diffFailures(changed) {
   const f = [];
-  let base = "", changed = null;
-  try { base = execFileSync("git", ["merge-base", "HEAD", "origin/main"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {}
-  if (base) { try { changed = execFileSync("git", ["diff", "--name-only", base, "--", "api", "legal.html", "card-timeline.js"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {} }
-  const left = changed ? undeclared(changed.split("\n").filter(Boolean)) : null;
+  // An empty listing is no changed files and passes. Only a real git failure stays null and fails closed.
+  const left = changed === null ? null : undeclared(changed.split("\n").filter(Boolean));
   if (changed === null || left === null) f.push("could not diff against main (failing closed)");
   else if (left.length) f.push("desk.html matches its byte/SHA-256 pin; api/, legal.html and card-timeline.js stay as on main (" + left.join(", ") + ")");
+  return f;
+}
+function staticChecks(git) {
+  const f = diffFailures(changedAgainstMain(git || gitText));
   if (!require("./_desk-html-pin").check(root)) f.push("desk.html does not match its byte/SHA-256 pin");
+  return f;
+}
+// Empty diff passes. A thrown git (missing binary or non-zero diff) still fails closed.
+// A watched path in the listing still fails, so an empty result is not a blanket pass.
+function diffCaseChecks() {
+  const f = [];
+  const sha = "11c9a1e42e74128f8eef5ce56e162b5dd02439b9\n";
+  const empty = diffFailures(changedAgainstMain((args) => args[0] === "merge-base" ? sha : ""));
+  if (empty.length) f.push("empty diff should be no changed files (" + empty[0] + ")");
+  const blank = diffFailures(changedAgainstMain((args) => args[0] === "merge-base" ? sha : "\n"));
+  if (blank.length) f.push("blank diff output should be no changed files (" + blank[0] + ")");
+  const missing = diffFailures(changedAgainstMain(() => { const e = new Error("spawn git ENOENT"); e.code = "ENOENT"; throw e; }));
+  if (!missing.some((m) => m.indexOf("could not diff against main") === 0)) f.push("missing git should fail closed");
+  const diffErr = diffFailures(changedAgainstMain((args) => {
+    if (args[0] === "merge-base") return sha;
+    const e = new Error("git diff failed"); e.status = 1; throw e;
+  }));
+  if (!diffErr.some((m) => m.indexOf("could not diff against main") === 0)) f.push("git diff error should fail closed");
+  const watched = diffFailures(changedAgainstMain((args) => args[0] === "merge-base" ? sha : "card-timeline.js\n"));
+  if (!watched.some((m) => m.indexOf("stay as on main") >= 0 && m.indexOf("card-timeline.js") >= 0)) f.push("a changed watched file should still fail");
   return f;
 }
 function rep(file, a, b) { return (S) => { const s = S[file]; if (s.indexOf(a) < 0 || s.indexOf(a) !== s.lastIndexOf(a)) return null; const o = Object.assign({}, S); o[file] = s.replace(a, b); return o; }; }
@@ -151,12 +184,15 @@ const MUTANTS = [
   ["Hand to owner suffix for helpers", rep(DC, '(p.role === "owner" && !sheetHidesNames() ? " · owner" : "")', '(p.role === "owner" ? " · owner" : "")')],
   ["Hand to loses seats", rep(DC, "\"<option value=\\\"\" + esc(p.id || \"\") + \"\\\"\"", "\"<option value=\\\"\" + esc(\"\") + \"\\\"\"")],
   ["hidden name not Helper", rep(DC, '  return "Helper";\n}\nfunction sheetCardOf', '  return "Someone";\n}\nfunction sheetCardOf')],
+  ["landed sheetFrom leaks the person name", rep(DC, '  return "Helper";\n}\nfunction sheetCardOf', '  return from;\n}\nfunction sheetCardOf')],
   ["not in npm test", rep("package.json", "node scripts/check-helper-names.js && ", "")]
 ];
 (async () => {
-  const base = (await suite(SRC)).concat(staticChecks());
+  const diffCases = diffCaseChecks();
+  const base = (await suite(SRC)).concat(staticChecks()).concat(diffCases);
   let bad = base.length;
   base.forEach((m) => console.log("FAIL " + m));
+  if (!diffCases.length) console.log("ok diff: empty diff passes; a git error still fails closed");
   if (!bad) console.log("ok helper-names: owner sees names; employee, helper and family see tags in the talk block, timeline, assignee and Hand to");
   let caught = 0;
   for (const [name, make] of MUTANTS) {
