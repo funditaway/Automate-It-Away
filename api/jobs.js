@@ -236,6 +236,18 @@ async function readAccountQueue(req, res, want) {
     setupCards: setupCards
   });
 }
+// Owners get the same calendar text as before. A helper, family member, or
+// other non-owner gets that file from the masked card. Title, notes, draft,
+// and replies stay. When the description is the why line, structured names
+// and email are taken out of that line on the copy. The stored row is not written.
+function calendarFor(job, person, people) {
+  if (jobMask.seatSeesNames(person)) return icsOf(job);
+  const card = jobMask.maskJob(job, person, people);
+  if (card && card !== job && !card.draft && typeof card.why === "string") {
+    card.why = jobMask.maskText(card.why, person, people, job);
+  }
+  return icsOf(card);
+}
 function markHand(job, person, body) {
   const note = String((body && (body.text || body.notes || body.reason)) || "Needs a hand.").trim();
   job.status = "exception";
@@ -284,7 +296,7 @@ module.exports = async function handler(req, res) {
       if (!job) return res.status(404).json({ error: "Job not found" });
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");
       res.setHeader("Content-Disposition", "attachment; filename=\"" + job.id + ".ics\"");
-      return res.status(200).send(icsOf(job));
+      return res.status(200).send(calendarFor(job, person, shop && shop.people));
     }
     if (shop) { ensureRules(shop); ensureNouns(shop); ensurePeople(shop); }
     const rules = shop ? ensureRules(shop) : defaultRules();

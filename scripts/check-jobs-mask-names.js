@@ -2,6 +2,7 @@
 require("./_env-guard");
 // GET /api/jobs masks people's names for a helper and for another non-owner
 // seat. The owner still sees the names. actorKind and role tags stay.
+// GET /api/jobs?ics= uses that same mask. Email is a structured field.
 // The card-thread read (readTalk) is what writes actorLabel on that copy:
 // a non-owner sees the redacted label, the owner sees the name.
 // The stored job is the same after the read.
@@ -80,6 +81,10 @@ async function main() {
   const jobsSrc = fs.readFileSync(path.join(root, "api/jobs.js"), "utf8");
   if (jobsSrc.indexOf("jobMask.maskJob") < 0) fail("present path must call the shared mask");
   if (jobsSrc.indexOf("jobMask.maskJobsResponse") < 0) fail("jobs responses must call the shared mask");
+  if (jobsSrc.indexOf("res.status(200).send(calendarFor(job, person, shop && shop.people))") < 0) {
+    fail("ics path must run the calendar through the non-owner mask");
+  }
+  if (jobsSrc.indexOf("res.status(200).send(icsOf(job))") >= 0) fail("ics path still sends the raw calendar");
   if (jobsSrc.indexOf("presentJob(j, found.person)") < 0) fail("queue read must keep presentJob");
   if (jobsSrc.indexOf("Collect is on HOLD") < 0) fail("Collect HOLD line is missing");
   const maskSrc = fs.readFileSync(path.join(root, "api/_job-mask.js"), "utf8");
@@ -155,6 +160,7 @@ async function main() {
     doneBy: "Nia Quill",
     sentByAgent: "Riley Moss",
     priorityBy: "Nia Quill",
+    email: "casey.brook@example.com",
     next: "Waiting on Riley Moss. Dana told Lee.",
     needs: [{ id: "o11", label: "Waiting on Riley Moss" }],
     notes: "Left the lamp.",
@@ -184,11 +190,31 @@ async function main() {
     ],
     createdAt: "2026-01-01T00:00:00.000Z"
   };
+  const icsJob = {
+    id: "job_icsmask",
+    workspace: slug,
+    title: "Porch lamp",
+    status: "exception",
+    step: "Qualify",
+    from: "Nia Quill",
+    contactName: "Quinn Patel",
+    email: "quinn.patel@example.com",
+    whoTapped: "Nia Quill",
+    assignee: "Riley Moss",
+    notes: "Left the lamp.",
+    draft: "",
+    why: "Waiting on Quinn Patel at quinn.patel@example.com.",
+    replies: [{ from: "desk", text: "Reply stays.", at: "2026-01-01T00:00:03.000Z" }],
+    timing: "2026-06-01T15:00:00.000Z",
+    createdAt: "2026-01-01T00:00:00.000Z"
+  };
+  lib.mem.jobs.unshift(icsJob);
   lib.mem.jobs.unshift(stored);
   lib.mem.inbox.unshift({ id: "in_mask", workspace: slug, text: "mask-inbox Nia Quill", from: "Casey Brook", at: 1 });
   lib.mem.audit.unshift({ t: "2026-01-01T00:00:00.000Z", agent: "Desk", action: "mask-audit Nia Quill", result: "Waiting", workspace: slug });
   lib.mem.money.unshift({ at: "2026-01-01T00:00:00.000Z", workspace: slug, who: "Nia Quill", what: "mask-money Nia Quill", amt: "$1", held: false, charged: false, live: false });
   const before = JSON.stringify(stored);
+  const icsBefore = JSON.stringify(icsJob);
   const peopleBefore = JSON.stringify(shop.people.map(function (p) { return p && p.name; }));
   const inboxBefore = JSON.stringify(lib.mem.inbox[0]);
   const auditBefore = JSON.stringify(lib.mem.audit[0]);
@@ -209,6 +235,7 @@ async function main() {
   const ownerAudit = await call(jobs, "GET", ownerH, null, { audit: "1" });
   const ownerMoney = await call(jobs, "GET", ownerH, null, { money: "1" });
   if (JSON.stringify(stored) !== before) fail("stored job changed on read");
+  if (JSON.stringify(icsJob) !== icsBefore) fail("stored calendar job changed on read");
   if (JSON.stringify(shop.people.map(function (p) { return p && p.name; })) !== peopleBefore) fail("stored seat names changed on read");
   if (JSON.stringify(lib.mem.inbox[0]) !== inboxBefore) fail("stored inbox changed on read");
   if (JSON.stringify(lib.mem.audit[0]) !== auditBefore) fail("stored audit changed on read");
@@ -231,7 +258,8 @@ async function main() {
   if (helperCard.handedTo.kind !== "family" || helperCard.handedTo.role !== "employee") fail("helper lost handed-to kind");
   if (helperCard.handedTo.name) fail("helper still sees handed-to name");
   if (helperCard.crew.kind !== "member") fail("helper lost crew kind");
-  if (helperCard.contactName || helperCard.assignee || helperCard.whoTapped || helperCard.from) fail("helper still sees a name field");
+  if (helperCard.contactName || helperCard.assignee || helperCard.whoTapped || helperCard.from || helperCard.email) fail("helper still sees a name field");
+  if (JSON.stringify(helperCard).indexOf("casey.brook@example.com") >= 0) fail("helper card still has the email");
   if (helperCard.draft !== "Draft for the porch lamp. Nothing sent.") fail("helper lost the draft text");
   if (helperCard.title !== "Porch lamp") fail("helper lost the title");
   if (!helper.body.you || helper.body.you.name !== "Sam Phelps") fail("helper should still see their own seat on you");
@@ -275,12 +303,13 @@ async function main() {
   if (!familyNeed || String(familyNeed.label || "").indexOf("Riley Moss") >= 0) fail("family still sees the name in the needs label");
   const familyTwo = String(familyCard.next || "") + "\n" + String(familyCard.needLine || "");
   if (familyTwo.indexOf("Dana") >= 0 || familyTwo.indexOf("Lee") >= 0) fail("family still sees a name in the two-name field");
+  if (familyCard.email || JSON.stringify(familyCard).indexOf("casey.brook@example.com") >= 0) fail("family still sees email");
   pass("family GET hides names and keeps kind tags");
 
   if (owner.statusCode !== 200) fail("owner GET " + owner.statusCode);
   const ownerCard = cardOf(owner.body);
   if (!ownerCard) fail("owner did not get the card");
-  if (ownerCard.contactName !== "Casey Brook" || ownerCard.from !== "Nia Quill" || ownerCard.assignee !== "Riley Moss" || ownerCard.whoTapped !== "Nia Quill") {
+  if (ownerCard.contactName !== "Casey Brook" || ownerCard.from !== "Nia Quill" || ownerCard.assignee !== "Riley Moss" || ownerCard.whoTapped !== "Nia Quill" || ownerCard.email !== "casey.brook@example.com") {
     fail("owner lost a name field");
   }
   if (ownerCard.thread[0].from !== "Nia Quill" || ownerCard.thread[0].actorKind !== "human" || ownerCard.thread[0].actorLabel !== "Nia Quill") {
@@ -315,11 +344,65 @@ async function main() {
   if (!ownerMoneyRow) fail("owner money lost who");
   pass("inbox, audit, and money follow the same seat rule");
 
+  function normCal(text) {
+    return String(text || "").split(/\r?\n/).filter(function (line) { return line.indexOf("DTSTAMP:") !== 0; }).join("\n");
+  }
+  function icsCard(body) {
+    const rows = body && body.jobs || [];
+    return rows.find(function (j) { return j && j.id === "job_icsmask"; }) || null;
+  }
+  const icsSecrets = ["Quinn Patel", "quinn.patel@example.com", "Nia Quill", "Casey Brook", "Riley Moss", "Ada Family", "casey.brook@example.com"];
+  function assertIcsHidden(res, who) {
+    if (res.statusCode !== 200 || String(res.body || "").indexOf("BEGIN:VCALENDAR") < 0) {
+      fail(who + " ics " + res.statusCode + " " + String(res.body || "").slice(0, 120));
+    }
+    const body = String(res.body || "");
+    icsSecrets.forEach(function (secret) {
+      if (body.toLowerCase().indexOf(secret.toLowerCase()) >= 0) fail(who + " ics still has " + secret);
+    });
+    if (body.indexOf("Porch lamp") < 0) fail(who + " ics lost the title");
+  }
+  const helperIcsCard = icsCard(helper.body);
+  const familyIcsCard = icsCard(family.body);
+  const ownerIcsCard = icsCard(owner.body);
+  if (!helperIcsCard || !familyIcsCard || !ownerIcsCard) fail("calendar card missing from the queue read");
+  if (helperIcsCard.email || helperIcsCard.contactName || helperIcsCard.from) fail("helper calendar card still has a structured name");
+  if (familyIcsCard.email || familyIcsCard.contactName) fail("family calendar card still has a structured name");
+  if (helperIcsCard.title !== "Porch lamp" || helperIcsCard.notes !== "Left the lamp.") fail("helper calendar card lost title or notes");
+  if (helperIcsCard.draft) fail("helper calendar card draft changed");
+  if (String(helperIcsCard.why || "").indexOf("Quinn Patel") < 0) fail("helper queue read should still show the why line");
+  const replyText = (helperIcsCard.replies || []).map(function (row) { return row && row.text; }).join("\n");
+  if (replyText.indexOf("Reply stays.") < 0) fail("helper calendar card lost the reply");
+  if (ownerIcsCard.email !== "quinn.patel@example.com" || ownerIcsCard.contactName !== "Quinn Patel") fail("owner calendar card lost a structured field");
+  const otherH = { "x-workspace": slug, "x-pin": "9393" };
+  const helperIcs = await call(jobs, "GET", helperH, null, { ics: "job_icsmask" });
+  const familyIcs = await call(jobs, "GET", familyH, null, { ics: "job_icsmask" });
+  const otherIcs = await call(jobs, "GET", otherH, null, { ics: "job_icsmask" });
+  const ownerIcs = await call(jobs, "GET", ownerH, null, { ics: "job_icsmask" });
+  const helperDraftIcs = await call(jobs, "GET", helperH, null, { ics: "job_masknames" });
+  assertIcsHidden(helperIcs, "helper");
+  assertIcsHidden(familyIcs, "family");
+  assertIcsHidden(otherIcs, "other non-owner");
+  if (ownerIcs.statusCode !== 200) fail("owner ics " + ownerIcs.statusCode);
+  const ownerFile = String(ownerIcs.body || "");
+  if (ownerFile.indexOf("Quinn Patel") < 0 || ownerFile.indexOf("quinn.patel@example.com") < 0) fail("owner calendar lost the name or email");
+  const engine = require(path.join(root, "api/_engine"));
+  if (normCal(ownerFile) !== normCal(engine.icsOf(icsJob))) fail("owner calendar changed");
+  if (helperDraftIcs.statusCode !== 200 || String(helperDraftIcs.body || "").indexOf("Draft for the porch lamp. Nothing sent.") < 0) {
+    fail("helper calendar lost the draft text");
+  }
+  if (String(helperDraftIcs.body || "").indexOf("casey.brook@example.com") >= 0 || String(helperDraftIcs.body || "").indexOf("Nia Quill") >= 0) {
+    fail("helper draft calendar leaked a structured field");
+  }
+  if (JSON.stringify(stored) !== before || JSON.stringify(icsJob) !== icsBefore) fail("calendar read wrote the stored row");
+  pass("ics download hides structured names and email for non-owners");
+
   const said = await call(jobs, "POST", helperH, { action: "say", id: "job_masknames", text: "helper note" });
   if (said.statusCode !== 200 || !said.body || !said.body.job) fail("helper say failed " + said.statusCode);
   assertMasked(said.body, "helper say");
   if (said.body.job.status !== "exception") fail("helper say changed the status it showed");
-  if (stored.contactName !== "Casey Brook" || stored.thread[0].from !== "Nia Quill" || stored.thread[0].actorKind !== "human") {
+  if (String(JSON.stringify(said.body)).indexOf("casey.brook@example.com") >= 0) fail("helper say echo still has the email");
+  if (stored.email !== "casey.brook@example.com" || stored.contactName !== "Casey Brook" || stored.thread[0].from !== "Nia Quill" || stored.thread[0].actorKind !== "human") {
     fail("helper say rewrote the stored names");
   }
   if (!(stored.thread || []).some(function (line) { return line && line.text === "helper note" && line.from === "Sam Phelps"; })) {
