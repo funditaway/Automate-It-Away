@@ -88,13 +88,25 @@ must(studio, "Onboard this desk.", "studio onboard one-liner");
 must(studio, "/help#onboard-desk", "studio onboard link");
 
 const studioJs = read("developer.js");
-must(studioJs, "Onboard this desk.", "studio js onboard one-liner");
-must(studioJs, "/help#onboard-desk", "studio js onboard link");
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studioPack = decodeStudio(read("developer.z64.txt"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) {
+  throw new Error("Studio loader must unpack developer.z64.txt");
+}
+if (!studioPack || studioPack.indexOf("Creators Studio") < 0) throw new Error("developer.z64.txt must decode as Creators Studio");
+must(studioPack, "Onboard this desk.", "studio pack onboard one-liner");
+must(studioPack, "/help#onboard-desk", "studio pack onboard link");
+must(studioPack, "Add people.", "studio pack add-people one-liner");
+must(studioPack, "AIA does not send invite mail", "studio pack no invite mail");
 
 must(more, "/help#onboard-desk", "more.html onboard link");
 
 ["aiastudios.app", "Team & Permissions", "Workspace Settings"].forEach(function (bit) {
-  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit)) {
+  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit) || studioPack.includes(bit)) {
     throw new Error("invented people chrome: " + bit);
   }
 });
@@ -117,7 +129,122 @@ onlyInDenial(help, "Import Pack", "help.html");
 onlyInDenial(help, "User Groups", "help.html");
 
 ["Connected Accounts", "Connect Tool", "Import Pack", "User Groups"].forEach(function (bit) {
-  if (studio.includes(bit) || studioJs.includes(bit)) throw new Error("invented people chrome on studio: " + bit);
+  if (studio.includes(bit) || studioJs.includes(bit) || studioPack.includes(bit)) throw new Error("invented people chrome on studio: " + bit);
 });
+
+
+const overlayInvite = (function () {
+  const start = overlay.indexOf("async function inviteWorld");
+  if (start < 0) return "";
+  const end = overlay.indexOf("function parseTalk", start);
+  return overlay.slice(start, end > start ? end : start + 900);
+})();
+if (!overlayInvite) throw new Error("people-world.js missing inviteWorld");
+if (overlayInvite.indexOf("accept-invite") >= 0 || overlayInvite.indexOf("charged: true") >= 0) {
+  throw new Error("invite must not accept or charge without a person tapping Accept");
+}
+if (overlay.indexOf('data-accept') < 0 || overlay.indexOf(">Accept<") < 0) throw new Error("People must paint Accept on an invite");
+if (overlay.indexOf("Waiting on Accept") < 0 && people.indexOf("They Accept on their People tab") < 0) {
+  throw new Error("People must say an invite waits on Accept");
+}
+if (people.indexOf("AIA does not send") < 0 && overlay.indexOf("AIA does not send") < 0) {
+  throw new Error("People must say AIA does not send invite mail");
+}
+if (overlay.indexOf("Nobody sends money from here") < 0) throw new Error("People invite line must say nobody sends money");
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+function inviteFnOf(src) {
+  const start = src.indexOf("async function inviteWorld");
+  if (start < 0) return "";
+  const end = src.indexOf("function parseTalk", start);
+  return src.slice(start, end > start ? end : start + 900);
+}
+function worldFaults(loader, pack, html, overlaySrc, helpSrc, peopleSrc) {
+  const bad = [];
+  const hasLoader = loader.indexOf('fetch("/developer.z64.txt"') >= 0 && loader.indexOf('DecompressionStream("gzip")') >= 0;
+  if (!hasLoader || !pack || pack.indexOf("Onboard this desk.") < 0 || pack.indexOf("/help#onboard-desk") < 0) {
+    bad.push("Studio onboard gone");
+  }
+  const inv = inviteFnOf(overlaySrc);
+  if (!inv || inv.indexOf("accept-invite") >= 0 || overlaySrc.indexOf('data-accept') < 0 || overlaySrc.indexOf(">Accept<") < 0) {
+    bad.push("Invite without Accept");
+  }
+  if (peopleSrc.indexOf("AIA does not send") < 0 && overlaySrc.indexOf("AIA does not send") < 0 && html.indexOf("AIA does not send invite mail") < 0 && pack.indexOf("AIA does not send invite mail") < 0 && helpSrc.indexOf("AIA does not send invite mail") < 0) {
+    bad.push("silent invite mail");
+  }
+  if (/aiastudios\.app|Team & Permissions|Workspace Settings/.test(pack + html) || /Connected Accounts|Connect Tool|Import Pack|User Groups/.test(pack + html)) {
+    bad.push("invented people chrome on studio");
+  }
+  if (/charged:\s*true/.test(inv) || /charged:\s*true/.test(overlaySrc) || /charged:\s*true/.test(pack)) {
+    bad.push("charge or bind without Yes");
+  }
+  return unique(bad);
+}
+function applyMutant(kind, files) {
+  const next = {
+    loader: files.loader,
+    pack: files.pack,
+    html: files.html,
+    overlaySrc: files.overlaySrc,
+    helpSrc: files.helpSrc,
+    peopleSrc: files.peopleSrc
+  };
+  if (kind === "Studio onboard gone") {
+    next.pack = next.pack.replace(/Onboard this desk\./g, "Skip ahead.").replace(/\/help#onboard-desk/g, "/help#skip");
+  } else if (kind === "Invite without Accept") {
+    next.overlaySrc = next.overlaySrc
+      .replace(/action: "invite-world"/g, 'action: "invite-world", also: "accept-invite"')
+      .replace(/data-accept/g, "data-ok")
+      .replace(/>Accept</g, ">Join now<")
+      .replace("async function inviteWorld", 'async function inviteWorld(){ await admin({ action: "accept-invite" }); }\nasync function inviteWorldOld');
+  } else if (kind === "silent invite mail") {
+    next.peopleSrc = next.peopleSrc.replace(/AIA does not send/g, "AIA emails them for you");
+    next.overlaySrc = next.overlaySrc.replace(/AIA does not send/g, "AIA emails them for you");
+    next.html = next.html.replace(/AIA does not send invite mail/g, "AIA emails the invite");
+    next.pack = next.pack.replace(/AIA does not send invite mail/g, "AIA emails the invite");
+    next.helpSrc = next.helpSrc.replace(/AIA does not send invite mail/g, "AIA emails the invite");
+  } else if (kind === "invented people chrome on studio") {
+    next.pack = next.pack + "\nTeam & Permissions\nWorkspace Settings";
+    next.html = next.html + "\nConnected Accounts";
+  } else if (kind === "charge or bind without Yes") {
+    next.overlaySrc = next.overlaySrc.replace("action: \"invite-world\"", "action: \"invite-world\", charged: true");
+    next.pack = next.pack + "\ncharged: true";
+  }
+  return next;
+}
+
+let failed = 0;
+function fail(msg) { failed += 1; console.error("FAIL " + msg); }
+function pass(msg) { console.log("ok  " + msg); }
+
+const files = { loader: studioJs, pack: studioPack, html: studio, overlaySrc: overlay, helpSrc: help, peopleSrc: people };
+const live = worldFaults(files.loader, files.pack, files.html, files.overlaySrc, files.helpSrc, files.peopleSrc);
+if (live.length) fail("world people behaviour drifted: " + live.join("; "));
+else pass("Studio onboard, invite Accept, and no silent mail still hold");
+
+const mutants = [
+  "Studio onboard gone",
+  "Invite without Accept",
+  "silent invite mail",
+  "invented people chrome on studio",
+  "charge or bind without Yes"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const next = applyMutant(kind, files);
+  const faults = worldFaults(next.loader, next.pack, next.html, next.overlaySrc, next.helpSrc, next.peopleSrc);
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
+if (failed) {
+  console.error("check-world-people failed");
+  process.exit(1);
+}
 
 console.log("check-world-people: ok");
