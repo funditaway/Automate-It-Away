@@ -31,19 +31,30 @@ const moreTips = more + "\n" + read("aia-tip.js");
 const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
-["function namedAskWho", "function askGrokLabel", "function thenGone", "function bindAiHtml", "not on this desk", "HOLD ask", "Gone bind HOLDs"].forEach(function (bit) {
+// a2ad8c4 (#265) minified desk-needs.js. Names like namedAskWho / askGrokLabel /
+// thenGone / bindAiHtml were shortened; window.card still paints
+// "Ask the desk · Shop Bot · not on this desk" and does not first-eligible James.
+["not on this desk", "HOLD ask", "Gone bind HOLDs", "Ask the desk · "].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
   else pass("desk-needs.js " + bit);
 });
+function askGoneSourceFaults(src) {
+  const bad = [];
+  if (src.indexOf("Ask the desk · ") < 0) bad.push("missing Ask the desk · ");
+  if (src.indexOf(" · not on this desk") < 0) bad.push("missing · not on this desk");
+  if (src.indexOf("thenAiGone") < 0) bad.push("missing thenAiGone");
+  if (src.indexOf("window.bindAiHtml") < 0) bad.push("missing window.bindAiHtml");
+  if (src.indexOf("window.helpWithAi") < 0) bad.push("missing window.helpWithAi");
+  return bad;
+}
+(function () {
+  const bad = askGoneSourceFaults(needs);
+  if (bad.length) fail("named Ask gone HOLD must stay in desk-needs.js: " + bad.join("; "));
+  else pass("named Ask gone HOLD still lives in desk-needs.js");
+})();
 if (/thenWho\(j\)\s*\|\|\s*\(\(primaryAi\(\)/.test(needs)) {
   fail("namedAskWho must not first-eligible thenWho || primaryAi()");
 } else pass("namedAskWho does not first-eligible to primaryAi");
-const namedSrc = needs.slice(needs.indexOf("function namedAskWho"), needs.indexOf("function askGrokLabel"));
-if (!/thenGone/.test(namedSrc)) fail("namedAskWho must consult thenGone before primaryAi");
-else pass("namedAskWho consults thenGone");
-const labelSrc = needs.slice(needs.indexOf("function askGrokLabel"), needs.indexOf("function jobOf"));
-if (labelSrc.indexOf("goneHoldLabel") < 0 && labelSrc.indexOf("not on this desk") < 0) fail("askGrokLabel must paint gone HOLD");
-else pass("askGrokLabel paints gone HOLD");
 if (needs.indexOf("namedAskWho({ id: id })") >= 0 || needs.indexOf("namedAskWho({id:id})") >= 0) {
   fail("helpWithAi must not first-eligible namedAskWho({ id }) to primaryAi");
 } else pass("helpWithAi uses the card, not { id }");
@@ -58,12 +69,20 @@ if (help.indexOf("HOLD ask") < 0 || help.indexOf("does not name another live des
 if (help.indexOf("does not first-select another live desk AI") < 0) {
   fail("help#desk-cards must name gone bind picker HOLD");
 } else pass("help names gone bind picker HOLD");
-if (moreTips.indexOf("HOLD ask") < 0 || moreTips.indexOf("not on this desk") < 0) {
-  fail("more Queue tip must name gone Ask HOLD");
-} else pass("more Queue tip names gone Ask HOLD");
-if (moreTips.indexOf("owner picker holds the same gone bind") < 0) {
-  fail("more Queue tip must name gone bind picker HOLD");
-} else pass("more Queue tip names gone bind picker HOLD");
+// a66b146 shortened more-queue. Gone-AI honesty stays as:
+// "If a named desk AI is not on this desk, the card says so."
+function moreQueueAskFaults(src) {
+  const bad = [];
+  if (src.indexOf("If a named desk AI is not on this desk, the card says so.") < 0) {
+    bad.push("missing gone-AI honesty");
+  }
+  return bad;
+}
+(function () {
+  const bad = moreQueueAskFaults(moreTips);
+  if (bad.length) fail("more Queue tip must stay honest about gone Ask / bind: " + bad.join("; "));
+  else pass("more Queue tip names gone Ask / bind honesty");
+})();
 if (more.indexOf('data-aia-tip="more-queue"') < 0) fail("more.html must wire more-queue tip");
 else pass("more.html wires more-queue tip");
 if (yesNo.indexOf("check-ask-grok-gone.js") < 0) fail("ACCOUNT-YES-NO must record Ask Grok gone HOLD");
@@ -341,16 +360,148 @@ async function apiPath() {
   else if (recJob.status === "shipped" || recJob.charged) fail("recommend must not ship or charge");
   else pass("recommend keeps gone-AI HOLD");
 
+  const bot = {
+    id: "ai_login",
+    name: "James’s AI",
+    role: "agent",
+    kind: "agent",
+    deskAi: true,
+    status: "approved",
+    pin: hashPin("9999")
+  };
+  shop.people.push(bot);
+  const deskAiYes = await call(jobsHandler, "POST", { "x-workspace": slug, "x-pin": "9999" }, {
+    action: "ship",
+    id: card.id,
+    confirm: true,
+    whoTapped: "James’s AI"
+  });
+  if (deskAiYes.statusCode !== 403) fail("desk AI still cannot Yes on a gone Ask bind, got " + deskAiYes.statusCode);
+  else pass("desk AI still cannot Yes on a gone Ask bind");
+
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
+}
+
+function askGonePaintFaults(html) {
+  const bad = [];
+  if (!html) { bad.push("no card html"); return bad; }
+  if (html.indexOf("Ask the desk · Shop Bot") < 0) bad.push("missing Ask the desk · Shop Bot");
+  if (html.indexOf(" · not on this desk") < 0) bad.push("missing · not on this desk");
+  if (html.indexOf("q-ai-gone") < 0) bad.push("missing q-ai-gone");
+  if (/Ask the desk · James/.test(html)) bad.push("named James");
+  return bad;
+}
+
+function paintFrom(src, job) {
+  if (!src) return null;
+  const ctx = {
+    window: {},
+    document: {
+      readyState: "complete",
+      addEventListener: function () {},
+      getElementById: function () { return null; },
+      createElement: function () { return { id: "", textContent: "" }; },
+      head: { appendChild: function () {} }
+    },
+    setTimeout: function () {},
+    localStorage: { getItem: function () { return ""; }, setItem: function () {} }
+  };
+  ctx.window = ctx;
+  try { vm.runInNewContext(src, ctx); } catch (e) { return "threw " + e.message; }
+  if (typeof ctx.card !== "function") return "no window.card";
+  ctx.AIADeskAis = {
+    owner: true,
+    rows: [
+      { id: "james-s-ai", name: "James’s AI", does: "Draft the lead packet" },
+      { id: "lane-bot", name: "Lane Bot", does: "Watch the lane" }
+    ],
+    primary: function () { return this.rows[0]; }
+  };
+  return ctx.card(job || {
+    id: "j-mut",
+    status: "waiting",
+    title: "Oak dresser",
+    thenAiGone: { id: "shop-bot", name: "Shop Bot" }
+  }, false);
 }
 
 async function main() {
   await banners();
   await apiPath();
+
+  const capCtx = paintCtx();
+  if (typeof capCtx.capCardHtml === "function") {
+    const capHtml = capCtx.capCardHtml({
+      id: "j-gone-cap",
+      status: "waiting",
+      title: "Oak dresser",
+      thenAiGone: { id: "shop-bot", name: "Shop Bot <gone>" }
+    }, "shop");
+    if (capHtml.indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) fail("Cap must paint Shop Bot · not on this desk");
+    else if (capHtml.indexOf("q-ai-gone") < 0) fail("Cap must use q-ai-gone");
+    else if (/>Yes</.test(capHtml)) fail("Cap gone-Ask card must not show Yes");
+    else if (/Ask the desk · James/.test(capHtml)) fail("Cap gone-Ask must not first-eligible James");
+    else pass("Cap paints gone Ask HOLD and does not Yes");
+  } else fail("window.capCardHtml must stay exported");
+
+  const livePaint = askGonePaintFaults(goneCard);
+  if (livePaint.length) fail("queue Ask card must paint gone HOLD: " + livePaint.join("; "));
+  else pass("queue Ask card paints Ask the desk · Shop Bot · not on this desk");
+
+  // Mutants for the replaced assertions. In-memory only.
+  function swap(str, from, to) { return str.indexOf(from) < 0 ? null : str.split(from).join(to); }
+  const MUTANTS = [
+    ["ask source loses Ask the desk · ", function () {
+      const n = swap(needs, "Ask the desk · ", "Ask the helper · ");
+      return n && askGoneSourceFaults(n);
+    }],
+    ["ask source loses · not on this desk", function () {
+      const n = swap(needs, " · not on this desk", " · left this desk");
+      return n && askGoneSourceFaults(n);
+    }],
+    ["ask source loses window.bindAiHtml", function () {
+      const n = swap(needs, "window.bindAiHtml", "window.bindAiOff");
+      return n && askGoneSourceFaults(n);
+    }],
+    ["ask source loses window.helpWithAi", function () {
+      const n = swap(needs, "window.helpWithAi", "window.helpOff");
+      return n && askGoneSourceFaults(n);
+    }],
+    ["more-queue tip drops gone-AI honesty", function () {
+      const n = swap(moreTips, "If a named desk AI is not on this desk, the card says so.", "The queue just runs.");
+      return n && moreQueueAskFaults(n);
+    }],
+    ["queue card drops the gone-AI line", function () {
+      const n = swap(needs, " · not on this desk", " · left this desk");
+      const html = paintFrom(n);
+      if (html == null) return null;
+      if (typeof html !== "string") return [String(html)];
+      return askGonePaintFaults(html);
+    }],
+    ["queue card drops q-ai-gone", function () {
+      const n = swap(needs, "q-ai-gone", "q-ai-miss");
+      const html = paintFrom(n);
+      if (html == null) return null;
+      if (typeof html !== "string") return [String(html)];
+      return askGonePaintFaults(html);
+    }]
+  ];
+  let mutCaught = 0;
+  MUTANTS.forEach(function (m) {
+    let out;
+    try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+    if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+    else if (out.length) { mutCaught += 1; pass("mutant caught: " + m[0] + " (" + out[0] + ")"); }
+    else fail("mutant survived: " + m[0]);
+  });
+  pass("mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
+  if (mutCaught !== MUTANTS.length) fail("not every mutant was caught");
+
   if (failed) {
     console.error(failed + " failed");
     process.exit(1);
   }
+  console.log("check-ask-grok-gone mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
   console.log("check-ask-grok-gone: ok");
 }
 
