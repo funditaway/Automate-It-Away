@@ -32,10 +32,81 @@ const dropAgent = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
   if (syntax.status !== 0) fail(name + " must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
 });
 
-["function thenWho", "function thenDoes", "function thenPrompt", "function askGrokLabel", "function namedAskWho", "q-ai", "q-then-face", "Nothing sent alone", "function isPromptReply", "function promptHtml", "function replyOnCard"].forEach(function (bit) {
+// a2ad8c4 (#265) minified desk-needs.js. Names like thenWho / thenDoes /
+// thenPrompt / askGrokLabel / namedAskWho / isPromptReply / promptHtml /
+// replyOnCard were shortened; window.card still paints the same face.
+["q-ai", "q-then-face", "Nothing sent alone"].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
-if (!/HOLD\. Nothing sent alone/.test(needs)) fail("next-line must stay HOLD. Nothing sent alone.");
+function thenWhoFaults(src) {
+  const bad = [];
+  if (src.indexOf("function thenDraftName") < 0) bad.push("missing thenDraftName");
+  if (src.indexOf("q-then-who") < 0) bad.push("missing q-then-who");
+  if (src.indexOf(" · Then draft") < 0) bad.push("missing Then draft label");
+  return bad;
+}
+(function () {
+  const bad = thenWhoFaults(needs);
+  if (bad.length) fail("named AI card must name who the Then draft is for: " + bad.join("; "));
+})();
+function thenDoesFaults(src) {
+  const bad = [];
+  if (src.indexOf("q-ai-does") < 0) bad.push("missing q-ai-does");
+  return bad;
+}
+(function () {
+  const bad = thenDoesFaults(needs);
+  if (bad.length) fail("named AI card must still chip does: " + bad.join("; "));
+})();
+function thenPromptFaults(src) {
+  const bad = [];
+  if (src.indexOf("q-ai-prompt") < 0) bad.push("missing q-ai-prompt");
+  return bad;
+}
+(function () {
+  const bad = thenPromptFaults(needs);
+  if (bad.length) fail("named AI card must still chip prompt: " + bad.join("; "));
+})();
+function askGrokLabelFaults(src) {
+  const bad = [];
+  if (src.indexOf("Ask the desk · ") < 0) bad.push("missing Ask the desk · ");
+  return bad;
+}
+(function () {
+  const bad = askGrokLabelFaults(needs);
+  if (bad.length) fail("Ask the desk must still name the bound AI: " + bad.join("; "));
+})();
+function goneAiFaults(src) {
+  const bad = [];
+  if (src.indexOf(" · not on this desk") < 0) bad.push("missing · not on this desk");
+  if (src.indexOf("q-ai-gone") < 0) bad.push("missing q-ai-gone");
+  return bad;
+}
+(function () {
+  const bad = goneAiFaults(needs);
+  if (bad.length) fail("gone desk AI must still say not on this desk: " + bad.join("; "));
+})();
+function promptReplyFaults(src) {
+  const bad = [];
+  if (src.indexOf("window.promptHtml") < 0) bad.push("missing window.promptHtml");
+  if (src.indexOf("window.replyOnCard") < 0) bad.push("missing window.replyOnCard");
+  return bad;
+}
+(function () {
+  const bad = promptReplyFaults(needs);
+  if (bad.length) fail("prompt reply must stay exported: " + bad.join("; "));
+})();
+// 9b6ba98 (#495): next-line suffix is ". Nothing sent alone.", not bare HOLD.
+function honestNextFaults(src) {
+  const bad = [];
+  if (src.indexOf(". Nothing sent alone.") < 0) bad.push("missing . Nothing sent alone.");
+  if (src.indexOf(". HOLD. Nothing sent alone.") >= 0) bad.push("bare HOLD suffix came back");
+  return bad;
+}
+(function () {
+  const bad = honestNextFaults(needs);
+  if (bad.length) fail("next-line must stay Nothing sent alone, no bare HOLD: " + bad.join("; "));
+})();
 if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge/i.test(needs + deskAis)) {
   fail("named AI cards invented Grok OAuth / wallet / Collect charge");
 }
@@ -65,7 +136,16 @@ if (!/deskAi: !!p\.deskAi/.test(libSrc) || !/does: p\.does/.test(libSrc)) {
 if (peopleHtml.indexOf("named desk AIs") < 0) fail("people.html must name desk AIs");
 if (help.indexOf("does / prompt chip") < 0 && help.indexOf("does / prompt") < 0) fail("help#desk-cards must name the does / prompt chip");
 if (yesNo.indexOf("check-desk-ai-cards.js") < 0) fail("ACCOUNT-YES-NO must record named AI cards");
-if (drop.indexOf("Public drop never sees money, Stop, or People") < 0) fail("public Drop copy drifted");
+// fff3b47 simplified Drop copy; public share still hides money / Stop / People.
+function publicDropFaults(src) {
+  const bad = [];
+  if (src.indexOf("They never see money, Stop, or People") < 0) bad.push("missing they never see money / Stop / People");
+  return bad;
+}
+(function () {
+  const bad = publicDropFaults(drop);
+  if (bad.length) fail("public Drop copy must still hide money, Stop, and People: " + bad.join("; "));
+})();
 if (dropAgent.indexOf("deskIsOpen") < 0 || dropAgent.indexOf("!deskIsOpen()") < 0) {
   fail("Drop People honesty must stay behind deskIsOpen()");
 }
@@ -100,7 +180,13 @@ const thenCard = ctx.card({
 if (thenCard.indexOf("q-ai") < 0) fail("Then card must chip the named desk AI");
 if (thenCard.indexOf("James") < 0) fail("Then card must name the desk AI");
 if (thenCard.indexOf("Then draft") < 0) fail("Then card must still say Then draft");
+if (thenCard.indexOf("James’s AI · Then draft") < 0) fail("Then card must name who drafted as Then draft");
+if (thenCard.indexOf("q-then-who") < 0) fail("Then card must use q-then-who");
 if (thenCard.indexOf("Draft the lead packet") < 0) fail("Then card must show the short does chip");
+if (thenCard.indexOf("q-ai-does") < 0) fail("Then card must chip does");
+if (thenCard.indexOf("q-ai-prompt") < 0) fail("Then card must chip prompt");
+if (thenCard.indexOf("Nothing sent alone") < 0) fail("Then card must say nothing sent alone");
+if (thenCard.indexOf("not on this desk") >= 0) fail("live bind must not paint gone HOLD");
 if (thenCard.indexOf("Needs you") < 0) fail("decide card must still show Needs you");
 if (thenCard.indexOf(">Yes<") < 0 || thenCard.indexOf(">Stop<") < 0 || thenCard.indexOf(">Kill<") < 0) {
   fail("Yes / Stop / Kill must stay");
@@ -157,6 +243,45 @@ if (xss.indexOf("AI <bot>") >= 0) fail("raw < in the AI name must not become mar
 if (xss.indexOf("AI &lt;bot&gt;") < 0) fail("AI name must stay text");
 if (xss.indexOf("Draft &lt;leads&gt;") < 0) fail("does chip must stay text");
 if (xss.indexOf("Never use &lt;script&gt;") < 0) fail("prompt chip must stay text");
+
+const goneThen = ctx.card({
+  id: "j-gone-then",
+  status: "waiting",
+  title: "Oak dresser",
+  draft: "List it on the shop. Do not send.",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot" },
+  next: "Shop Bot drafted on the card."
+}, false);
+if (goneThen.indexOf("Shop Bot · not on this desk") < 0) fail("gone Then card must say Shop Bot · not on this desk");
+if (goneThen.indexOf("q-ai-gone") < 0) fail("gone Then card must use q-ai-gone");
+if (goneThen.indexOf("q-then-who") < 0) fail("gone Then card must still name who drafted");
+if (goneThen.indexOf("List it on the shop") < 0) fail("gone Then card must still show the draft");
+if (goneThen.indexOf("Nothing sent alone") < 0) fail("gone Then card must say nothing sent alone");
+
+const goneXss = ctx.card({
+  id: "j-gone-xss",
+  status: "waiting",
+  title: "Oak",
+  draft: "Do not send.",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot <gone>" }
+}, false);
+if (goneXss.indexOf("Shop Bot <gone>") >= 0) fail("raw < in a gone AI name must not become markup");
+if (goneXss.indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) fail("gone AI name must stay text");
+
+const goneAsk = ctx.card({
+  id: "j-gone-ask",
+  status: "waiting",
+  title: "Missed call",
+  kind: "call",
+  outcome: "call",
+  waitingOn: "info",
+  why: "Need a number before this can go.",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot" }
+}, false);
+if (goneAsk.indexOf("Ask the desk · Shop Bot · not on this desk") < 0) {
+  fail("Ask the desk must name a gone AI as not on this desk");
+}
+if (/>Yes</.test(goneAsk)) fail("gone missing-info card must not show Yes");
 
 const aisCtx = {
   window: {},
@@ -294,6 +419,36 @@ async function apiPath() {
 
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
 }
+
+// Mutants for the replaced assertions. In-memory only.
+function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
+const MUTANTS = [
+  ["thenWho loses thenDraftName", function () { const n = swap(needs, "function thenDraftName", "function thenDraftOff"); return n && thenWhoFaults(n); }],
+  ["thenWho loses q-then-who", function () { const n = swap(needs, "q-then-who", "q-then-off"); return n && thenWhoFaults(n); }],
+  ["thenWho loses Then draft label", function () { const n = swap(needs, " · Then draft", " · Draft only"); return n && thenWhoFaults(n); }],
+  ["thenDoes loses q-ai-does", function () { const n = swap(needs, "q-ai-does", "q-ai-off"); return n && thenDoesFaults(n); }],
+  ["thenPrompt loses q-ai-prompt", function () { const n = swap(needs, "q-ai-prompt", "q-ai-note"); return n && thenPromptFaults(n); }],
+  ["askGrokLabel loses Ask the desk · ", function () { const n = swap(needs, "Ask the desk · ", "Ask the helper · "); return n && askGrokLabelFaults(n); }],
+  ["gone AI loses · not on this desk", function () { const n = swap(needs, " · not on this desk", " · left this desk"); return n && goneAiFaults(n); }],
+  ["gone AI loses q-ai-gone", function () { const n = swap(needs, "q-ai-gone", "q-ai-miss"); return n && goneAiFaults(n); }],
+  ["promptHtml loses window.promptHtml", function () { const n = swap(needs, "window.promptHtml", "window.promptOff"); return n && promptReplyFaults(n); }],
+  ["replyOnCard loses window.replyOnCard", function () { const n = swap(needs, "window.replyOnCard", "window.replyOff"); return n && promptReplyFaults(n); }],
+  ["honestNext loses Nothing sent alone suffix", function () { const n = swap(needs, ". Nothing sent alone.", ". Do the next thing."); return n && honestNextFaults(n); }],
+  ["honestNext brings back bare HOLD suffix", function () {
+    const n = swap(needs, ". Nothing sent alone.", ". HOLD. Nothing sent alone.");
+    return n && honestNextFaults(n);
+  }],
+  ["public Drop honesty dropped", function () { const d = swap(drop, "They never see money, Stop, or People", "They can see money, Stop, or People"); return d && publicDropFaults(d); }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught += 1; console.log("ok  mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+console.log("check-desk-ai-cards mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 
 apiPath().then(function () {
   console.log("check-desk-ai-cards: ok");
