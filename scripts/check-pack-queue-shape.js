@@ -125,25 +125,124 @@ if (authSrc.indexOf("pack: row.pack") < 0 || authSrc.indexOf("packName: row.pack
 const drop = read("drop.html");
 const widget = read("widget.html");
 const agent = read("drop-agent.js");
+const app = read("drop-app.js");
 const nav = read("desk-nav.js");
+
+// 1ec1382 moved the pack picker and honesty hint out of drop.html /
+// widget.html into drop-agent.js. fff3b47 shortened the always-visible
+// #drop-sub line (parked the longer "already uses that pack" sentence
+// there). The painted meaning is still on Drop: #drop-sub names the pack
+// as on this desk, #action-hint next to the picker says the queue card
+// already uses that pack / you don't pick each time, and #drop-pack hides.
+// Assert that behaviour and meaning, not the old drop.html strings or the
+// parked #drop-sub copy.
+
+function packShapeSourceFaults(agentSrc, appSrc) {
+  const bad = [];
+  if (agentSrc.indexOf("function applyInstalledPack") < 0) bad.push("missing applyInstalledPack");
+  if (agentSrc.indexOf("sel.hidden = on") < 0) bad.push("installed pack does not hide the pack select");
+  if (agentSrc.indexOf("action-hint") < 0) bad.push("missing action-hint");
+  if (!/already uses that pack|don't pick a pack|do not pick a pack/.test(agentSrc)) {
+    bad.push("hint no longer says the pack already shapes the card / you don't pick each time");
+  }
+  if (appSrc.indexOf("applyInstalledPack") < 0) bad.push("drop-app does not call applyInstalledPack");
+  if (appSrc.indexOf("drop-sub") < 0 || appSrc.indexOf("is on this desk") < 0) {
+    bad.push("drop-sub no longer names the installed pack as on this desk");
+  }
+  if (appSrc.indexOf("shop.pack") < 0) bad.push("drop-app does not read shop.pack");
+  return bad;
+}
+
+function packHintMeaningFaults(text, packName) {
+  const s = String(text || "");
+  const bad = [];
+  if (packName && s.indexOf(packName) < 0) bad.push("hint does not name " + packName);
+  if (s.indexOf("on this desk") < 0) bad.push("hint does not say the pack is on this desk");
+  if (!/already uses that pack|don't pick a pack|do not pick a pack/.test(s)) {
+    bad.push("hint does not say the pack already shapes the card");
+  }
+  return bad;
+}
+
+function paintApplyInstalledPack(agentSrc, pack) {
+  const els = {};
+  function el(id, tag) {
+    els[id] = { id: id, tagName: tag, hidden: false, value: "", textContent: "", previousElementSibling: null };
+    return els[id];
+  }
+  const sel = el("drop-pack", "SELECT");
+  const lab = el("pack-lab", "LABEL");
+  lab.textContent = "Pack";
+  sel.previousElementSibling = lab;
+  el("action-hint", "P").textContent = "Tap what a Desk AI should draft after this lands.";
+  const ctx = {
+    window: {},
+    document: {
+      readyState: "complete",
+      addEventListener: function () {},
+      getElementById: function (id) { return els[id] || null; },
+      createElement: function () { return { id: "", style: {}, textContent: "", innerHTML: "", className: "", classList: { add: function () {}, contains: function () { return false; } } }; },
+      body: { classList: { contains: function () { return false; } } },
+      head: { appendChild: function () {} }
+    },
+    localStorage: { getItem: function (k) { return (k === "aia_ws" || k === "aia_session") ? "oddo-ins" : ""; }, setItem: function () {} },
+    location: { search: "", pathname: "/drop", href: "http://127.0.0.1/drop" },
+    fetch: function () { return Promise.resolve({ json: function () { return Promise.resolve({}); } }); },
+    setTimeout: function () {},
+    URLSearchParams: URLSearchParams,
+    console: { log: function () {}, warn: function () {}, error: function () {} }
+  };
+  ctx.window = ctx;
+  ctx.parent = ctx;
+  ctx.AIADesks = { shopOpen: function () { return true; } };
+  try { vm.runInNewContext(agentSrc, ctx); } catch (e) {
+    return { err: String(e && e.message || e), els: els, sel: sel, lab: lab };
+  }
+  const api = ctx.window.AIADropAgent || ctx.AIADropAgent;
+  if (!api || typeof api.applyInstalledPack !== "function") {
+    return { err: "AIADropAgent.applyInstalledPack missing", els: els, sel: sel, lab: lab };
+  }
+  api.applyInstalledPack(pack);
+  return {
+    hint: els["action-hint"].textContent,
+    packHidden: !!sel.hidden,
+    labelHidden: !!lab.hidden,
+    els: els, sel: sel, lab: lab
+  };
+}
+
+(function () {
+  const bad = packShapeSourceFaults(agent, app);
+  if (bad.length) fail("Drop source must still tell people an installed pack shapes the card: " + bad.join("; "));
+  else pass("Drop source still names the installed pack and hides the picker");
+})();
+
 [drop, widget].forEach(function (src, i) {
   const label = i ? "widget.html" : "drop.html";
-  if (src.indexOf("already uses that pack") < 0) fail(label + " must say the installed pack already shapes the card");
-  else pass(label + " says installed pack already shapes the card");
-  if (src.indexOf("don't pick a pack each time") < 0 && src.indexOf("do not pick a pack") < 0) {
-    fail(label + " must say you don't pick a pack each time");
-  } else pass(label + " skips pack pick");
-  if (src.indexOf("applyInstalledPack") < 0) fail(label + " must hide the Advanced pack picker when a pack is installed");
-  else pass(label + " calls applyInstalledPack");
+  if (src.indexOf("drop-agent.js") < 0) fail(label + " must load drop-agent.js");
+  else pass(label + " loads drop-agent.js");
   const sendAt = src.indexOf("async function send()");
-  const send = src.slice(sendAt, src.indexOf("function copyDropShare", sendAt));
+  const sendEnd = src.indexOf("function copyDropShare", sendAt);
+  const send = sendAt >= 0 && sendEnd > sendAt ? src.slice(sendAt, sendEnd) : src;
   if (/item\.pack\s*=/.test(send) || /pack:\s*document/.test(send)) fail(label + " send() must not require a pack pick");
   else pass(label + " send() does not require a pack pick");
 });
-if (agent.indexOf("function applyInstalledPack") < 0) fail("drop-agent.js missing applyInstalledPack");
-else pass("drop-agent.js applyInstalledPack");
-if (agent.indexOf("sel.hidden = on") < 0) fail("installed pack must hide the Advanced pack select");
-else pass("Advanced pack select hides when a pack is installed");
+if (app.indexOf("drop-agent.js") < 0 && drop.indexOf("drop-agent.js") >= 0) pass("drop-app relies on AIADropAgent from drop-agent.js");
+const hintPaint = paintApplyInstalledPack(agent, { id: "vita", name: "Insurance" });
+if (hintPaint.err) fail("applyInstalledPack must run: " + hintPaint.err);
+else {
+  const bad = packHintMeaningFaults(hintPaint.hint, "Insurance");
+  if (bad.length) fail("installed-pack hint must say the pack already shapes the card: " + bad.join("; ") + " (got " + hintPaint.hint + ")");
+  else pass("installed-pack hint names Insurance and says the card already uses that pack");
+  if (!hintPaint.packHidden) fail("Advanced pack select must hide when a pack is installed");
+  else pass("Advanced pack select hides when a pack is installed");
+  if (!hintPaint.labelHidden) fail("Pack label must hide when a pack is installed");
+  else pass("Pack label hides when a pack is installed");
+}
+const paintedOff = paintApplyInstalledPack(agent, null);
+if (paintedOff.err) fail("applyInstalledPack(null) must run: " + paintedOff.err);
+else if (paintedOff.packHidden) fail("pack select must stay visible when no pack is installed");
+else pass("pack select stays visible when no pack is installed");
 if (nav.indexOf("drop-pack.js") >= 0) fail("desk-nav must not load the marketplace pack picker on Drop");
 else pass("Drop does not load marketplace pack picker");
 
@@ -195,10 +294,14 @@ if (packMd.indexOf("Qualify stamps `pack` + `custom.face`") < 0) fail("PACK.md m
 else pass("PACK.md stamps face on Qualify");
 if (dropMd.indexOf("auto-shapes the queue card") < 0) fail("DROP.md must name auto-shape");
 else pass("DROP.md names auto-shape");
-if (studio.indexOf("you do not pick a pack on every Drop") < 0) fail("Studio html missing skip-pick");
-else pass("Studio html skip-pick");
-if (studioJs.indexOf("you do not pick a pack on every Drop") < 0) fail("Studio js missing skip-pick");
-else pass("Studio js skip-pick");
+if (studio.indexOf("you do not pick a pack on every Drop") < 0 && studio.indexOf("Installed packs auto-shape") < 0) {
+  fail("Studio html missing skip-pick");
+} else pass("Studio html skip-pick");
+// 30ec2ec moved Studio skip-pick honesty into developer.html (visible).
+// Do not require the sentence to live in developer.js.
+if (studio.indexOf("you do not pick a pack on every Drop") < 0 && studioJs.indexOf("you do not pick a pack on every Drop") < 0) {
+  fail("Studio must still say you do not pick a pack on every Drop");
+} else pass("Studio still says you do not pick a pack on every Drop");
 if (more.indexOf("no pack pick on every Drop") < 0) fail("more.html missing skip-pick");
 else pass("more.html skip-pick");
 if (pkg.indexOf("check-pack-queue-shape.js") < 0) fail("package.json must run check-pack-queue-shape");
@@ -221,8 +324,81 @@ try {
   if (fs.existsSync(store)) fs.unlinkSync(store);
 } catch (e) {}
 
+function swap(str, from, to) { return str.indexOf(from) < 0 ? null : str.split(from).join(to); }
+
+const MUTANTS = [
+  ["Drop removes the pack-shapes line", function () {
+    const n = swap(agent, "Drop anything — the queue card already uses that pack. You don't pick a pack each time. ", "");
+    if (!n) return null;
+    const painted = paintApplyInstalledPack(n, { id: "vita", name: "Insurance" });
+    if (painted.err) return ["could not re-paint: " + painted.err];
+    return packHintMeaningFaults(painted.hint, "Insurance");
+  }],
+  ["drop-sub no longer names the pack as on this desk", function () {
+    const n = swap(app, "is on this desk", "is available");
+    return n ? packShapeSourceFaults(agent, n) : null;
+  }],
+  ["applyInstalledPack no longer hides the pack select", function () {
+    const n = swap(agent, "sel.hidden = on", "sel.hidden = false");
+    if (!n) return null;
+    const painted = paintApplyInstalledPack(n, { id: "vita", name: "Insurance" });
+    if (painted.err) return ["could not re-paint: " + painted.err];
+    const bad = [];
+    if (!painted.packHidden) bad.push("pack select stayed visible");
+    return bad;
+  }],
+  ["drop-agent loses applyInstalledPack", function () {
+    const n = swap(agent, "function applyInstalledPack", "function applyInstalledOff");
+    return n ? packShapeSourceFaults(n, app) : null;
+  }],
+  ["drop-app stops calling applyInstalledPack", function () {
+    const n = swap(app, "applyInstalledPack", "applyInstalledOff");
+    return n ? packShapeSourceFaults(agent, n) : null;
+  }],
+  ["queue line drops the pack badge name", function () {
+    const n = swap(cardSrc, "var bits = [face.name];", "var bits = [];");
+    if (!n) return null;
+    const c = {
+      window: {},
+      document: {
+        readyState: "complete",
+        addEventListener: function () {},
+        getElementById: function () { return null; },
+        createElement: function () { return { id: "", textContent: "", style: {} }; },
+        head: { appendChild: function () {} }
+      },
+      setTimeout: function () {}
+    };
+    c.window = c;
+    try { vm.runInNewContext(n, c); } catch (e) { return ["threw " + e.message]; }
+    if (!c.AIAPackCard || typeof c.AIAPackCard.queueLine !== "function") return ["queueLine missing"];
+    const line = c.AIAPackCard.queueLine(groc);
+    const bad = [];
+    if (!/Family lane/.test(line || "")) bad.push("queue line lost Family lane, got " + line);
+    return bad;
+  }],
+  ["help drops auto-shape / no pack pick honesty", function () {
+    const n = swap(help, "Installed packs auto-shape", "Installed packs sit unused");
+    if (!n) return null;
+    const bad = [];
+    if (n.indexOf("Installed packs auto-shape") < 0) bad.push("help no longer names auto-shape");
+    return bad;
+  }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught += 1; pass("mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+pass("mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
+if (mutCaught !== MUTANTS.length) fail("not every mutant was caught");
+
 if (process.exitCode) {
   console.error("check-pack-queue-shape failed");
   process.exit(1);
 }
+console.log("check-pack-queue-shape mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 console.log("check-pack-queue-shape: ok");
