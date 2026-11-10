@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+"use strict";
 require("./_env-guard");
 const os = require("os");
 const path = require("path");
@@ -14,8 +15,150 @@ const fn = src.slice(start, start + 400);
 if (fn.indexOf("if (!shop)") < 0) throw new Error("jobs capture must reject a missing desk");
 if (fn.indexOf("No desk with that name") < 0) throw new Error("jobs capture must say the desk is missing");
 
+// 1ec1382 moved send() from drop.html / widget.html into drop-app.js.
+// Capture errors still paint on #err: a non-2xx body uses
+// showNote(err, out.error || "Could not send."), and a network reject
+// uses showNote(err, "Could not reach the desk."). Success still
+// paints #ok ("On the queue… You still tap Yes, then Start").
+// HTTP 2xx is treated as success; out.ok is not consulted — that is
+// pre-existing (same before the move), not a new requirement.
+// Nothing in send() ships, starts, charges, or binds.
+
 const drop = fs.readFileSync(path.join(root, "drop.html"), "utf8");
-if (drop.indexOf("out.error") < 0) throw new Error("drop.html must show capture errors");
+const widget = fs.readFileSync(path.join(root, "widget.html"), "utf8");
+const app = fs.readFileSync(path.join(root, "drop-app.js"), "utf8");
+
+function pass(msg) { console.log("ok  " + msg); }
+
+if (drop.indexOf("drop-app.js") < 0) throw new Error("drop.html must load drop-app.js");
+else pass("drop.html loads drop-app.js");
+if (widget.indexOf("drop-app.js") < 0) throw new Error("widget.html must load drop-app.js");
+else pass("widget.html loads drop-app.js");
+if (drop.indexOf('id="err"') < 0 || drop.indexOf('id="ok"') < 0) {
+  throw new Error("drop.html must still have visible ok and error slots");
+} else pass("drop.html has ok and error slots");
+if (widget.indexOf('id="err"') < 0 || widget.indexOf('id="ok"') < 0) {
+  throw new Error("widget.html must still have visible ok and error slots");
+} else pass("widget.html has ok and error slots");
+
+function sendFn(srcText) {
+  const at = srcText.indexOf("async function send()");
+  if (at < 0) return "";
+  const stop = srcText.indexOf("function copyDropShare", at);
+  return srcText.slice(at, stop > at ? stop : at + 2800);
+}
+
+function dropCaptureErrorFaults(appSrc) {
+  const bad = [];
+  const send = sendFn(appSrc);
+  if (!send) { bad.push("missing send()"); return bad; }
+
+  const httpErr = /else\s*\{\s*showNote\(\s*err\s*,\s*out\.error\s*\|\|\s*"Could not send\."\s*\)/.test(send);
+  const netErr = /catch\s*\(\s*\w+\s*\)\s*\{\s*showNote\(\s*err\s*,\s*"Could not reach the desk\."\s*\)/.test(send);
+  const successOnFail = /if\s*\(\s*!\s*r\.ok\s*\)/.test(send) || /else\s*\{\s*showNote\(\s*ok\s*,/.test(send);
+  if (successOnFail) bad.push("success shown on failure");
+  if (!httpErr || !netErr) {
+    if (!successOnFail) bad.push("error swallowed");
+  }
+
+  const finallyAt = send.indexOf("finally");
+  const afterFinally = finallyAt >= 0 ? send.slice(finallyAt) : "";
+  if (/err\.style\.display\s*=\s*['"]none['"]/.test(afterFinally) || /err\.textContent\s*=\s*['"]{2}/.test(afterFinally)) {
+    bad.push("error painted then cleared");
+  }
+
+  const jobsAt = send.indexOf('fetch("/api/jobs"');
+  const afterJobs = jobsAt >= 0 ? send.slice(jobsAt + 16) : "";
+  const elseAt = afterJobs.search(/else\s*\{/);
+  const catchAt = afterJobs.search(/catch\s*\(\s*\w+\s*\)\s*\{/);
+  function bodyHasFetch(src, from) {
+    if (from < 0) return false;
+    const open = src.indexOf("{", from);
+    if (open < 0) return false;
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}") {
+        depth--;
+        if (depth === 0) return src.slice(open, i).indexOf("fetch(") >= 0;
+      }
+    }
+    return false;
+  }
+  if (bodyHasFetch(afterJobs, elseAt) || bodyHasFetch(afterJobs, catchAt)) {
+    bad.push("extra fetch on failure");
+  }
+
+  if (!/showNote\(\s*ok\s*,\s*"On the queue"/.test(send)) {
+    bad.push("success path no longer paints On the queue");
+  }
+  if (/action:\s*"start"|action:\s*"ship"|action:\s*"charge"|action:\s*"bind-ai"/.test(send)) {
+    // only flag when the healthy success path is also doing this; the
+    // extra-fetch mutant already reports its own reason from the else/catch.
+    if (!bodyHasFetch(afterJobs, elseAt) && !bodyHasFetch(afterJobs, catchAt)) {
+      bad.push("send() ships, starts, charges, or binds before Yes");
+    }
+  }
+  return bad;
+}
+
+const liveFaults = dropCaptureErrorFaults(app);
+if (liveFaults.length) {
+  throw new Error("drop-app.js send() must paint capture errors and success: " + liveFaults.join("; "));
+}
+pass("send() paints a plain error on a failed capture and success on a real one, with no extra send");
+
+function applyMutant(srcText, kind) {
+  const send = sendFn(srcText);
+  if (!send) return srcText;
+  let next = send;
+  if (kind === "error swallowed") {
+    next = next.replace("} else { showNote(err, out.error || \"Could not send.\"); }", "} else { }");
+    next = next.replace("catch (ex) { showNote(err, \"Could not reach the desk.\"); }", "catch (ex) { }");
+  } else if (kind === "error painted then cleared") {
+    next = next.replace(
+      "finally { if (btn) { btn.disabled = false; btn.textContent = sendLabel(); } }",
+      "finally { if (err) { err.style.display = \"none\"; err.textContent = \"\"; } if (btn) { btn.disabled = false; btn.textContent = sendLabel(); } }"
+    );
+  } else if (kind === "success shown on failure") {
+    next = next.replace("if (r.ok) {", "if (!r.ok) {");
+  } else if (kind === "extra fetch on failure") {
+    next = next.replace(
+      "} else { showNote(err, out.error || \"Could not send.\"); }",
+      "} else { showNote(err, out.error || \"Could not send.\"); fetch(\"/api/jobs\", { method: \"POST\", headers: headers(), body: JSON.stringify({ action: \"start\" }) }); }"
+    );
+    next = next.replace(
+      "catch (ex) { showNote(err, \"Could not reach the desk.\"); }",
+      "catch (ex) { showNote(err, \"Could not reach the desk.\"); fetch(\"/api/jobs\", { method: \"POST\", headers: headers(), body: JSON.stringify({ action: \"charge\" }) }); }"
+    );
+  }
+  const at = srcText.indexOf(send);
+  return srcText.slice(0, at) + next + srcText.slice(at + send.length);
+}
+
+const mutants = [
+  "error swallowed",
+  "error painted then cleared",
+  "success shown on failure",
+  "extra fetch on failure"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const faults = dropCaptureErrorFaults(applyMutant(app, kind));
+  const hit = faults.indexOf(kind) >= 0;
+  if (!hit) {
+    console.error("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+    process.exitCode = 1;
+  } else {
+    caught++;
+    pass("mutant caught: " + kind + " (" + faults.filter(function (f) { return f === kind; })[0] + ")");
+  }
+});
+if (caught !== mutants.length) {
+  throw new Error("check-drop-desk mutants: " + caught + "/" + mutants.length + " caught");
+}
+console.log("ok  mutants: " + caught + "/" + mutants.length + " caught");
+console.log("check-drop-desk mutants: " + caught + "/" + mutants.length + " caught");
 
 delete require.cache[require.resolve("../api/_lib")];
 const lib = require("../api/_lib");
