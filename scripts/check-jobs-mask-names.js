@@ -93,7 +93,7 @@ async function main() {
     fail("package.json should run this check after the jobs seat check");
   }
   const testLine = JSON.parse(pkg).scripts.test || "";
-  if (!/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js && node scripts\/check-api-machine-values\.js && node scripts\/check-api-machine-values-mutants\.js && node scripts\/check-ready-reload\.js && node scripts\/check-owner-key-only\.js && node scripts\/check-owner-key-only-mutants\.js && node scripts\/check-card-thread-actor\.js && node scripts\/check-card-thread-actor-mutants\.js && node scripts\/check-card-thread\.js && node scripts\/check-sandbox-face\.js && node scripts\/check-sandbox-face-mutants\.js && node scripts\/check-queue-live-sync\.js$/.test(testLine.trim())) {
+  if (!/node scripts\/check-ux-errors\.js && node scripts\/check-aia-tld-mutants\.js && node scripts\/check-api-machine-values\.js && node scripts\/check-api-machine-values-mutants\.js && node scripts\/check-ready-reload\.js && node scripts\/check-owner-key-only\.js && node scripts\/check-owner-key-only-mutants\.js && node scripts\/check-card-thread-actor\.js && node scripts\/check-card-thread-actor-mutants\.js && node scripts\/check-card-thread\.js && node scripts\/check-sandbox-face\.js && node scripts\/check-sandbox-face-mutants\.js && node scripts\/check-queue-live-sync\.js && node scripts\/check-header-cls-early\.js$/.test(testLine.trim())) {
     fail("npm test must keep the same ending as main");
   }
   pass("package.json keeps the old ending and adds this check");
