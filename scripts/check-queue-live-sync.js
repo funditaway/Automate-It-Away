@@ -35,6 +35,7 @@ function makeEl(tag) {
       const next = on === undefined ? !has : !!on;
       if (next) parts.push(name);
       el.className = parts.join(" ");
+      notifyMut(el);
       return next;
     },
     contains(name) { return String(el.className || "").split(/\s+/).indexOf(name) >= 0; },
@@ -43,7 +44,7 @@ function makeEl(tag) {
   };
   el.setAttribute = (k, v) => { el.attrs[k] = String(v); if (k === "class") el.className = String(v); };
   el.getAttribute = (k) => (Object.prototype.hasOwnProperty.call(el.attrs, k) ? el.attrs[k] : null);
-  el.appendChild = (c) => { if (c.parentNode && c.parentNode.removeChild) c.parentNode.removeChild(c); c.parentNode = el; el.children.push(c); return c; };
+  el.appendChild = (c) => { if (c.parentNode && c.parentNode.removeChild) c.parentNode.removeChild(c); c.parentNode = el; el.children.push(c); notifyMut(el); return c; };
   el.insertBefore = (c, ref) => {
     if (c.parentNode && c.parentNode.children) {
       const j = c.parentNode.children.indexOf(c);
@@ -52,12 +53,14 @@ function makeEl(tag) {
     c.parentNode = el;
     const i = ref ? el.children.indexOf(ref) : -1;
     if (i < 0) el.children.push(c); else el.children.splice(i, 0, c);
+    notifyMut(el);
     return c;
   };
   el.removeChild = (c) => {
     const i = el.children.indexOf(c);
     if (i >= 0) el.children.splice(i, 1);
     if (c) c.parentNode = null;
+    notifyMut(el);
     return c;
   };
   el.replaceChildren = (...nodes) => { el.children.splice(0, el.children.length); nodes.forEach((n) => el.appendChild(n)); };
@@ -65,7 +68,7 @@ function makeEl(tag) {
   Object.defineProperty(el, "nextSibling", { get: () => { if (!el.parentNode) return null; const i = el.parentNode.children.indexOf(el); return i >= 0 ? el.parentNode.children[i + 1] || null : null; } });
   Object.defineProperty(el, "textContent", {
     get: () => (el.children.length ? el.children.map((c) => c.textContent || "").join(" ") : el.text),
-    set: (v) => { el.text = v == null ? "" : String(v); el.children.splice(0, el.children.length); }
+    set: (v) => { el.text = v == null ? "" : String(v); el.children.splice(0, el.children.length); notifyMut(el); }
   });
   el.closest = (sel) => {
     const m = String(sel).match(/^\[([a-z-]+)\]$/);
@@ -83,6 +86,17 @@ function makeEl(tag) {
   return el;
 }
 const FOCUS = { at: null };
+let moList = [];
+function notifyMut(el) {
+  let n = el;
+  let inCards = false;
+  while (n) {
+    if (n.id === "queue-all-cards") { inCards = true; break; }
+    n = n.parentNode;
+  }
+  if (inCards && el.ownerDocument && typeof el.ownerDocument._bumpScroll === "function") el.ownerDocument._bumpScroll();
+  moList.forEach((o) => { if (o._el === el) { try { o._fn(); } catch (e) {} } });
+}
 function walk(el, fn) { if (!el || !el.tagName) return; fn(el); (el.children || []).forEach((c) => walk(c, fn)); }
 function makeDocument() {
   const documentElement = makeEl("html"), head = makeEl("head"), body = makeEl("body"), main = makeEl("main"), h1 = makeEl("h1");
@@ -120,6 +134,9 @@ function makeDocument() {
   };
   function own(el) { el.ownerDocument = document; (el.children || []).forEach(own); }
   own(documentElement); own(sheet);
+  const rawCreate = document.createElement;
+  document.createElement = function (tag) { const el = makeEl(tag); own(el); return el; };
+  void rawCreate;
   return document;
 }
 function memStore(seed) {
@@ -131,6 +148,7 @@ async function settle(n) { for (let i = 0; i < (n || 40); i++) await tick(); }
 
 function startPage(src, spec) {
   FOCUS.at = null;
+  moList = [];
   const calls = [];
   const timers = [];
   let tid = 0;
@@ -139,12 +157,19 @@ function startPage(src, spec) {
   const local = memStore(spec.signedOut ? {} : { aia_session: "sess-test", aia_ws: "north" });
   const location = { href: "http://127.0.0.1/desk.html", pathname: "/desk.html", search: "", hash: "" };
   const scroll = { x: 12, y: 40 };
-  function MutationObserver() {}
-  MutationObserver.prototype.observe = function () {};
-  function answer(key, init) {
+  function MutationObserver(fn) { this._fn = fn; this._el = null; }
+  MutationObserver.prototype.observe = function (el) { this._el = el; moList.push(this); };
+  MutationObserver.prototype.disconnect = function () { const i = moList.indexOf(this); if (i >= 0) moList.splice(i, 1); };
+  function answer(key, init, rawUrl) {
     let res = spec.routes[key];
     if (typeof res === "function") res = res();
-    calls.push({ key: key, url: key, t: Date.now() });
+    calls.push({
+      key: key,
+      url: rawUrl || key,
+      method: String((init && init.method) || "GET").toUpperCase(),
+      body: init && init.body ? String(init.body) : "",
+      t: Date.now()
+    });
     const signal = init && init.signal;
     return new Promise((resolve, reject) => {
       const abortErr = () => { const e = new Error("The operation was aborted."); e.name = "AbortError"; reject(e); };
@@ -168,16 +193,21 @@ function startPage(src, spec) {
     scrollTo(x, y) { if (x && typeof x === "object") { scroll.x = x.x; scroll.y = x.y; } else { scroll.x = x; scroll.y = y; } sandbox.scrollX = scroll.x; sandbox.scrollY = scroll.y; },
     fetch(url, init) {
       const u = String(url);
-      if (u.indexOf("/api/desks") >= 0) return answer("mine", init);
-      if (u.indexOf("/api/jobs?desks=all") >= 0) return answer("all", init);
+      if (u.indexOf("/api/desks") >= 0) return answer("mine", init, u);
+      if (u.indexOf("/api/jobs?desks=all") >= 0) return answer("all", init, u);
       const wm = u.match(/\/api\/jobs\?workspace=([^&]+)/);
-      if (wm) return answer(decodeURIComponent(wm[1]), init);
-      return answer("other", init);
+      if (wm) return answer(decodeURIComponent(wm[1]), init, u);
+      return answer("other", init, u);
     },
     addEventListener(ev, fn) { (sandbox._winListeners = sandbox._winListeners || {}); (sandbox._winListeners[ev] = sandbox._winListeners[ev] || []).push(fn); },
     AIADesks: { slugify: (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40), add() {}, list: () => [], open() {} }
   };
   sandbox.window = sandbox;
+  document._bumpScroll = function () {
+    scroll.y = (scroll.y || 0) + 17;
+    sandbox.scrollY = scroll.y;
+    sandbox.pageYOffset = scroll.y;
+  };
   vm.createContext(sandbox);
   vm.runInContext(src, sandbox, { filename: "queue-login.js", timeout: 2000 });
   (document.listeners.DOMContentLoaded || []).forEach((fn) => { Promise.resolve().then(fn).catch((e) => { sandbox._bootError = (e && (e.stack || e.message || e)); }); });
@@ -206,11 +236,32 @@ function startPage(src, spec) {
     stop: () => document.getElementById("q-stop-fixture"),
     kill: () => document.getElementById("q-kill-fixture"),
     sheet: () => document.getElementById("sheet"),
-    talk: () => document.getElementById("talk")
+    talk: () => document.getElementById("talk"),
+    clickDoc() { (document.listeners.click || []).forEach((fn) => fn({ target: document.body })); }
   };
 }
 
 function keysOf(calls) { return calls.map((c) => c.key).join(","); }
+
+function allowedLiveCall(c) {
+  const u = String(c.url || "");
+  const method = String(c.method || "GET").toUpperCase();
+  const path = u.split("?")[0].replace(/\/$/, "");
+  if (path === "/api/desks" || /\/api\/desks$/.test(path)) {
+    if (method !== "POST") return false;
+    try {
+      const body = c.body ? JSON.parse(c.body) : {};
+      return body && body.action === "mine";
+    } catch (e) { return false; }
+  }
+  if (u.indexOf("/api/jobs?desks=all") >= 0) return method === "GET";
+  if (u.indexOf("/api/jobs?workspace=") >= 0) return method === "GET";
+  return false;
+}
+
+function liveCallFaults(calls) {
+  return calls.filter((c) => !allowedLiveCall(c)).map((c) => (c.method || "GET") + " " + c.url);
+}
 
 async function suite(src, okFn) {
   const bad = [];
@@ -239,6 +290,7 @@ async function suite(src, okFn) {
     if (!p.liveTimers().length) b("hidden: no idle timer after a good load");
     const idleFns = p.timers.filter((t) => t.ms >= 15000).map((t) => t.fn);
     p.hide();
+    if (p.liveTimers().length) b("hidden: a live timer was still pending after hide (" + p.liveTimers().map((t) => t.ms).join(",") + ")");
     idleFns.forEach((fn) => { try { fn(); } catch (e) {} });
     await settle();
     if (p.calls.length !== afterLoad) b("hidden: a refresh fetched while the tab was hidden (calls " + keysOf(p.calls.slice(afterLoad)) + ")");
@@ -252,6 +304,26 @@ async function suite(src, okFn) {
     if (ms.some((n) => n < 15000)) b("interval: idle timer was " + ms.join(",") + ", must be >= 15000");
   });
 
+  await run("live tick uses only the allowed reads", async () => {
+    const p = startPage(src, { routes: { mine: MINE, all: ok200([job(NORTH)]), north: ok200([job(NORTH)]), south: ok200([]) } });
+    await settle();
+    const before = p.calls.length;
+    p.fireIdle(); await settle();
+    const tick = p.calls.slice(before);
+    if (!tick.length) { b("allowed: live tick made no reads"); return; }
+    const badCalls = liveCallFaults(tick);
+    if (badCalls.length) b("allowed: live tick made a disallowed read (" + badCalls.join("; ") + ")");
+    const mines = tick.filter((c) => c.key === "mine");
+    if (!mines.length) b("allowed: live tick must POST /api/desks action mine");
+    mines.forEach((c) => {
+      if (c.method !== "POST") b("allowed: /api/desks must be POST, got " + c.method);
+      try { if (!c.body || JSON.parse(c.body).action !== "mine") b("allowed: /api/desks body must be action mine"); } catch (e) { b("allowed: /api/desks body was not JSON"); }
+    });
+    tick.filter((c) => String(c.url).indexOf("/api/jobs") >= 0).forEach((c) => {
+      if (c.method !== "GET") b("allowed: jobs read must be GET, got " + c.method + " " + c.url);
+    });
+  });
+
   await run("backoff grows on error", async () => {
     const fail = "network";
     const state = { all: ok200([job(NORTH)]), north: ok200([job(NORTH)]), south: ok200([]) };
@@ -259,18 +331,23 @@ async function suite(src, okFn) {
     await settle();
     const first = p.liveTimers().map((t) => t.ms);
     if (!first.length) { b("backoff: no first idle timer"); return; }
+    if (first[0] !== 15000) b("backoff: first idle wait must be exactly 15000, got " + first.join(","));
+    const delays = [];
     state.all = fail; state.north = fail; state.south = fail;
-    p.fireIdle(); await settle();
-    const second = p.liveTimers().map((t) => t.ms);
-    if (!second.length) { b("backoff: no timer after an error"); return; }
+    for (let i = 0; i < 5; i++) {
+      if (!p.fireIdle()) { b("backoff: no timer before error " + (i + 1)); return; }
+      await settle();
+      const ms = p.liveTimers().map((t) => t.ms);
+      if (!ms.length) { b("backoff: no timer after error " + (i + 1)); return; }
+      delays.push(ms[0]);
+    }
+    const want = [15000, 30000, 60000, 120000, 120000];
+    if (delays.join(",") !== want.join(",")) b("backoff: delays after 5 errors must be 15/30/60/120/120s, got " + delays.map((n) => n / 1000).join("/") + "s");
     if (p.statusText() !== LIVE_FAIL) b("backoff: status should be the retry line, got " + JSON.stringify(p.statusText()));
-    if (Math.min.apply(null, second) < 15000) b("backoff: after an error the wait was " + second.join(",") + " (must stay >= 15000)");
-    state.all = fail; state.north = fail; state.south = fail;
+    state.all = ok200([job(NORTH)]); state.north = ok200([job(NORTH)]); state.south = ok200([]);
     p.fireIdle(); await settle();
-    const third = p.liveTimers().map((t) => t.ms);
-    if (!third.length) b("backoff: no timer after the second error");
-    else if (Math.max.apply(null, third) <= 15000) b("backoff: the wait did not grow on the second error (got " + third.join(",") + " after " + second.join(",") + ")");
-    if (third.some((n) => n > 120000)) b("backoff: wait passed the cap (" + third.join(",") + ")");
+    const afterOk = p.liveTimers().map((t) => t.ms);
+    if (!afterOk.length || afterOk[0] !== 15000) b("backoff: after a success the wait must reset to 15000, got " + afterOk.join(","));
   });
 
   await run("focus triggers one refresh", async () => {
@@ -335,9 +412,11 @@ async function suite(src, okFn) {
     if (/Should not appear yet/.test(p.text())) b("clobber: an open sheet still let the card repaint");
     if (p.articles()[0] !== node) b("clobber: the open-sheet refresh replaced the card node");
     if (p.talk().value !== "A note I was typing") b("clobber: typed Talk text was changed");
+    if (p.statusText() === LIVE_NOW) b("clobber: status said Updated just now over stale cards (" + p.statusText() + ")");
     p.sheet().classList.remove("on");
     p.talk().value = "";
-    p.fireIdle(); await settle();
+    p.clickDoc();
+    await settle();
     if (!/Should not appear yet/.test(p.text())) b("clobber: after the sheet closed the new title never appeared");
   });
 
@@ -388,15 +467,14 @@ async function suite(src, okFn) {
   });
 
   await run("window scroll is kept", async () => {
-    const p = startPage(src, { routes: { mine: MINE, all: ok200([job(NORTH), job(SOUTH)]) } });
+    const state = { jobs: [job(NORTH), job(SOUTH)] };
+    const p = startPage(src, { routes: { mine: MINE, all: () => ok200(state.jobs) } });
     await settle();
-    p.scroll.y = 88; p.sandbox.scrollY = 88;
-    const stateJobs = [job(NORTH, { title: "North moved" }), job(SOUTH)];
-    // mutate via a second boot? use fire after changing routes already closed over.
-    // This page's routes are fixed ok200. Skip live title change; just fire idle with same data.
+    p.scroll.y = 88; p.sandbox.scrollY = 88; p.sandbox.pageYOffset = 88;
+    state.jobs = [job(NORTH, { title: "North moved" }), job(SOUTH)];
     p.fireIdle(); await settle();
-    if (p.sandbox.scrollY !== 88 && p.scroll.y !== 88) b("scroll: window scroll was not restored (y=" + p.scroll.y + "/" + p.sandbox.scrollY + ")");
-    void stateJobs;
+    if (!/North moved/.test(p.text())) b("scroll: the merge did not update the card (" + p.text().trim().slice(0, 80) + ")");
+    if (p.sandbox.scrollY !== 88 || p.scroll.y !== 88) b("scroll: window scroll was not restored (y=" + p.scroll.y + "/" + p.sandbox.scrollY + ")");
   });
 
   return bad;
@@ -424,8 +502,16 @@ const MUTANTS = [
     ["var LIVE_OK = \"Up to date\";", "var LIVE_OK = \"Sync complete\";"],
     ["var LIVE_NOW = \"Updated just now\";", "var LIVE_NOW = \"Poll finished\";"]
   ]],
-  ["Yes/Stop/Kill labels changed", [["writeScroll(pos);\n  }", "writeScroll(pos);\n    var y = document.getElementById(\"q-yes-fixture\"); if (y) y.textContent = \"Ok\";\n    var s = document.getElementById(\"q-stop-fixture\"); if (s) s.textContent = \"Halt\";\n    var k = document.getElementById(\"q-kill-fixture\"); if (k) k.textContent = \"End\";\n  }"]]],
+  ["Yes/Stop/Kill labels changed", [["writeScroll(pos);\n    return true;\n  }", "writeScroll(pos);\n    var y = document.getElementById(\"q-yes-fixture\"); if (y) y.textContent = \"Ok\";\n    var s = document.getElementById(\"q-stop-fixture\"); if (s) s.textContent = \"Halt\";\n    var k = document.getElementById(\"q-kill-fixture\"); if (k) k.textContent = \"End\";\n    return true;\n  }"]]],
+  ["live tick also reads /api/health", [["if (live && signedIn()) {\n      var listed = await loadMine();", "if (live && signedIn()) {\n      try { await fetch(\"/api/health\"); } catch (e) {}\n      var listed = await loadMine();"]]],
+  ["all-desks read uses POST", [["var r = await fetch(\"/api/jobs?desks=all\", {\n        headers: { \"Accept\": \"application/json\", \"X-Session\": tok },", "var r = await fetch(\"/api/jobs?desks=all\", {\n        method: \"POST\",\n        headers: { \"Accept\": \"application/json\", \"X-Session\": tok },"]]],
+  ["backoff cap is 20s", [["var LIVE_BACKOFF_MAX_MS = 120000;", "var LIVE_BACKOFF_MAX_MS = 20000;"]]],
+  ["hide does not clear the live timer", [["if (typeof document !== \"undefined\" && document.hidden) { stopLiveTimer(); return; }\n      if (typeof setTimeout !== \"function\") { kickLiveNow(); return; }", "if (typeof document !== \"undefined\" && document.hidden) { return; }\n      if (typeof setTimeout !== \"function\") { kickLiveNow(); return; }"]]],
+  ["scroll is not restored after merge", [["writeScroll(pos);", "/* writeScroll omitted */"]]],
+  ["busy skip still says Updated just now", [["if (painted) setLiveStatus(liveArmed ? LIVE_NOW : LIVE_OK);\n        else setLiveStatus(LIVE_OK);", "setLiveStatus(liveArmed ? LIVE_NOW : LIVE_OK);"]]],
+  ["busy skip is not retried when the sheet closes", [["if (livePaintWaiting) retryLivePaint();", "/* no retry */"]]],
 ];
+
 
 function mutate(src, reps) {
   let s = src;

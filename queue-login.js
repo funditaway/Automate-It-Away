@@ -479,6 +479,7 @@
     }
     if (document && document.addEventListener) document.addEventListener("visibilitychange", onHideOrShow);
     if (window && typeof window.addEventListener === "function") window.addEventListener("focus", onHideOrShow);
+    watchBusyRelease();
   }
 
   function kickLiveNow() {
@@ -511,7 +512,7 @@
       kids.push(rawKids[i]);
       if (rawKids[i] && (rawKids[i].className === "item" || (rawKids[i].classList && rawKids[i].classList.contains("item")))) hasItem = true;
     }
-    if (!open.length || !hasItem) { paintCards(rows); return; }
+    if (!open.length || !hasItem) { paintCards(rows); return true; }
     var pos = readScroll();
     var byKey = {};
     for (var k = 0; k < kids.length; k++) {
@@ -543,6 +544,27 @@
       }
     }
     writeScroll(pos);
+    return true;
+  }
+
+  function retryLivePaint() {
+    if (!livePaintWaiting || queueBusy()) return;
+    if (mergeCards(visibleCards())) setLiveStatus(LIVE_NOW);
+  }
+
+  function watchBusyRelease() {
+    if (watchBusyRelease.bound) return;
+    watchBusyRelease.bound = true;
+    function maybe() { if (livePaintWaiting) retryLivePaint(); }
+    if (document && document.addEventListener) {
+      document.addEventListener("click", maybe);
+      document.addEventListener("focusout", maybe);
+      document.addEventListener("input", maybe);
+    }
+    var sheet = document.getElementById("sheet");
+    if (sheet && typeof MutationObserver === "function") {
+      try { new MutationObserver(maybe).observe(sheet, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
+    }
   }
 
   function paintCards(rows) {
@@ -742,12 +764,13 @@
       if (!visibleCards().filter(openCard).length) paintCards(visibleCards());
     }
     try {
-    function finishLive(ok) {
+    function finishLive(ok, painted) {
       liveInFlight = false;
       if (gen !== loadGen) return;
       if (ok) {
         liveBackoff = LIVE_IDLE_MS;
-        setLiveStatus(liveArmed ? LIVE_NOW : LIVE_OK);
+        if (painted) setLiveStatus(liveArmed ? LIVE_NOW : LIVE_OK);
+        else setLiveStatus(LIVE_OK);
         liveArmed = true;
         bindLiveWatch();
         armLiveTimer(LIVE_IDLE_MS);
@@ -793,8 +816,8 @@
     if (live) {
       if (me.failed) { finishLive(false); return; }
       cards = next;
-      mergeCards(visibleCards());
-      finishLive(true);
+      var painted = mergeCards(visibleCards());
+      finishLive(true, painted);
       return true;
     }
     cards = next;
