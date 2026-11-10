@@ -126,6 +126,22 @@ async function main() {
     pin: lib.hashPin("9292"),
     status: "approved"
   });
+  shop.people.push({
+    id: "p_dana_mask",
+    name: "Dana",
+    role: "employee",
+    kind: "friend",
+    pin: lib.hashPin("9393"),
+    status: "approved"
+  });
+  shop.people.push({
+    id: "p_lee_mask",
+    name: "Lee",
+    role: "employee",
+    kind: "friend",
+    pin: lib.hashPin("9494"),
+    status: "approved"
+  });
   const stored = {
     id: "job_masknames",
     workspace: slug,
@@ -139,7 +155,8 @@ async function main() {
     doneBy: "Nia Quill",
     sentByAgent: "Riley Moss",
     priorityBy: "Nia Quill",
-    next: "Waiting on Riley Moss.",
+    next: "Waiting on Riley Moss. Dana told Lee.",
+    needs: [{ id: "o11", label: "Waiting on Riley Moss" }],
     notes: "Left the lamp.",
     draft: "Draft for the porch lamp. Nothing sent.",
     handedTo: { id: "p_family_mask", name: "Ada Family", kind: "family", role: "employee" },
@@ -218,11 +235,27 @@ async function main() {
   if (helperCard.draft !== "Draft for the porch lamp. Nothing sent.") fail("helper lost the draft text");
   if (helperCard.title !== "Porch lamp") fail("helper lost the title");
   if (!helper.body.you || helper.body.you.name !== "Sam Phelps") fail("helper should still see their own seat on you");
+  if (JSON.stringify(helper.body.you).indexOf("Nia Quill") >= 0 || JSON.stringify(helper.body.you).indexOf("Ada Family") >= 0) {
+    fail("helper you.name is another person's name");
+  }
   const helperPeople = helper.body.people || [];
   if (!helperPeople.length) fail("helper should still get the seat list");
-  if (!helperPeople.some(function (p) { return p && p.name === "Nia Quill" && p.role === "owner"; })) fail("helper seat list should keep name and role");
-  if (!helperPeople.some(function (p) { return p && p.kind === "helper" && p.role === "employee" && p.name === "Sam Phelps"; })) fail("helper seat list lost the helper kind");
-  if (!helperPeople.some(function (p) { return p && p.kind === "family" && p.name === "Ada Family"; })) fail("helper seat list lost the family kind");
+  const helperSelf = helperPeople.find(function (p) { return p && p.id === "p_helper_mask"; });
+  if (!helperSelf || helperSelf.name !== "Sam Phelps" || helperSelf.kind !== "helper" || helperSelf.role !== "employee") {
+    fail("helper seat list lost their own name");
+  }
+  const helperOwner = helperPeople.find(function (p) { return p && p.role === "owner"; });
+  if (!helperOwner || helperOwner.name) fail("helper seat list should keep the owner role and hide the name");
+  const helperFamily = helperPeople.find(function (p) { return p && p.kind === "family"; });
+  if (!helperFamily || helperFamily.name || helperFamily.role !== "employee") fail("helper seat list should keep the family kind and hide the name");
+  ["p_dana_mask", "p_lee_mask"].forEach(function (id) {
+    const row = helperPeople.find(function (p) { return p && p.id === id; });
+    if (!row || row.name || row.kind !== "friend") fail("helper seat list should hide " + id + " and keep the kind");
+  });
+  const helperNeed = (helperCard.needs || []).find(function (a) { return a && a.id === "o11"; });
+  if (!helperNeed || String(helperNeed.label || "").indexOf("Riley Moss") >= 0) fail("helper still sees the name in the needs label");
+  const helperTwo = String(helperCard.next || "") + "\n" + String(helperCard.needLine || "");
+  if (helperTwo.indexOf("Dana") >= 0 || helperTwo.indexOf("Lee") >= 0) fail("helper still sees a name in the two-name field");
   pass("helper GET hides names and keeps kind tags");
 
   if (family.statusCode !== 200) fail("family GET " + family.statusCode);
@@ -231,6 +264,17 @@ async function main() {
   assertMasked(family.body, "family");
   if (familyCard.thread[0].actorKind !== "human" || familyCard.thread[0].actorLabel !== "You" || familyCard.thread[0].from !== "You") fail("family lost actorKind or the redacted label");
   if (!family.body.you || family.body.you.name !== "Ada Family" || family.body.you.kind !== "family") fail("family should still see their own seat on you");
+  if (JSON.stringify(family.body.you).indexOf("Nia Quill") >= 0 || JSON.stringify(family.body.you).indexOf("Sam Phelps") >= 0) {
+    fail("family you.name is another person's name");
+  }
+  const familyPeople = family.body.people || [];
+  const familySelf = familyPeople.find(function (p) { return p && p.id === "p_family_mask"; });
+  if (!familySelf || familySelf.name !== "Ada Family") fail("family seat list lost their own name");
+  if (familyPeople.some(function (p) { return p && p.id !== "p_family_mask" && p.name; })) fail("family seat list still shows another name");
+  const familyNeed = (familyCard.needs || []).find(function (a) { return a && a.id === "o11"; });
+  if (!familyNeed || String(familyNeed.label || "").indexOf("Riley Moss") >= 0) fail("family still sees the name in the needs label");
+  const familyTwo = String(familyCard.next || "") + "\n" + String(familyCard.needLine || "");
+  if (familyTwo.indexOf("Dana") >= 0 || familyTwo.indexOf("Lee") >= 0) fail("family still sees a name in the two-name field");
   pass("family GET hides names and keeps kind tags");
 
   if (owner.statusCode !== 200) fail("owner GET " + owner.statusCode);
@@ -244,6 +288,9 @@ async function main() {
   }
   if (ownerCard.handedTo.name !== "Ada Family") fail("owner lost the handed-to name");
   if (String(ownerCard.next || ownerCard.needLine || "").indexOf("Riley Moss") < 0) fail("owner lost the name on the next line");
+  if (String(ownerCard.next || "").indexOf("Dana") < 0 || String(ownerCard.next || "").indexOf("Lee") < 0) fail("owner lost a name in the two-name field");
+  const ownerNeed = (ownerCard.needs || []).find(function (a) { return a && a.id === "o11"; });
+  if (!ownerNeed || String(ownerNeed.label || "").indexOf("Riley Moss") < 0) fail("owner lost the name in the needs label");
   const ownerPeople = owner.body.people || [];
   ["Nia Quill", "Sam Phelps", "Ada Family"].forEach(function (name) {
     if (!ownerPeople.some(function (p) { return p && p.name === name; })) fail("owner seat list lost " + name);
@@ -279,6 +326,24 @@ async function main() {
     fail("helper say did not store the seat name on the row");
   }
   pass("helper say echoes a masked card and leaves the stored row named");
+
+  const helperPerson = shop.people.find(function (p) { return p && p.id === "p_helper_mask"; });
+  const forged = require(path.join(root, "api/_job-mask")).maskJobsResponse({
+    you: { name: "Nia Quill", role: "employee", kind: "helper" },
+    people: [
+      { id: "p_owner_mask", name: "Nia Quill", role: "owner", kind: "owner" },
+      { id: "p_helper_mask", name: "Sam Phelps", role: "employee", kind: "helper" },
+      { id: "p_family_mask", name: "Ada Family", role: "employee", kind: "family" }
+    ]
+  }, helperPerson, shop.people);
+  if (!forged || !forged.you || forged.you.name !== "Sam Phelps") fail("you.name must be only the caller's own name");
+  if (String(forged.you.name).indexOf("Nia") >= 0) fail("you.name kept another person's name");
+  const forgedSelf = (forged.people || []).find(function (p) { return p && p.id === "p_helper_mask"; });
+  if (!forgedSelf || forgedSelf.name !== "Sam Phelps") fail("people list dropped the caller's own name");
+  if ((forged.people || []).some(function (p) { return p && p.id !== "p_helper_mask" && p.name; })) {
+    fail("people list restored another person's name");
+  }
+  pass("non-owner people list and you.name keep only the caller");
 
   try { fs.rmSync(store, { force: true }); } catch (e) {}
   console.log("check-jobs-mask-names: ok");

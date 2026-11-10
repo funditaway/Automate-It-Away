@@ -49,14 +49,14 @@ const PIN = {
   "api/_desks-http.js": "54d36ae4eb8842b75f1847bc72fa5c2b8c514adb",
   "api/_grok.js": "9bfc353d37edf476dd6145965c569dccd6e4a141",
   "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
-  "api/_job-mask.js": "11263d1d5397e29bda390e78a12b443a7789284e",
+  "api/_job-mask.js": "f7c78e53e42e4b94eb41fa01fcab27be3fceb97e",
   "api/_lib.js": "1eed18d8529134a94ad1a1eae02bbf28272e1dd2",
   "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
   "api/connections.js": "49d0f57a7398c2a45df38b8bc08677e2b8679f3f",
   "api/health.js": "9eca4577a952dd38e2f5295a42370fe9dca03fc7",
   "api/hook.js": "df27aad7e56930f9eefcdf706f3f58c7fa5c1756",
-  "api/jobs.js": "cda9f262d00b5119126a378d96d78e78f2d754b8",
+  "api/jobs.js": "afe21eea238e8fbe537a9d9f4a401115a6678100",
   "api/migrate-uploads.js": "a9a47cd366c5b5cf8afcb934c027f1dfe1edf3dc"
 };
 
