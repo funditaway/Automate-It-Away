@@ -299,22 +299,28 @@ must(moreHtml, 'data-aia-tip="more-history"', "more History tip");
 must(moreHtml, 'data-aia-tip="more-find"', "more Find tip");
 must(moreHtml, 'id="more-q"', "more Find input");
 must(moreHtml, "data-more-item", "more filterable items");
-must(moreHtml, "Tap <b>?</b> for more detail", "more invites tips");
+must(moreHtml, "Tap the round <b>i</b> button next to anything for more detail", "more invites tips");
 mustNot(moreHtml, "not a model demo", "more face hides queue jargon");
 must(tip, '"more-queue"', "more-queue tip");
 must(tip, '"more-account"', "more-account tip");
 must(tip, '"more-history"', "more-history tip");
 must(tip, '"more-find"', "more-find tip");
-must(tip, "Cap on this desk can Reply", "more-queue Cap Reply");
-must(tip, "owner picker holds the same gone bind", "more-queue gone bind picker");
-must(tip, "Copy story copies that same trail", "more-history Copy story");
-must(tip, "not anonymous desk AI", "more-queue not anonymous");
+must(tip, "Talk, Yes, or Stop", "more-queue Talk Yes or Stop");
+must(tip, "You can Reply on this desk", "more-queue Reply on this desk");
+must(tip, "If a named desk AI is not on this desk, the card says so", "more-queue named desk AI honesty");
+must(tip, "Nothing sends from here", "more-queue nothing sends");
+must(tip, "You can read the back-and-forth on the card", "more-history back-and-forth");
+must(tip, "Give is the file", "more-history Give is the file");
+must(tip, "Update is install again", "more-history Update is install again");
 must(tip, "Yes puts a card on the queue. Open this card.", "more-create Open this card");
 must(moreHtml, "Yes puts a card on the queue. Open this card.", "more Create face Open this card");
 must(yesNo, "Create → Queue handoff leftover after that pass", "ACCOUNT-YES-NO names Create → Queue handoff leftover");
 must(packMd, "Create → Queue handoff leftover:", "PACK.md names Create → Queue handoff leftover");
 must(moreHtml, "A Desk AI can't draft on this phone yet.", "more drafts-off Desk AI voice");
-must(tip, "Orange means wait — HOLD. Not Collect.", "more-status no P1");
+must(tip, "Orange means wait.", "more-status orange means wait");
+must(moreHtml, "Orange means wait.", "more Status tile orange means wait");
+must(tip, "Install pack with Yes", "more-packs install with Yes");
+must(tip, "AIA does not charge or collect money yet", "tip payments off still");
 if (moreHtml.indexOf("not P1") >= 0 || moreHtml.indexOf("draft key") >= 0 || moreHtml.indexOf("XAI_API_KEY") >= 0) {
   throw new Error("more.html still names P1 / draft key / XAI_API_KEY");
 }
@@ -329,5 +335,99 @@ if (tip.indexOf("until the key is set") >= 0) {
 }
 must(yesNo, "Counter Desk AI voice leftover after that pass", "ACCOUNT-YES-NO names Counter Desk AI voice leftover");
 must(packMd, "Counter Desk AI voice leftover:", "PACK.md names Counter Desk AI voice leftover");
+
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+function tipBody(src, id) {
+  const key = '"' + id + '"';
+  const start = src.indexOf(key);
+  if (start < 0) return "";
+  const next = src.slice(start + key.length).search(/\n\s+"[a-z0-9-]+": \{/);
+  return src.slice(start, next >= 0 ? start + key.length + next : start + 800);
+}
+function buildFaults(files) {
+  const bad = [];
+  if (files.more.indexOf("Tap the round <b>i</b> button next to anything for more detail") < 0 || files.more.indexOf("data-aia-tip") < 0 || files.more.indexOf("aia-tip.js") < 0) {
+    bad.push("More tip invite gone");
+  }
+  const queue = tipBody(files.tip, "more-queue");
+  if (!queue || queue.indexOf("Talk, Yes, or Stop") < 0 || queue.indexOf("You can Reply on this desk") < 0 || queue.indexOf("If a named desk AI is not on this desk, the card says so") < 0 || queue.indexOf("Nothing sends from here") < 0) {
+    bad.push("more-queue Yes/Stop honesty gone");
+  }
+  const history = tipBody(files.tip, "more-history");
+  if (!history || history.indexOf("Give is the file") < 0 || history.indexOf("Update is install again") < 0 || history.indexOf("Nothing sends from here") < 0) {
+    bad.push("more-history Give/Update honesty gone");
+  }
+  const status = tipBody(files.tip, "more-status");
+  if (!status || status.indexOf("Orange means wait.") < 0 || files.more.indexOf("Orange means wait.") < 0) {
+    bad.push("more-status orange-means-wait gone");
+  }
+  const packs = tipBody(files.tip, "more-packs");
+  if ((packs && packs.indexOf("Install pack with Yes") < 0) || files.tip.indexOf("AIA does not charge or collect money yet") < 0 || /charged:\s*true/.test(files.tip) || /action:\s*"payout"|action:\s*"withdraw"/.test(files.tip)) {
+    bad.push("install or charge without Yes");
+  }
+  return unique(bad);
+}
+function applyMutant(kind, files) {
+  const next = { tip: files.tip, more: files.more };
+  if (kind === "More tip invite gone") {
+    next.more = next.more
+      .replace(/Tap the round <b>i<\/b> button next to anything for more detail/g, "No tips here.")
+      .replace(/data-aia-tip/g, "data-gone-tip")
+      .replace(/aia-tip\.js/g, "gone-tip.js");
+  } else if (kind === "more-queue Yes/Stop honesty gone") {
+    next.tip = next.tip.replace(
+      "Real cards. Empty stays empty. Talk, Yes, or Stop. You can Reply on this desk. If a named desk AI is not on this desk, the card says so. Nothing sends from here.",
+      "The queue sends on its own."
+    );
+  } else if (kind === "more-history Give/Update honesty gone") {
+    next.tip = next.tip.replace(
+      "You can read the back-and-forth on the card. Give is the file. Update is install again. Nothing sends from here.",
+      "History installs packs by itself."
+    );
+  } else if (kind === "more-status orange-means-wait gone") {
+    next.tip = next.tip.replace(/Orange means wait\./g, "Orange means Collect is live.");
+    next.more = next.more.replace(/Orange means wait\./g, "Orange means Collect is live.");
+  } else if (kind === "install or charge without Yes") {
+    next.tip = next.tip
+      .replace(/Install pack with Yes/g, "Install pack on its own")
+      .replace(/AIA does not charge or collect money yet/g, "AIA charges now")
+      + "\ncharged: true\n{ action: \"payout\" }";
+  }
+  return next;
+}
+
+let failed = 0;
+function fail(msg) { failed += 1; console.error("FAIL " + msg); }
+function pass(msg) { console.log("ok  " + msg); }
+
+const files = { tip: tip, more: moreHtml };
+const live = buildFaults(files);
+if (live.length) fail("aia tip behaviour drifted: " + live.join("; "));
+else pass("More tips, Yes/Stop honesty, Give/Update, Status wait, and no silent install/charge still hold");
+
+const mutants = [
+  "More tip invite gone",
+  "more-queue Yes/Stop honesty gone",
+  "more-history Give/Update honesty gone",
+  "more-status orange-means-wait gone",
+  "install or charge without Yes"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const faults = buildFaults(applyMutant(kind, files));
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
+if (failed) {
+  console.error("check-aia-tip failed");
+  process.exit(1);
+}
 
 console.log("check-aia-tip: ok");
