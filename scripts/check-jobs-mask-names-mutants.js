@@ -9,6 +9,9 @@ require("./_env-guard");
 //   O11 maskNeeds is a no-op, so a needs-action label keeps the name
 //   O7 replaceNames keeps only the longest name
 //   O3 maskJobsResponse restores other people's names on you and the seat list
+//   ICS the ics path sends the raw calendar and skips the mask
+//   EM email is dropped from the non-owner blank list
+//   C5 replaceNames drops the case-insensitive flag
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -38,8 +41,25 @@ const MUTANTS = [
   ["O3", "restores other people's names", [
     ["  if (hadYou) copy.you = maskYouBlock(body.you, person);\n  if (hadPeople) copy.people = maskSeatList(body.people, person);",
       "  if (hadYou) copy.you = body.you;\n  if (hadPeople) copy.people = body.people;"]
+  ]],
+  ["ICS", "removes the mask on the ics path", "api/jobs.js", [
+    ["return res.status(200).send(calendarFor(job, person, shop && shop.people));",
+      "return res.status(200).send(icsOf(job));"]
+  ]],
+  ["EM", "drops email from the blank list", "api/_job-mask.js", [
+    ["  who: 1,\n  email: 1\n};", "  who: 1\n};"]
+  ]],
+  ["C5", "drops the case-insensitive flag", "api/_job-mask.js", [
+    ["\"gi\"", "\"g\""]
   ]]
 ];
+
+function fileOf(row) {
+  return typeof row[2] === "string" ? row[2] : FILE;
+}
+function repsOf(row) {
+  return typeof row[2] === "string" ? row[3] : row[2];
+}
 
 function run(dir, home) {
   const p = spawnSync(process.execPath, ["scripts/check-jobs-mask-names.js"], {
@@ -60,8 +80,11 @@ function main() {
   const home = path.join(tmp, "home");
   fs.mkdirSync(home);
   fs.cpSync(root, dir, { recursive: true, filter: function (src) { return !/[\\/](\.git|node_modules)$/.test(src); } });
-  const filePath = path.join(dir, FILE);
-  const orig = fs.readFileSync(filePath, "utf8");
+  const orig = {};
+  function textOf(rel) {
+    if (!Object.prototype.hasOwnProperty.call(orig, rel)) orig[rel] = fs.readFileSync(path.join(dir, rel), "utf8");
+    return orig[rel];
+  }
   let bad = 0;
   let caught = 0;
   let total = 0;
@@ -72,10 +95,12 @@ function main() {
     MUTANTS.forEach(function (row) {
       const id = row[0];
       const desc = row[1];
-      const reps = row[2];
+      const rel = fileOf(row);
+      const reps = repsOf(row);
       if (only && id.indexOf(only) < 0 && desc.indexOf(only) < 0) return;
       total += 1;
-      let text = orig;
+      let text = textOf(rel);
+      const start = text;
       for (let i = 0; i < reps.length; i++) {
         const find = reps[i][0];
         const repl = reps[i][1];
@@ -88,14 +113,14 @@ function main() {
         text = text.replace(find, repl);
       }
       if (text == null) return;
-      if (text === orig) {
+      if (text === start) {
         bad += 1;
         console.log(id + " | NOOP | changed nothing");
         return;
       }
-      fs.writeFileSync(filePath, text);
+      fs.writeFileSync(path.join(dir, rel), text);
       const result = run(dir, home);
-      fs.writeFileSync(filePath, orig);
+      fs.writeFileSync(path.join(dir, rel), start);
       if (result.code !== 0) {
         caught += 1;
         console.log(id + " | CAUGHT | " + result.first);
@@ -105,7 +130,9 @@ function main() {
       }
     });
   } finally {
-    try { fs.writeFileSync(filePath, orig); } catch (e) {}
+    Object.keys(orig).forEach(function (rel) {
+      try { fs.writeFileSync(path.join(dir, rel), orig[rel]); } catch (e) {}
+    });
     fs.rmSync(tmp, { recursive: true, force: true });
   }
   console.log("SCORE " + caught + "/" + total + " caught");

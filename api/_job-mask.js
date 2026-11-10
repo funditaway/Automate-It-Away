@@ -14,7 +14,8 @@ const BLANK = {
   doneBy: 1,
   sentByAgent: 1,
   priorityBy: 1,
-  who: 1
+  who: 1,
+  email: 1
 };
 const SKIP = {
   actorLabel: 1,
