@@ -52,17 +52,78 @@ if (!grokSrc.includes("bots[]")) fail("Studio SYSTEM must keep bots[] alias");
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "desk-needs.js")], { encoding: "utf8" });
 if (syntax.status !== 0) fail("desk-needs.js must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
 
-if (!/function helpWithAi\s*\(\s*id\s*\)/.test(needs)) fail("desk-needs.js must define helpWithAi(id) for /desk.");
+// a2ad8c4 minified `async function helpWithAi(id)` to
+// `window.helpWithAi=async function(e)`. 3f5897c renamed the painted
+// label from "Help with AI" to "Ask the desk" — do not require the
+// parked "Help with AI" phrase or the unminified function name.
+// Assert the export, the painted button, and click behaviour:
+// click POSTs recommend (a draft) only; no capture / bind / send / Start.
+function helpWithAiSrc(src) {
+  let start = src.indexOf("window.helpWithAi=");
+  if (start < 0) start = src.indexOf("window.helpWithAi =");
+  if (start < 0) start = src.indexOf("async function helpWithAi");
+  if (start < 0) start = src.indexOf("function helpWithAi");
+  if (start < 0) return "";
+  let end = src.indexOf(",window.pinCap", start);
+  if (end < 0) end = src.indexOf("window.pinCap=", start);
+  if (end < 0) end = src.indexOf("async function pinCap", start);
+  if (end < 0) end = src.indexOf("function pinCap", start);
+  if (end < 0) return src.slice(start, start + 2000);
+  return src.slice(start, end);
+}
+function deskGrokPaintFaults(src) {
+  const bad = [];
+  if (!/window\.helpWithAi\s*=/.test(src) && !/function helpWithAi\s*\(/.test(src)) {
+    bad.push("missing helpWithAi export");
+  }
+  if (src.indexOf("Ask the desk") < 0) bad.push("missing Ask the desk button");
+  const wired = /"grok"===n\.id\?[\s\S]{0,500}helpWithAi\s*\(/.test(src)
+    || /a\.id === "grok"[\s\S]{0,500}helpWithAi\s*\(/.test(src)
+    || /helpWithAi\('\s*"\s*\+\s*j\.id/.test(src)
+    || /helpWithAi\('" \+ j\.id/.test(src)
+    || /helpWithAi\(\\?'\\?'\s*\+\s*safeId\(t\.id\)/.test(src);
+  if (!wired) bad.push("Ask the desk click is not wired to helpWithAi");
+  return bad;
+}
+function deskGrokClickFaults(src) {
+  const bad = [];
+  const fn = helpWithAiSrc(src);
+  if (!fn) { bad.push("could not slice helpWithAi"); return bad; }
+  if (fn.length < 80 || /async function\s*\(\s*\w*\s*\)\s*\{\s*\}/.test(fn)) {
+    bad.push("click handler is a no-op");
+    return bad;
+  }
+  if (/action:\s*["']capture["']|action:\s*["']bind-ai["']|action:\s*["']set-ai["']|action:\s*["']assign-ai["']|action:\s*["']ship["']|action:\s*["']start["']/.test(fn)) {
+    bad.push("click posts capture/bind/send instead of a draft");
+  }
+  if (!/action:\s*["']recommend["']/.test(fn)) bad.push("click does not POST action recommend");
+  if (!/\/api\/jobs/.test(fn)) bad.push("click does not hit /api/jobs");
+  if (/oauth|spacex|login\.x\.ai|XAI login|grok bot api/i.test(fn)) {
+    bad.push("helpWithAi invented Grok OAuth / SpaceX login.");
+  }
+  if (!/Nothing sent/.test(fn)) bad.push("Ask the desk must say nothing was sent.");
+  return bad;
+}
+
+if (deskGrokPaintFaults(needs).length || !/window\.helpWithAi\s*=/.test(needs) && !/function helpWithAi\s*\(/.test(needs)) {
+  const bad = deskGrokPaintFaults(needs);
+  if (bad.length) fail("desk-needs.js must export helpWithAi and paint Ask the desk for /desk: " + bad.join("; "));
+}
 if (!/action:\s*["']recommend["']/.test(needs)) fail("helpWithAi must POST action recommend to /api/jobs.");
 if (!/\/api\/jobs/.test(needs)) fail("helpWithAi must hit /api/jobs.");
 if (/askGrok\s*\?/.test(needs) || /typeof askGrok/.test(needs)) {
   fail("queue Ask Grok must not call Studio askGrok (pack drafter, no job id).");
 }
-if (!/helpWithAi\('\s*"\s*\+\s*j\.id/.test(needs) && !/helpWithAi\('" \+ j\.id/.test(needs)) {
-  fail("Ask Grok button must call helpWithAi with the card id.");
-}
+(function () {
+  const bad = deskGrokPaintFaults(needs);
+  if (bad.length) fail("Ask the desk must stay painted and wired to helpWithAi: " + bad.join("; "));
+})();
+(function () {
+  const bad = deskGrokClickFaults(needs);
+  if (bad.length) fail("Ask the desk click must draft only (recommend), never capture/bind/send: " + bad.join("; "));
+})();
 
-const grokFn = needs.slice(needs.indexOf("async function helpWithAi"), needs.indexOf("async function pinCap"));
+const grokFn = helpWithAiSrc(needs);
 if (!grokFn || grokFn.length < 80) fail("could not slice helpWithAi");
 if (/oauth|spacex|login\.x\.ai|XAI login|grok bot api/i.test(grokFn)) {
   fail("helpWithAi invented Grok OAuth / SpaceX login.");
@@ -206,6 +267,44 @@ async function main() {
     fail("jobBrief must pass the bound deskAi prompt");
   }
 
+  function swap(str, from, to) { return str.indexOf(from) < 0 ? null : str.split(from).join(to); }
+  const MUTANTS = [
+    ["Ask the desk button removed", function () {
+      const mark = '"grok"===n.id?';
+      const at = needs.indexOf(mark);
+      const cap = needs.indexOf(':"cap"===n.id', at);
+      if (at < 0 || cap < 0) return null;
+      const n = needs.slice(0, at) + mark + '""' + needs.slice(cap);
+      return deskGrokPaintFaults(n);
+    }],
+    ["click handler no-op", function () {
+      const fn = helpWithAiSrc(needs);
+      if (!fn) return null;
+      const n = needs.slice(0, needs.indexOf(fn)) + "window.helpWithAi=async function(e){}" + needs.slice(needs.indexOf(fn) + fn.length);
+      return deskGrokClickFaults(n);
+    }],
+    ["click does capture/bind/send instead of a draft", function () {
+      const fn = helpWithAiSrc(needs);
+      if (!fn || fn.indexOf('action:"recommend"') < 0) return null;
+      const nFn = fn.split('action:"recommend"').join('action:"capture"');
+      const n = needs.slice(0, needs.indexOf(fn)) + nFn + needs.slice(needs.indexOf(fn) + fn.length);
+      return deskGrokClickFaults(n);
+    }]
+  ];
+  let mutCaught = 0;
+  MUTANTS.forEach(function (m) {
+    let out;
+    try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+    if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+    else if (out.length) {
+      mutCaught += 1;
+      console.log("ok  mutant caught: " + m[0] + " (" + out[0] + ")");
+    } else fail("mutant survived: " + m[0]);
+  });
+  console.log("ok  mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
+  if (mutCaught !== MUTANTS.length) fail("not every mutant was caught");
+
+  console.log("check-desk-grok mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
   console.log("check-desk-grok: ok");
 }
 
