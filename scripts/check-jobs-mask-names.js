@@ -198,12 +198,12 @@ async function main() {
     step: "Qualify",
     from: "Nia Quill",
     contactName: "Quinn Patel",
-    email: "quinn.patel@example.com",
+    email: "Morgan.Hale@Example.com",
     whoTapped: "Nia Quill",
     assignee: "Riley Moss",
     notes: "Left the lamp.",
     draft: "",
-    why: "Waiting on Quinn Patel at quinn.patel@example.com.",
+    why: "Waiting on Quinn Patel at morgan.hale@example.com.",
     replies: [{ from: "desk", text: "Reply stays.", at: "2026-01-01T00:00:03.000Z" }],
     timing: "2026-06-01T15:00:00.000Z",
     createdAt: "2026-01-01T00:00:00.000Z"
@@ -347,16 +347,22 @@ async function main() {
   function normCal(text) {
     return String(text || "").split(/\r?\n/).filter(function (line) { return line.indexOf("DTSTAMP:") !== 0; }).join("\n");
   }
+  // RFC 5545 folds a long line with a CRLF and one space or tab. Join those
+  // before looking for a name or an email, so a fold cannot hide either.
+  function unfoldIcs(text) {
+    return String(text || "").replace(/\r\n[ \t]/g, "");
+  }
   function icsCard(body) {
     const rows = body && body.jobs || [];
     return rows.find(function (j) { return j && j.id === "job_icsmask"; }) || null;
   }
-  const icsSecrets = ["Quinn Patel", "quinn.patel@example.com", "Nia Quill", "Casey Brook", "Riley Moss", "Ada Family", "casey.brook@example.com"];
+  const icsSecrets = ["Quinn Patel", "Morgan.Hale@Example.com", "morgan.hale@example.com", "Nia Quill", "Casey Brook", "Riley Moss", "Ada Family", "casey.brook@example.com"];
   function assertIcsHidden(res, who) {
-    if (res.statusCode !== 200 || String(res.body || "").indexOf("BEGIN:VCALENDAR") < 0) {
-      fail(who + " ics " + res.statusCode + " " + String(res.body || "").slice(0, 120));
+    const raw = String(res.body || "");
+    if (res.statusCode !== 200 || raw.indexOf("BEGIN:VCALENDAR") < 0) {
+      fail(who + " ics " + res.statusCode + " " + raw.slice(0, 120));
     }
-    const body = String(res.body || "");
+    const body = unfoldIcs(raw);
     icsSecrets.forEach(function (secret) {
       if (body.toLowerCase().indexOf(secret.toLowerCase()) >= 0) fail(who + " ics still has " + secret);
     });
@@ -373,7 +379,7 @@ async function main() {
   if (String(helperIcsCard.why || "").indexOf("Quinn Patel") < 0) fail("helper queue read should still show the why line");
   const replyText = (helperIcsCard.replies || []).map(function (row) { return row && row.text; }).join("\n");
   if (replyText.indexOf("Reply stays.") < 0) fail("helper calendar card lost the reply");
-  if (ownerIcsCard.email !== "quinn.patel@example.com" || ownerIcsCard.contactName !== "Quinn Patel") fail("owner calendar card lost a structured field");
+  if (ownerIcsCard.email !== "Morgan.Hale@Example.com" || ownerIcsCard.contactName !== "Quinn Patel") fail("owner calendar card lost a structured field");
   const otherH = { "x-workspace": slug, "x-pin": "9393" };
   const helperIcs = await call(jobs, "GET", helperH, null, { ics: "job_icsmask" });
   const familyIcs = await call(jobs, "GET", familyH, null, { ics: "job_icsmask" });
@@ -384,14 +390,15 @@ async function main() {
   assertIcsHidden(familyIcs, "family");
   assertIcsHidden(otherIcs, "other non-owner");
   if (ownerIcs.statusCode !== 200) fail("owner ics " + ownerIcs.statusCode);
-  const ownerFile = String(ownerIcs.body || "");
-  if (ownerFile.indexOf("Quinn Patel") < 0 || ownerFile.indexOf("quinn.patel@example.com") < 0) fail("owner calendar lost the name or email");
+  const ownerFile = unfoldIcs(ownerIcs.body);
+  if (ownerFile.indexOf("Quinn Patel") < 0 || ownerFile.indexOf("morgan.hale@example.com") < 0) fail("owner calendar lost the name or email");
   const engine = require(path.join(root, "api/_engine"));
   if (normCal(ownerFile) !== normCal(engine.icsOf(icsJob))) fail("owner calendar changed");
-  if (helperDraftIcs.statusCode !== 200 || String(helperDraftIcs.body || "").indexOf("Draft for the porch lamp. Nothing sent.") < 0) {
+  const helperDraftFile = unfoldIcs(helperDraftIcs.body);
+  if (helperDraftIcs.statusCode !== 200 || helperDraftFile.indexOf("Draft for the porch lamp. Nothing sent.") < 0) {
     fail("helper calendar lost the draft text");
   }
-  if (String(helperDraftIcs.body || "").indexOf("casey.brook@example.com") >= 0 || String(helperDraftIcs.body || "").indexOf("Nia Quill") >= 0) {
+  if (helperDraftFile.indexOf("casey.brook@example.com") >= 0 || helperDraftFile.indexOf("Nia Quill") >= 0) {
     fail("helper draft calendar leaked a structured field");
   }
   if (JSON.stringify(stored) !== before || JSON.stringify(icsJob) !== icsBefore) fail("calendar read wrote the stored row");

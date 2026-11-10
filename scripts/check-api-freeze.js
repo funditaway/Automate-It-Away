@@ -59,12 +59,12 @@ const LANDED = [
   "api/connections.js",
   "api/health.js",
   "api/hook.js",
-  "api/_job-mask.js",
-  "api/jobs.js",
   "api/migrate-uploads.js"
 ];
 const MOVED = [
-  "api/_engine.js"
+  "api/_engine.js",
+  "api/_job-mask.js",
+  "api/jobs.js"
 ];
 
 let failed = 0;

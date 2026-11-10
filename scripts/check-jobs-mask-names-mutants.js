@@ -11,6 +11,7 @@ require("./_env-guard");
 //   O3 maskJobsResponse restores other people's names on you and the seat list
 //   ICS the ics path sends the raw calendar and skips the mask
 //   EM email is dropped from the non-owner blank list
+//   C5 replaceNames drops the case-insensitive flag
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -47,6 +48,9 @@ const MUTANTS = [
   ]],
   ["EM", "drops email from the blank list", "api/_job-mask.js", [
     ["  who: 1,\n  email: 1\n};", "  who: 1\n};"]
+  ]],
+  ["C5", "drops the case-insensitive flag", "api/_job-mask.js", [
+    ["\"gi\"", "\"g\""]
   ]]
 ];
 
