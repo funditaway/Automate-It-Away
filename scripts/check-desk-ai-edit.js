@@ -31,10 +31,47 @@ const dropAgent = fs.readFileSync(path.join(root, "drop-agent.js"), "utf8");
   if (syntax.status !== 0) fail(name + " must parse: " + (syntax.stderr || syntax.stdout || "syntax error"));
 });
 
-["function talkTurns", "function talkHtml", "function bindAiHtml", "function bindAiOnCard", "q-thread", "q-talk", "q-ai-pick", "action: \"bind-ai\"", "Nothing sent alone"].forEach(function (bit) {
+// a2ad8c4 (#265) minified desk-needs.js. Names like talkTurns / talkHtml /
+// bindAiHtml / bindAiOnCard were shortened; window.card still paints the
+// thread, and window.bindAiHtml / window.bindAiOnCard stay exported.
+["q-thread", "q-talk", "q-ai-pick", "Nothing sent alone"].forEach(function (bit) {
   if (needs.indexOf(bit) < 0) fail("desk-needs.js missing " + bit);
 });
-if (!/HOLD\. Nothing sent alone/.test(needs)) fail("next-line must stay HOLD. Nothing sent alone.");
+function talkThreadFaults(src) {
+  const bad = [];
+  if (src.indexOf("q-thread") < 0) bad.push("missing q-thread");
+  if (src.indexOf("q-talk") < 0) bad.push("missing q-talk");
+  if (src.indexOf("q-turn-you") < 0) bad.push("missing q-turn-you");
+  if (src.indexOf("q-turn-ai") < 0) bad.push("missing q-turn-ai");
+  return bad;
+}
+(function () {
+  const bad = talkThreadFaults(needs);
+  if (bad.length) fail("desk AI card must still paint the AI / human thread: " + bad.join("; "));
+})();
+function bindAiFaults(src) {
+  const bad = [];
+  if (src.indexOf("window.bindAiHtml") < 0) bad.push("missing window.bindAiHtml");
+  if (src.indexOf("window.bindAiOnCard") < 0) bad.push("missing window.bindAiOnCard");
+  if (src.indexOf('action:"bind-ai"') < 0 && src.indexOf('action: "bind-ai"') < 0) bad.push("missing bind-ai action");
+  if (src.indexOf("q-ai-pick") < 0) bad.push("missing q-ai-pick");
+  return bad;
+}
+(function () {
+  const bad = bindAiFaults(needs);
+  if (bad.length) fail("desk AI bind must stay on the card: " + bad.join("; "));
+})();
+// 9b6ba98 (#495): next-line suffix is ". Nothing sent alone.", not bare HOLD.
+function honestNextFaults(src) {
+  const bad = [];
+  if (src.indexOf(". Nothing sent alone.") < 0) bad.push("missing . Nothing sent alone.");
+  if (src.indexOf(". HOLD. Nothing sent alone.") >= 0) bad.push("bare HOLD suffix came back");
+  return bad;
+}
+(function () {
+  const bad = honestNextFaults(needs);
+  if (bad.length) fail("next-line must stay Nothing sent alone, no bare HOLD: " + bad.join("; "));
+})();
 if (/oauth|spacex|login\.x\.ai|custodial wallet|Collect charge/i.test(needs + deskAis)) {
   fail("desk AI edit invented Grok OAuth / wallet / Collect charge");
 }
@@ -56,7 +93,16 @@ if (help.indexOf("which desk AI owns Then") < 0) fail("help#desk-cards must name
 if (help.indexOf("AI") < 0 || help.indexOf("human thread") < 0) fail("help#desk-cards must name the stacked thread");
 if (help.indexOf("Grok") >= 0) fail("help.html must not lecture Grok");
 if (yesNo.indexOf("check-desk-ai-edit.js") < 0) fail("ACCOUNT-YES-NO must record desk AI edit / bind");
-if (drop.indexOf("Public drop never sees money, Stop, or People") < 0) fail("public Drop copy drifted");
+// fff3b47 simplified Drop copy; public share still hides money / Stop / People.
+function publicDropFaults(src) {
+  const bad = [];
+  if (src.indexOf("They never see money, Stop, or People") < 0) bad.push("missing they never see money / Stop / People");
+  return bad;
+}
+(function () {
+  const bad = publicDropFaults(drop);
+  if (bad.length) fail("public Drop copy must still hide money, Stop, and People: " + bad.join("; "));
+})();
 if (dropAgent.indexOf("deskIsOpen") < 0 || dropAgent.indexOf("!deskIsOpen()") < 0) {
   fail("Drop People honesty must stay behind deskIsOpen()");
 }
@@ -110,6 +156,9 @@ if (stacked.indexOf("q-ai-pick") < 0) fail("owner must see the desk AI picker");
 if (stacked.indexOf("Shop Bot") < 0) fail("picker must list the other desk AI");
 if (stacked.indexOf(">Yes<") < 0 || stacked.indexOf(">Kill<") < 0) fail("Yes / Stop / Kill must stay");
 if (stacked.indexOf("Nothing sent alone") < 0) fail("stacked card must stay HOLD / nothing sent");
+if (stacked.indexOf("James’s AI · Then draft") < 0) fail("stacked card must name who drafted as Then draft");
+if (stacked.indexOf("James’s AI · asks") < 0) fail("stacked thread must mark the AI ask");
+if (stacked.indexOf("Pat · you") < 0) fail("stacked thread must mark the human reply");
 
 const xss = ctx.card({
   id: "j-xss",
@@ -138,6 +187,25 @@ const helperCard = ctx.card({
 }, true);
 if (helperCard.indexOf("q-ai-pick") >= 0) fail("helper must not see the desk AI picker");
 if (helperCard.indexOf(">Kill<") >= 0) fail("helper must not get Kill");
+
+ctx.AIADeskAis.owner = true;
+const goneTalk = ctx.card({
+  id: "j-gone-talk",
+  status: "waiting",
+  title: "Oak dresser",
+  draft: "List it. Do not send.",
+  thenAiGone: { id: "shop-bot", name: "Shop Bot" },
+  thread: [
+    { kind: "ask", from: "Shop Bot", text: "Who is it for?" },
+    { kind: "reply", from: "Pat", text: "A neighbor" }
+  ]
+}, false);
+if (goneTalk.indexOf("q-talk") < 0) fail("gone thread must still show the AI / human talk");
+if (goneTalk.indexOf("Shop Bot · not on this desk") < 0) fail("gone thread must say Shop Bot · not on this desk");
+if (goneTalk.indexOf("Who is it for?") < 0) fail("gone thread must still show the AI ask");
+if (goneTalk.indexOf("A neighbor") < 0) fail("gone thread must still show the human reply");
+if (goneTalk.indexOf("q-turn-ai") < 0 || goneTalk.indexOf("q-turn-you") < 0) fail("gone thread must mark AI and human turns");
+if (goneTalk.indexOf("q-ai-pick") < 0) fail("owner must still see the picker when the Then bind is gone");
 
 const aisCtx = {
   window: {},
@@ -341,6 +409,34 @@ async function apiPath() {
 
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
 }
+
+// Mutants for the replaced assertions. In-memory only.
+function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
+const MUTANTS = [
+  ["talkTurns / talkHtml loses q-thread", function () { const n = swap(needs, "q-thread", "q-trail"); return n && talkThreadFaults(n); }],
+  ["talkTurns / talkHtml loses q-talk", function () { const n = swap(needs, "q-talk", "q-chat"); return n && talkThreadFaults(n); }],
+  ["talkTurns / talkHtml loses q-turn-you", function () { const n = swap(needs, "q-turn-you", "q-turn-me"); return n && talkThreadFaults(n); }],
+  ["talkTurns / talkHtml loses q-turn-ai", function () { const n = swap(needs, "q-turn-ai", "q-turn-bot"); return n && talkThreadFaults(n); }],
+  ["bindAiHtml loses window.bindAiHtml", function () { const n = swap(needs, "window.bindAiHtml", "window.bindAiOff"); return n && bindAiFaults(n); }],
+  ["bindAiOnCard loses window.bindAiOnCard", function () { const n = swap(needs, "window.bindAiOnCard", "window.bindOnOff"); return n && bindAiFaults(n); }],
+  ["bind-ai action dropped", function () { const n = swap(needs, 'action:"bind-ai"', 'action:"bind-off"'); return n && bindAiFaults(n); }],
+  ["bind picker loses q-ai-pick", function () { const n = swap(needs, "q-ai-pick", "q-ai-sel"); return n && bindAiFaults(n); }],
+  ["honestNext loses Nothing sent alone suffix", function () { const n = swap(needs, ". Nothing sent alone.", ". Do the next thing."); return n && honestNextFaults(n); }],
+  ["honestNext brings back bare HOLD suffix", function () {
+    const n = swap(needs, ". Nothing sent alone.", ". HOLD. Nothing sent alone.");
+    return n && honestNextFaults(n);
+  }],
+  ["public Drop honesty dropped", function () { const d = swap(drop, "They never see money, Stop, or People", "They can see money, Stop, or People"); return d && publicDropFaults(d); }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught += 1; console.log("ok  mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+console.log("check-desk-ai-edit mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 
 apiPath().then(function () {
   console.log("check-desk-ai-edit: ok");
