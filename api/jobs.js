@@ -7,6 +7,7 @@ const { needsOf, isPriorityJob, missingOf } = require("./_history");
 const clock = require("./_clock");
 const ais = require("./_ais");
 const { applyHandoff, applyDeskAiDraft, stampDeskAi, agentDraft } = require("./_handoff");
+const jobMask = require("./_job-mask");
 const talk = require("./_talk");
 
 function namedWorkspace(req) {
@@ -60,7 +61,11 @@ function markDone(job, person, body, how, shop) {
   if (shop) applyRules(job, shop, "status");
   return note;
 }
-// Same card the single-desk GET returns for this seat: staff seats do not see Stop / Kill.
+function peopleOf(job) {
+  const slug = job && job.workspace;
+  const row = (mem.workspaces || []).find(function (w) { return w && w.slug === slug; });
+  return (row && row.people) || [];
+}
 function accountOf(shop) {
   if (!shop || !shop.accountId) return null;
   return (mem.accounts || []).find((a) => a && a.id === shop.accountId) || null;
@@ -83,15 +88,41 @@ function refuseActor(res, body, actor) {
   }
   return false;
 }
+// A card may already carry needs actions (label / href). Those join the
+// generated ones. maskNeeds is what clears a person's name inside a label.
+function needsActions(j, generated) {
+  const out = Array.isArray(generated) ? generated.slice() : [];
+  const extra = j && Array.isArray(j.needs) ? j.needs : [];
+  extra.forEach(function (action) {
+    if (!action || typeof action !== "object" || typeof action.label !== "string") return;
+    if (action.id && out.some(function (row) { return row && row.id === action.id; })) return;
+    out.push({ id: action.id || "need", label: action.label, href: action.href });
+  });
+  return out;
+}
+// Same card the single-desk GET returns for this seat: staff seats do not see Stop / Kill.
+// Non-owner seats get this card with people's names masked. The stored row is not written.
+// readTalk then writes actorLabel (and from, when redacted). The mask does not.
 function presentJob(j, person) {
   const staff = person && person.role === "employee";
   const needs = needsOf(j, { staff });
   const tick = clock.clockOf(j);
-  const out = Object.assign({}, j, { needs: needs.actions, needLine: needs.line, missing: needs.missing, decide: needs.decide, priority: isPriorityJob(j), clock: tick, late: tick.late, expired: tick.expired });
+  const people = peopleOf(j);
+  const src = jobMask.maskJob(j, person, people);
+  const out = Object.assign({}, src, {
+    needs: jobMask.maskNeeds(needsActions(j, needs.actions), person, people, j),
+    needLine: jobMask.maskText(needs.line, person, people, j),
+    missing: needs.missing,
+    decide: needs.decide,
+    priority: isPriorityJob(j),
+    clock: tick,
+    late: tick.late,
+    expired: tick.expired
+  });
   const redact = !isOwner(person);
   const view = function (entry) { return talk.readTalk(entry, { redact: redact }); };
-  if (Array.isArray(j.thread)) out.thread = j.thread.map(view);
-  if (Array.isArray(j.replies)) out.replies = j.replies.map(view);
+  if (Array.isArray(out.thread)) out.thread = out.thread.map(view);
+  if (Array.isArray(out.replies)) out.replies = out.replies.map(view);
   return out;
 }
 function tagQueueJob(card, slug) {
@@ -236,6 +267,12 @@ module.exports = async function handler(req, res) {
   const found = deskSeat(req, workspace);
   const shop = found.workspace;
   const person = found.person;
+  // Every JSON answer on this desk, including a write that echoes the card.
+  // Owner seats and strangers are unchanged. The stored row is not written.
+  const sendJson = res.json.bind(res);
+  res.json = function (body) {
+    return sendJson(jobMask.maskJobsResponse(body, person, shop && shop.people));
+  };
 
   if (req.method === "GET") {
     if (!shop || !person) return refuseJobRead(res, found);
