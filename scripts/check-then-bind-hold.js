@@ -81,9 +81,21 @@ else pass("worker honors thenAiGone");
 if (jobsSrc.indexOf("applyDeskAiDraft") < 0 || hookSrc.indexOf("applyDeskAiDraft") < 0) {
   fail("capture / hook must still Then-draft through applyDeskAiDraft");
 } else pass("capture / hook still Then-draft");
-if (needs.indexOf("function thenGone") < 0 || needs.indexOf("not on this desk") < 0 || needs.indexOf("q-ai-gone") < 0) {
-  fail("queue card must paint gone Then AI");
-} else pass("queue card paints gone Then AI");
+// a2ad8c4 (#265) minified desk-needs.js, so "function thenGone" is gone.
+// The Queue / Cap / sheet faces still paint a gone Then bind as
+// "Shop Bot · not on this desk" on q-ai-gone / q-then-who.
+function queueGoneSourceFaults(src) {
+  const bad = [];
+  if (src.indexOf("not on this desk") < 0) bad.push("missing not on this desk");
+  if (src.indexOf("q-ai-gone") < 0) bad.push("missing q-ai-gone");
+  if (src.indexOf("thenAiGone") < 0) bad.push("missing thenAiGone");
+  return bad;
+}
+(function () {
+  const bad = queueGoneSourceFaults(needs);
+  if (bad.length) fail("queue card must paint gone Then AI: " + bad.join("; "));
+  else pass("queue card source still names gone Then AI");
+})();
 if (cardSrc.indexOf("function thenGoneOf") < 0 || cardSrc.indexOf("not on this desk") < 0) {
   fail("Open-job must paint gone Then AI");
 } else pass("Open-job paints gone Then AI");
@@ -234,8 +246,12 @@ async function main() {
     notes: "click from the lane",
     from: "pipe"
   });
-  const hookJob = hooked.body && hooked.body.job;
+  // 35100c4 (#328): a hook with no seat gets ok / id / status, not the card.
+  // The stored job must still keep thenAiGone Shop Bot and must not ship.
+  const hookJob = (hooked.body && hooked.body.job)
+    || (mem.jobs || []).find(function (j) { return j && hooked.body && j.id === hooked.body.id; });
   if (hooked.statusCode !== 201 || !hookJob) fail("hook capture " + hooked.statusCode + " " + JSON.stringify(hooked.body));
+  else if (hooked.body && hooked.body.job) fail("hook with no seat must not echo the card");
   else if (pretendJames(hookJob)) fail("hook must not pretend James wrote Then");
   else if (!hookJob.thenAiGone || hookJob.thenAiGone.name !== "Shop Bot") fail("hook must keep thenAiGone");
   else if (hookJob.status === "shipped" || hookJob.charged) fail("hook must not ship");
@@ -391,11 +407,143 @@ async function main() {
   if (painted.indexOf(">Yes<") < 0 || painted.indexOf(">Kill<") < 0) fail("Yes / Stop / Kill must stay");
   else pass("Yes / Stop / Kill stay");
 
+  function queueGonePaintFaults(html) {
+    const bad = [];
+    if (!html) { bad.push("no card html"); return bad; }
+    if (html.indexOf("q-ai-gone") < 0) bad.push("missing q-ai-gone");
+    if (html.indexOf(" · not on this desk") < 0) bad.push("missing · not on this desk");
+    if (html.indexOf("Shop Bot") < 0) bad.push("missing Shop Bot");
+    if (html.indexOf("q-then-who") < 0) bad.push("missing q-then-who");
+    if (html.indexOf("James") >= 0) bad.push("named James");
+    return bad;
+  }
+  const paintFaults = queueGonePaintFaults(painted);
+  if (paintFaults.length) fail("queue card must paint gone Then AI: " + paintFaults.join("; "));
+  else pass("queue card paints Shop Bot · not on this desk");
+
+  // Cap uses the same gone face.
+  const capCtx = {
+    window: {},
+    document: {
+      readyState: "complete",
+      addEventListener: function () {},
+      getElementById: function () { return null; },
+      createElement: function () { return { id: "", textContent: "" }; },
+      head: { appendChild: function () {} }
+    },
+    setTimeout: function () {},
+    localStorage: { getItem: function () { return ""; }, setItem: function () {} }
+  };
+  capCtx.window = capCtx;
+  vm.runInNewContext(needs, capCtx);
+  if (typeof capCtx.capCardHtml === "function") {
+    const capHtml = capCtx.capCardHtml({
+      id: "j-gone-cap",
+      status: "waiting",
+      title: "They clicked",
+      draft: "Do not send.",
+      thenAiGone: { id: "shop-bot", name: "Shop Bot <gone>" },
+      next: "Shop Bot is not on this desk."
+    }, "shop");
+    if (capHtml.indexOf("Shop Bot &lt;gone&gt; · not on this desk") < 0) fail("Cap must paint Shop Bot · not on this desk");
+    else if (capHtml.indexOf("q-ai-gone") < 0) fail("Cap must use q-ai-gone");
+    else if (/>Yes</.test(capHtml)) fail("Cap gone-AI card must not show Yes");
+    else pass("Cap paints gone Then AI and does not Yes");
+  } else fail("window.capCardHtml must stay exported");
+
+  const bot = {
+    id: "ai_login",
+    name: "James’s AI",
+    role: "agent",
+    kind: "agent",
+    deskAi: true,
+    status: "approved",
+    pin: hashPin("9999")
+  };
+  shop.people = shop.people || [];
+  shop.people.push(bot);
+  const deskAiYes = await call(jobsHandler, "POST", { "x-workspace": slug, "x-pin": "9999" }, {
+    action: "ship",
+    id: card.id,
+    confirm: true,
+    whoTapped: "James’s AI"
+  });
+  if (deskAiYes.statusCode !== 403) fail("desk AI still cannot Yes on a gone Then bind, got " + deskAiYes.statusCode);
+  else pass("desk AI still cannot Yes on a gone Then bind");
+
+  // Mutants for the replaced assertions. In-memory only.
+  function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
+  function paintFrom(src) {
+    if (!src) return null;
+    const ctx = {
+      window: {},
+      document: {
+        readyState: "complete",
+        addEventListener: function () {},
+        getElementById: function () { return null; },
+        createElement: function () { return { id: "", textContent: "" }; },
+        head: { appendChild: function () {} }
+      },
+      setTimeout: function () {},
+      localStorage: { getItem: function () { return ""; }, setItem: function () {} }
+    };
+    ctx.window = ctx;
+    try { vm.runInNewContext(src, ctx); } catch (e) { return "threw " + e.message; }
+    if (typeof ctx.card !== "function") return "no window.card";
+    return ctx.card({
+      id: "j-mut",
+      status: "waiting",
+      title: "They clicked",
+      draft: "Do not send.",
+      thenAiGone: { id: "shop-bot", name: "Shop Bot <gone>" },
+      next: "Shop Bot is not on this desk."
+    }, false);
+  }
+  const MUTANTS = [
+    ["queue source loses not on this desk", function () {
+      const n = swap(needs, "not on this desk", "left this desk");
+      return n && queueGoneSourceFaults(n);
+    }],
+    ["queue source loses q-ai-gone", function () {
+      const n = swap(needs, "q-ai-gone", "q-ai-miss");
+      return n && queueGoneSourceFaults(n);
+    }],
+    ["queue source loses thenAiGone", function () {
+      const n = swap(needs, "thenAiGone", "thenAiAway");
+      return n && queueGoneSourceFaults(n);
+    }],
+    ["queue card drops the gone-AI line", function () {
+      const n = swap(needs, " · not on this desk", " · left this desk");
+      const html = paintFrom(n);
+      if (html == null) return null;
+      if (typeof html !== "string") return [String(html)];
+      return queueGonePaintFaults(html);
+    }],
+    ["queue card drops q-ai-gone", function () {
+      const n = swap(needs, "q-ai-gone", "q-ai-miss");
+      const html = paintFrom(n);
+      if (html == null) return null;
+      if (typeof html !== "string") return [String(html)];
+      return queueGonePaintFaults(html);
+    }]
+  ];
+  let mutCaught = 0;
+  MUTANTS.forEach(function (m) {
+    let out;
+    try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+    if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+    else if (out.length) { mutCaught += 1; pass("mutant caught: " + m[0] + " (" + out[0] + ")"); }
+    else fail("mutant survived: " + m[0]);
+  });
+  pass("mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
+  if (mutCaught !== MUTANTS.length) fail("not every mutant was caught");
+
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
   if (failed) {
     console.error(failed + " failed");
     process.exit(1);
   }
+  console.log("check-then-bind-hold mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
   console.log("check-then-bind-hold: ok");
 }
 
