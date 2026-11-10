@@ -75,15 +75,27 @@ const wanted = JSON.parse(fs.readFileSync(path.join(root, "packs", "wanted.json"
   else pass(id + " faces Insurance");
 });
 
-if (!dev.includes("Queue") || !dev.includes("q-badge")) fail("developer.js missing Queue tab");
-else pass("developer Queue tab");
-if (!dev.includes("pack.queue") && !dev.includes("queue:")) fail("developer.js must save pack.queue");
-else pass("developer saves pack.queue");
-if (!dev.includes("Ask Grok") || !dev.includes("studio-draft")) fail("Creators Studio missing Grok drafter");
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studioPack = decodeStudio(fs.readFileSync(path.join(root, "developer.z64.txt"), "utf8"));
+if (dev.indexOf('fetch("/developer.z64.txt"') < 0 || dev.indexOf('DecompressionStream("gzip")') < 0) {
+  fail("Studio loader must unpack developer.z64.txt");
+} else pass("Studio loader unpacks Creators Studio pack");
+if (!studioPack || studioPack.indexOf("Creators Studio") < 0) fail("developer.z64.txt must decode as Creators Studio");
+else pass("Studio pack decodes");
+function hasId(src, id) { return new RegExp("id=\\\\?\"" + id + "\\\\?\"").test(src); }
+if (studioPack.indexOf('["queue", "Queue"]') < 0 || !hasId(studioPack, "q-badge")) fail("Studio must paint a Queue tab");
+else pass("Studio Queue tab");
+if (studioPack.indexOf("pack.queue") < 0 && studioPack.indexOf("queue:") < 0) fail("Studio must save pack.queue");
+else pass("Studio saves pack.queue");
+if (studioPack.indexOf("Ask Grok") < 0 || studioPack.indexOf("studio-draft") < 0) fail("Creators Studio missing Grok drafter");
 else pass("Studio Ask Grok");
-if (!dev.includes("grok-yes") || !dev.includes("grok-stop")) fail("Studio Grok must wait on Yes/Stop");
+if (!hasId(studioPack, "grok-yes") || !hasId(studioPack, "grok-stop")) fail("Studio Grok must wait on Yes/Stop");
 else pass("Studio Grok Yes/Stop");
-if (!dev.includes("Grok · AIA Studio")) fail("developer.js missing Grok AIA Studio identity");
+if (studioPack.indexOf("Grok · AIA Studio") < 0) fail("Studio missing Grok AIA Studio identity");
 else pass("Studio Grok identity");
 
 const adoption = JSON.parse(fs.readFileSync(path.join(root, "packs", "aia-adoption.json"), "utf8"));
@@ -112,8 +124,129 @@ else pass("help is desk language");
 if (helpPage.includes("Grok")) fail("help.html must not leak Grok");
 else pass("help has no Grok leak");
 
-if (!dev.includes("Queue cards are the measure")) fail("Studio missing queue-as-measure copy");
+if (studioPack.indexOf("Queue cards are the measure") < 0) fail("Studio missing queue-as-measure copy");
 else pass("Studio measures Queue cards");
+
+
+if (q.indexOf('getElementById("pack-filters")') < 0 || q.indexOf('box.id = "pack-filters"') < 0 || q.indexOf("Packs on this queue") < 0) fail("queue pack bar must paint #pack-filters");
+else pass("queue pack bar paints");
+if (q.indexOf("Nobody sends money from here") < 0) fail("queue pack bar must paint nobody-sends-money");
+else pass("queue pack bar paints nobody-sends-money");
+if (q.indexOf("You still tap Copy, Text, Email, Hand, Cap, or Stop") < 0) fail("queue pack bar must keep human taps");
+else pass("queue pack bar keeps human taps");
+if (q.indexOf('data-pack-filter') < 0) fail("queue pack bar must paint filter chips");
+else pass("queue pack bar paints filter chips");
+if (q.indexOf('FILTER === "color") rows = openJobs()') < 0 && q.indexOf("FILTER === 'color') rows = openJobs()") < 0) {
+  fail("color filter must keep work cards on the queue");
+} else pass("color filter keeps work cards");
+if (!hasId(studioPack, "save-queue") || !hasId(studioPack, "q-empty")) fail("Studio Queue tab must author pack.queue fields");
+else pass("Studio Queue tab authors pack.queue fields");
+if (studioPack.indexOf("function yesGrok") < 0 || studioPack.indexOf("function stopGrok") < 0) fail("Studio Grok must keep Yes/Stop handlers");
+else pass("Studio Grok Yes/Stop handlers");
+if (studioPack.indexOf("applyPackDraft") < 0) fail("Studio Grok Yes must put the draft on Pack");
+else pass("Studio Grok Yes puts the draft on Pack");
+if (/charged:\s*true/.test(q) || /charged:\s*true/.test(studioPack)) fail("queue or Studio must not send charged:true");
+else pass("queue and Studio do not send charged:true");
+if (/\baction:\s*"install-pack"|\baction:\s*"buy-pack"|\baction:\s*"use-pack"/.test(q)) fail("queue pack bar must not install, buy, or use-pack on a chip tap");
+else pass("queue pack bar does not install or use-pack on a chip tap");
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+
+function queuePackFaults(loader, pack, queueSrc) {
+  const bad = [];
+  const hasLoader = loader.indexOf('fetch("/developer.z64.txt"') >= 0 && loader.indexOf('DecompressionStream("gzip")') >= 0;
+  if (!hasLoader || !pack || pack.indexOf("Creators Studio") < 0 || pack.indexOf('["queue", "Queue"]') < 0 || !hasId(pack, "q-badge") || !hasId(pack, "save-queue")) {
+    bad.push("Studio Queue tab gone");
+  }
+  if (pack.indexOf("pack.queue") < 0 && pack.indexOf("queue:") < 0) bad.push("Studio Queue tab gone");
+  if (!hasId(pack, "grok-yes") || !hasId(pack, "grok-stop") || pack.indexOf("function yesGrok") < 0 || pack.indexOf("Ask Grok") < 0 || pack.indexOf("studio-draft") < 0) {
+    bad.push("Studio Grok without Yes/Stop");
+  }
+  if (pack.indexOf("applyPackDraft") >= 0 && pack.indexOf("function yesGrok") < 0) {
+    bad.push("Studio Grok without Yes/Stop");
+  }
+  if (queueSrc.indexOf('getElementById("pack-filters")') < 0 || queueSrc.indexOf("All") < 0 || queueSrc.indexOf("Nobody sends money from here") < 0 || queueSrc.indexOf("data-pack-filter") < 0) {
+    bad.push("queue pack bar gone");
+  }
+  if (queueSrc.indexOf('FILTER === "color") rows = openJobs()') < 0 && queueSrc.indexOf("FILTER === 'color') rows = openJobs()") < 0) {
+    bad.push("color hides work");
+  }
+  if (queueSrc.indexOf('if (FILTER === "all" || FILTER === "color") return true') < 0) {
+    bad.push("color hides work");
+  }
+  if (queueSrc.indexOf('if (c === "insurance") return "Insurance"') < 0) bad.push("Vita printed on Insurance");
+  if (/chip.*=.*Vita|badge.*>Vita|return "Vita"/i.test(queueSrc)) bad.push("Vita printed on Insurance");
+  if (/charged:\s*true/.test(queueSrc) || /charged:\s*true/.test(pack) || /\baction:\s*"install-pack"|\baction:\s*"buy-pack"|\baction:\s*"use-pack"/.test(queueSrc)) {
+    bad.push("install or charge without Yes");
+  }
+  if (pack.indexOf("function yesGrok") >= 0 && pack.indexOf("applyPackDraft") >= 0) {
+    const yesAt = pack.indexOf("function yesGrok");
+    const yesFn = pack.slice(yesAt, yesAt + 500);
+    if (yesFn.indexOf("applyPackDraft") < 0) bad.push("install or charge without Yes");
+  }
+  return unique(bad);
+}
+
+function applyMutant(kind, files) {
+  const next = { loader: files.loader, pack: files.pack, queueSrc: files.queueSrc };
+  if (kind === "Studio Queue tab gone") {
+    next.pack = next.pack
+      .replace('["queue", "Queue"]', '["notes", "Notes"]')
+      .replace(/id=\\?"q-badge\\?"/g, 'id="q-label"')
+      .replace(/id=\\?"save-queue\\?"/g, 'id="save-notes"')
+      .replace(/pack\.queue/g, "pack.notes")
+      .replace(/queue:/g, "notes:");
+  } else if (kind === "Studio Grok without Yes/Stop") {
+    next.pack = next.pack
+      .replace(/id=\\?"grok-yes\\?"/g, 'id="grok-go"')
+      .replace(/id=\\?"grok-stop\\?"/g, 'id="grok-dismiss"')
+      .replace(/function yesGrok/g, "function autoGrok")
+      .replace(/function stopGrok/g, "function skipGrok");
+  } else if (kind === "queue pack bar gone") {
+    next.queueSrc = next.queueSrc
+      .replace(/getElementById\("pack-filters"\)/g, 'getElementById("pack-hidden")')
+      .replace(/box.id = "pack-filters"/g, 'box.id = "pack-hidden"')
+      .replace(/Nobody sends money from here/g, "Payments go out from here.")
+      .replace(/data-pack-filter/g, "data-pack-ignore");
+  } else if (kind === "color hides work") {
+    next.queueSrc = next.queueSrc
+      .replace('if (FILTER === "all" || FILTER === "color") return true', 'if (FILTER === "all") return true')
+      .replace('if (FILTER === "color") rows = openJobs();', 'if (FILTER === "color") rows = [];');
+  } else if (kind === "Vita printed on Insurance") {
+    next.queueSrc = next.queueSrc.replace('if (c === "insurance") return "Insurance"', 'if (c === "insurance") return "Vita"');
+  } else if (kind === "install or charge without Yes") {
+    next.queueSrc = next.queueSrc + '\nfetch("/api/desks",{method:"POST",body:JSON.stringify({action:"use-pack",charged:true})});';
+    next.pack = next.pack + "\ncharged: true";
+  }
+  return next;
+}
+
+const packFiles = { loader: dev, pack: studioPack, queueSrc: q };
+const liveFaults = queuePackFaults(packFiles.loader, packFiles.pack, packFiles.queueSrc);
+if (liveFaults.length) fail("queue pack behaviour drifted: " + liveFaults.join("; "));
+else pass("Studio Queue, Grok Yes/Stop, and queue pack bar still hold");
+
+const mutants = [
+  "Studio Queue tab gone",
+  "Studio Grok without Yes/Stop",
+  "queue pack bar gone",
+  "color hides work",
+  "Vita printed on Insurance",
+  "install or charge without Yes"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const next = applyMutant(kind, packFiles);
+  const faults = queuePackFaults(next.loader, next.pack, next.queueSrc);
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
 
 if (process.exitCode) {
   console.error("check-queue-packs failed");
