@@ -172,14 +172,14 @@
       ".who-copy{min-width:0;flex:1 1 auto;text-align:right}" +
       ".who-copy strong{display:block;font:700 15px/1.2 Segoe UI,system-ui,sans-serif;color:#fff!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
       ".brand-short{display:none;color:#fff!important}" +
-      "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}header a.btn.outline,header .btn.outline{color:#fff!important;border-color:#fff!important}html.dark a.btn.outline,html.dark .btn.outline{color:#9ee0e0!important;border-color:#9ee0e0!important}@media(max-width:860px){header nav.site-nav,header .nav.site-nav,header nav:not(.desk-tabs),.site-header .nav{flex-wrap:wrap!important;overflow:visible!important;width:100%!important}}" +
+      "a.btn.outline,.btn.outline,a.outline{background:transparent!important;color:var(--teal)!important;border:1px solid var(--teal)!important}header a.btn.outline,header .btn.outline{color:#fff!important;border-color:#fff!important}html.dark a.btn.outline,html.dark .btn.outline{color:#9ee0e0!important;border-color:#9ee0e0!important}@media(max-width:860px){header,.site-header{grid-template-columns:minmax(0,1fr) auto!important;grid-template-areas:\"brand tools\" \"nav nav\"!important}header > .brand,.site-header > .brand,header > a.brand,header > a:first-child{grid-area:brand!important}header .hdr-tools,.hdr-tools{grid-area:tools!important}header nav.site-nav,header .nav.site-nav,header nav:not(.desk-tabs),.site-header .nav{grid-area:nav!important;flex-wrap:wrap!important;overflow:visible!important;width:100%!important}header nav.desk-tabs,.desk-tabs{grid-column:1/-1}header .desk-tabs a,.desk-tabs a{min-height:44px;display:inline-flex;align-items:center}}" +
       ".kpi b{display:block;min-height:1.35em;font-size:1.3rem;line-height:1.2;color:var(--teal)}" +
       "body.has-desk-nav header nav.site-nav, body.has-desk-nav header .nav.site-nav{display:flex!important}" +
       "body.has-desk-nav{padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))!important}" +
       "#desk-nav{z-index:60!important}" +
       "main,#queue,.queue,#gate{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}" +
       ".queue-empty,#queue .empty,body.has-desk-nav #queue > :last-child{margin-bottom:24px}" +
-      "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:inline!important;font-size:13px!important;line-height:1.15!important;max-width:11.5em;white-space:normal}header .brand-short,.site-header .brand-short{display:none!important}}@media (max-width:430px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}header .brand-short,.site-header .brand-short{display:inline!important;color:#fff!important;font-weight:800}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}header, .site-header{grid-template-columns:auto 1fr auto;row-gap:6px}header .site-nav, header nav.site-nav{grid-column:1/-1;width:100%!important}}" +
+      "@media (max-width:860px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:inline!important;font-size:13px!important;line-height:1.15!important;max-width:11.5em;white-space:normal}header .brand-short,.site-header .brand-short{display:none!important}}@media (max-width:430px){header .brand-name,.site-header .brand-name, header > a strong, header .brand strong{display:none!important}header .brand-short,.site-header .brand-short{display:inline!important;color:#fff!important;font-weight:800}.hdr-tools{gap:6px}.who-copy > span{display:none!important}header nav.site-nav a[href='/login'], header .nav.site-nav a[href='/login'],header nav.site-nav a[href='login.html'], header .nav.site-nav a[href='login.html'],header nav.site-nav a[href='/onboard'], header .nav.site-nav a[href='/onboard'],header nav.site-nav a[href='onboard.html'], header .nav.site-nav a[href='onboard.html']{display:none!important}}" +
       "@media (max-width:420px){.hero-grid,.facts,.words,.parts,.steps{grid-template-columns:1fr!important}.reels,.kpis{grid-template-columns:1fr 1fr!important}.who-pic{width:28px;height:28px;flex-basis:28px}a.btn, .btn{min-height:44px}}"+ "button.go,a.go,.go,.use,button.use,.primary,a.primary,button.or,a.or,.pills button.on,.kinds button.on{color:#0c1116!important}button.go,a.go,.go,.use,.primary,a.primary{background:var(--orange,#f39c12)!important}header .theme-btn,.theme-btn,[data-theme-btn]{color:#0c1116!important;background:#f39c12!important;border:0!important}header nav a.on,header .site-nav a.on{color:#fff!important;box-shadow:inset 0 -3px 0 #f39c12}";
     document.head.appendChild(s);
   }
@@ -417,7 +417,54 @@
     }
     apply();
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mark);
+  function aiaPhoneCls() {
+    return typeof matchMedia === "function" && matchMedia("(max-width: 860px)").matches;
+  }
+  function paintBrand() {
+    var brandHost = document.querySelector(".site-header > a, header > a.brand, header > a, header .logo, header .brand");
+    if (brandHost && brandHost.tagName === "A") {
+      brandHost.classList.add("brand");
+      if (!brandHost.querySelector(".brand-mark")) {
+        var img = document.createElement("img");
+        img.className = "brand-mark"; img.src = markSrc(); img.width = 40; img.height = 40; img.alt = "Automate It Away";
+        brandHost.insertBefore(img, brandHost.firstChild);
+      }
+      if (!brandHost.querySelector(".brand-name")) {
+        var strong = brandHost.querySelector("strong");
+        if (strong) strong.classList.add("brand-name");
+      }
+      if (!brandHost.querySelector(".brand-short")) {
+        var short = document.createElement("span");
+        short.className = "brand-short"; short.textContent = "AIA";
+        var nameEl = brandHost.querySelector(".brand-name");
+        if (nameEl && nameEl.parentNode === brandHost) nameEl.insertAdjacentElement("afterend", short);
+        else brandHost.appendChild(short);
+      }
+    }
+  }
+  function paintHeaderChrome() {
+    if (!document.querySelector("header, .site-header")) return false;
+    ensureBtn(); paintSiteNav(); paintWho(); paintQueueHome();
+    liftChrome(document.querySelector("header, .site-header"));
+    paintBrand();
+    apply();
+    return true;
+  }
+  // Phone-only (≤860px): apply the final header grid, start ui-fix, and paint
+  // site-nav / tools before first paint. Desktop (>860px) stays on main's
+  // DOMContentLoaded path — same timing, same requests, same order.
+  if (aiaPhoneCls()) {
+    lockHeader();
+    ensureFixCss();
+    if (document.readyState === "loading") {
+      var chromeMo = new MutationObserver(function () {
+        if (paintHeaderChrome()) chromeMo.disconnect();
+      });
+      chromeMo.observe(document.documentElement, { childList: true, subtree: true });
+      paintHeaderChrome();
+      document.addEventListener("DOMContentLoaded", mark);
+    } else mark();
+  } else if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mark);
   else mark();
   window.AIATheme = { apply: apply, cycle: cycle, label: label, paintWho: paintWho, initials: initials, paintFooter: paintFooter, paintMarks: paintMarks };
 })();
