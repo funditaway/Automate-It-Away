@@ -6,6 +6,13 @@ require("./_env-guard");
 //   pickDrafter env fallback restored
 //   connectSecret fallbacks restored in both copies
 //   save allowed without AIA_CONNECT_SECRET
+//   health claims drafting from an env key again
+//   deskAi is server-wide again (another desk's key turns this desk on)
+//   public health reports that some desk has a key
+//   public health counts packed keys
+//   keyLocked reply drops the plain words
+//   suggest drops the add-your-key step
+//   connections Grok note drops the bill line
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -44,8 +51,44 @@ const DRAFT_OLD = [
   "  return null;",
   "}"
 ].join("\n");
-const SAVE_NOW = "      const keyPacked = wrapSecret(key);\n      if (!keyPacked) return refuse(res, 409, \"keyLocked\", { reason: \"needsConnectSecret\" });\n";
+const SAVE_NOW = "      const keyPacked = wrapSecret(key);\n      if (!keyPacked) return refuse(res, 409, \"keyLocked\", { reason: \"needsConnectSecret\", note: \"This desk can't save a key yet. Nothing was saved.\" });\n";
 const SAVE_OLD = "      const keyPacked = wrapSecret(key);\n";
+const LOCK_NOW = "{ reason: \"needsConnectSecret\", note: \"This desk can't save a key yet. Nothing was saved.\" }";
+const LOCK_OLD = "{ reason: \"needsConnectSecret\" }";
+const STEP_NOW = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const STEP_OLD = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const BILL_NOW = " Drafts only. Your key, your xAI bill. AIA charges nothing.";
+const BILL_OLD = " Drafts only.";
+const DESK_NOW = [
+  "function requestingDeskCanDraft(workspace) {",
+  "  if (!workspace) return false;",
+  "  return !!require(\"./_grok\").pickDrafter(workspace);",
+  "}"
+].join("\n");
+const DESK_WIDE = [
+  "function requestingDeskCanDraft(workspace) {",
+  "  const seen = {};",
+  "  const rows = mem.connections || [];",
+  "  for (let i = 0; i < rows.length; i++) {",
+  "    const row = rows[i];",
+  "    const ws = row && row.workspace;",
+  "    if (!row || row.lane !== \"draft\" || !row.keyPacked || !ws || seen[ws]) continue;",
+  "    seen[ws] = true;",
+  "    if (require(\"./_grok\").pickDrafter(ws)) return true;",
+  "  }",
+  "  return false;",
+  "}"
+].join("\n");
+const DESK_ENV = [
+  "function requestingDeskCanDraft(workspace) {",
+  "  if (!workspace) return false;",
+  "  return !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY) || !!require(\"./_grok\").pickDrafter(workspace);",
+  "}"
+].join("\n");
+const PUBLIC_NOW = "  const publicDraftOn = false;";
+const PUBLIC_LEAK = "  const publicDraftOn = (mem.connections || []).some(function (c) { return c && c.lane === \"draft\" && c.keyPacked && require(\"./_grok\").pickDrafter(c.workspace); });";
+const COUNT_NOW = "        deskAccounts: 0,";
+const COUNT_LEAK = "        deskAccounts: (mem.connections || []).filter((c) => c && c.lane === \"draft\" && c.keyPacked).length,";
 
 const MUTANTS = [
   ["pickDrafter-env-fallback", [
@@ -57,6 +100,27 @@ const MUTANTS = [
   ]],
   ["save-without-connect-secret", [
     ["api/connections.js", SAVE_NOW, SAVE_OLD]
+  ]],
+  ["health-env-draft-claim", [
+    ["api/health.js", DESK_NOW, DESK_ENV]
+  ]],
+  ["deskAi-server-wide", [
+    ["api/health.js", DESK_NOW, DESK_WIDE]
+  ]],
+  ["public-health-leaks-key", [
+    ["api/health.js", PUBLIC_NOW, PUBLIC_LEAK]
+  ]],
+  ["public-health-counts-keys", [
+    ["api/health.js", COUNT_NOW, COUNT_LEAK]
+  ]],
+  ["keylocked-drops-plain-words", [
+    ["api/connections.js", LOCK_NOW, LOCK_OLD]
+  ]],
+  ["suggest-drops-add-key", [
+    ["api/jobs.js", STEP_NOW, STEP_OLD]
+  ]],
+  ["grok-note-drops-bill-line", [
+    ["api/connections.js", BILL_NOW, BILL_OLD]
   ]]
 ];
 
@@ -82,7 +146,7 @@ function main() {
     filter: function (src) { return !/[\\/]node_modules$/.test(src) && !/[\\/]\.git$/.test(src); }
   });
   const orig = {};
-  ["api/_grok.js", "api/connections.js"].forEach(function (rel) {
+  ["api/_grok.js", "api/connections.js", "api/health.js", "api/jobs.js"].forEach(function (rel) {
     orig[rel] = fs.readFileSync(path.join(dir, rel), "utf8");
   });
   function restore() {

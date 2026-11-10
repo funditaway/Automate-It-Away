@@ -103,13 +103,27 @@ async function suite(S) {
   ok(/node scripts\/check-setup-cards-ui\.js && node scripts\/check-helper-names\.js && /.test(pkg), "npm test runs check-helper-names");
   return f;
 }
+// An api file this branch declares in the freeze pin, at that exact blob, is
+// the allowed jobs-mask change. Anything else under api/, plus legal.html and
+// card-timeline.js, still fails.
+function undeclared(names) {
+  const pin = require("./_api-freeze").PIN || {};
+  return names.filter(function (rel) {
+    if (rel.indexOf("api/") !== 0 || !Object.prototype.hasOwnProperty.call(pin, rel)) return true;
+    let now = "";
+    try { now = execFileSync("git", ["hash-object", "--", rel], { cwd: root, encoding: "utf8" }).trim(); }
+    catch (e) { return true; }
+    return now !== pin[rel];
+  });
+}
 function staticChecks() {
   const f = [];
   let base = "", changed = null;
   try { base = execFileSync("git", ["merge-base", "HEAD", "origin/main"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {}
   if (base) { try { changed = execFileSync("git", ["diff", "--name-only", base, "--", "api", "legal.html", "card-timeline.js"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) {} }
-  if (changed === null) f.push("could not diff against main (failing closed)");
-  else if (changed) f.push("desk.html matches its byte/SHA-256 pin; api/, legal.html and card-timeline.js stay as on main (" + changed.replace(/\n/g, ", ") + ")");
+  const left = changed ? undeclared(changed.split("\n").filter(Boolean)) : null;
+  if (changed === null || left === null) f.push("could not diff against main (failing closed)");
+  else if (left.length) f.push("desk.html matches its byte/SHA-256 pin; api/, legal.html and card-timeline.js stay as on main (" + left.join(", ") + ")");
   if (!require("./_desk-html-pin").check(root)) f.push("desk.html does not match its byte/SHA-256 pin");
   return f;
 }

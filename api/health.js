@@ -70,6 +70,24 @@ function wantsStatus(req) {
   return q.view === "status" || q.status === "1";
 }
 
+// Drafting follows the requesting desk's own owner key. pickDrafter unwraps
+// that desk only. An env key never counts, and another desk's key never counts.
+// No workspace means there is no requesting desk, so the answer stays off.
+function requestingDeskCanDraft(workspace) {
+  if (!workspace) return false;
+  return !!require("./_grok").pickDrafter(workspace);
+}
+
+function deskAiFace(on) {
+  const drafting = !!on;
+  return {
+    on: drafting,
+    note: drafting
+      ? "A Desk AI can draft."
+      : "A Desk AI can't draft on this phone yet."
+  };
+}
+
 function honestConnection(row, answered) {
   const id = row && row.provider;
   if (!id) return null;
@@ -137,12 +155,7 @@ async function deskStatus(req, res) {
     wallet,
     aiaTld: statusTld(aiaTld),
     automation: {
-      deskAi: {
-        on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
-        note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
-          ? "A Desk AI can draft."
-          : "A Desk AI can't draft on this phone yet."
-      }
+      deskAi: deskAiFace(requestingDeskCanDraft(workspace))
     },
     honesty: {
       rule: "off until a real connection answers",
@@ -162,6 +175,10 @@ async function health(req, res) {
   await readyRead(true);
   const driver = mem.driver || "file";
   const rev = commitRev();
+  // Public /api/health has no requesting desk. It stays off and does not
+  // look through saved keys, so one desk's key is not visible here.
+  const publicDraftOn = false;
+  const draftFace = deskAiFace(publicDraftOn);
   res.status(200).json({
     ok: true,
     product: "Automate It Away",
@@ -204,15 +221,10 @@ async function health(req, res) {
       mail: require("./_aia-mail").statusOf(),
       persist: (mem.driver === "blob") ? "shared save" : "this desk may forget the save",
       ownerStops: ["kill"],
-      deskAi: {
-        on: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
-        note: (process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY)
-          ? "A Desk AI can draft."
-          : "A Desk AI can't draft on this phone yet."
-      },
+      deskAi: draftFace,
       drafts: {
-        included: !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.AIA_GROK_KEY),
-        deskAccounts: (mem.connections || []).filter((c) => c && c.lane === "draft" && c.keyPacked).length,
+        included: draftFace.on,
+        deskAccounts: 0,
         note: "Owner connects a draft account on Connections. A chat login is not enough. Drafts only."
       }
     },
