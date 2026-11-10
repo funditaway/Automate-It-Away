@@ -29,9 +29,17 @@ function mustParseAndEsc(rel) {
   if (start < 0) fail(rel + " missing esc()");
   const end = src.indexOf("\n  function ", start + 10);
   const fn = src.slice(start, end > start ? end : start + 400);
-  if (!/"&":\s*"&amp;"/.test(fn) || !/"<":\s*"&lt;"/.test(fn)) fail(rel + " esc() does not encode & / <");
-  if (!/">":\s*"&gt;"/.test(fn) || !/"\\"":\s*"&quot;"/.test(fn)) fail(rel + " esc() does not encode > / \"");
-  if (fn.indexOf("&#39;") < 0) fail(rel + " esc() does not encode '");
+    // drop-preview.js later split the entity map ("&" + "amp;"). Accept
+  // that form or a literal map; the vm tests below assert the encoding.
+  function hasEntity(raw, entity) {
+    const tight = '"' + raw + '":"' + entity + '"';
+    const spaced = '"' + raw + '": "' + entity + '"';
+    const split = entity.charAt(0) === "&" ? ('"' + raw + '": "&" + "' + entity.slice(1) + '"') : "";
+    return fn.indexOf(tight) >= 0 || fn.indexOf(spaced) >= 0 || (split && fn.indexOf(split) >= 0);
+  }
+  if (!hasEntity("&", "&amp;") || !hasEntity("<", "&lt;")) fail(rel + " esc() does not encode & / <");
+  if (!hasEntity(">", "&gt;") || !hasEntity('\\"', "&quot;")) fail(rel + " esc() does not encode > / \"");
+if (fn.indexOf("&#39;") < 0) fail(rel + " esc() does not encode '");
   if (/\s*"<":"<"/.test(fn) || /\s*"&":"&"/.test(fn) || /'"':\s*"""/.test(fn)) {
     fail(rel + " esc() is a no-op or invalid quote map");
   }
@@ -42,6 +50,8 @@ function mustParseAndEsc(rel) {
   if (ctx.esc('"hi"') !== "&quot;hi&quot;") fail(rel + " esc must encode \"");
   if (ctx.esc("O'Brien") !== "O&#39;Brien") fail(rel + " esc must encode '");
 }
+
+function pass(msg) { console.log("ok  " + msg); }
 
 function sendFn(src, label) {
   const start = src.indexOf("async function send()");
@@ -56,45 +66,146 @@ function copyFn(src, label) {
   return src.slice(start, start + 1400);
 }
 
+// 1ec1382 moved send(), copyDropShare, paintFiles, and shareUrl from
+// drop.html / widget.html into drop-app.js. Later copy shorten changed
+// the live success hold from "Yes or Stop" to "Yes, then Start".
+// The form, Drop it button, and ok/err slots stay on the pages.
+const app = read("drop-app.js");
+
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
-  const send = sendFn(src, file);
-  const copy = copyFn(src, file);
-
-  if (src.indexOf("https://www.automateitaway.com/drop?ws=") < 0) {
-    fail(file + " share link must use www.automateitaway.com");
-  }
-  if (/https:\/\/automateitaway\.com\/drop\?ws=/.test(src) && src.indexOf("https://www.automateitaway.com/drop?ws=") < 0) {
-    fail(file + " still advertises the apex drop host");
-  }
+  if (src.indexOf("drop-app.js") < 0) fail(file + " must load drop-app.js");
+  else pass(file + " loads drop-app.js");
   if (src.indexOf('id="desk-on"') < 0) fail(file + " missing #desk-on destination");
   if (src.indexOf('id="share-ok"') < 0) fail(file + " missing #share-ok");
   if (src.indexOf('id="share-copy"') < 0) fail(file + " missing Copy drop link button");
   if (src.indexOf('id="title-hint"') < 0) fail(file + " missing title hint");
+  if (src.indexOf('id="drop-send"') < 0) fail(file + " missing Drop it button");
+  if (src.indexOf('id="title"') < 0) fail(file + " missing title field");
+  if (src.indexOf('id="ok"') < 0 || src.indexOf('id="err"') < 0) fail(file + " missing ok / error slots");
   if (src.indexOf('aria-live="polite"') < 0 || src.indexOf('aria-live="assertive"') < 0) {
     fail(file + " must announce success and errors");
   }
-  if (src.indexOf("function paintFiles") < 0 || src.indexOf('photoEl.addEventListener("change", paintFiles)') < 0) {
-    fail(file + " must paint selected files");
-  }
-  if (src.indexOf("Saving file") < 0) fail(file + " must say Saving file while upload runs");
-  if (src.indexOf("File did not save.") < 0) fail(file + " upload error must say File did not save");
-  if (src.indexOf("Photo did not save.") >= 0) fail(file + " still says Photo did not save");
-  if (src.indexOf("You still tap Yes or Stop") < 0) fail(file + " sub must keep Yes or Stop");
   if (src.indexOf("You still tap Yes or No") >= 0) fail(file + " still paints Yes or No as the rail");
-  if (send.indexOf("You still tap Yes or Stop") < 0) fail(file + " success must keep Yes or Stop");
-  if (send.indexOf("Dropping…") < 0 && send.indexOf("Dropping...") < 0) fail(file + " send() must show Dropping…");
-  if (send.indexOf("attachFiles(item") < 0) fail(file + " send() must still attachFiles");
-  if (send.indexOf("agent-tell") < 0) fail(file + " send() must read Tell AIA from #agent-tell");
-  if (/\|\|\s*implement\)\s*\)\s*:/.test(send) || /tell\s*=\s*agentOn[\s\S]{0,120}\|\|\s*implement/.test(send)) {
-    fail(file + " Tell AIA must not fall back to pasted implement");
-  }
-  if (send.indexOf("tell: tell") < 0) fail(file + " send() must post tell");
-  if (copy.indexOf("share-ok") < 0) fail(file + " copyDropShare must write #share-ok");
-  if (/getElementById\(["']ok["']\)/.test(copy)) fail(file + " copyDropShare must not hijack #ok");
-  if (copy.indexOf("never see money") < 0) fail(file + " share copy must stay honest about money");
-  if (src.indexOf("AIADesks.shopOpen") < 0) fail(file + " deskOpen must still follow shopOpen()");
 });
+
+if (app.indexOf("https://www.automateitaway.com/drop?ws=") < 0) {
+  fail("share link must use www.automateitaway.com");
+}
+if (/https:\/\/automateitaway\.com\/drop\?ws=/.test(app)) {
+  fail("share link still advertises the apex drop host");
+}
+if (app.indexOf("function paintFiles") < 0 || app.indexOf('photoEl.addEventListener("change", paintFiles)') < 0) {
+  fail("drop-app.js must paint selected files");
+}
+if (app.indexOf("Saving file") < 0) fail("drop-app.js must say Saving file while upload runs");
+if (app.indexOf("File did not save.") < 0) fail("upload error must say File did not save");
+if (app.indexOf("Photo did not save.") >= 0) fail("drop-app.js still says Photo did not save");
+if (app.indexOf("You still tap Yes or No") >= 0) fail("drop-app.js still paints Yes or No as the rail");
+if (app.indexOf("AIADesks.shopOpen") < 0) fail("deskOpen must still follow shopOpen()");
+
+const send = sendFn(app, "drop-app.js");
+const copy = copyFn(app, "drop-app.js");
+if (send.indexOf("On the queue") < 0 || send.indexOf("You still tap Yes, then Start") < 0) {
+  fail("success must still paint On the queue and hold for a human Yes, then Start");
+}
+if (send.indexOf("Say what you need.") < 0) fail("empty drop must be blocked with Say what you need");
+if (send.indexOf("Dropping…") < 0 && send.indexOf("Dropping...") < 0) fail("send() must show Dropping…");
+if (send.indexOf("attachFiles(item") < 0) fail("send() must still attachFiles");
+if (send.indexOf("agent-tell") < 0) fail("send() must read Tell AIA from #agent-tell");
+if (/\|\|\s*implement\)\s*\)\s*:/.test(send) || /tell\s*=\s*agentOn[\s\S]{0,120}\|\|\s*implement/.test(send)) {
+  fail("Tell AIA must not fall back to pasted implement");
+}
+if (send.indexOf("tell: tell") < 0) fail("send() must post tell");
+if (copy.indexOf("share-ok") < 0) fail("copyDropShare must write #share-ok");
+if (/getElementById\(["']ok["']\)/.test(copy)) fail("copyDropShare must not hijack #ok");
+if (copy.indexOf("never see money") < 0) fail("share copy must stay honest about money");
+pass("send() paints one capture, success, a plain error, and blocks an empty drop");
+
+function jobsFetches(sendSrc) {
+  const out = [];
+  const needle = 'fetch("/api/jobs"';
+  let from = 0;
+  while (true) {
+    const at = sendSrc.indexOf(needle, from);
+    if (at < 0) break;
+    out.push(sendSrc.slice(at, at + 220));
+    from = at + needle.length;
+  }
+  return out;
+}
+
+function dropUxFaults(appSrc) {
+  const bad = [];
+  const s = sendFn(appSrc, "mutant");
+  const fetches = jobsFetches(s);
+  if (!fetches.length) bad.push("no capture on Drop it");
+  else if (fetches.length > 1) bad.push("double capture");
+  if (fetches.length === 1 && !/action:\s*"capture"/.test(appSrc.slice(appSrc.indexOf("async function send()"), appSrc.indexOf("function copyDropShare") >= 0 ? appSrc.indexOf("function copyDropShare") : appSrc.indexOf("async function send()") + 3600).split('fetch("/api/jobs"')[0] + fetches[0])) {
+    // capture action lives on the item built before the fetch
+  }
+  const sendBody = s;
+  if (sendBody.indexOf('action: "capture"') < 0 && fetches.length) {
+    if (bad.indexOf("no capture on Drop it") < 0) bad.push("no capture on Drop it");
+  }
+  if (sendBody.indexOf('showNote(ok, "On the queue"') < 0) bad.push("success not painted");
+  const httpErr = /else\s*\{\s*showNote\(\s*err\s*,\s*out\.error\s*\|\|\s*"Could not send\."\s*\)/.test(sendBody);
+  const netErr = /catch\s*\(\s*\w+\s*\)\s*\{\s*showNote\(\s*err\s*,\s*"Could not reach the desk\."\s*\)/.test(sendBody);
+  if (!httpErr || !netErr) bad.push("error swallowed");
+  if (/action:\s*"start"|action:\s*"ship"|action:\s*"charge"|action:\s*"bind-ai"|action:\s*"assign"/.test(sendBody)) {
+    bad.push("ship/start on drop");
+  }
+  return bad;
+}
+
+const liveUx = dropUxFaults(app);
+if (liveUx.length) fail("drop-app.js send() lost drop UX: " + liveUx.join("; "));
+
+function applyMutant(src, kind) {
+  let next = src;
+  const oneFetch = "const r = await fetch(\"/api/jobs\", { method: \"POST\", headers: headers(), body: JSON.stringify(item) });";
+  if (kind === "no capture on Drop it") {
+    next = next.replace(oneFetch, "const r = { ok: true, json: async function () { return {}; } };");
+  } else if (kind === "double capture") {
+    next = next.replace(
+      oneFetch,
+      oneFetch + " await fetch(\"/api/jobs\", { method: \"POST\", headers: headers(), body: JSON.stringify(item) });"
+    );
+  } else if (kind === "success not painted") {
+    next = next.replace("showNote(ok, \"On the queue\"", "showNote(err, \"On the queue\"");
+  } else if (kind === "error swallowed") {
+    next = next.replace("} else { showNote(err, out.error || \"Could not send.\"); }", "} else { }");
+    next = next.replace("catch (ex) { showNote(err, \"Could not reach the desk.\"); }", "catch (ex) { }");
+  } else if (kind === "ship/start on drop") {
+    next = next.replace(
+      oneFetch,
+      oneFetch + " await fetch(\"/api/jobs\", { method: \"POST\", headers: headers(), body: JSON.stringify({ action: \"start\" }) });"
+    );
+  }
+  return next;
+}
+
+const mutants = [
+  "no capture on Drop it",
+  "double capture",
+  "success not painted",
+  "error swallowed",
+  "ship/start on drop"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const faults = dropUxFaults(applyMutant(app, kind));
+  if (faults.indexOf(kind) < 0) {
+    console.error("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+    process.exitCode = 1;
+  } else {
+    caught++;
+    pass("mutant caught: " + kind + " (" + kind + ")");
+  }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+console.log("ok  mutants: " + caught + "/" + mutants.length + " caught");
+console.log("check-drop-ux mutants: " + caught + "/" + mutants.length + " caught");
 
 ["drop-pick.js", "drop-preview.js"].forEach(mustParseAndEsc);
 
@@ -119,7 +230,7 @@ if (packMd.indexOf("Drop pick / preview leftover:") < 0) {
 
 const now = read("drop-now.js");
 if (now.indexOf("This drop goes to") < 0) fail("drop-now.js banner must name the destination desk");
-if (now.indexOf("You still tap Yes or Stop") < 0) fail("drop-now.js banner must keep Yes or Stop");
+if (now.indexOf("You still tap Yes, then Start") < 0 && now.indexOf("You still tap Yes or Stop") < 0) fail("drop-now.js banner must still hold for a human Yes");
 if (now.indexOf("function widgetOn") < 0) fail("drop-now.js must detect the /widget path");
 if (now.indexOf("function slimChrome") < 0) fail("drop-now.js must slim #drop-on on /widget");
 const bannerAt = now.indexOf("function banner");
@@ -326,12 +437,13 @@ if (packMd.indexOf("Drop widget Tell leftover:") < 0) {
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
   if (src.indexOf("The desk writes the card") >= 0) fail(file + " Put data on still says The desk writes the card");
-  if (src.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes or Stop.") < 0) {
-    fail(file + " Put data on must say A Desk AI drafts the card");
-  }
   if (src.indexOf("What should the desk do with it?") >= 0) fail(file + " Put data on Tell still says What should the desk do with it");
   if (src.indexOf("What should a Desk AI draft?") < 0) fail(file + " Put data on Tell must say What should a Desk AI draft");
 });
+// Live lane copy was shortened in drop-app.js (Yes, then Start). Do not lock parked HTML.
+if (app.indexOf("Paste the data. A Desk AI drafts the card. You still tap Yes, then Start.") < 0) {
+  fail("Put data on must still say A Desk AI drafts the card and hold for Yes, then Start");
+}
 if (yesNo.indexOf("Drop Put data on Tell leftover after that pass") < 0) {
   fail("ACCOUNT-YES-NO must name Drop Put data on Tell leftover");
 }
@@ -496,16 +608,16 @@ if (talk.indexOf("display:none!important") < 0 || talk.indexOf("body.widget #tal
 }
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
-  if (src.indexOf("html.widget #talkBar") < 0 || src.indexOf("body.widget #talkBar") < 0) {
-    fail(file + " must hard-hide #talkBar on .widget");
-  }
-  if (src.indexOf("display:none!important") < 0) {
-    fail(file + " must hard-hide #talkBar with display:none!important");
-  }
+  if (src.indexOf("drop-page.css") < 0) fail(file + " must load drop-page.css so .widget hard-hides Talk");
 });
-const uiFix = read("ui-fix.css");
-if (uiFix.indexOf("body.widget #talkBar") < 0 || uiFix.indexOf("html.widget #talkBar") < 0) {
-  fail("ui-fix.css must hard-hide #talkBar on .widget so .talk-bar flex cannot paint Hear this");
+// 1ec1382 moved the .widget Talk hide out of the HTML / ui-fix.css into drop-page.css
+// (drop-talk.js still injects the same rule). /widget must not paint Hear this.
+const dropPage = read("drop-page.css");
+if (dropPage.indexOf("html.widget #talkBar") < 0 || dropPage.indexOf("body.widget #talkBar") < 0) {
+  fail("drop-page.css must hard-hide #talkBar on .widget so .talk-bar flex cannot paint Hear this");
+}
+if (dropPage.indexOf("display:none!important") < 0) {
+  fail("drop-page.css must hard-hide #talkBar with display:none!important");
 }
 const dropHtmlSrc = read("drop.html");
 if (dropHtmlSrc.indexOf('classList.add("widget")') < 0) {
@@ -592,7 +704,7 @@ if (now.indexOf("AIADesks.widgetHref") >= 0) {
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = read(file);
   if (src.indexOf("Talk the work in your words") >= 0) fail(file + " Talk bar still says Talk the work in your words");
-  if (src.indexOf("A Desk AI drafts the card") < 0) fail(file + " Talk bar must say A Desk AI drafts the card");
 });
+// Live Talk copy is asserted on drop-talk.js above. Do not lock parked HTML #talkStatus / #drop-sub.
 
 console.log("check-drop-ux: ok");
