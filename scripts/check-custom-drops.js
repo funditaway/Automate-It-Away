@@ -40,9 +40,47 @@ if (custom.indexOf("card-type-chips") < 0) fail("must paint card-type chips");
 else pass("card-type chips");
 if (custom.indexOf("card-type-badge") < 0) fail("must paint card-type badge on face");
 else pass("card-type badge on face");
-if (custom.indexOf("silent bind") < 0 && custom.indexOf("not a silent bind") < 0) {
-  fail("must say Desk AI path is not a silent bind");
-} else pass("honest Desk AI path copy");
+// fff3b47 shortened the Custom Drop honesty from "Desk AI draft path —
+// not a silent bind. Yes, then Start." to "A Desk AI drafts. You still
+// tap Yes, then Start." Do not require the parked "not a silent bind"
+// phrase. Assert the painted meaning and that the path cannot bind
+// without a human Yes (ba5613e / #255 removed onchange=bindAiOnCard).
+const needs = read("desk-needs.js");
+function customDropHonestyFaults(src) {
+  const bad = [];
+  if (src.indexOf("A Desk AI drafts") < 0) bad.push("missing A Desk AI drafts");
+  if (src.indexOf("Yes, then Start") < 0) bad.push("missing Yes, then Start");
+  return bad;
+}
+function customDropSilentBindFaults(customSrc, needsSrc) {
+  const bad = [];
+  const hay = String(customSrc || "") + "\n" + String(needsSrc || "");
+  if (/onchange\s*=\s*(?:\\["\']|["\'])?bindAiOnCard/.test(hay)) bad.push("onchange=bindAiOnCard silent bind is back");
+  const askAt = customSrc.indexOf("async function askDesk");
+  const askEnd = customSrc.indexOf("function stamp", askAt);
+  const ask = askAt >= 0 && askEnd > askAt ? customSrc.slice(askAt, askEnd) : customSrc;
+  if (ask.indexOf('action: "suggest"') < 0) bad.push("Ask Desk AI does not POST action suggest");
+  if (/action:\s*"capture"|action:\s*"bind-ai"|action:\s*"set-ai"|action:\s*"assign-ai"/.test(ask)) {
+    bad.push("Ask Desk AI posts a bind/capture without a human Yes");
+  }
+  if (/\buseDraft\s*\(/.test(ask)) bad.push("Ask Desk AI auto-applies the draft (skips Use draft)");
+  const useAt = customSrc.indexOf("function useDraft");
+  const useEnd = customSrc.indexOf("async function askDesk", useAt);
+  const use = useAt >= 0 ? customSrc.slice(useAt, useEnd > useAt ? useEnd : customSrc.length) : "";
+  if (/\bfetch\s*\(/.test(use)) bad.push("Use draft fetches / binds without staying on the form");
+  if (!/custom-yes(?:\\")?"?\s+hidden/.test(customSrc)) bad.push("Use draft is not hidden until a draft lands");
+  return bad;
+}
+(function () {
+  const bad = customDropHonestyFaults(custom);
+  if (bad.length) fail("Custom Drop must still say a Desk AI drafts and you still tap Yes, then Start: " + bad.join("; "));
+  else pass("Custom Drop paints A Desk AI drafts / You still tap Yes, then Start");
+})();
+(function () {
+  const bad = customDropSilentBindFaults(custom, needs);
+  if (bad.length) fail("Desk AI / Custom Drop path must stay pending until a human Yes: " + bad.join("; "));
+  else pass("Desk AI path does not bind without a human Yes");
+})();
 if (custom.indexOf("Yes, then Start") < 0) fail("must keep Yes, then Start");
 else pass("Yes, then Start kept");
 if (/\\bPLACEHOLDER\\b|demo data|Whatnot|ebay\\.com|mail send/.test(custom)) fail("no demo/mail/eBay/Whatnot stubs");
@@ -92,8 +130,54 @@ if (bytes < 2000) fail("drop-custom.js too small (" + bytes + ")");
 if (bytes > 40000) fail("drop-custom.js too large for MCP (" + bytes + ")");
 else pass("drop-custom.js size " + bytes);
 
+function swap(str, from, to) { return str.indexOf(from) < 0 ? null : str.split(from).join(to); }
+
+const MUTANTS = [
+  ["removes the not-silent / Yes-then-Start line", function () {
+    const n = swap(custom, "A Desk AI drafts. You still tap Yes, then Start.", "A Desk AI handles it from here.");
+    return n ? customDropHonestyFaults(n).concat(n.indexOf("Yes, then Start") < 0 ? [] : []) : null;
+  }],
+  ["restores a silent onchange auto bind", function () {
+    const askTok = "id=" + "\\\"" + "custom-ask" + "\\\"";
+    const n = swap(custom, askTok, askTok + " onchange=" + "\\\"" + "bindAiOnCard" + "\\\"");
+    return n ? customDropSilentBindFaults(n, needs) : null;
+  }],
+  ["Ask Desk AI posts capture instead of suggest", function () {
+    const n = swap(custom, 'action: "suggest"', 'action: "capture"');
+    return n ? customDropSilentBindFaults(n, needs) : null;
+  }],
+  ["Ask Desk AI auto-applies the draft", function () {
+    const n = swap(custom, "if (s) s.hidden = false;", "if (s) s.hidden = false; useDraft();");
+    return n ? customDropSilentBindFaults(n, needs) : null;
+  }],
+  ["Use draft is visible before a draft lands", function () {
+    const yesTok = "id=" + "\\\"" + "custom-yes" + "\\\"" + " hidden";
+    const n = swap(custom, yesTok, "id=" + "\\\"" + "custom-yes" + "\\\"");
+    return n ? customDropSilentBindFaults(n, needs) : null;
+  }],
+  ["Use draft fetches a bind", function () {
+    const n = swap(custom, "if (draftBlob.cardType) setType(draftBlob.cardType);", "if (draftBlob.cardType) setType(draftBlob.cardType); fetch(\"/api/jobs\", { method: \"POST\", body: JSON.stringify({ action: \"bind-ai\" }) });");
+    return n ? customDropSilentBindFaults(n, needs) : null;
+  }],
+  ["desk-needs restores onchange=bindAiOnCard", function () {
+    const n = swap(needs, "class=\"q-ai-pick\"", "class=\"q-ai-pick\" onchange=\"bindAiOnCard\"");
+    return n ? customDropSilentBindFaults(custom, n) : null;
+  }]
+];
+let mutCaught = 0;
+MUTANTS.forEach(function (m) {
+  let out;
+  try { out = m[1](); } catch (e) { out = ["threw " + e.message]; }
+  if (out === null || out === false || out === undefined) fail("mutant does not apply: " + m[0]);
+  else if (out.length) { mutCaught += 1; pass("mutant caught: " + m[0] + " (" + out[0] + ")"); }
+  else fail("mutant survived: " + m[0]);
+});
+pass("mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
+if (mutCaught !== MUTANTS.length) fail("not every mutant was caught");
+
 if (process.exitCode) {
   console.error("check-custom-drops failed");
   process.exit(1);
 }
+console.log("check-custom-drops mutants: " + mutCaught + "/" + MUTANTS.length + " caught");
 console.log("check-custom-drops: ok");
