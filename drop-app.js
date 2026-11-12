@@ -20,8 +20,10 @@ const params = new URLSearchParams(location.search);
       const h = { "Content-Type": "application/json" };
       if (ws) h["X-Workspace"] = ws;
       const tok = localStorage.getItem("aia_session") || "";
-      if (tok) h["X-Session"] = tok;
-      else {
+      const authWs = localStorage.getItem("aia_ws") || "";
+      if (tok && ws && ws === authWs) {
+        h["X-Session"] = tok;
+      } else {
         const pin = localStorage.getItem("aia_pin") || "";
         if (pin) h["X-Pin"] = pin;
       }

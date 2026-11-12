@@ -388,8 +388,10 @@ function assertSources() {
   if (headersFn.indexOf('h["X-Workspace"] = ws') < 0) fail("drop/widget headers must send the desk name");
   if (headersFn.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("drop/widget must send a pin only when one is already on the phone");
   // Public drop still works without a session (session-less leftover pin is
-  // still sent). A leftover pin must not ride with a session. Replaces the
-  // older source guard that forbade any X-Session string in headers().
+  // still sent). A leftover pin must not ride with a same-desk session.
+  // A leftover session from another desk must not go out on this Drop:
+  // that was the reason the older source guard forbade any X-Session
+  // string in headers() (#324: public drops post into the named desk only).
   function runDropHeaders(src, bag) {
     const from = src.indexOf("function headers()");
     const to = src.indexOf("function showMode");
@@ -397,7 +399,7 @@ function assertSources() {
     if (!block) throw new Error("drop-app.js missing headers()");
     const reads = [];
     const ctx = {
-      ws: bag.aia_ws || "",
+      ws: bag.drop_ws != null ? bag.drop_ws : (bag.aia_ws || ""),
       localStorage: {
         getItem: function (k) {
           reads.push(k);
@@ -422,6 +424,16 @@ function assertSources() {
     if (dropPin(pinOnly.headers) !== "4821" || dropTok(pinOnly.headers)) {
       bad.push("drop-app session-less leftover pin is no longer sent as X-Pin");
     }
+    // Public Drop on another desk must not send this phone's leftover session,
+    // and must still send a leftover pin the same way main does.
+    const cross = runDropHeaders(src, {
+      aia_ws: "desk-alpha",
+      aia_session: "sess-live",
+      aia_pin: "4821",
+      drop_ws: "desk-bravo"
+    });
+    if (dropTok(cross.headers)) bad.push("cross-desk session sent");
+    if (dropPin(cross.headers) !== "4821") bad.push("public drop with no X-Pin");
     return bad;
   }
   const liveDrop = dropHeaderFaults(drop);
@@ -433,28 +445,35 @@ function assertSources() {
   } else pass("public drop headers still work without a session");
 
   function applyDropMutant(src, kind) {
-    const live = "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      if (tok) h[\"X-Session\"] = tok;\n      else {\n        const pin = localStorage.getItem(\"aia_pin\") || \"\";\n        if (pin) h[\"X-Pin\"] = pin;\n      }\n";
+    const live = "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      if (tok && ws && ws === authWs) {\n        h[\"X-Session\"] = tok;\n      } else {\n        const pin = localStorage.getItem(\"aia_pin\") || \"\";\n        if (pin) h[\"X-Pin\"] = pin;\n      }\n";
     if (kind === "drop-app leftover pin is sent when a session is present") {
-      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (tok) h[\"X-Session\"] = tok;\n      if (pin) h[\"X-Pin\"] = pin;\n");
+      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      const pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (tok && ws && ws === authWs) h[\"X-Session\"] = tok;\n      if (pin) h[\"X-Pin\"] = pin;\n");
     }
     if (kind === "drop-app leftover pin is read when a session is present") {
-      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (tok) h[\"X-Session\"] = tok;\n      else if (pin) h[\"X-Pin\"] = pin;\n");
+      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      const pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (tok && ws && ws === authWs) {\n        h[\"X-Session\"] = tok;\n      } else if (pin) h[\"X-Pin\"] = pin;\n");
     }
     if (kind === "drop-app session is not sent when a session is present") {
-      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      if (tok) {\n      } else {\n        const pin = localStorage.getItem(\"aia_pin\") || \"\";\n        if (pin) h[\"X-Pin\"] = pin;\n      }\n");
+      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      if (tok && ws && ws === authWs) {\n      } else {\n        const pin = localStorage.getItem(\"aia_pin\") || \"\";\n        if (pin) h[\"X-Pin\"] = pin;\n      }\n");
     }
     if (kind === "drop-app session-less leftover pin is no longer sent as X-Pin") {
-      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      if (tok) h[\"X-Session\"] = tok;\n");
+      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      if (tok && ws && ws === authWs) {\n        h[\"X-Session\"] = tok;\n      }\n");
+    }
+    if (kind === "cross-desk session sent") {
+      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      if (tok) h[\"X-Session\"] = tok;\n      else {\n        const pin = localStorage.getItem(\"aia_pin\") || \"\";\n        if (pin) h[\"X-Pin\"] = pin;\n      }\n");
+    }
+    if (kind === "public drop with no X-Pin") {
+      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      if (tok && ws && ws === authWs) {\n        h[\"X-Session\"] = tok;\n      }\n");
     }
     return src;
   }
-  ["drop-app leftover pin is sent when a session is present", "drop-app leftover pin is read when a session is present", "drop-app session is not sent when a session is present", "drop-app session-less leftover pin is no longer sent as X-Pin"].forEach(function (kind) {
+  ["drop-app leftover pin is sent when a session is present", "drop-app leftover pin is read when a session is present", "drop-app session is not sent when a session is present", "drop-app session-less leftover pin is no longer sent as X-Pin", "cross-desk session sent", "public drop with no X-Pin"].forEach(function (kind) {
     const next = applyDropMutant(drop, kind);
     if (next === drop) { fail("header mutant does not apply: " + kind); return; }
     const faults = dropHeaderFaults(next);
     if (faults.indexOf(kind) < 0) fail("header mutant survived: " + kind + " (got " + JSON.stringify(faults) + ")");
     else pass("header mutant caught: " + kind);
   });
+
   const upAt = drop.indexOf('fetch("/api/upload"');
   const upFn = drop.slice(upAt, upAt + 240);
   if (upAt < 0 || upFn.indexOf("headers: headers()") < 0 || upFn.indexOf('method: "POST"') < 0) {
