@@ -336,12 +336,14 @@ function paintCapFrom(src, job) {
   return run.capCardHtml(job || goneJob, "shop");
 }
 
-async function leftoverCapRun(src) {
+async function capLoadRun(src, opts) {
+  opts = opts || {};
   if (!src) return "no source";
   const band = { hidden: true };
   const box = { innerHTML: "" };
   const calls = [];
-  const store = { aia_ws: "shop", aia_pin: "", aia_session: "tok-leftover" };
+  const store = Object.assign({ aia_ws: "shop", aia_pin: "", aia_session: "tok-leftover" }, opts.store || {});
+  const list = (opts.list || []).slice();
   const run = baseCtx();
   run.document.getElementById = function (id) {
     if (id === "cap-band") return band;
@@ -354,7 +356,12 @@ async function leftoverCapRun(src) {
   };
   try { vm.runInNewContext(src, run); } catch (e) { return "threw " + e.message; }
   if (typeof run.loadCap !== "function") return "no window.loadCap";
-  run.AIADesks = { list: function () { return []; } };
+  run.AIADesks = {
+    list: function () { return list.slice(); },
+    find: function (slug) {
+      return list.find(function (d) { return d && d.slug === slug; }) || null;
+    }
+  };
   run.AIADeskAis = {
     rows: [{ name: "James’s AI", does: "Draft the lead packet" }],
     primary: function () { return this.rows[0]; }
@@ -370,15 +377,121 @@ async function leftoverCapRun(src) {
   }
   return { desks: desks, html: box.innerHTML, hidden: band.hidden, calls: calls };
 }
+async function leftoverCapRun(src) {
+  return capLoadRun(src, {});
+}
 function leftoverCapFaults(out) {
   const bad = [];
   if (typeof out === "string") { bad.push(out); return bad; }
   const desks = out.desks || [];
-  if (!desks.some(function (d) { return d && d.slug === "shop"; })) {
+  const shop = desks.find(function (d) { return d && d.slug === "shop"; });
+  if (!shop) {
     bad.push("did not unshift this desk for leftover session");
+  } else {
+    if (shop.token !== "tok-leftover") bad.push("did not send this desk via its session");
+    if (shop.pin) bad.push("sent leftover aia_pin for this desk");
   }
   if (out.hidden) bad.push("hid the cap band");
   if (!out.calls || !out.calls.length) bad.push("did not ask /api/desks");
+  return bad;
+}
+function leftoverPinCapFaults(out) {
+  const bad = leftoverCapFaults(out);
+  if (typeof out === "string") return bad;
+  const desks = out.desks || [];
+  const other = desks.find(function (d) { return d && d.slug === "other-desk"; });
+  if (!other) bad.push("dropped other-desk Cap row");
+  else {
+    if (other.pin !== "9999") bad.push("changed other-desk Cap pin");
+    if (other.token) bad.push("sent a token on other-desk Cap");
+  }
+  return bad;
+}
+function pinOnlyCapFaults(out) {
+  const bad = [];
+  if (typeof out === "string") { bad.push(out); return bad; }
+  const desks = out.desks || [];
+  const shop = desks.find(function (d) { return d && d.slug === "shop"; });
+  if (!shop) bad.push("did not keep this desk on pin-only Cap");
+  else if (shop.pin !== "4821") bad.push("pin-only current desk must still send the leftover pin");
+  if (out.hidden) bad.push("hid the cap band");
+  return bad;
+}
+
+async function openCapRun(src, opts) {
+  opts = opts || {};
+  if (!src) return "no source";
+  const store = Object.assign({ aia_ws: "shop", aia_pin: "4821", aia_session: "tok-leftover" }, opts.store || {});
+  const writes = [];
+  const pinEl = { value: opts.pinField != null ? opts.pinField : "" };
+  const wsEl = { value: opts.wsField != null ? opts.wsField : (store.aia_ws || "") };
+  const list = (opts.list || [{ slug: "shop", pin: "4821" }, { slug: "other-desk", pin: "9999" }]).slice();
+  let loaded = 0;
+  const opened = [];
+  const run = baseCtx();
+  run.document.getElementById = function (id) {
+    if (id === "ws") return wsEl;
+    if (id === "pin") return pinEl;
+    return null;
+  };
+  run.localStorage = {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : ""; },
+    setItem: function (k, v) { writes.push({ k: k, v: String(v) }); store[k] = String(v); }
+  };
+  run.location = { href: "/desk" };
+  run.load = async function () { loaded += 1; };
+  run.openJob = function (id) { opened.push(id); };
+  try { vm.runInNewContext(src, run); } catch (e) { return "threw " + e.message; }
+  if (typeof run.openCapDesk !== "function") return "no window.openCapDesk";
+  run.AIADesks = {
+    list: function () { return list.slice(); },
+    find: function (slug) {
+      return list.find(function (d) { return d && d.slug === slug; }) || null;
+    }
+  };
+  await run.openCapDesk(opts.slug || "shop", opts.jobId || "j1");
+  return {
+    store: store,
+    writes: writes,
+    pinValue: pinEl.value,
+    wsValue: wsEl.value,
+    loaded: loaded,
+    opened: opened,
+    href: run.location.href
+  };
+}
+function currentDeskOpenFaults(out) {
+  const bad = [];
+  if (typeof out === "string") { bad.push(out); return bad; }
+  if (out.writes.some(function (w) { return w.k === "aia_pin"; })) bad.push("wrote leftover aia_pin");
+  if (out.pinValue) bad.push("painted leftover aia_pin");
+  if (!out.loaded) bad.push("did not load the current desk");
+  if (out.opened.indexOf("j1") < 0) bad.push("did not open the card");
+  if (out.href === "/desks") bad.push("bounced a session-only current desk to /desks");
+  return bad;
+}
+function otherDeskOpenFaults(out) {
+  const bad = [];
+  if (typeof out === "string") { bad.push(out); return bad; }
+  if (!out.writes.some(function (w) { return w.k === "aia_ws" && w.v === "other-desk"; })) {
+    bad.push("did not switch aia_ws to the other desk");
+  }
+  if (!out.writes.some(function (w) { return w.k === "aia_pin" && w.v === "9999"; })) {
+    bad.push("did not write the other-desk pin");
+  }
+  if (out.pinValue !== "9999") bad.push("did not paint the other-desk pin");
+  if (out.wsValue !== "other-desk") bad.push("did not paint the other-desk name");
+  if (!out.loaded) bad.push("did not load the other desk");
+  if (out.opened.indexOf("j1") < 0) bad.push("did not open the card on the other desk");
+  if (out.href === "/desks") bad.push("bounced a pin-backed other desk to /desks");
+  return bad;
+}
+function otherDeskMissingPinFaults(out) {
+  const bad = [];
+  if (typeof out === "string") { bad.push(out); return bad; }
+  if (out.href !== "/desks") bad.push("token-less other desk must still go to /desks");
+  if (out.writes.some(function (w) { return w.k === "aia_pin"; })) bad.push("wrote a pin for a token-less other desk");
+  if (out.loaded) bad.push("loaded a token-less other desk");
   return bad;
 }
 
@@ -389,6 +502,51 @@ async function main() {
   const leftoverBad = leftoverCapFaults(leftover);
   if (leftoverBad.length) fail("Cap load must unshift this desk when leftover email session is live: " + leftoverBad.join("; "));
   else pass("Cap load unshifts this desk on leftover email session");
+
+  const leftoverPin = await capLoadRun(needs, {
+    store: { aia_ws: "shop", aia_pin: "4821", aia_session: "tok-leftover" },
+    list: [{ slug: "shop", pin: "4821" }, { slug: "other-desk", pin: "9999" }]
+  });
+  const leftoverPinBad = leftoverPinCapFaults(leftoverPin);
+  if (leftoverPinBad.length) fail("Cap load must send this desk via its session, not a leftover pin: " + leftoverPinBad.join("; "));
+  else pass("Cap load sends this desk via its session and leaves other-desk pins alone");
+
+  const pinOnly = await capLoadRun(needs, {
+    store: { aia_ws: "shop", aia_pin: "4821", aia_session: "" },
+    list: []
+  });
+  const pinOnlyBad = pinOnlyCapFaults(pinOnly);
+  if (pinOnlyBad.length) fail("Cap load must still send a leftover pin when there is no session: " + pinOnlyBad.join("; "));
+  else pass("Cap load still sends a leftover pin when there is no session");
+
+  const openCurrent = await openCapRun(needs, { slug: "shop", jobId: "j1" });
+  const openCurrentBad = currentDeskOpenFaults(openCurrent);
+  if (openCurrentBad.length) fail("openCapDesk on the current desk with a session must not write or paint aia_pin: " + openCurrentBad.join("; "));
+  else pass("openCapDesk on the current desk with a session does not write or paint aia_pin");
+
+  const openSessionOnly = await openCapRun(needs, {
+    slug: "shop",
+    jobId: "j1",
+    store: { aia_ws: "shop", aia_pin: "", aia_session: "tok-leftover" },
+    list: []
+  });
+  const openSessionOnlyBad = currentDeskOpenFaults(openSessionOnly);
+  if (openSessionOnlyBad.length) fail("openCapDesk must still open a session-only current desk: " + openSessionOnlyBad.join("; "));
+  else pass("openCapDesk still opens a session-only current desk");
+
+  const openOther = await openCapRun(needs, { slug: "other-desk", jobId: "j1" });
+  const openOtherBad = otherDeskOpenFaults(openOther);
+  if (openOtherBad.length) fail("openCapDesk on another desk must still write and paint that desk's pin: " + openOtherBad.join("; "));
+  else pass("openCapDesk on another desk still writes and paints that desk's pin");
+
+  const openMissing = await openCapRun(needs, {
+    slug: "other-desk",
+    jobId: "j1",
+    list: [{ slug: "other-desk" }]
+  });
+  const openMissingBad = otherDeskMissingPinFaults(openMissing);
+  if (openMissingBad.length) fail("openCapDesk on another desk without a pin must still go to /desks: " + openMissingBad.join("; "));
+  else pass("openCapDesk on another desk without a pin still goes to /desks");
 
   const MUTANTS = [
     ["cap source loses not on this desk", function () {
@@ -434,6 +592,41 @@ async function main() {
       if (!n) return null;
       const out = await leftoverCapRun(n);
       return leftoverCapFaults(out);
+    }],
+    ["current-desk Cap keeps leftover pin", async function () {
+      const n = swap(needs, "r.unshift({slug:i,token:a})", "r.unshift({slug:i,pin:o})");
+      if (!n) return null;
+      const out = await capLoadRun(n, {
+        store: { aia_ws: "shop", aia_pin: "4821", aia_session: "tok-leftover" },
+        list: [{ slug: "shop", pin: "4821" }, { slug: "other-desk", pin: "9999" }]
+      });
+      return leftoverPinCapFaults(out);
+    }],
+    ["current-desk Cap sends no token", async function () {
+      const n = swap(needs, "r.unshift({slug:i,token:a})", "r.unshift({slug:i})");
+      if (!n) return null;
+      const out = await leftoverCapRun(n);
+      return leftoverCapFaults(out);
+    }],
+    ["openCapDesk writes leftover aia_pin on current desk", async function () {
+      const n = swap(
+        needs,
+        'if(e&&e===s&&o)return"function"==typeof load&&await load(),void(t&&"function"==typeof openJob&&openJob(t));',
+        'if(e&&e===s&&o)return localStorage.setItem("aia_pin","leftover"),"function"==typeof load&&await load(),void(t&&"function"==typeof openJob&&openJob(t));'
+      );
+      if (!n) return null;
+      const out = await openCapRun(n, { slug: "shop", jobId: "j1" });
+      return currentDeskOpenFaults(out);
+    }],
+    ["openCapDesk paints leftover code on current desk", async function () {
+      const n = swap(
+        needs,
+        'if(e&&e===s&&o)return"function"==typeof load&&await load(),void(t&&"function"==typeof openJob&&openJob(t));',
+        'if(e&&e===s&&o)return document.getElementById("pin")&&(document.getElementById("pin").value="leftover"),"function"==typeof load&&await load(),void(t&&"function"==typeof openJob&&openJob(t));'
+      );
+      if (!n) return null;
+      const out = await openCapRun(n, { slug: "shop", jobId: "j1" });
+      return currentDeskOpenFaults(out);
     }]
   ];
   let mutCaught = 0;
