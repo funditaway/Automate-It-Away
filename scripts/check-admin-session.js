@@ -5,6 +5,7 @@ require("./_env-guard");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const vm = require("vm");
 
 const store = path.join(os.tmpdir(), "aia-admin-session-check-" + Date.now() + ".json");
 process.env.AIA_STORE_PATH = store;
@@ -35,6 +36,153 @@ if (admin.indexOf("aia_session") < 0) {
 if (admin.indexOf("if (wsEl.value && (pinEl.value || localStorage.getItem(\"aia_session\"))) load()") < 0) {
   fail("admin.html must load when leftover session is live");
 } else pass("admin.html loads when leftover session is live");
+
+
+function pinOpenTag(html) {
+  const m = html.match(/<input\b[^>]*id="pin"[^>]*>/i);
+  return m ? m[0] : "";
+}
+function invitePinTag(html) {
+  const m = html.match(/<input\b[^>]*id="p"[^>]*>/i);
+  return m ? m[0] : "";
+}
+function adminFaults(html) {
+  const bad = [];
+  if (!/\btype="password"/.test(pinOpenTag(html))) bad.push("field type=text");
+  if (html.indexOf('localStorage.setItem("aia_pin"') >= 0) bad.push("pin stored");
+  const hdrAt = html.indexOf("function headers()");
+  const hdrEnd = html.indexOf("async function api(", hdrAt);
+  const hdr = hdrAt >= 0 && hdrEnd > hdrAt ? html.slice(hdrAt, hdrEnd) : html;
+  if (hdr.indexOf('localStorage.getItem("aia_pin")') >= 0) bad.push("leftover sent");
+  if (html.indexOf('pinEl.value = localStorage.getItem("aia_pin")') >= 0) bad.push("field prefilled");
+  return bad;
+}
+function applyAdminMutant(html, kind) {
+  if (kind === "field type=text") {
+    return html.replace(
+      'id="pin" placeholder="Desk code" type="password"',
+      'id="pin" placeholder="Desk code" type="text"'
+    );
+  }
+  if (kind === "pin stored") {
+    return html.replace(
+      'if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);',
+      'if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);\n      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);'
+    );
+  }
+  if (kind === "leftover sent") {
+    return html.replace(
+      "const pin = pinEl.value;",
+      'const pin = pinEl.value || localStorage.getItem("aia_pin");'
+    );
+  }
+  if (kind === "field prefilled") {
+    return html.replace(
+      'if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");\n    if (wsEl.value && (pinEl.value || localStorage.getItem("aia_session"))) load();',
+      'if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");\n    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");\n    if (wsEl.value && (pinEl.value || localStorage.getItem("aia_session"))) load();'
+    );
+  }
+  return html;
+}
+
+const liveFaults = adminFaults(admin);
+if (liveFaults.length) fail("admin.html leftover desk code faults: " + liveFaults.join("; "));
+else pass("admin.html keeps a leftover desk code out of storage and off boot GETs");
+if (!/\btype="password"/.test(pinOpenTag(admin)) || !/\bautocomplete="current-password"/.test(pinOpenTag(admin))) {
+  fail("admin.html Open-admin desk code field must be type=password autocomplete=current-password");
+} else pass("admin.html Open-admin desk code field is masked");
+if (!/\btype="password"/.test(invitePinTag(admin)) || !/\bautocomplete="new-password"/.test(invitePinTag(admin))) {
+  fail("admin.html invite pin field must be type=password autocomplete=new-password");
+} else pass("admin.html invite pin field is masked");
+
+["field type=text", "pin stored", "leftover sent", "field prefilled"].forEach(function (kind) {
+  const faults = adminFaults(applyAdminMutant(admin, kind));
+  if (faults.indexOf(kind) < 0) fail("admin leftover-pin mutant survived: " + kind);
+  else pass("admin leftover-pin mutant caught: " + kind);
+});
+
+function memStore(seed) {
+  const m = Object.assign({}, seed || {});
+  return {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(m, k) ? String(m[k]) : null; },
+    setItem: function (k, v) { m[k] = String(v); },
+    removeItem: function (k) { delete m[k]; },
+    _raw: m
+  };
+}
+function makeEl(id) {
+  return {
+    id: id,
+    tagName: id === "people" || id === "rules" || id === "tickets" || id === "audit" || id === "money" || id === "invite-box" ? "DIV" : "INPUT",
+    value: "",
+    textContent: "",
+    innerHTML: "",
+    hidden: false,
+    style: {},
+    setAttribute: function () {},
+    getAttribute: function () { return null; },
+    addEventListener: function () {}
+  };
+}
+function headerPin(headers) {
+  if (!headers) return "";
+  const keys = Object.keys(headers);
+  for (let i = 0; i < keys.length; i++) {
+    if (String(keys[i]).toLowerCase() === "x-pin") return String(headers[keys[i]] || "");
+  }
+  return "";
+}
+function extractInline(html) {
+  const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+  const parts = [];
+  let m;
+  while ((m = re.exec(html))) {
+    if (/\bsrc\s*=/.test(m[1] || "")) continue;
+    parts.push(m[2]);
+  }
+  return parts.join("\n");
+}
+function bootAdmin(html, seed, opts) {
+  const store = memStore(seed);
+  const fetches = [];
+  const els = {};
+  function el(id) {
+    if (!els[id]) els[id] = makeEl(id);
+    return els[id];
+  }
+  ["ws", "pin", "banner", "you", "c-wait", "c-held", "c-ship", "c-kill", "people", "invite-box", "rules", "tickets", "audit", "money", "n", "e", "p", "r", "inv"].forEach(el);
+  if (opts && opts.pinValue != null) el("pin").value = opts.pinValue;
+  if (opts && opts.wsValue != null) el("ws").value = opts.wsValue;
+  const ctx = {
+    localStorage: store,
+    document: { getElementById: function (id) { return el(id); } },
+    fetch: function (url, init) {
+      fetches.push({ url: String(url), headers: (init && init.headers) || {}, body: init && init.body, method: (init && init.method) || "GET" });
+      return Promise.resolve({
+        status: 200,
+        json: function () {
+          return Promise.resolve({
+            ok: true,
+            you: { name: "Owner", role: "owner" },
+            counts: { waiting: 0, held: 0, shipped: 0, killed: 0 },
+            people: [],
+            rules: [],
+            tickets: [],
+            audit: [],
+            money: []
+          });
+        }
+      });
+    },
+    console: console
+  };
+  ctx.window = ctx;
+  vm.runInNewContext(extractInline(html), ctx, { timeout: 2000 });
+  return Promise.resolve().then(function () { return Promise.resolve(); }).then(function () {
+    return { store: store, fetches: fetches, els: els, ctx: ctx };
+  });
+}
+
 
 const yesNo = fs.readFileSync(path.join(root, "ACCOUNT-YES-NO.md"), "utf8");
 const packMd = fs.readFileSync(path.join(root, "PACK.md"), "utf8");
@@ -71,6 +219,45 @@ async function call(handler, method, headers, body, query) {
 }
 
 async function main() {
+  const leftoverBoot = await bootAdmin(admin, { aia_ws: "admin-book", aia_session: "sess-live", aia_pin: "6612" });
+  const leftoverGets = leftoverBoot.fetches.filter(function (f) { return String(f.url).indexOf("/api/admin") >= 0; });
+  if (!leftoverGets.length) fail("admin boot with leftover session must still GET /api/admin");
+  else pass("admin boot with leftover session still GETs /api/admin");
+  if (leftoverGets.some(function (f) { return headerPin(f.headers); })) {
+    fail("admin boot GET must not send a leftover desk code as X-Pin");
+  } else pass("admin boot GET does not send a leftover desk code");
+  if (leftoverBoot.els.pin.value) fail("admin must not prefill the desk code field from leftover storage");
+  else pass("admin does not prefill the desk code field from leftover storage");
+
+  const typed = await bootAdmin(admin, { aia_ws: "admin-book", aia_session: "sess-live" }, { pinValue: "4821" });
+  const typedGets = typed.fetches.filter(function (f) { return String(f.url).indexOf("/api/admin") >= 0; });
+  if (!typedGets.length || typedGets.some(function (f) { return headerPin(f.headers) !== "4821"; })) {
+    fail("admin must still send a typed desk code as X-Pin with a leftover session");
+  } else pass("admin still sends a typed desk code with a leftover session");
+  if (typed.store.getItem("aia_pin")) fail("admin Open must not store a typed desk code");
+  else pass("admin Open does not store a typed desk code");
+
+  const typedOnly = await bootAdmin(admin, { aia_ws: "admin-book" }, { pinValue: "4821" });
+  const pinGets = typedOnly.fetches.filter(function (f) { return String(f.url).indexOf("/api/admin") >= 0; });
+  if (!pinGets.length || pinGets.some(function (f) { return headerPin(f.headers) !== "4821"; })) {
+    fail("admin Open with a typed desk code must still GET /api/admin with X-Pin");
+  } else pass("admin Open with a typed desk code still works");
+  if (typedOnly.store.getItem("aia_pin")) fail("admin Open with a typed desk code must not write aia_pin");
+  else pass("admin Open with a typed desk code does not write aia_pin");
+
+  const leakMutant = await bootAdmin(applyAdminMutant(admin, "leftover sent"), { aia_ws: "admin-book", aia_session: "sess-live", aia_pin: "6612" });
+  if (!leakMutant.fetches.some(function (f) { return headerPin(f.headers) === "6612"; })) {
+    fail("leftover sent mutant must send the stored desk code on boot GET");
+  } else pass("leftover sent mutant still caught in the boot GET");
+
+  const storeMutant = await bootAdmin(applyAdminMutant(admin, "pin stored"), { aia_ws: "admin-book" }, { pinValue: "4821" });
+  if (storeMutant.store.getItem("aia_pin") !== "4821") fail("pin stored mutant must write aia_pin");
+  else pass("pin stored mutant still caught on Open");
+
+  const prefillMutant = await bootAdmin(applyAdminMutant(admin, "field prefilled"), { aia_ws: "admin-book", aia_session: "sess-live", aia_pin: "6612" });
+  if (prefillMutant.els.pin.value !== "6612") fail("field prefilled mutant must fill the desk code field");
+  else pass("field prefilled mutant still caught on boot");
+
   await ready();
   const slug = "admin-book";
   const pin = "4821";
