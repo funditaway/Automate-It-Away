@@ -49,6 +49,20 @@ function authReq(req, slug, pin) {
   if (pin != null) headers["x-pin"] = pin;
   return { headers, query: (req && req.query) || {} };
 }
+// One saved desk row opens with its own proof: its own token (never this request's session or cookie),
+// else its own desk code, else this request's session (personOf keeps a desk-code session on its own desk).
+function rowReq(req, slug, item) {
+  const token = item && item.token != null ? String(item.token).trim() : "";
+  if (token) return { headers: { "x-workspace": slug, "x-session": token }, query: {} };
+  return authReq(req, slug, item && item.pin != null ? String(item.pin) : "");
+}
+function rowSkip(req, slug, item) {
+  const token = item && item.token != null ? String(item.token).trim() : "";
+  const pin = item && item.pin != null ? String(item.pin) : "";
+  if (!slug) return true;
+  if (token) return false;
+  return (!pin && !lib.sessionTokenOf(req)) || (pin && pin.length < 4);
+}
 function gate(req, slug) {
   const pin = (req.headers && req.headers["x-pin"]) || "";
   const { workspace: row, person, pending } = personOf(authReq(req, slug, pin), slug);
@@ -98,9 +112,8 @@ module.exports = async function handler(req, res) {
     const desks = [];
     incoming.slice(0, 32).forEach((item) => {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
-      const pin = item && item.pin != null ? String(item.pin) : "";
-      if (!slug || (!pin && !lib.sessionTokenOf(req)) || (pin && pin.length < 4)) return;
-      const { workspace: row, person } = personOf(authReq(req, slug, pin), slug);
+      if (rowSkip(req, slug, item)) return;
+      const { workspace: row, person } = personOf(rowReq(req, slug, item), slug);
       if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
     });
@@ -145,9 +158,8 @@ module.exports = async function handler(req, res) {
     const opened = [];
     asked.slice(0, 32).forEach((item) => {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
-      const pin = item && item.pin != null ? String(item.pin) : "";
-      if (!slug || (!pin && !lib.sessionTokenOf(req)) || (pin && pin.length < 4)) return;
-      const { workspace: row, person } = personOf(authReq(req, slug, pin), slug);
+      if (rowSkip(req, slug, item)) return;
+      const { workspace: row, person } = personOf(rowReq(req, slug, item), slug);
       if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
       opened.push(row);
@@ -187,9 +199,8 @@ module.exports = async function handler(req, res) {
     const items = [];
     asked.slice(0, 32).forEach((item) => {
       const slug = slugify((item && (item.slug || item.biz || item.name)) || "");
-      const pin = item && item.pin != null ? String(item.pin) : "";
-      if (!slug || (!pin && !lib.sessionTokenOf(req)) || (pin && pin.length < 4)) return;
-      const { workspace: row, person } = personOf(authReq(req, slug, pin), slug);
+      if (rowSkip(req, slug, item)) return;
+      const { workspace: row, person } = personOf(rowReq(req, slug, item), slug);
       if (!row || !person) { desks.push({ slug, ok: false, error: "Desk name or code does not match." }); return; }
       desks.push(Object.assign({ ok: true }, publicDesk(row, person)));
       (mem.jobs || []).filter((j) => j && j.workspace === slug && isPriorityJob(j)).forEach((j) => {
