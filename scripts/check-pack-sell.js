@@ -2,6 +2,7 @@
 require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 const root = path.join(__dirname, "..");
 
 function read(rel) {
@@ -133,8 +134,21 @@ const submitFn = sliceFn(studioPack, "submitPack");
 const saveFn = sliceFn(studioPack, "saveDraft");
 const bindFn = sliceFn(studioPack, "bindLab");
 if (!submitFn) throw new Error("Studio missing submitPack");
-if (!bindFn || bindFn.indexOf("submit-pack") < 0 || bindFn.indexOf("submitPack") < 0) {
-  throw new Error("Publish must be a human tap on #submit-pack");
+if (!bindFn || bindFn.indexOf("submit-pack") < 0 || bindFn.indexOf("stagePublish") < 0 || bindFn.indexOf("pack-yes") < 0 || bindFn.indexOf("yesPublish") < 0) {
+  throw new Error("Publish must wait for a Yes before it lists");
+}
+if (/subBtn\.onclick\s*=\s*submitPack/.test(bindFn)) {
+  throw new Error("Publish must not list on the first tap");
+}
+const stageFn = sliceFn(studioPack, "stagePublish");
+const stopFn = sliceFn(studioPack, "stopPublish");
+if (!stageFn) throw new Error("Studio missing stagePublish");
+if (!stopFn) throw new Error("Studio missing stopPublish");
+if (stageFn.indexOf("submitPack") >= 0 || /post\(\s*"submit-pack"/.test(stageFn) || /post\(\s*"list-pack"/.test(stageFn)) {
+  throw new Error("Publish tap must not list until Yes");
+}
+if (stopFn.indexOf("submitPack") >= 0 || /post\(\s*"submit-pack"/.test(stopFn) || /post\(\s*"list-pack"/.test(stopFn)) {
+  throw new Error("Stop must not list a pack");
 }
 if (bootFn && (bootFn.indexOf("submitPack") >= 0 || bootFn.indexOf("submit-pack") >= 0)) {
   throw new Error("Studio boot must not publish a pack");
@@ -172,7 +186,7 @@ function sellFaults(loader, pack, helpSrc, accountSrc, walletSrc) {
   const submit = sliceFn(pack, "submitPack");
   const bind = sliceFn(pack, "bindLab");
   const save = sliceFn(pack, "saveDraft");
-  if (!submit || !bind || bind.indexOf("submit-pack") < 0 || bind.indexOf("submitPack") < 0 || (boot && (boot.indexOf("submitPack") >= 0 || boot.indexOf("submit-pack") >= 0)) || (save && /status:\s*"listed"|submit:\s*true/.test(save))) {
+  if (!submit || !bind || bind.indexOf("submit-pack") < 0 || bind.indexOf("stagePublish") < 0 || bind.indexOf("pack-yes") < 0 || bind.indexOf("yesPublish") < 0 || (boot && (boot.indexOf("submitPack") >= 0 || boot.indexOf("submit-pack") >= 0)) || (save && /status:\s*"listed"|submit:\s*true/.test(save))) {
     bad.push("list/publish without Yes");
   }
   if (/charged:\s*true/.test(pack) || /charged:\s*true/.test(walletSrc) || /charged:\s*true/.test(accountSrc) || (submit && /charged:\s*true/.test(submit))) {
@@ -225,9 +239,451 @@ mutants.forEach(function (kind) {
 });
 if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
 else pass("mutants: " + caught + "/" + mutants.length + " caught");
-if (failed) {
-  console.error("check-pack-sell failed");
-  process.exit(1);
+
+// ---- jsdom-style DOM stub: Publish must wait for Yes ----
+const VOID = { AREA:1, BASE:1, BR:1, COL:1, EMBED:1, HR:1, IMG:1, INPUT:1, LINK:1, META:1, PARAM:1, SOURCE:1, TRACK:1, WBR:1 };
+function decodeEnt(s) {
+  return String(s || "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+function El(tag) {
+  this.tagName = String(tag || "div").toUpperCase();
+  this.attrs = {};
+  this.childNodes = [];
+  this.parentNode = null;
+  this.className = "";
+  this.hidden = false;
+  this.disabled = false;
+  this.type = "";
+  this.value = "";
+  this.href = "";
+  this.style = {};
+  this.handlers = {};
+  this.onclick = null;
+  this._text = "";
+  const self = this;
+  this.classList = {
+    add(c) { const l = self.className.split(/\s+/).filter(Boolean); if (l.indexOf(c) < 0) l.push(c); self.className = l.join(" "); },
+    remove(c) { self.className = self.className.split(/\s+/).filter((x) => x && x !== c).join(" "); },
+    contains(c) { return self.className.split(/\s+/).indexOf(c) >= 0; }
+  };
+}
+El.prototype = {
+  get id() { return this.attrs.id || ""; },
+  set id(v) { this.attrs.id = String(v); },
+  setAttribute(k, v) {
+    k = String(k);
+    if (v == null) this.attrs[k] = "";
+    else this.attrs[k] = String(v);
+    if (k === "id") this.attrs.id = String(v);
+    if (k === "class") this.className = String(v);
+    if (k === "type") this.type = String(v);
+    if (k === "href") this.href = String(v);
+    if (k === "value") this.value = String(v);
+    if (k === "hidden") this.hidden = true;
+    if (k === "disabled") this.disabled = true;
+  },
+  getAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; },
+  appendChild(c) { if (c.parentNode) c.parentNode.removeChild(c); c.parentNode = this; this.childNodes.push(c); return c; },
+  removeChild(c) { this.childNodes = this.childNodes.filter((x) => x !== c); c.parentNode = null; return c; },
+  get children() { return this.childNodes.filter((n) => n.tagName && n.tagName !== "#TEXT"); },
+  set textContent(v) { this.childNodes = []; this._text = String(v == null ? "" : v); },
+  get textContent() { return this._text + this.childNodes.map((c) => c.textContent).join(""); },
+  addEventListener(t, fn) { (this.handlers[t] = this.handlers[t] || []).push(fn); },
+  click() {
+    const ev = { target: this, currentTarget: this, preventDefault() {}, stopPropagation() {} };
+    const chain = [];
+    let n = this;
+    while (n) { chain.push(n); n = n.parentNode; }
+    chain.forEach((node) => {
+      if (typeof node.onclick === "function") node.onclick(ev);
+      (node.handlers.click || []).forEach((fn) => fn(ev));
+    });
+  },
+  matches(sel) { return matchesSel(this, sel); },
+  closest(sel) { let n = this; while (n) { if (n.tagName && n.tagName !== "#TEXT" && matchesSel(n, sel)) return n; n = n.parentNode; } return null; },
+  querySelectorAll(sel) { return queryAll(this, sel, false); },
+  querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
+};
+Object.defineProperty(El.prototype, "innerHTML", {
+  get() { return this._html || ""; },
+  set(v) {
+    this._html = String(v == null ? "" : v);
+    this.childNodes = [];
+    this._text = "";
+    parseHTML(this, this._html);
+  }
+});
+function walk(n, fn) { fn(n); (n.childNodes || []).forEach((c) => walk(c, fn)); }
+function matchesSel(n, sel) {
+  sel = String(sel || "").trim();
+  if (!sel) return false;
+  if (sel.indexOf(",") >= 0) return sel.split(",").some((s) => matchesSel(n, s.trim()));
+  if (/\s/.test(sel)) return false;
+  let rest = sel;
+  let tag = null;
+  let id = null;
+  const classes = [];
+  const attrs = [];
+  const tagM = /^[a-z][a-z0-9]*/i.exec(rest);
+  if (tagM && rest[0] !== "#" && rest[0] !== "." && rest[0] !== "[") {
+    tag = tagM[0].toUpperCase();
+    rest = rest.slice(tagM[0].length);
+  }
+  while (rest) {
+    let m;
+    if ((m = /^#([\w-]+)/.exec(rest))) { id = m[1]; rest = rest.slice(m[0].length); }
+    else if ((m = /^\.([\w-]+)/.exec(rest))) { classes.push(m[1]); rest = rest.slice(m[0].length); }
+    else if ((m = /^\[([\w-]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\]]+)))?\]/.exec(rest))) {
+      attrs.push({ k: m[1], v: m[2] != null ? m[2] : (m[3] != null ? m[3] : (m[4] != null ? m[4] : null)) });
+      rest = rest.slice(m[0].length);
+    } else return false;
+  }
+  if (tag && n.tagName !== tag) return false;
+  if (id && n.id !== id) return false;
+  for (let i = 0; i < classes.length; i++) if (!n.classList.contains(classes[i])) return false;
+  for (let i = 0; i < attrs.length; i++) {
+    const got = n.getAttribute(attrs[i].k);
+    if (attrs[i].v == null) { if (got == null) return false; }
+    else if (got !== attrs[i].v) return false;
+  }
+  return !!(tag || id || classes.length || attrs.length);
+}
+function queryAll(root, sel, includeSelf) {
+  sel = String(sel || "").trim();
+  if (!sel) return [];
+  if (sel.indexOf(",") >= 0) {
+    const out = [];
+    sel.split(",").forEach((part) => {
+      queryAll(root, part.trim(), includeSelf).forEach((n) => { if (out.indexOf(n) < 0) out.push(n); });
+    });
+    return out;
+  }
+  const parts = sel.split(/\s+/).filter(Boolean);
+  function collect(node, part, acc, selfOk) {
+    walk(node, (n) => { if ((selfOk || n !== node) && n.tagName && n.tagName !== "#TEXT" && matchesSel(n, part)) acc.push(n); });
+  }
+  if (parts.length === 1) {
+    const acc = [];
+    collect(root, parts[0], acc, includeSelf);
+    return acc;
+  }
+  let curr = [];
+  collect(root, parts[0], curr, includeSelf);
+  for (let i = 1; i < parts.length; i++) {
+    const next = [];
+    curr.forEach((c) => collect(c, parts[i], next, false));
+    curr = next;
+  }
+  return curr;
+}
+function parseAttrs(raw, el) {
+  const re = /([:@\w-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+  let m;
+  while ((m = re.exec(raw))) {
+    const k = m[1];
+    const v = m[2] != null ? m[2] : (m[3] != null ? m[3] : (m[4] != null ? m[4] : ""));
+    el.setAttribute(k, v);
+  }
+}
+function parseHTML(parent, html) {
+  html = String(html || "");
+  let i = 0;
+  function parseInto(owner) {
+    while (i < html.length) {
+      if (html[i] !== "<") {
+        const lt = html.indexOf("<", i);
+        const text = html.slice(i, lt < 0 ? html.length : lt);
+        i = lt < 0 ? html.length : lt;
+        if (text) {
+          const t = new El("#text");
+          t._text = decodeEnt(text);
+          owner.appendChild(t);
+        }
+        continue;
+      }
+      if (html.startsWith("<!--", i)) {
+        const end = html.indexOf("-->", i + 4);
+        i = end < 0 ? html.length : end + 3;
+        continue;
+      }
+      const close = /^<\/([a-z][a-z0-9]*)\s*>/i.exec(html.slice(i));
+      if (close) {
+        i += close[0].length;
+        if (close[1].toUpperCase() === owner.tagName) return;
+        continue;
+      }
+      const open = /^<([a-z][a-z0-9]*)\b([^>]*?)(\/?)\s*>/i.exec(html.slice(i));
+      if (!open) { i += 1; continue; }
+      i += open[0].length;
+      const el = new El(open[1]);
+      parseAttrs(open[2], el);
+      owner.appendChild(el);
+      const selfClose = !!open[3] || VOID[el.tagName];
+      if (!selfClose) parseInto(el);
+    }
+  }
+  parseInto(parent);
 }
 
-console.log("check-pack-sell: ok");
+function bodyOf(call) {
+  try { return JSON.parse((call.init && call.init.body) || "{}"); } catch (e) { return {}; }
+}
+function isListPost(call) {
+  if (String(call.url).indexOf("/api/desks") < 0) return false;
+  if (String((call.init && call.init.method) || "GET").toUpperCase() !== "POST") return false;
+  const body = bodyOf(call);
+  if (body.action === "submit-pack" || body.action === "publish-pack") return true;
+  if (body.action === "list-pack" && (body.submit === true || body.status === "submitted" || body.status === "listed" || body.status === "published" || body.visibility === "listed")) return true;
+  return false;
+}
+function isDraftPost(call) {
+  if (String(call.url).indexOf("/api/desks") < 0) return false;
+  if (String((call.init && call.init.method) || "GET").toUpperCase() !== "POST") return false;
+  const body = bodyOf(call);
+  return body.action === "list-pack" && body.status === "draft" && body.submit !== true && body.visibility !== "listed";
+}
+function isPrivatePost(call) {
+  if (String(call.url).indexOf("/api/desks") < 0) return false;
+  if (String((call.init && call.init.method) || "GET").toUpperCase() !== "POST") return false;
+  const body = bodyOf(call);
+  return body.action === "private-pack" || body.visibility === "private";
+}
+
+async function flush(n) {
+  for (let i = 0; i < (n || 12); i++) await new Promise((r) => setImmediate(r));
+}
+
+function runStudio(packSrc) {
+  const html = new El("html");
+  const head = new El("head");
+  const body = new El("body");
+  html.appendChild(head);
+  html.appendChild(body);
+  const view = new El("div");
+  view.id = "view";
+  view.setAttribute("id", "view");
+  const err = new El("p");
+  err.id = "err";
+  err.setAttribute("id", "err");
+  const ok = new El("p");
+  ok.id = "ok";
+  ok.setAttribute("id", "ok");
+  body.appendChild(err);
+  body.appendChild(ok);
+  body.appendChild(view);
+  const doc = {
+    readyState: "complete",
+    documentElement: html,
+    head: head,
+    body: body,
+    listeners: {},
+    createElement(t) { return new El(t); },
+    getElementById(id) { let hit = null; walk(html, (n) => { if (!hit && n.id === id) hit = n; }); return hit; },
+    querySelectorAll(s) { return queryAll(html, s, true); },
+    querySelector(s) { return queryAll(html, s, true)[0] || null; },
+    addEventListener(t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); }
+  };
+  const calls = [];
+  const errors = [];
+  const store = { aia_session: "tok_test", aia_ws: "test-desk" };
+  function respond(url, init) {
+    const u = String(url);
+    const method = String((init && init.method) || "GET").toUpperCase();
+    let body = {};
+    try { body = JSON.parse((init && init.body) || "{}"); } catch (e) { body = {}; }
+    if (u.indexOf("/api/account") >= 0) return { status: 200, body: { ok: true, account: { id: "a1" }, plan: { creator: true, plan: "dev" } } };
+    if (u.indexOf("/api/health") >= 0) return { status: 200, body: { automation: { grok: { on: true } } } };
+    if (method === "GET" && u.indexOf("/api/desks") >= 0) return { status: 200, body: { ok: true, packs: [], official: [] } };
+    if (method === "POST" && u.indexOf("/api/desks") >= 0) return { status: 200, body: { ok: true, note: "ok" } };
+    return { status: 404, body: { ok: false } };
+  }
+  const loc = { pathname: "/studio", href: "https://x.test/studio", search: "", hash: "" };
+  const win = {};
+  const ctx = {
+    window: win,
+    document: doc,
+    location: loc,
+    localStorage: {
+      getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+      setItem(k, v) { store[k] = String(v); },
+      removeItem(k) { delete store[k]; }
+    },
+    fetch(url, init) {
+      calls.push({ url: String(url), init: init || {} });
+      const r = respond(url, init || {});
+      return Promise.resolve({
+        ok: r.status >= 200 && r.status < 300,
+        status: r.status,
+        json() { return Promise.resolve(JSON.parse(JSON.stringify(r.body))); },
+        text() { return Promise.resolve(JSON.stringify(r.body)); }
+      });
+    },
+    setTimeout() { return 0; },
+    clearTimeout() {},
+    console: { log() {}, warn() {}, error(e) { errors.push(String(e)); } },
+    JSON, Object, Array, String, Number, Boolean, Promise, RegExp, Error, Math, Date, parseInt, isNaN, undefined
+  };
+  win.window = win;
+  win.document = doc;
+  win.location = loc;
+  win.AIAMail = undefined;
+  win.AIAPlaybook = undefined;
+  ctx.window.fetch = ctx.fetch;
+  vm.createContext(ctx);
+  try { vm.runInContext(packSrc, ctx, { filename: "developer.pack.js" }); }
+  catch (e) { errors.push("boot: " + (e && e.stack ? e.stack : e.message)); }
+  return { doc, calls, errors, ctx };
+}
+
+async function goToSubmit(page) {
+  await flush(16);
+  const packTab = page.doc.querySelector('[data-tab="pack"]');
+  if (!packTab) throw new Error("missing Pack tab after boot: " + page.errors.join(" | "));
+  packTab.click();
+  await flush(4);
+  const name = page.doc.getElementById("name");
+  if (!name) throw new Error("missing #name on Pack tab");
+  name.value = "Saturday oil-change lane";
+  const submitTab = page.doc.querySelector('[data-tab="submit"]');
+  if (!submitTab) throw new Error("missing Submit tab");
+  submitTab.click();
+  await flush(4);
+}
+
+function listCalls(page) { return page.calls.filter(isListPost); }
+function postsAfter(page, n) { return page.calls.slice(n); }
+
+async function scenario(packSrc, kind) {
+  const page = runStudio(packSrc);
+  await goToSubmit(page);
+  const before = page.calls.length;
+  const pub = page.doc.getElementById("submit-pack");
+  if (!pub) throw new Error("missing #submit-pack");
+  if (kind === "private") {
+    const priv = page.doc.getElementById("private-pack");
+    if (!priv) throw new Error("missing #private-pack");
+    priv.click();
+    await flush(8);
+    return { page, listed: postsAfter(page, before).some(isListPost), privated: postsAfter(page, before).some(isPrivatePost), drafted: postsAfter(page, before).some(isDraftPost) };
+  }
+  if (kind === "draft") {
+    const packTab = page.doc.querySelector('[data-tab="pack"]');
+    packTab.click();
+    await flush(4);
+    const name = page.doc.getElementById("name");
+    if (name) name.value = "Saturday oil-change lane";
+    const save = page.doc.getElementById("save-pack");
+    if (!save) throw new Error("missing #save-pack");
+    const mid = page.calls.length;
+    save.click();
+    await flush(8);
+    return { page, listed: postsAfter(page, mid).some(isListPost), drafted: postsAfter(page, mid).some(isDraftPost), privated: false };
+  }
+  pub.click();
+  const decideNow = page.doc.getElementById("pack-decide");
+  const draftNow = page.doc.getElementById("pack-draft");
+  const decideShown = !!(decideNow && decideNow.hidden === false);
+  const draftOn = !!(draftNow && draftNow.classList.contains("on"));
+  const draftText = draftNow ? draftNow.textContent : "";
+  await flush(8);
+  const afterPub = {
+    listed: postsAfter(page, before).some(isListPost),
+    decideShown: decideShown,
+    draftOn: draftOn,
+    draftText: draftText
+  };
+  if (kind === "publish-only") return Object.assign({ page }, afterPub);
+  if (kind === "yes") {
+    const yes = page.doc.getElementById("pack-yes");
+    if (!yes) throw new Error("missing #pack-yes");
+    const mid = page.calls.length;
+    yes.click();
+    await flush(8);
+    return Object.assign({ page, listedAfterYes: postsAfter(page, mid).some(isListPost) }, afterPub, { listed: postsAfter(page, mid).some(isListPost) });
+  }
+  if (kind === "stop") {
+    const stop = page.doc.getElementById("pack-stop");
+    if (!stop) return Object.assign({ page, listedAfterStop: false, listed: afterPub.listed }, afterPub);
+    const mid = page.calls.length;
+    stop.click();
+    await flush(8);
+    return Object.assign({ page, listedAfterStop: postsAfter(page, mid).some(isListPost), listed: afterPub.listed || postsAfter(page, mid).some(isListPost) }, afterPub);
+  }
+  return Object.assign({ page }, afterPub);
+}
+
+function publishYesFaultsFromRuns(runs) {
+  const bad = [];
+  const pub = runs["publish-only"];
+  if (pub && pub.listed && !pub.decideShown) bad.push("Publish lists without a Yes");
+  if (pub && pub.listed && pub.decideShown) bad.push("the Yes is skipped");
+  const stop = runs.stop;
+  if (stop && stop.listedAfterStop) bad.push("Stop still lists");
+  return unique(bad);
+}
+
+async function runPublishYesFaults(packSrc) {
+  const runs = {};
+  runs["publish-only"] = await scenario(packSrc, "publish-only");
+  runs.stop = await scenario(packSrc, "stop");
+  return { faults: publishYesFaultsFromRuns(runs), runs };
+}
+
+(async function () {
+  try {
+    const liveYes = await scenario(studioPack, "publish-only");
+    if (liveYes.listed) fail("Publish listed a pack without a Yes");
+    else if (!liveYes.decideShown) fail("Publish must show a Yes / Stop step");
+    else pass("Publish waits for Yes");
+    const yesRun = await scenario(studioPack, "yes");
+    if (yesRun.listedAfterYes) pass("Yes lists the pack");
+    else fail("Yes did not list the pack");
+    const stopRun = await scenario(studioPack, "stop");
+    if (stopRun.listedAfterStop || stopRun.listed) fail("Stop listed a pack");
+    else pass("Stop lists nothing");
+    const privRun = await scenario(studioPack, "private");
+    if (privRun.listed) fail("Keep private listed a pack");
+    else if (!privRun.privated) fail("Keep private must still save without a Yes");
+    else pass("Keep private works without a Yes");
+    const draftRun = await scenario(studioPack, "draft");
+    if (draftRun.listed) fail("Save draft listed a pack");
+    else if (!draftRun.drafted) fail("Save draft must still save without a Yes");
+    else pass("Save draft works without a Yes");
+
+    const yesMutants = [
+      ["Publish lists without a Yes", function (pack) {
+        return pack.replace("if (subBtn) subBtn.onclick = stagePublish;", "if (subBtn) subBtn.onclick = submitPack;");
+      }],
+      ["the Yes is skipped", function (pack) {
+        return pack.replace(
+          "if (okEl) okEl.style.display = \"none\";\n    if (errEl) errEl.style.display = \"none\";",
+          "if (okEl) okEl.style.display = \"none\";\n    if (errEl) errEl.style.display = \"none\";\n    submitPack();"
+        );
+      }],
+      ["Stop still lists", function (pack) {
+        return pack.replace(
+          "function stopPublish() {\n    hideListDecide();\n    show(\"Stopped. Nothing was saved or removed.\", true);\n  }",
+          "function stopPublish() {\n    hideListDecide();\n    submitPack();\n    show(\"Stopped. Nothing was saved or removed.\", true);\n  }"
+        );
+      }]
+    ];
+    let yesCaught = 0;
+    for (let i = 0; i < yesMutants.length; i++) {
+      const name = yesMutants[i][0];
+      const next = yesMutants[i][1](studioPack);
+      if (next === studioPack) { fail("mutant changed nothing: " + name); continue; }
+      const out = await runPublishYesFaults(next);
+      if (out.faults.indexOf(name) < 0) fail("mutant missed: " + name + " (got " + JSON.stringify(out.faults) + ")");
+      else { yesCaught += 1; pass("mutant caught: " + name); }
+    }
+    if (yesCaught !== yesMutants.length) fail("Yes-gate mutants: " + yesCaught + "/" + yesMutants.length + " caught");
+    else pass("Yes-gate mutants: " + yesCaught + "/" + yesMutants.length + " caught");
+  } catch (e) {
+    fail("jsdom Publish Yes gate: " + (e && e.stack ? e.stack : e));
+  }
+  if (failed) {
+    console.error("check-pack-sell failed");
+    process.exit(1);
+  }
+  console.log("check-pack-sell: ok");
+})();
