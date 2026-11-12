@@ -307,6 +307,7 @@ mutants.forEach(function (kind) {
 if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
 else pass("mutants: " + caught + "/" + mutants.length + " caught");
 
+require("./check-packs-unlist-assert.js");
 require("./check-packs-install-assert.js");
 if (process.exitCode) {
   console.error("check-packs failed");
