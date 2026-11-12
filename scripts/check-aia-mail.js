@@ -3,6 +3,7 @@ require("./_env-guard");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const vm = require("vm");
 
 const store = path.join(os.tmpdir(), "aia-mail-check-" + Date.now() + ".json");
 process.env.AIA_STORE_PATH = store;
@@ -48,11 +49,70 @@ else pass("Studio pack create .aia email");
 });
 
 const mailJs = fs.readFileSync(path.join(root, "aia-mail.js"), "utf8");
-if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(mailJs)) {
-  fail("aia-mail hdr must still send the open-desk pin when a session token is present");
-} else pass("aia-mail hdr keeps X-Pin with X-Session");
-if (mailJs.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("aia-mail hdr must send X-Pin");
-else pass("aia-mail hdr sends X-Pin");
+function mailPinHdr(h) { return h && (h["X-Pin"] || h["x-pin"] || ""); }
+function mailSessionHdr(h) { return h && (h["X-Session"] || h["x-session"] || ""); }
+function runMailHdr(src, bag) {
+  const from = src.indexOf("function hdr()");
+  const to = src.indexOf("function esc(", from + 1);
+  const block = from >= 0 && to > from ? src.slice(from, to) : "";
+  if (!block) throw new Error("aia-mail.js missing hdr()");
+  // hdr() calls slugify(ws)
+  const reads = [];
+  const ctx = {
+    slugify: function (s) {
+      return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    },
+    localStorage: {
+      getItem: function (k) {
+        reads.push(k);
+        return Object.prototype.hasOwnProperty.call(bag, k) ? bag[k] : null;
+      }
+    }
+  };
+  vm.runInNewContext(block + "\nthis.__h = hdr();", ctx);
+  return { headers: ctx.__h, reads: reads };
+}
+function mailHdrFaults(src) {
+  const bad = [];
+  let leftover;
+  try { leftover = runMailHdr(src, { aia_ws: "rivera-resale", aia_session: "sess-live", aia_pin: "4821" }); }
+  catch (e) { return ["aia-mail failed to run: " + (e && e.message || e)]; }
+  if (mailSessionHdr(leftover.headers) !== "sess-live") bad.push("aia-mail session is not sent when a session is present");
+  if (mailPinHdr(leftover.headers)) bad.push("aia-mail leftover pin is sent when a session is present");
+  if (leftover.reads.indexOf("aia_pin") >= 0) bad.push("aia-mail leftover pin is read when a session is present");
+  const pinOnly = runMailHdr(src, { aia_ws: "rivera-resale", aia_pin: "4821" });
+  if (mailPinHdr(pinOnly.headers) !== "4821" || mailSessionHdr(pinOnly.headers)) {
+    bad.push("aia-mail session-less leftover pin is no longer sent as X-Pin");
+  }
+  return bad;
+}
+const liveMail = mailHdrFaults(mailJs);
+if (liveMail.length) fail("aia-mail.js hdr() faults: " + liveMail.join("; "));
+else pass("aia-mail.js hdr() is session-based; leftover pin is not read or sent");
+
+function applyMailMutant(src, kind) {
+  const live = "    if (tok) h[\"X-Session\"] = tok;\n    else {\n      var pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (pin) h[\"X-Pin\"] = pin;\n    }\n";
+  if (kind === "aia-mail leftover pin is sent when a session is present") {
+    return src.replace(live, "    var pin = localStorage.getItem(\"aia_pin\") || \"\";\n    if (tok) h[\"X-Session\"] = tok;\n    if (pin) h[\"X-Pin\"] = pin;\n");
+  }
+  if (kind === "aia-mail leftover pin is read when a session is present") {
+    return src.replace(live, "    var pin = localStorage.getItem(\"aia_pin\") || \"\";\n    if (tok) h[\"X-Session\"] = tok;\n    else if (pin) h[\"X-Pin\"] = pin;\n");
+  }
+  if (kind === "aia-mail session is not sent when a session is present") {
+    return src.replace(live, "    if (tok) {\n    } else {\n      var pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (pin) h[\"X-Pin\"] = pin;\n    }\n");
+  }
+  if (kind === "aia-mail session-less leftover pin is no longer sent as X-Pin") {
+    return src.replace(live, "    if (tok) h[\"X-Session\"] = tok;\n");
+  }
+  return src;
+}
+["aia-mail leftover pin is sent when a session is present", "aia-mail leftover pin is read when a session is present", "aia-mail session is not sent when a session is present", "aia-mail session-less leftover pin is no longer sent as X-Pin"].forEach(function (kind) {
+  const next = applyMailMutant(mailJs, kind);
+  if (next === mailJs) { fail("header mutant does not apply: " + kind); return; }
+  const faults = mailHdrFaults(next);
+  if (faults.indexOf(kind) < 0) fail("header mutant survived: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else pass("header mutant caught: " + kind);
+});
 
 const pipesSrc = fs.readFileSync(path.join(root, "pipes.html"), "utf8");
 if (!/"event": "mail"/.test(pipesSrc) || !/queue@account\.aia/.test(pipesSrc)) fail("pipes.html missing inbound identity recipe");

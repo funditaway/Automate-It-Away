@@ -6,11 +6,13 @@
   function hdr() {
     var h = { "Content-Type": "application/json" };
     var ws = localStorage.getItem("aia_ws") || "";
-    var pin = localStorage.getItem("aia_pin") || "";
     var tok = localStorage.getItem("aia_session") || "";
     if (ws) h["X-Workspace"] = slugify(ws);
     if (tok) h["X-Session"] = tok;
-    if (pin) h["X-Pin"] = pin;
+    else {
+      var pin = localStorage.getItem("aia_pin") || "";
+      if (pin) h["X-Pin"] = pin;
+    }
     return h;
   }
   function esc(s) {
