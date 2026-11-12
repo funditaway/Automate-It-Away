@@ -28,7 +28,17 @@ const packsApi = fs.readFileSync(path.join(root, "api/_packs.js"), "utf8");
 if (!packsApi.includes("charged: false") || !packsApi.includes("hold: true")) fail("Collect must stay HOLD");
 else pass("Collect HOLD");
 
-const studio = fs.readFileSync(path.join(root, "developer.js"), "utf8");
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studioJs = fs.readFileSync(path.join(root, "developer.js"), "utf8");
+const studio = decodeStudio(fs.readFileSync(path.join(root, "developer.z64.txt"), "utf8"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) fail("Studio loader must unpack developer.z64.txt");
+else pass("Studio loader unpacks the pack");
+if (!studio || studio.indexOf("Creators Studio") < 0) fail("developer.z64.txt must decode as Creators Studio");
+else pass("Studio pack decodes");
 ["Desk AIs", "James", "private-pack", "save-ai", "ai1-name", "james.aia", "springfield-shop.aia", "AIA Internet", "install-aia"].forEach(function (bit) {
   if (!studio.includes(bit)) fail("developer.js missing " + bit);
   else pass("studio " + bit);
@@ -94,6 +104,30 @@ if (gateSrc.indexOf('localStorage.getItem("aia_pin")') < 0) fail("Studio Open ga
 else pass("Studio Open gate prefills aia_pin");
 if (gateSrc.indexOf("Open Studio") < 0) fail("Studio Open gate must stay");
 else pass("Studio Open gate stays");
+
+const deskAisPage = fs.readFileSync(path.join(root, "desk-ais.html"), "utf8");
+const packDeskAis = fs.readFileSync(path.join(root, "pack-desk-ais.js"), "utf8");
+if (!deskAisPage.includes("Name a Desk AI") || !deskAisPage.includes("Yes names the Desk AI on this desk") || !deskAisPage.includes("Stop clears the draft") || !deskAisPage.includes("Nothing is charged")) fail("desk-ais.html missing Yes / Stop / nothing-charged honesty");
+else pass("desk-ais page Yes / Stop honesty");
+if (deskAisPage.indexOf("pack-desk-ais.js") < 0) fail("desk-ais.html must load pack-desk-ais.js");
+else pass("desk-ais page loads pack-desk-ais.js");
+function sliceFn(src, name) {
+  const start = src.indexOf("async function " + name) >= 0 ? src.indexOf("async function " + name) : src.indexOf("function " + name);
+  if (start < 0) return "";
+  const next = src.slice(start + 10).search(/\n  (async )?function /);
+  return src.slice(start, next >= 0 ? start + 10 + next : start + 1600);
+}
+const stageName = sliceFn(packDeskAis, "stageSave") || sliceFn(packDeskAis, "stage");
+const yesName = sliceFn(packDeskAis, "yes");
+const stopName = sliceFn(packDeskAis, "stop");
+if (stageName.indexOf("showDecide") < 0 && packDeskAis.indexOf("Nothing is named until you tap Yes") < 0) fail("Name this Desk AI must stage a Yes/Stop draft");
+else pass("Name this Desk AI stages a draft");
+if (yesName.indexOf("pending") < 0 || yesName.indexOf("fetch(") < 0) fail("Yes must be the tap that names the Desk AI");
+else pass("Yes names the Desk AI");
+if (stopName.indexOf("fetch(") >= 0) fail("Stop must not name a Desk AI");
+else pass("Stop does not name a Desk AI");
+if (/charged:\s*true/.test(packDeskAis) || /action:\s*"payout"/.test(packDeskAis)) fail("pack-desk-ais.js must not charge or pay out");
+else pass("pack-desk-ais.js does not charge");
 
 const market = fs.readFileSync(path.join(root, "market-shop.js"), "utf8");
 if (!market.includes("aiRows") || !market.includes("Desk AI")) fail("market missing desk AI listing");
@@ -589,6 +623,93 @@ async function main() {
   const healthRes = await call(health, "GET", {}, {}, {});
   if (!healthRes.body || !healthRes.body.internet || healthRes.body.internet.chain) fail("health internet");
   else pass("health exposes AIA Internet HOLD");
+
+  function unique(rows) {
+    const out = [];
+    rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+    return out;
+  }
+  function bootFn() { return sliceFn(studio, "boot"); }
+  function buildFaults(files) {
+    const bad = [];
+    const hasLoader = files.loader.indexOf('fetch("/developer.z64.txt"') >= 0 && files.loader.indexOf('DecompressionStream("gzip")') >= 0;
+    if (!hasLoader || !files.pack || files.pack.indexOf("Named desk AIs") < 0 || files.pack.indexOf("save-ai") < 0 || files.pack.indexOf("install-aia") < 0 || files.pack.indexOf("Drafts the next step and the words. Nothing sent.") < 0 || files.pack.indexOf("desk crew, not captains") < 0 || files.pack.indexOf('"Desk AI: "') < 0 || files.pack.indexOf("ai.aia") < 0) {
+      bad.push("Studio desk-AI copy gone");
+    }
+    const gateAt = files.pack.indexOf("function paintGate");
+    const labAt = files.pack.indexOf("function paintLab");
+    const gate = gateAt >= 0 ? files.pack.slice(gateAt, labAt > gateAt ? labAt : gateAt + 900) : "";
+    if (files.pack.indexOf('if (pin) h["X-Pin"] = pin') < 0 || gate.indexOf('localStorage.getItem("aia_pin")') < 0 || gate.indexOf("Open Studio") < 0) {
+      bad.push("Studio Open gate or X-Pin gone");
+    }
+    const boot = sliceFn(files.pack, "boot");
+    const install = sliceFn(files.pack, "installAia");
+    const attach = sliceFn(files.pack, "attachAiNow");
+    const bind = sliceFn(files.pack, "bindLab");
+    if ((boot && (boot.indexOf("installAia") >= 0 || boot.indexOf("attachAiNow") >= 0 || boot.indexOf("submitPack") >= 0)) || !install || install.indexOf("Pick a .aia pack file first") < 0 || !bind || bind.indexOf("installAia") < 0 || !attach || attach.indexOf("Name the desk AI first") < 0) {
+      bad.push("install or bind without a human tap");
+    }
+    const stage = sliceFn(files.pageJs, "stageSave") || sliceFn(files.pageJs, "stage");
+    const yes = sliceFn(files.pageJs, "yes");
+    const stop = sliceFn(files.pageJs, "stop");
+    if (files.page.indexOf("Yes names the Desk AI on this desk") < 0 || files.page.indexOf("Nothing is charged") < 0 || (stage.indexOf("showDecide") < 0 && files.pageJs.indexOf("Nothing is named until you tap Yes") < 0) || yes.indexOf("pending") < 0 || stop.indexOf("fetch(") >= 0 || /charged:\s*true/.test(files.pageJs) || /action:\s*"payout"/.test(files.pageJs) || /charged:\s*true/.test(files.pack)) {
+      bad.push("charge or name without Yes");
+    }
+    return unique(bad);
+  }
+  function applyMutant(kind, files) {
+    const next = { loader: files.loader, pack: files.pack, page: files.page, pageJs: files.pageJs };
+    if (kind === "Studio desk-AI copy gone") {
+      next.pack = next.pack
+        .replace(/Named desk AIs/g, "Skip the AIs")
+        .replace(/save-ai/g, "gone-ai")
+        .replace(/install-aia/g, "gone-install")
+        .replace(/Drafts the next step and the words\. Nothing sent\./g, "Sends on its own.")
+        .replace(/desk crew, not captains/g, "captains")
+        .replace(/"Desk AI: "/g, '"Bot: "')
+        .replace(/ai\.aia/g, "gone.aia");
+    } else if (kind === "Studio Open gate or X-Pin gone") {
+      next.pack = next.pack
+        .replace('if (pin) h["X-Pin"] = pin', "/* no pin */")
+        .replace(/localStorage\.getItem\("aia_pin"\)/g, "''")
+        .replace(/Open Studio/g, "Skip Studio");
+    } else if (kind === "install or bind without a human tap") {
+      next.pack = next.pack
+        .replace("async function boot()", "async function boot(){ installAia(); attachAiNow(); submitPack(); }\nasync function bootOld")
+        .replace("Pick a .aia pack file first", "Installing anyway")
+        .replace("Name the desk AI first", "Binding anyway");
+    } else if (kind === "charge or name without Yes") {
+      next.page = next.page
+        .replace(/Yes names the Desk AI on this desk/g, "It names itself")
+        .replace(/Nothing is charged/g, "It is charged now");
+      next.pageJs = next.pageJs
+        .replace(/Nothing is named until you tap Yes/g, "Named now")
+        .replace("function stop()", "async function stop(){ fetch('/gone', { method: 'POST', body: JSON.stringify(pending && pending.body) }); }\nfunction stopOld")
+        + "\ncharged: true\n{ action: \"payout\" }";
+      next.pack = next.pack + "\ncharged: true";
+    }
+    return next;
+  }
+
+  const files = { loader: studioJs, pack: studio, page: deskAisPage, pageJs: packDeskAis };
+  const live = buildFaults(files);
+  if (live.length) fail("desk AI behaviour drifted: " + live.join("; "));
+  else pass("Studio desk-AI copy, Open gate / X-Pin, and Yes-gated naming still hold");
+
+  const mutants = [
+    "Studio desk-AI copy gone",
+    "Studio Open gate or X-Pin gone",
+    "install or bind without a human tap",
+    "charge or name without Yes"
+  ];
+  let caught = 0;
+  mutants.forEach(function (kind) {
+    const faults = buildFaults(applyMutant(kind, files));
+    if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+    else { caught += 1; pass("mutant caught: " + kind); }
+  });
+  if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+  else pass("mutants: " + caught + "/" + mutants.length + " caught");
 
   await save();
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
