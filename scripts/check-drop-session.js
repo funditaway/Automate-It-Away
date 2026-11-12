@@ -11,6 +11,7 @@ function fail(msg) {
   console.error("check-drop-session: " + msg);
   process.exit(1);
 }
+function pass(msg) { console.log("ok  " + msg); }
 
 const pick = fs.readFileSync(path.join(ROOT, "drop-pick.js"), "utf8");
 if (!/function pick\s*\(\s*(row|slug)\s*\)/.test(pick)) fail("drop-pick.js pick() missing.");
@@ -21,10 +22,115 @@ if (/if\s*\(\s*!row\.pin\s*\)/.test(pick)) {
   fail("pick() still treats a missing row.pin as a code prompt. Email-session desks have a token, not a leftover pin.");
 }
 
-const html = fs.readFileSync(path.join(ROOT, "drop.html"), "utf8");
-if (!/AIADesks\.shopOpen\s*\(\s*\)/.test(html)) {
-  fail("drop.html deskOpen must follow AIADesks.shopOpen() so a session desk paints as open.");
+// 1ec1382 moved deskOpen from drop.html / widget.html into drop-app.js.
+// A session desk still follows AIADesks.shopOpen() (with a pin/session
+// fallback), paints body.desk-open, and names the dest desk. A closed
+// or missing desk does not. A public-link dest that is not the session
+// desk stays closed (ws !== authWs). Capture still targets `ws`.
+const drop = fs.readFileSync(path.join(ROOT, "drop.html"), "utf8");
+const widget = fs.readFileSync(path.join(ROOT, "widget.html"), "utf8");
+const app = fs.readFileSync(path.join(ROOT, "drop-app.js"), "utf8");
+
+if (drop.indexOf("drop-app.js") < 0) fail("drop.html must load drop-app.js");
+else pass("drop.html loads drop-app.js");
+if (widget.indexOf("drop-app.js") < 0) fail("widget.html must load drop-app.js");
+else pass("widget.html loads drop-app.js");
+
+function bootFn(src) {
+  const at = src.indexOf("let deskOpen");
+  if (at < 0) return "";
+  const stop = src.indexOf("function headers", at);
+  return src.slice(at, stop > at ? stop : at + 800);
 }
+function headersFn(src) {
+  const at = src.indexOf("function headers()");
+  if (at < 0) return "";
+  const stop = src.indexOf("function showMode", at);
+  return src.slice(at, stop > at ? stop : at + 400);
+}
+function paintOnFn(src) {
+  const at = src.indexOf("function paintDeskOn");
+  if (at < 0) return "";
+  const stop = src.indexOf("function paintFiles", at);
+  return src.slice(at, stop > at ? stop : at + 700);
+}
+
+function dropSessionFaults(appSrc) {
+  const bad = [];
+  const boot = bootFn(appSrc);
+  const headers = headersFn(appSrc);
+  const paint = paintOnFn(appSrc);
+  if (!boot) { bad.push("missing deskOpen"); return bad; }
+
+  const assign = boot.match(/let deskOpen\s*=\s*([^;]+);/);
+  const rhs = assign ? assign[1].trim() : "";
+  if (rhs === "true") bad.push("always open");
+  else if (rhs === "false") bad.push("always closed");
+  else if (!/AIADesks\.shopOpen\s*\(\s*\)/.test(rhs)) bad.push("ignore shopOpen");
+
+  const classAdd = /document\.body\.classList\.add\(\s*["']desk-open["']\s*\)/.test(boot);
+  const classIf = /if\s*\(\s*deskOpen\s*\)\s*document\.body\.classList\.add\(\s*["']desk-open["']\s*\)/.test(boot);
+  if (classAdd && !classIf) {
+    if (bad.indexOf("always open") < 0) bad.push("always open");
+  } else if (!classAdd) {
+    if (bad.indexOf("always closed") < 0) bad.push("always closed");
+  }
+
+  if (!/if\s*\(\s*ws\s*\)\s*h\["X-Workspace"\]\s*=\s*ws/.test(headers)) {
+    bad.push("wrong desk target");
+  }
+
+  if (!paint || paint.indexOf("This drop goes to ") < 0 || paint.indexOf("No desk yet") < 0) {
+    bad.push("session desk not painted as the drop dest");
+  }
+  return bad;
+}
+
+const live = dropSessionFaults(app);
+if (live.length) fail("drop-app.js deskOpen must follow AIADesks.shopOpen() so a session desk paints as open: " + live.join("; "));
+pass("deskOpen follows shopOpen(), paints a session desk open and a closed desk closed, and captures to that desk");
+
+function applyMutant(src, kind) {
+  let next = src;
+  if (kind === "ignore shopOpen") {
+    next = next.replace(
+      "let deskOpen = (window.AIADesks && AIADesks.shopOpen) ? !!AIADesks.shopOpen() : !!(ws && (pin || localStorage.getItem(\"aia_session\")));",
+      "let deskOpen = !!(ws && pin);"
+    );
+  } else if (kind === "always open") {
+    next = next.replace(
+      "let deskOpen = (window.AIADesks && AIADesks.shopOpen) ? !!AIADesks.shopOpen() : !!(ws && (pin || localStorage.getItem(\"aia_session\")));",
+      "let deskOpen = true;"
+    );
+  } else if (kind === "always closed") {
+    next = next.replace(
+      "let deskOpen = (window.AIADesks && AIADesks.shopOpen) ? !!AIADesks.shopOpen() : !!(ws && (pin || localStorage.getItem(\"aia_session\")));",
+      "let deskOpen = false;"
+    );
+  } else if (kind === "wrong desk target") {
+    next = next.replace(
+      "if (ws) h[\"X-Workspace\"] = ws;",
+      "if (authWs) h[\"X-Workspace\"] = authWs;"
+    );
+  }
+  return next;
+}
+
+const mutants = ["ignore shopOpen", "always open", "always closed", "wrong desk target"];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const faults = dropSessionFaults(applyMutant(app, kind));
+  if (faults.indexOf(kind) < 0) {
+    console.error("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+    process.exitCode = 1;
+  } else {
+    caught++;
+    pass("mutant caught: " + kind + " (" + kind + ")");
+  }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+console.log("ok  mutants: " + caught + "/" + mutants.length + " caught");
+console.log("check-drop-session mutants: " + caught + "/" + mutants.length + " caught");
 
 const agent = fs.readFileSync(path.join(ROOT, "drop-agent.js"), "utf8");
 if (!/function deskIsOpen/.test(agent)) fail("drop-agent.js deskIsOpen missing.");
