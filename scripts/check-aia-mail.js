@@ -21,11 +21,25 @@ function pass(m) { console.log("ok   " + m); }
   else pass("file " + name);
 });
 
-["account.html", "desks.html", "developer.js", "aia-mail.js"].forEach(function (name) {
+["account.html", "desks.html", "aia-mail.js"].forEach(function (name) {
   const src = fs.readFileSync(path.join(root, name), "utf8");
   if (!/Create \.aia email for automations/.test(src)) fail(name + " missing create .aia email copy");
   else pass(name + " create .aia email");
 });
+
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studioJs = fs.readFileSync(path.join(root, "developer.js"), "utf8");
+const studio = decodeStudio(fs.readFileSync(path.join(root, "developer.z64.txt"), "utf8"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) fail("Studio loader must unpack developer.z64.txt");
+else pass("Studio loader unpacks the pack");
+if (!studio || studio.indexOf("Creators Studio") < 0) fail("developer.z64.txt must decode as Creators Studio");
+else pass("Studio pack decodes");
+if (!/Create \.aia email for automations/.test(studio) || !/Outbound Send stays HOLD/.test(studio) || !/does not resolve yet/.test(studio)) fail("Studio pack missing create .aia email / Send HOLD copy");
+else pass("Studio pack create .aia email");
 
 ["account.html", "desks.html", "developer.html"].forEach(function (name) {
   const src = fs.readFileSync(path.join(root, name), "utf8");
@@ -68,9 +82,14 @@ if (packMd.indexOf("Studio mail leftover") < 0) fail("PACK.md must name Studio m
 else pass("PACK.md names Studio mail leftover");
 
 const holdFiles = ["api/_aia-mail.js", "aia-mail.js", "PACK.md"];
+function invented250(name, src) {
+  let check = src.replace(/\$250 never/g, "");
+  if (name === "PACK.md") check = check.replace(/Grok \*\*T2 \$250\*\*\. Those strings are gone\./g, "");
+  return /\$250/.test(check);
+}
 holdFiles.forEach(function (name) {
   const src = fs.readFileSync(path.join(root, name), "utf8");
-  if (/\$250/.test(src.replace(/\$250 never/g, ""))) fail(name + " invented $250");
+  if (invented250(name, src)) fail(name + " invented $250");
   else pass(name + " no $250");
 });
 
@@ -228,6 +247,9 @@ async function main() {
   if (hookSend.statusCode !== 409 || !hookSend.body.hold) fail("hook send must HOLD");
   else pass("hook send HOLD");
 
+  function jobFromStore(id) {
+    return (mem.jobs || []).find(function (j) { return j && j.id === id; }) || null;
+  }
   const inbound = await call(hook, "POST", {}, {
     event: "mail",
     to: "james-ai@funditaway.aia",
@@ -235,11 +257,14 @@ async function main() {
     subject: "Need a quote",
     text: "Can you look at the porch?"
   });
-  if (inbound.statusCode !== 201 || !inbound.body.ok || !inbound.body.job) {
+  if (inbound.statusCode !== 201 || !inbound.body || !inbound.body.ok || !inbound.body.id || inbound.body.event !== "capture" || inbound.body.status !== "waiting") {
     fail("inbound " + inbound.statusCode + " " + JSON.stringify(inbound.body));
+  } else if (inbound.body.job) {
+    fail("no-seat inbound must not echo the card, got " + JSON.stringify(inbound.body));
   } else pass("inbound mail captures");
-  const job = inbound.body.job;
-  if (job.workspace !== slug) fail("inbound landed on wrong desk");
+  const job = jobFromStore(inbound.body && inbound.body.id);
+  if (!job) fail("inbound must write a waiting card for " + ((inbound.body && inbound.body.id) || "missing id"));
+  if (!job || job.workspace !== slug) fail("inbound landed on wrong desk");
   else pass("inbound lands on bound desk");
   if (job.aiaMail !== "james-ai@funditaway.aia") fail("job missing aiaMail");
   else pass("job stamped with identity");
@@ -274,11 +299,14 @@ async function main() {
     subject: "Porch quote",
     text: "Can you look at the porch?"
   });
-  if (deskIn.statusCode !== 201 || !deskIn.body || !deskIn.body.job) {
+  if (deskIn.statusCode !== 201 || !deskIn.body || !deskIn.body.ok || !deskIn.body.id || deskIn.body.event !== "capture" || deskIn.body.status !== "waiting") {
     fail("desk-bound inbound " + deskIn.statusCode + " " + JSON.stringify(deskIn.body));
+  } else if (deskIn.body.job) {
+    fail("no-seat desk-bound inbound must not echo the card, got " + JSON.stringify(deskIn.body));
   } else pass("desk-bound inbound captures");
-  const deskJob = deskIn.body.job;
-  if (deskJob.workspace !== slug) fail("desk-bound inbound landed on wrong desk");
+  const deskJob = jobFromStore(deskIn.body && deskIn.body.id);
+  if (!deskJob) fail("desk-bound inbound must write a waiting card for " + ((deskIn.body && deskIn.body.id) || "missing id"));
+  if (!deskJob || deskJob.workspace !== slug) fail("desk-bound inbound landed on wrong desk");
   else pass("desk-bound inbound lands on bound desk");
   if (deskJob.aiaMail !== "queue@springfield-shop.aia" || deskJob.to !== "queue@springfield-shop.aia") {
     fail("desk-bound job missing to/aiaMail");
@@ -337,6 +365,81 @@ async function main() {
   if (/\$250|live eBay|on-chain owned|smtp live/i.test(JSON.stringify(made.body) + JSON.stringify(inbound.body) + JSON.stringify(h.body.mail))) {
     fail("hard-line leak");
   } else pass("no demo $250 / live eBay / fake MX");
+
+  function unique(rows) {
+    const out = [];
+    rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+    return out;
+  }
+  function bootFn(src) {
+    const start = src.indexOf("function boot");
+    if (start < 0) return "";
+    const next = src.slice(start + 10).search(/\n  (async )?function /);
+    return src.slice(start, next >= 0 ? start + 10 + next : start + 800);
+  }
+  function buildFaults(files) {
+    const bad = [];
+    const hasLoader = files.loader.indexOf('fetch("/developer.z64.txt"') >= 0 && files.loader.indexOf('DecompressionStream("gzip")') >= 0;
+    if (!hasLoader || !files.pack || files.pack.indexOf("Creators Studio") < 0 || !/Create \.aia email for automations/.test(files.pack) || !/Outbound Send stays HOLD/.test(files.pack) || !/does not resolve yet/.test(files.pack)) {
+      bad.push("Studio mail copy gone");
+    }
+    if (invented250("PACK.md", files.packMd)) {
+      bad.push("PACK.md invented $250");
+    }
+    if (!/Outbound Send stays HOLD/.test(files.mailJs) || !/Create \.aia email for automations/.test(files.mailJs) || !/does not resolve yet/.test(files.mailJs) || !/Send stays HOLD/.test(files.mailJs)) {
+      bad.push("mail Send HOLD copy gone");
+    }
+    const boot = bootFn(files.mailJs);
+    if (/mail-send/.test(boot) || /action:\s*"send"/.test(boot) || /charged:\s*true/.test(files.mailJs) || /action:\s*"mail-send"/.test(boot) || /action:\s*"payout"/.test(files.mailJs)) {
+      bad.push("outbound send or auto-reply without Yes");
+    }
+    return unique(bad);
+  }
+  function applyMutant(kind, files) {
+    const next = { loader: files.loader, pack: files.pack, packMd: files.packMd, mailJs: files.mailJs };
+    if (kind === "Studio mail copy gone") {
+      next.pack = next.pack
+        .replace(/Create \.aia email for automations/g, "Skip mail")
+        .replace(/Outbound Send stays HOLD/g, "Send is live")
+        .replace(/does not resolve yet/g, "DNS is live");
+    } else if (kind === "PACK.md invented $250") {
+      next.packMd = next.packMd + "\nPayout baseline is $250.\n";
+    } else if (kind === "mail Send HOLD copy gone") {
+      next.mailJs = next.mailJs
+        .replace(/Outbound Send stays HOLD/g, "Send is live")
+        .replace(/Send stays HOLD/g, "Send is live")
+        .replace(/Create \.aia email for automations/g, "Skip mail")
+        .replace(/does not resolve yet/g, "DNS is live");
+    } else if (kind === "outbound send or auto-reply without Yes") {
+      next.mailJs = next.mailJs.replace("function boot()", "function boot(){ fetch('/gone', { method: 'POST', body: JSON.stringify({ action: 'mail-send', to: 'neighbor@example.com', text: 'hi' }) }); }\nfunction bootOld") + "\ncharged: true\n{ action: \"payout\" }";
+    }
+    return next;
+  }
+
+  const files = {
+    loader: studioJs,
+    pack: studio,
+    packMd: packMd,
+    mailJs: mailJs
+  };
+  const live = buildFaults(files);
+  if (live.length) fail("mail behaviour drifted: " + live.join("; "));
+  else pass("Studio mail copy, PACK.md $250 honesty, and Send HOLD still hold");
+
+  const mutants = [
+    "Studio mail copy gone",
+    "PACK.md invented $250",
+    "mail Send HOLD copy gone",
+    "outbound send or auto-reply without Yes"
+  ];
+  let caught = 0;
+  mutants.forEach(function (kind) {
+    const faults = buildFaults(applyMutant(kind, files));
+    if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+    else { caught += 1; pass("mutant caught: " + kind); }
+  });
+  if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+  else pass("mutants: " + caught + "/" + mutants.length + " caught");
 
   await save();
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
