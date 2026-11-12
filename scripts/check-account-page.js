@@ -86,6 +86,27 @@ function tipImpliesAuthOn(body) {
   return /authenticator is on|authenticator is live|two-step is on|two-step sign-in is on|authenticator is ready/i.test(body || "");
 }
 
+function pinFieldIsPassword(accountSrc) {
+  const m = accountSrc.match(/<input\b[^>]*id="pin"[^>]*>/i);
+  if (!m) return false;
+  return /\btype="password"/.test(m[0]);
+}
+function storedPinInWrite(accountSrc) {
+  if (accountSrc.indexOf('localStorage.getItem("aia_pin")') >= 0) return true;
+  if (accountSrc.indexOf('pinEl.value=localStorage.getItem("aia_pin")') >= 0) return true;
+  return false;
+}
+function pinInUrlOrWriteBody(accountSrc) {
+  if (/[?&]pin=/.test(accountSrc)) return true;
+  if (/action:"details"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"export"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"sessions"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"mfa"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"handle"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"password"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  return false;
+}
+
 function accountPageFaults(accountSrc, tipsSrc, httpSrc) {
   const bad = [];
   if (!tellsNoCodeAndNoHash(exportCard(accountSrc)) || !tellsNoCodeAndNoHash(exportSuccessLine(accountSrc))) {
@@ -99,13 +120,15 @@ function accountPageFaults(accountSrc, tipsSrc, httpSrc) {
   if (turnsOn) bad.push("authenticator turns on without Yes");
   const act = actFn(accountSrc);
   const okAt = act.indexOf("if(!r.ok)");
-  const pinAt = act.indexOf('localStorage.setItem("aia_pin"');
-  if (pinAt >= 0 && (okAt < 0 || pinAt < okAt)) bad.push("pin stored in localStorage");
+  if (accountSrc.indexOf('localStorage.setItem("aia_pin"') >= 0) bad.push("pin stored in localStorage");
   const sessionAt = act.indexOf('localStorage.setItem("aia_session"');
   const paintAt = act.indexOf("paint(d)");
   if (!act || okAt < 0 || (sessionAt >= 0 && sessionAt < okAt) || (paintAt >= 0 && paintAt < okAt)) {
     bad.push("wrong pin accepted");
   }
+  if (!pinFieldIsPassword(accountSrc)) bad.push("pin field type=text");
+  if (storedPinInWrite(accountSrc)) bad.push("stored pin read for writes");
+  if (pinInUrlOrWriteBody(accountSrc)) bad.push("pin in the URL or body");
   return bad;
 }
 
@@ -120,8 +143,20 @@ function applyMutant(accountSrc, tipsSrc, httpSrc, kind) {
     );
   } else if (kind === "pin stored in localStorage") {
     account = account.replace(
-      "      if(!r.ok){err.style.display=\"block\";err.textContent=d.error||\"Could not open.\";return;}\n      if(d.session&&d.session.token) localStorage.setItem(\"aia_session\",d.session.token);\n      if(slug) localStorage.setItem(\"aia_ws\",slug);\n      if(pinEl.value) localStorage.setItem(\"aia_pin\",pinEl.value);",
-      "      if(pinEl.value) localStorage.setItem(\"aia_pin\",pinEl.value);\n      if(!r.ok){err.style.display=\"block\";err.textContent=d.error||\"Could not open.\";return;}\n      if(d.session&&d.session.token) localStorage.setItem(\"aia_session\",d.session.token);\n      if(slug) localStorage.setItem(\"aia_ws\",slug);"
+      "      if(d.session&&d.session.token) localStorage.setItem(\"aia_session\",d.session.token);",
+      "      if(d.session&&d.session.token) localStorage.setItem(\"aia_session\",d.session.token);\n      if(pinEl.value) localStorage.setItem(\"aia_pin\",pinEl.value);"
+    );
+  } else if (kind === "pin field type=text") {
+    account = account.replace('id="pin" type="password"', 'id="pin" type="text"');
+  } else if (kind === "stored pin read for writes") {
+    account = account.replace(
+      'const r=await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:"details"',
+      'const pin=localStorage.getItem("aia_pin")||"";const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"details"'
+    );
+  } else if (kind === "pin in the URL or body") {
+    account = account.replace(
+      'fetch("/api/account",{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"")})',
+      'fetch("/api/account?pin="+encodeURIComponent(localStorage.getItem("aia_pin")||""),{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"")})'
     );
   } else if (kind === "wrong pin accepted") {
     account = account.replace(
@@ -225,7 +260,10 @@ const mutants = [
   "no-pin line removed",
   "authenticator turns on without Yes",
   "pin stored in localStorage",
-  "wrong pin accepted"
+  "wrong pin accepted",
+  "pin field type=text",
+  "stored pin read for writes",
+  "pin in the URL or body"
 ];
 let caught = 0;
 mutants.forEach(function (kind) {

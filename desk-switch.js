@@ -279,11 +279,22 @@
     open({
       slug: slug,
       name: ws.biz || ws.name || slug,
-      pin: pin || "",
+      pin: "",
       token: token || "",
       role: you.role || "owner",
       who: you.name || ""
     });
+    if (store) {
+      try { store.removeItem("aia_pin"); } catch (e) {}
+    }
+    if (slug) {
+      var rows = load();
+      var dirty = false;
+      rows.forEach(function (d) {
+        if (d && d.slug === slug && d.pin) { delete d.pin; dirty = true; }
+      });
+      if (dirty) write(rows);
+    }
   }
 
   function widgetHref(slug) {
