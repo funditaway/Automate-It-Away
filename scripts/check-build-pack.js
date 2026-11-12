@@ -84,11 +84,23 @@ must(studio, "No separate license SKU", "studio no license SKU");
 must(studio, "careers portal", "studio no careers portal");
 must(studio, "App / webhook", "studio app/webhook example");
 must(studio, "Yes before outbound", "studio Yes before outbound");
-must(studioJs, "Build a pack / desk AI.", "studio js build-pack one-liner");
-must(studioJs, "/help#build-pack", "studio js build-pack link");
-must(studioJs, "No separate license SKU", "studio js no license SKU");
-must(studioJs, "App / webhook", "studio js app/webhook example");
-must(studioJs, "Yes before outbound", "studio js Yes before outbound");
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studioPack = decodeStudio(read("developer.z64.txt"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) {
+  throw new Error("Studio loader must unpack developer.z64.txt");
+}
+if (!studioPack || studioPack.indexOf("Creators Studio") < 0) throw new Error("developer.z64.txt must decode as Creators Studio");
+must(studioPack, "Build a pack / desk AI.", "studio pack build-pack one-liner");
+must(studioPack, "/help#build-pack", "studio pack build-pack link");
+must(studioPack, "No separate license SKU", "studio pack no license SKU");
+must(studioPack, "App / webhook", "studio pack app/webhook example");
+must(studioPack, "Yes before outbound", "studio pack Yes before outbound");
+must(studioPack, "Yes is not a collect charge", "studio pack Yes ≠ collect");
+must(studioPack, "Collect stays HOLD", "studio pack Collect HOLD");
 must(more, "/help#build-pack", "more.html build-pack link");
 must(more, "/dev#first-pack", "more.html first-pack link");
 must(more, "First .aia pack", "more.html first-pack title");
@@ -110,8 +122,8 @@ must(studio, "No AIA token", "studio first-pack no AIA token");
 must(studio, "No DAO slash", "studio first-pack no DAO slash");
 must(studio, "No DePIN", "studio first-pack no DePIN");
 must(studio, "No Grandma brand", "studio first-pack no Grandma");
-must(studioJs, "First .aia pack.", "studio js first-pack one-liner");
-must(studioJs, "#first-pack", "studio js first-pack link");
+must(studioPack, "First .aia pack.", "studio pack first-pack one-liner");
+must(studioPack, "#first-pack", "studio pack first-pack link");
 must(help, "/dev#first-pack", "help.html first-pack link");
 
 must(examples, "App / webhook", "examples App/webhook pack");
@@ -136,15 +148,130 @@ if (/\$47|\$197|\$50|300 hours|10\s*[–-]\s*15\s*minutes/i.test(build)) {
 }
 
 ["BUYER_ENVIRONMENT_BINDINGS", "aiastudios.app", "Login Kit", "aia-studio", "streaming USDC", "IPFS"].forEach(function (bit) {
-  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit) || examples.includes(bit)) {
+  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit) || studioPack.includes(bit) || examples.includes(bit)) {
     throw new Error("invented fiction on public Help/Studio/Examples: " + bit);
   }
 });
 
 ["cryptographically signed", "streaming USDC", "aia-studio CLI", "DID manifest"].forEach(function (bit) {
-  if (studio.includes(bit) || studioJs.includes(bit)) {
+  if (studio.includes(bit) || studioJs.includes(bit) || studioPack.includes(bit)) {
     throw new Error("fake first-pack docs on Studio: " + bit);
   }
 });
+
+
+function sliceFn(src, name) {
+  const start = src.indexOf("async function " + name) >= 0 ? src.indexOf("async function " + name) : src.indexOf("function " + name);
+  if (start < 0) return "";
+  const next = src.slice(start + 10).search(/\n  (async )?function /);
+  return src.slice(start, next >= 0 ? start + 10 + next : start + 1400);
+}
+const bootFn = sliceFn(studioPack, "boot");
+const installFn = sliceFn(studioPack, "installAia");
+const bindFn = sliceFn(studioPack, "bindLab");
+const submitFn = sliceFn(studioPack, "submitPack");
+const saveFn = sliceFn(studioPack, "saveDraft");
+if (!installFn) throw new Error("Studio missing installAia");
+if (!bindFn || bindFn.indexOf("install-aia") < 0 || bindFn.indexOf("installAia") < 0) {
+  throw new Error("Install .aia must be a human tap on #install-aia");
+}
+if (bootFn && (bootFn.indexOf("installAia") >= 0 || bootFn.indexOf("install-aia") >= 0 || bootFn.indexOf("submitPack") >= 0 || bootFn.indexOf("submit-pack") >= 0)) {
+  throw new Error("Studio boot must not install or publish a pack");
+}
+if (installFn.indexOf("aia-file") < 0 || installFn.indexOf("Pick a .aia pack file first") < 0) {
+  throw new Error("Install .aia must wait for a file and a human tap");
+}
+if (saveFn.indexOf("list-pack") >= 0 && /status:\s*"listed"|submit:\s*true/.test(saveFn)) {
+  throw new Error("Save draft must not list the pack on Market");
+}
+if (/charged:\s*true/.test(studioPack)) throw new Error("Studio pack must not send charged:true");
+if (/action:\s*"payout"|action:\s*"withdraw"|action:\s*"pay-out"/.test(studioPack)) {
+  throw new Error("Studio pack must not pay out");
+}
+if (studio.indexOf("Yes / Stop / Kill before anything leaves") < 0) {
+  throw new Error("Studio first-pack must keep Yes before anything leaves");
+}
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+function buildFaults(loader, pack, html) {
+  const bad = [];
+  const hasLoader = loader.indexOf('fetch("/developer.z64.txt"') >= 0 && loader.indexOf('DecompressionStream("gzip")') >= 0;
+  if (!hasLoader || !pack || pack.indexOf("Build a pack / desk AI.") < 0 || pack.indexOf("/help#build-pack") < 0 || pack.indexOf("First .aia pack.") < 0 || pack.indexOf("#first-pack") < 0) {
+    bad.push("Studio build-pack copy gone");
+  }
+  if (pack.indexOf("Yes before outbound") < 0 || html.indexOf("Yes / Stop / Kill before anything leaves") < 0) {
+    bad.push("Yes before outbound gone");
+  }
+  const boot = sliceFn(pack, "boot");
+  const install = sliceFn(pack, "installAia");
+  const bind = sliceFn(pack, "bindLab");
+  const save = sliceFn(pack, "saveDraft");
+  if (!install || !bind || bind.indexOf("install-aia") < 0 || bind.indexOf("installAia") < 0 || (boot && (boot.indexOf("installAia") >= 0 || boot.indexOf("install-aia") >= 0)) || (install && (install.indexOf("aia-file") < 0 || install.indexOf("Pick a .aia pack file first") < 0))) {
+    bad.push("install without Yes");
+  }
+  if (/charged:\s*true/.test(pack) || pack.indexOf("Yes is not a collect charge") < 0) {
+    bad.push("charge without Yes");
+  }
+  if ((boot && (boot.indexOf("submitPack") >= 0 || boot.indexOf("submit-pack") >= 0)) || (save && /status:\s*"listed"|submit:\s*true/.test(save)) || /action:\s*"payout"|action:\s*"withdraw"|action:\s*"pay-out"/.test(pack)) {
+    bad.push("list or payout without Yes");
+  }
+  return unique(bad);
+}
+function applyMutant(kind, files) {
+  const next = { loader: files.loader, pack: files.pack, html: files.html };
+  if (kind === "Studio build-pack copy gone") {
+    next.pack = next.pack
+      .replace(/Build a pack \/ desk AI\./g, "Skip the lab.")
+      .replace(/\/help#build-pack/g, "/help#skip")
+      .replace(/First \.aia pack\./g, "Skip the pack.")
+      .replace(/#first-pack/g, "#skip");
+  } else if (kind === "Yes before outbound gone") {
+    next.pack = next.pack.replace(/Yes before outbound/g, "Sends outbound now");
+    next.html = next.html.replace(/Yes \/ Stop \/ Kill before anything leaves/g, "It leaves on its own");
+  } else if (kind === "install without Yes") {
+    next.pack = next.pack.replace("async function boot()", "async function boot(){ installAia(); }\nasync function bootOld")
+      .replace("Pick a .aia pack file first", "Installing anyway")
+      .replace(/aia-file/g, "gone-file");
+  } else if (kind === "charge without Yes") {
+    next.pack = next.pack.replace(/Yes is not a collect charge/g, "Yes is the collect charge") + "\ncharged: true";
+  } else if (kind === "list or payout without Yes") {
+    next.pack = next.pack.replace("async function boot()", "async function boot(){ submitPack(); }\nasync function bootOld") + '\n{ action: "payout" }';
+  }
+  return next;
+}
+
+let failed = 0;
+function fail(msg) { failed += 1; console.error("FAIL " + msg); }
+function pass(msg) { console.log("ok  " + msg); }
+
+const files = { loader: studioJs, pack: studioPack, html: studio };
+const live = buildFaults(files.loader, files.pack, files.html);
+if (live.length) fail("build pack behaviour drifted: " + live.join("; "));
+else pass("build-pack honesty, Yes before outbound, and no silent install/charge/payout still hold");
+
+const mutants = [
+  "Studio build-pack copy gone",
+  "Yes before outbound gone",
+  "install without Yes",
+  "charge without Yes",
+  "list or payout without Yes"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const next = applyMutant(kind, files);
+  const faults = buildFaults(next.loader, next.pack, next.html);
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
+if (failed) {
+  console.error("check-build-pack failed");
+  process.exit(1);
+}
 
 console.log("check-build-pack: ok");
