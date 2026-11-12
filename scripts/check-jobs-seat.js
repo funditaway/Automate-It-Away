@@ -95,9 +95,8 @@ function assertSources() {
 
   const people = read("people.js");
   if (people.indexOf('h["X-Pin"] = pin') < 0 || people.indexOf('h["X-Session"] = ses') < 0) fail("people.js headers must send the seat");
-  if (people.indexOf('h["X-Pin"] = desk.pin') < 0 || people.indexOf('h["X-Session"] = desk.token') < 0) {
-    fail("people.js fetchDesk must send that desk's seat");
-  }
+  if (people.indexOf('h["X-Session"] = desk.token') < 0) fail("people.js fetchDesk must send that desk's session token");
+  if (people.indexOf('h["X-Pin"] = desk.pin') >= 0) fail("people.js fetchDesk must not send a leftover stored pin");
   if (people.indexOf('fetch("/api/jobs", { headers: h })') < 0 || people.indexOf('api("/api/jobs")') < 0) {
     fail("people.js must still read jobs through the seat headers");
   }

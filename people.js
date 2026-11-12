@@ -21,8 +21,8 @@ function headers() {
   var h = { "Content-Type": "application/json", "X-Workspace": localStorage.getItem("aia_ws") || "" };
   var pin = localStorage.getItem("aia_pin");
   var ses = localStorage.getItem("aia_session");
-  if (pin) h["X-Pin"] = pin;
   if (ses) h["X-Session"] = ses;
+  if (pin && !ses) h["X-Pin"] = pin;
   return h;
 }
 
@@ -163,10 +163,174 @@ function fmtTime(t) {
 
 function savedDesks() {
   if (window.AIADesks && AIADesks.list) {
-    return AIADesks.list().filter(function (d) { return d && d.slug && (d.pin || d.token); });
+    return AIADesks.list().filter(function (d) { return d && d.slug && (d.token || d.pin || d.needCode); });
   }
   var cur = localStorage.getItem("aia_ws");
   return cur ? [{ slug: cur, name: localStorage.getItem("aia_desk_name") || cur, pin: localStorage.getItem("aia_pin") || "", token: localStorage.getItem("aia_session") || "" }] : [];
+}
+
+function slugOfDesk(s) {
+  if (window.AIADesks && AIADesks.slugify) return AIADesks.slugify(s);
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+}
+
+function writeSavedDesks(rows) {
+  try { localStorage.setItem("aia_desks", JSON.stringify(rows || [])); } catch (e) {}
+}
+
+function eachSavedDesk(slug, fn) {
+  slug = slugOfDesk(slug);
+  var rows = [];
+  try { rows = JSON.parse(localStorage.getItem("aia_desks") || "[]"); } catch (e) { rows = []; }
+  if (!Array.isArray(rows)) rows = [];
+  var found = false;
+  rows = rows.map(function (d) {
+    if (!d || d.slug !== slug) return d;
+    found = true;
+    return fn(d);
+  });
+  if (!found && slug) {
+    var next = fn({ slug: slug });
+    if (next) rows.push(next);
+  }
+  writeSavedDesks(rows);
+  return rows;
+}
+
+function stripDeskPin(slug) {
+  slug = slugOfDesk(slug);
+  eachSavedDesk(slug, function (d) {
+    var next = Object.assign({}, d);
+    delete next.pin;
+    return next;
+  });
+  try {
+    if (localStorage.getItem("aia_ws") === slug) localStorage.removeItem("aia_pin");
+  } catch (e) {}
+}
+
+function storeDeskToken(slug, token, name) {
+  slug = slugOfDesk(slug);
+  eachSavedDesk(slug, function (d) {
+    var next = Object.assign({}, d, { slug: slug, token: token || "", needCode: false });
+    if (name) next.name = name;
+    delete next.pin;
+    delete next.needCode;
+    return next;
+  });
+  try {
+    if (localStorage.getItem("aia_ws") === slug) {
+      if (token) localStorage.setItem("aia_session", token);
+      localStorage.removeItem("aia_pin");
+    }
+  } catch (e) {}
+}
+
+function markDeskNeedsCode(slug, name) {
+  slug = slugOfDesk(slug);
+  eachSavedDesk(slug, function (d) {
+    var next = Object.assign({}, d, { slug: slug, needCode: true });
+    if (name) next.name = name;
+    delete next.pin;
+    return next;
+  });
+}
+
+function showDeskCodePrompt(slug, name, msg) {
+  var box = document.getElementById("desk-code-prompt");
+  var line = document.getElementById("desk-code-prompt-msg");
+  var pinEl = document.getElementById("desk-code-prompt-pin");
+  if (line) line.textContent = (name || slug || "This desk") + ". " + (msg || "Desk name or code does not match.");
+  if (box) {
+    box.hidden = false;
+    box.setAttribute("data-slug", slugOfDesk(slug));
+    box.setAttribute("data-name", name || slug || "");
+  }
+  if (pinEl) pinEl.value = "";
+}
+
+function hideDeskCodePrompt() {
+  var box = document.getElementById("desk-code-prompt");
+  var pinEl = document.getElementById("desk-code-prompt-pin");
+  if (box) { box.hidden = true; box.removeAttribute("data-slug"); }
+  if (pinEl) pinEl.value = "";
+}
+
+async function exchangeDeskCode(row, typedCode) {
+  var slug = slugOfDesk(row && row.slug);
+  var name = (row && row.name) || slug;
+  var code = String(typedCode != null ? typedCode : ((row && row.pin) || "")).trim();
+  if (!slug) return row;
+  if (row && row.token && !code) {
+    stripDeskPin(slug);
+    return { slug: slug, name: name, token: row.token };
+  }
+  if (!code) {
+    stripDeskPin(slug);
+    markDeskNeedsCode(slug, name);
+    showDeskCodePrompt(slug, name, "Desk name or code does not match.");
+    return { slug: slug, name: name, token: "", needCode: true };
+  }
+  try {
+    var r = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Workspace": slug },
+      body: JSON.stringify({ action: "login", workspace: slug, pin: code })
+    });
+    var data = await r.json().catch(function () { return {}; });
+    stripDeskPin(slug);
+    if (!r.ok || !(data.session && data.session.token)) {
+      markDeskNeedsCode(slug, name);
+      showDeskCodePrompt(slug, name, data.error || "Desk name or code does not match.");
+      return { slug: slug, name: name, token: "", needCode: true };
+    }
+    var label = (data.workspace && (data.workspace.biz || data.workspace.name)) || name;
+    storeDeskToken(slug, data.session.token, label);
+    hideDeskCodePrompt();
+    return { slug: slug, name: label, token: data.session.token };
+  } catch (e) {
+    stripDeskPin(slug);
+    markDeskNeedsCode(slug, name);
+    showDeskCodePrompt(slug, name, "Could not reach the desk.");
+    return { slug: slug, name: name, token: "", needCode: true };
+  }
+}
+
+async function ensureSavedDeskTokens(rows) {
+  var out = [];
+  var list = Array.isArray(rows) ? rows : [];
+  for (var i = 0; i < list.length; i++) {
+    var d = list[i];
+    if (!d || !d.slug) continue;
+    if (d.token && !d.pin) { out.push({ slug: d.slug, name: d.name || d.slug, token: d.token }); continue; }
+    if (d.token && d.pin) {
+      stripDeskPin(d.slug);
+      out.push({ slug: d.slug, name: d.name || d.slug, token: d.token });
+      continue;
+    }
+    if (d.pin && !d.token) {
+      out.push(await exchangeDeskCode(d));
+      continue;
+    }
+    if (d.needCode) {
+      showDeskCodePrompt(d.slug, d.name, "Desk name or code does not match.");
+      out.push({ slug: d.slug, name: d.name || d.slug, token: "", needCode: true });
+      continue;
+    }
+    out.push(d);
+  }
+  return out;
+}
+
+async function submitDeskCodePrompt() {
+  var box = document.getElementById("desk-code-prompt");
+  var pinEl = document.getElementById("desk-code-prompt-pin");
+  if (!box) return;
+  var slug = box.getAttribute("data-slug") || "";
+  var name = box.getAttribute("data-name") || slug;
+  var code = String((pinEl && pinEl.value) || "").trim();
+  var result = await exchangeDeskCode({ slug: slug, name: name }, code);
+  if (result && result.token) load();
 }
 
 function inviteLine(p, pending) {
@@ -614,9 +778,7 @@ function deskHeaders(slug) {
   var cur = localStorage.getItem("aia_ws") || "";
   if (!slug || slug === cur) return headers();
   var d = savedDesks().filter(function (x) { return x.slug === slug; })[0];
-  if (!d || !(d.pin || d.token)) return headers();
   var h = { "Content-Type": "application/json", "X-Workspace": slug };
-  if (d && d.pin) h["X-Pin"] = d.pin;
   if (d && d.token) h["X-Session"] = d.token;
   return h;
 }
@@ -673,7 +835,7 @@ function paintNotes(thread) {
 async function openSheet(person, pick) {
   if (!person) return;
   var seat = openSeatOf(person, pick);
-  var desks = savedDesks().map(function (d) { return { slug: d.slug, pin: d.pin || "", token: d.token || "" }; });
+  var desks = savedDesks().map(function (d) { return { slug: d.slug, token: d.token || "" }; });
   var own = null;
   if (seat.id) {
     // By seat id on that seat's desk. Never by name when the seat is known.
@@ -777,9 +939,15 @@ function openFromQuery() {
 
 async function fetchDesk(desk) {
   var h = { "Content-Type": "application/json", "X-Workspace": desk.slug || desk };
-  if (desk.pin) h["X-Pin"] = desk.pin;
   if (desk.token) h["X-Session"] = desk.token;
-  var admin = await fetch("/api/admin", { headers: h }).then(function (r) { return r.json().catch(function () { return {}; }); }).catch(function () { return {}; });
+  var adminRes = await fetch("/api/admin", { headers: h }).catch(function () { return null; });
+  if (adminRes && adminRes.status === 401) {
+    stripDeskPin(desk.slug);
+    eachSavedDesk(desk.slug, function (d) { var next = Object.assign({}, d); delete next.token; next.needCode = true; return next; });
+    showDeskCodePrompt(desk.slug, desk.name, "Desk name or code does not match.");
+    return { ok: false, admin: {}, people: [], jobs: [] };
+  }
+  var admin = adminRes ? await adminRes.json().catch(function () { return {}; }) : {};
   var jobs = await fetch("/api/jobs", { headers: h }).then(function (r) { return r.json().catch(function () { return {}; }); }).catch(function () { return {}; });
   var list = (jobs && (jobs.jobs || jobs.items)) || [];
   if (!Array.isArray(list)) list = [];
@@ -800,7 +968,7 @@ async function load() {
   if (window.AIADesks && AIADesks.remember) AIADesks.remember();
   applyViewFromQuery();
 
-  var rows = savedDesks();
+  var rows = await ensureSavedDeskTokens(savedDesks());
   if (!localStorage.getItem("aia_people_scope_init")) {
     STATE.all = rows.length >= 2;
     localStorage.setItem("aia_people_scope_init", "1");
@@ -815,6 +983,7 @@ async function load() {
   if (STATE.all) {
     var peopleAll = [], jobsAll = [], last = null;
     for (var i = 0; i < rows.length; i++) {
+      if (!rows[i] || !rows[i].token) continue;
       var pack = await fetchDesk(rows[i]);
       if (!pack.ok) continue;
       last = pack.admin;
@@ -926,6 +1095,8 @@ if (clearBtn) clearBtn.addEventListener("click", function () {
 });
 document.getElementById("add-btn").addEventListener("click", invite);
 document.getElementById("sit-btn").addEventListener("click", sit);
+var deskCodeBtn = document.getElementById("desk-code-prompt-btn");
+if (deskCodeBtn) deskCodeBtn.addEventListener("click", function () { submitDeskCodePrompt(); });
 
 document.getElementById("desk-chips").addEventListener("click", function (e) {
   var btn = e.target.closest("[data-desk]");
