@@ -197,6 +197,12 @@
         await installAiaFile();
       }
     });
+    if (mine) mine.addEventListener("click", async (e) => {
+      const unlist = e.target.closest("[data-unlist]");
+      if (!unlist) return;
+      e.preventDefault();
+      await unlistPack(unlist.getAttribute("data-unlist"));
+    });
     function fail(msg) { err.style.display = "block"; err.textContent = msg; ok.style.display = "none"; }
     function queueHref(jobId) {
       const id = String(jobId || "").replace(/[^a-zA-Z0-9_-]/g, "");
@@ -228,7 +234,7 @@
           const mineRows = PACKS.filter((p) => !p.official);
           if (mineRows.length) {
             mine.style.display = "block";
-            mine.innerHTML = "<p class=\"hint\">Listed from desks</p>" + mineRows.map((p) => "<p><b>" + esc(p.name) + "</b> · " + (p.priced ? ("ask $" + p.ask) : "free") + ' <button type="button" class="ghost" data-unlist="' + esc(p.id) + '">Unlist</button></p>').join("");
+            mine.innerHTML = "<p class=\"hint\">Listed from desks</p>" + mineRows.map((p) => "<p><b>" + esc(p.name) + "</b> · " + (p.priced ? ("ask $" + p.ask) : "free") + ' <button type="button" class="ghost" form="form" data-unlist="' + esc(p.id) + '">Unlist</button></p>').join("");
           } else mine.style.display = "none";
         }
       } catch (e) {
