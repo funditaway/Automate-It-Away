@@ -79,7 +79,7 @@
         </select>
         <input id="ph" placeholder="Phone" inputmode="tel" autocomplete="tel">
         <input id="e" placeholder="Email" inputmode="email" autocomplete="email">
-        <input id="p" placeholder="Desk code, 4+ digits" inputmode="numeric">
+        <input id="p" placeholder="Desk code, 4+ digits" type="password" autocomplete="new-password" inputmode="numeric">
       </div>
       <p class="meta" id="add-link-line">They'll link their own account when they sign in.</p>
       <label><input id="now" type="checkbox" checked> Approve now — they can open the queue</label>
@@ -112,7 +112,7 @@
       <p>Same account. Ask to join a desk you do not own. Owner still Approves.</p>
       <div class="grid">
         <input id="sit-ws" placeholder="Desk name">
-        <input id="sit-pin" placeholder="Their desk code if they gave you one" inputmode="numeric">
+        <input id="sit-pin" placeholder="Their desk code if they gave you one" type="password" autocomplete="current-password" inputmode="numeric">
         <input id="sit-name" placeholder="Your name on that desk">
         <select id="sit-kind">
           <option value="helper">Helper</option>

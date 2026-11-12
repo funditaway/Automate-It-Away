@@ -21,8 +21,8 @@ function headers() {
   var h = { "Content-Type": "application/json", "X-Workspace": localStorage.getItem("aia_ws") || "" };
   var pin = localStorage.getItem("aia_pin");
   var ses = localStorage.getItem("aia_session");
-  if (pin) h["X-Pin"] = pin;
   if (ses) h["X-Session"] = ses;
+  if (pin && !ses) h["X-Pin"] = pin;
   return h;
 }
 
