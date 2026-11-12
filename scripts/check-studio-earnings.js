@@ -19,9 +19,20 @@ const vercel = read("vercel.json");
 const packMd = read("PACK.md");
 const yesNo = read("ACCOUNT-YES-NO.md");
 
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studio = decodeStudio(read("developer.z64.txt"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) fail("Studio loader must unpack developer.z64.txt");
+else pass("Studio loader unpacks the pack");
+if (!studio || studio.indexOf("Creators Studio") < 0) fail("developer.z64.txt must decode as Creators Studio");
+else pass("Studio pack decodes");
+
 const surfaces = {
   "developer.html": studioHtml,
-  "developer.js": studioJs,
+  "studio pack": studio,
   "market-shop.js": market,
   "help.html": help,
   "more.html": more
@@ -43,13 +54,13 @@ else pass("studio html private desks");
 if (!/id="earnings"/.test(studioHtml)) fail("developer.html must expose #earnings");
 else pass("studio html #earnings");
 
-if (!/no public payout baseline/i.test(studioJs)) fail("developer.js missing no public payout baseline");
-else pass("studio js no public payout baseline");
-if (!/Agency consulting is off-platform/i.test(studioJs)) fail("developer.js missing agency off-platform");
-else pass("studio js agency off-platform");
-if (!/Collect stays HOLD until a person taps Yes and a real Collect money pipe/i.test(studioJs)) {
-  fail("developer.js must keep Collect HOLD until Yes + pipe");
-} else pass("studio js Collect HOLD until Yes + pipe");
+if (!/no public payout baseline/i.test(studio)) fail("Studio pack missing no public payout baseline");
+else pass("studio pack no public payout baseline");
+if (!/Agency consulting is off-platform/i.test(studio)) fail("Studio pack missing agency off-platform");
+else pass("studio pack agency off-platform");
+if (!/Collect stays HOLD until a person taps Yes and a real Collect money pipe/i.test(studio)) {
+  fail("Studio pack must keep Collect HOLD until Yes + pipe");
+} else pass("studio pack Collect HOLD until Yes + pipe");
 
 if (!/no public payout baseline/i.test(market)) fail("market-shop.js missing no public payout baseline");
 else pass("market no public payout baseline");
@@ -62,13 +73,13 @@ if (!/no public payout baseline/i.test(help)) fail("help.html missing no public 
 else pass("help no public payout baseline");
 if (!/Agency consulting is off-platform/i.test(help)) fail("help.html missing agency off-platform");
 else pass("help agency off-platform");
-if (!/no public payout table/i.test(more) || !/no public payout baseline/i.test(more)) fail("more.html missing payout honesty");
-else pass("more payout honesty");
+if (!/Payments are off for now/.test(more) || !/You still tap Yes or Stop/.test(more)) fail("more.html missing payments-off / Yes honesty");
+else pass("more payments are off until Yes");
 
 const worldSurfaces = {
   "help.html": help,
   "developer.html": studioHtml,
-  "developer.js": studioJs
+  "studio pack": studio
 };
 const launchBits = [
   "Days are a guide, not a promise",
@@ -114,8 +125,8 @@ const launchBits = [
 ];
 Object.keys(worldSurfaces).forEach(function (name) {
   const src = worldSurfaces[name];
-  if (!/id="world/.test(src) && name !== "developer.js") fail(name + " missing #world");
-  else if (name !== "developer.js") pass(name + " #world");
+  if (!/id="world/.test(src) && name !== "studio pack") fail(name + " missing #world");
+  else if (name !== "studio pack") pass(name + " #world");
   if (!/World users/i.test(src)) fail(name + " missing World users");
   else pass(name + " World users");
   launchBits.forEach(function (bit) {
@@ -138,16 +149,16 @@ else pass("studio ads principles");
 if (!/examples only, not AIA terms/i.test(help) || !/examples only, not AIA terms/i.test(studioHtml)) {
   fail("10–15% cuts must stay examples only, not AIA terms");
 } else pass("co-pilot cuts are examples only");
-if (/\$0\.05/.test(help + studioHtml + studioJs) && !/does not host/i.test(help + studioHtml + studioJs)) {
+if (/\$0\.05/.test(help + studioHtml + studio) && !/does not host/i.test(help + studioHtml + studio)) {
   fail("$0.05/exec must say AIA does not host");
 } else pass("$0.05/exec is not hosted");
 if (/always works/i.test(help + studioHtml) && !/not .always works/i.test(help + studioHtml) && !/not “always works/i.test(help + studioHtml)) {
   fail("must not claim always works");
 } else pass("no always-works claim");
-if (/review-rate|4\.9 star|close rate/i.test(help + studioHtml + studioJs) && !/No invented close rates|Do not invent review-rate|No review-rate/i.test(help + studioHtml + studioJs)) {
+if (/review-rate|4\.9 star|close rate/i.test(help + studioHtml + studio) && !/No invented close rates|Do not invent review-rate|No review-rate/i.test(help + studioHtml + studio)) {
   fail("invented review or close-rate stats");
 } else pass("no invented review/close stats");
-if (/Login Kit|hands-off niche|auto-schedule/i.test(help + studioHtml + studioJs)) {
+if (/Login Kit|hands-off niche|auto-schedule/i.test(help + studioHtml + studio)) {
   fail("must not ship Automated Short-Form / Media Creator as live Studio");
 } else pass("no live short-form auto-publisher");
 if (/social SSO/i.test(help + studioHtml) && !/Not social SSO/i.test(help + studioHtml)) {
@@ -159,7 +170,7 @@ if (!/id="faq"/.test(help) || !/privately held/i.test(help) || !/not listed on N
 if (!/privately held/i.test(studioHtml) || !/Not investment advice/i.test(studioHtml + help)) {
   fail("studio/help missing privately held / not advice");
 } else pass("stock FAQ not advice");
-if (/IPO|secondary market|venture capital|% founder/i.test(help + studioHtml + studioJs)) {
+if (/IPO|secondary market|venture capital|% founder/i.test(help + studioHtml + studio)) {
   fail("invented ownership or IPO");
 } else pass("no invented IPO/ownership");
 
@@ -193,9 +204,9 @@ if (!packsApi.includes("charged: false") || !packsApi.includes("hold: true")) fa
 else pass("Collect HOLD, charged false");
 if (!/function collectHoldOf/.test(packsApi)) fail("collectHoldOf must stay");
 else pass("collectHoldOf stays");
-if (/Labeled DEMO/i.test(studioHtml + studioJs)) fail("studio demo chrome");
+if (/Labeled DEMO/i.test(studioHtml + studio)) fail("studio demo chrome");
 else pass("studio no demo chrome");
-if (/demo seed/i.test(studioHtml + studioJs) && !/no demo seed/i.test(studioHtml + studioJs)) fail("studio invented a demo seed");
+if (/demo seed/i.test(studioHtml + studio) && !/no demo seed/i.test(studioHtml + studio)) fail("studio invented a demo seed");
 else pass("studio no invented demo seed");
 
 if (!vercel.includes("\"/studio\"") || !vercel.includes("/developer.html")) fail("vercel /studio must rewrite to developer.html");
@@ -221,6 +232,75 @@ if (!/Studio Open leftover/i.test(yesNo) || !/Studio Open leftover/i.test(packMd
 else pass("canon names Studio Open leftover");
 if (!/open Owner desk/i.test(packMd) || !/open-desk store|open Owner desk/i.test(yesNo)) fail("canon must name auth vs account Studio Open store leftover");
 else pass("canon names auth vs account Studio Open store");
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+function buildFaults(files) {
+  const bad = [];
+  const hasLoader = files.loader.indexOf('fetch("/developer.z64.txt"') >= 0 && files.loader.indexOf('DecompressionStream("gzip")') >= 0;
+  if (!hasLoader || !files.pack || files.pack.indexOf("Creators Studio") < 0 || !/no public payout baseline/i.test(files.pack) || !/Agency consulting is off-platform/i.test(files.pack) || !/Collect stays HOLD until a person taps Yes and a real Collect money pipe/i.test(files.pack)) {
+    bad.push("Studio earnings copy gone");
+  }
+  if (!/Payments are off for now/.test(files.more) || !/You still tap Yes or Stop/.test(files.more)) {
+    bad.push("more payments-off / Yes honesty gone");
+  }
+  if (!/no public payout baseline/i.test(files.studioHtml) || !/Collect stays HOLD/i.test(files.studioHtml) || !/Collect stays HOLD until a person taps Yes and a real Collect money pipe/i.test(files.studioHtml + files.pack) || !/No silent charge/i.test(files.studioHtml)) {
+    bad.push("Collect HOLD until Yes copy gone");
+  }
+  if (!files.packsApi.includes("charged: false") || !files.packsApi.includes("hold: true") || !/function collectHoldOf/.test(files.packsApi) || /charged:\s*true/.test(files.packsApi) || /action:\s*"payout"/.test(files.packsApi)) {
+    bad.push("charge or payout without Yes");
+  }
+  return unique(bad);
+}
+function applyMutant(kind, files) {
+  const next = { loader: files.loader, pack: files.pack, more: files.more, studioHtml: files.studioHtml, packsApi: files.packsApi };
+  if (kind === "Studio earnings copy gone") {
+    next.pack = next.pack
+      .replace(/no public payout baseline/gi, "a public payout baseline")
+      .replace(/Agency consulting is off-platform/g, "Agency consulting is on-platform")
+      .replace(/Collect stays HOLD until a person taps Yes and a real Collect money pipe/g, "Collect is open without Yes");
+  } else if (kind === "more payments-off / Yes honesty gone") {
+    next.more = next.more
+      .replace(/Payments are off for now\./g, "Payments go out now.")
+      .replace(/You still tap Yes or Stop/g, "It goes out on its own");
+  } else if (kind === "Collect HOLD until Yes copy gone") {
+    next.studioHtml = next.studioHtml
+      .replace(/no public payout baseline/gi, "a public payout baseline")
+      .replace(/Collect stays HOLD until a person taps Yes and a real Collect money pipe/g, "Collect is open without Yes")
+      .replace(/Collect stays HOLD/g, "Collect is open")
+      .replace(/No silent charge/g, "It charges on its own");
+    next.pack = next.pack.replace(/Collect stays HOLD until a person taps Yes and a real Collect money pipe/g, "Collect is open without Yes");
+  } else if (kind === "charge or payout without Yes") {
+    next.packsApi = next.packsApi
+      .replace(/charged: false/g, "charged: true")
+      .replace(/hold: true/g, "hold: false")
+      .replace(/function collectHoldOf/g, "function collectOpenOf") + "\n{ action: \"payout\" }";
+  }
+  return next;
+}
+
+const files = { loader: studioJs, pack: studio, more: more, studioHtml: studioHtml, packsApi: packsApi };
+const live = buildFaults(files);
+if (live.length) fail("earnings behaviour drifted: " + live.join("; "));
+else pass("Studio earnings, Collect HOLD until Yes, and no-charge still hold");
+
+const mutants = [
+  "Studio earnings copy gone",
+  "more payments-off / Yes honesty gone",
+  "Collect HOLD until Yes copy gone",
+  "charge or payout without Yes"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const faults = buildFaults(applyMutant(kind, files));
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
 
 if (failed) {
   console.error(failed + " failed");
