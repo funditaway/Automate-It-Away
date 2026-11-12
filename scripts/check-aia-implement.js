@@ -139,16 +139,27 @@ const pages = {
   "developer.html": read("developer.html"),
   "developer.js": read("developer.js")
 };
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studioJs = pages["developer.js"];
+const studio = decodeStudio(read("developer.z64.txt"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) fail("Studio loader must unpack developer.z64.txt");
+else pass("Studio loader unpacks the pack");
+if (!studio || studio.indexOf("Creators Studio") < 0) fail("developer.z64.txt must decode as Creators Studio");
+else pass("Studio pack decodes");
 ["help.html", "how.html", "onboard.html", "developer.html"].forEach(function (name) {
   if (!pages[name].includes("desk-playbook.js")) fail(name + " must load desk-playbook.js");
   else pass(name + " loads playbook");
   if (!/data-aia-playbook|AIAPlaybook/.test(pages[name]) && name !== "developer.html") fail(name + " must mount the playbook");
   else if (name !== "developer.html") pass(name + " mounts playbook");
 });
-if (!pages["developer.js"].includes("AIAPlaybook") || !pages["developer.js"].includes("Four steps on this desk")) {
+if (!studio.includes("AIAPlaybook") || !studio.includes("Four steps on this desk")) {
   fail("Studio must paint the four steps");
 } else pass("Studio paints four steps");
-if (!pages["developer.js"].includes("aia-implement")) fail("Studio missing aia-implement");
+if (!studio.includes("aia-implement") || !studio.includes("Four steps pack")) fail("Studio missing aia-implement");
 else pass("Studio links aia-implement");
 
 ["help.html", "how.html", "onboard.html"].forEach(function (name) {
@@ -167,10 +178,14 @@ else pass("Studio links aia-implement");
     else pass(name + " lead says Desk AI names stay on this desk");
     if (!lead.includes("Live desk is automateitaway.com.")) fail(name + " lead must name the live desk");
     else pass(name + " lead names the live desk");
-    if (/ai\.aia|\.aia\b/.test(pages[name])) fail(name + " must not show .aia jargon to strangers");
-    else pass(name + " keeps .aia jargon off the public page");
+    if (/ai\.aia|not a mint lesson/i.test(pages[name])) fail(name + " must not teach the ai.aia door or mint lesson to strangers");
+    else pass(name + " keeps the ai.aia door and mint lesson off the public page");
     if (/\bmint/i.test(pages[name])) fail(name + " must not teach mint");
     else pass(name + " does not teach mint");
+    if (!pages[name].includes("SI · si.aia")) fail(name + " must name SI · si.aia");
+    else pass(name + " names SI · si.aia");
+    if (!pages[name].includes("A human still taps Yes.") || !pages[name].includes("A human owner unlocks those pauses.") || !pages[name].includes("It pauses before money, deletes, or messaging someone new.")) fail(name + " SI must stay Yes-gated");
+    else pass(name + " SI stays Yes-gated");
     return;
   }
   if (!pages[name].includes("ai.aia")) fail(name + " missing ai.aia door");
@@ -225,6 +240,84 @@ else if (q.waitingOn === "owner" && /kid or school/i.test(q.next || q.why || "")
 else pass("qualify implement card");
 if (!/HOLD|tap|draft/i.test([q.draft, q.next].join(" "))) fail("implement draft should stay human-tap");
 else pass("implement draft is human-tap");
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+function fourStepsLead(how) {
+  return (how.match(/<p class="lead">One AIA account\.[^<]*<\/p>/) || [""])[0];
+}
+function buildFaults(files) {
+  const bad = [];
+  const hasLoader = files.loader.indexOf('fetch("/developer.z64.txt"') >= 0 && files.loader.indexOf('DecompressionStream("gzip")') >= 0;
+  if (!hasLoader || !files.pack || files.pack.indexOf("Creators Studio") < 0 || files.pack.indexOf("AIAPlaybook") < 0 || files.pack.indexOf("Four steps on this desk") < 0 || files.pack.indexOf("aia-implement") < 0 || files.pack.indexOf("Four steps pack") < 0) {
+    bad.push("Studio four-steps copy gone");
+  }
+  const lead = fourStepsLead(files.how);
+  if (!lead || !lead.includes("Desk AI names stay on this desk.") || !lead.includes("Live desk is automateitaway.com.")) {
+    bad.push("how four-steps lead gone");
+  }
+  if (/ai\.aia|not a mint lesson/i.test(files.how) || /\bmint/i.test(files.how)) {
+    bad.push("public how teaches ai.aia door or mint");
+  }
+  if (files.how.indexOf("SI · si.aia") < 0 || files.how.indexOf("A human still taps Yes.") < 0 || files.how.indexOf("A human owner unlocks those pauses.") < 0 || files.how.indexOf("It pauses before money, deletes, or messaging someone new.") < 0) {
+    bad.push("SI Yes-gating gone");
+  }
+  if (files.how.indexOf("Payments are off for now.") < 0 || (files.packJson && files.packJson.indexOf("Collect stays HOLD") < 0) || /charged:\s*true/.test(files.pack) || /charged:\s*true/.test(files.packJson) || /action:\s*"payout"/.test(files.pack) || /action:\s*"payout"/.test(files.packJson)) {
+    bad.push("charge without Yes");
+  }
+  return unique(bad);
+}
+function applyMutant(kind, files) {
+  const next = { loader: files.loader, pack: files.pack, how: files.how, packJson: files.packJson };
+  if (kind === "Studio four-steps copy gone") {
+    next.pack = next.pack
+      .replace(/AIAPlaybook/g, "GoneBook")
+      .replace(/Four steps on this desk/g, "Skip the steps")
+      .replace(/Four steps pack/g, "Skip pack")
+      .replace(/aia-implement/g, "gone-implement");
+  } else if (kind === "how four-steps lead gone") {
+    next.how = next.how
+      .replace(/Desk AI names stay on this desk\./g, "Names can leave this desk.")
+      .replace(/Live desk is automateitaway.com\./g, "The live desk is somewhere else.");
+  } else if (kind === "public how teaches ai.aia door or mint") {
+    next.how = next.how.replace(/Desk AI names stay on this desk\./g, "ai.aia is the door, not a mint lesson. Desk AI names stay on this desk.");
+  } else if (kind === "SI Yes-gating gone") {
+    next.how = next.how
+      .replace(/SI · si\.aia/g, "SI seat")
+      .replace(/A human still taps Yes\./g, "It goes out on its own.")
+      .replace(/A human owner unlocks those pauses\./g, "Pauses unlock themselves.")
+      .replace(/It pauses before money, deletes, or messaging someone new\./g, "It can pay, delete, or message someone new.");
+  } else if (kind === "charge without Yes") {
+    next.how = next.how.replace(/Payments are off for now\./g, "It is charged now.");
+    next.packJson = next.packJson.replace(/Collect stays HOLD/g, "Collect is open");
+    next.pack = next.pack + "\ncharged: true\n{ action: \"payout\" }";
+  }
+  return next;
+}
+
+const files = { loader: studioJs, pack: studio, how: pages["how.html"], packJson: raw };
+const live = buildFaults(files);
+if (live.length) fail("implement behaviour drifted: " + live.join("; "));
+else pass("Studio four-steps, how lead, SI Yes-gating, and no-charge still hold");
+
+const mutants = [
+  "Studio four-steps copy gone",
+  "how four-steps lead gone",
+  "public how teaches ai.aia door or mint",
+  "SI Yes-gating gone",
+  "charge without Yes"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const faults = buildFaults(applyMutant(kind, files));
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
 
 try {
   if (fs.existsSync(store)) fs.unlinkSync(store);
