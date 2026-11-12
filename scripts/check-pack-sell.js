@@ -69,8 +69,20 @@ must(help, "Not Wallet.AIA", "help.html not Wallet.AIA");
 must(studio, "Selling packs.", "studio sell-packs one-liner");
 must(studio, "/help#sell-packs", "studio sell-packs link");
 must(studio, "Help is not legal advice", "studio not legal advice");
-must(studioJs, "Selling packs.", "studio js sell-packs one-liner");
-must(studioJs, "/help#sell-packs", "studio js sell-packs link");
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studioPack = decodeStudio(read("developer.z64.txt"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) {
+  throw new Error("Studio loader must unpack developer.z64.txt");
+}
+if (!studioPack || studioPack.indexOf("Creators Studio") < 0) throw new Error("developer.z64.txt must decode as Creators Studio");
+must(studioPack, "Selling packs.", "studio pack sell-packs one-liner");
+must(studioPack, "/help#sell-packs", "studio pack sell-packs link");
+must(studioPack, "Help is not legal advice", "studio pack not legal advice");
+must(studioPack, "Collect stays HOLD", "studio pack Collect HOLD");
 must(more, "/help#sell-packs", "more.html sell-packs link");
 must(more, "/help#pack-worth", "more.html pack-worth link");
 
@@ -104,9 +116,118 @@ const worth = help.slice(help.indexOf('id="pack-worth"'), help.indexOf('id="crea
 });
 
 ["Login Kit", "auto-schedule", "aiastudios.app", "compute credits wallet"].forEach(function (bit) {
-  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit)) {
+  if (help.includes(bit) || studio.includes(bit) || studioJs.includes(bit) || studioPack.includes(bit)) {
     throw new Error("invented fiction: " + bit);
   }
 });
+
+
+function sliceFn(src, name) {
+  const start = src.indexOf("async function " + name) >= 0 ? src.indexOf("async function " + name) : src.indexOf("function " + name);
+  if (start < 0) return "";
+  const next = src.slice(start + 10).search(/\n  (async )?function /);
+  return src.slice(start, next >= 0 ? start + 10 + next : start + 1200);
+}
+const bootFn = sliceFn(studioPack, "boot");
+const submitFn = sliceFn(studioPack, "submitPack");
+const saveFn = sliceFn(studioPack, "saveDraft");
+const bindFn = sliceFn(studioPack, "bindLab");
+if (!submitFn) throw new Error("Studio missing submitPack");
+if (!bindFn || bindFn.indexOf("submit-pack") < 0 || bindFn.indexOf("submitPack") < 0) {
+  throw new Error("Publish must be a human tap on #submit-pack");
+}
+if (bootFn && (bootFn.indexOf("submitPack") >= 0 || bootFn.indexOf("submit-pack") >= 0)) {
+  throw new Error("Studio boot must not publish a pack");
+}
+if (saveFn.indexOf("list-pack") >= 0 && /status:\s*"listed"|submit:\s*true/.test(saveFn)) {
+  throw new Error("Save draft must not list the pack on Market");
+}
+if (/charged:\s*true/.test(studioPack) || /charged:\s*true/.test(walletUi) || /charged:\s*true/.test(account)) {
+  throw new Error("Studio, wallet, or account must not send charged:true");
+}
+if (submitFn.indexOf("charged") >= 0 && /charged:\s*true/.test(submitFn)) {
+  throw new Error("Publish must not charge");
+}
+if (/action:\s*"payout"|action:\s*"withdraw"|action:\s*"pay-out"/.test(studioPack + walletUi + account)) {
+  throw new Error("Studio, wallet, or account must not pay out");
+}
+must(studioPack, "No silent charge", "studio pack no silent charge");
+must(studioPack, "no public payout baseline", "studio pack no payout baseline");
+if (help.indexOf("Collect and payouts HOLD") < 0 && help.indexOf("Collect and pack pay stay HOLD") < 0) {
+  throw new Error("help must keep payouts HOLD");
+}
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+function sellFaults(loader, pack, helpSrc, accountSrc, walletSrc) {
+  const bad = [];
+  const hasLoader = loader.indexOf('fetch("/developer.z64.txt"') >= 0 && loader.indexOf('DecompressionStream("gzip")') >= 0;
+  if (!hasLoader || !pack || pack.indexOf("Selling packs.") < 0 || pack.indexOf("/help#sell-packs") < 0) {
+    bad.push("Studio sell-packs copy gone");
+  }
+  const boot = sliceFn(pack, "boot");
+  const submit = sliceFn(pack, "submitPack");
+  const bind = sliceFn(pack, "bindLab");
+  const save = sliceFn(pack, "saveDraft");
+  if (!submit || !bind || bind.indexOf("submit-pack") < 0 || bind.indexOf("submitPack") < 0 || (boot && (boot.indexOf("submitPack") >= 0 || boot.indexOf("submit-pack") >= 0)) || (save && /status:\s*"listed"|submit:\s*true/.test(save))) {
+    bad.push("list/publish without Yes");
+  }
+  if (/charged:\s*true/.test(pack) || /charged:\s*true/.test(walletSrc) || /charged:\s*true/.test(accountSrc) || (submit && /charged:\s*true/.test(submit))) {
+    bad.push("charge without Yes");
+  }
+  if (/action:\s*"payout"|action:\s*"withdraw"|action:\s*"pay-out"/.test(pack + walletSrc + accountSrc)) {
+    bad.push("payout without Yes");
+  }
+  if (helpSrc.indexOf("Collect and pack pay stay HOLD") < 0 && helpSrc.indexOf("Collect and payouts HOLD") < 0) {
+    bad.push("payout without Yes");
+  }
+  if (walletSrc.indexOf("Collect and pack pay stay HOLD") < 0 || accountSrc.indexOf("Collect and pack pay stay HOLD") < 0) {
+    bad.push("payout without Yes");
+  }
+  return unique(bad);
+}
+function applyMutant(kind, files) {
+  const next = { loader: files.loader, pack: files.pack, helpSrc: files.helpSrc, accountSrc: files.accountSrc, walletSrc: files.walletSrc };
+  if (kind === "Studio sell-packs copy gone") {
+    next.pack = next.pack.replace(/Selling packs\./g, "Move product.").replace(/\/help#sell-packs/g, "/help#skip");
+  } else if (kind === "charge without Yes") {
+    next.pack = next.pack.replace("async function submitPack()", "async function submitPack(){ await post(\"submit-pack\", { charged: true }); }\nasync function submitPackOld") + "\ncharged: true";
+  } else if (kind === "list/publish without Yes") {
+    next.pack = next.pack.replace("async function boot()", "async function boot(){ submitPack(); }\nasync function bootOld");
+  } else if (kind === "payout without Yes") {
+    next.walletSrc = next.walletSrc.replace(/Collect and pack pay stay HOLD/g, "Pack pay is sent now") + '\nfetch("/api/desks",{method:"POST",body:JSON.stringify({action:"payout"})});';
+    next.accountSrc = next.accountSrc.replace(/Collect and pack pay stay HOLD/g, "Pack pay is sent now");
+    next.helpSrc = next.helpSrc.replace(/Collect and pack pay stay HOLD/g, "Pack pay is sent now").replace(/Collect and payouts HOLD/g, "Payouts go out now");
+    next.pack = next.pack + '\n{ action: "payout" }';
+  }
+  return next;
+}
+
+let failed = 0;
+function fail(msg) { failed += 1; console.error("FAIL " + msg); }
+function pass(msg) { console.log("ok  " + msg); }
+
+const files = { loader: studioJs, pack: studioPack, helpSrc: help, accountSrc: account, walletSrc: walletUi };
+const live = sellFaults(files.loader, files.pack, files.helpSrc, files.accountSrc, files.walletSrc);
+if (live.length) fail("pack sell behaviour drifted: " + live.join("; "));
+else pass("sell honesty, human Publish, and Collect/payout HOLD still hold");
+
+const mutants = ["Studio sell-packs copy gone", "charge without Yes", "list/publish without Yes", "payout without Yes"];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const next = applyMutant(kind, files);
+  const faults = sellFaults(next.loader, next.pack, next.helpSrc, next.accountSrc, next.walletSrc);
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
+if (failed) {
+  console.error("check-pack-sell failed");
+  process.exit(1);
+}
 
 console.log("check-pack-sell: ok");
