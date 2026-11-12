@@ -50,7 +50,6 @@ const LANDED = [
   "api/_aia-register.js",
   "api/_aia-tld.js",
   "api/_connect-wallet.js",
-  "api/_desks-http.js",
   "api/_grok.js",
   "api/_handoff.js",
   "api/_lib.js",
@@ -64,7 +63,8 @@ const LANDED = [
 const MOVED = [
   "api/_engine.js",
   "api/_job-mask.js",
-  "api/jobs.js"
+  "api/jobs.js",
+  "api/_desks-http.js"
 ];
 
 let failed = 0;
