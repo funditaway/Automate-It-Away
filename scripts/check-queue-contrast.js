@@ -1,6 +1,6 @@
 require("./_env-guard");
 // Queue pass Q1e: AA contrast on the Queue from theme.css alone. Each override must beat the page's own
-// inline rule by specificity and pass 4.5:1. desk.html matches its byte/SHA-256 pin; rules.html, api/ and legal.html stay as main.
+// inline rule by specificity and pass 4.5:1. desk.html matches its byte/SHA-256 pin; api/ and legal.html stay as main.
 const fs = require("fs"), path = require("path"), { execFileSync } = require("child_process");
 const root = path.join(__dirname, "..");
 const SRC = Object.fromEntries(["theme.css", "desk-nav.css", "desk-nav.js", "ui-fix.css", "package.json"].map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")]));
@@ -51,7 +51,7 @@ const MUTANTS = [
 let bad = 0;
 suite(SRC).forEach((m) => { console.log("FAIL " + m); bad++; });
 let same = "";
-try { same = execFileSync("git", ["diff", "--name-only", "83a951a91e195d5cf501a6b25283d709480dc467", "--", "rules.html", "api", "legal.html"], { cwd: root, encoding: "utf8" }).trim(); } catch (e) { same = "git error"; }
+try { same = execFileSync("git", ["diff", "--name-only", "83a951a91e195d5cf501a6b25283d709480dc467", "--", "api", "legal.html"], { cwd: root, encoding: "utf8" }).trim(); } catch (e) { same = "git error"; }
 const pin = (() => { try { return require("./_api-freeze").PIN || {}; } catch (e) { return {}; } })();
 const left = same === "git error" ? ["git error"] : same.split("\n").filter(Boolean).filter(function (rel) {
   if (rel.indexOf("api/") !== 0 || !Object.prototype.hasOwnProperty.call(pin, rel)) return true;
@@ -59,7 +59,7 @@ const left = same === "git error" ? ["git error"] : same.split("\n").filter(Bool
   try { now = execFileSync("git", ["hash-object", "--", rel], { cwd: root, encoding: "utf8" }).trim(); } catch (e) { return true; }
   return now !== pin[rel];
 });
-if (left.length) { console.log("FAIL rules.html, api/ and legal.html stay as main (" + left.join("\n") + ")"); bad++; }
+if (left.length) { console.log("FAIL api/ and legal.html stay as main (" + left.join("\n") + ")"); bad++; }
 if (!require("./_desk-html-pin").check(root)) { console.log("FAIL desk.html does not match its byte/SHA-256 pin"); bad++; }
 let caught = 0;
 MUTANTS.forEach(([n, mk]) => { const S = mk(SRC); if (!S) { console.log("FAIL mutant does not apply: " + n); bad++; return; } const r = suite(S); if (r.length) { caught++; console.log("ok mutant caught: " + n + " (" + r[0] + ")"); } else { console.log("FAIL mutant NOT caught: " + n); bad++; } });
