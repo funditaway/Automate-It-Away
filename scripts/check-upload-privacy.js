@@ -7,6 +7,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const vm = require("vm");
 
 const root = path.join(__dirname, "..");
 const runStarted = Date.now();
@@ -385,8 +386,144 @@ function assertSources() {
   const headersAt = drop.indexOf("function headers()");
   const headersFn = drop.slice(headersAt, drop.indexOf("function showMode"));
   if (headersFn.indexOf('h["X-Workspace"] = ws') < 0) fail("drop/widget headers must send the desk name");
-  if (headersFn.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("drop/widget must send a pin only when one is already on the phone");
   if (headersFn.indexOf("X-Session") >= 0) fail("public drop headers must not require a session");
+  // Replaced the unscoped source assert
+  //   fail("drop/widget must send a pin only when one is already on the phone")
+  //   (headersFn.indexOf('if (pin) h["X-Pin"] = pin') < 0)
+  // with scoped live asserts below, which are equal or stronger:
+  //   same-desk session-less Drop must still send leftover X-Pin
+  //     (mutant: "public drop with no X-Pin")
+  //   cross-desk Drop must send neither X-Pin nor X-Session
+  //     (mutants: "cross-desk pin sent", "cross-desk session sent").
+  // The same-desk branch still contains 'if (pin) h["X-Pin"] = pin'.
+  if (headersFn.indexOf('if (pin) h["X-Pin"] = pin') < 0) {
+    fail("same-desk drop/widget must still send leftover X-Pin when a pin is already on the phone");
+  } else pass("same-desk drop/widget still has the leftover X-Pin send");
+  function runDropHeaders(src, bag) {
+    const from = src.indexOf("function headers()");
+    const to = src.indexOf("function showMode");
+    const block = from >= 0 && to > from ? src.slice(from, to) : "";
+    if (!block) throw new Error("drop-app.js missing headers()");
+    const reads = [];
+    const ctx = {
+      ws: bag.drop_ws != null ? bag.drop_ws : (bag.aia_ws || ""),
+      pin: Object.prototype.hasOwnProperty.call(bag, "aia_pin") ? (bag.aia_pin || "") : "",
+      localStorage: {
+        getItem: function (k) {
+          reads.push(k);
+          return Object.prototype.hasOwnProperty.call(bag, k) ? bag[k] : null;
+        }
+      }
+    };
+    vm.runInNewContext(block + "\nthis.__h = headers();", ctx);
+    return { headers: ctx.__h, reads: reads };
+  }
+  function dropPin(h) { return h && (h["X-Pin"] || h["x-pin"] || ""); }
+  function dropTok(h) { return h && (h["X-Session"] || h["x-session"] || ""); }
+  function sentCreds(h) { return !!(dropPin(h) || dropTok(h)); }
+  function dropHeaderFaults(src) {
+    const bad = [];
+    let same;
+    try { same = runDropHeaders(src, { aia_ws: "rivera-resale", aia_pin: "4821" }); }
+    catch (e) { return ["drop-app failed to run: " + (e && e.message || e)]; }
+    if (dropPin(same.headers) !== "4821" || dropTok(same.headers)) {
+      bad.push("drop-app session-less leftover pin is no longer sent as X-Pin");
+      bad.push("public drop with no X-Pin");
+    }
+    // Same-desk with a leftover session still keeps main: leftover pin, no X-Session.
+    const sameSess = runDropHeaders(src, { aia_ws: "rivera-resale", aia_session: "sess-live", aia_pin: "4821" });
+    if (dropPin(sameSess.headers) !== "4821") bad.push("public drop with no X-Pin");
+    if (dropTok(sameSess.headers)) bad.push("cross-desk session sent");
+    const cross = runDropHeaders(src, {
+      aia_ws: "desk-alpha", aia_session: "sess-live", aia_pin: "4821", drop_ws: "desk-bravo"
+    });
+    if (dropTok(cross.headers)) bad.push("cross-desk session sent");
+    if (dropPin(cross.headers)) bad.push("cross-desk pin sent");
+    const cases = [
+      ["desk-match bypass: case", { aia_ws: "DESK-BRAVO", aia_pin: "4821", drop_ws: "desk-bravo" }],
+      ["desk-match bypass: trailing slash", { aia_ws: "desk-bravo/", aia_pin: "4821", drop_ws: "desk-bravo" }],
+      ["desk-match bypass: whitespace", { aia_ws: "desk-bravo ", aia_pin: "4821", drop_ws: "desk-bravo" }],
+      ["desk-match bypass: encoding", { aia_ws: "desk%2Dbravo", aia_pin: "4821", drop_ws: "desk-bravo" }],
+      ["desk-match bypass: empty values", { aia_ws: "", aia_pin: "4821", drop_ws: "" }],
+      ["desk-match bypass: stale aia_ws", { aia_ws: "desk-alpha", aia_pin: "4821", drop_ws: "desk-bravo" }],
+      ["desk-match bypass: __proto__", { aia_ws: "__proto__", aia_pin: "4821", drop_ws: "desk-bravo" }],
+      ["pin sent when aia_ws is missing", { aia_pin: "4821", drop_ws: "desk-bravo" }]
+    ];
+    cases.forEach(function (row) {
+      const got = runDropHeaders(src, row[1]);
+      if (sentCreds(got.headers)) bad.push(row[0]);
+    });
+    return bad;
+  }
+  const liveDrop = dropHeaderFaults(drop);
+  if (liveDrop.length) fail("drop-app.js headers() faults: " + liveDrop.join("; "));
+  else pass("drop-app.js headers() sends leftover pin only when aia_ws matches the Drop");
+
+  function applyDropMutant(src, kind) {
+    const live = "      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      const same = !!(ws && authWs && ws === authWs);\n      if (same) {\n        const pin = localStorage.getItem(\"aia_pin\") || \"\";\n        if (pin) h[\"X-Pin\"] = pin;\n      }\n";
+    if (kind === "public drop with no X-Pin") {
+      return src.replace(live, "      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      const same = !!(ws && authWs && ws === authWs);\n");
+    }
+    if (kind === "cross-desk pin sent") {
+      return src.replace(live, "      const pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "cross-desk session sent") {
+      return src.replace(live, "      const tok = localStorage.getItem(\"aia_session\") || \"\";\n      const authWs = localStorage.getItem(\"aia_ws\") || \"\";\n      const same = !!(ws && authWs && ws === authWs);\n      if (tok) h[\"X-Session\"] = tok;\n      else if (same) {\n        const pin = localStorage.getItem(\"aia_pin\") || \"\";\n        if (pin) h[\"X-Pin\"] = pin;\n      }\n");
+    }
+    if (kind === "desk-match bypass: case") {
+      return src.replace("const same = !!(ws && authWs && ws === authWs);",
+        "const same = !!(ws && authWs && String(ws).toLowerCase() === String(authWs).toLowerCase());");
+    }
+    if (kind === "desk-match bypass: trailing slash") {
+      return src.replace("const same = !!(ws && authWs && ws === authWs);",
+        "const same = !!(ws && authWs && String(ws).replace(/\\/+$/, \"\") === String(authWs).replace(/\\/+$/, \"\"));");
+    }
+    if (kind === "desk-match bypass: whitespace") {
+      return src.replace("const same = !!(ws && authWs && ws === authWs);",
+        "const same = !!(ws && authWs && String(ws).trim() === String(authWs).trim());");
+    }
+    if (kind === "desk-match bypass: encoding") {
+      return src.replace("const same = !!(ws && authWs && ws === authWs);",
+        "const same = !!(ws && authWs && (function(a,b){function d(s){try{return decodeURIComponent(String(s));}catch(e){return String(s);}}return d(a)===d(b);})(ws,authWs));");
+    }
+    if (kind === "desk-match bypass: empty values") {
+      return src.replace("const same = !!(ws && authWs && ws === authWs);",
+        "const same = !!(ws === authWs);");
+    }
+    if (kind === "desk-match bypass: stale aia_ws") {
+      return src.replace("const same = !!(ws && authWs && ws === authWs);",
+        "const same = !!authWs;");
+    }
+    if (kind === "desk-match bypass: __proto__") {
+      return src.replace("const same = !!(ws && authWs && ws === authWs);",
+        "const same = !!(ws && authWs && (ws === authWs || authWs === \"__proto__\" || ws === \"__proto__\"));");
+    }
+    if (kind === "pin sent when aia_ws is missing") {
+      return src.replace("const same = !!(ws && authWs && ws === authWs);",
+        "const same = !!(!authWs || (ws && ws === authWs));");
+    }
+    return src;
+  }
+  const headerMutants = [
+    "public drop with no X-Pin",
+    "cross-desk pin sent",
+    "cross-desk session sent",
+    "desk-match bypass: case",
+    "desk-match bypass: trailing slash",
+    "desk-match bypass: whitespace",
+    "desk-match bypass: encoding",
+    "desk-match bypass: empty values",
+    "desk-match bypass: stale aia_ws",
+    "desk-match bypass: __proto__",
+    "pin sent when aia_ws is missing"
+  ];
+  headerMutants.forEach(function (kind) {
+    const next = applyDropMutant(drop, kind);
+    if (next === drop) { fail("header mutant does not apply: " + kind); return; }
+    const faults = dropHeaderFaults(next);
+    if (faults.indexOf(kind) < 0) fail("header mutant survived: " + kind + " (got " + JSON.stringify(faults) + ")");
+    else pass("header mutant caught: " + kind);
+  });
   const upAt = drop.indexOf('fetch("/api/upload"');
   const upFn = drop.slice(upAt, upAt + 240);
   if (upAt < 0 || upFn.indexOf("headers: headers()") < 0 || upFn.indexOf('method: "POST"') < 0) {
