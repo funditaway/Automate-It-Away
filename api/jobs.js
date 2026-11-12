@@ -565,6 +565,8 @@ module.exports = async function handler(req, res) {
     if (action === "ship") {
       if (actorBlocked(person)) return res.status(403).json({ ok: false, error: "Desk AIs never Yes themselves. No silent money or mail. A person taps Yes.", never: ais.NEVER.slice(), job });
       mergeFields(job, body);
+      const shipMiss = missingOf(job);
+      if (shipMiss.length) return res.status(409).json({ ok: false, error: shipMiss.includes("phone") ? "Need a number first." : "Need the " + shipMiss[0] + " first.", missing: shipMiss, job });
       const amount = Number(body.amount || job.amount || job.ask || 0);
       const rules = shop ? ensureRules(shop) : [];
       const holdAt = shop ? moneyWaitOf(rules) : null;
