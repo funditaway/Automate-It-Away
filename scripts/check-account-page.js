@@ -6,6 +6,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const vm = require("vm");
 
 const root = path.join(__dirname, "..");
 const store = path.join(os.tmpdir(), "aia-account-page-check-" + Date.now() + ".json");
@@ -86,6 +87,27 @@ function tipImpliesAuthOn(body) {
   return /authenticator is on|authenticator is live|two-step is on|two-step sign-in is on|authenticator is ready/i.test(body || "");
 }
 
+function pinFieldIsPassword(accountSrc) {
+  const m = accountSrc.match(/<input\b[^>]*id="pin"[^>]*>/i);
+  if (!m) return false;
+  return /\btype="password"/.test(m[0]);
+}
+function storedPinInWrite(accountSrc) {
+  if (accountSrc.indexOf('localStorage.getItem("aia_pin")') >= 0) return true;
+  if (accountSrc.indexOf('pinEl.value=localStorage.getItem("aia_pin")') >= 0) return true;
+  return false;
+}
+function pinInUrlOrWriteBody(accountSrc) {
+  if (/[?&]pin=/.test(accountSrc)) return true;
+  if (/action:"details"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"export"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"sessions"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"mfa"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"handle"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  if (/action:"password"[^;]*\bpin:localStorage/.test(accountSrc)) return true;
+  return false;
+}
+
 function accountPageFaults(accountSrc, tipsSrc, httpSrc) {
   const bad = [];
   if (!tellsNoCodeAndNoHash(exportCard(accountSrc)) || !tellsNoCodeAndNoHash(exportSuccessLine(accountSrc))) {
@@ -99,13 +121,15 @@ function accountPageFaults(accountSrc, tipsSrc, httpSrc) {
   if (turnsOn) bad.push("authenticator turns on without Yes");
   const act = actFn(accountSrc);
   const okAt = act.indexOf("if(!r.ok)");
-  const pinAt = act.indexOf('localStorage.setItem("aia_pin"');
-  if (pinAt >= 0 && (okAt < 0 || pinAt < okAt)) bad.push("pin stored in localStorage");
+  if (accountSrc.indexOf('localStorage.setItem("aia_pin"') >= 0) bad.push("pin stored in localStorage");
   const sessionAt = act.indexOf('localStorage.setItem("aia_session"');
   const paintAt = act.indexOf("paint(d)");
   if (!act || okAt < 0 || (sessionAt >= 0 && sessionAt < okAt) || (paintAt >= 0 && paintAt < okAt)) {
     bad.push("wrong pin accepted");
   }
+  if (!pinFieldIsPassword(accountSrc)) bad.push("pin field type=text");
+  if (storedPinInWrite(accountSrc)) bad.push("stored pin read for writes");
+  if (pinInUrlOrWriteBody(accountSrc)) bad.push("pin in the URL or body");
   return bad;
 }
 
@@ -120,8 +144,20 @@ function applyMutant(accountSrc, tipsSrc, httpSrc, kind) {
     );
   } else if (kind === "pin stored in localStorage") {
     account = account.replace(
-      "      if(!r.ok){err.style.display=\"block\";err.textContent=d.error||\"Could not open.\";return;}\n      if(d.session&&d.session.token) localStorage.setItem(\"aia_session\",d.session.token);\n      if(slug) localStorage.setItem(\"aia_ws\",slug);\n      if(pinEl.value) localStorage.setItem(\"aia_pin\",pinEl.value);",
-      "      if(pinEl.value) localStorage.setItem(\"aia_pin\",pinEl.value);\n      if(!r.ok){err.style.display=\"block\";err.textContent=d.error||\"Could not open.\";return;}\n      if(d.session&&d.session.token) localStorage.setItem(\"aia_session\",d.session.token);\n      if(slug) localStorage.setItem(\"aia_ws\",slug);"
+      "      if(d.session&&d.session.token) localStorage.setItem(\"aia_session\",d.session.token);",
+      "      if(d.session&&d.session.token) localStorage.setItem(\"aia_session\",d.session.token);\n      if(pinEl.value) localStorage.setItem(\"aia_pin\",pinEl.value);"
+    );
+  } else if (kind === "pin field type=text") {
+    account = account.replace('id="pin" type="password"', 'id="pin" type="text"');
+  } else if (kind === "stored pin read for writes") {
+    account = account.replace(
+      'const r=await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:"details"',
+      'const pin=localStorage.getItem("aia_pin")||"";const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"details"'
+    );
+  } else if (kind === "pin in the URL or body") {
+    account = account.replace(
+      'fetch("/api/account",{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"")})',
+      'fetch("/api/account?pin="+encodeURIComponent(localStorage.getItem("aia_pin")||""),{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"")})'
     );
   } else if (kind === "wrong pin accepted") {
     account = account.replace(
@@ -131,6 +167,218 @@ function applyMutant(accountSrc, tipsSrc, httpSrc, kind) {
   }
   return { account: account, tips: tips, http: http };
 }
+
+
+function memStore(seed) {
+  const m = Object.assign({}, seed || {});
+  return {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(m, k) ? String(m[k]) : null; },
+    setItem: function (k, v) { m[k] = String(v); },
+    removeItem: function (k) { delete m[k]; },
+    _raw: m
+  };
+}
+
+function makeEl(id, extra) {
+  const el = Object.assign({
+    id: id || "",
+    tagName: "DIV",
+    hidden: false,
+    textContent: "",
+    innerHTML: "",
+    value: "",
+    className: "",
+    style: { display: "" },
+    children: [],
+    attributes: {},
+    classList: {
+      add: function () {},
+      remove: function () {},
+      contains: function () { return false; },
+      toggle: function () {}
+    },
+    setAttribute: function (k, v) { this.attributes[k] = String(v); if (k === "hidden") this.hidden = true; },
+    getAttribute: function (k) { return this.attributes[k] == null ? null : this.attributes[k]; },
+    addEventListener: function (ev, fn) {
+      this._l = this._l || {};
+      (this._l[ev] = this._l[ev] || []).push(fn);
+    },
+    appendChild: function (c) { this.children.push(c); return c; },
+    replaceChildren: function () { this.children = []; }
+  }, extra || {});
+  return el;
+}
+
+function extractScript(html, needle) {
+  const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    if (/\bsrc\s*=/.test(m[1] || "")) continue;
+    if (!needle || m[2].indexOf(needle) >= 0) return m[2];
+  }
+  return "";
+}
+
+function idsFrom(html) {
+  const ids = {};
+  const re = /<([a-zA-Z0-9]+)([^>]*?)\bid="([^"]+)"([^>]*)>/g;
+  let m;
+  while ((m = re.exec(html))) {
+    const tag = m[1];
+    const attrs = (m[2] || "") + " " + (m[4] || "");
+    const el = makeEl(m[3], { tagName: String(tag).toUpperCase(), hidden: /\bhidden\b/.test(attrs) });
+    const typ = attrs.match(/\btype="([^"]*)"/);
+    if (typ) el.type = typ[1];
+    const auto = attrs.match(/\bautocomplete="([^"]*)"/);
+    if (auto) el.autocomplete = auto[1];
+    ids[m[3]] = el;
+  }
+  return ids;
+}
+
+function loginPayload() {
+  return {
+    ok: true,
+    account: {
+      name: "Alex Rivera",
+      email: "",
+      phone: "",
+      city: "Springfield",
+      hasPassword: false,
+      createdAt: "2026-11-11T00:00:00Z",
+      slug: "oddo-house",
+      id: "acct-1"
+    },
+    workspace: { slug: "oddo-house", biz: "Oddo house", name: "Oddo house" },
+    you: { role: "owner", name: "Alex Rivera" },
+    session: { token: "sess-account-1" },
+    plan: { name: "free", plan: "free", catalog: [] },
+    sessions: []
+  };
+}
+
+function runSwitch(switchSrc, store) {
+  const window = { localStorage: store };
+  const ctx = {
+    window: window,
+    localStorage: store,
+    console: console,
+    JSON: JSON,
+    String: String,
+    Array: Array,
+    Object: Object,
+    Error: Error
+  };
+  ctx.globalThis = window;
+  ctx.window.window = window;
+  vm.runInNewContext(switchSrc, ctx);
+  ctx.AIADesks = window.AIADesks;
+  return { window: window, ctx: ctx, store: store };
+}
+
+function keepSessionWritesPin(switchSrc) {
+  const store = memStore();
+  const pinWrites = [];
+  const rawSet = store.setItem;
+  store.setItem = function (k, v) {
+    if (k === "aia_pin") pinWrites.push(String(v));
+    return rawSet.call(store, k, v);
+  };
+  const ran = runSwitch(switchSrc, store);
+  ran.window.AIADesks.keepSession(loginPayload(), "6612");
+  let rows = [];
+  try { rows = JSON.parse(store.getItem("aia_desks") || "[]"); } catch (e) { rows = []; }
+  const rowPin = rows.some(function (d) { return d && d.slug === "oddo-house" && d.pin; });
+  return pinWrites.length > 0 || !!store.getItem("aia_pin") || rowPin;
+}
+
+async function bootAccountSignIn(accountSrc, switchSrc) {
+  const store = memStore();
+  const ids = idsFrom(accountSrc);
+  const calls = [];
+  const fetchImpl = async function (url, opts) {
+    const headers = (opts && opts.headers) || {};
+    let body = {};
+    try { body = JSON.parse((opts && opts.body) || "{}"); } catch (e) { body = {}; }
+    calls.push({ url: String(url), method: (opts && opts.method) || "GET", headers: headers, body: body });
+    const action = body && body.action;
+    if (action === "login" || String(url).indexOf("/api/account") >= 0) {
+      return { ok: true, status: 200, json: async function () { return loginPayload(); } };
+    }
+    return { ok: true, status: 200, json: async function () { return { ok: true }; } };
+  };
+  const document = {
+    getElementById: function (id) { return ids[id] || null; },
+    querySelector: function () { return null; },
+    querySelectorAll: function () { return []; },
+    addEventListener: function () {},
+    readyState: "complete",
+    createElement: function (tag) { return makeEl("", { tagName: String(tag).toUpperCase() }); },
+    documentElement: makeEl("html"),
+    body: makeEl("body")
+  };
+  const location = { href: "http://127.0.0.1/account.html" };
+  const window = { localStorage: store, document: document, location: location, fetch: fetchImpl };
+  document.defaultView = window;
+  const ctx = {
+    window: window,
+    document: document,
+    localStorage: store,
+    location: location,
+    fetch: fetchImpl,
+    console: console,
+    JSON: JSON,
+    String: String,
+    Array: Array,
+    Object: Object,
+    Number: Number,
+    Boolean: Boolean,
+    Error: Error,
+    setTimeout: function (fn) { fn(); },
+    clearTimeout: function () {},
+    URL: URL,
+    URLSearchParams: URLSearchParams,
+    matchMedia: function () { return { matches: false, addListener: function () {}, addEventListener: function () {} }; }
+  };
+  ctx.globalThis = window;
+  ctx.window.window = window;
+  ctx.window.matchMedia = ctx.matchMedia;
+  vm.runInNewContext(switchSrc, ctx);
+  ctx.AIADesks = window.AIADesks;
+  window.AIADesks = window.AIADesks;
+  const script = extractScript(accountSrc, "async function act(");
+  if (!script) throw new Error("account.html missing act()");
+  vm.runInNewContext(script, ctx);
+  ids.slug.value = "Oddo house";
+  ids.pin.value = "6612";
+  const ev = { preventDefault: function () {}, target: ids.gate };
+  let threw = null;
+  try {
+    await ids.gate.onsubmit(ev);
+  } catch (e) {
+    threw = e;
+  }
+  return {
+    store: store,
+    ids: ids,
+    threw: threw,
+    painted: !!(ids.facts && /Account book/.test(ids.facts.innerHTML || ids.facts.textContent || "")),
+    gateHidden: !!(ids.gate && ids.gate.hidden),
+    pinValue: ids.pin ? ids.pin.value : "",
+    calls: calls,
+    window: window
+  };
+}
+
+function signInFaults(result) {
+  const bad = [];
+  if (result.threw) bad.push("sign-in must paint without throwing");
+  if (!result.painted || !result.gateHidden) bad.push("sign-in must paint without throwing");
+  if (result.pinValue) bad.push("field not cleared after sign-in");
+  if (result.store.getItem("aia_pin")) bad.push("pin stored in localStorage");
+  return bad;
+}
+
 
 const account = read("account.html");
 const http = read("api/_account-http.js");
@@ -225,7 +473,10 @@ const mutants = [
   "no-pin line removed",
   "authenticator turns on without Yes",
   "pin stored in localStorage",
-  "wrong pin accepted"
+  "wrong pin accepted",
+  "pin field type=text",
+  "stored pin read for writes",
+  "pin in the URL or body"
 ];
 let caught = 0;
 mutants.forEach(function (kind) {
@@ -363,6 +614,50 @@ async function call(handler, method, headers, body, query) {
   if (!mfaOff.body || mfaOff.body.mfaOn || !mfaOff.body.hold || (trailAcc() && trailAcc().mfaOn)) {
     fail("authenticator off must stay held off");
   } else pass("authenticator off stays held off");
+
+
+  const switchSrc = read("desk-switch.js");
+  if (keepSessionWritesPin(switchSrc)) fail("keepSession must not write a desk code");
+  else pass("keepSession does not write a desk code");
+
+  const liveSignIn = await bootAccountSignIn(account, switchSrc);
+  const liveFaults = signInFaults(liveSignIn);
+  if (liveFaults.length) fail("account sign-in did not paint safely: " + liveFaults.join("; ") + (liveSignIn.threw ? " threw " + liveSignIn.threw : ""));
+  else pass("account sign-in paints, clears the field, and stores no desk code");
+  if (liveSignIn.store.getItem("aia_session") !== "sess-account-1") fail("account sign-in must keep the returned session");
+  else pass("account sign-in keeps the returned session");
+
+  const behavior = [
+    {
+      kind: "keepSession writing the pin",
+      switchSrc: switchSrc.replace("      pin: \"\",", "      pin: pin || \"\",").replace(/if \(store\) \{\n      try \{ store\.removeItem\("aia_pin"\); \} catch \(e\) \{\}\n    \}\n    if \(slug\) \{[\s\S]*?if \(dirty\) write\(rows\);\n    \}/, "")
+    },
+    {
+      kind: "field not cleared after sign-in",
+      account: account.replace("      pinEl.value=\"\";\n", "")
+    },
+    {
+      kind: "sign-in must paint without throwing",
+      switchSrc: switchSrc.replace("      var rows = list();\n      var dirty = false;", "      var rows = load();\n      var dirty = false;")
+    }
+  ];
+  let behaviorCaught = 0;
+  for (let i = 0; i < behavior.length; i++) {
+    const kind = behavior[i].kind;
+    const nextAccount = behavior[i].account || account;
+    const nextSwitch = behavior[i].switchSrc || switchSrc;
+    let caught = false;
+    if (kind === "keepSession writing the pin") {
+      caught = keepSessionWritesPin(nextSwitch);
+    } else {
+      const result = await bootAccountSignIn(nextAccount, nextSwitch);
+      caught = signInFaults(result).indexOf(kind) >= 0;
+    }
+    if (!caught) fail("mutant missed: " + kind);
+    else { behaviorCaught += 1; pass("mutant caught: " + kind); }
+  }
+  if (behaviorCaught !== behavior.length) fail("behavioural mutants: " + behaviorCaught + "/" + behavior.length + " caught");
+  else pass("behavioural mutants: " + behaviorCaught + "/" + behavior.length + " caught");
 
   if (failed) {
     console.error("check-account-page failed");

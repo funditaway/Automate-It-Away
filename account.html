@@ -74,7 +74,7 @@
         <label>Account or desk name <button type="button" class="aia-tip" data-aia-tip="desk-name" aria-label="More about Desk name">?</button></label>
         <input id="slug">
         <label>Your desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
-        <input id="pin" inputmode="numeric" minlength="4">
+        <input id="pin" type="password" autocomplete="current-password" inputmode="numeric" minlength="4">
       </div>
       <div id="gate-email" hidden>
         <label>Email <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
@@ -200,7 +200,14 @@
     const youHint=document.getElementById("you-hint");
     let door="desk";
     slugEl.value=localStorage.getItem("aia_desk_name")||localStorage.getItem("aia_ws")||"";
-    pinEl.value=localStorage.getItem("aia_pin")||"";
+    localStorage.removeItem("aia_pin");
+    try{
+      const desks=JSON.parse(localStorage.getItem("aia_desks")||"[]");
+      if(Array.isArray(desks)&&desks.some(function(d){return d&&d.pin;})){
+        desks.forEach(function(d){if(d) delete d.pin;});
+        localStorage.setItem("aia_desks",JSON.stringify(desks));
+      }
+    }catch(e){}
     youName.value=localStorage.getItem("aia_name")||"";
     youEmail.value=localStorage.getItem("aia_email")||"";
     document.getElementById("gate-mail").value=localStorage.getItem("aia_email")||"";
@@ -284,8 +291,7 @@
     }
     async function loadPhones(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
-      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
-      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"sessions"})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:"sessions"})});
       const d=await r.json().catch(function(){return {};});
       if(r.ok) paintPhones(d.sessions||[]);
       else document.getElementById("phone-hint").textContent=d.error||"Could not list phones.";
@@ -296,9 +302,8 @@
     }
     async function leavePhone(all){
       const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
-      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
       try{
-        await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:all?"logout-all":"logout"})});
+        await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:all?"logout-all":"logout"})});
       }catch(e){}
       wipePhone();
     }
@@ -307,12 +312,11 @@
       if(youEmail.value) localStorage.setItem("aia_email",youEmail.value);
       paintPic();
       const slug=localStorage.getItem("aia_ws")||"";
-      const pin=localStorage.getItem("aia_pin")||"";
-      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:"details",name:youName.value,email:youEmail.value,phone:youPhone.value,city:youCity.value,photoUrl:localStorage.getItem("aia_photo")||""})});
       const d=await r.json().catch(function(){return {};});
       let handleHint="";
       if(youHandle&&youHandle.value){
-        const hr=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"handle",handle:youHandle.value})});
+        const hr=await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:"handle",handle:youHandle.value})});
         const hd=await hr.json().catch(function(){return {};});
         handleHint=hr.ok?(hd.hint||"Handle saved."):(hd.error||"Could not save handle.");
       }
@@ -320,7 +324,7 @@
     };
     document.getElementById("save-pass").onclick=async function(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value;
-      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pinEl.value||localStorage.getItem("aia_pin")||""),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:"password",email:document.getElementById("pw-email").value,current:document.getElementById("pw-now").value,password:document.getElementById("pw-next").value})});
       const d=await r.json().catch(function(){return {};});
       document.getElementById("pw-hint").textContent=r.ok?(d.hint||"Password saved."):(d.error||"Could not save.");
       document.getElementById("pw-hint").className=r.ok?"ok":"meta";
@@ -332,10 +336,9 @@
     document.getElementById("leave-all").onclick=function(){leavePhone(true);};
     document.getElementById("export-book").onclick=async function(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
-      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
       const hint=document.getElementById("export-hint");
       try{
-        const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"export"})});
+        const r=await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:"export"})});
         const d=await r.json().catch(function(){return {};});
         if(!r.ok||!d.pack){hint.textContent=d.error||"Could not export." ;return;}
         const text=JSON.stringify(d.pack,null,2);
@@ -351,23 +354,26 @@
     };
     document.getElementById("mfa-on").onclick=async function(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
-      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
       const hint=document.getElementById("mfa-hint");
       try{
-        const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"mfa",on:true})});
+        const r=await fetch("/api/account",{method:"POST",headers:hdr(slug),body:JSON.stringify({action:"mfa",on:true})});
         const d=await r.json().catch(function(){return {};});
         hint.textContent=(d.error||d.hint||"Authenticator is off for now on this account.")+(d.hold||r.status===409?" Authenticator stays HOLD.":"");
       }catch(e){hint.textContent="Could not reach the desk.";}
     };
     async function act(action, extra){
       const slug=String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pinEl.value),body:JSON.stringify(Object.assign({action:action,slug:slug,pin:pinEl.value},extra||{}))});
+      const body=Object.assign({action:action,slug:slug},extra||{});
+      const typed=action==="login"?pinEl.value:"";
+      if(typed) body.pin=typed;
+      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,typed),body:JSON.stringify(body)});
       const d=await r.json().catch(function(){return {};});
       if(!r.ok){err.style.display="block";err.textContent=d.error||"Could not open.";return;}
       if(d.session&&d.session.token) localStorage.setItem("aia_session",d.session.token);
       if(slug) localStorage.setItem("aia_ws",slug);
-      if(pinEl.value) localStorage.setItem("aia_pin",pinEl.value);
-      if(window.AIADesks&&AIADesks.keepSession) AIADesks.keepSession(d,pinEl.value);
+      localStorage.removeItem("aia_pin");
+      pinEl.value="";
+      if(window.AIADesks&&AIADesks.keepSession) AIADesks.keepSession(d);
       paint(d);
       if(window.AIAWallet&&AIAWallet.load) AIAWallet.load(d);
       if(window.AIATld&&AIATld.load) AIATld.load(d);
@@ -382,7 +388,7 @@
       }
     };
     if(localStorage.getItem("aia_session")){
-      fetch("/api/account",{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"",localStorage.getItem("aia_pin")||"")})
+      fetch("/api/account",{method:"GET",headers:hdr(localStorage.getItem("aia_ws")||"")})
         .then(function(r){return r.json();})
         .then(function(d){if(d&&(d.ok||d.account)){paint(d);if(window.AIAWallet&&AIAWallet.load) AIAWallet.load(d);if(window.AIATld&&AIATld.load) AIATld.load(d);if(window.AIAMail&&AIAMail.load) AIAMail.load();}})
         .catch(function(){});
