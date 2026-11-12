@@ -1,6 +1,7 @@
 require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 function fail(msg) {
   console.error("FAIL " + msg);
@@ -327,6 +328,216 @@ else pass("jobs.js suggest does not save a fake card");
 const grok = fs.readFileSync(path.join(root, "api/_grok.js"), "utf8");
 if (!grok.includes("normalizeCites") || !grok.includes("search_parameters")) fail("grok must keep citations and optional web search");
 else pass("Grok stores citations when the web was used");
+
+// /create headers() must be session-based: when aia_session is present, a leftover
+// aia_pin is neither read nor sent. Other Create kinds (packs, jobs, models,
+// teammates, rules, desk AI) all share headers().
+(function () {
+  const HEADER_START = "function headers()";
+  const HEADER_END = "function deskOpen()";
+
+  function extractHeaders(src) {
+    const from = src.indexOf(HEADER_START);
+    const to = src.indexOf(HEADER_END, from + 1);
+    if (from < 0 || to <= from) return "";
+    return src.slice(from, to);
+  }
+
+  function runHeaders(src, store) {
+    const block = extractHeaders(src);
+    if (!block) throw new Error("create-desk.js missing headers()");
+    const reads = [];
+    const ctx = {
+      localStorage: {
+        getItem: function (k) {
+          reads.push(k);
+          return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null;
+        },
+        setItem: function (k, v) { store[k] = String(v); },
+        removeItem: function (k) { delete store[k]; }
+      }
+    };
+    vm.runInNewContext(block + "\nthis.__headers = headers;", ctx);
+    const headers = ctx.__headers();
+    return { headers: headers, reads: reads };
+  }
+
+  function pinKeyRead(reads) {
+    return reads.indexOf("aia_pin") >= 0;
+  }
+  function hasPin(h) {
+    return !!(h && (h["X-Pin"] || h["x-pin"]));
+  }
+  function hasSession(h) {
+    return !!(h && (h["X-Session"] || h["x-session"]));
+  }
+
+  function createHeadersFaults(src) {
+    const bad = [];
+    if (extractHeaders(src).indexOf("function headers()") < 0) {
+      return ["create-desk.js missing headers()"];
+    }
+    let sessionAndLeftover;
+    try {
+      sessionAndLeftover = runHeaders(src, {
+        aia_ws: "rivera-resale",
+        aia_session: "sess-live",
+        aia_pin: "4821"
+      });
+    } catch (e) {
+      return ["headers() failed to run: " + (e && e.message || e)];
+    }
+    if (!hasSession(sessionAndLeftover.headers)) {
+      bad.push("session is not sent when a session is present");
+    }
+    if (hasPin(sessionAndLeftover.headers)) {
+      bad.push("leftover pin is sent when a session is present");
+    }
+    if (pinKeyRead(sessionAndLeftover.reads)) {
+      bad.push("leftover pin is read when a session is present");
+    }
+
+    const sessionOnly = runHeaders(src, {
+      aia_ws: "rivera-resale",
+      aia_session: "sess-live"
+    });
+    if (!hasSession(sessionOnly.headers) || hasPin(sessionOnly.headers) || pinKeyRead(sessionOnly.reads)) {
+      if (bad.indexOf("session is not sent when a session is present") < 0 && !hasSession(sessionOnly.headers)) {
+        bad.push("session is not sent when a session is present");
+      }
+      if (hasPin(sessionOnly.headers) && bad.indexOf("leftover pin is sent when a session is present") < 0) {
+        bad.push("leftover pin is sent when a session is present");
+      }
+      if (pinKeyRead(sessionOnly.reads) && bad.indexOf("leftover pin is read when a session is present") < 0) {
+        bad.push("leftover pin is read when a session is present");
+      }
+    }
+
+    // Legacy session-less desk may still send a leftover pin.
+    const pinOnly = runHeaders(src, {
+      aia_ws: "rivera-resale",
+      aia_pin: "4821"
+    });
+    if (!hasPin(pinOnly.headers) || hasSession(pinOnly.headers)) {
+      bad.push("session-less leftover pin is no longer sent as X-Pin");
+    }
+
+    const empty = runHeaders(src, {});
+    if (hasPin(empty.headers) || hasSession(empty.headers)) {
+      bad.push("headers() sent a desk code or session with empty storage");
+    }
+
+    return bad;
+  }
+
+  const liveCreateHeaders = createHeadersFaults(createJs);
+  if (liveCreateHeaders.length) fail("create-desk.js headers() faults: " + liveCreateHeaders.join("; "));
+  else pass("create-desk.js headers() is session-based; leftover pin is not read or sent");
+
+  // Nothing people see on /create may be lost by the headers() change.
+  const visibleBits = [
+    "A card on the queue",
+    "A photo, call, or form",
+    "Desk AIs that draft. Humans that decide.",
+    "Add a pack to this desk",
+    "Keep it, or list it",
+    "Someone else on this desk",
+    "Ask me if…",
+    "Open another desk",
+    "What is the work?",
+    "What came in?",
+    "Name this desk AI",
+    "Search packs",
+    "Name this automation",
+    "Their desk code",
+    "When · Trigger",
+    "Open this desk",
+    "You still tap Yes or Stop.",
+    "Put the job on the queue",
+    "Add this teammate",
+    "Add this guardrail"
+  ];
+  visibleBits.forEach(function (bit) {
+    if (createJs.indexOf(bit) < 0 && create.indexOf(bit) < 0) fail("Create visible copy missing: " + bit);
+  });
+  if (!process.exitCode) pass("Create kinds keep their visible copy");
+
+  function applyHeadersMutant(src, kind) {
+    const live = extractHeaders(src);
+    if (!live) return src;
+    if (kind === "leftover pin is sent when a session is present") {
+      // Revert to always-read, always-send leftover pin.
+      const reverted =
+        "function headers() {\n" +
+        "      const h = { \"Content-Type\": \"application/json\" };\n" +
+        "      const ws = localStorage.getItem(\"aia_ws\");\n" +
+        "      const pin = localStorage.getItem(\"aia_pin\");\n" +
+        "      const tok = localStorage.getItem(\"aia_session\");\n" +
+        "      if (ws) h[\"X-Workspace\"] = ws;\n" +
+        "      if (tok) h[\"X-Session\"] = tok;\n" +
+        "      if (pin) h[\"X-Pin\"] = pin;\n" +
+        "      return h;\n" +
+        "    }\n    ";
+      return src.slice(0, src.indexOf(HEADER_START)) + reverted + src.slice(src.indexOf(HEADER_END));
+    }
+    if (kind === "leftover pin is read when a session is present") {
+      // Still reads aia_pin even when a session is present; does not send it.
+      const sneak =
+        "function headers() {\n" +
+        "      const h = { \"Content-Type\": \"application/json\" };\n" +
+        "      const ws = localStorage.getItem(\"aia_ws\");\n" +
+        "      const pin = localStorage.getItem(\"aia_pin\");\n" +
+        "      const tok = localStorage.getItem(\"aia_session\");\n" +
+        "      if (ws) h[\"X-Workspace\"] = ws;\n" +
+        "      if (tok) h[\"X-Session\"] = tok;\n" +
+        "      else if (pin) h[\"X-Pin\"] = pin;\n" +
+        "      return h;\n" +
+        "    }\n    ";
+      return src.slice(0, src.indexOf(HEADER_START)) + sneak + src.slice(src.indexOf(HEADER_END));
+    }
+    if (kind === "session is not sent when a session is present") {
+      const dropTok =
+        "function headers() {\n" +
+        "      const h = { \"Content-Type\": \"application/json\" };\n" +
+        "      const ws = localStorage.getItem(\"aia_ws\");\n" +
+        "      const tok = localStorage.getItem(\"aia_session\");\n" +
+        "      if (ws) h[\"X-Workspace\"] = ws;\n" +
+        "      if (tok) {\n" +
+        "        /* session present, but not sent */\n" +
+        "      } else {\n" +
+        "        const pin = localStorage.getItem(\"aia_pin\");\n" +
+        "        if (pin) h[\"X-Pin\"] = pin;\n" +
+        "      }\n" +
+        "      return h;\n" +
+        "    }\n    ";
+      return src.slice(0, src.indexOf(HEADER_START)) + dropTok + src.slice(src.indexOf(HEADER_END));
+    }
+    return src;
+  }
+
+  const headerMutants = [
+    "leftover pin is sent when a session is present",
+    "leftover pin is read when a session is present",
+    "session is not sent when a session is present"
+  ];
+  let headerCaught = 0;
+  headerMutants.forEach(function (kind) {
+    const next = applyHeadersMutant(createJs, kind);
+    if (next === createJs) {
+      fail("create-desk headers mutant does not apply: " + kind);
+      return;
+    }
+    const faults = createHeadersFaults(next);
+    if (faults.indexOf(kind) < 0) {
+      fail("create-desk headers mutant survived: " + kind + " (got " + JSON.stringify(faults) + ")");
+    } else {
+      headerCaught += 1;
+      pass("create-desk headers mutant caught: " + kind);
+    }
+  });
+  if (headerCaught !== headerMutants.length) fail("create-desk headers mutants: " + headerCaught + "/" + headerMutants.length + " caught");
+  else pass("create-desk headers mutants: " + headerCaught + "/" + headerMutants.length + " caught");
+})();
 
 if (process.exitCode) {
   console.error("check-desk-nav failed");
