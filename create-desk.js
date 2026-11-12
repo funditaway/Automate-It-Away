@@ -104,9 +104,9 @@
       }
       if (kind === "pack") return packFields();
       if (kind === "model") return `<label>Name this automation</label><input name="name" required placeholder="Lawn route"><label>What the desk does</label><input name="does" placeholder="Call in → schedule → invoice"><label>Share</label><select name="share"><option value="private">This desk only</option><option value="listed">Public — show in pack search</option><option value="market">Market — set an ask</option></select><label>Ask if this is a market pack</label><input name="price" inputmode="decimal" placeholder="0 means free. No card taken today."><p class="hint">A price here is only a tag. Nothing is charged. You still tap Yes or Stop.</p><label class="adv">How unique is it?</label><select class="adv" name="complexity"><option value="simple">Simple</option><option value="custom">Custom — this desk only</option><option value="unique">Unique — own fields</option><option value="complex">Complex — fields + a first card</option></select><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Patient, due date, ask"><label class="adv">First card on the queue</label><input class="adv" name="firstWork" placeholder="Recall Rex Friday">`;
-      if (kind === "teammate") return `<label>Name</label><input name="name" required placeholder="Sam"><label>Who they are</label><select name="kind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label>Their desk code</label><input name="pin" required inputmode="numeric" minlength="4" placeholder="4+ digits"><label class="adv">Phone</label><input class="adv" name="phone" inputmode="tel" placeholder="417-555-0100"><label class="adv">Email</label><input class="adv" name="email" inputmode="email" placeholder="sam@shop.com">`;
+      if (kind === "teammate") return `<label>Name</label><input name="name" required placeholder="Sam"><label>Who they are</label><select name="kind"><option value="helper">Helper</option><option value="family">Family</option><option value="friend">Friend</option><option value="staff">Staff</option></select><label>Their desk code</label><input name="pin" required type="password" autocomplete="new-password" inputmode="numeric" minlength="4" placeholder="4+ digits"><label class="adv">Phone</label><input class="adv" name="phone" inputmode="tel" placeholder="417-555-0100"><label class="adv">Email</label><input class="adv" name="email" inputmode="email" placeholder="sam@shop.com">`;
       if (kind === "rule") return `<label>Ask me if…</label><input name="text" required placeholder="Ask me if money out waits on the owner"><label>When · Trigger</label><select name="when"><option value="drop">Drop</option><option value="pipe">Pipe event</option><option value="inbound">Inbound name@account.aia</option><option value="status">Status change</option><option value="qualify">Check</option></select><label>If · tagged</label><input name="ifTag" placeholder="Lead"><label>If the card contains</label><input name="contains" placeholder="click, international"><label>Then · Action</label><select name="then"><option value="draft">Desk AI drafts</option><option value="queue">Queue card / alert</option><option value="notify">Notify — draft only</option><option value="tag">Tag the card</option><option value="escalate">Escalate priority</option><option value="wait">Wait for owner</option><option value="stop">Stop</option><option value="note">Note only</option></select><label>Then tag</label><input name="tag" placeholder="Interested"><label class="adv">If money is at least</label><input class="adv" name="ifMoney" inputmode="decimal" placeholder="Leave blank unless this is a money wait"><label class="adv">If field</label><input class="adv" name="ifField" placeholder="city"><label class="adv">equals or has</label><input class="adv" name="ifValue" placeholder="international"><p class="hint">One When, If, Then on this desk. You still tap Yes or Stop.</p>`;
-      return `<label>Your name</label><input name="name" required><label>Desk name</label><input name="biz" required placeholder="Rivera Resale"><label>Desk code</label><input name="pin" required inputmode="numeric" minlength="4"><label class="adv">City</label><input class="adv" name="city" placeholder="Springfield"><label class="adv">What this desk is for</label><input class="adv" name="model" placeholder="Trades"><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Job, when, ask"><label class="adv">First card</label><input class="adv" name="firstWork" placeholder="First thing on the queue">`;
+      return `<label>Your name</label><input name="name" required><label>Desk name</label><input name="biz" required placeholder="Rivera Resale"><label>Desk code</label><input name="pin" required type="password" autocomplete="new-password" inputmode="numeric" minlength="4"><label class="adv">City</label><input class="adv" name="city" placeholder="Springfield"><label class="adv">What this desk is for</label><input class="adv" name="model" placeholder="Trades"><label class="adv">Fields on a card</label><input class="adv" name="fields" placeholder="Job, when, ask"><label class="adv">First card</label><input class="adv" name="firstWork" placeholder="First thing on the queue">`;
     }
     function goLabel() {
       if (kind === "job") return "Put the job on the queue";
@@ -341,7 +341,30 @@
         const r = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json", "X-Workspace": slug, "X-Pin": pin }, body: JSON.stringify({ action: "open", name: f.get("name"), biz: f.get("biz"), city: f.get("city"), model: f.get("model") || "Something else", customName: f.get("model") || "", fields: f.get("fields"), firstWork: f.get("firstWork"), pin }) });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) return fail(data.error || "Could not open that desk.");
-        localStorage.setItem("aia_ws", slug); localStorage.setItem("aia_pin", pin); localStorage.setItem("aia_role", "owner"); localStorage.setItem("aia_name", f.get("name") || ""); localStorage.setItem("aia_desk_name", String(f.get("biz") || slug));
+        localStorage.setItem("aia_ws", slug);
+        if (data.session && data.session.token) localStorage.setItem("aia_session", data.session.token);
+        localStorage.setItem("aia_role", (data.you && data.you.role) || "owner");
+        localStorage.setItem("aia_name", (data.you && data.you.name) || f.get("name") || "");
+        localStorage.setItem("aia_desk_name", (data.workspace && (data.workspace.biz || data.workspace.name)) || String(f.get("biz") || slug));
+        if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data);
+        if (window.AIADesks && AIADesks.open) {
+          AIADesks.open({
+            slug: (data.workspace && data.workspace.slug) || slug,
+            name: (data.workspace && (data.workspace.biz || data.workspace.name)) || String(f.get("biz") || slug),
+            token: data.session && data.session.token,
+            role: (data.you && data.you.role) || "owner",
+            who: (data.you && data.you.name) || f.get("name") || ""
+          });
+        }
+        try { localStorage.removeItem("aia_pin"); } catch (e) {}
+        try {
+          const opened = (data.workspace && data.workspace.slug) || slug;
+          const rows = JSON.parse(localStorage.getItem("aia_desks") || "[]");
+          if (Array.isArray(rows) && rows.some(function (d) { return d && d.slug === opened && "pin" in d; })) {
+            rows.forEach(function (d) { if (d && d.slug === opened) delete d.pin; });
+            localStorage.setItem("aia_desks", JSON.stringify(rows));
+          }
+        } catch (e) {}
         paintStartDesk();
         return done("Workspace is open. Drop work next.");
       } catch (ex) { fail("Could not reach the desk."); }
