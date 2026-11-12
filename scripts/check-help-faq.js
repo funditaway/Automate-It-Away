@@ -76,20 +76,35 @@ must(studio, "Connect existing wallet", "Studio FAQ Connect");
 must(studio, "not Wallet.AIA", "Studio FAQ not Wallet.AIA");
 must(studio, "/help#faq", "Studio FAQ link");
 
-must(studioJs, "Needs you / prompt ask-who when a Desk AI asks", "Studio js FAQ Needs you");
-mustNot(studioJs, "when the desk asks", "Studio js still says when the desk asks");
-must(studioJs, "Install / give / update a .aia with Yes", "Studio js FAQ give-update");
-must(studioJs, "Connect existing wallet", "Studio js FAQ Connect");
-must(studioJs, "not Wallet.AIA", "Studio js FAQ not Wallet.AIA");
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+const studioPack = decodeStudio(read("developer.z64.txt"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) {
+  throw new Error("Studio loader must unpack developer.z64.txt");
+}
+if (!studioPack || studioPack.indexOf("Creators Studio") < 0) throw new Error("developer.z64.txt must decode as Creators Studio");
+must(studioPack, "Needs you / prompt ask-who when a Desk AI asks", "Studio pack FAQ Needs you");
+mustNot(studioPack, "when the desk asks", "Studio pack still says when the desk asks");
+must(studioPack, "Install / give / update a .aia with Yes", "Studio pack FAQ give-update");
+must(studioPack, "Connect existing wallet", "Studio pack FAQ Connect");
+must(studioPack, "not Wallet.AIA", "Studio pack FAQ not Wallet.AIA");
+must(studioPack, "No silent charge", "Studio pack no silent charge");
+must(studioPack, "Collect stays HOLD", "Studio pack Collect HOLD");
 
 must(more, "/help#faq", "more.html FAQ link");
-must(more, "Needs you / prompt ask-who", "more.html FAQ Needs you");
-must(more, "Install / give / update a .aia with Yes", "more.html FAQ give-update");
-must(more, "Connect existing wallet", "more.html FAQ Connect");
-must(more, "not Wallet.AIA", "more.html FAQ not Wallet.AIA");
-must(more, "You tap Yes or Stop. You send the draft yourself.", "more.html grok-line Yes rail");
-must(more, "You tap Yes or Stop. Never Send.", "more.html grok-on Yes rail");
+must(more, "Short answers. Install pack or Give pack with Yes.", "more.html FAQ tile points people to Help");
+must(more, "You tap Yes or Stop.", "more.html grok-line Yes rail");
+must(more, "A Desk AI can draft. You tap Yes or Stop.", "more.html grok-line when a Desk AI can draft");
+must(more, "A Desk AI can't draft on this phone yet. You tap Yes or Stop.", "more.html grok-line when a Desk AI cannot draft");
+must(more, "You still tap Yes or Stop.", "more.html still taps Yes or Stop");
+must(more, "Give is the file", "more.html History Give is the file");
 if (more.includes("You send them. Or you Stop.")) throw new Error("more.html grok-line painted Send as the HITL rail");
+const tips = read("aia-tip.js");
+must(tips, '"more-faq"', "aia-tip more-faq entry");
+must(tips, "Install pack or Give pack with Yes. You still tap Yes or Stop.", "aia-tip more-faq keeps Yes or Stop");
 
 must(help, "A person still taps Yes or Stop.", "Help We type it in Yes or Stop");
 must(help, "you still tap Yes or Stop. You send the draft yourself.", "Help Talk tap Yes or Stop");
@@ -132,6 +147,110 @@ if (/Wallet\.AIA/.test(faq) && !/Not Wallet\.AIA/.test(faq)) {
 });
 if (/\$47|\$197|\$50|credit pricing live|Free \/ Pro live/i.test(faq)) {
   throw new Error("FAQ invented price / plan SKU");
+}
+
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+function buildFaults(files) {
+  const bad = [];
+  const faqStart = files.help.indexOf('id="faq"');
+  const faqEnd = files.help.indexOf('id="queue-runs"');
+  const faq = faqStart >= 0 && faqEnd > faqStart ? files.help.slice(faqStart, faqEnd) : "";
+  if (!faq || faq.indexOf("What does Needs you mean?") < 0 || faq.indexOf("How do I install, give, or update a pack?") < 0 || faq.indexOf("How do I Connect a wallet?") < 0 || faq.indexOf("Install / give / update a .aia with Yes") < 0 || faq.indexOf("No silent charge") < 0 || faq.indexOf("Connect existing wallet") < 0 || faq.indexOf("Not Wallet.AIA") < 0 || faq.indexOf("Collect stays HOLD") < 0) {
+    bad.push("Help FAQ answers gone");
+  }
+  if (files.help.indexOf('id="faq"') < 0 || files.more.indexOf("/help#faq") < 0 || files.studio.indexOf("/help#faq") < 0) {
+    bad.push("FAQ anchor broken");
+  }
+  if (files.help.indexOf("Yes / Stop / Kill") < 0 || files.help.indexOf("Collect stays HOLD") < 0 || files.help.indexOf("A person taps Yes — or Stops it — before it goes out.") < 0 || files.help.indexOf("Owner still taps Yes and Stop.") < 0) {
+    bad.push("Help Yes/Stop or Collect HOLD copy gone");
+  }
+  const hasLoader = files.loader.indexOf('fetch("/developer.z64.txt"') >= 0 && files.loader.indexOf('DecompressionStream("gzip")') >= 0;
+  if (!hasLoader || !files.pack || files.pack.indexOf("Needs you / prompt ask-who when a Desk AI asks") < 0 || files.pack.indexOf("Install / give / update a .aia with Yes") < 0 || files.pack.indexOf("Connect existing wallet") < 0 || files.pack.indexOf("not Wallet.AIA") < 0) {
+    bad.push("Studio FAQ copy gone");
+  }
+  if (files.more.indexOf("/help#faq") < 0 || files.more.indexOf("Short answers. Install pack or Give pack with Yes.") < 0 || files.more.indexOf("You tap Yes or Stop.") < 0) {
+    bad.push("More FAQ link or Yes rail gone");
+  }
+  if (faq.indexOf("No silent charge") < 0 || faq.indexOf("Install / give / update a .aia with Yes") < 0 || /charged:\s*true/.test(files.pack || "") || /action:\s*"payout"|action:\s*"withdraw"/.test(files.pack || "")) {
+    bad.push("install or charge without Yes");
+  }
+  return unique(bad);
+}
+function applyMutant(kind, files) {
+  const next = { help: files.help, more: files.more, studio: files.studio, loader: files.loader, pack: files.pack };
+  if (kind === "Help FAQ answers gone") {
+    next.help = next.help
+      .replace(/What does Needs you mean\?/g, "What changed?")
+      .replace(/How do I install, give, or update a pack\?/g, "How do I skip a pack?")
+      .replace(/How do I Connect a wallet\?/g, "How do I skip a wallet?")
+      .replace(/Install \/ give \/ update a \.aia with Yes/g, "Install on its own")
+      .replace(/No silent charge/g, "Silent charge is fine")
+      .replace(/Connect existing wallet/g, "Skip the wallet")
+      .replace(/Not Wallet\.AIA/g, "Wallet.AIA is fine")
+      .replace(/Collect stays HOLD/g, "Collect is live");
+  } else if (kind === "FAQ anchor broken") {
+    next.help = next.help.replace(/id="faq"/g, 'id="gone-faq"');
+    next.more = next.more.replace(/\/help#faq/g, "/help#gone");
+    next.studio = next.studio.replace(/\/help#faq/g, "/help#gone");
+  } else if (kind === "Help Yes/Stop or Collect HOLD copy gone") {
+    next.help = next.help
+      .replace(/Yes \/ Stop \/ Kill/g, "It goes out on its own")
+      .replace(/Collect stays HOLD/g, "Collect is live")
+      .replace(/A person taps Yes — or Stops it — before it goes out\./g, "It goes out on its own.")
+      .replace(/Owner still taps Yes and Stop\./g, "Owner does not tap.");
+  } else if (kind === "Studio FAQ copy gone") {
+    next.pack = next.pack
+      .replace(/Needs you \/ prompt ask-who when a Desk AI asks/g, "when the desk asks")
+      .replace(/Install \/ give \/ update a \.aia with Yes/g, "Install on its own")
+      .replace(/Connect existing wallet/g, "Skip the wallet")
+      .replace(/not Wallet\.AIA/g, "Wallet.AIA is fine");
+  } else if (kind === "More FAQ link or Yes rail gone") {
+    next.more = next.more
+      .replace(/\/help#faq/g, "/help#gone")
+      .replace(/Short answers\. Install pack or Give pack with Yes\./g, "Skip the FAQ.")
+      .replace(/You tap Yes or Stop\./g, "It goes out on its own.");
+  } else if (kind === "install or charge without Yes") {
+    next.help = next.help
+      .replace(/No silent charge/g, "Silent charge is fine")
+      .replace(/Install \/ give \/ update a \.aia with Yes/g, "Install on its own");
+    next.pack = next.pack + "\ncharged: true\n{ action: \"payout\" }";
+  }
+  return next;
+}
+
+let failed = 0;
+function fail(msg) { failed += 1; console.error("FAIL " + msg); }
+function pass(msg) { console.log("ok  " + msg); }
+
+const files = { help: help, more: more, studio: studio, loader: studioJs, pack: studioPack };
+const live = buildFaults(files);
+if (live.length) fail("help FAQ behaviour drifted: " + live.join("; "));
+else pass("Help FAQ answers, anchors, Yes/Stop and Collect HOLD, and Studio pack FAQ still hold");
+
+const mutants = [
+  "Help FAQ answers gone",
+  "FAQ anchor broken",
+  "Help Yes/Stop or Collect HOLD copy gone",
+  "Studio FAQ copy gone",
+  "More FAQ link or Yes rail gone",
+  "install or charge without Yes"
+];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const faults = buildFaults(applyMutant(kind, files));
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
+if (failed) {
+  console.error("check-help-faq failed");
+  process.exit(1);
 }
 
 console.log("check-help-faq: ok");
