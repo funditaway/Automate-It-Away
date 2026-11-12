@@ -284,8 +284,8 @@ mutants.forEach(function (kind) {
   if (faults.indexOf(kind) < 0) fail('mutant missed: ' + kind + ' (got ' + JSON.stringify(faults) + ')')
   else { caught += 1; pass('mutant caught: ' + kind) }
 })
-if (caught !== mutants.length) fail('mutants: ' + caught + '/' + mutants.length + ' caught')
-else pass('mutants: ' + caught + '/' + mutants.length + ' caught')
+if (caught !== mutants.length) fail('honesty mutants: ' + caught + '/' + mutants.length + ' caught')
+else pass('honesty mutants: ' + caught + '/' + mutants.length + ' caught')
 
 function sqliteBindingReady() {
   const dir = path.join(runtime, 'node_modules', 'better-sqlite3')
@@ -295,10 +295,10 @@ function sqliteBindingReady() {
     let names
     try { names = fs.readdirSync(d) } catch (e) { return false }
     for (let i = 0; i < names.length; i++) {
-      const p = path.join(d, names[i])
+      const pth = path.join(d, names[i])
       let st
-      try { st = fs.statSync(p) } catch (e) { continue }
-      if (st.isDirectory() && walk(p, n + 1)) return true
+      try { st = fs.statSync(pth) } catch (e) { continue }
+      if (st.isDirectory() && walk(pth, n + 1)) return true
       if (/\.node$/.test(names[i])) return true
     }
     return false
@@ -306,20 +306,103 @@ function sqliteBindingReady() {
   return walk(dir, 0)
 }
 
+const SKIP_LINE = "SKIPPED runtime tests because there's no compiled better-sqlite3"
+
+function runtimeSuiteDecision(bindingReady, testStatus, buildStatus) {
+  if (!bindingReady) {
+    return { skipLines: [SKIP_LINE], passMessages: [], failKeys: [] }
+  }
+  const passMessages = []
+  const failKeys = []
+  if (testStatus !== 0) failKeys.push('test')
+  else passMessages.push('runtime unit tests passed')
+  if (buildStatus !== 0) failKeys.push('build')
+  else passMessages.push('runtime build passed')
+  return { skipLines: [], passMessages: passMessages, failKeys: failKeys }
+}
+
+function applyRuntimeSuiteMutant(kind, decide) {
+  return function (bindingReady, testStatus, buildStatus) {
+    const d = decide(bindingReady, testStatus, buildStatus)
+    if (kind === 'silent skip (no line)') {
+      if (!bindingReady) return { skipLines: [], passMessages: [], failKeys: [] }
+    } else if (kind === 'skip counted as pass') {
+      if (!bindingReady) return { skipLines: [], passMessages: ['runtime unit tests passed'], failKeys: [] }
+    } else if (kind === 'failing runtime test swallowed when the binding is present') {
+      if (bindingReady && testStatus !== 0) {
+        return {
+          skipLines: d.skipLines,
+          passMessages: d.passMessages.concat(['runtime unit tests passed']),
+          failKeys: d.failKeys.filter(function (k) { return k !== 'test' }),
+        }
+      }
+    }
+    return d
+  }
+}
+
+function runtimeSuitePolicyFaults(decide) {
+  const bad = []
+  const skip = decide(false, null, null)
+  const skipText = (skip.skipLines || []).join('\n')
+  if (skipText.indexOf('SKIPPED') < 0 || skipText.indexOf('runtime tests') < 0 || skipText.indexOf('no compiled better-sqlite3') < 0) {
+    bad.push('silent skip (no line)')
+  }
+  const skipPass = (skip.passMessages || []).some(function (m) {
+    return /runtime (unit tests|build) passed/.test(m)
+  })
+  if (skipPass || /\bPASSED\b/.test(skipText) || /ok  runtime (unit tests|build) passed/.test(skipText)) {
+    bad.push('skip counted as pass')
+  }
+  const failedTest = decide(true, 1, 0)
+  if (!failedTest.failKeys || failedTest.failKeys.indexOf('test') < 0) {
+    bad.push('failing runtime test swallowed when the binding is present')
+  }
+  return unique(bad)
+}
+
+const policyMutants = [
+  'silent skip (no line)',
+  'skip counted as pass',
+  'failing runtime test swallowed when the binding is present',
+]
+let policyCaught = 0
+if (runtimeSuitePolicyFaults(runtimeSuiteDecision).length) {
+  fail('runtime suite policy drifted: ' + runtimeSuitePolicyFaults(runtimeSuiteDecision).join('; '))
+} else pass('runtime suite skip is SKIPPED, not a pass, and a present binding still fails a broken test')
+policyMutants.forEach(function (kind) {
+  const faults = runtimeSuitePolicyFaults(applyRuntimeSuiteMutant(kind, runtimeSuiteDecision))
+  if (faults.indexOf(kind) < 0) fail('mutant missed: ' + kind + ' (got ' + JSON.stringify(faults) + ')')
+  else { policyCaught += 1; pass('mutant caught: ' + kind) }
+})
+const mutantTotal = mutants.length + policyMutants.length
+const mutantCaught = caught + policyCaught
+if (mutantCaught !== mutantTotal) fail('mutants: ' + mutantCaught + '/' + mutantTotal + ' caught')
+else pass('mutants: ' + mutantCaught + '/' + mutantTotal + ' caught')
+
 if (sqliteBindingReady()) {
   const test = spawnSync('npm', ['test'], { cwd: runtime, encoding: 'utf8' })
-  if (test.status !== 0) fail('runtime tests failed:\n' + (test.stdout || '') + (test.stderr || ''))
-  else pass('runtime unit tests passed')
   const build = spawnSync('npm', ['run', 'build'], { cwd: runtime, encoding: 'utf8' })
-  if (build.status !== 0) fail('runtime build failed:\n' + (build.stderr || build.stdout))
-  else pass('runtime build passed')
-  if (!fs.existsSync(path.join(runtime, 'dist', 'ledger.js'))) fail('build did not emit ledger.js')
-  if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorkerEntry.js'))) fail('build did not copy sandboxWorkerEntry.js')
-  if (!fs.existsSync(path.join(runtime, 'dist', 'promptSynthesizer.js'))) fail('build did not emit promptSynthesizer.js')
-  if (!fs.existsSync(path.join(runtime, 'dist', 'recommendationEngine.js'))) fail('build did not emit recommendationEngine.js')
-  if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorker.js'))) fail('build did not emit sandboxWorker.js')
+  const d = runtimeSuiteDecision(true, test.status, build.status)
+  d.skipLines.forEach(function (line) { console.log(line) })
+  d.passMessages.forEach(function (msg) { pass(msg) })
+  d.failKeys.forEach(function (key) {
+    if (key === 'test') fail('runtime tests failed:\n' + (test.stdout || '') + (test.stderr || ''))
+    else if (key === 'build') fail('runtime build failed:\n' + (build.stderr || build.stdout))
+    else fail('runtime ' + key + ' failed')
+  })
+  if (build.status === 0) {
+    if (!fs.existsSync(path.join(runtime, 'dist', 'ledger.js'))) fail('build did not emit ledger.js')
+    if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorkerEntry.js'))) fail('build did not copy sandboxWorkerEntry.js')
+    if (!fs.existsSync(path.join(runtime, 'dist', 'promptSynthesizer.js'))) fail('build did not emit promptSynthesizer.js')
+    if (!fs.existsSync(path.join(runtime, 'dist', 'recommendationEngine.js'))) fail('build did not emit recommendationEngine.js')
+    if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorker.js'))) fail('build did not emit sandboxWorker.js')
+  }
 } else {
-  pass('runtime unit tests skipped (no compiled better-sqlite3 binding on this runner)')
+  const d = runtimeSuiteDecision(false, null, null)
+  d.skipLines.forEach(function (line) { console.log(line) })
+  d.passMessages.forEach(function (msg) { pass(msg) })
+  d.failKeys.forEach(function (key) { fail('runtime ' + key + ' failed') })
 }
 
 if (failed) {
