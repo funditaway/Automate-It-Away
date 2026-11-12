@@ -264,6 +264,55 @@ function markHand(job, person, body) {
   return note;
 }
 
+
+function clipPlain(v, n) {
+  return String(v == null ? "" : v).replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().slice(0, n || 80);
+}
+function parseBuildPr(v) {
+  if (typeof v === "number" && Number.isInteger(v) && v > 0 && v <= 999999999) return v;
+  if (typeof v === "string") {
+    const s = String(v).trim().replace(/^#/, "");
+    if (/^[1-9][0-9]{0,8}$/.test(s)) return Number(s);
+  }
+  return null;
+}
+function parseBuildSha(v) {
+  const s = String(v == null ? "" : v).trim().toLowerCase();
+  if (/^[0-9a-f]{40}$/.test(s)) return s;
+  return null;
+}
+const BUILD_VERDICTS = ["PASS", "FAIL", "GREEN", "ORANGE", "RED"];
+function isBuildLogStatus(s) {
+  if (s === "landed" || s === "draft" || s === "hold") return true;
+  return /^waiting-on-[A-Z][a-z]+$/.test(s);
+}
+const BUILD_LOG_KEYS = { action: 1, pr: 1, head: 1, mainSha: 1, verdict: 1, hold: 1, status: 1, name: 1, actorKind: 1 };
+const BUILD_MONEY_KEYS = { amount: 1, ask: 1, charged: 1, money: 1, provider: 1, hook: 1, to: 1, email: 1, collect: 1, payout: 1, wallet: 1 };
+function buildLogTitle(status, name, pr) {
+  const label = name + " (#" + pr + ")";
+  if (status === "landed") return "Landed: " + label;
+  if (status === "draft") return "Draft: " + label;
+  if (status === "hold") return "On hold: " + label;
+  return "Waiting on you: " + label;
+}
+function buildLogWhy(fields) {
+  const parts = ["Head " + String(fields.head).slice(0, 7) + "."];
+  if (fields.mainSha) parts.push("On main " + String(fields.mainSha).slice(0, 7) + ".");
+  if (fields.verdict === "PASS") parts.push("The check passed.");
+  else if (fields.verdict === "FAIL") parts.push("The check failed.");
+  else if (fields.verdict === "GREEN") parts.push("The live result is green.");
+  else if (fields.verdict === "ORANGE") parts.push("The live result is orange.");
+  else if (fields.verdict === "RED") parts.push("The live result is red.");
+  if (fields.hold) parts.push(fields.hold);
+  return parts.join(" ");
+}
+function findBuildLogJob(workspace, pr, head) {
+  return (mem.jobs || []).find(function (j) {
+    const b = j && j.custom && j.custom.buildLog;
+    return j && j.workspace === workspace && b && Number(b.pr) === Number(pr) && b.head === head;
+  }) || null;
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -408,7 +457,113 @@ module.exports = async function handler(req, res) {
           : undefined
       });
     }
+    if (action === "build-log") {
+      const buildSession = queueSession(req);
+      if (!buildSession || !shop || shop.slug !== workspace || !person || !isOwner(person)) return refuseJobRead(res, found);
+      const bodyKeys = Object.keys(body || {});
+      for (let ki = 0; ki < bodyKeys.length; ki++) {
+        const k = bodyKeys[ki];
+        if (BUILD_MONEY_KEYS[k]) {
+          return res.status(400).json({ ok: false, error: "That field is not used here." });
+        }
+        if (!BUILD_LOG_KEYS[k]) {
+          return res.status(400).json({ ok: false, error: "That field is not used here." });
+        }
+      }
+      const pr = parseBuildPr(body.pr);
+      if (!pr) return res.status(400).json({ ok: false, error: "PR must be a positive whole number." });
+      const head = parseBuildSha(body.head);
+      if (!head) return res.status(400).json({ ok: false, error: "Head must be the full 40-character commit." });
+      let mainSha = "";
+      if (body.mainSha != null && String(body.mainSha).trim() !== "") {
+        mainSha = parseBuildSha(body.mainSha);
+        if (!mainSha) return res.status(400).json({ ok: false, error: "Main must be the full 40-character commit." });
+      }
+      let verdict = "";
+      if (body.verdict != null && String(body.verdict).trim() !== "") {
+        verdict = String(body.verdict).trim();
+        if (BUILD_VERDICTS.indexOf(verdict) < 0) return res.status(400).json({ ok: false, error: "The result must be PASS, FAIL, GREEN, ORANGE, or RED." });
+      }
+      const logStatus = String(body.status == null ? "" : body.status).trim();
+      if (!isBuildLogStatus(logStatus)) return res.status(400).json({ ok: false, error: "Status must be landed, draft, hold, or waiting on you." });
+      const name = clipPlain(body.name, 80);
+      if (!name) return res.status(400).json({ ok: false, error: "Give the work a short name." });
+      const hold = body.hold == null || String(body.hold).trim() === "" ? "" : clipPlain(body.hold, 200);
+      const facts = { desk: workspace, pr: pr, head: head, status: logStatus, name: name };
+      if (mainSha) facts.mainSha = mainSha;
+      if (verdict) facts.verdict = verdict;
+      if (hold) facts.hold = hold;
+      const title = buildLogTitle(logStatus, name, pr);
+      const why = buildLogWhy(facts);
+      const helperActor = { actorKind: "helper", actorLabel: "helper" };
+      const existing = findBuildLogJob(workspace, pr, head);
+      const now = new Date().toISOString();
+      const bornStatus = "shipped";
+      function presentBuild(job, created) {
+        return {
+          ok: true,
+          created: created,
+          charged: false,
+          sent: false,
+          job: {
+            id: job.id,
+            title: job.title,
+            status: job.status,
+            workspace: job.workspace,
+            why: job.why,
+            result: job.result,
+            custom: { buildLog: job.custom.buildLog },
+            thread: job.thread || []
+          }
+        };
+      }
+      if (existing) {
+        existing.title = title;
+        existing.why = why;
+        existing.result = why;
+        existing.status = bornStatus;
+        existing.waitingOn = "";
+        existing.charged = false;
+        existing.amount = null;
+        existing.updatedAt = now;
+        existing.doneAt = now;
+        existing.custom = existing.custom && typeof existing.custom === "object" ? existing.custom : {};
+        existing.custom.buildLog = facts;
+        existing.whoTapped = actorName(person, {});
+        existing.whoTappedId = actorId(person);
+        addTalk(existing, "helper", why, "note", helperActor);
+        log("Build", title, "OK", workspace);
+        await save();
+        return res.status(200).json(presentBuild(existing, false));
+      }
+      const job = {
+        id: "job_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        workspace: workspace,
+        title: title,
+        why: why,
+        result: why,
+        status: bornStatus,
+        waitingOn: "",
+        charged: false,
+        amount: null,
+        from: "build-log",
+        kind: "note",
+        createdAt: now,
+        updatedAt: now,
+        doneAt: now,
+        custom: { buildLog: facts },
+        thread: [],
+        whoTapped: actorName(person, {}),
+        whoTappedId: actorId(person)
+      };
+      addTalk(job, "helper", why, "note", helperActor);
+      mem.jobs.unshift(job);
+      log("Build", title, "OK", workspace);
+      await save();
+      return res.status(201).json(presentBuild(job, true));
+    }
     // Every action below reads or changes a card, so it needs a seat on this desk.
+
     // A desk name and a card id alone get the same reply as a missing desk, before the card is looked up.
     // Capture above stays open for the public drop.
     // A shared name with no seat already answered 409 above, and only when that name is actually shared.
@@ -743,7 +898,7 @@ module.exports = async function handler(req, res) {
       await save();
       return res.status(200).json({ ok: true, job, needs: needsOf(job, { staff: person && person.role === "employee" }) });
     }
-    return res.status(400).json({ error: "action must be capture, qualify, recommend, ship, kill, say, reply, ask, fill, define-field, assign, bind-ai, carry, done, hand, priority, schedule, or snooze" });
+    return res.status(400).json({ error: "action must be capture, build-log, qualify, recommend, ship, kill, say, reply, ask, fill, define-field, assign, bind-ai, carry, done, hand, priority, schedule, or snooze" });
   }
   return res.status(405).json({ error: "Use GET or POST" });
 };
