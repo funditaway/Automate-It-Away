@@ -85,8 +85,25 @@ else pass("developer.html is Creators Studio");
 if (!studio.includes("desk AI") && !fs.readFileSync(path.join(root, "developer.js"), "utf8").includes("Desk AIs")) fail("Creators Studio must name desk AIs");
 else pass("Studio names desk AIs");
 const studioJs = fs.readFileSync(path.join(root, "developer.js"), "utf8");
-if (!studioJs.includes("workflows") || !studioJs.includes("When → If → Then")) fail("Studio must author pack workflows");
-else pass("Studio pack workflows");
+const zlib = require("zlib");
+function decodeStudio(raw) {
+  try { return zlib.gunzipSync(Buffer.from(String(raw).replace(/\s+/g, ""), "base64")).toString("utf8"); }
+  catch (e) { return ""; }
+}
+function hasWorkflowField(pack) {
+  return /id=\\?"workflows\\?"/.test(pack);
+}
+const studioPack = decodeStudio(fs.readFileSync(path.join(root, "developer.z64.txt"), "utf8"));
+if (studioJs.indexOf('fetch("/developer.z64.txt"') < 0 || studioJs.indexOf('DecompressionStream("gzip")') < 0) {
+  fail("Studio loader must unpack developer.z64.txt");
+} else pass("Studio loader unpacks Creators Studio pack");
+if (!studioPack || studioPack.indexOf("Creators Studio") < 0) fail("developer.z64.txt must decode as Creators Studio");
+else pass("Studio pack decodes");
+if (studioPack.indexOf("parseWorkflows") < 0 || !hasWorkflowField(studioPack) || studioPack.indexOf("save-pack") < 0 || studioPack.indexOf("When → If → Then") < 0) {
+  fail("Studio must author pack workflows");
+} else pass("Studio pack workflows");
+if (studio.indexOf("Pack workflow") < 0 || studio.indexOf("When → If → Then") < 0) fail("Studio landing must paint pack workflows");
+else pass("Studio landing paints pack workflows");
 if (studio.includes("AIA Studio Pro")) fail("must not brand AIA Studio Pro");
 else pass("not AIA Studio Pro");
 if (!studio.includes("ai.aia") || !studio.includes(".aia") || !studio.includes("automateitaway.com")) fail("Studio landing must name ai.aia + .aia + desk host");
@@ -103,7 +120,7 @@ if (!studio.includes("Creators / earnings") || !studio.includes("no public payou
 else pass("Studio honest earnings");
 if (!studio.includes("off-platform")) fail("developer.html missing agency off-platform");
 else pass("Studio agency off-platform");
-if (/\$1\.5k|\$10k|15\s*[–-]\s*30\s*%|AI Creator/i.test(studio + studioJs + shop)) fail("invented creator income bands");
+if (/\$1\.5k|\$10k|15\s*[–-]\s*30\s*%|AI Creator/i.test(studio + studioJs + studioPack + shop)) fail("invented creator income bands");
 else pass("no invented creator income bands");
 
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
@@ -168,6 +185,128 @@ if (ideaJs.indexOf("AIACreateSetMode") < 0) fail("create-pack-idea must prefer A
 else pass("create-pack-idea uses AIACreateSetMode");
 if (createHtml.indexOf("create-pack-adv.js") < 0) fail("create.html must load create-pack-adv.js");
 else pass("create.html loads create-pack-adv.js");
+
+const ownHtmlPath = path.join(root, "packs-you-own.html");
+const ownJsPath = path.join(root, "packs-you-own.js");
+if (!fs.existsSync(ownHtmlPath) || !fs.existsSync(ownJsPath)) fail("packs-you-own page missing");
+else pass("packs-you-own page present");
+const ownHtml = fs.readFileSync(ownHtmlPath, "utf8");
+const ownJs = fs.readFileSync(ownJsPath, "utf8");
+if (ownHtml.indexOf("Nothing is charged") < 0) fail("packs-you-own must paint nothing charged");
+else pass("packs-you-own paints nothing charged");
+if (ownHtml.indexOf("You will not tap Yes here") < 0) fail("packs-you-own must not install with a Yes on that page");
+else pass("packs-you-own does not install on that page");
+if (ownJs.indexOf('action: "mine"') < 0 || ownJs.indexOf("packs=1&mine=1") < 0) fail("packs-you-own must list packs across desks you own");
+else pass("packs-you-own lists packs across owned desks");
+if (create.indexOf("unlist-pack") < 0 || create.indexOf("data-unlist") < 0) fail("create-desk must still unlist a pack listing");
+else pass("create-desk unlists a pack listing");
+if (studioPack.indexOf("submit-pack") < 0 || studioPack.indexOf("private-pack") < 0 || studioPack.indexOf("list-pack") < 0) {
+  fail("Studio must create, update, and list a pack");
+} else pass("Studio creates, updates, and lists a pack");
+if (studioPack.indexOf("applyPackDraft") < 0) fail("Studio must edit a pack draft");
+else pass("Studio edits a pack draft");
+if (studioPack.indexOf('action: "use-pack"') < 0 && studioPack.indexOf('action:"use-pack"') < 0) fail("Studio must still use-pack onto a desk");
+else pass("Studio use-pack onto a desk");
+if (studioPack.indexOf("No silent charge") < 0 && studioPack.indexOf("no silent charge") < 0) fail("Studio pack missing no silent charge");
+else pass("Studio pack says no silent charge");
+if (/\bcharged:\s*true\b/.test(studioPack) || /\bcharged:\s*true\b/.test(shop)) fail("Studio or market shop must not send charged:true");
+else pass("Studio and shop do not send charged:true");
+
+function unique(rows) {
+  const out = [];
+  rows.forEach(function (row) { if (out.indexOf(row) < 0) out.push(row); });
+  return out;
+}
+
+function packFaults(loader, pack, html, ownPage, ownScript, installSrc, advSrc, shopSrc, packsSrc) {
+  const bad = [];
+  const hasForm = pack.indexOf("parseWorkflows") >= 0 && hasWorkflowField(pack) && pack.indexOf("save-pack") >= 0;
+  const hasLoader = loader.indexOf('fetch("/developer.z64.txt"') >= 0 && loader.indexOf('DecompressionStream("gzip")') >= 0;
+  if (!hasLoader || !pack || pack.indexOf("Creators Studio") < 0 || !hasForm || pack.indexOf("list-pack") < 0) {
+    bad.push("Studio authoring gone");
+  }
+  if (installSrc.indexOf("You still tap Yes, then Start") < 0 || advSrc.indexOf("You still tap Yes, then Start") < 0) {
+    bad.push("install without Yes");
+  }
+  if (shopSrc.indexOf("A person still taps Yes or Stop.") < 0) {
+    bad.push("install without Yes");
+  }
+  if (packsSrc.indexOf("charged: false") < 0 || packsSrc.indexOf("hold: true") < 0) {
+    bad.push("charge painted or sent");
+  }
+  if (pack.indexOf("Collect stays HOLD") < 0 && pack.indexOf("Collect HOLD") < 0) {
+    bad.push("charge painted or sent");
+  }
+  if (html.indexOf("Collect stays HOLD") < 0 && html.indexOf("No silent charge") < 0) {
+    bad.push("charge painted or sent");
+  }
+  if (ownPage.indexOf("Nothing is charged") < 0) {
+    bad.push("charge painted or sent");
+  }
+  if (/\bcharged:\s*true\b/.test(pack) || /\bcharged:\s*true\b/.test(shopSrc) || /\bcharged:\s*true\b/.test(packsSrc)) {
+    bad.push("charge painted or sent");
+  }
+  return unique(bad);
+}
+
+function applyMutant(kind, files) {
+  const next = {
+    loader: files.loader,
+    pack: files.pack,
+    html: files.html,
+    ownPage: files.ownPage,
+    ownScript: files.ownScript,
+    installSrc: files.installSrc,
+    advSrc: files.advSrc,
+    shopSrc: files.shopSrc,
+    packsSrc: files.packsSrc
+  };
+  if (kind === "Studio authoring gone") {
+    next.pack = next.pack
+      .replace(/parseWorkflows/g, "parseLines")
+      .replace(/id=\\?\"workflows\\?\"/g, 'id=\"notes\"')
+      .replace(/save-pack/g, "save-notes")
+      .replace(/list-pack/g, "list-notes");
+  } else if (kind === "install without Yes") {
+    next.installSrc = next.installSrc.replace(/You still tap Yes, then Start/g, "Install starts it for you.");
+    next.advSrc = next.advSrc.replace(/You still tap Yes, then Start/g, "Install starts it for you.");
+    next.shopSrc = next.shopSrc.replace(/A person still taps Yes or Stop\./g, "Install binds it for you.");
+  } else if (kind === "charge painted or sent") {
+    next.packsSrc = next.packsSrc.replace(/charged: false/g, "charged: true").replace(/hold: true/g, "hold: false");
+    next.pack = next.pack.replace(/Collect stays HOLD/g, "Collect is taken now").replace(/Collect HOLD/g, "Collect taken") + "\ncharged: true";
+    next.html = next.html.replace(/Collect stays HOLD/g, "Collect is taken now").replace(/No silent charge/g, "Charged automatically");
+    next.ownPage = next.ownPage.replace(/Nothing is charged/g, "This page charges the pack.");
+    next.shopSrc = next.shopSrc.replace(/charged: false/g, "charged: true") + "\ncharged: true";
+  }
+  return next;
+}
+
+const packFiles = {
+  loader: studioJs,
+  pack: studioPack,
+  html: studio,
+  ownPage: ownHtml,
+  ownScript: ownJs,
+  installSrc: fs.readFileSync(path.join(root, "create-pack-install.js"), "utf8"),
+  advSrc: fs.readFileSync(path.join(root, "create-pack-adv.js"), "utf8"),
+  shopSrc: shop,
+  packsSrc: packsApi
+};
+const livePackFaults = packFaults(packFiles.loader, packFiles.pack, packFiles.html, packFiles.ownPage, packFiles.ownScript, packFiles.installSrc, packFiles.advSrc, packFiles.shopSrc, packFiles.packsSrc);
+if (livePackFaults.length) fail("pack behaviour drifted: " + livePackFaults.join("; "));
+else pass("Studio authoring, install Yes, and Collect HOLD still hold");
+
+const mutants = ["Studio authoring gone", "install without Yes", "charge painted or sent"];
+let caught = 0;
+mutants.forEach(function (kind) {
+  const next = applyMutant(kind, packFiles);
+  const faults = packFaults(next.loader, next.pack, next.html, next.ownPage, next.ownScript, next.installSrc, next.advSrc, next.shopSrc, next.packsSrc);
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { caught += 1; pass("mutant caught: " + kind); }
+});
+if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
+else pass("mutants: " + caught + "/" + mutants.length + " caught");
+
 require("./check-packs-install-assert.js");
 if (process.exitCode) {
   console.error("check-packs failed");
