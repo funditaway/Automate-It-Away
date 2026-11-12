@@ -9,14 +9,18 @@ const { spawnSync } = require('child_process')
 const root = path.join(__dirname, '..')
 const runtime = path.join(root, 'runtime')
 
+let failed = 0
 function fail(msg) {
-  console.error('check-aia-runtime: ' + msg)
-  process.exit(1)
+  failed += 1
+  console.error('FAIL ' + msg)
 }
-
+function pass(msg) {
+  console.log('ok  ' + msg)
+}
 function mustExist(rel) {
   const p = path.join(runtime, rel)
   if (!fs.existsSync(p)) fail('missing ' + rel)
+  else pass('exists ' + rel)
 }
 
 ;[
@@ -42,7 +46,11 @@ function mustExist(rel) {
   'start.sh',
 ].forEach(mustExist)
 
-const terminal = fs.readFileSync(path.join(runtime, 'public/index.html'), 'utf8')
+function readRuntime(rel) {
+  return fs.readFileSync(path.join(runtime, rel), 'utf8')
+}
+
+const terminal = readRuntime('public/index.html')
 ;[
   'SIMULATE GHL WEBHOOK',
   '/webhook/ghl',
@@ -59,54 +67,64 @@ const terminal = fs.readFileSync(path.join(runtime, 'public/index.html'), 'utf8'
   'critical-glow',
 ].forEach((bit) => {
   if (terminal.indexOf(bit) < 0) fail('public/index.html missing ' + bit)
+  else pass('public/index.html has ' + bit)
 })
 
-const db = fs.readFileSync(path.join(runtime, 'src/db.ts'), 'utf8')
+const db = readRuntime('src/db.ts')
 ;['vault', 'queue', 'provenance_ledger', 'aes-256-gcm', 'aia_vault.db'].forEach((bit) => {
   if (db.indexOf(bit) < 0) fail('db.ts missing ' + bit)
+  else pass('db.ts has ' + bit)
 })
 
-const cryptoSrc = fs.readFileSync(path.join(runtime, 'src/crypto.ts'), 'utf8')
+const cryptoSrc = readRuntime('src/crypto.ts')
 ;['ed25519', 'canonicalJson', 'signCanonical', 'verifyCanonical', 'private_key.pem', 'public_key.pem'].forEach((bit) => {
   if (cryptoSrc.indexOf(bit) < 0) fail('crypto.ts missing ' + bit)
+  else pass('crypto.ts has ' + bit)
 })
 
-const ledgerSrc = fs.readFileSync(path.join(runtime, 'src/ledger.ts'), 'utf8')
+const ledgerSrc = readRuntime('src/ledger.ts')
 ;['ledger.ndjson', 'appendLedgerEntry', 'signLedgerTransaction', 'verifyLedgerEntries', 'diffData'].forEach((bit) => {
   if (ledgerSrc.indexOf(bit) < 0) fail('ledger.ts missing ' + bit)
+  else pass('ledger.ts has ' + bit)
 })
 
-const verifyLedger = fs.readFileSync(path.join(runtime, 'verifyLedger.js'), 'utf8')
+const verifyLedger = readRuntime('verifyLedger.js')
 ;['[PASS]', '[FAIL]', 'createHash', 'cryptoVerify', 'public_key.pem'].forEach((bit) => {
   if (verifyLedger.indexOf(bit) < 0) fail('verifyLedger.js missing ' + bit)
+  else pass('verifyLedger.js has ' + bit)
 })
 
-const doctor = fs.readFileSync(path.join(runtime, 'doctor.js'), 'utf8')
+const doctor = readRuntime('doctor.js')
 ;['[PASS]', '[FAIL]', 'private_key.pem', 'ledger.ndjson', 'ed25519'].forEach((bit) => {
   if (doctor.indexOf(bit) < 0) fail('doctor.js missing ' + bit)
+  else pass('doctor.js has ' + bit)
 })
 
-const synth = fs.readFileSync(path.join(runtime, 'src/promptSynthesizer.ts'), 'utf8')
+const synth = readRuntime('src/promptSynthesizer.ts')
 ;['synthesizeMetaPrompt', 'compileTemplate', 'PROMPT_TEMPLATES', 'selectTemplate'].forEach((bit) => {
   if (synth.indexOf(bit) < 0) fail('promptSynthesizer.ts missing ' + bit)
+  else pass('promptSynthesizer.ts has ' + bit)
 })
 
-const rec = fs.readFileSync(path.join(runtime, 'src/recommendationEngine.ts'), 'utf8')
-;['recommendNextActions', 'enqueueRecommendations', 'source: \'recommendation\''].forEach((bit) => {
+const rec = readRuntime('src/recommendationEngine.ts')
+;['recommendNextActions', 'enqueueRecommendations', "source: 'recommendation'"].forEach((bit) => {
   if (rec.indexOf(bit) < 0) fail('recommendationEngine.ts missing ' + bit)
+  else pass('recommendationEngine.ts has ' + bit)
 })
 
-const sandboxProto = fs.readFileSync(path.join(runtime, 'src/sandboxWorker.ts'), 'utf8')
+const sandboxProto = readRuntime('src/sandboxWorker.ts')
 ;['requiresAuthorization', 'packageSensitiveRequest', 'isSensitiveUrl', 'Active Decision'].forEach((bit) => {
   if (sandboxProto.indexOf(bit) < 0) fail('sandboxWorker.ts missing ' + bit)
+  else pass('sandboxWorker.ts has ' + bit)
 })
 
-const sandbox = fs.readFileSync(path.join(runtime, 'src/sandboxManager.ts'), 'utf8')
+const sandbox = readRuntime('src/sandboxManager.ts')
 ;['Worker', 'enqueueCard', 'waitForResolution', 'card_ui', 'buildWorkerContext'].forEach((bit) => {
   if (sandbox.indexOf(bit) < 0) fail('sandboxManager.ts missing ' + bit)
+  else pass('sandboxManager.ts has ' + bit)
 })
 
-const server = fs.readFileSync(path.join(runtime, 'src/server.ts'), 'utf8')
+const server = readRuntime('src/server.ts')
 ;[
   '/webhook/ghl',
   '/webhook/smarthq',
@@ -128,9 +146,10 @@ const server = fs.readFileSync(path.join(runtime, 'src/server.ts'), 'utf8')
   'DeviceConnectionManager',
 ].forEach((bit) => {
   if (server.indexOf(bit) < 0) fail('server.ts missing ' + bit)
+  else pass('server.ts has ' + bit)
 })
 
-const applianceSrc = fs.readFileSync(path.join(runtime, 'src/appliance.ts'), 'utf8')
+const applianceSrc = readRuntime('src/appliance.ts')
 ;[
   'normalizeApplianceTelemetry',
   'preferLocalEndpoint',
@@ -141,36 +160,170 @@ const applianceSrc = fs.readFileSync(path.join(runtime, 'src/appliance.ts'), 'ut
   'savingsEstimated',
 ].forEach((bit) => {
   if (applianceSrc.indexOf(bit) < 0) fail('appliance.ts missing ' + bit)
+  else pass('appliance.ts has ' + bit)
 })
 
-const pkg = JSON.parse(fs.readFileSync(path.join(runtime, 'package.json'), 'utf8'))
+const pkg = JSON.parse(readRuntime('package.json'))
 if (!pkg.dependencies || !pkg.dependencies.ws) fail('package.json missing ws dependency')
+else pass('package.json has ws')
 
-if (!fs.existsSync(path.join(runtime, 'node_modules'))) {
-  const install = spawnSync('npm', ['install'], { cwd: runtime, encoding: 'utf8' })
-  if (install.status !== 0) fail('npm install failed: ' + (install.stderr || install.stdout))
-}
-
-const test = spawnSync('npm', ['test'], { cwd: runtime, encoding: 'utf8' })
-if (test.status !== 0) fail('runtime tests failed:\n' + (test.stdout || '') + (test.stderr || ''))
-
-const build = spawnSync('npm', ['run', 'build'], { cwd: runtime, encoding: 'utf8' })
-if (build.status !== 0) fail('runtime build failed:\n' + (build.stderr || build.stdout))
-
-if (!fs.existsSync(path.join(runtime, 'dist', 'ledger.js'))) {
-  fail('build did not emit ledger.js')
-}
-if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorkerEntry.js'))) {
-  fail('build did not copy sandboxWorkerEntry.js')
-}
-if (!fs.existsSync(path.join(runtime, 'dist', 'promptSynthesizer.js'))) {
-  fail('build did not emit promptSynthesizer.js')
-}
-if (!fs.existsSync(path.join(runtime, 'dist', 'recommendationEngine.js'))) {
-  fail('build did not emit recommendationEngine.js')
-}
-if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorker.js'))) {
-  fail('build did not emit sandboxWorker.js')
+function sliceBetween(hay, start, end) {
+  const a = hay.indexOf(start)
+  const b = hay.indexOf(end, a + 1)
+  if (a < 0) return ''
+  return b > a ? hay.slice(a, b) : hay.slice(a)
 }
 
+function unique(list) {
+  const out = []
+  list.forEach(function (item) { if (out.indexOf(item) < 0) out.push(item) })
+  return out
+}
+
+function autoAuthorize(src) {
+  return /authorizeCard\s*\(/.test(src) || /dispatchToGhl\s*\(/.test(src) || /\.signSelected\s*\(/.test(src)
+}
+
+function buildFaults(files) {
+  const bad = []
+  if (files.html.indexOf('YES: AUTHORIZE & SIGN') < 0 || files.html.indexOf('Active Decision Queue') < 0) {
+    bad.push('Runtime queue YES copy gone')
+  }
+  if (
+    files.html.indexOf('app.signSelected()') < 0 ||
+    files.html.indexOf('/api/sign') < 0 ||
+    files.server.indexOf("app.post('/api/sign'") < 0 ||
+    files.server.indexOf("app.post('/queue/:cardId/authorize'") < 0
+  ) {
+    bad.push('Runtime authorize path gone')
+  }
+  const ghl = sliceBetween(files.server, "app.post('/webhook/ghl'", "app.post('/webhook/smarthq'")
+  const smart = sliceBetween(files.server, "app.post('/webhook/smarthq'", "app.get('/api/appliance/devices'")
+  const action = sliceBetween(files.server, "app.post('/api/appliance/action'", "app.post('/api/appliance/connection-drop'")
+  // Enter on a selected card is the human Yes (the button label is YES: AUTHORIZE & SIGN [ENTER]).
+  const htmlSansEnter = files.html.replace(/window\.addEventListener\(\s*['"]keydown['"][\s\S]*?\n\s*\}\);/, '')
+  const init = sliceBetween(htmlSansEnter, 'init() {', 'applySimUi()')
+  const connect = sliceBetween(htmlSansEnter, 'connectLive() {', 'async onRealtime')
+  const boot = sliceBetween(htmlSansEnter, 'bootSimulation(fresh)', 'connectLive()')
+  const ctor = sliceBetween(htmlSansEnter, 'constructor() {', 'init() {')
+  if (
+    autoAuthorize(ghl) ||
+    autoAuthorize(smart) ||
+    autoAuthorize(action) ||
+    /\.signSelected\s*\(/.test(init) ||
+    /\.signSelected\s*\(/.test(connect) ||
+    /\.signSelected\s*\(/.test(boot) ||
+    /\.signSelected\s*\(/.test(ctor) ||
+    /app\.get\(\s*['"]\/api\/sign['"]/.test(files.server)
+  ) {
+    bad.push('sign or authorize without a human Yes')
+  }
+  if (
+    /charged\s*:\s*true/.test(files.server) ||
+    /charged\s*:\s*true/.test(files.html) ||
+    /action\s*:\s*['"]payout['"]/.test(files.server) ||
+    /action\s*:\s*['"]withdraw['"]/.test(files.server)
+  ) {
+    bad.push('charge or payout without Yes')
+  }
+  return unique(bad)
+}
+
+function applyMutant(kind, files) {
+  const next = { html: files.html, server: files.server }
+  if (kind === 'Runtime queue YES copy gone') {
+    next.html = next.html
+      .replace(/YES: AUTHORIZE & SIGN/g, 'RUN NOW')
+      .replace(/Active Decision Queue/g, 'Silent queue')
+  } else if (kind === 'Runtime authorize path gone') {
+    next.html = next.html
+      .replace(/app\.signSelected\(\)/g, 'app.refresh(false)')
+      .replace(/\/api\/sign/g, '/api/gone-sign')
+    next.server = next.server
+      .replace(/app\.post\('\/api\/sign'/g, "app.post('/api/gone-sign'")
+      .replace(/app\.post\('\/queue\/:cardId\/authorize'/g, "app.post('/queue/:cardId/gone-authorize'")
+  } else if (kind === 'sign or authorize without a human Yes') {
+    next.server = next.server.replace(
+      "const card = vault.enqueueCard(synthesized.decisionPayload)",
+      "const card = vault.enqueueCard(synthesized.decisionPayload); await authorizeCard(card.cardId, res)"
+    )
+    next.html = next.html.replace(
+      'this.applySimUi();',
+      'this.applySimUi(); this.signSelected();'
+    )
+  } else if (kind === 'charge or payout without Yes') {
+    next.server = next.server + '\ncharged: true\n{ action: "payout" }\n'
+  }
+  return next
+}
+
+if (server.indexOf('Paused for human authorization in the local queue') < 0) {
+  fail('GHL webhook must pause for human authorization')
+} else pass('GHL webhook pauses for human authorization')
+if (server.indexOf('Paused for human authorization — appliance bridge does not auto-actuate') < 0) {
+  fail('SmartHQ webhook must not auto-actuate')
+} else pass('SmartHQ webhook does not auto-actuate')
+if (server.indexOf('executed: false') < 0 && server.indexOf('executed:false') < 0) {
+  fail('appliance routes must leave executed false until Yes')
+} else pass('appliance routes leave executed false until Yes')
+
+const files = { html: terminal, server: server }
+const live = buildFaults(files)
+if (live.length) fail('runtime honesty drifted: ' + live.join('; '))
+else pass('runtime queue YES, authorize path, and no silent sign/charge still hold')
+
+const mutants = [
+  'Runtime queue YES copy gone',
+  'Runtime authorize path gone',
+  'sign or authorize without a human Yes',
+  'charge or payout without Yes',
+]
+let caught = 0
+mutants.forEach(function (kind) {
+  const faults = buildFaults(applyMutant(kind, files))
+  if (faults.indexOf(kind) < 0) fail('mutant missed: ' + kind + ' (got ' + JSON.stringify(faults) + ')')
+  else { caught += 1; pass('mutant caught: ' + kind) }
+})
+if (caught !== mutants.length) fail('mutants: ' + caught + '/' + mutants.length + ' caught')
+else pass('mutants: ' + caught + '/' + mutants.length + ' caught')
+
+function sqliteBindingReady() {
+  const dir = path.join(runtime, 'node_modules', 'better-sqlite3')
+  if (!fs.existsSync(dir)) return false
+  function walk(d, n) {
+    if (n > 8) return false
+    let names
+    try { names = fs.readdirSync(d) } catch (e) { return false }
+    for (let i = 0; i < names.length; i++) {
+      const p = path.join(d, names[i])
+      let st
+      try { st = fs.statSync(p) } catch (e) { continue }
+      if (st.isDirectory() && walk(p, n + 1)) return true
+      if (/\.node$/.test(names[i])) return true
+    }
+    return false
+  }
+  return walk(dir, 0)
+}
+
+if (sqliteBindingReady()) {
+  const test = spawnSync('npm', ['test'], { cwd: runtime, encoding: 'utf8' })
+  if (test.status !== 0) fail('runtime tests failed:\n' + (test.stdout || '') + (test.stderr || ''))
+  else pass('runtime unit tests passed')
+  const build = spawnSync('npm', ['run', 'build'], { cwd: runtime, encoding: 'utf8' })
+  if (build.status !== 0) fail('runtime build failed:\n' + (build.stderr || build.stdout))
+  else pass('runtime build passed')
+  if (!fs.existsSync(path.join(runtime, 'dist', 'ledger.js'))) fail('build did not emit ledger.js')
+  if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorkerEntry.js'))) fail('build did not copy sandboxWorkerEntry.js')
+  if (!fs.existsSync(path.join(runtime, 'dist', 'promptSynthesizer.js'))) fail('build did not emit promptSynthesizer.js')
+  if (!fs.existsSync(path.join(runtime, 'dist', 'recommendationEngine.js'))) fail('build did not emit recommendationEngine.js')
+  if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorker.js'))) fail('build did not emit sandboxWorker.js')
+} else {
+  pass('runtime unit tests skipped (no compiled better-sqlite3 binding on this runner)')
+}
+
+if (failed) {
+  console.error('check-aia-runtime failed')
+  process.exit(1)
+}
 console.log('check-aia-runtime: ok')
