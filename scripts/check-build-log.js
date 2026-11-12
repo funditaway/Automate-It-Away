@@ -207,6 +207,16 @@ const MUTANTS = [
     name: "allow an unknown field",
     find: "        if (!BUILD_LOG_KEYS[k]) {\n          return res.status(400).json({ ok: false, error: \"That field is not used here.\" });\n        }",
     repl: "        /* allow unknown */"
+  },
+  {
+    name: "make build-log reachable via GET",
+    find: "  if (req.method === \"GET\") {\n    if (!shop || !person) return refuseJobRead(res, found);",
+    repl: "  if (req.method === \"GET\" && String((req.query && req.query.action) || \"\") === \"build-log\") {\n    req.method = \"POST\";\n    req.body = Object.assign({}, req.query || {}, req.body && typeof req.body === \"object\" ? req.body : {});\n  }\n  if (req.method === \"GET\") {\n    if (!shop || !person) return refuseJobRead(res, found);"
+  },
+  {
+    name: "loosen status back to a waiting-on-.* regex",
+    find: "const BUILD_LOG_STATUSES = [\"landed\", \"draft\", \"hold\", \"waiting-on-\" + \"J\" + \"ames\"];\nfunction isBuildLogStatus(s) {\n  return BUILD_LOG_STATUSES.indexOf(s) >= 0;\n}",
+    repl: "function isBuildLogStatus(s) {\n  if (s === \"landed\" || s === \"draft\" || s === \"hold\") return true;\n  return /^waiting-on-.*$/.test(s);\n}"
   }
 ];
 
@@ -409,6 +419,15 @@ async function main() {
   await bad({ status: "shipped" }, "job-status as payload status");
   await bad({ status: "waiting" }, "queue status");
   await bad({ status: "" }, "empty status");
+  await bad({ status: "waiting-on-Bob" }, "waiting-on-Bob");
+  await bad({ status: "waiting-on-x" }, "waiting-on-x");
+  {
+    const r = await call(jobs, "POST", ownerHdr, Object.assign({}, base, { status: "waiting-on-Bob" }));
+    if (!r.body || r.body.error !== "Status must be landed, draft, hold, or waiting on you.") {
+      fail("refused status wording drifted: " + JSON.stringify(r.body));
+    }
+  }
+  pass("status waiting-on-Bob and waiting-on-x are refused");
   await bad({ name: "" }, "empty name");
   await bad({ name: "   " }, "whitespace name");
   await bad({ title: "Invented" }, "unknown title field");
@@ -422,6 +441,23 @@ async function main() {
   await bad({ collect: "yes" }, "collect field");
   if (snapMoney(lib) !== money0) fail("invalid/money payloads wrote mem.money");
   pass("field allowlist and validation refuse unknown, invalid, and money fields");
+
+  {
+    const nBuild = buildLogs(lib, slug).length;
+    const nJobs = (lib.mem.jobs || []).length;
+    const moneyG = snapMoney(lib);
+    const inboxG = snapInbox(lib);
+    const getAction = await call(jobs, "GET", ownerHdr, {}, { action: "build-log" }, "/api/jobs?action=build-log");
+    if (buildLogs(lib, slug).length !== nBuild || (lib.mem.jobs || []).length !== nJobs) {
+      fail("GET /api/jobs?action=build-log must not write a card, jobs " + nJobs + " -> " + (lib.mem.jobs || []).length);
+    }
+    const getQuery = await call(jobs, "GET", ownerHdr, {}, Object.assign({}, base), "/api/jobs?action=build-log&pr=557&head=" + HEAD1 + "&status=draft&name=Pack%20ownership");
+    if (buildLogs(lib, slug).length !== nBuild || (lib.mem.jobs || []).length !== nJobs) {
+      fail("GET with build-log params in the query must not write a card, jobs " + nJobs + " -> " + (lib.mem.jobs || []).length);
+    }
+    noSideEffects(lib, "GET build-log", moneyG, inboxG);
+    pass("GET /api/jobs?action=build-log writes nothing and creates no card");
+  }
 
   counts.grok = counts.hook = counts.run = counts.fanout = counts.hold = counts.draft = counts.yes = counts.fetch = 0;
   const first = await call(jobs, "POST", ownerHdr, Object.assign({}, base, { actorKind: "ai" }));

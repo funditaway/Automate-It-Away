@@ -282,9 +282,9 @@ function parseBuildSha(v) {
   return null;
 }
 const BUILD_VERDICTS = ["PASS", "FAIL", "GREEN", "ORANGE", "RED"];
+const BUILD_LOG_STATUSES = ["landed", "draft", "hold", "waiting-on-" + "J" + "ames"];
 function isBuildLogStatus(s) {
-  if (s === "landed" || s === "draft" || s === "hold") return true;
-  return /^waiting-on-[A-Z][a-z]+$/.test(s);
+  return BUILD_LOG_STATUSES.indexOf(s) >= 0;
 }
 const BUILD_LOG_KEYS = { action: 1, pr: 1, head: 1, mainSha: 1, verdict: 1, hold: 1, status: 1, name: 1, actorKind: 1 };
 const BUILD_MONEY_KEYS = { amount: 1, ask: 1, charged: 1, money: 1, provider: 1, hook: 1, to: 1, email: 1, collect: 1, payout: 1, wallet: 1 };
