@@ -332,12 +332,10 @@ if (!morePage.includes("id=\"desk-nav\"") || !morePage.includes("href=\"/more\""
 if (!process.exitCode) pass("more.html has no public crew / demo notes");
 
 const switchSrc = fs.readFileSync(path.join(root, "desk-switch.js"), "utf8");
-if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(switchSrc)) {
-  fail("desk-switch authHeaders must still send the open-desk pin when a session token is present");
-} else pass("desk-switch authHeaders keeps X-Pin with X-Session");
-if (switchSrc.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk-switch authHeaders must send X-Pin");
-else pass("desk-switch authHeaders sends X-Pin");
+const simpleSrc = fs.readFileSync(path.join(root, "create-simple.js"), "utf8");
+const createDeskSrc = fs.readFileSync(path.join(root, "create-desk.js"), "utf8");
 
+// desk.html header contract is unchanged by this tip.
 if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(desk)) {
   fail("desk.html headers must still send the open-desk pin when a session token is present");
 } else pass("desk.html headers keeps X-Pin with X-Session");
@@ -346,13 +344,239 @@ else pass("desk.html headers sends leftover X-Session");
 if (desk.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desk.html headers must send X-Pin");
 else pass("desk.html headers sends X-Pin");
 
-store.aia_ws = "pin-desk";
-store.aia_session = "leftover-tok";
-store.aia_pin = "4821";
-const hdrBoth = AIA.authHeaders();
-if (!hdrBoth["X-Session"] || hdrBoth["X-Session"] !== "leftover-tok") fail("authHeaders must keep leftover X-Session");
-else if (!hdrBoth["X-Pin"] || hdrBoth["X-Pin"] !== "4821") fail("authHeaders must send leftover X-Pin with X-Session");
-else pass("authHeaders sends leftover session + pin");
+function pinHdr(h) { return h && (h["X-Pin"] || h["x-pin"] || ""); }
+function sessionHdr(h) { return h && (h["X-Session"] || h["x-session"] || ""); }
+
+function runAuthHeaders(src, bag) {
+  const from = src.indexOf("function authHeaders");
+  const to = src.indexOf("function keepSession", from + 1);
+  const block = from >= 0 && to > from ? src.slice(from, to) : "";
+  if (!block) throw new Error("desk-switch.js missing authHeaders()");
+  const reads = [];
+  const ctx = {
+    Object: Object,
+    store: {
+      getItem: function (k) {
+        reads.push(k);
+        return Object.prototype.hasOwnProperty.call(bag, k) ? bag[k] : null;
+      }
+    }
+  };
+  vm.runInNewContext(block + "\nthis.__headers = authHeaders;", ctx);
+  return { headers: ctx.__headers(), reads: reads };
+}
+
+function runSimpleHdr(src, bag) {
+  const from = src.indexOf("function hdr()");
+  const to = src.indexOf("function deskOpen()", from + 1);
+  const block = from >= 0 && to > from ? src.slice(from, to) : "";
+  if (!block) throw new Error("create-simple.js missing hdr()");
+  const reads = [];
+  const ctx = {
+    localStorage: {
+      getItem: function (k) {
+        reads.push(k);
+        return Object.prototype.hasOwnProperty.call(bag, k) ? bag[k] : null;
+      }
+    }
+  };
+  vm.runInNewContext(block + "\nthis.__hdr = hdr;", ctx);
+  return { headers: ctx.__hdr(), reads: reads };
+}
+
+function sessionHeaderFaults(run, label) {
+  const bad = [];
+  let leftover;
+  try {
+    leftover = run({ aia_ws: "rivera-resale", aia_session: "sess-live", aia_pin: "4821" });
+  } catch (e) {
+    return [label + " failed to run: " + (e && e.message || e)];
+  }
+  if (sessionHdr(leftover.headers) !== "sess-live") {
+    bad.push(label + " session is not sent when a session is present");
+  }
+  if (pinHdr(leftover.headers)) bad.push(label + " leftover pin is sent when a session is present");
+  if (leftover.reads.indexOf("aia_pin") >= 0) bad.push(label + " leftover pin is read when a session is present");
+  const pinOnly = run({ aia_ws: "rivera-resale", aia_pin: "4821" });
+  if (pinHdr(pinOnly.headers) !== "4821" || sessionHdr(pinOnly.headers)) {
+    bad.push(label + " session-less leftover pin is no longer sent as X-Pin");
+  }
+  return bad;
+}
+
+function switchHeaderFaults(src) {
+  return sessionHeaderFaults(function (bag) { return runAuthHeaders(src, bag); }, "desk-switch");
+}
+function simpleHeaderFaults(src) {
+  return sessionHeaderFaults(function (bag) { return runSimpleHdr(src, bag); }, "create-simple");
+}
+
+const liveSwitch = switchHeaderFaults(switchSrc);
+if (liveSwitch.length) fail("desk-switch.js authHeaders() faults: " + liveSwitch.join("; "));
+else pass("desk-switch.js authHeaders() is session-based; leftover pin is not read or sent");
+
+const liveSimple = simpleHeaderFaults(simpleSrc);
+if (liveSimple.length) fail("create-simple.js hdr() faults: " + liveSimple.join("; "));
+else pass("create-simple.js hdr() is session-based; leftover pin is not read or sent");
+
+// Live AIA.authHeaders() on the already-loaded copy, with getItem tracking.
+(function () {
+  const reads = [];
+  const orig = sandbox.localStorage.getItem;
+  sandbox.localStorage.getItem = function (k) { reads.push(k); return orig.call(this, k); };
+  store.aia_ws = "pin-desk";
+  store.aia_session = "leftover-tok";
+  store.aia_pin = "4821";
+  reads.length = 0;
+  const hdrBoth = AIA.authHeaders();
+  sandbox.localStorage.getItem = orig;
+  if (!hdrBoth["X-Session"] || hdrBoth["X-Session"] !== "leftover-tok") fail("authHeaders must keep leftover X-Session");
+  else pass("authHeaders keeps leftover X-Session");
+  if (hdrBoth["X-Pin"] || reads.indexOf("aia_pin") >= 0) fail("authHeaders must not read or send a leftover pin when a session is present");
+  else pass("authHeaders does not send a leftover pin when a session is present");
+  const keepSession = store.aia_session;
+  delete store.aia_session;
+  const hdrPin = AIA.authHeaders();
+  if (!hdrPin["X-Pin"] || hdrPin["X-Pin"] !== "4821" || hdrPin["X-Session"]) fail("authHeaders must still send leftover X-Pin when no session is present");
+  else pass("authHeaders still sends leftover X-Pin when no session is present");
+  store.aia_session = keepSession;
+})();
+
+function createOpenChunk(src) {
+  const at = src.indexOf('JSON.stringify({ action: "open"');
+  if (at < 0) return "";
+  const fetchAt = src.lastIndexOf("fetch(", at);
+  if (fetchAt < 0) return "";
+  const end = src.indexOf("});", at);
+  return end > fetchAt ? src.slice(fetchAt, end + 3) : "";
+}
+
+function createOpenFaults(src) {
+  const bad = [];
+  const call = createOpenChunk(src);
+  if (!call || call.indexOf('"/api/auth"') < 0) {
+    bad.push("Create Open must still send the typed pin");
+    return bad;
+  }
+  if (!/headers:\s*\{\s*"Content-Type":\s*"application\/json",\s*"X-Workspace":\s*slug,\s*"X-Pin":\s*pin\s*\}/.test(call)) {
+    bad.push("Create Open must still send the typed pin");
+  }
+  return bad;
+}
+
+const liveOpen = createOpenFaults(createDeskSrc);
+if (liveOpen.length) fail("create-desk.js Open faults: " + liveOpen.join("; "));
+else pass("Create Open still sends the typed pin");
+
+function applyHeaderMutant(src, kind, which) {
+  if (which === "desk-switch") {
+    const live =
+      "    if (tok) h[\"X-Session\"] = tok;\n" +
+      "    else {\n" +
+      "      var pin = store && store.getItem(\"aia_pin\");\n" +
+      "      if (pin) h[\"X-Pin\"] = pin;\n" +
+      "    }\n";
+    if (kind === "desk-switch leftover pin is sent when a session is present") {
+      return src.replace(live,
+        "    var pin = store && store.getItem(\"aia_pin\");\n" +
+        "    if (tok) h[\"X-Session\"] = tok;\n" +
+        "    if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "desk-switch leftover pin is read when a session is present") {
+      return src.replace(live,
+        "    var pin = store && store.getItem(\"aia_pin\");\n" +
+        "    if (tok) h[\"X-Session\"] = tok;\n" +
+        "    else if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "desk-switch session is not sent when a session is present") {
+      return src.replace(live,
+        "    if (tok) {\n" +
+        "      /* session present, but not sent */\n" +
+        "    } else {\n" +
+        "      var pin = store && store.getItem(\"aia_pin\");\n" +
+        "      if (pin) h[\"X-Pin\"] = pin;\n" +
+        "    }\n");
+    }
+    if (kind === "desk-switch session-less leftover pin is no longer sent as X-Pin") {
+      return src.replace(live,
+        "    if (tok) h[\"X-Session\"] = tok;\n");
+    }
+  }
+  if (which === "create-simple") {
+    const live =
+      "    if (tok) h[\"X-Session\"] = tok;\n" +
+      "    else {\n" +
+      "      var pin = localStorage.getItem(\"aia_pin\") || \"\";\n" +
+      "      if (pin) h[\"X-Pin\"] = pin;\n" +
+      "    }\n";
+    if (kind === "create-simple leftover pin is sent when a session is present") {
+      return src.replace(live,
+        "    var pin = localStorage.getItem(\"aia_pin\") || \"\";\n" +
+        "    if (tok) h[\"X-Session\"] = tok;\n" +
+        "    if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "create-simple leftover pin is read when a session is present") {
+      return src.replace(live,
+        "    var pin = localStorage.getItem(\"aia_pin\") || \"\";\n" +
+        "    if (tok) h[\"X-Session\"] = tok;\n" +
+        "    else if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "create-simple session is not sent when a session is present") {
+      return src.replace(live,
+        "    if (tok) {\n" +
+        "      /* session present, but not sent */\n" +
+        "    } else {\n" +
+        "      var pin = localStorage.getItem(\"aia_pin\") || \"\";\n" +
+        "      if (pin) h[\"X-Pin\"] = pin;\n" +
+        "    }\n");
+    }
+    if (kind === "create-simple session-less leftover pin is no longer sent as X-Pin") {
+      return src.replace(live,
+        "    if (tok) h[\"X-Session\"] = tok;\n");
+    }
+  }
+  return src;
+}
+
+function applyOpenMutant(src) {
+  const from = "headers: { \"Content-Type\": \"application/json\", \"X-Workspace\": slug, \"X-Pin\": pin }";
+  const to = "headers: headers()";
+  return src.indexOf(from) < 0 ? src : src.split(from).join(to);
+}
+
+const headerMutants = [
+  ["desk-switch leftover pin is sent when a session is present", "desk-switch", switchHeaderFaults],
+  ["desk-switch leftover pin is read when a session is present", "desk-switch", switchHeaderFaults],
+  ["desk-switch session is not sent when a session is present", "desk-switch", switchHeaderFaults],
+  ["desk-switch session-less leftover pin is no longer sent as X-Pin", "desk-switch", switchHeaderFaults],
+  ["create-simple leftover pin is sent when a session is present", "create-simple", simpleHeaderFaults],
+  ["create-simple leftover pin is read when a session is present", "create-simple", simpleHeaderFaults],
+  ["create-simple session is not sent when a session is present", "create-simple", simpleHeaderFaults],
+  ["create-simple session-less leftover pin is no longer sent as X-Pin", "create-simple", simpleHeaderFaults],
+  ["Create Open must still send the typed pin", "create-open", createOpenFaults]
+];
+
+let headerCaught = 0;
+headerMutants.forEach(function (row) {
+  const kind = row[0];
+  const which = row[1];
+  const faultsOf = row[2];
+  const base = which === "create-open" ? createDeskSrc : which === "desk-switch" ? switchSrc : simpleSrc;
+  const next = which === "create-open" ? applyOpenMutant(createDeskSrc) : applyHeaderMutant(base, kind, which);
+  if (next === base) {
+    fail("header mutant does not apply: " + kind);
+    return;
+  }
+  const faults = faultsOf(next);
+  if (faults.indexOf(kind) < 0) {
+    fail("header mutant survived: " + kind + " (got " + JSON.stringify(faults) + ")");
+  } else {
+    headerCaught += 1;
+    pass("header mutant caught: " + kind);
+  }
+});
+if (headerCaught !== headerMutants.length) fail("header mutants: " + headerCaught + "/" + headerMutants.length + " caught");
+else pass("header mutants: " + headerCaught + "/" + headerMutants.length + " caught");
 
 const viewSrc = fs.readFileSync(path.join(root, "desk-view.js"), "utf8");
 if (/if \(desk\.token\) h\["X-Session"\] = desk\.token;\s*else if \(desk\.pin\)/.test(viewSrc)) {
