@@ -566,6 +566,35 @@ const probePolicyMutants = [
   'skip exits 0 when other asserts fail',
   'failing runtime test swallowed only at the report site',
 ]
+function registryInstallSourceFaults(src) {
+  const bad = []
+  const kind = 'dead npm install call'
+  const text = String(src || '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:'"\\])\/\/[^\n]*/g, '$1')
+  const runner = ['sp', 'awn'].join('') + '(?:Sync)?|' + ['ex', 'ec'].join('') + '(?:File(?:Sync)?|Sync)?'
+  const bin = ['n', 'pm'].join('')
+  const verbs = ['in', 'stall'].join('') + '|' + 'i' + '|ci'
+  const one = new RegExp('(?:' + runner + ')\\s*\\(\\s*[\'"`]' + bin + '\\s+(?:' + verbs + ')\\b')
+  const argv = new RegExp('(?:' + runner + ')\\s*\\(\\s*[\'"`]' + bin + '[\'"`]\\s*,\\s*\\[?\\s*[\'"`](?:' + verbs + ')\\b')
+  if (one.test(text) || argv.test(text)) bad.push(kind)
+  return unique(bad)
+}
+
+function applyRegistryInstallMutant(kind, src) {
+  if (kind === 'dead npm install call') {
+    const bin = ['n', 'pm'].join('')
+    const verb = ['in', 'stall'].join('')
+    const run = ['spawn', 'Sync'].join('')
+    return src + '\nfunction unusedRegistryInstall(){ ' + run + '(\'' + bin + '\', [\'' + verb + '\']) }\n'
+  }
+  return src
+}
+
+const registryInstallMutants = [
+  'dead npm install call',
+]
+
 const srcNow = checkSource()
 const probeLive = unique(
   skipExitSourceFaults(srcNow)
@@ -574,6 +603,7 @@ const probeLive = unique(
     .concat(okSkippedSourceFaults(srcNow))
     .concat(okSkippedOutputFaults(reportRuntimeSuite))
     .concat(silentSkipSourceFaults(srcNow))
+    .concat(registryInstallSourceFaults(srcNow))
 )
 if (probeLive.length) fail('runtime suite policy drifted: ' + probeLive.join('; '))
 else pass('a skip still exits 1 when other asserts fail, a failing test is still reported, and SKIPPED is raw')
@@ -606,8 +636,15 @@ okSkippedMutants.forEach(function (kind) {
   else { okSkippedCaught += 1; pass('mutant caught: ' + kind) }
 })
 
-const mutantTotal = mutants.length + policyMutants.length + probePolicyMutants.length + okSkippedMutants.length
-const mutantCaught = caught + policyCaught + probeCaught + okSkippedCaught
+let registryInstallCaught = 0
+registryInstallMutants.forEach(function (kind) {
+  const faults = registryInstallSourceFaults(applyRegistryInstallMutant(kind, srcNow))
+  if (faults.indexOf(kind) < 0) fail('mutant missed: ' + kind + ' (got ' + JSON.stringify(faults) + ')')
+  else { registryInstallCaught += 1; pass('mutant caught: ' + kind) }
+})
+
+const mutantTotal = mutants.length + policyMutants.length + probePolicyMutants.length + okSkippedMutants.length + registryInstallMutants.length
+const mutantCaught = caught + policyCaught + probeCaught + okSkippedCaught + registryInstallCaught
 if (mutantCaught !== mutantTotal) fail('mutants: ' + mutantCaught + '/' + mutantTotal + ' caught')
 else pass('mutants: ' + mutantCaught + '/' + mutantTotal + ' caught')
 
