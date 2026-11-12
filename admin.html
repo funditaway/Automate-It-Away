@@ -52,7 +52,7 @@
     <div class="banner" id="banner">Owner pin opens people, money, audit. Employee pin sees queue counts only.</div>
     <div class="row" style="margin-bottom:8px">
       <input id="ws" placeholder="Desk name" style="max-width:220px">
-      <input id="pin" placeholder="Desk code" inputmode="numeric" style="max-width:120px">
+      <input id="pin" placeholder="Desk code" type="password" autocomplete="current-password" inputmode="numeric" style="max-width:120px">
       <button class="edit" type="button" onclick="load()">Open admin</button>
     </div>
     <p class="muted" id="you"></p>
@@ -73,7 +73,7 @@
       <div class="row" style="margin-top:10px">
         <input id="n" placeholder="Name" style="max-width:160px">
         <input id="e" placeholder="Email" style="max-width:180px">
-        <input id="p" placeholder="New pin" inputmode="numeric" style="max-width:110px">
+        <input id="p" placeholder="New pin" type="password" autocomplete="new-password" inputmode="numeric" style="max-width:110px">
         <select id="r" style="max-width:130px"><option value="employee">Employee</option><option value="owner">Owner</option></select>
         <button class="go" type="button" onclick="invite()">Add to desk</button>
       </div>
@@ -100,7 +100,7 @@
       if (ws) h["X-Workspace"] = ws;
       const tok = localStorage.getItem("aia_session") || "";
       if (tok) h["X-Session"] = tok;
-      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      const pin = pinEl.value;
       if (pin) h["X-Pin"] = pin;
       return h;
     }
@@ -114,7 +114,6 @@
     }
     async function load() {
       if (wsEl.value) localStorage.setItem("aia_ws", wsEl.value);
-      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
       const out = await api("/api/admin");
       const d = out.data || {};
       const banner = document.getElementById("banner");
@@ -175,7 +174,6 @@
       load();
     }
     if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
-    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
     if (wsEl.value && (pinEl.value || localStorage.getItem("aia_session"))) load();
   </script>
 <script src="/mark-fix.js"></script></body>
