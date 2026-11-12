@@ -67,6 +67,22 @@ function hasYes(actions) {
   return (actions || []).some(function (a) { return a && a.id === "yes"; });
 }
 
+function hasStart(actions) {
+  return (actions || []).some(function (a) { return a && a.id === "start"; });
+}
+
+function paintsYes(html) {
+  return />Yes</.test(html) || /class="go q-yes"/.test(html);
+}
+
+function paintsStart(html) {
+  return />Start</.test(html) || /class="go q-start"/.test(html) || /startCard\(/.test(html);
+}
+
+function startOnMissed(actions, html) {
+  return hasStart(actions) || paintsStart(html || "");
+}
+
 function presentMissed(extra) {
   const base = {
     id: "j-miss",
@@ -76,6 +92,7 @@ function presentMissed(extra) {
     outcome: "call",
     needs: [
       { id: "open", label: "Open" },
+      { id: "start", label: "Start" },
       { id: "fill", label: "Add phone" },
       { id: "ask", label: "Ask for number" },
       { id: "cap", label: "Cap" }
@@ -136,6 +153,20 @@ function presentNeedsHasYesAndMissing() {
     needs: [
       { id: "open", label: "Open" },
       { id: "yes", label: "Yes" },
+      { id: "start", label: "Start" },
+      { id: "fill", label: "Add phone" },
+      { id: "cap", label: "Cap" }
+    ]
+  });
+}
+
+function presentNeedsHasStartAndMissing() {
+  return presentMissed({
+    id: "j-stale-start",
+    decide: false,
+    needs: [
+      { id: "open", label: "Open" },
+      { id: "start", label: "Start" },
       { id: "fill", label: "Add phone" },
       { id: "cap", label: "Cap" }
     ]
@@ -160,8 +191,12 @@ function gateFaults(src) {
   const missed = presentMissed();
   const missedNeeds = ctx.cardNeeds(missed, false);
   const missedPaint = ctx.card(missed, false);
-  if (hasYes(missedNeeds.actions) || />Yes</.test(missedPaint) || /class="go q-yes"/.test(missedPaint)) {
+  if (hasYes(missedNeeds.actions) || paintsYes(missedPaint)) {
     bad.push("early Yes is shown while a number is missing");
+  }
+  if (startOnMissed(missedNeeds.actions, missedPaint)) {
+    bad.push("Start remains while a number is missing");
+    bad.push("Start is injected while a number is missing");
   }
   if (!/Need a number before this can go/.test(missedNeeds.line || "") && !/Need a number before this can go/.test(missedPaint)) {
     bad.push("missing-number card must name the number");
@@ -173,15 +208,34 @@ function gateFaults(src) {
   const stale = presentNeedsHasYesAndMissing();
   const staleNeeds = ctx.cardNeeds(stale, false);
   const stalePaint = ctx.card(stale, false);
-  if (hasYes(staleNeeds.actions) || />Yes</.test(stalePaint) || /class="go q-yes"/.test(stalePaint)) {
+  if (hasYes(staleNeeds.actions) || paintsYes(stalePaint)) {
     if (bad.indexOf("missing is ignored") < 0) bad.push("missing is ignored");
+  }
+  if (startOnMissed(staleNeeds.actions, stalePaint)) {
+    bad.push("Start remains while a number is missing");
+    bad.push("Start is injected while a number is missing");
+  }
+
+  const staleStart = presentNeedsHasStartAndMissing();
+  const staleStartNeeds = ctx.cardNeeds(staleStart, false);
+  const staleStartPaint = ctx.card(staleStart, false);
+  if (startOnMissed(staleStartNeeds.actions, staleStartPaint)) {
+    bad.push("Start remains while a number is missing");
+    bad.push("Start is injected while a number is missing");
+  }
+  if (hasYes(staleStartNeeds.actions) || paintsYes(staleStartPaint)) {
+    bad.push("early Yes is shown while a number is missing");
   }
 
   const decideMiss = presentMissed({ id: "j-decide-miss", decide: true });
   const decideMissNeeds = ctx.cardNeeds(decideMiss, false);
   const decideMissPaint = ctx.card(decideMiss, false);
-  if (hasYes(decideMissNeeds.actions) || />Yes</.test(decideMissPaint) || /class="go q-yes"/.test(decideMissPaint)) {
+  if (hasYes(decideMissNeeds.actions) || paintsYes(decideMissPaint)) {
     bad.push("gate is bypassed via decide");
+  }
+  if (startOnMissed(decideMissNeeds.actions, decideMissPaint)) {
+    bad.push("Start remains while a number is missing");
+    bad.push("Start is injected while a number is missing");
   }
 
   const ready = presentReady();
@@ -200,7 +254,12 @@ function gateFaults(src) {
 
   const noLine = presentMissingNoLine();
   const noLineNeeds = ctx.cardNeeds(noLine, false);
-  if (hasYes(noLineNeeds.actions)) bad.push("early Yes is shown while a number is missing");
+  const noLinePaint = ctx.card(noLine, false);
+  if (hasYes(noLineNeeds.actions) || paintsYes(noLinePaint)) bad.push("early Yes is shown while a number is missing");
+  if (startOnMissed(noLineNeeds.actions, noLinePaint)) {
+    bad.push("Start remains while a number is missing");
+    bad.push("Start is injected while a number is missing");
+  }
   if (!/Need a number before this can go/.test(noLineNeeds.line || "")) {
     bad.push("missing fields must reuse Need … before this can go");
   }
@@ -214,6 +273,7 @@ function gateFaults(src) {
     outcome: "call"
   }, false);
   if (hasYes(localMiss.actions)) bad.push("local path shows Yes while a number is missing");
+  if (hasStart(localMiss.actions)) bad.push("local path shows Start while a number is missing");
   if (!localMiss.missing || localMiss.missing.indexOf("phone") < 0) {
     bad.push("local path ignored missing");
   }
@@ -227,15 +287,21 @@ else pass("early path withholds Yes until missing is empty");
 
 const liveCtx = loadNeeds(needsSrc);
 const missedPaint = liveCtx.card(presentMissed(), false);
-if (/>Yes</.test(missedPaint) || /class="go q-yes"/.test(missedPaint)) {
+if (paintsYes(missedPaint)) {
   fail("painted missed-call card still has a Yes button");
 } else pass("painted missed-call card has no Yes button");
 if (!/Need a number before this can go/.test(missedPaint) || missedPaint.indexOf("Nothing sent alone") < 0) {
   fail("painted missed-call card must keep Need a number before this can go / Nothing sent alone");
 } else pass("painted missed-call card names the missing number");
-if (/>Start</.test(missedPaint) && /class="go q-start"/.test(missedPaint)) {
-  fail("painted missed-call card must not offer Start while a number is missing");
-} else pass("painted missed-call card has no Start while a number is missing");
+if (paintsStart(missedPaint)) {
+  fail("painted missed-call card still has a Start button");
+} else pass("painted missed-call card has no Start button");
+
+const staleStartLive = liveCtx.card(presentNeedsHasStartAndMissing(), false);
+const staleStartLiveNeeds = liveCtx.cardNeeds(presentNeedsHasStartAndMissing(), false);
+if (startOnMissed(staleStartLiveNeeds.actions, staleStartLive) || paintsYes(staleStartLive)) {
+  fail("stale Start on a missed-call card must be stripped; no Yes or Start without a human Yes");
+} else pass("stale Start on a missed-call card is stripped");
 
 const readyPaint = liveCtx.card(presentReady(), false);
 if (!/>Yes</.test(readyPaint) || !/>Stop</.test(readyPaint) || !/>Kill</.test(readyPaint)) {
@@ -265,13 +331,35 @@ function applyMutant(src, kind) {
       "t||n.some((function(e){return e&&\"yes\"===e.id}))||n.some((function(e){return e&&\"start\"===e.id}))||n.unshift({id:\"yes\",label:\"Yes\"})}}"
     );
   }
+  if (kind === "Start remains while a number is missing") {
+    // Drop Yes but keep Start — the mutant Probe found surviving.
+    return src.replace(
+      "n[e]&&(\"yes\"===n[e].id||\"start\"===n[e].id)&&n.splice(e,1)",
+      "n[e]&&(\"yes\"===n[e].id)&&n.splice(e,1)"
+    );
+  }
+  if (kind === "Start is injected while a number is missing") {
+    return src.replace(
+      "if(o.length){for(let e=n.length-1;e>=0;e--)n[e]&&(\"yes\"===n[e].id||\"start\"===n[e].id)&&n.splice(e,1)}",
+      "if(o.length){for(let e=n.length-1;e>=0;e--)n[e]&&(\"yes\"===n[e].id||\"start\"===n[e].id)&&n.splice(e,1);n.unshift({id:\"start\",label:\"Start\"})}"
+    );
+  }
+  if (kind === "local path shows Start while a number is missing") {
+    return src.replace(
+      "o.length?(q(\"fill\",\"Add \"+o[0]),q(\"ask\",\"Ask for more\")):f&&(m(e.id)?q(\"start\",\"Start\"):q(\"yes\",\"Yes\")",
+      "o.length?(q(\"fill\",\"Add \"+o[0]),q(\"ask\",\"Ask for more\"),q(\"start\",\"Start\")):f&&(m(e.id)?q(\"start\",\"Start\"):q(\"yes\",\"Yes\")"
+    );
+  }
   return src;
 }
 
 const mutants = [
   "early Yes is shown while a number is missing",
   "missing is ignored",
-  "gate is bypassed via decide"
+  "gate is bypassed via decide",
+  "Start remains while a number is missing",
+  "Start is injected while a number is missing",
+  "local path shows Start while a number is missing"
 ];
 let caught = 0;
 mutants.forEach(function (kind) {
