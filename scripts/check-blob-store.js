@@ -259,6 +259,25 @@ async function main() {
     const end = libSrc.indexOf("function blobAuthOpts", start);
     return libSrc.slice(start, end > start ? end : start + 800);
   }
+  function tokenFallbackCond(libSrc) {
+    const start = libSrc.indexOf("async function blobFetchUrl");
+    const end = libSrc.indexOf("async function blobRead", start);
+    const fn = start >= 0 ? libSrc.slice(start, end > start ? end : start + 2000) : "";
+    const hit = fn.indexOf("r = await fetchWith(blobToken());");
+    if (hit < 0 || fn.indexOf('blobProbe.auth = "token"', hit) < 0) return "";
+    const ifAt = fn.lastIndexOf("if (", hit);
+    if (ifAt < 0) return "";
+    const open = fn.indexOf("(", ifAt);
+    let depth = 0;
+    for (let j = open; j < hit; j++) {
+      if (fn[j] === "(") depth += 1;
+      else if (fn[j] === ")") {
+        depth -= 1;
+        if (depth === 0) return fn.slice(open + 1, j);
+      }
+    }
+    return "";
+  }
   function blobStoreFaults(libSrc, healthSrc) {
     const bad = [];
     const put = restPutFn(libSrc);
@@ -271,11 +290,23 @@ async function main() {
     const hFn = stripComments(healthHandlerFn(healthSrc));
     if (hFn.indexOf("readyRead") < 0 || /\bsave\s*\(/.test(hFn) || /blobWrite\s*\(/.test(hFn)) bad.push("health writes on GET");
     if (/store\s*:\s*\{[\s\S]*\bblob\s*:/.test(hFn) || hFn.indexOf("store.blob") >= 0) bad.push("health publishes store.blob");
+    const cond = tokenFallbackCond(libSrc);
+    if (!cond || !/r\.status === 403/.test(cond) || !/VERCEL_OIDC_TOKEN/.test(cond) || !/blobToken\(\)/.test(cond)) {
+      bad.push("token fallback not 403-only");
+    }
+    if (/\b401\b/.test(cond)) bad.push("token fallback on 401");
+    if (/\b404\b/.test(cond)) bad.push("token fallback on 404");
+    if (/\b500\b/.test(cond)) bad.push("token fallback on 500");
     return bad;
   }
   const live = blobStoreFaults(src, healthSrc);
   if (live.length) fail("blob store / health behaviour drifted: " + live.join("; "));
   else pass("REST put sends a Buffer with x-content-type, and OIDC/storeId is tried before a static token");
+  if (tokenFallbackCond(src).indexOf("r.status === 403") < 0) {
+    fail("token fallback must still retry the static token after a retryable 403");
+  } else if (/\b401\b|\b404\b|\b500\b/.test(tokenFallbackCond(src))) {
+    fail("token fallback must not trigger on 401, 404, or 500, cond " + tokenFallbackCond(src));
+  } else pass("token fallback happens only after a retryable 403, not 401, 404, or 500");
 
   function applyMutant(libSrc, healthSrc, kind) {
     let nextLib = libSrc, nextHealth = healthSrc;
@@ -295,6 +326,21 @@ async function main() {
       nextHealth = nextHealth.replace("  await readyRead(true);", "  await readyRead(true);\n  if (typeof save === 'function') save();\n  if (typeof blobWrite === 'function') blobWrite();");
     } else if (kind === "health publishes store.blob") {
       nextHealth = nextHealth.replace("    store: {", "    store: { blob: { stamp: \"write-v1\" },");
+    } else if (kind === "token fallback on 401") {
+      nextLib = nextLib.replace(
+        "if (r.status === 403 && process.env.VERCEL_OIDC_TOKEN && blobToken()) {",
+        "if ((r.status === 403 || r.status === 401) && process.env.VERCEL_OIDC_TOKEN && blobToken()) {"
+      );
+    } else if (kind === "token fallback on 404") {
+      nextLib = nextLib.replace(
+        "if (r.status === 403 && process.env.VERCEL_OIDC_TOKEN && blobToken()) {",
+        "if ((r.status === 403 || r.status === 404) && process.env.VERCEL_OIDC_TOKEN && blobToken()) {"
+      );
+    } else if (kind === "token fallback on 500") {
+      nextLib = nextLib.replace(
+        "if (r.status === 403 && process.env.VERCEL_OIDC_TOKEN && blobToken()) {",
+        "if ((r.status === 403 || r.status === 500) && process.env.VERCEL_OIDC_TOKEN && blobToken()) {"
+      );
     }
     return { lib: nextLib, health: nextHealth };
   }
@@ -303,7 +349,10 @@ async function main() {
     "REST put JSON content-type",
     "first auth passes token",
     "health writes on GET",
-    "health publishes store.blob"
+    "health publishes store.blob",
+    "token fallback on 401",
+    "token fallback on 404",
+    "token fallback on 500"
   ];
   let caught = 0;
   mutants.forEach(function (kind) {
