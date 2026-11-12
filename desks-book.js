@@ -9,7 +9,12 @@ function sessionHdr(slug, pin) {
   var h = { "Content-Type": "application/json" };
   if (slug) h["X-Workspace"] = slug;
   var tok = localStorage.getItem("aia_session") || "";
-  if (tok) h["X-Session"] = tok;
+  var current = localStorage.getItem("aia_ws") || "";
+  if (tok && (!slug || slug === current)) {
+    h["X-Session"] = tok;
+    return h;
+  }
+  if (!tok && (pin == null || pin === "")) pin = localStorage.getItem("aia_pin") || "";
   if (pin) h["X-Pin"] = pin;
   return h;
 }
@@ -72,7 +77,7 @@ async function hydrate() {
   try {
     var r = await fetch("/api/desks", {
       method: "POST",
-      headers: sessionHdr(localStorage.getItem("aia_ws") || "", localStorage.getItem("aia_pin") || ""),
+      headers: sessionHdr(localStorage.getItem("aia_ws") || ""),
       body: JSON.stringify({ action: "mine", desks: rows.map(function (d) { return { slug: d.slug, pin: d.pin }; }) })
     });
     var data = await r.json().catch(function () { return {}; });
@@ -181,7 +186,7 @@ if (saveHandle) saveHandle.onclick = async function () {
   var msg = document.getElementById("handle-msg");
   var want = String((document.getElementById("you-handle") || {}).value || "").trim();
   var slug = localStorage.getItem("aia_ws") || "";
-  var out = await fetch("/api/desks", { method: "POST", headers: sessionHdr(slug, localStorage.getItem("aia_pin") || ""), body: JSON.stringify({ action: "handle", handle: want, slug: slug }) });
+  var out = await fetch("/api/desks", { method: "POST", headers: sessionHdr(slug), body: JSON.stringify({ action: "handle", handle: want, slug: slug }) });
   var data = await out.json().catch(function () { return {}; });
   if (msg) msg.textContent = out.ok ? ("AIA Internet name is " + (data.aia || data.at || atOf(want))) : (data.error || "Could not save.");
   if (out.ok) paintYou({ at: data.aia || data.at || atOf(want), handle: data.handle, aia: data.aia, account: BOOK.account, you: BOOK.you });

@@ -2,6 +2,7 @@ require("./_env-guard");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const vm = require("vm");
 
 const store = path.join(os.tmpdir(), "aia-desks-check-" + Date.now() + ".json");
 process.env.AIA_STORE_PATH = store;
@@ -147,11 +148,174 @@ async function main() {
   } else pass("leftover session + pin GET opens the desk");
 
   const bookJs = fs.readFileSync(path.join(__dirname, "..", "desks-book.js"), "utf8");
-  if (/if \(tok\) h\["X-Session"\] = tok; else if \(pin\)/.test(bookJs)) {
-    fail("desks-book hdr must still send the open-desk pin when a session token is present");
-  } else pass("desks-book hdr keeps X-Pin with X-Session");
-  if (bookJs.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("desks-book hdr must send X-Pin");
-  else pass("desks-book hdr sends X-Pin");
+  const deskAisSrc = fs.readFileSync(path.join(__dirname, "..", "desk-ais.js"), "utf8");
+
+  function pinHdr(h) { return h && (h["X-Pin"] || h["x-pin"] || ""); }
+  function sessionHdrVal(h) { return h && (h["X-Session"] || h["x-session"] || ""); }
+  function runBlock(block, bag, assign) {
+    const reads = [];
+    const ctx = {
+      localStorage: {
+        getItem: function (k) {
+          reads.push(k);
+          return Object.prototype.hasOwnProperty.call(bag, k) ? bag[k] : null;
+        }
+      }
+    };
+    vm.runInNewContext(block + "\n" + assign, ctx);
+    return { headers: ctx.__h, reads: reads };
+  }
+  function runBook(src, bag, slug, pin) {
+    const from = src.indexOf("function sessionHdr");
+    const to = src.indexOf("function atOf", from + 1);
+    const block = from >= 0 && to > from ? src.slice(from, to) : "";
+    if (!block) throw new Error("desks-book.js missing sessionHdr");
+    const args = pin === undefined ? "this.__h = sessionHdr(" + JSON.stringify(slug) + ");"
+      : "this.__h = sessionHdr(" + JSON.stringify(slug) + ", " + JSON.stringify(pin) + ");";
+    return runBlock(block, bag, args);
+  }
+  function runAis(src, bag) {
+    const from = src.indexOf("function headers()");
+    const to = src.indexOf("function esc(", from + 1);
+    const block = from >= 0 && to > from ? src.slice(from, to) : "";
+    if (!block) throw new Error("desk-ais.js missing headers()");
+    return runBlock(block, bag, "this.__h = headers();");
+  }
+  function runPack(src, bag) {
+    const from = src.indexOf("function hdr()");
+    const to = src.indexOf("function deskOpen(", from + 1);
+    const block = from >= 0 && to > from ? src.slice(from, to) : "";
+    if (!block) throw new Error("pack-desk-ais.js missing hdr()");
+    const reads = [];
+    const ctx = {
+      slugify: function (s) {
+        return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+      },
+      localStorage: {
+        getItem: function (k) {
+          reads.push(k);
+          return Object.prototype.hasOwnProperty.call(bag, k) ? bag[k] : null;
+        }
+      }
+    };
+    require("vm").runInNewContext(block + "\nthis.__h = hdr();", ctx);
+    return { headers: ctx.__h, reads: reads };
+  }
+  function leftoverFaults(run, label) {
+    const bad = [];
+    let leftover;
+    try { leftover = run({ aia_ws: "rivera-resale", aia_session: "sess-live", aia_pin: "4821" }); }
+    catch (e) { return [label + " failed to run: " + (e && e.message || e)]; }
+    if (sessionHdrVal(leftover.headers) !== "sess-live") bad.push(label + " session is not sent when a session is present");
+    if (pinHdr(leftover.headers)) bad.push(label + " leftover pin is sent when a session is present");
+    if (leftover.reads.indexOf("aia_pin") >= 0) bad.push(label + " leftover pin is read when a session is present");
+    const pinOnly = run({ aia_ws: "rivera-resale", aia_pin: "4821" });
+    if (pinHdr(pinOnly.headers) !== "4821" || sessionHdrVal(pinOnly.headers)) {
+      bad.push(label + " session-less leftover pin is no longer sent as X-Pin");
+    }
+    return bad;
+  }
+  function bookFaults(src) {
+    return leftoverFaults(function (bag) { return runBook(src, bag, bag.aia_ws); }, "desks-book");
+  }
+  function aisFaults(src) {
+    return leftoverFaults(function (bag) { return runAis(src, bag); }, "desk-ais");
+  }
+  const packDeskAisSrc = fs.readFileSync(path.join(__dirname, "..", "pack-desk-ais.js"), "utf8");
+  function packFaults(src) {
+    return leftoverFaults(function (bag) { return runPack(src, bag); }, "pack-desk-ais");
+  }
+
+  const liveBook = bookFaults(bookJs);
+  if (liveBook.length) fail("desks-book.js sessionHdr() faults: " + liveBook.join("; "));
+  else pass("desks-book.js sessionHdr() is session-based; leftover pin is not read or sent");
+  const otherDesk = runBook(bookJs, { aia_ws: "rivera-resale", aia_session: "sess-live", aia_pin: "4821" }, "other-desk", "9999");
+  if (pinHdr(otherDesk.headers) !== "9999" || sessionHdrVal(otherDesk.headers)) {
+    fail("desks-book apiDesk must still send a saved pin for another desk, not the current session");
+  } else pass("desks-book still sends a saved pin for another desk");
+
+  const liveAis = aisFaults(deskAisSrc);
+  if (liveAis.length) fail("desk-ais.js headers() faults: " + liveAis.join("; "));
+  else pass("desk-ais.js headers() is session-based; leftover pin is not read or sent");
+  const livePack = packFaults(packDeskAisSrc);
+  if (livePack.length) fail("pack-desk-ais.js hdr() faults: " + livePack.join("; "));
+  else pass("pack-desk-ais.js hdr() is session-based; leftover pin is not read or sent");
+
+  function applyBookMutant(src, kind) {
+    const live = "  if (tok && (!slug || slug === current)) {\n    h[\"X-Session\"] = tok;\n    return h;\n  }\n  if (!tok && (pin == null || pin === \"\")) pin = localStorage.getItem(\"aia_pin\") || \"\";\n  if (pin) h[\"X-Pin\"] = pin;\n";
+    if (kind === "desks-book leftover pin is sent when a session is present") {
+      return src.replace(live, "  var pin2 = localStorage.getItem(\"aia_pin\") || pin;\n  if (tok) h[\"X-Session\"] = tok;\n  if (pin2) h[\"X-Pin\"] = pin2;\n");
+    }
+    if (kind === "desks-book leftover pin is read when a session is present") {
+      return src.replace(live, "  var leftover = localStorage.getItem(\"aia_pin\") || \"\";\n  if (tok && (!slug || slug === current)) {\n    h[\"X-Session\"] = tok;\n    return h;\n  }\n  if (!tok && (pin == null || pin === \"\")) pin = leftover;\n  if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "desks-book session is not sent when a session is present") {
+      return src.replace(live, "  if (tok && (!slug || slug === current)) {\n    return h;\n  }\n  if (!tok && (pin == null || pin === \"\")) pin = localStorage.getItem(\"aia_pin\") || \"\";\n  if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "desks-book session-less leftover pin is no longer sent as X-Pin") {
+      return src.replace(live, "  if (tok && (!slug || slug === current)) {\n    h[\"X-Session\"] = tok;\n    return h;\n  }\n");
+    }
+    return src;
+  }
+  function applyPackMutant(src, kind) {
+    const live = "    if (tok) h[\"X-Session\"] = tok;\n    else {\n      var pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (pin) h[\"X-Pin\"] = pin;\n    }\n";
+    if (kind === "pack-desk-ais leftover pin is sent when a session is present") {
+      return src.replace(live, "    var pin = localStorage.getItem(\"aia_pin\") || \"\";\n    if (tok) h[\"X-Session\"] = tok;\n    if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "pack-desk-ais leftover pin is read when a session is present") {
+      return src.replace(live, "    var pin = localStorage.getItem(\"aia_pin\") || \"\";\n    if (tok) h[\"X-Session\"] = tok;\n    else if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "pack-desk-ais session is not sent when a session is present") {
+      return src.replace(live, "    if (tok) {\n    } else {\n      var pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (pin) h[\"X-Pin\"] = pin;\n    }\n");
+    }
+    if (kind === "pack-desk-ais session-less leftover pin is no longer sent as X-Pin") {
+      return src.replace(live, "    if (tok) h[\"X-Session\"] = tok;\n");
+    }
+    return src;
+  }
+  function applyAisMutant(src, kind) {
+    const live = "    if (tok) h[\"X-Session\"] = tok;\n    else {\n      var pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (pin) h[\"X-Pin\"] = pin;\n    }\n";
+    if (kind === "desk-ais leftover pin is sent when a session is present") {
+      return src.replace(live, "    var pin = localStorage.getItem(\"aia_pin\") || \"\";\n    if (tok) h[\"X-Session\"] = tok;\n    if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "desk-ais leftover pin is read when a session is present") {
+      return src.replace(live, "    var pin = localStorage.getItem(\"aia_pin\") || \"\";\n    if (tok) h[\"X-Session\"] = tok;\n    else if (pin) h[\"X-Pin\"] = pin;\n");
+    }
+    if (kind === "desk-ais session is not sent when a session is present") {
+      return src.replace(live, "    if (tok) {\n    } else {\n      var pin = localStorage.getItem(\"aia_pin\") || \"\";\n      if (pin) h[\"X-Pin\"] = pin;\n    }\n");
+    }
+    if (kind === "desk-ais session-less leftover pin is no longer sent as X-Pin") {
+      return src.replace(live, "    if (tok) h[\"X-Session\"] = tok;\n");
+    }
+    return src;
+  }
+  const headerMutants = [
+    ["desks-book leftover pin is sent when a session is present", "book"],
+    ["desks-book leftover pin is read when a session is present", "book"],
+    ["desks-book session is not sent when a session is present", "book"],
+    ["desks-book session-less leftover pin is no longer sent as X-Pin", "book"],
+    ["desk-ais leftover pin is sent when a session is present", "ais"],
+    ["desk-ais leftover pin is read when a session is present", "ais"],
+    ["desk-ais session is not sent when a session is present", "ais"],
+    ["desk-ais session-less leftover pin is no longer sent as X-Pin", "ais"],
+    ["pack-desk-ais leftover pin is sent when a session is present", "pack"],
+    ["pack-desk-ais leftover pin is read when a session is present", "pack"],
+    ["pack-desk-ais session is not sent when a session is present", "pack"],
+    ["pack-desk-ais session-less leftover pin is no longer sent as X-Pin", "pack"]
+  ];
+  let headerCaught = 0;
+  headerMutants.forEach(function (row) {
+    const kind = row[0];
+    const which = row[1];
+    const base = which === "book" ? bookJs : which === "pack" ? packDeskAisSrc : deskAisSrc;
+    const next = which === "book" ? applyBookMutant(base, kind) : which === "pack" ? applyPackMutant(base, kind) : applyAisMutant(base, kind);
+    if (next === base) { fail("header mutant does not apply: " + kind); return; }
+    const faults = which === "book" ? bookFaults(next) : which === "pack" ? packFaults(next) : aisFaults(next);
+    if (faults.indexOf(kind) < 0) fail("header mutant survived: " + kind + " (got " + JSON.stringify(faults) + ")");
+    else { headerCaught += 1; pass("header mutant caught: " + kind); }
+  });
+  if (headerCaught !== headerMutants.length) fail("header mutants: " + headerCaught + "/" + headerMutants.length + " caught");
+  else pass("header mutants: " + headerCaught + "/" + headerMutants.length + " caught");
   const yesNo = fs.readFileSync(path.join(__dirname, "..", "ACCOUNT-YES-NO.md"), "utf8");
   const packMd = fs.readFileSync(path.join(__dirname, "..", "PACK.md"), "utf8");
   if (yesNo.indexOf("Desks book leftover") < 0) fail("ACCOUNT-YES-NO must name Desks book leftover");
