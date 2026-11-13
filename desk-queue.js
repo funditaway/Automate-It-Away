@@ -4,7 +4,7 @@
     if (typeof escapeHtml === "function") return escapeHtml(s);
     if (typeof esc === "function") return esc(s);
     return String(s == null ? "" : s).replace(/[&<>"'`]/g, function (ch) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;" }[ch];
+      return { "&": "&", "<": "<", ">": ">", "\"": """, "'": "&#39;", "`": "&#96;" }[ch];
     });
   }
   function idOf(id) {
@@ -243,7 +243,7 @@
     const open = JOBS.filter(function (j) { return j.status === "held" || j.status === "exception" || j.status === "waiting" || j.status === "out"; });
     var empty = typeof window.queueEmptyHtml === "function"
       ? window.queueEmptyHtml(localStorage.getItem("aia_ws") ? "empty" : "nodesk")
-      : "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card. Queue does not invent Yes / Stop cards.</p></div>";
+      : "<div id=\"queue-empty\"><p>Nothing on this queue yet. Drop or Create a card. You still tap Yes or Stop.</p></div>";
     box.innerHTML = open.map(function (j) { return window.queueCard(j, staff); }).join("") || empty;
   };
   function wrapLoad() {
