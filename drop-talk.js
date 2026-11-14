@@ -176,9 +176,82 @@
   }
   var STEP_KEY = "aia_drop_step";
   var beforeTalk = "";
+  // A Talk link with no desk behind it (signed out, or signed in with no desk yet) cannot open Tell.
+  // Point at the one next step the page already offers instead of leaving nothing focused.
+  function signedOutBox() {
+    var root = document.documentElement;
+    return !!(root && root.classList && root.classList.contains("signin-first") && document.getElementById("signin-first-go"));
+  }
+  function pointAt(node, line) {
+    if (!node) return;
+    heldLine = line || null;
+    intoBand(node);
+    if (heldLine && roomFor(heldLine)) intoBand(node);
+    if (node.focus) node.focus({ preventScroll: true });
+    held = node;
+  }
+  // Centre it in the band the sticky rail and the bottom cover leave open, not in the whole screen
+  // (on a short landscape screen a plain centre still leaves the link partly under the rail).
+  function intoBand(node) {
+    try { node.scrollIntoView({ block: "center" }); } catch (e) { if (node.scrollIntoView) node.scrollIntoView(); }
+    if (!outOfView(node) || !window.scrollBy) return;
+    var r = span(node), top = railBottom();
+    window.scrollBy(0, Math.round(r.top - (top + (floorY() - top - r.height) / 2)));
+  }
+  // The page keeps laying out for a few seconds after load (drop-steps repaints as the other cards arrive
+  // and hides them), which can slide the pointed-at link up under the sticky step rail. Until the visitor
+  // does something, a repaint that left it out of view brings it back.
+  var held = null, heldLine = null;
+  function letGo() { held = null; heldLine = null; }
+  function railBottom() {
+    var rail = document.getElementById("drop-steps");
+    return rail && rail.getBoundingClientRect ? Math.max(0, rail.getBoundingClientRect().bottom) : 0;
+  }
+  // The link plus the line that says why (the "Pick a desk first" line under it), when both fit the band.
+  function span(node) {
+    var r = node.getBoundingClientRect(), l = heldLine && heldLine.getBoundingClientRect ? heldLine.getBoundingClientRect() : null;
+    if (!l || !(l.height > 0)) return r;
+    var t = Math.min(r.top, l.top), b = Math.max(r.bottom, l.bottom);
+    if (b - t > floorY() - railBottom()) return r;
+    return { top: t, bottom: b, height: b - t };
+  }
+  function outOfView(node) {
+    var r = span(node);
+    return r.top < railBottom() || r.bottom > floorY();
+  }
+  function keepHeld() {
+    if (!held) return;
+    if (document.activeElement !== held) { held = null; return; }
+    if (outOfView(held)) intoBand(held);
+  }
+  function pointSignIn() { pointAt(document.getElementById("signin-first-go")); }
+  function pointDesk() {
+    // drop-steps already wrote its "Pick a desk first" line into #desk-err; that line is hidden until shown.
+    var err = document.getElementById("desk-err");
+    if (err && err.textContent) err.style.display = "block";
+    var pick = document.getElementById("desk-pick");
+    var link = (pick && pick.querySelector('a[href="/onboard"]')) || pick, line = err && err.textContent ? err : null;
+    pointAt(link, line);
+  }
+  // A short screen: once the link is in the band, its line is still under the sticky Back / Next, so
+  // Back / Next scrolls with the page instead (desk-roomy; cleared off the Desk step or on a turn).
+  function roomFor(line) {
+    if (!line.getBoundingClientRect || !document.body || !document.body.classList) return false;
+    var l = line.getBoundingClientRect();
+    if (!(l.height > 0) || (l.top >= railBottom() && l.bottom <= floorY())) return false;
+    document.body.classList.add("desk-roomy");
+    return true;
+  }
+  function clearDeskRoom() { if (document.body && document.body.classList) document.body.classList.remove("desk-roomy"); }
+  function focusType() {
+    var box = document.getElementById("talkType");
+    if (!box) box = document.getElementById("talkBtn");
+    if (box && box.focus) box.focus({ preventScroll: true });
+  }
   function focusTalk() {
     if (slimChrome()) { hushTalk(); return; }
     var bar = document.getElementById("talkBar"); if (!bar) return;
+    if (signedOutBox()) { pointSignIn(); return; }
     // Show first, focus last: a node that is hidden or display:none can't take focus.
     bar.hidden = false;
     // The step rail may have painted Desk before the bar showed; open Tell so the bar is not display:none.
@@ -188,6 +261,8 @@
       var kept = null; try { kept = sessionStorage.getItem(STEP_KEY); } catch (e) {}
       AIADropSteps.go("tell", true);
       try { if (kept === null) sessionStorage.removeItem(STEP_KEY); else sessionStorage.setItem(STEP_KEY, kept); } catch (e) {}
+      // Tell did not open: no desk yet. Show the desk step's next move, not a hidden Talk bar.
+      if (AIADropSteps.current() !== "tell") { beforeTalk = ""; pointDesk(); return; }
     }
     // The type box is the target; the Talk button only when the type box is not on the page yet.
     var typeEl = document.getElementById("talkType") || document.getElementById("talkBtn"); if (typeEl) typeEl.focus({ preventScroll: true });
@@ -218,7 +293,14 @@
   // On a short screen it cannot fit with them: make room (talk-roomy, then talk-tight) and bring the bar up again.
   function fitType(bar) {
     var t = document.getElementById("talkType"); if (!t || !t.getBoundingClientRect) return;
-    var fits = function () { return t.getBoundingClientRect().bottom + 8 <= floorY(); };
+    // The send button ("Tell the desk") sits right under the type box: both must be on screen at once.
+    var send = document.getElementById("talkTypeBtn");
+    var sendBottom = function () {
+      if (!send || !send.getBoundingClientRect) return -Infinity;
+      var r = send.getBoundingClientRect(); return r.height > 0 ? r.bottom : -Infinity;
+    };
+    var sendFits = function () { return sendBottom() + 8 <= floorY(); };
+    var fits = function () { if (!sendFits()) return false; return t.getBoundingClientRect().bottom + 8 <= floorY(); };
     if (fits()) return;
     // First just bring the bar to the top (a refit on Next starts from wherever the page was); make room
     // only if the type box still does not fit there.
@@ -232,6 +314,7 @@
     }
     // Still too short: the type box wins over the top of the bar.
     var gap = t.getBoundingClientRect().bottom + 8 - floorY();
+    if (sendBottom() + 8 - floorY() > gap) gap = sendBottom() + 8 - floorY();
     if (gap > 0 && window.scrollBy) window.scrollBy(0, gap);
   }
   // The room classes belong to one fit on Tell. Leaving Tell, or turning / resizing the screen, clears them
@@ -255,8 +338,12 @@
   }
   // drop-steps.js calls this on every paint with the active step.
   function onStep(step) {
+    // After the rest of this paint has laid out (the rail's tabs and hint change below this call).
+    if (held) (window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); })(keepHeld);
     if (step === lastStep) return;
     lastStep = step;
+    // The desk room is for the Desk step only (its first paint can come after the point: keep it there).
+    if (step !== "desk") clearDeskRoom();
     if (step !== "tell") { clearRoom(); return; }
     refit();
   }
@@ -266,6 +353,8 @@
     lastW = w;
     clearRoom();
     if (onTell()) refit();
+    clearDeskRoom();
+    if (held && heldLine) pointAt(held, heldLine);
   }
   // Back from #talk (the hash is gone) returns to the step the page was on before Talk opened.
   function leaveTalk() {
@@ -302,7 +391,9 @@
     lastW = window.innerWidth || 0;
     window.addEventListener("resize", onTurn);
     window.addEventListener("orientationchange", onTurn);
-    window.AIADropTalk = { parseTalk: parseTalk, fill: fill, dropLine: dropLine, focusTalk: focusTalk, onStep: onStep };
+    // Any tap, key or wheel from the visitor ends the hold: from then on the page is theirs to scroll.
+    ["pointerdown", "touchstart", "keydown", "wheel"].forEach(function (ev) { window.addEventListener(ev, letGo, true); });
+    window.AIADropTalk = { parseTalk: parseTalk, fill: fill, dropLine: dropLine, focusTalk: focusTalk, focusType: focusType, onStep: onStep };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();
