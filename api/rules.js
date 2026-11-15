@@ -130,7 +130,9 @@ module.exports = async function handler(req, res) {
   const { workspace: row, person } = personOf(req, workspace);
 
   if (req.method === "GET") {
-    if (!row) {
+    // No desk, or nobody on it (stranger, wrong code, waiting, denied, removed): the empty default body.
+    // The desk's rules, desk AIs and talk draft are for its own people only.
+    if (!row || !person) {
       const rules = defaultRules();
       return res.status(200).json({
         ok: true,
@@ -165,7 +167,8 @@ module.exports = async function handler(req, res) {
       ais: aisPublic(row),
       workflows: "Packs string rules. Optional delay / branch. Thin JSON.",
       canAdd: isOwner(person),
-      draft: row.ruleDraft || null,
+      // The talk draft is the owner's: helpers see the rules, not the draft.
+      draft: isOwner(person) ? (row.ruleDraft || null) : null,
       desk: deskName(row)
     });
   }
