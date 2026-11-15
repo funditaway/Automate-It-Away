@@ -390,6 +390,175 @@ async function main() {
     fail("person-book open card must paint Then / thread / HOLD");
   } else if (live) pass("person-book open card paints Then / thread / HOLD");
 
+  // People presence (GET /api/admin desk read): Online / Offline / Not seen yet from the seenAt stamp
+  // sessions already carry. Buckets only, own-desk sessions only, members only, nothing written.
+  await (async function presenceChecks() {
+    const A = "presence-desk-a";
+    const B = "presence-desk-b";
+    const ownerPinA = "6142";
+    const ownerPinB = "6143";
+    const T = Date.parse("2026-11-15T19:00:00.000Z");
+    const iso = function (ms) { return new Date(ms).toISOString(); };
+    const far = iso(T + 10 * 24 * 3600 * 1000);
+    function seat(id, status, extra) {
+      return Object.assign({ id: id, name: id, role: "helper", kind: "helper", status: status, createdAt: iso(T - 86400000) }, extra || {});
+    }
+    const deskA = { slug: A, name: "Presence A", biz: A, pin: hashPin(ownerPinA), createdAt: iso(T - 86400000), people: [] };
+    const deskB = { slug: B, name: "Presence B", biz: B, pin: hashPin(ownerPinB), createdAt: iso(T - 86400000), people: [] };
+    ensurePeople(deskA);
+    ensurePeople(deskB);
+    const ownerA = deskA.people[0].id;
+    deskA.people.push(
+      seat("s299", "approved"), seat("s300", "approved"), seat("s301", "approved"),
+      seat("sNone", "approved"), seat("sExpired", "approved"), seat("sBad", "approved"), seat("sFuture", "approved"),
+      seat("sCross", "approved"), seat("sAcct", "approved", { accountId: "acct_presence_x" }), seat("sTwo", "approved"),
+      seat("sHelper", "approved", { pin: hashPin("7011") }),
+      seat("sRemoved", "removed", { pin: hashPin("7012") }),
+      seat("sPending", "pending", { pin: hashPin("7013") }),
+      seat("sDenied", "denied", { pin: hashPin("7014") })
+    );
+    deskB.people.push(seat("sCross", "approved"), seat("bOnly", "approved", { accountId: "acct_presence_x" }));
+    mem.workspaces.unshift(deskA, deskB);
+    let n = 0;
+    function sess(ws, personId, seenAt, expiresAt, extra) {
+      n += 1;
+      mem.sessions.push(Object.assign({ id: "sess_presence" + n, tokenHash: "presence-hash-" + n, workspace: ws, personId: personId, name: personId, role: "helper", createdAt: iso(T - 3600000), seenAt: seenAt, expiresAt: expiresAt === undefined ? far : expiresAt, ua: "PresenceUA/1.0", ip: "203.0.113.9" }, extra || {}));
+    }
+    sess(A, "s299", iso(T - 299000));
+    sess(A, "s300", iso(T - 300000));
+    sess(A, "s301", iso(T - 301000));
+    sess(A, "sExpired", iso(T - 1000), iso(T - 1));
+    sess(A, "sBad", "not-a-time");
+    sess(A, "sFuture", iso(T + 10 * 60000));
+    sess(B, "sCross", iso(T - 1000));
+    sess(B, "bOnly", iso(T - 1000), undefined, { accountId: "acct_presence_x" });
+    sess(A, "sGhost", iso(T - 1000), undefined, { accountId: "acct_presence_x" });
+    sess(A, "sTwo", iso(T - 3600000));
+    sess(A, "sTwo", iso(T - 2000));
+    sess(A, "sRemoved", iso(T - 1000));
+    sess(A, "sPending", iso(T - 1000));
+    sess(A, "sDenied", iso(T - 1000));
+    sess(A, "s299", iso(T - 1000), undefined, { workspace: B });
+    await lib.save();
+
+    const realNow = Date.now;
+    async function getAt(headers) {
+      Date.now = function () { return T; };
+      try { return await call(admin, "GET", headers, {}, {}); } finally { Date.now = realNow; }
+    }
+    const want = {
+      s299: "online", s300: "online", s301: "offline", sNone: "not-seen", sExpired: "not-seen", sBad: "offline",
+      sFuture: "offline", sCross: "not-seen", sAcct: "not-seen", sTwo: "online", sHelper: "not-seen"
+    };
+    want[ownerA] = "not-seen";
+
+    const disk0 = fs.readFileSync(store, "utf8");
+    const own = await getAt({ "x-workspace": A, "x-pin": ownerPinA });
+    const pres = own.body && own.body.presence;
+    if (fs.readFileSync(store, "utf8") !== disk0) fail("presence: the owner read must not write the store");
+    else pass("presence: the owner read writes nothing to the store");
+    if (own.statusCode !== 200 || !pres) fail("presence: owner desk read must carry presence, got " + own.statusCode + " " + JSON.stringify(own.body && own.body.presence));
+    else pass("presence: owner desk read carries presence");
+    const list = (pres && Array.isArray(pres.people)) ? pres.people : [];
+    const byId = {};
+    list.forEach(function (p) { byId[p && p.id] = p && p.presence; });
+    if (!pres || pres.window !== 300) fail("presence: window must be 300 seconds"); else pass("presence: window is 300 seconds");
+    Object.keys(want).forEach(function (id) {
+      if (byId[id] !== want[id]) fail("presence: " + id + " must be " + want[id] + ", got " + byId[id]);
+      else pass("presence: " + id + " is " + want[id]);
+    });
+    ["s299", "s300"].forEach(function (id) { if (byId[id] !== "online") fail("presence: " + id + "s inside the window must be online"); else pass("presence: " + id + " inside the 300s window is online"); });
+    if (byId.s301 !== "offline") fail("presence: 301s, just past the window, must not be online"); else pass("presence: 301s, just past the window, is offline");
+    if (byId.sCross !== "not-seen") fail("presence: a desk-B session must not mark a desk-A seat online"); else pass("presence: desk-B session for the same seat id does not count on desk A");
+    if (byId.sAcct !== "not-seen") fail("presence: a desk-B session of the same account must not count on desk A"); else pass("presence: same account's desk-B session does not count on desk A");
+    if (byId.s299 !== "online" || list.filter(function (p) { return p.id === "s299"; }).length !== 1) fail("presence: one row per seat"); else pass("presence: one row per seat");
+    ["sRemoved", "sPending", "sDenied", "bOnly"].forEach(function (id) {
+      if (Object.prototype.hasOwnProperty.call(byId, id)) fail("presence: " + id + " must not be listed on desk A");
+      else pass("presence: " + id + " is not listed on desk A");
+    });
+    if (list.length !== Object.keys(want).length) fail("presence: list must be exactly the open seats (" + Object.keys(want).length + "), got " + list.length);
+    else pass("presence: list is exactly the " + list.length + " open seats");
+    const tally = { online: 0, offline: 0, notSeen: 0 };
+    list.forEach(function (p) { tally[p.presence === "not-seen" ? "notSeen" : p.presence] += 1; });
+    const counts = (pres && pres.counts) || {};
+    if (JSON.stringify(Object.keys(counts).sort()) !== JSON.stringify(["notSeen", "offline", "online"])) fail("presence: counts keys must be online / offline / notSeen");
+    else pass("presence: counts keys are online / offline / notSeen");
+    if (counts.online !== tally.online || counts.offline !== tally.offline || counts.notSeen !== tally.notSeen) fail("presence: counts must equal the list, got " + JSON.stringify(counts) + " vs " + JSON.stringify(tally));
+    else pass("presence: counts equal the list");
+    if (counts.online + counts.offline + counts.notSeen !== list.length) fail("presence: counts must add up to the list"); else pass("presence: counts add up to the list");
+    if (counts.online !== 3 || counts.offline !== 3 || counts.notSeen !== 6) fail("presence: counts must be 3 / 3 / 6, got " + JSON.stringify(counts));
+    else pass("presence: counts are 3 online / 3 offline / 6 not seen");
+    const presJson = JSON.stringify(pres || {});
+    if (/\d{4}-\d\d-\d\dT|seenAt|expiresAt|createdAt|PresenceUA|203\.0\.113|acct_presence|tokenHash|presence-hash|sess_presence|"ua"|"ip"/.test(presJson)) fail("presence: must carry no time, browser, address, account or session");
+    else pass("presence: no time, browser, address, account or session in presence");
+    if (!pres || JSON.stringify(Object.keys(pres).sort()) !== JSON.stringify(["counts", "people", "window"])) fail("presence: keys must be window / people / counts only");
+    else pass("presence: keys are window / people / counts only");
+    if (list.some(function (p) { return JSON.stringify(Object.keys(p).sort()) !== JSON.stringify(["id", "presence"]); })) fail("presence: each row must be id and presence only");
+    else pass("presence: each row is id and presence only");
+    if (list.some(function (p) { return ["online", "offline", "not-seen"].indexOf(p.presence) < 0; })) fail("presence: buckets must be online / offline / not-seen");
+    else pass("presence: buckets are online / offline / not-seen");
+
+    const helper = lib.issueSession(deskA.people.find(function (p) { return p.id === "sHelper"; }), deskA, null, { headers: {} });
+    const hRow = mem.sessions.find(function (s) { return s.id === helper.id; });
+    hRow.seenAt = iso(T - 3600000);
+    await lib.save();
+    const disk1 = fs.readFileSync(store, "utf8");
+    const hr = await getAt({ "x-workspace": A, "x-session": helper.token });
+    const hp = hr.body && hr.body.presence;
+    if (hr.statusCode !== 200 || !hp) fail("presence: helper member must get presence, got " + hr.statusCode);
+    else pass("presence: helper member gets presence");
+    const hById = {};
+    ((hp && hp.people) || []).forEach(function (p) { hById[p.id] = p.presence; });
+    if (hById.sHelper !== "online") fail("presence: helper's own live session reads online, got " + hById.sHelper); else pass("presence: helper's own live session reads online");
+    if (hp && /\d{4}-\d\d-\d\dT|seenAt|PresenceUA|203\.0\.113|acct_presence/.test(JSON.stringify(hp))) fail("presence: helper view leaks a time / browser / address / account");
+    else pass("presence: helper view has no time / browser / address / account");
+    if (fs.readFileSync(store, "utf8") !== disk1) fail("presence: the helper read must not write the store"); else pass("presence: the helper read writes nothing to the store");
+
+    const bv = await getAt({ "x-workspace": B, "x-pin": ownerPinB });
+    const bp = bv.body && bv.body.presence;
+    const bIds = ((bp && bp.people) || []).map(function (p) { return p.id; }).sort();
+    const bOwner = deskB.people[0].id;
+    if (JSON.stringify(bIds) !== JSON.stringify([bOwner, "bOnly", "sCross"].sort())) fail("presence: desk B lists only desk B seats, got " + JSON.stringify(bIds));
+    else pass("presence: desk B lists only desk B seats");
+    const bById = {};
+    ((bp && bp.people) || []).forEach(function (p) { bById[p.id] = p.presence; });
+    if (bById.sCross !== "online" || bById.bOnly !== "online") fail("presence: desk B's own fresh sessions read online there"); else pass("presence: desk B's own sessions read online on desk B only");
+
+    const bOwnerSession = lib.issueSession(deskB.people[0], deskB, null, { headers: {} });
+    process.env.AIA_ADMIN_PIN = "presence-admin-fake-9911";
+    const shut = [
+      ["stranger", { "x-workspace": A }],
+      ["wrong code", { "x-workspace": A, "x-pin": "0000" }],
+      ["waiting seat", { "x-workspace": A, "x-pin": "7013" }],
+      ["denied seat", { "x-workspace": A, "x-pin": "7014" }],
+      ["removed seat code", { "x-workspace": A, "x-pin": "7012" }],
+      ["desk-B session on desk A", { "x-workspace": A, "x-session": bOwnerSession.token }],
+      ["platform admin branch", { "x-workspace": A, "x-admin-pin": "presence-admin-fake-9911" }]
+    ];
+    const removedSession = lib.issueSession(deskA.people.find(function (p) { return p.id === "sRemoved"; }), deskA, null, { headers: {} });
+    shut.push(["removed seat session", { "x-workspace": A, "x-session": removedSession.token }]);
+    for (const row of shut) {
+      const r = await getAt(row[1]);
+      const body = r.body || {};
+      if (Object.prototype.hasOwnProperty.call(body, "presence") || JSON.stringify(body).indexOf('"presence"') >= 0 || JSON.stringify(body).indexOf("not-seen") >= 0) fail("presence: " + row[0] + " must get no presence (" + r.statusCode + ")");
+      else pass("presence: " + row[0] + " gets no presence (" + r.statusCode + ")");
+    }
+    delete process.env.AIA_ADMIN_PIN;
+    const statusOf = async function (h) { return (await getAt(h)).statusCode; };
+    if (await statusOf({ "x-workspace": A }) !== 401) fail("presence: stranger gate stays 401"); else pass("presence: stranger gate stays 401");
+    if (await statusOf({ "x-workspace": A, "x-pin": "7013" }) !== 403) fail("presence: waiting gate stays 403"); else pass("presence: waiting gate stays 403");
+    if (await statusOf({ "x-workspace": A, "x-pin": "7014" }) !== 401) fail("presence: denied gate stays 401"); else pass("presence: denied gate stays 401");
+
+    const own2 = await getAt({ "x-workspace": A, "x-pin": ownerPinA });
+    const again = {};
+    (((own2.body && own2.body.presence) || {}).people || []).forEach(function (p) { again[p.id] = p.presence; });
+    const moved = Object.keys(want).filter(function (id) { return id !== "sHelper" && again[id] !== want[id]; });
+    if (moved.length || again.sHelper !== "online") fail("presence: after the helper's own read only the helper turns online, moved " + JSON.stringify(moved) + " helper " + again.sHelper);
+    else pass("presence: after the helper's own read only the helper turns online");
+    if (fs.readFileSync(store, "utf8") !== disk1) fail("presence: no read (member, refused, admin branch) may write the store");
+    else pass("presence: no read (member, refused, admin branch) writes the store");
+  })();
+
   // Mutants for the updated More People assertion. In-memory only.
   function swap(s, from, to) { return s.indexOf(from) < 0 ? null : s.split(from).join(to); }
   const MUTANTS = [

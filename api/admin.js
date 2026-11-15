@@ -200,6 +200,41 @@ function pushTalk(target, from, text, kind) {
   return msg;
 }
 
+// People presence: buckets only, read from the stamp each session already carries (seenAt, set
+// when the session is used). Nothing is written and no time, address, browser or account goes out.
+// A seat counts only through its own sessions on this desk (session.workspace is this desk and
+// session.personId is the seat id) that have not expired. Waiting, denied and removed seats are not
+// on the desk here: not listed, not counted. No live session: "not-seen". Used within the window:
+// "online". Anything else, including a missing, unreadable or future stamp: "offline".
+const PRESENCE_MS = 5 * 60 * 1000;
+const PRESENCE_SKEW_MS = 60 * 1000;
+const PRESENCE_SHUT = ["pending", "denied", "removed"];
+function presenceShut(seat) {
+  return PRESENCE_SHUT.indexOf(String((seat && seat.status) || "").trim().toLowerCase()) >= 0;
+}
+function presenceOf(row, now) {
+  const t = Number.isFinite(now) ? now : Date.now();
+  const people = [];
+  const counts = { online: 0, offline: 0, notSeen: 0 };
+  (row && Array.isArray(row.people) ? row.people : []).forEach((p) => {
+    if (!p || typeof p !== "object" || !p.id || presenceShut(p)) return;
+    let live = false;
+    let seen = NaN;
+    (Array.isArray(mem.sessions) ? mem.sessions : []).forEach((s) => {
+      if (!s || !s.tokenHash || s.workspace !== row.slug || s.personId !== p.id) return;
+      const end = Date.parse(s.expiresAt || "");
+      if (s.expiresAt && Number.isFinite(end) && end <= t) return;
+      live = true;
+      const at = Date.parse(s.seenAt || "");
+      if (Number.isFinite(at) && at - t <= PRESENCE_SKEW_MS && !(at <= seen)) seen = at;
+    });
+    const presence = !live ? "not-seen" : (Number.isFinite(seen) && t - seen <= PRESENCE_MS ? "online" : "offline");
+    people.push({ id: String(p.id), presence: presence });
+    counts[presence === "not-seen" ? "notSeen" : presence] += 1;
+  });
+  return { window: PRESENCE_MS / 1000, people: people, counts: counts };
+}
+
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -252,7 +287,10 @@ module.exports = async function handler(req, res) {
     const owner = isOwner(person);
     const ownAcc = homeAccount(person, row, req);
     const snap = accountSnapshot(row, person, ownAcc && ownAcc.id);
-    return res.status(200).json({ ok: true, you: snap.you, account: snap.account, plan: snap.plan, plans: publicPlans(), shop: snap.shop, counts: jobCounts(row.slug), people: snap.people, approvals: owner ? snap.approvals : [], perms: snap.perms, agents: snap.agents, kinds: snap.kinds, levels: snap.levels, hardOwner: snap.hardOwner, rules: ensureRules(row), tickets: ticketsOf(row.slug), audit: owner ? (mem.audit || []).filter((a) => !a.workspace || a.workspace === row.slug).slice(0, 40) : null, money: owner ? (mem.money || []).filter((m) => !m.workspace || m.workspace === row.slug).slice(0, 40) : null });
+    const deskRead = { ok: true, you: snap.you, account: snap.account, plan: snap.plan, plans: publicPlans(), shop: snap.shop, counts: jobCounts(row.slug), people: snap.people, approvals: owner ? snap.approvals : [], perms: snap.perms, agents: snap.agents, kinds: snap.kinds, levels: snap.levels, hardOwner: snap.hardOwner, rules: ensureRules(row), tickets: ticketsOf(row.slug), audit: owner ? (mem.audit || []).filter((a) => !a.workspace || a.workspace === row.slug).slice(0, 40) : null, money: owner ? (mem.money || []).filter((m) => !m.workspace || m.workspace === row.slug).slice(0, 40) : null };
+    // Presence only for a member whose own seat is still on this desk (a removed seat gets none).
+    if (!presenceShut(person)) deskRead.presence = presenceOf(row, Date.now());
+    return res.status(200).json(deskRead);
   }
 
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Use GET or POST." });
