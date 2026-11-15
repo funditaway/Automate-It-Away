@@ -141,7 +141,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" data-ex="need-week">Need you this week</button>
 <button type="button" data-ex="missing">Missing a fact</button>
 <button type="button" data-ex="money-hand">Money handed off</button>
-<button type="button" data-ex="late-cap">Late on Cap</button>
+<button type="button" data-ex="late-cap">Late, and marked “do this first”</button>
 <button type="button" data-ex="ext">Off the desk</button>
 <button type="button" data-ex="grok">Desk AI drafts</button>
 <button type="button" data-ex="audit-month">Audit this month</button>
@@ -181,7 +181,7 @@ select,input[type=search]{min-height:44px;border:1px solid var(--line);border-ra
 <button type="button" data-flag="money">Money</button>
 <button type="button" data-flag="grok">Desk AI</button>
 <button type="button" data-flag="files">Files</button>
-<button type="button" data-flag="cap">Cap priority</button>
+<button type="button" data-flag="cap">Do this first</button>
 <button type="button" data-flag="missing">Missing</button>
 <button type="button" data-flag="handed">Handed off</button>
 <button type="button" data-flag="late">Late</button>
@@ -462,7 +462,7 @@ function logicLine(){
  if(flags.money)bits.push("has an amount");
  if(flags.grok)bits.push("has a Desk AI draft");
  if(flags.files)bits.push("has a file or photo");
- if(flags.cap)bits.push("Cap priority");
+ if(flags.cap)bits.push("Do this first");
  if(flags.missing)bits.push("missing a fact");
  if(flags.handed)bits.push("handed to someone");
  if(flags.late)bits.push("late or expired");

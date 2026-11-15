@@ -43,7 +43,9 @@ const pkg = read("package.json");
   "On the desk",
   "Coming up",
   "Off desk",
-  "Cap priority",
+  "<button type=\"button\" data-flag=\"cap\">Do this first</button>",
+  "<button type=\"button\" data-ex=\"late-cap\">Late, and marked “do this first”</button>",
+  "if(flags.cap)bits.push(\"Do this first\");",
   "function threadFace",
   "function paintCards",
   "function toast",
@@ -55,6 +57,10 @@ const pkg = read("package.json");
 ].forEach(function (bit) {
   if (history.indexOf(bit) < 0) fail("history.html missing " + bit);
   else pass("history.html " + bit);
+});
+["Cap priority", "Late on Cap"].forEach(function (old) {
+  if (history.indexOf(old) >= 0) fail("history.html still says " + old);
+  else pass("history.html no longer says " + old);
 });
 
 if (history.indexOf("not on this desk") < 0) {
