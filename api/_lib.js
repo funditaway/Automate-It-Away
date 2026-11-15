@@ -1944,8 +1944,9 @@ function seatLooksOwner(person) {
   return role === "owner" || kind === "owner";
 }
 
+// A removed seat left in people[] is shut too: it is not on the desk anymore.
 function seatOpen(person) {
-  return !!(person && person.status !== "pending" && person.status !== "denied");
+  return !!(person && person.status !== "pending" && person.status !== "denied" && person.status !== "removed");
 }
 
 function ownerSeatOf(ws) {
@@ -2046,7 +2047,9 @@ function personOf(req, workspaceSlug) {
       if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
       if (!person && sessionLooksOwner(session)) person = sessionOwnerPerson(session, ws);
     }
-    if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
+    // A removed seat left in people[] is nobody, same as a seat spliced out (sessionSeatGone).
+    if (person && person.status === "removed") person = null;
+    else if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
     if (person && person.status === "denied") return { workspace: ws, person: null, denied: true, session: sessionPublic(session) };
     if (person) return { workspace: ws, person, session: sessionPublic(session) };
   }
@@ -2055,6 +2058,7 @@ function personOf(req, workspaceSlug) {
   const hashed = hashPin(raw);
   const person = (ws.people || []).find((p) => p && p.pin === hashed)
     || (ws.pin === hashed ? ownerSeatOf(ws) : null);
+  if (person && person.status === "removed") return { workspace: ws, person: null };
   if (person && person.status === "pending") return { workspace: ws, person: null, pending: true };
   if (person && person.status === "denied") return { workspace: ws, person: null, denied: true };
   return { workspace: ws, person: person || null };
