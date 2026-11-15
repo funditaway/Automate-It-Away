@@ -51,7 +51,7 @@ const PIN = {
   "api/_grok.js": "9bfc353d37edf476dd6145965c569dccd6e4a141",
   "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
   "api/_job-mask.js": "b34fb96e24646bcc88c3e9453d8a7c638266a132",
-  "api/_lib.js": "7b50885db16de80f1c3f935ccaf0229a6384c4d9",
+  "api/_lib.js": "b2c7fdc0ed7ef348d457f8462fbff64dfc775e7e",
   "api/_plans.js": "ba40c19ea7ba4fd170541764ca30160e3f92e7d3",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
   "api/connections.js": "31b88cef775d46513a329ef11a3aba9e41c9c56e",

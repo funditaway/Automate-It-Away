@@ -11,6 +11,10 @@ require("./_env-guard");
 // 5. A seat left in people[] with status "removed" is shut: its pin and its leftover session are nobody and
 //    cannot change desk rules (403, no write), the same as a spliced-out seat; its plain GET /api/admin
 //    read is exactly a stranger's (no people, no presence).
+// 6. Ways back in stay shut: an opener seat taken out of people[] by hand cannot use its old code (the desk
+//    code) to land on a co-owner's seat; another desk's owner session is nobody here; a padded or trimmed
+//    code, the owner's name or email is not a code. Every refused rules write runs with the owner's talk
+//    draft in the store and its reply carries no part of it.
 // The owner's own desk code and session keep working; owners still deny/remove helpers; a co-owner still denies
 // another co-owner. Runs the real handlers against a temp store. No network.
 const os = require("os");
@@ -253,6 +257,25 @@ async function main() {
 
   // 5. Removed seat left in people[] (legacy / hand-set / import) and who may read /api/rules.
   const rules = require(path.join(root, "api/rules"));
+  // Every refused rules write runs with the owner's talk draft in the store, and its reply must carry no
+  // part of it: not the text, not its when/then/contains/ifMoney fields alone, and no keys past ok/error.
+  const TALK = { text: "Hold anything over $7 that says zebra", when: "upload", then: "stop", ifMoney: 7, contains: "zebra" };
+  function replyClean(b) {
+    const j = JSON.stringify(b || {});
+    const keysOk = !!b && Object.keys(b).every((k) => k === "ok" || k === "error");
+    const parts = [TALK.text, TALK.contains, "$7", '"' + TALK.when + '"', '"' + TALK.then + '"', TALK.when, '"when"', '"then"', '"contains"', '"ifMoney"', '"draft"'];
+    return keysOk && b.ok === false && parts.every((x) => j.indexOf(x) < 0);
+  }
+  async function rulesNo(tag, handler, url, headers, body, codes) {
+    const desk = W(headers["x-workspace"]);
+    if (desk) desk.ruleDraft = JSON.parse(JSON.stringify(TALK));
+    ok(!!desk && !!desk.ruleDraft && desk.ruleDraft.text === TALK.text, tag + ": precondition: the owner's talk draft is in the store");
+    const r = await noWrite(tag, handler, url, headers, body, codes);
+    ok(replyClean(r.body), tag + ": refused reply carries no part of the talk draft (text, when, then, contains, ifMoney)");
+    ok(!!desk && !!desk.ruleDraft && desk.ruleDraft.text === TALK.text && desk.ruleDraft.when === TALK.when, tag + ": the owner's talk draft is untouched");
+    if (desk) desk.ruleDraft = null;
+    return r;
+  }
   const R = "css-rules";
   const rTok = await open(R, "Ria", "5151", "ria@css.test");
   const wr = W(R);
@@ -270,8 +293,8 @@ async function main() {
   ok(!byPin.person && !byPin.pending && !byPin.denied, "[5] removed co-owner's own pin is nobody (not pending/denied, got " + (byPin.person ? byPin.person.id : "none") + ")");
   ok(who(bo.tok, R) === "none", "[5] removed co-owner's leftover session is nobody (got " + who(bo.tok, R) + ")");
   const n0 = ruleTexts().length;
-  await noWrite("[5 rules add, removed co-owner pin]", rules, "/api/rules", { "x-workspace": R, "x-pin": "5252" }, { text: "Removed pin wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
-  await noWrite("[5 rules add, removed co-owner session]", rules, "/api/rules", { "x-workspace": R, "x-session": bo.tok }, { text: "Removed session wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+  await rulesNo("[5 rules add, removed co-owner pin]", rules, "/api/rules", { "x-workspace": R, "x-pin": "5252" }, { text: "Removed pin wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+  await rulesNo("[5 rules add, removed co-owner session]", rules, "/api/rules", { "x-workspace": R, "x-session": bo.tok }, { text: "Removed session wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
   ok(ruleTexts().length === n0, "[5] no rule was added by the removed seat");
   // Plain desk read on GET /api/admin: a removed seat gets exactly what a stranger gets (no member read, no presence).
   const adminGet = (headers) => call(admin, "GET", Object.assign({ "x-workspace": R }, headers), null, "/api/admin");
@@ -291,7 +314,7 @@ async function main() {
   }
   for (const st of ["pending", "denied"]) {
     boSeat.status = st;
-    await noWrite("[5 rules add, " + st + " co-owner pin]", rules, "/api/rules", { "x-workspace": R, "x-pin": "5252" }, { text: st + " wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+    await rulesNo("[5 rules add, " + st + " co-owner pin]", rules, "/api/rules", { "x-workspace": R, "x-pin": "5252" }, { text: st + " wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
   }
   boSeat.status = "removed";
   // The desk's own owner seat marked removed: its pin, the desk code, and its session are nobody; no write.
@@ -302,8 +325,8 @@ async function main() {
   const solSeat = W(R2).people.find((p) => p.id === "p_owner");
   solSeat.status = "removed";
   ok(who(r2Tok, R2) === "none", "[5] removed sole owner's session is nobody (got " + who(r2Tok, R2) + ")");
-  await noWrite("[5 rules add, removed sole owner pin]", rules, "/api/rules", { "x-workspace": R2, "x-pin": "5353" }, { text: "Removed sole pin.", when: "drop", then: "note", contains: "css" }, [403]);
-  await noWrite("[5 rules add, removed sole owner session]", rules, "/api/rules", { "x-workspace": R2, "x-session": r2Tok }, { text: "Removed sole session.", when: "drop", then: "note", contains: "css" }, [403]);
+  await rulesNo("[5 rules add, removed sole owner pin]", rules, "/api/rules", { "x-workspace": R2, "x-pin": "5353" }, { text: "Removed sole pin.", when: "drop", then: "note", contains: "css" }, [403]);
+  await rulesNo("[5 rules add, removed sole owner session]", rules, "/api/rules", { "x-workspace": R2, "x-session": r2Tok }, { text: "Removed sole session.", when: "drop", then: "note", contains: "css" }, [403]);
   solSeat.status = "approved";
   const solBack = await call(rules, "POST", { "x-workspace": R2, "x-session": r2Tok }, { text: "Sol is back.", when: "drop", then: "note", contains: "css" }, "/api/rules");
   ok(solBack.statusCode === 201, "[5 control] same session once the seat is open again adds a rule (" + solBack.statusCode + ")");
@@ -320,6 +343,54 @@ async function main() {
   ok(who(t5, R3) === "p_owner(owner)", "[5 S20] account session with one open + one removed owner seat on its account is the open one (got " + who(t5, R3) + ")");
   const old5 = await call(rules, "POST", { "x-workspace": R3, "x-pin": "5757" }, { text: "Old removed pin.", when: "drop", then: "note", contains: "css" }, "/api/rules");
   ok(old5.statusCode === 403 && !((w5.rules || []).some((x) => x && x.text === "Old removed pin.")), "[5 S20] the removed old seat's own pin cannot add a rule (" + old5.statusCode + ")");
+
+  // 6. Ways back in that must stay shut (all refused writes keep the store byte-unchanged).
+  // 6a. Opener seat taken out of people[] by hand (legacy / import): its old code is still the desk code
+  //     (ws.pin). It must not open the co-owner's seat, write rules, read /api/admin, or sign in.
+  const H = "css-splice";
+  const hTok = await open(H, "Ann", "6060", "ann@splice.test");
+  const hBoId = await inv(H, "6060", "Bo", "6161", "owner");
+  const hw = W(H);
+  hw.people = hw.people.filter((p) => p.id !== "p_owner");
+  ok(!hw.people.some((p) => p.id === "p_owner") && hw.pin === lib.hashPin("6060"), "[6a setup] opener seat is out of people[]; the desk code is still her old code");
+  const hPin = lib.personOf({ headers: { "x-workspace": H, "x-pin": "6060" } }, H);
+  ok(!hPin.person && !hPin.pending && !hPin.denied, "[6a] spliced opener's old code (the desk code) is nobody, not co-owner Bo (got " + (hPin.person ? hPin.person.id : "none") + ")");
+  ok(who(hTok, H) === "none", "[6a] spliced opener's leftover session is nobody (got " + who(hTok, H) + ")");
+  await rulesNo("[6a rules add, spliced opener old code]", rules, "/api/rules", { "x-workspace": H, "x-pin": "6060" }, { text: "Spliced code wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+  await rulesNo("[6a rules add, spliced opener session]", rules, "/api/rules", { "x-workspace": H, "x-session": hTok }, { text: "Spliced session wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+  const hStr = await call(admin, "GET", { "x-workspace": H }, null, "/api/admin");
+  const hGet = await call(admin, "GET", { "x-workspace": H, "x-pin": "6060" }, null, "/api/admin");
+  ok(hGet.statusCode === hStr.statusCode && JSON.stringify(hGet.body) === JSON.stringify(hStr.body), "[6a] spliced opener's old code reads /api/admin exactly as a stranger (" + hGet.statusCode + ")");
+  const hLogin = await pinLogin(H, "6060");
+  ok(!hLogin.tok, "[6a] spliced opener's old code signs in to nothing (" + hLogin.code + ")");
+  const hBo = await call(rules, "POST", { "x-workspace": H, "x-pin": "6161" }, { text: "Bo still writes.", when: "drop", then: "note", contains: "css" }, "/api/rules");
+  ok(hBo.statusCode === 201, "[6a control] co-owner Bo's own code still adds a rule (" + hBo.statusCode + ")");
+  // Control: on a normal desk the desk code still opens the owner seat (desk code == owner code).
+  const G = "css-deskcode";
+  await open(G, "Gus", "6262", "gus@deskcode.test");
+  const gWho = lib.personOf({ headers: { "x-workspace": G, "x-pin": "6262" } }, G);
+  ok(!!gWho.person && gWho.person.id === "p_owner" && lib.isOwner(gWho.person), "[6a control] the desk code still opens the desk's own owner seat");
+  // 6b. Another desk's owner session (desk-code and opener sessions) on this desk: nobody, no write.
+  const O = "css-other";
+  const oTok = await open(O, "Oz", "6363", "oz@other.test");
+  const oPin = await pinLogin(O, "6363");
+  for (const t of [["opener session", oTok], ["desk-code session", oPin.tok]]) {
+    ok(who(t[1], R) === "none", "[6b] desk " + O + " owner's " + t[0] + " is nobody on desk " + R + " (got " + who(t[1], R) + ")");
+    await rulesNo("[6b rules add, other desk owner's " + t[0] + "]", rules, "/api/rules", { "x-workspace": R, "x-session": t[1] }, { text: "Foreign session wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+    await rulesNo("[6b rules add, other desk owner's " + t[0] + " + wrong code]", rules, "/api/rules", { "x-workspace": R, "x-session": t[1], "x-pin": "0000" }, { text: "Foreign session+code wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+  }
+  // 6c. Near-miss codes: padded or trimmed owner code, the owner's name in any case, her email, empty.
+  for (const c of [["padded", " 5151 "], ["trailing space", "5151 "], ["leading space", " 5151"], ["tab", "5151\t"], ["owner name", "Ria"], ["owner name lower", "ria"], ["owner name upper", "RIA"], ["owner email", "ria@css.test"], ["empty", ""]]) {
+    const pw = lib.personOf({ headers: { "x-workspace": R, "x-pin": c[1] } }, R);
+    ok(!pw.person && !pw.pending && !pw.denied, "[6c " + c[0] + "] is nobody as a code (got " + (pw.person ? pw.person.id : "none") + ")");
+    await rulesNo("[6c rules add, " + c[0] + " as code]", rules, "/api/rules", { "x-workspace": R, "x-pin": c[1] }, { text: c[0] + " wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+    if (c[1]) {
+      const lg = await pinLogin(R, c[1]);
+      ok(!lg.tok, "[6c " + c[0] + "] signs in to nothing (" + lg.code + ")");
+    }
+  }
+  const exact = await call(rules, "POST", { "x-workspace": R, "x-pin": "5151" }, { text: "Exact code still writes.", when: "drop", then: "note", contains: "css" }, "/api/rules");
+  ok(exact.statusCode === 201, "[6c control] the exact owner code still adds a rule (" + exact.statusCode + ")");
 
   console.log((failed ? "FAIL" : "PASS") + " check-closed-seat-session: " + (asserts - failed) + "/" + asserts + " asserts");
   try { fs.unlinkSync(STORE); } catch (e) {}

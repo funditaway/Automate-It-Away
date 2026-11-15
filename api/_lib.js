@@ -2056,8 +2056,11 @@ function personOf(req, workspaceSlug) {
   const raw = String(headers["x-pin"] || "");
   if (!raw) return { workspace: ws, person: null };
   const hashed = hashPin(raw);
+  // The desk code (ws.pin) only opens an open owner seat that has no code of its own (legacy rows).
+  // It never lands on a co-owner who holds a different code: a seat taken out of people[] keeps no
+  // way back in through the desk code it left behind.
   const person = (ws.people || []).find((p) => p && p.pin === hashed)
-    || (ws.pin === hashed ? ownerSeatOf(ws) : null);
+    || (ws.pin === hashed ? ((ws.people || []).find((p) => seatOpen(p) && seatLooksOwner(p) && !p.pin) || null) : null);
   if (person && person.status === "removed") return { workspace: ws, person: null };
   if (person && person.status === "pending") return { workspace: ws, person: null, pending: true };
   if (person && person.status === "denied") return { workspace: ws, person: null, denied: true };
