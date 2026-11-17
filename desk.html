@@ -383,7 +383,7 @@
         : (typeof approveCard === "function"
           ? `<button class="go q-yes" onclick="approveCard('${id}')">Yes</button>`
           : `<button class="go q-yes" type="button">Yes</button>`);
-      return `<article class="item${approved ? " q-approved" : ""}" data-job="${esc(id)}"><div class="meta">${esc(labelStatus(j.status))} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${photo ? `<img class="thumb" src="${esc(photo)}" alt="AIA">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${id}')">Open</button>${hitl}${staff ? "" : `<button class="kill" onclick="kill('${id}')">Stop</button>`}</div></article>`;
+      return `<article class="item${approved ? " q-approved" : ""}" data-job="${esc(id)}"><div class="meta">${esc(labelStatus(j.status))} · ${esc(AIADesks.stepNoun(j.step, NOUNS))}${j.risk && j.risk !== "none" ? " · " + esc(j.risk) : ""}</div><h3>${esc(j.title)}</h3>${photo ? `<img class="thumb" src="${esc(photo)}" alt="">` : ""}${why ? `<p>${esc(why)}</p>` : ""}${j.draft ? `<div class="draft">${esc(j.draft)}</div>` : ""}<p class="meta">${esc(next)}</p><div class="row"><button class="edit" onclick="openJob('${id}')">Open</button>${hitl}${staff ? "" : `<button class="kill" onclick="kill('${id}')">Stop</button>`}</div></article>`;
     }
     async function load() {
       if (wsEl.value) {
