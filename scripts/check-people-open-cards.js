@@ -830,6 +830,65 @@ async function main() {
     }
     eq("refused polls write nothing", writes, 0);
 
+    // 9. Probe P10 / P11 / P7 / P16. Every legacy desk's owner seat is "p_owner" (ensurePeople).
+    // P10: a session on ANOTHER desk with the same seat id never feeds this desk's last-seen, and
+    // never merges or hides this desk's offline / online pair. P11: another session's future stamp
+    // (clock skew) is not a last-seen either.
+    const E = "presence-log-e";
+    const F = "presence-log-f";
+    const deskE = { slug: E, name: "Presence E", biz: E, pin: hashPin("6153"), createdAt: iso(T0 - 86400000) };
+    const deskF = { slug: F, name: "Presence F", biz: F, pin: hashPin("6154"), createdAt: iso(T0 - 86400000) };
+    ensurePeople(deskE);
+    ensurePeople(deskF);
+    mem.workspaces.unshift(deskE, deskF);
+    eq("legacy owners on E and F share the seat id p_owner", [deskE.people[0].id, deskF.people[0].id], ["p_owner", "p_owner"]);
+    const TE = T0 + 10 * 86400000 + 2 * 3600000;
+    const stepIso = function (ms) { return iso(Math.floor(ms / (5 * MIN)) * 5 * MIN); };
+    await at(TE, async function () {
+      tok.eOwn = lib.issueSession(deskE.people[0], deskE, null, reqH);
+      tok.eSkew = lib.issueSession(deskE.people[0], deskE, null, reqH);
+      tok.fOwn = lib.issueSession(deskF.people[0], deskF, null, reqH);
+    });
+    rowOf(tok.eSkew).stampAt = iso(TE + 1000 * MIN);
+    await lib.save();
+    const eLog = function () { return logOf(deskE, "p_owner").map(function (e) { return [e.kind, e.at]; }); };
+    eq("E owner login: one came-online", eLog(), [["online", stepIso(TE)]]);
+    await get(TE + 20 * MIN, H(tok.fOwn, F), { view: "presence" });
+    await get(TE + 45 * MIN, H(tok.fOwn, F), { view: "presence" });
+    eq("F owner's own pair is F's (off at login+5, on at +20)", logOf(deskF, "p_owner").map(function (e) { return [e.kind, e.at]; }).slice(0, 3), [["online", stepIso(TE)], ["offline", stepIso(TE + 5 * MIN)], ["online", stepIso(TE + 20 * MIN)]]);
+    eq("F's reads write nothing on E", eLog(), [["online", stepIso(TE)]]);
+    await get(TE + 50 * MIN, H(tok.eOwn, E), { view: "presence" });
+    eq("E owner back after 50 min: pair from E's own stamp, not F's (5 min ago) or the future stamp", eLog(), [["online", stepIso(TE)], ["offline", stepIso(TE + 5 * MIN)], ["online", stepIso(TE + 50 * MIN)]]);
+    await get(TE + 70 * MIN, H(tok.fOwn, F), { view: "presence" });
+    await get(TE + 90 * MIN, H(tok.eOwn, E), { view: "presence" });
+    eq("E's last-seen is E's own +50 stamp, not F's +70", eLog().slice(3), [["offline", stepIso(TE + 55 * MIN)], ["online", stepIso(TE + 90 * MIN)]]);
+
+    // P7: the per-seat cap of 12 counts a rolling 24 h: an entry exactly 24 h old is out, 24 h - 1 ms is in.
+    const TL = TE + 2 * 86400000;
+    deskE.people.push(seat("cOut", "Cap Out", "approved"), seat("cIn", "Cap In", "approved"));
+    const capSeed = function (id, edgeAt) {
+      const list = [{ seat: id, kind: "online", at: iso(edgeAt) }];
+      for (let i = 0; i < 11; i += 1) list.push({ seat: id, kind: i % 2 ? "online" : "offline", at: stepIso(TL - (11 - i) * 60 * MIN) });
+      list[list.length - 1].kind = "offline";
+      return list;
+    };
+    deskE.presenceLog = deskE.presenceLog.concat(capSeed("cOut", TL - 86400000), capSeed("cIn", TL - 86400000 + 1));
+    await at(TL, async function () {
+      tok.cOut = lib.issueSession(seatOf(deskE, "cOut"), deskE, null, reqH);
+      tok.cIn = lib.issueSession(seatOf(deskE, "cIn"), deskE, null, reqH);
+    });
+    eq("cap edge: entry exactly 24 h old is out of the window (11 + 1 = 12 is written)", logOf(deskE, "cOut").length, 13);
+    eq("cap edge: entry 24 h - 1 ms old is in the window (12 + 1 = 13 is refused)", logOf(deskE, "cIn").length, 12);
+    await lib.save();
+
+    // P16: while a stamp is due, the reply waits until the stamp save is done.
+    let writesAtReply = -1;
+    const heldRes = mockRes();
+    heldRes.json = function (b) { writesAtReply = writes; this.body = b; return this; };
+    writes = 0;
+    await at(TL + 30 * MIN, function () { return admin({ method: "GET", headers: H(tok.cOut, E), body: {}, query: { view: "presence" } }, heldRes); });
+    eq("a due stamp: the reply is sent only after its save (1 write before the reply)", [writesAtReply, writes, heldRes.statusCode], [1, 1, 200]);
+
     fs.writeFileSync = realWrite;
   })();
 
