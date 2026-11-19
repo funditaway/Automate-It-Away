@@ -57,6 +57,14 @@ mustNot(help, "sub-agent mesh", "help mesh");
 must(more, 'href="/how#together"', "more Together link");
 must(more, "Together on one card", "more Together title");
 must(more, 'data-aia-tip="together"', "more together tip");
+// Row 10 (James-approved plain words, More only): the Together tile line, exactly once, inside its link.
+const ROW10 = "People, desk AIs, and helper accounts.";
+const ROW10_SUB = '<span class="more-sub">' + ROW10 + ' One card, one idea. AI prepares. You verify.</span>';
+function count(hay, needle) { return hay.split(needle).length - 1; }
+if (count(more, ROW10) !== 1) throw new Error("more row 10 must appear exactly once (got " + count(more, ROW10) + "): " + ROW10);
+must(more, '<a class="more-go" href="/how#together">Together on one card\n        ' + ROW10_SUB + "</a>", "more row 10 inside the Together link");
+mustNot(more, "Humans, Desk AIs, and SIs.", "more old row 10 line");
+mustNot(more, "Humans, Desk AIs, and SIs", "more old row 10 words");
 
 must(tip, '"together"', "together tip");
 must(tip, '"si-aia"', "si-aia tip");
