@@ -1,3 +1,4 @@
+"use strict";
 require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
@@ -214,7 +215,7 @@ function descendants(node, out) {
 }
 
 class DNode {
-  constructor(doc) { this.ownerDocument = doc; this.parentNode = null; this.childNodes = []; this._ls = {}; }
+  constructor(doc) { this.ownerDocument = doc; this.parentNode = null; this.childNodes = []; this._ls = {}; NODES.add(this); }
   get firstChild() { return this.childNodes[0] || null; }
   get lastChild() { return this.childNodes[this.childNodes.length - 1] || null; }
   get nextSibling() { const p = this.parentNode; return p ? p.childNodes[p.childNodes.indexOf(this) + 1] || null : null; }
@@ -231,7 +232,7 @@ class DNode {
   append() { for (const n of arguments) this.appendChild(typeof n === "string" ? this._doc().createTextNode(n) : n); }
   prepend() { const f = this.firstChild; for (const n of arguments) this.insertBefore(typeof n === "string" ? this._doc().createTextNode(n) : n, f); }
   insertBefore(n, ref) {
-    if (!n || !(n instanceof DNode)) throw new TypeError("insertBefore: not a node");
+    if (!n || !NODES.has(n)) throw new TypeError("insertBefore: not a node");
     if (n.nodeType === 11) { for (const c of n.childNodes.slice()) this.insertBefore(c, ref); return n; }
     if (n.contains(this)) throw new Error("HierarchyRequestError");
     if (ref === undefined) ref = null;
@@ -240,15 +241,26 @@ class DNode {
     const at = ref === null ? this.childNodes.length : this.childNodes.indexOf(ref);
     this.childNodes.splice(at, 0, n);
     n.parentNode = this;
-    this._doc()._mutated(this);
+    this._doc()._mutated(this, [n], []);
     return n;
   }
-  _unlink(n) { const k = this.childNodes.indexOf(n); if (k >= 0) this.childNodes.splice(k, 1); n.parentNode = null; this._doc()._mutated(this); }
+  _unlink(n) { const k = this.childNodes.indexOf(n); if (k >= 0) this.childNodes.splice(k, 1); n.parentNode = null; this._doc()._mutated(this, [], [n]); }
   removeChild(n) { if (!n || n.parentNode !== this) throw new Error("NotFoundError: removeChild"); this._unlink(n); return n; }
   replaceChild(n, old) { this.insertBefore(n, old); return this.removeChild(old); }
   remove() { if (this.parentNode) this.parentNode.removeChild(this); }
   contains(n) { for (; n; n = n.parentNode) if (n === this) return true; return false; }
   hasChildNodes() { return this.childNodes.length > 0; }
+  getRootNode() { let n = this; while (n.parentNode) n = n.parentNode; return n; }
+  cloneNode(deep) {
+    const d = this._doc();
+    let c;
+    if (this.nodeType === 1) { c = new DElement(d, this.localName); this._attrs.forEach(function (v, k) { c._attrs.set(k, v); }); if (deep && this.content) this.content.childNodes.forEach(function (k) { c.content.appendChild(k.cloneNode(true)); }); }
+    else if (this.nodeType === 3 || this.nodeType === 8) c = new DText(d, this.data, this.nodeType);
+    else if (this.nodeType === 11) c = new DFragment(d);
+    else throw new Error("NotSupportedError: cloneNode of a document");
+    if (deep) this.childNodes.forEach(function (k) { c.appendChild(k.cloneNode(true)); });
+    return c;
+  }
   get textContent() {
     if (this.nodeType === 3 || this.nodeType === 8) return this.data;
     let t = "";
@@ -272,14 +284,23 @@ class DNode {
   addEventListener(type, fn) { if (typeof fn !== "function" && !(fn && fn.handleEvent)) return; (this._ls[type] = this._ls[type] || []).push(fn); }
   removeEventListener(type, fn) { const l = this._ls[type]; if (l) { const k = l.indexOf(fn); if (k >= 0) l.splice(k, 1); } }
   dispatchEvent(ev) {
+    if (!ev || HOSTS.get(ev) !== "an event") throw new TypeError("dispatchEvent: not an Event");
     if (!ev.target) ev.target = this;
     ev.currentTarget = this;
+    const d = this._doc();
     for (const fn of (this._ls[ev.type] || []).slice()) {
-      try { typeof fn === "function" ? fn.call(this, ev) : fn.handleEvent(ev); }
-      catch (e) { this._doc()._errors.push(ev.type + " listener threw: " + (e && e.message)); }
+      try { typeof fn === "function" ? d._call(fn, this, [ev]) : d._call(fn.handleEvent, fn, [ev]); }
+      catch (e) { d._errors.push(ev.type + " listener threw: " + (e && e.message)); }
     }
-    if (ev.bubbles && !ev._stopped && this.parentNode) this.parentNode.dispatchEvent(ev);
-    else if (ev.bubbles && !ev._stopped && this.nodeType === 9 && this._win) this._win.dispatchEvent(ev);
+    // on<type> handler: a function property, or a handler attribute string compiled in the page.
+    try {
+      const own = Object.prototype.hasOwnProperty.call(this, "on" + ev.type) ? this["on" + ev.type] : null;
+      if (typeof own === "function") d._call(own, this, [ev]);
+      else if (this.nodeType === 1 && this.hasAttribute("on" + ev.type) && d._handler) d._call(d._handler(this.getAttribute("on" + ev.type), "on" + ev.type), this, [ev]);
+    } catch (e) { d._errors.push("on" + ev.type + " handler threw: " + (e && e.message)); }
+    const stopped = STOPPED.has(ev);
+    if (ev.bubbles && !stopped && this.parentNode) this.parentNode.dispatchEvent(ev);
+    else if (ev.bubbles && !stopped && this.nodeType === 9 && this._win) this._win.dispatchEvent(ev);
     return !ev.defaultPrevented;
   }
 }
@@ -296,9 +317,9 @@ class DElement extends DNode {
     this.nodeType = 1;
     this.localName = String(name).toLowerCase();
     this._attrs = new Map();
-    this.style = makeStyle();
-    this.dataset = makeDataset(this);
-    if (this.localName === "template") this.content = new DFragment(doc);
+    this.style = new DStyle();
+    this.dataset = new DDataset(this);
+    if (this.localName === "template") Object.defineProperty(this, "content", { value: new DFragment(doc), writable: false, enumerable: true, configurable: false });
   }
   get tagName() { return this.localName.toUpperCase(); }
   get nodeName() { return this.tagName; }
@@ -396,6 +417,8 @@ class DDocument extends DNode {
     this.readyState = "loading";
     this._observers = [];
     this._errors = [];
+    this._call = function (fn, self, args) { return fn.apply(self, args); };
+    this._handler = null;
     this._quiet = true;
     const html = this.createElement("html");
     html.appendChild(this.createElement("head"));
@@ -416,12 +439,12 @@ class DDocument extends DNode {
   getElementById(id) { id = String(id); return descendants(this, []).filter(function (e) { return e.getAttribute("id") === id; })[0] || null; }
   getElementsByTagName(t) { return this.querySelectorAll(t); }
   getElementsByClassName(c) { return this.querySelectorAll(String(c).trim().split(/\s+/).map(function (k) { return "." + k; }).join("")); }
-  _mutated(target) {
+  _mutated(target, added, removed) {
     if (this._quiet || !this._observers.length) return;
     for (const o of this._observers) {
       if (!o.root) continue;
       if (o.opts && o.opts.subtree ? !o.root.contains(target) : target !== o.root) continue;
-      o.records.push({ type: "childList", target: target });
+      o.records.push(hostify({ type: "childList", target: target, addedNodes: added || [], removedNodes: removed || [], previousSibling: null, nextSibling: null, attributeName: null, attributeNamespace: null, oldValue: null }, "a MutationRecord"));
       if (!o.queued) {
         o.queued = true;
         const doc = this;
@@ -429,7 +452,7 @@ class DDocument extends DNode {
           o.queued = false;
           if (!o.root || !o.records.length) return;
           const recs = o.records; o.records = [];
-          try { o.cb(recs, o.api); } catch (e) { doc._errors.push("MutationObserver callback threw: " + (e && e.message)); }
+          try { doc._call(o.cb, o.api, [recs, o.api]); } catch (e) { doc._errors.push("MutationObserver callback threw: " + (e && e.message)); }
         });
       }
     }
@@ -565,138 +588,259 @@ class DStorage {
   get length() { return this._m.size; }
 }
 
-// ---- strict host objects ----
-// Every object page code can reach (window / self / globalThis, document and every node, navigator,
-// location, screen, performance, console, storage, style, classList, dataset, media query lists,
-// events, observers) ends in a recording proxy, so a property, method or "in" test the stub does
-// not model is recorded instead of reading as a quiet undefined/false. Own-key reflection
+// ---- strict host objects: one membrane ----
+// Page code never holds a stub object. Every stub object it can reach (window / self, document and
+// every node, navigator, location, screen, performance, console, storage, style, classList,
+// dataset, media query lists, events, observers, records, rects, the stub's functions and
+// prototypes) is handed out through ONE membrane: wrap(raw) gives a cached Proxy per object,
+// arguments and `this` coming back in are unwrapped, and only the stub's own code works on raw
+// objects. Through a membrane proxy, a property, method, "in" test, write, own-key reflection
 // (hasOwnProperty, Object.keys / getOwnPropertyNames / getOwnPropertyDescriptor, Reflect.ownKeys,
-// for-in, prototype walks) on those objects is recorded too, unless on window it names a modelled
-// API or a JS built-in. Only accesses made by page code count (the stack's first non-native frame
-// is not this file); the DOM's own internals may probe freely. Any record FAILs the page run.
+// for-in, JSON.stringify) or prototype walk the stub does not model is recorded. There is no
+// call-stack test and no attribution: EVERY unknown access through a proxy is recorded, whoever
+// made it (page code from any file name, eval, new Function, natives, timers, promise jobs). The
+// stub's internals never meet a proxy (they only see raw objects), and the renders prove it: zero
+// records in every state, including after the check's own counting has walked the rendered page.
+// Any record FAILs the page run.
 let ACTIVE_DOC = null;
 const SETUP_FILE = "check-header-setup";
-const SAFE_KEYS = new Set(["then", "toJSON", "inspect", "toString", "valueOf", "toLocaleString", "nodeType", "asymmetricMatch", "$$typeof"]);
+// Duck-typing probes that any wrapper sees (promise / JSON / inspector checks): absent, not recorded.
+const SAFE_KEYS = new Set(["then", "toJSON", "inspect", "nodeType", "asymmetricMatch", "$$typeof"]);
+const OBJ_KNOWN = new Set(["toString", "valueOf", "toLocaleString"]);
+const FN_KNOWN = new Set(["call", "apply", "bind", "name", "length", "toString"]);
 const REFLECTIVE = new Set(["hasOwnProperty", "propertyIsEnumerable", "isPrototypeOf", "__lookupGetter__", "__lookupSetter__", "__defineGetter__", "__defineSetter__"]);
+// Own data properties of nodes that are the stub's bookkeeping, read-only to page code.
+const NODE_FIXED = new Set(["ownerDocument", "parentNode", "childNodes", "nodeType", "localName", "style", "dataset", "content"]);
 const HOSTS = new WeakMap();
-function pageCaller(skip) {
-  const prep = Error.prepareStackTrace, lim = Error.stackTraceLimit;
-  let cs = [];
-  try {
-    Error.stackTraceLimit = 16;
-    Error.prepareStackTrace = function (e, sites) { return sites; };
-    const o = {};
-    Error.captureStackTrace(o, skip);
-    cs = o.stack || [];
-  } finally { Error.prepareStackTrace = prep; Error.stackTraceLimit = lim; }
-  for (const c of cs) {
-    const f = c.getFileName && c.getFileName();
-    if (!f || /^node:/.test(f) || f === "<anonymous>" || c.isNative && c.isNative()) continue;
-    return f !== __filename && f !== SETUP_FILE;
-  }
-  return false;
-}
-function record(msg, skip) { if (ACTIVE_DOC && pageCaller(skip)) ACTIVE_DOC._errors.push(msg + " (the check-header page does not model it)"); }
+const NODES = new WeakSet();
+const STOPPED = new WeakSet(); // stopped events, kept off the event object
+const RAWS = new WeakSet();    // every raw stub object the membrane has ever wrapped
+const PROXIES = new WeakMap(); // membrane proxy -> raw stub object
+const NULL_RAW = new WeakSet(); // stub objects made with a null prototype
+const OUTER_OP = Object.prototype, OUTER_FP = Function.prototype;
+function record(msg) { if (ACTIVE_DOC) ACTIVE_DOC._errors.push(msg + " (the check-header page does not model it)"); }
 function hostName(o, fallback) {
   const h = HOSTS.get(o);
   if (h) return h;
-  if (o instanceof DNode) return o.nodeType === 9 ? "document" : o.nodeType === 1 ? "<" + o.localName + ">" : "a DOM node";
-  return fallback;
+  if (NODES.has(o)) return o.nodeType === 9 ? "document" : o.nodeType === 1 ? "<" + o.localName + ">" : "a DOM node";
+  if (typeof o === "function") return "function " + (o.name || "(anonymous)");
+  return fallback || "a stub object";
 }
-function hostLabel(o) {
-  if (o === null || (typeof o !== "object" && typeof o !== "function")) return null;
-  const h = HOSTS.get(o);
-  if (h) return h;
-  return o instanceof DNode ? hostName(o) : null;
+function hostify(obj, label) { HOSTS.set(obj, label); return obj; }
+// A stub object: made in this file's realm (its prototype chain reaches this realm's
+// Object.prototype / Function.prototype), not by page code in the page's vm realm.
+function isOuter(o) {
+  if (o === null || (typeof o !== "object" && typeof o !== "function") || PROXIES.has(o)) return false;
+  if (RAWS.has(o) || NULL_RAW.has(o)) return true;
+  let p = o;
+  for (let i = 0; i < 64 && p; i++) {
+    if (p === OUTER_OP || p === OUTER_FP) return true;
+    if (PROXIES.has(p)) return false;
+    try { p = Reflect.getPrototypeOf(p); } catch (e) { return false; }
+  }
+  return false;
+}
+// Is k something the stub models on raw: its own key, or one from its prototypes up to (not
+// including) this realm's Object.prototype / Function.prototype. Stub bookkeeping (_x) is not.
+function modelled(raw, k) {
+  if (typeof k === "string" && k.charAt(0) === "_") return false;
+  for (let o = raw; o && o !== OUTER_OP && o !== OUTER_FP; o = Reflect.getPrototypeOf(o)) if (Object.prototype.hasOwnProperty.call(o, k)) return true;
+  return false;
+}
+function findDesc(raw, k) {
+  for (let o = raw; o && o !== OUTER_OP && o !== OUTER_FP; o = Reflect.getPrototypeOf(o)) { const d = Reflect.getOwnPropertyDescriptor(o, k); if (d) return { d: d, own: o === raw }; }
+  return null;
 }
 const reflectiveCache = new Map();
 function reflectiveFn(k) {
   if (reflectiveCache.has(k)) return reflectiveCache.get(k);
   const orig = Object.prototype[k];
   const f = function () {
-    record("page code called " + hostName(this, "a host object") + "." + k + "(" + (arguments.length ? String(arguments[0]) : "") + ")", f);
+    record("page code called " + hostName(this, "a host object") + "." + k + "(" + (arguments.length ? String(arguments[0]) : "") + ")");
     return orig.apply(this, arguments);
   };
   reflectiveCache.set(k, f);
   return f;
 }
-function hostTail(label) {
-  const handler = {
-    get: function get(t, k, r) {
-      if (typeof k === "symbol" || SAFE_KEYS.has(k)) return Reflect.get(t, k, r);
-      if (REFLECTIVE.has(k)) return reflectiveFn(k);
-      record("page code read " + hostName(r, label) + "." + k, get);
-      return Reflect.get(t, k, r);
-    },
-    has: function has(t, k) {
-      if (typeof k !== "symbol" && !SAFE_KEYS.has(k)) record("page code tested '" + k + "' in " + label, has);
-      return Reflect.has(t, k);
-    },
-    ownKeys: function ownKeys(t) { record("page code enumerated the keys of " + label, ownKeys); return Reflect.ownKeys(t); },
-    getPrototypeOf: function getPrototypeOf(t) { record("page code walked the prototype chain of " + label, getPrototypeOf); return Reflect.getPrototypeOf(t); }
-  };
-  return new Proxy(Object.prototype, handler);
-}
-const TAILS = new Map();
-function tailFor(label) { if (!TAILS.has(label)) TAILS.set(label, hostTail(label)); return TAILS.get(label); }
-function hostify(obj, label) { if (Object.getPrototypeOf(obj) === Object.prototype) Object.setPrototypeOf(obj, tailFor(label)); HOSTS.set(obj, label); return obj; }
-Object.setPrototypeOf(DNode.prototype, tailFor("a DOM node"));
 // A real element's constructor is HTMLDivElement and so on; the stub's classes are not that, so
-// page code reading .constructor reaches the recorder instead.
+// page code reading .constructor is recorded (and reaches the page realm's Object, never this one's).
 [DNode, DText, DElement, DFragment, DDocument, DStorage].forEach(function (C) { delete C.prototype.constructor; });
-Object.setPrototypeOf(DStorage.prototype, tailFor("Storage"));
+// style: unset CSS properties read as "" (as in a browser); methods are modelled; enumerating it,
+// testing a name with "in", or reading a non-CSS name is recorded.
+class DStyle {
+  constructor() { this._s = Object.create(null); NULL_RAW.add(this._s); HOSTS.set(this, "style"); }
+  setProperty(k, v) { this._s[String(k)] = String(v); }
+  getPropertyValue(k) { return this._s[String(k)] || ""; }
+  removeProperty(k) { const v = this._s[String(k)] || ""; delete this._s[String(k)]; return v; }
+  get cssText() { const t = this._s; return Object.keys(t).map(function (n) { return n + ": " + t[n]; }).join("; "); }
+}
+// dataset: a live view of the data-* attributes, as in a browser (missing keys read undefined).
+class DDataset { constructor(el) { this._el = el; HOSTS.set(this, "dataset"); } }
+[DStyle, DDataset].forEach(function (C) { delete C.prototype.constructor; });
+const dsAttr = function (k) { return "data-" + String(k).replace(/[A-Z]/g, function (c) { return "-" + c.toLowerCase(); }); };
+const dsProp = function (a) { return a.slice(5).replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); }); };
+// Membrane hooks for the two stub objects with open-ended keys. NOPE = fall through to the rules.
+const NOPE = {};
+function specialGet(raw, k) {
+  if (raw instanceof DStyle) {
+    if (typeof k !== "string" || modelled(raw, k)) return NOPE;
+    if (/^(--|[a-z][a-zA-Z]*$)/.test(k)) return raw._s[k] === undefined ? "" : raw._s[k];
+    return NOPE;
+  }
+  if (raw instanceof DDataset) { if (typeof k !== "string") return undefined; const v = raw._el.getAttribute(dsAttr(k)); return v === null ? undefined : v; }
+  return NOPE;
+}
+function specialSet(raw, k, v) {
+  if (raw instanceof DStyle && typeof k === "string" && !modelled(raw, k) && /^(--|[a-z][a-zA-Z]*$)/.test(k)) { raw._s[k] = String(v); return true; }
+  if (raw instanceof DDataset && typeof k === "string") { raw._el.setAttribute(dsAttr(k), v); return true; }
+  return false;
+}
+function isDataset(raw) { return raw instanceof DDataset; }
 function makeEvent(type, bubbles, extra) {
   const e = hostify({
     type: type, bubbles: !!bubbles, cancelable: true, composed: false, isTrusted: true, defaultPrevented: false,
     target: null, currentTarget: null, timeStamp: 0, eventPhase: 0,
     preventDefault: function () { this.defaultPrevented = true; },
-    stopPropagation: function () { this._stopped = true; },
-    stopImmediatePropagation: function () { this._stopped = true; }
+    stopPropagation: function () { STOPPED.add(this); },
+    stopImmediatePropagation: function () { STOPPED.add(this); },
+    composedPath: function () {
+      const out = [];
+      for (let n = this.target; n && NODES.has(n); n = n.parentNode) out.push(n);
+      const top = out[out.length - 1];
+      if (top && top.nodeType === 9 && top._win) out.push(top._win);
+      else if (this.target && !NODES.has(this.target)) out.push(this.target);
+      return out;
+    }
   }, "an event");
   if (extra) Object.assign(e, extra);
   return e;
 }
-// style: unset CSS properties read as "" (as in a browser); methods are modelled; enumerating it,
-// or testing a name with "in", is recorded.
-function makeStyle() {
-  const store = Object.create(null);
-  const api = {
-    setProperty: function (k, v) { store[String(k)] = String(v); },
-    getPropertyValue: function (k) { return store[String(k)] || ""; },
-    removeProperty: function (k) { const v = store[String(k)] || ""; delete store[String(k)]; return v; }
+// The membrane for one window. V: the page realm's intrinsics (so a stub Object / Function /
+// Error never reaches page code: they map to the page realm's own).
+function makeMembrane(V) {
+  const cache = new WeakMap();
+  const intrinsics = new Map();
+  ["Object", "Function", "Array", "Error", "TypeError", "RangeError", "SyntaxError", "ReferenceError", "EvalError", "URIError", "Promise", "Map", "Set", "WeakMap", "WeakSet", "Symbol", "String", "Number", "Boolean", "RegExp", "Date", "BigInt"].forEach(function (n) {
+    intrinsics.set(globalThis[n], V[n]);
+    if (globalThis[n].prototype) intrinsics.set(globalThis[n].prototype, V[n].prototype);
+  });
+  ["JSON", "Math", "Reflect"].forEach(function (n) { intrinsics.set(globalThis[n], V[n]); });
+  // Object.prototype / Function.prototype members (call, apply, bind, toString, hasOwnProperty,
+  // Symbol.hasInstance, ...) are the page realm's own: a stub function's .call runs the page's
+  // call on the proxy, so `this` still goes through the membrane.
+  [[OUTER_OP, V.Object.prototype], [OUTER_FP, V.Function.prototype]].forEach(function (pair) {
+    Reflect.ownKeys(pair[0]).forEach(function (k) {
+      const d = Reflect.getOwnPropertyDescriptor(pair[0], k), e = Reflect.getOwnPropertyDescriptor(pair[1], k);
+      if (d && e && typeof d.value === "function" && typeof e.value === "function") intrinsics.set(d.value, e.value);
+    });
+  });
+  const toPage = function (e) {
+    if (!isOuter(e)) return e;
+    const C = e && typeof e.name === "string" && intrinsics.has(globalThis[e.name]) && /Error$/.test(e.name) ? V[e.name] : V.Error;
+    return new C(String(e && e.message));
   };
-  const px = new Proxy(store, {
-    get: function get(t, k) {
-      if (typeof k === "symbol" || SAFE_KEYS.has(k)) return undefined;
-      if (Object.prototype.hasOwnProperty.call(api, k)) return api[k];
-      if (k === "cssText") return Object.keys(t).map(function (n) { return n + ": " + t[n]; }).join("; ");
-      if (/^(--|[a-z][a-zA-Z]*$)/.test(k)) return t[k] === undefined ? "" : t[k];
-      record("page code read style." + k, get);
-      return undefined;
-    },
-    set: function (t, k, v) { t[k] = String(v); return true; },
-    has: function has(t, k) { record("page code tested '" + String(k) + "' in style", has); return k in t || Object.prototype.hasOwnProperty.call(api, k); },
-    ownKeys: function ownKeys(t) { record("page code enumerated style", ownKeys); return Reflect.ownKeys(t); },
-    getPrototypeOf: function getPrototypeOf() { record("page code walked the prototype chain of style", getPrototypeOf); return null; }
-  });
-  HOSTS.set(px, "style");
-  return px;
-}
-// dataset: a live view of the data-* attributes, as in a browser (missing keys read undefined).
-function makeDataset(el) {
-  const attr = function (k) { return "data-" + String(k).replace(/[A-Z]/g, function (c) { return "-" + c.toLowerCase(); }); };
-  const prop = function (a) { return a.slice(5).replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); }); };
-  const keys = function () { return el.getAttributeNames().filter(function (a) { return /^data-/.test(a); }).map(prop); };
-  const px = new Proxy(Object.create(null), {
-    get: function (t, k) { if (typeof k === "symbol") return undefined; const v = el.getAttribute(attr(k)); return v === null ? undefined : v; },
-    set: function (t, k, v) { el.setAttribute(attr(k), v); return true; },
-    has: function (t, k) { return typeof k === "string" && el.hasAttribute(attr(k)); },
-    deleteProperty: function (t, k) { el.removeAttribute(attr(k)); return true; },
-    ownKeys: function () { return keys(); },
-    getOwnPropertyDescriptor: function (t, k) { const v = typeof k === "string" ? el.getAttribute(attr(k)) : null; return v === null ? undefined : { value: v, writable: true, enumerable: true, configurable: true }; }
-  });
-  HOSTS.set(px, "dataset");
-  return px;
+  const aliases = new WeakMap(); // page-realm objects that stand for a stub object (globalThis for window)
+  const unwrap = function (v) { return PROXIES.has(v) ? PROXIES.get(v) : aliases.has(v) ? aliases.get(v) : v; };
+  // A stub method runs only on a stub object (or on nothing): called on a page object it would
+  // hand that object raw stub objects, so it throws, like a browser's "Illegal invocation".
+  const selfOf = function (self) {
+    const r = unwrap(self);
+    if (r !== null && (typeof r === "object" || typeof r === "function") && !isOuter(r)) throw new V.TypeError("Illegal invocation");
+    return r;
+  };
+  const wrap = function (v) {
+    if (v === null || (typeof v !== "object" && typeof v !== "function")) return v;
+    if (PROXIES.has(v)) return v;
+    if (intrinsics.has(v)) return intrinsics.get(v);
+    if (cache.has(v)) return cache.get(v);
+    if (!isOuter(v)) return v;
+    if (Array.isArray(v)) return V.Array.from(v, function (x) { return wrap(x); }); // a page-realm snapshot (NodeList-like)
+    const raw = v;
+    const label = function () { return hostName(raw); };
+    const fn = typeof raw === "function";
+    const handler = {
+      get: function (t, k) {
+        const sp = specialGet(raw, k);
+        if (sp !== NOPE) return wrap(sp);
+        if (typeof k === "symbol") return wrap(Reflect.get(raw, k, raw));
+        if (modelled(raw, k) || (fn && FN_KNOWN.has(k)) || OBJ_KNOWN.has(k)) return wrap(Reflect.get(raw, k, raw));
+        if (SAFE_KEYS.has(k)) return undefined;
+        if (REFLECTIVE.has(k)) return wrap(reflectiveFn(k));
+        record("page code read " + label() + "." + k);
+        return k in raw ? wrap(Reflect.get(raw, k, raw)) : undefined;
+      },
+      has: function (t, k) {
+        if (isDataset(raw)) return typeof k === "string" && raw._el.hasAttribute(dsAttr(k));
+        if (typeof k === "symbol") return Reflect.has(raw, k);
+        if (!(raw instanceof DStyle) && (modelled(raw, k) || (fn && FN_KNOWN.has(k)))) return true;
+        if (SAFE_KEYS.has(k) && !(raw instanceof DStyle)) return false;
+        record("page code tested '" + String(k) + "' in " + label());
+        return k in raw;
+      },
+      set: function (t, k, v) {
+        v = unwrap(v);
+        if (specialSet(raw, k, v)) return true;
+        if (typeof k === "symbol" || (typeof k === "string" && k.charAt(0) === "_")) { record("page code set " + label() + "[" + String(k) + "]"); return true; }
+        const f = findDesc(raw, k);
+        if (f && f.d.set) { Reflect.apply(f.d.set, raw, [v]); return true; }
+        if (f && f.d.get) { record("page code set read-only " + label() + "." + k); return true; }
+        if (f && f.own && f.d.writable && !(NODES.has(raw) && NODE_FIXED.has(k))) { raw[k] = v; return true; }
+        if (!f && /^on[a-z]+$/.test(k)) { Object.defineProperty(raw, k, { value: v, writable: true, enumerable: true, configurable: true }); return true; }
+        record("page code set " + label() + "." + k);
+        if (!f) Object.defineProperty(raw, k, { value: v, writable: true, enumerable: true, configurable: true });
+        return true;
+      },
+      deleteProperty: function (t, k) {
+        if (isDataset(raw)) { raw._el.removeAttribute(dsAttr(k)); return true; }
+        record("page code deleted " + label() + "." + String(k));
+        return true;
+      },
+      ownKeys: function () {
+        if (isDataset(raw)) return raw._el.getAttributeNames().filter(function (a) { return /^data-/.test(a); }).map(dsProp);
+        record("page code listed " + label() + " with ownKeys (enumerated the keys of " + label() + ")");
+        return Reflect.ownKeys(raw).filter(function (k) { return k !== "prototype" || !fn; });
+      },
+      getOwnPropertyDescriptor: function (t, k) {
+        if (isDataset(raw)) { const v = typeof k === "string" ? raw._el.getAttribute(dsAttr(k)) : null; return v === null ? undefined : { value: v, writable: true, enumerable: true, configurable: true }; }
+        record("page code asked whether " + label() + " owns '" + String(k) + "'");
+        const d = Reflect.getOwnPropertyDescriptor(raw, k);
+        if (!d) return undefined;
+        const out = { enumerable: d.enumerable, configurable: true };
+        if ("value" in d) { out.value = wrap(d.value); out.writable = d.writable; } else { out.get = wrap(d.get); out.set = wrap(d.set); }
+        return out;
+      },
+      defineProperty: function (t, k) { record("page code defined " + label() + "." + String(k)); return false; },
+      getPrototypeOf: function () { record("page code listed " + label() + " with getPrototypeOf (walked the prototype chain of " + label() + ")"); return wrap(Reflect.getPrototypeOf(raw)); },
+      setPrototypeOf: function () { record("page code set the prototype of " + label()); return false; },
+      preventExtensions: function () { record("page code froze " + label()); return false; },
+      isExtensible: function () { return true; }
+    };
+    if (fn) {
+      handler.apply = function (t, self, args) {
+        let r;
+        const s0 = selfOf(self);
+        try { r = Reflect.apply(raw, s0, Array.prototype.map.call(args, unwrap)); } catch (e) { throw toPage(e); }
+        return wrap(r);
+      };
+      handler.construct = function (t, args) {
+        let r;
+        try { r = Reflect.construct(raw, Array.prototype.map.call(args, unwrap)); } catch (e) { throw toPage(e); }
+        return wrap(r);
+      };
+    }
+    const px = new Proxy(fn ? (function () {}).bind(null) : Object.create(null), handler);
+    RAWS.add(raw); PROXIES.set(px, raw); cache.set(raw, px);
+    return px;
+  };
+  // The stub calling page code (listeners, timers, rAF, observers, microtasks): `this` and every
+  // argument go through the membrane. A stub function is called raw.
+  const callPage = function (fnRaw, self, args) {
+    if (isOuter(fnRaw)) return fnRaw.apply(self, args);
+    return Reflect.apply(fnRaw, wrap(self), args.map(wrap));
+  };
+  const register = function (raw, px) { RAWS.add(raw); PROXIES.set(px, raw); cache.set(raw, px); };
+  const alias = function (pageObj, raw) { aliases.set(pageObj, raw); };
+  return { wrap: wrap, unwrap: unwrap, callPage: callPage, register: register, alias: alias };
 }
 // matchMedia: a real evaluator for media types, not/only, and, comma lists, and the features
 // min-/max-width, width, min-/max-height, height (px, em, rem), orientation, prefers-color-scheme
@@ -797,37 +941,47 @@ function makeWindow(html, pagePath, phone) {
     setInterval: function (fn, ms) { return addTimer(fn, ms, Array.prototype.slice.call(arguments, 2), true); },
     clearTimeout: clearTimer,
     clearInterval: clearTimer,
-    requestAnimationFrame: function (fn) { return addTimer(function () { fn(clock); }, 16, [], false); },
+    requestAnimationFrame: function (fn) { return addTimer(function () { doc._call(fn, win, [clock]); }, 16, [], false); },
+    queueMicrotask: function (fn) {
+      if (typeof fn !== "function") throw new TypeError("queueMicrotask: not a function");
+      queueMicrotask(function () { try { doc._call(fn, win, []); } catch (e) { doc._errors.push("microtask threw: " + (e && e.message)); } });
+    },
     cancelAnimationFrame: clearTimer,
     getComputedStyle: function () { return { getPropertyValue: function () { return ""; } }; },
-    addEventListener: function (t, fn) { (ls[t] = ls[t] || []).push(fn); },
+    addEventListener: function (t, fn) { if (typeof fn !== "function" && !(fn && fn.handleEvent)) return; (ls[t] = ls[t] || []).push(fn); },
     removeEventListener: function (t, fn) { const l = ls[t]; if (l && l.indexOf(fn) >= 0) l.splice(l.indexOf(fn), 1); },
     dispatchEvent: function (ev) {
+      if (!ev || HOSTS.get(ev) !== "an event") throw new TypeError("dispatchEvent: not an Event");
+      if (!ev.target) ev.target = doc;
+      ev.currentTarget = win;
       for (const fn of (ls[ev.type] || []).slice()) {
-        try { fn.call(win, ev); } catch (e) { doc._errors.push("window " + ev.type + " listener threw: " + (e && e.message)); }
+        try { typeof fn === "function" ? doc._call(fn, win, [ev]) : doc._call(fn.handleEvent, fn, [ev]); }
+        catch (e) { doc._errors.push("window " + ev.type + " listener threw: " + (e && e.message)); }
       }
+      try { const hd = Object.getOwnPropertyDescriptor(sandbox, "on" + ev.type); const h = hd && hd.value; if (typeof h === "function") doc._call(h, win, [ev]); }
+      catch (e) { doc._errors.push("window on" + ev.type + " threw: " + (e && e.message)); }
       return true;
     },
     MutationObserver: function (cb) {
       const o = { cb: cb, root: null, opts: null, records: [], queued: false };
-      o.api = this;
-      this.observe = function (root, opts) { o.root = root; o.opts = opts || {}; if (doc._observers.indexOf(o) < 0) doc._observers.push(o); };
+      o.api = this; hostify(this, "a MutationObserver");
+      this.observe = function (root, opts) { if (!NODES.has(root)) throw new TypeError("MutationObserver.observe: not a node"); o.root = root; o.opts = opts || {}; if (doc._observers.indexOf(o) < 0) doc._observers.push(o); };
       this.disconnect = function () { o.root = null; o.records = []; const k = doc._observers.indexOf(o); if (k >= 0) doc._observers.splice(k, 1); };
       this.takeRecords = function () { const r = o.records; o.records = []; return r; };
     },
-    Event: function (type, init) { this.type = type; this.bubbles = !!(init && init.bubbles); },
+    Event: function (type, init) { this.type = String(type); this.bubbles = !!(init && init.bubbles); hostify(this, "an event"); },
     // ResizeObserver: one callback a frame after observe() (and after every observe of a new
     // target), with a plausible box. IntersectionObserver: one callback right after observe(),
     // the header is on screen.
     ResizeObserver: function (cb) {
-      const api = this, seen = new Set();
+      const api = hostify(this, "a ResizeObserver"), seen = new Set();
       this.observe = function (el) {
         if (seen.has(el)) return; seen.add(el);
         addTimer(function () {
           if (!seen.has(el)) return;
           const w = phone ? 390 : 1280, hgt = 56;
           const box = { x: 0, y: 0, top: 0, left: 0, width: w, height: hgt, right: w, bottom: hgt };
-          try { cb([{ target: el, contentRect: box, borderBoxSize: [{ inlineSize: w, blockSize: hgt }], contentBoxSize: [{ inlineSize: w, blockSize: hgt }], devicePixelContentBoxSize: [{ inlineSize: w, blockSize: hgt }] }], api); }
+          try { doc._call(cb, api, [[{ target: el, contentRect: box, borderBoxSize: [{ inlineSize: w, blockSize: hgt }], contentBoxSize: [{ inlineSize: w, blockSize: hgt }], devicePixelContentBoxSize: [{ inlineSize: w, blockSize: hgt }] }], api]); }
           catch (e) { doc._errors.push("ResizeObserver callback threw: " + (e && e.message)); }
         }, 16, [], false);
       };
@@ -835,7 +989,7 @@ function makeWindow(html, pagePath, phone) {
       this.disconnect = function () { seen.clear(); };
     },
     IntersectionObserver: function (cb, opts) {
-      const api = this, seen = new Set();
+      const api = hostify(this, "an IntersectionObserver"), seen = new Set();
       this.root = (opts && opts.root) || null; this.rootMargin = (opts && opts.rootMargin) || "0px"; this.thresholds = [].concat((opts && opts.threshold) || 0);
       this.observe = function (el) {
         if (seen.has(el)) return; seen.add(el);
@@ -843,7 +997,7 @@ function makeWindow(html, pagePath, phone) {
           if (!seen.has(el)) return;
           const w = phone ? 390 : 1280;
           const box = { x: 0, y: 0, top: 0, left: 0, width: w, height: 56, right: w, bottom: 56 };
-          try { cb([{ target: el, isIntersecting: true, intersectionRatio: 1, boundingClientRect: box, intersectionRect: box, rootBounds: { x: 0, y: 0, top: 0, left: 0, width: w, height: phone ? 844 : 900, right: w, bottom: phone ? 844 : 900 }, time: clock }], api); }
+          try { doc._call(cb, api, [[{ target: el, isIntersecting: true, intersectionRatio: 1, boundingClientRect: box, intersectionRect: box, rootBounds: { x: 0, y: 0, top: 0, left: 0, width: w, height: phone ? 844 : 900, right: w, bottom: phone ? 844 : 900 }, time: clock }], api]); }
           catch (e) { doc._errors.push("IntersectionObserver callback threw: " + (e && e.message)); }
         }, 0, [], false);
       };
@@ -855,70 +1009,84 @@ function makeWindow(html, pagePath, phone) {
   // window itself has no Object.prototype: Object.prototype methods on window come from this
   // window's own realm (where own-key reflection is checked), as in a browser.
   Object.setPrototypeOf(win, null);
-  ["MutationObserver", "ResizeObserver", "IntersectionObserver", "Event"].forEach(function (k) { Object.setPrototypeOf(win[k].prototype, tailFor("a " + k)); });
-  // Unknown browser globals FAIL: a bare name, window.X, self.X or "X" in window that the stub
-  // does not model is recorded, so code gated on a missing API cannot quietly skip. Bare names
+  NULL_RAW.add(win);
+  // The page's global is a separate sandbox holding membrane-wrapped values; `win` stays raw for
+  // the stub. Unknown browser globals FAIL: a bare name, window.X, self.X or "X" in window that the
+  // stub does not model is recorded, so code gated on a missing API cannot quietly skip. Bare names
   // reach a recording proxy at the end of the global's prototype chain (JS built-ins and the
   // stub's own globals are found first); window / self are a recording view of the same global.
+  // The sandbox is made in an empty helper realm: it holds only page-visible values and has no
+  // prototype, so even a bare-name setter that sees it (Node passes the sandbox as `this`) gets
+  // nothing of the stub's.
+  const sandbox = vm.runInContext("Object.create(null)", vm.createContext({}), { filename: SETUP_FILE });
   const unknown = function (k) {
-    if (typeof k !== "string" || k in win || JS_BUILTINS.has(k) || (protoTarget && k in protoTarget)) return;
+    if (typeof k !== "string" || k in sandbox || JS_BUILTINS.has(k) || (protoTarget && k in protoTarget)) return;
     doc._errors.push("page code read browser global '" + k + "', which the check-header window does not model");
   };
   let protoTarget = null;
-  vm.createContext(win);
-  const realGlobal = vm.runInContext("globalThis", win, { filename: SETUP_FILE });
-  protoTarget = vm.runInContext("Object.getPrototypeOf(globalThis)", win, { filename: SETUP_FILE });
-  const tail = new Proxy(protoTarget, {
-    has: function (t, k) { if (k in t) return true; unknown(k); return false; },
-    get: function (t, k, r) { if (k in t) return Reflect.get(t, k, r); unknown(k); return undefined; }
-  });
-  win.__aiaTail = tail;
-  vm.runInContext("Object.setPrototypeOf(globalThis, __aiaTail);", win, { filename: SETUP_FILE });
-  delete win.__aiaTail;
-  const winKnown = function (k) { return typeof k === "symbol" || Object.prototype.hasOwnProperty.call(win, k) || JS_BUILTINS.has(k); };
-  const gwin = new Proxy(win, {
-    get: function get(t, k) {
-      if (k === "constructor" || k === "__proto__") record("page code read window." + k, get);
-      if (k in t) return Reflect.get(t, k);
+  vm.createContext(sandbox);
+  const realGlobal = vm.runInContext("globalThis", sandbox, { filename: SETUP_FILE });
+  protoTarget = vm.runInContext("Object.getPrototypeOf(globalThis)", sandbox, { filename: SETUP_FILE });
+  const V = vm.runInContext("({ Object, Function, Array, Error, TypeError, RangeError, SyntaxError, ReferenceError, EvalError, URIError, Promise, Map, Set, WeakMap, WeakSet, Symbol, String, Number, Boolean, RegExp, Date, BigInt, JSON, Math, Reflect })", sandbox, { filename: SETUP_FILE });
+  const M = makeMembrane(V);
+  const winKnown = function (k) { return typeof k === "symbol" || Object.prototype.hasOwnProperty.call(sandbox, k) || JS_BUILTINS.has(k); };
+  const gwin = new Proxy(sandbox, {
+    get: function (t, k) {
+      if (k === "constructor" || k === "__proto__") record("page code read window." + k);
+      const d = Reflect.getOwnPropertyDescriptor(t, k);
+      if (d) return d.get ? Reflect.apply(d.get, realGlobal, []) : "value" in d ? d.value : undefined;
       unknown(k); return realGlobal[k];
     },
     has: function (t, k) { if (k in t) return true; unknown(k); return k in realGlobal; },
-    set: function (t, k, v) { t[k] = v; return true; },
-    getOwnPropertyDescriptor: function getOwnPropertyDescriptor(t, k) {
-      if (!winKnown(k)) record("page code asked whether window owns '" + String(k) + "'", getOwnPropertyDescriptor);
+    set: function (t, k, v) {
+      const d = Reflect.getOwnPropertyDescriptor(t, k);
+      if (d && (d.get || d.set)) { if (d.set) Reflect.apply(d.set, realGlobal, [v]); return true; }
+      t[k] = v; return true;
+    },
+    getOwnPropertyDescriptor: function (t, k) {
+      if (!winKnown(k)) record("page code asked whether window owns '" + String(k) + "'");
       const d = Reflect.getOwnPropertyDescriptor(t, k);
       if (d || !JS_BUILTINS.has(k)) return d;
       const b = Reflect.getOwnPropertyDescriptor(realGlobal, k);
       return b ? Object.assign({}, b, { configurable: true }) : undefined;
     },
-    ownKeys: function ownKeys(t) { record("page code enumerated the keys of window", ownKeys); return Reflect.ownKeys(t); },
-    getPrototypeOf: function getPrototypeOf(t) { record("page code walked the prototype chain of window", getPrototypeOf); return Reflect.getPrototypeOf(t); }
+    ownKeys: function (t) { record("page code enumerated the keys of window"); return Reflect.ownKeys(t); },
+    getPrototypeOf: function () { record("page code walked the prototype chain of window"); return protoTarget; },
+    setPrototypeOf: function () { record("page code set the prototype of window"); return false; },
+    defineProperty: function (t, k, d) { return Reflect.defineProperty(t, k, d); }
   });
-  win.window = gwin;
-  win.self = gwin;
-  doc._win = gwin;
-  HOSTS.set(win, "window"); HOSTS.set(gwin, "window"); HOSTS.set(realGlobal, "window");
-  // Own-key reflection from page code goes through this window's Object / Reflect: on window it
-  // must name a modelled API or a JS built-in; on any other host object it is recorded.
-  const VObject = vm.runInContext("Object", win, { filename: SETUP_FILE });
-  const VReflect = vm.runInContext("Reflect", win, { filename: SETUP_FILE });
-  const VJSON = vm.runInContext("JSON", win, { filename: SETUP_FILE });
-  const ownCheck = function (o, k, how, skip) {
-    const h = hostLabel(o);
-    if (!h || h === "dataset") return; // dataset is a full model of the data-* attributes
-    if (h === "window") { if (!winKnown(k)) record("page code asked " + how + " whether window owns '" + String(k) + "'", skip); }
-    else record("page code asked " + how + " whether " + h + " owns '" + String(k) + "'", skip);
-  };
+  M.register(win, gwin);
+  M.alias(realGlobal, win);
+  HOSTS.set(win, "window");
+  Object.keys(win).forEach(function (k) { sandbox[k] = M.wrap(win[k]); });
+  sandbox.window = gwin;
+  sandbox.self = gwin;
+  doc._win = win;
+  doc._call = M.callPage;
+  doc._handler = function (code, name) { return vm.runInContext("(function (event) {\n" + code + "\n})", sandbox, { filename: pagePath + " " + name + " attribute" }); };
+  const tail = new Proxy(protoTarget, {
+    has: function (t, k) { if (k in t) return true; unknown(k); return false; },
+    get: function (t, k, r) { if (k in t) return Reflect.get(t, k, r); unknown(k); return undefined; }
+  });
+  sandbox.__aiaTail = tail;
+  vm.runInContext("Object.setPrototypeOf(globalThis, __aiaTail);", sandbox, { filename: SETUP_FILE });
+  delete sandbox.__aiaTail;
+  // Own-key reflection on window from page code goes through this window's Object / Reflect: it
+  // must name a modelled API or a JS built-in. (Every other stub object is a membrane proxy whose
+  // own traps record reflection.)
+  const VObject = V.Object, VReflect = V.Reflect, VJSON = V.JSON;
+  const isWin = function (o) { return o === gwin || o === realGlobal; };
+  const ownCheck = function (o, k, how) { if (isWin(o) && !winKnown(k)) record("page code asked " + how + " whether window owns '" + String(k) + "'"); };
   const keyed = function (holder, name) {
     const orig = holder[name];
-    const f = function (o, k) { ownCheck(o, k, name, f); return orig.apply(this, arguments); };
+    const f = function (o, k) { ownCheck(o, k, name); return orig.apply(this, arguments); };
     Object.defineProperty(holder, name, { value: f, writable: true, configurable: true });
   };
   const listing = function (holder, name, all) {
     const orig = holder[name];
     const f = function () {
       const objs = all ? Array.prototype.slice.call(arguments, 1) : [arguments[0]];
-      objs.forEach(function (o) { const h = hostLabel(o); if (h && h !== "dataset") record("page code listed " + h + " with " + name, f); });
+      objs.forEach(function (o) { if (isWin(o)) record("page code listed window with " + name); });
       return orig.apply(this, arguments);
     };
     Object.defineProperty(holder, name, { value: f, writable: true, configurable: true });
@@ -929,7 +1097,7 @@ function makeWindow(html, pagePath, phone) {
   listing(VObject, "assign", true); listing(VJSON, "stringify", false);
   ["hasOwnProperty", "propertyIsEnumerable"].forEach(function (n) {
     const orig = VObject.prototype[n];
-    const f = function (k) { ownCheck(this, k, n, f); return orig.apply(this, arguments); };
+    const f = function (k) { ownCheck(this, k, n); return orig.apply(this, arguments); };
     Object.defineProperty(VObject.prototype, n, { value: f, writable: true, configurable: true });
   });
   const settle = function () { return new Promise(function (r) { setImmediate(r); }); };
@@ -937,9 +1105,11 @@ function makeWindow(html, pagePath, phone) {
   return {
     window: win,
     document: doc,
+    sandbox: sandbox,
+    membrane: M,
     errors: doc._errors,
     pendingTimers: function () { return timers.length; },
-    run: function (src) { ACTIVE_DOC = doc; vm.runInContext(src, win, { filename: "theme.js", timeout: 2000 }); },
+    run: function (src, filename) { ACTIVE_DOC = doc; vm.runInContext(src, sandbox, { filename: filename || "theme.js", timeout: 2000 }); },
     // pageshow / pagehide carry persisted (false on a normal load, true on a back/forward restore).
     pageEvent: async function (type, persisted) {
       const e = ev(type, false); e.persisted = !!persisted;
@@ -985,7 +1155,7 @@ function makeWindow(html, pagePath, phone) {
         if (!t || t.at > until || ++guard > 5000) break;
         clock = t.at;
         if (t.every) t.at += t.every; else timers.shift();
-        try { typeof t.fn === "function" ? t.fn.apply(win, t.args) : vm.runInContext(String(t.fn), win); }
+        try { typeof t.fn === "function" ? doc._call(t.fn, win, t.args) : vm.runInContext(String(t.fn), sandbox, { filename: "timer string" }); }
         catch (e) { doc._errors.push("timer threw: " + (e && e.message)); }
         await settle();
       }
@@ -1174,6 +1344,169 @@ async function hostSelfTest() {
   if (bad.length) fail("check-header strict host self-test: " + bad.join("; "));
   else pass("check-header strict host self-test (" + trips.length + " unmodelled reads, own-key reflections and bad media queries recorded; " + dups.length + " width/media/screen duplicates shown at 1280 and 390; ordinary page code clean)");
 }
+// Membrane self-test. (1) Dynamic code and every way to run page code the stub offers, each made
+// to touch an unmodelled API: all must be recorded, whatever file name, realm entry or callback
+// it comes through (Probe D2 / D24 / D25 and their siblings; there is no stack rule to dodge).
+// (2) No raw stub object ever reaches page code: every value page code can get (prototype walks,
+// event / observer / record members, node links up to document and window, query and creation
+// results, media query lists, `this` in every callback the stub runs, bind / toString on stub
+// methods, .caller and stack-frame this / function seen from every callback (the file is strict, so
+// no stub function is ever a sloppy .caller), every getter and own key of every stub object, every
+// window global) is a membrane
+// proxy or a page-realm value, never in the RAWS WeakSet of wrapped raw targets.
+async function membraneSelfTest() {
+  const bad = [];
+  const page = '<!doctype html><html><head></head><body><header class="site-header"><div class="hdr-tools"></div></header><template id="tp"><b>t</b></template></body></html>';
+  const run = async function (code, filename) {
+    const w = makeWindow(page, "/selftest", false);
+    try { w.run(code, filename); } catch (e) { w.errors.push("threw: " + e.message); }
+    await w.settle();
+    await w.load();
+    await w.advance(1000);
+    await w.drain();
+    return w;
+  };
+  const trips = [
+    ["D2 new Function(...)() reading document.fonts", 'new Function("if (document.fonts && document.fonts.ready) {}")();', /document\.fonts/],
+    ["D24 setTimeout(new Function(...)) testing 'fonts' in document", 'setTimeout(new Function("if (\'fonts\' in document) {}"), 0);', /'fonts' in document/],
+    ["D25 new Function(...) listing navigator", 'new Function("Object.keys(navigator)")();', /listed navigator/],
+    ["indirect eval (0, eval)", '(0, eval)("if (navigator.userAgentData) {}");', /navigator\.userAgentData/],
+    ["direct eval", 'eval("if (document.documentElement.animate) {}");', /<html>\.animate/],
+    ["Function.prototype.constructor via a callback", 'document.addEventListener("DOMContentLoaded", function () { (function () {}).constructor("if (document.fonts) {}")(); });', /document\.fonts/],
+    ["Function.prototype.constructor.call in a listener", 'window.addEventListener("load", function () { Function.prototype.constructor.call(null, "if (document.body.getAnimations) {}")(); });', /<body>\.getAnimations/],
+    ["a stub method's .constructor as Function", 'document.querySelector.constructor("if (document.fonts) {}")();', /document\.fonts/],
+    ["queueMicrotask(new Function(...))", 'queueMicrotask(new Function("if (document.fonts) {}"));', /document\.fonts/],
+    ["requestAnimationFrame(new Function(...))", 'requestAnimationFrame(new Function("if (document.body.getAnimations) {}"));', /<body>\.getAnimations/],
+    ["MutationObserver callback built with new Function", 'var mo = new MutationObserver(new Function("recs", "if (recs[0].target.animate) {}")); mo.observe(document.body, { childList: true, subtree: true }); document.body.appendChild(document.createElement("i"));', /<body>\.animate/],
+    ["ResizeObserver callback built with new Function", 'new ResizeObserver(new Function("en", "if (en[0].target.computedStyleMap) {}")).observe(document.body);', /computedStyleMap/],
+    ["IntersectionObserver callback built with new Function", 'new IntersectionObserver(new Function("en", "if (en[0].rootBounds.toJSONX) {}")).observe(document.body);', /toJSONX/],
+    ["event handler attribute string", 'document.body.setAttribute("onclick", "if (document.fonts) {}"); document.body.click();', /document\.fonts/],
+    ["handler attribute in the parsed page", 'var hb = document.createElement("div"); hb.innerHTML = \'<button onclick="if (navigator.userAgentData) {}">x</button>\'; document.body.appendChild(hb); hb.firstChild.click();', /navigator\.userAgentData/],
+    ["on<type> property built with new Function", 'document.body.onclick = new Function("if (\'fonts\' in document) {}"); document.body.click();', /'fonts' in document/],
+    ["window.onload built with new Function", 'window.onload = new Function("if (navigator.userAgentData) {}");', /navigator\.userAgentData/],
+    ["handleEvent object built with new Function", 'document.addEventListener("DOMContentLoaded", { handleEvent: new Function("e", "if (e.target.fonts) {}") });', /document\.fonts/],
+    ["timer string", 'setTimeout("if (document.fonts) {}", 0);', /document\.fonts/],
+    ["promise job", 'Promise.resolve().then(function () { if (document.fonts) {} });', /document\.fonts/],
+    ["native caller: Reflect.get", 'Reflect.get(document, "fonts");', /document\.fonts/],
+    ["native caller: Array.prototype.map with a bound native", '["fonts"].map(Reflect.has.bind(null, document));', /'fonts' in document/],
+    ["native caller: JSON.stringify(navigator)", 'JSON.stringify(navigator);', /listed navigator/],
+    ["native caller: Object.assign from location", 'Object.assign({}, location);', /listed location/],
+    ["page script named like this check (vm file name = check-header.js)", 'if (document.fonts) {}', /document\.fonts/, __filename],
+    ["page script named like the check's setup file", 'if (document.fonts) {}', /document\.fonts/, SETUP_FILE],
+    ["page script named node:internal", 'if (document.fonts) {}', /document\.fonts/, "node:internal/vm"],
+    ["iframe.contentWindow", 'var fr = document.createElement("iframe"); if (fr.contentWindow) {}', /<iframe>\.contentWindow/],
+    ["Object.defineProperty on an element", 'try { Object.defineProperty(document.body, "x", { value: 1 }); } catch (e) {}', /defined <body>\.x/],
+    ["Object.setPrototypeOf on an element", 'try { Object.setPrototypeOf(document.body, null); } catch (e) {}', /prototype of <body>/],
+    ["writing stub bookkeeping", 'document.body._ls = {};', /set <body>\[_ls\]/],
+    ["reading stub bookkeeping", 'if (document._errors) {}', /document\._errors/],
+    ["replacing a node link", 'document.body.parentNode = null;', /set <body>\.parentNode/],
+    ["unmodelled write", 'navigator.vibrateX = 1;', /set navigator\.vibrateX/],
+    ["a stub error's constructor chain", 'try { document.body.insertBefore({}, null); } catch (e) { e.constructor.constructor("if (document.fonts) {}")(); }', /document\.fonts/],
+    ["Object.getPrototypeOf(document) then walking it", 'var pd = Object.getPrototypeOf(document); if (pd.fonts) {}', /listed document with getPrototypeOf/],
+    ["getter lifted off a prototype", 'var gd = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(document.body), "tagName");', /owns 'tagName'/],
+    ["deleting a member", 'delete document.body.click;', /deleted <body>\.click/]
+  ];
+  for (const [name, code, re, filename] of trips) {
+    const w = await run(code, filename);
+    if (!w.errors.some(function (e) { return re.test(e); })) bad.push(name + " must be recorded (got: " + (w.errors[0] || "nothing") + ")");
+  }
+  // No raw object leaks.
+  const leaked = function (v) { return v !== null && (typeof v === "object" || typeof v === "function") && (RAWS.has(v) || NODES.has(v) || HOSTS.has(v) || isOuter(v)); };
+  const probe = [
+    'var S = []; function see(n, v, k) { S.push([n, v, k || "p"]); } var OK = [];',
+    'function same(n, a, b) { if (a !== b) OK.push(n); }',
+    'var h = document.querySelector("header"), tools = h.querySelector(".hdr-tools");',
+    'see("Object.getPrototypeOf(document)", Object.getPrototypeOf(document)); see("document.__proto__", document.__proto__); see("document.__proto__.__proto__", document.__proto__.__proto__);',
+    'see("document.constructor", document.constructor, "any"); see("document.constructor.prototype", document.constructor.prototype, "any"); same("document.constructor is the page Object", document.constructor, Object);',
+    'see("h.constructor.prototype", h.constructor.prototype, "any"); see("Object.getPrototypeOf(h)", Object.getPrototypeOf(h)); see("Object.getPrototypeOf(window)", Object.getPrototypeOf(window), "any");',
+    'see("h.ownerDocument", h.ownerDocument); see("h.parentNode", h.parentNode); see("h.parentElement", h.parentElement); see("body.parentElement", document.body.parentElement);',
+    'see("html.parentNode", document.documentElement.parentNode); see("document.defaultView", document.defaultView); see("h.ownerDocument.defaultView", h.ownerDocument.defaultView);',
+    'same("document.defaultView === window", document.defaultView, window); same("h.ownerDocument === document", h.ownerDocument, document); same("html.parentNode === document", document.documentElement.parentNode, document);',
+    'see("querySelector", document.querySelector("header")); see("querySelectorAll", document.querySelectorAll("div, header"), "a"); see("children", document.body.children, "a"); see("childNodes", document.body.childNodes, "a");',
+    'see("firstChild", document.body.firstChild); see("firstElementChild", h.firstElementChild); see("lastChild", document.body.lastChild); see("nextSibling", h.nextSibling); see("cloneNode", h.cloneNode(true)); see("cloneNode child", h.cloneNode(true).firstChild);',
+    'see("createElement", document.createElement("i")); see("createTextNode", document.createTextNode("t")); see("createDocumentFragment", document.createDocumentFragment()); see("getRootNode", h.getRootNode()); see("detached getRootNode", document.createElement("i").getRootNode());',
+    'see("getElementById", document.getElementById("tp")); see("template.content", document.getElementById("tp").content); see("closest", tools.closest("header")); see("documentElement", document.documentElement); see("head", document.head); see("body", document.body);',
+    'var mq = matchMedia("(max-width: 860px)"); see("matchMedia(...)", mq); see("matchMedia(...).media", mq.media, "s"); see("mq.addEventListener", mq.addEventListener);',
+    'see("style", h.style); see("dataset", h.dataset); see("classList", h.classList); see("getBoundingClientRect()", h.getBoundingClientRect()); see("attributes", h.attributes, "a");',
+    'see("window.document", window.document); see("self", self); see("localStorage", localStorage); see("location", location); see("navigator", navigator); see("navigator.languages", navigator.languages, "any"); see("screen", screen); see("performance", performance); see("console", console);',
+    'h.addEventListener("click", function (e) { see("listener this", this); same("listener this === currentTarget", this, e.currentTarget); see("event", e); see("e.target", e.target); see("e.currentTarget", e.currentTarget); see("e.composedPath()", e.composedPath(), "a"); same("composedPath ends at window", e.composedPath()[e.composedPath().length - 1], window); });',
+    'document.addEventListener("click", { handleEvent: function (e) { see("handleEvent this", this, "any"); see("handleEvent e.currentTarget", e.currentTarget); } });',
+    'window.addEventListener("click", function (e) { see("window listener this", this); same("window listener this === window", this, window); });',
+    'h.onclick = function (e) { see("onclick this", this); }; h.setAttribute("onmouseup", "S.push([\'handler attribute this\', this, \'p\'], [\'handler attribute event\', event, \'p\'])");',
+    'h.addEventListener("click", function CL() { see("listener .caller", CL.caller, "any"); see("listener arguments", CL.arguments, "any"); }); setTimeout(function CT() { see("timer .caller", CT.caller, "any"); }, 0); queueMicrotask(function CQ() { see("microtask .caller", CQ.caller, "any"); }); h.classList.add({ toString: function CS() { see("toString .caller", CS.caller, "any"); return "cs"; } });',
+    'var PST = Error.prepareStackTrace; Error.prepareStackTrace = function (e, cs) { return cs.map(function (c) { return [c.getThis(), c.getFunction()]; }); }; h.addEventListener("click", function () { var st = new Error("x").stack; Error.prepareStackTrace = PST; st.forEach(function (f, i) { see("stack frame " + i + " this", f[0], "any"); see("stack frame " + i + " function", f[1], "any"); }); });',
+    'h.click(); h.dispatchEvent(new Event("mouseup")); see("new Event", new Event("x"));',
+    'var mo = new MutationObserver(function (recs, obs) { see("MutationObserver this", this); see("MutationObserver observer arg", obs); same("observer arg === mo", obs, mo); see("records", recs, "a"); recs.forEach(function (r, i) { see("record " + i, r); see("record " + i + " target", r.target); see("record " + i + " addedNodes", r.addedNodes, r.addedNodes.length ? "a" : "any"); see("record " + i + " removedNodes", r.removedNodes, r.removedNodes.length ? "a" : "any"); }); if (!recs.some(function (r) { return r.removedNodes.length; })) OK.push("no removedNodes record"); });',
+    'mo.observe(h, { childList: true, subtree: true }); var xi = document.createElement("i"); tools.appendChild(xi); tools.removeChild(xi); var mo2 = new MutationObserver(function () {}); mo2.observe(tools, { childList: true }); tools.appendChild(document.createElement("u")); see("takeRecords()", mo2.takeRecords(), "a");',
+    'new ResizeObserver(function (en, o) { see("ResizeObserver this", this); see("ResizeObserver entries", en, "a"); see("ResizeObserver entry target", en[0].target); see("contentRect", en[0].contentRect); see("borderBoxSize", en[0].borderBoxSize, "a"); }).observe(h);',
+    'new IntersectionObserver(function (en, o) { see("IntersectionObserver this", this); see("IntersectionObserver entry", en[0]); see("IntersectionObserver entry target", en[0].target); see("rootBounds", en[0].rootBounds); }).observe(h);',
+    'setTimeout(function () { see("setTimeout this", this); same("setTimeout this === window", this, window); }, 0); var iv = setInterval(function () { see("setInterval this", this); clearInterval(iv); }, 5);',
+    'requestAnimationFrame(function (t) { see("requestAnimationFrame this", this); }); queueMicrotask(function () { see("queueMicrotask this", this); });',
+    'Promise.resolve(document).then(function (d) { see("then value", d); see("then this", this, "any"); }); Promise.resolve(h.getBoundingClientRect()).then(function (r) { see("then rect", r); });',
+    'see("Function.prototype.toString on a stub method", Function.prototype.toString.call(document.querySelector), "s"); see("stub method .toString()", document.querySelector.toString(), "s");',
+    'see("stub method", document.querySelector); see("stub method .bind", document.querySelector.bind, "any"); same("stub method .bind is the page bind", document.querySelector.bind, Function.prototype.bind); var qb = document.querySelector.bind(document); see("bound stub method", qb, "any"); see("bound stub method result", qb("header"));',
+    'var fb = Function.prototype.bind.call(document.querySelector, document); see("Function.prototype.bind.call", fb, "any"); see("Function.prototype.bind.call result", fb("header")); see("call result", document.querySelector.call(document, "header")); see("apply result", document.querySelector.apply(document, ["header"]));',
+    'see("stub method .constructor", document.querySelector.constructor, "any"); same("stub method .constructor is the page Function", document.querySelector.constructor, Function); see("stub method .call", document.querySelector.call, "any"); same("stub method .call is the page call", document.querySelector.call, Function.prototype.call);',
+    'see("MutationObserver ctor", MutationObserver); see("MutationObserver.prototype", MutationObserver.prototype); see("observer.observe", mo.observe);',
+    'var gd = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Object.getPrototypeOf(h)), "parentElement"); see("lifted getter", gd.get); see("lifted getter result", gd.get.call(h)); see("descriptor", gd, "any");',
+    'var pobj = { insertBefore: function (n) { see("page this given to appendChild: arg", n, "any"); }, add: function (k) { see("page this given to classList.toggle: arg", k, "any"); } }; try { h.appendChild.call(pobj, document.createElement("i")); } catch (e) {} try { h.classList.toggle.call(pobj, "z"); } catch (e) {} try { var cc = document.querySelector.call; cc.call(function () { see("page fn run by a stub call: this", this, "any"); }, document); } catch (e) {}',
+    'globalThis.addEventListener("pageshow", function () { see("globalThis.addEventListener listener this", this); }); try { h.click.call({}); } catch (e) { same("illegal invocation is a page TypeError", e instanceof TypeError, true); }',
+    'var fe = { type: "click" }; try { h.dispatchEvent(fe); } catch (e) {} see("page object given to dispatchEvent .target", fe.target, "any"); try { window.dispatchEvent(fe); } catch (e) {} see("page object given to window.dispatchEvent .target", fe.target, "any");',
+    'var fr = { contains: function (n) { see("page root .contains arg", n, "any"); return false; } }; try { new MutationObserver(function () {}).observe(fr, { childList: true, subtree: true }); } catch (e) {} document.body.appendChild(document.createElement("s"));',
+    'try { document.body.insertBefore({}, null); } catch (e) { see("stub error", e, "any"); same("stub error is a page TypeError", e instanceof TypeError, true); same("stub error constructor", e.constructor, TypeError); }',
+    'for (var gk in G) G[gk].forEach(function (n) { var o = gk === "doc" ? document : gk === "el" ? h : gk === "text" ? document.createTextNode("t") : gk === "frag" ? document.createDocumentFragment() : gk === "style" ? h.style : gk === "dataset" ? h.dataset : gk === "classList" ? h.classList : gk === "event" ? new Event("x") : gk === "mq" ? mq : gk === "storage" ? localStorage : window; see(gk + "." + n, o[n], "any"); });',
+    'Object.defineProperty(window, "gx", { get: function () { return this; }, configurable: true }); see("window getter this", window.gx, "any"); see("bare getter this", gx, "any");',
+    'Object.defineProperty(window, "sx", { set: function (v) { see("window setter this", this, "any"); }, configurable: true }); window.sx = 1; sx = 2;',
+    'Object.defineProperty(window, "onload", { get: function () { see("window onload getter this", this, "any"); return null; }, configurable: true });',
+    'globalThis.__S = S; globalThis.__OK = OK;'
+  ].join("\n");
+  // Every getter and own key of every stub object, read by page code ("every getter returns no
+  // unwrapped object"): the names come from the raw objects themselves.
+  const namesOf = function (objs) {
+    const out = new Set();
+    objs.forEach(function (o) { for (let p = o; p && p !== Object.prototype; p = Object.getPrototypeOf(p)) Reflect.ownKeys(p).forEach(function (k) { if (typeof k === "string" && k.charAt(0) !== "_" && k !== "constructor") out.add(k); }); });
+    return Array.from(out);
+  };
+  const w0 = makeWindow(page, "/selftest", false);
+  const rd = w0.document, rh = rd.querySelector("header");
+  const G = {
+    doc: namesOf([rd]), el: namesOf([rh]), text: namesOf([rd.createTextNode("t")]), frag: namesOf([rd.createDocumentFragment()]),
+    style: namesOf([rh.style]), classList: namesOf([rh.classList]), event: namesOf([new w0.window.Event("x")]), mq: namesOf([w0.window.matchMedia("(max-width: 860px)")]),
+    storage: namesOf([w0.window.localStorage]), win: Object.keys(w0.window)
+  };
+  const w = makeWindow(page, "/selftest", false);
+  w.sandbox.G = vm.runInContext("(" + JSON.stringify(G) + ")", w.sandbox);
+  try { w.run(probe, "selftest-membrane.js"); } catch (e) { bad.push("membrane probe threw: " + e.message); }
+  await w.settle(); await w.load(); await w.advance(1000); await w.drain();
+  const S = w.sandbox.__S || [], OK = w.sandbox.__OK || [];
+  if (leaked(w.sandbox)) bad.push("the page's global store is a stub object");
+  const seen = new Set();
+  let values = 0;
+  for (const [n, v, kind] of S) {
+    seen.add(n.replace(/ \d+/g, " N"));
+    values += 1;
+    if (leaked(v)) { bad.push(n + " handed page code a raw stub object"); continue; }
+    if (kind === "p" && !PROXIES.has(v)) bad.push(n + " is not a membrane proxy (" + (v === null ? "null" : typeof v) + ")");
+    if (kind === "s" && typeof v !== "string") bad.push(n + " is not a string");
+    if (kind === "a") {
+      if (!v || typeof v.length !== "number" || !v.length) bad.push(n + " is not a non-empty list");
+      else for (let i = 0; i < v.length; i++) { values += 1; if (leaked(v[i])) bad.push(n + "[" + i + "] handed page code a raw stub object"); else if (!PROXIES.has(v[i])) bad.push(n + "[" + i + "] is not a membrane proxy"); }
+    }
+    if (kind === "any" && Array.isArray(v)) for (let i = 0; i < v.length; i++) if (leaked(v[i])) bad.push(n + "[" + i + "] handed page code a raw stub object");
+  }
+  OK.forEach(function (n) { bad.push("identity check failed: " + n); });
+  ["listener this", "handleEvent this", "window listener this", "onclick this", "handler attribute this", "handler attribute event", "e.composedPath()", "MutationObserver this", "record N removedNodes", "ResizeObserver this", "IntersectionObserver this",
+    "window getter this", "bare getter this", "globalThis.addEventListener listener this", "window setter this", "listener .caller", "timer .caller", "microtask .caller", "toString .caller", "stack frame N function", "setTimeout this", "setInterval this", "requestAnimationFrame this", "queueMicrotask this", "then value", "then rect", "stub error", "lifted getter result", "bound stub method result", "Function.prototype.bind.call result"].forEach(function (n) {
+    if (!seen.has(n)) bad.push("membrane probe never reached " + n);
+  });
+  Object.keys(G).forEach(function (gk) { G[gk].forEach(function (n) { if (!seen.has(gk + "." + n)) bad.push("membrane probe never read " + gk + "." + n); }); });
+  const threw = w.errors.filter(function (e) { return !/does not model it/.test(e); });
+  if (threw.length) bad.push("membrane probe errors: " + threw.join(" | "));
+  // Nothing in the page's global is raw either.
+  Reflect.ownKeys(w.sandbox).forEach(function (k) { const d = Object.getOwnPropertyDescriptor(w.sandbox, k); if (d && "value" in d && leaked(d.value)) bad.push("window." + String(k) + " is a raw stub object"); });
+  if (bad.length) fail("check-header membrane self-test: " + bad.join("; "));
+  else pass("check-header membrane self-test (" + trips.length + " dynamic-code, callback, file-name and reflection paths recorded with no call-stack rule; " + values + " values page code can reach, incl. every getter and own key of every stub object, are membrane proxies or page-realm values, none raw)");
+}
 function staticDom(file) {
   const d = makeWindow(fs.readFileSync(path.join(root, file), "utf8"), "/" + file.replace(/\.html$/, ""), false).document;
   const tag = file + " (source)";
@@ -1256,7 +1589,8 @@ function renderedChecks(file, opts, d, early) {
   selfTest();
   await stubSelfTest();
   await hostSelfTest();
-  let rendered = 0;
+  await membraneSelfTest();
+  let rendered = 0, quiet = 0;
   for (const file of files.slice().sort()) {
     staticDom(file);
     for (const signedIn of [false, true]) {
@@ -1271,6 +1605,9 @@ function renderedChecks(file, opts, d, early) {
             continue;
           }
           renderedChecks(file, opts, w.document, w.early);
+          // The check's own counting works on raw objects: it must not have tripped the membrane.
+          if (w.errors.length) fail(file + " (" + JSON.stringify(opts) + ") recorded during the check's own counting: " + w.errors[0]);
+          else quiet += 1;
           rendered += 1;
         }
       }
@@ -1279,6 +1616,8 @@ function renderedChecks(file, opts, d, early) {
   if (files.length < 30) fail("expected 30+ pages, found " + files.length);
   if (rendered !== files.length * 8) fail("rendered " + rendered + " of " + files.length * 8);
   else pass("rendered " + rendered + " page states (" + files.length + " pages x signed in/out x desktop/phone x once/twice)");
+  if (quiet !== files.length * 8) fail("only " + quiet + " of " + files.length * 8 + " page states rendered with zero membrane records");
+  else pass("zero membrane records in all " + quiet + " page states, desk.html and theme.js included, before and after the check's own counting");
 
   if (process.exitCode) {
     console.error("check-header failed");
