@@ -155,6 +155,16 @@ function parseSelector(src) {
   selCache.set(src, list);
   return list;
 }
+// Every unsupported selector is written to the page's error list before it throws, so a
+// try/catch in page code cannot turn it into a quiet zero: the render FAILs either way.
+function selectorFor(node, sel) {
+  try { return parseSelector(sel); }
+  catch (e) {
+    const d = node && node._doc ? node._doc() : null;
+    if (d && d._errors) d._errors.push("unsupported selector (recorded even when page code catches it): " + (e && e.message));
+    throw e;
+  }
+}
 function classesOf(el) { return (el.getAttribute("class") || "").split(/\s+/).filter(Boolean); }
 function prevEl(el) {
   const p = el.parentNode;
@@ -255,7 +265,7 @@ class DNode {
     else this._doc()._mutated(this);
   }
   querySelectorAll(sel) {
-    const list = parseSelector(sel);
+    const list = selectorFor(this, sel);
     return descendants(this, []).filter(function (el) { return matchList(el, list); });
   }
   querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
@@ -345,8 +355,8 @@ class DElement extends DNode {
     this.insertAdjacentElement(where, frag);
   }
   insertAdjacentText(where, text) { this.insertAdjacentElement(where, this._doc().createTextNode(text)); }
-  matches(sel) { return matchList(this, parseSelector(sel)); }
-  closest(sel) { const list = parseSelector(sel); for (let n = this; n && n.nodeType === 1; n = n.parentNode) if (matchList(n, list)) return n; return null; }
+  matches(sel) { return matchList(this, selectorFor(this, sel)); }
+  closest(sel) { const list = selectorFor(this, sel); for (let n = this; n && n.nodeType === 1; n = n.parentNode) if (matchList(n, list)) return n; return null; }
   getElementsByTagName(t) { return this.querySelectorAll(t); }
   getElementsByClassName(c) { return this.querySelectorAll(String(c).trim().split(/\s+/).map(function (k) { return "." + k; }).join("")); }
   click() { this.dispatchEvent({ type: "click", bubbles: true, preventDefault: function () { this.defaultPrevented = true; }, stopPropagation: function () { this._stopped = true; } }); }
@@ -556,7 +566,11 @@ class DStorage {
 }
 // One page in one state: a document, a window (the vm global) with localStorage, matchMedia
 // (phone = every max-width query matches), a fake clock for setTimeout/setInterval, and
-// MutationObserver delivered as microtasks.
+// MutationObserver delivered as microtasks, ResizeObserver and IntersectionObserver that call
+// back on the fake clock, pageshow after load, and a window that FAILs on any browser global it
+// does not model (instead of letting feature-detected code quietly skip).
+// JS built-ins every vm context has; anything else must be on the stub window.
+const JS_BUILTINS = new Set(vm.runInNewContext("Object.getOwnPropertyNames(globalThis)"));
 function makeWindow(html, pagePath, phone) {
   const doc = new DDocument();
   parseHTML(doc, html, null);
@@ -603,12 +617,69 @@ function makeWindow(html, pagePath, phone) {
       this.disconnect = function () { o.root = null; o.records = []; const k = doc._observers.indexOf(o); if (k >= 0) doc._observers.splice(k, 1); };
       this.takeRecords = function () { const r = o.records; o.records = []; return r; };
     },
-    Event: function (type, init) { this.type = type; this.bubbles = !!(init && init.bubbles); }
+    Event: function (type, init) { this.type = type; this.bubbles = !!(init && init.bubbles); },
+    // ResizeObserver: one callback a frame after observe() (and after every observe of a new
+    // target), with a plausible box. IntersectionObserver: one callback right after observe(),
+    // the header is on screen.
+    ResizeObserver: function (cb) {
+      const api = this, seen = new Set();
+      this.observe = function (el) {
+        if (seen.has(el)) return; seen.add(el);
+        addTimer(function () {
+          if (!seen.has(el)) return;
+          const w = phone ? 390 : 1280, hgt = 56;
+          const box = { x: 0, y: 0, top: 0, left: 0, width: w, height: hgt, right: w, bottom: hgt };
+          try { cb([{ target: el, contentRect: box, borderBoxSize: [{ inlineSize: w, blockSize: hgt }], contentBoxSize: [{ inlineSize: w, blockSize: hgt }], devicePixelContentBoxSize: [{ inlineSize: w, blockSize: hgt }] }], api); }
+          catch (e) { doc._errors.push("ResizeObserver callback threw: " + (e && e.message)); }
+        }, 16, [], false);
+      };
+      this.unobserve = function (el) { seen.delete(el); };
+      this.disconnect = function () { seen.clear(); };
+    },
+    IntersectionObserver: function (cb, opts) {
+      const api = this, seen = new Set();
+      this.root = (opts && opts.root) || null; this.rootMargin = (opts && opts.rootMargin) || "0px"; this.thresholds = [].concat((opts && opts.threshold) || 0);
+      this.observe = function (el) {
+        if (seen.has(el)) return; seen.add(el);
+        addTimer(function () {
+          if (!seen.has(el)) return;
+          const w = phone ? 390 : 1280;
+          const box = { x: 0, y: 0, top: 0, left: 0, width: w, height: 56, right: w, bottom: 56 };
+          try { cb([{ target: el, isIntersecting: true, intersectionRatio: 1, boundingClientRect: box, intersectionRect: box, rootBounds: { x: 0, y: 0, top: 0, left: 0, width: w, height: phone ? 844 : 900, right: w, bottom: phone ? 844 : 900 }, time: clock }], api); }
+          catch (e) { doc._errors.push("IntersectionObserver callback threw: " + (e && e.message)); }
+        }, 0, [], false);
+      };
+      this.unobserve = function (el) { seen.delete(el); };
+      this.disconnect = function () { seen.clear(); };
+      this.takeRecords = function () { return []; };
+    }
   };
-  win.window = win;
-  win.self = win;
-  doc._win = win;
+  // Unknown browser globals FAIL: a bare name, window.X, self.X or "X" in window that the stub
+  // does not model is recorded, so code gated on a missing API cannot quietly skip. Bare names
+  // reach a recording proxy at the end of the global's prototype chain (JS built-ins and the
+  // stub's own globals are found first); window / self are a recording view of the same global.
+  const unknown = function (k) {
+    if (typeof k !== "string" || k in win || JS_BUILTINS.has(k)) return;
+    doc._errors.push("page code read browser global '" + k + "', which the check-header window does not model");
+  };
   vm.createContext(win);
+  const realGlobal = vm.runInContext("globalThis", win);
+  const protoTarget = vm.runInContext("Object.getPrototypeOf(globalThis)", win);
+  const tail = new Proxy(protoTarget, {
+    has: function (t, k) { if (k in t) return true; unknown(k); return false; },
+    get: function (t, k, r) { if (k in t) return Reflect.get(t, k, r); unknown(k); return undefined; }
+  });
+  win.__aiaTail = tail;
+  vm.runInContext("Object.setPrototypeOf(globalThis, __aiaTail);", win);
+  delete win.__aiaTail;
+  const gwin = new Proxy(win, {
+    get: function (t, k) { if (k in t) return Reflect.get(t, k); unknown(k); return realGlobal[k]; },
+    has: function (t, k) { if (k in t) return true; unknown(k); return k in realGlobal; },
+    set: function (t, k, v) { t[k] = v; return true; }
+  });
+  win.window = gwin;
+  win.self = gwin;
+  doc._win = gwin;
   const settle = function () { return new Promise(function (r) { setImmediate(r); }); };
   const ev = function (type, bubbles) { return { type: type, bubbles: !!bubbles, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this._stopped = true; } }; };
   return {
@@ -617,6 +688,26 @@ function makeWindow(html, pagePath, phone) {
     errors: doc._errors,
     pendingTimers: function () { return timers.length; },
     run: function (src) { vm.runInContext(src, win, { filename: "theme.js", timeout: 2000 }); },
+    // pageshow / pagehide carry persisted (false on a normal load, true on a back/forward restore).
+    pageEvent: async function (type, persisted) {
+      const e = ev(type, false); e.persisted = !!persisted;
+      win.dispatchEvent(e);
+      await settle();
+    },
+    // Run every timer to completion, in order, on the fake clock (bounded). Anything still
+    // pending after the bound (a setInterval, or a timer that keeps re-arming) is an error,
+    // never a quiet pass.
+    drain: async function () {
+      let steps = 0;
+      while (timers.length && steps < 2000) {
+        timers.sort(function (a, b) { return a.at - b.at || a.id - b.id; });
+        const t = timers[0];
+        if (t.at - clock > 600000) break;
+        await this.advance(t.at - clock);
+        steps += 1;
+      }
+      if (timers.length) doc._errors.push(timers.length + " timer(s) still pending after running every timer (setInterval or a re-arming timer; the header count is not final)");
+    },
     settle: settle,
     // Parsing is done: DOMContentLoaded on document (bubbles to window), then load on window.
     load: async function () {
@@ -626,6 +717,9 @@ function makeWindow(html, pagePath, phone) {
       await settle();
       doc.readyState = "complete";
       win.dispatchEvent(ev("load", false));
+      await settle();
+      const ps = ev("pageshow", false); ps.persisted = false;
+      win.dispatchEvent(ps);
       await settle();
     },
     // Fake time: run every timer due in the next ms milliseconds, in order, settling microtasks
@@ -671,6 +765,13 @@ async function renderPage(file, opts) {
     await w.settle();
     await w.advance(1000);
   }
+  // Then every timer runs to the end, the page is left and restored from the back/forward
+  // cache (pagehide + pageshow persisted:true), and every timer runs to the end again.
+  await w.drain();
+  await w.pageEvent("pagehide", true);
+  await w.pageEvent("pageshow", true);
+  await w.drain();
+  if (w.pendingTimers() !== 0) w.errors.push("pendingTimers() is " + w.pendingTimers() + " after the drain");
   if (w.errors.length) throw new Error(w.errors[0]);
   return w;
 }
@@ -694,8 +795,39 @@ function selfTest() {
   let threw = false;
   try { d.querySelectorAll("a:hover"); } catch (e) { threw = true; }
   if (!threw) bad.push("unknown selector must throw");
+  if (!w.errors.some(function (e) { return /unsupported selector/.test(e) && /a:hover/.test(e); })) bad.push("unknown selector must be recorded on the page");
   if (bad.length) fail("check-header DOM self-test: " + bad.join("; "));
   else pass("check-header DOM self-test (parser, selectors, insertAdjacentHTML, classList)");
+}
+// The stub must behave like a browser where page code could hide a duplicate from it.
+async function stubSelfTest() {
+  const bad = [];
+  const page = '<!doctype html><html><head></head><body><header class="site-header"><div class="hdr-tools"></div></header></body></html>';
+  const probe = async function (code, after) {
+    const w = makeWindow(page, "/selftest", false);
+    w.run(code);
+    await w.settle();
+    await w.load();
+    await w.advance(1000);
+    if (after) await after(w);
+    return w;
+  };
+  let w = await probe('window.addEventListener("pageshow", function (e) { document.body.setAttribute("data-ps", (document.body.getAttribute("data-ps") || "") + (e.persisted ? "T" : "F")); });', async function (x) { await x.pageEvent("pageshow", true); });
+  if (w.document.body.getAttribute("data-ps") !== "FT") bad.push("pageshow must fire after load (persisted false), then on restore (persisted true): got " + w.document.body.getAttribute("data-ps"));
+  w = await probe('new ResizeObserver(function (es) { if (es[0].contentRect.width > 0) document.body.setAttribute("data-ro", "1"); }).observe(document.body); new IntersectionObserver(function (es) { if (es[0].isIntersecting) document.body.setAttribute("data-io", "1"); }).observe(document.body);');
+  if (w.document.body.getAttribute("data-ro") !== "1" || w.document.body.getAttribute("data-io") !== "1") bad.push("ResizeObserver and IntersectionObserver must call back");
+  w = await probe('if (typeof PerformanceObserver !== "undefined" || window.SomeNewApi || ("Foo" in window)) {}');
+  ["PerformanceObserver", "SomeNewApi", "Foo"].forEach(function (k) { if (!w.errors.some(function (e) { return e.indexOf("'" + k + "'") >= 0; })) bad.push("unknown global " + k + " must be recorded"); });
+  w = await probe('var known = typeof Promise + typeof JSON + typeof document + typeof localStorage + typeof setTimeout;');
+  if (w.errors.length) bad.push("JS built-ins and modelled globals must not be flagged: " + w.errors[0]);
+  w = await probe('try { document.querySelector("header:has(.x)"); } catch (e) {}');
+  if (!w.errors.some(function (e) { return /unsupported selector/.test(e) && /:has/.test(e); })) bad.push(":has() caught by page code must still be recorded");
+  w = await probe('setTimeout(function () { document.body.setAttribute("data-late", "1"); setTimeout(function () { document.body.setAttribute("data-later", "1"); }, 30000); }, 2500);', function (x) { return x.drain(); });
+  if (w.document.body.getAttribute("data-late") !== "1" || w.document.body.getAttribute("data-later") !== "1" || w.pendingTimers() !== 0) bad.push("drain must run every one-shot timer (2500ms, then 30s more)");
+  w = await probe('setInterval(function () {}, 5000);', function (x) { return x.drain(); });
+  if (!w.errors.some(function (e) { return /still pending/.test(e); })) bad.push("a timer still pending after the drain must be recorded");
+  if (bad.length) fail("check-header stub self-test: " + bad.join("; "));
+  else pass("check-header stub self-test (pageshow false/true, ResizeObserver and IntersectionObserver call back, unknown globals and caught unsupported selectors recorded, timers drained or flagged)");
 }
 function staticDom(file) {
   const d = makeWindow(fs.readFileSync(path.join(root, file), "utf8"), "/" + file.replace(/\.html$/, ""), false).document;
@@ -777,6 +909,7 @@ function renderedChecks(file, opts, d, early) {
 
 (async function () {
   selfTest();
+  await stubSelfTest();
   let rendered = 0;
   for (const file of files.slice().sort()) {
     staticDom(file);
