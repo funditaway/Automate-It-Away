@@ -629,6 +629,43 @@ function jobActivity(job, row) {
   });
   return rows;
 }
+// Presence (stacked on presence B): this account's OWN seats' came-online / went-offline entries,
+// read from the desk row's presenceLog. Own seats: the seat this sign-in opened (not for forSeat),
+// plus any seat on any desk whose accountId is this account; forSeat reads the target account's
+// seats on the owner's desk only. Removed, waiting and denied seats are dropped; names are read now.
+// Machine values only (kind online|offline), newest first, at most PRESENCE_ROWS. Reads only.
+const PRESENCE_ROWS = 12;
+const PRESENCE_ROW_STEP_MS = 5 * 60 * 1000;
+const PRESENCE_ROW_SHUT = ["pending", "denied", "removed"];
+function presenceRowShut(p) {
+  return !p || typeof p !== "object" || !p.id || PRESENCE_ROW_SHUT.indexOf(String(p.status || "").trim().toLowerCase()) >= 0;
+}
+function ownPresenceRows(acc, seat, byHuman, deskSlug) {
+  const out = [];
+  const accId = String((acc && acc.id) || "");
+  (lib.mem.workspaces || []).forEach((w) => {
+    if (!w || !w.slug || !Array.isArray(w.presenceLog)) return;
+    if (deskSlug && w.slug !== deskSlug) return;
+    if (byHuman && (!seat || !seat.row || w.slug !== seat.row.slug)) return;
+    const mine = {};
+    (Array.isArray(w.people) ? w.people : []).forEach((p) => {
+      if (presenceRowShut(p)) return;
+      const own = (accId && p.accountId && String(p.accountId) === accId)
+        || (!byHuman && seat && seat.row === w && seat.person === p);
+      if (own) mine[String(p.id)] = p;
+    });
+    w.presenceLog.forEach((e, i) => {
+      if (!e || typeof e !== "object" || (e.kind !== "online" && e.kind !== "offline")) return;
+      const p = Object.prototype.hasOwnProperty.call(mine, String(e.seat || "")) ? mine[String(e.seat)] : null;
+      const t = Date.parse(e.at || "");
+      if (!p || !Number.isFinite(t)) return;
+      const at = Math.floor(t / PRESENCE_ROW_STEP_MS) * PRESENCE_ROW_STEP_MS;
+      out.push([at, i, { at: new Date(at).toISOString(), desk: String(w.slug), seat: String(p.id), name: String(p.name || ""), kind: e.kind }]);
+    });
+  });
+  out.sort((x, y) => (y[0] - x[0]) || (y[1] - x[1]));
+  return out.slice(0, PRESENCE_ROWS).map((x) => x[2]);
+}
 function sortActivity(rows) {
   return rows.filter(Boolean).sort((a, b) => String(b.at || "").localeCompare(String(a.at || ""))).slice(0, 40);
 }
@@ -1077,6 +1114,7 @@ function readActivityOf(res, acc, seat, byHuman, picked) {
   const named = [picked.connectionId, picked.cardId, picked.jobId, (picked.kind || picked.id) ? "auto" : ""].filter(Boolean);
   if (named.length > 1) return refuse(res, 400, "Name one thing: an automation, a connection, a setup card, or a card.");
   let rows = [];
+  let presenceDesk = null;
   if (picked.connectionId) {
     const conn = (Array.isArray(acc.connections) ? acc.connections : []).find((c) => c && c.id === picked.connectionId);
     if (!conn) return refuse(res, 404, "No connection like that.");
@@ -1112,6 +1150,7 @@ function readActivityOf(res, acc, seat, byHuman, picked) {
   } else if (picked.desk) {
     const row = deskFor(acc, seat, byHuman, picked.desk);
     if (!row) return refuse(res, 404, NO_ONE);
+    presenceDesk = row.slug;
     rows = accountActivity(acc, "desk:" + row.slug, "");
     const jobs = (lib.mem.jobs || []).filter((j) => j && j.workspace === row.slug);
     const pack = require("./_history").historyOf(row, jobs, Array.isArray(lib.mem.deskEvents) ? lib.mem.deskEvents.filter((e) => e && e.slug === row.slug).slice(0, 40) : []);
@@ -1119,12 +1158,15 @@ function readActivityOf(res, acc, seat, byHuman, picked) {
       rows.push({ at: item.t || "", who: item.who || "", what: item.title || item.label || "Card", kind: item.kind || "job", card: item.kind === "job" ? item : undefined });
     });
   } else {
+    presenceDesk = "";
     rows = historyRows(acc).slice(0, 40).map((h) => ({
       at: h.at || "", who: h.who || "", whoKind: h.whoKind || "", what: h.what || "", kind: "account", section: h.section || ""
     }));
   }
   rows = sortActivity(rows);
-  return res.status(200).json(baseFlags({ ok: true, wrote: false, activity: rows, note: activityNote(rows) }));
+  const reply = baseFlags({ ok: true, wrote: false, activity: rows, note: activityNote(rows) });
+  if (presenceDesk !== null) reply.presenceRows = ownPresenceRows(acc, seat, byHuman, presenceDesk);
+  return res.status(200).json(reply);
 }
 
 async function doUndo(res, acc, person, whoKind, byHuman, seat, preview) {
