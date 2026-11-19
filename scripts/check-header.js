@@ -296,8 +296,8 @@ class DElement extends DNode {
     this.nodeType = 1;
     this.localName = String(name).toLowerCase();
     this._attrs = new Map();
-    this.style = {};
-    this.dataset = {};
+    this.style = makeStyle();
+    this.dataset = makeDataset(this);
     if (this.localName === "template") this.content = new DFragment(doc);
   }
   get tagName() { return this.localName.toUpperCase(); }
@@ -316,7 +316,7 @@ class DElement extends DNode {
   get classList() {
     const el = this;
     const set = function (arr) { el.setAttribute("class", arr.join(" ")); };
-    return {
+    return hostify({
       add: function () { const c = classesOf(el); for (const k of arguments) if (c.indexOf(String(k)) < 0) c.push(String(k)); set(c); },
       remove: function () { const drop = Array.prototype.map.call(arguments, String); if (el.hasAttribute("class")) set(classesOf(el).filter(function (k) { return drop.indexOf(k) < 0; })); },
       contains: function (k) { return classesOf(el).indexOf(String(k)) >= 0; },
@@ -329,7 +329,7 @@ class DElement extends DNode {
       },
       get length() { return classesOf(el).length; },
       item: function (n) { return classesOf(el)[n] || null; }
-    };
+    }, "classList");
   }
   get innerHTML() { return this.childNodes.map(serialize).join(""); }
   set innerHTML(v) {
@@ -359,7 +359,7 @@ class DElement extends DNode {
   closest(sel) { const list = selectorFor(this, sel); for (let n = this; n && n.nodeType === 1; n = n.parentNode) if (matchList(n, list)) return n; return null; }
   getElementsByTagName(t) { return this.querySelectorAll(t); }
   getElementsByClassName(c) { return this.querySelectorAll(String(c).trim().split(/\s+/).map(function (k) { return "." + k; }).join("")); }
-  click() { this.dispatchEvent({ type: "click", bubbles: true, preventDefault: function () { this.defaultPrevented = true; }, stopPropagation: function () { this._stopped = true; } }); }
+  click() { this.dispatchEvent(makeEvent("click", true)); }
   focus() {}
   blur() {}
   getBoundingClientRect() { return { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0 }; }
@@ -564,6 +564,188 @@ class DStorage {
   key(n) { return Array.from(this._m.keys())[n] || null; }
   get length() { return this._m.size; }
 }
+
+// ---- strict host objects ----
+// Every object page code can reach (window / self / globalThis, document and every node, navigator,
+// location, screen, performance, console, storage, style, classList, dataset, media query lists,
+// events, observers) ends in a recording proxy, so a property, method or "in" test the stub does
+// not model is recorded instead of reading as a quiet undefined/false. Own-key reflection
+// (hasOwnProperty, Object.keys / getOwnPropertyNames / getOwnPropertyDescriptor, Reflect.ownKeys,
+// for-in, prototype walks) on those objects is recorded too, unless on window it names a modelled
+// API or a JS built-in. Only accesses made by page code count (the stack's first non-native frame
+// is not this file); the DOM's own internals may probe freely. Any record FAILs the page run.
+let ACTIVE_DOC = null;
+const SETUP_FILE = "check-header-setup";
+const SAFE_KEYS = new Set(["then", "toJSON", "inspect", "toString", "valueOf", "toLocaleString", "nodeType", "asymmetricMatch", "$$typeof"]);
+const REFLECTIVE = new Set(["hasOwnProperty", "propertyIsEnumerable", "isPrototypeOf", "__lookupGetter__", "__lookupSetter__", "__defineGetter__", "__defineSetter__"]);
+const HOSTS = new WeakMap();
+function pageCaller(skip) {
+  const prep = Error.prepareStackTrace, lim = Error.stackTraceLimit;
+  let cs = [];
+  try {
+    Error.stackTraceLimit = 16;
+    Error.prepareStackTrace = function (e, sites) { return sites; };
+    const o = {};
+    Error.captureStackTrace(o, skip);
+    cs = o.stack || [];
+  } finally { Error.prepareStackTrace = prep; Error.stackTraceLimit = lim; }
+  for (const c of cs) {
+    const f = c.getFileName && c.getFileName();
+    if (!f || /^node:/.test(f) || f === "<anonymous>" || c.isNative && c.isNative()) continue;
+    return f !== __filename && f !== SETUP_FILE;
+  }
+  return false;
+}
+function record(msg, skip) { if (ACTIVE_DOC && pageCaller(skip)) ACTIVE_DOC._errors.push(msg + " (the check-header page does not model it)"); }
+function hostName(o, fallback) {
+  const h = HOSTS.get(o);
+  if (h) return h;
+  if (o instanceof DNode) return o.nodeType === 9 ? "document" : o.nodeType === 1 ? "<" + o.localName + ">" : "a DOM node";
+  return fallback;
+}
+function hostLabel(o) {
+  if (o === null || (typeof o !== "object" && typeof o !== "function")) return null;
+  const h = HOSTS.get(o);
+  if (h) return h;
+  return o instanceof DNode ? hostName(o) : null;
+}
+const reflectiveCache = new Map();
+function reflectiveFn(k) {
+  if (reflectiveCache.has(k)) return reflectiveCache.get(k);
+  const orig = Object.prototype[k];
+  const f = function () {
+    record("page code called " + hostName(this, "a host object") + "." + k + "(" + (arguments.length ? String(arguments[0]) : "") + ")", f);
+    return orig.apply(this, arguments);
+  };
+  reflectiveCache.set(k, f);
+  return f;
+}
+function hostTail(label) {
+  const handler = {
+    get: function get(t, k, r) {
+      if (typeof k === "symbol" || SAFE_KEYS.has(k)) return Reflect.get(t, k, r);
+      if (REFLECTIVE.has(k)) return reflectiveFn(k);
+      record("page code read " + hostName(r, label) + "." + k, get);
+      return Reflect.get(t, k, r);
+    },
+    has: function has(t, k) {
+      if (typeof k !== "symbol" && !SAFE_KEYS.has(k)) record("page code tested '" + k + "' in " + label, has);
+      return Reflect.has(t, k);
+    },
+    ownKeys: function ownKeys(t) { record("page code enumerated the keys of " + label, ownKeys); return Reflect.ownKeys(t); },
+    getPrototypeOf: function getPrototypeOf(t) { record("page code walked the prototype chain of " + label, getPrototypeOf); return Reflect.getPrototypeOf(t); }
+  };
+  return new Proxy(Object.prototype, handler);
+}
+const TAILS = new Map();
+function tailFor(label) { if (!TAILS.has(label)) TAILS.set(label, hostTail(label)); return TAILS.get(label); }
+function hostify(obj, label) { if (Object.getPrototypeOf(obj) === Object.prototype) Object.setPrototypeOf(obj, tailFor(label)); HOSTS.set(obj, label); return obj; }
+Object.setPrototypeOf(DNode.prototype, tailFor("a DOM node"));
+// A real element's constructor is HTMLDivElement and so on; the stub's classes are not that, so
+// page code reading .constructor reaches the recorder instead.
+[DNode, DText, DElement, DFragment, DDocument, DStorage].forEach(function (C) { delete C.prototype.constructor; });
+Object.setPrototypeOf(DStorage.prototype, tailFor("Storage"));
+function makeEvent(type, bubbles, extra) {
+  const e = hostify({
+    type: type, bubbles: !!bubbles, cancelable: true, composed: false, isTrusted: true, defaultPrevented: false,
+    target: null, currentTarget: null, timeStamp: 0, eventPhase: 0,
+    preventDefault: function () { this.defaultPrevented = true; },
+    stopPropagation: function () { this._stopped = true; },
+    stopImmediatePropagation: function () { this._stopped = true; }
+  }, "an event");
+  if (extra) Object.assign(e, extra);
+  return e;
+}
+// style: unset CSS properties read as "" (as in a browser); methods are modelled; enumerating it,
+// or testing a name with "in", is recorded.
+function makeStyle() {
+  const store = Object.create(null);
+  const api = {
+    setProperty: function (k, v) { store[String(k)] = String(v); },
+    getPropertyValue: function (k) { return store[String(k)] || ""; },
+    removeProperty: function (k) { const v = store[String(k)] || ""; delete store[String(k)]; return v; }
+  };
+  const px = new Proxy(store, {
+    get: function get(t, k) {
+      if (typeof k === "symbol" || SAFE_KEYS.has(k)) return undefined;
+      if (Object.prototype.hasOwnProperty.call(api, k)) return api[k];
+      if (k === "cssText") return Object.keys(t).map(function (n) { return n + ": " + t[n]; }).join("; ");
+      if (/^(--|[a-z][a-zA-Z]*$)/.test(k)) return t[k] === undefined ? "" : t[k];
+      record("page code read style." + k, get);
+      return undefined;
+    },
+    set: function (t, k, v) { t[k] = String(v); return true; },
+    has: function has(t, k) { record("page code tested '" + String(k) + "' in style", has); return k in t || Object.prototype.hasOwnProperty.call(api, k); },
+    ownKeys: function ownKeys(t) { record("page code enumerated style", ownKeys); return Reflect.ownKeys(t); },
+    getPrototypeOf: function getPrototypeOf() { record("page code walked the prototype chain of style", getPrototypeOf); return null; }
+  });
+  HOSTS.set(px, "style");
+  return px;
+}
+// dataset: a live view of the data-* attributes, as in a browser (missing keys read undefined).
+function makeDataset(el) {
+  const attr = function (k) { return "data-" + String(k).replace(/[A-Z]/g, function (c) { return "-" + c.toLowerCase(); }); };
+  const prop = function (a) { return a.slice(5).replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); }); };
+  const keys = function () { return el.getAttributeNames().filter(function (a) { return /^data-/.test(a); }).map(prop); };
+  const px = new Proxy(Object.create(null), {
+    get: function (t, k) { if (typeof k === "symbol") return undefined; const v = el.getAttribute(attr(k)); return v === null ? undefined : v; },
+    set: function (t, k, v) { el.setAttribute(attr(k), v); return true; },
+    has: function (t, k) { return typeof k === "string" && el.hasAttribute(attr(k)); },
+    deleteProperty: function (t, k) { el.removeAttribute(attr(k)); return true; },
+    ownKeys: function () { return keys(); },
+    getOwnPropertyDescriptor: function (t, k) { const v = typeof k === "string" ? el.getAttribute(attr(k)) : null; return v === null ? undefined : { value: v, writable: true, enumerable: true, configurable: true }; }
+  });
+  HOSTS.set(px, "dataset");
+  return px;
+}
+// matchMedia: a real evaluator for media types, not/only, and, comma lists, and the features
+// min-/max-width, width, min-/max-height, height (px, em, rem), orientation, prefers-color-scheme
+// and prefers-reduced-motion. Anything else is unparseable: recorded, and matches false.
+function evalMedia(query, env) {
+  const parts = String(query).split(",");
+  let any = false;
+  for (let part of parts) {
+    let s = part.trim().toLowerCase();
+    if (!s) throw new Error("empty media query");
+    let neg = false;
+    let m = /^(not|only)\s+/.exec(s);
+    if (m) { neg = m[1] === "not"; s = s.slice(m[0].length); }
+    let typeOk = true, hadType = false;
+    m = /^(all|screen|print)(?![-\w])\s*/.exec(s);
+    if (m) {
+      hadType = true; typeOk = m[1] !== "print"; s = s.slice(m[0].length);
+      if (s) { if (!/^and\s+/.test(s)) throw new Error("bad media query: " + part); s = s.replace(/^and\s+/, ""); }
+    } else if (m === null && /^(not|only)$/.test(s)) throw new Error("bad media query: " + part);
+    if (!hadType && (neg || !s)) throw new Error("bad media query: " + part);
+    let ok = typeOk;
+    if (s) {
+      for (const f of s.split(/\s+and\s+/)) {
+        const fm = /^\(\s*([a-z-]+)\s*:\s*([^()]+?)\s*\)$/.exec(f.trim());
+        if (!fm) throw new Error("bad media feature: " + f);
+        ok = mediaFeature(fm[1], fm[2], env) && ok;
+      }
+    }
+    if (neg ? !ok : ok) any = true;
+  }
+  return any;
+}
+function mediaFeature(name, val, env) {
+  const len = function () {
+    const m = /^(\d+(?:\.\d+)?)(px|em|rem)$/.exec(val);
+    if (!m) throw new Error("bad media length: " + val);
+    return Number(m[1]) * (m[2] === "px" ? 1 : 16);
+  };
+  if (name === "min-width") return env.w >= len();
+  if (name === "max-width") return env.w <= len();
+  if (name === "width") return env.w === len();
+  if (name === "min-height") return env.h >= len();
+  if (name === "max-height") return env.h <= len();
+  if (name === "height") return env.h === len();
+  if (name === "orientation") { if (!/^(portrait|landscape)$/.test(val)) throw new Error("bad orientation: " + val); return val === (env.h >= env.w ? "portrait" : "landscape"); }
+  if (name === "prefers-color-scheme") { if (!/^(light|dark)$/.test(val)) throw new Error("bad prefers-color-scheme: " + val); return val === env.scheme; }
+  if (name === "prefers-reduced-motion") { if (!/^(no-preference|reduce)$/.test(val)) throw new Error("bad prefers-reduced-motion: " + val); return val === env.motion; }
+  throw new Error("media feature not modelled: " + name);
+}
 // One page in one state: a document, a window (the vm global) with localStorage, matchMedia
 // (phone = every max-width query matches), a fake clock for setTimeout/setInterval, and
 // MutationObserver delivered as microtasks, ResizeObserver and IntersectionObserver that call
@@ -573,6 +755,8 @@ class DStorage {
 const JS_BUILTINS = new Set(vm.runInNewContext("Object.getOwnPropertyNames(globalThis)"));
 function makeWindow(html, pagePath, phone) {
   const doc = new DDocument();
+  ACTIVE_DOC = doc;
+  const env = { w: phone ? 390 : 1280, h: phone ? 844 : 900, scheme: "light", motion: "no-preference" };
   parseHTML(doc, html, null);
   const timers = [];
   let clock = 0, nextId = 1;
@@ -585,15 +769,29 @@ function makeWindow(html, pagePath, phone) {
   const ls = {};
   const win = {
     document: doc,
-    localStorage: new DStorage(),
-    sessionStorage: new DStorage(),
-    location: { pathname: pagePath, href: "https://aia.test" + pagePath, origin: "https://aia.test", protocol: "https:", host: "aia.test", hostname: "aia.test", search: "", hash: "" },
-    navigator: { userAgent: "aia-check-header", language: "en-US" },
-    innerWidth: phone ? 390 : 1280,
-    innerHeight: phone ? 844 : 900,
-    console: { log() {}, info() {}, warn() {}, error() {}, debug() {} },
+    localStorage: hostify(new DStorage(), "localStorage"),
+    sessionStorage: hostify(new DStorage(), "sessionStorage"),
+    location: hostify({ pathname: pagePath, href: "https://aia.test" + pagePath, origin: "https://aia.test", protocol: "https:", host: "aia.test", hostname: "aia.test", port: "", search: "", hash: "" }, "location"),
+    navigator: hostify({ userAgent: "aia-check-header", language: "en-US", languages: ["en-US"], onLine: true }, "navigator"),
+    screen: hostify({ width: env.w, height: env.h, availWidth: env.w, availHeight: env.h, colorDepth: 24, pixelDepth: 24 }, "screen"),
+    performance: hostify({ now: function () { return clock; }, timeOrigin: 0 }, "performance"),
+    devicePixelRatio: phone ? 3 : 1,
+    innerWidth: env.w,
+    innerHeight: env.h,
+    outerWidth: env.w,
+    outerHeight: env.h,
+    console: hostify({ log() {}, info() {}, warn() {}, error() {}, debug() {} }, "console"),
     matchMedia: function (q) {
-      return { matches: !!phone && /max-width/.test(String(q)), media: String(q), onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} };
+      let matches = false;
+      try { matches = evalMedia(q, env); }
+      catch (e) { doc._errors.push("matchMedia(" + JSON.stringify(String(q)) + ") could not be evaluated: " + e.message); }
+      const ls2 = [];
+      return hostify({
+        matches: matches, media: String(q), onchange: null,
+        addEventListener: function (t, fn) { if (t === "change") ls2.push(fn); }, removeEventListener: function (t, fn) { const k = ls2.indexOf(fn); if (k >= 0) ls2.splice(k, 1); },
+        addListener: function (fn) { ls2.push(fn); }, removeListener: function (fn) { const k = ls2.indexOf(fn); if (k >= 0) ls2.splice(k, 1); },
+        dispatchEvent: function () { return true; }
+      }, "a MediaQueryList");
     },
     setTimeout: function (fn, ms) { return addTimer(fn, ms, Array.prototype.slice.call(arguments, 2), false); },
     setInterval: function (fn, ms) { return addTimer(fn, ms, Array.prototype.slice.call(arguments, 2), true); },
@@ -654,40 +852,94 @@ function makeWindow(html, pagePath, phone) {
       this.takeRecords = function () { return []; };
     }
   };
+  // window itself has no Object.prototype: Object.prototype methods on window come from this
+  // window's own realm (where own-key reflection is checked), as in a browser.
+  Object.setPrototypeOf(win, null);
+  ["MutationObserver", "ResizeObserver", "IntersectionObserver", "Event"].forEach(function (k) { Object.setPrototypeOf(win[k].prototype, tailFor("a " + k)); });
   // Unknown browser globals FAIL: a bare name, window.X, self.X or "X" in window that the stub
   // does not model is recorded, so code gated on a missing API cannot quietly skip. Bare names
   // reach a recording proxy at the end of the global's prototype chain (JS built-ins and the
   // stub's own globals are found first); window / self are a recording view of the same global.
   const unknown = function (k) {
-    if (typeof k !== "string" || k in win || JS_BUILTINS.has(k)) return;
+    if (typeof k !== "string" || k in win || JS_BUILTINS.has(k) || (protoTarget && k in protoTarget)) return;
     doc._errors.push("page code read browser global '" + k + "', which the check-header window does not model");
   };
+  let protoTarget = null;
   vm.createContext(win);
-  const realGlobal = vm.runInContext("globalThis", win);
-  const protoTarget = vm.runInContext("Object.getPrototypeOf(globalThis)", win);
+  const realGlobal = vm.runInContext("globalThis", win, { filename: SETUP_FILE });
+  protoTarget = vm.runInContext("Object.getPrototypeOf(globalThis)", win, { filename: SETUP_FILE });
   const tail = new Proxy(protoTarget, {
     has: function (t, k) { if (k in t) return true; unknown(k); return false; },
     get: function (t, k, r) { if (k in t) return Reflect.get(t, k, r); unknown(k); return undefined; }
   });
   win.__aiaTail = tail;
-  vm.runInContext("Object.setPrototypeOf(globalThis, __aiaTail);", win);
+  vm.runInContext("Object.setPrototypeOf(globalThis, __aiaTail);", win, { filename: SETUP_FILE });
   delete win.__aiaTail;
+  const winKnown = function (k) { return typeof k === "symbol" || Object.prototype.hasOwnProperty.call(win, k) || JS_BUILTINS.has(k); };
   const gwin = new Proxy(win, {
-    get: function (t, k) { if (k in t) return Reflect.get(t, k); unknown(k); return realGlobal[k]; },
+    get: function get(t, k) {
+      if (k === "constructor" || k === "__proto__") record("page code read window." + k, get);
+      if (k in t) return Reflect.get(t, k);
+      unknown(k); return realGlobal[k];
+    },
     has: function (t, k) { if (k in t) return true; unknown(k); return k in realGlobal; },
-    set: function (t, k, v) { t[k] = v; return true; }
+    set: function (t, k, v) { t[k] = v; return true; },
+    getOwnPropertyDescriptor: function getOwnPropertyDescriptor(t, k) {
+      if (!winKnown(k)) record("page code asked whether window owns '" + String(k) + "'", getOwnPropertyDescriptor);
+      const d = Reflect.getOwnPropertyDescriptor(t, k);
+      if (d || !JS_BUILTINS.has(k)) return d;
+      const b = Reflect.getOwnPropertyDescriptor(realGlobal, k);
+      return b ? Object.assign({}, b, { configurable: true }) : undefined;
+    },
+    ownKeys: function ownKeys(t) { record("page code enumerated the keys of window", ownKeys); return Reflect.ownKeys(t); },
+    getPrototypeOf: function getPrototypeOf(t) { record("page code walked the prototype chain of window", getPrototypeOf); return Reflect.getPrototypeOf(t); }
   });
   win.window = gwin;
   win.self = gwin;
   doc._win = gwin;
+  HOSTS.set(win, "window"); HOSTS.set(gwin, "window"); HOSTS.set(realGlobal, "window");
+  // Own-key reflection from page code goes through this window's Object / Reflect: on window it
+  // must name a modelled API or a JS built-in; on any other host object it is recorded.
+  const VObject = vm.runInContext("Object", win, { filename: SETUP_FILE });
+  const VReflect = vm.runInContext("Reflect", win, { filename: SETUP_FILE });
+  const VJSON = vm.runInContext("JSON", win, { filename: SETUP_FILE });
+  const ownCheck = function (o, k, how, skip) {
+    const h = hostLabel(o);
+    if (!h || h === "dataset") return; // dataset is a full model of the data-* attributes
+    if (h === "window") { if (!winKnown(k)) record("page code asked " + how + " whether window owns '" + String(k) + "'", skip); }
+    else record("page code asked " + how + " whether " + h + " owns '" + String(k) + "'", skip);
+  };
+  const keyed = function (holder, name) {
+    const orig = holder[name];
+    const f = function (o, k) { ownCheck(o, k, name, f); return orig.apply(this, arguments); };
+    Object.defineProperty(holder, name, { value: f, writable: true, configurable: true });
+  };
+  const listing = function (holder, name, all) {
+    const orig = holder[name];
+    const f = function () {
+      const objs = all ? Array.prototype.slice.call(arguments, 1) : [arguments[0]];
+      objs.forEach(function (o) { const h = hostLabel(o); if (h && h !== "dataset") record("page code listed " + h + " with " + name, f); });
+      return orig.apply(this, arguments);
+    };
+    Object.defineProperty(holder, name, { value: f, writable: true, configurable: true });
+  };
+  keyed(VObject, "getOwnPropertyDescriptor"); keyed(VObject, "hasOwn"); keyed(VReflect, "getOwnPropertyDescriptor");
+  ["keys", "values", "entries", "getOwnPropertyNames", "getOwnPropertySymbols", "getOwnPropertyDescriptors", "getPrototypeOf"].forEach(function (n) { listing(VObject, n, false); });
+  ["ownKeys", "getPrototypeOf"].forEach(function (n) { listing(VReflect, n, false); });
+  listing(VObject, "assign", true); listing(VJSON, "stringify", false);
+  ["hasOwnProperty", "propertyIsEnumerable"].forEach(function (n) {
+    const orig = VObject.prototype[n];
+    const f = function (k) { ownCheck(this, k, n, f); return orig.apply(this, arguments); };
+    Object.defineProperty(VObject.prototype, n, { value: f, writable: true, configurable: true });
+  });
   const settle = function () { return new Promise(function (r) { setImmediate(r); }); };
-  const ev = function (type, bubbles) { return { type: type, bubbles: !!bubbles, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this._stopped = true; } }; };
+  const ev = function (type, bubbles) { return makeEvent(type, bubbles); };
   return {
     window: win,
     document: doc,
     errors: doc._errors,
     pendingTimers: function () { return timers.length; },
-    run: function (src) { vm.runInContext(src, win, { filename: "theme.js", timeout: 2000 }); },
+    run: function (src) { ACTIVE_DOC = doc; vm.runInContext(src, win, { filename: "theme.js", timeout: 2000 }); },
     // pageshow / pagehide carry persisted (false on a normal load, true on a back/forward restore).
     pageEvent: async function (type, persisted) {
       const e = ev(type, false); e.persisted = !!persisted;
@@ -829,6 +1081,99 @@ async function stubSelfTest() {
   if (bad.length) fail("check-header stub self-test: " + bad.join("; "));
   else pass("check-header stub self-test (pageshow false/true, ResizeObserver and IntersectionObserver call back, unknown globals and caught unsupported selectors recorded, timers drained or flagged)");
 }
+// Strict host objects and the media-query evaluator: Probe's C3, C4b, C8b, C8c, C9, C10, C11 and
+// their siblings, each as a small page script that must either trip the recorder or show the
+// duplicate it builds; and ordinary theme.js-style code must trip nothing.
+async function hostSelfTest() {
+  const bad = [];
+  const page = '<!doctype html><html><head></head><body><header class="site-header"><div class="hdr-tools"></div></header></body></html>';
+  const run = async function (code, phone) {
+    const w = makeWindow(page, "/selftest", !!phone);
+    try { w.run(code); } catch (e) { w.errors.push("threw: " + e.message); }
+    await w.settle();
+    await w.load();
+    await w.advance(1000);
+    await w.drain();
+    return w;
+  };
+  const DUP = 'var b = document.createElement("button"); b.className = "theme-btn"; document.querySelector("header .hdr-tools").appendChild(b);';
+  const dupCount = function (w) { return w.document.querySelectorAll(".theme-btn").length; };
+  const trips = [
+    ["C4b document.fonts && document.fonts.ready", 'if (document.fonts && document.fonts.ready) {}', /document\.fonts/],
+    ["C8b window.hasOwnProperty('requestIdleCallback')", 'if (window.hasOwnProperty("requestIdleCallback")) {}', /requestIdleCallback/],
+    ["C8c Object.getOwnPropertyNames(window)", 'if (Object.getOwnPropertyNames(window).indexOf("requestIdleCallback") >= 0) {}', /listed window|enumerated the keys of window/],
+    ["C9 'fonts' in document", 'if ("fonts" in document) {}', /'fonts' in/],
+    ["C10 navigator.userAgentData", 'if (typeof navigator !== "undefined" && navigator.userAgentData) {}', /navigator\.userAgentData/],
+    ["C11 document.documentElement.animate", 'if (document.documentElement.animate) {}', /<html>\.animate/],
+    ["Reflect.ownKeys(document)", 'Reflect.ownKeys(document);', /listed document/],
+    ["Object.keys(navigator)", 'Object.keys(navigator);', /listed navigator/],
+    ["'animate' in el", 'if ("animate" in document.querySelector("header")) {}', /'animate' in/],
+    ["el.hasOwnProperty", 'document.querySelector("header").hasOwnProperty("x");', /hasOwnProperty\(x\)/],
+    ["Object.prototype.hasOwnProperty.call(el)", 'Object.prototype.hasOwnProperty.call(document.body, "nodeType");', /owns 'nodeType'/],
+    ["globalThis.hasOwnProperty('requestIdleCallback')", 'globalThis.hasOwnProperty("requestIdleCallback");', /window owns 'requestIdleCallback'/],
+    ["Object.getOwnPropertyNames(globalThis)", 'Object.getOwnPropertyNames(globalThis);', /listed window/],
+    ["Object.getOwnPropertyDescriptor(window)", 'Object.getOwnPropertyDescriptor(window, "requestIdleCallback");', /requestIdleCallback/],
+    ["for-in over an element", 'for (var k in document.body) { if (k === "animate") {} }', /enumerated the keys of/],
+    ["Object.getPrototypeOf(document)", 'Object.getPrototypeOf(document);', /listed document/],
+    ["el.__proto__ walk", 'var pp = document.body.__proto__;', /__proto__/],
+    ["el.constructor", 'var cc = document.body.constructor;', /\.constructor/],
+    ["document.getAnimations()", 'if (document.getAnimations) {}', /document\.getAnimations/],
+    ["el.getAnimations", 'if (document.body.getAnimations) {}', /<body>\.getAnimations/],
+    ["enumerating style", 'Object.keys(document.body.style);', /listed style/],
+    ["'x' in style", 'if ("contain" in document.body.style) {}', /in style/],
+    ["classList.replace", 'if (document.body.classList.replace) {}', /classList\.replace/],
+    ["event member not modelled", 'window.addEventListener("load", function (e) { if (e.persistedX) {} });', /an event\.persistedX/],
+    ["location member not modelled", 'if (location.ancestorOrigins) {}', /location\.ancestorOrigins/],
+    ["screen.orientation", 'if (screen.orientation) {}', /screen\.orientation/],
+    ["performance.getEntries", 'if (performance.getEntries) {}', /performance\.getEntries/],
+    ["localStorage as a map", 'if (localStorage.aia_ws) {}', /localStorage\.aia_ws/],
+    ["MediaQueryList member", 'if (matchMedia("(min-width: 1px)").onchangeX) {}', /MediaQueryList\.onchangeX/],
+    ["unparseable media query", 'matchMedia("(min-width: 10 apples)");', /could not be evaluated/],
+    ["unmodelled media feature", 'matchMedia("(hover: hover)");', /could not be evaluated/],
+    ["window.requestIdleCallback", 'if (window.requestIdleCallback) {}', /'requestIdleCallback'/],
+    ["typeof customElements", 'if (typeof customElements !== "undefined") {}', /'customElements'/]
+  ];
+  for (const [name, code, re] of trips) {
+    const w = await run(code, false);
+    if (!w.errors.some(function (e) { return re.test(e); })) bad.push(name + " must be recorded (got: " + (w.errors[0] || "nothing") + ")");
+  }
+  // Duplicates that a real load shows must show here, at the right width.
+  const dups = [
+    ["C3 matchMedia min-width 861px + immediate call", 'var mq3 = matchMedia("(min-width: 861px)"); var f3 = function () { if (mq3.matches) { ' + DUP + ' } }; mq3.addEventListener("change", f3); f3();', [2, 1]],
+    ["matchMedia('(min-width: 1000px)') change listener + immediate", 'var m = window.matchMedia("(min-width: 1000px)"); var f = function () { if (m.matches) { ' + DUP + ' } }; m.addEventListener("change", f); f();', [2, 1]],
+    ["screen.width", 'if (screen.width > 1000) { ' + DUP + ' }', [2, 1]],
+    ["devicePixelRatio", 'if (devicePixelRatio >= 2) { ' + DUP + ' }', [1, 2]],
+    ["orientation: portrait", 'if (matchMedia("(orientation: portrait)").matches) { ' + DUP + ' }', [1, 2]],
+    ["not all and (max-width: 860px)", 'if (matchMedia("not all and (max-width: 860px)").matches) { ' + DUP + ' }', [2, 1]],
+    ["screen and (max-width: 53.75em), print", 'if (matchMedia("screen and (max-width: 53.75em), print").matches) { ' + DUP + ' }', [1, 2]],
+    ["prefers-color-scheme light", 'if (matchMedia("(prefers-color-scheme: light)").matches) { ' + DUP + ' }', [2, 2]],
+    ["prefers-reduced-motion no-preference", 'if (matchMedia("(prefers-reduced-motion: no-preference)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches) { ' + DUP + ' }', [2, 2]],
+    ["innerWidth", 'if (innerWidth > 860) { ' + DUP + ' }', [2, 1]]
+  ];
+  for (const [name, code, want] of dups) {
+    for (const phone of [false, true]) {
+      const w = await run('document.querySelector("header .hdr-tools").appendChild(Object.assign(document.createElement("button"), { className: "theme-btn" }));' + code, phone);
+      const got = dupCount(w);
+      if (got !== want[phone ? 1 : 0] || w.errors.length) bad.push(name + " at " + (phone ? 390 : 1280) + ": " + got + " theme buttons, want " + want[phone ? 1 : 0] + (w.errors.length ? " (" + w.errors[0] + ")" : ""));
+    }
+  }
+  // Ordinary page code must not trip the recorder.
+  const clean = await run([
+    'var h = document.querySelector("header, .site-header"); h.classList.add("x"); h.classList.toggle("y", true); h.classList.contains("x");',
+    'h.setAttribute("data-a", "1"); h.dataset.k = "v"; var dv = h.dataset.k + (h.dataset.none === undefined ? "" : "!");',
+    'h.style.display = "none"; var c = h.style.color; h.style.setProperty("--x", "1");',
+    'Object.keys({ a: 1 }).forEach(function () {}); ({}).hasOwnProperty("a"); Array.prototype.slice.call(document.querySelectorAll("a"));',
+    'localStorage.getItem("aia_ws"); sessionStorage.setItem("k", "v"); var p = location.pathname + location.search + navigator.userAgent;',
+    'window.hasOwnProperty("matchMedia"); globalThis.hasOwnProperty("Promise"); var inw = "matchMedia" in window;',
+    'var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; window.matchMedia("(max-width: 860px)").addEventListener("change", function () {});',
+    'var sw = screen.width + devicePixelRatio + performance.now(); document.addEventListener("click", function (e) { var t = e.target; });',
+    'document.body.click(); window.addEventListener("pageshow", function (e) { var q = e.persisted; });',
+    'Promise.resolve(h).then(function () {}); JSON.stringify({ a: 1 }); String(h); var tt = typeof requestAnimationFrame;'
+  ].join("\n"), false);
+  if (clean.errors.length) bad.push("ordinary page code was recorded: " + clean.errors.join(" | "));
+  if (bad.length) fail("check-header strict host self-test: " + bad.join("; "));
+  else pass("check-header strict host self-test (" + trips.length + " unmodelled reads, own-key reflections and bad media queries recorded; " + dups.length + " width/media/screen duplicates shown at 1280 and 390; ordinary page code clean)");
+}
 function staticDom(file) {
   const d = makeWindow(fs.readFileSync(path.join(root, file), "utf8"), "/" + file.replace(/\.html$/, ""), false).document;
   const tag = file + " (source)";
@@ -910,6 +1255,7 @@ function renderedChecks(file, opts, d, early) {
 (async function () {
   selfTest();
   await stubSelfTest();
+  await hostSelfTest();
   let rendered = 0;
   for (const file of files.slice().sort()) {
     staticDom(file);
