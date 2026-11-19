@@ -735,6 +735,8 @@ async function main() {
     eq("desk cap: 1 write", writes, 1);
 
     // 5. Shut seats (any case / padding) and other desks write nothing.
+    const dxStamp = rowOf(tok.dxA).stampAt;
+    eq("desk D's account session was stamped at its desk D login", dxStamp, iso(T0 - 30 * MIN));
     const cBefore = JSON.stringify(deskC.presenceLog);
     const dBefore = JSON.stringify(deskD.presenceLog);
     writes = 0;
@@ -751,7 +753,7 @@ async function main() {
     eq("removed / waiting / denied seats and cross-desk sessions: 0 writes", writes, 0);
     eq("desk C log unchanged by shut seats and other desks", JSON.stringify(deskC.presenceLog) === cBefore, true);
     eq("desk D log unchanged by desk C sessions", JSON.stringify(deskD.presenceLog) === dBefore, true);
-    eq("an account session from desk D used on desk C is not stamped", !!(rowOf(tok.dxA) && rowOf(tok.dxA).stampAt), false);
+    eq("an account session from desk D used on desk C is not stamped", rowOf(tok.dxA).stampAt, dxStamp);
     writes = 0;
     await get(T0 + 5 * MIN, H(tok.dhA, D), { view: "presence" });
     eq("desk D's own hA session stamps on desk D (1 write)", writes, 1);
@@ -969,22 +971,27 @@ async function presenceBlobChild() {
   await get(T0 - 9 * MIN, ownerH, {});
   now = T0;
   const ws = lib.mem.workspaces.find(function (w) { return w.slug === DESK; });
+  const pLogin = counts.puts;
   const s = lib.issueSession(ws.people[1], ws, null, { headers: {} });
   await lib.save();
+  // The login's own save is the first stamp and carries the came-online entry: no extra put.
+  eq("login: one put (the login's own save)", counts.puts - pLogin, 1);
+  eq("login: the put carries the stamp", blobSess().stampAt, new Date(T0).toISOString());
+  eq("login: the put carries came-online", (JSON.parse(files[KEY]).workspaces[0].presenceLog || []), [{ seat: "p_h", kind: "online", at: "2026-11-15T15:00:00.000Z" }]);
   const p0 = counts.puts;
   const hH = { "x-workspace": DESK, "x-session": s.token };
   await get(T0 + 3000, hH, { view: "presence" });
-  eq("first helper read stamps once (1 put)", counts.puts - p0, 1);
-  eq("the put carries the stamp", blobSess().stampAt, new Date(T0 + 3000).toISOString());
+  eq("first read right after login puts nothing", counts.puts - p0, 0);
   for (let i = 1; i <= 12; i += 1) await get(T0 + 3000 + i * 9500, hH, i % 2 ? { view: "presence" } : {});
-  eq("12 more reads inside 2 minutes (each past the 2 s reload) put nothing", counts.puts - p0, 1);
+  eq("12 more reads inside 2 minutes (each past the 2 s reload) put nothing", counts.puts - p0, 0);
   // Another instance saved an already-expired session: dropping it on this read must not hold the stamp back.
   const withOld = JSON.parse(files[KEY]);
   withOld.sessions.push({ id: "sess_old2", tokenHash: "old-hash-2", workspace: DESK, personId: "p_x", name: "x", role: "helper", createdAt: new Date(T0 - 40 * 86400000).toISOString(), seenAt: new Date(T0 - 40 * 86400000).toISOString(), expiresAt: new Date(T0 - 86400000).toISOString() });
   files[KEY] = JSON.stringify(withOld);
   await get(T0 + 3000 + 2 * MIN - 5000, hH, {});
   await get(T0 + 3000 + 2 * MIN, hH, { view: "presence" });
-  eq("at 2 minutes: 1 more put", counts.puts - p0, 2);
+  eq("at 2 minutes after login: 1 put", counts.puts - p0, 1);
+  eq("the put carries the stamp", blobSess().stampAt, new Date(T0 + 3000 + 2 * MIN).toISOString());
   const saved = T0 + 3000 + 2 * MIN;
   const o1 = await get(saved + 4.5 * MIN, ownerH, { view: "presence" });
   eq("after reloads, the owner sees the helper online from the saved stamp (4.5 min later)", helperIn(o1), "online");

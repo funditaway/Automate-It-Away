@@ -1868,6 +1868,15 @@ function issueSession(person, workspace, account, req, proof) {
   const keep = new Set(group.slice(0, SESSION_MAX - 1).map((item) => item.id));
   mem.sessions = (mem.sessions || []).filter((item) => !item || !group.length || keep.has(item.id) || !(((row.accountId && item.accountId === row.accountId) || (!row.accountId && item.workspace === row.workspace && item.personId === row.personId))));
   mem.sessions.unshift(row);
+  // Presence B: the login's own save is this session's first stamp. A seat open on this desk comes
+  // online here (same rules as the throttled stamp), so the reads right after a login write nothing.
+  const deskRow = row.workspace && row.personId ? ((mem.workspaces || []).find((w) => w && w.slug === row.workspace) || null) : null;
+  const seatRow = deskRow ? ((deskRow.people || []).find((p) => p && p.id === row.personId) || null) : null;
+  if (seatRow && !presenceSeatShut(seatRow)) {
+    presenceFlips(deskRow, seatRow.id, now);
+    row.stampAt = new Date(now).toISOString();
+    row.seenAt = row.stampAt;
+  }
   return sessionPublic(row, token);
 }
 
