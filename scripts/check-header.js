@@ -221,7 +221,7 @@ class DNode {
   get nextSibling() { const p = this.parentNode; return p ? p.childNodes[p.childNodes.indexOf(this) + 1] || null : null; }
   get previousSibling() { const p = this.parentNode; return p ? p.childNodes[p.childNodes.indexOf(this) - 1] || null : null; }
   get parentElement() { return this.parentNode && this.parentNode.nodeType === 1 ? this.parentNode : null; }
-  get children() { return this.childNodes.filter(function (n) { return n.nodeType === 1; }); }
+  get children() { return tagList(this.childNodes.filter(function (n) { return n.nodeType === 1; }), "HTMLCollection"); }
   get firstElementChild() { return this.children[0] || null; }
   get lastElementChild() { const c = this.children; return c[c.length - 1] || null; }
   get nextElementSibling() { let n = this.nextSibling; while (n && n.nodeType !== 1) n = n.nextSibling; return n; }
@@ -278,7 +278,7 @@ class DNode {
   }
   querySelectorAll(sel) {
     const list = selectorFor(this, sel);
-    return descendants(this, []).filter(function (el) { return matchList(el, list); });
+    return tagList(descendants(this, []).filter(function (el) { return matchList(el, list); }), "NodeList");
   }
   querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
   addEventListener(type, fn) { if (typeof fn !== "function" && !(fn && fn.handleEvent)) return; (this._ls[type] = this._ls[type] || []).push(fn); }
@@ -329,7 +329,7 @@ class DElement extends DNode {
   removeAttribute(n) { this._attrs.delete(String(n).toLowerCase()); this._doc()._mutated(this); }
   toggleAttribute(n, force) { const has = this.hasAttribute(n); const on = force === undefined ? !has : !!force; if (on && !has) this.setAttribute(n, ""); if (!on && has) this.removeAttribute(n); return on; }
   getAttributeNames() { return Array.from(this._attrs.keys()); }
-  get attributes() { return Array.from(this._attrs, function (p) { return { name: p[0], value: p[1] }; }); }
+  get attributes() { return tagList(Array.from(this._attrs, function (p) { return brand({ name: p[0], value: p[1] }, "Attr"); }), "NamedNodeMap"); }
   get id() { return this.getAttribute("id") || ""; }
   set id(v) { this.setAttribute("id", v); }
   get className() { return this.getAttribute("class") || ""; }
@@ -337,7 +337,7 @@ class DElement extends DNode {
   get classList() {
     const el = this;
     const set = function (arr) { el.setAttribute("class", arr.join(" ")); };
-    return hostify({
+    return brand(hostify({
       add: function () { const c = classesOf(el); for (const k of arguments) if (c.indexOf(String(k)) < 0) c.push(String(k)); set(c); },
       remove: function () { const drop = Array.prototype.map.call(arguments, String); if (el.hasAttribute("class")) set(classesOf(el).filter(function (k) { return drop.indexOf(k) < 0; })); },
       contains: function (k) { return classesOf(el).indexOf(String(k)) >= 0; },
@@ -350,7 +350,7 @@ class DElement extends DNode {
       },
       get length() { return classesOf(el).length; },
       item: function (n) { return classesOf(el)[n] || null; }
-    }, "classList");
+    }, "classList"), "DOMTokenList");
   }
   get innerHTML() { return this.childNodes.map(serialize).join(""); }
   set innerHTML(v) {
@@ -378,12 +378,12 @@ class DElement extends DNode {
   insertAdjacentText(where, text) { this.insertAdjacentElement(where, this._doc().createTextNode(text)); }
   matches(sel) { return matchList(this, selectorFor(this, sel)); }
   closest(sel) { const list = selectorFor(this, sel); for (let n = this; n && n.nodeType === 1; n = n.parentNode) if (matchList(n, list)) return n; return null; }
-  getElementsByTagName(t) { return this.querySelectorAll(t); }
-  getElementsByClassName(c) { return this.querySelectorAll(String(c).trim().split(/\s+/).map(function (k) { return "." + k; }).join("")); }
+  getElementsByTagName(t) { return tagList(this.querySelectorAll(t), "HTMLCollection"); }
+  getElementsByClassName(c) { return tagList(this.querySelectorAll(String(c).trim().split(/\s+/).map(function (k) { return "." + k; }).join("")), "HTMLCollection"); }
   click() { this.dispatchEvent(makeEvent("click", true)); }
   focus() {}
   blur() {}
-  getBoundingClientRect() { return { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0 }; }
+  getBoundingClientRect() { return new DRect(0, 0, 0, 0, "DOMRect"); }
 }
 REFLECT.forEach(function (p) {
   const attr = p === "for" ? "for" : p;
@@ -437,14 +437,14 @@ class DDocument extends DNode {
   createComment(t) { return new DText(this, t, 8); }
   createDocumentFragment() { return new DFragment(this); }
   getElementById(id) { id = String(id); return descendants(this, []).filter(function (e) { return e.getAttribute("id") === id; })[0] || null; }
-  getElementsByTagName(t) { return this.querySelectorAll(t); }
-  getElementsByClassName(c) { return this.querySelectorAll(String(c).trim().split(/\s+/).map(function (k) { return "." + k; }).join("")); }
+  getElementsByTagName(t) { return tagList(this.querySelectorAll(t), "HTMLCollection"); }
+  getElementsByClassName(c) { return tagList(this.querySelectorAll(String(c).trim().split(/\s+/).map(function (k) { return "." + k; }).join("")), "HTMLCollection"); }
   _mutated(target, added, removed) {
     if (this._quiet || !this._observers.length) return;
     for (const o of this._observers) {
       if (!o.root) continue;
       if (o.opts && o.opts.subtree ? !o.root.contains(target) : target !== o.root) continue;
-      o.records.push(hostify({ type: "childList", target: target, addedNodes: added || [], removedNodes: removed || [], previousSibling: null, nextSibling: null, attributeName: null, attributeNamespace: null, oldValue: null }, "a MutationRecord"));
+      o.records.push(brand(hostify({ type: "childList", target: target, addedNodes: tagList((added || []).slice(), "NodeList"), removedNodes: tagList((removed || []).slice(), "NodeList"), previousSibling: null, nextSibling: null, attributeName: null, attributeNamespace: null, oldValue: null }, "a MutationRecord"), "MutationRecord"));
       if (!o.queued) {
         o.queued = true;
         const doc = this;
@@ -587,6 +587,54 @@ class DStorage {
   key(n) { return Array.from(this._m.keys())[n] || null; }
   get length() { return this._m.size; }
 }
+// DOMRect / DOMRectReadOnly as in a browser: x, y, width, height, top, right, bottom, left as
+// getters, and toJSON() giving a plain object with those eight keys in that order. toJSON's
+// result reaches page code as a page-realm plain object (PAGE_PLAIN), never a stub object.
+class DRect {
+  constructor(x, y, w, h, tag) { this._r = [Number(x) || 0, Number(y) || 0, Number(w) || 0, Number(h) || 0]; this._tag = tag || "DOMRect"; HOSTS.set(this, "a " + this._tag); }
+  get x() { return this._r[0]; }
+  get y() { return this._r[1]; }
+  get width() { return this._r[2]; }
+  get height() { return this._r[3]; }
+  get top() { return Math.min(this._r[1], this._r[1] + this._r[3]); }
+  get right() { return Math.max(this._r[0], this._r[0] + this._r[2]); }
+  get bottom() { return Math.max(this._r[1], this._r[1] + this._r[3]); }
+  get left() { return Math.min(this._r[0], this._r[0] + this._r[2]); }
+  toJSON() { const o = { x: this.x, y: this.y, width: this.width, height: this.height, top: this.top, right: this.right, bottom: this.bottom, left: this.left }; PAGE_PLAIN.add(o); return o; }
+}
+// The browser's Object.prototype.toString brands (Symbol.toStringTag): read through the membrane's
+// symbol path, so asking for a brand is never recorded, and Object.prototype.toString.call(x)
+// gives "[object HTMLDocument]", "[object HTMLButtonElement]", "[object DOMRect]" and so on.
+function brand(o, tag) { Object.defineProperty(o, Symbol.toStringTag, { value: tag, writable: false, enumerable: false, configurable: true }); return o; }
+function brandGetter(C, fn) { Object.defineProperty(C.prototype, Symbol.toStringTag, { get: fn, enumerable: false, configurable: true }); }
+const ELEMENT_TAGS = {
+  html: "HTMLHtmlElement", head: "HTMLHeadElement", body: "HTMLBodyElement", title: "HTMLTitleElement", meta: "HTMLMetaElement", link: "HTMLLinkElement",
+  style: "HTMLStyleElement", script: "HTMLScriptElement", base: "HTMLBaseElement", div: "HTMLDivElement", span: "HTMLSpanElement", a: "HTMLAnchorElement",
+  button: "HTMLButtonElement", p: "HTMLParagraphElement", ul: "HTMLUListElement", ol: "HTMLOListElement", li: "HTMLLIElement", dl: "HTMLDListElement",
+  img: "HTMLImageElement", input: "HTMLInputElement", textarea: "HTMLTextAreaElement", select: "HTMLSelectElement", option: "HTMLOptionElement",
+  optgroup: "HTMLOptGroupElement", label: "HTMLLabelElement", form: "HTMLFormElement", fieldset: "HTMLFieldSetElement", legend: "HTMLLegendElement",
+  table: "HTMLTableElement", thead: "HTMLTableSectionElement", tbody: "HTMLTableSectionElement", tfoot: "HTMLTableSectionElement", tr: "HTMLTableRowElement",
+  td: "HTMLTableCellElement", th: "HTMLTableCellElement", caption: "HTMLTableCaptionElement", col: "HTMLTableColElement", colgroup: "HTMLTableColElement",
+  h1: "HTMLHeadingElement", h2: "HTMLHeadingElement", h3: "HTMLHeadingElement", h4: "HTMLHeadingElement", h5: "HTMLHeadingElement", h6: "HTMLHeadingElement",
+  br: "HTMLBRElement", hr: "HTMLHRElement", pre: "HTMLPreElement", blockquote: "HTMLQuoteElement", q: "HTMLQuoteElement", iframe: "HTMLIFrameElement",
+  template: "HTMLTemplateElement", canvas: "HTMLCanvasElement", video: "HTMLVideoElement", audio: "HTMLAudioElement", source: "HTMLSourceElement",
+  picture: "HTMLPictureElement", details: "HTMLDetailsElement", dialog: "HTMLDialogElement", progress: "HTMLProgressElement", meter: "HTMLMeterElement",
+  output: "HTMLOutputElement", time: "HTMLTimeElement", data: "HTMLDataElement", slot: "HTMLSlotElement", menu: "HTMLMenuElement", map: "HTMLMapElement",
+  area: "HTMLAreaElement", object: "HTMLObjectElement", embed: "HTMLEmbedElement", track: "HTMLTrackElement", noscript: "HTMLElement",
+  svg: "SVGSVGElement", path: "SVGPathElement", g: "SVGGElement", circle: "SVGCircleElement", line: "SVGLineElement", polyline: "SVGPolylineElement",
+  polygon: "SVGPolygonElement", use: "SVGUseElement", symbol: "SVGSymbolElement", defs: "SVGDefsElement", ellipse: "SVGEllipseElement"
+};
+const PLAIN_HTML_ELEMENTS = new Set("header footer nav main section article aside address hgroup figure figcaption summary b i u s em strong small code abbr cite dfn kbd mark samp sub sup var bdi bdo ruby rp rt dd dt wbr search".split(" "));
+function elementTag(n) { return ELEMENT_TAGS[n] || (PLAIN_HTML_ELEMENTS.has(n) || n.indexOf("-") > 0 ? "HTMLElement" : "HTMLUnknownElement"); }
+brandGetter(DElement, function () { return elementTag(this.localName); });
+brandGetter(DText, function () { return this.nodeType === 8 ? "Comment" : "Text"; });
+brandGetter(DFragment, function () { return "DocumentFragment"; });
+brandGetter(DDocument, function () { return "HTMLDocument"; });
+brandGetter(DStorage, function () { return "Storage"; });
+brandGetter(DRect, function () { return this._tag; });
+// Lists the stub hands out as arrays carry the browser's list brand on the page-realm snapshot.
+const LIST_TAG = new WeakMap();
+function tagList(arr, tag) { LIST_TAG.set(arr, tag); return arr; }
 
 // ---- strict host objects: one membrane ----
 // Page code never holds a stub object. Every stub object it can reach (window / self, document and
@@ -617,6 +665,7 @@ const STOPPED = new WeakSet(); // stopped events, kept off the event object
 const RAWS = new WeakSet();    // every raw stub object the membrane has ever wrapped
 const PROXIES = new WeakMap(); // membrane proxy -> raw stub object
 const NULL_RAW = new WeakSet(); // stub objects made with a null prototype
+const PAGE_PLAIN = new WeakSet(); // stub-made plain JSON objects (toJSON results) handed out as page-realm copies
 const OUTER_OP = Object.prototype, OUTER_FP = Function.prototype;
 function record(msg) { if (ACTIVE_DOC) ACTIVE_DOC._errors.push(msg + " (the check-header page does not model it)"); }
 function hostName(o, fallback) {
@@ -676,7 +725,8 @@ class DStyle {
 }
 // dataset: a live view of the data-* attributes, as in a browser (missing keys read undefined).
 class DDataset { constructor(el) { this._el = el; HOSTS.set(this, "dataset"); } }
-[DStyle, DDataset].forEach(function (C) { delete C.prototype.constructor; });
+[DStyle, DDataset, DRect].forEach(function (C) { delete C.prototype.constructor; });
+brandGetter(DStyle, function () { return "CSSStyleDeclaration"; });
 const dsAttr = function (k) { return "data-" + String(k).replace(/[A-Z]/g, function (c) { return "-" + c.toLowerCase(); }); };
 const dsProp = function (a) { return a.slice(5).replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); }); };
 // Membrane hooks for the two stub objects with open-ended keys. NOPE = fall through to the rules.
@@ -687,7 +737,7 @@ function specialGet(raw, k) {
     if (/^(--|[a-z][a-zA-Z]*$)/.test(k)) return raw._s[k] === undefined ? "" : raw._s[k];
     return NOPE;
   }
-  if (raw instanceof DDataset) { if (typeof k !== "string") return undefined; const v = raw._el.getAttribute(dsAttr(k)); return v === null ? undefined : v; }
+  if (raw instanceof DDataset) { if (k === Symbol.toStringTag) return "DOMStringMap"; if (typeof k !== "string") return undefined; const v = raw._el.getAttribute(dsAttr(k)); return v === null ? undefined : v; }
   return NOPE;
 }
 function specialSet(raw, k, v) {
@@ -712,6 +762,7 @@ function makeEvent(type, bubbles, extra) {
       return out;
     }
   }, "an event");
+  brand(e, type === "click" ? "PointerEvent" : /^(mouse|dblclick|contextmenu)/.test(type) ? "MouseEvent" : /^page(show|hide)$/.test(type) ? "PageTransitionEvent" : "Event");
   if (extra) Object.assign(e, extra);
   return e;
 }
@@ -739,7 +790,7 @@ function makeMembrane(V) {
     const C = e && typeof e.name === "string" && intrinsics.has(globalThis[e.name]) && /Error$/.test(e.name) ? V[e.name] : V.Error;
     return new C(String(e && e.message));
   };
-  const aliases = new WeakMap(); // page-realm objects that stand for a stub object (globalThis for window)
+  const aliases = new WeakMap(); // page-realm objects that stand for a stub object
   const unwrap = function (v) { return PROXIES.has(v) ? PROXIES.get(v) : aliases.has(v) ? aliases.get(v) : v; };
   // A stub method runs only on a stub object (or on nothing): called on a page object it would
   // hand that object raw stub objects, so it throws, like a browser's "Illegal invocation".
@@ -753,8 +804,13 @@ function makeMembrane(V) {
     if (PROXIES.has(v)) return v;
     if (intrinsics.has(v)) return intrinsics.get(v);
     if (cache.has(v)) return cache.get(v);
+    if (PAGE_PLAIN.has(v)) { const o = new V.Object(); Object.keys(v).forEach(function (k) { o[k] = v[k]; }); return o; } // toJSON results: numbers only
     if (!isOuter(v)) return v;
-    if (Array.isArray(v)) return V.Array.from(v, function (x) { return wrap(x); }); // a page-realm snapshot (NodeList-like)
+    if (Array.isArray(v)) { // a page-realm snapshot (NodeList-like), with the browser's list brand
+      const a = V.Array.from(v, function (x) { return wrap(x); });
+      if (LIST_TAG.has(v)) brand(a, LIST_TAG.get(v));
+      return a;
+    }
     const raw = v;
     const label = function () { return hostName(raw); };
     const fn = typeof raw === "function";
@@ -763,6 +819,7 @@ function makeMembrane(V) {
         const sp = specialGet(raw, k);
         if (sp !== NOPE) return wrap(sp);
         if (typeof k === "symbol") return wrap(Reflect.get(raw, k, raw));
+        if (k === "childNodes" && NODES.has(raw)) tagList(raw.childNodes, "NodeList");
         if (modelled(raw, k) || (fn && FN_KNOWN.has(k)) || OBJ_KNOWN.has(k)) return wrap(Reflect.get(raw, k, raw));
         if (SAFE_KEYS.has(k)) return undefined;
         if (REFLECTIVE.has(k)) return wrap(reflectiveFn(k));
@@ -915,27 +972,27 @@ function makeWindow(html, pagePath, phone) {
     document: doc,
     localStorage: hostify(new DStorage(), "localStorage"),
     sessionStorage: hostify(new DStorage(), "sessionStorage"),
-    location: hostify({ pathname: pagePath, href: "https://aia.test" + pagePath, origin: "https://aia.test", protocol: "https:", host: "aia.test", hostname: "aia.test", port: "", search: "", hash: "" }, "location"),
-    navigator: hostify({ userAgent: "aia-check-header", language: "en-US", languages: ["en-US"], onLine: true }, "navigator"),
-    screen: hostify({ width: env.w, height: env.h, availWidth: env.w, availHeight: env.h, colorDepth: 24, pixelDepth: 24 }, "screen"),
-    performance: hostify({ now: function () { return clock; }, timeOrigin: 0 }, "performance"),
+    location: brand(hostify({ pathname: pagePath, href: "https://aia.test" + pagePath, origin: "https://aia.test", protocol: "https:", host: "aia.test", hostname: "aia.test", port: "", search: "", hash: "" }, "location"), "Location"),
+    navigator: brand(hostify({ userAgent: "aia-check-header", language: "en-US", languages: ["en-US"], onLine: true }, "navigator"), "Navigator"),
+    screen: brand(hostify({ width: env.w, height: env.h, availWidth: env.w, availHeight: env.h, colorDepth: 24, pixelDepth: 24 }, "screen"), "Screen"),
+    performance: brand(hostify({ now: function () { return clock; }, timeOrigin: 0, toJSON: function () { const o = { timeOrigin: 0 }; PAGE_PLAIN.add(o); return o; } }, "performance"), "Performance"),
     devicePixelRatio: phone ? 3 : 1,
     innerWidth: env.w,
     innerHeight: env.h,
     outerWidth: env.w,
     outerHeight: env.h,
-    console: hostify({ log() {}, info() {}, warn() {}, error() {}, debug() {} }, "console"),
+    console: brand(hostify({ log() {}, info() {}, warn() {}, error() {}, debug() {} }, "console"), "console"),
     matchMedia: function (q) {
       let matches = false;
       try { matches = evalMedia(q, env); }
       catch (e) { doc._errors.push("matchMedia(" + JSON.stringify(String(q)) + ") could not be evaluated: " + e.message); }
       const ls2 = [];
-      return hostify({
+      return brand(hostify({
         matches: matches, media: String(q), onchange: null,
         addEventListener: function (t, fn) { if (t === "change") ls2.push(fn); }, removeEventListener: function (t, fn) { const k = ls2.indexOf(fn); if (k >= 0) ls2.splice(k, 1); },
         addListener: function (fn) { ls2.push(fn); }, removeListener: function (fn) { const k = ls2.indexOf(fn); if (k >= 0) ls2.splice(k, 1); },
         dispatchEvent: function () { return true; }
-      }, "a MediaQueryList");
+      }, "a MediaQueryList"), "MediaQueryList");
     },
     setTimeout: function (fn, ms) { return addTimer(fn, ms, Array.prototype.slice.call(arguments, 2), false); },
     setInterval: function (fn, ms) { return addTimer(fn, ms, Array.prototype.slice.call(arguments, 2), true); },
@@ -947,7 +1004,7 @@ function makeWindow(html, pagePath, phone) {
       queueMicrotask(function () { try { doc._call(fn, win, []); } catch (e) { doc._errors.push("microtask threw: " + (e && e.message)); } });
     },
     cancelAnimationFrame: clearTimer,
-    getComputedStyle: function () { return { getPropertyValue: function () { return ""; } }; },
+    getComputedStyle: function () { return brand({ getPropertyValue: function () { return ""; } }, "CSSStyleDeclaration"); },
     addEventListener: function (t, fn) { if (typeof fn !== "function" && !(fn && fn.handleEvent)) return; (ls[t] = ls[t] || []).push(fn); },
     removeEventListener: function (t, fn) { const l = ls[t]; if (l && l.indexOf(fn) >= 0) l.splice(l.indexOf(fn), 1); },
     dispatchEvent: function (ev) {
@@ -964,24 +1021,24 @@ function makeWindow(html, pagePath, phone) {
     },
     MutationObserver: function (cb) {
       const o = { cb: cb, root: null, opts: null, records: [], queued: false };
-      o.api = this; hostify(this, "a MutationObserver");
+      o.api = this; brand(hostify(this, "a MutationObserver"), "MutationObserver");
       this.observe = function (root, opts) { if (!NODES.has(root)) throw new TypeError("MutationObserver.observe: not a node"); o.root = root; o.opts = opts || {}; if (doc._observers.indexOf(o) < 0) doc._observers.push(o); };
       this.disconnect = function () { o.root = null; o.records = []; const k = doc._observers.indexOf(o); if (k >= 0) doc._observers.splice(k, 1); };
       this.takeRecords = function () { const r = o.records; o.records = []; return r; };
     },
-    Event: function (type, init) { this.type = String(type); this.bubbles = !!(init && init.bubbles); hostify(this, "an event"); },
+    Event: function (type, init) { this.type = String(type); this.bubbles = !!(init && init.bubbles); brand(hostify(this, "an event"), "Event"); },
     // ResizeObserver: one callback a frame after observe() (and after every observe of a new
     // target), with a plausible box. IntersectionObserver: one callback right after observe(),
     // the header is on screen.
     ResizeObserver: function (cb) {
-      const api = hostify(this, "a ResizeObserver"), seen = new Set();
+      const api = brand(hostify(this, "a ResizeObserver"), "ResizeObserver"), seen = new Set();
       this.observe = function (el) {
         if (seen.has(el)) return; seen.add(el);
         addTimer(function () {
           if (!seen.has(el)) return;
           const w = phone ? 390 : 1280, hgt = 56;
-          const box = { x: 0, y: 0, top: 0, left: 0, width: w, height: hgt, right: w, bottom: hgt };
-          try { doc._call(cb, api, [[{ target: el, contentRect: box, borderBoxSize: [{ inlineSize: w, blockSize: hgt }], contentBoxSize: [{ inlineSize: w, blockSize: hgt }], devicePixelContentBoxSize: [{ inlineSize: w, blockSize: hgt }] }], api]); }
+          const size = function () { return [brand({ inlineSize: w, blockSize: hgt }, "ResizeObserverSize")]; };
+          try { doc._call(cb, api, [[brand({ target: el, contentRect: new DRect(0, 0, w, hgt, "DOMRectReadOnly"), borderBoxSize: size(), contentBoxSize: size(), devicePixelContentBoxSize: size() }, "ResizeObserverEntry")], api]); }
           catch (e) { doc._errors.push("ResizeObserver callback threw: " + (e && e.message)); }
         }, 16, [], false);
       };
@@ -989,15 +1046,14 @@ function makeWindow(html, pagePath, phone) {
       this.disconnect = function () { seen.clear(); };
     },
     IntersectionObserver: function (cb, opts) {
-      const api = hostify(this, "an IntersectionObserver"), seen = new Set();
+      const api = brand(hostify(this, "an IntersectionObserver"), "IntersectionObserver"), seen = new Set();
       this.root = (opts && opts.root) || null; this.rootMargin = (opts && opts.rootMargin) || "0px"; this.thresholds = [].concat((opts && opts.threshold) || 0);
       this.observe = function (el) {
         if (seen.has(el)) return; seen.add(el);
         addTimer(function () {
           if (!seen.has(el)) return;
           const w = phone ? 390 : 1280;
-          const box = { x: 0, y: 0, top: 0, left: 0, width: w, height: 56, right: w, bottom: 56 };
-          try { doc._call(cb, api, [[{ target: el, isIntersecting: true, intersectionRatio: 1, boundingClientRect: box, intersectionRect: box, rootBounds: { x: 0, y: 0, top: 0, left: 0, width: w, height: phone ? 844 : 900, right: w, bottom: phone ? 844 : 900 }, time: clock }], api]); }
+          try { doc._call(cb, api, [[brand({ target: el, isIntersecting: true, intersectionRatio: 1, boundingClientRect: new DRect(0, 0, w, 56, "DOMRectReadOnly"), intersectionRect: new DRect(0, 0, w, 56, "DOMRectReadOnly"), rootBounds: new DRect(0, 0, w, phone ? 844 : 900, "DOMRectReadOnly"), time: clock }, "IntersectionObserverEntry")], api]); }
           catch (e) { doc._errors.push("IntersectionObserver callback threw: " + (e && e.message)); }
         }, 0, [], false);
       };
@@ -1030,43 +1086,35 @@ function makeWindow(html, pagePath, phone) {
   const V = vm.runInContext("({ Object, Function, Array, Error, TypeError, RangeError, SyntaxError, ReferenceError, EvalError, URIError, Promise, Map, Set, WeakMap, WeakSet, Symbol, String, Number, Boolean, RegExp, Date, BigInt, JSON, Math, Reflect })", sandbox, { filename: SETUP_FILE });
   const M = makeMembrane(V);
   const winKnown = function (k) { return typeof k === "symbol" || Object.prototype.hasOwnProperty.call(sandbox, k) || JS_BUILTINS.has(k); };
-  const gwin = new Proxy(sandbox, {
-    get: function (t, k) {
-      if (k === "constructor" || k === "__proto__") record("page code read window." + k);
-      const d = Reflect.getOwnPropertyDescriptor(t, k);
-      if (d) return d.get ? Reflect.apply(d.get, realGlobal, []) : "value" in d ? d.value : undefined;
-      unknown(k); return realGlobal[k];
-    },
-    has: function (t, k) { if (k in t) return true; unknown(k); return k in realGlobal; },
-    set: function (t, k, v) {
-      const d = Reflect.getOwnPropertyDescriptor(t, k);
-      if (d && (d.get || d.set)) { if (d.set) Reflect.apply(d.set, realGlobal, [v]); return true; }
-      t[k] = v; return true;
-    },
-    getOwnPropertyDescriptor: function (t, k) {
-      if (!winKnown(k)) record("page code asked whether window owns '" + String(k) + "'");
-      const d = Reflect.getOwnPropertyDescriptor(t, k);
-      if (d || !JS_BUILTINS.has(k)) return d;
-      const b = Reflect.getOwnPropertyDescriptor(realGlobal, k);
-      return b ? Object.assign({}, b, { configurable: true }) : undefined;
-    },
-    ownKeys: function (t) { record("page code enumerated the keys of window"); return Reflect.ownKeys(t); },
-    getPrototypeOf: function () { record("page code walked the prototype chain of window"); return protoTarget; },
-    setPrototypeOf: function () { record("page code set the prototype of window"); return false; },
-    defineProperty: function (t, k, d) { return Reflect.defineProperty(t, k, d); }
-  });
-  M.register(win, gwin);
-  M.alias(realGlobal, win);
+  // One realm identity, as in a browsing context: window, self, globalThis, top-level and sloppy
+  // `this`, Function("return this")(), (0, eval)("this") are all the vm global itself, so ===,
+  // Object.is, WeakMap / WeakSet keys and every other identity test agree (Probe E39, E41, E42,
+  // E51, E52). The global stays a recording view: unknown names, window.X, self.X and "X" in window
+  // fall through to the recording tail proxy at the end of its prototype chain; window.constructor
+  // and window.__proto__, for-in over window, walking or setting its prototype, and own-key
+  // reflection on it (hooked below) are recorded. The membrane maps the vm global to the raw stub
+  // window and back, so stub internals still only see raw objects.
+  const rec = function (msg) { doc._errors.push(msg + " (the check-header page does not model it)"); };
+  M.register(win, realGlobal);
   HOSTS.set(win, "window");
   Object.keys(win).forEach(function (k) { sandbox[k] = M.wrap(win[k]); });
-  sandbox.window = gwin;
-  sandbox.self = gwin;
+  sandbox.window = realGlobal;
+  sandbox.self = realGlobal;
   doc._win = win;
   doc._call = M.callPage;
   doc._handler = function (code, name) { return vm.runInContext("(function (event) {\n" + code + "\n})", sandbox, { filename: pagePath + " " + name + " attribute" }); };
   const tail = new Proxy(protoTarget, {
-    has: function (t, k) { if (k in t) return true; unknown(k); return false; },
-    get: function (t, k, r) { if (k in t) return Reflect.get(t, k, r); unknown(k); return undefined; }
+    has: function (t, k) { if (k === Symbol.toStringTag || k in t) return true; unknown(k); return false; },
+    get: function (t, k, r) {
+      if (k === Symbol.toStringTag) return "Window";
+      if (k === "constructor" || k === "__proto__") rec("page code read window." + k);
+      if (k in t) return Reflect.get(t, k, r);
+      unknown(k); return undefined;
+    },
+    set: function (t, k, v, r) { if (k === "__proto__") { rec("page code set the prototype of window"); return true; } return Reflect.set(t, k, v, r); },
+    ownKeys: function (t) { rec("page code enumerated the keys of window"); return Reflect.ownKeys(t); },
+    getPrototypeOf: function (t) { rec("page code walked the prototype chain of window"); return Reflect.getPrototypeOf(t); },
+    setPrototypeOf: function () { rec("page code set the prototype of window"); return false; }
   });
   sandbox.__aiaTail = tail;
   vm.runInContext("Object.setPrototypeOf(globalThis, __aiaTail);", sandbox, { filename: SETUP_FILE });
@@ -1075,7 +1123,7 @@ function makeWindow(html, pagePath, phone) {
   // must name a modelled API or a JS built-in. (Every other stub object is a membrane proxy whose
   // own traps record reflection.)
   const VObject = V.Object, VReflect = V.Reflect, VJSON = V.JSON;
-  const isWin = function (o) { return o === gwin || o === realGlobal; };
+  const isWin = function (o) { return o === realGlobal; };
   const ownCheck = function (o, k, how) { if (isWin(o) && !winKnown(k)) record("page code asked " + how + " whether window owns '" + String(k) + "'"); };
   const keyed = function (holder, name) {
     const orig = holder[name];
@@ -1095,10 +1143,17 @@ function makeWindow(html, pagePath, phone) {
   ["keys", "values", "entries", "getOwnPropertyNames", "getOwnPropertySymbols", "getOwnPropertyDescriptors", "getPrototypeOf"].forEach(function (n) { listing(VObject, n, false); });
   ["ownKeys", "getPrototypeOf"].forEach(function (n) { listing(VReflect, n, false); });
   listing(VObject, "assign", true); listing(VJSON, "stringify", false);
-  ["hasOwnProperty", "propertyIsEnumerable"].forEach(function (n) {
+  ["hasOwnProperty", "propertyIsEnumerable", "__lookupGetter__", "__lookupSetter__"].forEach(function (n) {
     const orig = VObject.prototype[n];
     const f = function (k) { ownCheck(this, k, n); return orig.apply(this, arguments); };
     Object.defineProperty(VObject.prototype, n, { value: f, writable: true, configurable: true });
+  });
+  // The page cannot unhook the recording tail from window: setting window's prototype is recorded
+  // and refused.
+  [[VObject, "setPrototypeOf", function (o) { return o; }], [VReflect, "setPrototypeOf", function () { return false; }]].forEach(function (h) {
+    const orig = h[0][h[1]], refused = h[2];
+    const f = function (o) { if (isWin(o)) { rec("page code set the prototype of window"); return refused(o); } return orig.apply(this, arguments); };
+    Object.defineProperty(h[0], h[1], { value: f, writable: true, configurable: true });
   });
   const settle = function () { return new Promise(function (r) { setImmediate(r); }); };
   const ev = function (type, bubbles) { return makeEvent(type, bubbles); };
@@ -1173,7 +1228,7 @@ async function renderPage(file, opts) {
     w.window.localStorage.setItem("aia_session", "tok-alpha");
     w.window.localStorage.setItem("aia_name", "Sam");
   }
-  w.run(themeSrc);
+  w.run(opts.src || themeSrc);
   await w.settle();
   // Before DOMContentLoaded: the phone path has already painted the header chrome.
   w.early = {
@@ -1183,7 +1238,7 @@ async function renderPage(file, opts) {
   await w.load();
   await w.advance(1000);
   if (opts.twice) {
-    w.run(themeSrc);
+    w.run(opts.src || themeSrc);
     await w.settle();
     await w.advance(1000);
   }
@@ -1507,6 +1562,112 @@ async function membraneSelfTest() {
   if (bad.length) fail("check-header membrane self-test: " + bad.join("; "));
   else pass("check-header membrane self-test (" + trips.length + " dynamic-code, callback, file-name and reflection paths recorded with no call-stack rule; " + values + " values page code can reach, incl. every getter and own key of every stub object, are membrane proxies or page-realm values, none raw)");
 }
+// Realm and brand self-test (Probe round 5 E-family, judged by the plausible-regression bar). In
+// a browser, globalThis, window, self, sloppy `this` and Function("return this")() are one object;
+// host objects carry their Object.prototype.toString brand; a DOMRect has toJSON. Ordinary code
+// that branches on any of these must see what Chrome shows, with nothing recorded, and a theme.js
+// that adds a second theme button behind such a gate must paint 2 buttons here (so the header count
+// FAILs it). Window reflection that stayed recorded stays recorded.
+async function realmSelfTest() {
+  const bad = [];
+  const page = '<!doctype html><html><head></head><body><header class="site-header"><div class="hdr-tools"></div></header><template id="tp"><b>t</b></template></body></html>';
+  const run = async function (code) {
+    const w = makeWindow(page, "/selftest", false);
+    try { w.run(code, "selftest-realm.js"); } catch (e) { w.errors.push("threw: " + e.message); }
+    await w.settle(); await w.load(); await w.advance(1000); await w.drain();
+    return w;
+  };
+  const probe = [
+    'var R = []; function t(n, v) { R.push([n, v === true]); } var TOP = this, OS = Object.prototype.toString;',
+    't("top-level this === window", TOP === window); t("globalThis === window", globalThis === window); t("self === window", self === window);',
+    't("window.window === globalThis", window.window === globalThis); t("self.self === window", self.self === window); t("Object.is(window, globalThis)", Object.is(window, globalThis));',
+    't("Function(\'return this\')() === window", Function("return this")() === window); t("new Function(\'return this\')() === self", new Function("return this")() === self);',
+    't("({}).constructor.constructor(\'return this\')() === window", ({}).constructor.constructor("return this")() === window);',
+    't("(0, eval)(\'this\') === window", (0, eval)("this") === window); t("eval(\'this\') === window", eval("this") === window);',
+    't("sloppy function this === globalThis", (function () { return this; })() === globalThis);',
+    'var wm = new WeakMap(); wm.set(window, 1); t("WeakMap keyed by window has globalThis and self", wm.has(globalThis) && wm.has(self));',
+    'var ws = new WeakSet(); ws.add(globalThis); t("WeakSet of globalThis has window", ws.has(window)); var mp = new Map([[self, 1]]); t("Map keyed by self has window", mp.get(window) === 1);',
+    't("document.defaultView === globalThis", document.defaultView === globalThis);',
+    'setTimeout(function () { t("setTimeout this === globalThis", this === globalThis); }, 0);',
+    'document.body.addEventListener("click", function (e) { var p = e.composedPath(); t("composedPath ends at globalThis", p[p.length - 1] === globalThis); t("click event brand", OS.call(e) === "[object PointerEvent]"); }); document.body.click();',
+    'var h = document.querySelector("header"), r = h.getBoundingClientRect(), mq = matchMedia("(max-width: 860px)");',
+    'var B = [["window", window, "Window"], ["globalThis", globalThis, "Window"], ["self", self, "Window"], ["document", document, "HTMLDocument"], ["html", document.documentElement, "HTMLHtmlElement"],',
+    ' ["head", document.head, "HTMLHeadElement"], ["body", document.body, "HTMLBodyElement"], ["header", h, "HTMLElement"], ["div", h.firstChild, "HTMLDivElement"], ["button", document.createElement("button"), "HTMLButtonElement"],',
+    ' ["a", document.createElement("a"), "HTMLAnchorElement"], ["span", document.createElement("span"), "HTMLSpanElement"], ["img", document.createElement("img"), "HTMLImageElement"], ["template", document.getElementById("tp"), "HTMLTemplateElement"],',
+    ' ["text node", document.createTextNode("t"), "Text"], ["comment", document.createComment("c"), "Comment"], ["fragment", document.createDocumentFragment(), "DocumentFragment"], ["template.content", document.getElementById("tp").content, "DocumentFragment"],',
+    ' ["navigator", navigator, "Navigator"], ["location", location, "Location"], ["screen", screen, "Screen"], ["performance", performance, "Performance"], ["localStorage", localStorage, "Storage"], ["sessionStorage", sessionStorage, "Storage"],',
+    ' ["style", h.style, "CSSStyleDeclaration"], ["getComputedStyle", getComputedStyle(h), "CSSStyleDeclaration"], ["dataset", h.dataset, "DOMStringMap"], ["classList", h.classList, "DOMTokenList"], ["getBoundingClientRect()", r, "DOMRect"],',
+    ' ["matchMedia()", mq, "MediaQueryList"], ["new Event", new Event("x"), "Event"], ["querySelectorAll", document.querySelectorAll("div"), "NodeList"], ["childNodes", document.body.childNodes, "NodeList"],',
+    ' ["children", document.body.children, "HTMLCollection"], ["getElementsByTagName", document.getElementsByTagName("div"), "HTMLCollection"], ["getElementsByClassName", document.getElementsByClassName("hdr-tools"), "HTMLCollection"],',
+    ' ["MutationObserver", new MutationObserver(function () {}), "MutationObserver"]];',
+    'B.forEach(function (b) { t("Object.prototype.toString.call(" + b[0] + ") is [object " + b[2] + "]", OS.call(b[1]) === "[object " + b[2] + "]"); t(b[0] + "[Symbol.toStringTag]", b[1][Symbol.toStringTag] === b[2]); });',
+    't("String(document)", String(document) === "[object HTMLDocument]"); t("String(window)", String(window) === "[object Window]");',
+    't("DOMRect.toJSON is a function", typeof r.toJSON === "function"); var j = r.toJSON(); t("DOMRect.toJSON keys in browser order", Object.keys(j).join() === "x,y,width,height,top,right,bottom,left");',
+    't("DOMRect.toJSON values are numbers", Object.keys(j).every(function (k) { return typeof j[k] === "number"; })); t("DOMRect.toJSON result is a page object", Object.getPrototypeOf(j) === Object.prototype);',
+    't("JSON.stringify(DOMRect)", JSON.stringify(r) === JSON.stringify(j)); t("DOMRect getters", r.width === 0 && r.right === 0 && r.x === 0);',
+    't("MediaQueryList has no toJSON (as in Chrome)", typeof mq.toJSON === "undefined"); t("performance.toJSON", typeof performance.toJSON === "function" && JSON.stringify(performance) === JSON.stringify(performance.toJSON()));',
+    'new ResizeObserver(function (en) { var c = en[0].contentRect; t("ResizeObserver contentRect brand", OS.call(c) === "[object DOMRectReadOnly]"); t("contentRect.toJSON", typeof c.toJSON === "function" && c.toJSON().width === c.width && c.width > 0); t("ResizeObserverEntry brand", OS.call(en[0]) === "[object ResizeObserverEntry]"); }).observe(h);',
+    'new IntersectionObserver(function (en) { var b = en[0].rootBounds; t("IntersectionObserver rootBounds brand", OS.call(b) === "[object DOMRectReadOnly]"); t("rootBounds.toJSON", JSON.stringify(b) === JSON.stringify(b.toJSON()) && b.toJSON().height > 0); t("IntersectionObserverEntry brand", OS.call(en[0]) === "[object IntersectionObserverEntry]"); }).observe(h);',
+    'var mo = new MutationObserver(function (recs) { t("MutationRecord brand", OS.call(recs[0]) === "[object MutationRecord]"); t("addedNodes brand", OS.call(recs[0].addedNodes) === "[object NodeList]"); }); mo.observe(h, { childList: true, subtree: true }); h.appendChild(document.createElement("i"));',
+    'globalThis.__R = R;'
+  ].join("\n");
+  const w = await run(probe);
+  const R = w.sandbox.__R || [];
+  R.forEach(function (x) { if (!x[1]) bad.push("not as in Chrome: " + x[0]); });
+  const want = 37 + 2 * 37; // 37 identity / toJSON / observer checks, two per brand row (37 rows)
+  if (R.length !== want) bad.push("realm probe ran " + R.length + " of " + want + " checks");
+  if (w.errors.length) bad.push("ordinary realm / brand / toJSON code was recorded: " + w.errors.join(" | "));
+  // Window reflection stays recorded with window as the vm global.
+  const trips = [
+    ["window.constructor", 'var wc = window.constructor;', /read window\.constructor/],
+    ["window.__proto__", 'var wp = window.__proto__;', /read window\.__proto__/],
+    ["for-in over window", 'for (var wk in window) { if (wk === "requestIdleCallback") {} }', /enumerated the keys of window/],
+    ["Object.keys(globalThis)", 'Object.keys(globalThis);', /listed window/],
+    ["Object.setPrototypeOf(window, null)", 'Object.setPrototypeOf(window, null); if (window.requestIdleCallback) {}', /set the prototype of window/],
+    ["Reflect.setPrototypeOf(globalThis, {})", 'Reflect.setPrototypeOf(globalThis, {});', /set the prototype of window/],
+    ["window.__proto__ = null", 'window.__proto__ = null;', /set the prototype of window/],
+    ["window still records after a refused prototype change", 'try { Object.setPrototypeOf(self, null); } catch (e) {} if (self.requestIdleCallback) {}', /'requestIdleCallback'/],
+    ["window.__lookupGetter__", 'window.__lookupGetter__("requestIdleCallback");', /window owns 'requestIdleCallback'/],
+    ["window instanceof walks the prototype chain", 'var wi = window instanceof Array;', /prototype chain of window/],
+    ["Function('return this')().requestIdleCallback", 'if (Function("return this")().requestIdleCallback) {}', /'requestIdleCallback'/],
+    ["(0, eval)('this').hasOwnProperty", '(0, eval)("this").hasOwnProperty("requestIdleCallback");', /window owns 'requestIdleCallback'/],
+    ["toJSON on a DOMRect is modelled, an unmodelled rect member is not", 'if (document.body.getBoundingClientRect().toJSONX) {}', /a DOMRect\.toJSONX/]
+  ];
+  for (const [name, code, re] of trips) {
+    const tw = await run(code);
+    if (!tw.errors.some(function (e) { return re.test(e); })) bad.push(name + " must be recorded (got: " + (tw.errors[0] || "nothing") + ")");
+  }
+  // Probe's E-family theme.js mutants: the gate is true in Chrome, so each paints a second theme
+  // button there; here too, with nothing recorded, in all four states (signed out / in x 1280 / 390).
+  const E = [
+    ["E39", "globalThis === window"],
+    ["E41", "Function('return this')() === window"],
+    ["E42", "({}).constructor.constructor('return this')() === window"],
+    ["E46", "(function(){ try { var t=document[Symbol.toStringTag]||Object.prototype.toString.call(document); return t && t.indexOf('HTMLDocument')>=0; } catch(e){ return false; } })()"],
+    ["E49", "(function(){ try { var r=document.body.getBoundingClientRect(); return r && typeof r.toJSON==='function'; } catch(e){ return false; } })()"],
+    ["E51", "self === window && globalThis === self"],
+    ["E52", "(function(){ try { var wm=new WeakMap(); wm.set(window,1); return wm.has(globalThis); } catch(e){ return false; } })()"]
+  ];
+  const AT = "    apply();\n  }\n  function aiaPhoneCls";
+  let states = 0;
+  for (const [id, cond] of E) {
+    const gate = '    try { if (' + cond + ') { var ' + id.toLowerCase() + ' = document.createElement("button"); ' + id.toLowerCase() + '.className = "theme-btn"; document.querySelector("header .hdr-tools").appendChild(' + id.toLowerCase() + '); } } catch (e) {}';
+    const src = themeSrc.split(AT).length === 2 ? themeSrc.replace(AT, "    apply();\n" + gate + "\n  }\n  function aiaPhoneCls") : themeSrc + '\nwindow.addEventListener("load", function () {\n' + gate + '\n});';
+    for (const signedIn of [false, true]) {
+      for (const phone of [false, true]) {
+        const at = id + " (" + (signedIn ? "signed in" : "signed out") + ", " + (phone ? 390 : 1280) + ")";
+        let rw;
+        try { rw = await renderPage("account.html", { signedIn: signedIn, phone: phone, src: src }); }
+        catch (e) { bad.push(at + " recorded or threw: " + (e && e.message)); continue; }
+        const n = rw.document.querySelectorAll(".theme-btn").length;
+        if (n !== 2) bad.push(at + ": " + n + " theme buttons, want 2 (a duplicate the header count catches)");
+        else states += 1;
+      }
+    }
+  }
+  if (bad.length) fail("check-header realm and brand self-test: " + bad.join("; "));
+  else pass("check-header realm and brand self-test (" + R.length + " identity, brand and toJSON checks behave as in Chrome with zero records; " + trips.length + " window reflection paths still recorded; E39, E41, E42, E46, E49, E51, E52 theme.js mutants paint 2 theme buttons in " + states + " of " + E.length * 4 + " states, each a duplicate the header count FAILs)");
+}
 function staticDom(file) {
   const d = makeWindow(fs.readFileSync(path.join(root, file), "utf8"), "/" + file.replace(/\.html$/, ""), false).document;
   const tag = file + " (source)";
@@ -1590,6 +1751,7 @@ function renderedChecks(file, opts, d, early) {
   await stubSelfTest();
   await hostSelfTest();
   await membraneSelfTest();
+  await realmSelfTest();
   let rendered = 0, quiet = 0;
   for (const file of files.slice().sort()) {
     staticDom(file);
