@@ -409,7 +409,12 @@ module.exports = async function handler(req, res) {
     } else {
       ensurePeople(row);
       const hashed = hashPin(body.pin);
-      const match = row.people.find((p) => p.pin === hashed) || (row.pin === hashed ? row.people[0] : null);
+      // Same seat rule as personOf: a seat holding this code must be open (not removed, waiting or denied);
+      // the desk code alone only opens an open owner seat with no code of its own. Never people[0] blindly.
+      const shut = (p) => !p || p.status === "removed" || p.status === "pending" || p.status === "denied";
+      const own = row.people.find((p) => p && p.pin === hashed) || null;
+      const match = own ? (shut(own) ? null : own)
+        : (row.pin === hashed ? (row.people.find((p) => !shut(p) && isOwner(p) && !p.pin) || null) : null);
       if (!match) return res.status(401).json({ ok: false, error: "Desk code does not match this shop" });
       const acc = accountForDesk(row);
       let session = null;
