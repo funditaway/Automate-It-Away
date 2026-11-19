@@ -26,6 +26,9 @@ require("./_env-guard");
 // 9. Re-open, same rules: an open seat behind a shut one holding the same code re-opens; a codeless co-owner
 //    behind a removed opener re-opens by the desk code; the desk code never re-opens a desk AI or helper seat;
 //    removed and denied codes get the wrong-code reply, waiting codes the waiting-seat login reply, byte for byte.
+// 10. Account door (GET /api/auth?via=account and POST account login): the account/desk code shortcut only lands on
+//    an open owner seat. A removed or denied opener's old code gets the wrong-code reply on both, no session or cookie;
+//    a waiting one the existing waiting reply. Open co-owners (also behind a removed opener) and legacy desks still open.
 // The owner's own desk code and session keep working; owners still deny/remove helpers; a co-owner still denies
 // another co-owner. Runs the real handlers against a temp store. No network.
 const os = require("os");
@@ -601,6 +604,76 @@ async function main() {
   W(D8).people.push({ id: "p_own2", name: "Dot", role: "owner", kind: "owner", status: "approved", createdAt: "2026-01-03T00:00:00.000Z" });
   const r9d = await reopen(D8, "8888");
   ok(r9d.code === 201 && r9d.personId === "p_own2", "[9d control] the desk code re-opens the codeless owner seat behind them (" + r9d.code + ")");
+
+  // 10. Account door (GET /api/auth?via=account = GET /api/account, and POST action login): the account/desk code
+  //     shortcut only lands on an OPEN owner seat. A removed or denied opener's old code gets the wrong-code reply
+  //     on both (no session, no cookie, no write); a waiting one gets the existing waiting reply. An open co-owner's
+  //     own code (also after a desk-code change wrote it onto the removed opener first in people[]), a legacy desk with
+  //     no people list and a legacy codeless owner seat still open the account.
+  const acctGet = async (slug, pin) => { const r = await call(auth, "GET", { "x-workspace": slug, "x-pin": pin }, null, "/api/auth?via=account"); return { code: r.statusCode, body: r.body, cookie: r.headers["set-cookie"] }; };
+  const acctPost = async (slug, pin) => { const r = await call(auth, "POST", { "x-workspace": slug }, { action: "login", account: slug, pin }, "/api/auth?via=account"); return { code: r.statusCode, body: r.body, cookie: r.headers["set-cookie"], tok: r.body && r.body.session && r.body.session.token }; };
+  const acctRefused = async (tag, slug, pin) => {
+    const bg = await acctGet(slug, "0000");
+    const bp = await acctPost(slug, "0000");
+    ok(bg.code === 401 && bp.code === 401 && !bp.tok, tag + ": control: a wrong code is refused on GET and POST (" + bg.code + "/" + bp.code + ")");
+    await lib.save();
+    const b0 = bytes();
+    const g = await acctGet(slug, pin);
+    ok(g.code === bg.code && JSON.stringify(g.body) === JSON.stringify(bg.body) && !g.cookie, tag + ": GET via=account is byte for byte the wrong-code reply, no cookie (" + g.code + ")");
+    const p = await noWrite(tag + " POST login", auth, "/api/auth?via=account", { "x-workspace": slug }, { action: "login", account: slug, pin }, [401]);
+    ok(JSON.stringify(p.body) === JSON.stringify(bp.body) && !(p.body && p.body.session) && !p.headers["set-cookie"], tag + ": POST login is byte for byte the wrong-code reply, no session, no cookie");
+    ok(bp.body && bp.body.error === "Account name or code does not match.", tag + ": the POST refusal is the existing wording");
+    ok(Buffer.compare(b0, bytes()) === 0, tag + ": store file byte-unchanged across both");
+  };
+  const acctOpens = async (tag, slug, pin, seatId) => {
+    const g = await acctGet(slug, pin);
+    ok(g.code === 200 && g.body && g.body.ok !== false, tag + ": GET via=account opens the account home (" + g.code + ")");
+    const p = await acctPost(slug, pin);
+    ok(p.code === 200 && !!p.tok && (!seatId || (rowOf(p.tok) && rowOf(p.tok).personId === seatId)), tag + ": POST login gives a session" + (seatId ? " on seat " + seatId : "") + " (" + p.code + ")");
+  };
+  // 10a. Removed opener (still people[0]) and an open co-owner with her own code.
+  const A10 = "css-acct-removed";
+  await open(A10, "Rae", "1010", "rae@acct.test");
+  const robId = await inv(A10, "1010", "Rob", "1020", "owner");
+  await acctOpens("[10a control before]", A10, "1010", "p_owner");
+  W(A10).people[0].status = "removed";
+  ok(W(A10).people[0].id === "p_owner" && W(A10).pin === lib.hashPin("1010"), "[10a setup] the removed opener is people[0]; the desk code is still her old code");
+  await acctRefused("[10a removed opener's old desk code]", A10, "1010");
+  await acctOpens("[10a co-owner's own code]", A10, "1020", robId);
+  // Lock-out case: a desk-code change writes the new code onto every owner row, the removed opener first.
+  const sd10 = require(path.join(root, "api/_desk")).setDeskCode(W(A10), "1030");
+  ok(sd10.ok && W(A10).people[0].status === "removed" && W(A10).people[0].pin === lib.hashPin("1030"), "[10a setup] the new desk code is on the removed opener's row too");
+  await acctOpens("[10a co-owner's own code = the new desk code]", A10, "1030", robId);
+  await acctRefused("[10a removed opener's code before the change]", A10, "1010");
+  // 10b. Waiting and denied opener: waiting keeps the existing waiting reply, denied gets the wrong-code reply.
+  const P10 = "css-acct-pending";
+  await open(P10, "Pia", "1040", "pia@acct.test");
+  W(P10).people[0].status = "pending";
+  for (const r of [await acctGet(P10, "1040"), await acctPost(P10, "1040")]) {
+    ok(r.code === 403 && r.body && r.body.pending === true && r.body.error === "That seat is waiting on the owner." && !(r.body.session) && !r.cookie, "[10b waiting opener] the existing waiting reply, no session (" + r.code + ")");
+  }
+  const D10 = "css-acct-denied";
+  await open(D10, "Dee", "1050", "dee@acct.test");
+  W(D10).people[0].status = "denied";
+  await acctRefused("[10b denied opener's code]", D10, "1050");
+  // 10c. Legacy desks keep working: no people list; a codeless owner seat (kind owner).
+  const L10 = "css-acct-legacy-nopeople";
+  lib.mem.workspaces.push({ slug: L10, name: "Lena", biz: L10, pin: lib.hashPin("1060"), createdAt: "2026-01-01T00:00:00.000Z" });
+  await acctOpens("[10c legacy desk with no people list]", L10, "1060");
+  const K10 = "css-acct-legacy-codeless";
+  lib.mem.workspaces.push({ slug: K10, name: "Kai", biz: K10, pin: lib.hashPin("1070"), createdAt: "2026-01-01T00:00:00.000Z",
+    people: [{ id: "p_kai", name: "Kai", role: "manager", kind: "owner", status: "approved", createdAt: "2026-01-01T00:00:00.000Z" }] });
+  await acctOpens("[10c legacy codeless owner seat]", K10, "1070");
+  const K10b = "css-acct-legacy-roleowner";
+  lib.mem.workspaces.push({ slug: K10b, name: "Kip", biz: K10b, pin: lib.hashPin("1080"), createdAt: "2026-01-01T00:00:00.000Z",
+    people: [{ id: "p_kip", name: "Kip", role: "owner", status: "approved", createdAt: "2026-01-01T00:00:00.000Z" }] });
+  await acctOpens("[10c legacy role-owner seat with no code]", K10b, "1080", "p_kip");
+  // A legacy account with no desk row and so no owner seat: its account code still opens it.
+  const N10 = "css-acct-legacy-nodesk";
+  lib.mem.accounts = lib.mem.accounts || [];
+  lib.mem.accounts.push({ id: "acc_css_nodesk", name: "Nodesk Co", slug: N10, pin: lib.hashPin("1090"), desks: [], plan: "pro", createdAt: "2026-01-01T00:00:00.000Z" });
+  ok(!W(N10), "[10c setup] the legacy account has no desk row");
+  await acctOpens("[10c legacy account with no owner seat]", N10, "1090");
 
   console.log((failed ? "FAIL" : "PASS") + " check-closed-seat-session: " + (asserts - failed) + "/" + asserts + " asserts");
   try { fs.unlinkSync(STORE); } catch (e) {}
