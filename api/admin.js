@@ -234,6 +234,27 @@ function presenceOf(row, now) {
   });
   return { window: PRESENCE_MS / 1000, people: people, counts: counts };
 }
+// The desk's presence log for its owner: entries the session stamp wrote (seat, kind, 5-minute time),
+// newest first, with the seat's name read now. Seats no longer open on this desk are left out.
+const PRESENCE_LOG_STEP_MS = 5 * 60 * 1000;
+function presenceLogOf(row) {
+  const open = {};
+  (row && Array.isArray(row.people) ? row.people : []).forEach((p) => {
+    if (p && typeof p === "object" && p.id && !presenceShut(p)) open[String(p.id)] = p;
+  });
+  const entries = [];
+  (row && Array.isArray(row.presenceLog) ? row.presenceLog : []).forEach((e) => {
+    if (!e || typeof e !== "object" || (e.kind !== "online" && e.kind !== "offline")) return;
+    const seat = Object.prototype.hasOwnProperty.call(open, String(e.seat || "")) ? open[String(e.seat)] : null;
+    const t = Date.parse(e.at || "");
+    if (!seat || !Number.isFinite(t)) return;
+    entries.push({ seat: String(seat.id), name: String(seat.name || ""), kind: e.kind, at: new Date(Math.floor(t / PRESENCE_LOG_STEP_MS) * PRESENCE_LOG_STEP_MS).toISOString() });
+  });
+  // Newest first; entries with the same time keep their saved order reversed.
+  const order = entries.map((e, i) => [Date.parse(e.at), i, e]);
+  order.sort((x, y) => (y[0] - x[0]) || (y[1] - x[1]));
+  return { entries: order.map((x) => x[2]) };
+}
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -259,6 +280,13 @@ module.exports = async function handler(req, res) {
       const parsed = Object.fromEntries(new URLSearchParams(raw.indexOf("?") >= 0 ? raw.slice(raw.indexOf("?") + 1) : ""));
       q = Object.assign({}, parsed, q);
     } catch (e) {}
+    // The 15 s People poll: the presence block only, same member gate. The owner's presence log.
+    // Anyone else (helper, removed seat, another desk) gets the stranger reply.
+    if (q.view === "presence" || q.view === "presence-log") {
+      if (presenceShut(person) || (q.view === "presence-log" && !isOwner(person))) return res.status(401).json({ ok: false, error: "Pin required." });
+      if (q.view === "presence") return res.status(200).json({ ok: true, presence: presenceOf(row, Date.now()) });
+      return res.status(200).json({ ok: true, presenceLog: presenceLogOf(row) });
+    }
     if (q.world || q.find || q.handle || q.at) {
       const acc = homeAccount(person, row, req);
       const foundWorld = worldPeople.searchWorldAccounts(q.q || q.handle || q.at || q.name || q.world || "", { desk: row, account: acc });
