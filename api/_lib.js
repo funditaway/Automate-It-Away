@@ -2059,8 +2059,13 @@ function personOf(req, workspaceSlug) {
   // The desk code (ws.pin) only opens an open owner seat that has no code of its own (legacy rows).
   // It never lands on a co-owner who holds a different code: a seat taken out of people[] keeps no
   // way back in through the desk code it left behind.
-  const person = (ws.people || []).find((p) => p && p.pin === hashed)
-    || (ws.pin === hashed ? ((ws.people || []).find((p) => seatOpen(p) && seatLooksOwner(p) && !p.pin) || null) : null);
+  // An open seat holding the code comes first: a shut seat earlier in people[] with the same code
+  // (a removed opener after a desk-code change) never hides it. The code is refused only when every
+  // seat holding it is shut.
+  const holders = (ws.people || []).filter((p) => p && p.pin === hashed);
+  const person = holders.find((p) => seatOpen(p))
+    || (ws.pin === hashed ? ((ws.people || []).find((p) => seatOpen(p) && seatLooksOwner(p) && !p.pin) || null) : null)
+    || holders[0] || null;
   if (person && person.status === "removed") return { workspace: ws, person: null };
   if (person && person.status === "pending") return { workspace: ws, person: null, pending: true };
   if (person && person.status === "denied") return { workspace: ws, person: null, denied: true };

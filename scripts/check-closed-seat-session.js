@@ -15,6 +15,10 @@ require("./_env-guard");
 //    code) to land on a co-owner's seat; another desk's owner session is nobody here; a padded or trimmed
 //    code, the owner's name or email is not a code. Every refused rules write runs with the owner's talk
 //    draft in the store and its reply carries no part of it.
+// 8. A shut seat earlier in people[] never hides an open seat holding the same code: after a desk-code change
+//    that also wrote onto a removed opener, the co-owner's own code and PIN login still open her seat; a codeless
+//    co-owner behind a removed opener still opens by the desk code. A removed helper's session is nobody, and the
+//    desk code alone never opens a codeless desk AI or helper seat. Refused PIN logins match the wrong-code reply.
 // The owner's own desk code and session keep working; owners still deny/remove helpers; a co-owner still denies
 // another co-owner. Runs the real handlers against a temp store. No network.
 const os = require("os");
@@ -391,6 +395,91 @@ async function main() {
   }
   const exact = await call(rules, "POST", { "x-workspace": R, "x-pin": "5151" }, { text: "Exact code still writes.", when: "drop", then: "note", contains: "css" }, "/api/rules");
   ok(exact.statusCode === 201, "[6c control] the exact owner code still adds a rule (" + exact.statusCode + ")");
+
+  // 8. A shut seat earlier in people[] never hides an open seat holding the same code (no owner lock-out),
+  //    a removed HELPER's session is nobody, and the desk code alone never opens a codeless non-owner seat.
+  const pinLoginFull = async (slug, pin) => { const r = await call(auth, "POST", {}, { action: "login", workspace: slug, pin }, "/api/auth"); return { code: r.statusCode, body: r.body, tok: r.body && r.body.session && r.body.session.token }; };
+  // A refused PIN login: no session, and the reply is byte for byte the wrong-code reply.
+  const refusedLogin = async (tag, slug, pin) => {
+    const bad = await pinLoginFull(slug, "0000");
+    ok(bad.code === 401 && !bad.tok, tag + ": control: a wrong code is refused (" + bad.code + ")");
+    const r = await noWrite(tag, auth, "/api/auth", {}, { action: "login", workspace: slug, pin }, [401]);
+    ok(!(r.body && r.body.session) && JSON.stringify(r.body) === JSON.stringify(bad.body), tag + ": no session; same reply as a wrong code");
+  };
+  // 8a. Opener removed by hand (still people[0]), then the co-owner sets a new desk code: setDeskCode writes it
+  //     onto every owner row, the removed one too. The co-owner's own code (= the new desk code) still opens her seat.
+  const L8 = "css-lockout-newcode";
+  await open(L8, "Lou", "8181", "lou@lockout.test");
+  const liaId = await inv(L8, "8181", "Lia", "8282", "owner");
+  W(L8).people[0].status = "removed";
+  const sdc = require(path.join(root, "api/_desk")).setDeskCode(W(L8), "8383");
+  ok(sdc.ok && W(L8).people[0].id === "p_owner" && W(L8).people[0].status === "removed" && W(L8).people[0].pin === lib.hashPin("8383") && W(L8).people.find((p) => p.id === liaId).pin === lib.hashPin("8383"), "[8a setup] the removed opener is people[0] and holds the new desk code, same as co-owner Lia");
+  const l8pin = lib.personOf({ headers: { "x-workspace": L8, "x-pin": "8383" } }, L8);
+  ok(!!l8pin.person && l8pin.person.id === liaId && lib.isOwner(l8pin.person), "[8a] Lia's own code (the new desk code) opens her owner seat, not the removed opener (got " + (l8pin.person ? l8pin.person.id : l8pin.pending ? "pending" : l8pin.denied ? "denied" : "none") + ")");
+  const l8r = await call(rules, "POST", { "x-workspace": L8, "x-pin": "8383" }, { text: "Lia still writes.", when: "drop", then: "note", contains: "css" }, "/api/rules");
+  ok(l8r.statusCode === 201, "[8a] Lia's code adds a rule (" + l8r.statusCode + ")");
+  const l8lg = await pinLoginFull(L8, "8383");
+  ok(l8lg.code === 200 && !!l8lg.tok && who(l8lg.tok, L8) === liaId + "(owner)", "[8a] Lia's PIN login lands on her own owner seat (" + l8lg.code + ")");
+  await refusedLogin("[8a login, removed opener's old code]", L8, "8181");
+  // Shut seats first with the code, an open seat after: the open seat wins, whatever the shut status.
+  for (const st of ["removed", "pending", "denied"]) {
+    const M8 = "css-lockout-order-" + st;
+    lib.mem.workspaces.push({ slug: M8, name: "Moe", biz: M8, pin: lib.hashPin("8484"), createdAt: "2026-01-01T00:00:00.000Z",
+      people: [{ id: "p_shut", name: "Moe", role: "owner", kind: "owner", status: st, pin: lib.hashPin("8484"), createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "p_open", name: "Meg", role: "owner", kind: "owner", status: "approved", pin: lib.hashPin("8484"), createdAt: "2026-01-02T00:00:00.000Z" }] });
+    const m8 = lib.personOf({ headers: { "x-workspace": M8, "x-pin": "8484" } }, M8);
+    ok(!!m8.person && m8.person.id === "p_open" && !m8.pending && !m8.denied, "[8a " + st + " first] the open seat holding the code wins (got " + (m8.person ? m8.person.id : m8.pending ? "pending" : m8.denied ? "denied" : "none") + ")");
+    const m8lg = await pinLoginFull(M8, "8484");
+    ok(m8lg.code === 200 && who(m8lg.tok, M8) === "p_open(owner)", "[8a " + st + " first] PIN login lands on the open seat (" + m8lg.code + ")");
+    // Every seat holding the code shut: refused.
+    W(M8).people[1].status = st === "removed" ? "denied" : "removed";
+    const m8s = lib.personOf({ headers: { "x-workspace": M8, "x-pin": "8484" } }, M8);
+    ok(!m8s.person, "[8a every holder shut, first " + st + "] the code is nobody (got " + (m8s.person ? m8s.person.id : "none") + ")");
+    if (st !== "pending") await refusedLogin("[8a login, every holder shut, first " + st + "]", M8, "8484");
+    else {
+      const m8w = await noWrite("[8a login, every holder shut, first pending]", auth, "/api/auth", {}, { action: "login", workspace: M8, pin: "8484" }, [403]);
+      ok(JSON.stringify(m8w.body) === JSON.stringify({ ok: false, pending: true, error: "That seat is waiting on the owner. They approve people on /admin." }), "[8a login, every holder shut, first pending]: the waiting-on-the-owner reply, unchanged");
+    }
+    await rulesNo("[8a rules add, every holder shut, first " + st + "]", rules, "/api/rules", { "x-workspace": M8, "x-pin": "8484" }, { text: "Shut holders wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+  }
+  // 8b. Codeless co-owner behind a removed opener that holds the desk code: the desk code opens her seat.
+  const L8b = "css-lockout-codeless";
+  lib.mem.workspaces.push({ slug: L8b, name: "Mo", biz: L8b, pin: lib.hashPin("8585"), createdAt: "2026-01-01T00:00:00.000Z",
+    people: [{ id: "p_owner", name: "Mo", role: "owner", status: "removed", pin: lib.hashPin("8585"), createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "p_co", name: "Mae", role: "owner", createdAt: "2026-01-02T00:00:00.000Z" }] });
+  const l8b = lib.personOf({ headers: { "x-workspace": L8b, "x-pin": "8585" } }, L8b);
+  ok(!!l8b.person && l8b.person.id === "p_co" && lib.isOwner(l8b.person), "[8b] the desk code opens the codeless co-owner behind the removed opener (got " + (l8b.person ? l8b.person.id : "none") + ")");
+  const l8br = await call(rules, "POST", { "x-workspace": L8b, "x-pin": "8585" }, { text: "Mae still writes.", when: "drop", then: "note", contains: "css" }, "/api/rules");
+  ok(l8br.statusCode === 201, "[8b] that code adds a rule (" + l8br.statusCode + ")");
+  const l8blg = await pinLoginFull(L8b, "8585");
+  ok(l8blg.code === 200 && who(l8blg.tok, L8b) === "p_co(owner)", "[8b] PIN login lands on the codeless co-owner (" + l8blg.code + ")");
+  // 8c. A removed HELPER's live session (seat left in people[] with status removed) is nobody, no write, and her code signs in to nothing.
+  const H8 = "css-removed-helper";
+  await open(H8, "Hana", "8686", "hana@helper.test");
+  const hapId = await inv(H8, "8686", "Hap", "8787", "helper");
+  const hap = await pinLoginFull(H8, "8787");
+  ok(hap.code === 200 && who(hap.tok, H8) === hapId, "[8c setup] helper Hap signs in (" + who(hap.tok, H8) + ")");
+  W(H8).people.find((p) => p.id === hapId).status = "removed";
+  ok(W(H8).people.some((p) => p.id === hapId && p.status === "removed"), "[8c setup] Hap's seat is still in people[] with status removed");
+  ok(who(hap.tok, H8) === "none", "[8c] removed helper's leftover session is nobody (got " + who(hap.tok, H8) + ")");
+  await rulesNo("[8c rules add, removed helper session]", rules, "/api/rules", { "x-workspace": H8, "x-session": hap.tok }, { text: "Removed helper session wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+  const hapPin = lib.personOf({ headers: { "x-workspace": H8, "x-pin": "8787" } }, H8);
+  ok(!hapPin.person && !hapPin.pending && !hapPin.denied, "[8c] removed helper's code is nobody (got " + (hapPin.person ? hapPin.person.id : "none") + ")");
+  await refusedLogin("[8c login, removed helper code]", H8, "8787");
+  // 8d. Desk code with only codeless NON-owner seats left (opener spliced out): a desk AI seat, an approved helper. Nobody.
+  const D8 = "css-deskcode-nonowner";
+  await open(D8, "Dot", "8888", "dot@deskai.test");
+  W(D8).people = [
+    { id: "ai_bot", name: "Bot", role: "agent", kind: "agent", status: "approved", deskAi: true, createdAt: "2026-01-02T00:00:00.000Z" },
+    { id: "p_hlp", name: "Hal", role: "employee", kind: "helper", status: "approved", createdAt: "2026-01-02T00:00:00.000Z" }];
+  const d8 = lib.personOf({ headers: { "x-workspace": D8, "x-pin": "8888" } }, D8);
+  ok(!d8.person && !d8.pending && !d8.denied, "[8d] the desk code opens no desk AI or helper seat (got " + (d8.person ? d8.person.id : "none") + ")");
+  await rulesNo("[8d rules add, desk code with only non-owner codeless seats]", rules, "/api/rules", { "x-workspace": D8, "x-pin": "8888" }, { text: "Desk AI seat wrote this.", when: "drop", then: "note", contains: "css" }, [403]);
+  await refusedLogin("[8d login, desk code with only non-owner codeless seats]", D8, "8888");
+  // Control: add an open codeless owner seat after them: the desk code opens it, not the desk AI seat in front.
+  W(D8).people.push({ id: "p_own2", name: "Dot", role: "owner", kind: "owner", status: "approved", createdAt: "2026-01-03T00:00:00.000Z" });
+  const d8c = lib.personOf({ headers: { "x-workspace": D8, "x-pin": "8888" } }, D8);
+  ok(!!d8c.person && d8c.person.id === "p_own2", "[8d control] the desk code opens the codeless owner seat behind them (got " + (d8c.person ? d8c.person.id : "none") + ")");
 
   console.log((failed ? "FAIL" : "PASS") + " check-closed-seat-session: " + (asserts - failed) + "/" + asserts + " asserts");
   try { fs.unlinkSync(STORE); } catch (e) {}
