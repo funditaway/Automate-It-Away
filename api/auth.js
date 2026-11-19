@@ -412,9 +412,18 @@ module.exports = async function handler(req, res) {
       // Same seat rule as personOf: a seat holding this code must be open (not removed, waiting or denied);
       // the desk code alone only opens an open owner seat with no code of its own. Never people[0] blindly.
       const shut = (p) => !p || p.status === "removed" || p.status === "pending" || p.status === "denied";
-      const own = row.people.find((p) => p && p.pin === hashed) || null;
-      const match = own ? (shut(own) ? null : own)
-        : (row.pin === hashed ? (row.people.find((p) => !shut(p) && isOwner(p) && !p.pin) || null) : null);
+      // An open seat holding the code comes first: a shut seat earlier in people[] never hides it. Refused only
+      // when every seat holding the code is shut; a waiting one gets the same reply as a waiting seat's login.
+      const holders = row.people.filter((p) => p && p.pin === hashed);
+      const match = holders.find((p) => !shut(p))
+        || (row.pin === hashed ? (row.people.find((p) => !shut(p) && isOwner(p) && !p.pin) || null) : null);
+      if (!match && holders[0] && holders[0].status === "pending") {
+        return res.status(403).json({
+          ok: false,
+          pending: true,
+          error: "That seat is waiting on the owner. They approve people on /admin."
+        });
+      }
       if (!match) return res.status(401).json({ ok: false, error: "Desk code does not match this shop" });
       const acc = accountForDesk(row);
       let session = null;

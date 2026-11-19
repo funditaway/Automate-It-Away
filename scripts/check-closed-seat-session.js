@@ -16,12 +16,16 @@ require("./_env-guard");
 //    code, the owner's name or email is not a code. Every refused rules write runs with the owner's talk
 //    draft in the store and its reply carries no part of it.
 // 7. Re-open ("open" on an existing desk with a code) gives a session only to an open seat holding that code, or by
-//    the desk code alone to an open owner seat with no code of its own: never people[0] blindly. A removed,
-//    waiting or denied people[0], or an opener taken out by hand, gets the wrong-code reply and no session.
+//    the desk code alone to an open owner seat with no code of its own: never people[0] blindly. A removed
+//    or denied people[0], or an opener taken out by hand, gets the wrong-code reply and no session; a waiting
+//    one gets the waiting-seat login reply, byte for byte.
 // 8. A shut seat earlier in people[] never hides an open seat holding the same code: after a desk-code change
 //    that also wrote onto a removed opener, the co-owner's own code and PIN login still open her seat; a codeless
 //    co-owner behind a removed opener still opens by the desk code. A removed helper's session is nobody, and the
 //    desk code alone never opens a codeless desk AI or helper seat. Refused PIN logins match the wrong-code reply.
+// 9. Re-open, same rules: an open seat behind a shut one holding the same code re-opens; a codeless co-owner
+//    behind a removed opener re-opens by the desk code; the desk code never re-opens a desk AI or helper seat;
+//    removed and denied codes get the wrong-code reply, waiting codes the waiting-seat login reply, byte for byte.
 // The owner's own desk code and session keep working; owners still deny/remove helpers; a co-owner still denies
 // another co-owner. Runs the real handlers against a temp store. No network.
 const os = require("os");
@@ -412,6 +416,15 @@ async function main() {
     const r = await noWrite(tag, auth, "/api/auth", {}, { action: "open", slug, biz: slug, name: "Again", pin }, [401]);
     ok(!(r.body && r.body.session) && JSON.stringify(r.body) === JSON.stringify(bad.body), tag + ": no session; same reply as a wrong code");
   };
+  // A waiting seat's code: the same reply its PIN login gives (main's waiting-seat reply), no session, no write.
+  const WAITING = { ok: false, pending: true, error: "That seat is waiting on the owner. They approve people on /admin." };
+  const waitingOpen = async (tag, slug, pin) => {
+    const lr = await call(auth, "POST", {}, { action: "login", workspace: slug, pin }, "/api/auth");
+    const lg = { code: lr.statusCode, body: lr.body, tok: lr.body && lr.body.session && lr.body.session.token };
+    ok(lg.code === 403 && !lg.tok && JSON.stringify(lg.body) === JSON.stringify(WAITING), tag + ": control: the PIN login for that code is the waiting-seat reply (" + lg.code + ")");
+    const r = await noWrite(tag, auth, "/api/auth", {}, { action: "open", slug, biz: slug, name: "Again", pin }, [403]);
+    ok(!(r.body && r.body.session) && JSON.stringify(r.body) === JSON.stringify(lg.body), tag + ": no session; byte for byte the waiting-seat login reply");
+  };
   // 7a. Real owners are never locked out.
   const A7 = "css-reopen";
   await open(A7, "Ari", "7070", "ari@reopen.test");
@@ -450,7 +463,8 @@ async function main() {
     const head = W(P7).people[0];
     head.status = st;
     ok(head.id === "p_owner" && W(P7).pin === lib.hashPin("7676"), "[7c " + st + " setup] people[0] is the opener seat, status " + st);
-    await refusedOpen("[7c re-open, " + st + " people[0] code]", P7, "7676");
+    if (st === "pending") await waitingOpen("[7c re-open, pending people[0] code]", P7, "7676");
+    else await refusedOpen("[7c re-open, " + st + " people[0] code]", P7, "7676");
     const cy = await reopen(P7, "7777");
     ok(cy.code === 201 && cy.personId !== "p_owner", "[7c " + st + " control] the open co-owner still re-opens with his own code (" + cy.code + ")");
   }
@@ -467,6 +481,7 @@ async function main() {
     W(Q7).people = [{ id: "p_lgo", name: "Lo", role: "manager", kind: "owner", status: st, createdAt: "2026-01-02T00:00:00.000Z" }];
     await refusedOpen("[7c re-open, desk code with a " + st + " codeless owner seat]", Q7, "7878");
   }
+
   // 8. A shut seat earlier in people[] never hides an open seat holding the same code (no owner lock-out),
   //    a removed HELPER's session is nobody, and the desk code alone never opens a codeless non-owner seat.
   const pinLoginFull = async (slug, pin) => { const r = await call(auth, "POST", {}, { action: "login", workspace: slug, pin }, "/api/auth"); return { code: r.statusCode, body: r.body, tok: r.body && r.body.session && r.body.session.token }; };
@@ -551,6 +566,41 @@ async function main() {
   W(D8).people.push({ id: "p_own2", name: "Dot", role: "owner", kind: "owner", status: "approved", createdAt: "2026-01-03T00:00:00.000Z" });
   const d8c = lib.personOf({ headers: { "x-workspace": D8, "x-pin": "8888" } }, D8);
   ok(!!d8c.person && d8c.person.id === "p_own2", "[8d control] the desk code opens the codeless owner seat behind them (got " + (d8c.person ? d8c.person.id : "none") + ")");
+
+  // 9. Re-open never locks out an open seat behind a shut one holding the same code; a waiting seat keeps the
+  //    waiting-seat reply (the PIN login's, byte for byte); the desk code never re-opens a codeless non-owner seat.
+  // 9a. Opener removed by hand, then a desk-code change wrote the new code onto her row too: Lia re-opens.
+  const r9a = await reopen(L8, "8383");
+  ok(r9a.code === 201 && r9a.personId === liaId && who(r9a.tok, L8) === liaId + "(owner)", "[9a] co-owner Lia re-opens with her own code (the new desk code) into her own seat (" + r9a.code + ")");
+  await refusedOpen("[9a re-open, removed opener's old code]", L8, "8181");
+  for (const st of ["removed", "pending", "denied"]) {
+    const M9 = "css-reopen-order-" + st;
+    lib.mem.workspaces.push({ slug: M9, name: "Moe", biz: M9, pin: lib.hashPin("9191"), createdAt: "2026-01-01T00:00:00.000Z",
+      people: [{ id: "p_shut", name: "Moe", role: "owner", kind: "owner", status: st, pin: lib.hashPin("9191"), createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "p_open", name: "Meg", role: "owner", kind: "owner", status: "approved", pin: lib.hashPin("9191"), createdAt: "2026-01-02T00:00:00.000Z" }] });
+    const m9 = await reopen(M9, "9191");
+    ok(m9.code === 201 && m9.personId === "p_open" && who(m9.tok, M9) === "p_open(owner)", "[9a " + st + " first] re-open lands on the open seat holding the code (" + m9.code + ")");
+    W(M9).people[1].status = st === "removed" ? "denied" : "removed";
+    if (st === "pending") await waitingOpen("[9a re-open, every holder shut, first pending]", M9, "9191");
+    else await refusedOpen("[9a re-open, every holder shut, first " + st + "]", M9, "9191");
+  }
+  // 9b. Codeless co-owner behind a removed opener that holds the desk code: the desk code re-opens her seat.
+  const r9b = await reopen(L8b, "8585");
+  ok(r9b.code === 201 && r9b.personId === "p_co" && who(r9b.tok, L8b) === "p_co(owner)", "[9b] the desk code re-opens the codeless co-owner behind the removed opener (" + r9b.code + ")");
+  // 9c. Helper codes: removed and denied get the wrong-code reply; a waiting helper gets the waiting-seat reply.
+  await refusedOpen("[9c re-open, removed helper code]", H8, "8787");
+  const wId = await inv(H8, "8686", "Wren", "9292", "helper");
+  W(H8).people.find((p) => p.id === wId).status = "pending";
+  await waitingOpen("[9c re-open, waiting helper code]", H8, "9292");
+  W(H8).people.find((p) => p.id === wId).status = "denied";
+  await refusedOpen("[9c re-open, denied helper code]", H8, "9292");
+  // 9d. Desk code with only codeless non-owner seats (desk AI, helper): no re-open; a codeless owner seat behind them: yes.
+  W(D8).people = W(D8).people.filter((p) => p.id !== "p_own2");
+  ok(W(D8).people.length === 2 && W(D8).people.every((p) => !p.pin && !lib.isOwner(p)), "[9d setup] only the codeless desk AI and helper seats are left");
+  await refusedOpen("[9d re-open, desk code with only non-owner codeless seats]", D8, "8888");
+  W(D8).people.push({ id: "p_own2", name: "Dot", role: "owner", kind: "owner", status: "approved", createdAt: "2026-01-03T00:00:00.000Z" });
+  const r9d = await reopen(D8, "8888");
+  ok(r9d.code === 201 && r9d.personId === "p_own2", "[9d control] the desk code re-opens the codeless owner seat behind them (" + r9d.code + ")");
 
   console.log((failed ? "FAIL" : "PASS") + " check-closed-seat-session: " + (asserts - failed) + "/" + asserts + " asserts");
   try { fs.unlinkSync(STORE); } catch (e) {}
