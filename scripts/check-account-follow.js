@@ -453,6 +453,247 @@ async function main() {
   if (leak) fail(leak + " showed up in a reply or a log");
   else pass("no secret, hook, password, or desk code in replies or logs; money and cards stayed");
 
+  // Presence on its own keys (stacked on presence B). Owner log: GET /api/admin presenceAudit, owner
+  // only. Account -> Activity: presenceRows. On a desk the account owns (ownedDesks), every open
+  // seat's rows; anyone who is not that desk's owning account still sees only their own seats.
+  // Shut seats dropped, names read now, at most 12 rows, machine values only, reads write nothing.
+  await (async function presenceKeys() {
+    const admin = require(path.join(root, "api/admin"));
+    async function adminGet(headers) {
+      const res = mockRes();
+      await admin({ method: "GET", headers: headers || {}, body: {}, query: {}, url: "/api/admin" }, res);
+      replies.push(JSON.stringify({ s: res.statusCode, b: res.body }));
+      return res;
+    }
+    const STEP = 5 * 60 * 1000;
+    const T = Math.floor(Date.parse("2026-11-18T12:00:00.000Z") / STEP) * STEP;
+    const at = (k) => new Date(T - k * STEP).toISOString();
+    lib.mem.accounts.push(
+      { id: "acct_P", name: "Pres Shop", ownerName: "Pat", email: "pat@example.test", desks: ["pres-own"], memberDesks: ["pres-two"], createdAt: now, kind: "human" },
+      { id: "acct_Q", name: "Quin Shop", ownerName: "Quin", email: "quin@example.test", desks: ["pres-two"], memberDesks: ["pres-own"], createdAt: now, kind: "human" },
+      { id: "acct_M", name: "Moe Shop", ownerName: "Moe", email: "moe@example.test", desks: [], memberDesks: ["pres-own"], createdAt: now, kind: "human" },
+      { id: "acct_R", name: "Cora Shop", ownerName: "Cora", email: "cora@example.test", desks: [], memberDesks: ["pres-own"], createdAt: now, kind: "human" }
+    );
+    ["2468", "8642", "1357", "2222", "4444", "6060", "3131", "5252"].forEach((p) => pinHashes.push(H(p)));
+    const pOwn = {
+      slug: "pres-own", biz: "Pres Shop", name: "Pat", accountId: "acct_P", pin: H("2468"), createdAt: now, rules: [],
+      people: [
+        { id: "po_owner", name: "Pat", role: "owner", kind: "owner", status: "approved", pin: H("2468"), accountId: "acct_P" },
+        { id: "po_help", name: "Hana", role: "employee", kind: "helper", status: "approved", pin: H("1357"), accountId: "" },
+        { id: "po_quin", name: "Quin here", role: "employee", kind: "helper", status: "approved", pin: H("6060"), accountId: "acct_Q" },
+        { id: "po_rm", name: "Remy", role: "employee", kind: "helper", status: "removed", pin: H("2222"), accountId: "acct_P" },
+        { id: "po_rmc", name: "Rory", role: "employee", kind: "helper", status: "Removed", pin: "", accountId: "acct_P" },
+        { id: "po_wait", name: "Wren", role: "employee", kind: "helper", status: "pending", pin: H("4444"), accountId: "acct_P" },
+        { id: "po_den", name: "Dax", role: "employee", kind: "helper", status: "denied", pin: "", accountId: "acct_P" },
+        { id: "po_denc", name: "Dina", role: "employee", kind: "helper", status: " DENIED ", pin: "", accountId: "acct_P" },
+        { id: "po_moe", name: "Moe", role: "employee", kind: "helper", status: "approved", pin: H("3131"), accountId: "acct_M" },
+        { id: "po_co", name: "Cora", role: "owner", kind: "owner", status: "approved", pin: H("5252"), accountId: "acct_R" },
+        { id: "po_sid", name: "Sid", role: "employee", kind: "helper", status: "approved", pin: "", accountId: "" }
+      ]
+    };
+    const pTwo = {
+      slug: "pres-two", biz: "Quin Shop", name: "Quin", accountId: "acct_Q", pin: H("8642"), createdAt: now, rules: [],
+      people: [
+        { id: "pt_owner", name: "Quin", role: "owner", kind: "owner", status: "approved", pin: H("8642"), accountId: "" },
+        { id: "pt_pat", name: "Pat on two", role: "employee", kind: "helper", status: "approved", pin: "", accountId: "acct_P" }
+      ]
+    };
+    const e = (seat, kind, k) => ({ seat: seat, kind: kind, at: at(k) });
+    // Unaligned stamp: 4 min + 1 s into the 5-min bucket must floor down to at(18).
+    const unaligned = new Date(T - 18 * STEP + 4 * 60 * 1000 + 1000).toISOString();
+    pOwn.presenceLog = [
+      e("po_owner", "online", 30), e("po_help", "online", 29), e("po_quin", "online", 28),
+      e("po_rm", "online", 27), e("po_wait", "online", 26), e("po_den", "online", 25), e("ghost", "online", 24),
+      e("po_rmc", "online", 23), e("po_denc", "online", 23),
+      e("po_owner", "offline", 20), e("po_help", "offline", 19),
+      { seat: "po_owner", kind: "online", at: unaligned },
+      e("po_moe", "online", 17), e("po_co", "online", 16),
+      { seat: "po_owner", kind: "away", at: at(31) }
+    ];
+    pTwo.presenceLog = [e("pt_owner", "online", 40), e("pt_pat", "online", 22), e("pt_pat", "offline", 21)];
+    lib.mem.workspaces.push(pOwn, pTwo);
+    lib.mem.audit = [{ t: at(50), agent: "Desk", action: "seed · pres-own", result: "OK", workspace: "pres-own" }].concat(lib.mem.audit || []);
+    const denTok = lib.issueSession(pOwn.people.find((p) => p.id === "po_den"), pOwn, null, { headers: {} }).token;
+    const rmTok = lib.issueSession(pOwn.people.find((p) => p.id === "po_rm"), pOwn, null, { headers: {} }).token;
+    // Raw sessions only (issueSession + save would stamp the presence log). A stale
+    // same-desk session still unexpired, and a live session pointed at another desk:
+    // neither may count as "online" on this desk, and neither may invent a presenceRows entry.
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const dayLater = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const justNow = new Date().toISOString();
+    lib.mem.sessions = (lib.mem.sessions || []).concat([
+      { id: "sess_stale_hana", tokenHash: "hash-stale-hana", workspace: "pres-own", personId: "po_help", seenAt: hourAgo, expiresAt: dayLater, createdAt: justNow },
+      { id: "sess_cross_sid", tokenHash: "hash-cross-sid", workspace: "pres-two", personId: "po_sid", seenAt: justNow, expiresAt: dayLater, createdAt: justNow }
+    ]);
+    await lib.save();
+    const fileBytes = () => fs.readFileSync(store);
+    const bytes0 = fileBytes();
+    // A read slides a session's seenAt / expiresAt in memory only (never saved by a read); mask only those.
+    const memSnap = () => JSON.stringify({ w: lib.mem.workspaces, a: lib.mem.accounts, s: lib.mem.sessions, au: lib.mem.audit }, (k, v) => (k === "seenAt" || k === "expiresAt" ? undefined : v));
+    const store0 = memSnap();
+    const OWNER = { "x-workspace": "pres-own", "x-pin": "2468" };
+    const QOWN = { "x-workspace": "pres-two", "x-pin": "8642" };
+    const eq = (label, got, want) => {
+      if (JSON.stringify(got) !== JSON.stringify(want)) fail("presence: " + label + ": want " + JSON.stringify(want) + ", got " + JSON.stringify(got));
+      else pass("presence: " + label);
+    };
+    const tuple = (rows) => (rows || []).map((r) => [r.desk || "", r.seat, r.name, r.kind, r.at]);
+
+    // 1. Owner log on its own key.
+    const o = await adminGet(OWNER);
+    eq("owner desk read is 200", o.statusCode, 200);
+    eq("owner gets presenceAudit: open seats only, names read now, newest first", tuple(o.body.presenceAudit), [
+      ["", "po_co", "Cora", "online", at(16)], ["", "po_moe", "Moe", "online", at(17)],
+      ["", "po_owner", "Pat", "online", at(18)], ["", "po_help", "Hana", "offline", at(19)], ["", "po_owner", "Pat", "offline", at(20)],
+      ["", "po_quin", "Quin here", "online", at(28)], ["", "po_help", "Hana", "online", at(29)], ["", "po_owner", "Pat", "online", at(30)]
+    ]);
+    eq("unaligned stamp is rounded down to the 5-minute bucket", (o.body.presenceAudit || []).some((r) => r.seat === "po_owner" && r.kind === "online" && r.at === at(18)), true);
+    const helpPresence = ((o.body.presence && o.body.presence.people) || []).find((p) => p.id === "po_help");
+    const sidPresence = ((o.body.presence && o.body.presence.people) || []).find((p) => p.id === "po_sid");
+    eq("stale session does not count as online", !!(helpPresence && helpPresence.presence !== "online"), true);
+    eq("cross-desk session does not count as online", !!(sidPresence && sidPresence.presence !== "online"), true);
+    eq("presenceAudit entries are seat / name / kind / at only", (o.body.presenceAudit || []).every((r) => JSON.stringify(Object.keys(r).sort()) === JSON.stringify(["at", "kind", "name", "seat"])), true);
+    eq("presenceAudit kinds are machine values", (o.body.presenceAudit || []).every((r) => r.kind === "online" || r.kind === "offline"), true);
+    eq("owner audit is byte-identical to the parent's audit", JSON.stringify(o.body.audit), JSON.stringify((lib.mem.audit || []).filter((a) => !a.workspace || a.workspace === "pres-own").slice(0, 40)));
+    eq("no presence row in the owner audit", JSON.stringify(o.body.audit).indexOf("po_") < 0 && JSON.stringify(o.body.audit).indexOf("\"online\"") < 0, true);
+    // The rest of the owner read does not depend on presenceLog.
+    const keep = { a: pOwn.presenceLog, b: pTwo.presenceLog };
+    pOwn.presenceLog = []; pTwo.presenceLog = [];
+    const oEmpty = await adminGet(OWNER);
+    pOwn.presenceLog = keep.a; pTwo.presenceLog = keep.b;
+    const strip = (b, k) => { const c = Object.assign({}, b); delete c[k]; delete c.presence; return JSON.stringify(c); };
+    eq("owner read minus presenceAudit is identical with or without a log", strip(o.body, "presenceAudit"), strip(oEmpty.body, "presenceAudit"));
+    eq("empty log: presenceAudit is []", oEmpty.body.presenceAudit, []);
+
+    // 2. Nobody else gets the key.
+    const others = [
+      ["helper desk code", { "x-workspace": "pres-own", "x-pin": "1357" }, 200],
+      ["co-desk helper with an account", { "x-workspace": "pres-own", "x-pin": "6060" }, 200],
+      ["stranger", { "x-workspace": "pres-own" }, 401],
+      ["wrong code", { "x-workspace": "pres-own", "x-pin": "0000" }, 401],
+      ["removed seat code", { "x-workspace": "pres-own", "x-pin": "2222" }, 401],
+      ["waiting seat code", { "x-workspace": "pres-own", "x-pin": "4444" }, 403],
+      ["other desk's owner code", { "x-workspace": "pres-own", "x-pin": "8642" }, 401],
+      ["denied seat session", { "x-workspace": "pres-own", "x-session": denTok }, 401],
+      ["removed seat session", { "x-workspace": "pres-own", "x-session": rmTok }, 401]
+    ];
+    for (const row of others) {
+      const r = await adminGet(row[1]);
+      const has = !!(r.body && Object.prototype.hasOwnProperty.call(r.body, "presenceAudit"));
+      if (r.statusCode !== row[2] || has) fail("presence: " + row[0] + " must get no presenceAudit (" + r.statusCode + ", has " + has + ")");
+      else pass("presence: " + row[0] + " gets no presenceAudit (" + r.statusCode + ")");
+    }
+    const qo = await adminGet(QOWN);
+    eq("the other desk's owner sees only their own desk's presence", tuple(qo.body.presenceAudit), [["", "pt_pat", "Pat on two", "offline", at(21)], ["", "pt_pat", "Pat on two", "online", at(22)], ["", "pt_owner", "Quin", "online", at(40)]]);
+
+    // 3. Account -> Activity: owner-sees-all on an owned desk; anyone else sees only their own.
+    const pAll = await call("GET", OWNER, null, { activity: "1" });
+    eq("owner Activity is 200", pAll.statusCode, 200);
+    eq("owner-sees-all: owner Activity includes every open seat on the owned desk, plus own seats on a desk they do not own", tuple(pAll.body.presenceRows), [
+      ["pres-own", "po_co", "Cora", "online", at(16)], ["pres-own", "po_moe", "Moe", "online", at(17)],
+      ["pres-own", "po_owner", "Pat", "online", at(18)], ["pres-own", "po_help", "Hana", "offline", at(19)],
+      ["pres-own", "po_owner", "Pat", "offline", at(20)], ["pres-two", "pt_pat", "Pat on two", "offline", at(21)],
+      ["pres-two", "pt_pat", "Pat on two", "online", at(22)], ["pres-own", "po_quin", "Quin here", "online", at(28)],
+      ["pres-own", "po_help", "Hana", "online", at(29)], ["pres-own", "po_owner", "Pat", "online", at(30)]
+    ]);
+    eq("presenceRows are at / desk / seat / name / kind only", (pAll.body.presenceRows || []).every((r) => JSON.stringify(Object.keys(r).sort()) === JSON.stringify(["at", "desk", "kind", "name", "seat"])), true);
+    eq("times are rounded down to 5 minutes on presenceRows", (pAll.body.presenceRows || []).some((r) => r.seat === "po_owner" && r.kind === "online" && r.at === at(18)), true);
+    eq("stale and cross-desk sessions do not invent presenceRows", (pAll.body.presenceRows || []).every((r) => r.seat !== "po_sid" && r.seat !== "ghost"), true);
+    const pDesk = await call("GET", OWNER, null, { activity: "1", desk: "pres-own" });
+    eq("owner-sees-all: desk named (owned desk) shows every open seat, shut ones dropped", tuple(pDesk.body.presenceRows), [
+      ["pres-own", "po_co", "Cora", "online", at(16)], ["pres-own", "po_moe", "Moe", "online", at(17)],
+      ["pres-own", "po_owner", "Pat", "online", at(18)], ["pres-own", "po_help", "Hana", "offline", at(19)],
+      ["pres-own", "po_owner", "Pat", "offline", at(20)], ["pres-own", "po_quin", "Quin here", "online", at(28)],
+      ["pres-own", "po_help", "Hana", "online", at(29)], ["pres-own", "po_owner", "Pat", "online", at(30)]
+    ]);
+    const qAll = await call("GET", QOWN, null, { activity: "1" });
+    eq("someone who owns a different desk, viewing a desk their account does not own, sees only their own rows on it", tuple((qAll.body.presenceRows || []).filter((r) => r.desk === "pres-own")), [
+      ["pres-own", "po_quin", "Quin here", "online", at(28)]
+    ]);
+    eq("other owner: every open seat on the desk they own, and only their own seat on a desk they do not", tuple(qAll.body.presenceRows), [
+      ["pres-two", "pt_pat", "Pat on two", "offline", at(21)], ["pres-two", "pt_pat", "Pat on two", "online", at(22)],
+      ["pres-own", "po_quin", "Quin here", "online", at(28)], ["pres-two", "pt_owner", "Quin", "online", at(40)]
+    ]);
+    const qDesk = await call("GET", QOWN, null, { activity: "1", desk: "pres-two" });
+    eq("other owner, desk named: every open seat on that owned desk", tuple(qDesk.body.presenceRows), [
+      ["pres-two", "pt_pat", "Pat on two", "offline", at(21)], ["pres-two", "pt_pat", "Pat on two", "online", at(22)],
+      ["pres-two", "pt_owner", "Quin", "online", at(40)]
+    ]);
+    const qMem = await call("GET", { "x-workspace": "pres-own", "x-pin": "6060" }, null, { activity: "1" });
+    eq("member who owns some other desk still sees only their own rows on this desk", tuple((qMem.body.presenceRows || []).filter((r) => r.desk === "pres-own")), [
+      ["pres-own", "po_quin", "Quin here", "online", at(28)]
+    ]);
+    eq("member who owns some other desk still sees every open seat on the desk they own", tuple((qMem.body.presenceRows || []).filter((r) => r.desk === "pres-two")), [
+      ["pres-two", "pt_pat", "Pat on two", "offline", at(21)], ["pres-two", "pt_pat", "Pat on two", "online", at(22)],
+      ["pres-two", "pt_owner", "Quin", "online", at(40)]
+    ]);
+    const moeAct = await call("GET", { "x-workspace": "pres-own", "x-pin": "3131" }, null, { activity: "1" });
+    eq("member-sees-own: a member or non-owner on the same desk sees only their own rows", tuple(moeAct.body.presenceRows), [
+      ["pres-own", "po_moe", "Moe", "online", at(17)]
+    ]);
+    const coAct = await call("GET", { "x-workspace": "pres-own", "x-pin": "5252" }, null, { activity: "1" });
+    eq("co-owner whose account does not own the desk (not in acc.desks, not workspace.accountId) sees only their own rows", tuple(coAct.body.presenceRows), [
+      ["pres-own", "po_co", "Cora", "online", at(16)]
+    ]);
+    const qCross = await call("GET", QOWN, null, { activity: "1", desk: "pres-own" });
+    eq("a desk not owned stays the missing reply, no presenceRows", [qCross.statusCode, Object.prototype.hasOwnProperty.call(qCross.body || {}, "presenceRows")], [404, false]);
+    const strangerAct = await call("GET", { "x-workspace": "pres-own", "x-pin": "2222" }, null, { activity: "1" });
+    eq("removed seat code: missing reply, no presenceRows", [strangerAct.statusCode, Object.prototype.hasOwnProperty.call(strangerAct.body || {}, "presenceRows")], [404, false]);
+    const waitAct = await call("GET", { "x-workspace": "pres-own", "x-pin": "4444" }, null, { activity: "1" });
+    eq("waiting seat code: missing reply, no presenceRows", [waitAct.statusCode, Object.prototype.hasOwnProperty.call(waitAct.body || {}, "presenceRows")], [404, false]);
+    const helpAct = await call("GET", { "x-workspace": "pres-own", "x-pin": "1357" }, null, { activity: "1" });
+    eq("a helper with no account of their own gets nothing, with the key absent", [helpAct.statusCode, Object.prototype.hasOwnProperty.call(helpAct.body || {}, "presenceRows")], [404, false]);
+    const strangerNoSeat = await call("GET", { "x-workspace": "pres-own" }, null, { activity: "1" });
+    eq("a non-member gets nothing, with the key absent", [strangerNoSeat.statusCode, Object.prototype.hasOwnProperty.call(strangerNoSeat.body || {}, "presenceRows")], [404, false]);
+    const otherOwnerCode = await call("GET", { "x-workspace": "pres-own", "x-pin": "8642" }, null, { activity: "1" });
+    eq("another desk's owner code on this desk gets nothing, with the key absent", [otherOwnerCode.statusCode, Object.prototype.hasOwnProperty.call(otherOwnerCode.body || {}, "presenceRows")], [404, false]);
+    eq("removed and shut seats never show to the owner", /Remy|Rory|Wren|Dax|Dina|po_rm\b|po_rmc|po_wait|po_den|po_denc|ghost/.test(JSON.stringify([pAll.body, pDesk.body, o.body.presenceAudit])), false);
+    eq("shut seats never show to members or other owners either", /Remy|Rory|Wren|Dax|Dina|po_rm\b|po_rmc|po_wait|po_den|po_denc|ghost/.test(JSON.stringify([qAll.body, qDesk.body, qMem.body, moeAct.body, coAct.body])), false);
+    // forSeat: even if the target AI account is listed as owning the desk, only that
+    // account's own seats are included. Restored before the write-0 snapshot compare.
+    const ownDesk = lib.mem.workspaces.find((w) => w && w.slug === "own-desk");
+    const xAcc = lib.mem.accounts.find((a) => a && a.id === "acct_X");
+    const keepOwnLog = ownDesk.presenceLog;
+    const keepXDesks = (xAcc.desks || []).slice();
+    ownDesk.presenceLog = [e("p_x", "online", 5), e("p_owner", "online", 4), e("p_helper", "online", 3)];
+    xAcc.desks = ["own-desk"];
+    const forAct = await call("GET", OWN, null, { activity: "1", forSeat: "p_x" });
+    eq("forSeat stays the target account's own seats, even if that account owns the desk", tuple(forAct.body.presenceRows), [
+      ["own-desk", "p_x", "Xa", "online", at(5)]
+    ]);
+    ownDesk.presenceLog = keepOwnLog;
+    xAcc.desks = keepXDesks;
+    // Existing rows and note are untouched by presence.
+    pOwn.presenceLog = []; pTwo.presenceLog = [];
+    const pAll0 = await call("GET", OWNER, null, { activity: "1" });
+    const pDesk0 = await call("GET", OWNER, null, { activity: "1", desk: "pres-own" });
+    pOwn.presenceLog = keep.a; pTwo.presenceLog = keep.b;
+    const minus = (b) => { const c = Object.assign({}, b); delete c.presenceRows; return JSON.stringify(c); };
+    eq("Activity minus presenceRows is identical with or without a log (no desk)", minus(pAll.body), minus(pAll0.body));
+    eq("Activity minus presenceRows is identical with or without a log (desk)", minus(pDesk.body), minus(pDesk0.body));
+    eq("Activity keys are the parent's plus presenceRows", Object.keys(pAll.body), ["charged", "collect", "runOnItsOwn", "deleted", "ok", "wrote", "activity", "note", "presenceRows"]);
+    eq("note is the parent's activityNote of the rows", pAll.body.note, (pAll.body.activity || []).length ? "Only what was recorded." : "Nothing recorded on this yet.");
+    const jobAct = await call("GET", OWN, null, { activity: "1", kind: "ai", desk: "own-desk", id: "ai_doer" });
+    eq("a named automation's Activity carries no presenceRows", Object.prototype.hasOwnProperty.call(jobAct.body || {}, "presenceRows"), false);
+
+    // 4. The cap: the owner gets at most the 12 newest rows, 13 -> 12 (newest kept, oldest dropped).
+    const fill = (n) => { const out = []; for (let i = 0; i < n; i += 1) out.push(e("po_owner", i % 2 ? "offline" : "online", 100 - i)); return out; };
+    pOwn.presenceLog = fill(12); pTwo.presenceLog = [];
+    const c12a = await adminGet(OWNER);
+    const c12b = await call("GET", OWNER, null, { activity: "1" });
+    eq("owner gets at most the 12 newest rows: 12 entries -> 12 in presenceAudit and presenceRows", [(c12a.body.presenceAudit || []).length, (c12b.body.presenceRows || []).length], [12, 12]);
+    pOwn.presenceLog = fill(13);
+    const c13a = await adminGet(OWNER);
+    const c13b = await call("GET", OWNER, null, { activity: "1" });
+    eq("cap: 13 entries -> 12 in presenceAudit and presenceRows", [(c13a.body.presenceAudit || []).length, (c13b.body.presenceRows || []).length], [12, 12]);
+    eq("cap keeps the newest and drops the oldest", [c13a.body.presenceAudit[0].at, c13a.body.presenceAudit[11].at, c13b.body.presenceRows[11].at], [at(88), at(99), at(99)]);
+    pOwn.presenceLog = keep.a; pTwo.presenceLog = keep.b;
+
+    // 5. The read writes 0 times: the store file and the stored rows are unchanged by every read above.
+    eq("the read writes 0 times: store file is byte-identical", Buffer.compare(bytes0, fileBytes()), 0);
+    eq("the read writes 0 times: desks, accounts, sessions and audit unchanged", memSnap(), store0);
+  })();
+
   if (!failed) console.log("PASS check-account-follow");
 }
 

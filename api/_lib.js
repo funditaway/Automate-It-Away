@@ -741,11 +741,20 @@ function guardStore(handler) {
     }
     const ctx = { at, writes, skipped: false, scrubSkipped: false, writeFailed: false, sent: false };
     holdSuccess(res, ctx);
+    holdForPresence(res, ctx);
     const self = this;
     const args = arguments;
+    let threw = false;
     try {
       return await storeCalls.run(ctx, () => handler.apply(self, args));
+    } catch (e) {
+      threw = true;
+      throw e;
     } finally {
+      if (!threw && ctx.presence && ctx.presence.length && !ctx.skipped && !ctx.scrubSkipped && !ctx.writeFailed) {
+        try { await runPresence(ctx.presence); } catch (e) {}
+      }
+      releasePresence(ctx);
       if (ctx.skipped || ctx.scrubSkipped) forgetUnsaved();
     }
   };
@@ -1659,12 +1668,144 @@ function touchSessionRow(row, req) {
 function findSession(token, options) {
   const raw = String(token || "").trim();
   if (!raw) return null;
-  pruneSessions();
+  // Dropping expired rows on a read is a fill, not a write: it must not hold the next reload back.
+  quietFill(pruneSessions);
   const row = (mem.sessions || []).find((item) => item && item.tokenHash === hashSession(raw)) || null;
   if (!row) return null;
   const opts = options || {};
   if (opts.slide !== false) touchSession(row, opts.req);
   return row;
+}
+
+// Presence (option B). A session used on its own desk, by its own open seat, saves its seenAt at
+// most once per PRESENCE_STAMP_MS per session, through save(), after the handler and before its
+// reply goes out. Inside the window a read writes nothing. The save re-reads the store first
+// (forced reload; never over unsaved or in-flight writes) and re-checks the stamp, so another
+// instance's stamp is not written twice and a later reload keeps what was saved. The same save notes
+// "online" / "offline" flips for that seat on the desk row (row.presenceLog): seat id, kind and a
+// 5-minute time only. No name, address, browser, device or session id is stored; names are read at
+// read time. "offline" is written only next to the following "online", at the last saved stamp plus
+// 5 minutes; back within PRESENCE_MERGE_MS writes no pair. At most PRESENCE_SEAT_CAP entries per seat
+// in a rolling 24 hours and PRESENCE_DESK_CAP per desk (oldest dropped). Waiting, denied and removed
+// seats, desk codes (no session) and another desk's sessions write nothing.
+const PRESENCE_STAMP_MS = 2 * 60 * 1000;
+const PRESENCE_ONLINE_MS = 5 * 60 * 1000;
+const PRESENCE_MERGE_MS = 10 * 60 * 1000;
+const PRESENCE_STEP_MS = 5 * 60 * 1000;
+const PRESENCE_DAY_MS = 24 * 60 * 60 * 1000;
+const PRESENCE_SEAT_CAP = 12;
+const PRESENCE_DESK_CAP = 200;
+const PRESENCE_NOTE_MAX = 8;
+const PRESENCE_SEAT_SHUT = ["pending", "denied", "removed"];
+
+function presenceSeatShut(seat) {
+  return !seat || PRESENCE_SEAT_SHUT.indexOf(String(seat.status || "").trim().toLowerCase()) >= 0;
+}
+
+function presenceStep(ms) {
+  return new Date(Math.floor(ms / PRESENCE_STEP_MS) * PRESENCE_STEP_MS).toISOString();
+}
+
+function presenceDue(row, now) {
+  const at = Date.parse((row && row.stampAt) || "");
+  return !Number.isFinite(at) || now - at >= PRESENCE_STAMP_MS;
+}
+
+// Called by personOf when a session opened its own desk as its own seat. Only marks the request.
+function notePresence(session, ws, person) {
+  const ctx = storeCalls.getStore();
+  if (!ctx || !session || !ws || !person || !session.id || !session.tokenHash) return;
+  if (session.workspace !== ws.slug || !session.personId || session.personId !== person.id) return;
+  if (presenceSeatShut(person) || (ws.people || []).indexOf(person) < 0) return;
+  if (!presenceDue(session, Date.now())) return;
+  const list = ctx.presence || (ctx.presence = []);
+  if (list.length >= PRESENCE_NOTE_MAX || list.some((item) => item.id === session.id)) return;
+  list.push({ id: session.id, desk: ws.slug, seat: person.id });
+}
+
+// Flip entries for one seat at `now`, from its last saved stamp on this desk. Returns entries added.
+function presenceFlips(ws, seatId, now) {
+  let prev = NaN;
+  (mem.sessions || []).forEach((s) => {
+    if (!s || s.workspace !== ws.slug || s.personId !== seatId) return;
+    const at = Date.parse(s.stampAt || "");
+    if (Number.isFinite(at) && at <= now && !(at <= prev)) prev = at;
+  });
+  if (Number.isFinite(prev) && now - prev <= PRESENCE_MERGE_MS) return 0;
+  const log = (Array.isArray(ws.presenceLog) ? ws.presenceLog : []).filter((e) => e && typeof e === "object");
+  let last = null;
+  log.forEach((e) => { if (e.seat === seatId) last = e; });
+  const add = [];
+  if (Number.isFinite(prev) && last && last.kind === "online") add.push({ seat: seatId, kind: "offline", at: presenceStep(prev + PRESENCE_ONLINE_MS) });
+  add.push({ seat: seatId, kind: "online", at: presenceStep(now) });
+  const recent = log.filter((e) => {
+    const t = Date.parse(e.at || "");
+    return e.seat === seatId && Number.isFinite(t) && now - t < PRESENCE_DAY_MS;
+  }).length;
+  if (recent + add.length > PRESENCE_SEAT_CAP) return 0;
+  let next = log.concat(add);
+  if (next.length > PRESENCE_DESK_CAP) {
+    // Oldest time first (saved order breaks ties); the rest keep their saved order.
+    const drop = {};
+    next.map((e, i) => [Date.parse(e.at || ""), i])
+      .sort((x, y) => ((Number.isFinite(x[0]) ? x[0] : -Infinity) - (Number.isFinite(y[0]) ? y[0] : -Infinity)) || (x[1] - y[1]))
+      .slice(0, next.length - PRESENCE_DESK_CAP)
+      .forEach((x) => { drop[x[1]] = true; });
+    next = next.filter((e, i) => !drop[i]);
+  }
+  ws.presenceLog = next;
+  return add.length;
+}
+
+// The one throttled stamp save for this request's sessions. Its own store-call record, so a refused
+// or failed stamp never changes the request's own reply.
+async function runPresence(list) {
+  const sctx = { at: Date.now(), writes: true, skipped: false, scrubSkipped: false, writeFailed: false, sent: true, presence: null };
+  return storeCalls.run(sctx, async () => {
+    if (!storeTrusted()) return false;
+    if (blobReady() && !(await reloadIfNeeded(true))) return false;
+    const now = Date.now();
+    let due = 0;
+    (list || []).forEach((item) => {
+      const row = (mem.sessions || []).find((s) => s && s.id === item.id && s.tokenHash) || null;
+      if (!row || row.workspace !== item.desk || row.personId !== item.seat || !presenceDue(row, now)) return;
+      const end = Date.parse(row.expiresAt || "");
+      if (row.expiresAt && Number.isFinite(end) && end <= now) return;
+      const ws = (mem.workspaces || []).find((w) => w && w.slug === item.desk) || null;
+      const seat = ws ? ((ws.people || []).find((p) => p && p.id === item.seat) || null) : null;
+      if (!seat || presenceSeatShut(seat)) return;
+      presenceFlips(ws, seat.id, now);
+      row.stampAt = new Date(now).toISOString();
+      row.seenAt = row.stampAt;
+      row.expiresAt = sessionExpiresAt(now);
+      due += 1;
+    });
+    if (!due) return false;
+    return save();
+  });
+}
+
+// While a stamp is due, the reply waits until the stamp save is done (see guardStore).
+function holdForPresence(res, ctx) {
+  ctx.held = [];
+  ["json", "send", "end"].forEach((name) => {
+    const orig = res && res[name];
+    if (typeof orig !== "function") return;
+    res[name] = function () {
+      if (!ctx.released && ctx.presence && ctx.presence.length) {
+        ctx.held.push([orig, this, arguments]);
+        return this;
+      }
+      return orig.apply(this, arguments);
+    };
+  });
+}
+
+function releasePresence(ctx) {
+  ctx.released = true;
+  const held = ctx.held || [];
+  ctx.held = [];
+  held.forEach((h) => { h[0].apply(h[1], h[2]); });
 }
 
 function listSessions(hint) {
@@ -1727,6 +1868,15 @@ function issueSession(person, workspace, account, req, proof) {
   const keep = new Set(group.slice(0, SESSION_MAX - 1).map((item) => item.id));
   mem.sessions = (mem.sessions || []).filter((item) => !item || !group.length || keep.has(item.id) || !(((row.accountId && item.accountId === row.accountId) || (!row.accountId && item.workspace === row.workspace && item.personId === row.personId))));
   mem.sessions.unshift(row);
+  // Presence B: the login's own save is this session's first stamp. A seat open on this desk comes
+  // online here (same rules as the throttled stamp), so the reads right after a login write nothing.
+  const deskRow = row.workspace && row.personId ? ((mem.workspaces || []).find((w) => w && w.slug === row.workspace) || null) : null;
+  const seatRow = deskRow ? ((deskRow.people || []).find((p) => p && p.id === row.personId) || null) : null;
+  if (seatRow && !presenceSeatShut(seatRow)) {
+    presenceFlips(deskRow, seatRow.id, now);
+    row.stampAt = new Date(now).toISOString();
+    row.seenAt = row.stampAt;
+  }
   return sessionPublic(row, token);
 }
 
@@ -1944,8 +2094,9 @@ function seatLooksOwner(person) {
   return role === "owner" || kind === "owner";
 }
 
+// A removed seat left in people[] is shut too: it is not on the desk anymore.
 function seatOpen(person) {
-  return !!(person && person.status !== "pending" && person.status !== "denied");
+  return !!(person && person.status !== "pending" && person.status !== "denied" && person.status !== "removed");
 }
 
 function ownerSeatOf(ws) {
@@ -2046,15 +2197,29 @@ function personOf(req, workspaceSlug) {
       if (person && sessionLooksOwner(session) && !seatLooksOwner(person)) person = null;
       if (!person && sessionLooksOwner(session)) person = sessionOwnerPerson(session, ws);
     }
-    if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
+    // A removed seat left in people[] is nobody, same as a seat spliced out (sessionSeatGone).
+    if (person && person.status === "removed") person = null;
+    else if (person && person.status === "pending") return { workspace: ws, person: null, pending: true, session: sessionPublic(session) };
     if (person && person.status === "denied") return { workspace: ws, person: null, denied: true, session: sessionPublic(session) };
-    if (person) return { workspace: ws, person, session: sessionPublic(session) };
+    if (person) {
+      notePresence(session, ws, person);
+      return { workspace: ws, person, session: sessionPublic(session) };
+    }
   }
   const raw = String(headers["x-pin"] || "");
   if (!raw) return { workspace: ws, person: null };
   const hashed = hashPin(raw);
-  const person = (ws.people || []).find((p) => p && p.pin === hashed)
-    || (ws.pin === hashed ? ownerSeatOf(ws) : null);
+  // The desk code (ws.pin) only opens an open owner seat that has no code of its own (legacy rows).
+  // It never lands on a co-owner who holds a different code: a seat taken out of people[] keeps no
+  // way back in through the desk code it left behind.
+  // An open seat holding the code comes first: a shut seat earlier in people[] with the same code
+  // (a removed opener after a desk-code change) never hides it. The code is refused only when every
+  // seat holding it is shut.
+  const holders = (ws.people || []).filter((p) => p && p.pin === hashed);
+  const person = holders.find((p) => seatOpen(p))
+    || (ws.pin === hashed ? ((ws.people || []).find((p) => seatOpen(p) && seatLooksOwner(p) && !p.pin) || null) : null)
+    || holders[0] || null;
+  if (person && person.status === "removed") return { workspace: ws, person: null };
   if (person && person.status === "pending") return { workspace: ws, person: null, pending: true };
   if (person && person.status === "denied") return { workspace: ws, person: null, denied: true };
   return { workspace: ws, person: person || null };
