@@ -237,6 +237,7 @@ function presenceOf(row, now) {
 // The desk's presence log for its owner: entries the session stamp wrote (seat, kind, 5-minute time),
 // newest first, with the seat's name read now. Seats no longer open on this desk are left out.
 const PRESENCE_LOG_STEP_MS = 5 * 60 * 1000;
+const PRESENCE_AUDIT_ROWS = 12;
 function presenceLogOf(row) {
   const open = {};
   (row && Array.isArray(row.people) ? row.people : []).forEach((p) => {
@@ -318,6 +319,9 @@ module.exports = async function handler(req, res) {
     const deskRead = { ok: true, you: snap.you, account: snap.account, plan: snap.plan, plans: publicPlans(), shop: snap.shop, counts: jobCounts(row.slug), people: snap.people, approvals: owner ? snap.approvals : [], perms: snap.perms, agents: snap.agents, kinds: snap.kinds, levels: snap.levels, hardOwner: snap.hardOwner, rules: ensureRules(row), tickets: ticketsOf(row.slug), audit: owner ? (mem.audit || []).filter((a) => !a.workspace || a.workspace === row.slug).slice(0, 40) : null, money: owner ? (mem.money || []).filter((m) => !m.workspace || m.workspace === row.slug).slice(0, 40) : null };
     // Presence only for a member whose own seat is still on this desk (a removed seat gets none).
     if (!presenceShut(person)) deskRead.presence = presenceOf(row, Date.now());
+    // The owner's activity log for presence: its own key (pages read audit, not this), the newest
+    // PRESENCE_AUDIT_ROWS entries of presenceLogOf (open seats only, names read now). Owner only.
+    if (owner && !presenceShut(person)) deskRead.presenceAudit = presenceLogOf(row).entries.slice(0, PRESENCE_AUDIT_ROWS);
     return res.status(200).json(deskRead);
   }
 
