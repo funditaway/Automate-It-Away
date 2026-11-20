@@ -375,22 +375,169 @@ policyMutants.forEach(function (kind) {
   if (faults.indexOf(kind) < 0) fail('mutant missed: ' + kind + ' (got ' + JSON.stringify(faults) + ')')
   else { policyCaught += 1; pass('mutant caught: ' + kind) }
 })
-const mutantTotal = mutants.length + policyMutants.length
-const mutantCaught = caught + policyCaught
+function checkSource() {
+  return fs.readFileSync(__filename, 'utf8')
+}
+
+function liveSuiteRegion(src) {
+  // lastIndexOf: earlier policy helpers mention these names as strings.
+  const fnAt = src.lastIndexOf('function reportRuntimeSuite')
+  const ifAt = src.lastIndexOf('if (sqliteBindingReady())')
+  const at = fnAt >= 0 && (ifAt < 0 || fnAt < ifAt) ? fnAt : ifAt
+  return at >= 0 ? src.slice(at) : ''
+}
+
+function skipExitSourceFaults(src) {
+  const bad = []
+  const region = liveSuiteRegion(src)
+  // Zeroing the fail counter after a skip would let earlier FAILs exit 0.
+  if (/failed\s*=\s*0\b/.test(region) || /failed\s*=\s*false\b/.test(region)) {
+    bad.push('skip exits 0 when other asserts fail')
+  }
+  const endAt = region.search(/if\s*\(\s*failed/)
+  const end = endAt >= 0 ? region.slice(endAt) : ''
+  if (
+    !/if\s*\(\s*failed\s*\)/.test(end) ||
+    /if\s*\(\s*failed\s*&&/.test(end) ||
+    !/process\.exit\(\s*1\s*\)/.test(end) ||
+    !/check-aia-runtime failed/.test(end)
+  ) {
+    bad.push('skip exits 0 when other asserts fail')
+  }
+  const elseAt = region.lastIndexOf('} else {')
+  const elseBranch = elseAt >= 0 && endAt > elseAt ? region.slice(elseAt, endAt) : ''
+  if (/process\.exit\(\s*0\s*\)/.test(elseBranch)) {
+    bad.push('skip exits 0 when other asserts fail')
+  }
+  return unique(bad)
+}
+
+function reportSiteSourceFaults(src) {
+  const bad = []
+  const region = liveSuiteRegion(src)
+  const hasFailCall = (
+    region.indexOf("fail('runtime tests failed:") >= 0 ||
+    region.indexOf('fail("runtime tests failed:') >= 0 ||
+    region.indexOf("failFn('runtime tests failed:") >= 0 ||
+    region.indexOf('failFn("runtime tests failed:') >= 0
+  )
+  if (!hasFailCall || !/failKeys/.test(region) || !/\.forEach/.test(region) || !/key\s*===\s*['"]test['"]/.test(region)) {
+    bad.push('failing runtime test swallowed only at the report site')
+  }
+  return unique(bad)
+}
+
+function reportSitePolicyFaults(reportFn) {
+  const bad = []
+  const fails = []
+  const passes = []
+  reportFn(
+    { skipLines: [], passMessages: ['runtime build passed'], failKeys: ['test'] },
+    'injected failing runtime test',
+    '',
+    {
+      log: function () {},
+      pass: function (m) { passes.push(m) },
+      fail: function (m) { fails.push(m) },
+    }
+  )
+  const reported = fails.some(function (m) {
+    return String(m).indexOf('runtime tests failed:') === 0
+  })
+  if (!reported) bad.push('failing runtime test swallowed only at the report site')
+  if (passes.some(function (m) { return /runtime unit tests passed/.test(m) })) {
+    bad.push('failing runtime test swallowed only at the report site')
+  }
+  return unique(bad)
+}
+
+function applyReportSiteMutant(kind, reportFn) {
+  if (kind === 'failing runtime test swallowed only at the report site') {
+    return function (d, testOut, buildOut, hooks) {
+      const d2 = {
+        skipLines: d.skipLines,
+        passMessages: d.passMessages,
+        failKeys: (d.failKeys || []).filter(function (k) { return k !== 'test' }),
+      }
+      return reportFn(d2, testOut, buildOut, hooks)
+    }
+  }
+  return reportFn
+}
+
+function applyProbePolicyMutant(kind, src) {
+  if (kind === 'skip exits 0 when other asserts fail') {
+    const regionStart = src.indexOf('if (sqliteBindingReady())')
+    const elseAt = src.indexOf('} else {', regionStart)
+    const endIf = src.indexOf('\nif (failed)', elseAt)
+    if (regionStart < 0 || elseAt < 0 || endIf < 0) return src
+    return src.slice(0, endIf) + '\nfailed = 0' + src.slice(endIf)
+  }
+  if (kind === 'failing runtime test swallowed only at the report site') {
+    const needle = "if (key === 'test') failFn('runtime tests failed:\\n' + (testOut || ''))"
+    if (src.indexOf(needle) < 0) return src
+    return src.replace(needle, "if (key === 'test') { /* swallowed at the report site */ }")
+  }
+  return src
+}
+
+const probePolicyMutants = [
+  'skip exits 0 when other asserts fail',
+  'failing runtime test swallowed only at the report site',
+]
+const srcNow = checkSource()
+const probeLive = unique(
+  skipExitSourceFaults(srcNow)
+    .concat(reportSiteSourceFaults(srcNow))
+    .concat(reportSitePolicyFaults(reportRuntimeSuite))
+)
+if (probeLive.length) fail('runtime suite policy drifted: ' + probeLive.join('; '))
+else pass('a skip still exits 1 when other asserts fail, and a failing test is still reported')
+
+let probeCaught = 0
+probePolicyMutants.forEach(function (kind) {
+  let faults = []
+  if (kind === 'skip exits 0 when other asserts fail') {
+    faults = skipExitSourceFaults(applyProbePolicyMutant(kind, srcNow))
+  } else {
+    faults = unique(
+      reportSiteSourceFaults(applyProbePolicyMutant(kind, srcNow))
+        .concat(reportSitePolicyFaults(applyReportSiteMutant(kind, reportRuntimeSuite)))
+    )
+  }
+  if (faults.indexOf(kind) < 0) fail('mutant missed: ' + kind + ' (got ' + JSON.stringify(faults) + ')')
+  else { probeCaught += 1; pass('mutant caught: ' + kind) }
+})
+
+const mutantTotal = mutants.length + policyMutants.length + probePolicyMutants.length
+const mutantCaught = caught + policyCaught + probeCaught
 if (mutantCaught !== mutantTotal) fail('mutants: ' + mutantCaught + '/' + mutantTotal + ' caught')
 else pass('mutants: ' + mutantCaught + '/' + mutantTotal + ' caught')
+
+function reportRuntimeSuite(d, testOut, buildOut, hooks) {
+  const logFn = (hooks && hooks.log) || function (line) { console.log(line) }
+  const passFn = (hooks && hooks.pass) || pass
+  const failFn = (hooks && hooks.fail) || fail
+  ;(d.skipLines || []).forEach(function (line) { logFn(line) })
+  ;(d.passMessages || []).forEach(function (msg) { passFn(msg) })
+  ;(d.failKeys || []).forEach(function (key) {
+    if (key === 'test') failFn('runtime tests failed:\n' + (testOut || ''))
+    else if (key === 'build') failFn('runtime build failed:\n' + (buildOut || ''))
+    else failFn('runtime ' + key + ' failed')
+  })
+}
+
+if (probeLive.length) {
+  // Exit now so a later zeroing of the fail counter cannot wipe a policy fail.
+  console.error('check-aia-runtime failed')
+  process.exit(1)
+}
 
 if (sqliteBindingReady()) {
   const test = spawnSync('npm', ['test'], { cwd: runtime, encoding: 'utf8' })
   const build = spawnSync('npm', ['run', 'build'], { cwd: runtime, encoding: 'utf8' })
   const d = runtimeSuiteDecision(true, test.status, build.status)
-  d.skipLines.forEach(function (line) { console.log(line) })
-  d.passMessages.forEach(function (msg) { pass(msg) })
-  d.failKeys.forEach(function (key) {
-    if (key === 'test') fail('runtime tests failed:\n' + (test.stdout || '') + (test.stderr || ''))
-    else if (key === 'build') fail('runtime build failed:\n' + (build.stderr || build.stdout))
-    else fail('runtime ' + key + ' failed')
-  })
+  reportRuntimeSuite(d, (test.stdout || '') + (test.stderr || ''), (build.stderr || build.stdout || ''))
   if (build.status === 0) {
     if (!fs.existsSync(path.join(runtime, 'dist', 'ledger.js'))) fail('build did not emit ledger.js')
     if (!fs.existsSync(path.join(runtime, 'dist', 'sandboxWorkerEntry.js'))) fail('build did not copy sandboxWorkerEntry.js')
@@ -400,12 +547,14 @@ if (sqliteBindingReady()) {
   }
 } else {
   const d = runtimeSuiteDecision(false, null, null)
-  d.skipLines.forEach(function (line) { console.log(line) })
-  d.passMessages.forEach(function (msg) { pass(msg) })
-  d.failKeys.forEach(function (key) { fail('runtime ' + key + ' failed') })
+  reportRuntimeSuite(d, '', '')
 }
 
 if (failed) {
+  console.error('check-aia-runtime failed')
+  process.exit(1)
+}
+if (skipExitSourceFaults(fs.readFileSync(__filename, 'utf8')).length) {
   console.error('check-aia-runtime failed')
   process.exit(1)
 }
