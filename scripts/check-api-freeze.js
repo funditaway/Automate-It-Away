@@ -53,7 +53,6 @@ const LANDED = [
   "api/_desks-http.js",
   "api/_grok.js",
   "api/_handoff.js",
-  "api/_lib.js",
   "api/_plans.js",
   "api/_roles.js",
   "api/connections.js",
@@ -64,6 +63,7 @@ const LANDED = [
 const MOVED = [
   "api/_engine.js",
   "api/_job-mask.js",
+  "api/_lib.js",
   "api/jobs.js"
 ];
 
