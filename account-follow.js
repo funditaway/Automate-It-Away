@@ -30,9 +30,21 @@
   var EXPORT_COPY = "Exported. No desk code. No password. No secrets.";
   var EMPTY_ACT = "Nothing recorded on this yet.";
   var BOOK_REFUSED = "That book was not saved on this phone.";
+  // Presence words (James approved these exactly). Rows come from presenceRows on an Activity read
+  // ({ at, desk, seat, name, kind }). A row says "You" only when its desk + seat is one of this
+  // sign-in's own seats (GET /api/account: mine.owned / mine.member personId, and you.id on this
+  // desk). Someone else's row shows only on a desk this account owns (the Pause desks list, which is
+  // the account's owned desks). Without the home read nothing shows. Newest first, at most 12 in all.
+  var PRESENCE_MAX = 12;
+  var PRESENCE_SHUT = ["pending", "denied", "removed"];
+  var PRESENCE_ON = " came online on ";
+  var PRESENCE_OFF = " went offline on ";
+  var PRESENCE_YOU = "You";
+  var PRESENCE_NOTE = "Online means this desk was open on their phone or computer in the last 5 minutes. It can be a couple of minutes behind.";
+  var PRESENCE_ROUND = "Times are rounded down to the last 5 minutes. Each person keeps at most 12 a day, and the newest 12 show here.";
   var LEAVE_KEYS = ["aia_ws", "aia_pin", "aia_session", "aia_name", "aia_role", "aia_photo", "aia_acct", "aia_desk_name", "aia_email", "aia_wallet_address", "aia_wallet_chain"];
 
-  var state = { flash: "", pause: null, activity: null, undo: null, menu: null, detail: {}, deskPick: "" };
+  var state = { flash: "", pause: null, activity: null, undo: null, menu: null, home: null, detail: {}, deskPick: "" };
   var gen = 0;
 
   function ls(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
@@ -109,7 +121,7 @@
       if (q[k] == null || q[k] === "") return;
       parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(q[k])));
     });
-    return fetch("/api/account?" + parts.join("&"), { method: "GET", headers: hdr() })
+    return fetch("/api/account" + (parts.length ? "?" + parts.join("&") : ""), { method: "GET", headers: hdr() })
       .then(function (r) { return take(r); })
       .catch(function () { return { ok: false, status: 0, d: { error: OFFLINE } }; });
   }
@@ -175,6 +187,62 @@
     });
     if (ul.firstChild) box.appendChild(ul);
   }
+  function clock(at) {
+    var t = typeof at === "string" && at ? Date.parse(at) : NaN;
+    if (!isFinite(t)) return "";
+    var d = new Date(t), h = d.getHours(), m = d.getMinutes();
+    return (h % 12 || 12) + ":" + (m < 10 ? "0" : "") + m + " " + (h < 12 ? "AM" : "PM");
+  }
+  function deskName(slug) {
+    var h = state.home && state.home.ok && state.home.d;
+    var mine = h && h.mine && typeof h.mine === "object" ? h.mine : {};
+    var all = desksOf().concat(Array.isArray(mine.owned) ? mine.owned : [], Array.isArray(mine.member) ? mine.member : []);
+    var hit = all.filter(function (d) { return d && d.slug === slug && safeText(d.name); })[0];
+    return (hit && safeText(hit.name)) || safeText(slug);
+  }
+  function ownSeats() {
+    var h = state.home && state.home.ok && state.home.d;
+    if (!h || typeof h !== "object") return null;
+    var own = {};
+    var mine = h.mine && typeof h.mine === "object" ? h.mine : {};
+    [].concat(Array.isArray(mine.owned) ? mine.owned : [], Array.isArray(mine.member) ? mine.member : []).forEach(function (c) {
+      if (c && typeof c.slug === "string" && c.slug && typeof c.personId === "string" && c.personId) own[c.slug + "\n" + c.personId] = true;
+    });
+    var ws = ls("aia_ws");
+    if (ws && h.you && typeof h.you.id === "string" && h.you.id) own[ws + "\n" + h.you.id] = true;
+    return own;
+  }
+  function presenceLines(d) {
+    var rows = d && Array.isArray(d.presenceRows) ? d.presenceRows : [];
+    var own = ownSeats();
+    if (!own) return [];
+    var owns = desksOf().map(function (x) { return x && typeof x.slug === "string" ? x.slug : ""; }).filter(Boolean);
+    var keep = [];
+    rows.forEach(function (r, i) {
+      if (!r || typeof r !== "object" || typeof r.desk !== "string" || !r.desk) return;
+      if (r.kind !== "online" && r.kind !== "offline") return;
+      if (r.open === false || r.shut === true || PRESENCE_SHUT.indexOf(String(r.status || "").toLowerCase()) >= 0) return;
+      var mine = typeof r.seat === "string" && own[r.desk + "\n" + r.seat] === true;
+      if (!mine && owns.indexOf(r.desk) < 0) return;
+      var who = mine ? PRESENCE_YOU : safeText(r.name);
+      var at = clock(r.at), desk = deskName(r.desk);
+      if (!who || !at || !desk) return;
+      keep.push({ t: Date.parse(r.at), i: i, text: at + " · " + who + (r.kind === "online" ? PRESENCE_ON : PRESENCE_OFF) + desk });
+    });
+    keep.sort(function (a, b) { return (b.t - a.t) || (a.i - b.i); });
+    return keep.slice(0, PRESENCE_MAX).map(function (k) { return k.text; });
+  }
+  function paintPresence(box, d) {
+    var lines = presenceLines(d);
+    if (!lines.length) return;
+    var wrap = el("div", "acct-presence");
+    var ul = el("ul", "acct-lines");
+    lines.forEach(function (t) { ul.appendChild(el("li", null, t)); });
+    wrap.appendChild(ul);
+    wrap.appendChild(el("p", "meta", PRESENCE_NOTE));
+    wrap.appendChild(el("p", "meta", PRESENCE_ROUND));
+    box.appendChild(wrap);
+  }
   function paintDetail(box, key) {
     var d = state.detail[key];
     if (!d || typeof d !== "object") return;
@@ -187,6 +255,7 @@
       if (note) box.appendChild(el("p", "meta", note));
       else if (!d.activity.length) box.appendChild(el("p", "meta", EMPTY_ACT));
       paintActivity(box, d.activity);
+      paintPresence(box, d);
     }
   }
 
@@ -285,6 +354,7 @@
     if (note) c.appendChild(el("p", "meta", note));
     else if (!rows.length) c.appendChild(el("p", "meta", EMPTY_ACT));
     paintActivity(c, rows);
+    paintPresence(c, x.d);
   }
   function paintUndo() {
     var c = card("acct-undo", "Undo");
@@ -379,13 +449,15 @@
       read({ pause: "1" }),
       read({ activity: "1" }),
       read({ undo: "1" }),
-      read({ exportClose: "1" })
+      read({ exportClose: "1" }),
+      read({})
     ]).then(function (xs) {
       if (n !== gen) return;
       state.pause = xs[0];
       state.activity = xs[1];
       state.undo = xs[2];
       state.menu = xs[3];
+      state.home = xs[4];
       paint();
     });
   }
