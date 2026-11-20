@@ -155,6 +155,43 @@ async function main() {
  else if (!Array.isArray(rulesRes.body.starters) || rulesRes.body.starters.length) fail("starters empty");
  else if (rulesRes.body.workspace === "demo") fail("rules demo");
  else pass("rules");
+ // GET /api/rules on a real desk: only its own people see its rules, desk AIs and talk draft.
+ // A stranger or wrong code gets the same default body as no desk; a helper sees rules but not the
+ // owner's talk draft; the owner sees both. The draft and a stored rule are in the store for every read.
+ const auth = require("../api/auth");
+ const admin = require("../api/admin");
+ const callH = async (h, method, headers, body, url) => { const r = mockRes(); await h({ method: method, headers: headers || {}, body: body || {}, query: {}, url: url || "/api/rules" }, r); return r; };
+ const RS = "contract-rules";
+ const opened = await callH(auth, "POST", { "x-workspace": RS }, { action: "open", slug: RS, biz: "Contract Rules", name: "Ria", pin: "4821", email: "ria@contract.test" }, "/api/auth");
+ const rws = (lib.mem.workspaces || []).find((w) => w && w.slug === RS);
+ if (opened.statusCode !== 201 || !rws) fail("rules desk open " + opened.statusCode); else pass("rules desk open");
+ const added = await callH(rules, "POST", { "x-workspace": RS, "x-pin": "4821" }, { text: "Ria rule stays.", when: "drop", then: "note", contains: "keep" });
+ if (added.statusCode !== 201) fail("rules owner add " + added.statusCode); else pass("rules owner add");
+ const hal = await callH(admin, "POST", { "x-workspace": RS, "x-pin": "4821" }, { action: "invite", name: "Hal", pin: "2222", kind: "helper" }, "/api/admin");
+ if (!(hal.body && hal.body.person && hal.body.person.id)) fail("rules helper invite " + hal.statusCode); else pass("rules helper invite");
+ const DRAFT = "Stop anything over $5 that says gate";
+ const stored = (b) => ((b && b.rules) || []).some((x) => x && x.text === "Ria rule stays.");
+ const inStore = () => !!(rws && rws.ruleDraft && rws.ruleDraft.text === DRAFT && (rws.rules || []).some((x) => x && x.text === "Ria rule stays."));
+ const noDeskBody = JSON.stringify(Object.assign({}, rulesRes.body, { workspace: null }));
+ for (const rd of [["stranger", {}], ["wrong code", { "x-pin": "0000" }]]) {
+  if (rws) rws.ruleDraft = { text: DRAFT, when: "drop", then: "stop", ifMoney: 5, contains: "gate" };
+  if (!inStore()) { fail("rules " + rd[0] + " GET: rule and talk draft must be in the store"); continue; }
+  const g = await callH(rules, "GET", Object.assign({ "x-workspace": RS }, rd[1]));
+  const b = g.body || {};
+  if (g.statusCode !== 200 || b.ok !== true) fail("rules " + rd[0] + " GET 200, got " + g.statusCode);
+  else if (stored(b) || b.draft || (b.ais || []).length || b.canAdd !== false || b.you !== null || "desk" in b) fail("rules " + rd[0] + " GET must not show the desk's rules, desk AIs or talk draft");
+  else if (JSON.stringify(Object.assign({}, b, { workspace: null })) !== noDeskBody) fail("rules " + rd[0] + " GET must be the same default body as no desk");
+  else pass("rules " + rd[0] + " GET: default body, no desk rules, no draft");
+ }
+ if (rws) rws.ruleDraft = { text: DRAFT, when: "drop", then: "stop", ifMoney: 5, contains: "gate" };
+ const hg = await callH(rules, "GET", { "x-workspace": RS, "x-pin": "2222" });
+ if (!inStore()) fail("rules helper GET: rule and talk draft must be in the store");
+ else if (hg.statusCode !== 200 || !stored(hg.body) || !(hg.body.you && hg.body.you.name === "Hal")) fail("rules helper GET must show the desk's rules, got " + hg.statusCode);
+ else if (hg.body.draft || hg.body.canAdd !== false) fail("rules helper GET must not show the owner's talk draft");
+ else pass("rules helper GET: rules, no draft");
+ const og = await callH(rules, "GET", { "x-workspace": RS, "x-pin": "4821" });
+ if (og.statusCode !== 200 || !stored(og.body) || og.body.canAdd !== true || !(og.body.draft && og.body.draft.text === DRAFT)) fail("rules owner GET must show rules and the talk draft");
+ else pass("rules owner GET: rules and draft");
  const conn = mockRes();
  await connections({ method: "GET", headers: {}, query: {} }, conn);
  if (conn.statusCode !== 200) fail("connections");
@@ -197,7 +234,13 @@ const MUTANTS = [
   "Wallet / registry connect later as a Pipe HOLD."],
  ["old wallet note restored", "api/_connect-wallet.js",
   "Not Wallet.AIA. Payments are off for now. Nothing is charged. .aia Register when Bridge unlocks.",
-  "Not Wallet.AIA. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."]
+  "Not Wallet.AIA. Collect and pack pay stay HOLD. .aia Register when Bridge unlocks."],
+ ["stranger GET /api/rules sees the desk", "api/rules.js",
+  "    if (!row || !person) {",
+  "    if (!row) {"],
+ ["helper GET /api/rules sees the talk draft", "api/rules.js",
+  "draft: isOwner(person) ? (row.ruleDraft || null) : null,",
+  "draft: row.ruleDraft || null,"]
 ];
 
 function mutate() {
