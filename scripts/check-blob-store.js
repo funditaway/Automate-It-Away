@@ -297,6 +297,50 @@ async function main() {
     if (/\b401\b/.test(cond)) bad.push("token fallback on 401");
     if (/\b404\b/.test(cond)) bad.push("token fallback on 404");
     if (/\b500\b/.test(cond)) bad.push("token fallback on 500");
+    blobNeedsRetryFaults(libSrc).forEach(function (f) { bad.push(f); });
+    return bad;
+  }
+
+  function needsRetryFn(libSrc) {
+    const start = libSrc.indexOf("function blobIs403");
+    const end = libSrc.indexOf("function blobGetOpts", start);
+    return start >= 0 ? libSrc.slice(start, end > start ? end : start + 800) : "";
+  }
+
+  function evalBlobNeedsRetry(libSrc) {
+    const vm = require("vm");
+    const fns = needsRetryFn(libSrc);
+    const sandbox = {};
+    try {
+      vm.runInNewContext(
+        fns + "\nthis.blobNeedsRetry=blobNeedsRetry; this.blobMissing=blobMissing; this.blobIs403=blobIs403;",
+        sandbox
+      );
+    } catch (e) {
+      return { ok: false, err: e };
+    }
+    return {
+      ok: true,
+      needs: function (m) { return !!sandbox.blobNeedsRetry(m); },
+      missing: function (m) { return sandbox.blobMissing(m); }
+    };
+  }
+
+  function blobNeedsRetryFaults(libSrc) {
+    const bad = [];
+    const ev = evalBlobNeedsRetry(libSrc);
+    if (!ev.ok) {
+      bad.push("blobNeedsRetry unreadable");
+      return bad;
+    }
+    if (!ev.needs("403 Forbidden")) bad.push("blobNeedsRetry drops 403");
+    if (!ev.needs("Vercel Blob: no blob credentials")) bad.push("blobNeedsRetry drops no-credentials");
+    if (ev.needs("401 Unauthorized")) bad.push("blobNeedsRetry retries 401");
+    if (ev.needs("404 Not Found")) bad.push("blobNeedsRetry retries 404");
+    if (ev.needs("500 Internal Server Error")) bad.push("blobNeedsRetry retries 500");
+    if (ev.needs("ECONNRESET network error")) bad.push("blobNeedsRetry retries network");
+    if (ev.needs("fetch failed")) bad.push("blobNeedsRetry retries fetch failed");
+    if (ev.missing("404 Not Found") === false) bad.push("blobMissing drops 404");
     return bad;
   }
   const live = blobStoreFaults(src, healthSrc);
@@ -307,6 +351,10 @@ async function main() {
   } else if (/\b401\b|\b404\b|\b500\b/.test(tokenFallbackCond(src))) {
     fail("token fallback must not trigger on 401, 404, or 500, cond " + tokenFallbackCond(src));
   } else pass("token fallback happens only after a retryable 403, not 401, 404, or 500");
+  const needsLive = blobNeedsRetryFaults(src);
+  if (needsLive.length) {
+    fail("token fallback must not trigger via blobNeedsRetry on 401, 404, 500, or a network error, got " + needsLive.join("; "));
+  } else pass("blobNeedsRetry retries only 403 and missing credentials, not 401, 404, 500, or a network error");
 
   function applyMutant(libSrc, healthSrc, kind) {
     let nextLib = libSrc, nextHealth = healthSrc;
@@ -341,6 +389,25 @@ async function main() {
         "if (r.status === 403 && process.env.VERCEL_OIDC_TOKEN && blobToken()) {",
         "if ((r.status === 403 || r.status === 500) && process.env.VERCEL_OIDC_TOKEN && blobToken()) {"
       );
+    } else if (kind === "blobNeedsRetry retries 401") {
+      nextLib = nextLib.replace(
+        "return blobIs403(text) || /no blob credentials|invalid token|unable to extract store|oidcToken was passed/i.test(text);",
+        "return blobIs403(text) || /401|unauthorized|no blob credentials|invalid token|unable to extract store|oidcToken was passed/i.test(text);"
+      );
+    } else if (kind === "blobNeedsRetry retries 404") {
+      nextLib = nextLib.replace(
+        "return /not found|404|does not exist/i.test(String(msg || \"\"));",
+        "return false;"
+      );
+      nextLib = nextLib.replace(
+        "return blobIs403(text) || /no blob credentials|invalid token|unable to extract store|oidcToken was passed/i.test(text);",
+        "return blobIs403(text) || /404|not found|no blob credentials|invalid token|unable to extract store|oidcToken was passed/i.test(text);"
+      );
+    } else if (kind === "blobNeedsRetry retries 500") {
+      nextLib = nextLib.replace(
+        "return blobIs403(text) || /no blob credentials|invalid token|unable to extract store|oidcToken was passed/i.test(text);",
+        "return blobIs403(text) || /500|no blob credentials|invalid token|unable to extract store|oidcToken was passed/i.test(text);"
+      );
     }
     return { lib: nextLib, health: nextHealth };
   }
@@ -352,7 +419,10 @@ async function main() {
     "health publishes store.blob",
     "token fallback on 401",
     "token fallback on 404",
-    "token fallback on 500"
+    "token fallback on 500",
+    "blobNeedsRetry retries 401",
+    "blobNeedsRetry retries 404",
+    "blobNeedsRetry retries 500"
   ];
   let caught = 0;
   mutants.forEach(function (kind) {
