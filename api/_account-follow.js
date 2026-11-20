@@ -629,10 +629,12 @@ function jobActivity(job, row) {
   });
   return rows;
 }
-// Presence (stacked on presence B): this account's OWN seats' came-online / went-offline entries,
-// read from the desk row's presenceLog. Own seats: the seat this sign-in opened (not for forSeat),
-// plus any seat on any desk whose accountId is this account; forSeat reads the target account's
-// seats on the owner's desk only. Removed, waiting and denied seats are dropped; names are read now.
+// Presence (stacked on presence B): came-online / went-offline entries from the desk row's
+// presenceLog. On a desk this account owns (ownedDesks: the slug is in acc.desks, or the
+// workspace accountId is this account), every open seat is included. On any other desk, only
+// this account's own seats: the seat this sign-in opened (not for forSeat), plus any seat
+// whose accountId is this account; forSeat stays the target account's own seats on that desk
+// only, never every seat. Removed, waiting and denied seats are dropped; names are read now.
 // Machine values only (kind online|offline), newest first, at most PRESENCE_ROWS. Reads only.
 const PRESENCE_ROWS = 12;
 const PRESENCE_ROW_STEP_MS = 5 * 60 * 1000;
@@ -647,12 +649,14 @@ function ownPresenceRows(acc, seat, byHuman, deskSlug) {
     if (!w || !w.slug || !Array.isArray(w.presenceLog)) return;
     if (deskSlug && w.slug !== deskSlug) return;
     if (byHuman && (!seat || !seat.row || w.slug !== seat.row.slug)) return;
+    // forSeat must not widen to every seat, even if the target account happened to own the desk.
+    const ownedDesk = !byHuman && !!ownedRow(acc, w.slug);
     const mine = {};
     (Array.isArray(w.people) ? w.people : []).forEach((p) => {
       if (presenceRowShut(p)) return;
       const own = (accId && p.accountId && String(p.accountId) === accId)
         || (!byHuman && seat && seat.row === w && seat.person === p);
-      if (own) mine[String(p.id)] = p;
+      if (ownedDesk || own) mine[String(p.id)] = p;
     });
     w.presenceLog.forEach((e, i) => {
       if (!e || typeof e !== "object" || (e.kind !== "online" && e.kind !== "offline")) return;

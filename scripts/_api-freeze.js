@@ -38,7 +38,7 @@ const PIN = {
   "api/_account.js": "734c606bef3c17cb14cb6330adce5677fa964112",
   "api/_account-connect.js": "39dde85d863c3de15b05571d35dcc4e87e6f5b7b",
   "api/_account-doors.js": "e210c079926b0efbb22cb5b9512649c81f43c6b9",
-  "api/_account-follow.js": "54f1b0446ea8d2b9303e8895483c16d982d5f22e",
+  "api/_account-follow.js": "2af2b60dea22484d495bf547deea9eada05e9466",
   "api/_account-http.js": "977fe25361e6eec276c25673af7c2dd525353482",
   "api/_aia-admin.js": "b2036f064e85dfe1a93b7dda686d368f4fe7e233",
   "api/_ais.js": "1a59bc118231afb4d03631bc60ed4453fd1ad646",
