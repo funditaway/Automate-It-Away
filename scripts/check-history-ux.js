@@ -43,7 +43,9 @@ const pkg = read("package.json");
   "On the desk",
   "Coming up",
   "Off desk",
-  "Cap priority",
+  "<button type=\"button\" data-flag=\"cap\">Do this first</button>",
+  "<button type=\"button\" data-ex=\"late-cap\">Late, and marked “do this first”</button>",
+  "if(flags.cap)bits.push(\"Do this first\");",
   "function threadFace",
   "function paintCards",
   "function toast",
@@ -56,6 +58,79 @@ const pkg = read("package.json");
   if (history.indexOf(bit) < 0) fail("history.html missing " + bit);
   else pass("history.html " + bit);
 });
+["Cap priority", "Late on Cap"].forEach(function (old) {
+  if (history.indexOf(old) >= 0) fail("history.html still says " + old);
+  else pass("history.html no longer says " + old);
+});
+
+// Row 9 (James-approved): each new label appears exactly once, inside its own group.
+// "Late, and marked “do this first”" is a Quick find (#examples); "Do this first" is a filter
+// flag (#flags) and the summary line. A doubled button, or one moved into the other group, fails.
+function rowNine(h) {
+  const bad = [];
+  const count = (hay, needle) => hay.split(needle).length - 1;
+  const block = (id) => {
+    const m = h.match(new RegExp('<div class="chips" id="' + id + '">([\\s\\S]*?)</div>'));
+    return m ? m[1] : null;
+  };
+  const LATE = '<button type="button" data-ex="late-cap">Late, and marked “do this first”</button>';
+  const FLAG = '<button type="button" data-flag="cap">Do this first</button>';
+  const SUM = 'if(flags.cap)bits.push("Do this first");';
+  const ex = block("examples"), flags = block("flags");
+  if (ex === null) bad.push("Quick finds group #examples missing");
+  if (flags === null) bad.push("filter flags group #flags missing");
+  if (count(h, "Late, and marked “do this first”") !== 1) bad.push("'Late, and marked “do this first”' must appear exactly once (got " + count(h, "Late, and marked “do this first”") + ")");
+  if (count(h, LATE) !== 1) bad.push("the late-cap Quick find button must appear exactly once");
+  if (count(h, 'data-ex="late-cap"') !== 1) bad.push("exactly one data-ex=\"late-cap\" button");
+  if (count(h, ">Do this first</button>") !== 1) bad.push("the 'Do this first' button must appear exactly once (got " + count(h, ">Do this first</button>") + ")");
+  if (count(h, FLAG) !== 1) bad.push("the cap flag button must appear exactly once");
+  if (count(h, 'data-flag="cap"') !== 1) bad.push("exactly one data-flag=\"cap\" button");
+  if (count(h, 'bits.push("Do this first")') !== 1 || count(h, SUM) !== 1) bad.push("the summary 'Do this first' must appear exactly once, bound to flags.cap");
+  if (count(h, "Do this first") !== 2) bad.push("'Do this first' must appear exactly twice: the flag button and the summary (got " + count(h, "Do this first") + ")");
+  if (ex !== null && flags !== null) {
+    if (count(ex, LATE) !== 1) bad.push("the late-cap button must sit inside Quick finds (#examples)");
+    if (flags.indexOf("Late, and marked") >= 0 || flags.indexOf("late-cap") >= 0) bad.push("the late-cap button must not sit in the filter flags");
+    if (count(flags, FLAG) !== 1) bad.push("the 'Do this first' button must sit inside the filter flags (#flags)");
+    if (ex.indexOf("Do this first<") >= 0 || ex.indexOf('data-flag="cap"') >= 0) bad.push("the 'Do this first' flag must not sit in Quick finds");
+    if (ex.indexOf('<button type="button" data-ex="money-hand">Money handed off</button>\n' + LATE + '\n<button type="button" data-ex="ext">Off the desk</button>') < 0) bad.push("the late-cap button must keep its place (after Money handed off, before Off the desk)");
+    if (flags.indexOf('<button type="button" data-flag="files">Files</button>\n' + FLAG + '\n<button type="button" data-flag="missing">Missing</button>') < 0) bad.push("the 'Do this first' flag must keep its place (after Files, before Missing)");
+  }
+  const qf = h.indexOf('<details class="fold" id="quick-fold">'), qfEnd = h.indexOf("</details>", qf);
+  const lateAt = h.indexOf(LATE);
+  if (!(qf >= 0 && lateAt > qf && lateAt < qfEnd)) bad.push("the late-cap button must stay inside the Quick finds fold");
+  const adv = h.indexOf('<div class="adv" id="adv-box"'), flagAt = h.indexOf(FLAG);
+  if (!(adv >= 0 && flagAt > adv && flagAt < h.indexOf('<div class="logic" id="logic">'))) bad.push("the 'Do this first' flag must stay inside the filters box");
+  return bad;
+}
+(function () {
+  const bad = rowNine(history);
+  if (bad.length) bad.forEach((b) => fail("history.html row 9: " + b));
+  else pass("history.html row 9 labels appear exactly once, each inside its own group");
+  const LATE = '<button type="button" data-ex="late-cap">Late, and marked “do this first”</button>';
+  const FLAG = '<button type="button" data-flag="cap">Do this first</button>';
+  const cut = (h, x) => h.split(x + "\n").join("");
+  const muts = [
+    ["doubled flag button", (h) => h.split(FLAG).join(FLAG + "\n" + FLAG)],
+    ["doubled late-cap button", (h) => h.split(LATE).join(LATE + "\n" + LATE)],
+    ["late-cap moved into the flags", (h) => cut(h, LATE).split(FLAG).join(FLAG + "\n" + LATE)],
+    ["flag moved into Quick finds", (h) => cut(h, FLAG).split(LATE).join(LATE + "\n" + FLAG)],
+    ["flag copied into Quick finds", (h) => h.split(LATE).join(LATE + "\n" + FLAG)],
+    ["late-cap copied into the flags", (h) => h.split(FLAG).join(FLAG + "\n" + LATE)],
+    ["flag reordered in its group", (h) => cut(h, FLAG).split('<button type="button" data-flag="audit">Audit only</button>').join('<button type="button" data-flag="audit">Audit only</button>\n' + FLAG)],
+    ["late-cap reordered in its group", (h) => cut(h, LATE).split('<button type="button" data-ex="stopped">Stopped</button>').join('<button type="button" data-ex="stopped">Stopped</button>\n' + LATE)],
+    ["late-cap moved out of the fold", (h) => cut(h, LATE).split('<p class="meta">When</p>').join(LATE + '\n<p class="meta">When</p>')],
+    ["summary doubled", (h) => h.split('if(flags.cap)bits.push("Do this first");').join('if(flags.cap)bits.push("Do this first");if(flags.cap)bits.push("Do this first");')],
+    ["label in a third place", (h) => h.split('<p class="meta">When</p>').join('<p class="meta">When · Do this first</p>')]
+  ];
+  let caught = 0;
+  muts.forEach(([name, fn]) => {
+    const m = fn(history);
+    if (m === history) { fail("row 9 mutant does not apply: " + name); return; }
+    if (rowNine(m).length) caught += 1;
+    else fail("row 9 mutant NOT caught: " + name);
+  });
+  if (caught === muts.length) pass("row 9 mutants caught " + caught + "/" + muts.length);
+})();
 
 if (history.indexOf("not on this desk") < 0) {
   fail("History must say when a named desk AI is not on this desk");
