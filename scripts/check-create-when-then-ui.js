@@ -53,7 +53,8 @@ ok(more.indexOf('id="start"') >= 0 && more.indexOf('id="picks"') >= 0 && more.in
 ok(/<details id="cs-when-pick">/.test(cs) && cs.indexOf(SUMMARY) >= 0 && cs.indexOf(HINT) >= 0, "the picker is on the simple card, in plain words");
 ok(cs.indexOf('id="cs-starters"') < cs.indexOf('id="cs-when-pick"') && cs.indexOf('id="cs-when-pick"') < cs.indexOf('id="cs-words"'), "the picker sits between the packs and the words");
 ok(cs.indexOf('id="cs-when">') > cs.indexOf('id="cs-when-pick"') && cs.indexOf('id="cs-then">') > cs.indexOf('id="cs-when">') && cs.indexOf('id="cs-then">') < cs.indexOf('id="cs-words"'), "when and then are their own controls, before the words");
-ok(/<label for="cs-when">When this happens<\/label>/.test(cs) && /<label for="cs-then">Then draft this<\/label>/.test(cs), "the labels say when this happens and then draft this");
+ok(/<label for="cs-when">When this happens<\/label>/.test(cs) && /<label for="cs-then">AIA should draft this<\/label>/.test(cs), "the labels say when this happens and AIA should draft this");
+ok(cs.split('<label for="cs-then">').length === 2 && cs.indexOf("Then draft this") < 0, "one label for the draft picker, and the old Then draft this words are gone");
 ok(starters.indexOf("cs-when") < 0 && starters.indexOf("cs-then") < 0 && starters.indexOf(SUMMARY) < 0, "the picker is not one of the pack chips");
 ok(cs.indexOf('id="cs-example"') > cs.indexOf('id="cs-words"') && /id="cs-example"[^>]*>Show an example<\/button>/.test(cs), "Show an example stays with the words");
 ok(/id="cs-starters"/.test(cs) && /id="cs-words"/.test(cs) && /id="cs-draft">Draft it<\/button>/.test(cs), "packs, the words box, and Draft it stay");

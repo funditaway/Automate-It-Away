@@ -208,10 +208,43 @@ function checkHelp(S, bad) {
   if (noId) bad("/help has " + noId + " sections you cannot jump to");
 }
 
+// ---------- plain words rows 6 and 10 (James-approved top 10) ----------
+// Row 6: /create's draft picker label says "AIA should draft this", once, as the label right above
+// its own dropdown. Row 10: the /more Together tile says "People, desk AIs, and helper accounts.",
+// once, inside the Together on one card link. The old words are gone from both pages.
+function count(hay, needle) { return hay.split(needle).length - 1; }
+const ROW6 = "AIA should draft this";
+const ROW6_LABEL = '<label for="cs-then">' + ROW6 + "</label>";
+const ROW6_OLD = "Then draft this";
+const ROW10 = "People, desk AIs, and helper accounts.";
+const ROW10_SUB = '<span class="more-sub">' + ROW10 + " One card, one idea. AI prepares. You verify.</span>";
+const ROW10_OLD = "Humans, Desk AIs, and SIs.";
+function checkPlainRows(S, bad) {
+  const cs = S["create.html"];
+  if (count(cs, ROW6) !== 1) bad("/create must say '" + ROW6 + "' exactly once (got " + count(cs, ROW6) + ")");
+  if (count(cs, ROW6_LABEL) !== 1) bad("/create must have exactly one " + ROW6_LABEL);
+  if (count(cs, '<label for="cs-then"') !== 1) bad("/create must have exactly one label for the draft picker");
+  if (count(cs, '<select id="cs-then">') !== 1) bad("/create must have exactly one draft picker");
+  if (cs.indexOf(ROW6_OLD) >= 0 || /then draft this/i.test(cs)) bad("/create still says the old '" + ROW6_OLD + "'");
+  if (!/<label for="cs-then">AIA should draft this<\/label>\s*<select id="cs-then"><\/select>/.test(cs)) bad("/create: the '" + ROW6 + "' label must sit right above its own dropdown");
+  if (!/<select id="cs-when"><\/select>\s*<label for="cs-then">AIA should draft this<\/label>/.test(cs)) bad("/create: the '" + ROW6 + "' label must come right after the When dropdown");
+  const lab = cs.indexOf(ROW6_LABEL), sel = cs.indexOf('<select id="cs-then">'), when = cs.indexOf('<select id="cs-when">');
+  if (!(when >= 0 && when < lab && lab < sel)) bad("/create: label order must be When dropdown, then '" + ROW6 + "', then its dropdown");
+  const pick = (cs.match(/<details id="cs-when-pick">[\s\S]*?<\/details>/) || [""])[0];
+  if (pick.indexOf(ROW6_LABEL) < 0) bad("/create: the '" + ROW6 + "' label must stay inside the When/Then picker");
+  const more = S["more.html"];
+  if (count(more, ROW10) !== 1) bad("/more must say '" + ROW10 + "' exactly once (got " + count(more, ROW10) + ")");
+  if (count(more, ROW10_SUB) !== 1) bad("/more Together tile must read exactly: " + ROW10_SUB);
+  if (more.indexOf(ROW10_OLD) >= 0 || /Humans, Desk AIs/i.test(more) || /\bSIs\b/.test(more)) bad("/more still says the old '" + ROW10_OLD + "'");
+  const tile = (more.match(/<a class="more-go" href="\/how#together">[\s\S]*?<\/a>/) || [""])[0];
+  if (tile !== '<a class="more-go" href="/how#together">Together on one card\n        ' + ROW10_SUB + "</a>") bad("/more: the row 10 line must sit inside the Together on one card link");
+  if (count(more, 'href="/how#together"') !== 1) bad("/more must have one Together on one card link");
+}
+
 async function suite(S, okFn) {
   const bad = [];
   const b = (m) => bad.push(m);
-  const steps = [["health line always resolves", () => checkHealth(S, b)], ["/create one first choice", () => checkCreate(S, b)], ["/more four groups", () => checkMore(S, b)], ["/help sections and link text", () => checkHelp(S, b)]];
+  const steps = [["health line always resolves", () => checkHealth(S, b)], ["/create one first choice", () => checkCreate(S, b)], ["/more four groups", () => checkMore(S, b)], ["/help sections and link text", () => checkHelp(S, b)], ["/create and /more plain words rows 6 and 10", () => checkPlainRows(S, b)]];
   for (const [name, fn] of steps) {
     const n = bad.length;
     try { await fn(); } catch (e) { bad.push(name + " threw " + e.message); }
@@ -221,6 +254,24 @@ async function suite(S, okFn) {
 }
 
 const MUTANTS = [
+  ["row 6 revert", "create.html", [["<label for=\"cs-then\">AIA should draft this</label>", "<label for=\"cs-then\">Then draft this</label>"]]],
+  ["row 6 typo", "create.html", [["AIA should draft this</label>", "AIA shuold draft this</label>"]]],
+  ["row 6 case", "create.html", [["AIA should draft this</label>", "AIA Should draft this</label>"]]],
+  ["row 6 trailing period", "create.html", [["AIA should draft this</label>", "AIA should draft this.</label>"]]],
+  ["row 6 doubled label", "create.html", [["<label for=\"cs-then\">AIA should draft this</label>\n          <select id=\"cs-then\"></select>", "<label for=\"cs-then\">AIA should draft this</label>\n          <label for=\"cs-then\">AIA should draft this</label>\n          <select id=\"cs-then\"></select>"]]],
+  ["row 6 label moved below its dropdown", "create.html", [["<label for=\"cs-then\">AIA should draft this</label>\n          <select id=\"cs-then\"></select>", "<select id=\"cs-then\"></select>\n          <label for=\"cs-then\">AIA should draft this</label>"]]],
+  ["row 6 label moved above When", "create.html", [["<label for=\"cs-when\">When this happens</label>", "<label for=\"cs-then\">AIA should draft this</label>\n          <label for=\"cs-when\">When this happens</label>"]]],
+  ["row 6 old words in the hint", "create.html", [["You can change the words after.</p>", "You can change the words after. Then draft this.</p>"]]],
+  ["row 6 label loses for=", "create.html", [["<label for=\"cs-then\">AIA should draft this</label>", "<label>AIA should draft this</label>"]]],
+  ["row 6 label removed", "create.html", [["<label for=\"cs-then\">AIA should draft this</label>\n", ""]]],
+  ["row 10 revert", "more.html", [["People, desk AIs, and helper accounts.", "Humans, Desk AIs, and SIs."]]],
+  ["row 10 typo", "more.html", [["People, desk AIs, and helper accounts.", "People, desk AIs, and helper acounts."]]],
+  ["row 10 doubled", "more.html", [["People, desk AIs, and helper accounts.", "People, desk AIs, and helper accounts. People, desk AIs, and helper accounts."]]],
+  ["row 10 line moved out of its link", "more.html", [["Together on one card\n        <span class=\"more-sub\">People, desk AIs, and helper accounts. One card, one idea. AI prepares. You verify.</span></a>", "Together on one card</a>\n        <span class=\"more-sub\">People, desk AIs, and helper accounts. One card, one idea. AI prepares. You verify.</span>"]]],
+  ["row 10 sentence removed", "more.html", [["People, desk AIs, and helper accounts. ", ""]]],
+  ["row 10 partial revert", "more.html", [["People, desk AIs, and helper accounts.", "Humans, desk AIs, and helper accounts."]]],
+  ["row 10 old line added elsewhere", "more.html", [["<p class=\"more-lead\">Answers, a person to ask, and what is on right now.</p>", "<p class=\"more-lead\">Answers, a person to ask, and what is on right now. Humans, Desk AIs, and SIs.</p>"]]],
+  ["row 10 tile doubled", "more.html", [["Together on one card\n        <span class=\"more-sub\">People, desk AIs, and helper accounts. One card, one idea. AI prepares. You verify.</span></a>", "Together on one card\n        <span class=\"more-sub\">People, desk AIs, and helper accounts. One card, one idea. AI prepares. You verify.</span></a>\n        <a class=\"more-go\" href=\"/how#together\">Together on one card\n        <span class=\"more-sub\">People, desk AIs, and helper accounts. One card, one idea. AI prepares. You verify.</span></a>"]]],
   ["create 500 reads as drafts off", "create-desk.js", [['            if (r && r.ok === false) throw new Error("health " + r.status);\n', ""]]],
   ["create old queue line back", "create-desk.js", [["        : \"A Desk AI can't draft on this phone yet. You can still type the work below and put it in your Queue.\");", "        : \"A Desk AI can't draft on this phone yet. You can still put work on the queue.\");"]]],
   ["more links to missing #playbook", "more.html", [['href="/help#playbook-card"', 'href="/help#playbook"']]],
