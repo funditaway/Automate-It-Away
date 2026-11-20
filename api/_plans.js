@@ -122,7 +122,11 @@ function loginAccount(name, pin) {
   if (desk && typeof lib.ensurePeople === "function") lib.ensurePeople(desk);
   const owner = ownerOf(desk);
   const acc = accountForSlug(slug, desk);
-  const pinOk = pinMatches(acc && acc.pin, hashed) || pinMatches(desk && desk.pin, hashed) || pinMatches(owner && owner.pin, hashed);
+  // The account/desk code shortcut lands on the first owner seat, so it only counts while that seat is open
+  // (not removed, waiting or denied). Otherwise the desk-code lookup below decides (an open seat holding the
+  // code first). A legacy desk with no owner seat keeps the shortcut.
+  const ownerShut = !!owner && (owner.status === "removed" || owner.status === "pending" || owner.status === "denied");
+  const pinOk = !ownerShut && (pinMatches(acc && acc.pin, hashed) || pinMatches(desk && desk.pin, hashed) || pinMatches(owner && owner.pin, hashed));
   if (pinOk) {
     const account = acc || { name: (desk && (desk.biz || desk.name)) || slug, slug, desks: desk ? [desk.slug] : [], plan: "pro", pin: (desk && desk.pin) || (owner && owner.pin) || (acc && acc.pin) || hashed };
     return { ok: true, account, desk: desk || null, person: owner || null };
