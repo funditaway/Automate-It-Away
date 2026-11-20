@@ -186,6 +186,11 @@ async function main() {
   if (accountHtml.indexOf('pinEl.value=localStorage.getItem("aia_pin")') < 0) {
     fail("Account Open gate must prefill the saved owner code");
   } else pass("Account Open gate prefills aia_pin");
+  const settingsAt = accountHtml.indexOf('src="account-settings.js"');
+  const wipeAt = accountHtml.lastIndexOf('localStorage.removeItem("aia_pin")', settingsAt >= 0 ? settingsAt : 0);
+  if (settingsAt < 0 || wipeAt < 0 || wipeAt > settingsAt) {
+    fail("Account must drop a leftover desk code before account-settings.js boots");
+  } else pass("Account drops a leftover desk code before account-settings.js boots");
   if (accountHtml.indexOf("#gate[hidden]") < 0 || accountHtml.indexOf("display:none!important") < 0) {
     fail("Account Open gate must honor hidden after leftover session opens the book");
   } else pass("Account Open gate honors hidden");
