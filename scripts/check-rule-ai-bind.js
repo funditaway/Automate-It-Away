@@ -316,6 +316,12 @@ async function main() {
     ["owner code on another desk name", { "x-workspace": slug + "-x", "x-pin": ownerPin }]
   ];
   shop.ruleDraft = { text: "Owner draft stays.", when: "drop", then: "note" };
+  // A refused reply is { ok, error } only: no draft key and no draft field (when, then, contains, ifMoney) alone.
+  function replyKeysOnly(b) {
+    const j = JSON.stringify(b || {});
+    return !!b && Object.keys(b).every((k) => k === "ok" || k === "error") &&
+      ['"draft"', '"when"', '"then"', '"contains"', '"ifMoney"'].every((x) => j.indexOf(x) < 0);
+  }
   for (const who of gateWho) {
     const want = who[0] === "owner code on another desk name" ? 404 : 403;
     for (const act of gateActions) {
@@ -328,8 +334,8 @@ async function main() {
         fail("gate: " + who[0] + " POST " + act[0] + " was refused but still wrote");
       } else if (!shop.ruleDraft || shop.ruleDraft.text !== "Owner draft stays.") {
         fail("gate: " + who[0] + " POST " + act[0] + ": the owner's draft must be in the store while refused writes are checked");
-      } else if (JSON.stringify(r.body).indexOf("Owner draft stays.") >= 0) {
-        fail("gate: " + who[0] + " POST " + act[0] + " was refused but its reply shows the owner's talk draft");
+      } else if (JSON.stringify(r.body).indexOf("Owner draft stays.") >= 0 || !replyKeysOnly(r.body)) {
+        fail("gate: " + who[0] + " POST " + act[0] + " was refused but its reply shows the owner's talk draft or part of it (when/then)");
       } else pass("gate: " + who[0] + " POST " + act[0] + " " + want + ", nothing written, no draft in the reply");
     }
   }
@@ -362,11 +368,8 @@ async function main() {
   if (canOwner.statusCode !== 200 || canOwner.body.canAdd !== true) fail("gate: owner GET canAdd must be true");
   else pass("gate: owner GET canAdd true");
   // The owner's talk draft stays in the store for these reads, so canAdd is checked with a draft present.
-  // KNOWN GAP on this base (main 844bd125): GET /api/rules returns the desk's rules and the talk draft to
-  // non-owners (helper, waiting, denied, wrong code, stranger). This check does not claim otherwise: it no
-  // longer asserts "no draft" (that assert ran after the draft was wiped, so it could never fail), and it
-  // reports the leak below as GAP lines (not ok, not counted as a pass). The fix and its asserts are on
-  // switch/rules-gaps-on-844bd125 (api/rules.js; scripts/check-closed-seat-session.js section 5).
+  // The talk draft is the owner's: no non-owner (helper, waiting, denied, wrong code, stranger) GET may
+  // show it. The draft is in the store for these reads (precondition below), so this cannot pass empty.
   if (!shop.ruleDraft || shop.ruleDraft.text !== "Owner draft stays.") fail("gate: the owner's talk draft must be in the store for the GET reads");
   else pass("gate: owner's talk draft is in the store for the GET reads");
   const draftSeenBy = [];
@@ -377,7 +380,8 @@ async function main() {
     } else pass("gate: " + who[0] + " GET canAdd false (talk draft in store)");
     if (g.body && g.body.draft) draftSeenBy.push(who[0]);
   }
-  if (draftSeenBy.length) console.log("GAP  gate: GET shows the owner's talk draft to " + draftSeenBy.join(", ") + " (known gap; fix on switch/rules-gaps-on-844bd125)");
+  if (draftSeenBy.length) fail("gate: GET shows the owner's talk draft to " + draftSeenBy.join(", "));
+  else pass("gate: no non-owner GET shows the owner's talk draft (talk draft in store)");
   shop.ruleDraft = null;
   const noDesk = await call(rulesHandler, "GET", { "x-workspace": "no-such-desk", "x-pin": ownerPin });
   if (noDesk.statusCode !== 200 || noDesk.body.canAdd !== false || (noDesk.body.ais || []).length) {
