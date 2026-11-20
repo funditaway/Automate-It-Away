@@ -161,8 +161,30 @@
       if (!r.ok) { if (err) { err.style.display = "block"; err.textContent = data.error || "Desk name or code does not match."; } return; }
       var ws = (data.workspace && data.workspace.slug) || slug;
       var label = (data.workspace && (data.workspace.biz || data.workspace.name)) || name;
-      if (window.AIADesks) AIADesks.open({ slug: ws, name: label, pin: code, role: (data.you && data.you.role) || "owner" });
-      else { localStorage.setItem("aia_ws", ws); localStorage.setItem("aia_pin", code); localStorage.setItem("aia_desk_name", label); }
+      if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data);
+      if (window.AIADesks && AIADesks.open) {
+        AIADesks.open({
+          slug: ws,
+          name: label,
+          token: data.session && data.session.token,
+          role: (data.you && data.you.role) || "owner",
+          who: (data.you && data.you.name) || ""
+        });
+      } else {
+        localStorage.setItem("aia_ws", ws);
+        if (data.session && data.session.token) localStorage.setItem("aia_session", data.session.token);
+        localStorage.setItem("aia_desk_name", label);
+      }
+      try { localStorage.removeItem("aia_pin"); } catch (e) {}
+      try {
+        var rows = JSON.parse(localStorage.getItem("aia_desks") || "[]");
+        if (Array.isArray(rows) && rows.some(function (d) { return d && d.slug === ws && "pin" in d; })) {
+          rows.forEach(function (d) { if (d && d.slug === ws) delete d.pin; });
+          localStorage.setItem("aia_desks", JSON.stringify(rows));
+        }
+      } catch (e) {}
+      var pinEl = document.getElementById("add-pin");
+      if (pinEl) pinEl.value = "";
       goDrop(ws);
     } catch (e) { if (err) { err.style.display = "block"; err.textContent = "Could not reach the desk."; } }
   }
