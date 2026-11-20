@@ -268,6 +268,127 @@ async function main() {
     fail("owner should be able to clear Then AI, got " + clear.statusCode + " " + JSON.stringify(clear.body && clear.body.rule));
   } else pass("owner can clear Then AI");
 
+  // Owner-only write gate on /api/rules: every refused write is a no-op.
+  // Helpers, waiting/denied seats, wrong codes and strangers get 403 on every
+  // POST action; an unknown desk gets 404 and no desk is made; any method other
+  // than GET/POST/OPTIONS gets 405 even for the owner. Refused writes leave the
+  // stored rules, the talk draft and Object.prototype exactly as they were.
+  shop.people.push({
+    id: "p_wait",
+    name: "Wen",
+    role: "owner",
+    status: "pending",
+    pin: hashPin("5512"),
+    createdAt: new Date().toISOString()
+  });
+  shop.people.push({
+    id: "p_gone",
+    name: "Dee",
+    role: "owner",
+    status: "denied",
+    pin: hashPin("6623"),
+    createdAt: new Date().toISOString()
+  });
+  const gateRule = ((await call(rulesHandler, "GET", owner)).body.rules || [])[0];
+  if (!gateRule || !gateRule.id) fail("gate: owner GET must return a stored rule to aim refused writes at");
+  else pass("gate: stored rule to aim refused writes at");
+  const gateId = gateRule ? gateRule.id : "";
+  function snap() {
+    return JSON.stringify({ rules: shop.rules, draft: shop.ruleDraft || null, desks: mem.workspaces.length });
+  }
+  const gateActions = [
+    ["add", { text: "Gate → refused add HOLD.", when: "drop", then: "note", contains: "gate" }],
+    ["add+ai", { text: "Gate → refused bind HOLD.", when: "drop", then: "draft", contains: "gate", ai: "Shop Bot" }],
+    ["update", { action: "update", id: gateId, text: "Gate rewrote this.", ai: "" }],
+    ["remove", { action: "remove", id: gateId }],
+    ["remove-by-id", { id: gateId }],
+    ["widget", { action: "widget", id: gateId, on: true, label: "Gate" }],
+    ["talk", { action: "talk", text: "Stop anything over $5 that says gate" }],
+    ["talk-yes", { action: "talk", text: "yes" }],
+    ["confirm", { action: "confirm", draft: { text: "Gate confirm HOLD.", when: "drop", then: "note" } }]
+  ];
+  const gateWho = [
+    ["helper seat", staff],
+    ["waiting owner seat", { "x-workspace": slug, "x-pin": "5512" }],
+    ["denied owner seat", { "x-workspace": slug, "x-pin": "6623" }],
+    ["wrong code", { "x-workspace": slug, "x-pin": "0000" }],
+    ["stranger", { "x-workspace": slug }],
+    ["owner code on another desk name", { "x-workspace": slug + "-x", "x-pin": ownerPin }]
+  ];
+  shop.ruleDraft = { text: "Owner draft stays.", when: "drop", then: "note" };
+  for (const who of gateWho) {
+    const want = who[0] === "owner code on another desk name" ? 404 : 403;
+    for (const act of gateActions) {
+      const before = snap();
+      const r = await call(rulesHandler, "POST", who[1], JSON.parse(JSON.stringify(act[1])));
+      const after = snap();
+      if (r.statusCode !== want || !r.body || r.body.ok !== false) {
+        fail("gate: " + who[0] + " POST " + act[0] + " must " + want + " ok:false, got " + r.statusCode + " " + JSON.stringify(r.body));
+      } else if (after !== before) {
+        fail("gate: " + who[0] + " POST " + act[0] + " was refused but still wrote");
+      } else if (!shop.ruleDraft || shop.ruleDraft.text !== "Owner draft stays.") {
+        fail("gate: " + who[0] + " POST " + act[0] + ": the owner's draft must be in the store while refused writes are checked");
+      } else if (JSON.stringify(r.body).indexOf("Owner draft stays.") >= 0) {
+        fail("gate: " + who[0] + " POST " + act[0] + " was refused but its reply shows the owner's talk draft");
+      } else pass("gate: " + who[0] + " POST " + act[0] + " " + want + ", nothing written, no draft in the reply");
+    }
+  }
+  if (!shop.ruleDraft || shop.ruleDraft.text !== "Owner draft stays.") fail("gate: refused talk must not touch the owner's draft");
+  else pass("gate: owner's talk draft untouched");
+
+  for (const m of ["PUT", "PATCH", "DELETE"]) {
+    const before = snap();
+    const r = await call(rulesHandler, m, owner, { text: "Gate → method HOLD.", when: "drop", then: "note", action: "remove", id: gateId });
+    if (r.statusCode !== 405) fail("gate: owner " + m + " must 405, got " + r.statusCode);
+    else if (snap() !== before) fail("gate: owner " + m + " was refused but still wrote");
+    else pass("gate: owner " + m + " 405, nothing written");
+  }
+  const opt = await call(rulesHandler, "OPTIONS", staff);
+  if (opt.statusCode !== 204) fail("gate: OPTIONS must 204, got " + opt.statusCode);
+  else pass("gate: OPTIONS 204");
+
+  for (const bad of ["__proto__", "constructor", "prototype", "toString", "no-such-desk"]) {
+    const before = snap();
+    const r = await call(rulesHandler, "POST", { "x-workspace": bad, "x-pin": ownerPin },
+      JSON.parse('{"text":"Gate → proto HOLD.","when":"drop","then":"note","__proto__":{"gatePolluted":1}}'));
+    if (r.statusCode !== 404) fail("gate: POST to desk " + bad + " must 404, got " + r.statusCode);
+    else if (snap() !== before) fail("gate: POST to desk " + bad + " was refused but still wrote");
+    else pass("gate: POST to desk " + bad + " 404, no desk made");
+  }
+  if (({}).gatePolluted !== undefined || Object.prototype.gatePolluted !== undefined) fail("gate: Object.prototype polluted");
+  else pass("gate: Object.prototype clean");
+
+  const canOwner = await call(rulesHandler, "GET", owner);
+  if (canOwner.statusCode !== 200 || canOwner.body.canAdd !== true) fail("gate: owner GET canAdd must be true");
+  else pass("gate: owner GET canAdd true");
+  // The owner's talk draft stays in the store for these reads, so canAdd is checked with a draft present.
+  // KNOWN GAP on this base (main 844bd125): GET /api/rules returns the desk's rules and the talk draft to
+  // non-owners (helper, waiting, denied, wrong code, stranger). This check does not claim otherwise: it no
+  // longer asserts "no draft" (that assert ran after the draft was wiped, so it could never fail), and it
+  // reports the leak below as GAP lines (not ok, not counted as a pass). The fix and its asserts are on
+  // switch/rules-gaps-on-844bd125 (api/rules.js; scripts/check-closed-seat-session.js section 5).
+  if (!shop.ruleDraft || shop.ruleDraft.text !== "Owner draft stays.") fail("gate: the owner's talk draft must be in the store for the GET reads");
+  else pass("gate: owner's talk draft is in the store for the GET reads");
+  const draftSeenBy = [];
+  for (const who of gateWho.slice(0, 5)) {
+    const g = await call(rulesHandler, "GET", who[1]);
+    if (g.statusCode !== 200 || g.body.canAdd !== false) {
+      fail("gate: " + who[0] + " GET canAdd must be false, got " + g.statusCode + " " + JSON.stringify(g.body && g.body.canAdd));
+    } else pass("gate: " + who[0] + " GET canAdd false (talk draft in store)");
+    if (g.body && g.body.draft) draftSeenBy.push(who[0]);
+  }
+  if (draftSeenBy.length) console.log("GAP  gate: GET shows the owner's talk draft to " + draftSeenBy.join(", ") + " (known gap; fix on switch/rules-gaps-on-844bd125)");
+  shop.ruleDraft = null;
+  const noDesk = await call(rulesHandler, "GET", { "x-workspace": "no-such-desk", "x-pin": ownerPin });
+  if (noDesk.statusCode !== 200 || noDesk.body.canAdd !== false || (noDesk.body.ais || []).length) {
+    fail("gate: GET on an unknown desk must be the default read-only view");
+  } else pass("gate: unknown desk GET read-only");
+
+  const ownerTalk = await call(rulesHandler, "POST", owner, { action: "talk", text: "Stop anything over $5 that says gate" });
+  if (ownerTalk.statusCode !== 200 || !shop.ruleDraft) fail("gate: owner talk must still draft (gate must not block the owner)");
+  else pass("gate: owner talk still drafts");
+  shop.ruleDraft = null;
+
   try { if (fs.existsSync(store)) fs.unlinkSync(store); } catch (e) {}
   if (failed) {
     console.error(failed + " failed");
