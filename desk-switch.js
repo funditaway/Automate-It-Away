@@ -89,8 +89,9 @@
     if (!row || !store) return null;
     store.setItem("aia_ws", row.slug);
     if (row.pin) store.setItem("aia_pin", row.pin);
-    if (row.token) store.setItem("aia_session", row.token);
-    if (desk && desk.token) store.setItem("aia_session", desk.token);
+    var token = (desk && desk.token) || row.token || "";
+    if (token) store.setItem("aia_session", token);
+    else store.removeItem("aia_session");
     if (row.role) store.setItem("aia_role", row.role);
     if (row.name) store.setItem("aia_desk_name", row.name);
     if (row.who) store.setItem("aia_name", row.who);

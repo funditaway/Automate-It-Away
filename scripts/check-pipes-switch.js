@@ -2,6 +2,7 @@
 require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 const root = path.join(__dirname, "..");
 
 function read(rel) {
@@ -97,5 +98,70 @@ if (packMd.indexOf("Open Stop leftover:") < 0) throw new Error("PACK.md must nam
     throw new Error("help FAQ still paints draft liking the name");
   }
 })();
+
+function memStore(seed) {
+  const m = Object.assign({}, seed || {});
+  return {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(m, k) ? String(m[k]) : null; },
+    setItem: function (k, v) { m[k] = String(v); },
+    removeItem: function (k) { delete m[k]; },
+    _raw: m
+  };
+}
+function runDesks(src, store) {
+  const window = { localStorage: store };
+  const ctx = { window: window, localStorage: store, console: console, JSON: JSON, String: String, Array: Array, Object: Object };
+  ctx.globalThis = window;
+  ctx.window.window = window;
+  vm.runInNewContext(src, ctx);
+  return window.AIADesks;
+}
+function openFaults(src) {
+  const bad = [];
+  const stale = memStore({
+    aia_ws: "desk-alpha",
+    aia_session: "tok-alpha",
+    aia_pin: "4821",
+    aia_desk_name: "Alpha Shop"
+  });
+  const desks = runDesks(src, stale);
+  desks.open({ slug: "desk-bravo", name: "Bravo Shop", pin: "1357" });
+  if (stale.getItem("aia_ws") !== "desk-bravo") bad.push("open() did not switch aia_ws");
+  if (stale.getItem("aia_session")) bad.push("open() left a stale aia_session");
+  if (stale.getItem("aia_pin") !== "1357") bad.push("open() did not store the new desk pin");
+
+  const replace = memStore({ aia_ws: "desk-alpha", aia_session: "tok-alpha", aia_pin: "4821" });
+  runDesks(src, replace).open({ slug: "desk-bravo", name: "Bravo Shop", token: "tok-bravo" });
+  if (replace.getItem("aia_session") !== "tok-bravo") bad.push("open() did not replace a stale aia_session");
+
+  const keep = memStore({ aia_ws: "desk-alpha", aia_session: "tok-alpha", aia_pin: "4821" });
+  runDesks(src, keep).open({ slug: "desk-alpha", name: "Alpha Shop", token: "tok-alpha", pin: "4821" });
+  if (keep.getItem("aia_session") !== "tok-alpha") bad.push("open() dropped the current desk session");
+  return bad;
+}
+const liveOpen = openFaults(switchJs);
+if (liveOpen.length) throw new Error("AIADesks.open() faults: " + liveOpen.join("; "));
+console.log("ok  AIADesks.open() clears or replaces a stale aia_session");
+
+function applyOpenMutant(src, kind) {
+  const live = "    var token = (desk && desk.token) || row.token || \"\";\n    if (token) store.setItem(\"aia_session\", token);\n    else store.removeItem(\"aia_session\");\n";
+  if (kind === "open() left a stale aia_session") {
+    return src.replace(live, "    if (row.token) store.setItem(\"aia_session\", row.token);\n    if (desk && desk.token) store.setItem(\"aia_session\", desk.token);\n");
+  }
+  if (kind === "open() did not replace a stale aia_session") {
+    return src.replace(live, "    var token = (desk && desk.token) || row.token || \"\";\n    if (token && !store.getItem(\"aia_session\")) store.setItem(\"aia_session\", token);\n    else if (!token) store.removeItem(\"aia_session\");\n");
+  }
+  if (kind === "open() dropped the current desk session") {
+    return src.replace(live, "    store.removeItem(\"aia_session\");\n");
+  }
+  return src;
+}
+["open() left a stale aia_session", "open() did not replace a stale aia_session", "open() dropped the current desk session"].forEach(function (kind) {
+  const next = applyOpenMutant(switchJs, kind);
+  if (next === switchJs) throw new Error("open() mutant does not apply: " + kind);
+  const faults = openFaults(next);
+  if (faults.indexOf(kind) < 0) throw new Error("open() mutant survived: " + kind + " (got " + JSON.stringify(faults) + ")");
+  console.log("ok  open() mutant caught: " + kind);
+});
 
 console.log("check-pipes-switch: ok");
