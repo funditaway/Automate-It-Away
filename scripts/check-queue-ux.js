@@ -161,7 +161,7 @@ function deskEmptyFaults(src) {
   if (src.indexOf("Open a desk. The queue stays empty until you do.") < 0) {
     bad.push("no-desk empty drifted");
   }
-  if (src.indexOf("Nothing here yet. Drop or Create a card.") < 0) {
+  if (src.indexOf("Nothing here yet. Drop a card or Create one.") < 0) {
     bad.push("open-empty drifted");
   }
   return bad;
@@ -379,7 +379,7 @@ const MUTANTS = [
   ["cardState loses Done", function () { const n = swap(needs, 'done:"Done"', 'done:"Finished"'); return n && cardStateFaults(n); }],
   ["desk taps line dropped", function () { const d = swap(desk, "You still tap Yes or Stop", "The queue runs itself"); return d && deskContractFaults(d); }],
   ["no-desk empty dropped", function () { const d = swap(desk, "Open a desk. The queue stays empty until you do.", "Open a desk to invent cards."); return d && deskEmptyFaults(d); }],
-  ["open-empty dropped", function () { const d = swap(desk, "Nothing here yet. Drop or Create a card.", "Nothing here yet. Drop anything."); return d && deskEmptyFaults(d); }],
+  ["open-empty dropped", function () { const d = swap(desk, "Nothing here yet. Drop a card or Create one.", "Nothing here yet. Drop anything."); return d && deskEmptyFaults(d); }],
   ["more-queue tip drops Empty stays empty", function () { const t = swap(tips, "Empty stays empty", "Empty can fill itself"); return t && moreQueueTipFaults(t); }],
   ["more-queue tip drops Talk / Yes / Stop", function () { const t = swap(tips, "Talk, Yes, or Stop", "Talk, or send"); return t && moreQueueTipFaults(t); }],
   ["more-queue tip drops nothing sends", function () { const t = swap(tips, "Nothing sends from here.", "The queue may send from here."); return t && moreQueueTipFaults(t); }],
