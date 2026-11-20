@@ -1,4 +1,4 @@
-const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow, RULE_MAX, PROVIDERS, configured } = require("./_lib");
+const { cors, mem, save, readBody, personOf, isOwner, ensureRules, log, catalog, flattenWorkflows, publicWorkflow, RULE_MAX, PROVIDERS, configured, deskAccountIdOf } = require("./_lib");
 const cards = require("./_account-connect");
 const { studioDraft, pickDrafter } = require("./_grok");
 const ais = require("./_ais");
@@ -99,7 +99,54 @@ function isGrokPack(p) {
   return /\bgrok\b/.test(who);
 }
 
-function publicPack(p) {
+
+function packOwnedIds(p) {
+  const ids = [];
+  if (!p) return ids;
+  if (p.id) ids.push(String(p.id));
+  if (p.packId && String(p.packId) !== String(p.id)) ids.push(String(p.packId));
+  return ids;
+}
+
+function accountOwnsPack(acc, p) {
+  if (!acc) return false;
+  const ids = packOwnedIds(p);
+  if (!ids.length) return false;
+  const rows = Array.isArray(acc.packsOwned) ? acc.packsOwned : [];
+  return rows.some(function (r) {
+    const id = r && (r.id || r);
+    return id && ids.indexOf(String(id)) >= 0;
+  });
+}
+
+function recordPackOwned(acc, pack, shop) {
+  if (!acc || !pack) return;
+  const id = String(pack.id || pack.packId || "");
+  if (!id) return;
+  if (!Array.isArray(acc.packsOwned)) acc.packsOwned = [];
+  if (accountOwnsPack(acc, pack)) return;
+  acc.packsOwned.push({
+    id: id,
+    at: new Date().toISOString(),
+    desk: (shop && shop.slug) || ""
+  });
+}
+
+function saidYes(body) {
+  const t = String(body && body.confirm != null ? body.confirm : "").trim().toLowerCase();
+  return t === "yes";
+}
+
+function accountForPackRead(req, workspace) {
+  if (!req || !workspace) return null;
+  const found = personOf(req, workspace);
+  if (!found || !found.workspace || !found.person) return null;
+  const id = deskAccountIdOf(found.workspace);
+  if (!id) return null;
+  return (mem.accounts || []).find(function (a) { return a && a.id === id; }) || null;
+}
+
+function publicPack(p, acc) {
   if (!p) return null;
   const ask = Number(p.ask != null ? p.ask : p.price) || 0;
   const priced = !!(p.priced || ask > 0);
@@ -157,7 +204,7 @@ function publicPack(p) {
     })(),
     internet: net.INTERNET,
     chain: false,
-    owned: false,
+    owned: accountOwnsPack(acc, p),
     registry: net.publicNet(net.of(p.aia || p.id || p.name, p.id)).registry
   };
 }
@@ -177,7 +224,8 @@ function findPack(id, opts) {
 
 function searchPacks(q, opts) {
   const term = String(q || "").trim().toLowerCase();
-  const rows = allPacks(opts).map(publicPack).filter(Boolean);
+  const acc = opts && opts.account;
+  const rows = allPacks(opts).map(function (p) { return publicPack(p, acc); }).filter(Boolean);
   if (!term) return rows;
   return rows.filter(function (p) {
     return [p.id, p.name, p.family, p.aisle, p.does, p.face, p.creator, p.aia, p.file].join(" ").toLowerCase().indexOf(term) >= 0;
@@ -275,7 +323,7 @@ function listingOf(id, opts) {
   const row = findPack(id, opts);
   if (!row) return null;
   const file = row.official ? loadOfficialFile(row.packId || row.id) : null;
-  const out = publicPack(row);
+  const out = publicPack(row, opts && opts.account);
   out.included = (file && file.qualify) || row.features || [];
   out.how = (file && file.how) || {
     capture: "Drop the facts this pack named.",
@@ -607,11 +655,12 @@ async function packHandler(req, res) {
   const q = req.query || {};
   const workspace = namedWorkspace(req);
   const mine = q.mine === "1" || q.mine === "true";
+  const acc = accountForPackRead(req, workspace);
 
   if (req.method === "GET") {
     if (q.creator) {
       const who = String(q.creator).slice(0, 40);
-      const packs = searchPacks("", { mine: false }).filter(function (p) {
+      const packs = searchPacks("", { mine: false, account: acc }).filter(function (p) {
         if (who.toLowerCase() === "grok") return isGrokPack(p);
         return String(p.creatorId || p.family || "").toLowerCase() === who.toLowerCase() || (who === "aia" && p.official);
       });
@@ -622,13 +671,13 @@ async function packHandler(req, res) {
       });
     }
     if (q.download || q.file || q.dl === "1") {
-      const listing = listingOf(q.download || q.file || q.id || q.pack, { mine: !!(mine || workspace), workspace: workspace })
-        || listingOf(q.download || q.file || q.id || q.pack, { mine: false });
+      const listing = listingOf(q.download || q.file || q.id || q.pack, { mine: !!(mine || workspace), workspace: workspace, account: acc })
+        || listingOf(q.download || q.file || q.id || q.pack, { mine: false, account: acc });
       if (!listing) return res.status(404).json({ ok: false, error: "No pack by that .aia name." });
       return sendPackFile(res, listing);
     }
     if (q.id || q.pack) {
-      const listing = listingOf(q.id || q.pack, { mine: mine, workspace: workspace });
+      const listing = listingOf(q.id || q.pack, { mine: mine, workspace: workspace, account: acc });
       if (!listing) return res.status(404).json({ ok: false, error: "No pack by that name." });
       return res.status(200).json({ ok: true, pack: listing, listing: listing });
     }
@@ -639,7 +688,7 @@ async function packHandler(req, res) {
       const rails = ais.railsOf(shop);
       return res.status(200).json({ ok: true, desk: shop.slug, ais: rails.ais, count: rails.count, rails: rails.rails, never: rails.never, aia: rails.aia, internet: rails.net });
     }
-    const rows = searchPacks(q.q || q.search || "", { mine: mine, workspace: workspace });
+    const rows = searchPacks(q.q || q.search || "", { mine: mine, workspace: workspace, account: acc });
     const deskDraft = !!pickDrafter(workspace);
     return res.status(200).json({
       ok: true,
@@ -661,7 +710,7 @@ async function packHandler(req, res) {
   const action = body.action || "packs";
 
   if (action === "packs" || action === "pack-search" || action === "marketplace") {
-    return res.status(200).json({ ok: true, packs: searchPacks(body.q || body.search || "") });
+    return res.status(200).json({ ok: true, packs: searchPacks(body.q || body.search || "", { account: acc }) });
   }
 
   if (action === "studio-draft" || action === "grok-pack") {
@@ -731,7 +780,7 @@ async function packHandler(req, res) {
           : "Draft saved. Off Market until you list it. Packs never Send."));
     const rulesNotKept = made.rulesNotKept || [];
     const warning = rulesCarryWarning(rulesNotKept);
-    const saved = { ok: true, pack: publicPack(row), added: added, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note, rulesNotKept: rulesNotKept };
+    const saved = { ok: true, pack: publicPack(row, acc), added: added, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note, rulesNotKept: rulesNotKept };
     if (warning) saved.warning = warning;
     return res.status(200).json(saved);
   }
@@ -789,13 +838,13 @@ async function packHandler(req, res) {
     row.status = "private";
     row.visibility = "private";
     await save();
-    return res.status(200).json({ ok: true, pack: publicPack(row), note: "Pack is private again. Off Market. Still on this desk if you already installed it." });
+    return res.status(200).json({ ok: true, pack: publicPack(row, acc), note: "Pack is private again. Off Market. Still on this desk if you already installed it." });
   }
 
   const pack = findPack(body.id || body.pack || body.name || body.aia || body.file, { mine: true, workspace: workspace });
   if (action === "preview-pack") {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
-    return res.status(200).json({ ok: true, pack: listingOf(pack.id, { mine: true, workspace: workspace }), never: ["send", "stop", "pay"], collectHold: collectHoldOf(pack) });
+    return res.status(200).json({ ok: true, pack: listingOf(pack.id, { mine: true, workspace: workspace, account: acc }), never: ["send", "stop", "pay"], collectHold: collectHoldOf(pack) });
   }
   if (action === "download-pack" || action === "export-pack") {
     let row = pack || findPack(body.id || body.pack || body.name || body.aia || body.file, { mine: true, workspace: workspace });
@@ -804,7 +853,7 @@ async function packHandler(req, res) {
       if (made.ok) row = made.pack;
     }
     if (!row) return res.status(404).json({ ok: false, error: "No pack by that .aia name." });
-    return sendPackFile(res, listingOf(row.id, { mine: true, workspace: workspace }) || publicPack(row) || row);
+    return sendPackFile(res, listingOf(row.id, { mine: true, workspace: workspace, account: acc }) || publicPack(row, acc) || row);
   }
   if (action === "install-aia" || action === "import-pack" || action === "install-file") {
     if (!workspace) return res.status(400).json({ error: "Open a desk first." });
@@ -842,7 +891,7 @@ async function packHandler(req, res) {
     const rulesNotKept = made.rulesNotKept || row.rulesNotKept || [];
     return res.status(200).json(writeSetupFields({
       ok: true,
-      pack: publicPack(row),
+      pack: publicPack(row, acc),
       added: added,
       desk: shop.slug,
       ais: rails.ais,
@@ -861,10 +910,10 @@ async function packHandler(req, res) {
   if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
     if (pack.type === "wanted" || pack.use === "make") {
-      return res.status(409).json({ ok: false, error: "Make this pack", href: "/create?kind=pack&idea=" + pack.id, pack: publicPack(pack) });
+      return res.status(409).json({ ok: false, error: "Make this pack", href: "/create?kind=pack&idea=" + pack.id, pack: publicPack(pack, acc) });
     }
     if (pack.type === "cosmetic") {
-      return res.status(200).json({ ok: true, tryOn: pack.id, pack: publicPack(pack), note: "Color on this phone. No rules added." });
+      return res.status(200).json({ ok: true, tryOn: pack.id, pack: publicPack(pack, acc), note: "Color on this phone. No rules added." });
     }
     if (!workspace) return res.status(400).json({ error: "Open a desk first." });
     const found = personOf(req, workspace);
@@ -875,14 +924,18 @@ async function packHandler(req, res) {
     const already = shop.pack === (pack.packId || pack.id);
     const added = installPackOnDesk(shop, pack);
     const started = startSetupCard(shop, person, found.session, packForCard(pack));
+    const ownerAcc = started.acc || installerAccount(shop, person, found.session);
+    const ownedWas = ownerAcc ? JSON.stringify(ownerAcc.packsOwned || []) : null;
+    if (action !== "buy-pack" && saidYes(body) && ownerAcc) recordPackOwned(ownerAcc, pack, shop);
     const saved = await saveKept(started.acc, started.was);
+    if (!saved && ownerAcc && ownedWas != null) ownerAcc.packsOwned = JSON.parse(ownedWas);
     log("Desk", "Install pack · " + (pack.name || pack.id), "OK", workspace);
     const hold = collectHoldOf(pack);
     const rails = ais.railsOf(shop);
     const rulesNotKept = Array.isArray(pack.rulesNotKept) ? pack.rulesNotKept : [];
     return res.status(200).json(writeSetupFields({
       ok: true,
-      pack: publicPack(pack),
+      pack: publicPack(pack, acc),
       shop: shop.slug,
       packName: shop.packName,
       already: already,

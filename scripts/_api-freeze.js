@@ -53,6 +53,7 @@ const PIN = {
   "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
   "api/_job-mask.js": "b34fb96e24646bcc88c3e9453d8a7c638266a132",
   "api/_lib.js": "2454e4dd316f6dce68a8590ba84854e90e036a9b",
+  "api/_packs.js": "df4f4fe32ded262ead7a12d28e4eb0f9ff718c75",
   "api/_plans.js": "1fc8a398ea714523ae4ff1972f3b0791632ddd5c",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
   "api/admin.js": "5726c860a06e4efb89fc87447f7a2cc4bc351cbc",
