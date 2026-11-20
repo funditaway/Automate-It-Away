@@ -2,6 +2,7 @@ require("./_env-guard");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const vm = require("vm");
 
 const store = path.join(os.tmpdir(), "aia-rules-check-" + Date.now() + ".json");
 process.env.AIA_STORE_PATH = store;
@@ -22,6 +23,306 @@ function fail(msg) {
   process.exitCode = 1;
 }
 function pass(msg) { console.log("ok  " + msg); }
+
+function rulesPinTag(html) {
+  const m = html.match(/<input\b[^>]*id="pin"[^>]*>/i);
+  return m ? m[0] : "";
+}
+function rulesLoadBlock(html) {
+  const from = html.indexOf("async function load()");
+  const to = html.indexOf('document.getElementById("rule-list")', from);
+  return from >= 0 && to > from ? html.slice(from, to) : "";
+}
+function rulesFaults(html) {
+  const bad = [];
+  if (!/\btype="password"/.test(rulesPinTag(html))) bad.push("field type=text");
+  if (html.indexOf('localStorage.setItem("aia_pin"') >= 0) bad.push("pin stored");
+  const load = rulesLoadBlock(html);
+  if (load.indexOf('action: "login"') < 0) bad.push("no login");
+  if (!/loginRes\.status\s*>=\s*400/.test(load)) bad.push("wrong-code 401");
+  return bad;
+}
+function applyRulesMutant(html, kind) {
+  if (kind === "field type=text") {
+    return html.replace(
+      'id="pin" placeholder="Desk code" type="password"',
+      'id="pin" placeholder="Desk code" type="text"'
+    );
+  }
+  if (kind === "pin stored") {
+    return html
+      .replace(
+        "const typed = String(pinEl.value || \"\").trim();",
+        "const typed = String(pinEl.value || \"\").trim();\n        if (typed) localStorage.setItem(\"aia_pin\", typed);"
+      )
+      .replace("try { localStorage.removeItem(\"aia_pin\"); } catch (e) {}", "");
+  }
+  if (kind === "wrong-code 401") {
+    return html.replace(
+      "if (loginRes.status >= 400 || loginData.ok === false) {\n            banner.textContent = (loginData && loginData.error) || \"Desk code does not match.\";\n            paintGate();\n            return;\n          }",
+      ""
+    );
+  }
+  return html;
+}
+
+function memStore(seed) {
+  const m = Object.assign({}, seed || {});
+  return {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(m, k) ? String(m[k]) : null; },
+    setItem: function (k, v) { m[k] = String(v); },
+    removeItem: function (k) { delete m[k]; },
+    _raw: m
+  };
+}
+function makeClassList() {
+  const set = {};
+  return {
+    add: function (c) { set[c] = true; },
+    remove: function (c) { delete set[c]; },
+    contains: function (c) { return !!set[c]; },
+    toggle: function (c, on) {
+      if (on === false) delete set[c];
+      else if (on === true) set[c] = true;
+      else if (set[c]) delete set[c];
+      else set[c] = true;
+      return !!set[c];
+    }
+  };
+}
+function makeEl(id) {
+  return {
+    id: id,
+    value: "",
+    textContent: "",
+    innerHTML: "",
+    hidden: false,
+    style: {},
+    classList: makeClassList(),
+    setAttribute: function (k, v) { this._attrs = this._attrs || {}; this._attrs[k] = v; },
+    getAttribute: function (k) { return (this._attrs && this._attrs[k]) || null; },
+    addEventListener: function (type, fn) {
+      this._on = this._on || {};
+      this._on[type] = this._on[type] || [];
+      this._on[type].push(fn);
+    },
+    closest: function () { return null; },
+    replaceChildren: function () { this.innerHTML = ""; this._kids = []; },
+    appendChild: function (c) { this._kids = this._kids || []; this._kids.push(c); },
+    querySelector: function () { return null; }
+  };
+}
+function extractRulesScript(html) {
+  const m = html.match(/<script src="escape-html\.js"><\/script>\s*<script>([\s\S]*?)<\/script>/);
+  return m ? m[1] : "";
+}
+function headerOf(headers, name) {
+  if (!headers) return "";
+  const keys = Object.keys(headers);
+  for (let i = 0; i < keys.length; i++) {
+    if (String(keys[i]).toLowerCase() === name.toLowerCase()) return String(headers[keys[i]] || "");
+  }
+  return "";
+}
+function bootRules(html, seed, opts) {
+  const store = memStore(seed);
+  const fetches = [];
+  const els = {};
+  function el(id) {
+    if (!els[id]) els[id] = makeEl(id);
+    return els[id];
+  }
+  ["ws", "pin", "banner", "gate", "session", "who-line", "nav-drop", "head-drop", "rule-list", "rule-add", "rule-hint", "noun-hint", "noun-save", "noun-capture", "noun-qualify", "noun-do", "noun-collect", "noun-follow", "widget-count", "desk-ais", "rule-text", "rule-when", "rule-then"].forEach(el);
+  if (opts && opts.wsValue != null) el("ws").value = opts.wsValue;
+  if (opts && opts.pinValue != null) el("pin").value = opts.pinValue;
+  const statusOf = (opts && opts.loginStatus != null) ? opts.loginStatus : 200;
+  const loginBody = (opts && opts.loginBody) || {
+    ok: true,
+    session: { token: "sess-rules-1" },
+    you: { name: "Owner", role: "owner" },
+    workspace: { slug: "rivera-resale", biz: "Rivera Resale", name: "Rivera Resale", nouns: { capture: "Capture", qualify: "Qualify", do: "Do", collect: "Collect", follow: "Follow" } }
+  };
+  const ctx = {
+    Promise: Promise,
+    JSON: JSON,
+    Object: Object,
+    Array: Array,
+    String: String,
+    Number: Number,
+    Boolean: Boolean,
+    Date: Date,
+    Error: Error,
+    Math: Math,
+    parseInt: parseInt,
+    parseFloat: parseFloat,
+    isNaN: isNaN,
+    encodeURIComponent: encodeURIComponent,
+    decodeURIComponent: decodeURIComponent,
+    setTimeout: setTimeout,
+    clearTimeout: clearTimeout,
+    console: console,
+    localStorage: store,
+    location: { search: "", href: "http://127.0.0.1/rules" },
+    document: {
+      getElementById: function (id) { return el(id); },
+      createElement: function (tag) { return makeEl(tag); },
+      addEventListener: function () {}
+    },
+    fetch: function (url, init) {
+      const method = ((init && init.method) || "GET").toUpperCase();
+      fetches.push({ url: String(url), headers: (init && init.headers) || {}, body: init && init.body, method: method });
+      let status = 200;
+      let body = {};
+      if (String(url).indexOf("/api/auth") >= 0 && method === "POST") {
+        let action = "";
+        try { action = (JSON.parse((init && init.body) || "{}") || {}).action; } catch (e) {}
+        if (action === "login") {
+          status = statusOf;
+          body = status >= 400 ? (opts && opts.loginBody) || { ok: false, error: "Shop name or desk code does not match" } : loginBody;
+        } else {
+          body = { ok: true };
+        }
+      } else if (String(url).indexOf("/api/auth") >= 0) {
+        body = {
+          you: { name: "Owner", role: "owner" },
+          workspace: { slug: "rivera-resale", biz: "Rivera Resale", nouns: { capture: "Capture", qualify: "Qualify", do: "Do", collect: "Collect", follow: "Follow" } }
+        };
+      } else if (String(url).indexOf("/api/rules") >= 0) {
+        body = { rules: [], ais: [], canAdd: true, nouns: { capture: "Capture", qualify: "Qualify", do: "Do", collect: "Collect", follow: "Follow" }, widgetsOn: 0 };
+      }
+      return Promise.resolve({
+        ok: status < 400,
+        status: status,
+        json: function () { return Promise.resolve(body); }
+      });
+    }
+  };
+  ctx.window = ctx;
+  ctx.globalThis = ctx;
+  const deskSwitch = fs.readFileSync(path.join(__dirname, "..", "desk-switch.js"), "utf8");
+  const src = extractRulesScript(html);
+  vm.runInNewContext(deskSwitch + "\n" + src, ctx, { timeout: 4000 });
+  let wait = Promise.resolve();
+  for (let i = 0; i < 16; i++) wait = wait.then(function () { return Promise.resolve(); });
+  return wait
+    .then(function () {
+      if (ctx.load && opts && opts.reload) return ctx.load();
+    })
+    .then(function () { return Promise.resolve(); })
+    .then(function () {
+      return {
+        store: store,
+        fetches: fetches,
+        els: els,
+        ctx: ctx,
+        shopOpen: !!(ctx.AIADesks && ctx.AIADesks.shopOpen && ctx.AIADesks.shopOpen())
+      };
+    });
+}
+
+async function runRulesPinTests(rulesPage) {
+  const liveFaults = rulesFaults(rulesPage);
+  if (liveFaults.length) fail("rules.html leftover desk code faults: " + liveFaults.join("; "));
+  else pass("rules.html keeps a leftover desk code out of storage after Open");
+  if (!/\btype="password"/.test(rulesPinTag(rulesPage)) || !/\bautocomplete="current-password"/.test(rulesPinTag(rulesPage))) {
+    fail("rules.html Open desk code field must be type=password autocomplete=current-password");
+  } else pass("rules.html Open desk code field is masked");
+
+  ["field type=text", "pin stored", "wrong-code 401"].forEach(function (kind) {
+    const faults = rulesFaults(applyRulesMutant(rulesPage, kind));
+    if (faults.indexOf(kind) < 0) fail("rules leftover-pin mutant survived: " + kind);
+    else pass("rules leftover-pin mutant caught: " + kind);
+  });
+
+  const openOk = await bootRules(rulesPage, {}, { wsValue: "Rivera Resale", pinValue: "4821" });
+  const loginPosts = openOk.fetches.filter(function (f) {
+    if (f.method !== "POST" || String(f.url).indexOf("/api/auth") < 0) return false;
+    try { return (JSON.parse(f.body || "{}") || {}).action === "login"; } catch (e) { return false; }
+  });
+  if (!loginPosts.length) fail("rules Open must POST /api/auth action=login");
+  else pass("rules Open POSTs /api/auth action=login");
+  const login = loginPosts[0];
+  let loginBody = {};
+  try { loginBody = JSON.parse(login.body || "{}") || {}; } catch (e) {}
+  if (loginBody.workspace !== "rivera-resale" || loginBody.pin !== "4821" || headerOf(login.headers, "X-Workspace") !== "rivera-resale") {
+    fail("rules Open login must send workspace, pin, and X-Workspace");
+  } else pass("rules Open login sends workspace, pin, and X-Workspace");
+  if (openOk.store.getItem("aia_pin")) fail("rules Open must not store aia_pin, got " + openOk.store.getItem("aia_pin"));
+  else pass("rules Open does not store aia_pin");
+  if (openOk.store.getItem("aia_session") !== "sess-rules-1") fail("rules Open must keep the returned session");
+  else pass("rules Open keeps the returned session");
+  if (!openOk.shopOpen) fail("shopOpen must be true after rules Open with a session");
+  else pass("shopOpen is true after rules Open");
+  if (openOk.els.pin.value) fail("rules Open must clear the desk code field");
+  else pass("rules Open clears the desk code field");
+  if (openOk.els.gate && !openOk.els.gate.hidden) fail("rules gate must hide after Open");
+  else pass("rules gate hides after Open");
+  const afterLogin = openOk.fetches.filter(function (f) {
+    return String(f.url).indexOf("/api/rules") >= 0;
+  });
+  if (!afterLogin.length) fail("rules Open must still GET /api/rules after login");
+  else if (afterLogin.some(function (f) { return headerOf(f.headers, "X-Pin"); })) {
+    fail("rules /api/rules after Open must not send a leftover desk code as X-Pin");
+  } else if (afterLogin.every(function (f) { return headerOf(f.headers, "X-Session") !== "sess-rules-1" || headerOf(f.headers, "X-Workspace") !== "rivera-resale"; })) {
+    fail("rules /api/rules after Open must send X-Session and X-Workspace");
+  } else pass("rules /api/rules after Open uses the session and x-workspace only");
+
+  const leftover = await bootRules(rulesPage, {
+    aia_desks: JSON.stringify([{ slug: "rivera-resale", name: "Rivera Resale", pin: "6612" }])
+  }, { wsValue: "Rivera Resale", pinValue: "4821" });
+  if (leftover.store.getItem("aia_pin")) fail("rules Open must drop a leftover aia_pin");
+  else pass("rules Open drops a leftover aia_pin");
+  let leftoverDesks = [];
+  try { leftoverDesks = JSON.parse(leftover.store.getItem("aia_desks") || "[]"); } catch (e) { leftoverDesks = []; }
+  if (leftoverDesks.some(function (d) { return d && d.slug === "rivera-resale" && "pin" in d; })) {
+    fail("rules Open must strip a leftover aia_desks pin");
+  } else pass("rules Open strips a leftover aia_desks pin");
+
+  const sessionBoot = await bootRules(rulesPage, { aia_ws: "rivera-resale", aia_session: "sess-live", aia_desk_name: "Rivera Resale" }, { wsValue: "rivera-resale" });
+  if (sessionBoot.fetches.some(function (f) {
+    try { return f.method === "POST" && (JSON.parse(f.body || "{}") || {}).action === "login"; } catch (e) { return false; }
+  })) fail("rules leftover session boot must not POST login without a typed code");
+  else pass("rules leftover session boot does not POST login");
+  if (!sessionBoot.fetches.some(function (f) { return String(f.url).indexOf("/api/rules") >= 0 && headerOf(f.headers, "X-Session") === "sess-live" && !headerOf(f.headers, "X-Pin"); })) {
+    fail("rules leftover session boot must GET /api/rules with X-Session and no X-Pin");
+  } else pass("rules leftover session boot GETs /api/rules with the session only");
+  if (!sessionBoot.shopOpen) fail("shopOpen must be true for a leftover session on /rules");
+  else pass("shopOpen is true for a leftover session on /rules");
+
+  const denied = await bootRules(rulesPage, {}, {
+    wsValue: "Rivera Resale",
+    pinValue: "0000",
+    loginStatus: 401,
+    loginBody: { ok: false, error: "Shop name or desk code does not match" }
+  });
+  if (denied.store.getItem("aia_pin") || denied.store.getItem("aia_session")) {
+    fail("wrong-code rules Open must not write a session or pin");
+  } else pass("wrong-code rules Open does not write a session or pin");
+  if (denied.shopOpen) fail("shopOpen must stay false after a wrong desk code");
+  else pass("shopOpen stays false after a wrong desk code");
+  if (!/does not match/i.test(denied.els.banner.textContent || "")) {
+    fail("wrong-code rules Open must show the 401 error, got " + (denied.els.banner.textContent || ""));
+  } else pass("wrong-code rules Open shows the 401 error");
+  if (denied.fetches.some(function (f) { return String(f.url).indexOf("/api/rules") >= 0; })) {
+    fail("wrong-code rules Open must not continue to /api/rules");
+  } else pass("wrong-code rules Open does not continue to /api/rules");
+
+  const storedMutant = await bootRules(applyRulesMutant(rulesPage, "pin stored"), {}, { wsValue: "Rivera Resale", pinValue: "4821" });
+  if (storedMutant.store.getItem("aia_pin") !== "4821") fail("pin stored mutant must write aia_pin");
+  else pass("pin stored mutant still caught on Open");
+
+  const codeMutant = await bootRules(applyRulesMutant(rulesPage, "wrong-code 401"), {}, {
+    wsValue: "Rivera Resale",
+    pinValue: "0000",
+    loginStatus: 401,
+    loginBody: { ok: false, error: "Shop name or desk code does not match" }
+  });
+  if (!codeMutant.fetches.some(function (f) { return String(f.url).indexOf("/api/rules") >= 0; })) {
+    fail("wrong-code 401 mutant must still proceed to /api/rules");
+  } else pass("wrong-code 401 mutant still caught on Open");
+}
+
+
 
 function mockRes() {
   return {
@@ -521,6 +822,7 @@ async function main() {
   if (packMd.indexOf("Open Stop leftover:") < 0) fail("PACK.md must record the Open Stop leftover");
   else pass("PACK.md names Open Stop leftover");
 
+  await runRulesPinTests(rulesPage);
   await save();
   if (process.exitCode) {
     console.error("check-desk-rules failed");

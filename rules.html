@@ -92,7 +92,7 @@
     </div>
     <div class="row" id="gate" style="margin-bottom:8px">
       <input id="ws" placeholder="Desk name">
-      <input id="pin" placeholder="Desk code" inputmode="numeric">
+      <input id="pin" placeholder="Desk code" type="password" autocomplete="current-password" inputmode="numeric">
       <button class="edit" type="button" onclick="load()">Open</button>
     </div>
       <p class="meta" id="widget-count">0 widgets on</p>
@@ -239,7 +239,7 @@
       if (ws) h["X-Workspace"] = ws;
       const tok = localStorage.getItem("aia_session") || "";
       if (tok) h["X-Session"] = tok;
-      const pin = pinEl.value || localStorage.getItem("aia_pin");
+      const pin = pinEl.value;
       if (pin) h["X-Pin"] = pin;
       return h;
     }
@@ -512,7 +512,6 @@
         const slug = AIADesks.slugify(wsEl.value);
         if (slug) { localStorage.setItem("aia_ws", slug); wsEl.value = slug; }
       }
-      if (pinEl.value) localStorage.setItem("aia_pin", pinEl.value);
       paintGate();
       const banner = document.getElementById("banner");
       if (!workspaceSlug()) {
@@ -524,6 +523,53 @@
         return;
       }
       try {
+        const typed = String(pinEl.value || "").trim();
+        if (typed) {
+          const slug = workspaceSlug();
+          const loginRes = await fetch("/api/auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Workspace": slug },
+            body: JSON.stringify({ action: "login", workspace: slug, pin: typed })
+          });
+          const loginData = await loginRes.json().catch(() => ({}));
+          if (loginRes.status >= 400 || loginData.ok === false) {
+            banner.textContent = (loginData && loginData.error) || "Desk code does not match.";
+            paintGate();
+            return;
+          }
+          if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(loginData);
+          if (window.AIADesks && AIADesks.open) {
+            const w = (loginData && loginData.workspace) || {};
+            const you = (loginData && loginData.you) || {};
+            AIADesks.open({
+              slug: w.slug || slug,
+              name: w.biz || w.name || slug,
+              token: loginData.session && loginData.session.token,
+              role: you.role || "",
+              who: you.name || ""
+            });
+          }
+          if (loginData.session && loginData.session.token) localStorage.setItem("aia_session", loginData.session.token);
+          if (loginData.you && loginData.you.role) {
+            role = loginData.you.role;
+            youName = loginData.you.name || youName;
+            localStorage.setItem("aia_role", role);
+            if (youName) localStorage.setItem("aia_name", youName);
+          }
+          if (loginData.workspace) {
+            const w = loginData.workspace;
+            if (w.biz || w.name) localStorage.setItem("aia_desk_name", w.biz || w.name);
+          }
+          try { localStorage.removeItem("aia_pin"); } catch (e) {}
+          try {
+            const rows = JSON.parse(localStorage.getItem("aia_desks") || "[]");
+            if (Array.isArray(rows) && rows.some(function (d) { return d && d.slug === slug && "pin" in d; })) {
+              rows.forEach(function (d) { if (d && d.slug === slug) delete d.pin; });
+              localStorage.setItem("aia_desks", JSON.stringify(rows));
+            }
+          } catch (e) {}
+          pinEl.value = "";
+        }
         const auth = await api("/api/auth");
         if (auth.data && auth.data.you && auth.data.you.role) {
           role = auth.data.you.role;
@@ -574,7 +620,6 @@
       else if (act === "remove") removeRule(id);
     });
     if (localStorage.getItem("aia_ws")) wsEl.value = localStorage.getItem("aia_ws");
-    if (localStorage.getItem("aia_pin")) pinEl.value = localStorage.getItem("aia_pin");
     paintGate(); load();
   </script>
 <script src="/mark-fix.js"></script></body>
