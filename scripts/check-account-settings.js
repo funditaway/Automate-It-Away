@@ -331,6 +331,10 @@ async function main() {
   if (pkg.indexOf("scripts/check-account-settings.js") < 0) fail("package.json test must run this check");
 
   try { fs.unlinkSync(store); } catch (e) {}
+  // The page side of My account -> Activity presence words rides this npm entry (package.json is
+  // not touched): run scripts/check-presence-words.js as a clean child and fail if it fails.
+  const words = require("child_process").spawnSync(process.execPath, [path.join(root, "scripts/check-presence-words.js")], { encoding: "utf8", env: { PATH: process.env.PATH || "" } });
+  if (words.status !== 0 || !/PASS check-presence-words/.test(words.stdout || "")) fail("check-presence-words failed:\n" + String(words.stderr || words.stdout || "").slice(0, 2000));
   if (!failed) console.log("check-account-settings: ok");
 }
 
