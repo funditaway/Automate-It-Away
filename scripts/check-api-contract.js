@@ -142,12 +142,47 @@ async function main() {
  const onRes = mockRes();
  await health({ method: "GET", headers: {}, query: {} }, onRes);
  const onDesk = (onRes.body.automation && (onRes.body.automation.deskAi || onRes.body.automation.grok)) || {};
+ const onDrafts = (onRes.body.automation && onRes.body.automation.drafts) || {};
  const onJson = JSON.stringify(onRes.body);
- if (!onRes.body.automation || !onDesk.on) fail("drafts on");
- else if ((onDesk.note || "") !== "A Desk AI can draft.") fail("drafts on note");
+ // Drafting uses the desk owner's own key (#462). A server key does not make
+ // public health claim drafting, and public health has no desk to ask about.
+ if (!onRes.body.automation || onDesk.on !== false) fail("drafts on without an owner key");
+ else if ((onDesk.note || "") !== "A Desk AI can't draft on this phone yet.") fail("drafts off note");
+ else if (onDrafts.included !== false) fail("drafts.included without an owner key");
+ else if (onJson.indexOf("A Desk AI can draft.") >= 0) fail("drafts claim");
  else if (envJargon.test(onJson) || strangerJargon.test(onJson) || (onRes.body.store && onRes.body.store.blob)) fail("drafts on dump");
  else if (onRes.body.automation.grok && !onRes.body.automation.deskAi) fail("drafts on deskAi");
  else pass("drafts");
+ // Same server key, plus a saved draft key on another desk. A stranger and a
+ // desk with no key of its own on status: off, with the same plain note,
+ // never the drafting line.
+ lib.mem.connections = Array.isArray(lib.mem.connections) ? lib.mem.connections : [];
+ lib.mem.connections.push({ id: "ai_contract_count", workspace: "contract-other-desk", lane: "draft", provider: "grok", keyPacked: "contract-packed-not-a-key" });
+ for (const hdr of [{}, { "x-workspace": "probe-desk" }]) {
+  const st2 = mockRes();
+  await status({ method: "GET", headers: hdr, query: {} }, st2);
+  const d2 = ((st2.body && st2.body.automation) || {}).deskAi || {};
+  const tag = hdr["x-workspace"] ? "desk" : "stranger";
+  if (d2.on !== false) fail("status drafts on without an owner key (" + tag + ")");
+  else if (d2.note !== "A Desk AI can't draft on this phone yet.") fail("status drafts off note (" + tag + ")");
+  else if (JSON.stringify(st2.body || {}).indexOf("A Desk AI can draft.") >= 0) fail("status drafts claim (" + tag + ")");
+  else pass("st.off." + tag);
+ }
+ // A saved draft key on some desk is not counted or hinted on public health.
+ const cntRes = mockRes();
+ await health({ method: "GET", headers: {}, query: {} }, cntRes);
+ const cntAuto = (cntRes.body && cntRes.body.automation) || {};
+ const cntDrafts = cntAuto.drafts || {};
+ if (cntDrafts.deskAccounts !== 0) fail("health counts saved keys " + JSON.stringify(cntDrafts.deskAccounts));
+ else if ((cntAuto.deskAi || {}).on !== false || cntDrafts.included !== false) fail("health drafts on from a saved key");
+ else if (JSON.stringify(cntRes.body).indexOf("contract-packed-not-a-key") >= 0) fail("health shows a saved key");
+ else pass("drafts.count");
+ lib.mem.connections = lib.mem.connections.filter((c) => !c || c.id !== "ai_contract_count");
+ // health.js reads no server AI key for deskAi or drafts.
+ const healthSrcNow = fs.readFileSync(path.join(root, "api/health.js"), "utf8");
+ if (/process\.env\.(XAI_API_KEY|GROK_API_KEY|AIA_GROK_KEY)/.test(healthSrcNow)) fail("health.js reads a server AI key");
+ else if (/deskAccounts:\s*\(mem\.connections/.test(healthSrcNow)) fail("health.js counts saved keys");
+ else pass("h.src.key");
  if (hadKey == null) delete process.env.XAI_API_KEY; else process.env.XAI_API_KEY = hadKey;
  const rulesRes = mockRes();
  await rules({ method: "GET", headers: {}, query: {} }, rulesRes);
