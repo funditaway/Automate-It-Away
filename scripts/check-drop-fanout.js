@@ -66,12 +66,51 @@ const photoList = fields.fanOutItems("oak dresser\nscratches on the left", { kin
 if (photoList.length !== 1) fail("photo+list must stay one card until OCR exists");
 else pass("photo+list stays one (no fake OCR)");
 
+// 1ec1382 (#253) moved send() out of drop.html / widget.html into
+// drop-app.js. Follow the move instead of dropping the assert: each page
+// must load /drop-app.js, and the /api/jobs send there must read out.jobs
+// and tell the person how many cards landed and to tap on each one.
+const dropAppSrc = fs.readFileSync(path.join(root, "drop-app.js"), "utf8");
+function sendFanFaults(src) {
+  const bad = [];
+  const at = src.indexOf('fetch("/api/jobs", { method: "POST"');
+  if (at < 0) return ["no POST /api/jobs send"];
+  const end = src.indexOf("Could not send", at);
+  if (end < 0) return ["send has no error branch"];
+  const body = src.slice(at, end);
+  if (body.indexOf("out.jobs") < 0) bad.push("send does not read out.jobs");
+  if (!/\(out\.jobs && out\.jobs\.length\) \|\| 1/.test(body)) bad.push("send does not count out.jobs (default 1)");
+  if (body.indexOf('" cards"') < 0) bad.push("note does not say how many cards");
+  if (body.indexOf('" on each"') < 0) bad.push("note does not say Yes on each card");
+  return bad;
+}
+const dropAppFaults = sendFanFaults(dropAppSrc);
+if (dropAppFaults.length) fail("drop-app.js send() fan-out note: " + dropAppFaults.join("; "));
+else pass("drop-app.js send() reads out.jobs and names the card count");
+if (!sendFanFaults(dropAppSrc.replace("out.jobs.length", "out.length")).length) fail("sendFanFaults misses a send that stops counting out.jobs");
+else pass("sendFanFaults catches a send that stops counting out.jobs");
+if (!sendFanFaults(dropAppSrc.replace('" on each"', '""')).length) fail("sendFanFaults misses a note without on each");
+else pass("sendFanFaults catches a note without on each");
+
 ["drop.html", "widget.html"].forEach(function (file) {
   const src = fs.readFileSync(path.join(root, file), "utf8");
-  if (src.indexOf("out.jobs") < 0) fail(file + " send() must read out.jobs");
-  else pass(file + " reads out.jobs");
+  const loadsApp = /<script[^>]*\ssrc="\/?drop-app\.js(?:\?[^"]*)?"/.test(src);
+  if (src.indexOf("out.jobs") >= 0) pass(file + " reads out.jobs");
+  else if (loadsApp && !dropAppFaults.length) pass(file + " reads out.jobs via /drop-app.js send()");
+  else fail(file + " send() must read out.jobs" + (loadsApp ? " (drop-app.js send() is broken)" : " (page no longer loads /drop-app.js)"));
   if (src.indexOf("A list becomes more than one card") < 0) fail(file + " must tell strangers a list fans out");
   else pass(file + " names list fan-out");
+  if (file === "drop.html") {
+    // The hint sits in its own line under the note box, not in #drop-sub,
+    // because drop-app.js rewrites #drop-sub on desks with a pack.
+    const hintAt = src.indexOf('<p class="sub" id="list-hint">A list becomes more than one card.</p>');
+    const noteAt = src.indexOf('<textarea id="note"');
+    if (hintAt < 0 || noteAt < 0 || hintAt < noteAt || src.indexOf("</textarea>", noteAt) > hintAt) fail("drop.html list hint must sit right under the note box as #list-hint");
+    else if (src.indexOf("</textarea>", noteAt) + "</textarea>".length !== hintAt) fail("drop.html list hint must follow the note box directly");
+    else pass("drop.html list hint sits right under the note box");
+    if (dropAppSrc.indexOf("list-hint") >= 0) fail("drop-app.js must not rewrite #list-hint");
+    else pass("drop-app.js leaves #list-hint alone");
+  }
   if (src.indexOf("You still tap Yes or Stop") < 0) fail(file + " must keep Yes or Stop");
   else pass(file + " keeps Yes or Stop");
 });
