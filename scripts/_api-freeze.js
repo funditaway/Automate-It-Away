@@ -57,7 +57,7 @@ const PIN = {
   "api/_plans.js": "1fc8a398ea714523ae4ff1972f3b0791632ddd5c",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
   "api/admin.js": "5726c860a06e4efb89fc87447f7a2cc4bc351cbc",
-  "api/connections.js": "31b88cef775d46513a329ef11a3aba9e41c9c56e",
+  "api/connections.js": "49d0f57a7398c2a45df38b8bc08677e2b8679f3f",
   "api/auth.js": "bfbb57545da2f16eeebab70f1f401675f5557cd3",
   "api/health.js": "9eca4577a952dd38e2f5295a42370fe9dca03fc7",
   "api/hook.js": "df27aad7e56930f9eefcdf706f3f58c7fa5c1756",
