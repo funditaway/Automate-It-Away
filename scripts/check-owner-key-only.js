@@ -36,6 +36,9 @@ const SECRET = "owner-key-check-secret";
 const NOTE = "A Desk AI can't draft on this phone yet.";
 const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
 const OLD_SUGGEST_NOTE = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const LOCK_NOTE = "This desk can't save a key yet. Nothing was saved.";
+const GROK_NOTE = "Log in at console.x.ai. Paste the API key. Drafts only. Your key, your xAI bill. AIA charges nothing.";
+const OLD_GROK_NOTE = "Log in at console.x.ai. Paste the API key. Drafts only.";
 
 let failed = 0;
 function fail(m) { failed += 1; console.error("FAIL " + m); process.exitCode = 1; }
@@ -139,6 +142,11 @@ async function main() {
   if (!Array.isArray(mem.connections)) mem.connections = [];
   if (!Array.isArray(mem.jobs)) mem.jobs = [];
   const owner = { "x-workspace": SLUG, "x-pin": PIN };
+  const wall = await call(connections, "GET", owner, {}, {});
+  const grokRow = ((wall.body && wall.body.ai) || []).filter(function (p) { return p && p.id === "grok"; })[0] || {};
+  eq(grokRow.note, GROK_NOTE, "connections Grok note has the bill line");
+  if (grokRow.note === OLD_GROK_NOTE) fail("connections Grok note is still the old line without the bill line");
+  else pass("connections Grok old line without the bill line is gone");
 
   mem.connections = mem.connections.filter(function (c) { return !c || c.workspace !== SLUG; });
   envKeys(false);
@@ -248,6 +256,11 @@ async function main() {
   eq(refused.body && refused.body.ok, false, "refused save is not ok");
   eq(refused.body && refused.body.error, "keyLocked", "refused save error is keyLocked");
   eq(refused.body && refused.body.reason, "needsConnectSecret", "refused save reason is needsConnectSecret");
+  eq(refused.body && refused.body.note, LOCK_NOTE, "keyLocked includes plain words");
+  if (!refused.body || !Object.prototype.hasOwnProperty.call(refused.body, "note")) fail("keyLocked is still the old body without a note");
+  else pass("keyLocked old body without a note is gone");
+  if (/AIA_CONNECT_SECRET|XAI_API_KEY|needsConnectSecret/.test(String((refused.body && refused.body.note) || ""))) fail("keyLocked plain words name a machine code");
+  else pass("keyLocked plain words do not name a machine code");
   const after = (mem.connections || []).filter(function (c) { return c && c.workspace === SLUG && c.provider === "openai"; }).length;
   eq(after, before, "refused save did not store a key");
   const packedAfter = (mem.connections.find(function (c) { return c && c.workspace === SLUG && c.provider === "grok"; }) || {}).keyPacked || "";
