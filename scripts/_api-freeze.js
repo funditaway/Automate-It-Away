@@ -61,7 +61,7 @@ const PIN = {
   "api/auth.js": "bfbb57545da2f16eeebab70f1f401675f5557cd3",
   "api/health.js": "9eca4577a952dd38e2f5295a42370fe9dca03fc7",
   "api/hook.js": "df27aad7e56930f9eefcdf706f3f58c7fa5c1756",
-  "api/jobs.js": "7a800ee20fb94e1391cc012fed0844c3d8829a2c",
+  "api/jobs.js": "3c8b63260e7511b3f70ed0b81e76cc4ba316cbd4",
   "api/migrate-uploads.js": "a9a47cd366c5b5cf8afcb934c027f1dfe1edf3dc",
   "api/rules.js": "fce01c38e279ae7e4ae4c9fa64077f2db75056e9"
 };

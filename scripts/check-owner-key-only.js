@@ -34,7 +34,8 @@ const PIN = "4821";
 const DESK_KEY = "xai-owner-desk-key-0001";
 const SECRET = "owner-key-check-secret";
 const NOTE = "A Desk AI can't draft on this phone yet.";
-const SUGGEST_NOTE = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const OLD_SUGGEST_NOTE = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
 
 let failed = 0;
 function fail(m) { failed += 1; console.error("FAIL " + m); process.exitCode = 1; }
@@ -165,7 +166,11 @@ async function main() {
   const suggest = await call(jobs, "POST", owner, { action: "suggest", title: "Porch photos" });
   eq(suggest.statusCode, 200, "suggest answers");
   eq(suggest.body && suggest.body.grok, "needsKey", "suggest surfaces needsKey");
-  eq(suggest.body && suggest.body.note, SUGGEST_NOTE, "suggest keeps the drafts-off note");
+  eq(suggest.body && suggest.body.note, SUGGEST_NOTE, "suggest tells the owner to add a key");
+  if (!suggest.body || String(suggest.body.note || "").indexOf("Add your key on Connections.") !== 0) fail("suggest note does not start with the add-your-key step");
+  else pass("suggest note starts with the add-your-key step");
+  if (suggest.body && suggest.body.note === OLD_SUGGEST_NOTE) fail("suggest still has the old note without the add-your-key step");
+  else pass("suggest old note without the add-your-key step is gone");
   eq(fetches, 0, "suggest did not fetch");
 
   const captured = await call(jobs, "POST", owner, { action: "capture", title: "Capture porch" });
