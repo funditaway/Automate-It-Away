@@ -51,7 +51,8 @@ function suite(SRC, HTML, LIB) {
   ok((HTML.match(/<section id="acct-security" aria-label="Sign-in" hidden><\/section>/g) || []).length === 1, "account.html has one hidden #acct-security mount labelled Sign-in");
   ok((HTML.match(/<script src="account-security\.js"><\/script>/g) || []).length === 1, "account.html loads account-security.js once");
   ok(HTML.indexOf('<script src="account-follow.js"></script>') >= 0 && HTML.indexOf('<script src="account-security.js"></script>') > HTML.indexOf('<script src="account-follow.js"></script>'), "account-security.js loads after account-follow.js");
-  ok(HTML.indexOf('id="mfa-card"') >= 0 && HTML.indexOf('id="phones"') >= 0, "the existing Authenticator and Phones cards are still on the page");
+  ok(HTML.indexOf('id="mfa-card"') >= 0, "the existing Authenticator card is still on the page");
+  ok(HTML.indexOf('id="phones"') < 0 && HTML.indexOf("Phones on this account") < 0 && HTML.indexOf('id="phone-list"') < 0 && HTML.indexOf('id="leave-all"') < 0, "the old Phones on this account card is gone");
 
   // 1. Exact words, declared once each.
   Object.keys(WORDS).forEach((k) => {
@@ -325,6 +326,7 @@ const MUTATIONS = [
   ["mfa line dropped", "account-security.js", [['    if (!(d.account && d.account.mfaOn === true)) c.appendChild(el("p", "meta", TWO_FACTOR));\n', ""]]],
   ["mount not hidden", "account.html", [['<section id="acct-security" aria-label="Sign-in" hidden></section>', '<section id="acct-security" aria-label="Sign-in"></section>']]],
   ["script not loaded", "account.html", [['  <script src="account-security.js"></script>\n', ""]]],
+  ["phones card comes back", "account.html", [['<div class="card" id="export-card">', '<div class="card" id="phones"><h2>Phones on this account</h2></div>\n      <div class="card" id="export-card">']]],
   ["not run by npm", "scripts/check-account-settings.js", [["scripts/check-account-security.js", "scripts/check-account-securityX.js"]]],
   ["hook ignores child exit", "scripts/check-account-settings.js", [['if (typeof result.status === "number" && result.status !== 0) return name', 'if (false && typeof result.status === "number" && result.status !== 0) return name']]],
   ["hook treats a signal as a pass", "scripts/check-account-settings.js", [["if (!result || result.status == null || result.signal)", "if (false && (!result || result.status == null || result.signal))"]]],

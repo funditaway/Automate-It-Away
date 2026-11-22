@@ -5,6 +5,10 @@
 // account's id (account.id), and never when you.accountId names another account.
 // A row uses current, workspace, and seenAt (or createdAt) only.
 // Not signed in, a failed read, or no account id: nothing shows.
+// This Signed-in devices list is the account's session trail (the old Phones on this account
+// card). It keeps only those session fields. It does not use name, role, or any other field,
+// and it has no leave button: Leave this phone stays on the page, and Leave every phone stays
+// in the activity menu.
 (function () {
   "use strict";
   var root = document.getElementById("acct-security");

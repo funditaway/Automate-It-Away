@@ -154,26 +154,49 @@ const yesNo = read("ACCOUNT-YES-NO.md");
 const pkg = read("package.json");
 
 [
-  "id=\"phones\"",
-  "id=\"phone-list\"",
-  "id=\"leave-all\"",
   "id=\"export-book\"",
   "id=\"mfa-on\"",
-  "Phones on this account",
-  "Leave every phone",
+  "id=\"leave-phone\"",
+  "Leave this phone",
   "Export the book",
   "Export account book",
   "Authenticator",
-  "action:\"sessions\"",
   "action:\"export\"",
   "logout-all",
-  "function paintPhones",
   "function leavePhone",
-  "Authenticator stays HOLD"
+  "Authenticator stays HOLD",
+  "AIAAccountSecurity"
 ].forEach(function (bit) {
   if (account.indexOf(bit) < 0) fail("account.html missing " + bit);
   else pass("account.html " + bit);
 });
+
+const phonesGone = [
+  "id=\"phones\"",
+  "id=\"phone-list\"",
+  "id=\"leave-all\"",
+  "Phones on this account",
+  "function paintPhones",
+  "function loadPhones",
+  "action:\"sessions\""
+];
+phonesGone.forEach(function (bit) {
+  if (account.indexOf(bit) >= 0) fail("old Phones on this account card came back: " + bit);
+  else pass("account.html no longer has " + bit);
+});
+
+const follow = read("account-follow.js");
+const security = read("account-security.js");
+if (follow.indexOf("Leave every phone") < 0) fail("Leave every phone must still be in the activity menu");
+else pass("activity menu still has Leave every phone");
+if (security.indexOf("Signed-in devices") < 0 || security.indexOf("acct-security-devices") < 0) {
+  fail("Signed-in devices must be the session trail");
+} else pass("Signed-in devices is the session trail");
+if (security.indexOf("s.accountId === id") < 0) fail("Signed-in devices must keep only this account's session rows");
+else pass("Signed-in devices keeps only this account's session rows");
+if (security.indexOf("current") < 0 || security.indexOf("workspace") < 0 || security.indexOf("seenAt") < 0) {
+  fail("Signed-in devices must still show current, workspace, and seen time from the session");
+} else pass("Signed-in devices still shows current, workspace, and seen time from the session");
 
 if (!tellsNoCodeAndNoHash(exportCard(account))) fail("account.html export card must still say AIA keeps no desk code (or pin) and no password hash");
 else pass("account.html export card keeps no desk code and no password hash");
@@ -284,6 +307,17 @@ tapMutants.forEach(function (pair) {
 });
 if (tapCaught !== tapMutants.length) fail("authenticator tap mutants: " + tapCaught + "/" + tapMutants.length + " caught");
 else pass("authenticator tap mutants: " + tapCaught + "/" + tapMutants.length + " caught");
+
+(function () {
+  const next = account.replace(
+    '<div class="card" id="export-card">',
+    '<div class="card" id="phones"><h2>Phones on this account</h2><div id="phone-list"></div><button class="edit" type="button" id="leave-all">Leave every phone</button></div>\n      <div class="card" id="export-card">'
+  );
+  if (next === account) fail("mutant did not apply: phones card comes back");
+  else if (next.indexOf('id="phones"') < 0) fail("mutant did not apply: phones card comes back");
+  else if (phonesGone.every(function (bit) { return next.indexOf(bit) < 0; })) fail("mutant missed: phones card comes back");
+  else pass("mutant caught: phones card comes back");
+})();
 
 delete global.__aia;
 delete global.__aiaHydrate;
