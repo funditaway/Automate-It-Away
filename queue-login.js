@@ -111,6 +111,179 @@
     return j && j.status !== "shipped" && j.status !== "killed";
   }
 
+  // Queue step 1: one plain state per card, read only from fields the card already stores
+  // (status, carried, waitingOn, why, awaiting, offDesk, draft). A card that fits none shows no label.
+  var STATE_NEEDS = "Needs you";
+  var STATE_DRAFTED = "Drafted";
+  var STATE_RUNNING = "Running";
+  var STATE_DONE = "Done";
+  function queueState(j) {
+    if (!j || typeof j !== "object") return "";
+    var st = typeof j.status === "string" ? j.status : "";
+    var open = st === "waiting" || st === "held" || st === "exception";
+    if (st === "shipped") return STATE_DONE;
+    if (st === "out") return STATE_RUNNING;
+    if (!open) return "";
+    if (j.awaiting === "writeback" || j.offDesk === true) return STATE_RUNNING;
+    if ((st === "waiting" || st === "held") && !j.carried && j.waitingOn !== "info" && !/Need .+ before/i.test(String(j.why || ""))) return STATE_NEEDS;
+    if (typeof j.draft === "string" && j.draft.trim()) return STATE_DRAFTED;
+    return "";
+  }
+
+  // Yes / Stop / Kill on a Queue card: only on a card that needs you, only when that seat's own
+  // card lists the tap (staff seats get no Stop or Kill), and only with a card id and its desk.
+  function safeCardId(id) {
+    return String(id == null ? "" : id).replace(/[^a-zA-Z0-9_-]/g, "");
+  }
+  function cardDesk(j) {
+    return slugify((j && (j.deskSlug || j.slug || j.desk || j.workspace)) || "");
+  }
+  function needHas(j, id) {
+    var rows = j && Array.isArray(j.needs) ? j.needs : [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i] && rows[i].id === id) return true;
+    }
+    return false;
+  }
+  function stopSheet() {
+    var sheet = document.getElementById("sheet");
+    var card = document.getElementById("sheet-card");
+    return sheet && card ? { sheet: sheet, card: card } : null;
+  }
+  function controlsFor(j) {
+    var on = signedIn() && !!safeCardId(j && j.id) && !!cardDesk(j) && queueState(j) === STATE_NEEDS;
+    var sheet = !!stopSheet();
+    return {
+      yes: on && needHas(j, "yes"),
+      stop: on && sheet && needHas(j, "stop"),
+      kill: on && sheet && needHas(j, "kill")
+    };
+  }
+  function controlsSig(j) {
+    var c = controlsFor(j);
+    return (c.yes ? "yes" : "") + "," + (c.stop ? "stop" : "") + "," + (c.kill ? "kill" : "");
+  }
+  function controlButton(cls, attr, id, desk, label) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = cls;
+    b.setAttribute(attr, id);
+    b.setAttribute("data-queue-on", desk);
+    b.textContent = label;
+    return b;
+  }
+  function buildControls(j) {
+    var c = controlsFor(j);
+    if (!c.yes && !c.stop && !c.kill) return null;
+    var id = safeCardId(j.id);
+    var desk = cardDesk(j);
+    var row = document.createElement("div");
+    row.className = "row queue-controls";
+    row.setAttribute("data-queue-controls", controlsSig(j));
+    if (c.yes) row.appendChild(controlButton("go q-yes", "data-queue-yes", id, desk, "Yes"));
+    if (c.stop) row.appendChild(controlButton("kill q-stop", "data-queue-stop", id, desk, "Stop"));
+    if (c.kill) row.appendChild(controlButton("kill q-kill", "data-queue-kill", id, desk, "Kill"));
+    return row;
+  }
+  function buildState(j) {
+    var label = queueState(j);
+    if (!label) return null;
+    var p = document.createElement("p");
+    p.className = "meta queue-state";
+    p.setAttribute("data-queue-state", label);
+    p.textContent = label;
+    return p;
+  }
+  function cardFor(id, desk) {
+    for (var i = 0; i < cards.length; i++) {
+      var j = cards[i];
+      if (j && safeCardId(j.id) === id && cardDesk(j) === desk) return j;
+    }
+    return null;
+  }
+  function tapName(fallback) {
+    var who = "";
+    var role = "";
+    try {
+      who = localStorage.getItem("aia_name") || "";
+      role = localStorage.getItem("aia_role") || "";
+    } catch (e) {}
+    return who || (fallback === "desk" ? role : "") || fallback;
+  }
+  // The same POST /api/jobs the desk sends, with that card's own desk in X-Workspace.
+  async function postJob(desk, body) {
+    try {
+      var r = await fetch("/api/jobs", { method: "POST", headers: headersFor(desk), body: JSON.stringify(body) });
+      var data = await r.json().catch(function () { return {}; });
+      return { status: r.status, data: data };
+    } catch (e) {
+      return { status: 0, data: {} };
+    }
+  }
+  var queueTapping = false;
+  // Yes: the desk's ship tap (confirm false). A held card stays held for the owner; nothing is confirmed here.
+  async function queueYes(btn) {
+    var id = safeCardId(btn.getAttribute("data-queue-yes"));
+    var desk = slugify(btn.getAttribute("data-queue-on") || "");
+    var j = id && desk ? cardFor(id, desk) : null;
+    if (!j || !controlsFor(j).yes || queueTapping) return;
+    var amt = Number(j.amount || j.ask || 0);
+    queueTapping = true;
+    btn.disabled = true;
+    try {
+      await postJob(desk, { action: "ship", id: id, amount: Number.isFinite(amt) ? amt : 0, confirm: false, whoTapped: tapName("desk") });
+    } finally {
+      queueTapping = false;
+      btn.disabled = false;
+    }
+    await refreshCards();
+  }
+  // Stop and Kill: the desk's own second tap first (the same "Stop?" sheet), then the desk's kill POST with confirm.
+  function queueStopAsk(btn, attr) {
+    var id = safeCardId(btn.getAttribute(attr));
+    var desk = slugify(btn.getAttribute("data-queue-on") || "");
+    var j = id && desk ? cardFor(id, desk) : null;
+    var c = j ? controlsFor(j) : null;
+    if (!c || !(attr === "data-queue-kill" ? c.kill : c.stop)) return;
+    var s = stopSheet();
+    if (!s) return;
+    var h = document.createElement("h3");
+    h.textContent = "Stop?";
+    var p = document.createElement("p");
+    p.className = "meta";
+    p.textContent = (j.title || "") + ". Nothing goes out.";
+    var row = document.createElement("div");
+    row.className = "row";
+    var yes = document.createElement("button");
+    yes.type = "button";
+    yes.className = "kill";
+    yes.setAttribute("data-queue-stop-confirm", id);
+    yes.textContent = "Stop";
+    var keep = document.createElement("button");
+    keep.type = "button";
+    keep.className = "edit";
+    keep.textContent = "Keep the card";
+    yes.addEventListener("click", function () { queueStopConfirm(id, desk); });
+    keep.addEventListener("click", function () { s.sheet.classList.remove("on"); });
+    row.appendChild(yes);
+    row.appendChild(keep);
+    s.card.replaceChildren(h, p, row);
+    s.sheet.classList.add("on");
+  }
+  async function queueStopConfirm(id, desk) {
+    var s = stopSheet();
+    if (s) s.sheet.classList.remove("on");
+    var j = cardFor(id, desk);
+    if (!j || queueTapping) return;
+    queueTapping = true;
+    try {
+      await postJob(desk, { action: "kill", id: id, confirm: true, whoTapped: tapName("owner") });
+    } finally {
+      queueTapping = false;
+    }
+    await refreshCards();
+  }
+
   function ensureCss() {
     if (document.getElementById("queue-login-css")) return;
     var css = document.createElement("style");
@@ -125,6 +298,9 @@
       "#queue-all-cards h3{margin:4px 0;font-size:1.05rem}" +
       "#queue-all-cards .meta{font-size:13px;color:var(--muted,#5c6b73);margin:0 0 8px}" +
       "#queue-all-cards .queue-desk-label{display:block;font-size:12px;font-weight:700;color:var(--muted,#5c6b73);margin:0 0 4px}" +
+      "#queue-all-cards .queue-state{font-weight:800;color:var(--heading,#0a4f4f);margin:0 0 4px}" +
+      "#queue-all-cards .queue-controls{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}" +
+      "#queue-all-cards .queue-controls button{min-height:44px;padding:8px 16px;border-radius:999px;font-weight:800;cursor:pointer}" +
       "#queue-empty-next{background:var(--card,#fff);border:1px solid var(--line,#d5e0e0);border-radius:14px;padding:16px;margin:10px 0}" +
       "#queue-empty-next .meta{font-size:15px;margin:0 0 12px}" +
       "#queue-empty-next a.go{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border-radius:999px;font-weight:800;text-decoration:none}" +
@@ -318,19 +494,25 @@
     go.setAttribute("data-queue-desk", j.deskSlug || j.slug || j.desk || j.workspace || "");
     go.textContent = "Show this desk";
     card.appendChild(meta);
+    var state = buildState(j);
+    if (state) card.appendChild(state);
     card.appendChild(title);
     card.appendChild(next);
+    var taps = buildControls(j);
+    if (taps) card.appendChild(taps);
     if (go.getAttribute("data-queue-desk")) card.appendChild(go);
     return card;
   }
 
   function cardMatches(el, j) {
     if (!el) return false;
-    var lab = null, status = null, title = null, next = null;
+    var lab = null, status = null, title = null, next = null, state = null, taps = null;
     var kids = el.children || [];
     for (var i = 0; i < kids.length; i++) {
       var n = kids[i];
-      if (!lab && n.className === "queue-desk-label") lab = n;
+      if (!state && n.getAttribute && n.getAttribute("data-queue-state") !== null) state = n;
+      else if (!taps && n.getAttribute && n.getAttribute("data-queue-controls") !== null) taps = n;
+      else if (!lab && n.className === "queue-desk-label") lab = n;
       else if (!status && n.getAttribute && n.getAttribute("data-queue-status") === "1") status = n;
       else if (!title && n.tagName === "H3") title = n;
       else if (!next && n.getAttribute && n.getAttribute("data-queue-next") === "1") next = n;
@@ -342,11 +524,32 @@
     if ((title ? title.textContent : "") !== (j.title || "Card")) return false;
     var wantNext = j.needLine || j.next || "Pick this desk in the Queue to decide.";
     if ((next ? next.textContent : "") !== wantNext) return false;
+    if ((state ? state.textContent : "") !== queueState(j)) return false;
+    var wantTaps = controlsSig(j);
+    if ((taps ? taps.getAttribute("data-queue-controls") : ",,") !== wantTaps) return false;
     return true;
   }
 
   function updateCard(el, j) {
     var kids = el.children || [];
+    var oldState = null, oldTaps = null, statusEl = null, nextEl = null;
+    for (var s = 0; s < kids.length; s++) {
+      var k = kids[s];
+      if (!k || !k.getAttribute) continue;
+      if (k.getAttribute("data-queue-state") !== null) oldState = k;
+      else if (k.getAttribute("data-queue-controls") !== null) oldTaps = k;
+      else if (k.getAttribute("data-queue-status") === "1") statusEl = k;
+      else if (k.getAttribute("data-queue-next") === "1") nextEl = k;
+    }
+    var wantState = queueState(j);
+    if (oldState && (!wantState || oldState.textContent !== wantState)) { el.removeChild(oldState); oldState = null; }
+    if (!oldState && wantState && statusEl) el.insertBefore(buildState(j), statusEl.nextSibling);
+    if (oldTaps && oldTaps.getAttribute("data-queue-controls") !== controlsSig(j)) { el.removeChild(oldTaps); oldTaps = null; }
+    if (!oldTaps && nextEl) {
+      var taps = buildControls(j);
+      if (taps) el.insertBefore(taps, nextEl.nextSibling);
+    }
+    kids = el.children || [];
     for (var i = 0; i < kids.length; i++) {
       var n = kids[i];
       if (n.className === "queue-desk-label") n.textContent = deskLabelText(j);
@@ -700,7 +903,16 @@
       deskSlug: slug,
       slug: (j && j.slug) || slug,
       desk: (j && j.desk) || slug,
-      deskName: (known && known.name) || (desk && desk.name) || slug || "Desk"
+      deskName: (known && known.name) || (desk && desk.name) || slug || "Desk",
+      draft: typeof j.draft === "string" ? j.draft : "",
+      carried: !!j.carried,
+      waitingOn: j.waitingOn || "",
+      why: j.why || "",
+      awaiting: j.awaiting || "",
+      offDesk: j.offDesk === true,
+      needs: Array.isArray(j.needs) ? j.needs.map(function (a) { return { id: a && a.id }; }) : [],
+      amount: j.amount,
+      ask: j.ask
     };
   }
 
@@ -963,6 +1175,12 @@
     list.addEventListener("click", function (e) {
       var again = e.target && e.target.closest ? e.target.closest("[data-queue-retry]") : null;
       if (again) { retryLoad(); return; }
+      var yesBtn = e.target && e.target.closest ? e.target.closest("[data-queue-yes]") : null;
+      if (yesBtn) { queueYes(yesBtn); return; }
+      var stopBtn = e.target && e.target.closest ? e.target.closest("[data-queue-stop]") : null;
+      if (stopBtn) { queueStopAsk(stopBtn, "data-queue-stop"); return; }
+      var killBtn = e.target && e.target.closest ? e.target.closest("[data-queue-kill]") : null;
+      if (killBtn) { queueStopAsk(killBtn, "data-queue-kill"); return; }
       var btn = e.target && e.target.closest ? e.target.closest("[data-queue-desk]") : null;
       if (!btn) return;
       selectDesk(btn.getAttribute("data-queue-desk") || "");
