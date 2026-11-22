@@ -256,10 +256,12 @@
     var h = Object.assign({ "Content-Type": "application/json" }, extra || {});
     var ws = store && store.getItem("aia_ws");
     var tok = store && store.getItem("aia_session");
-    var pin = store && store.getItem("aia_pin");
     if (ws) h["X-Workspace"] = ws;
     if (tok) h["X-Session"] = tok;
-    if (pin) h["X-Pin"] = pin;
+    else {
+      var pin = store && store.getItem("aia_pin");
+      if (pin) h["X-Pin"] = pin;
+    }
     return h;
   }
 

@@ -40,10 +40,47 @@ const hand = agent.slice(handAt, handAt + 900);
 if (hand.indexOf("drop-hand") < 0) fail("People fetch must fill #drop-hand");
 if (hand.indexOf("AIADesks.authHeaders") < 0) fail("People fetch must use AIADesks.authHeaders() on the open desk");
 const switchSrc = read("desk-switch.js");
-if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(switchSrc)) {
-  fail("AIADesks.authHeaders must still send the open-desk pin when a session token is present");
-}
-if (switchSrc.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("AIADesks.authHeaders must send X-Pin");
+// Session-based authHeaders: leftover X-Session is still sent so an open desk
+// with only a session works. A leftover pin is not read or sent when a session
+// is present. Replaces the older source guard that required X-Pin to travel
+// with X-Session. A session-less leftover pin is still sent as X-Pin.
+(function checkAuthHeaders() {
+  const vm = require("vm");
+  const from = switchSrc.indexOf("function authHeaders");
+  const to = switchSrc.indexOf("function keepSession", from + 1);
+  const block = from >= 0 && to > from ? switchSrc.slice(from, to) : "";
+  if (!block) {
+    fail("AIADesks.authHeaders is missing");
+    return;
+  }
+  function run(store) {
+    const reads = [];
+    const ctx = {
+      Object: Object,
+      store: {
+        getItem: function (k) {
+          reads.push(k);
+          return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null;
+        }
+      }
+    };
+    vm.runInNewContext(block + "\nthis.__headers = authHeaders;", ctx);
+    return { h: ctx.__headers(), reads: reads };
+  }
+  const leftover = run({ aia_ws: "rivera-resale", aia_session: "sess-live", aia_pin: "4821" });
+  if (!(leftover.h["X-Session"] || leftover.h["x-session"])) {
+    fail("AIADesks.authHeaders must still send leftover X-Session on the open desk");
+  }
+  if (leftover.h["X-Pin"] || leftover.h["x-pin"] || leftover.reads.indexOf("aia_pin") >= 0) {
+    fail("AIADesks.authHeaders must not read or send a leftover pin when a session is present");
+  }
+  const pinOnly = run({ aia_ws: "rivera-resale", aia_pin: "4821" });
+  if (!(pinOnly.h["X-Pin"] || pinOnly.h["x-pin"])) {
+    fail("AIADesks.authHeaders must still send X-Pin when no session is present");
+  } else if (!process.exitCode) {
+    pass("AIADesks.authHeaders is session-based; leftover pin is not read or sent");
+  }
+})();
 
 const now = read("drop-now.js");
 const nowDeskAt = now.indexOf("function desk()");
