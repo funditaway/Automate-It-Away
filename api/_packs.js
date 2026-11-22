@@ -698,7 +698,7 @@ async function packHandler(req, res) {
       wanted: rows.filter(function (p) { return p.wanted; }),
       color: rows.filter(function (p) { return p.type === "cosmetic"; }),
       creator: rows.filter(function (p) { return !p.official && !p.wanted && p.type !== "cosmetic"; }),
-      grok: { on: deskDraft, note: deskDraft ? "Grok drafts in Creators Studio. Never Send." : "A Desk AI can't draft on this phone yet." },
+      grok: { on: deskDraft, note: deskDraft ? "Grok drafts in Creators Studio. Never Send." : "A Desk AI can't draft on this account yet." },
       studio: grokStudio(),
       never: ["send", "stop", "pay"],
       internet: net.statusOf()

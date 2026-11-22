@@ -61,6 +61,7 @@ const MOVED = [
   "api/_engine.js",
   "api/_job-mask.js",
   "api/_lib.js",
+  "api/_packs.js",
   "api/_plans.js",
   "api/connections.js",
   "api/health.js",

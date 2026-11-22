@@ -42,6 +42,8 @@ const DESK_KEY = "xai-owner-desk-key-0001";
 const SECRET = "owner-key-check-secret";
 const NOTE = "A Desk AI can't draft on this phone yet.";
 const ON_NOTE = "A Desk AI can draft.";
+const PACKS_NOTE = "A Desk AI can't draft on this account yet.";
+const OLD_PACKS_NOTE = "A Desk AI can't draft on this phone yet.";
 const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
 const OLD_SUGGEST_NOTE = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
 const LOCK_NOTE = "This desk can't save a key yet. Nothing was saved.";
@@ -276,7 +278,9 @@ async function main() {
   const listed = await call(packs, "GET", owner, {}, {});
   eq(listed.statusCode, 200, "packs list answers");
   eq(listed.body && listed.body.grok && listed.body.grok.on, false, "packs list is off without a desk key");
-  eq(listed.body && listed.body.grok && listed.body.grok.note, NOTE, "packs list uses the drafts-off note");
+  eq(listed.body && listed.body.grok && listed.body.grok.note, PACKS_NOTE, "packs list uses the drafts-off note");
+  if (JSON.stringify(listed.body || {}).indexOf(OLD_PACKS_NOTE) >= 0) fail("packs list still says the old on-this-phone note");
+  else pass("packs list old on-this-phone note is gone");
   if (JSON.stringify(listed.body && listed.body.grok || {}).indexOf("XAI_API_KEY") >= 0) fail("packs list still names XAI_API_KEY");
   else pass("packs list does not name XAI_API_KEY");
 
