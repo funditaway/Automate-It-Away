@@ -183,6 +183,16 @@
   <script src="aia-register-abi.js"></script>
   <script src="aia-tld.js"></script>
   <script src="aia-mail.js"></script>
+  <script>
+    try{localStorage.removeItem("aia_pin");}catch(e){}
+    try{
+      const desks=JSON.parse(localStorage.getItem("aia_desks")||"[]");
+      if(Array.isArray(desks)&&desks.some(function(d){return d&&("pin" in d);})){
+        desks.forEach(function(d){if(d) delete d.pin;});
+        localStorage.setItem("aia_desks",JSON.stringify(desks));
+      }
+    }catch(e){}
+  </script>
   <script src="account-settings.js"></script>
   <script src="account-connections.js"></script>
   <script src="account-follow.js"></script>
