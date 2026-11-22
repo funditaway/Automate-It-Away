@@ -1,5 +1,5 @@
 // My account settings for one person: GET /api/account?settings=1 and
-// POST /api/account { action: "settings" | "secret-set" | "secret-remove" }.
+// POST /api/account { action: "settings" | "secret-set" | "secret-remove" | "backup-codes" }.
 // Also DELETE /api/account?secret=NAME.
 // Connections and setup cards (connections, connect, connection-secret, disconnect,
 // setup-cards, setup-card, setup-step) live in _account-connect.js and use this
@@ -32,7 +32,18 @@ const REACH = ["call", "text", "email"];
 const STOP_KEYS = ["money", "deletes", "messageNew"];
 const STOP_WORDS = { money: "money", deletes: "deletes", messageNew: "messaging someone new" };
 const PROFILE_LIMITS = { name: 80, phone: 32, city: 60, state: 40, timezone: 60, hours: 80, note: 240, email: 120 };
-const ACTIONS = ["settings", "secret-set", "secret-remove", "automation-step"];
+const ACTIONS = ["settings", "secret-set", "secret-remove", "automation-step", "backup-codes"];
+// Backup codes: 10 one-time codes for the account owner's own account.
+// Only a salted scrypt hash of each code is stored. The plain codes are in the
+// one reply that makes them and nowhere else: not the store, history, or log.
+// Making new codes replaces the whole set, so every old code stops working.
+// useBackupCode checks a code with a constant-time compare and marks it used.
+// No sign-in step calls it yet; that waits on the two-factor server step.
+const BACKUP_COUNT = 10;
+const BACKUP_LEN = 10;
+const BACKUP_CHARS = "abcdefghjkmnpqrstuvwxyz23456789";
+const BACKUP_TAG = "scrypt1";
+const BACKUP_N = 16384;
 // Account kinds. A legacy account with no kind field reads as human; any
 // other stored value that is not human, ai, or si reads as ai (locked side).
 const ACCOUNT_KINDS = ["human", "ai", "si"];
@@ -256,6 +267,56 @@ function publicSecrets(acc) {
     .map((s) => ({ name: s.name, set: true, updatedAt: s.updatedAt || s.createdAt || "" }));
 }
 
+function backupHash(code, salt) {
+  return crypto.scryptSync(String(code), salt, 32, { N: BACKUP_N, r: 8, p: 1 });
+}
+
+function backupPlain(code) {
+  const c = str(code).toLowerCase().replace(/[\s-]+/g, "");
+  if (c.length !== BACKUP_LEN) return "";
+  for (let i = 0; i < c.length; i++) if (BACKUP_CHARS.indexOf(c[i]) < 0) return "";
+  return c;
+}
+
+// Replaces the account's whole set. Returns the plain codes for the one reply.
+function makeBackupCodes(acc) {
+  const plainCodes = [];
+  const rows = [];
+  for (let i = 0; i < BACKUP_COUNT; i++) {
+    let c = "";
+    for (let j = 0; j < BACKUP_LEN; j++) c += BACKUP_CHARS[crypto.randomInt(BACKUP_CHARS.length)];
+    const salt = crypto.randomBytes(16);
+    rows.push({ tag: BACKUP_TAG, salt: salt.toString("hex"), hash: backupHash(c, salt).toString("hex"), usedAt: "" });
+    plainCodes.push(c.slice(0, 5) + "-" + c.slice(5));
+  }
+  acc.backupCodes = { madeAt: new Date().toISOString(), codes: rows };
+  return plainCodes;
+}
+
+// True once per code. Every unused code is compared (no early exit), each with
+// crypto.timingSafeEqual. A used, unknown, or badly formed code is false.
+function useBackupCode(acc, code) {
+  const c = backupPlain(code);
+  const set = acc && acc.backupCodes && Array.isArray(acc.backupCodes.codes) ? acc.backupCodes.codes : [];
+  let hit = null;
+  for (let i = 0; i < set.length; i++) {
+    const row = set[i];
+    if (!row || row.tag !== BACKUP_TAG || row.usedAt || typeof row.salt !== "string" || typeof row.hash !== "string") continue;
+    const want = Buffer.from(row.hash, "hex");
+    const got = backupHash(c || "-", Buffer.from(row.salt, "hex"));
+    if (want.length === got.length && crypto.timingSafeEqual(want, got) && c && !hit) hit = row;
+  }
+  if (!hit) return false;
+  hit.usedAt = new Date().toISOString();
+  return true;
+}
+
+function publicBackupCodes(acc) {
+  const b = acc && acc.backupCodes;
+  const set = b && Array.isArray(b.codes) ? b.codes : [];
+  return { made: set.length > 0, madeAt: (b && b.madeAt) || "", left: set.filter((r) => r && !r.usedAt).length, total: set.length };
+}
+
 function ownedDesks(acc) {
   const slugs = acc.desks || [];
   return (lib.mem.workspaces || []).filter((w) => w && (slugs.indexOf(w.slug) >= 0 || (w.accountId && w.accountId === acc.id)));
@@ -375,6 +436,7 @@ function settingsReply(acc, person) {
       automations: automationSection(acc),
       look: { available: true, theme: THEMES.indexOf(s.look.theme) >= 0 ? s.look.theme : "system", themes: THEMES.slice() },
       secrets: { available: !!secretKey(), items: publicSecrets(acc), max: SECRET_MAX },
+      backupCodes: publicBackupCodes(acc),
       connections: { available: true, items: require("./_account-connect").publicConnections(acc), setupCards: Array.isArray(acc.setupCards) ? acc.setupCards.length : 0, note: "Saved here only. AIA does not sign in to these services." },
       history: historyView(acc).slice(0, HISTORY_SHOW).map((h) => Object.assign({ at: h.at, who: h.who, section: h.section, what: h.what }, h.whoKind ? { whoKind: h.whoKind } : {}, h.ref ? { ref: h.ref } : {}))
     }
@@ -702,6 +764,17 @@ async function handle(req, res) {
     return res.status(200).json({ ok: true, secret: { name: name, set: true, updatedAt: at }, secrets: publicSecrets(acc), hint: "Saved. It will not be shown again." }), true;
   }
 
+  if (action === "backup-codes") {
+    const extra = onlyKeys(body, ["action"].concat(ID_FIELDS));
+    if (extra) return refuse(res, 400, "Not a backup code field: " + plain(extra.join(", "), 80)), true;
+    if (!lib.isOwner(person)) return refuse(res, 403, "Only the account owner can make backup codes. Nothing was saved."), true;
+    const codes = makeBackupCodes(acc);
+    addHistory(acc, person, "backup-codes", "You made new backup codes.", whoKind);
+    lib.log("Account", "Backup codes made", "OK", seat.row.slug);
+    await lib.save();
+    return res.status(200).json({ ok: true, codes: codes, backupCodes: publicBackupCodes(acc), hint: "Here are 10 backup codes. Each one works once. They are not shown again. Making new codes stops these from working." }), true;
+  }
+
   if (action === "secret-remove") {
     const q = req.query || {};
     const name = str(req.method === "DELETE" ? q.secret || q.name : body.name).trim();
@@ -778,4 +851,4 @@ async function handle(req, res) {
   return res.status(200).json(reply), true;
 }
 
-module.exports = { handle, ownSeat, plainBody, BODY_NOT_PLAIN, askedOther, ownedDesks, addHistory, seal, secretKey, SECRET_NAME, SECRET_VALUE_MAX, SELF_LOCK, selfLocked, humanOwnerTarget, ID_FIELDS, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };
+module.exports = { handle, useBackupCode, ownSeat, plainBody, BODY_NOT_PLAIN, askedOther, ownedDesks, addHistory, seal, secretKey, SECRET_NAME, SECRET_VALUE_MAX, SELF_LOCK, selfLocked, humanOwnerTarget, ID_FIELDS, plain, publicSecrets, openSecret, accountKindFrom, kindOf, actorKind, stampWho, needsPause, automationStep, SECRET_ENV, STOP_KEYS, THEMES, ACCOUNT_KINDS, PAUSE_STEPS };
