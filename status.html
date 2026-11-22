@@ -14,16 +14,28 @@
   </script>
   <link rel="stylesheet" href="theme.css?v=20261008b"><link rel="stylesheet" href="/phone-clear.css">
   <style>
-    body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#07090c;color:#f4f7fa}
-    a{color:#fff;text-decoration:none}
-    header{padding:14px 5vw;border-bottom:1px solid #243040}
-    .wrap{width:min(640px,92vw);margin:0 auto;padding:28px 0}
-    .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #243040;gap:12px}
-    .up{color:#3dd68c}.down{color:#ff6b4a}.hold{color:#8b9aab}html:not(.dark) .hold{color:#56636f}
+    body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:var(--bg);color:var(--ink)}
+    a{color:var(--teal);text-decoration:none}
+    header a{color:#fff}
+    header{padding:14px 5vw;border-bottom:1px solid transparent}
+    .wrap{width:min(640px,92vw);margin:0 auto;padding:28px 0 48px}
+    .row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px 16px;padding:12px 0;border-bottom:1px solid var(--line)}
+    .row span:first-child{font-weight:700;color:var(--heading);flex:1 1 9rem}
+    .row span:last-child{text-align:right;flex:1 1 12rem;min-width:0;line-height:1.35}
+    .up{color:#0a5c45;font-weight:800}
+    html.dark .up{color:#3dd68c}
+    .down{color:#b42318;font-weight:800}
+    html.dark .down{color:#ff8f73}
+    .hold{color:#3e4c59;font-weight:700}
+    html.dark .hold{color:#c5d0d4}
+    @media (max-width:520px){
+      .row{flex-direction:column;gap:4px}
+      .row span:last-child{text-align:left}
+    }
   </style>
 </head>
 <body>
-  <header><a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a> · Status <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
+  <header><a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a><button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button></header>
   <main class="wrap">
     <h1>automateitaway.com</h1>
     <div class="row"><span>Site</span><span class="up">Up</span></div>
