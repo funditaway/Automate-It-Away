@@ -19,7 +19,12 @@ const params = new URLSearchParams(location.search);
     function headers() {
       const h = { "Content-Type": "application/json" };
       if (ws) h["X-Workspace"] = ws;
-      if (pin) h["X-Pin"] = pin;
+      const authWs = localStorage.getItem("aia_ws") || "";
+      const same = !!(ws && authWs && ws === authWs);
+      if (same) {
+        const pin = localStorage.getItem("aia_pin") || "";
+        if (pin) h["X-Pin"] = pin;
+      }
       return h;
     }
     function showMode(next) {
