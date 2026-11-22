@@ -44,7 +44,7 @@ const DRAFT_OLD = [
   "  return null;",
   "}"
 ].join("\n");
-const SAVE_NOW = "      const keyPacked = wrapSecret(key);\n      if (!keyPacked) return refuse(res, 409, \"keyLocked\", { reason: \"needsConnectSecret\" });\n";
+const SAVE_NOW = "      const keyPacked = wrapSecret(key);\n      if (!keyPacked) return refuse(res, 409, \"keyLocked\", { reason: \"needsConnectSecret\", note: \"This desk can't save a key yet. Nothing was saved.\" });\n";
 const SAVE_OLD = "      const keyPacked = wrapSecret(key);\n";
 
 const MUTANTS = [
